@@ -226,4 +226,6 @@
 | 2026-09-29 | [图标组合切换设计:5 套可切换界面图标(现状/实心/换隐喻/Lucide 双套 + morphicons 弹簧变形;DecorIcon fallback 接管 13 渲染位)](superpowers/specs/2026-09-29-icon-set-switching-design.md) | 已实现(门禁绿 + 1421 桩目检过;真机复验留大仙) |
 | 2026-09-29 | [后台「等待确认」不可见/前台迟滞/改窗口即消失:镜像几何失真评审与 v3.2 修复(栅格对齐真实 PTY + 全屏采样 + 250ms 节拍)](review/2026-09-29-ask-badge-geometry-reliability-review.md) | 已完成(真实日志回放实证;真机目检留大仙) |
 | 2026-09-29 | [0.2.5 发布整体评审(终端域性能/边界/兼容性专项 + 死代码清理执行 + 安装包体审计)](review/2026-09-29-025-release-review.md) | 已完成(P1 slug 注入建议 0.2.6 首项;死代码 13 文件已清;包体优化 9 条清单) |
+| 2026-09-29 | [每日工作日志原型(定稿候选):年/月/轴三视图 + 每日一篇 AI 汇总文章(增量并入留痕)+ 每日便签(任选日手写,空日可写)+ 节假日关联(联网,断网保底周末底纹)](design/daily-journal-n4-merged.html) | 设计探索(定稿候选) |
+| 2026-09-29 | [每日工作日志设计 spec:年/月/轴三视图 + 每日一篇 AI 汇总文章(生成会话直写 md)+ 便签独立落盘 + 后台任务队列 + 节假日缓存保底](superpowers/specs/2026-09-29-daily-journal-design.md) | 已实现(B1-B5 五批,门禁全绿 + 1421 桩目检;真机目检留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

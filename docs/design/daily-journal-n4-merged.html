@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日工作日志 · 设计原型(定稿候选):年/月/轴三视图 + 每日一篇汇总文章 + 每日便签 + 节假日 + 后台生成与会话干涉</title>
+<style>
+  :root {
+    --bg-base: #ffffff; --bg-elevated: #f8f8f8; --bg-hover: #f2f2f2; --bg-active: rgba(0,95,184,.14);
+    --fg: #3b3b3b; --fg-muted: #7e7e7e; --fg-subtle: #999999; --fg-faint: #c0c0c0;
+    --border: #cecece; --border-strong: #b1b1b1;
+    --accent: #005fb8; --accent-fg: #ffffff; --accent-soft: rgba(0,95,184,.14);
+    --ok: #059669; --warn: #a16207; --err: #dc2626; --orange: rgb(255,140,60);
+    --hol: #c0392b; --hol-soft: rgba(192,57,43,.09);
+    --note: #b45309; --note-soft: rgba(180,83,9,.07);
+    --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #ececec; color: var(--fg); font: 12px/1.55 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; padding: 28px 20px 60px; }
+  .page { max-width: 1500px; margin: 0 auto; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .lede { color: var(--fg-muted); margin-bottom: 18px; max-width: 1180px; }
+  .lede b { color: var(--fg); }
+  svg { display: block; }
+
+  /* ── 窗口壳 ── */
+  .window { border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg-base); box-shadow: 0 8px 28px rgba(0,0,0,.08); position: relative; }
+  .titlebar { height: 33px; display: flex; align-items: center; gap: 12px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); padding: 0 10px 0 12px; }
+  .lights { display: flex; gap: 8px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .tb-app { font-weight: 700; color: var(--fg-muted); font-size: 12px; }
+  .tabs { display: flex; gap: 4px; align-self: flex-end; height: 100%; align-items: flex-end; margin-left: auto; }
+  .tab { display: flex; align-items: center; gap: 6px; height: 27px; padding: 0 12px; font-size: 12px; color: var(--fg-muted); border-radius: 6px 6px 0 0; }
+  .tab.on { background: var(--bg-base); color: var(--fg); border: 1px solid var(--border); border-bottom-color: var(--bg-base); }
+  .tab svg { color: var(--orange); }
+  .tab .x { color: var(--fg-faint); }
+
+  .body { display: flex; height: 900px; }
+  .sidebar { flex: none; width: 218px; background: var(--bg-elevated); border-right: 1px solid var(--border); padding: 10px 8px; display: flex; flex-direction: column; gap: 8px; }
+  .sb-search { border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-base); color: var(--fg-faint); padding: 4px 8px; font: inherit; }
+  .sb-label { font-size: 10px; color: var(--fg-faint); padding: 4px 6px 0; }
+  .ws-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: var(--r-sm); color: var(--fg-muted); cursor: pointer; }
+  .ws-row.on { background: var(--bg-active); color: var(--fg); font-weight: 600; }
+  .ws-row i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .sb-sess { padding: 3px 8px 3px 20px; color: var(--fg-subtle); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: var(--r-sm); }
+  .sb-sess b { font-weight: 400; }
+
+  .rail { flex: none; width: 30px; border-left: 1px solid var(--border); background: var(--bg-elevated); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; }
+  .rail button { width: 26px; height: 26px; border: 0; border-radius: 9px; background: transparent; color: var(--fg-subtle); display: grid; place-items: center; cursor: pointer; }
+  .rail button:hover { background: var(--bg-hover); color: var(--fg); }
+  .rail button.on { color: var(--orange); }
+  .rail .sep { width: 16px; height: 1px; background: var(--border); margin: 3px 0; }
+  .rail .spring { flex: 1; }
+
+  /* ── 工具条 ── */
+  .content { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg-base); }
+  .toolbar { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .seg { display: inline-flex; background: var(--bg-base); border: 1px solid var(--border); border-radius: var(--r-md); padding: 2px; gap: 2px; }
+  .seg button { border: 0; background: transparent; border-radius: var(--r-sm); padding: 2px 10px; font: inherit; font-size: 11px; color: var(--fg-muted); cursor: pointer; }
+  .seg button.on { background: var(--bg-active); color: var(--accent); font-weight: 600; }
+  .mnav { display: flex; align-items: center; gap: 6px; }
+  .mnav .m { font-size: 14px; font-weight: 700; font-family: var(--mono); min-width: 96px; text-align: center; }
+  .btn { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border: 1px solid var(--border); background: var(--bg-base); border-radius: var(--r-sm); cursor: pointer; color: var(--fg-muted); font: inherit; font-size: 11px; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .btn.primary:hover { filter: brightness(1.08); color: var(--accent-fg); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn .spin { animation: rot 1s linear infinite; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 1px 9px; font-size: 10px; line-height: 17px; border: 1px solid var(--border); color: var(--fg-muted); }
+  .pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 30%, #fff); background: color-mix(in srgb, var(--warn) 7%, #fff); }
+  .pill.live { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 25%, #fff); background: var(--accent-soft); }
+  .pill i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: pulse 1.6s infinite; }
+  .pill.hol { cursor: pointer; }
+  .pill.hol.on { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 25%, #fff); background: color-mix(in srgb, var(--ok) 6%, #fff); }
+  .pill.hol.on i { animation: none; }
+  .hud { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .legend { display: flex; align-items: center; gap: 3px; font-size: 9px; color: var(--fg-faint); }
+  .legend i { width: 10px; height: 10px; border-radius: 2.5px; }
+
+  /* ── 年视图 ── */
+  .stage { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; }
+  .year-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .ymonth { border: 1px solid var(--border); border-radius: var(--r-md); padding: 8px 10px 9px; cursor: pointer; background: var(--bg-base); transition: border-color .12s; }
+  .ymonth:hover { border-color: var(--border-strong); }
+  .ymonth.cur { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .ymonth h3 { font-size: 12px; font-weight: 700; display: flex; align-items: baseline; gap: 6px; }
+  .ymonth h3 .n { font-size: 9px; color: var(--fg-faint); font-family: var(--mono); font-weight: 400; }
+  .ycal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 6px; }
+  .ycal span { aspect-ratio: 1; border-radius: 2.5px; background: var(--bg-elevated); }
+  .ycal span.we { background: color-mix(in srgb, var(--fg-faint) 12%, var(--bg-elevated)); }
+  .ycal span.hol { background: var(--hol); outline: 1px solid color-mix(in srgb, var(--hol) 30%, #fff); }
+  .ycal span.g { background: color-mix(in srgb, var(--ok) 45%, var(--bg-elevated)); }
+  .ycal span.h2 { background: color-mix(in srgb, var(--ok) 62%, var(--bg-elevated)); }
+  .ycal span.h3 { background: color-mix(in srgb, var(--ok) 80%, var(--bg-elevated)); }
+  .ycal span.p { background: color-mix(in srgb, var(--warn) 55%, #fff); }
+  .ycal span.f { background: color-mix(in srgb, var(--err) 55%, #fff); }
+  .ycal span.t { background: var(--accent); outline: 1.5px solid color-mix(in srgb, var(--accent) 35%, #fff); }
+  .ycal span.note { box-shadow: inset 0 0 0 1.5px var(--note); }
+  .ymonth .stat { margin-top: 7px; font-size: 9.5px; color: var(--fg-faint); font-family: var(--mono); }
+
+  /* ── 月视图 ── */
+  .dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 0 14px 4px; }
+  .dow div { text-align: center; font-size: 10px; color: var(--fg-faint); padding: 3px 0; }
+  .dow div.we { color: var(--hol); }
+  .mgrid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(128px, 1fr); gap: 3px; padding: 0 14px 14px; }
+  .dcell { position: relative; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 5px 6px 4px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; overflow: hidden; background: var(--bg-base); }
+  .dcell:hover { border-color: var(--border-strong); box-shadow: 0 1px 5px rgba(0,0,0,.06); }
+  .dcell.out { opacity: .35; background: var(--bg-elevated); pointer-events: none; }
+  .dcell.empty { background: var(--bg-elevated); }
+  .dcell.h1 { background: color-mix(in srgb, var(--accent) 4%, var(--bg-base)); }
+  .dcell.h2 { background: color-mix(in srgb, var(--accent) 9%, var(--bg-base)); }
+  .dcell.h3 { background: color-mix(in srgb, var(--accent) 15%, var(--bg-base)); }
+  .dcell.h4 { background: color-mix(in srgb, var(--accent) 22%, var(--bg-base)); }
+  .dcell.we { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(0,0,0,.028) 5px 7px); }
+  .dcell.pending { border-style: dashed; border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+  .dcell.today { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .dcell.hasnote { border-color: color-mix(in srgb, var(--note) 45%, var(--border)); }
+  .dc-top { display: flex; align-items: center; gap: 4px; }
+  .dc-top .dn { font-size: 11px; font-weight: 700; font-family: var(--mono); color: var(--fg-muted); }
+  .dcell.we .dn { color: var(--hol); }
+  .dcell.today .dn { color: var(--accent); }
+  .notemark { font-size: 9px; color: var(--note); display: inline-flex; align-items: center; }
+  .holmini { font-size: 8px; color: var(--hol); background: var(--hol-soft); border-radius: 3px; padding: 0 3px; line-height: 12px; white-space: nowrap; }
+  .badge { font-size: 8.5px; border-radius: 3px; padding: 0 4px; line-height: 13px; font-weight: 600; }
+  .badge.t { color: var(--accent); background: var(--accent-soft); }
+  .badge.p { color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, #fff); }
+  .badge.f { color: var(--err); background: color-mix(in srgb, var(--err) 10%, #fff); }
+  .dc-top .s { margin-left: auto; font-size: 8.5px; color: var(--fg-faint); font-family: var(--mono); }
+  .dc-head { font-size: 10.5px; font-weight: 700; color: var(--fg); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dc-lede { font-size: 9.5px; color: var(--fg-muted); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dc-note { font-size: 9px; color: var(--note); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dc-engs { margin-top: auto; display: flex; align-items: center; gap: 3px; }
+  .dc-engs i { width: 5px; height: 5px; border-radius: 50%; }
+  .dc-engs .tk { margin-left: auto; font-size: 8.5px; color: var(--fg-faint); font-family: var(--mono); }
+  .sbar { height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 45%, var(--bg-base)); align-self: stretch; margin-top: 2px; }
+  .dcell .genbtn { position: absolute; inset: 0; display: none; place-items: center; background: color-mix(in srgb, #fff 82%, transparent); border-radius: var(--r-sm); z-index: 2; }
+  .dcell.pending:hover .genbtn { display: grid; }
+
+  /* ── 便签(用户手写笔记,任意日可写,与 AI 文章并列)── */
+  .notecard { border: 1px solid color-mix(in srgb, var(--note) 35%, var(--border)); background: var(--note-soft); border-radius: var(--r-md); margin: 8px 0; overflow: hidden; }
+  .nc-head { display: flex; align-items: center; gap: 7px; padding: 7px 11px 5px; color: var(--note); font-size: 11px; font-weight: 700; }
+  .nc-head svg { flex: none; }
+  .nc-head .when { font-size: 9px; color: var(--fg-faint); font-family: var(--mono); font-weight: 400; }
+  .nc-head .acts { margin-left: auto; display: flex; gap: 5px; }
+  .nc-text { padding: 0 11px 9px; font-size: 11.5px; color: var(--fg); white-space: pre-wrap; line-height: 1.6; }
+  .nc-editbox { padding: 0 11px 9px; }
+  .nc-edit { width: 100%; min-height: 96px; border: 1px solid var(--accent); border-radius: var(--r-sm); background: var(--bg-base); padding: 7px 9px; font: inherit; font-size: 11.5px; line-height: 1.6; color: var(--fg); resize: vertical; outline: none; }
+  .nc-foot { display: flex; align-items: center; gap: 8px; padding: 0 11px 9px; font-size: 10px; color: var(--fg-faint); }
+  .nc-foot .acts { margin-left: auto; display: flex; gap: 6px; }
+  .nc-empty { display: flex; align-items: center; gap: 7px; padding: 9px 11px; color: var(--fg-subtle); font-size: 11px; cursor: pointer; }
+  .nc-empty:hover { color: var(--note); }
+  .nc-empty svg { color: var(--note); }
+
+  /* ── 轴视图 ── */
+  .minibar { flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-bottom: 1px solid var(--border); background: var(--bg-elevated); }
+  .mb-title { font-size: 12px; font-weight: 700; font-family: var(--mono); }
+  .mb-strip { display: flex; gap: 2px; }
+  .mb-strip span { width: 13px; height: 15px; border-radius: 3px; background: var(--bg-base); border: 1px solid var(--border); cursor: pointer; }
+  .mb-strip span.we { border-color: color-mix(in srgb, var(--hol) 35%, var(--border)); }
+  .mb-strip span.hol { background: var(--hol); border-color: var(--hol); }
+  .mb-strip span.g { background: color-mix(in srgb, var(--ok) 40%, var(--bg-base)); border-color: color-mix(in srgb, var(--ok) 35%, var(--border)); }
+  .mb-strip span.h2 { background: color-mix(in srgb, var(--ok) 62%, var(--bg-base)); }
+  .mb-strip span.h3 { background: color-mix(in srgb, var(--ok) 80%, var(--bg-base)); }
+  .mb-strip span.p { background: color-mix(in srgb, var(--warn) 35%, var(--bg-base)); border-style: dashed; }
+  .mb-strip span.f { background: color-mix(in srgb, var(--err) 45%, var(--bg-base)); }
+  .mb-strip span.t { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .mb-strip span.note { box-shadow: inset 0 0 0 1.5px var(--note); }
+  .mb-strip span:hover { transform: translateY(-1px); }
+  .mb-legend { display: flex; align-items: center; gap: 4px; font-size: 9px; color: var(--fg-faint); margin-left: 2px; }
+  .mb-live { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 25%, #fff); background: var(--accent-soft); border-radius: 999px; padding: 1px 9px; line-height: 17px; }
+  .mb-live i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: pulse 1.6s infinite; }
+
+  .flow { flex: 1; min-height: 0; overflow-y: auto; padding: 0 18px 20px; }
+  .mhead { position: sticky; top: 0; z-index: 8; display: flex; align-items: center; gap: 10px; background: color-mix(in srgb, #fff 88%, transparent); backdrop-filter: blur(4px); border-bottom: 1px solid var(--border); padding: 9px 2px 7px; margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
+  .mhead .mt { font-size: 14px; font-weight: 700; font-family: var(--mono); }
+  .mhead .ms { font-size: 10px; color: var(--fg-faint); font-family: var(--mono); }
+  .mhead .acts { margin-left: auto; display: flex; gap: 6px; }
+  .btn.ghost { border-style: dashed; color: var(--fg-subtle); }
+
+  .day { display: grid; grid-template-columns: 44px 1fr; }
+  .spine { position: relative; }
+  .spine::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--border); }
+  .node { position: absolute; left: 50%; transform: translateX(-50%); width: 26px; height: 26px; border-radius: 50%; background: var(--bg-base); border: 2px solid var(--ok); display: grid; place-items: center; font-size: 10px; font-weight: 700; font-family: var(--mono); color: var(--fg-muted); z-index: 2; }
+  .node.hol { border-color: var(--hol); color: var(--hol); }
+  .node.t { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .node.p { border-color: var(--warn); border-style: dashed; }
+  .node.f { border-color: var(--err); }
+  .node.n { border-color: var(--fg-faint); color: var(--fg-faint); }
+  .node.nn { border-color: var(--note); color: var(--note); }
+  .beads { position: absolute; left: 50%; top: 34px; bottom: 6px; transform: translateX(-50%); display: flex; flex-direction: column; z-index: 1; }
+  .bead { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--bg-base); border: 2px solid var(--ok); margin: 10px 0; cursor: pointer; }
+  .bead:hover { border-color: var(--accent); }
+  .bead .tip { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); white-space: nowrap; background: var(--fg); color: #fff; font-size: 10px; border-radius: 5px; padding: 2px 8px; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 9; }
+  .bead:hover .tip { opacity: 1; }
+  .gap { height: 26px; display: flex; align-items: center; gap: 8px; margin-left: 10px; color: var(--fg-faint); font-size: 10px; }
+  .gap::before { content: "…"; letter-spacing: 2px; color: var(--fg-faint); }
+  .gap .gline { flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--border) 0 5px, transparent 5px 10px); }
+
+  /* ── 日文章卡 ── */
+  .card { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-base); margin: 6px 0 12px 10px; overflow: hidden; }
+  .card.folded { background: var(--bg-elevated); }
+  .card.today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft); }
+  .c-head { display: flex; align-items: center; gap: 9px; padding: 9px 13px; cursor: pointer; user-select: none; flex-wrap: wrap; }
+  .c-head:hover { background: var(--bg-hover); }
+  .c-date { font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .c-date .wd { font-size: 10px; color: var(--fg-faint); font-weight: 400; margin-left: 3px; }
+  .c-date.hol .wd { color: var(--hol); }
+  .holchip { display: inline-flex; align-items: center; font-size: 9px; color: var(--hol); background: var(--hol-soft); border-radius: 3px; padding: 0 5px; line-height: 14px; white-space: nowrap; }
+  .c-headline { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 0 8px; font-size: 9.5px; line-height: 16px; white-space: nowrap; }
+  .chip.g { color: var(--ok); background: color-mix(in srgb, var(--ok) 8%, #fff); border: 1px solid color-mix(in srgb, var(--ok) 20%, #fff); }
+  .chip.t { color: var(--accent); background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 25%, #fff); }
+  .chip.p { color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, #fff); border: 1px solid color-mix(in srgb, var(--warn) 22%, #fff); }
+  .chip.f { color: var(--err); background: color-mix(in srgb, var(--err) 8%, #fff); border: 1px solid color-mix(in srgb, var(--err) 22%, #fff); }
+  .chip i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .chip.t i { animation: pulse 1.6s infinite; }
+  .c-meta { font-size: 10px; color: var(--fg-faint); font-family: var(--mono); white-space: nowrap; }
+  .c-fold { margin-left: auto; color: var(--fg-faint); font-size: 9px; transition: transform .15s; flex: none; }
+  .card.folded .c-fold { transform: rotate(-90deg); }
+  .c-peek { font-size: 10px; color: var(--fg-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30%; flex: 1; }
+  .c-body { border-top: 1px solid var(--border); padding: 2px 13px 0; }
+  .card.folded .c-body, .card.folded .c-foot { display: none; }
+  .card.folded .notecard { display: none; }
+  .c-notepeek { font-size: 9.5px; color: var(--note); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22%; flex: 1; }
+
+  /* 文章本体 */
+  .art-lede { color: var(--fg); margin: 8px 0 4px; font-size: 12px; }
+  .art-lede::before { content: "总览"; display: block; font-size: 9px; color: var(--fg-faint); font-weight: 600; letter-spacing: 1px; margin-bottom: 2px; }
+  .asec { border-left: 2px solid var(--border); padding: 6px 0 6px 11px; margin: 7px 0; }
+  .asec.inc { border-left-color: color-mix(in srgb, var(--ok) 55%, var(--border)); }
+  .asec.live { border-left-color: color-mix(in srgb, var(--ok) 60%, var(--border)); }
+  .asec-top { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .asec-t { font-size: 12px; font-weight: 700; }
+  .asec-time { font-size: 9.5px; color: var(--fg-faint); font-family: var(--mono); }
+  .incb { font-size: 8.5px; color: var(--ok); background: color-mix(in srgb, var(--ok) 9%, #fff); border: 1px solid color-mix(in srgb, var(--ok) 22%, #fff); border-radius: 999px; padding: 0 6px; line-height: 14px; }
+  .liveb { display: inline-flex; align-items: center; gap: 4px; font-size: 8.5px; color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 25%, #fff); border-radius: 999px; padding: 0 6px; line-height: 14px; }
+  .liveb i { width: 4px; height: 4px; border-radius: 50%; background: var(--ok); animation: pulse 1.4s infinite; }
+  .asec p { color: var(--fg-muted); margin: 3px 0 5px; }
+  .sess-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .sc { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border); border-radius: 999px; padding: 0 8px 0 7px; font-size: 9.5px; color: var(--fg-muted); cursor: pointer; line-height: 16px; }
+  .sc:hover { border-color: var(--accent); color: var(--accent); }
+  .sc i { width: 5px; height: 5px; border-radius: 50%; background: var(--ec); }
+  .sc .dur { color: var(--fg-faint); font-family: var(--mono); }
+  .open { border: 1px dashed var(--border-strong); border-radius: var(--r-sm); padding: 6px 10px; margin: 8px 0 4px; background: var(--bg-elevated); }
+  .open h4 { font-size: 10px; color: var(--fg-muted); display: flex; align-items: center; gap: 6px; }
+  .open ul { margin: 3px 0 2px 16px; }
+  .open li { font-size: 10.5px; color: var(--fg-muted); margin: 2px 0; }
+  .c-foot { display: flex; align-items: center; gap: 10px; padding: 6px 13px 9px; font-size: 10px; color: var(--fg-faint); }
+  .c-foot .acts { margin-left: auto; display: flex; gap: 6px; }
+
+  /* ── 浮层文章卡 ── */
+  .mask { position: absolute; inset: 0; background: rgba(0,0,0,.24); display: none; align-items: center; justify-content: center; z-index: 30; }
+  .mask.open { display: flex; }
+  .modal { width: 640px; max-height: 92%; background: var(--bg-base); border: 1px solid var(--border-strong); border-radius: var(--r-lg); box-shadow: 0 12px 36px rgba(0,0,0,.16); display: flex; flex-direction: column; overflow: hidden; }
+  .m-head { flex: none; display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--border); }
+  .m-day { font-size: 20px; font-weight: 700; font-family: var(--mono); line-height: 1; }
+  .m-hl { font-size: 13px; font-weight: 700; }
+  .m-sub { font-size: 10px; color: var(--fg-faint); font-family: var(--mono); }
+  .m-head .x { margin-left: auto; cursor: pointer; color: var(--fg-faint); border: 0; background: none; font-size: 14px; }
+  .m-body { padding: 2px 16px 8px; overflow-y: auto; }
+  .growstrip { flex: none; display: flex; align-items: center; padding: 8px 16px; border-top: 1px solid var(--border); background: var(--bg-elevated); font-size: 10px; color: var(--fg-muted); gap: 8px; }
+  .growstrip .line { flex: 1; position: relative; height: 2px; background: var(--border); border-radius: 1px; margin: 0 4px; }
+  .gbead { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 8px; height: 8px; border-radius: 50%; background: var(--bg-base); border: 2px solid var(--ok); cursor: pointer; }
+  .gbead:hover { border-color: var(--accent); }
+  .gbead.live { border-color: var(--accent); animation: pulse 1.6s infinite; }
+  .gbead .tip { position: absolute; bottom: 13px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: var(--fg); color: #fff; font-size: 10px; border-radius: 5px; padding: 2px 8px; opacity: 0; pointer-events: none; transition: opacity .15s; z-index: 5; }
+  .gbead:hover .tip { opacity: 1; }
+  .growstrip .acts { display: flex; gap: 6px; }
+
+  /* ── 设置弹层 ── */
+  .modal.cfg { width: 460px; }
+  .c2-head { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 700; }
+  .c2-head .x { margin-left: auto; cursor: pointer; color: var(--fg-faint); border: 0; background: none; font-size: 14px; }
+  .c2-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 13px; overflow-y: auto; max-height: 540px; }
+  .frow { display: flex; flex-direction: column; gap: 5px; }
+  .frow > label { font-size: 11px; font-weight: 600; color: var(--fg-muted); }
+  .frow .hint { font-size: 10px; color: var(--fg-faint); }
+  .timebox { display: flex; align-items: center; gap: 8px; }
+  .tinput { width: 74px; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 4px 8px; font: inherit; font-family: var(--mono); font-size: 12px; }
+  .switch { position: relative; width: 32px; height: 18px; border-radius: 999px; background: var(--border-strong); cursor: pointer; transition: background .15s; border: 0; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { left: 16px; }
+  .seg.eng button.on { background: color-mix(in srgb, var(--ec) 14%, var(--bg-base)); }
+  .holrow { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--fg-muted); }
+  .holstat { font-size: 10px; font-family: var(--mono); }
+
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 14px); background: var(--fg); color: #fff; font-size: 12px; border-radius: var(--r-md); padding: 7px 14px; opacity: 0; pointer-events: none; transition: all .22s; z-index: 60; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ── 文章详情页(文件 tab 形态)── */
+  #detailPane { position: absolute; inset: 33px 0 0 0; background: var(--bg-base); display: none; flex-direction: column; z-index: 20; }
+  #detailPane.open { display: flex; }
+  .dt-bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--border); background: var(--bg-elevated); flex-wrap: wrap; }
+  .dt-back { display: inline-flex; align-items: center; gap: 5px; }
+  .dt-date { font-size: 14px; font-weight: 700; font-family: var(--mono); }
+  .dt-sub { font-size: 10px; color: var(--fg-faint); font-family: var(--mono); }
+  .dt-page { max-width: 860px; margin: 0 auto; width: 100%; padding: 18px 24px 40px; }
+  .dt-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+  .dt-title { font-size: 17px; font-weight: 700; line-height: 1.4; margin: 4px 0 2px; }
+  .dt-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--fg-faint); font-size: 10px; font-family: var(--mono); margin-bottom: 6px; }
+  .dt-art .asec { margin: 10px 0; padding: 8px 0 8px 13px; }
+  .dt-art .asec-t { font-size: 13px; }
+  .dt-art .asec p { font-size: 12px; line-height: 1.7; }
+  .dt-art .art-lede { font-size: 12.5px; line-height: 1.7; margin: 10px 0 6px; }
+  .dt-grow { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 10px; color: var(--fg-muted); }
+  .dt-grow .line { flex: 1; position: relative; height: 2px; background: var(--border); border-radius: 1px; margin: 0 4px; }
+
+  /* ── 便签图片(⌘V 粘贴)── */
+  .nc-imgs { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 11px 9px; }
+  .nc-imgs.empty { display: none; }
+  .nc-img { position: relative; width: 84px; height: 56px; border-radius: var(--r-sm); border: 1px solid var(--border); overflow: hidden; cursor: zoom-in; background: #1e1e2e; }
+  .nc-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .nc-img .del { position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 9px; display: none; place-items: center; cursor: pointer; }
+  .nc-img:hover .del { display: grid; }
+  .nc-img .cnt { position: absolute; left: 0; right: 0; bottom: 0; font-size: 8px; color: #fff; background: linear-gradient(transparent, rgba(0,0,0,.55)); padding: 6px 4px 2px; font-family: var(--mono); }
+  .nc-pastehint { display: flex; align-items: center; gap: 8px; padding: 0 11px 9px; font-size: 9.5px; color: var(--fg-faint); }
+  .nc-pastehint .demo { border: 1px dashed var(--border-strong); border-radius: 999px; background: none; color: var(--fg-subtle); font: inherit; font-size: 9px; padding: 0 8px; line-height: 15px; cursor: pointer; }
+  .nc-pastehint .demo:hover { color: var(--note); border-color: var(--note); }
+  .imgn { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; color: var(--note); }
+
+  /* 大图查看 */
+  #lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: none; place-items: center; z-index: 80; cursor: zoom-out; }
+  #lightbox.open { display: grid; }
+  #lightbox img { max-width: 86vw; max-height: 86vh; border-radius: var(--r-md); box-shadow: 0 18px 60px rgba(0,0,0,.5); }
+  #lightbox .cap { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); color: #eee; font-size: 11px; font-family: var(--mono); }
+
+  .notes { margin-top: 26px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-base); padding: 16px 18px; }
+  .notes h2 { font-size: 13px; margin-bottom: 8px; }
+  .notes li { font-size: 12px; color: var(--fg-muted); margin: 4px 0 4px 18px; }
+  .notes li b { color: var(--fg); }
+  /* ── N5:详情 tab 直开 + 后台任务 + 生成会话 ── */
+  @keyframes todayBreath { 0%,100% { box-shadow: inset 0 0 0 1.5px var(--accent); } 50% { box-shadow: inset 0 0 0 2.5px var(--accent), 0 0 0 4px var(--accent-soft); } }
+  .dcell.today { animation: todayBreath 2.6s ease-in-out infinite; }
+  .fullbtn { border: 0; background: none; color: var(--fg-faint); font: inherit; font-size: 9px; cursor: pointer; padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
+  .fullbtn:hover { color: var(--accent); background: var(--accent-soft); }
+  .titem { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--border); border-left: 3px solid var(--ok); border-radius: var(--r-sm); padding: 8px 10px; background: var(--bg-base); }
+  .titem.queue { border-left-color: var(--warn); }
+  .titem.done { border-left-color: var(--fg-faint); opacity: .82; }
+  .titem.err { border-left-color: var(--err); }
+  .ti-main { flex: 1; min-width: 0; }
+  .ti-top { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; flex-wrap: wrap; }
+  .ti-top .engdot { width: 6px; height: 6px; border-radius: 50%; background: var(--ec); flex: none; }
+  .ti-top .tt { color: var(--fg-faint); font-weight: 400; font-size: 10px; font-family: var(--mono); }
+  .ti-sub { font-size: 10px; color: var(--fg-muted); margin-top: 2px; }
+  .ti-acts { display: flex; gap: 6px; flex: none; align-items: center; }
+  .tsec { font-size: 10px; font-weight: 700; color: var(--fg-faint); letter-spacing: 1px; margin: 4px 0 2px; }
+  .task-foot { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-top: 1px solid var(--border); background: var(--bg-elevated); font-size: 10px; color: var(--fg-muted); }
+  .task-foot .btn { margin-left: auto; }
+  #sessionPane { position: absolute; inset: 33px 0 0 0; background: var(--bg-base); display: none; flex-direction: column; z-index: 20; }
+  #sessionPane.open { display: flex; }
+  .sp-bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--border); background: var(--bg-elevated); flex-wrap: wrap; }
+  .sp-title { font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+  .sp-bar .sub { font-size: 10px; color: var(--fg-muted); display: inline-flex; align-items: center; gap: 5px; }
+  .sp-bar .sub i { width: 6px; height: 6px; border-radius: 50%; background: var(--ec); }
+  .sp-bar .acts { margin-left: auto; display: flex; gap: 6px; }
+  .sp-term { flex: 1; min-height: 0; overflow-y: auto; background: #1e1e2e; color: #cdd6f4; font: 11.5px/1.7 var(--mono); padding: 14px 18px 8px; }
+  .msg { margin: 0 0 11px; }
+  .msg .mh { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .msg .mt { color: #6c7086; font-size: 10px; }
+  .msg .who { font-weight: 700; font-size: 10.5px; }
+  .msg.u .who { color: #89b4fa; }
+  .msg.a .who { color: #a6e3a1; }
+  .msg.m .who { color: #f9e2af; }
+  .msg .tag { color: #6c7086; font-size: 10px; }
+  .msg .bd { margin-top: 3px; padding-left: 14px; white-space: pre-wrap; }
+  .msg.u .bd { color: #a6adc8; }
+  .cursorline { color: #89b4fa; animation: pulse 1.1s steps(2) infinite; padding-left: 14px; }
+  .sp-composer { flex: none; display: flex; gap: 8px; padding: 10px 14px 6px; border-top: 1px solid #313244; background: #181825; align-items: flex-end; }
+  .sp-composer textarea { flex: 1; background: #11111b; color: #cdd6f4; border: 1px solid #45475a; border-radius: var(--r-sm); padding: 8px 10px; font: 12px/1.5 var(--mono); resize: none; min-height: 40px; max-height: 120px; outline: none; }
+  .sp-composer textarea:focus { border-color: #89b4fa; }
+  .sp-hint { flex: none; font-size: 9.5px; color: #6c7086; padding: 0 14px 8px; background: #181825; }
+  .dt-gensess { display: flex; align-items: center; gap: 9px; border: 1px dashed color-mix(in srgb, var(--ok) 40%, var(--border)); border-radius: var(--r-md); padding: 8px 12px; margin: 8px 0 2px; background: color-mix(in srgb, var(--ok) 4%, var(--bg-base)); font-size: 11px; flex-wrap: wrap; }
+  .dt-gensess .lab { font-weight: 700; color: var(--fg-muted); display: inline-flex; gap: 6px; align-items: center; }
+  .dt-gensess .sid { font-family: var(--mono); font-size: 10px; color: var(--fg-faint); }
+  .dt-pendlist { border: 1px solid var(--border); border-radius: var(--r-md); margin: 10px 0 4px; overflow: hidden; }
+  .dt-pendlist h4 { font-size: 11px; color: var(--fg-muted); padding: 8px 12px 4px; }
+  .dt-pendlist .row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--border); font-size: 11px; }
+  .dt-pendlist .row i { width: 6px; height: 6px; border-radius: 50%; background: var(--ec); flex: none; }
+  .dt-pendlist .row .dur { margin-left: auto; color: var(--fg-faint); font-family: var(--mono); font-size: 10px; }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  @keyframes rot { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>每日工作日志 · 设计原型(定稿候选)——年 / 月 / 轴 三视图 · 每日一篇 AI 汇总文章 · 每日便签 · 节假日关联 · 后台生成 + 会话可干涉</h1>
+  <p class="lede">三视图一 tab(年 12 宫 / 月格=文章索引卡 / 轴=脊柱珠子叙事流),AI 侧 = <b>每日一篇汇总文章</b>(总览段 + 分节正文,增量并入留痕)。<b>①详情即文件 tab</b>:点任何一天(月格 / 轴卡「全文」)直接以文章 tab 打开完整详情——总览、分节、生长珠子、便签编辑全在 tab 内,不再弹窗。<b>②每日便签</b>——日历上任选一天(含无会话的空日)自己写一篇笔记,tab 内「我的便签」区点击即写(多行文本,⌘/Ctrl+回车保存,⌘V 可贴截图),与 AI 文章独立落盘互不覆盖。<b>③生成全部后台运行</b>:定时 / 手动 / 增量并入一律进后台任务队列,切走模块、窗口失焦都不中断;工具栏「后台任务」是统一管理入口(进行中 / 排队 / 完成 / 失败,可取消可重试)。<b>④生成会话可打开可干涉</b>:文章由一个真实 CLI 会话产出——从任务面板或文章 tab 进入该会话,看它如何成文,随时插话纠正、让它续写更新当日汇总(演示:15:41 手动干涉并落盘)。<b>⑤节假日关联</b>——联网拉取(月格角标 / 周末底纹 / 轴卡 chip / 年视图红点),网络不通时仅保留周末底纹为保底,状态点如实显示(点击可模拟断网)。</p>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="tb-app">TMD-CLI</span>
+      <div class="tabs" id="tabs"></div>
+    </div>
+    <div class="body">
+      <div class="sidebar">
+        <input class="sb-search" value="搜索会话历史…" readonly>
+        <div class="sb-label">工作区</div>
+        <div class="ws-row on"><i></i>tmd-cli</div>
+        <div class="ws-row"><i style="background:var(--fg-faint)"></i>demo-proj</div>
+        <div class="sb-label">运行区</div>
+        <div class="sb-sess"><b style="color:hsl(2 52% 48%)">●</b> 0.2.5 发布收尾</div>
+        <div class="sb-sess"><b style="color:hsl(2 52% 48%)">●</b> dsh 适配验证</div>
+        <div class="sb-label">历史 · omp</div>
+        <div class="sb-sess">会话查看器 mermaid 渲染</div>
+        <div class="sb-sess">0.2.5 发布整体评审</div>
+      </div>
+
+      <div class="content">
+        <div class="toolbar">
+          <div class="seg" id="viewSeg">
+            <button data-v="y">年</button><button data-v="m" class="on">月</button><button data-v="f">轴</button>
+          </div>
+          <div class="mnav">
+            <button class="btn" data-nav="-1">‹</button><span class="m" id="mTitle">2026年9月</span><button class="btn" data-nav="1">›</button>
+          </div>
+          <button class="btn" id="btnToday">今天</button>
+          <span class="pill" id="monthPill">本月 —</span>
+          <span class="pill warn" id="pendingPill" style="display:none"><i></i>1 天待生成</span>
+          <span class="pill live" id="todayPill" style="display:none"><i></i>今日增量中 · 5 会话进行</span>
+          <span class="pill hol on" id="holPill" title="点击模拟网络切换"><i></i><span id="holPillTxt">节假日 · 在线</span></span>
+          <div class="hud">
+            <span class="legend">弱<i style="background:var(--bg-elevated);border:1px solid var(--border)"></i><i style="background:color-mix(in srgb, var(--accent) 9%, #fff)"></i><i style="background:color-mix(in srgb, var(--accent) 15%, #fff)"></i><i style="background:color-mix(in srgb, var(--accent) 22%, #fff)"></i>强 = token</span>
+            <button class="btn" id="btnTasks" title="后台生成任务:进行中 / 排队 / 完成 / 失败,统一管理">⚙ 后台任务<span id="taskBadge" style="display:none;margin-left:5px;color:var(--accent)">· 0</span></button>
+            <button class="btn" id="btnFill">补齐待生成</button>
+            <button class="btn" id="btnCfg"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/></svg>生成设置</button>
+          </div>
+        </div>
+        <div class="dow" id="dowRow"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div class="we">六</div><div class="we">日</div></div>
+        <div class="minibar" id="minibar" style="display:none">
+          <span class="mb-title" id="mbTitle">2026-09</span>
+          <div class="mb-strip" id="mbStrip"></div>
+          <span class="mb-legend">格 = 日 · 红 = 节假日 · 内框 = 有便签 · 蓝 = 今天</span>
+          <span class="mb-live"><i></i>上次增量 14:32 · 并入 2 会话</span>
+        </div>
+        <div class="stage" id="stage"></div>
+      </div>
+
+      <div class="rail" id="rail"></div>
+    </div>
+
+    <div class="mask" id="taskMask">
+      <div class="modal cfg" style="width:600px">
+        <div class="c2-head">后台任务 · 生成队列<button class="x" data-close>×</button></div>
+        <div class="c2-body" id="taskBody" style="gap:4px;max-height:460px"></div>
+        <div class="task-foot"><span>任务由 app 后台调度:切换模块 / 窗口失焦 / 最小化都不中断;完成自动落盘并刷新日历。生成会话 = 真实 CLI 会话,随时可打开干涉。</span><button class="btn" data-close>关闭</button></div>
+      </div>
+    </div>
+
+    <div class="mask" id="cfgMask">
+      <div class="modal cfg">
+        <div class="c2-head">生成设置<button class="x" data-close>×</button></div>
+        <div class="c2-body">
+          <div class="frow">
+            <label>定时生成</label>
+            <div class="timebox">
+              <button class="switch on" id="cfgTimer"></button>
+              <span style="font-size:11px;color:var(--fg-muted)">每日</span>
+              <input class="tinput" value="08:00">
+              <span style="font-size:11px;color:var(--fg-muted)">生成前一日汇总文章</span>
+            </div>
+            <span class="hint">到点未运行则下次启动补跑;一天一篇,重复生成整篇替换(留版本)。便签是手写的,重新生成文章不影响便签。</span>
+          </div>
+          <div class="frow">
+            <label>增量策略(当日文章如何生长)</label>
+            <div class="seg"><button class="on">跟随实时</button><button>手动确认</button><button>仅定时</button></div>
+            <span class="hint">增量 = 只喂新增会话,AI 将其整理成新节并入文章既有结构;已落盘的节不重写,并入处留时间痕。</span>
+          </div>
+          <div class="frow"><label>引擎</label><div class="seg eng" id="cfgEng"></div></div>
+          <div class="frow">
+            <label>模型</label>
+            <select class="tinput" style="width:220px"><option>glm-5.3(默认)</option><option>glm-5.3-air</option><option>glm-5.2</option></select>
+          </div>
+          <div class="frow"><label>思考强度</label><div class="seg"><button>关</button><button>低</button><button class="on">中</button><button>高</button></div></div>
+          <div class="frow"><label>提取范围</label><div class="seg"><button class="on">全部工作区</button><button>当前工作区</button></div></div>
+          <div class="frow">
+            <label>节假日数据(联网)</label>
+            <div class="holrow">
+              <button class="switch on" id="cfgHol"></button>
+              <span>关联节假日标注</span>
+              <span class="holstat" id="holStat">2026 全年 · 昨日 22:14 同步</span>
+            </div>
+            <span class="hint">启动与每日增量时拉取节假日 API,成功则缓存全年数据;网络不通用缓存;无缓存时仅保留周末底纹(保底形态),状态点如实显示。</span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg-elevated)"><button class="btn" data-close>取消</button><button class="btn primary" id="cfgSave">保存</button></div>
+      </div>
+    </div>
+
+    <div id="detailPane">
+      <div class="dt-bar">
+        <button class="btn dt-back" id="dtBack"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>返回日历</button>
+        <span class="dt-date" id="dtDate"></span>
+        <span id="dtChips" style="display:flex;gap:6px;align-items:center"></span>
+        <span class="dt-sub" id="dtSub"></span>
+        <div style="margin-left:auto;display:flex;gap:6px" id="dtActs"></div>
+      </div>
+      <div class="dt-scroll"><div class="dt-page" id="dtPage"></div></div>
+    </div>
+    <div id="sessionPane">
+      <div class="sp-bar" id="spBar"></div>
+      <div class="sp-term" id="spTerm"></div>
+      <div class="sp-hint">在此插话可纠正 / 续写当日汇总——生成会话是真实 CLI 会话,发消息即干涉,产出自动落盘。⌘/Ctrl+回车发送</div>
+      <div class="sp-composer"><textarea id="spInput" placeholder="例:把 ClawHub P1 单独成节,0.2.6 首项要显眼"></textarea><button class="btn primary" id="spSend">发送 ⌘↵</button></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>设计要点</h2>
+    <ul>
+      <li><b>三视图一 tab</b>:「年 / 月 / 轴」segmented 切换同一数据源。年 = 12 宫迷你月(状态点阵 + 节假日红点 + 便签内框,点月下钻);月 = 大格索引卡(文章标题 + 总览首行 + 便签预览 + 引擎点 + 强度条);轴 = 叙事流(脊柱 + 增量珠子 + 折叠日卡 + 「全文」直开文章 tab),迷你月条只在轴视图出现。</li>
+      <li><b>详情即文件 tab(弹窗废除)</b>:点月格、轴卡「全文」直接以<b>文章 tab</b> 打开完整详情——与文件 tab 同一挂点;总览、分节、生长珠子、<b>便签编辑</b>全部在 tab 内完成(不再有日详情浮层)。空日点月格 = 直开 tab 并自动进入便签编辑态。待生成 / 失败日在 tab 内给出待喂会话清单与重试位。今日蓝描边呼吸;五态日状态机;「补齐待生成」批处理。</li>
+      <li><b>每日一篇 AI 汇总文章</b>:一天一篇,<b>总览段 → 分节正文 → 未完事项</b>固定结构;标题由 AI 起草,用作月格标题与轴卡标题。增量只喂新增会话,新内容整理成<b>新节并入</b>(「11:47 并入」留痕章),既有节永不重写;跨零点晚归会话归前一日、由次日增量并入(9月28日「0.2.5 前夜预检」节演示)。</li>
+      <li><b>每日便签</b>:日历上任选一天——包括没有任何 AI 会话的空日——写自己的笔记;编辑位 = 文章 tab 内「我的便签」区(多行文本,⌘/Ctrl+回车保存、Esc 取消、⌘V 可贴截图,清空即删)。展示位 = 月格(琥珀描边 + ✎ 首行预览)/ 轴卡(棕节点 + 卡内便签区 + 折叠头首行)/ 迷你条(内框格)/ 年视图(内框点)。便签与 AI 文章<b>独立落盘</b>:重新生成、增量并入都不碰便签;编辑草稿在后台落盘刷新时保留回填。</li>
+      <li><b>生成全部后台运行</b>:定时 / 手动 / 增量 / 重试一律进<b>后台任务队列</b>——切换模块、窗口失焦、最小化都不中断,完成自动落盘并刷新日历。工具栏「后台任务」= 统一管理入口:进行中(可打开会话)/ 排队(可取消)/ 完成(可跳文章)/ 失败(可重试)。今日增量检查、跨零点晚归并入都在队列里可见。</li>
+      <li><b>生成会话可打开可干涉</b>:文章由一个<b>真实 CLI 会话</b>产出(如 omp)——从任务面板或文章 tab「生成会话」条进入:会话窗以终端 tab 形态展示成文过程(喂入 → 成文 → 落盘),底部输入框随时插话纠正、让它续写更新当日汇总(演示:15:41 手动干涉拆出 ClawHub P1 独立节并落盘)。历史生成会话已收尾,只读深链会话查看器。节假日关联(联网)不变:在线角标 / chip / 红点,离线仅周末底纹保底,状态点如实显示。</li>
+      <li><b>扩展位</b>:便签升级 Markdown 渲染 + 便签检索;文章 Markdown 落盘(~/.tmd-cli/daily/YYYY-MM.json,一档一天,便签同档,截图落附件目录);月/年报 = 聚合各篇总览段;「未完事项」接 composer 作次日上下文;生成会话支持换引擎重开、干涉历史回放。</li>
+    </ul>
+  </div>
+</div>
+
+<div id="lightbox"><img id="lbImg" alt=""><span class="cap" id="lbCap"></span></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const ENGINES = { omp:'hsl(2 52% 48%)', pi:'hsl(337 52% 48%)', codex:'hsl(291 52% 48%)', claude:'hsl(22 52% 48%)', kimi:'hsl(186 52% 48%)', qoder:'hsl(179 52% 48%)', dsh:'hsl(49 52% 48%)', grok:'hsl(255 52% 48%)', opencode:'hsl(335 52% 48%)' };
+const DOW = ['日','一','二','三','四','五','六'];
+const PEN_SVG = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5l5 5L8 21H3v-5z"/><path d="M12.5 6.5l5 5"/></svg>';
+
+/* 节假日(联网拉取后缓存的形态;离线时不渲染) */
+let holOnline = true;
+const HOLIDAYS = { '09-25':'中秋节', '10-01':'国庆节', '10-02':'国庆节', '10-03':'国庆节', '10-04':'国庆节', '10-05':'国庆节', '10-06':'国庆节', '10-07':'国庆节' };
+const holOf = (y,m,d) => holOnline && y===2026 ? HOLIDAYS[`${pad(m)}-${pad(d)}`] : null;
+const isWe = (y,m,d) => { const w = new Date(y,m-1,d).getDay(); return w===0||w===6; };
+
+/* ── 数据:每天一篇汇总文章;note = 用户手写便签(任意日可写) ── */
+const SEP = {
+  '09-01':{st:'g',s:6,tok:412,eng:['omp','claude'],head:'0.2.0 收尾 · omp 升级跟进',lede:'0.2.0 发布收尾为主线,顺带跟进 omp 18.1 系列升级与 settings 折叠组交互修复。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 6 会话'}]},
+  '09-02':{st:'g',s:4,tok:287,eng:['omp'],head:'插排徽标体系定稿',lede:'插件市场徽标体系收敛:34 键装饰白名单与点亮色契约定稿。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 4 会话'}]},
+  '09-03':{st:'p',s:2,tok:64,eng:['omp','kimi'],pend:[{e:'omp',t:'omp 学习笔记:subagent 并发与 workpool',dur:'48m'},{e:'kimi',t:'触发器补全实验(月光宝盒递归)',dur:'35m'}]},
+  '09-04':{st:'g',s:7,tok:521,eng:['omp','pi'],head:'SSH 插件设计过评审',lede:'SSH 一等会话 + 右栏 SFTP 树 + 端口转发设计评审通过,提案归档 openspec。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 7 会话'}]},
+  '09-05':{st:'g',s:3,tok:198,eng:['omp'],head:'分支菜单对齐 codemoss',lede:'分支右键菜单补齐:变基/合并/对比/重命名一套。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 3 会话'}]},
+  '09-06':{st:'f',s:5,tok:355,eng:['omp','claude'],err:'429 额度不足 · 自动重试 3 次失败'},
+  '09-07':{st:'g',s:2,tok:96,eng:['kimi'],head:'dsh 适配契约草案',lede:'cli-dsh PTY 适配器契约草案成文。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 2 会话'}]},
+  '09-08':{st:'g',s:9,tok:1104,eng:['omp','claude'],head:'全局界面字号落地',lede:'全局字号 12-20px 一次到位:212 处 px 迁移 rem,间距锚定 4px,默认态像素零变化。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 9 会话'},{t:'20:15',label:'增量 · 并入 2 会话(晚间修补)'}]},
+  '09-09':{st:'g',s:5,tok:402,eng:['omp'],head:'快捷键系统重映射',lede:'shortcuts 注册表 + terminal 作用域优先,⌘C 复制/停止菜单例外落地。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 5 会话'}]},
+  '09-10':{st:'g',s:6,tok:511,eng:['omp','claude'],head:'0.1.4 发布 · doctor 门禁',lede:'0.1.4 发布收口;react-doctor 重构评审,100 分门禁建立。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 6 会话'}]},
+  '09-11':{st:'g',s:8,tok:726,eng:['omp','pi'],head:'活动证据与 token 台账设计',lede:'activity-watch 证据模型与 token dashboard 设计收敛。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 8 会话'}]},
+  '09-14':{st:'g',s:5,tok:389,eng:['omp'],head:'0.1.7 发布评审',lede:'0.1.7 发布评审;russh 0.63 MSRV 冲突裁定不合入。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 5 会话'}]},
+  '09-15':{st:'g',s:7,tok:644,eng:['omp','codex'],head:'分屏 diff 系列落地',lede:'GitHub 风分屏 diff 与中线接缝设计落地。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 7 会话'}]},
+  '09-16':{st:'g',s:6,tok:572,eng:['omp'],head:'会话板(session-board)立项',lede:'热力月历 + 泳道时间线会话看板设计定稿并开工。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 6 会话'}]},
+  '09-17':{st:'g',s:8,tok:816,eng:['omp','claude'],head:'17 提交全量评审',lede:'17 提交全局评审:面板 subbar 注册化与冗余清理。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 8 会话'}]},
+  '09-18':{st:'g',s:6,tok:533,eng:['omp'],head:'文件标记定稿(A 案)',lede:'文件标记四方案原型对比,A 案定稿落地。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 6 会话'}]},
+  '09-19':{st:'g',s:9,tok:918,eng:['omp','pi'],head:'LSP 语义导航 · open-with',lede:'LSP 语义导航(定义/引用/实现)与 open-with 设计落地。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 9 会话'}]},
+  '09-20':{st:'g',s:3,tok:214,eng:['claude'],head:'0.2.0 发布后巡查',lede:'0.2.0 postrelease survey:polish 清单 8 项。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 3 会话'}]},
+  '09-21':{st:'g',s:7,tok:689,eng:['omp'],head:'手机 app 总体规划',lede:'mobile app master plan 与 prompt enhancer 设计。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 7 会话'}]},
+  '09-22':{st:'n',note:{text:'全天在外参加婚礼,没开电脑。\n\n回来补记:claude 网页版里跟了一段 0.2.6 规划讨论,思路记在手机备忘录,明天搬进来。',at:'09-22 22:41'}},
+  '09-23':{st:'g',s:5,tok:458,eng:['omp'],head:'移动端紧凑交互定稿',lede:'mobile session compact 交互设计定稿。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 5 会话'}]},
+  '09-24':{st:'g',s:11,tok:1246,eng:['omp','pi'],head:'fixaudit · mobile web 评审',lede:'round2 修复审计 + mobile web 114 提交评审。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 10 会话'},{t:'15:02',label:'增量 · 并入 1 会话'}]},
+  '09-25':{st:'g',s:10,tok:1180,eng:['omp','claude'],head:'CLI 学堂与移动端发布',lede:'中秋假期也没停:CLI 学堂插件 + Android 壳与移动端发布集成落地。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 9 会话'},{t:'13:20',label:'增量 · 并入 1 会话'}]},
+  '09-26':{st:'g',s:6,tok:594,eng:['omp'],head:'24h 评审 · 审批收件箱',lede:'24h 提交评审;审批收件箱设计。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 6 会话'},{t:'16:10',label:'增量 · 并入 1 会话'}]},
+  '09-27':{st:'g',s:5,tok:471,eng:['omp'],head:'文档校准 · 6h 评审',lede:'文档全量校准与 6h 提交评审。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 5 会话'}]},
+  '09-28':{st:'g',s:6,tok:894,eng:['omp','dsh'],head:'dsh 适配收口 · 会话查看器立项',gen:'09-29 08:00 定时',note:{text:'dsh 破口比预想小得多,typert.d.ts 当契约真源这招以后通用。\n\n会话查看器立项:下周一骨架先起。',at:'09-29 09:05'},
+    lede:'本日两条主线:dsh 0.1.7-rc.2 适配以 15 分钟定位破口收口(实际只破两处);会话查看器完成设计 spec 并立项。辅线:右栏 rail 契约修订。',
+    secs:[
+      {t:'dsh 0.1.7-rc.2 适配排查',time:'13:20 – 15:05',d:'以本机树 typert.remote-client.d.ts 为各命名空间端点契约唯一真源,15 分钟定位破坏面:实际只破两处——commands/execute 参数 images→submittedAttachments、agentPreset.list 更名 agentPresets/list;launch token→cookie、typert 信封、mux 双流全兼容。适配器按内容哈希戳自动重写验证通过。',sess:[{e:'dsh',t:'dsh web 全 RPC curl 验证',dur:'45m'},{e:'dsh',t:'roster 字段缩减适配',dur:'1.2h'}]},
+      {t:'右侧面板 rail 契约修订',time:'15:10 – 16:02',d:'溢出菜单 + 钉住契约(persist localStorage)+ 尺寸沿革表更新;rail 动作与面板条目按 order 统一排序的注册面定稿。',sess:[{e:'omp',t:'right-panel-rail spec 修订',dur:'52m'}]},
+      {t:'会话查看器设计 spec',time:'20:30 – 22:40',d:'六族转录解析 + 齿轮环形动作入口 + 零 PTY 只读查看。方案取舍:mermaid/katex 复用 files 插件现成管线(否决:独立管线)——组件级复用免立第二管线。',sess:[{e:'omp',t:'session-viewer 设计推演',dur:'2.1h'}]},
+      {t:'0.2.5 前夜:发布物料预检',time:'23:50 – 00:40(跨零点,归 28 日)',inc:'11:47',d:'晚归会话:发版前夜核 CHANGELOG 补录清单与 tag 挪位预案;次日 11:47 增量检查发现并入本篇。',sess:[{e:'omp',t:'发布物料预检',dur:'50m'}]}
+    ],
+    open:['会话查看器实现排期(六族解析器骨架先起)', 'rail ⋯ 溢出菜单真机目检'],
+    beads:[{t:'09-29 08:00',label:'定时生成 · 5 会话'},{t:'11:47',label:'增量 · 并入 1 会话(0.2.5 前夜预检)'}]},
+  '09-29':{st:'t',s:7,tok:1102,eng:['omp'],head:'会话查看器渲染补齐 · 0.2.5 发布收尾',gen:'增量中 · 14:32',note:{text:'明天 0.2.6 首项修 ClawHub slug 净化(P1)。\n\n周五前:cli-academy 教案 v2 + 分架构 dmg 回归。别忘给大仙出每日日志 spec。',at:'09-29 14:50'},
+    lede:'今日围绕会话查看器渲染能力补齐与 0.2.5 发布收尾:mermaid、KaTeX 相继落地;发布整体评审(4 代理并行)与死代码清理并行推进,评审 P1 已定位待 0.2.6 首项修复。',
+    secs:[
+      {t:'会话查看器 mermaid 渲染',time:'09:30 – 11:20',d:'markdownBody pre 分发复用 FileMarkdownMermaidBlock(源码/渲染双 tab、SVG LRU、viewerjs 全屏);documentKey 常量 session-viewer,跨会话同图共享缓存。全链路桩目检:5 节点中文 SVG 渲染通过。',sess:[{e:'omp',t:'mermaid 渲染链路',dur:'1.8h'}]},
+      {t:'KaTeX 数学渲染补齐',time:'13:00 – 14:10',inc:'11:47',d:'remark-math + 条件 rehype-katex(懒加载就绪后挂,引用只在就绪边沿变化一次);math 栅栏降级窗复用 FileMarkdownMathBlock。三形态桩目检全过,3247 例绿。',sess:[{e:'omp',t:'katex 三形态目检',dur:'1.1h'}]},
+      {t:'0.2.5 发布整体评审 + 死代码清理',time:'14:20 – 进行中',inc:'14:32',live:true,d:'95 提交 / 449 文件全量评审(4 代理并行):P1 = ClawHub 注册表 slug 未净化(dest 逃逸),建议 0.2.6 首项;终端域 P2 = ask 徽章屏幕态防抖缺失。死代码 13 文件清理,全门禁绿。',sess:[{e:'omp',t:'0.2.5 release review',dur:'1.4h'},{e:'omp',t:'死代码清理执行',dur:'42m',live:true}]}
+    ],
+    open:['P1 ClawHub slug 净化 → 0.2.6 首项(白名单一行)', 'R8 / 分架构 dmg:CI 发版时真跑验证', '会话查看器真机 tauri:dev 复验'],
+    beads:[{t:'09:12',label:'首次提取 · 3 会话'},{t:'11:47',label:'增量 · 并入 2 会话'},{t:'14:32',label:'增量 · 并入 2 会话'},{live:true,t:'15:32',label:'下次增量检查'}]}
+};
+const AUG = { '08-04':{st:'g',s:4,tok:233,eng:['claude'],head:'竞品调研:codemoss',lede:'codemoss 对话框能力盘点成文。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 4 会话'}]},'08-08':{st:'g',s:3,tok:187,eng:['claude','omp'],head:'基础架构总览首版',lede:'架构总览文档首版落盘。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 3 会话'}]},'08-12':{st:'g',s:6,tok:512,eng:['omp'],head:'composer 工具栏落地',lede:'composer 工具栏与命令抽屉落地。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 6 会话'}]},'08-15':{st:'p',s:2,tok:88,eng:['omp']},'08-18':{st:'g',s:5,tok:344,eng:['omp','kimi'],head:'checkpoints 批批阅设计',lede:'checkpoints 批次审批设计定稿。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 5 会话'}]},'08-21':{st:'g',s:4,tok:276,eng:['omp'],head:'WSL 工作区 M1',lede:'WSL 工作区 M1 设计。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 4 会话'}]},'08-25':{st:'g',s:8,tok:698,eng:['omp'],head:'disk-first 会话打开',lede:'disk-first 会话打开链路落地。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 8 会话'}]},'08-28':{st:'g',s:5,tok:421,eng:['omp','claude'],head:'0.1.2 发布',lede:'全局字号与主题分组折叠发布。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 5 会话'}]},'08-31':{st:'g',s:6,tok:508,eng:['omp'],head:'0.2.x 前夜规划',lede:'0.2.x 规划对话收敛。',gen:'08:00 定时',beads:[{t:'08:00',label:'定时生成 · 6 会话'}]} };
+const YEAR = [
+  {m:1,d:0,s:0},{m:2,d:1,s:2},{m:3,d:3,s:6},{m:4,d:2,s:4},{m:5,d:4,s:9},{m:6,d:6,s:14},
+  {m:7,d:9,s:27},{m:8,d:9,s:41,real:AUG},{m:9,d:22,s:214,real:SEP,cur:true},{m:10,d:0,s:0},{m:11,d:0,s:0},{m:12,d:0,s:0}
+];
+
+let view = 'm';
+let cur = { y: 2026, m: 9 };
+const $ = s => document.querySelector(s);
+const pad = n => String(n).padStart(2,'0');
+/* store 按年-月分档:SEP 只属于 2026-9,AUG 只属于 2026-8,其他月份空档(写便签落自己月,不串档) */
+const STORES = { '2026-9': SEP, '2026-8': AUG };
+const storeOf = () => STORES[`${cur.y}-${cur.m}`] || (STORES[`${cur.y}-${cur.m}`] = {});
+const dataOf = k => { if(cur.y===2026 && cur.m===9) return SEP[k] || {st:'n'}; if(cur.y===2026 && cur.m===8) return AUG[k] || {st:'n'}; return {st:'n'}; };
+const heat = tok => !tok?'':(tok>=900?'h4':tok>=550?'h3':tok>=300?'h2':'h1');
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+/* N5 全局:便签 tab 内编辑态 + 草稿保护;后台任务队列;生成会话 tab */
+let noteEditK = null, noteDraft = null;
+let tasks = [];
+let sessionK = null;
+
+/* ── 便签渲染 / 编辑(支持 ⌘V 粘贴图片)── */
+function shotSvg(seed){
+  let s = seed; const rnd = () => (s = (s*9301+49297)%233280) / 233280;
+  const cols = ['#89b4fa','#a6e3a1','#f9e2af','#f38ba8','#cba6f7','#94e2d5'];
+  let bars = '';
+  for(let r=0;r<9;r++){
+    let x = 26; let row = '';
+    while(x < 560){
+      const w = 30 + Math.round(rnd()*90);
+      if(rnd() < .22) { x += w*.6; continue; }
+      row += `<rect x="${x}" y="${86+r*30}" width="${Math.min(w,590-x)}" height="11" rx="2.5" fill="${cols[Math.floor(rnd()*cols.length)]}" opacity=".82"/>`;
+      x += w + 10;
+    }
+    bars += row;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="620" height="380" viewBox="0 0 620 380"><rect width="620" height="380" fill="#1e1e2e"/><rect width="620" height="30" fill="#181825"/><circle cx="18" cy="15" r="5.5" fill="#ff5f57"/><circle cx="37" cy="15" r="5.5" fill="#febc2e"/><circle cx="56" cy="15" r="5.5" fill="#28c840"/><text x="310" y="19" font-family="monospace" font-size="12" fill="#6c7086" text-anchor="middle">tmd-cli — omp — 92×24</text>${bars}</svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+function noteImgsHtml(k, n, editing){
+  const imgs = (n && n.images) || [];
+  const grid = imgs.length
+    ? `<div class="nc-imgs">${imgs.map((im,i)=>`<div class="nc-img" data-imgview="${k}:${i}" title="${im.name} · 点击看大图"><img src="${im.src}"><span class="cnt">${im.name}</span>${editing?`<span class="del" data-imgdel="${k}:${i}">×</span>`:''}</div>`).join('')}</div>`
+    : '<div class="nc-imgs empty"></div>';
+  const hint = editing
+    ? `<div class="nc-pastehint"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>文本框内 ⌘V 直接粘贴截图<button class="demo" data-pastedemo="${k}">模拟粘贴一张</button></div>`
+    : '';
+  return grid + hint;
+}
+function noteCard(k, dd, editing){
+  const n = dd.note;
+  if(!n && !editing) return `<div class="notecard" style="background:transparent;border-style:dashed"><div class="nc-empty" data-notenew="${k}">${PEN_SVG}给这一天写点什么(便签)</div></div>`;
+  const imgs = ((n&&n.images)||[]);
+  const imgn = imgs.length ? ` <span class="imgn"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>${imgs.length} 图</span>` : '';
+  const body = editing
+    ? `<div class="nc-editbox"><textarea class="nc-edit" data-noteedit="${k}" placeholder="写点什么… ⌘/Ctrl+回车保存,Esc 取消">${n?esc(n.text):''}</textarea></div>
+       ${noteImgsHtml(k, n, true)}
+       <div class="nc-foot"><span>与 AI 文章独立落盘 · 重新生成不碰便签</span><div class="acts"><button class="btn" data-notecancel="${k}">取消</button><button class="btn primary" data-notesave="${k}">保存 ⌘↵</button></div></div>`
+    : `<div class="nc-text">${esc(n.text)}</div>${noteImgsHtml(k, n, false)}`;
+  return `<div class="notecard">
+    <div class="nc-head">${PEN_SVG} 我的便签 ${n?`<span class="when">${n.at} 更新</span>`:''}${imgn}
+      ${!editing?`<div class="acts"><button class="btn" data-noteeditbtn="${k}" style="height:20px;font-size:10px">编辑</button></div>`:''}
+    </div>${body}</div>`;
+}
+function addNoteImg(k, src, name){
+  const dd = recOf(k);
+  if(!dd.note) dd.note = {text:'', at:'刚刚'};
+  dd.note.images = dd.note.images || [];
+  dd.note.images.push({src, name: name || `clipboard-${Date.now()%10000}.png`});
+  dd.note.at = '刚刚';
+  toast('图片已贴入便签');
+  refreshAfterNote(k);
+}
+function bindNote(scope){
+  const neu = scope.querySelector('[data-notenew]');
+  if(neu) neu.onclick = () => startNote(neu.dataset.notenew);
+  const eb = scope.querySelector('[data-noteeditbtn]');
+  if(eb) eb.onclick = () => startNote(eb.dataset.noteeditbtn);
+  const sv = scope.querySelector('[data-notesave]');
+  if(sv) sv.onclick = () => saveNote(sv.dataset.notesave);
+  const cl = scope.querySelector('[data-notecancel]');
+  if(cl) cl.onclick = () => cancelNote(cl.dataset.notecancel);
+  const pd = scope.querySelector('[data-pastedemo]');
+  if(pd) pd.onclick = () => addNoteImg(pd.dataset.pastedemo, shotSvg(Date.now()%9973), `clipboard-demo.png`);
+  scope.querySelectorAll('[data-imgdel]').forEach(x=>x.onclick=e=>{
+    e.stopPropagation();
+    const [k,i] = x.dataset.imgdel.split(':');
+    recOf(k).note.images.splice(Number(i),1);
+    toast('已移除图片'); refreshAfterNote(k);
+  });
+  const ta = scope.querySelector('[data-noteedit]');
+  if(ta){
+    ta.onkeydown = e => { e.stopPropagation(); if((e.metaKey||e.ctrlKey)&&e.key==='Enter') saveNote(ta.dataset.noteedit); if(e.key==='Escape') cancelNote(ta.dataset.noteedit); };
+    ta.addEventListener('paste', e=>{
+      const items = (e.clipboardData && e.clipboardData.items) || [];
+      for(const it of items){
+        if(it.type && it.type.startsWith('image/')){
+          e.preventDefault();
+          const f = it.getAsFile();
+          const rd = new FileReader();
+          rd.onload = () => addNoteImg(ta.dataset.noteedit, rd.result, f.name || 'clipboard.png');
+          rd.readAsDataURL(f);
+          return;
+        }
+      }
+    });
+    ta.focus();
+  }
+}
+function startNote(k){
+  /* 编辑位 = 文章 tab 内;若从月格/轴卡进来还没开 tab,先开再进编辑态 */
+  if(detailK!==k || activeTab!=='detail'){ openDetailTab(k, true); return; }
+  noteEditK = k; renderDetail();
+}
+function saveNote(k){
+  const ta = document.querySelector('[data-noteedit]');
+  if(!ta) return;
+  const v = ta.value.trim();
+  const dd = recOf(k);
+  const hasImgs = !!(dd.note && dd.note.images && dd.note.images.length);
+  if(v || hasImgs){
+    if(dd.note){ dd.note.text = v; dd.note.at = '刚刚'; }
+    else dd.note = {text:v, at:'刚刚'};
+    toast(`便签已保存(${k.replace('-','月')}日)${hasImgs?' · 图片随存':''}`);
+  } else { delete dd.note; toast('便签已清空'); }
+  noteEditK = null; noteDraft = null;
+  refreshAfterNote(k);
+}
+function cancelNote(k){ noteEditK = null; noteDraft = null; refreshAfterNote(k); }
+function refreshAfterNote(k){
+  syncView();
+  if(detailK===k && activeTab==='detail') renderDetail(); /* 编辑中(贴图/删图/后台落盘)重建编辑卡,草稿由 renderDetail 回填 */
+}
+/* 空日也要有可写壳:任何当日 key 都能取到记录对象(st:'n' 空壳自动补) */
+function recOf(k){
+  const store = storeOf();
+  if(!store[k]) store[k] = {st:'n'};
+  return store[k];
+}
+
+/* ── 文章详情页(文件 tab 形态)── */
+const DOC_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h6M9 16h6"/></svg>';
+const CAL_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v5M16 3v5M9 15.5l2 2 4-4.5"/></svg>';
+let detailK = null, activeTab = 'cal', detailYM = { y:2026, m:9 };
+const TERM_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>';
+function renderTabs(){
+  const dd = detailK ? recOf(detailK) : null;
+  const [m,d] = detailK ? detailK.split('-').map(Number) : [0,0];
+  const shortHead = dd && dd.head ? (dd.head.length>10 ? dd.head.slice(0,10)+'…' : dd.head) : (dd && dd.note ? '便签' : '该日');
+  const sd = sessionK ? sessionK.split('-').map(Number) : [0,0];
+  let h = `<div class="tab">欢迎</div>
+    <div class="tab ${activeTab==='cal'?'on':''}" data-tab="cal">${CAL_SVG}每日工作日志</div>`;
+  if(detailK) h += `<div class="tab ${activeTab==='detail'?'on':''}" data-tab="detail">${DOC_SVG}${m}月${d}日 · ${shortHead}<span class="x" data-closetab="detail">×</span></div>`;
+  if(sessionK) h += `<div class="tab ${activeTab==='session'?'on':''}" data-tab="session">${TERM_SVG}${sd[0]}月${sd[1]}日 · 汇总会话<span class="x" data-closetab="session">×</span></div>`;
+  h += `<div class="tab">tmd-cli</div>`;
+  $('#tabs').innerHTML = h;
+  $('#tabs').querySelectorAll('[data-tab]').forEach(t=>t.onclick=e=>{
+    const x = e.target.closest('[data-closetab]');
+    if(x){ if(x.dataset.closetab==='detail') closeDetailTab(); else closeSessionTab(); return; }
+    activeTab = t.dataset.tab; renderTabs(); showPane();
+  });
+}
+function showPane(){
+  $('#detailPane').classList.toggle('open', activeTab==='detail' && !!detailK);
+  $('#sessionPane').classList.toggle('open', activeTab==='session' && !!sessionK);
+}
+function openDetailTab(k, autoEdit){
+  detailK = k; detailYM = { y:cur.y, m:cur.m }; activeTab = 'detail';
+  if(autoEdit) noteEditK = k;
+  renderTabs(); renderDetail(); showPane();
+}
+function closeDetailTab(){ detailK=null; noteEditK=null; activeTab='cal'; renderTabs(); showPane(); toast('已关闭文章 tab'); }
+function genSessBar(k, rec){
+  const live = rec.st==='t';
+  const sid = k==='09-29' ? 's-gen-0929' : `s-gen-${k.replace('-','')}`;
+  return `<div class="dt-gensess"><span class="lab">${TERM_SVG}生成会话</span><span class="sub"><i style="background:${ENGINES.omp}"></i>omp · glm-5.3</span><span class="sid">${sid}</span>
+    ${live?'<span class="chip t"><i></i>增量检查中 · 可插话干涉</span>':'<span class="chip g">已收尾 · 只读</span>'}
+    <button class="btn" data-opensession="${k}">${live?'打开会话(可干涉)':'会话查看器(只读)'}</button></div>`;
+}
+function renderDetail(){
+  if(!detailK) return;
+  /* 草稿保护:重建前存走进行中编辑的文本,渲染后回填 */
+  const taOld = document.querySelector('#dtPage [data-noteedit]');
+  if(taOld && noteEditK===detailK) noteDraft = taOld.value;
+  const rec = recOf(detailK);
+  const [m,d] = detailK.split('-').map(Number);
+  const wd = DOW[new Date(detailYM.y, m-1, d).getDay()];
+  const hol = holOf(detailYM.y, m, d);
+  const hasArt = rec.st==='g'||rec.st==='t'||rec.st==='f'||rec.st==='p';
+  $('#dtDate').textContent = `${m}月${d}日 · 周${wd}`;
+  const chip = rec.st==='t' ? `<span class="chip t"><i></i>今日增量中 · ${rec.gen.replace('增量中 · ','上次 ')}</span>` : rec.st==='p' ? `<span class="chip p"><i></i>待生成</span>` : rec.st==='f' ? `<span class="chip f"><i></i>失败</span>` : rec.st==='g' ? `<span class="chip g">已生成 · ${rec.gen}</span>` : `<span class="chip" style="color:var(--fg-subtle);border:1px solid var(--border)">无会话 · 便签日</span>`;
+  $('#dtChips').innerHTML = `${hol?`<span class="holchip">${hol}</span>`:''}${chip}`;
+  $('#dtSub').textContent = `${(rec.eng||[]).join(' / ')}${rec.s?' · '+rec.s+' 会话':''}${rec.tok?' · '+(rec.tok/1000).toFixed(1)+'万 tok':''}`;
+  const actsMatch = growStrip(rec, detailK).match(/<div class="acts">[\s\S]*<\/div>/);
+  $('#dtActs').innerHTML = actsMatch ? actsMatch[0] : '';
+  const beads = rec.beads || [];
+  const n = Math.max(beads.length,1);
+  const grow = beads.length ? `<div class="dt-grow"><span>生长 ${beads.length} 次</span><div class="line">${beads.map((b,i)=>`<span class="gbead ${b.live?'live':''}" style="left:${(i+0.5)/n*100}%"><span class="tip">${b.t} · ${b.label}</span></span>`).join('')}</div><span style="font-family:var(--mono)">${beads[beads.length-1]?beads[beads.length-1].t:''}</span></div>` : '';
+  const artArea = rec.st==='p'
+    ? `<div class="dt-pendlist"><h4>将喂入 ${rec.s} 个会话(生成后 = 当日唯一一篇汇总文章)</h4>${(rec.pend||[{e:'omp',t:'(待提取会话)',dur:'—'}]).map(p=>`<div class="row"><i style="background:${ENGINES[p.e]}"></i>${p.e} · ${p.t}<span class="dur">${p.dur}</span></div>`).join('')}</div>
+       <div style="display:flex;gap:8px;align-items:center;margin:10px 0 4px;flex-wrap:wrap"><div class="seg" data-seg="k">${Object.keys(ENGINES).slice(0,4).map((e,i)=>`<button style="--ec:${ENGINES[e]}" class="${i===0?'on':''}">${e}</button>`).join('')}</div><button class="btn primary" data-gen="${detailK}">生成此日(后台)</button><span style="font-size:10px;color:var(--fg-faint)">任务转后台队列 · 切走模块 / 失焦不中断</span></div>`
+    : rec.st==='f'
+    ? `<div style="padding:12px 0;display:flex;align-items:center;gap:10px"><span class="chip f"><i></i>生成失败 · ${rec.err}</span><button class="btn primary" data-gen="${detailK}">重试生成(后台)</button></div>`
+    : rec.st==='n'
+    ? `<div style="padding:10px 0;color:var(--fg-subtle);font-size:11px">这一天没有 AI 会话——便签独立于文章存在,写下即是记录。</div>`
+    : artBody(rec);
+  $('#dtPage').innerHTML = `
+    <h1 class="dt-title">${rec.head || (hasArt?'':'这一天没有 AI 会话')}</h1>
+    <div class="dt-meta">每日工作日志 · 文章 tab(详情即文件,不再弹窗)<span>·</span>点月格 / 轴卡「全文」直达${rec.note?'<span>·</span>✎ 含便签':''}</div>
+    ${(rec.st==='g'||rec.st==='t') ? genSessBar(detailK, rec) : ''}
+    ${noteCard(detailK, rec, noteEditK===detailK)}
+    <div class="dt-art">${artArea}</div>
+    ${grow}`;
+  bindNote($('#dtPage'));
+  const ta = document.querySelector('#dtPage [data-noteedit]');
+  if(ta && noteEditK===detailK && noteDraft!=null){ ta.value = noteDraft; ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+}
+
+/* ── 文章渲染件 ── */
+function artBody(dd){
+  const secs = dd.secs || [];
+  const secsHtml = secs.length ? secs.map(x=>`
+    <div class="asec ${x.inc?'inc':''} ${x.live?'live':''}">
+      <div class="asec-top">
+        <span class="asec-t">${x.t}</span>
+        <span class="asec-time">${x.time}</span>
+        ${x.inc?`<span class="incb">${x.inc} 并入</span>`:''}
+        ${x.live?`<span class="liveb"><i></i>进行中</span>`:''}
+      </div>
+      <p>${x.d}</p>
+      <div class="sess-row">${x.sess.map(s=>`<span class="sc" style="--ec:${ENGINES[s.e]}"><i></i>${s.e} · ${s.t}<span class="dur">${s.dur}</span>${s.live?' · live':''}</span>`).join('')}</div>
+    </div>`).join('') : '';
+  const openHtml = dd.open ? `<div class="open"><h4>未完事项${dd.st==='t'?'<span class="incb">14:32 更新</span>':''}</h4><ul>${dd.open.map(o=>`<li>${o}</li>`).join('')}</ul></div>` : '';
+  return `<div class="art-lede">${dd.lede||''}</div>${secsHtml}${openHtml}`;
+}
+function growStrip(dd, k){
+  const beads = dd.beads || [];
+  const n = Math.max(beads.length,1);
+  const last = beads[beads.length-1];
+  return `<span>生长 ${beads.length} 次</span>
+    <div class="line">${beads.map((b,i)=>`<span class="gbead ${b.live?'live':''}" style="left:${(i+0.5)/n*100}%"><span class="tip">${b.t} · ${b.label}</span></span>`).join('')}</div>
+    <span style="font-family:var(--mono)">${last&&last.live?'增量检查中':(last?last.t:'')}</span>
+    <div class="acts">
+      ${dd.st==='t'?`<button class="btn" data-gen="${k}">检查增量(后台)</button>`:dd.st==='p'?`<button class="btn primary" data-gen="${k}">立即生成(后台)</button>`:dd.st==='f'?`<button class="btn primary" data-gen="${k}">重试生成(后台)</button>`:dd.st==='g'?`<button class="btn" data-gen="${k}">↻ 整篇重新生成(后台)</button>`:''}
+    </div>`;
+}
+
+/* ── 月视图 ── */
+function renderMonth(){
+  const stage = $('#stage');
+  stage.className = 'stage';
+  stage.innerHTML = '<div class="mgrid" id="mgrid"></div>';
+  const grid = $('#mgrid');
+  const lead = (new Date(cur.y, cur.m-1, 1).getDay()+6)%7;
+  const days = new Date(cur.y, cur.m, 0).getDate();
+  for(let i=0;i<lead;i++) grid.insertAdjacentHTML('beforeend','<div class="dcell out"></div>');
+  for(let d=1;d<=days;d++){
+    const k = `${pad(cur.m)}-${pad(d)}`;
+    const dd = dataOf(k);
+    if(cur.y===2026&&cur.m===9&&d>29){ grid.insertAdjacentHTML('beforeend',`<div class="dcell out"><div class="dc-top"><span class="dn">${d}</span></div></div>`); continue; }
+    const today = cur.y===2026&&cur.m===9&&d===29;
+    const hol = holOf(cur.y,cur.m,d);
+    const we = isWe(cur.y,cur.m,d);
+    const hasNote = !!dd.note;
+    const cls = ['dcell', dd.st==='n'&&!hasNote?'empty':(dd.st==='n'?'':heat(dd.tok)), dd.st==='p'?'pending':'', today?'today':'', we?'we':'', hasNote?'hasnote':''].join(' ');
+    const badge = today?`<span class="badge t">增量中</span>`:(dd.st==='p'?`<span class="badge p">待生成</span>`:dd.st==='f'?`<span class="badge f">失败</span>`:'');
+    const head = dd.st==='p' ? `<div class="dc-lede">${dd.s} 会话待提取 · 悬停生成</div>` : dd.st==='f' ? `<div class="dc-lede" style="color:var(--err)">${dd.err}</div>` : dd.st==='g'||dd.st==='t' ? `<div class="dc-head">${dd.head||''}</div><div class="dc-lede">${dd.lede||''}</div>` : (hasNote?'':`<div class="dc-lede" style="color:var(--fg-faint)">无会话 · 点开写便签</div>`);
+    const notePeek = dd.note ? (dd.note.text.split('\n')[0] || ((dd.note.images&&dd.note.images.length) ? `${dd.note.images.length} 张图片` : '')) : '';
+    const noteLine = hasNote && notePeek ? `<div class="dc-note">✎ ${esc(notePeek)}</div>` : '';
+    const engs = (dd.eng||[]).slice(0,5).map(e=>`<i style="background:${ENGINES[e]}"></i>`).join('');
+    grid.insertAdjacentHTML('beforeend',
+      `<div class="${cls}" data-k="${k}" title="${hol?hol+' ':''}${cur.m}月${d}日${hasNote?' · 有便签':''}">
+        <div class="genbtn"><button class="btn primary" data-quick="${k}">生成此日</button></div>
+        <div class="dc-top"><span class="dn">${d}</span>${hasNote?`<span class="notemark">${PEN_SVG}</span>`:''}${hol?`<span class="holmini">休·${hol}</span>`:''}${badge}<span class="s">${dd.s?dd.s+' 会话':''}</span></div>
+        ${head}${noteLine}
+        <div class="dc-engs">${engs}<span class="tk">${dd.tok?(dd.tok/1000).toFixed(1)+'万':''}</span></div>
+        ${dd.s?`<div class="sbar" style="max-width:${Math.round(dd.s/11*100)}%"></div>`:''}
+      </div>`);
+  }
+  grid.querySelectorAll('.dcell[data-k]').forEach(c=>c.onclick=e=>{ if(e.target.closest('[data-quick]')) return; const k=c.dataset.k; const dd=dataOf(k); openDetailTab(k, dd.st==='n' && !dd.note); });
+}
+
+/* ── 年视图 ── */
+function renderYear(){
+  const stage = $('#stage');
+  stage.className = 'stage';
+  stage.innerHTML = `<div class="year-grid">${YEAR.map(mo=>{
+    const days = new Date(cur.y, mo.m, 0).getDate();
+    const real = mo.real||{};
+    let cells='';
+    for(let d=1;d<=days;d++){
+      const rec = real[`${pad(mo.m)}-${pad(d)}`];
+      const st = rec?.st || 'n';
+      const tok = rec?.tok||0;
+      const hol = holOf(cur.y,mo.m,d);
+      const we = isWe(cur.y,mo.m,d);
+      const hasNote = !!rec?.note;
+      let cl = [];
+      if(hol) cl.push('hol');
+      if(hasNote) cl.push('note');
+      if(st==='t') cl.push('t');
+      else if(st==='p') cl.push('p');
+      else if(st==='f') cl.push('f');
+      else if(st==='g') cl.push(tok>=550?'h3':tok>=300?'h2':'g');
+      else if(we) cl.push('we');
+      cells += `<span class="${cl.join(' ')}" title="${mo.m}月${d}日${hol?' · '+hol:''}${hasNote?' · 有便签':''}"></span>`;
+    }
+    return `<div class="ymonth ${mo.cur&&cur.y===2026?'cur':''}" data-mm="${mo.m}">
+      <h3>${mo.m}月<span class="n">${mo.d} 天 · ${mo.s} 会话</span></h3>
+      <div class="ycal">${cells}</div>
+      <div class="stat">${mo.d?`${mo.d} 篇文章 · 峰值 ${(Math.max(0,...Object.values(mo.real||{a:{tok:0}}).map(x=>x.tok||0))/1000).toFixed(1)}万 tok`:'无记录'}</div>
+    </div>`;
+  }).join('')}</div>`;
+  stage.querySelectorAll('.ymonth').forEach(y=>y.onclick=()=>{ cur.m=Number(y.dataset.mm); view='m'; syncView(); });
+}
+
+/* ── 轴视图 ── */
+function renderStrip(){
+  const s = $('#mbStrip'); let h='';
+  $('#mbTitle').textContent = `${cur.y}-${pad(cur.m)}`;
+  const days = new Date(cur.y, cur.m, 0).getDate();
+  for(let d=1;d<=days;d++){
+    const k = `${pad(cur.m)}-${pad(d)}`;
+    const dd = dataOf(k);
+    const hol = holOf(cur.y,cur.m,d);
+    const we = isWe(cur.y,cur.m,d);
+    const hasNote = !!dd.note;
+    let cl=[];
+    if(hol) cl.push('hol');
+    if(hasNote) cl.push('note');
+    if(dd.st==='t') cl.push('t');
+    else if(dd.st==='p') cl.push('p');
+    else if(dd.st==='f') cl.push('f');
+    else if(dd.st==='g') cl.push(dd.tok>=550?'h3':dd.tok>=300?'h2':'g');
+    else if(we) cl.push('we');
+    const tip = `${cur.m}月${d}日${hol?' · '+hol:''}${dd.head?' · '+dd.head:''}${hasNote?' · ✎ 便签':''}`;
+    h += `<span class="${cl.join(' ')}" data-d="${d}" title="${tip}"></span>`;
+  }
+  s.innerHTML = h;
+  s.querySelectorAll('span').forEach(x=>x.onclick=()=>{
+    const el = document.querySelector(`.card[data-k="d${x.dataset.d}"]`);
+    if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.style.boxShadow='0 0 0 2px var(--accent)'; setTimeout(()=>el.style.boxShadow='',1200); }
+    else toast('该日无会话与便签');
+  });
+}
+function renderFlow(){
+  const f = $('#stage');
+  f.className = 'flow';
+  const store = storeOf();
+  /* 有文章或有便签的日子都出卡(空日纯便签卡 = 灰棕节点) */
+  const keys = Object.keys(store).filter(k=>store[k].st!=='n' || store[k].note).sort().reverse();
+  const stat = keys.filter(k=>store[k].st==='g'||store[k].st==='t').length;
+  const noteN = keys.filter(k=>store[k].note).length;
+  let h = `<div class="mhead">
+    <span class="mt">${cur.y}-${pad(cur.m)}</span>
+    <span class="ms">${stat} 天有记录 · ${stat} 篇文章 · ${noteN} 条便签</span>
+    <div class="acts"><button class="btn ghost" id="btnMonth">生成本月小结(预览)</button></div>
+  </div>`;
+  let prev = null;
+  for(const k of keys){
+    const d = Number(k.split('-')[1]);
+    if(prev!==null && prev-d>1) h += `<div class="gap"><span>${prev-d-1} 天空白</span><span class="gline"></span></div>`;
+    h += flowCard(k, d, store[k]);
+    prev = d;
+  }
+  if(!keys.length) h += `<div class="gap" style="padding:60px 0"><span>本月无记录——空日也能写便签:切月视图点任意日直达</span><span class="gline"></span></div>`;
+  h += `<div class="gap"><span>向上翻上月 →</span><span class="gline"></span></div>`;
+  f.innerHTML = h;
+  f.querySelectorAll('[data-fold]').forEach(x=>x.onclick=()=>x.closest('.card').classList.toggle('folded'));
+  f.querySelectorAll('[data-gen-inline]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); genFlow(b.dataset.genInline, b); });
+  f.querySelectorAll('[data-full]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); openDetailTab(b.dataset.full); });
+  $('#btnMonth').onclick=()=>toast('本月小结 = 聚合各篇总览段再成文(未来扩展,本原型仅预留入口)');
+}
+function flowCard(k, d, dd){
+  const wd = DOW[new Date(cur.y, cur.m-1, d).getDay()];
+  const hasArt = dd.st==='g'||dd.st==='t'||dd.st==='f'||dd.st==='p';
+  const folded = (k!=='09-29'&&k!=='09-28'&&k!=='09-22') ? ' folded' : '';
+  const today = k==='09-29' ? ' today' : '';
+  const hol = holOf(cur.y,cur.m,d);
+  const chip = hasArt ? `<span class="chip ${dd.st==='t'?'t':dd.st==='p'?'p':dd.st==='f'?'f':'g'}"><i></i>${dd.st==='t'?'今日增量中':dd.st==='p'?'待生成':dd.st==='f'?'失败':'已生成'}</span>` : `<span class="chip" style="color:var(--fg-subtle);border:1px solid var(--border)">便签日</span>`;
+  const nodeCls = dd.st==='t' ? 't' : (hol?'hol':dd.st==='p'?'p':dd.st==='f'?'f':(hasArt?'':(dd.note?'nn':'n')));
+  let inner = '';
+  if(dd.st==='p' && hasArt){
+    inner = `<div class="c-body"><div style="padding:13px 0 9px;display:flex;flex-direction:column;gap:9px;align-items:flex-start">
+      <div style="color:var(--fg-subtle);font-size:11px">${dd.s} 个会话等待提取 · 就地选引擎补生成:</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="seg" data-seg="k">${Object.keys(ENGINES).slice(0,4).map((e,i)=>`<button style="--ec:${ENGINES[e]}" class="${i===0?'on':''}">${e}</button>`).join('')}</div>
+        <button class="btn primary" data-gen-inline="${k}">生成此日(后台)</button>
+      </div></div></div>
+      <div style="padding:0 13px 12px">${noteCard(k, dd, false)}</div>`;
+  } else if(dd.st==='f'){
+    inner = `<div class="c-body"><div style="padding:13px 0 9px;display:flex;align-items:center;gap:10px">
+      <span style="color:var(--err);font-size:11px">${dd.err}</span>
+      <button class="btn primary" data-gen-inline="${k}" style="margin-left:auto">重试生成(后台)</button></div></div>
+      <div style="padding:0 13px 12px">${noteCard(k, dd, false)}</div>`;
+  } else if(dd.st==='g'||dd.st==='t'){
+    inner = `<div class="c-body">${artBody(dd)}</div>
+      <div class="c-foot"><span>${(dd.beads||[]).length} 次落盘 · glm-5.3 · 思考 中${dd.gen?' · '+dd.gen:''}</span>
+      <div class="acts">${k==='09-29'?`<button class="btn" data-gen-inline="${k}">检查增量(后台)</button>`:`<button class="btn" data-gen-inline="${k}">↻ 整篇重新生成(后台)</button>`}</div></div>
+      <div style="padding:0 13px 12px">${noteCard(k, dd, false)}</div>`;
+  } else {
+    /* 纯便签日 */
+    inner = `<div style="padding:2px 13px 12px">${noteCard(k, dd, false)}</div>`;
+  }
+  return `<div class="day">
+    <div class="spine">
+      <span class="node ${nodeCls}">${d}</span>
+      ${dd.beads?`<div class="beads">${dd.beads.map(b=>`<span class="bead"><span class="tip">${b.t} · ${b.label}</span></span>`).join('')}</div>`:''}
+    </div>
+    <div class="card${folded}${today}" data-k="d${d}">
+      <div class="c-head" data-fold="${k}">
+        <span class="c-date ${hol?'hol':''}">${cur.m}月${d}日<span class="wd">周${wd}</span></span>
+        ${hol?`<span class="holchip">${hol}</span>`:''}
+        ${dd.note?`<span class="notemark" style="font-size:10px">${PEN_SVG}</span>`:''}
+        ${chip}
+        ${dd.head?`<span class="c-headline">${dd.head}</span>`:''}
+        <span class="c-meta">${dd.s?dd.s+' 会话':''}</span>
+        ${folded&&dd.note&&((dd.note.text&&dd.note.text.split('\n')[0])||(dd.note.images&&dd.note.images.length))?`<span class="c-notepeek">✎ ${esc(dd.note.text.split('\n')[0] || dd.note.images.length+' 张图片')}</span>`:''}
+        ${folded&&!dd.note&&dd.lede?`<span class="c-peek">${dd.lede}</span>`:''}
+        <span class="fullbtn" data-full="${k}">全文 ↗</span><span class="c-fold">▾</span>
+      </div>
+      ${inner}
+    </div>
+  </div>`;
+}
+
+/* ── 后台任务面板(定时/手动/增量/重试一律后台,失焦不中断)── */
+function seedTasks(){
+  tasks = [
+    {k:'09-29', type:'增量检查', engine:'omp', model:'glm-5.3', st:'run', text:'15:32 增量检查 · 1 个 omp 会话进行中,等收尾后并入', since:'15:02', session:'s-gen-0929'},
+    {k:'09-06', type:'重试生成', engine:'omp', model:'glm-5.3', st:'queue', text:'排队 · 等待 429 额度窗口(到点自动重试)', since:'14:50'},
+    {k:'09-29', type:'增量并入', engine:'omp', model:'glm-5.3', st:'done', text:'已并入 2 会话 · 第 3 节「0.2.5 发布整体评审」', since:'14:32', session:'s-gen-0929'},
+    {k:'09-28', type:'定时生成', engine:'omp', model:'glm-5.3', st:'done', text:'已完成 · 5 会话成文(含跨零点晚归预检并入)', since:'09-29 08:00'},
+    {k:'09-06', type:'定时生成', engine:'omp', model:'glm-5.3', st:'err', text:'失败 · 429 额度不足,自动重试 3 次未过 → 已转排队', since:'08:00'},
+  ];
+}
+function updateTaskBadge(){
+  const n = tasks.filter(t=>t.st==='run'||t.st==='queue').length;
+  const b = $('#taskBadge');
+  b.style.display = n ? 'inline' : 'none';
+  b.textContent = '· ' + n;
+}
+function renderTasks(){
+  if(!tasks.length) seedTasks();
+  const item = t => {
+    const day = t.k.replace('-','月')+'日';
+    const acts = t.st==='run' ? (t.session?`<button class="btn" data-opensession="${t.k}">打开会话</button>`:'') :
+      t.st==='queue' ? `<button class="btn" data-canceltask="${t.since}|${t.k}">取消</button>` :
+      t.st==='err' ? `<button class="btn primary" data-gen="${t.k}">重试</button>` :
+      `<button class="btn" data-openday="${t.k}">看文章</button>`;
+    return `<div class="titem ${t.st}">
+      <div class="ti-main"><div class="ti-top">${day} · ${t.type}<span class="engdot" style="--ec:${ENGINES[t.engine]};background:${ENGINES[t.engine]}"></span>${t.engine} · ${t.model}<span class="tt">${t.since} 起</span></div>
+      <div class="ti-sub">${t.text}</div></div>
+      <div class="ti-acts">${acts}</div></div>`;
+  };
+  const sec = (title, arr) => arr.length ? `<div class="tsec">${title}</div>${arr.map(item).join('')}` : '';
+  const run = tasks.filter(t=>t.st==='run'), queue = tasks.filter(t=>t.st==='queue'), done = tasks.filter(t=>t.st!=='run'&&t.st!=='queue').slice(0,4);
+  $('#taskBody').innerHTML = sec('进行中 · 后台运行(切走模块 / 失焦不中断)', run) + sec('排队', queue) + sec('完成 / 失败', done);
+  updateTaskBadge();
+}
+
+/* ── 生成流 ── */
+function genFlow(k, btn, typeLabel){
+  const isInc = storeOf()[k] && storeOf()[k].st==='t';
+  const t = {k, type: typeLabel || (isInc?'增量检查':(storeOf()[k]&&storeOf()[k].st==='f'?'重试生成':'手动生成')), engine:'omp', model:'glm-5.3', st:'run',
+    text:isInc?'增量检查中 · 喂入新收尾会话':'喂入会话 · 整理成文中', since:'刚刚', session:(cur.y===2026&&k==='09-29')?'s-gen-0929':null};
+  tasks.unshift(t); renderTasks();
+  toast(`${t.type} 已转后台 · 切走模块 / 失焦不中断,进度见「后台任务」`);
+  if(btn){ btn.disabled=true; btn.textContent = isInc?'增量检查中(后台)…':'整理成文中(后台)…'; }
+  setTimeout(()=>{
+    const store = storeOf();
+    const dd = store[k];
+    if(dd && dd.st==='t'){
+      dd.secs.push({t:'发布物料与 latest.json 校验',time:'15:10 – 15:30',inc:'15:32',d:'核验 updater 链:latest.json 时间戳晚于 .app.tar.gz;release 正文补录。',sess:[{e:'omp',t:'release 物料核对',dur:'20m'}]});
+      dd.beads.splice(3,0,{t:'15:32',label:'增量 · 并入 1 会话'});
+      dd.beads[4].t='16:32';
+      dd.gen='增量中 · 15:32';
+      toast('后台任务完成:新增 1 会话已并入今日文章(新节「发布物料与 latest.json 校验」)· 15:32');
+    } else {
+      const oldNote = dd ? dd.note : undefined;
+      store[k] = {st:'g',s:dd?dd.s:2,tok:dd?dd.tok:0,eng:dd?dd.eng:['omp'],head:dd&&dd.head?dd.head:'当日汇总(手动生成)',lede:'按当日全部会话整理成篇(手动触发生成)。',gen:'刚刚 · 手动',beads:[{t:'刚刚',label:'手动生成 · '+(dd?dd.s:2)+' 会话'}],secs:[],open:[],note:oldNote};
+      toast(`后台任务完成:${k.replace('-','月')}日 汇总文章已落盘${oldNote?' · 便签保留':''}`);
+    }
+    t.st='done'; t.text='已完成 · 落盘 '+k; renderTasks();
+    syncView();
+    if(detailK===k && activeTab==='detail') renderDetail();
+  },2200);
+}
+
+/* ── 生成会话窗(真实 CLI 会话的观察 / 干涉面;终端 tab 形态)── */
+const SESSION_MSGS = {
+  '09-29': [
+    {t:'09:12', w:'u', tag:'tmd-cli · 首次提取', body:'[每日日志 09-29] 喂入今日 3 个会话(09:30–14:10:mermaid 渲染链路 / katex 三形态目检 / release review 前段)。整理成当日唯一一篇汇总文章:总览段 + 分节正文 + 未完事项,标题自拟。'},
+    {t:'09:14', w:'a', body:'已生成《会话查看器渲染补齐 · 0.2.5 发布收尾》:总览 1 段 + 3 节,未完事项 2 条。\n落盘 ~/.tmd-cli/daily/2026-09.json # 09-29'},
+    {t:'11:47', w:'u', tag:'tmd-cli · 自动增量', body:'新增 2 会话(katex 相关,11:20–11:45)。并入既有结构,已落盘节不重写。'},
+    {t:'11:49', w:'a', body:'已并入:第 2 节「KaTeX 数学渲染补齐」标注 11:47 并入,含 remark-math 管线与三形态目检结论。'},
+    {t:'14:32', w:'u', tag:'tmd-cli · 自动增量', body:'新增 2 会话(0.2.5 release review,14:20– 进行中)。并入。'},
+    {t:'14:34', w:'a', body:'已并入第 3 节「0.2.5 发布整体评审 + 死代码清理」,标注 14:32 并入;未完事项 +1(ClawHub slug P1)。'},
+    {t:'15:32', w:'u', tag:'tmd-cli · 自动增量', body:'增量检查:1 个 omp 会话仍在进行,待收尾;暂无新会话需并入。'},
+  ]
+};
+function openSessionTab(k){
+  sessionK = k; activeTab = 'session';
+  renderTabs(); renderSession(); showPane();
+}
+function closeSessionTab(){ sessionK=null; activeTab='cal'; renderTabs(); showPane(); toast('已关闭汇总会话 tab'); }
+function msgHtml(m){
+  const who = m.w==='u' ? '▌user' : m.w==='a' ? '✦assistant' : '✎me';
+  const cls = m.w==='u'?'u':m.w==='a'?'a':'m';
+  return `<div class="msg ${cls}"><div class="mh"><span class="mt">${m.t}</span><span class="who">${who}</span>${m.tag?`<span class="tag">${m.tag}</span>`:''}</div><div class="bd">${m.body}</div></div>`;
+}
+function renderSession(){
+  if(!sessionK) return;
+  const rec = recOf(sessionK);
+  const live = rec.st==='t';
+  $('#spBar').innerHTML = `<span class="sp-title">${TERM_SVG}每日日志 · 生成会话</span>
+    <span class="sub"><i style="background:${ENGINES.omp}"></i>omp · glm-5.3 · s-gen-0929</span>
+    ${live?'<span class="chip t"><i></i>增量检查中 · 可插话干涉</span>':'<span class="chip g">已收尾 · 只读</span>'}
+    <div class="acts">${live?`<button class="btn" data-gen="${sessionK}">检查增量(后台)</button>`:''}<button class="btn" id="spClose">关闭</button></div>`;
+  const msgs = SESSION_MSGS[sessionK] || [];
+  $('#spTerm').innerHTML = `<div class="msg" style="color:#6c7086;font-style:italic">// 生成会话 = tmd-cli 托管的真实 CLI 会话:文章由它产出,此窗可观察全过程、可插话干涉</div>` + msgs.map(msgHtml).join('') + `<div class="cursorline">▌</div>`;
+  $('#spTerm').scrollTop = 1e6;
+  $('#spClose').onclick = closeSessionTab;
+}
+function sendSessionMsg(){
+  const ta = $('#spInput'); const v = ta.value.trim(); if(!v || !sessionK) return;
+  ta.value = '';
+  const k = sessionK;
+  (SESSION_MSGS[k] = SESSION_MSGS[k]||[]).push({t:'刚刚', w:'m', tag:'手动干涉', body:v});
+  renderSession();
+  setTimeout(()=>{
+    if(k!=='09-29'){
+      SESSION_MSGS[k].push({t:'刚刚', w:'a', body:'已记录你的补充;该日会话已收尾,调整将在下次重新生成 / 增量时生效。'});
+      renderSession(); return;
+    }
+    SESSION_MSGS[k].push({t:'15:41', w:'a', body:'已按你的要求调整:新增独立节「ClawHub slug 净化(P1)」并置顶未完事项,标注 15:41 会话干涉。\n重新落盘 ~/.tmd-cli/daily/2026-09.json # 09-29'});
+    const dd = recOf('09-29');
+    dd.secs.push({t:'ClawHub slug 净化(P1)· 手动干涉',time:'14:20 – 进行中',inc:'15:41',d:'按用户在生成会话中的插话拆出:注册表 slug 白名单净化,dest 逃逸修复,0.2.6 首项。',sess:[{e:'omp',t:'release review(干涉补充)',dur:'—'}]});
+    dd.beads.push({t:'15:41',label:'会话干涉 · 手动调整'});
+    dd.open.unshift('P1 ClawHub slug 净化 → 0.2.6 首项(白名单一行)· 已置顶');
+    tasks.unshift({k:'09-29', type:'会话干涉', engine:'omp', model:'glm-5.3', st:'done', text:'按插话拆出 ClawHub P1 独立节 · 已落盘', since:'15:41', session:'s-gen-0929'});
+    renderTasks(); renderSession(); syncView();
+    if(detailK===k && activeTab==='detail') renderDetail();
+    toast('生成会话已按插话更新当日汇总 · 15:41 落盘');
+  }, 900);
+}
+
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2800); }
+
+/* ── rail / 视图同步 / 事件 ── */
+const RAIL = [
+  ['文件','M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'],
+  ['Git','M6 8v8M6 6.5a2 2 0 1 0 0-.01M6 17.5a2 2 0 1 0 0-.01M18 9a2 2 0 1 0 0-.01M18 11c0 4-7 2-9 6'],
+  ['标记','M6 4h12v17l-6-4-6 4z'],
+  ['审批线','M4 5h7v6H4zM13 13h7v6h-7zM7.5 11v3a2 2 0 0 0 2 2H13'],
+  ['审批','M4 13l2-7h12l2 7v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 13h5a3 3 0 0 0 6 0h5'],
+  ['意图画布','M4 4h16v16H4zM4 10h16M10 4v16'],
+  ['SSH','M4 5h16v14H4zM7 9l3 3-3 3M12 15h5'],
+  ['WSL','M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z'],
+  ['内置终端','M3 4h18v16H3zM7 9l3 3-3 3M13 15h4'],
+  ['Memory','M12 9.5a2.5 2.5 0 1 0 0 .01M5 8.5a1.5 1.5 0 1 0 0 .01M19 8.5a1.5 1.5 0 1 0 0 .01M19 15.5a1.5 1.5 0 1 0 0 .01M5 15.5a1.5 1.5 0 1 0 0 .01M12 19.5a1.5 1.5 0 1 0 0 .01M6.2 7.7L10 10.6M17.8 7.7L14 10.6M6.2 16.3L10 13.4M17.8 16.3L14 13.4'],
+  ['Skills','M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z'],
+  ['MCP','M9 3v5M15 3v5M6 8h12v4a6 6 0 0 1-12 0zM12 20v1'],
+  ['每日工作日志','M4 6h16v15H4zM4 10h16M8 3v5M16 3v5M9 15.5l2 2 4-4.5'],
+  ['更多面板','M5 12h.01M12 12h.01M19 12h.01']
+];
+function renderRail(){
+  const r = $('#rail'); let h='';
+  RAIL.forEach(([name,path],i)=>{
+    h += `<button class="${name==='每日工作日志'?'on':''}" title="${name}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${path}"/></svg></button>`;
+    if(i===4||i===8) h += '<span class="sep"></span>';
+  });
+  r.innerHTML = h + '<span class="spring"></span>';
+  r.querySelectorAll('button').forEach(b=>b.onclick=()=>{ if(b.title!=='每日工作日志') toast('演示原型:仅「每日工作日志」入口可交互'); });
+}
+function syncPills(){
+  const store = storeOf();
+  const keys = Object.keys(store);
+  const gk = keys.filter(k=>store[k].st==='g'||store[k].st==='t');
+  const sess = keys.reduce((a,k)=>a+(store[k].s||0),0);
+  $('#monthPill').textContent = `本月 ${gk.length} 天有记录 · ${sess} 会话 · ${gk.length} 篇文章`;
+  const pn = keys.filter(k=>store[k].st==='p').length;
+  $('#pendingPill').style.display = pn?'inline-flex':'none';
+  $('#pendingPill').innerHTML = `<i></i>${pn} 天待生成`;
+  $('#todayPill').style.display = (cur.y===2026&&cur.m===9)?'inline-flex':'none';
+}
+function syncView(){
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.classList.toggle('on', b.dataset.v===view));
+  $('#dowRow').style.display = view==='m' ? 'grid' : 'none';
+  $('#minibar').style.display = view==='f' ? 'flex' : 'none';
+  if(view==='y') $('#mTitle').textContent = `${cur.y}年`;
+  else $('#mTitle').textContent = `${cur.y}年${cur.m}月`;
+  if(view==='m') renderMonth();
+  else if(view==='y') renderYear();
+  else { renderStrip(); renderFlow(); }
+  /* 轴视图卡内便签的编辑入口 → 直开文章 tab 并进编辑态 */
+  if(view==='f'){
+    const stage = $('#stage');
+    stage.querySelectorAll('[data-notenew],[data-noteeditbtn]').forEach(x=>x.onclick=e=>{ e.stopPropagation(); openDetailTab((x.dataset.notenew||x.dataset.noteeditbtn), true); });
+  }
+  syncPills();
+}
+document.querySelectorAll('#viewSeg button').forEach(b=>b.onclick=()=>{ view=b.dataset.v; syncView(); });
+document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{
+  if(view==='y'){ cur.y += Number(b.dataset.nav); syncView(); return; }
+  cur.m += Number(b.dataset.nav);
+  if(cur.m===0){cur.m=12;cur.y--;} if(cur.m===13){cur.m=1;cur.y++;}
+  syncView();
+});
+$('#btnToday').onclick=()=>{ cur={y:2026,m:9}; view='m'; syncView(); };
+$('#btnTasks').onclick=()=>{ renderTasks(); $('#taskMask').classList.add('open'); };
+$('#btnFill').onclick=()=>{
+  const store = storeOf();
+  const pk = Object.keys(store).filter(k=>store[k].st==='p');
+  if(!pk.length){ toast('本月无待生成日'); return; }
+  pk.forEach(k=>genFlow(k, null, '补齐生成'));
+};
+$('#holPill').onclick=()=>{
+  holOnline = !holOnline;
+  $('#holPill').classList.toggle('on', holOnline);
+  $('#holPillTxt').textContent = holOnline ? '节假日 · 在线' : '节假日 · 离线保底';
+  $('#cfgHol').classList.toggle('on', holOnline);
+  $('#holStat').textContent = holOnline ? '2026 全年 · 昨日 22:14 同步' : '离线 · 优先用缓存,无缓存则仅周末底纹';
+  toast(holOnline ? '节假日数据在线:标注已恢复(缓存 2026 全年)' : '网络不通:节假日标注隐藏,仅保留周末底纹(保底形态)');
+  syncView();
+  if(activeTab==='detail') renderDetail();
+  if(activeTab==='session') renderSession();
+};
+$('#cfgEng').innerHTML = Object.keys(ENGINES).slice(0,6).map((e,i)=>`<button style="--ec:${ENGINES[e]}" class="${i===0?'on':''}">${e}</button>`).join('');
+$('#spSend').onclick = sendSessionMsg;
+$('#spInput').addEventListener('keydown', e=>{ e.stopPropagation(); if((e.metaKey||e.ctrlKey)&&e.key==='Enter') sendSessionMsg(); });
+document.addEventListener('click', e=>{
+  const g = e.target.closest('[data-gen]');
+  if(g){ genFlow(g.dataset.gen, g); return; }
+  const q = e.target.closest('[data-quick]');
+  if(q){ q.closest('.genbtn').innerHTML='<span style="font-size:11px;color:var(--accent)">已转后台 · 见任务面板</span>'; genFlow(q.dataset.quick, null); return; }
+  const os = e.target.closest('[data-opensession]');
+  if(os){ openSessionTab(os.dataset.opensession); return; }
+  const od = e.target.closest('[data-openday]');
+  if(od){ document.querySelectorAll('.mask').forEach(m=>m.classList.remove('open')); openDetailTab(od.dataset.openday); return; }
+  const ct = e.target.closest('[data-canceltask]');
+  if(ct){ const since = ct.dataset.canceltask.split('|')[0]; tasks = tasks.filter(t=>!(t.st==='queue'&&t.since===since)); renderTasks(); toast('已取消排队任务'); return; }
+  if(e.target.closest('#btnCfg')){ $('#cfgMask').classList.add('open'); return; }
+  if(e.target.closest('[data-close]') || e.target.classList.contains('mask')){ document.querySelectorAll('.mask').forEach(m=>m.classList.remove('open')); return; }
+  if(e.target.closest('#cfgSave')){ $('#cfgMask').classList.remove('open'); toast('生成设置已保存:每日 08:00 · omp · glm-5.3 · 思考 中 · 跟随实时 · 节假日在线'); return; }
+  const sg = e.target.closest('.seg');
+  if(sg && e.target.tagName==='BUTTON' && !e.target.closest('#viewSeg')){
+    sg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); e.target.classList.add('on');
+    if(sg.dataset.seg) toast(`此日将以 ${e.target.textContent} 引擎生成(仅本日覆盖)`);
+  }
+  if(e.target.id==='cfgTimer'||e.target.id==='cfgHol') e.target.classList.toggle('on');
+  const sc = e.target.closest('.sc');
+  if(sc) toast('打开会话查看器(深链 session-view:…)');
+  const iv = e.target.closest('[data-imgview]');
+  if(iv && !e.target.closest('[data-imgdel]')){
+    const [k,i] = iv.dataset.imgview.split(':');
+    const im = recOf(k).note.images[Number(i)];
+    $('#lbImg').src = im.src; $('#lbCap').textContent = `${im.name} · 来自便签粘贴`;
+    $('#lightbox').classList.add('open');
+    return;
+  }
+  if(e.target.id==='lightbox'){ $('#lightbox').classList.remove('open'); return; }
+});
+$('#dtBack').onclick = ()=>{ activeTab='cal'; renderTabs(); showPane(); };
+/* 演示数据:29 日便签预贴一张「截图」(shotSvg 生成的终端样式图,真实实现 = ⌘V 落附件目录) */
+SEP['09-29'].note.images = [{src: shotSvg(20260929), name:'clipboard-09-29-1432.png'}];
+
+renderTabs(); renderRail(); syncView(); renderTasks();
+</script>
+</body>
+</html>
