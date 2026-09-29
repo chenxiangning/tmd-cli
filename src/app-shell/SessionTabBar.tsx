@@ -18,6 +18,7 @@ import { PinIcon } from "@kernel/PinIcon";
 import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
 import { requestSessionReveal } from "@kernel/sessionReveal";
 import { shellLeftEnsureOpen } from "./shortcutCommands";
+import { sessionTabState } from "@kernel/sessionTabState";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
@@ -91,6 +92,8 @@ function SessionTabBarImpl() {
             ? sessionPinKey(meta.workspaceId, meta.profileId, cliSessionId)
             : undefined;
         const pinned = pinKey !== undefined && isSessionPinned(pinKey);
+        /* 三态点/后缀数据源(优先级真值表见 kernel/sessionTabState):等待确认 > 运行中 > 未读 > 空闲;无对话基线不出点。 */
+        const tabState = sessionTabState(host.isWaitingConfirm(id), host.isTurnActive(id), host.isUnread(id), host.getLastActivityAt(id));
         return (
           /* tab 语义挂在内层 switch 原生 button 上(它是真正的激活控件);
              外层只做容器(右键菜单 + 布局),不再是交互祖先 —— pin/定位/移除按钮
@@ -116,14 +119,18 @@ function SessionTabBarImpl() {
                   role="tab"
                   aria-selected={active}
                   className="session-tab-switch"
-                  title={host.isWaitingConfirm(id) ? t("{title} · 等待确认", { title }) : title}
+                  title={tabState === "waiting" ? t("{title} · 等待确认", { title }) : tabState === "idle" ? t("{title} · 空闲", { title }) : title}
                   onClick={() => host.setActiveSession(id)}
                 >
                   {host.getCliProfile(meta.profileId)?.renderIcon?.("0.75rem")}
-                  {host.isWaitingConfirm(id) ? (
+                  {tabState === "waiting" ? (
                     <span className="session-tab-dot is-ask" aria-hidden />
-                  ) : host.isUnread(id) ? (
+                  ) : tabState === "running" ? (
+                    <span className="session-tab-dot is-run" aria-hidden />
+                  ) : tabState === "unread" ? (
                     <span className="session-tab-dot" aria-hidden />
+                  ) : tabState === "idle" ? (
+                    <span className="session-tab-dot is-idle" aria-hidden />
                   ) : null}
                   <span className="session-tab-label">{title}</span>
                 </button>
