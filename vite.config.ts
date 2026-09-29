@@ -13,7 +13,7 @@ export default defineConfig({
      消失,HTML/代码文件首开必白屏(2026-09-29 实证)。excalidraw 同症状先例。 */
   optimizeDeps: {
     include: [
-      "@excalidraw/excalidraw",
+      "@uiw/react-codemirror",
       "@codemirror/language",
       "@codemirror/view",
       "@lezer/highlight",

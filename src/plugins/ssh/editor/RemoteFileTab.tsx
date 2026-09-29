@@ -9,14 +9,15 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { ipc, type SftpEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { retryImport } from "@kernel/lazyImport";
 import { setActiveTab, updateTab, type EditorTab } from "@kernel/tabs";
 import { saveRequestRef } from "./saveRequestRef";
 
 /* CodeMirror 全家按需拆包(files 插件同款):首个 ssh-file tab 才拉 chunk;
    与 files 的 lazy import 指向同一模块,chunk 共享。 */
-const Editor = lazy(() =>
+const Editor = lazy(retryImport(() =>
   import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
-);
+));
 
 interface RemoteDoc {
   content: string;

@@ -13,6 +13,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
 import type { EditorView } from "@codemirror/view";
 import { t } from "@kernel/i18n";
+import { retryImport } from "@kernel/lazyImport";
 import { setActiveEditorView } from "./expandSelection";
 import { useEditorExtensionFactories } from "@kernel/editorExtensions";
 import { loadCmLanguage } from "./cmLanguage";
@@ -20,7 +21,7 @@ import { loadCmTheme } from "./cmTheme";
 
 /* CodeMirror 全家动态加载(本文件本身已处 lazy chunk;再拆一层让 @uiw 只在
    首次真正挂载编辑器时进网络,与 loadCmLanguage/loadCmTheme 同策略)。 */
-const CodeMirror = lazy(() => import("@uiw/react-codemirror").then((m) => ({ default: m.default })));
+const CodeMirror = lazy(retryImport(() => import("@uiw/react-codemirror").then((m) => ({ default: m.default }))));
 
 /** 基础键位 + 编辑器内查找扩展(Mod-s 保存 / Tab 缩进 / Mod-f 查找面板):
  * 与 CodeMirror 全家同批动态加载;@uiw basicSetup 不含搜索,显式补。 */

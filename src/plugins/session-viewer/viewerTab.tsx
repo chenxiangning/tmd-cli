@@ -13,12 +13,13 @@ import type { SessionViewTabPayload } from "@kernel/sessionViewTabs";
 import type { CliSessionTranscript } from "@kernel/cli";
 import { TranscriptView } from "./transcriptView";
 import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
+import { retryImport } from "@kernel/lazyImport";
 
 import "./session-viewer.css";
 /* md 渲染管线体积大,按需拆包:首个 assistant 块出现才加载。 */
-const MarkdownBody = lazy(() =>
+const MarkdownBody = lazy(retryImport(() =>
   import("./markdownBody").then((m) => ({ default: m.MarkdownBody })),
-);
+));
 
 /** 首屏/增量批次(块级;工具卡与 md 块自身还有行级截断,见 transcriptView)。 */
 const RENDER_BATCH = 200;

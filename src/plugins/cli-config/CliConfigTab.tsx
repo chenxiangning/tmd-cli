@@ -8,10 +8,11 @@
  */
 
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { retryImport } from "@kernel/lazyImport";
 /* codemirror core 懒出桌面首屏静态图(FileTabContent/RemoteFileTab 同款先例)。 */
-const FileCodeEditor = lazy(() =>
+const FileCodeEditor = lazy(retryImport(() =>
   import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
-);
+));
 import { ipc } from "@kernel/ipc";
 import { useCliConfigEntries } from "@kernel/cliConfigRegistry";
 import type { CliConfigEntry, CliConfigSource } from "@kernel/cliConfigRegistry";

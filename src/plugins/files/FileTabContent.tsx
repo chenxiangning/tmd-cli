@@ -9,6 +9,7 @@
  */
 
 import { Suspense, lazy, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { retryImport } from "@kernel/lazyImport";
 import { ModeToggleButton, useDarkTheme } from "./editor/editorChrome";
 import { statusText, toolbarCls } from "./editor/editorChromeLogic";
 import type { EditorTab } from "@kernel/tabs";
@@ -22,25 +23,25 @@ import { takeFileRevealLine } from "@kernel/fileTabs";
 
 /* 编辑器(CodeMirror 全家 + 主题/语言包)按需拆包:真正进入编辑态才拉 chunk。
    useFileDocument 只依赖轻量 fileCache,静态引入不拖累拆包。 */
-const FileCodeEditor = lazy(() => import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })));
+const FileCodeEditor = lazy(retryImport(() => import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor }))));
 import { useFileDocument } from "./editor/useFileDocument";
 
 /* md 预览管线(react-markdown/katex/mermaid/viewerjs 体积大)按需拆包:
    仅当真正打开 md 文件时才加载该 chunk。 */
-const FileMarkdownPreview = lazy(() =>
+const FileMarkdownPreview = lazy(retryImport(() =>
   import("./markdown/FileMarkdownPreview").then((m) => ({ default: m.FileMarkdownPreview })),
-);
+));
 
 /* 结构化预览(连带 Prism 高亮)按需拆包:仅 sh/Dockerfile 拉取。 */
-const FileStructuredPreview = lazy(() =>
+const FileStructuredPreview = lazy(retryImport(() =>
   import("./render/FileStructuredPreview").then((m) => ({ default: m.FileStructuredPreview })),
-);
+));
 /* pdf.js / xlsx / mammoth 三条重库管线:各自类型才拉 chunk。 */
-const FilePdfPreview = lazy(() =>
+const FilePdfPreview = lazy(retryImport(() =>
   import("./render/FilePdfPreview").then((m) => ({ default: m.FilePdfPreview })),
-);
-const FileTabularPreview = lazy(() => import("./render/FileTabularPreview").then((m) => ({ default: m.FileTabularPreview })));
-const FileDocumentPreview = lazy(() => import("./render/FileDocumentPreview").then((m) => ({ default: m.FileDocumentPreview })));
+));
+const FileTabularPreview = lazy(retryImport(() => import("./render/FileTabularPreview").then((m) => ({ default: m.FileTabularPreview }))));
+const FileDocumentPreview = lazy(retryImport(() => import("./render/FileDocumentPreview").then((m) => ({ default: m.FileDocumentPreview }))));
 
 import { FileImagePreview } from "./render/FileImagePreview";
 import { FileBinaryUnsupported } from "./render/FileBinaryUnsupported";
