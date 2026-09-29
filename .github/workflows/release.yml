@@ -131,9 +131,12 @@ jobs:
             pkg-config
 
       # ---------- ⭐ 核心打包 ----------
-      # macOS 代码签名 + 公证凭据注入(批次七 2026-09-26):repo secrets 配齐才生效
-      # (tauri bundler 检测 APPLE_CERTIFICATE 即走 codesign + notarytool;未配 =
-      # 与旧构建完全一致,未签名未公证)。所需 secrets:
+      # macOS 代码签名 + 公证凭据注入(批次七 2026-09-26):repo secrets 配齐才生效。
+      # 基线:tauri.conf.json bundle.macOS.signingIdentity "-" 已让 bundler 做全 bundle
+      # ad-hoc 封签(2026-09-29,分架构 thin 二进制后链接器残留签名会触发 Gatekeeper
+      # 「已损坏」硬拦,ad-hoc 封签恢复「仍要打开」软拦);本步 env 注入后优先级更高
+      # (tauri-cli 先读 env APPLE_SIGNING_IDENTITY 再回落 config),配齐即升级为
+      # Developer ID 签名 + notarytool 公证。所需 secrets:
       #   APPLE_CERTIFICATE           base64 的 .p12(Developer ID Application 证书)
       #   APPLE_CERTIFICATE_PASSWORD  p12 导出密码
       #   APPLE_SIGNING_IDENTITY      "Developer ID Application: <Team 名>"
@@ -161,7 +164,7 @@ jobs:
             if [ -z "$(eval "echo \$$k")" ]; then missing="$missing $k"; fi
           done
           if [ -n "$missing" ]; then
-            echo "未配齐签名/公证凭据(缺:$missing),跳过注入(产物未签名,与旧构建一致)"
+            echo "未配齐签名/公证凭据(缺:$missing),跳过注入(产物保持 ad-hoc 签名未公证)"
             exit 0
           fi
           {
@@ -173,7 +176,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       # tauri-apps/tauri-action 是 Tauri 官方 GitHub Action,跨平台 build + 签名 + 公证 + 上传 artifact。
-      # 凭据是否注入由上一步决定:未配 APPLE_* secrets 时行为同旧(未签名未公证)。
+      # 凭据是否注入由上一步决定:未配 APPLE_* secrets 时产物为 ad-hoc 签名未公证。
       # updater 通道 TAURI_SIGNING_PRIVATE_KEY 与签名无关,见下方 env 注释。
       # tagName 动态取值:推送 v* tag 时非空 → 自动创建 Draft Release 并挂全部产物;
       # workflow_dispatch 手动触发时为空串 → 只构建;tauri-action 不会上传任何
