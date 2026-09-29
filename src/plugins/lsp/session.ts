@@ -24,7 +24,10 @@ const IDLE_SHUTDOWN_MS = 10 * 60 * 1000;
 
 export function pathToUri(path: string): string {
   const np = normalizePath(path);
-  return `file://${np.split("/").map(encodeURIComponent).join("/")}`;
+  /* Windows 盘符路径(C:/…)拼 file:// 会把盘符段落入 URI host 位,
+     LSP 要求 file:/// 三斜杠形态;POSIX 绝对路径维持双斜杠前缀不变。 */
+  const prefix = /^[A-Za-z]:\//.test(np) ? "file:///" : "file://";
+  return prefix + np.split("/").map(encodeURIComponent).join("/");
 }
 
 export interface DocChangeEvent {

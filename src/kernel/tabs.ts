@@ -139,23 +139,33 @@ export interface TabContentContribution {
   /** 匹配的 tab kind(如 "file" / "ssh-file" / "git-diff")。 */
   kind: string;
   component: ComponentType<{ tab: EditorTab }>;
+  /** 可选 tab 图标(顶栏 tab 条左缘):非文件 kind 应提供 —— 不提供则
+   *  回落按文件名解析的类型徽标(文件 kind file/ssh-file 的正确语义,
+   *  hub/canvas 等非文件 kind 的兜底)。装饰位图标经 kernel/iconSet
+   *  的 DecorIcon 包装即可跟随图标组合。 */
+  icon?: ComponentType<{ size?: number | string }>;
 }
 
-const tabContents = new Map<string, TabContentContribution["component"]>();
+const tabContents = new Map<string, TabContentContribution>();
 
 /** 注册某 kind 的 tab 内容组件(插件 activate 内调用)。重复 kind 抛错。 */
 export function registerTabContent(contribution: TabContentContribution): void {
   if (tabContents.has(contribution.kind)) {
     throw new Error(`tab 内容重复注册: ${contribution.kind}`);
   }
-  tabContents.set(contribution.kind, contribution.component);
+  tabContents.set(contribution.kind, contribution);
 }
 
 /** 查询某 kind 的内容组件;未注册 = undefined(调用方渲染兜底空态)。 */
 export function getTabContent(
   kind: string,
 ): TabContentContribution["component"] | undefined {
-  return tabContents.get(kind);
+  return tabContents.get(kind)?.component;
+}
+
+/** 查询某 kind 的 tab 图标(顶栏 tab 条);未注册 = undefined(回落文件徽标)。 */
+export function getTabIcon(kind: string): TabContentContribution["icon"] {
+  return tabContents.get(kind)?.icon;
 }
 
 /** 撤销通道(激活失败回滚/熔断摘除):kind 未注册时静默(幂等)。 */

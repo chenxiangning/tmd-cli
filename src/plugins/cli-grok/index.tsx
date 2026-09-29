@@ -10,15 +10,27 @@ import {
 } from "./configStatus";
 import { readGrokSessionEdits } from "./edits";
 import { fetchGrokQuota } from "./quota";
-import type { CliProfile, CliSuggestion } from "@kernel/cli";
+import type {
+  CliDiskSession,
+  CliProfile,
+  CliSessionTranscript,
+  CliSuggestion,
+} from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { listGrokSuggestions } from "./inspectSkills";
+import { listGrokMcpServers } from "./mcpServers";
 import {
   grokSessionsDir,
   listGrokSessions,
   readGrokSessionIdentity,
   readGrokSessionStatus,
 } from "./sessions";
+import { grokTranscriptLine } from "./grokTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "../cli-shared/sessionTranscript";
 
 /**
  * grok / 命令候选(官方 README 斜杠命令表;action 初判见
@@ -42,6 +54,18 @@ async function readGrokUserMessages(cwd: string, cliSessionId: string, full: boo
     full,
     grokUserMessageLine,
   );
+}
+
+/** 会话完整转录:grok 行型解析(工具行未实证,文本/思考照常)。 */
+async function readGrokTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  const file = await readTranscriptText(`${session.path}/chat_history.jsonl`);
+  if (!file) return null;
+  return {
+    blocks: pairToolResults(parseTranscriptBlocks(file.text, grokTranscriptLine)),
+    truncated: file.truncated,
+  };
 }
 
 
@@ -91,14 +115,21 @@ export const cliGrokPlugin: Plugin = {
       /* 命令/技能真相:grok inspect --json 枚举全层技能(用户/项目/兼容/插件);
          命令不可枚举 → listSuggestions 只供 skill,command 走静态表 */
       listSuggestions: listGrokSuggestions,
+      /* MCP 真相 = ~/.grok/config.toml 的 [mcp_servers.*] 段(TOML 提取走
+         cli-shared/mcpFormat,与 codex 共享);点击 send "/mcps"(academy 实证,复数)。 */
+      listMcpServers: listGrokMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listGrokSessions,
+      /* MCP 管理面:全局读写目标 = ~/.grok/config.toml(TOML 行级段写,
+         mcp-hub 经 cli-shared/mcpWrite;config 缺失 = 引擎隐藏不代造)。 */
+      mcpGlobalConfig: { candidates: ["/.grok/config.toml"], format: "toml" },
       /* 会话卫生判空:path = 会话目录,真实对话在 chat_history.jsonl
          (读不到 = 判不了,共享 helper 契约返回 false 不删)。 */
       isDiskSessionEmpty: (session) => isJsonlSessionEmpty(`${session.path}/chat_history.jsonl`),
       readSessionStatus: readGrokSessionStatus,
       readSessionFileIdentity: readGrokSessionIdentity,
       readSessionUserMessages: readGrokUserMessages,
+      readSessionTranscript: readGrokTranscript,
       readSessionEdits: readGrokSessionEdits,
       readDefaultStatus: readGrokDefaultStatus,
     };

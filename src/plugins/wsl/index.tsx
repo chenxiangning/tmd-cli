@@ -8,6 +8,7 @@
  */
 
 import { DesktopIcon } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
 import type { RemoteFileSource } from "@kernel/fileSources";
@@ -31,13 +32,15 @@ export const wslPlugin: Plugin = {
   activate(ctx) {
     /* 中央 tab 容器(kernel/tabs 注册表)+ 右缘 rail 直挂入口(2026-09-27 迁自
        左下角设置菜单;WslCard 本体仍是中央 tab,rail 钮只负责开 tab)。 */
-    ctx.registerTabContent({ kind: "wsl", component: WslCard });
+    ctx.registerTabContent({ kind: "wsl", component: WslCard, icon: (p) => <DecorIcon id="wsl-panel" Fallback={DesktopIcon} {...p} /> });
     ctx.registerSidebarAction({
       id: "wsl-panel",
       label: "WSL",
       icon: DesktopIcon,
-      order: 26,
+      order: 22, /* 机器组(SSH/WSL/终端) */
       rail: true,
+      railGroup: "machine",
+      opensCenterTab: true,
       active: () => getActiveTab()?.kind === "wsl",
       onSelect: () =>
         openTab({ id: "wsl:panel", title: "WSL", path: "", kind: "wsl", payload: null }),

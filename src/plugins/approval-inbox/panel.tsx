@@ -17,9 +17,10 @@ import {
   gotoAndFocus,
   observeCurrentWaitings,
   useApprovalInbox,
+  useAskHistory,
   type InboxEntry,
 } from "./store";
-import type { AskCard } from "./askCard";
+import { CardBlock } from "./askCardPanel";
 
 /** 等待时长文案;since 未知(面板后见)只显示「等待中」。 */
 function formatWait(since: number | null): string {
@@ -47,6 +48,9 @@ function resolveTitle(sessionId: string, manualTitles: Record<string, string>): 
 export function ApprovalInboxPanel() {
   useHost(); /* 状态位变化经 store 的 host.subscribe 重算,此处驱动重渲 */
   const { entries, failure } = useApprovalInbox();
+  const { records } = useAskHistory();
+  /* 会话绑定:历史只显当前激活会话的提问,跨会话内容不互泄。 */
+  const myRecords = records.filter((r) => r.sessionId === host.getActiveSessionId());
   const { settings } = useSettingsState();
   const [, tick] = useState(0);
   useEffect(() => {
@@ -77,7 +81,7 @@ export function ApprovalInboxPanel() {
           {t("应答发送失败,会话可能已退出")} · {t("点击关闭")}
         </button>
       )}
-      {entries.length === 0 ? (
+      {entries.length === 0 && myRecords.length === 0 ? (
         <div className="px-4 pt-10 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">
           {t("没有会话在等待确认")}
         </div>
@@ -86,6 +90,34 @@ export function ApprovalInboxPanel() {
           {entries.map((entry) => (
             <InboxRow key={entry.sessionId} entry={entry} manualTitles={settings.sessionTitles} />
           ))}
+          {myRecords.length > 0 && (
+            <div className="border-t border-(--tmd-border) px-3 py-2">
+              <div className="mb-1 text-[0.5625rem] leading-[1rem] text-(--tmd-fg-faint)">
+                {t("历史提问(落盘,最近 {n} 条)", { n: myRecords.length })}
+              </div>
+              {myRecords.map((r) => (
+                <div key={`${r.sessionId}-${r.ts}`} className="mb-1.5">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="flex-none font-mono text-[0.5625rem] text-(--tmd-fg-faint)">
+                      {new Date(r.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted)" title={r.question}>
+                      {r.question}
+                    </span>
+                    {r.multi > 1 && (
+                      <span className="flex-none text-[0.5625rem] text-(--tmd-fg-faint)">
+                        {t("{n} 问", { n: r.multi })}
+                      </span>
+                    )}
+                  </div>
+                  <div className="pl-8 text-[0.5625rem] leading-[1rem] text-(--tmd-fg-faint)">
+                    {r.options.slice(0, 4).join(" / ")}
+                    {r.options.length > 4 ? " …" : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -133,7 +165,11 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
         </button>
       </div>
       {entry.card ? (
-        <CardBlock card={entry.card} onSend={(t) => void sendText(t)} />
+        <CardBlock
+          key={`${entry.sessionId}:${entry.card.tabs.join("\u0000")}`}
+          card={entry.card}
+          sessionId={entry.sessionId}
+        />
       ) : (
         entry.excerpt && (
           <pre
@@ -171,44 +207,5 @@ function InboxRow({ entry, manualTitles }: { entry: InboxEntry; manualTitles: Re
   );
 }
 
-/** omp select 卡块:问题正文 + 选项列。单问/总结态:选项可点(发数字/回车);
- *  多问:CLI 焦点在幕布侧,面板代发数字会答错题 —— 选项只读展示 + 直达。 */
-function CardBlock({ card, onSend }: { card: AskCard; onSend: (text: string) => void }) {
-  const multi = card.multi > 1;
-  return (
-    <div className="mt-1">
-      <div className="flex items-center gap-1.5">
-        <span title={card.question} className="min-w-0 truncate text-[0.6875rem] leading-[1.125rem] text-(--tmd-fg)">
-          {card.question}
-        </span>
-        {multi && (
-          <span className="flex-none rounded bg-(--tmd-bg-subtle) px-1 text-[0.5625rem] leading-[1rem] text-(--tmd-warn)">
-            {t("{n} 个问题", { n: card.multi })}
-          </span>
-        )}
-      </div>
-      <div className="mt-1 flex flex-col items-stretch gap-0.5">
-        {card.options.map((opt, i) => {
-          const key = multi ? null : String(i + 1);
-          return (
-            <button
-              key={opt}
-              type="button"
-              disabled={key === null}
-              title={key === null ? t("多问卡:焦点在 CLI 侧,直达幕布逐题作答") : t("发送 {key} 选择", { key })}
-              onClick={() => onSend(key ?? "")}
-              className="flex items-center gap-1.5 rounded border border-(--tmd-border) px-1.5 py-0.5 text-left text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50 disabled:hover:border-(--tmd-border) disabled:hover:text-(--tmd-fg-muted)"
-            >
-              {key !== null && (
-                <kbd className="flex-none rounded bg-(--tmd-bg-subtle) px-1 font-mono text-[0.5625rem] text-(--tmd-fg)">
-                  {key}
-                </kbd>
-              )}
-              <span className="min-w-0 truncate">{opt}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+/** omp ask 卡操作面板:键位语义与面板侧 tab 位跟踪见 askCardPanel.tsx。 */
+

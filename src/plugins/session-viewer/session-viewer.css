@@ -1,0 +1,81 @@
+/* 会话查看器样式 —— monocode AgentTranscript 形态(--tmd-* 主题 token 映射
+   content→fg;阅读层级:正文 100% / 摘要行 50% / 思考正文 48%)。 */
+.sv-root { display: flex; flex-direction: column; height: 100%; background: var(--tmd-bg-base); color: var(--tmd-fg); }
+.sv-header { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px solid var(--tmd-border); flex: none; }
+.sv-engine-icon { display: inline-flex; color: var(--tmd-fg-muted); }
+.sv-title { font-size: 0.8125rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; }
+.sv-engine-name { font-size: 0.6875rem; color: var(--tmd-fg-muted); }
+.sv-time { font-size: 0.6875rem; color: var(--tmd-fg-faint); }
+.sv-truncated { font-size: 0.625rem; color: var(--tmd-warn, #b8860b); }
+.sv-refresh { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid var(--tmd-border); border-radius: 6px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); cursor: pointer; }
+.sv-refresh:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.sv-scroll { flex: 1; overflow-y: auto; }
+.sv-empty { display: grid; place-items: center; height: 100%; color: var(--tmd-fg-faint); font-size: 0.75rem; }
+.sv-blocks { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 24px; max-width: 860px; margin: 0 auto; }
+
+/* ── user / assistant 正文(monocode 全尺寸转录文本) ── */
+.sv-user, .sv-assistant { display: flex; flex-direction: column; gap: 4px; }
+.sv-user { border-left: 2px solid var(--tmd-accent); padding-left: 10px; }
+.sv-role-row { display: flex; align-items: baseline; gap: 8px; }
+.sv-role-label { font-size: 0.625rem; font-weight: 600; color: var(--tmd-fg-faint); letter-spacing: 0.04em; }
+.sv-ts { font-size: 0.625rem; color: var(--tmd-fg-faint); }
+
+/* ── 用户消息内嵌图片(缩略行,点击整幅) ── */
+.sv-user-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.sv-user-img-btn { display: inline-block; background: none; border: none; padding: 0; cursor: zoom-in; line-height: 0; }
+.sv-user-img { max-width: 320px; max-height: 240px; border-radius: 6px; border: 1px solid var(--tmd-border); object-fit: contain; }
+.sv-user-imgs.zoom .sv-user-img-btn { cursor: zoom-out; }
+.sv-user-imgs.zoom .sv-user-img { max-width: 100%; max-height: none; }
+
+/* ── 工作折叠组(monocode WorkFoldLine:单行摘要 + hover 加深) ── */
+.sv-phase { display: flex; flex-direction: column; }
+.sv-phase-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 0; background: none; border: none; color: var(--tmd-fg-faint); cursor: pointer; text-align: left; }
+.sv-phase-head svg { flex: none; }
+.sv-phase-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: color-mix(in srgb, var(--tmd-fg) 50%, transparent); transition: color 0.2s ease; }
+.sv-phase-head:hover .sv-phase-title { color: color-mix(in srgb, var(--tmd-fg) 80%, transparent); }
+.sv-phase-count { flex: none; font-size: 0.625rem; color: var(--tmd-fg-faint); }
+.sv-phase-body { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 4px 14px; }
+.sv-caret { transition: transform 0.12s ease; color: color-mix(in srgb, var(--tmd-fg) 45%, transparent); }
+.sv-caret.is-open { transform: rotate(90deg); }
+.sv-phase-note { font-size: 0.75rem; color: color-mix(in srgb, var(--tmd-fg) 55%, transparent); padding: 2px 0; white-space: pre-wrap; }
+
+/* ── 思考行(monocode ActivityThinkingRow:Minus + 单行摘要) ── */
+.sv-think { display: flex; flex-direction: column; }
+.sv-think-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 0; background: none; border: none; cursor: pointer; text-align: left; }
+.sv-think-dash { flex: none; color: color-mix(in srgb, var(--tmd-fg) 40%, transparent); }
+.sv-think-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: color-mix(in srgb, var(--tmd-fg) 50%, transparent); transition: color 0.2s ease; }
+.sv-think-head:hover .sv-think-summary { color: color-mix(in srgb, var(--tmd-fg) 75%, transparent); }
+.sv-think-body { padding: 2px 0 6px 20px; }
+
+/* agent-reasoning 正文:48% 透明(monocode 同款阅读层级) */
+.sv-think-body .sv-md p,
+.sv-think-body .sv-md li { color: color-mix(in srgb, var(--tmd-fg) 48%, transparent); }
+.sv-think-body .sv-md p strong,
+.sv-think-body .sv-md p em,
+.sv-think-body .sv-md li strong { color: color-mix(in srgb, var(--tmd-fg) 62%, transparent); }
+
+/* ── 工具行(monocode ToolCallSummary:动词淡 + 目标 mono) ── */
+.sv-tool { display: flex; flex-direction: column; }
+.sv-tool-head { display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 0; background: none; border: none; cursor: pointer; text-align: left; }
+.sv-tool-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.6875rem; color: color-mix(in srgb, var(--tmd-fg) 80%, transparent); }
+.sv-tool-head:hover .sv-tool-label { color: var(--tmd-fg); }
+.sv-tool-status { flex: none; font-size: 0.625rem; color: var(--tmd-fg-faint); }
+.sv-tool-body { display: flex; flex-direction: column; gap: 4px; padding: 2px 0 6px 14px; }
+.sv-tool-path { font-size: 0.6875rem; color: var(--tmd-fg-muted); word-break: break-all; }
+.sv-tool-cmd, .sv-tool-diff, .sv-tool-out { margin: 0; padding: 6px 8px; border-radius: 5px; background: var(--tmd-bg-sunken, rgba(127, 127, 127, 0.08)); font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.6875rem; line-height: 1.45; overflow-x: auto; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto; }
+.sv-dl-add { color: var(--tmd-diff-add-fg, #1a7f37); }
+.sv-dl-del { color: var(--tmd-diff-del-fg, #cf222e); }
+.sv-dl-context { color: var(--tmd-fg-muted); }
+
+/* system 行:淡色 */
+.sv-system { font-size: 0.6875rem; color: var(--tmd-fg-faint); padding: 2px 0; }
+
+/* md 正文:复用 fvp-file-markdown/fvp-markdown-github 全局规则(global.css
+   引入,--tmd-* token 已桥接),仅覆写转录容器不适用的排版位。 */
+.sv-md { padding: 0; font-size: 0.8125rem; max-width: 100%; line-height: 1.7; }
+.sv-md pre { margin: 6px 0; max-height: 400px; overflow: auto; }
+.sv-md table { display: block; overflow-x: auto; max-width: 100%; }
+
+/* 加载更多 */
+.sv-more { align-self: center; margin-top: 4px; padding: 4px 16px; border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); cursor: pointer; font-size: 0.6875rem; }
+.sv-more:hover { color: var(--tmd-fg); background: var(--tmd-bg-hover); }

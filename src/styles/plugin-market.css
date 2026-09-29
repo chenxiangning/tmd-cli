@@ -76,10 +76,41 @@
   flex: 0 0 auto;
 }
 
+.pm-cat-flow {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .pm-cat-group + .pm-cat-group {
-  border-left: 1px dashed var(--tmd-border);
-  padding-left: 12px;
-  margin-left: 4px;
+  border-top: 1px dashed var(--tmd-border);
+  padding-top: 14px;
+  margin-top: 44px; /* ≥ 拔出态上浮 34px,防跨带叠插头 */
+}
+
+/* feature 细分子块流式拼排:块宽 = min(n,10) 条轨道,行内 space-between 补缝;
+   行距 44px ≥ 拔出态上浮 34px - 标签 18px,插头不叠上一行。 */
+.pm-subcat-flow {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: 24px;
+  row-gap: 44px;
+}
+
+.pm-subcat-block {
+  flex: 0 0 auto;
+}
+
+.pm-subcat-label {
+  height: 18px;
+  padding-left: 4px;
+  margin-bottom: 2px;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-subtle);
+  white-space: nowrap;
 }
 
 .pm-cat-label {
@@ -92,7 +123,8 @@
 
 .pm-cat-outlets {
   display: grid;
-  grid-template-columns: repeat(3, 96px); /* 每排固定 3 个插座,多余起下一排 */
+  grid-template-columns: repeat(auto-fill, 96px); /* 按容器宽自动排满每行,窄窗自动减列 */
+  justify-content: space-between; /* 行内撑开填满带宽 */
   gap: 42px 8px; /* 行距给拔出态上浮(-34px)让位,避免叠到上一排 */
 }
 

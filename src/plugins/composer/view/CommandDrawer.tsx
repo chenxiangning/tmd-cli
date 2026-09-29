@@ -5,8 +5,9 @@
  * - 分区切换改左缘竖排图标 rail(按实际数据渲染,文案进 title/aria-label;
  *   rail 顶部挂关闭、底部挂计数)
  * - 三种点击:⚡ send = 直接写入幕布 / ↵ insert = 插入输入框 / ⇱ open = 打开插件面板
- * - 打开时重置为「全部」;不点外自动关闭(显式关闭:开关按钮/⌘K/Esc/rail ×),
- *   ↑↓ + Enter 键盘导航(仅可见条目,焦点驻留抽屉容器 —— 搜索框已移除)
+ * - 打开落位:有意图落意图分区,无意图落「全部」(两阶段终拍校验);不点外自动关闭
+ *   (显式关闭:开关按钮/⌘K/Esc/rail ×),↑↓ + Enter 键盘导航(仅可见条目,
+ *   焦点驻留抽屉容器 —— 搜索框已移除)
  *
  * 执行机制不在本组件:点击经 onSend/onInsert/onOpen 回调交回 Composer
  * (send 走 prepareSendPayload → host.writeSession,与手动发送同路径)。
@@ -15,8 +16,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { isDrawerOpen, setDrawerOpen } from "../state/drawerOpen";
+import {
+  applyDrawerSection,
+  isDrawerOpen,
+  setDrawerOpen,
+  useDrawerResolved,
+  useDrawerSection,
+} from "../state/drawerOpen";
+import { isConfirmPending } from "./sendPlan";
 import type { DrawerItem, DrawerSection } from "../drawerItems";
+import { nextDrawerTab } from "./drawerLanding";
 import { SECTION_META, SECTION_ORDER, SECTION_TAB_ICONS } from "./drawerSections";
 import { DrawerItemList } from "./DrawerItemList";
 
@@ -55,21 +64,45 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
     [items, tab],
   );
 
-  /* 打开即重置(先重置再渲染 —— demo 阶段修过的状态残留教训),焦点驻留抽屉容器 */
+  /* 分区落位裁决(spec 2026-09-28 P0-1:两阶段数据可判后才定夺,开帧先落意图
+     分区,终拍无条目回落「全部」;P2-4:profile 切换 tab 归一)。
+     landedOnce = 开帧只落位一次;tab 变化镜像回 store(轨图标 active/toggle 判定)。 */
+  const want = useDrawerSection();
+  const resolved = useDrawerResolved();
+  const landedOnce = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      landedOnce.current = false;
+      return;
+    }
+    const fresh = !landedOnce.current;
+    landedOnce.current = true;
+    const next = nextDrawerTab({ tab, want, resolved, sections, fresh });
+    if (next !== null && next !== tab) {
+      setTab(next);
+      setActiveIndex(-1);
+    }
+    /* 落位即镜像(意图消费完/终拍回落都会改 tab;null = 已收敛不动) */
+    if (next !== null) applyDrawerSection(next);
+  }, [open, want, resolved, sections, tab]);
+
+  /* 打开即重置选中 + 焦点驻留抽屉容器(仅开帧一次,不随裁决落位重抢输入框焦点) */
   useEffect(() => {
     if (!open) return;
-    setTab("all");
     setActiveIndex(-1);
     const t = setTimeout(() => asideRef.current?.focus(), 120);
     return () => clearTimeout(t);
   }, [open]);
 
   /* Esc 关闭(抽屉自身监听;⌘K 开合在 Composer,关着也要能开)。
-     不做点外自动关闭:失焦误关烦人,显式关闭走 开关按钮 / ⌘K / Esc / rail × */
+     不做点外自动关闭:失焦误关烦人,显式关闭走 开关按钮 / ⌘K / Esc / rail ×。
+     确认挂起中让位(2026-09-28 评审 F3):同一 Esc 会先到 document(本监听)
+     再到 window(确认弹层),先关抽屉就违背「Esc=''静默不关抽屉」契约。 */
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (isConfirmPending()) return;
         e.preventDefault();
         setDrawerOpen(false);
       }
@@ -211,7 +244,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
               aria-selected={tab === key}
               aria-label={label}
               title={label}
-              onClick={() => { setTab(key); setActiveIndex(-1); }}
+              onClick={() => { setTab(key); setActiveIndex(-1); applyDrawerSection(key); }}
               className={`grid h-7 w-full cursor-pointer place-items-center rounded-md transition-colors ${
                 tab === key
                   ? "bg-(--tmd-accent-soft) text-(--tmd-accent)"

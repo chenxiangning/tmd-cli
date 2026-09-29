@@ -80,6 +80,25 @@ fn conpty_cpr_reply(writer: &mut dyn std::io::Write) -> std::io::Result<()> {
     writer.flush()
 }
 
+/// 退出码归一(收割单点):Windows NTSTATUS 以 u32 上行,`as i32` 后
+/// STATUS_CONTROL_C_EXIT(0xC000013A = 3221225786)变负大数,穿透前端
+/// 「0/130 不扰」白名单,幕布 Ctrl+C 未处理路径误弹「会话异常退出」
+/// (2026-09-28 评审)。与 Unix SIGINT(130)同义归一,两端共用同一契约;
+/// 其余崩溃码保持原值如实展示。
+#[cfg(windows)]
+fn normalize_exit_code(code: u32) -> i32 {
+    if code == 0xC000_013A {
+        130
+    } else {
+        code as i32
+    }
+}
+
+#[cfg(not(windows))]
+fn normalize_exit_code(code: u32) -> i32 {
+    code as i32
+}
+
 pub(crate) fn spawn(
     registry: &PtyRegistry,
     app: &AppHandle,
@@ -258,7 +277,7 @@ pub(crate) fn spawn(
                 .child
                 .wait()
                 .ok()
-                .map(|status| status.exit_code() as i32);
+                .map(|status| normalize_exit_code(status.exit_code()));
         }
         if let Some(state) = out_app.try_state::<crate::AppState>() {
             state.sessions.remove(&out_id);

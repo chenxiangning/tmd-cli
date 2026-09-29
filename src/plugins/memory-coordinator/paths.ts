@@ -30,6 +30,25 @@ export async function engineConfigPath(): Promise<string> {
   return `${await userHome()}/.config/cortexkit/magic-context.jsonc`;
 }
 
+/** 逐级确保文件父目录存在(fs_create_dir 非递归;已存在报错忽略,dsh
+ *  adapterDeploy 同款先例)。写链前置闸:Windows 新机 ~/.config 不存在,
+ *  直接 fsWriteFile = ENOENT,引擎配置卡保存 / opencode 安装落盘必败
+ *  (2026-09-28 评审)。home 失败为空串时跳过(写链随后自报错)。 */
+export async function ensureParentDir(filePath: string): Promise<void> {
+  const home = await userHome();
+  if (!home || !filePath.startsWith(home)) return;
+  const segs = filePath
+    .slice(home.length)
+    .split("/")
+    .filter(Boolean)
+    .slice(0, -1);
+  let cur = home;
+  for (const seg of segs) {
+    cur = `${cur}/${seg}`;
+    await ipc.fsCreateDir(cur).catch(() => undefined);
+  }
+}
+
 /** omp 侧插件 dist(bootstrap 迁移的 import 目标;未装时不存在,调用方探测)。 */
 export async function pluginDistDir(): Promise<string> {
   return `${await userHome()}/.omp/plugins/node_modules/@cortexkit/pi-magic-context/dist`;
@@ -45,6 +64,17 @@ const OPENCODE_CONFIG_CANDIDATES = [
   "~/.config/opencode/oh-my-opencode.json",
   "~/.config/opencode/oh-my-opencode.jsonc",
 ];
+
+/** opencode 配置落点:候选中首个存在的文件(检测/安装/预检三面共用同一解析,
+ *  防止真实配置在别的候选文件时另立平行配置);全缺失 = null,调用方新建默认。 */
+export async function resolveOpencodeConfigPath(): Promise<string | null> {
+  const home = await userHome();
+  for (const c of OPENCODE_CONFIG_CANDIDATES) {
+    const p = `${home}${c.slice(1)}`;
+    if (await ipc.fsReadFile(p).then(() => true, () => false)) return p;
+  }
+  return null;
+}
 
 /**
  * 解析 subagent-entry.js 绝对路径(d 路 v2)。

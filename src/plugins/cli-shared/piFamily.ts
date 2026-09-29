@@ -15,6 +15,7 @@ import type {
   CliDiskSession,
   CliSessionEdit,
   CliSessionStatus,
+  CliSessionTranscript,
   CliUserMessage,
   SessionFileIdentity,
 } from "@kernel/cli";
@@ -29,6 +30,12 @@ import {
 } from "./userMessages";
 import { readEditsTail } from "./sessionEdits";
 import { isJsonlSessionEmpty } from "./sessionEmpty";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "./sessionTranscript";
+import { piTranscriptLine } from "./piTranscript";
 
 /** 一家 pi 族 CLI 的会话存储声明。 */
 export interface PiFamilyStore {
@@ -85,6 +92,20 @@ export function piFamilySessions(store: PiFamilyStore) {
       if (!path) return null;
       return readUserMessagesFromFile(path, full, ompPiUserMessageLine);
     },
+    /** 会话完整转录(查看器数据源;远程形态 path 为发行版内路径,本地读
+     *  失败按 null 降级为查看器错误占位,v1 不做远程转录)。 */
+    async readSessionTranscript(
+      session: CliDiskSession,
+    ): Promise<CliSessionTranscript | null> {
+      const file = await readTranscriptText(session.path);
+      if (!file) return null;
+      return {
+        blocks: pairToolResults(
+          parseTranscriptBlocks(file.text, piTranscriptLine),
+        ),
+        truncated: file.truncated,
+      };
+    },
     /** 会话卫生判空:path 即 jsonl 文件,共享标记子串判定(保守口径见 sessionEmpty.ts)。 */
     isDiskSessionEmpty: (session: CliDiskSession) => isJsonlSessionEmpty(session.path),
     /* 远程形态(WSL 发行版内)历史扫描与状态回填;未声明 dirSh 时值为 undefined,
@@ -111,8 +132,12 @@ function piFamilyRemoteSessions(store: PiFamilyStore) {
   const modelKeys = store.modelKeys ?? ["model"];
   const providerKeys = store.providerKeys ?? [];
   const list = async (exec: RemoteExec, cwd: string): Promise<CliDiskSession[]> => {
+    /* 先 ls -t 截前 50 再 stat+head:限传输必须发生在读取之前,数月老桶
+       (数千 jsonl × 32KB 头)全量过 exec 桥会秒级卡顿(2026-09-28 评审 F2);
+       JS 侧 sort/slice 保留作防御。 */
     const script = `${dirSh(cwd)}
-for f in "$d"/*.jsonl; do
+ls -t "$d"/*.jsonl 2>/dev/null | head -n 50 |
+while IFS= read -r f; do
   [ -e "$f" ] || continue
   printf '%s\t%s\t' "$(basename "$f" .jsonl)" "$(stat -c %Y "$f")"
   head -c 32768 "$f" | base64 -w0

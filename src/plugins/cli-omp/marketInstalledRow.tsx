@@ -185,6 +185,12 @@ export function InstalledRow({
     setRunning("toggle");
     try {
       await runOmp(["plugin", ext.enabled ? "disable" : "enable", ext.name]);
+    } catch (e) {
+      /* spawn 失败(omp 被卸载/PATH 变更)reject 必须接住,与 runUninstall 同纪律。 */
+      setLogs((prev) => [
+        ...prev,
+        t("—— 失败:{error} ——", { error: e instanceof Error ? e.message : String(e) }),
+      ]);
     } finally {
       setRunning(null);
       onChanged();

@@ -22,9 +22,11 @@ const OMP_ASK_TOOL_TAIL =
   "\x1b[38;2;107;114;128m│\x1b[39m   \x1b[38;2;107;114;128m○\x1b[39m \x1b[39m混合:默认合并,可切回分组\x1b[39m\r\n" +
   "\x1b[38;2;107;114;128m│\x1b[39m   \x1b[38;2;107;114;128m○\x1b[39m \x1b[39mOther (type your own)\x1b[39m";
 
-/** 推过确认窗(1.2s)再触发输出评估的便捷步进。 */
+/** 推到确认窗(1.2s)再触发输出评估的便捷步进。250ms 守望 tick 的网格原点是
+ *  候选成立时刻:1200 恰落在最后一次窗内 tick(1000)与首个升级 tick(1250)之间,
+ *  复现路径不被守望静默确认抢先(两路谁先均可,但此处钉的是复现路径语义)。 */
 async function pastConfirm() {
-  await vi.advanceTimersByTimeAsync(1_300);
+  await vi.advanceTimersByTimeAsync(1_200);
 }
 
 /** 测试用 CLI 声明标记(omp/pi-tui 卡片字面量;生产由 AskWatchFeed 经
@@ -64,7 +66,7 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
     await vi.advanceTimersByTimeAsync(500);
     expect(fire("s2", OMP_ASK)).toBe(false);
     expect(watch.isWaiting("s2")).toBe(false);
-    await vi.advanceTimersByTimeAsync(900); // 距首击已 1.4s
+    await vi.advanceTimersByTimeAsync(700); // 距首击已 1.2s(未越守望升级 tick)
     expect(fire("s2", OMP_ASK)).toBe(true);
   });
 
@@ -104,15 +106,15 @@ describe("AskWatch 标记检测与状态迁移(候选确认制)", () => {
   });
 
   it("resume 回放的历史面板文本是瞬态:流式滚过不错绑(bug 2 回归)", async () => {
-    /* 切换会话 → 回放整段 transcript,历史面板夹在正文中间一闪而过 */
+    /* 切换会话 → 回放整段 transcript,历史面板夹在正文中间(距末 5 行窗远),页脚是现势尾巴 */
     const replay = [
       "╭─ transcript ───╮",
       OMP_ASK,
       "user answered long ago",
-      "loads of transcript lines follow",
+      ...Array.from({ length: 8 }, (_, i) => `transcript line ${i}`),
       "╰─ end ───╯",
     ].join("\r\n");
-    expect(fire("s4", replay)).toBe(false);
+    expect(fire("s4", replay)).toBe(false); /* 标记不在页脚窗:立不了候选 */
     await pastConfirm();
     expect(fire("s4", "replay continues\r\n")).toBe(false);
     expect(watch.isWaiting("s4")).toBe(false);

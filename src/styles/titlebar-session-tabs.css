@@ -115,6 +115,7 @@
 
 /* 置顶扎点 + 定位:与 × 同显隐节奏(hover/active 显形);已置顶常亮实心 */
 .session-tab-pin,
+.session-tab-view,
 .session-tab-locate {
   display: inline-flex;
   align-items: center;
@@ -135,12 +136,15 @@
 .session-tab:hover .session-tab-pin,
 .session-tab.is-active .session-tab-pin,
 .session-tab-pin.is-on,
+.session-tab:hover .session-tab-view,
+.session-tab.is-active .session-tab-view,
 .session-tab:hover .session-tab-locate,
 .session-tab.is-active .session-tab-locate {
   opacity: 1;
 }
 
 .session-tab-pin:hover,
+.session-tab-view:hover,
 .session-tab-locate:hover {
   color: var(--tmd-fg);
   background: var(--tmd-bg-hover);

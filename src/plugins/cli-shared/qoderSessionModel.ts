@@ -12,11 +12,22 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import type { CliDiskSession, CliProfile, CliSessionStatus } from "@kernel/cli";
+import type {
+  CliDiskSession,
+  CliProfile,
+  CliSessionStatus,
+  CliSessionTranscript,
+} from "@kernel/cli";
 import { readHeadSessionMetaCached } from "./diskSessions";
 import { readStatusTailGated } from "./sessionStatus";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
 import { parseClaudeFamilySessionHead } from "./sessionIdentity";
+import { claudeTranscriptLine } from "./claudeTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "./sessionTranscript";
 
 /**
  * cwd → projects 子目录 slug。
@@ -161,6 +172,20 @@ export async function readQoderUserMessages(
     full,
     qoderUserMessageLine,
   );
+}
+
+/** 会话完整转录:claude 家族行型解析(qoder 变体,origin.kind=human 判别)。 */
+export async function readQoderTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  const file = await readTranscriptText(session.path);
+  if (!file) return null;
+  return {
+    blocks: pairToolResults(
+      parseTranscriptBlocks(file.text, claudeTranscriptLine("qoder")),
+    ),
+    truncated: file.truncated,
+  };
 }
 
 /** 身份自证:行内 sessionId/cwd 字段(claude 家族格式,共享解析)。 */

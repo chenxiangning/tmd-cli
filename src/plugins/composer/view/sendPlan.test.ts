@@ -56,8 +56,9 @@ afterEach(() => {
 });
 
 describe("resolveSendTarget", () => {
-  it("标题/工作区/引擎三字段;active 标当前幕布", () => {
+  it("id/标题/工作区/引擎/位序;active 标当前幕布", () => {
     expect(resolveSendTarget(ws as never)).toEqual({
+      id: "s1",
       title: "修复登录",
       workspace: "demo",
       engine: "OMP",
@@ -68,6 +69,7 @@ describe("resolveSendTarget", () => {
   it("title 缺省回落短码;profile 缺失回落 profileId", () => {
     const bare = { id: "abcdef12-3456-7890", profileId: "ghost", cwd: "/repo/x" };
     expect(resolveSendTarget(bare as never)).toEqual({
+      id: "abcdef12-3456-7890",
       title: "abcd…7890",
       workspace: "x",
       engine: "ghost",
@@ -85,7 +87,7 @@ describe("buildSinglePlan", () => {
   it("会话存在 = 单发计划(结构化目标卡)", () => {
     expect(buildSinglePlan("s1", "hello")).toEqual({
       kind: "single",
-      targets: [{ title: "修复登录", workspace: "demo", engine: "OMP", active: true }],
+      targets: [{ id: "s1", title: "修复登录", workspace: "demo", engine: "OMP", active: true }],
       content: "hello",
     });
   });
@@ -108,8 +110,8 @@ describe("buildBroadcastPlan", () => {
     expect(buildBroadcastPlan(["s1", "gone", "s2"], "hi")).toEqual({
       kind: "broadcast",
       targets: [
-        { title: "修复登录", workspace: "demo", engine: "OMP", active: true },
-        { title: "s2", workspace: "demo2", engine: "OMP" },
+        { id: "s1", title: "修复登录", workspace: "demo", engine: "OMP", active: true },
+        { id: "s2", title: "s2", workspace: "demo2", engine: "OMP" },
       ],
       content: "hi",
     });

@@ -27,7 +27,10 @@ html[data-icon-blink~="panel-files"] .panel-rail-tab[data-panel-id="files"] svg,
 html[data-icon-blink~="panel-git"] .panel-rail-tab[data-panel-id="git"] svg,
 html[data-icon-blink~="panel-checkpoints"] .panel-rail-tab[data-panel-id="checkpoints"] svg,
 html[data-icon-blink~="panel-memory"] .panel-rail-tab[data-panel-id="memory"] svg,
-html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg {
+html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg,
+html[data-icon-blink~="panel-approval-inbox"] .panel-rail-tab[data-panel-id="approval-inbox"] svg,
+html[data-icon-blink~="panel-skill-hub"] .panel-rail-tab[data-panel-id="skill-hub"] svg,
+html[data-icon-blink~="panel-mcp-hub"] .panel-rail-tab[data-panel-id="mcp-hub"] svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
@@ -41,10 +44,53 @@ html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
 html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
 html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
 html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
+html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
 html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
 html[data-icon-blink~="remote-control"] .remote-control-badge svg,
 html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,
 html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
+  animation: icon-decor-breathe 5s ease-in-out infinite;
+}
+
+/* ── 2026-09-29 扩编 17 键:工作区行 / 顶栏内建钮 / composer 工具条与输入轨 ──
+   钩子 = 图标 svg 上的 data-action-id(新键统一约定,见 settingsAppearance.ts);
+   颜色直取 svg,缺省 currentColor = 现状(整图标着色,含两态钮点亮态)。 */
+[data-action-id="ws-files"] { color: var(--icon-decor-ws-files, currentColor); }
+[data-action-id="ws-manage"] { color: var(--icon-decor-ws-manage, currentColor); }
+[data-action-id="ws-refresh"] { color: var(--icon-decor-ws-refresh, currentColor); }
+[data-action-id="market"] { color: var(--icon-decor-market, currentColor); }
+[data-action-id="home"] { color: var(--icon-decor-home, currentColor); }
+[data-action-id="fold-left"] { color: var(--icon-decor-fold-left, currentColor); }
+[data-action-id="fold-right"] { color: var(--icon-decor-fold-right, currentColor); }
+[data-action-id="stage-expand"] { color: var(--icon-decor-stage-expand, currentColor); }
+[data-action-id="stage-collapse"] { color: var(--icon-decor-stage-collapse, currentColor); }
+[data-action-id="composer-drawer"] { color: var(--icon-decor-composer-drawer, currentColor); }
+[data-action-id="wake-agent"] { color: var(--icon-decor-wake-agent, currentColor); }
+[data-action-id="wake-prompt"] { color: var(--icon-decor-wake-prompt, currentColor); }
+[data-action-id="ai-draw"] { color: var(--icon-decor-ai-draw, currentColor); }
+[data-action-id="broadcast"] { color: var(--icon-decor-broadcast, currentColor); }
+[data-action-id="enhance"] { color: var(--icon-decor-enhance, currentColor); }
+[data-action-id="wake-skill"] { color: var(--icon-decor-wake-skill, currentColor); }
+[data-action-id="wake-mcp"] { color: var(--icon-decor-wake-mcp, currentColor); }
+
+/* 新键呼吸闪烁(ws-refresh 的 is-refreshing 转圈优先级由 blink 规则同特异性后到覆盖,可接受) */
+html[data-icon-blink~="ws-files"] [data-action-id="ws-files"],
+html[data-icon-blink~="ws-manage"] [data-action-id="ws-manage"],
+html[data-icon-blink~="ws-refresh"] [data-action-id="ws-refresh"],
+html[data-icon-blink~="market"] [data-action-id="market"],
+html[data-icon-blink~="home"] [data-action-id="home"],
+html[data-icon-blink~="fold-left"] [data-action-id="fold-left"],
+html[data-icon-blink~="fold-right"] [data-action-id="fold-right"],
+html[data-icon-blink~="stage-expand"] [data-action-id="stage-expand"],
+html[data-icon-blink~="stage-collapse"] [data-action-id="stage-collapse"],
+html[data-icon-blink~="composer-drawer"] [data-action-id="composer-drawer"],
+html[data-icon-blink~="wake-agent"] [data-action-id="wake-agent"],
+html[data-icon-blink~="wake-prompt"] [data-action-id="wake-prompt"],
+html[data-icon-blink~="ai-draw"] [data-action-id="ai-draw"],
+html[data-icon-blink~="broadcast"] [data-action-id="broadcast"],
+html[data-icon-blink~="enhance"] [data-action-id="enhance"],
+html[data-icon-blink~="wake-skill"] [data-action-id="wake-skill"],
+html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
@@ -56,6 +102,9 @@ html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
   html[data-icon-blink~="panel-checkpoints"] .panel-rail-tab[data-panel-id="checkpoints"] svg,
   html[data-icon-blink~="panel-memory"] .panel-rail-tab[data-panel-id="memory"] svg,
   html[data-icon-blink~="panel-marks"] .panel-rail-tab[data-panel-id="marks"] svg,
+  html[data-icon-blink~="panel-approval-inbox"] .panel-rail-tab[data-panel-id="approval-inbox"] svg,
+  html[data-icon-blink~="panel-skill-hub"] .panel-rail-tab[data-panel-id="skill-hub"] svg,
+  html[data-icon-blink~="panel-mcp-hub"] .panel-rail-tab[data-panel-id="mcp-hub"] svg,
   html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
   html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
   html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon,
@@ -63,10 +112,28 @@ html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
   html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
   html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
   html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
+  html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
   html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
   html[data-icon-blink~="remote-control"] .remote-control-badge svg,
   html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,
-  html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
+  html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg,
+  html[data-icon-blink~="ws-files"] [data-action-id="ws-files"],
+  html[data-icon-blink~="ws-manage"] [data-action-id="ws-manage"],
+  html[data-icon-blink~="ws-refresh"] [data-action-id="ws-refresh"],
+  html[data-icon-blink~="market"] [data-action-id="market"],
+  html[data-icon-blink~="home"] [data-action-id="home"],
+  html[data-icon-blink~="fold-left"] [data-action-id="fold-left"],
+  html[data-icon-blink~="fold-right"] [data-action-id="fold-right"],
+  html[data-icon-blink~="stage-expand"] [data-action-id="stage-expand"],
+  html[data-icon-blink~="stage-collapse"] [data-action-id="stage-collapse"],
+  html[data-icon-blink~="composer-drawer"] [data-action-id="composer-drawer"],
+  html[data-icon-blink~="wake-agent"] [data-action-id="wake-agent"],
+  html[data-icon-blink~="wake-prompt"] [data-action-id="wake-prompt"],
+  html[data-icon-blink~="ai-draw"] [data-action-id="ai-draw"],
+  html[data-icon-blink~="broadcast"] [data-action-id="broadcast"],
+  html[data-icon-blink~="enhance"] [data-action-id="enhance"],
+  html[data-icon-blink~="wake-skill"] [data-action-id="wake-skill"],
+  html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
     animation: none;
   }
 }

@@ -6,6 +6,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { CalendarDots } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 import {
   boardOverlayOpen,
@@ -25,7 +26,7 @@ export function BoardButton() {
       data-hint={label}
       onClick={toggleBoardOverlay}
     >
-      <CalendarDots size="0.875rem" aria-hidden />
+      <DecorIcon id="session-board" Fallback={CalendarDots} size="0.875rem" aria-hidden />
     </button>
   );
 }

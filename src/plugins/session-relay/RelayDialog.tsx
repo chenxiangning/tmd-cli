@@ -11,7 +11,8 @@ import { PaperPlaneRight } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { getActiveWorkspace, getWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
-import { prepareSendPayload } from "@plugins/composer/serialize/serialize";
+import { prepareSendPayload } from "@kernel/profileSend";
+import { emitPromptSent, readPromptGate } from "@kernel/promptGate";
 import { relayTargets, buildRelaySummary, type RelaySource } from "./relay";
 import { clearRelaySource, useRelaySource } from "./relayStore";
 
@@ -34,7 +35,18 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
   const [summaryReady, setSummaryReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const createdRef = useRef<string | null>(null); /* 重试复用首轮会话 */
+  /* 换目标引擎即失效复用(2026-09-28 评审 F4):createdRef 绑定创建时的 targetId,
+     复用到新引擎会把摘要写进旧引擎会话(或对死会话永远失败)。同引擎重试不受影响。 */
+  useEffect(() => {
+    createdRef.current = null;
+  }, [targetId]);
   const [error, setError] = useState("");
+  /* 开框编程聚焦:焦点从退出卡按钮卸载处落 body,遮罩 onKeyDown 收不到 Esc
+     (SendConfirmDialog 同款 effect 聚焦,非 autoFocus 属性,react-doctor 合规)。 */
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    textRef.current?.focus();
+  }, []);
 
   /* 摘要一次性组装:读源会话用户消息(全量),取最近 N 条确定性拼接。 */
   useEffect(() => {
@@ -66,7 +78,8 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
   }, []);
 
   const relay = async (): Promise<void> => {
-    if (!targetId || !workspace || busy || !summaryReady) return;
+    /* 不拦 !workspace:无工作区要落到底部 throw 给错误文案,静默 return = 点了没反应 */
+    if (!targetId || busy || !summaryReady) return;
     setBusy(true);
     setError("");
     try {
@@ -80,20 +93,32 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
         createdRef.current ?? (await host.createSession(targetId, ws.root, ws.id)).id;
       createdRef.current = sessionId;
       if (summary.trim()) {
-        /* 发送契约与 composer 同源:prepareSendPayload 做 trigger 翻译 +
-         * bracketedPaste 包装 + CR 提交(裸 \n 不会被 TUI 当 Enter,整串突发
-         * 还会触发粘贴启发式吞掉提交回车 —— 直写 = 接力首发不成立)。 */
+        /* 发送契约与 composer 同源:prepareSendPayload 做 bracketedPaste 包装 +
+         * CR 提交(裸 \n 不会被 TUI 当 Enter,整串突发还会触发粘贴启发式吞掉
+         * 提交回车 —— 直写 = 接力首发不成立)。triggers 清空 = 不做 $token
+         * 翻译:摘要是机器搬运的历史 prompt 原文,token 是正文不是用户当下
+         * 意图,盲译成 /skill: 会把首发变成技能调用且预览不可见(2026-09-28 三轮)。 */
         const profile = host.getCliProfile(targetId);
         const payload = profile
-          ? prepareSendPayload(profile, summary.trim())
+          ? prepareSendPayload({ ...profile, triggers: [] }, summary.trim())
           : `${summary.trim()}\r`;
+        /* 轮次闸写前现读:接力首发 = 新会话空闲态,应恒广播 —— 不发则 checkpoint
+           无锚点(首轮变更并入下一轮/整轮不可见)、tab 首条标题保底缺失
+           (2026-09-28 评审 F5,与 composer 三条写路径同契约)。 */
+        const gate = readPromptGate(sessionId);
         const ok = await host.writeSession(sessionId, payload);
         if (!ok) {
-          /* 目标会话秒退/写入失败:提示词凭空消失比失败更糟,留框让用户重试 */
+          /* 目标会话秒退/写入失败:提示词凭空消失比失败更糟,留框让用户重试。
+             会话已不在会话表 = 已死,清复用引用,否则同引擎重试恒复用死会话,
+             错误文案建议的「重试」永不可达(2026-09-28 三轮评审)。 */
+          if (!host.getSessions().some((s) => s.id === sessionId)) {
+            createdRef.current = null;
+          }
           setError(t("接力提示词未能送达(目标会话可能已退出),请重试或取消"));
           setBusy(false);
           return;
         }
+        emitPromptSent(gate, sessionId, summary.trim());
       }
       onClose();
     } catch (e) {
@@ -121,6 +146,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
               <button
                 key={p.id}
                 type="button"
+                disabled={busy}
                 onClick={() => setTargetId(p.id)}
                 aria-pressed={targetId === p.id}
                 className={`rounded-md border px-2 py-1 text-xs ${
@@ -140,6 +166,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
             {t("接力提示词(可编辑,将作为新会话首条消息发出)")}
           </div>
           <textarea
+            ref={textRef}
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
             rows={10}

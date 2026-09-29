@@ -28,17 +28,21 @@ const OPENABLE_KINDS = [
   "wsl",
   "memory-console",
   "academy.guide",
+  "intent-canvas",
+  "skill-hub",
+  "mcphub",
+  "session-view",
 ] as const;
 
-function activateCollectingKinds(): Set<string> {
-  const kinds = new Set<string>();
+function activateCollecting(): Map<string, TabContentContribution> {
+  const kinds = new Map<string, TabContentContribution>();
   const ctx = {
     registerCliProfile: () => {},
     contribute: () => {},
     registerSettingsSection: () => {},
     registerFilePanel: () => {},
     registerCommand: () => {},
-    registerTabContent: (c: TabContentContribution) => kinds.add(c.kind),
+    registerTabContent: (c: TabContentContribution) => kinds.set(c.kind, c),
     registerMarketPanel: () => {},
     registerHomePanel: () => {},
     registerSidebarAction: () => {},
@@ -59,8 +63,9 @@ function activateCollectingKinds(): Set<string> {
   }
   return kinds;
 }
-/* 全量激活一次(模块级注册表抛重复,不能每用例重激活),两用例共享。 */
-const REGISTERED_KINDS = activateCollectingKinds();
+/* 全量激活一次(模块级注册表抛重复,不能每用例重激活),全部用例共享。 */
+const REGISTERED = activateCollecting();
+const REGISTERED_KINDS = new Set(REGISTERED.keys());
 
 describe("tab 内容路由契约(openable kind ↔ registerTabContent)", () => {
   it("每个可打开的 kind 都有插件注册渲染组件", () => {
@@ -79,6 +84,15 @@ describe("tab 内容路由契约(openable kind ↔ registerTabContent)", () => {
     expect(
       extra,
       `存在没有任何打开路径的注册 kind,属于死注册:${extra.join(", ")}`,
+    ).toEqual([]);
+  });
+
+  it("非文件 kind 的注册都带 icon(顶栏 tab 徽标;缺 icon 会回落默认文件徽标)", () => {
+    const FILE_BADGE_KINDS = new Set(["file", "ssh-file"]);
+    const naked = [...REGISTERED.values()].filter((c) => !c.icon && !FILE_BADGE_KINDS.has(c.kind));
+    expect(
+      naked.map((c) => c.kind),
+      `以下非文件 kind 未注册 tab icon,顶栏将显示默认文件徽标:${naked.map((c) => c.kind).join(", ")}`,
     ).toEqual([]);
   });
 });

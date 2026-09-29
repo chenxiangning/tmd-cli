@@ -7,7 +7,7 @@
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
-import { getCachedDiff } from "./store";
+import { getCachedDiff } from "./diffCache";
 import { openBatchTab } from "./batchTab";
 import { STATE_META, batchState, type BatchStateKey, type BatchStateMeta } from "./batchStateMeta";
 
@@ -109,7 +109,7 @@ export function BatchHeadButton({
 }) {
   const st = batchState(b);
   const meta = STATE_META[st];
-  const stats = batchStats(getCachedDiff(cwd, b.id));
+  const stats = batchStats(getCachedDiff(cwd, sessionId, b.id));
   return (
     <button
       type="button"

@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { appVersion } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { defaultPinnedActionIds, useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
+import { DecorIcon } from "@kernel/iconSet";
 import {
   UI_ZOOM_DEFAULT,
   UI_ZOOM_MAX,
@@ -179,7 +180,7 @@ export function SidebarSettingsCluster() {
                   onClick={() => select(action)}
                 >
                   <span className="settings-menu-icon" aria-hidden>
-                    <action.icon size="0.875rem" />
+                    <DecorIcon id={action.id} Fallback={action.icon} size="0.875rem" />
                   </span>
                   <span className="settings-menu-label">{t(action.label)}</span>
                 </button>
@@ -227,8 +228,7 @@ export function SidebarSettingsCluster() {
           const isActive = action.active?.() ?? false;
           return (
             <button
-              key={action.id}
-              type="button"
+              key={action.id} type="button"
               className={`settings-bar-btn${isActive ? " is-active" : ""}`}
               data-action-id={action.id}
               aria-label={t(action.label)}
@@ -236,7 +236,7 @@ export function SidebarSettingsCluster() {
               title={t(action.label)}
               onClick={() => action.onSelect(anchor())}
             >
-              <action.icon size="1rem" />
+              <DecorIcon id={action.id} Fallback={action.icon} size="1rem" />
             </button>
           );
         })}

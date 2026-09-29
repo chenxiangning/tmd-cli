@@ -13,7 +13,8 @@ import { ipc, type GitFileLogEntry } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { openCommitDiffTab } from "./commitTab";
 import { gitErrorDisplay } from "./gitError";
-import { readPayload, type FileHistoryTabPayload } from "./fileHistoryTab";
+import { readPayload } from "./fileHistoryTab";
+import type { FileHistoryOpenRequest } from "@kernel/fileHistoryBridge";
 
 /* ── tab 内容组件(kind 路由由插件注册保证)────────────────── */
 
@@ -35,7 +36,7 @@ export function FileHistoryTabContent({ tab }: { tab: EditorTab }) {
   return <HistoryList key={`${payload.cwd}:${payload.path}`} payload={payload} />;
 }
 
-function HistoryList({ payload }: { payload: FileHistoryTabPayload }) {
+function HistoryList({ payload }: { payload: FileHistoryOpenRequest }) {
   const [log, setLog] = useState<GitFileLogEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const seq = useRef(0);

@@ -107,11 +107,15 @@ export class SessionIndexer {
     } else {
       const read = await reader(this.cwd, session.id, true).catch(() => null);
       messages = read?.map((m) => m.text) ?? [];
-      /* 用量 = 头窗口 256KB(与 welcome TOKENS 同策略:头窗口近似) */
-      const head = await ipc.fsReadHead(session.path, 256 * 1024).catch(() => null);
-      const summary = head ? summarizeUsage(extractUsageFromHead(head, 0)) : null;
-      usage = summary ? formatUsage(summary) : undefined;
-      cache.set(session.path, { modifiedAt: session.modifiedAt, messages, usage });
+      /* 读失败不进缓存:把空消息钉在当前 mtime 上会让该会话正文永久为空
+         (mtime 不变则永不重读,评审 MC5);本轮仍按标题入索引,下轮重读 */
+      if (read !== null) {
+        /* 用量 = 头窗口 256KB(与 welcome TOKENS 同策略:头窗口近似) */
+        const head = await ipc.fsReadHead(session.path, 256 * 1024).catch(() => null);
+        const summary = head ? summarizeUsage(extractUsageFromHead(head, 0)) : null;
+        usage = summary ? formatUsage(summary) : undefined;
+        cache.set(session.path, { modifiedAt: session.modifiedAt, messages, usage });
+      }
     }
     this.index.entries.push({
       profileId: profile,

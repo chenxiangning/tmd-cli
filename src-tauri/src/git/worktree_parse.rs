@@ -58,24 +58,66 @@ pub(crate) fn parse_worktree_list(stdout: &str) -> Vec<WorktreeEntry> {
     out
 }
 
+/// Windows 形态归一(比较用):去 \\?\ verbatim 前缀、反斜杠转正斜杠、整串小写。
+/// verbatim-UNC(canonicalize 产 \\?\UNC\srv\share)改写为 //srv/share,与
+/// git porcelain 的 // 形态互认(2026-09-28 三轮评审 GIT-R1)。
+/// 仅作比较键,不回写用户可见路径;NTFS/APFS 大小写不敏感,盘符与目录段都可能
+/// 大小写漂移。非 Windows 形态(含 POSIX 反斜杠文件名)原样返回 —— 恒等保序。
+pub(crate) fn normalize_windows_shape(p: &str) -> String {
+    let bytes = p.as_bytes();
+    let verbatim = p.starts_with(r"\\?\");
+    let unc = p.starts_with(r"\\") || p.starts_with("//");
+    let drive = bytes.len() >= 2 && bytes[1] == b':' && (bytes[0] as char).is_ascii_alphabetic();
+    if !verbatim && !drive && !unc {
+        return p.to_string();
+    }
+    let stripped = p.strip_prefix(r"\\?\").unwrap_or(p);
+    let slashed = stripped.replace('\\', "/");
+    let joined = match slashed.strip_prefix("UNC/") {
+        Some(rest) => format!("//{rest}"),
+        None => slashed,
+    };
+    joined.to_ascii_lowercase()
+}
+
 pub(crate) fn rebase_porcelain_paths(entries: &mut [WorktreeEntry], cwd: &str) {
+    /* 比较前两侧归一,回贴保持调用方 cwd 原形态。Windows:canonicalize 产
+    \\?\C:\…(verbatim 反斜杠),git porcelain 产 C:/…(正斜杠盘符)——
+    Prefix(VerbatimDisk) ≠ Prefix(Disk) 且分隔符不同,逐组件比较永不匹配,
+    本函数在 Windows 曾恒为 no-op(2026-09-28 评审 F-GIT-001)。 */
     let Ok(canon) = std::path::Path::new(cwd).canonicalize() else {
         return;
     };
-    let canon_str = canon.to_string_lossy();
+    let canon_str = normalize_windows_shape(&canon.to_string_lossy());
     let input_parent = std::path::Path::new(cwd)
         .parent()
         .map(|p| p.to_string_lossy())
         .unwrap_or_default();
-    let canon_parent = canon
-        .parent()
-        .map(|p| p.to_string_lossy())
-        .unwrap_or_default();
+    let canon_parent = normalize_windows_shape(
+        &canon
+            .parent()
+            .map(|p| p.to_string_lossy())
+            .unwrap_or_default(),
+    );
     for e in entries.iter_mut() {
-        if e.path == canon_str {
+        let path_norm = normalize_windows_shape(&e.path);
+        if path_norm == canon_str {
             e.path = cwd.to_string();
-        } else if let Some(rest) = e.path.strip_prefix(canon_parent.as_ref()) {
+        } else if let Some(rest) = path_norm.strip_prefix(&canon_parent) {
             if rest.starts_with('/') {
+                /* 回贴保持调用方 cwd 原形态:反斜杠盘符输入连分隔符随形
+                (此前恒拼归一斜杠,Windows 产出 `…\b/wt2` 混合形态,
+                2026-09-28 本机实证挂「回贴_前缀边界」测试)。仅盘符形态
+                翻转,POSIX 反斜杠文件名不受影响。 */
+                let win_input = {
+                    let b = input_parent.as_bytes();
+                    b.len() >= 2 && b[1] == b':' && (b[0] as char).is_ascii_alphabetic()
+                };
+                let rest = if win_input {
+                    rest.replace('/', "\\")
+                } else {
+                    rest.to_string()
+                };
                 e.path = format!("{input_parent}{rest}");
             }
         }
@@ -115,6 +157,39 @@ mod tests {
             locked: false,
             prunable: false,
         }
+    }
+
+    #[test]
+    fn windows_形态归一_verbatim_与_porcelain_盘符互认() {
+        // 纯函数语义测试(POSIX 主机亦可跑):canonicalize 侧 verbatim 反斜杠、
+        // porcelain 侧正斜杠盘符,归一后互认;POSIX 路径(含反斜杠文件名)不动。
+        assert_eq!(
+            super::normalize_windows_shape(r"\\?\C:\Users\x\repo"),
+            "c:/users/x/repo"
+        );
+        assert_eq!(
+            super::normalize_windows_shape("C:/Users/x/repo"),
+            "c:/users/x/repo"
+        );
+        // verbatim-UNC(canonicalize 产)与 porcelain // 形态互认(三轮 GIT-R1);
+        // 非 verbatim 字面 UNC 同落 // 形态
+        assert_eq!(
+            super::normalize_windows_shape(r"\\?\UNC\srv\share\repo"),
+            "//srv/share/repo"
+        );
+        assert_eq!(
+            super::normalize_windows_shape(r"\\srv\share\repo"),
+            "//srv/share/repo"
+        );
+        assert_eq!(
+            super::normalize_windows_shape("//srv/share/repo"),
+            "//srv/share/repo"
+        );
+        assert_eq!(super::normalize_windows_shape("/repo/main"), "/repo/main");
+        assert_eq!(
+            super::normalize_windows_shape(r"/repo/back\slash"),
+            "/repo/back\\slash"
+        );
     }
 
     #[test]
@@ -164,25 +239,24 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
         let repo = base.join("repo");
         std::fs::create_dir_all(&repo).unwrap();
-        let link = base.join("link");
+        /* Windows symlink 需特权;该平台靠 verbatim 前缀不匹配保持原样。
+        断言体收进 cfg(unix) 块 —— 尾部 return 后跟语句在非 unix 构建是
+        unreachable code,clippy -D warnings 挂(2026-09-28 本机实证)。 */
         #[cfg(unix)]
-        std::os::unix::fs::symlink(&repo, &link).unwrap();
-        #[cfg(not(unix))]
         {
-            /* Windows symlink 需特权;该平台靠 verbatim 前缀不匹配保持原样。 */
-            let _ = link;
-            return;
+            let link = base.join("link");
+            std::os::unix::fs::symlink(&repo, &link).unwrap();
+            let canon_repo = repo.canonicalize().unwrap();
+            let sibling = canon_repo.parent().unwrap().join("wt-x");
+            let mut entries = [
+                entry(&canon_repo.to_string_lossy()),
+                entry(&sibling.to_string_lossy()),
+            ];
+            rebase_porcelain_paths(&mut entries, &link.to_string_lossy());
+            /* 主仓 → 输入(符号链接)路径;兄弟 → 输入父目录前缀。 */
+            assert_eq!(entries[0].path, link.to_string_lossy());
+            assert_eq!(entries[1].path, base.join("wt-x").to_string_lossy());
         }
-        let canon_repo = repo.canonicalize().unwrap();
-        let sibling = canon_repo.parent().unwrap().join("wt-x");
-        let mut entries = [
-            entry(&canon_repo.to_string_lossy()),
-            entry(&sibling.to_string_lossy()),
-        ];
-        rebase_porcelain_paths(&mut entries, &link.to_string_lossy());
-        /* 主仓 → 输入(符号链接)路径;兄弟 → 输入父目录前缀。 */
-        assert_eq!(entries[0].path, link.to_string_lossy());
-        assert_eq!(entries[1].path, base.join("wt-x").to_string_lossy());
         let _ = std::fs::remove_dir_all(&base);
     }
 }

@@ -9,7 +9,7 @@
 import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile } from "@kernel/ipc";
-import { getCachedDiff } from "./store";
+import { getCachedDiff } from "./diffCache";
 import { openBatchTab } from "./batchTab";
 
 /** 内联确认卡目标:mode 区分回退(默认,兼容既有 paths 子集语义)与应用。 */
@@ -113,7 +113,7 @@ export function FileRow({
   const segs = f.path.split("/");
   const name = segs.pop() ?? f.path;
   const dir = segs.length ? segs.join("/") + "/" : "";
-  const patches = getCachedDiff(cwd, b.id);
+  const patches = getCachedDiff(cwd, sessionId, b.id);
   const mine = patches?.find((p) => p.path === f.path);
   return (
     <div className="group flex h-[25px] items-center gap-1.5 rounded px-1.5 hover:bg-(--tmd-bg-hover)">

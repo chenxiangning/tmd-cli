@@ -23,6 +23,8 @@ vi.mock("./ipc", () => ({
     sessionList: vi.fn(async () => sessions),
     sessionKill: vi.fn(async () => undefined),
     sessionWrite: vi.fn(async () => undefined),
+    sessionResize: vi.fn(async () => undefined),
+    sessionSize: vi.fn(async () => null),
     sessionLogSize: vi.fn(async (id: string) => logBackends.get(id)?.length ?? 0),
     sessionHistoryPage: vi.fn(async (id: string, _before: number, maxBytes: number) => {
       const log = logBackends.get(id) ?? "";
@@ -59,6 +61,14 @@ const OMP_FRAME = [
   "╰─\r\n",
   "mc: 72.9K (8%) · idle\r\n",
   "● spinner: ⚡ FULL\r\n",
+].join("");
+
+/** 大窗形态(2026-09-29 实测):omp 面板在中上部、底部留空 —— 标记距屏底 >24 行,
+    固定底窗(8/24 行)两代均够不着,唯有贴底视口/全屏口径可见;帧尾 5 行是纯
+    transcript 行,字节通道页脚窗同样零命中。 */
+const TALL_FRAME = [
+  "│  ○ Other (type your own)\r\n",
+  ...Array.from({ length: 43 }, (_, i) => `tall transcript line ${i}\r\n`),
 ].join("");
 
 /** 幕布挂载桩(TerminalHandle 全成员;镜像只看注册表在不在,不调成员)。 */
@@ -123,6 +133,16 @@ describe("后台会话的屏幕态镜像(host 接线)", () => {
     expect(host.isWaitingConfirm(s.id)).toBe(true);
     expect(detected).toEqual([s.id]);
     off();
+    await host.removeSession(s.id);
+  });
+
+  it("resize 中继:前台 fit 尺寸带回后台,大窗高面板(标记距屏底 >24 行)照常置位", async () => {
+    const s = await host.createSession(PROFILE_ID, CWD);
+    host.resizeSession(s.id, 200, 48); /* 挂幕布期的 fit 中继(先于首字节,pendingSize 暂存) */
+    ptyOutputCbs.get(s.id)!(TALL_FRAME);
+    await vi.advanceTimersByTimeAsync(3_500);
+    /* 48 行栅格全屏可见标记(首行);漏掉中继守默认 120×32 会滚掉标记,固定底 24 行窗同样够不着 */
+    expect(host.isWaitingConfirm(s.id)).toBe(true);
     await host.removeSession(s.id);
   });
 

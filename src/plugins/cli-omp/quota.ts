@@ -5,7 +5,8 @@
  * - auth_credentials 表: provider / credential_type(api_key|oauth) / data JSON
  *   data 形状: api_key 型 {"key": "sk-..."} / oauth 型 {"access": "...", "accountId": "..."}
  *   本机实证 providers: kimi-code / minimax-code-cn / openai-codex
- * - sqlite 由 Rust omp_auth_credential 只读取出,JS 不直接碰库。
+ * - sqlite 经 kernel 通用只读通道(ipc.sqliteQuery)代读,SQL/表知识留在本插件
+ *   与 cli-shared/quota/ompAuth,Rust 侧零 CLI 专属命令。
  *
  * 路由: 当前模型 "vendor/model" 前缀 → detectVendorByProviderId;
  * omp provider id 即官方供应商(kimi-code→kimi 等),无需 base_url 推导;

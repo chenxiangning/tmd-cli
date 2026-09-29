@@ -14,14 +14,19 @@ const HIGH_RISK_PATTERNS: readonly RegExp[] = [
   /(^|\/)(\.git-credentials|\.netrc|\.gitconfig)$/,
   /(^|\/)\.(zshrc|bashrc|bash_profile|profile)$/,
   /(^|\/)\.github\/workflows\//,
-  /(^|\/)(Dockerfile|docker-compose\.ya?ml)$/,
-  /(^|\/)Makefile$/,
+  /(^|\/)(dockerfile|docker-compose\.ya?ml)$/,
+  /(^|\/)makefile$/,
   /\.service$/,
   /\.plist$/,
   /(^|\/)crontab$/,
 ];
 
-/** 路径(仓库相对)→ 危险度。high = 建议细读 diff 再放行。 */
+/** 路径(仓库相对)→ 危险度。high = 建议细读 diff 再放行。
+ *  匹配前反斜杠归一为正斜杠:Windows 形态(.ssh\id_rsa)同样命中,红标不因平台失效。
+ *  整串小写后匹配:NTFS/APFS 大小写不敏感,.ENV / ID_RSA / Dockerfile 大写变体
+ *  是同一文件,红标不得因书写大小写漏判(2026-09-28 评审);POSIX 上同名异写
+ *  文件误升险属保守方向,可接受。 */
 export function classifyRisk(path: string): "high" | "normal" {
-  return HIGH_RISK_PATTERNS.some((re) => re.test(path)) ? "high" : "normal";
+  const p = path.replace(/\\/g, "/").toLowerCase();
+  return HIGH_RISK_PATTERNS.some((re) => re.test(p)) ? "high" : "normal";
 }

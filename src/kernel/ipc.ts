@@ -257,7 +257,8 @@ interface ProcRunSpec {
   env?: Record<string, string>;
   /** 启动后一次性写入 stdin;写入后管道保持打开,直到收割(kill/退出)。 */
   stdin?: string;
-  /** stdin 以 null 启动(立即 EOF)。一次性 CLI(omp -p 等)检测到管道 stdin 会等 EOF 挂死;RPC 副车勿开。 */
+  /** 写完 stdin(可为空)立即关管道送 EOF。一次性 CLI(omp/pi/opencode 的
+   * -p/run)等 EOF 才返回;RPC 副车(需持开 stdin 收响应)勿开。 */
   closeStdin?: boolean;
   /** stdout 出现该子串即提前收割(响应已到达,不等满超时)。 */
   exitOnStdout?: string;
@@ -350,6 +351,8 @@ export const ipc = {
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>
     invoke<void>("session_resize", { id, cols, rows }),
+  /** 会话 PTY 当前尺寸 (cols, rows);SSH/未知会话回 null(后台镜像栅格真源,手机实况同源)。 */
+  sessionSize: (id: string) => invoke<[number, number] | null>("session_size", { id }),
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
   /** 会话输出日志的绝对末尾偏移(累计字节数);无日志返回 0。 */
   sessionLogSize: (id: string) => invoke<number>("session_log_size", { id }),
@@ -401,6 +404,8 @@ export const ipc = {
     invoke<void>("fs_reveal_in_file_manager", { path }),
   /** 复制文件(资源入库通道,如壁纸受管副本);新建语义,目标已存在报错,256MB 上限。 */
   fsCopyFile: (src: string, dst: string) => invoke<void>("fs_copy_file", { src, dst }),
+  /** 递归复制目录树(composer 通用技能落位);新建语义,目标已存在报错,32MB 总量闸,跳过 .DS_Store。 */
+  fsCopyTree: (src: string, dst: string) => invoke<void>("fs_copy_tree", { src, dst }),
   /* ── 打开方式(open-with;契约 kernel/openWith.ts,Rust open_with.rs)── */
   /** 用配置的外部应用/命令打开文件;finder 复用 reveal 定位;目标路径恒为最后参数。 */
   fsOpenWith: (path: string, target: OpenWithTarget) =>
@@ -414,6 +419,8 @@ export const ipc = {
   readLocalImageDataUrl: (path: string) =>
     invoke<string>("read_local_image_data_url", { path }),
   readBinaryFileBase64: (path: string) => invoke<string>("read_binary_file_base64", { path }),
+  /** 通用二进制读 base64(数据域,无预览白名单;Rust 32MB 闸)。 */
+  fsReadBytesBase64: (path: string) => invoke<string>("fs_read_bytes_base64", { path }),
   /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
   gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),
   /** 多仓发现:root 下 BFS 找 .git(深度上限 maxDepth,前端默认 2);
@@ -604,6 +611,20 @@ export const ipc = {
   /** 物理删除文件或目录(会话列表"删除会话"用);kimi 会话是目录,统一走此命令。
    *  路径不存在视为成功(幂等)。 */
   fsRemovePath: (path: string) => invoke<void>("fs_remove_path", { path }),
+
+  /* ── skill 包原语(skill-hub 插件消费;对齐 src-tauri/src/skill_pkg.rs)── */
+  /** 下载 URL 到 dest_dir 下临时文件(文件名 = URL 哈希 + .tmp),60s 超时,
+   *  跟随重定向。zip 二进制不走 quotaFetch(body 通道是 JSON 文本)。 */
+  netDownload: (url: string, destDir: string) =>
+    invoke<{ path: string; bytes: number }>("net_download", { url, destDir }),
+  /** zip 解压到 dest_dir(不存在即建)。安全闸:条目名 zip-slip/绝对路径/
+   *  反斜杠、symlink entry、解压总大小 10MB 全拒绝。strip_top = 剥离单顶层
+   *  目录(GitHub 式包形状;ClawHub 平铺包不剥)。返回解出文件数。 */
+  skillExtract: (archive: string, destDir: string, stripTop: boolean) =>
+    invoke<{ entries: number }>("skill_extract", { archive, destDir, stripTop }),
+  /** 建目录符号链接(公约位安装的 claude 补链);Windows 无特权原样报错。 */
+  skillSymlink: (target: string, link: string) =>
+    invoke<void>("skill_symlink", { target, link }),
   configHomeDir: () => {
     /* 主目录每进程恒定:扫描/配额/GUI 共 47 处每动作重复取,once 缓存全量受益;
        拒绝不缓存(复位重试),失败语义与直连一致。 */
@@ -641,6 +662,9 @@ export const ipc = {
   /** 读取非空环境变量;用于 pi auth.json 的 $ENV_VAR 凭据引用。 */
   quotaEnvValue: (name: string) =>
     invoke<string | null>("quota_env_value", { name }),
+  /** 一次性 MCP stdio 探活(spawn → initialize → tools/list → kill;15s 超时;
+   *  错误附 stderr 尾行)。消费方 mcp-hub 插件;协议知识在 src-tauri/mcp_probe.rs。 */
+  mcpProbe: (spec: McpProbeSpec) => invoke<McpProbeResult>("mcp_probe", { spec }),
   /** 探针 CLI 是否在本机 PATH 中可解析(以及 `--version` 输出)。 */
   cliProbe: (command: string) =>
     invoke<CliProbeResult>("cli_probe", { command }),
@@ -1165,6 +1189,23 @@ export interface CliProbeResult {
   version: string | null;
   /** 命中副本位于 npm 全局布局内时的所属 prefix;非 npm 副本 = null。 */
   npmPrefix: string | null;
+}
+
+/** mcp_probe 入参(一次性 stdio 探活;消费方 mcp-hub 插件)。 */
+export interface McpProbeSpec {
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  timeoutMs: number;
+}
+
+/** 后端 `mcp_probe` 返回结构(对齐 src-tauri/src/mcp_probe.rs;ok=false 时 error 必带)。 */
+export interface McpProbeResult {
+  ok: boolean;
+  serverName?: string;
+  serverVersion?: string;
+  toolsCount?: number;
+  error?: string;
 }
 
 /** 订阅某引擎的安装事件流。返回退订函数。 */

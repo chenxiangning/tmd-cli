@@ -1,14 +1,25 @@
 import { ClaudeGlyph } from "../cli-shared/engineGlyphs";
 import { ipc } from "@kernel/ipc";
-import { t } from "@kernel/i18n";
 import {
   claudeUserMessageLine,
   readUserMessagesFromFile,
 } from "../cli-shared/userMessages";
 import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
-import type { CliProfile, CliSessionStatus, CliSuggestion } from "@kernel/cli";
+import type {
+  CliDiskSession,
+  CliProfile,
+  CliSessionStatus,
+  CliSessionTranscript,
+  CliSuggestion,
+} from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { fetchClaudeQuota } from "./quota";
+import { claudeTranscriptLine } from "../cli-shared/claudeTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "../cli-shared/sessionTranscript";
 import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
 import { CLAUDE_ACADEMY_COURSE } from "./academy/academyCatalog";
@@ -70,6 +81,20 @@ async function readClaudeUserMessages(cwd: string, cliSessionId: string, full: b
   return readUserMessagesFromFile(`${dir}/${cliSessionId}.jsonl`, full, claudeUserMessageLine);
 }
 
+/** 会话完整转录:claude 行型解析(claudeTranscript 骨架,claude 变体)。 */
+async function readClaudeTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  const file = await readTranscriptText(session.path);
+  if (!file) return null;
+  return {
+    blocks: pairToolResults(
+      parseTranscriptBlocks(file.text, claudeTranscriptLine("claude")),
+    ),
+    truncated: file.truncated,
+  };
+}
+
 /** 身份自证:行内 sessionId/cwd 字段(claude 家族格式,与 qoder 共享解析)。 */
 async function readClaudeSessionIdentity(path: string) {
   const head = await ipc.fsReadHead(path, 8 * 1024).catch(() => null);
@@ -119,7 +144,9 @@ export function extractClaudeMcpServers(json: string, cwd: string): CliSuggestio
   }
   return Array.from(byName, ([name, source]) => ({
     value: name,
-    description: `MCP · ${t(source)}`,
+    /* description 存中文源串:fetch 期有 60s 缓存,渲染期由 DrawerItemList t() 包裹
+       (整串键见 locales cli 域),避免切语言后缓存残留旧语言(评审 P2-1)。 */
+    description: `MCP · ${source}`,
     action: "send" as const,
     icon: "server",
     token: "/mcp ",
@@ -202,11 +229,15 @@ export const cliClaudePlugin: Plugin = {
       listMcpServers: listClaudeMcpServers,
       resumeArgs: (sessionId) => ["--resume", sessionId],
       listSessions: listClaudeSessions,
+      /* MCP 管理面:全局读写目标 = ~/.claude.json 顶层 mcpServers(全量
+         parse/stringify,未知键保留;projects.<cwd> 嵌套后置)。 */
+      mcpGlobalConfig: { candidates: ["/.claude.json"], format: "json" },
       /* 会话卫生判空:path 即 <uuid>.jsonl,共享标记子串判定(sessionEmpty.ts) */
       isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
       readSessionStatus: readClaudeSessionStatus,
       readSessionFileIdentity: readClaudeSessionIdentity,
       readSessionUserMessages: readClaudeUserMessages,
+      readSessionTranscript: readClaudeTranscript,
       editMarks: CLAUDE_EDIT_MARKS,
     };
     ctx.registerCliProfile(profile);

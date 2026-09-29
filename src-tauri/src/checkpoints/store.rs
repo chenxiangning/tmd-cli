@@ -119,8 +119,11 @@ pub(crate) fn append_ledger(cwd: &str, entry: &LedgerEntry) -> Result<(), CkptEr
         .create(true)
         .append(true)
         .open(&file)?;
-    f.write_all(serde_json::to_string(entry).unwrap().as_bytes())?;
-    f.write_all(b"\n")?;
+    /* 条目 JSON 与换行同一缓冲单次写:两次 write_all 之间被杀会留下无换行的
+    完整条目,重启续写粘行、两条同灭(2026-09-28 评审 F-CKPT-002) */
+    let mut buf = serde_json::to_string(entry).unwrap().into_bytes();
+    buf.push(b'\n');
+    f.write_all(&buf)?;
     Ok(())
 }
 
@@ -128,12 +131,18 @@ pub(crate) fn append_ledger(cwd: &str, entry: &LedgerEntry) -> Result<(), CkptEr
 /// anchor 与 turn 共用 id 但 kind 不同,各自保留),保持文件顺序。
 /// edit 行折叠键多了 path —— 每轮每文件独立一行。
 pub(crate) fn load_ledger(cwd: &str) -> Vec<LedgerEntry> {
-    let text = fs::read_to_string(ledger_file(cwd)).unwrap_or_default();
+    /* 按字节切行、逐行 UTF-8 解码:撕裂点落在多字节序列中间时
+    read_to_string 会整体失败(整本账不可读且永不自愈),
+    行级 from_utf8 失败只丢撕裂那一行(2026-09-28 评审 F-CKPT-002) */
+    let raw = fs::read(ledger_file(cwd)).unwrap_or_default();
     let mut out: Vec<LedgerEntry> = Vec::new();
     // 折叠索引 O(1) 定位(此前线性扫描把单次读放大到 O(n²),事件流记账
     // 逐事件 append + list 秒级刷新,长账本不可接受)
     let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for line in text.lines() {
+    for line in raw.split(|&b| b == b'\n') {
+        let Ok(line) = std::str::from_utf8(line) else {
+            continue;
+        };
         let Ok(mut e) = serde_json::from_str::<LedgerEntry>(line) else {
             continue;
         };

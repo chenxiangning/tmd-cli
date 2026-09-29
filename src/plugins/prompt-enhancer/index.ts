@@ -1,10 +1,12 @@
 /**
  * prompt-enhancer 插件 —— composer 左下「增强提示词」入口(spec 2026-09-21):
- * - composer.inputRail order 50:✦ 图标,取输入框草稿弹并排对照对话框
+ * - composer.inputRail order 50:魔杖(MagicWand)图标,取输入框草稿弹并排对照对话框
+ *   (2026-09-28 双图标评审 P0-2:同排禁两枚 Sparkle,技能直达图标保留锚点形,
+ *   增强语义换 Wand)
  * - 一次性改写走 proc_communicate 通用原语;8 家 CLI argv 组装收口在 enhanceEngines
  * - 使用增强版本经 composerReplaceRef 整替草稿
  */
-import { SparkleIcon } from "@phosphor-icons/react";
+import { MagicWandIcon } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
 import { composerDraftRef } from "@kernel/composerExt";
@@ -18,7 +20,7 @@ export const promptEnhancerPlugin: Plugin = {
     name: "增强提示词",
     abbr: "PE",
     desc: "把输入框草稿交给一次性 CLI 改写,并排对照后一键回填",
-    icon: SparkleIcon,
+    icon: MagicWandIcon,
     iconColor: "#A78BFA",
     category: "feature",
   },

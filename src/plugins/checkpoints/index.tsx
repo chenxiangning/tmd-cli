@@ -11,7 +11,7 @@
  *   sessionExited → 兜底封口,最后一轮落账
  */
 
-import { SealCheck } from "@phosphor-icons/react";
+import { ClipboardText, SealCheck } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import {
   KernelTopics,
@@ -43,10 +43,11 @@ export const checkpointsPlugin: Plugin = {
       icon: SealCheck,
       component: CheckpointsPanel,
       showFileSubbar: false, // 审批线自带摘要行(审批线 · 批次规模 · 待审计数)
-      order: 10,
+      order: 12,
+      railGroup: "session", /* 会话组:标记/审批线/审批/画布相邻 */
     });
     /* 中央批审阅单 tab:kind="ckpt-batch" 路由(kernel/tabs 注册表)。 */
-    ctx.registerTabContent({ kind: BATCH_TAB_KIND, component: BatchSheetTabContent });
+    ctx.registerTabContent({ kind: BATCH_TAB_KIND, component: BatchSheetTabContent, icon: ClipboardText });
 
     /** 会话身份解析:统一走 identity.ts 仲裁(cli 身份被多活会话争持时,
      *  先创建者保留、后到者回退 tmd id —— 防绑定竞态把两个会话并进同一条账)。 */
@@ -105,15 +106,6 @@ export const checkpointsPlugin: Plugin = {
       }
     };
 
-    // 轻轮询:事件落账延迟 ≤ 拉取间隔,open 批次随 6s 面板刷新可见;
-    // 无适配器会话空转一次 Map/Set 查询,开销可忽略。
-    // 全局 setInterval(非 window.):activate 会被 node 环境的契约测试直调。
-    setInterval(() => {
-      for (const s of host.getSessions()) {
-        if (diskEditSource(s.id)) void pullSessionEdits(s.id);
-      }
-    }, 4000);
-
     // 批次边界:prompt 发送瞬间记锚点(失败不阻塞,store 内部重试)。
     // 归因模式随锚点固化:profile 声明 editMarks 或 readSessionEdits →
     // events(AI 写入事件流),否则 git(窗口推断)。
@@ -155,5 +147,17 @@ export const checkpointsPlugin: Plugin = {
     // 会话退出:兜底封口,最后一轮落账(host.removeSession 先 await IPC 再摘会话,
     // emit 时会话与 CLI 身份仍在列表里 —— 依赖此顺序,勿在 identity 前做异步查询)
     ctx.events.on<string>(KernelTopics.sessionExited, (sessionId) => sealWith(sessionId));
+
+    // 轻轮询:事件落账延迟 ≤ 拉取间隔,open 批次随 6s 面板刷新可见;
+    // 无适配器会话空转一次 Map/Set 查询,开销可忽略。
+    // 全局 setInterval(非 window.):activate 会被 node 环境的契约测试直调。
+    // 句柄入账(activate 返回 cleanup):熔断摘除后轮询若存活,会继续不可见地
+    // 拉事件写账本(2026-09-28 评审 CKPT-3)。
+    const diskEditTimer = setInterval(() => {
+      for (const s of host.getSessions()) {
+        if (diskEditSource(s.id)) void pullSessionEdits(s.id);
+      }
+    }, 4000);
+    return () => clearInterval(diskEditTimer);
   },
 };

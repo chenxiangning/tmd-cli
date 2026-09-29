@@ -15,6 +15,7 @@ import { t } from "@kernel/i18n";
 import { Composer } from "./view/Composer";
 import { composerSendRef } from "./view/composerSendRef";
 import { TileBroadcastButton } from "./view/TileBroadcastButton";
+import { RailWakeIcons } from "./view/RailWakeIcons";
 import { ComposerToolbar } from "./view/ComposerToolbar";
 import { toggleDrawer } from "./state/drawerOpen";
 import { pluginDrawerCommands } from "./drawerItems";
@@ -53,6 +54,8 @@ export const composerPlugin: Plugin = {
     });
     /* 平铺广播:仅平铺态出现的 inputRail 图标(自门控,非平铺不渲染) */
     ctx.contribute("composer.inputRail", { order: 40, component: TileBroadcastButton });
+    /* 技能/MCP 直达:能力探针自门控(未声明引擎不渲染),点击 = 抽屉分区落位 */
+    ctx.contribute("composer.inputRail", { order: 60, component: RailWakeIcons });
     ctx.contribute("composer.statusBar", {
       order: 0,
       component: ComposerToolbar,

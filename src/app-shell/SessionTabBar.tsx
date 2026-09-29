@@ -12,9 +12,10 @@
  */
 
 import { memo, useState } from "react";
-import { Cross, CrosshairSimple } from "@phosphor-icons/react";
-import { PinIcon } from "@kernel/PinIcon";
+import { Cross, CrosshairSimple, EyeIcon } from "@phosphor-icons/react";
 import { isSessionPinned, pinSession, sessionPinKey, unpinSession } from "@kernel/sessionPins";
+import { PinIcon } from "@kernel/PinIcon";
+import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
 import { requestSessionReveal } from "@kernel/sessionReveal";
 import { shellLeftEnsureOpen } from "./shortcutCommands";
 import { host, useHost } from "@kernel/host";
@@ -126,6 +127,26 @@ function SessionTabBarImpl() {
                   ) : null}
                   <span className="session-tab-label">{title}</span>
                 </button>
+                {cliSessionId !== undefined &&
+                host.getCliProfile(meta.profileId)?.readSessionTranscript &&
+                isSessionViewAvailable() ? (
+                  <button
+                    type="button"
+                    className="session-tab-view"
+                    aria-label={t("查看会话转录(只读)")}
+                    title={t("查看会话转录(只读)")}
+                    onClick={() =>
+                      openSessionViewTab({
+                        profileId: meta.profileId,
+                        cliSessionId,
+                        title,
+                        cwd: meta.cwd,
+                      })
+                    }
+                  >
+                    <EyeIcon size="0.6875rem" aria-hidden />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className={`session-tab-pin${pinned ? " is-on" : ""}`}

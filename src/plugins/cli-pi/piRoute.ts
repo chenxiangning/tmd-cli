@@ -6,7 +6,6 @@
  * 2. 裸 modelId → models-store/models.json 反查 provider(凭据存在性消歧)
  * 3. 无 model → auth 仅配置单供应商时安全回退;多供应商拒绝猜
  * 不猜:无法唯一确定时抛带候选信息的错误。
- * providersForModelId / resolvePiRoute 由 quota.ts re-export 维持既有导入契约。
  */
 
 import {

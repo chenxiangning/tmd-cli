@@ -23,7 +23,7 @@ import { saveRequestRef } from "./editor/useFileDocument";
 import { collectRevealTargets } from "./treeHandles";
 import { fileDetailActions, blameToggleRef } from "./fileDetailActions";
 import { getActiveWorkspace } from "@kernel/workspace";
-import { openFileHistoryTab } from "@plugins/git/fileHistoryTab";
+import { fileHistoryOpenRef } from "@kernel/fileHistoryBridge";
 import { ActiveWorkspaceFileTree } from "./FileTree";
 import { setFileMarkBus } from "./markBridge";
 import { getActiveTreeHandles } from "./treeHandles";
@@ -61,6 +61,9 @@ export const filesPlugin: Plugin = {
       newFile: () => getActiveTreeHandles()?.newFile(),
       newFolder: () => getActiveTreeHandles()?.newFolder(),
       actions: GitDecorateToggle,
+      /* rail 归组:工作区组(files/git 首组,位置不变;组间画分隔线) */
+      order: 0,
+      railGroup: "workspace",
     });
     /* 左栏工作区「查看文件」浏览器实现(kernel workspaceFileBrowser 契约);
        拔出本插件 = 入口按钮消失、已开视图自动关闭,右栏文件树零感知。 */
@@ -100,7 +103,7 @@ export const filesPlugin: Plugin = {
         const ws = getActiveWorkspace();
         const base = ws ? ws.root.replace(/[\\/]+$/, "") : "";
         const rel = base && a.path.startsWith(`${base}/`) ? a.path.slice(base.length + 1) : "";
-        if (rel) openFileHistoryTab({ cwd: base, path: rel });
+        if (rel) fileHistoryOpenRef.current?.({ cwd: base, path: rel });
       },
     });
     ctx.registerCommand({

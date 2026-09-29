@@ -9,6 +9,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { getSettingsState } from "@kernel/settings";
 import { memoryDbPath } from "./paths";
 import {
   CATEGORY_ORDER,
@@ -20,9 +21,12 @@ import {
 } from "./protocol";
 
 async function resolvedDbPath(): Promise<string> {
-  // 上游默认解析(paths 统一实取 home)。settings.memoryDbPath 回存(bootstrap
-  // 成功后)尚未实现,接 settings 前保持单一事实源,免双路径漂移。
-  return memoryDbPath();
+  /* bootstrap 成功已回存实际落点(settings.memoryDbPath,setup.runBootstrap);
+     未回存(未安装/上游未提供)时按上游默认解析推断,单一事实源不漂移。
+     已知权衡:回存为 bootstrap 当刻快照,事后 XDG_DATA_HOME 等环境变化
+     不会自动跟随 —— 重跑一次安装迁移即刷新(2026-09-28 评审挂账)。 */
+  const { settings } = getSettingsState();
+  return settings.memoryDbPath || memoryDbPath();
 }
 
 function rowsToItems(rows: unknown[][]): MemoryItem[] {
@@ -111,7 +115,10 @@ async function status(): Promise<MemoryPoolStatus> {
 
 export const memoryPool: MemoryPool = { recall, status };
 
-const identityCache = new Map<string, string | null>();
+const identityCache = new Map<string, { id: string | null; at: number }>();
+/** 负缓存 TTL:null(非 git 工作区/git 瞬时失败)只信 60s —— 之后 git init/恢复
+ *  应重解析而非永久「项目未纳入」(2026-09-28 评审 MC9)。 */
+const IDENTITY_NULL_TTL_MS = 60_000;
 
 /** proc_communicate 跑 git rev-list,返回 stdout 文本。 */
 async function gitRevListRootCommits(workspaceRoot: string): Promise<string> {
@@ -127,7 +134,9 @@ async function gitRevListRootCommits(workspaceRoot: string): Promise<string> {
 /** 解析 workspace root 的上游项目身份;非 git 工作区返回 null(胶囊显示未纳入)。 */
 export async function resolveProjectIdentity(workspaceRoot: string): Promise<string | null> {
   const cached = identityCache.get(workspaceRoot);
-  if (cached !== undefined) return cached;
+  if (cached && (cached.id !== null || Date.now() - cached.at < IDENTITY_NULL_TTL_MS)) {
+    return cached.id;
+  }
   let identity: string | null = null;
   try {
     const out = await gitRevListRootCommits(workspaceRoot);
@@ -140,6 +149,6 @@ export async function resolveProjectIdentity(workspaceRoot: string): Promise<str
   } catch {
     identity = null;
   }
-  identityCache.set(workspaceRoot, identity);
+  identityCache.set(workspaceRoot, { id: identity, at: Date.now() });
   return identity;
 }

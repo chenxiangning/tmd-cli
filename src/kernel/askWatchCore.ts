@@ -120,7 +120,7 @@ export class AskWatch {
     return false;
   }
 
-  /** 屏幕采样进站(1Hz):字节流盲区(spinner 光标寻址重绘,静态面板标记流出
+  /** 屏幕采样进站(250ms):字节流盲区(spinner 光标寻址重绘,静态面板标记流出
    * 尾窗永不复现)由屏幕态兜底。置位防抖在场 ≥ASK_CONFIRM_MS;字节态摘除
    * 对称防抖(缺席 ≥ASK_CONFIRM_MS)。返回 asked/healed/null。 */
   onScreenSample(sessionId: string, present: boolean): "asked" | "healed" | null {
@@ -188,7 +188,7 @@ export class AskWatch {
   }
 
   /**
-   * 守望计时器(1Hz,等待或候选非空时运转)双职责:
+   * 守望计时器(250ms,等待或候选非空时运转)双职责:
    * ① 候选漂移确认:期满(≥ASK_CONFIRM_MS)且命中后累计新输出 ≤ 漂移阈 =
    *   面板静态驻留(omp 光标停住不再重绘,标记已被后台输出挤出尾巴)→ 升级;
    *   真实响应流 1.2s 内远超半帧,漂移超阈即撤销。写后抑制窗内残影不升级。
@@ -229,7 +229,7 @@ export class AskWatch {
       this.stopWatchIfIdle();
       asked.forEach((id) => this.onAsked?.(id));
       healed.forEach((id) => this.onHealed?.(id));
-    }, 1000);
+    }, 250); /* 250ms 节拍:确认/自愈阈值不变,置位最迟 ~1.45s(旧 1Hz ~2.2s,用户体感慢) */
   }
 
   private stopWatchIfIdle(): void {
@@ -261,6 +261,7 @@ export class AskWatch {
     this.lastOutputAt.delete(sessionId);
     this.bytesIn.delete(sessionId);
     this.lastWriteAt.delete(sessionId);
+    this.marksBySession.delete(sessionId); /* 私有标记同清:同 id 重建不得继承上一代声明 */
     this.stopWatchIfIdle();
   }
 
@@ -284,6 +285,7 @@ export class AskWatch {
     this.waitingByScreen.clear();
     this.absentSince.clear();
     this.screenSince.clear();
+    this.marksBySession.clear();
   }
 
   /** 是否已有任何检测态(等待/屏幕等待/候选):回放补观察的短路判据。 */

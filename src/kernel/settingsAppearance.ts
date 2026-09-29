@@ -70,13 +70,20 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
     : SESSION_TABS_LIMIT_DEFAULT;
 }
 
-/** ── 图标装饰(icon decor)域 ── 13 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
+/** ── 图标装饰(icon decor)域 ── 34 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
 
 /** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,
- *  动作键 = sidebarActions id(rail 直挂只剩 wsl-panel/terminal;
+ *  动作键 = sidebarActions id(rail 直挂只剩 wsl-panel/terminal/intent-canvas;
  *  ssh 已迁面板键,键名保留防存量装饰丢失),
- *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/session-board),
- *  结构键 = worktree(侧栏 worktree 簇标签 + fork 图标着色)。 */
+ *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/session-board)
+ *  与 titlebar 内建钮(market/home/fold-left/fold-right),
+ *  结构键 = worktree(侧栏 worktree 簇标签 + fork 图标着色),
+ *  工作区行键 = WorkspaceCard 行内操作钮(ws-*),
+ *  composer 键 = 工具条三钮(stage-expand/stage-collapse/composer-drawer)
+ *  与输入轨七钮(wake-agent/wake-prompt/ai-draw/broadcast/enhance/wake-skill/wake-mcp)。
+ *  新键消费约定(2026-09-29 扩编):颜色经 [data-action-id] svg 直取
+ *  (缺省 currentColor = 现状,整图标着色),选择器集中在本域消费文件
+ *  styles/icon-decor.css;旧 17 键颜色仍在各自 home 样式表原地消费。 */
 export const ICON_DECOR_IDS = [
   "newchat",
   "ssh-panel",
@@ -86,11 +93,32 @@ export const ICON_DECOR_IDS = [
   "panel-checkpoints",
   "panel-memory",
   "panel-marks",
+  "panel-approval-inbox",
+  "panel-skill-hub",
+  "panel-mcp-hub",
   "wsl-panel",
   "terminal",
+  "intent-canvas",
   "session-board",
   "remote-control",
   "worktree",
+  "ws-files",
+  "ws-manage",
+  "ws-refresh",
+  "market",
+  "home",
+  "fold-left",
+  "fold-right",
+  "stage-expand",
+  "stage-collapse",
+  "composer-drawer",
+  "wake-agent",
+  "wake-prompt",
+  "ai-draw",
+  "broadcast",
+  "enhance",
+  "wake-skill",
+  "wake-mcp",
 ] as const;
 export type IconDecorId = (typeof ICON_DECOR_IDS)[number];
 
@@ -110,11 +138,32 @@ export const DEFAULT_ICON_DECOR: Record<IconDecorId, IconDecorItem> = {
   "panel-checkpoints": {},
   "panel-memory": {},
   "panel-marks": {},
+  "panel-approval-inbox": {},
+  "panel-skill-hub": {},
+  "panel-mcp-hub": {},
   "wsl-panel": {},
   terminal: {},
+  "intent-canvas": {},
   "session-board": {},
   "remote-control": {},
   worktree: {},
+  "ws-files": {},
+  "ws-manage": {},
+  "ws-refresh": {},
+  market: {},
+  home: {},
+  "fold-left": {},
+  "fold-right": {},
+  "stage-expand": {},
+  "stage-collapse": {},
+  "composer-drawer": {},
+  "wake-agent": {},
+  "wake-prompt": {},
+  "ai-draw": {},
+  broadcast: {},
+  enhance: {},
+  "wake-skill": {},
+  "wake-mcp": {},
 };
 
 const ICON_DECOR_COLOR_RE = /^#[0-9a-f]{6}$/i;
@@ -136,5 +185,19 @@ export function sanitizeIconDecor(raw: unknown): Record<IconDecorId, IconDecorIt
     }
     out[id] = entry;
   }
+
   return out;
+}
+/** ── 图标组合(icon set)域 ── 装饰位字形/线重的组合;应用层 kernel/iconSet.tsx */
+
+/** 组合白名单:classic(组合1 现状)/ solid(组合2 实心)/ metaphor(组合3 换隐喻)/
+ * lucide(组合4 细线)/ lucide-alt(组合5 细线变体;4↔5 切换经 morphicons 弹簧变形)。 */
+export const ICON_SET_IDS = ["classic", "solid", "metaphor", "lucide", "lucide-alt"] as const;
+export type IconSetId = (typeof ICON_SET_IDS)[number];
+
+/** 图标组合清洗:白名单外一律回落 classic(存量用户零迁移)。 */
+export function sanitizeIconSet(raw: unknown): IconSetId {
+  return typeof raw === "string" && (ICON_SET_IDS as readonly string[]).includes(raw)
+    ? (raw as IconSetId)
+    : "classic";
 }

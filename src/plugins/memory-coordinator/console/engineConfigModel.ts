@@ -4,7 +4,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import { engineConfigPath } from "../paths";
+import { engineConfigPath, ensureParentDir } from "../paths";
 // cli-shared 消费声明:本 feature 插件经共享层消费 CLI 配置 JSONC 格式知识(见 jsonc.ts 头注)。
 import { parseJsoncOrNull } from "../../cli-shared/jsonc";
 import { applyEdits, modify, parseTree, type JSONPath } from "jsonc-parser";
@@ -121,5 +121,6 @@ export async function writeEngineConfigFile(
   original: string | null,
 ): Promise<void> {
   const p = await engineConfigPath();
+  await ensureParentDir(p);
   await ipc.fsWriteFile(p, serializeEngineConfig(config, original));
 }

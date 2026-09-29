@@ -20,34 +20,59 @@
 export interface AskCard {
   /** 当前焦点问题正文。 */
   question: string;
-  /** 选项文本,数组序 +1 = 数字键。 */
+  /** 选项文本,数组序 +1 = 数字键(select 卡)/ 序即光标目标项(multi 卡)。 */
   options: string[];
   /** 卡内问题总数(tab 行词组数;单问 = 1)。 */
   multi: number;
+  /** 交互语义:select = 数字直选;multi = 空格 toggle + ⇥ 跳题(页脚 toggle 字样判定)。 */
+  kind: "select" | "multi";
+  /** CLI 光标所在选项下标(❯/▶ 行;面板代操作的移动基准)。 */
+  cursor: number;
+  /** tab 行词组全序(含 Submit 尾项;无 tab 行 = [题名?]):逐题识别与跳题数学的基准。 */
+  tabs: string[];
+  /** 面板跟踪的当前题下标(CLI 聚焦题;解析帧恒 0 基准,面板态在 UI 层推进)。 */
+  tabActive: number;
 }
 
-/** 选项行:● 高亮 / ○ 空心 + 文本。 */
-const OPTION_RE = /^[●○•][ \t]+(.+)$/;
+/** 选项行:● 高亮 / ○ 空心 / ☒ 勾 ☐ 空(multi 卡)+ 文本。 */
+const OPTION_RE = /^[●○•☒☐][ \t]+(.+)$/;
 /** 指针行:❯/> 开头(❯ ● x 与总结态 ❯ Submit 都命中)。 */
 const POINTER_RE = /^[❯>»]\s*(.*)$/;
 /** tab 行:若干问题词组 + Submit 收尾。 */
 const TABS_RE = /^(.+)\s+Submit$/;
 /** 总结态摘要行:1. xxx: yyy。 */
 const SUMMARY_RE = /^\d+\.\s/;
+/** multi 卡页脚特征:toggle 键提示(select 卡无)。 */
+const MULTI_FOOTER_RE = /\btoggle\b/;
+
+/** 帧标题行:面板每帧重绘以「Ask」/「Ask (Ns)」起头;尾流含多帧时旧帧在前。 */
+const FRAME_TITLE_RE = /^Ask( \(\d+s\))?$/;
 
 export function parseAskCard(text: string): AskCard | null {
-  const lines = text
+  const all = text
     .split(/\r?\n/)
     .map((l) => l.replace(/\s+$/, ""))
     .filter((l) => l.trim().length > 0)
     .map((l) => l.trim());
+  /* 多帧尾流只取最后一帧:光标寻址重绘把旧帧(上一题的选项块)留在尾里,
+     整尾解析会命中旧帧的 question/选项(2026-09-27 真机滞后根因)。 */
+  let frameStart = 0;
+  for (let i = all.length - 1; i >= 0; i--) {
+    if (FRAME_TITLE_RE.test(all[i])) {
+      frameStart = i;
+      break;
+    }
+  }
+  const lines = all.slice(frameStart);
   let tabIndex = -1;
   let multi = 1;
   for (let i = 0; i < lines.length; i++) {
     const m = TABS_RE.exec(lines[i]);
     if (m && m[1].trim() !== "") {
       tabIndex = i;
-      multi = m[1].trim().split(/\s+/).filter((w) => w !== "Ask").length;
+      /* tab 行按 ≥2 空格切分(omp 渲染分隔,真机夹具实证):问题标题可含
+         单个空格,按单词切会虚增题数、pills 裂词(2026-09-28 三轮 R3-AB-03)。 */
+      multi = m[1].trim().split(/ {2,}/).filter((w) => w !== "Ask").length;
       break;
     }
   }
@@ -89,5 +114,41 @@ export function parseAskCard(text: string): AskCard | null {
     break;
   }
   if (!question) return null;
-  return { question, options, multi: Math.max(1, multi) };
+  /* tab 序:tab 行词组全列(含 Submit 尾);无 tab 行 = 单题无跳题面。 */
+  let tabs: string[] = [];
+  if (tabIndex >= 0) {
+    const m = TABS_RE.exec(lines[tabIndex])!;
+    tabs = m[1].trim().split(/ {2,}/).filter((w) => w !== "Ask");
+    tabs.push("Submit");
+  }
+  /* 光标项:指针行在选项块内的序;无显式指针 = 首项(omp 默认停首)。 */
+  let cursor = 0;
+  for (let i = blockStart; i < lines.length; i++) {
+    const l = lines[i];
+    if (l.startsWith("←")) break;
+    if (POINTER_RE.test(l)) {
+      cursor = options.findIndex((o) => {
+        const inner = POINTER_RE.exec(l)![1].trim();
+        const nested = OPTION_RE.exec(inner);
+        return (nested ? nested[1] : inner).trim() === o;
+      });
+      if (cursor < 0) cursor = 0;
+      break;
+    }
+  }
+  const footer = lines.find((l) => l.startsWith("←") || l.startsWith("└")) ?? "";
+  const kind: "select" | "multi" = MULTI_FOOTER_RE.test(footer) ? "multi" : "select";
+  return { question, options, multi: Math.max(1, multi), kind, cursor, tabs, tabActive: 0 };
+}
+
+/** multi 卡把光标从 from 移到 target 的方向键序列(omp:↑/↓ move)。 */
+export function moveKeys(from: number, target: number): string {
+  if (target === from) return "";
+  return target > from ? "\x1b[B".repeat(target - from) : "\x1b[A".repeat(from - target);
+}
+
+/** 跳题序列:从当前 tab 前进 k 次到达 target tab(⇥ 循环,不回绕)。 */
+export function jumpTabKeys(current: number, target: number, total: number): string {
+  if (total <= 0 || current === target) return "";
+  return "\t".repeat((target - current + total) % total);
 }

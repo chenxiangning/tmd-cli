@@ -1,5 +1,6 @@
 // AppShell 头部 titlebar(三区布局 + Windows 自绘窗口控件),自 AppShell.tsx 按「纯结构拆分、行为不变」拆出
 import { Tray, Plug, CaretLineLeft, CaretLineRight } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
@@ -78,7 +79,7 @@ export function TopBar({
           title=""
           onClick={onToggleMarket}
         >
-          <Plug size="0.875rem" aria-hidden />
+          <DecorIcon id="market" Fallback={Plug} size="0.875rem" aria-hidden data-action-id="market" />
         </button>
         <button
           type="button"
@@ -89,7 +90,7 @@ export function TopBar({
           title=""
           onClick={goHome}
         >
-          <Tray size="0.875rem" aria-hidden />
+          <DecorIcon id="home" Fallback={Tray} size="0.875rem" aria-hidden data-action-id="home" />
         </button>
         <button
           type="button"
@@ -100,7 +101,7 @@ export function TopBar({
           title=""
           onClick={onToggleLeft}
         >
-          {leftOpen ? <CaretLineLeft size="0.875rem" aria-hidden /> : <CaretLineRight size="0.875rem" aria-hidden />}
+          {leftOpen ? <CaretLineLeft size="0.875rem" aria-hidden data-action-id="fold-left" /> : <CaretLineRight size="0.875rem" aria-hidden data-action-id="fold-left" />}
         </button>
       </div>
       <div className="titlebar-center" data-tauri-drag-region>
@@ -124,7 +125,7 @@ export function TopBar({
           title=""
           onClick={onToggleRight}
         >
-          {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden /> : <CaretLineLeft size="0.875rem" aria-hidden />}
+          {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden data-action-id="fold-right" /> : <CaretLineLeft size="0.875rem" aria-hidden data-action-id="fold-right" />}
         </button>
         {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后;面板 tabs 已迁右缘 PanelRail */}
         <WorkspaceSwitcher />

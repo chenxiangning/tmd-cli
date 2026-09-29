@@ -23,9 +23,9 @@ const OMP_ASK =
 /** 测试用 CLI 声明标记(生产由 AskWatchFeed 经 CliProfile.askMarks 注入)。 */
 const TEST_ASK_MARKS: RegExp[] = [/Ask \d+ questions?/];
 
-/** 推过确认窗(1.2s)的便捷步进。 */
+/** 推到确认窗(1.2s)的便捷步进(与 askWatch.test.ts 同语义:落守望 tick 网格间隙)。 */
 async function pastConfirm() {
-  await vi.advanceTimersByTimeAsync(1_300);
+  await vi.advanceTimersByTimeAsync(1_200);
 }
 
 describe("私有标记注入面(extraMarks)", () => {
@@ -81,14 +81,16 @@ describe("字节计量(byteLength 语义)", () => {
     expect(watch.isWaiting("b1")).toBe(false);
     watch.onOutput("b2", OMP_ASK, OMP_ASK.length, TEST_ASK_MARKS); // 立候选
     watch.onOutput("b2", cjk); // 默认 byteLength=text.length=6000:缺口未超限
-    await vi.advanceTimersByTimeAsync(2_500); // 期满静默确认(1.2s 窗 + tick 网格)
+    await vi.advanceTimersByTimeAsync(1_400); // 期满静默确认(1.2s 窗 + tick 网格)
     expect(watch.isWaiting("b2")).toBe(true); // 候选保留,静默确认升级
+    await vi.advanceTimersByTimeAsync(1_600); // 静默 2s 且标记已被 CJK 帧推出尾巴
+    expect(watch.isWaiting("b2")).toBe(false); // 自愈摘除(250ms tick 下可观测)
   });
 
   it("缺口按传入 byteLength 计量而非文本长度:byteLength=0 的大文本不撤销候选", async () => {
     watch.onOutput("b3", OMP_ASK, OMP_ASK.length, TEST_ASK_MARKS);
     watch.onOutput("b3", "r".repeat(17_000), 0); // 字节增量为 0,缺口为零
-    await vi.advanceTimersByTimeAsync(2_500); // 期满静默确认
+    await vi.advanceTimersByTimeAsync(1_400); // 期满静默确认
     expect(watch.isWaiting("b3")).toBe(true); // 若按 text.length 计早已撤销
   });
 });

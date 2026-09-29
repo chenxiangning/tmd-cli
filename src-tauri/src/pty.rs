@@ -125,11 +125,21 @@ impl PtyRegistry {
     }
 
     pub fn kill(&self, id: &str) -> Result<(), String> {
-        let mut sessions = self.sessions.lock();
-        let mut handle = sessions
-            .remove(id)
-            .ok_or_else(|| format!("会话 {id} 不存在"))?;
-        handle.child.kill().map_err(|e| format!("kill 失败: {e}"))?;
+        /* 锁只护注册表摘除:kill+wait 在锁外执行(同 emitter 退出清理纪律)——
+        慢死子进程(D 状态/ConPTY 收尾)的 wait 不冻结其他会话的
+        write/resize/spawn/退出清理(2026-09-28 评审 F-PTY-001) */
+        let mut handle = {
+            let mut sessions = self.sessions.lock();
+            sessions
+                .remove(id)
+                .ok_or_else(|| format!("会话 {id} 不存在"))?
+        };
+        if let Err(e) = handle.child.kill() {
+            /* kill 报错不跳过收尸:Windows 对已自然退出未收尸的进程常报
+            ACCESS_DENIED,? 提前返回会让句柄无主滞留到 App 退出
+            (条目已摘除,kill_all 也够不着 —— 2026-09-28 三轮评审 PTY-R1) */
+            eprintln!("[pty] kill 失败(继续收尸): {e}");
+        }
         let _ = handle.child.wait(); /* 收尸:kill 仅发信号,不 wait 留僵尸直到 App 退出 */
         Ok(())
     }

@@ -39,8 +39,13 @@ export interface FilePanelContribution {
    * 自带摘要行的面板(git 聚合行 / checkpoints 审批线摘要 / ssh 连接段)声明 false ——
    * 外壳不认识任何业务面板,可见性由面板自己声明,不硬编码 id。 */
   showFileSubbar?: boolean;
-  /** tab 排序,小的在前;缺省 0。 */
+  /** tab 排序,小的在前;缺省 0。面板与 rail 动作共用地带(按此并序渲染)。 */
   order?: number;
+  /** rail 分组(2026-09-29 归组):同组相邻渲染,相邻两组之间画分隔线;
+   *  壳只比较相邻组值是否相等,不认识任何组语义;缺省 = 不分组(无分隔线)。 */
+  railGroup?: string;
+  /** 钉到 rail 底部簇(与 ⋯ 管理钮同挂 flex 空隙之后):排序/分组语义不变,归属插件自声明。 */
+  railBottom?: boolean;
   /** 注册即钉到 toolbar;缺省 true。 */
   pinnedByDefault?: boolean;
   /** 一次性补钉(review 裁决:收进注册面,禁插件旁路直连):老用户 persisted 清单
@@ -52,6 +57,10 @@ export interface FilePanelContribution {
   /** 面板专属动作按钮(可选):渲染在右栏底部文件操作条动作区末尾。
    *  状态归插件组件自管(模块级 store),外壳只渲染不认识语义。 */
   actions?: ComponentType;
+  /** rail 联动的中央管理 tab(可选):open 幂等打开(重复 = 聚焦已有),
+   *  id 供外壳在切换/收起时关闭对应中央 tab(中央区不堆积管理 tab)。
+   *  外壳只调用不认识语义;缺省 = 纯右栏面板,无中央联动。 */
+  centerTab?: { id: string; open: () => void };
 }
 
 /* ── 钉住清单持久化 ──

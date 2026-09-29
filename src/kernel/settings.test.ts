@@ -6,6 +6,7 @@
  * 模块级单例,每个用例经 vi.resetModules + 动态 import 取全新实例。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_ICON_DECOR } from "./settingsAppearance";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),
@@ -96,13 +97,9 @@ describe("初始状态与默认值", () => {
       openWithTargets: [{ id: "finder", label: "访达", kind: "finder" }],
       openWithDefaultId: "finder",
       git: { view: "diff", layout: "flat", diffMode: "unified", diffWrap: true },
-      iconDecor: {
-        newchat: { blink: true },
-        "ssh-panel": {}, "system-proxy": {},
-        "panel-files": {}, "panel-git": {}, "panel-checkpoints": {}, "panel-memory": {},
-        "panel-marks": {}, "wsl-panel": {}, terminal: {}, "session-board": {}, "remote-control": {},
-        worktree: {},
-      },
+      /* iconDecor 用出厂默认表展开:全键齐全由 settingsIconDecor.test 钉,此处不逐键展开(300 行铁则) */
+      iconDecor: { ...DEFAULT_ICON_DECOR },
+      iconSet: "classic",
       relayDeployHistory: [],
     });
     expect(s.loaded).toBe(false);

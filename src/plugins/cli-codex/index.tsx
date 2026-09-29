@@ -1,6 +1,5 @@
 import { CodexGlyph } from "../cli-shared/engineGlyphs";
 import { ipc } from "@kernel/ipc";
-import { t } from "@kernel/i18n";
 import {
   codexUserMessageLine,
   findJsonlSessionFile,
@@ -12,9 +11,20 @@ import { pathsEqual } from "@kernel/pathUtils";
 import { getPlatformKind } from "@kernel/platform";
 import { readCodexSessionEdits } from "./edits";
 import { fetchCodexQuota } from "./quota";
-import type { CliSuggestion } from "@kernel/cli";
+import type {
+  CliDiskSession,
+  CliSessionTranscript,
+  CliSuggestion,
+} from "@kernel/cli";
+import { codexTranscriptLine } from "./codexTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "../cli-shared/sessionTranscript";
 import type { Plugin } from "@kernel/plugin";
 import { listCodexSuggestions } from "./scanSuggestions";
+import { extractTomlMcpServers } from "../cli-shared/mcpFormat";
 import { codexConfigEntry } from "./configGui";
 import { applyCodexChannel } from "./channelApply";
 import { CODEX_ACADEMY_COURSE } from "./academy/academyCatalog";
@@ -75,6 +85,18 @@ async function readCodexUserMessages(cwd: string, cliSessionId: string, full: bo
   return readUserMessagesFromFile(path, full, codexUserMessageLine);
 }
 
+/** 会话完整转录:codex response_item 行型解析(codexTranscript)。 */
+async function readCodexTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  const file = await readTranscriptText(session.path);
+  if (!file) return null;
+  return {
+    blocks: pairToolResults(parseTranscriptBlocks(file.text, codexTranscriptLine)),
+    truncated: file.truncated,
+  };
+}
+
 /**
  * codex / 命令候选(官方 CLI 参考;此前未声明,M4 补齐 —— proposal §初判表)。
  * action 初判:picker/状态类 bare 合法 → send;/mention 需路径参数 → insert。
@@ -94,29 +116,14 @@ export const CODEX_COMMAND_SUGGESTIONS: CliSuggestion[] = [
 
 /**
  * MCP 配置真相 = ~/.codex/config.toml 的 [mcp_servers.<name>] 段(本机实证)。
- * 点击语义:insert "$<name>"(codex 原生 $ mention)。TOML 不引解析库:
- * 轻量按行提取段头即可,name + command 够抽屉展示。
+ * 点击语义:insert "$<name>"(codex 原生 $ mention)。段头提取走
+ * cli-shared/mcpFormat(与 cli-grok 共享,codex 多展示 command 键故保留本地合成)。
  * 纯函数可测;解析失败由调用方兜底为空。
  */
 export function extractCodexMcpServers(toml: string): CliSuggestion[] {
-  const found: { name: string; command?: string }[] = [];
-  let current: { name: string; command?: string } | null = null;
-  for (const rawLine of toml.split("\n")) {
-    const line = rawLine.trim();
-    const header = line.match(/^\[mcp_servers\.([^.\]]+)\]$/);
-    if (header) {
-      if (current) found.push(current);
-      current = { name: header[1] };
-      continue;
-    }
-    if (!current) continue;
-    const cmd = line.match(/^command\s*=\s*"([^"]*)"/);
-    if (cmd) current.command = cmd[1];
-  }
-  if (current) found.push(current);
-  return found.map((s) => ({
+  return extractTomlMcpServers(toml).map((s) => ({
     value: s.name,
-    description: s.command ? `MCP · ${s.command}` : t("MCP 服务器"),
+    description: s.command ? `MCP · ${s.command}` : "MCP 服务器",
     action: "insert" as const,
     icon: "server",
     token: `$${s.name} `,
@@ -176,11 +183,15 @@ export const cliCodexPlugin: Plugin = {
       listMcpServers: () => listCodexMcpServers(),
       resumeArgs: (sessionId) => ["resume", sessionId],
       listSessions: listCodexSessions,
+      /* MCP 管理面:全局读写目标 = ~/.codex/config.toml(TOML 行级段写,
+         mcp-hub 经 cli-shared/mcpWrite;config 缺失 = 引擎隐藏不代造)。 */
+      mcpGlobalConfig: { candidates: ["/.codex/config.toml"], format: "toml" },
       /* 会话卫生判空:path 即 rollout jsonl,共享标记子串判定(sessionEmpty.ts) */
       isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
       readSessionStatus: readCodexSessionStatus,
       readSessionFileIdentity: readCodexSessionIdentity,
       readSessionUserMessages: readCodexUserMessages,
+      readSessionTranscript: readCodexTranscript,
       readSessionEdits: readCodexSessionEdits,
     });
     /* 学堂:codex 斜杠命令课程,注册一份目录,学堂 UI 零改动 */

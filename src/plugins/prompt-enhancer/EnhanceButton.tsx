@@ -1,11 +1,13 @@
 /**
  * 增强入口 —— composer.inputRail 贡献(order 50,排 assets 唤醒双图标与平铺广播后):
  * 图标与全局快捷键(⌘⌥E,注册见插件入口)同走 enhanceOpen store;对话框在此挂载,
- * 命令路径共享同一渲染点。草稿为空不响应(两路同语义,守卫在 openEnhance)。
+ * 命令路径共享同一渲染点。草稿为空不打开(两路同语义,守卫在 openEnhance),
+ * 图标路径补上方滑出提示(与广播开关同款,2026-09-28 真机反馈:静默无响应不可读)。
  */
 
-import { useMemo } from "react";
-import { SparkleIcon } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MagicWandIcon } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 import { composerDraftRef } from "@kernel/composerExt";
 import { useWorkspaces } from "@kernel/workspace";
@@ -19,17 +21,38 @@ export function EnhanceButton() {
     () => workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? workspaces.list[0]?.root ?? "",
     [workspaces],
   );
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+  }, []);
+
+  function click() {
+    if (!(composerDraftRef.current?.() ?? "").trim()) {
+      setToast(t("草稿为空:先输入内容再增强"));
+      if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+      toastTimer.current = window.setTimeout(() => setToast(null), 2200);
+      return;
+    }
+    openEnhance();
+  }
+
   return (
     <>
       <button
         type="button"
         title={t("增强提示词")}
         aria-label={t("增强提示词")}
-        onClick={openEnhance}
-        className="flex h-[22px] w-[22px] items-center justify-center rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-0 text-(--tmd-fg-faint) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
+        onClick={click}
+        className="relative flex h-[22px] w-[22px] items-center justify-center rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-0 text-(--tmd-fg-faint) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
       >
-        <SparkleIcon size="0.875rem" />
+        <DecorIcon id="enhance" Fallback={MagicWandIcon} size="0.875rem" data-action-id="enhance" />
       </button>
+      {toast && (
+        <div className="composer-rail-toast" role="status">
+          {toast}
+        </div>
+      )}
       {open && (
         <EnhanceDialog
           cwd={cwd}

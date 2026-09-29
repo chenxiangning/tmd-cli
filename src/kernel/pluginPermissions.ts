@@ -58,6 +58,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsCollectFiles: "ipc.fs.read",
   readLocalImageDataUrl: "ipc.fs.read",
   readBinaryFileBase64: "ipc.fs.read",
+  fsReadBytesBase64: "ipc.fs.read",
 
   /* 文件系统写/管理。 */
   fsWriteTemp: "ipc.fs.write",
@@ -69,6 +70,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsRemovePath: "ipc.fs.write",
   fsRevealInFileManager: "ipc.fs.write",
   fsCopyFile: "ipc.fs.write",
+  fsCopyTree: "ipc.fs.write",
+  /* skill 包原语(skill-hub):解压落位与补链都是文件写。 */
+  skillExtract: "ipc.fs.write",
+  skillSymlink: "ipc.fs.write",
   /* 打开方式:启动外部应用/命令归 exec;探测与图标提取是只读。 */
   fsOpenWith: "ipc.exec",
   fsProbeOpenApp: "ipc.fs.read",
@@ -138,6 +143,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
 
   /* 网络(quota_fetch = 任意 URL 的通用 HTTP 代理)。 */
   quotaFetch: "ipc.net",
+  /* skill 包下载(任意 URL 出网,同 quotaFetch 归 net)。 */
+  netDownload: "ipc.net",
+  /* 一次性 MCP stdio 探活(spawn + 握手;任意命令执行面,同 cli_probe 归 exec)。 */
+  mcpProbe: "ipc.exec",
 
   /* sqlite 只读/写原语。 */
   sqliteQuery: "ipc.sql",
@@ -175,6 +184,8 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   pluginArchive: null,
   pluginRollback: null,
   pluginDelete: null,
+  /* PTY 尺寸查询:内核 hostWatches(AskScreenMirror 默认栅格)自用。 */
+  sessionSize: null,
 };
 
 /* settings 模块键位分组(穷尽性测试把关;settingsTypes/settingsAppearance 的
@@ -261,6 +272,7 @@ export const SETTINGS_PURE_KEYS = [
   "sanitizeUiZoom",
   "sanitizeSessionTabsMax",
   "sanitizeIconDecor",
+  "sanitizeIconSet",
   "sanitizeRelayDeployHistory",
   "onSettingsPersistFailed",
 ] as const;

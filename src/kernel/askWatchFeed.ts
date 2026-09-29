@@ -49,7 +49,7 @@ export class AskWatchFeed {
   }
 
   /**
-   * 屏幕采样进站(TerminalView 1Hz 轮询幕布底部行,v3)。非 CLI 会话跳过。
+   * 屏幕采样进站(TerminalView 250ms 轮询幕布底部行,v3)。非 CLI 会话跳过。
    * 字节流检测的原理性盲区:omp 等待期间 spinner 以光标寻址持续重绘
    * (实测 3h 挂起面板后流 7.4MB、标记远在 512KB 缓冲之外),静态面板的
    * 标记一旦流出尾窗永不复现 —— 但屏幕(xterm buffer)上标记始终在。

@@ -125,6 +125,7 @@ export const MESSAGES = {
 
   /* MCP/命令候选(渲染点在 composer 抽屉,主会话包裹) */
   "MCP 服务器": "MCP server",
+  "仅展示 · 无引用语法": "Display only — no reference syntax",
   "全局": "Global",
   "项目": "Project",
   "查看可用命令": "Show available commands",

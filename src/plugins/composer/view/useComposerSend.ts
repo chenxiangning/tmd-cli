@@ -22,13 +22,13 @@ import { t } from "@kernel/i18n";
 import { composerDraftRef, composerSendTransforms, undoComposerSend } from "@kernel/composerExt";
 import type { CliProfile } from "@kernel/cli";
 import { getSessionTabs, getSessionTile } from "@kernel/sessionTabs";
-import { emitPromptSent, readPromptGate, shouldBroadcastPrompt } from "../promptGate";
-import { prepareSendPayload } from "../serialize/serialize";
+import { emitPromptSent, readPromptGate, shouldBroadcastPrompt } from "@kernel/promptGate";
+import { prepareSendPayload } from "@kernel/profileSend";
 import { clearAttachments } from "../state/attachments";
 import { recordPrompt } from "@kernel/promptHistory";
 import { broadcastModeRef } from "./broadcastMode";
 import { resolveBroadcastTargets } from "./broadcastTargets";
-import { buildBroadcastPlan, buildSinglePlan, isConfirmPending, type SendConfirmRequest, type SendPlan } from "./sendPlan";
+import { buildBroadcastPlan, buildSinglePlan, isConfirmPending, setSendExecuting, type SendConfirmRequest, type SendPlan } from "./sendPlan";
 
 export function useComposerSend({
   profile,
@@ -51,86 +51,112 @@ export function useComposerSend({
 }): () => void {
   /* 执行段:plan.content 为准(预览即所得);闸读/目标解析在此现读。 */
   async function executeSend(plan: SendPlan) {
-    if (!profile) return;
-    const sid = host.getActiveSessionId();
-    if (!sid) return;
-    const trimmed = plan.content;
-    /* git 联动:`/commit <msg>` → 预填 git 面板提交框(契约源头
-     * src/plugins/git/gitEvents.ts GIT_PREFILL_TOPIC;插件间不互 import)。
-     * 仅预填 —— 文本照常发给 CLI,commit 执行权永在 git 面板按钮。
-     * 在执行段触发:取消确认不留预填副作用。 */
-    if (trimmed.startsWith("/commit ")) {
-      host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
-    }
-    /* 平铺广播:开关开 + 平铺态 + 目标 ≥2 才走;逐路完整管线(translate/bracketed
-       差异、发送变换、轮次闸 promptSent 全继承);收尾与单发同款。缺员落回单发。 */
-    if (plan.kind === "broadcast" && broadcastModeRef.current && getSessionTile()) {
-      const targets = resolveBroadcastTargets(
-        getSessionTabs(), sid, host.getSessions(),
-        (pid) => host.getCliProfile(pid),
-      );
-      if (targets.length >= 2) {
-        /* 发送变换单次化:变换可能带副作用(marks 翻 sent),逐路重跑会让
-           引用块只进第一路、状态在第二路前已被翻掉。共享同一份变换文本,
-           各路差异(bracketed paste 等)仍由 prepareSendPayload 按目标处理。
-           变换过闸(单路同款):ask 确认期作答不开新轮,引用块不注入。 */
-        const activeGate = readPromptGate(sid);
-        const gateOpen = shouldBroadcastPrompt(activeGate, trimmed);
-        const shared = gateOpen
-          ? composerSendTransforms().reduce(
-              (acc, fn) => fn(acc, sid),
-              trimmed,
+    setSendExecuting(true);
+    try {
+      const trimmed = plan.content;
+      /* git 联动:`/commit <msg>` → 预填 git 面板提交框(契约源头
+       * src/plugins/git/gitEvents.ts GIT_PREFILL_TOPIC;插件间不互 import)。
+       * 仅预填 —— 文本照常发给 CLI,commit 执行权永在 git 面板按钮。
+       * 在执行段触发:取消确认不留预填副作用。 */
+      if (trimmed.startsWith("/commit ")) {
+        host.events.emit("git://composer-prefill", { message: trimmed.slice(8).trim() });
+      }
+      /* 平铺广播:开关开 + 平铺态 + 目标 ≥2 才走;逐路完整管线(translate/bracketed
+         差异、发送变换、轮次闸 promptSent 全继承);收尾与单发同款。缺员落回单发。 */
+      if (plan.kind === "broadcast" && broadcastModeRef.current && getSessionTile()) {
+        const sid = host.getActiveSessionId();
+        if (!sid) return;
+        const targets = resolveBroadcastTargets(
+          getSessionTabs(), sid, host.getSessions(),
+          (pid) => host.getCliProfile(pid),
+        );
+        if (targets.length >= 2) {
+          /* 发送变换单次化:变换可能带副作用(marks 翻 sent),逐路重跑会让
+             引用块只进第一路、状态在第二路前已被翻掉。共享同一份变换文本,
+             各路差异(bracketed paste 等)仍由 prepareSendPayload 按目标处理。
+             变换过闸(单路同款):ask 确认期作答不开新轮,引用块不注入。 */
+          const activeGate = readPromptGate(sid);
+          const gateOpen = shouldBroadcastPrompt(activeGate, trimmed);
+          const shared = gateOpen
+            ? composerSendTransforms().reduce(
+                (acc, fn) => fn(acc, sid),
+                trimmed,
+              )
+            : trimmed;
+          const failed: string[] = (
+            await Promise.all(
+              targets.map(async ({ id, profile: p }): Promise<string | null> => {
+                const payload = prepareSendPayload(p, shared, []);
+                const gate = readPromptGate(id);
+                if (await host.writeSession(id, payload)) {
+                  emitPromptSent(gate, id, trimmed);
+                  return null;
+                }
+                return id;
+              }),
             )
-          : trimmed;
-        const failed: string[] = (
-          await Promise.all(
-            targets.map(async ({ id, profile: p }): Promise<string | null> => {
-              const payload = prepareSendPayload(p, shared, []);
-              const gate = readPromptGate(id);
-              if (await host.writeSession(id, payload)) {
-                emitPromptSent(gate, id, trimmed);
-                return null;
-              }
-              return id;
-            }),
-          )
-        ).filter((r): r is string => r !== null);
-        if (failed.length > 0) {
-          if (failed.length === targets.length && gateOpen) undoComposerSend();
-          onSendError(
-            failed.length === targets.length
-              ? t("发送失败:会话已断开,内容已保留")
-              : t("{n} 路中 {m} 路发送失败,内容已保留", { n: targets.length, m: failed.length }),
-          );
+          ).filter((r): r is string => r !== null);
+          if (failed.length > 0) {
+            if (failed.length === targets.length && gateOpen) undoComposerSend();
+            onSendError(
+              failed.length === targets.length
+                ? t("发送失败:会话已断开,内容已保留")
+                : t("{n} 路中 {m} 路发送失败,内容已保留", { n: targets.length, m: failed.length }),
+            );
+            return;
+          }
+          recordPrompt(trimmed);
+          clearInputIfUnchanged(plan);
+          clearAttachments();
+          clearMatches();
           return;
         }
-        recordPrompt(trimmed);
-        clearInputIfUnchanged(plan);
-        clearAttachments();
-        clearMatches();
+      }
+      /* 单发:绑定计划期目标 id(确认弹层承诺即所写,不跟随活跃指针漂移 ——
+         确认窗内 Ctrl+Tab 切幕布/计划会话退出都会改活跃指针,2026-09-28 评审 F1);
+         广播退化单发(缺员/开关关)同语义:优先落计划快照内首个仍存活目标,
+         快照全灭 = 会话已断开语义,报错保草稿(2026-09-28 三轮评审)。
+         profile 按目标现取,消旧闭包 profile 错配。目标消失 = 会话已断开语义。 */
+      const sid =
+        plan.kind === "single"
+          ? plan.targets[0]?.id
+          : plan.targets.find((t) => host.getSessions().some((s) => s.id === t.id))?.id;
+      if (!sid) {
+        if (plan.kind === "broadcast") {
+          onSendError(t("发送失败:会话已断开,内容已保留"));
+        }
         return;
       }
+      const meta = host.getSessions().find((s) => s.id === sid);
+      if (!meta) {
+        onSendError(t("发送失败:会话已断开,内容已保留"));
+        return;
+      }
+      const targetProfile = host.getCliProfile(meta.profileId) ?? profile;
+      if (!targetProfile) return;
+      /* 单发路径。闸读前置 + 变换过闸:ask 确认期作答/轮中斜杠命令不开新轮,
+         发送变换(marks 注入+翻 sent)与之同语义跳过 —— 与 promptSent 锚点闸口径一致。 */
+      const gate = readPromptGate(sid);
+      const anchored = shouldBroadcastPrompt(gate, trimmed);
+      const transforms = anchored
+        ? composerSendTransforms().map((fn) => (text: string) => fn(text, sid))
+        : [];
+      const payload = prepareSendPayload(targetProfile, trimmed, transforms);
+      if (!(await host.writeSession(sid, payload))) {
+        /* 只回滚本轮真正运行过的变换:闸关/无变换时不动注册面 undo,
+           防 marks 的历史翻转名单被无关失败错误回滚(2026-09-20 复查)。 */
+        if (transforms.length > 0) undoComposerSend();
+        onSendError(t("发送失败:会话已断开,内容已保留"));
+        return;
+      }
+      emitPromptSent(gate, sid, trimmed);
+      recordPrompt(trimmed);
+      clearInputIfUnchanged(plan);
+      clearAttachments();
+      clearMatches();
+    } finally {
+      setSendExecuting(false);
     }
-    /* 单发路径。闸读前置 + 变换过闸:ask 确认期作答/轮中斜杠命令不开新轮,
-       发送变换(marks 注入+翻 sent)与之同语义跳过 —— 与 promptSent 锚点闸口径一致。 */
-    const gate = readPromptGate(sid);
-    const anchored = shouldBroadcastPrompt(gate, trimmed);
-    const transforms = anchored
-      ? composerSendTransforms().map((fn) => (text: string) => fn(text, sid))
-      : [];
-    const payload = prepareSendPayload(profile, trimmed, transforms);
-    if (!(await host.writeSession(sid, payload))) {
-      /* 只回滚本轮真正运行过的变换:闸关/无变换时不动注册面 undo,
-         防 marks 的历史翻转名单被无关失败错误回滚(2026-09-20 复查)。 */
-      if (transforms.length > 0) undoComposerSend();
-      onSendError(t("发送失败:会话已断开,内容已保留"));
-      return;
-    }
-    emitPromptSent(gate, sid, trimmed);
-    recordPrompt(trimmed);
-    clearInputIfUnchanged(plan);
-    clearAttachments();
-    clearMatches();
   }
 
   /* 确认期间输入框被续写则保留新草稿:弹层模态但输入框仍可聚焦,无条件清空会

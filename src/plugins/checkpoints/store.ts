@@ -13,7 +13,8 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { ipc, type CkptAnchorMeta, type CkptBatch, type CkptPatch } from "@kernel/ipc";
+import { ipc, type CkptAnchorMeta, type CkptBatch } from "@kernel/ipc";
+import { dropKey, invalidateDiff, pruneDiffCache } from "./diffCache";
 
 interface CwdCkptState {
   batches: CkptBatch[];
@@ -26,22 +27,35 @@ interface CwdCkptState {
 const EMPTY: CwdCkptState = { batches: [], loading: false, error: null, notARepo: false };
 /** key = `${cwd}|${sessionId}` */
 const byKey = new Map<string, CwdCkptState>();
-/** cwd → batchId → patches(懒加载缓存) */
-const diffCache = new Map<string, Map<string, CkptPatch[]>>();
+/** byKey 外层键上限:每键一份批清单(≤100 批含文件列表),会话退出后无写路径,
+    不设限 = 长会话多次 resume + 多工作区无界常驻(2026-09-28 三轮 R3-CKPT-03)。 */
+const CKPT_KEY_LIMIT = 32;
 
 const listeners = new Set<() => void>();
 let version = 0;
-function emit() {
+export function emit() {
   version += 1;
   listeners.forEach((fn) => fn());
 }
 
-function stateKey(cwd: string, sessionId: string): string {
+export function stateKey(cwd: string, sessionId: string): string {
   return `${cwd}|${sessionId}`;
 }
 
+/** 写键 + 近似 LRU:重插挪尾(Map 插入序),超限摘最老键并连带清其 diff 态。 */
+function putKey(key: string, state: CwdCkptState): void {
+  byKey.delete(key);
+  byKey.set(key, state);
+  while (byKey.size > CKPT_KEY_LIMIT) {
+    const oldest = byKey.keys().next().value;
+    if (oldest === undefined || oldest === key) break;
+    byKey.delete(oldest);
+    dropKey(oldest);
+  }
+}
+
 function setKey(key: string, patch: Partial<CwdCkptState>): void {
-  byKey.set(key, { ...EMPTY, ...byKey.get(key), ...patch });
+  putKey(key, { ...EMPTY, ...byKey.get(key), ...patch });
   emit();
 }
 
@@ -67,12 +81,13 @@ export function refreshBatches(
   return ipc
     .checkpointList(cwd, sessionId, tmdSessionId)
     .then((batches) => {
-      byKey.set(key, { batches, loading: false, error: null, notARepo: false });
+      putKey(key, { batches, loading: false, error: null, notARepo: false });
+      pruneDiffCache(key, batches);
       emit();
     })
     .catch((e: unknown) => {
       const msg = String(e);
-      byKey.set(key, {
+      putKey(key, {
         batches: byKey.get(key)?.batches ?? [],
         loading: false,
         error: msg,
@@ -192,61 +207,34 @@ export async function approveBatch(cwd: string, batchId: string): Promise<void> 
 
 export async function revertBatch(
   cwd: string,
+  sessionId: string,
   batchId: string,
   paths?: string[],
 ): Promise<CkptRestoreResult> {
   const out = await ipc.checkpointRestore(cwd, batchId, paths);
-  invalidateDiff(cwd, batchId);
+  invalidateDiff(cwd, sessionId, batchId);
   return out;
 }
 
 /** 应用:把账本固化的批后像精确写回磁盘(回退的镜像);守卫可反悔。 */
 export async function applyBatch(
   cwd: string,
+  sessionId: string,
   batchId: string,
   paths?: string[],
 ): Promise<CkptRestoreResult> {
   const out = await ipc.checkpointApply(cwd, batchId, paths);
-  invalidateDiff(cwd, batchId);
+  invalidateDiff(cwd, sessionId, batchId);
   return out;
 }
-export async function undoRevertBatch(cwd: string, batchId: string): Promise<CkptRestoreResult> {
+export async function undoRevertBatch(
+  cwd: string,
+  sessionId: string,
+  batchId: string,
+): Promise<CkptRestoreResult> {
   const out = await ipc.checkpointUndoRevert(cwd, batchId);
-  invalidateDiff(cwd, batchId);
+  invalidateDiff(cwd, sessionId, batchId);
   return out;
-}
-
-function invalidateDiff(cwd: string, batchId: string): void {
-  diffCache.get(cwd)?.delete(batchId);
-}
-
-export function getCachedDiff(cwd: string, batchId: string): CkptPatch[] | undefined {
-  return diffCache.get(cwd)?.get(batchId);
-}
-
-/** open 批 diff 强制刷新:live 新像随轮内改动推进,「占位防重」缓存只适用封口批。 */
-export function refreshOpenDiff(cwd: string, batchId: string): void {
-  diffCache.get(cwd)?.delete(batchId);
-  loadDiff(cwd, batchId);
-}
-
-/** 批 diff 懒加载:命中缓存同步返回;否则发起 IPC(结果进缓存并 emit)。 */
-export function loadDiff(cwd: string, batchId: string): CkptPatch[] | null {
-  const hit = getCachedDiff(cwd, batchId);
-  if (hit) return hit;
-  const per = diffCache.get(cwd) ?? new Map<string, CkptPatch[]>();
-  per.set(batchId, []); // 占位防重
-  diffCache.set(cwd, per);
-  ipc
-    .checkpointBatchDiff(cwd, batchId)
-    .then((patches) => {
-      per.set(batchId, patches);
-      emit();
-    })
-    .catch(() => {
-      per.delete(batchId); // 失败允许重试
-    });
-  return null;
 }
 
 // ---- React 绑定 -----------------------------------------------------------

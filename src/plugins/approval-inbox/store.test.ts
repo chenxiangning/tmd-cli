@@ -18,6 +18,7 @@ vi.mock("@kernel/host", () => ({
     getCliProfile: vi.fn(() => undefined),
     getCliSessionId: vi.fn(() => undefined),
     setActiveSession: vi.fn(),
+    getActiveSessionId: vi.fn(() => null),
     subscribe: vi.fn((fn: () => void) => {
       hostSubs.push(fn);
       return () => undefined;
@@ -34,10 +35,12 @@ vi.mock("@kernel/ipc", () => ({
 import { host } from "@kernel/host";
 import { ipc, type SessionMeta } from "@kernel/ipc";
 import {
+  answerKeys,
   answerWaiting,
   approvalInboxSnapshot,
   bootApprovalInbox,
   excerptFromTail,
+  dismissFailure,
   gotoAndFocus,
   noteAskDetected,
   observeCurrentWaitings,
@@ -57,6 +60,7 @@ beforeEach(() => {
   vi.mocked(host.getSessions).mockReturnValue([]);
   vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
   vi.mocked(host.writeSession).mockResolvedValue(true);
+  vi.mocked(host.getActiveSessionId).mockReturnValue(null);
   vi.mocked(ipc.sessionLogSize).mockResolvedValue(0);
   vi.mocked(ipc.sessionHistoryPage).mockResolvedValue({ text: "", startOffset: 0, hasMore: false });
 });
@@ -157,7 +161,7 @@ describe("摘录", () => {
 describe("幽灵行回归(非收件箱路径的状态位变化)", () => {
   it("终端侧作答(只 host.notify,无 topic)经 host.subscribe 重算即消退", () => {
     const events = new EventBus();
-    bootApprovalInbox(events);
+    const revoke = bootApprovalInbox(events);
     expect(hostSubs.length).toBe(1); /* boot 恰挂一条 host.subscribe */
     vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
     vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
@@ -168,6 +172,7 @@ describe("幽灵行回归(非收件箱路径的状态位变化)", () => {
     vi.mocked(host.isWaitingConfirm).mockReturnValue(false);
     hostSubs[0]();
     expect(approvalInboxSnapshot().entries).toEqual([]);
+    revoke(); /* 摘订阅 + 清重同步 interval,防跨用例泄漏 */
   });
 
   it("boot 前 askDetected 丢失的场景:observeCurrentWaitings 补盲且不假造时长", async () => {
@@ -191,25 +196,49 @@ describe("应答", () => {
     vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
     noteAskDetected("a");
     await expect(answerWaiting("a", "y")).resolves.toBe(true);
-    expect(host.writeSession).toHaveBeenCalledWith("a", "y\n");
+    expect(host.writeSession).toHaveBeenCalledWith("a", "y\n", false);
 
     vi.mocked(host.writeSession).mockResolvedValue(false);
     await expect(answerWaiting("a", "n")).resolves.toBe(false);
   });
 
-  it("写失败落 failure 提示位(行已消退,横幅兜底);成功作答清位", async () => {
-    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a", "b"]));
+  it("answerKeys 裸键代发:原样写入不追加换行(multi 卡 toggle/移动序列依赖)", async () => {
+    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a"]));
     vi.mocked(host.isWaitingConfirm).mockReturnValue(true);
+    noteAskDetected("a");
+    await expect(answerKeys("a", "\x1b[B ")).resolves.toBe(true);
+    expect(host.writeSession).toHaveBeenCalledWith("a", "\x1b[B ", true);
+  });
+
+  it("写失败落 failure 提示位且不被重算自清;他会话成功不清别家,补答成功才清", async () => {
+    vi.mocked(host.getSessions).mockReturnValue(sessionsFixture(["a", "b"]));
+    /* 生产时序:host.writeSession 写前同步清 ask 位(host.ts 写入口)——
+       失败后该会话立即退出等待表,refreshInbox 不得把横幅一并清掉
+       (2026-09-28 三轮评审 R3-AB-01,原 alive 启发式使横幅恒不可见)。 */
+    let aWaiting = true;
+    vi.mocked(host.isWaitingConfirm).mockImplementation(
+      (id) => (id === "a" ? aWaiting : true) as boolean,
+    );
     noteAskDetected("a");
     noteAskDetected("b");
 
     vi.mocked(host.writeSession).mockResolvedValue(false);
     await answerWaiting("a", "retry");
+    aWaiting = false; // 写前清位:失败会话已退出等待表
     expect(approvalInboxSnapshot().failure).toBe("a");
 
-    /* a 已不在等待表时重算清位;成功作答 b 同样清位 */
+    /* 失败后任意次重算(6s 轮询/边沿等),横幅仍存活 */
+    refreshInbox();
+    refreshInbox();
+    expect(approvalInboxSnapshot().failure).toBe("a");
+
+    /* 他会话成功作答不清别家失败位 */
     vi.mocked(host.writeSession).mockResolvedValue(true);
     await answerWaiting("b", "y");
+    expect(approvalInboxSnapshot().failure).toBe("a");
+
+    /* 用户 dismiss 兜底 */
+    dismissFailure();
     expect(approvalInboxSnapshot().failure).toBeNull();
   });
 });

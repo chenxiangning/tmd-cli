@@ -2,34 +2,51 @@
  * Right panel rail —— 右缘常驻竖排面板入口(2026-09-26 自顶栏 tab 条迁来,UI 参照 activity bar)。
  *
  * 拆分后:
- * - PanelRail: 窗口右缘竖条(钉住∪激活面板 + 分隔线 + ⋯ more 向左弹出),
- *   由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
+ * - PanelRail: 窗口右缘竖条(钉住∪激活面板 + rail 动作统一并序,组间分隔线,
+ *   ⋯ more 向左弹出),由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
  * - RightPanelToolbar: 内部组件,在顶栏右区(titlebar-actions 右缘)渲染
  *   FileActionsBar(新建/刷新/面板动作;工作区选择器 2026-09-14 上移顶栏,
  *   操作条 2026-09-27 自右栏底部同步上移)。
  */
 
-import { memo, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment, memo, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, DotsThree } from "@phosphor-icons/react";
-import {
-  setFilePanelMode,
-  togglePinned,
-  useFilePanel,
-  type FilePanelContribution,
-} from "@kernel/filePanel";
+import { togglePinned, useFilePanel, type FilePanelContribution } from "@kernel/filePanel";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { useHost } from "@kernel/host";
+import { DecorIcon } from "@kernel/iconSet";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { FileActionsBar } from "./FileActionsBar";
+import { activateRailPanel } from "./railPanelActivate";
 
 
 /* ──────────────────────────────────────────────────────────
  * 右缘面板 rail ─ AppShell 渲染在内容行最右(header.right 挂点仍在顶栏,由插件贡献)。
  * tab 列表完全来自 kernel 面板注册表,外壳不认识任何业务面板。
  * ────────────────────────────────────────────────────────── */
-export function PanelRail({ onActivate }: { onActivate: () => void }) {
+
+/** 面板 + rail 动作的并序条目(kind 判别联合):order 是两组共享的地带,
+ *  按它统一排序;group(railGroup)相邻变组处由渲染点画分隔线。 */
+type RailEntry =
+  | { kind: "panel"; id: string; order: number; group: string | undefined; panel: FilePanelContribution }
+  | { kind: "action"; id: string; order: number; group: string | undefined; action: SidebarAction };
+
+function mergeRailEntries(panels: readonly FilePanelContribution[], actions: readonly SidebarAction[]): RailEntry[] {
+  return [
+    ...panels.map((p): RailEntry => ({ kind: "panel", id: p.id, order: p.order ?? 0, group: p.railGroup, panel: p })),
+    ...actions.map((a): RailEntry => ({ kind: "action", id: a.id, order: a.order ?? 0, group: a.railGroup, action: a })),
+  ].sort((x, y) => x.order - y.order);
+}
+
+export function PanelRail({
+  rightOpen,
+  setRightOpen,
+}: {
+  rightOpen: boolean;
+  setRightOpen: (open: boolean) => void;
+}) {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
   const railActions = useSidebarActions().filter((a) => a.rail);
@@ -45,6 +62,14 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
     (p) => p.railEntry !== false && (pinnedIds.has(p.id) || p.id === mode),
   );
 
+  /* 面板与 rail 动作统一并序(2026-09-29 归组);相邻 railGroup 变组处画分隔线,
+     组语义归插件声明(注册面),壳只比较相邻值,不认识任何组。
+     railBottom 声明底簇:渲染在弹性空隙之后,与 ⋯ 管理钮同挂底部。 */
+  const entries = mergeRailEntries(visiblePanels, visibleRailActions);
+  const isBottom = (e: RailEntry) => (e.kind === "panel" ? e.panel.railBottom : e.action.railBottom);
+  const topEntries = entries.filter((e) => !isBottom(e));
+  const bottomEntries = entries.filter(isBottom);
+
   const toggleOverflow = (e: ReactMouseEvent<HTMLButtonElement>) => {
     if (overflowPos) {
       setOverflowPos(null);
@@ -53,74 +78,56 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
     // ⋯ 在右缘竖条:菜单贴按钮左缘向左弹出,视口内夹取(同 wsmenu 模式)。
     const rect = e.currentTarget.getBoundingClientRect();
     const width = 240;
-    const estHeight = 320; // ponytail: 菜单估高(约 7 行)只用于夹取,真值由内容撑开
+    const estHeight = 440; // ponytail: 菜单估高(12 行 + 组分隔线)只用于夹取,真值由内容撑开
     setOverflowPos({
       x: Math.max(12, rect.left - width - 4),
       y: Math.max(12, Math.min(rect.top, window.innerHeight - estHeight - 12)),
     });
   };
-  return (
-    <div className="panel-rail">
-      <div className="panel-rail-tabs" role="tablist" aria-orientation="vertical" aria-label={t("右侧面板")}>
-        {visiblePanels.map((panel) => {
-          const Icon = panel.icon;
-          const isActive = panel.id === mode;
-          return (
-            <button
-              key={panel.id}
-              type="button"
-              className={`panel-rail-tab${isActive ? " is-active" : ""}`}
-              data-panel-id={panel.id}
-              onClick={() => {
-                setFilePanelMode(panel.id);
-                onActivate();
-              }}
-              aria-label={t(panel.label)}
-              title={t(panel.label)}
-            >
-              <Icon aria-hidden />
-            </button>
-          );
-        })}
-      </div>
-
-      {/* rail 直挂动作(sidebarActions.rail):面板 tab 组之后、分隔线之前 */}
-      {visibleRailActions.map((action) => {
-        const Icon = action.icon;
-        const isActive = action.active?.() ?? false;
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className={`panel-rail-tab${isActive ? " is-active" : ""}`}
-            data-action-id={action.id}
-            aria-label={t(action.label)}
-            aria-pressed={isActive}
-            title={t(action.label)}
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              action.onSelect({ x: r.left - 8, y: r.top }, { altKey: e.altKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
-            }}
-          >
-            <Icon aria-hidden />
+  /* 单条渲染(面板/动作分支):prev 用于组间分隔线判定,顶簇/底簇各自独立成列。 */
+  const renderEntry = (entry: RailEntry, prev: RailEntry | undefined) => {
+    const sep = prev?.group !== undefined && entry.group !== undefined && prev.group !== entry.group;
+    if (entry.kind === "panel") {
+      const { panel } = entry;
+      const isActive = panel.id === mode;
+      return (
+        <Fragment key={panel.id}>
+          {sep ? <div className="panel-rail-sep" aria-hidden /> : null}
+          <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}`} data-panel-id={panel.id}
+            onClick={() => activateRailPanel(panel, { panels, mode, rightOpen, setRightOpen })}
+            aria-label={t(panel.label)} aria-pressed={isActive} title={t(panel.label)}>
+            <DecorIcon id={panel.id === "ssh" ? "ssh-panel" : `panel-${panel.id}`} Fallback={panel.icon} aria-hidden />
           </button>
-        );
-      })}
-
-      {/* 参照图:tab 组下一条分隔线,⋯ 组紧随其后(不钉底) */}
-      <div className="panel-rail-sep" aria-hidden />
-
-      <button
-        type="button"
-        className="panel-rail-tab"
-        onClick={toggleOverflow}
-        aria-label={t("更多面板")}
-        aria-expanded={overflowPos ? true : undefined}
-        title={t("更多面板")}
-      >
+        </Fragment>
+      );
+    }
+    const { action } = entry;
+    const isActive = action.active?.() ?? false;
+    return (
+      <Fragment key={action.id}>
+        {sep ? <div className="panel-rail-sep" aria-hidden /> : null}
+        <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}`} data-action-id={action.id}
+          aria-label={t(action.label)} aria-pressed={isActive} title={t(action.label)}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            action.onSelect({ x: r.left - 8, y: r.top }, { altKey: e.altKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
+            if (action.opensCenterTab) setRightOpen(false);
+          }}>
+          <DecorIcon id={action.id} Fallback={action.icon} aria-hidden />
+        </button>
+      </Fragment>
+    );
+  };
+  return (
+    <div className="panel-rail" role="toolbar" aria-orientation="vertical" aria-label={t("右侧面板")}>
+      {topEntries.map((e, i) => renderEntry(e, topEntries[i - 1]))}
+      <div className="panel-rail-spacer" aria-hidden />
+      <i className="panel-rail-mark">tmd-cli</i> {/* 签名:rail 流内项,钉在底簇正上方(不依赖 spacer 定位) */}
+      {bottomEntries.map((e, i) => renderEntry(e, bottomEntries[i - 1]))}
+      <button type="button" className="panel-rail-tab" onClick={toggleOverflow}
+        aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} title={t("更多面板")}>
         <DotsThree aria-hidden />
       </button>
-
       {overflowPos ? (
         <PanelOverflowMenu
           mode={mode}
@@ -128,6 +135,8 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
           panels={panels}
           railActions={railActions}
           position={overflowPos}
+          rightOpen={rightOpen}
+          setRightOpen={setRightOpen}
           onClose={() => setOverflowPos(null)}
         />
       ) : null}
@@ -138,8 +147,7 @@ export function PanelRail({ onActivate }: { onActivate: () => void }) {
 /**
  * 更多面板下拉(⋯) —— portal 挂 document.body + fixed 定位(复刻 wsmenu 模式),
  * 跳出 rail 层叠上下文,杜绝被文件树压住/背景透明;自 rail 向左弹出。
- * 行点击 = 激活该面板(未钉则顺带钉上);复选框点击 = 仅切换钉住状态,菜单不关。
- */
+ * 行点击 = 激活该面板(未钉则顺带钉上);复选框点击 = 仅切换钉住状态,菜单不关。 */
 /** ⋯ 菜单行激活按钮的内联样式(面板行与 rail 动作行共用,复刻原 flex 布局)。 */
 const MENU_ITEM_BUTTON_STYLE = {
   flex: "1 1 auto",
@@ -186,6 +194,8 @@ function PanelOverflowMenu({
   panels,
   railActions,
   position,
+  rightOpen,
+  setRightOpen,
   onClose,
 }: {
   mode: string;
@@ -193,6 +203,8 @@ function PanelOverflowMenu({
   panels: readonly FilePanelContribution[];
   railActions: readonly SidebarAction[];
   position: { x: number; y: number };
+  rightOpen: boolean;
+  setRightOpen: (open: boolean) => void;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -206,67 +218,64 @@ function PanelOverflowMenu({
   return createPortal(
     <>
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
-      <div className="panel-overflow-menu" style={{ left: position.x, top: position.y }} role="menu">
-        {/* 单趟 flatMap:railEntry === false 的面板不进溢出菜单。 */}
-        {panels.flatMap((panel) => {
-          if (panel.railEntry === false) return [];
-          const Icon = panel.icon;
-          const isActive = panel.id === mode;
-          const isChecked = pinnedIds.has(panel.id);
-          return [
-            <div
-              key={panel.id}
-              className={`panel-overflow-item${isActive ? " is-active" : ""}`}
-              data-panel-id={panel.id}
-            >
-              {/* 激活动作 = 原生 button 占满图标+标签区(内联样式复刻原 flex 布局);
-                  钉选复选框是并列兄弟,不嵌套在交互元素内(嵌套会丢焦点语义)。 */}
-              <button
-                type="button"
-                role="menuitem"
-                style={MENU_ITEM_BUTTON_STYLE}
-                onClick={() => {
-                  setFilePanelMode(panel.id);
-                  if (!isChecked) togglePinned(panel.id);
-                  onClose();
-                }}
-              >
-                <span className="panel-overflow-item-icon" aria-hidden>
-                  <Icon aria-hidden />
-                </span>
-                <span className="panel-overflow-item-label">{t(panel.label)}</span>
-              </button>
-              <PinCheck id={panel.id} checked={isChecked} />
-            </div>,
-          ];
-        })}
-        {/* rail 直挂动作行:点击 = 触发动作(不开面板模式),勾选 = 钉/取钉 rail 外显。 */}
-        {railActions.map((action) => {
-          const Icon = action.icon;
+      {/* 混合选择弹层(激活按钮 + 钉选复选框),非纯 ARIA menu,不挂 menu/menuitem 角色。 */}
+      <div className="panel-overflow-menu" style={{ left: position.x, top: position.y }} role="group" aria-label={t("面板与动作")}>
+        {/* 面板与 rail 动作同口径并序分组(railEntry === false 的面板不进菜单);
+            组间分隔线与 rail 一致,行点击语义随 kind 分流。 */}
+        {mergeRailEntries(
+          panels.filter((p) => p.railEntry !== false),
+          railActions,
+        ).map((entry, i, items) => {
+          const prev = items[i - 1];
+          const sep = prev?.group !== undefined && entry.group !== undefined && prev.group !== entry.group;
+          if (entry.kind === "panel") {
+            const { panel } = entry;
+            const Icon = panel.icon;
+            const isActive = panel.id === mode;
+            const isChecked = pinnedIds.has(panel.id);
+            return (
+              <Fragment key={panel.id}>
+                {sep ? <hr className="panel-overflow-sep" /> : null}
+                {/* 激活动作 = 原生 button 占满图标+标签区(内联样式复刻原 flex 布局);
+                    钉选复选框是并列兄弟,不嵌套在交互元素内(嵌套会丢焦点语义)。 */}
+                <div className={`panel-overflow-item${isActive ? " is-active" : ""}`} data-panel-id={panel.id}>
+                  <button type="button" style={MENU_ITEM_BUTTON_STYLE}
+                    onClick={() => {
+                      activateRailPanel(panel, { panels, mode, rightOpen, setRightOpen });
+                      if (!isChecked) togglePinned(panel.id);
+                      onClose();
+                    }}>
+                    <span className="panel-overflow-item-icon" aria-hidden>
+                      <DecorIcon id={panel.id === "ssh" ? "ssh-panel" : `panel-${panel.id}`} Fallback={Icon} aria-hidden /></span>
+                    <span className="panel-overflow-item-label">{t(panel.label)}</span>
+                  </button>
+                  <PinCheck id={panel.id} checked={isChecked} />
+                </div>
+              </Fragment>
+            );
+          }
+          const { action } = entry;
+          const AIcon = action.icon;
           const isActive = action.active?.() ?? false;
           const isChecked = pinnedIds.has(action.id);
           return (
-            <div
-              key={action.id}
-              className={`panel-overflow-item${isActive ? " is-active" : ""}`}
-              data-action-id={action.id}
-            >
-              <button
-                type="button"
-                role="menuitem"
-                style={MENU_ITEM_BUTTON_STYLE}
-                onClick={() => {
-                  action.onSelect({ x: position.x, y: position.y });
-                  onClose();
-                }}
-              >
-                <span className="panel-overflow-item-icon" aria-hidden>
-                  <Icon aria-hidden />
-                </span>
-                <span className="panel-overflow-item-label">{t(action.label)}</span>
-              </button>
-              <PinCheck id={action.id} checked={isChecked} />
-            </div>
+            <Fragment key={action.id}>
+              {sep ? <hr className="panel-overflow-sep" /> : null}
+              {/* 动作行:点击 = 触发动作(不开面板模式),勾选 = 钉/取钉 rail 外显。 */}
+              <div className={`panel-overflow-item${isActive ? " is-active" : ""}`} data-action-id={action.id}>
+                <button type="button" style={MENU_ITEM_BUTTON_STYLE}
+                  onClick={() => {
+                    action.onSelect({ x: position.x, y: position.y });
+                    if (action.opensCenterTab) setRightOpen(false);
+                    onClose();
+                  }}>
+                  <span className="panel-overflow-item-icon" aria-hidden>
+                    <DecorIcon id={action.id} Fallback={AIcon} aria-hidden /></span>
+                  <span className="panel-overflow-item-label">{t(action.label)}</span>
+                </button>
+                <PinCheck id={action.id} checked={isChecked} />
+              </div>
+            </Fragment>
           );
         })}
       </div>
@@ -274,7 +283,6 @@ function PanelOverflowMenu({
     document.body,
   );
 }
-
 
 /* ──────────────────────────────────────────────────────────
  * 顶栏右区渲染入口(TopBar titlebar-actions,右栏展开才挂;面板入口已迁右缘 PanelRail)。

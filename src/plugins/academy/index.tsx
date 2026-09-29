@@ -10,7 +10,7 @@
  * 契约);本插件零 CLI 私有知识,新增 claude/codex/pi 课程零改这里。
  * 设计:docs/superpowers/specs/2026-09-25-cli-academy-design.md
  */
-import { Student } from "@phosphor-icons/react";
+import { GraduationCap, Student } from "@phosphor-icons/react";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { AcademyEntry } from "./academyEntry";
 import { AcademyWizard } from "./wizard";
@@ -31,6 +31,6 @@ export const academyPlugin: Plugin = {
   activate(ctx: PluginContext) {
     ctx.contribute("leftSidebar.section", { order: -2, component: AcademyEntry });
     ctx.contribute("overlay", { order: 45, component: AcademyWizard });
-    ctx.registerTabContent({ kind: "academy.guide", component: GuideTab });
+    ctx.registerTabContent({ kind: "academy.guide", component: GuideTab, icon: GraduationCap });
   },
 };

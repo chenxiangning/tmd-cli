@@ -2,10 +2,11 @@ import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { collapseComposerStage, expandComposerStage, useComposerStage } from "@kernel/composerStage";
 import { CaretDown, CaretUp, Sidebar } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
 import { isRemoteEngineSession, useActiveProfile, useActiveSession } from "../state/useActiveProfile";
-import { prepareSendPayload } from "../serialize/serialize";
+import { prepareSendPayload } from "@kernel/profileSend";
 
 /** 模型位:模型名 + seeded 徽标,点击发 /model(复杂度拆件)。
  *  远程引擎会话:本机配置种子不可信(那是本机 CLI 的模型,不是远端会话的),
@@ -125,7 +126,7 @@ function ToolbarActions({
         onClick={expandComposerStage}
         className={`${iconBtn} ml-auto text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <CaretUp size="0.9375rem" />
+        <DecorIcon id="stage-expand" Fallback={CaretUp} size="0.9375rem" data-action-id="stage-expand" />
       </button>
       <button
         type="button"
@@ -135,7 +136,7 @@ function ToolbarActions({
         onClick={collapseComposerStage}
         className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <CaretDown size="0.9375rem" />
+        <DecorIcon id="stage-collapse" Fallback={CaretDown} size="0.9375rem" data-action-id="stage-collapse" />
       </button>
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
@@ -153,7 +154,7 @@ function ToolbarActions({
             : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         }`}
       >
-        <Sidebar size="0.9375rem" />
+        <DecorIcon id="composer-drawer" Fallback={Sidebar} size="0.9375rem" data-action-id="composer-drawer" />
       </button>
     </>
   );

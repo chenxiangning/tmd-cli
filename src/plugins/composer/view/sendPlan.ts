@@ -19,6 +19,8 @@ import { keptSessionIds } from "./broadcastTargets";
 
 /** 结构化目标行(弹层按字段渲染,不拼串)。 */
 export interface SendTarget {
+  /** 目标会话 id:执行段按它写入(单发承诺即所写,不跟随活跃指针漂移);广播复用同表。 */
+  id: string;
   /** 平铺幕布位序(MainPanel kept 序,1 起);非平铺模式 undefined。 */
   paneIndex?: number;
   /** 会话标题,与 SessionTabBar resolveTitle 同源。 */
@@ -53,8 +55,14 @@ import { useCallback, useEffect, useState } from "react";
  *  复位只在 useSendConfirmRequest 生命周期内:卸载(活跃会话退出→composer 整棵卸载)
  *  不走 close(),标志若不复位,重挂载后两条发送路径永久静默(2026-09-27 评审实证)。 */
 let confirmPending = false;
+/** 执行在途闸:settle 先清挂起再回调执行,writeSession 在途窗内新发送/新挂起会把
+ *  同一题面重复写进 PTY(2026-09-28 评审 F2)—— 执行窗并入同一模态闸。 */
+let sendExecuting = false;
+export function setSendExecuting(v: boolean): void {
+  sendExecuting = v;
+}
 export function isConfirmPending(): boolean {
-  return confirmPending;
+  return confirmPending || sendExecuting;
 }
 
 /** Composer 侧挂起态三件套(确认框唯一实例,两条发送路径共用)。 */
@@ -70,6 +78,7 @@ export function useSendConfirmRequest(): {
   }, []);
   useEffect(() => () => {
     confirmPending = false; /* 卸载复位:见模块标志注释 */
+    sendExecuting = false; /* 执行在途同门复位:防卸载后闸永久闭合 */
   }, []);
   const close = useCallback(() => {
     confirmPending = false;
@@ -93,6 +102,7 @@ export function resolveSendTarget(meta: SessionMeta, paneIndex?: number): SendTa
     : undefined;
   const ws = getWorkspaces().find((w) => w.id === meta.workspaceId || w.root === meta.cwd);
   return {
+    id: meta.id,
     paneIndex,
     title: manual ?? getSessionTabTitle(meta.id) ?? meta.title ?? shortId(meta.id),
     workspace: ws ? workspaceDisplayName(ws) : deriveWorkspaceName(meta.cwd),

@@ -17,8 +17,8 @@
  * 空闲斜杠照广播:自定义命令可能展开成提示词真开轮,空封锚点不占审批线。
  * "!" 壳透传不拦:git 归因 CLI 的壳写入靠窗口推断归入该锚点,是有效覆盖。
  */
-import { host } from "@kernel/host";
-import { KernelTopics } from "@kernel/events";
+import { host } from "./host";
+import { KernelTopics } from "./events";
 
 /** 轮次闸输入:两个内核守望的瞬时态(writeSession 前读)。 */
 interface PromptGateState {

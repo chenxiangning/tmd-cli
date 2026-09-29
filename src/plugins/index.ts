@@ -33,6 +33,7 @@ import { localLoaderPlugin } from "./local-loader";
 import { wslPlugin } from "./wsl";
 import { wallpaperPlugin } from "./wallpaper";
 import { sessionBoardPlugin } from "./session-board";
+import { intentCanvasPlugin } from "./intent-canvas";
 import { webAccessPlugin } from "./web-access";
 import { searchPlugin } from "./search";
 import { lspPlugin } from "./lsp";
@@ -42,6 +43,10 @@ import { academyPlugin } from "./academy";
 import { notifyPlugin } from "./notify";
 import { sessionSearchPlugin } from "./session-search";
 import { sessionRelayPlugin } from "./session-relay";
+import { skillHubPlugin } from "./skill-hub";
+import { mcpHubPlugin } from "./mcp-hub";
+import { sessionViewerPlugin } from "./session-viewer";
+
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
   cliPiPlugin,
@@ -71,6 +76,7 @@ export const allPlugins: Plugin[] = [
   wslPlugin,
   wallpaperPlugin,
   sessionBoardPlugin,
+  intentCanvasPlugin,
   marksPlugin,
   webAccessPlugin,
   searchPlugin,
@@ -81,4 +87,7 @@ export const allPlugins: Plugin[] = [
   notifyPlugin,
   sessionSearchPlugin,
   sessionRelayPlugin,
+  skillHubPlugin,
+  mcpHubPlugin,
+  sessionViewerPlugin,
 ];

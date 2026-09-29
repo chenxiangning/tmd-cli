@@ -1,5 +1,11 @@
 /** en 词典 · cli 域续篇:cli-config 表单/建议表/omp 配置说明(动态键 2026-09-20 审计;键 = 中文源串)。 */
 export const MESSAGES = {
+  /* MCP 抽屉条目(composer 分区/直达;键 = 中文源串整串) */
+  "MCP · 全局": "MCP · Global",
+  "MCP · 项目": "MCP · Project",
+  "仅展示 · 无引用语法 · MCP · 项目": "Display only — no reference syntax · MCP · Project",
+  "仅展示 · 无引用语法 · MCP · 全局": "Display only — no reference syntax · MCP · Global",
+  "仅展示 · 无引用语法": "Display only — no reference syntax",
   /* cli-config 表单 label(cli-claude / cli-codex configGui) */
   "始终思考": "Always thinking",
   "提交署名": "Commit attribution",

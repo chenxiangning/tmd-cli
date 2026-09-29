@@ -1,6 +1,6 @@
 /**
- * DSH 插件装配 —— cliDshPlugin 定义(从 index.tsx 拆出,only-export-components;
- * index.tsx 只留品牌 glyph 组件)。对接口径见 index.tsx 头注。
+ * DSH 插件装配 —— cliDshPlugin 单文件定义(无 index.tsx;品牌 glyph 复用
+ * cli-shared/engineGlyphs 的 DshGlyph)。
  */
 
 import type { Plugin } from "@kernel/plugin";
@@ -10,6 +10,7 @@ import { DshGlyph } from "../cli-shared/engineGlyphs";
 import { DshHostPanel } from "./hostPanel";
 import { loadConnection } from "./dshConnection";
 import { listHostSessions, readHostSessionStatus, readHostDefaultStatus, readHostContextPressure, deleteHostSession, isHostSessionEmpty } from "./dshRpc";
+import { readDshSessionTranscript } from "./dshTranscript";
 import { ensureAdapterDeployed } from "./adapterDeploy";
 import { DSH_ACADEMY_COURSE } from "./academy/academyCatalog";
 
@@ -77,6 +78,8 @@ export const cliDshPlugin: Plugin = {
       /* 会话卫生判空:host session.list 的 blank 标志(空壳垃圾清理正主)。 */
       isDiskSessionEmpty: async (session) => isHostSessionEmpty(loadConnection(), session.id),
       resumeArgs: (cliSessionId) => ["--resume", cliSessionId],
+      /* 会话转录:zstd 会话盘直接读(fzstd JS 解压),不经 host RPC。 */
+      readSessionTranscript: (session) => readDshSessionTranscript(session.id),
       /* 工具栏「思考」位点击 = 写 /effort 进幕布开强度菜单。 */
       thinkingCommand: "/effort",
       readSessionStatus: (_cwd, cliSessionId) => readHostSessionStatus(loadConnection(), cliSessionId),

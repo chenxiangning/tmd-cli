@@ -131,10 +131,14 @@ fn 单文件回退_批留待审_全处理完才翻已退() {
         "全部文件处理完 → 已退"
     );
 
-    // 已回退批再回退被拒;反悔后回 pending
+    // 已回退批再回退被拒;反悔后回 pending,且两文件都恢复批后像
+    // (a.txt 曾因「不在最后一次 guard 内」被误删 —— 2026-09-28 评审 F-CKPT-001
+    // 回归锚点:守卫链按路径取最近覆盖者,反悔 = 恢复批内容而非删盘)
     assert!(restore_batch(ws.path(), &a.id, None).is_err());
     undo_revert(ws.path(), &a.id).unwrap();
     assert_eq!(ws.batches("cli-1")[0].state, "pending");
+    assert_eq!(ws.read("a.txt").as_deref(), Some("v2\n"));
+    assert_eq!(ws.read("c.txt").as_deref(), Some("c2\n"));
 }
 
 #[test]

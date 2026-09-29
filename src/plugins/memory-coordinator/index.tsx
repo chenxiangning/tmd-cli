@@ -10,6 +10,7 @@
  */
 
 import { Brain } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import type { Plugin } from "@kernel/plugin";
 import { MemoryPanel } from "./panel/MemoryPanel";
@@ -37,11 +38,14 @@ export const memoryCoordinatorPlugin: Plugin = {
       icon: Brain,
       component: MemoryPanel,
       showFileSubbar: false,
-      order: 40,
+      order: 31, /* 能力生态组首席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
+      railGroup: "ecosystem",
+      railBottom: true,
     });
     ctx.registerTabContent({
       kind: "memory-console",
       component: MemoryConsole,
+      icon: (p) => <DecorIcon id="panel-memory" Fallback={Brain} {...p} />,
     });
     ctx.contribute("composer.statusBar", {
       order: 20,

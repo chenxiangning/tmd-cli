@@ -93,11 +93,14 @@ let homeReturnId: string | null = null;
 export const shellMarketClose: { current: (() => void) | null } = { current: null };
 
 /** 回首页按钮/命令本体:会话中 = 记住当前会话并回首页;首页中 = 切回打开
-    首页之前那个会话;该会话已退出则无话可回,保持首页原样不动。 */
+    首页之前那个会话;该会话已退出则无话可回,保持首页原样不动。
+    终端等 shell 会话是工具会话(入口在右缘 rail),不进 toggle 记忆——
+    否则「回到首页」再点一下会凭空开出终端(2026-09-29 用户报告)。 */
 export function toggleHomeSession(): void {
   const activeId = host.getActiveSessionId();
   if (activeId) {
-    homeReturnId = activeId;
+    const active = host.getSessions().find((s) => s.id === activeId);
+    if (active?.kind !== "shell") homeReturnId = activeId;
     host.setActiveSession(null);
     return;
   }

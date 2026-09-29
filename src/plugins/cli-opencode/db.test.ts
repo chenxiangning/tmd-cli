@@ -20,6 +20,12 @@ vi.mock("@kernel/ipc", () => ({
   },
 }));
 
+/* 纯函数自 dbRows 直引(re-export 已删);db 自有查询函数仍从 ./db(桩 ipc)。 */
+import {
+  deleteOpencodeSession,
+  readOpencodeSessionEdits,
+  readOpencodeUserMessages,
+} from "./db";
 import {
   opencodeDiskSessionRows,
   opencodeIdentityRow,
@@ -27,11 +33,8 @@ import {
   opencodeUserMessageRows,
   parseOpencodeMessageModel,
   parseOpencodeModelVariant,
-  deleteOpencodeSession,
-  readOpencodeSessionEdits,
   parseOpencodeToolEdit,
-  readOpencodeUserMessages,
-} from "./db";
+} from "./dbRows";
 
 describe("opencodeDiskSessionRows(会话行 → CliDiskSession)", () => {
   it("正常行:合成路径 <db>#<id>,modifiedAt 取 time_updated(复活检测/排序吃它)", () => {

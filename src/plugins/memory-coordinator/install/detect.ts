@@ -62,11 +62,6 @@ export async function detectPiInstalled(piHome: string): Promise<boolean> {
   }
 }
 
-/** opencode 侧插件已装(其配置 plugin 数组含 @cortexkit/opencode-magic-context)。 */
-export function detectOpencodeInstalled(configText: string): boolean {
-  return configText.includes("@cortexkit/opencode-magic-context");
-}
-
 function rOk(r: { code: number | null; stdout: string }): boolean {
   return r.code === 0 && r.stdout.trim() === "true";
 }

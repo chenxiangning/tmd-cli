@@ -39,16 +39,32 @@ export function useGitStatus(cwd: string | null): GitStatusState {
     return ipc.gitStatus(cwd).then(
       (data) => {
         if (myToken !== tokenRef.current) return; // cwd 已切换,丢弃过期响应
-        setState({ data, loading: false, error: null, notARepo: false });
+        /* 值等守卫:IPC 每次回全新对象,零变更也整面板重渲(消费链全非 memo)。
+           与 files/gitDecorate sameEntries、panelStore setGitAggregate 同纪律。 */
+        setState((prev) => {
+          if (
+            prev.data !== null &&
+            prev.loading === false &&
+            JSON.stringify(prev.data) === JSON.stringify(data)
+          ) {
+            return prev;
+          }
+          return { data, loading: false, error: null, notARepo: false };
+        });
       },
       (e: unknown) => {
         if (myToken !== tokenRef.current) return;
-        setState({
-          data: null,
-          loading: false,
-          error: gitErrorMessage(e),
-          notARepo: isNotARepo(e),
-        });
+        const error = gitErrorMessage(e);
+        const notARepo = isNotARepo(e);
+        /* 值等守卫同成功路径:非 git 工作区稳态下 5s 轮询不再空转整面板重渲 */
+        setState((prev) =>
+          prev.data === null &&
+          prev.loading === false &&
+          prev.error === error &&
+          prev.notARepo === notARepo
+            ? prev
+            : { data: null, loading: false, error, notARepo },
+        );
       },
     );
   }, [cwd]);

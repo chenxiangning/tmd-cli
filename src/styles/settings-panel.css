@@ -204,6 +204,17 @@
 }
 
 /* 图标装饰卡:行 = 预览图标(即所得,吃自定义色)+ 名称 + 取色/闪烁/恢复 */
+/* 两列网格:17 行半宽铺排;分隔线统一为每行顶边(全局 .pref-row + .pref-row 只覆盖第 2 行起) */
+.icon-decor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+}
+.icon-decor-grid .icon-decor-row {
+  border-top: 1px solid var(--tmd-border);
+  gap: 12px;
+  padding: 10px 8px;
+}
 .icon-decor-row {
   align-items: center;
 }

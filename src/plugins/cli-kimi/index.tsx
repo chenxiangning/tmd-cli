@@ -9,6 +9,7 @@ import type {
 import type { Plugin } from "@kernel/plugin";
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
+import { listKimiMcpServers } from "./mcpServers";
 import { listKimiSuggestions } from "./scanSuggestions";
 import {
   listKimiSessions,
@@ -16,6 +17,29 @@ import {
   readKimiUserMessages,
 } from "./kimiSessions";
 import { isKimiSessionEmpty } from "./kimiEmpty";
+import { kimiTranscriptLine } from "./kimiTranscript";
+import {
+  pairToolResults,
+  parseTranscriptBlocks,
+  readTranscriptText,
+} from "../cli-shared/sessionTranscript";
+import type { CliDiskSession, CliSessionTranscript } from "@kernel/cli";
+
+/** 会话完整转录:wire 双候选位(新布局 agents/main/wire.jsonl,老 home 直挂),
+ *  顺序探测先成者用(kimiEmpty 同款)。 */
+async function readKimiTranscript(
+  session: CliDiskSession,
+): Promise<CliSessionTranscript | null> {
+  for (const wire of [`${session.path}/agents/main/wire.jsonl`, `${session.path}/wire.jsonl`]) {
+    const file = await readTranscriptText(wire);
+    if (!file) continue;
+    return {
+      blocks: pairToolResults(parseTranscriptBlocks(file.text, kimiTranscriptLine)),
+      truncated: file.truncated,
+    };
+  }
+  return null;
+}
 
 /**
  * config.toml → 默认模型/思考强度(纯函数,可测)。
@@ -126,8 +150,14 @@ export const cliKimiPlugin: Plugin = {
       /* 技能真相:扫 ~/.kimi-code/skills + 项目 .kimi-code/skills + ~/.agents/skills
          (目录式与平铺 .md 双形态);kimi 无独立命令概念,命令走静态表 */
       listSuggestions: listKimiSuggestions,
+      /* MCP 真相 = ~/.kimi-code/mcp.json + 项目 .kimi-code/mcp.json(dist 实证三层读源,
+         旧居 ~/.kimi 无服务器存储不扫);点击 send "/mcp"(状态面板命令,dist 实证)。 */
+      listMcpServers: listKimiMcpServers,
       resumeArgs: (sessionId) => ["--session", sessionId],
       bracketedPaste: true,
+      /* MCP 管理面:全局读写目标 = ~/.kimi-code/mcp.json(mcp-hub 经
+         cli-shared/mcpWrite 读写;项目级 overlay 后置)。 */
+      mcpGlobalConfig: { candidates: ["/.kimi-code/mcp.json"], format: "json" },
       listSessions: listKimiSessions,
       /* 会话卫生判空:path = 会话目录,wire 双候选位(新布局 agents/main/wire.jsonl,
          老 home 目录直挂 wire.jsonl,见 kimiEmpty.ts)。wire 缺失 = 判不了不删。 */
@@ -137,6 +167,7 @@ export const cliKimiPlugin: Plugin = {
       readSessionFileIdentity: readKimiSessionIdentity,
       readDefaultStatus: readKimiConfigStatus,
       readSessionUserMessages: readKimiUserMessages,
+      readSessionTranscript: readKimiTranscript,
       /* Ask 卡片标记(pi-tui 系共享字面量,见 cli-shared/askMarks.ts)。 */
       askMarks: PI_TUI_ASK_MARKS,
       /* 用户消息回显标记(pi-tui 系共享字面量,见 cli-shared/echoMarks.ts)。 */

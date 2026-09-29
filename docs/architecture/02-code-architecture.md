@@ -345,8 +345,9 @@ Rust `fail_session` 在幕布内呈现,两条路径互补。
    在场时让位);resize 后 1s 抑制窗掐 SIGWINCH 重绘;终端协议回传标 synthetic 不算首写。
 4b. **Ask 等待检测三通道 + 重载恢复(ebdccc1)**:①字节流(host.appendOutput 主链,
    1024B 尾窗 + 末 5 行页脚窗 + 内核 y-N/插件 askMarks 正则)②幕布屏幕采样
-   (TerminalView 1Hz,需挂载)③回放补观察(重挂载喂内存缓冲尾)。候选确认制:
-   首击立候选 → 守望 1Hz 漂移确认(≥1.2s 且漂移 ≤16KB)→ 升级 waiting;写后 8s
+   (TerminalView 250ms,需挂载;后台会话由 askScreenMirror headless 镜像同流补盲,
+   v3.2 栅格对齐真实 PTY + 全屏采样)③回放补观察(重挂载喂内存缓冲尾)。候选确认制:
+   首击立候选 → 守望 250ms 漂移确认(≥1.2s 且漂移 ≤16KB)→ 升级 waiting;写后 8s
    抑制窗,静默 2s 自愈。webview 全量重载(HMR/⌘R)清空内存态 + 输出缓冲 + tab 条,
    关 tab 会话三通道全灭 → `kernel/askWatchRestore.ts` 在 profiles 就绪后读各活会话
    磁盘日志尾 2048B 喂 `feed.restoreTail`(extraMarks 按 profileId 显式携带,??

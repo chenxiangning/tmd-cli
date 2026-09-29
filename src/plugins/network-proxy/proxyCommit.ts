@@ -8,6 +8,8 @@
  * - Rust proxy.rs 用 reqwest 做同构兜底校验(手改 JSON 场景)。
  */
 
+import { t } from "@kernel/i18n";
+
 /** 默认代理地址:文本框预填值 + 启用态空地址回落(codemoss 同款)。 */
 export const DEFAULT_PROXY_URL = "http://127.0.0.1:7890";
 
@@ -34,13 +36,13 @@ export function proxyTransitionError(url: string): string | null {
   try {
     parsed = new URL(trimmed);
   } catch {
-    return "代理地址格式无效,应为 http(s)://host:port 或 socks5://host:port。";
+    return t("代理地址格式无效,应为 http(s)://host:port 或 socks5://host:port。");
   }
   if (!PROXY_SCHEMES.includes(parsed.protocol as (typeof PROXY_SCHEMES)[number])) {
-    return `不支持的代理协议 ${parsed.protocol},仅支持 http(s) / socks5。`;
+    return t("不支持的代理协议 {protocol},仅支持 http(s) / socks5。", { protocol: parsed.protocol });
   }
   if (!parsed.hostname) {
-    return "代理地址缺少主机名。";
+    return t("代理地址缺少主机名。");
   }
   return null;
 }

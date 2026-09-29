@@ -1,26 +1,46 @@
 /**
- * 基础设置 / 外观 tab 的图标装饰卡 —— 12 个界面图标的独立颜色与呼吸闪烁(可折叠)。
+ * 基础设置 / 外观 tab 的图标装饰卡 —— 顶部「图标组合」三套切换(应用层
+ * kernel/iconSet.tsx)+ 34 个界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
  * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
- * store 即时生效,应用由 kernel/iconDecor.ts 同步到 <html>,预览图标即时反映自定义色。
+ * store 即时生效,颜色由 kernel/iconDecor.ts 同步 <html>,预览走 DecorIcon
+ * 即时反映组合与自定义色。
  */
 
 import { useState, type ComponentType } from "react";
 import {
+  ArrowClockwise,
   ArrowCounterClockwise,
+  BellRinging,
   BookmarkSimple,
   Brain,
+  Compass,
   GitFork,
   CalendarDots,
   CaretDown,
+  CaretLineLeft,
+  CaretLineRight,
   CaretRight,
+  CaretUp,
   Desktop,
   Folder,
   GitBranch,
   HardDrive,
+  ListChecks,
   MonitorPlay,
+  PlugsConnected,
+  Plug,
+  PuzzlePiece,
+  Quotes,
+  Robot,
   RocketLaunch,
+  Rows,
   SealCheck,
+  Sidebar,
+  Sparkle,
   TerminalWindow,
+  Tray,
+  BroadcastIcon,
+  MagicWandIcon,
 } from "@phosphor-icons/react";
 import {
   DEFAULT_ICON_DECOR,
@@ -28,7 +48,9 @@ import {
   useSettingsState,
   type IconDecorId,
   type IconDecorItem,
+  type IconSetId,
 } from "@kernel/settings";
+import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 
 /** system-proxy 的梯子图标是 network-proxy 插件内联 SVG,插件间不互 import,此处自绘同形。 */
@@ -66,6 +88,7 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "system-proxy", label: "网络代理", icon: LadderIcon },
   { id: "wsl-panel", label: "WSL 入口", icon: Desktop },
   { id: "terminal", label: "内置终端", icon: TerminalWindow },
+  { id: "intent-canvas", label: "意图画布入口", icon: Compass },
   { id: "session-board", label: "会话看板", icon: CalendarDots },
   { id: "remote-control", label: "远程控制", icon: MonitorPlay },
   { id: "panel-files", label: "文件面板", icon: Folder },
@@ -73,7 +96,27 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "panel-checkpoints", label: "审批线面板", icon: SealCheck },
   { id: "panel-memory", label: "Memory 面板", icon: Brain },
   { id: "panel-marks", label: "标记面板", icon: BookmarkSimple },
+  { id: "panel-approval-inbox", label: "审批收件箱面板", icon: BellRinging },
+  { id: "panel-skill-hub", label: "Skills 面板", icon: PuzzlePiece },
+  { id: "panel-mcp-hub", label: "MCP 面板", icon: PlugsConnected },
   { id: "worktree", label: "Worktree 簇", icon: GitFork },
+  { id: "ws-files", label: "查看文件", icon: Rows },
+  { id: "ws-manage", label: "会话管理", icon: ListChecks },
+  { id: "ws-refresh", label: "刷新会话", icon: ArrowClockwise },
+  { id: "market", label: "插件市场", icon: Plug },
+  { id: "home", label: "回到首页", icon: Tray },
+  { id: "fold-left", label: "折叠左栏", icon: CaretLineLeft },
+  { id: "fold-right", label: "折叠右栏", icon: CaretLineRight },
+  { id: "stage-expand", label: "展开对话框", icon: CaretUp },
+  { id: "stage-collapse", label: "收起对话框", icon: CaretDown },
+  { id: "composer-drawer", label: "命令与技能", icon: Sidebar },
+  { id: "wake-agent", label: "智能体(##)", icon: Robot },
+  { id: "wake-prompt", label: "提示词(!!)", icon: Quotes },
+  { id: "ai-draw", label: "AI 作画", icon: Compass },
+  { id: "broadcast", label: "平铺广播", icon: BroadcastIcon },
+  { id: "enhance", label: "增强提示词", icon: MagicWandIcon },
+  { id: "wake-skill", label: "技能($)", icon: Sparkle },
+  { id: "wake-mcp", label: "MCP 服务器", icon: HardDrive },
 ];
 type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
   ? true
@@ -83,6 +126,15 @@ export const _itemsCoverAllKeys: _ItemsCoverAllKeys = true;
 
 /** 取色器空值占位(无自定义色时的中性灰)。 */
 const COLOR_PLACEHOLDER = "#808080";
+
+/** 组合清单(UI 知识):id = kernel settings 白名单,label 三语词典键。 */
+const ICON_SETS = [
+  { id: "classic", label: "组合1 现状" },
+  { id: "solid", label: "组合2 实心" },
+  { id: "metaphor", label: "组合3 换隐喻" },
+  { id: "lucide", label: "组合4 细线" },
+  { id: "lucide-alt", label: "组合5 细线变体" },
+] as const satisfies ReadonlyArray<{ id: IconSetId; label: string }>;
 
 export function IconDecorCard() {
   const { settings } = useSettingsState();
@@ -114,9 +166,29 @@ export function IconDecorCard() {
       {!collapsed && (
         <>
           <div className="pref-desc">
-            {t("逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。")}
+            {t("逐图标自定义颜色与呼吸闪烁;面板/侧栏两态图标仅作用于点亮色,其余整图标着色。")}
           </div>
-          {ICON_DECOR_ITEMS.map(({ id, label, icon: Icon }) => {
+          <div className="pref-row icon-decor-row">
+            <div className="icon-decor-id">
+              <span className="pref-title">{t("图标组合")}</span>
+            </div>
+            <div className="segmented" role="radiogroup" aria-label={t("图标组合")}>
+              {ICON_SETS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.iconSet === id}
+                  className={`segment${settings.iconSet === id ? " is-active" : ""}`}
+                  onClick={() => updateSettings({ iconSet: id })}
+                >
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="icon-decor-grid">
+            {ICON_DECOR_ITEMS.map(({ id, label, icon: Icon }) => {
             const item = settings.iconDecor[id];
             const isDefault =
               !item.color &&
@@ -128,7 +200,7 @@ export function IconDecorCard() {
                     className="icon-decor-preview"
                     style={item.color ? { color: item.color } : undefined}
                   >
-                    <Icon size="0.875rem" />
+                    <DecorIcon id={id} Fallback={Icon} size="0.875rem" />
                   </span>
                   <span className="pref-title">{t(label)}</span>
                 </div>
@@ -177,7 +249,8 @@ export function IconDecorCard() {
                 </div>
               </div>
             );
-          })}
+            })}
+          </div>
         </>
       )}
     </div>

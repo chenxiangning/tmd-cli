@@ -21,4 +21,20 @@ describe("classifyRisk", () => {
     expect(classifyRisk("environments/list.ts")).toBe("normal"); // 目录名带 env 不误伤
     expect(classifyRisk("src/service.ts")).toBe("normal");
   });
+
+  it("反斜杠/盘符形态与正斜杠同判(匹配前归一,三轮 R3-CKPT-04)", () => {
+    expect(classifyRisk(".ssh\\config")).toBe("high");
+    expect(classifyRisk("keys\\id_ed25519")).toBe("high");
+    expect(classifyRisk("C:\\repo\\.env")).toBe("high");
+    expect(classifyRisk("C:\\repo\\src\\main.rs")).toBe("normal");
+  });
+
+  it("大小写变体同样命中(NTFS/APFS 大小写不敏感,红标不因书写漏判)", () => {
+    expect(classifyRisk(".ENV")).toBe("high");
+    expect(classifyRisk("config/.Env.Local")).toBe("high");
+    expect(classifyRisk("KEYS/ID_RSA")).toBe("high");
+    expect(classifyRisk("deploy/SERVER.KEY")).toBe("high");
+    expect(classifyRisk("DOCKERFILE")).toBe("high");
+    expect(classifyRisk(".GITHUB/workflows/ci.yml")).toBe("high");
+  });
 });

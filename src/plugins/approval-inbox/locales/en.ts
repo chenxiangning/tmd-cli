@@ -7,6 +7,8 @@ export const MESSAGES_EN = {
   "等待 {n} 分钟": "Waiting {n} min",
   "等待 {n} 小时": "Waiting {n} h",
   "直达": "Open",
+  "历史提问(落盘,最近 {n} 条)": "Ask history (persisted, last {n})",
+  "{n} 问": "{n} questions",
   "发送": "Send",
   "应答原样写入会话,回车发送": "Reply is written to the session verbatim; Enter to send",
   "应答发送失败,会话可能已退出": "Reply failed to send; the session may have exited",
@@ -14,9 +16,11 @@ export const MESSAGES_EN = {
     "Approval inbox · {n} waiting · excerpts are hints; the session panel is authoritative",
   "摘录以会话面板为准": "Excerpt hint — the session panel is authoritative",
   "{n} 个问题": "{n} questions",
-  "多问卡:焦点在 CLI 侧,直达幕布逐题作答":
-    "Multi-question card — focus lives in the CLI; open the terminal to answer each",
-  "发送 {key} 选择": "Press {key} to select",
+  "切到「{name}」(⇥ 跳题)": "Switch to \"{name}\" (Tab to jump)",
+  "提交全部答案(⇥ 到 Submit + 回车)": "Submit all answers (Tab to Submit + Enter)",
+  "选择该项并推进(↑/↓ + {key});若在幕布手动动过光标,以幕布为准":
+    "Pick this option and advance (arrows + {key}); if you moved the cursor in the terminal, the terminal is authoritative",
+  "空格勾选": "Space to toggle",
   "允许/拒绝请按该 CLI 自己的键位:「直达」进幕布操作;这里只代发文本":
     "Allow/deny uses this CLI's own keys: hit \"Open\" to act in the terminal; replies here only send text",
   "点击关闭": "Click to dismiss",

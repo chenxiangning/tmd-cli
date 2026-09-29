@@ -125,7 +125,9 @@ function scheduleBirthLock(s: PrewarmSlot): void {
 
 /** 预热一个裸 omp(cwd 桶匹配是热切换前提)。 */
 async function spawnPrewarm(cwd: string): Promise<void> {
-  if (featureFused || slot) return;
+  /* started 闸:stop 清 timers 挡不住「stop 前已拍、catch 里后拍」的补货 ——
+     停用态下拉起 ~800MB 裸预热进程直至 IDLE_REAP(2026-09-28 评审 F4) */
+  if (!started || featureFused || slot) return;
   const epoch = managerEpoch;
   try {
     const bucket = await ompSessionsDir(cwd);

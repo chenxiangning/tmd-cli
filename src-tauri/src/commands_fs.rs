@@ -60,6 +60,27 @@ pub(crate) async fn read_binary_file_base64(path: String) -> Result<String, Stri
     spawn_fs(move || fs::read_binary_file_base64(&path)).await
 }
 
+/// 通用二进制读取(base64):数据域原语,无预览白名单(压缩文件如 dsh 会话
+/// session.jsonl.zstd 经 JS 解码消费)。32MB 闸对齐会话转录读取预算,超限拒绝。
+#[tauri::command]
+pub(crate) async fn fs_read_bytes_base64(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let meta = std::fs::metadata(&path).map_err(|e| format!("读取文件信息失败: {e}"))?;
+        if !meta.is_file() {
+            return Err("目标路径不是文件".to_string());
+        }
+        const MAX_BYTES: u64 = 32 * 1024 * 1024;
+        if meta.len() > MAX_BYTES {
+            return Err(format!("文件超过 {}MB 读取上限", MAX_BYTES / 1024 / 1024));
+        }
+        let bytes = std::fs::read(&path).map_err(|e| format!("读取文件失败: {e}"))?;
+        use base64::Engine;
+        Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    })
+    .await
+    .map_err(|e| format!("read task join: {e}"))?
+}
+
 #[tauri::command]
 pub(crate) async fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String, String> {
     spawn_fs(move || fs::write_temp_file(&name, &data)).await

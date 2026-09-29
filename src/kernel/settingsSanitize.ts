@@ -15,6 +15,7 @@ import {
   sanitizeSessionTabsMax,
   sanitizeUiZoom,
   sanitizeIconDecor,
+  sanitizeIconSet,
   type UiLanguage,
 } from "./settingsAppearance";
 import {
@@ -168,6 +169,7 @@ export function sanitize(raw: unknown): AppSettings {
     uiFontSize: sanitizeUiFontSize(obj.uiFontSize),
     uiZoom: sanitizeUiZoom(obj.uiZoom),
     iconDecor: sanitizeIconDecor(obj.iconDecor),
+    iconSet: sanitizeIconSet(obj.iconSet),
     sessionTabsEnabled:
       typeof obj.sessionTabsEnabled === "boolean"
         ? obj.sessionTabsEnabled

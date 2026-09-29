@@ -141,19 +141,25 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     const offScroll = term.onScroll((y) => setAtTop(y === 0));
     /* Ask 屏幕态采样(askWatch v3):omp 等待期间 spinner 以光标寻址持续重绘,
        面板标记一旦流出字节尾窗永不复现(实测 3h 挂起面板后流 7.4MB)——
-       字节流检测对此原理性无解,但屏幕上标记始终在:读底部 8 行文本喂检测器
-       (非 viewport),用户上翻历史不影响判定。就绪前(回放/流式相位)停采:
-       磁盘回放的墓碑帧不进屏幕通道,Ask 恢复只走 restoreTail(评审 F5)。 */
+       字节流检测对此原理性无解,但屏幕上标记始终在:贴底时采整个视口喂检测器
+       (与后台镜像全屏同口径;omp 大窗口面板在中上部、底部留空,固定底窗
+       8→24 行两代都被实测证伪——2026-09-29 大窗实测标记距屏底 30-38 行)。
+       贴底闸:用户上翻历史时旧已答对话框会入视野,采样会假置位——非贴底停采
+       (状态冻结不误摘,作答/超时仍由字节流与写路径清位)。
+       就绪前(回放/流式相位)停采:磁盘回放的墓碑帧不进屏幕通道,Ask 恢复
+       只走 restoreTail(评审 F5)。 */
     const askProbe = setInterval(() => {
       if (!streamReadyRef.current) return; /* 就绪前墓碑帧不进屏幕通道 */
       const buf = term.buffer.active;
+      if (buf.baseY + term.rows < buf.length - 2) return; /* 上翻中:停采防旧卡假置位 */
       const bottom = Math.min(buf.length, buf.baseY + term.rows);
       let screenTail = "";
-      for (let row = Math.max(0, bottom - 8); row < bottom; row++) {
+      for (let row = buf.baseY; row < bottom; row++) {
         screenTail += (buf.getLine(row)?.translateToString(true) ?? "") + "\n";
       }
       host.observeAskScreen(sessionId, screenTail);
-    }, 1000);
+      /* 250ms:置位延迟 ≈ ASK_CONFIRM_MS + 采样间隔;旧 1Hz 实测 2-3s,用户体感慢。 */
+    }, 250);
     /* 闸外照常写会话;闸窗内只弃用户形态输入、放行整段终端协议回传(标 synthetic,
        非用户输入不锚定对话)—— 活查询的应答远端正在等,回放窗也可能接到
        (连接先于挂载完成时 CPR 落缓冲走回放,见 terminalInputGate.ts 头注)。 */

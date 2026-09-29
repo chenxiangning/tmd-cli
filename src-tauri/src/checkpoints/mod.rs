@@ -5,7 +5,6 @@
 //! 驱动,经 commands 层落账。与 git 模块平级但语义不同:git = 用户仓库操作
 //! (有 commit 安全不变量),checkpoints = 独立 sidecar 存储域,**永不触碰
 //! 用户仓库的 index/refs**。
-//!
 //! 存储布局:`{config_dir}/checkpoints/{md5(cwd)}/`
 //!   objects.git   —— sidecar 裸仓库,只写 blob 对象(内容寻址去重),永不建 commit/ref
 //!   ledger.jsonl  —— 账本(追加写;同一 id 多行时以最后一行为准 = turn 封口的修订)
@@ -31,6 +30,7 @@ mod prune;
 mod restore;
 mod review;
 mod store;
+mod surgical;
 mod turn_entry;
 mod view;
 
@@ -179,6 +179,11 @@ pub struct BatchState {
     pub reason: Option<String>,
     #[serde(default)]
     pub guard_id: Option<String>,
+    /// 守卫链(追加序):单文件回退各自持精准快照,反悔按路径取最近覆盖它的
+    /// guard —— 单槽 guard_id 被最后一次覆盖,多次部分回退后反悔会丢更早路径
+    /// (2026-09-28 评审 F-CKPT-001)。guard_id 镜像最后一次,旧读者兼容。
+    #[serde(default)]
+    pub guard_ids: Vec<String>,
     #[serde(default)]
     pub reverted_paths: Vec<String>,
 }

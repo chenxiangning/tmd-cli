@@ -43,6 +43,7 @@ export const MESSAGES = {
   "⇱ 打开面板": "⇱ Open panel",
   "命令": "Commands",
   "技能": "Skills",
+  "技能($)": "Skills ($)",
   "MCP": "MCP",
   "插件": "Plugins",
   "⚡ 发送": "⚡ Send",

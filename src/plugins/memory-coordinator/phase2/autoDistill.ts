@@ -17,7 +17,15 @@ import { distillSessionTail } from "./write";
 /** 已沉淀过的会话(幂等:一次会话生命周期只触发一次)。 */
 const distilled = new Set<string>();
 
+/** 幂等集防无界增长:超阈值时剪除已不在活会话列表的 id(保留近期 id 的去重窗口)。 */
+function pruneDistilled(): void {
+  if (distilled.size < 400) return;
+  const alive = new Set(host.getSessions().map((s) => s.id));
+  for (const id of distilled) if (!alive.has(id)) distilled.delete(id);
+}
+
 function onSessionExited(sessionId: string): void {
+  pruneDistilled();
   if (!getSettingsState().settings.memoryAutoDistill) {
     console.info("[mem-auto] skip:自动沉淀开关未开", sessionId.slice(0, 8));
     return;

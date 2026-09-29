@@ -37,16 +37,6 @@ import {
   parseOpencodeToolEdit,
 } from "./dbRows";
 
-export {
-  opencodeDiskSessionRows,
-  opencodeIdentityRow,
-  opencodeSessionStatus,
-  opencodeUserMessageRows,
-  parseOpencodeMessageModel,
-  parseOpencodeModelVariant,
-  parseOpencodeToolEdit,
-} from "./dbRows";
-
 /** 用户消息尾部窗口大小(full=false 时的增量读上限,对齐其余引擎惯例)。 */
 const USER_MSG_TAIL = 40;
 

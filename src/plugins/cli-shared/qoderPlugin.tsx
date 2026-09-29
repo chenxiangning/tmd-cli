@@ -12,10 +12,12 @@ import {
   readQoderDefaultStatus,
   readQoderSessionIdentity,
   readQoderSessionStatus,
+  readQoderTranscript,
   readQoderUserMessages,
 } from "./qoderSessionModel";
 import { isJsonlSessionEmpty } from "./sessionEmpty";
 import { listQoderSuggestions } from "./qoderSuggestions";
+import { listQoderMcpServers } from "./qoderMcp";
 
 /** 双分发版的差异面:插件身份 + 展示文案 + 分发渠道常量,其余接线完全同构。 */
 interface QoderVariantSpec {
@@ -65,8 +67,18 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
         suggestions: QODER_COMMAND_SUGGESTIONS,
         /* 命令/技能真相:扫 .qoder/commands 与 .qoder/skills + .agents/skills 兼容层 */
         listSuggestions: listQoderSuggestions,
+        /* MCP 真相 = <dataDir>/shared_client/mcp.json(本机实证标准 mcpServers 形状;
+           项目级未实证不猜)。点击 = 展示性 insert(TUI 命令未实证,禁向幕布写 wire)。
+           双分发版经本工厂一次覆盖。 */
+        listMcpServers: () => listQoderMcpServers(variant.dataDir),
         resumeArgs: (sessionId) => ["--resume", sessionId],
         listSessions: (cwd) => listQoderSessions(variant.dataDir, cwd),
+        /* MCP 管理面:全局读写目标 = <dataDir>/shared_client/mcp.json(与
+           listMcpServers 同源;双分发版经本工厂一次覆盖)。 */
+        mcpGlobalConfig: {
+          candidates: [`/${variant.dataDir}/shared_client/mcp.json`],
+          format: "json",
+        },
         /* 会话卫生判空:path 即 <uuid>.jsonl,共享标记子串判定(sessionEmpty.ts) */
         isDiskSessionEmpty: (session) => isJsonlSessionEmpty(session.path),
         readSessionStatus: (cwd, cliSessionId) =>
@@ -74,6 +86,7 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
         readSessionFileIdentity: readQoderSessionIdentity,
         readSessionUserMessages: (cwd, cliSessionId, full) =>
           readQoderUserMessages(variant.dataDir, cwd, cliSessionId, full),
+        readSessionTranscript: readQoderTranscript,
         readDefaultStatus: () => readQoderDefaultStatus(variant.dataDir),
       });
     },

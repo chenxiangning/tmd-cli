@@ -12,6 +12,12 @@ import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
 import { classifyRisk } from "./risk";
 
+/** 工作区外(绝对路径)判定:POSIX 绝对、盘符(C:/)与 UNC(账本契约已把
+ *  反斜杠归一为正斜杠,但 `C:/…` 不以 `/` 开头,单看 startsWith("/") 会漏)。 */
+function isOutsideWorkspace(p: string): boolean {
+  return p.startsWith("/") || p.startsWith("//") || /^[A-Za-z]:\//.test(p);
+}
+
 /** 分区头徽标簇:已退/内容已变/无前像/AI 写入计数(自 FileSection 拆出降分支)。 */
 function FileSectionBadges({
   reverted,
@@ -199,9 +205,9 @@ export function FileSections({
   busy: boolean;
   onRevertPath: (path: string) => void;
 }) {
-  const external = batch.files.filter((f) => f.path.startsWith("/"));
+  const external = batch.files.filter((f) => isOutsideWorkspace(f.path));
   const groups: [header: string | null, files: CkptBatchFile[]][] = [
-    [null, batch.files.filter((f) => !f.path.startsWith("/"))],
+    [null, batch.files.filter((f) => !isOutsideWorkspace(f.path))],
     ...(external.length > 0
       ? [[t("工作区外({n}) —— 首轮批前像不可知,禁回退;次轮起可正常回退", { n: external.length }), external] as [string, CkptBatchFile[]]]
       : []),

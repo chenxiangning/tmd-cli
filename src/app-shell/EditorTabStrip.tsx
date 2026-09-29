@@ -12,6 +12,7 @@ import { memo, useState } from "react";
 import { CornersOut, CornersIn, Cross } from "@phosphor-icons/react";
 import { baseName } from "@kernel/pathUtils";
 import { resolveFileVisual } from "@kernel/fileVisual";
+import { getTabIcon } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import {
   closeAllTabs,
@@ -39,18 +40,24 @@ function FileTabIcon({ fileName }: { fileName: string }) {
 function FileTab({
   tabId,
   tabPath,
+  tabTitle,
+  tabKind,
   isActive,
   dirty,
   onContextMenu,
 }: {
   tabId: string;
   tabPath: string;
+  tabTitle: string;
+  tabKind: string;
   isActive: boolean;
   dirty?: boolean;
   onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const fileName = baseName(tabPath) || tabPath;
   const maximized = useEditorMaximized();
+  /* kind 注册图标(非文件 tab 的插件语义图标)优先;未注册回落文件类型徽标 */
+  const KindIcon = getTabIcon(tabKind);
   return (
     <div
       className={`tab${isActive ? " is-active" : ""}`}
@@ -66,8 +73,14 @@ function FileTab({
         onClick={() => setActiveTab(tabId)}
         title={tabPath}
       >
-        <FileTabIcon fileName={fileName} />
-        <span className="tab-main-label">{fileName}</span>
+        {KindIcon ? (
+          <span className="tab-icon" aria-hidden>
+            <KindIcon size="0.75rem" />
+          </span>
+        ) : (
+          <FileTabIcon fileName={fileName} />
+        )}
+        <span className="tab-main-label">{KindIcon ? tabTitle : fileName}</span>
         {/* 未保存圆点(useFileDocument 经 updateTab 上报) */}
         {dirty ? <span className="tab-dirty-dot" aria-hidden /> : null}
       </button>
@@ -130,6 +143,8 @@ export const EditorTabStrip = memo(function EditorTabStrip() {
             key={t.id}
             tabId={t.id}
             tabPath={t.path || t.title}
+            tabTitle={t.title}
+            tabKind={t.kind}
             isActive={t.id === activeId}
             dirty={t.dirty}
             onContextMenu={(e) => setMenu({ tabId: t.id, x: e.clientX, y: e.clientY })}

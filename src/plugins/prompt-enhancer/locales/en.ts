@@ -30,4 +30,5 @@ export const MESSAGES_EN = {
   "暂无增强结果": "No enhanced result yet",
   "缓存": "Cached",
   "当前为缓存结果,再点将重新增强": "Showing cached result — click again to re-run",
+  "草稿为空:先输入内容再增强": "Draft is empty — type something to enhance",
 } as Record<string, string>;

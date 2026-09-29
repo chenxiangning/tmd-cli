@@ -14,10 +14,11 @@
 
 import { ipc, type ProcRunResult } from "@kernel/ipc";
 import { host } from "@kernel/host";
+import { updateSettings, getSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { BOOTSTRAP_MJS } from "./bootstrap";
 import { detectNode, detectOmpPluginInstalled, detectSharedDbReady } from "./detect";
-import { memoryDbPath } from "../paths";
+import { memoryDbPath, ensureParentDir } from "../paths";
 
 interface InstallStepResult {
   ok: boolean;
@@ -76,6 +77,9 @@ export class InstallOrchestrator {
     try {
       // 备份原文(含注释):解析/写入失败时回滚,不丢用户配置
       backup = await readText(configPath).catch(() => null);
+      // 落点可能全新(全候选缺失时按官方布局新建 opencode.json):父目录
+      // ~/.config/opencode 在 Windows 新机不存在,直接写 = ENOENT(2026-09-28 评审)
+      await ensureParentDir(configPath);
       const raw = backup ?? "{}";
       const stripped = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'\\])\/\/.*$/gm, "$1");
       const cfg = JSON.parse(stripped) as Record<string, unknown>;
@@ -90,7 +94,16 @@ export class InstallOrchestrator {
       return { ok: true, message: "" };
     } catch (e) {
       if (backup !== null) await writeText(configPath, backup).catch(() => {});
-      return { ok: false, message: t("opencode 配置更新失败(已回滚原文): {err}", { err: String(e).slice(0, 140) }) };
+      /* backup=null = 新建文件未写成,无「原文」可回滚,文案如实(2026-09-28 评审) */
+      return {
+        ok: false,
+        message: t(
+          backup !== null
+            ? "opencode 配置更新失败(已回滚原文): {err}"
+            : "opencode 配置更新失败(新文件未写入): {err}",
+          { err: String(e).slice(0, 140) },
+        ),
+      };
     }
   }
 
@@ -100,6 +113,15 @@ export class InstallOrchestrator {
     const out = r.stdout.trim();
     if (out.startsWith("BOOTSTRAP-OK")) {
       onLine("✓ " + out);
+      /* 回存实际落点(BOOTSTRAP-OK <storageDir> schema=.. memories=..):
+        上游解析受 XDG_DATA_HOME / MAGIC_CONTEXT_STORAGE_DIR 影响,此前读侧
+        硬编码默认路径 —— 迁移写 A 处、面板/池读 B 处,状态恒「未安装」
+        (2026-09-28 评审;storageDir="?"=上游未提供,保持默认推断)。
+        storageDir 可能含空格(Windows 用户名),只能从尾部 schema= 前截取 */
+      const dir = out
+        .slice("BOOTSTRAP-OK ".length, out.lastIndexOf(" schema="))
+        .trim();
+      if (dir && dir !== "?") updateSettings({ memoryDbPath: `${dir}/context.db` });
       return { ok: true, message: out };
     }
     if (out.startsWith("REFUSED migration-locked")) {
@@ -119,7 +141,9 @@ export class InstallOrchestrator {
       lines.push(t("● 上游声明需 node ≥24,当前 v{v}(实测可跑,风险自担)", { v: node.version }));
     }
     const plugin = await detectOmpPluginInstalled();
-    const dbReady = plugin ? await detectSharedDbReady(await memoryDbPath()) : false;
+    /* 与 pool 同源:优先 bootstrap 回存落点,否则默认推断(2026-09-28 评审) */
+    const dbPath = getSettingsState().settings.memoryDbPath || (await memoryDbPath());
+    const dbReady = plugin ? await detectSharedDbReady(dbPath) : false;
     lines.push(dbReady ? t("✓ 共享数据库完整性正常") : t("✗ 共享数据库未初始化或不可读"));
     return lines;
   }

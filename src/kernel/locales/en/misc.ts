@@ -18,6 +18,12 @@ export const MESSAGES = {
   "没有可应用的文件": "No files to apply",
   "已从恢复点恢复 {n} 个文件,批次回到待审":
   "Restored {n} files from the restore point; batch is back to pending review",
+  "已从恢复点恢复 {n} 个文件;跳过:{skipped}":
+  "Restored {n} files from the restore point; skipped: {skipped}",
+  "部分恢复 {n} 个文件;跳过:{skipped} —— 其余仍处已退,可再反悔":
+  "Partially restored {n} files; skipped: {skipped} — the rest remain reverted, you can undo again",
+  "部分恢复 {n} 个文件,其余仍处已退,可再反悔":
+  "Partially restored {n} files; the rest remain reverted, you can undo again",
   "待审": "Pending review",
   "点击关闭": "click to dismiss",
   "审批线清单刷新失败:{error} · 点击重试":
@@ -108,6 +114,7 @@ export const MESSAGES = {
   "确认回退{target}? 恢复点自动留存。": "Revert {target}? A restore point is kept automatically.",
   "整批({n} 文件)": "whole batch ({n} files)",
   "生成批 diff…": "Generating batch diff…",
+  "批 diff 拉取失败:{msg}": "Failed to load batch diff: {msg}",
   "用户消息": "User message",
   "思考": "Thinking",
   "耗时 {duration}": "Took {duration}",

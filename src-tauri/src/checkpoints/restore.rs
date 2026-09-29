@@ -6,6 +6,7 @@
 //! 锁纪律:guard 抓取会枚举 dirty 集(读 repo),与账本写同持 LEDGER_LOCK,
 //! 串行执行,不存在 derive 时代的闭包嵌套锁问题。
 
+use super::surgical::surgical_erase;
 use super::{
     append_ledger, load_ledger, load_states, new_entry_id, now_millis, open_sidecar, open_user,
     resolve_snap_bytes, save_states, CkptError, LedgerEntry,
@@ -29,37 +30,6 @@ pub struct RestoreOutcome {
     pub guard_id: Option<String>,
     /// 还原后的批次态(pending = 部分回退,批仍在待审)
     pub state: String,
-}
-
-/// 失配路径的精准手术:M/A 文件尝试按 diff 擦除本批改动 —— M 以批前像为基线,
-/// A(批内新建)以空内容为基线(old 块 = 批后全文,live 中唯一命中即摘除,
-/// 他人前后追加保留)。返回 Ok(Some(merged)) = 手术成功;Ok(None) = 与他人
-/// 改动重叠/歧义冲突;Err(()) = 不具备手术条件(D 文件、前像缺失/不可解析),
-/// 走保守跳过。
-fn surgical_erase(
-    sidecar: &git2::Repository,
-    tf: &super::TurnFile,
-    after: Option<&Vec<u8>>,
-    live: Option<&Vec<u8>>,
-) -> Result<Option<Vec<u8>>, ()> {
-    let (Some(a), Some(l)) = (after, live) else {
-        return Err(());
-    };
-    // A 文件(批内新建)基线 = 空;M 文件取批前像 blob,缺失/不可解析 = 无条件
-    let before: Vec<u8> = if !tf.existed_before {
-        Vec::new()
-    } else if tf.before_oid.is_empty() {
-        return Err(());
-    } else {
-        let Ok(oid) = git2::Oid::from_str(&tf.before_oid) else {
-            return Err(());
-        };
-        let Ok(blob) = sidecar.find_blob(oid) else {
-            return Err(());
-        };
-        blob.content().to_vec()
-    };
-    super::patch::merge_patch(l, a, &before).map(Some).ok_or(())
 }
 
 /// 回退整批或子集(paths 缺省 = 全部可回退文件)。计划来自账本 turn 条目:
@@ -218,21 +188,45 @@ pub fn restore_batch(
 
     let mut restored = Vec::new();
     let mut deleted = Vec::new();
+    /* 单路径 IO 失败(Windows:目标被无 FILE_SHARE_DELETE 句柄占用 / 只读属性)
+    只跳过该路径并显式列出,不中断整批 —— 此前 `?` 上抛发生在 guard 已落账、states
+    未合成之前,磁盘半改而审批线零记账(2026-09-28 评审)。write_atomic 原子,
+    失败路径留在盘上原样,批次保持 pending 可整批重试。 */
+    let mut io_failed = false;
     for (path, op) in &plan {
         match op {
             PlanOp::Write(bytes) => {
                 let full = root.join(path);
-                if let Some(parent) = full.parent() {
-                    fs::create_dir_all(parent)?;
+                let write = (|| -> std::io::Result<()> {
+                    if let Some(parent) = full.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    crate::session::write_atomic(&full, bytes)
+                })();
+                match write {
+                    Ok(()) => restored.push(path.clone()),
+                    Err(e) => {
+                        io_failed = true;
+                        skipped.push(SkipEntry {
+                            path: path.clone(),
+                            reason: format!("写入失败(可整批重试): {e}"),
+                        });
+                    }
                 }
-                crate::session::write_atomic(&full, bytes)?;
-                restored.push(path.clone());
             }
             PlanOp::Delete => {
                 let full = root.join(path);
                 if full.symlink_metadata().is_ok() {
-                    fs::remove_file(&full)?;
-                    deleted.push(path.clone());
+                    match fs::remove_file(&full) {
+                        Ok(()) => deleted.push(path.clone()),
+                        Err(e) => {
+                            io_failed = true;
+                            skipped.push(SkipEntry {
+                                path: path.clone(),
+                                reason: format!("删除失败(可整批重试): {e}"),
+                            });
+                        }
+                    }
                 } else {
                     skipped.push(SkipEntry {
                         path: path.clone(),
@@ -247,11 +241,12 @@ pub fn restore_batch(
     let mut entry = states.batches.get(batch_id).cloned().unwrap_or_default();
     entry.reverted_paths.extend(restored.iter().cloned());
     entry.reverted_paths.extend(deleted.iter().cloned());
+    entry.guard_ids.push(guard.id.clone());
     entry.guard_id = Some(guard.id.clone());
     let processed = turn.turn_files.iter().all(|tf| {
         entry.reverted_paths.contains(&tf.path) || skipped.iter().any(|s| s.path == tf.path)
     });
-    entry.state = if processed {
+    entry.state = if processed && !io_failed {
         "reverted".into()
     } else {
         "pending".into()
