@@ -16,6 +16,7 @@ vi.mock("@kernel/host", () => ({
     getCliProfiles: vi.fn(() => [{ id: "omp" }]),
     createSession: vi.fn(async () => ({ id: "pty-1" })),
     writeSession: vi.fn(async () => true),
+    removeSession: vi.fn(async () => undefined),
   },
 }));
 vi.mock("@kernel/events", () => ({
@@ -153,6 +154,8 @@ describe("genSession 结算", () => {
     reloadDayMock.mockResolvedValue({ title: "t", lede: "", secs: [], open: [] });
     await vi.advanceTimersByTimeAsync(15_000 + 8_000);
     expect(taskOf(key)?.st).toBe("done");
+    /* 收割防回归:终态后生成会话必须被移除(僵尸 TUI 实测存活 48 分钟)。 */
+    expect(host.removeSession).toHaveBeenCalledWith("pty-1");
     vi.mocked(collectSessionRows).mockResolvedValue([]);
   });
   it("轮询捕获落盘 → 8s 容忍后成功结算并停轮", async () => {
@@ -181,6 +184,7 @@ describe("genSession 结算", () => {
     expect(taskOf(key)?.st).toBe("err");
     expect(taskOf(key)?.text).toContain("15 分钟");
     expect(setDayResultMock).toHaveBeenCalledWith(key, expect.objectContaining({ lastError: expect.stringContaining("超时") }));
+    expect(host.removeSession).toHaveBeenCalledWith("pty-1"); /* 超时路径同样收割 */
   });
 
   it("turnSettled 假结算(文章未现)不终态,轮询兜底收口", async () => {

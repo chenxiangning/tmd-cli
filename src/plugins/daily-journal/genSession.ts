@@ -59,6 +59,9 @@ async function finalize(p: PendingSettle, failText: string | null): Promise<void
   if (!pending.delete(p.sessionId)) return;
   clearTimeout(p.timer);
   clearInterval(p.poll);
+  /* 收割生成会话:终态后 TUI 空转存活直到应用退出(实测 done 后 PTY 日志仍持续
+     写 48 分钟),批量补齐会堆积僵尸进程;统一 kill,会话已退出则静默。 */
+  void host.removeSession(p.sessionId);
   const article = await reloadDay(p.y, p.m, p.d);
   if (article) {
     finishTask(p.taskId, true, `已落盘 · ${article.title.slice(0, 24)}`);

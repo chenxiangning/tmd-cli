@@ -9,11 +9,12 @@ import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, useJournalState } from "./journalStore";
 import { useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
-import { getJournalState, type MonthSnapshot } from "./journalStore";
+import type { MonthSnapshot } from "./journalStore";
 import { MonthView } from "./MonthView";
 import { TaskPanel } from "./TaskPanel";
 import { GenSettings } from "./GenSettings";
-import { enqueueTask, useGenTasks } from "./taskQueue";
+import { useGenTasks } from "./taskQueue";
+import { fillPendingDays } from "./journalSchedule";
 import { YearView } from "./YearView";
 import { FlowView } from "./FlowView";
 import { monthTitleOf } from "./dateTitle";
@@ -23,16 +24,7 @@ import "./daily-journal.css";
 export type JournalView = "y" | "m" | "f";
 
 
-/** 待生成日批量入队(「补齐待生成」)。 */
-function fillPendingDays(ym: { y: number; m: number }, sessions: Map<string, DaySessionRow[]>, snap: MonthSnapshot | undefined): void {
-  const prefix = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
-  const engine = getJournalState().config.engine;
-  for (const k of sessions.keys()) {
-    if (!k.startsWith(prefix)) continue;
-    const dd = k.slice(8);
-    if (!snap?.articles[dd] && (sessions.get(k)?.length ?? 0) > 0) enqueueTask("补齐生成", k, engine);
-  }
-}
+/* fillPendingDays 入队策略见 journalSchedule(「补齐待生成」按钮消费)。 */
 
 function StatusPills({ days, sessTotal, artTotal, pending, todayLive }: { days: number; sessTotal: number; artTotal: number; pending: number; todayLive: number }) {
   return (

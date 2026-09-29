@@ -7,9 +7,9 @@
 import { KernelTopics } from "@kernel/events";
 import type { PluginEventBus } from "@kernel/plugin";
 import { dailyPaths, dayKey, readText } from "./journalFiles";
-import { dayMetaOf, getJournalState } from "./journalStore";
+import { dayMetaOf, getJournalState, type MonthSnapshot } from "./journalStore";
 import { enqueueTask } from "./taskQueue";
-import { collectSessionRows } from "./daySessions";
+import { collectSessionRows, type DaySessionRow } from "./daySessions";
 import { bootGenSession } from "./genSession";
 import { ensureHolidays } from "./holidays";
 
@@ -120,4 +120,20 @@ export function bootJournalSchedule(events: PluginEventBus, ready: Promise<void>
     offExited();
     offGen();
   };
+}
+
+/** 「补齐待生成」入队策略(月视图按钮):新到旧限量补齐,防一次点按引爆整月
+ *  串行批(2026-09-30 实证:24 任务串行,单个卡住全队,用户被迫逐一取消)。 */
+export function fillPendingDays(ym: { y: number; m: number }, sessions: Map<string, DaySessionRow[]>, snap: MonthSnapshot | undefined): void {
+  if (!snap) return; /* 快照未就绪不入队:文章索引空窗会误伤已有文章的日 */
+  const prefix = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
+  const engine = getJournalState().config.engine;
+  const missing: string[] = [];
+  for (const k of sessions.keys()) {
+    if (!k.startsWith(prefix)) continue;
+    const dd = k.slice(8);
+    if (!snap.articles[dd] && (sessions.get(k)?.length ?? 0) > 0) missing.push(k);
+  }
+  missing.sort((a, b) => (a < b ? 1 : -1));
+  for (const k of missing.slice(0, 3)) enqueueTask("补齐生成", k, engine);
 }
