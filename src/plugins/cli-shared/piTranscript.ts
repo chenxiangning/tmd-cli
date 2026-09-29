@@ -6,6 +6,9 @@
  * - {type:"message",id,timestamp,message:{role:"user",content:[text]}} → 用户块;
  *   content 可含 {type:"image",data,mimeType} 图片 part(2026-09-29 实证)→
  *   并入用户块 images(纯图片无文本也成块);
+ * - {type:"message",…,message:{role:"fileMention",files:[{path,content,
+ *   image:{type,mimeType,data}]}}(omp 粘贴图片独立行,2026-09-29 实证)→
+ *   user 图片块;非图片附件(无 image)跳过;
  * - {type:"message",…,message:{role:"assistant",content:[{type:"thinking",thinking}|
  *   {type:"toolCall",id,name,arguments}|{type:"text",text}]}} → 各 part 独立成块;
  * - {type:"message",…,message:{role:"toolResult",toolCallId,toolName,
@@ -93,6 +96,25 @@ export const piTranscriptLine: TranscriptLineParser = (event) => {
       startedAt,
       images: images.length > 0 ? images : undefined,
     });
+    return blocks;
+  }
+  if (role === "fileMention") {
+    /* omp 新行型(2026-09-29 本机 ~/.omp 实证):粘贴图片存独立 fileMention
+     * 行,files[].image{type,mimeType,data};非图片附件无 image 字段跳过。 */
+    const files = m.files;
+    if (!Array.isArray(files)) return blocks;
+    const images: CliTranscriptImage[] = [];
+    for (const file of files) {
+      if (!file || typeof file !== "object") continue;
+      const image = (file as Record<string, unknown>).image;
+      if (!image || typeof image !== "object") continue;
+      const data = stringField(image, "data");
+      const mimeType = stringField(image, "mimeType");
+      if (data && mimeType) images.push({ data, mimeType });
+    }
+    if (images.length > 0) {
+      blocks.push({ id, role: "user", text: "", startedAt, images });
+    }
     return blocks;
   }
   if (role === "assistant") {

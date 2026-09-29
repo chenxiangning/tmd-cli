@@ -60,6 +60,37 @@ describe("piTranscriptLine", () => {
     ]);
   });
 
+  it("fileMention 行:files[].image → user 图片块;非图片附件跳过", () => {
+    const blocks = piTranscriptLine({
+      type: "message",
+      id: "fm1",
+      timestamp: "2026-09-29T02:18:04.956Z",
+      message: {
+        role: "fileMention",
+        files: [
+          { path: "/tmp/a.png", content: "[Image: original 2036x876]", image: { type: "image", mimeType: "image/webp", data: "UklGRg==" } },
+          { path: "/tmp/b.md", content: "普通附件无 image 字段" },
+        ],
+      },
+    });
+    expect(blocks).toEqual([
+      {
+        id: "fm1",
+        role: "user",
+        text: "",
+        startedAt: Date.parse("2026-09-29T02:18:04.956Z"),
+        images: [{ data: "UklGRg==", mimeType: "image/webp" }],
+      },
+    ]);
+    expect(
+      piTranscriptLine({
+        type: "message",
+        id: "fm2",
+        message: { role: "fileMention", files: [{ path: "/tmp/b.md", content: "x" }] },
+      }),
+    ).toEqual([]);
+  });
+
   it("assistant parts:thinking → reasoning;toolCall → tool 块(shell 预览);text → assistant", () => {
     const blocks = piTranscriptLine({
       type: "message",
