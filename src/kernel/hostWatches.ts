@@ -38,12 +38,11 @@ export interface HostWatchesCtx {
   events: EventBus;
 }
 
-/** 缓冲上限兜底值(设置未落地前/异常时)。全屏 TUI 靠重绘恢复,保留尾部足够。 */
-const OUTPUT_BUFFER_LIMIT = 500_000;
+const OUTPUT_BUFFER_LIMIT = 500_000; /* 缓冲上限兜底值(设置未落地前/异常时)。全屏 TUI 靠重绘恢复,保留尾部足够。 */
 
 export class HostWatches {
   /* 屏幕态镜像:后台(幕布未挂载)CLI 会话的 Ask 屏幕采样源,补盲语义见 askScreenMirror.ts。 */
-  readonly screenMirror = new AskScreenMirror((id, text) => this.observeAskScreen(id, text));
+  readonly screenMirror = new AskScreenMirror((id, text) => this.observeAskScreen(id, text), (id) => ipc.sessionSize(id));
   private readonly identityWatch = new DiskIdentityWatch({
     getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
     sessionAlive: (sessionId) => this.ctx.hasSession(sessionId),
@@ -188,9 +187,10 @@ export class HostWatches {
     return this.askWatch.onUserWrite(sessionId);
   }
 
-  /** 幕布尺寸同步:给活动守望记重绘抑制窗起点。 */
-  onResized(sessionId: string): void {
+  /** 幕布尺寸同步:给活动守望记重绘抑制窗起点;镜像同栅格(回后台后整帧按新尺寸解释)。 */
+  onResized(sessionId: string, cols: number, rows: number): void {
     this.activity.onResized(sessionId);
+    this.screenMirror.resize(sessionId, cols, rows);
   }
 
   /** 点开查看 = 已读:清完成未读标记(蓝 → 灰)。 */

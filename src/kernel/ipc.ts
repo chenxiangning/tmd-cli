@@ -351,6 +351,8 @@ export const ipc = {
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>
     invoke<void>("session_resize", { id, cols, rows }),
+  /** 会话 PTY 当前尺寸 (cols, rows);SSH/未知会话回 null(后台镜像栅格真源,手机实况同源)。 */
+  sessionSize: (id: string) => invoke<[number, number] | null>("session_size", { id }),
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
   /** 会话输出日志的绝对末尾偏移(累计字节数);无日志返回 0。 */
   sessionLogSize: (id: string) => invoke<number>("session_log_size", { id }),

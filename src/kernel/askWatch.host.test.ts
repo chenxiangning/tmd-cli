@@ -36,6 +36,7 @@ vi.mock("./askScreenMirror", () => ({
     feed() {}
     backfill() {}
     remove() {}
+    resize() {}
     resetForTest() {}
   },
 }));

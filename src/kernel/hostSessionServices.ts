@@ -133,7 +133,7 @@ export function createSessionServices(
             const end = await ipc.sessionLogSize(s.id);
             if (!end) return; /* 无日志(含尚未落盘的新会话)= 无现势可补、无回显证据 */
             const page = await ipc.sessionHistoryPage(s.id, end, READOPT_TAIL_BYTES);
-            watches.screenMirror.backfill(s.id, page.text);
+            await watches.screenMirror.backfill(s.id, page.text);
             if (!page.text) return;
             /* busy 现势证据:尾 16K 字符(READOPT_BUSY_TAIL_CHARS)剥壳行级命中 busyMarks
                = CLI 自证在途 —— 在工帧流 2.5-10Hz 必中(2026-09-16 实采 3 会话尾窗各 13-15 帧 ⎋),

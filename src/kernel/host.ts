@@ -200,9 +200,9 @@ class Host implements PluginContext {
     return ipc.sessionWrite(sessionId, data).then(() => true, () => false);
   }
   noteRemoteWrite = (sessionId: string): void => { if (this.sessions.some((s) => s.id === sessionId) && this.watches.onUserWrite(sessionId, false)) this.notify(); }; /* 桥写补锚定(session:remote-write);未装配会话不建档(评审:幽灵守望条目) */
-  /** 幕布尺寸同步的唯一入口(TerminalView):转发 resize + 给活动守望记重绘抑制窗起点。 */
+  /** 幕布尺寸同步的唯一入口(TerminalView):转发 resize + 给活动守望记重绘抑制窗起点 + 镜像同栅格。 */
   resizeSession(sessionId: string, cols: number, rows: number): void {
-    this.watches.onResized(sessionId);
+    this.watches.onResized(sessionId, cols, rows);
     void ipc.sessionResize(sessionId, cols, rows);
   }
 
