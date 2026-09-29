@@ -214,6 +214,22 @@
   flex-shrink: 0;
 }
 
+/* 会话速度指示(SessionSpeedPill):生成中活会话行的 tok/s 响应均速。
+   纯文字无胶囊底(数值态,与「等待确认」行动徽标区分);tabular-nums 防数字跳宽。 */
+.thread-speed-pill {
+  color: #60a5fa;
+  font-size: 0.5625rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 浅色主题蓝对比度:蓝 400 白底不足,降深蓝 600(同 thread-status-label 先例)。 */
+:root[data-theme="light"] .thread-speed-pill {
+  color: #2563eb;
+}
+
 /* 会话状态校准 label(SessionStatusLabel):呼吸灯暗示的文字明示,活会话专属,纯文字不闪烁。
    配色:深绿 = 运行时(浅色主题加深);锚定蓝 = 空闲-未查看;灰 = 空闲(本轮已结束,非进程退出)。 */
 .thread-status-label {

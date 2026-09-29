@@ -155,3 +155,21 @@ export function formatUsage(s: UsageSummary): string {
         : String(tok);
   return s.cost != null ? `≈ ${tokText} tok · $${s.cost.toFixed(3)}` : `≈ ${tokText} tok`;
 }
+
+/** 相邻 usage 行时距下限(毫秒):CLI 攒批刷盘会令相邻行时间戳聚簇,低于此值
+ * 的差分除法会爆出天文数字,宁缺勿爆返回 null。 */
+const MIN_SPEED_SPAN_MS = 500;
+
+/** 末两行差分 → 响应均速 tok/s(Δoutput ÷ Δ行时间戳)。行不足两行(含 codex
+ * 快照型单行)、时距过近、无新增 output → null(调用方不展示)。
+ * 口径天花板:行时间戳是 CLI 写盘时刻(消息结束),窗口含排队/首字等待/
+ * 工具执行,数值系统性偏低 —— 指示用途,勿与协议级精确计量对标。 */
+export function recentTokPerSec(lines: readonly UsageLine[]): number | null {
+  if (lines.length < 2) return null;
+  const a = lines[lines.length - 2]!;
+  const b = lines[lines.length - 1]!;
+  const dTs = b.ts - a.ts;
+  const dOut = b.output - a.output;
+  if (dTs < MIN_SPEED_SPAN_MS || dOut <= 0) return null;
+  return dOut / (dTs / 1000);
+}

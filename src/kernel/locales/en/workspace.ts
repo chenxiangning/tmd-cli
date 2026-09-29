@@ -115,4 +115,5 @@ export const MESSAGES = {
     "Failed to choose a directory (permission denied or canceled).",
   "工作区视图": "Workspace view",
   "重命名 {name}": "Rename {name}",
+  "响应均速(含排队与首字等待,偏保守)": "Avg response speed (includes queueing and TTFT; conservative)",
 } as Record<string, string>;

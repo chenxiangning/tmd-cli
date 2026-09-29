@@ -43,6 +43,7 @@ import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { ThreadRowActions } from "./RowActions";
 import { sessionViewOpener } from "@kernel/sessionViewTabs";
 import { SessionStatusLabel } from "./SessionRows";
+import { SessionSpeedPill } from "./SessionSpeedPill";
 import { PinIcon } from "@kernel/PinIcon";
 import { pinnedSection } from "./sectionCollapsed";
 
@@ -257,9 +258,8 @@ export function PinnedSessionsSection() {
                   {/* 绑定活会话:状态校准 label(与组内行同口径,实时刷新) */}
                   {live ? <SessionStatusLabel sessionId={live.id} /> : null}
                   {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
-                  {live && host.isWaitingConfirm(live.id) ? (
-                    <span className="thread-ask-badge">{t("等待确认")}</span>
-                  ) : null}
+                  {live && host.isWaitingConfirm(live.id) ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
+                  {live ? <SessionSpeedPill sessionId={live.id} profile={row.profile} cliSessionId={row.cliSessionId} cwd={live.cwd ?? row.workspace.root} /> : null}
                   <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
                 </span>
               </button>

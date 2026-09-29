@@ -30,6 +30,7 @@ import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/wor
 import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { SessionSpeedPill } from "./SessionSpeedPill";
 import { SessionStatusLabel } from "./SessionRows";
 import { ThreadRowActions } from "./RowActions";
 import { sessionViewOpener } from "@kernel/sessionViewTabs";
@@ -238,9 +239,8 @@ export function RunningZoneSection() {
                 <span className="thread-name">{titleOf(row)}</span>
                 <span className="thread-meta">
                   <SessionStatusLabel sessionId={row.session.id} />
-                  {host.isWaitingConfirm(row.session.id) ? (
-                    <span className="thread-ask-badge">{t("等待确认")}</span>
-                  ) : null}
+                  {host.isWaitingConfirm(row.session.id) ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
+                  <SessionSpeedPill sessionId={row.session.id} profile={row.profile} cliSessionId={row.cliSessionId} cwd={row.session.cwd ?? row.workspace.root} />
                   <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
                 </span>
               </button>

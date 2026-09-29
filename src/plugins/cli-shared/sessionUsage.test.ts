@@ -1,6 +1,6 @@
 /** sessionUsage 纯函数补充测试:summarizeUsage 汇总与 formatUsage 文案。 */
 import { describe, expect, it } from "vitest";
-import { extractUsageFromHead, formatUsage, summarizeUsage } from "./sessionUsage";
+import { extractUsageFromHead, formatUsage, recentTokPerSec, summarizeUsage } from "./sessionUsage";
 
 describe("formatUsage", () => {
   it("k/M 缩写;无 cost 省略美元段", () => {
@@ -33,5 +33,19 @@ describe("extractUsageFromHead(头窗口提取,下沉后回归)", () => {
     const lines = extractUsageFromHead(head, 0);
     expect(lines).toHaveLength(2); // omp 行 + codex 末次快照
     expect(lines[1]?.input).toBe(200);
+  });
+});
+
+describe("recentTokPerSec(末两行差分速度)", () => {
+  const line = (ts: number, output: number) => ({ ts, input: 0, output, cacheRead: 0, cacheWrite: 0 });
+
+  it("末两行 Δoutput ÷ Δts", () => {
+    expect(recentTokPerSec([line(0, 10), line(10_000, 510)])).toBe(50);
+  });
+
+  it("行不足两行(codex 快照单行)/ 聚簇时距 / 无新增 output → null", () => {
+    expect(recentTokPerSec([line(0, 10)])).toBeNull();
+    expect(recentTokPerSec([line(0, 10), line(400, 510)])).toBeNull();
+    expect(recentTokPerSec([line(0, 10), line(10_000, 10)])).toBeNull();
   });
 });

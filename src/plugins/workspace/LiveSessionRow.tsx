@@ -12,8 +12,9 @@ import type { SessionMeta } from "@kernel/ipc";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { ActivityDot, SessionStatusLabel } from "./SessionRows";
-import { ThreadRowActions } from "./RowActions";
+import { SessionSpeedPill } from "./SessionSpeedPill";
 import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
+import { ThreadRowActions } from "./RowActions";
 
 /** 右键菜单目标:活会话(PTY 态)或磁盘会话(文件态)。 */
 export type MenuTarget =
@@ -90,6 +91,7 @@ export function LiveSessionRow({
         <span className="thread-meta">
           <SessionStatusLabel sessionId={session.id} />
           {waiting ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
+          <SessionSpeedPill sessionId={session.id} profile={profile} cliSessionId={cliSessionId} cwd={session.cwd} />
         </span>
       </button>
       <ThreadRowActions
