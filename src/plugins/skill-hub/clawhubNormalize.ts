@@ -66,11 +66,14 @@ export function buildClawHubDownloadUrl(slug: string, ownerHandle?: string): str
   return url.toString();
 }
 
-/** 归一化列表/搜索卡:slug 缺失 = 丢弃(null);缺失统计值收敛 0/空串。 */
+/** 归一化列表/搜索卡:slug 缺失或含白名单外字符 = 丢弃(null);缺失统计值收敛 0/空串。
+ *  slug 白名单(首字符字母数字,余 [A-Za-z0-9._-]):slug 直接拼安装目录与下载
+ *  URL(install.ts runInstall / buildClawHubDownloadUrl),注册表被污染时挡住
+ *  `..`/`/` 路径逃逸与 URL 注入;`.`/`..` 自身被首字符规则一并排除。 */
 export function normalizeClawHubCard(raw: unknown): ClawHubCard | null {
   const item = asRecord(raw);
   const slug = asString(item.slug);
-  if (!slug) return null;
+  if (!slug || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(slug)) return null;
   const stats = asRecord(item.stats);
   const latestVersion = asRecord(item.latestVersion);
   const tags = asRecord(item.tags);
