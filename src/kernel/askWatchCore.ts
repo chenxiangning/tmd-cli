@@ -10,17 +10,7 @@
  * 一个未回答提问期间只触发一次;作答后下一提问再触发(抑制窗内只延迟)。
  */
 
-import {
-  ASK_CANDIDATE_MAX_GAP_BYTES,
-  ASK_CONFIRM_MAX_DRIFT_BYTES,
-  ASK_CONFIRM_MS,
-  ASK_HEAL_SILENCE_MS,
-  ASK_MARKER_RE,
-  ASK_REARM_SUPPRESS_MS,
-  RAW_TAIL_CHARS,
-  footerWindow,
-  stripAnsi,
-} from "./askDetect";
+import { ASK_CANDIDATE_MAX_GAP_BYTES, ASK_CONFIRM_MAX_DRIFT_BYTES, ASK_CONFIRM_MS, ASK_HEAL_SILENCE_MS, ASK_MARKER_RE, ASK_REARM_SUPPRESS_MS, RAW_TAIL_CHARS, footerWindow, stripAnsi } from "./askDetect";
 
 /** 计时器句柄:webview 运行时是 number,Node 测试环境是 Timeout;仅内部持有。 */
 type TimerHandle = ReturnType<typeof setInterval>;

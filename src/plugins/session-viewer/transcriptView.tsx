@@ -5,8 +5,7 @@
  *   默认收起;思考链短语(短 assistant 散文)同样入组随组折叠,大段 md
  *   结论以 headline 全尺寸常显,纯问答轮(无工具/思考)整轮还原全尺寸;
  *   展开后组内为逐行 step(思考行 = Minus + 单行摘要,点击展开淡色
- *   markdown;工具行 = 动词 + mono 目标,点击展开 preview;助手短语 =
- *   全文 note 行);
+ *   markdown;工具行 = 动词 + mono 目标,点击展开 preview;助手短语 = 全文 note 行);
  * - agent-reasoning 正文 48% 透明(monocode 同款阅读层级)。
  */
 
@@ -19,9 +18,8 @@ import { buildTranscriptPhases, phaseTitle, proseSummary, toolRowLabel, type Pha
 /** md 渲染组件协议(lazy 拆包,viewerTab 注入)。 */
 export type MarkdownRenderer = ComponentType<{ children: string }>;
 
-/** 正文截断:10k 字符(超长正文留头部)。 */
+/** 正文截断:10k 字符(超长正文留头部)。工具输出截断:留尾部 2k 行。 */
 const TEXT_CAP = 10_000;
-/** 工具输出截断:留尾部 2k 行。 */
 const OUTPUT_TAIL_LINES = 2_000;
 
 function capped(text: string): string {
