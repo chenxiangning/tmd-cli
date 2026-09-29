@@ -27,7 +27,16 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            /* R8 收缩:dex 7.0MB → ~2MB。keep 面:JS 桥 @JavascriptInterface 由
+             * proguard-android-optimize.txt 默认规则保留;WebView 回调走框架已保
+             * 持的入口(WebViewClient/JS 接口);okhttp/security-crypto 自带
+             * consumer rules——按需补充见 proguard-rules.pro。 */
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             /* 自签 keystore(仓内 keystore/tmd-release.keystore,密码同文件注释):
              * 零成本侧载分发——签名跨版本稳定,升级覆盖安装不塌;非 Play 商店用途 */
             signingConfig = signingConfigs.getByName("release")

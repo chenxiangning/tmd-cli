@@ -7,8 +7,11 @@
  * error(存在但不可读)阻断编辑,防覆写丢失。
  */
 
-import { useEffect, useMemo, useState } from "react";
-import { FileCodeEditor } from "@kernel/cmEditor/FileCodeEditor";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+/* codemirror core 懒出桌面首屏静态图(FileTabContent/RemoteFileTab 同款先例)。 */
+const FileCodeEditor = lazy(() =>
+  import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor })),
+);
 import { ipc } from "@kernel/ipc";
 import { useCliConfigEntries } from "@kernel/cliConfigRegistry";
 import type { CliConfigEntry, CliConfigSource } from "@kernel/cliConfigRegistry";
@@ -237,13 +240,17 @@ function ConfigFile({
     const dirty = draft !== raw;
     return (
       <div className="cli-cfg-raw">
-        <FileCodeEditor
-          path={source.path}
-          value={draft ?? raw}
-          dark={dark}
-          onChange={setDraft}
-          onSave={() => void persist(draft ?? raw).catch(() => undefined)}
-        />
+        <Suspense
+          fallback={<div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>}
+        >
+          <FileCodeEditor
+            path={source.path}
+            value={draft ?? raw}
+            dark={dark}
+            onChange={setDraft}
+            onSave={() => void persist(draft ?? raw).catch(() => undefined)}
+          />
+        </Suspense>
         {writeError && (
           <div className="cli-cfg-error" role="alert">
             <p>{writeError}</p>

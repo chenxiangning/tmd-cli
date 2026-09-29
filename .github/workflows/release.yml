@@ -63,11 +63,18 @@ jobs:
       fail-fast: false # 某个平台挂了不影响其他平台产物落地
       matrix:
         include:
+          # 分架构双产物(2026-09-29 包体优化):universal dmg/updater 39.3MB 二进制
+          # 对半砍,用户下载 26.6→~14MB、更新流量减半;tauri-action 按
+          # darwin-aarch64 / darwin-x86_64 双键写 latest.json(prep-release 已有
+          # 陈旧 latest.json 清障,universal 客户端按当前 CPU 架构命中对应键)。
           - platform: macos-latest
-            tauri-target: universal-apple-darwin
-            # rustup 不认识 universal-apple-darwin;Tauri universal 构建需先装两个真实 target
-            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
-            label: "macOS (universal: arm64 + x86_64)"
+            tauri-target: aarch64-apple-darwin
+            rust-targets: aarch64-apple-darwin
+            label: "macOS (aarch64)"
+          - platform: macos-latest
+            tauri-target: x86_64-apple-darwin
+            rust-targets: x86_64-apple-darwin
+            label: "macOS (x86_64)"
           - platform: windows-latest
             tauri-target: x86_64-pc-windows-msvc
             rust-targets: x86_64-pc-windows-msvc
@@ -222,15 +229,17 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
-      # 壳二进制与前端 dist 必须同包(build-device-android.sh 同规则)
-      - name: Build web dist
-        run: pnpm build
+      # 壳二进制与前端 dist 必须同包(build-device-android.sh 同规则);
+      # 手机壳背 mobile-only dist(vite.mobile.config.ts,无条件 mobile 树
+      # ~1MB),不再拷全量 dist(17MB,含 DesktopApp/excalidraw 等桌面死重)。
+      - name: Build mobile dist
+        run: pnpm build:mobile
 
       - name: Copy dist into shell assets
         run: |
           rm -rf mobile-app/android-shell/app/src/main/assets/dist
           mkdir -p mobile-app/android-shell/app/src/main/assets
-          cp -R dist mobile-app/android-shell/app/src/main/assets/dist
+          cp -R dist-mobile mobile-app/android-shell/app/src/main/assets/dist
 
       - name: Setup JDK 17
         uses: actions/setup-java@v6
@@ -299,13 +308,13 @@ jobs:
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
-      - name: Build web dist
-        run: pnpm build
+      - name: Build mobile dist
+        run: pnpm build:mobile
 
       - name: Copy dist for shell bundle
         run: |
           rm -rf mobile-app/dist
-          cp -R dist mobile-app/dist
+          cp -R dist-mobile mobile-app/dist
 
       - name: xcodebuild (unsigned)
         run: |
