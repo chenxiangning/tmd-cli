@@ -14,10 +14,10 @@
  *   toolCallId,content:[{type:"text",text}],isError?}]}}} → 结果块。
  */
 
-import { decompress } from "fzstd";
+import { Decompress } from "fzstd";
 import { ipc } from "@kernel/ipc";
 import type { CliSessionTranscript, CliTranscriptBlock } from "@kernel/cli";
-import { pairToolResults, parseTranscriptBlocks, type TranscriptLineParser } from "../cli-shared/sessionTranscript";
+import { pairToolResults, parseTranscriptBlocks, TRANSCRIPT_BYTES, type TranscriptLineParser } from "../cli-shared/sessionTranscript";
 import { toolPreviewKindOf } from "../cli-shared/sessionTranscript";
 import { messageText } from "../cli-shared/userMessages";
 
@@ -151,6 +151,40 @@ export async function readDshSessionTranscript(
   return readDshTranscript(zstd);
 }
 
+/** 带 decoding 字节预算的流式解压:压缩盘 32MB 读闸内可解出 >100MB(极端
+ *  大会话),超预算停喂截尾并置 truncated(对齐全族 TRANSCRIPT_BYTES 尾窗
+ *  截断语义);1MB 分片喂入,超限即止不再解余量。导出供测试注入小预算。 */
+export function decompressZstdWithBudget(
+  bytes: Uint8Array,
+  budget = TRANSCRIPT_BYTES,
+): { text: string; truncated: boolean } {
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  let truncated = false;
+  const d = new Decompress((chunk: Uint8Array) => {
+    const room = budget - total;
+    if (room <= 0) {
+      truncated = true;
+      return;
+    }
+    const take = chunk.length > room ? chunk.subarray(0, room) : chunk;
+    parts.push(take);
+    total += take.length;
+    if (take.length < chunk.length) truncated = true;
+  });
+  const STEP = 1 << 20;
+  for (let i = 0; i < bytes.length && !truncated; i += STEP) {
+    d.push(bytes.subarray(i, Math.min(i + STEP, bytes.length)), i + STEP >= bytes.length);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return { text: new TextDecoder().decode(out), truncated };
+}
+
 /** 读 dsh zstd 会话 → 解压 → 转录。文件不存在/解压失败 = null。 */
 export async function readDshTranscript(
   path: string,
@@ -158,11 +192,14 @@ export async function readDshTranscript(
   const base64 = await ipc.fsReadBytesBase64(path).catch(() => null);
   if (base64 === null) return null;
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  let text: string;
+  let decoded: { text: string; truncated: boolean };
   try {
-    text = new TextDecoder().decode(decompress(bytes));
+    decoded = decompressZstdWithBudget(bytes);
   } catch {
     return null;
   }
-  return { blocks: pairToolResults(parseTranscriptBlocks(text, dshTranscriptLine)) };
+  return {
+    blocks: pairToolResults(parseTranscriptBlocks(decoded.text, dshTranscriptLine)),
+    truncated: decoded.truncated,
+  };
 }

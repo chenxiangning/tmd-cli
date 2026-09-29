@@ -238,14 +238,20 @@ describe("ai draw inbox protocol", () => {
     expect(loaded.scene.elements.length).toBeGreaterThan(0);
   });
 
-  it("坏文件移入 failed 留证,不阻断其余导入", async () => {
+  it("坏文件连续 3 轮失败才移入 failed 留证(半截文件防线),不阻断其余导入", async () => {
     const inbox = `${await (await import("../storage/paths")).aiInboxDir(ROOT)}`;
     fileByPath.set(`${inbox}/ai-draw-bad.json`, "{not json");
     fileByPath.set(`${inbox}/ai-draw-good.json`, JSON.stringify(validFile));
-    const imported = await pollAiDrawInbox(ROOT);
-    expect(imported).toHaveLength(1);
-    expect(imported[0].title).toBe("架构草图");
-    expect(imported[0].id).toMatch(/^canvas-/);
+    const first = await pollAiDrawInbox(ROOT);
+    expect(first).toHaveLength(1); // 好文件照常导入,坏文件不阻断
+    expect(first[0].title).toBe("架构草图");
+    /* 前两轮:可能仍在写入(CLI 非原子写),坏文件留原位等重读 */
+    expect(fileByPath.has(`${inbox}/ai-draw-bad.json`)).toBe(true);
+    await pollAiDrawInbox(ROOT);
+    expect(fileByPath.has(`${inbox}/ai-draw-bad.json`)).toBe(true);
+    /* 第三轮:仍失败 → 留证移 failed,原文经 .err 保底 */
+    await pollAiDrawInbox(ROOT);
+    expect(fileByPath.has(`${inbox}/ai-draw-bad.json`)).toBe(false);
     const failedDir = `${inbox}/failed`;
     expect([...fileByPath.keys()].some((p) => p.startsWith(failedDir))).toBe(true);
   });

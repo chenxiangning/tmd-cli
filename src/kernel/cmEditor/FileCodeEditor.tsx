@@ -6,10 +6,11 @@
  */
 
 import { lazy, Suspense } from "react";
+import { retryImport } from "@kernel/lazyImport";
 import { t } from "@kernel/i18n";
 import type { FileCodeEditorProps } from "./FileCodeEditorImpl";
 
-const FileCodeEditorImpl = lazy(() => import("./FileCodeEditorImpl"));
+const FileCodeEditorImpl = lazy(retryImport(() => import("./FileCodeEditorImpl")));
 
 export function FileCodeEditor(props: FileCodeEditorProps) {
   return (

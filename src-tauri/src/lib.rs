@@ -319,8 +319,6 @@ pub fn run() {
             ssh::commands::ssh_forward_list,
             ssh::commands::ssh_forward_check_port,
             config_merge_settings,
-            web::web_access::web_access_start,
-            web::web_access::web_access_stop,
             web::relay::web_relay_start,
             web::relay::web_relay_stop,
             web::relay::web_relay_status,

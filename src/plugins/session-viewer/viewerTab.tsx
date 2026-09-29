@@ -13,12 +13,13 @@ import type { SessionViewTabPayload } from "@kernel/sessionViewTabs";
 import type { CliSessionTranscript } from "@kernel/cli";
 import { TranscriptView } from "./transcriptView";
 import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
+import { retryImport } from "@kernel/lazyImport";
 
 import "./session-viewer.css";
 /* md 渲染管线体积大,按需拆包:首个 assistant 块出现才加载。 */
-const MarkdownBody = lazy(() =>
+const MarkdownBody = lazy(retryImport(() =>
   import("./markdownBody").then((m) => ({ default: m.MarkdownBody })),
-);
+));
 
 /** 首屏/增量批次(块级;工具卡与 md 块自身还有行级截断,见 transcriptView)。 */
 const RENDER_BATCH = 200;
@@ -88,6 +89,13 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
     }
   }, [state]);
 
+
+  /* 分批切片记忆化:blocks 引用稳定 → TranscriptView 内 items 与块级 memo
+     在无关重渲染(滚动探测/加载态翻转)时命中,不全量重建。 */
+  const shown = useMemo(
+    () => (state.phase === "ok" ? state.transcript.blocks.slice(0, visible) : []),
+    [state, visible],
+  );
   return (
     <div className="sv-root">
       <header className="sv-header">
@@ -118,7 +126,7 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
           ) : (
             <div className="sv-blocks">
               <TranscriptView
-                blocks={state.transcript.blocks.slice(0, visible)}
+                blocks={shown}
                 Markdown={MarkdownBody}
               />
               {visible < state.transcript.blocks.length ? (

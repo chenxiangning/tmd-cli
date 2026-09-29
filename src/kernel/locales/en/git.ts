@@ -24,7 +24,6 @@ export const MESSAGES = {
   "树形": "Tree",
 
   /* GitPanel */
-  "{op}成功。": "{op} succeeded.",
   "{op}失败:凭据需要交互,请到幕布终端执行 git {cmd}":
     "{op} failed: credentials require interaction. Run git {cmd} in the terminal.",
   "{op}失败。 {err} 可重试该操作。": "{op} failed. {err} You can retry this operation.",

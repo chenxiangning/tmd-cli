@@ -67,11 +67,28 @@ export async function loadIntentCanvasDocument(
 }
 
 
+/* 索引同受 fs_read_file 512KB 读闸:缩略图内联累积顶穿闸后索引恒读失败 →
+   列表清空且保存中止索引更新(状态随保存恶化)。写前同款闸收敛:超限从
+   最旧条目起剥缩略图(纯派生缓存,可重建,列表降级占位图);剥光仍超限
+   (元数据自身超阈,数千画布级)才拒写。 */
+const MAX_INDEX_JSON_BYTES = 496 * 1024;
+
 async function writeIndex(root: string, entries: IntentCanvasIndexEntry[]): Promise<void> {
-  const indexFile: IntentCanvasIndexFile = {
-    version: 1,
-    canvases: entries.slice().sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1)),
-  };
+  let canvases = entries.slice().sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1));
+  const enc = new TextEncoder();
+  const sizeOf = () => enc.encode(JSON.stringify({ version: 1, canvases } satisfies IntentCanvasIndexFile, null, 2)).byteLength;
+  if (sizeOf() > MAX_INDEX_JSON_BYTES) {
+    /* ponytail: 逐条剥缩略图重预算 O(n²);超限典型只差 1-2 张,量级再大改增量预算 */
+    for (let i = canvases.length - 1; i >= 0; i -= 1) {
+      canvases[i] = { ...canvases[i] };
+      delete canvases[i].thumbnailSvg;
+      if (sizeOf() <= MAX_INDEX_JSON_BYTES) break;
+    }
+    if (sizeOf() > MAX_INDEX_JSON_BYTES) {
+      throw new Error(t("画布索引超过存储读取上限(496KB),已拒绝写入,请删除部分画布后重试。"));
+    }
+  }
+  const indexFile: IntentCanvasIndexFile = { version: 1, canvases };
   await ipc.fsWriteFile(`${await canvasDir(root)}/${INTENT_CANVAS_INDEX_PATH}`, JSON.stringify(indexFile, null, 2));
 }
 

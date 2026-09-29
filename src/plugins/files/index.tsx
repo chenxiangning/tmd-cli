@@ -30,6 +30,7 @@ import { getActiveTreeHandles } from "./treeHandles";
 import { GitDecorateToggle } from "./gitDecorate";
 import { WorkspaceFileBrowser } from "./WorkspaceFileBrowser";
 import { registerWorkspaceFileBrowser } from "@kernel/workspaceFileBrowser";
+import { retryImport } from "@kernel/lazyImport";
 
 export const filesPlugin: Plugin = {
   id: "files",
@@ -42,6 +43,13 @@ export const filesPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
+    /* 空闲预取编辑器 chunk:dev 冷启动期 vite 依赖优化未完时替用户先走完 504
+       重试链,首开文件即时挂载(生产 = 提前热身,零首屏影响)。 */
+    (typeof requestIdleCallback === "function"
+      ? requestIdleCallback
+      : (cb: () => void) => setTimeout(cb, 2_000))(() => {
+      void retryImport(() => import("@kernel/cmEditor/FileCodeEditor"))().catch(() => {});
+    });
     setFileMarkBus(ctx.events);
     ctx.registerFileVisual(defaultFileVisualProvider);
 

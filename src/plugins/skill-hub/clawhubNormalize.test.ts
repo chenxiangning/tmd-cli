@@ -82,6 +82,14 @@ describe("normalizeClawHubCard", () => {
     expect(normalized?.downloadUrl).toBe("https://clawhub.ai/api/v1/download?slug=x&tag=latest&ownerHandle=o");
     expect(buildClawHubDownloadUrl("x")).toBe("https://clawhub.ai/api/v1/download?slug=x&tag=latest");
   });
+
+  it("slug 白名单外的值 = 丢弃:路径逃逸/分隔符/纯点号一律 null(注册表污染防线)", () => {
+    for (const slug of ["../../evil", "a/b", "a\\b", "..", ".", "a..b/../c", "%2e%2e", "技能", "x y"]) {
+      expect(normalizeClawHubCard({ slug }), `slug=${slug}`).toBeNull();
+    }
+    /* 白名单内形态不受影响:kebab/snake/dot 均过。 */
+    expect(normalizeClawHubCard({ slug: "pdf-tool_2.v2" })?.slug).toBe("pdf-tool_2.v2");
+  });
 });
 
 describe("selectOwnerCandidate(owner 消歧收敛)", () => {

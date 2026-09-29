@@ -40,7 +40,7 @@ describe("屏幕态通道(onScreenSample,幕布 1Hz 采样)", () => {
     vi.useRealTimers();
   });
 
-  it("标记连续在场 ≥1.2s 才置位(防抖),消失即摘", async () => {
+  it("标记连续在场 ≥1.2s 才置位(防抖);摘除同款缺席防抖,满窗才摘", async () => {
     expect(watch.onScreenSample("sc1", true)).toBeNull(); // 记起算
     expect(watch.isWaiting("sc1")).toBe(false);
     await vi.advanceTimersByTimeAsync(1_000);
@@ -49,7 +49,11 @@ describe("屏幕态通道(onScreenSample,幕布 1Hz 采样)", () => {
     expect(watch.onScreenSample("sc1", true)).toBe("asked"); // 1.4s 置位
     expect(watch.isWaiting("sc1")).toBe(true);
     expect(watch.onScreenSample("sc1", true)).toBeNull(); // 已置位不重复边沿
-    expect(watch.onScreenSample("sc1", false)).toBe("healed"); // 面板消失 → 摘
+    /* 面板消失:清屏中间帧/空屏闪断单拍不摘(0.2.5 采样 4Hz 撞帧概率 ×4) */
+    expect(watch.onScreenSample("sc1", false)).toBeNull();
+    expect(watch.isWaiting("sc1")).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_300); // 缺席满确认窗:真消失,摘
+    expect(watch.onScreenSample("sc1", false)).toBe("healed");
     expect(watch.isWaiting("sc1")).toBe(false);
   });
 

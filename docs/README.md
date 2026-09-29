@@ -225,4 +225,5 @@
 | 2026-09-29 | [图标组合切换候选对照(17 键 × 现状/实心/双色/换隐喻;选 2 列定组合2/3)](design/icon-set-candidates.html) | 已定稿(组合2=实心、组合3=换隐喻) |
 | 2026-09-29 | [图标组合切换设计:5 套可切换界面图标(现状/实心/换隐喻/Lucide 双套 + morphicons 弹簧变形;DecorIcon fallback 接管 13 渲染位)](superpowers/specs/2026-09-29-icon-set-switching-design.md) | 已实现(门禁绿 + 1421 桩目检过;真机复验留大仙) |
 | 2026-09-29 | [后台「等待确认」不可见/前台迟滞/改窗口即消失:镜像几何失真评审与 v3.2 修复(栅格对齐真实 PTY + 全屏采样 + 250ms 节拍)](review/2026-09-29-ask-badge-geometry-reliability-review.md) | 已完成(真实日志回放实证;真机目检留大仙) |
+| 2026-09-29 | [0.2.5 发布整体评审(终端域性能/边界/兼容性专项 + 死代码清理执行 + 安装包体审计)](review/2026-09-29-025-release-review.md) | 已完成(P1 slug 注入建议 0.2.6 首项;死代码 13 文件已清;包体优化 9 条清单) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

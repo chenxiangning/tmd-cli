@@ -3,7 +3,6 @@ export const MESSAGES = {
   /* MCP 抽屉条目(composer 分区/直达;键 = 中文源串整串) */
   "MCP · 全局": "MCP · グローバル",
   "MCP · 项目": "MCP · プロジェクト",
-  "仅展示 · 无引用语法 · MCP · 项目": "表示のみ — 参照構文なし · MCP · プロジェクト",
   "仅展示 · 无引用语法 · MCP · 全局": "表示のみ — 参照構文なし · MCP · グローバル",
   "仅展示 · 无引用语法": "表示のみ — 参照構文なし",
   /* cli-config 表单 label(cli-claude / cli-codex configGui) */

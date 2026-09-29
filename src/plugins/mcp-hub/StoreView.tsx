@@ -4,7 +4,7 @@
  * 源+查询词为键,手动刷新清空;不做落盘缓存);单源失败 = 空态 + 错误
  * 提示,不白屏。分页:游标追加加载(cursor/nextCursor)。
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowsClockwise, MagnifyingGlass, DownloadSimple } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { REGISTRY_SOURCES, searchRegistrySource, type RegistryResult, type RegistrySourceName } from "./registrySources";
@@ -33,8 +33,13 @@ export function StoreView({
   const [installing, setInstalling] = useState<RegistryCard | null>(null);
 
   /* run 保持 items 无依赖:翻页用函数式 setItems 追加(防「加载更多」把
-     首屏替换成下一页);缓存只在首屏(!cursor)写入(防翻页结果污染缓存)。 */
+     首屏替换成下一页);缓存只在首屏(!cursor)写入(防翻页结果污染缓存)。
+     竞态守卫 = 序号自增、旧响应晚到即弃(skill-hub 的 effect 内 alive 旗标
+     改形:run 被 effect/refresh/loadMore 三方共用,旗标须随请求走)。 */
+  const seqRef = useRef(0);
   const run = useCallback(async (src: RegistrySourceName, q: string, cursor?: string) => {
+    const seq = ++seqRef.current;
+    const stale = () => seq !== seqRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -46,15 +51,19 @@ export function StoreView({
         return;
       }
       const result = await searchRegistrySource({ source: src, query: q, cursor });
+      if (stale()) return; // 旧响应晚到:新源/新词已接管列表
       if (!cursor) cache.set(key, result);
       setItems((prev) => (cursor ? [...prev, ...result.items] : result.items));
       setNextCursor(result.nextCursor);
     } catch (e) {
+      if (stale()) return;
       setError(e instanceof Error ? e.message : String(e));
       if (!cursor) setItems([]);
       setNextCursor(undefined);
     } finally {
-      setLoading(false);
+      /* 函数式更新:无条件调用(契约要求重置在 finally);陈旧请求回原值,
+         不动新请求刚置的 loading 态。 */
+      setLoading((busy) => (seqRef.current === seq ? false : busy));
     }
   }, []);
 

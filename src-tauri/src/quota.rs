@@ -5,6 +5,13 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// SSE 流式应答(text/event-stream)专用:流不关闭,.text() 读到 EOF 会挂到
+/// 15s 超时误判不可达(MCP streamable-http 探活)。仅对这类应答开「无新
+/// 数据窗 + 读体上限」——静默满窗带已读前缀返回,上限防长驻流无界累积;
+/// 普通 JSON/atom 应答保持整读语义(慢端点中段停顿不受影响)。
+const BODY_READ_CAP: usize = 2 * 1024 * 1024;
+const BODY_IDLE: std::time::Duration = std::time::Duration::from_secs(2);
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuotaRequest {
@@ -79,10 +86,31 @@ pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
     } else {
         None
     };
-    let body_text = resp
-        .text()
-        .await
-        .map_err(|e| format!("http read body: {e}"))?;
+    /* SSE 探测在 headers 消费后、体读走 resp 所有权前完成。 */
+    let streaming = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|ct| ct.to_ascii_lowercase().contains("text/event-stream"));
+    let mut resp = resp;
+    let mut body_buf: Vec<u8> = Vec::new();
+    loop {
+        if streaming && body_buf.len() >= BODY_READ_CAP {
+            break; /* SSE 到上限即止:消费方(探活)只需应答头部 */
+        }
+        let next = if streaming {
+            tokio::time::timeout(BODY_IDLE, resp.chunk()).await
+        } else {
+            Ok(resp.chunk().await)
+        };
+        match next {
+            Err(_elapsed) => break, /* SSE 静默满窗:流已完/长驻,取已读前缀 */
+            Ok(Err(e)) => return Err(format!("http read body: {e}")),
+            Ok(Ok(Some(chunk))) => body_buf.extend_from_slice(&chunk),
+            Ok(Ok(None)) => break, /* EOF:常规应答整突发即完 */
+        }
+    }
+    let body_text = String::from_utf8_lossy(&body_buf).into_owned();
 
     let body: serde_json::Value = if spec.text.unwrap_or(false) {
         serde_json::Value::String(body_text)

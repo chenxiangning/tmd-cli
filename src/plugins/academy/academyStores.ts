@@ -6,7 +6,7 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { closeTab, getTabs, openTab } from "@kernel/tabs";
+import { openTab } from "@kernel/tabs";
 
 /* ── 入门课向导 overlay ─────────────────────────────────────────── */
 
@@ -21,10 +21,6 @@ const wizardSubs = new Set<() => void>();
 
 function emitWizard(): void {
   for (const fn of wizardSubs) fn();
-}
-
-export function wizardTarget(): WizardTarget | null {
-  return wizard;
 }
 
 export function openWizard(cliId: string, idx: number): void {
@@ -62,13 +58,6 @@ export function openGuideTab(cliId: string, title: string): void {
     kind: GUIDE_TAB_KIND,
     payload: { cliId },
   });
-}
-
-/** 指南 tab 已开则关闭,未开则打开(入口菜单切换语义)。 */
-export function toggleGuideTab(cliId: string, title: string): void {
-  const id = `academy:${cliId}`;
-  if (getTabs().some((tab) => tab.id === id)) closeTab(id);
-  else openGuideTab(cliId, title);
 }
 
 /* ── 左栏入口折叠(多课程折叠成一栏;持久化语义与 workspace/sectionCollapsed 一致) ── */
