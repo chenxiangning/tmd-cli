@@ -134,7 +134,10 @@ export class AskWatch {
         if (at === undefined) {
           this.absentSince.set(sessionId, now);
         } else if (now - at >= ASK_CONFIRM_MS) {
-          healed = this.waiting.delete(sessionId) || this.waitingByScreen.delete(sessionId);
+          /* 双通道可能并置(屏幕先置位、字节标记后升级):一次摘净,
+             || 短路会漏删第二通道(healed 边沿与徽章口径错位)。 */
+          const healedByte = this.waiting.delete(sessionId);
+          healed = this.waitingByScreen.delete(sessionId) || healedByte;
           this.absentSince.delete(sessionId);
         }
       } else {

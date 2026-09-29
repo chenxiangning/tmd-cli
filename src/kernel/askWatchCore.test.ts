@@ -139,6 +139,19 @@ describe("守望计时器(1Hz 懒计时器)", () => {
     expect(watch.isWaiting("t2")).toBe(false);
   });
 
+  it("双通道并置(屏幕先置位、字节后升级)缺席满窗一次摘净,不短路残留", async () => {
+    watch.onScreenSample("t5", true);
+    await vi.advanceTimersByTimeAsync(1_300);
+    expect(watch.onScreenSample("t5", true)).toBe("asked"); // 屏幕置位
+    watch.onOutput("t5", OMP_ASK, OMP_ASK.length, TEST_ASK_MARKS); // 字节立候选
+    await pastConfirm(); // 候选期满:计时器漂移确认或复现升级,字节等待置位
+    expect(watch.isWaiting("t5")).toBe(true); // waiting 与 waitingByScreen 并置
+    watch.onScreenSample("t5", false); // 首拍缺席记起算
+    await vi.advanceTimersByTimeAsync(1_300); // 缺席满确认窗
+    expect(watch.onScreenSample("t5", false)).toBe("healed");
+    expect(watch.isWaiting("t5")).toBe(false); // 双通道一次摘净,无残留
+  });
+
   it("屏幕等待期字节流复现不重复发边沿(双通道互认)", async () => {
     const asked: string[] = [];
     const w = new AskWatch(undefined, (id) => asked.push(id));
