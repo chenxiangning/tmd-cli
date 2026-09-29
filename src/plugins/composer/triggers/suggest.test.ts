@@ -2,7 +2,7 @@
  * suggest 查找候选契约:
  * - 触发符路由:ext 源(带 list)短路返回;/ $ 走静态表 × listSuggestions 合并;
  *   @ 走全仓索引模糊匹配;needle = tokenText 去掉触发符前缀(多字符触发符同规)。
- * - 静态过滤:前缀匹配大小写不敏感;不命中 = 空数组;空 needle = 全量截到上限 20。
+ * - 静态过滤:子串匹配大小写不敏感(前缀命中排前);不命中 = 空数组;空 needle = 全量截到上限 20。
  * - 动态合并:静态在前,动态按 value 去重只增不顶替;provider 抛错/回 null = 纯静态不炸。
  * - ext 装配:insertText 声明优先 → onPick 源空串回收(token 不写正文)→ char+value 回落;
  *   group/char 注入分区与触发符;onPick 闭包携带候选与选中时注入的 sessionId。
@@ -70,13 +70,13 @@ function makeProfile(overrides: Partial<CliProfile> = {}): CliProfile {
 }
 
 describe("lookupSuggestions:静态命令/技能", () => {
-  it("needle 去触发符后前缀过滤,大小写不敏感,kind 随触发符", async () => {
+  it("needle 去触发符后过滤,大小写不敏感,kind 随触发符", async () => {
     const spec: CliTriggerSpec = { char: "/", kind: "command" };
     const hits = await suggest.lookupSuggestions(makeProfile(), spec, "/MO", "/w");
     expect(hits).toEqual([{ value: "model", description: "切换模型", kind: "command" }]);
   });
 
-  it("不命中前缀 = 空数组(空态)", async () => {
+  it("不命中 = 空数组(空态)", async () => {
     const hits = await suggest.lookupSuggestions(
       makeProfile(),
       { char: "/", kind: "command" },
@@ -84,6 +84,21 @@ describe("lookupSuggestions:静态命令/技能", () => {
       "/w",
     );
     expect(hits).toEqual([]);
+  });
+
+  it("子串任意位置命中,前缀命中排前($jp → jp-only 在 tr-zh-en-jp 前)", async () => {
+    const p = makeProfile({
+      suggestions: {
+        command: [],
+        skill: [
+          { value: "tr-zh-en-jp", description: "多语言翻译" },
+          { value: "jp-only", description: "日语" },
+          { value: "en-ja", description: "英日" },
+        ],
+      },
+    });
+    const hits = await suggest.lookupSuggestions(p, { char: "$", kind: "skill" }, "$jp", "/w");
+    expect(hits.map((h) => h.value)).toEqual(["jp-only", "tr-zh-en-jp"]);
   });
 
   it("空 needle = 全量,截到上限 20", async () => {
@@ -141,6 +156,11 @@ describe("lookupSuggestions:ext 触发源", () => {
     expect(hits).toEqual([
       { value: "Deploy", description: "部署", group: "提示词", char: "!!", insertText: "!!Deploy" },
     ]);
+  });
+
+  it("子串任意位置命中(!!oy → Deploy)", async () => {
+    const hits = await suggest.lookupSuggestions(makeProfile(), extSrc(), "!!oy", "/w");
+    expect(hits.map((h) => h.value)).toEqual(["Deploy"]);
   });
 
   it("insertText 声明优先于 char+value 回落", async () => {

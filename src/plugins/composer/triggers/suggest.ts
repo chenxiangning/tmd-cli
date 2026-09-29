@@ -9,7 +9,7 @@
  *   与静态表按 value 去重合并(drawerItems.mergeSuggestions 共用语义);
  *   无 provider 或失败 = 纯静态
  * 另有 CLI 无关的 ext 触发源(kernel composerExt 注册表,如 assets 的 !! ##):
- * 同步 list + 前缀过滤,insertText/onPick 在装配时解析。
+ * 同步 list + 子串过滤(前缀优先),insertText/onPick 在装配时解析。
  */
 
 import type { CliProfile, CliSuggestion, CliTriggerSpec, TriggerKind } from "@kernel/cli";
@@ -50,7 +50,7 @@ export async function lookupSuggestions(
   cwd: string,
 ): Promise<SuggestionMatch[]> {
   const needle = tokenText.slice(triggerSpec.char.length);
-  /* ext 触发源(kernel composerExt 注册表,CLI 无关):同步 list + 前缀过滤 */
+  /* ext 触发源(kernel composerExt 注册表,CLI 无关):同步 list + 子串过滤 */
   if ("list" in triggerSpec) return extMatches(triggerSpec, needle, cwd);
   switch (triggerSpec.kind) {
     case "command":
@@ -70,19 +70,21 @@ function extMatches(
   const lower = needle.toLowerCase();
   return src
     .list(cwd)
-    .filter((s) => s.value.toLowerCase().startsWith(lower))
+    .map((s) => ({ s, r: matchRank(s.value, lower) }))
+    .filter((m) => m.r >= 0)
+    .sort((a, b) => a.r - b.r)
     .slice(0, MAX_CANDIDATES)
-    .map<SuggestionMatch>((s) => ({
-      value: s.value,
-      description: s.description,
+    .map<SuggestionMatch>((m) => ({
+      value: m.s.value,
+      description: m.s.description,
       group: src.label,
       char: src.char,
       insertText: src.insertText
-        ? src.insertText(s, cwd)
+        ? src.insertText(m.s, cwd)
         : src.onPick
           ? ""
-          : src.char + s.value,
-      onPick: src.onPick ? (sessionId) => src.onPick?.(s, sessionId) : undefined,
+          : src.char + m.s.value,
+      onPick: src.onPick ? (sessionId) => src.onPick?.(m.s, sessionId) : undefined,
     }));
 }
 
@@ -109,7 +111,13 @@ async function declaredPlusDynamic(
     : base;
 }
 
-/** 前缀过滤(大小写不敏感);空 needle = 全量(截到上限)。 */
+/** 子串命中分级(大小写不敏感):0 = 前缀命中排前,1 = 任意位置命中,-1 = 不命中。 */
+function matchRank(value: string, lower: string): number {
+  const v = value.toLowerCase();
+  return v.startsWith(lower) ? 0 : v.includes(lower) ? 1 : -1;
+}
+
+/** 子串过滤(大小写不敏感,任意位置命中);前缀命中排前,空 needle = 全量(截到上限)。 */
 function filterDeclared(
   list: readonly CliSuggestion[],
   needle: string,
@@ -117,9 +125,11 @@ function filterDeclared(
 ): SuggestionMatch[] {
   const lower = needle.toLowerCase();
   return list
-    .filter((s) => s.value.toLowerCase().startsWith(lower))
+    .map((s) => ({ s, r: matchRank(s.value, lower) }))
+    .filter((m) => m.r >= 0)
+    .sort((a, b) => a.r - b.r)
     .slice(0, MAX_CANDIDATES)
-    .map<SuggestionMatch>((s) => ({ value: s.value, description: s.description, kind }));
+    .map<SuggestionMatch>((m) => ({ value: m.s.value, description: m.s.description, kind }));
 }
 
 /** @ 候选:全仓相对路径模糊匹配;目录带尾 /(applyPick 插入后可继续下钻)。 */
