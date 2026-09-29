@@ -54,7 +54,7 @@ export class AskWatch {
   private readonly screenSince = new Map<string, number>();
   /** 屏幕态置位的等待集合:与字节流 waiting 并集判定,自愈互认。 */
   private readonly waitingByScreen = new Set<string>();
-  /** 字节态等待的屏幕缺席起始时刻:摘除对称防抖(连续两拍缺席才摘)。 */
+  /** 等待摘除的缺席起始时刻(字节/屏幕双通道共用):满确认窗才摘,闪断单拍不摘。 */
   private readonly absentSince = new Map<string, number>();
   /** 每会话的 CLI 声明标记(CliProfile.askMarks,feed 随首帧输出注入);
       计时器/自愈路径无处取 profile,按会话留存。 */
@@ -121,28 +121,26 @@ export class AskWatch {
   }
 
   /** 屏幕采样进站(250ms):字节流盲区(spinner 光标寻址重绘,静态面板标记流出
-   * 尾窗永不复现)由屏幕态兜底。置位防抖在场 ≥ASK_CONFIRM_MS;字节态摘除
-   * 对称防抖(缺席 ≥ASK_CONFIRM_MS)。返回 asked/healed/null。 */
+   * 尾窗永不复现)由屏幕态兜底。置位/摘除均防抖(在场或缺席 ≥ASK_CONFIRM_MS)。 */
   onScreenSample(sessionId: string, present: boolean): "asked" | "healed" | null {
     const now = Date.now();
     if (!present) {
       this.screenSince.delete(sessionId);
-      const healedScreen = this.waitingByScreen.delete(sessionId);
-      /* 字节态摘除对称防抖:瞬时闪断(整帧重绘空屏帧)单拍不摘,缺席满
-       * ASK_CONFIRM_MS(≥1 采样间隔)才摘;spinner 静默流自愈能力保留。 */
-      let healedByte = false;
-      if (this.waiting.has(sessionId)) {
-        const absentSince = this.absentSince.get(sessionId);
-        if (absentSince === undefined) {
+      /* 摘除缺席防抖(双通道同款):清屏中间帧、空屏闪断单拍不摘,缺席满
+       * ASK_CONFIRM_MS 才摘(0.2.5 采样 4Hz 后撞中间帧概率 ×4,闪摘即复燃)。 */
+      let healed = false;
+      if (this.waiting.has(sessionId) || this.waitingByScreen.has(sessionId)) {
+        const at = this.absentSince.get(sessionId);
+        if (at === undefined) {
           this.absentSince.set(sessionId, now);
-        } else if (now - absentSince >= ASK_CONFIRM_MS) {
-          healedByte = this.waiting.delete(sessionId);
+        } else if (now - at >= ASK_CONFIRM_MS) {
+          healed = this.waiting.delete(sessionId) || this.waitingByScreen.delete(sessionId);
           this.absentSince.delete(sessionId);
         }
       } else {
         this.absentSince.delete(sessionId);
       }
-      if (healedScreen || healedByte) {
+      if (healed) {
         this.stopWatchIfIdle();
         return "healed";
       }

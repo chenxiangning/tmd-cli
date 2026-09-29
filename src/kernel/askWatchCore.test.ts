@@ -131,7 +131,11 @@ describe("守望计时器(1Hz 懒计时器)", () => {
     expect(vi.getTimerCount()).toBe(1); // 屏幕等待保持计时器(自愈互认需要)
     await vi.advanceTimersByTimeAsync(12_000); // 无任何字节输出,静默远超 2s
     expect(watch.isWaiting("t2")).toBe(true); // 字节自愈只作用于字节流等待
-    expect(watch.onScreenSample("t2", false)).toBe("healed"); // 消失即摘
+    /* 摘除缺席防抖:清屏中间帧单拍不摘(闪摘再复燃防线),满确认窗才摘 */
+    expect(watch.onScreenSample("t2", false)).toBeNull();
+    expect(watch.isWaiting("t2")).toBe(true);
+    await vi.advanceTimersByTimeAsync(1_300);
+    expect(watch.onScreenSample("t2", false)).toBe("healed");
     expect(watch.isWaiting("t2")).toBe(false);
   });
 
