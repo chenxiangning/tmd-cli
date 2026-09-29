@@ -147,6 +147,10 @@ async function applyAndWrite(engine: McpEngineState, transform: (raw: string) =>
   const raw = read.kind === "ok" ? read.text : "";
   const next = transform(raw); // 解析/序列化失败在此抛错,未触写盘
   if (read.kind === "ok") await backupOnce(engine.path); // 无原文件 = 无可备份
+  else {
+    /* JSON 家首存即建:CLI 装过没跑过时父目录也缺,幂等先建(marks/store 同款) */
+    await ipc.fsCreateDir(engine.path.slice(0, engine.path.lastIndexOf("/"))).catch(() => undefined);
+  }
   await ipc.fsWriteFile(engine.path, next);
   await refreshHub();
 }
