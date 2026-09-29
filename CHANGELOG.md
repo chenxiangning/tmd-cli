@@ -54,6 +54,7 @@
 - mcp-hub:首存即建父目录、商店拉取竞态序号守卫、quota 流式应答读体超时误报修复(SSE 探活不再 15s 假红;空闲窗与 2MB 上限仅对 text/event-stream 生效,普通 JSON 端点保持整读)
 - 意图画布:作画 inbox 半截文件三轮重试防线与索引 496KB 体积闸超限剥缩略图
 - 会话查看器:dsh 解压 32MB 字节预算截尾、同文撞号 key 去重与分批渲染 memo 稳定链
+- macOS 分架构 dmg「已损坏」无法安装:thin 二进制上链接器残留 ad-hoc 签名触发 Gatekeeper 硬拦(universal 时代 lipo 使其失效反而走「仍要打开」软拦);bundler 现按 signingIdentity "-" 做全 bundle ad-hoc 封签,浏览器下载安装恢复「隐私与安全性 → 仍要打开」路径,无需证书零成本;此前已装用户不受影响,坏包重下即得
 
 ### 测试
 
