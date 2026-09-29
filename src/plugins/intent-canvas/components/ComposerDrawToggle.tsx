@@ -72,7 +72,7 @@ export function ComposerDrawToggle() {
           ? t("本会话 AI 作画:开(发送时附带作画指令,点击关闭)")
           : t("本会话 AI 作画:关(点击开启,本会话发送将让 AI 画进意图画布)")}
       >
-        <Compass aria-hidden className="size-3.5" weight={active ? "fill" : "regular"} />
+        <Compass aria-hidden className="size-3.5" weight={active ? "fill" : "regular"} data-action-id="ai-draw" />
       </button>
       {toast && (
         <div className="composer-rail-toast" role="status">

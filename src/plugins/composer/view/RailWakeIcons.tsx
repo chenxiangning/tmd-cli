@@ -33,6 +33,7 @@ export function RailWakeIcons() {
         <RailBtn
           label={t("技能($)")}
           Icon={Sparkle}
+          decorId="wake-skill"
           open={open}
           active={open && activeSection === "skill"}
           onClick={() => toggleDrawerSection("skill")}
@@ -42,6 +43,7 @@ export function RailWakeIcons() {
         <RailBtn
           label={t("MCP 服务器")}
           Icon={HardDrive}
+          decorId="wake-mcp"
           open={open}
           active={open && activeSection === "mcp"}
           onClick={() => toggleDrawerSection("mcp")}
@@ -54,12 +56,14 @@ export function RailWakeIcons() {
 function RailBtn({
   label,
   Icon,
+  decorId,
   open,
   active,
   onClick,
 }: {
   label: string;
   Icon: typeof Sparkle;
+  decorId: string;
   open: boolean;
   active: boolean;
   onClick: () => void;
@@ -74,7 +78,7 @@ function RailBtn({
       aria-expanded={open}
       onClick={onClick}
     >
-      <Icon size="0.875rem" />
+      <Icon size="0.875rem" data-action-id={decorId} />
     </button>
   );
 }

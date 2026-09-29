@@ -18,7 +18,7 @@ export function WakeIcons() {
         aria-label={t("智能体(##)")}
         onClick={() => composerWakeRef.current?.("##")}
       >
-        <Robot size="0.875rem" />
+        <Robot size="0.875rem" data-action-id="wake-agent" />
       </button>
       <button
         type="button"
@@ -27,7 +27,7 @@ export function WakeIcons() {
         aria-label={t("提示词(!!)")}
         onClick={() => composerWakeRef.current?.("!!")}
       >
-        <Quotes size="0.875rem" />
+        <Quotes size="0.875rem" data-action-id="wake-prompt" />
       </button>
     </>
   );

@@ -116,8 +116,12 @@ export const MESSAGES = {
 
   // IconDecorCard
   "图标装饰": "Icon decorations",
-  "逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。":
-    "Per-icon color and breathing glow; for icons with on/off states only the lit color is themed.",
+  "逐图标自定义颜色与呼吸闪烁;面板/侧栏两态图标仅作用于点亮色,其余整图标着色。":
+    "Per-icon color and breathing glow; two-state panel/sidebar icons theme the lit color only, others the whole icon.",
+  "折叠左栏": "Fold left bar",
+  "折叠右栏": "Fold right bar",
+  "AI 作画": "AI drawing",
+  "平铺广播": "Tile broadcast",
   "SSH 入口": "SSH entry",
   "Worktree 簇": "Worktree cluster",
   "WSL 入口": "WSL entry",

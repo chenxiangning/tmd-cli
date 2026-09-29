@@ -70,13 +70,20 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
     : SESSION_TABS_LIMIT_DEFAULT;
 }
 
-/** ── 图标装饰(icon decor)域 ── 17 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
+/** ── 图标装饰(icon decor)域 ── 34 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
 
 /** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,
  *  动作键 = sidebarActions id(rail 直挂只剩 wsl-panel/terminal/intent-canvas;
  *  ssh 已迁面板键,键名保留防存量装饰丢失),
- *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/session-board),
- *  结构键 = worktree(侧栏 worktree 簇标签 + fork 图标着色)。 */
+ *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/session-board)
+ *  与 titlebar 内建钮(market/home/fold-left/fold-right),
+ *  结构键 = worktree(侧栏 worktree 簇标签 + fork 图标着色),
+ *  工作区行键 = WorkspaceCard 行内操作钮(ws-*),
+ *  composer 键 = 工具条三钮(stage-expand/stage-collapse/composer-drawer)
+ *  与输入轨七钮(wake-agent/wake-prompt/ai-draw/broadcast/enhance/wake-skill/wake-mcp)。
+ *  新键消费约定(2026-09-29 扩编):颜色经 [data-action-id] svg 直取
+ *  (缺省 currentColor = 现状,整图标着色),选择器集中在本域消费文件
+ *  styles/icon-decor.css;旧 17 键颜色仍在各自 home 样式表原地消费。 */
 export const ICON_DECOR_IDS = [
   "newchat",
   "ssh-panel",
@@ -95,6 +102,23 @@ export const ICON_DECOR_IDS = [
   "session-board",
   "remote-control",
   "worktree",
+  "ws-files",
+  "ws-manage",
+  "ws-refresh",
+  "market",
+  "home",
+  "fold-left",
+  "fold-right",
+  "stage-expand",
+  "stage-collapse",
+  "composer-drawer",
+  "wake-agent",
+  "wake-prompt",
+  "ai-draw",
+  "broadcast",
+  "enhance",
+  "wake-skill",
+  "wake-mcp",
 ] as const;
 export type IconDecorId = (typeof ICON_DECOR_IDS)[number];
 
@@ -123,6 +147,23 @@ export const DEFAULT_ICON_DECOR: Record<IconDecorId, IconDecorItem> = {
   "session-board": {},
   "remote-control": {},
   worktree: {},
+  "ws-files": {},
+  "ws-manage": {},
+  "ws-refresh": {},
+  market: {},
+  home: {},
+  "fold-left": {},
+  "fold-right": {},
+  "stage-expand": {},
+  "stage-collapse": {},
+  "composer-drawer": {},
+  "wake-agent": {},
+  "wake-prompt": {},
+  "ai-draw": {},
+  broadcast: {},
+  enhance: {},
+  "wake-skill": {},
+  "wake-mcp": {},
 };
 
 const ICON_DECOR_COLOR_RE = /^#[0-9a-f]{6}$/i;

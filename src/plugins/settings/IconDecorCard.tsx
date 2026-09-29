@@ -1,11 +1,12 @@
 /**
- * 基础设置 / 外观 tab 的图标装饰卡 —— 17 个界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
+ * 基础设置 / 外观 tab 的图标装饰卡 —— 34 个界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
  * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
  * store 即时生效,应用由 kernel/iconDecor.ts 同步到 <html>,预览图标即时反映自定义色。
  */
 
 import { useState, type ComponentType } from "react";
 import {
+  ArrowClockwise,
   ArrowCounterClockwise,
   BellRinging,
   BookmarkSimple,
@@ -14,17 +15,30 @@ import {
   GitFork,
   CalendarDots,
   CaretDown,
+  CaretLineLeft,
+  CaretLineRight,
   CaretRight,
+  CaretUp,
   Desktop,
   Folder,
   GitBranch,
   HardDrive,
+  ListChecks,
   MonitorPlay,
   PlugsConnected,
+  Plug,
   PuzzlePiece,
+  Quotes,
+  Robot,
   RocketLaunch,
+  Rows,
   SealCheck,
+  Sidebar,
+  Sparkle,
   TerminalWindow,
+  Tray,
+  BroadcastIcon,
+  MagicWandIcon,
 } from "@phosphor-icons/react";
 import {
   DEFAULT_ICON_DECOR,
@@ -82,6 +96,23 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "panel-skill-hub", label: "Skills 面板", icon: PuzzlePiece },
   { id: "panel-mcp-hub", label: "MCP 面板", icon: PlugsConnected },
   { id: "worktree", label: "Worktree 簇", icon: GitFork },
+  { id: "ws-files", label: "查看文件", icon: Rows },
+  { id: "ws-manage", label: "会话管理", icon: ListChecks },
+  { id: "ws-refresh", label: "刷新会话", icon: ArrowClockwise },
+  { id: "market", label: "插件市场", icon: Plug },
+  { id: "home", label: "回到首页", icon: Tray },
+  { id: "fold-left", label: "折叠左栏", icon: CaretLineLeft },
+  { id: "fold-right", label: "折叠右栏", icon: CaretLineRight },
+  { id: "stage-expand", label: "展开对话框", icon: CaretUp },
+  { id: "stage-collapse", label: "收起对话框", icon: CaretDown },
+  { id: "composer-drawer", label: "命令与技能", icon: Sidebar },
+  { id: "wake-agent", label: "智能体(##)", icon: Robot },
+  { id: "wake-prompt", label: "提示词(!!)", icon: Quotes },
+  { id: "ai-draw", label: "AI 作画", icon: Compass },
+  { id: "broadcast", label: "平铺广播", icon: BroadcastIcon },
+  { id: "enhance", label: "增强提示词", icon: MagicWandIcon },
+  { id: "wake-skill", label: "技能($)", icon: Sparkle },
+  { id: "wake-mcp", label: "MCP 服务器", icon: HardDrive },
 ];
 type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
   ? true
@@ -122,7 +153,7 @@ export function IconDecorCard() {
       {!collapsed && (
         <>
           <div className="pref-desc">
-            {t("逐图标自定义颜色与呼吸闪烁;有开关两态的图标仅作用于点亮色。")}
+            {t("逐图标自定义颜色与呼吸闪烁;面板/侧栏两态图标仅作用于点亮色,其余整图标着色。")}
           </div>
           <div className="icon-decor-grid">
             {ICON_DECOR_ITEMS.map(({ id, label, icon: Icon }) => {

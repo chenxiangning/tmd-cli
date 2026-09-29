@@ -125,7 +125,7 @@ function ToolbarActions({
         onClick={expandComposerStage}
         className={`${iconBtn} ml-auto text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <CaretUp size="0.9375rem" />
+        <CaretUp size="0.9375rem" data-action-id="stage-expand" />
       </button>
       <button
         type="button"
@@ -135,7 +135,7 @@ function ToolbarActions({
         onClick={collapseComposerStage}
         className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <CaretDown size="0.9375rem" />
+        <CaretDown size="0.9375rem" data-action-id="stage-collapse" />
       </button>
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
@@ -153,7 +153,7 @@ function ToolbarActions({
             : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         }`}
       >
-        <Sidebar size="0.9375rem" />
+        <Sidebar size="0.9375rem" data-action-id="composer-drawer" />
       </button>
     </>
   );

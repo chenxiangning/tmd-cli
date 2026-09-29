@@ -169,7 +169,7 @@ export function WorkspaceCard({
                 openWorkspaceFiles(workspace.id);
               }}
             >
-              <Rows size="0.9375rem" aria-hidden />
+              <Rows size="0.9375rem" aria-hidden data-action-id="ws-files" />
             </button>
           )}
           <button
@@ -182,7 +182,7 @@ export function WorkspaceCard({
               setManage((v) => !v);
             }}
           >
-            <ListChecks size="0.9375rem" aria-hidden />
+            <ListChecks size="0.9375rem" aria-hidden data-action-id="ws-manage" />
           </button>
           <button
             type="button"
@@ -193,7 +193,7 @@ export function WorkspaceCard({
               onRefreshWorkspace(workspace.id);
             }}
           >
-            <ArrowClockwise size="1rem" aria-hidden />
+            <ArrowClockwise size="1rem" aria-hidden data-action-id="ws-refresh" />
           </button>
           <button
             type="button"

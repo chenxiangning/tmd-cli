@@ -47,7 +47,7 @@ export function TileBroadcastButton() {
         aria-pressed={on}
         onClick={toggle}
       >
-        <BroadcastIcon size="0.875rem" />
+        <BroadcastIcon size="0.875rem" data-action-id="broadcast" />
       </button>
       {toast && (
         <div className="composer-rail-toast" role="status">
