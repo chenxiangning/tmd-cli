@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import { TerminalRefreshButton } from "./terminalRefreshButton";
 
 describe("TerminalRefreshButton 渲染契约", () => {
-  it("按钮渲染为带幕布重建提示的图标钮,onClick 直通无拦截", () => {
+  it("按钮渲染为与转录浮标同款样式的文本钮「刷新」,onClick 直通无拦截", () => {
     const onClick = vi.fn();
     const markup = renderToStaticMarkup(
       createElement(TerminalRefreshButton, { onClick }),
@@ -19,7 +19,9 @@ describe("TerminalRefreshButton 渲染契约", () => {
     expect(markup).toContain("<button");
     expect(markup).toContain("刷新幕布");
     expect(markup).toContain("PTY 不中断");
-    /* 钉死通道已撤:重建幂等可重复触发,无 disabled 静默面 */
+    /* 可见标签 = 文本「刷新」(与 .lv-pill 文本形制配套,非图标钮) */
+    expect(markup).toContain(">刷新</button>");
+    /* 重建幂等可重复触发,无 disabled 静默面 */
     expect(markup).not.toContain("disabled");
     expect(onClick).not.toHaveBeenCalled();
   });
