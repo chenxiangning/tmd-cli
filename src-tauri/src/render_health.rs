@@ -29,6 +29,27 @@ const KICK_DEBOUNCE_MS: u64 = 15_000;
 const RELOAD_COOLDOWN_MS: u64 = 60_000;
 /// Focused 探针应答死限:超时无上报 = 探针链路死,直接进击。
 pub(crate) const PROBE_DEADLINE_MS: u64 = 4_000;
+/// 心跳守望节拍:每 5s 查一次「可见但久无音讯」并采样泵字节计量。
+const HEARTBEAT_TICK_MS: u64 = 5_000;
+/// 心跳死线:窗口可见但 15s 无任何上报(含健康心跳)= webview 深冻,
+/// 页内自报线已死,由壳侧接管进击。
+const HEARTBEAT_DEAD_MS: u64 = 15_000;
+
+/// 全局 PTY 发字节数(泵 emit 处累加)。壳侧洪水计量源:传感器在 Rust 侧,
+/// webview 冻结后前端 floodGauge 不再可用,洪水判定不能依赖前端旗标。
+static PTY_BYTES_EMITTED: AtomicU64 = AtomicU64::new(0);
+
+/// 泵 emit 处按批累加(UTF-8 字节;与 floodGauge 字符数同量级,ANSI 流以
+/// ASCII 为主,共用 256KB/5s 阈值不失真)。
+pub(crate) fn note_pty_emitted(bytes: usize) {
+    PTY_BYTES_EMITTED.fetch_add(bytes as u64, Ordering::Relaxed);
+}
+
+/// 壳侧洪水判据(纯函数,测试锚):5s 节拍内的发字节数增量过 256KB(≈50KB/s,
+/// 与 kernel/floodGauge.ts 同阈值同语义)。
+fn flood_from_delta(delta_bytes: u64) -> bool {
+    delta_bytes > 256 * 1024
+}
 
 #[derive(Default)]
 pub(crate) struct KickState {
@@ -143,9 +164,48 @@ pub(crate) fn on_focused(window: &WebviewWindow) {
     });
 }
 
+/// 壳侧心跳守望(常驻线程):检测传感器移出 webview —— 吊销深冻时页内定时器
+/// 同样饥饿(rafFallback 自报线死亡),Focused 探针又只在焦点切换时触发,
+/// 用户盯死冻结窗口时两条检出线全哑,阶梯永停、只能手动刷新客户端(2026-10-01
+/// 根因定案)。本线程每 5s 独立判定:窗口可见但 15s 无任何上报 = 深冻,进击;
+/// 洪水判定用本进程泵计量(note_pty_emitted),不问前端 —— 洪水期 reload 仍
+/// 降级 focus(防回放风暴),洪过(轮次总会结束)下一拍自动升级 reload,闭环。
+pub(crate) fn init_watchdog(window: WebviewWindow) {
+    std::thread::spawn(move || {
+        let mut last_bytes = 0u64;
+        loop {
+            std::thread::sleep(Duration::from_millis(HEARTBEAT_TICK_MS));
+            let now = now_millis();
+            let cur = PTY_BYTES_EMITTED.load(Ordering::Relaxed);
+            let delta = cur.saturating_sub(last_bytes);
+            last_bytes = cur;
+            let state = window.state::<AppState>();
+            let ks = &state.render_kick;
+            if flood_from_delta(delta) {
+                ks.flood_until_ms.store(now + 10_000, Ordering::Relaxed);
+            }
+            /* 真隐藏/最小化 = 按设计暂停,不判死不击打(与上报路径同律)。 */
+            if !window.is_visible().unwrap_or(true) {
+                continue;
+            }
+            let last = ks.last_report_ms.load(Ordering::Relaxed);
+            if last != 0 && now.saturating_sub(last) >= HEARTBEAT_DEAD_MS {
+                kick(&window, ks);
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn 壳侧洪水判据_5s增量阈值() {
+        assert!(!flood_from_delta(0));
+        assert!(!flood_from_delta(256 * 1024));
+        assert!(flood_from_delta(256 * 1024 + 1));
+    }
 
     #[test]
     fn 首击_focus_二击_reload_冷却内退_focus() {

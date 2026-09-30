@@ -230,6 +230,7 @@ pub(crate) fn spawn(
                 }
             }
             let text = decode_utf8_chunk(&mut tail, &batch);
+            crate::render_health::note_pty_emitted(text.len());
             if !crate::event_sink::emit(&out_app, &event, &text) {
                 break; // 前端已销毁
             }

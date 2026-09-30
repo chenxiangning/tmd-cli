@@ -106,5 +106,8 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
             crate::render_health::on_focused(&w_for_hook);
         }
     });
+    /* 壳侧心跳守望:传感器移出 webview,「可见但久无音讯」由 Rust 独立判定进击
+     * (吊销深冻时页内自报线与 Focused 事件双双失灵的兜底;见 render_health.rs)。 */
+    crate::render_health::init_watchdog(built.clone());
     Ok(())
 }
