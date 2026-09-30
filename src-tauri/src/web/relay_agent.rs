@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[cfg(debug_assertions)] /* 唯一使用点在 dev 日志,release 裁剪后 import 成孤儿 */
 use crate::app_setup::safe_eprintln;
 use futures_util::{SinkExt, StreamExt};
 use parking_lot::Mutex;
