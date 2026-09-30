@@ -56,6 +56,7 @@
 - 会话查看器:dsh 解压 32MB 字节预算截尾、同文撞号 key 去重与分批渲染 memo 稳定链
 - macOS 分架构 dmg「已损坏」无法安装:thin 二进制上链接器残留 ad-hoc 签名触发 Gatekeeper 硬拦(universal 时代 lipo 使其失效反而走「仍要打开」软拦);bundler 现按 signingIdentity "-" 做全 bundle ad-hoc 封签,浏览器下载安装恢复「隐私与安全性 → 仍要打开」路径,无需证书零成本;此前已装用户不受影响,坏包重下即得
 - 界面卡死(WKWebView 吊销粘死)根治:窗口隐藏/遮挡后恢复可见时 WebKit 偶发不再恢复渲染,页面 `document.hidden` 恒粘、rAF 永久死、像素停在旧帧(会话/PTY 全程健康;实测 app 激活/set_focus/hide-show 重放/resize 抖动均救不回)。新增两层防线:kernel/rafFallback 原生 rAF 探针 + 看门狗(遮挡粘死自动上报;隐藏粘死由 Rust Focused 钩子戳探针)+ 壳侧 render_health 阶梯(首击 set_focus、二击 webview reload——会话/PTY 跨重载存活,健康上报即重置,60s reload 冷却防风暴);50ms 垫片保留(部分遮挡形态 ~14fps 地板帧率正收益)。详见 docs/architecture/17-render-health.md
+- 渲染粘死守望缺口补修(意图画布打开黑屏回归根因):hidden 恒粘的吊销态此前被看门狗静默跳过、只等 Rust Focused 事件再戳探针——窗口已聚焦时再无该事件,阶梯永久停在实测无效的首击 set_focus,黑屏永不自愈;改为 rAF 停发 ≥10s 一律上报,真伪可见性单一归 Rust `is_visible` 裁断(真隐藏/最小化仍不击打),粘死后 ~25s 内走完 focus→reload 阶梯自愈;配套 PluginBoundary 塌陷呈现从静默 null 改为就地可见错误条(渲染崩溃与粘死黑屏此前无法区分,现场无从留证)
 - 每日工作日志:后台生成队列 run 态永久卡死修复;运行中任务可终止(取消即收割生成会话)放行后续任务
 
 ### 测试

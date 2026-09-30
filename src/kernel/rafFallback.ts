@@ -14,9 +14,11 @@
  * 第 2 层(守望,本次新增):原生 rAF 探针 + 看门狗,检出两类卡死并上报 Rust:
  * - 形态 A(遮挡粘死):原生 rAF 停 >10s 且 `document.hidden === false`
  *   (页面自认可见,渲染实际被吊销)→ 看门狗自动上报。
- * - 形态 B(隐藏粘死):`document.hidden` 恒粘 true,JS 无法自知;Rust 在
- *   窗口 Focused(true) 时经 eval 戳 `__tmdRenderProbe()`,探针无条件上报,
- *   由 Rust 按「窗口已可见」裁断。
+ * - 形态 B(隐藏粘死):`document.hidden` 恒粘 true 的吊销态,页内标记与
+ *   真实可见性可能相反 —— 一并上报,由 Rust 按 `window.is_visible()`(OS 侧
+ *   真值)裁断:真隐藏/最小化 = 按设计暂停不击打,实际可见才进阶梯。
+ *   (2026-09-30 修复前形态 B 只靠 Rust Focused 事件戳探针,窗口已聚焦时
+ *   再无 Focused 事件,阶梯永久停在首击 set_focus —— 实测无效路径,黑屏不愈。)
  * Rust 侧阶梯(set_focus → webview reload)见 src-tauri/src/render_health.rs;
  * reload 语义安全:会话/PTY 注册表跨 webview 重载存活(sessionAdopt)。
  *
@@ -96,8 +98,10 @@ export function installRafFallback(): void {
       if (reportedStuck && gap < PROBE_OK_GAP_MS && lastNativeFireAt) void report(true);
       return;
     }
-    if (document.hidden) return; /* 形态 B 归 Rust Focused 探针管辖 */
-    void report(false); /* 形态 A:页面自认可见,渲染被吊销 */
+    /* 形态 A/B 一并上报:页内 hidden 标记在吊销态会说谎,真伪可见性由 Rust
+       is_visible 裁断(真隐藏不击打)。否则隐藏粘死 + 窗口已聚焦 = 无 Focused
+       事件,阶梯停在首击永不自愈(0.2.5 意图画布打开黑屏回归根因)。 */
+    void report(false);
   }, 1_000);
 
   const nativeRafRef = w.requestAnimationFrame as typeof window.requestAnimationFrame | undefined;

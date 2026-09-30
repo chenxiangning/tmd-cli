@@ -143,16 +143,15 @@ describe("rafFallback", () => {
     expect(transportInvoke).not.toHaveBeenCalled();
   });
 
-  it("形态 B:hidden 页看门狗静默;Rust 探针戳醒则无条件上报", async () => {
+  it("形态 B:hidden 恒粘不再静默:照常上报 stuck,真伪可见性裁断归 Rust is_visible", async () => {
     const dead = makeDeadRaf();
-    const w = await freshInstall(dead, true);
+    await freshInstall(dead, true);
     primeProbe(dead);
-    vi.advanceTimersByTime(30_000);
+    vi.advanceTimersByTime(10_000);
     await settle();
-    /* 隐藏页:看门狗不自动上报(归 Focused 探针管辖) */
-    expect(transportInvoke).not.toHaveBeenCalled();
-    w.__tmdRenderProbe?.();
-    await settle();
+    /* 页内 hidden 标记在吊销态会说谎:照常上报,Rust 按 window.is_visible()
+       裁断(真隐藏不击打)。旧契约(hidden 即静默)依赖 Focused 事件再戳,
+       窗口已聚焦时无事件,阶梯停首击永不自愈 —— 0.2.5 画布黑屏回归根因。 */
     expect(transportInvoke).toHaveBeenCalledTimes(1);
     expect(transportInvoke.mock.calls[0][1]).toMatchObject({ ok: false });
   });
