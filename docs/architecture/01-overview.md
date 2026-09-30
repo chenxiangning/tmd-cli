@@ -20,7 +20,7 @@
 React Host
 ├── kernel/       插件契约、生命周期、事件总线、IPC、PTY TerminalView
 ├── app-shell/    五区外壳、插件市场页(PluginMarketPage)与挂载点(宿主职责)
-└── plugins/      38 注册:cli-* ×10(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh,engine) · workspace · session-budget · files · git · checkpoints(审批线) · network-proxy · ssh(远程会话) · terminal(内置终端) · memory-coordinator(记忆协调) · assets(智能体/提示词) · cli-config(CLI 独立配置) · wsl(WSL 通道) · wallpaper(壁纸) · marks(文件标记) · search(搜索/快开/统一入口) · web-access(Web 访问桥) · session-board(会话看板) · lsp(语义跳转) · prompt-enhancer(提示词增强) · approval-inbox(审批收件箱) · academy(CLI 学堂) · notify(系统通知) · session-search(会话历史检索) · session-relay(跨引擎接力)(feature) · composer · settings · welcome(core 焊死) · local-loader(本机插件,local)
+└── plugins/      44 注册:cli-* ×10(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/opencode/dsh,engine) · workspace · session-budget · files · git · checkpoints(审批线) · network-proxy · ssh(远程会话) · terminal(内置终端) · memory-coordinator(记忆协调) · assets(智能体/提示词) · cli-config(CLI 独立配置) · wsl(WSL 通道) · wallpaper(壁纸) · marks(文件标记) · search(搜索/快开/统一入口) · web-access(Web 访问桥) · session-board(会话看板) · intent-canvas(意图画布) · lsp(语义跳转) · prompt-enhancer(提示词增强) · approval-inbox(审批收件箱) · academy(CLI 学堂) · notify(系统通知) · session-search(会话历史检索) · session-relay(跨引擎接力) · skill-hub / mcp-hub(hub 面板) · session-viewer(会话转录/极简展示) · daily-journal(每日工作日志) · structured-session(结构化会话,omp/pi RPC)(feature) · composer · settings · welcome(core 焊死) · local-loader(本机插件,local)
 
 Tauri Rust
 ├── pty.rs            portable-pty：spawn / read / write / resize / kill,双线程聚合泵
@@ -100,7 +100,7 @@ PTY bytes → Tauri event pty://out/{sessionId} → xterm.js
 - `activate(ctx)` / `deactivate()`：生命周期
 - `registerCliProfile(profile)`：CLI 插件注册启动 profile
 - `CliProfile.readSessionStatus`：声明 CLI 私有 session 状态读取能力
-- `contribute(point, contribution)`：向 15 个挂点扩展（header.left/right/leftCluster/breadcrumb、leftSidebar.section/workspaceCaption、workspace.newSessionMenu、overlay、editorCenter.welcome/composer、welcome.footer、composer.statusBar/inputRail/attachments、market.local；无渲染方的挂点不声明）
+- `contribute(point, contribution)`：向 17 个挂点扩展（header.left/right/leftCluster/breadcrumb、leftSidebar.section/workspaceCaption、workspace.newSessionMenu、overlay、editorCenter.welcome/composer、editorCenter.canvasOverlay、terminal.canvasRow、welcome.footer、composer.statusBar/inputRail/attachments、market.local；无渲染方的挂点不声明）
 - `registerSettingsSection(section)`：向设置面板注册 section（左导航 + 右 tab），settings 插件按注册表渲染
 - `registerFilePanel` / `registerTabContent` / `registerSidebarAction` / `registerFileVisual` / `registerMarketPanel` / `registerHomePanel` / `registerCliConfig` / `registerCommand` / `registerEditorExtension` / `registerTerminalLinkProvider` / `registerLanguageServer` / `registerAcademyCourse` / `registerRemoteFileSource` / `registerWorkspaceOrigin` / `registerSpecWrapper` / `registerShellSpecProvider`：右栏面板、中央 tab 内容（按 tab.kind 路由）、侧栏快捷动作、文件视觉、市场面板、首页面板、CLI 配置、命令键位、编辑器扩展、终端链接、语言服务器、学堂课程、远端文件源、工作区来源、规格包装、shell 装配,全部经 ctx 登记(无旁路注册表;完整签名见 plugin.ts PluginContext)
 

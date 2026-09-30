@@ -43,7 +43,7 @@ export function SearchHubEntry() {
         title={collapsed ? t("展开搜索") : t("收起搜索")}
         onClick={toggle}
       >
-        <MagnifyingGlass size="0.6875rem" aria-hidden />
+        <MagnifyingGlass size="1rem" aria-hidden />
         <span className="flex-1 truncate text-left">{t("搜索")}</span>
         {collapsed ? (
           <CaretRight size="0.625rem" aria-hidden />

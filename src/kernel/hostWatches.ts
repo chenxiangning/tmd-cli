@@ -1,14 +1,14 @@
 /**
  * 守望组合件 —— 自 host.ts 拆出(文件规模铁则收紧至 300 行)。
- * 承担:身份/状态/Ask/编辑/活动五守望与输出缓冲、CLI 磁盘身份账本的装配,
- * 以及 appendOutput 主链路(缓冲落盘 + 实时 topic 广播 + 三守望馈送)。
- * Host 经 ctx 注入会话表/profile 访问与通知回调;ptyLiveTopic 移居此,
- * host.ts re-export 保持 import 契约不变。
+ * 承担:身份/状态/Ask/编辑/活动五守望与输出缓冲、CLI 磁盘身份账本的装配,以及 appendOutput
+ * 主链路(缓冲落盘 + 实时 topic 广播 + 三守望馈送)。Host 经 ctx 注入会话表/profile 访问与
+ * 通知回调;ptyLiveTopic 移居此,host.ts re-export 保持 import 契约不变。
  */
 
 import { KernelTopics, type EventBus } from "./events";
 import { getSettingsState } from "./settings";
 import { ActivityWatch } from "./activityWatch";
+import { ActivityReporter } from "./activityReport";
 import { AskWatchFeed } from "./askWatch";
 import { AskScreenMirror } from "./askScreenMirror";
 import { stripAnsi } from "./askDetect";
@@ -16,6 +16,7 @@ import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
 import { IdentityLedger } from "./identityLedger";
 import { OutputBufferStore } from "./outputBuffers";
+import { notePtyBytes } from "./floodGauge";
 import { SessionStatusWatch } from "./sessionStatus";
 import { refreshRemoteStatus } from "./remoteStatusRefresh";
 import type { CliProfile, CliSessionStatus } from "./cli";
@@ -70,14 +71,10 @@ export class HostWatches {
   private readonly outputBuffers = new OutputBufferStore();
   private readonly askWatch = new AskWatchFeed({
     sessionKind: (sessionId) => this.ctx.findSession(sessionId)?.kind,
-    askMarks: (sessionId) =>
-      this.ctx.getCliProfile(this.ctx.findSession(sessionId)?.profileId ?? "")
-        ?.askMarks,
-    emitAsked: (sessionId) =>
-      this.ctx.events.emit(KernelTopics.askDetected, sessionId),
+    askMarks: (sessionId) => this.ctx.getCliProfile(this.ctx.findSession(sessionId)?.profileId ?? "")?.askMarks,
+    emitAsked: (sessionId) => this.ctx.events.emit(KernelTopics.askDetected, sessionId),
     notify: () => this.ctx.notify(),
-    bufferTail: (sessionId, maxChars) =>
-      this.outputBuffers.get(sessionId).slice(-maxChars), // askWatch 检测核心见 kernel/askWatch.ts
+    bufferTail: (sessionId, maxChars) => this.outputBuffers.get(sessionId).slice(-maxChars), // 检测核心见 kernel/askWatch.ts
   });
   /** AI 写入文件守望(events 归因主信号,见 kernel/editWatch.ts;纯内存,随 PTY 消亡) */
   private readonly editWatch = new EditWatch();
@@ -97,8 +94,7 @@ export class HostWatches {
       sessionId,
     );
   private readonly activity = new ActivityWatch({
-    /* 后台提醒开启时,窗口失焦的激活会话不算"正在查看"(完成照标蓝/响结束音);
-       Node 测试环境窗口恒聚焦,退化为纯 activeSessionId 语义 */
+    /* 后台提醒开启时,窗口失焦的激活会话不算"正在查看"(完成照标蓝/响结束音);Node 测试环境窗口恒聚焦,退化为纯 activeSessionId 语义 */
     isViewing: (id) => this.ctx.isViewing(id),
     exists: (id) => this.ctx.hasSession(id),
     /* ssh/shell「输出即活动」是既定语义(远端长任务完工要通知),闸只适用 CLI 会话 */
@@ -106,17 +102,18 @@ export class HostWatches {
       const kind = this.ctx.findSession(id)?.kind;
       return kind !== "ssh" && kind !== "shell";
     },
-    onChange: () => this.ctx.notify(),
-    onTurnSettled: (id, unviewed, settledAt) => {
-      this.ctx.events.emit(KernelTopics.turnSettled, {
-        sessionId: id,
-        unviewed,
-        settledAt,
-      });
-    },
+    onChange: () => { this.activityReport.queue(); this.ctx.notify(); },
+    onTurnSettled: (id, unviewed, settledAt) =>
+      this.ctx.events.emit(KernelTopics.turnSettled, { sessionId: id, unviewed, settledAt }),
   });
 
-  constructor(private readonly ctx: HostWatchesCtx) {}
+  constructor(private readonly ctx: HostWatchesCtx) {
+    this.activityReport.queue(); /* 开机/重载即清活动板:webview 重载后前端态归零,板不得留旧账 */
+  }
+
+  /** 手机运行区投影发布端(去抖/去重/失败重试见 activityReport.ts)。 */
+  private readonly activityReport = new ActivityReporter(() => this.activity.snapshot());
+
   /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)= undefined。 */
   getCliSessionId(sessionId: string): string | undefined { return this.ledger.get(sessionId); }
   /** 绑定终审见 IdentityLedger.bind;成功即镜像回写注册表(session_bind_cli;手机直读,失败无害)。 */
@@ -136,6 +133,7 @@ export class HostWatches {
     /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。 */
     const limit =
       getSettingsState().settings.sessionOutputBufferLimit || OUTPUT_BUFFER_LIMIT;
+    notePtyBytes(text.length); /* 洪水标尺(守望 reload 降级判据,见 floodGauge.ts) */
     const session = this.ctx.findSession(sessionId);
     if (!session || (session.kind ?? "cli") === "cli") this.screenMirror.feed(sessionId, text);
     const chunkBytes = this.outputBuffers.append(sessionId, text, limit);
@@ -150,7 +148,9 @@ export class HostWatches {
     const busy = anchored && !!profile?.busyMarks?.some((re) => lines.some((l) => re.test(l)));
     if (anchored && profile?.busyHoldMs) this.activity.setBusyHold(sessionId, profile.busyHoldMs);
     const idle = anchored && !!profile?.idleMarks?.some((re) => lines.some((l) => re.test(l)));
-    if (asked || this.activity.onOutput(sessionId, visible, busy, idle)) this.ctx.notify();
+    const opened = this.activity.onOutput(sessionId, visible, busy, idle);
+    if (asked || opened) this.ctx.notify();
+    if (opened) this.activityReport.queue(); /* 开轮 = 活动态翻转变更,板要跟 */
     const marks = profile?.editMarks;
     if (session && marks && marks.length > 0) {
       const paths = this.editWatch.onOutput(sessionId, text, session.cwd, marks);

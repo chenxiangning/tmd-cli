@@ -24,6 +24,7 @@ pub(super) const GATED: &[&str] = &[
     "session_history_page",
     "session_link_log",
     "session_bind_cli",
+    "session_report_activity",
     "session_pin_toggle",
     "session_disk_tail",
     "checkpoint_anchor",
@@ -74,6 +75,13 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
             Ok(r)
         }
         "session_list" => val(crate::session_commands::session_list(app.state())),
+        "session_report_activity" => {
+            let a = args::<ActivityArgs>(raw)?;
+            ser(crate::session_commands::session_report_activity(
+                app.state(),
+                a.entries,
+            ))
+        }
         "session_set_workspace" => ser(crate::session_commands::session_set_workspace(
             app.state(),
             args::<IdArgs>(raw)?.id,
@@ -285,6 +293,11 @@ struct IdArgs {
 struct BindCliArgs {
     id: String,
     cli_session_id: String,
+}
+
+#[derive(serde::Deserialize)]
+struct ActivityArgs {
+    entries: Vec<crate::session_commands::ActivityEntry>,
 }
 
 #[derive(serde::Deserialize)]

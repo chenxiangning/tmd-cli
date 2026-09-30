@@ -4,6 +4,35 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.7] - 2026-10-01
+
+### 新增
+
+- 幕布右上工具行(terminal.canvasRow 挂点):内核渲染行容器,幕布刷新钮收尾最右——点击 = 本会话幕布重建(xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH 整帧重绘),PTY/CLI 不中断、其他会话不受扰;session-viewer「结构化幕布」切换钮(原「转录」浮标)并入同排,返回钮改名「PTY流」;行不设 z,不透明画布浮层开启时整行隐没——结构化视图页不出刷新钮
+
+- 结构化会话(structured-session 插件 + proc_stream 通用原语):omp/pi `--mode rpc` NDJSON 子进程 token 级流式(thinking/text/toolcall delta 原地累积,message_end 落权威块,与磁盘 JSONL 同构),幕布|结构化双视图切换,审批卡(confirm 回路)直答,PTY 零涉及;proc_stream 四命令(spawn/write/kill/kill_all)+ `proc://stream/{id}/out|err|exit` 行事件,双 reader EOF 单一收割出口,boot 期 kill_all 清孤儿,内核零 CLI 协议知识(契约见 architecture/19)
+- 会话查看器极简展示(默认开启):每轮工作过程折叠单组只留最终答复,答复正文不再折叠进思考组
+- 手机会话 composer 加大输入框,支持选图预览挂载与把手拖拽调高
+
+### 修复
+
+- 界面卡死第三轮根治(并发工作洪水×渲染成本):三 omp 会话并发工作期 PTY 洪水约 120MB/h,keep-alive 隐藏幕布逐 tick 直写 xterm 把主线程顶到饱和(rAF 饿死触发吊销粘死,洪水未停时 reload 自愈立即再冻结,越自愈越卡);三件增补——洪水期(floodGauge 5s 滑动窗 >256KB 判据)守望 reload 降级 set_focus 退洪再愈、隐藏幕布实时字节 250ms 合帧写入(行重建降两个数量级,激活即冲刷)、PTY 泵聚合窗自适应 8→50ms(洪峰事件数降数倍,击键回显仍 8ms)
+
+- 界面卡死第四轮(守望自身的盲区):洪水标尺改真滑动窗,跨桶边界间歇洪峰不再系统性漏检;rAF 守望健康期每 5s 心跳自证存活;壳侧新增独立心跳守望(窗口可见但 15s 无任何上报 = 深冻,页内自报线已死也照样进击),洪水判定改泵侧自计量(PTY 泵字节增量 5s >256KB)——webview 冻结后前端旗标不再可信,洪水闭环全收 Rust 侧
+- 手机运行中区改读嵌套 activity 投影(turnActive||unread,与桌面 RunningZone 同律),修复桌面在跑手机恒空闲
+- 手机发送改成功后才清草稿挂图,失败保留输入并提示重试;会话复制 ID 改走内核剪贴板原语,修 WKWebView 写入常拒
+- 幕布隐藏期不再外发尺寸,自愈旗强制同尺寸重绘,根治切回重开错位
+- daily-journal 入队闸改日粒度,防跨类型任务并发双写同一篇文章
+- structured-session:启动失败收割子进程并加可重试按钮,cwd 改取激活工作区;piRpc spawn 未决废弃即收割消孤儿进程
+- 转录浮层不可探测路径二次探错熔断终态,消无限重定位
+- omp/pi skill 派发轮次接入时间线,判空标记同步防清扫误删
+- v0.2.5..0.2.7 六维代码审查修复批:结构化流渲染 120ms 尾沿合帧(每 token 全量重渲染链降一个量级)与转录浮层块引用复用保 memo/定位扫描 miss 退避;piRpc 退出守卫补全(exited 置位——退出后审批应答/非 confirm 部件取消不再未捕获拒绝,在途请求统一 reject,启动相位回退守卫,发送失败回填草稿),补 piRpc.test.ts 回归;proc_stream kill/kill_all 改 async(spawn_blocking)防收割窗持锁冻主线程 2s;daily-journal meta 账本改同目录 tmp+rename 原子写;WSL 主机表单端口显式校验(1-65535,不再静默回落 22);手机 shrinkImage 位图显式 close 与 composer 高度上限钳制;删死代码约 -60 行(glyphOf 品牌分支与配套 CSS、wsl-distro 死类名、decideProbe 死参、hasActiveTaskForDay 预闸与导出、collectSessionRows 转发、WslDirBrowser 死联合臂、render_health gap_ms 双侧、render_health 头注/日志路径漂移)
+
+### 变更
+
+- WSL 三份同构目录浏览器收敛为单一 WslDirBrowser;远程段手动添加主机表单并入 SSH 簿(sshHostIdentityKey 沉淀 kernel/sshTypes 双消费);删 DEV_REMOTE_FALLBACK 假发行版数据(探测失败如实报错);删零消费 railEntry 字段
+- daily-journal 删零消费 articleHead/scanning/holidays/since,todayKeyLocal 并入 daySessions;session-viewer 的 capped/TEXT_CAP 沉淀 transcriptPhases 去拆文件双份维护
+
 ## [0.2.6] - 2026-09-30
 
 ### 新增

@@ -34,6 +34,7 @@ const OPENABLE_KINDS = [
   "session-view",
   "daily-journal",
   "daily-article",
+  "structured-session",
 ] as const;
 
 function activateCollecting(): Map<string, TabContentContribution> {

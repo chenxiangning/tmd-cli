@@ -9,6 +9,10 @@
 .sv-truncated { font-size: 0.625rem; color: var(--tmd-warn, #b8860b); }
 .sv-refresh { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid var(--tmd-border); border-radius: 6px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); cursor: pointer; }
 .sv-refresh:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.sv-minimal { margin-left: auto; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--tmd-border); border-radius: 6px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: 0.6875rem; cursor: pointer; }
+.sv-minimal:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.sv-minimal.is-on { color: var(--tmd-accent); border-color: color-mix(in srgb, var(--tmd-accent) 45%, transparent); background: color-mix(in srgb, var(--tmd-accent) 10%, transparent); }
+.sv-minimal + .sv-refresh { margin-left: 6px; }
 .sv-scroll { flex: 1; overflow-y: auto; }
 .sv-empty { display: grid; place-items: center; height: 100%; color: var(--tmd-fg-faint); font-size: 0.75rem; }
 .sv-blocks { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 24px; max-width: 860px; margin: 0 auto; }
@@ -79,3 +83,33 @@
 /* 加载更多 */
 .sv-more { align-self: center; margin-top: 4px; padding: 4px 16px; border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); cursor: pointer; font-size: 0.6875rem; }
 .sv-more:hover { color: var(--tmd-fg); background: var(--tmd-bg-hover); }
+
+/* ── 活会话转录浮层(幕布保活之上的覆盖视图;画布绝对定位层)── */
+.lv-pill { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border: 1px solid var(--tmd-border); border-radius: 6px; background: color-mix(in srgb, var(--tmd-bg-elevated) 86%, transparent); color: var(--tmd-fg-muted); font-size: 0.6875rem; cursor: pointer; backdrop-filter: blur(4px); }
+.lv-pill:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.lv-view { position: absolute; inset: 0; pointer-events: auto; }
+.lv-close { margin-left: 6px; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--tmd-border); border-radius: 6px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: 0.6875rem; cursor: pointer; }
+.lv-close:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+
+/* live 浮层:working 带 + 卷尾流式观感(monocode 同款;数据仍 message 级) */
+.lv-working { flex: none; display: flex; align-items: center; gap: 8px; padding: 5px 14px; border-top: 1px solid var(--tmd-border); background: color-mix(in srgb, var(--tmd-bg-elevated) 72%, transparent); font-size: 0.75rem; color: var(--tmd-fg-muted); }
+.lv-spin { display: grid; grid-template-columns: repeat(3, 4px); gap: 2px; flex: none; }
+.lv-spin i { width: 4px; height: 4px; border-radius: 1px; background: var(--tmd-fg-muted); animation: lvSpinCell 1.2s ease-in-out infinite; }
+.lv-spin i:nth-child(1) { animation-delay: 0s; }
+.lv-spin i:nth-child(2) { animation-delay: 0.1s; }
+.lv-spin i:nth-child(3) { animation-delay: 0.2s; }
+.lv-spin i:nth-child(4) { animation-delay: 0.3s; }
+.lv-spin i:nth-child(5) { animation-delay: 0.4s; }
+.lv-spin i:nth-child(6) { animation-delay: 0.5s; }
+.lv-spin i:nth-child(7) { animation-delay: 0.6s; }
+.lv-spin i:nth-child(8) { animation-delay: 0.7s; }
+.lv-spin i:nth-child(9) { animation-delay: 0.8s; }
+@keyframes lvSpinCell { 0%, 70%, 100% { opacity: 0.25; } 35% { opacity: 1; } }
+.lv-working-who { font-weight: 600; color: var(--tmd-fg); }
+.lv-working-for { color: var(--tmd-fg-muted); }
+@keyframes lvPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.sv-tool-mark { flex: none; font-size: 0.6875rem; color: var(--tmd-fg-faint); }
+.sv-tool-mark.is-err { color: var(--tmd-danger, #c0392b); }
+.sv-tool-subline { margin: 0 0 2px 21px; font-size: 0.6875rem; color: var(--tmd-fg-faint); font-family: var(--font-mono, ui-monospace, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-think-head.is-stream .sv-think-summary { animation: lvPulse 1.6s ease-in-out infinite; }
+.sv-assistant.sv-tail::after { content: ""; display: inline-block; width: 7px; height: 1em; margin-left: 3px; vertical-align: text-bottom; border-radius: 1px; background: var(--tmd-fg-muted); animation: lvPulse 1.2s ease-in-out infinite; }

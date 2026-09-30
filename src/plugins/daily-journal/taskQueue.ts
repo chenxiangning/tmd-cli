@@ -22,7 +22,6 @@ export interface GenTask {
   engine: string;
   st: "queue" | "run" | "done" | "err";
   text: string;
-  since: number;
   /** 生成会话 host id(run/done 有;排队无)。 */
   sessionId?: string;
   /** run 起跑时刻(ms);硬顶审计判超龄用,终态不清。 */
@@ -98,11 +97,13 @@ function commit(): void {
   store.commit({ tasks: [...tasks] });
 }
 
-/** 活跃(run/queue)任务里同日同类型去重:重复入队幂等返回 null。 */
+/** 活跃(run/queue)任务里按日粒度去重:同日任意类型已有任务即拒,防止两个
+ *  agent read-modify-write 同一篇文章互相丢更新(定时/补跑/auto 增量/补齐/重试
+ *  等自动口不过 hasActiveTaskForDay 预检,此处是唯一闸口)。 */
 export function enqueueTask(type: GenTaskType, dayKey: string, engine: string): GenTask | null {
-  const dup = store.snapshot.tasks.some((t) => t.dayKey === dayKey && t.type === type && (t.st === "run" || t.st === "queue"));
+  const dup = store.snapshot.tasks.some((t) => t.dayKey === dayKey && (t.st === "run" || t.st === "queue"));
   if (dup) return null;
-  const task: GenTask = { id: nextId++, dayKey, type, engine, st: "queue", text: "排队中", since: Date.now() };
+  const task: GenTask = { id: nextId++, dayKey, type, engine, st: "queue", text: "排队中" };
   store.commit({ tasks: [task, ...store.snapshot.tasks] });
   commit();
   pump();
@@ -115,11 +116,6 @@ export function dayGenTaskType(failed: boolean, hasArticle: boolean): GenTaskTyp
   return hasArticle ? "增量并入" : "手动生成";
 }
 
-/** 该日是否已有排队/运行任务(纯读,测试面):enqueueTask 只按 (日, 类型) 去重,
- *  挡不住「手动生成 + 增量并入」并发写同一篇文章,手动入口须先过这道日粒度闸。 */
-export function hasActiveTaskForDay(dayKey: string): boolean {
-  return store.snapshot.tasks.some((t) => t.dayKey === dayKey && (t.st === "run" || t.st === "queue"));
-}
 
 /** 队列开泵:run 槽未满时依序补位(runner 异步执行,终态回调推进补位)。 */
 function pump(): void {
@@ -208,7 +204,6 @@ export function restoreTasks(saved: unknown): void {
       engine: typeof r.engine === "string" ? r.engine : "omp",
       st,
       text: st === "err" && r.st === "run" ? "中断(应用重启)" : String(r.text ?? ""),
-      since: typeof r.since === "number" ? (r.since as number) : 0,
       sessionId: typeof r.sessionId === "string" ? (r.sessionId as string) : undefined,
     });
   }

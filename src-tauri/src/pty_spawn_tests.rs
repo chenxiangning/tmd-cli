@@ -35,6 +35,30 @@ fn flush_utf8_tail_空尾不补发() {
     assert_eq!(flush_utf8_tail(&mut tail), None);
 }
 
+/* 自适应窗契约:洪峰逐批翻倍封顶 50ms;孤立小块回 8ms 基线;中批保持现窗。
+ * 窗长打错 = 高吞吐场景事件风暴回归(前端主线程饱和卡死的输入侧放大器)。 */
+#[test]
+fn 自适应窗_洪峰翻倍封顶_小块回基线_中批保持() {
+    let base = Duration::from_millis(8);
+    let mut w = base;
+    /* 洪峰:每批排满窗口 → 8→16→32→50→50(封顶) */
+    w = next_aggregate_window(w, true, 4096);
+    assert_eq!(w, Duration::from_millis(16));
+    w = next_aggregate_window(w, true, 4096);
+    assert_eq!(w, Duration::from_millis(32));
+    w = next_aggregate_window(w, true, 4096);
+    assert_eq!(w, Duration::from_millis(50));
+    w = next_aggregate_window(w, true, 4096);
+    assert_eq!(w, Duration::from_millis(50));
+    /* 孤立小块(击键回显):回基线 */
+    w = next_aggregate_window(w, false, 64);
+    assert_eq!(w, base);
+    /* 中批未排满窗口:保持现窗(洪峰间歇不降级) */
+    w = next_aggregate_window(w, true, 4096);
+    w = next_aggregate_window(w, false, 1024);
+    assert_eq!(w, Duration::from_millis(16));
+}
+
 /* 端到端锁死回归:ConPTY(INHERIT_CURSOR)启动即在输出侧发 DSR 并扣住
 输出等 CPR 应答。按 spawn() 的真实顺序建 ConPTY + 经 conpty_cpr_reply
 代答,断言 10s 内读到 cmd 的输出字节;有人移除代答此测必红。 */

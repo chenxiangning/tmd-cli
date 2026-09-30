@@ -1,6 +1,9 @@
 /** session-viewer 英文词典。 */
 export const MESSAGES_EN: Record<string, string> = {
   刷新: "Refresh",
+  极简: "Minimal",
+  "极简展示:每轮工作过程折叠为一行,只保留最终答复":
+    "Minimal view: each turn's work folds into one row, keeping only the final reply",
   "切换图片大小": "Toggle image size",
   "会话过大,已截断": "Session too large, truncated",
   "读取中…": "Loading…",
@@ -16,4 +19,12 @@ export const MESSAGES_EN: Record<string, string> = {
   你: "You",
   "查看会话转录(只读)": "View session transcript (read-only)",
   AI: "AI",
+  结构化幕布: "Structured canvas",
+  PTY流: "PTY stream",
+  "切换到结构化转录视图(幕布保活)": "Switch to structured transcript view (terminal stays alive)",
+  "返回 PTY 流实况显示": "Back to live PTY stream",
+  "定位会话文件中…": "Locating session file…",
+  "该引擎不支持实时转录": "Live transcript not supported for this engine",
+  "载入更早": "Load earlier",
+  "working for": "working for ",
 };

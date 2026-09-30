@@ -24,9 +24,9 @@ import { ShellSessionGroup } from "./ShellSessionGroup";
  *  bold weight 下圆胖 + 顶部翻开页细节。 */
 function FolderIcon({ expanded }: { expanded: boolean }) {
   return expanded ? (
-    <FolderOpen size="1rem" weight="bold" aria-hidden />
+    <FolderOpen size="0.8125rem" weight="bold" aria-hidden />
   ) : (
-    <FolderSimple size="1rem" weight="bold" aria-hidden />
+    <FolderSimple size="0.8125rem" weight="bold" aria-hidden />
   );
 }
 
@@ -94,7 +94,7 @@ export function WorkspaceCard({
               aria-hidden
             >
               {worktree ? (
-                <DecorIcon id="worktree" Fallback={GitFork} size="1rem" weight="bold" aria-hidden />
+                <DecorIcon id="worktree" Fallback={GitFork} size="0.8125rem" weight="bold" aria-hidden />
               ) : (
                 <FolderIcon expanded={!collapsed} />
               )}

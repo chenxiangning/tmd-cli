@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickResultToBlob, tailAskLine } from "./remote";
+import { composeSendText, pickResultToBlob, tailAskLine } from "./remote";
 
 describe("pickResultToBlob(native pickImage 结果分流)", () => {
   const raw = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
@@ -30,5 +30,19 @@ describe("tailAskLine", () => {
 
   it("无标记 → null", async () => {
     expect(await tailAskLine("waiting for input…\n")).toBeNull();
+  });
+});
+
+describe("composeSendText(正文 + 已挂图片统一拼 @路径)", () => {
+  it("正文带尾空白 + 单图 → 单空格接 @路径", () => {
+    expect(composeSendText("看下这个 ", ["/tmp/a.jpg"])).toBe("看下这个 @/tmp/a.jpg");
+  });
+
+  it("纯图片无正文 → 仅 @路径串(空格分隔)", () => {
+    expect(composeSendText("", ["/a.jpg", "/b.jpg"])).toBe("@/a.jpg @/b.jpg");
+  });
+
+  it("空草稿且无图 → null 不发送", () => {
+    expect(composeSendText("  ", [])).toBeNull();
   });
 });

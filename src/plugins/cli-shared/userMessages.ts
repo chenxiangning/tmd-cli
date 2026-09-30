@@ -3,6 +3,9 @@
  *
  * 行型知识属各 CLI,五种实证解析器都在这里:
  * - omp/pi:`{"type":"message","id":…,"message":{"role":"user","content":[…]}}`
+ *   + `{"type":"custom_message","customType":"skill-prompt"|"custom-message",
+ *   "attribution":"user","details":{name,args,prompt}}`(skill 派发的轮次,
+ *   磁盘上无 role:"user" 行,2026-09-30 审查会话实证)
  * - claude:`{"type":"user","uuid":…,"message":{"role":"user","content":[…]}}`(isSidechain 跳过)
  * - codex:`{"type":"response_item","payload":{"type":"message","role":"user","content":[…]}}`
  * - grok:`{"type":"user","content":[…]}`,真实输入包裹 <user_query> 标签(system prompt 协议)
@@ -60,8 +63,39 @@ export type UserMessageLineParser = (
   event: Record<string, unknown>,
 ) => CliUserMessage | null;
 
-/** omp/pi 共享行型。 */
+/**
+ * omp/pi 用户发起的 custom_message 行型(skill 派发 / 自定义输入):
+ * 判别字段照抄 omp 会话展示层 —— customType ∈ {skill-prompt, custom-message}
+ * 且 attribution === "user"(agent 注入的 mount-notice 等是 display:false +
+ * attribution:agent,不在此列)。文本合成同 omp:details.prompt 优先,
+ * 缺省回 /skill:name args。
+ */
+function ompPiCustomMessageLine(event: Record<string, unknown>): CliUserMessage | null {
+  const customType = stringField(event, "customType");
+  if (customType !== "skill-prompt" && customType !== "custom-message") return null;
+  if (stringField(event, "attribution") !== "user") return null;
+  const id = stringField(event, "id");
+  const text = ompPiCustomMessageText(event.details);
+  if (!id || !text || isWrapperText(text)) return null;
+  return { id, text };
+}
+
+/** omp 展示层同款合成文本:prompt 优先,其次 /skill:name args,再 name,再 args。 */
+function ompPiCustomMessageText(details: unknown): string | undefined {
+  if (!details || typeof details !== "object") return undefined;
+  const d = details as Record<string, unknown>;
+  const prompt = stringField(d, "prompt");
+  if (prompt?.trim()) return prompt;
+  const name = stringField(d, "name")?.trim();
+  const args = stringField(d, "args")?.trim();
+  if (name && args) return `/skill:${name} ${args}`;
+  if (name) return `/skill:${name}`;
+  return args || undefined;
+}
+
+/** omp/pi 共享行型;skill/custom 派发的用户输入与普通 user 行同为轮次起点。 */
 export const ompPiUserMessageLine: UserMessageLineParser = (event) => {
+  if (event.type === "custom_message") return ompPiCustomMessageLine(event);
   if (event.type !== "message") return null;
   const message = event.message;
   if (!message || typeof message !== "object") return null;
@@ -167,7 +201,8 @@ export function parseUserMessages(
       !line.includes('"role":"user"') &&
       !line.includes('"type":"user"') &&
       !line.includes('"TurnBegin"') &&
-      !line.includes('"turn.prompt"')
+      !line.includes('"turn.prompt"') &&
+      !line.includes('"custom_message"')
     ) {
       continue;
     }

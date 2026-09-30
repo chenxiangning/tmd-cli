@@ -37,6 +37,19 @@ pub struct SessionMeta {
     /// 手机壳据此做标题解析/续接去重/置顶 key —— session_list 是它的唯一活表视图。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cli_session_id: Option<String>,
+    /// 活动守望投影(桌面前端 hostWatches 权威态经 session_report_activity 全量上报;
+    /// 手机「运行中」区成员判定 = turnActive || unread,与桌面 RunningZone 同律)。
+    /// None = 未上报/空闲。Rust 不理解轮次语义,只做投影存储。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activity: Option<SessionActivity>,
+}
+
+/// 活动板条目(桌面活动守望快照;手机 session_list 直读)。
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionActivity {
+    pub turn_active: bool,
+    pub unread: bool,
 }
 
 fn default_session_kind() -> String {
@@ -154,6 +167,8 @@ pub fn save_workspaces(data: &WorkspacesFile) -> std::io::Result<()> {
 #[derive(Default)]
 pub struct SessionRegistry {
     sessions: Mutex<HashMap<String, SessionMeta>>,
+    /// 会话活动板(session_report_activity 全量替换;remove 随 PTY 一并清除)。
+    activity: Mutex<HashMap<String, SessionActivity>>,
 }
 
 impl SessionRegistry {
@@ -161,12 +176,28 @@ impl SessionRegistry {
         self.sessions.lock().insert(meta.id.clone(), meta);
     }
 
+    /// 活表快照:活动板按 id 内联投影(手机 session_list 直读;桌面消费方忽略该字段)。
     pub fn list(&self) -> Vec<SessionMeta> {
-        self.sessions.lock().values().cloned().collect()
+        let map = self.sessions.lock();
+        let activity = self.activity.lock();
+        map.values()
+            .map(|m| SessionMeta {
+                activity: activity.get(&m.id).copied(),
+                ..m.clone()
+            })
+            .collect()
     }
 
     pub fn remove(&self, id: &str) {
         self.sessions.lock().remove(id);
+        self.activity.lock().remove(id);
+    }
+
+    /// 全量替换活动板(上报方 = 桌面前端守望,唯一权威;全量语义无累积漂移)。
+    pub fn replace_activity(&self, entries: Vec<(String, SessionActivity)>) {
+        let mut board = self.activity.lock();
+        board.clear();
+        board.extend(entries);
     }
 
     /// 更新会话的工作区归属(会话被接管/转正时补写;预热 spawn 时归属未知)。

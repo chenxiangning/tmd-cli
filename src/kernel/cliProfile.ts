@@ -256,19 +256,19 @@ export interface CliProfile {
   /** 无头 prompt 递送方式:true = 引擎从 stdin 读(codex exec - / claude -p 管道形态),
    *  genSession 在 spawn 后经 writeSession 注入全文;缺省 file = 引擎在模板内 @<promptFile> 引用。 */
   oneshotStdin?: boolean;
+  /** 结构化会话能力(omp/pi `--mode rpc` NDJSON):structured-session 插件按
+   *  command spawn RPC 子进程(token 级流,PTY 零涉及)。缺省 = 无。 */
+  structuredRpc?: { command: string };
   /** spawn 前动态改写 SpawnSpec:插件运行时注入连接参数/路径等动态值(例 dsh 的 DSH
    *  host:port 来自 localStorage,无法在声明期固定)。返回改写后的 spec;缺省 = 不改写。 */
   spawnTransform?: (spec: SpawnSpec) => SpawnSpec | Promise<SpawnSpec>;
-
   /**
-   * 该 CLI 的额度抓取器(composer 状态条 QuotaChip / welcome 供应商盘点消费)。
-   * 声明后内核自动接线进 kernel/quota 注册表(按 profileId 索引);
-   * 未声明 = 该 CLI 无额度位。失败时 throw,由消费方渲染错误态。
+   * 该 CLI 的额度抓取器(composer QuotaChip / welcome 盘点;内核自动接线进
+   * kernel/quota;失败 throw 由消费方渲染错误态)。
    */
   fetchQuota?: (ctx: QuotaFetchContext) => Promise<QuotaSnapshot>;
 
   /* ── 安装/展示元数据(welcome 引擎卡消费;与 renderIcon 同性质的声明字段)── */
-
   /** 官方文档 URL;缺省 = 引擎卡不显示「官方文档」链接。 */
   docsUrl?: string;
   /** npm 包名(不带 @latest):registry 最新版查询 + npm 通道一键安装共用。 */

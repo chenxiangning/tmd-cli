@@ -13,7 +13,7 @@ import type { MonthSnapshot } from "./journalStore";
 import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, type DayStatus, type HeatThresholds } from "./journalStore";
 import { pad2 } from "./journalFiles";
 import { openArticleTab } from "./journalTabs";
-import { dayGenTaskType, enqueueTask, hasActiveTaskForDay } from "./taskQueue";
+import { dayGenTaskType, enqueueTask } from "./taskQueue";
 import { getJournalState } from "./journalStore";
 import { weekdayLabelsMon } from "./dateTitle";
 import type { DayNote, DayMeta } from "./journalFiles";
@@ -73,8 +73,8 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
       return;
     }
     setConfirming(false);
-    /* 日粒度闸:enqueueTask 只按 (日, 类型) 去重,挡不住跨类型并发写同一篇文章。 */
-    const task = hasActiveTaskForDay(key) ? null : enqueueTask(dayGenTaskType(st === "f", !!article), key, getJournalState().config.engine);
+    /* enqueueTask 日粒度闸:同日已有任务(任意类型)拒入返回 null,同 toast 反馈。 */
+    const task = enqueueTask(dayGenTaskType(st === "f", !!article), key, getJournalState().config.engine);
     onToast(task ? t("{m}月{d}日生成任务已转后台", { m, d }) : t("该日已有生成任务在队列"));
   };
   /* 有文章且存在待归纳行(含今日增量中)也出按钮:手动发起增量并入的月格入口。 */

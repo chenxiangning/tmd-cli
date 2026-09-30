@@ -12,6 +12,11 @@ const ipcMock = vi.hoisted(() => ({
     files.set(path, content);
   }),
   fsCreateDir: vi.fn(async () => undefined),
+  fsRenameEntry: vi.fn(async (path: string, newName: string) => {
+    const to = `${path.slice(0, path.lastIndexOf("/"))}/${newName}`;
+    files.set(to, files.get(path)!);
+    files.delete(path);
+  }),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));

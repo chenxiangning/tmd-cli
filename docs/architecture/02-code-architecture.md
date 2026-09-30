@@ -72,12 +72,15 @@ flowchart TB
             P_MARKS["marks<br/>文件标记:编辑器锚点/跨文件面板/composer.attachments 芯片条"]
             P_LSP["lsp<br/>语义跳转:registerLanguageServer ×4 语言发现链"]
             P_WEB["web-access<br/>设置 section:LAN/Cloudflare/自建中继三通道管理"]
-            P_MISC["assets / cli-config / local-loader / wsl / wallpaper / session-board<br/>(资产库 / CLI 图形配置 / 本机插件装载 / WSL 通道 / 壁纸 / 会话看板 overlay)"]
+            P_MISC["assets / cli-config / local-loader / wsl / wallpaper / session-board / skill-hub / mcp-hub / intent-canvas<br/>(资产库 / CLI 图形配置 / 本机插件装载 / WSL 通道 / 壁纸 / 会话看板 / 技能·MCP hub / 意图画布)"]
+            P_SVIEW["session-viewer<br/>会话转录浮层(editorCenter.canvasOverlay)<br/>+ 极简展示 + terminal.canvasRow 结构化切换钮"]
+            P_DJ["daily-journal<br/>每日工作日志:日/月/年视图 + 无头生成队列(契约见 18)"]
+            P_SSTRUCT["structured-session<br/>结构化会话:proc_stream + omp/pi --mode rpc<br/>token 级流(契约见 19)"]
         end
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>151 个 tauri::command 注册(git 40(含 worktree 4 + pr 2 + file 2 + blame) + ssh 19 + web/relay 15 + session_commands 12 + checkpoints 11 + commands_fs 16 + fs_edit 7 + wsl 6 + 本机插件 5 + open_with 3 + lsp 3 + quota 2 + sqlite 2 + lib.rs 直注册 10)<br/>panic 钩子落盘 panic.log(钩子内禁再 panic,safe_eprintln 断管道免疫)"]
+        LIB["lib.rs<br/>162 个 tauri::command 注册(git 40(含 worktree 4 + pr 2 + file 2 + blame) + ssh 19 + commands_fs 18 + web/relay 13 + session_commands 13 + checkpoints 11 + fs_edit 8 + 本机插件 8(plugins_cmds 5 + skill_pkg 3) + wsl 6(wsl/wsl_remote/wsl_remote_ops 1/1/4) + proc_stream 4 + open_with 3 + lsp 3 + quota 2 + sqlite 2 + mcp_probe 1 + render_health 1 + lib.rs 直注册 10)<br/>panic 钩子落盘 panic.log(钩子内禁再 panic,safe_eprintln 断管道免疫)"]
         PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve/(mod·path_cache·which)<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
@@ -175,7 +178,7 @@ sequenceDiagram
     participant TV as TerminalView (xterm)
 
     CLI->>PT: 字节流 (8192B buf)
-    PT->>PT: 8ms 聚合窗拼批 + 落盘 session_log<br/>增量 UTF-8 解码(跨包不断字)
+    PT->>PT: 自适应聚合窗(8→50ms,洪峰降事件数;契约见 17)拼批 + 落盘 session_log<br/>增量 UTF-8 解码(跨包不断字)
     PT->>EVT: emit "pty://out/{sessionId}"
     Note over H: 常驻订阅：会话诞生即挂<br/>与幕布是否挂载无关
     EVT->>H: onPtyOutput 回调
@@ -505,7 +508,7 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 151 个 `#[tauri::command]`(git 40:commands.rs 31 + commands_worktree 4 + commands_pr 2 + commands_file 2 + blame 1 · ssh 19 · web/relay 15 · session_commands 12 · checkpoints 11 · commands_fs 16 · fs_edit 7 · wsl 6 · plugins_cmds 5 · open_with 3 · lsp 3 · quota 2 · sqlite 2 · lib.rs 直注册 10),与 `ipc.ts` 一一对应:
+注册的 162 个 `#[tauri::command]`(git 40:commands.rs 31 + commands_worktree 4 + commands_pr 2 + commands_file 2 + blame 1 · ssh 19 · commands_fs 18 · web/relay 13 · session_commands 13 · checkpoints 11 · fs_edit 8 · wsl 6(wsl/wsl_remote/wsl_remote_ops 1/1/4) · plugins_cmds 5 + skill_pkg 3 · proc_stream 4 · open_with 3 · lsp 3 · quota 2 · sqlite 2 · mcp_probe 1 · render_health 1 · lib.rs 直注册 10),与 `ipc.ts` 一一对应:
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
@@ -527,6 +530,8 @@ flowchart TD
 | `fs_remove_path` | `fs.rs` | 物理删除文件/目录（会话删除双端统一）,NotFound 幂等成功 |
 | `fs_walk_files` | `fs_walk.rs` | 全仓文件索引(gitignore 系语义镜像 pi/omp TUI,cap 上限),composer `@` 候选 |
 | `proc_communicate` | `proc_run.rs` | 通用短进程通道(omp/pi RPC 副车、grok `inspect --json`),spawn_blocking |
+| `proc_stream_spawn` / `proc_stream_write` / `proc_stream_kill` / `proc_stream_kill_all` | `proc_stream.rs` | 通用长驻流式子进程通道:spawn 返回流 id,stdout/stderr 按行经 `proc://stream/{id}/out|err` 推送、退出推 exit(code 或 null);双 reader EOF 后到者 2s 宽限自然收割单一出口;内核不懂子进程协议,NDJSON 帧语义归消费插件(structured-session;契约见 architecture/19) |
+| `render_health` | `render_health.rs` | 渲染健康上报/击打阶梯 + 壳侧心跳守望(init_watchdog 5s tick/15s 死线)与泵侧洪水计量(note_pty_emitted;契约见 architecture/17) |
 | `fs_create_dir` / `fs_create_file` / `fs_write_file` / `fs_copy_file` | `fs_edit.rs` | 文件树新建目录/文件、编辑器保存(绝对路径,禁 .git 段,写上限 16MB)/ 受管副本拷贝(壁纸图库导入) |
 | `fs_rename_entry` / `fs_trash_entry` / `fs_reveal_in_file_manager` | `fs_edit.rs` | 重命名(校验 basename) / 废纸篓(trash crate) / 在访达(Finder)中显示 |
 | `read_local_image_data_url` | `lib.rs`/`fs.rs` | md 预览本地图片(白名单 + 20MB 闸) |

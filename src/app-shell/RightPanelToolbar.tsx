@@ -58,9 +58,7 @@ export function PanelRail({
   );
 
   /* 外显 tab = 已钉住 + 当前激活(未钉也临时外显) */
-  const visiblePanels = panels.filter(
-    (p) => p.railEntry !== false && (pinnedIds.has(p.id) || p.id === mode),
-  );
+  const visiblePanels = panels.filter((p) => pinnedIds.has(p.id) || p.id === mode);
 
   /* 面板与 rail 动作统一并序(2026-09-29 归组);相邻 railGroup 变组处画分隔线,
      组语义归插件声明(注册面),壳只比较相邻值,不认识任何组。
@@ -148,22 +146,6 @@ export function PanelRail({
  * 更多面板下拉(⋯) —— portal 挂 document.body + fixed 定位(复刻 wsmenu 模式),
  * 跳出 rail 层叠上下文,杜绝被文件树压住/背景透明;自 rail 向左弹出。
  * 行点击 = 激活该面板(未钉则顺带钉上);复选框点击 = 仅切换钉住状态,菜单不关。 */
-/** ⋯ 菜单行激活按钮的内联样式(面板行与 rail 动作行共用,复刻原 flex 布局)。 */
-const MENU_ITEM_BUTTON_STYLE = {
-  flex: "1 1 auto",
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  minWidth: 0,
-  padding: 0,
-  border: "none",
-  background: "none",
-  font: "inherit",
-  color: "inherit",
-  cursor: "inherit",
-  textAlign: "left",
-} as const;
-
 /** 钉选复选框(面板行与 rail 动作行共用):点击/键盘勾选 = 仅切换钉住,菜单不关。 */
 function PinCheck({ id, checked }: { id: string; checked: boolean }) {
   return (
@@ -220,12 +202,9 @@ function PanelOverflowMenu({
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
       {/* 混合选择弹层(激活按钮 + 钉选复选框),非纯 ARIA menu,不挂 menu/menuitem 角色。 */}
       <div className="panel-overflow-menu" style={{ left: position.x, top: position.y }} role="group" aria-label={t("面板与动作")}>
-        {/* 面板与 rail 动作同口径并序分组(railEntry === false 的面板不进菜单);
+        {/* 面板与 rail 动作同口径并序分组;
             组间分隔线与 rail 一致,行点击语义随 kind 分流。 */}
-        {mergeRailEntries(
-          panels.filter((p) => p.railEntry !== false),
-          railActions,
-        ).map((entry, i, items) => {
+        {mergeRailEntries(panels, railActions).map((entry, i, items) => {
           const prev = items[i - 1];
           const sep = prev?.group !== undefined && entry.group !== undefined && prev.group !== entry.group;
           if (entry.kind === "panel") {
@@ -236,10 +215,10 @@ function PanelOverflowMenu({
             return (
               <Fragment key={panel.id}>
                 {sep ? <hr className="panel-overflow-sep" /> : null}
-                {/* 激活动作 = 原生 button 占满图标+标签区(内联样式复刻原 flex 布局);
+                {/* 激活动作 = 原生 button 占满图标+标签区(panel-overflow-item-btn);
                     钉选复选框是并列兄弟,不嵌套在交互元素内(嵌套会丢焦点语义)。 */}
                 <div className={`panel-overflow-item${isActive ? " is-active" : ""}`} data-panel-id={panel.id}>
-                  <button type="button" style={MENU_ITEM_BUTTON_STYLE}
+                  <button type="button" className="panel-overflow-item-btn"
                     onClick={() => {
                       activateRailPanel(panel, { mode, rightOpen, setRightOpen });
                       if (!isChecked) togglePinned(panel.id);
@@ -263,7 +242,7 @@ function PanelOverflowMenu({
               {sep ? <hr className="panel-overflow-sep" /> : null}
               {/* 动作行:点击 = 触发动作(不开面板模式),勾选 = 钉/取钉 rail 外显。 */}
               <div className={`panel-overflow-item${isActive ? " is-active" : ""}`} data-action-id={action.id}>
-                <button type="button" style={MENU_ITEM_BUTTON_STYLE}
+                <button type="button" className="panel-overflow-item-btn"
                   onClick={() => {
                     action.onSelect({ x: position.x, y: position.y });
                     if (action.opensCenterTab) setRightOpen(false);

@@ -12,9 +12,8 @@ use super::{control, known_hosts, session, SshRegistry};
 use crate::session::SessionMeta;
 use crate::AppState;
 
-/// 创建 SSH 会话:立即注册会话表并返回 id,连接/认证在后台完成
-/// (状态经 ssh://event/{id},提示经 ssh://prompt/{id})。engine_profile =
-/// 远程 WSL CLI 的引擎档案 id(仅随 command 出现;composer/Ask 据此取 profile)。
+/// 创建 SSH 会话:立即注册会话表并返回 id,连接/认证在后台完成(状态经 ssh://event/{id},
+/// 提示经 ssh://prompt/{id})。engine_profile = 远程 WSL CLI 的引擎档案 id(仅随 command 出现;composer/Ask 据此取 profile)。
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // 扁平参数直通 tauri IPC 契约(先例:checkpoints/commands.rs)
 pub async fn ssh_session_create(
@@ -89,13 +88,14 @@ pub async fn ssh_session_create(
         }),
         engine: engine_profile,
         cli_session_id: None,
+        activity: None,
     });
 
-    let registry = Arc::clone(&state.ssh);
-    let session_id = id.clone();
-    tauri::async_runtime::spawn(async move {
-        session::connect_and_run(app, registry, session_id).await;
-    });
+    tauri::async_runtime::spawn(session::connect_and_run(
+        app,
+        Arc::clone(&state.ssh),
+        id.clone(),
+    ));
     Ok(crate::pty::SpawnedSession { id, pid: None })
 }
 

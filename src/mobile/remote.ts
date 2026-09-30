@@ -18,6 +18,9 @@ export interface RemoteSession {
   kind?: "cli" | "ssh" | "shell";
   /** CLI 磁盘身份(注册表直读:桥 resume 直填 / 桌面绑定镜像;缺省 = 未绑定)。 */
   cliSessionId?: string;
+  /** 桌面活动守望投影(session_list 直读;缺省 = 空闲)。「运行中」区成员判定 =
+   *  activity.turnActive || activity.unread,与桌面 RunningZone 的 isRunningZoneCandidate 同律。 */
+  activity?: { turnActive?: boolean; unread?: boolean } | null;
 }
 
 export interface RemoteWorkspace {
@@ -26,16 +29,10 @@ export interface RemoteWorkspace {
   root: string;
 }
 
-/** 引擎字形(与桌面侧栏 glyph 同映射;profileId 前缀 → 缩写 + 品牌色类)。 */
+/** 引擎字形回落:已知引擎全由 engineGlyphOf(cli-shared)品牌 SVG 覆盖
+ *  (EngineMark 先查),此处只兜未知 profileId 的两字母缩写。 */
 export function glyphOf(profileId: string): { text: string; cls: string } {
   const p = profileId.toLowerCase();
-  if (p.startsWith("omp") || p.startsWith("pi")) return { text: "OMP", cls: "g-om" };
-  if (p.startsWith("claude")) return { text: "CL", cls: "g-cl" };
-  if (p.startsWith("codex")) return { text: "CX", cls: "g-cx" };
-  if (p.startsWith("kimi")) return { text: "KI", cls: "g-ki" };
-  if (p.startsWith("grok")) return { text: "GK", cls: "g-gk" };
-  if (p.startsWith("qoder")) return { text: "QD", cls: "g-qd" };
-  if (p.startsWith("opencode")) return { text: "OC", cls: "g-oc" };
   return { text: (p[0] ?? "?").toUpperCase() + (p[1] ?? "").toUpperCase(), cls: "g-df" };
 }
 
@@ -142,14 +139,14 @@ export function pickResultToBlob(r: { b64?: string; cancelled?: boolean }): Blob
 
 /** 选图:native PHPicker 直连(ShellBridge "pickImage"),不经 <input type=file>
  *  —— WKUIDelegate 文件面板是 iOS 18.4+ 面,低版本 input 是静默死钮(真机实测)。
- *  取消 → null;失败 → throw(由 shotToDraft flashErr 上屏)。 */
+ *  取消 → null;失败 → throw(由 attachShot flashErr 上屏)。 */
 export async function pickShotImage(): Promise<Blob | null> {
   return pickResultToBlob(await shellInvoke<{ b64: string; cancelled?: boolean }>("pickImage"));
 }
 
 /** 图像压到长边 ≤maxEdge 的 JPEG(微信级),且压进桥帧预算(超预算逐级
  *  降质量/缩边重编码,防拍照路径确定性撞 3.5MiB 守卫)。 */
-export async function shrinkImage(blob: Blob, maxEdge = 1568): Promise<Uint8Array> {
+export async function shrinkImage(blob: Blob, maxEdge = 1568): Promise<Uint8Array<ArrayBuffer>> {
   let bitmap: ImageBitmap;
   try {
     /* from-image:按 EXIF 方向转正(竖拍);旧引擎不认该选项则裸开。 */
@@ -157,26 +154,31 @@ export async function shrinkImage(blob: Blob, maxEdge = 1568): Promise<Uint8Arra
   } catch {
     bitmap = await createImageBitmap(blob);
   }
-  const encode = async (edge: number, quality: number): Promise<Uint8Array> => {
-    const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/jpeg", quality));
-    if (!blob) throw new Error("encode failed");
-    return new Uint8Array(await blob.arrayBuffer());
-  };
-  for (const [edge, quality] of [
-    [maxEdge, 0.8],
-    [maxEdge, 0.6],
-    [1280, 0.6],
-    [960, 0.5],
-  ] as const) {
-    const bytes = await encode(edge, quality);
-    if (bytes.length <= UPLOAD_BYTE_BUDGET) return bytes;
+  try {
+    const encode = async (edge: number, quality: number): Promise<Uint8Array<ArrayBuffer>> => {
+      const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/jpeg", quality));
+      if (!blob) throw new Error("encode failed");
+      return new Uint8Array(await blob.arrayBuffer());
+    };
+    for (const [edge, quality] of [
+      [maxEdge, 0.8],
+      [maxEdge, 0.6],
+      [1280, 0.6],
+      [960, 0.5],
+    ] as const) {
+      const bytes = await encode(edge, quality);
+      if (bytes.length <= UPLOAD_BYTE_BUDGET) return bytes;
+    }
+    throw new Error("image too large after shrink");
+  } finally {
+    /* WKWebView 原生位图内存等 major GC 才回收,连续挂图可感:显式关。 */
+    bitmap.close();
   }
-  throw new Error("image too large after shrink");
 }
 
 /** 截图/拍照 → 桥 fs_write_temp 落盘会话临时文件,返回绝对路径(composer @ 注入用)。 */
@@ -185,13 +187,14 @@ export function uploadTempImage(name: string, bytes: Uint8Array): Promise<string
 }
 
 /** 选图(pickImage 直连;file 参数 = 测试注入)→ 压缩(压进桥帧预算)→
- *  fs_write_temp 落盘 → 草稿注 @路径(桌面附件同语义)。取消/失败走 shell.log
- *  且按钮 3s 变 ✕(手机屏上唯一可见反馈)。 */
-export async function shotToDraft(
+ *  fs_write_temp 落盘 → onShot 挂 composer 预览(objectURL 随移除/发送释放)。
+ *  草稿不再注入 @路径(长路径挤占输入框):发送时统一拼(composeSendText)。
+ *  取消/失败走 shell.log 且按钮 3s 变 ✕(手机屏上唯一可见反馈)。 */
+export async function attachShot(
   o: {
     isBusy: boolean;
     setBusy: (v: boolean) => void;
-    patchDraft: (fn: (d: string) => string) => void;
+    onShot: (shot: { path: string; url: string }) => void;
     flashErr: (v: boolean) => void;
   },
   file?: Blob,
@@ -203,7 +206,7 @@ export async function shotToDraft(
     if (!blob) return; /* 用户取消:静默 */
     const bytes = await shrinkImage(blob);
     const path = await uploadTempImage(`shot-${Date.now()}.jpg`, bytes);
-    o.patchDraft((d) => (d.trimEnd() ? `${d.trimEnd()} @${path} ` : `@${path} `));
+    o.onShot({ path, url: URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" })) });
   } catch (e) {
     shellLog(`上传截图失败: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
     o.flashErr(true);
@@ -211,6 +214,13 @@ export async function shotToDraft(
   } finally {
     o.setBusy(false);
   }
+}
+
+/** 发送文本 = 草稿正文 + 已挂图片 @路径(桌面附件同语义);两者皆空 → null 不发。 */
+export function composeSendText(text: string, paths: string[]): string | null {
+  const body = text.trimEnd();
+  if (!body && !paths.length) return null;
+  return [body, ...paths.map((p) => `@${p}`)].filter(Boolean).join(" ");
 }
 
 

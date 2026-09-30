@@ -51,7 +51,7 @@ WSL 支持的全部平台知识集中在 `plugins/wsl/`(来源插件),经 kernel
 
 - Workspace 携带来源插件元数据(`kernel/workspaceOrigins.ts`);来源插件拔出(重启生效)后其工作区进**孤儿隐藏**,不再伪装本地目录显示(按元数据识别,不按路径猜测,577b82c)。
 - 旧版手工 UNC 形态(`\\wsl.localhost\<distro>\…` root、无 wsl 元数据)同纳入孤儿隐藏,并**补元数据回填**:读 UNC 反推 distro/path 回写 Workspace(`kernel/workspace.ts` 统一,消费方零改动,7f9a3f0)。
-- 非 Windows 开发机有 DEV 预览桩:WSL 卡界面可在 mac 目检,不触真 wsl.exe。
+- 非 Windows 开发机无 DEV 桩(DEV_REMOTE_FALLBACK 假发行版数据已删):远程探测失败如实报错,WSL 卡界面 mac 目检走浏览器桩配方。
 
 ## 降级矩阵(M1 边界)
 

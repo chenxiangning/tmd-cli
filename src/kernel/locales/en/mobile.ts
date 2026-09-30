@@ -83,4 +83,5 @@ export const MESSAGES = {
 
   /* 截图注入(2026-09-26 批次六) */
   "注入截图": "Attach screenshot",
+  "移除图片": "Remove image",
 } as Record<string, string>;

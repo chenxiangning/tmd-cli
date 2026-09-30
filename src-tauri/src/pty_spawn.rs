@@ -1,6 +1,6 @@
 //! PTY 会话创建与输出泵 —— openpty/命令构建/日志装配/reader-emitter 两线程转发。
 //! 自 pty.rs 拆出(文件规模铁则);注册表、写入/resize/kill 与 id 原语留在 pty.rs。
-//! 泵职责:PTY 字节 → 8ms 聚合窗 → 会话日志落盘 → pty://out 事件 → 退出自清理。
+//! 泵职责:PTY 字节 → 自适应聚合窗 → 会话日志落盘 → pty://out 事件 → 退出自清理。
 
 use std::fs::OpenOptions;
 use std::io::Read;
@@ -16,59 +16,34 @@ use crate::pty::{PtyHandle, PtyRegistry, SpawnSpec, SpawnedSession};
 use crate::resolve::{enriched_path, resolve_command};
 use crate::session_log::{append_log, session_log_path, LogMeta};
 
-/// 增量 UTF-8 解码:不完整的多字节尾部暂存进 `tail`,与下一 chunk 拼接后再解码。
-/// 真正的坏字节(error_len 存在)按 U+FFFD 替换;仅是"没读完"的字节绝不误伤。
-/// pub(crate):SSH IO 泵同契约复用(io.rs)——pty://out 的保真度不得取决于供血泵。
-pub(crate) fn decode_utf8_chunk(tail: &mut Vec<u8>, chunk: &[u8]) -> String {
-    let mut bytes = std::mem::take(tail);
-    bytes.extend_from_slice(chunk);
-
-    let mut start = 0;
-    let mut text = String::with_capacity(bytes.len());
-    loop {
-        match std::str::from_utf8(&bytes[start..]) {
-            Ok(valid) => {
-                text.push_str(valid);
-                start = bytes.len();
-                break;
-            }
-            Err(e) => {
-                let up_to = start + e.valid_up_to();
-                // 安全:valid_up_to 边界内必为合法 UTF-8
-                text.push_str(unsafe { std::str::from_utf8_unchecked(&bytes[start..up_to]) });
-                match e.error_len() {
-                    Some(len) => {
-                        text.push('\u{FFFD}');
-                        start = up_to + len;
-                    }
-                    None => {
-                        start = up_to;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    tail.extend_from_slice(&bytes[start..]);
-    text
-}
-
-/// 泵循环收尾:tail 残留 = 永远等不到后续字节的不完整 UTF-8 序列(进程最后
-/// 输出的半个字符),按 U+FFFD 替换取出;空 tail 返回 None(无残留不补发)。
-pub(crate) fn flush_utf8_tail(tail: &mut [u8]) -> Option<String> {
-    if tail.is_empty() {
-        return None;
-    }
-    Some(String::from_utf8_lossy(tail).into_owned())
-}
+/// 增量 UTF-8 解码(实现见 pty_decode.rs;再导出保 ssh/io.rs 既有引用不变)。
+#[path = "pty_decode.rs"]
+pub(crate) mod pty_decode;
+pub(crate) use pty_decode::{decode_utf8_chunk, flush_utf8_tail};
 
 /// 输出聚合窗:首个 chunk 到达后再收 8ms 内的后续 chunk,拼成一个事件发出。
 /// 8KB/次的 read 在高吞吐场景(编译刷屏、cat 大文件)会打成事件风暴,
 /// Tauri IPC 序列化 + WebView 派发是主线程开销大头;8ms ≈ 半个 60fps 帧,
 /// 人眼无感,事件数可降一个数量级。
 const OUT_AGGREGATE_WINDOW: Duration = Duration::from_millis(8);
+/// 自适应长窗上限:持续洪峰(窗内字节不断)时窗长逐批翻倍至此。50ms = TUI
+/// 整帧重绘 20fps 量级,观感无差;事件数再降数倍,给 WebView 主线程让路
+/// (2026-09-30 三会话并发工作期前端饱和卡死取证)。
+const OUT_AGGREGATE_WINDOW_MAX: Duration = Duration::from_millis(50);
 /// 单次聚合批次的字节上限:防恶意/失控输出在窗口内无限堆积撑爆内存。
 const OUT_AGGREGATE_MAX_BYTES: usize = 1024 * 1024;
+
+/// 自适应窗推进(纯函数,测试锚):批排到窗口耗尽/批满 = 生产者仍在前进,
+/// 窗长翻倍封顶;孤立小块(≤256B,击键回显/单 tick)回基线不吃长窗延迟;其余保持。
+fn next_aggregate_window(window: Duration, saturated: bool, batch_len: usize) -> Duration {
+    if saturated {
+        (window * 2).min(OUT_AGGREGATE_WINDOW_MAX)
+    } else if batch_len <= 256 {
+        OUT_AGGREGATE_WINDOW
+    } else {
+        window
+    }
+}
 /// ConPTY 启动握手(仅 Windows):portable-pty 0.9 以 PSEUDOCONSOLE_INHERIT_CURSOR
 /// 建 pseudoconsole,ConPTY 会在输出侧发 DSR(ESC[6n)并扣住输出等 CPR 应答;
 /// 此刻 xterm 尚未接入(启动期 emit 无人监听,前端输入闸也会丢弃 CPR),必须在
@@ -225,14 +200,19 @@ pub(crate) fn spawn(
         暂存后与下一批拼接再解码,避免 from_utf8_lossy 逐包转换产生 */
         let mut tail: Vec<u8> = Vec::new();
         let mut log_file = log_file;
+        /* 自适应窗:8ms 基线;批内排到窗口耗尽/批满 = 生产者仍在前进,下一批
+        窗长翻倍(封顶 50ms);孤立小块(击键回显/单 tick 更新)回基线。 */
+        let mut window = OUT_AGGREGATE_WINDOW;
         /* 阻塞等首 chunk;channel 关闭且排空 → 会话结束 */
         while let Ok(first) = out_rx.recv() {
             let mut batch = first;
             /* 聚合窗:drain 窗口内已到达的所有 chunk,合并为一个事件 */
-            let deadline = Instant::now() + OUT_AGGREGATE_WINDOW;
+            let mut saturated = false;
+            let deadline = Instant::now() + window;
             while batch.len() < OUT_AGGREGATE_MAX_BYTES {
                 let now = Instant::now();
                 if now >= deadline {
+                    saturated = true;
                     break;
                 }
                 match out_rx.recv_timeout(deadline - now) {
@@ -242,6 +222,7 @@ pub(crate) fn spawn(
                     Err(_) => break,
                 }
             }
+            window = next_aggregate_window(window, saturated, batch.len());
             /* 原始字节先落日志(供幕布往前翻页),再解码推事件 */
             if let (Some(file), Some(path)) = (log_file.as_mut(), log_path.as_ref()) {
                 if append_log(&logs, &out_id, file, path, &batch).is_err() {
@@ -249,6 +230,7 @@ pub(crate) fn spawn(
                 }
             }
             let text = decode_utf8_chunk(&mut tail, &batch);
+            crate::render_health::note_pty_emitted(text.len());
             if !crate::event_sink::emit(&out_app, &event, &text) {
                 break; // 前端已销毁
             }

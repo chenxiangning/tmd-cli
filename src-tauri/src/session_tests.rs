@@ -14,6 +14,7 @@ fn meta(id: &str) -> SessionMeta {
         title: None,
         engine: None,
         cli_session_id: None,
+        activity: None,
     }
 }
 
@@ -68,4 +69,49 @@ fn session_meta_线上形状_camel_case() {
     );
     assert!(v.get("createdAt").is_some(), "createdAt 必须是 camelCase");
     assert!(v.get("profile_id").is_none(), "不允许 snake_case 漏出");
+}
+
+#[test]
+fn activity_board_全量替换投影随会话清除() {
+    let reg = SessionRegistry::default();
+    reg.register(meta("s1"));
+    reg.register(meta("s2"));
+    reg.replace_activity(vec![
+        (
+            "s1".to_string(),
+            super::SessionActivity {
+                turn_active: true,
+                unread: false,
+            },
+        ),
+        (
+            "ghost".to_string(),
+            super::SessionActivity {
+                turn_active: true,
+                unread: true,
+            },
+        ),
+    ]);
+    let listed = reg.list();
+    let s1 = listed.iter().find(|m| m.id == "s1").unwrap();
+    let s2 = listed.iter().find(|m| m.id == "s2").unwrap();
+    assert_eq!(s1.activity.map(|a| a.turn_active), Some(true));
+    /* 未上报会话 = None(序列化缺省),手机按空闲处理 */
+    assert!(s2.activity.is_none());
+    /* 线上形状:手机按 camelCase 直读(白屏事故锁同律) */
+    let v = serde_json::to_value(s1).expect("serialize");
+    assert_eq!(v["activity"]["turnActive"], serde_json::json!(true));
+    /* 全量替换语义:上轮 ghost 条目不残留 */
+    reg.replace_activity(vec![]);
+    assert!(reg.list().iter().all(|m| m.activity.is_none()));
+    /* remove 随会话清板 */
+    reg.replace_activity(vec![(
+        "s2".to_string(),
+        super::SessionActivity {
+            turn_active: false,
+            unread: true,
+        },
+    )]);
+    reg.remove("s2");
+    assert!(reg.list().iter().all(|m| m.activity.is_none()));
 }

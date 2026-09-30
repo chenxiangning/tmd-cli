@@ -9,13 +9,13 @@
  */
 
 import { useEffect, useState } from "react";
-import { ArrowClockwiseIcon, ArrowUpIcon, FolderSimpleIcon } from "@phosphor-icons/react";
-import type { SshHostConfig, WslDirEntry, WslDistro, WslEngineProbe } from "@kernel/ipc";
+import type { SshHostConfig, WslDistro, WslEngineProbe } from "@kernel/ipc";
 import type { CliProfile } from "@kernel/cliProfile";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
-import { joinWslPath, rememberWslProbes } from "./wslCore";
+import { rememberWslProbes } from "./wslCore";
+import { WslDirBrowser } from "./WslDirBrowser";
 
 export function DistroPanel({
   distro,
@@ -32,8 +32,6 @@ export function DistroPanel({
   dir: string | null;
   onPickDir: (path: string) => void;
 }) {
-  const [entries, setEntries] = useState<WslDirEntry[] | null>(null);
-  const [dirErr, setDirErr] = useState<string | null>(null);
   const [probes, setProbes] = useState<WslEngineProbe[] | null>(null);
   const [probeErr, setProbeErr] = useState<string | null>(null);
 
@@ -59,17 +57,6 @@ export function DistroPanel({
     };
   }, [distro.name, sshHost]);
 
-  const loadDir = (path: string) => {
-    setDirErr(null);
-    void ipc
-      .wslListDir(distro.name, path, sshHost)
-      .then((r) => {
-        onPickDir(path);
-        setEntries(r.filter((e) => e.isDir));
-      })
-      .catch((e) => setDirErr(e instanceof Error ? e.message : String(e)));
-  };
-
   /* bin → 品牌图标:cli profile 自声明 renderIcon(图标随 profile 走,不另设表)。 */
   const probeIcons: Record<string, NonNullable<CliProfile["renderIcon"]>> = Object.fromEntries(
     host.getCliProfiles().flatMap((p) => (p.renderIcon ? [[p.command, p.renderIcon]] : [])),
@@ -84,7 +71,25 @@ export function DistroPanel({
         onPick={onPickEngine}
         icons={probeIcons}
       />
-      <DirBrowserSection dir={dir} entries={entries} dirErr={dirErr} onLoadDir={loadDir} />
+      {/* 目录浏览段:初始「浏览目录」→ 加载后「刷新」;逐级进入,上一级行置顶。 */}
+      <div className="wsl-panel-sec">
+        <div className="wsl-panel-head">
+          <span className="wsl-panel-lbl">{t("起始目录")}</span>
+        </div>
+        <WslDirBrowser
+          distro={distro.name}
+          host={sshHost}
+          start={dir ?? "~"}
+          up="row"
+          refresh
+          onLoaded={onPickDir}
+          desc={
+            <p className="wsl-desc">
+              <Hl text={t("「SSH 进入」以该目录为【启动目录】(--cd);逐级进入,点选即生效。")} />
+            </p>
+          }
+        />
+      </div>
     </div>
   );
 }
@@ -156,68 +161,6 @@ function EngineProbeSection({
           );
         })}
       </div>
-    </div>
-  );
-}
-
-/** 目录浏览段:初始「浏览目录」→ 加载后「刷新」;逐级进入,上一级行置顶。 */
-function DirBrowserSection({
-  dir,
-  entries,
-  dirErr,
-  onLoadDir,
-}: {
-  dir: string | null;
-  entries: WslDirEntry[] | null;
-  dirErr: string | null;
-  onLoadDir: (path: string) => void;
-}) {
-  const up = dir && dir !== "~" ? dir.replace(/\/[^/]+$/, "") || "/" : null;
-  return (
-    <div className="wsl-panel-sec">
-      <div className="wsl-panel-head">
-        <span className="wsl-panel-lbl">{t("起始目录")}</span>
-      </div>
-      <div className="wsl-dir-crumb">
-        {dir === null ? (
-          <button type="button" className="wsl-btn sm" onClick={() => onLoadDir(dir ?? "~")}>
-            <FolderSimpleIcon size="0.75rem" aria-hidden /> {t("浏览目录")}
-          </button>
-        ) : (
-          <button type="button" className="wsl-icon-btn" title={t("刷新")} aria-label={t("刷新")} onClick={() => onLoadDir(dir)}>
-            <ArrowClockwiseIcon size={12} aria-hidden />
-          </button>
-        )}
-        <code className="wsl-dir-path" title={dir ?? "~"}>
-          {dir ?? "~"}
-        </code>
-      </div>
-      <p className="wsl-desc">
-        <Hl text={t("「SSH 进入」以该目录为【启动目录】(--cd);逐级进入,点选即生效。")} />
-      </p>
-      {dirErr && <div className="wsl-remote-err">{dirErr}</div>}
-      {entries !== null && (
-        <div className="wsl-dir-list">
-          {up !== null && (
-            <button type="button" className="wsl-dir-row" onClick={() => onLoadDir(up)} aria-label={t("上一级")}>
-              <ArrowUpIcon size={11} aria-hidden />
-              <span>..</span>
-            </button>
-          )}
-          {entries.map((e) => (
-            <button
-              key={e.name}
-              type="button"
-              className="wsl-dir-row"
-              onClick={() => onLoadDir(joinWslPath(dir ?? "~", e.name))}
-            >
-              <FolderSimpleIcon size={12} aria-hidden />
-              <span>{e.name}</span>
-            </button>
-          ))}
-          {entries.length === 0 && <span className="wsl-hint">{t("(空目录)")}</span>}
-        </div>
-      )}
     </div>
   );
 }

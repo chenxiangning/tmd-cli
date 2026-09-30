@@ -10,7 +10,9 @@
 //! (sessionAdopt 重载不灭),reload 语义安全。
 //!
 //! 链路:前端 kernel/rafFallback.ts 守望(原生 rAF 探针 + 形态 A/B 上报)
-//! → `render_health` 命令 → 阶梯击打:set_focus 首击,reload 二击(冷却 60s)。
+//! → `render_health` 命令 → 阶梯击打:set_focus 首击,reload 二击(冷却 60s);
+//! 洪水期(floodGauge 判据随上报携带)reload 降级 focus —— 洪水未停时 reload
+//! 触发回放风暴只会立即再冻结,越自愈越卡。
 //! 另:主窗口 Focused(true) 时戳前端探针并挂 4s 应答死限,应答不至 =
 //! 页面悬死/探针未装,直接进击。
 
@@ -27,24 +29,57 @@ const KICK_DEBOUNCE_MS: u64 = 15_000;
 const RELOAD_COOLDOWN_MS: u64 = 60_000;
 /// Focused 探针应答死限:超时无上报 = 探针链路死,直接进击。
 pub(crate) const PROBE_DEADLINE_MS: u64 = 4_000;
+/// 心跳守望节拍:每 5s 查一次「可见但久无音讯」并采样泵字节计量。
+const HEARTBEAT_TICK_MS: u64 = 5_000;
+/// 心跳死线:窗口可见但 15s 无任何上报(含健康心跳)= webview 深冻,
+/// 页内自报线已死,由壳侧接管进击。
+const HEARTBEAT_DEAD_MS: u64 = 15_000;
+
+/// 全局 PTY 发字节数(泵 emit 处累加)。壳侧洪水计量源:传感器在 Rust 侧,
+/// webview 冻结后前端 floodGauge 不再可用,洪水判定不能依赖前端旗标。
+static PTY_BYTES_EMITTED: AtomicU64 = AtomicU64::new(0);
+
+/// 泵 emit 处按批累加(UTF-8 字节;与 floodGauge 字符数同量级,ANSI 流以
+/// ASCII 为主,共用 256KB/5s 阈值不失真)。
+pub(crate) fn note_pty_emitted(bytes: usize) {
+    PTY_BYTES_EMITTED.fetch_add(bytes as u64, Ordering::Relaxed);
+}
+
+/// 壳侧洪水判据(纯函数,测试锚):5s 节拍内的发字节数增量过 256KB(≈50KB/s,
+/// 与 kernel/floodGauge.ts 同阈值同语义)。
+fn flood_from_delta(delta_bytes: u64) -> bool {
+    delta_bytes > 256 * 1024
+}
 
 #[derive(Default)]
 pub(crate) struct KickState {
     last_action_ms: AtomicU64,
     last_reload_ms: AtomicU64,
     last_report_ms: AtomicU64,
+    /// 洪水期截止时刻(前端 floodGauge 随 stuck 上报刷新):期内 reload 降级为 focus。
+    flood_until_ms: AtomicU64,
     strikes: AtomicU32,
 }
 
-/// 阶梯决策(纯函数,测试锚):首击 focus;二击起 reload,冷却内退 focus。
+/// 阶梯决策(纯函数,测试锚):首击 focus;二击起 reload,冷却内退 focus;
+/// 洪水期内一律 focus(reload = 重放缓冲 + 重挂全部幕布,洪水未停即再冻结,
+/// 越自愈越卡 —— 2026-09-30 第三轮卡死取证,见 kernel/floodGauge.ts)。
 pub(crate) enum KickAction {
     Focus,
     Reload,
 }
 
-pub(crate) fn next_action(strikes_before: u32, now_ms: u64, last_reload_ms: u64) -> KickAction {
+pub(crate) fn next_action(
+    strikes_before: u32,
+    now_ms: u64,
+    last_reload_ms: u64,
+    flood_until_ms: u64,
+) -> KickAction {
     let n = strikes_before.saturating_add(1);
-    if n > 1 && now_ms.saturating_sub(last_reload_ms) >= RELOAD_COOLDOWN_MS {
+    if n > 1
+        && now_ms >= flood_until_ms
+        && now_ms.saturating_sub(last_reload_ms) >= RELOAD_COOLDOWN_MS
+    {
         KickAction::Reload
     } else {
         KickAction::Focus
@@ -58,7 +93,12 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
     }
     ks.last_action_ms.store(now, Ordering::Relaxed);
     let strikes = ks.strikes.fetch_add(1, Ordering::Relaxed) + 1;
-    match next_action(strikes - 1, now, ks.last_reload_ms.load(Ordering::Relaxed)) {
+    match next_action(
+        strikes - 1,
+        now,
+        ks.last_reload_ms.load(Ordering::Relaxed),
+        ks.flood_until_ms.load(Ordering::Relaxed),
+    ) {
         KickAction::Reload => {
             ks.last_reload_ms.store(now, Ordering::Relaxed);
             crate::app_setup::safe_eprintln(&format!(
@@ -68,7 +108,12 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
         }
         KickAction::Focus => {
             crate::app_setup::safe_eprintln(&format!(
-                "render_health: 渲染粘死上报(strikes={strikes}),首击 set_focus"
+                "render_health: 渲染粘死上报(strikes={strikes}){}",
+                if now < ks.flood_until_ms.load(Ordering::Relaxed) {
+                    ",洪水期 reload 降级"
+                } else {
+                    ""
+                },
             ));
             let _ = window.set_focus();
         }
@@ -81,15 +126,19 @@ pub(crate) fn render_health(
     window: WebviewWindow,
     state: State<'_, AppState>,
     ok: bool,
-    gap_ms: u64,
+    flood: bool,
 ) {
     let ks = &state.render_kick;
     ks.last_report_ms.store(now_millis(), Ordering::Relaxed);
+    if flood {
+        /* 洪水期延长 10s:覆盖 KICK_DEBOUNCE 的去重窗,降级判据不漏击打点。 */
+        ks.flood_until_ms
+            .store(now_millis() + 10_000, Ordering::Relaxed);
+    }
     if ok {
         ks.strikes.store(0, Ordering::Relaxed);
         return;
     }
-    let _ = gap_ms; /* 观测值已足量,决策只看 ok 与窗口可见性 */
     /* 窗口真隐藏/最小化时的粘死是「按设计暂停」,不可击打。 */
     if !window.is_visible().unwrap_or(true) {
         return;
@@ -113,23 +162,79 @@ pub(crate) fn on_focused(window: &WebviewWindow) {
     });
 }
 
+/// 壳侧心跳守望(常驻线程):检测传感器移出 webview —— 吊销深冻时页内定时器
+/// 同样饥饿(rafFallback 自报线死亡),Focused 探针又只在焦点切换时触发,
+/// 用户盯死冻结窗口时两条检出线全哑,阶梯永停、只能手动刷新客户端(2026-10-01
+/// 根因定案)。本线程每 5s 独立判定:窗口可见但 15s 无任何上报 = 深冻,进击;
+/// 洪水判定用本进程泵计量(note_pty_emitted),不问前端 —— 洪水期 reload 仍
+/// 降级 focus(防回放风暴),洪过(轮次总会结束)下一拍自动升级 reload,闭环。
+pub(crate) fn init_watchdog(window: WebviewWindow) {
+    std::thread::spawn(move || {
+        let mut last_bytes = 0u64;
+        loop {
+            std::thread::sleep(Duration::from_millis(HEARTBEAT_TICK_MS));
+            let now = now_millis();
+            let cur = PTY_BYTES_EMITTED.load(Ordering::Relaxed);
+            let delta = cur.saturating_sub(last_bytes);
+            last_bytes = cur;
+            let state = window.state::<AppState>();
+            let ks = &state.render_kick;
+            if flood_from_delta(delta) {
+                ks.flood_until_ms.store(now + 10_000, Ordering::Relaxed);
+            }
+            /* 真隐藏/最小化 = 按设计暂停,不判死不击打(与上报路径同律)。 */
+            if !window.is_visible().unwrap_or(true) {
+                continue;
+            }
+            let last = ks.last_report_ms.load(Ordering::Relaxed);
+            if last != 0 && now.saturating_sub(last) >= HEARTBEAT_DEAD_MS {
+                kick(&window, ks);
+            }
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    fn 壳侧洪水判据_5s增量阈值() {
+        assert!(!flood_from_delta(0));
+        assert!(!flood_from_delta(256 * 1024));
+        assert!(flood_from_delta(256 * 1024 + 1));
+    }
+
+    #[test]
     fn 首击_focus_二击_reload_冷却内退_focus() {
         let now = 100_000u64;
-        assert!(matches!(next_action(0, now, 0), KickAction::Focus));
-        assert!(matches!(next_action(1, now, 0), KickAction::Reload));
+        assert!(matches!(next_action(0, now, 0, 0), KickAction::Focus));
+        assert!(matches!(next_action(1, now, 0, 0), KickAction::Reload));
         /* 冷却窗内(last_reload 60s 内)退回 focus */
         assert!(matches!(
-            next_action(2, now, now - 10_000),
+            next_action(2, now, now - 10_000, 0),
             KickAction::Focus
         ));
         assert!(matches!(
-            next_action(2, now, now - RELOAD_COOLDOWN_MS),
+            next_action(2, now, now - RELOAD_COOLDOWN_MS, 0),
             KickAction::Reload
+        ));
+    }
+
+    #[test]
+    fn 洪水期内_reload_降级_focus_洪水过即恢复() {
+        let now = 100_000u64;
+        /* 二击本应 reload,但洪水未过(now < flood_until)→ focus */
+        assert!(matches!(
+            next_action(1, now, 0, now + 5_000),
+            KickAction::Focus
+        ));
+        /* 洪水已过(flood_until <= now)→ 照常 reload */
+        assert!(matches!(next_action(1, now, 0, now), KickAction::Reload));
+        /* 洪水降级不绕过 reload 冷却:冷却内 + 洪水过 仍 focus */
+        assert!(matches!(
+            next_action(2, now, now - 10_000, now),
+            KickAction::Focus
         ));
     }
 

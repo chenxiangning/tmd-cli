@@ -31,6 +31,7 @@ import {
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
+import { copyText } from "@kernel/clipboard";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
 import {
@@ -210,7 +211,7 @@ export function PinnedSessionsSection() {
         title={collapsed ? t("展开已置顶") : t("收起已置顶")}
         onClick={toggleCollapsed}
       >
-        <PinIcon size="0.6875rem" className="pinned-sessions-header-icon" />
+        <PinIcon size="1rem" className="pinned-sessions-header-icon" />
         <span className="pinned-sessions-header-label">{t("已置顶")}</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (
@@ -268,7 +269,7 @@ export function PinnedSessionsSection() {
                 onTogglePin={() => unpinSession(row.key)}
                 onOpenView={sessionViewOpener(row.profile, row.cliSessionId, titleOf(row), { cwd: live?.cwd ?? row.workspace.root })}
                 onCopyId={() => {
-                  void navigator.clipboard?.writeText(row.cliSessionId).catch(() => undefined);
+                  void copyText(row.cliSessionId).catch(() => undefined);
                 }}
                 onRename={() => renameOf(row)}
               />
@@ -282,9 +283,7 @@ export function PinnedSessionsSection() {
           canRename
           pinScope="global"
           onCopyId={() => {
-            void navigator.clipboard
-              ?.writeText(menu.row.cliSessionId)
-              .catch(() => undefined);
+            void copyText(menu.row.cliSessionId).catch(() => undefined);
           }}
           onRename={() => renameOf(menu.row)}
           onPinScope={(scope) =>

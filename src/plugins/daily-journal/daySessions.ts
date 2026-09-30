@@ -26,12 +26,17 @@ export interface DaySessionRow {
   disk?: CliDiskSession;
 }
 
+/** 行开始时刻 → 日索引(本地时区;跨零点会话归前一日,与 groupByDay 同口径)。 */
+export function rowDayKey(r: { startedAt: number }): string {
+  const d = new Date(r.startedAt);
+  return dayKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
 /** 纯聚合:行 → 日索引(Map key = YYYY-MM-DD,行内按开始时刻升序)。 */
 export function groupByDay(rows: DaySessionRow[]): Map<string, DaySessionRow[]> {
   const map = new Map<string, DaySessionRow[]>();
   for (const r of rows) {
-    const d = new Date(r.startedAt);
-    const k = dayKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    const k = rowDayKey(r);
     const list = map.get(k);
     if (list) list.push(r);
     else map.set(k, [r]);
@@ -113,11 +118,11 @@ export function assembleRows(
   return out;
 }
 
-/** 批式全量收集(磁盘 + 活;genSession/journalSchedule 经 collectSessionRows 直用)。
+/** 批式全量收集(磁盘 + 活;genSession/journalSchedule 直用)。
  *  onBatch 缺省 = 纯全量一次返回;传入则每个 (工作区×家族) 落定即回调累计中间形态,
  *  done/total 为扫描进度,done===total 的那次回调即完整 DiskScan(单线程时序保证)。 */
 export async function collectSessionRowsBatched(
-  workspaces: Workspace[] | undefined,
+  workspaces?: Workspace[],
   onBatch?: (scan: DiskScan, done: number, total: number) => void,
 ): Promise<DaySessionRow[]> {
   const target = workspaces ?? getWorkspaces().filter((w) => !findWorkspaceOrigin(w)?.remoteExec);
@@ -155,10 +160,6 @@ export async function collectSessionRowsBatched(
   return assembleRows(scan.diskRows, scan.liveDisk, metas, wsNames);
 }
 
-/** 非批全量(直用面兼容封装)。 */
-export function collectSessionRows(workspaces?: Workspace[]): Promise<DaySessionRow[]> {
-  return collectSessionRowsBatched(workspaces);
-}
 
 /* 扫描缓存:ArticleTab/主视图/右栏面板共用一份(TTL+liveKey 内免重扫;refreshTick>0
    旁路)。存中间形态 DiskScan,活行装配下放渲染层 —— 活会话开关只触发内存重合并,
@@ -167,11 +168,10 @@ export function collectSessionRows(workspaces?: Workspace[]): Promise<DaySession
 const SCAN_TTL_MS = 60_000;
 let scanCache: { wsKey: string; liveKey: string; scan: DiskScan; at: number } | null = null;
 
-/** 日索引 hook 视图:days null = 冷启动尚无任何数据;scanning = 重扫进行中;
+/** 日索引 hook 视图:days null = 冷启动尚无任何数据;
  *  progress = 分批扫描进度(空态文案消费)。 */
 export interface DaySessionsView {
   days: Map<string, DaySessionRow[]> | null;
-  scanning: boolean;
   progress: { done: number; total: number } | null;
 }
 
@@ -185,25 +185,21 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
   const [scan, setScan] = useState<DiskScan | null>(() =>
     scanCache && scanCache.wsKey === wsKey ? scanCache.scan : null,
   );
-  const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   useEffect(() => {
     if (workspaces.length === 0) {
       setScan(EMPTY_SCAN);
-      setScanning(false);
       setProgress(null);
       return;
     }
     const cached = scanCache?.wsKey === wsKey ? scanCache : null;
     if (cached) setScan(cached.scan); /* 旧数据先上屏(缓存新鲜时同引用幂等) */
     if (refreshTick === 0 && cached && cached.liveKey === liveKey && Date.now() - cached.at < SCAN_TTL_MS) {
-      setScanning(false);
       setProgress(null);
       return;
     }
     let alive = true;
     let last: DiskScan | null = null;
-    setScanning(true);
     void collectSessionRowsBatched(workspaces, (batch, done, total) => {
       if (!alive) return;
       last = batch;
@@ -212,7 +208,6 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
     }).then(() => {
       if (!alive) return;
       if (last) scanCache = { wsKey, liveKey, scan: last, at: Date.now() };
-      setScanning(false);
       setProgress(null);
     });
     return () => {
@@ -228,7 +223,7 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
     () => (scan ? groupByDay(assembleRows(scan.diskRows, scan.liveDisk, metas, wsNames)) : null),
     [scan, metas, wsNames],
   );
-  return useMemo(() => ({ days, scanning, progress }), [days, scanning, progress]);
+  return useMemo(() => ({ days, progress }), [days, progress]);
 }
 
 /** 今日 key(本地时区)。 */

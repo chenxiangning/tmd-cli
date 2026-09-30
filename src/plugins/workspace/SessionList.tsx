@@ -46,13 +46,9 @@ import { deleteDiskSessionFull, deleteLiveSessionFull } from "./sessionOps";
 import { ManageList } from "./SessionManage";
 import { useCliSessionGroup } from "./useCliSessionGroup";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
+import { copyText } from "@kernel/clipboard";
 
 import { PAGE_INITIAL } from "./utils";
-
-/** 复制文本到剪贴板(失败静默,不弹错)。 */
-function copyText(text: string) {
-  void navigator.clipboard?.writeText(text).catch(() => undefined);
-}
 
 /**
  * 单个 CLI 的会话分组 —— 工作区置顶块 + 活会话 + 磁盘历史分页。
@@ -166,7 +162,7 @@ export function CliSessionGroup({
         }}
         onRenameCommit={commitRename}
         onTogglePin={() => togglePin(s.id)}
-        onCopyId={() => copyText(s.id)}
+        onCopyId={() => void copyText(s.id).catch(() => undefined)}
         onRename={() => startRename(s.id, titleOverrides[sessionTitleKey(profile.id, s.id)] ?? "")}
         onDelete={() => void deleteDisk(s)}
       />
@@ -230,7 +226,7 @@ export function CliSessionGroup({
                   if (cliSessionId !== undefined) togglePin(cliSessionId);
                 }}
                 onRenameCommit={commitRename}
-                onCopyId={() => copyText(cliSessionId ?? s.id)}
+                onCopyId={() => void copyText(cliSessionId ?? s.id).catch(() => undefined)}
                 onRename={() => {
                   if (!cliSessionId) return;
                   startRename(
@@ -266,7 +262,7 @@ export function CliSessionGroup({
           pinScope={
             menuPinKey === undefined ? undefined : (pins[menuPinKey]?.scope ?? null)
           }
-          onCopyId={() => copyText(menuCliSessionId ?? menu.session.id)}
+          onCopyId={() => void copyText(menuCliSessionId ?? menu.session.id).catch(() => undefined)}
           onRename={() => {
             if (!menuCliSessionId) return;
             startRename(

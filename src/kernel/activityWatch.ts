@@ -146,6 +146,7 @@ export class ActivityWatch {
     Object.assign(st, { anchored: true, awaiting: true, answered: true, active: true, lastContentAt: now, lastBusyAt: now, lastOutputViewed: true, idleArmAt: 0 });
     if (busyHoldMs !== undefined) st.busyHoldMs = busyHoldMs;
     this.ensureWatch();
+    this.host.onChange(); /* 重锚恢复在途轮次:onChange 兼作手机活动板投影信号 */
   }
 
   /** 新输出入站。返回 true = 节流窗已开或轮次开启,Host 应 notify() 一次;未锚定会话与家具分片恒 false(幕布渲染走 ptyLiveTopic)。`visibleText` = 分片剥 ANSI 后可见文本(供家具分类);`busy` = 插件声明的工作界面标记行级命中(CLI 自证在途);`idle` = 空闲自证标记命中(CLI 自证当前屏幕在空闲态,契约见 cliProfile.idleMarks)。 */
@@ -209,6 +210,11 @@ export class ActivityWatch {
   isUnread(sessionId: string): boolean {
     return this.sessions.get(sessionId)?.unread ?? false;
   }
+
+  /** 活动态全量快照(手机运行区投影推送;仅已建档会话,未建档 = 空闲不发)。 */
+  snapshot(): Array<{ id: string; turnActive: boolean; unread: boolean }> {
+    return [...this.sessions].map(([id, s]) => ({ id, turnActive: s.active, unread: s.unread }));
+  }
   /** 对话轮次进行中判定(输出进站起,静默超阈结算止)。 */
   isTurnActive(sessionId: string): boolean {
     return this.sessions.get(sessionId)?.active ?? false;
@@ -218,10 +224,13 @@ export class ActivityWatch {
     return this.sessions.get(sessionId)?.anchored ?? false;
   }
 
-  /** 点开查看 = 已读(蓝 → 灰)。 */
+  /** 点开查看 = 已读(蓝 → 灰);翻转即通知 host(onChange 兼作手机活动板投影信号)。 */
   markViewed(sessionId: string): void {
     const s = this.sessions.get(sessionId);
-    if (s) s.unread = false;
+    if (s && s.unread) {
+      s.unread = false;
+      this.host.onChange();
+    }
   }
 
   /** 会话最近输出时间戳(无输出为 0;未锚定会话不推进,灯恒灰)。 */

@@ -20,7 +20,7 @@ import type { DayNoteImage } from "./journalFiles";
 import { NoteEditor } from "./NoteEditor";
 import { dayGenAction, statusChip } from "./statusText";
 import { noteImageUrl } from "./noteAssets";
-import { dayGenTaskType, enqueueTask, hasActiveTaskForDay, useGenTasks } from "./taskQueue";
+import { dayGenTaskType, enqueueTask, useGenTasks } from "./taskQueue";
 import { TerminalWindow } from "@phosphor-icons/react";
 
 function StatusHints({ st, sessionCount, lastError }: { st: string; sessionCount: number; lastError?: string }) {
@@ -83,7 +83,7 @@ function GenAction({ y, m, d, st, hasArticle, rows, summarizedAt }: { y: number;
   }
   const fire = () => {
     setConfirming(false);
-    if (hasActiveTaskForDay(key)) return; /* 渲染后竞窗:入队前再闸一次,双击防御 */
+    /* enqueueTask 日粒度闸同步拒双击:同日任意类型已有任务返回 null。 */
     enqueueTask(dayGenTaskType(st === "f", hasArticle), key, getJournalState().config.engine);
   };
   const click = () => {

@@ -8,7 +8,8 @@
  * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
  *
  * 文件规模铁则拆分(300 行):历史翻页器在 terminalHistory.ts,
- * 搜索浮层与 terminal.find 命令桥在 terminalSearch.tsx。
+ * 搜索浮层与 terminal.find 命令桥在 terminalSearch.tsx,
+ * 加载遮罩在 terminalLoadOverlay.tsx,保底刷新钮在 terminalRefreshButton.tsx。
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -21,6 +22,7 @@ import { openExternalUrl } from "@kernel/ipc";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
 import { host } from "@kernel/host";
+import { Mounts } from "@kernel/Mounts";
 import {
   registerTerminalHandle,
   unregisterTerminalHandle,
@@ -34,6 +36,8 @@ import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
+import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
+import { TerminalRefreshButton } from "@kernel/terminalRefreshButton";
 import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
 import { readTerminalTheme } from "@kernel/terminalXtermTheme";
@@ -57,6 +61,18 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
      实例随会话 keep-alive 常驻;惰性初值 = useState 初始化器只在首帧执行一次。 */
   const [inputGate] = useState(createReplayInputGate);
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
+  /** 幕布重建代数:刷新钮自增 → 主 effect 重跑 = xterm 销毁重建 + 缓冲回放 +
+      强制 SIGWINCH 整帧重绘(needsForceSync 初值 true),PTY/CLI 不中断。
+      会话内自救:幕布错乱/内容滞留时手动出口;WebKit 级像素冻结归守望阶梯。 */
+  const [canvasGen, setCanvasGen] = useState(0);
+  /** 隐藏幕布合帧写入(Fix B,terminalReplay.ts):activeRef 是活性真相(effect
+     保持最新,避免闭包吃陈旧 prop);激活即冲刷攒帧,切换无感。 */
+  const activeRef = useRef(active);
+  const flushDeferredRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    activeRef.current = active;
+    if (active) flushDeferredRef.current?.();
+  }, [active]);
   /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
   const loadEarlier = useCallback(async () => {
     const term = termRef.current;
@@ -87,13 +103,31 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     });
     const fit = new FitAddon();
     const search = new SearchAddon();
-    /* 外观页改字号/字体 → 活幕布即时重排(fit 后同步 PTY 尺寸,同窗口 resize 语义)。 */
+    /* 错栅格自愈旗:零宽跳过(隐藏期)或尚未成功 fit 过的实例置位,下次成功 sync
+       必须强制 PTY 真实重排 —— 同尺寸 fit 被 xterm 跳过、同尺寸 resize 被 Rust
+       幂等去重(无 SIGWINCH),隐藏期任何瞬态错栅格(2 列钳制重排、重挂载回放
+       错栅、ConPTY resize 抖动)都将永不重绘:omp 靠 spinner 连续整帧重绘自愈,
+       静态 TUI(claude/codex/kimi 跑完一轮即静止)则永久错位。 */
+    const needsForceSyncRef = { current: true };
+    /** 尺寸同步唯一出口:零宽(隐藏)跳过并挂自愈旗;成功即 fit + 同步 PTY。
+        settings 回调与 ResizeObserver 共用,隐藏幕布绝不外发尺寸。 */
+    const syncSize = () => {
+      if (!container.clientWidth) {
+        needsForceSyncRef.current = true;
+        return;
+      }
+      fit.fit();
+      host.resizeSession(sessionId, term.cols, term.rows, needsForceSyncRef.current);
+      needsForceSyncRef.current = false;
+    };
+    /* 外观页改字号/字体 → 活幕布即时重排(fit 后同步 PTY 尺寸,同窗口 resize 语义)。
+       必须经 syncSize:无守卫的 fit+resize 会把不可见会话的 PTY 钳成 2 列窄条重排
+       (settings 写入面极广:置顶/重命名/归档/工作区过滤等日常动作都触发)。 */
     const offFontSettings = subscribeSettings(() => {
       const s = getSettingsState().settings;
       term.options.fontSize = s.terminalFontSize;
       term.options.fontFamily = resolveTerminalFontFamily(s.terminalFontFamily);
-      fit.fit();
-      host.resizeSession(sessionId, term.cols, term.rows);
+      syncSize();
     });
     term.loadAddon(fit);
     term.loadAddon(search);
@@ -109,7 +143,6 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     container.addEventListener("focusin", onFocusIn);
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
-    fit.fit();
     /* 渲染器 = xterm 内建 DOM(WKWebView 弃用 WebGL 方案):
        此前 loadAddon(new WebglAddon()) 的 glyph atlas 长时间运行后
        会被 WebKit 的 texSubImage2D 大纹理子上传 bug 损坏成马赛克
@@ -131,6 +164,11 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     streamReadyRef.current = false;
     const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress, () => {
       streamReadyRef.current = true;
+    }, {
+      shouldDefer: () => !activeRef.current,
+      bindFlush: (flush) => {
+        flushDeferredRef.current = flush;
+      },
     });
 
     /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */
@@ -184,13 +222,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
-    /* 重挂载必发一次;同尺寸 Rust 幂等去重;重绘由活动守望抑制窗吸收(activityWatch 头注释)。
-       零宽跳过:fit 会钳到 MINIMUM_COLS=2,把不可见会话的 PTY SIGWINCH 成窄条重排。 */
-    const syncSize = () => {
-      if (!container.clientWidth) return;
-      fit.fit();
-      host.resizeSession(sessionId, term.cols, term.rows);
-    };
+    /* 重挂载必发一次(needsForceSync 初值 true:重挂载即强制一次真 SIGWINCH 整帧
+       重绘,根治关闭再开/切回后的错栅格滞留);重绘由活动守望抑制窗吸收。 */
     syncSize();
     const observer = new ResizeObserver(syncSize);
     observer.observe(container);
@@ -214,7 +247,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       setHasMore(false);
       setLoadingHistory(false);
     };
-  }, [sessionId, inputGate]);
+  }, [sessionId, inputGate, canvasGen]);
 
   /* ⌘F 搜索框所有权:keep-alive 后多幕布并存,模块级 findRequestRef 单槽,
      必须跟随激活实例 —— 激活即持有,失活/卸载仅在仍归自己时让出。 */
@@ -238,32 +271,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="terminal-view-host h-full w-full" />
-      {loadProgress !== null && (
-        /* 加载遮罩:回放期显真实解析进度,流式期显真实接收量;输出静默即撤(terminalReplay.ts)。 */
-        <div
-          className="absolute inset-0 z-10 flex items-center justify-center"
-          style={{ background: "var(--tmd-terminal-bg)" }}
-        >
-          <div className="flex w-56 flex-col items-center gap-2">
-            <span className="text-xs text-(--tmd-fg-muted)">
-              {loadProgress.kind === "replay"
-                ? `加载会话输出… ${loadProgress.pct}%`
-                : `加载会话输出… 已接收 ${Math.max(1, Math.round(loadProgress.chars / 1024))}K`}
-            </span>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-(--tmd-border)">
-              <div
-                className="h-full bg-(--tmd-accent) transition-[width] duration-150"
-                style={{
-                  width:
-                    loadProgress.kind === "replay"
-                      ? `${loadProgress.pct}%`
-                      : `${Math.min(99, Math.round(loadProgress.chars / 5000))}%`,
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <TerminalLoadOverlay progress={loadProgress} />
       {atTop && hasMore && (
         <button
           onClick={() => void loadEarlier()}
@@ -277,6 +285,13 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
         <TerminalSearchOverlay searchRef={searchRef} onClose={closeSearch} />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
+      {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 刷新钮收尾最右。
+          行不设 z —— 画布浮层(editorCenter.canvasOverlay,z-10 不透明)开启时
+          整行隐没其下,结构化视图页不出刷新钮;幕布态浮于 xterm 之上(DOM 序)。 */}
+      <div className="absolute right-3 top-2 flex items-center gap-1.5">
+        <Mounts point="terminal.canvasRow" />
+        <TerminalRefreshButton onClick={() => setCanvasGen((g) => g + 1)} />
+      </div>
     </div>
   );
 }

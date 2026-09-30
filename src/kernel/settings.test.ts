@@ -49,6 +49,7 @@ describe("初始状态与默认值", () => {
       uiFontSize: 16,
       uiZoom: 1,
       sessionTabsEnabled: true,
+      sessionViewerMinimal: true,
       sessionTabsMax: 4,
       sendShortcut: "enter", sendConfirmEnabled: true,
       promptHistoryEnabled: true,

@@ -161,6 +161,7 @@ export const MESSAGES = {
   "关闭 (Esc)": "Close (Esc)",
   "终端复制/停止菜单": "Terminal copy/stop menu",
   "停止终端": "Stop terminal",
+  "刷新幕布(重建本会话终端画面,PTY 不中断)": "Refresh canvas (rebuild this session's terminal view; PTY keeps running)",
 
   // ── 外壳命令标题(定义处保留中文,设置页快捷键清单渲染点包 t)──
   "折叠/展开左栏": "Toggle left panel",

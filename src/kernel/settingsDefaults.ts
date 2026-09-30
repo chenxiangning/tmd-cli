@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   iconSet: "classic",
   sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sessionTabsEnabled: true,
+  sessionViewerMinimal: true,
   sendShortcut: "enter",
   sendConfirmEnabled: true,
   promptHistoryEnabled: true,

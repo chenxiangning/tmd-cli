@@ -5,6 +5,7 @@
  */
 
 import { ipc, type SshHostConfig } from "@kernel/ipc";
+import { sshHostIdentityKey } from "@kernel/sshTypes";
 import { t } from "@kernel/i18n";
 
 export interface SshImportCandidate {
@@ -174,12 +175,6 @@ function isLikelyPrivateKeyPath(path: string) {
 
 export function isPrivateKeyContent(content: string) {
   return /^-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/m.test(content.trim());
-}
-
-export function sshHostIdentityKey(host: Pick<SshHostConfig, "host" | "port" | "username">) {
-  return `${host.host.trim().toLowerCase()}|${host.port || DEFAULT_SSH_PORT}|${host.username
-    .trim()
-    .toLowerCase()}`;
 }
 
 async function readOptionalFile(path: string): Promise<string> {

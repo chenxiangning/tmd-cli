@@ -170,18 +170,13 @@ export function sanitize(raw: unknown): AppSettings {
     uiZoom: sanitizeUiZoom(obj.uiZoom),
     iconDecor: sanitizeIconDecor(obj.iconDecor),
     iconSet: sanitizeIconSet(obj.iconSet),
-    sessionTabsEnabled:
-      typeof obj.sessionTabsEnabled === "boolean"
-        ? obj.sessionTabsEnabled
-        : DEFAULT_SETTINGS.sessionTabsEnabled,
+    sessionTabsEnabled: typeof obj.sessionTabsEnabled === "boolean" ? obj.sessionTabsEnabled : DEFAULT_SETTINGS.sessionTabsEnabled,
+    sessionViewerMinimal: typeof obj.sessionViewerMinimal === "boolean" ? obj.sessionViewerMinimal : DEFAULT_SETTINGS.sessionViewerMinimal,
     sessionTabsMax: sanitizeSessionTabsMax(obj.sessionTabsMax),
     sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,
-    sendConfirmEnabled:
-      typeof obj.sendConfirmEnabled === "boolean"
-        ? obj.sendConfirmEnabled
-        : DEFAULT_SETTINGS.sendConfirmEnabled,
+    sendConfirmEnabled: typeof obj.sendConfirmEnabled === "boolean" ? obj.sendConfirmEnabled : DEFAULT_SETTINGS.sendConfirmEnabled,
     askSoundEnabled:
       typeof obj.askSoundEnabled === "boolean"
         ? obj.askSoundEnabled

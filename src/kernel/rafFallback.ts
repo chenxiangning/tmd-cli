@@ -26,6 +26,8 @@
  * transport 会把整条传输图提前到垫片之前,破坏「垫片先装」的求值序)。
  */
 
+import { isPtyFloodHeavy } from "./floodGauge";
+
 const RAF_FALLBACK_MS = 50;
 const INSTALLED_FLAG = "__tmdRafFallbackInstalled";
 /** 看门狗节拍;原生 rAF 停发超过该值且页面自认可见 = 形态 A,上报。 */
@@ -78,7 +80,11 @@ async function report(ok: boolean): Promise<void> {
   lastReportAt = now;
   try {
     const { invoke } = await import("./transport");
-    void invoke("render_health", { ok, gapMs: nativeRafGapMs() }).catch(() => undefined);
+    /* flood 随行:Rust 在洪水期把 reload 降级为 focus(reload = 回放风暴雪上加霜,
+       见 floodGauge.ts 头注与 src-tauri/src/render_health.rs)。 */
+    void invoke("render_health", { ok, flood: isPtyFloodHeavy() }).catch(
+      () => undefined,
+    );
   } catch {
     /* 浏览器桩/测试替身无 transport:静默(守望只服务桌面壳)。 */
   }
@@ -91,11 +97,18 @@ export function installRafFallback(): void {
   (w as { __tmdRenderProbe?: () => void }).__tmdRenderProbe = probeRenderHealth;
 
   armProbe();
+  let heartbeats = 0;
   window.setInterval(() => {
     armProbe(); /* 吊销期挂起的回调在恢复时会补发;守望侧再补一臂,保链条永续。 */
     const gap = nativeRafGapMs();
     if (gap < STUCK_GAP_MS) {
-      if (reportedStuck && gap < PROBE_OK_GAP_MS && lastNativeFireAt) void report(true);
+      if (lastNativeFireAt && gap < PROBE_OK_GAP_MS) {
+        /* 恢复边沿立即上报清 Rust strikes;平时每 5 拍一次心跳自证存活 ——
+           Rust 壳侧心跳死线守望(render_health init_watchdog)以「可见但久无
+           音讯」判深冻,依赖此活体信号;吊销深冻期本定时器同样饥饿而停,
+           那时由 Rust 侧独立接管(传感器不在冻结进程侧)。 */
+        if (reportedStuck || ++heartbeats % 5 === 0) void report(true);
+      }
       return;
     }
     /* 形态 A/B 一并上报:页内 hidden 标记在吊销态会说谎,真伪可见性由 Rust

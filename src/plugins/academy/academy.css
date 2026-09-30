@@ -6,7 +6,7 @@
 :where(.academy-entry, .academy-guide, .academy-wizard) :is(button, input) { font: inherit; color: inherit; }
 
 /* ── 左栏入口(单行紧凑条目,同侧栏 caption 密度;hover 才显底。
-   分组头与已置顶/运行区头同几何:图标 0.6875rem、起笔 6px、gap 4px ── */
+   分组头与已置顶/运行区头同几何:图标 1rem、起笔 6px、gap 4px ── */
 .academy-entry { position: relative; margin: 2px 0; font-size: 0.75rem; }
 .academy-entry-course { position: relative; }
 .academy-entry-head {

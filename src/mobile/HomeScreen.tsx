@@ -115,7 +115,8 @@ export function HomeScreen() {
     [workspaces, sessions, history, q, titles, titleOf, titleOfDisk],
   );
   /* 顶部两区(搜索词在场时同样过滤,与分组区一致)。 */
-  const zones = useMemo(() => topZones({ groups, pins }), [groups, pins]);
+  const configuredWs = useMemo(() => new Set(workspaces.map((w) => w.id)), [workspaces]);
+  const zones = useMemo(() => topZones({ groups, pins, configuredWs }), [groups, pins, configuredWs]);
   const pinnedSet = useMemo(() => new Set(zones.pinned), [zones]);
   /** 行 → 归属工作区 id(顶区行跨组,按 groups 反查)。 */
   const wsIdOf = (r: HomeRow): string | undefined =>

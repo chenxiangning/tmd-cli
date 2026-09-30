@@ -37,6 +37,7 @@ pub async fn session_spawn(
             title,
             engine: None,
             cli_session_id,
+            activity: None,
         });
         Ok(spawned)
     })
@@ -76,6 +77,40 @@ pub fn session_bind_cli(
         .set_cli_session_id(&id, Some(cli_session_id))
         .then_some(())
         .ok_or_else(|| format!("session not found: {id}"))
+}
+
+/// 桌面前端活动守望全量上报(手机「运行中」区投影数据源;全量替换幂等,
+/// 重连后重推无害)。轮次/未读语义归桌面前端守望,Rust 只存投影。
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityEntry {
+    pub id: String,
+    #[serde(default)]
+    pub turn_active: bool,
+    #[serde(default)]
+    pub unread: bool,
+}
+
+#[tauri::command]
+pub fn session_report_activity(
+    state: State<'_, AppState>,
+    entries: Vec<ActivityEntry>,
+) -> Result<(), String> {
+    state.sessions.replace_activity(
+        entries
+            .into_iter()
+            .map(|e| {
+                (
+                    e.id,
+                    crate::session::SessionActivity {
+                        turn_active: e.turn_active,
+                        unread: e.unread,
+                    },
+                )
+            })
+            .collect(),
+    );
+    Ok(())
 }
 
 /// 必须 async + spawn_blocking:PTY 写入在子进程停读时可无限阻塞,

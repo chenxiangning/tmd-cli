@@ -70,6 +70,8 @@ export function MainPanel() {
       <div className="h-full w-full" style={{ display: activeId ? undefined : "none" }}>
         <PanelGroup orientation="vertical" id="tmd.main.vertical" groupRef={groupRef}>
       <Panel defaultSize={70} minSize={30} id="canvas">
+        {/* relative 锚:浮层挂点(幕布保活之上的覆盖层)以画布为定位上下文。 */}
+        <div className="relative h-full w-full">
         {tiling && kept.length > 0 ? (
           /* 平铺:tab 条全部会话并排同屏,点列 = switchTab(setActiveSession,
              已读/状态刷新/composer 换绑全走现有链路);composer 不隐藏,
@@ -101,6 +103,14 @@ export function MainPanel() {
             </div>
           ))
         )}
+        {/* 画布浮层:插件贡献覆盖 UI(先例 session-viewer 活会话转录视图);
+            平铺形态多会话并排,浮层语义只属单会话视图,平铺期不渲染。 */}
+        {!(tiling && kept.length > 0) ? (
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <Mounts point="editorCenter.canvasOverlay" />
+          </div>
+        ) : null}
+        </div>
       </Panel>
       {showComposer ? (
         stage === "min" ? (

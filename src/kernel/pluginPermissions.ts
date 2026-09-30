@@ -26,25 +26,28 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sessionHistoryPage: "ipc.terminal",
   sessionSetWorkspace: "ipc.terminal",
   sessionBindCli: "ipc.terminal",
+  sessionReportActivity: "ipc.terminal",
   sessionLinkLog: "ipc.terminal",
   sessionDiskTail: "ipc.terminal",
 
   /* 进程执行与 CLI 管理(安装 = 跑脚本,与执行同级)。 */
   procCommunicate: "ipc.exec",
+  procStreamSpawn: "ipc.exec",
+  procStreamWrite: "ipc.exec",
+  procStreamKill: "ipc.exec",
+  procStreamKillAll: "ipc.exec",
+  onProcStream: "ipc.exec",
   cliProbe: "ipc.exec",
   cliInstallRun: "ipc.exec",
-  /* WSL 发行版枚举(内部跑 wsl.exe 诊断命令;插件经 wslInfo 只读)。 */
+  /* WSL 诊断/枚举/探针/目录懒加载/文件读(wsl.exe 本机或经 SSH 远程,同归 exec)。 */
   wslInfo: "ipc.exec",
-  /* 远程 WSL 探测(经 SSH 在 Windows 宿主跑 wsl.exe 诊断;同 wslInfo 归 exec)。 */
   wslRemoteInfo: "ipc.exec",
-  /* WSL 目录懒加载/引擎探针/文件文本读取(本机 wsl.exe 或经 SSH 远程执行,同 wslInfo 归 exec)。 */
   wslListDir: "ipc.exec",
   wslProbeEngines: "ipc.exec",
   wslReadFileText: "ipc.exec",
   wslExec: "ipc.exec",
   /* 未决 SSH 提示对账(只读注册表快照,无副作用)。 */
   sshPromptsPending: null,
-
   /* 文件系统读。 */
   fsListDir: "ipc.fs.read",
   fsWalkFiles: "ipc.fs.read",

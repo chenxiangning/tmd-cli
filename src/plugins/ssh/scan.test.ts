@@ -4,7 +4,8 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { expandIdentityPath, isPrivateKeyContent, parseSshConfig, sshHostIdentityKey } from "./scan";
+import { expandIdentityPath, isPrivateKeyContent, parseSshConfig } from "./scan";
+import { sshHostIdentityKey } from "@kernel/sshTypes";
 
 describe("expandIdentityPath · POSIX", () => {
   const home = "/Users/alice";

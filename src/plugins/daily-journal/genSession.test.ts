@@ -6,7 +6,7 @@ import { cancelTask, enqueueTask, getGenTasks } from "./taskQueue";
 import { bootGenSession } from "./genSession";
 import { readText, writeText } from "./journalFiles";
 import { ensureParentDir } from "@kernel/fsDirs";
-import { collectSessionRows, type DaySessionRow } from "./daySessions";
+import { collectSessionRowsBatched, type DaySessionRow } from "./daySessions";
 import { buildGenPrompt } from "./promptGen";
 import { reloadDay, setDayResult } from "./journalStore";
 
@@ -51,7 +51,7 @@ vi.mock("./journalStore", () => ({
   reloadDay: vi.fn(async () => null),
   setDayResult: vi.fn(),
 }));
-vi.mock("./daySessions", () => ({ collectSessionRows: vi.fn(async () => []) }));
+vi.mock("./daySessions", async (o) => ({ ...(await o()), collectSessionRowsBatched: vi.fn(async () => []) }));
 vi.mock("./promptGen", async (importOriginal) => ({
   ...(await importOriginal()),
   buildGenPrompt: vi.fn(() => "P"),
@@ -132,7 +132,7 @@ describe("genSession 结算", () => {
       wsName: "demo",
       disk: { id: "s1", path: "/fake/s1.jsonl", modifiedAt: 0 },
     };
-    vi.mocked(collectSessionRows).mockResolvedValue([row]);
+    vi.mocked(collectSessionRowsBatched).mockResolvedValue([row]);
     const key = "2026-09-12";
     await startRun(key);
     expect(writeText).toHaveBeenCalledWith(
@@ -162,7 +162,7 @@ describe("genSession 结算", () => {
     expect(taskOf(key)?.st).toBe("done");
     /* 收割防回归:终态后生成会话必须被移除(僵尸 TUI 实测存活 48 分钟)。 */
     expect(host.removeSession).toHaveBeenCalledWith("pty-1");
-    vi.mocked(collectSessionRows).mockResolvedValue([]);
+    vi.mocked(collectSessionRowsBatched).mockResolvedValue([]);
   });
   it("轮询捕获落盘 → 8s 容忍后成功结算并停轮", async () => {
     const key = "2026-09-16";
@@ -261,7 +261,7 @@ describe("genSession 无头单发(oneshotArgs 引擎)", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(taskOf(key)?.st).toBe("done");
     expect(host.removeSession).toHaveBeenCalledWith("pty-1");
-    vi.mocked(collectSessionRows).mockResolvedValue([]);
+    vi.mocked(collectSessionRowsBatched).mockResolvedValue([]);
   });
 
   it("退出但无文章 → 中性失败文案(可重试)", async () => {
@@ -276,7 +276,7 @@ describe("genSession 无头单发(oneshotArgs 引擎)", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(taskOf(key)?.st).toBe("err");
     expect(taskOf(key)?.text).toContain("会话退出但未产出文章");
-    vi.mocked(collectSessionRows).mockResolvedValue([]);
+    vi.mocked(collectSessionRowsBatched).mockResolvedValue([]);
   });
 
   it("stdin 递送引擎(oneshotStdin):spawn 后 writeSession 注入 prompt 全文", async () => {
@@ -294,6 +294,6 @@ describe("genSession 无头单发(oneshotArgs 引擎)", () => {
     reloadDayMock.mockResolvedValue({ title: "t", lede: "", secs: [], open: [] });
     await vi.advanceTimersByTimeAsync(15_000 + 8_000);
     expect(taskOf(key)?.st).toBe("done");
-    vi.mocked(collectSessionRows).mockResolvedValue([]);
+    vi.mocked(collectSessionRowsBatched).mockResolvedValue([]);
   });
 });

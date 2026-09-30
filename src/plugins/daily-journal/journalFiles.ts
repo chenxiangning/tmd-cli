@@ -8,7 +8,7 @@
  * - daily/notes/YYYY-MM.json      用户手写便签(tmd 独占写,与文章物理分档互不覆盖);
  * - daily/meta.json               配置 + 每日事件账本(beads/生成状态/任务史截尾);
  * - daily/assets/                 便签截图附件(便签只存文件名引用);
- * - daily/holidays.json           节假日全年缓存(联网成功后落,离线兜底周末底纹)。
+ * - daily/holidays/YYYY.json     节假日按年缓存(联网成功后落,离线兜底周末底纹)。
  *
  * fsCreateDir 非递归:建嵌套目录逐级建、忽略「已存在」错(adapterDeploy 同款)。
  */
@@ -97,7 +97,6 @@ export interface DailyPaths {
   notes: (y: number, m: number) => string;
   meta: string;
   assets: string;
-  holidays: string;
 }
 
 /** 每日日志根目录下全路径(模块级缓存;configDir 每进程恒定)。 */
@@ -116,7 +115,6 @@ export function dailyPaths(): Promise<DailyPaths> {
       notes: (y, m) => `${root}/notes/${y}-${pad2(m)}.json`,
       meta: `${root}/meta.json`,
       assets: `${root}/assets`,
-      holidays: `${root}/holidays.json`,
     };
   });
   return pathsLoading;
@@ -147,6 +145,11 @@ export async function writeText(path: string, content: string): Promise<void> {
   await ipc.fsWriteFile(path, content);
 }
 
+/** 原子落盘(同目录 tmp + rename):meta 账本掉电截断会清零幂等标记与任务史;
+ *  rename 残留的 .tmp 由下次写覆盖(单写者,fs::rename 双平台覆盖既有目标)。 */
 export async function writeJson(path: string, data: unknown): Promise<void> {
-  await writeText(path, JSON.stringify(data, null, 1));
+  await ensureParentDir(path);
+  const tmp = `${path}.tmp`;
+  await ipc.fsWriteFile(tmp, JSON.stringify(data, null, 1));
+  await ipc.fsRenameEntry(tmp, path.split("/").pop() as string);
 }
