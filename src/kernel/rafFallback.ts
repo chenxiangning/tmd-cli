@@ -97,11 +97,18 @@ export function installRafFallback(): void {
   (w as { __tmdRenderProbe?: () => void }).__tmdRenderProbe = probeRenderHealth;
 
   armProbe();
+  let heartbeats = 0;
   window.setInterval(() => {
     armProbe(); /* 吊销期挂起的回调在恢复时会补发;守望侧再补一臂,保链条永续。 */
     const gap = nativeRafGapMs();
     if (gap < STUCK_GAP_MS) {
-      if (reportedStuck && gap < PROBE_OK_GAP_MS && lastNativeFireAt) void report(true);
+      if (lastNativeFireAt && gap < PROBE_OK_GAP_MS) {
+        /* 恢复边沿立即上报清 Rust strikes;平时每 5 拍一次心跳自证存活 ——
+           Rust 壳侧心跳死线守望(render_health init_watchdog)以「可见但久无
+           音讯」判深冻,依赖此活体信号;吊销深冻期本定时器同样饥饿而停,
+           那时由 Rust 侧独立接管(传感器不在冻结进程侧)。 */
+        if (reportedStuck || ++heartbeats % 5 === 0) void report(true);
+      }
       return;
     }
     /* 形态 A/B 一并上报:页内 hidden 标记在吊销态会说谎,真伪可见性由 Rust
