@@ -295,3 +295,5 @@
   background: rgb(255, 140, 60);
   border-color: rgb(255, 140, 60);
 }
+/* ⋯ 菜单行激活按钮(等值迁移自内联样式,面板行与动作行共用)。 */
+.panel-overflow-item-btn { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: none; background: none; font: inherit; color: inherit; cursor: inherit; text-align: left; }
