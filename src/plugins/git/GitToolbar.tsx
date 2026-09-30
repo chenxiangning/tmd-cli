@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import { createPortal } from "react-dom";
 import {
@@ -237,13 +238,7 @@ function MenuShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
   return createPortal(
     <>
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />

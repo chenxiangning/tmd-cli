@@ -16,7 +16,7 @@ import { useSettingsState } from "./settings";
 import type { IconDecorId } from "./settingsAppearance";
 import { resolveDecorIcon, type Glyph } from "./iconSetTables";
 
-export interface DecorIconProps extends IconProps {
+interface DecorIconProps extends IconProps {
   /** 装饰键(白名单 id);非白名单动态 id 也可传,组合不生效 = 现状。 */
   id: IconDecorId | (string & {});
   /** 组合1 下的现状字形(各消费位当前图标;组合表仅在装饰位覆盖)。 */

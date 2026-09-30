@@ -6,8 +6,8 @@
  * 危险动作(danger)焦点固定在取消键,防回车误执行破坏性操作。
  */
 
+import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
 export interface GitConfirmState {
@@ -28,13 +28,7 @@ export function GitConfirmDialog({
   state: GitConfirmState;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   return createPortal(
     <div

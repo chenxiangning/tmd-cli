@@ -37,7 +37,7 @@ export const skillHubPlugin: Plugin = {
       order: 32, /* 能力生态组次席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
       railGroup: "ecosystem",
       railBottom: true,
-      centerTab: { id: SKILL_HUB_TAB_KIND, open: openSkillHubTab },
+      centerTab: { open: openSkillHubTab },
     });
     ctx.registerTabContent({
       kind: SKILL_HUB_TAB_KIND,

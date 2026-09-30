@@ -63,6 +63,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   /* 文件系统写/管理。 */
   fsWriteTemp: "ipc.fs.write",
   fsWriteFile: "ipc.fs.write",
+  fsWriteBytesBase64: "ipc.fs.write",
   fsCreateFile: "ipc.fs.write",
   fsCreateDir: "ipc.fs.write",
   fsRenameEntry: "ipc.fs.write",

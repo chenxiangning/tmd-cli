@@ -2,6 +2,8 @@
  * 插件贡献渲染边界 —— 渲染抛错只塌该贡献位,崩溃按插件归属计数。
  * 贡献组件在注册期(contributionLedger)统一包裹本边界:挂点/中央 tab/
  * 右栏面板/设置 section/首页面板/市场面板六类渲染面一处包装全覆盖。
+ * 塌陷呈现 = 就地最小错误条(归属插件 + 原因):静默 null 在深色主题下
+ * 等同整块黑屏,用户无从归因、现场无法留证(0.2.5 画布黑屏排查结论)。
  */
 import { Component, type ReactNode } from "react";
 import { recordPluginCrash } from "./pluginQuarantine";
@@ -13,13 +15,14 @@ interface Props {
 
 interface State {
   failed: boolean;
+  detail: string;
 }
 
 export class PluginBoundary extends Component<Props, State> {
-  override state = { failed: false };
+  override state = { failed: false, detail: "" };
 
-  static getDerivedStateFromError() {
-    return { failed: true };
+  static getDerivedStateFromError(error: unknown) {
+    return { failed: true, detail: error instanceof Error ? error.message : String(error) };
   }
 
   override componentDidCatch(error: unknown) {
@@ -29,6 +32,34 @@ export class PluginBoundary extends Component<Props, State> {
   }
 
   override render() {
-    return this.state.failed ? null : this.props.children;
+    if (this.state.failed) {
+      return (
+        <div
+          className="plugin-boundary-fallback"
+          role="alert"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            margin: "auto",
+            maxWidth: 420,
+            padding: "18px 20px",
+            borderRadius: 10,
+            border: "1px solid var(--tmd-border, #3a3a3a)",
+            background: "var(--tmd-bg-elevated, #232323)",
+            color: "var(--tmd-fg-secondary, #c9c9c9)",
+            fontSize: 12,
+            lineHeight: 1.6,
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>
+            插件「{this.props.pluginId}」界面渲染崩溃,该贡献位已停用
+          </span>
+          <span style={{ opacity: 0.72, wordBreak: "break-all" }}>{this.state.detail}</span>
+          <span style={{ opacity: 0.55 }}>重启应用或重载页面可重置;反复出现请反馈本条原因文案。</span>
+        </div>
+      );
+    }
+    return this.props.children;
   }
 }

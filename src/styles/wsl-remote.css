@@ -1,219 +1,108 @@
-/* WSL 卡远程连接段(src/plugins/wsl/RemoteSection.tsx / DistroPanel.tsx)。本文件与 wsl-card.css 同批载入(global.css);类名前缀 wsl-remote / wsl-distro-panel / wsl-probe / wsl-dir / wsl-host。 */
+/* WSL 卡远程连接段(src/plugins/wsl/RemoteSection.tsx + HostForm.tsx)。
+   主机 / 动作 / 发行版三段式;发行版块本体见 wsl-distro.css。
+   减层原则:段与段靠留白 + 微标签分界,不画容器。 */
 
-/* ---- 远程连接段(2026-09-11):主机簿复用 ssh.hosts;发行版行复用 .wsl-distro-row ---- */
-.wsl-distro-state.wsl-ok {
-  color: var(--tmd-ok);
-}
 .wsl-remote {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--tmd-border);
+  margin-top: 20px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-.wsl-remote-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.wsl-remote-lbl {
-  color: var(--tmd-fg-muted);
-  flex: none;
-}
-.wsl-remote-select {
-  flex: 1;
-  min-width: 0;
-  height: 24px;
-  padding: 0 4px;
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-sm);
-  background: var(--tmd-bg-input);
-  color: var(--tmd-fg);
-  font: inherit;
-}
-.wsl-remote-err {
-  color: var(--tmd-err);
+  gap: 20px;
 }
 
-/* ---- 本机/远程 seg 段控(先例 settings segmented control) ---- */
-.wsl-mode-seg {
-  display: inline-flex;
-  margin-bottom: 8px;
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-sm);
-  overflow: hidden;
-}
-.wsl-mode-seg button {
-  padding: 2px 10px;
-  color: var(--tmd-fg-muted);
-}
-.wsl-mode-seg button.on {
-  background: var(--tmd-fg);
-  color: var(--tmd-bg-base);
-}
-
-/* ---- 远程发行版块与子面板 ---- */
-.wsl-distro-block {
-  margin-top: 4px;
-}
-.wsl-distro-toggle {
-  width: 100%;
-  text-align: left;
-}
-.wsl-distro-panel {
-  margin: 2px 0 6px 14px;
-  padding: 8px;
-  border: 1px dashed var(--tmd-border);
-  border-radius: var(--tmd-radius-sm);
+/* ---- 分区头:微标签 + 渐隐发丝线 ---- */
+.wsl-sec {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.wsl-panel-sec {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.wsl-panel-lbl {
-  font-size: 11px;
-  color: var(--tmd-fg-subtle);
-}
-.wsl-probe-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 14px;
-}
-.wsl-probe-row {
+.wsl-sec-head {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  text-align: left;
+  gap: 10px;
 }
-.wsl-probe-row.off .wsl-probe-icon,
-.wsl-probe-row.off .wsl-probe-bin {
-  opacity: 0.5;
-}
-.wsl-probe-row.on {
-  background: var(--tmd-accent-soft);
-  box-shadow: inset 2px 0 0 var(--tmd-accent);
-}
-.wsl-probe-bin {
+.wsl-sec-lbl {
   flex: none;
-  max-width: 45%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.wsl-probe-path.wsl-probe-miss {
-  color: var(--tmd-err);
-}
-.wsl-probe-tag {
-  flex: none;
-  margin-left: 6px;
-  padding: 0 4px;
-  border-radius: 3px;
-  font-size: 10px;
-  /* 文字掺 fg 提亮浅色主题对比度(纯 --tmd-ok 在浅底 ≈3:1 不达 AA) */
-  color: color-mix(in srgb, var(--tmd-ok) 60%, var(--tmd-fg));
-  background: color-mix(in srgb, var(--tmd-ok) 14%, transparent);
-}
-.wsl-probe-row:hover:not(:disabled) {
-  background: var(--tmd-bg-hover);
-}
-.wsl-probe-path {
-  margin-left: auto;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   color: var(--tmd-fg-subtle);
-  font-family: var(--tmd-mono, monospace);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.wsl-dir-crumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.wsl-dir-crumb code {
+.wsl-sec-rule {
   flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 11px;
-  color: var(--tmd-fg-muted);
-}
-.wsl-dir-list {
-  max-height: 148px;
-  overflow: auto;
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-sm);
-  padding: 2px;
-}
-.wsl-dir-row {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: var(--tmd-mono, monospace);
-  font-size: 11.5px;
-}
-.wsl-dir-row:hover:not(.off) {
-  background: var(--tmd-bg-hover);
-}
-.wsl-dir-row.off {
-  color: var(--tmd-fg-faint);
-  cursor: default;
+  height: 1px;
+  background: linear-gradient(to right, var(--tmd-border), transparent);
 }
 
-/* ---- 手动添加主机表单 ---- */
+/* ---- 主机行:药丸下拉 + 图标钮 + 连接 ---- */
+.wsl-host-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wsl-host-select {
+  flex: 1;
+  min-width: 0;
+}
+.wsl-remote-err {
+  color: var(--tmd-err);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+}
+
+/* ---- 动作行 ---- */
+.wsl-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- 手动添加主机表单(左缘轨线挂靠,不再画盒) ---- */
 .wsl-host-form {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px;
-  border: 1px dashed var(--tmd-border);
-  border-radius: var(--tmd-radius-sm);
+  gap: 10px;
+  margin-left: 9px;
+  padding-left: 15px;
+  border-left: 1px solid var(--tmd-border);
 }
 .wsl-host-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 4px 10px;
+  grid-template-columns: 1.5fr 0.9fr;
+  gap: 10px 12px;
 }
 .wsl-host-grid label {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 4px;
   min-width: 0;
-}
-.wsl-host-grid label > span {
-  flex: none;
-  font-size: 11px;
-  color: var(--tmd-fg-muted);
+  font-size: 0.625rem;
+  letter-spacing: 0.04em;
+  color: var(--tmd-fg-subtle);
 }
 .wsl-host-grid input {
   flex: 1;
   min-width: 0;
-  height: 22px;
-  padding: 0 4px;
+  width: 100%;
+  height: 26px;
+  padding: 0 8px;
   border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-sm);
+  border-radius: 6px;
   background: var(--tmd-bg-input);
   color: var(--tmd-fg);
   font: inherit;
+  font-size: 0.75rem;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
-.wsl-dir-browser {
+.wsl-host-grid input:focus-visible {
+  outline: none;
+  border-color: var(--tmd-accent);
+  box-shadow: 0 0 0 2px var(--tmd-accent-soft);
+}
+.wsl-host-form-foot {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 6px;
+  justify-content: flex-end;
 }
 
-/* 新建会话菜单提示行(远程 WSL 未探测/无引擎时) */
+/* 新建会话菜单提示行(远程 WSL 未探测/无引擎时;SessionMenu/VersionMenu 共用) */
 .wsmenu-note {
   padding: 2px 10px 6px;
   color: var(--text-quiet);

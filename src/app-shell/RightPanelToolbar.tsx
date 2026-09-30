@@ -94,7 +94,7 @@ export function PanelRail({
         <Fragment key={panel.id}>
           {sep ? <div className="panel-rail-sep" aria-hidden /> : null}
           <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}`} data-panel-id={panel.id}
-            onClick={() => activateRailPanel(panel, { panels, mode, rightOpen, setRightOpen })}
+            onClick={() => activateRailPanel(panel, { mode, rightOpen, setRightOpen })}
             aria-label={t(panel.label)} aria-pressed={isActive} title={t(panel.label)}>
             <DecorIcon id={panel.id === "ssh" ? "ssh-panel" : `panel-${panel.id}`} Fallback={panel.icon} aria-hidden />
           </button>
@@ -241,7 +241,7 @@ function PanelOverflowMenu({
                 <div className={`panel-overflow-item${isActive ? " is-active" : ""}`} data-panel-id={panel.id}>
                   <button type="button" style={MENU_ITEM_BUTTON_STYLE}
                     onClick={() => {
-                      activateRailPanel(panel, { panels, mode, rightOpen, setRightOpen });
+                      activateRailPanel(panel, { mode, rightOpen, setRightOpen });
                       if (!isChecked) togglePinned(panel.id);
                       onClose();
                     }}>

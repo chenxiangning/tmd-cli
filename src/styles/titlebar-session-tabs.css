@@ -79,6 +79,17 @@
   animation: ssh-breathe 1.6s ease-in-out infinite;
 }
 
+/* 轮次在途圆点:绿静止(与 is-ask 同色板;呼吸只留给需要用户行动的等待确认)。 */
+.session-tab-dot.is-run {
+  background: #059669;
+}
+
+/* 空闲待输入圆点:灰静止 —— 会话活着、等你输入,与启动期(无点)区分(2026-09-29 假死误判教训)。 */
+.session-tab-dot.is-idle {
+  background: var(--tmd-fg);
+  opacity: 0.35;
+}
+
 .session-tab-remove {
   display: inline-flex;
   align-items: center;

@@ -10,7 +10,7 @@
  *   GIT 段 ─ 提交目录 / 添加·暂存全部 / 更新 / 推送 / 提取(直连 ipc git 命令)
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowsDownUp,
@@ -26,17 +26,16 @@ import {
   UploadSimple,
 } from "@phosphor-icons/react";
 import { setFilePanelMode } from "@kernel/filePanel";
+import { useEscClose } from "@kernel/DialogShell";
+import { clampToViewport } from "@kernel/menuClamp";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
 import { removeWorkspace, setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
 
-/** 菜单定位:以点击点为左上,按估算尺寸视口内夹取(同 wsmenu 模式)。 */
+/** 菜单定位:以点击点为左上,按估算尺寸视口内夹取(kernel clampToViewport)。 */
 function clampMenuPosition(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.min(Math.max(8, x), window.innerWidth - 220 - 12),
-    y: Math.min(y, window.innerHeight - 420 - 12),
-  };
+  return clampToViewport(x, y, 220, 420);
 }
 
 function RowMenuItem({
@@ -84,13 +83,7 @@ export function WorkspaceRowMenu({
   const [armed, setArmed] = useState(false);
   const pos = clampMenuPosition(position.x, position.y);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   /* 统一执行链:成功关菜单;失败留菜单 + alert(先例:SftpTreeMenu)。 */
   const run = (action: () => Promise<unknown> | void) => {

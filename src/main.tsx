@@ -5,6 +5,7 @@
  * 共享的只有数据面:@kernel/transport(RPC/事件)与少量 kernel 原语。
  */
 import "./kernel/withResolversShim"; /* 首位:垫片先于一切静态图求值 */
+import "./kernel/rafFallback"; /* 先于一切终端构造:幕布渲染依赖 rAF,失活兜底必须先装 */
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { IconContext } from "@phosphor-icons/react";

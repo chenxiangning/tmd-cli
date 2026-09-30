@@ -4,6 +4,7 @@
   * 本文件:种子图形定义、id/hash、元素工厂与守卫。
  */
 import { isRecord } from "../utils/json";
+import { fnv1a32 } from "@kernel/textHash";
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 
 export type SeedShape = {
@@ -57,12 +58,7 @@ export function readElementLabel(element: Record<string, unknown>): string | nul
 
 
 export function stableSeedHash(value: string): string {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36).padStart(7, "0").slice(0, 7);
+  return fnv1a32(value).toString(36).padStart(7, "0").slice(0, 7);
 }
 
 export function createSeedShapeId(prefix: string, value: string): string {

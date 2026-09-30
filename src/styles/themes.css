@@ -51,6 +51,9 @@
   --tmd-ok: #34d399;
   --tmd-warn: #eab308;
   --tmd-err: #f87171;
+  /* 便签/节假日语义色(便签卡·预览·描边,周末节假日标红;深底亮一档保证对比) */
+  --tmd-note: #fcd34d;
+  --tmd-hol: #fda4a4;
   --tmd-terminal-bg: #1f1f1f;
   --tmd-terminal-fg: #cccccc;
   --tmd-terminal-cursor: #cccccc;
@@ -92,6 +95,9 @@
   --tmd-ok: #059669;
   --tmd-warn: #a16207;
   --tmd-err: #dc2626;
+  /* 便签/节假日语义色(浅底深一档保证对比) */
+  --tmd-note: #78350f;
+  --tmd-hol: #c0392b;
   --tmd-terminal-bg: #ffffff;
   --tmd-terminal-fg: #3b3b3b;
   --tmd-terminal-cursor: #005fb8;

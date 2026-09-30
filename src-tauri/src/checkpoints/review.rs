@@ -171,20 +171,19 @@ pub fn undo_revert(cwd: &str, batch_id: &str) -> Result<RestoreOutcome, CkptErro
     }
 
     let mut entry = states.batches.get(batch_id).cloned().unwrap_or_default();
-    let outcome_state;
-    if remaining.is_empty() {
+    let outcome_state = if remaining.is_empty() {
         entry.state = "pending".into();
         entry.reason = None;
         entry.reverted_paths.clear();
         entry.guard_id = None;
         entry.guard_ids.clear();
-        outcome_state = "pending".into();
+        "pending".into()
     } else {
         // 部分反悔:孤儿/失败路径维持已退态,守卫链保留供下次反悔
         entry.state = "reverted".into();
         entry.reverted_paths = remaining;
-        outcome_state = entry.state.clone();
-    }
+        entry.state.clone()
+    };
     states.batches.insert(batch_id.to_string(), entry);
     save_states(cwd, &states)?;
 

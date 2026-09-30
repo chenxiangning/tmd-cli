@@ -98,6 +98,13 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
             .hidden_title(true);
     }
 
-    window.build()?;
+    /* 渲染健康:获焦即戳前端 rAF 探针(粘死检出兜底;见 render_health.rs)。 */
+    let built = window.build()?;
+    let w_for_hook = built.clone();
+    built.on_window_event(move |event| {
+        if let tauri::WindowEvent::Focused(true) = event {
+            crate::render_health::on_focused(&w_for_hook);
+        }
+    });
     Ok(())
 }

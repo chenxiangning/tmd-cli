@@ -16,6 +16,8 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliUserMessage } from "@kernel/cli";
+import { fnv1a32 as fnv1a32Raw } from "@kernel/textHash";
+import { stringField } from "./sessionTranscript";
 
 /**
  * 增量轮询的尾部窗口:与状态扫描同量级(256KB→512KB)。
@@ -51,13 +53,6 @@ export function messageText(content: unknown): string | undefined {
 export function isWrapperText(text: string): boolean {
   const t = text.trimStart();
   return t.startsWith("<") || t.startsWith("# AGENTS.md instructions");
-}
-
-/** 外部 JSON 逐层收窄后取字符串字段;缺失/异型/空串返回 undefined。 */
-function stringField(obj: unknown, key: string): string | undefined {
-  if (!obj || typeof obj !== "object" || !(key in obj)) return undefined;
-  const value = (obj as Record<string, unknown>)[key];
-  return typeof value === "string" && value ? value : undefined;
 }
 
 /** 行解析器:一行已解析 json → 用户消息;非用户消息返回 null。 */
@@ -121,14 +116,9 @@ export const codexUserMessageLine: UserMessageLineParser = (event) => {
   return { id, text };
 };
 
-/** FNV-1a 32 位文本 hash —— 非加密用途的稳定去重键。 */
+/** FNV-1a 32 位文本 hash —— 非加密用途的稳定去重键(hex8;算法收口在 kernel/textHash)。 */
 export function fnv1a32(text: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
+  return fnv1a32Raw(text).toString(16).padStart(8, "0");
 }
 
 /** content 块内 <user_query>…</user_query> 真实输入提取;无包裹 = 非用户语义。 */

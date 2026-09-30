@@ -236,7 +236,6 @@ export interface CliProfile {
   ) => Promise<CliSessionEdit[] | null>;
   /**
    * 发送时用 bracketed paste 协议注入(ESC[200~ 正文 ESC[201~ + CR)。
-   *
    * 背景:pi-tui 系(kimi/pi)输入编辑器带"粘贴爆发"启发式 —— 短窗口内连续到达的
    * ≥8 个普通字符视为粘贴,其后紧跟的 CR 会被改写成换行而不提交(防终端里
    * 多行粘贴逐行提交)。composer 是整串一次性写入 PTY,正文 + \r 同帧到达,
@@ -245,15 +244,20 @@ export interface CliProfile {
    * 与真实终端粘贴行为一致。未声明 = 维持裸文本 + CR。
    * 阵营(2026-09-06 PTY 探针实测):kimi/pi/omp(pi-tui 系)+ codex(crossterm,
    * 启动/恢复窗与斜杠弹层活跃态裸 CR 被吞,BP 后 /model 稳定执行)。grok 实测
-   * 反例:BP 块被整体吞掉不提交,必须维持裸文本 —— 新增 CLI 时两态都要探针实测
-   * (就绪态 + 启动/恢复窗),不得按家族推测。
+   * 反例:BP 块被整体吞掉不提交,必须维持裸文本 —— 新增 CLI 时两态(就绪态 + 启动/恢复窗)都要探针实测,不得按家族推测。
    */
   bracketedPaste?: boolean;
-  /**
-   * spawn 前动态改写 SpawnSpec:插件在运行时注入连接参数/路径等动态值。
-   * 例 dsh 适配器需要 DSH host:port(来自 localStorage),无法在 profile 声明期固定。
-   * 返回改写后的 spec;缺省 = 不改写(直接用 command/args)。
-   */
+  /** spawn 期模型旗标:声明后 createSession(opts.model) 把 `--model <id>` 追加到进程参数,模型启动即生效,不走 TUI 输入(启动窗时序不可靠)。仅在 CLI 实证支持时声明(omp/pi/kimi = --model);未声明 = 引擎不支持 spawn 期选模,opts.model 被忽略。 */
+  modelArg?: string;
+  /** 无头单发参数模板(无人值守批量任务的唯一合规形态,daily-journal 生成消费):prompt 经 @<promptFile>
+   *  或 stdin(oneshotStdin)进引擎,进程答完即退、不开 TUI —— 无人值守会话严禁以 TUI 常驻(重绘洪水灌
+   *  webview 主线程饿死前台幕布,2026-09-30 根因,见 docs/architecture/18)。缺省 = 无无头能力,回落 TUI。 */
+  oneshotArgs?: (opts: { promptFile: string; model?: string }) => string[];
+  /** 无头 prompt 递送方式:true = 引擎从 stdin 读(codex exec - / claude -p 管道形态),
+   *  genSession 在 spawn 后经 writeSession 注入全文;缺省 file = 引擎在模板内 @<promptFile> 引用。 */
+  oneshotStdin?: boolean;
+  /** spawn 前动态改写 SpawnSpec:插件运行时注入连接参数/路径等动态值(例 dsh 的 DSH
+   *  host:port 来自 localStorage,无法在声明期固定)。返回改写后的 spec;缺省 = 不改写。 */
   spawnTransform?: (spec: SpawnSpec) => SpawnSpec | Promise<SpawnSpec>;
 
   /**
@@ -283,11 +287,8 @@ export interface CliProfile {
   /** 就地自更新通道(仅更新):探针命中非 npm 管理的原生副本(CLI 自管
    * 版本化目录,如 `qodercli update`)才声明;未装机器仍走声明通道安装。 */
   commandUpdate?: { program: string; args: string[] };
-  /**
-   * 引擎卡「版本」菜单开关:welcome 行动作簇出「版本」按钮,弹层列最新 10 个
-   * 稳定版 + 用户收藏,点选即钉版安装(command 通道 args 内包名替换为 pkg@version)。
-   * 仅当 commandInstall 与 npmPackage 同声明时生效;缺省 = 不出版本按钮。
-   */
+  /** 引擎卡「版本」菜单开关:welcome 行动作簇出「版本」按钮,弹层列最新 10 个稳定版 + 用户收藏,点选即钉版安装(command 通道 args 内包名替换为 pkg@version)。
+   * 仅当 commandInstall 与 npmPackage 同声明时生效;缺省 = 不出版本按钮。 */
   versionMenu?: boolean;
   /**
    * 前置依赖声明:安装/更新本 CLI 前必须就位的运行时(如 omp 依赖 bun)。

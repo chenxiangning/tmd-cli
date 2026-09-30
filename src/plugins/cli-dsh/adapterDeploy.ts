@@ -5,6 +5,7 @@
  * 源码经 vite ?raw 内联进 bundle,dev/prod 同源;版本戳变化才重写。
  */
 
+import { ensureDir } from "@kernel/fsDirs";
 import { ipc } from "@kernel/ipc";
 import adapterSrc from "./adapter/dsh-adapter.cjs?raw";
 import rpcSrc from "./adapter/dsh-rpc.cjs?raw";
@@ -69,10 +70,8 @@ async function deploy(): Promise<string> {
   const home = await ipc.configHomeDir();
   const dir = `${home}/.tmd-cli/adapters/dsh`;
   const stampPath = `${dir}/.stamp`;
-  /* 目录逐级建(fs_create_dir 非递归);已存在报错忽略。 */
-  await ipc.fsCreateDir(`${home}/.tmd-cli`).catch(() => undefined);
-  await ipc.fsCreateDir(`${home}/.tmd-cli/adapters`).catch(() => undefined);
-  await ipc.fsCreateDir(dir).catch(() => undefined);
+  /* 目录逐级建(kernel fsDirs 原语;已存在报错忽略)。 */
+  await ensureDir(dir);
   const old = await ipc.fsReadFile(stampPath).catch(() => "");
   if (old.trim() === STAMP) return `${dir}/dsh-adapter.cjs`;
   /* 清场:删除不在清单里的旧 .cjs(重构删过件,残留会被旧 require 路径迷惑)。

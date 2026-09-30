@@ -7,21 +7,19 @@
  * 不强制激活;dirty tab 与 × 按钮一致不加确认。
  * 可选首项「重命名」(传 onRename 启用,会话 tab 用):canRename=false 时禁用。
  */
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Pencil, XSquare, Cross, XCircle, SquaresFour } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
+import { clampToViewport } from "@kernel/menuClamp";
 
-/** 菜单约 180 宽:以点击点为左上,在视口内夹取;高度按项数(3 项 120 / 4 项 150)。 */
+/** 菜单约 180 宽:以点击点为左上,在视口内夹取(kernel clampToViewport);高度按项数(3 项 120 / 4 项 150)。 */
 function clampPosition(
   x: number,
   y: number,
   height: number,
 ): { x: number; y: number } {
-  return {
-    x: Math.min(x, window.innerWidth - 180 - 12),
-    y: Math.min(y, window.innerHeight - height - 12),
-  };
+  return clampToViewport(x, y, 180, height, 0);
 }
 
 export function TabContextMenu({
@@ -53,13 +51,7 @@ export function TabContextMenu({
     120 + (onRename ? 30 : 0) + (onToggleTile ? 30 : 0),
   );
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   return createPortal(
     <>

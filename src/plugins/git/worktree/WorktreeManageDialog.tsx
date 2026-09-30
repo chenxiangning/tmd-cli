@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowsClockwise, Plus, Trash } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
@@ -57,14 +58,7 @@ export function WorktreeManageDialog({
     };
   }, [cwd]);
 
-  /* Esc 关闭:同 GitConfirmDialog 纪律(git 插件弹窗全员有 Esc)。 */
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   const refresh = (): void => {
     void ipc.gitWorktreeList(cwd).then(setList).catch(fail);

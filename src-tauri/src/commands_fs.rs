@@ -86,6 +86,26 @@ pub(crate) async fn fs_write_temp(name: String, data: Vec<u8>) -> Result<String,
     spawn_fs(move || fs::write_temp_file(&name, &data)).await
 }
 
+/// 通用二进制写(base64):数据域原语,与 fs_read_bytes_base64 对称(便签截图
+/// 等附件落盘;父目录由前端 ensureDir,这里只写字节)。32MB 闸同读侧。
+#[tauri::command]
+pub(crate) async fn fs_write_bytes_base64(path: String, data: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        use base64::Engine;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&data)
+            .map_err(|e| format!("base64 解码失败: {e}"))?;
+        const MAX_BYTES: usize = 32 * 1024 * 1024;
+        if bytes.len() > MAX_BYTES {
+            return Err(format!("文件超过 {}MB 写入上限", MAX_BYTES / 1024 / 1024));
+        }
+        std::fs::write(&path, &bytes).map_err(|e| format!("写入文件失败: {e}"))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("write task join: {e}"))?
+}
+
 #[tauri::command]
 pub(crate) async fn fs_collect_files(
     dir: String,

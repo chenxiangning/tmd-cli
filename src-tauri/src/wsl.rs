@@ -98,13 +98,13 @@ fn collect() -> Result<WslInfo, String> {
     let Some((list_bytes, Some(0))) = run_bounded(&["-l", "-v"], 15_000) else {
         return Ok(unavailable());
     };
-    let mut distros = parse_wsl_list(&decode_utf16le(&list_bytes));
+    let mut distros = parse_wsl_list_impl(&decode_utf16le(&list_bytes));
     if distros.is_empty() {
         return Ok(unavailable());
     }
     // 运行态名单:同一张表加 --running;失败(老版 wsl.exe 不认参数)静默按全停处理。
     if let Some((run_bytes, Some(0))) = run_bounded(&["-l", "-v", "--running"], 15_000) {
-        mark_running(&mut distros, &decode_utf16le(&run_bytes));
+        mark_running_impl(&mut distros, &decode_utf16le(&run_bytes));
     }
     let wsl_version = run_bounded(&["--version"], 10_000)
         .map(|(b, _)| decode_utf16le(&b))
@@ -167,17 +167,6 @@ pub(crate) fn decode_utf16le(bytes: &[u8]) -> String {
         .to_string()
 }
 
-#[cfg(windows)]
-fn parse_wsl_list(text: &str) -> Vec<WslDistro> {
-    parse_wsl_list_impl(text)
-}
-
-#[cfg(not(windows))]
-#[allow(dead_code)]
-fn parse_wsl_list(text: &str) -> Vec<WslDistro> {
-    parse_wsl_list_impl(text)
-}
-
 /// 解析 `wsl.exe -l -v` 表(locale 无关):数据行 = 3 列(或 `*` 打头的 4 列)且
 /// 末列 ∈ {1,2}(容忍 "2.0" 形态)。表头行(任何语言的「名称/NAME」)末列不是
 /// 版本号,天然被锚定规则排除。已知限制:发行版名含空格时列切分会错位(wsl 允许
@@ -207,17 +196,6 @@ pub(crate) fn parse_wsl_list_impl(text: &str) -> Vec<WslDistro> {
     out
 }
 
-#[cfg(windows)]
-fn mark_running(distros: &mut [WslDistro], running_text: &str) {
-    mark_running_impl(distros, running_text)
-}
-
-#[cfg(not(windows))]
-#[allow(dead_code)]
-fn mark_running(distros: &mut [WslDistro], running_text: &str) {
-    mark_running_impl(distros, running_text)
-}
-
 /// 用 `--running` 表(同格式,只含运行中发行版)的名字集合给全量表打 running 标。
 /// 名字按 ASCII 大小写不敏感比对(wsl 发行版名不区分大小写)。
 pub(crate) fn mark_running_impl(distros: &mut [WslDistro], running_text: &str) {
@@ -234,7 +212,7 @@ mod tests {
     #[test]
     fn parse_list_marks_default_and_version() {
         let text = "  NAME                   STATE           VERSION\n* Ubuntu-24.04         Running         2\n  docker-desktop         Stopped         2\n  Legacy                 Running         1\n";
-        let d = parse_wsl_list(text);
+        let d = parse_wsl_list_impl(text);
         assert_eq!(d.len(), 3);
         assert_eq!(d[0].name, "Ubuntu-24.04");
         assert!(d[0].default);
@@ -248,7 +226,7 @@ mod tests {
     fn parse_list_survives_localized_headers_and_states() {
         // 中文 Windows:表头「名称 状态 版本」、状态「正在运行/已停止」。
         let text = "  名称                   状态            版本\n* Ubuntu-24.04         正在运行        2\n  Debian-12            已停止          2\n";
-        let d = parse_wsl_list(text);
+        let d = parse_wsl_list_impl(text);
         assert_eq!(d.len(), 2);
         assert!(d[0].default);
         assert_eq!(d[1].name, "Debian-12");
@@ -256,19 +234,19 @@ mod tests {
 
     #[test]
     fn parse_list_rejects_garbage() {
-        assert!(parse_wsl_list("").is_empty());
-        assert!(parse_wsl_list("no header here").is_empty());
+        assert!(parse_wsl_list_impl("").is_empty());
+        assert!(parse_wsl_list_impl("no header here").is_empty());
         // 末列不是 1/2 的行(表头、说明行、列数不足)全部跳过
-        let d = parse_wsl_list("  NAME STATE VERSION\n* Ubuntu-24.04 Running\n");
+        let d = parse_wsl_list_impl("  NAME STATE VERSION\n* Ubuntu-24.04 Running\n");
         assert!(d.is_empty());
     }
 
     #[test]
     fn mark_running_intersects_by_name() {
         let full = "  NAME STATE VERSION\n* Ubuntu-24.04 已停止 2\n  Debian-12 已停止 2\n";
-        let mut d = parse_wsl_list(full);
+        let mut d = parse_wsl_list_impl(full);
         let running = "  NAME STATE VERSION\n* Ubuntu-24.04 正在运行 2\n";
-        mark_running(&mut d, running);
+        mark_running_impl(&mut d, running);
         assert!(d[0].running);
         assert!(!d[1].running);
     }

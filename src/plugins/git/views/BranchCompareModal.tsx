@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import { createPortal } from "react-dom";
 import { GitDiff, CircleNotch, Cross } from "@phosphor-icons/react";
@@ -227,13 +228,7 @@ export function BranchCompareModal({
     }
   }
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   return createPortal(
     <div

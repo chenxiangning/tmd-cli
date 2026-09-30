@@ -10,8 +10,9 @@
 
 import { Suspense, lazy, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { retryImport } from "@kernel/lazyImport";
-import { ModeToggleButton, useDarkTheme } from "./editor/editorChrome";
+import { ModeToggleButton } from "./editor/editorChrome";
 import { statusText, toolbarCls } from "./editor/editorChromeLogic";
+import { useDarkTheme } from "@kernel/theme";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import {

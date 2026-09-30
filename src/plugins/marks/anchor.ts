@@ -6,6 +6,8 @@
  * import 行)误命中;上下文行(前一行 + 后一行)hash 仅作多候选收敛的辅助。
  */
 
+import { fnv1a32 } from "@kernel/textHash";
+
 export interface MarkFingerprint {
   /** 标记区逐行 hash 串(行内 `,` 连接)。 */
   body: string;
@@ -31,14 +33,9 @@ export interface Mark {
   createdAt: number;
 }
 
-/** fnv-1a 32 位 hex —— 只求判等区分,不抗碰撞攻击。 */
+/** fnv-1a 32 位 hex —— 只求判等区分,不抗碰撞攻击(算法收口在 kernel/textHash)。 */
 export function lineHash(line: string): string {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < line.length; i++) {
-    h ^= line.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
+  return fnv1a32(line).toString(16).padStart(8, "0");
 }
 
 export function fingerprintRange(lines: readonly string[], startLine: number, endLine: number): MarkFingerprint {

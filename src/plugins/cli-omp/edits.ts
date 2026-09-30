@@ -29,7 +29,7 @@
 import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { ipc } from "@kernel/ipc";
-import { parseEditEventsFromText } from "../cli-shared/sessionEdits";
+import { parseEditEventsFromText, textBlocksOf } from "../cli-shared/sessionEdits";
 import { bashToolCallEvents } from "../cli-shared/bashWrites";
 import { readPiFamilySessionEdits } from "../cli-shared/piFamily";
 
@@ -98,25 +98,18 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
       raws.add(d.resolvedPath);
     }
   }
-  if (Array.isArray(raw.content)) {
-    for (const block of raw.content) {
-      const text =
-        typeof block === "object" && block !== null && "text" in block && typeof block.text === "string"
-          ? block.text
-          : undefined;
-      if (typeof text !== "string") continue;
+  for (const text of textBlocksOf(raw)) {
+    for (const line of text.split("\n")) {
+      const m = HASHLINE_HEADER.exec(line);
+      if (m) raws.add(m[1]);
+    }
+    if (raws.size === 0 && raw.toolName === "write") {
       for (const line of text.split("\n")) {
-        const m = HASHLINE_HEADER.exec(line);
+        const m = WRITE_OK.exec(line);
         if (m) raws.add(m[1]);
       }
-      if (raws.size === 0 && raw.toolName === "write") {
-        for (const line of text.split("\n")) {
-          const m = WRITE_OK.exec(line);
-          if (m) raws.add(m[1]);
-        }
-      }
-      }
     }
+  }
   /* 同一写入的多种路径形态(write 的 resolvedPath 与 hashline 头)归一后去重 */
   const paths = new Set<string>();
   for (const r of raws) {

@@ -1,6 +1,7 @@
 /**
  * 引擎品牌 glyph 单一来源 —— 十家 CLI 的 SVG 字形集中于此(跨插件共享声明:
- * 桌面 cli-* 插件 renderIcon 与手机 home/session 行共同消费,准入 = ≥2 消费方)。
+ * 桌面 cli-* 插件 renderIcon、手机 home/session 行与 feature 插件 daily-journal
+ * 生成设置引擎行共同消费,准入 = ≥2 消费方)。
  * 手机端必须走本模块而非 import 插件 index:插件 index 携带整个引擎的激活面,
  * 会把无关代码拖进手机 bundle。各家来源注释随块保留。
  */

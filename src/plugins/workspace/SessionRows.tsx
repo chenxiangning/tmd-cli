@@ -116,7 +116,8 @@ const STATUS_LABEL: Record<
  */
 export function SessionStatusLabel({ sessionId }: { sessionId: string }) {
   const status = useSessionStatus(sessionId);
-  if (status === "none") return null;
+  /* 等待确认让位:ask 徽章是更强的行动信号,并置「空闲+等待确认」自相矛盾。 */
+  if (status === "none" || host.isWaitingConfirm(sessionId)) return null;
   const { className, text } = STATUS_LABEL[status];
   return <span className={`thread-status-label ${className}`}>{t(text)}</span>;
 }

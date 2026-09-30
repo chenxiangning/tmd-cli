@@ -97,7 +97,7 @@ pub fn trust(key: &KnownHostKey) -> Result<(), String> {
     let mut next = with_store(|store| store.clone());
     let mut entry = key.clone();
     entry.host = entry.host.trim().to_string();
-    entry.trusted_at = now_millis();
+    entry.trusted_at = crate::now_millis();
     next.hosts.insert(entry_key(&entry.host, entry.port), entry);
     persist(next)
 }
@@ -110,13 +110,6 @@ pub fn reset(host: &str, port: u16) -> Result<bool, String> {
         persist(next)?;
     }
     Ok(existed)
-}
-
-fn now_millis() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as u64)
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

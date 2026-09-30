@@ -8,9 +8,10 @@
  *   移到废纸篓 ─ 仅行目标,两步确认(首击武装,再击执行)
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Copy, FilePlus, FolderOpen, FolderSimplePlus, Pencil, Trash } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import type { DirEntry } from "@kernel/ipc";
 import { clampMenuPosition, type TreeMenuState } from "./useTreeOperations";
@@ -60,13 +61,7 @@ export function FileTreeContextMenu({
   const entry = state.entry;
   const pos = clampMenuPosition(state.x, state.y);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   /* 新建落点:目录行=目录内;文件行=其父目录;空白区=树根。 */
   const newDir = entry ? (entry.isDir ? entry.path : parentOf(entry.path, root)) : root;

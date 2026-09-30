@@ -226,4 +226,12 @@
 | 2026-09-29 | [图标组合切换设计:5 套可切换界面图标(现状/实心/换隐喻/Lucide 双套 + morphicons 弹簧变形;DecorIcon fallback 接管 13 渲染位)](superpowers/specs/2026-09-29-icon-set-switching-design.md) | 已实现(门禁绿 + 1421 桩目检过;真机复验留大仙) |
 | 2026-09-29 | [后台「等待确认」不可见/前台迟滞/改窗口即消失:镜像几何失真评审与 v3.2 修复(栅格对齐真实 PTY + 全屏采样 + 250ms 节拍)](review/2026-09-29-ask-badge-geometry-reliability-review.md) | 已完成(真实日志回放实证;真机目检留大仙) |
 | 2026-09-29 | [0.2.5 发布整体评审(终端域性能/边界/兼容性专项 + 死代码清理执行 + 安装包体审计)](review/2026-09-29-025-release-review.md) | 已完成(P1 slug 注入建议 0.2.6 首项;死代码 13 文件已清;包体优化 9 条清单) |
+| 2026-09-29 | [每日工作日志原型(定稿候选):年/月/轴三视图 + 每日一篇 AI 汇总文章(增量并入留痕)+ 每日便签(任选日手写,空日可写)+ 节假日关联(联网,断网保底周末底纹)](design/daily-journal-n4-merged.html) | 设计探索(定稿候选) |
+| 2026-09-29 | [每日工作日志设计 spec:年/月/轴三视图 + 每日一篇 AI 汇总文章(生成会话直写 md)+ 便签独立落盘 + 后台任务队列 + 节假日缓存保底](superpowers/specs/2026-09-29-daily-journal-design.md) | 已实现(B1-B5 五批,门禁全绿 + 1421 桩目检;真机目检留大仙) |
+| 2026-09-30 | [17 — 渲染健康守望:WKWebView 吊销粘死(界面卡死)根因定性与两层防线 + 壳侧 set_focus→reload 阶梯](architecture/17-render-health.md) | 生效中(卡死复发时先读;触发条件与无效恢复路径实测清单) |
+| 2026-09-30 | [每日工作日志扫描加速:旧数据先上屏(stale-while-revalidate)+ 分批追加渲染 + codex/kimi 读头 mtime 缓存](superpowers/specs/2026-09-30-daily-journal-scan-perf-design.md) | 已实现(门禁全绿;真机目检留大仙) |
+| 2026-09-30 | [omp 对话卡死根因评审:后台生成 TUI 洪水饿死 webview 主线程(omp 全程健康的磁盘双证 + 历次修复无效逐条归因)](review/2026-09-30-omp-dialog-freeze-root-cause.md) | 已完成(根因定案,修复见同日 oneshot spec) |
+| 2026-09-30 | [daily-journal 生成会话无头化设计:omp -p oneshot 单发根治输出洪水 + 退出主信号结算 + 摘录增量/并发治理](superpowers/specs/2026-09-30-daily-journal-oneshot-gen-design.md) | 已定稿(实现随当日提交) |
+| 2026-09-30 | [18 — 生成会话无头契约:CliProfile.oneshotArgs 声明制与无人值守会话输出纪律](architecture/18-oneshot-generation.md) | 生效中(omp/pi/codex/claude 已声明,dsh/kimi/grok/qoder/opencode 待接入清单见文内矩阵) |
+| 2026-09-30 | [daily-journal 手动发起总结/增量更新入口:文章 tab 顶栏状态自适应按钮 + 月格全状态扩展(增量并入/生成此日/重试生成三态共用判定)](superpowers/specs/2026-09-30-daily-journal-manual-increment-design.md) | 已实现(门禁全绿;真机目检留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

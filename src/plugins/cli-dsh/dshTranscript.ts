@@ -4,29 +4,27 @@
  * JS 侧 fzstd 解压(纯 JS 解码器,零 Rust CLI 知识),行循环复用 cli-shared
  * sessionTranscript 骨架。
  *
- * 行型实证(2026-09-28 本机采样):
+ * 行型实证(2026-09-28 本机采样;2026-09-30 复采 v3/v4):
+ * - 盘面文件名随 dsh 版本带格式版本号:session.jsonl.zstd → session.v3/v4…,
+ *   事件类型与字段两代兼容,唯两处形变见下。
  * - {type:"user/message",time,data:{content:[text parts],source:{kind},id}}:
- *   source.kind === "user" 判别人工输入(插件播报 kind=plugin,跳过)。
+ *   source.kind === "user" 判别人工输入(v3/v4 新增 runtime-context /
+ *   skill-catalog 播报,kind 门控一并跳过)。
  * - {type:"assistant/message",data:{message:{content:[{type:"text",text}|
- *   {type:"tool-call",id,name}]}}} → 各 part 独立成块。
+ *   {type:"tool-call",id,name}]}}};v3 起 data.messageId 消失,块 id 退
+ *   event.seq 兜底。
  * - {type:"tool/call",data:{callId,name,arguments(JSON 字符串)}} → 工具块。
- * - {type:"tool/result",data:{message:{content:[{type:"tool-result",
- *   toolCallId,content:[{type:"text",text}],isError?}]}}} → 结果块。
+ * - {type:"tool/result"} 两代形制:v3 = data.message.content[{type:
+ *   "tool-result",toolCallId,content:[…]}](包裹层);v4 扁平化 = data.
+ *   message.{toolCallId,content:[{type:"text",…}],isError}(包裹层取消)。
  */
 
 import { Decompress } from "fzstd";
 import { ipc } from "@kernel/ipc";
 import type { CliSessionTranscript, CliTranscriptBlock } from "@kernel/cli";
-import { pairToolResults, parseTranscriptBlocks, TRANSCRIPT_BYTES, type TranscriptLineParser } from "../cli-shared/sessionTranscript";
+import { pairToolResults, parseTranscriptBlocks, stringField, TRANSCRIPT_BYTES, type TranscriptLineParser } from "../cli-shared/sessionTranscript";
 import { toolPreviewKindOf } from "../cli-shared/sessionTranscript";
 import { messageText } from "../cli-shared/userMessages";
-
-/** 外部 JSON 逐层收窄取 string;缺失/异型返回 undefined。 */
-function stringField(obj: unknown, key: string): string | undefined {
-  if (!obj || typeof obj !== "object" || !(key in obj)) return undefined;
-  const value = (obj as Record<string, unknown>)[key];
-  return typeof value === "string" && value ? value : undefined;
-}
 
 /** tool/call 的 arguments(JSON 字符串)→ 命令文本(command/cmd 键)。 */
 function dshCommandOf(argumentsJson: string | undefined): string | undefined {
@@ -65,7 +63,10 @@ export const dshTranscriptLine: TranscriptLineParser = (event) => {
     const message = d.message;
     const m = message && typeof message === "object" ? (message as Record<string, unknown>) : null;
     if (!m) return blocks;
-    const messageId = stringField(d, "messageId");
+    /* v3 起 messageId 消失:退 event.seq 保块 id 全局唯一(React key)。 */
+    const messageId =
+      stringField(d, "messageId") ??
+      (typeof event.seq === "number" ? `seq${event.seq}` : "asst");
     const content = m.content;
     if (!Array.isArray(content)) return blocks;
     content.forEach((part, index) => {
@@ -107,13 +108,21 @@ export const dshTranscriptLine: TranscriptLineParser = (event) => {
     const m = message && typeof message === "object" ? (message as Record<string, unknown>) : null;
     const content = m?.content;
     if (!Array.isArray(content)) return blocks;
-    for (const part of content) {
-      if (!part || typeof part !== "object") continue;
-      const p = part as Record<string, unknown>;
-      if (stringField(p, "type") !== "tool-result") continue;
-      const callId = stringField(p, "toolCallId");
-      const text = messageText(p.content) ?? "";
-      if (callId && text.trim()) {
+    /* 两代形制:v4 扁平(toolCallId 在 message 本体,content 即 text parts),
+     * v3 包裹(toolCallId 在 content 的 tool-result part 里)。message 带
+     * toolCallId 判新形,否则回扫旧形 part。 */
+    const directId = stringField(m, "toolCallId");
+    const results = directId
+      ? [{ callId: directId, text: messageText(content) ?? "" }]
+      : content.flatMap((part) => {
+          if (!part || typeof part !== "object") return [];
+          const p = part as Record<string, unknown>;
+          if (stringField(p, "type") !== "tool-result") return [];
+          const callId = stringField(p, "toolCallId");
+          return callId ? [{ callId, text: messageText(p.content) ?? "" }] : [];
+        });
+    for (const { callId, text } of results) {
+      if (text.trim()) {
         blocks.push({
           id: `${callId}#res`,
           role: "tool",
@@ -127,8 +136,16 @@ export const dshTranscriptLine: TranscriptLineParser = (event) => {
   return blocks;
 };
 
+/** session[.vN].jsonl.zstd → 盘面格式版本号(无版本段 = 0);非会话盘文件 = -1。 */
+export function zstdVersionOf(name: string): number {
+  const m = /^session(?:\.v(\d+))?\.jsonl\.zstd$/.exec(name);
+  return m ? Number(m[1] ?? 0) : -1;
+}
+
 /** 定位会话 zstd 文件:扫 ~/.dsh/sessions/<slug>/ 一层找 session-<id> 目录
- *  (deleteHostSession 同款定位纪律:slug 规则不猜,会话 id 全局唯一)。 */
+ *  (deleteHostSession 同款定位纪律:slug 规则不猜,会话 id 全局唯一)。
+ *  目录内文件名随 dsh 版本带格式版本号(v0/v3/v4 并存于不同会话),通配
+ *  session*.jsonl.zstd 取版本最高者,未来 v5 免改。 */
 async function findDshSessionZstd(cliSessionId: string): Promise<string | null> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return null;
@@ -137,7 +154,12 @@ async function findDshSessionZstd(cliSessionId: string): Promise<string | null> 
     if (!slug.isDir) continue;
     const hit = (await ipc.fsListDir(slug.path).catch(() => []))
       .find((e) => e.isDir && (e.name === cliSessionId || e.name === `session-${cliSessionId}`));
-    if (hit) return `${hit.path}/session.jsonl.zstd`;
+    if (!hit) continue;
+    const best = (await ipc.fsListDir(hit.path).catch(() => []))
+      .map((e) => ({ name: e.name, ver: zstdVersionOf(e.name) }))
+      .filter((f) => f.ver >= 0)
+      .sort((a, b) => b.ver - a.ver)[0];
+    if (best) return `${hit.path}/${best.name}`;
   }
   return null;
 }

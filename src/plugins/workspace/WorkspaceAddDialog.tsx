@@ -5,9 +5,10 @@
  * 居中 modal 离入口太远(2026-09-13 用户验收反馈),透明背板仅承担点外关闭。
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Cross } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { pickDirectory } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
@@ -25,13 +26,7 @@ export function WorkspaceAddDialog({
   const [tab, setTab] = useState<string>("local");
   const [localHint, setLocalHint] = useState<string | null>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   const pickLocal = async () => {
     try {

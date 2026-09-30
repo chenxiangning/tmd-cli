@@ -90,6 +90,16 @@ export const cliPiPlugin: Plugin = {
       /* pi 与 kimi 同源 pi-tui:编辑器原生解析 ESC[200~ 粘贴标记;声明后 composer
          发送走 bracketed paste,避开新版 TUI 的粘贴爆发回车吞没(见 kernel/cliProfile.ts) */
       bracketedPaste: true,
+      modelArg: "--model",
+      /* 无头单发(pi 与 omp 同源,--help 实证):-p 非交互答完即退;--no-session 不落
+       * 会话 JSONL(身份/状态恒「—」);pi 无审批闸(help 零 approval/permission 旗标,
+       * print 态直接跑工具),无需审批旗标;prompt 经 @file 传入。 */
+      oneshotArgs: ({ promptFile, model }) => [
+        "-p",
+        "--no-session",
+        ...(model ? ["--model", model] : []),
+        `@${promptFile}`,
+      ],
       ...piSessions,
       readDefaultStatus: readPiDefaultStatus,
       readSessionEdits: readPiSessionEdits,

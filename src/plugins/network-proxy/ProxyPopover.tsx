@@ -15,6 +15,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Cross } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { normalizeProxyUrl, proxyTransitionError, DEFAULT_PROXY_URL } from "./proxyCommit";
@@ -46,14 +47,7 @@ export function ProxyPopover() {
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const popoverRef = useRef<HTMLDialogElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeProxyPopover();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  useEscClose(closeProxyPopover);
 
   /* 实测定稿:offsetWidth/Height 已含换行后的真实高度,比估算可靠。 */
   useLayoutEffect(() => {

@@ -32,6 +32,8 @@ const OPENABLE_KINDS = [
   "skill-hub",
   "mcphub",
   "session-view",
+  "daily-journal",
+  "daily-article",
 ] as const;
 
 function activateCollecting(): Map<string, TabContentContribution> {

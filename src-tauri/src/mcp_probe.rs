@@ -217,7 +217,7 @@ fn drive(
                 init = Some(v);
                 break;
             }
-            WaitOutcome::ServerError(msg) if version != PROTOCOL_VERSIONS[2] => continue,
+            WaitOutcome::ServerError(_) if version != PROTOCOL_VERSIONS[2] => continue,
             WaitOutcome::ServerError(msg) => return Err(format!("initialize 被拒: {msg}")),
             WaitOutcome::Fatal(msg) => return Err(msg),
         }

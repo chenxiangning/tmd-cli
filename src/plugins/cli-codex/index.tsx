@@ -177,6 +177,18 @@ export const cliCodexPlugin: Plugin = {
          与斜杠弹层活跃态会被编辑器吞掉回车,BP 标记后 /model 稳定执行。
          codex 非 pi-tui 系,但 crossterm 同样启用 BP 模式(见 kernel/cliProfile.ts)。 */
       bracketedPaste: true,
+      /* 无头单发(exec --help 实证):exec 非交互答完即退;--skip-git-repo-check 免
+         非 git 目录(默认工作区 ~/.tmd-cli-default)拒跑;--approve-for-me 把审批
+         请求路由进 workspace-write 沙箱自动复核(比全 bypass 收敛,文章在 cwd 内
+         可写);prompt 走 stdin(oneshotStdin,exec 以「-」占位读入),大摘录不挤 argv。 */
+      oneshotStdin: true,
+      oneshotArgs: ({ model }) => [
+        "exec",
+        "--skip-git-repo-check",
+        "--approve-for-me",
+        ...(model ? ["-m", model] : []),
+        "-",
+      ],
       /* 技能真相:扫 .agents/skills + ~/.codex/skills(含 .system)+ 插件缓存;
          ~/.codex/prompts 已废弃不扫,命令走静态表 */
       listSuggestions: listCodexSuggestions,

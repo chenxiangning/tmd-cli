@@ -40,10 +40,12 @@ describe("retryImport(dev 504 竞态护栏)", () => {
       return Promise.reject(new Error("dead"));
     });
     const first = load();
+    first.catch(() => undefined); /* 即挂空 catch:终败 rejection 与 rejects 断言挂接之间不留未处理窗,否则 Node 发 unhandledRejection 被 vitest 收红(时序性) */
     await flush();
     await expect(first).rejects.toThrow("dead");
     const doneAt = calls;
     const second = load();
+    second.catch(() => undefined);
     await flush();
     await expect(second).rejects.toThrow("dead");
     expect(calls).toBe(doneAt * 2);

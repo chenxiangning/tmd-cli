@@ -18,7 +18,8 @@ import { updateSettings, getSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { BOOTSTRAP_MJS } from "./bootstrap";
 import { detectNode, detectOmpPluginInstalled, detectSharedDbReady } from "./detect";
-import { memoryDbPath, ensureParentDir } from "../paths";
+import { memoryDbPath } from "../paths";
+import { ensureParentDir } from "@kernel/fsDirs";
 
 interface InstallStepResult {
   ok: boolean;

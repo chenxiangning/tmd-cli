@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { ArrowUpIcon, FolderSimpleIcon } from "@phosphor-icons/react";
 import type { WslDistro, WslDirEntry } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -31,18 +32,26 @@ function DirBrowser({ distro, onPick }: { distro: string; onPick: (path: string)
   return (
     <div className="wsl-dir-browser">
       <div className="wsl-dir-crumb">
-        <button type="button" className="wsl-btn ghost" onClick={() => load(parentWslPath(dir))}>
-          {t("上一级")}
+        <button
+          type="button"
+          className="wsl-icon-btn"
+          title={t("上一级")}
+          aria-label={t("上一级")}
+          onClick={() => load(parentWslPath(dir))}
+        >
+          <ArrowUpIcon size={12} aria-hidden />
         </button>
-        <code title={dir}>{dir}</code>
-        <button type="button" className="wsl-btn ghost" onClick={() => onPick(dir)} disabled={dir === "/"}>
+        <code className="wsl-dir-path" title={dir}>
+          {dir}
+        </code>
+        <button type="button" className="wsl-btn sm" onClick={() => onPick(dir)} disabled={dir === "/"}>
           {t("选这一层")}
         </button>
       </div>
       {err && <div className="wsl-remote-err">{err}</div>}
       {entries === null && !err && (
-        <button type="button" className="wsl-btn" onClick={() => load("/")}>
-          {t("浏览目录")}
+        <button type="button" className="wsl-btn sm" onClick={() => load("/")}>
+          <FolderSimpleIcon size="0.75rem" aria-hidden /> {t("浏览目录")}
         </button>
       )}
       {entries !== null && (
@@ -50,11 +59,13 @@ function DirBrowser({ distro, onPick }: { distro: string; onPick: (path: string)
           {entries.map((e) =>
             e.isDir ? (
               <button key={e.name} type="button" className="wsl-dir-row" onClick={() => load(joinWslPath(dir, e.name))}>
-                {e.name}/
+                <FolderSimpleIcon size={12} aria-hidden />
+                <span>{e.name}</span>
               </button>
             ) : (
               <span key={e.name} className="wsl-dir-row off">
-                {e.name}
+                <FolderSimpleIcon size={12} aria-hidden />
+                <span>{e.name}</span>
               </span>
             ),
           )}

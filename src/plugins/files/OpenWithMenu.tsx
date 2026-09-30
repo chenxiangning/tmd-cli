@@ -5,9 +5,10 @@
  * 弹层走 wsmenu 范式(portal + backdrop + Escape),向上弹出、右对齐锚点。
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CaretDown } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
@@ -36,14 +37,7 @@ export function OpenWithMenu({ path }: { path: string }) {
     if (open && menuRef.current) setMenuH(menuRef.current.getBoundingClientRect().height);
   }, [open, targets.length]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  useEscClose(() => setOpen(false));
 
   if (!def) return null;
 

@@ -57,10 +57,11 @@ export interface FilePanelContribution {
   /** 面板专属动作按钮(可选):渲染在右栏底部文件操作条动作区末尾。
    *  状态归插件组件自管(模块级 store),外壳只渲染不认识语义。 */
   actions?: ComponentType;
-  /** rail 联动的中央管理 tab(可选):open 幂等打开(重复 = 聚焦已有),
-   *  id 供外壳在切换/收起时关闭对应中央 tab(中央区不堆积管理 tab)。
+  /** rail 联动的中央管理 tab(可选):open 幂等打开(重复 = 聚焦已有)。
+   *  中央 tab 之间互不互斥、也不随右栏切换/收起被关(与普通 tab 同权,
+   *  生命周期归用户);外壳只在面板打开方向调用 open,不做任何关闭联动。
    *  外壳只调用不认识语义;缺省 = 纯右栏面板,无中央联动。 */
-  centerTab?: { id: string; open: () => void };
+  centerTab?: { open: () => void };
 }
 
 /* ── 钉住清单持久化 ──

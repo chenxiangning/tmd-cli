@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowClockwise } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getQuotaProvider, SHORT_WINDOW_LABEL, type QuotaSnapshot } from "@kernel/quota";
@@ -146,13 +147,7 @@ function QuotaDetailPopover({
   onRefresh: () => void;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   return createPortal(
     <>

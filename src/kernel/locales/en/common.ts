@@ -23,6 +23,7 @@ export const MESSAGES = {
   // ── 会话 tab 条 ──
   "打开的会话": "Open sessions",
   "{title} · 等待确认": "{title} · awaiting confirmation",
+  "{title} · 空闲": "{title} · idle",
   "从标签条移除:{title}": "Remove {title} from the tab bar",
   "从标签条移除(会话保持运行)": "Remove from tab bar (session keeps running)",
 

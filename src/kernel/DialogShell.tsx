@@ -10,6 +10,22 @@ import { t } from "@kernel/i18n";
 import { useEffect, useEffectEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+/** Esc 关闭钩 —— 弹层/浮层公共 Esc 骨架(window keydown;locked 时忽略)。
+ *  onClose 包 useEffectEvent:父层每轮重建回调不触发重订阅,effect 内永远读最新引用。
+ *  消费:git 弹层族 / files 菜单族 / workspace 菜单族 / checkpoints / composer /
+ *  network-proxy / session-budget / welcome(2026-09-30 自 17 处手抄 effect 收口)。 */
+export function useEscClose(onClose: () => void, locked = false): void {
+  const onEsc = useEffectEvent(() => onClose());
+  useEffect(() => {
+    if (locked) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onEsc();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [locked]);
+}
+
 export function DialogShell({
   title,
   icon,
@@ -31,17 +47,7 @@ export function DialogShell({
   children: ReactNode;
   footer: ReactNode;
 }) {
-  /* Esc 关闭(locked 时忽略);onClose 包 useEffectEvent:父层每轮重建回调
-     不该触发重订阅,effect 内永远读最新引用。 */
-  const onEscClose = useEffectEvent(() => onClose());
-  useEffect(() => {
-    if (locked) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onEscClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [locked]);
+  useEscClose(onClose, locked);
 
   /* 自制弹层换原生 dialog(非模态 open,不调 showModal,保留原 Esc/点背板关闭):
      两段式 —— 外层 role=presentation 遮罩 div 承担点背板关闭(target===currentTarget

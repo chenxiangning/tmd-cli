@@ -8,8 +8,9 @@
  * GitToolbar 只消费镜像,不另起第二份轮询。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ipc, type GitTotals } from "@kernel/ipc";
+import { useVisiblePoll } from "./useVisiblePoll";
 
 const SLOW_POLL_MS = 60_000;
 
@@ -22,9 +23,16 @@ interface GitTotalsState {
 export function useGitTotals(cwd: string | null): GitTotalsState {
   const [data, setData] = useState<GitTotals | null>(null);
   const tokenRef = useRef(0);
+  const lastCwdRef = useRef(cwd);
 
   const refresh = useCallback(() => {
     const myToken = ++tokenRef.current;
+    /* cwd 切换即清陈值(旧 cwd 的 totals 不许闪现);走 refresh 内 ref 对比,
+       轮询重复调用因 ref 已同步而天然幂等,不经 prop-change effect。 */
+    if (lastCwdRef.current !== cwd) {
+      lastCwdRef.current = cwd;
+      setData(null);
+    }
     if (!cwd) {
       setData(null);
       return Promise.resolve();
@@ -40,21 +48,7 @@ export function useGitTotals(cwd: string | null): GitTotalsState {
     );
   }, [cwd]);
 
-  useEffect(() => {
-    setData(null);
-    refresh();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") refresh();
-    }, SLOW_POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [refresh]);
+  useVisiblePoll(refresh, SLOW_POLL_MS);
 
   return { data, refresh };
 }

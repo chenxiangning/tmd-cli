@@ -5,8 +5,9 @@
  * 扫描失败(根不可访问等)= 空列表,面板自然落到 guide/empty 档,不弹错误。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
+import { useVisiblePoll } from "./useVisiblePoll";
 
 const SLOW_POLL_MS = 60_000;
 /** 发现 BFS 深度(前端传参,Rust 默认同值);RepoGuide 引导文案同步显示。 */
@@ -43,20 +44,7 @@ export function useGitRepos(root: string | null): GitReposState {
     );
   }, [root]);
 
-  useEffect(() => {
-    refresh();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") refresh();
-    }, SLOW_POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [refresh]);
+  useVisiblePoll(refresh, SLOW_POLL_MS);
 
   return { ...state, refresh };
 }

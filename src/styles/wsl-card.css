@@ -1,44 +1,195 @@
-/* WSL 主机面板(中央 tab kind="wsl";src/plugins/wsl/index.tsx)。
-   一体化容器:头行常显状态摘要,下方本机/远程两段 + 添加弹层。 */
+/* WSL 主机面板 —— 壳/头部/通用控件/本机段(src/plugins/wsl)。
+   分层:wsl-card(本文件)+ wsl-dialog(弹层)+ wsl-remote(远程三段)
+   + wsl-distro(发行版块/探针/目录);四文件同批载入(global.css)。
+   减层原则(2026-09-30):页面即表面,外壳不再画卡;分区靠留白 + 微标签
+   + 发丝线,可交互控件才允许有盒。 */
 
 .wsl-card {
-  margin: 16px auto;
-  max-width: 860px;
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-md);
-  background: var(--tmd-bg-elevated);
-  overflow: visible;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 22px 6px 0;
 }
 
+/* ---- 头部:图标铭牌 + 标题 + 动态状态副行(仅一条发丝线收束) ---- */
 .wsl-card-head {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  color: var(--tmd-fg);
+  gap: 12px;
+  padding: 0 8px 14px;
+  border-bottom: 1px solid var(--tmd-border);
+}
+.wsl-card-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
   border-radius: var(--tmd-radius-md);
+  color: var(--tmd-accent);
+  background: var(--tmd-accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tmd-accent) 22%, transparent);
+}
+.wsl-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wsl-card-title b {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--tmd-fg);
 }
 .wsl-card-status {
-  margin-left: auto;
+  font-size: 0.6875rem;
   color: var(--tmd-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.wsl-card-body {
+  padding: 18px 8px 0;
+}
+
+/* ---- 通用控件:按钮 / 图标钮 ---- */
+.wsl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 12px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 7px;
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    filter 0.12s ease;
+}
+.wsl-btn:hover:not(:disabled) {
+  border-color: var(--tmd-border-strong);
+  background: var(--tmd-bg-hover);
+}
+.wsl-btn:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+.wsl-btn:focus-visible {
+  outline: none;
+  border-color: var(--tmd-accent);
+  box-shadow: 0 0 0 2px var(--tmd-accent-soft);
+}
+.wsl-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.wsl-btn.sm {
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+}
+.wsl-btn.primary {
+  border-color: color-mix(in srgb, var(--tmd-accent) 80%, black);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--tmd-accent) 90%, white),
+    var(--tmd-accent)
+  );
+  color: var(--tmd-accent-fg);
+  font-weight: 600;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 color-mix(in srgb, var(--tmd-accent-fg) 18%, transparent);
+}
+.wsl-btn.primary:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--tmd-accent) 80%, black);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--tmd-accent) 90%, white),
+    var(--tmd-accent)
+  );
+  filter: brightness(1.06);
+}
+.wsl-btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--tmd-accent);
+}
+.wsl-btn.ghost:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--tmd-accent-soft);
+}
+
+.wsl-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 7px;
+  background: var(--tmd-bg-input);
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.wsl-icon-btn:hover:not(:disabled) {
+  border-color: var(--tmd-border-strong);
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+.wsl-icon-btn:focus-visible {
+  outline: none;
+  border-color: var(--tmd-accent);
+  box-shadow: 0 0 0 2px var(--tmd-accent-soft);
+}
+.wsl-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.wsl-icon-btn.on {
+  border-color: var(--tmd-accent);
+  color: var(--tmd-accent);
+  background: var(--tmd-accent-soft);
+}
+
+/* ---- 通用文本与状态点 ---- */
 .wsl-ok {
   color: var(--tmd-ok);
 }
 .wsl-def {
   color: var(--tmd-accent);
 }
-
-.wsl-card-body {
-  padding: 2px 10px 10px;
-  border-top: 1px dashed var(--tmd-border);
+.wsl-hl {
+  color: var(--tmd-accent);
+  font-weight: 600;
 }
-
-.wsl-distro-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 2px;
+.wsl-desc {
+  margin: 0;
+  color: var(--tmd-fg-muted);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+}
+.wsl-hint {
+  margin: 8px 0 0;
+  color: var(--tmd-fg-subtle);
+  font-size: 0.6875rem;
+  line-height: 1.6;
 }
 .wsl-dot {
   width: 7px;
@@ -46,186 +197,83 @@
   border-radius: 50%;
   background: var(--tmd-fg-faint);
   flex: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tmd-fg-faint) 16%, transparent);
 }
 .wsl-dot.ok {
   background: var(--tmd-ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tmd-ok) 16%, transparent);
+}
+
+/* ---- 发行版行(本机段)/ 状态 pill ---- */
+.wsl-distro-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wsl-distro-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--tmd-radius-sm);
 }
 .wsl-distro-name {
   font-weight: 600;
+  font-size: 0.75rem;
 }
-.wsl-distro-ver,
-.wsl-distro-state {
+.wsl-distro-ver {
+  font-family: var(--tmd-mono, monospace);
+  font-size: 0.6875rem;
   color: var(--tmd-fg-subtle);
 }
 .wsl-distro-state {
   margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  line-height: 1;
+  color: var(--tmd-fg-subtle);
+  background: color-mix(in srgb, var(--tmd-fg) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tmd-border) 72%, transparent);
 }
-
-.wsl-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-sm);
-  background: var(--tmd-bg-input);
-  color: var(--tmd-fg);
-  font: inherit;
-  cursor: pointer;
-}
-.wsl-btn:hover:not(:disabled) {
-  background: var(--tmd-bg-hover);
-}
-.wsl-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.wsl-btn.primary {
-  background: var(--tmd-accent);
-  border-color: var(--tmd-accent);
-  color: var(--tmd-accent-fg);
-}
-.wsl-btn.primary:hover:not(:disabled) {
-  background: var(--tmd-accent);
-  filter: brightness(1.1);
-}
-.wsl-btn.ghost {
-  border-color: transparent;
-  background: transparent;
-  color: var(--tmd-accent);
+.wsl-distro-state.wsl-ok {
+  color: color-mix(in srgb, var(--tmd-ok) 68%, var(--tmd-fg));
+  background: color-mix(in srgb, var(--tmd-ok) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tmd-ok) 24%, transparent);
 }
 .wsl-showall {
-  margin: 2px 0;
+  margin: 6px 0 0;
+  align-self: flex-start;
 }
-
 .wsl-facts {
-  margin: 6px 0;
+  margin-top: 10px;
   color: var(--tmd-fg-subtle);
+  font-size: 0.6875rem;
 }
-
 .wsl-card-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.wsl-hint {
-  margin-top: 8px;
-  color: var(--tmd-fg-subtle);
-  line-height: 1.5;
-}
-
-/* 添加 WSL 工作区弹层 */
-.wsl-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  background: rgba(0, 0, 0, 0.28);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.wsl-dialog {
-  width: 400px;
-  max-width: calc(100vw - 48px);
-  background: var(--tmd-bg-popover);
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-md);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
-  padding: 0 14px 14px;
-}
-.wsl-dialog-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: 600;
-  padding: 10px 0 8px;
-}
-.wsl-dialog-x {
-  border: none;
-  background: transparent;
-  color: var(--tmd-fg-muted);
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
-  padding: 2px 6px;
-}
-.wsl-dialog-x:hover {
-  color: var(--tmd-fg);
-}
-.wsl-field {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 8px 0;
-}
-.wsl-field > span {
-  flex: none;
-  width: 4.5em;
-  color: var(--tmd-fg-muted);
-}
-.wsl-field select,
-.wsl-field input {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 8px;
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-sm);
-  background: var(--tmd-bg-input);
-  color: var(--tmd-fg);
-  font: inherit;
-}
-.wsl-unc-preview {
-  margin: 4px 0;
-  padding: 4px 8px;
-  border-radius: var(--tmd-radius-sm);
-  background: var(--tmd-bg-sunken);
-  color: var(--tmd-fg-subtle);
-  word-break: break-all;
-}
-.wsl-err {
-  margin: 4px 0;
-  color: var(--tmd-err);
-}
-.wsl-dialog-foot {
-  display: flex;
-  justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
 }
 
-
-.wsl-hl {
-  color: var(--tmd-accent);
-  font-weight: 600;
-}
-.wsl-desc {
-  margin: 6px 2px;
-  color: var(--tmd-fg-muted);
-  font-size: 0.75rem;
-  line-height: 1.5;
-}
-.wsl-actions {
-  display: flex;
-  gap: 8px;
-  margin: 10px 2px 0;
-}
+/* ---- 页脚品牌 ---- */
 .wsl-brand {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  margin: 32px 0 48px;
+  gap: 8px;
+  margin: 36px 0 48px;
   user-select: none;
 }
 .wsl-brand img {
-  width: 3.5rem;
-  height: 3.5rem;
-  opacity: 0.28;
+  width: 3.25rem;
+  height: 3.25rem;
+  opacity: 0.22;
 }
 .wsl-brand span {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
   color: var(--tmd-fg-subtle);
-  letter-spacing: 0.05em;
-  opacity: 0.7;
+  opacity: 0.75;
 }

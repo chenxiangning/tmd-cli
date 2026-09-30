@@ -17,22 +17,8 @@
 
 import type { CliTranscriptBlock, CliTranscriptImage, CliToolPreview } from "@kernel/cli";
 import type { TranscriptLineParser } from "./sessionTranscript";
-import { diffLinesFromStrings, toolPreviewKindOf } from "./sessionTranscript";
+import { diffLinesFromStrings, startedAtOf, stringField, toolPreviewKindOf } from "./sessionTranscript";
 import { isWrapperText, messageText } from "./userMessages";
-
-/** 外部 JSON 逐层收窄取 string;缺失/异型返回 undefined。 */
-function stringField(obj: unknown, key: string): string | undefined {
-  if (!obj || typeof obj !== "object" || !(key in obj)) return undefined;
-  const value = (obj as Record<string, unknown>)[key];
-  return typeof value === "string" && value ? value : undefined;
-}
-
-function startedAtOf(event: Record<string, unknown>): number | undefined {
-  const raw = stringField(event, "timestamp");
-  if (!raw) return undefined;
-  const ms = Date.parse(raw);
-  return Number.isFinite(ms) ? ms : undefined;
-}
 
 /** pi 工具 arguments → 预览(command/oldStr/newStr;路径类工具形态随家族演进,宽容)。 */
 function piToolPreview(
