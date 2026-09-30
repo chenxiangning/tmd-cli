@@ -57,6 +57,14 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
      实例随会话 keep-alive 常驻;惰性初值 = useState 初始化器只在首帧执行一次。 */
   const [inputGate] = useState(createReplayInputGate);
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
+  /** 隐藏幕布合帧写入(Fix B,terminalReplay.ts):activeRef 是活性真相(effect
+     保持最新,避免闭包吃陈旧 prop);激活即冲刷攒帧,切换无感。 */
+  const activeRef = useRef(active);
+  const flushDeferredRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    activeRef.current = active;
+    if (active) flushDeferredRef.current?.();
+  }, [active]);
   /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
   const loadEarlier = useCallback(async () => {
     const term = termRef.current;
@@ -148,6 +156,11 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     streamReadyRef.current = false;
     const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress, () => {
       streamReadyRef.current = true;
+    }, {
+      shouldDefer: () => !activeRef.current,
+      bindFlush: (flush) => {
+        flushDeferredRef.current = flush;
+      },
     });
 
     /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */

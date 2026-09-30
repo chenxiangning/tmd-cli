@@ -37,6 +37,21 @@ const DISK_FLUSH_AFTER_CLR_MS = 300;
 /** 磁盘分支兜底:纯文本/REPL 型 CLI 无全屏重绘,此时长后照常放行攒队。 */
 const DISK_FLUSH_FAILSAFE_MS = 30_000;
 
+/** 隐藏幕布合帧写入节拍:非激活幕布的实时字节攒 250ms 合并写一次。keep-alive 下
+ *  多会话幕布常驻,omp 等工作期以 15-20 tick/s 持续局部重绘,每 tick 直写 xterm
+ *  = 每幕布每秒数百次行重建;三会话并发即把主线程顶到饱和(rAF 饿死 → WebKit
+ *  渲染吊销粘死,2026-09-30 三轮卡死根因)。250ms 与幕布 askProbe 采样同拍,
+ *  屏幕通道语义不变;激活即冲刷,切换无感。 */
+const HIDDEN_FLUSH_MS = 250;
+
+/** 隐藏期写入控制(由 TerminalView 供活性真相,避免闭包吃陈旧 active)。 */
+export interface HiddenDeferControl {
+  /** true = 本幕布当前非激活(隐藏),实时字节攒帧缓写。 */
+  shouldDefer(): boolean;
+  /** 登记激活冲刷入口;卸载期传 null 解绑(TerminalView 持弱引用)。 */
+  bindFlush(flush: (() => void) | null): void;
+}
+
 /**
  * 加载进度态(null = 撤罩):
  * - replay:分块回放中,pct 0–100;
@@ -73,13 +88,15 @@ export function writeInChunks(
   );
 }
 
-/** 回放 + 实时订阅 + 就绪探测装配;返回 cleanup(停订阅、清计时器、忽略迟到的回调)。 */
+/** 回放 + 实时订阅 + 就绪探测装配;返回 cleanup(停订阅、清计时器、忽略迟到的回调)。
+ *  hiddenDefer 可选:隐藏幕布合帧写入(Fix B,见 HIDDEN_FLUSH_MS 注)。 */
 export function attachTerminalStream(
   term: Pick<Terminal, "write">,
   sessionId: string,
   inputGate: ReplayInputGate,
   onProgress: (p: LoadProgress) => void,
   onReady?: () => void,
+  hiddenDefer?: HiddenDeferControl,
 ): () => void {
   let cancelled = false;
   let quietTimer: ReturnType<typeof setTimeout> | undefined;
@@ -101,11 +118,24 @@ export function attachTerminalStream(
      应答远端正在等,启动窗与回放窗都可能接到活查询(局域网下连接先于幕布
      挂载完成时,CPR 落缓冲走回放分支,2026-09-12 白屏二轮实证)。 */
   inputGate.arm();
+  /* 隐藏幕布合帧:pending 攒字节,250ms 一冲;激活冲刷入口登记给 TerminalView。 */
+  let pendingHidden: string[] | null = null;
+  let hiddenTimer: ReturnType<typeof setInterval> | undefined;
+  const flushDeferred = (): void => {
+    const queued = pendingHidden;
+    if (!queued) return;
+    pendingHidden = null;
+    term.write(queued.join(""));
+  };
+  hiddenDefer?.bindFlush(flushDeferred);
   const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
 
     if (liveQueue) {
       liveQueue.push(text);
       diskChunkSink?.(text);
+    } else if (hiddenDefer?.shouldDefer()) {
+      pendingHidden = (pendingHidden ?? []).concat(text);
+      if (!hiddenTimer) hiddenTimer = setInterval(flushDeferred, HIDDEN_FLUSH_MS);
     } else {
       term.write(text);
     }
@@ -233,6 +263,10 @@ export function attachTerminalStream(
     cancelled = true;
     liveQueue = null;
     diskChunkSink = null;
+    hiddenDefer?.bindFlush(null);
+    clearInterval(hiddenTimer);
+    /* 隐藏期残留的攒帧随卸载丢弃:字节真源在 outputBuffers,重挂走回放 */
+    pendingHidden = null;
     clearTimeout(quietTimer);
     clearTimeout(diskFlushTimer);
     clearTimeout(failsafe);

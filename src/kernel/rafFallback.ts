@@ -26,6 +26,8 @@
  * transport 会把整条传输图提前到垫片之前,破坏「垫片先装」的求值序)。
  */
 
+import { isPtyFloodHeavy } from "./floodGauge";
+
 const RAF_FALLBACK_MS = 50;
 const INSTALLED_FLAG = "__tmdRafFallbackInstalled";
 /** 看门狗节拍;原生 rAF 停发超过该值且页面自认可见 = 形态 A,上报。 */
@@ -78,7 +80,11 @@ async function report(ok: boolean): Promise<void> {
   lastReportAt = now;
   try {
     const { invoke } = await import("./transport");
-    void invoke("render_health", { ok, gapMs: nativeRafGapMs() }).catch(() => undefined);
+    /* flood 随行:Rust 在洪水期把 reload 降级为 focus(reload = 回放风暴雪上加霜,
+       见 floodGauge.ts 头注与 src-tauri/src/render_health.rs)。 */
+    void invoke("render_health", { ok, gapMs: nativeRafGapMs(), flood: isPtyFloodHeavy() }).catch(
+      () => undefined,
+    );
   } catch {
     /* 浏览器桩/测试替身无 transport:静默(守望只服务桌面壳)。 */
   }

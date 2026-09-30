@@ -16,6 +16,7 @@ import { EditWatch } from "./editWatch";
 import { DiskIdentityWatch } from "./identityWatch";
 import { IdentityLedger } from "./identityLedger";
 import { OutputBufferStore } from "./outputBuffers";
+import { notePtyBytes } from "./floodGauge";
 import { SessionStatusWatch } from "./sessionStatus";
 import { refreshRemoteStatus } from "./remoteStatusRefresh";
 import type { CliProfile, CliSessionStatus } from "./cli";
@@ -136,6 +137,7 @@ export class HostWatches {
     /* 上限读设置项 sessionOutputBufferLimit(行为页可调),异常值已被 sanitize 拦截。 */
     const limit =
       getSettingsState().settings.sessionOutputBufferLimit || OUTPUT_BUFFER_LIMIT;
+    notePtyBytes(text.length); /* 洪水标尺(守望 reload 降级判据,见 floodGauge.ts) */
     const session = this.ctx.findSession(sessionId);
     if (!session || (session.kind ?? "cli") === "cli") this.screenMirror.feed(sessionId, text);
     const chunkBytes = this.outputBuffers.append(sessionId, text, limit);

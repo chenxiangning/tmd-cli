@@ -156,6 +156,24 @@ describe("rafFallback", () => {
     expect(transportInvoke.mock.calls[0][1]).toMatchObject({ ok: false });
   });
 
+  it("洪水标尺随上报携带:低速期 flood:false,灌洪越线后 flood:true", async () => {
+    const dead = makeDeadRaf();
+    await freshInstall(dead, false);
+    const { notePtyBytes } = await import("./floodGauge");
+    primeProbe(dead);
+    vi.advanceTimersByTime(10_000);
+    await settle();
+    expect(transportInvoke.mock.calls[0][1]).toMatchObject({ ok: false, flood: false });
+    /* 灌洪越线(>256KB/5s),去重窗(10s)内补喂保洪水不过期,过窗后再报 */
+    notePtyBytes(300 * 1024);
+    vi.advanceTimersByTime(9_000);
+    notePtyBytes(300 * 1024);
+    vi.advanceTimersByTime(1_000);
+    await settle();
+    expect(transportInvoke).toHaveBeenCalledTimes(2);
+    expect(transportInvoke.mock.calls[1][1]).toMatchObject({ ok: false, flood: true });
+  });
+
   it("健康恢复上报:粘死后原生 rAF 复活 → ok:true 复位(免去重)", async () => {
     const dead = makeDeadRaf();
     await freshInstall(dead, false);

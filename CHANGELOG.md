@@ -4,6 +4,12 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.7] - 2026-09-30
+
+### 修复
+
+- 界面卡死第三轮根治(并发工作洪水×渲染成本):三 omp 会话并发工作期 PTY 洪水约 120MB/h,keep-alive 隐藏幕布逐 tick 直写 xterm 把主线程顶到饱和(rAF 饿死触发吊销粘死,洪水未停时 reload 自愈立即再冻结,越自愈越卡);三件增补——洪水期(floodGauge 5s 滑动窗 >256KB 判据)守望 reload 降级 set_focus 退洪再愈、隐藏幕布实时字节 250ms 合帧写入(行重建降两个数量级,激活即冲刷)、PTY 泵聚合窗自适应 8→50ms(洪峰事件数降数倍,击键回显仍 8ms)
+
 ## [0.2.6] - 2026-09-30
 
 ### 新增

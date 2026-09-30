@@ -67,8 +67,24 @@ pub(crate) fn flush_utf8_tail(tail: &mut [u8]) -> Option<String> {
 /// Tauri IPC 序列化 + WebView 派发是主线程开销大头;8ms ≈ 半个 60fps 帧,
 /// 人眼无感,事件数可降一个数量级。
 const OUT_AGGREGATE_WINDOW: Duration = Duration::from_millis(8);
+/// 自适应长窗上限:持续洪峰(窗内字节不断)时窗长逐批翻倍至此。50ms = TUI
+/// 整帧重绘 20fps 量级,观感无差;事件数再降数倍,给 WebView 主线程让路
+/// (2026-09-30 三会话并发工作期前端饱和卡死取证)。
+const OUT_AGGREGATE_WINDOW_MAX: Duration = Duration::from_millis(50);
 /// 单次聚合批次的字节上限:防恶意/失控输出在窗口内无限堆积撑爆内存。
 const OUT_AGGREGATE_MAX_BYTES: usize = 1024 * 1024;
+
+/// 自适应窗推进(纯函数,测试锚):批排到窗口耗尽/批满 = 生产者仍在前进,
+/// 窗长翻倍封顶;孤立小块(≤256B,击键回显/单 tick)回基线不吃长窗延迟;其余保持。
+fn next_aggregate_window(window: Duration, saturated: bool, batch_len: usize) -> Duration {
+    if saturated {
+        (window * 2).min(OUT_AGGREGATE_WINDOW_MAX)
+    } else if batch_len <= 256 {
+        OUT_AGGREGATE_WINDOW
+    } else {
+        window
+    }
+}
 /// ConPTY 启动握手(仅 Windows):portable-pty 0.9 以 PSEUDOCONSOLE_INHERIT_CURSOR
 /// 建 pseudoconsole,ConPTY 会在输出侧发 DSR(ESC[6n)并扣住输出等 CPR 应答;
 /// 此刻 xterm 尚未接入(启动期 emit 无人监听,前端输入闸也会丢弃 CPR),必须在
@@ -225,14 +241,19 @@ pub(crate) fn spawn(
         暂存后与下一批拼接再解码,避免 from_utf8_lossy 逐包转换产生 */
         let mut tail: Vec<u8> = Vec::new();
         let mut log_file = log_file;
+        /* 自适应窗:8ms 基线;批内排到窗口耗尽/批满 = 生产者仍在前进,下一批
+        窗长翻倍(封顶 50ms);孤立小块(击键回显/单 tick 更新)回基线。 */
+        let mut window = OUT_AGGREGATE_WINDOW;
         /* 阻塞等首 chunk;channel 关闭且排空 → 会话结束 */
         while let Ok(first) = out_rx.recv() {
             let mut batch = first;
             /* 聚合窗:drain 窗口内已到达的所有 chunk,合并为一个事件 */
-            let deadline = Instant::now() + OUT_AGGREGATE_WINDOW;
+            let mut saturated = false;
+            let deadline = Instant::now() + window;
             while batch.len() < OUT_AGGREGATE_MAX_BYTES {
                 let now = Instant::now();
                 if now >= deadline {
+                    saturated = true;
                     break;
                 }
                 match out_rx.recv_timeout(deadline - now) {
@@ -242,6 +263,7 @@ pub(crate) fn spawn(
                     Err(_) => break,
                 }
             }
+            window = next_aggregate_window(window, saturated, batch.len());
             /* 原始字节先落日志(供幕布往前翻页),再解码推事件 */
             if let (Some(file), Some(path)) = (log_file.as_mut(), log_path.as_ref()) {
                 if append_log(&logs, &out_id, file, path, &batch).is_err() {
