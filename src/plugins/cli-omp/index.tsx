@@ -181,12 +181,17 @@ export const cliOmpPlugin: Plugin = {
       /* 无头单发(18.4.4 实证):-p 非交互答完即退;--auto-approve 放行工具写文件;
        * --no-title 杀标题生成旁路请求;--no-session 不落会话 JSONL(--no-session 时
        * 身份/状态恒「—」,内核对 oneshot 不做身份探测);--max-time 进程自裁,须早于
-       * 调度侧结算硬顶;prompt 经 @file 传入,摘录+清单数百 KB 不挤 argv。 */
+       * 调度侧结算硬顶;prompt 经 @file 传入,摘录+清单数百 KB 不挤 argv;
+       * --print-thoughts 让思考流随生成实时打到 stdout(打开会话有过程可看,
+       * print 态缺省只在结尾一次性打印答案);--no-extensions 静默 pi-subagents/
+       * pi-memory 等扩展在无会话身份下的报错并加速启动。 */
       oneshotArgs: ({ promptFile, model }) => [
         "-p",
         "--auto-approve",
         "--no-title",
         "--no-session",
+        "--no-extensions",
+        "--print-thoughts",
         "--max-time",
         "14m",
         ...(model ? ["--model", model] : []),

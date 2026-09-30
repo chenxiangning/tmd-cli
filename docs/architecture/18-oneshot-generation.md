@@ -27,7 +27,7 @@ oneshotArgs?: (opts: { promptFile: string; model?: string }) => string[];
 
 | 引擎 | 声明 | 要点 |
 |---|---|---|
-| omp | `oneshotArgs`(file) | `-p --auto-approve --no-title --no-session --max-time 14m` + `@file`;`--model` |
+| omp | `oneshotArgs`(file) | `-p --auto-approve --no-title --no-session --no-extensions --print-thoughts --max-time 14m` + `@file`;`--model`(print 态缺省只在结尾一次性打印答案,`--print-thoughts` 让思考流实时可见;`--no-extensions` 静默扩展在无会话身份下的报错) |
 | pi | `oneshotArgs`(file) | 与 omp 同源:`-p --no-session` + `@file`;help 零审批旗标(print 态直接跑工具),无需审批旗标 |
 | codex | `oneshotStdin` + `oneshotArgs` | `exec --skip-git-repo-check --approve-for-me -` + `-m`;审批路由进 workspace-write 沙箱自动复核(比全 bypass 收敛) |
 | claude | `oneshotStdin` + `oneshotArgs` | `-p --dangerously-skip-permissions` + `--model`;help 明确支持管道;非交互态自动跳过 trust 弹窗;本版无 `--permission-mode` |
