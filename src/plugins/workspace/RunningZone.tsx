@@ -27,6 +27,7 @@ import { pinSession, sessionPinKey, toggleSessionPin, unpinSession } from "@kern
 import { getSessionBaseline, noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
+import { copyText } from "@kernel/clipboard";
 import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
@@ -250,7 +251,7 @@ export function RunningZoneSection() {
                 onTogglePin={() => togglePin(row)}
                 onOpenView={sessionViewOpener(row.profile, row.cliSessionId, titleOf(row), { cwd: row.session.cwd ?? row.workspace.root })}
                 onCopyId={() => {
-                  void navigator.clipboard?.writeText(row.cliSessionId ?? row.session.id).catch(() => undefined);
+                  void copyText(row.cliSessionId ?? row.session.id).catch(() => undefined);
                 }}
                 onRename={() => renameOf(row)}
               />
@@ -274,9 +275,7 @@ export function RunningZoneSection() {
                 ]?.scope ?? null)
           }
           onCopyId={() => {
-            void navigator.clipboard
-              ?.writeText(menu.row.cliSessionId ?? menu.row.session.id)
-              .catch(() => undefined);
+            void copyText(menu.row.cliSessionId ?? menu.row.session.id).catch(() => undefined);
           }}
           onRename={() => renameOf(menu.row)}
           onPinScope={(scope) => {
