@@ -131,6 +131,8 @@ export interface AppSettings {
   iconSet: IconSetId;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
+  /** 会话查看器极简展示:每轮工作过程(思考/工具/中途叙述)折叠为一行,只保留最终答复,默认关(查看器头部可切)。 */
+  sessionViewerMinimal: boolean;
   /** 会话标题 tab 条容量(1-10,默认 4;外观页可调,缩容即时修剪)。 */
   sessionTabsMax: number;
   /** Composer 发送快捷键行为。 */

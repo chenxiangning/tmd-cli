@@ -9,6 +9,10 @@
 .sv-truncated { font-size: 0.625rem; color: var(--tmd-warn, #b8860b); }
 .sv-refresh { margin-left: auto; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border: 1px solid var(--tmd-border); border-radius: 6px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); cursor: pointer; }
 .sv-refresh:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.sv-minimal { margin-left: auto; display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--tmd-border); border-radius: 6px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: 0.6875rem; cursor: pointer; }
+.sv-minimal:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.sv-minimal.is-on { color: var(--tmd-accent); border-color: color-mix(in srgb, var(--tmd-accent) 45%, transparent); background: color-mix(in srgb, var(--tmd-accent) 10%, transparent); }
+.sv-minimal + .sv-refresh { margin-left: 6px; }
 .sv-scroll { flex: 1; overflow-y: auto; }
 .sv-empty { display: grid; place-items: center; height: 100%; color: var(--tmd-fg-faint); font-size: 0.75rem; }
 .sv-blocks { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 24px; max-width: 860px; margin: 0 auto; }
@@ -37,6 +41,7 @@
 .sv-phase-body { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 4px 14px; }
 .sv-caret { transition: transform 0.12s ease; color: color-mix(in srgb, var(--tmd-fg) 45%, transparent); }
 .sv-caret.is-open { transform: rotate(90deg); }
+.sv-phase-note { font-size: 0.75rem; color: color-mix(in srgb, var(--tmd-fg) 55%, transparent); padding: 2px 0; white-space: pre-wrap; }
 
 /* ── 思考行(monocode ActivityThinkingRow:Minus + 单行摘要) ── */
 .sv-think { display: flex; flex-direction: column; }

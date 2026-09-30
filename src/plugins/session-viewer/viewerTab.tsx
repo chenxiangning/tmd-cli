@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, lazy } from "react";
 import type { EditorTab } from "@kernel/tabs";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { updateSettings, useSettingsState } from "@kernel/settings";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { SessionViewTabPayload } from "@kernel/sessionViewTabs";
 import type { CliSessionTranscript } from "@kernel/cli";
@@ -31,6 +32,8 @@ type LoadState =
 
 export function SessionViewerTab({ tab }: { tab: EditorTab }) {
   const payload = tab.payload as SessionViewTabPayload;
+  const { settings } = useSettingsState();
+  const minimal = settings.sessionViewerMinimal;
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [visible, setVisible] = useState(RENDER_BATCH);
   const [nonce, setNonce] = useState(0);
@@ -110,6 +113,15 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
         ) : null}
         <button
           type="button"
+          className={`sv-minimal${minimal ? " is-on" : ""}`}
+          aria-pressed={minimal}
+          title={t("极简展示:每轮工作过程折叠为一行,只保留最终答复")}
+          onClick={() => updateSettings({ sessionViewerMinimal: !minimal })}
+        >
+          {t("极简")}
+        </button>
+        <button
+          type="button"
           className="sv-refresh"
           title={t("刷新")}
           onClick={() => setNonce((n) => n + 1)}
@@ -128,6 +140,7 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
               <TranscriptView
                 blocks={shown}
                 Markdown={MarkdownBody}
+                minimal={minimal}
               />
               {visible < state.transcript.blocks.length ? (
                 <button

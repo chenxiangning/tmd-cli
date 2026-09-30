@@ -182,7 +182,12 @@ const PhaseFold = memo(function PhaseFold({
                 </div>
               );
             }
-            return null;
+            /* 极简模式组内的中途叙述 assistant:淡色全文 note 行。 */
+            return (
+              <div key={key} className="sv-phase-note">
+                {step.text}
+              </div>
+            );
           })}
         </div>
       ) : null}
@@ -248,15 +253,17 @@ export const TranscriptBlockView = memo(function TranscriptBlockView({
   );
 });
 
-/** 整卷渲染(user/assistant 全尺寸正文与工作折叠组混排)。 */
+/** 整卷渲染(user/assistant 全尺寸正文与工作折叠组混排;minimal = 极简展示)。 */
 export function TranscriptView({
   blocks,
   Markdown,
+  minimal,
 }: {
   blocks: CliTranscriptBlock[];
   Markdown: MarkdownRenderer;
+  minimal?: boolean;
 }) {
-  const items = useMemo(() => buildTranscriptPhases(blocks), [blocks]);
+  const items = useMemo(() => buildTranscriptPhases(blocks, { minimal }), [blocks, minimal]);
   /* 撞号防线同 PhaseFold:块/组 id 是内容哈希语义(grok 同文连发撞号),
      重复序号后缀唯一化;items 前缀稳定,键跨批次追加恒定。 */
   const seenIds = new Map<string, number>();

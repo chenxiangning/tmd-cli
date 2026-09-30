@@ -16,6 +16,11 @@ function block(id: string, role: CliTranscriptBlock["role"], text: string, tool?
   return { id, role, text, ...(tool ? { tool } : {}) };
 }
 
+const phasesOf = (out: TranscriptItem[]) =>
+  out.filter(
+    (i): i is Extract<TranscriptItem, { kind: "phase" }> => i.kind === "phase",
+  );
+
 describe("proseSummary", () => {
   it("取首段,去 MD 标记与 code fence,折叠空白", () => {
     expect(proseSummary("**加粗** 与 `code` 混合\n\n第二段")).toBe("加粗 与 code 混合");
@@ -25,11 +30,6 @@ describe("proseSummary", () => {
 });
 
 describe("buildTranscriptPhases", () => {
-  const phasesOf = (out: TranscriptItem[]) =>
-    out.filter(
-      (i): i is Extract<TranscriptItem, { kind: "phase" }> => i.kind === "phase",
-    );
-
   it("user 是组边界;正文上方过程收组,正文自身全尺寸独立", () => {
     const out = buildTranscriptPhases([
       block("u1", "user", "帮我修"),
@@ -98,12 +98,64 @@ describe("buildTranscriptPhases", () => {
       block("r1", "reasoning", "想想"),
       block("s1", "tool", "", { title: "bash", status: "done", preview: { kind: "shell", output: "ls" } }),
     ]);
-    const phases = out.filter(
-      (i): i is Extract<typeof i, { kind: "phase" }> => i.kind === "phase",
-    );
+    const phases = phasesOf(out);
     expect(phases).toHaveLength(1);
     expect(phases[0].phase.kind).toBe("run");
     expect(phaseTitle(phases[0].phase)).toContain("bash");
+  });
+});
+
+describe("buildTranscriptPhases minimal", () => {
+  it("每轮过程+中途叙述折单组,只留最终答复全尺寸", () => {
+    const out = buildTranscriptPhases(
+      [
+        block("u1", "user", "修一下"),
+        block("a1", "assistant", "开工,先看配置"),
+        block("r1", "reasoning", "配置在 src/ 下"),
+        block("t1", "tool", "", { title: "Edit", status: "done", preview: { kind: "write", path: "/x/a.ts" } }),
+        block("a2", "assistant", "修好了,原因是配置缺省"),
+        block("u2", "user", "好"),
+      ],
+      { minimal: true },
+    );
+    expect(out.map((i) => i.kind)).toEqual(["user", "phase", "assistant", "user"]);
+    const [g] = phasesOf(out);
+    expect(g.phase.id).toBe("turn:a2");
+    expect(g.phase.kind).toBe("change");
+    expect(g.phase.steps.map((s) => s.id)).toEqual(["a1", "r1", "t1"]);
+  });
+
+  it("纯问答轮无折叠;无正文轮退回过程组", () => {
+    const out = buildTranscriptPhases(
+      [
+        block("a0", "assistant", "3KB"),
+        block("u1", "user", "多大?"),
+        block("t1", "tool", "", { title: "bash", status: "done", preview: { kind: "shell", output: "ls -la" } }),
+      ],
+      { minimal: true },
+    );
+    expect(out.map((i) => i.kind)).toEqual(["assistant", "user", "phase"]);
+    expect(phaseTitle(phasesOf(out)[0].phase)).toContain("bash");
+  });
+
+  it("空 assistant 块不进极简组;缺 minimal 选项保持默认模式", () => {
+    const minimalOut = buildTranscriptPhases(
+      [
+        block("u1", "user", "在不在"),
+        block("r1", "reasoning", "想想"),
+        block("a1", "assistant", "在。"),
+        block("a2", "assistant", "  "),
+      ],
+      { minimal: true },
+    );
+    expect(minimalOut.map((i) => i.kind)).toEqual(["user", "phase", "assistant"]);
+    const defaultOut = buildTranscriptPhases([
+      block("u1", "user", "开工"),
+      block("a1", "assistant", "先看结构"),
+      block("t1", "tool", "", { title: "bash", status: "done", preview: { kind: "shell", output: "pnpm typecheck" } }),
+      block("a2", "assistant", "跑通了"),
+    ]);
+    expect(defaultOut.map((i) => i.kind)).toEqual(["user", "assistant", "phase", "assistant"]);
   });
 });
 
