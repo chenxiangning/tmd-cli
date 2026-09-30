@@ -11,7 +11,7 @@ interface QTask {
 }
 
 interface QueueModule {
-  enqueueTask: (type: "手动生成", dayKey: string, engine: string) => { id: number } | null;
+  enqueueTask: (type: string, dayKey: string, engine: string) => { id: number } | null;
   setTaskRunner: (
     fn: ((task: { id: number }) => Promise<void>) | null,
     abort?: (task: { id: number; sessionId?: string }) => void,
@@ -75,7 +75,16 @@ describe("taskQueue", () => {
     expect(q.dayGenTaskType(false, false)).toBe("手动生成");
   });
 
-  it("日粒度活跃闸跨类型拦截(enqueueTask 只按同类型去重,挡不住双生成并发写同一篇)", () => {
+  it("同日已有 run/queue 任务(任意类型)时 enqueueTask 返回 null;不同日不受影响", () => {
+    q.setTaskRunner(() => makeGate().promise);
+    q.enqueueTask("手动生成", "2026-09-27", "omp");
+    expect(q.enqueueTask("增量并入", "2026-09-27", "omp")).toBeNull();
+    expect(q.enqueueTask("定时生成", "2026-09-27", "omp")).toBeNull();
+    expect(q.getGenTasks().filter((t) => t.dayKey === "2026-09-27")).toHaveLength(1);
+    expect(q.enqueueTask("手动生成", "2026-09-26", "omp")).not.toBeNull();
+  });
+
+  it("日粒度活跃闸跨类型拦截(hasActiveTaskForDay 纯读预检)", () => {
     q.setTaskRunner(() => makeGate().promise);
     q.enqueueTask("手动生成", "2026-09-27", "omp");
     expect(q.hasActiveTaskForDay("2026-09-27")).toBe(true);
@@ -134,8 +143,8 @@ describe("taskQueue", () => {
     const run = vi.fn(() => Promise.resolve());
     q.setTaskRunner(run);
     q.restoreTasks([
-      { id: 5, dayKey: "2026-09-27", type: "定时生成", engine: "omp", st: "run", text: "生成中", since: 1, sessionId: "pty-1" },
-      { id: 6, dayKey: "2026-09-26", type: "手动生成", engine: "omp", st: "queue", text: "排队中", since: 2 },
+      { id: 5, dayKey: "2026-09-27", type: "定时生成", engine: "omp", st: "run", text: "生成中", sessionId: "pty-1" },
+      { id: 6, dayKey: "2026-09-26", type: "手动生成", engine: "omp", st: "queue", text: "排队中" },
     ]);
     const tasks = q.getGenTasks();
     expect(tasks.find((t) => t.id === 5)?.st).toBe("err");
