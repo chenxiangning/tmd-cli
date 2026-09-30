@@ -230,6 +230,16 @@ async function runGeneration(task: GenTask): Promise<void> {
       setDayResult(task.dayKey, { lastError: "提示词未能送达" });
       return;
     }
+  } else if (profile.oneshotStdin) {
+    /* stdin 递送引擎(codex exec - / claude -p 管道形态):spawn 后经 PTY 注入全文。
+       无头进程无 cooked→raw 切换、启动即持续读 stdin,无冷启动窗可撞;大 prompt
+       超 PTY 缓冲由读端流速自然排空,写端阻塞有 15 分硬顶兜底。 */
+    const sent = await host.writeSession(meta.id, prompt);
+    if (!sent) {
+      finishTask(task.id, false, "提示词未能送达(会话可能已退出)");
+      setDayResult(task.dayKey, { lastError: "提示词未能送达" });
+      return;
+    }
   }
   setDayResult(task.dayKey, { sessionId: meta.id, engine: profile.id, lastError: undefined });
   addBead(task.dayKey, { t: hmNow(), label: `${task.type} · ${rows.length} 会话${existing ? " · 增量" : ""}` });

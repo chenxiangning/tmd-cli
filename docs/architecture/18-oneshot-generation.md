@@ -23,9 +23,19 @@ oneshotArgs?: (opts: { promptFile: string; model?: string }) => string[];
 - kernel `host.createSession` 增 `opts.oneshot: { promptFile }`;spawnNew 命中时 args 全量取自模板(不拼基础 args/modelArg),并跳过磁盘身份探测快照(无头声明语义含「不落会话文件」,无身份可绑)。
 - 缺省 = 引擎无无头能力,调度侧回落 TUI 会话(既有路径),**回落是兜底不是许可**:新引擎接入时应优先验证并声明无头旗标。
 
-### 3. omp 声明(18.4.4 实证)
+### 3. 逐家声明矩阵(2026-09-30 本机 `--help` 实证)
 
-`-p`(非交互答完即退)+ `--auto-approve`(放行工具写文件)+ `--no-title`(杀标题生成旁路请求)+ `--no-session`(不落会话 JSONL,当日索引零污染)+ `--max-time 14m`(进程自裁,早于调度侧 15 分结算硬顶)+ `--model`(spawn 期选模)。
+| 引擎 | 声明 | 要点 |
+|---|---|---|
+| omp | `oneshotArgs`(file) | `-p --auto-approve --no-title --no-session --max-time 14m` + `@file`;`--model` |
+| pi | `oneshotArgs`(file) | 与 omp 同源:`-p --no-session` + `@file`;help 零审批旗标(print 态直接跑工具),无需审批旗标 |
+| codex | `oneshotStdin` + `oneshotArgs` | `exec --skip-git-repo-check --approve-for-me -` + `-m`;审批路由进 workspace-write 沙箱自动复核(比全 bypass 收敛) |
+| claude | `oneshotStdin` + `oneshotArgs` | `-p --dangerously-skip-permissions` + `--model`;help 明确支持管道;非交互态自动跳过 trust 弹窗;本版无 `--permission-mode` |
+| dsh | 未声明 | CLI 有 `--profile headless` 且 `-` 读 stdin,但插件 spawnTransform 把一切 spec 改写为 node 适配器形态,需专项适配(transform 加 oneshot 直通分支)后接 |
+| kimi / grok / qoder | 未声明 | 无头形态存在(kimi `-p <prompt>`、grok `-p --single`、qoder `-p`),但 prompt 只能走 argv——大摘录(百 KB 级)在 Windows 32K 字符命令行上限必炸;待上游提供 stdin/file 输入再接 |
+| opencode | 未声明 | `run` 子命令非交互,但审批语义无法从 help 判定,未经真机实证不声明 |
+
+递送方式两型:`oneshotStdin: false`(缺省)= 引擎在模板内以 `@<promptFile>` 引用;`true` = genSession 在 spawn 后经 `writeSession` 向 PTY 注入 prompt 全文(无头进程无 cooked→raw 时序,无冷启动窗)。
 
 ### 4. 结算语义(无头路径)
 
@@ -37,5 +47,5 @@ oneshotArgs?: (opts: { promptFile: string; model?: string }) => string[];
 
 ## 消费面
 
-- daily-journal/genSession.ts:唯一现消费方(引擎 = GenSettings 所选,omp 为默认)。
-- 其余家族(claude -p / codex exec 等均有对应无头形态)接入时:验证旗标 → 插件声明 oneshotArgs → 调度自动生效,内核零改动。
+- daily-journal/genSession.ts:唯一现消费方(引擎 = GenSettings 所选;omp/pi/codex/claude 已声明即走无头,其余回落 TUI)。
+- 新引擎接入流程:验证无头旗标与 prompt 递送方式 → 插件声明 `oneshotArgs`(必要时 `oneshotStdin`)→ 调度自动生效,内核零改动。

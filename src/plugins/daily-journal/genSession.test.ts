@@ -1,7 +1,5 @@
-/** genSession 结算测试 —— 落盘轮询兜底(omp 系无 editMarks 的唯一引擎无关完工信号):
- *  轮询捕获成文 → 8s 容忍后成功;无文章到超时 → 失败;turnSettled 假结算后仍由轮询收口;
- *  补提交 CR 必须 synthetic(不碰轮次守望)。重依赖全 mock;文件内不 resetModules
- *  (会丢 mock 登记),跨测隔离靠唯一 dayKey + mock 态显式重置。 */
+/** genSession 结算测试 —— 轮询捕获成文 8s 后成功/超时失败/假结算由轮询收口/补提交 CR 走 synthetic;无头单发
+ *  (prompt 落盘 @file 与 stdin 递送)三态。重依赖全 mock;文件内不 resetModules(会丢 mock 登记),跨测隔离靠唯一 dayKey。 */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { host } from "@kernel/host";
 import { cancelTask, enqueueTask, getGenTasks } from "./taskQueue";
@@ -65,8 +63,7 @@ interface Bus {
   emit<T>(topic: string, e: T): void;
 }
 
-/** 最小事件总线(bootGenSession 只用 on/退订)。 */
-function makeBus(): Bus {
+function makeBus(): Bus { /* 最小事件总线(bootGenSession 只用 on/退订) */
   const handlers = new Map<string, (e: unknown) => void>();
   return {
     on: <T,>(topic: string, fn: (e: T) => void) => {
@@ -78,6 +75,12 @@ function makeBus(): Bus {
 }
 
 const taskOf = (dayKey: string) => getGenTasks().find((t) => t.dayKey === dayKey);
+
+/** 结算两输入源复位:读盘空 + 当日重载空(各测试自备后续桩)。 */
+function resetSettleMocks(): void {
+  readTextMock.mockReset().mockResolvedValue(""); /* 读盘空:文章不存在 */
+  reloadDayMock.mockReset().mockResolvedValue(null); /* 当日重载空 */
+}
 const readTextMock = vi.mocked(readText);
 const reloadDayMock = vi.mocked(reloadDay);
 const setDayResultMock = vi.mocked(setDayResult);
@@ -85,8 +88,7 @@ const writeSessionMock = vi.mocked(host.writeSession);
 
 /** 走完 spawn→sleep(1200)→写 prompt 的启动段,任务进入 run。 */
 async function startRun(dayKey: string, bus?: Bus): Promise<void> {
-  readTextMock.mockReset().mockResolvedValue("");
-  reloadDayMock.mockReset().mockResolvedValue(null);
+  resetSettleMocks();
   setDayResultMock.mockClear();
   writeSessionMock.mockClear();
   bootGenSession(bus ?? makeBus());
@@ -193,8 +195,7 @@ describe("genSession 结算", () => {
 
   it("run 态终止:挂起 spawn 中取消 → 会话落地即弃,不复活", async () => {
     const key = "2026-09-12";
-    readTextMock.mockReset().mockResolvedValue("");
-    reloadDayMock.mockReset().mockResolvedValue(null);
+    resetSettleMocks();
     writeSessionMock.mockClear();
     /* spawn 挂起闸:任务已泵起但卡在 createSession(无兜底窗口)。 */
     const { promise: spawnPend, resolve: landSpawn } = Promise.withResolvers<{ id: string }>();
@@ -238,25 +239,19 @@ describe("genSession 无头单发(oneshotArgs 引擎)", () => {
 
   it("prompt 落盘经 @file 传入 + createSession 携 oneshot,不写 PTY 不等冷启动", async () => {
     vi.mocked(host.getCliProfiles).mockReturnValue([{ id: "omp", oneshotArgs: () => [] }] as never);
-    const createSessionMock = vi.mocked(host.createSession);
     const key = "2026-09-18";
     const bus = makeBus();
-    readTextMock.mockReset().mockResolvedValue("");
-    reloadDayMock.mockReset().mockResolvedValue(null);
+    resetSettleMocks();
     writeSessionMock.mockClear();
-    createSessionMock.mockClear();
+    vi.mocked(host.createSession).mockClear();
     bootGenSession(bus);
     expect(enqueueTask("手动生成", key, "omp")).not.toBeNull();
     await vi.advanceTimersByTimeAsync(0); /* 无头路径无冷启动等待,一拍即入 run */
     expect(taskOf(key)?.st).toBe("run");
     expect(writeText).toHaveBeenCalledWith("/fake/prompt-2026-9-18.md", "P"); /* buildGenPrompt 已 mock,原文传写 */
     expect(ensureParentDir).toHaveBeenCalledWith("/fake/prompt-2026-9-18.md");
-    expect(createSessionMock).toHaveBeenCalledWith(
-      "omp",
-      "/ws",
-      "w1",
-      expect.objectContaining({ activate: false, oneshot: { promptFile: "/fake/prompt-2026-9-18.md" } }),
-    );
+    expect(vi.mocked(host.createSession)).toHaveBeenCalledWith("omp", "/ws", "w1",
+      expect.objectContaining({ activate: false, oneshot: { promptFile: "/fake/prompt-2026-9-18.md" } }));
     expect(writeSessionMock).not.toHaveBeenCalled(); /* 无头不走 PTY 写入,补 CR 也无 */
     expect(taskOf(key)?.text).toContain("无头生成");
     /* 退出即主结算信号:文章在 = 成功(无 turnSettled 依赖)。 */
@@ -273,8 +268,7 @@ describe("genSession 无头单发(oneshotArgs 引擎)", () => {
     vi.mocked(host.getCliProfiles).mockReturnValue([{ id: "omp", oneshotArgs: () => [] }] as never);
     const key = "2026-09-17";
     const bus = makeBus();
-    readTextMock.mockReset().mockResolvedValue("");
-    reloadDayMock.mockReset().mockResolvedValue(null);
+    resetSettleMocks();
     bootGenSession(bus);
     expect(enqueueTask("手动生成", key, "omp")).not.toBeNull();
     await vi.advanceTimersByTimeAsync(0);
@@ -285,4 +279,21 @@ describe("genSession 无头单发(oneshotArgs 引擎)", () => {
     vi.mocked(collectSessionRows).mockResolvedValue([]);
   });
 
+  it("stdin 递送引擎(oneshotStdin):spawn 后 writeSession 注入 prompt 全文", async () => {
+    vi.mocked(host.getCliProfiles).mockReturnValue([{ id: "codex", oneshotArgs: () => [], oneshotStdin: true }] as never);
+    const key = "2026-09-11";
+    resetSettleMocks();
+    writeSessionMock.mockReset().mockResolvedValue(true);
+    bootGenSession(makeBus());
+    expect(enqueueTask("手动生成", key, "codex")).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(taskOf(key)?.st).toBe("run");
+    expect(writeSessionMock).toHaveBeenCalledWith("pty-1", "P"); /* prompt 全文走 stdin */
+    /* 收口:落盘轮询捕获文章 → 成功(退出与轮询两路共用 finalize)。 */
+    readTextMock.mockResolvedValue("# 文章");
+    reloadDayMock.mockResolvedValue({ title: "t", lede: "", secs: [], open: [] });
+    await vi.advanceTimersByTimeAsync(15_000 + 8_000);
+    expect(taskOf(key)?.st).toBe("done");
+    vi.mocked(collectSessionRows).mockResolvedValue([]);
+  });
 });
