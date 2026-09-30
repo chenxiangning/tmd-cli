@@ -1,15 +1,14 @@
 /**
- * 转录渲染 —— monocode AgentTranscript 形态:
- * - user 卡(左缘强调)+ assistant 全尺寸 markdown(组标题兼正文);
- * - 一轮工作 = 折叠组(PhaseFold):折叠头单行(chevron + 摘要 + 步数),
- *   默认收起;思考链短语(短 assistant 散文)同样入组随组折叠,大段 md
- *   结论以 headline 全尺寸常显,纯问答轮(无工具/思考)整轮还原全尺寸;
+ * 转录渲染 —— codemoss process-phase 形态:
+ * - user 卡(左缘强调)+ assistant 全尺寸 markdown(正文永不折叠);
+ * - 工作过程 = 折叠组(PhaseFold):折叠头单行(chevron + 摘要 + 步数),
+ *   默认收起;正文只折叠其上方紧邻的工作过程,自身常显;
  *   展开后组内为逐行 step(思考行 = Minus + 单行摘要,点击展开淡色
- *   markdown;工具行 = 动词 + mono 目标,点击展开 preview;助手短语 = 全文 note 行);
+ *   markdown;工具行 = 动词 + mono 目标,点击展开 preview);
  * - agent-reasoning 正文 48% 透明(monocode 同款阅读层级)。
  */
 
-import { Fragment, memo, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { memo, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import type { CliTranscriptBlock, CliTranscriptImage } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { CaretRightIcon, MinusIcon, BookOpenIcon, PencilSimpleIcon, TerminalIcon, BrainIcon } from "@phosphor-icons/react";
@@ -183,11 +182,7 @@ const PhaseFold = memo(function PhaseFold({
                 </div>
               );
             }
-            return (
-              <div key={key} className="sv-phase-note">
-                {step.text}
-              </div>
-            );
+            return null;
           })}
         </div>
       ) : null}
@@ -273,25 +268,14 @@ export function TranscriptView({
   return (
     <>
       {items.map((item) =>
-        item.kind === "user" ? (
+        item.kind === "phase" ? (
+          <PhaseFold key={itemKey(item.phase.id)} phase={item.phase} Markdown={Markdown} />
+        ) : (
           <TranscriptBlockView
             key={itemKey(item.block.id)}
             block={item.block}
             Markdown={Markdown}
           />
-        ) : (
-          <Fragment key={itemKey(item.phase.id)}>
-            {/* headline 正文全尺寸渲染(fold 外);折叠组只装工作过程。 */}
-            {item.phase.headline ? (
-              <TranscriptBlockView
-                block={item.phase.headline}
-                Markdown={Markdown}
-              />
-            ) : null}
-            {item.phase.steps.length > 0 ? (
-              <PhaseFold phase={item.phase} Markdown={Markdown} />
-            ) : null}
-          </Fragment>
         ),
       )}
     </>

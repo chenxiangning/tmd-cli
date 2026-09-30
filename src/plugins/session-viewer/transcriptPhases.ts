@@ -1,7 +1,7 @@
 /**
- * 转录分阶段分组模型 —— monocode buildActivityPhases 的只读磁盘版:
- * 把一轮活动块切成带标签的折叠组,assistant 散文开组并做标题,思考/工具/
- * system 行归组内(思考永远是 step 不做标题)。纯函数,可测。
+ * 转录分阶段分组模型 —— codemoss process-phase 折叠的只读磁盘版:
+ * 工作过程(reasoning/tool/system)切成带标签的折叠组,assistant 正文永不
+ * 入组、全尺寸渲染。纯函数,可测。
  */
 
 import type { CliTranscriptBlock } from "@kernel/cli";
@@ -12,8 +12,7 @@ export type PhaseKind = "look" | "change" | "run" | "think";
 export interface TranscriptPhase {
   id: string;
   kind: PhaseKind;
-  /** 开组的 assistant 散文块(标题兼正文);无则标题用首工具摘要。 */
-  headline?: CliTranscriptBlock;
+  /** 组内工作过程(reasoning/tool/system);assistant 正文永不入组。 */
   steps: CliTranscriptBlock[];
 }
 
@@ -44,37 +43,27 @@ function phaseKindOfTool(block: CliTranscriptBlock): PhaseKind | null {
 }
 
 /**
- * 块序列 → [用户块 | phase 组] 序列。规则(monocode 同款裁剪):
+ * 块序列 → [用户块 | assistant 正文 | phase 组] 序列。规则(codemoss
+ * process-phase 同款:正文只折叠其上方紧邻的工作过程,自身永不折叠):
  * - user 块是组边界,自身独立;
- * - assistant 大段结论(md 长文)开新组(headline);思考链短语(短散文,
- *   isProseStep)不开组、不落 headline,归入当前组当 step 随组默认折叠;
- * - reasoning/tool/system 归当前组(无当前组则开 think 组)。
- * - 纯问答组(整轮只有 assistant 短语、无工具/思考)还原为全尺寸正文,不折叠。
+ * - assistant 正文(无论长短)收掉当前组,自身全尺寸渲染 —— 短答复按长度
+ *   阈值吸进思考折叠是 2026-09-30 实证缺陷(omp「在不在」轮正文进了思考组);
+ * - reasoning/tool/system 归当前组(无当前组则开 think 组;kind 随工具类变)。
  */
 
-/** 短于此的 assistant 散文视为思考链短语(随组折叠);达到即大段结论,全尺寸渲染。 */
-const PROSE_FOLD_MAX = 400;
+export type TranscriptItem =
+  | { kind: "user"; block: CliTranscriptBlock }
+  | { kind: "assistant"; block: CliTranscriptBlock }
+  | { kind: "phase"; phase: TranscriptPhase };
 
-export function buildTranscriptPhases(
-  blocks: CliTranscriptBlock[],
-): Array<{ kind: "user"; block: CliTranscriptBlock } | { kind: "phase"; phase: TranscriptPhase }> {
-  const out: Array<
-    { kind: "user"; block: CliTranscriptBlock } | { kind: "phase"; phase: TranscriptPhase }
-  > = [];
+export function buildTranscriptPhases(blocks: CliTranscriptBlock[]): TranscriptItem[] {
+  const out: TranscriptItem[] = [];
   let current: TranscriptPhase | null = null;
   const push = () => {
     if (current) {
-      /* 纯问答组(无 headline、只有 assistant 短语、无任何工具/思考)= 轮次
-       * 正文而非工作过程:逐条还原全尺寸,不折叠(否则短答复整轮不可见)。 */
-      if (!current.headline && current.steps.every((s) => s.role === "assistant")) {
-        for (const step of current.steps) {
-          out.push({ kind: "phase", phase: { id: step.id, kind: "think", headline: step, steps: [] } });
-        }
-      } else {
-        out.push({ kind: "phase", phase: current });
-      }
+      out.push({ kind: "phase", phase: current });
+      current = null;
     }
-    current = null;
   };
   for (const block of blocks) {
     if (block.role === "user") {
@@ -82,15 +71,10 @@ export function buildTranscriptPhases(
       out.push({ kind: "user", block });
       continue;
     }
-    if (block.role === "assistant" && block.text.trim()) {
-      if (block.text.length < PROSE_FOLD_MAX) {
-        /* 思考链短语:不开组、不落 headline,随当前组默认折叠。 */
-        if (!current) current = { id: block.id, kind: "think", steps: [] };
-        current.steps.push(block);
-        continue;
-      }
+    if (block.role === "assistant") {
+      if (!block.text.trim()) continue;
       push();
-      current = { id: block.id, kind: "think", headline: block, steps: [] };
+      out.push({ kind: "assistant", block });
       continue;
     }
     if (!current) current = { id: block.id, kind: "think", steps: [] };
@@ -127,11 +111,8 @@ function verbOf(name: string): string {
   return name;
 }
 
-/** 组折叠头标题:headline 散文首行摘要;缺省用首工具标签;再缺省「思考」。 */
+/** 组折叠头标题:首工具标签;缺省「思考」(纯 reasoning 组)。 */
 export function phaseTitle(phase: TranscriptPhase): string {
-  if (phase.headline) {
-    return proseSummary(phase.headline.text) || "工作";
-  }
   const firstTool = phase.steps.find((s) => s.role === "tool");
   if (firstTool) {
     const label = toolRowLabel(firstTool);
