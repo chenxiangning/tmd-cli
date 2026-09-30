@@ -1,6 +1,7 @@
 /**
- * 轴视图 —— 迷你月条(日格快跳)+ 脊柱叙事流:有记录的日子出日卡(脊柱节点 +
- * 生长珠子 + 折叠文章卡 + 只读便签),间隔空白日画 gap(原型 .flow/.day/.spine)。
+ * 轴视图(宿主:右栏面板 JournalPanel)—— 迷你月条(日格快跳)+ 脊柱叙事流:
+ * 有记录的日子出日卡(脊柱节点 + 生长珠子 + 折叠文章卡 + 只读便签),
+ * 间隔空白日画 gap(原型 .flow/.day/.spine)。月导航由面板提供,自身不带。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PencilSimpleLine } from "@phosphor-icons/react";
@@ -150,7 +151,6 @@ export function FlowView({
   return (
     <div className="dj-flow-root">
       <div className="dj-minibar">
-        <span className="dj-minibar-title">{`${ym.y}-${pad2(ym.m)}`}</span>
         <div className="dj-mb-strip" ref={stripRef}>
           {Array.from({ length: days }, (_, i) => i + 1).map((d) => {
             const fd = flowDays.find((x) => x.d === d);
@@ -196,7 +196,7 @@ export function FlowView({
       <div className="dj-flow">
         {flowDays.length === 0 && (
           <div className="dj-gap">
-            <span>{t("本月无记录——空日也能写便签:切月视图点任意日直达")}</span>
+            <span>{t("本月无记录——点上方日格直达任意一天写便签")}</span>
           </div>
         )}
         {flowDays.map((fd) => {
@@ -209,9 +209,6 @@ export function FlowView({
             </div>
           );
         })}
-        <div className="dj-gap">
-          <span>{t("向上翻上月 →")}</span>
-        </div>
       </div>
     </div>
   );

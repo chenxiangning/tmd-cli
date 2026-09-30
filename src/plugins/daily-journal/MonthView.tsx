@@ -1,5 +1,5 @@
 /**
- * 月视图 —— 大格索引卡:文章标题 + 总览首行 + 便签预览 + 引擎点
+ * 月视图 —— 大格状态卡:单行当日状态(生成状态 · 会话数 · 有便签)+ 便签预览 + 引擎点
  * (原型 .mgrid/.dcell)。点格开文章 tab;空日也开(便签编辑态在 tab 内,B3)。
  */
 import { useMemo, useRef, useState } from "react";
@@ -47,19 +47,22 @@ function cellClass(st: DayStatus, hasNote: boolean, sessionCount: number, isToda
     .join(" ");
 }
 
-/** 格正文(标题/总览 或 失败/待生成/空日语义行;纯函数)。 */
+/** 格正文(单行当日状态:生成状态 · 会话数 · 有便签;失败悬停见完整错误;纯函数)。 */
 function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: DaySessionRow[], notePeek: string): React.ReactNode {
+  const noteTag = notePeek ? ` · ${t("有便签")}` : "";
   if (article) {
-    return (
-      <>
-        <div className="dj-head">{article.title}</div>
-        <div className="dj-lede">{article.lede.split("\n")[0]}</div>
-      </>
-    );
+    const line =
+      (st === "t" ? t("增量中 · {n} 条会话", { n: rows.length }) : t("已生成 · {n} 条会话", { n: rows.length })) + noteTag;
+    return <div className={`dj-stat ${st === "t" ? "dj-accent" : ""}`}>{line}</div>;
   }
-  if (st === "f") return <div className="dj-lede dj-err">{meta.lastError}</div>;
-  if (st === "p") return <div className="dj-lede">{t("{n} 会话待提取", { n: rows.length })}</div>;
-  return !notePeek && <div className="dj-lede dj-faint">{t("无会话 · 点开写便签")}</div>;
+  if (st === "f")
+    return (
+      <div className="dj-stat dj-err" title={meta.lastError || undefined}>
+        {t("生成失败 · {n} 条会话", { n: rows.length }) + noteTag}
+      </div>
+    );
+  if (st === "p") return <div className="dj-stat dj-warn">{t("待提取 · {n} 条会话", { n: rows.length }) + noteTag}</div>;
+  return <div className="dj-stat dj-faint">{notePeek ? t("无会话 · 有便签") : t("无会话 · 点开写便签")}</div>;
 }
 
 function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
@@ -98,16 +101,7 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
     >
       <div className="dj-cell-top">
         <span className="dj-daynum">{d}</span>
-        {note && (
-          <span className="dj-notemark" title={t("有便签")}>
-            <PencilSimpleLine size={9} />
-          </span>
-        )}
         {holOf(y, m, d) && <span className="dj-holmini">休·{holOf(y, m, d)}</span>}
-        {st === "t" && <span className="dj-badge dj-badge-t">{t("增量中")}</span>}
-        {st === "p" && <span className="dj-badge dj-badge-p">{t("待生成")}</span>}
-        {st === "f" && <span className="dj-badge dj-badge-f">{t("失败")}</span>}
-        <span className="dj-cell-sub">{rows.length ? t("{n} 会话", { n: rows.length }) : ""}</span>
       </div>
       {cellBody(article, st, meta, rows, notePeek)}
       {notePeek && (

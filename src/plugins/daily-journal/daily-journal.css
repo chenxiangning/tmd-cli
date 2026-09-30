@@ -16,19 +16,35 @@
 .dj-toolbar-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .dj-legend { display: flex; align-items: center; gap: 3px; font-size: 0.5625rem; color: var(--tmd-fg-faint); }
 .dj-leg-cell { width: 10px; height: 10px; border-radius: 2.5px; background: var(--tmd-bg-elevated); border: 1px solid var(--tmd-border); }
-/* 热力四档:冷→热彩色阶(蓝→绿→琥珀→红),色相+明度双维拉开档差;图例与日历格共用同组变量,永不相差。 */
+/* 热力四档:冷→热彩色阶(蓝→绿→琥珀→红),色相+明度双维拉开档差;图例与日历格共用同组变量,永不相差。
+   混色比例收轻(26-46%),给格内文字留对比空间。
+   --dj-st-* 日格语义文字色:落在热力底色上,浅色取深一档、深色取亮一档(accent/err 与全局 token
+   不同值,全局色在同色系热力底上对比不足);便签/周末描边同用,保证深浅两套主题都可读。 */
 .dj-root {
-  --dj-heat-1: color-mix(in srgb, var(--tmd-accent) 35%, var(--tmd-bg-base));
-  --dj-heat-2: color-mix(in srgb, var(--tmd-ok, #059669) 42%, var(--tmd-bg-base));
-  --dj-heat-3: color-mix(in srgb, var(--tmd-warn, #a16207) 48%, var(--tmd-bg-base));
-  --dj-heat-4: color-mix(in srgb, var(--tmd-err, #dc2626) 55%, var(--tmd-bg-base));
+  --dj-heat-1: color-mix(in srgb, var(--tmd-accent) 26%, var(--tmd-bg-base));
+  --dj-heat-2: color-mix(in srgb, var(--tmd-ok, #059669) 32%, var(--tmd-bg-base));
+  --dj-heat-3: color-mix(in srgb, var(--tmd-warn, #a16207) 38%, var(--tmd-bg-base));
+  --dj-heat-4: color-mix(in srgb, var(--tmd-err, #dc2626) 46%, var(--tmd-bg-base));
+  --dj-st-accent: var(--tmd-accent);
+  --dj-st-warn: var(--tmd-warn, #a16207);
+  --dj-st-err: var(--tmd-err, #dc2626);
+  --dj-st-note: var(--tmd-note, #78350f);
+  --dj-st-hol: var(--tmd-hol, #c0392b);
+}
+:root[data-theme="light"] .dj-root {
+  --dj-st-warn: #713f12;
+  --dj-st-err: #991b1b;
+}
+:root[data-theme="dark"] .dj-root {
+  --dj-st-accent: #6cb6ff;
+  --dj-st-warn: #fef08a;
+  --dj-st-err: #fda4a4;
 }
 .dj-leg-cell.h1 { background: var(--dj-heat-1); border: 0; }
 .dj-leg-cell.h2 { background: var(--dj-heat-2); border: 0; }
 .dj-leg-cell.h3 { background: var(--dj-heat-3); border: 0; }
 .dj-leg-cell.h4 { background: var(--dj-heat-4); border: 0; }
 .dj-stage { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; }
-.dj-stage-flow { overflow: hidden; padding: 0; display: flex; }
 .dj-flow-root { flex: 1; min-height: 0; }
 .dj-flow { overflow-y: auto; padding: 0 18px 20px; max-height: 100%; }
 .dj-empty { display: grid; place-items: center; height: 100%; color: var(--tmd-fg-faint); }
@@ -47,27 +63,22 @@
 .dj-cell.h2 { background: var(--dj-heat-2); }
 .dj-cell.h3 { background: var(--dj-heat-3); }
 .dj-cell.h4 { background: var(--dj-heat-4); }
-.dj-we { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgb(0 0 0 / 3%) 5px 7px); }
-.dj-pending { border-style: dashed; border-color: color-mix(in srgb, var(--tmd-warn, #a16207) 45%, var(--tmd-border)); }
-.dj-failed { border-color: color-mix(in srgb, var(--tmd-err, #dc2626) 45%, var(--tmd-border)); }
-.dj-hasnote { border-color: color-mix(in srgb, var(--tmd-note, #b45309) 45%, var(--tmd-border)); }
+.dj-we { background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--tmd-fg) 4%, transparent) 5px 7px); }
+.dj-pending { border-style: dashed; border-color: color-mix(in srgb, var(--dj-st-warn) 45%, var(--tmd-border)); }
+.dj-failed { border-color: color-mix(in srgb, var(--dj-st-err) 45%, var(--tmd-border)); }
+.dj-hasnote { border-color: color-mix(in srgb, var(--dj-st-note) 45%, var(--tmd-border)); }
 .dj-today { border-color: var(--tmd-accent); box-shadow: inset 0 0 0 1.5px var(--tmd-accent); animation: dj-breath 2.6s ease-in-out infinite; }
 @keyframes dj-breath { 0%, 100% { box-shadow: inset 0 0 0 1.5px var(--tmd-accent); } 50% { box-shadow: inset 0 0 0 2.5px var(--tmd-accent), 0 0 0 4px color-mix(in srgb, var(--tmd-accent) 14%, transparent); } }
 .dj-cell-top { display: flex; align-items: center; gap: 4px; }
-.dj-daynum { font-size: 0.6875rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--tmd-fg-muted); }
-.dj-today .dj-daynum { color: var(--tmd-accent); }
-.dj-we .dj-daynum { color: var(--tmd-hol, #c0392b); }
-.dj-notemark { display: inline-flex; color: var(--tmd-note, #b45309); }
-.dj-badge { font-size: 0.5313rem; border-radius: 3px; padding: 0 4px; line-height: 13px; font-weight: 600; }
-.dj-badge-t { color: var(--tmd-accent); background: color-mix(in srgb, var(--tmd-accent) 12%, transparent); }
-.dj-badge-p { color: var(--tmd-warn, #a16207); background: color-mix(in srgb, var(--tmd-warn, #a16207) 10%, transparent); }
-.dj-badge-f { color: var(--tmd-err, #dc2626); background: color-mix(in srgb, var(--tmd-err, #dc2626) 10%, transparent); }
-.dj-cell-sub { margin-left: auto; font-size: 0.5313rem; color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; }
-.dj-head { font-size: 0.6563rem; font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.dj-lede { font-size: 0.5938rem; color: var(--tmd-fg-muted); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.dj-faint { color: var(--tmd-fg-faint); }
-.dj-err { color: var(--tmd-err, #dc2626); }
-.dj-notepeek { font-size: 0.5625rem; color: var(--tmd-note, #b45309); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dj-daynum { font-size: 0.6875rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--tmd-fg); }
+.dj-today .dj-daynum { color: var(--dj-st-accent); }
+.dj-we .dj-daynum { color: var(--dj-st-hol); }
+.dj-stat { font-size: 0.6563rem; font-weight: 600; color: var(--tmd-fg); line-height: 1.35; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px var(--tmd-bg-base); }
+.dj-stat.dj-accent { color: var(--dj-st-accent); }
+.dj-stat.dj-warn { color: var(--dj-st-warn); }
+.dj-stat.dj-err { color: var(--dj-st-err); }
+.dj-stat.dj-faint { color: var(--tmd-fg-subtle); font-weight: 400; text-shadow: none; }
+.dj-notepeek { font-size: 0.5625rem; font-weight: 500; color: var(--dj-st-note); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dj-cell-engs { margin-top: auto; display: flex; align-items: center; gap: 3px; }
 .dj-engdot { width: 5px; height: 5px; border-radius: 50%; }
 .dj-engmark { display: inline-flex; align-items: center; flex: none; }
@@ -106,22 +117,26 @@
 .dj-ds-ws { margin-left: auto; color: var(--tmd-fg-faint); font-size: 0.625rem; }
 .dj-ds-row .dj-chip { flex: none; }
 .dj-ds-count { margin-left: auto; font-weight: 400; font-size: 0.625rem; color: var(--tmd-fg-faint); }
-.dj-notecard-readonly { border: 1px solid color-mix(in srgb, var(--tmd-note, #b45309) 35%, var(--tmd-border)); background: color-mix(in srgb, var(--tmd-note, #b45309) 7%, transparent); border-radius: 8px; margin: 8px 0; padding: 7px 11px 9px; }
-.dj-nc-head { color: var(--tmd-note, #b45309); font-size: 0.6875rem; font-weight: 700; }
+.dj-notecard-readonly { border: 1px solid color-mix(in srgb, var(--tmd-note, #78350f) 35%, var(--tmd-border)); background: color-mix(in srgb, var(--tmd-note, #78350f) 7%, transparent); border-radius: 8px; margin: 8px 0; padding: 7px 11px 9px; }
+.dj-nc-head { color: var(--tmd-note, #78350f); font-size: 0.6875rem; font-weight: 700; }
 .dj-nc-text { font-size: 0.7188rem; white-space: pre-wrap; line-height: 1.6; margin-top: 4px; }
 /* 便签 md(fvp 管线)块距压紧凑:双类 :where 压过 fvp 单类,与加载序无关 */
 .dj-notecard-readonly .dj-nc-text :where(p, ul, ol, pre, blockquote, table) { margin: 0 0 4px; }
 .dj-notecard-readonly .dj-nc-text :where(p, ul, ol, pre, blockquote, table):last-child { margin-bottom: 0; }
-.dj-nc-imgs { font-size: 0.5625rem; color: var(--tmd-note, #b45309); margin-top: 4px; }
+.dj-nc-imgs { font-size: 0.5625rem; color: var(--tmd-note, #78350f); margin-top: 4px; }
 
 /* ── 右栏面板 ── */
-.dj-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px; font-size: 0.6875rem; }
-.dj-panel-open { border: 1px solid var(--tmd-border); background: var(--tmd-bg-base); color: var(--tmd-fg-muted); border-radius: 6px; padding: 5px 8px; cursor: pointer; font: inherit; }
-.dj-panel-open:hover { border-color: var(--tmd-accent); color: var(--tmd-accent); }
+.dj-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px; font-size: 0.6875rem; height: 100%; box-sizing: border-box; }
 .dj-panel-stat { color: var(--tmd-fg-muted); }
 .dj-panel-sub { color: var(--tmd-warn, #a16207); font-size: 0.625rem; margin-bottom: 4px; }
 .dj-panel-day { border: 1px solid var(--tmd-border); background: var(--tmd-bg-base); border-radius: 6px; padding: 2px 8px; margin: 0 4px 4px 0; cursor: pointer; font: inherit; font-size: 0.625rem; color: var(--tmd-fg-muted); }
 .dj-panel-day:hover { border-color: var(--tmd-accent); color: var(--tmd-accent); }
+.dj-panel-nav { display: flex; align-items: center; gap: 6px; }
+.dj-panel-nav .dj-month-title { flex: 1; min-width: 0; font-size: 0.75rem; }
+/* 轴流滚动区:负 margin 吃掉面板 padding,滚轴贴面板缘;内部再收紧轴流留白适配窄栏。 */
+.dj-panel-flow { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -10px -10px; padding: 0 10px 10px; }
+.dj-panel-flow .dj-minibar { position: sticky; top: 0; z-index: 3; padding: 7px 0; }
+.dj-panel-flow .dj-flow { padding: 0 4px 16px; }
 
 /* ── 年视图(12 宫迷你月)── */
 .dj-year-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
@@ -133,20 +148,19 @@
 .dj-ycal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 6px; }
 .dj-ycal span { aspect-ratio: 1; border-radius: 2.5px; background: var(--tmd-bg-elevated); }
 .dj-ycal .dj-yc-we { background: color-mix(in srgb, var(--tmd-fg-faint) 12%, var(--tmd-bg-elevated)); }
-.dj-ycal .dj-yc-hol { background: var(--tmd-hol, #c0392b); outline: 1px solid color-mix(in srgb, var(--tmd-hol, #c0392b) 30%, #fff); }
+.dj-ycal .dj-yc-hol { background: var(--tmd-hol, #c0392b); outline: 1px solid color-mix(in srgb, var(--tmd-hol, #c0392b) 30%, var(--tmd-bg-base)); }
 .dj-ycal .dj-yc-g { background: color-mix(in srgb, var(--tmd-ok, #059669) 45%, var(--tmd-bg-elevated)); }
 .dj-ycal .dj-yc-h2 { background: color-mix(in srgb, var(--tmd-ok, #059669) 62%, var(--tmd-bg-elevated)); }
 .dj-ycal .dj-yc-h3 { background: color-mix(in srgb, var(--tmd-ok, #059669) 80%, var(--tmd-bg-elevated)); }
 .dj-ycal .dj-yc-p { background: color-mix(in srgb, var(--tmd-warn, #a16207) 55%, #fff); }
 .dj-ycal .dj-yc-f { background: color-mix(in srgb, var(--tmd-err, #dc2626) 55%, #fff); }
 .dj-ycal .dj-yc-t { background: var(--tmd-accent); outline: 1.5px solid color-mix(in srgb, var(--tmd-accent) 35%, #fff); }
-.dj-ycal .dj-yc-note { box-shadow: inset 0 0 0 1.5px var(--tmd-note, #b45309); }
+.dj-ycal .dj-yc-note { box-shadow: inset 0 0 0 1.5px var(--tmd-note, #78350f); }
 .dj-ymonth-stat { margin-top: 7px; font-size: 0.5938rem; color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; }
 
 /* ── 轴视图 ── */
 .dj-flow-root { display: flex; flex-direction: column; gap: 0; }
 .dj-minibar { flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 18px; border-bottom: 1px solid var(--tmd-border); background: var(--tmd-bg-elevated); }
-.dj-minibar-title { font-size: 0.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .dj-mb-strip { display: flex; gap: 2px; flex-wrap: wrap; }
 .dj-mb-cell { width: 13px; height: 15px; border-radius: 3px; background: var(--tmd-bg-base); border: 1px solid var(--tmd-border); cursor: pointer; padding: 0; font: inherit; }
 .dj-mb-strip button.dj-mb-cell:focus-visible { outline: 1.5px solid var(--tmd-accent); }
@@ -158,7 +172,7 @@
 .dj-mb-p { background: color-mix(in srgb, var(--tmd-warn, #a16207) 35%, var(--tmd-bg-base)); border-style: dashed; }
 .dj-mb-f { background: color-mix(in srgb, var(--tmd-err, #dc2626) 45%, var(--tmd-bg-base)); }
 .dj-mb-t { background: var(--tmd-accent); border-color: var(--tmd-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tmd-accent) 14%, transparent); }
-.dj-mb-note { box-shadow: inset 0 0 0 1.5px var(--tmd-note, #b45309); }
+.dj-mb-note { box-shadow: inset 0 0 0 1.5px var(--tmd-note, #78350f); }
 .dj-mb-legend { font-size: 0.5625rem; color: var(--tmd-fg-faint); }
 .dj-flow { display: flex; flex-direction: column; padding: 0 18px 20px; }
 .dj-gap { height: 26px; display: flex; align-items: center; gap: 8px; margin-left: 10px; color: var(--tmd-fg-faint); font-size: 0.625rem; }
@@ -168,7 +182,7 @@
 .dj-spine::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--tmd-border); }
 .dj-node { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 26px; height: 26px; border-radius: 50%; background: var(--tmd-bg-base); border: 2px solid var(--tmd-ok, #059669); display: grid; place-items: center; font-size: 0.625rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--tmd-fg-muted); z-index: 2; }
 .dj-node-n { border-color: var(--tmd-fg-faint); color: var(--tmd-fg-faint); }
-.dj-node-nn { border-color: var(--tmd-note, #b45309); color: var(--tmd-note, #b45309); }
+.dj-node-nn { border-color: var(--tmd-note, #78350f); color: var(--tmd-note, #78350f); }
 .dj-node-t { border-color: var(--tmd-accent); color: var(--tmd-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tmd-accent) 14%, transparent); }
 .dj-node-p { border-color: var(--tmd-warn, #a16207); border-style: dashed; }
 .dj-node-f { border-color: var(--tmd-err, #dc2626); }
@@ -181,7 +195,7 @@
 .dj-fcard-head:hover { background: var(--tmd-bg-hover); }
 .dj-fcard-date { font-size: 0.8125rem; font-weight: 700; white-space: nowrap; }
 .dj-fcard-headline { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 60px; }
-.dj-fcard-notepeek { font-size: 0.5938rem; color: var(--tmd-note, #b45309); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22%; flex: 1; }
+.dj-fcard-notepeek { font-size: 0.5938rem; color: var(--tmd-note, #78350f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22%; flex: 1; }
 .dj-fullbtn { border: 0; background: none; color: var(--tmd-fg-faint); font: inherit; font-size: 0.5625rem; cursor: pointer; padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
 .dj-fullbtn:hover { color: var(--tmd-accent); background: color-mix(in srgb, var(--tmd-accent) 14%, transparent); }
 .dj-foldmark { color: var(--tmd-fg-faint); font-size: 0.5625rem; transition: transform .15s; }
@@ -194,11 +208,11 @@
 
 /* ── 便签编辑器 + 附件缩略 + 大图 + 生长珠子带 ── */
 .dj-note-wrap { position: relative; }
-.dj-nc-new { width: 100%; border: 1px dashed color-mix(in srgb, var(--tmd-note, #b45309) 40%, var(--tmd-border)); border-radius: 8px; background: none; color: var(--tmd-fg-subtle, var(--tmd-fg-muted)); font: inherit; font-size: 0.6875rem; display: flex; align-items: center; gap: 7px; padding: 9px 11px; cursor: pointer; }
-.dj-nc-new:hover { color: var(--tmd-note, #b45309); }
+.dj-nc-new { width: 100%; border: 1px dashed color-mix(in srgb, var(--tmd-note, #78350f) 40%, var(--tmd-border)); border-radius: 8px; background: none; color: var(--tmd-fg-subtle, var(--tmd-fg-muted)); font: inherit; font-size: 0.6875rem; display: flex; align-items: center; gap: 7px; padding: 9px 11px; cursor: pointer; }
+.dj-nc-new:hover { color: var(--tmd-note, #78350f); }
 .dj-nc-editbtn { position: absolute; top: 8px; right: 11px; border: 0; background: none; color: var(--tmd-fg-faint); font: inherit; font-size: 0.625rem; cursor: pointer; padding: 2px 5px; border-radius: 4px; }
 .dj-nc-editbtn:hover { color: var(--tmd-accent); background: color-mix(in srgb, var(--tmd-accent) 12%, transparent); }
-.dj-notecard { border: 1px solid color-mix(in srgb, var(--tmd-note, #b45309) 35%, var(--tmd-border)); background: color-mix(in srgb, var(--tmd-note, #b45309) 7%, transparent); border-radius: 8px; margin: 8px 0; overflow: hidden; }
+.dj-notecard { border: 1px solid color-mix(in srgb, var(--tmd-note, #78350f) 35%, var(--tmd-border)); background: color-mix(in srgb, var(--tmd-note, #78350f) 7%, transparent); border-radius: 8px; margin: 8px 0; overflow: hidden; }
 .dj-nc-editbox { padding: 0 11px 9px; }
 .dj-nc-edit { width: 100%; min-height: 96px; border: 1px solid var(--tmd-accent); border-radius: 6px; background: var(--tmd-bg-base); padding: 7px 9px; font: inherit; font-size: 0.7188rem; line-height: 1.6; color: var(--tmd-fg); resize: vertical; outline: none; }
 .dj-nc-pasteerr { color: var(--tmd-err, #dc2626); font-size: 0.625rem; padding: 4px 0; }
@@ -211,10 +225,10 @@
 .dj-nc-foot { display: flex; align-items: center; gap: 8px; font-size: 0.625rem; color: var(--tmd-fg-faint); flex-wrap: wrap; }
 .dj-nc-acts { margin-left: auto; display: flex; gap: 6px; }
 .dj-btn-primary { background: var(--tmd-accent); border-color: var(--tmd-accent); color: var(--tmd-accent-fg, #fff); }
-.dj-btn-confirm { background: var(--tmd-warn, #a16207); border-color: var(--tmd-warn, #a16207); color: #fff; }
+.dj-btn-confirm { background: var(--tmd-warn, #a16207); border-color: var(--tmd-warn, #a16207); color: var(--tmd-bg-base); }
 /* 实心钮不被 .dj-btn:hover 的安静态文字色覆盖(生成浮层只在 hover 时出现,恒 hover 态)。 */
 .dj-btn-primary:hover { color: var(--tmd-accent-fg, #fff); }
-.dj-btn-confirm:hover { color: #fff; }
+.dj-btn-confirm:hover { color: var(--tmd-bg-base); }
 .dj-tselect { cursor: pointer; }
 .dj-toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); background: var(--tmd-fg); color: var(--tmd-bg-base); font-size: 0.75rem; border-radius: 8px; padding: 7px 14px; z-index: 90; box-shadow: 0 6px 20px rgb(0 0 0 / 20%); }
 .dj-lightbox { position: fixed; inset: 0; background: rgb(0 0 0 / 72%); display: grid; place-items: center; z-index: 80; cursor: zoom-out; }
@@ -264,7 +278,7 @@
 .dj-gensess-sub { font-size: 0.625rem; color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; }
 
 /* ── B5:节假日 ── */
-.dj-holmini { font-size: 0.5rem; color: var(--tmd-hol, #c0392b); background: color-mix(in srgb, var(--tmd-hol, #c0392b) 9%, transparent); border-radius: 3px; padding: 0 3px; line-height: 12px; white-space: nowrap; }
+.dj-holmini { font-size: 0.5rem; color: var(--dj-st-hol); background: color-mix(in srgb, var(--dj-st-hol) 12%, transparent); border-radius: 3px; padding: 0 3px; line-height: 12px; white-space: nowrap; }
 .dj-pill.dj-hol { cursor: pointer; }
 .dj-pill.dj-hol.on { color: var(--tmd-ok, #059669); border-color: color-mix(in srgb, var(--tmd-ok, #059669) 25%, transparent); background: color-mix(in srgb, var(--tmd-ok, #059669) 6%, transparent); }
 .dj-node-hol { border-color: var(--tmd-hol, #c0392b); color: var(--tmd-hol, #c0392b); }

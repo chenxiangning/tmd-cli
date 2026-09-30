@@ -1,6 +1,7 @@
 /**
- * daily-journal 插件入口 —— 每日工作日志:年/月/轴三视图 + 每日一篇 AI 汇总
- * 文章(生成会话直写 md)+ 每日便签 + 节假日关联 + 后台生成任务。
+ * daily-journal 插件入口 —— 每日工作日志:年/月双视图日历 + 每日一篇 AI 汇总
+ * 文章(生成会话直写 md)+ 每日便签 + 节假日关联 + 后台生成任务;
+ * 轴视图(脊柱叙事流)宿主右栏面板。
  * 设计:docs/superpowers/specs/2026-09-29-daily-journal-design.md
  * 注册点:右栏面板(rail 入口 + centerTab 联动)+ 中央双 kind tab(主视图/文章)。
  */
@@ -22,7 +23,7 @@ export const dailyJournalPlugin: Plugin = {
   meta: {
     name: "每日工作日志",
     abbr: "日志",
-    desc: "年/月/轴三视图日历 + 每日一篇 AI 汇总文章 + 每日便签 + 节假日 + 后台生成",
+    desc: "年/月双视图日历 + 每日一篇 AI 汇总文章 + 每日便签 + 右栏轴视图 + 后台生成",
     icon: CalendarCheck,
     iconColor: "#B48FBF",
     category: "feature",

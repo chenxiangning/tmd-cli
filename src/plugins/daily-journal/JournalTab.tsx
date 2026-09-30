@@ -1,6 +1,6 @@
 /**
- * 每日日志主视图 tab —— 工具栏(年/月/轴 seg + 月导航 + 状态 pill)+ 视图路由
- * (原型 docs/design/daily-journal-n4-merged.html 三视图一 tab)。
+ * 每日日志主视图 tab —— 工具栏(年/月 seg + 月导航 + 状态 pill)+ 视图路由
+ * (原型 docs/design/daily-journal-n4-merged.html;轴视图已迁右栏面板)。
  */
 import { useEffect, useMemo, useState } from "react";
 import { CaretLeft, CaretRight, GearSix, ListChecks } from "@phosphor-icons/react";
@@ -16,12 +16,11 @@ import { GenSettings } from "./GenSettings";
 import { useGenTasks } from "./taskQueue";
 import { fillPendingDays } from "./journalSchedule";
 import { YearView } from "./YearView";
-import { FlowView } from "./FlowView";
 import { monthTitleOf } from "./dateTitle";
 import { ensureHolidays, useHolidays, type HolidayStatus } from "./holidays";
 import "./daily-journal.css";
 
-export type JournalView = "y" | "m" | "f";
+export type JournalView = "y" | "m";
 
 
 /* fillPendingDays 入队策略见 journalSchedule(「补齐待生成」按钮消费)。 */
@@ -86,7 +85,7 @@ function monthStats(
   return { days: days.length, sessTotal, artTotal, pending, todayLive };
 }
 
-/** 舞台视图路由(三视图一 tab;独立函数保全主组件控制流复杂度门禁)。 */
+/** 舞台视图路由(双视图一 tab;独立函数保全主组件控制流复杂度门禁)。 */
 function JournalStage({
   view,
   sessions,
@@ -114,8 +113,7 @@ function JournalStage({
   }
   if (view === "y") return <YearView y={ym.y} sessions={sessions} today={today} onOpenMonth={openMonth} />;
   if (!snap) return <div className="dj-empty">{t("正在加载…")}</div>;
-  if (view === "m") return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} />;
-  return <FlowView ym={ym} snap={snap} sessions={sessions} today={today} />;
+  return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} />;
 }
 
 export function JournalTab() {
@@ -138,7 +136,7 @@ export function JournalTab() {
     void ensureHolidays(ym.y); /* 跨年导航即拉当年(24h 窗内零请求) */
   }, [ym, state.ready]);
   const snap = state.months[`${ym.y}-${String(ym.m).padStart(2, "0")}`];
-  /* 年视图导航只动年;月/轴视图动月(跨年进位)。 */
+  /* 年视图导航只动年;月视图动月(跨年进位)。 */
   const nav = (delta: number) => {
     if (view === "y") {
       setYm((prev) => ({ ...prev, y: prev.y + delta }));
@@ -163,7 +161,6 @@ export function JournalTab() {
             [
               ["y", t("年视图")],
               ["m", t("月视图")],
-              ["f", t("轴视图")],
             ] as const
           ).map(([v, label]) => (
             <button key={v} role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
@@ -209,7 +206,7 @@ export function JournalTab() {
       </div>
       {panel === "tasks" && <TaskPanel onClose={() => setPanel(null)} />}
       {panel === "cfg" && <GenSettings onClose={() => setPanel(null)} />}
-      <div className={`dj-stage${view === "f" ? " dj-stage-flow" : ""}`}>
+      <div className="dj-stage">
         <JournalStage view={view} sessions={sessions} progress={progress} ym={ym} snap={snap} today={today} openMonth={openMonth} />
       </div>
     </div>
