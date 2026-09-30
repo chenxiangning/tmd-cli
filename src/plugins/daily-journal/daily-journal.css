@@ -2,8 +2,9 @@
 /* ── 主视图壳 ── */
 .dj-root { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--tmd-bg-base); color: var(--tmd-fg); font-size: 0.75rem; }
 .dj-toolbar { flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--tmd-border); }
-.dj-seg { display: inline-flex; border: 1px solid var(--tmd-border); border-radius: 8px; padding: 2px; gap: 2px; background: var(--tmd-bg-base); }
-.dj-seg button { border: 0; background: transparent; border-radius: 6px; padding: 2px 10px; font: inherit; font-size: 0.6875rem; color: var(--tmd-fg-muted); cursor: pointer; }
+.dj-seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--tmd-border); border-radius: 8px; padding: 2px; gap: 2px; background: var(--tmd-bg-base); }
+.dj-seg button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: transparent; border-radius: 6px; padding: 3px 12px; font: inherit; font-size: 0.6875rem; color: var(--tmd-fg-muted); cursor: pointer; white-space: nowrap; }
+.dj-seg button svg { display: block; }
 .dj-seg button.on { background: color-mix(in srgb, var(--tmd-accent) 14%, transparent); color: var(--tmd-accent); font-weight: 600; }
 .dj-nav { display: flex; align-items: center; gap: 6px; }
 .dj-month-title { font-size: 0.875rem; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 6rem; text-align: center; }
@@ -15,10 +16,17 @@
 .dj-toolbar-end { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .dj-legend { display: flex; align-items: center; gap: 3px; font-size: 0.5625rem; color: var(--tmd-fg-faint); }
 .dj-leg-cell { width: 10px; height: 10px; border-radius: 2.5px; background: var(--tmd-bg-elevated); border: 1px solid var(--tmd-border); }
-.dj-leg-cell.h1 { background: color-mix(in srgb, var(--tmd-accent) 8%, #fff); border: 0; }
-.dj-leg-cell.h2 { background: color-mix(in srgb, var(--tmd-accent) 15%, #fff); border: 0; }
-.dj-leg-cell.h3 { background: color-mix(in srgb, var(--tmd-accent) 22%, #fff); border: 0; }
-.dj-leg-cell.h4 { background: color-mix(in srgb, var(--tmd-accent) 34%, #fff); border: 0; }
+/* 热力四档:冷→热彩色阶(蓝→绿→琥珀→红),色相+明度双维拉开档差;图例与日历格共用同组变量,永不相差。 */
+.dj-root {
+  --dj-heat-1: color-mix(in srgb, var(--tmd-accent) 35%, var(--tmd-bg-base));
+  --dj-heat-2: color-mix(in srgb, var(--tmd-ok, #059669) 42%, var(--tmd-bg-base));
+  --dj-heat-3: color-mix(in srgb, var(--tmd-warn, #a16207) 48%, var(--tmd-bg-base));
+  --dj-heat-4: color-mix(in srgb, var(--tmd-err, #dc2626) 55%, var(--tmd-bg-base));
+}
+.dj-leg-cell.h1 { background: var(--dj-heat-1); border: 0; }
+.dj-leg-cell.h2 { background: var(--dj-heat-2); border: 0; }
+.dj-leg-cell.h3 { background: var(--dj-heat-3); border: 0; }
+.dj-leg-cell.h4 { background: var(--dj-heat-4); border: 0; }
 .dj-stage { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; }
 .dj-stage-flow { overflow: hidden; padding: 0; display: flex; }
 .dj-flow-root { flex: 1; min-height: 0; }
@@ -35,10 +43,10 @@
 .dj-cell:hover { border-color: var(--tmd-border-strong, var(--tmd-border)); box-shadow: 0 1px 5px rgb(0 0 0 / 6%); }
 .dj-out { opacity: 0.35; background: var(--tmd-bg-elevated); pointer-events: none; }
 .dj-empty-day { background: var(--tmd-bg-elevated); }
-.dj-cell.h1 { background: color-mix(in srgb, var(--tmd-accent) 4%, var(--tmd-bg-base)); }
-.dj-cell.h2 { background: color-mix(in srgb, var(--tmd-accent) 9%, var(--tmd-bg-base)); }
-.dj-cell.h3 { background: color-mix(in srgb, var(--tmd-accent) 15%, var(--tmd-bg-base)); }
-.dj-cell.h4 { background: color-mix(in srgb, var(--tmd-accent) 22%, var(--tmd-bg-base)); }
+.dj-cell.h1 { background: var(--dj-heat-1); }
+.dj-cell.h2 { background: var(--dj-heat-2); }
+.dj-cell.h3 { background: var(--dj-heat-3); }
+.dj-cell.h4 { background: var(--dj-heat-4); }
 .dj-we { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgb(0 0 0 / 3%) 5px 7px); }
 .dj-pending { border-style: dashed; border-color: color-mix(in srgb, var(--tmd-warn, #a16207) 45%, var(--tmd-border)); }
 .dj-failed { border-color: color-mix(in srgb, var(--tmd-err, #dc2626) 45%, var(--tmd-border)); }
@@ -239,8 +247,10 @@
 .dj-ti-acts { display: flex; gap: 6px; flex: none; align-items: center; }
 .dj-tpanel-empty { color: var(--tmd-fg-faint); font-size: 0.6875rem; padding: 18px 0; text-align: center; }
 .dj-task-badge { min-width: 14px; height: 14px; border-radius: 7px; background: var(--tmd-accent); color: var(--tmd-accent-fg, #fff); font-size: 0.5625rem; display: inline-grid; place-items: center; padding: 0 3px; }
-.dj-frow { display: flex; flex-direction: column; gap: 5px; padding: 6px 0; }
-.dj-hint { font-size: 0.625rem; color: var(--tmd-fg-faint); }
+.dj-frow { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; }
+.dj-frow + .dj-frow { border-top: 1px solid color-mix(in srgb, var(--tmd-border) 55%, transparent); }
+.dj-frow > .dj-seg { align-self: flex-start; } /* 弹层列向布局默认拉伸:控制件保持自然宽,勿横贯整行 */
+.dj-hint { font-size: 0.625rem; line-height: 1.6; color: var(--tmd-fg-faint); }
 .dj-timerow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .dj-timerow-text { font-size: 0.6875rem; color: var(--tmd-fg-muted); }
 .dj-tinput { width: 74px; border: 1px solid var(--tmd-border); border-radius: 6px; padding: 4px 8px; font: inherit; font-size: 0.75rem; background: var(--tmd-bg-base); color: var(--tmd-fg); }

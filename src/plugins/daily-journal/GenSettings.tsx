@@ -10,7 +10,17 @@ import { host } from "@kernel/host";
 import { updateConfig, useJournalState } from "./journalStore";
 import { ensureHolidays } from "./holidays";
 import { listModels } from "@plugins/memory-coordinator/modelCatalog";
+/* 品牌字形映射(cli-shared,先例:omp/pi/… 十家 renderIcon + mobile EngineMark 已消费)。 */
+import { engineGlyphOf } from "@plugins/cli-shared/engineGlyphMap";
 import type { JournalConfig } from "./journalFiles";
+
+/** 增量策略逐项说明(随选中项切换;语义以 journalSchedule/genSession 实际消费为准:
+ *  三档只闸「会话退出自动增量」一条路,定时/补跑与手动生成各档均可用)。 */
+const INC_HINT: Record<JournalConfig["incPolicy"], string> = {
+  auto: "会话收尾约 45 秒后自动整理当日:已有文章把新增会话追加成新节(旧节一字不动,留并入时间痕),还没有文章则当天首次成文。",
+  manual: "收尾后不自动写;当日文章只在你主动点生成时更新(日格「生成此日 / 重试生成」、月视图「补齐待生成」)。",
+  timer: "当日会话不实时成文,留到次日定时任务一次归纳成文(需开着「定时生成」);想当天出文随时可手动点生成。",
+};
 
 function Seg<T extends string>({ value, options, onChange }: { value: T; options: readonly [T, string][]; onChange: (v: T) => void }) {
   return (
@@ -101,7 +111,7 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
             <span className="dj-hint">{t("到点未运行则下次启动补跑;一天一篇,重复生成整篇替换。便签不受影响。")}</span>
           </div>
           <div className="dj-frow">
-            <span className="dj-flabel">{t("增量策略(当日文章如何生长)")}</span>
+            <span className="dj-flabel">{t("增量策略(当日文章何时更新)")}</span>
             <Seg
               value={cfg.incPolicy}
               options={[
@@ -111,16 +121,20 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
               ]}
               onChange={(v) => setCfg((c) => ({ ...c, incPolicy: v }))}
             />
-            <span className="dj-hint">{t("跟随实时 = 会话收尾后自动并入新节,既有节不重写,并入处留时间痕。")}</span>
+            <span className="dj-hint">{t(INC_HINT[cfg.incPolicy])}</span>
           </div>
           <div className="dj-frow">
             <span className="dj-flabel">{t("引擎")}</span>
             <div className="dj-seg">
-              {engines.map((p) => (
-                <button key={p.id} type="button" className={engine === p.id ? "on" : ""} onClick={() => setCfg((c) => ({ ...c, engine: p.id }))}>
-                  {p.id}
-                </button>
-              ))}
+              {engines.map((p) => {
+                const Brand = engineGlyphOf(p.id);
+                return (
+                  <button key={p.id} type="button" className={engine === p.id ? "on" : ""} onClick={() => setCfg((c) => ({ ...c, engine: p.id }))}>
+                    {Brand && <Brand size={12} />}
+                    {p.id}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <div className="dj-frow">
