@@ -15,6 +15,8 @@
 .ss-abort:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
 .ss-scroll { flex: 1; overflow-y: auto; }
 .ss-empty { display: grid; place-items: center; height: 100%; color: var(--tmd-fg-faint); font-size: 0.75rem; }
+.ss-retry { margin-left: 8px; padding: 2px 12px; border: 1px solid var(--tmd-border); border-radius: 6px; background: transparent; color: var(--tmd-fg); font-size: 0.75rem; cursor: pointer; }
+.ss-retry:hover { background: color-mix(in srgb, var(--tmd-fg) 8%, transparent); }
 .ss-blocks { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 24px; max-width: 860px; margin: 0 auto; }
 
 /* 审批条(extension_ui confirm 回路;不自动批准) */

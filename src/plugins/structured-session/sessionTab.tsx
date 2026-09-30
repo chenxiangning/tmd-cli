@@ -51,13 +51,16 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   /* 生命周期:mount 起 RPC 子进程,unmount(关 tab)kill 收割。StrictMode 双跑
-   * 由 startedRef 挡;会话身份取首拍(get_state),失败进 error 态可重试。 */
+   * 由 startedRef 挡;失败先 kill 清残留子进程再进 error 态,重试按钮重跑启动。 */
   const startedRef = useRef(false);
-  useEffect(() => {
+  const startSession = () => {
     const rpc = host.getCliProfile(payload.profileId)?.structuredRpc;
     if (startedRef.current || !rpc) return;
     startedRef.current = true;
-    const session = new PiRpcSession(
+    setPhase("starting");
+    setStatusText(null);
+    let self: PiRpcSession;
+    const session = (self = new PiRpcSession(
       rpc,
       payload.cwd,
       {
@@ -70,10 +73,12 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
           setBusySince(b ? Date.now() : null);
         },
         onConfirm: setConfirm,
-        onExit: () => setPhase("exited"),
+        onExit: () => {
+          if (sessionRef.current === self) setPhase("exited");
+        },
         onError: (msg) => setStatusText(msg),
       },
-    );
+    ));
     sessionRef.current = session;
     void session
       .start()
@@ -83,14 +88,33 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         setPhase("ready");
       })
       .catch((e: unknown) => {
-        setStatusText(e instanceof Error ? e.message : String(e));
-        setPhase("error");
+        /* 启动失败:先收割残留子进程,再进可重试的 error 态。 */
+        session.kill();
+        if (sessionRef.current === session) {
+          sessionRef.current = null;
+          setStatusText(e instanceof Error ? e.message : String(e));
+          setPhase("error");
+        }
       });
+  };
+  const retry = () => {
+    sessionRef.current?.kill();
+    sessionRef.current = null;
+    startedRef.current = false;
+    setBlocks([]);
+    setTurnStart(0);
+    setConfirm(null);
+    setBusy(false);
+    startSession();
+  };
+  useEffect(() => {
+    startSession();
     return () => {
       startedRef.current = false;
-      session.kill();
+      sessionRef.current?.kill();
       sessionRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payload.profileId, payload.cwd]);
 
   /* 贴底跟随(busy 流式期),上翻停跟。 */
@@ -147,7 +171,12 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         }}
       >
         {phase === "starting" ? <div className="ss-empty">{t("启动 RPC 会话中…")}</div> : null}
-        {phase === "error" ? <div className="ss-empty">{t("启动失败")}:{statusText}</div> : null}
+        {phase === "error" ? (
+          <div className="ss-empty">
+            {t("启动失败")}:{statusText}
+            <button type="button" className="ss-retry" onClick={retry}>{t("重试")}</button>
+          </div>
+        ) : null}
         {phase === "exited" ? <div className="ss-empty">{t("会话已结束(关闭此 tab 可再开)")}</div> : null}
         {busy ? (
           <div className="ss-working">

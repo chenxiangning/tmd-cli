@@ -4,7 +4,7 @@
  */
 import { openTab } from "@kernel/tabs";
 import { host } from "@kernel/host";
-import { getWorkspaces } from "@kernel/workspace";
+import { getActiveWorkspace, getWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 
 export const STRUCTURED_SESSION_TAB_KIND = "structured-session";
@@ -17,7 +17,7 @@ export interface StructuredSessionPayload {
 
 /** 开一个结构化会话 tab(同引擎已开 = 激活既有);cwd 缺省当前工作区根。 */
 export function openStructuredSessionTab(profileId: string, cwd?: string): void {
-  const root = cwd ?? getWorkspaces()[0]?.root;
+  const root = cwd ?? getActiveWorkspace()?.root ?? getWorkspaces()[0]?.root;
   if (!root) return;
   openTab({
     id: `structured:${profileId}:${root}`,
