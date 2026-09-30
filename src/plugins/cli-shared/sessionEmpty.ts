@@ -29,6 +29,9 @@ const EMPTY_CHECK_HEAD_BYTES = 32 * 1024;
  * - `"role":"user"`:omp/pi(message.message)、claude(user.message)、codex(payload)
  * - `"type":"user"`:claude/qoder/grok 的行型判别字段
  * - `"TurnBegin"` / `"turn.prompt"`:kimi 1.1 老 home / 1.4 kimi-code wire 行型
+ * - `"customType":"skill-prompt"` / `"customType":"custom-message"`:omp/pi 的
+ *   skill 派发轮次(attribution:"user"),磁盘上无 role:"user" 行 —— 缺了会把
+ *   skill 起步的会话误判空而被清扫物理删除(2026-09-30 审查会话实证)
  * 子串命中即「可能有用户消息」→ 非空(不删),不做精确解析(见文件头)。
  */
 const USER_MESSAGE_MARKERS: readonly string[] = [
@@ -36,6 +39,8 @@ const USER_MESSAGE_MARKERS: readonly string[] = [
   '"type":"user"',
   '"TurnBegin"',
   '"turn.prompt"',
+  '"customType":"skill-prompt"',
+  '"customType":"custom-message"',
 ];
 
 /**
