@@ -60,6 +60,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
      实例随会话 keep-alive 常驻;惰性初值 = useState 初始化器只在首帧执行一次。 */
   const [inputGate] = useState(createReplayInputGate);
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
+  /** 幕布重建代数:刷新钮自增 → 主 effect 重跑 = xterm 销毁重建 + 缓冲回放 +
+      强制 SIGWINCH 整帧重绘(needsForceSync 初值 true),PTY/CLI 不中断。
+      会话内自救:幕布错乱/内容滞留时手动出口;WebKit 级像素冻结归守望阶梯。 */
+  const [canvasGen, setCanvasGen] = useState(0);
   /** 隐藏幕布合帧写入(Fix B,terminalReplay.ts):activeRef 是活性真相(effect
      保持最新,避免闭包吃陈旧 prop);激活即冲刷攒帧,切换无感。 */
   const activeRef = useRef(active);
@@ -242,7 +246,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       setHasMore(false);
       setLoadingHistory(false);
     };
-  }, [sessionId, inputGate]);
+  }, [sessionId, inputGate, canvasGen]);
 
   /* ⌘F 搜索框所有权:keep-alive 后多幕布并存,模块级 findRequestRef 单槽,
      必须跟随激活实例 —— 激活即持有,失活/卸载仅在仍归自己时让出。 */
@@ -280,7 +284,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
         <TerminalSearchOverlay searchRef={searchRef} onClose={closeSearch} />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
-      <TerminalRefreshButton />
+      <TerminalRefreshButton onClick={() => setCanvasGen((g) => g + 1)} />
     </div>
   );
 }

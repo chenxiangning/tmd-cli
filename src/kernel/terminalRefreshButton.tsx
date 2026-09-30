@@ -1,31 +1,24 @@
 /**
- * 幕布保底刷新钮 —— 渲染粘死的手动自救出口(每张幕布右上角常驻)。
+ * 幕布刷新钮 —— 单会话幕布重建的手动出口(受控组件,重建由 TerminalView
+ * 的 canvasGen 代数驱动:xterm 销毁重建 + 输出缓冲回放 + 强制 SIGWINCH
+ * 整帧重绘,PTY/CLI 全程不中断)。
  *
- * 为什么存在:WKWebView 吊销粘死时像素停在旧帧,但 JS 事件循环与 ≥500ms
- * 定时器常活着(症状链见 rafFallback.ts)——按钮点击仍能派发。会话/PTY
- * 注册表跨 webview 重载存活(sessionAdopt),location.reload() 与守望二击
- * 同语义:重放输出缓冲 + 续接实时流,CLI 不中断。守望自动阶梯之外留一个
- * 不依赖看门狗节拍的手动出口——尤其洪水期自动 reload 被降级为 focus
- * (floodGauge 判据,退洪才真愈),分钟级空窗里用户可立即自救。
- * 击发即钉死:粘死态像素无反馈,连点不得叠发 reload。
+ * 定位:session-viewer「转录」浮标(.lv-float,top 8/right 12)正下方一列,
+ * 同列同宽视觉对齐,互不重叠;浮标缺席时独自守右上角下方,无依赖耦合
+ * (kernel 不感知插件能力门)。样式对齐 lv-pill 量级(22px 高/0.6875rem)。
+ * 与整页 reload 的分工:这里是会话内自救(幕布错乱/内容滞留);WebKit 级
+ * 像素冻结由守望阶梯自动自愈(render_health),不经此钮。
  */
-import { useState } from "react";
 import { ArrowClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 
-export function TerminalRefreshButton() {
-  const [kicked, setKicked] = useState(false);
+export function TerminalRefreshButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
-      title={t("刷新界面(渲染卡死自救,会话不中断)")}
-      disabled={kicked}
-      onClick={() => {
-        if (kicked) return;
-        setKicked(true);
-        window.location.reload();
-      }}
-      className="absolute right-2 top-2 z-20 flex size-6 items-center justify-center rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) text-(--tmd-fg-muted) opacity-60 transition-opacity hover:bg-(--tmd-bg-hover) hover:opacity-100"
+      title={t("刷新幕布(重建本会话终端画面,PTY 不中断)")}
+      onClick={onClick}
+      className="absolute right-3 top-10 z-20 flex h-[22px] w-[26px] items-center justify-center rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) text-(--tmd-fg-muted) opacity-70 transition-opacity hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg) hover:opacity-100"
     >
       <ArrowClockwise className="size-3.5" />
     </button>
