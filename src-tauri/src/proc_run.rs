@@ -27,7 +27,9 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::resolve::{enriched_path, hide_console, kill_tree, resolve_command};
+use crate::resolve::{
+    enriched_path, hide_console, kill_tree, resolve_command, wait_child_with_timeout,
+};
 
 /// 单次收割的 stdout 上限:正常查询响应 ≤ 几十 KB,8MB 已是异常,触顶即杀。
 const MAX_CAPTURE_BYTES: usize = 8 * 1024 * 1024;
@@ -158,17 +160,27 @@ pub fn run(spec: &ProcRunSpec) -> Result<ProcRunResult, String> {
 
     let deadline = Instant::now() + Duration::from_millis(spec.timeout_ms);
     // marker 命中只说明应答头部到达:宽限一拍让 omp 把应答尾部写完,再收割
-    // 杀树(杀树令管道 EOF,读线程随之收工 join)。EOF/Disconnected 时读线程
-    // 已收工,纯等待无收益,立即收割;超时分支直接进杀树,语义不变。
+    // 杀树(杀树令管道 EOF,读线程随之收工 join)。超时分支直接进杀树,语义不变。
+    // EOF/Disconnected 时读线程已收工:子进程已在退出路上(glibc exit 先关 stdio
+    // 再 exit_group),此窗内无条件 SIGKILL 会把注定 exited(0) 的进程改判成
+    // signal 死 → code=None(2026-09-30 CI 实证,套件总耗时 32.78s 远低于
+    // 120s 上限,可排除真超时)。先自然收割,宽限 2s 不退才由
+    // wait_child_with_timeout 杀树兜底(关了 stdout 仍赖活的病态进程)。
     let timed_out = match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
         Ok(Signal::Matched) => {
             std::thread::sleep(Duration::from_millis(500));
+            kill_tree(&mut child);
             false
         }
-        Ok(Signal::Eof) | Err(RecvTimeoutError::Disconnected) => false,
-        Err(RecvTimeoutError::Timeout) => true,
+        Ok(Signal::Eof) | Err(RecvTimeoutError::Disconnected) => {
+            wait_child_with_timeout(&mut child, Duration::from_secs(2));
+            false
+        }
+        Err(RecvTimeoutError::Timeout) => {
+            kill_tree(&mut child);
+            true
+        }
     };
-    kill_tree(&mut child);
     let code = child.wait().ok().and_then(|s| s.code());
     let out_bytes = t_out.join().unwrap_or_default();
     let err_bytes = t_err.join().unwrap_or_default();

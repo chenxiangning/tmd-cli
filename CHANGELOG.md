@@ -4,9 +4,6 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
-
-## [Unreleased]
-
 ## [0.2.5] - 2026-09-30
 
 ### 新增

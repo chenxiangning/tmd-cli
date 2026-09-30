@@ -20,20 +20,22 @@ fn close_stdin_gives_immediate_eof() {
     // close_stdin 无数据 = 管道建立后立即关闭送 EOF(等价旧 null 语义),
     // cat 自然退出(code 0)而非挂到超时。
     // 对齐一次性 CLI(omp -p 等)读管道 stdin 等 EOF 的真实行为。
-    // 上限 120s 只防回归挂死:高载 CI runner 上 exec+退出实测可拖过 5s 与
-    // 30s(2026-09-21/27 实证),收紧上限会把环境慢误判成超时强杀(code=None)。
+    // 历史三红(2026-09-21/27/30)根因不是 runner 慢:run 的 EOF 路径原先
+    // 无条件 SIGKILL,落在「exit 已关 stdio、尚未 exit_group」窗口内会把
+    // exited(0) 改判 signal 死 → code=None;现已改自然收割。先断 timed_out
+    // 防再误诊为超时;上限 120s 只防回归挂死。
     let mut s = spec("cat", &[], 120_000);
     s.close_stdin = true;
     let r = run(&s).unwrap();
-    assert_eq!(r.code, Some(0));
     assert!(!r.timed_out);
+    assert_eq!(r.code, Some(0));
 }
 
 #[test]
 fn captures_stdout_and_exit_code() {
-    // 120s 天花板:高载 CI runner 实测 exec→EOF 可拖过 5s(2026-09-27)与 30s
-    // (2026-09-27 main 合并点,code=None 即 deadline 强杀),环境慢不是超时;
-    // 先断 timed_out,让红日志直说「超时」而非误导性的退出码。
+    // 同一 EOF 收割路径:历史 5s/30s 上限下的 code=None 实为「已关 stdio、
+    // 未 exit_group 窗口内被 SIGKILL 改判」,非 runner 慢(见上测试注释);
+    // 先断 timed_out,让真超时红日志直说「超时」。
     let r = run(&spec("echo", &["tmd-proc-run-ok"], 120_000)).unwrap();
     assert!(!r.timed_out);
     assert_eq!(r.code, Some(0));
