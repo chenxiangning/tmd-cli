@@ -43,6 +43,7 @@ vi.mock("./ipc", () => ({
 }));
 
 import { host } from "./host";
+import { ipc } from "./ipc";
 import { bootSessionTabs, resetSessionTabsForTest } from "./sessionTabs";
 
 const PROFILE_ID = "test-omp-activity";
@@ -143,6 +144,21 @@ describe("结算归因修正 + 重绘抑制窗", () => {
     fireOutput(a.id, "real answer");
     await vi.advanceTimersByTimeAsync(3000);
     expect(host.isUnread(a.id)).toBe(true);
+  });
+
+  it("force 自愈同步(错栅格滞留修复):过山车 ±1 行再回位 = 两次真实变更逼整帧重绘;常规同步单发", async () => {
+    const a = await host.createSession(PROFILE_ID, CWD);
+    const mockedResize = vi.mocked(ipc.sessionResize);
+    const resizeCalls = () => mockedResize.mock.calls.map((c) => [c[1], c[2]]);
+
+    host.resizeSession(a.id, 120, 40, true);
+    expect(resizeCalls()).toEqual([[120, 39], [120, 40]]); // 同尺寸也能逼出真 SIGWINCH
+    mockedResize.mockClear();
+    host.resizeSession(a.id, 80, 1, true);
+    expect(resizeCalls()).toEqual([[80, 2], [80, 1]]); // 单行幕布:过山车向 +1 方向
+    mockedResize.mockClear();
+    host.resizeSession(a.id, 80, 24);
+    expect(resizeCalls()).toEqual([[80, 24]]); // 常规同步不做过山车
   });
 });
 

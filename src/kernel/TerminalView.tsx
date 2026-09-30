@@ -87,13 +87,31 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     });
     const fit = new FitAddon();
     const search = new SearchAddon();
-    /* 外观页改字号/字体 → 活幕布即时重排(fit 后同步 PTY 尺寸,同窗口 resize 语义)。 */
+    /* 错栅格自愈旗:零宽跳过(隐藏期)或尚未成功 fit 过的实例置位,下次成功 sync
+       必须强制 PTY 真实重排 —— 同尺寸 fit 被 xterm 跳过、同尺寸 resize 被 Rust
+       幂等去重(无 SIGWINCH),隐藏期任何瞬态错栅格(2 列钳制重排、重挂载回放
+       错栅、ConPTY resize 抖动)都将永不重绘:omp 靠 spinner 连续整帧重绘自愈,
+       静态 TUI(claude/codex/kimi 跑完一轮即静止)则永久错位。 */
+    const needsForceSyncRef = { current: true };
+    /** 尺寸同步唯一出口:零宽(隐藏)跳过并挂自愈旗;成功即 fit + 同步 PTY。
+        settings 回调与 ResizeObserver 共用,隐藏幕布绝不外发尺寸。 */
+    const syncSize = () => {
+      if (!container.clientWidth) {
+        needsForceSyncRef.current = true;
+        return;
+      }
+      fit.fit();
+      host.resizeSession(sessionId, term.cols, term.rows, needsForceSyncRef.current);
+      needsForceSyncRef.current = false;
+    };
+    /* 外观页改字号/字体 → 活幕布即时重排(fit 后同步 PTY 尺寸,同窗口 resize 语义)。
+       必须经 syncSize:无守卫的 fit+resize 会把不可见会话的 PTY 钳成 2 列窄条重排
+       (settings 写入面极广:置顶/重命名/归档/工作区过滤等日常动作都触发)。 */
     const offFontSettings = subscribeSettings(() => {
       const s = getSettingsState().settings;
       term.options.fontSize = s.terminalFontSize;
       term.options.fontFamily = resolveTerminalFontFamily(s.terminalFontFamily);
-      fit.fit();
-      host.resizeSession(sessionId, term.cols, term.rows);
+      syncSize();
     });
     term.loadAddon(fit);
     term.loadAddon(search);
@@ -109,7 +127,6 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     container.addEventListener("focusin", onFocusIn);
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
-    fit.fit();
     /* 渲染器 = xterm 内建 DOM(WKWebView 弃用 WebGL 方案):
        此前 loadAddon(new WebglAddon()) 的 glyph atlas 长时间运行后
        会被 WebKit 的 texSubImage2D 大纹理子上传 bug 损坏成马赛克
@@ -184,13 +201,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
-    /* 重挂载必发一次;同尺寸 Rust 幂等去重;重绘由活动守望抑制窗吸收(activityWatch 头注释)。
-       零宽跳过:fit 会钳到 MINIMUM_COLS=2,把不可见会话的 PTY SIGWINCH 成窄条重排。 */
-    const syncSize = () => {
-      if (!container.clientWidth) return;
-      fit.fit();
-      host.resizeSession(sessionId, term.cols, term.rows);
-    };
+    /* 重挂载必发一次(needsForceSync 初值 true:重挂载即强制一次真 SIGWINCH 整帧
+       重绘,根治关闭再开/切回后的错栅格滞留);重绘由活动守望抑制窗吸收。 */
     syncSize();
     const observer = new ResizeObserver(syncSize);
     observer.observe(container);

@@ -201,10 +201,10 @@ class Host implements PluginContext {
     return ipc.sessionWrite(sessionId, data).then(() => true, () => false);
   }
   noteRemoteWrite = (sessionId: string): void => { if (this.sessions.some((s) => s.id === sessionId) && this.watches.onUserWrite(sessionId, false)) this.notify(); }; /* 桥写补锚定(session:remote-write);未装配会话不建档(评审:幽灵守望条目) */
-  /** 幕布尺寸同步的唯一入口(TerminalView):转发 resize + 给活动守望记重绘抑制窗起点 + 镜像同栅格。 */
-  resizeSession(sessionId: string, cols: number, rows: number): void {
+  /** 幕布尺寸同步唯一入口:记抑制窗+镜像同栅格+转发;force=自愈旗(同尺寸无 SIGWINCH,±1 行过山车逼整帧重绘,语义详见 TerminalView syncSize)。 */
+  resizeSession(sessionId: string, cols: number, rows: number, force = false): void {
     this.watches.onResized(sessionId, cols, rows);
-    void ipc.sessionResize(sessionId, cols, rows);
+    for (const r of force ? [rows > 1 ? rows - 1 : rows + 1, rows] : [rows]) void ipc.sessionResize(sessionId, cols, r);
   }
 
   /** 完成未读判定(会话列表蓝呼吸灯)。 */
