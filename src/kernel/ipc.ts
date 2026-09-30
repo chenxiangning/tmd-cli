@@ -347,6 +347,9 @@ export const ipc = {
   /** 回写活会话的 CLI 磁盘身份(账本绑定唯一写入口的注册表镜像;手机直读)。 */
   sessionBindCli: (id: string, cliSessionId: string) =>
     invoke<void>("session_bind_cli", { id, cliSessionId }),
+  /** 活动守望 → 注册表活动板全量上报(手机 session_list 直读投影;见 hostWatches.queueActivityReport)。 */
+  sessionReportActivity: (entries: Array<{ id: string; turnActive: boolean; unread: boolean }>) =>
+    invoke<void>("session_report_activity", { entries }),
   sessionWrite: (id: string, data: string) =>
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>

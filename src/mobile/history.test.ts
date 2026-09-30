@@ -152,13 +152,18 @@ describe("partitionByArchive", () => {
 });
 
 describe("topZones", () => {
-  const live = (id: string, ts: number, cliSessionId?: string): HomeRow => ({
+  const live = (
+    id: string,
+    ts: number,
+    cliSessionId?: string,
+    flags?: { turnActive?: boolean; unread?: boolean },
+  ): HomeRow => ({
     key: `live:${id}`,
     kind: "live",
     profileId: "omp",
     title: id,
     ts,
-    live: { id, profileId: "omp", cwd: "/w1", cliSessionId },
+    live: { id, profileId: "omp", cwd: "/w1", cliSessionId, ...flags },
   });
   const disk = (id: string, ts: number): HomeRow => ({
     key: `disk:omp:${id}`,
@@ -168,21 +173,29 @@ describe("topZones", () => {
     ts,
     disk: { id, modifiedAt: ts, path: `/p/${id}.jsonl` },
   });
+  /** 组:wsId ∈ 配置集才可能入运行区;ws3 = 未归属桶。 */
   const groups = [
-    { wsId: "w1", name: "w1", rows: [live("a", 30, "ca"), disk("d1", 20)] },
-    { wsId: "w2", name: "w2", rows: [live("b", 40)] },
+    { wsId: "w1", name: "w1", rows: [live("a", 30, "ca", { turnActive: true }), disk("d1", 20)] },
+    { wsId: "w2", name: "w2", rows: [live("b", 40, undefined, { unread: true })] },
+    { wsId: "w3", name: "w3", rows: [live("c", 50, undefined, { turnActive: true })] },
   ];
-  it("运行中 = 跨组活会话新在上;未绑定活行无置顶键", () => {
-    const z = topZones({ groups, pins: {} });
+  const configuredWs = new Set(["w1", "w2"]);
+  it("运行中 = 配置工作区内 turnActive/unread 活会话新在上;未归属桶与空闲行不入区", () => {
+    const z = topZones({ groups, pins: {}, configuredWs });
     expect(z.running.map((r) => r.key)).toEqual(["live:b", "live:a"]);
     expect(pinKeyOf("w2", live("b", 40))).toBeNull();
     expect(pinKeyOf("w1", live("a", 30, "ca"))).toBe("w1:omp:ca");
     expect(pinKeyOf("w1", disk("d1", 20))).toBe("w1:omp:d1");
   });
+  it("无投影字段 = 空闲(严格桌面投影,缺省不误入区)", () => {
+    const g = [{ wsId: "w1", name: "w1", rows: [live("a", 30, "ca"), disk("d1", 20)] }];
+    expect(topZones({ groups: g, pins: {}, configuredWs }).running).toEqual([]);
+  });
   it("已置顶按 pinnedAt 升序;置顶活行从运行中排除(一行一区,桌面同律)", () => {
     const z = topZones({
       groups,
       pins: { "w1:omp:ca": { pinnedAt: 200 }, "w1:omp:d1": { pinnedAt: 100 } },
+      configuredWs,
     });
     expect(z.pinned.map((r) => r.key)).toEqual(["disk:omp:d1", "live:a"]);
     expect(z.running.map((r) => r.key)).toEqual(["live:b"]);

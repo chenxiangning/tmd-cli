@@ -39,6 +39,7 @@ composer 发送门控、结束提示音、checkpoints 封口、本地插件对�
 |turnSound|turnSettled 事件|结束音(延迟确认,响不可自愈)|
 |checkpoints index.tsx|turnSettled / promptSent|轮次账本封口|
 |localPlugins|turnSettled|对话即变自动重扫|
+|手机活动板(activityReport → session_report_activity → Rust 活动板 → session_list)|快照投影(turnActive + unread)|手机 home「运行中」区成员判定(= turnActive \|\| unread,与 RunningZone 同律;Rust 只存投影不理解语义,onChange/markViewed 翻转/重锚各变更经 ActivityReporter 300ms 尾沿去抖全量上报,签名未变跳过 IPC)|
 
 Ask「等待确认」徽章是 **askWatch 独立通道**,与呼吸灯正交,不受本状态机闸门影响。
 
