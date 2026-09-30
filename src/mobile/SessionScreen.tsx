@@ -30,6 +30,8 @@ function shotLabel(busy: boolean, err: boolean): string {
   if (busy) return "…";
   return err ? "✕" : "图";
 }
+/* 移动端单屏组件:ask/截图/检查点/发送四态分支密度是本质复杂度,拆子组件需跨层透传 8+ 个状态 setter,弊大于利。 */
+// react-doctor-disable-next-line react-doctor/no-high-complexity-react-function
 export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) {
   const { sessions, titleOf, go } = useMobile();
   const meta = sessions.find((s) => s.id === props.sessionId);
@@ -39,8 +41,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   const [ckptSheet, setCkptSheet] = useState(false);
   const { shots, onShot, removeShot, clearShots, busy: shotBusy, err: shotErr } = useShots();
 
-  /* 输入框高度:紧凑态随内容长高(2 行起步,封顶 6 行内滚);拖拽固定高 = 直接钉 px。
-   * CSS min/max-height 兜底,.grow 态放开 max-height。 */
+  /* 输入框高度:紧凑态随内容长高(2 行起步,封顶 6 行内滚),拖拽固定高直接钉 px;CSS min/max 兜底。 */
   const taRef = React.useRef<HTMLTextAreaElement | null>(null);
   const { taH, grabHandlers } = useComposerSize(taRef);
   useEffect(() => {
@@ -108,8 +109,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
     loadEarlier();
   };
 
-  /* ask 检测:live 变化后对尾窗跑标记(命中 → 卡 + 首现通知;消失 → 自愈收卡)。
-     截尾 8K:标记只在末屏,全量 stripAnsi 在 2000 行 scrollback 下是每帧全文扫。 */
+  /* ask 检测:live 变化后对尾窗跑标记(命中 → 卡 + 首现通知;消失 → 自愈收卡);截尾 8K(标记只在末屏,全量 stripAnsi 是每帧全文扫)。 */
   const metaId = meta?.profileId ?? "";
   const metaCwd = meta?.cwd ?? "";
   useEffect(() => {
@@ -164,12 +164,18 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
     /* 写失败(断桥/死会话)回滚弹卡:否则卡瞬时消失且无后续输出复现(契约评审 face4)。 */
     writeSession(props.sessionId, data).catch(() => setAsk(true));
   };
+  const [sendErr, setSendErr] = useState(false);
   const send = () => {
     const msg = composeSendText(draft, shots.map((s) => s.path));
     if (msg === null) return;
-    setDraft("");
-    clearShots();
-    void writeSession(props.sessionId, `${msg}\r`);
+    /* 桌面契约 = 写入失败保草稿:成功才清草稿/挂图并清错,失败保留输入给可见错误。 */
+    writeSession(props.sessionId, `${msg}\r`)
+      .then(() => {
+        setDraft("");
+        clearShots();
+        setSendErr(false);
+      })
+      .catch(() => setSendErr(true));
   };
 
   return (
@@ -204,13 +210,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
         <ShotStrip shots={shots} onRemove={removeShot} />
         <div className="box">
           <button type="button" className={"kb-toggle" + (kbOn ? " on" : "")} aria-label={t("键盘工具条")} onClick={toggleKb}>⌨</button>
-          <button
-            type="button"
-            className="kb-toggle"
-            aria-label={t("注入截图")}
-            disabled={shotBusy}
-            onClick={onShot}
-          >
+          <button type="button" className="kb-toggle" aria-label={t("注入截图")} disabled={shotBusy} onClick={onShot}>
             {shotLabel(shotBusy, shotErr)}
           </button>
           <textarea
@@ -232,6 +232,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
             ↑
           </button>
         </div>
+        {sendErr && <div className="m-err">{t("发送失败,消息已保留,请重试")}</div>}
       </div>
       <KeyToolbar sessionId={props.sessionId} hidden={kbOpen || !kbOn} />
       {ckptSheet && meta?.cwd && (
