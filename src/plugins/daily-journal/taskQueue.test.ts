@@ -23,7 +23,6 @@ interface QueueModule {
   getGenTasks: () => readonly QTask[];
   bindTaskPersistence: (fn: (tasks: unknown[]) => void) => void;
   dayGenTaskType: (failed: boolean, hasArticle: boolean) => string;
-  hasActiveTaskForDay: (dayKey: string) => boolean;
 }
 
 let q: QueueModule;
@@ -84,12 +83,6 @@ describe("taskQueue", () => {
     expect(q.enqueueTask("手动生成", "2026-09-26", "omp")).not.toBeNull();
   });
 
-  it("日粒度活跃闸跨类型拦截(hasActiveTaskForDay 纯读预检)", () => {
-    q.setTaskRunner(() => makeGate().promise);
-    q.enqueueTask("手动生成", "2026-09-27", "omp");
-    expect(q.hasActiveTaskForDay("2026-09-27")).toBe(true);
-    expect(q.hasActiveTaskForDay("2026-09-26")).toBe(false);
-  });
 
   it("run 态可终止:aborter 收割会话,放行下一发;迟到回调不复活", () => {
     const gate = makeGate();

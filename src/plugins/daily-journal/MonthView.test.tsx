@@ -14,7 +14,6 @@ vi.mock("@kernel/host", () => ({ host: { getCliProfiles: () => [] } }));
 vi.mock("./journalTabs", () => ({ openArticleTab: vi.fn() }));
 vi.mock("./taskQueue", () => ({
   enqueueTask: vi.fn(),
-  hasActiveTaskForDay: () => false,
   dayGenTaskType: (failed: boolean, hasArticle: boolean) => (failed ? "重试生成" : hasArticle ? "增量并入" : "手动生成"),
 }));
 vi.mock("./holidays", () => ({

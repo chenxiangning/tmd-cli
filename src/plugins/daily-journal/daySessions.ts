@@ -26,12 +26,17 @@ export interface DaySessionRow {
   disk?: CliDiskSession;
 }
 
+/** 行开始时刻 → 日索引(本地时区;跨零点会话归前一日,与 groupByDay 同口径)。 */
+export function rowDayKey(r: { startedAt: number }): string {
+  const d = new Date(r.startedAt);
+  return dayKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+}
+
 /** 纯聚合:行 → 日索引(Map key = YYYY-MM-DD,行内按开始时刻升序)。 */
 export function groupByDay(rows: DaySessionRow[]): Map<string, DaySessionRow[]> {
   const map = new Map<string, DaySessionRow[]>();
   for (const r of rows) {
-    const d = new Date(r.startedAt);
-    const k = dayKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    const k = rowDayKey(r);
     const list = map.get(k);
     if (list) list.push(r);
     else map.set(k, [r]);
@@ -113,11 +118,11 @@ export function assembleRows(
   return out;
 }
 
-/** 批式全量收集(磁盘 + 活;genSession/journalSchedule 经 collectSessionRows 直用)。
+/** 批式全量收集(磁盘 + 活;genSession/journalSchedule 直用)。
  *  onBatch 缺省 = 纯全量一次返回;传入则每个 (工作区×家族) 落定即回调累计中间形态,
  *  done/total 为扫描进度,done===total 的那次回调即完整 DiskScan(单线程时序保证)。 */
 export async function collectSessionRowsBatched(
-  workspaces: Workspace[] | undefined,
+  workspaces?: Workspace[],
   onBatch?: (scan: DiskScan, done: number, total: number) => void,
 ): Promise<DaySessionRow[]> {
   const target = workspaces ?? getWorkspaces().filter((w) => !findWorkspaceOrigin(w)?.remoteExec);
@@ -155,10 +160,6 @@ export async function collectSessionRowsBatched(
   return assembleRows(scan.diskRows, scan.liveDisk, metas, wsNames);
 }
 
-/** 非批全量(直用面兼容封装)。 */
-export function collectSessionRows(workspaces?: Workspace[]): Promise<DaySessionRow[]> {
-  return collectSessionRowsBatched(workspaces);
-}
 
 /* 扫描缓存:ArticleTab/主视图/右栏面板共用一份(TTL+liveKey 内免重扫;refreshTick>0
    旁路)。存中间形态 DiskScan,活行装配下放渲染层 —— 活会话开关只触发内存重合并,

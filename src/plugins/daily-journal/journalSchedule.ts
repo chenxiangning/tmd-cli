@@ -9,7 +9,7 @@ import type { PluginEventBus } from "@kernel/plugin";
 import { dailyPaths, dayKey, readText } from "./journalFiles";
 import { dayMetaOf, getJournalState, type MonthSnapshot } from "./journalStore";
 import { enqueueTask } from "./taskQueue";
-import { collectSessionRows, todayKey, type DaySessionRow } from "./daySessions";
+import { collectSessionRowsBatched, rowDayKey, todayKey, type DaySessionRow } from "./daySessions";
 import { bootGenSession } from "./genSession";
 import { ensureHolidays } from "./holidays";
 
@@ -47,10 +47,7 @@ async function maybeEnqueueYesterdayInner(type: "定时生成" | "启动补跑",
   const paths = await dailyPaths();
   const [y, m, d] = [Number(key.slice(0, 4)), Number(key.slice(5, 7)), Number(key.slice(8, 10))];
   if (await readText(paths.article(y, m, d))) return;
-  const rows = (await collectSessionRows()).some((r) => {
-    const ts = new Date(r.startedAt);
-    return dayKey(ts.getFullYear(), ts.getMonth() + 1, ts.getDate()) === key;
-  });
+  const rows = (await collectSessionRowsBatched()).some((r) => rowDayKey(r) === key);
   if (rows) enqueueTask(type, key, engine);
 }
 
@@ -66,10 +63,7 @@ function scheduleAutoIncrement(engine: string, exitedSessionId: string): void {
       const paths = await dailyPaths();
       const [y, m, d] = [Number(key.slice(0, 4)), Number(key.slice(5, 7)), Number(key.slice(8, 10))];
       const hasArticle = !!(await readText(paths.article(y, m, d)));
-      const hasSessions = (await collectSessionRows()).some((r) => {
-        const ts = new Date(r.startedAt);
-        return dayKey(ts.getFullYear(), ts.getMonth() + 1, ts.getDate()) === key;
-      });
+      const hasSessions = (await collectSessionRowsBatched()).some((r) => rowDayKey(r) === key);
       if (hasArticle) enqueueTask("增量并入", key, engine);
       else if (hasSessions) enqueueTask("首次提取", key, engine);
     })().catch(() => undefined); /* configDir 不可用等失败静默:增量判定非关键路径 */

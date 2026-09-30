@@ -16,10 +16,10 @@ import { getWorkspaces } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import type { PluginEventBus } from "@kernel/plugin";
 import type { Article } from "./articleParse";
-import { dailyPaths, dayKey, readText, writeText } from "./journalFiles";
+import { dailyPaths, readText, writeText } from "./journalFiles";
 import { ensureParentDir } from "@kernel/fsDirs";
 import { addBead, dayMetaOf, getJournalState, reloadDay, setDayResult } from "./journalStore";
-import { collectSessionRows, isRowSummarized, type DaySessionRow } from "./daySessions";
+import { collectSessionRowsBatched, isRowSummarized, rowDayKey, type DaySessionRow } from "./daySessions";
 import { buildDayDigest } from "./sessionDigest";
 import { buildGenPrompt, GEN_TASK_MARK, type DigestHandoff } from "./promptGen";
 import { finishTask, isTaskActive, noteTask, setTaskRunner, startTaskRun, type GenTask } from "./taskQueue";
@@ -164,9 +164,8 @@ async function runGeneration(task: GenTask): Promise<void> {
   }
   const paths = await dailyPaths();
   const existing = await readText(paths.article(y, m, d));
-  const rows = (await collectSessionRows()).filter((r: DaySessionRow) => {
-    const ts = new Date(r.startedAt);
-    if (dayKey(ts.getFullYear(), ts.getMonth() + 1, ts.getDate()) !== task.dayKey) return false;
+  const rows = (await collectSessionRowsBatched()).filter((r: DaySessionRow) => {
+    if (rowDayKey(r) !== task.dayKey) return false;
     /* 自指防混入:剔除插件自己 spawn 的历次生成会话(标题即 prompt 头;
        摘录层另有首条用户消息同标记的兜底,见 sessionDigest)。 */
     return !r.title.includes(GEN_TASK_MARK) && !(r.disk?.title ?? "").includes(GEN_TASK_MARK);

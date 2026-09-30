@@ -3,7 +3,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   assembleRows,
-  collectSessionRows,
   collectSessionRowsBatched,
   groupByDay,
   isRowSummarized,
@@ -64,11 +63,11 @@ describe("groupByDay", () => {
   });
 });
 
-describe("collectSessionRows 活盘合并", () => {
+describe("collectSessionRowsBatched 活盘合并", () => {
   it("活会话命中磁盘身份:活形态保留、disk 挂载、modifiedAt 以磁盘最近写入取大", async () => {
     h.sessions = [{ id: "pty-1", kind: "cli", engine: "omp", workspaceId: "w1", cliSessionId: "u-1", createdAt: new Date("2026-09-29T09:00:00").getTime() }];
     h.disk = [{ id: "u-1", path: "/ws/x.jsonl", title: "标题", createdAt: new Date("2026-09-29T09:00:00").getTime(), modifiedAt: new Date("2026-09-29T11:30:00").getTime() }];
-    const rows = await collectSessionRows();
+    const rows = await collectSessionRowsBatched();
     expect(rows).toHaveLength(1);
     expect(rows[0].live).toBe(true);
     expect(rows[0].disk?.id).toBe("u-1");

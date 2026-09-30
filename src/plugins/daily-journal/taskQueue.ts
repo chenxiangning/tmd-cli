@@ -116,11 +116,6 @@ export function dayGenTaskType(failed: boolean, hasArticle: boolean): GenTaskTyp
   return hasArticle ? "增量并入" : "手动生成";
 }
 
-/** 该日是否已有排队/运行任务(纯读,测试面):手动入口提前预检给反馈;
- *  enqueueTask 内部同走日粒度闸,自动口由其兜底。 */
-export function hasActiveTaskForDay(dayKey: string): boolean {
-  return store.snapshot.tasks.some((t) => t.dayKey === dayKey && (t.st === "run" || t.st === "queue"));
-}
 
 /** 队列开泵:run 槽未满时依序补位(runner 异步执行,终态回调推进补位)。 */
 function pump(): void {
