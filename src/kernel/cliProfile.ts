@@ -257,8 +257,8 @@ export interface CliProfile {
    *  genSession 在 spawn 后经 writeSession 注入全文;缺省 file = 引擎在模板内 @<promptFile> 引用。 */
   oneshotStdin?: boolean;
   /** 结构化会话能力(omp/pi `--mode rpc` NDJSON):structured-session 插件按
-   *  command/resumeFlag spawn RPC 子进程(token 级流,PTY 零涉及)。缺省 = 无。 */
-  structuredRpc?: { command: string; resumeFlag: string };
+   *  command spawn RPC 子进程(token 级流,PTY 零涉及)。缺省 = 无。 */
+  structuredRpc?: { command: string };
   /** spawn 前动态改写 SpawnSpec:插件运行时注入连接参数/路径等动态值(例 dsh 的 DSH
    *  host:port 来自 localStorage,无法在声明期固定)。返回改写后的 spec;缺省 = 不改写。 */
   spawnTransform?: (spec: SpawnSpec) => SpawnSpec | Promise<SpawnSpec>;

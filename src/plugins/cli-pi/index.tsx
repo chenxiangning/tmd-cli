@@ -101,7 +101,7 @@ export const cliPiPlugin: Plugin = {
         `@${promptFile}`,
       ],
       /* 结构化会话:pi --mode rpc NDJSON(pi 重开旗标是 --session);契约见 cli-shared/piRpc。 */
-      structuredRpc: { command: "pi", resumeFlag: "--session" },
+      structuredRpc: { command: "pi" },
       ...piSessions,
       readDefaultStatus: readPiDefaultStatus,
       readSessionEdits: readPiSessionEdits,

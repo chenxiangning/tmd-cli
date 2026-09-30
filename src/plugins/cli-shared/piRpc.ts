@@ -2,8 +2,7 @@
  * pi 族(omp/pi)RPC 客户端 —— `--mode rpc` NDJSON 长驻子进程驱动
  * (kernel proc_stream 通用原语之上;协议知识全插件侧,内核零感知)。
  *
- * spawn:omp = `--mode rpc --resume <id>`;pi = `--mode rpc --session <id>`(家族
- * 分叉见 monocode piFlavor;resume 缺省 = 新会话)。帧:ready/response(按 id
+ * spawn:`<command> --mode rpc` NDJSON 长驻子进程,总是新会话。帧:ready/response(按 id
  * 多路复用)、message_start/update/end、tool_execution 三族、session_settled;
  * extension_ui_request
  * method="confirm" = 审批回路(绝不自动批准,答案归 UI)。字段名实证:prompt 用
@@ -14,10 +13,9 @@ import { ipc } from "@kernel/ipc";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { PiRpcReducer } from "./piRpcReducer";
 
-/** 家族分叉:resume 旗标不同(monocode piFlavor 同参照)。 */
+/** 家族分叉:启动命令(monocode piFlavor 同参照)。 */
 export interface PiRpcFlavor {
   command: string;
-  resumeFlag: string;
 }
 
 /** 审批请求(extension_ui_request confirm;答案经 respond 回写)。 */
@@ -49,21 +47,26 @@ export class PiRpcSession {
   private reducer = new PiRpcReducer();
   private stopListeners: (() => void)[] = [];
   private exited = false;
+  private disposed = false;
 
   constructor(
     private readonly flavor: PiRpcFlavor,
     private readonly cwd: string,
     private readonly handlers: PiRpcHandlers,
-    private readonly resumeId?: string,
   ) {}
 
   /** spawn 子进程并完成 ready/get_state 握手;返回会话身份(state.data.sessionId)。 */
   async start(): Promise<{ sessionId?: string; model?: string } | null> {
     const id = await ipc.procStreamSpawn({
       command: this.flavor.command,
-      args: ["--mode", "rpc", ...(this.resumeId ? [this.flavor.resumeFlag, this.resumeId] : [])],
+      args: ["--mode", "rpc"],
       cwd: this.cwd,
     });
+    /* spawn await 期间被 kill()(tab 立即关闭等):收割子进程,不订阅不握手。 */
+    if (this.disposed) {
+      void ipc.procStreamKill(id).catch(() => undefined);
+      return null;
+    }
     this.id = id;
     this.stopListeners.push(
       await ipc.onProcStream(id, "out", (line) => this.onLine(line)),
@@ -101,6 +104,7 @@ export class PiRpcSession {
 
   /** 杀子进程(tab 关闭/会话终结);幂等。 */
   kill(): void {
+    this.disposed = true;
     if (this.id && !this.exited) ipc.procStreamKill(this.id).catch(() => undefined);
     this.teardown();
   }
