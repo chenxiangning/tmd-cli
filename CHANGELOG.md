@@ -4,6 +4,13 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+
+## [Unreleased]
+
+### 修复
+
+- 界面卡死(WKWebView 吊销粘死)根治:窗口隐藏/遮挡后恢复可见时 WebKit 偶发不再恢复渲染,页面 `document.hidden` 恒粘、rAF 永久死、像素停在旧帧(会话/PTY 全程健康;实测 app 激活/set_focus/hide-show 重放/resize 抖动均救不回)。新增两层防线:kernel/rafFallback 原生 rAF 探针 + 看门狗(遮挡粘死自动上报;隐藏粘死由 Rust Focused 钩子戳探针)+ 壳侧 render_health 阶梯(首击 set_focus、二击 webview reload——会话/PTY 跨重载存活,健康上报即重置,60s reload 冷却防风暴);50ms 垫片保留(部分遮挡形态 ~14fps 地板帧率正收益)。详见 docs/architecture/17-render-health.md
+
 ## [0.2.5] - 2026-09-29
 
 ### 新增

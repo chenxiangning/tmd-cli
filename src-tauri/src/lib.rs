@@ -25,6 +25,7 @@ mod proxy;
 mod pty;
 mod pty_spawn;
 mod quota;
+mod render_health;
 mod resolve;
 mod session;
 mod session_commands;
@@ -48,6 +49,8 @@ pub(crate) struct AppState {
     web: web::state::WebAccessState,
     relay: web::relay::RelayState,
     devices: web::devices::DeviceRegistry,
+    /* 渲染健康守望状态(webview 吊销粘死的击打阶梯;见 render_health.rs)。 */
+    render_kick: render_health::KickState,
 }
 
 pub(crate) fn now_millis() -> u64 {
@@ -164,6 +167,7 @@ pub fn run() {
             web: web::state::WebAccessState::default(),
             relay: web::relay::RelayState::default(),
             devices: web::devices::DeviceRegistry::default(),
+            render_kick: render_health::KickState::default(),
         })
         .setup(|app| {
             app_setup::setup(app)?;
@@ -179,6 +183,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             platform_kind,
             app_restart,
+            render_health::render_health,
             commands_fs::cli_probe,
             commands_fs::cli_install_run,
             wsl::wsl_info,
