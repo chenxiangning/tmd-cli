@@ -43,7 +43,7 @@ export const dailyJournalPlugin: Plugin = {
       order: 36,
       railGroup: "ecosystem",
       railBottom: true,
-      centerTab: { id: JOURNAL_TAB_KIND, open: openJournalTab },
+      centerTab: { open: openJournalTab },
     });
     ctx.registerTabContent({ kind: JOURNAL_TAB_KIND, component: JournalTab, icon: CalendarCheck });
     ctx.registerTabContent({ kind: ARTICLE_TAB_KIND, component: ArticleTab, icon: CalendarCheck });
