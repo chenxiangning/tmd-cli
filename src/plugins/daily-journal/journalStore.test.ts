@@ -24,6 +24,8 @@ interface StoreModule {
   addBead: (key: string, bead: { t: string; label: string }) => void;
   dayMetaOf: (key: string) => { beads: { t: string; label: string }[]; lastError?: string; updatedAt: number };
   deriveDayStatus: (a: unknown, isToday: boolean, n: number, meta: { lastError?: string }) => string;
+  heatThresholds: (counts: number[]) => [number, number, number];
+  heatOf: (n: number, ts: [number, number, number]) => string;
   useJournalState: () => unknown;
   journalWritesSettled: () => Promise<void>;
 }
@@ -85,5 +87,27 @@ describe("journalStore", () => {
     expect(store.deriveDayStatus(null, false, 2, {})).toBe("p");
     expect(store.deriveDayStatus(null, true, 0, {})).toBe("n");
     expect(store.deriveDayStatus(null, false, 0, { lastError: "x" })).toBe("f");
+  });
+
+  it("热力按当月分布分位分档:同数同档,高强度月不再整月同色", () => {
+    /* 2026-09 真实分布:固定阈值(9+)下除 16/24 日外全落 h4;分位档应四档铺开。 */
+    const sep = [24, 50, 23, 18, 24, 62, 12, 16, 16, 34, 38, 18, 24, 10, 18, 6, 9, 19, 22, 12, 20, 17, 8, 15, 13, 23, 20, 45, 28];
+    const ts = store.heatThresholds(sep);
+    expect(ts).toEqual([13, 19, 28]);
+    expect(store.heatOf(6, ts)).toBe("h1");
+    expect(store.heatOf(16, ts)).toBe("h2");
+    expect(store.heatOf(24, ts)).toBe("h3");
+    expect(store.heatOf(62, ts)).toBe("h4");
+    const tiers = new Set(sep.map((c) => store.heatOf(c, ts)));
+    expect(tiers.size).toBe(4); /* 层次感:四档全部出现 */
+  });
+
+  it("热力分位边界:并列值同档、零不计入、空数据兜底", () => {
+    expect(store.heatThresholds([9, 9, 9, 9])).toEqual([9, 9, 9]); /* 全月同量:同数同档 */
+    expect(store.heatOf(9, [9, 9, 9])).toBe("h4");
+    expect(store.heatOf(5, [9, 9, 9])).toBe("h1");
+    expect(store.heatThresholds([0, 0, 5])).toEqual([5, 5, 5]); /* 0 会话日不进分布 */
+    expect(store.heatOf(0, [1, 2, 3])).toBe(""); /* 无会话无热力 */
+    expect(store.heatThresholds([])).toEqual([1, 2, 3]); /* 空月兜底 */
   });
 });

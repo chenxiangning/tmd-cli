@@ -178,10 +178,19 @@ export function deriveDayStatus(article: Article | null, isToday: boolean, sessi
   return "n";
 }
 
-/** 热力四级(按会话数;spec 取舍:无 token,升级路径 sessionUsage)。 */
-export function heatOf(sessionCount: number): string {
+/** 热力分档阈值:当月活跃日会话数去重升序取 25/50/75 分位 —— 同数必同档;固定绝对阈值在均匀高强度月份会整月同色,层次感尽失。 */
+export type HeatThresholds = readonly [number, number, number];
+export function heatThresholds(counts: number[]): HeatThresholds {
+  const xs = [...new Set(counts.filter((c) => c > 0))].sort((a, b) => a - b);
+  if (!xs.length) return [1, 2, 3];
+  const at = (p: number) => xs[Math.min(xs.length - 1, Math.floor(p * xs.length))];
+  return [at(0.25), at(0.5), at(0.75)];
+}
+
+/** 热力四级(按当月分位动态分档;spec 取舍:无 token,升级路径 sessionUsage)。 */
+export function heatOf(sessionCount: number, ts: HeatThresholds): string {
   if (!sessionCount) return "";
-  return sessionCount >= 9 ? "h4" : sessionCount >= 6 ? "h3" : sessionCount >= 3 ? "h2" : "h1";
+  return sessionCount >= ts[2] ? "h4" : sessionCount >= ts[1] ? "h3" : sessionCount >= ts[0] ? "h2" : "h1";
 }
 
 /** 非 React 读点(调度/生成等常驻逻辑)。 */

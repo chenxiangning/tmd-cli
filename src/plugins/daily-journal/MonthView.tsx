@@ -2,14 +2,14 @@
  * 月视图 —— 大格索引卡:文章标题 + 总览首行 + 便签预览 + 引擎点
  * (原型 .mgrid/.dcell)。点格开文章 tab;空日也开(便签编辑态在 tab 内,B3)。
  */
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { PencilSimpleLine } from "@phosphor-icons/react";
 import { stringHue } from "@kernel/colorHash";
 import type { DaySessionRow } from "./daySessions";
 import type { MonthSnapshot } from "./journalStore";
-import { dayMetaOf, deriveDayStatus, heatOf, type DayStatus } from "./journalStore";
+import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, type DayStatus, type HeatThresholds } from "./journalStore";
 import { pad2 } from "./journalFiles";
 import { openArticleTab } from "./journalTabs";
 import { enqueueTask } from "./taskQueue";
@@ -29,13 +29,14 @@ interface DayCellProps {
   meta: DayMeta;
   rows: DaySessionRow[];
   isToday: boolean;
+  ts: HeatThresholds;
 }
 
 /** 格 className(纯函数:状态/热力/今日/周末/便签描边合成)。 */
-function cellClass(st: DayStatus, hasNote: boolean, sessionCount: number, isToday: boolean, we: boolean): string {
+function cellClass(st: DayStatus, hasNote: boolean, sessionCount: number, isToday: boolean, we: boolean, ts: HeatThresholds): string {
   return [
     "dj-cell",
-    st === "n" && !hasNote ? "dj-empty-day" : heatOf(sessionCount),
+    st === "n" && !hasNote ? "dj-empty-day" : heatOf(sessionCount, ts),
     st === "p" && "dj-pending",
     st === "f" && "dj-failed",
     isToday && "dj-today",
@@ -61,7 +62,7 @@ function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: D
   return !notePeek && <div className="dj-lede dj-faint">{t("无会话 · 点开写便签")}</div>;
 }
 
-function DayCell({ y, m, d, article, note, meta, rows, isToday, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
+function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
   const st = deriveDayStatus(article, isToday, rows.length, meta);
   const we = [0, 6].includes(new Date(y, m - 1, d).getDay());
   const engines = [...new Set(rows.map((r) => r.profileId))];
@@ -84,7 +85,7 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, onToast }: DayCe
   return (
     <div className="dj-cellwrap">
     <div
-      className={cellClass(st, !!note, rows.length, isToday, we)}
+      className={cellClass(st, !!note, rows.length, isToday, we, ts)}
       role="button"
       tabIndex={0}
       onClick={open}
@@ -154,6 +155,15 @@ export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
   const lead = (new Date(ym.y, ym.m - 1, 1).getDay() + 6) % 7; /* 周一开头 */
   const days = new Date(ym.y, ym.m, 0).getDate();
   const prefix = `${ym.y}-${pad2(ym.m)}`;
+  /* 热力阈值随月重算:当月活跃日会话数取 25/50/75 分位,层次感自适应分布。 */
+  const ts = useMemo(() => {
+    const counts: number[] = [];
+    for (let d = 1; d <= days; d++) {
+      const rows = sessions.get(`${prefix}-${pad2(d)}`);
+      if (rows?.length) counts.push(rows.length);
+    }
+    return heatThresholds(counts);
+  }, [sessions, prefix, days]);
   const cells: React.ReactNode[] = [];
   for (let i = 0; i < lead; i++) cells.push(<div key={`lead-${i}`} className="dj-cell dj-out" />);
   for (let d = 1; d <= days; d++) {
@@ -170,6 +180,7 @@ export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
         meta={dayMetaOf(key)}
         rows={sessions.get(key) ?? []}
         isToday={key === today}
+        ts={ts}
         onToast={showToast}
       />,
     );
