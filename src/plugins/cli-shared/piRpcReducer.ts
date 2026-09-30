@@ -8,6 +8,8 @@
  * - message_end 的 toolCall 项与 role=toolResult 消息不产生块(与 tool_execution
  *   帧重复;实证:双行 tool(bash/called)+tool(undefined) 即此因)。
  * - 渲染层切「落定历史|流内活轮」用 turnStart(session_settled 边沿推进)。
+ * cli-shared 准入先例:cli-omp/cli-pi 的 structuredRpc 声明 + structured-session
+ * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
 import type { CliTranscriptBlock, CliToolPreview } from "@kernel/cliSessionTypes";
 import { piToolPreview, piTranscriptLine } from "./piTranscript";
@@ -115,12 +117,7 @@ export class PiRpcReducer {
 
   /** partialResult/result.content[].text 拼接(实测累积式,直接覆盖)。 */
   private detailOf(src: unknown): string | undefined {
-    const content = (src as { content?: unknown } | undefined)?.content;
-    if (!Array.isArray(content)) return undefined;
-    const parts = content
-      .filter((c): c is { type: string; text?: unknown } => typeof c === "object" && c !== null && (c as { type?: unknown }).type === "text")
-      .map((c) => (typeof c.text === "string" ? c.text : ""));
-    return parts.length ? parts.join("") : undefined;
+    return contentText((src as { content?: unknown } | undefined)?.content);
   }
 
   private endMsg(rec: Record<string, unknown>) {

@@ -49,6 +49,22 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   const [draft, setDraft] = useState("");
   const sessionRef = useRef<PiRpcSession | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  /* token 级 delta 30-80 事件/s:攒 120ms 尾沿合帧再进 React(流式观感无差,
+   * 相位级 useMemo 与活块 markdown 重解析降频一个量级)。 */
+  const pendingBlocksRef = useRef<[CliTranscriptBlock[], number] | null>(null);
+  const flushTimerRef = useRef<number | null>(null);
+  const flushBlocks = () => {
+    if (flushTimerRef.current != null) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+    const pending = pendingBlocksRef.current;
+    if (pending) {
+      pendingBlocksRef.current = null;
+      setBlocks(pending[0]);
+      setTurnStart(pending[1]);
+    }
+  };
 
   /* 生命周期:mount 起 RPC 子进程,unmount(关 tab)kill 收割。StrictMode 双跑
    * 由 startedRef 挡;失败先 kill 清残留子进程再进 error 态,重试按钮重跑启动。 */
@@ -65,8 +81,13 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
       payload.cwd,
       {
         onBlocks: (next, ts) => {
-          setBlocks(next);
-          setTurnStart(ts);
+          pendingBlocksRef.current = [next, ts];
+          if (flushTimerRef.current == null) {
+            flushTimerRef.current = window.setTimeout(() => {
+              flushTimerRef.current = null;
+              flushBlocks();
+            }, 120);
+          }
         },
         onBusy: (b) => {
           setBusy(b);
@@ -74,7 +95,13 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         },
         onConfirm: setConfirm,
         onExit: () => {
-          if (sessionRef.current === self) setPhase("exited");
+          if (sessionRef.current === self) {
+            flushBlocks();
+            setConfirm(null);
+            setBusy(false);
+            setBusySince(null);
+            setPhase("exited");
+          }
         },
         onError: (msg) => setStatusText(msg),
       },
@@ -83,6 +110,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     void session
       .start()
       .then((state) => {
+        if (sessionRef.current !== session) return;
         setSessionId(state?.sessionId ?? null);
         setModel(state?.model ?? null);
         setPhase("ready");
@@ -98,6 +126,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
       });
   };
   const retry = () => {
+    flushBlocks();
     sessionRef.current?.kill();
     sessionRef.current = null;
     startedRef.current = false;
@@ -111,6 +140,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     startSession();
     return () => {
       startedRef.current = false;
+      clearTimeout(flushTimerRef.current ?? undefined);
       sessionRef.current?.kill();
       sessionRef.current = null;
     };
@@ -138,8 +168,11 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     if (!text || phase !== "ready" || busy) return;
     setDraft("");
     stickRef.current = true;
-    void sessionRef.current?.send(text).catch((e: unknown) =>
-      setStatusText(e instanceof Error ? e.message : String(e)));
+    void sessionRef.current?.send(text).catch((e: unknown) => {
+      setStatusText(e instanceof Error ? e.message : String(e));
+      /* 发送失败保输入(桌面契约):仅在用户未另起输入时回填。 */
+      setDraft((d) => (d === "" ? text : d));
+    });
   };
 
   if (!profile?.structuredRpc) {

@@ -8,6 +8,8 @@
  * method="confirm" = 审批回路(绝不自动批准,答案归 UI)。字段名实证:prompt 用
  * **message**(18.4.4 传 text 报 e.trimStart)。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
+ * cli-shared 准入先例:cli-omp/cli-pi 的 structuredRpc 声明 + structured-session
+ * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
 import { ipc } from "@kernel/ipc";
 import type { CliTranscriptBlock } from "@kernel/cli";
@@ -93,13 +95,13 @@ export class PiRpcSession {
     await this.request({ type: "abort" }).catch(() => undefined);
   }
 
-  /** 审批应答;confirmId 即 onConfirm 回传 frameId。 */
+  /** 审批应答;confirmId 即 onConfirm 回传 frameId。进程已退时静默丢弃(UI 已终态)。 */
   respond(confirmId: string, confirmed: boolean): void {
     void this.raw({
       type: "extension_ui_response",
       id: confirmId,
       ...(confirmed ? { confirmed: true } : { cancelled: true }),
-    });
+    }).catch(() => undefined);
   }
 
   /** 杀子进程(tab 关闭/会话终结);幂等。 */
@@ -111,6 +113,7 @@ export class PiRpcSession {
 
   private onExit(code: number | null) {
     if (this.exited) return;
+    this.exited = true;
     this.teardown();
     this.handlers.onExit(code);
   }
@@ -168,7 +171,7 @@ export class PiRpcSession {
           });
         } else {
           /* select/input/editor 等 TUI 部件:取消以免挂轮(monocode 同律)。 */
-          if (rec.id) void this.raw({ type: "extension_ui_response", id: String(rec.id), cancelled: true });
+          if (rec.id) void this.raw({ type: "extension_ui_response", id: String(rec.id), cancelled: true }).catch(() => undefined);
         }
         return;
       }
