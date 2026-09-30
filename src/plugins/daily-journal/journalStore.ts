@@ -25,6 +25,11 @@ import {
 import { parseArticle, type Article } from "./articleParse";
 import { restoreTasks } from "./taskQueue";
 
+/* 开发热更纪律:booted 标志/月快照/meta 写链/任务持久化回调都钉在 activate 期的模块
+ * 实例上,组件边界热更会重造无绑定镜像(水位/珠子消失显示、任务不落盘),见 taskQueue
+ * 同款守卫注释。自接受 + 整页重载。 */
+if (import.meta.hot) import.meta.hot.accept(() => location.reload());
+
 export type DayStatus = "g" | "t" | "p" | "f" | "n";
 
 /** 月快照:articles 按 "DD" 存(值 null = 已探查无文章)。 */

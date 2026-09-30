@@ -233,4 +233,5 @@
 | 2026-09-30 | [omp 对话卡死根因评审:后台生成 TUI 洪水饿死 webview 主线程(omp 全程健康的磁盘双证 + 历次修复无效逐条归因)](review/2026-09-30-omp-dialog-freeze-root-cause.md) | 已完成(根因定案,修复见同日 oneshot spec) |
 | 2026-09-30 | [daily-journal 生成会话无头化设计:omp -p oneshot 单发根治输出洪水 + 退出主信号结算 + 摘录增量/并发治理](superpowers/specs/2026-09-30-daily-journal-oneshot-gen-design.md) | 已定稿(实现随当日提交) |
 | 2026-09-30 | [18 — 生成会话无头契约:CliProfile.oneshotArgs 声明制与无人值守会话输出纪律](architecture/18-oneshot-generation.md) | 生效中(omp/pi/codex/claude 已声明,dsh/kimi/grok/qoder/opencode 待接入清单见文内矩阵) |
+| 2026-09-30 | [daily-journal 手动发起总结/增量更新入口:文章 tab 顶栏状态自适应按钮 + 月格全状态扩展(增量并入/生成此日/重试生成三态共用判定)](superpowers/specs/2026-09-30-daily-journal-manual-increment-design.md) | 已实现(门禁全绿;真机目检留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

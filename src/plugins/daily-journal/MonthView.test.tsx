@@ -12,7 +12,11 @@ vi.mock("@kernel/i18n", () => ({
 }));
 vi.mock("@kernel/host", () => ({ host: { getCliProfiles: () => [] } }));
 vi.mock("./journalTabs", () => ({ openArticleTab: vi.fn() }));
-vi.mock("./taskQueue", () => ({ enqueueTask: vi.fn() }));
+vi.mock("./taskQueue", () => ({
+  enqueueTask: vi.fn(),
+  hasActiveTaskForDay: () => false,
+  dayGenTaskType: (failed: boolean, hasArticle: boolean) => (failed ? "重试生成" : hasArticle ? "增量并入" : "手动生成"),
+}));
 vi.mock("./holidays", () => ({ holOf: () => null, useHolidays: () => null }));
 
 import { MonthView } from "./MonthView";
@@ -97,5 +101,17 @@ describe("MonthView 月格单行状态描述", () => {
     expect(html).toContain("待提取 · 17 条会话 · 有便签");
     expect(html).toContain("无会话 · 有便签");
     expect(html).not.toContain("dj-notemark");
+  });
+
+  it("已生成且有待归纳行(水位前):日格出「增量并入」手动入口(含今日增量中)", () => {
+    const html = renderMonth({ "30": article }, new Map([[key(30), rows(12)]]), key(30));
+    expect(html).toContain("dj-genbtn");
+    expect(html).toContain(">增量并入</button>");
+  });
+
+  it("已归纳无新增:日格不再出增量按钮(无可归纳)", () => {
+    setDayResult(key(21), { summarizedAt: 5 }); /* 行 modifiedAt=0 ≤ 水位 5 = 全部已归纳 */
+    const html = renderMonth({ "21": article }, new Map([[key(21), rows(3)]]), key(30));
+    expect(html).not.toContain(">增量并入<");
   });
 });

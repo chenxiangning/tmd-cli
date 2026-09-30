@@ -8,11 +8,12 @@ import { host } from "@kernel/host";
 import { PencilSimpleLine } from "@phosphor-icons/react";
 import { stringHue } from "@kernel/colorHash";
 import type { DaySessionRow } from "./daySessions";
+import { isRowSummarized } from "./daySessions";
 import type { MonthSnapshot } from "./journalStore";
 import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, type DayStatus, type HeatThresholds } from "./journalStore";
 import { pad2 } from "./journalFiles";
 import { openArticleTab } from "./journalTabs";
-import { enqueueTask } from "./taskQueue";
+import { dayGenTaskType, enqueueTask, hasActiveTaskForDay } from "./taskQueue";
 import { getJournalState } from "./journalStore";
 import { weekdayLabelsMon } from "./dateTitle";
 import type { DayNote, DayMeta } from "./journalFiles";
@@ -81,10 +82,13 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
       return;
     }
     setConfirming(false);
-    const task = enqueueTask(st === "f" ? "重试生成" : "手动生成", key, getJournalState().config.engine);
-    onToast(task ? t("{m}月{d}日生成任务已转后台", { m, d }) : t("该日已有同类任务在队列"));
+    /* 日粒度闸:enqueueTask 只按 (日, 类型) 去重,挡不住跨类型并发写同一篇文章。 */
+    const task = hasActiveTaskForDay(key) ? null : enqueueTask(dayGenTaskType(st === "f", !!article), key, getJournalState().config.engine);
+    onToast(task ? t("{m}月{d}日生成任务已转后台", { m, d }) : t("该日已有生成任务在队列"));
   };
-  const canGen = st === "p" || st === "f";
+  /* 有文章且存在待归纳行(含今日增量中)也出按钮:手动发起增量并入的月格入口。 */
+  const hasPending = rows.some((r) => !isRowSummarized(r, meta.summarizedAt));
+  const canGen = st === "p" || st === "f" || (!!article && hasPending);
   return (
     <div className="dj-cellwrap">
     <div
@@ -122,7 +126,7 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
     {canGen && (
       <div className="dj-genbtn">
         <button type="button" className={`dj-btn ${confirming ? "dj-btn-confirm" : "dj-btn-primary"}`} onClick={quickGen}>
-          {confirming ? t("再点一次确认生成") : st === "f" ? t("重试生成") : t("生成此日")}
+          {confirming ? t("再点一次确认生成") : st === "f" ? t("重试生成") : article ? t("增量并入") : t("生成此日")}
         </button>
       </div>
     )}

@@ -23,3 +23,17 @@ export function notePeekOf(note: DayNote | undefined): string {
   if (first) return first;
   return note.images.length ? t("{n} 张图片", { n: note.images.length }) : "";
 }
+
+/** 文章 tab / 月格共用的手动生成动作形态(纯函数,测试面):同日已有活跃任务 → busy;
+ *  无会话、或已有文章且无待归纳行 → none(无可归纳);其余出两击确认按钮,文案按状态三态。 */
+export function dayGenAction(
+  st: string,
+  hasArticle: boolean,
+  pendingCount: number,
+  busy: boolean,
+): { kind: "none" } | { kind: "busy" } | { kind: "confirm"; label: string } {
+  if (busy) return { kind: "busy" };
+  if (st === "n" || (hasArticle && pendingCount === 0)) return { kind: "none" };
+  const label = st === "f" ? t("重试生成") : hasArticle ? `${t("增量并入")} · ${t("待归纳 {n}", { n: pendingCount })}` : t("生成此日");
+  return { kind: "confirm", label };
+}

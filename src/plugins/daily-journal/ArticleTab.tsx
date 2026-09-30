@@ -9,7 +9,7 @@ import { stringHue } from "@kernel/colorHash";
 import { host } from "@kernel/host";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
-import { loadMonth, dayMetaOf, deriveDayStatus, useJournalState } from "./journalStore";
+import { loadMonth, dayMetaOf, deriveDayStatus, getJournalState, useJournalState } from "./journalStore";
 import { isRowSummarized, useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
 import { pad2 } from "./journalFiles";
 import type { ArticleTabPayload } from "./journalTabs";
@@ -18,8 +18,9 @@ import { holOf, useHolidays } from "./holidays";
 import { ArticleBody, BeadStrip, Lightbox } from "./articleBody";
 import type { DayNoteImage } from "./journalFiles";
 import { NoteEditor } from "./NoteEditor";
-import { statusChip } from "./statusText";
+import { dayGenAction, statusChip } from "./statusText";
 import { noteImageUrl } from "./noteAssets";
+import { dayGenTaskType, enqueueTask, hasActiveTaskForDay, useGenTasks } from "./taskQueue";
 import { TerminalWindow } from "@phosphor-icons/react";
 
 function StatusHints({ st, sessionCount, lastError }: { st: string; sessionCount: number; lastError?: string }) {
@@ -61,6 +62,43 @@ function EngMark({ id }: { id: string }) {
   const render = host.getCliProfiles().find((p) => p.id === id)?.renderIcon;
   if (render) return <span className="dj-engmark">{render("0.8125rem")}</span>;
   return <i className="dj-engdot" style={{ background: `hsl(${stringHue(id)} 52% 48%)` }} />;
+}
+
+/** 手动发起总结(顶栏右侧,状态自适应):增量并入/生成此日/重试生成三态共用判定
+ *  (dayGenAction);同日已有活跃任务给禁用态;两击确认防误触(月格同款)。 */
+function GenAction({ y, m, d, st, hasArticle, rows, summarizedAt }: { y: number; m: number; d: number; st: string; hasArticle: boolean; rows: DaySessionRow[]; summarizedAt?: number }) {
+  const tasks = useGenTasks();
+  const key = `${y}-${pad2(m)}-${pad2(d)}`;
+  const busy = tasks.some((t) => t.dayKey === key && (t.st === "run" || t.st === "queue"));
+  const pendingCount = rows.filter((r) => !isRowSummarized(r, summarizedAt)).length;
+  const act = dayGenAction(st, hasArticle, pendingCount, busy);
+  const [confirming, setConfirming] = useState(false);
+  if (act.kind === "none") return null;
+  if (act.kind === "busy") {
+    return (
+      <button type="button" className="dj-btn dj-genaction" disabled title={t("后台任务面板可查进度")}>
+        {t("生成任务进行中")}
+      </button>
+    );
+  }
+  const fire = () => {
+    setConfirming(false);
+    if (hasActiveTaskForDay(key)) return; /* 渲染后竞窗:入队前再闸一次,双击防御 */
+    enqueueTask(dayGenTaskType(st === "f", hasArticle), key, getJournalState().config.engine);
+  };
+  const click = () => {
+    if (confirming) {
+      fire();
+      return;
+    }
+    setConfirming(true);
+    setTimeout(() => setConfirming(false), 3000);
+  };
+  return (
+    <button type="button" className={`dj-btn dj-genaction ${confirming ? "dj-btn-confirm" : "dj-btn-primary"}`} onClick={click}>
+      {confirming ? t("再点一次确认生成") : act.label}
+    </button>
+  );
 }
 
 function DaySessions({ rows, summarizedAt }: { rows: DaySessionRow[]; summarizedAt?: number }) {
@@ -136,6 +174,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
           {[...new Set(rows.map((r) => r.profileId))].join(" / ")}
           {rows.length ? ` · ${t("{n} 会话", { n: rows.length })}` : ""}
         </span>
+        <GenAction y={y} m={m} d={p.d} st={st} hasArticle={!!article} rows={rows} summarizedAt={meta.summarizedAt} />
       </div>
       <div className="dj-art-scroll">
         <div className="dj-art-page">

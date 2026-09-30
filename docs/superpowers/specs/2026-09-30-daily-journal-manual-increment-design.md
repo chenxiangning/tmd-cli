@@ -58,3 +58,7 @@
 - 单测:`dayGenAction` 三态矩阵(新 statusText.test.ts)、`dayGenTaskType`/`hasActiveTaskForDay`(taskQueue.test.ts 扩展)、月格增量按钮渲染(MonthView.test.tsx 扩展:有文章+待归纳日出「增量并入」,无新增日不出)。
 - 门禁:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build` + `npx react-doctor@latest -y` 100 分。
 - 真机:`pnpm tauri:dev` 目检——今日文章 tab 出「增量并入 · 待归纳 N」,两击后任务面板可见「增量并入」,生成会话条点亮「打开会话(可干涉)」;完成后待归纳计数收敛、按钮消失。
+
+## 落地补记(同日真机首踩)
+
+用户真机点按后任务永卡「排队中」。根因非生成链:手动入口是第一个从组件模块直触 taskQueue 的按钮,恰逢 taskQueue.ts 热更,vite 组件边界热更把改动链上的 taskQueue/journalStore 重造为无泵执行体、无持久化绑定的镜像实例——任务进镜像 store 永不起跑,meta.json 无痕(实证)。修复:taskQueue.ts / journalStore.ts 加 `import.meta.hot.accept(() => location.reload())` 自接受守卫,凡这两个文件被改一律整页重载、全图重新接线;月格「生成此日」的同类潜伏暴露面一并根除。生成调度链(journalSchedule→genSession)只被非组件模块引用,本就走整页重载,无需守卫。

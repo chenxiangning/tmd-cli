@@ -22,6 +22,8 @@ interface QueueModule {
   restoreTasks: (saved: unknown) => void;
   getGenTasks: () => readonly QTask[];
   bindTaskPersistence: (fn: (tasks: unknown[]) => void) => void;
+  dayGenTaskType: (failed: boolean, hasArticle: boolean) => string;
+  hasActiveTaskForDay: (dayKey: string) => boolean;
 }
 
 let q: QueueModule;
@@ -65,6 +67,19 @@ describe("taskQueue", () => {
     expect(q.enqueueTask("手动生成", "2026-09-27", "omp")).toBeNull();
     expect(q.getGenTasks().filter((t) => t.dayKey === "2026-09-27")).toHaveLength(1);
     expect(first).not.toBeNull();
+  });
+
+  it("手动任务类型选择:失败重试 / 有文章增量并入 / 否则手动生成", () => {
+    expect(q.dayGenTaskType(true, false)).toBe("重试生成");
+    expect(q.dayGenTaskType(false, true)).toBe("增量并入");
+    expect(q.dayGenTaskType(false, false)).toBe("手动生成");
+  });
+
+  it("日粒度活跃闸跨类型拦截(enqueueTask 只按同类型去重,挡不住双生成并发写同一篇)", () => {
+    q.setTaskRunner(() => makeGate().promise);
+    q.enqueueTask("手动生成", "2026-09-27", "omp");
+    expect(q.hasActiveTaskForDay("2026-09-27")).toBe(true);
+    expect(q.hasActiveTaskForDay("2026-09-26")).toBe(false);
   });
 
   it("run 态可终止:aborter 收割会话,放行下一发;迟到回调不复活", () => {

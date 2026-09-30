@@ -6,6 +6,12 @@
  */
 import { createSubscribable } from "@kernel/subscribable";
 
+/* 开发热更纪律:本模块是 activate 期注入执行体(setTaskRunner)与持久化通道的常驻
+ * 单例,却被组件模块(ArticleTab/MonthView/TaskPanel)直接引用 —— 组件边界热更会把
+ * 改动链上的本模块重造为无泵、无绑定的镜像实例,入队任务永卡「排队中」且 meta.json
+ * 无痕(2026-09-30 实证)。自接受 + 整页重载:凡本文件被改,全图重新接线。 */
+if (import.meta.hot) import.meta.hot.accept(() => location.reload());
+
 export type GenTaskType = "定时生成" | "启动补跑" | "手动生成" | "增量并入" | "重试生成" | "补齐生成" | "首次提取";
 
 export interface GenTask {
@@ -101,6 +107,18 @@ export function enqueueTask(type: GenTaskType, dayKey: string, engine: string): 
   commit();
   pump();
   return task;
+}
+
+/** 手动生成任务类型选择(纯函数,测试面):失败日重试;已有文章走增量并入(与自动路径命名对齐);否则首次手动生成。 */
+export function dayGenTaskType(failed: boolean, hasArticle: boolean): GenTaskType {
+  if (failed) return "重试生成";
+  return hasArticle ? "增量并入" : "手动生成";
+}
+
+/** 该日是否已有排队/运行任务(纯读,测试面):enqueueTask 只按 (日, 类型) 去重,
+ *  挡不住「手动生成 + 增量并入」并发写同一篇文章,手动入口须先过这道日粒度闸。 */
+export function hasActiveTaskForDay(dayKey: string): boolean {
+  return store.snapshot.tasks.some((t) => t.dayKey === dayKey && (t.st === "run" || t.st === "queue"));
 }
 
 /** 队列开泵:run 槽未满时依序补位(runner 异步执行,终态回调推进补位)。 */

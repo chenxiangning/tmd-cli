@@ -49,12 +49,12 @@
 .dj-flow { overflow-y: auto; padding: 0 18px 20px; max-height: 100%; }
 .dj-empty { display: grid; place-items: center; height: 100%; color: var(--tmd-fg-faint); }
 
-/* ── 月视图 ── */
-.dj-month { display: flex; flex-direction: column; gap: 4px; }
+/* ── 月视图(网格吃满舞台高;行 min 128px 触底后交 .dj-stage 滚动)── */
+.dj-month { display: flex; flex-direction: column; gap: 4px; height: 100%; }
 .dj-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 0 0 4px; }
 .dj-dow div { text-align: center; font-size: 0.625rem; color: var(--tmd-fg-faint); padding: 3px 0; }
 .dj-dow-we { color: var(--tmd-hol, #c0392b) !important; }
-.dj-mgrid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(128px, 1fr); gap: 3px; }
+.dj-mgrid { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(128px, 1fr); gap: 3px; }
 .dj-cell { position: relative; border: 1px solid var(--tmd-border); border-radius: 6px; padding: 5px 6px 4px; cursor: pointer; display: flex; flex-direction: column; gap: 3px; overflow: hidden; background: var(--tmd-bg-base); }
 .dj-cell:hover { border-color: var(--tmd-border-strong, var(--tmd-border)); box-shadow: 0 1px 5px rgb(0 0 0 / 6%); }
 .dj-out { opacity: 0.35; background: var(--tmd-bg-elevated); pointer-events: none; }
@@ -118,7 +118,10 @@
 .dj-ds-row .dj-chip { flex: none; }
 .dj-ds-count { margin-left: auto; font-weight: 400; font-size: 0.625rem; color: var(--tmd-fg-faint); }
 .dj-notecard-readonly { border: 1px solid color-mix(in srgb, var(--tmd-note, #78350f) 35%, var(--tmd-border)); background: color-mix(in srgb, var(--tmd-note, #78350f) 7%, transparent); border-radius: 8px; margin: 8px 0; padding: 7px 11px 9px; }
-.dj-nc-head { color: var(--tmd-note, #78350f); font-size: 0.6875rem; font-weight: 700; }
+/* 图标+标题成行:Tailwind preflight 把 svg 置 block,非 flex 容器里会独占一行把标题挤下去 */
+.dj-nc-head { display: flex; align-items: center; gap: 5px; color: var(--tmd-note, #78350f); font-size: 0.6875rem; font-weight: 700; }
+/* 编辑卡内距全在下方 editbox(顶部 0),头部自担内距,不贴卡缘 */
+.dj-notecard .dj-nc-head { padding: 7px 11px 6px; }
 .dj-nc-text { font-size: 0.7188rem; white-space: pre-wrap; line-height: 1.6; margin-top: 4px; }
 /* 便签 md(fvp 管线)块距压紧凑:双类 :where 压过 fvp 单类,与加载序无关 */
 .dj-notecard-readonly .dj-nc-text :where(p, ul, ol, pre, blockquote, table) { margin: 0 0 4px; }
@@ -138,15 +141,15 @@
 .dj-panel-flow .dj-minibar { position: sticky; top: 0; z-index: 3; padding: 7px 0; }
 .dj-panel-flow .dj-flow { padding: 0 4px 16px; }
 
-/* ── 年视图(12 宫迷你月)── */
-.dj-year-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.dj-ymonth { border: 1px solid var(--tmd-border); border-radius: 8px; padding: 8px 10px 9px; cursor: pointer; background: var(--tmd-bg-base); transition: border-color .12s; }
+/* ── 年视图(12 宫迷你月;3 行 1fr 吃满舞台高,窗口过矮时行缩到内容下限交滚动)── */
+.dj-year-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); gap: 12px; height: 100%; }
+.dj-ymonth { display: flex; flex-direction: column; border: 1px solid var(--tmd-border); border-radius: 8px; padding: 8px 10px 9px; cursor: pointer; background: var(--tmd-bg-base); transition: border-color .12s; }
 .dj-ymonth:hover { border-color: var(--tmd-border-strong, var(--tmd-border)); }
 .dj-ymonth-cur { border-color: var(--tmd-accent); box-shadow: inset 0 0 0 1px var(--tmd-accent); }
 .dj-ymonth h3 { font-size: 0.75rem; font-weight: 700; display: flex; align-items: baseline; gap: 6px; }
 .dj-ymonth-n { font-size: 0.5625rem; color: var(--tmd-fg-faint); font-weight: 400; font-variant-numeric: tabular-nums; }
-.dj-ycal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 6px; }
-.dj-ycal span { aspect-ratio: 1; border-radius: 2.5px; background: var(--tmd-bg-elevated); }
+.dj-ycal { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: 2px; margin-top: 6px; }
+.dj-ycal span { min-height: 12px; border-radius: 2.5px; background: var(--tmd-bg-elevated); }
 .dj-ycal .dj-yc-we { background: color-mix(in srgb, var(--tmd-fg-faint) 12%, var(--tmd-bg-elevated)); }
 .dj-ycal .dj-yc-hol { background: var(--tmd-hol, #c0392b); outline: 1px solid color-mix(in srgb, var(--tmd-hol, #c0392b) 30%, var(--tmd-bg-base)); }
 .dj-ycal .dj-yc-g { background: color-mix(in srgb, var(--tmd-ok, #059669) 45%, var(--tmd-bg-elevated)); }
@@ -229,6 +232,9 @@
 /* 实心钮不被 .dj-btn:hover 的安静态文字色覆盖(生成浮层只在 hover 时出现,恒 hover 态)。 */
 .dj-btn-primary:hover { color: var(--tmd-accent-fg, #fff); }
 .dj-btn-confirm:hover { color: var(--tmd-bg-base); }
+/* 文章 tab 顶栏手动发起总结钮:右推收边;禁用态(同日任务已在队)去交互反馈。 */
+.dj-art-bar .dj-genaction { margin-left: auto; flex: none; }
+.dj-genaction:disabled { opacity: 0.55; cursor: default; pointer-events: none; }
 .dj-tselect { cursor: pointer; }
 .dj-toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); background: var(--tmd-fg); color: var(--tmd-bg-base); font-size: 0.75rem; border-radius: 8px; padding: 7px 14px; z-index: 90; box-shadow: 0 6px 20px rgb(0 0 0 / 20%); }
 .dj-lightbox { position: fixed; inset: 0; background: rgb(0 0 0 / 72%); display: grid; place-items: center; z-index: 80; cursor: zoom-out; }

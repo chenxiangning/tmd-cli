@@ -66,10 +66,11 @@ describe("GenSettings 增量策略逐项说明", () => {
     CONFIG.config.incPolicy = "auto";
     expect(render()).toContain("会话收尾约 45 秒后自动整理当日");
   });
-  it("manual:说明仅手动点生成才更新", () => {
+  it("manual:说明仅主动发起才更新,并点到增量并入入口", () => {
     CONFIG.config.incPolicy = "manual";
     const html = render();
-    expect(html).toContain("只在你主动点生成时更新");
+    expect(html).toContain("只在主动发起时更新");
+    expect(html).toContain("增量并入");
     expect(html).not.toContain("自动整理当日");
   });
   it("timer:说明次日定时归纳", () => {
