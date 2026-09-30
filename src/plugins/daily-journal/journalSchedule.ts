@@ -9,7 +9,7 @@ import type { PluginEventBus } from "@kernel/plugin";
 import { dailyPaths, dayKey, readText } from "./journalFiles";
 import { dayMetaOf, getJournalState, type MonthSnapshot } from "./journalStore";
 import { enqueueTask } from "./taskQueue";
-import { collectSessionRows, type DaySessionRow } from "./daySessions";
+import { collectSessionRows, todayKey, type DaySessionRow } from "./daySessions";
 import { bootGenSession } from "./genSession";
 import { ensureHolidays } from "./holidays";
 
@@ -19,11 +19,6 @@ const AUTO_INC_DEBOUNCE_MS = 45_000;
 const yesterdayKey = (): string => {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return dayKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
-};
-
-const todayKeyLocal = (): string => {
-  const d = new Date();
   return dayKey(d.getFullYear(), d.getMonth() + 1, d.getDate());
 };
 
@@ -66,7 +61,7 @@ function scheduleAutoIncrement(engine: string, exitedSessionId: string): void {
   clearTimeout(autoIncTimer);
   autoIncTimer = setTimeout(() => {
     void (async () => {
-      const key = todayKeyLocal();
+      const key = todayKey();
       if (dayMetaOf(key).sessionId === exitedSessionId) return; /* 生成会话自身退出:结算链管 */
       const paths = await dailyPaths();
       const [y, m, d] = [Number(key.slice(0, 4)), Number(key.slice(5, 7)), Number(key.slice(8, 10))];

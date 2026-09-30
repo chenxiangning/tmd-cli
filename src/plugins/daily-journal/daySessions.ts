@@ -167,11 +167,10 @@ export function collectSessionRows(workspaces?: Workspace[]): Promise<DaySession
 const SCAN_TTL_MS = 60_000;
 let scanCache: { wsKey: string; liveKey: string; scan: DiskScan; at: number } | null = null;
 
-/** 日索引 hook 视图:days null = 冷启动尚无任何数据;scanning = 重扫进行中;
+/** 日索引 hook 视图:days null = 冷启动尚无任何数据;
  *  progress = 分批扫描进度(空态文案消费)。 */
 export interface DaySessionsView {
   days: Map<string, DaySessionRow[]> | null;
-  scanning: boolean;
   progress: { done: number; total: number } | null;
 }
 
@@ -185,25 +184,21 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
   const [scan, setScan] = useState<DiskScan | null>(() =>
     scanCache && scanCache.wsKey === wsKey ? scanCache.scan : null,
   );
-  const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   useEffect(() => {
     if (workspaces.length === 0) {
       setScan(EMPTY_SCAN);
-      setScanning(false);
       setProgress(null);
       return;
     }
     const cached = scanCache?.wsKey === wsKey ? scanCache : null;
     if (cached) setScan(cached.scan); /* 旧数据先上屏(缓存新鲜时同引用幂等) */
     if (refreshTick === 0 && cached && cached.liveKey === liveKey && Date.now() - cached.at < SCAN_TTL_MS) {
-      setScanning(false);
       setProgress(null);
       return;
     }
     let alive = true;
     let last: DiskScan | null = null;
-    setScanning(true);
     void collectSessionRowsBatched(workspaces, (batch, done, total) => {
       if (!alive) return;
       last = batch;
@@ -212,7 +207,6 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
     }).then(() => {
       if (!alive) return;
       if (last) scanCache = { wsKey, liveKey, scan: last, at: Date.now() };
-      setScanning(false);
       setProgress(null);
     });
     return () => {
@@ -228,7 +222,7 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
     () => (scan ? groupByDay(assembleRows(scan.diskRows, scan.liveDisk, metas, wsNames)) : null),
     [scan, metas, wsNames],
   );
-  return useMemo(() => ({ days, scanning, progress }), [days, scanning, progress]);
+  return useMemo(() => ({ days, progress }), [days, progress]);
 }
 
 /** 今日 key(本地时区)。 */

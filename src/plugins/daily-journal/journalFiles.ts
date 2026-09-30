@@ -97,7 +97,6 @@ export interface DailyPaths {
   notes: (y: number, m: number) => string;
   meta: string;
   assets: string;
-  holidays: string;
 }
 
 /** 每日日志根目录下全路径(模块级缓存;configDir 每进程恒定)。 */
@@ -116,7 +115,6 @@ export function dailyPaths(): Promise<DailyPaths> {
       notes: (y, m) => `${root}/notes/${y}-${pad2(m)}.json`,
       meta: `${root}/meta.json`,
       assets: `${root}/assets`,
-      holidays: `${root}/holidays.json`,
     };
   });
   return pathsLoading;

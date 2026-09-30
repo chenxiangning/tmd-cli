@@ -87,8 +87,3 @@ export function parseArticle(md: string): Article | null {
 export function noteMd(text: string): string {
   return text.replace(/(?<!\n)\n(?!\n)/g, "  \n");
 }
-
-/** 月格/轴卡标题截断(超长省略)。 */
-export function articleHead(a: Article | null, fallback: string): string {
-  return a?.title || fallback;
-}
