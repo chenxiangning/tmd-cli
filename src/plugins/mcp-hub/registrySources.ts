@@ -11,6 +11,9 @@
 import { ipc } from "@kernel/ipc";
 import {
   applySmitheryDetail,
+  asArray,
+  asNumber,
+  asRecord,
   normalizeGlama,
   normalizeOfficial,
   normalizeSmitherySearch,
@@ -59,18 +62,8 @@ function normalizeLimit(limit: number | undefined): number {
   return limit && limit > 0 && limit <= 100 ? limit : DEFAULT_LIMIT;
 }
 
-type RawRecord = Record<string, unknown>;
-function asRecord(value: unknown): RawRecord {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as RawRecord) : {};
-}
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
-}
-function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 function normalizeCards(raw: unknown, normalize: (item: unknown) => RegistryCard | null): RegistryCard[] {

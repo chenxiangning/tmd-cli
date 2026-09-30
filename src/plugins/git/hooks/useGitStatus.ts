@@ -5,9 +5,10 @@
  * 写操作后调用方必须 refresh() 立即拉新;ahead/behind 不在此(独立低频 hook)。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ipc, type GitDiffStatus } from "@kernel/ipc";
 import { gitErrorMessage, isNotARepo } from "../gitError";
+import { useVisiblePoll } from "./useVisiblePoll";
 
 const POLL_MS = 5000;
 
@@ -69,20 +70,7 @@ export function useGitStatus(cwd: string | null): GitStatusState {
     );
   }, [cwd]);
 
-  useEffect(() => {
-    refresh();
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") refresh();
-    }, POLL_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [refresh]);
+  useVisiblePoll(refresh, POLL_MS);
 
   return { ...state, refresh };
 }

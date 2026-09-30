@@ -10,6 +10,7 @@
  * main.tsx 调 startThemeEngine() 启动,幂等。
  */
 
+import { useEffect, useState } from "react";
 import {
   ensureSettingsBooted,
   getSettingsState,
@@ -102,4 +103,26 @@ export function startThemeEngine(): void {
   if (!applied && getSettingsState().loaded) {
     applyTheme(getSettingsState().settings);
   }
+}
+
+/** 编辑器明暗跟随 <html data-theme>(custom preset 也只二分 dark/light)。
+ *  files / cli-config / ssh 三处编辑器曾各持本地副本,2026-09-30 收口到此。 */
+export function useDarkTheme(): boolean {
+  const [dark, setDark] = useState(() =>
+    typeof document === "undefined"
+      ? false
+      : document.documentElement.getAttribute("data-theme") === "dark",
+  );
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const observer = new MutationObserver(() => {
+      setDark(document.documentElement.getAttribute("data-theme") === "dark");
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
+  return dark;
 }

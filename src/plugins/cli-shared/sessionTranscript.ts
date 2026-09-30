@@ -109,3 +109,18 @@ export function diffLinesFromStrings(
   }
   return lines.length > 0 ? lines : undefined;
 }
+
+/** 外部 JSON 逐层收窄取 string;缺失/异型返回 undefined(转录适配器共用)。 */
+export function stringField(obj: unknown, key: string): string | undefined {
+  if (!obj || typeof obj !== "object" || !(key in obj)) return undefined;
+  const value = (obj as Record<string, unknown>)[key];
+  return typeof value === "string" && value ? value : undefined;
+}
+
+/** 事件 ISO 时间戳 → epoch ms;缺失/不可解析返回 undefined。 */
+export function startedAtOf(event: Record<string, unknown>): number | undefined {
+  const raw = stringField(event, "timestamp");
+  if (!raw) return undefined;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? ms : undefined;
+}

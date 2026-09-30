@@ -120,7 +120,7 @@ function rawSend(key: string, message: unknown): Promise<void> {
   return lspSend(key, JSON.stringify(message));
 }
 
-export interface OpenLspOptions {
+interface OpenLspOptions {
   key: string;
   rootUri: string;
   /** spawn 描述(发现链产物)。 */

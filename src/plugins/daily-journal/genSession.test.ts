@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { host } from "@kernel/host";
 import { enqueueTask, getGenTasks } from "./taskQueue";
 import { bootGenSession } from "./genSession";
-import { ensureParentDir, readText, writeText } from "./journalFiles";
+import { readText, writeText } from "./journalFiles";
+import { ensureParentDir } from "@kernel/fsDirs";
 import { collectSessionRows, type DaySessionRow } from "./daySessions";
 import { buildGenPrompt } from "./promptGen";
 import { reloadDay, setDayResult } from "./journalStore";
@@ -32,6 +33,9 @@ vi.mock("@kernel/workspace", () => ({
   getWorkspaces: vi.fn(() => [{ id: "w1", root: "/ws", name: "w" }]),
 }));
 vi.mock("@kernel/workspaceOrigins", () => ({ findWorkspaceOrigin: vi.fn(() => null) }));
+vi.mock("@kernel/fsDirs", () => ({
+  ensureParentDir: vi.fn(async () => undefined),
+}));
 vi.mock("./journalFiles", () => ({
   dailyPaths: vi.fn(async () => ({
     article: (y: number, m: number, d: number) => `/fake/${y}-${m}-${d}.md`,
@@ -39,7 +43,6 @@ vi.mock("./journalFiles", () => ({
   })),
   dayKey: (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
   readText: vi.fn(async () => ""),
-  ensureParentDir: vi.fn(async () => undefined),
   writeText: vi.fn(async () => undefined),
 }));
 vi.mock("./journalStore", () => ({

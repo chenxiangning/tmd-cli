@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ipc, type DirEntry } from "@kernel/ipc";
+import { clampToViewport } from "@kernel/menuClamp";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
 import { closeTab, getTabs } from "@kernel/tabs";
@@ -47,10 +48,7 @@ function joinPath(dir: string, name: string): string {
 /** 菜单定位:以点击点为左上,按估算尺寸视口内夹取(同 wsmenu 模式;
  *  文件树与文件详情两份右键菜单共用)。 */
 export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.min(Math.max(8, x), window.innerWidth - 220 - 12),
-    y: Math.min(y, window.innerHeight - 320 - 12),
-  };
+  return clampToViewport(x, y, 220, 320);
 }
 
 export function useTreeOperations(opts: {

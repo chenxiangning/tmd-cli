@@ -19,27 +19,7 @@ import type { CliConfigEntry, CliConfigSource } from "@kernel/cliConfigRegistry"
 import { t } from "@kernel/i18n";
 import { readConfig, writeConfigFile } from "./io";
 import { ConfigForm } from "./ConfigForm";
-
-/** 编辑器明暗跟随 <html data-theme>(files/ssh 编辑器同款本地钩子,先例三处)。 */
-function useDarkTheme(): boolean {
-  const [dark, setDark] = useState(() =>
-    typeof document === "undefined"
-      ? false
-      : document.documentElement.getAttribute("data-theme") === "dark",
-  );
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const observer = new MutationObserver(() => {
-      setDark(document.documentElement.getAttribute("data-theme") === "dark");
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-    return () => observer.disconnect();
-  }, []);
-  return dark;
-}
+import { useDarkTheme } from "@kernel/theme";
 
 export function CliConfigTab() {
   const entries = useCliConfigEntries();

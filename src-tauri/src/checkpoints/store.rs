@@ -202,8 +202,6 @@ pub(crate) fn new_entry_id(ts: i64) -> String {
 }
 
 pub(crate) fn now_millis() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+    /* 账本 ts 全 i64;毫秒源唯一收口在 crate::now_millis(u64),此处只做宽化转换。 */
+    crate::now_millis() as i64
 }

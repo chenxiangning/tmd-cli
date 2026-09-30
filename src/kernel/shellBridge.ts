@@ -61,7 +61,7 @@ export function shellNotify(title: string, body: string): Promise<void> {
   return shellInvoke("notify", { title, body }).then(() => undefined);
 }
 
-export interface ShellCredsStore {
+interface ShellCredsStore {
   get(): Promise<string | null>;
   set(json: string): Promise<void>;
   delete(): Promise<void>;

@@ -138,24 +138,16 @@ pub fn agent_url(base: &str, key: &str) -> Result<String, String> {
     } else {
         format!("wss://{base}")
     };
-    Ok(format!("{ws}/agent?key={}", urlencode(key)))
+    Ok(
+        url::form_urlencoded::Serializer::new(format!("{ws}/agent?"))
+            .append_pair("key", key)
+            .finish(),
+    )
 }
 
 /// 手机打开的地址:裸 Worker 基址(token 由桥侧 URL/配对承担)。
 pub fn phone_url(base: &str) -> String {
     format!("{}/", base.trim().trim_end_matches('/'))
-}
-
-fn urlencode(value: &str) -> String {
-    value
-        .bytes()
-        .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                (b as char).to_string()
-            }
-            other => format!("%{other:02X}"),
-        })
-        .collect()
 }
 
 /// 新 relay 密钥:32 位无歧义字母表。会进 agent URL 与 Durable Object 名。

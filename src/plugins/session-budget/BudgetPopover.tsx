@@ -13,8 +13,9 @@
  * 关闭:backdrop 点击 / Escape / 右上角 X。行样式复用全局 pref-row 系。
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useEscClose } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
 import {
   SESSION_LIST_TOTAL_MAX,
@@ -54,13 +55,7 @@ export function BudgetPopover({
   const registeredIds = profiles.map((p) => p.id);
   const [hint, setHint] = useState<string | null>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   /** 展示与校验同基底:剪掉已卸载 CLI 的残留 key(残留不得抬高已分配)。 */
   const prunedPerCli = prunePerCli(perCli, registeredIds);

@@ -223,7 +223,7 @@ const LUCIDE_B: Partial<Record<IconDecorId, LucideNode>> = {
 
 /** 组合解析结果:phosphor = Phosphor 组件字形/线重;lucide = Lucide IconNode
  * (morphicons 弹簧变形引擎吃的数据形态)。 */
-export interface DecorResolution {
+interface DecorResolution {
   kind: "phosphor" | "lucide";
   glyph?: Glyph;
   weight?: IconWeight;

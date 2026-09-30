@@ -17,16 +17,9 @@
 import { Decompress } from "fzstd";
 import { ipc } from "@kernel/ipc";
 import type { CliSessionTranscript, CliTranscriptBlock } from "@kernel/cli";
-import { pairToolResults, parseTranscriptBlocks, TRANSCRIPT_BYTES, type TranscriptLineParser } from "../cli-shared/sessionTranscript";
+import { pairToolResults, parseTranscriptBlocks, stringField, TRANSCRIPT_BYTES, type TranscriptLineParser } from "../cli-shared/sessionTranscript";
 import { toolPreviewKindOf } from "../cli-shared/sessionTranscript";
 import { messageText } from "../cli-shared/userMessages";
-
-/** 外部 JSON 逐层收窄取 string;缺失/异型返回 undefined。 */
-function stringField(obj: unknown, key: string): string | undefined {
-  if (!obj || typeof obj !== "object" || !(key in obj)) return undefined;
-  const value = (obj as Record<string, unknown>)[key];
-  return typeof value === "string" && value ? value : undefined;
-}
 
 /** tool/call 的 arguments(JSON 字符串)→ 命令文本(command/cmd 键)。 */
 function dshCommandOf(argumentsJson: string | undefined): string | undefined {

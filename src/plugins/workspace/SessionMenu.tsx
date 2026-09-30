@@ -3,8 +3,8 @@
  * portal + fixed 定位;CLI 行(icon + 名称 + 行右侧刷新);底部工作区操作组。
  */
 
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useEscClose } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { Mounts } from "@kernel/Mounts";
@@ -42,13 +42,7 @@ export function SessionMenuOverlay({
 }) {
   const profiles = host.getCliProfiles();
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
   const { settings } = useSettingsState();
   const groups = settings.workspaceGroups;
   const currentGroupId = groups.some((g) => g.id === workspace.groupId) ? workspace.groupId! : null;

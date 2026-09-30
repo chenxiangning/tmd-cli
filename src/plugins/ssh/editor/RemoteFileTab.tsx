@@ -12,6 +12,7 @@ import { t } from "@kernel/i18n";
 import { retryImport } from "@kernel/lazyImport";
 import { setActiveTab, updateTab, type EditorTab } from "@kernel/tabs";
 import { saveRequestRef } from "./saveRequestRef";
+import { useDarkTheme } from "@kernel/theme";
 
 /* CodeMirror 全家按需拆包(files 插件同款):首个 ssh-file tab 才拉 chunk;
    与 files 的 lazy import 指向同一模块,chunk 共享。 */
@@ -26,21 +27,6 @@ interface RemoteDoc {
   sizeBytes: number;
   loaded: boolean;
   error?: string;
-}
-
-/** 编辑器明暗跟随 <html data-theme>。 */
-function useDarkTheme(): boolean {
-  const [dark, setDark] = useState(() =>
-    document.documentElement.dataset.theme?.includes("light") === false,
-  );
-  useEffect(() => {
-    const observer = new MutationObserver(() =>
-      setDark(document.documentElement.dataset.theme?.includes("light") === false),
-    );
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    return () => observer.disconnect();
-  }, []);
-  return dark;
 }
 
 export function RemoteFileTab({ tab }: { tab: EditorTab }) {

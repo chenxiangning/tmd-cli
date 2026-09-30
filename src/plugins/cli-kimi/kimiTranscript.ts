@@ -13,15 +13,8 @@
 
 import type { CliTranscriptBlock } from "@kernel/cli";
 import type { TranscriptLineParser } from "../cli-shared/sessionTranscript";
-import { toolPreviewKindOf } from "../cli-shared/sessionTranscript";
+import { stringField, toolPreviewKindOf } from "../cli-shared/sessionTranscript";
 import { messageText } from "../cli-shared/userMessages";
-
-/** 外部 JSON 逐层收窄取 string;缺失/异型返回 undefined。 */
-function stringField(obj: unknown, key: string): string | undefined {
-  if (!obj || typeof obj !== "object" || !(key in obj)) return undefined;
-  const value = (obj as Record<string, unknown>)[key];
-  return typeof value === "string" && value ? value : undefined;
-}
 
 /** kimi 工具 args → shell 命令文本(command/cmd 键;其余工具暂无实证形态)。 */
 function kimiCommandOf(args: unknown): string | undefined {

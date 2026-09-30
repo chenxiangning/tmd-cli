@@ -6,7 +6,7 @@
  */
 
 /** 退出卡能提供的接力源信息(快照,进程已逝;model 不可知不假造)。 */
-export interface RelayOpenDetail {
+interface RelayOpenDetail {
   profileId: string;
   /** profile 展示名(调用方解析后传入;插件零二次查找)。 */
   engineName: string;

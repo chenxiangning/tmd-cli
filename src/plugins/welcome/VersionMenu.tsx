@@ -9,17 +9,16 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowClockwise, Star } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
+import { clampToViewport } from "@kernel/menuClamp";
 import { extractSemver, fetchVersionList } from "./latestVersion";
 import { listVersionFavs, toggleVersionFav, versionFavKey } from "./versionFavs";
 
-/** 菜单定位:以点击点为左上,按估算尺寸(260×400)视口内夹取(同 wsmenu 模式)。 */
+/** 菜单定位:以点击点为左上,按估算尺寸(260×400)视口内夹取(kernel clampToViewport)。 */
 function clampMenuPosition(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.min(Math.max(8, x), window.innerWidth - 260 - 12),
-    y: Math.min(Math.max(8, y), window.innerHeight - 400 - 12),
-  };
+  return clampToViewport(x, y, 260, 400);
 }
 
 /** 菜单内容(纯展示;拉取/订阅/定位在壳组件,本件拆出供渲染契约测试)。 */
@@ -143,13 +142,7 @@ export function VersionMenu({
     };
   }, [npmPackage, tick]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   const pos = clampMenuPosition(anchor.x, anchor.y);
   return createPortal(

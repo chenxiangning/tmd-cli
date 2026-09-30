@@ -6,7 +6,8 @@
  */
 import { createSubscribable } from "@kernel/subscribable";
 import { ipc } from "@kernel/ipc";
-import { dailyPaths, ensureDir, readJson, writeJson } from "./journalFiles";
+import { dailyPaths, readJson, writeJson } from "./journalFiles";
+import { ensureDir } from "@kernel/fsDirs";
 
 interface HolDay {
   name: string;

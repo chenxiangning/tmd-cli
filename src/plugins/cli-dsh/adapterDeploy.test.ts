@@ -76,10 +76,13 @@ beforeEach(async () => {
 });
 
 describe("ensureAdapterDeployed", () => {
-  it("首次部署:按序建三级目录、全量写清单 + stamp、返回入口路径", async () => {
+  it("首次部署:按序建目录链、全量写清单 + stamp、返回入口路径", async () => {
     firstDeploySetup();
     expect(await mod.ensureAdapterDeployed()).toBe(ENTRY);
+    /* 目录链走 kernel fsDirs:从根逐级建到部署目录(已存在级报错被吞)。 */
     expect(mocks.fsCreateDir.mock.calls.map((c) => c[0])).toEqual([
+      "/Users",
+      HOME,
       `${HOME}/.tmd-cli`,
       `${HOME}/.tmd-cli/adapters`,
       DIR,

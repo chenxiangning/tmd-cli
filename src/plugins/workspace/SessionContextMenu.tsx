@@ -7,9 +7,10 @@
  * 当前作用域带 ✓ 前缀,点当前 = 取消置顶,点另一 = 迁移作用域。
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, Pencil, Trash } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import type { SessionPinScope } from "@kernel/sessionPins";
 import { t } from "@kernel/i18n";
 import { clampMenuPosition } from "./utils";
@@ -41,13 +42,7 @@ export function SessionContextMenu({
   const [armed, setArmed] = useState(false);
   const pos = clampMenuPosition(position.x, position.y);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   const pinItem = (scope: SessionPinScope, label: string) => (
     <button

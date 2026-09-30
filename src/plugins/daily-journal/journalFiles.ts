@@ -12,6 +12,7 @@
  * fsCreateDir 非递归:建嵌套目录逐级建、忽略「已存在」错(adapterDeploy 同款)。
  */
 import { ipc } from "@kernel/ipc";
+import { ensureParentDir } from "@kernel/fsDirs";
 
 export interface DayNoteImage {
   /** assets/ 内文件名(内容不在 JSON 里,展示时经 fsReadBytesBase64 取)。 */
@@ -115,28 +116,6 @@ export function dailyPaths(): Promise<DailyPaths> {
     };
   });
   return pathsLoading;
-}
-
-/** 逐级建目录(已存在忽略);失败抛出由调用方兜底。 */
-export async function ensureDir(path: string): Promise<void> {
-  const parts = path.split("/");
-  /* 逐级建目录必须有序:reduce 链保序(等价 for-await,doctor 友好)。 */
-  const mkdir = (i: number) => () =>
-    ipc.fsCreateDir(parts.slice(0, i).join("/")).catch((e: unknown) => {
-      /* Rust create_dir 已存在语义报「同名文件或文件夹已存在」——曾误写
-         「已经存在」永不匹配,首个 /Users 步即抛,全部写盘静默阵亡。 */
-      const msg = String(e);
-      if (!msg.includes("exists") && !msg.includes("已存在")) throw e;
-    });
-  await parts.slice(2).reduce<Promise<void>>(
-    (chain, _, i) => chain.then(mkdir(i + 3)),
-    mkdir(2)(),
-  );
-}
-
-/** 写文件前确保父目录存在。 */
-export async function ensureParentDir(filePath: string): Promise<void> {
-  await ensureDir(filePath.slice(0, filePath.lastIndexOf("/")));
 }
 
 /** 读 JSON;文件不存在/损坏/不可读返回 fallback(数据文件宽容读)。 */

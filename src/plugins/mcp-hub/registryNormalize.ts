@@ -39,16 +39,17 @@ export interface RegistryCard {
 
 type RawRecord = Record<string, unknown>;
 
-function asRecord(value: unknown): RawRecord {
+/** 外部 JSON 收窄守卫(registrySources 共用;非对象回 {}、非数组回 []、有限数回原值)。 */
+export function asRecord(value: unknown): RawRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as RawRecord) : {};
 }
-function asArray(value: unknown): unknown[] {
+export function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
-function asNumber(value: unknown): number | undefined {
+export function asNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 

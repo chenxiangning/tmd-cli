@@ -13,6 +13,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Image, CircleNotch } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
 
@@ -87,13 +88,7 @@ function Lightbox({
   name: string;
   onClose: () => void;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
   return createPortal(
     <div
       className="fixed inset-0 z-1000 flex items-center justify-center bg-black/80"

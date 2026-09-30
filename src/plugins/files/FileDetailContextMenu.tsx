@@ -4,7 +4,6 @@
  * 编辑预览切换/保存。Git 项仅本地文件且在活跃工作区内;路径口径 = 根相对(同 DiffView)。
  */
 
-import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { EditorView } from "@codemirror/view";
 import {
@@ -19,6 +18,7 @@ import {
   Scissors,
   Selection,
 } from "@phosphor-icons/react";
+import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
 import { composerInsertRef } from "@kernel/composerExt";
@@ -189,13 +189,7 @@ export function FileDetailContextMenu({
   const pos = clampMenuPosition(state.x, state.y);
   pos.x = Math.min(pos.x, window.innerWidth - 400 - 12);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   /* 先执行后关单:run 里的异步操作不阻塞菜单关闭。 */
   const pick: Pick = (run) => {

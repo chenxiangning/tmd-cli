@@ -3,7 +3,8 @@
  * 文件名 = 日 key + 毫秒戳 + 原扩展(便签 JSON 只存引用,内容不进档)。
  */
 import { ipc } from "@kernel/ipc";
-import { dailyPaths, dayKey, ensureDir } from "./journalFiles";
+import { dailyPaths, dayKey } from "./journalFiles";
+import { ensureDir } from "@kernel/fsDirs";
 import type { DayNoteImage } from "./journalFiles";
 
 /** 内存缓存:文件名 → data URL(展示 URL;同图多格重复读免)。 */

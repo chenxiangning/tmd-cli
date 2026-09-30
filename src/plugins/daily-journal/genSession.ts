@@ -12,7 +12,9 @@ import { prepareSendPayload } from "@kernel/profileSend";
 import { getWorkspaces } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import type { PluginEventBus } from "@kernel/plugin";
-import { dailyPaths, dayKey, ensureParentDir, readText, writeText } from "./journalFiles";
+import type { Article } from "./articleParse";
+import { dailyPaths, dayKey, readText, writeText } from "./journalFiles";
+import { ensureParentDir } from "@kernel/fsDirs";
 import { addBead, dayMetaOf, getJournalState, reloadDay, setDayResult } from "./journalStore";
 import { collectSessionRows, type DaySessionRow } from "./daySessions";
 import { buildDayDigest } from "./sessionDigest";
@@ -62,7 +64,12 @@ async function finalize(p: PendingSettle, failText: string | null): Promise<void
   /* 收割生成会话:终态后 TUI 空转存活直到应用退出(实测 done 后 PTY 日志仍持续
      写 48 分钟),批量补齐会堆积僵尸进程;统一 kill,会话已退出则静默。 */
   void host.removeSession(p.sessionId);
-  const article = await reloadDay(p.y, p.m, p.d);
+  let article: Article | null = null;
+  try {
+    article = await reloadDay(p.y, p.m, p.d);
+  } catch {
+    /* 读盘抖动按无产出结算:finishTask 必须执行,任务卡 run 会堵死整条串行队列。 */
+  }
   if (article) {
     finishTask(p.taskId, true, `已落盘 · ${article.title.slice(0, 24)}`);
     setDayResult(p.dayKey, { lastError: undefined, summarizedAt: p.rowsAt });
@@ -101,9 +108,22 @@ function startSettlePoll(p: PendingSettle): void {
   }, SETTLE_POLL_MS);
 }
 
+/** run 态取消的收割体(taskQueue 注入):清结算守望 + 收割会话。
+ * sessionId 尚未绑定(spawn 挂起期间取消)时无从收割,由 runGeneration 检查点自弃。 */
+function abortRun(task: GenTask): void {
+  if (!task.sessionId) return;
+  const p = pending.get(task.sessionId);
+  if (p) {
+    pending.delete(task.sessionId);
+    clearTimeout(p.timer);
+    clearInterval(p.poll);
+  }
+  void host.removeSession(task.sessionId);
+}
+
 /** activate 时装配:执行体注入 + 内核事件接线。返回退订。 */
 export function bootGenSession(events: PluginEventBus): () => void {
-  setTaskRunner(runGeneration);
+  setTaskRunner(runGeneration, abortRun);
   const offSettled = events.on<{ sessionId: string }>(KernelTopics.turnSettled, (e) => {
     const p = pending.get(e.sessionId);
     if (p) void onSettled(p);
@@ -123,7 +143,7 @@ export function bootGenSession(events: PluginEventBus): () => void {
     offSettled();
     offExited();
     offEdit();
-    setTaskRunner(() => Promise.resolve());
+    setTaskRunner(null); /* 停泵:排队保留;空转 runner 会把队首泵成永不结算的 run */
   };
 }
 
@@ -171,12 +191,18 @@ async function runGeneration(task: GenTask): Promise<void> {
     activate: false,
     model: getJournalState().config.model || undefined,
   });
+  /* 取消竞态检查点:createSession 是武装结算超时前唯一的无界等待段,挂起期间
+     被取消 → 会话落地即弃。先绑 sessionId 再进入等待窗,取消才收割得到会话。 */
+  if (!isTaskActive(task.id)) {
+    void host.removeSession(meta.id);
+    return;
+  }
+  startTaskRun(task.id, meta.id, `${task.type} · 生成会话 ${meta.id}`);
   /* pi-tui 系冷启动窗:spawn 返回 ≠ TUI 就绪,过早写入会撞 cooked→raw 切换被吃。
      先等一拍再写(真机实证:立即写 → prompt 以 [Paste] 悬在输入框永不提交)。 */
   await sleep(1200);
   const payload = prepareSendPayload({ ...profile, triggers: [] }, prompt);
   const sent = await host.writeSession(meta.id, payload);
-  startTaskRun(task.id, meta.id, `${task.type} · 生成会话 ${meta.id}`);
   if (!sent) {
     finishTask(task.id, false, "提示词未能送达(会话可能已退出)");
     setDayResult(task.dayKey, { lastError: "提示词未能送达" });

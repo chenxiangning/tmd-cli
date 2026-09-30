@@ -60,3 +60,16 @@ export async function readEditsTail(
   if (tail === null) return null;
   return parse(tail, sinceTs, cwd);
 }
+
+/** toolResult content[] → 文本块列表(omp/pi edits 适配器共用;非文本块跳过)。 */
+export function textBlocksOf(raw: Record<string, unknown>): string[] {
+  if (!Array.isArray(raw.content)) return [];
+  const out: string[] = [];
+  for (const block of raw.content) {
+    if (typeof block === "object" && block !== null && "text" in block) {
+      const text = (block as Record<string, unknown>).text;
+      if (typeof text === "string") out.push(text);
+    }
+  }
+  return out;
+}

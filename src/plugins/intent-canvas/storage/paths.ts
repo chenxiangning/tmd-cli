@@ -1,5 +1,6 @@
 import { ipc } from "@kernel/ipc";
 import { asString } from "../utils/json";
+import { fnv1a32 } from "@kernel/textHash";
 /**
  * 意图画布 · 存储路径与 id 白名单(sidecar ~/.tmd-cli/intent-canvas/<dirKey(root)>/,移植自
  * mossx intentCanvasStorage;mossx 的 Rust 白名单校验对应物 = normalizeCanvasId)。
@@ -48,14 +49,9 @@ export function resolveDocumentPath(canvasId: string): string {
 }
 
 
-/** 目录名安全的工作区键:fnv 32 位 hex(marks dirKey 同构,cwd 判等键)。 */
+/** 目录名安全的工作区键:fnv 32 位 base36(cwd 判等键;算法收口在 kernel/textHash)。 */
 export function dirKey(root: string): string {
-  let hash = 2166136261;
-  for (let index = 0; index < root.length; index += 1) {
-    hash ^= root.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36);
+  return fnv1a32(root).toString(36);
 }
 
 /** 某工作区的画布目录(懒解析 home;目录创建归调用方)。 */

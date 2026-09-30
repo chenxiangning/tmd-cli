@@ -21,7 +21,7 @@ export function detectOpenWithPlatform(ua = typeof navigator === "undefined" ? "
 }
 
 /** 预设目录条目:探测独立进行,未安装灰显;不含运行时状态。 */
-export interface OpenWithPreset {
+interface OpenWithPreset {
   /** 与目标 id 同域:已添加判定 = targets.some(t => t.id === preset.id)。 */
   id: string;
   label: string;

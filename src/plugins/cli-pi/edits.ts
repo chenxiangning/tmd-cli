@@ -18,7 +18,7 @@
 import type { CliSessionEdit } from "@kernel/cli";
 import { normalizeEditPath } from "@kernel/editWatch";
 import { piAgentDir } from "./piLocalConfig";
-import { parseEditEventsFromText } from "../cli-shared/sessionEdits";
+import { parseEditEventsFromText, textBlocksOf } from "../cli-shared/sessionEdits";
 import { bashToolCallEvents } from "../cli-shared/bashWrites";
 import { readPiFamilySessionEdits } from "../cli-shared/piFamily";
 
@@ -64,19 +64,12 @@ function editEventsOf(entry: Record<string, unknown>, cwd: string): CliSessionEd
   if (!Number.isFinite(ts)) return [];
 
   const paths = new Set<string>();
-  if (Array.isArray(raw.content)) {
-    for (const block of raw.content) {
-      const text =
-        typeof block === "object" && block !== null && "text" in block && typeof block.text === "string"
-          ? block.text
-          : undefined;
-      if (typeof text !== "string") continue;
-      for (const line of text.split("\n")) {
-        const m = raw.toolName === "edit" ? EDIT_OK.exec(line) : WRITE_OK.exec(line);
-        if (!m) continue;
-        const path = normalizeEditPath(m[1], cwd);
-        if (path) paths.add(path);
-      }
+  for (const text of textBlocksOf(raw)) {
+    for (const line of text.split("\n")) {
+      const m = raw.toolName === "edit" ? EDIT_OK.exec(line) : WRITE_OK.exec(line);
+      if (!m) continue;
+      const path = normalizeEditPath(m[1], cwd);
+      if (path) paths.add(path);
     }
   }
   return [...paths].map((path) => ({ path, ts }));

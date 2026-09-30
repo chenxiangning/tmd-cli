@@ -13,8 +13,10 @@
  * 菜单项本体拆至 branchMenuGroups.tsx(no-high-complexity 降分支)。
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useEscClose } from "@kernel/DialogShell";
+import { clampToViewport } from "@kernel/menuClamp";
 import { t } from "@kernel/i18n";
 import type { GitBranchInfo } from "@kernel/ipc";
 import { BranchMenuItems, type MenuCtx } from "./branchMenuGroups";
@@ -54,10 +56,7 @@ export interface BranchMenuActions {
 
 /** 首帧估算定位(初值防闪);渲染后按实测尺寸二次夹取,见下方 useLayoutEffect。 */
 function clampMenuPosition(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.min(Math.max(8, x), window.innerWidth - 220 - 12),
-    y: Math.min(y, window.innerHeight - 420 - 12),
-  };
+  return clampToViewport(x, y, 220, 420);
 }
 
 export function BranchContextMenu({
@@ -99,13 +98,7 @@ export function BranchContextMenu({
     setPos({ x: left, y: top });
   }, [state.x, state.y]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useEscClose(onClose);
 
   const ctx: MenuCtx = {
     branch,

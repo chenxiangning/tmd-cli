@@ -10,3 +10,14 @@ export function hashStableString(value: string): string {
   }
   return hash.toString(36);
 }
+
+/** FNV-1a 32 位(marks 行指纹 / intent-canvas 目录键 / cli-shared 去重键共用;
+ *  非加密,只求判等区分)。返回原始 u32,输出进制由调用方定(此前四抄各异)。 */
+export function fnv1a32(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
