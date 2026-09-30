@@ -210,7 +210,7 @@ export function PinnedSessionsSection() {
         title={collapsed ? t("展开已置顶") : t("收起已置顶")}
         onClick={toggleCollapsed}
       >
-        <PinIcon size="0.6875rem" className="pinned-sessions-header-icon" />
+        <PinIcon size="1rem" className="pinned-sessions-header-icon" />
         <span className="pinned-sessions-header-label">{t("已置顶")}</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (

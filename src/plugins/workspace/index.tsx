@@ -147,7 +147,7 @@ function WorkspaceSection() {
 
       <div className="ws-caption">
         <span className="ws-caption-label">
-          <Folders size="0.6875rem" aria-hidden className="ws-caption-icon" />
+          <Folders size="1rem" aria-hidden className="ws-caption-icon" />
           {t("工作区")}
         </span>
         <span className="ws-caption-actions">

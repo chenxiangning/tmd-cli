@@ -194,7 +194,7 @@ export function RunningZoneSection() {
         title={collapsed ? t("展开运行区") : t("收起运行区")}
         onClick={toggleCollapsed}
       >
-        <Pulse size="0.6875rem" className="pinned-sessions-header-icon" />
+        <Pulse size="1rem" className="pinned-sessions-header-icon" />
         <span className="running-zone-header-label">{t("运行区")}</span>
         <span className="pinned-sessions-header-count">· {rows.length}</span>
         {collapsed ? (

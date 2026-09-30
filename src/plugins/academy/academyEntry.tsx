@@ -38,7 +38,7 @@ export function AcademyEntry() {
         title={collapsed ? t("展开学堂") : t("收起学堂")}
         onClick={() => setEntryCollapsed(!collapsed)}
       >
-        <Student size="0.6875rem" className="academy-entry-glyph" aria-hidden />
+        <Student size="1rem" className="academy-entry-glyph" aria-hidden />
         <span className="academy-entry-tt">{t("学堂")}</span>
         <span className="academy-entry-count">{courses.length}</span>
         {collapsed ? (
