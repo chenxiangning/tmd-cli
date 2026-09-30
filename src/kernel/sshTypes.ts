@@ -30,6 +30,12 @@ export interface SshProxyConfig {
   password: string;
 }
 
+/** 跨插件主机身份键(host|port|user 归一,端口 0/缺省归 22):SSH 导入查重与
+ *  wsl HostForm 手动添加查重共用同一契约。 */
+export function sshHostIdentityKey(host: Pick<SshHostConfig, "host" | "port" | "username">): string {
+  return `${host.host.trim().toLowerCase()}|${host.port || 22}|${host.username.trim().toLowerCase()}`;
+}
+
 /** `ssh://event/{id}` 判别载荷:status(状态流转)/ forwards(转发快照)。 */
 export type SshSessionEvent =
   | {

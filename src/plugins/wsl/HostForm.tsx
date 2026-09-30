@@ -6,12 +6,9 @@
 
 import { useState } from "react";
 import type { SshHostConfig } from "@kernel/ipc";
+import { sshHostIdentityKey } from "@kernel/sshTypes";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
-
-function identityKey(h: { host: string; port?: number; username: string }): string {
-  return `${h.host.trim().toLowerCase()}|${h.port || 22}|${h.username.trim().toLowerCase()}`;
-}
 
 export function HostForm({ onSaved }: { onSaved: (id: string) => void }) {
   const { settings } = useSettingsState();
@@ -29,7 +26,7 @@ export function HostForm({ onSaved }: { onSaved: (id: string) => void }) {
       return;
     }
     const portNum = Math.min(Math.max(parseInt(port, 10) || 22, 1), 65535);
-    if (settings.ssh.hosts.some((x) => identityKey(x) === identityKey({ host: h, port: portNum, username: u }))) {
+    if (settings.ssh.hosts.some((x) => sshHostIdentityKey(x) === sshHostIdentityKey({ host: h, port: portNum, username: u }))) {
       setErr(t("该主机已存在(同地址/端口/用户名),请在下拉中选择"));
       return;
     }
