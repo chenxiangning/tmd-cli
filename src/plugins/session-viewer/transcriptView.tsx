@@ -12,27 +12,11 @@ import { memo, useMemo, useState, type ComponentType } from "react";
 import type { CliTranscriptBlock, CliTranscriptImage } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 
-import { buildTranscriptPhases, makeKeySeq } from "./transcriptPhases";
-import { PhaseFold, ThinkingRow } from "./transcriptRows";
+import { buildTranscriptPhases, makeKeySeq, capped } from "./transcriptPhases";
+import { PhaseFold, ThinkingRow, Timestamp } from "./transcriptRows";
 
 /** md 渲染组件协议(lazy 拆包,viewerTab 注入)。 */
 export type MarkdownRenderer = ComponentType<{ children: string }>;
-
-/** 正文截断:10k 字符(超长正文留头部)。 */
-const TEXT_CAP = 10_000;
-
-function Timestamp({ ms }: { ms?: number }) {
-  if (!ms) return null;
-  return (
-    <span className="sv-ts">
-      {new Date(ms).toLocaleString(undefined, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-    </span>
-  );
-}
-
-function capped(text: string): string {
-  return text.length > TEXT_CAP ? `${text.slice(0, TEXT_CAP)}…` : text;
-}
 
 /** 用户消息内嵌图片行(base64 data URI;点击缩略/整幅切换)。 */
 function UserImages({ images }: { images: CliTranscriptImage[] }) {

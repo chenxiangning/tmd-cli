@@ -213,3 +213,10 @@ export function phaseTitle(phase: TranscriptPhase): string {
   }
   return "思考";
 }
+
+/** 正文截断:10k 字符(超长正文留头部;工具输出截断另见 transcriptRows 留尾 2k 行)。 */
+const TEXT_CAP = 10_000;
+
+export function capped(text: string): string {
+  return text.length > TEXT_CAP ? `${text.slice(0, TEXT_CAP)}…` : text;
+}

@@ -7,18 +7,13 @@ import { memo, useState, type ReactNode } from "react";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { CaretRightIcon, MinusIcon, BookOpenIcon, PencilSimpleIcon, TerminalIcon, BrainIcon } from "@phosphor-icons/react";
-import { makeKeySeq, phaseTitle, proseSummary, toolRowLabel, type PhaseKind, type TranscriptPhase } from "./transcriptPhases";
+import { makeKeySeq, phaseTitle, proseSummary, toolRowLabel, capped, type PhaseKind, type TranscriptPhase } from "./transcriptPhases";
 import type { MarkdownRenderer } from "./transcriptView";
 
 /** 正文截断:10k 字符(超长正文留头部)。工具输出截断:留尾部 2k 行。 */
-const TEXT_CAP = 10_000;
 const OUTPUT_TAIL_LINES = 2_000;
 
-function capped(text: string): string {
-  return text.length > TEXT_CAP ? `${text.slice(0, TEXT_CAP)}…` : text;
-}
-
-function Timestamp({ ms }: { ms?: number }) {
+export function Timestamp({ ms }: { ms?: number }) {
   if (!ms) return null;
   return (
     <span className="sv-ts">
