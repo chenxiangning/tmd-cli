@@ -126,7 +126,6 @@ pub(crate) fn render_health(
     window: WebviewWindow,
     state: State<'_, AppState>,
     ok: bool,
-    gap_ms: u64,
     flood: bool,
 ) {
     let ks = &state.render_kick;
@@ -140,7 +139,6 @@ pub(crate) fn render_health(
         ks.strikes.store(0, Ordering::Relaxed);
         return;
     }
-    let _ = gap_ms; /* 观测值已足量,决策只看 ok 与窗口可见性 */
     /* 窗口真隐藏/最小化时的粘死是「按设计暂停」,不可击打。 */
     if !window.is_visible().unwrap_or(true) {
         return;

@@ -82,7 +82,7 @@ async function report(ok: boolean): Promise<void> {
     const { invoke } = await import("./transport");
     /* flood 随行:Rust 在洪水期把 reload 降级为 focus(reload = 回放风暴雪上加霜,
        见 floodGauge.ts 头注与 src-tauri/src/render_health.rs)。 */
-    void invoke("render_health", { ok, gapMs: nativeRafGapMs(), flood: isPtyFloodHeavy() }).catch(
+    void invoke("render_health", { ok, flood: isPtyFloodHeavy() }).catch(
       () => undefined,
     );
   } catch {

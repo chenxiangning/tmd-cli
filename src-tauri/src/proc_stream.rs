@@ -180,13 +180,15 @@ pub(crate) async fn proc_stream_write(id: String, data: String) -> Result<(), St
 }
 
 #[tauri::command]
-pub(crate) fn proc_stream_kill(id: String) {
-    kill(&id);
+/* async + spawn_blocking:收割线程持 child 锁跨 2s 收割宽限,同步命令在主线程
+ * 撞上同一把锁即冻 UI(关 tab 恰逢 EOF 收割窗)。 */
+pub(crate) async fn proc_stream_kill(id: String) {
+    let _ = tauri::async_runtime::spawn_blocking(move || kill(&id)).await;
 }
 
 #[tauri::command]
-pub(crate) fn proc_stream_kill_all() {
-    kill_all();
+pub(crate) async fn proc_stream_kill_all() {
+    let _ = tauri::async_runtime::spawn_blocking(kill_all).await;
 }
 
 /// 按行读,超 MAX_LINE_BYTES 截断本行(丢弃到换行)防无界缓冲。
