@@ -34,3 +34,27 @@ export function subscribeLiveMode(l: Listener): () => void {
 export function tailWindow(blocks: CliTranscriptBlock[], visible: number): CliTranscriptBlock[] {
   return blocks.length <= visible ? blocks : blocks.slice(blocks.length - visible);
 }
+
+export type ProbeDecision = "relocate" | "terminal" | "read" | "idle";
+
+/** 轮询决策(纯函数,单测钉死熔断语义):
+ * - 未定位磁盘会话:回 relocate(重定位尝试;列表 miss 由调用方保持等待,
+ *   覆盖 omp 新会话 jsonl 懒落盘场景,不改失败计数);
+ * - 已定位但探测失败:第一次回 relocate 容瞬态;重定位命中后再探错 = 路径
+ *   非可读文件(kimi/grok 会话目录、opencode/dsh 合成串),回 terminal 熔断;
+ * - 探测成功:有变更回 read,无变更回 idle 继续等待。 */
+export function decideProbe(
+  resolved: boolean,
+  probe: { changed: boolean } | null,
+  failStreak: number,
+): { decision: ProbeDecision; failStreak: number } {
+  if (!resolved) return { decision: "relocate", failStreak };
+  if (!probe) {
+    return failStreak > 0
+      ? { decision: "terminal", failStreak: 0 }
+      : { decision: "relocate", failStreak: 1 };
+  }
+  return probe.changed
+    ? { decision: "read", failStreak: 0 }
+    : { decision: "idle", failStreak: 0 };
+}

@@ -16,7 +16,7 @@ import { updateSettings, useSettingsState } from "@kernel/settings";
 import type { CliDiskSession, CliTranscriptBlock } from "@kernel/cli";
 import { retryImport } from "@kernel/lazyImport";
 import { TranscriptView } from "./transcriptView";
-import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow } from "./liveMode";
+import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe } from "./liveMode";
 
 /* md 渲染管线体积大,按需拆包(与 viewerTab 同款纪律)。 */
 const MarkdownBody = lazy(retryImport(() =>
@@ -31,8 +31,6 @@ const RESOLVE_EVERY = 3;
 const RENDER_BATCH = 200;
 /** 贴底跟随判定边距。 */
 const FOLLOW_EDGE = 60;
-/** working 带闭锁:最后活信号(转录磁盘增长)静默超此值收带。 */
-const BAND_HOLD_MS = 15_000;
 
 /* 轮询状态机组件:分支密度是本质复杂度,拆散闭包需传 6 个 ref 弊大于利。 */
 // react-doctor-disable-next-line react-doctor/no-high-complexity-react-function
@@ -52,18 +50,19 @@ export function LiveTranscriptOverlay() {
   useEffect(() => subscribeLiveMode(force), [force]);
 
   const [error, setError] = useState(false);
+  const [unsupported, setUnsupported] = useState(false);
   const [blocks, setBlocks] = useState<CliTranscriptBlock[] | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [visible, setVisible] = useState(RENDER_BATCH);
-  /** 轮次进行中(kernel 呼吸灯同源):working 带 + 卷尾流式观感。 */
+  /** 轮次进行中(host.isTurnActive 会话生命周期,呼吸灯/会话 tab「运行中」同源):
+   *  working 带 + 卷尾流式观感。 */
   const [turnActive, setTurnActive] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const sinceRef = useRef<number | null>(null);
-  /** 带闭锁:alive 信号 = 转录磁盘增长(内核活动钟在 pi alt-screen 静默段会假熄,不采用);
-   *  静默超 HOLD 才收带。 */
-  const lastSignalRef = useRef(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const diskRef = useRef<CliDiskSession | null>(null);
+  /** 连续探错计数:重定位命中后第二次探错即熔断(路径非可读文件)。 */
+  const probeFailRef = useRef(0);
   const sizeRef = useRef<number | null>(null);
   const stickRef = useRef(true);
   const pendingRestoreRef = useRef<{ height: number; top: number } | null>(null);
@@ -74,12 +73,14 @@ export function LiveTranscriptOverlay() {
     sizeRef.current = null;
     stickRef.current = true;
     pendingRestoreRef.current = null;
-    lastSignalRef.current = 0;
+    sinceRef.current = null;
     setTurnActive(false);
     setBlocks(null);
     setTruncated(false);
     setVisible(RENDER_BATCH);
     setError(false);
+    setUnsupported(false);
+    probeFailRef.current = 0;
   }, [activeId, on]);
 
   /* 轮询:定位磁盘会话 → 尺寸探测短路 → 变更全量重读。 */
@@ -89,6 +90,7 @@ export function LiveTranscriptOverlay() {
     const listSessions = profile.listSessions;
     let stopped = false;
     let tick = 0;
+    let timer: NodeJS.Timeout | undefined;
     const poll = async (): Promise<void> => {
       if (!diskRef.current) {
         /* IdentityLedger.bind 无宿主通知,靠轮询节拍重查(通常秒级绑定)。 */
@@ -104,16 +106,20 @@ export function LiveTranscriptOverlay() {
         .fsReadTailChanged(diskRef.current.path, 1, sizeRef.current)
         .catch(() => null);
       if (stopped) return;
-      if (!probe) {
+      const { decision, failStreak } = decideProbe(true, probe, probeFailRef.current);
+      probeFailRef.current = failStreak;
+      if (decision === "terminal") {
+        diskRef.current = null;
+        setUnsupported(true);
+        clearInterval(timer);
+        timer = undefined;
+        return;
+      }
+      if (decision === "relocate") {
         diskRef.current = null; /* 文件消失/不可读:清缓存重定位 */
         return;
       }
-      if (probe.changed && sizeRef.current !== null) {
-        /* 增量增长才武装(首读是建基线,不是活动证据——空闲会话开视图不冒带)。 */
-        lastSignalRef.current = Date.now();
-        if (sinceRef.current === null) sinceRef.current = Date.now();
-      }
-      if (!probe.changed) return;
+      if (decision !== "read" || !probe || !probe.changed) return;
       const transcript = await reader(diskRef.current);
       if (stopped) return;
       sizeRef.current = probe.size;
@@ -135,16 +141,20 @@ export function LiveTranscriptOverlay() {
         if (!stopped) setError(true);
       }
       if (stopped) return;
-      const alive = Date.now() - lastSignalRef.current < BAND_HOLD_MS;
+      /* working 带/卷尾流式观感 = 会话轮次生命周期(host.isTurnActive,呼吸灯与
+       * 会话 tab「运行中」同源):运行时即 loading 期,开视图即在途也立亮;静默段
+       * 持轮由 busyMarks/busyHoldMs 自证(omp 冻结 75s 宽窗),不再从磁盘增长猜。 */
+      const alive = host.isTurnActive(activeId);
       if (alive && sinceRef.current === null) sinceRef.current = Date.now();
       if (!alive) sinceRef.current = null;
       setTurnActive(alive);
     };
     void step();
-    const timer = setInterval(() => void step(), POLL_MS);
+    timer = setInterval(() => void step(), POLL_MS);
     return () => {
       stopped = true;
       clearInterval(timer);
+      timer = undefined;
     };
   }, [on, activeId, profile, meta?.cwd]);
 
@@ -178,9 +188,11 @@ export function LiveTranscriptOverlay() {
 
   const shown = tailWindow(blocks ?? [], visible);
   const statusText =
-    error
-      ? t("读取会话转录失败")
-      : blocks === null
+    unsupported
+      ? t("该引擎不支持实时转录")
+      : error
+        ? t("读取会话转录失败")
+        : blocks === null
         ? t("定位会话文件中…")
         : blocks.length === 0
           ? t("会话没有可解析的对话内容")

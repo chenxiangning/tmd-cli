@@ -24,6 +24,7 @@ export const MESSAGES_EN: Record<string, string> = {
   "切换到结构化转录视图(幕布保活)": "Switch to structured transcript view (terminal stays alive)",
   "返回 PTY 流实况显示": "Back to live PTY stream",
   "定位会话文件中…": "Locating session file…",
+  "该引擎不支持实时转录": "Live transcript not supported for this engine",
   "载入更早": "Load earlier",
   "working for": "working for ",
 };

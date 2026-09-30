@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { CliTranscriptBlock } from "@kernel/cli";
+import { decideProbe } from "./liveMode";
 import {
   isLiveTranscript,
   pruneLiveTranscript,
@@ -49,6 +50,28 @@ describe("tailWindow 尾窗切片", () => {
     const all = tailWindow(blocks, 10);
     expect(all).toBe(blocks); // 未截断时原引用直通,分批 memo 命中
     expect(tailWindow([], 200)).toEqual([]);
+  });
+});
+
+describe("decideProbe 探测熔断", () => {
+  it("重定位命中后连续两次探错 → 终态熔断停拍", () => {
+    const first = decideProbe(true, null, 0);
+    expect(first.decision).toBe("relocate"); // 第一次探错:清缓存容瞬态重定位
+    expect(first.failStreak).toBe(1);
+    // 重定位命中同会话后再探错(连续第二次失败):终态,失败计数归零
+    const second = decideProbe(true, null, first.failStreak);
+    expect(second.decision).toBe("terminal");
+    expect(second.failStreak).toBe(0);
+  });
+
+  it("重定位 miss → 继续等待,不改失败计数", () => {
+    const miss = decideProbe(false, null, 0);
+    expect(miss.decision).toBe("relocate");
+    expect(miss.failStreak).toBe(0); // 懒落盘场景:不累计失败,不误熔断
+    // 探测成功路径:未变更 idle 等待,有变更全量重读
+    expect(decideProbe(true, { changed: false }, 0).decision).toBe("idle");
+    expect(decideProbe(true, { changed: true }, 1).decision).toBe("read");
+    expect(decideProbe(true, { changed: true }, 1).failStreak).toBe(0);
   });
 });
 
