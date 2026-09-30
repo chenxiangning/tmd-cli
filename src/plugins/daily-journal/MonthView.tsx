@@ -33,28 +33,18 @@ interface DayCellProps {
   ts: HeatThresholds;
 }
 
-/** 格 className(纯函数:状态/热力/今日/周末/便签描边合成)。 */
-function cellClass(st: DayStatus, hasNote: boolean, sessionCount: number, isToday: boolean, we: boolean, ts: HeatThresholds): string {
-  return [
-    "dj-cell",
-    st === "n" && !hasNote ? "dj-empty-day" : heatOf(sessionCount, ts),
-    st === "p" && "dj-pending",
-    st === "f" && "dj-failed",
-    isToday && "dj-today",
-    we && "dj-we",
-    hasNote && "dj-hasnote",
-  ]
-    .filter(Boolean)
-    .join(" ");
+/** 格 className(纯函数:今日/周末;热力与状态色改由正文 pill 承载,格底保持白净)。 */
+function cellClass(isToday: boolean, we: boolean): string {
+  return ["dj-cell", isToday && "dj-today", we && "dj-we"].filter(Boolean).join(" ");
 }
 
-/** 格正文(单行当日状态:生成状态 · 会话数 · 有便签;失败悬停见完整错误;纯函数)。 */
-function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: DaySessionRow[], notePeek: string): React.ReactNode {
+/** 格正文(状态 pill 条:热力底 + 单行当日状态;失败完整错误转 title 悬停;纯函数)。 */
+function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: DaySessionRow[], notePeek: string, heat: string): React.ReactNode {
   const noteTag = notePeek ? ` · ${t("有便签")}` : "";
   if (article) {
     const line =
       (st === "t" ? t("增量中 · {n} 条会话", { n: rows.length }) : t("已生成 · {n} 条会话", { n: rows.length })) + noteTag;
-    return <div className={`dj-stat ${st === "t" ? "dj-accent" : ""}`}>{line}</div>;
+    return <div className={`dj-stat ${st === "t" ? "dj-accent" : heat}`}>{line}</div>;
   }
   if (st === "f")
     return (
@@ -69,6 +59,7 @@ function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: D
 function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
   const st = deriveDayStatus(article, isToday, rows.length, meta);
   const we = [0, 6].includes(new Date(y, m - 1, d).getDay());
+  const hol = holOf(y, m, d);
   const engines = [...new Set(rows.map((r) => r.profileId))];
   const notePeek = notePeekOf(note);
   const [confirming, setConfirming] = useState(false);
@@ -92,7 +83,7 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
   return (
     <div className="dj-cellwrap">
     <div
-      className={cellClass(st, !!note, rows.length, isToday, we, ts)}
+      className={cellClass(isToday, we)}
       role="button"
       tabIndex={0}
       onClick={open}
@@ -105,12 +96,13 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
     >
       <div className="dj-cell-top">
         <span className="dj-daynum">{d}</span>
-        {holOf(y, m, d) && <span className="dj-holmini">休·{holOf(y, m, d)}</span>}
       </div>
-      {cellBody(article, st, meta, rows, notePeek)}
+      {hol && <div className="dj-holpill">休·{hol}</div>}
+      {cellBody(article, st, meta, rows, notePeek, st === "g" ? heatOf(rows.length, ts) : "")}
       {notePeek && (
         <div className="dj-notepeek">
-          <PencilSimpleLine size={9} /> {notePeek}
+          <PencilSimpleLine size={9} />
+          <span className="dj-notepeek-t">{notePeek}</span>
         </div>
       )}
       <div className="dj-cell-engs">
@@ -162,8 +154,18 @@ export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
     }
     return heatThresholds(counts);
   }, [sessions, prefix, days]);
+  /* 图2 式整月固定 6 行 42 格:前后月补位编灰号,行高跨月一致。 */
+  const SLOTS = 42;
+  const prevDays = new Date(ym.y, ym.m - 1, 0).getDate();
   const cells: React.ReactNode[] = [];
-  for (let i = 0; i < lead; i++) cells.push(<div key={`lead-${i}`} className="dj-cell dj-out" />);
+  for (let i = 0; i < lead; i++)
+    cells.push(
+      <div key={`lead-${i}`} className="dj-cell dj-out">
+        <div className="dj-cell-top">
+          <span className="dj-daynum">{prevDays - lead + 1 + i}</span>
+        </div>
+      </div>,
+    );
   for (let d = 1; d <= days; d++) {
     const dd = pad2(d);
     const key = `${prefix}-${dd}`;
@@ -183,13 +185,19 @@ export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
       />,
     );
   }
+  for (let d = 1; lead + days + d <= SLOTS; d++)
+    cells.push(
+      <div key={`tail-${d}`} className="dj-cell dj-out">
+        <div className="dj-cell-top">
+          <span className="dj-daynum">{d}</span>
+        </div>
+      </div>,
+    );
   return (
     <div className="dj-month">
       <div className="dj-dow">
-        {weekdayLabelsMon().map((label, i) => (
-          <div key={label} className={i >= 5 ? "dj-dow-we" : ""}>
-            {label}
-          </div>
+        {weekdayLabelsMon().map((label) => (
+          <div key={label}>{label}</div>
         ))}
       </div>
       <div className="dj-mgrid">{cells}</div>

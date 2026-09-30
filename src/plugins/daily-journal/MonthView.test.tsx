@@ -17,7 +17,10 @@ vi.mock("./taskQueue", () => ({
   hasActiveTaskForDay: () => false,
   dayGenTaskType: (failed: boolean, hasArticle: boolean) => (failed ? "重试生成" : hasArticle ? "增量并入" : "手动生成"),
 }));
-vi.mock("./holidays", () => ({ holOf: () => null, useHolidays: () => null }));
+vi.mock("./holidays", () => ({
+  holOf: (_y: number, _m: number, d: number) => (d === 25 ? "中秋节" : null),
+  useHolidays: () => null,
+}));
 
 import { MonthView } from "./MonthView";
 import type { DaySessionRow } from "./daySessions";
@@ -113,5 +116,17 @@ describe("MonthView 月格单行状态描述", () => {
     setDayResult(key(21), { summarizedAt: 5 }); /* 行 modifiedAt=0 ≤ 水位 5 = 全部已归纳 */
     const html = renderMonth({ "21": article }, new Map([[key(21), rows(3)]]), key(30));
     expect(html).not.toContain(">增量并入<");
+  });
+
+  it("日历风格:固定 42 格前后月补位编灰号,节假日出 pill 条", () => {
+    const html = renderMonth({ "25": article }, new Map(), key(30));
+    /* 2026-09 周一开头 lead=1:首格补 8月31日;尾补位 42-1-30=11(10月1-11日),共 12 个补位格 */
+    expect((html.match(/dj-cell dj-out/g) ?? []).length).toBe(12);
+    expect(html).toContain(">31</span>");
+    expect(html).toContain(">1</span>");
+    expect(html).toContain('class="dj-holpill"');
+    expect(html).toContain("休·中秋节");
+    /* 热力不再涂满格底,改由状态 pill 承载 */
+    expect(html).toContain("dj-stat");
   });
 });
