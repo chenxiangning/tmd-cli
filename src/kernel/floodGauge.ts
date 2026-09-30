@@ -11,24 +11,27 @@
  *
  * 阈值:5s 窗 >256KB(≈50KB/s 持续流)为洪水 —— 单会话 omp 工作期 ~20KB/s,
  * 两三个并发才过线;日常打字/单 tick 更新远低于此,不会误降级。
+ *
+ * 实现必须是真滑动窗(逐批留时戳、超窗剪除):翻滚桶在跨桶边界劈开间歇型
+ * 洪峰时每桶都装不满,系统性欠检,洪水期 reload 降级落空(2026-10-01 实证)。
  */
 
 const WINDOW_MS = 5_000;
 const HEAVY_BYTES = 256 * 1024;
 
-let windowStart = 0;
-let windowBytes = 0;
+/** 最近 5s 内各批(时戳, 字节数)。进站频率上界 = 事件率(~20/s×会话),量小。 */
+const chunks: { at: number; bytes: number }[] = [];
 let heavyUntil = 0;
 
 /** appendOutput 逐批喂入(字符数;阈值按同量纲标定)。 */
 export function notePtyBytes(n: number): void {
   const now = Date.now();
-  if (now - windowStart >= WINDOW_MS) {
-    windowStart = now;
-    windowBytes = 0;
-  }
-  windowBytes += n;
-  if (windowBytes >= HEAVY_BYTES) heavyUntil = now + WINDOW_MS;
+  chunks.push({ at: now, bytes: n });
+  const cut = now - WINDOW_MS;
+  while (chunks.length > 0 && chunks[0].at <= cut) chunks.shift();
+  let sum = 0;
+  for (let i = 0; i < chunks.length; i++) sum += chunks[i].bytes;
+  if (sum >= HEAVY_BYTES) heavyUntil = now + WINDOW_MS;
 }
 
 /** 当前是否洪水期(5s 滑动窗超阈值后再保持 5s,退洪立即转 false)。 */
@@ -37,7 +40,6 @@ export function isPtyFloodHeavy(): boolean {
 }
 
 export function resetPtyFloodForTest(): void {
-  windowStart = 0;
-  windowBytes = 0;
+  chunks.length = 0;
   heavyUntil = 0;
 }

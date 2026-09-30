@@ -34,4 +34,17 @@ describe("floodGauge 洪水标尺", () => {
     }
     expect(isPtyFloodHeavy()).toBe(false);
   });
+
+  it("间歇洪峰跨桶边界劈开不漏检", () => {
+    /* 洪峰两批落 [4s,5s],恰跨翻滚桶边界 [0,5)|[5,10):每桶只装 150KB < 256KB
+     * 系统性欠检;真滑动窗下滚动总量 300KB ≥ 256KB 必判洪水。 */
+    vi.advanceTimersByTime(4_000);
+    notePtyBytes(150 * 1024);
+    expect(isPtyFloodHeavy()).toBe(false); /* 单批未越线 */
+    vi.advanceTimersByTime(1_000);
+    notePtyBytes(150 * 1024);
+    expect(isPtyFloodHeavy()).toBe(true); /* 滚动总量越线 */
+    vi.advanceTimersByTime(5_100);
+    expect(isPtyFloodHeavy()).toBe(false);
+  });
 });
