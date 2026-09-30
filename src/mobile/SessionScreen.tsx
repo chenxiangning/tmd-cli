@@ -3,6 +3,8 @@
  * 实况 = LiveScreen 迷你 VT 屏;ask 卡/键盘工具条 = 同一 session_write 通道;
  * 审批线 = nav 芯片 + 只读 sheet(checkpoint_list/batch_diff 白名单二令);
  * composer Enter 发送;软键盘弹起时键条隐藏(spec 2026-09-23-mobile-session-compact)。
+ * 选图经 useShots 预览挂载,发送时统一拼 @路径(草稿只留文字;2026-09-30)。
+ * composer 顶部把手上下拉调输入框高(useComposerSize,落手记忆;2026-09-30)。
  */
 import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
@@ -12,7 +14,9 @@ import { ConnBanner } from "./ConnChip";
 import { HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { notifyAsk } from "./shared";
-import { shotToDraft, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { composeSendText, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { useShots } from "./useShots";
+import { useComposerSize } from "./useComposerSize";
 import { shellInvoke } from "@kernel/shellBridge";
 import { EngineMark } from "./EngineMark";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
@@ -33,18 +37,22 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   const [askQ, setAskQ] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [ckptSheet, setCkptSheet] = useState(false);
-  const [shotBusy, setShotBusy] = useState(false);
-  const [shotErr, setShotErr] = useState(false);
+  const { shots, onShot, removeShot, clearShots, busy: shotBusy, err: shotErr } = useShots();
 
-  /** 选图(native PHPicker 直连)→ 压缩 → 桥落盘临时文件 → composer 注入 @路径。 */
-  const onShot = (): void => {
-    void shotToDraft({
-      isBusy: shotBusy,
-      setBusy: setShotBusy,
-      patchDraft: setDraft,
-      flashErr: setShotErr,
-    });
-  };
+  /* 输入框高度:紧凑态随内容长高(2 行起步,封顶 6 行内滚);拖拽固定高 = 直接钉 px。
+   * CSS min/max-height 兜底,.grow 态放开 max-height。 */
+  const taRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const { taH, grabHandlers } = useComposerSize(taRef);
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    if (taH !== null) {
+      el.style.height = `${taH}px`;
+      return;
+    }
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 144)}px`;
+  }, [draft, taH]);
   const [kbOpen, setKbOpen] = useState(false);
   /* 键盘工具条折叠(pref 持久化); composers 行 ⌨ 切换。 */
   const [kbOn, setKbOn] = useState(() => {
@@ -157,10 +165,11 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
     writeSession(props.sessionId, data).catch(() => setAsk(true));
   };
   const send = () => {
-    const text = draft.trimEnd();
-    if (!text) return;
+    const msg = composeSendText(draft, shots.map((s) => s.path));
+    if (msg === null) return;
     setDraft("");
-    void writeSession(props.sessionId, `${text}\r`);
+    clearShots();
+    void writeSession(props.sessionId, `${msg}\r`);
   };
 
   return (
@@ -190,7 +199,9 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
         />
       </div>
       {ask && <AskCard q={askQ} onAnswer={answer} />}
-      <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "")}>
+      <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "") + (taH !== null ? " grow" : "")}>
+        <div className="grabber" {...grabHandlers} />
+        <ShotStrip shots={shots} onRemove={removeShot} />
         <div className="box">
           <button type="button" className={"kb-toggle" + (kbOn ? " on" : "")} aria-label={t("键盘工具条")} onClick={toggleKb}>⌨</button>
           <button
@@ -203,6 +214,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
             {shotLabel(shotBusy, shotErr)}
           </button>
           <textarea
+            ref={taRef}
             rows={1}
             value={draft}
             placeholder={t("输入消息,回车发送…")}
@@ -229,6 +241,23 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   );
 }
 
+
+/** 选图预览缩略图行(空态返 null;移除按 path 定位,objectURL 释放归 useShots)。 */
+function ShotStrip(props: { shots: { path: string; url: string }[]; onRemove: (path: string) => void }) {
+  if (!props.shots.length) return null;
+  return (
+    <div className="shots">
+      {props.shots.map((s) => (
+        <div className="shot" key={s.path}>
+          <img src={s.url} alt="" />
+          <button type="button" className="shot-x" aria-label={t("移除图片")} onClick={() => props.onRemove(s.path)}>
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** 会话顶栏:返回/引擎/标题/审批线 chip/横竖屏切换/通道(纯展示,状态在父组件)。 */
 function SessionHeader(props: {
