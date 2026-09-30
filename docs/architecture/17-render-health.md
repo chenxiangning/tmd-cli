@@ -1,7 +1,7 @@
 # 17 - 渲染健康守望(WKWebView 吊销粘死自愈)
 
 - 日期:2026-09-30
-- 状态:已落地(38239d71 垫片 + 本轮守望阶梯;洪水降级与合帧写入为 2026-09-30 晚第三轮卡死增补)
+- 状态:已落地(38239d71 垫片 + 本轮守望阶梯;洪水降级与合帧写入为 2026-09-30 晚第三轮卡死增补;壳侧心跳守望与泵侧计量为 2026-10-01 第四轮增补)
 
 ## 背景与症状
 
@@ -41,6 +41,13 @@ reload 是被逼出来的根治手段,语义安全性有两重保证:会话/PTY 
 2. **隐藏幕布合帧写入**(kernel/terminalReplay.ts + TerminalView.tsx):非激活幕布实时字节攒 250ms 合并写一次(与幕布 askProbe 同拍),激活即冲刷;隐藏幕布的 xterm 行重建从每秒数百次降到 4 次,字节流与屏幕通道语义不变。
 3. **PTY 泵自适应聚合窗**(src-tauri/src/pty_spawn.rs):8ms 基线,批内排到窗口耗尽/批满(生产者持续前进)窗长逐批翻倍封顶 50ms(TUI 整帧 20fps 量级,观感无差);孤立小块(击键回显)回基线。连续洪峰的事件数再降数倍。
 4. **幕布刷新钮与右上工具行**(kernel/terminalRefreshButton.tsx + terminal.canvasRow 挂点,用户诉求;2026-09-30 晚三轮修订):单会话幕布重建的手动出口——点击自增 TerminalView 的 canvasGen 代数,主 effect 重跑 = xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH(needsForceSync 初值 true)整帧重绘,PTY/CLI 不中断、其他会话零扰动。行布局归内核:TerminalView 渲染右上工具行容器(right 12/top 8),插件经 terminal.canvasRow 挂点贡献同排工具钮(session-viewer 的「结构化幕布」切换),刷新钮收尾最右——同排同款 pill 形制,零宽度耦合。行不设 z:不透明画布浮层(editorCenter.canvasOverlay,z-10)开启时整行隐没其下,结构化视图页不出刷新钮。分工:这里管会话内画面自救(幕布错乱/内容滞留);WebKit 级像素冻结仍归守望阶梯自动自愈(整页 reload 语义),不经此钮。
+## 第四轮增补(2026-10-01,壳侧心跳守望与泵侧洪水计量)
+
+第三轮后守望仍有两个盲区:① 洪水判据在前端(floodGauge),webview 冻结后前端旗标随行失效;② 页内自报线(rAF 看门狗)本身就是被冻结的对象——深冻时它不再上报,Rust 侧无从区分「健康静默」与「冻死静默」。增补三件:
+
+1. **洪水标尺真滑动窗**(kernel/floodGauge.ts):跨桶边界间歇洪峰不再系统性漏检。
+2. **健康期心跳自证**(kernel/rafFallback.ts):恢复边沿立即上报清 Rust strikes;平时每 5 拍(≈5s)一次心跳自证存活,供壳侧死线判活。
+3. **壳侧心跳守望**(render_health.rs `init_watchdog`,app_setup 挂载常驻线程):5s tick;窗口可见但 15s(HEARTBEAT_DEAD_MS)无任何上报 = 吊销深冻(页内自报线已死),壳侧独立进击——kick 防抖 15s、reload 冷却 60s、洪水期降级 focus、洪过下一拍自动升级(阶梯纪律继承三轮)。洪水判定传感器改本进程泵计量:PTY 泵每批喂 `note_pty_emitted`(pty_spawn.rs),`PTY_BYTES_EMITTED` 5s 增量 >256KB 判洪水——洪水闭环全在 Rust 侧,不再依赖前端旗标。
 
 ## 方案取舍
 
