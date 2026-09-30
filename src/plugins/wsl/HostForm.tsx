@@ -25,7 +25,11 @@ export function HostForm({ onSaved }: { onSaved: (id: string) => void }) {
       setErr(t("主机地址与用户名必填"));
       return;
     }
-    const portNum = Math.min(Math.max(parseInt(port, 10) || 22, 1), 65535);
+    const portNum = parseInt(port, 10);
+    if (!Number.isFinite(portNum) || portNum < 1 || portNum > 65535) {
+      setErr(t("端口须为 1-65535 的数字"));
+      return;
+    }
     if (settings.ssh.hosts.some((x) => sshHostIdentityKey(x) === sshHostIdentityKey({ host: h, port: portNum, username: u }))) {
       setErr(t("该主机已存在(同地址/端口/用户名),请在下拉中选择"));
       return;

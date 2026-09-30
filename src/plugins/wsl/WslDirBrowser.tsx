@@ -20,7 +20,7 @@ export function WslDirBrowser({
   pickLabel,
   onPick,
   onLoaded,
-  showFiles = false,
+  showFiles,
   emptyHint,
   desc,
 }: {
@@ -30,7 +30,7 @@ export function WslDirBrowser({
   /** 初始展示层,也是「浏览目录」首拉目标。 */
   start: string;
   /** 上一级入口:crumb 按钮(默认)/ 目录列表置顶 ".." 行 / 无。 */
-  up?: "crumb" | "row" | null;
+  up?: "crumb" | "row";
   /** crumb 刷新按钮(DistroPanel 展开态)。 */
   refresh?: boolean;
   /** crumb 右侧「选这一层」按钮文案(WorkspaceDialog),配 onPick。 */
@@ -38,8 +38,8 @@ export function WslDirBrowser({
   onPick?: (path: string) => void;
   /** 每次成功加载上报当前层(AddWslTab 汇报添加目标 / DistroPanel 上提选值)。 */
   onLoaded?: (dir: string) => void;
-  /** false = 只列目录;"off" = 非目录行禁用展示(WorkspaceDialog)。 */
-  showFiles?: boolean | "off";
+  /** "off" = 非目录行禁用展示(WorkspaceDialog);缺省 = 只列目录。 */
+  showFiles?: "off";
   /** 空列表 hint 文案(默认「(空目录)」;AddWslTab 因过滤目录传「(无子目录)」)。 */
   emptyHint?: string;
   /** crumb 下附加说明段(DistroPanel)。 */

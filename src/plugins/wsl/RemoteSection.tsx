@@ -185,7 +185,7 @@ export function WslRemoteSection() {
           </div>
           <div className="wsl-distro-list">
             {info.distros.map((d) => (
-              <div className={`wsl-distro${openDistro === d.name ? " open" : ""}`} key={d.name}>
+              <div key={d.name}>
                 <button
                   type="button"
                   className="wsl-distro-toggle"
