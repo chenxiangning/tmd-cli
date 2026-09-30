@@ -24,15 +24,6 @@ import { HostForm } from "./HostForm";
 import { AddWslTab } from "./AddWslTab";
 import { DistroPanel, Hl } from "./DistroPanel";
 
-/** 非 Windows 开发机(mac)无 Tauri runtime 时的 UI 预览桩:仅 DEV 生效。 */
-const DEV_REMOTE_FALLBACK: WslInfo = {
-  available: true,
-  wslVersion: "WSL 2.4.13(dev 预览桩)",
-  distros: [{ name: "Ubuntu", version: 2, running: true, default: true }],
-  linuxHome: null,
-  linuxUser: null,
-};
-
 function hostLabel(h: { name: string; username: string; host: string }): string {
   return h.name.trim() || `${h.username}@${h.host}`;
 }
@@ -84,17 +75,19 @@ export function WslRemoteSection() {
     setPickedDir(null);
     try {
       const r = await ipc.wslRemoteInfo(selected);
-      const eff = r?.available ? r : import.meta.env.DEV ? DEV_REMOTE_FALLBACK : null;
-      setInfo(eff);
-      /* 连接成功即自动展开默认发行版的探针面板(2026-09-14:免二次点击)。 */
-      const first = eff ? (eff.distros.find((d) => d.default) ?? eff.distros[0]) : null;
-      setOpenDistro(first ? first.name : null);
-      if (!r?.available && !import.meta.env.DEV) setError(t("宿主未检测到 WSL 发行版(未安装或 wsl.exe 不在 PATH)。"));
+      if (r?.available) {
+        setInfo(r);
+        /* 连接成功即自动展开默认发行版的探针面板(2026-09-14:免二次点击)。 */
+        const first = r.distros.find((d) => d.default) ?? r.distros[0];
+        setOpenDistro(first ? first.name : null);
+      } else {
+        setInfo(null);
+        setError(t("宿主未检测到 WSL 发行版(未安装或 wsl.exe 不在 PATH)。"));
+      }
     } catch (e) {
       /* 凭据/hostkey/网络错误在此如实呈现 —— 不留空白幕布。 */
-      setInfo(import.meta.env.DEV ? DEV_REMOTE_FALLBACK : null);
-      if (import.meta.env.DEV) setOpenDistro(DEV_REMOTE_FALLBACK.distros[0].name);
-      if (!import.meta.env.DEV) setError(e instanceof Error ? e.message : String(e));
+      setInfo(null);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
