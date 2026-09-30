@@ -104,7 +104,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
     () => list.filter((w) => !findWorkspaceOrigin(w)?.remoteExec),
     [list],
   );
-  const sessions = useDaySessions(workspaces, 0);
+  const { days: sessions } = useDaySessions(workspaces, 0);
   const { y, m } = p;
   useEffect(() => {
     void loadMonth(y, m);

@@ -27,6 +27,7 @@ import {
   type UserMessageLineParser,
 } from "../cli-shared/userMessages";
 import type { CliDiskSession } from "@kernel/cli";
+import { readKimiStateCached, pruneKimiStateCache } from "./kimiStateCache";
 
 /** 标题展示最大长度(与 cli-shared/diskSessions 的通用规则一致)。 */
 const TITLE_MAX_CHARS = 60;
@@ -176,12 +177,14 @@ export function extractKimiTitle(head: string): string | undefined {
     重扫自愈。 */
 let wirePathById = new Map<string, string>();
 
-/** 新 home 扫描:<桶>/<session_id>/state.json,按 state.cwd 过滤出本工作区会话。 */
+/** 新 home 扫描:<桶>/<session_id>/state.json,按 state.cwd 过滤出本工作区会话。
+ *  解析缓存在 kimiStateCache(叶子模块,parser 注入防循环依赖),T 由 parseKimiState 推断。 */
 async function listModernKimiSessions(
   root: string,
   cwd: string,
 ): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(root, ".json").catch(() => []);
+  pruneKimiStateCache(new Set(files.map((f) => f.path)));
   /* 先 regex 匹配再按 mtime 倒序截 LIMIT,只并发读最近 N 个候选(cli-codex 先 slice 后读同款);
      单文件坏/读失败 catch 成 null 跳过,容错语义不变,LIMIT 截断与落表保持 files 原序。 */
   const candidates = files
@@ -192,8 +195,7 @@ async function listModernKimiSessions(
     .slice(0, KIMI_SCAN_LIMIT);
   const probed = await Promise.all(
     candidates.map(async ({ m, modifiedAt, path }) => {
-      const text = await ipc.fsReadFile(path).catch(() => null);
-      const state = text ? parseKimiState(text) : null;
+      const state = await readKimiStateCached(path, modifiedAt, parseKimiState);
       /* 归档会话 kimi 自己的 picker 也默认隐藏;cwd 缺失(首回合未落盘)= 还归属不明 */
       if (!state || state.archived || !state.cwd || !sameDir(state.cwd, cwd)) return null;
       return { m, modifiedAt, state };

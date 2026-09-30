@@ -229,4 +229,5 @@
 | 2026-09-29 | [每日工作日志原型(定稿候选):年/月/轴三视图 + 每日一篇 AI 汇总文章(增量并入留痕)+ 每日便签(任选日手写,空日可写)+ 节假日关联(联网,断网保底周末底纹)](design/daily-journal-n4-merged.html) | 设计探索(定稿候选) |
 | 2026-09-29 | [每日工作日志设计 spec:年/月/轴三视图 + 每日一篇 AI 汇总文章(生成会话直写 md)+ 便签独立落盘 + 后台任务队列 + 节假日缓存保底](superpowers/specs/2026-09-29-daily-journal-design.md) | 已实现(B1-B5 五批,门禁全绿 + 1421 桩目检;真机目检留大仙) |
 | 2026-09-30 | [17 — 渲染健康守望:WKWebView 吊销粘死(界面卡死)根因定性与两层防线 + 壳侧 set_focus→reload 阶梯](architecture/17-render-health.md) | 生效中(卡死复发时先读;触发条件与无效恢复路径实测清单) |
+| 2026-09-30 | [每日工作日志扫描加速:旧数据先上屏(stale-while-revalidate)+ 分批追加渲染 + codex/kimi 读头 mtime 缓存](superpowers/specs/2026-09-30-daily-journal-scan-perf-design.md) | 已实现(门禁全绿;真机目检留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

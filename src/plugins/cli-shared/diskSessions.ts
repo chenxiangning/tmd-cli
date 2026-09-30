@@ -203,6 +203,26 @@ export function readHeadSessionMetaCached(
   });
 }
 
+/** 读头取标题,带 mtime 缓存(与 readHeadSessionMetaCached 共池 headCache):
+ *  标题是 append-only 日志的出生段,mtime 未变即复用;无标题不缓存,追赶自动命名
+ *  (同池语义)。先例:cli-codex 列表扫描标题消费(2026-09-30 每日日志扫描加速)。 */
+export function readHeadTitleCached(path: string, mtime: number): Promise<string | undefined> {
+  const cached = headCache.get(path);
+  if (cached && cached.mtime === mtime) return Promise.resolve(cached.title);
+  return readHeadTitle(path).then((title) => {
+    if (title !== undefined) {
+      if (headCache.size >= HEAD_CACHE_MAX) {
+        const oldest = headCache.keys().next().value;
+        if (oldest !== undefined) headCache.delete(oldest);
+      }
+      headCache.set(path, { mtime, title });
+    } else {
+      headCache.delete(path);
+    }
+    return title;
+  });
+}
+
 export async function scanJsonlSessions(dir: string): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
   /* 缓存剪除:本目录已消失的文件条目;其他目录的条目归旁路消费者,不动。

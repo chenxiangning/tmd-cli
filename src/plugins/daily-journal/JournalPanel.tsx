@@ -20,7 +20,7 @@ export function JournalPanel() {
     () => list.filter((w) => !findWorkspaceOrigin(w)?.remoteExec),
     [list],
   );
-  const sessions = useDaySessions(workspaces, 0);
+  const { days: sessions } = useDaySessions(workspaces, 0);
   useEffect(() => {
     void loadMonth(ym.y, ym.m);
   }, [ym.y, ym.m, state.ready]);

@@ -86,6 +86,38 @@ function monthStats(
   return { days: days.length, sessTotal, artTotal, pending, todayLive };
 }
 
+/** 舞台视图路由(三视图一 tab;独立函数保全主组件控制流复杂度门禁)。 */
+function JournalStage({
+  view,
+  sessions,
+  progress,
+  ym,
+  snap,
+  today,
+  openMonth,
+}: {
+  view: JournalView;
+  sessions: Map<string, DaySessionRow[]> | null;
+  progress: { done: number; total: number } | null;
+  ym: { y: number; m: number };
+  snap: MonthSnapshot | undefined;
+  today: string;
+  openMonth: (m: number) => void;
+}) {
+  if (sessions === null) {
+    return (
+      <div className="dj-empty">
+        {t("正在扫描会话…")}
+        {progress ? ` (${progress.done}/${progress.total})` : ""}
+      </div>
+    );
+  }
+  if (view === "y") return <YearView y={ym.y} sessions={sessions} today={today} onOpenMonth={openMonth} />;
+  if (!snap) return <div className="dj-empty">{t("正在加载…")}</div>;
+  if (view === "m") return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} />;
+  return <FlowView ym={ym} snap={snap} sessions={sessions} today={today} />;
+}
+
 export function JournalTab() {
   const now = new Date();
   const [view, setView] = useState<JournalView>("m");
@@ -100,7 +132,7 @@ export function JournalTab() {
     [list],
   );
   const state = useJournalState();
-  const sessions = useDaySessions(workspaces, refreshTick);
+  const { days: sessions, progress } = useDaySessions(workspaces, refreshTick);
   useEffect(() => {
     void loadMonth(ym.y, ym.m);
     void ensureHolidays(ym.y); /* 跨年导航即拉当年(24h 窗内零请求) */
@@ -178,19 +210,7 @@ export function JournalTab() {
       {panel === "tasks" && <TaskPanel onClose={() => setPanel(null)} />}
       {panel === "cfg" && <GenSettings onClose={() => setPanel(null)} />}
       <div className={`dj-stage${view === "f" ? " dj-stage-flow" : ""}`}>
-        {sessions === null ? (
-          <div className="dj-empty">{t("正在扫描会话…")}</div>
-        ) : view === "y" ? (
-          <YearView y={ym.y} sessions={sessions} today={today} onOpenMonth={openMonth} />
-        ) : snap ? (
-          view === "m" ? (
-            <MonthView ym={ym} snap={snap} sessions={sessions} today={today} />
-          ) : (
-            <FlowView ym={ym} snap={snap} sessions={sessions} today={today} />
-          )
-        ) : (
-          <div className="dj-empty">{t("正在加载…")}</div>
-        )}
+        <JournalStage view={view} sessions={sessions} progress={progress} ym={ym} snap={snap} today={today} openMonth={openMonth} />
       </div>
     </div>
   );
