@@ -3,6 +3,8 @@
  * engines.ts 是手抄镜像(cmd + resume 各自双份),qoder cmd drift 已实证过一次;
  * 插件改 command/resumeArgs 后镜像静默 stale = 手机续聊/发起全坏,套件零信号。
  * 此处 activate 捕获真实 profile 逐引擎对齐,镜像漂移即红。
+ * 测试豁免 mobile import 禁令:本文件不进 mobile bundle(mobileMain 不引用),
+ * activate 捕获是对齐测试的唯一手段(生产树禁令不受影响)。
  */
 import { describe, expect, it } from "vitest";
 import type { CliProfile } from "@kernel/cli";

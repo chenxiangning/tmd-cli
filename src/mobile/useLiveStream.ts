@@ -6,7 +6,7 @@
  *   远低于中继 4MiB 上限)。
  * - loadEarlier:复用 session_history_page 分页(start_offset/has_more 桌面现成),
  *   剥 ANSI 线性文本前置渲染——LiveScreen 是 append-only VT 模型,不可前插字节。
- * - 尺寸归桌面 xterm 独占(手机从不 resize),拖面板后旧模型 CUP 钳位错位 →
+ * - 尺寸:手机 useTerminalFit 随容器发 session_resize(与桌面共享同一 PTY),
  *   每 3s 校 session_size,变了即按新几何重建 + 重放日志尾(真机双页脚实证);
  *   事件跳帧(Lagged)同路立即重建。
  * - rAF 脏标合帧:全量 view() 重建压到 ≤60Hz。

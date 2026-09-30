@@ -29,16 +29,10 @@ export interface RemoteWorkspace {
   root: string;
 }
 
-/** 引擎字形(与桌面侧栏 glyph 同映射;profileId 前缀 → 缩写 + 品牌色类)。 */
+/** 引擎字形回落:已知引擎全由 engineGlyphOf(cli-shared)品牌 SVG 覆盖
+ *  (EngineMark 先查),此处只兜未知 profileId 的两字母缩写。 */
 export function glyphOf(profileId: string): { text: string; cls: string } {
   const p = profileId.toLowerCase();
-  if (p.startsWith("omp") || p.startsWith("pi")) return { text: "OMP", cls: "g-om" };
-  if (p.startsWith("claude")) return { text: "CL", cls: "g-cl" };
-  if (p.startsWith("codex")) return { text: "CX", cls: "g-cx" };
-  if (p.startsWith("kimi")) return { text: "KI", cls: "g-ki" };
-  if (p.startsWith("grok")) return { text: "GK", cls: "g-gk" };
-  if (p.startsWith("qoder")) return { text: "QD", cls: "g-qd" };
-  if (p.startsWith("opencode")) return { text: "OC", cls: "g-oc" };
   return { text: (p[0] ?? "?").toUpperCase() + (p[1] ?? "").toUpperCase(), cls: "g-df" };
 }
 
@@ -160,26 +154,31 @@ export async function shrinkImage(blob: Blob, maxEdge = 1568): Promise<Uint8Arra
   } catch {
     bitmap = await createImageBitmap(blob);
   }
-  const encode = async (edge: number, quality: number): Promise<Uint8Array<ArrayBuffer>> => {
-    const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/jpeg", quality));
-    if (!blob) throw new Error("encode failed");
-    return new Uint8Array(await blob.arrayBuffer());
-  };
-  for (const [edge, quality] of [
-    [maxEdge, 0.8],
-    [maxEdge, 0.6],
-    [1280, 0.6],
-    [960, 0.5],
-  ] as const) {
-    const bytes = await encode(edge, quality);
-    if (bytes.length <= UPLOAD_BYTE_BUDGET) return bytes;
+  try {
+    const encode = async (edge: number, quality: number): Promise<Uint8Array<ArrayBuffer>> => {
+      const scale = Math.min(1, edge / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/jpeg", quality));
+      if (!blob) throw new Error("encode failed");
+      return new Uint8Array(await blob.arrayBuffer());
+    };
+    for (const [edge, quality] of [
+      [maxEdge, 0.8],
+      [maxEdge, 0.6],
+      [1280, 0.6],
+      [960, 0.5],
+    ] as const) {
+      const bytes = await encode(edge, quality);
+      if (bytes.length <= UPLOAD_BYTE_BUDGET) return bytes;
+    }
+    throw new Error("image too large after shrink");
+  } finally {
+    /* WKWebView 原生位图内存等 major GC 才回收,连续挂图可感:显式关。 */
+    bitmap.close();
   }
-  throw new Error("image too large after shrink");
 }
 
 /** 截图/拍照 → 桥 fs_write_temp 落盘会话临时文件,返回绝对路径(composer @ 注入用)。 */

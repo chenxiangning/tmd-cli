@@ -23,7 +23,7 @@ export function useComposerSize(taRef: React.RefObject<HTMLTextAreaElement | nul
   const [taH, setTaHState] = useState<number | null>(() => {
     try {
       const v = parseInt(localStorage.getItem(H_KEY) ?? "", 10);
-      return Number.isFinite(v) && v >= TA_MIN_H ? v : null;
+      return Number.isFinite(v) && v >= TA_MIN_H && v <= TA_MAX_H ? v : null;
     } catch {
       return null;
     }
