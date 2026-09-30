@@ -4,6 +4,34 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.6] - 2026-09-30
+
+### 新增
+
+- 每日工作日志插件(总述补录,代码已随 0.2.5 补发窗口落地、0.2.5 段漏记):日历日/月/年三视图 + AI 每日汇总文章 + 便签 + 生成任务队列 + 节假日关联;文章由各 CLI 会话转录预提取摘录改四点式事实成文,后台批量生成、生成会话终态全程无头收割
+- 手动发起总结与增量并入:入口覆盖文章 tab 与月格全状态,补齐待生成不再只靠定时;单例热更自接受守卫根治镜像实例卡排队
+- 生成无头契约扩展 oneshotStdin 管道递送,pi/codex/claude 三家声明落地
+- 生成设置引擎按钮亮各 CLI 品牌 logo,增量策略三档描述按真实语义重写
+- 年/月视图自适应占满舞台,月格改系统日历式白底细线格与 pill 状态条
+- WSL 远程段手动添加主机表单并入 SSH 簿,目录浏览器图标化与样式按面拆分
+
+### 变更
+
+- 轴视图从中央 tab 迁右栏面板,月格状态行单行四态化,补面板与月格渲染契约测试
+- Rust 清 clippy 1.98 新命中(ServerError 未用绑定改 `_`、outcome_state 收敛 if/else 表达式)
+
+### 修复
+
+- 生成会话改 omp -p 无头单发,根治 TUI 输出洪水饿死幕布(单任务探索风暴转录实测 3-8.6MB,用户会话渲染排队等不到);摘录增量分批治理
+- 后台生成队列 run 态永久卡死根治:run 态 20 分硬顶、排队区「全部取消」、取消即收割生成会话放行后续、生成队列上调 3 槽并发;扫盘禁令提级进全部生成分支共用要求区
+- 扫描提速:旧数据先上屏+分批追加渲染,活会话同步合并不等重扫,codex/kimi 读头加 mtime 缓存
+- 月历热力改当月活跃日 25/50/75 分位动态分档,高强度月不再整月同色
+- omp 无头生成加 --print-thoughts 思考流实时可见与 --no-extensions 静默扩展报错
+- dsh 会话盘 v3/v4 版本号文件名通配定位,tool/result 兼容扁平形制,块 id 退 seq 兜底
+- rail 入口互斥收敛右栏容器,skill/mcp/日志中央 tab 解绑可并存
+- proc_run EOF 收割改先自然再杀树,根治 SIGKILL 把注定 exited(0) 的进程改判 signal 死的竞态(proc_run 测试 CI 三连红真因,非 runner 慢)
+- 渲染粘死守望缺口补修(意图画布打开黑屏回归根因):hidden 恒粘的吊销态此前被看门狗静默跳过、只等 Rust Focused 事件再戳探针——窗口已聚焦时再无该事件,阶梯永久停在实测无效的首击 set_focus,黑屏永不自愈;改为 rAF 停发 ≥10s 一律上报,真伪可见性单一归 Rust `is_visible` 裁断(真隐藏/最小化仍不击打),粘死后 ~25s 内走完 focus→reload 阶梯自愈;配套 PluginBoundary 塌陷呈现从静默 null 改为就地可见错误条(渲染崩溃与粘死黑屏此前无法区分,现场无从留证)
+
 ## [0.2.5] - 2026-09-30
 
 ### 新增
@@ -56,7 +84,6 @@
 - 会话查看器:dsh 解压 32MB 字节预算截尾、同文撞号 key 去重与分批渲染 memo 稳定链
 - macOS 分架构 dmg「已损坏」无法安装:thin 二进制上链接器残留 ad-hoc 签名触发 Gatekeeper 硬拦(universal 时代 lipo 使其失效反而走「仍要打开」软拦);bundler 现按 signingIdentity "-" 做全 bundle ad-hoc 封签,浏览器下载安装恢复「隐私与安全性 → 仍要打开」路径,无需证书零成本;此前已装用户不受影响,坏包重下即得
 - 界面卡死(WKWebView 吊销粘死)根治:窗口隐藏/遮挡后恢复可见时 WebKit 偶发不再恢复渲染,页面 `document.hidden` 恒粘、rAF 永久死、像素停在旧帧(会话/PTY 全程健康;实测 app 激活/set_focus/hide-show 重放/resize 抖动均救不回)。新增两层防线:kernel/rafFallback 原生 rAF 探针 + 看门狗(遮挡粘死自动上报;隐藏粘死由 Rust Focused 钩子戳探针)+ 壳侧 render_health 阶梯(首击 set_focus、二击 webview reload——会话/PTY 跨重载存活,健康上报即重置,60s reload 冷却防风暴);50ms 垫片保留(部分遮挡形态 ~14fps 地板帧率正收益)。详见 docs/architecture/17-render-health.md
-- 渲染粘死守望缺口补修(意图画布打开黑屏回归根因):hidden 恒粘的吊销态此前被看门狗静默跳过、只等 Rust Focused 事件再戳探针——窗口已聚焦时再无该事件,阶梯永久停在实测无效的首击 set_focus,黑屏永不自愈;改为 rAF 停发 ≥10s 一律上报,真伪可见性单一归 Rust `is_visible` 裁断(真隐藏/最小化仍不击打),粘死后 ~25s 内走完 focus→reload 阶梯自愈;配套 PluginBoundary 塌陷呈现从静默 null 改为就地可见错误条(渲染崩溃与粘死黑屏此前无法区分,现场无从留证)
 - 每日工作日志:后台生成队列 run 态永久卡死修复;运行中任务可终止(取消即收割生成会话)放行后续任务
 
 ### 测试
