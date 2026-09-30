@@ -165,7 +165,7 @@ class Host implements PluginContext {
     profileId: string,
     cwd: string,
     workspaceId?: string,
-    opts?: { activate?: boolean; model?: string }, /* activate:false = 后台拉起;model 走 --model 进程参数(profile.modelArg 声明制) */
+    opts?: { activate?: boolean; model?: string; oneshot?: { promptFile: string } }, /* activate:false = 后台拉起;model 走 --model(profile.modelArg 声明制);oneshot = 无头单发(prompt 落盘文件经 profile.oneshotArgs 传入,无人值守禁 TUI,契约见 cliProfile) */
   ): Promise<SessionMeta> {
     return this.sessionServices.spawn.create(profileId, cwd, workspaceId, opts);
   }

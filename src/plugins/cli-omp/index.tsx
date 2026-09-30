@@ -178,6 +178,20 @@ export const cliOmpPlugin: Plugin = {
        * paste 通路,与真实终端粘贴行为一致(契约见 kernel/cliProfile.ts)。 */
       bracketedPaste: true,
       modelArg: "--model",
+      /* 无头单发(18.4.4 实证):-p 非交互答完即退;--auto-approve 放行工具写文件;
+       * --no-title 杀标题生成旁路请求;--no-session 不落会话 JSONL(--no-session 时
+       * 身份/状态恒「—」,内核对 oneshot 不做身份探测);--max-time 进程自裁,须早于
+       * 调度侧结算硬顶;prompt 经 @file 传入,摘录+清单数百 KB 不挤 argv。 */
+      oneshotArgs: ({ promptFile, model }) => [
+        "-p",
+        "--auto-approve",
+        "--no-title",
+        "--no-session",
+        "--max-time",
+        "14m",
+        ...(model ? ["--model", model] : []),
+        `@${promptFile}`,
+      ],
     });
     /* CLI 学堂课程:82 命令目录 + 13 课,消费归 academy 插件(契约见 kernel/academy.ts)。 */
     ctx.registerAcademyCourse(OMP_ACADEMY_COURSE);

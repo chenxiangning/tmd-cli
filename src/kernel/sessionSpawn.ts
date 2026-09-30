@@ -31,7 +31,7 @@ export class SessionSpawnService {
   ) {}
 
   /** 新建 CLI 会话:由 profile 拼 SpawnSpec(spawn 前快照磁盘会话供身份探测)。 */
-  async create(profileId: string, cwd: string, workspaceId?: string, opts?: { activate?: boolean; model?: string }): Promise<SessionMeta> {
+  async create(profileId: string, cwd: string, workspaceId?: string, opts?: { activate?: boolean; model?: string; oneshot?: { promptFile: string } }): Promise<SessionMeta> {
     const profile = this.h.getCliProfile(profileId);
     if (!profile) throw new Error(`未知 CLI profile: ${profileId}`);
     return this.guarded(profileId, () => this.spawnNew(profileId, profile, cwd, workspaceId, opts));
@@ -87,11 +87,17 @@ export class SessionSpawnService {
     profile: CliProfile,
     cwd: string,
     workspaceId?: string,
-    opts?: { activate?: boolean; model?: string },
+    opts?: { activate?: boolean; model?: string; oneshot?: { promptFile: string } },
   ): Promise<SessionMeta> {
+    /* 无头单发(opts.oneshot 且引擎声明 oneshotArgs):args 全量由模板给(prompt 经
+       @file 传入),不走基础 args/modelArg 拼接。无人值守会话禁 TUI 的闸就在这:
+       调度侧照发 createSession,落什么形态由引擎声明决定(契约见 cliProfile)。 */
+    const oneshotArgs = opts?.oneshot && profile.oneshotArgs
+      ? profile.oneshotArgs({ promptFile: opts.oneshot.promptFile, model: opts.model })
+      : null;
     let spec: SpawnSpec = {
       command: profile.command,
-      args: opts?.model && profile.modelArg ? [...profile.args, profile.modelArg, opts.model] : profile.args,
+      args: oneshotArgs ?? (opts?.model && profile.modelArg ? [...profile.args, profile.modelArg, opts.model] : profile.args),
       cwd,
       env: profile.env,
     };
@@ -104,15 +110,16 @@ export class SessionSpawnService {
     const spawnedAt = Date.now();
     /* 快照既有磁盘会话(id → 快照时 mtime):spawn 后 CLI 新落盘/复活的文件据此绑到活会话。
        快照失败 → null → 退化到 spawn 水位线判定(只认 spawn 后的落盘/增长),
-       pre-spawn 旧文件永远不得抢绑:身份绑定 fail-open(张冠李戴)比 fail-closed(状态 "—")恶劣一个数量级。 */
-    const before = profile.listSessions
-      ? await profile.listSessions(cwd).then(
+       pre-spawn 旧文件永远不得抢绑:身份绑定 fail-open(张冠李戴)比 fail-closed(状态 "—")恶劣一个数量级。
+       无头单发跳过:--no-session 声明语义下不落盘,无身份可绑,省一次扫盘且防误绑他人新会话。 */
+    const before = oneshotArgs || !profile.listSessions
+      ? null
+      : await profile.listSessions(cwd).then(
           (list) => new Map(list.map((s) => [s.id, s.modifiedAt] as const)),
           () => null,
-        )
-      : null;
+        );
     const spawned = await this.spawn(profileId, spec, workspaceId);
-    if (profile.listSessions) {
+    if (!oneshotArgs && profile.listSessions) {
       this.h.identityTrack(spawned.id, profileId, cwd, before, spawnedAt);
     }
     return this.adoptSpawned(spawned.id, profileId, undefined, opts?.activate);

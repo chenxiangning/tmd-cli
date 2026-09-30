@@ -251,11 +251,13 @@ export interface CliProfile {
   bracketedPaste?: boolean;
   /** spawn 期模型旗标:声明后 createSession(opts.model) 把 `--model <id>` 追加到进程参数,模型启动即生效,不走 TUI 输入(启动窗时序不可靠)。仅在 CLI 实证支持时声明(omp/pi/kimi = --model);未声明 = 引擎不支持 spawn 期选模,opts.model 被忽略。 */
   modelArg?: string;
-  /**
-   * spawn 前动态改写 SpawnSpec:插件在运行时注入连接参数/路径等动态值。
-   * 例 dsh 适配器需要 DSH host:port(来自 localStorage),无法在 profile 声明期固定。
-   * 返回改写后的 spec;缺省 = 不改写(直接用 command/args)。
-   */
+  /** 无头单发参数模板(无人值守批量任务的唯一合规形态,daily-journal 生成消费):prompt 经
+   *  @<promptFile> 文件传入,进程答完即退、不开 TUI —— 无人值守会话严禁以 TUI 形态常驻
+   *  (重绘洪水经 pty://out 灌 webview 主线程饿死前台幕布,2026-09-30 卡死根因,
+   *  见 docs/architecture/18)。缺省 = 引擎无无头能力,调度侧回落 TUI 会话。 */
+  oneshotArgs?: (opts: { promptFile: string; model?: string }) => string[];
+  /** spawn 前动态改写 SpawnSpec:插件运行时注入连接参数/路径等动态值(例 dsh 的 DSH
+   *  host:port 来自 localStorage,无法在声明期固定)。返回改写后的 spec;缺省 = 不改写。 */
   spawnTransform?: (spec: SpawnSpec) => SpawnSpec | Promise<SpawnSpec>;
 
   /**

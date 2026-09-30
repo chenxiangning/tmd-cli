@@ -94,25 +94,37 @@ export interface DayDigest {
   total: number;
 }
 
-/** 全日摘录装配:逐会话经声明的适配器读转录并压缩;单会话失败跳过不拖垮整日。 */
+/** 转录读取并发上限:批量全量读+逐行解析全在 webview 主线程,无上限的
+ *  Promise.all(实测单日数十会话)会饿死前台幕布渲染(2026-09-30 卡死根因之一)。 */
+const DIGEST_READ_CONCURRENCY = 4;
+
+/** 全日摘录装配:逐会话经声明的适配器读转录并压缩;单会话失败跳过不拖垮整日。
+ *  分批读取:每批上限 4 会话,批间让出主线程一拍,渲染不至于被转录解析饿死。 */
 export async function buildDayDigest(rows: DaySessionRow[]): Promise<DayDigest> {
   const profiles = host.getCliProfiles();
-  const parts = await Promise.all(
-    rows.map(async (row): Promise<{ id: string; part: string | null }> => {
-      const profile = profiles.find((p) => p.id === row.profileId);
-      if (!profile?.readSessionTranscript || !row.disk) return { id: row.id ?? "", part: null };
-      try {
-        const transcript = await profile.readSessionTranscript(row.disk);
-        if (!transcript) return { id: row.id ?? "", part: null };
-        /* 自指防混入:首条用户消息即生成 prompt 的会话是插件自己 spawn 的,摘掉。 */
-        const firstUser = transcript.blocks.find((b) => b.role === "user");
-        if (firstUser?.text.includes(GEN_TASK_MARK)) return { id: row.id ?? "", part: null };
-        return { id: row.id ?? "", part: renderSessionDigest(row, transcript.blocks) };
-      } catch {
-        return { id: row.id ?? "", part: null };
-      }
-    }),
-  );
+  const parts: Array<{ id: string; part: string | null }> = [];
+  for (let i = 0; i < rows.length; i += DIGEST_READ_CONCURRENCY) {
+    if (i > 0) await new Promise((resolve) => setTimeout(resolve, 0));
+    const chunk = rows.slice(i, i + DIGEST_READ_CONCURRENCY);
+    parts.push(
+      ...await Promise.all(
+        chunk.map(async (row): Promise<{ id: string; part: string | null }> => {
+          const profile = profiles.find((p) => p.id === row.profileId);
+          if (!profile?.readSessionTranscript || !row.disk) return { id: row.id ?? "", part: null };
+          try {
+            const transcript = await profile.readSessionTranscript(row.disk);
+            if (!transcript) return { id: row.id ?? "", part: null };
+            /* 自指防混入:首条用户消息即生成 prompt 的会话是插件自己 spawn 的,摘掉。 */
+            const firstUser = transcript.blocks.find((b) => b.role === "user");
+            if (firstUser?.text.includes(GEN_TASK_MARK)) return { id: row.id ?? "", part: null };
+            return { id: row.id ?? "", part: renderSessionDigest(row, transcript.blocks) };
+          } catch {
+            return { id: row.id ?? "", part: null };
+          }
+        }),
+      ),
+    );
+  }
   const body: string[] = [];
   const coveredIds: string[] = [];
   let used = 0;

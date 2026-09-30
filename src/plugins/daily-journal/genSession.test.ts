@@ -40,6 +40,7 @@ vi.mock("./journalFiles", () => ({
   dailyPaths: vi.fn(async () => ({
     article: (y: number, m: number, d: number) => `/fake/${y}-${m}-${d}.md`,
     digest: (y: number, m: number, d: number) => `/fake/digest-${y}-${m}-${d}.md`,
+    prompt: (y: number, m: number, d: number) => `/fake/prompt-${y}-${m}-${d}.md`,
   })),
   dayKey: (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
   readText: vi.fn(async () => ""),
@@ -229,6 +230,59 @@ describe("genSession 结算", () => {
     await startRun(key);
     await vi.advanceTimersByTimeAsync(9_000);
     expect(writeSessionMock).toHaveBeenCalledWith("pty-1", "\r", true);
+  });
+
+});
+
+describe("genSession 无头单发(oneshotArgs 引擎)", () => {
+
+  it("prompt 落盘经 @file 传入 + createSession 携 oneshot,不写 PTY 不等冷启动", async () => {
+    vi.mocked(host.getCliProfiles).mockReturnValue([{ id: "omp", oneshotArgs: () => [] }] as never);
+    const createSessionMock = vi.mocked(host.createSession);
+    const key = "2026-09-18";
+    const bus = makeBus();
+    readTextMock.mockReset().mockResolvedValue("");
+    reloadDayMock.mockReset().mockResolvedValue(null);
+    writeSessionMock.mockClear();
+    createSessionMock.mockClear();
+    bootGenSession(bus);
+    expect(enqueueTask("手动生成", key, "omp")).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(0); /* 无头路径无冷启动等待,一拍即入 run */
+    expect(taskOf(key)?.st).toBe("run");
+    expect(writeText).toHaveBeenCalledWith("/fake/prompt-2026-9-18.md", "P"); /* buildGenPrompt 已 mock,原文传写 */
+    expect(ensureParentDir).toHaveBeenCalledWith("/fake/prompt-2026-9-18.md");
+    expect(createSessionMock).toHaveBeenCalledWith(
+      "omp",
+      "/ws",
+      "w1",
+      expect.objectContaining({ activate: false, oneshot: { promptFile: "/fake/prompt-2026-9-18.md" } }),
+    );
+    expect(writeSessionMock).not.toHaveBeenCalled(); /* 无头不走 PTY 写入,补 CR 也无 */
+    expect(taskOf(key)?.text).toContain("无头生成");
+    /* 退出即主结算信号:文章在 = 成功(无 turnSettled 依赖)。 */
+    readTextMock.mockResolvedValue("# 文章");
+    reloadDayMock.mockResolvedValue({ title: "无头产出", lede: "", secs: [], open: [] });
+    bus.emit("kernel.sessions.exited", "pty-1");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(taskOf(key)?.st).toBe("done");
+    expect(host.removeSession).toHaveBeenCalledWith("pty-1");
+    vi.mocked(collectSessionRows).mockResolvedValue([]);
+  });
+
+  it("退出但无文章 → 中性失败文案(可重试)", async () => {
+    vi.mocked(host.getCliProfiles).mockReturnValue([{ id: "omp", oneshotArgs: () => [] }] as never);
+    const key = "2026-09-17";
+    const bus = makeBus();
+    readTextMock.mockReset().mockResolvedValue("");
+    reloadDayMock.mockReset().mockResolvedValue(null);
+    bootGenSession(bus);
+    expect(enqueueTask("手动生成", key, "omp")).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(0);
+    bus.emit("kernel.sessions.exited", "pty-1");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(taskOf(key)?.st).toBe("err");
+    expect(taskOf(key)?.text).toContain("会话退出但未产出文章");
+    vi.mocked(collectSessionRows).mockResolvedValue([]);
   });
 
 });

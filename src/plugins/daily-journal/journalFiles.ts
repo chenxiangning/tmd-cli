@@ -4,6 +4,7 @@
  * 布局(设计 spec:docs/superpowers/specs/2026-09-29-daily-journal-design.md):
  * - daily/article/YYYY-MM-DD.md   每日一篇 AI 汇总文章,由生成会话(真实 CLI agent)直写;
  * - daily/digest/YYYY-MM-DD.md    当日会话内容摘录(tmd 提取层直写,生成会话的事实来源);
+ * - daily/prompt/YYYY-MM-DD.md    当日生成 prompt(无头单发经 @file 传入引擎,每次生成前重写);
  * - daily/notes/YYYY-MM.json      用户手写便签(tmd 独占写,与文章物理分档互不覆盖);
  * - daily/meta.json               配置 + 每日事件账本(beads/生成状态/任务史截尾);
  * - daily/assets/                 便签截图附件(便签只存文件名引用);
@@ -91,6 +92,8 @@ export interface DailyPaths {
   article: (y: number, m: number, d: number) => string;
   /** 当日会话内容摘录(生成会话的事实来源;每次生成前重写)。 */
   digest: (y: number, m: number, d: number) => string;
+  /** 当日生成 prompt(无头单发经 @file 传入引擎;摘录+清单可达数百 KB,不挤 argv)。 */
+  prompt: (y: number, m: number, d: number) => string;
   notes: (y: number, m: number) => string;
   meta: string;
   assets: string;
@@ -109,6 +112,7 @@ export function dailyPaths(): Promise<DailyPaths> {
       root,
       article: (y, m, d) => `${root}/article/${dayKey(y, m, d)}.md`,
       digest: (y, m, d) => `${root}/digest/${dayKey(y, m, d)}.md`,
+      prompt: (y, m, d) => `${root}/prompt/${dayKey(y, m, d)}.md`,
       notes: (y, m) => `${root}/notes/${y}-${pad2(m)}.json`,
       meta: `${root}/meta.json`,
       assets: `${root}/assets`,

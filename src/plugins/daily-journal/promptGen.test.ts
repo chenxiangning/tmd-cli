@@ -83,6 +83,14 @@ describe("buildGenPrompt", () => {
     expect(noMark).not.toContain("(新增)");
   });
 
+  it("增量 + 摘录:来源声明只含新增会话,已归纳以既有文章为准", () => {
+    const at = new Date("2026-09-29T12:00:00").getTime();
+    const p = buildGenPrompt(2026, 9, 29, [row("2026-09-29T15:00:00", "omp", "新会话", "s2")], true, "/dj/a.md", at, handoff);
+    expect(p).toContain("先完整读入会话内容摘录(只含标注(新增)的会话");
+    expect(p).toContain("已归纳会话以既有文章为准");
+    expect(p).not.toContain("每个会话的用户原话");
+  });
+
   it("空会话日:清单降级说明", () => {
     const p = buildGenPrompt(2026, 9, 22, [], false, "/dj/article/2026-09-22.md");
     expect(p).toContain("无——按空日处理");
