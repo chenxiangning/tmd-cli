@@ -185,8 +185,8 @@ export function pinKeyOf(wsId: string, r: HomeRow): string | null {
   const cid = r.kind === "live" ? r.live?.cliSessionId : r.disk?.id;
   return cid ? `${wsId}:${r.profileId}:${cid}` : null;
 }
-/** home 顶部两区:运行中 = 配置工作区内、桌面前端守望判定在区(turnActive || unread,
- *  与桌面 RunningZone 的 isRunningZoneCandidate 同律)的活会话,新在上;
+/** home 顶部两区:运行中 = 配置工作区内、桌面前端守望判定在区(activity.turnActive ||
+ *  activity.unread,与桌面 RunningZone 的 isRunningZoneCandidate 同律)的活会话,新在上;
  *  已置顶 = pins 覆盖层命中的行(置顶时间升序 = 最早置顶最上,与桌面同律)。 */
 export function topZones(args: {
   groups: { wsId: string; name: string; rows: HomeRow[] }[];
@@ -204,7 +204,8 @@ export function topZones(args: {
       /* 运行中排除已置顶(与桌面 RunningZone 同律:一行一区,计数不虚高);
          成员判定严格取桌面投影,缺席字段 = 空闲(旧服务端/未上报会话不误入区) */
       if (
-        inZone && r.kind === "live" && !isPinned && (r.live?.turnActive || r.live?.unread)
+        inZone && r.kind === "live" && !isPinned &&
+        (r.live?.activity?.turnActive || r.live?.activity?.unread)
       ) running.push(r);
       if (isPinned) pinned.push({ row: r, at: args.pins[pk!].pinnedAt ?? 0 });
     }

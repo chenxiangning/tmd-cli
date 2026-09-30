@@ -163,7 +163,7 @@ describe("topZones", () => {
     profileId: "omp",
     title: id,
     ts,
-    live: { id, profileId: "omp", cwd: "/w1", cliSessionId, ...flags },
+    live: { id, profileId: "omp", cwd: "/w1", cliSessionId, activity: flags },
   });
   const disk = (id: string, ts: number): HomeRow => ({
     key: `disk:omp:${id}`,

@@ -19,9 +19,8 @@ export interface RemoteSession {
   /** CLI 磁盘身份(注册表直读:桥 resume 直填 / 桌面绑定镜像;缺省 = 未绑定)。 */
   cliSessionId?: string;
   /** 桌面活动守望投影(session_list 直读;缺省 = 空闲)。「运行中」区成员判定 =
-   *  turnActive || unread,与桌面 RunningZone 的 isRunningZoneCandidate 同律。 */
-  turnActive?: boolean;
-  unread?: boolean;
+   *  activity.turnActive || activity.unread,与桌面 RunningZone 的 isRunningZoneCandidate 同律。 */
+  activity?: { turnActive?: boolean; unread?: boolean } | null;
 }
 
 export interface RemoteWorkspace {
