@@ -226,6 +226,7 @@
 .dj-modal-body-flush { padding: 8px 12px 12px; }
 .dj-tpanel-foot-text { font-size: 0.625rem; color: var(--tmd-fg-muted); }
 .dj-tsec { font-size: 0.625rem; font-weight: 700; color: var(--tmd-fg-faint); letter-spacing: 1px; margin: 6px 0 2px; }
+.dj-tsec-row { display: flex; align-items: center; justify-content: space-between; }
 .dj-titem { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--tmd-border); border-left: 3px solid var(--tmd-ok, #059669); border-radius: 6px; padding: 8px 10px; background: var(--tmd-bg-base); }
 .dj-titem-queue { border-left-color: var(--tmd-warn, #a16207); }
 .dj-titem-done { border-left-color: var(--tmd-fg-faint); opacity: .82; }

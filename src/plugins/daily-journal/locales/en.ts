@@ -76,6 +76,7 @@ export const MESSAGES_EN = {
   "后台任务 · 生成队列": "Tasks · generation queue",
   "进行中(切走模块 / 失焦不中断)": "Running (survives tab switch / blur)",
   "排队": "Queued",
+  "全部取消": "Cancel all",
   "完成 / 失败": "Done / failed",
   "暂无任务:生成会在后台排队执行,切走模块/失焦不中断。": "No tasks yet: generations queue in the background.",
   "任务由 app 后台调度;生成会话是真实 CLI 会话,随时可打开插话干涉。": "Scheduled by the app; the generation session is a real CLI session you can steer anytime.",

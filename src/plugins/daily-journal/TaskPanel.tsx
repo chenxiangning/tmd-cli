@@ -13,6 +13,14 @@ import { addBead } from "./journalStore";
 import { hmNow } from "./timeUtil";
 import { openArticleTab } from "./journalTabs";
 
+/** 取消一枚任务(排队/运行皆可);定时族取消补「尝试过」珠防 15min 对表复活。 */
+function cancelRow(task: GenTask): void {
+  if (!cancelTask(task.id)) return;
+  if (task.type === "定时生成" || task.type === "启动补跑" || task.type === "补齐生成") {
+    addBead(task.dayKey, { t: hmNow(), label: `${task.type} · 已取消` });
+  }
+}
+
 function TaskRow({ task }: { task: GenTask }) {
   const [y, m, d] = [Number(task.dayKey.slice(0, 4)), Number(task.dayKey.slice(5, 7)), Number(task.dayKey.slice(8, 10))];
   const openSession = task.sessionId ? () => host.setActiveSession(task.sessionId!) : null;
@@ -34,16 +42,7 @@ function TaskRow({ task }: { task: GenTask }) {
           </button>
         )}
         {(task.st === "queue" || task.st === "run") && (
-          <button
-            type="button"
-            className="dj-btn"
-            onClick={() => {
-              if (cancelTask(task.id) && (task.type === "定时生成" || task.type === "启动补跑" || task.type === "补齐生成")) {
-                /* 定时族取消也落「尝试过」珠:防 15min 对表无限复活(B4 评审 P2-2)。 */
-                addBead(task.dayKey, { t: hmNow(), label: `${task.type} · 已取消` });
-              }
-            }}
-          >
+          <button type="button" className="dj-btn" onClick={() => cancelRow(task)}>
             {t(task.st === "run" ? "终止" : "取消")}
           </button>
         )}
@@ -109,7 +108,14 @@ export function TaskPanel({ onClose }: { onClose: () => void }) {
           )}
           {queue.length > 0 && (
             <>
-              <div className="dj-tsec">{t("排队")}</div>
+              <div className="dj-tsec dj-tsec-row">
+                <span>{t("排队")}</span>
+                {queue.length > 1 && (
+                  <button type="button" className="dj-btn" onClick={() => queue.forEach(cancelRow)}>
+                    {t("全部取消")}
+                  </button>
+                )}
+              </div>
               {queue.map((x) => (
                 <TaskRow key={x.id} task={x} />
               ))}

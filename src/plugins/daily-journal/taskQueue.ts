@@ -1,6 +1,6 @@
 /**
- * 后台生成任务队列 —— 定时/手动/增量/重试/补齐一律进队列,单并发(同时至多一个
- * 生成会话在跑,余者排队;可取消排队,失败可重试)。任务史截尾 50 落 meta.json,
+ * 后台生成任务队列 —— 定时/手动/增量/重试/补齐一律进队列,至多 MAX_CONCURRENT_RUNS
+ * 个生成会话并发(余者排队;排队与运行皆可取消,失败可重试)。任务史截尾 50 落 meta.json,
  * 重启后 run 态改判「中断」。生成执行体由 genSession 注入(setTaskRunner),
  * 队列不认识会话语义。
  */
@@ -19,6 +19,8 @@ export interface GenTask {
   since: number;
   /** 生成会话 host id(run/done 有;排队无)。 */
   sessionId?: string;
+  /** run 起跑时刻(ms);硬顶审计判超龄用,终态不清。 */
+  runAt?: number;
 }
 
 interface QueueState {
@@ -27,6 +29,32 @@ interface QueueState {
 
 const store = createSubscribable<QueueState>({ tasks: [] });
 let nextId = 1;
+
+/** 并发上限:3 槽(用户 2026-09-30 拍板;额度消耗与终端输出随槽数线性放大)。 */
+const MAX_CONCURRENT_RUNS = 3;
+
+/** run 态硬顶:超龄 run 自动判失败并放行队列 —— createSession/摘录构建等前置段
+ *  在 SETTLE_TIMEOUT_MS 武装前是无兜底等待窗,此处结构性兜底(spawn 挂死也能自愈)。
+ *  须 > genSession 的 SETTLE_TIMEOUT_MS(15 分)+ 前置段余量,取 20 分。 */
+const RUN_HARD_TOP_MS = 20 * 60_000;
+/** 审计节拍(常驻单句柄;HMR 整页重载即随模块重置,无泄漏路径)。 */
+const AUDIT_TICK_MS = 30_000;
+type TimerHandle = ReturnType<typeof setInterval>;
+let auditTimer: TimerHandle | undefined;
+
+function ensureAudit(): void {
+  if (auditTimer !== undefined) return;
+  auditTimer = setInterval(() => {
+    const now = Date.now();
+    for (const t of store.snapshot.tasks) {
+      if (t.st !== "run" || t.runAt === undefined || now - t.runAt < RUN_HARD_TOP_MS) continue;
+      patch(t.id, { st: "err", text: "运行超 20 分钟,自动判失败(可重试)" });
+      abortRun?.(t); /* 会话收割:pre-spawn 段无 sessionId,由检查点自弃 */
+      pump();
+    }
+  }, AUDIT_TICK_MS);
+}
+
 let persist: ((tasks: GenTask[]) => void) | null = null;
 let runner: ((task: GenTask) => Promise<void>) | null = null;
 let abortRun: ((task: GenTask) => void) | null = null;
@@ -75,17 +103,23 @@ export function enqueueTask(type: GenTaskType, dayKey: string, engine: string): 
   return task;
 }
 
-/** 队列开泵:无 run 任务时取队首启动(runner 异步执行,终态回调推进下一发)。 */
+/** 队列开泵:run 槽未满时依序补位(runner 异步执行,终态回调推进补位)。 */
 function pump(): void {
-  const running = store.snapshot.tasks.some((t) => t.st === "run");
-  if (running || !runner) return;
-  const next = [...store.snapshot.tasks].reverse().find((t) => t.st === "queue");
-  if (!next) return;
-  patch(next.id, { st: "run", text: "生成中" });
-  void runner({ ...next, st: "run" }).catch((e: unknown) => {
-    patch(next.id, { st: "err", text: `任务异常:${String(e)}` });
-    pump();
-  });
+  if (!runner) return;
+  for (
+    let slots = MAX_CONCURRENT_RUNS - store.snapshot.tasks.filter((t) => t.st === "run").length;
+    slots > 0;
+    slots--
+  ) {
+    const next = [...store.snapshot.tasks].reverse().find((t) => t.st === "queue");
+    if (!next) return;
+    patch(next.id, { st: "run", text: "生成中", runAt: Date.now() });
+    ensureAudit();
+    void runner({ ...next, st: "run" }).catch((e: unknown) => {
+      patch(next.id, { st: "err", text: `任务异常:${String(e)}` });
+      pump();
+    });
+  }
 }
 
 /** run 态文案更新(进度提示;不动状态、不泵)。 */
