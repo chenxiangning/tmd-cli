@@ -107,6 +107,11 @@
   flex: 0 0 auto;
   margin-bottom: 8px; /* 与底簇留一点呼吸(rail gap 2px 之外) */
   width: 26px;
+  /* 显式钉高 + 禁换行:WebKit(WKWebView)对 column flex 里 vertical-rl 正交流
+   * 项的 intrinsic 主轴尺寸推断不稳,窗口拉大/缩放重排后会把 tmd-cli 折成
+   * 两列(2026-09-30 用户目检);显式尺寸后不再依赖引擎推断。 */
+  height: max-content;
+  white-space: nowrap;
   text-align: center;
   writing-mode: vertical-rl;
   text-orientation: upright; /* 字母逐个立正,不卧倒 */
