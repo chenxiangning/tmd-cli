@@ -25,12 +25,26 @@ const MarkdownBody = lazy(retryImport(() =>
 
 /** 轮询节拍:message 级落盘事件,1s 探测足够跟手且空转成本一次 stat。 */
 const POLL_MS = 1000;
-/** 路径解析限频:listSessions 是目录全扫(grok 千级会话),3s 一试到命中。 */
+/** 路径解析限频:listSessions 是目录全扫(grok 千级会话),3s 一试到命中;
+ * 连续 miss ≥10 次(约 30s)退到 10s 节拍,防未绑定/懒落盘期常驻全扫。 */
 const RESOLVE_EVERY = 3;
 /** 尾窗批次:live 视角从尾部往回看(与查看 tab 同额)。 */
 const RENDER_BATCH = 200;
 /** 贴底跟随判定边距。 */
 const FOLLOW_EDGE = 60;
+
+/** 块引用复用:字段全等的块沿用旧引用 —— react-markdown 零内部缓存,
+ * 引用刷新 = 全量重跑 remark/rehype;转录 append-only,下标错位时 id 不等自然回落新引用。 */
+function stableBlocks(prev: CliTranscriptBlock[] | null, next: CliTranscriptBlock[]): CliTranscriptBlock[] {
+  if (!prev) return next;
+  return next.map((b, i) => {
+    const p = prev[i];
+    return p && p.id === b.id && p.role === b.role && p.text === b.text
+      && p.startedAt === b.startedAt && p.images === b.images && p.tool === b.tool
+      ? p
+      : b;
+  });
+}
 
 /* 轮询状态机组件:分支密度是本质复杂度,拆散闭包需传 6 个 ref 弊大于利。 */
 // react-doctor-disable-next-line react-doctor/no-high-complexity-react-function
@@ -63,6 +77,8 @@ export function LiveTranscriptOverlay() {
   const diskRef = useRef<CliDiskSession | null>(null);
   /** 连续探错计数:重定位命中后第二次探错即熔断(路径非可读文件)。 */
   const probeFailRef = useRef(0);
+  /** 定位 miss 计数:退避节拍用(命中/会话切换归零)。 */
+  const resolveMissRef = useRef(0);
   const sizeRef = useRef<number | null>(null);
   const stickRef = useRef(true);
   const pendingRestoreRef = useRef<{ height: number; top: number } | null>(null);
@@ -81,6 +97,7 @@ export function LiveTranscriptOverlay() {
     setError(false);
     setUnsupported(false);
     probeFailRef.current = 0;
+    resolveMissRef.current = 0;
   }, [activeId, on]);
 
   /* 轮询:定位磁盘会话 → 尺寸探测短路 → 变更全量重读。 */
@@ -95,18 +112,21 @@ export function LiveTranscriptOverlay() {
       if (!diskRef.current) {
         /* IdentityLedger.bind 无宿主通知,靠轮询节拍重查(通常秒级绑定)。 */
         const cliId = host.getCliSessionId(activeId);
-        if (!cliId || !listSessions || tick % RESOLVE_EVERY !== 1) return;
+        if (!cliId || !listSessions || tick % (resolveMissRef.current >= 10 ? 10 : RESOLVE_EVERY) !== 1) return;
         const list = await listSessions(meta.cwd).catch(() => null);
         if (stopped) return;
         const hit = list?.find((s) => s.id === cliId);
-        if (hit) diskRef.current = hit; /* 命中后下一拍起探测读取 */
+        if (hit) {
+          diskRef.current = hit; /* 命中后下一拍起探测读取 */
+          resolveMissRef.current = 0;
+        } else resolveMissRef.current += 1;
         return;
       }
       const probe = await ipc
         .fsReadTailChanged(diskRef.current.path, 1, sizeRef.current)
         .catch(() => null);
       if (stopped) return;
-      const { decision, failStreak } = decideProbe(true, probe, probeFailRef.current);
+      const { decision, failStreak } = decideProbe(probe, probeFailRef.current);
       probeFailRef.current = failStreak;
       if (decision === "terminal") {
         diskRef.current = null;
@@ -127,7 +147,7 @@ export function LiveTranscriptOverlay() {
         setError(true);
         return;
       }
-      setBlocks(transcript.blocks);
+      setBlocks((prev) => stableBlocks(prev, transcript.blocks));
       setTruncated(transcript.truncated ?? false);
       setError(false);
     };
