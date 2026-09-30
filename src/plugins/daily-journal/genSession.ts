@@ -19,7 +19,7 @@ import { addBead, dayMetaOf, getJournalState, reloadDay, setDayResult } from "./
 import { collectSessionRows, type DaySessionRow } from "./daySessions";
 import { buildDayDigest } from "./sessionDigest";
 import { buildGenPrompt, GEN_TASK_MARK, type DigestHandoff } from "./promptGen";
-import { finishTask, noteTask, setTaskRunner, startTaskRun, type GenTask } from "./taskQueue";
+import { finishTask, isTaskActive, noteTask, setTaskRunner, startTaskRun, type GenTask } from "./taskQueue";
 import { ARTICLE_TAB_KIND } from "./journalTabs";
 import { hmNow } from "./timeUtil";
 

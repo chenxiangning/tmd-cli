@@ -7,12 +7,17 @@ interface QTask {
   dayKey: string;
   type: string;
   text: string;
+  sessionId?: string;
 }
 
 interface QueueModule {
   enqueueTask: (type: "手动生成", dayKey: string, engine: string) => { id: number } | null;
-  setTaskRunner: (fn: (task: { id: number }) => Promise<void>) => void;
+  setTaskRunner: (
+    fn: ((task: { id: number }) => Promise<void>) | null,
+    abort?: (task: { id: number; sessionId?: string }) => void,
+  ) => void;
   finishTask: (id: number, ok: boolean, text: string) => void;
+  startTaskRun: (id: number, sessionId: string, text: string) => void;
   cancelTask: (id: number) => boolean;
   restoreTasks: (saved: unknown) => void;
   getGenTasks: () => readonly QTask[];
@@ -65,15 +70,50 @@ describe("taskQueue", () => {
     expect(first).not.toBeNull();
   });
 
-  it("取消仅排队可取消", () => {
+  it("run 态可终止:aborter 收割会话,放行下一发;迟到回调不复活", () => {
     const gate = makeGate();
-    q.setTaskRunner(() => gate.promise);
+    const started: number[] = [];
+    const aborted: (string | undefined)[] = [];
+    q.setTaskRunner(
+      (task) => {
+        started.push(task.id);
+        return gate.promise;
+      },
+      (task) => aborted.push(task.sessionId),
+    );
     const a = q.enqueueTask("手动生成", "2026-09-27", "omp")!;
     const b = q.enqueueTask("手动生成", "2026-09-26", "omp")!;
-    expect(q.cancelTask(b.id)).toBe(true);
-    expect(q.cancelTask(a.id)).toBe(false); /* run 态不可取消 */
+    q.startTaskRun(a.id, "pty-9", "生成中"); /* spawn 落地即绑 sessionId */
+    expect(q.cancelTask(a.id)).toBe(true); /* run 态终止 */
+    expect(aborted).toEqual(["pty-9"]);
+    expect(started).toEqual([a.id, b.id]); /* 终止即泵下一发 */
+    const ta = q.getGenTasks().find((t) => t.id === a.id)!;
+    expect(ta.st).toBe("err");
+    expect(ta.text).toContain("已取消");
+    /* 取消后迟到的结算/绑定不复活、不覆盖 */
+    q.startTaskRun(a.id, "pty-late", "迟到绑定");
+    q.finishTask(a.id, true, "迟到完成");
+    const ta2 = q.getGenTasks().find((t) => t.id === a.id)!;
+    expect(ta2.st).toBe("err");
+    expect(ta2.sessionId).toBe("pty-9");
     gate.open();
-    q.finishTask(a.id, true, "已完成");
+    q.finishTask(b.id, true, "已完成");
+  });
+
+  it("卸载停泵:null runner 不再泵排队(防空转 runner 卡死)", () => {
+    const gate = makeGate();
+    const started: number[] = [];
+    q.setTaskRunner((task) => {
+      started.push(task.id);
+      return gate.promise;
+    });
+    const a = q.enqueueTask("手动生成", "2026-09-27", "omp")!;
+    const b = q.enqueueTask("手动生成", "2026-09-26", "omp")!;
+    q.setTaskRunner(null); /* 卸载:a 在途,b 排队 */
+    gate.open();
+    q.finishTask(a.id, true, "已完成"); /* 旧 runner 终态回调仍可用 */
+    expect(started).toEqual([a.id]); /* b 未被泵进空转 runner */
+    expect(q.getGenTasks().find((t) => t.id === b.id)!.st).toBe("queue");
   });
 
   it("恢复:run 改判中断,queue 保留并续跑", () => {

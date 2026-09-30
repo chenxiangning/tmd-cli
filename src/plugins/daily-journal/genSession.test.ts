@@ -4,7 +4,7 @@
  *  (会丢 mock 登记),跨测隔离靠唯一 dayKey + mock 态显式重置。 */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { host } from "@kernel/host";
-import { enqueueTask, getGenTasks } from "./taskQueue";
+import { cancelTask, enqueueTask, getGenTasks } from "./taskQueue";
 import { bootGenSession } from "./genSession";
 import { readText, writeText } from "./journalFiles";
 import { ensureParentDir } from "@kernel/fsDirs";
@@ -188,6 +188,26 @@ describe("genSession 结算", () => {
     expect(taskOf(key)?.text).toContain("15 分钟");
     expect(setDayResultMock).toHaveBeenCalledWith(key, expect.objectContaining({ lastError: expect.stringContaining("超时") }));
     expect(host.removeSession).toHaveBeenCalledWith("pty-1"); /* 超时路径同样收割 */
+  });
+
+  it("run 态终止:挂起 spawn 中取消 → 会话落地即弃,不复活", async () => {
+    const key = "2026-09-12";
+    readTextMock.mockReset().mockResolvedValue("");
+    reloadDayMock.mockReset().mockResolvedValue(null);
+    writeSessionMock.mockClear();
+    /* spawn 挂起闸:任务已泵起但卡在 createSession(无兜底窗口)。 */
+    const { promise: spawnPend, resolve: landSpawn } = Promise.withResolvers<{ id: string }>();
+    vi.mocked(host.createSession).mockImplementationOnce(() => spawnPend as never);
+    bootGenSession(makeBus());
+    expect(enqueueTask("手动生成", key, "omp")).not.toBeNull();
+    expect(taskOf(key)?.st).toBe("run");
+    expect(cancelTask(taskOf(key)!.id)).toBe(true); /* 挂起期间终止 */
+    landSpawn({ id: "pty-2" }); /* 迟到的 spawn 落地 */
+    await vi.advanceTimersByTimeAsync(0);
+    expect(host.removeSession).toHaveBeenCalledWith("pty-2"); /* 检查点自弃 */
+    expect(writeSessionMock).not.toHaveBeenCalled(); /* 不再送 prompt */
+    expect(taskOf(key)?.st).toBe("err");
+    expect(taskOf(key)?.sessionId).toBeUndefined(); /* 迟到绑定不复活 */
   });
 
   it("turnSettled 假结算(文章未现)不终态,轮询兜底收口", async () => {

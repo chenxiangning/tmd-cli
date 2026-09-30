@@ -29,6 +29,7 @@ const store = createSubscribable<QueueState>({ tasks: [] });
 let nextId = 1;
 let persist: ((tasks: GenTask[]) => void) | null = null;
 let runner: ((task: GenTask) => Promise<void>) | null = null;
+let abortRun: ((task: GenTask) => void) | null = null;
 
 export function useGenTasks(): GenTask[] {
   return store.useStore((s) => s.tasks);
@@ -43,10 +44,18 @@ export function bindTaskPersistence(fn: (tasks: GenTask[]) => void): void {
   persist = fn;
 }
 
-/** genSession 注入执行体(队列 → 真实会话生成);注册即开泵(接住恢复的排队)。 */
-export function setTaskRunner(fn: (task: GenTask) => Promise<void>): void {
+/** genSession 注入执行体(队列 → 真实会话生成)与 run 态收割体(取消时杀会话);
+ * 注册即开泵(接住恢复的排队);卸载传 null 停泵(排队保留,不得泵进空转 runner)。 */
+export function setTaskRunner(fn: ((task: GenTask) => Promise<void>) | null, abort?: (task: GenTask) => void): void {
   runner = fn;
+  abortRun = abort ?? null;
   pump();
+}
+
+/** 任务是否仍处 run 态(genSession 取消竞态检查点用)。 */
+export function isTaskActive(id: number): boolean {
+  const t = store.snapshot.tasks.find((x) => x.id === id);
+  return !!t && t.st === "run";
 }
 
 function commit(): void {
@@ -91,19 +100,34 @@ function patch(id: number, p: Partial<GenTask>): void {
 }
 
 export function startTaskRun(id: number, sessionId: string, text: string): void {
-  patch(id, { st: "run", sessionId, text });
+  /* 已被取消的任务不复活:挂起 spawn 期间取消的会话由 runGeneration 检查点自弃。 */
+  if (!isTaskActive(id)) return;
+  patch(id, { sessionId, text });
 }
 
+/** 终态落账(runner/结算回调):推进下一发;已取消(终态)不复活不覆盖。 */
 export function finishTask(id: number, ok: boolean, text: string): void {
+  const t = store.snapshot.tasks.find((x) => x.id === id);
+  if (t && t.st !== "run") {
+    pump();
+    return;
+  }
   patch(id, { st: ok ? "done" : "err", text });
   pump();
 }
 
-/** 仅排队可取消。 */
+/** 排队与运行皆可取消(run 态经 abortRun 收割会话后放行下一发;
+ * 是 run 态卡死(spawn 挂起等无兜底窗口)时唯一的手动逃生口)。 */
 export function cancelTask(id: number): boolean {
   const t = store.snapshot.tasks.find((x) => x.id === id);
-  if (!t || t.st !== "queue") return false;
-  patch(id, { st: "err", text: "已取消" });
+  if (!t || (t.st !== "queue" && t.st !== "run")) return false;
+  if (t.st === "run") {
+    patch(id, { st: "err", text: "已取消(终止运行)" });
+    abortRun?.(t);
+    pump();
+  } else {
+    patch(id, { st: "err", text: "已取消" });
+  }
   return true;
 }
 

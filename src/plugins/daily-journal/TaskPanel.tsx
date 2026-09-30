@@ -1,6 +1,6 @@
 /**
  * 后台任务面板(工具栏「后台任务」入口的全屏遮罩弹层)—— 进行中(可打开
- * 生成会话)/ 排队(可取消)/ 完成与失败(可跳文章/重试),任务史截尾 50。
+ * 生成会话/终止)/ 排队(可取消)/ 完成与失败(可跳文章/重试),任务史截尾 50。
  */
 import { ListChecks, TerminalWindow, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
@@ -33,7 +33,7 @@ function TaskRow({ task }: { task: GenTask }) {
             <TerminalWindow size={10} /> {t("打开会话")}
           </button>
         )}
-        {task.st === "queue" && (
+        {(task.st === "queue" || task.st === "run") && (
           <button
             type="button"
             className="dj-btn"
@@ -44,7 +44,7 @@ function TaskRow({ task }: { task: GenTask }) {
               }
             }}
           >
-            {t("取消")}
+            {t(task.st === "run" ? "终止" : "取消")}
           </button>
         )}
         {task.st === "done" && (

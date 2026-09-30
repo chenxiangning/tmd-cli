@@ -58,6 +58,7 @@ export const MESSAGES_EN = {
   "图片保存失败,请重试": "Image save failed, please retry",
   "与 AI 文章独立落盘 · 重新生成不碰便签": "Persisted independently of the AI article · regeneration never touches notes",
   "取消": "Cancel",
+  "终止": "Stop",
   "保存 ⌘↵": "Save ⌘↵",
   "关闭大图": "Close image",
   "生长 {n} 次": "{n} growth steps",
