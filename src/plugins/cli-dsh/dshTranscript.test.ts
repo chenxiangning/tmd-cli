@@ -1,11 +1,11 @@
 /**
- * dsh 转录行型测试 —— 侊本取自本机 ~/.dsh/sessions zstd 解压后真实行(2026-09-28):
- * user/message(source.kind 门控)/assistant/message parts/tool-call/
- * tool/result 嵌套 content。
+ * dsh 转录行型测试 —— 行样本取自本机 ~/.dsh/sessions zstd 解压后真实行
+ * (2026-09-28 v0 盘 / 2026-09-30 v3/v4 盘):user/message(source.kind 门控)/
+ * assistant/message parts/tool-call/tool/result 两代形制(v3 包裹 / v4 扁平)。
  */
 
 import { describe, expect, it } from "vitest";
-import { decompressZstdWithBudget, dshTranscriptLine } from "./dshTranscript";
+import { decompressZstdWithBudget, dshTranscriptLine, zstdVersionOf } from "./dshTranscript";
 import { pairToolResults, parseTranscriptBlocks } from "../cli-shared/sessionTranscript";
 
 describe("dshTranscriptLine", () => {
@@ -76,6 +76,61 @@ describe("dshTranscriptLine", () => {
     expect(blocks[0]).toMatchObject({ role: "assistant", text: "I'll analyze the project." });
     const done = blocks.find((b) => b.role === "tool" && b.tool?.status === "done");
     expect(done?.tool).toMatchObject({ callId: "call_1", title: "bash", detail: "bin etc" });
+  });
+
+  it("v4 tool/result 扁平形制(toolCallId 在 message 本体)照常配对", () => {
+    const text = [
+      JSON.stringify({
+        type: "tool/call",
+        time: 3,
+        data: { turn: 2, step: 1, callId: "call_a", name: "bash", arguments: '{"command":"ls"}' },
+      }),
+      JSON.stringify({
+        type: "tool/result",
+        time: 4,
+        data: {
+          turn: 2,
+          step: 1,
+          message: {
+            role: "tool",
+            source: { kind: "tool", callId: "call_a" },
+            toolCallId: "call_a",
+            content: [{ type: "text", text: "total 104" }],
+            isError: false,
+            id: "56cc7c81",
+          },
+        },
+      }),
+    ].join("\n");
+    const blocks = pairToolResults(parseTranscriptBlocks(text, dshTranscriptLine));
+    expect(blocks).toHaveLength(1);
+    const done = blocks[0];
+    expect(done.role).toBe("tool");
+    expect(done.tool).toMatchObject({ callId: "call_a", title: "bash", status: "done", detail: "total 104" });
+  });
+
+  it("v3/v4 assistant/message 无 messageId:块 id 退 event.seq,跨事件不重号", () => {
+    const line = (seq: number, text: string) =>
+      JSON.stringify({
+        type: "assistant/message",
+        seq,
+        time: 1790747570034,
+        data: { turn: 1, step: seq, message: { role: "assistant", content: [{ type: "text", text }] } },
+      });
+    const first = dshTranscriptLine(JSON.parse(line(16, "第一段")));
+    const second = dshTranscriptLine(JSON.parse(line(24, "第二段")));
+    expect(first.map((b) => b.id)).toEqual(["seq16#0"]);
+    expect(second.map((b) => b.id)).toEqual(["seq24#0"]);
+  });
+});
+
+describe("zstdVersionOf(会话盘文件名版本号)", () => {
+  it("无版本段 = 0,版本段取数字,非会话盘文件 = -1", () => {
+    expect(zstdVersionOf("session.jsonl.zstd")).toBe(0);
+    expect(zstdVersionOf("session.v3.jsonl.zstd")).toBe(3);
+    expect(zstdVersionOf("session.v4.jsonl.zstd")).toBe(4);
+    expect(zstdVersionOf("session.lock")).toBe(-1);
+    expect(zstdVersionOf("session.vX.jsonl.zstd")).toBe(-1);
   });
 });
 
