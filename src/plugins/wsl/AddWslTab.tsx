@@ -6,14 +6,14 @@
  * 远程 → root = Linux 绝对路径;wsl 元数据 { distro, hostId } 随工作区持久化。
  */
 
-import { useCallback, useEffect, useState } from "react";
-import { ArrowClockwiseIcon, ArrowUpIcon, FolderSimpleIcon } from "@phosphor-icons/react";
-import { ipc, type WslDistro, type WslDirEntry } from "@kernel/ipc";
+import { useEffect, useState } from "react";
+import { ipc, type WslDistro } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
 import type { WorkspaceOriginAddTabProps } from "@kernel/workspaceOrigins";
-import { joinWslPath, parentWslPath, wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
+import { wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
 import { useSettingsState } from "@kernel/settings";
+import { WslDirBrowser } from "./WslDirBrowser";
 
 export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
   const { settings } = useSettingsState();
@@ -22,9 +22,8 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
   const [distros, setDistros] = useState<WslDistro[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [distro, setDistro] = useState("");
-  const [dir, setDir] = useState(sshHost ? "~" : "/");
-  const [entries, setEntries] = useState<WslDirEntry[] | null>(null);
-  const [dirErr, setDirErr] = useState<string | null>(null);
+  /* 最近成功加载的目录层 = 添加目标(WslDirBrowser 每次成功加载上报)。 */
+  const [pickedDir, setPickedDir] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,23 +50,8 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
     };
   }, [sshHost]);
 
-  const loadDir = useCallback(
-    (path: string) => {
-      if (!distro) return;
-      setDirErr(null);
-      void ipc
-        .wslListDir(distro, path, sshHost ?? undefined)
-        .then((r) => {
-          setDir(path);
-          setEntries(r);
-        })
-        .catch((e) => setDirErr(e instanceof Error ? e.message : String(e)));
-    },
-    [distro, sshHost],
-  );
-
   const add = () => {
-    const target = dir.trim();
+    const target = pickedDir?.trim() ?? "";
     /* 本机分支绝对路径闸:曾漏 `~/xxx` 直喂 wslToUnc 拼出 `Ubuntu~` 假发行版
        毒根,新建会话即 WSL_E_DISTRO_NOT_FOUND(2026-09-13 实证)。 */
     if (!distro || !wslWorkspaceTargetOk(target, !!sshHost)) return;
@@ -80,7 +64,7 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
     <>
       <label className="wsl-field">
         <span>{t("发行版")}</span>
-        <select value={distro} onChange={(e) => { setDistro(e.target.value); setEntries(null); }}>
+        <select value={distro} onChange={(e) => { setDistro(e.target.value); setPickedDir(null); }}>
           {(distros ?? []).map((d) => (
             <option key={d.name} value={d.name}>
               {d.name}({d.running ? t("运行中") : t("已停止")})
@@ -90,63 +74,25 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
       </label>
       {loadErr && <div className="wsl-remote-err">{loadErr}</div>}
       {distro && (
-        <div className="wsl-dir-browser">
-          <div className="wsl-dir-crumb">
-            <button
-              type="button"
-              className="wsl-icon-btn"
-              title={t("上一级")}
-              aria-label={t("上一级")}
-              onClick={() => loadDir(dir === "~" ? "~" : parentWslPath(dir))}
-            >
-              <ArrowUpIcon size={12} aria-hidden />
-            </button>
-            <code className="wsl-dir-path" title={dir}>
-              {dir}
-            </code>
-            <button
-              type="button"
-              className="wsl-icon-btn"
-              title={t("刷新")}
-              aria-label={t("刷新")}
-              onClick={() => loadDir(dir)}
-            >
-              <ArrowClockwiseIcon size={12} aria-hidden />
-            </button>
-          </div>
-          {dirErr && <div className="wsl-remote-err">{dirErr}</div>}
-          {entries === null && !dirErr && (
-            <button type="button" className="wsl-btn sm" onClick={() => loadDir(sshHost ? "~" : "/")}>
-              <FolderSimpleIcon size="0.75rem" aria-hidden /> {t("浏览目录")}
-            </button>
-          )}
-          {entries !== null && (
-            <div className="wsl-dir-list">
-              {(() => {
-                const dirs = entries.filter((e) => e.isDir);
-                return (
-                  <>
-                    {dirs.map((e) => (
-                      <button key={e.name} type="button" className="wsl-dir-row" onClick={() => loadDir(joinWslPath(dir, e.name))}>
-                        <FolderSimpleIcon size={12} aria-hidden />
-                        <span>{e.name}</span>
-                      </button>
-                    ))}
-                    {dirs.length === 0 && <span className="wsl-hint">{t("(无子目录)")}</span>}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-          <div className="wsl-hint">
-            {sshHost
-              ? t("添加后 root 为远程 Linux 路径;会话经 WSL 卡或侧栏打开(SSH 包装)。")
-              : t("添加后以 \\\\wsl.localhost UNC 登记为本机 WSL 工作区。")}
-          </div>
+        /* key=distro:换发行版即重置浏览态(原 setEntries(null) 语义)。 */
+        <WslDirBrowser
+          key={distro}
+          distro={distro}
+          host={sshHost}
+          start={sshHost ? "~" : "/"}
+          onLoaded={setPickedDir}
+          emptyHint={t("(无子目录)")}
+        />
+      )}
+      {distro && (
+        <div className="wsl-hint">
+          {sshHost
+            ? t("添加后 root 为远程 Linux 路径;会话经 WSL 卡或侧栏打开(SSH 包装)。")
+            : t("添加后以 \\\\wsl.localhost UNC 登记为本机 WSL 工作区。")}
         </div>
       )}
       <div className="wsl-dialog-foot">
-        <button type="button" className="wsl-btn primary" disabled={!distro || !wslWorkspaceTargetOk(dir, !!sshHost) || !entries} onClick={add}>
+        <button type="button" className="wsl-btn primary" disabled={!distro || !pickedDir || !wslWorkspaceTargetOk(pickedDir, !!sshHost)} onClick={add}>
           {t("添加")}
         </button>
       </div>

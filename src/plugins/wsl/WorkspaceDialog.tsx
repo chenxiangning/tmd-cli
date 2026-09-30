@@ -5,76 +5,11 @@
  */
 
 import { useState } from "react";
-import { ArrowUpIcon, FolderSimpleIcon } from "@phosphor-icons/react";
-import type { WslDistro, WslDirEntry } from "@kernel/ipc";
-import { ipc } from "@kernel/ipc";
+import type { WslDistro } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { joinWslPath, parentWslPath, wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
+import { wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
 import { addWorkspace } from "@kernel/workspace";
-
-/** 目录浏览小面板:懒加载逐级进入,选中 = 回填路径输入。 */
-function DirBrowser({ distro, onPick }: { distro: string; onPick: (path: string) => void }) {
-  const [dir, setDir] = useState("/");
-  const [entries, setEntries] = useState<WslDirEntry[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  const load = (path: string) => {
-    setErr(null);
-    void ipc
-      .wslListDir(distro, path)
-      .then((r) => {
-        setDir(path);
-        setEntries(r);
-      })
-      .catch((e) => setErr(e instanceof Error ? e.message : String(e)));
-  };
-
-  return (
-    <div className="wsl-dir-browser">
-      <div className="wsl-dir-crumb">
-        <button
-          type="button"
-          className="wsl-icon-btn"
-          title={t("上一级")}
-          aria-label={t("上一级")}
-          onClick={() => load(parentWslPath(dir))}
-        >
-          <ArrowUpIcon size={12} aria-hidden />
-        </button>
-        <code className="wsl-dir-path" title={dir}>
-          {dir}
-        </code>
-        <button type="button" className="wsl-btn sm" onClick={() => onPick(dir)} disabled={dir === "/"}>
-          {t("选这一层")}
-        </button>
-      </div>
-      {err && <div className="wsl-remote-err">{err}</div>}
-      {entries === null && !err && (
-        <button type="button" className="wsl-btn sm" onClick={() => load("/")}>
-          <FolderSimpleIcon size="0.75rem" aria-hidden /> {t("浏览目录")}
-        </button>
-      )}
-      {entries !== null && (
-        <div className="wsl-dir-list">
-          {entries.map((e) =>
-            e.isDir ? (
-              <button key={e.name} type="button" className="wsl-dir-row" onClick={() => load(joinWslPath(dir, e.name))}>
-                <FolderSimpleIcon size={12} aria-hidden />
-                <span>{e.name}</span>
-              </button>
-            ) : (
-              <span key={e.name} className="wsl-dir-row off">
-                <FolderSimpleIcon size={12} aria-hidden />
-                <span>{e.name}</span>
-              </span>
-            ),
-          )}
-          {entries.length === 0 && <span className="wsl-hint">{t("(空目录)")}</span>}
-        </div>
-      )}
-    </div>
-  );
-}
+import { WslDirBrowser } from "./WslDirBrowser";
 
 export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro[]; onClose: () => void }) {
   const def = distros.find((d) => d.default) ?? distros[0];
@@ -127,7 +62,7 @@ export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro
             spellCheck={false}
           />
         </label>
-        {distro && <DirBrowser distro={distro} onPick={setPath} />}
+        {distro && <WslDirBrowser distro={distro} start="/" pickLabel={t("选这一层")} onPick={setPath} showFiles="off" />}
         {valid && distro && (
           <div className="wsl-unc-preview" title={wslToUnc(distro, posix)}>
             {t("工作区根(UNC)")}:{wslToUnc(distro, posix)}
