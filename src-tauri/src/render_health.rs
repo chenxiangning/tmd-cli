@@ -29,7 +29,13 @@ const KICK_DEBOUNCE_MS: u64 = 15_000;
 const RELOAD_COOLDOWN_MS: u64 = 60_000;
 /// Focused 探针应答死限:超时无上报 = 探针链路死,直接进击。
 pub(crate) const PROBE_DEADLINE_MS: u64 = 4_000;
-/// 心跳守望节拍:每 5s 查一次「可见但久无音讯」并采样泵字节计量。
+/// 洪水降级最长宽限:连续洪水 + 零痊愈上报超过该值后,无视洪水直接 reload。
+/// 降级防的是「reload 回放风暴再冻结」,但若洪水不止(重度并发长任务)则击打
+/// 永远停在 set_focus —— 而 set_focus 对吊销态是实测无效路径,宽限无限 =
+/// 永久冻结、只能手动刷新客户端(2026-10-01 定案)。永久冻结比重载风暴更糟:
+/// reload 语义安全(会话/PTY 跨重载存活),宽限耗尽即升级,此后按 reload 冷却
+/// 节拍重试,直到页面复话。
+const FLOOD_GRACE_MS: u64 = 180_000;
 const HEARTBEAT_TICK_MS: u64 = 5_000;
 /// 心跳死线:窗口可见但 15s 无任何上报(含健康心跳)= webview 深冻,
 /// 页内自报线已死,由壳侧接管进击。
@@ -58,12 +64,16 @@ pub(crate) struct KickState {
     last_report_ms: AtomicU64,
     /// 洪水期截止时刻(前端 floodGauge 随 stuck 上报刷新):期内 reload 降级为 focus。
     flood_until_ms: AtomicU64,
+    /// 洪水降级期起点(首次被降级击打的时刻;0 = 不在降级期)。痊愈(ok 上报)
+    /// 与洪过(非洪水击打)清零;供 FLOOD_GRACE_MS 宽限判定,防洪水不止时永久 focus。
+    flood_since_ms: AtomicU64,
     strikes: AtomicU32,
 }
 
 /// 阶梯决策(纯函数,测试锚):首击 focus;二击起 reload,冷却内退 focus;
-/// 洪水期内一律 focus(reload = 重放缓冲 + 重挂全部幕布,洪水未停即再冻结,
-/// 越自愈越卡 —— 2026-09-30 第三轮卡死取证,见 kernel/floodGauge.ts)。
+/// 洪水期内降级 focus(reload = 重放缓冲 + 重挂全部幕布,洪水未停即再冻结,
+/// 越自愈越卡 —— 2026-09-30 第三轮卡死取证,见 kernel/floodGauge.ts);
+/// 但降级有 FLOOD_GRACE_MS 宽限,耗尽仍零痊愈 = 永久冻结实锤,无视洪水 reload。
 pub(crate) enum KickAction {
     Focus,
     Reload,
@@ -74,10 +84,15 @@ pub(crate) fn next_action(
     now_ms: u64,
     last_reload_ms: u64,
     flood_until_ms: u64,
+    flood_since_ms: u64,
 ) -> KickAction {
     let n = strikes_before.saturating_add(1);
+    let in_flood = now_ms < flood_until_ms;
+    /* 宽限耗尽:降级期起点非零且距今超 FLOOD_GRACE_MS → 洪水不再是拦 reload 的理由 */
+    let grace_exhausted =
+        in_flood && flood_since_ms != 0 && now_ms.saturating_sub(flood_since_ms) >= FLOOD_GRACE_MS;
     if n > 1
-        && now_ms >= flood_until_ms
+        && (!in_flood || grace_exhausted)
         && now_ms.saturating_sub(last_reload_ms) >= RELOAD_COOLDOWN_MS
     {
         KickAction::Reload
@@ -92,17 +107,32 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
         return;
     }
     ks.last_action_ms.store(now, Ordering::Relaxed);
+    /* 降级期记账:洪水中首次击打钉起点;洪过清零(痊愈清零在 render_health ok 分支)。 */
+    let flood_until = ks.flood_until_ms.load(Ordering::Relaxed);
+    if now < flood_until {
+        let _ = ks
+            .flood_since_ms
+            .compare_exchange(0, now, Ordering::Relaxed, Ordering::Relaxed);
+    } else {
+        ks.flood_since_ms.store(0, Ordering::Relaxed);
+    }
     let strikes = ks.strikes.fetch_add(1, Ordering::Relaxed) + 1;
     match next_action(
         strikes - 1,
         now,
         ks.last_reload_ms.load(Ordering::Relaxed),
-        ks.flood_until_ms.load(Ordering::Relaxed),
+        flood_until,
+        ks.flood_since_ms.load(Ordering::Relaxed),
     ) {
         KickAction::Reload => {
             ks.last_reload_ms.store(now, Ordering::Relaxed);
             crate::app_setup::safe_eprintln(&format!(
-                "render_health: 渲染粘死未愈(strikes={strikes}),重载 webview;会话/PTY 跨重载存活"
+                "render_health: 渲染粘死未愈(strikes={strikes}){},重载 webview;会话/PTY 跨重载存活",
+                if now < flood_until {
+                    ",洪水宽限耗尽强击"
+                } else {
+                    ""
+                },
             ));
             let _ = window.eval("location.reload()");
         }
@@ -136,7 +166,9 @@ pub(crate) fn render_health(
             .store(now_millis() + 10_000, Ordering::Relaxed);
     }
     if ok {
+        /* 痊愈:strikes 与洪水降级期一并清零,下一轮冻结重新计宽限。 */
         ks.strikes.store(0, Ordering::Relaxed);
+        ks.flood_since_ms.store(0, Ordering::Relaxed);
         return;
     }
     /* 窗口真隐藏/最小化时的粘死是「按设计暂停」,不可击打。 */
@@ -208,15 +240,15 @@ mod tests {
     #[test]
     fn 首击_focus_二击_reload_冷却内退_focus() {
         let now = 100_000u64;
-        assert!(matches!(next_action(0, now, 0, 0), KickAction::Focus));
-        assert!(matches!(next_action(1, now, 0, 0), KickAction::Reload));
+        assert!(matches!(next_action(0, now, 0, 0, 0), KickAction::Focus));
+        assert!(matches!(next_action(1, now, 0, 0, 0), KickAction::Reload));
         /* 冷却窗内(last_reload 60s 内)退回 focus */
         assert!(matches!(
-            next_action(2, now, now - 10_000, 0),
+            next_action(2, now, now - 10_000, 0, 0),
             KickAction::Focus
         ));
         assert!(matches!(
-            next_action(2, now, now - RELOAD_COOLDOWN_MS, 0),
+            next_action(2, now, now - RELOAD_COOLDOWN_MS, 0, 0),
             KickAction::Reload
         ));
     }
@@ -224,16 +256,47 @@ mod tests {
     #[test]
     fn 洪水期内_reload_降级_focus_洪水过即恢复() {
         let now = 100_000u64;
-        /* 二击本应 reload,但洪水未过(now < flood_until)→ focus */
+        /* 二击本应 reload,但洪水未过(now < flood_until)且降级期起点未钉(0)→ focus */
         assert!(matches!(
-            next_action(1, now, 0, now + 5_000),
+            next_action(1, now, 0, now + 5_000, 0),
             KickAction::Focus
         ));
         /* 洪水已过(flood_until <= now)→ 照常 reload */
-        assert!(matches!(next_action(1, now, 0, now), KickAction::Reload));
+        assert!(matches!(next_action(1, now, 0, now, 0), KickAction::Reload));
         /* 洪水降级不绕过 reload 冷却:冷却内 + 洪水过 仍 focus */
         assert!(matches!(
-            next_action(2, now, now - 10_000, now),
+            next_action(2, now, now - 10_000, now, 0),
+            KickAction::Focus
+        ));
+    }
+
+    #[test]
+    fn 洪水宽限耗尽_无视洪水_reload() {
+        let now = 1_000_000u64;
+        let flood_until = now + 5_000;
+        /* 宽限内(降级期起点距今 < 180s):洪水中仍 focus */
+        assert!(matches!(
+            next_action(12, now, 0, flood_until, now - FLOOD_GRACE_MS + 1_000),
+            KickAction::Focus
+        ));
+        /* 宽限刚好耗尽:无视洪水 reload */
+        assert!(matches!(
+            next_action(12, now, 0, flood_until, now - FLOOD_GRACE_MS),
+            KickAction::Reload
+        ));
+        /* 宽限耗尽不绕过 reload 冷却:冷却内仍 focus */
+        assert!(matches!(
+            next_action(12, now, now - 10_000, flood_until, now - FLOOD_GRACE_MS),
+            KickAction::Focus
+        ));
+        /* 降级期起点为 0(尚未钉起点):不构成宽限耗尽,保持降级 */
+        assert!(matches!(
+            next_action(12, now, 0, flood_until, 0),
+            KickAction::Focus
+        ));
+        /* 首击不因宽限耗尽跳级(阶梯仍从 focus 起) */
+        assert!(matches!(
+            next_action(0, now, 0, flood_until, now - FLOOD_GRACE_MS),
             KickAction::Focus
         ));
     }
