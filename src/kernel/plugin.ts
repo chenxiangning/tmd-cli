@@ -89,6 +89,11 @@ export type MountPoint =
   | "welcome.footer"
   /** 幕布下方富 composer 输入区。 */
   | "editorCenter.composer"
+
+  /** 幕布右上角工具行:内核渲染行容器与幕布刷新钮,插件经此贡献同排工具钮
+   *  (先例:session-viewer 的结构化幕布切换钮)。行不设 z —— 不透明画布
+   *  浮层(editorCenter.canvasOverlay 一类)开启时整行隐没其下。 */
+  | "terminal.canvasRow"
   /** composer 输入区左下水平图标行(assets 唤醒入口等;b7960d5 起左下横排)。 */
   | "composer.inputRail"
   /** composer 附件条区域(输入区上方):可交互附件/引用芯片条(marks 引用芯片等)。 */

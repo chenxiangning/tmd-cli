@@ -40,7 +40,7 @@ reload 是被逼出来的根治手段,语义安全性有两重保证:会话/PTY 
 1. **洪水降级**(kernel/floodGauge.ts + render_health.rs):appendOutput 喂字节数进 5s 滑动窗,>256KB(≈50KB/s 持续)判洪水;守望上报随行 `flood`,Rust 洪水期内 reload 降级 set_focus,退洪后下一轮 stuck 照常 reload——自愈不再与洪水对撞。
 2. **隐藏幕布合帧写入**(kernel/terminalReplay.ts + TerminalView.tsx):非激活幕布实时字节攒 250ms 合并写一次(与幕布 askProbe 同拍),激活即冲刷;隐藏幕布的 xterm 行重建从每秒数百次降到 4 次,字节流与屏幕通道语义不变。
 3. **PTY 泵自适应聚合窗**(src-tauri/src/pty_spawn.rs):8ms 基线,批内排到窗口耗尽/批满(生产者持续前进)窗长逐批翻倍封顶 50ms(TUI 整帧 20fps 量级,观感无差);孤立小块(击键回显)回基线。连续洪峰的事件数再降数倍。
-4. **幕布刷新钮**(kernel/terminalRefreshButton.tsx,用户诉求;2026-09-30 晚二轮修订):单会话幕布重建的手动出口——点击自增 TerminalView 的 canvasGen 代数,主 effect 重跑 = xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH(needsForceSync 初值 true)整帧重绘,PTY/CLI 不中断、其他会话零扰动。定位在 session-viewer「转录」浮标(.lv-float)正下方一列,同列视觉对齐互不重叠;kernel 不感知插件能力门(浮标缺席时独自守位)。分工:这里管会话内画面自救(幕布错乱/内容滞留);WebKit 级像素冻结仍归守望阶梯自动自愈(整页 reload 语义),不经此钮——避免用户误把会话级重建当成像素冻结的药(那需要守望或重启)。
+4. **幕布刷新钮与右上工具行**(kernel/terminalRefreshButton.tsx + terminal.canvasRow 挂点,用户诉求;2026-09-30 晚三轮修订):单会话幕布重建的手动出口——点击自增 TerminalView 的 canvasGen 代数,主 effect 重跑 = xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH(needsForceSync 初值 true)整帧重绘,PTY/CLI 不中断、其他会话零扰动。行布局归内核:TerminalView 渲染右上工具行容器(right 12/top 8),插件经 terminal.canvasRow 挂点贡献同排工具钮(session-viewer 的「结构化幕布」切换),刷新钮收尾最右——同排同款 pill 形制,零宽度耦合。行不设 z:不透明画布浮层(editorCenter.canvasOverlay,z-10)开启时整行隐没其下,结构化视图页不出刷新钮。分工:这里管会话内画面自救(幕布错乱/内容滞留);WebKit 级像素冻结仍归守望阶梯自动自愈(整页 reload 语义),不经此钮。
 
 ## 方案取舍
 

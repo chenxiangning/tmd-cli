@@ -22,6 +22,7 @@ import { openExternalUrl } from "@kernel/ipc";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
 import { host } from "@kernel/host";
+import { Mounts } from "@kernel/Mounts";
 import {
   registerTerminalHandle,
   unregisterTerminalHandle,
@@ -284,7 +285,13 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
         <TerminalSearchOverlay searchRef={searchRef} onClose={closeSearch} />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
-      <TerminalRefreshButton onClick={() => setCanvasGen((g) => g + 1)} />
+      {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 刷新钮收尾最右。
+          行不设 z —— 画布浮层(editorCenter.canvasOverlay,z-10 不透明)开启时
+          整行隐没其下,结构化视图页不出刷新钮;幕布态浮于 xterm 之上(DOM 序)。 */}
+      <div className="absolute right-3 top-2 flex items-center gap-1.5">
+        <Mounts point="terminal.canvasRow" />
+        <TerminalRefreshButton onClick={() => setCanvasGen((g) => g + 1)} />
+      </div>
     </div>
   );
 }
