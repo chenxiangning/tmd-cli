@@ -1,6 +1,6 @@
 //! PTY 会话创建与输出泵 —— openpty/命令构建/日志装配/reader-emitter 两线程转发。
 //! 自 pty.rs 拆出(文件规模铁则);注册表、写入/resize/kill 与 id 原语留在 pty.rs。
-//! 泵职责:PTY 字节 → 8ms 聚合窗 → 会话日志落盘 → pty://out 事件 → 退出自清理。
+//! 泵职责:PTY 字节 → 自适应聚合窗 → 会话日志落盘 → pty://out 事件 → 退出自清理。
 
 use std::fs::OpenOptions;
 use std::io::Read;
@@ -16,51 +16,10 @@ use crate::pty::{PtyHandle, PtyRegistry, SpawnSpec, SpawnedSession};
 use crate::resolve::{enriched_path, resolve_command};
 use crate::session_log::{append_log, session_log_path, LogMeta};
 
-/// 增量 UTF-8 解码:不完整的多字节尾部暂存进 `tail`,与下一 chunk 拼接后再解码。
-/// 真正的坏字节(error_len 存在)按 U+FFFD 替换;仅是"没读完"的字节绝不误伤。
-/// pub(crate):SSH IO 泵同契约复用(io.rs)——pty://out 的保真度不得取决于供血泵。
-pub(crate) fn decode_utf8_chunk(tail: &mut Vec<u8>, chunk: &[u8]) -> String {
-    let mut bytes = std::mem::take(tail);
-    bytes.extend_from_slice(chunk);
-
-    let mut start = 0;
-    let mut text = String::with_capacity(bytes.len());
-    loop {
-        match std::str::from_utf8(&bytes[start..]) {
-            Ok(valid) => {
-                text.push_str(valid);
-                start = bytes.len();
-                break;
-            }
-            Err(e) => {
-                let up_to = start + e.valid_up_to();
-                // 安全:valid_up_to 边界内必为合法 UTF-8
-                text.push_str(unsafe { std::str::from_utf8_unchecked(&bytes[start..up_to]) });
-                match e.error_len() {
-                    Some(len) => {
-                        text.push('\u{FFFD}');
-                        start = up_to + len;
-                    }
-                    None => {
-                        start = up_to;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    tail.extend_from_slice(&bytes[start..]);
-    text
-}
-
-/// 泵循环收尾:tail 残留 = 永远等不到后续字节的不完整 UTF-8 序列(进程最后
-/// 输出的半个字符),按 U+FFFD 替换取出;空 tail 返回 None(无残留不补发)。
-pub(crate) fn flush_utf8_tail(tail: &mut [u8]) -> Option<String> {
-    if tail.is_empty() {
-        return None;
-    }
-    Some(String::from_utf8_lossy(tail).into_owned())
-}
+/// 增量 UTF-8 解码(实现见 pty_decode.rs;再导出保 ssh/io.rs 既有引用不变)。
+#[path = "pty_decode.rs"]
+pub(crate) mod pty_decode;
+pub(crate) use pty_decode::{decode_utf8_chunk, flush_utf8_tail};
 
 /// 输出聚合窗:首个 chunk 到达后再收 8ms 内的后续 chunk,拼成一个事件发出。
 /// 8KB/次的 read 在高吞吐场景(编译刷屏、cat 大文件)会打成事件风暴,

@@ -8,7 +8,8 @@
  * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
  *
  * 文件规模铁则拆分(300 行):历史翻页器在 terminalHistory.ts,
- * 搜索浮层与 terminal.find 命令桥在 terminalSearch.tsx。
+ * 搜索浮层与 terminal.find 命令桥在 terminalSearch.tsx,
+ * 加载遮罩在 terminalLoadOverlay.tsx,保底刷新钮在 terminalRefreshButton.tsx。
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -34,6 +35,8 @@ import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
+import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
+import { TerminalRefreshButton } from "@kernel/terminalRefreshButton";
 import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
 import { readTerminalTheme } from "@kernel/terminalXtermTheme";
@@ -263,32 +266,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="terminal-view-host h-full w-full" />
-      {loadProgress !== null && (
-        /* 加载遮罩:回放期显真实解析进度,流式期显真实接收量;输出静默即撤(terminalReplay.ts)。 */
-        <div
-          className="absolute inset-0 z-10 flex items-center justify-center"
-          style={{ background: "var(--tmd-terminal-bg)" }}
-        >
-          <div className="flex w-56 flex-col items-center gap-2">
-            <span className="text-xs text-(--tmd-fg-muted)">
-              {loadProgress.kind === "replay"
-                ? `加载会话输出… ${loadProgress.pct}%`
-                : `加载会话输出… 已接收 ${Math.max(1, Math.round(loadProgress.chars / 1024))}K`}
-            </span>
-            <div className="h-1 w-full overflow-hidden rounded-full bg-(--tmd-border)">
-              <div
-                className="h-full bg-(--tmd-accent) transition-[width] duration-150"
-                style={{
-                  width:
-                    loadProgress.kind === "replay"
-                      ? `${loadProgress.pct}%`
-                      : `${Math.min(99, Math.round(loadProgress.chars / 5000))}%`,
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <TerminalLoadOverlay progress={loadProgress} />
       {atTop && hasMore && (
         <button
           onClick={() => void loadEarlier()}
@@ -302,6 +280,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
         <TerminalSearchOverlay searchRef={searchRef} onClose={closeSearch} />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
+      <TerminalRefreshButton />
     </div>
   );
 }
