@@ -197,6 +197,8 @@ export const cliOmpPlugin: Plugin = {
         ...(model ? ["--model", model] : []),
         `@${promptFile}`,
       ],
+      /* 结构化会话:omp --mode rpc NDJSON(omp --resume 重开);契约见 cli-shared/piRpc。 */
+      structuredRpc: { command: "omp", resumeFlag: "--resume" },
     });
     /* CLI 学堂课程:82 命令目录 + 13 课,消费归 academy 插件(契约见 kernel/academy.ts)。 */
     ctx.registerAcademyCourse(OMP_ACADEMY_COURSE);

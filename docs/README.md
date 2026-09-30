@@ -234,4 +234,6 @@
 | 2026-09-30 | [daily-journal 生成会话无头化设计:omp -p oneshot 单发根治输出洪水 + 退出主信号结算 + 摘录增量/并发治理](superpowers/specs/2026-09-30-daily-journal-oneshot-gen-design.md) | 已定稿(实现随当日提交) |
 | 2026-09-30 | [18 — 生成会话无头契约:CliProfile.oneshotArgs 声明制与无人值守会话输出纪律](architecture/18-oneshot-generation.md) | 生效中(omp/pi/codex/claude 已声明,dsh/kimi/grok/qoder/opencode 待接入清单见文内矩阵) |
 | 2026-09-30 | [daily-journal 手动发起总结/增量更新入口:文章 tab 顶栏状态自适应按钮 + 月格全状态扩展(增量并入/生成此日/重试生成三态共用判定)](superpowers/specs/2026-09-30-daily-journal-manual-increment-design.md) | 已实现(门禁全绿;真机目检留大仙) |
+| 2026-09-30 | [活会话结构化视图设计(幕布|转录双视图:canvasOverlay 画布浮层挂点 + 1s 探测短路轮询 + 变更即全量重读 message 级刷新;幕布保活零卸载,PTY 零改动)](superpowers/specs/2026-09-30-live-transcript-view-design.md) | 已实现(门禁全绿;1421 桩目检过;真机验收留大仙,未提交) |
+| 2026-09-30 | [结构化会话设计(RPC 驱动,omp/pi 先行:Rust proc_stream 通用流式子进程原语 + cli-shared piRpc 客户端/reducer + structured-session 插件中央 tab;token 级流式;PTY 零改动;观察者/双开/改 PTY 三路实验否决记录)](superpowers/specs/2026-09-30-structured-session-rpc-design.md) | 已实现(门禁全绿;真机验收留大仙,Rust 改动须重启 tauri:dev,未提交) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

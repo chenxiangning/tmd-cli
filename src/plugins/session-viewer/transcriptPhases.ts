@@ -17,6 +17,21 @@ export interface TranscriptPhase {
   steps: CliTranscriptBlock[];
 }
 
+/** 同文撞号防线:块/组 id 是内容哈希语义(grok 同文连发撞号),重复序号后缀唯一化。 */
+export function makeKeySeq(): (id: string) => string {
+  const seen = new Map<string, number>();
+  return (id) => {
+    const n = (seen.get(id) ?? 0) + 1;
+    seen.set(id, n);
+    return n > 1 ? `${id}#${n}` : id;
+  };
+}
+
+/** 运行中实时输出尾窗钳制(长输出只看末 N 行,monocode 同款;纯函数可测)。 */
+export function tailLines(detail: string, keep = 40): string {
+  return detail.split("\n").slice(-keep).join("\n");
+}
+
 /** 思考块单行摘要(monocode proseSummary 同款:去 code fence/MD 标记,首段)。 */
 export function proseSummary(text: string): string {
   const body = text.replace(/```[\s\S]*?(?:```|$)/g, " ");

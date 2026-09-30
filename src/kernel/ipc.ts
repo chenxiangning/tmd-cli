@@ -386,6 +386,24 @@ export const ipc = {
   /** 通用短进程通道:spawn + stdin(写入后持开防 RPC 丢响应)+ stdout 收割;
    *  exitOnStdout 命中或超时即杀。omp/pi RPC 副车、grok inspect 共用(见 proc_run.rs)。 */
   procCommunicate: (spec: ProcRunSpec) => invoke<ProcRunResult>("proc_communicate", { spec }),
+  /** 通用长驻流式子进程通道(proc_stream.rs):spawn 返回流 id;stdout/stderr
+   *  按行经 proc://stream/{id}/out|err 事件推送,退出推 exit(code|null)。
+   *  内核不懂子进程协议;NDJSON RPC 帧语义归消费插件。 */
+  procStreamSpawn: (spec: { command: string; args: string[]; cwd: string; env?: Record<string, string> }) =>
+    invoke<string>("proc_stream_spawn", { spec }),
+  /** 写 stdin(不关管道:长驻协议靠显式 kill 终结,EOF 会令 RPC server 退出)。 */
+  procStreamWrite: (id: string, data: string) =>
+    invoke<void>("proc_stream_write", { id, data }),
+  /** 杀进程树(exit 事件由 reader EOF 路径统一发)。 */
+  procStreamKill: (id: string) => invoke<void>("proc_stream_kill", { id }),
+  /** 清全部:webview reload 后 boot 期兜底清孤儿。 */
+  procStreamKillAll: () => invoke<void>("proc_stream_kill_all"),
+  /** 流事件订阅(out|err 载荷 = 一行文本;exit 载荷 = code|null)。 */
+  onProcStream: (
+    id: string,
+    kind: "out" | "err" | "exit",
+    cb: (payload: unknown) => void,
+  ) => listen<unknown>(`proc://stream/${id}/${kind}`, (ev) => cb(ev.payload)),
   fsWriteTemp: (name: string, data: Uint8Array) =>
     invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),

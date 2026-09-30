@@ -21,7 +21,7 @@ import { diffLinesFromStrings, startedAtOf, stringField, toolPreviewKindOf } fro
 import { isWrapperText, messageText } from "./userMessages";
 
 /** pi 工具 arguments → 预览(command/oldStr/newStr;路径类工具形态随家族演进,宽容)。 */
-function piToolPreview(
+export function piToolPreview(
   name: string,
   args: Record<string, unknown>,
 ): CliToolPreview | undefined {

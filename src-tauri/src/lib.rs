@@ -21,6 +21,7 @@ mod plugins;
 mod probe;
 mod probe_prefix;
 mod proc_run;
+mod proc_stream;
 mod proxy;
 mod pty;
 mod pty_spawn;
@@ -218,6 +219,10 @@ pub fn run() {
             commands_fs::fs_walk_files,
             commands_fs::fs_walk_index,
             commands_fs::proc_communicate,
+            proc_stream::proc_stream_spawn,
+            proc_stream::proc_stream_write,
+            proc_stream::proc_stream_kill,
+            proc_stream::proc_stream_kill_all,
             lsp::lsp_spawn,
             lsp::lsp_send,
             lsp::lsp_stop,

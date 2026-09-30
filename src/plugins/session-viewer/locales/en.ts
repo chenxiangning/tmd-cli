@@ -19,4 +19,11 @@ export const MESSAGES_EN: Record<string, string> = {
   你: "You",
   "查看会话转录(只读)": "View session transcript (read-only)",
   AI: "AI",
+  结构化幕布: "Structured canvas",
+  PTY流: "PTY stream",
+  "切换到结构化转录视图(幕布保活)": "Switch to structured transcript view (terminal stays alive)",
+  "返回 PTY 流实况显示": "Back to live PTY stream",
+  "定位会话文件中…": "Locating session file…",
+  "载入更早": "Load earlier",
+  "working for": "working for ",
 };

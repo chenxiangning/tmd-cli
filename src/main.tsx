@@ -45,6 +45,9 @@ if (isMobileShell()) {
   cssPromise
     .then(() => import("./app-shell/DesktopApp"))
     .then(({ DesktopApp }) => {
+      /* webview 重启兜底:上一生命周期遗留的 proc_stream 子进程(RPC 结构化
+       * 会话等)前端已失忆,boot 期清孤儿(spec 生命周期节)。 */
+      void import("@kernel/ipc").then((m) => m.ipc.procStreamKillAll().catch(() => undefined));
       root.render(
         <React.StrictMode>
           {/* HintProvider 仅桌面树:悬浮提示消费 data-hint 系属性,mobile 无此面。 */}

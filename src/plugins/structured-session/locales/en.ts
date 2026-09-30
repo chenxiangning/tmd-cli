@@ -1,0 +1,20 @@
+/** structured-session 英文词典。 */
+export const MESSAGES_EN: Record<string, string> = {
+  结构化: "Structured",
+  结构化会话: "Structured session",
+  "该引擎不支持结构化会话": "This engine has no structured-session support",
+  "启动 RPC 会话中…": "Starting RPC session…",
+  启动失败: "Start failed",
+  "会话已结束(关闭此 tab 可再开)": "Session ended (close this tab to start again)",
+  "发消息(结构化会话,无幕布)": "Send a message (structured session, no terminal)",
+  会话未就绪: "Session not ready",
+  发送: "Send",
+  中止: "Abort",
+  "working for": "working for ",
+  "思考中…": "Thinking…",
+  生成中: "Generating",
+  空闲: "Idle",
+  等待确认: "Awaiting confirmation",
+  批准: "Approve",
+  拒绝: "Deny",
+}
