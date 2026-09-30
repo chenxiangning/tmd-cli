@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { ArrowClockwiseIcon, ArrowUpIcon, FolderSimpleIcon } from "@phosphor-icons/react";
 import type { SshHostConfig, WslDirEntry, WslDistro, WslEngineProbe } from "@kernel/ipc";
 import type { CliProfile } from "@kernel/cliProfile";
 import { ipc } from "@kernel/ipc";
@@ -88,7 +89,7 @@ export function DistroPanel({
   );
 }
 
-/** 引擎探针段:逐 binary 检出行,可点选为「SSH 进入」的引擎。 */
+/** 引擎探针段:逐 binary 检出行(chip 化,可点选为「SSH 进入」的引擎)。 */
 function EngineProbeSection({
   probes,
   probeErr,
@@ -102,17 +103,25 @@ function EngineProbeSection({
   onPick: (bin: string | null) => void;
   icons: Record<string, NonNullable<CliProfile["renderIcon"]>>;
 }) {
+  const okCount = probes?.filter((p) => p.path).length ?? 0;
   return (
     <div className="wsl-panel-sec">
-      <span className="wsl-panel-lbl">{t("引擎探针")}</span>
-      {probes && (
-        <span className="wsl-hint">
-          {t("仅计发行版内安装(登录 shell PATH,含 ~/.local/bin);/mnt/*(Windows 互操作)路径不计")}
-        </span>
-      )}
-      <div className="wsl-desc">
-        <Hl text={t("【点选】检出的引擎行,「SSH 进入」即以该【CLI】启动;不选则进【交互 shell】。")} />
+      <div className="wsl-panel-head">
+        <span className="wsl-panel-lbl">{t("引擎探针")}</span>
+        {probes && (
+          <span className="wsl-panel-count">
+            {okCount} / {probes.length} · {t("可用")}
+          </span>
+        )}
       </div>
+      {probes && (
+        <p className="wsl-desc">
+          <Hl text={t("仅计发行版内安装(登录 shell PATH,含 ~/.local/bin);/mnt/*(Windows 互操作)路径不计")} />
+        </p>
+      )}
+      <p className="wsl-desc">
+        <Hl text={t("【点选】检出的引擎行,「SSH 进入」即以该【CLI】启动;不选则进【交互 shell】。")} />
+      </p>
       {probeErr && <div className="wsl-remote-err">{probeErr}</div>}
       <div className="wsl-probe-grid">
         {probes?.map((p) => {
@@ -121,7 +130,7 @@ function EngineProbeSection({
             <button
               key={p.bin}
               type="button"
-              className={`wsl-probe-row ${p.path ? "" : "off"} ${pickedEngine === p.bin ? "on" : ""}`}
+              className={`wsl-probe-row${p.path ? "" : " off"}${pickedEngine === p.bin ? " on" : ""}`}
               disabled={!p.path}
               onClick={() => onPick(pickedEngine === p.bin ? null : p.bin)}
               title={p.path ?? t("未检出")}
@@ -129,10 +138,10 @@ function EngineProbeSection({
             >
               {icon ? (
                 <span className="wsl-probe-icon" aria-hidden>
-                  {icon("0.75rem")}
+                  {icon("0.875rem")}
                 </span>
               ) : (
-                <span className={`wsl-dot ${p.path ? "ok" : ""}`} aria-hidden />
+                <span className={`wsl-dot${p.path ? " ok" : ""}`} aria-hidden />
               )}
               <span className="wsl-probe-bin">{p.bin}</span>
               {p.path ? (
@@ -141,7 +150,7 @@ function EngineProbeSection({
                   <span className="wsl-probe-tag">{t("可用")}</span>
                 </>
               ) : (
-                <span className="wsl-probe-path wsl-probe-miss">{t("未检出")}</span>
+                <span className="wsl-probe-tag miss">{t("未检出")}</span>
               )}
             </button>
           );
@@ -166,22 +175,33 @@ function DirBrowserSection({
   const up = dir && dir !== "~" ? dir.replace(/\/[^/]+$/, "") || "/" : null;
   return (
     <div className="wsl-panel-sec">
-      <span className="wsl-panel-lbl">{t("起始目录")}</span>
+      <div className="wsl-panel-head">
+        <span className="wsl-panel-lbl">{t("起始目录")}</span>
+      </div>
       <div className="wsl-dir-crumb">
-        <button type="button" className="wsl-btn ghost" onClick={() => onLoadDir(dir ?? "~")}>
-          {dir === null ? t("浏览目录") : t("刷新")}
-        </button>
-        <code>{dir ?? "~"}</code>
+        {dir === null ? (
+          <button type="button" className="wsl-btn sm" onClick={() => onLoadDir(dir ?? "~")}>
+            <FolderSimpleIcon size="0.75rem" aria-hidden /> {t("浏览目录")}
+          </button>
+        ) : (
+          <button type="button" className="wsl-icon-btn" title={t("刷新")} aria-label={t("刷新")} onClick={() => onLoadDir(dir)}>
+            <ArrowClockwiseIcon size={12} aria-hidden />
+          </button>
+        )}
+        <code className="wsl-dir-path" title={dir ?? "~"}>
+          {dir ?? "~"}
+        </code>
       </div>
-      <div className="wsl-desc">
+      <p className="wsl-desc">
         <Hl text={t("「SSH 进入」以该目录为【启动目录】(--cd);逐级进入,点选即生效。")} />
-      </div>
+      </p>
       {dirErr && <div className="wsl-remote-err">{dirErr}</div>}
       {entries !== null && (
         <div className="wsl-dir-list">
           {up !== null && (
             <button type="button" className="wsl-dir-row" onClick={() => onLoadDir(up)} aria-label={t("上一级")}>
-              ..
+              <ArrowUpIcon size={11} aria-hidden />
+              <span>..</span>
             </button>
           )}
           {entries.map((e) => (
@@ -191,7 +211,8 @@ function DirBrowserSection({
               className="wsl-dir-row"
               onClick={() => onLoadDir(joinWslPath(dir ?? "~", e.name))}
             >
-              {e.name}
+              <FolderSimpleIcon size={12} aria-hidden />
+              <span>{e.name}</span>
             </button>
           ))}
           {entries.length === 0 && <span className="wsl-hint">{t("(空目录)")}</span>}

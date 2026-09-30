@@ -8,16 +8,19 @@
  *
  * SSH 进入 = host.createSshSession(config, undefined, wslRemoteSpawnCommand(...), engineProfileId);
  * 引擎/目录选值上提至本组件(openDistro 展开面板内点选),发行版行展开 DistroPanel(探针 + 目录)。
+ * UI 布局(2026-09-30):主机/动作/发行版三段式分区;主机下拉用 kernel StyledSelect。
  */
 
 import { useState } from "react";
-import { CaretDownIcon, CaretRightIcon, PlusIcon } from "@phosphor-icons/react";
-import type { SshHostConfig, WslInfo } from "@kernel/ipc";
+import { CaretDownIcon, PlusIcon, TerminalWindowIcon } from "@phosphor-icons/react";
+import type { WslInfo } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { host } from "@kernel/host";
+import { StyledSelect } from "@kernel/StyledSelect";
 import { wslRemoteSpawnCommand } from "./wslCore";
+import { HostForm } from "./HostForm";
 import { AddWslTab } from "./AddWslTab";
 import { DistroPanel, Hl } from "./DistroPanel";
 
@@ -34,73 +37,9 @@ function hostLabel(h: { name: string; username: string; host: string }): string 
   return h.name.trim() || `${h.username}@${h.host}`;
 }
 
-function identityKey(h: { host: string; port?: number; username: string }): string {
-  return `${h.host.trim().toLowerCase()}|${h.port || 22}|${h.username.trim().toLowerCase()}`;
-}
-
-/** 手动添加主机表单:提交即存入 ssh.hosts(复用 SSH 簿,查重先到先得)并选中。 */
-function HostForm({ onSaved }: { onSaved: (id: string) => void }) {
-  const { settings } = useSettingsState();
-  const [host_, setHost_] = useState("");
-  const [port, setPort] = useState("22");
-  const [user, setUser] = useState("");
-  const [password, setPassword] = useState("");
-  const [err, setErr] = useState<string | null>(null);
-
-  const submit = () => {
-    const h = host_.trim();
-    const u = user.trim();
-    if (!h || !u) {
-      setErr(t("主机地址与用户名必填"));
-      return;
-    }
-    const portNum = Math.min(Math.max(parseInt(port, 10) || 22, 1), 65535);
-    if (settings.ssh.hosts.some((x) => identityKey(x) === identityKey({ host: h, port: portNum, username: u }))) {
-      setErr(t("该主机已存在(同地址/端口/用户名),请在下拉中选择"));
-      return;
-    }
-    const config: SshHostConfig = {
-      id: `ssh-${crypto.randomUUID().slice(0, 8)}`,
-      name: `${u}@${h}`,
-      host: h,
-      port: portNum,
-      username: u,
-      authType: "password",
-      password,
-      privateKey: "",
-      privateKeyPath: "",
-      privateKeyPassphrase: "",
-    };
-    updateSettings({ ssh: { hosts: [...settings.ssh.hosts, config] } });
-    onSaved(config.id);
-  };
-
-  return (
-    <div className="wsl-host-form">
-      <div className="wsl-host-grid">
-        <label>
-          <span>{t("地址")}</span>
-          <input value={host_} onChange={(e) => setHost_(e.target.value)} placeholder="192.168.1.7" spellCheck={false} />
-        </label>
-        <label>
-          <span>{t("端口")}</span>
-          <input value={port} onChange={(e) => setPort(e.target.value)} inputMode="numeric" />
-        </label>
-        <label>
-          <span>{t("用户")}</span>
-          <input value={user} onChange={(e) => setUser(e.target.value)} spellCheck={false} />
-        </label>
-        <label>
-          <span>{t("密码")}</span>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
-      </div>
-      {err && <div className="wsl-remote-err">{err}</div>}
-      <button type="button" className="wsl-btn" onClick={submit}>
-        {t("保存并选择")}
-      </button>
-    </div>
-  );
+/** 下拉选项右侧弱化备注:端点地址(非默认端口补端口)。 */
+function hostHint(h: { host: string; port?: number }): string {
+  return h.port && h.port !== 22 ? `${h.host}:${h.port}` : h.host;
 }
 
 export function WslRemoteSection() {
@@ -183,94 +122,111 @@ export function WslRemoteSection() {
       .finally(() => setOpening(false));
   };
 
+  const noHostLabel = hosts.length ? t("未选择") : t("(尚无主机,点右侧手动添加)");
+
   return (
     <div className="wsl-remote">
-      <div className="wsl-remote-row">
-        <span className="wsl-remote-lbl">{t("远程主机")}</span>
-        <select
-          className="wsl-remote-select"
-          value={selected?.id ?? ""}
-          onChange={(e) => pickHost(e.target.value)}
-          aria-label={t("远程 WSL 宿主")}
-        >
-          <option value="">{hosts.length ? t("未选择") : t("(尚无主机,点右侧手动添加)")}</option>
-          {hosts.map((h) => (
-            <option key={h.id} value={h.id}>
-              {hostLabel(h)}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="wsl-btn ghost"
-          title={t("手动添加主机")}
-          onClick={() => setFormOpen((v) => !v)}
-        >
-          <PlusIcon size="0.75rem" aria-hidden />
-        </button>
-        <button type="button" className="wsl-btn" disabled={!selected || loading} onClick={() => void probe()}>
-          {loading ? t("连接中…") : t("连接")}
-        </button>
-      </div>
-      <div className="wsl-desc">
-        <Hl text={t("点【连接】探测远程【发行版】与已装【引擎】,自动展开发行版面板。")} />
-      </div>
-      {formOpen && (
-        <HostForm
-          onSaved={(id) => {
-            setFormOpen(false);
-            pickHost(id);
-          }}
-        />
-      )}
-      {error && <div className="wsl-remote-err">{error}</div>}
+      <section className="wsl-sec">
+        <div className="wsl-sec-head">
+          <span className="wsl-sec-lbl">{t("远程主机")}</span>
+          <span className="wsl-sec-rule" aria-hidden />
+        </div>
+        <div className="wsl-host-row">
+          <StyledSelect
+            className="wsl-host-select"
+            value={selected?.id ?? ""}
+            ariaLabel={t("远程 WSL 宿主")}
+            placeholder={noHostLabel}
+            options={[
+              { value: "", label: noHostLabel },
+              ...hosts.map((h) => ({ value: h.id, label: hostLabel(h), hint: hostHint(h) })),
+            ]}
+            onChange={pickHost}
+          />
+          <button
+            type="button"
+            className={`wsl-icon-btn${formOpen ? " on" : ""}`}
+            title={t("手动添加主机")}
+            aria-label={t("手动添加主机")}
+            onClick={() => setFormOpen((v) => !v)}
+          >
+            <PlusIcon size={12} weight="bold" aria-hidden />
+          </button>
+          <button type="button" className="wsl-btn" disabled={!selected || loading} onClick={() => void probe()}>
+            {loading ? t("连接中…") : t("连接")}
+          </button>
+        </div>
+        {formOpen && (
+          <HostForm
+            onSaved={(id) => {
+              setFormOpen(false);
+              pickHost(id);
+            }}
+          />
+        )}
+        {error && <div className="wsl-remote-err">{error}</div>}
+        <p className="wsl-desc">
+          <Hl text={t("点【连接】探测远程【发行版】与已装【引擎】,自动展开发行版面板。")} />
+        </p>
+      </section>
       {info?.available && selected && (
-        <>
+        <section className="wsl-sec">
           <div className="wsl-actions">
             <button type="button" className="wsl-btn primary" disabled={opening} onClick={sshEnter}>
-              {opening ? t("连接中…") : t("SSH 进入")}
+              <TerminalWindowIcon size="0.8125rem" weight="duotone" aria-hidden /> {opening ? t("连接中…") : t("SSH 进入")}
             </button>
             <button type="button" className="wsl-btn" onClick={() => setAddingWs(true)}>
               {t("添加 WSL 工作区")}
             </button>
           </div>
-          <div className="wsl-desc">
+          <p className="wsl-desc">
             <Hl text={t("【SSH 进入】直进所选发行版终端(未展开用默认),引擎/目录在发行版面板里选;【添加 WSL 工作区】把目录登记进侧栏,会话自动走【SSH】。")} />
-          </div>
-        </>
+          </p>
+        </section>
       )}
-      {info?.available &&
-        info.distros.map((d) => (
-          <div className="wsl-distro-block" key={d.name}>
-            <button
-              type="button"
-              className="wsl-distro-row wsl-distro-toggle"
-              onClick={() => toggleDistro(d.name)}
-            >
-              {openDistro === d.name ? (
-                <CaretDownIcon size="0.625rem" aria-hidden />
-              ) : (
-                <CaretRightIcon size="0.625rem" aria-hidden />
-              )}
-              <span className={`wsl-dot ${d.running ? "ok" : ""}`} aria-hidden />
-              <span className="wsl-distro-name">{d.name}</span>
-              <span className="wsl-distro-ver">WSL {d.version}</span>
-              <span className={`wsl-distro-state ${d.running ? "wsl-ok" : ""}`}>
-                {d.running ? t("运行中") : t("已停止")}
-              </span>
-            </button>
-            {openDistro === d.name && selected && (
-              <DistroPanel
-                distro={d}
-                host={selected}
-                pickedEngine={pickedEngine}
-                onPickEngine={setPickedEngine}
-                dir={pickedDir}
-                onPickDir={setPickedDir}
-              />
-            )}
+      {info?.available && (
+        <section className="wsl-sec">
+          <div className="wsl-sec-head">
+            <span className="wsl-sec-lbl">{t("发行版")}</span>
+            <span className="wsl-sec-rule" aria-hidden />
           </div>
-        ))}
+          <div className="wsl-distro-list">
+            {info.distros.map((d) => (
+              <div className={`wsl-distro${openDistro === d.name ? " open" : ""}`} key={d.name}>
+                <button
+                  type="button"
+                  className="wsl-distro-toggle"
+                  aria-expanded={openDistro === d.name}
+                  onClick={() => toggleDistro(d.name)}
+                >
+                  <CaretDownIcon
+                    size={11}
+                    weight="bold"
+                    className={`wsl-caret${openDistro === d.name ? "" : " closed"}`}
+                    aria-hidden
+                  />
+                  <span className={`wsl-dot${d.running ? " ok" : ""}`} aria-hidden />
+                  <span className="wsl-distro-name">{d.name}</span>
+                  <span className="wsl-distro-ver">WSL {d.version}</span>
+                  <span className={`wsl-distro-state${d.running ? " wsl-ok" : ""}`}>
+                    {d.running ? t("运行中") : t("已停止")}
+                  </span>
+                </button>
+                {openDistro === d.name && selected && (
+                  <DistroPanel
+                    distro={d}
+                    host={selected}
+                    pickedEngine={pickedEngine}
+                    onPickEngine={setPickedEngine}
+                    dir={pickedDir}
+                    onPickDir={setPickedDir}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       {addingWs && selected && (
         <div className="wsl-backdrop" role="presentation" onClick={() => setAddingWs(false)}>
           <dialog open className="wsl-dialog m-0" aria-label={t("添加 WSL 工作区")} onClick={(e) => e.stopPropagation()}>

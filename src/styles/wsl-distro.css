@@ -1,0 +1,223 @@
+/* WSL 发行版块与子面板(src/plugins/wsl/RemoteSection.tsx / DistroPanel.tsx)。
+   减层原则(2026-09-30):手风琴块与展开面板一律不画盒 —— 块头是可点行,
+   展开内容挂在左缘树形轨线上;探针是 hover 才显底的行,选中一条左侧强调条;
+   目录路径是裸文本、列表是裸行。类名前缀 wsl-distro / wsl-panel / wsl-probe / wsl-dir。 */
+
+/* ---- 发行版手风琴块(无盒,仅行) ---- */
+.wsl-distro-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.wsl-distro-toggle:hover {
+  background: var(--tmd-bg-hover);
+}
+.wsl-distro-toggle:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--tmd-accent-soft);
+}
+.wsl-caret {
+  flex: none;
+  color: var(--tmd-fg-faint);
+  transition: transform 0.16s ease;
+}
+.wsl-caret.closed {
+  transform: rotate(-90deg);
+}
+
+/* ---- 展开面板:左缘轨线挂靠(树形分支语义,替代三层盒) ---- */
+.wsl-distro-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 2px 0 6px 17px;
+  padding: 2px 0 0 22px;
+  border-left: 1px solid var(--tmd-border);
+}
+.wsl-panel-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wsl-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wsl-panel-lbl {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--tmd-fg-muted);
+}
+.wsl-panel-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--tmd-mono, monospace);
+  font-size: 0.625rem;
+  line-height: 1;
+  color: var(--tmd-fg-subtle);
+  box-shadow: inset 0 0 0 1px var(--tmd-border);
+}
+
+/* ---- 引擎探针:无边框行,hover 显底,选中左侧强调条 ---- */
+.wsl-probe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2px 18px;
+}
+.wsl-probe-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s ease, box-shadow 0.1s ease;
+}
+.wsl-probe-row:hover:not(:disabled) {
+  background: var(--tmd-bg-hover);
+}
+.wsl-probe-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--tmd-accent-soft);
+}
+.wsl-probe-row.on {
+  background: var(--tmd-accent-soft);
+  box-shadow: inset 2px 0 0 var(--tmd-accent);
+}
+.wsl-probe-row.off {
+  cursor: default;
+}
+.wsl-probe-row.off .wsl-probe-icon,
+.wsl-probe-row.off .wsl-probe-bin {
+  opacity: 0.45;
+}
+.wsl-probe-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--tmd-fg);
+}
+.wsl-probe-row.on .wsl-probe-icon {
+  color: var(--tmd-accent);
+}
+.wsl-probe-bin {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.wsl-probe-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  font-family: var(--tmd-mono, monospace);
+  font-size: 0.6563rem;
+  color: var(--tmd-fg-muted);
+}
+.wsl-probe-tag {
+  flex: none;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  line-height: 1;
+  /* 文字掺 fg 提亮浅色主题对比度(纯 --tmd-ok 在浅底 ≈3:1 不达 AA) */
+  color: color-mix(in srgb, var(--tmd-ok) 62%, var(--tmd-fg));
+  background: color-mix(in srgb, var(--tmd-ok) 13%, transparent);
+}
+.wsl-probe-tag.miss {
+  color: color-mix(in srgb, var(--tmd-err) 55%, var(--tmd-fg-muted));
+  background: color-mix(in srgb, var(--tmd-err) 8%, transparent);
+}
+/* 浅色下 11px pill 文字加深一档过对比线(暗色不动)。 */
+:root[data-theme="light"] .wsl-probe-tag {
+  color: color-mix(in srgb, var(--tmd-ok) 45%, var(--tmd-fg));
+}
+:root[data-theme="light"] .wsl-probe-tag.miss {
+  color: color-mix(in srgb, var(--tmd-err) 45%, var(--tmd-fg));
+}
+
+/* ---- 起始目录浏览:裸路径 + 裸行列表 ---- */
+.wsl-dir-crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wsl-dir-path {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--tmd-mono, monospace);
+  font-size: 0.6875rem;
+  line-height: 26px;
+  color: var(--tmd-fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wsl-dir-list {
+  max-height: 184px;
+  overflow: auto;
+  padding: 2px 0;
+}
+.wsl-dir-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: 24px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tmd-fg);
+  font: inherit;
+  font-family: var(--tmd-mono, monospace);
+  font-size: 0.7188rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.wsl-dir-row > svg {
+  flex: none;
+  color: var(--tmd-fg-faint);
+}
+.wsl-dir-row:hover:not(.off) {
+  background: var(--tmd-bg-hover);
+}
+.wsl-dir-row:hover:not(.off) > svg {
+  color: var(--tmd-accent);
+}
+.wsl-dir-row.off {
+  color: var(--tmd-fg-faint);
+  cursor: default;
+}
+.wsl-dir-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}

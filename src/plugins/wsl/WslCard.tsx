@@ -11,7 +11,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { DesktopIcon, FolderSimplePlusIcon } from "@phosphor-icons/react";
+import { ArrowClockwiseIcon, DesktopIcon, FolderSimplePlusIcon } from "@phosphor-icons/react";
 import { ipc, type WslDistro, type WslInfo } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
@@ -19,7 +19,7 @@ import { WslRemoteSection } from "./RemoteSection";
 import { AddWslWorkspaceDialog } from "./WorkspaceDialog";
 import logoUrl from "../../assets/logo.png";
 
-/** 卡头状态行(本机检测态 / 本机不可用时的远程提示)。 */
+/** 卡头状态副行(本机检测态 / 本机不可用时的远程提示)。 */
 function CardStatus({
   loading,
   info,
@@ -69,26 +69,30 @@ function LocalSection({
   const defaultName = pinnedDistro || (info?.distros.find((x) => x.default) ?? info?.distros[0])?.name;
   return (
     <>
-      {shown.map((d) => (
-        <div className="wsl-distro-row" key={d.name}>
-          <span className={`wsl-dot ${d.running ? "ok" : ""}`} aria-hidden />
-          <span className="wsl-distro-name">{d.name}</span>
-          <span className="wsl-distro-ver">WSL {d.version}</span>
-          <span className="wsl-distro-state">{d.running ? t("运行中") : t("已停止")}</span>
-          <button
-            type="button"
-            className="wsl-btn ghost"
-            disabled={d.name === defaultName}
-            onClick={() => onSetDefault(d.name)}
-          >
-            {t("设默认")}
-          </button>
-        </div>
-      ))}
+      <div className="wsl-distro-list">
+        {shown.map((d) => (
+          <div className="wsl-distro-row" key={d.name}>
+            <span className={`wsl-dot${d.running ? " ok" : ""}`} aria-hidden />
+            <span className="wsl-distro-name">{d.name}</span>
+            <span className="wsl-distro-ver">WSL {d.version}</span>
+            <span className={`wsl-distro-state${d.running ? " wsl-ok" : ""}`}>
+              {d.running ? t("运行中") : t("已停止")}
+            </span>
+            <button
+              type="button"
+              className="wsl-btn sm"
+              disabled={d.name === defaultName}
+              onClick={() => onSetDefault(d.name)}
+            >
+              {t("设默认")}
+            </button>
+          </div>
+        ))}
+      </div>
       {hiddenCount > 0 && (
         <button
           type="button"
-          className="wsl-btn ghost wsl-showall"
+          className="wsl-btn ghost sm wsl-showall"
           onClick={onShowAll}
         >
           {t("显示全部发行版")}({hiddenCount})
@@ -101,7 +105,7 @@ function LocalSection({
       )}
       <div className="wsl-card-actions">
         <button type="button" className="wsl-btn" onClick={onRefresh} disabled={loading}>
-          {t("重新检测")}
+          <ArrowClockwiseIcon size="0.75rem" aria-hidden /> {t("重新检测")}
         </button>
         <button type="button" className="wsl-btn primary" onClick={onAdd} disabled={!info?.distros.length}>
           <FolderSimplePlusIcon size="0.75rem" aria-hidden /> {t("添加 WSL 工作区")}
@@ -166,36 +170,40 @@ export function WslCard() {
   return (
     <>
       <section className="wsl-card">
-      <div className="wsl-card-head">
-        <DesktopIcon size="0.875rem" aria-hidden />
-        <b>WSL</b>
-        <span className="wsl-card-status">
-          <CardStatus
-            loading={loading}
-            info={info}
-            shown={shown}
-            running={running}
-            pinnedDistro={pinnedDistro}
-          />
-        </span>
-      </div>
-      <div className="wsl-card-body">
-        {info && (
-          <LocalSection
-            info={info}
-            loading={loading}
-            shown={shown}
-            hiddenCount={hiddenCount}
-            pinnedDistro={pinnedDistro}
-            onRefresh={refresh}
-            onSetDefault={(name) => void setDefault(name)}
-            onAdd={() => setAdding(true)}
-            onShowAll={() => updateSettings({ wsl: { ...settings.wsl, defaultDistro: "" } })}
-          />
-        )}
-        <WslRemoteSection />
-      </div>
-      {adding && info && <AddWslWorkspaceDialog distros={info.distros} onClose={() => setAdding(false)} />}
+        <header className="wsl-card-head">
+          <span className="wsl-card-glyph" aria-hidden>
+            <DesktopIcon size="1rem" weight="duotone" />
+          </span>
+          <div className="wsl-card-title">
+            <b>WSL</b>
+            <span className="wsl-card-status">
+              <CardStatus
+                loading={loading}
+                info={info}
+                shown={shown}
+                running={running}
+                pinnedDistro={pinnedDistro}
+              />
+            </span>
+          </div>
+        </header>
+        <div className="wsl-card-body">
+          {info && (
+            <LocalSection
+              info={info}
+              loading={loading}
+              shown={shown}
+              hiddenCount={hiddenCount}
+              pinnedDistro={pinnedDistro}
+              onRefresh={refresh}
+              onSetDefault={(name) => void setDefault(name)}
+              onAdd={() => setAdding(true)}
+              onShowAll={() => updateSettings({ wsl: { ...settings.wsl, defaultDistro: "" } })}
+            />
+          )}
+          <WslRemoteSection />
+        </div>
+        {adding && info && <AddWslWorkspaceDialog distros={info.distros} onClose={() => setAdding(false)} />}
       </section>
       <div className="wsl-brand" aria-hidden>
         <img src={logoUrl} alt="" />

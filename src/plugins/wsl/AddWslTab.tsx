@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { ArrowClockwiseIcon, ArrowUpIcon, FolderSimpleIcon } from "@phosphor-icons/react";
 import { ipc, type WslDistro, type WslDirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
@@ -91,18 +92,32 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
       {distro && (
         <div className="wsl-dir-browser">
           <div className="wsl-dir-crumb">
-            <button type="button" className="wsl-btn ghost" onClick={() => loadDir(dir === "~" ? "~" : parentWslPath(dir))}>
-              {t("上一级")}
+            <button
+              type="button"
+              className="wsl-icon-btn"
+              title={t("上一级")}
+              aria-label={t("上一级")}
+              onClick={() => loadDir(dir === "~" ? "~" : parentWslPath(dir))}
+            >
+              <ArrowUpIcon size={12} aria-hidden />
             </button>
-            <code title={dir}>{dir}</code>
-            <button type="button" className="wsl-btn ghost" onClick={() => loadDir(dir)}>
-              {t("刷新")}
+            <code className="wsl-dir-path" title={dir}>
+              {dir}
+            </code>
+            <button
+              type="button"
+              className="wsl-icon-btn"
+              title={t("刷新")}
+              aria-label={t("刷新")}
+              onClick={() => loadDir(dir)}
+            >
+              <ArrowClockwiseIcon size={12} aria-hidden />
             </button>
           </div>
           {dirErr && <div className="wsl-remote-err">{dirErr}</div>}
           {entries === null && !dirErr && (
-            <button type="button" className="wsl-btn" onClick={() => loadDir(sshHost ? "~" : "/")}>
-              {t("浏览目录")}
+            <button type="button" className="wsl-btn sm" onClick={() => loadDir(sshHost ? "~" : "/")}>
+              <FolderSimpleIcon size="0.75rem" aria-hidden /> {t("浏览目录")}
             </button>
           )}
           {entries !== null && (
@@ -113,7 +128,8 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
                   <>
                     {dirs.map((e) => (
                       <button key={e.name} type="button" className="wsl-dir-row" onClick={() => loadDir(joinWslPath(dir, e.name))}>
-                        {e.name}/
+                        <FolderSimpleIcon size={12} aria-hidden />
+                        <span>{e.name}</span>
                       </button>
                     ))}
                     {dirs.length === 0 && <span className="wsl-hint">{t("(无子目录)")}</span>}
