@@ -30,3 +30,8 @@ export function classifyRisk(path: string): "high" | "normal" {
   const p = path.replace(/\\/g, "/").toLowerCase();
   return HIGH_RISK_PATTERNS.some((re) => re.test(p)) ? "high" : "normal";
 }
+
+/** 高危文件计数(批头/摘要行「{n} 高危」pill 汇总;规则唯一源仍是 classifyRisk)。 */
+export function countHighRisk(paths: readonly string[]): number {
+  return paths.reduce((n, p) => n + (classifyRisk(p) === "high" ? 1 : 0), 0);
+}

@@ -13,6 +13,7 @@ import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
 import { GitScreen } from "./GitScreen";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
+import { pruneDrafts } from "./useDraft";
 import { listSessions, listWorkspaces, overlayState, sessionPinToggle } from "./remote";
 import { activeRemoteEndpoint, isRemoteConnected, isRemotePaused, listen, onRemoteConnection } from "@kernel/transport";
 import { baseName } from "@kernel/pathUtils";
@@ -62,6 +63,10 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       alive = false;
       clearTimeout(timer);
     };
+  }, []);
+  /* 草稿键老化清理(挂载期一次):会话删除后草稿键无人引用,按台账年龄回收 */
+  React.useEffect(() => {
+    pruneDrafts();
   }, []);
 
   /* 覆盖层(桌面 settings):手动命名 + 归档键集 + 置顶。桌面任何一侧改动都广播

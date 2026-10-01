@@ -10,6 +10,8 @@ import {
   resetProgress,
   setLessonCursor,
 } from "./academyProgress";
+import { courseVersionDrift } from "./courseVersion";
+import { practiceGate } from "./practiceGate";
 import { filterChapters, lessonIndexByChapter } from "./guideSearch";
 
 /* jsdom 环境(仓库 vitest 默认)自带 localStorage,这里只做隔离复位。 */
@@ -142,5 +144,30 @@ describe("入口折叠 store", () => {
     mod.setEntryCollapsed(false);
     expect(store.get("tmd.academy.entryCollapsed")).toBe("0");
     expect(seen).toEqual([true, false]);
+  });
+});
+
+describe("courseVersionDrift(课程过期判定)", () => {
+  it("一致(含 v 前缀/空白书写差异)= 不提示", () => {
+    expect(courseVersionDrift("18.3.1", "18.3.1")).toBeNull();
+    expect(courseVersionDrift("18.3.1", " v18.3.1 ")).toBeNull();
+  });
+
+  it("不一致返回双方原文;任一缺失不提示(宁漏勿扰)", () => {
+    expect(courseVersionDrift("18.3.1", "19.0.0")).toEqual({ source: "18.3.1", installed: "19.0.0" });
+    expect(courseVersionDrift("18.3.1", null)).toBeNull();
+    expect(courseVersionDrift("", "19.0.0")).toBeNull();
+  });
+});
+
+describe("practiceGate(「试一试」前置闸)", () => {
+  it("有输入框且引擎匹配/引擎不可知 = 放行", () => {
+    expect(practiceGate({ cliId: "omp", hasComposer: true, activeEngine: "omp" })).toBeNull();
+    expect(practiceGate({ cliId: "omp", hasComposer: true, activeEngine: null })).toBeNull();
+  });
+
+  it("无输入框 / 引擎不符 = 引导文案(不插命令不结课)", () => {
+    expect(practiceGate({ cliId: "omp", hasComposer: false, activeEngine: null })).toContain("先打开");
+    expect(practiceGate({ cliId: "omp", hasComposer: true, activeEngine: "pi" })).toContain("切换后再试");
   });
 });

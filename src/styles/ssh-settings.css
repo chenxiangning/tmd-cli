@@ -175,6 +175,16 @@
   gap: 6px;
   margin-top: 10px;
 }
+/* 弹窗内内联错误条(此前 window.alert 抢系统弹层;与 WSL 面同簿一制) */
+.ssh-modal-err {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--tmd-err) 40%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tmd-err) 8%, transparent);
+  color: var(--tmd-err);
+  font-size: 0.6875rem;
+}
 .ssh-import-list {
   display: flex;
   flex-direction: column;

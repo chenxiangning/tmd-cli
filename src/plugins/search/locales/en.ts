@@ -18,4 +18,6 @@ export const MESSAGES_EN = {
   "正在加载文件列表…": "Loading file list…",
   "加载文件列表失败": "Failed to load file list",
   "无匹配文件": "No matching files",
+  "该能力暂不可用(对应插件已停用)":
+    "Unavailable right now (the plugin providing it is disabled)",
 } as Record<string, string>;

@@ -9,6 +9,7 @@ import { MESSAGES as cli } from "./cli";
 import { MESSAGES as cli2 } from "./cli2";
 import { MESSAGES as composer } from "./composer";
 import { MESSAGES as ssh } from "./ssh";
+import { MESSAGES as wsl } from "./wsl";
 import { MESSAGES as misc } from "./misc";
 import { MESSAGES as assets } from "./assets";
 import { MESSAGES as mobile } from "./mobile";
@@ -24,6 +25,7 @@ export const JA_MESSAGES: Record<string, string> = {
   ...cli2,
   ...composer,
   ...ssh,
+  ...wsl,
   ...assets,
   ...misc,
   ...mobile,

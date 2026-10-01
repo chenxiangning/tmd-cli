@@ -3,8 +3,9 @@
  * 模块级纯函数,直接 import 无需环境桩。
  */
 import { describe, expect, it } from "vitest";
+import type { SessionMeta } from "@kernel/ipc";
 import { notifyText, shouldNotify } from "./logic";
-import { pickQuotaWarnings } from "./quotaWatch";
+import { pickQuotaWarnings, watchedQuotaSessions } from "./quotaWatch";
 
 const PREFS = { notifyOsAsk: true, notifyOsTurnEnd: true, notifyOsSessionExit: false };
 
@@ -83,5 +84,20 @@ describe("pickQuotaWarnings(额度阈值判定)", () => {
   it("0 阈值全报(调用方以 threshold<=0 短路,这里只验纯函数语义)", () => {
     const seen = new Set<string>();
     expect(labels(pickQuotaWarnings([W("5小时", 0)], 0, seen))).toEqual(["5小时"]);
+  });
+});
+
+describe("watchedQuotaSessions(额度监控面:运行中 ∪ 平铺幕布)", () => {
+  const S = (id: string, profileId = id): SessionMeta => ({ id, profileId, cwd: "/w" });
+
+  it("并集按 id 去重:幕布引用的运行中会话不重复出现", () => {
+    const sessions = [S("a", "omp"), S("b", "pi")];
+    const out = watchedQuotaSessions(sessions, ["b", "a"]);
+    expect(out.map((s) => s.id)).toEqual(["a", "b"]);
+  });
+
+  it("kept 死 id(tab 残留)找不到会话即忽略;空并集返回空", () => {
+    expect(watchedQuotaSessions([], ["ghost"])).toEqual([]);
+    expect(watchedQuotaSessions([S("a")], [])).toHaveLength(1);
   });
 });

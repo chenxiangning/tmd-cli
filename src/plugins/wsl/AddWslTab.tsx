@@ -13,6 +13,7 @@ import { addWorkspace } from "@kernel/workspace";
 import type { WorkspaceOriginAddTabProps } from "@kernel/workspaceOrigins";
 import { wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
 import { useSettingsState } from "@kernel/settings";
+import { StyledSelect } from "@kernel/StyledSelect";
 import { WslDirBrowser } from "./WslDirBrowser";
 
 export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
@@ -64,14 +65,25 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
     <>
       <label className="wsl-field">
         <span>{t("发行版")}</span>
-        <select value={distro} onChange={(e) => { setDistro(e.target.value); setPickedDir(null); }}>
-          {(distros ?? []).map((d) => (
-            <option key={d.name} value={d.name}>
-              {d.name}({d.running ? t("运行中") : t("已停止")})
-            </option>
-          ))}
-        </select>
+        {/* StyledSelect 与远程段/设置页同款(原生 select 的 OS 弹层与主题脱节) */}
+        <StyledSelect
+          value={distro}
+          ariaLabel={t("发行版")}
+          disabled={distros === null}
+          placeholder={distros === null ? t("探测中…") : undefined}
+          options={(distros ?? []).map((d) => ({
+            value: d.name,
+            label: d.name,
+            hint: d.running ? t("运行中") : t("已停止"),
+          }))}
+          onChange={(v) => {
+            setDistro(v);
+            setPickedDir(null);
+          }}
+        />
       </label>
+      {/* 探测期占位(此前弹体空白,用户不知在等什么) */}
+      {distros === null && !loadErr && <div className="wsl-hint">{t("正在探测发行版…")}</div>}
       {loadErr && <div className="wsl-remote-err">{loadErr}</div>}
       {distro && (
         /* key=distro:换发行版即重置浏览态(原 setEntries(null) 语义)。 */
@@ -92,6 +104,10 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
         </div>
       )}
       <div className="wsl-dialog-foot">
+        {/* 取消 = 关浮层(契约无独立 close 通道,onAdded 即关闭;与 X 等价) */}
+        <button type="button" className="wsl-btn" onClick={onAdded}>
+          {t("取消")}
+        </button>
         <button type="button" className="wsl-btn primary" disabled={!distro || !pickedDir || !wslWorkspaceTargetOk(pickedDir, !!sshHost)} onClick={add}>
           {t("添加")}
         </button>

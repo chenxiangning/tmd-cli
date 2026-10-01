@@ -7,6 +7,7 @@
  */
 
 import type { ComposerSendTransform } from "@kernel/composerExt";
+import { t } from "@kernel/i18n";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { marksSnapshot, setMarkState, stagedMarks } from "./store";
 const MARK_LINE_RE = /([\w./@\\:-]+(?: [\w./@\\:-]+)*?\.[A-Za-z0-9]{1,8}):L?(\d+)(?:[-–:](\d+))?/g;
@@ -26,7 +27,13 @@ export function serializeMark(mark: {
     .split("\n")
     .map((line) => `  > ${line}`)
     .join("\n");
-  return [`${mark.path}:${range}`, excerpt, `  标注:${mark.note || "(无备注)"}`].join("\n");
+  /* 注入模板随 locale:en/ja 用户消息不再中文化(回链 path:Lx 行保持原文,
+     回链正则只认路径行,模板文案本地化不影响识别)。 */
+  return [
+    `${mark.path}:${range}`,
+    excerpt,
+    `  ${t("标注:{note}", { note: mark.note || t("(无备注)") })}`,
+  ].join("\n");
 }
 
 /** 「发送到对话」:标记翻 staged,芯片条即时可见;✕ 回 pending。
@@ -56,7 +63,7 @@ export const marksSendTransform: ComposerSendTransform = (text) => {
     .join("\n\n");
   for (const mark of staged) setMarkState(cwd, mark.id, "sent");
   lastFlip = { cwd, ids: staged.map((m) => m.id) };
-  return `${text}\n\n请看我在文件里标记的 ${staged.length} 处:\n${block}`;
+  return `${text}\n\n${t("请看我在文件里标记的 {n} 处:", { n: staged.length })}\n${block}`;
 };
 
 /** 写入全败回滚:最近一次 transform 翻掉的 sent 退回 staged(只退仍是 sent 的,幂等)。 */

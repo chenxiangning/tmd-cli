@@ -101,4 +101,9 @@ export const MESSAGES = {
   "Enter 确认 · Esc 取消": "Enter to confirm · Esc to cancel",
   "发送二次确认": "Send confirmation",
   "发送前弹窗确认目标会话与内容预览,防平铺模式发错会话;Enter 确认,Esc 取消。": "Confirm target session and preview content before sending — guards against mis-sends in tiled mode. Enter confirms, Esc cancels.",
+  /* 工具栏徽标与附件(2026-10 i18n 收口) */
+  "命令与技能": "Commands & skills",
+  "远程": "Remote",
+  "移除 {name}": "Remove {name}",
+  "释放以附加文件 / 图片": "Drop to attach files / images",
 } as Record<string, string>;

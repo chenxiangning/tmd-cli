@@ -102,4 +102,25 @@ describe("searchSessions", () => {
     expect(searchSessions(indexer.index, "CHECKPOINTS")).toHaveLength(1);
     expect(searchSessions(indexer.index, "  ")).toEqual([]);
   });
+
+  it("多关键词空格分词全命中(AND):缺一不可", async () => {
+    const indexer = new SessionIndexer("/ws");
+    await indexer.prime();
+    await indexer.step();
+    await indexer.step();
+    expect(searchSessions(indexer.index, "修 checkpoints")).toHaveLength(1); // 同一条消息双词
+    expect(searchSessions(indexer.index, "修 爬虫")).toHaveLength(0); // 两词分属两条会话,单条不含全词
+  });
+
+  it("命中片段带 matchToken(高亮拆分锚);标题命中回落首词", async () => {
+    const indexer = new SessionIndexer("/ws");
+    await indexer.prime();
+    await indexer.step();
+    await indexer.step();
+    const [msgHit] = searchSessions(indexer.index, "归因");
+    expect(msgHit?.matchToken).toBe("归因");
+    expect(msgHit?.snippet).toContain("归因");
+    const [titleHit] = searchSessions(indexer.index, "审批线");
+    expect(titleHit?.matchToken).toBe("审批线");
+  });
 });

@@ -22,6 +22,8 @@ const MESSAGES_EN = {
     "Scanned {scanned}/{total} sessions, no matches",
   "↑↓ 选择 · Enter 打开 {name} 的历史会话 · Esc 关闭":
     "↑↓ to select · Enter to open a session in {name} · Esc to close",
+  "按引擎过滤": "Filter by engine",
+  "全部": "All",
 } as const;
 
 /** ja 词典 · session-search 域。 */
@@ -42,6 +44,8 @@ const MESSAGES_JA = {
     "{scanned}/{total} セッションを走査,一致なし",
   "↑↓ 选择 · Enter 打开 {name} 的历史会话 · Esc 关闭":
     "↑↓ で選択 · Enter で {name} の履歴セッションを開く · Esc で閉じる",
+  "按引擎过滤": "エンジンで絞り込み",
+  "全部": "すべて",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

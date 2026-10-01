@@ -17,15 +17,21 @@ import { listClaudeSessions } from "@plugins/cli-claude/sessions";
 import { listCodexSessions } from "@plugins/cli-codex/sessions";
 import { listKimiSessions } from "@plugins/cli-kimi/kimiSessions";
 import { listGrokSessions } from "@plugins/cli-grok/sessions";
+import { kimiWirePathOf } from "./sessionFile";
 import type { RemoteSession, RemoteWorkspace } from "./remote";
 
-/** 各引擎磁盘扫描器(与桌面 CliProfile.listSessions 同源;cwd = 工作区 root)。 */
+/** 各引擎磁盘扫描器(与桌面 CliProfile.listSessions 同源;cwd = 工作区 root)。
+ *  kimi 的 CliDiskSession.path 是会话目录(桌面删除语义),手机历史屏只读
+ *  transcript → 重指 wire.jsonl(sessionFile.kimiWirePathOf 单一来源)。 */
 const SCANNERS: Record<string, (cwd: string) => Promise<CliDiskSession[]>> = {
   omp: piFamilySessions({ sessionsDir: ompSessionsDir }).listSessions,
   pi: piFamilySessions({ sessionsDir: piSessionsDir }).listSessions,
   claude: listClaudeSessions,
   codex: listCodexSessions,
-  kimi: listKimiSessions,
+  kimi: (cwd) =>
+    listKimiSessions(cwd).then((ss) =>
+      ss.map((s) => (s.path ? { ...s, path: kimiWirePathOf(s.path) } : s)),
+    ),
   grok: listGrokSessions,
   qoder: (cwd) => listQoderSessions(".qoder", cwd),
   "qoder-cn": (cwd) => listQoderSessions(".qoder-cn", cwd),

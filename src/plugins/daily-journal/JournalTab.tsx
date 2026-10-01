@@ -52,7 +52,7 @@ function ToolbarEnd({ activeTasks, holOn, holStatus, onHol, onRescan, onTasks, o
         <i className="dj-leg-cell h2" />
         <i className="dj-leg-cell h3" />
         <i className="dj-leg-cell h4" />
-        {t("热力高 = 会话数")}
+        {t("热力高 = 会话数分位 · 黄 待提取 · 红 失败 · 蓝圈 今日")}
       </span>
       <button type="button" className="dj-btn" onClick={onRescan}>
         {t("重新扫描")}
@@ -94,6 +94,7 @@ function JournalStage({
   snap,
   today,
   openMonth,
+  onShiftMonth,
 }: {
   view: JournalView;
   sessions: Map<string, DaySessionRow[]> | null;
@@ -102,6 +103,7 @@ function JournalStage({
   snap: MonthSnapshot | undefined;
   today: string;
   openMonth: (m: number) => void;
+  onShiftMonth: (delta: number) => void;
 }) {
   if (sessions === null) {
     return (
@@ -113,13 +115,47 @@ function JournalStage({
   }
   if (view === "y") return <YearView y={ym.y} sessions={sessions} today={today} onOpenMonth={openMonth} />;
   if (!snap) return <div className="dj-empty">{t("正在加载…")}</div>;
-  return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} />;
+  return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} onShiftMonth={onShiftMonth} />;
+}
+
+/* view/ym 持久化(localStorage):重开 tab 不再恒回当月月视图;「今天」按钮
+ * 与恢复值解耦,点击时实时取 now(跨零点不落昨月)。 */
+const VIEW_KEY = "tmd.journal.view";
+const YM_KEY = "tmd.journal.ym";
+function loadView(): JournalView {
+  try {
+    return localStorage.getItem(VIEW_KEY) === "y" ? "y" : "m";
+  } catch {
+    return "m";
+  }
+}
+function loadYm(): { y: number; m: number } {
+  try {
+    const raw = localStorage.getItem(YM_KEY);
+    if (raw) {
+      const v = JSON.parse(raw) as { y: number; m: number };
+      if (Number.isInteger(v.y) && v.m >= 1 && v.m <= 12) return v;
+    }
+  } catch { /* 隐私态/脏数据回落当月 */ }
+  const now = new Date();
+  return { y: now.getFullYear(), m: now.getMonth() + 1 };
 }
 
 export function JournalTab() {
-  const now = new Date();
-  const [view, setView] = useState<JournalView>("m");
-  const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() + 1 });
+  const [view, setView] = useState<JournalView>(loadView);
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch { /* 隐私态 */ }
+  }, [view]);
+  const [ym, setYm] = useState(loadYm);
+  /* 持久化走 useEffect(状态更新器内不得有副作用):ym 变更即落盘 */
+  useEffect(() => {
+    try {
+      localStorage.setItem(YM_KEY, JSON.stringify(ym));
+    } catch { /* 隐私态 */ }
+  }, [ym]);
+  const [fillMsg, setFillMsg] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [panel, setPanel] = useState<"tasks" | "cfg" | null>(null);
   const tasks = useGenTasks();
@@ -136,7 +172,7 @@ export function JournalTab() {
     void ensureHolidays(ym.y); /* 跨年导航即拉当年(24h 窗内零请求) */
   }, [ym, state.ready]);
   const snap = state.months[`${ym.y}-${String(ym.m).padStart(2, "0")}`];
-  /* 年视图导航只动年;月视图动月(跨年进位)。 */
+  /* 年视图导航只动年;月视图动月(跨年进位);aria 随视图如实(年视图说年)。 */
   const nav = (delta: number) => {
     if (view === "y") {
       setYm((prev) => ({ ...prev, y: prev.y + delta }));
@@ -169,17 +205,18 @@ export function JournalTab() {
           ))}
         </div>
         <div className="dj-nav">
-          <button className="dj-btn" aria-label={t("上个月")} onClick={() => nav(-1)}>
+          <button className="dj-btn" aria-label={view === "y" ? t("上一年") : t("上个月")} onClick={() => nav(-1)}>
             <CaretLeft size={12} weight="bold" />
           </button>
           <span className="dj-month-title">{view === "y" ? String(ym.y) : monthTitleOf(ym.y, ym.m)}</span>
-          <button className="dj-btn" aria-label={t("下个月")} onClick={() => nav(1)}>
+          <button className="dj-btn" aria-label={view === "y" ? t("下一年") : t("下个月")} onClick={() => nav(1)}>
             <CaretRight size={12} weight="bold" />
           </button>
         </div>
         <button
           className="dj-btn dj-today"
           onClick={() => {
+            const now = new Date(); /* 实时取:跨零点不落昨月(mount 期 now 已废) */
             setYm({ y: now.getFullYear(), m: now.getMonth() + 1 });
             setView("m");
           }}
@@ -188,9 +225,28 @@ export function JournalTab() {
         </button>
         <StatusPills days={stats.days} sessTotal={stats.sessTotal} artTotal={stats.artTotal} pending={stats.pending} todayLive={stats.todayLive} />
         {stats.pending > 0 && sessions && (
-          <button type="button" className="dj-btn" onClick={() => fillPendingDays(ym, sessions, snap)}>
-            {t("补齐待生成")}
-          </button>
+          <>
+            <button
+              type="button"
+              className="dj-btn"
+              onClick={() => {
+                /* 入队数即时反馈(此前静默限量,目标日在队时点击零反馈);
+                   仍有剩余可补时带剩余数,防用户以为补齐完毕 */
+                const { queued, remaining } = fillPendingDays(ym, sessions, snap);
+                setFillMsg(
+                  queued > 0
+                    ? remaining > 0
+                      ? t("已排队 {n} 天,剩余 {r} 天,后台生成中", { n: queued, r: remaining })
+                      : t("已排队 {n} 天,后台生成中", { n: queued })
+                    : t("没有可补的日子(已生成或在队列)"),
+                );
+                setTimeout(() => setFillMsg(null), 3200);
+              }}
+            >
+              {t("补齐待生成")}
+            </button>
+            {fillMsg && <span className="dj-pill dj-pill-warn">{fillMsg}</span>}
+          </>
         )}
         <div className="dj-toolbar-end">
           <ToolbarEnd
@@ -207,7 +263,7 @@ export function JournalTab() {
       {panel === "tasks" && <TaskPanel onClose={() => setPanel(null)} />}
       {panel === "cfg" && <GenSettings onClose={() => setPanel(null)} />}
       <div className="dj-stage">
-        <JournalStage view={view} sessions={sessions} progress={progress} ym={ym} snap={snap} today={today} openMonth={openMonth} />
+        <JournalStage view={view} sessions={sessions} progress={progress} ym={ym} snap={snap} today={today} openMonth={openMonth} onShiftMonth={nav} />
       </div>
     </div>
   );

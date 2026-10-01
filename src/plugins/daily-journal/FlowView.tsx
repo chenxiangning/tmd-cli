@@ -6,13 +6,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PencilSimpleLine } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { dayMetaOf, deriveDayStatus, loadMonth, useJournalState, type MonthSnapshot } from "./journalStore";
+import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, loadMonth, useJournalState, type MonthSnapshot } from "./journalStore";
 import type { DaySessionRow } from "./daySessions";
 import { openArticleTab } from "./journalTabs";
 import { pad2 } from "./journalFiles";
 import { ArticleBody, NoteReadonly } from "./articleBody";
 import { notePeekOf, statusChip } from "./statusText";
-import { holOf, useHolidays } from "./holidays";
+import { holOf, isWorkdayOverride, useHolidays } from "./holidays";
 import type { Article } from "./articleParse";
 import type { DayNote } from "./journalFiles";
 import { dayTitleOf } from "./dateTitle";
@@ -122,6 +122,15 @@ export function FlowView({
   const days = new Date(ym.y, ym.m, 0).getDate();
   const metaV = useJournalState().meta;
   useHolidays();
+  /* 月条热力阈值:当月活跃日 25/50/75 分位(与月/年视图同一函数,同日同色)。 */
+  const ts = useMemo(() => {
+    const counts: number[] = [];
+    for (let d = 1; d <= days; d++) {
+      const rows = sessions.get(`${prefix}-${pad2(d)}`);
+      if (rows?.length) counts.push(rows.length);
+    }
+    return heatThresholds(counts);
+  }, [sessions, prefix, days]);
   const flowDays = useMemo<FlowDay[]>(() => {
     const out: FlowDay[] = [];
     for (let d = 1; d <= days; d++) {
@@ -156,7 +165,8 @@ export function FlowView({
             const fd = flowDays.find((x) => x.d === d);
             const meta = fd ? dayMetaOf(fd.key) : { beads: [], updatedAt: 0 };
             const st = fd ? deriveDayStatus(fd.article, fd.key === today, fd.rows.length, meta) : "n";
-            const we = [0, 6].includes(new Date(ym.y, ym.m - 1, d).getDay());
+            /* 调休上班日不画周末描边;热力档与月/年视图同源分位 */
+            const we = [0, 6].includes(new Date(ym.y, ym.m - 1, d).getDay()) && !isWorkdayOverride(ym.y, ym.m, d);
             const cls = [
               holOf(ym.y, ym.m, d)
                 ? "dj-mb-hol"
@@ -167,11 +177,7 @@ export function FlowView({
                     : st === "f"
                       ? "dj-mb-f"
                       : st === "g"
-                        ? fd!.rows.length >= 9
-                          ? "dj-mb-h3"
-                          : fd!.rows.length >= 6
-                            ? "dj-mb-h2"
-                            : "dj-mb-g"
+                        ? `dj-mb-${heatOf(fd!.rows.length, ts)}`
                         : "",
               we ? "dj-mb-we" : "",
               fd?.note ? "dj-mb-note" : "",
@@ -190,7 +196,7 @@ export function FlowView({
           })}
         </div>
         <span className="dj-mb-legend">
-          {t("格 = 日")} · {t("蓝 = 今天")} · {t("内框 = 有便签")}
+          {t("格 = 日")} · {t("蓝 = 今天")} · {t("黄 = 待提取")} · {t("红 = 失败")} · {t("内框 = 有便签")}
         </span>
       </div>
       <div className="dj-flow">

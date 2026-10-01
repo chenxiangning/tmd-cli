@@ -1,5 +1,7 @@
 /**
- * 商店卡 ── ClawHub 卡片:名称/摘要/topics/统计/已装徽标 + 安装入口。
+ * 商店卡 ── ClawHub 卡片:名称/摘要/topics/统计/已装徽标 + 安装入口;
+ * 已装且记录版本落后(与 ClawHub latestVersion 比对)=「可更新」徽标 +
+ * 「更新」钮(重走安装弹窗链)。无版本信息如实不显。
  */
 
 import { DownloadSimple, Star } from "@phosphor-icons/react";
@@ -14,11 +16,16 @@ function formatCount(n: number): string {
 export function StoreCard({
   card,
   installed,
+  updateAvailable,
   onInstall,
+  onUpdate,
 }: {
   card: ClawHubCard;
   installed: boolean;
+  /** 已装记录有版本且 ClawHub latestVersion 更新(InstalledView 同一判据)。 */
+  updateAvailable: boolean;
   onInstall: (card: ClawHubCard) => void;
+  onUpdate: (card: ClawHubCard) => void;
 }) {
   return (
     <div
@@ -65,12 +72,32 @@ export function StoreCard({
           </span>
         </div>
         {installed ? (
-          <span
-            className="cursor-default rounded border border-(--tmd-border) px-2 py-0.5 text-[11px] text-(--tmd-fg-faint)"
-            data-store-installed={card.slug}
-          >
-            {t("已安装")}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {updateAvailable && (
+              <span
+                className="shrink-0 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[10px] text-(--tmd-fg)"
+                data-store-updatable={card.slug}
+              >
+                {t("可更新")}
+              </span>
+            )}
+            <span
+              className="cursor-default rounded border border-(--tmd-border) px-2 py-0.5 text-[11px] text-(--tmd-fg-faint)"
+              data-store-installed={card.slug}
+            >
+              {t("已安装")}
+            </span>
+            {updateAvailable && (
+              <button
+                type="button"
+                onClick={() => onUpdate(card)}
+                className="rounded border border-(--tmd-border) px-2 py-0.5 text-[11px] hover:bg-(--tmd-bg-hover)"
+                data-store-update={card.slug}
+              >
+                {t("更新")}
+              </button>
+            )}
+          </div>
         ) : (
           <button
             type="button"

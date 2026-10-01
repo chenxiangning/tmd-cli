@@ -12,6 +12,7 @@
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { PiRpcReducer } from "./piRpcReducer";
 
@@ -41,6 +42,35 @@ export interface PiRpcHandlers {
 }
 
 const REQUEST_TIMEOUT_MS = 30_000;
+/** prompt 类请求超时(独立常量):prompt 应答时机待真机实证 —— rpc 模式下
+ * response 是否轮末才回尚无抓包数据,先与通用闸同值,实证后单独收口。 */
+const PROMPT_TIMEOUT_MS = 30_000;
+
+/** 时分秒(词典无关的 locale 中立形态;notice 时刻用)。 */
+function clockOf(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** 非 confirm 部件自动取消判定(纯函数,单测钉死):extension_ui_request 且
+ * method 非 confirm(select/input/editor 等 TUI 部件)时,RPC 模式无人可答,
+ * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
+ * 回路不在此列;缺 id 的畸形帧不产(无处应答也无从示警)。 */
+export function widgetCancelledNotice(
+  rec: Record<string, unknown>,
+  now: Date = new Date(),
+): { frameId: string; kind: string; text: string } | null {
+  if (rec.type !== "extension_ui_request") return null;
+  const kind = rec.method;
+  if (typeof kind !== "string" || !kind || kind === "confirm") return null;
+  const frameId = rec.id;
+  if (typeof frameId !== "string" || !frameId) return null;
+  return {
+    frameId,
+    kind,
+    text: `${t("CLI 发起 {kind} 交互,已按协议自动取消", { kind })}(${clockOf(now)})`,
+  };
+}
 
 export class PiRpcSession {
   private id: string | null = null;
@@ -85,9 +115,9 @@ export class PiRpcSession {
       : null;
   }
 
-  /** 发一轮 prompt(字段 message,实证;text 会被 18.4.4 拒)。 */
+  /** 发一轮 prompt(字段 message,实证;text 会被 18.4.4 拒);超时走 prompt 专用闸。 */
   async send(text: string): Promise<void> {
-    await this.request({ type: "prompt", message: text });
+    await this.request({ type: "prompt", message: text }, PROMPT_TIMEOUT_MS);
   }
 
   /** 中止在途轮。 */
@@ -170,8 +200,13 @@ export class PiRpcSession {
             message: String(rec.message ?? ""),
           });
         } else {
-          /* select/input/editor 等 TUI 部件:取消以免挂轮(monocode 同律)。 */
-          if (rec.id) void this.raw({ type: "extension_ui_response", id: String(rec.id), cancelled: true }).catch(() => undefined);
+          /* select/input/editor 等 TUI 部件:取消以免挂轮(monocode 同律),
+           * 并在转录流插可见 notice(不再无声替答)。 */
+          const widget = widgetCancelledNotice(rec);
+          if (widget) {
+            void this.raw({ type: "extension_ui_response", id: widget.frameId, cancelled: true }).catch(() => undefined);
+            this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart);
+          }
         }
         return;
       }
@@ -180,14 +215,14 @@ export class PiRpcSession {
     }
   }
 
-  /** 带超时的请求多路复用;进程退出统一 reject。 */
-  private request(cmd: Record<string, unknown>): Promise<unknown> {
+  /** 带超时的请求多路复用;进程退出统一 reject(prompt 类经 timeoutMs 覆盖)。 */
+  private request(cmd: Record<string, unknown>, timeoutMs = REQUEST_TIMEOUT_MS): Promise<unknown> {
     const id = `tmd-${++this.seq}`;
     const { promise, resolve, reject } = Promise.withResolvers<unknown>();
     const timer = setTimeout(() => {
       this.pending.delete(id);
       reject(new Error("rpc 请求超时"));
-    }, REQUEST_TIMEOUT_MS);
+    }, timeoutMs);
     this.pending.set(id, {
       resolve: (v) => { clearTimeout(timer); resolve(v); },
       reject: (e) => { clearTimeout(timer); reject(e); },

@@ -204,4 +204,6 @@ export const MESSAGES_JA = {
   /* ── 插件 meta(定义处不调 t(),消费点渲染时包裹)── */
   "Memory 协调器": "Memory コーディネーター",
   "Magic Context 记忆池:多引擎共享项目记忆,胶囊注入与池检索": "Magic Context 記憶プール:マルチエンジン共有のプロジェクト記憶、カプセル注入とプール検索",
+  /* 控制台引擎配置(en↔ja 对称收口,2026-10) */
+  "引擎配置保存失败: {err}": "エンジン設定の保存に失敗: {err}",
 } as Record<string, string>;

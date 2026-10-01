@@ -262,3 +262,13 @@
   color: var(--tmd-fg);
   background: var(--tmd-bg-hover);
 }
+
+/* 新建会话菜单提示行(远程 WSL 未探测/无引擎时;SessionMenu/VersionMenu 共用;
+ * 自 wsl-remote.css 迁回消费面;--text-quiet 仅 workspace 菜单树作用域定义,
+ * VersionMenu(welcome)离域即失效,改真 token --tmd-fg-subtle) */
+.wsmenu-note {
+  padding: 2px 10px 6px;
+  color: var(--tmd-fg-subtle);
+  font-size: 11px;
+  line-height: 1.5;
+}

@@ -23,6 +23,12 @@ export function activateRailPanel(
     ctx.setRightOpen(false);
     return;
   }
+  /* 激活但折叠的 centerTab 面板:再点 = 聚焦既有中央 tab(open 幂等),不重开
+   * 右栏——右栏对 hub 类只是副展示,重开它会把用户从要看的 tab 拉走。 */
+  if (panel.id === ctx.mode && !ctx.rightOpen && panel.centerTab) {
+    panel.centerTab.open();
+    return;
+  }
   setFilePanelMode(panel.id);
   panel.centerTab?.open();
   ctx.setRightOpen(true);

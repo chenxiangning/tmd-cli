@@ -7,8 +7,10 @@
 import { useState } from "react";
 import type { WslDistro } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
 import { wslToUnc, wslWorkspaceTargetOk } from "./wslCore";
 import { addWorkspace } from "@kernel/workspace";
+import { StyledSelect } from "@kernel/StyledSelect";
 import { WslDirBrowser } from "./WslDirBrowser";
 
 export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro[]; onClose: () => void }) {
@@ -16,6 +18,7 @@ export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro
   const [distro, setDistro] = useState(def?.name ?? "");
   const [path, setPath] = useState("/home/");
   const [err, setErr] = useState<string | null>(null);
+  useEscClose(onClose); /* Esc 关闭(原生 dialog 非 modal,Esc 此前无效) */
   const posix = path.trim();
   const valid = wslWorkspaceTargetOk(posix, false);
 
@@ -41,13 +44,16 @@ export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro
         </div>
         <label className="wsl-field">
           <span>{t("发行版")}</span>
-          <select value={distro} onChange={(e) => setDistro(e.target.value)}>
-            {distros.map((d) => (
-              <option key={d.name} value={d.name}>
-                {d.name}({d.running ? t("运行中") : t("已停止")})
-              </option>
-            ))}
-          </select>
+          <StyledSelect
+            value={distro}
+            ariaLabel={t("发行版")}
+            options={distros.map((d) => ({
+              value: d.name,
+              label: d.name,
+              hint: d.running ? t("运行中") : t("已停止"),
+            }))}
+            onChange={setDistro}
+          />
         </label>
         <label className="wsl-field">
           <span>{t("Linux 目录")}</span>
@@ -68,7 +74,7 @@ export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro
             {t("工作区根(UNC)")}:{wslToUnc(distro, posix)}
           </div>
         )}
-        {err && <div className="wsl-err">{err}</div>}
+        {err && <div className="wsl-remote-err">{err}</div>}
         <div className="wsl-dialog-foot">
           <button type="button" className="wsl-btn" onClick={onClose}>
             {t("取消")}

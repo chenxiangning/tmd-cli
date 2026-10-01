@@ -10,6 +10,7 @@
 @import "./open-with-dialog.css";
 @import "./tab-bar.css";
 @import "./right-panel-toolbar.css";
+@import "./panel-overflow.css";
 @import "./panel-subbar.css";
 @import "./quota.css";
 @import "./workspace-sidebar.css";
@@ -139,3 +140,6 @@ body,
 .animate-breathe {
   animation: breathe 1.2s ease-in-out infinite;
 }
+
+/* 内核浮层动效(terminalLoadOverlay 等;组件按名引用,全局一份 keyframes) */
+@keyframes tmdFadeIn { from { opacity: 0; } to { opacity: 1; } }

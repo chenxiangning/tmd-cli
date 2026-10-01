@@ -1,4 +1,5 @@
-/** en 词典 · settings2 域(web-access 自建服务器中继:2026-09-24 tab 拆分新增;键 = 中文源串)。 */
+/** en 词典 · settings2 域(settings.ts 溢出收纳:web-access 自建服务器中继 + 后续
+ * 溢出词条;键 = 中文源串)。 */
 export const MESSAGES = {
   // tabs(index.tsx 贡献)
   "自建服务器": "Self-hosted server",
@@ -37,4 +38,28 @@ export const MESSAGES = {
     "After unpacking, run these in order (copy the whole package directory to the server, then start the service and verify):",
   "第 3 条在桌面执行:回 no agent = 服务活着、正等桌面拨号;连接中继后回 agent connected。":
     "Run the third one from the desktop: “no agent” means the service is up and waiting for the desktop to dial; after connecting the relay it answers “agent connected”.",
+  // 打开方式(OpenWithTab 帮助行;settings.ts 满行,溢出收纳)
+  "文件底部工具条右侧用默认应用直开;菜单里选择即按文件扩展名记忆并打开。":
+    "The file footer bar opens with the default target; picking from the menu is remembered per file extension and opens right away.",
+  "按扩展名记忆的默认只作用于该类型;未记忆的类型与无扩展名文件回落此处的全局默认。":
+    "An extension-remembered default applies only to that type; unremembered types and extension-less files fall back to the global default here.",
+  // 会话卫生卡(HygieneCard 说明行)
+  "清扫随会话磁盘扫描自动进行（展开工作区或手动刷新即触发），暂无独立的手动清扫入口与上次清扫回执。":
+    "Sweeping rides on session disk scans (triggered by expanding a workspace or a manual refresh); there is no standalone manual sweep or last-sweep receipt yet.",
+  // 行为卡:历史输入补全(BehaviorTab + PromptHistoryManager,2026-10 i18n 收口)
+  "历史输入补全": "Input history completion",
+  "输入时按 Tab 接受历史补全建议;输入框为空时按 ↑↓ 翻阅历史。":
+    "Tab accepts a history suggestion while typing; with the input empty, ↑↓ browses history.",
+  "管理历史记录": "Manage history",
+  "清空全部输入历史": "Clear all input history",
+  "清空全部": "Clear all",
+  "确认清空?": "Confirm clear?",
+  "删除此条历史记录": "Delete this history entry",
+  // 打开方式卡(OpenWithTab,2026-10 i18n 收口)
+  "添加打开方式": "Add open-with app",
+  "浏览…选择应用": "Browse… to pick an app",
+  "已添加": "Added",
+  "探测中": "Probing",
+  "点击重新探测": "Click to probe again",
+  "设为默认": "Set as default",
 } as Record<string, string>;

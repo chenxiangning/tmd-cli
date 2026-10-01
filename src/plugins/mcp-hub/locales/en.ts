@@ -32,6 +32,9 @@ export const MESSAGES_EN = {
   "连通测试(一次性握手,不改配置)": "Connectivity test (one-shot handshake, no config change)",
   "编辑": "Edit",
   "删除": "Delete",
+  "取消": "Cancel",
+  "删除中…": "Deleting…",
+  "从配置文件移除该条目;已开的会话不受影响": "Removes the entry from the config file; open sessions are unaffected",
   "测试中…": "Testing…",
   "通了 · {n} 个工具 · {ms}ms": "OK · {n} tools · {ms}ms",
   "删除 {engine} 的 server「{name}」?(各家方言:删除即卸载)": "Delete server \"{name}\" from {engine}? (per-dialect: removal = uninstall)",
@@ -65,7 +68,9 @@ export const MESSAGES_EN = {
   "搜索后回车": "Search, then Enter",
   "清缓存重拉": "Clear cache and refetch",
   "刷新": "Refresh",
-  "该源不可达或暂不可用(Glama 现需 API key)": "Source unreachable or unavailable (Glama now requires an API key)",
+  "该源不可达或暂不可用": "Source unreachable or unavailable",
+  "Glama 源请求失败(匿名访问已被限制,需 API key)":
+    "Glama request failed (anonymous access is now restricted; an API key is required)",
   "加载中…": "Loading…",
   "无结果;换个关键词试试": "No results; try another keyword",
   "加载更多": "Load more",
@@ -89,6 +94,7 @@ export const MESSAGES_EN = {
   "写入目标引擎": "Write to target engine",
 
   // ── 导入 ──
+  "扫描中…": "Scanning…",
   "导入到目标引擎": "Import into target engine",
   "重新扫描": "Rescan",
   "手选文件": "Pick a file…",

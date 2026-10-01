@@ -19,6 +19,9 @@
   height: fit-content;
   width: 440px;
   max-width: calc(100vw - 48px);
+  /* 长内容(目录列表展开)限高滚,不再顶出视口(对照 ssh-modal 74vh) */
+  max-height: 74vh;
+  overflow: auto;
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-popover);
@@ -110,12 +113,7 @@
   background: color-mix(in srgb, var(--tmd-bg-input) 55%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tmd-border) 55%, transparent);
   color: var(--tmd-fg-subtle);
-  font-family: var(--tmd-mono, monospace);
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
   font-size: 0.6563rem;
   word-break: break-all;
-}
-.wsl-err {
-  margin-top: 8px;
-  color: var(--tmd-err);
-  font-size: 0.6875rem;
 }

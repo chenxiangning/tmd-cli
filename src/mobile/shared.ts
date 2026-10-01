@@ -5,9 +5,10 @@
 import React from "react";
 import { t } from "@kernel/i18n";
 import { hasShellBridge, shellNotify } from "@kernel/shellBridge";
+import { invoke } from "@kernel/transport";
 import type { TranscriptTurn } from "@kernel/transcript";
 import { loadChannelPin, type MobileCreds } from "./creds";
-import type { RemoteSession, RemoteWorkspace } from "./remote";
+import { tailHasAskMarker, type RemoteSession, type RemoteWorkspace } from "./remote";
 
 /** 渲染分段(spec 2026-09-25-mobile-session-render):连续 tool turn 归组为一条
  *  折叠运行;纯渲染层折叠,数据与顺序不动。index = 段首元素在原 turns 中的
@@ -73,6 +74,74 @@ export function endpointKind(url: string): "lan" | "wan" {
 export function notifyAsk(title: string): void {
   if (!hasShellBridge()) return;
   void shellNotify(t("等待确认"), title).catch(() => undefined);
+}
+
+/** 会话退出本地通知(与 ask 同通道;桌面侧的轮次结束通知不在手机面,留观)。 */
+export function notifyExit(title: string): void {
+  if (!hasShellBridge()) return;
+  void shellNotify(t("会话已退出"), title).catch(() => undefined);
+}
+
+/** ask 轮次台账(sessionId → 本轮已通知):上升沿通知一次,标记消失清账。
+ *  home 轮询与 SessionScreen 实况检测共用同一本内存账,同一轮天然只报一次。 */
+const askRounds = new Map<string, boolean>();
+
+/** ask 边沿上报:present = 尾窗当前是否命中标记;false→true 沿触发 notifyAsk。 */
+export function askEdgeNotify(sessionId: string, present: boolean, title: string): void {
+  if (present) {
+    if (askRounds.get(sessionId)) return;
+    askRounds.set(sessionId, true);
+    notifyAsk(title);
+  } else {
+    askRounds.delete(sessionId);
+  }
+}
+
+/** 会话终局清账(pty://exit / 列表消失时调)。 */
+export function askRoundClear(sessionId: string): void {
+  askRounds.delete(sessionId);
+}
+
+/** home 轮询一轮(逐会话串行削峰,对齐磁盘历史扫描纪律):审批线待审数 +
+ *  运行中会话 ask 首现边沿(尾页 8K 跑标记,标记只在末屏)。checkpoint 失败
+ *  记 0;尾页失败跳过(台账不动,留下一轮)。skipAskOf = 会话屏正打开的会话
+ *  (实况检测更即时,不重复拉尾页)。 */
+export async function pollHomeWatch(
+  items: { id: string; cwd: string; title: string; running: boolean }[],
+  skipAskOf?: string,
+): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  /* 单会话一轮:审批线待审数 + 运行中会话 ask 首现边沿。 */
+  const pollOne = async (
+    it: { id: string; cwd: string; title: string; running: boolean },
+  ): Promise<void> => {
+    try {
+      const batches = await invoke<{ open: boolean; state: string }[]>("checkpoint_list", {
+        cwd: it.cwd,
+        sessionId: it.id,
+        tmdSessionId: it.id,
+      });
+      out[it.id] = batches.filter((b) => !b.open && b.state === "pending").length;
+    } catch {
+      out[it.id] = 0;
+    }
+    if (!it.running || it.id === skipAskOf) return;
+    try {
+      const page = await invoke<{ text: string }>("session_history_page", {
+        id: it.id,
+        before: Number.MAX_SAFE_INTEGER,
+        maxBytes: 8192,
+      });
+      askEdgeNotify(it.id, await tailHasAskMarker(page.text ?? ""), it.title);
+    } catch {
+      /* 断连/死会话:本轮跳过 */
+    }
+  };
+  /* 逐会话串行削峰(对齐磁盘历史扫描纪律):reduce 链 = 前一项 await 落定
+   * 才起下一项,与 for-of 逐项 await 严格同序同时序,一次只发一个请求;
+   * 禁止改成 Promise.all 并发(会把削峰变成齐发)。 */
+  await items.reduce((chain, it) => chain.then(() => pollOne(it)), Promise.resolve());
+  return out;
 }
 
 /** 手机路由 Context(MobileApp 提供,子屏消费)。 */

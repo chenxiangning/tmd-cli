@@ -15,6 +15,9 @@ export const MESSAGES_EN = {
   "未查看 = 结束未归档且 14 天内有活动": "Unviewed = ended, unarchived, active within 14 days",
   "重新扫描": "Rescan",
   "有未查看会话": "Has unviewed sessions",
+  "{y} 年 {m} 月 {d} 日": "{m}/{d}/{y}",
+  "{n} 个引擎扫描失败": "{n} engines failed to scan",
+  "重试": "Retry",
 
   // ── 泳道三道(五态投影 BOARD_LANES;侧栏已有「运行时/空闲」,此处看板口径) ──
   "运行中": "Running",
@@ -41,4 +44,6 @@ export const MESSAGES_EN = {
   "底点 = 主引擎": "dots = top engines",
   "点击折叠/展开本列(跨日保持)": "Click to collapse/expand this lane (persists across days)",
   "会话看板": "Session board",
+  /* DayPanel 键盘提示(2026-10 i18n 收口) */
+  "逐日": "day by day",
 } as Record<string, string>;

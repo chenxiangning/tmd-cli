@@ -18,6 +18,8 @@ export interface InstalledSkillRecord {
   source: "store" | "import";
   /** 落位目标(home 相对目录,如 ".agents/skills" 或 ".claude/skills")。 */
   targets: string[];
+  /** 安装时的商店版本(ClawHub latestVersion;导入/旧记录缺省 = 不参与更新比对)。 */
+  version?: string;
   createdAt: number;
 }
 

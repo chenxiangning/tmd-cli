@@ -6,6 +6,7 @@
 import React from "react";
 import type { MobileCreds } from "./creds";
 import { hasShellBridge, shellHttpPost } from "@kernel/shellBridge";
+import { t } from "@kernel/i18n";
 
 /** 解析 tmd://pair?c=… 短链;非该形状返回 null。 */
 function parseOfferLink(
@@ -46,11 +47,11 @@ async function tryPair(
       : await fetchWithTimeout(url, body, 6000);
     if (status !== 200) {
       const map: Record<number, string> = {
-        403: "配对码不正确",
-        410: "配对码已过期,桌面重新出码",
-        429: "尝试过多,稍后再试",
+        403: t("配对码不正确"),
+        410: t("配对码已过期,桌面重新出码"),
+        429: t("尝试过多,稍后再试"),
       };
-      return { error: map[status] ?? `配对失败(${status})` };
+      return { error: map[status] ?? t("配对失败({status})", { status }) };
     }
     const j = JSON.parse(text) as { deviceId: string; deviceToken: string; name: string };
     return {
@@ -62,7 +63,7 @@ async function tryPair(
       },
     };
   } catch {
-    return { error: "无法连接主机,检查地址与同一网络" };
+    return { error: t("无法连接主机,检查地址与同一网络") };
   }
 }
 
@@ -94,7 +95,7 @@ function deviceName(): string {
   const ua = navigator.userAgent;
   if (/iPad/.test(ua)) return "iPad";
   if (/iPhone/.test(ua)) return "iPhone";
-  return "手机";
+  return t("手机");
 }
 
 /** 壳是否有原生扫码桥。 */
@@ -139,7 +140,7 @@ async function pairWithOffer(offer: { code: string; urls: string[]; relay?: stri
     }
     lastError = r.error ?? "";
   }
-  throw new Error(lastError || "配对失败");
+  throw new Error(lastError || t("配对失败"));
 }
 
 export function PairingScreen(props: {
@@ -159,7 +160,7 @@ export function PairingScreen(props: {
   const runOffer = async (text: string) => {
     const offer = parseOfferLink(text);
     if (!offer) {
-      setError("二维码不是 tmd-cli 配对码,请扫桌面「Web 访问 → 设备」里的二维码");
+      setError(t("二维码不是 tmd-cli 配对码,请扫桌面「Web 访问 → 设备」里的二维码"));
       return;
     }
     setBusy(true);
@@ -184,10 +185,8 @@ export function PairingScreen(props: {
     const offer = parseOfferLink(host_);
     const urls = offer ? offer.urls : [host_.trim()].filter((u) => /^https?:\/\//.test(u));
     const pairCode = offer ? offer.code : code.trim();
-    if (!urls.length || pairCode.length < 6) {
-      setError("请填主机地址(http://…:端口)与 8 位配对码");
-      return;
-    }
+    if (!urls.length || pairCode.length < 6)
+      return void setError(t("请填主机地址(http://…:端口)与 8 位配对码"));
     setBusy(true);
     try {
       props.onPaired(await pairWithOffer({ code: pairCode, urls, relay: offer?.relay, pin: offer?.pin }));
@@ -207,22 +206,22 @@ export function PairingScreen(props: {
       className="m-fine"
       style={{ background: "none", border: "none", textDecoration: "underline" }}
     >
-      不想重扫?返回 <span className="host-truncate">{props.savedHostName || "上次的连接"}</span>
+      {t("不想重扫?返回")} <span className="host-truncate">{props.savedHostName || t("上次的连接")}</span>
     </button>
   );
 
   if (bridge && !manual) {
     return (
       <div className="m-center">
-        <div className="m-title">连接你的 tmd-cli 桌面</div>
+        <div className="m-title">{t("连接你的 tmd-cli 桌面")}</div>
         <p className="m-sub">
-          桌面端打开 设置 → Web 访问 → 设备,
+          {t("桌面端打开 设置 → Web 访问 → 设备,")}
           <br />
-          扫描屏幕上的配对二维码。
+          {t("扫描屏幕上的配对二维码。")}
         </p>
         {error && <div className="m-err">{error}</div>}
         <button type="button" disabled={busy} onClick={() => void scan()} className="m-btn">
-          {busy ? "配对中…" : "扫码配对"}
+          {busy ? t("配对中…") : t("扫码配对")}
         </button>
         <button
           type="button"
@@ -230,7 +229,7 @@ export function PairingScreen(props: {
           className="m-fine"
           style={{ background: "none", border: "none", textDecoration: "underline" }}
         >
-          扫码不便?手动输入配对码
+          {t("扫码不便?手动输入配对码")}
         </button>
         {back}
       </div>
@@ -239,17 +238,17 @@ export function PairingScreen(props: {
 
   return (
     <div className="m-center">
-      <div className="m-title">连接你的 tmd-cli 桌面</div>
+      <div className="m-title">{t("连接你的 tmd-cli 桌面")}</div>
       <p className="m-sub">
-        桌面端打开 设置 → Web 访问 → 设备,出示配对码;
+        {t("桌面端打开 设置 → Web 访问 → 设备,出示配对码;")}
         <br />
-        可直接把 tmd://pair 链接粘贴到下面的地址框。
+        {t("可直接把 tmd://pair 链接粘贴到下面的地址框。")}
       </p>
       <input
         className="field"
         style={{ width: "100%", fontSize: 14, padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--bg-input)", color: "var(--fg)" }}
-        aria-label="配对链接或主机地址"
-        placeholder="tmd://pair 链接 或 http://192.168.x.x:端口"
+        aria-label={t("配对链接或主机地址")}
+        placeholder={t("tmd://pair 链接 或 http://192.168.x.x:端口")}
         value={host_}
         onChange={(e) => {
           setHost(e.target.value);
@@ -259,12 +258,12 @@ export function PairingScreen(props: {
       />
       <input
         style={{ width: "100%", fontSize: 17, padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--bg-input)", color: "var(--fg)", textAlign: "center", fontFamily: "var(--mono)", letterSpacing: "0.3em", marginBottom: 12 }}
-        aria-label="配对码"
-        placeholder="配对码 XXXX-XXXX"
+        aria-label={t("配对码")}
+        placeholder={t("配对码 XXXX-XXXX")}
         value={code}
         onChange={(e) => setCode(e.target.value.toUpperCase())}
       />
-      {error && <div className="text-[0.8125rem] text-[#ff453a]">{error}</div>}
+      {error && <div className="m-err">{error}</div>}
       <button
         type="button"
         disabled={busy}
@@ -272,15 +271,16 @@ export function PairingScreen(props: {
         className="m-btn"
         style={{ marginBottom: 8 }}
       >
-        {busy ? "配对中…" : "配对"}
+        {busy ? t("配对中…") : t("配对")}
       </button>
       {bridge && (
         <button
           type="button"
           onClick={() => setManual(false)}
-          className="mt-1 text-[0.75rem] text-[#636366] underline underline-offset-2"
+          className="pair-alt"
+          style={{ background: "none", border: "none", textDecoration: "underline", textUnderlineOffset: 2 }}
         >
-          返回扫码
+          {t("返回扫码")}
         </button>
       )}
       {back}

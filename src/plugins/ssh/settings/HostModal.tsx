@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { Eye, EyeClosed, HardDrive } from "@phosphor-icons/react";
 import type { SshHostConfig } from "@kernel/ipc";
+import { sshHostIdentityKey } from "@kernel/sshTypes";
 import { t } from "@kernel/i18n";
 
 export function HostModal({
@@ -21,26 +22,45 @@ export function HostModal({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<SshHostConfig>(host);
+  const [err, setErr] = useState<string | null>(null);
   const isNew = !existing.some((h) => h.id === host.id);
   const set = (patch: Partial<SshHostConfig>) => setDraft((prev) => ({ ...prev, ...patch }));
 
   const submit = () => {
     const hostTrim = draft.host.trim();
     const userTrim = draft.username.trim();
+    /* 端口严格校验(与 WSL 面同簿一制):纯数字串 + 1-65535;
+     * 此前 Number()||0,非法输入落 0 再回落 22 静默入库。 */
+    const portRaw = String(draft.port ?? "");
+    let port = draft.port || 22;
+    if (portRaw !== "" && !/^\d+$/.test(portRaw.trim())) {
+      setErr(t("端口须为 1-65535 的数字"));
+      return;
+    }
+    if (portRaw !== "") {
+      const n = Number(portRaw.trim());
+      if (!Number.isInteger(n) || n < 1 || n > 65535) {
+        setErr(t("端口须为 1-65535 的数字"));
+        return;
+      }
+      port = n;
+    }
     if (!hostTrim || !userTrim) {
-      window.alert(t("主机地址与用户名必填"));
+      /* window.alert 改弹窗内内联红字(与 WSL 面同形制,不抢系统弹层) */
+      setErr(t("主机地址与用户名必填"));
       return;
     }
-    if (existing.some((h) => h.id !== draft.id && h.host === hostTrim && (h.port || 22) === (draft.port || 22) && h.username === userTrim)) {
-      window.alert(t("相同 host:port@user 的主机已存在"));
+    if (existing.some((h) => h.id !== draft.id && sshHostIdentityKey(h) === sshHostIdentityKey({ host: hostTrim, port, username: userTrim }))) {
+      setErr(t("相同 host:port@user 的主机已存在"));
       return;
     }
+    setErr(null);
     onSave({
       ...draft,
       host: hostTrim,
       username: userTrim,
       name: draft.name.trim(),
-      port: draft.port || 22,
+      port,
     });
   };
 
@@ -67,7 +87,13 @@ export function HostModal({
                 value={draft.port || ""}
                 inputMode="numeric"
                 placeholder="22"
-                onChange={(e) => set({ port: Number(e.target.value) || 0 })}
+                onChange={(e) => {
+                  /* 输入即清错(字段级反馈的另一半:报错不黏手);只收数字串, */
+                  if (err) setErr(null);
+                  const v = e.target.value;
+                  /* 严格校验收口在 submit,这里挡 "22abc" 类即时污染 */
+                  set({ port: v === "" ? 0 : /^\d+$/.test(v) ? Number(v) : draft.port });
+                }}
               />
             </label>
             <label>
@@ -149,6 +175,7 @@ export function HostModal({
             </div>
           </div>
         </div>
+        {err && <div className="ssh-modal-err" role="alert">{err}</div>}
         <div className="ssh-modal-actions">
           <button type="button" onClick={onClose}>
             {t("取消")}

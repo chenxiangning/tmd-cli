@@ -69,7 +69,8 @@
   grid-template-columns: 1.5fr 0.9fr;
   gap: 10px 12px;
 }
-.wsl-host-grid label {
+.wsl-host-grid label,
+.wsl-host-grid .wsl-host-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -102,10 +103,47 @@
   justify-content: flex-end;
 }
 
-/* 新建会话菜单提示行(远程 WSL 未探测/无引擎时;SessionMenu/VersionMenu 共用) */
-.wsmenu-note {
-  padding: 2px 10px 6px;
-  color: var(--text-quiet);
-  font-size: 11px;
-  line-height: 1.5;
+
+/* ---- 主机表单字段级标错与密码眼睛(0.2.7 打磨;形制对齐 SSH 簿) ---- */
+.wsl-host-grid input.has-err,
+.wsl-host-grid input[aria-invalid="true"] {
+  border-color: var(--tmd-err);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tmd-err) 18%, transparent);
+}
+.wsl-pw-wrap {
+  position: relative;
+  display: flex;
+}
+.wsl-pw-wrap input {
+  padding-right: 26px;
+}
+.wsl-pw-eye {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--tmd-fg-subtle);
+  cursor: pointer;
+}
+.wsl-pw-eye:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+/* 行内错误条(设默认失败等一次性反馈;5s 自清) */
+.wsl-inline-err {
+  margin: 6px 0 0;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--tmd-err) 40%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tmd-err) 8%, transparent);
+  color: var(--tmd-err);
+  font-size: 0.6875rem;
 }

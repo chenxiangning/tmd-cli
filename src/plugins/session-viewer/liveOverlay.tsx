@@ -1,6 +1,7 @@
 /**
- * 活会话转录浮层 —— 结构化幕布全景视图的画布覆盖 UI(editorCenter.canvasOverlay
+ * 活会话转录浮层 —— 结构化视图全景的画布覆盖 UI(editorCenter.canvasOverlay
  * 挂点;入口切换钮 = livePill.tsx,经 terminal.canvasRow 挂点并入幕布右上工具行)。
+ * 命名契约:入口「结构化视图」/ 出口「PTY实况」,两面一致。
  * 幕布保活零卸载(覆盖不替换,PTY 链路零改动);数据 = 1s 探测短路轮询
  * (fsReadTailChanged 尺寸未变零读取)+ 变更即 readSessionTranscript 全量重读
  * (message 级刷新:JSONL 事件级追加,无 token 粒度——omp 全事件类型实证无
@@ -16,7 +17,7 @@ import { updateSettings, useSettingsState } from "@kernel/settings";
 import type { CliDiskSession, CliTranscriptBlock } from "@kernel/cli";
 import { retryImport } from "@kernel/lazyImport";
 import { TranscriptView } from "./transcriptView";
-import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe } from "./liveMode";
+import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe, stableBlocks } from "./liveMode";
 
 /* md 渲染管线体积大,按需拆包(与 viewerTab 同款纪律)。 */
 const MarkdownBody = lazy(retryImport(() =>
@@ -32,19 +33,6 @@ const RESOLVE_EVERY = 3;
 const RENDER_BATCH = 200;
 /** 贴底跟随判定边距。 */
 const FOLLOW_EDGE = 60;
-
-/** 块引用复用:字段全等的块沿用旧引用 —— react-markdown 零内部缓存,
- * 引用刷新 = 全量重跑 remark/rehype;转录 append-only,下标错位时 id 不等自然回落新引用。 */
-function stableBlocks(prev: CliTranscriptBlock[] | null, next: CliTranscriptBlock[]): CliTranscriptBlock[] {
-  if (!prev) return next;
-  return next.map((b, i) => {
-    const p = prev[i];
-    return p && p.id === b.id && p.role === b.role && p.text === b.text
-      && p.startedAt === b.startedAt && p.images === b.images && p.tool === b.tool
-      ? p
-      : b;
-  });
-}
 
 /* 轮询状态机组件:分支密度是本质复杂度,拆散闭包需传 6 个 ref 弊大于利。 */
 // react-doctor-disable-next-line react-doctor/no-high-complexity-react-function
@@ -81,6 +69,8 @@ export function LiveTranscriptOverlay() {
   const resolveMissRef = useRef(0);
   const sizeRef = useRef<number | null>(null);
   const stickRef = useRef(true);
+  /** 贴底跟随的渲染态镜像(ref 驱滚动逻辑,state 驱「回到底部」浮标显隐)。 */
+  const [atBottom, setAtBottom] = useState(true);
   const pendingRestoreRef = useRef<{ height: number; top: number } | null>(null);
 
   /* 会话/模式切换即整态复位(先于轮询 effect 声明,同拍先清后跑)。 */
@@ -88,6 +78,7 @@ export function LiveTranscriptOverlay() {
     diskRef.current = null;
     sizeRef.current = null;
     stickRef.current = true;
+    setAtBottom(true);
     pendingRestoreRef.current = null;
     sinceRef.current = null;
     setTurnActive(false);
@@ -222,7 +213,9 @@ export function LiveTranscriptOverlay() {
     <div className="sv-root lv-view">
       <header className="sv-header">
         {profile.renderIcon ? <span className="sv-engine-icon">{profile.renderIcon("0.875rem")}</span> : null}
-        <span className="sv-title">{host.getCliSessionId(activeId)?.slice(0, 8) ?? activeId.slice(0, 8)}</span>
+        {/* 主标题 = 会话展示名;引擎会话 id 降为次要 mono 小字(此前 8 位哈希当标题) */}
+        <span className="sv-title">{meta?.title || t("未命名会话")}</span>
+        <span className="sv-sid">{host.getCliSessionId(activeId)?.slice(0, 8) ?? activeId.slice(0, 8)}</span>
         <span className="sv-engine-name">{profile.name}</span>
         {truncated ? <span className="sv-truncated">{t("会话过大,已截断")}</span> : null}
         <button
@@ -237,10 +230,10 @@ export function LiveTranscriptOverlay() {
         <button
           type="button"
           className="lv-close"
-          title={t("返回 PTY 流实况显示")}
+          title={t("返回 PTY 实况")}
           onClick={() => setLiveTranscript(activeId, false)}
         >
-          {t("PTY流")}
+          {t("PTY实况")}
         </button>
       </header>
       <div
@@ -248,7 +241,11 @@ export function LiveTranscriptOverlay() {
         ref={scrollRef}
         onScroll={() => {
           const el = scrollRef.current;
-          if (el) stickRef.current = el.scrollTop + el.clientHeight >= el.scrollHeight - FOLLOW_EDGE;
+          if (el) {
+            const at = el.scrollTop + el.clientHeight >= el.scrollHeight - FOLLOW_EDGE;
+            stickRef.current = at;
+            setAtBottom(at);
+          }
         }}
       >
         {statusText ? <div className="sv-empty">{statusText}</div> : (
@@ -278,6 +275,21 @@ export function LiveTranscriptOverlay() {
           <span className="lv-working-who">{profile.name}</span>
           <span className="lv-working-for">{t("working for")}{elapsed}s</span>
         </div>
+      ) : null}
+      {/* 上翻停跟后的回底出口(流式仍在涨,不拽用户视线,只给一键回底) */}
+      {!atBottom ? (
+        <button
+          type="button"
+          className="lv-backto"
+          onClick={() => {
+            const el = scrollRef.current;
+            if (el) el.scrollTop = el.scrollHeight;
+            stickRef.current = true;
+            setAtBottom(true);
+          }}
+        >
+          {t("回到底部")}
+        </button>
       ) : null}
     </div>
   );

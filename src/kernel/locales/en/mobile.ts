@@ -40,8 +40,12 @@ export const MESSAGES = {
   "切换横竖屏": "Toggle orientation",
   "竖屏": "Portrait",
   "横屏": "Landscape",
-  "输入消息,回车发送…": "Type a message, Enter to send…",
+  "输入消息…": "Type a message…",
   "发送": "Send",
+  "发送失败,消息已保留": "Send failed, message kept",
+  "选图失败,请重试": "Image pick failed, please retry",
+  "查看大图": "View full image",
+  "图片预览": "Image preview",
   "没有可用工作区": "No workspaces available",
   "未连接桌面:连接恢复后再发起会话(右上 ⇄ 可手动重试)":
     "Desktop not connected: start sessions after reconnecting (top-right ⇄ to retry)",
@@ -81,7 +85,68 @@ export const MESSAGES = {
   "远端分支": "Remote branches",
   "键盘工具条": "Keyboard toolbar",
 
+  /* git 回执与三态提示(2026-09-27 手机静态批) */
+  "已是最新": "Up to date",
+  "获取完成,更新 {n} 个远端引用": "Fetch complete: {n} remote refs updated",
+  "已推送 {n} 个提交": "Pushed {n} commits",
+  "已拉取 {c} 个提交,变更 {f} 个文件(+{i}/-{d})": "Pulled {c} commits, {f} files changed (+{i}/-{d})",
+  "加载更多": "Load more",
+  "已显示全部 {n} 条提交": "All {n} commits shown",
+  "改动清单加载失败": "Failed to load changed files",
+  "该提交无文件改动": "No file changes in this commit",
+  "完整列表与切换请在桌面查看": "Full list and switching are available on the desktop",
+  "已显示最近 {n} 轮,更早内容在桌面客户端查看":
+    "Showing the last {n} turns — view earlier content in the desktop app",
+
   /* 截图注入(2026-09-26 批次六) */
   "注入截图": "Attach screenshot",
   "移除图片": "Remove image",
+
+  /* 通知与生命周期(2026-09-30 手机批) */
+  "会话已退出": "Session ended",
+
+  /* 配对屏/闸屏/相对时间(2026-09-28 i18n 收尾批) */
+  "配对码不正确": "Incorrect pairing code",
+  "配对码已过期,桌面重新出码": "Pairing code expired — generate a new one on the desktop",
+  "尝试过多,稍后再试": "Too many attempts, try again later",
+  "配对失败({status})": "Pairing failed ({status})",
+  "无法连接主机,检查地址与同一网络": "Cannot reach the host — check the address and shared network",
+  "手机": "Phone",
+  "配对失败": "Pairing failed",
+  "二维码不是 tmd-cli 配对码,请扫桌面「Web 访问 → 设备」里的二维码":
+    "That QR code is not a tmd-cli pairing code — scan the one under Settings → Web Access → Devices on the desktop",
+  "请填主机地址(http://…:端口)与 8 位配对码":
+    "Enter the host address (http://…:port) and the 8-character pairing code",
+  "不想重扫?返回": "Don't want to rescan? Back to ",
+  "上次的连接": "previous connection",
+  "连接你的 tmd-cli 桌面": "Connect to your tmd-cli desktop",
+  "桌面端打开 设置 → Web 访问 → 设备,": "On the desktop, open Settings → Web Access → Devices,",
+  "扫描屏幕上的配对二维码。": "then scan the pairing QR code shown on screen.",
+  "配对中…": "Pairing…",
+  "扫码配对": "Pair by scanning",
+  "扫码不便?手动输入配对码": "Scanning inconvenient? Enter the code manually",
+  "桌面端打开 设置 → Web 访问 → 设备,出示配对码;":
+    "On the desktop, open Settings → Web Access → Devices and show the pairing code;",
+  "可直接把 tmd://pair 链接粘贴到下面的地址框。":
+    "you can also paste the tmd://pair link into the address field below.",
+  "配对链接或主机地址": "Pairing link or host address",
+  "tmd://pair 链接 或 http://192.168.x.x:端口": "tmd://pair link or http://192.168.x.x:port",
+  "配对码": "Pairing code",
+  "配对码 XXXX-XXXX": "Pairing code XXXX-XXXX",
+  "配对": "Pair",
+  "返回扫码": "Back to scanning",
+  "桌面端协议不兼容": "Desktop protocol incompatible",
+  "当前桌面 {v},缺 {cap} 能力;": "Desktop is on {v}, missing the {cap} capability;",
+  "请在桌面端升级 tmd-cli 后重试。": "Please upgrade tmd-cli on the desktop and retry.",
+  "重新检测": "Check again",
+  "重新配对": "Re-pair",
+  "界面渲染出错": "UI rendering error",
+  "重新加载": "Reload",
+  "{n} 秒": "{n}s",
+  "{n} 分": "{n}m",
+  "{n} 时": "{n}h",
+  "{n} 天": "{n}d",
+  "拉取中…": "Pulling…",
+  "推送中…": "Pushing…",
+  "获取中…": "Fetching…",
 } as Record<string, string>;

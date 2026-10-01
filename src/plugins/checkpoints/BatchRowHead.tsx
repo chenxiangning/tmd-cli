@@ -10,6 +10,7 @@ import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { getCachedDiff } from "./diffCache";
 import { openBatchTab } from "./batchTab";
 import { STATE_META, batchState, type BatchStateKey, type BatchStateMeta } from "./batchStateMeta";
+import { countHighRisk } from "./risk";
 
 /** 批头悬浮文案:发起/封口时刻(降分支拆件)。 */
 function headTitle(b: CkptBatch): string {
@@ -110,6 +111,8 @@ export function BatchHeadButton({
   const st = batchState(b);
   const meta = STATE_META[st];
   const stats = batchStats(getCachedDiff(cwd, sessionId, b.id));
+  /* 高危计数 pill:批未展开也能一眼看到该批含敏感路径文件(0 不出,宁缺勿噪)。 */
+  const highRisk = countHighRisk(b.files.map((f) => f.path));
   return (
     <button
       type="button"
@@ -125,6 +128,14 @@ export function BatchHeadButton({
         <BatchPromptLine b={b} st={st} />
         <span className="mt-px flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-[0.6875rem] text-(--tmd-fg-faint)">
           <span className="flex-none">{t("{n} 文件", { n: b.files.length })}</span>
+          {highRisk > 0 && (
+            <span
+              className="flex-none rounded bg-(--tmd-diff-removed)/15 px-1 text-[0.625rem] font-bold leading-[0.875rem] text-(--tmd-diff-removed)"
+              title={t("本批含 {n} 个高危文件(凭据/Shell 配置/CI/服务),建议细读 diff 再放行", { n: highRisk })}
+            >
+              {t("{n} 高危", { n: highRisk })}
+            </span>
+          )}
           {stats && (
             <span className="flex-none font-mono">
               <span className="text-(--tmd-diff-inserted)">+{stats.ins}</span>{" "}

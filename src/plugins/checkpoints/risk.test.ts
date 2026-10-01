@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyRisk } from "./risk";
+import { classifyRisk, countHighRisk } from "./risk";
 
 describe("classifyRisk", () => {
   it("凭据/Shell 配置/CI/服务定义 = high", () => {
@@ -36,5 +36,17 @@ describe("classifyRisk", () => {
     expect(classifyRisk("deploy/SERVER.KEY")).toBe("high");
     expect(classifyRisk("DOCKERFILE")).toBe("high");
     expect(classifyRisk(".GITHUB/workflows/ci.yml")).toBe("high");
+  });
+});
+
+describe("countHighRisk(批头/摘要行计数 pill)", () => {
+  it("只数命中条;与 classifyRisk 同一规则源", () => {
+    expect(countHighRisk([])).toBe(0);
+    expect(countHighRisk(["src/main.rs", "docs/a.md"])).toBe(0);
+    expect(countHighRisk(["src/main.rs", ".env", "deploy/server.pem", "README.md"])).toBe(2);
+  });
+
+  it("反斜杠/大小写形态与单条判定一致", () => {
+    expect(countHighRisk([".ssh\\config", "KEYS/ID_RSA", "src/a.ts"])).toBe(2);
   });
 });

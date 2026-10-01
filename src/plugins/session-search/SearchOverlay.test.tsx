@@ -1,6 +1,6 @@
 /**
  * SearchOverlay 键盘导航呈现契约(node 环境 renderToStaticMarkup,ResultBody 测试缝):
- * 选中行唯一且带 data-sel;越界收口后不误选;无命中零选中。
+ * 选中行唯一且带 data-sel;越界收口后不误选;无命中零选中;命中词 <mark> 高亮。
  * 按键分发(ArrowDown/Up/Enter)在组件 input,走桩目检。
  */
 import { renderToStaticMarkup } from "react-dom/server";
@@ -9,10 +9,11 @@ import { describe, expect, it } from "vitest";
 import type { SessionSearchHit } from "./indexer";
 import { ResultBody } from "./SearchOverlay";
 
-function hit(n: string): SessionSearchHit {
+function hit(n: string, matchToken = "no-token"): SessionSearchHit {
   return {
     entry: { profileId: "omp", cliSessionId: n, modifiedAt: 0, messages: [] },
     snippet: `片段 ${n}`,
+    matchToken,
     inTitle: false,
   };
 }
@@ -38,5 +39,18 @@ describe("ResultBody 选中呈现", () => {
       createElement(ResultBody, { ...base, hits: [], active: -1, onOpen: () => undefined }),
     );
     expect(html).not.toContain("data-sel");
+  });
+
+  it("命中词 <mark> 高亮:snippet 按命中词切三段拼节点", () => {
+    const html = renderToStaticMarkup(
+      createElement(ResultBody, {
+        ...base,
+        hits: [hit("k", "片段")],
+        active: 0,
+        onOpen: () => undefined,
+      }),
+    );
+    expect(html).toContain("<mark");
+    expect(html).toContain("片段</mark> k");
   });
 });

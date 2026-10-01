@@ -182,7 +182,8 @@ export function OpenWithTab() {
           <Plus size="0.875rem" aria-hidden />
           {t("添加打开方式")}
         </button>
-        <div className="ow-help">{t("文件底部工具条右侧用默认应用直开;菜单里选择即设为默认并打开。")}</div>
+        <div className="ow-help">{t("文件底部工具条右侧用默认应用直开;菜单里选择即按文件扩展名记忆并打开。")}</div>
+        <div className="ow-help">{t("按扩展名记忆的默认只作用于该类型;未记忆的类型与无扩展名文件回落此处的全局默认。")}</div>
         <div className="ow-help">{t("命令类只填可执行文件名,参数写 args 字段(空格串会被当作路径查找而失败)。")}</div>
       </div>
       {adding && (

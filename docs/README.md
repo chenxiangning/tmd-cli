@@ -237,4 +237,10 @@
 | 2026-09-30 | [daily-journal 手动发起总结/增量更新入口:文章 tab 顶栏状态自适应按钮 + 月格全状态扩展(增量并入/生成此日/重试生成三态共用判定)](superpowers/specs/2026-09-30-daily-journal-manual-increment-design.md) | 已实现(门禁全绿;真机目检留大仙) |
 | 2026-09-30 | [活会话结构化视图设计(幕布|转录双视图:canvasOverlay 画布浮层挂点 + 1s 探测短路轮询 + 变更即全量重读 message 级刷新;幕布保活零卸载,PTY 零改动)](superpowers/specs/2026-09-30-live-transcript-view-design.md) | 已实现(门禁全绿;1421 桩目检过;真机验收留大仙,未提交) |
 | 2026-09-30 | [结构化会话设计(RPC 驱动,omp/pi 先行:Rust proc_stream 通用流式子进程原语 + cli-shared piRpc 客户端/reducer + structured-session 插件中央 tab;token 级流式;PTY 零改动;观察者/双开/改 PTY 三路实验否决记录)](superpowers/specs/2026-09-30-structured-session-rpc-design.md) | 已实现(门禁全绿;真机验收留大仙,Rust 改动须重启 tauri:dev,未提交) |
+| 2026-10-01 | [0.2.5→0.2.7 界面打磨调研与实施(交互 × UI 美观度:structured-session/手机/WSL/壳层/日志五面 65 项发现全量实施;keepAlive tab 保活契约;门禁全绿含 react-doctor 100;未提交)](research/ui-polish-0.2.5-to-0.2.7.md) | 已实施(六项门禁全绿;真机目检留大仙;未提交) |
+| 2026-10-01 | [近半个月发布内容梳理与打磨审计(v0.1.9..v0.2.7 双端:9 版功能地图 / demo 级分级判定 / P0×3+P1×30+P2×45 / 引擎覆盖度矩阵 / 五横切模式;5 路代码级审计,未提交)](research/client-polish-half-month-audit.md) | 已完成(发现已全部实施,见同日 spec 实施注记) |
+| 2026-10-01 | [客户端界面与功能交互打磨设计方案(分级治理,双端:补全/收敛/下线/留观四档裁决表 + 三波实施 + 四统一机制;用户拍板取向=分级治理、范围=桌面+手机)](superpowers/specs/2026-10-01-client-polish-plan-design.md) | 已实施(待用户检查;未提交) |
+| 2026-10-01 | [工作区全量变更检查清单(266 文件:两轮打磨叠加,按域列变更文件/内容/影响范围/检查方式与建议检查顺序;未提交)](review/2026-10-01-polish-worktree-review-manifest.md) | 供逐项检查 |
+| 2026-10-01 | [工作区死代码评审与清理(四路 grep 实证:零孤儿文件;修 1 个 YearView 热力前缀回归 + 删史前死类/死键 + 弱导出收敛 + useFocusTrap 五副本沉 kernel;门禁全绿;未提交)](review/2026-10-01-deadcode-review.md) | 已完成 |
+| 2026-10-01 | [工作区全量变更五路 code review(边界/性能/兼容/交互/外观:30+ 疑似逐条核实,真实问题 2 项已修——接力截断代理对 + cargo fmt;误报核实摘录防重查;门禁全绿;未提交)](review/2026-10-01-worktree-five-track-review.md) | 已完成 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

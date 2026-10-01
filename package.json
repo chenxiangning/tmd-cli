@@ -24,6 +24,7 @@
     "test": "vitest run",
     "check:file-size": "node scripts/check-file-size.mjs",
     "check:arch-boundary": "node scripts/check-arch-boundary.mjs",
+    "check:i18n-keys": "node scripts/check-i18n-keys.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

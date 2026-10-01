@@ -96,8 +96,9 @@ export function TurnsView(props: { turns: TranscriptTurn[] }) {
   );
 }
 
-/** ask 审批卡:活流尾窗命中等待标记时出现;允许/拒绝 = 与幕布按键同一 session_write。 */
-export function AskCard(props: { q: string | null; onAnswer: (data: string) => void }) {
+/** ask 审批卡:活流尾窗命中等待标记时出现;允许/拒绝 = 与幕布按键同一 session_write。
+ *  busy = 应答在途(双钮禁用,外网 RTT 双击不双写)。 */
+export function AskCard(props: { q: string | null; onAnswer: (data: string) => void; busy?: boolean }) {
   return (
     <div className="ask">
       <div className="ask-head">⚠ {t("审批请求")}</div>
@@ -105,10 +106,10 @@ export function AskCard(props: { q: string | null; onAnswer: (data: string) => v
         {props.q ?? t("CLI 正在等待确认;「允许」发送 Enter,「拒绝」发送 Esc")}
       </div>
       <div className="ask-opts">
-        <button type="button" className="opt yes" onClick={() => props.onAnswer("\r")}>
+        <button type="button" className="opt yes" disabled={props.busy} onClick={() => props.onAnswer("\r")}>
           {t("允许")}
         </button>
-        <button type="button" className="opt no" onClick={() => props.onAnswer("\x1b")}>
+        <button type="button" className="opt no" disabled={props.busy} onClick={() => props.onAnswer("\x1b")}>
           {t("拒绝")}
         </button>
       </div>

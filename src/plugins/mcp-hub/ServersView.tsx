@@ -1,8 +1,9 @@
 /**
  * server 卡片列表视图 —— 选中引擎的 server 增删改查入口 + 行内连通测试徽标。
  * 读失败 = 错误态 + 原始文件预览(拒编辑防覆写);文件缺失(JSON 家)=
- * 「尚未创建,首存即建」空态。删除走 window.confirm(workspace/local-loader
- * 同先例);测试结果为组件局部态,不产生任何持久状态。
+ * 「尚未创建,首存即建」空态。删除走仓内确认浮层(skill-hub 已装删除弹窗
+ * 同形制:遮罩 + elevated 卡 + err 实心确认钮);测试结果为组件局部态,
+ * 不产生任何持久状态。
  */
 import { useState } from "react";
 import { Plus, Play, PencilSimple, TrashSimple, FileText } from "@phosphor-icons/react";
@@ -44,7 +45,9 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
   const [editing, setEditing] = useState<{ name: string | null; entry: McpServerEntry } | null>(null);
   const [probes, setProbes] = useState<Record<string, ProbeResult | "pending">>({});
   const [showRaw, setShowRaw] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   const names = engine.entries ? Object.keys(engine.entries) : [];
 
@@ -55,18 +58,20 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
     void probeServer(entry).then((r) => setProbes((p) => ({ ...p, [name]: r })));
   };
 
-  const doRemove = async (name: string) => {
-    if (!window.confirm(t("删除 {engine} 的 server「{name}」?(各家方言:删除即卸载)", { engine: engine.name, name }))) {
-      return;
-    }
-    setBusy(true);
+  /* 确认浮层内执行删除;失败保留弹窗显错(错误原文不截断)。 */
+  const doRemove = async (): Promise<void> => {
+    if (pendingRemove === null) return;
+    setRemoving(true);
+    setRemoveError(null);
     try {
-      await removeServer(engine, name);
+      await removeServer(engine, pendingRemove);
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e));
+      setRemoveError(e instanceof Error ? e.message : String(e));
+      return;
     } finally {
-      setBusy(false);
+      setRemoving(false);
     }
+    setPendingRemove(null);
   };
 
   if (engine.entries === null) {
@@ -86,7 +91,7 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
   }
 
   return (
-    <div className="px-4 py-3">
+    <div className="relative px-4 py-3">
       <div className="mb-2 flex items-center justify-between">
         <div className="min-w-0 text-[0.625rem] leading-relaxed text-(--tmd-fg-faint)">
           <span className="break-all">{engine.displayPath}</span>
@@ -140,8 +145,8 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
                       type="button"
                       className="mcphub-icon-btn hover:text-(--tmd-diff-removed)"
                       title={t("删除")}
-                      disabled={busy}
-                      onClick={() => void doRemove(name)}
+                      disabled={removing}
+                      onClick={() => setPendingRemove(name)}
                     >
                       <TrashSimple size={12} aria-hidden />
                     </button>
@@ -168,6 +173,46 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
           initialEntry={editing.entry}
           onClose={() => setEditing(null)}
         />
+      )}
+
+      {pendingRemove !== null && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30">
+          <div
+            className="w-80 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-4 shadow-xl"
+            data-mcphub-remove-confirm={pendingRemove}
+          >
+            <div className="mb-2 text-xs font-medium">
+              {t("删除 {engine} 的 server「{name}」?(各家方言:删除即卸载)", {
+                engine: engine.name,
+                name: pendingRemove,
+              })}
+            </div>
+            {removeError && (
+              <div className="mb-2 break-all text-[11px] text-(--tmd-err)">{removeError}</div>
+            )}
+            <div className="mb-3 text-[11px] text-(--tmd-fg-faint)">
+              {t("从配置文件移除该条目;已开的会话不受影响")}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingRemove(null)}
+                disabled={removing}
+                className="rounded border border-(--tmd-border) px-2.5 py-1 text-xs hover:bg-(--tmd-bg-hover) disabled:opacity-40"
+              >
+                {t("取消")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void doRemove()}
+                disabled={removing}
+                className="rounded bg-(--tmd-err) px-2.5 py-1 text-xs text-white disabled:opacity-50"
+              >
+                {removing ? t("删除中…") : t("删除")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

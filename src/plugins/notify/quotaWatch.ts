@@ -5,12 +5,31 @@
  */
 
 import type { QuotaWindow } from "@kernel/quota";
+import type { SessionMeta } from "@kernel/ipc";
 
 /** 首次抓取延迟(应用启动后 30s,让网络与凭据先就绪)。 */
 export const QUOTA_POLL_FIRST_MS = 30_000;
 
 /** 轮询间隔(10 分钟;额度 API 均有频控,不激进)。 */
 export const QUOTA_POLL_INTERVAL_MS = 10 * 60_000;
+
+/** 额度监控会话集合:运行中会话 ∪ 平铺幕布(kept 序),按 id 去重保序
+ *  (运行中在前 —— 同供应商取到的抓取参数偏向真在跑的会话)。
+ *  供应商级去重由消费侧按 profileId 归并;kept 里的死 id 找不到会话即忽略。 */
+export function watchedQuotaSessions(
+  sessions: readonly SessionMeta[],
+  keptIds: readonly string[],
+): SessionMeta[] {
+  const byId = new Map(sessions.map((s) => [s.id, s] as const));
+  const out: SessionMeta[] = [];
+  const seen = new Set<string>();
+  for (const s of [...sessions, ...keptIds.flatMap((id) => byId.get(id) ?? [])]) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    out.push(s);
+  }
+  return out;
+}
 
 /**
  * 从窗口列表挑出本次要告警的窗口;命中即记入 seen(跨轮询去重)。

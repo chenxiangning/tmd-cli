@@ -20,10 +20,17 @@
 
 > 2026-09-25 补校:自建中继「部署历史」落盘(settings.relayDeployHistory,一键部署成功后 Rust 写连接信息+密码,不含私钥内容,明文纪律同 ssh.hosts;历史列表点选整表回填免重输,上限 10 条);外网 tab「使用流程」文案大白话重写;远程控制徽标迁顶栏左区最左 + 点击深链设备 tab;图标装饰 7→12 键。
 > 2026-09-27 全量补校(0.2.x 增量域):CLI 学堂(academy)、统一搜索折叠入口、会话历史检索(session-search)、跨引擎接力(session-relay)、审批收件箱(approval-inbox)、提示词增强(prompt-enhancer)、系统通知(notify)、异常退出 toast、会话卫生清扫、Worktree 关联管理(常驻区/三分区/侧栏归簇)、右缘面板 rail、部署历史含口令回填、手机截图注入;插件计数 32→38(10 engine / 24 feature / 3 core / 1 local)。契约沉淀:`docs/architecture/15`(学堂)、`16`(worktree)、`12`(部署历史与凭据口径)。
+> 2026-10-01 打磨轮补校(分级治理实施,spec 见 `docs/superpowers/specs/2026-10-01-client-polish-plan-design.md`,调研底稿 `docs/research/client-polish-half-month-audit.md`):审批高危红标右栏生效、会话检索多词高亮过滤、接力摘要截断、系统通知点击深链与多幕布额度、学堂引擎闸与版本漂移提示、skill-hub 更新闭环(已装视图经用户裁定维持安装记录制,不合并磁盘扫描)、mcp-hub 文案分源与删除浮层、意图画布 inbox 常驻轮询、LSP 手势反馈与永不再弹、marks i18n 接通与失锚重锚、看板错误条与渲染预算、打开方式失败 toast 与键盘导航、结构化会话部件 notice 与 exited 重开、每日日志无头徽标与便签确认、转录浮标分档、WSL 目录直达与远程降级横幅、Web 访问二维码与桥事件订阅、壁纸 lite 删除、卫生清扫如实文案、Git split 渲染预算、worktree 加载态、五弹层 a11y、手机通知链路重做等 13 项、i18n 缺键清零(check:i18n-keys 检查脚本入 package.json);插件计数不变(38)。另:0.2.5+ hub 域(画布/skill/mcp/日志)此前仅有校准注记无正文条目,本轮增设「能力 Hub」域段落承接。
 
 ## 工作区会话
 - 异常退出通知与一键续聊(ExitSessionToast):PTY 退出码打通(portable-pty → pty://exit 载荷),内核补发 sessionExitedDetail 详情事件;非 0/非 130 异常退出弹右下角 toast(12s TTL),续聊钮 = openDiskSession 原样 resume(shell/无磁盘身份不渲染)
 - 会话历史检索(session-search 插件):命令 `session-search.open` 开居中浮层,按用户输入全文(各 CLI profile 的 readSessionUserMessages,锚点栏同源)与磁盘标题检索当前工作区历史会话;索引增量构建(60ms/会话,mtime 缓存零重读),命中 openDiskSession 一键续聊;命中行带会话用量徽标(纯解析层下沉 cli-shared/sessionUsage,与首页 TOKENS 同源)
+- 会话检索增强:多关键词 AND 匹配、命中词高亮、引擎过滤 chip
+- 学堂打磨(academy):「试一试」引擎前置闸、课程 sourceVersion 与装机版本漂移提示、左轨课程列表键盘导航
+- 结构化会话打磨(structured-session):非 confirm 部件自动取消在转录出 notice(不再静默替答)、exited 一键重新开启、入口按引擎能力显隐(死入口清零)、prompt 请求超时独立常量
+- 转录浮标分档(session-viewer liveOverlay):按文件型会话显隐,非文件型引擎不露浮标
+- 会话看板打磨(session-board):扫描失败显式错误条 + 重试(不伪装 0 会话)、图例可读性修正、泳道卡渲染预算
+- 卫生清扫如实文案:清扫挂磁盘扫描结算点,回执数据不可得,设置卡如实说明不虚设回执
 
 - 添加工作区(目录选择器),工作区即会话容器;持久化 `~/.tmd-cli/workspaces.json`(列表 + 激活项,Rust 侧临时文件 + rename 原子写)
 - 默认工作区兜底:列表缺失时自动补建 `~/.tmd-cli/default` 于首位,删除后重启重建
@@ -98,6 +105,7 @@
 
 ## Ask 等待确认与提示音
 - 系统通知(notify 插件):窗口失焦时桌面级提醒——Ask 等待 / 轮次结束(仅未查看)/ 会话退出(默认关)/ 额度撞墙预警(激活会话供应商 10 分钟轮询,窗口已用 % 过阈一次/窗口周期,0=关);通道 = tauri-plugin-notification 经 kernel/ipc 薄包装,web 态不发射
+- 系统通知点击动作:点击聚焦窗口(桌面最小档,不支持通知 action 的环境重聚焦时补发深链);额度监控范围扩「运行中 ∪ 平铺幕布」供应商
 - Ask 等待确认检测:内核单点检测 PTY 输出中 CLI 阻塞等待确认的界面标记(跨分片 / 夹杂 ANSI 均可命中)
 - Ask 标记来源:内核硬编码正则(omp Ask 面板 / 通用选择页脚 / y-n 提问 / claude 权限句式),非 CLI profile 声明
 - Ask 页脚窗口:标记只认剥 ANSI 后的末 5 行,原始尾巴按 1024 字符跨分片拼接;标记滚出页脚(正文/历史帧残留)不触发
@@ -119,6 +127,7 @@
 
 ## 对话框(Composer)
 - 跨引擎接力(session-relay 插件):命令 `session-relay.to-engine` 把当前会话最近 10 条用户输入 + 引擎/标题/模型拼成接力提示词,可预览编辑后向目标引擎的新会话(同 cwd/工作区)作为首条消息发出;首发走 composer 发送契约,重试复用会话不堆空壳
+- 接力摘要截断(session-relay):单条 500 字 / 总长 8KB 截断并在预览明示
 - 增强提示词(prompt-enhancer 插件):composer 左下 ✦ 入口,取输入框草稿交一次性 CLI 改写(proc_communicate 通用原语,8 家 argv 组装收口插件侧),并排对照后一键整替草稿
 
 - 富输入 textarea,发送快捷键可配置(Enter 发送/Shift+Enter 换行,或 ⌘/Ctrl+Enter 模式互换)
@@ -158,6 +167,7 @@
 
 ## 审批线
 - 危险度分层(checkpoints risk):批内文件按路径正则(凭据/Shell 配置/CI/服务定义,保守 14 条)标「高危」红徽标 + tooltip,提示细读 diff;classifyRisk 纯函数宁漏勿扰
+- 高危红标右栏生效:右栏时间线文件行红徽标 + 批头/摘要行高危计数(原先仅中央批审阅单,整批「允许」按钮所在面补齐)
 - 审批收件箱(approval-inbox 插件):右栏「审批」页签聚合等待确认的会话(纯消费 kernel/askWatch 状态位,零新增检测),一键直达该会话并自由文本应答;boot 退订随 activate 返回
 
 - 批次定义:一轮对话(相邻两条用户消息之间)的所有 AI 文件改动为一个批次
@@ -206,6 +216,8 @@
 - Git 面板「工作树」常驻区(WorktreeZone,多树仓才出现):三态卡(主仓/当前/悬空)= 路径 + 分支 + 每树脏净徽章(+/- 计数)+ 动作(打开为工作区 / 在此树开终端 / 移除两段确认);弹窗(工具条 TreeStructure 钮)降级为「+ 新建」入口,增删清后 bumpGitRefresh 全区同步重拉
 - 分支列表按检出归属三分区:主仓检出 / 检出于某树(按树子组标注当前)/ 未检出(行尾「建树」预填弹窗检出已有分支);检出中分支不给删除钮(git 必拒);非仓/单树仓回退平铺零 UI 变更;同仓 worktree 列表面板期在途合并只 spawn 一次
 - 侧栏同仓归簇(workspace 插件):懒加载 worktree list 归簇(60s TTL + 失败 10s 负缓存),主仓卡在前 + worktree 卡平级跟随、上下虚线框共组,worktree 卡图标 GitFork;孤 worktree 平铺不框;roots 引用钉住 + setState 等值兜底(渲染循环防线)
+- Worktree 列表加载态:列表拉取期加载指示,失败与空态分流
+- Git 双栏渲染预算:split 态行级渲染预算(与 unified 态对齐,超大 diff 不卡)
 
 - 单视图三段:差异 / 分支 / 历史,外观对齐 codemoss(契约见 `openspec/changes/archive/2026-09-02-git-right-panel/`)
 - 勾选文件 + 写消息 + 提交一次完成;commit 执行权仅面板按钮,composer `/commit <msg>` 仅预填
@@ -246,6 +258,9 @@
 ## 文件与编辑器
 
 - 全文搜索面板与文件名快开(search 插件):⇧⌘F 全文(即时扫描 Rust `fs_search`,输入防抖 + 命中分组,点行开编辑 tab 定位行)/ ⌘P 文件快开(全仓模糊);浮层壳统一自靶关闭 + 容器级 Esc + Enter 首开 + 列举失败分流;入口收进侧栏统一搜索折叠菜单
+- LSP 手势反馈:server 失败 toast(60s 节流)+ 四语言(TS/JS/Py/Java)之外轻提示;「暂不安装」永不再弹持久化
+- 文件标记打磨(marks):状态徽标 i18n 接通(t() 包裹)、失锚标记指纹重锚辅助、注入模板随界面语言
+- 打开方式打磨(open-with):外部打开失败 toast、菜单键盘导航、默认应用按扩展名记忆
 - 文件树:单层懒展开,目录排前;过滤仅隐藏 .git 目录与 .DS_Store,其余 dotfile 正常展示
 - 文件树右键:新建文件 / 新建文件夹 / 重命名 / 复制路径 / 在访达中显示 / 移入废纸篓;写操作全经 Rust fs_edit(绝对路径,禁 .git 段,写上限 16MB)
 - 树空白区右键:仅新建文件/新建文件夹两项(落树根);文件行上新建落其父目录;菜单 portal + Esc/背板关闭 + 视口夹取
@@ -284,6 +299,8 @@
 ## 设置与外观
 
 - 设置面板:overlay 常驻,section/tab 经 settingsRegistry 注册表扩展;左下角齿轮菜单「设置」进入,Esc 或「返回应用」关闭
+- Web 访问设置打磨:中继卡二维码、风险门「取消」可出 + 设置内重看入口、桥状态事件订阅(弃定时盲刷)
+- i18n 缺键清零:全仓 t() 字面量 × 三语词典 diff 清零,check:i18n-keys 检查脚本入 package.json
 - 外观 tab:主题跟随系统/浅色/深色/自定义 4 档 + 31 个 VS Code preset 网格(浅 19 深 12,仅自定义模式展开,点选即写 custom;内核 theme 引擎,--tmd-* token 派生)
 - 跟随系统模式监听系统深浅色切换即时换肤;主题变更同步重刷终端幕布配色
 - 语言 i18n:设置/外观三语切换(简体中文/English/日本語),全 app 文案经 kernel/i18n t() 查表,切换即整树重挂载即时生效;缺失词条回落源中文;相对时间/日期随语言走 Intl 本地化
@@ -306,6 +323,7 @@
 ## 工作区壁纸
 
 - 背景三态:关 / 流体着色器(WebGL,GLSL 五运动场 × 预设色调,明暗随主题)/ 本地图库图片(cover/contain/center/fill + 模糊 0-40 + 加暗 0-80)
+- 壁纸打磨:lite 低性能档删除(死代码清零);预设标签语言热切换(顶层 t() 固化修复)
 - 本地图库:系统选图导入受管副本(`~/.tmd-cli/wallpapers/`),sourcePath 去重复用;png/jpg/jpeg/webp/gif/bmp;条目隐藏/显示、轮播(5/15/30/60 分钟)
 - 表面 token 打穿:六表面 token 换半透明 color-mix(快照原色,保留自定义主题真实底色),浮层菜单/popover 保实底可读;关壁纸按快照原值还原
 - xterm 透底:终端底色走 --tmd-terminal-bg 打穿,主题/打穿变更经主题桥通知活幕布即时重读
@@ -331,6 +349,13 @@
 - 能力面:permissions 声明 mounts/settings/commands,挂点 UI/命令/设置分区经 activate(ctx) 注册面登记,与内置插件同纪律
 - 版本库:`.versions/{version}-{hash8}.js` 每次信任确认归档内容快照(保留 5 份 mtime 淘汰),回退即换回 bundle 并对齐 manifest 版本号;版本历史按内容 hash 去重
 - 准入联动:composer 抽屉与命令面板同步纳入本地插件贡献(与 feature 类同通道)
+
+## 能力 Hub(意图画布 / skill-hub / mcp-hub / 每日日志)
+
+- 意图画布打磨(intent-canvas):AI 作画收件箱 activate 级常驻轮询 + 导入通知(聚焦 rail toast / 失焦 OS 通知深链);作画目标缺省最近画布;注入 preamble 随界面语言
+- skill-hub 打磨:商店版本比对与一键更新(已装视图维持安装记录制,手装技能经「本地导入」管理;2026-10-01 用户裁定回退合并方案)
+- mcp-hub 打磨:三源错误文案分源;删除确认改仓内浮层形制(弃原生 confirm)
+- 每日日志打磨(daily-journal):生成引擎「无头 / TUI 兜底」形态徽标;dsh 剔出生成引擎;模型栏对不支持家如实禁用;便签 Esc 弃稿确认
 
 ## 欢迎页
 
@@ -368,6 +393,7 @@
 
 - WSL 发行版连接双形态:本机 wsl.exe(UNC `\\wsl.localhost\<distro>\…` 工作区)与远程 Windows 宿主经 SSH 通道(root 落 `~` 波浪 posix 路径);远程主机簿复用 SSH 设置
 - 添加工作区路径闸:本机仅收绝对路径、远程保 `~` 惯例只拦裸 `~`,杜绝 `~` 拼进发行版名的假 UNC(WSL_E_DISTRO_NOT_FOUND 根治)
+- WSL 打磨:目录浏览器路径直达(直接输入/粘贴跳转)、远程工作区 Git 面板降级横幅(契约 09「降级提示不静默」兑现)
 - 双通道 spawn 包装:本机 `wsl.exe -d <distro> --cd <path> -- bash -lc '<引擎>'`,远程作为 SSH 会话 PTY 内首命令;发行版/路径双引号包裹(宿主可能是 PowerShell),复杂脚本走 b64 载荷传输
 - 引擎探针:登录 shell 语义逐 bin 探测,`/mnt/*` 互操作检出过滤(防十个引擎九个误报);会话内缓存,未探测 = 空列表 + 引导 note(不显示不可用 CLI)
 - 远程历史与状态:一次 exec 列目录头(slug 先归一 `~` 再匹配 $HOME)+ 尾窗 256KB 状态;点历史行显式绑定恢复,全新会话按「createdAt ≥ spawn-5s」启发式绑定
@@ -399,6 +425,7 @@
 ## 外壳与窗口
 
 - 窗口:默认 1440×900、最小 960×600;macOS 悬浮式标题栏,Windows 无系统装饰
+- 弹层 a11y 基建:发送确认 / 接力 / 检索 / 工作树管理 / 学堂向导五弹层 role="dialog" + 焦点圈闭 + Esc
 - Windows 自绘窗口控制:顶栏右侧最小化/最大化/关闭按钮组(macOS 用原生红绿灯);顶栏空白区为窗口拖拽区
 - 四栏布局可拖拽调宽,左/右栏折叠态 localStorage 持久化
 - 顶栏三区布局:左区与左栏同宽(macOS 红绿灯占位 + 插件贡献按钮簇〔远程控制徽标/内置终端/会话看板〕+ 插件市场/回到首页按钮)、中区会话/编辑 tab 条靠左、右区非面板动作与折叠钮(面板入口 2026-09-27 起不在顶栏)
@@ -420,3 +447,16 @@
 
 ## 手机 App
 - 截图注入(SessionScreen composer「图」钮):拍照/相册 → 端内压缩(长边 1568/JPEG q0.8)→ 桥 fs_write_temp 镜像落盘临时文件 → composer 注入 `@路径`(桌面附件同语义);零原生壳改动
+- 本地通知链路重做:检测挪 home 轮询边沿(不依赖会话屏挂载)、iOS 壳 willPresent 前台横幅、会话退出通知对齐桌面开关
+- pty://exit 消费:会话屏订阅退出事件,退出横幅 + 续聊引导(复用 resume 链)
+- 实况重连水位回放:重连成功按水位回放一次,断连窗口输出不丢
+- 审批轮询串行:home 审批轮询改串行(弃多会话并发定时齐发)
+- home 手动刷新:列表刷新钮(下拉手势留观)
+- 错误态/空态分离:git 历史 / git diff / 会话转录失败显式错误条,不再伪装空态或永久加载
+- 分支切换确认 sheet:window.confirm 换仓内确认 sheet(真机死钮根治)
+- 截断提示:git 历史与 transcript 轮数截断出提示
+- 界面语言跟随系统:手机树语言取系统 locale(en/ja 词典激活)
+- 引擎表 10 家单源:手机/桌面/扫描器三处手抄收敛单一数据源,qoder-cn 与 dsh 入口补齐
+- transcript 对话视图扩 codex/kimi:文件型 jsonl 复用桌面解析器下沉
+- sheet 焦点基座:全部 sheet 统一焦点管理与关闭出口
+- Tailwind 死类清零:手机树不载 Tailwind,死类改原生 CSS(长文本截断/错误红字恢复)

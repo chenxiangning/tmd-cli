@@ -53,6 +53,28 @@ function asStringArray(value: unknown): string[] {
     : [];
 }
 
+/**
+ * 版本比对(更新闭环):remote 是否比 installed 新。语义化近似 ── 剥前缀
+ * v/V、按点分段、纯数字段数值比(补零对齐)、混型段退字符串比。任一侧空
+ * (无版本信息)= false(如实不显更新);全段相等 = false。
+ */
+export function isNewerSkillVersion(remote: string, installed: string): boolean {
+  if (!remote || !installed || remote === installed) return false;
+  const parts = (v: string): (number | string)[] =>
+    v.replace(/^v/i, "").split(".").map((seg) => (/^\d+$/.test(seg) ? Number(seg) : seg));
+  const a = parts(remote);
+  const b = parts(installed);
+  const width = Math.max(a.length, b.length);
+  for (let i = 0; i < width; i++) {
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    if (x === y) continue;
+    if (typeof x === "number" && typeof y === "number") return x > y;
+    return String(x) > String(y);
+  }
+  return false;
+}
+
 export function buildClawHubWebUrl(ownerHandle: string, slug: string): string {
   if (!ownerHandle) return "";
   return `${CLAWHUB_API_BASE}/${encodeURIComponent(ownerHandle)}/skills/${encodeURIComponent(slug)}`;

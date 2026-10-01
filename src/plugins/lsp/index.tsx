@@ -11,10 +11,12 @@ import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
 import { findReferencesAtCursor, gotoDefinitionAtCursor, hasActiveEditor, lspEditorExtension } from "./cmLsp";
 import { JavaGuideOverlay } from "./javaGuide";
+import { GestureNoticeOverlay } from "./gestureToast";
 import { openJavaGuide } from "./javaGuideStore";
 import { discoverJava, discoverPython, discoverTypeScript, resolveJavaRoot } from "./discovery";
 import "./locales";
 import "./lsp.css";
+import "./lsp-gesture.css";
 
 export const lspPlugin: Plugin = {
   id: "lsp",
@@ -65,5 +67,6 @@ export const lspPlugin: Plugin = {
       run: findReferencesAtCursor,
     });
     ctx.contribute("overlay", { order: 60, component: JavaGuideOverlay });
+    ctx.contribute("overlay", { order: 62, component: GestureNoticeOverlay });
   },
 };

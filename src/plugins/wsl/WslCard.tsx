@@ -19,7 +19,9 @@ import { WslRemoteSection } from "./RemoteSection";
 import { AddWslWorkspaceDialog } from "./WorkspaceDialog";
 import logoUrl from "../../assets/logo.png";
 
-/** 卡头状态副行(本机检测态 / 本机不可用时的远程提示)。 */
+/** 卡头状态副行(本机检测态 / 本机不可用时的远程提示)。
+ *  分支序:loading 先于 !info——首屏检测期(info=null, loading=true)必须显示
+ *  「检测中…」,此前的序会把本机 Windows 用户误导到「经 SSH 连接远程宿主」。 */
 function CardStatus({
   loading,
   info,
@@ -33,8 +35,8 @@ function CardStatus({
   running: number;
   pinnedDistro: string;
 }) {
-  if (!info) return <>{t("经 SSH 连接远程宿主")}</>;
   if (loading) return <>{t("检测中…")}</>;
+  if (!info) return <>{t("经 SSH 连接远程宿主")}</>;
   return (
     <>
       {t("已连接")} · {info?.wslVersion ?? "wsl"} · {shown.length} {t("个发行版")}
@@ -145,6 +147,7 @@ export function WslCard() {
   const hiddenCount = (info?.distros.length ?? 0) - shown.length;
   const running = shown.filter((d) => d.running).length;
 
+  const [defaultErr, setDefaultErr] = useState<string | null>(null);
   const setDefault = async (name: string) => {
     try {
       const r = await ipc.procCommunicate({
@@ -157,13 +160,18 @@ export function WslCard() {
         timeoutMs: 10_000,
       });
       if (r.timedOut || (r.code !== null && r.code !== 0)) {
-        console.warn("wsl: 设默认发行版失败(code=%s):%s", r.code, r.stderr);
+        /* 失败不再只进 console:行内红字可见反馈(自动 5s 消退) */
+        const why = r.timedOut ? t("超时") : r.stderr?.trim().split("\n")[0] || `code ${r.code}`;
+        setDefaultErr(t("设默认失败:{reason}", { reason: why }));
+        window.setTimeout(() => setDefaultErr(null), 5000);
         return;
       }
+      setDefaultErr(null);
       updateSettings({ wsl: { ...settings.wsl, defaultDistro: name } });
       refresh();
     } catch (e) {
-      console.warn("wsl: 设默认发行版失败", e);
+      setDefaultErr(t("设默认失败:{reason}", { reason: e instanceof Error ? e.message : String(e) }));
+      window.setTimeout(() => setDefaultErr(null), 5000);
     }
   };
 
@@ -201,6 +209,7 @@ export function WslCard() {
               onShowAll={() => updateSettings({ wsl: { ...settings.wsl, defaultDistro: "" } })}
             />
           )}
+          {defaultErr && <div className="wsl-inline-err" role="alert">{defaultErr}</div>}
           <WslRemoteSection />
         </div>
         {adding && info && <AddWslWorkspaceDialog distros={info.distros} onClose={() => setAdding(false)} />}

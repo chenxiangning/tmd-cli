@@ -15,21 +15,25 @@ import { BellRinging } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics, type SessionExitedDetailEvent } from "@kernel/events";
 import { sendOsNotification } from "@kernel/ipc";
+import { getSessionTabs } from "@kernel/sessionTabs";
 import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
 import { getQuotaProvider } from "@kernel/quota";
 import type { Plugin } from "@kernel/plugin";
+/* kept 公式唯一源消费(与平铺广播目标同构):平铺幕布集合不自抄一份防漂移。 */
+import { keptSessionIds } from "@plugins/composer/view/broadcastTargets";
 import { NotifySettingsTab } from "./NotifySettingsTab";
 import { notifyText, shouldNotify, type NotifyKind } from "./logic";
-import { QUOTA_POLL_FIRST_MS, QUOTA_POLL_INTERVAL_MS, pickQuotaWarnings } from "./quotaWatch";
+import { QUOTA_POLL_FIRST_MS, QUOTA_POLL_INTERVAL_MS, pickQuotaWarnings, watchedQuotaSessions } from "./quotaWatch";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
-/** 统一发送闸:分类开关 + 失焦判定,过了才走 OS 通道。 */
+/** 统一发送闸:分类开关 + 失焦判定,过了才走 OS 通道。
+ *  onClick = 通知点击深链(聚焦主窗后激活对应会话;桌面最小档语义见 ipc.ts 注)。 */
 function dispatch(kind: NotifyKind, sessionId: string): void {
   const { settings } = getSettingsState();
   if (!shouldNotify(kind, settings, host.isWindowFocused())) return;
   const { title, body } = notifyText(kind, sessionId, host);
-  void sendOsNotification(title, body);
+  void sendOsNotification(title, body, () => host.setActiveSession(sessionId));
 }
 
 export const notifyPlugin: Plugin = {
@@ -77,14 +81,14 @@ export const notifyPlugin: Plugin = {
         if (!host.isWaitingConfirm?.(s.id) || waitingNotified.has(s.id)) continue;
         waitingNotified.add(s.id);
         const { title, body } = notifyText("ask", s.id, host);
-        void sendOsNotification(title, body);
+        void sendOsNotification(title, body, () => host.setActiveSession(s.id));
       }
     };
     const onFocus = (): void => waitingNotified.clear();
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
 
-    /* 额度侧:轻轮询(首查 30s,此后 10 分钟一次;激活会话供应商),过阈去重后发 OS 通知。 */
+    /* 额度侧:轻轮询(首查 30s,此后 10 分钟一次;监控面见 poll 内注),过阈去重后发 OS 通知。 */
     const warned = new Set<string>();
     const poll = () => {
       const { settings } = getSettingsState();
@@ -93,34 +97,43 @@ export const notifyPlugin: Plugin = {
       /* 失焦闸与事件类通知同口径(设置分区描述「仅在窗口失焦时发送」;
          聚焦时 chip 已有红灯,不叠 OS 通知)。 */
       if (host.isWindowFocused()) return;
-      const sessionId = host.getActiveSessionId();
-      const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
-      if (!sessionId || !session) return;
-      const profileId = session.engine ?? session.profileId;
-      const provider = getQuotaProvider(profileId);
-      if (!provider) return;
-      provider
-        .fetch({
-          model: host.getSessionStatus(sessionId)?.model ?? null,
-          cwd: session.cwd,
-          cliSessionId: host.getCliSessionId(sessionId),
-        })
-        .then((snapshot) => {
-          if (!snapshot.windows.length) return; // 余额型(无窗口)不参与
-          for (const win of pickQuotaWarnings(snapshot.windows, threshold, warned)) {
-            void sendOsNotification(
-              t("额度预警 · {provider}", { provider: snapshot.providerLabel }),
-              t("{title}:{label} 窗口已用 {pct}%", {
-                title: snapshot.title,
-                label: win.label,
-                pct: win.displayPercent,
-              }),
-            );
-          }
-        })
-        .catch(() => {
-          /* 额度查询失败不告警(chip 已有失败警示,通知侧静默)。 */
-        });
+      /* 监控面 = 运行中会话 ∪ 平铺幕布(kept 公式与广播目标同源)按 id 去重,
+         供应商去重在下方按 profileId 归并(每家取首个在跑会话作抓取参数)——
+         只盯激活会话供应商时,平铺多幕布撞墙不预警(audit B4)。 */
+      const seenProfile = new Set<string>();
+      for (const session of watchedQuotaSessions(
+        host.getSessions(),
+        keptSessionIds(getSessionTabs(), host.getActiveSessionId()),
+      )) {
+        const profileId = session.engine ?? session.profileId;
+        if (seenProfile.has(profileId)) continue; /* 供应商去重:每家查一次 */
+        seenProfile.add(profileId);
+        const provider = getQuotaProvider(profileId);
+        if (!provider) continue; /* 无 fetchQuota 的家保持跳过,不猜 */
+        provider
+          .fetch({
+            model: host.getSessionStatus(session.id)?.model ?? null,
+            cwd: session.cwd,
+            cliSessionId: host.getCliSessionId(session.id),
+            })
+          .then((snapshot) => {
+            if (!snapshot.windows.length) return; // 余额型(无窗口)不参与
+            for (const win of pickQuotaWarnings(snapshot.windows, threshold, warned)) {
+              void sendOsNotification(
+                t("额度预警 · {provider}", { provider: snapshot.providerLabel }),
+                t("{title}:{label} 窗口已用 {pct}%", {
+                  title: snapshot.title,
+                  label: win.label,
+                  pct: win.displayPercent,
+                }),
+                () => host.setActiveSession(session.id),
+              );
+            }
+          })
+          .catch(() => {
+            /* 额度查询失败不告警(chip 已有失败警示,通知侧静默)。 */
+          });
+      }
     };
     const first = setTimeout(poll, QUOTA_POLL_FIRST_MS);
     const timer = setInterval(poll, QUOTA_POLL_INTERVAL_MS);

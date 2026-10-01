@@ -108,4 +108,6 @@ export const MESSAGES = {
     "What it solves: when a streaming summary matches a rule, should it interrupt the current output immediately, or wait until it finishes and append then?",
   "影响什么:always = 随时可打断(正文里命中也会中止当前流重发);manual = 不主动打断,等消息完成后再补注。默认 always。":
     "What it affects: always = can interrupt any time (a match in the body also aborts the current stream and resends); manual = never interrupts proactively; the annotation is added after the message completes. Default: always.",
+  /* cli-claude configGui 校验(2026-10 i18n 收口) */
+  "settings.json 顶层必须是对象": "The top level of settings.json must be an object",
 } as Record<string, string>;

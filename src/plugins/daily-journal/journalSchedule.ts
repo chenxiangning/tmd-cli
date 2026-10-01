@@ -113,8 +113,13 @@ export function bootJournalSchedule(events: PluginEventBus, ready: Promise<void>
 
 /** 「补齐待生成」入队策略(月视图按钮):新到旧限量补齐,防一次点按引爆整月
  *  串行批(2026-09-30 实证:24 任务串行,单个卡住全队,用户被迫逐一取消)。 */
-export function fillPendingDays(ym: { y: number; m: number }, sessions: Map<string, DaySessionRow[]>, snap: MonthSnapshot | undefined): void {
-  if (!snap) return; /* 快照未就绪不入队:文章索引空窗会误伤已有文章的日 */
+/** 返回实际入队数与剩余可补数(点击反馈用:0 = 没有可补的日子,已生成或在队列)。 */
+export function fillPendingDays(
+  ym: { y: number; m: number },
+  sessions: Map<string, DaySessionRow[]>,
+  snap: MonthSnapshot | undefined,
+): { queued: number; remaining: number } {
+  if (!snap) return { queued: 0, remaining: 0 }; /* 快照未就绪不入队:文章索引空窗会误伤已有文章的日 */
   const prefix = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
   const engine = getJournalState().config.engine;
   const missing: string[] = [];
@@ -124,5 +129,14 @@ export function fillPendingDays(ym: { y: number; m: number }, sessions: Map<stri
     if (!snap.articles[dd] && (sessions.get(k)?.length ?? 0) > 0) missing.push(k);
   }
   missing.sort((a, b) => (a < b ? 1 : -1));
-  for (const k of missing.slice(0, 3)) enqueueTask("补齐生成", k, engine);
+  let queued = 0;
+  let skipped = 0;
+  /* 逐日取满 3 天:在队日被闸拒后顺延补下一日(此前 slice(0,3) 预截断,
+   * 队中日占坑会少补)。 */
+  for (const k of missing) {
+    if (queued >= 3) break;
+    if (enqueueTask("补齐生成", k, engine)) queued++;
+    else skipped++;
+  }
+  return { queued, remaining: missing.length - queued - skipped };
 }

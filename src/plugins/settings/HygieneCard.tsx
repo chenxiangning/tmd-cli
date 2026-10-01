@@ -56,18 +56,28 @@ export function HygieneCard() {
         </div>
       </div>
       {settings.sessionHygieneEnabled ? (
-        <div className="pref-row">
-          <div>
-            <div className="pref-title">{t("超期时长")}</div>
-            <div className="pref-desc">{t("以会话最后活动时间计算；置顶与手动恢复过的会话不清理。")}</div>
+        <>
+          <div className="pref-row">
+            <div>
+              <div className="pref-title">{t("超期时长")}</div>
+              <div className="pref-desc">{t("以会话最后活动时间计算；置顶与手动恢复过的会话不清理。")}</div>
+            </div>
+            <StyledSelect
+              value={String(settings.sessionHygieneHours)}
+              ariaLabel={t("超期时长")}
+              onChange={(v) => updateSettings({ sessionHygieneHours: Number(v) as SessionHygieneHours })}
+              options={SESSION_HYGIENE_HOURS.map((h) => ({ value: String(h), label: t(HYGIENE_HOURS_LABELS[h]) }))}
+            />
           </div>
-          <StyledSelect
-            value={String(settings.sessionHygieneHours)}
-            ariaLabel={t("超期时长")}
-            onChange={(v) => updateSettings({ sessionHygieneHours: Number(v) as SessionHygieneHours })}
-            options={SESSION_HYGIENE_HOURS.map((h) => ({ value: String(h), label: t(HYGIENE_HOURS_LABELS[h]) }))}
-          />
-        </div>
+          {/* 上次清扫回执与手动清扫:清扫结算点在 workspace 磁盘扫描内部
+              (sweepStaleSessions 需全量磁盘会话与活会话身份,设置卡无法独立
+              触发),且结果不落盘、无统计可读 —— 按审计预案落说明文案。 */}
+          <div className="pref-row">
+            <div>
+              <div className="pref-desc">{t("清扫随会话磁盘扫描自动进行（展开工作区或手动刷新即触发），暂无独立的手动清扫入口与上次清扫回执。")}</div>
+            </div>
+          </div>
+        </>
       ) : null}
     </div>
   );

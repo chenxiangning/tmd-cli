@@ -90,6 +90,11 @@ export function NoteEditor({
     setImages(i0);
     setEditing(false);
   };
+  /* 脏稿判定:文本或图片集与已存便签有差 = 有未保存内容(Esc 弃稿前确认用)。 */
+  const dirty =
+    text !== (note?.text ?? "") ||
+    images.length !== (note?.images?.length ?? 0) ||
+    images.some((img, i) => img.file !== note?.images?.[i]?.file);
   const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const item = [...(e.clipboardData?.items ?? [])].find((it) => it.type.startsWith("image/"));
     if (!item) return;
@@ -118,7 +123,8 @@ export function NoteEditor({
             e.stopPropagation();
             if (e.nativeEvent.isComposing) return; /* IME 组词期放行(仓内纪律):Esc 消候选不撤销编辑器 */
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void save();
-            if (e.key === "Escape") cancel();
+            /* Esc 弃稿:有未保存内容先确认(误按最高频的丢稿源);按钮取消是显式操作不拦。 */
+            if (e.key === "Escape" && (!dirty || window.confirm(t("便签有未保存修改,丢弃?")))) cancel();
           }}
           onPaste={onPaste}
         />

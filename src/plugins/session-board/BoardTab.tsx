@@ -22,8 +22,9 @@ import {
   type BoardSession,
   type BoardState,
 } from "./boardData";
-import { CalendarGrid } from "./CalendarGrid";
+import { CalendarGrid, HeatLegend } from "./CalendarGrid";
 import { DayPanel } from "./DayPanel";
+import { ScanErrorBar } from "./ScanErrorBar";
 import "./session-board.css";
 
 export function BoardTab() {
@@ -38,7 +39,10 @@ export function BoardTab() {
     [allMode, list, selWs],
   );
   const [refreshTick, setRefreshTick] = useState(0);
-  const sessions = useBoardSessions(targetWs, allMode, refreshTick);
+  const scan = useBoardSessions(targetWs, allMode, refreshTick);
+  const sessions = scan?.rows ?? null;
+  /* 扫描失败引擎集:不伪装空板,出错误条 + 重试。 */
+  const failedEngines = scan?.failedEngines ?? [];
   const now = new Date();
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [selDay, setSelDay] = useState<string | null>(null);
@@ -247,15 +251,7 @@ export function BoardTab() {
             );
           })}
         </span>
-        <span className="sb-legend" aria-hidden>
-          {t("少")}
-          <i className="sb-lg-0" />
-          <i className="sb-lg-1" />
-          <i className="sb-lg-2" />
-          <i className="sb-lg-3" />
-          <i className="sb-lg-4" />
-          {t("多")} · {t("底点 = 主引擎")}
-        </span>
+        <HeatLegend />
         <span className="sb-toolbar-end">
           <span className="sb-count" title={t("未查看 = 结束未归档且 14 天内有活动")}>
             {t("{n} 个会话", { n: filtered.length })} · {t("{n} 个未查看", { n: newCount })}
@@ -271,6 +267,10 @@ export function BoardTab() {
           </button>
         </span>
       </div>
+
+      {failedEngines.length > 0 ? (
+        <ScanErrorBar failedEngines={failedEngines} onRetry={() => setRefreshTick((v) => v + 1)} />
+      ) : null}
 
       {sessions === null ? (
         /* 工作区切换后的首扫:显式扫描态,不渲染空板 + 0 计数(评审 P3)。 */

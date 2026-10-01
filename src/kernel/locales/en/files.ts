@@ -140,6 +140,7 @@ export const MESSAGES = {
   "用": "Use",
   "打开": "to open this",
   "选择打开方式": "Choose how to open",
+  "打开失败:{msg}": "Failed to open: {msg}",
   /* Markdown 预览标记(previewMarks) */
   "查看标记": "View marked blocks",
   "标记此块,随下次发送带上": "Mark this block to include it with the next send",

@@ -1,8 +1,9 @@
 /**
  * 会话异常退出通知 —— 右下角 toast 栈(复用 StartFailureToast 卡样式与栈纪律)。
  * 订阅 kernel sessionExitedDetail:非零退出码(崩溃/异常中止)才上卡,
- * 「续聊」= openDiskSession 按源会话元数据原样 resume;「接力」经 relayBridge
- * 开跨引擎对话框(摘要读磁盘,会话已逝读得到;插件停用桥 null 即无钮);0/130 不扰。
+ * 「续聊」= openDiskSession 按源会话元数据原样 resume(busy 态 + 失败直馈,
+ * 不再只靠启动失败卡);「接力」经 relayBridge 开跨引擎对话框(摘要读磁盘,
+ * 会话已逝读得到;插件停用桥 null 即无钮);0/130 不扰。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,10 +13,13 @@ import { t } from "@kernel/i18n";
 import { KernelTopics, type SessionExitedDetailEvent, type SessionStartFailedEvent } from "@kernel/events";
 import { relayOpenRef } from "@kernel/relayBridge";
 
+/* 本文件文案的 en/ja 词典统一落 kernel/locales/<lang>/common.ts(与退出卡历史键
+   同域;zh 恒等无词典)。 */
+
 const NOTICE_TTL_MS = 12_000;
 const NOTICE_MAX = 3;
 
-/** 单条通知卡:TTL 自销;续聊 = 按快照元数据原样 resume 磁盘会话。 */
+/** 单条通知卡:TTL 自销;续聊 = 按快照元数据原样 resume 磁盘会话(带 busy/直馈)。 */
 function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }) {
   useEffect(() => {
     const timer = setTimeout(() => onClose(n.id), NOTICE_TTL_MS);
@@ -25,6 +29,22 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
   const canResume = n.kind !== "shell" && n.cliSessionId != null;
   /* 接力源限本地 CLI:ssh 磁盘身份在远端,本地读取器无源(远端接力二期)。 */
   const canRelay = n.kind === "cli" && n.cliSessionId != null && relayOpenRef.current != null;
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState("");
+  const resume = (): void => {
+    if (resuming) return;
+    setResuming(true);
+    setResumeError("");
+    /* 失败直馈(openDiskSession reject 的兜底文案;成功路径由启动失败卡/会话面接管):
+       卡不自动关,失败原因原地可读,重试不必等下一张卡。 */
+    void host
+      .openDiskSession(n.profileId, n.cwd, n.workspaceId, n.cliSessionId!)
+      .then(() => onClose(n.id))
+      .catch((e: unknown) => {
+        setResumeError(e instanceof Error ? e.message : String(e));
+        setResuming(false);
+      });
+  };
   return (
     <div className="sft-card">
       <div className="sft-head">
@@ -45,14 +65,15 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
         <button
           type="button"
           className="sft-resume"
-          onClick={() => {
-            void host.openDiskSession(n.profileId, n.cwd, n.workspaceId, n.cliSessionId!);
-            onClose(n.id);
-          }}
+          disabled={resuming}
+          onClick={resume}
         >
-          <ArrowClockwise size="0.75rem" aria-hidden />
-          {t("一键续聊(恢复到该会话)")}
+          <ArrowClockwise size="0.75rem" aria-hidden className={resuming ? "animate-spin" : ""} />
+          {resuming ? t("续聊中…") : t("一键续聊(恢复到该会话)")}
         </button>
+      )}
+      {resumeError && (
+        <pre className="sft-reason">{t("续聊失败:{reason}", { reason: resumeError })}</pre>
       )}
       {canRelay && (
         <button

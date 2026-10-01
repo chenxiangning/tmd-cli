@@ -37,4 +37,15 @@ export const MESSAGES_EN = {
   "撤回引用(回到待发送)": "Unstage quote (back to pending)",
   /* 预览交互卡 */
   "移除标记": "Remove mark",
+  /* lost 定位重锚(面板轻提示条) */
+  "标记已失锚,尝试指纹重锚…": "Mark lost its anchor — re-anchoring by fingerprint…",
+  "重锚失败:文件中已找不到标记时的内容(可能已删除或大幅改动)":
+    "Re-anchor failed: the marked content no longer exists in the file (deleted or heavily changed)",
+  "重锚失败:文件无法读取": "Re-anchor failed: file unreadable",
+  "已重锚到 L{n}": "Re-anchored to L{n}",
+  "标记回到原位": "Mark is back at its original position",
+  /* 发送注入模板(随 locale) */
+  "标注:{note}": "Note: {note}",
+  "(无备注)": "(no note)",
+  "请看我在文件里标记的 {n} 处:": "See the {n} spot(s) I marked in the files:",
 } as Record<string, string>;

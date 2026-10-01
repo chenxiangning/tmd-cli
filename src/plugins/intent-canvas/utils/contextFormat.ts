@@ -1,9 +1,12 @@
 /**
  * 意图画布 · 发送格式化(自 context.ts 拆出,守行数铁则)。
- * 中文审计头 + markdown + 内嵌压缩 JSON payload(mossx 同构,marker 与
+ * 审计头 + markdown + 内嵌压缩 JSON payload(mossx 同构,marker 与
  * messageContext 解析端配对,两边同步改)。
+ * preamble 随 locale 走 t()(2026-10 审计:en/ja 用户的 AI 注入文本不再
+ * 中文化;结构标签 Canvas/Mode/Payload audit 等保持英文协议词汇)。
  */
 
+import { t } from "@kernel/i18n";
 import type { IntentCanvasDocument } from "../types";
 import { buildIntentCanvasTransmissionContext } from "./context";
 import { countVisualElements, hasDisplayEllipsis } from "./contextDigest";
@@ -35,11 +38,11 @@ export function formatIntentCanvasThreadContext(
         : "文件意图图 File Intent Canvas";
 
   return [
-    "请把下面的 Intent Canvas 当作本轮对话的结构化上下文。",
-    "它是用户绘制的意图/逻辑图，不代表代码已经实现，也不要自动写回 Project Map 事实。",
-    "上下文已做语义压缩：优先保留 Project Map 语义节点、关系、文件路径、证据线索和用户手写文本；视觉坐标、颜色、尺寸等低价值绘图信息默认不发送。",
-    "审计口径：下面的 JSON 是本次实际发送给模型的完整 transmission payload；它不是原始 Excalidraw scene 全量导出。",
-    "JSON 使用 compact/minified 格式压缩展示体积，不省略字段；如果 truncated=yes 或任一 omitted > 0，表示内容层做了显式语义压缩，不是静默截断。",
+    t("请把下面的 Intent Canvas 当作本轮对话的结构化上下文。"),
+    t("它是用户绘制的意图/逻辑图,不代表代码已经实现,也不要自动写回 Project Map 事实。"),
+    t("上下文已做语义压缩:优先保留 Project Map 语义节点、关系、文件路径、证据线索和用户手写文本;视觉坐标、颜色、尺寸等低价值绘图信息默认不发送。"),
+    t("审计口径:下面的 JSON 是本次实际发送给模型的完整 transmission payload;它不是原始 Excalidraw scene 全量导出。"),
+    t("JSON 使用 compact/minified 格式压缩展示体积,不省略字段;如果 truncated=yes 或任一 omitted > 0,表示内容层做了显式语义压缩,不是静默截断。"),
     "",
     `Canvas: ${document.title}`,
     `Mode: ${modeLabel}`,
@@ -58,7 +61,7 @@ export function formatIntentCanvasThreadContext(
     `- Payload characters: ${compactTransmissionPayload.length}`,
     "",
     "Intent Summary:",
-    document.summary.trim() || "未填写",
+    document.summary.trim() || t("未填写"),
     "",
     "Linked files:",
     ...listOrNone(document.links.filePaths),

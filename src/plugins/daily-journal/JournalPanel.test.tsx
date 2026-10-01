@@ -17,7 +17,7 @@ vi.mock("./daySessions", () => ({
   }),
   todayKey: () => `${H.key}-${H.dd}`,
 }));
-vi.mock("./holidays", () => ({ ensureHolidays: vi.fn(), useHolidays: () => null, holOf: () => null }));
+vi.mock("./holidays", () => ({ ensureHolidays: vi.fn(), useHolidays: () => null, holOf: () => null, isWorkdayOverride: () => false }));
 vi.mock("./articleBody", () => ({ ArticleBody: () => <div />, NoteReadonly: () => <div /> }));
 
 const H = vi.hoisted(() => {
@@ -35,6 +35,15 @@ vi.mock("./journalStore", () => {
     deriveDayStatus: (article: unknown, isToday: boolean, n: number, meta?: { lastError?: string }) =>
       article ? (isToday ? "t" : "g") : meta?.lastError ? "f" : n > 0 ? "p" : "n",
     loadMonth: vi.fn(async () => undefined),
+    /* 热力分档真函数(月条与月/年视图同源分位): */
+    heatThresholds: (counts: number[]) => {
+      const xs = [...new Set(counts.filter((c) => c > 0))].sort((a, b) => a - b);
+      if (!xs.length) return [1, 2, 3] as const;
+      const at = (p2: number) => xs[Math.min(xs.length - 1, Math.floor(p2 * xs.length))];
+      return [at(0.25), at(0.5), at(0.75)] as const;
+    },
+    heatOf: (n: number, ts: readonly [number, number, number]) =>
+      !n ? "" : n >= ts[2] ? "h4" : n >= ts[1] ? "h3" : n >= ts[0] ? "h2" : "h1",
   };
 });
 
@@ -54,6 +63,14 @@ describe("JournalPanel 右栏轴视图宿主", () => {
     expect(html.split("dj-mb-cell").length - 1).toBe(days);
     expect(html).toContain(`data-day="1"`);
     expect(html).not.toContain("dj-panel-open");
+  });
+
+  it("月条热力档挂 dj-mb- 前缀(此前裸 hN 类永不命中,生成日热力色静默失效)", () => {
+    const html = render();
+    /* 回归钉:裸类 class="dj-mb-cell hN" 不允许再出现 */
+    expect(html).not.toMatch(/class="dj-mb-cell h\d"/);
+    /* 当月 1 日有文章且有会话行 → 至少 h1 档(今日恰为 1 日则走 dj-mb-t,豁免) */
+    if (H.dd !== "01") expect(html).toContain("dj-mb-h1");
   });
 
   it("快照未就绪:加载行兜底,不渲染轴流", () => {

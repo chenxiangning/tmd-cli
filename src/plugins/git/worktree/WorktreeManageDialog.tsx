@@ -1,19 +1,23 @@
 /**
  * worktree 管理弹窗 ── 列表 / 新建(新分支基于 HEAD 或检出已有分支)/ 移除 / 清理悬空。
  * 新建成功即 addWorkspace:worktree 目录进侧栏,会话由用户在工作区自开。
- * 视觉走 remoteDialogs 同款 portal + fixed 模态。
+ * 视觉走 remoteDialogs 同款 portal + fixed 模态;弹层焦点圈闭(dialog 语义)。
+ * 列表拆至 WorktreeList.tsx(加载骨架/空态/两段式移除),焦点圈闭拆至 dialogA11y.ts。
  */
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowsClockwise, Plus, Trash } from "@phosphor-icons/react";
+import { ArrowsClockwise, Plus } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
 import { removeWorktreeWithCleanup } from "./worktreeOps";
+import { useFocusTrap } from "@kernel/useFocusTrap";
+import { WorktreeList } from "./WorktreeList";
 import { bumpGitRefresh } from "../panelStore";
+import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 export function WorktreeManageDialog({
   cwd,
@@ -59,6 +63,8 @@ export function WorktreeManageDialog({
   }, [cwd]);
 
   useEscClose(onClose);
+  /* 弹层焦点圈闭:本弹窗常驻挂载期打开(父级条件渲染),active 恒 true。 */
+  const dialogRef = useFocusTrap(true);
 
   const refresh = (): void => {
     void ipc.gitWorktreeList(cwd).then(setList).catch(fail);
@@ -146,7 +152,13 @@ export function WorktreeManageDialog({
       className="fixed inset-0 z-[1201] flex items-start justify-center bg-black/45 pt-[12vh]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="flex max-h-[80vh] w-[520px] flex-col gap-3 overflow-auto rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("Worktree 管理")}
+        className="flex max-h-[80vh] w-[520px] flex-col gap-3 overflow-auto rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-2xl"
+      >
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-(--tmd-fg)">{t("Worktree 管理")}</div>
           <button
@@ -164,48 +176,14 @@ export function WorktreeManageDialog({
         {notice && <div className="text-xs text-(--tmd-fg-faint)">{notice}</div>}
 
         <div className="flex flex-col gap-1">
-          {(list ?? []).map((entry) => (
-            <div
-              key={entry.path}
-              className="flex items-center gap-2 rounded-md border border-(--tmd-border)/60 px-2 py-1.5"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 text-xs text-(--tmd-fg)">
-                  <span className="truncate font-medium">{entry.path}</span>
-                  {entry.bare && <span className="text-[0.625rem] text-(--tmd-fg-faint)">{t("(bare)")}</span>}
-                  {entry.locked && <span className="text-[0.625rem] text-(--tmd-warn)">{t("已锁")}</span>}
-                  {entry.prunable && <span className="text-[0.625rem] text-(--tmd-warn)">{t("可清理")}</span>}
-                </div>
-                <div className="truncate text-[0.6875rem] text-(--tmd-fg-faint)">
-                  {entry.detached ? t("(detached)") : entry.branch || entry.head}
-                </div>
-              </div>
-              {!entry.bare && entry.path !== cwd && (
-                confirmPath === entry.path ? (
-                  <button
-                    type="button"
-                    onClick={() => void remove(entry)}
-                    disabled={busy === `rm:${entry.path}`}
-                    className="shrink-0 rounded-md bg-(--tmd-danger, #e5484d) px-2 py-1 text-xs text-white disabled:opacity-50"
-                  >
-                    {t("确认移除")}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmPath(entry.path)}
-                    className="shrink-0 rounded-md border border-(--tmd-border) p-1 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
-                    aria-label={t("移除 worktree")}
-                  >
-                    <Trash size="0.75rem" aria-hidden />
-                  </button>
-                )
-              )}
-            </div>
-          ))}
-          {list?.length === 0 && (
-            <div className="py-2 text-center text-xs text-(--tmd-fg-faint)">{t("无 worktree")}</div>
-          )}
+          <WorktreeList
+            cwd={cwd}
+            list={list}
+            busy={busy}
+            confirmPath={confirmPath}
+            setConfirmPath={setConfirmPath}
+            onRemove={(entry) => void remove(entry)}
+          />
         </div>
 
         <div className="flex flex-col gap-2 rounded-md border border-(--tmd-border)/60 p-2.5">

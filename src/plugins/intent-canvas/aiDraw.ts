@@ -31,7 +31,7 @@ export type AiDrawShape = {
 export type AiDrawFile = {
   kind: "intent-canvas-ai-draw";
   version: 1;
-  /** 目标画布 id;缺省按 title 找,再缺省新建。 */
+  /** 目标画布 id;缺省按 title 找,再缺省追加最近更新画布,无画布才新建。 */
   canvasId?: string;
   /** mode:new 时的新画布标题 / canvasId 缺省时的匹配标题。 */
   title?: string;

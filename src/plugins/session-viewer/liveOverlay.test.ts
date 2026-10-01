@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { decideProbe } from "./liveMode";
+import { decideProbe, pillCapable } from "./liveMode";
 import {
   isLiveTranscript,
   pruneLiveTranscript,
@@ -50,6 +50,24 @@ describe("tailWindow 尾窗切片", () => {
     const all = tailWindow(blocks, 10);
     expect(all).toBe(blocks); // 未截断时原引用直通,分批 memo 命中
     expect(tailWindow([], 200)).toEqual([]);
+  });
+});
+
+describe("pillCapable 浮标能力门", () => {
+  it("kimi/grok(目录型)与 opencode/dsh(合成型)不出钮", () => {
+    expect(pillCapable("kimi", true)).toBe(false);
+    expect(pillCapable("grok", true)).toBe(false);
+    expect(pillCapable("opencode", true)).toBe(false);
+    expect(pillCapable("dsh", true)).toBe(false);
+  });
+
+  it("真文件引擎(qoder 系/omp/pi)放行;无读取器或无 profile 拦下", () => {
+    expect(pillCapable("qoder", true)).toBe(true);
+    expect(pillCapable("qoder-cn", true)).toBe(true);
+    expect(pillCapable("omp", true)).toBe(true);
+    expect(pillCapable("pi", true)).toBe(true);
+    expect(pillCapable("omp", false)).toBe(false);
+    expect(pillCapable(undefined, true)).toBe(false);
   });
 });
 

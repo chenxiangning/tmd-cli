@@ -6,12 +6,12 @@ import { ListChecks, TerminalWindow, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogShell } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
-import { stringHue } from "@kernel/colorHash";
 import type { GenTask } from "./taskQueue";
 import { cancelTask, enqueueTask, removeTask, useGenTasks } from "./taskQueue";
 import { addBead } from "./journalStore";
 import { hmNow } from "./timeUtil";
 import { openArticleTab } from "./journalTabs";
+import { EngMark } from "./EngMark";
 
 /** 取消一枚任务(排队/运行皆可);定时族取消补「尝试过」珠防 15min 对表复活。 */
 function cancelRow(task: GenTask): void {
@@ -29,7 +29,7 @@ function TaskRow({ task }: { task: GenTask }) {
       <div className="dj-ti-main">
         <div className="dj-ti-top">
           {m}/{d} · {t(task.type)}
-          <i className="dj-ti-eng" style={{ background: `hsl(${stringHue(task.engine)} 52% 48%)` }} />
+          <EngMark id={task.engine} />
           {task.engine}
           {task.st === "run" && <span className="dj-ti-live">{t("后台运行中")}</span>}
         </div>

@@ -93,7 +93,7 @@ export type MountPoint =
    *  先例:session-viewer 的活会话转录视图——幕布|结构化双视图切换)。 */
   | "editorCenter.canvasOverlay"
   /** 幕布右上角工具行:内核渲染行容器与幕布刷新钮,插件经此贡献同排工具钮
-   *  (先例:session-viewer 的结构化幕布切换钮)。行不设 z —— 不透明画布
+   *  (先例:session-viewer 的结构化视图切换钮)。行不设 z —— 不透明画布
    *  浮层(editorCenter.canvasOverlay 一类)开启时整行隐没其下。 */
   | "terminal.canvasRow"
   /** composer 输入区左下水平图标行(assets 唤醒入口等;b7960d5 起左下横排)。 */

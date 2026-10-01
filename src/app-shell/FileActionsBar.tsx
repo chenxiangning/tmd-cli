@@ -46,7 +46,7 @@ export function FileActionsBar() {
           disabled={!activePanel?.newFile}
           onClick={() => activePanel?.newFile?.()}
         >
-          <FilePlus size="0.75rem" aria-hidden />
+          <FilePlus aria-hidden />
         </button>
         <button
           type="button"
@@ -56,7 +56,7 @@ export function FileActionsBar() {
           disabled={!activePanel?.newFolder}
           onClick={() => activePanel?.newFolder?.()}
         >
-          <FolderSimplePlus size="0.75rem" aria-hidden />
+          <FolderSimplePlus aria-hidden />
         </button>
         <button
           type="button"
@@ -65,8 +65,8 @@ export function FileActionsBar() {
           title={t("刷新文件树")}
           onClick={handleRefreshFiles}
         >
+          {/* 尺寸单一真源 = panel-subbar.css svg 1rem(TSX size 是被 CSS 覆盖的死值,删) */}
           <ArrowClockwise
-            size="0.75rem"
             aria-hidden
             className={refreshBusy ? "animate-spin" : undefined}
           />

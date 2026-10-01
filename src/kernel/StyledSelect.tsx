@@ -3,7 +3,9 @@
  *
  * 原生 select 的弹层走操作系统渲染,与主题脱节且不可定制;
  * 本组件 = 按钮 + 主题化弹层(选项行 hover/选中对勾/超 10 项自动搜索框)。
- * 准入:cli-config 配置表单 + 设置页外观/行为三处;无 CLI 私有知识。
+ * 准入:cli-config 配置表单 + 设置页外观/行为三处 + WSL 面主机/发行版下拉
+ * (RemoteSection/AddWslTab/WorkspaceDialog,2026-10-01 起统一,消原生 select
+ * 的 OS 弹层脱节);无 CLI 私有知识。
  */
 
 import { useEffect, useRef, useState } from "react";

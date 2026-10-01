@@ -1,33 +1,46 @@
 /**
  * 指南 tab —— 某一 CLI 的全量命令参考(章节 chips + 检索 + 命令教学卡)。
  * 课程来自 kernel/academy 注册表(payload.cliId 路由);未注册 = 空态。
+ * sourceVersion 与装机引擎探针版本比对:漂移出提示条(不阻断,audit B5)。
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CaretRight, Copy, Flask, BookOpenText } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
+import { host } from "@kernel/host";
+import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
 import { composerInsertRef, composerWakeRef } from "@kernel/composerExt";
 import { getAcademyCourse, type AcademyCommand } from "@kernel/academy";
 import { filterChapters, lessonIndexByChapter } from "./guideSearch";
+import { courseVersionDrift } from "./courseVersion";
+import { practiceGate } from "./practiceGate";
 import { openWizard } from "./academyStores";
 import "./academy.css";
 
-/** 试一试:命令填入 composer 并唤出 / 候选(挂载期桥,欢迎页等无输入区 = 静默跳过)。
+/** 试一试:命令填入 composer 并唤出 / 候选;无 composer(欢迎页等)= false,
+ *  调用方原地给「先开会话」引导,不再静默(audit B3)。
  *  wake 必须推迟到 insert 的 setState 提交之后(rAF):composer 的 setValue 非函数式,
  *  同帧连调时陈旧闭包会用旧草稿覆盖刚插入的命令(reviewer P1 实证)。 */
-function tryCommand(name: string): void {
+function tryCommand(name: string, cliId: string): boolean {
+  if (practiceGate({ cliId, hasComposer: composerInsertRef.current != null, activeEngine: null })) {
+    return false;
+  }
   composerInsertRef.current?.(`/${name} `);
   requestAnimationFrame(() => composerWakeRef.current?.("/"));
+  return true;
 }
 
-function CommandCard({ cmd, lessonIdx, onOpenLesson }: {
+function CommandCard({ cmd, cliId, lessonIdx, onOpenLesson }: {
   cmd: AcademyCommand;
+  cliId: string;
   lessonIdx?: number;
   onOpenLesson: (idx: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  /* 「试一试」无输入框时的原地引导(欢迎页等;audit B3 的静默跳过收口)。 */
+  const [needSession, setNeedSession] = useState(false);
   const copy = () => {
     void copyText(`/${cmd.name}`).then(() => {
       setCopied(true);
@@ -76,13 +89,18 @@ function CommandCard({ cmd, lessonIdx, onOpenLesson }: {
                 <BookOpenText size={12} aria-hidden />{t("去学")}
               </button>
             )}
-            <button type="button" className="academy-btn" onClick={() => tryCommand(cmd.name)}>
+            <button type="button" className="academy-btn" onClick={() => setNeedSession(!tryCommand(cmd.name, cliId))}>
               <Flask size={12} aria-hidden />{t("试一试")}
             </button>
             <button type="button" className="academy-btn" onClick={copy}>
               <Copy size={12} aria-hidden />{copied ? t("已复制") : t("复制命令")}
             </button>
           </div>
+          {needSession && (
+            <p className="academy-practice-hint" role="status">
+              {t("先打开任意工作区会话再试(当前页面没有命令输入框)")}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -102,6 +120,24 @@ export function GuideTab({ tab }: { tab: EditorTab }) {
   const cliId = cliIdOf(tab);
   const course = getAcademyCourse(cliId);
   const [kw, setKw] = useState("");
+  /* 装机引擎探针版本(课程引擎的 command 探活):sourceVersion 漂移比对用。
+     探测失败/引擎不在 = null 不提示(宁漏勿扰,不猜)。 */
+  const [installed, setInstalled] = useState<string | null>(null);
+  useEffect(() => {
+    setInstalled(null);
+    const command = host.getCliProfile(cliId)?.command;
+    if (!command) return;
+    let alive = true;
+    void ipc.cliProbe(command)
+      .then((r) => {
+        if (alive && r.found && r.version) setInstalled(r.version);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [cliId]);
+  const drift = course ? courseVersionDrift(course.sourceVersion, installed) : null;
   const lessonIdx = useMemo(
     () => (course ? lessonIndexByChapter(course.lessons) : new Map<string, number>()),
     [course],
@@ -123,6 +159,15 @@ export function GuideTab({ tab }: { tab: EditorTab }) {
         <span className="academy-hits">{kw ? t("命中 {n} 条", { n: result.total }) : t("共 {n} 条命令", { n: result.total })}</span>
         <span className="academy-version">{course.title} · {course.sourceVersion}</span>
       </div>
+      {drift && (
+        /* 课程过期提示条(不阻断):CLI 升级后命令面可能与课程出入。 */
+        <div className="academy-version-drift" role="status">
+          {t("课程基于 v{source} 提取,当前引擎 v{installed};命令面可能有出入,以引擎自身帮助为准", {
+            source: drift.source,
+            installed: drift.installed,
+          })}
+        </div>
+      )}
       <div className="academy-chips">
         {course.chapters.map((ch, i) => (
           <button
@@ -141,7 +186,7 @@ export function GuideTab({ tab }: { tab: EditorTab }) {
             <div className="academy-chapter-head">
               <span className="academy-ch-no">{String(course.chapters.indexOf(chapter) + 1).padStart(2, "0")}</span>
               <span className="academy-ch-title">{chapter.title}</span>
-              <span className="academy-ch-count">{commands.length} 条</span>
+              <span className="academy-ch-count">{t("{n} 条", { n: commands.length })}</span>
               <span className="academy-ch-desc">{chapter.desc}</span>
             </div>
             <div className="academy-cards">
@@ -149,6 +194,7 @@ export function GuideTab({ tab }: { tab: EditorTab }) {
                 <CommandCard
                   key={cmd.name}
                   cmd={cmd}
+                  cliId={cliId}
                   lessonIdx={lessonIdx.get(chapter.id)}
                   onOpenLesson={(idx) => openWizard(cliId, idx)}
                 />

@@ -21,4 +21,10 @@ export const MESSAGES_EN = {
   "无法读取预览": "Preview unavailable",
   "语言服务启动中…": "Language server starting…",
   "显示前 {n} 条": "showing first {n}",
+  /* 手势失败/无语言服务提示(进 toast,必须三语齐) */
+  "无语言服务配置": "No language server configured",
+  "语言服务不可用(发现链无命中)": "Language server unavailable (no installation found)",
+  "语言服务启动失败": "Language server failed to start",
+  "语义动作失败:{reason}": "Semantic action failed: {reason}",
+  "此语言无语言服务": "No language server for this language",
 };

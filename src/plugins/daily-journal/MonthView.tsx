@@ -19,7 +19,7 @@ import { weekdayLabelsMon } from "./dateTitle";
 import type { DayNote, DayMeta } from "./journalFiles";
 import type { Article } from "./articleParse";
 import { notePeekOf } from "./statusText";
-import { holOf, useHolidays } from "./holidays";
+import { holOf, isWorkdayOverride, useHolidays } from "./holidays";
 
 interface DayCellProps {
   y: number;
@@ -58,7 +58,8 @@ function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: D
 
 function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
   const st = deriveDayStatus(article, isToday, rows.length, meta);
-  const we = [0, 6].includes(new Date(y, m - 1, d).getDay());
+  /* 调休上班日(off:false)不画周末底纹(与年视图/月条同律) */
+  const we = [0, 6].includes(new Date(y, m - 1, d).getDay()) && !isWorkdayOverride(y, m, d);
   const hol = holOf(y, m, d);
   const engines = [...new Set(rows.map((r) => r.profileId))];
   const notePeek = notePeekOf(note);
@@ -131,9 +132,11 @@ export interface MonthViewProps {
   snap: MonthSnapshot;
   sessions: Map<string, DaySessionRow[]>;
   today: string;
+  /** 跨月补位格点击跳月(常见日历可供性;缺省无回调则维持纯展示)。 */
+  onShiftMonth?: (delta: number) => void;
 }
 
-export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
+export function MonthView({ ym, snap, sessions, today, onShiftMonth }: MonthViewProps) {
   useHolidays(); /* 数据就位即重渲染(holOf 读快照) */
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,7 +163,21 @@ export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
   const cells: React.ReactNode[] = [];
   for (let i = 0; i < lead; i++)
     cells.push(
-      <div key={`lead-${i}`} className="dj-cell dj-out">
+      /* 前月补位格可点跳上月(pointer-events:none 摘除;弱化视觉保留) */
+      <div
+        key={`lead-${i}`}
+        className="dj-cell dj-out"
+        role="button"
+        tabIndex={0}
+        title={t("跳到上个月")}
+        onClick={() => onShiftMonth?.(-1)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onShiftMonth?.(-1);
+          }
+        }}
+      >
         <div className="dj-cell-top">
           <span className="dj-daynum">{prevDays - lead + 1 + i}</span>
         </div>
@@ -187,7 +204,20 @@ export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
   }
   for (let d = 1; lead + days + d <= SLOTS; d++)
     cells.push(
-      <div key={`tail-${d}`} className="dj-cell dj-out">
+      <div
+        key={`tail-${d}`}
+        className="dj-cell dj-out"
+        role="button"
+        tabIndex={0}
+        title={t("跳到下个月")}
+        onClick={() => onShiftMonth?.(1)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onShiftMonth?.(1);
+          }
+        }}
+      >
         <div className="dj-cell-top">
           <span className="dj-daynum">{d}</span>
         </div>

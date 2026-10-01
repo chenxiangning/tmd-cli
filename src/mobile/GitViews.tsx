@@ -2,7 +2,15 @@
  * GitViews —— Git 面板的差异/历史视图(纯展示,数据与回调在 GitScreen)。
  */
 import { t } from "@kernel/i18n";
-import { ActionSheet, PrSheet, type PrSheetState } from "./GitSheets";
+import { ActionSheet, ConfirmSheet, PrSheet, type PrSheetState } from "./GitSheets";
+import {
+  commitFilesView,
+  GIT_VIEW_LABEL,
+  GIT_VIEWS,
+  LOG_LIMIT,
+  type CommitFilesState,
+  type GitView,
+} from "./gitModel";
 import type { GitAheadBehind, GitDiffStatus, GitLogEntry, GitTotals } from "@kernel/gitContract";
 
 /** 差异视图:文件行(状态字母 + 单侧 ±)+ 点开 patch。 */
@@ -36,14 +44,20 @@ export function DiffView(props: {
   );
 }
 
-/** 历史视图:提交行(短 sha + 摘要 + 作者)点开改动清单。 */
+/** 历史视图:提交行(短 sha + 摘要 + 作者)点开改动清单(三态,失败可重试);
+ *  尾部 = 翻页钮 / 全量提示(git_log 分页,截断不再静默)。 */
 export function LogView(props: {
   log: GitLogEntry[] | null;
   openSha: string | null;
-  commitFiles: { path: string; additions: number; deletions: number }[];
+  commitFiles: CommitFilesState;
+  more: boolean;
+  loadingMore: boolean;
   onTap: (sha: string) => void;
+  onRetryFiles: () => void;
+  onLoadMore: () => void;
 }) {
   if (!props.log?.length) return <div className="git-empty">{t("没有提交历史")}</div>;
+  const view = commitFilesView(props.commitFiles);
   return (
     <>
       {props.log.map((c) => (
@@ -55,24 +69,37 @@ export function LogView(props: {
           </button>
           {props.openSha === c.longSha && (
             <div className="git-patch">
-              {props.commitFiles.length
-                ? props.commitFiles.map((f) => (
-                    <div key={f.path} className="cf-row">
-                      {f.path} <b className="add">+{f.additions}</b>
-                      <b className="del"> -{f.deletions}</b>
-                    </div>
-                  ))
-                : t("加载中…")}
+              {view === "loading" && t("加载中…")}
+              {view === "error" && (
+                <>
+                  {t("改动清单加载失败")}
+                  <button type="button" className="lnk-btn" onClick={props.onRetryFiles}>{t("重试")}</button>
+                </>
+              )}
+              {view === "empty" && t("该提交无文件改动")}
+              {view === "list" && props.commitFiles.kind === "done" && props.commitFiles.files.map((f) => (
+                <div key={f.path} className="cf-row">
+                  {f.path} <b className="add">+{f.additions}</b>
+                  <b className="del"> -{f.deletions}</b>
+                </div>
+              ))}
             </div>
           )}
         </div>
       ))}
+      {props.more ? (
+        <button className="more" disabled={props.loadingMore} onClick={props.onLoadMore}>
+          {props.loadingMore ? t("加载中…") : t("加载更多")}
+        </button>
+      ) : props.log.length >= LOG_LIMIT ? (
+        <div className="list-note">{t("已显示全部 {n} 条提交", { n: props.log.length })}</div>
+      ) : null}
     </>
   );
 }
 
 
-/** 顶区:工作区 chips + 分支/±/⇅ 摘要 + 差异/分支/历史 切换。 */
+/** 顶区:工作区 chips + 分支/±/⇅ 摘要 + 差异/分支/历史 切换(枚举英文,标签 t())。 */
 export function GitHeader(props: {
   workspaces: { id: string; name: string }[];
   wsId: string;
@@ -80,10 +107,9 @@ export function GitHeader(props: {
   status: GitDiffStatus | null;
   totals: GitTotals | null;
   ab: GitAheadBehind | null;
-  view: string;
-  onView: (v: "差异" | "分支" | "历史") => void;
+  view: GitView;
+  onView: (v: GitView) => void;
 }) {
-  const VIEWS = ["差异", "分支", "历史"] as const;
   return (
     <>
       <div className="ws-chips">
@@ -103,9 +129,9 @@ export function GitHeader(props: {
           ) : null}
         </span>
         <div className="seg" role="tablist">
-          {VIEWS.map((v) => (
+          {GIT_VIEWS.map((v) => (
             <button key={v} role="tab" aria-selected={props.view === v} className={props.view === v ? "on" : ""} onClick={() => props.onView(v)}>
-              {v}
+              {t(GIT_VIEW_LABEL[v])}
             </button>
           ))}
         </div>
@@ -115,10 +141,11 @@ export function GitHeader(props: {
 }
 
 
-/** 底部浮层:操作菜单 / PR 确认 / 占忙与结果 toast。 */
+/** 底部浮层:操作菜单 / PR 确认 / 分支切换确认 / 占忙与结果 toast。 */
 export function GitOverlays(props: {
   menu: boolean;
   prSheet: PrSheetState | null;
+  coSheet: string | null;
   busy: string | null;
   toast: string | null;
   ahead: number;
@@ -128,9 +155,10 @@ export function GitOverlays(props: {
   onPrOpen: () => void;
   onPrClose: () => void;
   onPrRun: () => void;
+  onCoClose: () => void;
+  onCoConfirm: () => void;
 }) {
-  const busyText =
-    props.busy === "pr-run" || props.busy === "pr" ? "PR…" : props.busy === "co" ? t("切换中…") : `${props.busy}…`;
+  const busyText = busyOpText(props.busy);
   return (
     <>
       {props.menu && (
@@ -155,11 +183,30 @@ export function GitOverlays(props: {
       {props.prSheet && (
         <PrSheet state={props.prSheet} busy={props.busy === "pr-run"} onClose={props.onPrClose} onRun={props.onPrRun} />
       )}
+      {props.coSheet && (
+        <ConfirmSheet
+          branch={props.coSheet}
+          busy={props.busy === "co"}
+          onClose={props.onCoClose}
+          onConfirm={props.onCoConfirm}
+        />
+      )}
       {(props.busy || props.toast) && (
         <div className={"git-toast" + (props.toast ? "" : " busy")}>{props.toast ?? busyText}</div>
       )}
     </>
   );
+}
+
+/** 占忙文案:op 键 → 人话(裸 "fetch…" 类英文键不再上屏)。 */
+function busyOpText(busy: string | null): string {
+  if (busy === "pr-run" || busy === "pr") return "PR…";
+  if (busy === "co") return t("切换中…");
+  if (busy === "more") return t("加载中…");
+  if (busy === "fetch") return t("获取中…");
+  if (busy === "pull") return t("拉取中…");
+  if (busy === "push") return t("推送中…");
+  return `${busy}…`;
 }
 
 

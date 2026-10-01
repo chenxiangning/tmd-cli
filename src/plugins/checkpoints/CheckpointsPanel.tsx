@@ -13,6 +13,7 @@ import { TimelineCount, TimelinePanel } from "./TimelinePanel";
 import { refreshBatches, useCkptBatches } from "./store";
 import { useCheckpointActions } from "./useCheckpointActions";
 import { useCkptAutoRefresh, useCkptScope } from "./useCkptScope";
+import { countHighRisk } from "./risk";
 import type { CkptBatch } from "@kernel/ipc";
 
 /** useCkptBatches 返回面(结构化定义;store 未导出该契约,不为其开口)。 */
@@ -29,11 +30,14 @@ function PanelSummaryBar({
   onView,
   shown,
   pendingCount,
+  pendingHighRisk,
 }: {
   view: "batch" | "timeline";
   onView: (v: "batch" | "timeline") => void;
   shown: { name: string; root: string } | null;
   pendingCount: number;
+  /** 待审批次的高危文件合计(0 = 不出 pill;批行另有单批计数)。 */
+  pendingHighRisk: number;
 }) {
   return (
     <div className="flex h-[30px] flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 text-[0.6875rem]">
@@ -54,8 +58,16 @@ function PanelSummaryBar({
       )}
       <span className="flex-1" />
       {view === "batch" ? (
-        <span className="flex-none text-(--tmd-fg-faint)">
+        <span className="flex flex-none items-center gap-1.5 text-(--tmd-fg-faint)">
           {t("待审")} <b className="font-semibold text-(--tmd-git-modified)">{pendingCount}</b>
+          {pendingHighRisk > 0 && (
+            <span
+              className="rounded bg-(--tmd-diff-removed)/15 px-1 font-bold text-(--tmd-diff-removed)"
+              title={t("待审批次共 {n} 个高危文件(凭据/Shell 配置/CI/服务),建议逐批细读 diff", { n: pendingHighRisk })}
+            >
+              {t("{n} 高危", { n: pendingHighRisk })}
+            </span>
+          )}
         </span>
       ) : (
         <TimelineCount />
@@ -173,11 +185,17 @@ export function CheckpointsPanel() {
   const actions = useCheckpointActions(cwd, sessionId, tmdSessionId);
   const { busy, notice, setNotice } = actions;
 
-  const pendingCount = state.batches.filter((b) => !b.open && b.state === "pending").length;
+  const pending = state.batches.filter((b) => !b.open && b.state === "pending");
+  const pendingCount = pending.length;
+  /* 待审批次的高危文件合计(与批头单批计数同源 risk.ts;0 = 摘要行不出 pill)。 */
+  const pendingHighRisk = pending.reduce(
+    (n, b) => n + countHighRisk(b.files.map((f) => f.path)),
+    0,
+  );
 
   return (
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">
-      <PanelSummaryBar view={view} onView={setView} shown={shown} pendingCount={pendingCount} />
+      <PanelSummaryBar view={view} onView={setView} shown={shown} pendingCount={pendingCount} pendingHighRisk={pendingHighRisk} />
 
       {view === "batch" && notice && (
         <PanelNoticeBanner notice={notice} onClose={() => setNotice(null)} />

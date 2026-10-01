@@ -25,6 +25,7 @@ import { checkpointIdentity } from "./identity";
 import { BATCH_TAB_KIND } from "./batchTab";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { BatchSheetTabContent } from "./BatchSheet";
+import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 export const checkpointsPlugin: Plugin = {
   id: "checkpoints",

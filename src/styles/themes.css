@@ -13,6 +13,7 @@
   --tmd-radius-sm: 6px;
   --tmd-radius-md: 8px;
   --tmd-radius-lg: 12px;
+  --tmd-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 :root[data-theme="dark"] {

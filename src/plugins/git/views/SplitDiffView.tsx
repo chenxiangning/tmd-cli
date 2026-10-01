@@ -11,6 +11,8 @@
  * - 行高四面同源:nowrap 态四列是四个独立行栈,WebKit 下各栈行盒高度有亚像素差,
  *   逐行累积成整行错位(全文单 hunk 时最显)——左内容栈为基准实测行高(盒高;行外
  *   边距四面同类同值,折叠量一致),其余三栈逐行 pin 同值,引擎差异归零。
+ * - 行盒 content-visibility:auto 跳屏渲染(对齐 PatchLines unified 态;估高回落
+ *   1.25em 与 min-h/leading-tight 实高同值,见 CV_ROW 注)。
  */
 import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { buildSplitRows, foldItems, patchRowKey, planFolds, type FoldItem, type PatchRow } from "./patchModel";
@@ -18,6 +20,11 @@ import { lnoCols } from "./wordDiff";
 import { FoldBar, useFoldRuns } from "./splitFold";
 import { GridPairRow, LineNo, useWordParts, WordContent } from "./splitCells";
 import { CONTENT_NOWRAP_CLS, HEADER_CLS, HEADER_NW_CLS, sideBand } from "./splitCls";
+
+/** 行盒跳屏渲染(对齐 PatchLines.tsx unified 态的 content-visibility 方案):
+ *  contain-intrinsic-size 回落取 1.25em —— 与本件 min-h-[1.25em]/leading-tight
+ *  实测行高同值,未渲染行估高不偏离,nowrap 四栈逐行 pin 的测量不被扰动。 */
+const CV_ROW = "[content-visibility:auto] [contain-intrinsic-size:auto_1.25em]";
 
 
 /* ── 换行态:单滚动面,逐行四列 grid ── */
@@ -40,7 +47,11 @@ function SplitGrid({
         row.kind === "fold" ? (
           <FoldBar key={`f:${row.run.key}`} run={row.run} open={foldOpen.has(row.run.key)} onToggle={toggleFold} />
         ) : row.kind === "header" ? (
-          <div key={patchRowKey(row.row)} className={row.row.kind === "hunk" ? HEADER_CLS.hunk : HEADER_CLS.meta}>
+          /* hunk 头不加 CV(unified 态 hunk 早返回同款);meta 行对齐 unified 加。 */
+          <div
+            key={patchRowKey(row.row)}
+            className={row.row.kind === "hunk" ? HEADER_CLS.hunk : `${CV_ROW} ${HEADER_CLS.meta}`}
+          >
             {row.row.text}
           </div>
         ) : (
@@ -122,7 +133,7 @@ function SplitHalves({
               return (
                 <div
                   key={`h:${patchRowKey(row.row)}`}
-                  className={row.row.kind === "hunk" ? HEADER_NW_CLS.hunk : HEADER_NW_CLS.meta}
+                  className={row.row.kind === "hunk" ? HEADER_NW_CLS.hunk : `${CV_ROW} ${HEADER_NW_CLS.meta}`}
                 >
                   {row.row.text}
                 </div>
@@ -143,12 +154,12 @@ function SplitHalves({
             const band = sideBand(self, other);
             if (!self)
               return (
-                <div key={`e:${patchRowKey(other!)}`} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${band}`} aria-hidden />
+                <div key={`e:${patchRowKey(other!)}`} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${CV_ROW} ${band}`} aria-hidden />
               );
             const pair = wordParts[i];
             const parts = pair ? (isLeft ? pair[0] : pair[1]) : null;
             return (
-              <div key={patchRowKey(self)} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${band}`}>
+              <div key={patchRowKey(self)} style={isLeft ? undefined : pin(i)} className={`min-h-[1.25em] ${CV_ROW} ${band}`}>
                 {parts ? (
                   <WordContent parts={parts} wrap={false} />
                 ) : (

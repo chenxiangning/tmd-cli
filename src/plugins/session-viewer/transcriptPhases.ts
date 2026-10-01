@@ -205,13 +205,10 @@ function verbOf(name: string): string {
 
 /** 组折叠头标题:首工具标签;缺省「思考」(纯 reasoning 组)。 */
 export function phaseTitle(phase: TranscriptPhase): string {
+  /* 步数统一由 .sv-phase-count 展示(全步数,含 reasoning);标题不再拖「+N」
+   * 后缀——同一行「bash +2 · 5 步」是两套计数语义,读的人要心算对账。 */
   const firstTool = phase.steps.find((s) => s.role === "tool");
-  if (firstTool) {
-    const label = toolRowLabel(firstTool);
-    const rest = phase.steps.filter((s) => s.role === "tool").length - 1;
-    return rest > 0 ? `${label} +${rest}` : label;
-  }
-  return "思考";
+  return firstTool ? toolRowLabel(firstTool) : "思考";
 }
 
 /** 正文截断:10k 字符(超长正文留头部;工具输出截断另见 transcriptRows 留尾 2k 行)。 */

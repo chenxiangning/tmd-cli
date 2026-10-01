@@ -34,8 +34,8 @@ const MESSAGES_EN = {
   "供应商额度逼近上限的提前提醒;仅窗口失焦时发送,聚焦时看额度 chip 即可。":
     "Heads-up before a provider's quota runs out; sent only while the window is unfocused — the quota chip covers the focused case.",
   "预警阈值": "Alert threshold",
-  "每 10 分钟查一次激活会话供应商的额度,窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。":
-    "Poll the active session's provider every 10 minutes and notify once per window cycle when usage crosses the threshold; 0 = off.",
+  "每 10 分钟查一次在跑会话与平铺幕布各供应商的额度(按供应商去重),窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。":
+    "Poll the providers of running sessions and tiled panes every 10 minutes (deduped per provider) and notify once per window cycle when usage crosses the threshold; 0 = off.",
   "额度预警阈值百分比": "Quota alert threshold percent",
   "开启": "On",
   "关闭": "Off",
@@ -71,8 +71,8 @@ const MESSAGES_JA = {
   "供应商额度逼近上限的提前提醒;仅窗口失焦时发送,聚焦时看额度 chip 即可。":
     "プロバイダーの残量上限が近づいたら事前にお知らせ。非フォーカス時のみ送信し、フォーカス中はクォータチップで確認できます。",
   "预警阈值": "警告しきい値",
-  "每 10 分钟查一次激活会话供应商的额度,窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。":
-    "アクティブセッションのプロバイダーを 10 分ごとに確認し、使用率がしきい値を超えたら通知(同一ウィンドウ周期に 1 度);0 = オフ。",
+  "每 10 分钟查一次在跑会话与平铺幕布各供应商的额度(按供应商去重),窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。":
+    "稼働中セッションとタイル状キャンバスの各プロバイダーを 10 分ごとに確認(プロバイダー単位で重複排除)し、使用率がしきい値を超えたら通知(同一ウィンドウ周期に 1 度);0 = オフ。",
   "额度预警阈值百分比": "残高警告しきい値(%)",
   "开启": "オン",
   "关闭": "オフ",

@@ -13,6 +13,8 @@ const H_KEY = "tmd.composer.h";
 
 export function useComposerSize(taRef: React.RefObject<HTMLTextAreaElement | null>): {
   taH: number | null;
+  /** 拖拽进行中(把手加深反馈;SessionScreen 传 className)。 */
+  dragging: boolean;
   grabHandlers: {
     onPointerDown: (e: React.PointerEvent) => void;
     onPointerMove: (e: React.PointerEvent) => void;
@@ -40,13 +42,25 @@ export function useComposerSize(taRef: React.RefObject<HTMLTextAreaElement | nul
    * 不经 React 提交,免连续事件批处理的滞后)。 */
   const cur = React.useRef<number | null>(null);
   const grab = React.useRef<{ y: number; h: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  /* 双击把手 = 回紧凑态(两次按下 <300ms;可发现性:把手除了拖还能点两下)。 */
+  const lastTapAt = React.useRef(0);
   const down = (e: React.PointerEvent): void => {
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch { /* 合成事件无有效 pointerId */ }
+    const now = Date.now();
+    if (now - lastTapAt.current < 300) {
+      lastTapAt.current = 0;
+      grab.current = null;
+      setTaH(null);
+      return;
+    }
+    lastTapAt.current = now;
     const h0 = taH ?? (taRef.current?.offsetHeight ?? TA_MIN_H);
     cur.current = h0;
     grab.current = { y: e.clientY, h: h0 };
+    setDragging(true);
   };
   const move = (e: React.PointerEvent): void => {
     if (!grab.current) return;
@@ -57,9 +71,10 @@ export function useComposerSize(taRef: React.RefObject<HTMLTextAreaElement | nul
   const up = (): void => {
     if (!grab.current) return;
     grab.current = null;
+    setDragging(false);
     const h = cur.current;
     /* 拉到下限以下松手 = 回紧凑态(随内容自长高),记忆一并清掉 */
     setTaH(h !== null && h <= TA_MIN_H ? null : h);
   };
-  return { taH, grabHandlers: { onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up } };
+  return { taH, dragging, grabHandlers: { onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up } };
 }

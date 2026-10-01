@@ -44,6 +44,19 @@ export function JournalPanel() {
         <button type="button" className="dj-btn" aria-label={t("下个月")} onClick={() => nav(1)}>
           <CaretRight size={12} weight="bold" />
         </button>
+        {/* 回本月:面板翻去远处后一键回(此前翻 1 月要连点 8 次) */}
+        <button
+          type="button"
+          className="dj-btn"
+          aria-label={t("回到本月")}
+          title={t("回到本月")}
+          onClick={() => {
+            const now = new Date(); /* 实时取,跨零点不落昨月 */
+            setYm({ y: now.getFullYear(), m: now.getMonth() + 1 });
+          }}
+        >
+          {t("今")}
+        </button>
       </div>
       <div className="dj-panel-flow">
         {sessions === null ? (

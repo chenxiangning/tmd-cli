@@ -104,7 +104,8 @@
 
 /* ── 卡片 ── */
 .sb-card-host { position: relative; display: block; }
-.sb-card { display: flex; flex-direction: column; gap: 2px; width: 100%; border: 1px solid var(--tmd-border); border-left: 3px solid var(--ec, var(--tmd-accent)); border-radius: 6px; background: var(--tmd-bg-elevated); cursor: pointer; padding: 4px 6px; text-align: left; color: var(--tmd-fg); }
+/* 长日泳道渲染预算:视口外卡片跳过子树渲染,占位尺寸防滚动条抖动(css 级优化)。 */
+.sb-card { display: flex; flex-direction: column; gap: 2px; width: 100%; border: 1px solid var(--tmd-border); border-left: 3px solid var(--ec, var(--tmd-accent)); border-radius: 6px; background: var(--tmd-bg-elevated); cursor: pointer; padding: 4px 6px; text-align: left; color: var(--tmd-fg); content-visibility: auto; contain-intrinsic-size: auto 44px; }
 .sb-card:hover { border-color: color-mix(in srgb, var(--ec, var(--tmd-accent)) 55%, var(--tmd-border)); }
 .sb-card.dim { opacity: .55; }
 .sb-card-c1 { display: flex; align-items: center; gap: 4px; }
@@ -118,3 +119,8 @@
 .sb-act { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border: 1px solid var(--tmd-border); border-radius: 4px; background: var(--tmd-bg-popover); color: var(--tmd-fg-muted); cursor: pointer; }
 .sb-act:hover { color: var(--tmd-fg); border-color: var(--tmd-border-strong); }
 .sb-rename { width: 100%; border: 1px solid var(--tmd-accent); border-radius: 6px; background: var(--tmd-bg-input); color: var(--tmd-fg); font-size: 0.6875rem; padding: 4px 6px; }
+
+/* ── 扫描失败错误条(boardData 记失败引擎集,不伪装空板) ── */
+.sb-scan-error { display: flex; align-items: center; gap: 8px; border: 1px solid color-mix(in srgb, var(--tmd-err, #c0504d) 45%, var(--tmd-border)); border-radius: 7px; background: var(--tmd-bg-elevated); color: var(--tmd-err, #c0504d); font-size: 0.6875rem; padding: 4px 10px; }
+.sb-scan-retry { display: inline-flex; align-items: center; gap: 3px; height: 20px; border: 1px solid var(--tmd-border); border-radius: 6px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); cursor: pointer; font-size: 0.625rem; padding: 0 6px; }
+.sb-scan-retry:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }

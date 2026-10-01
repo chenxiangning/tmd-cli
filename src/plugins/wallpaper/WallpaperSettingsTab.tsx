@@ -16,26 +16,27 @@ import {
 } from "./fluidTones";
 import { WALLPAPER_DARKEN_MAX, WALLPAPER_DARKEN_MIN } from "./types";
 
-const FLUID_PRESET_LABELS: Record<FluidPresetId, string> = {
-  mist: t("薄雾"),
-  aurora: t("极光"),
-  dusk: t("暮色"),
-  orchid: t("兰紫"),
-  ember: t("烬红"),
-  ink: t("墨蓝"),
-  ash: t("灰烬"),
-};
-
-const FLUID_MOTION_LABELS: Record<FluidMotionId, string> = {
-  drift: t("漂移"),
-  taiji: t("太极"),
-  storm: t("风暴"),
-  tornado: t("龙卷"),
-  chase: t("游龙"),
-};
-
 export function WallpaperSettingsTab() {
   const state = useWallpaperState();
+  /* 标签表只存中文源串,渲染点 t() 包裹:i18n 约定模块顶层/定义处不调 t(),
+   * 语言热切换(整树重挂载)后取词随之刷新。 */
+  const FLUID_PRESET_LABELS: Record<FluidPresetId, string> = {
+    mist: "薄雾",
+    aurora: "极光",
+    dusk: "暮色",
+    orchid: "兰紫",
+    ember: "烬红",
+    ink: "墨蓝",
+    ash: "灰烬",
+  };
+
+  const FLUID_MOTION_LABELS: Record<FluidMotionId, string> = {
+    drift: "漂移",
+    taiji: "太极",
+    storm: "风暴",
+    tornado: "龙卷",
+    chase: "游龙",
+  };
   /* 色点按当前生效明暗取色(渲染时读一次,主题切换后下次渲染刷新)。 */
   const dark =
     typeof document !== "undefined" &&

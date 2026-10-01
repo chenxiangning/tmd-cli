@@ -9,10 +9,11 @@ import { lazy, useEffect, useRef, useState } from "react";
 import type { EditorTab } from "@kernel/tabs";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { useSettingsState } from "@kernel/settings";
+import { useSettingsState, updateSettings } from "@kernel/settings";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { retryImport } from "@kernel/lazyImport";
 import { LiveTurn } from "./liveTurn";
+import { ConfirmCard } from "./confirmCard";
 import type { StructuredSessionPayload } from "./tabs";
 import { TranscriptView } from "@plugins/session-viewer/transcriptView";
 import {
@@ -174,6 +175,18 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
       setDraft((d) => (d === "" ? text : d));
     });
   };
+  /* 审批应答(ConfirmCard 回路):应答即收卡,重复应答按无 confirm 短路。 */
+  const answerConfirm = (ok: boolean) => {
+    const cur = confirm;
+    if (!cur) return;
+    sessionRef.current?.respond(cur.frameId, ok);
+    setConfirm(null);
+  };
+  /* 输入框随手长高(两行式,桌面上限同款 180px;CSS overflow 兜底滚动)。 */
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+  };
 
   if (!profile?.structuredRpc) {
     return <div className="ss-root"><div className="ss-empty">{t("该引擎不支持结构化会话")}</div></div>;
@@ -187,6 +200,16 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         <span className="ss-cwd">{payload.cwd}</span>
         {model ? <span className="ss-model">{model}</span> : null}
         {sessionId ? <span className="ss-sid">{sessionId.slice(0, 8)}</span> : null}
+        {/* 极简展示切换(形制同 viewer 头 sv-minimal;设置同源全局生效) */}
+        <button
+          type="button"
+          className={"ss-minimal" + (minimal ? " is-on" : "")}
+          title={t("极简展示:每轮工作过程折叠为一行,只保留最终答复")}
+          aria-pressed={minimal}
+          onClick={() => updateSettings({ sessionViewerMinimal: !minimal })}
+        >
+          {t("极简")}
+        </button>
         <span className={`ss-dot${busy ? " is-busy" : ""}`} title={busy ? t("生成中") : t("空闲")} />
         {statusText ? <span className="ss-status" title={statusText}>{statusText.slice(0, 80)}</span> : null}
         {busy ? (
@@ -210,12 +233,12 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
             <button type="button" className="ss-retry" onClick={retry}>{t("重试")}</button>
           </div>
         ) : null}
-        {phase === "exited" ? <div className="ss-empty">{t("会话已结束(关闭此 tab 可再开)")}</div> : null}
-        {busy ? (
-          <div className="ss-working">
-            <span className="ss-spin" aria-hidden>{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>
-            <span className="ss-working-who">{model ?? profile.name}</span>
-            <span className="ss-working-for">{t("working for")}{elapsed}s</span>
+        {/* 已结束 = 紧凑横幅(不再视口高空块把残留内容顶出视野);重新开启 =
+            重跑该引擎 spawn 链(retry 同源:kill 残骸 → 全态复位 → 再握手)。 */}
+        {phase === "exited" ? (
+          <div className="ss-ended">
+            {t("会话已结束(关闭此 tab 可再开)")}
+            <button type="button" className="ss-retry" onClick={retry}>{t("重新开启")}</button>
           </div>
         ) : null}
 
@@ -226,42 +249,31 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
           </div>
         ) : null}
       </div>
-      {confirm ? (
-        <div className="ss-confirm">
-          <div className="ss-confirm-title">{confirm.title || t("等待确认")}</div>
-          <div className="ss-confirm-message">{confirm.message}</div>
-          <div className="ss-confirm-actions">
-            <button
-              type="button"
-              className="ss-confirm-deny"
-              onClick={() => {
-                sessionRef.current?.respond(confirm.frameId, false);
-                setConfirm(null);
-              }}
-            >
-              {t("拒绝")}
-            </button>
-            <button
-              type="button"
-              className="ss-confirm-approve"
-              onClick={() => {
-                sessionRef.current?.respond(confirm.frameId, true);
-                setConfirm(null);
-              }}
-            >
-              {t("批准")}
-            </button>
-          </div>
+      {/* working 带移出滚动区(flex:none 底带):长轮次卷走看不见、与 860px 列错位两症同治 */}
+      {busy ? (
+        <div className="ss-working">
+          <span className="ss-spin-grid" aria-hidden>{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>
+          <span className="ss-working-who">{model ?? profile.name}</span>
+          <span className="ss-working-for">{t("working for")}{elapsed}s</span>
         </div>
       ) : null}
+      {confirm ? <ConfirmCard key={confirm.frameId} confirm={confirm} onAnswer={answerConfirm} /> : null}
       <div className="ss-input">
         <textarea
           className="ss-textarea"
           value={draft}
-          placeholder={phase === "ready" ? t("发消息(结构化会话,无幕布)") : t("会话未就绪")}
+          placeholder={phase === "ready" ? t("发消息(Enter 发送,Shift+Enter 换行)") : t("会话未就绪")}
           disabled={phase !== "ready"}
           onChange={(e) => setDraft(e.target.value)}
+          onInput={(e) => autoResize(e.currentTarget)}
           onKeyDown={(e) => {
+            /* confirm 在卡:Esc 拒绝;Enter 不再批准(打字误敲是最高频误批准源),
+               批准经卡内按钮;composing 让路输入法 */
+            if (confirm && !e.nativeEvent.isComposing && e.key === "Escape") {
+              e.preventDefault();
+              answerConfirm(false);
+              return;
+            }
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               send();

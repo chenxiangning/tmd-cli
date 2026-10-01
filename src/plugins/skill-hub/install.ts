@@ -131,7 +131,8 @@ export async function runInstall(
     }
     await ipc.fsRemovePath(dl.path).catch(() => undefined);
     /* v2 闭环:落位成功(≥1 目标 done)即写安装记录(composer 级联依据)。
-       targets 记 home 相对路径;claude 补链成功也计入(该 skill claude 可用)。 */
+       targets 记 home 相对路径;claude 补链成功也计入(该 skill claude 可用);
+       version 记卡片 latestVersion(更新闭环比对依据,缺 = 如实不显更新)。 */
     const doneTargets = outcome.targets.filter((r) => r.state === "done");
     if (doneTargets.length > 0) {
       const rels = doneTargets.map((r) => r.target.dir.replace(`${home}/`, ""));
@@ -141,6 +142,7 @@ export async function runInstall(
         source: "store",
         description: card.summary || undefined,
         targets: rels,
+        version: resolved.latestVersion || undefined,
         createdAt: Date.now(),
       }).catch(() => undefined); /* 记录失败不阻断安装(真身已落盘) */
     }

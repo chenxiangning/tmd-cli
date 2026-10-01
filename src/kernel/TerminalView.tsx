@@ -19,6 +19,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { openExternalUrl } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
 import { host } from "@kernel/host";
@@ -274,11 +275,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       <TerminalLoadOverlay progress={loadProgress} />
       {atTop && hasMore && (
         <button
-          onClick={() => void loadEarlier()}
-          disabled={loadingHistory}
+          onClick={() => void loadEarlier()} disabled={loadingHistory}
           className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-3 py-1 text-xs text-(--tmd-accent) shadow-lg hover:bg-(--tmd-bg-hover) disabled:opacity-50"
         >
-          {loadingHistory ? "加载中…" : "↑ 加载更早的输出"}
+          {loadingHistory ? t("加载中…") : t("↑ 加载更早的输出")}
         </button>
       )}
       {searchOpen && (

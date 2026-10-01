@@ -10,6 +10,7 @@ import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile } from "@kernel/ipc";
 import { getCachedDiff } from "./diffCache";
+import { classifyRisk } from "./risk";
 import { openBatchTab } from "./batchTab";
 
 /** 内联确认卡目标:mode 区分回退(默认,兼容既有 paths 子集语义)与应用。 */
@@ -137,6 +138,16 @@ export function FileRow({
         >
           {f.status}
         </span>
+        {classifyRisk(f.path) === "high" && (
+          /* 高危红标右栏缺位是 P0-3:整批「通过」按钮在此面,无标即盲放。
+             徽标与中央批审阅单(BatchFileSection)同款同源,risk.ts 唯一规则源。 */
+          <span
+            className="flex-none rounded bg-(--tmd-diff-removed)/15 px-1 text-[0.625rem] font-bold text-(--tmd-diff-removed)"
+            title={t("敏感路径(凭据/Shell 配置/CI/服务),建议细读 diff 再放行")}
+          >
+            {t("高危")}
+          </span>
+        )}
         {f.editCount > 0 && b.attribution === "events" && (
           <span
             className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"

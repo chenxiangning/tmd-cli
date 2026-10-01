@@ -19,7 +19,9 @@ const PLUGINS: Record<string, () => Promise<Plugin>> = {
   kimi: () => import("@plugins/cli-kimi/index").then((m) => m.cliKimiPlugin),
   grok: () => import("@plugins/cli-grok/index").then((m) => m.cliGrokPlugin),
   qoder: () => import("@plugins/cli-qoder/index").then((m) => m.cliQoderPlugin),
+  "qoder-cn": () => import("@plugins/cli-qoder-cn/index").then((m) => m.cliQoderCnPlugin),
   opencode: () => import("@plugins/cli-opencode/index").then((m) => m.cliOpencodePlugin),
+  dsh: () => import("@plugins/cli-dsh/plugin").then((m) => m.cliDshPlugin),
 };
 
 describe("手机引擎表与桌面插件 profile 对齐", () => {

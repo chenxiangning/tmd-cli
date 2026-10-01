@@ -117,14 +117,15 @@
   text-orientation: upright; /* 字母逐个立正,不卧倒 */
   line-height: 26px; letter-spacing: 7px;
   font-family: "Snell Roundhand", "Bradley Hand", cursive;
-  font-size: 14px; font-style: normal; color: #c6cbd2;
-  text-shadow: 0 0 8px rgba(198, 203, 210, 0.55), 0 0 2px rgba(198, 203, 210, 0.85);
+  font-size: 14px; font-style: normal;
+  /* 签名色 token 化(局部变量,不进全局 themes):深银 / 浅暗金 */
+  color: var(--rail-mark-fg, #c6cbd2);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--rail-mark-fg, #c6cbd2) 55%, transparent), 0 0 2px color-mix(in srgb, var(--rail-mark-fg, #c6cbd2) 85%, transparent);
   pointer-events: none; user-select: none;
 }
 /* 浅色主题:银灰在浅底不可见,换暗金 */
 :root[data-theme="light"] .panel-rail-mark {
-  color: #8a6d2f;
-  text-shadow: 0 0 8px rgba(138, 109, 47, 0.4), 0 0 2px rgba(138, 109, 47, 0.7);
+  --rail-mark-fg: #8a6d2f;
 }
 /* ⋯ 溢出菜单里的组间分隔线(与 rail 同口径)。 */
 .panel-overflow-sep {
@@ -156,24 +157,36 @@
   color: var(--tmd-fg);
 }
 
+/* 图标装饰点亮色兜底(13 条 per-panel 规则共用一处,不再逐条写死 rgb;
+ * 定义在 :root——⋯ 溢出菜单 portal 到 body,不在 .panel-rail 子树) */
+:root {
+  --rail-accent-fallback: rgb(255, 140, 60); /* 橙色 ─ 跟用户截图一致 */
+}
 .panel-rail-tab.is-active {
-  color: rgb(255, 140, 60); /* 橙色 ─ 跟用户截图一致 */
+  color: var(--rail-accent-fallback);
+}
+/* 激活但右栏折叠:同一点亮色降到 55% 透明——「开着」全亮 /「收起」半亮一眼可分 */
+.panel-rail-tab.is-active.is-collapsed {
+  opacity: 0.55;
+}
+.panel-rail-tab.is-active.is-collapsed:hover {
+  opacity: 1;
 }
 
 /* 图标装饰:per-panel 点亮色(缺省回落写死橙;见 kernel/iconDecor.ts) */
-.panel-rail-tab.is-active[data-panel-id="files"] { color: var(--icon-decor-panel-files, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-panel-id="git"] { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-panel-id="marks"] { color: var(--icon-decor-panel-marks, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-panel-id="approval-inbox"] { color: var(--icon-decor-panel-approval-inbox, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-panel-id="skill-hub"] { color: var(--icon-decor-panel-skill-hub, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-panel-id="mcp-hub"] { color: var(--icon-decor-panel-mcp-hub, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-panel-id="files"] { color: var(--icon-decor-panel-files, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-panel-id="git"] { color: var(--icon-decor-panel-git, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-panel-id="marks"] { color: var(--icon-decor-panel-marks, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-panel-id="approval-inbox"] { color: var(--icon-decor-panel-approval-inbox, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-panel-id="skill-hub"] { color: var(--icon-decor-panel-skill-hub, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-panel-id="mcp-hub"] { color: var(--icon-decor-panel-mcp-hub, var(--rail-accent-fallback)); }
 /* rail 上的侧栏动作钮(ssh = 面板 tab;wsl/terminal/intent-canvas = rail 动作)同吃图标装饰点亮色 */
-.panel-rail-tab.is-active[data-panel-id="ssh"] { color: var(--icon-decor-ssh-panel, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-action-id="wsl-panel"] { color: var(--icon-decor-wsl-panel, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-action-id="terminal"] { color: var(--icon-decor-terminal, rgb(255, 140, 60)); }
-.panel-rail-tab.is-active[data-action-id="intent-canvas"] { color: var(--icon-decor-intent-canvas, rgb(255, 140, 60)); }
+.panel-rail-tab.is-active[data-panel-id="ssh"] { color: var(--icon-decor-ssh-panel, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-action-id="wsl-panel"] { color: var(--icon-decor-wsl-panel, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-action-id="terminal"] { color: var(--icon-decor-terminal, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-action-id="intent-canvas"] { color: var(--icon-decor-intent-canvas, var(--rail-accent-fallback)); }
 
 .panel-rail-tab svg {
   width: 1rem;
@@ -189,111 +202,3 @@
   background: var(--tmd-border);
   flex: 0 0 auto;
 }
-
-/* ── 下拉面板 ──
- * 菜单经 createPortal 挂到 document.body(position: fixed),
- * 跳出 titlebar/右栏层叠上下文,与 .wsmenu 同层(z-index 1200+)。
- * 背景为不透明实色,绝不透出身后内容。 */
-
-.panel-overflow-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  background: transparent;
-}
-
-.panel-overflow-menu {
-  position: fixed;
-  z-index: 1201;
-  min-width: 240px;
-  color: var(--tmd-fg);
-  background: var(--tmd-bg-popover);
-  border: 1px solid var(--tmd-border);
-  border-radius: 10px;
-  padding: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-}
-
-.panel-overflow-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  color: var(--tmd-fg);
-  user-select: none;
-  transition: background 120ms ease;
-}
-
-.panel-overflow-item:hover {
-  background: var(--tmd-bg-hover);
-}
-
-.panel-overflow-item.is-active {
-  background: var(--tmd-bg-hover);
-}
-
-.panel-overflow-item-icon {
-  display: inline-flex;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  align-items: center;
-  justify-content: center;
-  color: var(--tmd-fg-muted);
-}
-
-.panel-overflow-item.is-active .panel-overflow-item-icon {
-  color: rgb(255, 140, 60);
-}
-.panel-overflow-item.is-active[data-panel-id="files"] .panel-overflow-item-icon { color: var(--icon-decor-panel-files, rgb(255, 140, 60)); }
-.panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon { color: var(--icon-decor-panel-git, rgb(255, 140, 60)); }
-.panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon { color: var(--icon-decor-panel-checkpoints, rgb(255, 140, 60)); }
-.panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon { color: var(--icon-decor-panel-memory, rgb(255, 140, 60)); }
-.panel-overflow-item.is-active[data-panel-id="marks"] .panel-overflow-item-icon { color: var(--icon-decor-panel-marks, rgb(255, 140, 60)); }
-.panel-overflow-item.is-active[data-panel-id="approval-inbox"] .panel-overflow-item-icon { color: var(--icon-decor-panel-approval-inbox, rgb(255, 140, 60)); }
-.panel-overflow-item.is-active[data-panel-id="skill-hub"] .panel-overflow-item-icon { color: var(--icon-decor-panel-skill-hub, rgb(255, 140, 60)); }
-.panel-overflow-item.is-active[data-panel-id="mcp-hub"] .panel-overflow-item-icon { color: var(--icon-decor-panel-mcp-hub, rgb(255, 140, 60)); }
-
-.panel-overflow-item-icon svg {
-  width: 0.875rem;
-  height: 0.875rem;
-}
-
-.panel-overflow-item-label {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.panel-overflow-item-check {
-  width: 16px;
-  height: 16px;
-  border: 1.5px solid var(--tmd-border-strong);
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  flex: 0 0 16px;
-  cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
-}
-
-.panel-overflow-item-check:hover {
-  border-color: var(--tmd-fg-muted);
-}
-
-.panel-overflow-item-check svg {
-  width: 0.6875rem;
-  height: 0.6875rem;
-  color: rgb(23, 23, 23);
-  stroke-width: 3;
-}
-.panel-overflow-item-check.is-checked {
-  background: rgb(255, 140, 60);
-  border-color: rgb(255, 140, 60);
-}
-/* ⋯ 菜单行激活按钮(等值迁移自内联样式,面板行与动作行共用)。 */
-.panel-overflow-item-btn { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: none; background: none; font: inherit; color: inherit; cursor: inherit; text-align: left; }

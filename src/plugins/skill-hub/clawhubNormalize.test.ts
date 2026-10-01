@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildClawHubDownloadUrl,
   buildClawHubWebUrl,
+  isNewerSkillVersion,
   normalizeClawHubCard,
   selectOwnerCandidate,
   type ClawHubCard,
@@ -123,5 +124,28 @@ describe("selectOwnerCandidate(owner 消歧收敛)", () => {
   it("无同 slug 候选 = null", () => {
     expect(selectOwnerCandidate(target, [cand("a", { slug: "other" })])).toBeNull();
     expect(selectOwnerCandidate(target, [])).toBeNull();
+  });
+});
+
+describe("isNewerSkillVersion(更新闭环版本比对)", () => {
+  it("语义化近似:数值段数值比(补零对齐),剥前缀 v", () => {
+    expect(isNewerSkillVersion("1.10.0", "1.9.2")).toBe(true);
+    expect(isNewerSkillVersion("v2.0", "1.9")).toBe(true);
+    expect(isNewerSkillVersion("1.0.1", "1.0.0")).toBe(true);
+    expect(isNewerSkillVersion("1.9.2", "1.10.0")).toBe(false);
+    expect(isNewerSkillVersion("1.0.0", "1.0.0")).toBe(false);
+    expect(isNewerSkillVersion("v1.0.0", "1.0.0")).toBe(false);
+  });
+
+  it("混型段退字符串比;段数不齐短侧补零", () => {
+    expect(isNewerSkillVersion("1.0.0-beta", "1.0.0-alpha")).toBe(true);
+    expect(isNewerSkillVersion("1.0.1", "1.0")).toBe(true);
+    expect(isNewerSkillVersion("1.0", "1.0.1")).toBe(false);
+  });
+
+  it("任一侧空(无版本信息)= false(如实不显更新)", () => {
+    expect(isNewerSkillVersion("", "1.0.0")).toBe(false);
+    expect(isNewerSkillVersion("2.0.0", "")).toBe(false);
+    expect(isNewerSkillVersion("", "")).toBe(false);
   });
 });

@@ -78,6 +78,8 @@ export function DayPanel({
             <button
               key={h}
               type="button"
+              role="option"
+              aria-selected={hlHour === h}
               className={`sb-seg${rows.length ? " has" : ""}${hlHour === h || hoverHour === h ? " hl" : ""}`}
               title={`${h}:00 · ${t("{n} 个会话", { n: rows.length })}`}
               onClick={() => {

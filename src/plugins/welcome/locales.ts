@@ -23,7 +23,7 @@ const MESSAGES_EN = {
   "未安装": "Not installed",
   "探针失败": "Probe failed",
   "已是最新": "Up to date",
-  "当前 {current},最新 {version},点\"更新\"升级":
+  '当前 {current},最新 {version},点"更新"升级':
     "Current {current}, latest {version} — click \"Update\" to upgrade",
   "更新": "Update",
   "重装": "Reinstall",
@@ -123,7 +123,7 @@ const MESSAGES_JA = {
   "未安装": "未インストール",
   "探针失败": "プローブ失敗",
   "已是最新": "最新です",
-  "当前 {current},最新 {version},点\"更新\"升级":
+  '当前 {current},最新 {version},点"更新"升级':
     "現在 {current}、最新 {version}。「更新」でアップグレード",
   "更新": "更新",
   "重装": "再インストール",

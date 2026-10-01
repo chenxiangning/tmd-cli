@@ -115,7 +115,10 @@ export function StoreView({
 
       {error && (
         <div className="mb-2 rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-2 text-[0.625rem] leading-relaxed text-(--tmd-diff-removed)">
-          {t("该源不可达或暂不可用(Glama 现需 API key)")} · {error}
+          {source === "glama"
+            ? t("Glama 源请求失败(匿名访问已被限制,需 API key)")
+            : t("该源不可达或暂不可用")}{" "}
+          · {error}
         </div>
       )}
 

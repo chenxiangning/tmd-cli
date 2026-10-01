@@ -44,6 +44,15 @@
   white-space: nowrap; }
 .academy-version { margin-left: auto; color: var(--tmd-fg-faint);
   font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* 课程版本漂移提示条(不阻断):CLI 升级后课程可能过期(audit B5)。 */
+.academy-version-drift { flex: none; padding: 5px 14px; font-size: 0.6875rem;
+  color: var(--tmd-warn, #b8860b); background: var(--tmd-bg-panel);
+  border-bottom: 1px solid var(--tmd-border); }
+/* 「试一试」引导提示(无输入框/引擎不符,不插命令不结课;audit B3)。 */
+.academy-practice-hint { flex-basis: 100%; margin: 0; font-size: 0.6875rem;
+  line-height: 1.5; color: var(--tmd-fg-muted); }
+.academy-card-body .academy-practice-hint { margin-top: 6px;
+  padding-top: 6px; border-top: 1px dashed var(--tmd-border); }
 .academy-entry-menu {
   position: absolute; left: 0; right: 0; top: calc(100% + 5px); z-index: 40;
   background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);

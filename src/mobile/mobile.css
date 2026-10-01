@@ -1,6 +1,7 @@
 /* 手机远程 UI 独立样式 —— 严格对齐 docs/prototypes/mobile-app-{home,session,pairing,device-edge-states}.html。
-   自带设计 token(浅色),不依赖桌面 global.css/主题系统;桌面与手机唯一共享的是 transport 数据面。 */
-:root{
+   自带设计 token(浅色),不依赖桌面 global.css/主题系统;桌面与手机唯一共享的是 transport 数据面。
+   token 作用域 = .m-app(手机树根节点,与桌面 :root 互不污染;style-split spec 声明)。 */
+.m-app{
   --bg-base:#ffffff; --bg-panel:#f8f8f8; --bg-input:#ffffff;
   --fg:#3b3b3b; --fg-muted:#7e7e7e; --fg-subtle:#999999; --fg-faint:#c0c0c0;
   --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
@@ -62,9 +63,12 @@
 .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .meta{font-size:10.5px;color:var(--fg-subtle);flex:none}
 .sdot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--fg-faint)}
-.sdot.run{background:var(--ok)}.sdot.ask{background:var(--warn)}
+.sdot.run{background:var(--ok);animation:pulse 1.6s ease-in-out infinite}
+.sdot.unread{background:var(--accent)}
+.sdot.ask{background:var(--warn)}
 .pill{font-size:10px;border-radius:999px;padding:1px 8px;font-weight:600;flex:none;background:rgba(161,98,7,.1);color:var(--warn);border:1px solid rgba(161,98,7,.3)}
-.empty{margin-top:60px;text-align:center;font-size:12.5px;color:var(--fg-muted);line-height:1.9}
+/* 空态文案允许 \n 换行(多行引导语,white-space 默认合并会压成一行) */
+.empty{margin-top:60px;text-align:center;font-size:12.5px;color:var(--fg-muted);line-height:1.9;white-space:pre-line}
 
 
 /* ── 配对/门(浅色卡片) ── */
@@ -93,27 +97,46 @@
 .opt{flex:1;text-align:center;font-size:13px;font-weight:600;border-radius:8px;padding:8px 0;border:1px solid var(--border);background:var(--bg-panel);color:var(--fg);font-family:inherit;cursor:pointer}
 .opt.yes{background:var(--ok);border-color:var(--ok);color:#fff}
 .opt.no{background:#fff;color:var(--err);border-color:rgba(220,38,38,.45)}
-/* composer(移动短版) */
-.composer{flex:none;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 10px 6px;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
+/* composer(移动短版);position:relative 供错误条浮层定位(不挤布局) */
+.composer{position:relative;flex:none;border-top:.5px solid var(--border);background:var(--bg-panel);padding:8px 10px 6px;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
 .composer .box{display:flex;align-items:flex-end;gap:8px;background:var(--bg-base);border:1px solid var(--border);border-radius:12px;padding:8px 10px}
 /* 输入框 16px 起步:iOS WebKit 对 <16px 输入框聚焦即页面自放大(「打字界面变大」根因),16px 封死 */
 .composer textarea{flex:1;font-size:16px;line-height:1.5;color:var(--fg);background:none;border:none;outline:none;resize:none;font-family:inherit;padding:0;min-height:48px;max-height:144px}
 .composer textarea::placeholder{color:var(--fg-faint)}
-/* 选图预览挂载(composer 上缘):缩略图行 + 右上角移除;发送时统一拼 @路径 */
+/* 选图预览挂载(composer 上缘):缩略图行 + 右上角移除;发送时统一拼 @路径;
+ * 点缩略图全屏看图(shot-img-btn 复位钮默认态,移动端无 hover 可言) */
 .composer .shots{display:flex;gap:8px;padding:0 2px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .shot{position:relative;flex:none}
+.shot-img-btn{display:block;padding:0;line-height:0}
 .shot img{display:block;width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--border)}
 .shot-x{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:999px;background:var(--fg);color:var(--bg-base);font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center}
-/* 上下拉把手:拖拽调输入框高(compact↔固定高);touch-action:none 防页面滚动抢手势 */
-.composer .grabber{flex:none;width:52px;height:14px;margin:-2px auto 4px;border-radius:999px;background:var(--border-strong);opacity:.55;touch-action:none}
+.shot-x::after{content:"";position:absolute;inset:-8px}
+/* 全屏看图浮层(点缩略图开,点任意处关) */
+.shot-preview{position:fixed;inset:0;z-index:50;margin:0;padding:0;max-width:none;max-height:none;width:100vw;height:100dvh;border:none;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);animation:shotIn .15s ease}
+.shot-preview img{max-width:96vw;max-height:92vh;object-fit:contain}
+@keyframes shotIn{from{opacity:0}to{opacity:1}}
+/* 上下拉把手:拖拽调输入框高(compact↔固定高);touch-action:none 防页面滚动抢手势;
+ * 命中区 ::after 外扩 ≥32px;拖拽中加深(dragging 态);双击回紧凑态 */
+.composer .grabber{position:relative;flex:none;width:52px;height:14px;margin:-2px auto 4px;border-radius:999px;background:var(--border-strong);opacity:.55;touch-action:none;cursor:ns-resize;transition:opacity .12s ease}
+.composer .grabber::after{content:"";position:absolute;inset:-9px}
+.composer .grabber.drag{opacity:1;background:var(--accent)}
+/* 悬浮错误条组:浮在 composer 上缘(不挤布局不跳动);发送失败条内嵌重试 */
+.m-errs{position:absolute;left:10px;right:10px;bottom:calc(100% + 4px);display:flex;flex-direction:column;gap:6px;z-index:5}
+.m-err-bar{display:flex;align-items:center;gap:10px;background:#fdf0f0;border:1px solid rgba(220,38,38,.4);color:var(--err);border-radius:9px;padding:7px 12px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);animation:shotIn .15s ease}
+.m-err-bar button{margin-left:auto;flex:none;color:var(--err);font-weight:600;border:1px solid rgba(220,38,38,.4);border-radius:6px;padding:3px 12px;background:none}
 .composer.grow textarea{max-height:none}
-.send{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;border:none;cursor:pointer}
+/* 触控目标:视觉尺寸不变,::after 外扩命中区(移动端 40px 起步的手感线) */
+.send{position:relative;width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:none;border:none;cursor:pointer}
+.send::after{content:"";position:absolute;inset:-7px}
+.send:disabled{opacity:.5}
 /* 键盘工具条(做实:session_write 原始序列;composer 聚焦时整行隐藏) */
 .keybar{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;padding-bottom:env(safe-area-inset-bottom);box-sizing:content-box;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.keybar .key{font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap;cursor:pointer;flex:none}
+.keybar .key{position:relative;font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap;cursor:pointer;flex:none}
+.keybar .key::after{content:"";position:absolute;inset:-5px}
 .keybar .key:active{background:var(--accent-soft);color:var(--accent)}
 /* 折叠钮(composer 行首):on=条展开;条展开时 composer 不再吃底部安全区(避免双份留白) */
-.kb-toggle{flex:none;width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--bg-panel);color:var(--fg-muted);font-size:13px;line-height:1}
+.kb-toggle{position:relative;flex:none;width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:var(--bg-panel);color:var(--fg-muted);font-size:13px;line-height:1}
+.kb-toggle::after{content:"";position:absolute;inset:-6px}
 .kb-toggle.on{color:var(--accent);border-color:var(--accent)}
 .composer.kb-on{padding-bottom:6px}
 /* transcript:对话(用户/助手)与工具操作分型渲染 */
@@ -155,8 +178,12 @@
 /* 审批线 chip 行 */
 .chip{font-size:10px;border-radius:999px;padding:1px 8px;font-weight:600;background:rgba(161,98,7,.1);color:var(--warn);border:1px solid rgba(161,98,7,.3)}
 .chip.g{background:rgba(5,150,105,.08);color:var(--ok);border-color:rgba(5,150,105,.3)}
-/* 发起会话弹层(SpawnSheet;浅色令牌,不再借桌面 --tmd-*) */
-.sheet-scrim{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;background:rgba(0,0,0,.45)}
+/* 发起会话弹层(SpawnSheet;浅色令牌,不再借桌面 --tmd-*)—— sheet 基座
+ * 唯一形态:原生 <dialog> 铺满视口 flex 沉底(UA margin/border/padding/背景
+ * 归零,视觉与 div 版等价),遮罩走 ::backdrop(浓度 .45 统一);hit = 垫卡片下的遮罩命中钮 */
+dialog.sheet-scrim{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:none;padding:0;background:transparent;color:inherit;overflow:visible}
+dialog.sheet-scrim::backdrop{background:rgba(0,0,0,.45)}
+.sheet-scrim-hit{position:absolute;inset:0;cursor:default;background:none;border:none;padding:0}
 .sheet{position:relative;z-index:10;max-height:70vh;width:100%;overflow:auto;border-radius:16px 16px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--bg-base);color:var(--fg);padding:16px 16px 24px;box-sizing:border-box}
 .sheet-h{margin-bottom:12px;font-size:15px;font-weight:600}
 .sheet-label{margin-bottom:4px;font-size:11.5px;font-weight:600;color:var(--fg-muted)}
@@ -230,8 +257,8 @@
 .git-empty{padding:24px 12px;text-align:center;color:var(--fg-faint);font-size:12px}
 .git-toast{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));max-width:86%;background:var(--fg);color:var(--bg-base);font-size:11.5px;padding:7px 12px;border-radius:9px;z-index:30;word-break:break-all}
 .nav-pill{flex:none;font-size:15px;border:none;background:none;color:var(--fg);padding:4px 8px}
-.sheet-mask{position:absolute;inset:0;background:rgba(0,0,0,.25);z-index:40;display:flex;align-items:flex-end}
-.sheet{width:100%;background:var(--bg-panel);border-radius:14px 14px 0 0;padding:8px 0 calc(8px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+/* git 动作表独立类(菜单行自带内距,基类 16px 内距会双份):面板底 + 安全区 */
+.gsheet{position:relative;z-index:10;max-height:70vh;width:100%;overflow:auto;box-sizing:border-box;border:1px solid var(--border);border-bottom:none;border-radius:14px 14px 0 0;background:var(--bg-panel);color:var(--fg);padding:8px 0 calc(8px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
 .sheet-row{width:100%;text-align:left;padding:12px 16px;font-size:13.5px;background:none;border:none;border-bottom:.5px solid var(--border);color:var(--fg)}
 .sheet-row.accent{color:var(--accent);font-weight:600}
 .sheet-head{padding:10px 16px 2px;font-size:13px;font-weight:700}
@@ -260,3 +287,13 @@
 .ws-kids > .row{position:relative}
 .ws-kids > .row::before{content:"";position:absolute;left:-4px;top:50%;width:4px;border-top:1px dashed var(--border)}
 .ws-kids .more{text-align:left;padding-left:22px}
+
+/* ── 原生工具类(Tailwind 死类改写:手机树不载 Tailwind,min-w-0/flex-1/truncate 等全部无效)── */
+/* 弹性行内截断:min-w-0 + flex-1 + truncate 三合一(通道行/批次文件行/工作区行) */
+.fx-ellip{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 行内重试/次级链接钮(错误态行内重试;配对屏次级返回链接) */
+.lnk-btn{color:var(--accent);background:none;border:none;padding:2px 8px;font:inherit;font-size:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.pair-alt{margin-top:4px;font-size:12px;color:var(--fg-subtle)}
+/* 列表尾注行(截断提示/计数说明):居中弱化,不抢列表主视觉 */
+.list-note{padding:8px 12px;text-align:center;color:var(--fg-faint);font-size:11px}
+

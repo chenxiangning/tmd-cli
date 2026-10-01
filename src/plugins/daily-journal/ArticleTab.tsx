@@ -5,7 +5,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
-import { stringHue } from "@kernel/colorHash";
 import { host } from "@kernel/host";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
@@ -21,12 +20,13 @@ import { NoteEditor } from "./NoteEditor";
 import { dayGenAction, statusChip } from "./statusText";
 import { noteImageUrl } from "./noteAssets";
 import { dayGenTaskType, enqueueTask, useGenTasks } from "./taskQueue";
+import { EngMark } from "./EngMark";
 import { TerminalWindow } from "@phosphor-icons/react";
 
 function StatusHints({ st, sessionCount, lastError }: { st: string; sessionCount: number; lastError?: string }) {
   return (
     <>
-      {st === "n" && <div className="dj-art-hint">{t("便签独立于文章存在,写下即是记录。")}</div>}
+      {/* 空日不再重复引导(NoteEditor 的「写便签」钮已是行动点;两处连播是噪声) */}
       {st === "f" && <div className="dj-art-hint dj-err">{lastError}</div>}
       {st === "p" && sessionCount > 0 && (
         <div className="dj-art-hint">{t("{n} 个会话等待提取。", { n: sessionCount })}</div>
@@ -35,6 +35,12 @@ function StatusHints({ st, sessionCount, lastError }: { st: string; sessionCount
   );
 }
 
+
+/** 顶栏状态 chip 组装(纯函数):该日生成任务活跃显示进行中态,否则当日状态。 */
+function chipOf(liveTask: { st: string } | undefined, st: string): { cls: string; text: string } {
+  if (liveTask) return { cls: " dj-chip-t", text: liveTask.st === "run" ? t("后台生成中") : t("排队中") };
+  return { cls: ` dj-chip-${st === "n" ? "plain" : st}`, text: statusChip(st) };
+}
 
 /** 生成会话条:绑定会话在表 = 可打开干涉;已退出 = 只读标识。 */
 function GenSessionBar({ sessionId, engine }: { sessionId?: string; engine?: string }) {
@@ -55,13 +61,6 @@ function GenSessionBar({ sessionId, engine }: { sessionId?: string; engine?: str
       {!live && <span className="dj-chip dj-chip-plain">{t("会话已收尾")}</span>}
     </div>
   );
-}
-
-/** 引擎品牌标记:注册面 renderIcon 取 glyph(cli 各插件声明制),未登记回落彩点。 */
-function EngMark({ id }: { id: string }) {
-  const render = host.getCliProfiles().find((p) => p.id === id)?.renderIcon;
-  if (render) return <span className="dj-engmark">{render("0.8125rem")}</span>;
-  return <i className="dj-engdot" style={{ background: `hsl(${stringHue(id)} 52% 48%)` }} />;
 }
 
 /** 手动发起总结(顶栏右侧,状态自适应):增量并入/生成此日/重试生成三态共用判定
@@ -155,6 +154,10 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   const meta = dayMetaOf(key);
   const isToday = key === todayKey();
   const st = deriveDayStatus(article, isToday, rows?.length ?? 0, meta);
+  /* 该日生成任务活跃即 chip 切进行中态(此前显示旧状态,用户不知已排上) */
+  const tasks = useGenTasks();
+  const liveTask = tasks.find((tk) => tk.dayKey === key && (tk.st === "run" || tk.st === "queue"));
+  const chip = chipOf(liveTask, st);
   const [lightbox, setLightbox] = useState<DayNoteImage | null>(null);
   useHolidays();
   /* 便签编辑重入信号:mount 时 autoEdit 起始,同 tab 深链 refresh(payload 换引用)
@@ -169,7 +172,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
       <div className="dj-art-bar">
         <span className="dj-art-date">{dayTitleOf(y, m, p.d)}</span>
         {holOf(y, m, p.d) && <span className="dj-holmini">休·{holOf(y, m, p.d)}</span>}
-        <span className={`dj-chip dj-chip-${st === "n" ? "plain" : st}`}>{statusChip(st)}</span>
+        <span className={`dj-chip${chip.cls}`}>{chip.text}</span>
         <span className="dj-art-sub">
           {[...new Set(rows.map((r) => r.profileId))].join(" / ")}
           {rows.length ? ` · ${t("{n} 会话", { n: rows.length })}` : ""}

@@ -1,0 +1,111 @@
+/* ⋯ 更多面板溢出菜单 —— 自 right-panel-toolbar.css 拆出(300 行铁则)。
+ * 菜单经 createPortal 挂 document.body(fixed 定位,跳出 titlebar/右栏层叠
+ * 上下文);点亮色兜底变量 --rail-accent-fallback 定义在 right-panel-toolbar.css :root。 */
+
+/* ── 下拉面板 ──
+ * 菜单经 createPortal 挂到 document.body(position: fixed),
+ * 跳出 titlebar/右栏层叠上下文,与 .wsmenu 同层(z-index 1200+)。
+ * 背景为不透明实色,绝不透出身后内容。 */
+
+.panel-overflow-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: transparent;
+}
+
+.panel-overflow-menu {
+  position: fixed;
+  z-index: 1201;
+  min-width: 240px;
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-popover);
+  border: 1px solid var(--tmd-border);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+.panel-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--tmd-fg);
+  user-select: none;
+  transition: background 120ms ease;
+}
+
+.panel-overflow-item:hover {
+  background: var(--tmd-bg-hover);
+}
+
+.panel-overflow-item.is-active {
+  background: var(--tmd-bg-hover);
+}
+
+.panel-overflow-item-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--tmd-fg-muted);
+}
+
+.panel-overflow-item.is-active .panel-overflow-item-icon {
+  color: var(--rail-accent-fallback);
+}
+.panel-overflow-item.is-active[data-panel-id="files"] .panel-overflow-item-icon { color: var(--icon-decor-panel-files, var(--rail-accent-fallback)); }
+.panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon { color: var(--icon-decor-panel-git, var(--rail-accent-fallback)); }
+.panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon { color: var(--icon-decor-panel-checkpoints, var(--rail-accent-fallback)); }
+.panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon { color: var(--icon-decor-panel-memory, var(--rail-accent-fallback)); }
+.panel-overflow-item.is-active[data-panel-id="marks"] .panel-overflow-item-icon { color: var(--icon-decor-panel-marks, var(--rail-accent-fallback)); }
+.panel-overflow-item.is-active[data-panel-id="approval-inbox"] .panel-overflow-item-icon { color: var(--icon-decor-panel-approval-inbox, var(--rail-accent-fallback)); }
+.panel-overflow-item.is-active[data-panel-id="skill-hub"] .panel-overflow-item-icon { color: var(--icon-decor-panel-skill-hub, var(--rail-accent-fallback)); }
+.panel-overflow-item.is-active[data-panel-id="mcp-hub"] .panel-overflow-item-icon { color: var(--icon-decor-panel-mcp-hub, var(--rail-accent-fallback)); }
+
+.panel-overflow-item-icon svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.panel-overflow-item-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.panel-overflow-item-check {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--tmd-border-strong);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  flex: 0 0 16px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.panel-overflow-item-check:hover {
+  border-color: var(--tmd-fg-muted);
+}
+
+.panel-overflow-item-check svg {
+  width: 0.6875rem;
+  height: 0.6875rem;
+  color: rgb(23, 23, 23);
+  stroke-width: 3;
+}
+.panel-overflow-item-check.is-checked {
+  background: var(--rail-accent-fallback);
+  border-color: var(--rail-accent-fallback);
+}
+/* ⋯ 菜单行激活按钮(等值迁移自内联样式,面板行与动作行共用)。 */
+.panel-overflow-item-btn { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: none; background: none; font: inherit; color: inherit; cursor: inherit; text-align: left; }

@@ -108,4 +108,6 @@ export const MESSAGES = {
     "解決する問題:ストリーミング要約がルールに命中したとき、現在の出力を即座に中断すべきか、言い終わってから補うべきか?",
   "影响什么:always = 随时可打断(正文里命中也会中止当前流重发);manual = 不主动打断,等消息完成后再补注。默认 always。":
     "与える影響:always = 常に中断可(本文中での命中でも現在のストリームを中止して再送)。manual = 能動的には中断せず、メッセージ完了後に注記を追加します。既定は always。",
+  /* cli-claude configGui 校验(2026-10 i18n 收口) */
+  "settings.json 顶层必须是对象": "settings.json の最上位はオブジェクトである必要があります",
 } as Record<string, string>;

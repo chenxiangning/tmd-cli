@@ -7,6 +7,7 @@
 
 import { shellInvoke, shellLog } from "@kernel/shellBridge";
 import { invoke, listen } from "@kernel/transport";
+import { t } from "@kernel/i18n";
 
 export interface RemoteSession {
   id: string;
@@ -103,6 +104,24 @@ export async function tailAskLine(tail: string): Promise<string | null> {
     if (ASK_MARKER_RE.test(lines[i])) return lines[i].trim();
   }
   return null;
+}
+
+/** 会话屏「续聊」(退出横幅钮):活会话元数据直走 resumeDiskSession(引擎
+ *  resumeArgs 冷开 / 日志指针聚焦活 PTY);无磁盘身份(未落盘新会话)= null
+ *  不可续。动态 import:resume 与 askDetect 同策略切出主 chunk(手机入口体积)。 */
+export async function resumeExitedSession(
+  meta: RemoteSession,
+  sessions: RemoteSession[],
+): Promise<string | null> {
+  if (!meta.cliSessionId || !meta.cwd) return null;
+  const { resumeDiskSession } = await import("./resume");
+  return resumeDiskSession({
+    profileId: meta.profileId,
+    cwd: meta.cwd,
+    cliSessionId: meta.cliSessionId,
+    workspaceId: meta.workspaceId,
+    sessions,
+  });
 }
 
 // ---- 基础 invoke(远程模式;未连接时抛错由调用方处理) ----
@@ -224,12 +243,12 @@ export function composeSendText(text: string, paths: string[]): string | null {
 }
 
 
-/** 相对时间(home 行 meta;与桌面侧栏口径一致)。 */
+/** 相对时间(home 行 meta;与桌面侧栏口径一致)。单位走 t()(2026-09-28 i18n 收尾)。 */
 export function relTime(ts?: number): string {
   if (!ts) return "—";
   const d = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (d < 60) return `${d} 秒`;
-  if (d < 3600) return `${Math.floor(d / 60)} 分`;
-  if (d < 86400) return `${Math.floor(d / 3600)} 时`;
-  return `${Math.floor(d / 86400)} 天`;
+  if (d < 60) return t("{n} 秒", { n: d });
+  if (d < 3600) return t("{n} 分", { n: Math.floor(d / 60) });
+  if (d < 86400) return t("{n} 时", { n: Math.floor(d / 3600) });
+  return t("{n} 天", { n: Math.floor(d / 86400) });
 }

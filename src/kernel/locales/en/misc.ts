@@ -180,6 +180,8 @@ export const MESSAGES = {
   "应用": "App",
   "访达": "Finder",
   "共 {n} 条": "{n} items",
+  // TerminalView(幕布滚动到顶的回溯入口)
+  "↑ 加载更早的输出": "↑ Load earlier output",
 
   // ── wsl 插件 ──
   // WslCard(本机段/状态行)

@@ -4,16 +4,17 @@
  */
 import { useEffect } from "react";
 import { t } from "@kernel/i18n";
-import { loadMonth, dayMetaOf, deriveDayStatus, useJournalState, type MonthSnapshot } from "./journalStore";
+import { loadMonth, dayMetaOf, deriveDayStatus, heatOf, heatThresholds, useJournalState, type MonthSnapshot } from "./journalStore";
 import type { DaySessionRow } from "./daySessions";
 import { pad2 } from "./journalFiles";
 import { monthShortOf } from "./dateTitle";
-import { holOf, useHolidays } from "./holidays";
+import { holOf, isWorkdayOverride, useHolidays } from "./holidays";
 
-/** 点阵类叠层(状态底色 + 周末底纹 + 便签内框,原型同款可共存)。 */
-const cellCls = (st: string, hasNote: boolean, count: number, hol: boolean, we: boolean): string =>
+/** 点阵类叠层(状态底色 + 周末底纹 + 便签内框,原型同款可共存)。
+ *  热力档与月视图同源(heatOf + 当月 25/50/75 分位):同日跨视图不再不同色。 */
+const cellCls = (st: string, hasNote: boolean, heat: string, hol: boolean, we: boolean): string =>
   [
-    hol ? "dj-yc-hol" : st === "t" ? "dj-yc-t" : st === "p" ? "dj-yc-p" : st === "f" ? "dj-yc-f" : st === "g" ? (count >= 9 ? "dj-yc-h3" : count >= 6 ? "dj-yc-h2" : "dj-yc-g") : "",
+    hol ? "dj-yc-hol" : st === "t" ? "dj-yc-t" : st === "p" ? "dj-yc-p" : st === "f" ? "dj-yc-f" : st === "g" ? `dj-yc-${heat}` : "",
     we ? "dj-yc-we" : "",
     hasNote ? "dj-yc-note" : "",
   ]
@@ -37,6 +38,13 @@ function MiniMonth({
 }) {
   const days = new Date(y, m, 0).getDate();
   const prefix = `${y}-${pad2(m)}`;
+  /* 当月活跃日分位阈值(与月视图 heatThresholds 同一函数): */
+  const counts: number[] = [];
+  for (let d = 1; d <= days; d++) {
+    const rows = sessions.get(`${prefix}-${pad2(d)}`);
+    if (rows?.length) counts.push(rows.length);
+  }
+  const ts = heatThresholds(counts);
   const dots: React.ReactNode[] = [];
   let artDays = 0;
   let sessDays = 0;
@@ -47,12 +55,13 @@ function MiniMonth({
     const article = snap?.articles[dd] ?? null;
     if (article) artDays++;
     if (rows.length) sessDays++;
-    const we = [0, 6].includes(new Date(y, m - 1, d).getDay());
+    /* 调休上班日(off:false)不再画周末底纹 */
+    const we = [0, 6].includes(new Date(y, m - 1, d).getDay()) && !isWorkdayOverride(y, m, d);
     const st = deriveDayStatus(article, key === today, rows.length, dayMetaOf(key));
     dots.push(
       <span
         key={dd}
-        className={cellCls(st, !!snap?.notes[dd], rows.length, !!holOf(y, m, d), we)}
+        className={cellCls(st, !!snap?.notes[dd], heatOf(rows.length, ts), !!holOf(y, m, d), we)}
         title={`${m}/${d} · ${rows.length}`}
       />,
     );
@@ -77,7 +86,8 @@ function MiniMonth({
         </span>
       </h3>
       <div className="dj-ycal">{dots}</div>
-      <div className="dj-ymonth-stat">{artDays ? t("{n} 篇文章", { n: artDays }) : t("无记录")}</div>
+      {/* 头部已报「n 篇文章」,尾部只在全月无记录时补一句(重复播报删除) */}
+      {!artDays && !sessDays ? <div className="dj-ymonth-stat">{t("无记录")}</div> : null}
     </div>
   );
 }

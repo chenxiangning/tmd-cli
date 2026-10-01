@@ -155,6 +155,7 @@ export function WslRemoteSection() {
               setFormOpen(false);
               pickHost(id);
             }}
+            onCancel={() => setFormOpen(false)}
           />
         )}
         {error && <div className="wsl-remote-err">{error}</div>}

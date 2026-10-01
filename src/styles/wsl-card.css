@@ -214,16 +214,21 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 32px;
+  /* 与远程段手风琴行(wsl-distro.css .wsl-distro-toggle)同几何:同一概念一种形制 */
+  height: 34px;
   padding: 0 10px;
-  border-radius: var(--tmd-radius-sm);
+  border-radius: 7px;
+  transition: background 0.12s ease;
+}
+.wsl-distro-row:hover {
+  background: var(--tmd-bg-hover);
 }
 .wsl-distro-name {
   font-weight: 600;
   font-size: 0.75rem;
 }
 .wsl-distro-ver {
-  font-family: var(--tmd-mono, monospace);
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
   font-size: 0.6875rem;
   color: var(--tmd-fg-subtle);
 }
@@ -244,7 +249,6 @@
 }
 .wsl-showall {
   margin: 6px 0 0;
-  align-self: flex-start;
 }
 .wsl-facts {
   margin-top: 10px;

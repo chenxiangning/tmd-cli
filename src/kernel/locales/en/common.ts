@@ -162,6 +162,9 @@ export const MESSAGES = {
   "终端复制/停止菜单": "Terminal copy/stop menu",
   "停止终端": "Stop terminal",
   "刷新幕布(重建本会话终端画面,PTY 不中断)": "Refresh canvas (rebuild this session's terminal view; PTY keeps running)",
+  "插件「{id}」界面渲染崩溃,该贡献位已停用": "Plugin \"{id}\" UI crashed; this contribution is disabled",
+  "重试该贡献位": "Retry this contribution",
+  "重启应用或重载页面可重置;反复出现请反馈本条原因文案。": "Restart the app or reload the page to reset; please report the reason text if it keeps happening.",
 
   // ── 外壳命令标题(定义处保留中文,设置页快捷键清单渲染点包 t)──
   "折叠/展开左栏": "Toggle left panel",
@@ -212,6 +215,14 @@ export const MESSAGES = {
   "剪贴板写入失败": "Failed to write clipboard",
   "设置保存失败,重启后将丢失本次改动": "Failed to save settings — changes will be lost on restart",
   "关闭设置保存失败通知": "Dismiss settings save failure",
+
+  // ── ExitSessionToast(续聊卡;自文件内联 registerMessages 迁入,i18n 收口) ──
+  "续聊中…": "Resuming…",
+  "续聊失败:{reason}": "Resume failed: {reason}",
+  // ── RightPanelToolbar 溢出菜单 ──
+  "面板与动作": "Panels & actions",
+  // ── local-loader 隔离徽标(LocalSection 历史键落 common) ──
+  "已熔断": "Quarantined",
 
   // ── 手机远程 UI(src/mobile 树) ──
 } as Record<string, string>;

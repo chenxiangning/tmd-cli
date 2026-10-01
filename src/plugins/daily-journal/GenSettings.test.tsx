@@ -16,7 +16,8 @@ vi.mock("@kernel/DialogShell", () => ({
 vi.mock("@kernel/host", () => ({
   host: {
     getCliProfiles: () => [
-      { id: "omp", listSessions: async () => [] },
+      /* omp 带 oneshotArgs(无头档);其余无声明(TUI 兜底档)。 */
+      { id: "omp", listSessions: async () => [], oneshotArgs: () => [] },
       { id: "pi", listSessions: async () => [] },
       { id: "qoder-cn", listSessions: async () => [] },
       { id: "mystery", listSessions: async () => [] },
@@ -42,6 +43,7 @@ const CONFIG = vi.hoisted(() => ({
 }));
 
 import { GenSettings } from "./GenSettings";
+import { normalizeTimerTime } from "./timerInput";
 
 function render(): string {
   return renderToStaticMarkup(createElement(GenSettings, { onClose: () => undefined }));
@@ -53,11 +55,14 @@ describe("GenSettings 引擎行品牌 glyph", () => {
     const btnContent = (label: string) =>
       [...html.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)]
         .map((m) => m[1])
-        .find((c) => c.endsWith(label));
-    /* 品牌引擎按钮内嵌品牌 svg(含 qoder-cn 前缀复用);未知引擎纯文字。 */
+        .find((c) => c.includes(`${label}<`));
+    /* 品牌引擎按钮内嵌品牌 svg(含 qoder-cn 前缀复用);未知引擎纯文字;
+     * 徽标尾随引擎名(oneshotArgs 声明判定:omp 无头 / 其余 TUI 兜底)。 */
     expect(btnContent("omp")).toMatch(/<svg/);
     expect(btnContent("qoder-cn")).toMatch(/<svg/);
     expect(btnContent("mystery")).not.toMatch(/<svg/);
+    expect(btnContent("omp")).toContain("无头");
+    expect(btnContent("pi")).toContain("TUI 兜底");
   });
 });
 
@@ -78,5 +83,17 @@ describe("GenSettings 增量策略逐项说明", () => {
     const html = render();
     expect(html).toContain("留到次日定时任务一次归纳成文");
     expect(html).toContain("随时可手动点生成");
+  });
+});
+
+describe("normalizeTimerTime 定时输入失焦归一", () => {
+  it("完整 HH:MM 保留(含前后空白裁剪)", () => {
+    expect(normalizeTimerTime("09:30", "08:00")).toBe("09:30");
+    expect(normalizeTimerTime("  23:59  ", "08:00")).toBe("23:59");
+  });
+  it("残缺/空串回落最后完整值,不静默重置缺省", () => {
+    expect(normalizeTimerTime("09:", "08:00")).toBe("08:00");
+    expect(normalizeTimerTime("", "09:15")).toBe("09:15");
+    expect(normalizeTimerTime("25:00", "08:00")).toBe("08:00");
   });
 });

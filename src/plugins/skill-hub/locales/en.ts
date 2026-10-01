@@ -86,4 +86,10 @@ export const MESSAGES_EN = {
   "导入完成,已入「已安装」;对话框 $ 触发即可级联": 'Imported — now in \'Installed\'; available via $ trigger in the composer',
   "导入中…": "Importing…",
   "已落位 {n} 处保留但未记入已安装:{targets}": "Copied to {n} location(s) but NOT recorded as installed: {targets}",
+
+  // ── 更新闭环(v2.2,已装维持记录制)──
+  "导入": "Import",
+  "排序方式": "Sort by",
+  "可更新": "Update available",
+  "更新": "Update",
 } as Record<string, string>;

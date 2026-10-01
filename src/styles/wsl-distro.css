@@ -64,7 +64,7 @@
 .wsl-panel-count {
   padding: 2px 8px;
   border-radius: 999px;
-  font-family: var(--tmd-mono, monospace);
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
   font-size: 0.625rem;
   line-height: 1;
   color: var(--tmd-fg-subtle);
@@ -134,7 +134,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
-  font-family: var(--tmd-mono, monospace);
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
   font-size: 0.6563rem;
   color: var(--tmd-fg-muted);
 }
@@ -170,7 +170,7 @@
 .wsl-dir-path {
   flex: 1;
   min-width: 0;
-  font-family: var(--tmd-mono, monospace);
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
   font-size: 0.6875rem;
   line-height: 26px;
   color: var(--tmd-fg-muted);
@@ -182,6 +182,23 @@
   max-height: 184px;
   overflow: auto;
   padding: 2px 0;
+}
+/* 路径直达输入框(绝对路径回车跳层 / 前缀过滤;形制对齐 wsl-tinput 窄版)。 */
+.wsl-dir-jump {
+  width: 100%;
+  height: 24px;
+  margin: 2px 0 4px;
+  padding: 0 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: 6px;
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+  font: inherit;
+  font-size: 0.6875rem;
+}
+.wsl-dir-list.loading {
+  opacity: 0.5;
+  pointer-events: none;
 }
 .wsl-dir-row {
   display: flex;
@@ -195,7 +212,7 @@
   background: transparent;
   color: var(--tmd-fg);
   font: inherit;
-  font-family: var(--tmd-mono, monospace);
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
   font-size: 0.7188rem;
   text-align: left;
   cursor: pointer;

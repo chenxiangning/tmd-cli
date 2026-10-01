@@ -78,3 +78,40 @@ export function toggleSessionDrawMode(sessionId: string, next: boolean): void {
 export function useSessionDrawMode(sessionId: string | null): boolean {
   return useSyncExternalStore(subscribeAiDraw, () => isSessionDrawMode(sessionId));
 }
+
+
+/* ---------- AI 作画导入通知 ----------
+ * 发布方:activate 级常驻轮询(aiDrawPoller)导入成功即 publish;
+ * 消费方:画布 tab(useAiDrawInbox 订阅 → 刷新索引 + 提示条)与 composer
+ * rail toast。seq 单调递增,消费方以挂载时快照为基线,不吃陈旧通知。 */
+
+export type AiDrawImportedCanvas = { id: string; title: string };
+
+let importNotice: { seq: number; canvases: AiDrawImportedCanvas[] } | null = null;
+let pollError: string | null = null;
+
+export function publishAiDrawImport(canvases: AiDrawImportedCanvas[]): void {
+  importNotice = { seq: (importNotice?.seq ?? 0) + 1, canvases };
+  listeners.forEach((fn) => fn());
+}
+
+export function aiDrawImportNoticeSnapshot(): { seq: number; canvases: AiDrawImportedCanvas[] } | null {
+  return importNotice;
+}
+
+/** 轮询错误快照(管理页错误条数据源);值不变不触发监听(防 2s 空重渲染)。 */
+export function setAiDrawPollError(message: string | null): void {
+  if (pollError === message) {
+    return;
+  }
+  pollError = message;
+  listeners.forEach((fn) => fn());
+}
+
+export function aiDrawPollErrorSnapshot(): string | null {
+  return pollError;
+}
+
+export function useAiDrawImportNotice(): { seq: number; canvases: AiDrawImportedCanvas[] } | null {
+  return useSyncExternalStore(subscribeAiDraw, aiDrawImportNoticeSnapshot);
+}

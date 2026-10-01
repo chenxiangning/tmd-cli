@@ -79,7 +79,7 @@ export function NotifySettingsTab() {
           <div>
             <div className="pref-title">{t("预警阈值")}</div>
             <div className="pref-desc">
-              {t("每 10 分钟查一次激活会话供应商的额度,窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。")}
+              {t("每 10 分钟查一次在跑会话与平铺幕布各供应商的额度(按供应商去重),窗口已用百分比达到阈值即发通知(同一窗口周期只提醒一次);0 = 关。")}
             </div>
           </div>
           <input

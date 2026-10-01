@@ -3,6 +3,7 @@
  * (全文搜索 ⇧⌘F / 文件名快开 ⌘P / 会话历史 ⌘O)。
  * 命令经 kernel 注册表分发(getCommands 按 id 取 run),不 import 各插件;
  * 标题与键位标签取自注册表实况(改键后自动跟随,i18n 复用命令标题零新键)。
+ * 目标命令未注册(对应插件停用)= 行禁用态 + 说明,点击不再静默。
  * 折叠态持久化与学堂入口同语义(tmd.academy.entryCollapsed 先例,缺省展开)。
  */
 
@@ -55,11 +56,19 @@ export function SearchHubEntry() {
         MENU_ITEMS.map((item) => {
           const cmd = commands.find((c) => c.id === item.id);
           const kb = cmd ? getEffectiveKeybinding(cmd.id) : undefined;
+          /* 未注册 = 对应插件停用:行禁用 + 悬浮说明(旧路径点击静默零反馈)。 */
+          const missing = !cmd;
           return (
             <button
               key={item.id}
               type="button"
-              className="flex h-6 w-full items-center gap-2 rounded pl-5 pr-1.5 text-left text-[0.75rem] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+              disabled={missing}
+              title={missing ? t("该能力暂不可用(对应插件已停用)") : undefined}
+              className={`flex h-6 w-full items-center gap-2 rounded pl-5 pr-1.5 text-left text-[0.75rem] ${
+                missing
+                  ? "cursor-not-allowed text-(--tmd-fg-faint) opacity-60"
+                  : "text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+              }`}
               onClick={() => run(item.id)}
             >
               <span className="flex-1 truncate">{cmd?.title ?? t(item.fallback)}</span>

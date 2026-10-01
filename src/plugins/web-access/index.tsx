@@ -3,14 +3,16 @@
  * 桥/分发/事件广播全在 Rust(src-tauri/src/web/);前端只注册 UI 贡献。
  */
 
-import { Globe, DeviceMobile } from "@phosphor-icons/react";
+import { Globe, DeviceMobile, ShieldWarning } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
+import "./locales"; /* 域词典随插件自带:import 即注册 */
 import { WebAccessSection } from "./WebAccessSection";
 import { RemoteControlBadge } from "./RemoteControlBadge";
 import { WebWanGate } from "./WebWanGate";
 import { WebCfPane } from "./WebCfPane";
 import { WebSelfHostPane } from "./WebSelfHostPane";
 import { WebDevicePairCard } from "./WebDevicePairCard";
+import { WebWanRiskReset } from "./WebWanRiskReset";
 
 /* 两个外网 tab 各包一次风险门;确认态全局共享,只弹一次。 */
 function WebCfGate() {
@@ -67,6 +69,13 @@ export const webAccessPlugin: Plugin = {
           icon: <DeviceMobile size="0.875rem" aria-hidden />,
           order: 3,
           component: WebDevicePairCard,
+        },
+        {
+          id: "security",
+          title: "安全",
+          icon: <ShieldWarning size="0.875rem" aria-hidden />,
+          order: 4,
+          component: WebWanRiskReset,
         },
       ],
     });

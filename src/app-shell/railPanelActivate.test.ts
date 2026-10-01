@@ -51,9 +51,16 @@ describe("activateRailPanel", () => {
     expect(mcp.centerTab!.open).not.toHaveBeenCalled();
   });
 
-  it("已激活但右栏已折叠再点:恢复 = 聚焦中央 tab + 展开右栏", () => {
-    activateRailPanel(mcp, { mode: "mcp-hub", rightOpen: false, setRightOpen: (o) => expect(o).toBe(true) });
-    expect(filePanel.setFilePanelMode).toHaveBeenCalledWith("mcp-hub");
+  it("已激活但右栏已折叠的 centerTab 面板再点:只聚焦中央 tab,不重开右栏(右栏对 hub 类只是副展示)", () => {
+    activateRailPanel(mcp, { mode: "mcp-hub", rightOpen: false, setRightOpen: () => {
+      throw new Error("不应重开右栏");
+    } });
+    expect(filePanel.setFilePanelMode).not.toHaveBeenCalled();
     expect(mcp.centerTab!.open).toHaveBeenCalledTimes(1);
+  });
+
+  it("已激活但右栏已折叠的纯面板再点:重开右栏(右栏即面板本体)", () => {
+    activateRailPanel(files, { mode: "files", rightOpen: false, setRightOpen: (o) => expect(o).toBe(true) });
+    expect(filePanel.setFilePanelMode).toHaveBeenCalledWith("files");
   });
 });

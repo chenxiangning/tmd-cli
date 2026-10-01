@@ -88,12 +88,15 @@ export function PanelRail({
     if (entry.kind === "panel") {
       const { panel } = entry;
       const isActive = panel.id === mode;
+      /* 开/合可分辨:aria-pressed 如实反映「激活且展开」;激活但折叠降级半透明
+       * (is-collapsed),「开着」与「激活但收起」不再同貌。 */
+      const isOpen = isActive && rightOpen;
       return (
         <Fragment key={panel.id}>
           {sep ? <div className="panel-rail-sep" aria-hidden /> : null}
-          <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}`} data-panel-id={panel.id}
+          <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}${isActive && !rightOpen ? " is-collapsed" : ""}`} data-panel-id={panel.id}
             onClick={() => activateRailPanel(panel, { mode, rightOpen, setRightOpen })}
-            aria-label={t(panel.label)} aria-pressed={isActive} title={t(panel.label)}>
+            aria-label={t(panel.label)} aria-pressed={isOpen} title={t(panel.label)}>
             <DecorIcon id={panel.id === "ssh" ? "ssh-panel" : `panel-${panel.id}`} Fallback={panel.icon} aria-hidden />
           </button>
         </Fragment>
@@ -120,7 +123,7 @@ export function PanelRail({
     <div className="panel-rail" role="toolbar" aria-orientation="vertical" aria-label={t("右侧面板")}>
       {topEntries.map((e, i) => renderEntry(e, topEntries[i - 1]))}
       <div className="panel-rail-spacer" aria-hidden />
-      <i className="panel-rail-mark">tmd-cli</i> {/* 签名:rail 流内项,钉在底簇正上方(不依赖 spacer 定位) */}
+      <i className="panel-rail-mark" aria-hidden>tmd-cli</i> {/* 签名:纯装饰,rail 流内项,钉在底簇正上方(CSS 注释同款纪律) */}
       {bottomEntries.map((e, i) => renderEntry(e, bottomEntries[i - 1]))}
       <button type="button" className="panel-rail-tab" onClick={toggleOverflow}
         aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} title={t("更多面板")}>

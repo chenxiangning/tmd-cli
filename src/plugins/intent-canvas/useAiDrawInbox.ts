@@ -1,75 +1,41 @@
 /**
- * AI 作画 inbox 轮询钩子:画布 tab 挂载期每 2s 扫一次 inbox(无 fs watch 原语,
- * ponytail: 用户显式要实时性再上 Rust notify)。导入成功回调刷新索引;
- * 同时维护 aiDrawPrompt 的 inbox 路径缓存与导入提示条状态。
+ * AI 作画 inbox 导入订阅钩子(轮询已上移插件 activate 级常驻定时,见
+ * aiDrawPoller.ts):本钩子只订 aiDrawStore 的导入 notice —— 画布 tab 开着时
+ * 照旧刷新索引 + 亮导入提示条;tab 关闭不再停扫(导入仍发生,通知走
+ * composer rail toast / 失焦 OS 通知)。返回轮询错误串供管理页错误条。
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { Workspace } from "@kernel/workspace";
-import { cacheAiDrawInboxPath } from "./aiDrawPrompt";
-import { aiDrawInboxPath, pollAiDrawInbox } from "./aiDraw";
-
-export const AI_DRAW_POLL_MS = 2000;
+import {
+  aiDrawImportNoticeSnapshot,
+  aiDrawPollErrorSnapshot,
+  subscribeAiDraw,
+} from "./aiDrawStore";
 
 export function useAiDrawInbox(
-  activeWorkspace: Workspace | null,
   onImported: (imported: { id: string; title: string }[]) => void,
-  enabled = true,
 ): string | null {
-  const [lastError, setLastError] = useState<string | null>(null);
+  /* 惰性初值:挂载前轮询已记错也要立刻可见(订阅只在后续变化时触发)。 */
+  const [lastError, setLastError] = useState<string | null>(aiDrawPollErrorSnapshot);
   const onImportedRef = useRef(onImported);
 
   useEffect(() => {
     onImportedRef.current = onImported;
   }, [onImported]);
 
-  /* eslint-disable react-doctor/no-set-state-after-await-in-effect --
-     tick 内 setLastError 均有 cancelled 旗标闸(组件卸载/工作区切换后不再写),
-     乱序竞态已被闸死。 */
   useEffect(() => {
-    if (!activeWorkspace || !enabled) {
-      return;
-    }
-    const root = activeWorkspace.root;
-    let cancelled = false;
-    aiDrawInboxPath(root)
-      .then((inbox) => {
-        if (!cancelled) {
-          cacheAiDrawInboxPath(root, inbox);
-        }
-      })
-      .catch(() => undefined);
-    let running = false;
-    const tick = async () => {
-      /* in-flight 闸:慢盘上单轮超过 2s 时跳过本轮,防同一批文件重复导入。 */
-      if (running) {
-        return;
+    /* 挂载快照为基线:组件重挂/切 tab 不重放历史导入。 */
+    let lastSeq = aiDrawImportNoticeSnapshot()?.seq ?? 0;
+    const off = subscribeAiDraw(() => {
+      const notice = aiDrawImportNoticeSnapshot();
+      if (notice && notice.seq !== lastSeq) {
+        lastSeq = notice.seq;
+        onImportedRef.current(notice.canvases);
       }
-      running = true;
-      try {
-        const imported = await pollAiDrawInbox(root, {
-          id: activeWorkspace.id,
-          name: activeWorkspace.name,
-        });
-        if (!cancelled && imported.length > 0) {
-          setLastError(null);
-          onImportedRef.current(imported);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setLastError(error instanceof Error ? error.message : String(error));
-        }
-      } finally {
-        running = false;
-      }
-    };
-    void tick();
-    const timer = window.setInterval(() => void tick(), AI_DRAW_POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [activeWorkspace, enabled]);
+      setLastError(aiDrawPollErrorSnapshot());
+    });
+    return off;
+  }, []);
 
   return lastError;
 }

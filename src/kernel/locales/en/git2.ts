@@ -177,8 +177,8 @@ export const MESSAGES = {
   "diff 展示模式": "Diff view mode",
   "单栏": "Unified",
   "双栏": "Split",
-  全文: "Full",
-  全文查看: "View full file",
+  "全文": "Full",
+  "全文查看": "View full file",
   "行未改动": "unchanged lines",
 
   /* 差异面板批量条(拖选勾选集动作面)与未跟踪文件删除(git clean) */

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Globe, Copy, ArrowsClockwise } from "@phosphor-icons/react";
 import { webAccessStatus, type WebAccessInfo } from "@kernel/ipc";
-import { isWeb } from "@kernel/transport";
+import { isWeb, listen } from "@kernel/transport";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
@@ -33,9 +33,26 @@ export function WebAccessSection() {
 
   useEffect(() => {
     void refresh();
+    /* 桥状态事件驱动刷新(Rust 广播 web://access 纯信号,payload 恒不带凭据;
+     * 实况经 webAccessStatus 重查 —— WebRelayCard 订阅 onWebRelay 同款先例)。
+     * 卸载先于 listen promise 到站时立即退订,防桥内监听永久滞留;
+     * 纯 Node 测试环境无 Tauri runtime 时 listen reject,吞掉防未处理拒绝。 */
+    let off: (() => void) | null = null;
+    let gone = false;
+    listen<unknown>("web://access", () => void refresh())
+      .then((fn) => {
+        if (gone) fn();
+        else off = fn;
+      })
+      .catch(() => undefined);
+    return () => {
+      gone = true;
+      off?.();
+    };
   }, [refresh]);
 
-  /* 开关即写设置;后端 config_merge_settings 钩子负责起停桥,轮询刷新状态回显。 */
+  /* 开关即写设置;后端 config_merge_settings 钩子起停桥后广播 web://access,
+   * 由上方订阅事件回刷状态(不再 600ms 盲猜轮询)。 */
   const setEnabled = (on: boolean) => {
     setBusy(true);
     try {
@@ -43,7 +60,6 @@ export function WebAccessSection() {
       setError(null);
     } finally {
       setBusy(false);
-      setTimeout(() => void refresh(), 600);
     }
   };
   const copy = async () => {

@@ -5,7 +5,8 @@
  * Enter = 确认 / Esc / 点遮罩 = 取消(keyCode 229 兜底同 enterAction 纪律)。
  * 目标区按结构化字段渲染:平铺幕布位序徽标 + 会话标题(与 tab 条同源)+
  * 工作区 · 引擎副行,广播多卡并列 + 计数头,用户据此认出发到哪块幕布。
- * 弹框零状态:req.plan 纯展示,onConfirm/onCancel 闭包由挂起点注入。
+ * 弹框零状态:req.plan 纯展示,onConfirm/onCancel 闭包由挂起点注入;
+ * 弹层焦点圈闭(dialog 语义:打开入确认键、Tab 循环、关闭还原焦点)。
  */
 
 import { t } from "@kernel/i18n";
@@ -13,6 +14,11 @@ import { PaperPlaneRightIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { SendConfirmRequest, SendTarget } from "./sendPlan";
+import { useFocusTrap } from "@kernel/useFocusTrap";
+
+/* 弹层焦点圈闭(同款见 RelayDialog/SearchOverlay/WorktreeManageDialog/academy
+   wizard;候选统一收口进 kernel/DialogShell):req 在挂 = 打开态,Tab 循环 +
+   关闭还原焦点(初焦点仍走下方确认键 effect,与既有行为一致)。 */
 
 export function SendConfirmDialog({
   req,
@@ -32,6 +38,7 @@ export function SendConfirmDialog({
   };
   /* 确认键聚焦(react-doctor/no-autofocus:编程聚焦替代 autoFocus 字面量) */
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useFocusTrap(req != null, false);
   useEffect(() => {
     if (req) confirmRef.current?.focus();
   }, [req]);
@@ -69,6 +76,10 @@ export function SendConfirmDialog({
       onClick={() => settle(onCancel)}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("确认发送")}
         className="mx-4 flex w-[26rem] max-w-[92vw] flex-col rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
