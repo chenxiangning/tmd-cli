@@ -9,6 +9,7 @@
 
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { CURATED_CATALOG } from "./catalogCurated";
 
 export interface ExtCatalogEntry {
   name: string;
@@ -46,85 +47,6 @@ export interface ExtCatalog {
 const SEARCH_URLS = [
   "https://registry.npmjs.org/-/v1/search?text=keywords:omp-plugin&size=25",
   "https://registry.npmjs.org/-/v1/search?text=keywords:pi-package&size=25",
-];
-
-/**
- * 静态精选表 —— 实时目录的离线兜底 + 描述补全源(人工审校中文描述)。
- * 版本/下载量留空(offline 语义),条目均为 npm 在售的真实包(2026-09-06 核对)。
- */
-const CURATED_CATALOG: ExtCatalogEntry[] = [
-  {
-    name: "@cortexkit/pi-magic-context",
-    description: "Magic Context 共享记忆库:跨 CLI 持久记忆与会话检索",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/@cortexkit/pi-magic-context",
-    curated: true,
-  },
-  {
-    name: "@juicesharp/rpiv-todo",
-    description: "模型自维护的 TODO 清单,浮层常驻、压缩后不丢",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/@juicesharp/rpiv-todo",
-    curated: true,
-  },
-  {
-    name: "@juicesharp/rpiv-ask-user-question",
-    description: "模型向你发起结构化问卷(带类型选项),替代凭空猜测",
-    weeklyDownloads: 0,
-    homepage:
-      "https://www.npmjs.com/package/@juicesharp/rpiv-ask-user-question",
-    curated: true,
-  },
-  {
-    name: "pi-background-tasks",
-    description: "持久后台 shell 任务与只读委派代理",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-background-tasks",
-    curated: true,
-  },
-  {
-    name: "pi-lens",
-    description: "实时代码反馈:LSP / lint / 类型检查 / 结构分析",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-lens",
-    curated: true,
-  },
-  {
-    name: "pi-subagents",
-    description: "单代理委派与脚本化多代理工作流",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-subagents",
-    curated: true,
-  },
-  {
-    name: "pi-web-access",
-    description: "网络搜索 / URL 抓取 / GitHub 克隆 / PDF 与视频理解",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-web-access",
-    curated: true,
-  },
-  {
-    name: "pi-mcp-adapter",
-    description: "MCP(Model Context Protocol)服务器接入适配",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-mcp-adapter",
-    curated: true,
-  },
-  {
-    name: "omp-kiro",
-    description: "Kiro OAuth 登录、额度用量与模型发现",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/omp-kiro",
-    curated: true,
-  },
-  {
-    name: "omp-plugin-duplicate-detector",
-    description: "基于 jscpd 的重复代码检测插件",
-    weeklyDownloads: 0,
-    homepage:
-      "https://www.npmjs.com/package/omp-plugin-duplicate-detector",
-    curated: true,
-  },
 ];
 
 /** 官方包排除:@oh-my-pi/* 是引擎本体,不是插件。 */
