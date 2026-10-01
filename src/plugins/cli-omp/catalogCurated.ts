@@ -2,7 +2,9 @@
  * omp 扩展静态精选表 —— 实时目录的离线兜底 + 描述补全源(人工审校中文描述)。
  * 版本/下载量留空(offline 语义),条目均为 npm 在售的真实包。
  * 最近核对:2026-10-01(全表存活复验;新纳 billion-context / pi-goal-x /
- * langfuse 观测等 8 个新晋热门,omp-kiro 描述对齐 v1.2.6)。
+ * langfuse 观测等 7 个新晋热门,omp-kiro 描述对齐 v1.2.6)。
+ * 收录门槛:经 dist 审计不触碰 omp 18.4.8 legacy 垫片缺失的 pi 新版导出
+ * (pi-usage 因 import hasApi 装载失败被撤,详见当日审计)。
  */
 
 import type { ExtCatalogEntry } from "./catalog";
@@ -121,13 +123,6 @@ export const CURATED_CATALOG: ExtCatalogEntry[] = [
     description: "Powerline 风格状态栏",
     weeklyDownloads: 0,
     homepage: "https://www.npmjs.com/package/pi-powerline-footer",
-    curated: true,
-  },
-  {
-    name: "@narumitw/pi-usage",
-    description: "账户用量展示,支持 DeepSeek 等供应商余额查询",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/@narumitw/pi-usage",
     curated: true,
   },
   {
