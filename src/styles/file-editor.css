@@ -75,7 +75,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 18px;
+  height: 20px; /* 微容器行高修正:18px 装不下 ui 字号 + 边框,升 2px */
   padding: 0 8px;
   border-radius: var(--tmd-radius-sm);
   border: 1px solid var(--tmd-border);

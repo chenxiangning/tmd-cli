@@ -240,11 +240,6 @@
   gap: 6px;
 }
 
-.file-tree-loading-spinner {
-  width: 12px;
-  height: 12px;
-  animation: tmdSpin 1s linear infinite;
-}
 
 /* 远程 WSL 工作区 M1 降级提示(替代本地文件树) */
 .filetree-wsl-degraded {

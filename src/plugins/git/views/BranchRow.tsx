@@ -1,11 +1,11 @@
 /**
  * BranchView 行件 —— 自 BranchView.tsx 拆出(文件规模铁则)。
  * GroupLabel = 本地/远程分组吸顶标签;BranchRow = 分支行(当前态高亮 /
- * 远程检出 / 行内两步武装删除:首击标红再击执行,双击后一击强删);
+ * 远程检出 / 行内两步武装删除:首击标红再击执行,DangerAction 同款 3s 自动解除);
  * BranchSearchBox = 分支搜索框;GitOpBanner = 错误/提示/执行中反馈三态。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { GitBranch, Plus, Trash } from "@phosphor-icons/react";
 import { Spinner } from "@kernel/Spinner";
@@ -28,35 +28,32 @@ function branchRowTitle(branch: GitBranchInfo): string {
   return t("右键更多操作");
 }
 
-/** 行内删除钮:两步武装(首击标红,再击执行),双击直接进入强删确认;未合并强删由后端拒绝。 */
+/** 行内删除钮:两步武装(DangerAction 同款,首击标红 3s 自动解除,再击执行);
+ *  只做安全删除,未合并分支由后端拒绝并在反馈条报错 —— 不再设双击强删暗道。 */
 function BranchDeleteButton({ onDelete }: { onDelete: (force: boolean) => void }) {
-  const [confirmForce, setConfirmForce] = useState(false);
   const [armed, setArmed] = useState(false);
-  const label = confirmForce
-    ? t("再次点击强制删除(未合并)")
-    : t("删除;未合并时点两次后强制");
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), 3_000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  const label = armed ? t("再次点击确认删除") : t("删除;再击确认");
   const handle = () => {
-    if (confirmForce) {
-      onDelete(true);
-      setConfirmForce(false);
-      setArmed(false);
+    if (!armed) {
+      setArmed(true);
       return;
     }
-    if (armed) {
-      onDelete(false);
-      setArmed(false);
-      return;
-    }
-    setArmed(true);
+    setArmed(false);
+    onDelete(false);
   };
   return (
     <button
+      type="button"
       onClick={handle}
-      onDoubleClick={() => setConfirmForce(true)}
       title={label}
       aria-label={label}
       className={`shrink-0 opacity-0 group-hover:opacity-60 ${
-        confirmForce || armed ? "text-(--tmd-diff-removed) opacity-100!" : ""
+        armed ? "text-(--tmd-diff-removed) opacity-100!" : ""
       }`}
     >
       <Trash className="h-[0.875rem] w-[0.875rem]" aria-hidden />

@@ -121,6 +121,17 @@ export function YearView({
           onOpen={onOpenMonth}
         />
       ))}
+      {/* 角部 mini 图例(归并口径):9 类状态色归并 5 类 —— 热力三档(h1/h2→弱、
+          h3→中、h4→高)+ 失败(f);节假日(hol 底色)与便签(note 内框)合示一类;
+          今日(t 蓝框)/待提取(p 黄)稀少态不上图例,悬格 title 自释。
+          词条口径与月视图 dj-legend(热力弱→热力高/失败)复用。 */}
+      <div className="dj-year-legend" aria-hidden="true">
+        {t("热力弱")}
+        <i className="dj-yl-sw lo" /> <i className="dj-yl-sw mid" /> <i className="dj-yl-sw hi" />
+        {t("热力高")}
+        <i className="dj-yl-sw f" /> {t("失败")}
+        <i className="dj-yl-sw hol" /> <i className="dj-yl-sw note" /> {t("节假日/便签")}
+      </div>
     </div>
   );
 }

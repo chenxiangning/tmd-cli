@@ -20,7 +20,6 @@ export const MESSAGES_EN = {
   "已生成": "Generated",
   "无会话 · 便签日": "No sessions · note only",
   "有便签": "Has note",
-  "加载中…": "Loading…",
   "这一天没有 AI 会话": "No AI sessions this day",
   "便签独立于文章存在,写下即是记录。": "Notes exist independently of the article — write it down as a record.",
   "{n} 个会话等待提取。": "{n} sessions waiting to be digested.",
@@ -151,4 +150,9 @@ export const MESSAGES_EN = {
   // 文章 tab 生成状态 chip
   "后台生成中": "Generating in background",
   "排队中": "Queued",
+  // 忙态接 Spinner 与年视图角部图例(2026-10 打磨)
+  "正在扫描会话…": "Scanning sessions…",
+  "正在读取日志…": "Loading journal…",
+  "热力高": "High",
+  "节假日/便签": "Holiday/Note",
 };

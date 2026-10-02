@@ -4,6 +4,7 @@
  */
 import { ListChecks, TerminalWindow, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
 import { DialogShell } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
 import type { GenTask } from "./taskQueue";
@@ -98,7 +99,10 @@ export function TaskPanel({ onClose }: { onClose: () => void }) {
     >
       <div className="dj-modal-body dj-modal-body-flush">
           {run.length + queue.length + done.length === 0 && (
-            <div className="dj-tpanel-empty">{t("暂无任务:生成会在后台排队执行,切走模块/失焦不中断。")}</div>
+            /* 空态统一 Empty 形制(图标 + 一句话);说明文案沿用原句。 */
+            <div className="dj-tpanel-empty">
+              <Empty icon={<ListChecks size="0.875rem" />}>{t("暂无任务:生成会在后台排队执行,切走模块/失焦不中断。")}</Empty>
+            </div>
           )}
           {run.length > 0 && (
             <>

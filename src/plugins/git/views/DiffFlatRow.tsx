@@ -200,7 +200,9 @@ export function FRow({
       >
         {BADGE[file.status]}
       </span>
-      <span className="min-w-0 flex-1 truncate text-(--tmd-fg)">{name}</span>
+      <span className="min-w-0 flex-1 truncate text-(--tmd-fg)" title={file.path}>
+        {name}
+      </span>
       <span
         dir="rtl"
         className="max-w-[38%] shrink-0 truncate text-right text-xs text-(--tmd-fg-faint)"

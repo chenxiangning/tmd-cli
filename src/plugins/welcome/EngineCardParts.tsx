@@ -77,7 +77,8 @@ export function RowCred({
       </span>
     );
   }
-  /* note 是信息性(codex「已登录」也带),不作错误信号;有凭据即 ●。真实 button = 原生键盘语义。 */
+  /* note 是信息性(codex「已登录」也带),不作错误信号;有凭据即 ●。真实 button = 原生键盘语义。
+     文字段 .welcome-row-cred-text:窄窗(≤720px)仅留 ● 圆点,展开入口不撤。 */
   return (
     <button
       type="button"
@@ -85,7 +86,7 @@ export function RowCred({
       onClick={onToggle}
       title={t("凭据与额度{arrow}", { arrow: expanded ? t("(点击收起)") : t("(点击展开)") })}
     >
-      ● auth {creds.length}
+      ● <span className="welcome-row-cred-text">auth {creds.length}</span>
     </button>
   );
 }

@@ -109,7 +109,6 @@ export const MESSAGES = {
   "批次不存在或已随会话结束(审批线生命周期 = 单个会话)":
   "Batch not found or ended with the session (an approval timeline spans a single session)",
   "已处理 · {reason}": "Done · {reason}",
-  "批次 #{index} · {state} · {time}": "Batch #{index} · {state} · {time}",
   "确认回退{target}? 恢复点自动留存。": "Revert {target}? A restore point is kept automatically.",
   "整批({n} 文件)": "whole batch ({n} files)",
   "生成批 diff…": "Generating batch diff…",

@@ -120,7 +120,9 @@ export function SuggestionList({ matches, pickIndex, onPick, onHoverIndex, style
                   {m.value}
                 </span>
                 {m.description && (
-                  <span className="truncate text-md text-(--tmd-fg-subtle)">{t(m.description)}</span>
+                  <span className="truncate text-md text-(--tmd-fg-subtle)" title={t(m.description)}>
+                    {t(m.description)}
+                  </span>
                 )}
               </button>
             );

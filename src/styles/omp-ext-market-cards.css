@@ -136,10 +136,6 @@
   color: var(--tmd-accent);
 }
 
-.omp-ext-spin {
-  animation: tmdSpin 1s linear infinite;
-}
-
 .omp-ext-done {
   font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);

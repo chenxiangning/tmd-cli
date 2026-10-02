@@ -36,9 +36,6 @@ export function AppShell() {
   useHost();
   const platform = usePlatformKind();
   const { mode: filePanelMode, panels: filePanels } = useFilePanel();
-  /* 激活面板 = mode 命中项,回落首个注册项(插件 activate 顺序) */
-  const activeFilePanel =
-    filePanels.find((p) => p.id === filePanelMode) ?? filePanels[0];
   const [leftOpen, toggleLeft, setLeftOpen] = usePersistedToggle("shell.left", true);
   const [rightOpen, toggleRight, setRightOpen] = usePersistedToggle("shell.right", true);
   /* 插件市场页开关:打开时以不透明覆盖层盖住三栏(见下方 JSX 注释),关掉零回放即回。 */
@@ -89,7 +86,8 @@ export function AppShell() {
           rightOpen={rightOpen}
           maximized={maximized}
           hasTabs={tabs.length > 0}
-          filePanel={activeFilePanel}
+          filePanels={filePanels}
+          filePanelMode={filePanelMode}
         />
         {/* 右缘面板 rail:常驻竖条(右栏收起也在),点击切面板并展开右栏,
             再点已激活面板 = 折叠右栏(hub 类顺带关中央 tab);

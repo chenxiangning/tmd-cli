@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useReducer } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
@@ -56,6 +57,7 @@ export function useCkptScope() {
 
 /** 面板级刷新:留存修剪 + 强退恢复 + 批清单轮询(no-high-complexity 降分支)。 */
 export function useCkptAutoRefresh(cwd: string | null, sessionId: string | null, tmdSessionId: string | undefined) {
+  const panelActive = usePanelActive();
   useEffect(() => {
     if (!cwd) return;
     pruneRetention(cwd);
@@ -66,7 +68,12 @@ export function useCkptAutoRefresh(cwd: string | null, sessionId: string | null,
       return;
     }
     void sealDeadTurns(cwd).then(() => refreshBatches(cwd, sessionId, tmdSessionId));
-    const timer = window.setInterval(() => void refreshBatches(cwd, sessionId, tmdSessionId), POLL_MS);
+    const timer = window.setInterval(
+      () => {
+        if (panelActive) void refreshBatches(cwd, sessionId, tmdSessionId);
+      },
+      POLL_MS,
+    );
     return () => window.clearInterval(timer);
-  }, [cwd, sessionId, tmdSessionId]);
+  }, [cwd, sessionId, tmdSessionId, panelActive]);
 }

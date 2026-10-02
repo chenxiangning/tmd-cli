@@ -7,6 +7,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
+import { ClockCounterClockwise } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import type { EditorTab } from "@kernel/tabs";
 import { ipc, type GitFileLogEntry } from "@kernel/ipc";
@@ -55,7 +57,13 @@ function HistoryList({ payload }: { payload: FileHistoryOpenRequest }) {
 
   if (error) return <CenterNote text={error} />;
   if (!log) return <Loading />;
-  if (log.length === 0) return <CenterNote text={t("该文件暂无提交历史")} />;
+  if (log.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Empty icon={<ClockCounterClockwise />}>{t("该文件暂无提交历史")}</Empty>
+      </div>
+    );
+  }
   return (
     <div className="h-full overflow-y-auto">
       {log.map((e) => (

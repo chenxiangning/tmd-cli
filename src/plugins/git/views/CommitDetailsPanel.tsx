@@ -10,7 +10,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeft, GitCommit } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import { ipc, type GitCommitFile, type GitFilePatch, type GitLogEntry } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
@@ -134,9 +135,7 @@ function CommitDetailBody({
       </div>
       <div className="mx-3 mb-3 mt-1.5 min-h-0 flex-1 overflow-y-auto rounded border border-(--tmd-border)">
         {detail.files.length === 0 && (
-          <div className="px-2 py-3 text-center text-xs text-(--tmd-fg-faint)">
-            {t("该提交没有变更文件")}
-          </div>
+          <Empty icon={<GitCommit />}>{t("该提交没有变更文件")}</Empty>
         )}
         {detail.files.map((f) => (
           <button
@@ -152,7 +151,9 @@ function CommitDetailBody({
             >
               {f.status}
             </span>
-            <span className="min-w-0 flex-1 truncate text-(--tmd-fg)">{f.path}</span>
+            <span className="min-w-0 flex-1 truncate text-(--tmd-fg)" title={f.path}>
+              {f.path}
+            </span>
             <span className="shrink-0 font-mono text-meta">
               <span className="text-(--tmd-diff-inserted)">+{f.additions}</span>
               <span className="text-(--tmd-fg-faint)"> / </span>
@@ -208,7 +209,9 @@ function FilePatchView({
         >
           <ArrowLeft className="h-[0.75rem] w-[0.75rem]" /> {t("返回文件列表")}
         </button>
-        <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg)">{path}</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg)" title={path}>
+          {path}
+        </span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
         <PatchBody loading={loading} error={error} patch={patch} />

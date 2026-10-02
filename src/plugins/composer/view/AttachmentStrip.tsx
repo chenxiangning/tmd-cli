@@ -99,6 +99,7 @@ export function AttachmentStrip({ onRemove, onPreviewImage }: Props): ReactEleme
                 </div>
               )}
               <div className="tmd-attach-meta">
+                <div className="tmd-attach-name">{shortName(a.name)}</div>
                 <div className="tmd-attach-info">{formatBytes(a.size)}</div>
               </div>
             </button>
@@ -143,4 +144,9 @@ function badgeText(kind: Attachment["kind"]): string {
     case "code":  return "{ }";
     default:      return "FILE";
   }
+}
+
+/** 附件卡名截断:卡内空间只容 6 字符短名,超长以 … 收尾;完整路径在卡片 title。 */
+function shortName(name: string): string {
+  return name.length > 6 ? `${name.slice(0, 6)}…` : name;
 }

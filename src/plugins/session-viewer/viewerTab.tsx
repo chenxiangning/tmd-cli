@@ -15,6 +15,7 @@ import type { CliSessionTranscript } from "@kernel/cli";
 import { TranscriptView } from "./transcriptView";
 import { ArrowsClockwiseIcon, Chats } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { retryImport } from "@kernel/lazyImport";
 
 import "./session-viewer.css";
@@ -131,7 +132,15 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
         </button>
       </header>
       <div className="sv-scroll" ref={scrollRef} onScroll={onScroll}>
-        {state.phase === "loading" ? <div className="sv-empty">{t("加载中…")}</div> : null}
+        {state.phase === "loading" ? (
+          <div className="sv-empty">
+            {/* 忙态统一 Spinner 原语(域内词条「读取中…」) */}
+            <span className="inline-flex items-center gap-2">
+              <Spinner />
+              {t("读取中…")}
+            </span>
+          </div>
+        ) : null}
         {state.phase === "error" ? (
           <div className="sv-empty" role="alert">
             <span className="text-(--tmd-err)">{state.message}</span>

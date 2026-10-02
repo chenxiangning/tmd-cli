@@ -9,6 +9,7 @@
  */
 
 import { useEffect } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 import { Check, ArrowCounterClockwise, ArrowUUpLeft, Lightning } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch } from "@kernel/ipc";
@@ -126,12 +127,16 @@ export function BatchRow({
 }) {
   // 批 diff 懒加载(含 open 批,时间线 ± 与审阅单共用同一缓存);
   // open 批新像 = live 工作区,轮内改动定时跟进,封口后停
+  const panelActive = usePanelActive();
   useEffect(() => {
     loadDiff(cwd, sessionId, b.id);
     if (!b.open) return;
-    const timer = window.setInterval(() => refreshOpenDiff(cwd, sessionId, b.id), POLL_MS);
+    /* 隐藏态短路:open 批新像轮询只在面板可见时跑(回切首拍补齐)。 */
+    const timer = window.setInterval(() => {
+      if (panelActive) refreshOpenDiff(cwd, sessionId, b.id);
+    }, POLL_MS);
     return () => window.clearInterval(timer);
-  }, [cwd, sessionId, b.id, b.open]);
+  }, [cwd, sessionId, b.id, b.open, panelActive]);
 
   return (
     <div className="relative mb-1.5">

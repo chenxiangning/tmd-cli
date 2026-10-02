@@ -8,6 +8,7 @@
  * map 逻辑与开关单例拆至 gitDecorateModel.ts(only-export-components)。
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 import { GitDiff } from "@phosphor-icons/react";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -49,6 +50,7 @@ export function useRepoStatusState(
    *  实现一致,单仓不掺仓根聚合色。 */
   single: boolean;
 } {
+  const panelActive = usePanelActive();
   const [repos, setRepos] = useState<GitRepoSummary[] | null>(null);
   const [entries, setEntries] = useState<RepoStatusEntry[] | null>(null);
 
@@ -71,13 +73,13 @@ export function useRepoStatusState(
     };
     scan();
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") scan();
+      if (panelActive && document.visibilityState === "visible") scan();
     }, SLOW_POLL_MS);
     return () => {
       alive = false;
       window.clearInterval(id);
     };
-  }, [on, root]);
+  }, [on, root, panelActive]);
 
   const single = repos == null || (repos.length === 1 && repos[0].path === root);
   useEffect(() => {
@@ -113,13 +115,13 @@ export function useRepoStatusState(
     };
     void fetch();
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") fetch();
+      if (panelActive && document.visibilityState === "visible") fetch();
     }, POLL_MS);
     return () => {
       alive = false;
       window.clearInterval(id);
     };
-  }, [on, root, repos, single]);
+  }, [on, root, repos, single, panelActive]);
 
   return { repos, entries, single };
 }

@@ -8,12 +8,19 @@ import { openTab } from "@kernel/tabs";
 
 export const SKILL_HUB_TAB_KIND = "skill-hub";
 
-export function openSkillHubTab(): void {
-  openTab({
-    id: SKILL_HUB_TAB_KIND,
-    kind: SKILL_HUB_TAB_KIND,
-    title: "Skills",
-    path: SKILL_HUB_TAB_KIND,
-    payload: {},
-  });
+/** 深链目标视图(右栏面板空态「打开技能商店」直达商店页)。 */
+export type SkillHubView = "installed" | "store" | "import";
+
+export function openSkillHubTab(view?: SkillHubView): void {
+  openTab(
+    {
+      id: SKILL_HUB_TAB_KIND,
+      kind: SKILL_HUB_TAB_KIND,
+      title: "Skills",
+      path: SKILL_HUB_TAB_KIND,
+      payload: { view: view ?? null },
+    },
+    /* 带 view 深链:tab 已开也刷 payload 切视图;无 view 保持旧语义(不覆写)。 */
+    view ? { refresh: true } : undefined,
+  );
 }

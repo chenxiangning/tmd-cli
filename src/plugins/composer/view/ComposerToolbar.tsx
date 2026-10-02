@@ -204,7 +204,8 @@ export function ComposerToolbar() {
         title={modelTitle}
         onSend={sendModelCommand}
       />
-      <span aria-hidden className="text-(--tmd-fg-faint)">|</span>
+      {/* 分组隔断:1px 色块竖线(fg-faint 30%),替文本竖线的字重噪音 */}
+      <span aria-hidden className="h-3 w-px shrink-0 bg-(--tmd-fg-faint)/30" />
       <ThinkingSlot
         level={remoteEngine && !observed ? undefined : status?.thinkingLevel}
         hasCommand={!!profile?.thinkingCommand}
@@ -214,7 +215,7 @@ export function ComposerToolbar() {
       />
       {sessionId ? (
         <>
-          <span aria-hidden className="text-(--tmd-fg-faint)">|</span>
+          <span aria-hidden className="h-3 w-px shrink-0 bg-(--tmd-fg-faint)/30" />
           <QuotaChip />
         </>
       ) : null}

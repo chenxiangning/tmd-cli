@@ -8,6 +8,7 @@ import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { PromptImages } from "./PromptImages";
+import { STATE_META, batchState } from "./batchStateMeta";
 import type { PromptImagesExtract } from "./promptImagesExtract";
 
 /** 轮耗时短语(锚点 → 封口);秒取整,分段到时。 */
@@ -69,7 +70,9 @@ function SheetActions({
   );
 }
 
-/** 审阅单工具条:批次标题 + ±stats + 通过/回退整批(降分支拆件)。 */
+/** 审阅单工具条:批次号 + 状态 chip + 相对时间 + ±stats + 通过/回退整批
+ *  (降分支拆件;2026-10 审计:层级拆三级 —— 批次号 font-medium 主 fg、
+ *  状态走 STATE_META chip 色相(与批头徽标同源)、时间保持 faint 辅助档)。 */
 export function SheetToolbar({
   batch,
   patches,
@@ -85,16 +88,22 @@ export function SheetToolbar({
   onApprove: () => void;
   onRevertAll: () => void;
 }) {
-  const stateLabel = sheetStateLabel(batch);
+  const meta = STATE_META[batchState(batch)];
   return (
     <div className="flex h-8 flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-3">
       <span
-        className="text-xs text-(--tmd-fg-faint)"
+        className="text-xs font-medium text-(--tmd-fg)"
         title={batch.tsEnd
           ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(batch.ts), end: formatAbsolute(batch.tsEnd) })
           : t("{start} 发起", { start: formatAbsolute(batch.ts) })}
       >
-        {t("批次 #{index} · {state} · {time}", { index: batch.index, state: stateLabel, time: formatRelativeTime(batch.ts) })}
+        {t("批次 #{index}", { index: batch.index })}
+      </span>
+      <span className={`flex-none rounded-full px-1.5 text-meta font-semibold leading-3.5 ${meta.chip}`}>
+        {sheetStateLabel(batch)}
+      </span>
+      <span className="text-xs text-(--tmd-fg-faint)" title={formatAbsolute(batch.ts)}>
+        {formatRelativeTime(batch.ts)}
       </span>
       {patches && (
         <span className="font-mono text-xs">
@@ -152,7 +161,8 @@ export function SheetConfirmBar({
   );
 }
 
-/** 用户消息卡:账本随批固化的引擎/模型/思考/时刻元信息 + 附件缩略图 + 净文本(降分支拆件)。 */
+/** 用户消息卡:账本随批固化的引擎/模型/思考/时刻元信息 + 附件缩略图 + 净文本(降分支拆件;
+ *  2026-10 审计:engine/model/思考统一同一 mono 文本形制 fg-muted,废除 engine 旧 chip 形)。 */
 export function SheetPromptCard({
   batch,
   prompt,
@@ -165,16 +175,14 @@ export function SheetPromptCard({
       <div className="mb-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-(--tmd-fg-faint)">
         <span className="flex-none">{t("用户消息")}</span>
         {batch.engine && (
-          <span className="flex-none rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1 text-meta leading-4 text-(--tmd-fg-muted)">
-            {batch.engine}
-          </span>
+          <span className="flex-none font-mono text-(--tmd-fg-muted)">{batch.engine}</span>
         )}
         {batch.model && (
           <span className="flex-none font-mono text-(--tmd-fg-muted)">{batch.model}</span>
         )}
         {batch.thinking && (
-          <span className="flex-none">
-            {t("思考")} <span className="font-mono text-(--tmd-fg-muted)">{batch.thinking}</span>
+          <span className="flex-none font-mono text-(--tmd-fg-muted)">
+            {t("思考 {level}", { level: batch.thinking })}
           </span>
         )}
         <span className="flex-none">

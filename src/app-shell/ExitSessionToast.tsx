@@ -12,6 +12,7 @@ import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { KernelTopics, type SessionExitedDetailEvent, type SessionStartFailedEvent } from "@kernel/events";
 import { relayOpenRef } from "@kernel/relayBridge";
+import { Spinner } from "@kernel/Spinner";
 
 /* 本文件文案的 en/ja 词典统一落 kernel/locales/<lang>/common.ts(与退出卡历史键
    同域;zh 恒等无词典)。 */
@@ -68,7 +69,7 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
           disabled={resuming}
           onClick={resume}
         >
-          <ArrowClockwise size="0.75rem" aria-hidden className={resuming ? "animate-spin" : ""} />
+          {resuming ? <Spinner size="0.75rem" /> : <ArrowClockwise size="0.75rem" aria-hidden />}
           {resuming ? t("续聊中…") : t("一键续聊(恢复到该会话)")}
         </button>
       )}

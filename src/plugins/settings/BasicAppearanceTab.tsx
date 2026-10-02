@@ -1,8 +1,10 @@
 /**
- * 基础设置 / 外观 tab —— 主题模式 + 自定义 preset 网格。
+ * 基础设置 / 外观 tab —— 主题模式 + 自定义 preset 网格 + 会话标题 tab 条卡。
  *
  * 交互对齐 codemoss BasicAppearanceSection 的主题段:
  * segmented(跟随系统/浅色/深色/自定义) + 自定义时展开 37 preset 网格。
+ * 「会话标题 tab 条」是顶栏 chrome 显隐开关(2026-10 混卡拆分:自主题卡
+ * 拆出独立成卡;不归 BehaviorTab —— 那里是输入交互与会话数据治理语义)。
  * 全部写入 kernel/settings store,主题引擎即时生效,无需「保存」按钮。
  */
 
@@ -94,54 +96,6 @@ export function BasicAppearanceTab() {
     >
       <div className="pref-row">
         <div>
-          <div className="pref-title">{t("会话标题 tab 条")}</div>
-          <div className="pref-desc">
-            {t("顶栏中央展示已打开的会话,点击切换;关闭后仍可从左侧栏进入会话。")}
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {settings.sessionTabsEnabled ? (
-            <>
-              <span className="text-xs text-(--tmd-fg-subtle)">{t("上限")}</span>
-              <input
-                type="range"
-                min={SESSION_TABS_LIMIT_MIN}
-                max={SESSION_TABS_LIMIT_MAX}
-                step={1}
-                value={settings.sessionTabsMax}
-                aria-label={t("会话标题 tab 条容量")}
-                onChange={(e) => updateSettings({ sessionTabsMax: Number(e.target.value) })}
-                className="w-28 accent-(--tmd-accent)"
-              />
-              <span className="w-4 text-right text-sm tabular-nums text-(--tmd-fg-muted)">
-                {settings.sessionTabsMax}
-              </span>
-            </>
-          ) : null}
-          <div className="segmented" role="radiogroup" aria-label={t("会话标题 tab 条")}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={settings.sessionTabsEnabled}
-              className={`segment${settings.sessionTabsEnabled ? " is-active" : ""}`}
-              onClick={() => updateSettings({ sessionTabsEnabled: true })}
-            >
-              {t("开启")}
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!settings.sessionTabsEnabled}
-              className={`segment${!settings.sessionTabsEnabled ? " is-active" : ""}`}
-              onClick={() => updateSettings({ sessionTabsEnabled: false })}
-            >
-              {t("关闭")}
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="pref-row">
-        <div>
           <div className="pref-title">{t("主题")}</div>
           <div className="pref-desc">{themeHint}</div>
         </div>
@@ -211,6 +165,54 @@ export function BasicAppearanceTab() {
             )}
           </div>
         ))}
+      </div>
+    </div>
+    <div className="pref-card" data-testid="settings-session-tabs-card">
+      <div className="pref-card-head">{t("会话标题 tab 条")}</div>
+      <div className="pref-row">
+        <div className="pref-desc">
+          {t("顶栏中央展示已打开的会话,点击切换;关闭后仍可从左侧栏进入会话。")}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {settings.sessionTabsEnabled ? (
+            <>
+              <span className="text-xs text-(--tmd-fg-subtle)">{t("上限")}</span>
+              <input
+                type="range"
+                min={SESSION_TABS_LIMIT_MIN}
+                max={SESSION_TABS_LIMIT_MAX}
+                step={1}
+                value={settings.sessionTabsMax}
+                aria-label={t("会话标题 tab 条容量")}
+                onChange={(e) => updateSettings({ sessionTabsMax: Number(e.target.value) })}
+                className="w-28 accent-(--tmd-accent)"
+              />
+              <span className="w-4 text-right text-sm tabular-nums text-(--tmd-fg-muted)">
+                {settings.sessionTabsMax}
+              </span>
+            </>
+          ) : null}
+          <div className="segmented" role="radiogroup" aria-label={t("会话标题 tab 条")}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={settings.sessionTabsEnabled}
+              className={`segment${settings.sessionTabsEnabled ? " is-active" : ""}`}
+              onClick={() => updateSettings({ sessionTabsEnabled: true })}
+            >
+              {t("开启")}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!settings.sessionTabsEnabled}
+              className={`segment${!settings.sessionTabsEnabled ? " is-active" : ""}`}
+              onClick={() => updateSettings({ sessionTabsEnabled: false })}
+            >
+              {t("关闭")}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <SystemAppearanceCard />

@@ -66,7 +66,21 @@
 .welcome-quota-row .qp { text-align: right; }
 .welcome-quota-row .qp.hot { color: var(--tmd-err); }
 .welcome-quota-row .err { color: var(--tmd-err); }
-.welcome-quota-empty { font-size: var(--tmd-font-ui); color: var(--tmd-fg-subtle); padding: 2px 6px; }
+
+/* 仓库链接收纳位(自标题条移入):跨双列右对齐,弱陈述(hover 才亮) */
+.welcome-footer-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 6px 0;
+}
+.welcome-footer-meta a {
+  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-xs);
+  text-decoration: none;
+}
+.welcome-footer-meta a:hover { color: var(--tmd-fg); }
+.welcome-footer-meta a:focus { outline: none; }
 
 @media (max-width: 720px) {
   .welcome-footer { grid-template-columns: 1fr; }

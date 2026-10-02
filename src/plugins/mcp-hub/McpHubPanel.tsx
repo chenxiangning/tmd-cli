@@ -4,8 +4,10 @@
  * 管理动作全部收口在中央 tab(右栏保持只读概览,与 git 聚合行同密度)。
  */
 import { useEffect } from "react";
-import { PlugsConnected, ArrowSquareIn } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowSquareIn, Plugs, PlugsConnected } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { useHubState, refreshHub, selectEngine } from "./hubStore";
 import { openMcpHubTab } from "./hubTab";
 
@@ -28,39 +30,74 @@ export function McpHubPanel() {
         {t("MCP · {n} 台引擎 · {m} 个服务器", { n: engines.length, m: total })}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {engines.map((engine) => (
-          <button
-            key={engine.profileId}
-            type="button"
-            aria-pressed={engine.profileId === selectedProfileId}
-            title={t("点击管理该引擎")}
-            className={`relative flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors ${
-              engine.profileId === selectedProfileId
-                ? "bg-(--tmd-bg-hover) font-medium text-(--tmd-fg) after:absolute after:inset-y-1 after:left-0 after:w-0.5 after:rounded-full after:bg-(--tmd-accent)"
-                : "hover:bg-(--tmd-bg-hover)"
-            }`}
-            onClick={() => {
-              selectEngine(engine.profileId);
-              openMcpHubTab();
-            }}
-          >
-            <span className="min-w-0 truncate text-(--tmd-fg)">{engine.name}</span>
-            <span
-              className={
-                engine.entries === null
-                  ? "ml-3 min-w-8 flex-none text-right text-(--tmd-diff-removed)"
-                  : "ml-3 min-w-8 flex-none text-right text-(--tmd-fg-faint) tabular-nums"
-              }
+        {engines.map((engine) =>
+          engine.entries === null ? (
+            /* 读失败 = 持久条(role=alert + 重试;R6 契约):点名仍可进管理看
+               原文与错误详情,重试走全量刷新。 */
+            <div
+              key={engine.profileId}
+              role="alert"
+              className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-xs"
+              data-mcphub-engine-error={engine.profileId}
             >
-              {engine.entries === null ? t("读取失败") : engine.exists ? Object.keys(engine.entries).length : t("尚未创建")}
-            </span>
-          </button>
-        ))}
-        {engines.length === 0 && (
-          <div className="px-4 pt-8 text-center text-xs leading-relaxed text-(--tmd-fg-faint)">
-            {loading ? t("加载中…") : t("没有可管理的引擎")}
-          </div>
+              <button
+                type="button"
+                onClick={() => {
+                  selectEngine(engine.profileId);
+                  openMcpHubTab();
+                }}
+                className="min-w-0 truncate text-left text-(--tmd-fg) hover:underline"
+                title={engine.error}
+              >
+                {engine.name}
+              </button>
+              <span className="ml-3 flex flex-none items-center gap-1 text-(--tmd-diff-removed)">
+                {t("读取失败")}
+                <button
+                  type="button"
+                  onClick={() => void refreshHub()}
+                  title={t("重试")}
+                  aria-label={t("重试")}
+                  className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+                  data-mcphub-engine-retry={engine.profileId}
+                >
+                  <ArrowClockwise size="0.75rem" aria-hidden />
+                </button>
+              </span>
+            </div>
+          ) : (
+            <button
+              key={engine.profileId}
+              type="button"
+              aria-pressed={engine.profileId === selectedProfileId}
+              title={t("点击管理该引擎")}
+              className={`relative flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors ${
+                engine.profileId === selectedProfileId
+                  ? "bg-(--tmd-bg-hover) font-medium text-(--tmd-fg) after:absolute after:inset-y-1 after:left-0 after:w-0.5 after:rounded-full after:bg-(--tmd-accent)"
+                  : "hover:bg-(--tmd-bg-hover)"
+              }`}
+              onClick={() => {
+                selectEngine(engine.profileId);
+                openMcpHubTab();
+              }}
+            >
+              <span className="min-w-0 truncate text-(--tmd-fg)">{engine.name}</span>
+              <span className="ml-3 min-w-8 flex-none text-right text-(--tmd-fg-faint) tabular-nums">
+                {engine.exists ? Object.keys(engine.entries).length : t("尚未创建")}
+              </span>
+            </button>
+          ),
         )}
+        {engines.length === 0 &&
+          /* 忙态 = Spinner;空态 = 统一 Empty 形制(pi 脚注保留)。 */
+          (loading ? (
+            <div className="flex items-center justify-center gap-1.5 px-4 pt-8 text-xs text-(--tmd-fg-faint)">
+              <Spinner />
+              {t("加载中…")}
+            </div>
+          ) : (
+            <Empty icon={<Plugs aria-hidden />}>{t("没有可管理的引擎")}</Empty>
+          ))}
         <div className="px-3 py-1.5 text-meta text-(--tmd-fg-faint)">
           {t("pi:—(靠 pi-mcp-adapter 扩展)")}
         </div>

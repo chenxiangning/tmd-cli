@@ -4,7 +4,8 @@
  * 视觉与会话 tab 同语言:24px 高圆角条,hover/active 背景,无描边;
  * 每个 tab 内含:文件类型 SVG icon + 文件名 + 脏标记圆点 + 最大化切换
  * + close(hover/active 显隐,同 .session-tab-remove);溢出横向滚动(滚轮
- * 横向走马灯),无滚动条。与会话 tab 的间距由 .titlebar-center 的 gap 提供。
+ * 横向走马灯),无滚动条 + 右缘渐隐指示可滚(与会话 tab 条同款 mask,双条统一)。
+ * 与会话 tab 的间距由 .titlebar-center 的 gap 提供。
  * ────────────────────────────────────────────────────────── */
 
 .tab-bar {
@@ -14,6 +15,18 @@
   flex: 0 1 auto;
   height: 100%;
   overflow-x: auto;
+  scrollbar-width: none;
+}
+
+/* 右缘渐隐仅在有溢出且未滚到头时挂(JS 切换;评审 B2)。 */
+.tab-detach:focus-visible,
+.tab-close:focus-visible {
+  opacity: 1;
+}
+
+.tab-bar.fade-end {
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 16px), transparent 100%);
 }
 
 .tab-bar-track {
@@ -91,7 +104,9 @@
   line-height: 1;
 }
 
-/* 最大化切换 + close:悬停/激活显隐(同 .session-tab-remove 的节奏) */
+/* 最大化切换 + close:悬停/激活显隐(同 .session-tab-remove 的节奏),双钮分级 ——
+   close 高频保持全显;最大化(CornersOut)低频,tab 悬停时降半透明,hover 到
+   本钮才全亮(触达面积内的目标辨识让位给 close)。 */
 .tab-detach,
 .tab-close {
   border: none;
@@ -114,10 +129,20 @@
   color: var(--tmd-accent);
 }
 
-.tab:hover .tab-detach,
 .tab:hover .tab-close,
-.tab.is-active .tab-detach,
 .tab.is-active .tab-close {
+  opacity: 1;
+}
+
+/* 常态降透明:tab 悬停/激活时 0.45,hover 本钮(必然同时悬停 tab)才全显 ——
+   后置更高特异性(0,4,0)盖过 0.45 规则(0,3,0)。 */
+.tab:hover .tab-detach,
+.tab.is-active .tab-detach {
+  opacity: 0.45;
+}
+
+.tab:hover .tab-detach:hover,
+.tab.is-active .tab-detach:hover {
   opacity: 1;
 }
 

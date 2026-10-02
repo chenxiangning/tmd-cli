@@ -4,7 +4,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { Gear } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
 import { DialogShell, DialogActions } from "@kernel/DialogShell";
 import { BrandAvatar, StatusDot } from "./OmpOauthSection";
 import {
@@ -88,37 +90,42 @@ export function OmpModelsConfigSection() {
         </div>
       )}
 
-      <ul
-        className="mt-2 divide-y divide-(--tmd-border) overflow-hidden rounded-lg border border-(--tmd-border) bg-(--tmd-bg-card)"
-        data-testid="omp-models-list"
-      >
-        {(cfg?.providers ?? []).map((p) => (
-          <li key={p.name} className="flex min-h-[3.25rem] items-center gap-3 px-3 py-2.5">
-            <BrandAvatar id={p.name} name={p.name} />
-            <div className="flex min-w-0 flex-1 flex-col">
-              <p className="truncate text-xs text-(--tmd-fg)">{p.name}</p>
-              <p className="truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)">{p.baseUrl}</p>
-            </div>
-            {p.api && (
-              <code className="shrink-0 rounded bg-(--tmd-bg-popover) px-1.5 py-0.5 font-mono text-[0.6875rem] text-(--tmd-fg-muted)">
-                {p.api}
-              </code>
-            )}
-            <span className="shrink-0 text-[0.6875rem] text-(--tmd-fg-muted)">
-              {t("{n} 个模型", { n: p.modelCount })}
-            </span>
-            <span className="flex shrink-0 items-center gap-1.5 text-[0.6875rem] text-(--tmd-fg-muted)">
-              <StatusDot on={p.hasKey} />
-              {p.hasKey ? t("含 Key") : t("无 Key")}
-            </span>
-          </li>
-        ))}
-        {cfg && cfg.providers.length === 0 && (
-          <li className="px-3 py-6 text-center text-xs text-(--tmd-fg-muted)">
-            {t("还没有自定义供应商,点右上角「编辑配置」添加")}
-          </li>
-        )}
-      </ul>
+      {cfg && cfg.providers.length === 0 ? (
+        /* 纯空列表态 = 统一 Empty 形制;动作直达原文编辑器(原「点右上角」提示升钮)。 */
+        <Empty
+          icon={<Gear aria-hidden />}
+          action={{ label: t("编辑配置"), onClick: () => setEditing(true) }}
+        >
+          {t("还没有自定义供应商")}
+        </Empty>
+      ) : (
+        <ul
+          className="mt-2 divide-y divide-(--tmd-border) overflow-hidden rounded-lg border border-(--tmd-border) bg-(--tmd-bg-card)"
+          data-testid="omp-models-list"
+        >
+          {(cfg?.providers ?? []).map((p) => (
+            <li key={p.name} className="flex min-h-[3.25rem] items-center gap-3 px-3 py-2.5">
+              <BrandAvatar id={p.name} name={p.name} />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <p className="truncate text-xs text-(--tmd-fg)">{p.name}</p>
+                <p className="truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)">{p.baseUrl}</p>
+              </div>
+              {p.api && (
+                <code className="shrink-0 rounded bg-(--tmd-bg-popover) px-1.5 py-0.5 font-mono text-[0.6875rem] text-(--tmd-fg-muted)">
+                  {p.api}
+                </code>
+              )}
+              <span className="shrink-0 text-[0.6875rem] text-(--tmd-fg-muted)">
+                {t("{n} 个模型", { n: p.modelCount })}
+              </span>
+              <span className="flex shrink-0 items-center gap-1.5 text-[0.6875rem] text-(--tmd-fg-muted)">
+                <StatusDot on={p.hasKey} />
+                {p.hasKey ? t("含 Key") : t("无 Key")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {cfg && (
         <p className="mt-1.5 truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)">{cfg.path}</p>
       )}

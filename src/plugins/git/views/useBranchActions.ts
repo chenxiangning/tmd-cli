@@ -22,7 +22,11 @@ export function useBranchActions(opts: {
   cwd: string;
   dirty: boolean;
   currentName: string | undefined;
-  run: (action: () => Promise<unknown>, okNotice?: string | ((res: unknown) => string)) => void;
+  run: (
+    action: () => Promise<unknown>,
+    okNotice?: string | ((res: unknown) => string),
+    onReject?: (e: unknown) => void,
+  ) => void;
   setConfirm: (d: GitConfirmState) => void;
   setNameDialog: (d: BranchNameDialogState) => void;
   setCompare: (r: BranchCompareRequest) => void;
@@ -155,11 +159,28 @@ export function useBranchActions(opts: {
     remove: (b) =>
       setConfirm({
         title: t("删除分支 {branch}?", { branch: b.name }),
-        detail: t("未合并到当前分支的删除会被拒绝;强行删除请用行内删除按钮连点两次。"),
+        detail: t("未合并到当前分支的删除会被拒绝;被拒后可选择强制删除。"),
         confirmLabel: t("删除"),
         danger: true,
         onConfirm: () =>
-          run(() => ipc.gitDeleteBranch(cwd, b.name, false), t("已删除 {branch}", { branch: b.name })),
+          run(
+            () => ipc.gitDeleteBranch(cwd, b.name, false),
+            t("已删除 {branch}", { branch: b.name }),
+            /* 安全删被拒(典型 = 未合并)→ 追加强删确认,GUI 强删链路保持可达
+               (2026-10-02 评审 A1:两击武装改造不得移除强删能力)。 */
+            () =>
+              setConfirm({
+                title: t("强制删除 {branch}?", { branch: b.name }),
+                detail: t("该分支未合并到当前分支,强制删除后其提交将不可达;此操作不可撤销。"),
+                confirmLabel: t("强制删除"),
+                danger: true,
+                onConfirm: () =>
+                  run(
+                    () => ipc.gitDeleteBranch(cwd, b.name, true),
+                    t("已强制删除 {branch}", { branch: b.name }),
+                  ),
+              }),
+          ),
       }),
   };
   return { menuActions, confirmSwitch };

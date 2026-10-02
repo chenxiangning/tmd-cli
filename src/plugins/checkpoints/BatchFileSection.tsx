@@ -156,7 +156,7 @@ function FileSection({
               {t("高危")}
             </span>
           )}
-          <span className="min-w-0 truncate font-mono text-xs">
+          <span className="min-w-0 truncate font-mono text-xs" title={path}>
             <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
             <span className="text-(--tmd-fg-faint)">{dir}</span>
           </span>

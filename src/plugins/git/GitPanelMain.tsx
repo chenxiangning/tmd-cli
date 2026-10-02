@@ -231,8 +231,10 @@ export function GitPanelMain({
         afterMutation={afterMutation}
       />
 
+      {/* 视图保活(EditorCenter keepAlive 同款):三视图全挂载,非激活 display:none
+          —— 切视图零卸载,diff 勾选 / 分支搜索与滚动 / 历史展开态跨切换存活。 */}
       <div className="min-h-0 flex-1">
-        {view === "diff" && (
+        <div className={view === "diff" ? "h-full" : "hidden"} aria-hidden={view !== "diff"}>
           <DiffView
             cwd={cwd}
             layout={layout}
@@ -242,8 +244,8 @@ export function GitPanelMain({
             onMutation={afterMutation}
             onError={setNotice}
           />
-        )}
-        {view === "branch" && (
+        </div>
+        <div className={view === "branch" ? "h-full" : "hidden"} aria-hidden={view !== "branch"}>
           <BranchView
             cwd={cwd}
             data={branches.data}
@@ -252,8 +254,8 @@ export function GitPanelMain({
             dirty={files.length > 0}
             onMutation={afterMutation}
           />
-        )}
-        {view === "history" && (
+        </div>
+        <div className={view === "history" ? "h-full" : "hidden"} aria-hidden={view !== "history"}>
           <HistoryView
             log={log}
             cwd={cwd}
@@ -262,7 +264,7 @@ export function GitPanelMain({
             ahead={aheadBehind?.ahead ?? 0}
             behind={aheadBehind?.behind ?? 0}
           />
-        )}
+        </div>
       </div>
       <RemoteDialogGroup
         cwd={cwd}

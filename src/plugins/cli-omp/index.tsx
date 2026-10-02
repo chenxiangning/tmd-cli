@@ -11,6 +11,7 @@ import { listOmpSuggestions } from "./rpcCommands";
 import { listOmpMcpServers } from "./mcpServers";
 import { OmpExtensionMarket } from "./market";
 import { OMP_ACADEMY_COURSE } from "./academy/academyCatalog";
+import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import { PI_TUI_ASK_MARKS } from "../cli-shared/askMarks";
 import { PI_TUI_ECHO_MARKS } from "../cli-shared/echoMarks";
 import type { CliSuggestion } from "@kernel/cli";

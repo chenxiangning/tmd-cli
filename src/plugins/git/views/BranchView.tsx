@@ -12,7 +12,8 @@
 
 import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
-import { CaretDown, CaretRight } from "@phosphor-icons/react";
+import { Plus } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { ipc, type GitBranchInfo, type GitBranchList } from "@kernel/ipc";
 import { gitErrorDisplay, isAuth } from "../gitError";
 import { BranchContextMenu, type BranchMenuState } from "./BranchContextMenu";
@@ -61,7 +62,11 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
   /* 本地分支按检出归属三分区(数据面见 useWorktreeBranchGroups)。 */
   const { groups, zoned } = useWorktreeBranchGroups(cwd, locals);
 
-  const run = (action: () => Promise<unknown>, okNotice?: string | ((res: unknown) => string)) => {
+  const run = (
+    action: () => Promise<unknown>,
+    okNotice?: string | ((res: unknown) => string),
+    onReject?: (e: unknown) => void,
+  ) => {
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -73,6 +78,11 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
       },
       (e: unknown) => {
         setBusy(false);
+        /* 失败定制出口(onReject):分支删除被拒时追加强删确认,不走错误条。 */
+        if (onReject) {
+          onReject(e);
+          return;
+        }
         /* auth 失败统一引导幕布终端(与对话框路径 useGitPanelRemote 同口径) */
         setError(isAuth(e) ? t("凭据需要交互,请到幕布终端执行 git 命令") : gitErrorDisplay(e));
       },
@@ -95,9 +105,6 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
     run(() => ipc.gitCreateBranch(cwd, name).then(() => setNewName("")));
   };
 
-  /** 切换/检出统一入口:应用内二次确认;脏工作区追加「暂存并切换」次选。 */
-  const CreateCaret = createOpen ? CaretDown : CaretRight;
-
   return (
     <div className="flex h-full flex-col gap-1 overflow-y-auto p-2">
       <div className="flex items-center gap-1.5">
@@ -106,9 +113,10 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           onClick={() => setCreateOpen((v) => !v)}
           aria-expanded={createOpen}
           title={t("新建分支")}
+          aria-label={t("新建分支")}
           className="rounded p-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
-          <CreateCaret className="h-[0.75rem] w-[0.75rem]" />
+          <Plus className="h-[0.75rem] w-[0.75rem]" />
         </button>
       </div>
       {createOpen && (
@@ -141,7 +149,11 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           />
         ))
       )}
-      {loading && !data && <div className="px-2 py-1 text-(--tmd-fg-faint)">{t("加载中…")}</div>}
+      {loading && !data && (
+        <div className="flex items-center gap-1.5 px-2 py-1 text-(--tmd-fg-faint)">
+          <Spinner /> {t("加载中…")}
+        </div>
+      )}
 
       <GroupLabel label={t("远程 ({n})", { n: remotes.length })} />
       {remotes.map((b) => (

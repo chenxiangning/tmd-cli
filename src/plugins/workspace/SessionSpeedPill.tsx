@@ -57,6 +57,7 @@ export function SessionSpeedPill({
           if (!alive) return;
           path = list.find((s) => s.id === cliSessionId)?.path ?? null;
           if (path === null) return; // 文件尚未出生,下一拍重解析
+          if (path === "") return; // 该引擎无单文件路径(dsh zstd 在 host 侧):不喂假路径
         }
         const tail = await ipc.fsReadTailChanged(path, TAIL_BYTES, lastSize);
         if (!alive || !tail.changed) return;

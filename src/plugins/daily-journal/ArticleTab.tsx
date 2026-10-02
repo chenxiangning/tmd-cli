@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { host } from "@kernel/host";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
@@ -166,7 +167,14 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   useEffect(() => {
     if ((tab.payload as ArticleTabPayload).autoEdit) setEditSignal((v) => v + 1);
   }, [tab.payload]);
-  if (!snap || !rows) return <div className="dj-article dj-article-loading">{t("加载中…")}</div>;
+  if (!snap || !rows)
+    return (
+      <div className="dj-article dj-article-loading">
+        <span className="dj-load">
+          <Spinner /> {t("正在读取日志…")}
+        </span>
+      </div>
+    );
   return (
     <div className="dj-article">
       <div className="dj-art-bar">

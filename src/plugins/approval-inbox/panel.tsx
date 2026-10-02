@@ -6,6 +6,7 @@
  * 不做:各 CLI 键位语义不一,发错键=批错操作(M2 评审 A2 拍板,桌面同律)。
  */
 import { useEffect, useState } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 import { BellRinging } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
@@ -56,11 +57,15 @@ export function ApprovalInboxPanel() {
   const myRecords = records.filter((r) => r.sessionId === host.getActiveSessionId());
   const { settings } = useSettingsState();
   const [, tick] = useState(0);
+  const panelActive = usePanelActive();
   useEffect(() => {
     observeCurrentWaitings(); /* 挂载补盲:HMR 重载后已在等待的会话 */
-    const timer = window.setInterval(() => tick((n) => n + 1), 1000); /* 时长走秒 */
+    /* 面板活性短路:隐藏态时长仍走(回切 tick 补),但跳过隐藏子树整秒重渲。 */
+    const timer = window.setInterval(() => {
+      if (panelActive) tick((n) => n + 1);
+    }, 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [panelActive]);
 
   return (
     <div className="flex h-full flex-col bg-(--tmd-bg-base)">

@@ -42,7 +42,12 @@ function MarkerRow({ row, upstream }: { row: Extract<HistoryRow, { type: "marker
   return (
     <div className={ROW_CLASS} title={upstream ? `${label} ${upstream}` : label}>
       <GitGraphSvgCell row={row.graph} />
-      <span className="min-w-0 flex-1 truncate font-medium text-(--tmd-fg-muted)">{label}</span>
+      <span
+        className="min-w-0 flex-1 truncate font-medium text-(--tmd-fg-muted)"
+        title={upstream ? `${label} ${upstream}` : label}
+      >
+        {label}
+      </span>
     </div>
   );
 }
@@ -72,7 +77,7 @@ function FileRow({
         aria-hidden
         dangerouslySetInnerHTML={{ __html: icon.svgHtml }}
       />
-      <span className="min-w-0 flex-1 truncate">
+      <span className="min-w-0 flex-1 truncate" title={row.file.path}>
         <span className="font-medium">{name}</span>
         {dir && <span className="ml-1 text-meta text-(--tmd-fg-faint)">{dir}</span>}
       </span>
@@ -109,13 +114,13 @@ function CommitRow({
       >
         <GitGraphSvgCell row={row.graph} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">
+          <span className="block truncate font-medium" title={row.commit.summary || t("(空消息)")}>
             {row.commit.summary || t("(空消息)")}
           </span>
           <span className="flex items-center gap-1.5 text-meta leading-4 text-(--tmd-fg-faint)">
             <span className="font-mono">{row.commit.shortSha}</span>
             <span
-              className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full text-2xs font-semibold uppercase"
+              className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-2xs font-semibold uppercase"
               style={{
                 color: `color-mix(in srgb, hsl(${stringHue(row.commit.authorEmail)} 60% 62%) 70%, var(--tmd-fg))`,
                 background: `hsl(${stringHue(row.commit.authorEmail)} 50% 55% / 0.18)`,
@@ -124,7 +129,9 @@ function CommitRow({
             >
               {row.commit.authorName.slice(0, 1)}
             </span>
-            <span className="min-w-0 truncate">{row.commit.authorName}</span>
+            <span className="min-w-0 truncate" title={row.commit.authorName}>
+              {row.commit.authorName}
+            </span>
             <span className="shrink-0 tabular-nums">
               {formatRelativeTime(row.commit.authorWhen * 1000)}
             </span>
@@ -142,7 +149,10 @@ function CommitRow({
       {expanded && entry?.error && (
         <div className={ROW_CLASS} title={entry.error}>
           <GitGraphContinuationCell row={row.graph} />
-          <span className="truncate text-(--tmd-diff-removed)">
+          <span
+            className="truncate text-(--tmd-diff-removed)"
+            title={entry.error.replace(/^E_[A-Z_]+:\s*/, "")}
+          >
             {entry.error.replace(/^E_[A-Z_]+:\s*/, "")}
           </span>
         </div>

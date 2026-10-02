@@ -15,6 +15,7 @@ import { type MemoryItem } from "../protocol";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import {
   MemoryListItem,
   MemoryPanelFooter,
@@ -180,7 +181,11 @@ export function MemoryPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1">
         {loading ? (
-          <div className="p-3 text-center text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>
+          /* 忙态统一形制:Spinner(全仓唯一加载指示) + 可见文案,对齐 CheckpointsPanel 先例 */
+          <div className="flex items-center justify-center gap-1.5 p-3 text-xs text-(--tmd-fg-faint)">
+            <Spinner />
+            {t("加载中…")}
+          </div>
         ) : filtered.length === 0 ? (
           /* 空态统一形制:整池空给记忆图标,过滤空(无匹配)保留纯文案弱陈述 */
           count === 0 ? (

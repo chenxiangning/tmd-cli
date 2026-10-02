@@ -102,7 +102,9 @@ export function StoreCard({
           <button
             type="button"
             onClick={() => onInstall(card)}
-            className="rounded border border-(--tmd-border) px-2 py-0.5 text-xs hover:bg-(--tmd-bg-hover)"
+            /* accent 描边钮:与 mcp-hub StoreCard 安装钮(mcphub-accent-btn)同权重,
+               两 hub 商店主行动作同款(2026-10-02 对齐裁定)。 */
+            className="rounded-sm border border-(--tmd-accent)/55 px-2 py-1 text-xs text-(--tmd-accent) transition-[background-color] duration-(--tmd-dur-1) ease-(--tmd-ease-out) hover:bg-(--tmd-accent)/14"
             data-store-install={card.slug}
           >
             {t("安装")}

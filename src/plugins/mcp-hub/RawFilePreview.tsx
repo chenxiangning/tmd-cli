@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { ArrowSquareOut } from "@phosphor-icons/react";
 import { openFileInTab } from "@kernel/fileTabs";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import type { McpEngineState } from "./hubStore";
 import { readEngineRaw } from "./hubStore";
 
@@ -53,7 +54,13 @@ export function RawFilePreview({ engine, onClose }: { engine: McpEngineState; on
         <div className="px-3 py-3 text-meta text-(--tmd-diff-removed)">{t("文件不存在或不可读")}</div>
       ) : (
         <div>
-          <pre className="mcphub-raw">{text ?? t("加载中…")}</pre>
+          {text === null ? (
+            <div className="flex items-center justify-center px-3 py-4 text-xs text-(--tmd-fg-faint)">
+              <Spinner />
+            </div>
+          ) : (
+            <pre className="mcphub-raw">{text}</pre>
+          )}
           {truncated && (
             <div className="border-t border-(--tmd-border) px-2.5 py-1 text-2xs text-(--tmd-fg-faint)">
               {t("已达 20000 字符预览上限,完整内容请用「在文件 tab 打开」")}

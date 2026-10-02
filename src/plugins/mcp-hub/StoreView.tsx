@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowsClockwise, MagnifyingGlass, DownloadSimple } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { REGISTRY_SOURCES, searchRegistrySource, type RegistryResult, type RegistrySourceName } from "./registrySources";
 import type { RegistryCard } from "./registryNormalize";
 import type { McpEngineState } from "./hubStore";
@@ -138,7 +139,9 @@ export function StoreView({
       )}
 
       {loading && items.length === 0 ? (
-        <div className="py-10 text-center text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>
+        <div className="py-10 text-center text-xs text-(--tmd-fg-faint)">
+          <Spinner /> {t("加载中…")}
+        </div>
       ) : items.length === 0 && !error ? (
         <div className="py-10 text-center text-xs text-(--tmd-fg-faint)">{t("无结果;换个关键词试试")}</div>
       ) : (
@@ -157,7 +160,7 @@ export function StoreView({
           onClick={() => void run(source, submitted, nextCursor)}
         >
           <DownloadSimple size="0.75rem" aria-hidden />
-          {loading ? t("加载中…") : t("加载更多")}
+          {loading ? <Spinner /> : t("加载更多")}
         </button>
       )}
 

@@ -15,6 +15,9 @@ import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import type { CliDiskSession, CliTranscriptBlock } from "@kernel/cli";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
+import { Chats } from "@phosphor-icons/react";
 import { retryImport } from "@kernel/lazyImport";
 import { TranscriptView } from "./transcriptView";
 import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe, stableBlocks } from "./liveMode";
@@ -26,13 +29,11 @@ const MarkdownBody = lazy(retryImport(() =>
 
 /** 轮询节拍:message 级落盘事件,1s 探测足够跟手且空转成本一次 stat。 */
 const POLL_MS = 1000;
-/** 路径解析限频:listSessions 是目录全扫(grok 千级会话),3s 一试到命中;
- * 连续 miss ≥10 次(约 30s)退到 10s 节拍,防未绑定/懒落盘期常驻全扫。 */
+/** 路径解析限频:listSessions 是目录全扫(grok 千级会话),3s 一试到命中;连续 miss ≥10 次(约 30s)退到 10s 节拍,防未绑定/懒落盘期常驻全扫。 */
 const RESOLVE_EVERY = 3;
 /** 尾窗批次:live 视角从尾部往回看(与查看 tab 同额)。 */
 const RENDER_BATCH = 200;
-/** 贴底跟随判定边距。 */
-const FOLLOW_EDGE = 60;
+/** 贴底跟随判定边距。 */ const FOLLOW_EDGE = 60;
 
 /* 轮询状态机组件:分支密度是本质复杂度,拆散闭包需传 6 个 ref 弊大于利。 */
 // react-doctor-disable-next-line react-doctor/no-high-complexity-react-function
@@ -53,6 +54,7 @@ export function LiveTranscriptOverlay() {
 
   const [error, setError] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+  const [retryTick, setRetryTick] = useState(0); /* 持久条「重试」拍子:重拍轮询 effect */
   const [blocks, setBlocks] = useState<CliTranscriptBlock[] | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [visible, setVisible] = useState(RENDER_BATCH);
@@ -167,8 +169,7 @@ export function LiveTranscriptOverlay() {
       clearInterval(timer);
       timer = undefined;
     };
-  }, [on, activeId, profile, meta?.cwd]);
-
+  }, [on, activeId, profile, meta?.cwd, retryTick]);
 
   /* working 计时(monocode LiveFoldTitle):活跃期每秒跳。 */
   useEffect(() => {
@@ -198,16 +199,13 @@ export function LiveTranscriptOverlay() {
   if (!activeId || !capable || !on) return null;
 
   const shown = tailWindow(blocks ?? [], visible);
-  const statusText =
-    unsupported
-      ? t("该引擎不支持实时转录")
-      : error
-        ? t("读取会话转录失败")
-        : blocks === null
-        ? t("定位会话文件中…")
-        : blocks.length === 0
-          ? t("会话没有可解析的对话内容")
-          : null;
+  /* 状态三分流:错误(含 unsupported)走持久条 role=alert + 重试,不抹已到转录;空态走 Empty;定位中走 Spinner。 */
+  const errMsg = unsupported ? t("该引擎不支持实时转录") : error ? t("读取会话转录失败") : null;
+  const retryLocate = () => { /* 清错误/熔断与定位缓存,重拍轮询 effect */
+    setError(false); setUnsupported(false);
+    probeFailRef.current = 0; resolveMissRef.current = 0; diskRef.current = null; sizeRef.current = null;
+    setRetryTick((v) => v + 1);
+  };
 
   return (
     <div className="sv-root lv-view">
@@ -248,7 +246,12 @@ export function LiveTranscriptOverlay() {
           }
         }}
       >
-        {statusText ? <div className="sv-empty">{statusText}</div> : (
+        {errMsg !== null && (
+          <div className="lv-error" role="alert"><span>{errMsg}</span><button type="button" className="lv-error-retry" onClick={retryLocate}>{t("重试")}</button></div>
+        )}
+        {errMsg === null && blocks === null && <div className="sv-empty"><span className="inline-flex items-center gap-2"><Spinner />{t("定位会话文件中…")}</span></div>}
+        {errMsg === null && blocks?.length === 0 && <div className="sv-empty"><Empty icon={<Chats size="0.875rem" />}>{t("会话没有可解析的对话内容")}</Empty></div>}
+        {blocks !== null && blocks.length > 0 && (
           <div className="sv-blocks">
             {visible < (blocks?.length ?? 0) ? (
               <button

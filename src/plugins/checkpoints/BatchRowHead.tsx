@@ -12,13 +12,16 @@ import { openBatchTab } from "./batchTab";
 import { STATE_META, batchState, type BatchStateKey, type BatchStateMeta } from "./batchStateMeta";
 import { countHighRisk } from "./risk";
 
-/** 批头悬浮文案:发起/封口时刻(降分支拆件)。 */
+/** 批头悬浮文案:发起/封口时刻 + 引擎/模型/思考(2026-10 审计:元信息收进
+ *  title 悬停可见,行内只保审计优先级更高的计数/高危/±/状态/时间)。 */
 function headTitle(b: CkptBatch): string {
-  return t("点击审阅该批(用户消息 + 文件 diff) · {ts}", {
-    ts: b.tsEnd
-      ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(b.ts), end: formatAbsolute(b.tsEnd) })
-      : t("{start} 发起", { start: formatAbsolute(b.ts) }),
-  });
+  const ts = b.tsEnd
+    ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(b.ts), end: formatAbsolute(b.tsEnd) })
+    : t("{start} 发起", { start: formatAbsolute(b.ts) });
+  const eng = [b.engine, b.model, b.thinking ? t("思考 {level}", { level: b.thinking }) : ""]
+    .filter(Boolean)
+    .join(" · ");
+  return t("点击审阅该批(用户消息 + 文件 diff) · {ts}", { ts }) + (eng ? ` · ${eng}` : "");
 }
 
 /** 状态点:open 呼吸动画,done 空心(降分支拆件)。 */
@@ -68,21 +71,6 @@ function BatchInferBadge({ b }: { b: CkptBatch }) {
       title={t("该 CLI 未声明写入事件检测:批次由 git 变更推断,可能混入手改")}
     >
       {t("推断")}
-    </span>
-  );
-}
-
-/** 引擎/模型/思考摘要 tag(账本随批固化)(降分支拆件)。 */
-function BatchEngineTag({ b }: { b: CkptBatch }) {
-  if (!b.engine && !b.model) return null;
-  return (
-    <span
-      className="min-w-0 truncate text-meta"
-      title={[b.engine, b.model, b.thinking ? t("思考 {level}", { level: b.thinking }) : ""].filter(Boolean).join(" · ")}
-    >
-      {b.engine}
-      {b.engine && b.model ? " · " : ""}
-      {b.model}
     </span>
   );
 }
@@ -144,7 +132,6 @@ export function BatchHeadButton({
           )}
           <BatchStateChip b={b} st={st} meta={meta} />
           <BatchInferBadge b={b} />
-          <BatchEngineTag b={b} />
           <span className="ml-auto flex-none" title={formatAbsolute(b.ts)}>
             {formatRelativeTime(b.ts)}
           </span>

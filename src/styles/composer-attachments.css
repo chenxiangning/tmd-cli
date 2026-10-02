@@ -2,8 +2,8 @@
  * Composer 附件条样式 —— 紧凑单行布局。
  *
  * 结构:卡片条居左(横向滚动),头部文案 + 全部清除右移同行;
- * 卡片为 48px 横向小片(40px 缩略图 + 大小),不显示文件名
- * (悬停卡片由 title 提示完整路径),整体高度约为原竖版卡布局的 1/2。
+ * 卡片为 48px 横向小片(40px 缩略图 + 6 字符截断名 + 大小),
+ * 完整路径悬停卡片由 title 提示,整体高度约为原竖版卡布局的 1/2。
  * 命名:tmd-attach-* / tmd-kind-* —— 与 tmd 主题 token 一致
  * 作用域:.tmd-attach-section(Composer 容器内)
  */
@@ -101,6 +101,14 @@
 .tmd-attach-meta {
   min-width: 0;
   color: var(--tmd-fg-subtle);
+}
+/* 6 字符截断文件名(JS 侧截断,CSS 省略号兜底 CJK 宽度) */
+.tmd-attach-name {
+  font-size: var(--tmd-font-2xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 7rem;
 }
 .tmd-attach-info {
   font-size: var(--tmd-font-ui);

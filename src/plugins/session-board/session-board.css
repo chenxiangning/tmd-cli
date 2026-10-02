@@ -59,7 +59,9 @@
 .sb-dot.ar { background: var(--tmd-border-strong); }
 .sb-dot.unread { background: var(--tmd-accent); }
 .sb-dot.pulse { animation: sb-pulse 1.4s infinite; }
-.sb-day-rule { color: var(--tmd-err); font-size: var(--tmd-font-xs); border: 1px solid color-mix(in srgb, var(--tmd-err) 25%, transparent); border-radius: 999px; padding: 1px 6px; }
+/* 归档规则条:中性说明非告警(fg-muted + 常规边),不用 err 红系。 */
+.sb-day-rule { color: var(--tmd-fg-muted); font-size: var(--tmd-font-xs); border: 1px solid var(--tmd-border); border-radius: 999px; padding: 1px 6px; }
+.sb-kb { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); }
 .sb-day-head .sb-btn { margin-left: auto; }
 
 /* ── 节律条 ── */
@@ -68,7 +70,7 @@
 .sb-seg:hover { background: color-mix(in srgb, var(--tmd-fg-faint) 14%, transparent); }
 .sb-seg.hl { border-color: var(--tmd-accent); }
 .sb-seg i { width: 70%; border-radius: 1px; /* 像素条 */ }
-.sb-seg-lbl { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-subtle); height: 11px; font-variant-numeric: tabular-nums; }
+.sb-seg-lbl { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-subtle); height: 11px; line-height: 1; font-variant-numeric: tabular-nums; }
 
 /* ── 泳道时间线 ── */
 .sb-tl { display: flex; flex-direction: column; min-height: 0; flex: 1; overflow-x: auto; overflow-y: auto; position: relative; }
@@ -110,6 +112,11 @@
 .sb-card { display: flex; flex-direction: column; gap: 2px; width: 100%; border: 1px solid var(--tmd-border); border-left: 3px solid var(--ec, var(--tmd-accent)); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); cursor: pointer; padding: 4px 6px; text-align: left; color: var(--tmd-fg); content-visibility: auto; contain-intrinsic-size: auto 44px; }
 .sb-card:hover { border-color: color-mix(in srgb, var(--ec, var(--tmd-accent)) 55%, var(--tmd-border)); }
 .sb-card.dim { opacity: .55; }
+/* 节律段选中/悬停联动高亮(与 .sb-seg.hl 同律:border 换 accent;左侧引擎色条保留)。 */
+.sb-card.hl { border-color: var(--tmd-accent); border-left-color: var(--ec, var(--tmd-accent)); }
+/* 运行态弱标:绿系微染底(卡内运行点之外的整体可读弱信号)。 */
+.sb-card.hl:hover { border-color: color-mix(in srgb, var(--tmd-accent) 70%, var(--ec)); }
+.sb-card.live { background: color-mix(in srgb, var(--tmd-ok) 5%, var(--tmd-bg-elevated)); }
 .sb-card-c1 { display: flex; align-items: center; gap: 4px; }
 .sb-card-time { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-subtle); font-variant-numeric: tabular-nums; }
 .sb-card-eng { display: inline-flex; color: var(--tmd-fg-muted); }

@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DownloadSimple, Eye, FolderOpen } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { useSkillRegistry } from "@plugins/cli-shared/skillRegistry";
 import { ENGINE_LABELS, type HubSkill } from "@plugins/cli-shared/skillSources";
 import { ensureSkillScanLoaded, refreshSkillScan, useSkillScan } from "./skillStore";
@@ -45,7 +46,11 @@ export function ImportView() {
   }, [groups, query]);
 
   if (loading && groups.length === 0) {
-    return <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>;
+    return (
+      <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">
+        <Spinner /> {t("加载中…")}
+      </div>
+    );
   }
   if (error) {
     /* 可重试取数失败 = 持久条 + 重试钮(R6 错误契约;扫描即取数) */

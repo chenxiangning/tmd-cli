@@ -30,4 +30,6 @@ export const MESSAGES_JA: Record<string, string> = {
   "回到底部": "一番下へ",
   "未命名会话": "無題セッション",
   "working for": "作業中 ",
+  /* live 浮层错误/不支持持久条重试钮(2026-10 打磨) */
+  "重试": "再試行",
 };

@@ -3,7 +3,8 @@
  *
  * - 数据源 = kernel messageAnchors:各 CLI 插件 readSessionUserMessages 适配器
  *   2s 轮询回补 + 按 id 增量合并(内核不理解私有行型);仅活跃会话、仅在有
- *   订阅者时轮询 —— 本面板挂载即订阅,切回审批线态即停表。
+ *   订阅者时轮询 —— 本面板随 CheckpointsPanel 保活常驻(hidden 不卸载),
+ *   右栏在位即订阅轮询(保活的代价:审批线态也保持 2s tick)。
  * - 「定位幕布」= jumpToAnchor 扎点定位(buffer 匹配 + 28% 留头);失败短暂
  *   闪烁(同 AnchorRail 语义)。整行不可点:消息文本要留选中/复制。
  * - 状态芯片只标「进行中」(promptSent → turnSettled 窗口内的最新条目);
@@ -13,7 +14,8 @@
  * - 与审批线零共享逻辑:仅同面板摘要行并列(用户定向:不动审批线代码)。
  */
 
-import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 import { ClockClockwise, FileText } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
 import { host } from "@kernel/host";
@@ -44,8 +46,15 @@ export function TimelinePanel() {
   }, []);
 
   const sessionId = host.getActiveSessionId();
-  const anchors = useSyncExternalStore(messageAnchors.subscribe, () =>
-    messageAnchors.getAnchors(sessionId),
+  /* 订阅按面板活性门控:隐藏态退订,messageAnchors 订阅计数归零即停 2s tick;
+     回切重订阅,store 首拍立即刷新(保活轮询评审 C3)。 */
+  const panelActive = usePanelActive();
+  const anchors = useSyncExternalStore(
+    useCallback(
+      (cb: () => void) => (panelActive ? messageAnchors.subscribe(cb) : () => {}),
+      [panelActive],
+    ),
+    () => messageAnchors.getAnchors(sessionId),
   );
 
   /* 在途轮追踪:promptSent 置位、turnSettled/切会话复位。 */
@@ -220,7 +229,7 @@ function TimelineRow({
   );
 }
 
-/** 摘要行右侧计数;仅时间线态挂载(订阅即轮询开关,审批线态零开销)。 */
+/** 摘要行右侧计数;仅时间线态挂载(摘要行条件渲染,与面板保活独立)。 */
 export function TimelineCount() {
   const sessionId = host.getActiveSessionId();
   const anchors = useSyncExternalStore(messageAnchors.subscribe, () =>

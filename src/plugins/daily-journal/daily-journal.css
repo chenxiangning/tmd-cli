@@ -42,12 +42,13 @@
   --dj-st-warn: #fef08a;
   --dj-st-err: #fda4a4;
 }
-.dj-leg-cell.h1 { background: var(--dj-heat-1); border: 0; } .dj-leg-cell.h2 { background: var(--dj-heat-2); border: 0; }
-.dj-leg-cell.h3 { background: var(--dj-heat-3); border: 0; } .dj-leg-cell.h4 { background: var(--dj-heat-4); border: 0; }
+.dj-leg-cell.h1 { background: var(--dj-heat-1); border: 0; } .dj-leg-cell.h2 { background: var(--dj-heat-2); border: 0; } .dj-leg-cell.h3 { background: var(--dj-heat-3); border: 0; } .dj-leg-cell.h4 { background: var(--dj-heat-4); border: 0; }
 .dj-stage { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; }
 .dj-flow-root { flex: 1; min-height: 0; }
 .dj-flow { overflow-y: auto; padding: 0 18px 20px; max-height: 100%; }
 .dj-empty { display: grid; place-items: center; height: 100%; color: var(--tmd-fg-subtle); }
+/* 忙态行(Spinner + 说明文字单行居中,主视图/面板/文章 tab 复用) */
+.dj-load { display: inline-flex; align-items: center; gap: 6px; color: var(--tmd-fg-subtle); }
 
 /* ── 月视图(向系统日历样式靠拢:白底细线格 + 日期右置 + pill 条承载节假日/状态/便签;
    1px 缝隙透出网格底色成发丝线;行 min 128px 触底后交 .dj-stage 滚动)── */
@@ -56,7 +57,7 @@
 .dj-dow div { text-align: center; font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); padding: 4px 0; }
 /* 外框圆角落到四角的 .dj-cell 自身:当月日格被 cellwrap 包裹、前后月补位是裸格,
    两形制经 :is 合并;cellwrap 通体 overflow:hidden 连生成钮一起裁(mgrid 不能 hidden:flex min-height 归零)。 */
-.dj-mgrid { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: minmax(128px, 1fr); gap: 1px; background: var(--tmd-border); border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-lg); } /* 四角日格圆角 = 外框 lg − 1px 边框厚,几何随 token 联动 */
+.dj-mgrid { flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(128px, 1fr); gap: 1px; background: var(--tmd-border); border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-lg); } /* 四角日格圆角 = 外框 lg − 1px 边框厚,几何随 token 联动;列轨 minmax(0,1fr) 窄窗可缩防横滚 —— 不可写 min(128px,1fr):WKWebKit 视 fr 入 min() 为非法,整条列轨声明判废后 42 格塌成单列 */
 .dj-mgrid > :is(.dj-cellwrap:nth-child(1) > .dj-cell, .dj-cell.dj-out:nth-child(1)) { border-top-left-radius: calc(var(--tmd-radius-lg) - 1px); }
 .dj-mgrid > :is(.dj-cellwrap:nth-child(7) > .dj-cell, .dj-cell.dj-out:nth-child(7)) { border-top-right-radius: calc(var(--tmd-radius-lg) - 1px); }
 .dj-mgrid > :is(.dj-cellwrap:nth-child(36) > .dj-cell, .dj-cell.dj-out:nth-child(36)) { border-bottom-left-radius: calc(var(--tmd-radius-lg) - 1px); }
@@ -71,8 +72,7 @@
 .dj-daynum { font-size: var(--tmd-font-ui); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--tmd-fg); }
 .dj-holpill { font-size: var(--tmd-font-2xs); line-height: 1.5; color: var(--dj-holpill-fg); background: var(--dj-holpill-bg); border-radius: var(--tmd-radius-xs); /* 迷你标签:xs 即满档,不再升 sm */ padding: 1px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dj-stat { font-size: var(--tmd-font-xs); font-weight: 600; line-height: 1.4; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 8px; border-radius: var(--tmd-radius-xs); background: var(--tmd-bg-elevated); color: var(--tmd-fg); }
-.dj-stat.h1 { background: var(--dj-heat-1); } .dj-stat.h2 { background: var(--dj-heat-2); }
-.dj-stat.h3 { background: var(--dj-heat-3); } .dj-stat.h4 { background: var(--dj-heat-4); }
+.dj-stat.h1 { background: var(--dj-heat-1); } .dj-stat.h2 { background: var(--dj-heat-2); } .dj-stat.h3 { background: var(--dj-heat-3); } .dj-stat.h4 { background: var(--dj-heat-4); }
 .dj-stat.dj-accent { background: color-mix(in srgb, var(--tmd-accent) 14%, transparent); color: var(--dj-st-accent); }
 .dj-stat.dj-warn { background: color-mix(in srgb, var(--dj-st-warn) 12%, transparent); color: var(--dj-st-warn); border: 1px dashed color-mix(in srgb, var(--dj-st-warn) 45%, transparent); padding: 1px 6px; }
 .dj-stat.dj-err { background: color-mix(in srgb, var(--dj-st-err) 12%, transparent); color: var(--dj-st-err); border: 1px solid color-mix(in srgb, var(--dj-st-err) 35%, transparent); padding: 1px 6px; }
@@ -92,9 +92,7 @@
 .dj-art-date { font-size: var(--tmd-font-lg); font-weight: 700; }
 .dj-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 0 8px; font-size: var(--tmd-font-2xs); line-height: 13px; border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); }
 .dj-chip-t { color: var(--tmd-accent); border-color: color-mix(in srgb, var(--tmd-accent) 25%, transparent); background: color-mix(in srgb, var(--tmd-accent) 10%, transparent); }
-.dj-chip-p { color: var(--tmd-warn); border-color: color-mix(in srgb, var(--tmd-warn) 25%, transparent); }
-.dj-chip-f { color: var(--tmd-err); border-color: color-mix(in srgb, var(--tmd-err) 25%, transparent); }
-.dj-chip-g { color: var(--tmd-ok); border-color: color-mix(in srgb, var(--tmd-ok) 25%, transparent); }
+.dj-chip-p { color: var(--tmd-warn); border-color: color-mix(in srgb, var(--tmd-warn) 25%, transparent); } .dj-chip-f { color: var(--tmd-err); border-color: color-mix(in srgb, var(--tmd-err) 25%, transparent); } .dj-chip-g { color: var(--tmd-ok); border-color: color-mix(in srgb, var(--tmd-ok) 25%, transparent); }
 .dj-art-sub { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); }
 .dj-art-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 .dj-art-page { max-width: 860px; margin: 0 auto; width: 100%; padding: 18px 24px 40px; }
@@ -148,7 +146,7 @@
 .dj-cell:focus-visible, .dj-seg button:focus-visible, .dj-btn:focus-visible { outline: 1.5px solid var(--tmd-accent); outline-offset: 1px; }
 
 /* ── 年视图(12 宫迷你月;3 行 1fr 吃满舞台高,窗口过矮时行缩到内容下限交滚动)── */
-.dj-year-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); gap: 12px; height: 100%; }
+.dj-year-grid { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr); gap: 12px; height: 100%; }
 .dj-ymonth { display: flex; flex-direction: column; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); padding: 8px 10px 8px; cursor: pointer; background: var(--tmd-bg-base); transition: border-color var(--tmd-dur-1) var(--tmd-ease-out); }
 .dj-ymonth:hover { border-color: var(--tmd-border-strong); }
 .dj-ymonth-cur { border-color: var(--tmd-accent); box-shadow: inset 0 0 0 1px var(--tmd-accent); }
@@ -160,13 +158,16 @@
 .dj-ycal .dj-yc-hol { background: var(--tmd-hol); outline: 1px solid color-mix(in srgb, var(--tmd-hol) 30%, var(--tmd-bg-base)); }
 .dj-ycal .dj-yc-g { background: color-mix(in srgb, var(--tmd-ok) 45%, var(--tmd-bg-elevated)); }
 .dj-ycal .dj-yc-h1 { background: color-mix(in srgb, var(--tmd-ok) 45%, var(--tmd-bg-elevated)); } .dj-ycal .dj-yc-h4 { background: color-mix(in srgb, var(--tmd-err) 62%, var(--tmd-bg-elevated)); }
-.dj-ycal .dj-yc-h2 { background: color-mix(in srgb, var(--tmd-ok) 62%, var(--tmd-bg-elevated)); }
-.dj-ycal .dj-yc-h3 { background: color-mix(in srgb, var(--tmd-ok) 80%, var(--tmd-bg-elevated)); }
+.dj-ycal .dj-yc-h2 { background: color-mix(in srgb, var(--tmd-ok) 62%, var(--tmd-bg-elevated)); } .dj-ycal .dj-yc-h3 { background: color-mix(in srgb, var(--tmd-ok) 80%, var(--tmd-bg-elevated)); }
 .dj-ycal .dj-yc-p { background: color-mix(in srgb, var(--tmd-warn) 55%, var(--tmd-bg-base)); }
 .dj-ycal .dj-yc-f { background: color-mix(in srgb, var(--tmd-err) 55%, var(--tmd-bg-base)); }
 .dj-ycal .dj-yc-t { background: var(--tmd-accent); outline: 1.5px solid color-mix(in srgb, var(--tmd-accent) 35%, var(--tmd-bg-base)); }
 .dj-ycal .dj-yc-note { box-shadow: inset 0 0 0 1.5px var(--tmd-note); }
 .dj-ymonth-stat { margin-top: 8px; font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; }
+/* 年视图角部 mini 图例(绝对定位右下,pointer-events 放行点击;色值与 .dj-yc-* 同源) */
+.dj-year-legend { position: absolute; right: 12px; bottom: 12px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: color-mix(in srgb, var(--tmd-bg-base) 86%, transparent); font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); pointer-events: none; }
+.dj-yl-sw { width: 9px; height: 9px; border-radius: 2px; background: var(--tmd-bg-elevated); border: 1px solid var(--tmd-border); flex: none; } .dj-yl-sw.lo { background: color-mix(in srgb, var(--tmd-ok) 45%, var(--tmd-bg-elevated)); border: 0; } .dj-yl-sw.mid { background: color-mix(in srgb, var(--tmd-ok) 80%, var(--tmd-bg-elevated)); border: 0; } .dj-yl-sw.hi { background: color-mix(in srgb, var(--tmd-err) 62%, var(--tmd-bg-elevated)); border: 0; }
+.dj-yl-sw.f { background: color-mix(in srgb, var(--tmd-err) 55%, var(--tmd-bg-base)); border: 0; } .dj-yl-sw.hol { background: var(--tmd-hol); border: 0; } .dj-yl-sw.note { box-shadow: inset 0 0 0 1.5px var(--tmd-note); }
 
 /* ── 轴视图 ── */
 .dj-flow-root { display: flex; flex-direction: column; gap: 0; }
@@ -175,12 +176,10 @@
 .dj-mb-cell { width: 13px; height: 15px; border-radius: 3px; /* 轴流像素格:3px 圆角按格宽等比保留 */ background: var(--tmd-bg-base); border: 1px solid var(--tmd-border); cursor: pointer; padding: 0; font: inherit; }
 .dj-mb-strip button.dj-mb-cell:focus-visible { outline: 1.5px solid var(--tmd-accent); }
 .dj-mb-cell:hover { transform: translateY(-1px); }
-.dj-mb-g { background: color-mix(in srgb, var(--tmd-ok) 40%, var(--tmd-bg-base)); border-color: color-mix(in srgb, var(--tmd-ok) 35%, var(--tmd-border)); }
-.dj-mb-h1 { background: color-mix(in srgb, var(--tmd-ok) 40%, var(--tmd-bg-base)); border-color: color-mix(in srgb, var(--tmd-ok) 35%, var(--tmd-border)); }
+.dj-mb-g { background: color-mix(in srgb, var(--tmd-ok) 40%, var(--tmd-bg-base)); border-color: color-mix(in srgb, var(--tmd-ok) 35%, var(--tmd-border)); } .dj-mb-h1 { background: color-mix(in srgb, var(--tmd-ok) 40%, var(--tmd-bg-base)); border-color: color-mix(in srgb, var(--tmd-ok) 35%, var(--tmd-border)); }
 .dj-mb-h4 { background: color-mix(in srgb, var(--tmd-err) 62%, var(--tmd-bg-base)); border-color: color-mix(in srgb, var(--tmd-err) 35%, var(--tmd-border)); }
 .dj-mb-h2 { background: color-mix(in srgb, var(--tmd-ok) 62%, var(--tmd-bg-base)); border-color: color-mix(in srgb, var(--tmd-ok) 35%, var(--tmd-border)); }
-.dj-mb-we { border-color: color-mix(in srgb, var(--tmd-hol) 35%, var(--tmd-border)); }
-.dj-mb-h3 { background: color-mix(in srgb, var(--tmd-ok) 80%, var(--tmd-bg-base)); border-color: color-mix(in srgb, var(--tmd-ok) 35%, var(--tmd-border)); }
+.dj-mb-we { border-color: color-mix(in srgb, var(--tmd-hol) 35%, var(--tmd-border)); } .dj-mb-h3 { background: color-mix(in srgb, var(--tmd-ok) 80%, var(--tmd-bg-base)); border-color: color-mix(in srgb, var(--tmd-ok) 35%, var(--tmd-border)); }
 .dj-mb-p { background: color-mix(in srgb, var(--tmd-warn) 35%, var(--tmd-bg-base)); border-style: dashed; } .dj-mb-f { background: color-mix(in srgb, var(--tmd-err) 45%, var(--tmd-bg-base)); }
 .dj-mb-t { background: var(--tmd-accent); border-color: var(--tmd-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tmd-accent) 14%, transparent); }
 .dj-mb-note { box-shadow: inset 0 0 0 1.5px var(--tmd-note); } .dj-mb-legend { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); }

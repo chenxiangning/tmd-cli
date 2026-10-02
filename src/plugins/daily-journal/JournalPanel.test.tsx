@@ -1,7 +1,7 @@
 /**
  * 右栏面板渲染契约(react-dom/server 静态渲染,模式同 MonthView.test.tsx):
  * - 月导航 + 轴视图实体(原中央轴视图迁此):快照就绪渲染轴流(迷你月条
- *   日格数 = 当月天数,有记录日出卡),未就绪给加载行兜底;无打开主视图大按钮。
+ *   日格数 = 当月天数,有记录日出卡),未就绪给 Spinner 忙态行兜底;无打开主视图大按钮。
  */
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -74,10 +74,11 @@ describe("JournalPanel 右栏轴视图宿主", () => {
     if (H.dd !== "01") expect(html).toMatch(/dj-mb-cell dj-mb-(h[1-4]|t)/);
   });
 
-  it("快照未就绪:加载行兜底,不渲染轴流", () => {
+  it("快照未就绪:Spinner 忙态行兜底,不渲染轴流", () => {
     H.monthsEmpty = true;
     const html = render();
-    expect(html).toContain("加载中…");
+    expect(html).toContain("正在读取日志…");
+    expect(html).toContain('role="status"'); /* Spinner 原语 */
     expect(html).not.toContain("dj-flow-root");
   });
 });

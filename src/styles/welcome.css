@@ -40,16 +40,6 @@
   color: var(--tmd-fg-muted);
 }
 
-.welcome-tbar-right {
-  color: var(--tmd-fg-subtle);
-  font-size: var(--tmd-font-ui);
-  text-decoration: none;
-}
-
-.welcome-tbar-right:hover { color: var(--tmd-fg); }
-/* 点击跳转后焦点残留的蓝色虚线环去掉(hover 已有色变反馈)。 */
-.welcome-tbar-right:focus { outline: none; }
-
 .welcome-frame {
   padding: 0;
 }
@@ -64,6 +54,9 @@
   color: var(--tmd-fg-muted);
   margin-left: auto;
   white-space: nowrap;
+  /* 窄窗溢出兜底:允许收缩并裁剪,不撑破 prompt 行(≤720px 整行隐去)。 */
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* ── prompt 行:工作区 select ── */
@@ -75,7 +68,14 @@
   margin-bottom: 4px;
 }
 
-.welcome-promptline .prompt { color: var(--tmd-ok); white-space: nowrap; }
+.welcome-promptline .prompt {
+  color: var(--tmd-ok);
+  white-space: nowrap;
+  /* 长路径兜底:收缩 + 省略号,不挤压右侧 select/statusline。 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .welcome-promptline .path { color: var(--tmd-syntax-keyword); }
 
 .welcome-ws-select {
@@ -98,15 +98,19 @@
 .welcome-ws-select:hover { border-color: var(--tmd-accent); }
 .welcome-ws-select:focus { outline: none; border-color: var(--tmd-accent); border-style: solid; }
 
+/* 键盘提示行:弱陈述(fg-faint / text-meta 档),窄窗收缩省略不换行挤位 */
 .welcome-hintline {
-  font-size: var(--tmd-font-ui);
-  color: var(--tmd-fg-subtle);
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-faint);
   margin-left: auto;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 标题条手动刷新(SWR 缓存后回首页不重拉,此为唯一手动入口);提示行
-   margin-left:auto 把 提示+刷新+GitHub 整组推向右缘。 */
+   margin-left:auto 把 提示+刷新 整组推向右缘。 */
 .welcome-refresh {
   display: inline-flex;
   align-items: center;
@@ -213,12 +217,27 @@
 .welcome-ab.doc { border-color: transparent; color: var(--tmd-accent); }
 .welcome-ab.doc:hover:not(:disabled) { background: transparent; text-decoration: underline; }
 
-/* ── 行展开区(凭据 + homePanel)── */
+/* ── 行展开区(凭据 + homePanel):grid-rows 0fr↔1fr 折展(workspace-children
+    先例,120ms);收起态 visibility 离场 = 内容退出 tab 序/可及树)── */
 
 .welcome-row-detail {
+  display: grid;
+  grid-template-rows: 1fr;
   border-top: 1px dashed var(--tmd-border);
   background: var(--tmd-bg-sunken);
+  transition: grid-template-rows var(--tmd-dur-1) var(--tmd-ease-move),
+    opacity var(--tmd-dur-1) var(--tmd-ease-out),
+    border-color var(--tmd-dur-1) var(--tmd-ease-out),
+    visibility var(--tmd-dur-1);
 }
+.welcome-row-detail.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  border-top-color: transparent;
+  pointer-events: none;
+}
+.welcome-row-detail-inner { min-height: 0; overflow: hidden; }
 
 /* ── 版本菜单(回退/收藏弹层;wsmenu 范式,portal 到 body)── */
 
@@ -265,6 +284,8 @@
   .welcome-row-main {
     grid-template-columns: 7.5rem 8.5rem 1fr auto;
   }
-  .welcome-row-cred { display: none; }
+  /* 凭据列改纯 ● 圆点(去 auth n 文字,展开入口保留,title 仍可查) */
+  .welcome-row-cred-text { display: none; }
+  .welcome-statusline { display: none; }
   .welcome-scroll { padding: 12px 10px 24px; }
 }

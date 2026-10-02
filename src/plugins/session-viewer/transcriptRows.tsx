@@ -109,6 +109,8 @@ export function ToolRow({
         type="button"
         className="sv-tool-head"
         aria-expanded={open}
+        /* path 副行收起时并入头行 title(展开态副行自显,不重复挂 title)。 */
+        title={!open ? block.tool?.preview?.path : undefined}
         onClick={() => setOpen(!open)}
       >
         <CaretRightIcon size="0.75rem" className={`sv-caret${open ? " is-open" : ""}`} />
@@ -120,7 +122,7 @@ export function ToolRow({
         )}
         <Timestamp ms={block.startedAt} />
       </button>
-      {block.tool?.preview?.path ? <div className="sv-tool-subline">{block.tool.preview.path}</div> : null}
+      {open && block.tool?.preview?.path ? <div className="sv-tool-subline">{block.tool.preview.path}</div> : null}
       {open ? <ToolPreviewBody block={block} Markdown={Markdown} /> : null}
     </div>
   );

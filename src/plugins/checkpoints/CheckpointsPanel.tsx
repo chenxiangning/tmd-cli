@@ -214,7 +214,13 @@ export function CheckpointsPanel() {
         />
       )}
 
-      {view === "batch" ? (
+      {/* 视图保活(先例 EditorCenter keepAlive / git GitPanelMain 同批同律):
+          batch/timeline 全挂载、hidden 切换 —— 时间线展开态/滚动位跨页签保持,
+          不再切页即卸载重放;树位固定,React 不重挂。 */}
+      <div
+        className={view === "batch" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+        aria-hidden={view !== "batch"}
+      >
         <BatchListView
           state={state}
           cwd={cwd}
@@ -225,9 +231,13 @@ export function CheckpointsPanel() {
           setConfirm={setConfirm}
           actions={actions}
         />
-      ) : (
+      </div>
+      <div
+        className={view === "timeline" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+        aria-hidden={view !== "timeline"}
+      >
         <TimelinePanel />
-      )}
+      </div>
     </div>
   );
 }

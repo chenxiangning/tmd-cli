@@ -219,7 +219,7 @@
   text-align: left;
   cursor: pointer;
   font-size: var(--tmd-font-lg);
-  line-height: 18px;
+  line-height: 20px; /* 微容器行高修正:18px 低于 lg 字号可读行高,升 2px */
   padding: 4px 6px;
 }
 

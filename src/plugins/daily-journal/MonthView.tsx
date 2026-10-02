@@ -38,22 +38,41 @@ function cellClass(isToday: boolean, we: boolean): string {
   return ["dj-cell", isToday && "dj-today", we && "dj-we"].filter(Boolean).join(" ");
 }
 
-/** 格正文(状态 pill 条:热力底 + 单行当日状态;失败完整错误转 title 悬停;纯函数)。 */
+/** 格正文(状态 pill 条:热力底 + 单行当日状态;状态行统一 title 全文兜住截断,
+ *  失败日 title 优先完整错误;纯函数)。 */
 function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: DaySessionRow[], notePeek: string, heat: string): React.ReactNode {
   const noteTag = notePeek ? ` · ${t("有便签")}` : "";
   if (article) {
     const line =
       (st === "t" ? t("增量中 · {n} 条会话", { n: rows.length }) : t("已生成 · {n} 条会话", { n: rows.length })) + noteTag;
-    return <div className={`dj-stat ${st === "t" ? "dj-accent" : heat}`}>{line}</div>;
-  }
-  if (st === "f")
     return (
-      <div className="dj-stat dj-err" title={meta.lastError || undefined}>
-        {t("生成失败 · {n} 条会话", { n: rows.length }) + noteTag}
+      <div className={`dj-stat ${st === "t" ? "dj-accent" : heat}`} title={line}>
+        {line}
       </div>
     );
-  if (st === "p") return <div className="dj-stat dj-warn">{t("待提取 · {n} 条会话", { n: rows.length }) + noteTag}</div>;
-  return <div className="dj-stat dj-faint">{notePeek ? t("无会话 · 有便签") : t("无会话 · 点开写便签")}</div>;
+  }
+  if (st === "f") {
+    const line = t("生成失败 · {n} 条会话", { n: rows.length }) + noteTag;
+    return (
+      <div className="dj-stat dj-err" title={meta.lastError || line}>
+        {line}
+      </div>
+    );
+  }
+  if (st === "p") {
+    const line = t("待提取 · {n} 条会话", { n: rows.length }) + noteTag;
+    return (
+      <div className="dj-stat dj-warn" title={line}>
+        {line}
+      </div>
+    );
+  }
+  const line = notePeek ? t("无会话 · 有便签") : t("无会话 · 点开写便签");
+  return (
+    <div className="dj-stat dj-faint" title={line}>
+      {line}
+    </div>
+  );
 }
 
 function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
@@ -98,13 +117,20 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
       <div className="dj-cell-top">
         <span className="dj-daynum">{d}</span>
       </div>
-      {hol && <div className="dj-holpill">休·{hol}</div>}
+      {hol && (
+        /* 节假日 pill 单行截断:title 兜全名(假期名常超格宽)。 */
+        <div className="dj-holpill" title={`休·${hol}`}>
+          休·{hol}
+        </div>
+      )}
       {cellBody(article, st, meta, rows, notePeek, st === "g" ? heatOf(rows.length, ts) : "")}
       {notePeek && (
         <div className="dj-notepeek">
           {/* 密集月格脚注图标:10px 例外档(9px 档收口取消) */}
           <PencilSimpleLine size="0.625rem" />
-          <span className="dj-notepeek-t">{notePeek}</span>
+          <span className="dj-notepeek-t" title={notePeek}>
+            {notePeek}
+          </span>
         </div>
       )}
       <div className="dj-cell-engs">

@@ -136,7 +136,7 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
               <div key={name} className="mcphub-card">
                 <div className="flex items-center gap-2">
                   <span className={`mcphub-badge ${transport === "stdio" ? "" : "mcphub-badge-remote"}`}>{TRANSPORT_LABEL[transport]}</span>
-                  <span className="min-w-0 truncate font-medium text-(--tmd-fg)">{name}</span>
+                  <span className="min-w-0 truncate font-medium text-(--tmd-fg)" title={name}>{name}</span>
                   <div className="ml-auto flex flex-none items-center gap-1">
                     <button
                       type="button"

@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { useJournalState, type MonthSnapshot } from "./journalStore";
@@ -60,9 +61,13 @@ export function JournalPanel() {
       </div>
       <div className="dj-panel-flow">
         {sessions === null ? (
-          <div className="dj-panel-stat">{t("加载中…")}</div>
+          <div className="dj-panel-stat dj-load">
+            <Spinner /> {t("正在扫描会话…")}
+          </div>
         ) : !snap ? (
-          <div className="dj-panel-stat">{t("加载中…")}</div>
+          <div className="dj-panel-stat dj-load">
+            <Spinner /> {t("正在读取日志…")}
+          </div>
         ) : (
           <FlowView ym={ym} snap={snap} sessions={sessions} today={todayKey()} />
         )}

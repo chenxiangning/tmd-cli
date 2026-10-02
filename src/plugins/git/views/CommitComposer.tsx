@@ -118,7 +118,7 @@ export function CommitComposer({
   return (
     <div className="shrink-0 border-t border-(--tmd-border) p-2 font-mono text-xs">
       <div className="flex items-start gap-1.5">
-        <span className="shrink-0 pt-0.5 text-(--tmd-fg-muted)">commit ▸</span>
+        <span className="shrink-0 pt-0.5 text-(--tmd-fg-muted)">{t("提交 ▸")}</span>
         <textarea
           ref={inputRef}
           value={message}
@@ -154,9 +154,10 @@ export function CommitComposer({
           onClick={() => dispatch({ type: "toggleAmend" })}
           className="cursor-pointer select-none hover:text-(--tmd-fg-muted)"
         >
-          <span className={amend ? "text-(--tmd-fg)" : ""}>{amend ? "[x]" : "[ ]"}</span> --amend
+          <span className={amend ? "text-(--tmd-fg)" : ""}>{amend ? "[x]" : "[ ]"}</span>{" "}
+          {t("追加修正(--amend)")}
         </button>
-        <span>{selected} selected</span>
+        <span>{t("已选 {selected}", { selected })}</span>
         <span className="flex-1" />
         <button
           type="button"
@@ -166,7 +167,7 @@ export function CommitComposer({
           className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
         >
           {busy && <Spinner />}
-          ⌘⏎ commit
+          {t("⌘⏎ 提交")}
         </button>
       </div>
     </div>

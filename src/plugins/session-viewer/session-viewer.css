@@ -122,8 +122,13 @@
 @keyframes lvSpinCell { 0%, 70%, 100% { opacity: 0.25; } 35% { opacity: 1; } }
 .lv-working-who { font-weight: 600; color: var(--tmd-fg); }
 .lv-working-for { color: var(--tmd-fg-muted); }
+/* 错误/不支持持久条:sticky 悬顶不遮已到转录;重试钮就地复活轮询(ss-ended 同形制) */
+.lv-error { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 16px 0; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--tmd-err) 35%, transparent); border-radius: var(--tmd-radius-md); background: color-mix(in srgb, var(--tmd-err) 8%, transparent); color: var(--tmd-err); font-size: var(--tmd-font-ui); }
+.lv-error-retry { padding: 2px 12px; border: 1px solid color-mix(in srgb, var(--tmd-err) 45%, transparent); border-radius: var(--tmd-radius-sm); background: transparent; color: var(--tmd-err); font-size: var(--tmd-font-ui); cursor: pointer; }
+.lv-error-retry:hover { background: color-mix(in srgb, var(--tmd-err) 12%, transparent); }
 @keyframes lvPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-.sv-tool-mark { flex: none; font-size: var(--tmd-font-ui); color: var(--tmd-fg-subtle); }
+/* 勾叉符号定宽居中(与 structured-session .ss-tool_mark 同律,多行枚举下对齐) */
+.sv-tool-mark { flex: none; width: 1em; text-align: center; font-size: var(--tmd-font-ui); color: var(--tmd-fg-subtle); }
 .sv-tool-mark.is-err { color: var(--tmd-err); }
 .sv-tool-subline { margin: 0 0 2px 21px; font-size: var(--tmd-font-ui); color: var(--tmd-fg-subtle); font-family: var(--tmd-font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sv-think-head.is-stream .sv-think-summary { animation: lvPulse 1.6s ease-in-out infinite; }

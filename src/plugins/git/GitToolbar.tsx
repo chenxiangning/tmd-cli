@@ -108,6 +108,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
           <span className="text-(--tmd-diff-removed)">
             -{totals.deletions.toLocaleString("en-US")}
           </span>
+          <span className="ml-1 text-(--tmd-fg-faint)">·</span>
           <span className="ml-1.5 text-(--tmd-fg-muted)">{aggregate.fileCount}</span>
         </span>
       )}
@@ -117,11 +118,16 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         onClick={(e) => toggleMenu("view", e)}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "view"}
-        className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1 py-0.5 text-xs font-medium hover:bg-(--tmd-bg-hover)"
+        className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1 py-1 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
         <ViewIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
         <span>{t(VIEW_LABEL[view])}</span>
       </button>
+      {/* 视图文字钮与三 icon 钮之间的竖分隔(弱色,不抢视觉) */}
+      <span
+        aria-hidden
+        className="mx-1 h-3 w-px shrink-0 self-center bg-(--tmd-fg-faint)/30"
+      />
       <button
         type="button"
         onClick={(e) => toggleMenu("layout", e)}
@@ -129,7 +135,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         aria-label={t("文件列表视图")}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "layout"}
-        className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover)"
+        className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
       >
         <LayoutIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
       </button>
@@ -140,7 +146,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         aria-label={t("远端操作")}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "remote"}
-        className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover)"
+        className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
       >
         <ArrowsDownUp className="h-[0.75rem] w-[0.75rem]" aria-hidden />
       </button>
@@ -150,7 +156,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
           title={t("Worktree 管理")}
           aria-label={t("Worktree 管理")}
           onClick={() => setWorktreesOpen(true)}
-          className="flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 hover:bg-(--tmd-bg-hover)"
+          className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
         >
           <TreeStructure className="h-[0.75rem] w-[0.75rem]" aria-hidden />
         </button>

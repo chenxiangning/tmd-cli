@@ -11,6 +11,7 @@ import { ArrowClockwise, FilePlus, FolderSimplePlus } from "@phosphor-icons/reac
 import { useFilePanel } from "@kernel/filePanel";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 
 export function FileActionsBar() {
   /* 刷新/新建文件/新建文件夹:调激活面板注册的对应槽;刷新 in-flight 转圈。 */
@@ -71,11 +72,13 @@ export function FileActionsBar() {
           title=""
           onClick={handleRefreshFiles}
         >
-          {/* 尺寸单一真源 = panel-subbar.css svg 1rem(TSX size 是被 CSS 覆盖的死值,删) */}
-          <ArrowClockwise
-            aria-hidden
-            className={refreshBusy ? "animate-spin" : undefined}
-          />
+          {/* 尺寸单一真源 = panel-subbar.css svg 1rem(Spinner 同档透传);
+              busy 走 @kernel/Spinner 统一忙态形制(2026-10-02 收口) */}
+          {refreshBusy ? (
+            <Spinner size="1rem" />
+          ) : (
+            <ArrowClockwise aria-hidden />
+          )}
         </button>
         {activePanel?.actions ? <activePanel.actions /> : null}
       </span>

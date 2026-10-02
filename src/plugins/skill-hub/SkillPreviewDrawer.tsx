@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
+import { Spinner } from "@kernel/Spinner";
 import { openFileInTab } from "@kernel/fileTabs";
 import { useEscClose } from "@kernel/DialogShell";
 import { resolveSkillMetaFile, type HubSkill } from "./skillScan";
@@ -92,7 +93,10 @@ export function SkillPreviewDrawer({
         {missing ? (
           <div className="text-xs text-(--tmd-fg-faint)">{t("无元数据文件,仅有目录名")}</div>
         ) : text === null ? (
-          <div className="text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>
+          <div className="flex items-center gap-1.5 text-xs text-(--tmd-fg-faint)">
+            <Spinner />
+            {t("加载中…")}
+          </div>
         ) : (
           <>
             <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed text-(--tmd-fg)">

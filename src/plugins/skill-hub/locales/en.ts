@@ -95,4 +95,7 @@ export const MESSAGES_EN = {
   "排序方式": "Sort by",
   "可更新": "Update available",
   "更新": "Update",
+
+  // ── 空态深链(右栏面板直达商店页)──
+  "打开技能商店": "Open skill store",
 } as Record<string, string>;

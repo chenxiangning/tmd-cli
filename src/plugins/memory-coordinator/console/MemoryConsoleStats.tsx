@@ -3,9 +3,11 @@
  * 统计(总数 / 本周新增 / 分 harness 条数 + 上次整理时刻)与最近沉淀(最新 12 条)。
  */
 
+import { Brain } from "@phosphor-icons/react";
 import { categoryLabel } from "../panel/memoryText";
 import { consoleCardCls } from "./MemoryConsoleCards";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
 import { formatDate } from "@kernel/relativeTime";
 import type { MemoryItem } from "../protocol";
 
@@ -56,7 +58,8 @@ export function RecentCard({ recent }: { recent: MemoryItem[] }) {
     <div className={consoleCardCls}>
       <div className="mb-2 text-xs font-semibold">{t("最近沉淀")}</div>
       {recent.length === 0 ? (
-        <div className="text-xs text-(--tmd-fg-faint)">{t("无记录")}</div>
+        /* 空态统一形制:面板整池空同款 Brain 图标(低频可选项,顺手收口) */
+        <Empty icon={<Brain aria-hidden />}>{t("无记录")}</Empty>
       ) : (
         recent.map((m) => (
           <div key={m.id} className="flex min-w-0 gap-2 border-b border-(--tmd-border) py-1 text-xs last:border-b-0">

@@ -156,7 +156,10 @@ export function FileRow({
             ×{f.editCount}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-(--tmd-fg-muted)">
+        <span
+          className="min-w-0 flex-1 truncate font-mono text-xs text-(--tmd-fg-muted)"
+          title={f.path}
+        >
           <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
           <span className="text-(--tmd-fg-faint)">{dir}</span>
         </span>

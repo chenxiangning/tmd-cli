@@ -7,8 +7,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowSquareOut, CircleNotch, ShieldWarning } from "@phosphor-icons/react";
+import { ArrowSquareOut, ShieldWarning } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { openExternalUrl } from "@kernel/ipc";
 import type { ExtCatalogEntry } from "./catalog";
 import { runPluginAction } from "./marketInstallModel";
@@ -110,7 +111,7 @@ function ExtCardFoot({
       ) : null}
       {running ? (
         <span className="omp-ext-running">
-          <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
+          <Spinner />
           {installed ? t("卸载中") : t("安装中")}
         </span>
       ) : installed ? (

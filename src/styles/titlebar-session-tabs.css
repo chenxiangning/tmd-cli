@@ -1,6 +1,9 @@
 /* Custom titlebar —— Session title tabs(会话切换 tab + 未读/待确认圆点 + 行内重命名),自 titlebar.css 按「规则逐字搬迁、顺序不变」拆出 */
 
-/* ── Session title tabs(顶栏中央,面包屑右侧;容量走 settings.sessionTabsMax,溢出收 ellipsis 不撑破顶栏)── */
+/* ── Session title tabs(顶栏中央,面包屑右侧;容量走 settings.sessionTabsMax)──
+ *   溢出与编辑 tab 条(tab-bar.css)同款:不挤压收窄,横向滚动(滚轮走马灯,
+ *   JSX 挂 tmd-scroll-hide 隐滚动条)+ 右缘渐隐指示可滚(渐隐先例:composer
+ *   SuggestionList 底缘渐隐;此处用 mask 而非叠层,随任意底色成立)。 */
 .session-tabs {
   display: flex;
   align-items: center;
@@ -8,16 +11,24 @@
   min-width: 0;
   flex: 0 1 auto;
   height: 100%;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+/* 右缘渐隐仅在有溢出且未滚到头时挂(JS 按 scrollWidth/scrollLeft 切换;
+ * 常驻会让未溢出的最后一张 tab 被裁,评审 B2)。 */
+.session-tabs.fade-end {
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 16px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 16px), transparent 100%);
 }
 
 .session-tab {
   display: inline-flex;
   align-items: center;
-  min-width: 0;
   max-width: 160px;
   height: 24px;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   border-radius: var(--tmd-radius-sm);
   transition: background var(--tmd-dur-1) var(--tmd-ease-out);
 }
@@ -124,72 +135,36 @@
 }
 
 
-/* 置顶扎点 + 定位:与 × 同显隐节奏(hover/active 显形);已置顶常亮实心 */
-.session-tab-pin,
-.session-tab-view,
-.session-tab-locate {
+/* 已置顶常亮实心指示(行内钮收敛的唯一例外):仅在已置顶时由 JSX 渲染,
+   不随 hover 显隐 —— 状态可见性优先;点击即取消,置顶入口在右键菜单。
+   实心 = stroke 型 SVG fill 即实体(与侧栏 .thread-pin-btn.is-on 同机制)。 */
+.session-tab-pin {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 16px;
   height: 16px;
   flex: 0 0 16px;
+  margin-right: 2px;
   padding: 0;
   border: none;
   border-radius: var(--tmd-radius-xs);
   background: none;
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-muted);
   cursor: pointer;
-  opacity: 0;
-  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out), background var(--tmd-dur-1) var(--tmd-ease-out);
+  transition: color var(--tmd-dur-1) var(--tmd-ease-out), background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
-.session-tab:hover .session-tab-pin,
-.session-tab.is-active .session-tab-pin,
-.session-tab-pin.is-on,
-.session-tab:hover .session-tab-view,
-.session-tab.is-active .session-tab-view,
-.session-tab:hover .session-tab-locate,
-.session-tab.is-active .session-tab-locate {
-  opacity: 1;
-}
-
-.session-tab-pin:hover,
-.session-tab-view:hover,
-.session-tab-locate:hover {
+.session-tab-pin:hover {
   color: var(--tmd-fg);
   background: var(--tmd-bg-hover);
 }
 
-/* 已扎:实心 pin(与侧栏 .thread-pin-btn.is-on 同机制,stroke 型 SVG fill 即实体) */
-.session-tab-pin.is-on {
-  color: var(--tmd-fg-muted);
-}
-
-.session-tab-pin.is-on svg {
-  fill: currentColor;
-}
-
-/* 未落盘(无 cliSessionId/无归属工作区):置顶不可用,置灰禁指针;
-   三连选择器盖过上方 hover/active 显形规则(同权重靠后,显形规则特异性同级)。 */
-.session-tab .session-tab-pin:disabled,
-.session-tab:hover .session-tab-pin:disabled,
-.session-tab.is-active .session-tab-pin:disabled {
-  color: var(--tmd-fg-faint);
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.session-tab-pin:disabled:hover {
-  color: var(--tmd-fg-faint);
-  background: none;
-}
-
-.session-tab-pin svg,
-.session-tab-locate svg {
+.session-tab-pin svg {
   width: 0.6875rem;
   height: 0.6875rem;
   flex: 0 0 auto;
+  fill: currentColor;
 }
 
 /* 行内重命名输入(右键菜单「重命名」;复刻 .thread-rename-input 的聚焦边语义,

@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CaretLeft, CaretRight, GearSix, ListChecks } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, useJournalState } from "./journalStore";
@@ -106,15 +107,18 @@ function JournalStage({
   onShiftMonth: (delta: number) => void;
 }) {
   if (sessions === null) {
+    /* 忙态形制统一 Spinner:进度数字保留(扫描量大时可感知推进)。 */
     return (
       <div className="dj-empty">
-        {t("加载中…")}
-        {progress ? ` (${progress.done}/${progress.total})` : ""}
+        <span className="dj-load">
+          <Spinner /> {t("正在扫描会话…")}
+          {progress ? ` (${progress.done}/${progress.total})` : ""}
+        </span>
       </div>
     );
   }
   if (view === "y") return <YearView y={ym.y} sessions={sessions} today={today} onOpenMonth={openMonth} />;
-  if (!snap) return <div className="dj-empty">{t("加载中…")}</div>;
+  if (!snap) return <div className="dj-empty"><span className="dj-load"><Spinner /> {t("正在读取日志…")}</span></div>;
   return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} onShiftMonth={onShiftMonth} />;
 }
 

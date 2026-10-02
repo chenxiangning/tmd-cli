@@ -8,8 +8,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowClockwise, CaretRight } from "@phosphor-icons/react";
+import { CaretRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import type { DirEntry } from "@kernel/ipc";
 import type { Workspace } from "@kernel/workspace";
@@ -129,10 +130,8 @@ export function FileTreeRemoteSource({
       </div>
       <div className="file-tree-list">
         {entries === null ? (
-          <div className="file-tree-loading-row" role="status" aria-live="polite">
-            <span className="file-tree-loading-spinner" aria-hidden>
-              <ArrowClockwise size="0.75rem" />
-            </span>
+          <div className="file-tree-loading-row">
+            <Spinner />
             <span>{t("加载中…")}</span>
           </div>
         ) : (

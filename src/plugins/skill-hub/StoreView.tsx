@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MagnifyingGlass, ArrowClockwise, Storefront } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { listClawHubSkills, searchClawHubSkills } from "./clawhub";
 import {
   CLAWHUB_SORTS,
@@ -122,7 +123,9 @@ function StoreListArea(props: {
   return (
     <div className="min-h-0 flex-1 overflow-auto px-3 py-2" data-skill-store>
       {props.loading ? (
-        <div className="py-8 text-center text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>
+        <div className="py-8 text-center text-xs text-(--tmd-fg-faint)">
+          <Spinner /> {t("加载中…")}
+        </div>
       ) : props.visible.length === 0 ? (
         /* 空态统一形制:无匹配/商店无内容共用商店域图标 */
         <Empty icon={<Storefront aria-hidden />}>{props.emptyHint}</Empty>
@@ -152,7 +155,7 @@ function StoreListArea(props: {
                 disabled={props.loadingMore}
                 className="rounded border border-(--tmd-border) px-3 py-1 text-xs hover:bg-(--tmd-bg-hover) disabled:opacity-50"
               >
-                {props.loadingMore ? t("加载中…") : t("加载更多")}
+                {props.loadingMore ? <Spinner /> : t("加载更多")}
               </button>
             </div>
           )}

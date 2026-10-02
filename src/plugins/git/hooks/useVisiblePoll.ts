@@ -4,9 +4,14 @@
  * 取数纪律(proposal §2.7):重操作不挂高频轮询,节奏由调用方传 ms。
  */
 import { useEffect } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 
 export function useVisiblePoll(refresh: () => Promise<void>, ms: number): void {
+  /* 面板活性短路:latched 保活后隐藏面板不轮询;回切(active 翻真)effect
+     重跑即 refresh,数据即刻保鲜。 */
+  const panelActive = usePanelActive();
   useEffect(() => {
+    if (!panelActive) return;
     refresh();
     const id = window.setInterval(() => {
       if (document.visibilityState === "visible") refresh();
@@ -19,5 +24,5 @@ export function useVisiblePoll(refresh: () => Promise<void>, ms: number): void {
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [refresh, ms]);
+  }, [refresh, ms, panelActive]);
 }

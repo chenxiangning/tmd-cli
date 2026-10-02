@@ -7,6 +7,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
+import { GitDiff } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import { ipc, type GitBranchDiffFile, type GitFilePatch } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
@@ -87,9 +89,7 @@ export function WorktreeDiffPanel({
             <div className="px-2 py-2 text-(--tmd-diff-removed)">{error}</div>
           )}
           {!loading && !error && files.length === 0 && (
-            <div className="px-2 py-3 text-center text-(--tmd-fg-faint)">
-              {t("工作树与该分支没有差异")}
-            </div>
+            <Empty icon={<GitDiff />}>{t("工作树与该分支没有差异")}</Empty>
           )}
           {files.map((f) => (
             <button

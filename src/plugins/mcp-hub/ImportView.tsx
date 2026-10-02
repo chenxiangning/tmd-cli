@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowsClockwise, FileMagnifyingGlass, FilePlus } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { pickFile } from "@kernel/ipc";
 import { StyledSelect } from "@kernel/StyledSelect";
 import type { McpEngineState } from "./hubStore";
@@ -118,7 +119,7 @@ export function ImportView({
         </label>
         <button type="button" className="mcphub-ghost-btn mt-4 flex-none" onClick={scan} disabled={scanning}>
           <ArrowsClockwise size="0.75rem" aria-hidden />
-          {scanning ? t("加载中…") : t("重新扫描")}
+          {scanning ? <Spinner /> : t("重新扫描")}
         </button>
         <button type="button" className="mcphub-ghost-btn mt-4 flex-none" onClick={() => void chooseFile()}>
           <FilePlus size="0.75rem" aria-hidden />
@@ -128,7 +129,9 @@ export function ImportView({
 
       {groups.length === 0 ? (
         scanning ? (
-          <div className="py-10 text-center text-xs leading-relaxed text-(--tmd-fg-faint)">{t("加载中…")}</div>
+          <div className="py-10 text-center text-xs leading-relaxed text-(--tmd-fg-faint)">
+            <Spinner /> {t("加载中…")}
+          </div>
         ) : (
           /* 空态统一形制:导入源扫描无果 */
           <Empty icon={<FileMagnifyingGlass aria-hidden />}>
@@ -154,14 +157,14 @@ export function ImportView({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="truncate font-medium text-(--tmd-fg)">{c.id}</span>
+                          <span className="truncate font-medium text-(--tmd-fg)" title={c.id}>{c.id}</span>
                           {conflict && (
                             <span className="flex-none text-meta text-(--tmd-diff-removed)">
                               {t("目标已有同 id(勾选 = 覆盖)")}
                             </span>
                           )}
                         </div>
-                        <div className="truncate text-meta text-(--tmd-fg-faint)">
+                        <div className="truncate text-meta text-(--tmd-fg-faint)" title={summarizeEntry(c.entry)}>
                           {summarizeEntry(c.entry)}
                         </div>
                       </div>

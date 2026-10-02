@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 import { Plus, ArrowClockwise, PlugCharging } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
@@ -134,12 +135,14 @@ function PanelSections({ sessionId }: { sessionId: string }) {
   const view = useSshSession(sessionId);
   const connected = view?.status === "connected";
 
-  /* 延迟轮询:面板存在即测,15s 一拍(状态卡数值保鲜)。 */
+  /* 延迟轮询:面板存在即测,15s 一拍(状态卡数值保鲜);隐藏态短路,回切即测。 */
+  const panelActive = usePanelActive();
   useEffect(() => {
+    if (!panelActive) return;
     void probeLatency(sessionId);
     const timer = setInterval(() => void probeLatency(sessionId), 15_000);
     return () => clearInterval(timer);
-  }, [sessionId]);
+  }, [sessionId, panelActive]);
 
   return (
     <>

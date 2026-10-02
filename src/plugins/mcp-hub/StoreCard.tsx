@@ -19,7 +19,7 @@ export function StoreCard({ card, onInstall }: { card: RegistryCard; onInstall: 
     <div className="mcphub-card">
       <div className="flex items-center gap-2">
         <span className="mcphub-badge">{SOURCE_LABEL[card.source]}</span>
-        <span className="min-w-0 truncate font-medium text-(--tmd-fg)">{card.name}</span>
+        <span className="min-w-0 truncate font-medium text-(--tmd-fg)" title={card.name}>{card.name}</span>
         {card.toolsCount !== undefined && (
           <span className="flex-none text-meta text-(--tmd-fg-faint) tabular-nums">
             {t("{n} 个工具", { n: card.toolsCount })}

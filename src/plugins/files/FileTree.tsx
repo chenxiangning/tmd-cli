@@ -9,9 +9,11 @@
  */
 
 import { useCallback, useEffect } from "react";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise, FolderOpen } from "@phosphor-icons/react";
 import type { DirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { FileTreeOverlays } from "./FileTreeOverlays";
 import { useWorkspaces } from "@kernel/workspace";
 import { findRemoteFileSource } from "@kernel/fileSources";
@@ -73,16 +75,14 @@ function FileTreeRows({
 
   if (loading && entries.length === 0) {
     return (
-      <div className="file-tree-loading-row" role="status" aria-live="polite">
-        <span className="file-tree-loading-spinner" aria-hidden>
-          <ArrowClockwise size="0.75rem" />
-        </span>
+      <div className="file-tree-loading-row">
+        <Spinner />
         <span>{t("加载中…")}</span>
       </div>
     );
   }
   if (entries.length === 0) {
-    return <div className="file-tree-empty">{t("目录为空")}</div>;
+    return <Empty icon={<FolderOpen />}>{t("目录为空")}</Empty>;
   }
   return <>{renderEntries(entries, 0)}</>;
 }
@@ -127,8 +127,22 @@ function FileTree({ root }: { root: string }) {
 
   return (
     <div className="file-tree-panel">
-      {/* 工作区选择器与新建/刷新均在顶栏右区(WorkspaceSwitcher / FileActionsBar);
-          列表空白区右键 = 根目录新建。 */}
+      {/* 面板头标题带:与 git 面板统计条(GitToolbar)同级同形制(px-2 py-1 +
+          底分隔线,标签左置),刷新钮右对齐 = 树全量重拉(同注册槽 refresh 的
+          树侧语义);工作区选择器与新建钮仍在顶栏右区(WorkspaceSwitcher /
+          FileActionsBar)。列表空白区右键 = 根目录新建。 */}
+      <div className="flex shrink-0 items-center whitespace-nowrap border-b border-(--tmd-border) px-2 py-1 text-xs">
+        <span className="pl-1 text-(--tmd-fg-muted)">{t("文件")}</span>
+        <button
+          type="button"
+          className="ml-auto flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+          aria-label={t("刷新文件树")}
+          title={t("刷新文件树")}
+          onClick={() => void reloadAll()}
+        >
+          <ArrowClockwise className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+        </button>
+      </div>
       <div
         className="file-tree-list"
         onContextMenu={(e) => {

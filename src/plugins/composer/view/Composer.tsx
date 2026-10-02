@@ -207,9 +207,10 @@ export function Composer() {
           ref={ref}
           value={value}
           placeholder={settings.sendShortcut === "cmdOrCtrlEnter"
-            ? t("输入消息,⌘/Ctrl+回车发送,回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")
-            : t("输入消息,回车发送,Shift+回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")}
-          className="absolute inset-0 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
+            ? t("输入消息,⌘/Ctrl+Enter 发送 · / 唤起命令")
+            : t("输入消息,Enter 发送 · / 唤起命令")}
+          /* pl-2 与工具栏 px-2 同 8px 左缘对齐(触发符教学在抽屉图例,placeholder 只留一处 / 提示) */
+          className="absolute inset-0 resize-none bg-transparent p-0 pl-2 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
           onChange={(e) => {
             setValue(e.target.value);
             setCursor(e.target.selectionStart);

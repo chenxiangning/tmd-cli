@@ -191,7 +191,7 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  height: 14px;
+  height: 15px; /* 微容器行高修正:14px 装不下 caption 字号 + 边框,升 1px */
   padding: 0 4px;
   border-radius: var(--tmd-radius-xs);
   border: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);

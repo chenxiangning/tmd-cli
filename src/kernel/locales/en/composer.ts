@@ -17,10 +17,8 @@ export const MESSAGES = {
   "命令与技能(⌘K)": "Commands & skills (⌘K)",
 
   /* view/Composer.tsx */
-  "输入消息,⌘/Ctrl+回车发送,回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。":
-    "Type a message. ⌘/Ctrl+Enter sends, Enter inserts a newline. Use / commands, $ skills, @ files, !! prompts, ## agents. Drop files or ⌘V-paste images to insert references.",
-  "输入消息,回车发送,Shift+回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。":
-    "Type a message. Enter sends, Shift+Enter inserts a newline. Use / commands, $ skills, @ files, !! prompts, ## agents. Drop files or ⌘V-paste images to insert references.",
+  "输入消息,⌘/Ctrl+Enter 发送 · / 唤起命令": "Type a message. ⌘/Ctrl+Enter sends · type / for commands",
+  "输入消息,Enter 发送 · / 唤起命令": "Type a message. Enter sends · type / for commands",
   "发送失败:会话已断开,内容已保留": "Send failed: session disconnected — draft kept",
   "{n} 路中 {m} 路发送失败,内容已保留": "{m} of {n} sends failed — draft kept",
   "发送失败:会话已断开": "Send failed: session disconnected",
