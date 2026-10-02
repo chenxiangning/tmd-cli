@@ -14,7 +14,7 @@ const ICON_CONTEXT = { weight: "bold" } as const; /* 同 main.tsx:Phosphor 全�
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
-Promise.all([import("./mobile.css"), import("./mobile-dark.css")])
+Promise.all([import("./mobile.css"), import("./mobile-dark.css"), import("./mobile-sheet.css")])
   .then(() => import("./gate"))
   .then(({ MobileRoot }) => {
     root.render(

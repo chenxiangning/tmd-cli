@@ -50,7 +50,7 @@ export const MESSAGES = {
   "未连接桌面:连接恢复后再发起会话(右上 ⇄ 可手动重试)":
     "Desktop not connected: start sessions after reconnecting (top-right ⇄ to retry)",
   "桌面还没有工作区:先在桌面端设置里添加": "No workspaces on desktop yet: add one in desktop settings first",
-  "在 {ws} 启动 {engine}": "Start {engine} in {ws}",
+  "启动 {engine}": "Start {engine}",
   "审批请求": "Approval request",
   "CLI 正在等待确认;「允许」发送 Enter,「拒绝」发送 Esc":
     "CLI is waiting for confirmation; Allow sends Enter, Deny sends Esc",
