@@ -251,4 +251,5 @@
 | 2026-10-02 | [客户端打磨任务3 实施设计(设计系统收口:token 阶梯+层次模型+状态三原语+全仓迁移;用户拍板正文 12px/全量三梯队)](superpowers/specs/2026-10-02-polish-task3-design-system-design.md) | 已实施 |
 | 2026-10-02 | [界面模块打磨轮四路审计(原语长尾 26+32+6/壳层观感/功能面板观感/12px 密度与交互:共 78 项;附件清除疑点核实误报)](research/client-polish-task4-module-audit.md) | 已完成(处置见同日 spec) |
 | 2026-10-02 | [界面模块打磨轮实施设计(原语长尾全收+实锤清零+高频观感/保命全修+P2 精选;8 域并行;门禁全绿但按用户指令未提交留检)](superpowers/specs/2026-10-02-polish-task4-module-refine-design.md) | 已实施(未提交,待用户检查) |
+| 2026-10-02 | [界面模块打磨轮提交前三路评审(交互/视觉词条/边界性能:实锤 5 全修——保活轮询门控/强删链路恢复/mgrid 非法 CSS/mask 常驻/死键;误报摘录防重查)](review/2026-10-02-polish-task4-review.md) | 已完成(修复随 d3070345 提交) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
