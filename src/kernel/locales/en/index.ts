@@ -11,6 +11,7 @@ import { MESSAGES as composer } from "./composer";
 import { MESSAGES as ssh } from "./ssh";
 import { MESSAGES as wsl } from "./wsl";
 import { MESSAGES as misc } from "./misc";
+import { MESSAGES as misc2 } from "./misc2";
 import { MESSAGES as assets } from "./assets";
 import { MESSAGES as mobile } from "./mobile";
 import { MESSAGES as market } from "./market";
@@ -30,6 +31,7 @@ export const EN_MESSAGES: Record<string, string> = {
   ...wsl,
   ...assets,
   ...misc,
+  ...misc2,
   ...mobile,
   ...time,
   ...market,

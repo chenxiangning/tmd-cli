@@ -1,7 +1,8 @@
 /**
  * DSH 主机面板状态模型契约测试(panelCopy/dotColor/hostFacts)。
- * 覆盖:panelCopy 标题五态判别与优先级(pending > 缺二进制 > 已连接 >
- * 未运行 > 探测中,含缺二进制压过已连接的钉子);说明文案配对
+ * 覆盖:panelCopy 标题判别与优先级(pending 分动作 > 已连接 > 缺二进制 >
+ * 未运行 > 探测中,connected 压过 binFound:host 连着却报「未安装」会让用户
+ * 去改一个没坏的东西);说明文案配对
  * (已连接 meta 为 null;缺二进制给安装指引;未运行 meta 带 origin 插值);
  * dotColor 三色映射(connected 压过 down);hostFacts 字段缺失跳过、
  * sessions=0 仍上屏、非数值 sessions 跳过、null 视图空数组。
@@ -14,20 +15,24 @@ import type { DshHostView } from "./dshHost";
 const CONN: DshConnection = { ...DEFAULT_CONNECTION };
 const INSTALL_HINT = "先装本地 dsh。模型和密钥仍然去 DSH Web UI 配。";
 const DOWN_HINT = `连不上 ${`http://${CONN.host}:${CONN.port}`}。自动启动只影响下次对话;要现在拉起请点立即启动。`;
-const DESCRIBE_HINT = "只信 host.describe,不把端口通当作已就绪。";
+const DESCRIBE_HINT = "只信 settings/describe 探针,不把端口通当作已就绪。";
 
 describe("panelCopy 标题判别与优先级", () => {
-  it("五态各归其位", () => {
+  it("各态各归其位", () => {
     expect(panelCopy(null, true, false, false, CONN).title).toBe("正在探测本地 host");
     expect(panelCopy(null, true, true, false, CONN).title).toBe("主机已连接");
     expect(panelCopy(null, true, false, true, CONN).title).toBe("主机未运行");
     expect(panelCopy(null, false, false, false, CONN).title).toBe("未安装 DSH CLI");
-    expect(panelCopy("check", true, false, false, CONN).title).toBe("正在启动…");
-    expect(panelCopy("stop", true, true, false, CONN).title).toBe("正在启动…");
   });
 
-  it("缺二进制压过已连接/未运行(未装 CLI 时连接态无从谈起)", () => {
-    expect(panelCopy(null, false, true, false, CONN).title).toBe("未安装 DSH CLI");
+  it("pending 按真实动作分文案(旧实现三态都说「正在启动…」)", () => {
+    expect(panelCopy("start", true, false, false, CONN).title).toBe("正在启动…");
+    expect(panelCopy("stop", true, true, false, CONN).title).toBe("正在停止…");
+    expect(panelCopy("check", true, false, false, CONN).title).toBe("正在检测…");
+  });
+
+  it("已连接压过缺二进制(host 连着就不说未安装)", () => {
+    expect(panelCopy(null, false, true, false, CONN).title).toBe("主机已连接");
     expect(panelCopy(null, false, false, true, CONN).title).toBe("未安装 DSH CLI");
   });
 });

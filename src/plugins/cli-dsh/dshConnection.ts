@@ -78,17 +78,35 @@ export function originOf(conn: DshConnection): string {
   return `http://${conn.host}:${conn.port}`;
 }
 
+/** 落盘凭据的回读兜底:仅当落盘 origin 与传入 origin 一致才回读 —— cookie/launch
+ *  token 按 host:port authority 签名绑定,把 A 端口的凭据发给 B 端口只会永久 401
+ *  (改端口后旧值仍在 localStorage 里,这是最容易被忽略的一条)。 */
+function sameOriginSaved(conn: DshConnection): DshConnection | null {
+  const saved = loadConnection();
+  return originOf(saved) === originOf(conn) ? saved : null;
+}
+
 /** RPC/WS 鉴权头;conn 快照缺 cookie 时回读最新落盘(host 拉起后凭据后到)。 */
 export function authHeaders(conn: DshConnection): Record<string, string> {
-  const cookie = conn.cookie || loadConnection().cookie;
+  const cookie = conn.cookie || sameOriginSaved(conn)?.cookie;
   return cookie ? { cookie } : {};
 }
 
-/** 打开 Web UI 的入口 URL:有 launch token 才能过 BrowserAuth 门禁。 */
+/** 打开 Web UI 的入口 URL:有 launch token 才能过 BrowserAuth 门禁。
+ *  面板拉起 host 后 conn 快照还是挂载时的旧值,token 只在 localStorage 里 ——
+ *  不回读就会开出一个无 token 的 origin,浏览器收到 401 页。 */
 export function webUiUrl(conn: DshConnection): string {
-  return conn.launchToken
-    ? `${originOf(conn)}/?token=${encodeURIComponent(conn.launchToken)}`
+  const token = conn.launchToken || sameOriginSaved(conn)?.launchToken;
+  return token
+    ? `${originOf(conn)}/?token=${encodeURIComponent(token)}`
     : originOf(conn);
+}
+
+/** 通配监听地址:DSH 启动期直接拒绝 `--host 0.0.0.0`
+ *  ("intentionally not supported yet for safety"),代拉起只会秒退。 */
+export function isWildcardBindHost(host: string): boolean {
+  const h = host.trim().toLowerCase();
+  return h === "0.0.0.0" || h === "::" || h === "[::]";
 }
 
 /** 仅本机 origin 允许停止;远程地址绝不代杀(codemoss is_local_host 同款)。 */

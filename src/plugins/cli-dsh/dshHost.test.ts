@@ -1,18 +1,11 @@
 /**
- * DSH host 进程域契约:settings/describe 探针线格式(0.1.2 typert 信封)、
- * launch token 凭据链(PTY 抓 token 换 cookie 落盘)、自拉起登记与停机
- * (codemoss stop_host 同款)、ensure adopt/换代语义。
+ * DSH host 探针与装配契约:settings/describe 线格式(0.1.2 typert 信封,含 401/403
+ * 纯文本体必须声明 text)、ensure adopt/换代语义(自拉起登记与停机见
+ * dshHostSession.test.ts)。
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  ensureHostSession,
-  parseDescribeResponse,
-  currentHostSessionId,
-  startHostSession,
-  stopHostSession,
-} from "./dshHost";
-import { DEFAULT_CONNECTION, loadConnection, saveConnection } from "./dshConnection";
-import type { DshConnection } from "./dshConnection";
+import { ensureHostSession, parseDescribeResponse, probeHost } from "./dshHost";
+import { DEFAULT_CONNECTION, saveConnection } from "./dshConnection";
 
 /* node 环境无 DOM:桩最小 localStorage。 */
 const store = new Map<string, string>();
@@ -41,6 +34,13 @@ vi.mock("@kernel/ipc", () => ({ ipc: ipcMocks, onPtyOutput: ipcMocks.onPtyOutput
 afterEach(() => {
   store.clear();
 });
+
+/** 注入式 spawn 桩:startHostSession 不再裸调 ipc.sessionSpawn。 */
+const spawnStub = (id: string) =>
+  vi.fn(async (_profileId: string, _spec: unknown) => {
+    ipcMocks.sessionSpawn();
+    return { id };
+  });
 
 describe("parseDescribeResponse(settings/describe 信封)", () => {
   const envelope = (value: unknown) => ({
@@ -90,127 +90,38 @@ describe("parseDescribeResponse(settings/describe 信封)", () => {
   });
 });
 
-
-/** 注入式 spawn 桩:startHostSession 不再裸调 ipc.sessionSpawn。 */
-const spawnStub = (id: string) =>
-  vi.fn(async (_profileId: string, _spec: unknown) => {
-    ipcMocks.sessionSpawn();
-    return { id };
+describe("probeHost 的 text 声明(401/403 是纯文本体)", () => {
+  it("探针声明 text:true:不声明会被 Rust 侧 JSON 解析拒掉,401 判据整条链不可达", async () => {
+    ipcMocks.quotaFetch.mockResolvedValue({ status: 200, body: "{}" });
+    await probeHost({ ...DEFAULT_CONNECTION });
+    const spec = ipcMocks.quotaFetch.mock.calls[0][0] as { text?: boolean };
+    expect(spec.text).toBe(true);
   });
 
-/** startHostSession 会等 token 抓取(20s 封顶):spawn 后 fire 一次性 token + 303 交换让它快跑完。 */
-async function spawnWithToken(id: string, token = "ts_x") {
-  ipcMocks.quotaFetch.mockResolvedValue({
-    status: 303,
-    body: "",
-    headers: { "set-cookie": ["dsh-auth-x=v1.abc; Path=/"] },
-  });
-  const spawn = spawnStub(id);
-  const pending = startHostSession({ ...DEFAULT_CONNECTION }, spawn);
-  await vi.waitFor(() => expect(ipcMocks.onPtyOutput).toHaveBeenCalled());
-  ipcMocks.firePty(id, `dsh web: http://127.0.0.1:3080/?token=${token}\n`);
-  await pending;
-  return spawn;
-}
-
-describe("自拉起登记与停机(codemoss stop_host 同款)", () => {
-  afterEach(() => {
-    vi.clearAllMocks();
+  it("401 → unauthorized;403 → forbidden;二者都不当作「没起来」", async () => {
+    ipcMocks.quotaFetch.mockResolvedValueOnce({ status: 401, body: "unauthorized" });
+    await expect(probeHost({ ...DEFAULT_CONNECTION })).resolves.toEqual({
+      view: null, unauthorized: true, forbidden: false,
+    });
+    ipcMocks.quotaFetch.mockResolvedValueOnce({ status: 403, body: "forbidden" });
+    await expect(probeHost({ ...DEFAULT_CONNECTION })).resolves.toEqual({
+      view: null, unauthorized: false, forbidden: true,
+    });
   });
 
-  it("start 登记 + 落盘;stop 杀会话并按端口 TERM 监听,登记清空", async () => {
-    ipcMocks.sessionKill.mockResolvedValue(undefined);
-    ipcMocks.procCommunicate.mockImplementation(async (spec: { command: string }) =>
-      spec.command === "lsof" ? { stdout: "123\n456\n", code: 0 } : { stdout: "", code: 0 },
-    );
-    const conn: DshConnection = { ...DEFAULT_CONNECTION };
-    const spawn = await spawnWithToken("pty-9");
-    expect(spawn).toHaveBeenCalledWith(
-      "dsh",
-      expect.objectContaining({ command: "dsh", args: ["web", "--host", "127.0.0.1", "--port", "3080", "--no-open"] }),
-    );
-    expect(currentHostSessionId()).toBe("pty-9");
-    expect(store.get("tmd.dsh.hostSession.v1")).toBe("pty-9");
-
-    expect(await stopHostSession(conn)).toBe("stopped");
-    expect(ipcMocks.sessionKill).toHaveBeenCalledWith("pty-9");
-    const lsof = ipcMocks.procCommunicate.mock.calls.find(
-      (c) => (c[0] as { command: string }).command === "lsof",
-    )![0] as { args: string[] };
-    expect(lsof.args).toContain("-iTCP:3080");
-    expect(lsof.args).toContain("-sTCP:LISTEN");
-    const kill = ipcMocks.procCommunicate.mock.calls.find(
-      (c) => (c[0] as { command: string }).command === "kill",
-    )![0] as { args: string[] };
-    expect(kill.args).toEqual(["-TERM", "123", "456"]);
-    expect(currentHostSessionId()).toBeNull();
-    expect(store.get("tmd.dsh.hostSession.v1")).toBeUndefined();
-  });
-
-  it("TERM 非零退出补 KILL", async () => {
-    ipcMocks.sessionSpawn.mockResolvedValue({ id: "pty-1", pid: 1 });
-    ipcMocks.procCommunicate.mockImplementation(async (spec: { command: string; args: string[] }) =>
-      spec.command === "lsof"
-        ? { stdout: "777\n", code: 0 }
-        : spec.args[0] === "-TERM"
-          ? { stdout: "", code: 1 }
-          : { stdout: "", code: 0 },
-    );
-    await spawnWithToken("pty-1");
-    await stopHostSession({ ...DEFAULT_CONNECTION });
-    const killArgs = ipcMocks.procCommunicate.mock.calls
-      .filter((c) => (c[0] as { command: string }).command === "kill")
-      .map((c) => (c[0] as { args: string[] }).args[0]);
-    expect(killArgs).toEqual(["-TERM", "-KILL"]);
-  });
-
-  it("lsof 无监听:不调 kill,仍算 stopped", async () => {
-    ipcMocks.procCommunicate.mockResolvedValue({ stdout: "", code: 0 });
-    expect(await stopHostSession({ ...DEFAULT_CONNECTION })).toBe("stopped");
-    expect(ipcMocks.procCommunicate.mock.calls.length).toBe(1);
-  });
-
-  it("远程 origin 拒绝停机:不杀任何进程", async () => {
-    expect(await stopHostSession({ ...DEFAULT_CONNECTION, host: "10.0.0.5" })).toBe("remote");
-    expect(ipcMocks.sessionKill).not.toHaveBeenCalled();
-    expect(ipcMocks.procCommunicate).not.toHaveBeenCalled();
-  });
-
-  it("登记持久化:重载模块后仍读到(webview 重载不丢;动态 import 是本用例的受测边界)", async () => {
-    ipcMocks.sessionSpawn.mockResolvedValue({ id: "pty-7", pid: 7 });
-    await spawnWithToken("pty-7");
-    vi.resetModules();
-    const mod = await import("./dshHost");
-    expect(mod.currentHostSessionId()).toBe("pty-7");
-  });
-
-  it("PTY 输出抓 token → 换 cookie 落盘(凭据链)", async () => {
+  it("200 + 字符串体(声明 text 后的真实回包)照常解出视图", async () => {
     ipcMocks.quotaFetch.mockResolvedValue({
-      status: 303,
-      body: "",
-      headers: { "set-cookie": ["dsh-auth-x=v1.abc; Max-Age=2592000; Path=/; HttpOnly"] },
+      status: 200,
+      body: JSON.stringify({
+        type: "server-response",
+        result: { ok: true, value: { namespaces: [{ ns: "agent-default-model", value: { provider: "p", model: "m" } }] } },
+      }),
     });
-    const pending = startHostSession({ ...DEFAULT_CONNECTION }, spawnStub("pty-t"));
-    await vi.waitFor(() => expect(ipcMocks.onPtyOutput).toHaveBeenCalled());
-    ipcMocks.firePty("pty-t", "dsh web: http://127.0.0.1:3080/?token=ts_tok123 (LAN: http://10.0.0.5:3080/?token=ts_tok123)\n");
-    await pending;
-    await vi.waitFor(() => {
-      expect(loadConnection().cookie).toBe("dsh-auth-x=v1.abc");
-      expect(loadConnection().launchToken).toBe("ts_tok123");
+    await expect(probeHost({ ...DEFAULT_CONNECTION })).resolves.toEqual({
+      view: { provider: "p", model: "m" }, unauthorized: false, forbidden: false,
     });
-    const call = ipcMocks.quotaFetch.mock.calls[0][0] as {
-      url: string;
-      noRedirect?: boolean;
-      includeHeaders?: boolean;
-      text?: boolean;
-    };
-    expect(call.url).toBe("http://127.0.0.1:3080/?token=ts_tok123");
-    expect(call.noRedirect).toBe(true);
-    expect(call.includeHeaders).toBe(true);
-    expect(call.text).toBe(true); /* 303 body 非 JSON,缺了会被 quota_fetch 解析抛错 */
   });
 });
-
 
 describe("ensureHostSession(codemoss ensure_host 同款)", () => {
   afterEach(() => {

@@ -139,8 +139,6 @@ export const MESSAGES = {
   "Install the local dsh first. Models and keys are still configured in the DSH Web UI.",
   "连不上 {origin}。自动启动只影响下次对话;要现在拉起请点立即启动。":
   "Can't reach {origin}. Auto-start only affects the next conversation; click Start now to bring it up immediately.",
-  "只信 host.describe,不把端口通当作已就绪。":
-  "Only host.describe counts as ready; an open port alone doesn't.",
   "当前供应商": "Current provider",
   "当前模型": "Current model",
   "已挂会话": "Attached sessions",

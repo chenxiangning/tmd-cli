@@ -74,7 +74,7 @@ export const cliDshPlugin: Plugin = {
       /* 磁盘历史会话 = host session.list 按 cwd 过滤(zstd 会话盘 fs 读不了,RPC 代读);
          resume 经 --resume 标记进 spawnTransform → 适配器 --session-id。 */
       listSessions: (cwd) => listHostSessions(loadConnection(), cwd),
-      deleteSession: (cliSessionId) => deleteHostSession(cliSessionId),
+      deleteSession: (cliSessionId) => deleteHostSession(loadConnection(), cliSessionId),
       /* 会话卫生判空:host session.list 的 blank 标志(空壳垃圾清理正主)。 */
       isDiskSessionEmpty: async (session) => isHostSessionEmpty(loadConnection(), session.id),
       resumeArgs: (cliSessionId) => ["--resume", cliSessionId],

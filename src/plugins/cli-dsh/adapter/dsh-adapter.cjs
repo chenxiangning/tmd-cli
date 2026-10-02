@@ -15,6 +15,7 @@ const print = require("./dsh-print.cjs");
 const T = require("./dsh-theme.cjs");
 const render = require("./dsh-render.cjs");
 const { rpcCall, exchangeToken, setAuthCookie, getAuthCookie, setEventsClientId, respondApproval, respondQuestion, respondQuestionCancel } = require("./dsh-rpc.cjs");
+const { openWorkspace, createSession } = require("./dsh-session.cjs");
 const { projectFrame } = require("./dsh-project.cjs");
 const { handleStdin, renderHistory, printBanner } = require("./dsh-commands.cjs");
 const { createKeyReader } = require("./dsh-keys.cjs");
@@ -42,6 +43,9 @@ const STREAM_EVENTS = "events";
 const STREAM_FOLLOW = "follow";
 
 let dshSessionId = null;
+/* 读者模式:会话写句柄被别的客户端持有(session/writer-held)时只读 follow ——
+ * 发送/切模型/取消全不可用,历史与实时输出照常渲染。 */
+let readOnly = false;
 /* 当前 attempt 是否已有活增量(text/reasoning-delta):有则跳过 durable
  * assistant/message 的正文/思考投影,防双渲染(投影层注释见 dsh-project)。 */
 let attemptStreamed = false;
@@ -52,6 +56,8 @@ const pending = new Map();
 /* 会话实况:模型/思考强度/模式(host RPC 校准 + 菜单切换刷新)。 */
 let currentModel = ""; let currentEffort = ""; let agentPreset = "standard";
 let menuOpen = false; let menuHostRef = null; let cardsRef = null; let keyReader = null;
+/* 交互区引用(resize 时作废点击区映射;createZone 在 main 就绪后才有)。 */
+let zoneRef = null;
 let turn = null;
 /* git 底栏段:本机 shell 采集一次(通用能力,非 dsh 私有);失败留空。 */
 const git = { branch: "", dirty: 0 };
@@ -59,8 +65,13 @@ const git = { branch: "", dirty: 0 };
 /* 底栏行单一所有权:内容写入经 print 代理路由到这里。 */
 const stream = createStream((s) => process.stdout.write(s), () => process.stdout.columns || 100, () => process.stdout.rows || 0);
 print.install(stream);
+/* 出任何内容之前先钉 scroll region(内容光标此后由终端保证留在区内;
+   等到正文铺满整屏才首次设区会把光标留在底栏行 —— 见 dsh-stream 文件头)。 */
+stream.arm();
 const spinner = createSpinner((s) => stream.setStatus(s));
-if (process.stdout.isTTY) process.stdout.on("resize", () => stream.resize());
+if (process.stdout.isTTY) {
+  process.stdout.on("resize", () => { stream.resize(); if (zoneRef) zoneRef.onResize(); });
+}
 const think = createThinkStripper();
 
 async function main() {
@@ -91,16 +102,20 @@ async function main() {
   }
   print.status(`已连接 DSH · 模型: ${currentModel || "?"}`);
 
-  const wsRes = await rpcCall(ORIGIN, "workspace/create", { request: { path: args["workspace-path"] || args["workspace-id"] } });
+  const wsRes = await openWorkspace(ORIGIN, args["workspace-path"] || args["workspace-id"]);
   if (!wsRes.ok) { print.error(`工作区注册失败: ${render.errMsgSafe(wsRes.error)}`); process.exit(1); }
-  const workspaceId = wsRes.value.workspace.workspaceId;
 
-  const sessRes = await rpcCall(ORIGIN, "session/create", {
-    request: { workspaceId, ...(args["session-id"] ? { sessionId: args["session-id"] } : {}) },
-  });
-  if (!sessRes.ok) { print.error(`会话创建失败: ${render.errMsgSafe(sessRes.error)}`); process.exit(1); }
-  dshSessionId = sessRes.value.sessionId;
-  print.status(`会话已就绪: ${dshSessionId}`);
+  /* 显式 id 采用失败按原因分流(见 dsh-session):writer-held → 读者模式只读
+   * 打开原会话;其余原因 → 回落新建。两条都不硬崩。 */
+  const sess = await createSession(ORIGIN, wsRes.workspaceId, args["session-id"]);
+  if (!sess.ok) { print.error(`会话创建失败: ${render.errMsgSafe(sess.error)}`); process.exit(1); }
+  readOnly = sess.mode === "reader";
+  if (sess.adoptError) print.error(`续接会话失败(${sess.adoptError}),回落新建会话`);
+  if (readOnly) {
+    print.error(`会话正被另一个客户端占用(${sess.notice}),已按只读模式打开:可看历史与实时输出,发送与命令不可用。关闭占用方(如 DeepSeek 客户端里的该会话)后重新打开即可续接。`);
+  }
+  dshSessionId = sess.sessionId;
+  print.status(`会话已就绪${readOnly ? "(只读)" : ""}: ${dshSessionId}`);
   /* 模式实况 + 上下文窗口:session.list 自项 projections。 */
   turn = createTurnEngine({
     print, stream, spinner, think, render, T, pending,
@@ -109,9 +124,11 @@ async function main() {
       model: currentModel, cwd: args["workspace-path"], branch: git.branch, dirty: git.dirty,
       ctxUsed: used, ctxWindow: window, cols: stream.columns(),
     }),
+    /* 卡片收起不看 pending.size:turn/end 路径先 pending.clear() 再回调,
+       加了闸就永远关不掉挂着的卡(↑↓ 被死卡吞、y/n 发陈旧 eventId)。 */
     closeZones: (why) => {
       if (menuOpen && menuHostRef) menuHostRef.closeFor(why);
-      if (cardsRef && pending.size) cardsRef.closeFor(why);
+      if (cardsRef) cardsRef.closeFor(why);
     },
     onEndStats: () => { void syncSessionProjections(); },
   });
@@ -123,8 +140,10 @@ async function main() {
   connectMux();
   click.init(process.stdout);
   const zone = createZone(print);
+  zoneRef = zone;
   const commandCtx = {
     ORIGIN, dshSessionId, shutdown,
+    get readOnly() { return readOnly; },
     get currentModel() { return currentModel; }, set currentModel(mv) { currentModel = mv; },
     get currentEffort() { return currentEffort; }, set currentEffort(v2) { currentEffort = v2; },
     get agentPreset() { return agentPreset; }, set agentPreset(v2) { agentPreset = v2; },
@@ -144,8 +163,9 @@ async function main() {
     onSettled: () => turn.resumeSpinner(),
   });
   menuHostRef = menuHost; cardsRef = cards;
-  /* raw 键控可用才挂菜单(管道冒烟退回文本列表)。 */
-  const menuEnabled = process.stdin.isTTY === true;
+  /* raw 键控可用才挂菜单(管道冒烟退回文本列表);读者模式菜单无意义
+   * (切模型/强度都要写句柄),禁掉后 /model 自动退回只读列表。 */
+  const menuEnabled = process.stdin.isTTY === true && !readOnly;
   commandCtx.menuHost = menuEnabled ? menuHost : null;
   const keys = createKeyReader(process.stdin, {
     onLine: (line) => {
@@ -188,6 +208,7 @@ async function syncSessionProjections() {
 
 /** Esc 取消轮次:发 session/cancel;"⚠ 已取消"由 host 的 turn/end 帧统一打(防重)。 */
 async function doCancelTurn() {
+  if (readOnly) { print.error("只读会话:轮次归占用方所有,这里取消不了。"); return; }
   const r = await rpcCall(ORIGIN, "session/cancel", { request: { sessionId: dshSessionId } });
   if (!r.ok) print.error(`取消失败: ${render.errMsgSafe(r.error)}`);
 }
@@ -271,6 +292,11 @@ function applyAction(a) {
     if (cp && turn) turn.setContext(cp.pressureTokens || 0, cp.contextWindow || 0);
     return;
   }
+  if (a.kind === "cancel") {
+    /* host 撤销待答 waterfall:清 pending,当前那张卡收起(块留历史)。 */
+    if (pending.delete(a.eventId) && cardsRef) cardsRef.closeFor("事件已取消");
+    return;
+  }
   if (a.kind === "approval" || a.kind === "question") {
     turn.handle(a); /* 收底栏/停 spinner */
     const info = a.kind === "approval"
@@ -288,6 +314,9 @@ function applyAction(a) {
 
 function cleanup() {
   stream.reset(); /* 复位 scroll region:不留缩区给复用的 xterm */
+  /* 鼠标上报必须关:留在复用幕布里会抢文本选择,点击/滚轮被当上报送进死管道。 */
+  try { click.clearZone(); } catch { /* 未 init(早退路径) */ }
+  zoneRef = null;
   if (turn) turn.stopAll();
   if (ws) { ws.close(); ws = null; }
 }
@@ -309,4 +338,4 @@ function parseArgs(argv) {
   return out;
 }
 
-main().catch((e) => { print.error(`启动失败: ${e.message}`); process.exit(1); });
+main().catch((e) => { print.error(`启动失败: ${e.message}`); cleanup(); process.exit(1); });
