@@ -40,7 +40,18 @@ export const MESSAGES = {
   "切换横竖屏": "Toggle orientation",
   "竖屏": "Portrait",
   "横屏": "Landscape",
-  "输入消息…": "Type a message…",
+  "发消息…": "Message…",
+  "相册选图": "Pick from album",
+  "打开面板": "Open panel",
+  "收起面板": "Close panel",
+  "再加一张": "Add another image",
+  "相册": "Album",
+  "切模型": "Switch model",
+  "检查点": "Checkpoints",
+  "快捷键": "Shortcuts",
+  "提取图中文字": "Extract text",
+  "图片配文": "Caption image",
+  "翻译图中文字": "Translate text",
   "发送": "Send",
   "发送失败,消息已保留": "Send failed, message kept",
   "选图失败,请重试": "Image pick failed, please retry",
@@ -98,8 +109,7 @@ export const MESSAGES = {
   "已显示最近 {n} 轮,更早内容在桌面客户端查看":
     "Showing the last {n} turns — view earlier content in the desktop app",
 
-  /* 截图注入(2026-09-26 批次六) */
-  "注入截图": "Attach screenshot",
+  /* 截图注入(2026-09-26 批次六;注入截图 aria 已随三态胶囊重做删除) */
   "移除图片": "Remove image",
 
   /* 通知与生命周期(2026-09-30 手机批) */

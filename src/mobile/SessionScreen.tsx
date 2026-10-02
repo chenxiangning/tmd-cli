@@ -5,7 +5,8 @@
  * composer 裸 Enter=换行(软键盘无 Shift;发送归 ↑ 钮,⌘/Ctrl+Enter 兜底);
  * 软键盘弹起时键条隐藏(spec 2026-09-23-mobile-session-compact)。
  * 选图经 useShots 预览挂载,发送时统一拼 @路径(草稿只留文字;2026-09-30)。
- * composer 顶部把手上下拉调输入框高(useComposerSize,落手记忆;2026-09-30)。
+ * composer 三态胶囊重做迁 Composer.tsx(spec 2026-10-03-mobile-composer-redesign,
+ * 拖拽把手删除改自动长高);本屏只持草稿/挂图/发送状态。
  */
 import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
@@ -16,23 +17,17 @@ import { ConnBanner } from "./ConnChip";
 import { askEdgeNotify, askRoundClear, notifyExit, useMobile } from "./shared";
 import { composeSendText, resumeExitedSession, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
 import { useShots } from "./useShots";
-import { useComposerSize } from "./useComposerSize";
 import { useDraft } from "./useDraft";
-import { mobileEnterAction } from "./enterSend";
 import { shellInvoke } from "@kernel/shellBridge";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
-import { KeyToolbar } from "./KeyToolbar";
 import { CkptSheet } from "./CkptSheet";
-import { SessionHeader, ShotStrip, SendErrBars, ShotPreview } from "./SessionChrome";
+import { SessionHeader, ShotPreview } from "./SessionChrome";
+import { Composer } from "./Composer";
 
 /* 实况 = LiveScreen 迷你 VT 屏模型渲染(见 ./liveText)。 */
 
-/** 截图钮三态文案(独立小函数:嵌套三元留在 React 函数体会推高复杂度闸)。 */
-function shotLabel(busy: boolean, err: boolean): string {
-  if (busy) return "…";
-  return err ? "✕" : "图";
-}
-/* 移动端单屏组件:ask/截图/检查点/发送四态分支密度是本质复杂度,拆子组件需跨层透传 8+ 个状态 setter,弊大于利。 */
+/* 移动端单屏组件:ask/检查点/发送分支密度是本质复杂度,拆子组件需跨层透传
+ * 8+ 个状态 setter,弊大于利(先例注释,豁免同前)。 */
 // react-doctor-disable-next-line react-doctor/no-high-complexity-react-function
 export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) {
   const { sessions, titleOf, go } = useMobile();
@@ -45,36 +40,6 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   const { shots, onShot, removeShot, clearShots, busy: shotBusy, err: shotErr } = useShots();
   /* 挂图全屏预览(缩略图点开看大图,点击关闭)。 */
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  /* 输入框高度:紧凑态随内容长高(2 行起步,封顶 6 行内滚),拖拽固定高直接钉 px;CSS min/max 兜底。 */
-  const taRef = React.useRef<HTMLTextAreaElement | null>(null);
-  const { taH, dragging, grabHandlers } = useComposerSize(taRef);
-  useEffect(() => {
-    const el = taRef.current;
-    if (!el) return;
-    if (taH !== null) {
-      el.style.height = `${taH}px`;
-      return;
-    }
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 144)}px`;
-  }, [draft, taH]);
-  const [kbOpen, setKbOpen] = useState(false);
-  /* 键盘工具条折叠(pref 持久化); composers 行 ⌨ 切换。 */
-  const [kbOn, setKbOn] = useState(() => {
-    try {
-      return localStorage.getItem("tmd.keybar.on") !== "0";
-    } catch {
-      return true;
-    }
-  });
-  const toggleKb = () => {
-    const n = !kbOn;
-    setKbOn(n);
-    try {
-      localStorage.setItem("tmd.keybar.on", n ? "1" : "0");
-    } catch { /* 隐私态 */ }
-  };
   const liveRef = React.useRef<HTMLDivElement | null>(null);
   /* 终局快照(退出后续聊/通知用退出前元数据):写入收进 effect 保 render 纯性。 */
   const metaRef = React.useRef<typeof meta>(undefined);
@@ -246,49 +211,27 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
         </div>
       )}
       {ask && !exited && <AskCard q={askQ} onAnswer={answer} busy={answering} />}
-      <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "") + (taH !== null ? " grow" : "")}>
-        <SendErrBars sendErr={sendErr} shotErr={shotErr} onRetry={send} />
-        <div className={"grabber" + (dragging ? " drag" : "")} {...grabHandlers} />
-        <ShotStrip shots={shots} onRemove={removeShot} onPreview={setPreviewUrl} />
-        <div className="box">
-          <button type="button" className={"kb-toggle" + (kbOn ? " on" : "")} aria-label={t("键盘工具条")} onClick={toggleKb}>⌨</button>
-          <button type="button" className="kb-toggle" aria-label={t("注入截图")} disabled={shotBusy} onClick={onShot}>
-            {shotLabel(shotBusy, shotErr)}
-          </button>
-          <textarea
-            ref={taRef}
-            rows={1}
-            value={draft}
-            placeholder={t("输入消息…")}
-            onFocus={() => setKbOpen(true)}
-            onBlur={() => setKbOpen(false)}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              /* 桌面契约:发送失败后继续输入即清错(重试钮仍在,双保险)。 */
-              if (sendErr) setSendErr(false);
-            }}
-            onKeyDown={(e) => {
-              /* 裸 Enter=换行(平台惯例),发送归 ↑ 钮与 ⌘/Ctrl+Enter;IME 组合期
-               * 一律不拦截(mobileEnterAction,守卫契约同桌面 enterAction)。 */
-              if (e.key !== "Enter") return;
-              if (mobileEnterAction({
-                shiftKey: e.shiftKey,
-                metaKey: e.metaKey,
-                ctrlKey: e.ctrlKey,
-                isComposing: e.nativeEvent.isComposing,
-                keyCode: e.keyCode,
-              }) === "send") {
-                e.preventDefault();
-                send();
-              }
-            }}
-          />
-          <button type="button" className="send" aria-label={t("发送")} disabled={sending} onClick={send}>
-            {sending ? "…" : "↑"}
-          </button>
-        </div>
-      </div>
-      <KeyToolbar sessionId={props.sessionId} hidden={kbOpen || !kbOn} />
+      <Composer
+        sessionId={props.sessionId}
+        draft={draft}
+        onDraft={(v) => {
+          setDraft(v);
+          /* 桌面契约:发送失败后继续输入即清错(重试钮仍在,双保险)。 */
+          if (sendErr) setSendErr(false);
+        }}
+        onSend={send}
+        sending={sending}
+        sendErr={sendErr}
+        shotErr={shotErr}
+        onRetry={send}
+        shots={shots}
+        shotBusy={shotBusy}
+        onShot={onShot}
+        onRemoveShot={removeShot}
+        onPreview={setPreviewUrl}
+        ckptReady={!!meta?.cwd}
+        onCkpt={() => setCkptSheet(true)}
+      />
       <ShotPreview url={previewUrl} onClose={() => setPreviewUrl(null)} />
       {ckptSheet && meta?.cwd && (
         <CkptSheet cwd={meta.cwd} sessionId={props.sessionId} onClose={() => setCkptSheet(false)} />
