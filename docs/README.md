@@ -259,4 +259,5 @@
 | 2026-10-03 | [手机首页精简原型 4:终端风(等宽 + 树线 + grep 搜索行)](design/mobile-home-min4-term.html) | 设计探索 |
 | 2026-10-03 | [手机首页精简原型 5:留白大字(浅色备忘录式,工作区=筛选胶囊,新建浮钮)](design/mobile-home-min5-airy.html) | 设计探索 |
 | 2026-10-03 | [手机端「发起会话」抽屉与 sheet 基座打磨设计(grabber/滑入动画/关闭钮进基座 + 工作区整行选中/引擎双列卡片/全宽 CTA/alert 卡片;sheet 样式拆 mobile-sheet.css)](superpowers/specs/2026-10-03-mobile-spawn-sheet-polish-design.md) | 已实施 |
+| 2026-10-03 | [手机对话输入区三态重做设计(豆包式胶囊 composer:常态胶囊条/挂图卡+提示 chips/「+」四格面板;composer 拆 Composer.tsx,样式拆 mobile-composer.css,删拖拽把手)](superpowers/specs/2026-10-03-mobile-composer-redesign-design.md) | 已实施 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
