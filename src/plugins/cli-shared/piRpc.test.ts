@@ -22,7 +22,7 @@ vi.mock("@kernel/ipc", () => ({
 }));
 
 import { ipc } from "@kernel/ipc";
-import { PiRpcSession, widgetCancelledNotice } from "./piRpc";
+import { PiRpcSession, widgetCancelledNotice, widgetTier } from "./piRpc";
 
 function frame(obj: unknown): void {
   listeners.get("out")?.(JSON.stringify(obj));
@@ -60,6 +60,61 @@ describe("widgetCancelledNotice 非 confirm 部件判定", () => {
     expect(widgetCancelledNotice({ type: "extension_ui_request", method: "confirm", id: "q2" }, T0)).toBeNull();
     expect(widgetCancelledNotice({ type: "message_end" }, T0)).toBeNull();
     expect(widgetCancelledNotice({ type: "extension_ui_request", method: "input" }, T0)).toBeNull();
+  });
+});
+
+describe("widgetTier 部件分档", () => {
+  it("chrome 装饰类 = setStatus/notify/setWidget;真交互与未知 kind 一律 interactive", () => {
+    expect(widgetTier("setStatus")).toBe("chrome");
+    expect(widgetTier("notify")).toBe("chrome");
+    expect(widgetTier("setWidget")).toBe("chrome");
+    expect(widgetTier("select")).toBe("interactive");
+    expect(widgetTier("input")).toBe("interactive");
+    expect(widgetTier("editor")).toBe("interactive");
+    expect(widgetTier("future_kind")).toBe("interactive");
+  });
+});
+
+describe("chrome 部件聚合降噪", () => {
+  it("chrome 五连取消并成一条聚合行(×N 明细原地刷新),被 select 隔开后新开一条", async () => {
+    let blocks: { id: string; role: string; text: string }[] = [];
+    const s = new PiRpcSession({ command: "omp" }, "/ws", {
+      onBlocks: (next) => {
+        blocks = next.map((b) => ({ id: b.id, role: b.role, text: b.text }));
+      },
+      onBusy: () => undefined,
+      onConfirm: () => undefined,
+      onExit: () => undefined,
+      onError: () => undefined,
+    });
+    const started = s.start();
+    await vi.waitUntil(() => writes.some((w) => w.includes("get_state")));
+    frame({ type: "response", id: "tmd-1", success: true, data: {} });
+    await started;
+    /* omp 启动帧实证序:setStatus ×2 → notify → setWidget ×2 */
+    frame({ type: "extension_ui_request", method: "setStatus", id: "w1" });
+    frame({ type: "extension_ui_request", method: "setStatus", id: "w2" });
+    frame({ type: "extension_ui_request", method: "notify", id: "w3" });
+    frame({ type: "extension_ui_request", method: "setWidget", id: "w4" });
+    frame({ type: "extension_ui_request", method: "setWidget", id: "w5" });
+    await vi.waitUntil(() => writes.filter((w) => w.includes("extension_ui_response")).length === 5);
+    expect(writes.filter((w) => w.includes('"cancelled":true')).length).toBe(5);
+    expect(blocks.length).toBe(1);
+    expect(blocks[0].role).toBe("system");
+    expect(blocks[0].text).toContain("×5");
+    expect(blocks[0].text).toContain("setStatus ×2");
+    expect(blocks[0].text).toContain("setWidget ×2");
+    /* select 真交互:逐条 notice 插在聚合行后 */
+    frame({ type: "extension_ui_request", method: "select", id: "q1" });
+    await vi.waitUntil(() => writes.filter((w) => w.includes("extension_ui_response")).length === 6);
+    expect(blocks.length).toBe(2);
+    expect(blocks[1].text).toContain("CLI 发起 select 交互");
+    /* 后续 chrome 取消:不回流旧聚合行,新开一条重新计数 */
+    frame({ type: "extension_ui_request", method: "setStatus", id: "w6" });
+    expect(blocks.length).toBe(3);
+    expect(blocks[2].text).toContain("×1(setStatus");
+    expect(blocks[0].text).toContain("×5"); // 旧行不被刷新
+    s.kill();
   });
 });
 

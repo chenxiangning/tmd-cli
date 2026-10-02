@@ -26,4 +26,7 @@ export const MESSAGES_JA: Record<string, string> = {
   /* 非 confirm 部件自动取消 notice(消费点在 cli-shared/piRpc,feature 插件带词典先例) */
   "CLI 发起 {kind} 交互,已按协议自动取消":
   "CLI が {kind} インタラクションを要求しました。プロトコルに従い自動キャンセル",
+  /* chrome 装饰类部件聚合行(明细括注与时刻由 piRpcReducer 拼接,协议词不译) */
+  "TUI 部件交互已自动取消 ×{count}":
+  "TUIウィジェット操作を{count}件自動キャンセル",
 }

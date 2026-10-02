@@ -53,9 +53,10 @@ function clockOf(d: Date): string {
 }
 
 /** 非 confirm 部件自动取消判定(纯函数,单测钉死):extension_ui_request 且
- * method 非 confirm(select/input/editor 等 TUI 部件)时,RPC 模式无人可答,
+ * method 非 confirm(select/input/editor 等真交互部件)时,RPC 模式无人可答,
  * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
- * 回路不在此列;缺 id 的畸形帧不产(无处应答也无从示警)。 */
+ * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)不经此函数,走
+ * reducer.chromeCancel 聚合;缺 id 的畸形帧不产(无处应答也无从示警)。 */
 export function widgetCancelledNotice(
   rec: Record<string, unknown>,
   now: Date = new Date(),
@@ -70,6 +71,17 @@ export function widgetCancelledNotice(
     kind,
     text: `${t("CLI 发起 {kind} 交互,已按协议自动取消", { kind })}(${clockOf(now)})`,
   };
+}
+
+/** TUI 装饰类部件(omp 18.x 启动/轮次帧实证:setStatus 状态行、notify 通知、
+ * setWidget 小部件注册):RPC 模式下永远无意义,取消后聚合一处降噪,不逐条
+ * 落行(2026-10-02 spec);select/input/editor 等真交互与未知 kind 一律
+ * interactive 逐条可见——宁可多显示不可静默。 */
+const CHROME_WIDGET_KINDS = new Set(["setStatus", "notify", "setWidget"]);
+
+/** 部件分档(纯函数,单测钉死):chrome = TUI 装饰,interactive = 其余一切。 */
+export function widgetTier(kind: string): "chrome" | "interactive" {
+  return CHROME_WIDGET_KINDS.has(kind) ? "chrome" : "interactive";
 }
 
 export class PiRpcSession {
@@ -199,14 +211,20 @@ export class PiRpcSession {
             title: String(rec.title ?? ""),
             message: String(rec.message ?? ""),
           });
+          return;
+        }
+        /* select/input/editor 等部件:取消以免挂轮(monocode 同律),协议应答
+         * 两档照发,只改展示面——chrome 装饰类聚合一处,真交互与未知 kind
+         * 逐条 notice(不再无声替答);缺 id/method 的畸形帧不产。 */
+        const kind = rec.method;
+        const frameId = rec.id;
+        if (typeof kind !== "string" || !kind || typeof frameId !== "string" || !frameId) return;
+        void this.raw({ type: "extension_ui_response", id: frameId, cancelled: true }).catch(() => undefined);
+        if (widgetTier(kind) === "chrome") {
+          this.handlers.onBlocks(this.reducer.chromeCancel(kind, clockOf(new Date())), this.reducer.turnStart);
         } else {
-          /* select/input/editor 等 TUI 部件:取消以免挂轮(monocode 同律),
-           * 并在转录流插可见 notice(不再无声替答)。 */
           const widget = widgetCancelledNotice(rec);
-          if (widget) {
-            void this.raw({ type: "extension_ui_response", id: widget.frameId, cancelled: true }).catch(() => undefined);
-            this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart);
-          }
+          if (widget) this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart);
         }
         return;
       }
