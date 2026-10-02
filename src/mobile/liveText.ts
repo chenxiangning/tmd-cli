@@ -6,8 +6,10 @@
  * 按列换行(DECAWM 可关),CUP 夹在视口内 → 重绘天然收敛为一份。
  * 滚出视口的行进 scrollback(上限 SCROLL_CAP 行),view(fromTop) 可取全量历史,
  * 手机实况区因此能向上滚动看旧输出。
- * 支持集:可打印、\n \r \t \b、CSI H/f/A/B/C/D/E/G/J/K/M/s/u、2J/3J、
- * 模式 ?7h/l(换行)?1049h/l(备屏清屏);SGR/其余忽略。桌面幕布用真 xterm,不共享。
+ * 支持集:可打印、\n \r \t \b、CSI H/f/A/B/C/D/E/G/J/K/M/s/u、2J/3J(真擦除,
+ * 不翻页——翻页会把整屏复制进 scrollback,resize 后 2J+全帧重绘即「头信息两份」,
+ * 实证:omp 每次 SIGWINCH 都走 2J 重绘;历史保全职责只归备屏切换)、模式
+ * ?7h/l(换行)?1049h/l(备屏清屏);SGR/其余忽略。桌面幕布用真 xterm,不共享。
  */
 
 /** 视口尺寸取不到时的回落(SSH/未知会话)。 */
@@ -150,12 +152,9 @@ export class LiveScreen {
       case 0x4d /* M */:
         this.reverseLineFeed(p(0, 1));
         break;
-      case 0x4a /* J */: {
-        const mode = nums[0] ?? 0;
-        if (mode === 2 || mode === 3) this.clear();
-        else this.eraseLine(mode);
+      case 0x4a /* J */:
+        this.eraseDisplay(nums[0] ?? 0);
         break;
-      }
       case 0x4b /* K */:
         this.eraseLine(nums[0] ?? 0);
         break;
@@ -221,5 +220,41 @@ export class LiveScreen {
     this.lines = new Array(this.rows).fill("");
     this.row = 0;
     this.col = 0;
+  }
+
+  /** ED(擦显示):真擦除,不翻页 —— 2J 翻页会把整屏复制进 scrollback,
+   *  SIGWINCH 后的全帧重绘(omp 实证:2J + CUP)就变成头信息出现两份。
+   *  擦除的内容由紧随的全帧重绘原样补回,无信息损失;2J 不动光标(xterm 语义,
+   *  应用自会 [H)。3J = 清 saved lines(scrollback),视口不动。 */
+  private eraseDisplay(mode: number): void {
+    if (mode === 2) {
+      this.lines = new Array(this.rows).fill("");
+      return;
+    }
+    if (mode === 3) {
+      this.scrollback = [];
+      return;
+    }
+    const line = this.lines[this.row] ?? "";
+    if (mode === 0) {
+      this.lines[this.row] = line.slice(0, Math.min(this.col, line.length));
+      for (let i = this.row + 1; i < this.lines.length; i++) this.lines[i] = "";
+    } else {
+      this.lines[this.row] = line.slice(Math.min(this.col, line.length));
+      for (let i = 0; i < this.row; i++) this.lines[i] = "";
+    }
+  }
+
+  /** 原地改几何(尺寸轮询路径):溢出行进 scrollback、变高补空行、光标夹持。
+   *  不重放字节 —— 重放快照存在在途 chunk 双喂窗口(头信息重复的第二来源);
+   *  旧宽度换行由 CSS pre-wrap 兜底,应用层 WINCH 全帧重绘按新几何收敛。 */
+  resize(cols: number, rows: number): void {
+    this.cols = Math.max(1, Math.min(cols || DEFAULT_COLS, MAX_LINE));
+    const nr = Math.max(1, Math.min(rows || DEFAULT_ROWS, 500));
+    while (this.lines.length > nr) this.scrollback.push(this.lines.shift() ?? "");
+    if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);
+    while (this.lines.length < nr) this.lines.push("");
+    this.rows = nr;
+    if (this.row >= nr) this.row = nr - 1;
   }
 }

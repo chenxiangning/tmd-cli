@@ -7,7 +7,8 @@
  * - loadEarlier:复用 session_history_page 分页(start_offset/has_more 桌面现成),
  *   剥 ANSI 线性文本前置渲染——LiveScreen 是 append-only VT 模型,不可前插字节。
  * - 尺寸:手机 useTerminalFit 随容器发 session_resize(与桌面共享同一 PTY),
- *   每 3s 校 session_size,变了即按新几何重建 + 重放日志尾(真机双页脚实证)。
+ *   每 3s 校 session_size,变了即 LiveScreen 原地 resize(不重放快照:重放会把
+ *   在途活 chunk 与快照字节双喂;真机双页脚实证的是几何,不是重放)。
  * - 内容零丢失(P0):事件跳帧(Lagged)与断连重连(onRemoteConnection 翻转)
  *   都按水位比对触发一次 rebuild 回放 —— 断连窗口的输出不再成永久缺口。水位 =
  *   尾页 start_offset+text.length,实况 chunk 到达即累加;回放期间新 chunk 进
@@ -111,17 +112,17 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
           const key = `${s[0]}x${s[1]}`;
           if (key === sizeKey.current) return;
           sizeKey.current = key;
-          screen = new LiveScreen(s[0], s[1]);
-          const p = await pageOf(Number.MAX_SAFE_INTEGER);
-          if (!alive) return;
-          if (p?.text) screen.feed(p.text);
-          if (p) watermark = p.start_offset + p.text.length;
+          /* 原地改几何,不重放快照:pageOf 在途窗口的活 chunk 会与快照字节
+           * 双喂(旧实现在此把同一帧画两份)。旧宽换行由 CSS pre-wrap 兜底,
+           * CLI 的 WINCH 全帧重绘按新几何收敛。 */
+          screen.resize(s[0], s[1]);
           setLive(screen.view());
         })();
       };
       /* 断连重连 / 事件 Lagged 回放:拉尾页比对水位,涨了 = 有漏 → 按当前几何
        * 重建重放日志尾;没涨 = 什么都不漏,免重建。回放期间 streaming 关闭,新
-       * chunk 进缓冲,换屏后按序排空(与首载同序,免换屏竞态丢字节)。 */
+       * chunk 进缓冲;重建分支丢弃响应前到达的缓冲(其字节已含于快照,排空
+       * 即同一帧画两份),不重建分支照常排空(屏未重喂,缓冲是唯一拷贝)。 */
       let replaying = false;
       const replay = () => {
         if (!alive || replaying || !ready) return;
@@ -136,6 +137,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
             screen.feed(p.text);
             watermark = p.start_offset + p.text.length;
             setLive(screen.view());
+            buffered.length = 0;
           }
           if (!alive) return;
           streaming = true;
