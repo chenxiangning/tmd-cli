@@ -54,7 +54,7 @@ sha2 = "0.10"
 # Web 远程访问桥:LAN HTTP/WS 服务(见 web/ 模块);ws feature 供 /ws 命令桥。
 axum = { version = "0.8", features = ["ws"] }
 # Web 桥访问令牌铸造(安全用途,CSPRNG)。
-rand = "0.9"
+rand = "0.10"
 # relay 密钥铸造。
 uuid = { version = "1", features = ["v4"] }
 futures-util = { version = "0.3", features = ["sink"] }

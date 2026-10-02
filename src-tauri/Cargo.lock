@@ -6170,7 +6170,7 @@ dependencies = [
  "md-5",
  "parking_lot",
  "portable-pty",
- "rand 0.9.5",
+ "rand 0.10.2",
  "rcgen",
  "reqwest",
  "rusqlite",
