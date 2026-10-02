@@ -103,7 +103,7 @@
   min-height: 22px;
   padding: 0 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-active) 58%, #5fa3ff 12%);
+  background: color-mix(in srgb, var(--surface-active) 58%, var(--tmd-accent) 12%);
   color: var(--text-stronger);
   font-size: 0.625rem;
   font-weight: 700;

@@ -87,9 +87,7 @@
   border: 1px solid var(--tmd-border);
   border-radius: 10px;
   background: var(--tmd-bg-elevated);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 32px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--tmd-shadow-popover);
   overflow: hidden;
 }
 

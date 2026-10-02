@@ -12,6 +12,9 @@
   padding-top: 14vh;
 }
 .ssh-picker {
+  /* 原生 dialog 化:归零 UA 定位,交由 flex 背板居中。 */
+  position: relative;
+  margin: 0;
   width: 380px;
   max-height: 60vh;
   display: flex;
@@ -19,7 +22,7 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-elevated);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
   overflow: hidden;
 }
 .ssh-picker-head {
@@ -92,7 +95,7 @@
 .ssh-picker-error {
   padding: 6px 10px;
   font-size: 0.6875rem;
-  color: #f87171;
+  color: var(--tmd-err);
 }
 /* ── 提示卡(host key / KBI / 密码)── */
 .ssh-prompt-stack {
@@ -109,7 +112,7 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-md);
   background: var(--tmd-bg-elevated);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
   padding: 10px 12px;
 }
 .ssh-prompt-title {
@@ -132,7 +135,7 @@
 }
 .ssh-prompt-warn {
   font-size: 0.6875rem;
-  color: #f59e0b;
+  color: var(--tmd-warn);
 }
 .ssh-prompt-hint {
   font-size: 0.6875rem;

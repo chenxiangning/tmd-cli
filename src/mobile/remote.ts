@@ -7,7 +7,7 @@
 
 import { shellInvoke, shellLog } from "@kernel/shellBridge";
 import { invoke, listen } from "@kernel/transport";
-import { t } from "@kernel/i18n";
+import { formatRelativeTime } from "@kernel/relativeTime";
 
 export interface RemoteSession {
   id: string;
@@ -243,12 +243,9 @@ export function composeSendText(text: string, paths: string[]): string | null {
 }
 
 
-/** 相对时间(home 行 meta;与桌面侧栏口径一致)。单位走 t()(2026-09-28 i18n 收尾)。 */
+/** 相对时间(home 行 meta)—— 实现引 @kernel/relativeTime 全仓唯一版本
+ *  (2026-09-29 四源收敛:本地手写「N 秒/N 分」版已删,口径 = 刚刚/N 分钟前/…
+ *  与桌面 git 历史/checkpoints/session 列表同源);空值显示 —。 */
 export function relTime(ts?: number): string {
-  if (!ts) return "—";
-  const d = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (d < 60) return t("{n} 秒", { n: d });
-  if (d < 3600) return t("{n} 分", { n: Math.floor(d / 60) });
-  if (d < 86400) return t("{n} 时", { n: Math.floor(d / 3600) });
-  return t("{n} 天", { n: Math.floor(d / 86400) });
+  return ts ? formatRelativeTime(ts) : "—";
 }

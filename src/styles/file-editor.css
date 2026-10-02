@@ -60,7 +60,7 @@
 }
 
 .file-editor-toolbar.is-error {
-  color: #f87171;
+  color: var(--tmd-err);
 }
 
 .file-editor-toolbar-status {
@@ -114,9 +114,7 @@
   border-radius: 12px;
   border: 1px solid var(--tmd-border);
   background: var(--tmd-bg-elevated);
-  box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.22),
-    0 2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--tmd-shadow-modal);
 }
 
 .nprompt-title {
@@ -156,7 +154,7 @@
 .nprompt-error {
   margin-top: 8px;
   font-size: 0.6875rem;
-  color: #f87171;
+  color: var(--tmd-err);
   overflow-wrap: anywhere;
 }
 
@@ -221,7 +219,7 @@
   color: var(--tmd-fg);
   font-size: 0.6875rem;
   line-height: 1.3;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  box-shadow: var(--tmd-shadow-popover);
   pointer-events: none;
   overflow-wrap: anywhere;
 }

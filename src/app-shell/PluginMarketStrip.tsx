@@ -206,9 +206,9 @@ function Outlet({
           {/* 纯装饰灯:放行点击穿透到热区(与嵌在 button 内的原行为一致)。 */}
           <span className="pm-plug-led" style={{ pointerEvents: "none" }} aria-hidden />
           <span className="pm-plug-icon" style={iconColor ? { color: iconColor } : undefined}>
-            {Icon ? <Icon size="0.875rem" /> : abbr}
+            {Icon ? <Icon size="0.875rem" /> : t(abbr)}
           </span>
-          <span className="pm-plug-name">{name}</span>
+          <span className="pm-plug-name">{t(name)}</span>
         </div>
         <div className="pm-prongs" aria-hidden>
           <span className="pm-prong" />

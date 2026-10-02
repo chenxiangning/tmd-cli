@@ -210,9 +210,9 @@ export const MESSAGES = {
   "SSH 进入": "Enter via SSH",
   "添加 WSL 工作区": "Add WSL workspace",
   "点【连接】探测远程【发行版】与已装【引擎】,自动展开发行版面板。":
-  "Click 【Connect】 to probe remote 【distros】 and installed 【engines】; the distro panel expands automatically.",
+  "Click “Connect” to probe remote distros and installed engines; the distro panel expands automatically.",
   "【SSH 进入】直进所选发行版终端(未展开用默认),引擎/目录在发行版面板里选;【添加 WSL 工作区】把目录登记进侧栏,会话自动走【SSH】。":
-  "【Enter via SSH】 drops you into the selected distro's terminal (default distro if none expanded); pick engine/directory in the distro panel. 【Add WSL workspace】 registers the directory in the sidebar; sessions then go over 【SSH】 automatically.",
+  "“Enter via SSH” drops you into the selected distro's terminal (default distro if none expanded); pick engine/directory in the distro panel. “Add WSL workspace” registers the directory in the sidebar; sessions then go over SSH automatically.",
   "已停止": "Stopped",
   "未选择": "Not selected",
   // DistroPanel(发行版子面板)
@@ -220,14 +220,14 @@ export const MESSAGES = {
   "仅计发行版内安装(登录 shell PATH,含 ~/.local/bin);/mnt/*(Windows 互操作)路径不计":
   "Counts only installs inside the distro (login shell PATH, incl. ~/.local/bin); /mnt/* (Windows interop) paths don't count",
   "【点选】检出的引擎行,「SSH 进入」即以该【CLI】启动;不选则进【交互 shell】。":
-  "【Click】 a detected engine row and “Enter via SSH” launches that 【CLI】; without a pick you get an 【interactive shell】.",
+  "Click a detected engine row and “Enter via SSH” launches that CLI; without a pick you get an interactive shell.",
   "未检出": "Not detected",
   "可用": "Available",
   "选中 {bin} 作为会话引擎": "Select {bin} as the session engine",
   "起始目录": "Start directory",
   "浏览目录": "Browse directory",
   "「SSH 进入」以该目录为【启动目录】(--cd);逐级进入,点选即生效。":
-  "“Enter via SSH” uses this directory as the 【start directory】 (--cd); navigate down level by level — clicking a row applies it.",
+  "“Enter via SSH” uses this directory as the start directory (--cd); navigate down level by level — clicking a row applies it.",
   "上一级": "Up one level",
   "(空目录)": "(empty directory)",
   // WorkspaceDialog / AddWslTab(添加工作区对话框)
@@ -290,6 +290,6 @@ export const MESSAGES = {
   "设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。": "Device credentials = a per-device token (desktop stores only sha-256). Kicking immediately drops all of the device's connections and voids its local credential; re-pairing by QR is required. Approve/kick are desktop-only; the phone sees read-only status.",
   "加载中…": "Loading…",
   /* 审批线危险度分层(checkpoints risk) */
-  "高危": "HIGH RISK",
+  "高危": "High Risk",
   "敏感路径(凭据/Shell 配置/CI/服务),建议细读 diff 再放行": "Sensitive path (credentials/shell config/CI/service). Read the diff carefully before approving.",
 } as Record<string, string>;

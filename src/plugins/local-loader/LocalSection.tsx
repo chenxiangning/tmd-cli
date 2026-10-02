@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ArrowCounterClockwise, Copy, Trash } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { copyText } from "@kernel/clipboard";
 import {
   confirmLocalPlugin,
@@ -53,6 +54,27 @@ function StatusBadge({ rec }: { rec: LocalPluginRecord }) {
   return <span className="lp-badge lp-badge-warn">{t("待启用")}</span>;
 }
 
+/** 新内容是否需要「信任启用」确认(已信任/已移除/读取失败者免)。 */
+function needsContentConfirm(rec: LocalPluginRecord): boolean {
+  if (rec.error || rec.removed || !rec.contentHash) return false;
+  if (isContentTrusted(rec.id, rec.contentHash, rec.manifestHash)) return false;
+  return rec.activatedHash !== rec.contentHash || !rec.activatedHash;
+}
+
+/** 版本列表按内容 hash 去重留首见(升序归档),再倒序呈现(新在上)。 */
+function dedupVersions(rec: LocalPluginRecord): LocalPluginRecord["versions"] {
+  const seen = new Set<string>();
+  return [...rec.versions]
+    .sort((a, b) => a.modified_ms - b.modified_ms)
+    .filter((v) => {
+      const key = v.sha256.slice(0, 8);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.modified_ms - a.modified_ms);
+}
+
 function Row({
   rec,
   busy,
@@ -63,39 +85,19 @@ function Row({
   onBusy: (p: Promise<void>) => void;
 }) {
   const [showVersions, setShowVersions] = useState(false);
+  /* 删除确认弹层态(原生 confirm 清零轮:移废纸篓属破坏性操作)。 */
+  const [confirmingDel, setConfirmingDel] = useState(false);
   const version = String(rec.manifest?.version ?? "0.0.0");
   const permissions = rec.permissions ?? [];
   const permText = permissions
     .map((p) => PERMISSION_LABELS[p as PluginPermission] ?? p)
     .join(" / ");
-  /* 确认按钮只在「有新内容且未信任且未移除」时出现;已信任的新内容属重启生效,无需按钮 */
-  const needsConfirm =
-    !rec.error && !rec.removed && !!rec.contentHash && !isContentTrusted(rec.id, rec.contentHash, rec.manifestHash)
-      ? rec.activatedHash !== rec.contentHash || !rec.activatedHash
-      : false;
-  /* 按内容 hash 去重,保留首次归档(版本号段最可信);老版回退不对齐 manifest 时期产生的
-     「0.2.0-<0.1.0hash>」错位条目不再显示(Rust 归档层已同步按内容去重防新增)。 */
-  const seen = new Set<string>();
-  const versions = [...rec.versions]
-    .sort((a, b) => a.modified_ms - b.modified_ms)
-    .filter((v) => {
-      const key = v.sha256.slice(0, 8);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .sort((a, b) => b.modified_ms - a.modified_ms);
+  /* 确认按钮只在「有新内容且未信任且未移除」时出现(判定抽 needsContentConfirm 降复杂度)。 */
+  const needsConfirm = needsContentConfirm(rec);
+  /* 版本去重(老版回退错位条目不再显示;Rust 归档层已同步按内容去重防新增)。 */
+  const versions = dedupVersions(rec);
 
-  const del = () => {
-    if (!window.confirm(t("把插件 {id} 移入系统废纸篓?(重启后卸载,可从废纸篓找回)", { id: rec.id })))
-      return;
-    onBusy(
-      (async () => {
-        await ipc.pluginDelete(rec.id);
-        await rescanLocalPlugins();
-      })(),
-    );
-  };
+  const del = () => setConfirmingDel(true);
 
   return (
     <div className="lp-row">
@@ -153,6 +155,23 @@ function Row({
             </div>
           ))}
         </div>
+      )}
+      {confirmingDel && (
+        <ConfirmDialog
+          title={t("删除本地插件")}
+          message={t("把插件 {id} 移入系统废纸篓?(重启后卸载,可从废纸篓找回)", { id: rec.id })}
+          confirmLabel={t("移入废纸篓")}
+          danger
+          onConfirm={() => {
+            onBusy(
+              (async () => {
+                await ipc.pluginDelete(rec.id);
+                await rescanLocalPlugins();
+              })(),
+            );
+          }}
+          onClose={() => setConfirmingDel(false)}
+        />
       )}
     </div>
   );

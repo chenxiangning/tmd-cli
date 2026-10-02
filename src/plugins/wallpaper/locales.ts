@@ -8,9 +8,9 @@ const MESSAGES_EN = {
 
   "工作区背景": "Workspace backdrop",
   "从图库隐藏(不删文件)": "Hide from library (file kept)",
-  "工作区背景：流体着色器与本地图库壁纸":
+  "工作区背景:流体着色器与本地图库壁纸":
     "Workspace backdrop: fluid shaders and a local image library",
-  "工作区背景壁纸：本地图库与效果。":
+  "工作区背景壁纸:本地图库与效果。":
     "Workspace backdrop wallpaper: local library and effects.",
   "壁纸": "Wallpaper",
   "图库": "Library",
@@ -42,7 +42,7 @@ const MESSAGES_EN = {
   "水平翻转": "Flip horizontally",
   "没有已隐藏的壁纸。": "No hidden wallpapers.",
   "流体": "Fluid",
-  "流体着色器动态背景，或本地图库壁纸；界面各栏随之变为半透明磨砂。":
+  "流体着色器动态背景,或本地图库壁纸;界面各栏随之变为半透明磨砂。":
     "Dynamic fluid shader or local library wallpaper; panels turn translucent frosted glass to match.",
   "流体运动": "Fluid motion",
   "流体预设": "Fluid preset",
@@ -59,13 +59,13 @@ const MESSAGES_EN = {
   "铺放方式": "Placement",
   "铺满": "Cover",
   "{minutes} 分钟": "{minutes} min",
-  "七组色相/深度组合，随明暗主题各出一套配色。":
+  "七组色相/深度组合,随明暗主题各出一套配色。":
     "Seven hue/depth pairings; each ships its own light and dark palette.",
-  "加在壁纸本身（非界面毛玻璃），0 = 清晰。":
+  "加在壁纸本身(非界面毛玻璃),0 = 清晰。":
     "Applied to the wallpaper itself (not UI frosted glass); 0 = sharp.",
   "压暗壁纸提升界面文字对比。":
     "Dims the wallpaper to boost UI text contrast.",
-  "压暗流体背景，提升界面文字对比。":
+  "压暗流体背景,提升界面文字对比。":
     "Dims the fluid backdrop to boost UI text contrast.",
   薄雾: "Mist",
   极光: "Aurora",
@@ -84,9 +84,9 @@ const MESSAGES_EN = {
 const MESSAGES_JA = {
   "工作区背景": "ワークスペース背景",
   "从图库隐藏(不删文件)": "ライブラリから隠す(ファイルは残す)",
-  "工作区背景：流体着色器与本地图库壁纸":
+  "工作区背景:流体着色器与本地图库壁纸":
     "ワークスペース背景:流体シェーダーとローカル画像ライブラリ",
-  "工作区背景壁纸：本地图库与效果。":
+  "工作区背景壁纸:本地图库与效果。":
     "ワークスペース背景壁紙:ローカルライブラリとエフェクト。",
   "壁纸": "壁紙",
   "图库": "ライブラリ",
@@ -118,7 +118,7 @@ const MESSAGES_JA = {
   "水平翻转": "左右反転",
   "没有已隐藏的壁纸。": "隠した壁紙はありません。",
   "流体": "流体",
-  "流体着色器动态背景，或本地图库壁纸；界面各栏随之变为半透明磨砂。":
+  "流体着色器动态背景,或本地图库壁纸;界面各栏随之变为半透明磨砂。":
     "流体シェーダーのダイナミック背景、またはローカル画像の壁紙。各パネルが半透明のすりガラスに変わります。",
   "流体运动": "流体モーション",
   "流体预设": "流体プリセット",
@@ -135,13 +135,13 @@ const MESSAGES_JA = {
   "铺放方式": "配置方法",
   "铺满": "覆う",
   "{minutes} 分钟": "{minutes} 分",
-  "七组色相/深度组合，随明暗主题各出一套配色。":
+  "七组色相/深度组合,随明暗主题各出一套配色。":
     "明暗テーマそれぞれに対応した7組の色相/深度の組み合わせ。",
-  "加在壁纸本身（非界面毛玻璃），0 = 清晰。":
+  "加在壁纸本身(非界面毛玻璃),0 = 清晰。":
     "壁紙そのものに適用(UIのすりガラスではなく)、0 = クリア。",
   "压暗壁纸提升界面文字对比。":
     "壁紙を暗くしてUIテキストのコントラストを高めます。",
-  "压暗流体背景，提升界面文字对比。":
+  "压暗流体背景,提升界面文字对比。":
     "流体背景を暗くしてUIテキストのコントラストを高めます。",
   薄雾: "薄霧",
   极光: "オーロラ",

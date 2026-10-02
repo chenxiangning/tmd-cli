@@ -84,7 +84,7 @@ export function DesktopApp() {
   /* 语言切换 = 整树重挂载(低频;host/PTY 态在 React 外,幕布回放按重挂载设计)。 */
   const language = useSettingsState().settings.language;
   if (error) {
-    return <div className="p-4 text-red-400">{t("插件激活失败：{error}", { error })}</div>;
+    return <div className="p-4 text-red-400">{t("插件激活失败:{error}", { error })}</div>;
   }
   if (!ready) return null;
   return <AppShell key={language} />;

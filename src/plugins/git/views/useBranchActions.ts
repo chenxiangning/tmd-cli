@@ -71,7 +71,7 @@ export function useBranchActions(opts: {
         source: b.name,
         sourceLabel: t("基于分支:"),
         inputLabel: t("新分支名"),
-        placeholder: t("新分支名..."),
+        placeholder: t("新分支名…"),
         submitLabel: t("创建"),
         onSubmit: (name) =>
           run(

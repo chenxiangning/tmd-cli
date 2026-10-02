@@ -12,6 +12,7 @@ import type { EditorTab } from "@kernel/tabs";
 import { ipc } from "@kernel/ipc";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
+import { formatDate, formatTime } from "@kernel/relativeTime";
 import { type MemoryItem } from "../protocol";
 import { memoryPool, resolveProjectIdentity } from "../pool";
 import { EngineConfigCard } from "./EngineConfigCard";
@@ -92,7 +93,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
         const rows = await ipc.sqliteQuery(dbPath, "SELECT max(finished_at) FROM dream_runs", []);
         if (mine !== reloadEpoch.current) return;
         const ts = Number(rows[0]?.[0] ?? 0);
-        patch({ lastDream: ts > 0 ? new Date(ts).toLocaleString("zh-CN") : null });
+        patch({ lastDream: ts > 0 ? `${formatDate(ts)} ${formatTime(ts)}` : null });
       } catch {
         if (mine === reloadEpoch.current) patch({ lastDream: null });
       }

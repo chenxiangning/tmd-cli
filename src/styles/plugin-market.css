@@ -153,10 +153,15 @@
   background: var(--tmd-bg-elevated);
   border: 1px solid var(--tmd-border-strong);
   border-radius: var(--tmd-radius-lg);
+  box-shadow: var(--tmd-shadow-modal);
+  overflow-x: auto;
+}
+
+/* 白高光顶缘只在深色外观有效(浅底上不可见),收进 dark 作用域 */
+:root[data-theme="dark"] .pm-strip {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.28);
-  overflow-x: auto;
+    var(--tmd-shadow-modal);
 }
 
 /* 市电电缆:插排右端接出 */
@@ -262,7 +267,7 @@
   height: 100%;
   background: var(--tmd-bg-base);
   border-left: 1px solid var(--tmd-border-strong);
-  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--tmd-shadow-modal);
   display: flex;
   flex-direction: column;
   overflow: hidden;

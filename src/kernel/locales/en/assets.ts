@@ -17,6 +17,7 @@ export const MESSAGES = {
   "从 codemoss 导入": "Import from codemoss",
   "导入中…": "Importing…",
   "编辑智能体": "Edit agent",
+  "删除智能体": "Delete agent",
   "删除智能体「{name}」?已选中的会话会自动取消。":
     "Delete agent \"{name}\"? Sessions that selected it will be deselected automatically.",
   "名称必填": "Name is required",
@@ -46,6 +47,7 @@ export const MESSAGES = {
   "选择提示词 md 目录": "Choose a prompt .md folder",
   "搜索名称或描述…": "Search name or description…",
   "编辑提示词": "Edit prompt",
+  "删除提示词": "Delete prompt",
   "删除提示词「{name}」?(进废纸篓)": "Delete prompt \"{name}\"? (Moves to Trash)",
   "移到全局": "Move to global",
   "移到工作区": "Move to workspace",

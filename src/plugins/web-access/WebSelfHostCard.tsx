@@ -216,7 +216,7 @@ export function WebSelfHostCard() {
         </div>
       )}
       {submitted && (
-        <ol className="flex flex-col gap-1 rounded border border-[var(--tmd-border)] bg-[var(--tmd-surface-1)] px-2.5 py-2">
+        <ol className="flex flex-col gap-1 rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] px-2.5 py-2">
           {SELFHOST_STEPS.map((id) => (
             <li key={id} className="flex flex-col gap-0.5">
               <span className="flex items-center gap-1.5 text-xs">

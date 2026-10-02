@@ -47,7 +47,7 @@
   padding: 0 6px;
   border: 1px solid var(--tmd-border);
   border-radius: 8px;
-  background: var(--tmd-bg);
+  background: var(--tmd-bg-input);
 }
 .wsfb-search:focus-within {
   border-color: var(--tmd-border-strong);

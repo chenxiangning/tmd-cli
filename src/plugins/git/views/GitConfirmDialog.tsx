@@ -75,7 +75,7 @@ export function GitConfirmDialog({
                 : "bg-(--tmd-accent) text-(--tmd-accent-fg)"
             }`}
           >
-            {state.confirmLabel ?? t("确定")}
+            {state.confirmLabel ?? t("确认")}
           </button>
         </div>
       </div>

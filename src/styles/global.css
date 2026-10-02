@@ -124,6 +124,13 @@ body,
   overflow: hidden;
 }
 
+/* 禁用按钮统一手势基线(2026-09-29 cursor 收敛):写在无层区,压过 Tailwind
+ * 工具类层(layered),各处 disabled:cursor-default/not-allowed 局部一律删除、
+ * 由基线接管;类作用域 :disabled 规则(如 .welcome-refresh)特异性更高,属遗留局部。 */
+button:disabled {
+  cursor: not-allowed;
+}
+
 /* 会话呼吸灯 */
 @keyframes breathe {
   0%,

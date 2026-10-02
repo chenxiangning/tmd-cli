@@ -94,8 +94,8 @@ export const MESSAGES = {
   /* SendConfirmDialog + BehaviorTab(spec 2026-09-27-composer-send-confirm) */
   "确认发送": "Confirm send",
   "发送目标": "Send target",
-  "将发送到 {n} 块幕布:": "Will broadcast to {n} panes:",
-  "幕布 {n}": "Pane {n}",
+  "将发送到 {n} 块幕布:": "Will broadcast to {n} terminals:",
+  "幕布 {n}": "Terminal {n}",
   "当前": "current",
   "内容": "Content",
   "Enter 确认 · Esc 取消": "Enter to confirm · Esc to cancel",

@@ -11,7 +11,7 @@ export interface WanStep {
 
 export function WanStepsCard({ steps }: { steps: WanStep[] }) {
   return (
-    <div className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-surface-1)] px-3 py-2">
+    <div className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] px-3 py-2">
       <div className="mb-1.5 text-xs font-medium text-[var(--tmd-fg)]">
         {t("使用流程")}
       </div>

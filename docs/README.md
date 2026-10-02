@@ -244,4 +244,6 @@
 | 2026-10-01 | [工作区死代码评审与清理(四路 grep 实证:零孤儿文件;修 1 个 YearView 热力前缀回归 + 删史前死类/死键 + 弱导出收敛 + useFocusTrap 五副本沉 kernel;门禁全绿;未提交)](review/2026-10-01-deadcode-review.md) | 已完成 |
 | 2026-10-01 | [工作区全量变更五路 code review(边界/性能/兼容/交互/外观:30+ 疑似逐条核实,真实问题 2 项已修——接力截断代理对 + cargo fmt;误报核实摘录防重查;门禁全绿;未提交)](review/2026-10-01-worktree-five-track-review.md) | 已完成 |
 | 2026-10-02 | [高级感主题配色候选(低饱和高级灰 ×6 + 现行默认对照,frame 级目检)](design/premium-themes.html) | 已落地(tmd-paper/mist/linen/graphite/ink/ember;默认浅色=云白、深色=石墨;未提交) |
+| 2026-10-02 | [客户端打磨任务2 五路审计(主题适配长尾/i18n 译文质量/新近提交自查/设置面/微交互:64 项 + i18n 五类;P0×6 全部实证复核)](research/client-polish-task2-audit.md) | 已完成(处置见同日 spec) |
+| 2026-10-02 | [客户端打磨任务2 实施设计(P0+P1 全修 + P2 精选:原生弹窗清零/主题 token 裁决/术语统一译法/8 域并行分批;用户拍板范围)](superpowers/specs/2026-10-02-polish-task2-batch-design.md) | 已实施 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -249,6 +249,7 @@ function FileRow({
           type="button"
           onClick={file.staged ? onUnstage : onStage}
           title={file.staged ? "unstage" : "stage"}
+          aria-label={file.staged ? "unstage" : "stage"}
           className="w-4 shrink-0 text-center opacity-0 hover:text-(--tmd-accent) group-hover:opacity-60"
         >
           {file.staged ? "−" : "+"}
@@ -259,6 +260,7 @@ function FileRow({
           type="button"
           onClick={onDiscard}
           title={t("放弃工作区改动(还原到暂存区;已暂存内容保留)")}
+          aria-label={t("放弃工作区改动(还原到暂存区;已暂存内容保留)")}
           className="w-4 shrink-0 text-center opacity-0 hover:text-(--tmd-diff-removed) group-hover:opacity-60"
         >
           ↺

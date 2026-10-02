@@ -258,10 +258,10 @@
   gap: 8px;
 }
 .lsp-guide-ok {
-  color: #3a9d5d;
+  color: var(--tmd-ok);
 }
 .lsp-guide-warn {
-  color: #c2762a;
+  color: var(--tmd-warn);
 }
 .lsp-guide-status {
   opacity: 0.7;
@@ -288,5 +288,5 @@
 .lsp-guide-primary {
   background: var(--tmd-accent, #5c8ac9);
   border-color: transparent;
-  color: #fff;
+  color: var(--tmd-accent-fg);
 }

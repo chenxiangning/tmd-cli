@@ -32,7 +32,7 @@ export function PluginMarketList({
                     className="pm-card-icon"
                     style={plugin.meta.iconColor ? { color: plugin.meta.iconColor } : undefined}
                   >
-                    {Icon ? <Icon size="0.9375rem" /> : plugin.meta.abbr}
+                    {Icon ? <Icon size="0.9375rem" /> : t(plugin.meta.abbr)}
                   </div>
                   <div className="pm-card-main">
                     <div className="pm-card-name">

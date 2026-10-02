@@ -13,6 +13,8 @@ import { MESSAGES as wsl } from "./wsl";
 import { MESSAGES as misc } from "./misc";
 import { MESSAGES as assets } from "./assets";
 import { MESSAGES as mobile } from "./mobile";
+import { MESSAGES as market } from "./market";
+import { MESSAGES as time } from "./time";
 
 export const EN_MESSAGES: Record<string, string> = {
   ...common,
@@ -29,4 +31,6 @@ export const EN_MESSAGES: Record<string, string> = {
   ...assets,
   ...misc,
   ...mobile,
+  ...time,
+  ...market,
 };

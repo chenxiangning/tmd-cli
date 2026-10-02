@@ -4,12 +4,11 @@
  * 备份 → mcpWrite upsert → 写回(hubStore);id 改名 = 删旧 + 增新。
  * env/headers 值列默认掩码(SecretInput 眼睛切换明文,密钥脱敏纪律);
  * 未知键(startup_timeout_sec 等)整条保留;JSON 家写显式 type 字段
- * (claude 磁盘实证),TOML 家不写(codex 磁盘实证)。写后提示「下次会话
- * 生效」,不承诺时点。
+ * (claude 磁盘实证),TOML 家不写(codex 磁盘实证)。
  */
 import { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
-import { DialogShell, DialogActions } from "@kernel/DialogShell";
+import { DialogShell, DialogActions, useEscClose } from "@kernel/DialogShell";
 import { SecretInput } from "@kernel/SecretInput";
 import type { McpServerEntry } from "@plugins/cli-shared/mcpWrite";
 import type { McpEngineState } from "./hubStore";
@@ -35,17 +34,11 @@ interface Draft {
   headerRows: KvRow[];
 }
 
-const TRANSPORTS: { id: McpTransport; label: string }[] = [
-  { id: "stdio", label: "stdio" },
-  { id: "http", label: "http" },
-  { id: "sse", label: "sse" },
-];
+const TRANSPORTS = (["stdio", "http", "sse"] as const).map((id) => ({ id, label: id }));
 
 function toRows(record: unknown): KvRow[] {
   if (!record || typeof record !== "object" || Array.isArray(record)) return [];
-  return Object.entries(record)
-    .filter(([, v]) => typeof v === "string")
-    .map(([k, v]) => newRow(k, v as string));
+  return Object.entries(record).filter(([, v]) => typeof v === "string").map(([k, v]) => newRow(k, v as string));
 }
 
 function toDraft(name: string | null, entry: McpServerEntry): Draft {
@@ -61,6 +54,9 @@ function toDraft(name: string | null, entry: McpServerEntry): Draft {
     headerRows: toRows(entry.headers),
   };
 }
+
+/** 草稿守卫比较基线:KvRow.id 仅作 React key 不入比较,字段与键值序全量对比。 */
+const normDraft = (d: Draft): string => JSON.stringify({ ...d, envRows: d.envRows.map((r) => [r.k, r.v]), headerRows: d.headerRows.map((r) => [r.k, r.v]) });
 
 /** draft → 原生条目:未知键整条保留;非字符串 env/headers 值并回(不静默丢)。 */
 function toEntry(draft: Draft, format: "json" | "toml", original: McpServerEntry): McpServerEntry {
@@ -147,10 +143,13 @@ export function ServerEditModal({
   initialEntry: McpServerEntry;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(() => toDraft(initialName, initialEntry));
+  const [initialDraft] = useState(() => toDraft(initialName, initialEntry));
+  const [draft, setDraft] = useState<Draft>(initialDraft);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  /* Esc 直关(提交中锁定);backdrop 才走 DialogShell onClose 的 dirty 守卫,两路分流。 */
+  useEscClose(onClose, busy);
 
   useEffect(() => {
     if (!saved) return;
@@ -164,6 +163,7 @@ export function ServerEditModal({
     !draft.id.trim() ||
     idTaken ||
     (draft.transport === "stdio" ? !draft.command.trim() : !draft.url.trim());
+  const dirty = normDraft(draft) !== normDraft(initialDraft);
 
   const save = async () => {
     setBusy(true);
@@ -190,7 +190,7 @@ export function ServerEditModal({
       icon={<span className="text-[0.75rem]">MCP</span>}
       width={560}
       locked={busy}
-      onClose={saved ? onClose : () => onClose()}
+      onClose={saved || !dirty ? onClose : () => undefined}
       footer={
         saved ? (
           <div className="flex items-center justify-end gap-3 text-[0.6875rem] text-(--tmd-fg-faint)">
@@ -210,7 +210,7 @@ export function ServerEditModal({
         )
       }
     >
-      <div className="flex flex-col gap-3 text-[0.6875rem]">
+      <form className="flex flex-col gap-3 text-[0.6875rem]" onSubmit={(e) => { e.preventDefault(); if (!missingRequired && !busy && !saved) void save(); }}>
         <label className="flex flex-col gap-1">
           <span className="text-(--tmd-fg-faint)">{t("名称(同文件内唯一)")}</span>
           <input
@@ -290,7 +290,10 @@ export function ServerEditModal({
             </div>
           </>
         )}
-      </div>
+
+        {/* 回车隐式提交锚点:可见主钮在 footer(DialogActions,type=button),Enter 经此触发 onSubmit。 */}
+        <button type="submit" hidden />
+      </form>
     </DialogShell>
   );
 }

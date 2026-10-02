@@ -48,7 +48,7 @@ export const MESSAGES = {
   "确认安装": "Confirm install",
   "确认卸载": "Confirm uninstall",
   "取消": "Cancel",
-  "—— 完成。已开会的会话不热加载,重开会话生效 ——":
+  "—— 完成。已开的会话不热加载,重开会话生效 ——":
     "—— Done. Open sessions don't hot-reload; restart the session to apply ——",
   "—— 失败:命令非零退出,详见上方日志 ——":
     "—— Failed: command exited non-zero, see log above ——",
@@ -130,14 +130,14 @@ export const MESSAGES = {
   "项目": "Project",
   "查看可用命令": "Show available commands",
   "清屏": "Clear screen",
-  "查看/切换模型(幕布内 picker)": "View/switch model (in-canvas picker)",
+  "查看/切换模型(幕布内 picker)": "View/switch model (in-terminal picker)",
   "深度思考模式": "Deep thinking mode",
   "只读规划模式": "Read-only planning mode",
   "代码评审": "Code review",
   "清空对话上下文": "Clear conversation context",
   "压缩会话上下文(参数可选)": "Compact session context (optional arg)",
   "查看额度用量": "Show quota usage",
-  "恢复历史会话(幕布内 picker)": "Resume a past session (in-canvas picker)",
+  "恢复历史会话(幕布内 picker)": "Resume a past session (in-terminal picker)",
   "会话与配置状态": "Session and config status",
   "查看改动 diff": "Show change diff",
   "初始化 AGENTS.md": "Initialize AGENTS.md",
@@ -147,9 +147,9 @@ export const MESSAGES = {
   "引用文件(需路径参数)": "Reference a file (path arg required)",
   "帮助与快捷键": "Help and shortcuts",
   "切换模型/思考模式(幕布内 picker)":
-    "Switch model/thinking mode (in-canvas picker)",
+    "Switch model/thinking mode (in-terminal picker)",
   "会话列表与切换(幕布内 picker)":
-    "List and switch sessions (in-canvas picker)",
+    "List and switch sessions (in-terminal picker)",
   "新建会话": "New session",
   "重命名当前会话(需会话名)": "Rename current session (name required)",
   "压缩上下文": "Compact context",
@@ -160,17 +160,17 @@ export const MESSAGES = {
   "列出并切换会话(别名 /resume /continue)":
     "List and switch sessions (aliases /resume /continue)",
   "列出可用模型(幕布内 picker)":
-    "List available models (in-canvas picker)",
+    "List available models (in-terminal picker)",
   "停止分享当前会话": "Stop sharing current session",
   "引导生成/更新 AGENTS.md": "Generate/update AGENTS.md interactively",
   "连接供应商并配置 API key(幕布内 picker)":
-    "Connect providers and configure API keys (in-canvas picker)",
+    "Connect providers and configure API keys (in-terminal picker)",
   "导出会话为 Markdown 并打开编辑器":
     "Export session as Markdown and open editor",
   "用 $EDITOR 编辑长消息": "Edit long messages with $EDITOR",
   "切换思考/推理块可见性": "Toggle thinking/reasoning block visibility",
   "切换工具执行详情": "Toggle tool execution details",
-  "列出主题(幕布内 picker)": "List themes (in-canvas picker)",
+  "列出主题(幕布内 picker)": "List themes (in-terminal picker)",
   "帮助": "Help",
   "退出 opencode(别名 /quit /q)": "Quit opencode (aliases /quit /q)",
   "压缩会话上下文(别名 /summarize)":

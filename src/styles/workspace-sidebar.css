@@ -14,7 +14,7 @@
   --border-subtle: var(--tmd-border);
   --border-quiet: var(--tmd-border);
   --accent-primary: var(--tmd-accent);
-  --danger-strong: #f87171;
+  --danger-strong: var(--tmd-err);
 
   /* 尺寸(照抄 codemoss sidebar-shell.css) */
   --sidebar-row-radius: 6px;

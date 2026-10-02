@@ -14,6 +14,7 @@ import { ipc, type SshHostConfig, type SshPromptEvent } from "@kernel/ipc";
 import { getSettingsState } from "@kernel/settings";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
 import { closeHostPicker, useSshState } from "./state";
 
 export function SshOverlay() {
@@ -37,6 +38,8 @@ function HostPicker() {
   const hosts = getSettingsState().settings.ssh.hosts;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Esc 关闭与点背板同权:连接建立中(busy)锁住防误关。 */
+  useEscClose(closeHostPicker, busy !== null);
 
   const connect = async (config: SshHostConfig) => {
     if (busy) return;
@@ -56,7 +59,12 @@ function HostPicker() {
 
   return createPortal(
     <div className="ssh-picker-backdrop" role="presentation" onClick={busy ? undefined : closeHostPicker}>
-      <div className="ssh-picker" onClick={(e) => e.stopPropagation()}>
+      <dialog
+        open
+        className="ssh-picker"
+        aria-label={t("SSH 连接")}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="ssh-picker-head">
           <HardDrive size="0.875rem" aria-hidden />
           <span>{t("SSH 连接")}</span>
@@ -90,7 +98,7 @@ function HostPicker() {
           </div>
         )}
         {error ? <div className="ssh-picker-error">{error}</div> : null}
-      </div>
+      </dialog>
     </div>,
     document.body,
   );
@@ -198,7 +206,7 @@ function PromptCard({ prompt }: { prompt: SshPromptEvent }) {
             setValue("");
           }}
         >
-          {t("确定")}
+          {t("确认")}
         </button>
       </div>
     </div>

@@ -119,7 +119,7 @@
 
 .welcome-refresh:hover { color: var(--tmd-fg); }
 .welcome-refresh:focus { outline: none; }
-.welcome-refresh:disabled { cursor: default; }
+.welcome-refresh:disabled { cursor: not-allowed; }
 
 .welcome-row-main {
   display: grid;
@@ -177,11 +177,14 @@
 .welcome-row-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
 
 /* 次要动作(重装/版本/重探)常态降显,行 hover / 键盘游标 / 聚焦时浮出
-   —— 每行 5 钮的密度降噪;主 CTA(新会话/安装/更新/官方文档)常驻。 */
+   —— 每行 5 钮的密度降噪;主 CTA(新会话/安装/更新/官方文档)常驻。
+   禁用钮不参与浮出(:not(:disabled) 压过浮出选择器的特异性),
+   且保持 .sec 常态的 0.3,不敌 0.45 反变更亮。 */
 .welcome-row-actions .welcome-ab.sec { opacity: 0.3; transition: opacity 0.15s ease; }
-.welcome-row-main:hover .welcome-ab.sec,
-.welcome-row.cur .welcome-ab.sec,
-.welcome-row-actions:focus-within .welcome-ab.sec { opacity: 1; }
+.welcome-ab.sec:disabled { opacity: .3; }
+.welcome-row-main:hover .welcome-ab.sec:not(:disabled),
+.welcome-row.cur .welcome-ab.sec:not(:disabled),
+.welcome-row-actions:focus-within .welcome-ab.sec:not(:disabled) { opacity: 1; }
 
 /* 行内动作按钮(文本簇,替代旧 icon-only) */
 .welcome-ab {
@@ -202,6 +205,7 @@
 
 .welcome-ab:hover:not(:disabled) { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
 .welcome-ab:disabled { opacity: 0.45; cursor: not-allowed; }
+.welcome-ab.sec:disabled { opacity: .3; }
 .welcome-ab.pri { color: var(--tmd-warn); border-color: var(--tmd-warn); }
 .welcome-ab.pri:hover:not(:disabled) { background: var(--tmd-accent-soft); color: var(--tmd-warn); }
 .welcome-ab.go { color: var(--tmd-ok); border-color: var(--tmd-ok); }

@@ -9,7 +9,7 @@ const MESSAGES_EN = {
   "会话列表显示预算": "Session List Budget",
   "关闭": "Close",
   "显示总数": "Total rows",
-  "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多...」仍可按需翻倍加载。":
+  "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多…」仍可按需翻倍加载。":
     "Initial rows shared by all CLI groups in a workspace ({min}–{max}, default {def}). {allocated} allocated; the remaining {remaining} are split evenly among unconfigured CLIs. \"More...\" still loads double on demand.",
   "{name} 配额": "{name} quota",
   "固定预留的条数;留空 = 均分剩余(当前约 {share} 条),0 = 初始不露出历史。":
@@ -26,7 +26,7 @@ const MESSAGES_JA = {
   "会话列表显示预算": "セッションリスト表示予算",
   "关闭": "閉じる",
   "显示总数": "合計表示数",
-  "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多...」仍可按需翻倍加载。":
+  "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多…」仍可按需翻倍加载。":
     "ワークスペース内の全 CLI グループで共有する初期表示行数({min}–{max}、既定 {def})。割り当て済み {allocated} 行、残り {remaining} 行は未設定の CLI で均等分割。「もっと見る...」で必要に応じて倍増読み込みできます。",
   "{name} 配额": "{name} の割り当て",
   "固定预留的条数;留空 = 均分剩余(当前约 {share} 条),0 = 初始不露出历史。":

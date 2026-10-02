@@ -98,7 +98,12 @@ export function ProxyPopover() {
       >
         <div className="pxy-head">
           <span className="pxy-title">{t("网络代理")}</span>
-          <button className="pxy-close" title={t("关闭")} onClick={closeProxyPopover}>
+          <button
+            className="pxy-close"
+            title={t("关闭")}
+            aria-label={t("关闭")}
+            onClick={closeProxyPopover}
+          >
             <Cross size="0.875rem" aria-hidden />
           </button>
         </div>

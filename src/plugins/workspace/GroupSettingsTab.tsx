@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { t } from "@kernel/i18n";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { useSettingsState } from "@kernel/settings";
 import { CaretDown, CaretUp, Plus, Trash } from "@phosphor-icons/react";
 import { createGroup, deleteGroup, moveGroup, renameGroup } from "./groups";
@@ -21,6 +22,8 @@ export function WorkspaceGroupsTab() {
   const [newName, setNewName] = useState("");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  /* 待删除组(原生 confirm 清零轮:删组破坏性前置确认换 ConfirmDialog)。 */
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
 
   const add = () => {
     const err = createGroup(newName);
@@ -98,16 +101,23 @@ export function WorkspaceGroupsTab() {
               type="button"
               className={btnCls}
               title={t("删除组")}
-              onClick={() => {
-                if (window.confirm(t("删除组「{name}」?组内工作区将移到未分组。", { name: g.name })))
-                  deleteGroup(g.id);
-              }}
+              onClick={() => setDeleting({ id: g.id, name: g.name })}
             >
               <Trash size="0.75rem" />
             </button>
           </div>
         </div>
       ))}
+      {deleting && (
+        <ConfirmDialog
+          title={t("删除组")}
+          message={t("删除组「{name}」?组内工作区将移到未分组。", { name: deleting.name })}
+          confirmLabel={t("删除")}
+          danger
+          onConfirm={() => deleteGroup(deleting.id)}
+          onClose={() => setDeleting(null)}
+        />
+      )}
     </div>
   );
 }

@@ -45,7 +45,7 @@ export function ManualDeployDetails({
   };
 
   return (
-    <details className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-surface-1)] px-2.5 py-1.5 text-xs">
+    <details className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] px-2.5 py-1.5 text-xs">
       <summary className="cursor-pointer select-none font-medium text-[var(--tmd-fg)]">
         {t("手动部署指导(一键失败时的兜底)")}
       </summary>

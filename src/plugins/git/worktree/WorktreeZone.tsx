@@ -86,6 +86,7 @@ function TreeActions({
       <button
         type="button"
         title={t("打开为工作区")}
+        aria-label={t("打开为工作区")}
         onClick={() => openWorktreeWorkspace(entry.path)}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
@@ -94,6 +95,7 @@ function TreeActions({
       <button
         type="button"
         title={t("在此树开终端")}
+        aria-label={t("在此树开终端")}
         onClick={() => void spawnTerminalAt(entry.path)}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
@@ -102,6 +104,7 @@ function TreeActions({
       <button
         type="button"
         title={t("移除 worktree")}
+        aria-label={t("移除 worktree")}
         onClick={onStartConfirm}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
@@ -243,6 +246,7 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
           type="button"
           onClick={load}
           title={t("刷新")}
+          aria-label={t("刷新")}
           className="rounded p-0.5 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
           <ArrowsClockwise size="0.625rem" aria-hidden />

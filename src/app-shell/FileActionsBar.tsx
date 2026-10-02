@@ -42,7 +42,9 @@ export function FileActionsBar() {
           type="button"
           className="panel-subbar-action"
           aria-label={t("新建文件")}
-          title={t("新建文件")}
+          data-hint={t("新建文件")}
+          data-hint-cmd="panel.newFile"
+          title=""
           disabled={!activePanel?.newFile}
           onClick={() => activePanel?.newFile?.()}
         >
@@ -52,7 +54,9 @@ export function FileActionsBar() {
           type="button"
           className="panel-subbar-action"
           aria-label={t("新建文件夹")}
-          title={t("新建文件夹")}
+          data-hint={t("新建文件夹")}
+          data-hint-cmd="panel.newFolder"
+          title=""
           disabled={!activePanel?.newFolder}
           onClick={() => activePanel?.newFolder?.()}
         >
@@ -62,7 +66,9 @@ export function FileActionsBar() {
           type="button"
           className="panel-subbar-action"
           aria-label={t("刷新文件树")}
-          title={t("刷新文件树")}
+          data-hint={t("刷新文件树")}
+          data-hint-cmd="panel.refresh"
+          title=""
           onClick={handleRefreshFiles}
         >
           {/* 尺寸单一真源 = panel-subbar.css svg 1rem(TSX size 是被 CSS 覆盖的死值,删) */}

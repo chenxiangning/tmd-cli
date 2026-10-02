@@ -32,7 +32,7 @@ function ModelSlot({
       className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
         clickable
           ? "cursor-pointer hover:bg-(--tmd-bg-hover)"
-          : "disabled:cursor-not-allowed disabled:opacity-40"
+          : "disabled:opacity-40"
       }`}
       disabled={!clickable}
       title={title}
@@ -116,7 +116,7 @@ function ToolbarActions({
   minimized: boolean;
 }) {
   const iconBtn =
-    "grid h-6 w-6 place-items-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-40";
+    "grid h-6 w-6 place-items-center rounded-md transition-colors disabled:opacity-40";
   return (
     <>
       <button

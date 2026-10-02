@@ -1,7 +1,8 @@
 /**
  * omp 扩展目录与已装清单解析契约测试。
- * 覆盖:npm 搜索响应解析(防御)、合并去重排序(排除官方包/描述补全)、
- * `omp plugin list --json` 实证形态解析、registry 单包描述兜底(缓存)。
+ * 覆盖:npm 搜索响应解析(防御)、合并去重排序(排除官方包/描述补全/
+ * 精选标记补全与置顶豁免 cap)、`omp plugin list --json` 实证形态解析、
+ * registry 单包描述兜底(缓存)。
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ipc } from "@kernel/ipc";
@@ -139,6 +140,52 @@ describe("mergeCatalog", () => {
     ];
     expect(mergeCatalog(many)).toHaveLength(20);
     expect(mergeCatalog(many, 5)).toHaveLength(5);
+  });
+
+  it("精选条目豁免 cap 截断且置顶(零下载不因排序沉底丢失)", () => {
+    const hot: ExtCatalogEntry[] = Array.from({ length: 25 }, (_, i) => ({
+      name: `hot-${i}`,
+      description: "",
+      weeklyDownloads: 1000 - i,
+      homepage: null,
+    }));
+    const curated: ExtCatalogEntry[] = [
+      { name: "pick-a", description: "精选 A", weeklyDownloads: 0, homepage: null, curated: true },
+      { name: "pick-b", description: "精选 B", weeklyDownloads: 0, homepage: null, curated: true },
+    ];
+    const merged = mergeCatalog([hot, curated]);
+    // 20 热门 + 2 精选(豁免不计入 cap),总量 22
+    expect(merged).toHaveLength(22);
+    // 精选在场且置顶,组内保持静态表原序
+    expect(merged.slice(0, 2).map((e) => e.name)).toEqual(["pick-a", "pick-b"]);
+    // 热门组仍按周下载降序,截断只吃尾部(hot-24 被截)
+    expect(merged.slice(2, 4).map((e) => e.name)).toEqual(["hot-0", "hot-1"]);
+    expect(merged.some((e) => e.name === "hot-24")).toBe(false);
+  });
+
+  it("live 先到的精选包名:静态表末位补 curated 标记(描述仍先到者优先)", () => {
+    const live: ExtCatalogEntry[] = [
+      {
+        name: "pi-lens",
+        version: "4.1.3",
+        description: "live desc",
+        weeklyDownloads: 5230,
+        homepage: null,
+      },
+    ];
+    const curated: ExtCatalogEntry[] = [
+      {
+        name: "pi-lens",
+        description: "静态中文描述",
+        weeklyDownloads: 0,
+        homepage: null,
+        curated: true,
+      },
+    ];
+    const merged = mergeCatalog([live, curated]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].curated).toBe(true);
+    expect(merged[0].description).toBe("live desc");
   });
 });
 

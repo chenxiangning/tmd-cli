@@ -90,12 +90,12 @@ export const MESSAGES = {
   "打开 {name}": "{name} を開く",
 
   /* triggers/suggest.ts */
-  "文件夹": "フォルダ",
+  "文件夹": "フォルダー",
   /* SendConfirmDialog + BehaviorTab(spec 2026-09-27-composer-send-confirm) */
   "确认发送": "送信確認",
   "发送目标": "送信先",
-  "将发送到 {n} 块幕布:": "{n} 枚のペインに送信:",
-  "幕布 {n}": "ペイン {n}",
+  "将发送到 {n} 块幕布:": "{n} 個のターミナルに送信:",
+  "幕布 {n}": "ターミナル {n}",
   "当前": "現在",
   "内容": "内容",
   "Enter 确认 · Esc 取消": "Enter で確定 · Esc でキャンセル",

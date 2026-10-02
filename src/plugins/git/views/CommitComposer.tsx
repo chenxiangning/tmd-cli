@@ -163,7 +163,7 @@ export function CommitComposer({
           onClick={submit}
           disabled={!canCommit || busy}
           title={t("提交(⌘⏎)")}
-          className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:cursor-default disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
+          className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
         >
           {busy && <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" />}
           ⌘⏎ commit

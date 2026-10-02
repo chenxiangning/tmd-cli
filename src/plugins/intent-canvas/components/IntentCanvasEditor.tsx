@@ -119,7 +119,7 @@ export function IntentCanvasEditor({
         </div>
         <div className="intent-canvas-editor-actions">
           <span className={cn("intent-canvas-save-state", isDirty && "is-dirty")}>
-            {isSaving ? t("保存中...") : isDirty ? t("未保存") : t("已保存")}
+            {isSaving ? t("保存中…") : isDirty ? t("未保存") : t("已保存")}
           </span>
           <button type="button" onClick={() => void handleSave()} disabled={isSaving}>
             <FloppyDisk aria-hidden />
@@ -164,7 +164,7 @@ export function IntentCanvasEditor({
           <Suspense
             fallback={
               <div className="intent-canvas-loading">
-                <CircleNotch aria-hidden className="is-spinning" /> {t("正在加载画布...")}
+                <CircleNotch aria-hidden className="is-spinning" /> {t("正在加载画布…")}
               </div>
             }
           >

@@ -31,7 +31,10 @@ export const MESSAGES = {
 
   // ── SessionGroups (CLI / Shell / SSH) ──
   "终端": "Terminal",
+  "结束会话": "End session",
+  "结束": "End",
   "结束终端会话「{title}」?": "End terminal session \"{title}\"?",
+  "断开会话": "Disconnect session",
   "断开 SSH 会话「{title}」?": "Disconnect SSH session \"{title}\"?",
 
   // ── WorkspaceCard 行动作组 ──
@@ -73,7 +76,7 @@ export const MESSAGES = {
   "切换工作区": "Switch workspace",
 
   // ── SessionManage (管理模式批量条 / 行按钮) ──
-  "更多... (还有 {n} 条)": "More... ({n} remaining)",
+  "更多… (还有 {n} 条)": "More... ({n} remaining)",
   "已选 {n}": "{n} selected",
   "恢复到默认视图": "Restore to default view",
   "归档(默认视图隐藏)": "Archive (hidden in default view)",

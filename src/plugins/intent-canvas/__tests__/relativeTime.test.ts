@@ -30,10 +30,11 @@ describe("formatRelativeCanvasTime", () => {
     expect(result).toBe("昨天");
   });
 
-  it("formats updates within 30 days as N days ago", () => {
+  it("formats updates within 30 days via the kernel relative time", () => {
     const t = createT();
     const result = formatRelativeCanvasTime(new Date(2026, 7, 10, 12, 0).toISOString(), NOW, t);
-    expect(result).toBe("{count} 天前[count=3]");
+    // 相对段已收敛 @kernel/relativeTime(zh 键恒等),不再经注入的 t
+    expect(result).toBe("3 天前");
   });
 
   it("formats older updates in the same year as a date without year", () => {

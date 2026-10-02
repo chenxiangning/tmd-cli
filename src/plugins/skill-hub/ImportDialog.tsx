@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
 import { upsertSkillRecord } from "@plugins/cli-shared/skillRegistry";
 import { ENGINE_LABELS, INSTALL_ENGINES, SHARED_SKILLS_REL, type HubSkill } from "@plugins/cli-shared/skillSources";
 import { ipc } from "@kernel/ipc";
@@ -33,6 +34,8 @@ export function ImportDialog({
   const [error, setError] = useState<string | null>(null);
   const [symlinkNote, setSymlinkNote] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  useEscClose(onClose, busy); /* Esc 关闭;导入中锁定,完成态仍可 Esc 收场 */
 
   useEffect(() => {
     void (async () => {
@@ -111,8 +114,19 @@ export function ImportDialog({
   };
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40">
-      <div className="flex max-h-[85%] w-[460px] flex-col overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-4 shadow-xl" data-import-dialog={skill.name}>
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40" role="presentation">
+      <dialog
+        open
+        aria-label={t("导入技能")}
+        className="relative m-0 flex max-h-[85%] w-[460px] flex-col overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-4 text-left shadow-xl"
+        data-import-dialog={skill.name}
+      >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void go();
+        }}
+      >
         <div className="mb-2 flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">{skill.name}</div>
@@ -202,15 +216,15 @@ export function ImportDialog({
             {t("关闭")}
           </button>
           <button
-            type="button"
-            onClick={() => void go()}
+            type="submit"
             disabled={busy || done}
             className="rounded bg-(--tmd-accent) px-2.5 py-1 text-xs text-white disabled:opacity-50"
           >
             {busy ? t("导入中…") : t("导入")}
           </button>
         </div>
-      </div>
+      </form>
+      </dialog>
     </div>
   );
 }

@@ -52,7 +52,7 @@
 .wm-check.is-on {
   background: var(--tmd-accent);
   border-color: var(--tmd-accent);
-  color: #fff;
+  color: var(--tmd-accent-fg);
 }
 
 /* 行尾动作钮(归档/删除):hover 显形,与扎点开关同节奏。 */

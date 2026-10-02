@@ -114,15 +114,16 @@
 .thread-gear-btn:hover { background: var(--surface-hover); color: var(--text-strong); }
 .thread-actions.open .thread-gear-btn {
   opacity: 1;
-  background: var(--surface, var(--bg-elevated, #fff));
-  box-shadow: 0 0 0 1px var(--border, rgba(0, 0, 0, 0.1));
-  color: var(--text-strong);
+  background: var(--tmd-bg-popover);
+  box-shadow: 0 0 0 1px var(--tmd-border);
+  color: var(--tmd-fg);
   transform: rotate(90deg);
 }
 
 /* 环形操作组(portal + fixed:环心=齿轮屏幕坐标,右半环展开朝编辑区)。
    定位走 transform + --dx/--dy px 变量(JS 注入,含 14px 居中补偿),
-   left/top 恒 0 —— 动画从环心(translate 0)飞到环位,不吃父级 overflow。 */
+   left/top 恒 0 —— 动画从环心(translate 0)飞到环位,不吃父级 overflow。
+   元素经 createPortal 挂 body,侧栏作用域变量不可达,一律用全局 --tmd-*。 */
 .sv-radial {
   position: fixed;
   width: 0;
@@ -140,10 +141,10 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
-  background: var(--surface, var(--bg-elevated, #fff));
+  border: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-popover);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
-  color: var(--text-muted);
+  color: var(--tmd-fg-muted);
   cursor: pointer;
   transform: translate(var(--dx), var(--dy));
   animation: sv-radial-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
@@ -157,17 +158,17 @@
 }
 
 .sv-radial-item:hover {
-  color: var(--text-strong);
-  border-color: var(--text-faint);
+  color: var(--tmd-fg);
+  border-color: var(--tmd-fg-subtle);
   transform: translate(var(--dx), var(--dy)) scale(1.12);
 }
 
-.sv-radial-item.is-danger { color: #cf222e; }
-.sv-radial-item.is-danger:hover { border-color: #cf222e; }
+.sv-radial-item.is-danger { color: var(--tmd-err); }
+.sv-radial-item.is-danger:hover { border-color: var(--tmd-err); }
 .sv-radial-item.is-armed {
-  background: #cf222e;
-  border-color: #cf222e;
-  color: #fff;
+  background: var(--tmd-err);
+  border-color: var(--tmd-err);
+  color: var(--tmd-bg-base);
 }
 
 /* 透明背板(点外关闭,wsmenu-backdrop 同层语义) */

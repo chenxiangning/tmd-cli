@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { formatDate, formatTime } from "@kernel/relativeTime";
 import { listModels, resolveDistillEngine } from "../modelCatalog";
 import { rememberFacts, distillSessionTail } from "../phase2/write";
 
@@ -51,11 +52,7 @@ export function ReadSettingsCard() {
 }
 
 /** ── 写入(d 路):手动一条 + 沉淀所选 omp 会话最近 10 条用户消息 ── */
-export function WriteCard({
-  root,
-  visible,
-  onWritten,
-}: {
+export function WriteCard({ root, visible, onWritten }: {
   root: string;
   /** 池就绪且身份已解析才展示(对应主文件 ready && identity 条件)。 */
   visible: boolean;
@@ -123,7 +120,7 @@ export function WriteCard({
           {ompSessions.map((s) => (
             <option key={s.id} value={s.id}>
               omp · {s.title || s.id.slice(0, 8)} ·{" "}
-              {s.createdAt ? new Date(s.createdAt).toLocaleString("zh-CN") : ""}
+              {s.createdAt ? `${formatDate(s.createdAt)} ${formatTime(s.createdAt)}` : ""}
             </option>
           ))}
         </select>

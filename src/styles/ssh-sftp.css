@@ -71,7 +71,7 @@
 .ssh-form-error {
   width: 100%;
   font-size: 0.625rem;
-  color: #f87171;
+  color: var(--tmd-err);
 }
 .ssh-btn {
   display: inline-flex;
@@ -157,7 +157,7 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-md);
   background: var(--tmd-bg-popover);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
 }
 .ssh-menu button {
   text-align: left;
@@ -173,7 +173,7 @@
   background: var(--tmd-bg-hover);
 }
 .ssh-menu button.is-danger {
-  color: #f87171;
+  color: var(--tmd-err);
 }
 
 /* 传输进度 */

@@ -24,9 +24,7 @@
   /* 容器兜底文字色:pref-title 等只设字重不设色,portal 到 body 后
      继承不到 sidebar 作用域色,dark 下会黑底黑字 */
   color: var(--tmd-fg);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
   scrollbar-width: none;
 }
 

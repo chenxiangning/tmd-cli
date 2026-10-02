@@ -33,7 +33,7 @@
 }
 
 .fvp-error {
-  color: #f87171;
+  color: var(--tmd-err);
 }
 
 /* ── 图片预览(棋盘格底) ── */
@@ -71,7 +71,7 @@
   max-height: 100%;
   object-fit: contain;
   border-radius: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--tmd-shadow-popover);
   min-height: 0;
 }
 

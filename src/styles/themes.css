@@ -55,6 +55,12 @@
   /* 便签/节假日语义色(便签卡·预览·描边,周末节假日标红;深底亮一档保证对比) */
   --tmd-note: #fcd34d;
   --tmd-hol: #fda4a4;
+  /* success/error 为 ok/err 的语义别名,固定语义色不入 preset 映射器 */
+  --tmd-success: #34d399;
+  --tmd-error: #f87171;
+  /* 浮层阴影(弹出菜单/提示卡与模态弹窗两档;深底加重保证可感知) */
+  --tmd-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --tmd-shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.55);
   --tmd-terminal-bg: #0f0f12;
   --tmd-terminal-fg: #d4d4d9;
   --tmd-terminal-cursor: #d4d4d9;
@@ -99,6 +105,12 @@
   /* 便签/节假日语义色(浅底深一档保证对比) */
   --tmd-note: #78350f;
   --tmd-hol: #c0392b;
+  /* success/error 为 ok/err 的语义别名,固定语义色不入 preset 映射器 */
+  --tmd-success: #059669;
+  --tmd-error: #dc2626;
+  /* 浮层阴影(弹出菜单/提示卡与模态弹窗两档;浅底收敛避免压黑) */
+  --tmd-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.13);
+  --tmd-shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.18);
   --tmd-terminal-bg: #ffffff;
   --tmd-terminal-fg: #26262b;
   --tmd-terminal-cursor: #1a1a1e;

@@ -26,6 +26,9 @@ jobs:
       # 架构边界铁则:R1 kernel↛plugins / R3 ipc 唯一通道 / R4 plugins↛app-shell
       - name: 架构边界铁则
         run: pnpm check:arch-boundary
+      # i18n 键三语同步:t() 字面量键 × en/ja 词典全量比对(scripts/check-i18n-keys.mjs)
+      - name: i18n 键三语同步
+        run: pnpm check:i18n-keys
 
       - run: pnpm typecheck
       - run: pnpm test

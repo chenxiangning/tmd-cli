@@ -65,15 +65,18 @@ function SessionCard({
   const view = useSshSession(sessionId);
   const status = view?.status ?? "connecting";
   const [busy, setBusy] = useState(false);
+  /* 重连失败内联红字(原生 alert 清零:复用会话卡消息槽,SshOverlay 同形制)。 */
+  const [error, setError] = useState<string | null>(null);
   /* 重连:后端取原主机配置收尾重建(新会话新 id),旧 tab 随 pty://exit 消亡。 */
   const reconnect = async () => {
     if (busy) return;
     setBusy(true);
+    setError(null);
     try {
       const old = host.getSessions().find((s) => s.id === sessionId);
       await host.createSshSession(sessionId, old?.workspaceId);
     } catch (e) {
-      window.alert(t("重连失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+      setError(t("重连失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
     } finally {
       setBusy(false);
     }
@@ -93,6 +96,11 @@ function SessionCard({
         ) : null}
       </button>
       {view?.message ? <div className="ssh-session-message">{view.message}</div> : null}
+      {error ? (
+        <div className="ssh-session-message" role="alert">
+          {error}
+        </div>
+      ) : null}
       <div className="ssh-session-actions">
         <button
           type="button"
@@ -136,7 +144,8 @@ function PanelSections({ sessionId }: { sessionId: string }) {
   return (
     <>
       <ForwardSection sessionId={sessionId} connected={connected} />
-      <SftpTree sessionId={sessionId} connected={connected} />
+      {/* key=sessionId:会话切换走重挂,树体/错误态天然复位(SftpTree 内不再持 prop 反应 effect)。 */}
+      <SftpTree key={sessionId} sessionId={sessionId} connected={connected} />
     </>
   );
 }

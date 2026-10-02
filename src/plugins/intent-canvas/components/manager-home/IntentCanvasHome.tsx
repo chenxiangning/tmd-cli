@@ -84,7 +84,7 @@ export function IntentCanvasHome(props: IntentCanvasHomeProps) {
           <MagnifyingGlass aria-hidden />
           <input
             value={searchQuery}
-            placeholder={t("搜索标题、摘要或文件路径...")}
+            placeholder={t("搜索标题、摘要或文件路径…")}
             onChange={(event) => props.onSearchQueryChange(event.currentTarget.value)}
           />
         </label>
@@ -134,7 +134,7 @@ export function IntentCanvasHome(props: IntentCanvasHomeProps) {
 
       {status === "loading" && filteredEntries.length === 0 ? (
         <div className="intent-canvas-loading">
-          <CircleNotch aria-hidden className="is-spinning" /> {t("正在加载画布...")}
+          <CircleNotch aria-hidden className="is-spinning" /> {t("正在加载画布…")}
         </div>
       ) : filteredEntries.length === 0 ? (
         <div className="intent-canvas-empty-state">

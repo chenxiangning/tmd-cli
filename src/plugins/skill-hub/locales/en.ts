@@ -29,6 +29,8 @@ export const MESSAGES_EN = {
     "Convention-dir skills are shared by multiple engines, all of them lose it after deletion",
   "移入系统回收站,可从废纸篓恢复": "Moved to system trash, restorable from Trash",
   "已装": "installed",
+  "导入技能": "Import skill",
+  "安装技能": "Install skill",
   "安装": "Install",
   "搜索 ClawHub 技能…": "Search ClawHub skills…",
   "下载最多": "Most downloaded",

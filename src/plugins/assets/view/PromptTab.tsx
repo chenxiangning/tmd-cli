@@ -10,6 +10,9 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowsLeftRight, DownloadSimple, FolderOpen, Pencil, Plus, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { pickDirectory } from "@kernel/ipc";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
+import { useEscClose } from "@kernel/DialogShell";
+import { StyledSelect } from "@kernel/StyledSelect";
 import { useWorkspaces } from "@kernel/workspace";
 import { importCodemossPrompts, importPromptDir, type ImportReport } from "../importCodemoss";
 import { deletePrompt, movePrompt, savePrompt } from "../promptStore";
@@ -24,6 +27,7 @@ export function PromptTab() {
   const [filter, setFilter] = useState<ScopeFilter>("all");
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<PromptEntry | "new" | null>(null);
+  const [deleting, setDeleting] = useState<PromptEntry | null>(null);
   const [report, setReport] = useState("");
 
   const visible = prompts.filter((p) => {
@@ -56,11 +60,16 @@ export function PromptTab() {
   return (
     <div className="assets-tab">
       <div className="assets-toolbar">
-        <select className="assets-select" aria-label={t("作用域筛选")} value={filter} onChange={(e) => setFilter(e.target.value as ScopeFilter)}>
-          <option value="all">{t("全部")}</option>
-          <option value="global">{t("全局")}</option>
-          <option value="workspace">{t("工作区")}</option>
-        </select>
+        <StyledSelect
+          ariaLabel={t("作用域筛选")}
+          value={filter}
+          options={[
+            { value: "all", label: t("全部") },
+            { value: "global", label: t("全局") },
+            { value: "workspace", label: t("工作区") },
+          ]}
+          onChange={(v) => setFilter(v as ScopeFilter)}
+        />
         <input
           className="assets-search"
           value={query}
@@ -113,9 +122,7 @@ export function PromptTab() {
                 <button
                   type="button"
                   className="assets-btn is-danger"
-                  onClick={() => {
-                    if (window.confirm(t("删除提示词「{name}」?(进废纸篓)", { name: p.name }))) void deletePrompt(p);
-                  }}
+                  onClick={() => setDeleting(p)}
                 >
                   <Trash size="0.75rem" /> {t("删除")}
                 </button>
@@ -131,8 +138,39 @@ export function PromptTab() {
           onClose={() => setEditing(null)}
         />
       )}
+      {deleting && (
+        <ConfirmDialog
+          title={t("删除提示词")}
+          message={t("删除提示词「{name}」?(进废纸篓)", { name: deleting.name })}
+          confirmLabel={t("删除")}
+          danger
+          onConfirm={() => void deletePrompt(deleting)}
+          onClose={() => setDeleting(null)}
+        />
+      )}
     </div>
   );
+}
+
+/** 草稿脏判定:任一字段偏离初始值(纯函数抽离降组件复杂度)。 */
+function promptDraftDirty(
+  d: { name: string; description: string; argumentHint: string; content: string; scope: PromptScope },
+  entry: PromptEntry | null,
+): boolean {
+  return (
+    d.name !== (entry?.name ?? "") ||
+    d.description !== (entry?.description ?? "") ||
+    d.argumentHint !== (entry?.argumentHint ?? "") ||
+    d.content !== (entry?.content ?? "") ||
+    d.scope !== (entry?.scope ?? "global")
+  );
+}
+
+/** 提交前校验:返回错误文案或 null(wsId 由调用方按 scope 解析后传入)。 */
+function promptSubmitError(name: string, scope: PromptScope, wsId: string | undefined): string | null {
+  if (!name.trim()) return t("名称必填");
+  if (scope === "workspace" && !wsId) return t("无活跃工作区,无法保存到工作区级");
+  return null;
 }
 
 function PromptModal({
@@ -156,14 +194,17 @@ function PromptModal({
     nameRef.current?.focus();
   }, []);
 
+  /* 键盘回路:Esc 关弹层(与点背板取消同义)。 */
+  useEscClose(onClose);
+
+  /* 脏态守卫:有草稿时点背板不关(防误击丢稿;判定抽纯函数降复杂度)。 */
+  const dirty = promptDraftDirty({ name, description, argumentHint, content, scope }, entry);
+
   const submit = async () => {
-    if (!name.trim()) {
-      setError(t("名称必填"));
-      return;
-    }
     const wsId = scope === "workspace" ? (entry?.wsId ?? activeWsId ?? undefined) : undefined;
-    if (scope === "workspace" && !wsId) {
-      setError(t("无活跃工作区,无法保存到工作区级"));
+    const invalid = promptSubmitError(name, scope, wsId);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     const ok = await savePrompt(scope, wsId, { name, description, argumentHint, content }, entry?.name);
@@ -175,8 +216,25 @@ function PromptModal({
   };
 
   return (
-    <div className="assets-modal-backdrop" onClick={onClose}>
-      <div className="assets-modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="assets-modal-backdrop"
+      role="presentation"
+      onClick={(e) => {
+        if (!dirty && e.target === e.currentTarget) onClose();
+      }}
+    >
+      <dialog
+        open
+        className="assets-modal"
+        aria-label={entry ? t("编辑提示词") : t("新建提示词")}
+      >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
         <div className="assets-modal-title">{entry ? t("编辑提示词") : t("新建提示词")}</div>
         <label className="assets-field">
           <span>{t("名称(!! 触发时的调用名)")}</span>
@@ -194,24 +252,30 @@ function PromptModal({
           <span>{t("正文($NAME 大写占位符,插入后手填)")}</span>
           <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8} />
         </label>
-        <label className="assets-field">
+        <div className="assets-field">
           <span>{t("作用域")}</span>
-          <select
-            className="assets-select"
+          <StyledSelect
+            ariaLabel={t("作用域")}
             value={scope}
             disabled={!!entry}
-            onChange={(e) => setScope(e.target.value as PromptScope)}
-          >
-            <option value="global">{t("全局")}</option>
-            <option value="workspace" disabled={!activeWsId}>{t("工作区(当前活跃工作区)")}</option>
-          </select>
-        </label>
+            options={[
+              { value: "global", label: t("全局") },
+              {
+                value: "workspace",
+                label: t("工作区(当前活跃工作区)"),
+                disabled: !activeWsId,
+              },
+            ]}
+            onChange={(v) => setScope(v as PromptScope)}
+          />
+        </div>
         {error && <div className="assets-error">{error}</div>}
         <div className="assets-modal-actions">
           <button type="button" className="assets-btn" onClick={onClose}>{t("取消")}</button>
-          <button type="button" className="assets-btn is-primary" onClick={() => void submit()}>{t("保存")}</button>
+          <button type="submit" className="assets-btn is-primary">{t("保存")}</button>
         </div>
-      </div>
+      </form>
+      </dialog>
     </div>
   );
 }

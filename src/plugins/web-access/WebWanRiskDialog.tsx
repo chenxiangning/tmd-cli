@@ -25,7 +25,7 @@ export function WebWanRiskDialog({ onAccept, onReject }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-lg border border-[var(--tmd-border)] bg-[var(--tmd-bg)] p-4 shadow-xl">
+      <div className="w-full max-w-md rounded-lg border border-[var(--tmd-border)] bg-[var(--tmd-bg-base)] p-4 shadow-xl">
         <div className="mb-2 flex items-center gap-2 text-base font-semibold text-[var(--tmd-error)]">
           <Warning size="1rem" weight="fill" aria-hidden />
           {t("外网访问:请先了解风险")}

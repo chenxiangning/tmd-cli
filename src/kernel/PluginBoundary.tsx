@@ -52,7 +52,7 @@ export class PluginBoundary extends Component<Props, State> {
             borderRadius: 10,
             border: "1px solid var(--tmd-border, #3a3a3a)",
             background: "var(--tmd-bg-elevated, #232323)",
-            color: "var(--tmd-fg-secondary, #c9c9c9)",
+            color: "var(--tmd-fg-muted)",
             fontSize: 12,
             lineHeight: 1.6,
           }}

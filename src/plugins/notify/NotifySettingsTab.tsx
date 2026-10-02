@@ -6,15 +6,15 @@
  * 零新增 CSS。纯 UI 编排:读写 kernel/settings store 即时生效。
  */
 
+import { useEffect, useState } from "react";
 import { useSettingsState, updateSettings } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { SoundSettingsCard, ToggleRow } from "./SoundSettingsCard";
 
-/** 整数钳制提交:空/非法回落默认 10,越界钳到 0-100。 */
-function commitThreshold(raw: string): void {
+/** 阈值提交纯函数:0-100 钳制;空/非法回落旧值(当前生效值),不是默认 10。 */
+function thresholdFromInput(raw: string, current: number): number {
   const n = Number.parseInt(raw, 10);
-  const value = Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 10;
-  updateSettings({ notifyQuotaWarnPercent: value });
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : current;
 }
 
 /** 卡头:分组标题 + 一句说明(占一个 pref-row 的左列,右侧无控件)。 */
@@ -31,6 +31,18 @@ function CardHead(props: { title: string; desc: string }) {
 
 export function NotifySettingsTab() {
   const { settings } = useSettingsState();
+  /* 受控草稿:回落旧值后显示同步,消「清空输入仍显示旧数」的脱节。 */
+  const [thresholdDraft, setThresholdDraft] = useState(String(settings.notifyQuotaWarnPercent));
+  useEffect(() => {
+    setThresholdDraft(String(settings.notifyQuotaWarnPercent));
+  }, [settings.notifyQuotaWarnPercent]);
+  const commitThreshold = (raw: string) => {
+    const next = thresholdFromInput(raw, settings.notifyQuotaWarnPercent);
+    setThresholdDraft(String(next));
+    if (next !== settings.notifyQuotaWarnPercent) {
+      updateSettings({ notifyQuotaWarnPercent: next });
+    }
+  };
 
   const osToggles = [
     {
@@ -87,13 +99,14 @@ export function NotifySettingsTab() {
             min={0}
             max={100}
             step={5}
-            defaultValue={settings.notifyQuotaWarnPercent}
-            key={settings.notifyQuotaWarnPercent}
+            value={thresholdDraft}
+            onChange={(e) => setThresholdDraft(e.target.value)}
             onBlur={(e) => commitThreshold(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") commitThreshold((e.target as HTMLInputElement).value);
             }}
             aria-label={t("额度预警阈值百分比")}
+            title={t("0–100 的整数;清空或非法输入将保持当前值。")}
             className="w-20 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
           />
         </div>

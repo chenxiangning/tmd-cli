@@ -96,7 +96,7 @@ export function BasicAppearanceTab() {
         <div>
           <div className="pref-title">{t("会话标题 tab 条")}</div>
           <div className="pref-desc">
-            {t("顶栏中央展示已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。")}
+            {t("顶栏中央展示已打开的会话,点击切换;关闭后仍可从左侧栏进入会话。")}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -187,11 +187,15 @@ export function BasicAppearanceTab() {
                   <button
                     key={preset.id}
                     type="button"
-                    className={`preset-card${preset.id === settings.customThemePresetId ? " is-active" : ""}`}
+                    className={`preset-card${settings.theme === "custom" && preset.id === settings.customThemePresetId ? " is-active" : ""}`}
                     onClick={() =>
                       updateSettings({
                         theme: "custom",
                         customThemePresetId: preset.id,
+                        /* 同步落浅色/深色槽位:浅色/深色/跟随系统模式切回后也吃到新预设 */
+                        ...(preset.appearance === "light"
+                          ? { lightThemePresetId: preset.id }
+                          : { darkThemePresetId: preset.id }),
                       })
                     }
                   >

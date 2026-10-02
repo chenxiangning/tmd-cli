@@ -94,9 +94,9 @@ export function parseNpmSearch(body: unknown): ExtCatalogEntry[] {
 }
 
 /**
- * 多来源合并:按包名去重(先到者优先,后续来源只补描述/主页缺口),
- * 排除官方包,周下载量降序取前 CAP。静态表作为末位来源传入即实现
- * 「兜底 + 补全」双语义。
+ * 多来源合并:按包名去重(先到者优先,后续来源只补描述/主页缺口与精选标记),
+ * 排除官方包;精选条目置顶且豁免 CAP 截断,其余周下载量降序取前 CAP。
+ * 静态表作为末位来源传入即实现「兜底 + 补全」双语义。
  */
 export function mergeCatalog(
   lists: ExtCatalogEntry[][],
@@ -115,14 +115,23 @@ export function mergeCatalog(
         existing.description = entry.description;
       if (existing.homepage === null && entry.homepage)
         existing.homepage = entry.homepage;
+      existing.curated ||= entry.curated;
     }
   }
-  return [...byName.values()]
+  /* 精选(人工审校)条目零下载居多,纯按下载排序会沉底被 CAP 截掉 ——
+   * 在线精选语义失灵的根因。置顶豁免:精选全保留且组内保持表中原序,
+   * 非精选组内仍按周下载降序取前 cap。 */
+  const all = [...byName.values()];
+  const curatedTop = all.filter((e) => e.curated);
+  const rest = all
+    .filter((e) => !e.curated)
     .sort((a, b) => b.weeklyDownloads - a.weeklyDownloads)
     .slice(0, cap);
+  return [...curatedTop, ...rest];
 }
 
-/** 拉取目录(20s 缓存;force 强刷)。双关键词全败 → 静态精选表 + offline 标记。 */
+/** 拉取目录(20s 缓存;force 强刷)。双关键词全败 → 静态精选表 + offline 标记
+ * (离线表全为精选原序直出,置顶/豁免语义天然成立)。 */
 
 /* 强刷竞态守卫:force 与首发并发在飞时,只有最后一次发起的结果允许落缓存/
  * 返回调用方,防旧响应后到覆盖新目录。 */

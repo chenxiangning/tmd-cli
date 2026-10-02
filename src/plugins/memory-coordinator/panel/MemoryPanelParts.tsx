@@ -13,7 +13,7 @@ import { type MemoryItem } from "../protocol";
 import { memoryPool } from "../pool";
 import { toggleConsoleTab } from "../console/consoleTab";
 import { t } from "@kernel/i18n";
-import { getSettingsState } from "@kernel/settings";
+import { formatDate } from "@kernel/relativeTime";
 import { categoryLabel, highlight } from "./memoryText";
 
 /**
@@ -99,8 +99,8 @@ export function MemoryListItem({
           <span>·</span>
           <span>{m.harness || "pi"}</span>
           <span>·</span>
-          {/* 语言切换整树重挂载(kernel/i18n),非响应式读当前语言即可 */}
-          <span>{new Date(m.updatedAt).toLocaleDateString(getSettingsState().settings.language)}</span>
+          {/* 语言切换整树重挂载(kernel/i18n),formatDate 非响应式读当前语言即可 */}
+          <span>{formatDate(m.updatedAt)}</span>
           <CaretDown
             size="0.6875rem"
             className={`ml-auto transition-transform ${expanded ? "rotate-180" : ""}`}

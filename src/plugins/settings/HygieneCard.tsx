@@ -31,7 +31,7 @@ export function HygieneCard() {
         <div>
           <div className="pref-title">{t("会话自动清理")}</div>
           <div className="pref-desc">
-            {t("超过设定时长没有活动的会话自动转入归档；其中从未发过消息的空会话直接删除。工作区展开或手动刷新时执行，不后台轮询。")}
+            {t("超过设定时长没有活动的会话自动转入归档;其中从未发过消息的空会话直接删除。工作区展开或手动刷新时执行,不后台轮询。")}
           </div>
         </div>
         <div className="segmented" role="radiogroup" aria-label={t("会话自动清理")}>
@@ -74,7 +74,7 @@ export function HygieneCard() {
               触发),且结果不落盘、无统计可读 —— 按审计预案落说明文案。 */}
           <div className="pref-row">
             <div>
-              <div className="pref-desc">{t("清扫随会话磁盘扫描自动进行（展开工作区或手动刷新即触发），暂无独立的手动清扫入口与上次清扫回执。")}</div>
+              <div className="pref-desc">{t("清扫随会话磁盘扫描自动进行(展开工作区或手动刷新即触发),暂无独立的手动清扫入口与上次清扫回执。")}</div>
             </div>
           </div>
         </>

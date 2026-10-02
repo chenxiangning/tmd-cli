@@ -20,9 +20,7 @@
   background: var(--tmd-bg-popover, var(--tmd-bg-elevated));
   /* 容器兜底文字色:portal 后继承不到 sidebar 作用域色 */
   color: var(--tmd-fg);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
   font-size: 0.75rem;
   line-height: 1.5;
 }

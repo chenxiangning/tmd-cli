@@ -187,7 +187,7 @@
 
 .fvp-file-markdown-mermaid-tab.is-active {
   color: var(--text-stronger);
-  background: color-mix(in srgb, var(--surface-control) 76%, #79a6ff 10%);
+  background: color-mix(in srgb, var(--surface-control) 76%, var(--tmd-accent) 10%);
 }
 
 .fvp-file-markdown-mermaid-tab:focus-visible {

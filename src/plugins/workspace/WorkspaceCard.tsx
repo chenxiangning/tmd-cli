@@ -78,6 +78,7 @@ export function WorkspaceCard({
             type="button"
             className="workspace-folder-btn workspace-collapse-toggle"
             title={collapsed ? t("展开会话列表") : t("折叠会话列表")}
+            aria-label={collapsed ? t("展开会话列表") : t("折叠会话列表")}
             aria-expanded={!collapsed}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -165,6 +166,7 @@ export function WorkspaceCard({
               type="button"
               className="workspace-action-btn"
               title={t("查看文件")}
+              aria-label={t("查看文件")}
               onClick={(e) => {
                 e.stopPropagation();
                 openWorkspaceFiles(workspace.id);
@@ -177,6 +179,7 @@ export function WorkspaceCard({
             type="button"
             className={`workspace-action-btn${manage ? " is-on" : ""}`}
             title={t("会话管理")}
+            aria-label={t("会话管理")}
             aria-pressed={manage}
             onClick={(e) => {
               e.stopPropagation();
@@ -189,6 +192,7 @@ export function WorkspaceCard({
             type="button"
             className={`workspace-action-btn${rowRefreshing ? " is-refreshing" : ""}`}
             title={t("刷新会话")}
+            aria-label={t("刷新会话")}
             onClick={(e) => {
               e.stopPropagation();
               onRefreshWorkspace(workspace.id);
@@ -200,6 +204,7 @@ export function WorkspaceCard({
             type="button"
             className="workspace-action-btn is-newchat"
             title={t("新建会话")}
+            aria-label={t("新建会话")}
             onClick={(e) => {
               e.stopPropagation();
               onShowMenu(workspace, e.clientX, e.clientY);

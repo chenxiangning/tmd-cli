@@ -134,7 +134,9 @@ export const MESSAGES_EN = {
   "No oneshotArgs: generation falls back to a TUI session; keep the terminal open",
   "{engine} 未声明 modelArg/无头模板,模型不可指定(用引擎默认)":
   "{engine} declares neither modelArg nor a headless template; the model can't be set (engine default applies)",
-  // NoteEditor 弃稿确认(0.2.7)
+  // NoteEditor 弃稿确认(0.2.7;ConfirmDialog 化后补标题/确认词)
+  "丢弃修改": "Discard changes",
+  "丢弃": "Discard",
   "便签有未保存修改,丢弃?": "The note has unsaved changes. Discard?",
   // 月历与流转图导航/徽标(2026-10 i18n 收口)
   "上一年": "Previous year",

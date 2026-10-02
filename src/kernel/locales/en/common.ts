@@ -148,7 +148,7 @@ export const MESSAGES = {
     "Network request failed: {reason}. If your network needs a proxy, enable \"Network proxy\" in the settings menu and retry.",
 
   // ── 入口 ──
-  "插件激活失败：{error}": "Plugin activation failed: {error}",
+  "插件激活失败:{error}": "Plugin activation failed: {error}",
 
   // ── 重命名输入 ──
   "会话名称(留空清除命名)": "Session name (empty to clear)",
@@ -161,7 +161,7 @@ export const MESSAGES = {
   "关闭 (Esc)": "Close (Esc)",
   "终端复制/停止菜单": "Terminal copy/stop menu",
   "停止终端": "Stop terminal",
-  "刷新幕布(重建本会话终端画面,PTY 不中断)": "Refresh canvas (rebuild this session's terminal view; PTY keeps running)",
+  "刷新幕布(重建本会话终端画面,PTY 不中断)": "Refresh terminal (rebuild this session's terminal view; PTY keeps running)",
   "插件「{id}」界面渲染崩溃,该贡献位已停用": "Plugin \"{id}\" UI crashed; this contribution is disabled",
   "重试该贡献位": "Retry this contribution",
   "重启应用或重载页面可重置;反复出现请反馈本条原因文案。": "Restart the app or reload the page to reset; please report the reason text if it keeps happening.",
@@ -189,6 +189,7 @@ export const MESSAGES = {
   "已更新 · 重启生效": "Updated · applies after restart",
   "已更新 · 待启用": "Updated · enable required",
   "待启用": "Pending enable",
+  "删除本地插件": "Delete local plugin",
   "把插件 {id} 移入系统废纸篓?(重启后卸载,可从废纸篓找回)":
     "Move plugin {id} to system trash? (Unloads after restart; recoverable from trash)",
   "v{v} · 本地": "v{v} · Local",

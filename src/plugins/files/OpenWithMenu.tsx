@@ -105,7 +105,7 @@ export function OpenWithMenu({ path }: { path: string }) {
         type="button"
         className="ow-split-action"
         onClick={() => openWithTarget(def)}
-        title={`${t("用")} ${def.label} ${t("打开")}`}
+        title={t("用 {label} 打开", { label: def.label })}
       >
         <OpenWithIcon target={def} size="0.75rem" />
         <span className="ow-split-label">{def.label}</span>

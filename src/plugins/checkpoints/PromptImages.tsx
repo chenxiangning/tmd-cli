@@ -65,7 +65,7 @@ function Thumb({
     <button
       type="button"
       disabled={!src}
-      className="flex h-[72px] w-24 flex-none items-center justify-center overflow-hidden rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) hover:border-(--tmd-border-strong) disabled:cursor-default"
+      className="flex h-[72px] w-24 flex-none items-center justify-center overflow-hidden rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) hover:border-(--tmd-border-strong)"
       title={t("{name} —— 点击放大查看", { name: fileName(path) })}
       onClick={() => src && onOpen(src, fileName(path))}
     >

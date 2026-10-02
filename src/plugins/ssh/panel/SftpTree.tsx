@@ -6,7 +6,7 @@
  * 共享类型与传输动作拆至 sftpTreeShared.ts(文件规模铁则)。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DownloadSimple, FolderSimple, ArrowClockwise, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type SftpEntry, type SftpTransferState } from "@kernel/ipc";
 import { openTab } from "@kernel/tabs";
@@ -21,6 +21,7 @@ import {
 } from "./sftpTreeShared";
 import { TreeRows } from "./SftpTreeRows";
 import { TreeMenu } from "./SftpTreeMenu";
+import { TreeDialog, type TreeDialogAction, type TreeDialogState } from "./SftpTreeDialogs";
 
 /** 远端编辑 tab 打开入口(tab.id = ssh://{sessionId}{path},kind = "ssh-file")。 */
 function openRemoteFileTab(sessionId: string, entry: SftpEntry) {
@@ -37,11 +38,30 @@ function openRemoteFileTab(sessionId: string, entry: SftpEntry) {
 }
 
 export function SftpTree({ sessionId, connected }: { sessionId: string; connected: boolean }) {
-  const nodes = useRef(new Map<string, TreeNode>());
+  /* 根 Map 惰性初始化(挂载点 key=sessionId,本组件 prop 恒定无需 reset effect);
+     getter 门面(useMemo 保恒等引用,回调依赖可稳定)保 nodes.current 恒非空类型,
+     reload 走 clear() 原地复位。 */
+  const nodesRef = useRef<Map<string, TreeNode> | null>(null);
+  const nodes = useMemo<{ readonly current: Map<string, TreeNode> }>(
+    () => ({
+      get current() {
+        nodesRef.current ??= new Map([
+          [".", { path: ".", name: "/", kind: "dir", expanded: false, loading: false } satisfies TreeNode],
+        ]);
+        return nodesRef.current;
+      },
+    }),
+    [],
+  );
   const [, bump] = useState(0);
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [dialog, setDialog] = useState<TreeDialogState | null>(null);
+  /* 操作失败内联红字(原生 alert 清零:与 ForwardSection 表单红字同形制)。 */
+  const [error, setError] = useState<string | null>(null);
   const transfers = useSshTransfers(sessionId);
   const rerender = useCallback(() => bump((n) => n + 1), []);
+  /* 传输动作返回错误文案(undefined = 成功/取消),统一落内联红字并顺手清旧错。 */
+  const report = useCallback((err?: string) => setError(err ?? null), []);
 
   const nodeFor = useCallback(
     (path: string, name: string, kind: "dir" | "file"): TreeNode => {
@@ -54,14 +74,8 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
       node.kind = kind;
       return node;
     },
-    [],
+    [nodes],
   );
-
-  useEffect(() => {
-    nodes.current = new Map();
-    nodeFor(".", "/", "dir");
-    rerender();
-  }, [sessionId, nodeFor, rerender]);
 
   const toggle = useCallback(
     async (node: TreeNode) => {
@@ -72,6 +86,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
         return;
       }
       node.loading = true;
+      setError(null);
       rerender();
       try {
         const entries = await ipc.sftpList(sessionId, node.path);
@@ -79,7 +94,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
         node.expanded = true;
       } catch (e) {
         node.children = [];
-        window.alert(t("读取远端目录失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+        setError(t("读取远端目录失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
       } finally {
         node.loading = false;
         rerender();
@@ -89,15 +104,15 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
   );
 
   const reloadAll = useCallback(() => {
-    nodes.current = new Map();
+    nodes.current.clear();
     nodeFor(".", "/", "dir");
     void toggle(nodes.current.get(".")!);
-  }, [nodeFor, toggle]);
+  }, [nodeFor, toggle, nodes]);
 
   useEffect(() => {
     if (!connected) return;
     void toggle(nodes.current.get(".")!);
-  }, [connected, toggle]);
+  }, [connected, toggle, nodes]);
 
   const openFile = useCallback(
     (node: TreeNode) => {
@@ -110,6 +125,16 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
       });
     },
     [sessionId],
+  );
+
+  /* 传输动作具名 async handler(错误经 report 落内联红字,不再 JSX 内 .then)。 */
+  const onUpload = useCallback(
+    async () => report(await uploadPicked(sessionId, reloadAll)),
+    [report, sessionId, reloadAll],
+  );
+  const onDownloadRoot = useCallback(
+    async () => report(await downloadNode(sessionId, nodes.current.get(".")!, true)),
+    [report, sessionId, nodes],
   );
 
   const active = transfers.filter((t) => t.status === "running" || t.status === "queued");
@@ -133,7 +158,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           className="ssh-icon-btn"
           title={t("上传文件")}
           disabled={!connected}
-          onClick={() => void uploadPicked(sessionId, reloadAll)}
+          onClick={() => void onUpload()}
         >
           <UploadSimple size="0.75rem" />
         </button>
@@ -142,11 +167,16 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           className="ssh-icon-btn"
           title={t("下载根目录")}
           disabled={!connected}
-          onClick={() => void downloadNode(sessionId, nodes.current.get(".")!, true)}
+          onClick={() => void onDownloadRoot()}
         >
           <DownloadSimple size="0.75rem" />
         </button>
       </div>
+      {error ? (
+        <div className="ssh-form-error" role="alert">
+          {error}
+        </div>
+      ) : null}
       {!connected ? (
         <div className="ssh-section-empty">{t("连接建立后可浏览与编辑远端文件")}</div>
       ) : (
@@ -174,6 +204,17 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
           state={menu}
           onClose={() => setMenu(null)}
           onMutate={reloadAll}
+          onAction={(kind: TreeDialogAction) => setDialog({ kind, node: menu.node })}
+          onError={setError}
+        />
+      ) : null}
+      {dialog ? (
+        <TreeDialog
+          sessionId={sessionId}
+          state={dialog}
+          onMutate={reloadAll}
+          onClose={() => setDialog(null)}
+          onError={setError}
         />
       ) : null}
     </div>

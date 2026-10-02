@@ -198,6 +198,9 @@
   padding-top: 10vh;
 }
 .assets-modal {
+  /* 原生 dialog 化:归零 UA 定位,交由 flex 背板居中。 */
+  position: relative;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -208,7 +211,7 @@
   border-radius: 10px;
   background: var(--tmd-bg-popover);
   padding: 14px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--tmd-shadow-modal);
 }
 .assets-modal-title {
   font-size: 0.8125rem;

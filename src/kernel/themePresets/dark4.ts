@@ -1,8 +1,30 @@
 /**
  * tmd 原创深色主题 preset(低饱和高级灰取向,2026-10-02 定稿,原型见 docs/design/premium-themes.html)。
- * 非 codemoss 移植件,不受「勿手改」约束;键集合须与 dark 族单一签名一致(38 键,主题不变量测试钉死)。
+ * 非 codemoss 移植件,不受「勿手改」约束;键集合与 light 族对齐(核心 38 键 + ansi16,主题不变量测试钉死)。
+ * terminal.ansi* 16 色以 VS Code 深色默认表(themeTokens 兜底同源)为底逐槽降饱和一档
+ * (石墨 #0f0f12 / 黛蓝 #0e1218 / 暖炭 #131110 底上取低饱和高级灰取向,饱和度约降至 45-55%,
+ * 亮度微升保对比;black 槽提为近底深灰,作前景不再隐形)。
  */
 import type { ThemePresetDefinition, ThemePresetId } from "./index";
+
+const DARK_ANSI = {
+  "terminal.ansiBlack": "#2c2c33",
+  "terminal.ansiRed": "#cd5c5c",
+  "terminal.ansiGreen": "#4fb87f",
+  "terminal.ansiYellow": "#cfc063",
+  "terminal.ansiBlue": "#6b8fc9",
+  "terminal.ansiMagenta": "#b475b4",
+  "terminal.ansiCyan": "#5bb3c4",
+  "terminal.ansiWhite": "#d4d4d9",
+  "terminal.ansiBrightBlack": "#75757c",
+  "terminal.ansiBrightRed": "#e07a7a",
+  "terminal.ansiBrightGreen": "#6cc695",
+  "terminal.ansiBrightYellow": "#d8cf6e",
+  "terminal.ansiBrightBlue": "#82a8e0",
+  "terminal.ansiBrightMagenta": "#cf9bcf",
+  "terminal.ansiBrightCyan": "#7cc4d4",
+  "terminal.ansiBrightWhite": "#e8e8ec"
+};
 
 export const DARK_PRESETS_PART4 = {
   "tmd-graphite": {
@@ -46,7 +68,8 @@ export const DARK_PRESETS_PART4 = {
       "editorGutter.deletedBackground": "#e5484d",
       "textLink.foreground": "#7c7ce0",
       "badge.background": "#2a2a31",
-      "badge.foreground": "#d4d4d9"
+      "badge.foreground": "#d4d4d9",
+      ...DARK_ANSI
     },
     "syntax": {
       "keyword": "#8a86e8",
@@ -105,7 +128,8 @@ export const DARK_PRESETS_PART4 = {
       "editorGutter.deletedBackground": "#e5484d",
       "textLink.foreground": "#6fa3d8",
       "badge.background": "#232b36",
-      "badge.foreground": "#ccd3dc"
+      "badge.foreground": "#ccd3dc",
+      ...DARK_ANSI
     },
     "syntax": {
       "keyword": "#8a9fd8",
@@ -164,7 +188,8 @@ export const DARK_PRESETS_PART4 = {
       "editorGutter.deletedBackground": "#e5484d",
       "textLink.foreground": "#d0975c",
       "badge.background": "#2a2521",
-      "badge.foreground": "#d6d0c8"
+      "badge.foreground": "#d6d0c8",
+      ...DARK_ANSI
     },
     "syntax": {
       "keyword": "#c98d6b",

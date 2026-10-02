@@ -238,7 +238,7 @@ function PreviewPane({
       <div className="mt-1 flex min-h-0 flex-1 flex-col">
         {loading ? (
           <div className="px-1 py-2 text-xs text-(--tmd-fg-faint)">
-            {title === t("本次推送提交") ? t("正在加载推送预览提交...") : t("正在加载提交详情...")}
+            {title === t("本次推送提交") ? t("正在加载推送预览提交…") : t("正在加载提交详情…")}
           </div>
         ) : error ? (
           <div className="px-1 py-2 text-xs leading-5 text-(--tmd-diff-removed)">{error}</div>

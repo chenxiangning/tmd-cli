@@ -156,7 +156,7 @@ export function ExtCard({
       const ok = await runPluginAction(entry.name, kind, push);
       push(
         ok
-          ? t("—— 完成。已开会的会话不热加载,重开会话生效 ——")
+          ? t("—— 完成。已开的会话不热加载,重开会话生效 ——")
           : t("—— 失败:命令非零退出,详见上方日志 ——"),
       );
     } catch (e) {

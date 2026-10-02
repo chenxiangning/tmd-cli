@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { formatTime } from "@kernel/relativeTime";
 import { useSettingsState } from "@kernel/settings";
 import { getSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, shortId } from "@kernel/sessionTitles";
@@ -99,7 +100,7 @@ export function ApprovalInboxPanel() {
                 <div key={`${r.sessionId}-${r.ts}`} className="mb-1.5">
                   <div className="flex items-baseline gap-1.5">
                     <span className="flex-none font-mono text-[0.5625rem] text-(--tmd-fg-faint)">
-                      {new Date(r.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {formatTime(r.ts)}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted)" title={r.question}>
                       {r.question}

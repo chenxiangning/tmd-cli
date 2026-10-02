@@ -47,7 +47,7 @@ function item(
       type="button"
       disabled={extra?.disabled}
       title={extra?.title}
-      className={`wsmenu-item disabled:opacity-40 disabled:cursor-default${
+      className={`wsmenu-item disabled:opacity-40${
         extra?.danger ? " is-danger" : ""
       }`}
       onClick={onPick}
@@ -95,7 +95,7 @@ function CheckoutGroup({ ctx }: { ctx: MenuCtx }) {
             disabled: ctx.isCurrent || ctx.busy,
             title: ctx.isCurrent ? t("已是当前分支") : undefined,
           })}
-      {item(t("从 {branch} 新建分支...", { branch: ctx.branch.name }), <Plus size="0.8125rem" />, pick(ctx, ctx.actions.createFrom), { disabled: ctx.busy })}
+      {item(t("从 {branch} 新建分支…", { branch: ctx.branch.name }), <Plus size="0.8125rem" />, pick(ctx, ctx.actions.createFrom), { disabled: ctx.busy })}
       {item(
         t("签出并变基到 {branch}", { branch: ctx.currentName ?? "?" }),
         <Repeat size="0.8125rem" />,
@@ -162,7 +162,7 @@ function RemoteSyncGroup({ ctx }: { ctx: MenuCtx }) {
         title: upstreamBlocked(ctx) ? t("无 upstream") : t("只刷新远端引用,不动本地分支"),
       })}
       {!ctx.isRemote &&
-        item(t("推送..."), <UploadSimple size="0.8125rem" />, pick(ctx, ctx.actions.push), {
+        item(t("推送…"), <UploadSimple size="0.8125rem" />, pick(ctx, ctx.actions.push), {
           disabled: ctx.busy || !ctx.isCurrent,
           title: !ctx.isCurrent ? t("仅当前分支可推送") : t("打开推送对话框(可预览/选目标)"),
         })}
@@ -175,7 +175,7 @@ function LocalMutateGroup({ ctx }: { ctx: MenuCtx }) {
   if (ctx.isRemote) return null;
   return (
     <>
-      {item(t("重命名..."), <Pencil size="0.8125rem" />, pick(ctx, ctx.actions.rename), { disabled: ctx.busy })}
+      {item(t("重命名…"), <Pencil size="0.8125rem" />, pick(ctx, ctx.actions.rename), { disabled: ctx.busy })}
       {item(t("删除"), <Trash size="0.8125rem" />, pick(ctx, ctx.actions.remove), {
         danger: true,
         disabled: ctx.isCurrent || ctx.busy,

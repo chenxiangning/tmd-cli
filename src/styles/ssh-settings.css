@@ -83,6 +83,9 @@
   padding-top: 10vh;
 }
 .ssh-modal {
+  /* 原生 dialog 化:归零 UA 定位,交由 flex 背板居中。 */
+  position: relative;
+  margin: 0;
   width: 440px;
   max-height: 74vh;
   overflow-y: auto;
@@ -253,7 +256,7 @@
 }
 .ssh-editor-banner {
   font-size: 0.625rem;
-  color: #f59e0b;
+  color: var(--tmd-warn);
   flex: none;
 }
 .ssh-editor-bar .ssh-btn {
@@ -263,8 +266,8 @@
 .ssh-editor-warn {
   padding: 4px 10px;
   font-size: 0.6875rem;
-  color: #f59e0b;
-  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  color: var(--tmd-warn);
+  background: color-mix(in srgb, var(--tmd-warn) 12%, transparent);
 }
 .ssh-editor-body {
   flex: 1;

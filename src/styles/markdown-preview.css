@@ -133,7 +133,7 @@
   padding: 10px 12px;
   border: 1px solid var(--fvp-markdown-rule);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-card) 92%, #5fa3ff 4%);
+  background: color-mix(in srgb, var(--surface-card) 92%, var(--tmd-accent) 4%);
 }
 
 .fvp-file-markdown-frontmatter-label {

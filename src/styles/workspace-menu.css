@@ -24,7 +24,7 @@
   --border-subtle: var(--tmd-border);
   --border-quiet: var(--tmd-border);
   --accent-primary: var(--tmd-accent);
-  --danger-strong: #f87171;
+  --danger-strong: var(--tmd-err);
 
   position: fixed;
   z-index: 1201;
@@ -36,9 +36,7 @@
   border-radius: 12px;
   border: 1px solid var(--border-quiet);
   background: var(--surface-sidebar-opaque);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
   scrollbar-width: none;
 }
 
@@ -104,7 +102,7 @@
 
 .wsmenu-item:disabled {
   color: var(--tmd-fg-faint);
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .wsmenu-item:disabled:hover {
@@ -156,9 +154,7 @@
   border-radius: 12px;
   border: 1px solid var(--border-quiet);
   background: var(--surface-sidebar-opaque);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
 }
 
 .wsmenu-item-refresh {
@@ -218,9 +214,7 @@
   border-radius: 12px;
   background: var(--tmd-bg-popover);
   color: var(--tmd-fg);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
   transform-origin: left center;
   animation: wsadd-in 0.14s ease-out;
 }

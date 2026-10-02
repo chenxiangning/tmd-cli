@@ -56,7 +56,7 @@
 }
 
 .fvp-pdf-page-error {
-  color: #f87171;
+  color: var(--tmd-err);
 }
 
 .fvp-pdf-canvas {
@@ -65,7 +65,7 @@
   align-self: center;
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--tmd-shadow-modal);
 }
 
 /* ── 表格 ── */
@@ -88,7 +88,7 @@
 
 .fvp-tabular-sheet-tab.is-active {
   border-color: color-mix(in srgb, var(--border-accent) 66%, transparent);
-  background: color-mix(in srgb, var(--surface-active) 52%, #5f9dff 10%);
+  background: color-mix(in srgb, var(--surface-active) 52%, var(--tmd-accent) 10%);
   color: var(--text-stronger);
 }
 

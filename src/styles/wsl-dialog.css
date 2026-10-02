@@ -25,9 +25,7 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-popover);
-  box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.26),
-    0 4px 16px rgba(0, 0, 0, 0.14);
+  box-shadow: var(--tmd-shadow-modal);
   padding: 0 16px 16px;
 }
 .wsl-dialog-head {

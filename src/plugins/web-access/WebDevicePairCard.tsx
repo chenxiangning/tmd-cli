@@ -22,6 +22,7 @@ import {
 import { isWeb } from "@kernel/transport";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
+import { formatRelativeTime } from "@kernel/relativeTime";
 
 const TTL_WARN_SECS = 60;
 
@@ -31,12 +32,10 @@ function fmtTtl(secs: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/** 上次活跃/发起时刻(秒级 epoch,now 为服务端对表钟)—— 相对时间引
+ *  @kernel/relativeTime 全仓唯一实现(2026-09-29 四源收敛,本地手写版已删)。 */
 function fmtLastSeen(ts: number, now: number): string {
-  const d = now - ts;
-  if (d < 60) return t("刚刚");
-  if (d < 3600) return t("{n} 分钟前", { n: Math.floor(d / 60) });
-  if (d < 86400) return t("{n} 小时前", { n: Math.floor(d / 3600) });
-  return t("{n} 天前", { n: Math.floor(d / 86400) });
+  return formatRelativeTime(ts * 1000, now * 1000);
 }
 
 export function WebDevicePairCard() {

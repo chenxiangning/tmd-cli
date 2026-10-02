@@ -85,7 +85,7 @@ export const MESSAGES = {
   "检出到本地": "Check out locally",
   "切换": "Switch",
   "已是当前分支": "Already the current branch",
-  "从 {branch} 新建分支...": "New branch from {branch}...",
+  "从 {branch} 新建分支…": "New branch from {branch}...",
   "签出并变基到 {branch}": "Check out and rebase onto {branch}",
   "与 {branch} 比较": "Compare with {branch}",
   "显示与工作树的差异": "Show diff with working tree",
@@ -99,10 +99,10 @@ export const MESSAGES = {
   "获取": "Fetch",
   "无 upstream": "No upstream",
   "只刷新远端引用,不动本地分支": "Only refreshes remote refs; local branches untouched",
-  "推送...": "Push...",
+  "推送…": "Push...",
   "仅当前分支可推送": "Only the current branch can be pushed",
   "打开推送对话框(可预览/选目标)": "Open the push dialog (preview and target selection)",
-  "重命名...": "Rename...",
+  "重命名…": "Rename...",
 
   /* 创建 PR 对话框(mossx 复刻;spec 2026-09-15) */
   "创建 PR": "Create PR",
@@ -144,7 +144,7 @@ export const MESSAGES = {
   "新建分支": "New branch",
   "基于分支:": "Based on branch:",
   "新分支名": "New branch name",
-  "新分支名...": "New branch name...",
+  "新分支名…": "New branch name...",
   "搜索分支…": "Search branches…",
   "没有匹配的分支": "No matching branches",
   "创建": "Create",
@@ -193,9 +193,9 @@ export const MESSAGES = {
   "已到最早提交": "Reached the earliest commit",
 
   /* 工作区右键菜单(app-shell/WorkspaceSubbar) */
-  "提交目录...": "Commit directory...",
+  "提交目录…": "Commit directory...",
   "添加 / 暂存全部": "Add / stage all",
-  "提取...": "Fetch...",
+  "提取…": "Fetch...",
 
   /* worktree 编排 */
   "Worktree 管理": "Worktree manager",

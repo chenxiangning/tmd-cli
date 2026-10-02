@@ -41,10 +41,22 @@ function ExtMarketHead({
         </span>
       ) : null}
       <span className="omp-ext-head-space" />
-      <button type="button" className="omp-ext-iconbtn" title={t("刷新")} onClick={onRefresh}>
+      <button
+        type="button"
+        className="omp-ext-iconbtn"
+        title={t("刷新")}
+        aria-label={t("刷新")}
+        onClick={onRefresh}
+      >
         <ArrowClockwise size="0.75rem" aria-hidden />
       </button>
-      <button type="button" className="omp-ext-iconbtn" title={t("关闭")} onClick={onClose}>
+      <button
+        type="button"
+        className="omp-ext-iconbtn"
+        title={t("关闭")}
+        aria-label={t("关闭")}
+        onClick={onClose}
+      >
         <Cross size="0.875rem" aria-hidden />
       </button>
     </header>

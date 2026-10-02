@@ -87,7 +87,7 @@
   color: var(--tmd-fg);
   font-size: 0.6875rem;
   line-height: 1.4;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--tmd-shadow-popover);
   animation: rail-toast-in 0.18s ease-out;
   pointer-events: none;
 }
@@ -209,7 +209,7 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-popover);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--tmd-shadow-popover);
   transform: translateY(-50%);
   pointer-events: none;
   z-index: 90;

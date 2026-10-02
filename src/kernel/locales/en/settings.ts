@@ -33,7 +33,7 @@ export const MESSAGES = {
   "当前使用自定义主题({preset},{appearance})。": "Using custom theme ({preset}, {appearance}).",
   "当前固定使用 {appearance} 外观。": "Fixed to {appearance} appearance.",
   "会话标题 tab 条": "Session title tabs",
-  "顶栏中央展示已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。":
+  "顶栏中央展示已打开的会话,点击切换;关闭后仍可从左侧栏进入会话。":
     "Show open sessions in the center of the title bar; click to switch. Closed sessions remain reachable from the left sidebar.",
   "会话标题 tab 条容量": "Session tab capacity",
   "上限": "Max",
@@ -49,13 +49,13 @@ export const MESSAGES = {
   "发送快捷键": "Send shortcut",
   "选择消息发送与换行的按键行为。": "Choose which key sends messages and which inserts a newline.",
   "会话输出缓冲上限": "Session output buffer limit",
-  "单会话保留的终端输出字符数（5万–1000万，默认 50 万）。切回会话的回放深度由它决定；更早历史可在幕布顶部继续翻页加载。":
+  "单会话保留的终端输出字符数(5万–1000万,默认 50 万)。切回会话的回放深度由它决定;更早历史可在幕布顶部继续翻页加载。":
     "Characters of terminal output kept per session (50k–10M, default 500k). It sets the replay depth when switching back; older history can still be paged in at the top of the terminal.",
   "Ask 提示音": "Ask notification sound",
-  "CLI 弹出提问/权限确认面板时播放提示音，离开屏幕也能第一时间知道。":
+  "CLI 弹出提问/权限确认面板时播放提示音,离开屏幕也能第一时间知道。":
     "Plays a sound when a CLI shows an ask/permission panel, so you notice right away even while away.",
   "提示音": "Notification sound",
-  "选择 Ask 提示音音效，「试听」立即播放。": "Choose the ask sound; “Preview” plays it immediately.",
+  "选择 Ask 提示音音效,「试听」立即播放。": "Choose the ask sound; “Preview” plays it immediately.",
   "提示音音效": "Notification sound effect",
   "试听": "Preview",
   "提示音音量": "Notification volume",
@@ -63,15 +63,15 @@ export const MESSAGES = {
     "For command targets, put only the executable name — parameters go in the args field (a string with spaces fails path lookup).",
   "作用于 Ask 提示音与结束提示音。": "Applies to both the ask sound and the turn-end sound.",
   "结束提示音": "Turn-end sound",
-  "一轮对话结束且未被查看时播放（结算后静默 3 秒确认，中途来新输出不响）。":
+  "一轮对话结束且未被查看时播放(结算后静默 3 秒确认,中途来新输出不响)。":
     "Plays when a turn ends unseen (confirmed after 3 silent seconds; it stays silent if new output arrives meanwhile).",
   "结束音效": "Turn-end sound effect",
-  "选择轮次结束提示音音效，「试听」立即播放。": "Choose the turn-end sound; “Preview” plays it immediately.",
+  "选择轮次结束提示音音效,「试听」立即播放。": "Choose the turn-end sound; “Preview” plays it immediately.",
   "后台提醒": "Background notifications",
-  "窗口失焦时，当前会话完成一轮对话也标记未读并播放结束提示音；切回窗口即恢复已读。":
+  "窗口失焦时,当前会话完成一轮对话也标记未读并播放结束提示音;切回窗口即恢复已读。":
     "While the window is unfocused, a finished turn still marks the session unread and plays the turn-end sound; focusing the window clears it.",
   "会话自动清理": "Session auto-cleanup",
-  "超过设定时长没有活动的会话自动转入归档；其中从未发过消息的空会话直接删除。工作区展开或手动刷新时执行，不后台轮询。":
+  "超过设定时长没有活动的会话自动转入归档;其中从未发过消息的空会话直接删除。工作区展开或手动刷新时执行,不后台轮询。":
     "Sessions idle past the chosen window move to the archive; ones that never received a message are deleted outright. Runs when a workspace is expanded or refreshed — no background polling.",
   "超期时长": "Idle window",
   "以会话最后活动时间计算；置顶与手动恢复过的会话不清理。":

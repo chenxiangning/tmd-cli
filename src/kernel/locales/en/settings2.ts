@@ -44,7 +44,7 @@ export const MESSAGES = {
   "按扩展名记忆的默认只作用于该类型;未记忆的类型与无扩展名文件回落此处的全局默认。":
     "An extension-remembered default applies only to that type; unremembered types and extension-less files fall back to the global default here.",
   // 会话卫生卡(HygieneCard 说明行)
-  "清扫随会话磁盘扫描自动进行（展开工作区或手动刷新即触发），暂无独立的手动清扫入口与上次清扫回执。":
+  "清扫随会话磁盘扫描自动进行(展开工作区或手动刷新即触发),暂无独立的手动清扫入口与上次清扫回执。":
     "Sweeping rides on session disk scans (triggered by expanding a workspace or a manual refresh); there is no standalone manual sweep or last-sweep receipt yet.",
   // 行为卡:历史输入补全(BehaviorTab + PromptHistoryManager,2026-10 i18n 收口)
   "历史输入补全": "Input history completion",
@@ -54,6 +54,8 @@ export const MESSAGES = {
   "清空全部输入历史": "Clear all input history",
   "清空全部": "Clear all",
   "确认清空?": "Confirm clear?",
+  // 快捷键 tab「全部重置」两步武装(ShortcutTab,循 PromptHistoryManager 先例)
+  "确认重置?": "Confirm reset?",
   "删除此条历史记录": "Delete this history entry",
   // 打开方式卡(OpenWithTab,2026-10 i18n 收口)
   "添加打开方式": "Add open-with app",
@@ -62,4 +64,10 @@ export const MESSAGES = {
   "探测中": "Probing",
   "点击重新探测": "Click to probe again",
   "设为默认": "Set as default",
+  // cli-config 草稿丢弃确认 + GUI 保存失败错误条(CliConfigTab/ConfigForm)
+  "丢弃未保存的修改?": "Discard unsaved changes?",
+  "当前配置有未保存的修改,切换后将丢弃这些修改。":
+    "This config has unsaved changes; switching will discard them.",
+  "丢弃修改": "Discard changes",
+  "关闭错误提示": "Dismiss error",
 } as Record<string, string>;

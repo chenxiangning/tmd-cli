@@ -46,7 +46,7 @@ export function WallpaperSettingsTab() {
     <div className="pref-card" data-testid="settings-wallpaper-card">
       <SegmentedPrefRow
         title={t("工作区背景")}
-        desc={t("流体着色器动态背景，或本地图库壁纸；界面各栏随之变为半透明磨砂。")}
+        desc={t("流体着色器动态背景,或本地图库壁纸;界面各栏随之变为半透明磨砂。")}
         value={state.mode}
         options={[
           { value: "off" as const, label: t("关闭") },
@@ -60,7 +60,7 @@ export function WallpaperSettingsTab() {
         <>
           <SegmentedPrefRow
             title={t("流体预设")}
-            desc={t("七组色相/深度组合，随明暗主题各出一套配色。")}
+            desc={t("七组色相/深度组合,随明暗主题各出一套配色。")}
             value={state.fluidPreset}
             options={FLUID_PRESETS.map((preset) => ({
               value: preset.id,
@@ -85,7 +85,7 @@ export function WallpaperSettingsTab() {
           />
           <SliderPrefRow
             title={t("背景暗化")}
-            desc={t("压暗流体背景，提升界面文字对比。")}
+            desc={t("压暗流体背景,提升界面文字对比。")}
             ariaLabel={t("背景暗化")}
             min={WALLPAPER_DARKEN_MIN}
             max={WALLPAPER_DARKEN_MAX}

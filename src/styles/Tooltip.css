@@ -12,7 +12,7 @@
   border-radius: var(--tmd-radius-md);
   background: var(--tmd-bg-elevated);
   border: 1px solid var(--tmd-border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--tmd-shadow-popover);
   color: var(--tmd-fg);
   font-size: 0.75rem;
   line-height: 1.45;

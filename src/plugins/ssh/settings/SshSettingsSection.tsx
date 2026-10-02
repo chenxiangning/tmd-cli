@@ -10,6 +10,7 @@ import { Key, Pencil, Plus, Trash, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type SshHostConfig } from "@kernel/ipc";
 import { getSettingsState, updateSettings } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
 import type { SshImportCandidate } from "../scan";
 import { HostModal } from "./HostModal";
 import { ImportModal } from "./ImportModal";
@@ -18,16 +19,13 @@ export function SshSettingsSection() {
   const hosts = getSettingsState().settings.ssh.hosts;
   const [editing, setEditing] = useState<SshHostConfig | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  /* 删除主机二次确认(原生 confirm 清零轮,2026-10-02):danger 红底 + 动词确认词。 */
+  const [confirmDelete, setConfirmDelete] = useState<SshHostConfig | null>(null);
 
   const saveHost = (config: SshHostConfig) => {
     const others = hosts.filter((h) => h.id !== config.id);
     updateSettings({ ssh: { hosts: [...others, config] } });
     setEditing(null);
-  };
-
-  const removeHost = (config: SshHostConfig) => {
-    if (!window.confirm(t("删除主机「{name}」?已开的会话不受影响。", { name: config.name || config.host }))) return;
-    updateSettings({ ssh: { hosts: hosts.filter((h) => h.id !== config.id) } });
   };
 
   const importCandidates = async (candidates: SshImportCandidate[]) => {
@@ -96,7 +94,7 @@ export function SshSettingsSection() {
                 <button type="button" className="ssh-icon-btn" title={t("编辑")} onClick={() => setEditing(host)}>
                   <Pencil size="0.8125rem" />
                 </button>
-                <button type="button" className="ssh-icon-btn" title={t("删除")} onClick={() => removeHost(host)}>
+                <button type="button" className="ssh-icon-btn" title={t("删除")} onClick={() => setConfirmDelete(host)}>
                   <Trash size="0.8125rem" />
                 </button>
               </div>
@@ -109,6 +107,21 @@ export function SshSettingsSection() {
       ) : null}
       {importOpen ? (
         <ImportModal onImport={importCandidates} onClose={() => setImportOpen(false)} />
+      ) : null}
+      {confirmDelete ? (
+        <ConfirmDialog
+          title={t("删除")}
+          message={t("删除主机「{name}」?已开的会话不受影响。", {
+            name: confirmDelete.name || confirmDelete.host,
+          })}
+          confirmLabel={t("删除")}
+          danger
+          icon={<Trash size="0.875rem" aria-hidden />}
+          onConfirm={() =>
+            updateSettings({ ssh: { hosts: hosts.filter((h) => h.id !== confirmDelete.id) } })
+          }
+          onClose={() => setConfirmDelete(null)}
+        />
       ) : null}
     </div>
   );

@@ -177,7 +177,7 @@
 .session-tab.is-active .session-tab-pin:disabled {
   color: var(--tmd-fg-faint);
   opacity: 0.4;
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .session-tab-pin:disabled:hover {
