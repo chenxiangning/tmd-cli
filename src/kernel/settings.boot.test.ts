@@ -52,7 +52,7 @@ describe("boot 加载契约", () => {
     await waitLoaded();
     const s = settings.getSettingsState().settings;
     expect(s.theme).toBe("dark");
-    expect(s.lightThemePresetId).toBe("vscode-light-modern");
+    expect(s.lightThemePresetId).toBe("tmd-paper");
   });
 
   it("Tauri 返回 null:全默认且 loaded=true", async () => {

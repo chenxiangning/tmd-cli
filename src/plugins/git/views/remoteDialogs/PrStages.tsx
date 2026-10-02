@@ -5,6 +5,7 @@
 
 import { t } from "@kernel/i18n";
 import { CircleNotch, Copy, Minus, Warning, XCircle, CheckCircle } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import type { GitPrStage, GitPrWorkflowResult } from "@kernel/ipc";
 
 const STAGE_LABEL: Record<GitPrStage["key"], string> = {
@@ -35,7 +36,7 @@ function stageIcon(status: GitPrStage["status"]) {
   const cls = "h-[0.875rem] w-[0.875rem]";
   if (status === "success") return <CheckCircle className={cls} aria-hidden />;
   if (status === "failed") return <XCircle className={cls} aria-hidden />;
-  if (status === "running") return <CircleNotch className={`${cls} animate-spin`} aria-hidden />;
+  if (status === "running") return <Spinner size="0.875rem" />;
   if (status === "skipped") return <Minus className={cls} aria-hidden />;
   return <CircleNotch className={`${cls} opacity-30`} aria-hidden />;
 }
@@ -51,13 +52,13 @@ function StageCard({ stage }: { stage: GitPrStage }) {
           <div className="min-w-0">
             <div className="text-xs font-semibold text-(--tmd-fg)">{STAGE_LABEL[stage.key]}</div>
             {stage.detail && (
-              <div className="mt-0.5 break-words text-[0.6875rem] leading-4 text-(--tmd-fg-muted)">
+              <div className="mt-0.5 break-words text-xs leading-4 text-(--tmd-fg-muted)">
                 {stage.detail.replace(ERR_PREFIX_RE, "")}
               </div>
             )}
           </div>
         </div>
-        <span className={`shrink-0 text-[0.6875rem] ${color}`}>{t(STATUS_TEXT[stage.status])}</span>
+        <span className={`shrink-0 text-xs ${color}`}>{t(STATUS_TEXT[stage.status])}</span>
       </div>
     </div>
   );

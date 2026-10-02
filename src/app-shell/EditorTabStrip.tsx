@@ -8,7 +8,7 @@
  * 溢出走马灯:滚轮竖向滚动转横向 scrollLeft,滚动条 CSS 隐藏(tab-bar.css)。
  */
 
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { CornersOut, CornersIn, Cross } from "@phosphor-icons/react";
 import { baseName } from "@kernel/pathUtils";
 import { resolveFileVisual } from "@kernel/fileVisual";
@@ -96,9 +96,9 @@ function FileTab({
         }}
       >
         {maximized ? (
-          <CornersIn size="0.6875rem" aria-hidden />
+          <CornersIn size="0.75rem" aria-hidden />
         ) : (
-          <CornersOut size="0.6875rem" aria-hidden />
+          <CornersOut size="0.75rem" aria-hidden />
         )}
       </button>
       <button
@@ -113,7 +113,7 @@ function FileTab({
           closeTab(tabId);
         }}
       >
-        <Cross size="0.6875rem" aria-hidden />
+        <Cross size="0.75rem" aria-hidden />
       </button>
     </div>
   );
@@ -121,6 +121,17 @@ function FileTab({
 
 /** 顶栏编辑 tab 条:无 tab 不渲染。溢出走马灯滚动,无滚动条。 */
 export const EditorTabStrip = memo(function EditorTabStrip() {
+  /* 溢出感知:可滚且未到头才挂右缘渐隐 fade-end(评审 B2,常驻会裁最后一张)。 */
+  const [fadeEnd, setFadeEnd] = useState(false);
+  const updateFade = useCallback((el: HTMLDivElement) => {
+    setFadeEnd(el.scrollWidth - el.clientWidth - el.scrollLeft > 1);
+  }, []);
+  const tabsRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (el) updateFade(el);
+    },
+    [updateFade],
+  );
   const { tabs, activeId } = useEditorTabs();
   /** tab 右键菜单目标:作用于被右键的 tab,不强制激活。 */
   const [menu, setMenu] = useState<{ tabId: string; x: number; y: number } | null>(null);
@@ -129,13 +140,15 @@ export const EditorTabStrip = memo(function EditorTabStrip() {
 
   return (
     <div
-      className="tab-bar"
+      ref={tabsRef}
+      className={`tab-bar${fadeEnd ? " fade-end" : ""} tmd-scroll-hide`}
       role="tablist"
       aria-label={t("打开的文件")}
       onWheel={(e) => {
         /* 竖向滚轮转横向滚动;不 preventDefault(外层无纵向滚动链可劫持) */
         e.currentTarget.scrollLeft += e.deltaY + e.deltaX;
       }}
+      onScroll={(e) => updateFade(e.currentTarget)}
     >
       <div className="tab-bar-track">
         {tabs.map((t) => (

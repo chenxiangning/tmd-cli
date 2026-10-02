@@ -14,8 +14,8 @@
 }
 .ssh-settings-count {
   margin-left: auto;
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 .ssh-host-list {
   display: flex;
@@ -27,9 +27,9 @@
   align-items: center;
   gap: 10px;
   border: 1px solid var(--tmd-border);
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
   padding: 10px 12px;
-  transition: border-color 0.12s ease;
+  transition: border-color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .ssh-host-card:hover {
   border-color: var(--tmd-border-strong);
@@ -39,7 +39,7 @@
   min-width: 0;
 }
 .ssh-host-card-name {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   color: var(--tmd-fg);
   overflow: hidden;
@@ -47,19 +47,19 @@
   white-space: nowrap;
 }
 .ssh-host-card-endpoint {
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ssh-auth-chip {
   flex: none;
-  font-size: 0.625rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-subtle);
   border: 1px solid var(--tmd-border);
-  border-radius: 4px;
-  padding: 1px 5px;
+  border-radius: var(--tmd-radius-xs);
+  padding: 1px 4px;
 }
 .ssh-host-card-actions {
   display: flex;
@@ -68,7 +68,7 @@
 /* 空态虚线框只在分区直接子级生效(modal 内复用同名类不描边)。 */
 .ssh-settings > .ssh-settings-empty {
   border: 1px dashed var(--tmd-border);
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
 }
 
 /* 模态(主机编辑/导入) */
@@ -83,6 +83,9 @@
   padding-top: 10vh;
 }
 .ssh-modal {
+  /* 原生 dialog 化:归零 UA 定位,交由 flex 背板居中。 */
+  position: relative;
+  margin: 0;
   width: 440px;
   max-height: 74vh;
   overflow-y: auto;
@@ -98,7 +101,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   font-weight: 600;
   margin-bottom: 10px;
 }
@@ -110,17 +113,17 @@
 .ssh-form label {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  gap: 4px;
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 .ssh-form input,
 .ssh-form select,
 .ssh-form textarea {
-  padding: 5px 8px;
-  font-size: 0.75rem;
+  padding: 4px 8px;
+  font-size: var(--tmd-font-ui);
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-input);
   color: var(--tmd-fg);
 }
@@ -143,7 +146,7 @@
 .ssh-form .ssh-field {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .ssh-secret {
   position: relative;
@@ -160,7 +163,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3px;
+  padding: 4px;
   border: none;
   background: none;
   color: var(--tmd-fg-faint);
@@ -175,6 +178,16 @@
   gap: 6px;
   margin-top: 10px;
 }
+/* 弹窗内内联错误条(此前 window.alert 抢系统弹层;与 WSL 面同簿一制) */
+.ssh-modal-err {
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--tmd-err) 40%, transparent);
+  border-radius: var(--tmd-radius-sm);
+  background: color-mix(in srgb, var(--tmd-err) 8%, transparent);
+  color: var(--tmd-err);
+  font-size: var(--tmd-font-ui);
+}
 .ssh-import-list {
   display: flex;
   flex-direction: column;
@@ -186,13 +199,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 4px;
-  font-size: 0.75rem;
+  padding: 4px 4px;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
 }
 .ssh-import-row:hover {
   background: var(--tmd-bg-hover);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
 }
 .ssh-import-name {
   flex: none;
@@ -204,16 +217,16 @@
 }
 .ssh-import-endpoint {
   flex: 1;
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ssh-import-meta {
   flex: none;
-  font-size: 0.625rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-subtle);
 }
 
 /* ── 远端编辑器 tab ── */
@@ -226,24 +239,24 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-bottom: 1px solid var(--tmd-border);
 }
 .ssh-editor-path {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ssh-editor-meta {
-  font-size: 0.625rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-subtle);
   flex: none;
 }
 .ssh-editor-banner {
-  font-size: 0.625rem;
-  color: #f59e0b;
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-warn);
   flex: none;
 }
 .ssh-editor-bar .ssh-btn {
@@ -252,9 +265,9 @@
 }
 .ssh-editor-warn {
   padding: 4px 10px;
-  font-size: 0.6875rem;
-  color: #f59e0b;
-  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-warn);
+  background: color-mix(in srgb, var(--tmd-warn) 12%, transparent);
 }
 .ssh-editor-body {
   flex: 1;

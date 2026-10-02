@@ -2,7 +2,8 @@
  * SftpTree 共享原语 —— 自 SftpTree.tsx 拆出(文件规模铁则)。
  *
  * 单一节点注册表的节点类型、右键菜单状态类型、远端路径工具、
- * 下载/上传传输动作(菜单与工具条共用)。
+ * 下载/上传传输动作(菜单与工具条共用;失败返回错误文案由调用方
+ * 内联红字呈现,原生 window.alert 清零轮 2026-10-02)。
  */
 
 import { ipc, pickDirectory, pickFile, type SftpEntry } from "@kernel/ipc";
@@ -40,18 +41,28 @@ export function basenameOf(path: string) {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
-export async function downloadNode(sessionId: string, node: TreeNode, recursive: boolean) {
+/** 下载节点;取消/成功返回 undefined,失败返回错误文案(调用方内联红字)。 */
+export async function downloadNode(
+  sessionId: string,
+  node: TreeNode,
+  recursive: boolean,
+): Promise<string | undefined> {
   const target = await pickDirectory(t("下载到本地目录"));
   if (!target) return;
   try {
     const local = node.kind === "dir" ? target : `${target}/${node.name}`;
     await ipc.sftpTransfer(sessionId, "download", node.path, local, recursive);
   } catch (e) {
-    window.alert(t("下载失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+    return t("下载失败:{msg}", { msg: e instanceof Error ? e.message : String(e) });
   }
 }
 
-export async function uploadPicked(sessionId: string, onMutate: () => void, remoteDir = ".") {
+/** 上传已选文件;取消/成功返回 undefined,失败返回错误文案(调用方内联红字)。 */
+export async function uploadPicked(
+  sessionId: string,
+  onMutate: () => void,
+  remoteDir = ".",
+): Promise<string | undefined> {
   const source = await pickFile(t("选择要上传的文件"));
   if (!source) return;
   const name = source.split(/[\\/]/).pop() ?? "upload";
@@ -59,6 +70,6 @@ export async function uploadPicked(sessionId: string, onMutate: () => void, remo
     await ipc.sftpTransfer(sessionId, "upload", source, joinRemote(remoteDir, name), false);
     onMutate();
   } catch (e) {
-    window.alert(t("上传失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+    return t("上传失败:{msg}", { msg: e instanceof Error ? e.message : String(e) });
   }
 }

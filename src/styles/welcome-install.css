@@ -34,7 +34,7 @@
   overflow-y: auto;
   padding: 8px 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.5;
   color: var(--tmd-fg-muted);
 }
@@ -46,7 +46,7 @@
 
 .welcome-install-done {
   padding: 6px 12px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   border-top: 1px solid var(--tmd-border);
 }
 
@@ -70,13 +70,13 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 10px;
-  padding: 7px 14px;
+  padding: 8px 14px;
 }
 
 .welcome-prereq-text {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.5;
   color: var(--tmd-fg-muted);
 }
@@ -84,7 +84,7 @@
 .welcome-prereq-docs {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   margin-left: 6px;
   color: var(--tmd-accent);
   text-decoration: none;
@@ -105,13 +105,7 @@
 /* ── 共享:spin ── */
 
 .is-spinning {
-  animation: welcome-spin 1s linear infinite;
-}
-
-@keyframes welcome-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  animation: tmdSpin 1s linear infinite;
 }
 
 /* ── 窄窗口: 欢迎页可被压到 ~360px 逻辑宽 ── */

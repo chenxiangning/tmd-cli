@@ -4,7 +4,6 @@ export const MESSAGES_EN = {
   "今天": "Today",
   "上个月": "Previous month",
   "下个月": "Next month",
-  "正在扫描会话…": "Scanning sessions…",
   "重新扫描": "Rescan",
   "本月 {days} 天有记录 · {sess} 会话 · {arts} 篇文章": "{days} days · {sess} sessions · {arts} articles this month",
   "{n} 天待生成": "{n} days pending",
@@ -21,7 +20,6 @@ export const MESSAGES_EN = {
   "已生成": "Generated",
   "无会话 · 便签日": "No sessions · note only",
   "有便签": "Has note",
-  "正在加载…": "Loading…",
   "这一天没有 AI 会话": "No AI sessions this day",
   "便签独立于文章存在,写下即是记录。": "Notes exist independently of the article — write it down as a record.",
   "{n} 个会话等待提取。": "{n} sessions waiting to be digested.",
@@ -122,4 +120,39 @@ export const MESSAGES_EN = {
   "{engine} 无列表命令,手动填 provider/model": "{engine} has no list command — enter provider/model manually",
   "列表实时取自 {engine} 可用模型": "Listed live from {engine}'s available models",
   "跟随 {engine} 默认模型": "Follow {engine} default model",
+  "已排队 {n} 天,后台生成中": "{n} day(s) queued, generating in background",
+  "已排队 {n} 天,剩余 {r} 天,后台生成中": "{n} day(s) queued, {r} more remaining, generating in background",
+  "没有可补的日子(已生成或在队列)": "Nothing to backfill (already generated or queued)",
+  // GenSettings 引擎行徽标与模型门(0.2.7)
+  "无头": "Headless",
+  "TUI 兜底": "TUI fallback",
+  "声明 oneshotArgs:定时/补跑走无头单发,无人值守":
+  "Declares oneshotArgs: scheduled/backfill runs go headless one-shot, unattended",
+  "无 oneshotArgs:TUI 会话兜底生成,需开着幕布":
+  "No oneshotArgs: generation falls back to a TUI session; keep the terminal open",
+  "{engine} 未声明 modelArg/无头模板,模型不可指定(用引擎默认)":
+  "{engine} declares neither modelArg nor a headless template; the model can't be set (engine default applies)",
+  // NoteEditor 弃稿确认(0.2.7;ConfirmDialog 化后补标题/确认词)
+  "丢弃修改": "Discard changes",
+  "丢弃": "Discard",
+  "便签有未保存修改,丢弃?": "The note has unsaved changes. Discard?",
+  // 月历与流转图导航/徽标(2026-10 i18n 收口)
+  "上一年": "Previous year",
+  "下一年": "Next year",
+  "今": "Today",
+  "回到本月": "Back to current month",
+  "跳到上个月": "Go to previous month",
+  "跳到下个月": "Go to next month",
+  "热力高 = 会话数分位 · 黄 待提取 · 红 失败 · 蓝圈 今日":
+    "Darker = session-count percentile · yellow pending · red failed · blue ring today",
+  "黄 = 待提取": "yellow = pending",
+  "红 = 失败": "red = failed",
+  // 文章 tab 生成状态 chip
+  "后台生成中": "Generating in background",
+  "排队中": "Queued",
+  // 忙态接 Spinner 与年视图角部图例(2026-10 打磨)
+  "正在扫描会话…": "Scanning sessions…",
+  "正在读取日志…": "Loading journal…",
+  "热力高": "High",
+  "节假日/便签": "Holiday/Note",
 };

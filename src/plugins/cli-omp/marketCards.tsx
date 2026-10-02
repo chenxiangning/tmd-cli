@@ -7,8 +7,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowSquareOut, CircleNotch, ShieldWarning } from "@phosphor-icons/react";
+import { ArrowSquareOut, ShieldWarning } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { openExternalUrl } from "@kernel/ipc";
 import type { ExtCatalogEntry } from "./catalog";
 import { runPluginAction } from "./marketInstallModel";
@@ -110,7 +111,7 @@ function ExtCardFoot({
       ) : null}
       {running ? (
         <span className="omp-ext-running">
-          <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
+          <Spinner />
           {installed ? t("卸载中") : t("安装中")}
         </span>
       ) : installed ? (
@@ -156,7 +157,7 @@ export function ExtCard({
       const ok = await runPluginAction(entry.name, kind, push);
       push(
         ok
-          ? t("—— 完成。已开会的会话不热加载,重开会话生效 ——")
+          ? t("—— 完成。已开的会话不热加载,重开会话生效 ——")
           : t("—— 失败:命令非零退出,详见上方日志 ——"),
       );
     } catch (e) {

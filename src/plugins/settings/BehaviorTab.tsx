@@ -11,6 +11,7 @@
  * 样式全部复用 pref-card/pref-row/segmented 现有类,零新增 CSS。
  */
 
+import { useEffect, useState } from "react";
 import {
   updateSettings,
   useSettingsState,
@@ -19,6 +20,11 @@ import {
 import { PromptHistoryManager } from "./PromptHistoryManager";
 import { HygieneCard } from "./HygieneCard";
 import { t } from "@kernel/i18n";
+import {
+  BUFFER_LIMIT_MAX,
+  BUFFER_LIMIT_MIN,
+  sanitizeBufferLimitInput,
+} from "./behaviorCommit";
 
 const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   id: SendShortcut;
@@ -28,14 +34,21 @@ const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   { id: "cmdOrCtrlEnter", label: "⌘/Ctrl+Enter 发送" },
 ];
 
-/** 数字输入提交:非法输入静默丢弃,合法域由 kernel/settings sanitize 兜底。 */
-const commitBufferLimit = (raw: string) => {
-  const n = Number.parseInt(raw, 10);
-  if (Number.isFinite(n) && n > 0) updateSettings({ sessionOutputBufferLimit: n });
-};
-
 export function BehaviorTab() {
   const { settings } = useSettingsState();
+  /* 受控草稿:提交(含钳制/回落)后显示值与 store 同步,消「显示 2000 实际 50 万」。 */
+  const [bufferDraft, setBufferDraft] = useState(String(settings.sessionOutputBufferLimit));
+  useEffect(() => {
+    setBufferDraft(String(settings.sessionOutputBufferLimit));
+  }, [settings.sessionOutputBufferLimit]);
+  /** 域外钳到最近边界(如 2000 → 5万),空/非法回落 store 当前值;显示随之同步。 */
+  const commitBufferLimit = (raw: string) => {
+    const next = sanitizeBufferLimitInput(raw, settings.sessionOutputBufferLimit);
+    setBufferDraft(String(next));
+    if (next !== settings.sessionOutputBufferLimit) {
+      updateSettings({ sessionOutputBufferLimit: next });
+    }
+  };
 
   return (
     <>
@@ -116,17 +129,17 @@ export function BehaviorTab() {
         <div>
           <div className="pref-title">{t("会话输出缓冲上限")}</div>
           <div className="pref-desc">
-            {t("单会话保留的终端输出字符数（5万–1000万，默认 50 万）。切回会话的回放深度由它决定；更早历史可在幕布顶部继续翻页加载。")}
+            {t("单会话保留的终端输出字符数(5万–1000万,默认 50 万)。切回会话的回放深度由它决定;更早历史可在幕布顶部继续翻页加载。")}
           </div>
         </div>
         <input
-          key={settings.sessionOutputBufferLimit}
           type="number"
           aria-label={t("会话输出缓冲上限")}
-          min={50_000}
-          max={10_000_000}
+          min={BUFFER_LIMIT_MIN}
+          max={BUFFER_LIMIT_MAX}
           step={50_000}
-          defaultValue={settings.sessionOutputBufferLimit}
+          value={bufferDraft}
+          onChange={(e) => setBufferDraft(e.target.value)}
           onBlur={(e) => commitBufferLimit(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") commitBufferLimit((e.target as HTMLInputElement).value);

@@ -8,7 +8,7 @@ import { t } from "@kernel/i18n";
 import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { EngineMark } from "./EngineMark";
-import { loadTranscriptAt } from "./sessionFile";
+import { isTailTruncated, loadTranscriptAt, MAX_TURNS } from "./sessionFile";
 import { resumeDiskSession } from "./resume";
 import { engineOf } from "./engines";
 import { TurnsView } from "./TurnsView";
@@ -23,7 +23,10 @@ export function HistoryScreen(props: {
   cliSessionId?: string;
 }) {
   const { go, sessions } = useMobile();
+  /* transcript 三态:loading(未落)/ error(读取失败可重试)/ done(空表 = 空态)。 */
   const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
+  const [loadErr, setLoadErr] = useState(false);
+  const [reload, setReload] = useState(0);
   const [resuming, setResuming] = useState(false);
   const [resumeErr, setResumeErr] = useState<string | null>(null);
   const resumable = !!props.cwd && !!props.cliSessionId && !!engineOf(props.profileId);
@@ -48,13 +51,16 @@ export function HistoryScreen(props: {
   useEffect(() => {
     let alive = true;
     setTurns(null);
-    void loadTranscriptAt(props.path).then((t) => {
-      if (alive) setTurns(t ?? []);
+    setLoadErr(false);
+    void loadTranscriptAt(props.path).then((r) => {
+      if (!alive) return;
+      if (r === null) setLoadErr(true);
+      else setTurns(r);
     });
     return () => {
       alive = false;
     };
-  }, [props.path]);
+  }, [props.path, reload]);
 
   return (
     <>
@@ -69,9 +75,21 @@ export function HistoryScreen(props: {
       </div>
       <ConnBanner />
       <div className="live">
-        {turns === null && <div className="empty">{t("加载中…")}</div>}
+        {turns === null && !loadErr && <div className="empty">{t("加载中…")}</div>}
+        {loadErr && (
+          <div className="empty">
+            {t("读取失败")} <button type="button" className="lnk-btn" onClick={() => setReload(reload + 1)}>{t("重试")}</button>
+          </div>
+        )}
         {turns?.length === 0 && <div className="empty">{t("没有可解析的对话记录")}</div>}
-        {turns != null && turns.length > 0 && <TurnsView turns={turns} />}
+        {turns != null && turns.length > 0 && (
+          <>
+            <TurnsView turns={turns} />
+            {isTailTruncated(turns) && (
+              <div className="list-note">{t("已显示最近 {n} 轮,更早内容在桌面客户端查看", { n: MAX_TURNS })}</div>
+            )}
+          </>
+        )}
       </div>
       {resumable && (
         <div className="resume-bar">

@@ -79,7 +79,7 @@ export function TerminalCopyMenu({
     <>
       <div className="fixed inset-0 z-40" role="presentation" onMouseDown={() => setPos(null)} />
       <div
-        className="fixed z-50 w-32 overflow-hidden rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) py-1 shadow-lg"
+        className="fixed z-50 w-32 overflow-hidden rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) py-1 shadow-(--tmd-shadow-popover)"
         style={{ left, top }}
       >
         <button
@@ -90,7 +90,8 @@ export function TerminalCopyMenu({
           {t("复制")}
         </button>
         {copyFailed && (
-          <div className="px-3 py-1 text-[0.625rem] text-(--tmd-err)">{t("剪贴板写入失败")}</div>
+          /* 浮层内密集错误文案:10px 档走 text-meta 语义类 */
+          <div className="px-3 py-1 text-meta text-(--tmd-err)">{t("剪贴板写入失败")}</div>
         )}
         <button
           onClick={() => act(() => host.writeSession(sessionId, "\x03"))}

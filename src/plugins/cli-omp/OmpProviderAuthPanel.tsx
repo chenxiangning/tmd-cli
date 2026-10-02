@@ -8,7 +8,9 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { IdentificationCard } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
 import { listOmpAuth, setOmpApiKey, deleteOmpCredential, type OmpAuthList } from "./providerAuth";
 import { OMP_OAUTH_PROVIDERS, BrandAvatar, StatusDot, launchLogin } from "./OmpOauthSection";
 import { OmpModelsConfigSection } from "./OmpModelsConfigSection";
@@ -166,88 +168,93 @@ export function OmpProviderAuthPanel() {
           data-testid="provider-auth-filter"
         />
       </div>
-      <ul
-        className="mt-2 divide-y divide-(--tmd-border) overflow-hidden rounded-lg border border-(--tmd-border) bg-(--tmd-bg-card)"
-        data-testid="provider-auth-apikeys"
-      >
-        {filtered.map((p) => {
-          const configured = p.state === "configured";
-          const deleting = confirmDelete === p.id;
-          return (
-            <li key={p.id} className="flex min-h-[3.25rem] items-center gap-3 px-3 py-2.5">
-              <BrandAvatar id={p.id} name={p.name} icon={p.icon} />
-              <div className="flex min-w-0 flex-1 flex-col">
-                <p className="truncate text-xs text-(--tmd-fg)">{p.name}</p>
-                {p.envVar && (
-                  <p className="truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)">{p.envVar}</p>
+      {list && list.providers.length === 0 ? (
+        /* 纯空列表态 = 统一 Empty 形制;过滤型空态保留行级(下方 li)。 */
+        <Empty icon={<IdentificationCard aria-hidden />}>{t("没有可用供应商")}</Empty>
+      ) : (
+        <ul
+          className="mt-2 divide-y divide-(--tmd-border) overflow-hidden rounded-lg border border-(--tmd-border) bg-(--tmd-bg-card)"
+          data-testid="provider-auth-apikeys"
+        >
+          {filtered.map((p) => {
+            const configured = p.state === "configured";
+            const deleting = confirmDelete === p.id;
+            return (
+              <li key={p.id} className="flex min-h-[3.25rem] items-center gap-3 px-3 py-2.5">
+                <BrandAvatar id={p.id} name={p.name} icon={p.icon} />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <p className="truncate text-xs text-(--tmd-fg)">{p.name}</p>
+                  {p.envVar && (
+                    <p className="truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)">{p.envVar}</p>
+                  )}
+                </div>
+                <span className="flex shrink-0 items-center gap-1.5 text-[0.6875rem] text-(--tmd-fg-muted)">
+                  <StatusDot on={configured} />
+                  {configured ? t("已配置") : t("未配置")}
+                </span>
+                {configured && (
+                  <code
+                    className="shrink-0 rounded bg-(--tmd-bg-popover) px-1.5 py-0.5 font-mono text-[0.6875rem] text-(--tmd-fg-muted)"
+                    data-testid={`provider-auth-mask-${p.id}`}
+                  >
+                    {p.maskedKey}
+                  </code>
                 )}
-              </div>
-              <span className="flex shrink-0 items-center gap-1.5 text-[0.6875rem] text-(--tmd-fg-muted)">
-                <StatusDot on={configured} />
-                {configured ? t("已配置") : t("未配置")}
-              </span>
-              {configured && (
-                <code
-                  className="shrink-0 rounded bg-(--tmd-bg-popover) px-1.5 py-0.5 font-mono text-[0.6875rem] text-(--tmd-fg-muted)"
-                  data-testid={`provider-auth-mask-${p.id}`}
-                >
-                  {p.maskedKey}
-                </code>
-              )}
-              {configured ? (
-                <>
+                {configured ? (
+                  <>
+                    <button
+                      type="button"
+                      className="cli-cfg-btn shrink-0"
+                      onClick={() => setKeyTarget({ id: p.id, name: p.name })}
+                      data-testid={`provider-auth-edit-${p.id}`}
+                    >
+                      {t("编辑")}
+                    </button>
+                    {deleting ? (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          className="cli-cfg-btn is-danger"
+                          onClick={() => void handleDelete(p.id)}
+                          data-testid={`provider-auth-confirm-delete-${p.id}`}
+                        >
+                          {t("确认删除")}
+                        </button>
+                        <button type="button" className="cli-cfg-btn" onClick={() => setConfirmDelete(null)}>
+                          {t("取消")}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="cli-cfg-btn shrink-0"
+                        onClick={() => setConfirmDelete(p.id)}
+                        data-testid={`provider-auth-delete-${p.id}`}
+                      >
+                        {t("删除")}
+                      </button>
+                    )}
+                  </>
+                ) : (
                   <button
                     type="button"
                     className="cli-cfg-btn shrink-0"
                     onClick={() => setKeyTarget({ id: p.id, name: p.name })}
-                    data-testid={`provider-auth-edit-${p.id}`}
+                    data-testid={`provider-auth-set-${p.id}`}
                   >
-                    {t("编辑")}
+                    {t("设置 Key")}
                   </button>
-                  {deleting ? (
-                    <div className="flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        className="cli-cfg-btn is-danger"
-                        onClick={() => void handleDelete(p.id)}
-                        data-testid={`provider-auth-confirm-delete-${p.id}`}
-                      >
-                        {t("确认删除")}
-                      </button>
-                      <button type="button" className="cli-cfg-btn" onClick={() => setConfirmDelete(null)}>
-                        {t("取消")}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="cli-cfg-btn shrink-0"
-                      onClick={() => setConfirmDelete(p.id)}
-                      data-testid={`provider-auth-delete-${p.id}`}
-                    >
-                      {t("删除")}
-                    </button>
-                  )}
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="cli-cfg-btn shrink-0"
-                  onClick={() => setKeyTarget({ id: p.id, name: p.name })}
-                  data-testid={`provider-auth-set-${p.id}`}
-                >
-                  {t("设置 Key")}
-                </button>
-              )}
+                )}
+              </li>
+            );
+          })}
+          {list && filtered.length === 0 && (
+            <li className="px-3 py-6 text-center text-xs text-(--tmd-fg-muted)">
+              {t("没有匹配的供应商")}
             </li>
-          );
-        })}
-        {list && filtered.length === 0 && (
-          <li className="px-3 py-6 text-center text-xs text-(--tmd-fg-muted)">
-            {t("没有匹配的供应商")}
-          </li>
-        )}
-      </ul>
+          )}
+        </ul>
+      )}
       {!filter.trim() && (
         <button type="button" className="cli-cfg-link mt-2" onClick={() => setShowAll((v) => !v)}>
           {showAll ? t("收起") : t("显示全部 37 个供应商")}

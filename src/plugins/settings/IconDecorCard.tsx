@@ -1,5 +1,5 @@
 /**
- * 基础设置 / 外观 tab 的图标装饰卡 —— 顶部「图标组合」三套切换(应用层
+ * 基础设置 / 外观 tab 的图标装饰卡 —— 顶部「图标组合」五套切换(应用层
  * kernel/iconSet.tsx)+ 34 个界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
  * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
  * store 即时生效,颜色由 kernel/iconDecor.ts 同步 <html>,预览走 DecorIcon
@@ -244,7 +244,7 @@ export function IconDecorCard() {
                     aria-label={`${t(label)} ${t("恢复默认")}`}
                     onClick={() => resetItem(id)}
                   >
-                    <ArrowCounterClockwise size="0.8125rem" aria-hidden />
+                    <ArrowCounterClockwise size="0.875rem" aria-hidden />
                   </button>
                 </div>
               </div>

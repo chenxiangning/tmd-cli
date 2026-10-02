@@ -32,7 +32,7 @@ function ModelSlot({
       className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
         clickable
           ? "cursor-pointer hover:bg-(--tmd-bg-hover)"
-          : "disabled:cursor-not-allowed disabled:opacity-40"
+          : "disabled:opacity-40"
       }`}
       disabled={!clickable}
       title={title}
@@ -44,7 +44,7 @@ function ModelSlot({
         <span
           aria-label={t("默认模型(尚未读到会话实况)")}
           title={t("来自 CLI 默认配置,尚未读到会话实况")}
-          className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[0.625rem] text-(--tmd-fg-muted)"
+          className="rounded-sm bg-(--tmd-bg-hover) px-1 text-meta text-(--tmd-fg-muted)"
         >
           {t("默认")}
         </span>
@@ -116,7 +116,7 @@ function ToolbarActions({
   minimized: boolean;
 }) {
   const iconBtn =
-    "grid h-6 w-6 place-items-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-40";
+    "grid h-6 w-6 place-items-center rounded-md transition-colors disabled:opacity-40";
   return (
     <>
       <button
@@ -126,7 +126,7 @@ function ToolbarActions({
         onClick={expandComposerStage}
         className={`${iconBtn} ml-auto text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <DecorIcon id="stage-expand" Fallback={CaretUp} size="0.9375rem" data-action-id="stage-expand" />
+        <DecorIcon id="stage-expand" Fallback={CaretUp} size="0.875rem" data-action-id="stage-expand" />
       </button>
       <button
         type="button"
@@ -136,7 +136,7 @@ function ToolbarActions({
         onClick={collapseComposerStage}
         className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <DecorIcon id="stage-collapse" Fallback={CaretDown} size="0.9375rem" data-action-id="stage-collapse" />
+        <DecorIcon id="stage-collapse" Fallback={CaretDown} size="0.875rem" data-action-id="stage-collapse" />
       </button>
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
@@ -154,7 +154,7 @@ function ToolbarActions({
             : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         }`}
       >
-        <DecorIcon id="composer-drawer" Fallback={Sidebar} size="0.9375rem" data-action-id="composer-drawer" />
+        <DecorIcon id="composer-drawer" Fallback={Sidebar} size="0.875rem" data-action-id="composer-drawer" />
       </button>
     </>
   );
@@ -195,7 +195,8 @@ export function ComposerToolbar() {
   const stage = useComposerStage();
 
   return (
-    <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-[0.6875rem] leading-none text-(--tmd-fg-muted) select-none">
+    /* 整行下边框由 Composer 包装层统一出(挂载点多贡献者堆叠时只留一条),本行不再自带 */
+    <div className="flex h-7 shrink-0 items-center gap-2 px-2 text-xs leading-none text-(--tmd-fg-muted) select-none">
       <ModelSlot
         model={status?.model}
         seeded={seeded && !remoteEngine}
@@ -204,7 +205,8 @@ export function ComposerToolbar() {
         title={modelTitle}
         onSend={sendModelCommand}
       />
-      <span aria-hidden className="text-(--tmd-fg-faint)">|</span>
+      {/* 分组隔断:1px 色块竖线(fg-faint 30%),替文本竖线的字重噪音 */}
+      <span aria-hidden className="h-3 w-px shrink-0 bg-(--tmd-fg-faint)/30" />
       <ThinkingSlot
         level={remoteEngine && !observed ? undefined : status?.thinkingLevel}
         hasCommand={!!profile?.thinkingCommand}
@@ -214,7 +216,7 @@ export function ComposerToolbar() {
       />
       {sessionId ? (
         <>
-          <span aria-hidden className="text-(--tmd-fg-faint)">|</span>
+          <span aria-hidden className="h-3 w-px shrink-0 bg-(--tmd-fg-faint)/30" />
           <QuotaChip />
         </>
       ) : null}

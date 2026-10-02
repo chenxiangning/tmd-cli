@@ -3,10 +3,10 @@
  * ThinkingRow / ToolPreviewBody / ToolRow / PhaseFold(工作折叠组)。
  * PhaseFold.forceOpen = 轮次进行中活过程组自动展开(monocode 同律)。
  */
-import { memo, useState, type ReactNode } from "react";
+import { memo, useRef, useState, type ReactNode } from "react";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { t } from "@kernel/i18n";
-import { CaretRightIcon, MinusIcon, BookOpenIcon, PencilSimpleIcon, TerminalIcon, BrainIcon } from "@phosphor-icons/react";
+import { CaretRightIcon, MinusIcon, PlusIcon, BookOpenIcon, PencilSimpleIcon, TerminalIcon, BrainIcon } from "@phosphor-icons/react";
 import { makeKeySeq, phaseTitle, proseSummary, toolRowLabel, capped, type PhaseKind, type TranscriptPhase } from "./transcriptPhases";
 import type { MarkdownRenderer } from "./transcriptView";
 
@@ -36,7 +36,7 @@ const PHASE_ICON: Record<PhaseKind, ReactNode> = {
   think: <BrainIcon size="0.875rem" />,
 };
 
-/** 思考行(monocode ActivityThinkingRow):Minus + 单行摘要,点击展开淡色 md。 */
+/** 思考行(monocode ActivityThinkingRow):+/− 随开合切换 + 单行摘要,点击展开淡色 md。 */
 export function ThinkingRow({ block, Markdown, pulse }: { block: CliTranscriptBlock; Markdown: MarkdownRenderer; pulse?: boolean }) {
   const [open, setOpen] = useState(false);
   const summary = proseSummary(block.text) || t("思考");
@@ -48,7 +48,11 @@ export function ThinkingRow({ block, Markdown, pulse }: { block: CliTranscriptBl
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <MinusIcon size="0.875rem" className="sv-think-dash" />
+        {open ? (
+          <MinusIcon size="0.875rem" className="sv-think-dash" />
+        ) : (
+          <PlusIcon size="0.875rem" className="sv-think-dash" />
+        )}
         <span className="sv-think-summary">{summary}</span>
       </button>
       {open ? (
@@ -105,6 +109,8 @@ export function ToolRow({
         type="button"
         className="sv-tool-head"
         aria-expanded={open}
+        /* path 副行收起时并入头行 title(展开态副行自显,不重复挂 title)。 */
+        title={!open ? block.tool?.preview?.path : undefined}
         onClick={() => setOpen(!open)}
       >
         <CaretRightIcon size="0.75rem" className={`sv-caret${open ? " is-open" : ""}`} />
@@ -116,7 +122,7 @@ export function ToolRow({
         )}
         <Timestamp ms={block.startedAt} />
       </button>
-      {block.tool?.preview?.path ? <div className="sv-tool-subline">{block.tool.preview.path}</div> : null}
+      {open && block.tool?.preview?.path ? <div className="sv-tool-subline">{block.tool.preview.path}</div> : null}
       {open ? <ToolPreviewBody block={block} Markdown={Markdown} /> : null}
     </div>
   );
@@ -130,13 +136,17 @@ export const PhaseFold = memo(function PhaseFold({
 }: {
   phase: TranscriptPhase;
   Markdown: MarkdownRenderer;
-  /** 轮次进行中:活过程组强制展开(用户仍可手动收起)。 */
+  /** 轮次进行中:活过程组自动展开;用户点过后以用户为准(点过收起不再被顶开,反之亦然)。 */
   forceOpen?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  /* forceOpen 吞点击修复:流式期「点折叠头执行 setOpen(true) 画面不动、aria 恒
+   * 展开且结算后状态反转」——引入 touchedRef,用户点过即以 open 为准,forceOpen
+   * 只在未交互时生效。 */
+  const touchedRef = useRef(false);
   const steps = phase.steps;
   const stepKey = makeKeySeq();
-  const shown = open || forceOpen === true;
+  const shown = touchedRef.current ? open : open || forceOpen === true;
   return (
     <div className={`sv-phase${shown ? " open" : ""}`}>
       <button
@@ -144,13 +154,13 @@ export const PhaseFold = memo(function PhaseFold({
         className="sv-phase-head"
         aria-expanded={shown}
         aria-label={shown ? t("收起工作过程") : t("展开工作过程")}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          touchedRef.current = true;
+          setOpen(!shown);
+        }}
       >
-        {shown ? (
-          <CaretRightIcon size="0.875rem" className="sv-caret is-open" />
-        ) : (
-          PHASE_ICON[phase.kind]
-        )}
+        {PHASE_ICON[phase.kind]}
+        <CaretRightIcon size="0.75rem" className={`sv-caret${shown ? " is-open" : ""}`} />
         <span className="sv-phase-title">{phaseTitle(phase)}</span>
         <span className="sv-phase-count">
           {t("{n} 步", { n: String(steps.length) })}
@@ -173,10 +183,11 @@ export const PhaseFold = memo(function PhaseFold({
                 </div>
               );
             }
-            /* 极简模式组内的中途叙述 assistant:淡色全文 note 行。 */
+            /* 极简模式组内的中途叙述 assistant:淡色 note 行,走 Markdown(与同组
+             * reasoning 同律,markdown 语法不再裸奔)。 */
             return (
               <div key={key} className="sv-phase-note">
-                {step.text}
+                <Markdown>{capped(step.text)}</Markdown>
               </div>
             );
           })}

@@ -73,7 +73,7 @@ function GerritInput({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[0.6875rem] text-(--tmd-fg-muted)">{label}</span>
+      <span className="mb-1 block text-xs text-(--tmd-fg-muted)">{label}</span>
       <input
         value={value}
         placeholder={placeholder}

@@ -18,11 +18,21 @@ import type {
   GitTotals,
 } from "@kernel/gitContract";
 import { useMobile } from "./shared";
-import { fetchCommitFiles, fetchFilePatch, loadGitSnapshot, opReportText, type RemoteOp } from "./gitModel";
+import {
+  fetchCommitFiles,
+  fetchFilePatch,
+  fetchGitLogPage,
+  loadGitSnapshot,
+  LOG_LIMIT,
+  mergeLogPage,
+  opReportText,
+  type CommitFilesState,
+  type GitView,
+  type RemoteOp,
+} from "./gitModel";
 import type { PrSheetState } from "./GitSheets";
 import { DiffView, GitHeader, GitOverlays, LogView } from "./GitViews";
 
-type GitView = "差异" | "分支" | "历史";
 const WS_KEY = "tmd.git.ws.v1";
 
 export function GitScreen(props: { onBack: () => void }) {
@@ -36,20 +46,24 @@ export function GitScreen(props: { onBack: () => void }) {
   });
   const ws = workspaces.find((w) => w.id === wsId) ?? workspaces[0];
   const cwd = ws?.root ?? "";
-  const [view, setView] = useState<GitView>("差异");
+  const [view, setView] = useState<GitView>("diff");
   const [status, setStatus] = useState<GitDiffStatus | null>(null);
   const [totals, setTotals] = useState<GitTotals | null>(null);
   const [ab, setAb] = useState<GitAheadBehind | null>(null);
   const [branches, setBranches] = useState<GitBranchList | null>(null);
   const [log, setLog] = useState<GitLogEntry[] | null>(null);
+  const [logDone, setLogDone] = useState(false);
+  const [moreBusy, setMoreBusy] = useState(false);
   const [openPatch, setOpenPatch] = useState<string | null>(null);
   const [patch, setPatch] = useState<string>("");
   const [openSha, setOpenSha] = useState<string | null>(null);
-  const [commitFiles, setCommitFiles] = useState<{ path: string; additions: number; deletions: number }[]>([]);
+  const [commitFiles, setCommitFiles] = useState<CommitFilesState>({ kind: "loading" });
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [prSheet, setPrSheet] = useState<PrSheetState | null>(null);
+  /* 分支切换确认 sheet 挂起分支名(替代 window.confirm:真机壳无 confirm delegate)。 */
+  const [coSheet, setCoSheet] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -65,6 +79,8 @@ export function GitScreen(props: { onBack: () => void }) {
     setAb(snap.ab);
     setBranches(snap.branches);
     setLog(snap.log);
+    /* 首页不满页 = 历史已到尾(翻页钮换「已显示全部」提示)。 */
+    setLogDone(!snap.log || snap.log.length < LOG_LIMIT);
   }, [cwd]);
 
   useEffect(() => {
@@ -143,10 +159,18 @@ export function GitScreen(props: { onBack: () => void }) {
     });
   };
 
+  /* 分支切换:先开确认 sheet;确认后才走统一动作壳(失败 sheet 留着可重试)。 */
   const checkout = (name: string) => {
-    if (!cwd || !window.confirm(`${t("切换到分支")} ${name}?`)) return;
-    void act("co", async () => {
+    if (!cwd) return;
+    setCoSheet(name);
+  };
+
+  const runCheckout = () => {
+    if (!cwd || !coSheet) return Promise.resolve();
+    const name = coSheet;
+    return act("co", async () => {
       await invoke("git_checkout", { cwd, name });
+      setCoSheet(null);
       return `${t("已切换到")} ${name}`;
     });
   };
@@ -162,13 +186,34 @@ export function GitScreen(props: { onBack: () => void }) {
     setPatch(!p || p.binary ? `(${t(p?.binary ? "二进制文件" : "无法获取差异")})` : p.patch || `(${t("无差异")})`);
   };
 
-  const tapCommit = async (sha: string) => {
+  /* 提交改动清单三态:点开置 loading,成败分别落 done/error;error 可重试。 */
+  const loadCommitFiles = (sha: string) => {
+    setCommitFiles({ kind: "loading" });
+    void fetchCommitFiles(cwd, sha)
+      .then((files) => setCommitFiles({ kind: "done", files }))
+      .catch(() => setCommitFiles({ kind: "error" }));
+  };
+
+  const tapCommit = (sha: string) => {
     if (openSha === sha) {
       setOpenSha(null);
       return;
     }
     setOpenSha(sha);
-    setCommitFiles(await fetchCommitFiles(cwd, sha));
+    loadCommitFiles(sha);
+  };
+
+  /* 日志翻页:并页去重;不满页 = 到尾;失败 toast(列表保旧页)。 */
+  const loadMore = () => {
+    if (!cwd || !log || moreBusy) return;
+    setMoreBusy(true);
+    fetchGitLogPage(cwd, log.length)
+      .then((page) => {
+        setLog(mergeLogPage(log, page));
+        if (page.length < LOG_LIMIT) setLogDone(true);
+      })
+      .catch((e) => say(String(e).replace(/^Error:\s*/, "")))
+      .finally(() => setMoreBusy(false));
   };
 
 
@@ -192,20 +237,35 @@ export function GitScreen(props: { onBack: () => void }) {
       {ws ? (
         <>
           <div className="git-body">
-            {view === "差异" && <DiffView status={status} totals={totals} openPatch={openPatch} patch={patch} onTap={tapFile} />}
-            {view === "分支" && branches && (
+            {view === "diff" && <DiffView status={status} totals={totals} openPatch={openPatch} patch={patch} onTap={tapFile} />}
+            {view === "branches" && branches && (
               <>
                 {branches.local.map((b) => (
-                  <button key={b.name} className="git-row" onClick={() => !b.isHead && void checkout(b.name)}>
+                  <button key={b.name} className="git-row" onClick={() => !b.isHead && checkout(b.name)}>
                     <span className="st">{b.isHead ? "✓" : " "}</span>
                     <span className="path">{b.name}</span>
                     <span className="pm dim">{b.upstream ?? ""}</span>
                   </button>
                 ))}
-                {branches.remote.length > 0 && <div className="git-empty">{t("远端分支")}({branches.remote.length})</div>}
+                {branches.remote.length > 0 && (
+                  <div className="git-empty">
+                    {t("远端分支")}({branches.remote.length}) · {t("完整列表与切换请在桌面查看")}
+                  </div>
+                )}
               </>
             )}
-            {view === "历史" && <LogView log={log} openSha={openSha} commitFiles={commitFiles} onTap={tapCommit} />}
+            {view === "history" && (
+              <LogView
+                log={log}
+                openSha={openSha}
+                commitFiles={commitFiles}
+                more={!logDone && !!log?.length}
+                loadingMore={moreBusy}
+                onTap={tapCommit}
+                onRetryFiles={() => openSha && loadCommitFiles(openSha)}
+                onLoadMore={loadMore}
+              />
+            )}
           </div>
         </>
       ) : (
@@ -214,6 +274,7 @@ export function GitScreen(props: { onBack: () => void }) {
       <GitOverlays
         menu={menu}
         prSheet={prSheet}
+        coSheet={coSheet}
         busy={busy}
         toast={toast}
         ahead={ab?.ahead ?? 0}
@@ -223,6 +284,8 @@ export function GitScreen(props: { onBack: () => void }) {
         onPrOpen={() => void openPr()}
         onPrClose={() => setPrSheet(null)}
         onPrRun={() => void runPr()}
+        onCoClose={() => setCoSheet(null)}
+        onCoConfirm={() => void runCheckout()}
       />
     </div>
   );

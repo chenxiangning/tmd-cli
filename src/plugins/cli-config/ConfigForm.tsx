@@ -27,31 +27,57 @@ import { normOptions, strVal, useCatalog, withCurrent } from "./FieldControlsMod
 export function ConfigForm({
   engine,
   raw,
+  baseline,
   onSaved,
+  onDirtyChange,
 }: {
   engine: CliConfigEntry;
   raw: string;
+  /** 脏判定基线(values 空间的 JSON;宿主持有,读取完成与保存成功后更新)。 */
+  baseline: string;
   onSaved: (nextRaw: string) => Promise<void>;
+  /** 脏态上报:宿主据此在切换引擎/配置源/模式前弹「丢弃修改」确认。 */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [values, setValues] = useState<CliConfigValues>(() => engine.load(raw));
   const [toast, setToast] = useState<string | null>(null);
-  /* 保存成功后宿主换新 raw:重同步基线,否则 load∘save 非恒等的插件会永久假脏。 */
-  useEffect(() => {
-    setValues(engine.load(raw));
-  }, [raw, engine]);
-  const dirty = JSON.stringify(values) !== JSON.stringify(engine.load(raw));
+  const [saveError, setSaveError] = useState<string | null>(null);
+  /* 脏态走「事件时信号」而非 effect 上报(react-doctor no-pass-live-state-to-parent):
+     基线挂载即定格(宿主按 engine:source:mode key 重挂,raw 变更即重挂/保存后重同步),
+     set/放弃/保存三个事件点同步维护 dirty state 并上报宿主。 */
+  const [dirty, setDirty] = useState(false);
+  const markDirty = (next: CliConfigValues) => {
+    const d = JSON.stringify(next) !== baseline;
+    setDirty(d);
+    onDirtyChange?.(d);
+  };
 
-  const set = (id: string, v: CliConfigValues[string]) =>
-    setValues((prev) => ({ ...prev, [id]: v }));
+  const set = (id: string, v: CliConfigValues[string]) => {
+    const next = { ...values, [id]: v };
+    setValues(next);
+    markDirty(next);
+  };
 
   const save = async () => {
+    const nextRaw = engine.save(raw, values);
     try {
-      await onSaved(engine.save(raw, values));
+      await onSaved(nextRaw);
+      /* 重同步基线(load∘save 非恒等的插件不永久假脏;基线在宿主,保存后随 raw 更新)。 */
+      markDirty(engine.load(nextRaw));
+      setSaveError(null);
       setToast(t("已保存到磁盘(首次写入前已留 .bak-tmd 备份)"));
+      setTimeout(() => setToast(null), 2600);
     } catch (e) {
-      setToast(t("保存失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+      /* 失败走持久错误条:2.6s 中性 toast 会把写盘失败一并抹掉(假「已保存」)。 */
+      setToast(null);
+      setSaveError(t("保存失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
     }
-    setTimeout(() => setToast(null), 2600);
+  };
+
+  const discard = () => {
+    const restored = engine.load(raw);
+    setValues(restored);
+    markDirty(restored);
   };
 
   const rows = (fields: CliConfigField[]) =>
@@ -76,10 +102,18 @@ export function ConfigForm({
           {rows(advanced)}
         </details>
       )}
+      {saveError && (
+        <div className="cli-cfg-error" role="alert" data-testid="cli-cfg-save-error">
+          <p>{saveError}</p>
+          <button type="button" className="cli-cfg-link" onClick={() => setSaveError(null)}>
+            {t("关闭错误提示")}
+          </button>
+        </div>
+      )}
       {dirty && (
         <div className="cli-cfg-savebar" data-testid="cli-cfg-savebar">
           <span className="cli-cfg-dirty">{t("● 未保存的更改")}</span>
-          <button type="button" className="cli-cfg-btn" onClick={() => setValues(engine.load(raw))}>
+          <button type="button" className="cli-cfg-btn" onClick={discard}>
             {t("放弃")}
           </button>
           <button type="button" className="cli-cfg-btn is-primary" onClick={() => void save()}>

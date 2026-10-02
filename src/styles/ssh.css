@@ -12,6 +12,9 @@
   padding-top: 14vh;
 }
 .ssh-picker {
+  /* 原生 dialog 化:归零 UA 定位,交由 flex 背板居中。 */
+  position: relative;
+  margin: 0;
   width: 380px;
   max-height: 60vh;
   display: flex;
@@ -19,7 +22,7 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-elevated);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
   overflow: hidden;
 }
 .ssh-picker-head {
@@ -27,7 +30,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   border-bottom: 1px solid var(--tmd-border);
 }
@@ -42,8 +45,8 @@
 .ssh-picker-empty,
 .ssh-settings-empty {
   padding: 22px 14px;
-  font-size: 0.75rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
   text-align: center;
 }
 .ssh-picker-list {
@@ -59,7 +62,7 @@
   padding: 8px 10px;
   border: none;
   background: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   cursor: pointer;
   text-align: left;
 }
@@ -72,27 +75,27 @@
 }
 .ssh-picker-item-name {
   grid-area: name;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg);
 }
 .ssh-picker-item-endpoint {
   grid-area: endpoint;
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 .ssh-picker-item-auth {
   grid-area: auth;
   align-self: center;
-  font-size: 0.625rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-subtle);
   border: 1px solid var(--tmd-border);
-  border-radius: 4px;
-  padding: 1px 5px;
+  border-radius: var(--tmd-radius-xs);
+  padding: 1px 4px;
 }
 .ssh-picker-error {
   padding: 6px 10px;
-  font-size: 0.6875rem;
-  color: #f87171;
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-err);
 }
 /* ── 提示卡(host key / KBI / 密码)── */
 .ssh-prompt-stack {
@@ -109,14 +112,14 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-md);
   background: var(--tmd-bg-elevated);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-modal);
   padding: 10px 12px;
 }
 .ssh-prompt-title {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   margin-bottom: 6px;
 }
@@ -126,24 +129,24 @@
   gap: 6px;
 }
 .ssh-prompt-line {
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
   word-break: break-all;
 }
 .ssh-prompt-warn {
-  font-size: 0.6875rem;
-  color: #f59e0b;
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-warn);
 }
 .ssh-prompt-hint {
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 .ssh-prompt-input {
   width: 100%;
   padding: 6px 8px;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-input);
   color: var(--tmd-fg);
 }
@@ -156,9 +159,9 @@
 .ssh-prompt-actions button,
 .ssh-modal-actions button {
   padding: 4px 10px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: none;
   color: var(--tmd-fg);
   cursor: pointer;
@@ -186,8 +189,8 @@
   align-items: center;
   gap: 10px;
   padding: 30px 10px;
-  font-size: 0.75rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 .ssh-session-list {
   display: flex;
@@ -196,7 +199,7 @@
 }
 .ssh-session-card {
   border: 1px solid var(--tmd-border);
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
   padding: 6px 8px;
 }
 .ssh-session-card.is-active {
@@ -234,7 +237,7 @@
   50% { opacity: 0.35; }
 }
 .ssh-session-label {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -243,8 +246,8 @@
 .ssh-session-status,
 .ssh-session-latency {
   margin-left: auto;
-  font-size: 0.625rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-subtle);
   flex: none;
 }
 /* 状态文案按状态着色(语义变量适配明暗;latency 数值保持弱化色)。 */
@@ -253,7 +256,7 @@
 .ssh-session-status.is-failed { color: var(--tmd-err); }
 .ssh-session-message {
   margin-top: 4px;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   color: var(--tmd-err);
   word-break: break-all;
 }
@@ -272,7 +275,7 @@
   color: var(--tmd-fg-faint);
   cursor: pointer;
   padding: 2px;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
 }
 .ssh-session-actions button:hover,
 .ssh-icon-btn:hover {

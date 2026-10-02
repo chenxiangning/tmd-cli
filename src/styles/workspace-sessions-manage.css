@@ -12,7 +12,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   line-height: 1;
   color: var(--text-faint);
 }
@@ -44,7 +44,7 @@
   height: 13px;
   margin-right: 4px;
   border: 1px solid var(--tmd-border);
-  border-radius: 3px;
+  border-radius: 3px; /* 13px 微复选框:微径保留 */
   color: transparent;
   flex-shrink: 0;
 }
@@ -52,7 +52,7 @@
 .wm-check.is-on {
   background: var(--tmd-accent);
   border-color: var(--tmd-accent);
-  color: #fff;
+  color: var(--tmd-accent-fg);
 }
 
 /* 行尾动作钮(归档/删除):hover 显形,与扎点开关同节奏。 */
@@ -64,16 +64,13 @@
   min-width: 16px;
   border: none;
   background: transparent;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   color: var(--text-faint);
   opacity: 0;
   flex-shrink: 0;
   cursor: pointer;
   padding: 0 1px;
-  transition:
-    opacity 0.12s ease,
-    background-color 0.12s ease,
-    color 0.12s ease;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out), background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .wm-row:hover .wm-act,
@@ -93,7 +90,7 @@
 }
 
 .wm-danger-arm {
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   line-height: 1;
   white-space: nowrap;
 }
@@ -103,7 +100,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 4px 8px;
   margin-left: var(--workspace-tree-indent);
   width: calc(100% - var(--workspace-tree-indent));
   box-sizing: border-box;
@@ -120,8 +117,8 @@
   border: 1px solid var(--tmd-border);
   background: transparent;
   color: var(--text-muted);
-  border-radius: 4px;
-  padding: 1px 7px;
+  border-radius: var(--tmd-radius-xs);
+  padding: 1px 8px;
   font-size: var(--sidebar-meta-font-size);
   cursor: pointer;
   white-space: nowrap;
@@ -162,7 +159,7 @@
   gap: 1px;
   padding: 1px;
   border: 1px solid var(--tmd-border);
-  border-radius: 5px;
+  border-radius: var(--tmd-radius-xs);
   margin-right: 2px;
   flex-shrink: 0;
 }
@@ -173,8 +170,8 @@
   color: var(--text-faint);
   border-radius: 3px;
   padding: 0 4px;
-  font-size: 0.625rem;
-  line-height: 1rem;
+  font-size: var(--tmd-font-xs);
+  line-height: 1.5;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -194,13 +191,13 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  height: 14px;
+  height: 15px; /* 微容器行高修正:14px 装不下 caption 字号 + 边框,升 1px */
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   border: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent);
   background: color-mix(in srgb, var(--tmd-accent) 12%, transparent);
   color: var(--tmd-accent);
   font-size: var(--sidebar-caption-font-size);
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1;
 }

@@ -37,13 +37,13 @@
   min-width: 0;
 }
 .wsl-card-title b {
-  font-size: 0.8125rem;
-  font-weight: 650;
+  font-size: var(--tmd-font-md);
+  font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--tmd-fg);
 }
 .wsl-card-status {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -63,18 +63,14 @@
   height: 26px;
   padding: 0 12px;
   border: 1px solid var(--tmd-border);
-  border-radius: 7px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-input);
   color: var(--tmd-fg);
   font: inherit;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1;
   cursor: pointer;
-  transition:
-    background 0.12s ease,
-    border-color 0.12s ease,
-    box-shadow 0.12s ease,
-    filter 0.12s ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), border-color var(--tmd-dur-1) var(--tmd-ease-out), box-shadow var(--tmd-dur-1) var(--tmd-ease-out), filter var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .wsl-btn:hover:not(:disabled) {
   border-color: var(--tmd-border-strong);
@@ -94,9 +90,9 @@
 }
 .wsl-btn.sm {
   height: 22px;
-  padding: 0 9px;
-  border-radius: 6px;
-  font-size: 0.6875rem;
+  padding: 0 8px;
+  border-radius: var(--tmd-radius-sm);
+  font-size: var(--tmd-font-ui);
 }
 .wsl-btn.primary {
   border-color: color-mix(in srgb, var(--tmd-accent) 80%, black);
@@ -138,15 +134,11 @@
   width: 26px;
   height: 26px;
   border: 1px solid var(--tmd-border);
-  border-radius: 7px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-input);
   color: var(--tmd-fg-muted);
   cursor: pointer;
-  transition:
-    background 0.12s ease,
-    border-color 0.12s ease,
-    color 0.12s ease,
-    box-shadow 0.12s ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), border-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out), box-shadow var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .wsl-icon-btn:hover:not(:disabled) {
   border-color: var(--tmd-border-strong);
@@ -182,14 +174,14 @@
 .wsl-desc {
   margin: 0;
   color: var(--tmd-fg-muted);
-  font-size: 0.6875rem;
-  line-height: 1.6;
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
 }
 .wsl-hint {
   margin: 8px 0 0;
   color: var(--tmd-fg-subtle);
-  font-size: 0.6875rem;
-  line-height: 1.6;
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
 }
 .wsl-dot {
   width: 7px;
@@ -214,24 +206,29 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 32px;
+  /* 与远程段手风琴行(wsl-distro.css .wsl-distro-toggle)同几何:同一概念一种形制 */
+  height: 34px;
   padding: 0 10px;
   border-radius: var(--tmd-radius-sm);
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out);
+}
+.wsl-distro-row:hover {
+  background: var(--tmd-bg-hover);
 }
 .wsl-distro-name {
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
 }
 .wsl-distro-ver {
-  font-family: var(--tmd-mono, monospace);
-  font-size: 0.6875rem;
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
 }
 .wsl-distro-state {
   margin-left: auto;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 999px;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   line-height: 1;
   color: var(--tmd-fg-subtle);
   background: color-mix(in srgb, var(--tmd-fg) 6%, transparent);
@@ -244,12 +241,11 @@
 }
 .wsl-showall {
   margin: 6px 0 0;
-  align-self: flex-start;
 }
 .wsl-facts {
   margin-top: 10px;
   color: var(--tmd-fg-subtle);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
 }
 .wsl-card-actions {
   display: flex;
@@ -272,7 +268,7 @@
   opacity: 0.22;
 }
 .wsl-brand span {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   letter-spacing: 0.14em;
   color: var(--tmd-fg-subtle);
   opacity: 0.75;

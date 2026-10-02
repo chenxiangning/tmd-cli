@@ -22,27 +22,32 @@ import {
   ensureHostSession,
   probeBinary,
   probeHost,
-  stopHostSession,
   type DshHostView,
-  type RawSessionSpawner,
 } from "./dshHost";
+import { stopHostSession, type RawSessionSpawner } from "./dshHostSession";
 import {
+  isWildcardBindHost,
   loadConnection,
   originOf,
   saveConnection,
   type DshConnection,
 } from "./dshConnection";
 import { HostActions, HostFactsRow } from "./hostPanelStatus";
-import { dotColor, hostFacts, panelCopy } from "./hostPanelStatusModel";
+import {
+  DOWN_ERROR,
+  REMOTE_STOP_ERROR,
+  dotColor,
+  hostFacts,
+  panelCopy,
+  probeErrorCopy,
+  startErrorCopy,
+} from "./hostPanelStatusModel";
 /** 经内核装配链 spawn(host.spawnRawSession):幕布输出缓冲/秒退守望全链路一致;
  *  activate:false = host 是后台基础设施,拉起不抢首页中央区。 */
 const spawnHostSession: RawSessionSpawner = (profileId, spec) =>
   host.spawnRawSession(profileId, spec, undefined, { activate: false });
 type HostStatus = { kind: "probing" } | { kind: "ok"; view: DshHostView } | { kind: "down" };
 
-const DOWN_ERROR = "连不上本地 host。确认 dsh web 已启动,或点立即启动。";
-const REMOTE_STOP_ERROR = "只能停掉本机 DSH host。远程地址不会被关闭。";
-const UNAUTHORIZED_ERROR = "host 在运行但拒绝本端凭据(疑似外部拉起)。点立即启动换代重启。";
 
 export function DshHostPanel() {
   const [conn, setConn] = useState<DshConnection>(loadConnection);
@@ -61,14 +66,16 @@ export function DshHostPanel() {
     };
   }, []);
 
-  const refresh = useCallback(async () => {
+  /** target 缺省 = 当前闭包连接;改设置时调用方传新值(闭包不会在同一次渲染里更新)。 */
+  const refresh = useCallback(async (target?: DshConnection) => {
+    const probeConn = target ?? conn;
     const seq = ++probeSeq.current;
     setPending("check");
     setError(null);
-    const [probe, found] = await Promise.all([probeHost(conn), probeBinary(conn)]);
+    const [probe, found] = await Promise.all([probeHost(probeConn), probeBinary(probeConn)]);
     if (!alive.current || seq !== probeSeq.current) return;
     setBinFound(found);
-    setError(probe.unauthorized ? t(UNAUTHORIZED_ERROR) : null);
+    setError(probeErrorCopy(probe, probeConn.host));
     setStatus(probe.view ? { kind: "ok", view: probe.view } : { kind: "down" });
     setPending(null);
   }, [conn]);
@@ -78,8 +85,9 @@ export function DshHostPanel() {
     const [probe, found] = await Promise.all([probeHost(conn), probeBinary(conn)]);
     if (!alive.current) return;
     setBinFound(found);
+    setError(probeErrorCopy(probe, conn.host));
     let next: DshHostView | null = probe.view;
-    if (!next && auto && conn.autoStart && found) {
+    if (!next && auto && conn.autoStart && found && !isWildcardBindHost(conn.host)) {
       setPending("start");
       next = await ensureHostSession(conn, spawnHostSession);
     }
@@ -97,40 +105,60 @@ export function DshHostPanel() {
   const applyConnection = (next: DshConnection) => {
     setConn(next);
     saveConnection(next);
-    void refresh();
+    void refresh(next); /* 闭包里的 conn 仍是旧值,必须显式传新连接 */
   };
 
   /* 立即启动 = codemoss ensure_host:已运行直接复用;否则拉起并等就绪。 */
   const onStart = async () => {
     setPending("start");
     setError(null);
-    const view = await ensureHostSession(conn, spawnHostSession);
-    if (!alive.current) return;
-    setStatus(view ? { kind: "ok", view } : { kind: "down" });
-    if (!view) setError(t(DOWN_ERROR));
-    setPending(null);
+    let view: DshHostView | null = null;
+    try {
+      view = await ensureHostSession(conn, spawnHostSession);
+    } catch {
+      view = null; /* spawn 被拒:按未就绪收口,细节已在会话幕布 */
+    } finally {
+      if (!alive.current) return;
+      setStatus(view ? { kind: "ok", view } : { kind: "down" });
+      if (!view) setError(startErrorCopy(conn.host));
+      setPending(null);
+    }
   };
 
   /* 停止 = 杀自spawn 会话 + 按端口停本机监听(外部/遗留 host 也能停)。 */
   const onStop = async () => {
     setPending("stop");
     setError(null);
-    const outcome = await stopHostSession(conn);
-    await delay(600); // 端口释放窗口,随后重测以真实状态收口
-    if (!alive.current) return;
-    setPending(null);
-    if (outcome === "remote") setError(t(REMOTE_STOP_ERROR));
-    void refresh();
+    try {
+      const outcome = await stopHostSession(conn);
+      if (outcome === "remote") {
+        /* 远程不代杀:只提示,不重探 —— refresh 开头就 setError(null),同一批
+           更新里会把这条提示吞掉(实测:点停止毫无反馈)。 */
+        if (alive.current) setError(t(REMOTE_STOP_ERROR));
+        return;
+      }
+      await delay(600); // 端口释放窗口,随后重测以真实状态收口
+      if (!alive.current) return;
+      void refresh();
+    } catch {
+      if (alive.current) setError(t(DOWN_ERROR));
+    } finally {
+      if (alive.current) setPending(null);
+    }
   };
 
   /* 取消启动:杀掉在途 spawn 的 PTY 会话,回到未运行。 */
   const onCancelStart = async () => {
     setPending("stop");
-    await stopHostSession(conn);
-    await delay(300);
-    if (!alive.current) return;
-    setPending(null);
-    void refresh();
+    try {
+      await stopHostSession(conn);
+      await delay(300);
+    } finally {
+      if (alive.current) {
+        setPending(null);
+        void refresh();
+      }
+    }
   };
 
   const connected = status.kind === "ok";

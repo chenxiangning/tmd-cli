@@ -35,13 +35,13 @@ function FileSectionBadges({
   return (
     <>
       {reverted && (
-        <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[0.625rem] leading-[0.875rem] text-[#a78bfa]">
+        <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-meta leading-3.5 text-[#a78bfa]">
           {t("已退")}
         </span>
       )}
       {stale && (
         <span
-          className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+          className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-meta leading-3.5 text-(--tmd-fg-faint)"
           title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
         >
           {t("内容已变")}
@@ -49,7 +49,7 @@ function FileSectionBadges({
       )}
       {noBaseline && (
         <span
-          className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+          className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-meta leading-3.5 text-(--tmd-fg-faint)"
           title={t("工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退")}
         >
           {t("无前像")}
@@ -57,7 +57,7 @@ function FileSectionBadges({
       )}
       {editCount > 0 && attribution === "events" && (
         <span
-          className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
+          className="flex-none rounded border border-(--tmd-border) px-1 text-2xs leading-3 text-(--tmd-fg-faint)"
           title={t("AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)", { n: editCount })}
         >
           ×{editCount}
@@ -70,7 +70,7 @@ function FileSectionBadges({
 /** unified diff 行着色:@@ 头/增/删/上下文(自 FileSection 拆出降分支)。 */
 function FileSectionDiff({ lines }: { lines: string[] }) {
   return (
-    <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-[0.6875rem] leading-[1.6]">
+    <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-xs leading-relaxed">
       {lines.map((line, i) => {
         const cls = line.startsWith("@@")
           ? "text-(--tmd-accent)/75"
@@ -145,18 +145,18 @@ function FileSection({
             aria-hidden
             className={`flex-none text-(--tmd-fg-faint) transition-transform ${open ? "rotate-90" : ""}`}
           />
-          <span className={`grid h-[15px] w-[15px] flex-none place-items-center rounded text-[0.625rem] font-bold ${chipCls}`}>
+          <span className={`grid h-[15px] w-[15px] flex-none place-items-center rounded text-meta font-bold ${chipCls}`}>
             {status}
           </span>
           {classifyRisk(path) === "high" && (
             <span
-              className="flex-none rounded bg-(--tmd-diff-removed)/15 px-1 text-[0.625rem] font-bold text-(--tmd-diff-removed)"
+              className="flex-none rounded bg-(--tmd-diff-removed)/15 px-1 text-meta font-bold text-(--tmd-diff-removed)"
               title={t("敏感路径(凭据/Shell 配置/CI/服务),建议细读 diff 再放行")}
             >
               {t("高危")}
             </span>
           )}
-          <span className="min-w-0 truncate font-mono text-[0.6875rem]">
+          <span className="min-w-0 truncate font-mono text-xs" title={path}>
             <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
             <span className="text-(--tmd-fg-faint)">{dir}</span>
           </span>
@@ -168,7 +168,7 @@ function FileSection({
             attribution={attribution}
           />
           {patch && (
-            <span className="flex-none font-mono text-[0.625rem]">
+            <span className="flex-none font-mono text-meta">
               <span className="text-(--tmd-diff-inserted)">+{patch.additions}</span>{" "}
               <span className="text-(--tmd-diff-removed)">−{patch.deletions}</span>
             </span>
@@ -178,7 +178,7 @@ function FileSection({
           <button
             type="button"
             disabled={busy}
-            className="hidden h-5 flex-none items-center gap-1 rounded border border-(--tmd-border) px-1.5 text-[0.625rem] text-(--tmd-fg-subtle) hover:border-[rgba(167,139,250,.5)] hover:text-[#a78bfa] group-hover:flex disabled:opacity-40"
+            className="hidden h-5 flex-none items-center gap-1 rounded border border-(--tmd-border) px-1.5 text-meta text-(--tmd-fg-subtle) hover:border-[rgba(167,139,250,.5)] hover:text-[#a78bfa] group-hover:flex disabled:opacity-40"
             onClick={onRevert}
           >
             <ArrowCounterClockwise size="0.625rem" aria-hidden /> {t("只回退此文件")}
@@ -214,17 +214,17 @@ export function FileSections({
   ];
   return (
     <>
-      <div className="mb-2 mt-5 text-[0.6875rem] text-(--tmd-fg-faint)">
+      <div className="mb-2 mt-5 text-xs text-(--tmd-fg-faint)">
         {t("AI 修改的文件({n}) —— 点击分区头折叠;hover 可单文件回退", { n: batch.files.length })}
       </div>
       {patches.length === 0 && (
-        <div className="rounded border border-dashed border-(--tmd-border) p-4 text-center text-[0.6875rem] text-(--tmd-fg-faint)">
+        <div className="rounded border border-dashed border-(--tmd-border) p-4 text-center text-xs text-(--tmd-fg-faint)">
           {t("本批文件当前与批后像无差异(可能已回退或已提交)")}
         </div>
       )}
       {groups.map(([header, files]) => (
         <Fragment key={header ?? "internal"}>
-          {header && <div className="mb-2 mt-4 text-[0.6875rem] text-(--tmd-fg-faint)">{header}</div>}
+          {header && <div className="mb-2 mt-4 text-xs text-(--tmd-fg-faint)">{header}</div>}
           {files.map((f) => (
             <FileSection
               key={f.path}

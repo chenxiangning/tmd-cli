@@ -5,15 +5,19 @@
  * 由画布插件轮询导入。指令含:inbox 绝对路径、JSON schema、目标画布提示、
  * 坐标系约定。文案与 aiDraw.ts 的解析规则配对,两边同步改。
  *
+ * 作画目标缺省序:编辑器开着的当前文档 → 最近更新画布(索引倒序首位,
+ * 存储层读后经 cacheAiDrawLatestCanvas 自喂)→ 都没有才让 AI 新建
+ * (2026-10 审计:防结果散落多张新画布)。
+ *
  * inbox 路径经 aiDrawPathCache 同步取(configHomeDir 是异步 IPC,发送路径上
- * 不允许 await;缓存由画布 tab 挂载/轮询时刷新,未缓存 = 无工作区在画布侧
- * 激活过,本轮不注入)。
+ * 不允许 await;缓存由 activate 级轮询/开关预热时刷新,未缓存 = 本轮不注入)。
  */
 
 import { t } from "@kernel/i18n";
 import type { IntentCanvasDocument } from "./types";
 
 const pathCache: { value: { root: string; inbox: string } | null } = { value: null };
+const latestCache: { value: { root: string; id: string; title: string } | null } = { value: null };
 
 export function cacheAiDrawInboxPath(root: string, inbox: string): void {
   pathCache.value = { root, inbox };
@@ -24,16 +28,32 @@ export function aiDrawInboxPathSync(root: string): string | null {
   return cached && cached.root === root ? cached.inbox : null;
 }
 
+/** 最近更新画布缓存喂入(storage 层读索引后调用;null = 该工作区已无画布)。 */
+export function cacheAiDrawLatestCanvas(root: string, latest: { id: string; title: string } | null): void {
+  latestCache.value = latest ? { root, ...latest } : { root, id: "", title: "" };
+}
+
+export function aiDrawLatestCanvasSync(root: string): { id: string; title: string } | null {
+  const cached = latestCache.value;
+  return cached && cached.root === root && cached.id ? { id: cached.id, title: cached.title } : null;
+}
+
 export function buildAiDrawInstruction(
   inboxPath: string,
   activeDocument: IntentCanvasDocument | null,
+  latestCanvas: { id: string; title: string } | null = null,
 ): string {
   const target = activeDocument
     ? t("当前画布:{title}(id:{id})。默认把新图形追加到这张画布(mode 用 \"append\",并带 canvasId)。", {
         title: activeDocument.title,
         id: activeDocument.id,
       })
-    : t("当前没有打开的画布。请新建一张(mode 用 \"new\",并自拟 title)。");
+    : latestCanvas
+      ? t("最近画布:{title}(id:{id})。默认把新图形追加到这张画布(mode 用 \"append\",并带 canvasId)。", {
+          title: latestCanvas.title,
+          id: latestCanvas.id,
+        })
+      : t("当前没有打开的画布。请新建一张(mode 用 \"new\",并自拟 title)。");
   return [
     "---",
     t("【意图画布 AI 作画】请在完成本任务的同时,把你要表达的结构/流程/模块关系画成一张图:"),

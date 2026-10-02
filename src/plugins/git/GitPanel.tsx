@@ -8,6 +8,8 @@ import { useCallback, useEffect } from "react";
 import { setGitViewRepo } from "@kernel/gitViewRepo";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
+import { GitBranch } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
 import { useGitRepos } from "./hooks/useGitRepos";
 import { resolveRepoContext } from "./repoContext";
 import { getSelectedRepo, setSelectedRepo } from "./panelStore";
@@ -44,13 +46,23 @@ export function GitPanel() {
   const data = useGitPanelData(cwd, refreshRepos);
   const remote = useGitPanelRemote(cwd, data.afterMutation);
 
+  /* 远程工作区(SSH 远程 WSL 来源,wsl.hostId 非空)显式降级:git2 内核原语只认
+   * 本机路径,与其让底层扫描报错,不如一句横幅说清;本机 UNC(hostId null)不动。 */
+  if (active?.wsl?.hostId) {
+    return (
+      <div className="flex h-full items-center justify-center px-4 text-center text-xs text-(--tmd-fg-faint)">
+        {t("远程工作区暂不支持 Git 面板")}
+      </div>
+    );
+  }
+
   if (!cwd || data.status.notARepo) {
     if (repoCtx.mode === "guide") {
       return <RepoGuide root={root!} repos={repos} truncated={truncated} onSelect={selectRepo} />;
     }
     return (
-      <div className="flex h-full items-center justify-center px-4 text-center text-xs text-(--tmd-fg-faint)">
-        {t("当前目录不是 Git 仓库")}
+      <div className="flex h-full items-center justify-center px-4">
+        <Empty icon={<GitBranch />}>{t("当前目录不是 Git 仓库")}</Empty>
       </div>
     );
   }

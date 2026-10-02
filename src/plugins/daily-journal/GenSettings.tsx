@@ -2,7 +2,7 @@
  * 生成设置弹层(插件私有配置,落 meta.json;原型「生成设置」modal)——
  * 定时开关+时间 / 增量策略 / 引擎(有会话扫描能力的 profile)/ 模型 / 节假日。
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GearSix } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogShell } from "@kernel/DialogShell";
@@ -10,6 +10,7 @@ import { host } from "@kernel/host";
 import { updateConfig, useJournalState } from "./journalStore";
 import { ensureHolidays } from "./holidays";
 import { listModels } from "@plugins/memory-coordinator/modelCatalog";
+import { isCompleteTime, normalizeTimerTime } from "./timerInput";
 /* 品牌字形映射(cli-shared,先例:omp/pi/… 十家 renderIcon + mobile EngineMark 已消费)。 */
 import { engineGlyphOf } from "@plugins/cli-shared/engineGlyphMap";
 import type { JournalConfig } from "./journalFiles";
@@ -37,9 +38,16 @@ function Seg<T extends string>({ value, options, onChange }: { value: T; options
 export function GenSettings({ onClose }: { onClose: () => void }) {
   const current = useJournalState().config;
   const [cfg, setCfg] = useState<JournalConfig>({ ...current });
-  const engines = host.getCliProfiles().filter((p) => p.listSessions);
+  /* 定时时间最后完整值:残缺输入失焦时回落它,不静默抹掉用户原配置 */
+  const timeRef = useRef(current.timerTime);
+  /* dsh 剔除:其会话目录是合成串,只读可展示、不能当生成引擎拉会话。 */
+  const engines = host.getCliProfiles().filter((p) => p.listSessions && p.id !== "dsh");
   /* 引擎失效回落首个可用(派生值,不在渲染期 setState)。 */
   const engine = engines.some((p) => p.id === cfg.engine) ? cfg.engine : (engines[0]?.id ?? cfg.engine);
+  /* 模型可指定 = modelArg(--model 声明制)或 oneshotArgs(无头模板内嵌 model):
+   * 两者皆无的引擎模型传不进去,输入禁用防存无效配置。 */
+  const engineProfile = engines.find((p) => p.id === engine);
+  const modelLocked = !engineProfile?.modelArg && !engineProfile?.oneshotArgs;
   /* 模型目录:实时拉取所选引擎可用模型(omp/opencode 有列表命令;其余降级手填)。 */
   const [models, setModels] = useState<{ selector: string }[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
@@ -69,7 +77,7 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
   return (
     <DialogShell
       title={t("生成设置")}
-      icon={<GearSix size={13} />}
+      icon={<GearSix size="0.875rem" />}
       width={460}
       onClose={onClose}
       footer={
@@ -100,10 +108,17 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
                 className="dj-tinput"
                 value={cfg.timerTime}
                 onChange={(e) => {
+                  /* 只挡非法字符(/^[0-9:]*$/):此前完整格式严检把 "0"/"09:" 等
+                   * 中间态全回滚,键盘实际不可编辑;完整性收口在 onBlur。 */
                   const v = e.target.value;
-                  setCfg((c) => ({ ...c, timerTime: /^([01]?\d|2[0-3]):[0-5]?\d$/.test(v) ? v : c.timerTime }));
+                  if (!/^[0-9:]*$/.test(v)) return;
+                  if (isCompleteTime(v)) timeRef.current = v;
+                  setCfg((c) => ({ ...c, timerTime: v }));
                 }}
-                onBlur={(e) => setCfg((c) => ({ ...c, timerTime: e.target.value.trim() || "08:00" }))}
+                onBlur={(e) => {
+                  /* 失焦归一(见 normalizeTimerTime):残缺回落最后完整值 */
+                  setCfg((c) => ({ ...c, timerTime: normalizeTimerTime(e.target.value, timeRef.current) }));
+                }}
                 aria-label={t("时间")}
               />
               <span className="dj-timerow-text">{t("生成前一日汇总文章")}</span>
@@ -129,9 +144,19 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
               {engines.map((p) => {
                 const Brand = engineGlyphOf(p.id);
                 return (
-                  <button key={p.id} type="button" className={engine === p.id ? "on" : ""} onClick={() => setCfg((c) => ({ ...c, engine: p.id }))}>
-                    {Brand && <Brand size={12} />}
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={engine === p.id ? "on" : ""}
+                    title={p.oneshotArgs ? t("声明 oneshotArgs:定时/补跑走无头单发,无人值守") : t("无 oneshotArgs:TUI 会话兜底生成,需开着幕布")}
+                    onClick={() => setCfg((c) => ({ ...c, engine: p.id, model: p.modelArg || p.oneshotArgs ? c.model : "" }))}
+                  >
+                    {Brand && <Brand size="0.75rem" />}
                     {p.id}
+                    {/* 无头/TUI 兜底徽标(oneshotArgs 声明判定;dj-pill 现成形制) */}
+                    <span className={"dj-pill" + (p.oneshotArgs ? "" : " dj-pill-warn")}>
+                      {p.oneshotArgs ? t("无头") : t("TUI 兜底")}
+                    </span>
                   </button>
                 );
               })}
@@ -139,7 +164,15 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
           </div>
           <div className="dj-frow">
             <span className="dj-flabel">{t("模型(空 = 引擎默认)")}</span>
-            {models.length > 0 ? (
+            {modelLocked ? (
+              /* 不可指定模型:禁用手填,说明原因(引擎默认接管)。 */
+              <input
+                className="dj-tinput dj-tinput-wide"
+                value=""
+                disabled
+                placeholder={t("{engine} 未声明 modelArg/无头模板,模型不可指定(用引擎默认)", { engine })}
+              />
+            ) : models.length > 0 ? (
               <select
                 className="dj-tinput dj-tinput-wide dj-tselect"
                 value={cfg.model}

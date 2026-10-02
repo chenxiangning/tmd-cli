@@ -7,7 +7,6 @@ import { Mounts } from "@kernel/Mounts";
 import { usePlatformKind } from "@kernel/platform";
 import { toggleHomeSession } from "./shortcutCommands";
 import { TitlebarBranchLabel, WorkspaceSwitcher } from "./WorkspaceSwitcher";
-import { RightPanelToolbar } from "./RightPanelToolbar";
 
 /** macOS 用原生左侧 traffic lights,Windows 自绘右侧按钮组;窗口控制经 kernel/ipc 薄封装。 */
 function WindowControls() {
@@ -127,12 +126,11 @@ export function TopBar({
         >
           {rightOpen ? <CaretLineRight size="0.875rem" aria-hidden data-action-id="fold-right" /> : <CaretLineLeft size="0.875rem" aria-hidden data-action-id="fold-right" />}
         </button>
-        {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后;面板 tabs 已迁右缘 PanelRail */}
+        {/* 工作区选择器(自右栏 subbar 上移):折叠钮之后;面板 tabs 已迁右缘 PanelRail。
+            文件操作条已下放面板头工具条(FileTreeToolbar,2026-10-02),顶栏右区只剩
+            折叠钮 + 工作区选择器 + 插件挂点,余白保留拖拽。 */}
         <WorkspaceSwitcher />
         <Mounts point="header.right" />
-        {/* 文件操作条(新建/刷新/面板动作;自右栏底部上移,2026-09-27):
-            右栏展开才挂,可见性仍由激活面板 showFileSubbar 自声明 */}
-        {rightOpen ? <RightPanelToolbar /> : null}
       </div>
       <WindowControls />
     </header>

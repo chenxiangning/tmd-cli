@@ -17,7 +17,7 @@ export const structuredSessionPlugin: Plugin = {
   meta: {
     name: "结构化会话",
     abbr: "结构",
-    desc: "RPC 驱动会话(omp/pi):token 级流式转录 + 内联审批,无幕布,PTY 零涉及",
+    desc: "RPC 直连的独立会话(omp/pi):token 级流式转录 + 内联审批,无幕布;PTY 会话内的「结构化视图」是只读转录切换,同名不同物",
     icon: Chats,
     iconColor: "#4C8DFF",
     category: "feature",
@@ -27,6 +27,9 @@ export const structuredSessionPlugin: Plugin = {
       kind: STRUCTURED_SESSION_TAB_KIND,
       component: StructuredSessionTab,
       icon: Chats,
+      /* 保活:tab 切走不卸载,RPC 子进程与转录不丢;关闭 tab 才 kill
+       * (unmount cleanup 语义随保活自动收窄为真关 tab)。 */
+      keepAlive: true,
     });
     ctx.registerSidebarAction({
       id: "structured-session",

@@ -58,38 +58,38 @@ export function RepoGuide({
                 aria-hidden
               />
               <span className="shrink-0 font-semibold text-(--tmd-fg)">{r.name}</span>
-              <span className="shrink-0 font-mono text-[0.6875rem] text-(--tmd-fg-subtle)">
+              <span className="shrink-0 font-mono text-xs text-(--tmd-fg-subtle)">
                 {chip?.branch || r.branch || "—"}
               </span>
               {kind && (
-                <span className="shrink-0 rounded border border-(--tmd-border) px-1 text-[0.59375rem] text-(--tmd-fg-faint)">
+                <span className="shrink-0 rounded border border-(--tmd-border) px-1 text-2xs text-(--tmd-fg-faint)">
                   {t(kind)}
                 </span>
               )}
               <span className="min-w-0 flex-1" />
               {dirty > 0 && (
-                <span className="shrink-0 text-[0.6875rem] tabular-nums text-(--tmd-git-modified)">
+                <span className="shrink-0 text-xs tabular-nums text-(--tmd-git-modified)">
                   {t("{n} 个变更", { n: dirty })}
                 </span>
               )}
               {chip && chip.ahead > 0 && (
-                <span className="shrink-0 text-[0.6875rem] tabular-nums text-(--tmd-diff-inserted)">
+                <span className="shrink-0 text-xs tabular-nums text-(--tmd-diff-inserted)">
                   ↑{chip.ahead}
                 </span>
               )}
               {chip && chip.behind > 0 && (
-                <span className="shrink-0 text-[0.6875rem] tabular-nums text-(--tmd-diff-removed)">
+                <span className="shrink-0 text-xs tabular-nums text-(--tmd-diff-removed)">
                   ↓{chip.behind}
                 </span>
               )}
-              <span className="shrink-0 text-[0.65625rem] text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100">
+              <span className="shrink-0 text-meta text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100">
                 {t("进入 →")}
               </span>
             </button>
           );
         })}
       </div>
-      <div className="shrink-0 border-t border-(--tmd-border) px-2.5 py-2 text-[0.65625rem] leading-relaxed text-(--tmd-fg-faint)">
+      <div className="shrink-0 border-t border-(--tmd-border) px-2.5 py-2 text-meta leading-relaxed text-(--tmd-fg-faint)">
         {t("同步说明:文件树着色照常工作(按各仓归属);幕布终端里的 git 命令不受影响;发现随切工作区")}
         {/* 32 = Rust git/repos_scan.rs 的 MAX_REPOS(跨语言常量,变更需双侧同步)。 */}
         {truncated && <b className="font-semibold text-(--tmd-fg-subtle)">{t(" 已截断,仅显示前 32 个。")}</b>}

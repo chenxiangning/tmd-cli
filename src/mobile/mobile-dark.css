@@ -1,0 +1,26 @@
+/* 手机远程 UI 暗色令牌映射 —— 自 mobile.css 拆出(300 行铁则)。
+   系统深色此前整面白底,与桌面暗色主题脱节;色值对齐桌面 themes.css dark 组,
+   写死浅色的面在此逐一覆盖。 */
+@media (prefers-color-scheme: dark){
+  /* 作用域与 mobile.css 浅色组对齐:.m-app(手机树根节点) */
+  .m-app{
+    --bg-base:#1f1f1f; --bg-panel:#181818; --bg-input:#313131;
+    --fg:#cccccc; --fg-muted:#919191; --fg-subtle:#797979; --fg-faint:#565656;
+    --border:#3c3c3c; --border-strong:#595959;
+    --accent:#0078d4; --accent-soft:rgba(0,120,212,.24);
+    --ok:#34d399; --warn:#eab308; --err:#f87171;
+  }
+  /* 断连 banner:浅底红字 → 深底红字 */
+  .banner{background:#2a1d1d;border-bottom-color:rgba(248,113,113,.35)}
+  .banner button{background:#3a2525}
+  /* ask 审批卡:暖纸底 → 暖深底 */
+  .ask{background:#2a251a;border-color:rgba(234,179,8,.45);box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  .ask-q{background:#1f1f1f}
+  .opt.no{background:#2a2a2a}
+  /* 引擎 glyph 缺省底(品牌 logo 无则落此处) */
+  .g-df{background:#2d2d2d;color:#aaaaaa}
+  /* 用户气泡描边(浅色 rgba(0,95,184,.25) 在深底发闷) */
+  .tr-user{border-color:rgba(0,120,212,.35)}
+  /* 错误条深底 */
+  .m-err-bar{background:#3a2525;border-color:rgba(248,113,113,.4)}
+}

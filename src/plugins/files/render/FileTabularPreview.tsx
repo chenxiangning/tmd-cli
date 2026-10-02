@@ -12,6 +12,7 @@ import type { WorkBook } from "xlsx";
 import { loadPreviewBytes } from "./previewBytes";
 import { isTabularBinaryPath } from "./renderProfile";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 
 type FileTabularPreviewProps = {
   path: string;
@@ -167,7 +168,12 @@ export function FileTabularPreview({ path, text }: FileTabularPreviewProps) {
   );
 
   if (isParsing) {
-    return <div className="fvp-status">{t("加载中…")}</div>;
+    return (
+      <div className="fvp-status flex items-center justify-center gap-1.5">
+        <Spinner />
+        {t("加载中…")}
+      </div>
+    );
   }
 
   if (parseError) {

@@ -1,17 +1,25 @@
 /**
- * 商店视图 ── ClawHub 列表/搜索/排序/分类 chips/cursor 分页/已装徽标。
+ * 商店视图 ── ClawHub 列表/搜索/排序/分类 chips/cursor 分页/已装徽标 +
+ * 可更新徽标与「更新」入口(重走安装弹窗链)。
  * 搜索 260ms 防抖;网络失败 = 错误态 + 重试,不白屏。
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { MagnifyingGlass, ArrowClockwise } from "@phosphor-icons/react";
+import { MagnifyingGlass, ArrowClockwise, Storefront } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { listClawHubSkills, searchClawHubSkills } from "./clawhub";
-import { CLAWHUB_SORTS, type ClawHubCard, type ClawHubSort } from "./clawhubNormalize";
+import {
+  CLAWHUB_SORTS,
+  isNewerSkillVersion,
+  type ClawHubCard,
+  type ClawHubSort,
+} from "./clawhubNormalize";
 import { refreshSkillScan } from "./skillStore";
 import { StoreCard } from "./StoreCard";
 import { InstallDialog } from "./InstallDialog";
-import { useSkillRegistry } from "@plugins/cli-shared/skillRegistry";
+import { useSkillRegistry, type InstalledSkillRecord } from "@plugins/cli-shared/skillRegistry";
 const SEARCH_DEBOUNCE_MS = 260;
 const PAGE_SIZE = 24;
 /** 分类 chips 取已载条目的高频 topics 前 8。 */
@@ -36,7 +44,7 @@ function StoreToolbar(props: {
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
-      <MagnifyingGlass size={13} className="shrink-0 text-(--tmd-fg-faint)" aria-hidden="true" />
+      <MagnifyingGlass size="0.875rem" className="shrink-0 text-(--tmd-fg-faint)" aria-hidden="true" />
       <input
         value={props.query}
         onChange={(e) => props.onQuery(e.target.value)}
@@ -63,7 +71,7 @@ function StoreToolbar(props: {
               key={tp}
               type="button"
               onClick={() => props.onTopic(tp)}
-              className={`rounded px-1.5 py-px text-[10px] ${
+              className={`rounded px-1.5 py-px text-meta ${
                 props.topic === tp
                   ? "bg-(--tmd-accent-soft) text-(--tmd-fg)"
                   : "bg-(--tmd-bg-sunken) text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
@@ -84,7 +92,9 @@ function StoreListArea(props: {
   emptyHint: string;
   visible: readonly ClawHubCard[];
   isInstalled: (card: ClawHubCard) => boolean;
+  updateAvailable: (card: ClawHubCard) => boolean;
   onInstall: (card: ClawHubCard) => void;
+  onUpdate: (card: ClawHubCard) => void;
   showMore: boolean;
   loadingMore: boolean;
   loadMoreError?: string | null;
@@ -95,7 +105,7 @@ function StoreListArea(props: {
     return (
       <div className="min-h-0 flex-1 overflow-auto px-3 py-2" data-skill-store>
         <div className="flex flex-col items-center gap-2 py-8">
-          <div className="text-xs text-(--tmd-err)" data-store-error>
+          <div className="text-xs text-(--tmd-err)" data-store-error role="alert">
             {t("商店加载失败")}:{props.error}
           </div>
           <button
@@ -103,7 +113,7 @@ function StoreListArea(props: {
             onClick={props.onRetry}
             className="flex items-center gap-1 rounded border border-(--tmd-border) px-2.5 py-1 text-xs hover:bg-(--tmd-bg-hover)"
           >
-            <ArrowClockwise size={12} aria-hidden="true" />
+            <ArrowClockwise size="0.75rem" aria-hidden="true" />
             {t("重试")}
           </button>
         </div>
@@ -113,9 +123,12 @@ function StoreListArea(props: {
   return (
     <div className="min-h-0 flex-1 overflow-auto px-3 py-2" data-skill-store>
       {props.loading ? (
-        <div className="py-8 text-center text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>
+        <div className="py-8 text-center text-xs text-(--tmd-fg-faint)">
+          <Spinner /> {t("加载中…")}
+        </div>
       ) : props.visible.length === 0 ? (
-        <div className="py-8 text-center text-xs text-(--tmd-fg-faint)">{props.emptyHint}</div>
+        /* 空态统一形制:无匹配/商店无内容共用商店域图标 */
+        <Empty icon={<Storefront aria-hidden />}>{props.emptyHint}</Empty>
       ) : (
         <>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2">
@@ -124,14 +137,17 @@ function StoreListArea(props: {
                 key={`${card.ownerHandle}/${card.slug}`}
                 card={card}
                 installed={props.isInstalled(card)}
+                updateAvailable={props.updateAvailable(card)}
                 onInstall={props.onInstall}
+                onUpdate={props.onUpdate}
               />
             ))}
           </div>
           {props.showMore && (
             <div className="flex flex-col items-center gap-1 py-3">
               {props.loadMoreError && (
-                <div className="text-[11px] text-(--tmd-err)">{t("翻页失败")}:{props.loadMoreError}</div>
+                /* 翻页失败:持久红字 + 下方「加载更多」钮即重试入口(R6 契约) */
+                <div className="text-xs text-(--tmd-err)" role="alert">{t("翻页失败")}:{props.loadMoreError}</div>
               )}
               <button
                 type="button"
@@ -139,7 +155,7 @@ function StoreListArea(props: {
                 disabled={props.loadingMore}
                 className="rounded border border-(--tmd-border) px-3 py-1 text-xs hover:bg-(--tmd-bg-hover) disabled:opacity-50"
               >
-                {props.loadingMore ? t("加载中…") : t("加载更多")}
+                {props.loadingMore ? <Spinner /> : t("加载更多")}
               </button>
             </div>
           )}
@@ -161,12 +177,16 @@ export function StoreView() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [installing, setInstalling] = useState<ClawHubCard | null>(null);
-  /* 已装名快照(v2:安装记录为依据;name/slug 大小写不敏感比对)。 */
+  /* 已装记录快照(v2:安装记录为依据;记录名 = 安装 slug)。 */
   const { records } = useSkillRegistry();
-  const installedNames = useMemo(
-    () => new Set(records.map((r) => r.name.toLowerCase())),
-    [records],
-  );
+  const recordByName = useMemo(() => {
+    const m = new Map<string, InstalledSkillRecord>();
+    for (const r of records) m.set(r.name.toLowerCase(), r);
+    return m;
+  }, [records]);
+  /* 卡 → 记录键:slug 精确优先,displayName 小写兜底仅当 slug 缺失。 */
+  const recordKey = (card: ClawHubCard): string =>
+    (card.slug || card.displayName).toLowerCase();
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebounced(query.trim()), SEARCH_DEBOUNCE_MS);
@@ -233,9 +253,12 @@ export function StoreView() {
   }, [items]);
 
   const visible = topic ? items.filter((i) => i.topics.includes(topic)) : items;
-  const isInstalled = (card: ClawHubCard): boolean =>
-    installedNames.has(card.slug.toLowerCase()) ||
-    installedNames.has(card.displayName.toLowerCase());
+  const isInstalled = (card: ClawHubCard): boolean => recordByName.has(recordKey(card));
+  /* 更新闭环比对:记录有版本且 ClawHub latestVersion 更新才显;缺版本如实不显。 */
+  const updateAvailable = (card: ClawHubCard): boolean => {
+    const rec = recordByName.get(recordKey(card));
+    return !!rec?.version && isNewerSkillVersion(card.latestVersion, rec.version);
+  };
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -254,7 +277,9 @@ export function StoreView() {
         emptyHint={debounced ? t("无匹配技能") : t("商店暂无内容")}
         visible={visible}
         isInstalled={isInstalled}
+        updateAvailable={updateAvailable}
         onInstall={setInstalling}
+        onUpdate={setInstalling}
         showMore={cursor !== "" && topic === ""}
         loadingMore={loadingMore}
         loadMoreError={loadMoreError}

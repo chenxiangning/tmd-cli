@@ -8,6 +8,7 @@ import { useState } from "react";
 import { t } from "@kernel/i18n";
 import { DialogShell, DialogActions } from "@kernel/DialogShell";
 import { SecretInput } from "@kernel/SecretInput";
+import { StyledSelect } from "@kernel/StyledSelect";
 import { addOmpCustomProvider } from "./modelsConfig";
 
 const API_OPTIONS = [
@@ -93,13 +94,13 @@ export function OmpCustomProviderDialog({
           </label>
           <label className="flex flex-1 flex-col gap-1">
             <span className="text-[0.6875rem] text-(--tmd-fg-muted)">{t("协议")}</span>
-            <select value={api} onChange={(e) => setApi(e.target.value)} className="cli-cfg-input">
-              {API_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            <StyledSelect
+              value={api}
+              options={[...API_OPTIONS]}
+              onChange={setApi}
+              ariaLabel={t("协议")}
+              className="cli-cfg-input"
+            />
           </label>
         </div>
         <label className="flex flex-col gap-1">

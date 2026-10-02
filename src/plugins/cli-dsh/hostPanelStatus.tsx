@@ -106,16 +106,16 @@ export function HostActions({
           </button>
         </>
       )}
-      {binFound && (
-        <button
-          type="button"
-          className={BTN}
-          disabled={pending !== null}
-          onClick={() => void onRefresh()}
-        >
-          <ArrowClockwise size="0.6875rem" /> {t("重新检测")}
-        </button>
-      )}
+      {/* 重新检测常驻:旧实现按 binFound 隐藏,host 连着但 CLI 探活失败时
+          用户连再探一次的机会都没有。 */}
+      <button
+        type="button"
+        className={BTN}
+        disabled={pending !== null}
+        onClick={() => void onRefresh()}
+      >
+        <ArrowClockwise size="0.6875rem" /> {t("重新检测")}
+      </button>
     </>
   );
 }

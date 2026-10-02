@@ -1,46 +1,19 @@
 /**
  * 流内活轮渲染器(monocode AgentTranscript 活动段同款交互):
- * - 思考 = 单行脉冲摘要流式滚动(点击展开全文;monocode ActivityThinkingRow 同语义)
- * - 首帧未到 = 「思考中…」shimmer 占位(InitialThinking 同款)
- * - 正文 = markdown 渲染 + 末尾光标脉冲(流式体感)
- * - 工具行 = 盲文 spinner(running)/✓(done)/✕(error) + 标签 + 预览子行 + 可展开输出
- * 只渲染 turnStart 之后的活块;落定历史归 TranscriptView(同形块,结算零跳变)。
+ * - 用户/正文/思考 = 直接复用 session-viewer 同形组件(sv-user 署名行、
+ *   sv-assistant 光标、ThinkingRow 脉冲摘要)——活轮与落定同形,结算零跳变
+ *   不再是声明而是结构保证;流式观感靠 tail/pulse。
+ * - 工具行 = 统一 Spinner 原语(running)/✓(done)/✕(error) + 标签 + 可展开
+ *   实时输出尾段(running 自动展开/终态折叠,落定后归 TranscriptView 折叠组)。
+ * - 首帧未到 = 「思考中…」shimmer 占位(InitialThinking 同款)。
+ * 只渲染 turnStart 之后的活块;落定历史归 TranscriptView。
  */
-import { memo, useEffect, useState, type ComponentType } from "react";
+import { memo, useState, type ComponentType } from "react";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { proseSummary, tailLines, toolRowLabel } from "@plugins/session-viewer/transcriptPhases";
-
-const SPIN_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-/** 盲文 spinner(80ms/帧,monocode TerminalSpinner 同款)。 */
-function Spinner() {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const id = window.setInterval(() => setI((n) => (n + 1) % SPIN_FRAMES.length), 80);
-    return () => window.clearInterval(id);
-  }, []);
-  return <span className="ss-spin" aria-hidden>{SPIN_FRAMES[i]}</span>;
-}
-
-/** 思考行:摘要单行脉冲,点击展开全文(流式期摘要随 delta 滚动)。 */
-function ThinkingRow({ block, streaming }: { block: CliTranscriptBlock; streaming: boolean }) {
-  const [open, setOpen] = useState(false);
-  const summary = proseSummary(block.text) || "…";
-  return (
-    <div className="ss-think">
-      <button
-        type="button"
-        className={`ss-think-line${streaming ? " is-stream" : ""}`}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="ss-think-dash" aria-hidden>−</span>
-        <span className="ss-think-summary">{summary}</span>
-      </button>
-      {open ? <pre className="ss-think-full">{block.text}</pre> : null}
-    </div>
-  );
-}
+import { Spinner } from "@kernel/Spinner";
+import { tailLines, toolRowLabel } from "@plugins/session-viewer/transcriptPhases";
+import { TranscriptBlockView } from "@plugins/session-viewer/transcriptView";
+import { ThinkingRow } from "@plugins/session-viewer/transcriptRows";
 
 /** 工具行(monocode 律):运行中自动展开实时输出尾段(partialResult 增量),完成/出错自动折叠回行。 */
 /* 工具行开关律(running 自动展开/终态折叠/手动接管):单卡片状态机,无可拆。 */
@@ -61,7 +34,8 @@ function ToolRow({ block }: { block: CliTranscriptBlock }) {
         aria-expanded={open}
         onClick={() => setManual(!(manual ?? running))}
       >
-        {running ? <Spinner /> : (
+        {/* 运行态走统一 Spinner 原语(12px 行内档;原盲文 80ms interval 副本已收口) */}
+        {running ? <Spinner size="0.75rem" /> : (
           <span className={`ss-tool-mark${status === "error" ? " is-error" : ""}`} aria-hidden>
             {status === "error" ? "✕" : "✓"}
           </span>
@@ -86,23 +60,26 @@ export const LiveTurn = memo(function LiveTurn({ blocks, busy, Markdown, thinkin
   const last = live[live.length - 1];
   return (
     <div className="ss-liveturn">
-      {user ? <div className="ss-live-user">{user.text}</div> : null}
+      {/* 用户块复用落定同形组件(署名行/时间戳/强调线):结算瞬间不再换装 */}
+      {user ? <TranscriptBlockView block={user} Markdown={Markdown} /> : null}
       {busy && live.length === 0 ? (
         <div className="ss-think is-initial"><span className="ss-shimmer">{thinkingLabel}</span></div>
       ) : null}
       {live.map((b) => {
+        if (b.role === "system") {
+          /* 协议事件 notice(非 confirm 部件自动取消等)落活轮也立即可见。 */
+          return <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />;
+        }
         if (b.role === "reasoning") {
-          return <ThinkingRow key={b.id} block={b} streaming={busy && b === last} />;
+          /* 思考行同形复用(pulse = 流式脉冲;展开体 markdown 与落定一致) */
+          return <ThinkingRow key={b.id} block={b} Markdown={Markdown} pulse={busy && b === last} />;
         }
         if (b.role === "tool") {
           return <ToolRow key={b.id} block={b} />;
         }
         if (b.role === "assistant" && b.text) {
-          return (
-            <div key={b.id} className="ss-live-prose">
-              <Markdown>{b.text}</Markdown>
-            </div>
-          );
+          /* 正文同形复用(tail = 末尾光标;署名行/markdown 与落定一致) */
+          return <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} tail={busy && b === last} />;
         }
         return null;
       })}

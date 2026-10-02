@@ -3,9 +3,10 @@
  * 契约清单:
  * 1. dark.ts/light.ts 数据模块导出条目与 index id 清单一一对应(无死条目、无漏登记)
  * 2. 每个 preset 必备 28 个核心 token 且色值合法(映射器对缺键静默落兜底值,这里显式钉死)
- * 3. dark 族键集合单一签名,且词汇恰为 核心集 ∪ dark 族扩展(缺键/编外键都算回归)
+ * 3. dark 族键集合双签名:vscode 移植件 38 键(核心 ∪ dark 族扩展),
+ *    tmd 深色附 ansi16(缺键/编外键都算回归)
  * 4. 全目录词汇表恰为 核心集 ∪ dark 族扩展 ∪ 浅色 ansi16:dark 与 light 族共享同一
- *    核心词汇,浅色唯一允许的扩展是终端 ANSI 16 槽,任何一方不得私加编外键
+ *    核心词汇,两族唯一允许的扩展是终端 ANSI 16 槽,任何一方不得私加编外键
  */
 import { describe, expect, it } from "vitest";
 
@@ -18,7 +19,7 @@ import {
 } from "./themePresets";
 import { normalizeHexColor } from "./themeTokens";
 
-/** 全部 preset(31 套)共同必备的核心 token,按字母序排列(2026-09-19 实测交集钉死) */
+/** 全部 preset(37 套)共同必备的核心 token,按字母序排列(2026-09-19 实测交集钉死) */
 const CORE_COLOR_KEYS = [
   "activityBar.background",
   "activityBar.foreground",
@@ -64,7 +65,7 @@ const DARK_FAMILY_EXTRA_KEYS = [
   "terminal.foreground",
 ] as const;
 
-/** 浅色族唯一允许的扩展:终端 ANSI 16 槽(dark 族走 themeTokens 的全局兜底表) */
+/** 两族唯一允许的扩展:终端 ANSI 16 槽(tmd 深色与浅色族自带;vscode 深色走 themeTokens 全局兜底表) */
 const ANSI_SLOTS = [
   "Black",
   "Red",
@@ -99,8 +100,8 @@ describe("themePresets 数据模块结构不变量", () => {
     expect(darkKeys).toEqual([...DARK_THEME_PRESET_IDS].sort());
     expect(lightKeys).toEqual([...LIGHT_THEME_PRESET_IDS].sort());
     // 目录规模钉死:整族被误删时即使 index 同步缩水也能在此暴露
-    expect(darkKeys).toHaveLength(12);
-    expect(lightKeys).toHaveLength(19);
+    expect(darkKeys).toHaveLength(15);
+    expect(lightKeys).toHaveLength(22);
     // 条目本体必须是含非空 colors 的对象,防止 undefined/残缺条目混入
     for (const [id, entry] of [
       ...Object.entries(DARK_PRESETS),
@@ -124,17 +125,22 @@ describe("themePresets 数据模块结构不变量", () => {
     }
   });
 
-  it("dark 族键集合单一签名,且词汇恰为核心集 ∪ dark 族扩展", () => {
+  it("dark 族键集合双签名:vscode 移植件 38 键,tmd 深色附 ansi16", () => {
+    const EXPECTED_DARK_TMD_KEYS = [
+      ...new Set<string>([...EXPECTED_DARK_KEYS, ...ANSI_KEYS]),
+    ].sort();
     const darkPresets = getAllThemePresets().filter(
       (p) => p.appearance === "dark",
     );
-    const signatures = new Set(
-      darkPresets.map((p) => Object.keys(p.colors).sort().join(",")),
-    );
-    expect(signatures.size, `dark 族出现 ${signatures.size} 种键集合签名`).toBe(
-      1,
-    );
-    expect([...signatures][0].split(",")).toEqual(EXPECTED_DARK_KEYS);
+    for (const preset of darkPresets) {
+      const expected = preset.id.startsWith("tmd-")
+        ? EXPECTED_DARK_TMD_KEYS
+        : EXPECTED_DARK_KEYS;
+      expect(
+        Object.keys(preset.colors).sort(),
+        `${preset.id} 键集合签名偏离`,
+      ).toEqual(expected);
+    }
   });
 
   it("全目录词汇表恰为核心集 ∪ dark 族扩展 ∪ ansi16:无编外键,两族词汇一致", () => {

@@ -3,16 +3,16 @@
  * 有记录的日子出日卡(脊柱节点 + 生长珠子 + 折叠文章卡 + 只读便签),
  * 间隔空白日画 gap(原型 .flow/.day/.spine)。月导航由面板提供,自身不带。
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef } from "react";
 import { PencilSimpleLine } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { dayMetaOf, deriveDayStatus, loadMonth, useJournalState, type MonthSnapshot } from "./journalStore";
+import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, loadMonth, useJournalState, type MonthSnapshot } from "./journalStore";
 import type { DaySessionRow } from "./daySessions";
 import { openArticleTab } from "./journalTabs";
 import { pad2 } from "./journalFiles";
 import { ArticleBody, NoteReadonly } from "./articleBody";
 import { notePeekOf, statusChip } from "./statusText";
-import { holOf, useHolidays } from "./holidays";
+import { holOf, isWorkdayOverride, useHolidays } from "./holidays";
 import type { Article } from "./articleParse";
 import type { DayNote } from "./journalFiles";
 import { dayTitleOf } from "./dateTitle";
@@ -35,6 +35,23 @@ function nodeClsOf(st: string, hasNote: boolean, hol: boolean): string {
   return hasNote ? "dj-node-nn" : "dj-node-n";
 }
 
+/* 折叠态面板级 store(key = 日 key,值 = 用户裁定;无记录回落默认折)。
+ * 模块级 + 订阅通知(liveMode.ts 同款 store 律):右栏切走面板/数据重扫导致
+ * FlowView 卸载再回来,折叠裁定不重置;月导航换数据同理。 */
+const foldedDays = new Map<string, boolean>();
+const foldSubs = new Set<() => void>();
+function foldOfDay(key: string, def: boolean): boolean {
+  return foldedDays.get(key) ?? def;
+}
+function toggleFoldOfDay(key: string, def: boolean): void {
+  foldedDays.set(key, !foldOfDay(key, def));
+  foldSubs.forEach((fn) => fn());
+}
+function subscribeFolds(fn: () => void): () => void {
+  foldSubs.add(fn);
+  return () => foldSubs.delete(fn);
+}
+
 /** 轴卡正文(文章体/失败/待提取/纯便签语义行;纯函数)。 */
 function cardBody(day: { article: Article | null; note: DayNote | undefined; rows: DaySessionRow[] }, st: string, lastError?: string): React.ReactNode {
   if (day.article) return <ArticleBody article={day.article} />;
@@ -43,11 +60,10 @@ function cardBody(day: { article: Article | null; note: DayNote | undefined; row
   return <div className="dj-fcard-hint">{t("便签独立于文章存在,写下即是记录。")}</div>;
 }
 
-function DayCard({ ym, day, today }: { ym: { y: number; m: number }; day: FlowDay; today: boolean }) {
+/** 日卡(受控折叠:折叠态归 FlowView 根的 store,子卡不自持)。 */
+function DayCard({ ym, day, today, folded, onToggle }: { ym: { y: number; m: number }; day: FlowDay; today: boolean; folded: boolean; onToggle: () => void }) {
   const meta = dayMetaOf(day.key);
   const st = deriveDayStatus(day.article, today, day.rows.length, meta);
-  const [folded, setFolded] = useState(!today && !day.note);
-  const toggle = () => setFolded((v) => !v);
   const notePeek = notePeekOf(day.note);
   return (
     <div className="dj-day">
@@ -67,17 +83,22 @@ function DayCard({ ym, day, today }: { ym: { y: number; m: number }; day: FlowDa
             className="dj-fcard-toggle"
             aria-expanded={!folded}
             aria-label={dayTitleOf(ym.y, ym.m, day.d)}
-            onClick={toggle}
+            onClick={onToggle}
           >
             <span className="dj-fcard-date">{dayTitleOf(ym.y, ym.m, day.d)}</span>
             <span className="dj-foldmark">▾</span>
           </button>
           {holOf(ym.y, ym.m, day.d) && <span className="dj-holmini">休·{holOf(ym.y, ym.m, day.d)}</span>}
           <span className={`dj-chip dj-chip-${st === "n" ? "plain" : st}`}>{statusChip(st)}</span>
-          {day.article && <span className="dj-fcard-headline">{day.article.title}</span>}
+          {day.article && (
+            <span className="dj-fcard-headline" title={day.article.title}>
+              {day.article.title}
+            </span>
+          )}
           {folded && notePeek && (
-            <span className="dj-fcard-notepeek">
-              <PencilSimpleLine size={9} /> {notePeek}
+            <span className="dj-fcard-notepeek" title={notePeek}>
+              {/* 密集折叠卡脚注图标:10px 例外档(9px 档收口取消) */}
+              <PencilSimpleLine size="0.625rem" /> {notePeek}
             </span>
           )}
           <button
@@ -115,6 +136,9 @@ export function FlowView({
   today: string;
 }) {
   const stripRef = useRef<HTMLDivElement | null>(null);
+  /* 折叠 store 订阅:任一日卡切换即重渲染(子卡全受控,无本地态)。 */
+  const [, foldBump] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => subscribeFolds(foldBump), [foldBump]);
   useEffect(() => {
     void loadMonth(ym.y, ym.m);
   }, [ym, snap]);
@@ -122,6 +146,15 @@ export function FlowView({
   const days = new Date(ym.y, ym.m, 0).getDate();
   const metaV = useJournalState().meta;
   useHolidays();
+  /* 月条热力阈值:当月活跃日 25/50/75 分位(与月/年视图同一函数,同日同色)。 */
+  const ts = useMemo(() => {
+    const counts: number[] = [];
+    for (let d = 1; d <= days; d++) {
+      const rows = sessions.get(`${prefix}-${pad2(d)}`);
+      if (rows?.length) counts.push(rows.length);
+    }
+    return heatThresholds(counts);
+  }, [sessions, prefix, days]);
   const flowDays = useMemo<FlowDay[]>(() => {
     const out: FlowDay[] = [];
     for (let d = 1; d <= days; d++) {
@@ -156,7 +189,8 @@ export function FlowView({
             const fd = flowDays.find((x) => x.d === d);
             const meta = fd ? dayMetaOf(fd.key) : { beads: [], updatedAt: 0 };
             const st = fd ? deriveDayStatus(fd.article, fd.key === today, fd.rows.length, meta) : "n";
-            const we = [0, 6].includes(new Date(ym.y, ym.m - 1, d).getDay());
+            /* 调休上班日不画周末描边;热力档与月/年视图同源分位 */
+            const we = [0, 6].includes(new Date(ym.y, ym.m - 1, d).getDay()) && !isWorkdayOverride(ym.y, ym.m, d);
             const cls = [
               holOf(ym.y, ym.m, d)
                 ? "dj-mb-hol"
@@ -167,11 +201,7 @@ export function FlowView({
                     : st === "f"
                       ? "dj-mb-f"
                       : st === "g"
-                        ? fd!.rows.length >= 9
-                          ? "dj-mb-h3"
-                          : fd!.rows.length >= 6
-                            ? "dj-mb-h2"
-                            : "dj-mb-g"
+                        ? `dj-mb-${heatOf(fd!.rows.length, ts)}`
                         : "",
               we ? "dj-mb-we" : "",
               fd?.note ? "dj-mb-note" : "",
@@ -190,7 +220,7 @@ export function FlowView({
           })}
         </div>
         <span className="dj-mb-legend">
-          {t("格 = 日")} · {t("蓝 = 今天")} · {t("内框 = 有便签")}
+          {t("格 = 日")} · {t("蓝 = 今天")} · {t("黄 = 待提取")} · {t("红 = 失败")} · {t("内框 = 有便签")}
         </span>
       </div>
       <div className="dj-flow">
@@ -205,7 +235,13 @@ export function FlowView({
           return (
             <div key={fd.key}>
               {gap}
-              <DayCard ym={ym} day={fd} today={fd.key === today} />
+              <DayCard
+                ym={ym}
+                day={fd}
+                today={fd.key === today}
+                folded={foldOfDay(fd.key, fd.key !== today && !fd.note)}
+                onToggle={() => toggleFoldOfDay(fd.key, fd.key !== today && !fd.note)}
+              />
             </div>
           );
         })}

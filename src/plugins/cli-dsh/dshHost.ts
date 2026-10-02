@@ -3,18 +3,17 @@
  * 自拉起/adopt/停机、launch token 凭据链、就绪轮询。连接配置域在 dshConnection.ts。
  */
 
-import { ipc, onPtyOutput } from "@kernel/ipc";
-import { getPlatformKind } from "@kernel/platform";
+import { ipc } from "@kernel/ipc";
 import {
   authHeaders,
   dshCommand,
   isLocalHost,
+  isWildcardBindHost,
   loadConnection,
   originOf,
-  saveConnection,
   type DshConnection,
 } from "./dshConnection";
-
+import { startHostSession, stopHostSession, type RawSessionSpawner } from "./dshHostSession";
 
 /** describe 视图:只透传已知字段,未知形状不猜。 */
 export interface DshHostView {
@@ -23,10 +22,22 @@ export interface DshHostView {
   sessions?: number;
 }
 
-/** 探针结果:401 = host 活着但缺凭据(与「没起来」必须可分,adopt 语义靠它)。 */
+/** 探针结果:401 = host 活着但缺凭据(与「没起来」必须可分,adopt 语义靠它);
+ *  403 = Host/Origin 栅栏拒绝(非 loopback 且未进 DSH trustedHosts)。 */
 interface ProbeResult {
   view: DshHostView | null;
   unauthorized: boolean;
+  forbidden: boolean;
+}
+
+/** quota_fetch 声明 text 后 body 是原文,真 JSON 再解一次(解不动 = null)。 */
+function jsonOrNull(body: unknown): unknown {
+  if (typeof body !== "string") return body;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
 }
 
 /** server-response 信封 → 视图;非 server-response / ok:false → null。 */
@@ -48,7 +59,14 @@ export function parseDescribeResponse(status: number, body: unknown): DshHostVie
   return view;
 }
 
-/** 探针 = settings/describe(0.1.2 起 host.describe 删除)。连接级错误归 down。 */
+/**
+ * 探针 = settings/describe(0.1.2 起 host.describe 删除)。连接级错误归 down。
+ *
+ * `text: true` 是硬要求:DSH 的 401/403 响应体是纯文本("unauthorized" /
+ * "forbidden"),而 quota_fetch 未声明 text 时对 body 做 serde_json::from_str,
+ * 解析失败即 Err → invoke reject → 本函数的 catch 把 401 归一成「没起来」,
+ * 「host 活着但缺凭据 → 停监听换代自启」整条链在真机永不可达(测试用 mock
+ * 绕过了 Rust 解析,所以一直绿)。声明 text 后自己 JSON.parse。 */
 export async function probeHost(conn: DshConnection): Promise<ProbeResult> {
   try {
     const res = await ipc.quotaFetch({
@@ -56,11 +74,14 @@ export async function probeHost(conn: DshConnection): Promise<ProbeResult> {
       method: "POST",
       headers: { "content-type": "application/json", ...authHeaders(conn) },
       body: JSON.stringify({ type: "client-request", rpcId: `tmd-${Date.now()}`, method: "settings/describe", payload: { args: {} } }),
+      text: true, /* 401/403 是纯文本错误体,不声明会被当 JSON 解析抛错 */
     });
-    if (res.status === 401) return { view: null, unauthorized: true };
-    return { view: parseDescribeResponse(res.status, res.body), unauthorized: false };
+    if (res.status === 401) return { view: null, unauthorized: true, forbidden: false };
+    /* 403 = Host/Origin 栅栏拒绝(非 loopback 且未进 DSH trustedHosts)。 */
+    if (res.status === 403) return { view: null, unauthorized: false, forbidden: true };
+    return { view: parseDescribeResponse(res.status, jsonOrNull(res.body)), unauthorized: false, forbidden: false };
   } catch {
-    return { view: null, unauthorized: false };
+    return { view: null, unauthorized: false, forbidden: false };
   }
 }
 
@@ -74,127 +95,41 @@ export async function probeBinary(conn: DshConnection): Promise<boolean> {
   }
 }
 
-/* ── 自拉起 host 会话登记(模块级 + localStorage;webview 重载不丢,
-   重载后仍能停掉同一次应用运行里拉起的 host)── */
+/** 在途启动闸:侧栏扫盘只在这条 promise 非空时才等 host 就绪(否则白等 24s)。 */
+let startInFlight: Promise<DshHostView | null> | null = null;
 
-const HOST_SESSION_KEY = "tmd.dsh.hostSession.v1";
-
-let hostSessionId: string | null = null;
-
-export function currentHostSessionId(): string | null {
-  return hostSessionId ?? localStorage.getItem(HOST_SESSION_KEY);
+/** 是否有 host 正在被拉起(侧栏补扫判据)。 */
+export function hostStartInFlight(): boolean {
+  return startInFlight !== null;
 }
-
-function rememberHostSession(id: string): void {
-  hostSessionId = id;
-  localStorage.setItem(HOST_SESSION_KEY, id);
-}
-
-/** 取走登记(读一次即清,含落盘)。 */
-function forgetHostSession(): string | null {
-  const id = currentHostSessionId();
-  hostSessionId = null;
-  localStorage.removeItem(HOST_SESSION_KEY);
-  return id;
-}
-
-/** 注入式装配 spawn(host.spawnRawSession):裸 ipc.sessionSpawn 不经装配,幕布空白。 */
-export type RawSessionSpawner = (
-  profileId: string,
-  spec: { command: string; args: string[]; cwd: string; title: string },
-) => Promise<{ id: string }>;
 
 /**
- * host 会话 = 后台基础设施(spawner 传 activate:false);--no-open 防自弹浏览器。
- * 0.1.2 起 host 打印一次性 launch token:spawn 后订阅 PTY 输出抓 token 换
- * cookie 落盘(20s 封顶;探针就绪判定依赖 cookie 先行落盘)。
+ * 装配入口:登记在途启动,供侧栏判「有人在拉起」。
+ * 实现体见 ensureHostSessionInner。
  */
-export async function startHostSession(
+export function ensureHostSession(
   conn: DshConnection,
   spawn: RawSessionSpawner,
-): Promise<string> {
-  const spawned = await spawn("dsh", {
-    command: dshCommand(conn),
-    args: ["web", "--host", conn.host, "--port", String(conn.port), "--no-open"],
-    cwd: await ipc.configHomeDir(),
-    title: "DSH Host",
+): Promise<DshHostView | null> {
+  const run = ensureHostSessionInner(conn, spawn);
+  const tracked: Promise<DshHostView | null> = run.finally(() => {
+    if (startInFlight === tracked) startInFlight = null;
   });
-  rememberHostSession(spawned.id);
-  await captureLaunchToken(conn, spawned.id);
-  return spawned.id;
+  startInFlight = tracked;
+  return tracked;
 }
 
-/** PTY 输出抓 `[?&]token=` → 换 cookie → 落盘;20s 未见到 token 静默放弃。 */
-async function captureLaunchToken(conn: DshConnection, sessionId: string): Promise<void> {
-  await new Promise<void>((resolve) => {
-    let buf = "";
-    let done = false;
-    let unlisten: (() => void) | null = null;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      unlisten?.();
-      resolve();
-    };
-    void onPtyOutput(sessionId, (text: string) => {
-      if (done) return;
-      buf += text;
-      const m = buf.match(/[?&]token=([A-Za-z0-9_-]+)/);
-      if (!m) return;
-      void exchangeAndSave(conn, m[1]).finally(finish);
-    }).then((off) => {
-      unlisten = off;
-      if (done) off();
-    });
-    setTimeout(finish, 20_000);
-  });
-}
-
-/** launch token → 303 set-cookie(经 quota_fetch 不跟随重定向+回带头)。 */
-async function exchangeAndSave(conn: DshConnection, token: string): Promise<void> {
-  try {
-    const res = await ipc.quotaFetch({
-      url: `${originOf(conn)}/?token=${encodeURIComponent(token)}`,
-      method: "GET",
-      noRedirect: true,
-      includeHeaders: true,
-      text: true, /* 303 的 body 不是 JSON,不声明会被 quota_fetch 当 JSON 解析抛错 */
-    });
-    const raw = res.headers?.["set-cookie"]?.[0];
-    const cookie = raw?.split(";")[0];
-    if (res.status !== 303 || !cookie) return;
-    saveConnection({ ...loadConnection(), cookie, launchToken: token });
-  } catch { /* 交换失败 = 后续探针 401,走 ensure 的重启收口 */ }
-}
-
-
-type DshStopOutcome = "stopped" | "remote";
-
-/**
- * codemoss stop_host 同款:杀自spawn 会话 + 按端口停本机监听(外部/遗留
- * host 也能停);远程 origin 拒绝,由调用方提示。 */
-export async function stopHostSession(conn: DshConnection): Promise<DshStopOutcome> {
-  if (!isLocalHost(conn.host)) return "remote";
-  const id = forgetHostSession();
-  if (id) await ipc.sessionKill(id).catch(() => undefined);
-  await (isWindowsPlatform()
-    ? terminateLocalListenerWindows(conn.port)
-    : terminateLocalListenerUnix(conn.port));
-  return "stopped";
-}
-/**
- * codemoss ensure_host 同款:已运行直接复用;否则拉起并等就绪。
- * 0.1.2 新语义:401 = 外部 host 且无凭据 —— 本机则停掉监听换代自启
- * (凭据归我们管),远程无法代管,直接报未运行。
- */
-export async function ensureHostSession(
+async function ensureHostSessionInner(
   conn: DshConnection,
   spawn: RawSessionSpawner,
 ): Promise<DshHostView | null> {
   const live = await probeHost(conn);
   if (live.view) return live.view;
+  /* 非本机 origin 不代拉起也不代杀:spawn 一个本地 `dsh web --host <远程>` 必秒死
+     (EADDRNOTAVAIL/栅栏 403),只会白等一轮轮询再把状态判成「连不上」。
+     通配监听地址(0.0.0.0/::)DSH 启动期就拒绝,同样不代拉起。 */
+  if (!isLocalHost(conn.host) || isWildcardBindHost(conn.host)) return null;
   if (live.unauthorized) {
-    if (!isLocalHost(conn.host)) return null;
     await stopHostSession(conn);
     await delay(600);
   }
@@ -208,66 +143,6 @@ export async function ensureHostSession(
 }
 
 /* 平台判定统一走 kernel/platform(UA 小写化 + unknown 兜底链),不自造。 */
-const isWindowsPlatform = () => getPlatformKind() === "windows";
-
-/** unix:lsof 找 LISTEN pid → TERM,非零退出补 KILL(codemoss 同款)。
- *  lsof/kill 探针全程容错:缺席/超时即跳过 —— 此链任何 reject 都会让
- *  hostPanel 的 pending 永卡「正在停止…」(onStop 无 try/catch)。 */
-async function terminateLocalListenerUnix(port: number): Promise<void> {
-  const cwd = await ipc.configHomeDir();
-  const scan = await ipc.procCommunicate({
-    command: "lsof",
-    args: ["-n", "-P", "-t", `-iTCP:${port}`, "-sTCP:LISTEN"],
-    cwd,
-    timeoutMs: 8000,
-  }).catch(() => null);
-  if (!scan) return;
-  const pids = scan.stdout.split("\n").map((l) => l.trim()).filter((l) => /^\d+$/.test(l));
-  if (pids.length === 0) return;
-  const term = await ipc.procCommunicate({
-    command: "kill",
-    args: ["-TERM", ...pids],
-    cwd,
-    timeoutMs: 8000,
-  }).catch(() => null);
-  if (term && term.code !== 0) {
-    await ipc.procCommunicate({
-      command: "kill",
-      args: ["-KILL", ...pids],
-      cwd,
-      timeoutMs: 8000,
-    }).catch(() => undefined);
-  }
-}
-
-/** win:netstat 找 LISTENING pid → taskkill /T /F(codemoss 同款解析)。 */
-async function terminateLocalListenerWindows(port: number): Promise<void> {
-  const cwd = await ipc.configHomeDir();
-  const scan = await ipc.procCommunicate({
-    command: "netstat",
-    args: ["-ano", "-p", "tcp"],
-    cwd,
-    timeoutMs: 8000,
-  });
-  const needle = `:${port}`;
-  const pids = new Set<string>();
-  for (const line of scan.stdout.split("\n")) {
-    const cols = line.trim().split(/\s+/);
-    if (cols.length < 5 || cols[3].toUpperCase() !== "LISTENING") continue;
-    if (cols[1].endsWith(needle)) pids.add(cols[4]);
-  }
-  /* 各 pid 的 taskkill 互不依赖,并发;pids 常为 1 个,失败逐个吞掉。 */
-  await Promise.all(
-    [...pids].map((pid) =>
-      ipc.procCommunicate({
-        command: "taskkill",
-        args: ["/PID", pid, "/T", "/F"],
-        cwd,
-        timeoutMs: 8000,
-      }).catch(() => undefined),
-    ),
-  );
-}
 
 /* ── 自动启动(每次应用运行至多一次;StrictMode 双挂载安全)── */
 

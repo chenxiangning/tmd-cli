@@ -10,6 +10,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { ipc, type SftpEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { retryImport } from "@kernel/lazyImport";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { setActiveTab, updateTab, type EditorTab } from "@kernel/tabs";
 import { saveRequestRef } from "./saveRequestRef";
 import { useDarkTheme } from "@kernel/theme";
@@ -35,6 +36,10 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
+  /* 冲突覆盖确认(原生 confirm 清零轮):detail 非空即弹 ConfirmDialog;
+     已覆盖标记区分「确认覆盖后的自关」与「取消」,后者才落未保存横幅。 */
+  const [conflict, setConflict] = useState<string | null>(null);
+  const overwriteRef = useRef(false);
   const dark = useDarkTheme();
 
   /* 文件切换:整树重建(key 驱动),脏标记与横幅一并复位。 */
@@ -42,6 +47,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
     setDoc(null);
     setDirty(false);
     setBanner(null);
+    setConflict(null);
     if (!payload) return;
     let cancelled = false;
     void (async () => {
@@ -98,17 +104,14 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
         );
         if (outcome.action === "conflict") {
           const current = outcome.entry;
-          const detail = current
-            ? t("远端已变更({time}, {size} 字节)", {
-                time: new Date(current.mtime).toLocaleString(),
-                size: current.sizeBytes,
-              })
-            : t("远端文件已被删除");
-          if (window.confirm(t("{detail}。覆盖远端?", { detail }))) {
-            await save(true);
-          } else {
-            setBanner(t("未保存:远端有变更"));
-          }
+          setConflict(
+            current
+              ? t("远端已变更({time}, {size} 字节)", {
+                  time: new Date(current.mtime).toLocaleString(),
+                  size: current.sizeBytes,
+                })
+              : t("远端文件已被删除"),
+          );
           return;
         }
         setDoc((prev) =>
@@ -136,8 +139,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
   }, [save]);
 
   if (!payload) return null;
-  if (!doc || !doc.loaded) {
-    return (
+  if (!doc || !doc.loaded) {    return (
       <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
         {t("读取远端文件…")}
       </div>
@@ -198,6 +200,23 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
           />
         </Suspense>
       </div>
+      {conflict ? (
+        <ConfirmDialog
+          title={t("远端文件已变更")}
+          message={t("{detail}。覆盖远端?", { detail: conflict })}
+          confirmLabel={t("覆盖")}
+          danger
+          onConfirm={() => {
+            overwriteRef.current = true;
+            void save(true);
+          }}
+          onClose={() => {
+            setConflict(null);
+            if (!overwriteRef.current) setBanner(t("未保存:远端有变更"));
+            overwriteRef.current = false;
+          }}
+        />
+      ) : null}
     </div>
   );
 }

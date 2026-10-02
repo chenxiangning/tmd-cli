@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
-import { CaretDown, FileText } from "@phosphor-icons/react";
+import { FileText } from "@phosphor-icons/react";
 import { ipc, type GitFileStatus, type GitTotals } from "@kernel/ipc";
 import type { FileListLayout } from "../panelStore";
 import { openDiffTab } from "../diffTab";
@@ -149,9 +149,8 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation, onEr
             "dir" in row ? (
               <div
                 key={`dir:${row.dir}`}
-                className="flex items-center gap-1 px-2 py-1 font-medium text-(--tmd-fg-muted)"
+                className="flex items-center gap-1 px-3 py-1 font-medium text-(--tmd-fg-muted)"
               >
-                <CaretDown className="h-[0.75rem] w-[0.75rem]" />
                 {row.dir}
               </div>
             ) : (
@@ -234,8 +233,10 @@ function FileRow({
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 text-left"
       >
         <FileText className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-faint)" />
-        <span className="min-w-0 flex-1 truncate">{depth > 0 ? file.path.slice(file.path.indexOf("/") + 1) : file.path}</span>
-        <span className={`font-mono text-[0.625rem] ${STATUS_COLOR[file.status] ?? ""}`}>
+        <span className="min-w-0 flex-1 truncate" title={file.path}>
+          {depth > 0 ? file.path.slice(file.path.indexOf("/") + 1) : file.path}
+        </span>
+        <span className={`w-[14px] shrink-0 text-center font-semibold ${STATUS_COLOR[file.status] ?? ""}`}>
           {displayStatus}
         </span>
       </button>
@@ -249,6 +250,7 @@ function FileRow({
           type="button"
           onClick={file.staged ? onUnstage : onStage}
           title={file.staged ? "unstage" : "stage"}
+          aria-label={file.staged ? "unstage" : "stage"}
           className="w-4 shrink-0 text-center opacity-0 hover:text-(--tmd-accent) group-hover:opacity-60"
         >
           {file.staged ? "−" : "+"}
@@ -259,13 +261,14 @@ function FileRow({
           type="button"
           onClick={onDiscard}
           title={t("放弃工作区改动(还原到暂存区;已暂存内容保留)")}
+          aria-label={t("放弃工作区改动(还原到暂存区;已暂存内容保留)")}
           className="w-4 shrink-0 text-center opacity-0 hover:text-(--tmd-diff-removed) group-hover:opacity-60"
         >
           ↺
         </button>
       )}
       {isConflict && (
-        <span className="shrink-0 text-[0.625rem] text-(--tmd-diff-removed)">{t("冲突")}</span>
+        <span className="shrink-0 text-meta text-(--tmd-diff-removed)">{t("冲突")}</span>
       )}
     </div>
   );

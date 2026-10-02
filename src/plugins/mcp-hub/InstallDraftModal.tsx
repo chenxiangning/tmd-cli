@@ -153,18 +153,18 @@ export function InstallDraftModal({
   return (
     <DialogShell
       title={t("安装 {name}", { name: card.name })}
-      icon={<span className="text-[0.75rem]">MCP</span>}
+      icon={<span className="text-xs">MCP</span>}
       width={620}
       locked={busy}
       onClose={onClose}
       footer={
         saved ? (
-          <div className="text-right text-[0.6875rem] text-(--tmd-fg-faint)">
+          <div className="text-right text-xs text-(--tmd-fg-faint)">
             {t("已保存,下次会话生效(不承诺即时生效)")}
           </div>
         ) : (
           <div className="flex flex-col items-end gap-1">
-            {error && <div className="max-w-full break-all text-[0.625rem] text-(--tmd-diff-removed)">{error}</div>}
+            {error && <div className="max-w-full break-all text-meta text-(--tmd-diff-removed)">{error}</div>}
             <DialogActions
               confirmLabel={t("写入目标引擎")}
               confirmDisabled={missingRequired || busy || resolving || !draft}
@@ -177,9 +177,9 @@ export function InstallDraftModal({
       }
     >
       {resolving ? (
-        <div className="py-6 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("正在拉取安装详情…")}</div>
+        <div className="py-6 text-center text-xs text-(--tmd-fg-faint)">{t("正在拉取安装详情…")}</div>
       ) : !draft ? (
-        <div className="py-6 text-center text-[0.6875rem] text-(--tmd-fg-faint)">
+        <div className="py-6 text-center text-xs text-(--tmd-fg-faint)">
           {t("此卡片无可生成的安装草稿(需手动配置)")}
         </div>
       ) : (
@@ -222,7 +222,7 @@ function DraftFormBody(props: {
   const { resolved, draft, draftKind, onDraftKindChange, name, onNameChange } = props;
   const { engines, profileId, onEngineChange, idTaken, values, setValues, preview } = props;
   return (
-    <div className="flex flex-col gap-3 text-[0.6875rem]">
+    <div className="flex flex-col gap-3 text-xs">
       {resolved.installDraft && resolved.manualDraft ? (
         <div className="flex gap-1">
           <button type="button" aria-pressed={draftKind === "install"} className={`mcphub-seg-btn ${draftKind === "install" ? "is-on" : ""}`} onClick={() => onDraftKindChange("install")}>
@@ -233,7 +233,7 @@ function DraftFormBody(props: {
           </button>
         </div>
       ) : draftKind === "manual" ? (
-        <p className="text-[0.625rem] leading-relaxed text-(--tmd-fg-faint)">
+        <p className="text-meta leading-relaxed text-(--tmd-fg-faint)">
           {t("命令来自 registry 包指引,请确认后再写入")}
         </p>
       ) : null}
@@ -242,7 +242,7 @@ function DraftFormBody(props: {
         <label className="flex flex-1 flex-col gap-1">
           <span className="text-(--tmd-fg-faint)">{t("server 名称(同文件内唯一)")}</span>
           <input className="mcphub-input" value={name} aria-label={t("server 名称(同文件内唯一)")} onChange={(e) => onNameChange(e.target.value)} />
-          {idTaken && <span className="text-[0.625rem] text-(--tmd-diff-removed)">{t("同名 server 已存在,请改名或先删除旧条目")}</span>}
+          {idTaken && <span className="text-meta text-(--tmd-diff-removed)">{t("同名 server 已存在,请改名或先删除旧条目")}</span>}
         </label>
         <label className="flex flex-1 flex-col gap-1">
           <span className="text-(--tmd-fg-faint)">{t("目标引擎")}</span>

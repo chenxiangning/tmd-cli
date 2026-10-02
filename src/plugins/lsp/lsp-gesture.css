@@ -1,0 +1,19 @@
+/* lsp 手势失败轻提示(右下角非阻塞 toast;呈现面 gestureToast.tsx)。
+   lsp.css 逼近 300 行铁则,拆独立文件(同插件多 css 先例:风格续接)。 */
+
+.lsp-gesture-toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1201;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 8px 12px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-popover);
+  box-shadow: var(--tmd-shadow-popover);
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
+  color: var(--tmd-fg);
+  word-break: break-word;
+}

@@ -20,7 +20,7 @@ export const MESSAGES = {
   /* 侧栏工作区文件浏览器 */
   "查看文件": "View files",
   "返回工作区": "Back to workspace",
-  "搜索文件...": "Search files...",
+  "搜索文件…": "Search files...",
   "搜索中…": "Searching…",
   "没有匹配的文件": "No matching files",
   "没有变更文件": "No changed files",
@@ -136,10 +136,10 @@ export const MESSAGES = {
   /* 结构化预览 */
   "文件较大,仅展示前 {visible} / {total} 行": "File is large; showing first {visible} / {total} lines",
 "远程文件 · 只读(M1)": "Remote file · read-only (M1)",
-  /* 打开方式菜单(OpenWithMenu:用 {label} 打开 = Use {label} to open this) */
-  "用": "Use",
-  "打开": "to open this",
+  /* 打开方式菜单(OpenWithMenu) */
+  "用 {label} 打开": "Open with {label}",
   "选择打开方式": "Choose how to open",
+  "打开失败:{msg}": "Failed to open: {msg}",
   /* Markdown 预览标记(previewMarks) */
   "查看标记": "View marked blocks",
   "标记此块,随下次发送带上": "Mark this block to include it with the next send",

@@ -3,9 +3,8 @@
 import React, { useMemo, useState } from "react";
 import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
-import { invoke } from "@kernel/transport";
 import { ConnBanner, HostChip } from "./ConnChip";
-import { useMobile } from "./shared";
+import { pollHomeWatch, useMobile } from "./shared";
 import { Row } from "./Row";
 import { ArchiveIcon, ChevronIcon, FolderIcon, LocalIcon } from "./treeIcons";
 import { groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HistoryItem, type HomeRow } from "./history";
@@ -27,37 +26,37 @@ export function HomeScreen() {
   const [pending, setPending] = useState<Record<string, number>>({});
   /* 磁盘历史:key = 工作区 root。 */
   const [history, setHistory] = useState<Map<string, HistoryItem[]>>(new Map());
+  /* 手动刷新:顶栏钮触发一轮立即轮询(审批/ask + 磁盘历史);busy 态旋转指示。 */
+  const [refreshing, setRefreshing] = useState(false), [refreshTick, setRefreshTick] = useState(0);
+  const spinRef = React.useRef<HTMLSpanElement | null>(null), spinAnim = React.useRef<Animation | null>(null);
+  const refresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshTick((k) => k + 1);
+    spinAnim.current = spinRef.current?.animate(
+      [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], { duration: 900, iterations: Infinity },
+    ) ?? null;
+  };
 
-  /* 轮询目标:截断前按 createdAt 稳定排序(源 HashMap 无序,否则徽标覆盖面漂移)。 */
-  const targets = useMemo(
+  /* 轮询目标:createdAt 稳定排序截断 12(源 HashMap 无序,否则徽标覆盖面漂移);running = 「运行中」区同律,ask 尾窗只查这些。 */
+  const items = useMemo(
     () => [...sessions].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0)).slice(0, 12)
-      .map((s) => [s.id, s.cwd ?? ""] as [string, string]),
-    [sessions],
+      .map((s) => ({ id: s.id, cwd: s.cwd ?? "", title: titleOf(s), running: !!(s.activity?.turnActive || s.activity?.unread) })),
+    [sessions, titleOf],
   );
+  /* 审批计数 + ask 首现边沿轮询(shared.pollHomeWatch 逐会话串行削峰);防重入防叠波,refreshTick = 手动刷新立即开轮。 */
   React.useEffect(() => {
     let alive = true;
+    let busy = false;
     const pull = async () => {
-      if (!targets.length) {
-        if (alive) setPending({});
-        return;
-      }
-      const entries = await Promise.all(
-        targets.map(async ([id, cwd]) => {
-          try {
-            const batches = await invoke<{ open: boolean; state: string }[]>(
-              "checkpoint_list",
-              { cwd, sessionId: id, tmdSessionId: id },
-            );
-            return [
-              id,
-              batches.filter((b) => !b.open && b.state === "pending").length,
-            ] as const;
-          } catch {
-            return [id, 0] as const;
-          }
-        }),
-      );
-      if (alive) setPending(Object.fromEntries(entries));
+      if (busy) return;
+      busy = true;
+      const counts = await pollHomeWatch(items, route.sessionId).catch(() => null);
+      busy = false;
+      if (!alive) return;
+      setPending(counts ?? {});
+      spinAnim.current?.cancel();
+      setRefreshing(false);
     };
     void pull();
     const timer = setInterval(pull, 10_000);
@@ -65,7 +64,7 @@ export function HomeScreen() {
       alive = false;
       clearInterval(timer);
     };
-  }, [targets]);
+  }, [items, route.sessionId, refreshTick]);
 
   /* 磁盘历史扫描:工作区清单变化 / 挂载 / 60s 周期。签名依赖,避免 2.5s 轮询重触发。 */
   /* 直接数组身份(P2-5:裸拼串遇 |/: 错位;MobileApp 签名比对后 set,身份稳定)。 */
@@ -102,7 +101,7 @@ export function HomeScreen() {
       alive = false;
       clearInterval(timer);
     };
-  }, [roots]);
+  }, [roots, refreshTick]);
 
   const titleOfDisk = React.useCallback(
     (h: HistoryItem) =>
@@ -156,7 +155,7 @@ export function HomeScreen() {
   const zoneBlock = (head: React.ReactNode, rows: HomeRow[], allPinned: boolean) =>
     rows.length === 0 ? null : (
       <>
-        <div className="zone-head">{head} {rows.length}</div>
+        <div className="zone-head">{head} · {rows.length}</div>
         {rows.map((r) => (
           <Row key={r.key} r={r} active={route.sessionId === r.key.slice(5)}
             pending={pending[r.key.slice(5)] ?? 0}
@@ -174,6 +173,7 @@ export function HomeScreen() {
         <button type="button" className="nav-chip" aria-label={t("发起会话")} onClick={() => setSpawn(true)}>
           + {t("新建")}
         </button>
+        <button type="button" className="nav-chip" aria-label={t("刷新")} aria-busy={refreshing} onClick={refresh}><span ref={spinRef} aria-hidden>⟳</span></button>
         <HostChip />
       </div>
       <ConnBanner />

@@ -22,7 +22,7 @@ export const wallpaperPlugin: Plugin = {
   meta: {
     name: t("壁纸"),
     abbr: "WP",
-    desc: t("工作区背景：流体着色器与本地图库壁纸"),
+    desc: t("工作区背景:流体着色器与本地图库壁纸"),
     icon: ImagesSquare,
     iconColor: "#7AA2F7",
     category: "feature",
@@ -33,7 +33,7 @@ export const wallpaperPlugin: Plugin = {
     ctx.registerSettingsSection({
       id: "wallpaper",
       title: t("壁纸"),
-      description: t("工作区背景壁纸：本地图库与效果。"),
+      description: t("工作区背景壁纸:本地图库与效果。"),
       icon: <ImagesSquare size="0.875rem" aria-hidden />,
       order: 4,
       tabs: [

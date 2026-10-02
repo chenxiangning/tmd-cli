@@ -1,48 +1,79 @@
 /* ──────────────────────────────────────────────────────────
  * 主题 token 默认值 —— 由 kernel/themeTokens.ts 映射器从默认 preset 生成:
- *   dark  = Dark Modern (vscode-dark-modern)
- *   light = Light Modern (vscode-light-modern)
+ *   dark  = 石墨 (tmd-graphite)
+ *   light = 云白 (tmd-paper)
  * 运行时主题引擎(kernel/theme.ts)按当前 preset 内联覆盖这些值;
  * 此处的静态值只负责 JS 启动前的首屏防闪色。
  * token 语义清单见 design-tokens.md。
  * ────────────────────────────────────────────────────────── */
 
 :root {
+  /* ── 字号阶梯(2026-10-02 设计系统收口;正文 12px 用户拍板)──
+     9=角标计数/状态点文字,10=meta/时间戳/路径摘要,12=正文基准(列表/按钮/表单),
+     13=面板标题/分区头,14=强调正文/卡片标题(=text-sm),16=区块标题/弹窗标题(=text-base),
+     20=页面标题(--tmd-font-title)。markdown 渲染走 em 相对制不进阶梯。 */
+  --tmd-font-2xs: 9px;
+  --tmd-font-xs: 10px;
   --tmd-font-ui: 12px;
+  --tmd-font-md: 13px;
+  --tmd-font-lg: 14px;
+  --tmd-font-xl: 16px;
   --tmd-font-title: 20px;
+  /* ── 间距 4 栅格 ──
+     1=图标贴字/行内 gap,2=列表行 padding/组内,3=面板容器/组间/紧凑卡,
+     4=标准卡/弹层,5=分区标题上方,6=中央页水平边距/大分区。 */
+  --tmd-space-1: 4px;
+  --tmd-space-2: 8px;
+  --tmd-space-3: 12px;
+  --tmd-space-4: 16px;
+  --tmd-space-5: 20px;
+  --tmd-space-6: 24px;
+  /* ── 圆角五档(sm/md/lg 原有;xs 新增给图标微钮/迷你标签;pill 用 999px 字面)── */
+  --tmd-radius-xs: 4px;
   --tmd-radius-sm: 6px;
   --tmd-radius-md: 8px;
   --tmd-radius-lg: 12px;
+  --tmd-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* ── 动效三档 + 两曲线 ──
+     1=hover/caret/文字色微反馈,2=浮层/toast/弹层入场(fade+rise),3=大容器位移;
+     ease-out 供微反馈,move 供位移(入场/折叠)。 */
+  --tmd-dur-1: 120ms;
+  --tmd-dur-2: 180ms;
+  --tmd-dur-3: 240ms;
+  --tmd-ease-out: ease-out;
+  --tmd-ease-move: cubic-bezier(0.2, 0, 0, 1);
+  /* 装饰强调色:rail 激活/复选框填充等暖橙(与 accent 平行的第二强调,收敛写死值)。 */
+  --tmd-decor: rgb(255, 140, 60);
 }
 
 :root[data-theme="dark"] {
-  --tmd-bg-base: #1f1f1f;
-  --tmd-bg-elevated: #181818;
-  --tmd-bg-panel: #181818;
-  --tmd-bg-sunken: #181818;
-  --tmd-bg-hover: #242424;
-  --tmd-bg-active: rgba(0,120,212,0.24);
-  --tmd-bg-input: #313131;
-  --tmd-bg-popover: #313131;
-  --tmd-fg: #cccccc;
-  --tmd-fg-muted: #919191;
-  --tmd-fg-subtle: #797979;
-  --tmd-fg-faint: #565656;
-  --tmd-border: #3c3c3c;
-  --tmd-border-strong: #595959;
-  --tmd-accent: #0078d4;
+  --tmd-bg-base: #0f0f12;
+  --tmd-bg-elevated: #131316;
+  --tmd-bg-panel: #131316;
+  --tmd-bg-sunken: #131316;
+  --tmd-bg-hover: #1b1b20;
+  --tmd-bg-active: rgba(91,91,214,0.24);
+  --tmd-bg-input: #1a1a1e;
+  --tmd-bg-popover: #1a1a1e;
+  --tmd-fg: #d4d4d9;
+  --tmd-fg-muted: #919195;
+  --tmd-fg-subtle: #757579;
+  --tmd-fg-faint: #4e4e52;
+  --tmd-border: #2c2c33;
+  --tmd-border-strong: #4e4e54;
+  --tmd-accent: #5b5bd6;
   --tmd-accent-fg: #ffffff;
-  --tmd-accent-soft: rgba(0,120,212,0.24);
-  --tmd-syntax-keyword: #569cd6;
-  --tmd-syntax-string: #ce9178;
-  --tmd-syntax-comment: #6a9955;
-  --tmd-syntax-number: #b5cea8;
-  --tmd-syntax-function: #dcdcaa;
-  --tmd-syntax-operator: #d4d4d4;
-  --tmd-syntax-type: #4ec9b0;
-  --tmd-syntax-tag: #569cd6;
-  --tmd-diff-inserted: #2ea043;
-  --tmd-diff-removed: #f85149;
+  --tmd-accent-soft: rgba(91,91,214,0.24);
+  --tmd-syntax-keyword: #8a86e8;
+  --tmd-syntax-string: #c9997c;
+  --tmd-syntax-comment: #62626b;
+  --tmd-syntax-number: #c2a878;
+  --tmd-syntax-function: #c9bd85;
+  --tmd-syntax-operator: #a3a3ab;
+  --tmd-syntax-type: #6fb3b8;
+  --tmd-syntax-tag: #8a86e8;
+  --tmd-diff-inserted: #3d9a50;
+  --tmd-diff-removed: #e5484d;
   /* git 历史 graph 的 ref 语义色(本地分支/远端/base;固定语义色,不随 preset 映射) */
   --tmd-git-ref-local: #59a4f9;
   --tmd-git-ref-remote: #b180d7;
@@ -54,40 +85,46 @@
   /* 便签/节假日语义色(便签卡·预览·描边,周末节假日标红;深底亮一档保证对比) */
   --tmd-note: #fcd34d;
   --tmd-hol: #fda4a4;
-  --tmd-terminal-bg: #1f1f1f;
-  --tmd-terminal-fg: #cccccc;
-  --tmd-terminal-cursor: #cccccc;
-  --tmd-terminal-selection: #264f78;
+  /* success/error 为 ok/err 的语义别名,固定语义色不入 preset 映射器 */
+  --tmd-success: #34d399;
+  --tmd-error: #f87171;
+  /* 浮层阴影(弹出菜单/提示卡与模态弹窗两档;深底加重保证可感知) */
+  --tmd-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --tmd-shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.55);
+  --tmd-terminal-bg: #0f0f12;
+  --tmd-terminal-fg: #d4d4d9;
+  --tmd-terminal-cursor: #d4d4d9;
+  --tmd-terminal-selection: #2b2b45;
 }
 
 :root[data-theme="light"] {
   --tmd-bg-base: #ffffff;
-  --tmd-bg-elevated: #f8f8f8;
-  --tmd-bg-panel: #f8f8f8;
-  --tmd-bg-sunken: #f8f8f8;
-  --tmd-bg-hover: #f2f2f2;
-  --tmd-bg-active: rgba(0,95,184,0.14);
+  --tmd-bg-elevated: #fafafa;
+  --tmd-bg-panel: #fafafa;
+  --tmd-bg-sunken: #fafafa;
+  --tmd-bg-hover: #f3f3f5;
+  --tmd-bg-active: rgba(26,26,30,0.14);
   --tmd-bg-input: #ffffff;
   --tmd-bg-popover: #ffffff;
-  --tmd-fg: #3b3b3b;
-  --tmd-fg-muted: #7e7e7e;
-  --tmd-fg-subtle: #999999;
-  --tmd-fg-faint: #c0c0c0;
-  --tmd-border: #cecece;
-  --tmd-border-strong: #b1b1b1;
-  --tmd-accent: #005fb8;
+  --tmd-fg: #26262b;
+  --tmd-fg-muted: #707073;
+  --tmd-fg-subtle: #8e8e91;
+  --tmd-fg-faint: #bababb;
+  --tmd-border: #d9d9de;
+  --tmd-border-strong: #b5b5ba;
+  --tmd-accent: #1a1a1e;
   --tmd-accent-fg: #ffffff;
-  --tmd-accent-soft: rgba(0,95,184,0.14);
-  --tmd-syntax-keyword: #0000ff;
-  --tmd-syntax-string: #a31515;
-  --tmd-syntax-comment: #008000;
-  --tmd-syntax-number: #098658;
-  --tmd-syntax-function: #795e26;
-  --tmd-syntax-operator: #000000;
-  --tmd-syntax-type: #267f99;
-  --tmd-syntax-tag: #0000ff;
-  --tmd-diff-inserted: #2ea043;
-  --tmd-diff-removed: #f85149;
+  --tmd-accent-soft: rgba(26,26,30,0.14);
+  --tmd-syntax-keyword: #6e56cf;
+  --tmd-syntax-string: #9d5b38;
+  --tmd-syntax-comment: #8e8e96;
+  --tmd-syntax-number: #9a6b2f;
+  --tmd-syntax-function: #7a5c17;
+  --tmd-syntax-operator: #52525a;
+  --tmd-syntax-type: #0f766e;
+  --tmd-syntax-tag: #6e56cf;
+  --tmd-diff-inserted: #1a7f37;
+  --tmd-diff-removed: #cf222e;
   --tmd-git-ref-local: #0063d3;
   --tmd-git-ref-remote: #652d90;
   --tmd-git-ref-base: #ea5c00;
@@ -98,8 +135,14 @@
   /* 便签/节假日语义色(浅底深一档保证对比) */
   --tmd-note: #78350f;
   --tmd-hol: #c0392b;
+  /* success/error 为 ok/err 的语义别名,固定语义色不入 preset 映射器 */
+  --tmd-success: #059669;
+  --tmd-error: #dc2626;
+  /* 浮层阴影(弹出菜单/提示卡与模态弹窗两档;浅底收敛避免压黑) */
+  --tmd-shadow-popover: 0 4px 16px rgba(0, 0, 0, 0.13);
+  --tmd-shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.18);
   --tmd-terminal-bg: #ffffff;
-  --tmd-terminal-fg: #3b3b3b;
-  --tmd-terminal-cursor: #005fb8;
-  --tmd-terminal-selection: #add6ff;
+  --tmd-terminal-fg: #26262b;
+  --tmd-terminal-cursor: #1a1a1e;
+  --tmd-terminal-selection: #dcdce0;
 }

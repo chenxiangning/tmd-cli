@@ -15,11 +15,31 @@ import {
   serverVersion,
 } from "@kernel/transport";
 import { shellLog } from "@kernel/shellBridge";
+import { bootI18n, t } from "@kernel/i18n";
+import { updateSettings, type UiLanguage } from "@kernel/settings";
 import { PairingScreen, ShellPage } from "./PairingScreen";
 import { loadCreds, persistCreds, resolveCreds, type MobileCreds } from "./creds";
 import { REQUIRED_CAPABILITY, endpointCandidates } from "./shared";
 import { MobileApp } from "./MobileApp";
 
+/* 语言跟随系统(2026-09-28 i18n 收尾):手机树无语言设置入口,启动一次性以
+ * 系统语言覆盖默认 locale(zh/en/ja 映射,其它回落 zh;桌面默认仍是 zh 不动)。
+ * 覆盖走 kernel settings 唯一写入口 updateSettings,但落盘在设备域闸被拒
+ * (web/conn.rs 配置域只读)→ 只活在手机进程内存,桌面 settings.json 不受影响。
+ * 放 gate 模块域(而非 mobileMain):main.tsx 的 mobile 分流与本件专用入口
+ * 两条路都过这里,首帧 t() 即命中;bootI18n 同步 <html lang>。 */
+function systemUiLanguage(): UiLanguage {
+  if (typeof navigator === "undefined") return "zh";
+  for (const tag of navigator.languages?.length ? navigator.languages : [navigator.language]) {
+    const l = String(tag ?? "").toLowerCase();
+    if (l.startsWith("zh")) return "zh";
+    if (l.startsWith("en")) return "en";
+    if (l.startsWith("ja")) return "ja";
+  }
+  return "zh";
+}
+bootI18n();
+updateSettings({ language: systemUiLanguage() });
 
 declare global {
   interface Window {
@@ -169,11 +189,11 @@ export function MobileRoot() {
       <div className="m-app">
         <ShellPage>
           <div style={{ fontSize: 32, color: "var(--warn)" }}>⚠</div>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>桌面端协议不兼容</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{t("桌面端协议不兼容")}</div>
           <div style={{ fontSize: 12.5, opacity: 0.75, lineHeight: 1.8 }}>
-            当前桌面 {blocked || "?"},缺 {REQUIRED_CAPABILITY} 能力;
+            {t("当前桌面 {v},缺 {cap} 能力;", { v: blocked || "?", cap: REQUIRED_CAPABILITY })}
             <br />
-            请在桌面端升级 tmd-cli 后重试。
+            {t("请在桌面端升级 tmd-cli 后重试。")}
           </div>
           <button
             type="button"
@@ -184,7 +204,7 @@ export function MobileRoot() {
               setProbeKey((k) => k + 1);
             }}
           >
-            重新检测
+            {t("重新检测")}
           </button>
           <button
             type="button"
@@ -195,7 +215,7 @@ export function MobileRoot() {
               setCreds(null);
             }}
           >
-            重新配对
+            {t("重新配对")}
           </button>
         </ShellPage>
       </div>
@@ -222,12 +242,12 @@ class ShellErrorBoundary extends React.Component<
         <div className="m-app">
           <ShellPage>
             <div style={{ fontSize: 28, color: "var(--err)" }}>✕</div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>界面渲染出错</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{t("界面渲染出错")}</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 11, opacity: 0.8, wordBreak: "break-all", textAlign: "left" }}>
               {this.state.err.message}
             </div>
             <button type="button" className="m-btn" style={{ maxWidth: 220 }} onClick={() => window.location.reload()}>
-              重新加载
+              {t("重新加载")}
             </button>
           </ShellPage>
         </div>

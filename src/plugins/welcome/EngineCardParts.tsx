@@ -77,7 +77,8 @@ export function RowCred({
       </span>
     );
   }
-  /* note 是信息性(codex「已登录」也带),不作错误信号;有凭据即 ●。真实 button = 原生键盘语义。 */
+  /* note 是信息性(codex「已登录」也带),不作错误信号;有凭据即 ●。真实 button = 原生键盘语义。
+     文字段 .welcome-row-cred-text:窄窗(≤720px)仅留 ● 圆点,展开入口不撤。 */
   return (
     <button
       type="button"
@@ -85,7 +86,7 @@ export function RowCred({
       onClick={onToggle}
       title={t("凭据与额度{arrow}", { arrow: expanded ? t("(点击收起)") : t("(点击展开)") })}
     >
-      ● auth {creds.length}
+      ● <span className="welcome-row-cred-text">auth {creds.length}</span>
     </button>
   );
 }
@@ -124,10 +125,13 @@ function InstallAction({
   /* 按钮文案映射(行为不变):未装→安装;落后→更新;已装不落后→重装(同 onInstall)。 */
   const label = installActionLabel(installed, outdated);
   const title = installActionTitle(installed, outdated, depBlocked, depName, latest);
+  /* 已装且不落后 = 「重装」:次要动作,行 hover/游标时浮出(降行密度);
+     「安装」「更新」是主 CTA,常驻。 */
+  const cls = outdated && installed ? "welcome-ab pri" : installed ? "welcome-ab sec" : "welcome-ab";
   return (
     <button
       type="button"
-      className={outdated && installed ? "welcome-ab pri" : "welcome-ab"}
+      className={cls}
       onClick={onInstall}
       disabled={depBlocked || install.running}
       title={title}
@@ -208,14 +212,14 @@ export function RowActions({
       {installed && versionMenu}
       <button
         type="button"
-        className="welcome-ab"
+        className="welcome-ab sec"
         onClick={onProbe}
         disabled={probe.status === "loading" || install.running}
         aria-label={t("重新探针")}
         title={t("重新探针")}
       >
         <ArrowClockwise
-          size="0.6875rem"
+          size="0.75rem"
           aria-hidden
           className={probe.status === "loading" ? "is-spinning" : ""}
         />
@@ -223,7 +227,7 @@ export function RowActions({
       {docsUrl && (
         <a className="welcome-ab doc" href={docsUrl} target="_blank" rel="noreferrer">
           {t("官方文档")}
-          <ArrowSquareOut size="0.6875rem" aria-hidden />
+          <ArrowSquareOut size="0.75rem" aria-hidden />
         </a>
       )}
     </span>

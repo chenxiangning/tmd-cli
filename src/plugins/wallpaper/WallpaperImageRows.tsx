@@ -23,12 +23,16 @@ import { useWallpaperSrc } from "./useWallpaperSrc";
 import { WallpaperPicker } from "./WallpaperPicker";
 import { SegmentedPrefRow, SliderPrefRow, type Option } from "./prefRows";
 
-const FIT_OPTIONS: ReadonlyArray<Option<WallpaperFit>> = [
-  { value: "cover", label: t("铺满") },
-  { value: "contain", label: t("适应") },
-  { value: "center", label: t("居中") },
-  { value: "fill", label: t("填充") },
-];
+/* 标签在渲染期求值(调用点 t() 包裹):i18n 约定模块顶层不调 t(),
+ * 语言热切换(整树重挂载)后取词随之刷新(同 WallpaperSettingsTab 先例)。 */
+function fitOptions(): Option<WallpaperFit>[] {
+  return [
+    { value: "cover", label: t("铺满") },
+    { value: "contain", label: t("适应") },
+    { value: "center", label: t("居中") },
+    { value: "fill", label: t("填充") },
+  ];
+}
 
 function onOffOptions(): Option<boolean>[] {
   return [
@@ -63,7 +67,7 @@ export function WallpaperImageRows() {
           {currentItem && preview.src ? (
             <img src={preview.src} alt="" onError={preview.handleError} />
           ) : (
-            <ImageIcon size={14} aria-hidden />
+            <ImageIcon size="0.875rem" aria-hidden />
           )}
           <span>{t("选择壁纸")}</span>
         </button>
@@ -73,7 +77,7 @@ export function WallpaperImageRows() {
         title={t("铺放方式")}
         desc={t("填充=拉伸铺满；居中=原尺寸不缩放。")}
         value={state.fit}
-        options={FIT_OPTIONS}
+        options={fitOptions()}
         onSelect={(fit) => updateWallpaperState({ fit })}
       />
 
@@ -86,7 +90,7 @@ export function WallpaperImageRows() {
 
       <SliderPrefRow
         title={t("壁纸模糊")}
-        desc={t("加在壁纸本身（非界面毛玻璃），0 = 清晰。")}
+        desc={t("加在壁纸本身(非界面毛玻璃),0 = 清晰。")}
         ariaLabel={t("壁纸模糊")}
         min={WALLPAPER_BLUR_MIN}
         max={WALLPAPER_BLUR_MAX}

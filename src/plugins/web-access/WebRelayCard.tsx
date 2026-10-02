@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { ArrowsClockwiseIcon as ArrowsClockwise, LinkSimpleIcon as LinkSimple } from "@phosphor-icons/react";
 import { onWebRelay, webRelayStart, webRelayStatus, webRelayStop, type RelayInfo } from "@kernel/ipc";
 import { isWeb } from "@kernel/transport";
@@ -103,6 +104,17 @@ export function WebRelayCardBody({
           </button>
         )}
       </div>
+      {info && (
+        /* 连上后出 QR(手机 URL 带桥 token,Rust 侧已拼好),同 LAN 卡/设备卡的出码模式。 */
+        <div className="flex items-center gap-3">
+          <div className="flex-none rounded-lg bg-white p-2">
+            <QRCodeSVG value={info.url} size={112} level="M" />
+          </div>
+          <div className="min-w-0 flex-1 text-xs text-[var(--tmd-fg-muted)]">
+            {t("手机扫码打开中继地址;地址里的令牌就是钥匙,别转发给别人。")}
+          </div>
+        </div>
+      )}
       {isWeb && (
         <div className="flex items-center gap-1.5 text-xs text-[var(--tmd-fg-muted)]">
           <ArrowsClockwise size="0.75rem" aria-hidden />

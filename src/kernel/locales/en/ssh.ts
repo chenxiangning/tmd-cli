@@ -98,6 +98,7 @@ export const MESSAGES = {
   /* 设置 · 主机簿 */
   "主机地址与用户名必填": "Host address and username are required",
   "相同 host:port@user 的主机已存在": "A host with the same host:port@user already exists",
+  "端口须为 1-65535 的数字": "Port must be a number between 1 and 65535",
   "添加 SSH 主机": "Add SSH host",
   "编辑 SSH 主机": "Edit SSH host",
   "名称": "Name",
@@ -128,4 +129,7 @@ export const MESSAGES = {
 
   /* 扫描 */
   "无法定位用户目录": "Cannot locate the user directory",
+  /* HostModal 代理设置(2026-10 i18n 收口) */
+  "代理类型": "Proxy type",
+  "代理端口": "Proxy port",
 } as Record<string, string>;

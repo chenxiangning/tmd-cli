@@ -4,9 +4,10 @@
  * 交互契约:点格开日视图、← → 逐日、Esc 收起(看板覆盖层开着时);引擎/状态 chips 过滤。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CaretLeft, CaretRight, ArrowClockwise } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, ArrowClockwise, SquaresFour } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
+import { Empty } from "@kernel/Empty";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { workspaceDisplayName, useWorkspaces } from "@kernel/workspace";
 import { boardOverlayOpen } from "./boardOverlayStore";
@@ -22,14 +23,14 @@ import {
   type BoardSession,
   type BoardState,
 } from "./boardData";
-import { CalendarGrid } from "./CalendarGrid";
+import { CalendarGrid, HeatLegend } from "./CalendarGrid";
 import { DayPanel } from "./DayPanel";
+import { ScanErrorBar } from "./ScanErrorBar";
 import "./session-board.css";
 
 export function BoardTab() {
   const { list } = useWorkspaces();
-  /* 工作区选择:默认「全部」(用户实测:单工作区视角下其他项目的会话永远看不到,
-   * 「今天的会话一个都没有」的主因);单选可聚焦。远程工作区仅本机磁盘视图不支持。 */
+  /* 工作区选择:默认「全部」;单选可聚焦。远程工作区仅本机磁盘视图不支持。 */
   const [selWsId, setSelWsId] = useState<string>("all");
   const allMode = selWsId === "all";
   const selWs = allMode ? undefined : list.find((w) => w.id === selWsId);
@@ -38,7 +39,10 @@ export function BoardTab() {
     [allMode, list, selWs],
   );
   const [refreshTick, setRefreshTick] = useState(0);
-  const sessions = useBoardSessions(targetWs, allMode, refreshTick);
+  const scan = useBoardSessions(targetWs, allMode, refreshTick);
+  const sessions = scan?.rows ?? null;
+  /* 扫描失败引擎集:不伪装空板,出错误条 + 重试。 */
+  const failedEngines = scan?.failedEngines ?? [];
   const now = new Date();
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [selDay, setSelDay] = useState<string | null>(null);
@@ -70,14 +74,12 @@ export function BoardTab() {
     [sessions, engOff, stOff],
   );
 
-  /* 双日落位:创建日(定死,resume 不跳)+ 最近活跃日(若不同)——用户实测补缺:
-   * 「老会话按创建定死」与「今天在用的会话今天要看到」两个诉求同时满足。 */
+  /* 双日落位:创建日(定死)+ 最近活跃日(若不同),两类用户诉求同时满足。 */
   const byDay = useMemo(() => {
     const map = new Map<string, BoardSession[]>();
     const push = (k: string, s: BoardSession) => {
       const arr = map.get(k);
-      if (arr) arr.push(s);
-      else map.set(k, [s]);
+      if (arr) arr.push(s); else map.set(k, [s]);
     };
     for (const s of filtered) {
       const born = dayKeyOf(s.ts);
@@ -88,9 +90,7 @@ export function BoardTab() {
     return map;
   }, [filtered]);
 
-  /* 点卡只开 tab 不收板(用户指令:不要自动跳转;用户自己点 tab/收板才看会话现场)。
-     openDiskSession 内部置 active:收板后会话即在。查看语义不变:未查看卡照旧归档。
-     归档/打开一律用行自身归属(s.wsId/s.wsRoot)——全部工作区视图下行分属不同工作区。 */
+  /* 点卡只开 tab 不收板;openDiskSession 内部置 active;归档/打开用行自身归属。 */
   const dayOpen = (s: BoardSession) => {
     if (s.live && s.hostId) {
       noteSessionTabTitle(s.hostId, s.title);
@@ -103,10 +103,10 @@ export function BoardTab() {
     /* 打开失败回滚归档,防注意力信号静默丢失。 */
     host.openDiskSession(s.profileId, s.wsRoot, s.wsId, s.disk.id).catch(() => s.st === "ended-new" && void unarchiveSession(key));
   };
-  /* ← → 逐日 / Esc 收起:看板覆盖层开着时接管(Esc 先收日视图,再由覆盖层自身收板)。 */
+  /* ← → 逐日 / Esc 收起(覆盖层开着时接管,Esc 先收日视图再收板)。 */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      /* 输入面(重命名框/composer 等)拥有按键:不劫持 ← → Esc。 */
+      /* 输入面拥有按键时不劫持 ← → Esc。 */
       if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable]")) return;
       if (!boardOverlayOpen() || !selDay) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -125,10 +125,14 @@ export function BoardTab() {
   }, [selDay]);
 
   if (list.length === 0) {
-    return <div className="sb-empty">{t("暂无工作区")}</div>;
+    /* 无导航路径直达「添加工作区」浮层,无 action。 */
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Empty icon={<SquaresFour />}>{t("暂无工作区")}</Empty>
+      </div>);
   }
   if (!allMode && selWs && findWorkspaceOrigin(selWs)?.remoteExec) {
-    /* 远程来源工作区(WSL/SSH)磁盘在远端:看板当前仅本机磁盘视图,显式空态不静默。 */
+    /* 远程工作区磁盘在远端:显式空态不静默。 */
     return <div className="sb-empty">{t("远程工作区暂不支持看板(仅本机磁盘)")}</div>;
   }
 
@@ -247,15 +251,7 @@ export function BoardTab() {
             );
           })}
         </span>
-        <span className="sb-legend" aria-hidden>
-          {t("少")}
-          <i className="sb-lg-0" />
-          <i className="sb-lg-1" />
-          <i className="sb-lg-2" />
-          <i className="sb-lg-3" />
-          <i className="sb-lg-4" />
-          {t("多")} · {t("底点 = 主引擎")}
-        </span>
+        <HeatLegend />
         <span className="sb-toolbar-end">
           <span className="sb-count" title={t("未查看 = 结束未归档且 14 天内有活动")}>
             {t("{n} 个会话", { n: filtered.length })} · {t("{n} 个未查看", { n: newCount })}
@@ -271,6 +267,10 @@ export function BoardTab() {
           </button>
         </span>
       </div>
+
+      {failedEngines.length > 0 ? (
+        <ScanErrorBar failedEngines={failedEngines} onRetry={() => setRefreshTick((v) => v + 1)} />
+      ) : null}
 
       {sessions === null ? (
         /* 工作区切换后的首扫:显式扫描态,不渲染空板 + 0 计数(评审 P3)。 */

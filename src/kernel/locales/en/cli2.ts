@@ -89,7 +89,7 @@ export const MESSAGES = {
   "解决什么问题:这里配的是「搜索服务商」(帮你查网页的),不是对话模型——两者是两套账号两套凭据。单一来源会限流或挂掉,配一条链可以自动互相替补。":
     "What it solves: this configures “search providers” (the ones that look up web pages for you), not the chat model — the two are separate accounts with separate credentials. A single source will rate-limit or die; a chain lets them back each other up automatically.",
   "怎么选:下拉里的标注就是你要的准备——「免 key」的直接能用(duckduckgo/startpage/google 等 5 个);「OAuth 登录」的只要你在 omp 里登录过对应账号(gemini/anthropic/codex/xai/kimi);「需 API key」的要自己去服务商买 key 并配到环境变量(如 EXA_API_KEY)。不配任何链 = 用 omp 内置的 auto 顺序(它会按固定顺序把所有 provider 试一遍)。":
-    "How to choose: the labels in the dropdown tell you what to prepare — “No key needed” ones work right away (duckduckgo/startpage/google and 5 in total); “OAuth sign-in” ones only need you to have signed in to that account in omp (gemini/anthropic/codex/xai/kimi); “API key required” ones need you to buy a key from the provider yourself and put it in an environment variable (e.g. EXA_API_KEY). No chain configured = omp's built-in auto order (it tries every provider in a fixed sequence).",
+    "How to choose: the labels in the dropdown tell you what to prepare — “No key needed” ones work right away (duckduckgo/startpage/google, 5 in total); “OAuth sign-in” ones only need you to have signed in to that account in omp (gemini/anthropic/codex/xai/kimi); “API key required” ones need you to buy a key from the provider yourself and put it in an environment variable (e.g. EXA_API_KEY). No chain configured = omp's built-in auto order (it tries every provider in a fixed sequence).",
   "影响什么:链内按顺序逐个尝试,前面失败/超时(单家 60 秒)自动换下一个;pin 单家就只写一个名字。不写 key 的免费源质量一般,付费源综合质量更好。":
     "What it affects: the chain tries members in order; on failure/timeout (60 seconds per provider) it moves on to the next automatically; pin to a single provider by writing just one name. Free sources that need no key are mediocre in quality; paid sources are better overall.",
   "解决什么问题:让 AI 同时探索几个方案时,上下文会被探索过程塞满,想「回到分歧点重来」只能靠翻历史。":
@@ -108,4 +108,6 @@ export const MESSAGES = {
     "What it solves: when a streaming summary matches a rule, should it interrupt the current output immediately, or wait until it finishes and append then?",
   "影响什么:always = 随时可打断(正文里命中也会中止当前流重发);manual = 不主动打断,等消息完成后再补注。默认 always。":
     "What it affects: always = can interrupt any time (a match in the body also aborts the current stream and resends); manual = never interrupts proactively; the annotation is added after the message completes. Default: always.",
+  /* cli-claude configGui 校验(2026-10 i18n 收口) */
+  "settings.json 顶层必须是对象": "The top level of settings.json must be an object",
 } as Record<string, string>;

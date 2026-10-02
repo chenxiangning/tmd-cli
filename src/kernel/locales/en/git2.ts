@@ -72,6 +72,15 @@ export const MESSAGES = {
   "提交信息…": "Commit message…",
   "附加 --amend:改动并入上一个提交": "Add --amend: fold changes into the previous commit",
   "提交(⌘⏎)": "Commit (⌘⏎)",
+  "未合并到当前分支的删除会被拒绝;被拒后可选择强制删除。": "Deletion is rejected if the branch is not merged; you can force-delete after that.",
+  "该分支未合并到当前分支,强制删除后其提交将不可达;此操作不可撤销。": "This branch is not merged; force-deleting makes its commits unreachable. This cannot be undone.",
+  "强制删除 {branch}?": "Force delete {branch}?",
+  "强制删除": "Force delete",
+  "已强制删除 {branch}": "Force deleted {branch}",
+  "提交 ▸": "Commit ▸",
+  "追加修正(--amend)": "Amend previous commit (--amend)",
+  "已选 {selected}": "{selected} selected",
+  "⌘⏎ 提交": "⌘⏎ Commit",
   "打开文件": "Open file",
   "打开文件位置": "Reveal in file manager",
 
@@ -107,8 +116,6 @@ export const MESSAGES = {
   "选中提交详情": "Selected commit details",
   "请选择一条提交查看详情。": "Select a commit to view its details.",
   "变更文件": "Changed files",
-  "正在加载推送预览提交...": "Loading push preview commits...",
-  "正在加载提交详情...": "Loading commit details...",
 
   /* 拉取解释(Intent / Will Happen / Will NOT Happen) */
   "先从 {remote} 拉取 {targetBranch},再按当前仓库或用户的 Git 配置更新本地分支。":
@@ -177,8 +184,8 @@ export const MESSAGES = {
   "diff 展示模式": "Diff view mode",
   "单栏": "Unified",
   "双栏": "Split",
-  全文: "Full",
-  全文查看: "View full file",
+  "全文": "Full",
+  "全文查看": "View full file",
   "行未改动": "unchanged lines",
 
   /* 差异面板批量条(拖选勾选集动作面)与未跟踪文件删除(git clean) */

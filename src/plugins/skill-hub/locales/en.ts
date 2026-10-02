@@ -17,6 +17,7 @@ export const MESSAGES_EN = {
   "详情": "Details",
   "编辑": "Edit",
   "删除": "Delete",
+  "删除确认": "Confirm deletion",
   "删除中…": "Deleting…",
   "取消": "Cancel",
   "关闭": "Close",
@@ -29,6 +30,8 @@ export const MESSAGES_EN = {
     "Convention-dir skills are shared by multiple engines, all of them lose it after deletion",
   "移入系统回收站,可从废纸篓恢复": "Moved to system trash, restorable from Trash",
   "已装": "installed",
+  "导入技能": "Import skill",
+  "安装技能": "Install skill",
   "安装": "Install",
   "搜索 ClawHub 技能…": "Search ClawHub skills…",
   "下载最多": "Most downloaded",
@@ -86,4 +89,13 @@ export const MESSAGES_EN = {
   "导入完成,已入「已安装」;对话框 $ 触发即可级联": 'Imported — now in \'Installed\'; available via $ trigger in the composer',
   "导入中…": "Importing…",
   "已落位 {n} 处保留但未记入已安装:{targets}": "Copied to {n} location(s) but NOT recorded as installed: {targets}",
+
+  // ── 更新闭环(v2.2,已装维持记录制)──
+  "导入": "Import",
+  "排序方式": "Sort by",
+  "可更新": "Update available",
+  "更新": "Update",
+
+  // ── 空态深链(右栏面板直达商店页)──
+  "打开技能商店": "Open skill store",
 } as Record<string, string>;

@@ -4,6 +4,34 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.8] - 2026-10-02
+
+本版主体 = 客户端打磨四连批(任务 1 交互与 i18n / 任务 2 原生弹窗与主题适配 / 任务 3 设计系统收口 / 任务 4 原语长尾与模块精修,分级治理方案见 `docs/superpowers/specs/2026-10-01-client-polish-plan-design.md`)。
+
+### 新增
+
+- 六套 tmd 原创低饱和主题(dark 族石墨/黛蓝/橄榄暗调 + light 族云白/雾蓝/暖沙),默认浅色切云白、深色切石墨;dark 族仿 light 先例补 16 槽降饱和 ANSI 表,浅色族过 WCAG 3:1 对比度闸
+- 设计系统 token 阶梯一次建齐(themes.css @theme 桥接 Tailwind 标准类,全仓字面量迁移):字号六档(正文定 12px)/ 间距 4 栅格六档 / 圆角五档 / 动效三档 + 两曲线;层次模型落地(浮层统一 popover+阴影、模态统一遮罩、选中 = accent-soft+600、hover 纯色),浅色三主题 mix 系数收紧对比度达标;状态三原语沉淀 kernel——Empty(图标+一句话+引导钮)/ Spinner(一份 keyframes)/ 错误契约三分(可重试失败 = 持久条+重试钮、瞬态失败 = toast、行内校验 = 红字),高频面接入;图标四档 rem 化、badge/等宽字轨/写死色清尾,prefers-reduced-motion 全局化
+- 手机端打磨:本地通知前台横幅(iOS 壳补 willPresent,ask 等待确认/会话退出不再前台静默)、git checkout 破坏性操作换仓内确认 sheet、错误伪装空改错误信封分流(git 历史/diff/历史屏/看板/open-with)、enterSend 等交互收口
+- i18n 全量 en/ja 词条补齐(词典三语对齐),新增 `pnpm check:i18n-keys` 键位校验脚本并入 CI 防线;术语八组统一(幕布/额度/探测/内网/切换/文件夹/工作树/看板),ja 硬伤清零
+- omp 扩展精选表 2026-10-01 核对,新纳 billion-context 等 8 个热门;精选条目豁免目录上限并置顶,在线/离线同语义
+- 文件操作条下放面板头工具条:新建/上传/刷新/更多四钮并一行,刷新入口唯一化
+
+### 修复
+
+- 守望自愈两轮收口(render-health):洪水降级加 3 分钟宽限——宽限耗尽后无视洪水强击 reload,根治自愈配额被洪水耗尽的永久冻结;击打加聚焦闸——后台/被遮挡窗口 rAF 暂停是设计内行为,不再每 15s 从别的应用手里抢焦点(真粘死由回焦探针接力检出)
+- cli-dsh 幕布渲染错乱根治:钉行光标纪律(行渲染与光标落位分离)根治实时与重开两路错乱;会话采用按 writer-held 分流,非持有者转只读兜底;侧栏滤子代理并修 host 探针 401 误判
+- 原生弹窗全仓清零:Tauri WKWebView 下 confirm 可能不弹窗直接放行(破坏性操作裸奔),confirm/prompt/alert 全部换仓内确认弹层/输入弹层/toast;六套新主题下破相与不可读面修复;cli-config 脏草稿不再静默丢弃;弹层键盘回路(Esc/Enter/role)补齐;设置面原生 select/checkbox 归位 StyledSelect/segmented
+- 欢迎页次要动作降显与状态条分隔线收束;composer 输入区键盘焦点环压线与分隔线双轨收敛
+- 撤下 pi-usage 精选条目(其 hasApi 依赖在 omp 18.4.8 装载失败);web 侧 safe_eprintln 补 debug_assertions cfg 消 release 裁剪孤儿告警;daily-journal 月条热力断言日期陷阱(1 日豁免分支掩盖真断言)
+
+### 变更
+
+- 视图保活统一「全挂载 + display:none + aria-hidden」:git 三视图/checkpoints 双视图/右栏面板切换回切不丢滚动,未访问面板渐进挂载,后台轮询按面板活性门控
+- 会话 tab 收敛:行内 hover 只留 ×,view/pin/locate 收进右键菜单(带可用性门控);双 tab 溢出统一横向滚动 + 右缘渐隐;双击强删暗道移除,改两击武装 3s 回退
+- 原语长尾收尾:裸空态/裸忙态/错误违例长尾接入三原语,截断文本批量补 title,加载文案统一「加载中…」前缀
+- relTime 与日期格式归 kernel 单源(kernel/relativeTime.ts + DATE_LOCALES),mobile/intent-canvas/web-access 改引
+
 ## [0.2.7] - 2026-10-01
 
 ### 新增

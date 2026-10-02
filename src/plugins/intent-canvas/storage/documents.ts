@@ -5,6 +5,7 @@
  */
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { cacheAiDrawLatestCanvas } from "../aiDrawPrompt";
 import type {
   IntentCanvasDocument,
   IntentCanvasIndexEntry,
@@ -34,18 +35,22 @@ export async function loadIntentCanvasIndex(
   try {
     raw = await ipc.fsReadFile(`${await canvasDir(root)}/${INTENT_CANVAS_INDEX_PATH}`);
     if (!raw) {
+      cacheAiDrawLatestCanvas(root, null);
       return { value: [], warnings: [] };
     }
     const parsed = JSON.parse(raw) as unknown;
     const indexFile = normalizeIndexFile(parsed);
-    return {
-      value: indexFile.canvases.slice().sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1)),
-      warnings: [],
-    };
+    const canvases = indexFile.canvases.slice().sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1));
+    /* 作画缺省目标 = 最近更新画布(倒序首位):读后自喂同步缓存,sendTransform
+       发送线程不 await 即可拿到目标(prompt 侧 aiDrawLatestCanvasSync)。 */
+    cacheAiDrawLatestCanvas(root, canvases[0] ? { id: canvases[0].id, title: canvases[0].title } : null);
+    return { value: canvases, warnings: [] };
   } catch (error) {
     if (isMissingFileError(error)) {
+      cacheAiDrawLatestCanvas(root, null);
       return { value: [], warnings: [] };
     }
+    /* 读失败不清目标缓存:旧值大概率仍指向有效画布,宁可用旧不误开新图。 */
     return {
       value: [],
       warnings: [`画布索引读取失败: ${normalizeErrorMessage(error)}`],

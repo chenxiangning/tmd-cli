@@ -20,8 +20,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px 8px;
-  font-size: 0.8125rem;
+  padding: 8px 12px 8px;
+  font-size: var(--tmd-font-md);
   color: var(--tmd-fg-muted);
   background: none;
   border: none;
@@ -51,7 +51,7 @@
   background: var(--tmd-bg-sunken);
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-md);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
 }
 
@@ -64,12 +64,12 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border: 1px solid var(--tmd-border-strong);
   border-radius: 999px;
   background: none;
   color: var(--tmd-fg-muted);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
 }
 
@@ -81,13 +81,13 @@
 }
 
 .cli-cfg-src-new {
-  color: var(--tmd-fg-faint);
-  font-size: 0.625rem;
+  color: var(--tmd-fg-subtle);
+  font-size: var(--tmd-font-xs);
 }
 
 .cli-cfg-path {
   font-family: var(--tmd-font-mono, ui-monospace, Menlo, monospace);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -100,21 +100,21 @@
   background: none;
   border: none;
   color: var(--tmd-accent);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
   padding: 2px 4px;
 }
 
 .cli-cfg-note {
   margin: -6px 2px 10px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   line-height: 1.5;
 }
 
 .cli-cfg-empty {
   padding: 24px 2px;
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   color: var(--tmd-fg-subtle);
 }
 
@@ -143,7 +143,7 @@
 }
 
 .cli-cfg-row-title {
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   color: var(--tmd-fg);
 }
 
@@ -158,7 +158,7 @@
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-accent);
   user-select: none;
   list-style: none;
@@ -170,8 +170,8 @@
 
 .cli-cfg-detail summary::before {
   content: "▸";
-  font-size: 0.625rem;
-  transition: transform 0.12s ease;
+  font-size: var(--tmd-font-xs);
+  transition: transform var(--tmd-dur-1) var(--tmd-ease-move);
 }
 
 .cli-cfg-detail[open] summary::before {
@@ -181,10 +181,10 @@
 .cli-cfg-detail-body {
   margin-top: 6px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-sunken);
-  font-size: 0.6875rem;
-  line-height: 1.7;
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
   color: var(--tmd-fg-subtle);
 }
 
@@ -228,12 +228,12 @@
 
 .cli-cfg-input {
   width: min(22rem, 100%);
-  padding: 5px 9px;
-  font-size: 0.8125rem;
+  padding: 4px 8px;
+  font-size: var(--tmd-font-md);
   color: var(--tmd-fg);
   background: var(--tmd-bg-input);
   border: 1px solid var(--tmd-border-strong);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   outline: none;
 }
 
@@ -247,7 +247,7 @@
 }
 
 .cli-cfg-advanced > summary {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-accent);
   cursor: pointer;
   padding: 6px 0;

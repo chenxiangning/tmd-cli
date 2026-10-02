@@ -149,3 +149,7 @@ frontmatter 解析复用 `cli-shared/skillDirs.ts` 既有解析(已服务四家)
 | `docs/README.md` | 各登记自己的索引行,行序无要求 |
 | 其余 | 各自新增文件互不相交;禁 import 对方插件目录;事件前缀 `skillhub:` / `mcphub:`;持久化 key 前缀隔离 |
 | 提交 | git add 显式文件清单(共用工作区铁律);`type(scope): 中文一句话祈使句`,scope 用 skill-hub / mcp-hub |
+
+## 校准注记(2026-10-01)
+
+§4.3 目录表 codex 行「用户级位置 `~/.agents/skills`(官方即此位)」系撰写笔误,实现取 `~/.codex/skills` 为正确,不改史:本机实证 `~/.codex/skills` 真实活跃(含 `.system` 子目录,扫描侧另列 system 来源),`~/.agents/skills` 公约位与之并存(多家共用)。与实现出入以本注记与代码现状为准。

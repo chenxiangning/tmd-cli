@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import DOMPurify from "dompurify";
 import { loadPreviewBytes } from "./previewBytes";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import {
   extractDocumentPreviewOutline,
   type PreviewOutlineItem,
@@ -99,7 +100,12 @@ export function FileDocumentPreview({ path }: { path: string }) {
   }, [outlinedDocument.html]);
 
   if (payload.status === "loading") {
-    return <div className="fvp-status">{t("加载中…")}</div>;
+    return (
+      <div className="fvp-status flex items-center justify-center gap-1.5">
+        <Spinner />
+        {t("加载中…")}
+      </div>
+    );
   }
 
   if (payload.status === "error") {

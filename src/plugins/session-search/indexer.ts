@@ -138,40 +138,66 @@ export class SessionIndexer {
 export interface SessionSearchHit {
   entry: SessionIndexEntry;
   snippet: string;
+  /** snippet 所中心的命中词(<mark> 高亮锚:纯文本切三段拼 React 节点用)。 */
+  matchToken: string;
   /** 命中发生在标题(优先展示)。 */
   inTitle: boolean;
 }
 
-/** 匹配片段:命中点前后各取 ~60 字符,边界补省略号。 */
-function snippet(text: string, needle: string): string {
-  const at = text.toLowerCase().indexOf(needle);
+/** 查询分词:空白切分(多关键词 AND —— 全命中才算一条;大小写不敏感)。 */
+function tokenizeQuery(query: string): string[] {
+  return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+/** 匹配片段:最早命中点前后各取 ~60 字符,边界补省略号;
+ *  返回所中心的 token(高亮拆分锚;无命中回落首词)。 */
+function snippetOf(
+  text: string,
+  tokens: readonly string[],
+): { snippet: string; matchToken: string } {
+  let at = -1;
+  let matchToken = tokens[0] ?? "";
+  for (const tk of tokens) {
+    const i = text.toLowerCase().indexOf(tk);
+    if (i >= 0 && (at < 0 || i < at)) {
+      at = i;
+      matchToken = tk;
+    }
+  }
+  if (at < 0) return { snippet: text.slice(0, 120), matchToken };
   const start = Math.max(0, at - 60);
-  const end = Math.min(text.length, at + needle.length + 60);
-  const body = text.slice(start, end);
-  return `${start > 0 ? "…" : ""}${body}${end < text.length ? "…" : ""}`;
+  const end = Math.min(text.length, at + matchToken.length + 60);
+  return {
+    snippet: `${start > 0 ? "…" : ""}${text.slice(start, end)}${end < text.length ? "…" : ""}`,
+    matchToken,
+  };
 }
 
 /**
- * 子串检索(大小写不敏感):标题命中优先,其余按最近修改排序,截前 limit 条。
- * O(条目 × 消息) 内存扫描,千级会话语义下毫秒级,不值得 FTS5。
+ * 子串检索(大小写不敏感,多关键词空格分词全命中 AND):标题命中优先,
+ * 其余按最近修改排序,截前 limit 条。O(条目 × 消息) 内存扫描,千级会话语义下
+ * 毫秒级,不值得 FTS5。
  */
 export function searchSessions(
   index: SessionIndex,
   query: string,
   limit = 50,
 ): SessionSearchHit[] {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return [];
+  const tokens = tokenizeQuery(query);
+  if (tokens.length === 0) return [];
   const hits: SessionSearchHit[] = [];
   for (const entry of index.entries) {
-    const inTitle = entry.title?.toLowerCase().includes(needle) ?? false;
-    const message = entry.messages.find((m) => m.toLowerCase().includes(needle));
-    if (!inTitle && !message) continue;
-    hits.push({
-      entry,
-      snippet: message ? snippet(message, needle) : (entry.title ?? ""),
-      inTitle,
+    const lowerTitle = entry.title?.toLowerCase();
+    const inTitle = lowerTitle ? tokens.every((tk) => lowerTitle.includes(tk)) : false;
+    const message = entry.messages.find((m) => {
+      const lm = m.toLowerCase();
+      return tokens.every((tk) => lm.includes(tk));
     });
+    if (!inTitle && !message) continue;
+    const snip = message
+      ? snippetOf(message, tokens)
+      : { snippet: entry.title ?? "", matchToken: tokens[0] };
+    hits.push({ entry, snippet: snip.snippet, matchToken: snip.matchToken, inTitle });
   }
   /* 先排序后限量:标题命中必须浮出,不能被先到的消息命中挤掉配额 */
   hits.sort((a, b) => {

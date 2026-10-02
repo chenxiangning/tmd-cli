@@ -75,7 +75,7 @@ export function SoundSettingsCard() {
       </div>
       <ToggleRow
         title={t("Ask 提示音")}
-        desc={t("CLI 弹出提问/权限确认面板时播放提示音，离开屏幕也能第一时间知道。")}
+        desc={t("CLI 弹出提问/权限确认面板时播放提示音,离开屏幕也能第一时间知道。")}
         on={settings.askSoundEnabled}
         onChange={(on) => updateSettings({ askSoundEnabled: on })}
       />
@@ -83,7 +83,7 @@ export function SoundSettingsCard() {
         <div className="pref-row">
           <div>
             <div className="pref-title">{t("提示音")}</div>
-            <div className="pref-desc">{t("选择 Ask 提示音音效，「试听」立即播放。")}</div>
+            <div className="pref-desc">{t("选择 Ask 提示音音效,「试听」立即播放。")}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <StyledSelect
@@ -120,7 +120,7 @@ export function SoundSettingsCard() {
       </div>
       <ToggleRow
         title={t("结束提示音")}
-        desc={t("一轮对话结束且未被查看时播放（结算后静默 3 秒确认，中途来新输出不响）。")}
+        desc={t("一轮对话结束且未被查看时播放(结算后静默 3 秒确认,中途来新输出不响)。")}
         on={settings.turnEndSoundEnabled}
         onChange={(on) => updateSettings({ turnEndSoundEnabled: on })}
       />
@@ -128,7 +128,7 @@ export function SoundSettingsCard() {
         <div className="pref-row">
           <div>
             <div className="pref-title">{t("结束音效")}</div>
-            <div className="pref-desc">{t("选择轮次结束提示音音效，「试听」立即播放。")}</div>
+            <div className="pref-desc">{t("选择轮次结束提示音音效,「试听」立即播放。")}</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <StyledSelect
@@ -149,7 +149,7 @@ export function SoundSettingsCard() {
       ) : null}
       <ToggleRow
         title={t("后台提醒")}
-        desc={t("窗口失焦时，当前会话完成一轮对话也标记未读并播放结束提示音；切回窗口即恢复已读。")}
+        desc={t("窗口失焦时,当前会话完成一轮对话也标记未读并播放结束提示音;切回窗口即恢复已读。")}
         on={settings.backgroundNotify}
         onChange={(on) => updateSettings({ backgroundNotify: on })}
       />

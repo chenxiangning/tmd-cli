@@ -7,7 +7,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowsClockwise, Plus, TerminalWindow, Trash, CircleNotch } from "@phosphor-icons/react";
+import { ArrowsClockwise, Plus, TerminalWindow, Trash } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { bumpGitRefresh, useGitPanelState } from "../panelStore";
@@ -37,11 +38,11 @@ function DirtBadge({ cwd }: { cwd: string }) {
       alive = false;
     };
   }, [cwd]);
-  if (!s) return <CircleNotch size="0.625rem" className="animate-spin text-(--tmd-fg-faint)" aria-hidden />;
-  if (s.dirty < 0) return <span className="text-[0.625rem] text-(--tmd-fg-faint)">—</span>;
-  if (s.dirty === 0) return <span className="text-[0.625rem] text-(--tmd-fg-faint)">{t("干净")}</span>;
+  if (!s) return <Spinner size="0.625rem" className="text-(--tmd-fg-faint)" />;
+  if (s.dirty < 0) return <span className="text-meta text-(--tmd-fg-faint)">—</span>;
+  if (s.dirty === 0) return <span className="text-meta text-(--tmd-fg-faint)">{t("干净")}</span>;
   return (
-    <span className="font-mono text-[0.625rem] text-(--tmd-warn)">
+    <span className="font-mono text-meta text-(--tmd-warn)">
       ● {s.dirty}
       {s.plus > 0 && <span className="ml-1 text-(--tmd-fg-faint)">+{s.plus}</span>}
       {s.minus > 0 && <span className="ml-1 text-(--tmd-fg-faint)">-{s.minus}</span>}
@@ -75,7 +76,7 @@ function TreeActions({
         type="button"
         disabled={busy}
         onClick={onConfirmRemove}
-        className="shrink-0 rounded bg-(--tmd-danger, #e5484d) px-1.5 py-0.5 text-[0.625rem] text-white disabled:opacity-50"
+        className="shrink-0 rounded bg-(--tmd-danger, #e5484d) px-1.5 py-0.5 text-meta text-white disabled:opacity-50"
       >
         {t("确认移除")}
       </button>
@@ -86,6 +87,7 @@ function TreeActions({
       <button
         type="button"
         title={t("打开为工作区")}
+        aria-label={t("打开为工作区")}
         onClick={() => openWorktreeWorkspace(entry.path)}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
@@ -94,6 +96,7 @@ function TreeActions({
       <button
         type="button"
         title={t("在此树开终端")}
+        aria-label={t("在此树开终端")}
         onClick={() => void spawnTerminalAt(entry.path)}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
@@ -102,6 +105,7 @@ function TreeActions({
       <button
         type="button"
         title={t("移除 worktree")}
+        aria-label={t("移除 worktree")}
         onClick={onStartConfirm}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
@@ -162,14 +166,14 @@ function TreeCard({
       <div className="flex min-w-0 items-center gap-1.5">
         {kindLabel && (
           <span
-            className={`shrink-0 rounded border px-1 text-[0.625rem] ${
+            className={`shrink-0 rounded border px-1 text-meta ${
               isCurrent ? "border-(--tmd-accent) text-(--tmd-accent)" : "border-(--tmd-border) text-(--tmd-fg-faint)"
             }`}
           >
             {kindLabel}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-(--tmd-fg-faint)" title={entry.path}>
+        <span className="min-w-0 flex-1 truncate font-mono text-xs text-(--tmd-fg-faint)" title={entry.path}>
           {entry.path}
         </span>
       </div>
@@ -188,7 +192,7 @@ function TreeCard({
           onConfirmRemove={() => void remove()}
         />
       </div>
-      {note && <div className="mt-1 truncate text-[0.625rem] text-(--tmd-fg-faint)">{note}</div>}
+      {note && <div className="mt-1 truncate text-meta text-(--tmd-fg-faint)">{note}</div>}
     </div>
   );
 }
@@ -228,13 +232,13 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
   return (
     <div className="border-b border-(--tmd-border)/60 px-2 pb-2">
       <div className="flex items-center gap-1.5 py-1.5">
-        <span className="text-[0.6875rem] text-(--tmd-fg-faint)">
+        <span className="text-xs text-(--tmd-fg-faint)">
           {t("工作树 ({n})", { n: entries.length })}
         </span>
         <button
           type="button"
           onClick={onCreate}
-          className="ml-auto flex items-center gap-0.5 rounded px-1 py-0.5 text-[0.6875rem] text-(--tmd-accent) hover:bg-(--tmd-bg-hover)"
+          className="ml-auto flex items-center gap-0.5 rounded px-1 py-0.5 text-xs text-(--tmd-accent) hover:bg-(--tmd-bg-hover)"
         >
           <Plus size="0.625rem" aria-hidden />
           {t("新建")}
@@ -243,6 +247,7 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
           type="button"
           onClick={load}
           title={t("刷新")}
+          aria-label={t("刷新")}
           className="rounded p-0.5 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
           <ArrowsClockwise size="0.625rem" aria-hidden />

@@ -173,6 +173,14 @@ export class PiRpcReducer {
     this.blocks = [...this.settled, ...mid];
   }
 
+  /** 转录 notice 落定(system 块):协议事件可见化(非 confirm 部件自动取消等),
+   * 追加进落定基座尾部(时序 = 事件到达序)。 */
+  notice(text: string): CliTranscriptBlock[] {
+    this.settled = [...this.settled, { id: `${LIVE}n${this.settled.length}`, role: "system", text }];
+    this.rebuild();
+    return this.blocks;
+  }
+
   /** 活消息冻结(无权威帧时兜底;live.thinking/text 进基座)。 */
   private freezeLive() {
     const live = this.live;

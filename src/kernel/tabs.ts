@@ -144,6 +144,10 @@ export interface TabContentContribution {
    *  hub/canvas 等非文件 kind 的兜底)。装饰位图标经 kernel/iconSet
    *  的 DecorIcon 包装即可跟随图标组合。 */
   icon?: ComponentType<{ size?: number | string }>;
+  /** 保活声明:true = 编辑区切走不卸载(display:none 常驻同一树位),关闭
+   *  tab 才真卸载。长生命周期会话类 tab(结构化会话 RPC 子进程)用——
+   *  中途切看文件预览不再被收割。默认 false,其余 tab 行为零变化。 */
+  keepAlive?: boolean;
 }
 
 const tabContents = new Map<string, TabContentContribution>();
@@ -166,6 +170,11 @@ export function getTabContent(
 /** 查询某 kind 的 tab 图标(顶栏 tab 条);未注册 = undefined(回落文件徽标)。 */
 export function getTabIcon(kind: string): TabContentContribution["icon"] {
   return tabContents.get(kind)?.icon;
+}
+
+/** 查询某 kind 是否声明保活(编辑区切走不卸载);未注册 = false。 */
+export function isKeepAliveTab(kind: string): boolean {
+  return tabContents.get(kind)?.keepAlive === true;
 }
 
 /** 撤销通道(激活失败回滚/熔断摘除):kind 未注册时静默(幂等)。 */

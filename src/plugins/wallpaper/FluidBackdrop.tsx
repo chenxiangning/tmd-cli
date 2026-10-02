@@ -5,8 +5,8 @@
  *
  * 本地化差异:明暗跟随由 MutationObserver 换成 kernel 的
  * subscribeThemeApplied(theme.ts 是 :root[data-theme] 唯一写点,
- * 事件比 DOM 监听更准);参数变化经 setParams 原地推送,只有
- * profile 切换才重挂 WebGL 上下文。
+ * 事件比 DOM 监听更准);参数变化经 setParams 原地推送,WebGL 上下文
+ * 全程不重挂。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,7 +16,6 @@ import {
   SITE_FLUID_PARAMS,
   type FluidParams,
   type FluidShaderHandle,
-  type FluidShaderProfile,
 } from "./fluidShader";
 import {
   DEFAULT_FLUID_MOTION,
@@ -57,7 +56,6 @@ export function FluidBackdrop({
   presetId = DEFAULT_FLUID_PRESET,
   motionId = DEFAULT_FLUID_MOTION,
   speed = WORKSPACE_FLUID_SPEED,
-  profile = "full",
   forceAnimate = false,
   deferChase = false,
   onAttachChange,
@@ -66,7 +64,6 @@ export function FluidBackdrop({
   presetId?: FluidPresetId;
   motionId?: FluidMotionId;
   speed?: number;
-  profile?: FluidShaderProfile;
   forceAnimate?: boolean;
   deferChase?: boolean;
   onAttachChange?: (attached: boolean) => void;
@@ -85,7 +82,7 @@ export function FluidBackdrop({
   useEffect(() => subscribeThemeApplied(() => setDark(readDark())), []);
 
   // Params changes (preset / light-dark flip) are pushed through setParams so
-  // the WebGL context survives; only a profile switch re-attaches.
+  // the WebGL context survives across the component's whole lifetime.
   // ref 同步走 effect(声明在 attach 之前,挂载顺序保证 attach 读到最新值)。
   const paramsRef = useRef(params);
   useEffect(() => {
@@ -100,7 +97,7 @@ export function FluidBackdrop({
     if (!canvas) {
       return undefined;
     }
-    const handle = attachFluidShader(canvas, paramsRef.current, profile, {
+    const handle = attachFluidShader(canvas, paramsRef.current, {
       forceAnimate,
       deferChase,
     });
@@ -117,7 +114,7 @@ export function FluidBackdrop({
       handle.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, forceAnimate, deferChase]);
+  }, [forceAnimate, deferChase]);
 
   useEffect(() => {
     handleRef.current?.setParams(params);
@@ -142,7 +139,6 @@ export function FluidBackdrop({
       data-testid="tmd-fluid"
       data-scheme={dark ? "dark" : "light"}
       data-motion={motionId}
-      data-profile={profile}
       data-attached={attached ? "true" : "false"}
     >
       <canvas ref={canvasRef} className="tmd-fluid-canvas" />

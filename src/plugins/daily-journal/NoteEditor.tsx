@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PencilSimpleLine } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { saveNote } from "./journalStore";
 import type { DayNote, DayNoteImage } from "./journalFiles";
 import { savePastedImage } from "./noteAssets";
@@ -38,6 +39,9 @@ export function NoteEditor({
   const [images, setImages] = useState<DayNoteImage[]>(note?.images ?? []);
   const [pasteErr, setPasteErr] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
+  /* Esc 弃稿确认弹层态:脏稿 Esc 不直接丢,先弹 ConfirmDialog;
+     弹层自身 Esc/点背板 = 取消弃稿(内容保留),确认 = 执行 cancel()。 */
+  const [askDiscard, setAskDiscard] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
     if (editing) taRef.current?.focus();
@@ -50,7 +54,7 @@ export function NoteEditor({
           <NoteReadonly note={note} onImageOpen={onImageOpen} />
         ) : (
           <button type="button" className="dj-nc-new" onClick={() => setEditing(true)}>
-            <PencilSimpleLine size={11} /> {t("给这一天写点什么(便签)")}
+            <PencilSimpleLine size="0.75rem" /> {t("给这一天写点什么(便签)")}
           </button>
         )}
         {note && (
@@ -90,6 +94,11 @@ export function NoteEditor({
     setImages(i0);
     setEditing(false);
   };
+  /* 脏稿判定:文本或图片集与已存便签有差 = 有未保存内容(Esc 弃稿前确认用)。 */
+  const dirty =
+    text !== (note?.text ?? "") ||
+    images.length !== (note?.images?.length ?? 0) ||
+    images.some((img, i) => img.file !== note?.images?.[i]?.file);
   const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const item = [...(e.clipboardData?.items ?? [])].find((it) => it.type.startsWith("image/"));
     if (!item) return;
@@ -105,7 +114,7 @@ export function NoteEditor({
   return (
     <div className="dj-notecard">
       <div className="dj-nc-head">
-        <PencilSimpleLine size={11} /> {t("我的便签")}
+        <PencilSimpleLine size="0.75rem" /> {t("我的便签")}
       </div>
       <div className="dj-nc-editbox">
         <textarea
@@ -118,7 +127,12 @@ export function NoteEditor({
             e.stopPropagation();
             if (e.nativeEvent.isComposing) return; /* IME 组词期放行(仓内纪律):Esc 消候选不撤销编辑器 */
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void save();
-            if (e.key === "Escape") cancel();
+            /* Esc 弃稿:无未保存内容直接收;脏稿先弹确认(误按最高频的丢稿源);
+               按钮取消是显式操作不拦。 */
+            if (e.key === "Escape" && !askDiscard) {
+              if (!dirty) cancel();
+              else setAskDiscard(true);
+            }
           }}
           onPaste={onPaste}
         />
@@ -143,6 +157,16 @@ export function NoteEditor({
           </div>
         </div>
       </div>
+      {askDiscard && (
+        <ConfirmDialog
+          title={t("丢弃修改")}
+          message={t("便签有未保存修改,丢弃?")}
+          confirmLabel={t("丢弃")}
+          danger
+          onConfirm={cancel}
+          onClose={() => setAskDiscard(false)}
+        />
+      )}
     </div>
   );
 }

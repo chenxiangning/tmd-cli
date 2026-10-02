@@ -171,13 +171,22 @@ export function Composer() {
     >
       <div
         ref={composerRef}
-        className={`relative flex h-full flex-col overflow-hidden border-t bg-(--tmd-bg-panel) ${
+        /* 顶线唯一来源规则(同 aside/handle 契约,杜绝双轨):非 min 段分界线 = 上方
+           handle 细线,这里不再画;border-t 仅 min 段保留(退出 Panel 体系无 handle);
+           dragOver 恢复 accent 顶线 = 拖拽高亮的一部分 */
+        className={`relative flex h-full flex-col overflow-hidden bg-(--tmd-bg-panel) ${
           dragOver
-            ? "border-(--tmd-accent) ring-2 ring-inset ring-(--tmd-accent-soft)"
-            : "border-(--tmd-border)"
+            ? "border-t border-(--tmd-accent) ring-2 ring-inset ring-(--tmd-accent-soft)"
+            : inputHidden
+              ? "border-t border-(--tmd-border)"
+              : ""
         }`}
       >
-        <Mounts point="composer.statusBar" />
+        {/* 状态/工具行(模型/思考/胶囊等贡献)整体包一层,底部分隔线与输入区分层;
+            Mounts 是 fragment 无包装,直接挂无法对整行下边框 */}
+        <div className="border-b border-(--tmd-border)">
+          <Mounts point="composer.statusBar" />
+        </div>
         {sendError && <div className="px-3 py-1 text-xs text-(--tmd-err)">{sendError}</div>}
         {!inputHidden && (
         <>
@@ -203,9 +212,10 @@ export function Composer() {
           ref={ref}
           value={value}
           placeholder={settings.sendShortcut === "cmdOrCtrlEnter"
-            ? t("输入消息,⌘/Ctrl+回车发送,回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")
-            : t("输入消息,回车发送,Shift+回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。")}
-          className="absolute inset-0 resize-none bg-transparent p-0 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
+            ? t("输入消息,⌘/Ctrl+Enter 发送 · / 唤起命令")
+            : t("输入消息,Enter 发送 · / 唤起命令")}
+          /* pl-2 与工具栏 px-2 同 8px 左缘对齐(触发符教学在抽屉图例,placeholder 只留一处 / 提示) */
+          className="absolute inset-0 resize-none bg-transparent p-0 pl-2 pr-10 text-sm leading-[1.58] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
           onChange={(e) => {
             setValue(e.target.value);
             setCursor(e.target.selectionStart);

@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   color: var(--fvp-reader-text);
 }
 
@@ -14,7 +14,7 @@
 .fvp-structured-preview-section,
 .fvp-structured-preview-card {
   border: 1px solid color-mix(in srgb, var(--border-subtle) 78%, transparent);
-  border-radius: 12px;
+  border-radius: var(--tmd-radius-lg);
   background: color-mix(in srgb, var(--surface-card) 90%, transparent);
 }
 
@@ -32,7 +32,7 @@
 
 .fvp-structured-preview-banner-label {
   flex-shrink: 0;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -40,7 +40,7 @@
 }
 
 .fvp-structured-preview-banner code {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--fvp-reader-text);
 }
 
@@ -57,7 +57,7 @@
   flex-direction: column;
   gap: 6px;
   color: var(--fvp-reader-muted);
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 .fvp-structured-preview-notes p {
@@ -65,7 +65,7 @@
 }
 
 .fvp-structured-preview-code-label {
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -77,11 +77,11 @@
   margin: 0;
   padding: 12px 14px;
   overflow: auto;
-  border-radius: 10px;
+  border-radius: var(--tmd-radius-md);
   background: color-mix(in srgb, var(--surface-control) 58%, transparent);
   font-family: var(--code-font-family);
-  font-size: 0.75rem;
-  line-height: 1.6;
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
 }
 
 .fvp-structured-preview-card {
@@ -103,9 +103,9 @@
   min-height: 22px;
   padding: 0 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-active) 58%, #5fa3ff 12%);
+  background: color-mix(in srgb, var(--surface-active) 58%, var(--tmd-accent) 12%);
   color: var(--text-stronger);
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -115,9 +115,9 @@
   min-width: 0;
   flex: 1;
   color: var(--fvp-reader-text);
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.4;
   word-break: break-word;
 }
 

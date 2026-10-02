@@ -5,9 +5,11 @@
  * 扁平化(2026-09-08):分组段头/折叠退役,行首引擎图标区分会话种类。
  */
 
+import { useState } from "react";
 import { HardDrive } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { getSessionBaseline, getSessionTabTitle, noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
@@ -16,6 +18,8 @@ import { LiveOutputDot } from "./SessionRows";
 
 export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
   useHost();
+  /* 右键断开的待确认会话(行内 title 已算好,弹层直接复用)。 */
+  const [pendingDrop, setPendingDrop] = useState<{ id: string; title: string } | null>(null);
   const sessions: SessionMeta[] = host
     .getSessions()
     .filter((s) => s.workspaceId === workspace.id && s.kind === "ssh" && !s.engine);
@@ -43,9 +47,7 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
             }}
             onContextMenu={(e) => {
               e.preventDefault();
-              if (window.confirm(t("断开 SSH 会话「{title}」?", { title }))) {
-                void host.removeSession(session.id);
-              }
+              setPendingDrop({ id: session.id, title });
             }}
           >
             <LiveOutputDot sessionId={session.id} />
@@ -65,6 +67,16 @@ export function SshSessionGroup({ workspace }: { workspace: Workspace }) {
           </button>
         );
       })}
+      {pendingDrop && (
+        <ConfirmDialog
+          title={t("断开会话")}
+          message={t("断开 SSH 会话「{title}」?", { title: pendingDrop.title })}
+          confirmLabel={t("断开")}
+          danger
+          onConfirm={() => void host.removeSession(pendingDrop.id)}
+          onClose={() => setPendingDrop(null)}
+        />
+      )}
     </div>
   );
 }

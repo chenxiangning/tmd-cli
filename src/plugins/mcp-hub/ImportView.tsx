@@ -5,8 +5,10 @@
  * 手选任意文件(JSON mcpServers / TOML mcp_servers)并进清单(同名保留首个)。
  */
 import { useEffect, useMemo, useState } from "react";
-import { ArrowsClockwise, FilePlus } from "@phosphor-icons/react";
+import { ArrowsClockwise, FileMagnifyingGlass, FilePlus } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { pickFile } from "@kernel/ipc";
 import { StyledSelect } from "@kernel/StyledSelect";
 import type { McpEngineState } from "./hubStore";
@@ -107,7 +109,7 @@ export function ImportView({
     <div className="px-4 py-3">
       <div className="mb-3 flex items-center gap-2">
         <label className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-[0.625rem] text-(--tmd-fg-faint)">{t("导入到目标引擎")}</span>
+          <span className="text-meta text-(--tmd-fg-faint)">{t("导入到目标引擎")}</span>
           <StyledSelect
             value={profileId}
             ariaLabel={t("导入到目标引擎")}
@@ -116,24 +118,31 @@ export function ImportView({
           />
         </label>
         <button type="button" className="mcphub-ghost-btn mt-4 flex-none" onClick={scan} disabled={scanning}>
-          <ArrowsClockwise size={12} aria-hidden />
-          {scanning ? t("扫描中…") : t("重新扫描")}
+          <ArrowsClockwise size="0.75rem" aria-hidden />
+          {scanning ? <Spinner /> : t("重新扫描")}
         </button>
         <button type="button" className="mcphub-ghost-btn mt-4 flex-none" onClick={() => void chooseFile()}>
-          <FilePlus size={12} aria-hidden />
+          <FilePlus size="0.75rem" aria-hidden />
           {t("手选文件")}
         </button>
       </div>
 
       {groups.length === 0 ? (
-        <div className="py-10 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">
-          {scanning ? t("扫描中…") : t("本机没有扫到其他工具的 MCP 配置(claude.json / Claude Desktop / codex / codebuddy 等)")}
-        </div>
+        scanning ? (
+          <div className="py-10 text-center text-xs leading-relaxed text-(--tmd-fg-faint)">
+            <Spinner /> {t("加载中…")}
+          </div>
+        ) : (
+          /* 空态统一形制:导入源扫描无果 */
+          <Empty icon={<FileMagnifyingGlass aria-hidden />}>
+            {t("本机没有扫到其他工具的 MCP 配置(claude.json / Claude Desktop / codex / codebuddy 等)")}
+          </Empty>
+        )
       ) : (
         <div className="flex flex-col gap-3">
           {groups.map(([source, list]) => (
             <div key={source}>
-              <div className="mb-1 text-[0.625rem] font-medium text-(--tmd-fg-muted)">{source}</div>
+              <div className="mb-1 text-meta font-medium text-(--tmd-fg-muted)">{source}</div>
               <div className="flex flex-col gap-1">
                 {list.map((c) => {
                   const key = `${c.source}:${c.id}`;
@@ -148,14 +157,14 @@ export function ImportView({
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="truncate font-medium text-(--tmd-fg)">{c.id}</span>
+                          <span className="truncate font-medium text-(--tmd-fg)" title={c.id}>{c.id}</span>
                           {conflict && (
-                            <span className="flex-none text-[0.625rem] text-(--tmd-diff-removed)">
+                            <span className="flex-none text-meta text-(--tmd-diff-removed)">
                               {t("目标已有同 id(勾选 = 覆盖)")}
                             </span>
                           )}
                         </div>
-                        <div className="truncate text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-faint)">
+                        <div className="truncate text-meta text-(--tmd-fg-faint)" title={summarizeEntry(c.entry)}>
                           {summarizeEntry(c.entry)}
                         </div>
                       </div>
@@ -169,7 +178,7 @@ export function ImportView({
       )}
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="min-w-0 text-[0.625rem] text-(--tmd-fg-faint)">
+        <span className="min-w-0 text-meta text-(--tmd-fg-faint)">
           {result ?? t("已勾选 {n} 台", { n: checkedCount })}
         </span>
         <button

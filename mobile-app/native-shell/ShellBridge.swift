@@ -11,7 +11,14 @@ import WebKit
 /// 能力:notify(本地通知)/ creds.get/set/delete(iOS 钥匙串)。
 /// 这些是手机本机能力,不经桌面桥、不进 AppDevice 白名单。
 final class ShellBridge: NSObject, WKScriptMessageHandler {
-  static let shared = ShellBridge()
+  /* 单例铸成就挂通知 center delegate:shared 在启动期 WKWebView 装配
+     (add "shell" handler)时实例化,远早于首条 notify —— delegate 迟挂 =
+     前台 willPresent 无主,iOS 默认前台静默(横幅不显)。 */
+  static let shared: ShellBridge = {
+    let bridge = ShellBridge()
+    UNUserNotificationCenter.current().delegate = bridge
+    return bridge
+  }()
   weak var webview: WKWebView?
 
   func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
@@ -176,6 +183,18 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     // payload 经 {"p":…} 包裹再序列化,避免字符串双重转义;
     // (…) 括号为防御写法(evaluateJavaScript 按 program 求值,表达式位本无歧义)。
     webview?.evaluateJavaScript("window.__TMD_SHELL_RESULT__ && window.__TMD_SHELL_RESULT__(\(id), \(ok ? "true" : "false"), (\(json))[\"p\"])")
+  }
+}
+
+/// 前台通知呈现(ask 等待确认 / 会话退出):iOS 默认前台收到通知只进通知中心
+/// 不弹横幅 —— 补 willPresent 让 app 在前台时照常横幅 + 声音(后台行为不变)。
+extension ShellBridge: UNUserNotificationCenterDelegate {
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.banner, .sound])
   }
 }
 

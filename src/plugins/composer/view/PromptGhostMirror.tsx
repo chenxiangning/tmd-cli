@@ -16,7 +16,7 @@ export function PromptGhostMirror({ mirrorRef, value, suffix }: {
     <div
       ref={mirrorRef}
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words p-0 pr-10 text-sm leading-[1.58]"
+      className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words p-0 pl-2 pr-10 text-sm leading-[1.58]"
     >
       <span className="invisible">{value}</span>
       <span className="text-(--tmd-fg-faint)">{suffix}</span>

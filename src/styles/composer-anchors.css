@@ -10,6 +10,13 @@
  * 全部色值吃 --tmd-* token,随主题 preset 联动。
  * ────────────────────────────────────────────────────────── */
 
+/* 输入区豁免全局键盘焦点环(global.css ::focus-visible 为无层区规则,压过工具类
+   outline-none):textarea 焦点反馈 = 光标本身,环画在输入区四周 = 顶压状态栏分隔线、
+   底压 rail 图标行,深色 accent 下呈两条横穿亮线(2026-10-02 大仙报「底部重叠」)。 */
+#composer-textarea:focus-visible {
+  outline: none;
+}
+
 /* composer.inputRail 挂载点容器:左下角水平图标行(assets 唤醒入口 + 平铺广播开关),
    常规流内行,不遮输入文本;relative 供广播 toast 向上锚定。 */
 .composer-input-rail {
@@ -32,13 +39,14 @@
   height: 22px;
   padding: 0;
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-elevated);
   color: var(--tmd-fg-faint);
   cursor: pointer;
-  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  transition: color var(--tmd-dur-1) var(--tmd-ease-out), border-color var(--tmd-dur-1) var(--tmd-ease-out), background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .composer-rail-btn:hover {
+  background: var(--tmd-bg-hover);
   color: var(--tmd-accent);
   border-color: var(--tmd-accent);
 }
@@ -59,13 +67,14 @@
   height: 22px;
   padding: 0;
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-elevated);
   color: var(--tmd-fg-faint);
   cursor: pointer;
-  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  transition: color var(--tmd-dur-1) var(--tmd-ease-out), border-color var(--tmd-dur-1) var(--tmd-ease-out), background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .composer-broadcast-btn:hover {
+  background: var(--tmd-bg-hover);
   color: var(--tmd-accent);
   border-color: var(--tmd-accent);
 }
@@ -80,15 +89,15 @@
   position: absolute;
   left: 0;
   bottom: calc(100% + 6px);
-  padding: 3px 8px;
+  padding: 4px 8px;
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-popover);
   color: var(--tmd-fg);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.4;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  animation: rail-toast-in 0.18s ease-out;
+  box-shadow: var(--tmd-shadow-popover);
+  animation: rail-toast-in var(--tmd-dur-2) var(--tmd-ease-move);
   pointer-events: none;
 }
 @keyframes rail-toast-in {
@@ -107,7 +116,7 @@
   /* 紧凑贴顶堆叠(10px 命中区 + 3px 间隙 = ROW_PX 13),不摊满整栏;
      bottom 撑出定高容器:锚点超容量时按高度采样收敛,dash 恒可点不溢出。 */
   justify-content: flex-start;
-  gap: 3px;
+  gap: 4px;
   align-items: flex-end;
   z-index: 20;
   pointer-events: none;
@@ -147,9 +156,7 @@
   height: 2px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--tmd-fg-faint) 54%, transparent);
-  transition:
-    width 0.16s ease,
-    background-color 0.16s ease;
+  transition: width var(--tmd-dur-1) var(--tmd-ease-move), background-color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 /* hover 邻近渐变(codemoss proximity 原值):0=32 1=26 2=22 3=18 */
@@ -209,13 +216,13 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-popover);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--tmd-shadow-popover);
   transform: translateY(-50%);
   pointer-events: none;
   z-index: 90;
   font-family: inherit;
-  transition: top 0.12s ease;
-  animation: composer-anchor-preview-in 0.14s ease;
+  transition: top var(--tmd-dur-1) var(--tmd-ease-move);
+  animation: composer-anchor-preview-in var(--tmd-dur-1) var(--tmd-ease-move);
 }
 
 @keyframes composer-anchor-preview-in {
@@ -230,7 +237,7 @@
   overflow: hidden;
   color: var(--tmd-fg);
   font-size: var(--tmd-font-ui);
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.4;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
@@ -241,9 +248,9 @@
   display: -webkit-box;
   overflow: hidden;
   color: var(--tmd-fg-muted);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.4;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;

@@ -34,7 +34,7 @@ export function TerminalSearchOverlay({
   };
 
   return (
-    <div className="absolute right-3 top-2 z-10 flex items-center gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-2 py-1 shadow-lg">
+    <div className="absolute right-3 top-2 z-10 flex items-center gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-2 py-1 shadow-(--tmd-shadow-popover)">
       <input
         ref={inputRef}
         value={query}
@@ -60,24 +60,27 @@ export function TerminalSearchOverlay({
       />
       <button
         title={t("上一个 (Shift+Enter)")}
+        aria-label={t("上一个 (Shift+Enter)")}
         onClick={() => query && searchRef.current?.findPrevious(query, { decorations: decorations() })}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <CaretUp size="0.875rem" />
+        <CaretUp size="0.875rem" aria-hidden />
       </button>
       <button
         title={t("下一个 (Enter)")}
+        aria-label={t("下一个 (Enter)")}
         onClick={() => query && searchRef.current?.findNext(query, { decorations: decorations() })}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <CaretDown size="0.875rem" />
+        <CaretDown size="0.875rem" aria-hidden />
       </button>
       <button
         title={t("关闭 (Esc)")}
+        aria-label={t("关闭 (Esc)")}
         onClick={close}
         className="text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
       >
-        <Cross size="0.875rem" />
+        <Cross size="0.875rem" aria-hidden />
       </button>
     </div>
   );

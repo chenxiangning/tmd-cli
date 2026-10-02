@@ -1,11 +1,12 @@
-/** 「补齐待生成」入队策略测试:快照就绪闸 + 新到旧限量(防整月串行风暴)。 */
+/** 「补齐待生成」入队策略测试:快照就绪闸 + 新到旧限量(防整月串行风暴)+ 在队日顺延。 */
 import { describe, expect, it, vi } from "vitest";
 import { fillPendingDays } from "./journalSchedule";
 import type { MonthSnapshot } from "./journalStore";
 import type { DaySessionRow } from "./daySessions";
 
-const enq = vi.fn();
-vi.mock("./taskQueue", () => ({ enqueueTask: (...a: unknown[]) => enq(...a) }));
+let enqImpl: (type: string, day: string, engine: string) => unknown = () => ({});
+const enq = vi.fn((...a: [string, string, string]) => enqImpl(...a));
+vi.mock("./taskQueue", () => ({ enqueueTask: (...a: [string, string, string]) => enq(...a) }));
 vi.mock("./journalStore", () => ({ getJournalState: () => ({ config: { engine: "omp" } }) }));
 vi.mock("./genSession", () => ({ bootGenSession: () => () => undefined }));
 vi.mock("./holidays", () => ({ ensureHolidays: () => Promise.resolve() }));
@@ -17,12 +18,13 @@ const rows = (n: number): DaySessionRow[] =>
 
 describe("fillPendingDays", () => {
   it("快照未就绪不入队(防文章索引空窗误伤已有文章的日)", () => {
-    fillPendingDays({ y: 2026, m: 9 }, new Map([["2026-09-30", rows(1)]]), undefined);
+    const r = fillPendingDays({ y: 2026, m: 9 }, new Map([["2026-09-30", rows(1)]]), undefined);
     expect(enq).not.toHaveBeenCalled();
+    expect(r).toEqual({ queued: 0, remaining: 0 });
   });
 
   it("新到旧限量 3 天:一次点按不引爆整月串行批", () => {
-    fillPendingDays(
+    const r = fillPendingDays(
       { y: 2026, m: 9 },
       new Map([
         ["2026-09-28", rows(2)],
@@ -36,10 +38,28 @@ describe("fillPendingDays", () => {
     );
     expect(enq).toHaveBeenCalledTimes(3);
     expect(enq.mock.calls.map((c) => c[1])).toEqual(["2026-09-30", "2026-09-28", "2026-09-12"]);
+    expect(r).toEqual({ queued: 3, remaining: 3 });
+  });
+
+  it("在队日被闸拒后顺延补下一日(不占限量坑),剩余数不含已拒日", () => {
+    enqImpl = (_t, day) => (day === "2026-09-30" ? null : {});
+    const r = fillPendingDays(
+      { y: 2026, m: 9 },
+      new Map([
+        ["2026-09-30", rows(3)],
+        ["2026-09-28", rows(2)],
+        ["2026-09-12", rows(1)],
+        ["2026-09-05", rows(1)],
+      ]),
+      snap({}),
+    );
+    expect(enq.mock.calls.map((c) => c[1])).toEqual(["2026-09-30", "2026-09-28", "2026-09-12", "2026-09-05"]);
+    expect(r).toEqual({ queued: 3, remaining: 0 });
+    enqImpl = () => ({});
   });
 
   it("已有文章的日与非本月前缀跳过", () => {
-    fillPendingDays(
+    const r = fillPendingDays(
       { y: 2026, m: 9 },
       new Map([
         ["2026-09-16", rows(2)],
@@ -50,5 +70,6 @@ describe("fillPendingDays", () => {
     );
     expect(enq).toHaveBeenCalledTimes(1);
     expect(enq.mock.calls[0][1]).toBe("2026-09-29");
+    expect(r).toEqual({ queued: 1, remaining: 0 });
   });
 });

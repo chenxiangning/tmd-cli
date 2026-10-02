@@ -25,6 +25,7 @@ import { saveRequestRef } from "./editor/saveRequestRef";
 import { SshSettingsSection } from "./settings/SshSettingsSection";
 import { refreshForwards, unwatchSshSession, watchSshSession, wireSshEvents } from "./state";
 import { MenuEntry } from "./MenuEntry";
+import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 
 /* webview reload 兜底:Rust 侧 SSH 会话跨 reload 存活(事件订阅随 webview 消亡),
    模块加载时重建插件侧镜像:重拉会话表,SSH 会话逐个接线 + 转发对账。 */
@@ -81,7 +82,6 @@ export const sshPlugin: Plugin = {
       icon: HardDrive,
       order: 21, /* 机器组首席(SSH/WSL/终端) */
       railGroup: "machine",
-      showFileSubbar: false, // ssh 自带连接/转发/SFTP 摘要段
       component: SshPanel,
     });
     ctx.registerSettingsSection({

@@ -4,9 +4,11 @@
  * (openFileInTab);Esc/遮罩关闭由 index.tsx 浮层壳统一处理。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileMagnifyingGlass } from "@phosphor-icons/react";
+import { FileMagnifyingGlass, MagnifyingGlass } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { normalizePath } from "@kernel/pathUtils";
 import { openFileInTab } from "@kernel/fileTabs";
 import { closeSearchOverlay, useActiveWorkspaceRoot } from "./overlayStore";
@@ -46,6 +48,7 @@ export function QuickOpen() {
   const [files, setFiles] = useState<string[] | null>(null);
   const [walkTruncated, setWalkTruncated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadSeq, setReloadSeq] = useState(0);
   const [query, setQuery] = useState("");
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,7 +71,15 @@ export function QuickOpen() {
     return () => {
       cancelled = true;
     };
-  }, [root]);
+  }, [root, reloadSeq]);
+
+  /* 失败重试:清错回忙态,reloadSeq 变更重跑上面的 walk。 */
+  function retry(): void {
+    setError(null);
+    setFiles(null);
+    setWalkTruncated(false);
+    setReloadSeq((v) => v + 1);
+  }
 
   const rows = useMemo<Row[]>(() => {
     if (!files) return [];
@@ -141,17 +152,24 @@ export function QuickOpen() {
             {t("无激活工作区")}
           </div>
         ) : error ? (
-          <div className="px-3 py-6 text-center text-xs text-(--tmd-err)">
-            {t("加载文件列表失败")}:{error}
+          /* 列举失败是取数错误,不进空态形制:alert 红字 + 重试钮。 */
+          <div role="alert" className="flex flex-col items-center gap-2 px-3 py-6 text-center text-xs text-(--tmd-err)">
+            <span className="break-all">{t("加载文件列表失败")}:{error}</span>
+            <button
+              type="button"
+              onClick={retry}
+              className="rounded border border-current px-3 py-1 hover:opacity-80"
+            >
+              {t("重试")}
+            </button>
           </div>
         ) : files === null ? (
-          <div className="px-3 py-6 text-center text-xs text-(--tmd-fg-faint)">
+          <div className="flex items-center justify-center gap-1.5 px-3 py-6 text-xs text-(--tmd-fg-faint)">
+            <Spinner />
             {t("正在加载文件列表…")}
           </div>
         ) : rows.length === 0 ? (
-          <div className="px-3 py-6 text-center text-xs text-(--tmd-fg-faint)">
-            {t("无匹配文件")}
-          </div>
+          <Empty icon={<MagnifyingGlass />}>{t("无匹配文件")}</Empty>
         ) : (
           rows.map((row, i) => (
             <button

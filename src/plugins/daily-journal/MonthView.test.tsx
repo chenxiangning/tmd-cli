@@ -19,6 +19,7 @@ vi.mock("./taskQueue", () => ({
 vi.mock("./holidays", () => ({
   holOf: (_y: number, _m: number, d: number) => (d === 25 ? "中秋节" : null),
   useHolidays: () => null,
+  isWorkdayOverride: () => false,
 }));
 
 import { MonthView } from "./MonthView";

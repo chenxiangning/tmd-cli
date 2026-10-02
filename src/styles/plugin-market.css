@@ -108,7 +108,7 @@
   height: 18px;
   padding-left: 4px;
   margin-bottom: 2px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   white-space: nowrap;
 }
@@ -116,7 +116,7 @@
 .pm-cat-label {
   height: 18px;
   padding-left: 4px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   white-space: nowrap;
 }
@@ -130,7 +130,7 @@
 
 /* 视图互斥切换:重挂载淡入。 */
 .pm-view {
-  animation: pm-view-in 0.18s ease-out;
+  animation: pm-view-in var(--tmd-dur-2) var(--tmd-ease-move);
 }
 
 @keyframes pm-view-in {
@@ -153,10 +153,15 @@
   background: var(--tmd-bg-elevated);
   border: 1px solid var(--tmd-border-strong);
   border-radius: var(--tmd-radius-lg);
+  box-shadow: var(--tmd-shadow-modal);
+  overflow-x: auto;
+}
+
+/* 白高光顶缘只在深色外观有效(浅底上不可见),收进 dark 作用域 */
+:root[data-theme="dark"] .pm-strip {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 8px 24px rgba(0, 0, 0, 0.28);
-  overflow-x: auto;
+    var(--tmd-shadow-modal);
 }
 
 /* 市电电缆:插排右端接出 */
@@ -217,12 +222,12 @@
 
 .pm-strip-brand .pm-brand-name {
   font-weight: 600;
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
 }
 
 .pm-strip-brand .pm-brand-role {
   color: var(--tmd-fg-subtle);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
 }
 
 .pm-master-row {
@@ -241,7 +246,7 @@
 
 .pm-master-label {
   color: var(--tmd-fg-subtle);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
 }
 
 /* ── 二级市场滑出面板(内容由注册插件贡献,壳只管开合/遮罩) ── */
@@ -262,11 +267,11 @@
   height: 100%;
   background: var(--tmd-bg-base);
   border-left: 1px solid var(--tmd-border-strong);
-  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--tmd-shadow-modal);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: pm-ext-slide-in 0.18s ease-out;
+  animation: pm-ext-slide-in var(--tmd-dur-2) var(--tmd-ease-move);
 }
 
 @keyframes pm-ext-slide-in {

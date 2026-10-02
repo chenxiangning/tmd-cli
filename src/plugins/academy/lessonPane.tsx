@@ -1,13 +1,16 @@
 /**
  * 课页 —— 目标/要点/终端打字演示/练习;结业课(cheat)渲染全章速查表。
- * 练习「试一试」= 命令填入 composer + 唤出 / 候选,再收向导(学完即上手)。
+ * 练习「试一试」= 前置闸(无 composer/引擎不符只引导,不插命令不结课)+
+ * 命令填入 composer + 唤出 / 候选,再收向导(学完即上手)。
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Flask } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { host } from "@kernel/host";
 import type { AcademyCourse, AcademyLesson } from "@kernel/academy";
 import { composerInsertRef, composerWakeRef } from "@kernel/composerExt";
 import { markLessonDone } from "./academyProgress";
+import { practiceGate } from "./practiceGate";
 
 const TYPE_MS = 38;
 
@@ -73,8 +76,23 @@ export function LessonPane({ cliId, course, lesson, index, isLast, onPrev, onNex
   onNext: () => void;
   onFinish: () => void;
 }) {
+  const [hint, setHint] = useState("");
   const practice = (cmd: string) => {
     const name = cmd.replace(/^\//, "").split(/\s+/)[0];
+    /* 前置闸(audit B3):无 composer / 引擎不符 = 引导提示,不插命令也不结课
+       (旧路径 composerInsertRef 为 null 时命令静默丢失,课却被标记完成)。 */
+    const sessionId = host.getActiveSessionId();
+    const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : undefined;
+    const gate = practiceGate({
+      cliId,
+      hasComposer: composerInsertRef.current != null,
+      activeEngine: session ? (session.engine ?? session.profileId) : null,
+    });
+    if (gate) {
+      setHint(gate);
+      return;
+    }
+    setHint("");
     markLessonDone(cliId, lesson.id, course.lessons.length);
     composerInsertRef.current?.(`/${name} `);
     /* 同 tryCommand:insert 提交后再唤候选,避免陈旧闭包覆盖插入(reviewer P1)。 */
@@ -103,8 +121,11 @@ export function LessonPane({ cliId, course, lesson, index, isLast, onPrev, onNex
             <p>{lesson.practiceWhy}</p>
           </div>
           <button type="button" className="academy-btn is-pri" onClick={() => practice(lesson.practice ?? "")}>
-            <Flask size={12} aria-hidden />{t("试一试")}
+            <Flask size="0.75rem" aria-hidden />{t("试一试")}
           </button>
+          {hint && (
+            <p className="academy-practice-hint" role="status">{hint}</p>
+          )}
         </div>
       )}
       <LessonFooter index={index} isLast={isLast} onPrev={onPrev} onNext={onNext} onFinish={onFinish} />

@@ -263,7 +263,7 @@ export function ManageList({
           className="thread-more"
           onClick={() => setLimit((l) => (l > 0 ? l * 2 : PAGE_INITIAL))}
         >
-          {t("更多... (还有 {n} 条)", { n: remaining })}
+          {t("更多… (还有 {n} 条)", { n: remaining })}
         </button>
       )}
     </div>

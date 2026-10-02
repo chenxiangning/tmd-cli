@@ -1,5 +1,5 @@
 /**
- * 文件树 Git 变更着色 —— subbar 开关按钮 + 「绝对路径 → 颜色类」map。
+ * 文件树 Git 变更着色 —— 工具条开关按钮 + 「绝对路径 → 颜色类」map。
  *
  * 数据自取 ipc.gitStatus(kernel IPC 通用传输,不跨插件 import);
  * 开关关闭时零轮询零计算。开启时 5s 轮询对齐 git 插件 useGitStatus 策略
@@ -8,6 +8,7 @@
  * map 逻辑与开关单例拆至 gitDecorateModel.ts(only-export-components)。
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 import { GitDiff } from "@phosphor-icons/react";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -49,6 +50,7 @@ export function useRepoStatusState(
    *  实现一致,单仓不掺仓根聚合色。 */
   single: boolean;
 } {
+  const panelActive = usePanelActive();
   const [repos, setRepos] = useState<GitRepoSummary[] | null>(null);
   const [entries, setEntries] = useState<RepoStatusEntry[] | null>(null);
 
@@ -71,13 +73,13 @@ export function useRepoStatusState(
     };
     scan();
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") scan();
+      if (panelActive && document.visibilityState === "visible") scan();
     }, SLOW_POLL_MS);
     return () => {
       alive = false;
       window.clearInterval(id);
     };
-  }, [on, root]);
+  }, [on, root, panelActive]);
 
   const single = repos == null || (repos.length === 1 && repos[0].path === root);
   useEffect(() => {
@@ -113,13 +115,13 @@ export function useRepoStatusState(
     };
     void fetch();
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") fetch();
+      if (panelActive && document.visibilityState === "visible") fetch();
     }, POLL_MS);
     return () => {
       alive = false;
       window.clearInterval(id);
     };
-  }, [on, root, repos, single]);
+  }, [on, root, repos, single, panelActive]);
 
   return { repos, entries, single };
 }
@@ -167,13 +169,13 @@ export function useGitDecorations(root: string): ReadonlyMap<string, string> {
   return on ? colors : EMPTY;
 }
 
-/** subbar 开关按钮(经 FilePanelContribution.actions 槽进外壳)。 */
+/** 文件树工具条开关按钮(FileTreeToolbar 内联渲染;2026-10-02 自外壳 actions 槽收编)。 */
 export function GitDecorateToggle() {
   const on = useSyncExternalStore(subscribe, isGitDecorateEnabled);
   return (
     <button
       type="button"
-      className={`panel-subbar-action${on ? " is-active" : ""}`}
+      className={`file-tree-toolbar-action${on ? " is-active" : ""}`}
       aria-label={t("按 Git 变更着色文件")}
       aria-pressed={on}
       title={on ? t("关闭 Git 变更着色") : t("按 Git 变更着色文件与文件夹")}

@@ -8,7 +8,9 @@ import { useEffect, useState } from "react";
 import { PencilSimple, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
+import { Spinner } from "@kernel/Spinner";
 import { openFileInTab } from "@kernel/fileTabs";
+import { useEscClose } from "@kernel/DialogShell";
 import { resolveSkillMetaFile, type HubSkill } from "./skillScan";
 
 const PREVIEW_CAP_BYTES = 200 * 1024;
@@ -24,6 +26,8 @@ export function SkillPreviewDrawer({
   const [truncated, setTruncated] = useState(false);
   const [missing, setMissing] = useState(false);
   const [metaFile, setMetaFile] = useState<string | null>(null);
+  /* 抽屉 Esc 关闭(R10 收口;只读预览无提交中锁定态) */
+  useEscClose(onClose);
 
   useEffect(() => {
     let alive = true;
@@ -56,7 +60,7 @@ export function SkillPreviewDrawer({
 
   return (
     <div
-      className="absolute inset-y-0 right-0 z-20 flex w-[440px] max-w-full flex-col border-l border-(--tmd-border) bg-(--tmd-bg-elevated) shadow-2xl"
+      className="absolute inset-y-0 right-0 z-20 flex w-[440px] max-w-full flex-col border-l border-(--tmd-border) bg-(--tmd-bg-popover) shadow-(--tmd-shadow-modal)"
       data-skill-preview={skill.name}
     >
       <div className="flex items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
@@ -65,11 +69,11 @@ export function SkillPreviewDrawer({
           <button
             type="button"
             onClick={() => openFileInTab(metaFile)}
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
             title={metaFile}
             data-skill-edit={skill.name}
           >
-            <PencilSimple size={12} aria-hidden="true" />
+            <PencilSimple size="0.75rem" aria-hidden="true" />
             {t("编辑")}
           </button>
         )}
@@ -79,24 +83,27 @@ export function SkillPreviewDrawer({
           className="rounded p-1 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
           aria-label={t("关闭")}
         >
-          <X size={14} aria-hidden="true" />
+          <X size="0.875rem" aria-hidden="true" />
         </button>
       </div>
-      <div className="border-b border-(--tmd-border) px-3 py-1.5 text-[10px] text-(--tmd-fg-faint)">
+      <div className="border-b border-(--tmd-border) px-3 py-1.5 text-meta text-(--tmd-fg-faint)">
         <div className="truncate">{skill.dir}</div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {missing ? (
           <div className="text-xs text-(--tmd-fg-faint)">{t("无元数据文件,仅有目录名")}</div>
         ) : text === null ? (
-          <div className="text-xs text-(--tmd-fg-faint)">{t("读取中…")}</div>
+          <div className="flex items-center gap-1.5 text-xs text-(--tmd-fg-faint)">
+            <Spinner />
+            {t("加载中…")}
+          </div>
         ) : (
           <>
-            <pre className="whitespace-pre-wrap break-words text-[11px] leading-relaxed text-(--tmd-fg)">
+            <pre className="whitespace-pre-wrap break-words text-xs leading-relaxed text-(--tmd-fg)">
               {text}
             </pre>
             {truncated && (
-              <div className="mt-2 rounded bg-(--tmd-bg-sunken) px-2 py-1 text-[10px] text-(--tmd-fg-muted)">
+              <div className="mt-2 rounded bg-(--tmd-bg-sunken) px-2 py-1 text-meta text-(--tmd-fg-muted)">
                 {t("已达 200KB 预览上限,超出部分已截断")}
               </div>
             )}

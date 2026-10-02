@@ -1,8 +1,9 @@
 /**
- * 接力对话框 ── 目标引擎单选 + 摘要预览(可编辑)+ 确认开新会话。
+ * 接力对话框 ── 目标引擎单选 + 摘要预览(可编辑,超限截断明示)+ 确认开新会话。
  * 数据:RelaySource(活会话命令构造 / 退出卡快照构造)→ 用户消息经 profile
  * 声明的读取器读磁盘(会话已退出也读得到);
  * 动作:createSession(目标引擎,源落位工作区,缺省激活)→ writeSession(摘要)。
+ * 弹层焦点圈闭(dialog 语义:打开入首控件、Tab 循环、关闭还原焦点)。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +16,11 @@ import { prepareSendPayload } from "@kernel/profileSend";
 import { emitPromptSent, readPromptGate } from "@kernel/promptGate";
 import { relayTargets, buildRelaySummary, type RelaySource } from "./relay";
 import { clearRelaySource, useRelaySource } from "./relayStore";
+import { useFocusTrap } from "@kernel/useFocusTrap";
+
+/* 弹层焦点圈闭(同款见 SendConfirmDialog/SearchOverlay/WorktreeManageDialog/
+   academy wizard;候选统一收口进 kernel/DialogShell):打开焦点入首控件、
+   Tab 循环、关闭还原焦点。 */
 
 /* 源经 store 订阅(开框面统一 = setRelaySource):命令(活会话)与
    退出卡(已故会话)共享同一对话框;无源即卸载。 */
@@ -30,8 +36,12 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
     () => relayTargets(host.getCliProfiles(), source.profileId),
     [source.profileId],
   );
+  /* 弹窗随 source 挂载即开(RelayLayer 无源不渲染),active 恒 true。 */
+  const dialogRef = useFocusTrap(true);
   const [targetId, setTargetId] = useState<string | null>(targets[0]?.id ?? null);
   const [summary, setSummary] = useState("");
+  /* 截断标记:单条 500 字/总长 8KB 双闸任一触发即明示(不让用户误以为全文都在)。 */
+  const [summaryTruncated, setSummaryTruncated] = useState(false);
   const [summaryReady, setSummaryReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const createdRef = useRef<string | null>(null); /* 重试复用首轮会话 */
@@ -60,13 +70,17 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
     void load
       .then((messages) => {
         if (alive) {
-          setSummary(buildRelaySummary(source, messages ?? []));
+          const built = buildRelaySummary(source, messages ?? []);
+          setSummary(built.text);
+          setSummaryTruncated(built.truncated);
           setSummaryReady(true);
         }
       })
       .catch(() => {
         if (alive) {
-          setSummary(buildRelaySummary(source, []));
+          const built = buildRelaySummary(source, []);
+          setSummary(built.text);
+          setSummaryTruncated(built.truncated);
           setSummaryReady(true);
         }
       });
@@ -136,7 +150,13 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
         if (e.key === "Escape" && !e.nativeEvent.isComposing) onClose();
       }}
     >
-      <div className="flex w-[460px] flex-col gap-3 rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("转到其他引擎接力")}
+        className="flex w-[460px] flex-col gap-3 rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-(--tmd-shadow-modal)"
+      >
         <div className="text-sm font-medium text-(--tmd-fg)">{t("转到其他引擎接力")}</div>
 
         <div>
@@ -162,8 +182,13 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
         </div>
 
         <div className="flex min-h-0 flex-col">
-          <div className="mb-1 text-xs text-(--tmd-fg-faint)">
-            {t("接力提示词(可编辑,将作为新会话首条消息发出)")}
+          <div className="mb-1 flex items-center gap-2 text-xs text-(--tmd-fg-faint)">
+            <span>{t("接力提示词(可编辑,将作为新会话首条消息发出)")}</span>
+            {summaryTruncated && (
+              <span className="rounded bg-(--tmd-bg-hover) px-1 text-meta text-(--tmd-git-modified)">
+                {t("已截断(单条 500 字 · 总长 8KB)")}
+              </span>
+            )}
           </div>
           <textarea
             ref={textRef}
@@ -189,7 +214,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
             type="button"
             disabled={!targetId || busy || !summaryReady}
             onClick={() => void relay()}
-            className="flex items-center gap-1.5 rounded-md bg-(--tmd-accent) px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-md bg-(--tmd-accent) px-3 py-1.5 text-xs font-medium text-(--tmd-accent-fg) disabled:opacity-50"
           >
             <PaperPlaneRight size="0.75rem" aria-hidden />
             {busy ? t("开新会话中…") : summaryReady ? t("开新会话并发送") : t("摘要生成中…")}

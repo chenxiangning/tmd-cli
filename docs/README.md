@@ -234,7 +234,22 @@
 | 2026-09-30 | [daily-journal 生成会话无头化设计:omp -p oneshot 单发根治输出洪水 + 退出主信号结算 + 摘录增量/并发治理](superpowers/specs/2026-09-30-daily-journal-oneshot-gen-design.md) | 已定稿(实现随当日提交) |
 | 2026-09-30 | [18 — 生成会话无头契约:CliProfile.oneshotArgs 声明制与无人值守会话输出纪律](architecture/18-oneshot-generation.md) | 生效中(omp/pi/codex/claude 已声明,dsh/kimi/grok/qoder/opencode 待接入清单见文内矩阵) |
 | 2026-10-01 | [19 — proc_stream 长驻流式原语与结构化会话:四命令面/行事件线/单一收割出口/structuredRpc 声明制/画布浮层挂点](architecture/19-proc-stream-structured-session.md) | 生效中(新增 RPC 类 CLI 能力或改 proc_stream 生命周期前必读) |
+| 2026-10-02 | [20 — cli-dsh 契约:幕布钉底光标纪律 / 会话身份与删除闸 / host 探针](architecture/20-cli-dsh-adapter-contracts.md) | 生效中(改 cli-dsh 适配器渲染、侧栏会话列表、host 面板前必读) |
 | 2026-09-30 | [daily-journal 手动发起总结/增量更新入口:文章 tab 顶栏状态自适应按钮 + 月格全状态扩展(增量并入/生成此日/重试生成三态共用判定)](superpowers/specs/2026-09-30-daily-journal-manual-increment-design.md) | 已实现(门禁全绿;真机目检留大仙) |
 | 2026-09-30 | [活会话结构化视图设计(幕布|转录双视图:canvasOverlay 画布浮层挂点 + 1s 探测短路轮询 + 变更即全量重读 message 级刷新;幕布保活零卸载,PTY 零改动)](superpowers/specs/2026-09-30-live-transcript-view-design.md) | 已实现(门禁全绿;1421 桩目检过;真机验收留大仙,未提交) |
 | 2026-09-30 | [结构化会话设计(RPC 驱动,omp/pi 先行:Rust proc_stream 通用流式子进程原语 + cli-shared piRpc 客户端/reducer + structured-session 插件中央 tab;token 级流式;PTY 零改动;观察者/双开/改 PTY 三路实验否决记录)](superpowers/specs/2026-09-30-structured-session-rpc-design.md) | 已实现(门禁全绿;真机验收留大仙,Rust 改动须重启 tauri:dev,未提交) |
+| 2026-10-01 | [0.2.5→0.2.7 界面打磨调研与实施(交互 × UI 美观度:structured-session/手机/WSL/壳层/日志五面 65 项发现全量实施;keepAlive tab 保活契约;门禁全绿含 react-doctor 100;未提交)](research/ui-polish-0.2.5-to-0.2.7.md) | 已实施(六项门禁全绿;真机目检留大仙;未提交) |
+| 2026-10-01 | [近半个月发布内容梳理与打磨审计(v0.1.9..v0.2.7 双端:9 版功能地图 / demo 级分级判定 / P0×3+P1×30+P2×45 / 引擎覆盖度矩阵 / 五横切模式;5 路代码级审计,未提交)](research/client-polish-half-month-audit.md) | 已完成(发现已全部实施,见同日 spec 实施注记) |
+| 2026-10-01 | [客户端界面与功能交互打磨设计方案(分级治理,双端:补全/收敛/下线/留观四档裁决表 + 三波实施 + 四统一机制;用户拍板取向=分级治理、范围=桌面+手机)](superpowers/specs/2026-10-01-client-polish-plan-design.md) | 已实施(待用户检查;未提交) |
+| 2026-10-01 | [工作区全量变更检查清单(266 文件:两轮打磨叠加,按域列变更文件/内容/影响范围/检查方式与建议检查顺序;未提交)](review/2026-10-01-polish-worktree-review-manifest.md) | 供逐项检查 |
+| 2026-10-01 | [工作区死代码评审与清理(四路 grep 实证:零孤儿文件;修 1 个 YearView 热力前缀回归 + 删史前死类/死键 + 弱导出收敛 + useFocusTrap 五副本沉 kernel;门禁全绿;未提交)](review/2026-10-01-deadcode-review.md) | 已完成 |
+| 2026-10-01 | [工作区全量变更五路 code review(边界/性能/兼容/交互/外观:30+ 疑似逐条核实,真实问题 2 项已修——接力截断代理对 + cargo fmt;误报核实摘录防重查;门禁全绿;未提交)](review/2026-10-01-worktree-five-track-review.md) | 已完成 |
+| 2026-10-02 | [高级感主题配色候选(低饱和高级灰 ×6 + 现行默认对照,frame 级目检)](design/premium-themes.html) | 已落地(tmd-paper/mist/linen/graphite/ink/ember;默认浅色=云白、深色=石墨;未提交) |
+| 2026-10-02 | [客户端打磨任务2 五路审计(主题适配长尾/i18n 译文质量/新近提交自查/设置面/微交互:64 项 + i18n 五类;P0×6 全部实证复核)](research/client-polish-task2-audit.md) | 已完成(处置见同日 spec) |
+| 2026-10-02 | [客户端打磨任务2 实施设计(P0+P1 全修 + P2 精选:原生弹窗清零/主题 token 裁决/术语统一译法/8 域并行分批;用户拍板范围)](superpowers/specs/2026-10-02-polish-task2-batch-design.md) | 已实施 |
+| 2026-10-02 | [客户端打磨任务3 五路审计(UI 整体效果:排版阶梯/间距密度/形制语言/动效状态/色彩层次;字号 27 值双轨/间距 36 档/圆角化率 44%/动效 11 档/选中五范式)](research/client-polish-task3-audit.md) | 已完成(处置见同日 spec) |
+| 2026-10-02 | [客户端打磨任务3 实施设计(设计系统收口:token 阶梯+层次模型+状态三原语+全仓迁移;用户拍板正文 12px/全量三梯队)](superpowers/specs/2026-10-02-polish-task3-design-system-design.md) | 已实施 |
+| 2026-10-02 | [界面模块打磨轮四路审计(原语长尾 26+32+6/壳层观感/功能面板观感/12px 密度与交互:共 78 项;附件清除疑点核实误报)](research/client-polish-task4-module-audit.md) | 已完成(处置见同日 spec) |
+| 2026-10-02 | [界面模块打磨轮实施设计(原语长尾全收+实锤清零+高频观感/保命全修+P2 精选;8 域并行;门禁全绿但按用户指令未提交留检)](superpowers/specs/2026-10-02-polish-task4-module-refine-design.md) | 已实施(未提交,待用户检查) |
+| 2026-10-02 | [界面模块打磨轮提交前三路评审(交互/视觉词条/边界性能:实锤 5 全修——保活轮询门控/强删链路恢复/mgrid 非法 CSS/mask 常驻/死键;误报摘录防重查)](review/2026-10-02-polish-task4-review.md) | 已完成(修复随 d3070345 提交) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

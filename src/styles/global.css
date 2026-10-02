@@ -3,6 +3,7 @@
 @import "./terminal.css";
 @import "./git-panel.css";
 @import "./file-tree.css";
+@import "./file-tree-toolbar.css";
 @import "./file-editor.css";
 @import "./workspace-file-browser.css";
 @import "./open-with.css";
@@ -10,6 +11,7 @@
 @import "./open-with-dialog.css";
 @import "./tab-bar.css";
 @import "./right-panel-toolbar.css";
+@import "./panel-overflow.css";
 @import "./panel-subbar.css";
 @import "./quota.css";
 @import "./workspace-sidebar.css";
@@ -69,6 +71,21 @@
  * 钉成绝对 4px(= 根 16px 时的 0.25rem,默认态像素零变化),padding/gap/标准档位恒定。 */
 @theme {
   --spacing: 4px;
+  /* Tailwind 标准类桥接 tmd token(2026-10-02 设计系统收口):
+   * - text-2xs(9)/text-meta(10)/text-ui(12)/text-md(13) 新增语义类,
+   *   14/16 继续用 text-sm/text-base(值与 --tmd-font-lg/xl 一致);
+   * - rounded-* 按值对齐挂 token(视觉零变化;Tailwind 名比 tmd 名短一档,
+   *   注释声明此错位是有意保持存量零漂移,新增代码优先直写 var);
+   * - font-mono 桥接主题引擎(原走 Tailwind 平行变量不随 preset)。 */
+  --text-2xs: var(--tmd-font-2xs);
+  --text-meta: var(--tmd-font-xs);
+  --text-ui: var(--tmd-font-ui);
+  --text-md: var(--tmd-font-md);
+  --radius-sm: var(--tmd-radius-xs);
+  --radius-md: var(--tmd-radius-sm);
+  --radius-lg: var(--tmd-radius-md);
+  --radius-xl: var(--tmd-radius-lg);
+  --font-mono: var(--tmd-font-mono);
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -123,6 +140,13 @@ body,
   overflow: hidden;
 }
 
+/* 禁用按钮统一手势基线(2026-09-29 cursor 收敛):写在无层区,压过 Tailwind
+ * 工具类层(layered),各处 disabled:cursor-default/not-allowed 局部一律删除、
+ * 由基线接管;类作用域 :disabled 规则(如 .welcome-refresh)特异性更高,属遗留局部。 */
+button:disabled {
+  cursor: not-allowed;
+}
+
 /* 会话呼吸灯 */
 @keyframes breathe {
   0%,
@@ -138,4 +162,58 @@ body,
 
 .animate-breathe {
   animation: breathe 1.2s ease-in-out infinite;
+}
+
+/* 内核浮层动效(terminalLoadOverlay 等;组件按名引用,全局一份 keyframes) */
+@keyframes tmdFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── 全局动效/可达性基建(2026-10-02 设计系统收口)──────────────────
+ * tmdSpin:全仓唯一旋转 keyframes(9 份插件副本收敛于此;1s linear)。 */
+@keyframes tmdSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* tmdDialogIn:对话框卡片统一入场 fade + 4px rise(DialogShell 经
+ * var(--tmd-dur-2)/var(--tmd-ease-move) 引用;减动效由下方 reduce 规则接管)。 */
+@keyframes tmdDialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 键盘焦点环:无层区压过工具类层;局部自定义焦点(如幕布)以更高特异性覆盖。 */
+:focus-visible {
+  outline: 2px solid var(--tmd-accent);
+  outline-offset: 1px;
+}
+
+/* 按压反馈:可用按钮 active 微缩(2%,可感不破版);禁用态不参与。 */
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* 滚动隐藏 utility(原 5 处散写的成对声明收敛)。 */
+.tmd-scroll-hide {
+  scrollbar-width: none;
+}
+.tmd-scroll-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 动效尊重系统减动效:微交互瞬时化、循环动画(呼吸灯/spinner)停帧。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

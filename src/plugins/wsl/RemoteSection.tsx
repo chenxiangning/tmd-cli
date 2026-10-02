@@ -143,7 +143,7 @@ export function WslRemoteSection() {
             aria-label={t("手动添加主机")}
             onClick={() => setFormOpen((v) => !v)}
           >
-            <PlusIcon size={12} weight="bold" aria-hidden />
+            <PlusIcon size="0.75rem" weight="bold" aria-hidden />
           </button>
           <button type="button" className="wsl-btn" disabled={!selected || loading} onClick={() => void probe()}>
             {loading ? t("连接中…") : t("连接")}
@@ -155,6 +155,7 @@ export function WslRemoteSection() {
               setFormOpen(false);
               pickHost(id);
             }}
+            onCancel={() => setFormOpen(false)}
           />
         )}
         {error && <div className="wsl-remote-err">{error}</div>}
@@ -193,7 +194,7 @@ export function WslRemoteSection() {
                   onClick={() => toggleDistro(d.name)}
                 >
                   <CaretDownIcon
-                    size={11}
+                    size="0.75rem"
                     weight="bold"
                     className={`wsl-caret${openDistro === d.name ? "" : " closed"}`}
                     aria-hidden

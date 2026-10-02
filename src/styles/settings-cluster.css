@@ -30,7 +30,7 @@
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--tmd-radius-md);
   background: transparent;
   color: var(--tmd-fg-muted); /* neutral-400 */
   cursor: pointer;
@@ -42,10 +42,10 @@
 }
 
 .settings-bar-btn.is-active {
-  color: rgb(255, 140, 60); /* 与 right-panel-toolbar 激活色一致 */
+  color: var(--tmd-decor); /* 与 right-panel-toolbar 激活色一致 */
 }
 .settings-bar-btn.is-active[data-action-id="system-proxy"] {
-  color: var(--icon-decor-system-proxy, rgb(255, 140, 60));
+  color: var(--icon-decor-system-proxy, var(--tmd-decor));
 }
 
 .settings-gear.is-active {
@@ -57,7 +57,7 @@
   display: block;
   width: 18px;
   height: 18px;
-  border-radius: 5px;
+  border-radius: var(--tmd-radius-xs);
 }
 
 .settings-cluster-spacer {
@@ -73,7 +73,7 @@
 }
 
 .settings-zoom .settings-bar-btn {
-  font-size: 0.875rem;
+  font-size: var(--tmd-font-lg);
   line-height: 1;
 }
 
@@ -90,9 +90,9 @@
   min-width: 36px;
   padding: 2px 2px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   background: transparent;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-family: inherit;
   font-variant-numeric: tabular-nums;
   color: var(--tmd-fg-subtle); /* neutral-500,与版本号一致 */
@@ -110,9 +110,9 @@
 .settings-cluster-version {
   padding: 2px 4px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   background: transparent;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-family: inherit;
   color: var(--tmd-fg-subtle); /* neutral-500 */
   white-space: nowrap; /* 窄窗不折行:版本号与「有新版」保持同一行 */
@@ -128,7 +128,7 @@
 
 /* 新版短提示:后台检查发现新版本时缀在版本号后,accent 点睛不改按钮布局 */
 .version-new-hint {
-  margin-left: 3px;
+  margin-left: 4px;
   color: var(--tmd-accent);
 }
 
@@ -141,9 +141,9 @@
   min-width: 220px;
   padding: 6px;
   border: 1px solid var(--tmd-border);
-  border-radius: 10px;
+  border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-popover); /* neutral-900 */
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);
+  box-shadow: var(--tmd-shadow-popover);
   z-index: 50;
 }
 
@@ -151,7 +151,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
 }
 
 .settings-menu-row:hover {
@@ -159,10 +159,10 @@
 }
 
 .settings-menu-row.is-active .settings-menu-icon {
-  color: rgb(255, 140, 60);
+  color: var(--tmd-decor);
 }
 .settings-menu-row.is-active[data-action-id="system-proxy"] .settings-menu-icon {
-  color: var(--icon-decor-system-proxy, rgb(255, 140, 60));
+  color: var(--icon-decor-system-proxy, var(--tmd-decor));
 }
 
 .settings-menu-item {
@@ -171,12 +171,12 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 7px 8px;
+  padding: 8px 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: transparent;
   color: var(--tmd-fg); /* neutral-300 */
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   text-align: left;
   cursor: pointer;
 }
@@ -203,7 +203,7 @@
   height: 16px;
   margin-right: 8px;
   border: 1px solid var(--tmd-border-strong); /* neutral-600 */
-  border-radius: 5px;
+  border-radius: var(--tmd-radius-xs);
   background: transparent;
   color: var(--tmd-bg-base);
   cursor: pointer;

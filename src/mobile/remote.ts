@@ -7,6 +7,7 @@
 
 import { shellInvoke, shellLog } from "@kernel/shellBridge";
 import { invoke, listen } from "@kernel/transport";
+import { formatRelativeTime } from "@kernel/relativeTime";
 
 export interface RemoteSession {
   id: string;
@@ -103,6 +104,24 @@ export async function tailAskLine(tail: string): Promise<string | null> {
     if (ASK_MARKER_RE.test(lines[i])) return lines[i].trim();
   }
   return null;
+}
+
+/** 会话屏「续聊」(退出横幅钮):活会话元数据直走 resumeDiskSession(引擎
+ *  resumeArgs 冷开 / 日志指针聚焦活 PTY);无磁盘身份(未落盘新会话)= null
+ *  不可续。动态 import:resume 与 askDetect 同策略切出主 chunk(手机入口体积)。 */
+export async function resumeExitedSession(
+  meta: RemoteSession,
+  sessions: RemoteSession[],
+): Promise<string | null> {
+  if (!meta.cliSessionId || !meta.cwd) return null;
+  const { resumeDiskSession } = await import("./resume");
+  return resumeDiskSession({
+    profileId: meta.profileId,
+    cwd: meta.cwd,
+    cliSessionId: meta.cliSessionId,
+    workspaceId: meta.workspaceId,
+    sessions,
+  });
 }
 
 // ---- 基础 invoke(远程模式;未连接时抛错由调用方处理) ----
@@ -224,12 +243,9 @@ export function composeSendText(text: string, paths: string[]): string | null {
 }
 
 
-/** 相对时间(home 行 meta;与桌面侧栏口径一致)。 */
+/** 相对时间(home 行 meta)—— 实现引 @kernel/relativeTime 全仓唯一版本
+ *  (2026-09-29 四源收敛:本地手写「N 秒/N 分」版已删,口径 = 刚刚/N 分钟前/…
+ *  与桌面 git 历史/checkpoints/session 列表同源);空值显示 —。 */
 export function relTime(ts?: number): string {
-  if (!ts) return "—";
-  const d = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (d < 60) return `${d} 秒`;
-  if (d < 3600) return `${Math.floor(d / 60)} 分`;
-  if (d < 86400) return `${Math.floor(d / 3600)} 时`;
-  return `${Math.floor(d / 86400)} 天`;
+  return ts ? formatRelativeTime(ts) : "—";
 }

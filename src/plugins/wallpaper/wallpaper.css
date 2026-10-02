@@ -50,8 +50,8 @@
   display: inline-block;
   width: 0.5rem;
   height: 0.5rem;
-  margin-right: 0.3rem;
-  border-radius: 9999px;
+  margin-right: 0.25rem;
+  border-radius: 999px;
   border: 1px solid var(--tmd-border);
   vertical-align: -0.0625rem;
 }
@@ -75,7 +75,7 @@
   align-items: center;
   gap: 0.75rem;
   margin: 0.75rem 0 0.5rem;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
 }
 
@@ -83,7 +83,7 @@
   border: none;
   background: none;
   padding: 0;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-accent);
   cursor: pointer;
 }
@@ -141,7 +141,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
 }
 
@@ -154,7 +154,7 @@
 }
 
 .wp-picker-name {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -171,7 +171,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.1875rem;
+  padding: 0.25rem;
   border: none;
   border-radius: var(--tmd-radius-sm);
   background: none;
@@ -191,7 +191,7 @@
 .wp-picker-empty {
   padding: 2rem 1rem;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
 }
 
@@ -204,7 +204,7 @@
 }
 
 .wp-picker-error {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-err);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -220,7 +220,7 @@
   border-radius: var(--tmd-radius-sm);
   background: var(--tmd-accent);
   color: var(--tmd-accent-fg);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
 }
 
@@ -243,7 +243,7 @@
   border-radius: var(--tmd-radius-md);
   background: var(--tmd-bg-input);
   color: var(--tmd-fg);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
   flex-shrink: 0;
 }

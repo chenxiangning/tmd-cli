@@ -102,7 +102,7 @@ function DetectStatusList({
   ocInstalled: boolean | null;
 }) {
   return (
-    <div className="flex flex-col gap-1 text-[0.6875rem] text-(--tmd-fg-muted)">
+    <div className="flex flex-col gap-1 text-xs text-(--tmd-fg-muted)">
       <div>
         {node === null
           ? t("检测中…")
@@ -133,13 +133,13 @@ function HarnessTargetPicker({
 }) {
   return (
     <>
-      <span className="text-[0.65625rem] text-(--tmd-fg-faint)">{t("安装到:")}</span>
+      <span className="text-meta text-(--tmd-fg-faint)">{t("安装到:")}</span>
       {(["omp", "pi", "opencode"] as const).map((eng) => {
         const installed = eng === "omp" ? ompInstalled : eng === "pi" ? piInstalled : ocInstalled;
         return (
           <button
             key={eng}
-            className={`flex-none rounded-md border px-2 py-0.5 text-[0.65625rem] ${
+            className={`flex-none rounded-md border px-2 py-0.5 text-meta ${
               target === eng
                 ? "border-(--tmd-accent) bg-(--tmd-accent-soft) text-(--tmd-fg)"
                 : "border-(--tmd-border) text-(--tmd-fg-subtle)"
@@ -160,7 +160,7 @@ function HarnessTargetPicker({
 function InstallLogView({ log }: { log: LogLine[] }) {
   if (log.length === 0) return null;
   return (
-    <div className="mt-2 max-h-28 overflow-y-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-2 font-mono text-[0.65625rem] leading-relaxed text-(--tmd-fg-muted)">
+    <div className="mt-2 max-h-28 overflow-y-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-base) p-2 font-mono text-meta leading-relaxed text-(--tmd-fg-muted)">
       {log.map((entry) => (
         <div key={entry.id} className="truncate" title={entry.text}>
           {entry.text}
@@ -212,7 +212,7 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
   return (
     <div className="mb-3 rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3">
       <div className="mb-2 flex flex-none items-center gap-2">
-        <span className="text-[0.71875rem] font-semibold">{t("启用")}</span>
+        <span className="text-xs font-semibold">{t("启用")}</span>
         <button
           className={toggle(settings.memoryEnabled)}
           aria-label={t("启用")}
@@ -221,7 +221,7 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
           <span className={knob(settings.memoryEnabled)} />
         </button>
       </div>
-      <div className="mb-2 truncate text-[0.65625rem] text-(--tmd-fg-subtle)">
+      <div className="mb-2 truncate text-meta text-(--tmd-fg-subtle)">
         {settings.memoryEnabled ? t("胶囊与右栏面板已启用") : t("已关闭:胶囊与面板全部隐藏")}
       </div>
       <DetectStatusList node={node} ompInstalled={ompInstalled} piInstalled={piInstalled} ocInstalled={ocInstalled} />
@@ -234,12 +234,12 @@ export function InstallCard({ onInstalled }: { onInstalled: () => Promise<void> 
           onPick={setTarget}
         />
       </div>
-      <div className="mt-0.5 truncate pl-1 text-[0.625rem] text-(--tmd-fg-faint)">
+      <div className="mt-0.5 truncate pl-1 text-meta text-(--tmd-fg-faint)">
         {t("omp/pi 经插件命令安装;opencode 改其配置并禁原生压缩;三家共用同一个记忆库(迁移幂等)。重复安装是幂等的,不会覆盖或破坏已有记忆。")}
       </div>
       <div className="mt-2 flex flex-none items-center gap-2">
         <button
-          className="flex-none rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-3 py-1 text-[0.6875rem] text-(--tmd-accent-fg) disabled:opacity-45"
+          className="flex-none rounded-md border border-(--tmd-accent) bg-(--tmd-accent) px-3 py-1 text-xs text-(--tmd-accent-fg) disabled:opacity-45"
           disabled={running || !node?.available}
           onClick={install}
         >

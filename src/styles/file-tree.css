@@ -4,18 +4,18 @@
  * 设计原则:
  * - 顶部 toolbar:workspace 根标签(uppercase)+ 右侧 3 个 ghost 图标按钮
  *   (新文件/新文件夹/刷新)。
- * - 行高 28px,左右内边距 8px,圆角 6px,hover/selected 用 surface-hover
- *   灰色填充。
+ * - 行高 28px,左右内边距 8px,圆角 sm;hover = bg-hover 纯色,
+ *   selected = accent-soft(两态分离,均不加边框)。
  * - 文件夹行 hover 时让位给 chevron(右旋箭头),常态显示文件夹 icon。
  * - 文件行:固定 icon(按扩展名)+ 名字。
  * - 行右侧 actions(hover 显现):此处仅 + 一个"在新窗口打开"占位。
  * ────────────────────────────────────────────────────────── */
 
 .file-tree-panel {
-  --file-tree-caption-font-size: 0.625rem;
-  --file-tree-meta-font-size: 0.6875rem;
-  --file-tree-content-font-size: 0.75rem;
-  --file-tree-title-font-size: 0.875rem;
+  --file-tree-caption-font-size: var(--tmd-font-xs);
+  --file-tree-meta-font-size: var(--tmd-font-ui);
+  --file-tree-content-font-size: var(--tmd-font-ui);
+  --file-tree-title-font-size: var(--tmd-font-lg);
 
   display: flex;
   flex: 1;
@@ -30,12 +30,6 @@
   color: var(--tmd-fg); /* neutral-200 */
 }
 
-/* 加载 spinner 使用(见 .file-tree-loading-spinner);保留。 */
-@keyframes file-tree-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
 /* 行列表容器 ─ 紧贴 toolbar,可滚动 */
 .file-tree-list {
   flex: 1 1 auto;
@@ -45,6 +39,8 @@
 }
 
 /* 滚动条收编到 global.css 全局细滚动条规则(4px、平时隐藏、悬停浮现)。 */
+
+/* 头部工具条按钮形制拆至 file-tree-toolbar.css(文件规模铁则;组件 FileTreeToolbar)。 */
 
 /* ── 行 ── */
 .file-tree-row-wrap {
@@ -59,14 +55,14 @@
   gap: 6px;
   padding: 4px 8px;
   min-height: 28px;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   border: 1px solid transparent;
   background: transparent;
   color: var(--tmd-fg);
   font-family: inherit;
   font-size: var(--file-tree-content-font-size);
   font-weight: 400;
-  line-height: 1.35;
+  line-height: 1.4;
   text-align: left;
   width: 100%;
   cursor: pointer;
@@ -82,7 +78,7 @@
   height: 16px;
   flex: 0 0 16px;
   color: var(--tmd-fg-muted);
-  transition: opacity 120ms ease;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 /* codemoss 风格图标容器:16x16 SVG 区域,SVG 内部固定色 */
@@ -105,13 +101,11 @@
 }
 
 .file-tree-row:hover {
-  background: var(--tmd-bg-hover); /* neutral-800 surface-hover */
-  border-color: var(--tmd-border-strong); /* neutral-700 */
+  background: var(--tmd-bg-hover); /* hover 纯色填充,不加边框 */
 }
 
 .file-tree-row.is-selected {
-  background: var(--tmd-bg-hover);
-  border-color: var(--tmd-fg-faint);
+  background: var(--tmd-accent-soft); /* 选中与 hover 分离:soft 底无边框 */
 }
 
 .file-tree-row:focus-visible {
@@ -136,11 +130,11 @@
   align-items: center;
   justify-content: center;
   color: var(--tmd-fg-muted);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1;
   opacity: 0;
   transform: rotate(0deg);
-  transition: opacity 120ms ease, transform 140ms ease;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out), transform var(--tmd-dur-1) var(--tmd-ease-move);
   pointer-events: none;
 }
 
@@ -156,7 +150,7 @@
   height: 14px;
   flex: 0 0 14px;
   color: var(--tmd-fg-muted);
-  transition: opacity 120ms ease;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .file-tree-row-wrap:hover .file-tree-icon-cell.has-chevron .file-tree-icon,
@@ -207,11 +201,11 @@
   height: 18px;
   padding: 0;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--tmd-radius-xs);
   background: transparent;
   color: var(--tmd-fg-muted);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .file-tree-action:hover {
@@ -248,11 +242,6 @@
   gap: 6px;
 }
 
-.file-tree-loading-spinner {
-  width: 12px;
-  height: 12px;
-  animation: file-tree-spin 1s linear infinite;
-}
 
 /* 远程 WSL 工作区 M1 降级提示(替代本地文件树) */
 .filetree-wsl-degraded {
@@ -261,8 +250,8 @@
   gap: 6px;
   padding: 22px 14px;
   color: var(--text-quiet);
-  line-height: 1.7;
-  font-size: 12px;
+  line-height: 1.5;
+  font-size: var(--tmd-font-ui);
 }
 .filetree-wsl-degraded b {
   color: var(--text-muted);
@@ -289,7 +278,7 @@
 .file-tree-panel > .file-tree-remote-note {
   padding: 6px 12px;
   font-size: var(--file-tree-meta-font-size);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 .file-tree-panel > .file-tree-remote-err {
   color: var(--tmd-err);

@@ -169,9 +169,13 @@ export function EngineCard({
         <InstallLog install={install} label={meta.displayName} />
       )}
 
-      {expanded && creds && creds.length > 0 && (
-        <div className="welcome-row-detail">
-          <CredentialRows creds={creds} />
+      {/* 展开区常驻挂载(有凭据即渲染),is-collapsed 走 grid-rows 0fr↔1fr 过渡
+          (workspace-children 先例);收起态 visibility 离场,内容退出 tab 序。 */}
+      {creds && creds.length > 0 && (
+        <div className={`welcome-row-detail${expanded ? "" : " is-collapsed"}`}>
+          <div className="welcome-row-detail-inner">
+            <CredentialRows creds={creds} />
+          </div>
         </div>
       )}
       {homePanel}

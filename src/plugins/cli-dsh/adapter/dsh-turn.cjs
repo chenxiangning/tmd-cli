@@ -91,7 +91,9 @@ function createTurnEngine(deps) {
         const bgName = a.error ? "toolErrorBg" : "toolSuccessBg";
         const todos = render.todoLines(call?.args, a.output);
         if (todos) { for (const l of todos) print.print(render.band(bgName, l)); break; }
-        const lines = render.toolResultLines(name, a.error || a.output, !!a.error);
+        /* 失败帧:原因行(data.error 的 reason/code)与工具输出一起呈现,不吞输出。 */
+        const body = a.error && a.output ? `${a.error}\n${a.output}` : a.error || a.output;
+        const lines = render.toolResultLines(name, body, !!a.error);
         if (name === "bash" && a.id && toolStartMs.has(a.id)) {
           lines.push(render.tookLine(Date.now() - toolStartMs.get(a.id)));
         }

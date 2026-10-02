@@ -1,62 +1,10 @@
 /* ──────────────────────────────────────────────────────────
- * Right panel subbar + workspace menu —— 自 right-panel-toolbar.css 拆出(文件规模铁则)。
+ * Right panel workspace menu —— 自 right-panel-toolbar.css 拆出(文件规模铁则)。
  *
- * 顶栏右区:文件操作条(panel-subbar,新建/刷新/面板动作;2026-09-27 自右栏
- * 底部上移,空区保留拖拽);工作区下拉菜单(panel-ws-menu,菜单行是 button)。
+ * 文件操作条(panel-subbar 容器与 action 按钮形制)2026-10-02 随工具条下放
+ * 面板头迁入 file-tree.css(file-tree-toolbar*);本文件只剩工作区下拉菜单
+ * (panel-ws-menu,WorkspaceSwitcher 专用形态,菜单行是 button)。
  * ────────────────────────────────────────────────────────── */
-
-/* ── 文件操作条(顶栏 titlebar-actions 右缘,margin-left:auto 钉右) ── */
-.panel-subbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  margin-left: auto;
-  padding: 2px 4px;
-}
-
-/* macOS:探入顶栏为 PanelRail 预留的右空条(--tmd-rail-w),icon 贴窗右缘 12px,
-   与下方 rail 图标右缘对齐;Windows 让位自绘控制带,不探入。 */
-.app.macos-desktop .panel-subbar {
-  margin-right: calc(-1 * var(--tmd-rail-w));
-}
-
-.panel-subbar-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  flex: 0 0 auto;
-}
-
-.panel-subbar-action {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--tmd-fg-muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.panel-subbar-action:hover {
-  background: var(--tmd-bg-hover);
-  color: var(--tmd-fg);
-}
-/* 面板专属动作按钮激活态(如文件树 Git 变更着色开关) */
-.panel-subbar-action.is-active {
-  color: var(--tmd-accent);
-}
-
-.panel-subbar-action svg {
-  width: 1rem;
-  height: 1rem;
-  stroke-width: 1.75;
-}
 
 /* ── 工作区下拉菜单(WorkspaceSwitcher 专用形态) ── */
 .panel-ws-menu { max-height: 60vh; overflow-y: auto; }
@@ -74,8 +22,8 @@
 
 .panel-ws-menu-group {
   padding: 6px 10px 2px;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
 }

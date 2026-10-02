@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
 import { ipc } from "@kernel/ipc";
 import { getClawHubSkillDetail } from "./clawhub";
 import type { ClawHubCard, ClawHubDetail } from "./clawhubNormalize";
@@ -97,17 +98,26 @@ export function InstallDialog({
   };
 
   const busy = stage === "download" || stage === "extract";
+  useEscClose(onClose, busy); /* Esc 关闭;下载/解压中锁定 */
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40">
-      <div
-        className="flex max-h-[85%] w-[460px] flex-col overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-4 shadow-xl"
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40" role="presentation">
+      <dialog
+        open
+        aria-label={t("安装技能")}
+        className="relative m-0 flex max-h-[85%] w-[460px] flex-col overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left shadow-(--tmd-shadow-modal)"
         data-install-dialog={card.slug}
+      >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void start();
+        }}
       >
         <div className="mb-2 flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">{card.displayName}</div>
-            <div className="text-[11px] text-(--tmd-fg-faint)">
+            <div className="text-xs text-(--tmd-fg-faint)">
               {card.ownerHandle ? `@${card.ownerHandle}` : t("发布者待消歧")}
               {detail?.latestVersion ? ` · v${detail.latestVersion}` : ""}
               {detail?.license ? ` · ${detail.license}` : ""}
@@ -120,21 +130,21 @@ export function InstallDialog({
             className="rounded p-1 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
             aria-label={t("关闭")}
           >
-            <X size={14} aria-hidden="true" />
+            <X size="0.875rem" aria-hidden="true" />
           </button>
         </div>
         {card.summary && (
-          <div className="mb-3 line-clamp-3 text-[11px] leading-snug text-(--tmd-fg-muted)">
+          <div className="mb-3 line-clamp-3 text-xs leading-snug text-(--tmd-fg-muted)">
             {card.summary}
           </div>
         )}
 
-        <div className="mb-1 text-[11px] font-medium">{t("安装到")}</div>
+        <div className="mb-1 text-xs font-medium">{t("安装到")}</div>
         <div className="mb-2 grid grid-cols-3 gap-1">
           {INSTALL_ENGINES.map((e) => (
             <label
               key={e.engine}
-              className="flex cursor-pointer items-center gap-1.5 rounded border border-(--tmd-border) px-2 py-1 text-[11px] hover:bg-(--tmd-bg-hover)"
+              className="flex cursor-pointer items-center gap-1.5 rounded border border-(--tmd-border) px-2 py-1 text-xs hover:bg-(--tmd-bg-hover)"
             >
               <input
                 type="checkbox"
@@ -146,7 +156,7 @@ export function InstallDialog({
             </label>
           ))}
         </div>
-        <label className="mb-1 flex cursor-pointer items-start gap-1.5 text-[11px]">
+        <label className="mb-1 flex cursor-pointer items-start gap-1.5 text-xs">
           <input
             type="checkbox"
             checked={shared}
@@ -156,13 +166,13 @@ export function InstallDialog({
           />
           <span>
             {t("公约位 ~/.agents/skills(一份多家用)")}
-            <span className="block text-[10px] text-(--tmd-fg-faint)">
+            <span className="block text-meta text-(--tmd-fg-faint)">
               {t("codex/omp/pi/kimi/grok/qoder/opencode/dsh 原生读取此目录")}
             </span>
           </span>
         </label>
         <label
-          className={`mb-3 flex items-start gap-1.5 text-[11px] ${shared ? "cursor-pointer" : "opacity-40"}`}
+          className={`mb-3 flex items-start gap-1.5 text-xs ${shared ? "cursor-pointer" : "opacity-40"}`}
         >
           <input
             type="checkbox"
@@ -173,7 +183,7 @@ export function InstallDialog({
           />
           <span>
             {t("同步建 symlink 进 ~/.claude/skills(Claude 官方支持)")}
-            <span className="block text-[10px] text-(--tmd-fg-faint)">
+            <span className="block text-meta text-(--tmd-fg-faint)">
               {t("失败不阻断,仅提示")}
             </span>
           </span>
@@ -206,17 +216,17 @@ export function InstallDialog({
           </button>
           {(!outcome || outcome.stage === "error") && (
             <button
-              type="button"
-              onClick={() => void start()}
+              type="submit"
               disabled={busy || (spec.engines.length === 0 && !spec.shared)}
-              className="rounded bg-(--tmd-accent) px-2.5 py-1 text-xs text-white disabled:opacity-40"
+              className="rounded bg-(--tmd-accent) px-2.5 py-1 text-xs text-(--tmd-accent-fg) disabled:opacity-40"
               data-install-start
             >
               {t("安装")}
             </button>
           )}
         </div>
-      </div>
+      </form>
+      </dialog>
     </div>
   );
 }

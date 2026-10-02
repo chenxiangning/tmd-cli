@@ -37,7 +37,6 @@ export const memoryCoordinatorPlugin: Plugin = {
       label: "Memory",
       icon: Brain,
       component: MemoryPanel,
-      showFileSubbar: false,
       order: 31, /* 能力生态组首席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
       railGroup: "ecosystem",
       railBottom: true,

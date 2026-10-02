@@ -19,14 +19,13 @@
   --surface-control: var(--tmd-bg-hover);
   --surface-hover: var(--tmd-bg-hover);
   --text-accent: var(--tmd-accent);
-  --radius-lg: var(--tmd-radius-lg);
   --message-codeblock-bg: var(--tmd-bg-elevated);
   --message-codeblock-divider: var(--tmd-border);
   --code-font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  font-size: 0.875rem;
+  font-size: var(--tmd-font-lg);
   color: var(--fvp-reader-text);
-  line-height: 1.75;
+  line-height: 1.5;
   max-width: 100%;
   width: 100%;
   padding: 16px 20px 32px;
@@ -52,8 +51,8 @@
 .fvp-file-markdown :where(h1, h2, h3, h4, h5, h6) {
   margin-top: 24px;
   margin-bottom: 16px;
-  line-height: 1.28;
-  font-weight: 650;
+  line-height: 1.3;
+  font-weight: 600;
   color: var(--fvp-markdown-title-secondary);
   letter-spacing: -0.01em;
 }
@@ -132,13 +131,13 @@
   margin: 0 0 16px;
   padding: 10px 12px;
   border: 1px solid var(--fvp-markdown-rule);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-card) 92%, #5fa3ff 4%);
+  border-radius: var(--tmd-radius-md);
+  background: color-mix(in srgb, var(--surface-card) 92%, var(--tmd-accent) 4%);
 }
 
 .fvp-file-markdown-frontmatter-label {
   margin-bottom: 8px;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fvp-reader-faint);
@@ -155,19 +154,19 @@
   grid-template-columns: minmax(82px, 108px) minmax(0, 1fr);
   gap: 10px;
   align-items: baseline;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 .fvp-file-markdown-frontmatter-row dt {
   color: var(--fvp-reader-faint);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   text-transform: lowercase;
 }
 
 .fvp-file-markdown-frontmatter-row dd {
   color: var(--fvp-reader-text);
   font-weight: 500;
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   word-break: break-word;
 }
 
@@ -257,6 +256,6 @@
   color: var(--fvp-reader-muted);
   border-left: 4px solid var(--fvp-markdown-rule);
   background: var(--fvp-markdown-quote-bg);
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 var(--tmd-radius-md) var(--tmd-radius-md) 0;
 }
 

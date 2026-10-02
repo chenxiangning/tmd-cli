@@ -6,8 +6,9 @@
  */
 
 import { useEffect, useState } from "react";
-import { CaretDown, CaretRight, Trash, X } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, ClockCounterClockwise, Trash, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
 import {
   clearPromptHistory,
   deletePrompt,
@@ -51,7 +52,7 @@ export function PromptHistoryManager() {
               setArmed(false);
             }}
             onBlur={() => setArmed(false)}
-            className={`flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-[0.8125rem] transition-colors ${
+            className={`flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-md transition-colors ${
               armed ? "bg-red-400/15 text-red-400" : "text-red-400 hover:bg-(--tmd-bg-hover)"
             }`}
           >
@@ -61,7 +62,9 @@ export function PromptHistoryManager() {
         )}
       </div>
       {open && entries.length === 0 && (
-        <p className="py-2.5 pr-2.5 pl-8 text-[0.8125rem] text-(--tmd-fg-muted)">{t("暂无历史记录")}</p>
+        <div className="pl-6">
+          <Empty icon={<ClockCounterClockwise aria-hidden />}>{t("暂无历史记录")}</Empty>
+        </div>
       )}
       {open && entries.length > 0 && (
         <div className="max-h-72 overflow-y-auto">
@@ -70,7 +73,7 @@ export function PromptHistoryManager() {
               key={entry.text}
               className="flex items-center gap-2 border-t border-(--tmd-border) py-2 pr-2.5 pl-4 first:border-t-0"
             >
-              <span className="shrink-0 rounded-sm bg-(--tmd-bg-hover) px-1.5 py-0.5 font-mono text-[0.6875rem] text-(--tmd-fg-muted)">
+              <span className="shrink-0 rounded-sm bg-(--tmd-bg-hover) px-1.5 py-0.5 font-mono text-xs text-(--tmd-fg-muted)">
                 [{entry.count}]
               </span>
               <span title={entry.text} className="min-w-0 flex-1 truncate text-sm">{entry.text}</span>

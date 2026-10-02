@@ -5,8 +5,10 @@
  */
 
 import { useEffect } from "react";
-import { ArrowSquareOut } from "@phosphor-icons/react";
+import { ArrowSquareOut, PuzzlePiece } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { loadSkillRegistry, useSkillRegistry } from "@plugins/cli-shared/skillRegistry";
 import { openSkillHubTab } from "./hubTab";
 
@@ -22,16 +24,23 @@ export function SkillHubPanel() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {!loaded ? (
-          <div className="px-2 py-1 text-xs text-(--tmd-fg-faint)">{t("正在读取安装记录…")}</div>
-        ) : records.length === 0 ? (
-          <div className="px-2 py-1 text-xs text-(--tmd-fg-faint)">
-            {t("尚未安装;从技能商店安装或本地导入")}
+          <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-(--tmd-fg-faint)">
+            <Spinner />
+            {t("正在读取安装记录…")}
           </div>
+        ) : records.length === 0 ? (
+          /* 空态统一形制:动作深链中央 tab 商店页(hubTab payload 契约)。 */
+          <Empty
+            icon={<PuzzlePiece aria-hidden />}
+            action={{ label: t("打开技能商店"), onClick: () => openSkillHubTab("store") }}
+          >
+            {t("尚未安装;从技能商店安装或本地导入")}
+          </Empty>
         ) : (
           <>
             <button
               type="button"
-              onClick={openSkillHubTab}
+              onClick={() => openSkillHubTab("store")}
               className="flex w-full items-center justify-between rounded px-2 py-[5px] text-left text-xs hover:bg-(--tmd-bg-hover)"
             >
               <span className="truncate">{t("商店安装")}</span>
@@ -39,7 +48,7 @@ export function SkillHubPanel() {
             </button>
             <button
               type="button"
-              onClick={openSkillHubTab}
+              onClick={() => openSkillHubTab("import")}
               className="flex w-full items-center justify-between rounded px-2 py-[5px] text-left text-xs hover:bg-(--tmd-bg-hover)"
             >
               <span className="truncate">{t("本地导入")}</span>
@@ -49,15 +58,15 @@ export function SkillHubPanel() {
         )}
       </div>
       <div className="border-t border-(--tmd-border) p-2">
-        <div className="mb-1 text-[10px] text-(--tmd-fg-faint)">
+        <div className="mb-1 text-meta text-(--tmd-fg-faint)">
           {t("已安装 {n} 个技能", { n: records.length })}
         </div>
         <button
           type="button"
-          onClick={openSkillHubTab}
+          onClick={() => openSkillHubTab("store")}
           className="flex w-full items-center justify-center gap-1 rounded border border-(--tmd-border) px-2 py-1 text-xs hover:bg-(--tmd-bg-hover)"
         >
-          <ArrowSquareOut size={12} aria-hidden="true" />
+          <ArrowSquareOut size="0.75rem" aria-hidden="true" />
           {t("打开管理")}
         </button>
       </div>

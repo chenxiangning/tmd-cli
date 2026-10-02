@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useReducer, useRef } from "react";
 import { t } from "@kernel/i18n";
-import { CircleNotch } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { ipc } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 
@@ -118,7 +118,7 @@ export function CommitComposer({
   return (
     <div className="shrink-0 border-t border-(--tmd-border) p-2 font-mono text-xs">
       <div className="flex items-start gap-1.5">
-        <span className="shrink-0 pt-0.5 text-(--tmd-fg-muted)">commit ▸</span>
+        <span className="shrink-0 pt-0.5 text-(--tmd-fg-muted)">{t("提交 ▸")}</span>
         <textarea
           ref={inputRef}
           value={message}
@@ -147,26 +147,27 @@ export function CommitComposer({
           {note}
         </div>
       )}
-      <div className="mt-1.5 flex items-center gap-2.5 text-[0.6875rem] text-(--tmd-fg-faint)">
+      <div className="mt-1.5 flex items-center gap-2.5 text-xs text-(--tmd-fg-faint)">
         <button
           type="button"
           title={t("附加 --amend:改动并入上一个提交")}
           onClick={() => dispatch({ type: "toggleAmend" })}
           className="cursor-pointer select-none hover:text-(--tmd-fg-muted)"
         >
-          <span className={amend ? "text-(--tmd-fg)" : ""}>{amend ? "[x]" : "[ ]"}</span> --amend
+          <span className={amend ? "text-(--tmd-fg)" : ""}>{amend ? "[x]" : "[ ]"}</span>{" "}
+          {t("追加修正(--amend)")}
         </button>
-        <span>{selected} selected</span>
+        <span>{t("已选 {selected}", { selected })}</span>
         <span className="flex-1" />
         <button
           type="button"
           onClick={submit}
           disabled={!canCommit || busy}
           title={t("提交(⌘⏎)")}
-          className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:cursor-default disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
+          className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
         >
-          {busy && <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" />}
-          ⌘⏎ commit
+          {busy && <Spinner />}
+          {t("⌘⏎ 提交")}
         </button>
       </div>
     </div>

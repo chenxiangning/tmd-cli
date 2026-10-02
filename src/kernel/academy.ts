@@ -31,7 +31,7 @@ export interface AcademyCommand {
   en?: string;
   detail: string;
   usage?: string;
-  /** 在 tmd-cli 里怎么用(静态文案;有程序化入口时用 course.openPanel)。 */
+  /** 在 tmd-cli 里怎么用(静态文案)。 */
   how?: string;
   examples: AcademyExample[];
   subs?: AcademySubCommand[];
@@ -67,8 +67,6 @@ export interface AcademyCourse {
   sourceVersion: string;
   chapters: AcademyChapter[];
   lessons: AcademyLesson[];
-  /** 二期扩展:某命令在 tmd-cli 里有对应面板时的真实打开回调(不提供 = 无徽章)。 */
-  openPanel?: (commandName: string) => void;
 }
 
 const state: { courses: readonly AcademyCourse[] } = { courses: [] };

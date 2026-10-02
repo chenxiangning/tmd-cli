@@ -5,6 +5,7 @@
 
 import { ArrowClockwise, ListChecks, Palette, Plus, Square, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { cn } from "../../utils/cn";
 import { ConfirmBubble } from "../ConfirmBubble";
 import { IntentCanvasHomeCard } from "./IntentCanvasHomeCard";
@@ -114,7 +115,11 @@ export function HomeActions(props: {
             aria-label={t("刷新")}
             title={t("刷新")}
           >
-            <ArrowClockwise aria-hidden className={props.status === "loading" ? "is-spinning" : undefined} />
+            {props.status === "loading" ? (
+              <Spinner size="0.875rem" />
+            ) : (
+              <ArrowClockwise aria-hidden />
+            )}
           </button>
           <button
             type="button"

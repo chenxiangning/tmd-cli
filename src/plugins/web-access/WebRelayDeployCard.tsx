@@ -62,7 +62,7 @@ export function WebRelayDeployCard() {
       <div className="text-xs text-[var(--tmd-fg-muted)]">
         {t("中继跑在你自己的 Cloudflare 账号(免费额度足够)。API Token 仅本次部署使用,不保存。")}
       </div>
-      <details className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-surface-1)] px-2.5 py-1.5 text-xs">
+      <details className="rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] px-2.5 py-1.5 text-xs">
         <summary className="cursor-pointer select-none font-medium text-[var(--tmd-fg)]">
           {t("Cloudflare API Token 怎么申请?")}
         </summary>

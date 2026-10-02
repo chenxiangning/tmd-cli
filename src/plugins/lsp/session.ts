@@ -17,6 +17,7 @@ import {
   owningWorkspaceRoot,
   type LanguageServerConfig,
 } from "@kernel/lsp/lspRegistry";
+import { t } from "@kernel/i18n";
 import { normalizePath } from "@kernel/pathUtils";
 
 /** 空闲关停窗(spec:10 分钟无请求即收)。 */
@@ -102,7 +103,8 @@ export function getSessionForPath(path: string): Promise<LspDocSession> | null {
   box.session = (async (): Promise<LspDocSession> => {
     const root = resolveRoot ? await resolveRoot(np, workspaceRoot) : workspaceRoot;
     const launch = await config.discover(workspaceRoot);
-    if (!launch) throw new Error("语言服务不可用(发现链无命中)");
+    /* 错误串进 toast(经 cmLsp 手势失败出口),必须 t() 化。 */
+    if (!launch) throw new Error(t("语言服务不可用(发现链无命中)"));
     const conn0 = await openLspConnection({
       key,
       rootUri: pathToUri(root),

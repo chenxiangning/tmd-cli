@@ -9,6 +9,7 @@ import { t } from "@kernel/i18n";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, CaretDown, Cloud, GitBranch } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
 
 interface MenuPos {
   x: number;
@@ -52,7 +53,7 @@ function PickerMenu({
           width: pos.width,
           maxHeight: pos.maxHeight,
         }}
-        className="fixed overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) p-1 shadow-xl"
+        className="fixed overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) p-1 shadow-(--tmd-shadow-popover)"
         onPointerDown={(e) => e.stopPropagation()}
       >
         {children}
@@ -198,9 +199,7 @@ export function BranchCombobox({
       {pos && (
         <PickerMenu pos={pos} onClose={() => setPos(null)}>
           {options.length === 0 && (
-            <div className="px-2 py-1.5 text-xs text-(--tmd-fg-faint)">
-              {t("该远端暂无可选分支,可手写输入。")}
-            </div>
+            <Empty icon={<GitBranch />}>{t("该远端暂无可选分支,可手写输入。")}</Empty>
           )}
           {shown.map((o) => (
             <button

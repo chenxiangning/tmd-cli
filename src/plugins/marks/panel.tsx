@@ -4,14 +4,17 @@
  * 真实发送时 marksSendTransform 注入 wire 并翻 sent。
  */
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { ipc } from "@kernel/ipc";
-import type { Mark, MarkState } from "./anchor";
-import { removeMark, setMarkState, toggleExpanded, updateNote, useMarksState } from "./store";
+import { relocateMark, type Mark, type MarkState } from "./anchor";
+import { removeMark, relocatePath, setMarkState, toggleExpanded, updateNote, useMarksState } from "./store";
 import { stageMarks } from "./sendTransform";
 import { openAndReveal } from "./terminalLink";
+
+/** 面板「定位」触发的重锚窗:用户显式要求,比编辑器 ±3 巡检窗放宽。 */
+const REANCHOR_WINDOW = 200;
 
 const STATE_COLOR: Record<MarkState, string> = {
   pending: "text-(--tmd-warn)",
@@ -37,10 +40,12 @@ function MarkCard({
   mark,
   root,
   expanded,
+  onLocate,
 }: {
   mark: Mark;
   root: string;
   expanded: boolean;
+  onLocate: (mark: Mark) => void;
 }) {
   const range = mark.startLine === mark.endLine ? `L${mark.startLine}` : `L${mark.startLine}-${mark.endLine}`;
   return (
@@ -50,12 +55,12 @@ function MarkCard({
         <button
           type="button"
           className="cursor-pointer font-mono text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
-          onClick={() => openAndReveal(mark.path, mark.startLine)}
+          onClick={() => onLocate(mark)}
           title={t("定位到标记")}
         >
           {range}
         </button>
-        <span className={`rounded-full px-1.5 ${STATE_COLOR[mark.state]}`}>{STATE_LABEL[mark.state]}</span>
+        <span className={`rounded-full px-1.5 ${STATE_COLOR[mark.state]}`}>{t(STATE_LABEL[mark.state])}</span>
         <button
           type="button"
           className="ml-auto cursor-pointer text-(--tmd-fg-faint) hover:text-(--tmd-err)"
@@ -65,7 +70,7 @@ function MarkCard({
           ×
         </button>
       </div>
-      <pre className="mt-1 overflow-hidden rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-1.5 font-mono text-[0.65rem] text-(--tmd-fg-muted)">
+      <pre className="mt-1 overflow-hidden rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-1.5 font-mono text-meta text-(--tmd-fg-muted)">
         {mark.excerpt}
       </pre>
       {expanded ? (
@@ -106,6 +111,42 @@ export function MarksPanel() {
   const { list, activeId } = useWorkspaces();
   const root = list.find((w) => w.id === activeId)?.root ?? list[0]?.root ?? null;
   const marks = root ? (snap.byCwd[root] ?? []) : [];
+  /* 重锚反馈(轻提示条,4s 自灭):lost 定位的先提示后尝试,失败给说明。 */
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
+  }, []);
+  const showNotice = useCallback((msg: string) => {
+    setNotice(msg);
+    if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 4000);
+  }, []);
+  const locateMark = useCallback(
+    (mark: Mark) => {
+      if (mark.state !== "lost") {
+        openAndReveal(mark.path, mark.startLine);
+        return;
+      }
+      /* lost:先提示已失锚,再读文件做宽窗指纹重锚(复用 relocateMark 纯函数);
+         命中经 relocatePath 落 store(行号/状态持久化)后跳新行。 */
+      showNotice(t("标记已失锚,尝试指纹重锚…"));
+      void ipc.fsReadFile(mark.path)
+        .then((text) => {
+          const lines = text.split("\n");
+          const result = relocateMark(lines, mark, REANCHOR_WINDOW);
+          if (result.status === "lost") {
+            showNotice(t("重锚失败:文件中已找不到标记时的内容(可能已删除或大幅改动)"));
+            return;
+          }
+          if (root) relocatePath(root, mark.path, lines, REANCHOR_WINDOW);
+          openAndReveal(mark.path, result.startLine);
+          showNotice(result.status === "moved" ? t("已重锚到 L{n}", { n: result.startLine }) : t("标记回到原位"));
+        })
+        .catch(() => showNotice(t("重锚失败:文件无法读取")));
+    },
+    [root, showNotice],
+  );
   /* 打开即存在性巡检:文件已删/改名的 pending 标记标 lost(relocate 依赖打开
      该文件才跑,删除场景永无机会)——失存可见,「定位」不再静默失败。 */
   useEffect(() => {
@@ -146,6 +187,14 @@ export function MarksPanel() {
           </button>
         ) : null}
       </div>
+      {notice ? (
+        <div
+          className="mx-2 mt-2 rounded-md border border-(--tmd-warn) px-2 py-1 text-xs text-(--tmd-warn)"
+          role="status"
+        >
+          {notice}
+        </div>
+      ) : null}
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
         {marks.length === 0 ? (
           <div className="p-4 text-center text-xs text-(--tmd-fg-faint)">
@@ -157,7 +206,7 @@ export function MarksPanel() {
             <div className="flex items-center gap-1 px-1">
               <button
                 type="button"
-                className="cursor-pointer truncate text-left text-[0.65rem] text-(--tmd-fg-subtle) hover:text-(--tmd-fg-muted)"
+                className="cursor-pointer truncate text-left text-meta text-(--tmd-fg-subtle) hover:text-(--tmd-fg-muted)"
                 onClick={() => openAndReveal(path, group[0].startLine)}
                 title={t("打开文件")}
               >
@@ -167,7 +216,7 @@ export function MarksPanel() {
               {root && group.some((mark) => mark.state === "pending") ? (
                 <button
                   type="button"
-                  className="ml-auto shrink-0 cursor-pointer rounded-md border border-(--tmd-border) px-1 py-px text-[0.65rem] text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
+                  className="ml-auto shrink-0 cursor-pointer rounded-md border border-(--tmd-border) px-1 py-px text-meta text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
                   onClick={() =>
                     stageMarks(root, group.filter((mark) => mark.state === "pending"))
                   }
@@ -177,7 +226,7 @@ export function MarksPanel() {
               ) : null}
             </div>
             {group.map((mark) => (
-              <MarkCard key={mark.id} mark={mark} root={root ?? ""} expanded={expanded.has(mark.id)} />
+              <MarkCard key={mark.id} mark={mark} root={root ?? ""} expanded={expanded.has(mark.id)} onLocate={locateMark} />
             ))}
           </div>
         ))}

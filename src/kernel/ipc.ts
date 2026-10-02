@@ -873,6 +873,7 @@ import {
   isPermissionGranted,
   requestPermission,
   sendNotification,
+  onAction,
 } from "@tauri-apps/plugin-notification";
 
 /** 窗口最小化(自绘 titlebar 用;macOS 系统红绿灯下不会被调用)。web 态 = 浏览器标签页,无窗口可控 → no-op。 */
@@ -936,16 +937,60 @@ export function appRestart(): Promise<void> {
 /* ── 系统通知(tauri-plugin-notification 薄包装)────────
  * notify 插件的桌面级提醒通道(Ask 等待/轮次结束/会话退出/额度预警)。
  * web 态(手机浏览器)无 OS 通知 → 恒 false,手机侧走自己的审批卡与轮询面;
- * macOS 首次发送经系统权限弹窗,拒绝后恒 false 由调用方自行吞掉。 */
+ * macOS 首次发送经系统权限弹窗,拒绝后恒 false 由调用方自行吞掉。
+ *
+ * 点击 action 支持面(2026-10 核实,依赖 @tauri-apps/plugin-notification 2.4.0):
+ * JS 侧暴露 onAction/actionTypeId,但 onAction 事件仅移动端壳派发;桌面后端
+ * 走 notify-rust,既不回传点击事件、registerActionTypes 在桌面 commands 也未
+ * 实现 —— 桌面无直回调可用。最小档落法:点击通知体依赖 OS 默认激活(通知
+ * 以应用 bundle 名义发布,点击即把主窗带到前台),前端以「重聚焦边沿」补发
+ * onClick 深链(通知只在失焦时发,重聚焦即回到工位的信号,只保最近一条);
+ * onAction 通道照接,移动端/未来桌面支持落地即自动升级为直回调。 */
 
-/** 发一条系统通知;未授权时静默请求一次授权。返回是否真正发出(web 态/拒绝/异常 = false)。 */
-export async function sendOsNotification(title: string, body: string): Promise<boolean> {
+/** 待补发深链的通知点击回调(队列小帽:只关心最近几条,旧通知让位)。 */
+const pendingNotifyClicks: Array<() => void> = [];
+let notifyClickArmed = false;
+
+/** 取最近一条待补发回调并清队列(重聚焦/onAction 共用)。 */
+function flushNotifyClick(): void {
+  const latest = pendingNotifyClicks.pop();
+  pendingNotifyClicks.length = 0;
+  latest?.();
+}
+
+/** 惰性挂接点击分发:重聚焦边沿(桌面最小档)+ onAction(移动端通道)。 */
+function armNotifyClickDispatch(): void {
+  if (notifyClickArmed) return;
+  notifyClickArmed = true;
+  window.addEventListener("focus", flushNotifyClick);
+  if (isWeb) return;
+  void onAction(() => {
+    /* 移动端点击直回调:显式聚焦主窗 + 深链(桌面 runtime 不派发此事件,
+       注册失败静默——web/测试环境无插件监听通道)。 */
+    void getCurrentWindow().setFocus().catch(() => undefined);
+    flushNotifyClick();
+  }).catch(() => undefined);
+}
+
+/** 发一条系统通知;未授权时静默请求一次授权。返回是否真正发出(web 态/拒绝/异常 = false)。
+ *  onClick = 点击深链回调(支持面见上注:移动端直回调;桌面 = 点击体经 OS 默认
+ *  激活聚焦主窗后,由重聚焦边沿补发,只保最近一条)。 */
+export async function sendOsNotification(
+  title: string,
+  body: string,
+  onClick?: () => void,
+): Promise<boolean> {
   if (isWeb) return false;
   try {
     let granted = await isPermissionGranted();
     if (!granted) granted = (await requestPermission()) === "granted";
     if (!granted) return false;
-    await sendNotification({ title, body });
+    sendNotification({ title, body });
+    if (onClick) {
+      armNotifyClickDispatch();
+      pendingNotifyClicks.push(onClick);
+      if (pendingNotifyClicks.length > 3) pendingNotifyClicks.shift();
+    }
     return true;
   } catch {
     return false;

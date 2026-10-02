@@ -19,7 +19,7 @@ import { weekdayLabelsMon } from "./dateTitle";
 import type { DayNote, DayMeta } from "./journalFiles";
 import type { Article } from "./articleParse";
 import { notePeekOf } from "./statusText";
-import { holOf, useHolidays } from "./holidays";
+import { holOf, isWorkdayOverride, useHolidays } from "./holidays";
 
 interface DayCellProps {
   y: number;
@@ -38,27 +38,47 @@ function cellClass(isToday: boolean, we: boolean): string {
   return ["dj-cell", isToday && "dj-today", we && "dj-we"].filter(Boolean).join(" ");
 }
 
-/** 格正文(状态 pill 条:热力底 + 单行当日状态;失败完整错误转 title 悬停;纯函数)。 */
+/** 格正文(状态 pill 条:热力底 + 单行当日状态;状态行统一 title 全文兜住截断,
+ *  失败日 title 优先完整错误;纯函数)。 */
 function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: DaySessionRow[], notePeek: string, heat: string): React.ReactNode {
   const noteTag = notePeek ? ` · ${t("有便签")}` : "";
   if (article) {
     const line =
       (st === "t" ? t("增量中 · {n} 条会话", { n: rows.length }) : t("已生成 · {n} 条会话", { n: rows.length })) + noteTag;
-    return <div className={`dj-stat ${st === "t" ? "dj-accent" : heat}`}>{line}</div>;
-  }
-  if (st === "f")
     return (
-      <div className="dj-stat dj-err" title={meta.lastError || undefined}>
-        {t("生成失败 · {n} 条会话", { n: rows.length }) + noteTag}
+      <div className={`dj-stat ${st === "t" ? "dj-accent" : heat}`} title={line}>
+        {line}
       </div>
     );
-  if (st === "p") return <div className="dj-stat dj-warn">{t("待提取 · {n} 条会话", { n: rows.length }) + noteTag}</div>;
-  return <div className="dj-stat dj-faint">{notePeek ? t("无会话 · 有便签") : t("无会话 · 点开写便签")}</div>;
+  }
+  if (st === "f") {
+    const line = t("生成失败 · {n} 条会话", { n: rows.length }) + noteTag;
+    return (
+      <div className="dj-stat dj-err" title={meta.lastError || line}>
+        {line}
+      </div>
+    );
+  }
+  if (st === "p") {
+    const line = t("待提取 · {n} 条会话", { n: rows.length }) + noteTag;
+    return (
+      <div className="dj-stat dj-warn" title={line}>
+        {line}
+      </div>
+    );
+  }
+  const line = notePeek ? t("无会话 · 有便签") : t("无会话 · 点开写便签");
+  return (
+    <div className="dj-stat dj-faint" title={line}>
+      {line}
+    </div>
+  );
 }
 
 function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
   const st = deriveDayStatus(article, isToday, rows.length, meta);
-  const we = [0, 6].includes(new Date(y, m - 1, d).getDay());
+  /* 调休上班日(off:false)不画周末底纹(与年视图/月条同律) */
+  const we = [0, 6].includes(new Date(y, m - 1, d).getDay()) && !isWorkdayOverride(y, m, d);
   const hol = holOf(y, m, d);
   const engines = [...new Set(rows.map((r) => r.profileId))];
   const notePeek = notePeekOf(note);
@@ -97,12 +117,20 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
       <div className="dj-cell-top">
         <span className="dj-daynum">{d}</span>
       </div>
-      {hol && <div className="dj-holpill">休·{hol}</div>}
+      {hol && (
+        /* 节假日 pill 单行截断:title 兜全名(假期名常超格宽)。 */
+        <div className="dj-holpill" title={`休·${hol}`}>
+          休·{hol}
+        </div>
+      )}
       {cellBody(article, st, meta, rows, notePeek, st === "g" ? heatOf(rows.length, ts) : "")}
       {notePeek && (
         <div className="dj-notepeek">
-          <PencilSimpleLine size={9} />
-          <span className="dj-notepeek-t">{notePeek}</span>
+          {/* 密集月格脚注图标:10px 例外档(9px 档收口取消) */}
+          <PencilSimpleLine size="0.625rem" />
+          <span className="dj-notepeek-t" title={notePeek}>
+            {notePeek}
+          </span>
         </div>
       )}
       <div className="dj-cell-engs">
@@ -131,9 +159,11 @@ export interface MonthViewProps {
   snap: MonthSnapshot;
   sessions: Map<string, DaySessionRow[]>;
   today: string;
+  /** 跨月补位格点击跳月(常见日历可供性;缺省无回调则维持纯展示)。 */
+  onShiftMonth?: (delta: number) => void;
 }
 
-export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
+export function MonthView({ ym, snap, sessions, today, onShiftMonth }: MonthViewProps) {
   useHolidays(); /* 数据就位即重渲染(holOf 读快照) */
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -160,7 +190,21 @@ export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
   const cells: React.ReactNode[] = [];
   for (let i = 0; i < lead; i++)
     cells.push(
-      <div key={`lead-${i}`} className="dj-cell dj-out">
+      /* 前月补位格可点跳上月(pointer-events:none 摘除;弱化视觉保留) */
+      <div
+        key={`lead-${i}`}
+        className="dj-cell dj-out"
+        role="button"
+        tabIndex={0}
+        title={t("跳到上个月")}
+        onClick={() => onShiftMonth?.(-1)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onShiftMonth?.(-1);
+          }
+        }}
+      >
         <div className="dj-cell-top">
           <span className="dj-daynum">{prevDays - lead + 1 + i}</span>
         </div>
@@ -187,7 +231,20 @@ export function MonthView({ ym, snap, sessions, today }: MonthViewProps) {
   }
   for (let d = 1; lead + days + d <= SLOTS; d++)
     cells.push(
-      <div key={`tail-${d}`} className="dj-cell dj-out">
+      <div
+        key={`tail-${d}`}
+        className="dj-cell dj-out"
+        role="button"
+        tabIndex={0}
+        title={t("跳到下个月")}
+        onClick={() => onShiftMonth?.(1)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onShiftMonth?.(1);
+          }
+        }}
+      >
         <div className="dj-cell-top">
           <span className="dj-daynum">{d}</span>
         </div>

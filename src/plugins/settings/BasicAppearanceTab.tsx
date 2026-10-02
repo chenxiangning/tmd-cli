@@ -1,8 +1,10 @@
 /**
- * 基础设置 / 外观 tab —— 主题模式 + 自定义 preset 网格。
+ * 基础设置 / 外观 tab —— 主题模式 + 自定义 preset 网格 + 会话标题 tab 条卡。
  *
  * 交互对齐 codemoss BasicAppearanceSection 的主题段:
- * segmented(跟随系统/浅色/深色/自定义) + 自定义时展开 21 preset 网格。
+ * segmented(跟随系统/浅色/深色/自定义) + 自定义时展开 37 preset 网格。
+ * 「会话标题 tab 条」是顶栏 chrome 显隐开关(2026-10 混卡拆分:自主题卡
+ * 拆出独立成卡;不归 BehaviorTab —— 那里是输入交互与会话数据治理语义)。
  * 全部写入 kernel/settings store,主题引擎即时生效,无需「保存」按钮。
  */
 
@@ -94,14 +96,87 @@ export function BasicAppearanceTab() {
     >
       <div className="pref-row">
         <div>
-          <div className="pref-title">{t("会话标题 tab 条")}</div>
-          <div className="pref-desc">
-            {t("顶栏中央展示已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。")}
+          <div className="pref-title">{t("主题")}</div>
+          <div className="pref-desc">{themeHint}</div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t("主题")}>
+          {THEME_MODES.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={settings.theme === id}
+              className={`segment${settings.theme === id ? " is-active" : ""}`}
+              onClick={() => updateSettings({ theme: id })}
+            >
+              <Icon size="0.875rem" aria-hidden />
+              {t(label)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="preset-section">
+        {(["light", "dark"] as const).map((appearance) => (
+          <div key={appearance}>
+            <button
+              type="button"
+              className="preset-group-label"
+              aria-expanded={!collapsedGroups[appearance]}
+              onClick={() =>
+                setCollapsedGroups((c) => ({ ...c, [appearance]: !c[appearance] }))
+              }
+            >
+              {collapsedGroups[appearance] ? (
+                <CaretRight size="0.75rem" aria-hidden />
+              ) : (
+                <CaretDown size="0.75rem" aria-hidden />
+              )}
+              {appearance === "light" ? t("浅色主题") : t("深色主题")}
+            </button>
+            {!collapsedGroups[appearance] && (
+            <div className="preset-grid">
+              {presets.flatMap((preset) =>
+                preset.appearance === appearance ? [
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`preset-card${settings.theme === "custom" && preset.id === settings.customThemePresetId ? " is-active" : ""}`}
+                    onClick={() =>
+                      updateSettings({
+                        theme: "custom",
+                        customThemePresetId: preset.id,
+                        /* 同步落浅色/深色槽位:浅色/深色/跟随系统模式切回后也吃到新预设 */
+                        ...(preset.appearance === "light"
+                          ? { lightThemePresetId: preset.id }
+                          : { darkThemePresetId: preset.id }),
+                      })
+                    }
+                  >
+                    <PresetThumb preset={preset} />
+                    <span className="preset-name">
+                      {preset.label}
+                      <Check className="preset-check" size="0.875rem" aria-hidden />
+                    </span>
+                  </button>,
+                ] : [],
+              )}
+            </div>
+            )}
           </div>
+        ))}
+      </div>
+    </div>
+    <div className="pref-card" data-testid="settings-session-tabs-card">
+      <div className="pref-card-head">{t("会话标题 tab 条")}</div>
+      <div className="pref-row">
+        <div className="pref-desc">
+          {t("顶栏中央展示已打开的会话,点击切换;关闭后仍可从左侧栏进入会话。")}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {settings.sessionTabsEnabled ? (
             <>
+              <span className="text-xs text-(--tmd-fg-subtle)">{t("上限")}</span>
               <input
                 type="range"
                 min={SESSION_TABS_LIMIT_MIN}
@@ -138,74 +213,6 @@ export function BasicAppearanceTab() {
             </button>
           </div>
         </div>
-      </div>
-      <div className="pref-row">
-        <div>
-          <div className="pref-title">{t("主题")}</div>
-          <div className="pref-desc">{themeHint}</div>
-        </div>
-        <div className="segmented" role="radiogroup" aria-label={t("主题")}>
-          {THEME_MODES.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={settings.theme === id}
-              className={`segment${settings.theme === id ? " is-active" : ""}`}
-              onClick={() => updateSettings({ theme: id })}
-            >
-              <Icon size="0.8125rem" aria-hidden />
-              {t(label)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="preset-section">
-        {(["light", "dark"] as const).map((appearance) => (
-          <div key={appearance}>
-            <button
-              type="button"
-              className="preset-group-label"
-              aria-expanded={!collapsedGroups[appearance]}
-              onClick={() =>
-                setCollapsedGroups((c) => ({ ...c, [appearance]: !c[appearance] }))
-              }
-            >
-              {collapsedGroups[appearance] ? (
-                <CaretRight size="0.75rem" aria-hidden />
-              ) : (
-                <CaretDown size="0.75rem" aria-hidden />
-              )}
-              {appearance === "light" ? t("浅色主题") : t("深色主题")}
-            </button>
-            {!collapsedGroups[appearance] && (
-            <div className="preset-grid">
-              {presets.flatMap((preset) =>
-                preset.appearance === appearance ? [
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className={`preset-card${preset.id === settings.customThemePresetId ? " is-active" : ""}`}
-                    onClick={() =>
-                      updateSettings({
-                        theme: "custom",
-                        customThemePresetId: preset.id,
-                      })
-                    }
-                  >
-                    <PresetThumb preset={preset} />
-                    <span className="preset-name">
-                      {preset.label}
-                      <Check className="preset-check" size="0.8125rem" aria-hidden />
-                    </span>
-                  </button>,
-                ] : [],
-              )}
-            </div>
-            )}
-          </div>
-        ))}
       </div>
     </div>
     <SystemAppearanceCard />

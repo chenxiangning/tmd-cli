@@ -12,13 +12,13 @@
   height: 34px;
   padding: 0 8px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--tmd-radius-sm);
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .wsl-distro-toggle:hover {
   background: var(--tmd-bg-hover);
@@ -30,7 +30,7 @@
 .wsl-caret {
   flex: none;
   color: var(--tmd-fg-faint);
-  transition: transform 0.16s ease;
+  transition: transform var(--tmd-dur-1) var(--tmd-ease-move);
 }
 .wsl-caret.closed {
   transform: rotate(-90deg);
@@ -41,7 +41,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin: 2px 0 6px 17px;
+  margin: 2px 0 6px 16px;
   padding: 2px 0 0 22px;
   border-left: 1px solid var(--tmd-border);
 }
@@ -56,7 +56,7 @@
   gap: 8px;
 }
 .wsl-panel-lbl {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--tmd-fg-muted);
@@ -64,8 +64,8 @@
 .wsl-panel-count {
   padding: 2px 8px;
   border-radius: 999px;
-  font-family: var(--tmd-mono, monospace);
-  font-size: 0.625rem;
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: var(--tmd-font-xs);
   line-height: 1;
   color: var(--tmd-fg-subtle);
   box-shadow: inset 0 0 0 1px var(--tmd-border);
@@ -84,13 +84,13 @@
   height: 30px;
   padding: 0 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: transparent;
   color: var(--tmd-fg);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.1s ease, box-shadow 0.1s ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), box-shadow var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .wsl-probe-row:hover:not(:disabled) {
   background: var(--tmd-bg-hover);
@@ -124,7 +124,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
 }
 .wsl-probe-path {
@@ -134,16 +134,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
-  font-family: var(--tmd-mono, monospace);
-  font-size: 0.6563rem;
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: var(--tmd-font-xs);
   color: var(--tmd-fg-muted);
 }
 .wsl-probe-tag {
   flex: none;
   margin-left: 8px;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   line-height: 1;
   /* 文字掺 fg 提亮浅色主题对比度(纯 --tmd-ok 在浅底 ≈3:1 不达 AA) */
   color: color-mix(in srgb, var(--tmd-ok) 62%, var(--tmd-fg));
@@ -170,9 +170,9 @@
 .wsl-dir-path {
   flex: 1;
   min-width: 0;
-  font-family: var(--tmd-mono, monospace);
-  font-size: 0.6875rem;
-  line-height: 26px;
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: var(--tmd-font-ui);
+  line-height: 24px; /* 正文行 26→24(配 12px 正文) */
   color: var(--tmd-fg-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -183,23 +183,40 @@
   overflow: auto;
   padding: 2px 0;
 }
+/* 路径直达输入框(绝对路径回车跳层 / 前缀过滤;形制对齐 wsl-tinput 窄版)。 */
+.wsl-dir-jump {
+  width: 100%;
+  height: 24px;
+  margin: 2px 0 4px;
+  padding: 0 8px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  background: var(--tmd-bg-base);
+  color: var(--tmd-fg);
+  font: inherit;
+  font-size: var(--tmd-font-ui);
+}
+.wsl-dir-list.loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
 .wsl-dir-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   width: 100%;
   height: 24px;
   padding: 0 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: transparent;
   color: var(--tmd-fg);
   font: inherit;
-  font-family: var(--tmd-mono, monospace);
-  font-size: 0.7188rem;
+  font-family: var(--tmd-font-mono, ui-monospace, monospace);
+  font-size: var(--tmd-font-ui);
   text-align: left;
   cursor: pointer;
-  transition: background 0.1s ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .wsl-dir-row > svg {
   flex: none;

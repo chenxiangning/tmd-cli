@@ -94,13 +94,18 @@ export function BudgetPopover({
     <>
       <div className="wsmenu-backdrop" role="presentation" onClick={onClose} />
       <div
-        className="wsbudget"
+        className="wsbudget tmd-scroll-hide"
         style={{ left: position.x, top: position.y }}
         data-testid="session-list-budget-card"
       >
         <div className="wsbudget-head">
           <span className="wsbudget-title">{t("会话列表显示预算")}</span>
-          <button className="wsbudget-close" title={t("关闭")} onClick={onClose}>
+          <button
+            className="wsbudget-close"
+            title={t("关闭")}
+            aria-label={t("关闭")}
+            onClick={onClose}
+          >
             <Cross size="0.875rem" aria-hidden />
           </button>
         </div>
@@ -110,7 +115,7 @@ export function BudgetPopover({
             <div className="pref-title">{t("显示总数")}</div>
             <div className="pref-desc">
               {t(
-                "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多...」仍可按需翻倍加载。",
+                "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多…」仍可按需翻倍加载。",
                 {
                   min: SESSION_LIST_TOTAL_MIN,
                   max: SESSION_LIST_TOTAL_MAX,

@@ -10,6 +10,7 @@ import { LIGHT_PRESETS_PART4 } from "./light4";
 import { LIGHT_PRESETS_PART5 } from "./light5";
 import { LIGHT_PRESETS_PART6 } from "./light6";
 import { LIGHT_PRESETS_PART7 } from "./light7";
+import { LIGHT_PRESETS_PART8 } from "./light8";
 
 export const LIGHT_PRESETS = {
   ...LIGHT_PRESETS_PART1,
@@ -19,4 +20,5 @@ export const LIGHT_PRESETS = {
   ...LIGHT_PRESETS_PART5,
   ...LIGHT_PRESETS_PART6,
   ...LIGHT_PRESETS_PART7,
+  ...LIGHT_PRESETS_PART8,
 } as unknown as Record<ThemePresetId, Omit<ThemePresetDefinition, "id">>;

@@ -3,13 +3,13 @@
  *
  * 迷你进度条:5h / 7d 双窗口并排,供应商支持几个展示几个;
  * 余额型供应商(deepseek/中转站)无窗口,直接显示余额文本。
- * 橙色 fill 沿用用户截图 #ff8c3c。
+ * 橙色 fill = 装饰强调 token(--tmd-decor)。
  * ────────────────────────────────────────────────────────── */
 
 .quota-chip {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   cursor: pointer;
 }
 
@@ -44,12 +44,12 @@
 .quota-mini-fill {
   display: block;
   height: 100%;
-  background: rgb(255, 140, 60);
-  border-radius: 2px;
+  background: var(--tmd-decor);
+  border-radius: 2px; /* 4px 高微型条:半径=半高 pill,不入圆角阶梯 */
 }
 
 .quota-chip .is-spinning {
-  animation: quota-spin 800ms linear infinite;
+  animation: tmdSpin 1s linear infinite;
 }
 /* ── 额度详情弹窗 ──
  * portal 挂 document.body(position: fixed),与 .panel-overflow-menu 同层(z-index 1201),
@@ -61,10 +61,10 @@
   width: 264px;
   background: var(--tmd-bg-popover);
   border: 1px solid var(--tmd-border);
-  border-radius: 10px;
+  border-radius: var(--tmd-radius-lg);
   padding: 10px 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-  font-size: 0.75rem;
+  box-shadow: var(--tmd-shadow-popover);
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg);
 }
 
@@ -109,7 +109,7 @@
 .quota-popover-fill {
   display: block;
   height: 100%;
-  background: rgb(255, 140, 60);
+  background: var(--tmd-decor);
   border-radius: 3px;
 }
 
@@ -123,8 +123,8 @@
 .quota-popover-reset {
   margin-top: 4px;
   padding-left: 44px;
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 
 .quota-popover-balance {
@@ -134,7 +134,7 @@
 
 .quota-popover-error {
   margin: 8px 0;
-  color: rgb(248, 113, 113);
+  color: var(--tmd-err);
 }
 
 .quota-popover-footer {
@@ -144,20 +144,20 @@
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid var(--tmd-border);
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 
 .quota-popover-refresh {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: transparent;
   color: var(--tmd-fg-subtle);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
 }
 
@@ -166,7 +166,3 @@
   color: var(--tmd-fg);
 }
 
-@keyframes quota-spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}

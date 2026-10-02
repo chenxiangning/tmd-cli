@@ -31,6 +31,8 @@ import {
 import { createLinkHint } from "./linkHint";
 import { hoverMarkdown, renderHoverCard } from "./hoverCard";
 import { locToPeekItem, normalizeLocations, rangeContainsOffset } from "./lspLocations";
+import { showGestureNotice } from "./gestureNotice";
+import { noServerHintExtension } from "./noServerHint";
 
 interface ViewSync {
   path: string;
@@ -71,7 +73,7 @@ function ensureSync(view: EditorView): Promise<LspDocSession> | null {
   if (!sync.session) {
     sync.session = (async () => {
       const session = await getSessionForPath(sync.path);
-      if (!session) throw new Error("无语言服务配置");
+      if (!session) throw new Error(t("无语言服务配置"));
       session.didOpen(sync.path, view.state.doc.toString());
       sync.opened = true;
       if (sync.dirtyWhileOpening) {
@@ -155,9 +157,14 @@ async function symbolAction(view: EditorView, pos: number, mode: "definition" | 
       return;
     }
     showPeek(view, at, `${t("定义")} (${items.length})`, items.map(locToPeekItem));
-  } catch {
-    /* server 未就绪/超时:静默降级(菜单态可见;不做猜测兜底),收 loading。 */
-    if (!isStale()) closePeek();
+  } catch (err) {
+    /* server spawn/initialize 失败/超时:降级收 loading,同时出一次性 toast
+       (60s 节流防刷;错误串在抛点已 t() 化)——不再全静默,失败可感知。 */
+    if (!isStale()) {
+      closePeek();
+      const reason = err instanceof Error && err.message ? err.message : t("语言服务启动失败");
+      showGestureNotice("server-error", t("语义动作失败:{reason}", { reason }));
+    }
   } finally {
     cancelLoading();
   }
@@ -165,7 +172,8 @@ async function symbolAction(view: EditorView, pos: number, mode: "definition" | 
 
 /** lsp 编辑器扩展工厂(经 ctx.registerEditorExtension 注入)。 */
 export const lspEditorExtension: EditorExtensionFactory = async ({ path }) => {
-  if (!configForPath(path) || !owningWorkspaceRoot(path)) return null;
+  /* 配置外语言(四语言之外):不建会话,只挂 cmd/ctrl+click 轻提示手势。 */
+  if (!configForPath(path) || !owningWorkspaceRoot(path)) return noServerHintExtension();
   const [viewMod, stateMod] = await Promise.all([import("@codemirror/view"), import("@codemirror/state")]);
   const { EditorView, ViewPlugin, hoverTooltip, keymap } = viewMod;
 
@@ -257,7 +265,10 @@ export const lspEditorExtension: EditorExtensionFactory = async ({ path }) => {
           return { dom };
         },
       };
-    } catch {
+    } catch (err) {
+      /* hover 同手势口径:失败出节流 toast(60s 窗内不刷屏),tooltip 不上屏。 */
+      const reason = err instanceof Error && err.message ? err.message : t("语言服务启动失败");
+      showGestureNotice("server-error", t("语义动作失败:{reason}", { reason }));
       return null;
     }
   });

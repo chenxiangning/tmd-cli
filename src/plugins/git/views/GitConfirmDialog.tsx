@@ -36,12 +36,12 @@ export function GitConfirmDialog({
       onClick={onClose}
     >
       <div
-        className="mx-4 w-80 rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-3 shadow-2xl"
+        className="mx-4 w-80 rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-3 shadow-(--tmd-shadow-modal)"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-xs font-medium text-(--tmd-fg)">{state.title}</div>
         {state.detail && (
-          <div className="mt-1 text-[0.6875rem] leading-4 text-(--tmd-fg-muted)">{state.detail}</div>
+          <div className="mt-1 text-xs leading-4 text-(--tmd-fg-muted)">{state.detail}</div>
         )}
         <div className="mt-3 flex justify-end gap-1.5">
           <button
@@ -75,7 +75,7 @@ export function GitConfirmDialog({
                 : "bg-(--tmd-accent) text-(--tmd-accent-fg)"
             }`}
           >
-            {state.confirmLabel ?? t("确定")}
+            {state.confirmLabel ?? t("确认")}
           </button>
         </div>
       </div>

@@ -16,7 +16,7 @@
      调色板变量必须在此重声明,否则 var() 全部失效(透明背景+文字色丢失)。 */
   --surface-hover: var(--tmd-bg-hover);
   --surface-hover-strong: var(--tmd-border-strong);
-  --surface-sidebar-opaque: var(--tmd-bg-elevated);
+  --surface-sidebar-opaque: var(--tmd-bg-popover);
   --text-strong: var(--tmd-fg);
   --text-quiet: var(--tmd-fg);
   --text-muted: var(--tmd-fg-muted);
@@ -24,7 +24,7 @@
   --border-subtle: var(--tmd-border);
   --border-quiet: var(--tmd-border);
   --accent-primary: var(--tmd-accent);
-  --danger-strong: #f87171;
+  --danger-strong: var(--tmd-err);
 
   position: fixed;
   z-index: 1201;
@@ -33,24 +33,17 @@
   max-height: min(68vh, 460px);
   overflow-y: auto;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: var(--tmd-radius-lg);
   border: 1px solid var(--border-quiet);
   background: var(--surface-sidebar-opaque);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    0 1px 4px rgba(0, 0, 0, 0.1);
-  scrollbar-width: none;
-}
-
-.wsmenu::-webkit-scrollbar {
-  display: none;
+  box-shadow: var(--tmd-shadow-popover);
 }
 
 .wsmenu-group-title {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 500;
   color: var(--text-muted);
-  padding: 3px 8px 6px;
+  padding: 4px 8px 6px;
 }
 
 .wsmenu-divider {
@@ -74,20 +67,18 @@
   width: 100%;
   border: 0;
   background: transparent;
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
   color: var(--text-strong);
   display: flex;
   align-items: center;
   gap: 8px;
   text-align: left;
-  padding: 7px 8px;
-  font-size: 0.8125rem;
+  padding: 8px 8px;
+  font-size: var(--tmd-font-md);
   font-weight: 500;
-  line-height: 1.22;
+  line-height: 1.3;
   cursor: pointer;
-  transition:
-    background-color 0.16s ease,
-    color 0.16s ease;
+  transition: background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .wsmenu-item:hover {
@@ -104,7 +95,7 @@
 
 .wsmenu-item:disabled {
   color: var(--tmd-fg-faint);
-  cursor: default;
+  cursor: not-allowed;
 }
 
 .wsmenu-item:disabled:hover {
@@ -134,12 +125,12 @@
   flex: 1 1 auto;
 }
 
-/* 右键菜单快捷键提示:右对齐弱化文本(JetBrains 编辑器菜单同型) */
+/* 右键菜单快捷键提示:右对齐弱化文本(JetBrains 编辑器菜单同型;信息文案走 subtle) */
 .wsmenu-item-kbd {
   margin-left: auto;
   flex-shrink: 0;
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 
 /* 二级子菜单(Git 操作等):React 态驱动 + position:fixed —— .wsmenu 的
@@ -153,12 +144,10 @@
   z-index: 1202;
   min-width: 176px;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: var(--tmd-radius-lg);
   border: 1px solid var(--border-quiet);
   background: var(--surface-sidebar-opaque);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-popover);
 }
 
 .wsmenu-item-refresh {
@@ -166,7 +155,7 @@
   height: 26px;
   padding: 0;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--tmd-radius-sm);
   background: transparent;
   color: var(--text-muted);
   display: inline-flex;
@@ -174,9 +163,7 @@
   justify-content: center;
   flex-shrink: 0;
   cursor: pointer;
-  transition:
-    background-color 0.16s ease,
-    color 0.16s ease;
+  transition: background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .wsmenu-item-refresh svg {
@@ -192,17 +179,7 @@
 }
 
 .wsmenu-item-refresh.is-refreshing svg {
-  animation: wsmenu-spin 0.85s linear infinite;
-}
-
-@keyframes wsmenu-spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
+  animation: tmdSpin 1s linear infinite;
 }
 
 /* ===== 添加工作区浮层(锚定入口按钮右侧滑出;背板复用 .wsmenu-backdrop) ===== */
@@ -215,14 +192,12 @@
   overflow-y: auto;
   padding: 10px 14px 14px;
   border: 1px solid var(--tmd-border);
-  border-radius: 12px;
+  border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-popover);
   color: var(--tmd-fg);
-  box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.18),
-    0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--tmd-shadow-popover);
   transform-origin: left center;
-  animation: wsadd-in 0.14s ease-out;
+  animation: wsadd-in var(--tmd-dur-1) var(--tmd-ease-move);
 }
 
 @keyframes wsadd-in {
@@ -261,4 +236,14 @@
 .wsadd-x:hover {
   color: var(--tmd-fg);
   background: var(--tmd-bg-hover);
+}
+
+/* 新建会话菜单提示行(远程 WSL 未探测/无引擎时;SessionMenu/VersionMenu 共用;
+ * 自 wsl-remote.css 迁回消费面;--text-quiet 仅 workspace 菜单树作用域定义,
+ * VersionMenu(welcome)离域即失效,改真 token --tmd-fg-subtle) */
+.wsmenu-note {
+  padding: 2px 10px 6px;
+  color: var(--tmd-fg-subtle);
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
 }

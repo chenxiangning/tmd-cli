@@ -109,16 +109,23 @@ export function weekdayLabels(): string[] {
 }
 
 /** 看板会话集(null = 扫描中)。活会话每次渲染现并(useHost 触发重渲染)。 */
+export interface BoardScan {
+  rows: BoardSession[];
+  /** 扫描失败的引擎名集(listSessions 拒绝;空 = 全成)。失败不伪装空:
+   *  BoardTab 出「N 引擎扫描失败 + 重试」错误条。 */
+  failedEngines: string[];
+}
+
 export function useBoardSessions(
   /** 目标工作区集(单选传 1 个,全部传全部;空数组 = 无数据)。 */
   workspaces: Workspace[],
   /** 全部工作区视图(孤儿活会话也收)。 */
   allMode: boolean,
   refreshTick: number,
-): BoardSession[] | null {
+): BoardScan | null {
   useHost();
   const { settings } = useSettingsState();
-  const [scan, setScan] = useState<ScanEntry[] | null>(null);
+  const [scan, setScan] = useState<{ entries: ScanEntry[]; failed: string[] } | null>(null);
 
   /* 活会话表变化(开新会话/PTY 退出,含一走一开净数不变)触发重扫:会话结束后
    * 磁盘文件晚于快照落盘,不联动则该会话从看板蒸发直到手点「重新扫描」。 */
@@ -134,7 +141,7 @@ export function useBoardSessions(
   const scanForKey = useRef<string | null>(null);
   useEffect(() => {
     if (workspaces.length === 0) {
-      setScan([]);
+      setScan({ entries: [], failed: [] });
       return;
     }
     let alive = true;
@@ -147,19 +154,24 @@ export function useBoardSessions(
     (async () => {
       const profiles = host.getCliProfiles().filter((p) => p.listSessions);
       const entries: ScanEntry[] = [];
+      const failed = new Set<string>();
       await Promise.all(
         workspaces.flatMap((ws) =>
           profiles.map((p) =>
             p
               .listSessions!(ws.root)
-              .catch(() => [] as CliDiskSession[])
+              .catch(() => {
+                /* 扫描失败不再伪装空:记引擎名(去重),错误条给重试出口。 */
+                failed.add(p.name);
+                return [] as CliDiskSession[];
+              })
               .then((list) => {
                 for (const disk of list) entries.push({ ws, profile: p, disk });
               }),
           ),
         ),
       );
-      if (alive) setScan(entries);
+      if (alive) setScan({ entries, failed: [...failed] });
     })();
     return () => {
       alive = false;
@@ -174,7 +186,7 @@ export function useBoardSessions(
   const nextFlash = useMemo(() => {
     let min = Infinity;
     if (scan) {
-      for (const e of scan) {
+      for (const e of scan.entries) {
         const a = settings.sessionArchive[sessionArchiveKey(e.ws.id, e.profile.id, e.disk.id)];
         if (a) min = Math.min(min, a.archivedAt);
       }
@@ -189,17 +201,17 @@ export function useBoardSessions(
     return () => clearTimeout(t);
   }, [nextFlash]);
   const diskRows = useMemo(
-    () => (scan ? mergeDisk(scan, settings.sessionTitles, settings.sessionArchive) : []),
+    () => (scan ? mergeDisk(scan.entries, settings.sessionTitles, settings.sessionArchive) : []),
     // 归档/删除意图参与五态推导,必须进 deps(评审 P2:恢复/删除后看板要即变)。
     [scan, settings.sessionTitles, settings.sessionArchive, settings.sessionDeleted, flashTick],
   );
   if (!scan) return null;
   /* 活会话绑定的磁盘身份 → 磁盘行去重(同一会话全局一次,活形态优先)。 */
-  const liveRows = mergeLive(workspaces, allMode, settings.sessionTitles, scan);
+  const liveRows = mergeLive(workspaces, allMode, settings.sessionTitles, scan.entries);
   const liveKeys = new Set(
     liveRows.filter((r) => r.cliSessionId && r.wsId).map((r) => `${r.wsId}:${r.profileId}:${r.cliSessionId}`),
   );
-  return [...liveRows, ...diskRows.filter((r) => !liveKeys.has(r.key))];
+  return { rows: [...liveRows, ...diskRows.filter((r) => !liveKeys.has(r.key))], failedEngines: scan.failed };
 }
 
 /** 引擎色:profile id 哈希 hue,深浅主题同亮度带。 */

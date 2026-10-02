@@ -14,12 +14,12 @@
 }
 
 .lp-title {
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   font-weight: 600;
 }
 
 .lp-sub {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: color-mix(in srgb, var(--tmd-fg) 55%, transparent);
   flex: 1;
   min-width: 12rem;
@@ -34,9 +34,9 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.6875rem;
-  padding: 0.1875rem 0.5rem;
-  border-radius: 0.375rem;
+  font-size: var(--tmd-font-ui);
+  padding: 4px 0.5rem;
+  border-radius: var(--tmd-radius-sm);
   border: 1px solid color-mix(in srgb, var(--tmd-fg) 20%, transparent);
   background: transparent;
   color: var(--tmd-fg);
@@ -72,7 +72,7 @@
 }
 
 .lp-name {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   display: inline-flex;
   align-items: baseline;
@@ -81,12 +81,12 @@
 
 .lp-ver {
   font-weight: 400;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: color-mix(in srgb, var(--tmd-fg) 55%, transparent);
 }
 
 .lp-badge {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: color-mix(in srgb, var(--tmd-fg) 60%, transparent);
 }
 
@@ -104,12 +104,12 @@
 }
 
 .lp-perms {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: color-mix(in srgb, var(--tmd-fg) 55%, transparent);
 }
 
 .lp-action-err {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-err);
   word-break: break-all;
   padding: 0 0.25rem;
@@ -124,7 +124,7 @@
 .lp-versions {
   margin-top: 0.375rem;
   padding: 0.375rem 0.5rem;
-  border-radius: 0.375rem;
+  border-radius: var(--tmd-radius-sm);
   background: color-mix(in srgb, var(--tmd-fg) 5%, transparent);
   display: flex;
   flex-direction: column;
@@ -136,7 +136,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
 }
 
 .lp-version-meta {
@@ -144,8 +144,8 @@
 }
 
 .lp-empty {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: color-mix(in srgb, var(--tmd-fg) 55%, transparent);
   padding: 0.625rem 0.25rem;
-  line-height: 1.6;
+  line-height: 1.5;
 }

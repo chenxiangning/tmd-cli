@@ -65,11 +65,11 @@ export function CheckActions({
   return (
     <>
       <button type="button" className="vp-btn" onClick={onCheck} disabled={checking}>
-        <ArrowClockwise size="0.8125rem" className={checking ? "vp-spin" : undefined} />
+        <ArrowClockwise size="0.875rem" className={checking ? "vp-spin" : undefined} />
         {checking ? t("检查中…") : t("检查更新")}
       </button>
       <button type="button" className="vp-btn" onClick={onDownload}>
-        <DownloadSimple size="0.8125rem" />
+        <DownloadSimple size="0.875rem" />
         {t("前往下载")}
       </button>
     </>
@@ -137,7 +137,7 @@ export function AutoUpdateButton() {
       onClick={runAutoUpdate}
       disabled={busy}
     >
-      <DownloadSimple size="0.8125rem" />
+      <DownloadSimple size="0.875rem" />
       {busy ? autoStageLabel(auto.stage, auto.percent) : t("自动更新")}
     </button>
   );

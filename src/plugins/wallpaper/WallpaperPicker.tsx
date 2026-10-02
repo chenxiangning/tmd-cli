@@ -72,7 +72,7 @@ function WallpaperCard({
             title={item.hidden ? t("恢复到图库") : t("从图库隐藏(不删文件)")}
             onClick={onHide}
           >
-            {item.hidden ? <Eye size={13} aria-hidden /> : <EyeClosed size={13} aria-hidden />}
+            {item.hidden ? <Eye size="0.875rem" aria-hidden /> : <EyeClosed size="0.875rem" aria-hidden />}
           </button>
           <button
             type="button"
@@ -80,7 +80,7 @@ function WallpaperCard({
             title={t("移入废纸篓并从图库移除")}
             onClick={onRemove}
           >
-            <Trash size={13} aria-hidden />
+            <Trash size="0.875rem" aria-hidden />
           </button>
         </span>
       </div>
@@ -222,7 +222,7 @@ export function WallpaperPicker({ onClose }: { onClose: () => void }) {
             disabled={importing}
             onClick={() => void handleImport()}
           >
-            <UploadSimple size={13} aria-hidden />
+            <UploadSimple size="0.875rem" aria-hidden />
             {importing ? t("导入中…") : t("导入图片")}
           </button>
         </div>

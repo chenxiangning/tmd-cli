@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { UploadSimple } from "@phosphor-icons/react";
 import { getSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
 import { scanSshImportCandidates, type SshImportCandidate } from "../scan";
 
 export function ImportModal({
@@ -20,6 +21,7 @@ export function ImportModal({
   const [candidates, setCandidates] = useState<SshImportCandidate[]>([]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
+  useEscClose(onClose);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,12 +52,26 @@ export function ImportModal({
   };
 
   return (
-    <div className="ssh-modal-backdrop" onClick={onClose}>
-      <div className="ssh-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="ssh-modal-backdrop" role="presentation" onClick={onClose}>
+      <dialog
+        open
+        className="ssh-modal"
+        aria-label={t("从 ~/.ssh/config 导入")}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="ssh-modal-title">
           <UploadSimple size="0.875rem" aria-hidden />
           <span>{t("从 ~/.ssh/config 导入")}</span>
         </div>
+        {/* form 包裹:Enter 即导入选中(取消钮 type=button 不触发;未就绪时 submit 兜底拦)。 */}
+        <form
+          id="ssh-import-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (state !== "ready") return;
+            onImport(candidates.filter((c) => picked.has(c.name) && !c.duplicate));
+          }}
+        >
         {state === "loading" ? <div className="ssh-settings-empty">{t("扫描中…")}</div> : null}
         {state === "error" ? <div className="ssh-form-error">{error}</div> : null}
         {state === "ready" ? (
@@ -87,16 +103,12 @@ export function ImportModal({
           <button type="button" onClick={onClose}>
             {t("取消")}
           </button>
-          <button
-            type="button"
-            className="is-primary"
-            disabled={state !== "ready"}
-            onClick={() => onImport(candidates.filter((c) => picked.has(c.name) && !c.duplicate))}
-          >
+          <button type="submit" form="ssh-import-form" className="is-primary" disabled={state !== "ready"}>
             {t("导入选中")}
           </button>
         </div>
-      </div>
+        </form>
+      </dialog>
     </div>
   );
 }

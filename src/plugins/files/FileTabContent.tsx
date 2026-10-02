@@ -15,6 +15,7 @@ import { statusText, toolbarCls } from "./editor/editorChromeLogic";
 import { useDarkTheme } from "@kernel/theme";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import {
   getFileCacheVersion,
   loadFile,
@@ -62,8 +63,7 @@ import { useFileDetailMenu } from "./useFileDetailMenu";
 const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 
 /** md / 结构化文件的「编辑 vs 预览」偏好(按路径,进程内记住,切 tab 不丢)。 */
-const mdEditMode = new Map<string, boolean>();
-const structuredEditMode = new Map<string, boolean>();
+const mdEditMode = new Map<string, boolean>(), structuredEditMode = new Map<string, boolean>();
 
 /** 单文件主体:key={path} —— 文档状态、md/结构化切换偏好随文件切换整体重建。
  *  wslr:// 远程文件:同一渲染规则,编辑器只读(M1 不做远程写回)。 */
@@ -185,7 +185,8 @@ function FileTabBody({
 }
 
 const LOADING = () => (
-  <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+  <div className="flex h-full items-center justify-center gap-1.5 text-xs text-(--tmd-fg-faint)">
+    <Spinner />
     {t("加载中…")}
   </div>
 );
@@ -243,13 +244,7 @@ function TextFileView({
   reveal: { line: number; seq: number } | null;
 }) {
   const payload = loadFile(path);
-  if (payload.error) {
-    return (
-      <div className="flex h-full items-center justify-center text-xs text-red-400">
-        ⚠ {payload.error}
-      </div>
-    );
-  }
+  if (payload.error) return <div className="flex h-full items-center justify-center text-xs text-red-400">⚠ {payload.error}</div>;
   if (!payload.loaded) return <LOADING />;
   if (kind === "tabular") {
     return (

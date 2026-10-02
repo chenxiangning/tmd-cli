@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { installJdt } from "./javaInstall";
-import { closeJavaGuide, useJavaGuideVisible } from "./javaGuideStore";
+import { closeJavaGuide, dismissJavaGuide, useJavaGuideVisible } from "./javaGuideStore";
 import { javaMajorVersion } from "./discovery";
 
 export function JavaGuideOverlay() {
@@ -60,7 +60,8 @@ export function JavaGuideOverlay() {
           {error && <div className="lsp-guide-warn">{error}</div>}
         </div>
         <div className="lsp-guide-actions">
-          <button type="button" className="lsp-guide-btn" disabled={busy} onClick={close}>
+          {/* 暂不安装 = 永不再弹(dismissed 持久化);Escape/背景点击仅会话内收卡 */}
+          <button type="button" className="lsp-guide-btn" disabled={busy} onClick={dismissJavaGuide}>
             {t("暂不安装")}
           </button>
           <button type="button" className="lsp-guide-btn lsp-guide-primary" disabled={busy} onClick={() => void install()}>

@@ -4,10 +4,11 @@
  * Escape,复用 SessionContextMenu 的类与纪律):
  *
  *   新建文件 / 新建文件夹 ─ 经文件面板槽落工作区根(非激活先切换,等树重挂再触发)
- *   重命名 ─ 工作区显示别名(kernel 无磁盘改名;window.prompt,SftpTreeMenu 同款)
+ *   重命名 ─ 工作区显示别名(kernel 无磁盘改名;InputDialog,原生 prompt 清零轮)
  *   复制路径 / 在访达中显示 ─ 直连 navigator.clipboard / ipc
  *   移到废纸篓 ─ 两步武装确认(FileTreeContextMenu 同款),成功后移出工作区列表
  *   GIT 段 ─ 提交目录 / 添加·暂存全部 / 更新 / 推送 / 提取(直连 ipc git 命令)
+ *   失败 ─ 菜单内行内红字提示(原生 alert 清零轮;留菜单可重试/换项)
  */
 
 import { useState, type ReactNode } from "react";
@@ -27,6 +28,7 @@ import {
 } from "@phosphor-icons/react";
 import { setFilePanelMode } from "@kernel/filePanel";
 import { useEscClose } from "@kernel/DialogShell";
+import { InputDialog } from "@kernel/DialogConfirm";
 import { clampToViewport } from "@kernel/menuClamp";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -81,20 +83,26 @@ export function WorkspaceRowMenu({
   const [busy, setBusy] = useState(false);
   /* 废纸篓武装态:首击仅进入确认,再击执行(codemoss trash 同款两步)。 */
   const [armed, setArmed] = useState(false);
+  /* 重命名弹层开着时锁菜单自身 Esc(Esc 只关弹层,菜单保留)。 */
+  const [renaming, setRenaming] = useState(false);
+  /* 动作失败行内红字(原生 alert 清零:错误落菜单内,不吞菜单可重试)。 */
+  const [error, setError] = useState<string | null>(null);
   const pos = clampMenuPosition(position.x, position.y);
 
-  useEscClose(onClose);
+  useEscClose(onClose, renaming);
 
-  /* 统一执行链:成功关菜单;失败留菜单 + alert(先例:SftpTreeMenu)。 */
+  /* 统一执行链:成功关菜单;失败留菜单 + 行内红字。 */
   const run = (action: () => Promise<unknown> | void) => {
     if (busy) return;
     setBusy(true);
+    setError(null);
     Promise.resolve()
       .then(action)
       .then(onClose)
       .catch((e: unknown) => {
         setBusy(false);
-        window.alert(t("操作失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+        setArmed(false);
+        setError(e instanceof Error ? e.message : String(e));
       });
   };
 
@@ -104,12 +112,7 @@ export function WorkspaceRowMenu({
     if (paths.length > 0) await ipc.gitStage(ws.root, paths);
   };
 
-  const rename = () => {
-    const name = window.prompt(t("设置别名"), workspaceDisplayName(ws));
-    if (name === null) return;
-    setWorkspaceAlias(ws.id, name);
-    onClose();
-  };
+  const rename = () => setRenaming(true);
 
   return createPortal(
     <>
@@ -124,7 +127,7 @@ export function WorkspaceRowMenu({
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
         <RowMenuItem
-          icon={<FilePlus size="0.8125rem" />}
+          icon={<FilePlus size="0.875rem" />}
           label={t("新建文件")}
           busy={busy}
           onClick={() => {
@@ -133,7 +136,7 @@ export function WorkspaceRowMenu({
           }}
         />
         <RowMenuItem
-          icon={<FolderSimplePlus size="0.8125rem" />}
+          icon={<FolderSimplePlus size="0.875rem" />}
           label={t("新建文件夹")}
           busy={busy}
           onClick={() => {
@@ -142,22 +145,22 @@ export function WorkspaceRowMenu({
           }}
         />
         <div className="wsmenu-divider" />
-        <RowMenuItem icon={<Pencil size="0.8125rem" />} label={t("重命名")} busy={busy} onClick={rename} />
+        <RowMenuItem icon={<Pencil size="0.875rem" />} label={t("重命名")} busy={busy} onClick={rename} />
         <RowMenuItem
-          icon={<Copy size="0.8125rem" />}
+          icon={<Copy size="0.875rem" />}
           label={t("复制路径")}
           busy={busy}
           onClick={() => void run(() => copyText(ws.root))}
         />
         <div className="wsmenu-divider" />
         <RowMenuItem
-          icon={<FolderOpen size="0.8125rem" />}
+          icon={<FolderOpen size="0.875rem" />}
           label={t("在访达中显示")}
           busy={busy}
           onClick={() => void run(() => ipc.fsRevealInFileManager(ws.root))}
         />
         <RowMenuItem
-          icon={<Trash size="0.8125rem" />}
+          icon={<Trash size="0.875rem" />}
           label={armed ? t("确认移到废纸篓?") : t("移到废纸篓")}
           danger
           armed={armed}
@@ -175,8 +178,8 @@ export function WorkspaceRowMenu({
         <div className="wsmenu-divider" />
         <div className="panel-ws-menu-group">Git</div>
         <RowMenuItem
-          icon={<GitCommit size="0.8125rem" />}
-          label={t("提交目录...")}
+          icon={<GitCommit size="0.875rem" />}
+          label={t("提交目录…")}
           busy={busy}
           onClick={() => {
             setActiveWorkspace(ws.id);
@@ -185,30 +188,49 @@ export function WorkspaceRowMenu({
           }}
         />
         <RowMenuItem
-          icon={<Stack size="0.8125rem" />}
+          icon={<Stack size="0.875rem" />}
           label={t("添加 / 暂存全部")}
           busy={busy}
           onClick={() => void run(stageAll)}
         />
         <RowMenuItem
-          icon={<DownloadSimple size="0.8125rem" />}
+          icon={<DownloadSimple size="0.875rem" />}
           label={t("更新")}
           busy={busy}
           onClick={() => void run(() => ipc.gitPullPush(ws.root, "pull"))}
         />
         <RowMenuItem
-          icon={<UploadSimple size="0.8125rem" />}
-          label={t("推送...")}
+          icon={<UploadSimple size="0.875rem" />}
+          label={t("推送…")}
           busy={busy}
           onClick={() => void run(() => ipc.gitPullPush(ws.root, "push"))}
         />
         <RowMenuItem
-          icon={<ArrowsDownUp size="0.8125rem" />}
-          label={t("提取...")}
+          icon={<ArrowsDownUp size="0.875rem" />}
+          label={t("提取…")}
           busy={busy}
           onClick={() => void run(() => ipc.gitPullPush(ws.root, "fetch"))}
         />
+        {error && (
+          <div role="alert" className="wsmenu-note text-(--tmd-err)">
+            {t("操作失败:{msg}", { msg: error })}
+          </div>
+        )}
       </div>
+      {renaming && (
+        <InputDialog
+          title={t("重命名")}
+          label={t("设置别名")}
+          initial={workspaceDisplayName(ws)}
+          confirmLabel={t("保存")}
+          icon={<Pencil size="0.875rem" />}
+          onSubmit={(name) => {
+            setWorkspaceAlias(ws.id, name);
+            onClose();
+          }}
+          onClose={() => setRenaming(false)}
+        />
+      )}
     </>,
     document.body,
   );

@@ -3,11 +3,10 @@
  * 覆盖:远端路径工具 parentPath(上级推导/根/无分隔符回落 .)、joinRemote(相对直拼/
  * 根补斜杠/斜杠连接)、basenameOf(posix 与 windows 分隔符混用);
  * 下载/上传传输动作:取消选择零副作用、目录与文件的本地落点拼接、成功后刷新回调、
- * 失败弹错误提示且不误触回调。
- * 依赖 @kernel/ipc(对话框/ipc.sftpTransfer)与 window.alert,均为最小桩。
+ * 失败返回错误文案且不误触回调(原生 alert 清零轮:错误交调用方内联红字)。
+ * 依赖 @kernel/ipc(对话框/ipc.sftpTransfer),均为最小桩。
  */
-import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
-import type { Mock } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 type SharedModule = typeof import("./sftpTreeShared");
 
 const ipcMock = { sftpTransfer: vi.fn() };
@@ -22,7 +21,6 @@ vi.mock("@kernel/i18n", () => ({
 }));
 
 let shared: SharedModule;
-let alert: Mock;
 
 const sftpNode = (path: string, name: string, kind: "dir" | "file") => ({
   path, name, kind, expanded: false, loading: false,
@@ -35,12 +33,6 @@ beforeEach(async () => {
   ipcMock.sftpTransfer.mockReset().mockResolvedValue(undefined);
   pickDir.mockReset().mockResolvedValue(null);
   pickFile.mockReset().mockResolvedValue(null);
-  alert = vi.fn();
-  vi.stubGlobal("window", { alert });
-});
-
-afterEach(() => {
-  vi.unstubAllGlobals();
 });
 
 describe("远端路径工具", () => {
@@ -81,12 +73,12 @@ describe("下载动作 downloadNode", () => {
     expect(ipcMock.sftpTransfer).toHaveBeenCalledWith("s1", "download", "/srv/a.txt", "/local/a.txt", false);
   });
 
-  it("传输失败弹错误提示且含原始消息", async () => {
+  it("传输失败返回错误文案且含原始消息", async () => {
     pickDir.mockResolvedValue("/local");
     ipcMock.sftpTransfer.mockRejectedValue(new Error("perm denied"));
-    await shared.downloadNode("s1", sftpNode("/srv/d", "d", "dir"), false);
-    expect(alert).toHaveBeenCalledTimes(1);
-    expect(String(alert.mock.calls[0]?.[0])).toContain("perm denied");
+    const err = await shared.downloadNode("s1", sftpNode("/srv/d", "d", "dir"), false);
+    expect(err).toContain("perm denied");
+    expect(err).toContain("下载失败");
   });
 });
 
@@ -113,12 +105,13 @@ describe("上传动作 uploadPicked", () => {
     );
   });
 
-  it("上传失败不触发刷新回调,弹错误提示", async () => {
+  it("上传失败不触发刷新回调,返回错误文案", async () => {
     pickFile.mockResolvedValue("/local/a.bin");
     ipcMock.sftpTransfer.mockRejectedValue(new Error("disk full"));
     const onMutate = vi.fn();
-    await shared.uploadPicked("s1", onMutate);
+    const err = await shared.uploadPicked("s1", onMutate);
     expect(onMutate).not.toHaveBeenCalled();
-    expect(String(alert.mock.calls[0]?.[0])).toContain("disk full");
+    expect(err).toContain("disk full");
+    expect(err).toContain("上传失败");
   });
 });

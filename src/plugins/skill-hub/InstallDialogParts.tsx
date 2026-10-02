@@ -28,11 +28,11 @@ export function InstallConflictsPanel({
   if (conflicts.length === 0) return null;
   return (
     <div className="mb-3 rounded border border-(--tmd-border) p-2" data-install-conflicts>
-      <div className="mb-1 text-[11px] font-medium text-(--tmd-err)">
+      <div className="mb-1 text-xs font-medium text-(--tmd-err)">
         {t("{n} 处落位目标已有同名技能", { n: conflicts.length })}
       </div>
       {conflicts.map((c) => (
-        <div key={c.target.dir} className="mb-1 flex items-center gap-2 text-[11px]">
+        <div key={c.target.dir} className="mb-1 flex items-center gap-2 text-xs">
           <span className="min-w-0 flex-1 truncate" title={`${c.target.dir}/${c.name}`}>
             {t(ENGINE_LABELS[c.target.label] ?? c.target.label)} · {c.name}
           </span>
@@ -47,7 +47,7 @@ export function InstallConflictsPanel({
           </label>
         </div>
       ))}
-      <div className="text-[10px] text-(--tmd-fg-faint)">{t("不勾选 = 跳过该目标")}</div>
+      <div className="text-meta text-(--tmd-fg-faint)">{t("不勾选 = 跳过该目标")}</div>
     </div>
   );
 }
@@ -61,7 +61,7 @@ export function InstallStagePanel({
 }) {
   if (stage === null) return null;
   return (
-    <div className="mb-3 rounded bg-(--tmd-bg-sunken) p-2 text-[11px]" data-install-stage={stage}>
+    <div className="mb-3 rounded bg-(--tmd-bg-sunken) p-2 text-xs" data-install-stage={stage}>
       <div className={stage === "error" ? "text-(--tmd-err)" : ""}>
         {t(STAGE_LABELS[stage])}
       </div>
@@ -100,7 +100,7 @@ export function InstallStagePanel({
         <div className="mt-1 text-(--tmd-err)">{outcome.error}</div>
       )}
       {stage === "done" && (
-        <div className="mt-1 text-[10px] text-(--tmd-fg-faint)">
+        <div className="mt-1 text-meta text-(--tmd-fg-faint)">
           {t("生效时间依各家引擎而定:下次会话或 /reload-skills 后可用")}
         </div>
       )}

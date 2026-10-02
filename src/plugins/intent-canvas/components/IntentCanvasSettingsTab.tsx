@@ -35,8 +35,8 @@ export function IntentCanvasSettingsTab() {
     <div className="flex flex-col gap-4 py-3">
       <label className="flex items-center justify-between gap-4">
         <span className="flex flex-col">
-          <span className="text-[0.8125rem] text-(--tmd-fg)">{t("对话中 AI 作画")}</span>
-          <span className="text-[0.6875rem] text-(--tmd-fg-muted)">
+          <span className="text-md text-(--tmd-fg)">{t("对话中 AI 作画")}</span>
+          <span className="text-xs text-(--tmd-fg-muted)">
             {t("总闸。默认每会话不注入:在对话框左下画布图标点开本会话作图标识后,发送才附带画图指令,AI 把绘图文件写进收件箱,画布自动上稿。")}
           </span>
         </span>
@@ -50,11 +50,11 @@ export function IntentCanvasSettingsTab() {
         />
       </label>
       <div className="flex flex-col gap-1">
-        <span className="text-[0.8125rem] text-(--tmd-fg)">{t("AI 作画收件箱(当前工作区)")}</span>
-        <code className="rounded border border-(--tmd-border) bg-(--tmd-bg-sunken) px-2 py-1 text-[0.6875rem] text-(--tmd-fg-muted)">
+        <span className="text-md text-(--tmd-fg)">{t("AI 作画收件箱(当前工作区)")}</span>
+        <code className="rounded border border-(--tmd-border) bg-(--tmd-bg-sunken) px-2 py-1 text-xs text-(--tmd-fg-muted)">
           {inboxPath ?? t("(先选择工作区)")}
         </code>
-        <span className="text-[0.6875rem] text-(--tmd-fg-muted)">
+        <span className="text-xs text-(--tmd-fg-muted)">
           {t("文件名 ai-draw-*.json;导入成功后自动移除,失败文件在 inbox/failed/ 留证。")}
         </span>
       </div>

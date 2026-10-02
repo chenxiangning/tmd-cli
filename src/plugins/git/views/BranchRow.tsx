@@ -1,20 +1,63 @@
 /**
  * BranchView 行件 —— 自 BranchView.tsx 拆出(文件规模铁则)。
  * GroupLabel = 本地/远程分组吸顶标签;BranchRow = 分支行(当前态高亮 /
- * 远程检出 / 行内两步武装删除:首击标红再击执行,双击后一击强删);
+ * 远程检出 / 行内两步武装删除:首击标红再击执行,DangerAction 同款 3s 自动解除);
  * BranchSearchBox = 分支搜索框;GitOpBanner = 错误/提示/执行中反馈三态。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
-import { CircleNotch, GitBranch, Plus, Trash } from "@phosphor-icons/react";
+import { GitBranch, Plus, Trash } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import type { GitBranchInfo } from "@kernel/ipc";
 
 export function GroupLabel({ label }: { label: string }) {
   return (
-    <div className="sticky top-0 mt-1 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-1 py-1 text-[0.625rem] uppercase tracking-wider text-(--tmd-fg-faint)">
+    <div className="sticky top-0 mt-1 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-1 py-1 text-meta uppercase tracking-wider text-(--tmd-fg-faint)">
       {label}
     </div>
+  );
+}
+
+/** 行悬浮提示:远程/有上游/裸本地三档(纯函数抽离降 BranchRow 复杂度)。 */
+function branchRowTitle(branch: GitBranchInfo): string {
+  if (branch.isRemote) return t("点击检出为本地分支并建跟踪;右键更多操作");
+  if (branch.upstream) {
+    return t("上游:{upstream};右键更多操作", { upstream: branch.upstream });
+  }
+  return t("右键更多操作");
+}
+
+/** 行内删除钮:两步武装(DangerAction 同款,首击标红 3s 自动解除,再击执行);
+ *  只做安全删除,未合并分支由后端拒绝并在反馈条报错 —— 不再设双击强删暗道。 */
+function BranchDeleteButton({ onDelete }: { onDelete: (force: boolean) => void }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), 3_000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  const label = armed ? t("再次点击确认删除") : t("删除;再击确认");
+  const handle = () => {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    setArmed(false);
+    onDelete(false);
+  };
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      title={label}
+      aria-label={label}
+      className={`shrink-0 opacity-0 group-hover:opacity-60 ${
+        armed ? "text-(--tmd-diff-removed) opacity-100!" : ""
+      }`}
+    >
+      <Trash className="h-[0.875rem] w-[0.875rem]" aria-hidden />
+    </button>
   );
 }
 
@@ -31,26 +74,6 @@ export function BranchRow({
   onDelete?: (force: boolean) => void;
   onMenu?: (x: number, y: number) => void;
 }) {
-  const [confirmForce, setConfirmForce] = useState(false);
-  const [armedDelete, setArmedDelete] = useState(false);
-
-  /** 行内删除:两步武装(首击标红,再击执行);未合并的强删由后端拒绝。 */
-  const handleDelete = () => {
-    if (!onDelete) return;
-    if (confirmForce) {
-      onDelete(true);
-      setConfirmForce(false);
-      setArmedDelete(false);
-      return;
-    }
-    if (armedDelete) {
-      onDelete(false);
-      setArmedDelete(false);
-      return;
-    }
-    setArmedDelete(true);
-  };
-
   return (
     <div
       className={`group flex items-center gap-1.5 rounded px-2 py-1 ${
@@ -67,38 +90,22 @@ export function BranchRow({
         className={`min-w-0 flex-1 truncate text-left ${
           isCurrent ? "cursor-default font-medium text-(--tmd-accent)" : ""
         }`}
-        title={
-          branch.isRemote
-            ? t("点击检出为本地分支并建跟踪;右键更多操作")
-            : branch.upstream
-              ? t("上游:{upstream};右键更多操作", { upstream: branch.upstream })
-              : t("右键更多操作")
-        }
+        title={branchRowTitle(branch)}
       >
         {branch.name}
-        {isCurrent && <span className="ml-1 text-[0.625rem]">{t("(当前)")}</span>}
+        {isCurrent && <span className="ml-1 text-meta">{t("(当前)")}</span>}
       </button>
       {branch.isRemote && onCheckout && (
         <button
           onClick={onCheckout}
           title={t("检出为本地分支并建跟踪")}
+          aria-label={t("检出为本地分支并建跟踪")}
           className="shrink-0 opacity-0 group-hover:opacity-60"
         >
-          <GitBranch className="h-[0.875rem] w-[0.875rem]" />
+          <GitBranch className="h-[0.875rem] w-[0.875rem]" aria-hidden />
         </button>
       )}
-      {!branch.isRemote && !isCurrent && onDelete && (
-        <button
-          onClick={handleDelete}
-          onDoubleClick={() => setConfirmForce(true)}
-          title={confirmForce ? t("再次点击强制删除(未合并)") : t("删除;未合并时点两次后强制")}
-          className={`shrink-0 opacity-0 group-hover:opacity-60 ${
-            confirmForce || armedDelete ? "text-(--tmd-diff-removed) opacity-100!" : ""
-          }`}
-        >
-          <Trash className="h-[0.875rem] w-[0.875rem]" />
-        </button>
-      )}
+      {!branch.isRemote && !isCurrent && onDelete && <BranchDeleteButton onDelete={onDelete} />}
     </div>
   );
 }
@@ -139,16 +146,17 @@ export function BranchCreateRow({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && onSubmit()}
-        placeholder={t("新分支名...")}
+        placeholder={t("新分支名…")}
         className="min-w-0 flex-1 rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs outline-none focus:border-(--tmd-accent)"
       />
       <button
         onClick={onSubmit}
         disabled={!value.trim() || busy}
         title={t("基于当前 HEAD 创建")}
+        aria-label={t("基于当前 HEAD 创建")}
         className="rounded bg-(--tmd-accent) p-1.5 text-(--tmd-accent-fg) disabled:opacity-40"
       >
-        <Plus className="h-[0.875rem] w-[0.875rem]" />
+        <Plus className="h-[0.875rem] w-[0.875rem]" aria-hidden />
       </button>
     </div>
   );
@@ -167,7 +175,7 @@ export function GitOpBanner({
   return (
     <>
       {error && (
-        <div className="rounded bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-removed)">
+        <div role="alert" className="rounded bg-(--tmd-diff-removed)/8 px-2 py-1 text-(--tmd-diff-removed)">
           {error}
         </div>
       )}
@@ -177,8 +185,8 @@ export function GitOpBanner({
         </div>
       )}
       {busy && (
-        <div className="flex items-center gap-1.5 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("执行中…")}
+        <div className="flex items-center gap-1.5 text-(--tmd-fg-subtle)">
+          <Spinner /> {t("执行中…")}
         </div>
       )}
     </>

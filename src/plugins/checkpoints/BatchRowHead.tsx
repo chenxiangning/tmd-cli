@@ -10,14 +10,18 @@ import type { CkptBatch, CkptPatch } from "@kernel/ipc";
 import { getCachedDiff } from "./diffCache";
 import { openBatchTab } from "./batchTab";
 import { STATE_META, batchState, type BatchStateKey, type BatchStateMeta } from "./batchStateMeta";
+import { countHighRisk } from "./risk";
 
-/** 批头悬浮文案:发起/封口时刻(降分支拆件)。 */
+/** 批头悬浮文案:发起/封口时刻 + 引擎/模型/思考(2026-10 审计:元信息收进
+ *  title 悬停可见,行内只保审计优先级更高的计数/高危/±/状态/时间)。 */
 function headTitle(b: CkptBatch): string {
-  return t("点击审阅该批(用户消息 + 文件 diff) · {ts}", {
-    ts: b.tsEnd
-      ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(b.ts), end: formatAbsolute(b.tsEnd) })
-      : t("{start} 发起", { start: formatAbsolute(b.ts) }),
-  });
+  const ts = b.tsEnd
+    ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(b.ts), end: formatAbsolute(b.tsEnd) })
+    : t("{start} 发起", { start: formatAbsolute(b.ts) });
+  const eng = [b.engine, b.model, b.thinking ? t("思考 {level}", { level: b.thinking }) : ""]
+    .filter(Boolean)
+    .join(" · ");
+  return t("点击审阅该批(用户消息 + 文件 diff) · {ts}", { ts }) + (eng ? ` · ${eng}` : "");
 }
 
 /** 状态点:open 呼吸动画,done 空心(降分支拆件)。 */
@@ -35,7 +39,7 @@ function BatchDot({ st, dot }: { st: BatchStateKey; dot: string }) {
 function BatchPromptLine({ b, st }: { b: CkptBatch; st: BatchStateKey }) {
   return (
     <span className="flex items-baseline gap-1.5 overflow-hidden whitespace-nowrap text-xs">
-      <span className="flex-none text-[0.6875rem] text-(--tmd-fg-faint)">#{b.index}</span>
+      <span className="flex-none text-xs text-(--tmd-fg-faint)">#{b.index}</span>
       <span
         className={`truncate font-medium ${st === "reverted" ? "text-(--tmd-fg-faint) line-through" : "text-(--tmd-fg)"}`}
       >
@@ -49,7 +53,7 @@ function BatchPromptLine({ b, st }: { b: CkptBatch; st: BatchStateKey }) {
 function BatchStateChip({ b, st, meta }: { b: CkptBatch; st: BatchStateKey; meta: BatchStateMeta }) {
   return (
     <span
-      className={`flex-none rounded-full px-1.5 text-[0.625rem] font-semibold leading-[0.875rem] ${meta.chip}`}
+      className={`flex-none rounded-full px-1.5 text-meta font-semibold leading-3.5 ${meta.chip}`}
       title={b.attribution === "events" ? t("归因:AI 写入事件流(账本只记 CLI 声称写过的文件)") : t("归因:窗口内 git 变更推断(该 CLI 未声明写入事件检测,可能有误差)")}
     >
       {t(meta.label)}
@@ -63,25 +67,10 @@ function BatchInferBadge({ b }: { b: CkptBatch }) {
   if (!(b.attribution === "git" && !b.open)) return null;
   return (
     <span
-      className="flex-none rounded border border-dashed border-(--tmd-border-strong) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
+      className="flex-none rounded border border-dashed border-(--tmd-border-strong) px-1 text-2xs leading-3 text-(--tmd-fg-faint)"
       title={t("该 CLI 未声明写入事件检测:批次由 git 变更推断,可能混入手改")}
     >
       {t("推断")}
-    </span>
-  );
-}
-
-/** 引擎/模型/思考摘要 tag(账本随批固化)(降分支拆件)。 */
-function BatchEngineTag({ b }: { b: CkptBatch }) {
-  if (!b.engine && !b.model) return null;
-  return (
-    <span
-      className="min-w-0 truncate text-[0.625rem]"
-      title={[b.engine, b.model, b.thinking ? t("思考 {level}", { level: b.thinking }) : ""].filter(Boolean).join(" · ")}
-    >
-      {b.engine}
-      {b.engine && b.model ? " · " : ""}
-      {b.model}
     </span>
   );
 }
@@ -110,6 +99,8 @@ export function BatchHeadButton({
   const st = batchState(b);
   const meta = STATE_META[st];
   const stats = batchStats(getCachedDiff(cwd, sessionId, b.id));
+  /* 高危计数 pill:批未展开也能一眼看到该批含敏感路径文件(0 不出,宁缺勿噪)。 */
+  const highRisk = countHighRisk(b.files.map((f) => f.path));
   return (
     <button
       type="button"
@@ -123,8 +114,16 @@ export function BatchHeadButton({
       <span className="min-w-0 flex-1">
         {/* 批次标题:text-xs 基准对齐面板体系(此前继承根字号 16px,偏大) */}
         <BatchPromptLine b={b} st={st} />
-        <span className="mt-px flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-[0.6875rem] text-(--tmd-fg-faint)">
+        <span className="mt-px flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-xs text-(--tmd-fg-faint)">
           <span className="flex-none">{t("{n} 文件", { n: b.files.length })}</span>
+          {highRisk > 0 && (
+            <span
+              className="flex-none rounded bg-(--tmd-diff-removed)/15 px-1 text-meta font-bold leading-3.5 text-(--tmd-diff-removed)"
+              title={t("本批含 {n} 个高危文件(凭据/Shell 配置/CI/服务),建议细读 diff 再放行", { n: highRisk })}
+            >
+              {t("{n} 高危", { n: highRisk })}
+            </span>
+          )}
           {stats && (
             <span className="flex-none font-mono">
               <span className="text-(--tmd-diff-inserted)">+{stats.ins}</span>{" "}
@@ -133,7 +132,6 @@ export function BatchHeadButton({
           )}
           <BatchStateChip b={b} st={st} meta={meta} />
           <BatchInferBadge b={b} />
-          <BatchEngineTag b={b} />
           <span className="ml-auto flex-none" title={formatAbsolute(b.ts)}>
             {formatRelativeTime(b.ts)}
           </span>

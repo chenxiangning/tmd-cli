@@ -4,6 +4,7 @@ use serde_json::json;
 use tauri::{AppHandle, Manager};
 
 use super::{conn, devices, pair, server, state};
+#[cfg(debug_assertions)] /* 唯一使用点是 dev 配对提示,release 裁剪后 import 成孤儿 */
 use crate::app_setup::safe_eprintln;
 
 /// 设置里的 Web 访问开关(M1 仅内网;settings.ts 同步增加 webAccessEnabled 字段)。

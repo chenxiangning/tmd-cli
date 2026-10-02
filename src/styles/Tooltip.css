@@ -1,7 +1,7 @@
 /* ──────────────────────────────────────────────────────────
  * Hint(自定义悬浮提示)—— 委托式 data-hint / data-hint-cmd 渲染。
  * 深色气泡 + 可选键帽;位置 top/bottom 自适应,左右贴视口边收敛。
- * 颜色全走 --tmd-* 设计变量;深色气泡 = 反转语义(bg-elevated + 边框)。
+ * 颜色全走 --tmd-* 设计变量;深色气泡 = 反转语义(bg-popover + 边框)。
  * ────────────────────────────────────────────────────────── */
 
 .hint-bubble {
@@ -10,12 +10,12 @@
   max-width: 320px;
   padding: 6px 10px;
   border-radius: var(--tmd-radius-md);
-  background: var(--tmd-bg-elevated);
+  background: var(--tmd-bg-popover);
   border: 1px solid var(--tmd-border);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--tmd-shadow-popover);
   color: var(--tmd-fg);
-  font-size: 0.75rem;
-  line-height: 1.45;
+  font-size: var(--tmd-font-ui);
+  line-height: 1.4;
   pointer-events: none;
   display: flex;
   align-items: center;
@@ -35,7 +35,7 @@
 }
 .hint-keys {
   display: inline-flex;
-  gap: 3px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
@@ -46,12 +46,12 @@
   justify-content: center;
   min-width: 20px;
   height: 18px;
-  padding: 0 5px;
-  border-radius: 4px;
+  padding: 0 4px;
+  border-radius: var(--tmd-radius-xs);
   background: var(--tmd-bg-hover);
   border: 1px solid var(--tmd-border);
   color: var(--tmd-fg);
   font-family: var(--tmd-font-mono, ui-monospace, monospace);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1;
 }

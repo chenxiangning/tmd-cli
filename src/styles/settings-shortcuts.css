@@ -60,7 +60,7 @@
   opacity: 0.7;
 }
 .shortcut-recorder-prompt {
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   line-height: 1.4;
 }
 @keyframes shortcut-recorder-pulse {
@@ -79,7 +79,7 @@
   background: var(--tmd-bg-input);
   color: var(--tmd-fg-muted);
   font: inherit;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   white-space: nowrap;
   cursor: pointer;
 }

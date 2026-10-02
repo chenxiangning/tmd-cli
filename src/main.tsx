@@ -18,9 +18,11 @@ import { isMobileShell } from "./mobile/shared";
 const ICON_CONTEXT = { weight: "bold" } as const;
 
 /* 样式也分家(大仙 2026-09-25:app 与客户端不许混载):mobile 分支只载
- * mobile.css(自持令牌+reset,不依赖桌面 themes.css),桌面分支只载
- * global.css。CSS 动态 import 由 vite 按分支切 chunk,两树互不背对方字节。 */
-const cssPromise = isMobileShell() ? import("./mobile/mobile.css") : import("./styles/global.css");
+ * mobile.css(自持令牌+reset,不依赖桌面 themes.css)+ 暗色映射,桌面分支
+ * 只载 global.css。CSS 动态 import 由 vite 按分支切 chunk,两树互不背对方字节。 */
+const cssPromise = isMobileShell()
+  ? Promise.all([import("./mobile/mobile.css"), import("./mobile/mobile-dark.css")])
+  : import("./styles/global.css");
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 

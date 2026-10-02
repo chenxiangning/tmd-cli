@@ -47,7 +47,7 @@ function Row({
           type="button"
           title={t("为该分支建 worktree")}
           onClick={() => h.onCreateTree(b.name)}
-          className="shrink-0 rounded px-1 py-0.5 text-[0.625rem] text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+          className="shrink-0 rounded px-1 py-0.5 text-meta text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
           {t("建树")}
         </button>
@@ -69,7 +69,7 @@ export function LocalBranchGroups({
     <>
       {groups.main.length > 0 && (
         <>
-          <div className="px-3 pt-1 text-[0.625rem] text-(--tmd-fg-faint)">
+          <div className="px-3 pt-1 text-meta text-(--tmd-fg-faint)">
             {t("主仓检出 ({n})", { n: groups.main.length })}
           </div>
           {groups.main.map((b) => (
@@ -79,7 +79,7 @@ export function LocalBranchGroups({
       )}
       {groups.byTree.map((g) => (
         <div key={g.path}>
-          <div className="mt-1 flex items-center gap-1 px-3 text-[0.625rem] text-(--tmd-fg-faint)">
+          <div className="mt-1 flex items-center gap-1 px-3 text-meta text-(--tmd-fg-faint)">
             <span>
               {t("检出于 {tree}", { tree: g.path.split(/[\\/]/).filter(Boolean).pop() ?? g.path })}
             </span>
@@ -92,7 +92,7 @@ export function LocalBranchGroups({
       ))}
       {groups.free.length > 0 && (
         <>
-          <div className="mt-1 px-3 text-[0.625rem] text-(--tmd-fg-faint)">
+          <div className="mt-1 px-3 text-meta text-(--tmd-fg-faint)">
             {t("未检出 ({n})", { n: groups.free.length })}
           </div>
           {groups.free.map((b) => (

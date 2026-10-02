@@ -35,6 +35,22 @@ function weeksOf(cells: DayCell[]): DayCell[][] {
   return weeks;
 }
 
+/** 热力图例(自 BoardTab 拆入,图例属月历域):文字可读(不 aria-hidden),
+ *  色块 `<i>` 无文本保持装饰性隐藏。 */
+export function HeatLegend() {
+  return (
+    <span className="sb-legend">
+      {t("少")}
+      <i className="sb-lg-0" aria-hidden />
+      <i className="sb-lg-1" aria-hidden />
+      <i className="sb-lg-2" aria-hidden />
+      <i className="sb-lg-3" aria-hidden />
+      <i className="sb-lg-4" aria-hidden />
+      {t("多")} · {t("底点 = 主引擎")}
+    </span>
+  );
+}
+
 export function CalendarGrid({
   view,
   byDay,
@@ -121,7 +137,7 @@ export function CalendarGrid({
                     .filter(Boolean)
                     .join(" ")}
                   onClick={() => onSelect(c.key === selDay ? null : c.key)}
-                  title={`${d.getMonth() + 1}/${d.getDate()} · ${rows.length}`}
+                  title={`${t("{y} 年 {m} 月 {d} 日", { y: view.y, m: d.getMonth() + 1, d: d.getDate() })} · ${rows.length}`}
                 >
                   <span className="sb-cell-head">
                     <span className="sb-cell-n">{d.getDate()}</span>

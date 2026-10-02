@@ -25,6 +25,7 @@ import type { CliSessionTranscript, CliTranscriptBlock } from "@kernel/cli";
 import { pairToolResults, parseTranscriptBlocks, stringField, TRANSCRIPT_BYTES, type TranscriptLineParser } from "../cli-shared/sessionTranscript";
 import { toolPreviewKindOf } from "../cli-shared/sessionTranscript";
 import { messageText } from "../cli-shared/userMessages";
+import { findDshSessionZstd } from "./dshSessionStore";
 
 /** tool/call 的 arguments(JSON 字符串)→ 命令文本(command/cmd 键)。 */
 function dshCommandOf(argumentsJson: string | undefined): string | undefined {
@@ -136,33 +137,8 @@ export const dshTranscriptLine: TranscriptLineParser = (event) => {
   return blocks;
 };
 
-/** session[.vN].jsonl.zstd → 盘面格式版本号(无版本段 = 0);非会话盘文件 = -1。 */
-export function zstdVersionOf(name: string): number {
-  const m = /^session(?:\.v(\d+))?\.jsonl\.zstd$/.exec(name);
-  return m ? Number(m[1] ?? 0) : -1;
-}
-
-/** 定位会话 zstd 文件:扫 ~/.dsh/sessions/<slug>/ 一层找 session-<id> 目录
- *  (deleteHostSession 同款定位纪律:slug 规则不猜,会话 id 全局唯一)。
- *  目录内文件名随 dsh 版本带格式版本号(v0/v3/v4 并存于不同会话),通配
- *  session*.jsonl.zstd 取版本最高者,未来 v5 免改。 */
-async function findDshSessionZstd(cliSessionId: string): Promise<string | null> {
-  const home = await ipc.configHomeDir().catch(() => null);
-  if (!home) return null;
-  const slugs = await ipc.fsListDir(`${home}/.dsh/sessions`).catch(() => []);
-  for (const slug of slugs) {
-    if (!slug.isDir) continue;
-    const hit = (await ipc.fsListDir(slug.path).catch(() => []))
-      .find((e) => e.isDir && (e.name === cliSessionId || e.name === `session-${cliSessionId}`));
-    if (!hit) continue;
-    const best = (await ipc.fsListDir(hit.path).catch(() => []))
-      .map((e) => ({ name: e.name, ver: zstdVersionOf(e.name) }))
-      .filter((f) => f.ver >= 0)
-      .sort((a, b) => b.ver - a.ver)[0];
-    if (best) return `${hit.path}/${best.name}`;
-  }
-  return null;
-}
+/** 会话盘文件名版本号判据:与删除/定位通路共用 dshSessionStore(见该文件头)。 */
+export { zstdVersionOf } from "./dshSessionStore";
 
 /** CliDiskSession(id 即会话 id,path 是 origin 调试串不可用)→ 转录。 */
 export async function readDshSessionTranscript(

@@ -6,8 +6,10 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { DownloadSimple, Eye } from "@phosphor-icons/react";
+import { DownloadSimple, Eye, FolderOpen } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { useSkillRegistry } from "@plugins/cli-shared/skillRegistry";
 import { ENGINE_LABELS, type HubSkill } from "@plugins/cli-shared/skillSources";
 import { ensureSkillScanLoaded, refreshSkillScan, useSkillScan } from "./skillStore";
@@ -44,13 +46,31 @@ export function ImportView() {
   }, [groups, query]);
 
   if (loading && groups.length === 0) {
-    return <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("正在扫描本机 CLI 目录…")}</div>;
+    return (
+      <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">
+        <Spinner /> {t("加载中…")}
+      </div>
+    );
   }
   if (error) {
-    return <div className="py-4 text-center text-xs text-(--tmd-err)">{t("扫描失败")}:{error}</div>;
+    /* 可重试取数失败 = 持久条 + 重试钮(R6 错误契约;扫描即取数) */
+    return (
+      <div className="flex flex-col items-center gap-2 py-8 text-center" role="alert" data-import-error>
+        <div className="text-xs text-(--tmd-err)">{t("扫描失败")}:{error}</div>
+        <button
+          type="button"
+          onClick={() => void refreshSkillScan()}
+          className="rounded border border-(--tmd-border) px-2.5 py-1 text-xs hover:bg-(--tmd-bg-hover)"
+        >
+          {t("重试")}
+        </button>
+      </div>
+    );
   }
   if (groups.length === 0) {
-    return <div className="py-4 text-center text-xs text-(--tmd-fg-faint)">{t("本机未发现任何 CLI 技能目录")}</div>;
+    return (
+      <Empty icon={<FolderOpen aria-hidden />}>{t("本机未发现任何 CLI 技能目录")}</Empty>
+    );
   }
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -71,7 +91,7 @@ export function ImportView() {
             <section key={g.engine} className="mb-5" data-skill-group={g.engine}>
               <div className="mb-2 flex items-center gap-2 border-b border-(--tmd-border) pb-1.5 text-xs text-(--tmd-fg-muted)">
                 <span className="font-medium">{t(ENGINE_LABELS[g.engine] ?? g.engine)}</span>
-                <span className="rounded-full bg-(--tmd-accent-soft) px-1.5 py-px text-[10px] tabular-nums text-(--tmd-fg)">
+                <span className="rounded-full bg-(--tmd-accent-soft) px-1.5 py-px text-meta tabular-nums text-(--tmd-fg)">
                   {g.skills.length}
                 </span>
               </div>
@@ -103,23 +123,23 @@ function ImportSourceCard({ skill, imported, onImport, onPreview }: { skill: Hub
         {skill.name}
       </div>
       {skill.description ? (
-        <div className="line-clamp-2 text-[11px] leading-snug text-(--tmd-fg-muted)">{skill.description}</div>
+        <div className="line-clamp-2 text-xs leading-snug text-(--tmd-fg-muted)">{skill.description}</div>
       ) : (
-        <div className="text-[11px] leading-snug text-(--tmd-fg-faint)">{t("无描述")}</div>
+        <div className="text-xs leading-snug text-(--tmd-fg-faint)">{t("无描述")}</div>
       )}
-      <div className="text-[10px] text-(--tmd-fg-faint) truncate" title={skill.dir}>{skill.dir}</div>
+      <div className="text-meta text-(--tmd-fg-faint) truncate" title={skill.dir}>{skill.dir}</div>
       <div className="mt-auto flex items-center justify-end gap-1 pt-1">
         <button
           type="button"
           onClick={onPreview}
-          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
+          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
           data-skill-detail={skill.name}
         >
-          <Eye size={12} aria-hidden="true" />
+          <Eye size="0.75rem" aria-hidden="true" />
           {t("详情")}
         </button>
         {imported ? (
-          <span className="cursor-default text-[11px] text-(--tmd-fg-faint)" title={t("已在安装记录中;重新导入请先在「已安装」删除")}>
+          <span className="cursor-default text-xs text-(--tmd-fg-faint)" title={t("已在安装记录中;重新导入请先在「已安装」删除")}>
             {t("已导入")}
           </span>
         ) : (
@@ -128,10 +148,10 @@ function ImportSourceCard({ skill, imported, onImport, onPreview }: { skill: Hub
             onClick={onImport}
             disabled={skill.flat}
             title={skill.flat ? t("平铺形(单文件)技能暂不支持跨目录导入") : undefined}
-            className="flex items-center gap-1 rounded border border-(--tmd-border) px-2 py-0.5 text-[11px] hover:bg-(--tmd-bg-hover) disabled:opacity-40"
+            className="flex items-center gap-1 rounded border border-(--tmd-border) px-2 py-0.5 text-xs hover:bg-(--tmd-bg-hover) disabled:opacity-40"
             data-skill-import-btn={skill.name}
           >
-            <DownloadSimple size={11} aria-hidden="true" />
+            <DownloadSimple size="0.75rem" aria-hidden="true" />
             {t("导入")}
           </button>
         )}

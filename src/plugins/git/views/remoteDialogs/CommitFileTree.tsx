@@ -109,9 +109,9 @@ export function CommitFileTree({
               {f.path.split("/").pop()}
             </span>
             {f.binary ? (
-              <span className="shrink-0 text-[0.625rem] text-(--tmd-fg-faint)">binary</span>
+              <span className="shrink-0 text-meta text-(--tmd-fg-faint)">binary</span>
             ) : (
-              <span className="shrink-0 font-mono text-[0.6875rem] tabular-nums">
+              <span className="shrink-0 font-mono text-xs tabular-nums">
                 <span className="text-(--tmd-diff-inserted)">+{f.additions}</span>
                 <span className="mx-0.5 text-(--tmd-fg-faint)">/</span>
                 <span className="text-(--tmd-diff-removed)">-{f.deletions}</span>

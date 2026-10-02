@@ -41,7 +41,7 @@
   min-width: 200px;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--tmd-border) 72%, transparent);
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
   background: color-mix(in srgb, var(--tmd-bg-elevated) 92%, transparent);
   box-shadow: 0 10px 26px color-mix(in srgb, #000 14%, transparent);
   color: var(--tmd-fg);
@@ -76,7 +76,7 @@
   height: 28px;
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--tmd-border) 84%, transparent);
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
   background: color-mix(in srgb, var(--tmd-bg-elevated) 78%, transparent);
   box-shadow: 0 6px 16px color-mix(in srgb, #000 12%, transparent);
   color: var(--tmd-fg-muted);
@@ -93,7 +93,7 @@
 
 .fvp-preview-outline-menu-icon {
   display: grid;
-  gap: 3px;
+  gap: 4px;
   width: 13px;
 }
 
@@ -109,7 +109,7 @@
   top: 0;
   z-index: 1;
   display: flex;
-  padding: 7px 9px 6px;
+  padding: 8px 8px 6px;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
@@ -119,7 +119,7 @@
 
 .fvp-preview-outline .fvp-preview-section-header strong {
   color: var(--tmd-fg);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
 }
 
@@ -158,7 +158,7 @@
   fill: currentColor;
   pointer-events: none;
   transform: rotate(90deg);
-  transition: transform 140ms ease;
+  transition: transform var(--tmd-dur-1) var(--tmd-ease-move);
 }
 
 .fvp-preview-outline-pin-button.is-active .fvp-preview-outline-pin-icon {
@@ -218,8 +218,8 @@
   color: var(--tmd-fg);
   text-align: left;
   cursor: pointer;
-  font-size: 0.875rem;
-  line-height: 18px;
+  font-size: var(--tmd-font-lg);
+  line-height: 20px; /* 微容器行高修正:18px 低于 lg 字号可读行高,升 2px */
   padding: 4px 6px;
 }
 
@@ -239,17 +239,17 @@
 .fvp-preview-outline-level {
   margin-left: 8px;
   color: var(--tmd-fg-muted);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 400;
   flex: 0 0 auto;
 }
 
 .fvp-preview-outline-empty {
   margin: 8px;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: color-mix(in srgb, var(--tmd-bg-hover) 56%, transparent);
   color: var(--tmd-fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.5;
   padding: 8px 10px;
 }

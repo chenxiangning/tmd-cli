@@ -17,7 +17,7 @@ import { PluginBoundary } from "./PluginBoundary";
 
 /** 强制塌陷态的探针子类:SSR 拿不到 componentDidCatch,直接置态钉呈现面。 */
 class FailedBoundary extends PluginBoundary {
-  override state = { failed: true, detail: "画布元素解析失败" };
+  override state = { failed: true, detail: "画布元素解析失败", gen: 0 };
 }
 
 describe("PluginBoundary", () => {
@@ -42,6 +42,8 @@ describe("PluginBoundary", () => {
     expect(html).toContain("intent-canvas");
     expect(html).toContain("画布元素解析失败");
     expect(html).toContain('role="alert"');
+    /* 重试出口在场(贡献位可就地重挂,不必重启应用) */
+    expect(html).toContain("重试该贡献位");
     expect(html).not.toContain("不应渲染");
   });
 });

@@ -7,16 +7,18 @@
 import { useEffect, useRef, useState } from "react";
 import { DownloadSimple, Pencil, Plus, Robot, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
+import { useEscClose } from "@kernel/DialogShell";
 import { importCodemossAgents } from "../importCodemoss";
 import { deleteAgent, saveAgent, useAssets, type Agent } from "../store";
 
 export function AgentTab() {
   const { agents } = useAssets();
   const [editing, setEditing] = useState<Agent | "new" | null>(null);
+  const [deleting, setDeleting] = useState<Agent | null>(null);
   const [report, setReport] = useState("");
 
   const remove = async (agent: Agent) => {
-    if (!window.confirm(t("删除智能体「{name}」?已选中的会话会自动取消。", { name: agent.name }))) return;
     if (!(await deleteAgent(agent.id))) setReport(t("删除失败:写入磁盘未成功"));
   };
 
@@ -59,7 +61,7 @@ export function AgentTab() {
                 <button type="button" className="assets-btn" onClick={() => setEditing(agent)}>
                   <Pencil size="0.75rem" /> {t("编辑")}
                 </button>
-                <button type="button" className="assets-btn is-danger" onClick={() => void remove(agent)}>
+                <button type="button" className="assets-btn is-danger" onClick={() => setDeleting(agent)}>
                   <Trash size="0.75rem" /> {t("删除")}
                 </button>
               </div>
@@ -71,6 +73,16 @@ export function AgentTab() {
         <AgentModal
           agent={editing === "new" ? null : editing}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {deleting && (
+        <ConfirmDialog
+          title={t("删除智能体")}
+          message={t("删除智能体「{name}」?已选中的会话会自动取消。", { name: deleting.name })}
+          confirmLabel={t("删除")}
+          danger
+          onConfirm={() => void remove(deleting)}
+          onClose={() => setDeleting(null)}
         />
       )}
     </div>
@@ -89,6 +101,13 @@ function AgentModal({ agent, onClose }: { agent: Agent | null; onClose: () => vo
     nameRef.current?.focus();
   }, []);
 
+  /* 键盘回路:Esc 关弹层(与点背板取消同义)。 */
+  useEscClose(onClose);
+
+  /* 脏态守卫:有未保存草稿时点背板不关(误击防丢稿;显式取消/Esc 仍可关)。 */
+  const dirty =
+    name !== (agent?.name ?? "") || icon !== (agent?.icon ?? "") || prompt !== (agent?.prompt ?? "");
+
   const submit = async () => {
     if (!name.trim()) {
       setError(t("名称必填"));
@@ -103,8 +122,25 @@ function AgentModal({ agent, onClose }: { agent: Agent | null; onClose: () => vo
   };
 
   return (
-    <div className="assets-modal-backdrop" onClick={onClose}>
-      <div className="assets-modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="assets-modal-backdrop"
+      role="presentation"
+      onClick={(e) => {
+        if (!dirty && e.target === e.currentTarget) onClose();
+      }}
+    >
+      <dialog
+        open
+        className="assets-modal"
+        aria-label={agent ? t("编辑智能体") : t("新建智能体")}
+      >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
         <div className="assets-modal-title">{agent ? t("编辑智能体") : t("新建智能体")}</div>
         <label className="assets-field">
           <span>{t("名称")}</span>
@@ -126,9 +162,10 @@ function AgentModal({ agent, onClose }: { agent: Agent | null; onClose: () => vo
         {error && <div className="assets-error">{error}</div>}
         <div className="assets-modal-actions">
           <button type="button" className="assets-btn" onClick={onClose}>{t("取消")}</button>
-          <button type="button" className="assets-btn is-primary" onClick={() => void submit()}>{t("保存")}</button>
+          <button type="submit" className="assets-btn is-primary">{t("保存")}</button>
         </div>
-      </div>
+      </form>
+      </dialog>
     </div>
   );
 }

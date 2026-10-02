@@ -14,7 +14,7 @@ import type { IntentCanvasDocument } from "./types";
 import { formatIntentCanvasThreadContext } from "./utils/contextFormat";
 import { consumeAttachments, restoreAttachments } from "./store";
 import { aiDrawPref, isSessionDrawMode } from "./aiDrawStore";
-import { aiDrawInboxPathSync, buildAiDrawInstruction } from "./aiDrawPrompt";
+import { aiDrawInboxPathSync, aiDrawLatestCanvasSync, buildAiDrawInstruction } from "./aiDrawPrompt";
 import { activeDocumentRef } from "./activeDocumentBridge";
 
 let lastConsumed: { sessionId: string; documents: IntentCanvasDocument[] } | null = null;
@@ -43,11 +43,16 @@ export const intentCanvasSendTransform: ComposerSendTransform = (text, sessionId
   }
 
   /* AI 作画:全局总闸 + 本会话作图标识(composer 左下画布图标)+ inbox
-     路径已缓存,三者齐备才追加指令段 —— 无标识的普通发送零注入。 */
+     路径已缓存,三者齐备才追加指令段 —— 无标识的普通发送零注入。
+     目标缺省序:编辑器当前文档 → 最近更新画布(缓存,索引读后自喂)。 */
   if (aiDrawPref().enabled && isSessionDrawMode(effectiveSessionId)) {
     const inboxPath = aiDrawInboxPathSync(root);
     if (inboxPath) {
-      next = `${next}\n\n${buildAiDrawInstruction(inboxPath, activeDocumentRef.current)}`;
+      next = `${next}\n\n${buildAiDrawInstruction(
+        inboxPath,
+        activeDocumentRef.current,
+        aiDrawLatestCanvasSync(root),
+      )}`;
     }
   }
   return next;

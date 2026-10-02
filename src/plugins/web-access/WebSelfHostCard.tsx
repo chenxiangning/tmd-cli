@@ -10,9 +10,10 @@
  */
 
 import { useState } from "react";
-import { CheckCircle, CircleNotch, CloudArrowUpIcon as CloudArrowUp, Minus, TerminalWindow, XCircle } from "@phosphor-icons/react";
+import { CheckCircle, CloudArrowUpIcon as CloudArrowUp, Minus, TerminalWindow, XCircle } from "@phosphor-icons/react";
 import { onRelayDeployProgress, relayDeploySelfhost, type RelayDeployProgress, type SelfhostDeployReq, type SelfhostDeployResult } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { isWeb } from "@kernel/transport";
 import type { RelayDeployHistoryEntry } from "@kernel/settings";
 import { deriveStepStates, SELFHOST_STEPS, type SelfhostStepId, type SelfhostStepState } from "./selfhostDeployModel";
@@ -33,7 +34,8 @@ function StepIcon({ state }: { state: SelfhostStepState }) {
   const cls = "h-[0.875rem] w-[0.875rem] shrink-0";
   if (state === "ok") return <CheckCircle className={`${cls} text-[var(--tmd-success)]`} aria-hidden />;
   if (state === "failed") return <XCircle className={`${cls} text-[var(--tmd-error)]`} aria-hidden />;
-  if (state === "running") return <CircleNotch className={`${cls} animate-spin text-[var(--tmd-accent)]`} aria-hidden />;
+  /* 运行步:统一 Spinner 原语(14px 档,与步图标同尺寸) */
+  if (state === "running") return <Spinner size="0.875rem" className="shrink-0 text-(--tmd-accent)" />;
   return <Minus className={`${cls} text-[var(--tmd-fg-faint)]`} aria-hidden />;
 }
 
@@ -216,7 +218,7 @@ export function WebSelfHostCard() {
         </div>
       )}
       {submitted && (
-        <ol className="flex flex-col gap-1 rounded border border-[var(--tmd-border)] bg-[var(--tmd-surface-1)] px-2.5 py-2">
+        <ol className="flex flex-col gap-1 rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] px-2.5 py-2">
           {SELFHOST_STEPS.map((id) => (
             <li key={id} className="flex flex-col gap-0.5">
               <span className="flex items-center gap-1.5 text-xs">

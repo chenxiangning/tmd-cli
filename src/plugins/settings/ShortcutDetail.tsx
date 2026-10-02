@@ -22,7 +22,7 @@ import { effectiveLabel } from "./shortcutListModel";
 /** 大键帽(详情面板录制态显示区)。 */
 function BigKeyCap({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-[6px] border border-(--tmd-border-strong) bg-(--tmd-bg-input) px-3 py-2 font-mono text-[0.875rem] text-(--tmd-fg)">
+    <span className="inline-flex items-center rounded-[6px] border border-(--tmd-border-strong) bg-(--tmd-bg-input) px-3 py-2 font-mono text-sm text-(--tmd-fg)">
       {label}
     </span>
   );
@@ -123,14 +123,14 @@ function Recorder({ cmd }: { cmd: CommandContribution }) {
         )}
       </button>
       {recording ? (
-        <p className="mt-1 text-[0.6875rem] text-(--tmd-fg-muted)">
+        <p className="mt-1 text-xs text-(--tmd-fg-muted)">
           {t("按 Esc 取消 · Backspace 解绑")}
         </p>
       ) : null}
       {shownError ? (
         <p
           data-testid={`shortcut-recorder-error-${cmd.id}`}
-          className="mt-1 text-[0.6875rem] text-(--tmd-err)"
+          className="mt-1 text-xs text-(--tmd-err)"
         >
           {shownError}
         </p>
@@ -153,7 +153,7 @@ export function DetailPanel({
     <div className="pref-card sticky top-0 flex flex-col gap-3 p-4" data-testid={`shortcut-detail-${cmd.id}`}>
       <div>
         <div className="pref-title">{t(cmd.title)}</div>
-        <div className="text-[0.6875rem] text-(--tmd-fg-faint) font-mono">{cmd.id}</div>
+        <div className="text-xs text-(--tmd-fg-faint) font-mono">{cmd.id}</div>
       </div>
       <Recorder cmd={cmd} />
       <div className="flex items-center gap-2">

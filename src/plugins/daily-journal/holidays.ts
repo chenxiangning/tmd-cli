@@ -46,6 +46,15 @@ export function holOf(y: number, m: number, d: number): string | null {
   return hit?.off ? hit.name : null;
 }
 
+/** 某日是否调休上班日(off:false 条目此前被 holOf 丢弃,周末底纹无从豁免);
+ *  无数据/离线返回 false(宁画周末纹,不误判上班日)。 */
+export function isWorkdayOverride(y: number, m: number, d: number): boolean {
+  if (!getEnabled()) return false;
+  const days = store.snapshot.byYear[y];
+  const hit = days?.[`${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`];
+  return hit != null && !hit.off;
+}
+
 /** 启用开关注入(避免 holidays → journalStore → taskQueue 循环依赖;config 读取走注入口)。 */
 let enabledFn: () => boolean = () => true;
 export function bindHolidayEnabled(fn: () => boolean): void {

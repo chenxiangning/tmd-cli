@@ -33,7 +33,6 @@ export const skillHubPlugin: Plugin = {
       label: "Skills",
       icon: PuzzlePiece,
       component: SkillHubPanel,
-      showFileSubbar: false,
       order: 32, /* 能力生态组次席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
       railGroup: "ecosystem",
       railBottom: true,

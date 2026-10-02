@@ -20,7 +20,7 @@ import {
 import { getWallpaperState, updateWallpaperState, useWallpaperState } from "./store";
 import { applyWallpaperPunch, wireWallpaperThemeFollow } from "./punch";
 import { useWallpaperSrc } from "./useWallpaperSrc";
-import { FluidBackdrop, WORKSPACE_FLUID_SPEED } from "./FluidBackdrop";
+import { FluidBackdrop } from "./FluidBackdrop";
 
 /** 设置面板打开时壁纸提层(class is-lifted → z 40,壁纸态层梯见 wallpaper.css):
  *  三栏(无 z)之上、titlebar(45)/插排页(50)/设置面板(100)之下。
@@ -73,11 +73,8 @@ export function WallpaperLayer() {
       data-mode={state.mode}
     >
       {state.mode === "fluid" ? (
-        <FluidBackdrop
-          presetId={state.fluidPreset}
-          motionId={state.fluidMotion}
-          speed={WORKSPACE_FLUID_SPEED}
-        />
+        /* speed 走 FluidBackdrop 缺省(WORKSPACE_FLUID_SPEED),此处只传用户态。 */
+        <FluidBackdrop presetId={state.fluidPreset} motionId={state.fluidMotion} />
       ) : (
         <img
           className="tmd-wallpaper-img"

@@ -8,6 +8,7 @@
 import React from "react";
 import { t } from "@kernel/i18n";
 import { useMobile, endpointCandidates, endpointKind } from "./shared";
+import { SheetBase } from "./SheetBase";
 import { loadChannelPin, saveChannelPin } from "./creds";
 import {
   activeRemoteEndpoint,
@@ -102,7 +103,7 @@ function ChannelPanel(props: {
             onClick={() => props.onPick(u)}
           >
             <span className="tick">{pin === u ? "✓" : ""}</span>
-            <span className="min-w-0 flex-1 truncate">{channelLabel(u)}</span>
+            <span className="fx-ellip">{channelLabel(u)}</span>
             {props.connected && props.active === u && <span className="chip b">{t("当前")}</span>}
           </button>
         ))}
@@ -148,16 +149,9 @@ export function HostChip() {
         <span className="cv">▾</span>
       </button>
       {sheet && (
-        <div className="sheet-scrim" onClick={() => setSheet(false)}>
-          <button
-            type="button"
-            aria-label={t("关闭")}
-            style={{ position: "absolute", inset: 0, cursor: "default", background: "none", border: "none" }}
-            onClick={() => setSheet(false)}
-          />
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-h">{t("连接")}</div>
-            <StatusPanel
+        <SheetBase onClose={() => setSheet(false)} label={t("连接")}>
+          <div className="sheet-h">{t("连接")}</div>
+          <StatusPanel
               hostName={creds.hostName}
               connected={connected}
               paused={paused}
@@ -213,8 +207,7 @@ export function HostChip() {
                 ? t("已手动断开:不会自动重连,点「重新连接」恢复。")
                 : t("断开=暂停自动重连(如临时省电);桌面撤销或踢除设备需重新扫码配对。")}
             </div>
-          </div>
-        </div>
+        </SheetBase>
       )}
     </>
   );

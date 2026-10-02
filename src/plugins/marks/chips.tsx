@@ -20,11 +20,11 @@ export function MarksComposerChips() {
   if (staged.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5 border-b border-(--tmd-border) px-2.5 py-1.5">
-      <span className="text-[0.65rem] text-(--tmd-fg-faint)">{t("标记引用")}</span>
+      <span className="text-meta text-(--tmd-fg-faint)">{t("标记引用")}</span>
       {staged.map((mark) => (
         <div
           key={mark.id}
-          className="inline-flex items-center gap-1 rounded-full border border-(--tmd-warn) py-px pl-1.5 pr-1 text-[0.65rem] text-(--tmd-fg)"
+          className="inline-flex items-center gap-1 rounded-full border border-(--tmd-warn) py-px pl-1.5 pr-1 text-meta text-(--tmd-fg)"
           title={mark.note ? `${mark.path}:${mark.startLine}-${mark.endLine} · ${mark.note}` : `${mark.path}:${mark.startLine}-${mark.endLine}`}
         >
           <button

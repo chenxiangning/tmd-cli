@@ -5,7 +5,8 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ChatText, CircleNotch, FloppyDisk } from "@phosphor-icons/react";
+import { ArrowLeft, ChatText, FloppyDisk } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { t } from "@kernel/i18n";
 import { cn } from "../utils/cn";
 import type { ExcalidrawInitialDataState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
@@ -119,7 +120,7 @@ export function IntentCanvasEditor({
         </div>
         <div className="intent-canvas-editor-actions">
           <span className={cn("intent-canvas-save-state", isDirty && "is-dirty")}>
-            {isSaving ? t("保存中...") : isDirty ? t("未保存") : t("已保存")}
+            {isSaving ? t("保存中…") : isDirty ? t("未保存") : t("已保存")}
           </span>
           <button type="button" onClick={() => void handleSave()} disabled={isSaving}>
             <FloppyDisk aria-hidden />
@@ -164,7 +165,7 @@ export function IntentCanvasEditor({
           <Suspense
             fallback={
               <div className="intent-canvas-loading">
-                <CircleNotch aria-hidden className="is-spinning" /> {t("正在加载画布...")}
+                <Spinner /> {t("加载中…")}
               </div>
             }
           >

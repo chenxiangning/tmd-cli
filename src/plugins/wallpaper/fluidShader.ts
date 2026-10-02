@@ -8,8 +8,7 @@
  * DSH-Transparent-UI-Plugin, MIT License, Copyright (c) 2026 John Wu)。
  *
  * WebGL2 缺失 / 编译失败 → 静默 no-op 句柄(绝不能阻塞首屏)。
- * prefers-reduced-motion 画一帧静帧;profile=lite 供低性能路径
- * (12fps / 半分辨率 / chase 降段)。
+ * prefers-reduced-motion 画一帧静帧。
  */
 
 import {
@@ -109,8 +108,6 @@ function hexToRgb(value: string): [number, number, number] {
     parseInt(hex.slice(4, 6), 16) / 255,
   ];
 }
-
-export type FluidShaderProfile = "full" | "lite";
 
 export type FluidShaderAttachOptions = {
   /**
@@ -213,10 +210,8 @@ function warnFluidShader(stage: string, detail: string | null): void {
 export function attachFluidShader(
   canvas: HTMLCanvasElement,
   params: FluidParams,
-  profile: FluidShaderProfile = "full",
   options: FluidShaderAttachOptions = {},
 ): FluidShaderHandle {
-  const lite = profile === "lite";
   const forceAnimate = options.forceAnimate === true;
   const deferChase = options.deferChase === true;
   const gl = getWebGL2Context(canvas);
@@ -465,30 +460,20 @@ export function attachFluidShader(
   let flowHeight = 0;
   let flip = false;
   let current: FluidParams = { ...params };
-  const dprCap = lite ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
-  const resolutionScale = lite ? 0.5 : 1;
+  const dprCap = Math.min(window.devicePixelRatio || 1, 1.5);
   // Drift keeps the flow ping-pong at 30. Structured fields (chase
   // especially) have no flow pass — present at display refresh so the
   // curtain walk does not quantize into 30 fps steps.
-  const fpsFor = (mode: number): number => {
-    if (lite) return 12;
-    return mode === 0 ? 30 : 60;
-  };
+  const fpsFor = (mode: number): number => (mode === 0 ? 30 : 60);
   const measureCanvasSize = (): { nextWidth: number; nextHeight: number } => ({
-    nextWidth: Math.max(
-      1,
-      Math.round(canvas.clientWidth * dprCap * resolutionScale),
-    ),
-    nextHeight: Math.max(
-      1,
-      Math.round(canvas.clientHeight * dprCap * resolutionScale),
-    ),
+    nextWidth: Math.max(1, Math.round(canvas.clientWidth * dprCap)),
+    nextHeight: Math.max(1, Math.round(canvas.clientHeight * dprCap)),
   });
   ({ nextWidth: width, nextHeight: height } = measureCanvasSize());
   canvas.width = width;
   canvas.height = height;
-  flowWidth = Math.max(1, Math.round(width / (lite ? 6 : 4)));
-  flowHeight = Math.max(1, Math.round(height / (lite ? 6 : 4)));
+  flowWidth = Math.max(1, Math.round(width / 4));
+  flowHeight = Math.max(1, Math.round(height / 4));
 
   const initial = new Uint8Array(flowWidth * flowHeight * 4);
   for (let i = 0; i < flowWidth * flowHeight; i += 1) {
@@ -587,15 +572,12 @@ export function attachFluidShader(
     gl.uniform1f(locs.shapeScale, p.shapeScale / 100);
     gl.uniform1f(locs.distortion, p.distortion / 100);
     gl.uniform1f(locs.swirl, p.swirl / 50);
-    gl.uniform1f(
-      locs.swirlIterations,
-      lite ? Math.min(p.swirlIterations, 4) : p.swirlIterations,
-    );
+    gl.uniform1f(locs.swirlIterations, p.swirlIterations);
     gl.uniform1i(locs.flowmap, 0);
     gl.uniform1f(locs.distortBoost, p.distortBoost);
     gl.uniform1f(locs.noiseBoost, p.noiseBoost);
     gl.uniform1f(locs.swirlBoost, p.swirlBoost);
-    gl.uniform1f(locs.strokeScale, lite ? 2.4 : 1.0);
+    gl.uniform1f(locs.strokeScale, 1.0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   };
 

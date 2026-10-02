@@ -29,7 +29,7 @@
   gap: 10px;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent);
-  border-radius: 14px;
+  border-radius: var(--tmd-radius-lg);
   background: color-mix(in srgb, var(--surface-card) 88%, transparent);
 }
 
@@ -38,7 +38,7 @@
   align-items: center;
   justify-content: space-between;
   color: var(--fvp-reader-muted);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
 }
 
@@ -48,24 +48,24 @@
   min-height: 96px;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: var(--tmd-radius-md);
   background: color-mix(in srgb, var(--surface-control) 40%, transparent);
   color: var(--fvp-reader-muted);
   text-align: center;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
 }
 
 .fvp-pdf-page-error {
-  color: #f87171;
+  color: var(--tmd-err);
 }
 
 .fvp-pdf-canvas {
   width: 100%;
   max-width: 100%;
   align-self: center;
-  border-radius: 12px;
+  border-radius: var(--tmd-radius-lg);
   background: #fff;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--tmd-shadow-modal);
 }
 
 /* ── 表格 ── */
@@ -82,20 +82,20 @@
   background: color-mix(in srgb, var(--surface-control) 42%, transparent);
   color: var(--text-muted);
   padding: 6px 12px;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
 }
 
 .fvp-tabular-sheet-tab.is-active {
   border-color: color-mix(in srgb, var(--border-accent) 66%, transparent);
-  background: color-mix(in srgb, var(--surface-active) 52%, #5f9dff 10%);
+  background: color-mix(in srgb, var(--surface-active) 52%, var(--tmd-accent) 10%);
   color: var(--text-stronger);
 }
 
 .fvp-tabular-table-wrap {
   overflow: auto;
   border: 1px solid color-mix(in srgb, var(--border-subtle) 68%, transparent);
-  border-radius: 12px;
+  border-radius: var(--tmd-radius-lg);
   background: color-mix(in srgb, var(--surface-card) 90%, transparent);
 }
 
@@ -110,7 +110,7 @@
   border-right: 1px solid color-mix(in srgb, var(--border-subtle) 42%, transparent);
   padding: 8px 10px;
   color: var(--fvp-reader-text);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.5;
   vertical-align: top;
   white-space: pre-wrap;
@@ -133,13 +133,13 @@
   gap: 14px;
   max-width: 860px;
   color: var(--fvp-reader-text);
-  line-height: 1.7;
+  line-height: 1.5;
 }
 
 .fvp-document-preview-article :where(h1, h2, h3, h4, h5, h6) {
   margin: 0;
   color: var(--text-stronger);
-  line-height: 1.35;
+  line-height: 1.4;
   scroll-margin-top: 18px;
 }
 
@@ -158,7 +158,7 @@
   gap: 14px;
   padding: 24px;
   color: var(--text-muted);
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   text-align: center;
 }
 

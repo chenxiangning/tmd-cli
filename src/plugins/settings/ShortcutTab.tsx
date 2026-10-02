@@ -34,6 +34,14 @@ export function ShortcutTab() {
   const ovVersion = useShortcutOverridesVersion();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /* 全部重置两步武装(循 PromptHistoryManager 先例):首击变红「确认重置?」,
+     再击执行;3s 未确认自动还原,失焦也还原。 */
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const id = window.setTimeout(() => setArmed(false), 3000);
+    return () => window.clearTimeout(id);
+  }, [armed]);
   const [nameByPluginId] = useState(() => {
     const map = new Map<string, string>();
     for (const { plugin } of host.listPluginStates()) {
@@ -73,10 +81,20 @@ export function ShortcutTab() {
         <button
           type="button"
           data-testid="shortcut-reset-all"
-          onClick={resetAll}
-          className="shortcut-reset"
+          onBlur={() => setArmed(false)}
+          onClick={() => {
+            if (!armed) {
+              setArmed(true);
+              return;
+            }
+            resetAll();
+            setArmed(false);
+          }}
+          className={`shortcut-reset${
+            armed ? " border-red-400/50 bg-red-400/15 text-red-400" : ""
+          }`}
         >
-          {t("全部重置")}
+          {armed ? t("确认重置?") : t("全部重置")}
         </button>
       </div>
       {groups.length === 0 ? (

@@ -107,17 +107,25 @@ function projectEvent(event, sid) {
     const toolName = str(data.name) || null;
     let output = data.result ?? data.output ?? extractText(blocks);
     output = unwrapReadResult(output);
-    let isError = false;
-    for (const b of blocks) {
-      if (b && b.isError === true) { isError = true; break; }
+    /* 失败判据两代都要认(2026-10-02 真实会话盘采样):
+     * - v3 包裹形:isError 在 message.content 的 tool-result part 上(实测 ERR 帧);
+     * - v4 扁平形:isError 在 message 本体(toolCallId 也在本体);
+     * - 失败帧另带 data.error = {name,code[,reason]}(无 message 字段)。
+     * 旧实现只看 content block 的 isError,v4 帧的失败全部按成功渲染(绿底)。 */
+    const directError = data.message?.isError === true;
+    let isError = directError || !!err;
+    if (!isError) {
+      for (const b of blocks) {
+        if (b && b.isError === true) { isError = true; break; }
+      }
     }
+    const reason = str(err?.reason) || str(err?.code) || str(err?.name) || null;
     return [{ sid, kind: "tool-result",
-      id: str(data.message?.source?.callId) || str(data.callId) || null,
+      id: str(data.message?.toolCallId) || str(data.message?.source?.callId) || str(data.callId) || null,
       name: toolName,
       output,
-      error: isError
-        ? (str(output) || "error")
-        : (str(err) || (err && str(err.message)) || null) }];
+      /* error 既是失败标志也是失败文案:有 host 原因用原因,否则退回输出首段。 */
+      error: isError ? (reason || str(output) || "error") : null }];
   }
 
   return [];
@@ -164,15 +172,35 @@ function projectFrame(value, channel, sessionId) {
     if (v.type === "assistant-stream") return projectAssistantStream(v, sessionId);
     if (v.type === "event" && v.event) return projectEvent(v.event, sessionId);
     if (v.type === "snapshot") {
-      return [{ sid: sessionId, kind: "snapshot",
+      const actions = [{ sid: sessionId, kind: "snapshot",
         records: Array.isArray(v.records) ? v.records : [],
         header: v.header || null,
         projections: v.projections || null }];
+      /* 流式中途重开(适配器重启/另一个客户端在跑):快照带
+       * assistantStream.activeAttempt.stream = 已流出的活体前缀帧
+       * ({time,chunk} 数组,dsh-api-session-controller AssistantStreamAccumulator
+       * 实证)。不补投影这段前缀,重开后只有后半段增量,而 settle 后的 durable
+       * assistant/message 又被 attemptStreamed 去重 → 整条回复永久缺头。 */
+      const stream = v.assistantStream?.activeAttempt?.stream;
+      if (Array.isArray(stream) && stream.length > 0) {
+        actions.push({ sid: sessionId, kind: "attempt-start",
+          attemptId: str(v.assistantStream?.activeAttempt?.attemptId) });
+        for (const entry of stream) {
+          if (entry && entry.chunk) actions.push(...projectAssistantStream({ frame: { type: "chunk", chunk: entry.chunk } }, sessionId));
+        }
+      }
+      return actions;
     }
     return [];
   }
   if (channel === "events") {
     if (v.type === "ready") return [{ sid: null, kind: "events-ready", clientId: v.clientId || null }];
+    /* 待答 waterfall 被撤销(host 侧超时/另一端已作答/栅栏):收卡清 pending,
+     * 否则卡片一直挂着,↑↓ 被死卡吞、y/n 把陈旧 eventId 发出去。 */
+    if (v.type === "cancel") {
+      const eventId = str(v.eventId);
+      return eventId ? [{ sid: null, kind: "cancel", eventId }] : [];
+    }
     if (v.type === "waterfall") {
       const sid = str(v.agentId);
       const eventId = str(v.eventId);

@@ -13,7 +13,7 @@
   background: var(--tmd-border-strong);
   cursor: pointer;
   flex: none;
-  transition: background 0.15s;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .cli-cfg-switch::after {
@@ -26,7 +26,7 @@
   border-radius: 50%;
   background: var(--tmd-bg-elevated);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
-  transition: left 0.15s;
+  transition: left var(--tmd-dur-1) var(--tmd-ease-move);
 }
 
 .cli-cfg-switch.is-on {
@@ -97,7 +97,7 @@
   border: none;
   color: var(--tmd-fg-subtle);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
 }
 
 .cli-cfg-icon-btn:hover:not(:disabled) {
@@ -114,12 +114,12 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border: 1px dashed var(--tmd-border-strong);
   border-radius: 999px;
   background: none;
   color: var(--tmd-fg-muted);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
 }
 
@@ -138,12 +138,12 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   background: var(--tmd-bg-popover);
   border: 1px solid var(--tmd-border-strong);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.14);
-  font-size: 0.75rem;
+  border-radius: var(--tmd-radius-lg);
+  box-shadow: var(--tmd-shadow-popover);
+  font-size: var(--tmd-font-ui);
   z-index: 5;
 }
 
@@ -156,9 +156,9 @@
   align-items: center;
   gap: 4px;
   white-space: nowrap;
-  padding: 5px 14px;
-  border-radius: 7px;
-  font-size: 0.75rem;
+  padding: 4px 14px;
+  border-radius: var(--tmd-radius-sm);
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
   border: 1px solid var(--tmd-border-strong);
   background: var(--tmd-bg-elevated);
@@ -189,9 +189,9 @@
   background: var(--tmd-bg-popover);
   color: var(--tmd-fg);
   border: 1px solid var(--tmd-border-strong);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
   box-shadow: 0 8px 20px rgb(0 0 0 / 0.18);
   z-index: 40;
 }
@@ -206,8 +206,8 @@
   border: 1px solid var(--tmd-warn-border, var(--tmd-border-strong));
   background: var(--tmd-warn-bg, var(--tmd-bg-sunken));
   border-radius: var(--tmd-radius-md);
-  font-size: 0.75rem;
-  line-height: 1.55;
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
 }
 
 .cli-cfg-error p {
@@ -219,7 +219,7 @@
   background: none;
   border: none;
   color: var(--tmd-accent);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
   white-space: nowrap;
   padding: 4px;
@@ -238,7 +238,7 @@
 
 .cli-cfg-raw .cm-editor {
   height: 100%;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
 }
 
 .cli-cfg-raw .cli-cfg-savebar {

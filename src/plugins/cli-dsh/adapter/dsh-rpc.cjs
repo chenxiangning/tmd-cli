@@ -10,6 +10,7 @@
  */
 
 const http = require("http");
+const print = require("./dsh-print.cjs");
 
 const RPC_TIMEOUT_MS = 30_000;
 let authCookie = "";
@@ -68,12 +69,13 @@ async function rpcCall(origin, method, args) {
   }
 }
 
-/** $events/result 应答;失败打错误行防「应答石沉大海」。 */
+/** $events/result 应答;失败打错误行防「应答石沉大海」。
+ *  走 print.error(底栏所有权 + 换行),不裸写 stdout —— 否则与内容行/底栏撞行。 */
 async function respondEvent(origin, eventId, outcome) {
   const r = await rpcCall(origin, "$events/result", {
     clientId: eventsClientId, eventId, outcome,
   });
-  if (!r.ok) process.stdout.write(`\x1b[31m[错误]\x1b[0m 应答失败: ${r.error}\n`);
+  if (!r.ok) print.error(`应答失败: ${r.error}`);
   return r;
 }
 
@@ -87,11 +89,14 @@ function respondQuestion(origin, eventId, answers) {
   return respondEvent(origin, eventId, { kind: "result", value: { answers } });
 }
 
-/** 问答取消 = rejected outcome(host restoreRemoteEventRejection 还原为取消)。 */
+/** 问答取消 = rejected outcome(host restoreRemoteEventRejection 还原为取消)。
+ *  Rejection 线格式(实测 dsh-api-gateway parseRemoteEventRejection)要求
+ *  `name` 非空 + `message` 必填(可带 code/details);缺 name 会被整包拒成
+ *  "invalid Remote event rejection",本地收了卡而 host 侧一直阻塞到超时。 */
 function respondQuestionCancel(origin, eventId) {
   return respondEvent(origin, eventId, {
     kind: "rejected",
-    error: { code: "cancelled", message: "the user cancelled ask_user_question" },
+    error: { name: "Error", code: "cancelled", message: "the user cancelled ask_user_question" },
   });
 }
 

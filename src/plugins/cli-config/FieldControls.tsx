@@ -60,7 +60,7 @@ export function ModelMapInput({
             aria-label={t("删除")}
             onClick={() => onSet(value.filter((_, j) => j !== i))}
           >
-            <Trash size={13} />
+            <Trash size="0.875rem" />
           </button>
         );
         /* multi(回退链):角色一行、候选若干行、添加候选收尾 —— 纵向分组对齐 */
@@ -115,7 +115,7 @@ export function ModelMapInput({
         className="cli-cfg-add"
         onClick={() => onSet([...value, [field.keyOptions?.[0] ?? "", ""]])}
       >
-        <Plus size={12} /> {t("添加")}
+        <Plus size="0.75rem" /> {t("添加")}
       </button>
     </div>
   );
@@ -166,7 +166,7 @@ export function OrderedListInput({
             disabled={i === 0}
             onClick={() => move(i, -1)}
           >
-            <ArrowUp size={12} />
+            <ArrowUp size="0.75rem" />
           </button>
           <button
             type="button"
@@ -175,7 +175,7 @@ export function OrderedListInput({
             disabled={i === value.length - 1}
             onClick={() => move(i, 1)}
           >
-            <ArrowDown size={12} />
+            <ArrowDown size="0.75rem" />
           </button>
           <button
             type="button"
@@ -183,7 +183,7 @@ export function OrderedListInput({
             aria-label={t("删除")}
             onClick={() => onSet(value.filter((_, j) => j !== i))}
           >
-            <Trash size={13} />
+            <Trash size="0.875rem" />
           </button>
         </div>
       ))}
@@ -193,7 +193,7 @@ export function OrderedListInput({
         onClick={() =>
           onSet([...value, strVal(typeof candidates[0] === "string" ? candidates[0] : candidates[0]?.value ?? "")])}
       >
-        <Plus size={12} /> {t("添加候选")}
+        <Plus size="0.75rem" /> {t("添加候选")}
       </button>
     </div>
   );

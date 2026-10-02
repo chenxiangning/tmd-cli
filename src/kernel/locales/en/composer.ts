@@ -17,10 +17,8 @@ export const MESSAGES = {
   "命令与技能(⌘K)": "Commands & skills (⌘K)",
 
   /* view/Composer.tsx */
-  "输入消息,⌘/Ctrl+回车发送,回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。":
-    "Type a message. ⌘/Ctrl+Enter sends, Enter inserts a newline. Use / commands, $ skills, @ files, !! prompts, ## agents. Drop files or ⌘V-paste images to insert references.",
-  "输入消息,回车发送,Shift+回车换行。可用 / 命令 / $ skill / @ 文件 / !! 提示词 / ## 智能体。拖入文件或 ⌘V 粘贴图片会自动插入引用。":
-    "Type a message. Enter sends, Shift+Enter inserts a newline. Use / commands, $ skills, @ files, !! prompts, ## agents. Drop files or ⌘V-paste images to insert references.",
+  "输入消息,⌘/Ctrl+Enter 发送 · / 唤起命令": "Type a message. ⌘/Ctrl+Enter sends · type / for commands",
+  "输入消息,Enter 发送 · / 唤起命令": "Type a message. Enter sends · type / for commands",
   "发送失败:会话已断开,内容已保留": "Send failed: session disconnected — draft kept",
   "{n} 路中 {m} 路发送失败,内容已保留": "{m} of {n} sends failed — draft kept",
   "发送失败:会话已断开": "Send failed: session disconnected",
@@ -38,6 +36,7 @@ export const MESSAGES = {
 
   /* view/DrawerItemList.tsx + drawerSections.ts (consumed at call sites) */
   "暂无命令或技能": "No commands or skills yet",
+  "去插件市场": "Go to plugin market",
   "⚡ 发送到幕布": "⚡ Send to terminal",
   "↵ 插入输入框": "↵ Insert into input",
   "⇱ 打开面板": "⇱ Open panel",
@@ -94,11 +93,16 @@ export const MESSAGES = {
   /* SendConfirmDialog + BehaviorTab(spec 2026-09-27-composer-send-confirm) */
   "确认发送": "Confirm send",
   "发送目标": "Send target",
-  "将发送到 {n} 块幕布:": "Will broadcast to {n} panes:",
-  "幕布 {n}": "Pane {n}",
+  "将发送到 {n} 块幕布:": "Will broadcast to {n} terminals:",
+  "幕布 {n}": "Terminal {n}",
   "当前": "current",
   "内容": "Content",
   "Enter 确认 · Esc 取消": "Enter to confirm · Esc to cancel",
   "发送二次确认": "Send confirmation",
   "发送前弹窗确认目标会话与内容预览,防平铺模式发错会话;Enter 确认,Esc 取消。": "Confirm target session and preview content before sending — guards against mis-sends in tiled mode. Enter confirms, Esc cancels.",
+  /* 工具栏徽标与附件(2026-10 i18n 收口) */
+  "命令与技能": "Commands & skills",
+  "远程": "Remote",
+  "移除 {name}": "Remove {name}",
+  "释放以附加文件 / 图片": "Drop to attach files / images",
 } as Record<string, string>;

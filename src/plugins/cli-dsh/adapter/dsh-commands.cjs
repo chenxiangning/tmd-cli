@@ -9,9 +9,23 @@ const print = require("./dsh-print.cjs");
 const T = require("./dsh-theme.cjs");
 const render = require("./dsh-render.cjs");
 
+/** 读者模式下放行的只读命令:看上下文/帮助/模型列表/退出。 */
+const READ_ONLY_CMDS = new Set(["context", "help", "exit", "models"]);
+
 async function handleStdin(line, ctx) {
   const s = line.trim();
   if (!s) return;
+  /* 读者模式(写句柄被 DeepSeek 客户端/别的 tmd 会话持有):写入类输入一律
+     拦下并说明 —— 发 prompt / 切模型 / 跑命令都会被 host 以 writer-held 拒,
+     与其让用户看到一串 RPC 报错,不如一句话讲清原因和出路。 */
+  if (ctx.readOnly) {
+    const cmd = s.startsWith("/") ? s.slice(1).split(" ")[0] : "";
+    const hasArg = s.includes(" ");
+    if (!READ_ONLY_CMDS.has(cmd) && !(cmd === "model" && !hasArg)) {
+      print.error("只读会话:写句柄被其他客户端持有,发送与命令均不可用;关闭占用方后重新打开即可续接。");
+      return;
+    }
+  }
   if (s.startsWith("/")) {
     const [cmd, ...rest] = s.slice(1).split(" ");
     const arg = rest.join(" ");
@@ -60,9 +74,12 @@ async function doContext(ctx) {
   if (!v?.contextPressure) { print.status("host 未返回上下文投影"); return; }
   const cp = v.contextPressure, b = v.contextBreakdown || {}, u = v.tokenUsage || {};
   const k = (n) => (n == null ? "—" : T.formatTokens(n));
+  /* 取值序对齐官方 contextOccupancy:projectedTokens 优先(pressureTokens 是最近一次
+     provider 上报量,压缩/替换后停在旧的偏大值)。 */
+  const used = cp.projectedTokens ?? cp.pressureTokens;
   print.nl();
   print.print(T.bold(T.fg("text", "上下文占用:")));
-  print.print(`  ${T.fg("muted", "窗口")}: ${k(cp.contextWindow)} · ${T.fg("muted", "已用")}: ${k(cp.pressureTokens)} (${Math.round(((cp.pressureTokens || 0) / (cp.contextWindow || 1)) * 100)}%)`);
+  print.print(`  ${T.fg("muted", "窗口")}: ${k(cp.contextWindow)} · ${T.fg("muted", "已用")}: ${k(used)} (${Math.round(((used || 0) / (cp.contextWindow || 1)) * 100)}%)`);
   print.print(`  ${T.fg("muted", "分解")}: 系统 ${k(b.systemTokens)} · 工具 ${k(b.toolsTokens)} · 消息 ${k(b.messageTokens)}`);
   print.print(`  ${T.fg("muted", "本轮")}: 输入 ${k(u.uncachedInputTokens)} · 输出 ${k(u.outputTokens)} · 缓存读 ${k(u.cacheReadTokens)}`);
   print.nl();

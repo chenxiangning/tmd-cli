@@ -29,7 +29,7 @@ export function WsfbChromeTop({
         <input
           type="text"
           value={query}
-          placeholder={t("搜索文件...")}
+          placeholder={t("搜索文件…")}
           onChange={(e) => onQuery(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Escape") {

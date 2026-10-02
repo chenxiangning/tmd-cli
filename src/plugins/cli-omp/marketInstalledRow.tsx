@@ -5,8 +5,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { CaretDown, CircleNotch } from "@phosphor-icons/react";
+import { CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import type { ProcRunResult } from "@kernel/ipc";
 import { fetchPkgDescription, type InstalledExt } from "./catalog";
 import { LogArea } from "./marketCards";
@@ -80,7 +81,7 @@ function InstalledRowAction({
     <div className="omp-ext-row-action">
       {running === "toggle" ? (
         <span className="omp-ext-running">
-          <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
+          <Spinner />
           {ext.enabled ? t("停用中") : t("启用中")}
         </span>
       ) : (
@@ -95,7 +96,7 @@ function InstalledRowAction({
       )}
       {running === "uninstall" ? (
         <span className="omp-ext-running">
-          <CircleNotch size="0.75rem" className="omp-ext-spin" aria-hidden />
+          <Spinner />
           {t("卸载中")}
         </span>
       ) : armed ? (

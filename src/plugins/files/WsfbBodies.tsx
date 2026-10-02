@@ -4,8 +4,10 @@
  * 列表渲染本体见 WsfbLists;此处只做态选择与空/加载分支。
  */
 
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { FolderOpen, GitDiff } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import type { DirEntry } from "@kernel/ipc";
 import type { ChangedChild } from "./workspaceBrowserModel";
 import { WsfbAllFilesList, WsfbChangedList, WsfbSearchList, type WsfbRowMenu } from "./WsfbLists";
@@ -24,6 +26,7 @@ export function SearchBody({
   ignored,
   rowMenu,
   onPick,
+  onRetry,
 }: {
   hits: string[] | null;
   /** walk 满额(SEARCH_WALK_CAP):命中集可能不完整,空结果别当「没有」。 */
@@ -36,9 +39,35 @@ export function SearchBody({
   ignored: readonly string[];
   rowMenu: WsfbRowMenu;
   onPick: (path: string) => void;
+  /** 失败条重试:重跑 walk 扫描(不伪装成空命中)。 */
+  onRetry: () => void;
 }) {
-  if (error) return <div className="wsfb-empty">{t("搜索失败")}</div>;
-  if (hits == null) return <div className="wsfb-empty">{t("搜索中…")}</div>;
+  /* 搜索失败是取数错误,不进空态形制:持久 alert 条 + 重试钮。 */
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-(--tmd-err)"
+      >
+        <span>{t("搜索失败")}</span>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="shrink-0 rounded border border-current px-2 py-0.5 hover:opacity-80"
+        >
+          {t("重试")}
+        </button>
+      </div>
+    );
+  }
+  if (hits == null) {
+    return (
+      <div className="wsfb-empty flex items-center justify-center gap-1.5">
+        <Spinner />
+        <span>{t("搜索中…")}</span>
+      </div>
+    );
+  }
   if (hits.length === 0) {
     return (
       <div className="wsfb-empty">
@@ -86,7 +115,9 @@ export function ChangedBody({
   onSelect: (path: string) => void;
   onToggleDir: (path: string) => void;
 }) {
-  if (rootKids.length === 0) return <div className="wsfb-empty">{t("没有变更文件")}</div>;
+  if (rootKids.length === 0) {
+    return <Empty icon={<GitDiff />}>{t("没有变更文件")}</Empty>;
+  }
   return (
     <WsfbChangedList
       rootKids={rootKids}
@@ -126,15 +157,15 @@ export function AllFilesBody({
 }) {
   if (loading && entries.length === 0) {
     return (
-      <div className="file-tree-loading-row" role="status" aria-live="polite">
-        <span className="file-tree-loading-spinner" aria-hidden>
-          <ArrowClockwise size="0.75rem" />
-        </span>
+      <div className="file-tree-loading-row">
+        <Spinner />
         <span>{t("加载中…")}</span>
       </div>
     );
   }
-  if (entries.length === 0) return <div className="wsfb-empty">{t("目录为空")}</div>;
+  if (entries.length === 0) {
+    return <Empty icon={<FolderOpen />}>{t("目录为空")}</Empty>;
+  }
   return (
     <WsfbAllFilesList
       entries={entries}

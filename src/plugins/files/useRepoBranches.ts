@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { usePanelActive } from "@kernel/panelActivity";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 
@@ -19,6 +20,7 @@ const KIND_LABEL: Record<GitRepoSummary["kind"], string | null> = {
 };
 
 export function useRepoBranches(root: string): ReadonlyMap<string, string> {
+  const panelActive = usePanelActive();
   const [tags, setTags] = useState<ReadonlyMap<string, string>>(new Map());
   useEffect(() => {
     if (!root) {
@@ -45,12 +47,12 @@ export function useRepoBranches(root: string): ReadonlyMap<string, string> {
     };
     scan();
     const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") scan();
+      if (panelActive && document.visibilityState === "visible") scan();
     }, SLOW_POLL_MS);
     return () => {
       alive = false;
       window.clearInterval(id);
     };
-  }, [root]);
+  }, [root, panelActive]);
   return tags;
 }

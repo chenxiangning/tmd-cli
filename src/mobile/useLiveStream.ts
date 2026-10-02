@@ -7,12 +7,16 @@
  * - loadEarlier:复用 session_history_page 分页(start_offset/has_more 桌面现成),
  *   剥 ANSI 线性文本前置渲染——LiveScreen 是 append-only VT 模型,不可前插字节。
  * - 尺寸:手机 useTerminalFit 随容器发 session_resize(与桌面共享同一 PTY),
- *   每 3s 校 session_size,变了即按新几何重建 + 重放日志尾(真机双页脚实证);
- *   事件跳帧(Lagged)同路立即重建。
+ *   每 3s 校 session_size,变了即按新几何重建 + 重放日志尾(真机双页脚实证)。
+ * - 内容零丢失(P0):事件跳帧(Lagged)与断连重连(onRemoteConnection 翻转)
+ *   都按水位比对触发一次 rebuild 回放 —— 断连窗口的输出不再成永久缺口。水位 =
+ *   尾页 start_offset+text.length,实况 chunk 到达即累加;回放期间新 chunk 进
+ *   缓冲换屏后排空(与首载同一套序),免换屏竞态丢字节。
  * - rAF 脏标合帧:全量 view() 重建压到 ≤60Hz。
+ * - useSessionExit:pty://exit 订阅 + 列表消失兜底(会话屏终局横幅的数据面)。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { invoke, onEventGap } from "@kernel/transport";
+import { invoke, listen, onEventGap, onRemoteConnection } from "@kernel/transport";
 import { stripAnsi } from "@kernel/askDetect";
 import { LiveScreen } from "./liveText";
 import { onPtyOut } from "./remote";
@@ -41,6 +45,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
     let alive = true;
     let off: (() => void) | null = null;
     let gapOff: (() => void) | null = null;
+    let connOff: (() => void) | null = null;
     let timer = 0;
     setLive("");
     setEarlier("");
@@ -58,7 +63,14 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       const buffered: string[] = [];
       let streaming = false;
       let screen = new LiveScreen(undefined, undefined);
+      /* 内容水位(字符近似):尾页 total / 实况 chunk 累加;断连重连后比对,
+       * 涨了 = 断连窗口有漏 → 回放。多字节字符下有轻漂移,容忍:漏报回落旧
+       * 行为(下轮 3s 几何校准兜不住则维持缺口),多报只是一次多余回放。 */
+      let watermark = 0;
+      /* 首载完成闸:未完不回放(首载本身就是全量拉尾,抢跑会双喂)。 */
+      let ready = false;
       const feedChunk = (chunk: string) => {
+        watermark += chunk.length;
         screen.feed(chunk);
         if (dirty) return;
         dirty = true;
@@ -81,6 +93,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       if (size) screen = new LiveScreen(size[0], size[1]);
       if (page) {
         screen.feed(page.text);
+        watermark = page.start_offset + page.text.length;
         earliestRef.current = page.start_offset;
         setHasMore(page.has_more);
       }
@@ -88,6 +101,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       setLive(screen.view());
       for (const chunk of buffered) feedChunk(chunk);
       buffered.length = 0;
+      ready = true;
       const sizeKey = { current: size ? `${size[0]}x${size[1]}` : "" };
       const rebuild = () => {
         if (!alive) return;
@@ -101,10 +115,39 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
           const p = await pageOf(Number.MAX_SAFE_INTEGER);
           if (!alive) return;
           if (p?.text) screen.feed(p.text);
+          if (p) watermark = p.start_offset + p.text.length;
           setLive(screen.view());
         })();
       };
-      gapOff = onEventGap(rebuild);
+      /* 断连重连 / 事件 Lagged 回放:拉尾页比对水位,涨了 = 有漏 → 按当前几何
+       * 重建重放日志尾;没涨 = 什么都不漏,免重建。回放期间 streaming 关闭,新
+       * chunk 进缓冲,换屏后按序排空(与首载同序,免换屏竞态丢字节)。 */
+      let replaying = false;
+      const replay = () => {
+        if (!alive || replaying || !ready) return;
+        replaying = true;
+        streaming = false;
+        void (async () => {
+          const p = await pageOf(Number.MAX_SAFE_INTEGER);
+          const s = p ? await sizeOf() : null;
+          if (alive && p && s && p.start_offset + p.text.length > watermark) {
+            sizeKey.current = `${s[0]}x${s[1]}`;
+            screen = new LiveScreen(s[0], s[1]);
+            screen.feed(p.text);
+            watermark = p.start_offset + p.text.length;
+            setLive(screen.view());
+          }
+          if (!alive) return;
+          streaming = true;
+          for (const chunk of buffered) feedChunk(chunk);
+          buffered.length = 0;
+          replaying = false;
+        })();
+      };
+      gapOff = onEventGap(replay);
+      connOff = onRemoteConnection((st) => {
+        if (st.connected) replay();
+      });
       timer = window.setInterval(rebuild, 3000);
     })();
     return () => {
@@ -112,6 +155,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       clearInterval(timer);
       off?.();
       gapOff?.();
+      connOff?.();
     };
   }, [sessionId]);
 
@@ -141,4 +185,54 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
   }, [sessionId]);
 
   return { live, earlier, hasMore, loadingEarlier, loadEarlier };
+}
+
+/** 会话退出订阅(conn.rs event_allowed 已放行 pty://exit/{id})+ 列表消失
+ *  兜底:订阅生效前进程已死会错过事件 → 轮询发现会话不在列表也视为退出
+ *  (须先见过它在表:防「刚 spawn 尚未入表」误判)。onExit 两条路合计恰一次。 */
+export function useSessionExit(
+  sessionId: string | undefined,
+  sessions: { id: string }[],
+  onExit: () => void,
+): void {
+  const cb = useRef(onExit);
+  /* 最新回调对齐移入 effect(渲染期写 ref 破坏 render 纯性):每次 commit 后
+     同步,cb.current() 只在订阅/轮询事件里调用,读到的恒是最新一帧闭包。 */
+  useEffect(() => {
+    cb.current = onExit;
+  });
+  const firedRef = useRef(false);
+  const seenRef = useRef(false);
+  const fire = () => {
+    if (firedRef.current) return;
+    firedRef.current = true;
+    cb.current();
+  };
+  useEffect(() => {
+    firedRef.current = false;
+    seenRef.current = false;
+    if (!sessionId) return;
+    let alive = true;
+    let off: (() => void) | null = null;
+    void listen<{ code: number | null }>(`pty://exit/${sessionId}`, () => {
+      if (alive) fire();
+    })
+      .then((f) => {
+        if (alive) off = f;
+        else f();
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+      off?.();
+    };
+  }, [sessionId]);
+  useEffect(() => {
+    if (!sessionId || firedRef.current) return;
+    if (sessions.some((s) => s.id === sessionId)) {
+      seenRef.current = true;
+      return;
+    }
+    if (seenRef.current) fire();
+  }, [sessions, sessionId]);
 }

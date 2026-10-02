@@ -15,6 +15,7 @@ import { ensurePdfPreviewWorker } from "./pdfRuntime";
 import { PdfPageCanvas } from "./PdfPageCanvas";
 import { loadPreviewBytes } from "./previewBytes";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import {
   extractPdfPreviewOutline,
   type PreviewOutlineItem,
@@ -182,7 +183,12 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
   }, [visiblePageNumbers]);
 
   if (isRuntimeLoading) {
-    return <div className="fvp-status">{t("加载中…")}</div>;
+    return (
+      <div className="fvp-status flex items-center justify-center gap-1.5">
+        <Spinner />
+        {t("加载中…")}
+      </div>
+    );
   }
 
   if (runtimeError) {

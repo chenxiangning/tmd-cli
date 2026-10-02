@@ -14,6 +14,12 @@ import { refreshSkillScan } from "./skillStore";
 
 type HubView = "installed" | "store" | "import";
 
+/** payload.view 深链(右栏面板空态直达商店):非法/缺失回落「已安装」。 */
+function viewFromPayload(payload: unknown): HubView {
+  const v = (payload as { view?: unknown } | null)?.view;
+  return v === "store" || v === "import" ? v : "installed";
+}
+
 function viewButton(active: boolean): string {
   return `flex items-center gap-1 rounded px-2 py-1 text-xs ${
     active
@@ -23,10 +29,14 @@ function viewButton(active: boolean): string {
 }
 
 export function SkillHubTab({ tab }: { tab: EditorTab }) {
-  const [view, setView] = useState<HubView>("installed");
+  const [view, setView] = useState<HubView>(() => viewFromPayload(tab.payload));
   useEffect(() => {
     if (tab.id) void refreshSkillScan();
   }, [tab.id]);
+  /* 深链重开(openSkillHubTab("store") 对已开 tab 刷 payload)跟随切视图。 */
+  useEffect(() => {
+    setView(viewFromPayload(tab.payload));
+  }, [tab.payload]);
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-skill-hub={view}>
@@ -36,7 +46,7 @@ export function SkillHubTab({ tab }: { tab: EditorTab }) {
           className={viewButton(view === "installed")}
           onClick={() => setView("installed")}
         >
-          <PuzzlePiece size={13} aria-hidden="true" />
+          <PuzzlePiece size="0.875rem" aria-hidden="true" />
           {t("已安装")}
         </button>
         <button
@@ -44,7 +54,7 @@ export function SkillHubTab({ tab }: { tab: EditorTab }) {
           className={viewButton(view === "store")}
           onClick={() => setView("store")}
         >
-          <Storefront size={13} aria-hidden="true" />
+          <Storefront size="0.875rem" aria-hidden="true" />
           {t("技能商店")}
         </button>
         <button
@@ -52,7 +62,7 @@ export function SkillHubTab({ tab }: { tab: EditorTab }) {
           className={viewButton(view === "import")}
           onClick={() => setView("import")}
         >
-          <ArrowSquareIn size={13} aria-hidden="true" />
+          <ArrowSquareIn size="0.875rem" aria-hidden="true" />
           {t("本地导入")}
         </button>
       </div>

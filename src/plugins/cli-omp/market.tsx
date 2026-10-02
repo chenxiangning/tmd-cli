@@ -41,10 +41,22 @@ function ExtMarketHead({
         </span>
       ) : null}
       <span className="omp-ext-head-space" />
-      <button type="button" className="omp-ext-iconbtn" title={t("刷新")} onClick={onRefresh}>
+      <button
+        type="button"
+        className="omp-ext-iconbtn"
+        title={t("刷新")}
+        aria-label={t("刷新")}
+        onClick={onRefresh}
+      >
         <ArrowClockwise size="0.75rem" aria-hidden />
       </button>
-      <button type="button" className="omp-ext-iconbtn" title={t("关闭")} onClick={onClose}>
+      <button
+        type="button"
+        className="omp-ext-iconbtn"
+        title={t("关闭")}
+        aria-label={t("关闭")}
+        onClick={onClose}
+      >
         <Cross size="0.875rem" aria-hidden />
       </button>
     </header>
@@ -84,8 +96,22 @@ function ExtMarketBody({
         {t("已安装({n})", { n: installed?.length ?? "…" })}
       </div>
       {installedError ? (
-        <div className="omp-ext-state">
-          {t("无法解析已装清单:{error}", { error: installedError })}
+        /* 清单解析失败 = 持久条 + 重试(R6 错误契约;重试 = 重拉已装清单)。 */
+        <div
+          className="mb-1 flex items-start justify-between gap-2 rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-2.5 py-1.5 text-xs leading-relaxed text-(--tmd-diff-removed)"
+          role="alert"
+          data-omp-installed-error
+        >
+          <span className="min-w-0 break-all">
+            {t("无法解析已装清单:{error}", { error: installedError })}
+          </span>
+          <button
+            type="button"
+            onClick={onRefreshInstalled}
+            className="flex-none rounded border border-(--tmd-border) px-2 py-0.5 text-xs text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
+          >
+            {t("重试")}
+          </button>
         </div>
       ) : installed === null ? (
         <div className="omp-ext-state">{t("读取已装清单…")}</div>

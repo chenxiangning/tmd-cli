@@ -27,7 +27,7 @@
   margin-left: var(--workspace-tree-indent);
   text-align: left;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   display: inline-block;
   box-shadow: none;
   outline: none;
@@ -103,26 +103,23 @@
   color: var(--text-faint);
   cursor: pointer;
   opacity: 0;
-  transition:
-    opacity 0.12s ease,
-    transform 0.2s ease,
-    background-color 0.12s ease,
-    color 0.12s ease;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out), transform var(--tmd-dur-2) var(--tmd-ease-move), background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .thread-actions.is-pinned .thread-gear-btn { color: var(--text-muted); }
 .thread-gear-btn:hover { background: var(--surface-hover); color: var(--text-strong); }
 .thread-actions.open .thread-gear-btn {
   opacity: 1;
-  background: var(--surface, var(--bg-elevated, #fff));
-  box-shadow: 0 0 0 1px var(--border, rgba(0, 0, 0, 0.1));
-  color: var(--text-strong);
+  background: var(--tmd-bg-popover);
+  box-shadow: 0 0 0 1px var(--tmd-border);
+  color: var(--tmd-fg);
   transform: rotate(90deg);
 }
 
 /* 环形操作组(portal + fixed:环心=齿轮屏幕坐标,右半环展开朝编辑区)。
    定位走 transform + --dx/--dy px 变量(JS 注入,含 14px 居中补偿),
-   left/top 恒 0 —— 动画从环心(translate 0)飞到环位,不吃父级 overflow。 */
+   left/top 恒 0 —— 动画从环心(translate 0)飞到环位,不吃父级 overflow。
+   元素经 createPortal 挂 body,侧栏作用域变量不可达,一律用全局 --tmd-*。 */
 .sv-radial {
   position: fixed;
   width: 0;
@@ -140,13 +137,13 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
-  background: var(--surface, var(--bg-elevated, #fff));
+  border: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-popover);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
-  color: var(--text-muted);
+  color: var(--tmd-fg-muted);
   cursor: pointer;
   transform: translate(var(--dx), var(--dy));
-  animation: sv-radial-pop 0.2s cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
+  animation: sv-radial-pop var(--tmd-dur-2) cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
 }
 
 @keyframes sv-radial-pop {
@@ -157,17 +154,17 @@
 }
 
 .sv-radial-item:hover {
-  color: var(--text-strong);
-  border-color: var(--text-faint);
+  color: var(--tmd-fg);
+  border-color: var(--tmd-fg-subtle);
   transform: translate(var(--dx), var(--dy)) scale(1.12);
 }
 
-.sv-radial-item.is-danger { color: #cf222e; }
-.sv-radial-item.is-danger:hover { border-color: #cf222e; }
+.sv-radial-item.is-danger { color: var(--tmd-err); }
+.sv-radial-item.is-danger:hover { border-color: var(--tmd-err); }
 .sv-radial-item.is-armed {
-  background: #cf222e;
-  border-color: #cf222e;
-  color: #fff;
+  background: var(--tmd-err);
+  border-color: var(--tmd-err);
+  color: var(--tmd-bg-base);
 }
 
 /* 透明背板(点外关闭,wsmenu-backdrop 同层语义) */
@@ -218,7 +215,7 @@
   font-size: var(--sidebar-caption-font-size);
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   text-align: left;
   width: 100%;
 }

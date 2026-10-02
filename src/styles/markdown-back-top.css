@@ -11,20 +11,17 @@
   z-index: 9;
   display: block;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: color-mix(in srgb, var(--tmd-bg-elevated) 70%, transparent);
   backdrop-filter: blur(10px);
   color: var(--tmd-fg);
-  font-size: 0.875rem;
-  line-height: 1.2;
-  padding: 7px 9px;
+  font-size: var(--tmd-font-lg);
+  line-height: 1.3;
+  padding: 8px 8px;
   text-align: center;
   cursor: pointer;
   user-select: none;
-  transition:
-    opacity 120ms ease,
-    transform 120ms ease,
-    background 120ms ease;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out), transform var(--tmd-dur-1) var(--tmd-ease-move), background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .fvp-preview-back-top::before {

@@ -25,6 +25,7 @@ import { CanvasComposerChips } from "./components/CanvasComposerChips";
 import { ComposerDrawToggle } from "./components/ComposerDrawToggle";
 import { IntentCanvasSettingsTab } from "./components/IntentCanvasSettingsTab";
 import { registerIntentCanvasSendTransform } from "./sendTransform";
+import { startAiDrawInboxPoller } from "./aiDrawPoller";
 import { purgeSessionState } from "./store";
 import { toggleSessionDrawMode } from "./aiDrawStore";
 import { KernelTopics } from "@kernel/events";
@@ -114,7 +115,13 @@ export const intentCanvasPlugin: Plugin = {
       purgeSessionState(sessionId);
       toggleSessionDrawMode(sessionId, false);
     });
-    /* 发送变换反注册钩交生命周期账本(熔断/重激活不留双份注入)。 */
-    return registerIntentCanvasSendTransform();
+    /* inbox 常驻轮询(activate 级,脱离画布 tab 挂载周期)+ 发送变换反注册
+       钩交生命周期账本(熔断/重激活不留双份轮询/双份注入)。 */
+    const stopPoller = startAiDrawInboxPoller();
+    const offSendTransform = registerIntentCanvasSendTransform();
+    return () => {
+      offSendTransform();
+      stopPoller();
+    };
   },
 };

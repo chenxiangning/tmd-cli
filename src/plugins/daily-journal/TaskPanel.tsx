@@ -4,14 +4,15 @@
  */
 import { ListChecks, TerminalWindow, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
 import { DialogShell } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
-import { stringHue } from "@kernel/colorHash";
 import type { GenTask } from "./taskQueue";
 import { cancelTask, enqueueTask, removeTask, useGenTasks } from "./taskQueue";
 import { addBead } from "./journalStore";
 import { hmNow } from "./timeUtil";
 import { openArticleTab } from "./journalTabs";
+import { EngMark } from "./EngMark";
 
 /** 取消一枚任务(排队/运行皆可);定时族取消补「尝试过」珠防 15min 对表复活。 */
 function cancelRow(task: GenTask): void {
@@ -29,7 +30,7 @@ function TaskRow({ task }: { task: GenTask }) {
       <div className="dj-ti-main">
         <div className="dj-ti-top">
           {m}/{d} · {t(task.type)}
-          <i className="dj-ti-eng" style={{ background: `hsl(${stringHue(task.engine)} 52% 48%)` }} />
+          <EngMark id={task.engine} />
           {task.engine}
           {task.st === "run" && <span className="dj-ti-live">{t("后台运行中")}</span>}
         </div>
@@ -38,7 +39,8 @@ function TaskRow({ task }: { task: GenTask }) {
       <div className="dj-ti-acts">
         {task.st === "run" && openSession && (
           <button type="button" className="dj-btn" onClick={openSession}>
-            <TerminalWindow size={10} /> {t("打开会话")}
+            {/* 密集任务行小钮图标:10px 例外档 */}
+            <TerminalWindow size="0.625rem" /> {t("打开会话")}
           </button>
         )}
         {(task.st === "queue" || task.st === "run") && (
@@ -72,7 +74,8 @@ function TaskRow({ task }: { task: GenTask }) {
               removeTask(task.id);
             }}
           >
-            <X size={10} />
+            {/* 密集任务行小钮图标:10px 例外档(同上) */}
+            <X size="0.625rem" />
           </button>
         )}
       </div>
@@ -89,14 +92,17 @@ export function TaskPanel({ onClose }: { onClose: () => void }) {
   return (
     <DialogShell
       title={t("后台任务 · 生成队列")}
-      icon={<ListChecks size={13} />}
+      icon={<ListChecks size="0.875rem" />}
       width={600}
       onClose={onClose}
       footer={<span className="dj-tpanel-foot-text">{t("任务由 app 后台调度;生成会话是真实 CLI 会话,随时可打开插话干涉。")}</span>}
     >
       <div className="dj-modal-body dj-modal-body-flush">
           {run.length + queue.length + done.length === 0 && (
-            <div className="dj-tpanel-empty">{t("暂无任务:生成会在后台排队执行,切走模块/失焦不中断。")}</div>
+            /* 空态统一 Empty 形制(图标 + 一句话);说明文案沿用原句。 */
+            <div className="dj-tpanel-empty">
+              <Empty icon={<ListChecks size="0.875rem" />}>{t("暂无任务:生成会在后台排队执行,切走模块/失焦不中断。")}</Empty>
+            </div>
           )}
           {run.length > 0 && (
             <>

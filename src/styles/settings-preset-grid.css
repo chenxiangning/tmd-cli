@@ -74,7 +74,7 @@
 .preset-thumb-side span:first-child {
   flex: 0 0 14px;
   margin: 6px 4px 0;
-  border-radius: 3px;
+  border-radius: 3px; /* 预设缩略图条纹:微径保留不入阶梯 */
 }
 
 .preset-thumb-main {
@@ -87,7 +87,7 @@
 
 .preset-thumb-main i {
   height: 6px;
-  border-radius: 3px;
+  border-radius: 3px; /* 6px 高条纹:半径=半高 pill */
   display: block;
 }
 

@@ -1,11 +1,15 @@
 /**
  * 首页页脚 —— RESUME(全工作区 × 已安装 CLI 磁盘会话,时间倒序前 8 条,
  * 点击 host.openDiskSession 直接续上;手动刷新经 refreshTick 重扫)+ QUOTA
- * (页级凭据盘点按供应商 title 去重聚合的套餐水位)。数据源与消费面见 WelcomePage。
+ * (页级凭据盘点按供应商 title 去重聚合的套餐水位)+ GitHub 仓库链接
+ * (自标题条收纳至此,弱陈述不打断主列扫描)。数据源与消费面见 WelcomePage。
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { ChartBar, Clock } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
+import { Empty } from "@kernel/Empty";
+import { openExternalUrl } from "@kernel/ipc";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
@@ -17,6 +21,7 @@ import type { EngineCredential } from "./credentials";
 const RESUME_LIMIT = 8;
 /** 配额告警线(与行内块条同语义)。 */
 const QUOTA_HOT_PCT = 90;
+const GITHUB_URL = "https://github.com/chenxiangning/tmd-cli";
 
 interface ResumeItem {
   profile: CliProfile;
@@ -149,7 +154,7 @@ export function WelcomeFooter({
         <h3>resume — {t("续作")}</h3>
         {items === null && <div className="welcome-resume-empty">…</div>}
         {items?.length === 0 && (
-          <div className="welcome-resume-empty">{t("暂无历史会话")}</div>
+          <Empty icon={<Clock aria-hidden />}>{t("暂无历史会话")}</Empty>
         )}
         {items?.map((item) => (
           <button
@@ -170,7 +175,7 @@ export function WelcomeFooter({
       <div className="col">
         <h3>quota — {t("套餐水位")}</h3>
         {quotas.length === 0 && (
-          <div className="welcome-quota-empty">{t("暂无可查询的套餐额度")}</div>
+          <Empty icon={<ChartBar aria-hidden />}>{t("暂无可查询的套餐额度")}</Empty>
         )}
         {quotas.map((q) => (
           <div key={q.title} className="welcome-quota-row">
@@ -193,6 +198,18 @@ export function WelcomeFooter({
             </span>
           </div>
         ))}
+      </div>
+      {/* 仓库链接收纳位(自标题条移入):弱化右对齐,不与 RESUME/QUOTA 抢视线 */}
+      <div className="welcome-footer-meta">
+        <a
+          href={GITHUB_URL}
+          onClick={(e) => {
+            e.preventDefault();
+            void openExternalUrl(GITHUB_URL);
+          }}
+        >
+          {t("GitHub 仓库")} · MIT
+        </a>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
 import { upsertSkillRecord } from "@plugins/cli-shared/skillRegistry";
 import { ENGINE_LABELS, INSTALL_ENGINES, SHARED_SKILLS_REL, type HubSkill } from "@plugins/cli-shared/skillSources";
 import { ipc } from "@kernel/ipc";
@@ -33,6 +34,8 @@ export function ImportDialog({
   const [error, setError] = useState<string | null>(null);
   const [symlinkNote, setSymlinkNote] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  useEscClose(onClose, busy); /* Esc 关闭;导入中锁定,完成态仍可 Esc 收场 */
 
   useEffect(() => {
     void (async () => {
@@ -111,12 +114,23 @@ export function ImportDialog({
   };
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40">
-      <div className="flex max-h-[85%] w-[460px] flex-col overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-4 shadow-xl" data-import-dialog={skill.name}>
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40" role="presentation">
+      <dialog
+        open
+        aria-label={t("导入技能")}
+        className="relative m-0 flex max-h-[85%] w-[460px] flex-col overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left shadow-(--tmd-shadow-modal)"
+        data-import-dialog={skill.name}
+      >
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void go();
+        }}
+      >
         <div className="mb-2 flex items-start gap-2">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">{skill.name}</div>
-            <div className="text-[11px] text-(--tmd-fg-faint)">{t("来源:{dir}", { dir: skill.dir })}</div>
+            <div className="text-xs text-(--tmd-fg-faint)">{t("来源:{dir}", { dir: skill.dir })}</div>
           </div>
           <button
             type="button"
@@ -125,11 +139,11 @@ export function ImportDialog({
             className="rounded p-1 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
             aria-label={t("关闭")}
           >
-            <X size={14} aria-hidden="true" />
+            <X size="0.875rem" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="mb-2 text-[11px] text-(--tmd-fg-muted)">
+        <div className="mb-2 text-xs text-(--tmd-fg-muted)">
           {t("导入 = 复制一份到所选目录 + 记入已安装(对话框级联的依据)")}
         </div>
 
@@ -143,7 +157,7 @@ export function ImportDialog({
           />
           <span>
             {t("公约位 ~/.agents/skills(一份多家用)")}
-            <span className="block text-[10px] text-(--tmd-fg-faint)">
+            <span className="block text-meta text-(--tmd-fg-faint)">
               {t("codex/omp/pi/kimi/grok/qoder/opencode/dsh 原生读取此目录")}
             </span>
           </span>
@@ -158,14 +172,14 @@ export function ImportDialog({
           />
           <span>
             {t("同步建 symlink 进 ~/.claude/skills(Claude 官方支持)")}
-            <span className="block text-[10px] text-(--tmd-fg-faint)">{t("失败不阻断,仅提示")}</span>
+            <span className="block text-meta text-(--tmd-fg-faint)">{t("失败不阻断,仅提示")}</span>
           </span>
         </label>
 
-        <div className="mb-1 text-[11px] font-medium">{t("或直装到引擎目录")}</div>
+        <div className="mb-1 text-xs font-medium">{t("或直装到引擎目录")}</div>
         <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1">
           {engineTargets.map((opt) => (
-            <label key={opt.key} className="flex items-center gap-1 text-[11px]">
+            <label key={opt.key} className="flex items-center gap-1 text-xs">
               <input
                 type="checkbox"
                 checked={engines.has(opt.key)}
@@ -182,14 +196,14 @@ export function ImportDialog({
           ))}
         </div>
 
-        {error && <div className="mb-2 break-all text-[11px] text-(--tmd-err)">{error}</div>}
+        {error && <div className="mb-2 break-all text-xs text-(--tmd-err)">{error}</div>}
         {symlinkNote && (
-          <div className="mb-2 break-all text-[11px] text-(--tmd-fg-faint)">
+          <div className="mb-2 break-all text-xs text-(--tmd-fg-faint)">
             {t("claude 补链失败(不影响导入)")}:{symlinkNote}
           </div>
         )}
         {done && (
-          <div className="mb-2 text-[11px] text-(--tmd-accent)">{t("导入完成,已入「已安装」;对话框 $ 触发即可级联")}</div>
+          <div className="mb-2 text-xs text-(--tmd-accent)">{t("导入完成,已入「已安装」;对话框 $ 触发即可级联")}</div>
         )}
 
         <div className="flex justify-end gap-2">
@@ -202,15 +216,15 @@ export function ImportDialog({
             {t("关闭")}
           </button>
           <button
-            type="button"
-            onClick={() => void go()}
+            type="submit"
             disabled={busy || done}
-            className="rounded bg-(--tmd-accent) px-2.5 py-1 text-xs text-white disabled:opacity-50"
+            className="rounded bg-(--tmd-accent) px-2.5 py-1 text-xs text-(--tmd-accent-fg) disabled:opacity-50"
           >
             {busy ? t("导入中…") : t("导入")}
           </button>
         </div>
-      </div>
+      </form>
+      </dialog>
     </div>
   );
 }

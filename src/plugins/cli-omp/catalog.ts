@@ -9,6 +9,7 @@
 
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { CURATED_CATALOG } from "./catalogCurated";
 
 export interface ExtCatalogEntry {
   name: string;
@@ -46,85 +47,6 @@ export interface ExtCatalog {
 const SEARCH_URLS = [
   "https://registry.npmjs.org/-/v1/search?text=keywords:omp-plugin&size=25",
   "https://registry.npmjs.org/-/v1/search?text=keywords:pi-package&size=25",
-];
-
-/**
- * 静态精选表 —— 实时目录的离线兜底 + 描述补全源(人工审校中文描述)。
- * 版本/下载量留空(offline 语义),条目均为 npm 在售的真实包(2026-09-06 核对)。
- */
-const CURATED_CATALOG: ExtCatalogEntry[] = [
-  {
-    name: "@cortexkit/pi-magic-context",
-    description: "Magic Context 共享记忆库:跨 CLI 持久记忆与会话检索",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/@cortexkit/pi-magic-context",
-    curated: true,
-  },
-  {
-    name: "@juicesharp/rpiv-todo",
-    description: "模型自维护的 TODO 清单,浮层常驻、压缩后不丢",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/@juicesharp/rpiv-todo",
-    curated: true,
-  },
-  {
-    name: "@juicesharp/rpiv-ask-user-question",
-    description: "模型向你发起结构化问卷(带类型选项),替代凭空猜测",
-    weeklyDownloads: 0,
-    homepage:
-      "https://www.npmjs.com/package/@juicesharp/rpiv-ask-user-question",
-    curated: true,
-  },
-  {
-    name: "pi-background-tasks",
-    description: "持久后台 shell 任务与只读委派代理",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-background-tasks",
-    curated: true,
-  },
-  {
-    name: "pi-lens",
-    description: "实时代码反馈:LSP / lint / 类型检查 / 结构分析",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-lens",
-    curated: true,
-  },
-  {
-    name: "pi-subagents",
-    description: "单代理委派与脚本化多代理工作流",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-subagents",
-    curated: true,
-  },
-  {
-    name: "pi-web-access",
-    description: "网络搜索 / URL 抓取 / GitHub 克隆 / PDF 与视频理解",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-web-access",
-    curated: true,
-  },
-  {
-    name: "pi-mcp-adapter",
-    description: "MCP(Model Context Protocol)服务器接入适配",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/pi-mcp-adapter",
-    curated: true,
-  },
-  {
-    name: "omp-kiro",
-    description: "Kiro OAuth 登录、额度用量与模型发现",
-    weeklyDownloads: 0,
-    homepage: "https://www.npmjs.com/package/omp-kiro",
-    curated: true,
-  },
-  {
-    name: "omp-plugin-duplicate-detector",
-    description: "基于 jscpd 的重复代码检测插件",
-    weeklyDownloads: 0,
-    homepage:
-      "https://www.npmjs.com/package/omp-plugin-duplicate-detector",
-    curated: true,
-  },
 ];
 
 /** 官方包排除:@oh-my-pi/* 是引擎本体,不是插件。 */
@@ -172,9 +94,9 @@ export function parseNpmSearch(body: unknown): ExtCatalogEntry[] {
 }
 
 /**
- * 多来源合并:按包名去重(先到者优先,后续来源只补描述/主页缺口),
- * 排除官方包,周下载量降序取前 CAP。静态表作为末位来源传入即实现
- * 「兜底 + 补全」双语义。
+ * 多来源合并:按包名去重(先到者优先,后续来源只补描述/主页缺口与精选标记),
+ * 排除官方包;精选条目置顶且豁免 CAP 截断,其余周下载量降序取前 CAP。
+ * 静态表作为末位来源传入即实现「兜底 + 补全」双语义。
  */
 export function mergeCatalog(
   lists: ExtCatalogEntry[][],
@@ -193,14 +115,23 @@ export function mergeCatalog(
         existing.description = entry.description;
       if (existing.homepage === null && entry.homepage)
         existing.homepage = entry.homepage;
+      existing.curated ||= entry.curated;
     }
   }
-  return [...byName.values()]
+  /* 精选(人工审校)条目零下载居多,纯按下载排序会沉底被 CAP 截掉 ——
+   * 在线精选语义失灵的根因。置顶豁免:精选全保留且组内保持表中原序,
+   * 非精选组内仍按周下载降序取前 cap。 */
+  const all = [...byName.values()];
+  const curatedTop = all.filter((e) => e.curated);
+  const rest = all
+    .filter((e) => !e.curated)
     .sort((a, b) => b.weeklyDownloads - a.weeklyDownloads)
     .slice(0, cap);
+  return [...curatedTop, ...rest];
 }
 
-/** 拉取目录(20s 缓存;force 强刷)。双关键词全败 → 静态精选表 + offline 标记。 */
+/** 拉取目录(20s 缓存;force 强刷)。双关键词全败 → 静态精选表 + offline 标记
+ * (离线表全为精选原序直出,置顶/豁免语义天然成立)。 */
 
 /* 强刷竞态守卫:force 与首发并发在飞时,只有最后一次发起的结果允许落缓存/
  * 返回调用方,防旧响应后到覆盖新目录。 */

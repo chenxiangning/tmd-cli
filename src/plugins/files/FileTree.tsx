@@ -3,25 +3,28 @@
  *
  * 文件树列表 + 右键菜单 + 命名弹窗。展开态就地保存;刷新 = 根层与全部
  * 展开目录快照并发重拉;动作句柄经 treeHandles.ts 注册表槽上交
- * (refresh / newFile / newFolder 由外壳 subbar 按钮消费)。
+ * (refresh / newFile / newFolder 由面板工具条与键位命令消费)。
  * 列表渲染与覆盖层(提示/菜单/命名弹窗)拆为本文件内
  * FileTreeRows/FileTreeOverlays(no-high-complexity 降分支)。
  */
 
 import { useCallback, useEffect } from "react";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { FolderOpen } from "@phosphor-icons/react";
 import type { DirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import { FileTreeOverlays } from "./FileTreeOverlays";
 import { useWorkspaces } from "@kernel/workspace";
 import { findRemoteFileSource } from "@kernel/fileSources";
 import { FileTreeRemoteSource } from "./FileTreeRemote";
 import { FileTreeRow } from "./FileTreeRow";
+import { FileTreeToolbar } from "./FileTreeToolbar";
 import { useDirTree } from "./useDirTree";
 import { useTreeOperations } from "./useTreeOperations";
 import { useGitDecorations } from "./gitDecorate";
 import { useRepoBranches } from "./useRepoBranches";
-import { setActiveTreeHandles, makeRevealFile } from "./treeHandles";
+import { setActiveTreeHandles, makeRevealFile, refreshFiles } from "./treeHandles";
 
 /** 树列表:加载中/空态/递归行渲染(自 FileTree 拆出降分支)。 */
 function FileTreeRows({
@@ -73,16 +76,14 @@ function FileTreeRows({
 
   if (loading && entries.length === 0) {
     return (
-      <div className="file-tree-loading-row" role="status" aria-live="polite">
-        <span className="file-tree-loading-spinner" aria-hidden>
-          <ArrowClockwise size="0.75rem" />
-        </span>
+      <div className="file-tree-loading-row">
+        <Spinner />
         <span>{t("加载中…")}</span>
       </div>
     );
   }
   if (entries.length === 0) {
-    return <div className="file-tree-empty">{t("目录为空")}</div>;
+    return <Empty icon={<FolderOpen />}>{t("目录为空")}</Empty>;
   }
   return <>{renderEntries(entries, 0)}</>;
 }
@@ -127,8 +128,18 @@ function FileTree({ root }: { root: string }) {
 
   return (
     <div className="file-tree-panel">
-      {/* 工作区选择器与新建/刷新均在顶栏右区(WorkspaceSwitcher / FileActionsBar);
-          列表空白区右键 = 根目录新建。 */}
+      {/* 面板头工具条:与 git 面板统计条(GitToolbar)同级同形制(px-2 py-1 +
+          底分隔线,标签左置);右缘按钮组 = 新建文件/新建文件夹/刷新/Git 着色
+          (FileTreeToolbar,2026-10-02 自顶栏右区下放回面板头),刷新全树唯一
+          (refreshFiles:树重拉 + 打开中 tab 重读)。列表空白区右键 = 根目录新建。 */}
+      <div className="flex shrink-0 items-center whitespace-nowrap border-b border-(--tmd-border) px-2 py-1 text-xs">
+        <span className="pl-1 text-(--tmd-fg-muted)">{t("文件")}</span>
+        <FileTreeToolbar
+          onNewFile={() => ops.openPrompt({ kind: "new-file", dir: root })}
+          onNewFolder={() => ops.openPrompt({ kind: "new-folder", dir: root })}
+          onRefresh={() => refreshFiles()}
+        />
+      </div>
       <div
         className="file-tree-list"
         onContextMenu={(e) => {

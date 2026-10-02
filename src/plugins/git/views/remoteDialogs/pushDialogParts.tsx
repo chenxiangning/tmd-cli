@@ -38,7 +38,7 @@ export function PushHistoryRows({
           type="button"
           disabled={submitting}
           onClick={() => onApply(h)}
-          className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[0.6875rem] disabled:opacity-50 ${
+          className={`flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs disabled:opacity-50 ${
             isSamePushTarget(h, { remote: remote.trim(), branch: target.trim(), gerrit })
               ? "bg-(--tmd-accent-soft) text-(--tmd-accent)"
               : "bg-(--tmd-bg-sunken) text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"

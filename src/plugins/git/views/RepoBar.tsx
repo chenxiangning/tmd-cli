@@ -39,13 +39,13 @@ export function RepoBar({
             ? t("仓数已达发现上限({n}),仅显示前 {n} 仓", { n: repos.length })
             : t("工作区内发现的 Git 仓库数")
         }
-        className="flex shrink-0 items-center pl-2 text-[0.625rem] whitespace-nowrap text-(--tmd-fg-muted) tabular-nums"
+        className="flex shrink-0 items-center pl-2 text-meta whitespace-nowrap text-(--tmd-fg-muted) tabular-nums"
       >
         {repos.length}
         {truncated ? "+" : ""} {t("仓")}
       </span>
       <span className="repo-bar-divider self-center" aria-hidden />
-      <div className="repo-bar-scroll flex min-w-0 flex-1 items-center overflow-x-auto px-1 py-[3px]">
+      <div className="repo-bar-scroll tmd-scroll-hide flex min-w-0 flex-1 items-center overflow-x-auto px-1 py-[3px]">
       {ordered.map((r, idx) => {
         const active = r.path === selectedPath;
         const chip = chips.get(r.path);
@@ -69,7 +69,7 @@ export function RepoBar({
               type="button"
               title={title}
               onClick={() => onSelect(r.path)}
-              className={`inline-flex h-[20px] shrink-0 items-center gap-1.5 rounded px-1.5 text-[0.6875rem] whitespace-nowrap tabular-nums transition-colors ${
+              className={`inline-flex h-[20px] shrink-0 items-center gap-1.5 rounded px-1.5 text-xs whitespace-nowrap tabular-nums transition-colors ${
                 active
                   ? "text-(--tmd-fg)"
                   : "text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
@@ -92,10 +92,10 @@ export function RepoBar({
                 </>
               )}
               {chip && chip.ahead > 0 && (
-                <span className="text-[0.625rem] text-(--tmd-diff-inserted)">↑{chip.ahead}</span>
+                <span className="text-meta text-(--tmd-diff-inserted)">↑{chip.ahead}</span>
               )}
               {chip && chip.behind > 0 && (
-                <span className="text-[0.625rem] text-(--tmd-diff-removed)">↓{chip.behind}</span>
+                <span className="text-meta text-(--tmd-diff-removed)">↓{chip.behind}</span>
               )}
             </button>
           </span>

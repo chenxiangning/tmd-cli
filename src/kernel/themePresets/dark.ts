@@ -6,9 +6,11 @@ import type { ThemePresetDefinition, ThemePresetId } from "./index";
 import { DARK_PRESETS_PART1 } from "./dark1";
 import { DARK_PRESETS_PART2 } from "./dark2";
 import { DARK_PRESETS_PART3 } from "./dark3";
+import { DARK_PRESETS_PART4 } from "./dark4";
 
 export const DARK_PRESETS = {
   ...DARK_PRESETS_PART1,
   ...DARK_PRESETS_PART2,
   ...DARK_PRESETS_PART3,
+  ...DARK_PRESETS_PART4,
 } as unknown as Record<ThemePresetId, Omit<ThemePresetDefinition, "id">>;

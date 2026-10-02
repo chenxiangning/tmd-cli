@@ -1,10 +1,13 @@
 /**
  * 当前挂载 FileTree 的动作句柄注册表 —— 自 FileTree.tsx 拆出
  * (only-export-components):模块级单例槽,FileTree 挂载时上交,
- * 外壳 subbar 的 refresh/newFile/newFolder 按钮据此转发。
+ * 面板 refresh/newFile/newFolder 槽(键位 panel.refresh 等)与
+ * 文件树工具条按钮据此转发。
  */
 
 import { useEffect } from "react";
+import { getTabs } from "@kernel/tabs";
+import { reloadFile } from "./editor/fileCache";
 
 interface TreeHandles {
   reload: () => Promise<void>;
@@ -16,7 +19,7 @@ interface TreeHandles {
 
 let activeTreeHandles: TreeHandles | null = null;
 
-/** 注册表槽读口:外壳按钮消费(未挂载 FileTree 时为 null,按钮无操作)。 */
+/** 注册表槽读口:工具条按钮与键位命令消费(未挂载 FileTree 时为 null,无操作)。 */
 export function getActiveTreeHandles(): TreeHandles | null {
   return activeTreeHandles;
 }
@@ -24,6 +27,17 @@ export function getActiveTreeHandles(): TreeHandles | null {
 /** FileTree 挂载时上交动作句柄;卸载即断开(置 null)。 */
 export function setActiveTreeHandles(handles: TreeHandles | null): void {
   activeTreeHandles = handles;
+}
+
+/** 刷新语义单一真源:当前挂载树全量重拉(根层 + 展开目录)+ 打开中的文件
+ *  tab 重读磁盘,消灭目录快照与文件内容两层缓存滞后;草稿不受影响。
+ *  面板 refresh 槽(键位 panel.refresh)与文件树工具条刷新钮(2026-10-02
+ *  工具条下放面板头时两处并轨)共用,保证两条入口永远同语义。 */
+export async function refreshFiles(): Promise<void> {
+  await getActiveTreeHandles()?.reload();
+  for (const tab of getTabs()) {
+    if (tab.kind === "file") reloadFile(tab.path);
+  }
 }
 
 /** 侧栏工作区文件浏览器(WorkspaceFileBrowser)的「定位到文件」槽:与右栏树独立挂载。 */

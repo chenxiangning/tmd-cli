@@ -114,6 +114,8 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
     };
   }, [query, root, tick]);
 
+  const retrySearch = useCallback(() => { setWalkError(false); setHits(null); setTick((v) => v + 1); }, []); /* 搜索失败重试:清错回忙态,tick 变更重跑上面的 walk effect */
+
   const body = useMemo(() => {
     if (query.trim() !== "") {
       return (
@@ -126,10 +128,8 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
           letters={letters}
           ignored={ignored}
           rowMenu={rowMenu}
-          onPick={(p) => {
-            setSelectedPath(p);
-            openFileInTab(p);
-          }}
+          onPick={(p) => { setSelectedPath(p); openFileInTab(p); }}
+          onRetry={retrySearch}
         />
       );
     }
@@ -187,6 +187,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
     setSelectedPath,
     toggle,
     rowMenu,
+    retrySearch,
   ]);
 
   const headName = (ws ? workspaceDisplayName(ws) : "") || base.split("/").pop() || base;

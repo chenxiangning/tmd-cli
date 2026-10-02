@@ -13,13 +13,13 @@
   width: calc(100% - 4px);
   margin-left: 4px;
   margin-right: 0;
-  border-radius: var(--sidebar-row-radius);
+  border-radius: var(--tmd-radius-sm);
   border: none;
   background: transparent;
   color: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.16s ease, color 0.16s ease;
+  transition: background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
   position: relative;
   padding: 0;
 }
@@ -39,8 +39,8 @@
   padding: 2px 0 2px 8px;
   gap: 6px;
   color: var(--text-muted);
-  border-radius: var(--sidebar-row-radius);
-  transition: background-color 0.16s ease, color 0.16s ease;
+  border-radius: var(--tmd-radius-sm);
+  transition: background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .workspace-header-content:hover {
@@ -77,7 +77,7 @@
   max-width: 0;
   overflow: hidden;
   opacity: 0;
-  transition: max-width 0.2s ease, opacity 0.2s ease;
+  transition: max-width var(--tmd-dur-2) var(--tmd-ease-move), opacity var(--tmd-dur-2) var(--tmd-ease-out);
 }
 
 /* 管理开关激活时动作组常亮(状态须可见) */
@@ -116,7 +116,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.12s ease;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .workspace-collapse-toggle-affordance-icon {
@@ -150,12 +150,12 @@
   flex: 0 0 auto;
   height: 14px;
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
   background: color-mix(in srgb, var(--text-muted) 12%, transparent);
   color: var(--text-muted);
   font-size: var(--sidebar-caption-font-size);
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1;
 }
 
@@ -169,8 +169,8 @@
   border: none;
   background: transparent;
   color: var(--text-muted);
-  border-radius: 6px;
-  transition: background-color 0.16s ease, color 0.16s ease;
+  border-radius: var(--tmd-radius-sm);
+  transition: background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .workspace-action-btn svg {
@@ -192,12 +192,6 @@
 
 /* 刷新会话 in-flight:图标转圈(同 wsmenu-item-refresh 的反馈语义) */
 .workspace-action-btn.is-refreshing svg {
-  animation: ws-action-spin 0.85s linear infinite;
+  animation: tmdSpin 1s linear infinite;
 }
 
-@keyframes ws-action-spin { to { transform: rotate(360deg); } }
-
-/* 新建会话:颜色吃图标装饰变量;呼吸闪烁由 html[data-icon-blink] 统一驱动(styles/icon-decor.css) */
-.workspace-action-btn.is-newchat svg {
-  color: var(--icon-decor-newchat, currentColor);
-}

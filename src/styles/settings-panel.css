@@ -58,7 +58,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border: none;
   border-radius: var(--tmd-radius-sm);
   background: transparent;
@@ -106,10 +106,14 @@
 }
 
 .settings-tabs {
+  position: sticky; /* 长内容滚动时 tab 条常驻顶部(吸附于 .settings-main 滚动区) */
+  top: 0;
+  z-index: 1; /* 吸附时压住下方滚过的 pref 卡 */
   display: flex;
   gap: 4px;
   margin-top: 24px;
   border-bottom: 1px solid var(--tmd-border);
+  background: var(--tmd-bg-base); /* 不透明底:遮住滚过时从按钮缝隙透出的内容 */
 }
 
 .settings-tab {
@@ -147,6 +151,12 @@
   background: var(--tmd-bg-elevated);
 }
 
+/* 卡片小节标题:独立成卡的分组头(纯文案,区别于 preset-group-label 折叠钮) */
+.pref-card-head {
+  padding: 12px 16px 0;
+  font-weight: 600;
+}
+
 .pref-row {
   display: flex;
   align-items: center;
@@ -182,8 +192,8 @@
 .segment {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 4px 10px;
   border: none;
   border-radius: var(--tmd-radius-sm);
   background: transparent;
@@ -231,7 +241,7 @@
   flex: 0 0 24px;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
 }
@@ -240,7 +250,7 @@
   height: 22px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: none;
   cursor: pointer;
 }
@@ -252,7 +262,7 @@
   height: 22px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: none;
   color: var(--tmd-fg-muted);
   cursor: pointer;

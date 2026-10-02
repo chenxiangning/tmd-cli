@@ -42,7 +42,7 @@ export function PrerequisiteGuide({
                   rel="noreferrer"
                 >
                   {t("{name} 官网", { name: requires.name })}
-                  <ArrowSquareOut size="0.6875rem" aria-hidden />
+                  <ArrowSquareOut size="0.75rem" aria-hidden />
                 </a>
               )}
             </>

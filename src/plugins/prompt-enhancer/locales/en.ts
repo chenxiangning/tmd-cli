@@ -26,6 +26,7 @@ export const MESSAGES_EN = {
   "引擎返回空结果,请重试": "Engine returned an empty result — try again",
   "无活跃工作区,无法运行增强": "No active workspace; cannot run enhancement",
   "历史记录": "History",
+  "默认": "Default",
   "暂无历史记录": "No history yet",
   "暂无增强结果": "No enhanced result yet",
   "缓存": "Cached",

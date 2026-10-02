@@ -17,6 +17,11 @@ export function Row(props: {
   onOpen: () => void;
 }) {
   const live = props.r.kind === "live";
+  /* 行内状态点:审批等待(warn)> 在跑脉冲(ok 脉冲)> 未读(accent)> 空闲灰。
+   * activity 投影与桌面 RunningZone 同源(history.ts 分区同律),不再恒灰。 */
+  const act = live ? props.r.live?.activity : undefined;
+  const dot =
+    live && props.pending > 0 ? " ask" : act?.turnActive ? " run" : act?.unread ? " unread" : "";
   /* 无稳定磁盘身份(未绑定的新活会话)不可置顶:钮不渲染 */
   const canPin = live ? !!props.r.live?.cliSessionId : true;
   return (
@@ -28,7 +33,7 @@ export function Row(props: {
           <span className="pill">{t("审批 {n}", { n: props.pending })}</span>
         )}
         <span className="meta">{relTime(props.r.ts)}</span>
-        <span className={`sdot${live && props.pending > 0 ? " ask" : ""}`} />
+        <span className={`sdot${dot}`} />
       </button>
       {canPin && (
         <button

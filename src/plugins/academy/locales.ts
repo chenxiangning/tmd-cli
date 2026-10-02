@@ -39,6 +39,18 @@ const MESSAGES_EN = {
   "课程未注册(引擎插件未启用或版本过旧)": "Course not registered (engine plugin disabled or too old)",
   "示例 · 场景 / 操作 / 回显 / 预期": "Examples · scenario / input / output / expectation",
   "预期": "Expected",
+  "{n} 条": "{n}",
+  "先打开任意工作区会话再试(当前页面没有命令输入框)":
+    "Open a workspace session first — there's no command input on this page",
+  "本课命令属于 {engine} 会话;当前激活的是 {current},切换后再试":
+    "This lesson's commands belong to {engine}; the active session is {current} — switch and try again",
+  "课程基于 v{source} 提取,当前引擎 v{installed};命令面可能有出入,以引擎自身帮助为准":
+    "Course extracted against v{source}; installed engine is v{installed} — commands may differ, trust the engine's own help",
+  "课程列表": "Lesson list",
+  "{title} 入门课": "{title} starter course",
+  /* 入口与课步(2026-10 i18n 收口) */
+  "学堂": "Academy",
+  "已完成": "Completed",
 } as const;
 
 /** ja 词典 · academy 域。 */
@@ -76,6 +88,18 @@ const MESSAGES_JA = {
   "课程未注册(引擎插件未启用或版本过旧)": "課程未登録(エンジンプラグイン無効かバージョン古い)",
   "示例 · 场景 / 操作 / 回显 / 预期": "例 · シナリオ / 入力 / 出力 / 期待値",
   "预期": "期待値",
+  "{n} 条": "{n} 件",
+  "先打开任意工作区会话再试(当前页面没有命令输入框)":
+    "先にワークスペースのセッションを開いてください——このページにはコマンド入力欄がありません",
+  "本课命令属于 {engine} 会话;当前激活的是 {current},切换后再试":
+    "この課のコマンドは {engine} セッション用です。現在アクティブなのは {current} のため、切り替えてから試してください",
+  "课程基于 v{source} 提取,当前引擎 v{installed};命令面可能有出入,以引擎自身帮助为准":
+    "課程は v{source} から抽出、現在のエンジンは v{installed}。コマンド面が異なる可能性があるため、エンジン自身のヘルプを優先してください",
+  "课程列表": "課程リスト",
+  "{title} 入门课": "{title} 入門課程",
+  /* 入口与课步(2026-10 i18n 收口) */
+  "学堂": "学堂",
+  "已完成": "完了",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

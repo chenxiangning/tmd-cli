@@ -4,9 +4,11 @@
  * 扁平化(2026-09-08):分组段头/折叠退役,行首 TerminalWindow 图标区分会话种类。
  */
 
+import { useState } from "react";
 import { TerminalWindow } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
@@ -15,6 +17,8 @@ import { LiveOutputDot } from "./SessionRows";
 
 export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
   useHost();
+  /* 右键结束的待确认会话(原生 confirm 清零轮换 ConfirmDialog)。 */
+  const [pendingDrop, setPendingDrop] = useState<{ id: string; title: string } | null>(null);
   const sessions: SessionMeta[] = host
     .getSessions()
     .filter((s) => s.workspaceId === workspace.id && s.kind === "shell");
@@ -35,9 +39,7 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
             }}
             onContextMenu={(e) => {
               e.preventDefault();
-              if (window.confirm(t("结束终端会话「{title}」?", { title }))) {
-                void host.removeSession(session.id);
-              }
+              setPendingDrop({ id: session.id, title });
             }}
           >
             <LiveOutputDot sessionId={session.id} />
@@ -48,6 +50,16 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
           </button>
         );
       })}
+      {pendingDrop && (
+        <ConfirmDialog
+          title={t("结束会话")}
+          message={t("结束终端会话「{title}」?", { title: pendingDrop.title })}
+          confirmLabel={t("结束")}
+          danger
+          onConfirm={() => void host.removeSession(pendingDrop.id)}
+          onClose={() => setPendingDrop(null)}
+        />
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { t } from "@kernel/i18n";
 import { invoke } from "@kernel/transport";
 import { useMobile } from "./shared";
+import { SheetBase } from "./SheetBase";
 import { EngineMark } from "./EngineMark";
 import { ENGINES } from "./engines"; /* 单一来源(评审 P2-2:双份手抄已现 qoder cmd drift) */
 
@@ -51,16 +52,8 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
   };
 
   return (
-    <div className="sheet-scrim" onClick={props.onClose}>
-      <button
-        type="button"
-        aria-label={t("关闭")}
-        className="sheet-scrim-hit"
-        style={{ position: "absolute", inset: 0, cursor: "default", background: "none", border: "none" }}
-        onClick={props.onClose}
-      />
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-h">{t("发起会话")}</div>
+    <SheetBase onClose={props.onClose} label={t("发起会话")}>
+      <div className="sheet-h">{t("发起会话")}</div>
 
         <div className="sheet-label">{t("工作区")}</div>
         <div className="sheet-opts">
@@ -72,7 +65,7 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
               onClick={() => setWsId(w.id)}
             >
               <span className="tick">{wsId === w.id ? "✓" : ""}</span>
-              <span className="min-w-0 flex-1 truncate">{w.name}</span>
+              <span className="fx-ellip">{w.name}</span>
             </button>
           ))}
         </div>
@@ -109,7 +102,6 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
             </button>
           </>
         )}
-      </div>
-    </div>
+    </SheetBase>
   );
 }

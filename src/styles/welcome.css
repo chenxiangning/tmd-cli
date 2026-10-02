@@ -4,7 +4,7 @@
  * 结构:窗体标题条 / prompt 行(工作区 select + 右侧 engines/updates 统计)/
  * 引擎全动作行 / 页脚(RESUME + QUOTA)。等宽字体域。
  * 颜色零硬编码,全部消费 --tmd-* token;唯一例外:7d 块条橘色沿用
- * welcome-creds 周窗口先例 rgb(255,140,60)。
+ * welcome-creds 周窗口先例 = --tmd-decor。
  * 页脚样式在 welcome-footer.css(300 行铁则分片)。
  * ────────────────────────────────────────────────────────── */
 
@@ -33,20 +33,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 2px 2px 10px;
-  font-size: 0.75rem;
+  padding: 2px 2px 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--tmd-border);
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
 }
-
-.welcome-tbar-right {
-  color: var(--tmd-fg-faint);
-  font-size: 0.6875rem;
-  text-decoration: none;
-}
-
-.welcome-tbar-right:hover { color: var(--tmd-fg); }
-/* 点击跳转后焦点残留的蓝色虚线环去掉(hover 已有色变反馈)。 */
-.welcome-tbar-right:focus { outline: none; }
 
 .welcome-frame {
   padding: 0;
@@ -58,10 +50,13 @@
   display: flex;
   gap: 18px;
   align-items: center;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   margin-left: auto;
   white-space: nowrap;
+  /* 窄窗溢出兜底:允许收缩并裁剪,不撑破 prompt 行(≤720px 整行隐去)。 */
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* ── prompt 行:工作区 select ── */
@@ -73,14 +68,21 @@
   margin-bottom: 4px;
 }
 
-.welcome-promptline .prompt { color: var(--tmd-ok); white-space: nowrap; }
+.welcome-promptline .prompt {
+  color: var(--tmd-ok);
+  white-space: nowrap;
+  /* 长路径兜底:收缩 + 省略号,不挤压右侧 select/statusline。 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .welcome-promptline .path { color: var(--tmd-syntax-keyword); }
 
 .welcome-ws-select {
   appearance: none;
   background: transparent;
   border: 1px dashed var(--tmd-border-strong);
-  border-radius: 5px;
+  border-radius: var(--tmd-radius-xs);
   color: var(--tmd-fg);
   font: inherit;
   font-family: inherit;
@@ -96,15 +98,19 @@
 .welcome-ws-select:hover { border-color: var(--tmd-accent); }
 .welcome-ws-select:focus { outline: none; border-color: var(--tmd-accent); border-style: solid; }
 
+/* 键盘提示行:弱陈述(fg-faint / text-meta 档),窄窗收缩省略不换行挤位 */
 .welcome-hintline {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-xs);
   color: var(--tmd-fg-faint);
   margin-left: auto;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 标题条手动刷新(SWR 缓存后回首页不重拉,此为唯一手动入口);提示行
-   margin-left:auto 把 提示+刷新+GitHub 整组推向右缘。 */
+   margin-left:auto 把 提示+刷新 整组推向右缘。 */
 .welcome-refresh {
   display: inline-flex;
   align-items: center;
@@ -117,15 +123,15 @@
 
 .welcome-refresh:hover { color: var(--tmd-fg); }
 .welcome-refresh:focus { outline: none; }
-.welcome-refresh:disabled { cursor: default; }
+.welcome-refresh:disabled { cursor: not-allowed; }
 
 .welcome-row-main {
   display: grid;
   grid-template-columns: 9.5rem 10.5rem 1fr auto;
   gap: 10px;
   align-items: center;
-  padding: 5px 8px;
-  font-size: 0.75rem;
+  padding: 4px 8px;
+  font-size: var(--tmd-font-ui);
   white-space: nowrap;
 }
 
@@ -137,7 +143,7 @@
 .welcome-row-name {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
   overflow: hidden;
 }
@@ -161,31 +167,41 @@
   width: 3.5rem;
   height: 0.5rem;
   vertical-align: -1px;
-  margin: 0 3px;
+  margin: 0 4px;
   background: repeating-linear-gradient(45deg, var(--tmd-border) 0 2px, transparent 2px 4px);
 }
 .welcome-blk > i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--tmd-accent); }
-.welcome-blk.weekly > i { background: rgb(255, 140, 60); }
+.welcome-blk.weekly > i { background: var(--tmd-decor); }
 .welcome-blk.hot > i { background: var(--tmd-err); }
 
-.welcome-row-cred { font-size: 0.6875rem; color: var(--tmd-ok); text-align: right; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.welcome-row-cred { font-size: var(--tmd-font-ui); color: var(--tmd-ok); text-align: right; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .welcome-row-cred.err { color: var(--tmd-err); }
-.welcome-row-cred.mut { color: var(--tmd-fg-faint); }
+.welcome-row-cred.mut { color: var(--tmd-fg-subtle); }
 
 .welcome-row-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+
+/* 次要动作(重装/版本/重探)常态降显,行 hover / 键盘游标 / 聚焦时浮出
+   —— 每行 5 钮的密度降噪;主 CTA(新会话/安装/更新/官方文档)常驻。
+   禁用钮不参与浮出(:not(:disabled) 压过浮出选择器的特异性),
+   且保持 .sec 常态的 0.3,不敌 0.45 反变更亮。 */
+.welcome-row-actions .welcome-ab.sec { opacity: 0.3; transition: opacity var(--tmd-dur-1) var(--tmd-ease-out); }
+.welcome-ab.sec:disabled { opacity: .3; }
+.welcome-row-main:hover .welcome-ab.sec:not(:disabled),
+.welcome-row.cur .welcome-ab.sec:not(:disabled),
+.welcome-row-actions:focus-within .welcome-ab.sec:not(:disabled) { opacity: 1; }
 
 /* 行内动作按钮(文本簇,替代旧 icon-only) */
 .welcome-ab {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   height: 22px;
   padding: 0 8px;
   border: 1px solid var(--tmd-border);
-  border-radius: 5px;
+  border-radius: var(--tmd-radius-xs);
   background: transparent;
   color: var(--tmd-fg-muted);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-family: inherit;
   white-space: nowrap;
   cursor: pointer;
@@ -193,6 +209,7 @@
 
 .welcome-ab:hover:not(:disabled) { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
 .welcome-ab:disabled { opacity: 0.45; cursor: not-allowed; }
+.welcome-ab.sec:disabled { opacity: .3; }
 .welcome-ab.pri { color: var(--tmd-warn); border-color: var(--tmd-warn); }
 .welcome-ab.pri:hover:not(:disabled) { background: var(--tmd-accent-soft); color: var(--tmd-warn); }
 .welcome-ab.go { color: var(--tmd-ok); border-color: var(--tmd-ok); }
@@ -200,23 +217,38 @@
 .welcome-ab.doc { border-color: transparent; color: var(--tmd-accent); }
 .welcome-ab.doc:hover:not(:disabled) { background: transparent; text-decoration: underline; }
 
-/* ── 行展开区(凭据 + homePanel)── */
+/* ── 行展开区(凭据 + homePanel):grid-rows 0fr↔1fr 折展(workspace-children
+    先例,120ms);收起态 visibility 离场 = 内容退出 tab 序/可及树)── */
 
 .welcome-row-detail {
+  display: grid;
+  grid-template-rows: 1fr;
   border-top: 1px dashed var(--tmd-border);
   background: var(--tmd-bg-sunken);
+  transition: grid-template-rows var(--tmd-dur-1) var(--tmd-ease-move),
+    opacity var(--tmd-dur-1) var(--tmd-ease-out),
+    border-color var(--tmd-dur-1) var(--tmd-ease-out),
+    visibility var(--tmd-dur-1);
 }
+.welcome-row-detail.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  border-top-color: transparent;
+  pointer-events: none;
+}
+.welcome-row-detail-inner { min-height: 0; overflow: hidden; }
 
 /* ── 版本菜单(回退/收藏弹层;wsmenu 范式,portal 到 body)── */
 
 .welcome-vermenu { width: 16rem; }
 .welcome-vermenu-cur {
   margin-left: 6px;
-  padding: 0 5px;
-  border-radius: 4px;
+  padding: 0 4px;
+  border-radius: var(--tmd-radius-xs);
   background: var(--tmd-accent-soft);
   color: var(--tmd-accent);
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
 }
 .welcome-vermenu-star {
   flex: 0 0 auto;
@@ -226,7 +258,7 @@
   width: 1.375rem;
   height: 1.375rem;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   background: transparent;
   color: var(--tmd-fg-muted);
   cursor: pointer;
@@ -242,7 +274,7 @@
   background: transparent;
   color: var(--tmd-accent);
   font: inherit;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
 }
 .welcome-vermenu-retry:hover { text-decoration: underline; }
@@ -252,6 +284,8 @@
   .welcome-row-main {
     grid-template-columns: 7.5rem 8.5rem 1fr auto;
   }
-  .welcome-row-cred { display: none; }
+  /* 凭据列改纯 ● 圆点(去 auth n 文字,展开入口保留,title 仍可查) */
+  .welcome-row-cred-text { display: none; }
+  .welcome-statusline { display: none; }
   .welcome-scroll { padding: 12px 10px 24px; }
 }

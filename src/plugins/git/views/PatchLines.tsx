@@ -11,7 +11,7 @@ import { useGitPanelState } from "../panelStore";
 
 /** 行底色/字色:单栏整行用(经典红绿)。 */
 const ROW_CLS: Record<string, string> = {
-  hunk: "my-1 border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[0.625rem] text-(--tmd-accent)",
+  hunk: "my-1 border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-meta text-(--tmd-accent)",
   add: "bg-(color:--tmd-diff-inserted)/12 text-(--tmd-diff-inserted)",
   del: "bg-(color:--tmd-diff-removed)/12 text-(--tmd-diff-removed)",
   ctx: "text-(--tmd-fg-muted)",
@@ -61,7 +61,7 @@ export function PatchLines({
     return <SplitDiffView rows={rows} wrap={diffWrap} className={className} fold={fold} />;
   }
   return (
-    <pre className={`${className} overflow-auto px-3 py-1 font-mono text-[0.6875rem] leading-tight`}>
+    <pre className={`${className} overflow-auto px-3 py-1 font-mono text-xs leading-tight`}>
       {rows.map((row) => (
         <UnifiedRow key={patchRowKey(row)} row={row} wrap={diffWrap} />
       ))}

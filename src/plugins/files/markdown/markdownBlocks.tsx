@@ -21,6 +21,7 @@ import { BracketsCurly, Check, Code, Copy, FileCode, FileText, Hash, Gear, Sigma
 import { highlightLine } from "@kernel/syntaxHighlight";
 import { extractLanguageTag } from "./languageTag";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { copyText } from "@kernel/clipboard";
 
 /* ── 语言 badge(照抄 codemoss codeBlockLanguageIcon 的桶映射) ── */
@@ -251,10 +252,11 @@ export function LazyMarkdownHeavyBlock({
   return (
     <div
       ref={rootRef}
-      className="fvp-file-markdown-heavy-placeholder"
+      className="fvp-file-markdown-heavy-placeholder flex items-center gap-1.5"
       data-testid="file-markdown-heavy-placeholder"
       aria-label={label}
     >
+      <Spinner />
       {t("加载中…")}
     </div>
   );

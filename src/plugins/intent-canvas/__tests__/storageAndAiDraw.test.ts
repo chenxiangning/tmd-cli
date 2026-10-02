@@ -238,6 +238,20 @@ describe("ai draw inbox protocol", () => {
     expect(loaded.scene.elements.length).toBeGreaterThan(0);
   });
 
+  it("append 缺 canvasId/title 时缺省落最近更新画布,不另开新图", async () => {
+    const saved = await saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
+      workspace: { id: "ws-1", name: "demo" },
+      request: { requestId: 1, mode: "architect", title: "唯一画布" },
+    }));
+    const inbox = `${await (await import("../storage/paths")).aiInboxDir(ROOT)}`;
+    fileByPath.set(`${inbox}/ai-draw-default.json`, JSON.stringify({ ...validFile, mode: "append", title: undefined }));
+    const imported = await pollAiDrawInbox(ROOT);
+    expect(imported[0].id).toBe(saved.id);
+    const index = await loadIntentCanvasIndex(ROOT);
+    expect(index.value).toHaveLength(1); /* 没有新条目 = 不散落新画布 */
+    expect(index.value[0].id).toBe(saved.id);
+  });
+
   it("坏文件连续 3 轮失败才移入 failed 留证(半截文件防线),不阻断其余导入", async () => {
     const inbox = `${await (await import("../storage/paths")).aiInboxDir(ROOT)}`;
     fileByPath.set(`${inbox}/ai-draw-bad.json`, "{not json");

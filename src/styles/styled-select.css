@@ -17,13 +17,13 @@
   height: 28px;
   padding: 0 10px;
   border: 1px solid var(--tmd-border);
-  border-radius: 7px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-input);
   color: var(--tmd-fg);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1;
   cursor: pointer;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  transition: border-color var(--tmd-dur-1) var(--tmd-ease-out), box-shadow var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .styled-select-btn:hover:not(:disabled) {
@@ -61,14 +61,14 @@
 
 .styled-select-hint {
   flex: none;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   color: var(--tmd-fg-muted);
 }
 
 .styled-select-btn > svg {
   flex: none;
   color: var(--tmd-fg-muted);
-  transition: transform 0.15s ease;
+  transition: transform var(--tmd-dur-1) var(--tmd-ease-move);
 }
 
 .styled-select-btn.is-open > svg {
@@ -85,11 +85,9 @@
   width: max-content;
   max-width: 360px;
   border: 1px solid var(--tmd-border);
-  border-radius: 10px;
-  background: var(--tmd-bg-elevated);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 32px rgba(0, 0, 0, 0.16);
+  border-radius: var(--tmd-radius-lg);
+  background: var(--tmd-bg-popover);
+  box-shadow: var(--tmd-shadow-popover);
   overflow: hidden;
 }
 
@@ -101,7 +99,7 @@
   border-bottom: 1px solid var(--tmd-border);
   background: transparent;
   color: var(--tmd-fg);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   outline: none;
 }
 
@@ -118,7 +116,7 @@
 .styled-select-empty {
   padding: 12px;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
 }
 
@@ -128,12 +126,12 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: transparent;
   color: var(--tmd-fg);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.3;
   text-align: left;
   cursor: pointer;
@@ -150,6 +148,7 @@
 }
 
 .styled-select-opt.is-active {
+  background: var(--tmd-accent-soft);
   color: var(--tmd-accent);
   font-weight: 500;
 }

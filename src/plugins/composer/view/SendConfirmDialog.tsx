@@ -5,7 +5,8 @@
  * Enter = 确认 / Esc / 点遮罩 = 取消(keyCode 229 兜底同 enterAction 纪律)。
  * 目标区按结构化字段渲染:平铺幕布位序徽标 + 会话标题(与 tab 条同源)+
  * 工作区 · 引擎副行,广播多卡并列 + 计数头,用户据此认出发到哪块幕布。
- * 弹框零状态:req.plan 纯展示,onConfirm/onCancel 闭包由挂起点注入。
+ * 弹框零状态:req.plan 纯展示,onConfirm/onCancel 闭包由挂起点注入;
+ * 弹层焦点圈闭(dialog 语义:打开入确认键、Tab 循环、关闭还原焦点)。
  */
 
 import { t } from "@kernel/i18n";
@@ -13,6 +14,11 @@ import { PaperPlaneRightIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { SendConfirmRequest, SendTarget } from "./sendPlan";
+import { useFocusTrap } from "@kernel/useFocusTrap";
+
+/* 弹层焦点圈闭(同款见 RelayDialog/SearchOverlay/WorktreeManageDialog/academy
+   wizard;候选统一收口进 kernel/DialogShell):req 在挂 = 打开态,Tab 循环 +
+   关闭还原焦点(初焦点仍走下方确认键 effect,与既有行为一致)。 */
 
 export function SendConfirmDialog({
   req,
@@ -32,6 +38,7 @@ export function SendConfirmDialog({
   };
   /* 确认键聚焦(react-doctor/no-autofocus:编程聚焦替代 autoFocus 字面量) */
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useFocusTrap(req != null, false);
   useEffect(() => {
     if (req) confirmRef.current?.focus();
   }, [req]);
@@ -69,18 +76,22 @@ export function SendConfirmDialog({
       onClick={() => settle(onCancel)}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("确认发送")}
         className="mx-4 flex w-[26rem] max-w-[92vw] flex-col rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-(--tmd-border) px-4 py-2.5">
           <div className="flex items-center gap-1.5 text-xs font-medium text-(--tmd-fg)">
-            <PaperPlaneRightIcon size="0.8125rem" className="text-(--tmd-accent)" aria-hidden />
+            <PaperPlaneRightIcon size="0.875rem" className="text-(--tmd-accent)" aria-hidden />
             {t("确认发送")}
           </div>
-          <div className="text-[0.6875rem] text-(--tmd-fg-faint)">{t("Enter 确认 · Esc 取消")}</div>
+          <div className="text-xs text-(--tmd-fg-faint)">{t("Enter 确认 · Esc 取消")}</div>
         </div>
         <div className="px-4 pt-3">
-          <div className="text-[0.6875rem] text-(--tmd-fg-faint)">
+          <div className="text-xs text-(--tmd-fg-faint)">
             {broadcast
               ? t("将发送到 {n} 块幕布:", { n: plan.targets.length })
               : t("发送目标")}
@@ -96,8 +107,8 @@ export function SendConfirmDialog({
           </div>
         </div>
         <div className="px-4 pt-3">
-          <div className="text-[0.6875rem] text-(--tmd-fg-faint)">{t("内容")}</div>
-          <div className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded border border-(--tmd-border) bg-(--tmd-bg-base) px-2.5 py-2 text-[0.6875rem] leading-4 text-(--tmd-fg-muted)">
+          <div className="text-xs text-(--tmd-fg-faint)">{t("内容")}</div>
+          <div className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded border border-(--tmd-border) bg-(--tmd-bg-base) px-2.5 py-2 text-xs leading-4 text-(--tmd-fg-muted)">
             {plan.content}
           </div>
         </div>
@@ -128,7 +139,7 @@ function TargetCard({ target, multi }: { target: SendTarget; multi: boolean }) {
   return (
     <div className="flex items-center gap-2 rounded border border-(--tmd-border) bg-(--tmd-bg-base) px-2.5 py-1.5">
       {target.paneIndex !== undefined && (
-        <span className="shrink-0 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[0.625rem] font-medium text-(--tmd-accent)">
+        <span className="shrink-0 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-meta font-medium text-(--tmd-accent)">
           {t("幕布 {n}", { n: target.paneIndex })}
         </span>
       )}
@@ -136,12 +147,12 @@ function TargetCard({ target, multi }: { target: SendTarget; multi: boolean }) {
         <div className="flex items-center gap-1.5">
           <span className="truncate text-xs text-(--tmd-fg)">{target.title}</span>
           {multi && target.active && (
-            <span className="shrink-0 rounded border border-(--tmd-border) px-1 py-px text-[0.625rem] text-(--tmd-fg-faint)">
+            <span className="shrink-0 rounded border border-(--tmd-border) px-1 py-px text-meta text-(--tmd-fg-faint)">
               {t("当前")}
             </span>
           )}
         </div>
-        <div className="truncate text-[0.625rem] text-(--tmd-fg-faint)">
+        <div className="truncate text-meta text-(--tmd-fg-faint)">
           {target.workspace} · {target.engine}
         </div>
       </div>

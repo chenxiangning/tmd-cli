@@ -38,6 +38,7 @@ const ENTRY = `${DIR}/dsh-adapter.cjs`;
 const MANIFEST = [
   "dsh-adapter.cjs",
   "dsh-rpc.cjs",
+  "dsh-session.cjs",
   "dsh-print.cjs",
   "dsh-project.cjs",
   "dsh-theme.cjs",

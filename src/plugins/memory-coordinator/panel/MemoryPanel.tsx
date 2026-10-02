@@ -9,11 +9,13 @@
  */
 
 import { useEffect, useMemo } from "react";
-import { MagnifyingGlass } from "@phosphor-icons/react";
+import { Brain, MagnifyingGlass } from "@phosphor-icons/react";
 import { useWorkspaces } from "@kernel/workspace";
 import { type MemoryItem } from "../protocol";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import {
   MemoryListItem,
   MemoryPanelFooter,
@@ -46,7 +48,7 @@ function PoolUnavailableView({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="p-3">
-        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-[0.6875rem] leading-relaxed text-(--tmd-fg-muted)">
+        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2.5 text-xs leading-relaxed text-(--tmd-fg-muted)">
           <span className="text-(--tmd-err)">{t("池不可用")}</span>
           {identity === null
             ? t(" —— 当前工作区不是 git 仓库,未纳入记忆池。")
@@ -112,7 +114,7 @@ export function MemoryPanel() {
     />
   );
   if (!root) {
-    return <div className="placeholder p-4 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("未选择工作区")}</div>;
+    return <div className="placeholder p-4 text-center text-xs text-(--tmd-fg-faint)">{t("未选择工作区")}</div>;
   }
 
   if (ready === false) {
@@ -141,7 +143,7 @@ export function MemoryPanel() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("关键词检索(FTS)…")}
-            className="h-[26px] w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) pl-7 pr-2 text-[0.6875rem] text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
+            className="h-[26px] w-full rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) pl-7 pr-2 text-xs text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
           />
         </div>
       </div>
@@ -157,7 +159,7 @@ export function MemoryPanel() {
       {diag.length > 0 && (
         <div className="mb-1.5 flex flex-col gap-0.5 px-1">
           {diag.map((line) => (
-            <span key={line} className="truncate text-[0.65625rem] text-(--tmd-fg-subtle)">
+            <span key={line} className="truncate text-meta text-(--tmd-fg-subtle)">
               {line}
             </span>
           ))}
@@ -179,11 +181,18 @@ export function MemoryPanel() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-1">
         {loading ? (
-          <div className="p-3 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("读取中…")}</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-3 text-center text-[0.6875rem] text-(--tmd-fg-faint)">
-            {count === 0 ? t("当前工作区还没有记忆") : t("无匹配")}
+          /* 忙态统一形制:Spinner(全仓唯一加载指示) + 可见文案,对齐 CheckpointsPanel 先例 */
+          <div className="flex items-center justify-center gap-1.5 p-3 text-xs text-(--tmd-fg-faint)">
+            <Spinner />
+            {t("加载中…")}
           </div>
+        ) : filtered.length === 0 ? (
+          /* 空态统一形制:整池空给记忆图标,过滤空(无匹配)保留纯文案弱陈述 */
+          count === 0 ? (
+            <Empty icon={<Brain aria-hidden />}>{t("当前工作区还没有记忆")}</Empty>
+          ) : (
+            <div className="p-3 text-center text-xs text-(--tmd-fg-faint)">{t("无匹配")}</div>
+          )
         ) : (
           filtered.map((m) => (
             <MemoryListItem

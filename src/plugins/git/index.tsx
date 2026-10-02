@@ -30,7 +30,6 @@ export const gitPlugin: Plugin = {
       component: GitPanel,
       order: 1, /* 工作区组次席(railGroup 注释见 files) */
       railGroup: "workspace",
-      showFileSubbar: false, // 分支/upstream 上顶栏 label(2026-09-14)
     });
     // 右栏 Git 面板(差异/分支/历史)由工具栏与中央 tab 进入,不再单独暴露侧栏快捷动作。
     // 提交 diff tab + 工作区 diff tab:右栏点文件 → 编辑器区打开(同 checkpoints 批审阅单模式)

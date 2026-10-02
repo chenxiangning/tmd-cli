@@ -9,6 +9,7 @@ import { ensureDir } from "@kernel/fsDirs";
 import { ipc } from "@kernel/ipc";
 import adapterSrc from "./adapter/dsh-adapter.cjs?raw";
 import rpcSrc from "./adapter/dsh-rpc.cjs?raw";
+import sessionSrc from "./adapter/dsh-session.cjs?raw";
 import printSrc from "./adapter/dsh-print.cjs?raw";
 import projectSrc from "./adapter/dsh-project.cjs?raw";
 import themeSrc from "./adapter/dsh-theme.cjs?raw";
@@ -26,9 +27,13 @@ import streamSrc from "./adapter/dsh-stream.cjs?raw";
 import turnSrc from "./adapter/dsh-turn.cjs?raw";
 import thinkSrc from "./adapter/dsh-think.cjs?raw";
 
+/** 入口文件名(dsh-adapter 的 spawnTransform 以绝对路径跑它)。 */
+const ENTRY = "dsh-adapter.cjs";
+
 const FILES: Record<string, string> = {
-  "dsh-adapter.cjs": adapterSrc,
+  [ENTRY]: adapterSrc,
   "dsh-rpc.cjs": rpcSrc,
+  "dsh-session.cjs": sessionSrc,
   "dsh-print.cjs": printSrc,
   "dsh-project.cjs": projectSrc,
   "dsh-theme.cjs": themeSrc,
@@ -72,8 +77,11 @@ async function deploy(): Promise<string> {
   const stampPath = `${dir}/.stamp`;
   /* 目录逐级建(kernel fsDirs 原语;已存在报错忽略)。 */
   await ensureDir(dir);
+  const entry = `${dir}/${ENTRY}`;
   const old = await ipc.fsReadFile(stampPath).catch(() => "");
-  if (old.trim() === STAMP) return `${dir}/dsh-adapter.cjs`;
+  /* stamp 命中还要确认入口文件真在:调试清场/被杀软隔离/手工截断后 stamp 仍在,
+     只信 stamp 会让之后每次 dsh 对话 Cannot find module 秒退,直到应用版本变化。 */
+  if (old.trim() === STAMP && (await ipc.fsReadFile(entry).catch(() => null)) !== null) return entry;
   /* 清场:删除不在清单里的旧 .cjs(重构删过件,残留会被旧 require 路径迷惑)。
      清场必须先于写入收口,且写 stamp 前清场/写入须全落地 —— 步骤间有依赖,
      用 reduce Promise 链保序(单步失败语义与 for-await 一致:中断后续)。 */
@@ -88,7 +96,7 @@ async function deploy(): Promise<string> {
     Promise.resolve(),
   );
   await ipc.fsWriteFile(stampPath, STAMP);
-  return `${dir}/dsh-adapter.cjs`;
+  return entry;
 }
 
 function djb2(s: string): string {

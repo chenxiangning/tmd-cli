@@ -10,6 +10,7 @@ import { ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile } from "@kernel/ipc";
 import { getCachedDiff } from "./diffCache";
+import { classifyRisk } from "./risk";
 import { openBatchTab } from "./batchTab";
 
 /** 内联确认卡目标:mode 区分回退(默认,兼容既有 paths 子集语义)与应用。 */
@@ -50,7 +51,7 @@ export function ConfirmCard({
               target: confirm.paths ? t("{n} 个路径", { n: confirm.paths.length }) : t("整批"),
             })}
       </div>
-      <div className="mb-2 text-[0.6875rem] leading-relaxed text-(--tmd-fg-muted)">
+      <div className="mb-2 text-xs leading-relaxed text-(--tmd-fg-muted)">
         {apply ? (
           <>
             {t("按账本副本把这轮改动精确写回磁盘(回退的镜像);")}
@@ -133,36 +134,49 @@ export function FileRow({
         }
       >
         <span
-          className={`grid h-[14px] w-[14px] flex-none place-items-center rounded text-[0.625rem] font-bold ${fileChipCls(f.status)}`}
+          className={`grid h-[14px] w-[14px] flex-none place-items-center rounded text-meta font-bold ${fileChipCls(f.status)}`}
         >
           {f.status}
         </span>
+        {classifyRisk(f.path) === "high" && (
+          /* 高危红标右栏缺位是 P0-3:整批「通过」按钮在此面,无标即盲放。
+             徽标与中央批审阅单(BatchFileSection)同款同源,risk.ts 唯一规则源。 */
+          <span
+            className="flex-none rounded bg-(--tmd-diff-removed)/15 px-1 text-meta font-bold text-(--tmd-diff-removed)"
+            title={t("敏感路径(凭据/Shell 配置/CI/服务),建议细读 diff 再放行")}
+          >
+            {t("高危")}
+          </span>
+        )}
         {f.editCount > 0 && b.attribution === "events" && (
           <span
-            className="flex-none rounded border border-(--tmd-border) px-1 text-[0.5625rem] leading-[0.8125rem] text-(--tmd-fg-faint)"
+            className="flex-none rounded border border-(--tmd-border) px-1 text-2xs leading-3 text-(--tmd-fg-faint)"
             title={t("AI 本轮写入该文件 {n} 次(事件流轨迹,账本可审计)", { n: f.editCount })}
           >
             ×{f.editCount}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)">
+        <span
+          className="min-w-0 flex-1 truncate font-mono text-xs text-(--tmd-fg-muted)"
+          title={f.path}
+        >
           <b className="font-medium text-(--tmd-fg)">{name}</b>{" "}
           <span className="text-(--tmd-fg-faint)">{dir}</span>
         </span>
         {mine && (
-          <span className="flex-none font-mono text-[0.625rem]">
+          <span className="flex-none font-mono text-meta">
             <span className="text-(--tmd-diff-inserted)">+{mine.additions}</span>{" "}
             <span className="text-(--tmd-diff-removed)">−{mine.deletions}</span>
           </span>
         )}
         {f.reverted && (
-          <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-[0.625rem] leading-[0.875rem] text-[#a78bfa]">
+          <span className="flex-none rounded border border-dashed border-[#a78bfa] px-1 text-meta leading-3.5 text-[#a78bfa]">
             {t("已退")}
           </span>
         )}
         {f.stale && (
           <span
-            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-meta leading-3.5 text-(--tmd-fg-faint)"
             title={t("工作区内容已偏离本批后像,不可回退,仅可对照")}
           >
             {t("内容已变")}
@@ -170,7 +184,7 @@ export function FileRow({
         )}
         {f.noBaseline && (
           <span
-            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-[0.625rem] leading-[0.875rem] text-(--tmd-fg-faint)"
+            className="flex-none rounded border border-dashed border-(--tmd-fg-faint) px-1 text-meta leading-3.5 text-(--tmd-fg-faint)"
             title={t("工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退")}
           >
             {t("无前像")}

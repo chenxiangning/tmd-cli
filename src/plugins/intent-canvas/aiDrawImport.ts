@@ -59,6 +59,15 @@ async function resolveTargetDocument(
       return loadIntentCanvasDocument(root, hit.id);
     }
   }
+  /* 缺省兜底 = 最近更新画布(索引已按 updatedAt 倒序,首位即最近):
+     AI 不带 canvasId/title 时不再另开新图,防结果散落多张画布(2026-10 审计)。
+     索引读失败(warnings)时无从判定最近,退回新建保导入成功。 */
+  if (!file.canvasId && !file.title) {
+    const index = await loadIntentCanvasIndex(root);
+    if (index.warnings.length === 0 && index.value.length > 0) {
+      return loadIntentCanvasDocument(root, index.value[0].id);
+    }
+  }
   return null;
 }
 

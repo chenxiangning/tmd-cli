@@ -15,6 +15,8 @@
 //! 触发回放风暴只会立即再冻结,越自愈越卡。
 //! 另:主窗口 Focused(true) 时戳前端探针并挂 4s 应答死限,应答不至 =
 //! 页面悬死/探针未装,直接进击。
+//! 击打只落在聚焦窗口:未聚焦窗口 rAF 停发属后台设计内暂停(遮挡节流),
+//! 击打 = 抢用户焦点;真粘死在回焦时由 Focused 探针线检出接力。
 
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
@@ -38,7 +40,7 @@ pub(crate) const PROBE_DEADLINE_MS: u64 = 4_000;
 const FLOOD_GRACE_MS: u64 = 180_000;
 const HEARTBEAT_TICK_MS: u64 = 5_000;
 /// 心跳死线:窗口可见但 15s 无任何上报(含健康心跳)= webview 深冻,
-/// 页内自报线已死,由壳侧接管进击。
+/// 页内自报线已死,由壳侧接管进击(击打仍受聚焦闸约束,后台不抢焦点)。
 const HEARTBEAT_DEAD_MS: u64 = 15_000;
 
 /// 全局 PTY 发字节数(泵 emit 处累加)。壳侧洪水计量源:传感器在 Rust 侧,
@@ -102,6 +104,12 @@ pub(crate) fn next_action(
 }
 
 fn kick(window: &WebviewWindow, ks: &KickState) {
+    /* 聚焦闸:未聚焦窗口 rAF 停发是后台设计内暂停,不是粘死;此时击打 =
+    从用户手里抢焦点(2026-10-01 反馈:切去浏览器每 10 余秒被弹回)。
+    真粘死在用户回焦时由 Focused 探针线检出接力,聚焦态击打不受影响。 */
+    if !window.is_focused().unwrap_or(false) {
+        return;
+    }
     let now = now_millis();
     if now.saturating_sub(ks.last_action_ms.load(Ordering::Relaxed)) < KICK_DEBOUNCE_MS {
         return;
@@ -197,7 +205,8 @@ pub(crate) fn on_focused(window: &WebviewWindow) {
 /// 壳侧心跳守望(常驻线程):检测传感器移出 webview —— 吊销深冻时页内定时器
 /// 同样饥饿(rafFallback 自报线死亡),Focused 探针又只在焦点切换时触发,
 /// 用户盯死冻结窗口时两条检出线全哑,阶梯永停、只能手动刷新客户端(2026-10-01
-/// 根因定案)。本线程每 5s 独立判定:窗口可见但 15s 无任何上报 = 深冻,进击;
+/// 根因定案)。本线程每 5s 独立判定:窗口可见但 15s 无任何上报 = 深冻,进击
+/// (击打经聚焦闸,未聚焦窗口不骚扰,回焦由探针线接力);
 /// 洪水判定用本进程泵计量(note_pty_emitted),不问前端 —— 洪水期 reload 仍
 /// 降级 focus(防回放风暴),洪过(轮次总会结束)下一拍自动升级 reload,闭环。
 pub(crate) fn init_watchdog(window: WebviewWindow) {
@@ -227,88 +236,5 @@ pub(crate) fn init_watchdog(window: WebviewWindow) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn 壳侧洪水判据_5s增量阈值() {
-        assert!(!flood_from_delta(0));
-        assert!(!flood_from_delta(256 * 1024));
-        assert!(flood_from_delta(256 * 1024 + 1));
-    }
-
-    #[test]
-    fn 首击_focus_二击_reload_冷却内退_focus() {
-        let now = 100_000u64;
-        assert!(matches!(next_action(0, now, 0, 0, 0), KickAction::Focus));
-        assert!(matches!(next_action(1, now, 0, 0, 0), KickAction::Reload));
-        /* 冷却窗内(last_reload 60s 内)退回 focus */
-        assert!(matches!(
-            next_action(2, now, now - 10_000, 0, 0),
-            KickAction::Focus
-        ));
-        assert!(matches!(
-            next_action(2, now, now - RELOAD_COOLDOWN_MS, 0, 0),
-            KickAction::Reload
-        ));
-    }
-
-    #[test]
-    fn 洪水期内_reload_降级_focus_洪水过即恢复() {
-        let now = 100_000u64;
-        /* 二击本应 reload,但洪水未过(now < flood_until)且降级期起点未钉(0)→ focus */
-        assert!(matches!(
-            next_action(1, now, 0, now + 5_000, 0),
-            KickAction::Focus
-        ));
-        /* 洪水已过(flood_until <= now)→ 照常 reload */
-        assert!(matches!(next_action(1, now, 0, now, 0), KickAction::Reload));
-        /* 洪水降级不绕过 reload 冷却:冷却内 + 洪水过 仍 focus */
-        assert!(matches!(
-            next_action(2, now, now - 10_000, now, 0),
-            KickAction::Focus
-        ));
-    }
-
-    #[test]
-    fn 洪水宽限耗尽_无视洪水_reload() {
-        let now = 1_000_000u64;
-        let flood_until = now + 5_000;
-        /* 宽限内(降级期起点距今 < 180s):洪水中仍 focus */
-        assert!(matches!(
-            next_action(12, now, 0, flood_until, now - FLOOD_GRACE_MS + 1_000),
-            KickAction::Focus
-        ));
-        /* 宽限刚好耗尽:无视洪水 reload */
-        assert!(matches!(
-            next_action(12, now, 0, flood_until, now - FLOOD_GRACE_MS),
-            KickAction::Reload
-        ));
-        /* 宽限耗尽不绕过 reload 冷却:冷却内仍 focus */
-        assert!(matches!(
-            next_action(12, now, now - 10_000, flood_until, now - FLOOD_GRACE_MS),
-            KickAction::Focus
-        ));
-        /* 降级期起点为 0(尚未钉起点):不构成宽限耗尽,保持降级 */
-        assert!(matches!(
-            next_action(12, now, 0, flood_until, 0),
-            KickAction::Focus
-        ));
-        /* 首击不因宽限耗尽跳级(阶梯仍从 focus 起) */
-        assert!(matches!(
-            next_action(0, now, 0, flood_until, now - FLOOD_GRACE_MS),
-            KickAction::Focus
-        ));
-    }
-
-    #[test]
-    fn 去重窗内不击打() {
-        let ks = KickState::default();
-        ks.last_action_ms.store(now_millis(), Ordering::Relaxed);
-        /* 15s 未过:无窗口句柄也能验证去重早退 —— 用决策输入侧佐证 */
-        assert!(
-            now_millis().saturating_sub(ks.last_action_ms.load(Ordering::Relaxed))
-                < KICK_DEBOUNCE_MS
-        );
-    }
-}
+#[path = "render_health_tests.rs"]
+mod tests;

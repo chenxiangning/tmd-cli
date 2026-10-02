@@ -163,7 +163,7 @@ export function PullDialog({
           onClick={() => setOptionsOpen((v) => !v)}
           className="flex w-full items-center gap-2 rounded border border-(--tmd-border) px-2 py-1.5 text-xs text-(--tmd-fg) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
         >
-          <span className="flex h-4 min-w-4 items-center justify-center rounded-sm bg-(--tmd-bg-sunken) px-1 text-[0.625rem] text-(--tmd-fg-muted)">
+          <span className="flex h-4 min-w-4 items-center justify-center rounded-sm bg-(--tmd-bg-sunken) px-1 text-meta text-(--tmd-fg-muted)">
             {selectedOptions.length > 0 ? selectedOptions.length : ""}
           </span>
           {t("修改选项")}
@@ -206,7 +206,7 @@ export function PullDialog({
                   else if (o === "--no-commit") setNoCommit(false);
                   else if (o === "--no-verify") setNoVerify(false);
                 }}
-                className="flex items-center gap-1 rounded-full bg-(--tmd-bg-sunken) px-2 py-0.5 font-mono text-[0.6875rem] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
+                className="flex items-center gap-1 rounded-full bg-(--tmd-bg-sunken) px-2 py-0.5 font-mono text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
               >
                 {o}
                 <Cross className="h-[0.75rem] w-[0.75rem]" aria-hidden />
@@ -285,7 +285,7 @@ function OptionRow({
       }`}
     >
       <span
-        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-[0.625rem] leading-none ${
+        className={`flex h-3.5 w-3.5 items-center justify-center rounded-sm border text-meta leading-none ${
           active ? "border-(--tmd-accent) bg-(--tmd-accent) text-(--tmd-accent-fg)" : "border-(--tmd-border)"
         }`}
       >

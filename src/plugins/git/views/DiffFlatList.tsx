@@ -186,7 +186,7 @@ export function DiffFlatList({
                 className="flex min-w-0 flex-1 cursor-pointer select-none items-baseline gap-2 text-left [font:inherit] text-(--tmd-fg-muted)"
               >
                 <span
-                  className={`text-[0.5625rem] text-(--tmd-fg-faint) ${isCollapsed ? "-rotate-90" : ""}`}
+                  className={`text-2xs text-(--tmd-fg-faint) ${isCollapsed ? "-rotate-90" : ""}`}
                 >
                   ▾
                 </span>
@@ -203,7 +203,7 @@ export function DiffFlatList({
                     e.stopPropagation();
                     onStage([...unPaths, ...utPaths]);
                   }}
-                  className="text-[0.6875rem] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
+                  className="text-xs text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
                 >
                   {t("(全部暂存)")}
                 </button>
@@ -216,7 +216,7 @@ export function DiffFlatList({
                     e.stopPropagation();
                     onUnstage(stPaths);
                   }}
-                  className="text-[0.6875rem] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
+                  className="text-xs text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
                 >
                   {t("(全部取消)")}
                 </button>
@@ -224,7 +224,7 @@ export function DiffFlatList({
             </div>
             {!isCollapsed &&
               (sec.rows.length === 0 ? (
-                <div className="py-0.5 pl-3 text-[0.6875rem] text-(--tmd-fg-faint)">(nothing)</div>
+                <div className="py-0.5 pl-3 text-xs text-(--tmd-fg-faint)">(nothing)</div>
               ) : (
                 sec.rows.map((f) => (
                   <FRow

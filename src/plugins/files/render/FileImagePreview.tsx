@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState, type SyntheticEvent } from "react";
 import { assetUrl, ipc } from "@kernel/ipc";
 import { dataUrlByteLength } from "./previewBytes";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 
 /* 与 composer/state/attachments.ts 的 formatBytes 是刻意不同的两份实现:
    本处紧凑无空格("1.5MB",图片信息条窄槽位);彼处带单位空格("1.5 KB",
@@ -113,7 +114,10 @@ export function FileImagePreview({ path }: { path: string }) {
       ) : imageLoadError ? (
         <span className="fvp-image-info fvp-error">{imageLoadError}</span>
       ) : (
-        <div className="fvp-status">{t("加载中…")}</div>
+        <div className="fvp-status flex items-center justify-center gap-1.5">
+          <Spinner />
+          {t("加载中…")}
+        </div>
       )}
     </div>
   );
