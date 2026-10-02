@@ -65,7 +65,7 @@ tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "std"] }
 # 自建中继证书钉住(pinned_tls):摘要用 aws-lc-rs;默认根库与 tungstenite 对齐 0.26。
 aws-lc-rs = "1"
-webpki-roots = "0.26"
+webpki-roots = "1.0"
 # relay agent URL 查询串编码(form_urlencoded;reqwest 传递依赖已在树内,显式声明直用,
 # 替代手搓 percent-encode 白名单表)。
 url = "2"

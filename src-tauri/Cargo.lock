@@ -6192,7 +6192,7 @@ dependencies = [
  "trash",
  "url",
  "uuid",
- "webpki-roots 0.26.11",
+ "webpki-roots 1.0.9",
  "zip 2.4.2",
 ]
 
