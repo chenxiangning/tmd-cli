@@ -14,11 +14,6 @@
   flex: 0 1 auto;
   height: 100%;
   overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tab-bar::-webkit-scrollbar {
-  display: none;
 }
 
 .tab-bar-track {
@@ -34,8 +29,8 @@
   max-width: 160px;
   height: 24px;
   flex: 0 1 auto;
-  border-radius: 6px;
-  transition: background 120ms ease;
+  border-radius: var(--tmd-radius-sm);
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .tab:hover {
@@ -53,7 +48,7 @@
 .tab-main {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
   flex: 1 1 auto;
   height: 100%;
@@ -61,9 +56,9 @@
   border: none;
   background: none;
   color: var(--tmd-fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
-  transition: color 120ms ease;
+  transition: color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .tab-main:hover,
@@ -108,9 +103,9 @@
   width: 16px;
   height: 16px;
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   opacity: 0;
-  transition: background 120ms ease, opacity 120ms ease, color 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), opacity var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
   cursor: pointer;
 }
 

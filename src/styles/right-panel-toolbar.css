@@ -8,21 +8,21 @@
 .titlebar-ws-switch {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   max-width: 45%;
   padding: 2px 6px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--tmd-radius-xs);
   background: none;
   font-family: inherit;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tmd-fg-subtle);
   cursor: pointer;
   flex: 0 1 auto;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 /* 分支 label 改挂中区右缘(2026-09-14 用户口径):auto margin 吸右,贴右区竖线。 */
@@ -52,11 +52,11 @@
 .titlebar-branch-label {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   max-width: 25%;
   padding: 2px 4px;
-  border-radius: 4px;
-  font-size: 0.6875rem;
+  border-radius: var(--tmd-radius-xs);
+  font-size: var(--tmd-font-ui);
   font-weight: 500;
   color: color-mix(in srgb, hsl(var(--tag-h, 0) 60% 62%) 70%, var(--tmd-fg));
   /* 用户口径:无底色,纯着色文字(2026-09-14) */
@@ -73,7 +73,7 @@
 
 /* upstream 段(main → origin/main 的右半):淡色不抢分支名。 */
 .titlebar-branch-label-up {
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -117,7 +117,7 @@
   text-orientation: upright; /* 字母逐个立正,不卧倒 */
   line-height: 26px; letter-spacing: 7px;
   font-family: "Snell Roundhand", "Bradley Hand", cursive;
-  font-size: 14px; font-style: normal;
+  font-size: var(--tmd-font-lg); font-style: normal;
   /* 签名色 token 化(局部变量,不进全局 themes):深银 / 浅暗金 */
   color: var(--rail-mark-fg, #c6cbd2);
   text-shadow: 0 0 8px color-mix(in srgb, var(--rail-mark-fg, #c6cbd2) 55%, transparent), 0 0 2px color-mix(in srgb, var(--rail-mark-fg, #c6cbd2) 85%, transparent);
@@ -144,11 +144,11 @@
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--tmd-radius-md);
   background: transparent;
   color: var(--tmd-fg-subtle);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
   flex: 0 0 auto;
 }
 
@@ -160,7 +160,7 @@
 /* 图标装饰点亮色兜底(13 条 per-panel 规则共用一处,不再逐条写死 rgb;
  * 定义在 :root——⋯ 溢出菜单 portal 到 body,不在 .panel-rail 子树) */
 :root {
-  --rail-accent-fallback: rgb(255, 140, 60); /* 橙色 ─ 跟用户截图一致 */
+  --rail-accent-fallback: var(--tmd-decor); /* 橙色装饰强调 token 化 */
 }
 .panel-rail-tab.is-active {
   color: var(--rail-accent-fallback);

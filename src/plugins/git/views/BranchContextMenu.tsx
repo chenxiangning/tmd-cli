@@ -130,7 +130,7 @@ export function BranchContextMenu({
         role="menu"
       >
         {/* 跟踪摘要头(codemoss branch -> upstream 同款) */}
-        <div className="px-3 py-1 text-[0.625rem] text-(--tmd-fg-faint)">
+        <div className="px-3 py-1 text-meta text-(--tmd-fg-faint)">
           {branch.name}
           {isRemote
             ? t(" → 本地")

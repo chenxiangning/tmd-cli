@@ -70,7 +70,7 @@ function MarkCard({
           ×
         </button>
       </div>
-      <pre className="mt-1 overflow-hidden rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-1.5 font-mono text-[0.65rem] text-(--tmd-fg-muted)">
+      <pre className="mt-1 overflow-hidden rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-1.5 font-mono text-meta text-(--tmd-fg-muted)">
         {mark.excerpt}
       </pre>
       {expanded ? (
@@ -206,7 +206,7 @@ export function MarksPanel() {
             <div className="flex items-center gap-1 px-1">
               <button
                 type="button"
-                className="cursor-pointer truncate text-left text-[0.65rem] text-(--tmd-fg-subtle) hover:text-(--tmd-fg-muted)"
+                className="cursor-pointer truncate text-left text-meta text-(--tmd-fg-subtle) hover:text-(--tmd-fg-muted)"
                 onClick={() => openAndReveal(path, group[0].startLine)}
                 title={t("打开文件")}
               >
@@ -216,7 +216,7 @@ export function MarksPanel() {
               {root && group.some((mark) => mark.state === "pending") ? (
                 <button
                   type="button"
-                  className="ml-auto shrink-0 cursor-pointer rounded-md border border-(--tmd-border) px-1 py-px text-[0.65rem] text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
+                  className="ml-auto shrink-0 cursor-pointer rounded-md border border-(--tmd-border) px-1 py-px text-meta text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
                   onClick={() =>
                     stageMarks(root, group.filter((mark) => mark.state === "pending"))
                   }

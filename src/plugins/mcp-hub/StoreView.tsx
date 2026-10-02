@@ -91,7 +91,7 @@ export function StoreView({
           </button>
         ))}
         <div className="relative ml-auto min-w-0 flex-1">
-          <MagnifyingGlass size={11} className="pointer-events-none absolute top-1.5 left-2.5 text-(--tmd-fg-faint)" aria-hidden />
+          <MagnifyingGlass size="0.75rem" className="pointer-events-none absolute top-1.5 left-2.5 text-(--tmd-fg-faint)" aria-hidden />
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -108,24 +108,39 @@ export function StoreView({
           </form>
         </div>
         <button type="button" className="mcphub-ghost-btn flex-none" title={t("清缓存重拉")} onClick={refresh}>
-          <ArrowsClockwise size={12} aria-hidden />
+          <ArrowsClockwise size="0.75rem" aria-hidden />
           {t("刷新")}
         </button>
       </div>
 
       {error && (
-        <div className="mb-2 rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-2 text-[0.625rem] leading-relaxed text-(--tmd-diff-removed)">
-          {source === "glama"
-            ? t("Glama 源请求失败(匿名访问已被限制,需 API key)")
-            : t("该源不可达或暂不可用")}{" "}
-          · {error}
+        /* 可重试取数失败 = 持久条 + 重试钮(R6 错误契约;重试 = 清缓存重拉同路) */
+        <div
+          className="mb-2 flex items-start justify-between gap-2 rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-diff-removed)/10 px-3 py-2 text-meta leading-relaxed text-(--tmd-diff-removed)"
+          role="alert"
+          data-store-error
+        >
+          <span className="min-w-0 break-all">
+            {source === "glama"
+              ? t("Glama 源请求失败(匿名访问已被限制,需 API key)")
+              : t("该源不可达或暂不可用")}{" "}
+            · {error}
+          </span>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading}
+            className="flex-none rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
+          >
+            {t("重试")}
+          </button>
         </div>
       )}
 
       {loading && items.length === 0 ? (
-        <div className="py-10 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("加载中…")}</div>
+        <div className="py-10 text-center text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>
       ) : items.length === 0 && !error ? (
-        <div className="py-10 text-center text-[0.6875rem] text-(--tmd-fg-faint)">{t("无结果;换个关键词试试")}</div>
+        <div className="py-10 text-center text-xs text-(--tmd-fg-faint)">{t("无结果;换个关键词试试")}</div>
       ) : (
         <div className="flex flex-col gap-1.5">
           {items.map((card) => (
@@ -141,7 +156,7 @@ export function StoreView({
           disabled={loading}
           onClick={() => void run(source, submitted, nextCursor)}
         >
-          <DownloadSimple size={12} aria-hidden />
+          <DownloadSimple size="0.75rem" aria-hidden />
           {loading ? t("加载中…") : t("加载更多")}
         </button>
       )}

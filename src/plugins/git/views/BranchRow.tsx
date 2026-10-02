@@ -7,12 +7,13 @@
 
 import { useState } from "react";
 import { t } from "@kernel/i18n";
-import { CircleNotch, GitBranch, Plus, Trash } from "@phosphor-icons/react";
+import { GitBranch, Plus, Trash } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import type { GitBranchInfo } from "@kernel/ipc";
 
 export function GroupLabel({ label }: { label: string }) {
   return (
-    <div className="sticky top-0 mt-1 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-1 py-1 text-[0.625rem] uppercase tracking-wider text-(--tmd-fg-faint)">
+    <div className="sticky top-0 mt-1 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-1 py-1 text-meta uppercase tracking-wider text-(--tmd-fg-faint)">
       {label}
     </div>
   );
@@ -95,7 +96,7 @@ export function BranchRow({
         title={branchRowTitle(branch)}
       >
         {branch.name}
-        {isCurrent && <span className="ml-1 text-[0.625rem]">{t("(当前)")}</span>}
+        {isCurrent && <span className="ml-1 text-meta">{t("(当前)")}</span>}
       </button>
       {branch.isRemote && onCheckout && (
         <button
@@ -177,7 +178,7 @@ export function GitOpBanner({
   return (
     <>
       {error && (
-        <div className="rounded bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-removed)">
+        <div role="alert" className="rounded bg-(--tmd-diff-removed)/8 px-2 py-1 text-(--tmd-diff-removed)">
           {error}
         </div>
       )}
@@ -187,8 +188,8 @@ export function GitOpBanner({
         </div>
       )}
       {busy && (
-        <div className="flex items-center gap-1.5 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("执行中…")}
+        <div className="flex items-center gap-1.5 text-(--tmd-fg-subtle)">
+          <Spinner /> {t("执行中…")}
         </div>
       )}
     </>

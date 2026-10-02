@@ -18,7 +18,7 @@ export function TerminalRefreshButton({ onClick }: { onClick: () => void }) {
       type="button"
       title={t("刷新幕布(重建本会话终端画面,PTY 不中断)")}
       onClick={onClick}
-      className="inline-flex h-[22px] cursor-pointer items-center gap-1 rounded-md border border-(--tmd-border) bg-[color-mix(in_srgb,var(--tmd-bg-elevated)_86%,transparent)] px-2.5 text-[0.6875rem] text-(--tmd-fg-muted) backdrop-blur-[4px] hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+      className="inline-flex h-[22px] cursor-pointer items-center gap-1 rounded-md border border-(--tmd-border) bg-[color-mix(in_srgb,var(--tmd-bg-elevated)_86%,transparent)] px-2.5 text-xs text-(--tmd-fg-muted) backdrop-blur-[4px] hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
     >
       {/* 高频自救钮给图标 affordance:与低频「结构化视图」纯文字钮分主次 */}
       <ArrowClockwise size="0.75rem" />

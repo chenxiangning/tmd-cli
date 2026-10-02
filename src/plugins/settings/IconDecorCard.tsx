@@ -244,7 +244,7 @@ export function IconDecorCard() {
                     aria-label={`${t(label)} ${t("恢复默认")}`}
                     onClick={() => resetItem(id)}
                   >
-                    <ArrowCounterClockwise size="0.8125rem" aria-hidden />
+                    <ArrowCounterClockwise size="0.875rem" aria-hidden />
                   </button>
                 </div>
               </div>

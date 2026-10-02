@@ -180,6 +180,7 @@ function Outlet({
           >
             {core ? (
               <span className="pm-plug-weld" title={t("核心插件")}>
+                {/* R7 密集例外:插座焊点微标保 10px(插座条为全仓最密微标面) */}
                 <Lock size="0.625rem" aria-hidden />
               </span>
             ) : null}
@@ -199,6 +200,7 @@ function Outlet({
                   open();
                 }}
               >
+                {/* R7 密集例外:15px 二级市场角标内配 9px 微图标(对齐 R8 密集 badge 字号档) */}
                 <market.icon size="0.5625rem" />
               </button>
             );

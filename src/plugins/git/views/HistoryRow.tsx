@@ -7,7 +7,7 @@
 import { Fragment } from "react";
 import { stringHue } from "@kernel/colorHash";
 import { t } from "@kernel/i18n";
-import { CircleNotch } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import type { GitCommitFile, GitLogEntry } from "@kernel/ipc";
@@ -74,7 +74,7 @@ function FileRow({
       />
       <span className="min-w-0 flex-1 truncate">
         <span className="font-medium">{name}</span>
-        {dir && <span className="ml-1 text-[0.625rem] text-(--tmd-fg-faint)">{dir}</span>}
+        {dir && <span className="ml-1 text-meta text-(--tmd-fg-faint)">{dir}</span>}
       </span>
       <span className={`w-3 shrink-0 text-center font-semibold ${STATUS_COLOR[row.file.status] ?? ""}`}>
         {row.file.status}
@@ -112,10 +112,10 @@ function CommitRow({
           <span className="block truncate font-medium">
             {row.commit.summary || t("(空消息)")}
           </span>
-          <span className="flex items-center gap-1.5 text-[0.625rem] leading-4 text-(--tmd-fg-faint)">
+          <span className="flex items-center gap-1.5 text-meta leading-4 text-(--tmd-fg-faint)">
             <span className="font-mono">{row.commit.shortSha}</span>
             <span
-              className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full text-[0.5rem] font-semibold uppercase"
+              className="flex h-3 w-3 shrink-0 items-center justify-center rounded-full text-2xs font-semibold uppercase"
               style={{
                 color: `color-mix(in srgb, hsl(${stringHue(row.commit.authorEmail)} 60% 62%) 70%, var(--tmd-fg))`,
                 background: `hsl(${stringHue(row.commit.authorEmail)} 50% 55% / 0.18)`,
@@ -135,7 +135,7 @@ function CommitRow({
       {expanded && entry?.loading && (
         <div className={ROW_CLASS} title={t("加载改动文件")}>
           <GitGraphContinuationCell row={row.graph} />
-          <CircleNotch className="h-[0.75rem] w-[0.75rem] shrink-0 animate-spin text-(--tmd-fg-faint)" />
+          <Spinner className="shrink-0 text-(--tmd-fg-faint)" />
           <span className="text-(--tmd-fg-faint)">{t("加载中…")}</span>
         </div>
       )}

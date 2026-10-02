@@ -85,13 +85,13 @@ export function SendConfirmDialog({
       >
         <div className="flex items-center justify-between border-b border-(--tmd-border) px-4 py-2.5">
           <div className="flex items-center gap-1.5 text-xs font-medium text-(--tmd-fg)">
-            <PaperPlaneRightIcon size="0.8125rem" className="text-(--tmd-accent)" aria-hidden />
+            <PaperPlaneRightIcon size="0.875rem" className="text-(--tmd-accent)" aria-hidden />
             {t("确认发送")}
           </div>
-          <div className="text-[0.6875rem] text-(--tmd-fg-faint)">{t("Enter 确认 · Esc 取消")}</div>
+          <div className="text-xs text-(--tmd-fg-faint)">{t("Enter 确认 · Esc 取消")}</div>
         </div>
         <div className="px-4 pt-3">
-          <div className="text-[0.6875rem] text-(--tmd-fg-faint)">
+          <div className="text-xs text-(--tmd-fg-faint)">
             {broadcast
               ? t("将发送到 {n} 块幕布:", { n: plan.targets.length })
               : t("发送目标")}
@@ -107,8 +107,8 @@ export function SendConfirmDialog({
           </div>
         </div>
         <div className="px-4 pt-3">
-          <div className="text-[0.6875rem] text-(--tmd-fg-faint)">{t("内容")}</div>
-          <div className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded border border-(--tmd-border) bg-(--tmd-bg-base) px-2.5 py-2 text-[0.6875rem] leading-4 text-(--tmd-fg-muted)">
+          <div className="text-xs text-(--tmd-fg-faint)">{t("内容")}</div>
+          <div className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded border border-(--tmd-border) bg-(--tmd-bg-base) px-2.5 py-2 text-xs leading-4 text-(--tmd-fg-muted)">
             {plan.content}
           </div>
         </div>
@@ -139,7 +139,7 @@ function TargetCard({ target, multi }: { target: SendTarget; multi: boolean }) {
   return (
     <div className="flex items-center gap-2 rounded border border-(--tmd-border) bg-(--tmd-bg-base) px-2.5 py-1.5">
       {target.paneIndex !== undefined && (
-        <span className="shrink-0 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[0.625rem] font-medium text-(--tmd-accent)">
+        <span className="shrink-0 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-meta font-medium text-(--tmd-accent)">
           {t("幕布 {n}", { n: target.paneIndex })}
         </span>
       )}
@@ -147,12 +147,12 @@ function TargetCard({ target, multi }: { target: SendTarget; multi: boolean }) {
         <div className="flex items-center gap-1.5">
           <span className="truncate text-xs text-(--tmd-fg)">{target.title}</span>
           {multi && target.active && (
-            <span className="shrink-0 rounded border border-(--tmd-border) px-1 py-px text-[0.625rem] text-(--tmd-fg-faint)">
+            <span className="shrink-0 rounded border border-(--tmd-border) px-1 py-px text-meta text-(--tmd-fg-faint)">
               {t("当前")}
             </span>
           )}
         </div>
-        <div className="truncate text-[0.625rem] text-(--tmd-fg-faint)">
+        <div className="truncate text-meta text-(--tmd-fg-faint)">
           {target.workspace} · {target.engine}
         </div>
       </div>

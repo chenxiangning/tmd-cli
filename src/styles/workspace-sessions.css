@@ -15,11 +15,7 @@
   opacity: 1;
   transform: translateY(0);
   /* 不裁剪:树线顶部要上探扎进文件夹行;行内容裁剪由 inner 的 overflow 负责。 */
-  transition:
-    grid-template-rows 0.18s cubic-bezier(0.2, 0, 0, 1),
-    opacity 0.16s ease,
-    transform 0.18s cubic-bezier(0.2, 0, 0, 1),
-    margin-top 0.18s cubic-bezier(0.2, 0, 0, 1);
+  transition: grid-template-rows var(--tmd-dur-2) cubic-bezier(0.2, 0, 0, 1), opacity var(--tmd-dur-1) var(--tmd-ease-out), transform var(--tmd-dur-2) cubic-bezier(0.2, 0, 0, 1), margin-top var(--tmd-dur-2) cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* ══ 树形参考线(2026-09-13 改直角虚线):竖线 x=容器 20px(居文件夹图标中心),
@@ -62,7 +58,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   position: relative;
   z-index: 1;
 }
@@ -75,15 +71,13 @@
   gap: 2px;
   min-height: var(--sidebar-row-height-thread);
   padding: 2px 0 2px 8px;
-  border-radius: var(--sidebar-row-radius);
+  border-radius: var(--tmd-radius-sm);
   color: var(--text-quiet);
   font-size: var(--sidebar-content-font-size);
   cursor: pointer;
   min-width: 0;
   position: relative;
-  transition:
-    background-color 0.16s ease,
-    color 0.16s ease;
+  transition: background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
   background: transparent;
   border: none;
   width: calc(100% - var(--workspace-tree-indent));
@@ -106,8 +100,8 @@
 }
 
 .tl-node.is-run {
-  background: #34d399;
-  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.25);
+  background: var(--tmd-ok);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tmd-ok) 25%, transparent);
 }
 
 /* 完成未读:对话结束且未查看 → 蓝色呼吸(accent 蓝,design tokens 语义色);
@@ -197,18 +191,18 @@
 
 
 /* 等待确认标签:CLI 阻塞在 Ask/确认面板(kernel/askWatch.ts 标记命中),
-   用户作答即清。深绿(emerald-600)= 需要用户行动;浅绿 #34d399 在浅色主题
-   下对比度不足被实测否决;soft 底 + 描边与 welcome-pill 同构,不随主题漂移。 */
+   用户作答即清。绿 = 需要用户行动(--tmd-ok 随主题切换深浅);soft 底 + 描边
+   与 welcome-pill 同构。 */
 .thread-ask-badge {
   display: inline-flex;
   align-items: center;
   height: 16px;
   padding: 0 6px;
   border-radius: 999px;
-  background: rgba(5, 150, 105, 0.12);
-  border: 1px solid rgba(5, 150, 105, 0.5);
-  color: #059669;
-  font-size: 0.625rem;
+  background: color-mix(in srgb, var(--tmd-ok) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tmd-ok) 50%, transparent);
+  color: var(--tmd-ok);
+  font-size: var(--tmd-font-xs);
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
@@ -217,23 +211,19 @@
 /* 会话速度指示(SessionSpeedPill):生成中活会话行的 tok/s 响应均速。
    纯文字无胶囊底(数值态,与「等待确认」行动徽标区分);tabular-nums 防数字跳宽。 */
 .thread-speed-pill {
-  color: #60a5fa;
-  font-size: 0.5625rem;
+  color: var(--tmd-accent);
+  font-size: var(--tmd-font-2xs);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-/* 浅色主题蓝对比度:蓝 400 白底不足,降深蓝 600(同 thread-status-label 先例)。 */
-:root[data-theme="light"] .thread-speed-pill {
-  color: #2563eb;
-}
 
 /* 会话状态校准 label(SessionStatusLabel):呼吸灯暗示的文字明示,活会话专属,纯文字不闪烁。
    配色:深绿 = 运行时(浅色主题加深);锚定蓝 = 空闲-未查看;灰 = 空闲(本轮已结束,非进程退出)。 */
 .thread-status-label {
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
@@ -241,16 +231,9 @@
 }
 
 .thread-status-label.is-run {
-  color: #34d399;
-}
-
-/* 浅色主题下 emerald-400 文字对比度不足(白底看不清),降为深绿 emerald-600;
-   深色主题保持 #34d399(深底上反而清晰)。 */
-:root[data-theme="light"] .thread-status-label.is-run {
-  color: #059669;
+  color: var(--tmd-ok); /* 深浅主题各取对比档,override 段随 token 化移除 */
 }
 
 .thread-status-label.is-unread {
-  /* 锚定明确蓝 #0078d4(= 深色主题 accent):浅色主题的 accent #005fb8 偏深藏青,不像蓝。 */
-  color: #0078d4;
+  color: var(--tmd-accent);
 }

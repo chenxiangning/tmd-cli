@@ -155,7 +155,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
         role="dialog"
         aria-modal="true"
         aria-label={t("转到其他引擎接力")}
-        className="flex w-[460px] flex-col gap-3 rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-2xl"
+        className="flex w-[460px] flex-col gap-3 rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-(--tmd-shadow-modal)"
       >
         <div className="text-sm font-medium text-(--tmd-fg)">{t("转到其他引擎接力")}</div>
 
@@ -185,7 +185,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
           <div className="mb-1 flex items-center gap-2 text-xs text-(--tmd-fg-faint)">
             <span>{t("接力提示词(可编辑,将作为新会话首条消息发出)")}</span>
             {summaryTruncated && (
-              <span className="rounded bg-(--tmd-bg-hover) px-1 text-[0.625rem] text-(--tmd-git-modified)">
+              <span className="rounded bg-(--tmd-bg-hover) px-1 text-meta text-(--tmd-git-modified)">
                 {t("已截断(单条 500 字 · 总长 8KB)")}
               </span>
             )}
@@ -214,7 +214,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
             type="button"
             disabled={!targetId || busy || !summaryReady}
             onClick={() => void relay()}
-            className="flex items-center gap-1.5 rounded-md bg-(--tmd-accent) px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-md bg-(--tmd-accent) px-3 py-1.5 text-xs font-medium text-(--tmd-accent-fg) disabled:opacity-50"
           >
             <PaperPlaneRight size="0.75rem" aria-hidden />
             {busy ? t("开新会话中…") : summaryReady ? t("开新会话并发送") : t("摘要生成中…")}

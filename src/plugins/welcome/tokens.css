@@ -13,13 +13,13 @@
 .tokens-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 8px; }
 .tokens-head h3 {
   margin: 0;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 400;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--tmd-fg-faint);
 }
-.tokens-stats { margin-left: auto; display: flex; gap: 18px; font-size: 0.6875rem; }
+.tokens-stats { margin-left: auto; display: flex; gap: 18px; font-size: var(--tmd-font-ui); }
 .tokens-stats .k { color: var(--tmd-fg-faint); }
 .tokens-stats .v { color: var(--tmd-fg); }
 .tokens-stats .v.hot { color: var(--tmd-warn); }
@@ -37,7 +37,7 @@
   gap: 8px;
   align-items: center;
   line-height: 1.9;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   white-space: nowrap;
 }
@@ -76,11 +76,11 @@
 .trend .day .lab { font-size: 0.75rem; color: var(--tmd-fg-muted); text-align: center; white-space: nowrap; padding: 2px 0; }
 .trend .day.today .lab { color: var(--tmd-fg); font-weight: 600; }
 
-.trend-foot { display: flex; gap: 16px; margin-top: 6px; font-size: 0.6875rem; color: var(--tmd-fg-faint); }
+.trend-foot { display: flex; gap: 16px; margin-top: 6px; font-size: var(--tmd-font-ui); color: var(--tmd-fg-faint); }
 .trend-foot .sw { display: inline-block; width: 8px; height: 8px; margin-right: 4px; vertical-align: -1px; }
 
 .tokens-empty { font-size: 0.75rem; color: var(--tmd-fg-faint); padding: 2px 6px; }
-.tokens .note { margin-top: 8px; font-size: 0.6875rem; color: var(--tmd-fg-faint); opacity: 0.85; }
+.tokens .note { margin-top: 8px; font-size: var(--tmd-font-ui); color: var(--tmd-fg-faint); opacity: 0.85; }
 .tokens .note button {
   border: none; background: none; padding: 0; color: var(--tmd-fg-muted);
   font: inherit; text-decoration: underline; cursor: pointer;

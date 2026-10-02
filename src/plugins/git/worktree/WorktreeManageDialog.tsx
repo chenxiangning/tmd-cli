@@ -157,7 +157,7 @@ export function WorktreeManageDialog({
         role="dialog"
         aria-modal="true"
         aria-label={t("Worktree 管理")}
-        className="flex max-h-[80vh] w-[520px] flex-col gap-3 overflow-auto rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-2xl"
+        className="flex max-h-[80vh] w-[520px] flex-col gap-3 overflow-auto rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-(--tmd-shadow-modal)"
       >
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-(--tmd-fg)">{t("Worktree 管理")}</div>
@@ -242,14 +242,14 @@ export function WorktreeManageDialog({
               className="w-40 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs text-(--tmd-fg) outline-none focus:border-(--tmd-accent)"
               aria-label={t("目录名")}
             />
-            <span className="min-w-0 flex-1 truncate text-[0.6875rem] text-(--tmd-fg-faint)">
+            <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg-faint)">
               {dirName.trim() ? `${parent}/${dirName.trim()}` : parent + "/…"}
             </span>
             <button
               type="button"
               onClick={() => void add()}
               disabled={busy === "add"}
-              className="shrink-0 rounded-md bg-(--tmd-accent) px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50"
+              className="shrink-0 rounded-md bg-(--tmd-accent) px-2.5 py-1 text-xs font-medium text-(--tmd-accent-fg) disabled:opacity-50"
             >
               {busy === "add" ? t("创建中…") : t("创建")}
             </button>

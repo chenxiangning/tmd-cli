@@ -145,14 +145,14 @@ export function WebDevicePairCard() {
               {offer.pairCode}
             </code>
             <span
-              className={`inline-flex items-center gap-1 text-[0.6875rem] ${ttl <= TTL_WARN_SECS ? "text-[var(--tmd-warn)]" : "text-[var(--tmd-fg-muted)]"}`}
+              className={`inline-flex items-center gap-1 text-xs ${ttl <= TTL_WARN_SECS ? "text-[var(--tmd-warn)]" : "text-[var(--tmd-fg-muted)]"}`}
             >
               {t("有效期 {ttl}", { ttl: fmtTtl(ttl) })}
             </span>
             <button
               type="button"
               onClick={() => void copyLink()}
-              className="inline-flex w-fit items-center gap-1 text-[0.6875rem] text-[var(--tmd-accent)] hover:underline"
+              className="inline-flex w-fit items-center gap-1 text-xs text-[var(--tmd-accent)] hover:underline"
             >
               {copied ? <Check size="0.75rem" aria-hidden /> : <Copy size="0.75rem" aria-hidden />}
               {copied ? t("已复制") : t("复制配对链接")}
@@ -172,7 +172,7 @@ export function WebDevicePairCard() {
       {/* 待授权 */}
       {pending.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[0.6875rem] font-semibold text-[var(--tmd-fg-muted)]">
+          <span className="text-xs font-semibold text-[var(--tmd-fg-muted)]">
             {t("待授权")}
           </span>
           {pending.map((d) => (
@@ -185,7 +185,7 @@ export function WebDevicePairCard() {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-semibold">{d.name}</div>
-                <div className="truncate text-[0.6875rem] text-[var(--tmd-fg-muted)]">
+                <div className="truncate text-xs text-[var(--tmd-fg-muted)]">
                   {[
                     d.ip,
                     t("发起于 {time}", { time: fmtLastSeen(d.createdAt, now) }),
@@ -198,14 +198,14 @@ export function WebDevicePairCard() {
               <button
                 type="button"
                 onClick={() => void approve(d.deviceId)}
-                className="rounded-md bg-[var(--tmd-accent)] px-2 py-0.5 text-[0.6875rem] font-semibold text-white"
+                className="rounded-md bg-[var(--tmd-accent)] px-2 py-0.5 text-xs font-semibold text-white"
               >
                 {t("授权")}
               </button>
               <button
                 type="button"
                 onClick={() => setIgnored((s) => new Set(s).add(d.deviceId))}
-                className="rounded-md border border-[var(--tmd-border)] px-2 py-0.5 text-[0.6875rem]"
+                className="rounded-md border border-[var(--tmd-border)] px-2 py-0.5 text-xs"
               >
                 {t("忽略")}
               </button>
@@ -217,7 +217,7 @@ export function WebDevicePairCard() {
       {/* 已授权 */}
       {approved.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[0.6875rem] font-semibold text-[var(--tmd-fg-muted)]">
+          <span className="text-xs font-semibold text-[var(--tmd-fg-muted)]">
             {t("已授权设备")}
           </span>
           {approved.map((d) => (
@@ -229,12 +229,12 @@ export function WebDevicePairCard() {
                 className={`size-2 flex-none rounded-full ${d.online ? "bg-[var(--tmd-diff-inserted)]" : "bg-[var(--tmd-fg-faint)] opacity-50"}`}
                 aria-hidden
               />
-              <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-bg-active)] text-[0.625rem] font-semibold text-[var(--tmd-fg-muted)]">
+              <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-bg-active)] text-meta font-semibold text-[var(--tmd-fg-muted)]">
                 iOS
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-semibold">{d.name}</div>
-                <div className="truncate text-[0.6875rem] text-[var(--tmd-fg-muted)]">
+                <div className="truncate text-xs text-[var(--tmd-fg-muted)]">
                   {(
                     d.online
                       ? [t("已连接"), t("上次活跃 {time}", { time: fmtLastSeen(d.lastSeenAt, now) })]
@@ -247,7 +247,7 @@ export function WebDevicePairCard() {
               <button
                 type="button"
                 onClick={() => void revoke(d.deviceId)}
-                className="inline-flex items-center gap-1 rounded-md border border-[rgba(220,38,38,0.4)] px-2 py-0.5 text-[0.6875rem] text-[var(--tmd-err)]"
+                className="inline-flex items-center gap-1 rounded-md border border-[rgba(220,38,38,0.4)] px-2 py-0.5 text-xs text-[var(--tmd-err)]"
                 title={t("撤销后手机立即掉线,需重新配对")}
               >
                 <Trash size="0.75rem" aria-hidden />
@@ -258,7 +258,7 @@ export function WebDevicePairCard() {
         </div>
       )}
 
-      <p className="text-[0.6875rem] leading-relaxed text-[var(--tmd-fg-muted)]">
+      <p className="text-xs leading-relaxed text-[var(--tmd-fg-muted)]">
         {t(
           "设备凭证 = 每台独立 token(桌面只存 sha-256)。踢除立即断开该设备全部连接,其本地凭证作废,需重新扫码配对。授权/踢除仅桌面可操作,手机端只读自己状态。",
         )}

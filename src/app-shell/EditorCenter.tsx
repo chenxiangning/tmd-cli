@@ -36,7 +36,8 @@ export const EditorCenter = memo(function EditorCenter() {
         {active && Content && !isKeepAliveTab(active.kind) ? (
           <Content key={active.id} tab={active} />
         ) : active && isKeepAliveTab(active.kind) ? null : (
-          <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+          <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-subtle)">
+            {/* 空态提示=真实信息,faint 升 subtle(R5) */}
             {t("选中一个文件查看")}
           </div>
         )}

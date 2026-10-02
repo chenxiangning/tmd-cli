@@ -38,6 +38,7 @@ export const MESSAGES = {
 
   /* view/DrawerItemList.tsx + drawerSections.ts (consumed at call sites) */
   "暂无命令或技能": "コマンドまたはスキルがありません",
+  "去插件市场": "プラグインマーケットへ",
   "⚡ 发送到幕布": "⚡ ターミナルに送信",
   "↵ 插入输入框": "↵ 入力欄に挿入",
   "⇱ 打开面板": "⇱ パネルを開く",

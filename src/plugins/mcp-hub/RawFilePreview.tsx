@@ -35,12 +35,12 @@ export function RawFilePreview({ engine, onClose }: { engine: McpEngineState; on
 
   return (
     <div className="mb-2 flex flex-col rounded-(--tmd-radius-md) border border-(--tmd-border)">
-      <div className="flex items-center gap-2 border-b border-(--tmd-border) px-2.5 py-1.5 text-[0.625rem] text-(--tmd-fg-faint)">
+      <div className="flex items-center gap-2 border-b border-(--tmd-border) px-2.5 py-1.5 text-meta text-(--tmd-fg-faint)">
         <span className="truncate">{t("原始文件(只读)")} · {engine.path}</span>
         <div className="ml-auto flex flex-none items-center gap-1.5">
           {engine.exists && (
             <button type="button" className="mcphub-ghost-btn" onClick={() => openFileInTab(engine.path)}>
-              <ArrowSquareOut size={11} aria-hidden />
+              <ArrowSquareOut size="0.75rem" aria-hidden />
               {t("在文件 tab 打开")}
             </button>
           )}
@@ -50,12 +50,12 @@ export function RawFilePreview({ engine, onClose }: { engine: McpEngineState; on
         </div>
       </div>
       {failed ? (
-        <div className="px-3 py-3 text-[0.625rem] text-(--tmd-diff-removed)">{t("文件不存在或不可读")}</div>
+        <div className="px-3 py-3 text-meta text-(--tmd-diff-removed)">{t("文件不存在或不可读")}</div>
       ) : (
         <div>
-          <pre className="mcphub-raw">{text ?? t("读取中…")}</pre>
+          <pre className="mcphub-raw">{text ?? t("加载中…")}</pre>
           {truncated && (
-            <div className="border-t border-(--tmd-border) px-2.5 py-1 text-[0.5625rem] text-(--tmd-fg-faint)">
+            <div className="border-t border-(--tmd-border) px-2.5 py-1 text-2xs text-(--tmd-fg-faint)">
               {t("已达 20000 字符预览上限,完整内容请用「在文件 tab 打开」")}
             </div>
           )}

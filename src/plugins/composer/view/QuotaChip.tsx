@@ -205,7 +205,7 @@ function QuotaDetailPopover({
             onClick={onRefresh}
             title={t("重新抓取额度")}
            >
-             <ArrowClockwise size="0.6875rem" aria-hidden className={loading ? "is-spinning" : undefined} />
+             <ArrowClockwise size="0.75rem" aria-hidden className={loading ? "is-spinning" : undefined} />
             {t("刷新")}
           </button>
         </div>

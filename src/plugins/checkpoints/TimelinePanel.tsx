@@ -14,7 +14,8 @@
  */
 
 import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
-import { FileText } from "@phosphor-icons/react";
+import { ClockClockwise, FileText } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
 import { host } from "@kernel/host";
 import {
   KernelTopics,
@@ -67,10 +68,10 @@ export function TimelinePanel() {
   const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set());
 
   if (!sessionId) {
-    return <Empty text={t("时间线跟随会话生命周期 —— 当前没有活跃会话")} />;
+    return <Empty>{t("时间线跟随会话生命周期 —— 当前没有活跃会话")}</Empty>;
   }
   if (anchors.length === 0) {
-    return <Empty text={t("本会话还没有用户消息 —— 发送一条后,这里按时间记录")} />;
+    return <Empty icon={<ClockClockwise />}>{t("本会话还没有用户消息 —— 发送一条后,这里按时间记录")}</Empty>;
   }
 
   /* 最新在顶;seq 取正序下标 +1,追加不回溯。 */
@@ -154,7 +155,7 @@ function TimelineRow({
 
       <div className="min-w-0 flex-1">
         {/* meta:序号 + 状态 + hover 出「定位幕布」 */}
-        <div className="mb-0.5 flex items-center gap-1.5 text-[0.625rem] leading-4 text-(--tmd-fg-faint)">
+        <div className="mb-0.5 flex items-center gap-1.5 text-meta leading-4 text-(--tmd-fg-faint)">
           <span className="font-mono font-semibold text-(--tmd-fg-muted)">#{seq}</span>
           {live && (
             <span className="rounded bg-(--tmd-accent)/15 px-1 text-(--tmd-accent)">
@@ -164,7 +165,7 @@ function TimelineRow({
           <button
             type="button"
             onClick={onJump}
-            className="ml-auto rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-[0.625rem] leading-4 text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100"
+            className="ml-auto rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100"
           >
             {t("定位幕布")}
           </button>
@@ -173,7 +174,7 @@ function TimelineRow({
         {/* 净文本(对齐 BatchSheet 用户消息卡:accent 左边条);纯附件消息不出文本块 */}
         {parts.text ? (
           <div
-            className={`rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-2.5 py-1.5 text-[0.75rem] leading-relaxed break-words whitespace-pre-wrap text-(--tmd-fg) ${
+            className={`rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-2.5 py-1.5 text-xs leading-relaxed break-words whitespace-pre-wrap text-(--tmd-fg) ${
               clampable && !open ? "line-clamp-3" : ""
             }`}
           >
@@ -184,7 +185,7 @@ function TimelineRow({
           <button
             type="button"
             onClick={onToggle}
-            className="mt-0.5 text-[0.625rem] text-(--tmd-accent)"
+            className="mt-0.5 text-meta text-(--tmd-accent)"
           >
             {open ? t("收起") : t("展开全文")}
           </button>
@@ -202,7 +203,7 @@ function TimelineRow({
                 <span
                   key={p}
                   title={p}
-                  className="flex max-w-full items-center gap-1 rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1.5 py-px text-[0.625rem] leading-4 text-(--tmd-fg-muted)"
+                  className="flex max-w-full items-center gap-1 rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1.5 py-px text-meta leading-4 text-(--tmd-fg-muted)"
                 >
                   <FileText size="0.625rem" className="flex-none text-(--tmd-fg-subtle)" aria-hidden />
                   <span className="truncate font-mono text-(--tmd-fg-faint)">
@@ -227,13 +228,5 @@ export function TimelineCount() {
   );
   return (
     <span className="flex-none text-(--tmd-fg-faint)">{t("{count} 条", { count: anchors.length })}</span>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return (
-    <div className="flex flex-1 items-center justify-center px-6 text-center text-[0.6875rem] leading-relaxed text-(--tmd-fg-faint)">
-      {text}
-    </div>
   );
 }

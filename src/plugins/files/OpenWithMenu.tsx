@@ -158,7 +158,7 @@ export function OpenWithMenu({ path }: { path: string }) {
         createPortal(
           <div
             role="status"
-            className="pointer-events-none fixed bottom-10 right-6 z-[1202] max-w-[18rem] rounded-lg border border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 text-[0.6875rem] text-(--tmd-fg) shadow-lg"
+            className="pointer-events-none fixed bottom-10 right-6 z-[1202] max-w-[18rem] rounded-lg border border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 text-xs text-(--tmd-fg) shadow-(--tmd-shadow-popover)"
           >
             {notice}
           </div>,

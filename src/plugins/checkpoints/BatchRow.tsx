@@ -52,7 +52,7 @@ function BatchActionBar({
         <button
           type="button"
           disabled={busy}
-          className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[0.625rem] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
+          className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-meta text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
           title={t("标记本批已审阅(纯标记,不影响任何文件)")}
           onClick={() => void onApprove(b.id)}
         >
@@ -63,7 +63,7 @@ function BatchActionBar({
         <button
           type="button"
           disabled={busy}
-          className="flex h-[21px] flex-none items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[0.625rem] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
+          className="flex h-[21px] flex-none items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-meta text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
           onClick={() => setConfirm({ batchId: b.id, paths: revertable.map((f) => f.path) })}
         >
           <ArrowCounterClockwise size="0.625rem" aria-hidden /> {t("回退整批({n})", { n: revertable.length })}
@@ -73,7 +73,7 @@ function BatchActionBar({
         <button
           type="button"
           disabled={busy}
-          className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[0.625rem] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
+          className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-meta text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
           title={t("按账本副本把这轮改动精确写回(live 已偏离批前像的文件跳过,绝不覆盖)")}
           onClick={() => setConfirm({ batchId: b.id, mode: "apply" })}
         >
@@ -84,13 +84,13 @@ function BatchActionBar({
         <button
           type="button"
           disabled={busy}
-          className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-border) px-2 text-[0.625rem] text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
+          className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-border) px-2 text-meta text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
           onClick={() => void onUndo(b.id)}
         >
           <ArrowUUpLeft size="0.625rem" aria-hidden /> {t("反悔 · 恢复回来")}
         </button>
       )}
-      <span className="truncate text-[0.625rem] text-(--tmd-fg-faint)">
+      <span className="truncate text-meta text-(--tmd-fg-faint)">
         {statusHint(st)}
       </span>
     </div>

@@ -37,7 +37,7 @@ export function McpHubTab(_props: { tab: EditorTab }) {
             key={v.id}
             type="button"
             aria-pressed={view === v.id}
-            className={`rounded-(--tmd-radius-sm) px-2.5 py-1 text-[0.6875rem] transition-colors ${
+            className={`rounded-(--tmd-radius-sm) px-2.5 py-1 text-xs transition-colors ${
               view === v.id
                 ? "bg-(--tmd-bg-hover) font-medium text-(--tmd-fg)"
                 : "text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"

@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
-import { CircleNotch } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import type { EditorTab } from "@kernel/tabs";
 import { ipc, type GitFileLogEntry } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
@@ -25,7 +25,7 @@ function CenterNote({ text }: { text: string }) {
 function Loading() {
   return (
     <div className="flex h-full items-center justify-center text-(--tmd-fg-muted)" role="status">
-      <CircleNotch className="animate-spin" size="1rem" />
+      <Spinner size="1rem" />
     </div>
   );
 }

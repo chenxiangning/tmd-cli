@@ -34,7 +34,7 @@ export function TerminalSearchOverlay({
   };
 
   return (
-    <div className="absolute right-3 top-2 z-10 flex items-center gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-2 py-1 shadow-lg">
+    <div className="absolute right-3 top-2 z-10 flex items-center gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-2 py-1 shadow-(--tmd-shadow-popover)">
       <input
         ref={inputRef}
         value={query}

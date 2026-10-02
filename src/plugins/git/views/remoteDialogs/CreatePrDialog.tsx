@@ -165,7 +165,7 @@ export function CreatePrDialog({
             }}
           />
           {copied && (
-            <div className="mt-1 text-[0.6875rem] text-(--tmd-fg-muted)">{t("已复制链接")}</div>
+            <div className="mt-1 text-xs text-(--tmd-fg-muted)">{t("已复制链接")}</div>
           )}
         </>
       )}

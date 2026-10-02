@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ThemePresetDefinition } from "./themePresets";
+import { getThemePreset } from "./themePresets";
 import {
   getContrastingTextColor,
   mapPresetToTokens,
@@ -222,5 +223,77 @@ describe("终端 ANSI 16 色 token", () => {
     expect(tokens["--tmd-terminal-red"]).toBe("#ff0000");
     expect(tokens["--tmd-terminal-bright-white"]).toBe("#123456");
     expect(tokens["--tmd-terminal-blue"]).toBe("#0451a5");
+  });
+});
+
+// ── fg 三档对比度收口(2026-10-02;WCAG 相对亮度口径,本地实现零依赖) ──────────
+
+function wcagChannel(v: number): number {
+  v /= 255;
+  return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+}
+
+function luminance(hex: string): number {
+  const byte = (i: number) => parseInt(hex.slice(i, i + 2), 16);
+  return (
+    0.2126 * wcagChannel(byte(1)) + 0.7152 * wcagChannel(byte(3)) + 0.0722 * wcagChannel(byte(5))
+  );
+}
+
+/** WCAG 对比度(#rrggbb 对 #rrggbb,三档 token 均为实色 hex)。 */
+function contrastRatio(a: string, b: string): number {
+  const [l1, l2] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (l1 + 0.05) / (l2 + 0.05);
+}
+
+describe("fg 三档对比度收口(六 tmd 主题)", () => {
+  const TMD_IDS = [
+    "tmd-paper",
+    "tmd-mist",
+    "tmd-linen",
+    "tmd-graphite",
+    "tmd-ink",
+    "tmd-ember",
+  ] as const;
+
+  /** muted/subtle/faint 三档各自对侧栏底(sideBar.background)的对比度。 */
+  function tierContrasts(id: (typeof TMD_IDS)[number]): [number, number, number] {
+    const preset = getThemePreset(id);
+    const tokens = mapPresetToTokens(preset);
+    const sidebar = preset.colors["sideBar.background"]!;
+    return [
+      contrastRatio(tokens["--tmd-fg-muted"], sidebar),
+      contrastRatio(tokens["--tmd-fg-subtle"], sidebar),
+      contrastRatio(tokens["--tmd-fg-faint"], sidebar),
+    ];
+  }
+
+  it("浅色三主题 fg-muted@侧栏底 ≥ 4.5(收口前 mist/linen 为 4.05/4.06)", () => {
+    for (const id of TMD_IDS.slice(0, 3)) {
+      expect(tierContrasts(id)[0], id).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("浅色三主题三档区分度:相邻档对比度差 ≥ 1.5", () => {
+    for (const id of TMD_IDS.slice(0, 3)) {
+      const [m, s, f] = tierContrasts(id);
+      expect(m - s, `${id} muted-subtle 档距`).toBeGreaterThanOrEqual(1.5);
+      expect(s - f, `${id} subtle-faint 档距`).toBeGreaterThanOrEqual(1.5);
+    }
+  });
+
+  it("深色三主题不回退:fg-muted@侧栏底 ≥ 5.7(收口前最低 5.71)", () => {
+    for (const id of TMD_IDS.slice(3)) {
+      expect(tierContrasts(id)[0], id).toBeGreaterThanOrEqual(5.7);
+    }
+  });
+
+  it("混色系数钉死 0.28/0.42/0.68(faint 不取 0.62 提案,档距优先)", () => {
+    const tokens = mapPresetToTokens(getThemePreset("tmd-mist"));
+    const fg = tokens["--tmd-fg"];
+    const bg = tokens["--tmd-bg-base"];
+    expect(tokens["--tmd-fg-muted"]).toBe(mixHexColors(fg, bg, 0.28));
+    expect(tokens["--tmd-fg-subtle"]).toBe(mixHexColors(fg, bg, 0.42));
+    expect(tokens["--tmd-fg-faint"]).toBe(mixHexColors(fg, bg, 0.68));
   });
 });

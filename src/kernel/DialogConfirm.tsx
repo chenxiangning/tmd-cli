@@ -59,8 +59,9 @@ export function ConfirmDialog({
             type="button"
             ref={confirmRef}
             className={`rounded px-3 py-1.5 text-xs hover:opacity-90 ${
+              /* R5:text-white 全改 accent-fg(err 底同为实色前景档) */
               danger
-                ? "bg-(--tmd-err) text-white"
+                ? "bg-(--tmd-err) text-(--tmd-accent-fg)"
                 : "bg-(--tmd-accent) text-(--tmd-accent-fg)"
             }`}
             onClick={() => {

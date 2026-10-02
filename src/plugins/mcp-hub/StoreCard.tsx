@@ -21,7 +21,7 @@ export function StoreCard({ card, onInstall }: { card: RegistryCard; onInstall: 
         <span className="mcphub-badge">{SOURCE_LABEL[card.source]}</span>
         <span className="min-w-0 truncate font-medium text-(--tmd-fg)">{card.name}</span>
         {card.toolsCount !== undefined && (
-          <span className="flex-none text-[0.625rem] text-(--tmd-fg-faint) tabular-nums">
+          <span className="flex-none text-meta text-(--tmd-fg-faint) tabular-nums">
             {t("{n} 个工具", { n: card.toolsCount })}
           </span>
         )}
@@ -32,12 +32,12 @@ export function StoreCard({ card, onInstall }: { card: RegistryCard; onInstall: 
           title={installable ? t("打开安装草稿(填空后写入目标引擎)") : t("此卡片需手动配置(无可生成草稿)")}
           onClick={onInstall}
         >
-          <DownloadSimple size={12} aria-hidden />
+          <DownloadSimple size="0.75rem" aria-hidden />
           {t("安装")}
         </button>
       </div>
       {card.description && (
-        <div className="mt-1 line-clamp-2 text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-faint)">
+        <div className="mt-1 line-clamp-2 text-meta text-(--tmd-fg-faint)">
           {card.description}
         </div>
       )}
@@ -46,7 +46,7 @@ export function StoreCard({ card, onInstall }: { card: RegistryCard; onInstall: 
           href={card.url}
           target="_blank"
           rel="noreferrer"
-          className="mt-0.5 inline-block max-w-full truncate text-[0.625rem] text-(--tmd-accent) hover:underline"
+          className="mt-0.5 inline-block max-w-full truncate text-meta text-(--tmd-accent) hover:underline"
         >
           {card.url}
         </a>

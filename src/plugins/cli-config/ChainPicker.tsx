@@ -38,21 +38,21 @@ export function ChainPicker({
           <span className="cli-cfg-chain-ctl">
             <button type="button" className="cli-cfg-icon-btn" aria-label={t("上移")} disabled={i === 0}
               onClick={() => move(i, -1)}>
-              <CaretUp size={12} />
+              <CaretUp size="0.75rem" />
             </button>
             <button type="button" className="cli-cfg-icon-btn" aria-label={t("下移")} disabled={i === items.length - 1}
               onClick={() => move(i, 1)}>
-              <CaretDown size={12} />
+              <CaretDown size="0.75rem" />
             </button>
             <button type="button" className="cli-cfg-icon-btn" aria-label={t("删除")}
               onClick={() => commit(items.filter((_, j) => j !== i).filter(Boolean))}>
-              <Trash size={13} />
+              <Trash size="0.875rem" />
             </button>
           </span>
         </div>
       ))}
       <button type="button" className="cli-cfg-add" onClick={() => commit([...items, ""])}>
-        <Plus size={12} /> {t("添加候选")}
+        <Plus size="0.75rem" /> {t("添加候选")}
       </button>
     </div>
   );

@@ -30,7 +30,7 @@
   background: none;
   border: none;
   color: var(--tmd-fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
 }
 .wsfb-back:hover {
@@ -46,7 +46,7 @@
   min-height: 28px;
   padding: 0 6px;
   border: 1px solid var(--tmd-border);
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
   background: var(--tmd-bg-input);
 }
 .wsfb-search:focus-within {
@@ -64,7 +64,7 @@
   border: none;
   outline: none;
   color: var(--tmd-fg);
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
 }
 .wsfb-search input::placeholder {
   color: var(--tmd-fg-subtle);
@@ -76,7 +76,7 @@
   border-radius: 999px;
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   cursor: pointer;
 }
 .wsfb-filter-pill:hover {
@@ -96,7 +96,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   font-weight: 600;
   color: var(--tmd-fg);
 }
@@ -111,7 +111,7 @@
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: transparent;
   color: var(--tmd-fg-muted);
   cursor: pointer;
@@ -155,7 +155,7 @@
 .wsfb-mark {
   flex: none;
   margin-left: 2px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   line-height: 1;
 }
@@ -184,6 +184,6 @@
 /* 空态/提示 */
 .wsfb-empty {
   padding: 16px 12px;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
 }

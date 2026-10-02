@@ -94,7 +94,7 @@ export function BudgetPopover({
     <>
       <div className="wsmenu-backdrop" role="presentation" onClick={onClose} />
       <div
-        className="wsbudget"
+        className="wsbudget tmd-scroll-hide"
         style={{ left: position.x, top: position.y }}
         data-testid="session-list-budget-card"
       >

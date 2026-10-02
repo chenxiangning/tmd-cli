@@ -228,13 +228,13 @@ export function SplitDiffView({
   const items = useMemo(() => foldItems(splitRows, runs, foldOpen), [splitRows, runs, foldOpen]);
   if (!wrap) {
     return (
-      <pre className="h-full overflow-hidden py-1 font-mono text-[0.6875rem] leading-tight">
+      <pre className="h-full overflow-hidden py-1 font-mono text-xs leading-tight">
         <SplitHalves items={items} cols={cols} foldOpen={foldOpen} toggleFold={toggleFold} />
       </pre>
     );
   }
   return (
-    <pre className={`${className} overflow-auto py-1 font-mono text-[0.6875rem] leading-tight`}>
+    <pre className={`${className} overflow-auto py-1 font-mono text-xs leading-tight`}>
       <SplitGrid items={items} cols={cols} foldOpen={foldOpen} toggleFold={toggleFold} />
     </pre>
   );

@@ -30,7 +30,7 @@
 }
 
 .welcome-cred-title {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -38,7 +38,7 @@
 }
 
 .welcome-cred-plan {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   white-space: nowrap;
   flex-shrink: 0;
@@ -56,7 +56,7 @@
 .welcome-cred-window {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -66,7 +66,7 @@
 }
 
 .welcome-cred-window-label {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -88,14 +88,14 @@
   border-radius: 999px;
 }
 
-/* 7天/30天窗口: 橘色(沿用 quota.css rgb(255,140,60)) */
+/* 7天/30天窗口: 橘色装饰强调(沿用 quota.css --tmd-decor) */
 .welcome-cred-window-fill--weekly {
-  background: rgb(255, 140, 60);
+  background: var(--tmd-decor);
 }
 
 .welcome-cred-window-pct {
   width: 30px; /* 定宽 → 条右缘跨行对齐 */
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -106,7 +106,7 @@
 .welcome-cred-window-reset {
   flex: 0 1 104px; /* 基准 104 定宽槽保跨行对齐;窄窗收缩为省略号,不撑爆轨道 */
   min-width: 0;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   white-space: nowrap;
   overflow: hidden;
@@ -121,12 +121,12 @@
 }
 
 .welcome-cred-balance {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .welcome-cred-note {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   white-space: nowrap;
   overflow: hidden;

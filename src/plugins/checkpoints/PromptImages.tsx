@@ -12,7 +12,8 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Image, CircleNotch } from "@phosphor-icons/react";
+import { Image } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
@@ -57,7 +58,7 @@ function Thumb({
         title={t("{path}(文件已不可读)", { path })}
       >
         <Image size="0.75rem" aria-hidden />
-        <span className="w-full truncate text-center text-[0.625rem]">{fileName(path)}</span>
+        <span className="w-full truncate text-center text-meta">{fileName(path)}</span>
       </span>
     );
   }
@@ -72,7 +73,7 @@ function Thumb({
       {src ? (
         <img src={src} alt={fileName(path)} className="h-full w-full object-cover" />
       ) : (
-        <CircleNotch size="0.75rem" className="animate-spin text-(--tmd-fg-faint)" aria-hidden />
+        <Spinner className="text-(--tmd-fg-faint)" />
       )}
     </button>
   );
@@ -101,7 +102,7 @@ function Lightbox({
         className="max-h-[92vh] max-w-[92vw] object-contain"
         onClick={(e) => e.stopPropagation()}
       />
-      <div className="absolute bottom-4 left-4 max-w-[80vw] truncate rounded bg-black/60 px-2 py-1 font-mono text-[0.6875rem] text-white/80">
+      <div className="absolute bottom-4 left-4 max-w-[80vw] truncate rounded bg-black/60 px-2 py-1 font-mono text-xs text-white/80">
         {name}
       </div>
     </div>,

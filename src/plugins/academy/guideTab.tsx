@@ -52,7 +52,8 @@ function CommandCard({ cmd, cliId, lessonIdx, onOpenLesson }: {
       <button type="button" className="academy-card-head" onClick={() => setOpen(!open)}>
         <span className="academy-cmd-name">/{cmd.name}</span>
         <span className="academy-cmd-zh">{cmd.zh}</span>
-        <CaretRight size={10} className={`academy-chev${open ? " is-open" : ""}`} aria-hidden />
+        {/* 密集卡头行内箭头:10px 例外档(设计系统收口注释豁免) */}
+        <CaretRight size="0.625rem" className={`academy-chev${open ? " is-open" : ""}`} aria-hidden />
       </button>
       {open && (
         <div className="academy-card-body">
@@ -86,14 +87,14 @@ function CommandCard({ cmd, cliId, lessonIdx, onOpenLesson }: {
           <div className="academy-card-acts">
             {lessonIdx !== undefined && (
               <button type="button" className="academy-btn" onClick={() => onOpenLesson(lessonIdx)}>
-                <BookOpenText size={12} aria-hidden />{t("去学")}
+                <BookOpenText size="0.75rem" aria-hidden />{t("去学")}
               </button>
             )}
             <button type="button" className="academy-btn" onClick={() => setNeedSession(!tryCommand(cmd.name, cliId))}>
-              <Flask size={12} aria-hidden />{t("试一试")}
+              <Flask size="0.75rem" aria-hidden />{t("试一试")}
             </button>
             <button type="button" className="academy-btn" onClick={copy}>
-              <Copy size={12} aria-hidden />{copied ? t("已复制") : t("复制命令")}
+              <Copy size="0.75rem" aria-hidden />{copied ? t("已复制") : t("复制命令")}
             </button>
           </div>
           {needSession && (
@@ -168,7 +169,7 @@ export function GuideTab({ tab }: { tab: EditorTab }) {
           })}
         </div>
       )}
-      <div className="academy-chips">
+      <div className="academy-chips tmd-scroll-hide">
         {course.chapters.map((ch, i) => (
           <button
             key={ch.id}

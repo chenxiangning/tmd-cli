@@ -48,7 +48,7 @@ function GenSessionBar({ sessionId, engine }: { sessionId?: string; engine?: str
   const live = host.getSessions().some((s) => s.id === sessionId);
   return (
     <div className="dj-gensess">
-      <TerminalWindow size={12} />
+      <TerminalWindow size="0.75rem" />
       <span className="dj-gensess-lab">{t("生成会话")}</span>
       <span className="dj-gensess-sub">
         <EngMark id={engine ?? ""} /> {engine ?? ""} · {sessionId}
@@ -166,7 +166,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   useEffect(() => {
     if ((tab.payload as ArticleTabPayload).autoEdit) setEditSignal((v) => v + 1);
   }, [tab.payload]);
-  if (!snap || !rows) return <div className="dj-article dj-article-loading">{t("正在加载…")}</div>;
+  if (!snap || !rows) return <div className="dj-article dj-article-loading">{t("加载中…")}</div>;
   return (
     <div className="dj-article">
       <div className="dj-art-bar">

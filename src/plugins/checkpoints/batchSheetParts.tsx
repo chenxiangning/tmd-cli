@@ -48,7 +48,7 @@ function SheetActions({
         <button
           type="button"
           disabled={busy}
-          className="flex h-6 items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-[0.6875rem] text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
+          className="flex h-6 items-center gap-1 rounded border border-(--tmd-diff-inserted)/40 px-2 text-xs text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
           title={t("标记本批已审阅(纯标记,不影响任何文件)")}
           onClick={onApprove}
         >
@@ -59,7 +59,7 @@ function SheetActions({
         <button
           type="button"
           disabled={busy}
-          className="flex h-6 items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-[0.6875rem] text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
+          className="flex h-6 items-center gap-1 rounded border border-[rgba(167,139,250,.4)] px-2 text-xs text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
           onClick={onRevertAll}
         >
           <ArrowCounterClockwise size="0.625rem" aria-hidden /> {t("回退整批({n})", { n: revertableCount })}
@@ -89,7 +89,7 @@ export function SheetToolbar({
   return (
     <div className="flex h-8 flex-none items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-3">
       <span
-        className="text-[0.6875rem] text-(--tmd-fg-faint)"
+        className="text-xs text-(--tmd-fg-faint)"
         title={batch.tsEnd
           ? t("{start} 发起 · {end} 封口", { start: formatAbsolute(batch.ts), end: formatAbsolute(batch.tsEnd) })
           : t("{start} 发起", { start: formatAbsolute(batch.ts) })}
@@ -97,7 +97,7 @@ export function SheetToolbar({
         {t("批次 #{index} · {state} · {time}", { index: batch.index, state: stateLabel, time: formatRelativeTime(batch.ts) })}
       </span>
       {patches && (
-        <span className="font-mono text-[0.6875rem]">
+        <span className="font-mono text-xs">
           <span className="text-(--tmd-diff-inserted)">
             +{patches.reduce((s, p) => s + p.additions, 0)}
           </span>{" "}
@@ -127,7 +127,7 @@ export function SheetConfirmBar({
   onConfirm: () => void;
 }) {
   return (
-    <div className="flex flex-none items-center gap-3 border-b border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 text-[0.6875rem]">
+    <div className="flex flex-none items-center gap-3 border-b border-(--tmd-border-strong) bg-(--tmd-bg-popover) px-3 py-1.5 text-xs">
       <span className="text-(--tmd-fg-muted)">
         {t("确认回退{target}? 恢复点自动留存。", {
           target: target === "all" ? t("整批({n} 文件)", { n: revertableCount }) : target,
@@ -162,10 +162,10 @@ export function SheetPromptCard({
 }) {
   return (
     <>
-      <div className="mb-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.6875rem] text-(--tmd-fg-faint)">
+      <div className="mb-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-(--tmd-fg-faint)">
         <span className="flex-none">{t("用户消息")}</span>
         {batch.engine && (
-          <span className="flex-none rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1 text-[0.625rem] leading-[1rem] text-(--tmd-fg-muted)">
+          <span className="flex-none rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1 text-meta leading-4 text-(--tmd-fg-muted)">
             {batch.engine}
           </span>
         )}
@@ -188,7 +188,7 @@ export function SheetPromptCard({
       {/* 图片附件缩略图横排(点击放大);净文本为空(纯附件消息)不出文本块 */}
       <PromptImages images={prompt.images} />
       {prompt.text ? (
-        <div className="whitespace-pre-wrap break-words rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-3.5 py-2.5 text-[0.8125rem] leading-relaxed text-(--tmd-fg)">
+        <div className="whitespace-pre-wrap break-words rounded-r border-l-2 border-(--tmd-accent) bg-(--tmd-bg-hover) px-3.5 py-2.5 text-md leading-relaxed text-(--tmd-fg)">
           {prompt.text}
         </div>
       ) : null}

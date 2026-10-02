@@ -3,7 +3,8 @@
  * Context Preview。渲染结构移植自 mossx IntentCanvasEditor 右 aside。
  */
 
-import { ArrowLeft, CircleNotch, FileMagnifyingGlass, FileText, Warning } from "@phosphor-icons/react";
+import { ArrowLeft, FileMagnifyingGlass, FileText, Warning } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { t } from "@kernel/i18n";
 import { cn } from "../utils/cn";
 import type {
@@ -120,7 +121,7 @@ function SourceTraceCard(props: {
               </dl>
               {sourceState.status === "loading" ? (
                 <p className="intent-canvas-source-notice">
-                  <CircleNotch aria-hidden className="is-spinning" />
+                  <Spinner />
                   {t("正在检查最新关系快照。")}
                 </p>
               ) : null}

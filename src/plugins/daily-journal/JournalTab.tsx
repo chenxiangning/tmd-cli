@@ -58,11 +58,11 @@ function ToolbarEnd({ activeTasks, holOn, holStatus, onHol, onRescan, onTasks, o
         {t("重新扫描")}
       </button>
       <button type="button" className="dj-btn" onClick={onTasks}>
-        <ListChecks size={11} /> {t("后台任务")}
+        <ListChecks size="0.75rem" /> {t("后台任务")}
         {activeTasks > 0 && <span className="dj-task-badge">{activeTasks}</span>}
       </button>
       <button type="button" className="dj-btn" onClick={onCfg} aria-label={t("生成设置")}>
-        <GearSix size={11} />
+        <GearSix size="0.75rem" />
       </button>
     </>
   );
@@ -108,13 +108,13 @@ function JournalStage({
   if (sessions === null) {
     return (
       <div className="dj-empty">
-        {t("正在扫描会话…")}
+        {t("加载中…")}
         {progress ? ` (${progress.done}/${progress.total})` : ""}
       </div>
     );
   }
   if (view === "y") return <YearView y={ym.y} sessions={sessions} today={today} onOpenMonth={openMonth} />;
-  if (!snap) return <div className="dj-empty">{t("正在加载…")}</div>;
+  if (!snap) return <div className="dj-empty">{t("加载中…")}</div>;
   return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} onShiftMonth={onShiftMonth} />;
 }
 
@@ -206,11 +206,11 @@ export function JournalTab() {
         </div>
         <div className="dj-nav">
           <button className="dj-btn" aria-label={view === "y" ? t("上一年") : t("上个月")} onClick={() => nav(-1)}>
-            <CaretLeft size={12} weight="bold" />
+            <CaretLeft size="0.75rem" />
           </button>
           <span className="dj-month-title">{view === "y" ? String(ym.y) : monthTitleOf(ym.y, ym.m)}</span>
           <button className="dj-btn" aria-label={view === "y" ? t("下一年") : t("下个月")} onClick={() => nav(1)}>
-            <CaretRight size={12} weight="bold" />
+            <CaretRight size="0.75rem" />
           </button>
         </div>
         <button

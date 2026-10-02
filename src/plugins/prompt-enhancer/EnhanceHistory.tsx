@@ -4,7 +4,9 @@
  */
 
 import { useEffect, useState } from "react";
+import { ClockCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
 import { getHistory, type EnhanceHistoryEntry } from "./enhanceStore";
 
 function timeLabel(at: number): string {
@@ -18,7 +20,12 @@ export function EnhanceHistory({ onPick }: { onPick: (e: EnhanceHistoryEntry) =>
   useEffect(() => setEntries([...getHistory()]), []);
   if (!entries) return null;
   if (entries.length === 0) {
-    return <div className="mt-3 h-64 rounded border border-(--tmd-border) p-4 text-xs text-(--tmd-fg-muted)">{t("暂无历史记录")}</div>;
+    /* 空态统一形制;外框与有史列表同形(等高卡位,不塌陷) */
+    return (
+      <div className="mt-3 h-64 rounded border border-(--tmd-border)">
+        <Empty icon={<ClockCounterClockwise aria-hidden />}>{t("暂无历史记录")}</Empty>
+      </div>
+    );
   }
   return (
     <div className="mt-3 flex h-64 flex-col overflow-y-auto rounded border border-(--tmd-border)">

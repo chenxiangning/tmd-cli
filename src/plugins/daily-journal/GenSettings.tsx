@@ -77,7 +77,7 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
   return (
     <DialogShell
       title={t("生成设置")}
-      icon={<GearSix size={13} />}
+      icon={<GearSix size="0.875rem" />}
       width={460}
       onClose={onClose}
       footer={
@@ -151,7 +151,7 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
                     title={p.oneshotArgs ? t("声明 oneshotArgs:定时/补跑走无头单发,无人值守") : t("无 oneshotArgs:TUI 会话兜底生成,需开着幕布")}
                     onClick={() => setCfg((c) => ({ ...c, engine: p.id, model: p.modelArg || p.oneshotArgs ? c.model : "" }))}
                   >
-                    {Brand && <Brand size={12} />}
+                    {Brand && <Brand size="0.75rem" />}
                     {p.id}
                     {/* 无头/TUI 兜底徽标(oneshotArgs 声明判定;dj-pill 现成形制) */}
                     <span className={"dj-pill" + (p.oneshotArgs ? "" : " dj-pill-warn")}>

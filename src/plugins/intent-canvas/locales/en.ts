@@ -1,7 +1,6 @@
 /** EN 词典 · 意图画布域(键 = 中文源串;zh 恒等无词典)。 */
 export const MESSAGES_EN = {
   "未命名意图画布": "Untitled Intent Canvas",
-  "正在加载画布…": "Loading canvases...",
   "保存中…": "Saving...",
   "已保存": "Saved",
   "未保存": "Unsaved",
@@ -26,6 +25,8 @@ export const MESSAGES_EN = {
   "File": "File",
   "刷新": "Refresh",
   "新建画布": "New Canvas",
+  "加载中…": "Loading…",
+  "还没有画布 —— 创建第一张图,把你的业务意图、模块关系和问题上下文画出来。": "No canvases yet — create the first diagram to sketch business intent, module relationships, and problem context.",
   "全选": "Select all",
   "取消选择": "Clear selection",
   "已选择 {count} 个画布": "{count} canvas(es) selected",
@@ -33,8 +34,6 @@ export const MESSAGES_EN = {
   "删除已选 {count} 个": "Delete selected {count}",
   "批量删除": "Bulk delete",
   "搜索标题、摘要或文件路径…": "Search title, summary, or file path...",
-  "还没有画布": "No canvases yet",
-  "创建第一张图,把你的业务意图、模块关系和问题上下文画出来。": "Create the first diagram to sketch business intent, module relationships, and problem context.",
   "请选择工作区": "Select a workspace",
   "暂无摘要。": "No summary yet.",
   "打开": "Open",

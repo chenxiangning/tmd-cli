@@ -63,10 +63,10 @@ export function BranchNameDialog({
       <dialog
         open
         aria-label={state.title}
-        className="relative m-0 w-80 max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-3 text-left text-(--tmd-fg) shadow-2xl"
+        className="relative m-0 w-80 max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-3 text-left text-(--tmd-fg) shadow-(--tmd-shadow-modal)"
       >
         <div className="text-xs font-medium text-(--tmd-fg)">{state.title}</div>
-        <div className="mt-2 text-[0.6875rem] text-(--tmd-fg-muted)">
+        <div className="mt-2 text-xs text-(--tmd-fg-muted)">
           {state.sourceLabel}
           <span className="ml-1 font-medium text-(--tmd-fg)">{state.source}</span>
         </div>

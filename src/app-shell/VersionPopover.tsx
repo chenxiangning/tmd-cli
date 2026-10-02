@@ -68,7 +68,7 @@ function ChangelogPanel({
               disabled={idx === 0}
               onClick={onPrev}
             >
-              <CaretLeft size="0.8125rem" />
+              <CaretLeft size="0.875rem" />
             </button>
             <span className="vp-pager-ind">
               {idx + 1} / {entryCount}
@@ -80,7 +80,7 @@ function ChangelogPanel({
               disabled={idx >= entryCount - 1}
               onClick={onNext}
             >
-              <CaretRight size="0.8125rem" />
+              <CaretRight size="0.875rem" />
             </button>
           </span>
         )}

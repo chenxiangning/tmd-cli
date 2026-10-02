@@ -51,6 +51,7 @@ export const MESSAGES = {
   "输入时按 Tab 接受历史补全建议;输入框为空时按 ↑↓ 翻阅历史。":
     "Tab accepts a history suggestion while typing; with the input empty, ↑↓ browses history.",
   "管理历史记录": "Manage history",
+  "暂无历史记录": "No history yet",
   "清空全部输入历史": "Clear all input history",
   "清空全部": "Clear all",
   "确认清空?": "Confirm clear?",

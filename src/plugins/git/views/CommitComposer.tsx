@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useReducer, useRef } from "react";
 import { t } from "@kernel/i18n";
-import { CircleNotch } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { ipc } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 
@@ -147,7 +147,7 @@ export function CommitComposer({
           {note}
         </div>
       )}
-      <div className="mt-1.5 flex items-center gap-2.5 text-[0.6875rem] text-(--tmd-fg-faint)">
+      <div className="mt-1.5 flex items-center gap-2.5 text-xs text-(--tmd-fg-faint)">
         <button
           type="button"
           title={t("附加 --amend:改动并入上一个提交")}
@@ -165,7 +165,7 @@ export function CommitComposer({
           title={t("提交(⌘⏎)")}
           className="flex items-center gap-1 bg-(--tmd-accent) px-3 py-0.5 text-(--tmd-accent-fg) disabled:bg-(--tmd-bg-sunken) disabled:text-(--tmd-fg-faint)"
         >
-          {busy && <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" />}
+          {busy && <Spinner />}
           ⌘⏎ commit
         </button>
       </div>

@@ -42,7 +42,7 @@ export function UniqueSection({
           {label}
           <span className="font-normal text-(--tmd-fg-faint)">({branch} \ {other})</span>
         </span>
-        <span className="shrink-0 rounded-full bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[0.625rem] text-(--tmd-accent)">
+        <span className="shrink-0 rounded-full bg-(--tmd-accent-soft) px-1.5 py-0.5 text-meta text-(--tmd-accent)">
           {t("{n} 个提交", { n: commits.length })}
         </span>
       </button>
@@ -68,7 +68,7 @@ export function UniqueSection({
                 <div className="truncate text-xs font-medium text-(--tmd-fg)">
                   {c.summary || t("(空消息)")}
                 </div>
-                <div className="mt-0.5 flex items-center gap-1.5 text-[0.625rem] text-(--tmd-fg-faint)">
+                <div className="mt-0.5 flex items-center gap-1.5 text-meta text-(--tmd-fg-faint)">
                   <span className="font-mono">{c.shortSha}</span>
                   <span>{c.authorName}</span>
                   <span>{formatRelativeTime(c.authorWhen * 1000)}</span>

@@ -54,6 +54,6 @@
 
 .cli-cfg-modelpicker .styled-select-value {
   font-family: var(--tmd-font-mono, ui-monospace, Menlo, monospace);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
 }
 

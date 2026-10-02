@@ -108,7 +108,7 @@ export function HostModal({
           </label>
           <AuthCredentials draft={draft} isNew={isNew} set={set} />
           {/* 代理三控件并排,label 只配说明文本,控件各自 aria-label(视觉同 label 版式)。 */}
-          <div className="flex flex-col gap-[3px] text-[0.6875rem] text-(--tmd-fg-faint)">
+          <div className="flex flex-col gap-1 text-xs text-(--tmd-fg-faint)">
             <span>{t("代理(可选)")}</span>
             <div className="ssh-form-row">
               <StyledSelect
@@ -250,7 +250,7 @@ function SecretField({
           title={show ? t("隐藏") : t("显示")}
           onClick={() => setShow(!show)}
         >
-          {show ? <Eye size={13} /> : <EyeClosed size={13} />}
+          {show ? <Eye size="0.875rem" aria-hidden /> : <EyeClosed size="0.875rem" aria-hidden />}
         </button>
       </div>
     </div>

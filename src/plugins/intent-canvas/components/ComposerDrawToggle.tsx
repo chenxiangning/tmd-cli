@@ -94,7 +94,7 @@ export function ComposerDrawToggle() {
     <>
       <button
         type="button"
-        className={`relative inline-flex size-6 cursor-pointer items-center justify-center rounded-md border p-0 text-[0.65rem] transition-colors ${
+        className={`relative inline-flex size-6 cursor-pointer items-center justify-center rounded-md border p-0 text-meta transition-colors ${
           active
             ? "border-(--tmd-accent) bg-(--tmd-accent-soft) text-(--tmd-accent)"
             : "border-(--tmd-border) bg-(--tmd-bg-elevated) text-(--tmd-fg-faint) hover:text-(--tmd-accent) hover:border-(--tmd-accent)"

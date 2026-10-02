@@ -10,7 +10,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
-import { ArrowLeft, CircleNotch } from "@phosphor-icons/react";
+import { ArrowLeft } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { ipc, type GitCommitFile, type GitFilePatch, type GitLogEntry } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { gitErrorDisplay } from "../gitError";
@@ -70,7 +71,7 @@ export function CommitDetailsPanel({
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
+        <Spinner size="0.875rem" /> {t("加载中…")}
       </div>
     );
   }
@@ -113,7 +114,7 @@ function CommitDetailBody({
         {commit.summary || t("(空消息)")}
       </div>
       <div className="flex shrink-0 items-center gap-2 px-3 pt-1.5">
-        <span className="rounded bg-(--tmd-bg-sunken) px-1.5 py-0.5 font-mono text-[0.625rem] text-(--tmd-fg-muted)">
+        <span className="rounded bg-(--tmd-bg-sunken) px-1.5 py-0.5 font-mono text-meta text-(--tmd-fg-muted)">
           {commit.shortSha}
         </span>
         <span className="text-xs text-(--tmd-fg-muted)">{commit.authorName}</span>
@@ -145,14 +146,14 @@ function CommitDetailBody({
             title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
           >
             <span
-              className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[0.625rem] ${
+              className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-meta ${
                 STATUS_COLOR[f.status] ?? "text-(--tmd-fg-faint)"
               }`}
             >
               {f.status}
             </span>
             <span className="min-w-0 flex-1 truncate text-(--tmd-fg)">{f.path}</span>
-            <span className="shrink-0 font-mono text-[0.625rem]">
+            <span className="shrink-0 font-mono text-meta">
               <span className="text-(--tmd-diff-inserted)">+{f.additions}</span>
               <span className="text-(--tmd-fg-faint)"> / </span>
               <span className="text-(--tmd-diff-removed)">-{f.deletions}</span>
@@ -230,7 +231,7 @@ function PatchBody({
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
+        <Spinner size="0.875rem" /> {t("加载中…")}
       </div>
     );
   }

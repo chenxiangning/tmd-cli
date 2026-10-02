@@ -27,7 +27,7 @@
 
 .fvp-status {
   padding: 24px;
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   color: var(--text-muted);
   text-align: center;
 }
@@ -70,13 +70,13 @@
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   box-shadow: var(--tmd-shadow-popover);
   min-height: 0;
 }
 
 .fvp-image-info {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--text-faint);
   flex-shrink: 0;
 }
@@ -99,12 +99,12 @@
   gap: 10px;
   margin-bottom: 14px;
   color: var(--fvp-reader-muted);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
 }
 
 .fvp-preview-section-header strong {
   color: var(--fvp-reader-text);
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   font-weight: 700;
 }
 
@@ -120,10 +120,10 @@
   margin-bottom: 14px;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent);
-  border-radius: 10px;
+  border-radius: var(--tmd-radius-md);
   background: color-mix(in srgb, var(--surface-control) 42%, transparent);
   color: var(--fvp-reader-muted);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.5;
 }
 
@@ -158,15 +158,12 @@
   min-width: 30px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--border-subtle) 72%, transparent);
-  border-radius: 10px;
+  border-radius: var(--tmd-radius-md);
   background: color-mix(in srgb, var(--surface-card) 86%, transparent);
   color: var(--fvp-reader-text);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
-  transition:
-    background 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), border-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .fvp-preview-toolbar-button:hover:not(:disabled) {

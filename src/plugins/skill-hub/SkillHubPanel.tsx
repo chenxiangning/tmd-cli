@@ -49,7 +49,7 @@ export function SkillHubPanel() {
         )}
       </div>
       <div className="border-t border-(--tmd-border) p-2">
-        <div className="mb-1 text-[10px] text-(--tmd-fg-faint)">
+        <div className="mb-1 text-meta text-(--tmd-fg-faint)">
           {t("已安装 {n} 个技能", { n: records.length })}
         </div>
         <button
@@ -57,7 +57,7 @@ export function SkillHubPanel() {
           onClick={openSkillHubTab}
           className="flex w-full items-center justify-center gap-1 rounded border border-(--tmd-border) px-2 py-1 text-xs hover:bg-(--tmd-bg-hover)"
         >
-          <ArrowSquareOut size={12} aria-hidden="true" />
+          <ArrowSquareOut size="0.75rem" aria-hidden="true" />
           {t("打开管理")}
         </button>
       </div>

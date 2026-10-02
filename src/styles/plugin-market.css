@@ -108,7 +108,7 @@
   height: 18px;
   padding-left: 4px;
   margin-bottom: 2px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   white-space: nowrap;
 }
@@ -116,7 +116,7 @@
 .pm-cat-label {
   height: 18px;
   padding-left: 4px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   white-space: nowrap;
 }
@@ -130,7 +130,7 @@
 
 /* 视图互斥切换:重挂载淡入。 */
 .pm-view {
-  animation: pm-view-in 0.18s ease-out;
+  animation: pm-view-in var(--tmd-dur-2) var(--tmd-ease-move);
 }
 
 @keyframes pm-view-in {
@@ -222,12 +222,12 @@
 
 .pm-strip-brand .pm-brand-name {
   font-weight: 600;
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
 }
 
 .pm-strip-brand .pm-brand-role {
   color: var(--tmd-fg-subtle);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
 }
 
 .pm-master-row {
@@ -246,7 +246,7 @@
 
 .pm-master-label {
   color: var(--tmd-fg-subtle);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
 }
 
 /* ── 二级市场滑出面板(内容由注册插件贡献,壳只管开合/遮罩) ── */
@@ -271,7 +271,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: pm-ext-slide-in 0.18s ease-out;
+  animation: pm-ext-slide-in var(--tmd-dur-2) var(--tmd-ease-move);
 }
 
 @keyframes pm-ext-slide-in {

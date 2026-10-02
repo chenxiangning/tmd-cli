@@ -54,7 +54,7 @@ export function NoteEditor({
           <NoteReadonly note={note} onImageOpen={onImageOpen} />
         ) : (
           <button type="button" className="dj-nc-new" onClick={() => setEditing(true)}>
-            <PencilSimpleLine size={11} /> {t("给这一天写点什么(便签)")}
+            <PencilSimpleLine size="0.75rem" /> {t("给这一天写点什么(便签)")}
           </button>
         )}
         {note && (
@@ -114,7 +114,7 @@ export function NoteEditor({
   return (
     <div className="dj-notecard">
       <div className="dj-nc-head">
-        <PencilSimpleLine size={11} /> {t("我的便签")}
+        <PencilSimpleLine size="0.75rem" /> {t("我的便签")}
       </div>
       <div className="dj-nc-editbox">
         <textarea

@@ -1,12 +1,15 @@
 /**
  * DialogShell —— 对话框共享骨架(kernel 通用 UI 原语,同 StyledSelect 先例):
  * portal + 遮罩 + 标题行 + 底部动作区。提交中禁关(backdrop 点击/Esc 忽略);
- * 宽度按调用方传入。DialogActions 是 取消/主按钮 的固定排法:主按钮 accent,
- * 提交中文案切「加载中…」。OpToggle = ✓ 指示器选项开关行。
+ * 宽度按调用方传入。dialog 卡片统一入场 fade+rise(tmdDialogIn keyframes 在
+ * src/styles/global.css,时长/缓动走 --tmd-dur-2/--tmd-ease-move)。
+ * DialogActions 是 取消/主按钮 的固定排法:主按钮 accent,提交中切
+ * Spinner + 「加载中…」。OpToggle = ✓ 指示器选项开关行。
  * 消费:git 远端操作对话框族、cli-config 渠道对话框、cli-omp 供应商/密钥弹层。
  */
 
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
 import { useEffect, useEffectEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -66,7 +69,7 @@ export function DialogShell({
       <dialog
         open
         aria-label={title}
-        style={{ width }}
+        style={{ width, animation: "tmdDialogIn var(--tmd-dur-2) var(--tmd-ease-move)" }}
         className="relative m-0 h-fit max-h-none max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left text-(--tmd-fg) shadow-2xl"
       >
         <div className="flex items-center gap-1.5 text-xs font-semibold text-(--tmd-fg)">
@@ -112,9 +115,15 @@ export function DialogActions({
         onClick={onConfirm}
         disabled={confirmDisabled || submitting}
         title={confirmTitle}
-        className="rounded bg-(--tmd-accent) px-3 py-1.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:opacity-50"
+        className="flex items-center justify-center gap-1.5 rounded bg-(--tmd-accent) px-3 py-1.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:opacity-50"
       >
-        {submitting ? t("加载中…") : confirmLabel}
+        {submitting ? (
+          <>
+            <Spinner size="0.75rem" /> {t("加载中…")}
+          </>
+        ) : (
+          confirmLabel
+        )}
       </button>
     </div>
   );

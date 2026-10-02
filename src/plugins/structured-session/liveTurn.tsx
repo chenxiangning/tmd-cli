@@ -3,28 +3,17 @@
  * - 用户/正文/思考 = 直接复用 session-viewer 同形组件(sv-user 署名行、
  *   sv-assistant 光标、ThinkingRow 脉冲摘要)——活轮与落定同形,结算零跳变
  *   不再是声明而是结构保证;流式观感靠 tail/pulse。
- * - 工具行 = 盲文 spinner(running)/✓(done)/✕(error) + 标签 + 可展开实时
- *   输出尾段(running 自动展开/终态折叠,落定后归 TranscriptView 折叠组)。
+ * - 工具行 = 统一 Spinner 原语(running)/✓(done)/✕(error) + 标签 + 可展开
+ *   实时输出尾段(running 自动展开/终态折叠,落定后归 TranscriptView 折叠组)。
  * - 首帧未到 = 「思考中…」shimmer 占位(InitialThinking 同款)。
  * 只渲染 turnStart 之后的活块;落定历史归 TranscriptView。
  */
-import { memo, useEffect, useState, type ComponentType } from "react";
+import { memo, useState, type ComponentType } from "react";
 import type { CliTranscriptBlock } from "@kernel/cli";
+import { Spinner } from "@kernel/Spinner";
 import { tailLines, toolRowLabel } from "@plugins/session-viewer/transcriptPhases";
 import { TranscriptBlockView } from "@plugins/session-viewer/transcriptView";
 import { ThinkingRow } from "@plugins/session-viewer/transcriptRows";
-
-const SPIN_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-
-/** 盲文 spinner(80ms/帧,monocode TerminalSpinner 同款)。 */
-function Spinner() {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const id = window.setInterval(() => setI((n) => (n + 1) % SPIN_FRAMES.length), 80);
-    return () => window.clearInterval(id);
-  }, []);
-  return <span className="ss-spin" aria-hidden>{SPIN_FRAMES[i]}</span>;
-}
 
 /** 工具行(monocode 律):运行中自动展开实时输出尾段(partialResult 增量),完成/出错自动折叠回行。 */
 /* 工具行开关律(running 自动展开/终态折叠/手动接管):单卡片状态机,无可拆。 */
@@ -45,7 +34,8 @@ function ToolRow({ block }: { block: CliTranscriptBlock }) {
         aria-expanded={open}
         onClick={() => setManual(!(manual ?? running))}
       >
-        {running ? <Spinner /> : (
+        {/* 运行态走统一 Spinner 原语(12px 行内档;原盲文 80ms interval 副本已收口) */}
+        {running ? <Spinner size="0.75rem" /> : (
           <span className={`ss-tool-mark${status === "error" ? " is-error" : ""}`} aria-hidden>
             {status === "error" ? "✕" : "✓"}
           </span>

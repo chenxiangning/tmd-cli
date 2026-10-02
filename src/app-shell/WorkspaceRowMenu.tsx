@@ -127,7 +127,7 @@ export function WorkspaceRowMenu({
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
         <RowMenuItem
-          icon={<FilePlus size="0.8125rem" />}
+          icon={<FilePlus size="0.875rem" />}
           label={t("新建文件")}
           busy={busy}
           onClick={() => {
@@ -136,7 +136,7 @@ export function WorkspaceRowMenu({
           }}
         />
         <RowMenuItem
-          icon={<FolderSimplePlus size="0.8125rem" />}
+          icon={<FolderSimplePlus size="0.875rem" />}
           label={t("新建文件夹")}
           busy={busy}
           onClick={() => {
@@ -145,22 +145,22 @@ export function WorkspaceRowMenu({
           }}
         />
         <div className="wsmenu-divider" />
-        <RowMenuItem icon={<Pencil size="0.8125rem" />} label={t("重命名")} busy={busy} onClick={rename} />
+        <RowMenuItem icon={<Pencil size="0.875rem" />} label={t("重命名")} busy={busy} onClick={rename} />
         <RowMenuItem
-          icon={<Copy size="0.8125rem" />}
+          icon={<Copy size="0.875rem" />}
           label={t("复制路径")}
           busy={busy}
           onClick={() => void run(() => copyText(ws.root))}
         />
         <div className="wsmenu-divider" />
         <RowMenuItem
-          icon={<FolderOpen size="0.8125rem" />}
+          icon={<FolderOpen size="0.875rem" />}
           label={t("在访达中显示")}
           busy={busy}
           onClick={() => void run(() => ipc.fsRevealInFileManager(ws.root))}
         />
         <RowMenuItem
-          icon={<Trash size="0.8125rem" />}
+          icon={<Trash size="0.875rem" />}
           label={armed ? t("确认移到废纸篓?") : t("移到废纸篓")}
           danger
           armed={armed}
@@ -178,7 +178,7 @@ export function WorkspaceRowMenu({
         <div className="wsmenu-divider" />
         <div className="panel-ws-menu-group">Git</div>
         <RowMenuItem
-          icon={<GitCommit size="0.8125rem" />}
+          icon={<GitCommit size="0.875rem" />}
           label={t("提交目录…")}
           busy={busy}
           onClick={() => {
@@ -188,25 +188,25 @@ export function WorkspaceRowMenu({
           }}
         />
         <RowMenuItem
-          icon={<Stack size="0.8125rem" />}
+          icon={<Stack size="0.875rem" />}
           label={t("添加 / 暂存全部")}
           busy={busy}
           onClick={() => void run(stageAll)}
         />
         <RowMenuItem
-          icon={<DownloadSimple size="0.8125rem" />}
+          icon={<DownloadSimple size="0.875rem" />}
           label={t("更新")}
           busy={busy}
           onClick={() => void run(() => ipc.gitPullPush(ws.root, "pull"))}
         />
         <RowMenuItem
-          icon={<UploadSimple size="0.8125rem" />}
+          icon={<UploadSimple size="0.875rem" />}
           label={t("推送…")}
           busy={busy}
           onClick={() => void run(() => ipc.gitPullPush(ws.root, "push"))}
         />
         <RowMenuItem
-          icon={<ArrowsDownUp size="0.8125rem" />}
+          icon={<ArrowsDownUp size="0.875rem" />}
           label={t("提取…")}
           busy={busy}
           onClick={() => void run(() => ipc.gitPullPush(ws.root, "fetch"))}
@@ -223,7 +223,7 @@ export function WorkspaceRowMenu({
           label={t("设置别名")}
           initial={workspaceDisplayName(ws)}
           confirmLabel={t("保存")}
-          icon={<Pencil size="0.8125rem" />}
+          icon={<Pencil size="0.875rem" />}
           onSubmit={(name) => {
             setWorkspaceAlias(ws.id, name);
             onClose();

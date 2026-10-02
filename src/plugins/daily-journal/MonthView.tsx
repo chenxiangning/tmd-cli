@@ -102,7 +102,8 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
       {cellBody(article, st, meta, rows, notePeek, st === "g" ? heatOf(rows.length, ts) : "")}
       {notePeek && (
         <div className="dj-notepeek">
-          <PencilSimpleLine size={9} />
+          {/* 密集月格脚注图标:10px 例外档(9px 档收口取消) */}
+          <PencilSimpleLine size="0.625rem" />
           <span className="dj-notepeek-t">{notePeek}</span>
         </div>
       )}

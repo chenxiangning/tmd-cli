@@ -16,7 +16,8 @@ export function FileCodeEditor(props: FileCodeEditorProps) {
   return (
     <Suspense
       fallback={
-        <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-faint)">
+        <div className="flex h-full items-center justify-center text-xs text-(--tmd-fg-subtle)">
+          {/* 加载文案=真实信息,faint 升 subtle(R5) */}
           {t("加载中…")}
         </div>
       }

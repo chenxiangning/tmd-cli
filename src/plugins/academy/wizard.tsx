@@ -80,7 +80,7 @@ function WizardBody({ cliId, initialIdx }: { cliId: string; initialIdx: number }
         </div>
         <span className="academy-wiz-pct">{progress.done.length}/{lessons.length}</span>
         <button type="button" className="academy-wiz-x" onClick={closeWizard} aria-label={t("关闭")}>
-          <X size={13} />
+          <X size="0.875rem" />
         </button>
       </div>
       <div className="academy-wiz-body">

@@ -7,12 +7,12 @@
 import { t } from "@kernel/i18n";
 import {
   ArrowClockwise,
-  CircleNotch,
   CloudArrowDown,
   DownloadSimple,
   GitPullRequest,
   UploadSimple,
 } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { bumpGitRefresh, requestRemoteDialog, useGitPanelState, type RemoteDialogOp } from "./panelStore";
 
 interface RemoteRowDeps {
@@ -116,7 +116,8 @@ export function RemoteActionRows({ onDone }: { onDone: () => void }) {
   return (
     <>
       {rows.map((r) => {
-        const Icon = r.active && busy === r.key ? CircleNotch : r.icon;
+        const rowBusy = r.active && busy === r.key;
+        const Icon = r.icon;
         return (
           <button
             key={r.key}
@@ -131,10 +132,7 @@ export function RemoteActionRows({ onDone }: { onDone: () => void }) {
             }}
           >
             <span className="flex items-center gap-1.5">
-              <Icon
-                className={`h-[0.75rem] w-[0.75rem]${busy === r.key ? " animate-spin" : ""}`}
-                aria-hidden
-              />
+              {rowBusy ? <Spinner /> : <Icon className="h-[0.75rem] w-[0.75rem]" aria-hidden />}
               <span>{r.label}</span>
             </span>
             {r.count > 0 && <span>{r.count}</span>}

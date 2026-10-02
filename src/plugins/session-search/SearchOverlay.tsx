@@ -95,7 +95,7 @@ export function SessionSearchOverlay() {
           role="dialog"
           aria-modal="true"
           aria-label={t("会话历史搜索")}
-          className="flex max-h-[70vh] w-[560px] flex-col overflow-hidden rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) shadow-2xl"
+          className="flex max-h-[70vh] w-[560px] flex-col overflow-hidden rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) shadow-(--tmd-shadow-modal)"
         >
         <div className="flex items-center gap-2 border-b border-(--tmd-border) px-3 py-2.5">
           <MagnifyingGlass size="0.9375rem" className="shrink-0 text-(--tmd-fg-faint)" aria-hidden />
@@ -160,7 +160,7 @@ export function SessionSearchOverlay() {
             onOpen={openHit}
           />
         </div>
-        <div className="border-t border-(--tmd-border) px-3 py-1.5 text-[0.6875rem] text-(--tmd-fg-faint)">
+        <div className="border-t border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-faint)">
           {t("↑↓ 选择 · Enter 打开 {name} 的历史会话 · Esc 关闭", { name: workspaceName ?? "" })}
         </div>
         </div>
@@ -172,7 +172,7 @@ export function SessionSearchOverlay() {
 
 /** 引擎过滤 chip 按钮(选中 = accent 软底;与目标引擎单选 chip 同视觉语系)。 */
 function chipCls(on: boolean): string {
-  return `rounded border px-1.5 py-px text-[0.6875rem] leading-4 ${
+  return `rounded border px-1.5 py-px text-xs leading-4 ${
     on
       ? "border-(--tmd-accent) bg-(--tmd-accent)/10 text-(--tmd-fg)"
       : "border-(--tmd-border) text-(--tmd-fg-faint) hover:text-(--tmd-fg)"

@@ -135,7 +135,7 @@ export function HostForm({ onSaved, onCancel }: { onSaved: (id: string) => void;
               title={showPw ? t("隐藏密码") : t("显示密码")}
               onClick={() => setShowPw((v) => !v)}
             >
-              {showPw ? <Eye size={12} aria-hidden /> : <EyeClosed size={12} aria-hidden />}
+              {showPw ? <Eye size="0.75rem" aria-hidden /> : <EyeClosed size="0.75rem" aria-hidden />}
             </button>
           </span>
         </div>

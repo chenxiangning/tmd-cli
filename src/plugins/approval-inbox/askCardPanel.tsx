@@ -40,11 +40,11 @@ export function CardBlock({ card, sessionId }: { card: AskCard; sessionId: strin
   return (
     <div className="mt-1">
       <div className="flex items-center gap-1.5">
-        <span title={card.question} className="min-w-0 truncate text-[0.6875rem] leading-[1.125rem] text-(--tmd-fg)">
+        <span title={card.question} className="min-w-0 truncate text-xs text-(--tmd-fg)">
           {card.question}
         </span>
         {questionCount > 1 && (
-          <span className="flex-none rounded bg-(--tmd-bg-subtle) px-1 text-[0.5625rem] leading-[1rem] text-(--tmd-warn)">
+          <span className="flex-none rounded bg-(--tmd-bg-subtle) px-1 text-2xs text-(--tmd-warn)">
             {t("{n} 个问题", { n: questionCount })}
           </span>
         )}
@@ -63,7 +63,7 @@ export function CardBlock({ card, sessionId }: { card: AskCard; sessionId: strin
                     : t("切到「{name}」(⇥ 跳题)", { name })
                 }
                 onClick={() => (isSubmit ? submit() : jumpTo(i))}
-                className="rounded bg-(--tmd-bg-subtle) px-1 py-0.5 text-[0.5625rem] leading-[1rem] text-(--tmd-fg-muted) hover:text-(--tmd-accent)"
+                className="rounded bg-(--tmd-bg-subtle) px-1 py-0.5 text-2xs text-(--tmd-fg-muted) hover:text-(--tmd-accent)"
               >
                 {isSubmit ? `⏎ ${name}` : name}
               </button>
@@ -80,10 +80,10 @@ export function CardBlock({ card, sessionId }: { card: AskCard; sessionId: strin
               key: multi ? t("空格勾选") : "⏎",
             })}
             onClick={() => pickOption(i)}
-            className="flex items-center gap-1.5 rounded border border-(--tmd-border) px-1.5 py-0.5 text-left text-[0.625rem] leading-[1.125rem] text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
+            className="flex items-center gap-1.5 rounded border border-(--tmd-border) px-1.5 py-0.5 text-left text-meta text-(--tmd-fg-muted) hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
           >
             {multi && card.cursor === i && (
-              <span aria-hidden className="font-mono text-[0.5625rem] text-(--tmd-accent)">
+              <span aria-hidden className="font-mono text-2xs text-(--tmd-accent)">
                 ❯
               </span>
             )}

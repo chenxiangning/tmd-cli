@@ -15,7 +15,7 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: stretch;
-  border-radius: 0.5rem;
+  border-radius: var(--tmd-radius-md);
 }
 
 .ow-split:hover {
@@ -29,9 +29,9 @@
   border: 0;
   background: transparent;
   color: var(--tmd-fg-muted);
-  font-size: 0.6875rem;
-  line-height: 1.1;
-  padding: 0.125rem 0.4375rem;
+  font-size: var(--tmd-font-ui);
+  line-height: 1.3;
+  padding: 0.125rem 8px;
   min-height: 1.375rem;
 }
 
@@ -76,7 +76,7 @@
   min-width: 10rem;
   padding: 0.375rem;
   border: 1px solid var(--tmd-border);
-  border-radius: 0.75rem;
+  border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-popover);
   box-shadow: 0 -8px 28px rgb(0 0 0 / 14%);
   display: flex;
@@ -95,10 +95,10 @@
   width: 100%;
   border: 0;
   background: transparent;
-  padding: 0.4375rem 0.5rem;
-  border-radius: 0.5rem;
+  padding: 8px 0.5rem;
+  border-radius: var(--tmd-radius-md);
   color: var(--tmd-fg);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   text-align: left;
 }
 
@@ -121,7 +121,7 @@
 }
 
 .ow-icon {
-  border-radius: 0.25rem;
+  border-radius: var(--tmd-radius-xs);
   object-fit: cover;
   flex-shrink: 0;
 }

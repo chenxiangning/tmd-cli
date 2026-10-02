@@ -33,7 +33,6 @@ export const MESSAGES = {
   "The approval timeline follows the session lifecycle — no active session in this workspace",
   "非 git 工作区 —— 仅声明写入事件检测的 CLI(如 claude)可在此记账,其余 CLI 需 git 仓库":
   "Not a git workspace — only CLIs that declare write-event detection (e.g. claude) can record here; other CLIs need a git repository",
-  "读取批次…": "Loading batches…",
   "本会话还没有批次 —— 发送一条让 AI 改文件的消息后,这里会按轮归批":
   "No batches in this session yet — send a message that asks the AI to change files, and changes will be grouped by turn here",
   // TimelinePanel(审批线面板「时间线」页签)

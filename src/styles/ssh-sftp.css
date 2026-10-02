@@ -3,14 +3,14 @@
 /* ── 面板通用段(转发/SFTP)── */
 .ssh-section {
   border: 1px solid var(--tmd-border);
-  border-radius: 8px;
+  border-radius: var(--tmd-radius-md);
   padding: 6px 8px;
 }
 .ssh-section-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   color: var(--tmd-fg);
 }
@@ -22,8 +22,8 @@
 }
 .ssh-section-empty {
   padding: 10px 0 4px;
-  font-size: 0.6875rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
 }
 
 /* 转发 */
@@ -41,7 +41,7 @@
 .ssh-forward-addr {
   flex: 1;
   text-align: left;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   background: none;
   border: none;
   color: var(--tmd-fg);
@@ -62,15 +62,15 @@
   flex: 1 1 30%;
   min-width: 60px;
   padding: 4px 6px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-input);
   color: var(--tmd-fg);
 }
 .ssh-form-error {
   width: 100%;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   color: var(--tmd-err);
 }
 .ssh-btn {
@@ -78,9 +78,9 @@
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: none;
   color: var(--tmd-fg);
   cursor: pointer;
@@ -99,7 +99,7 @@
 .ssh-tree-row {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   padding: 1px 0;
 }
 .ssh-tree-toggle {
@@ -115,7 +115,7 @@
   padding: 0;
 }
 .ssh-tree-label {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   background: none;
   border: none;
   color: var(--tmd-fg);
@@ -135,12 +135,7 @@
   border: 1.5px solid var(--tmd-fg-faint);
   border-top-color: transparent;
   border-radius: 50%;
-  animation: ssh-spin 0.8s linear infinite;
-}
-@keyframes ssh-spin {
-  to {
-    transform: rotate(360deg);
-  }
+  animation: tmdSpin 1s linear infinite;
 }
 .ssh-menu-backdrop {
   position: fixed;
@@ -161,11 +156,11 @@
 }
 .ssh-menu button {
   text-align: left;
-  padding: 5px 8px;
-  font-size: 0.6875rem;
+  padding: 4px 8px;
+  font-size: var(--tmd-font-ui);
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   color: var(--tmd-fg);
   cursor: pointer;
 }
@@ -181,7 +176,7 @@
   margin-top: 6px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .ssh-transfer-row {
   display: flex;
@@ -190,8 +185,8 @@
 }
 .ssh-transfer-label {
   flex: 1;
-  font-size: 0.625rem;
-  color: var(--tmd-fg-faint);
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-subtle);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -199,13 +194,13 @@
 .ssh-transfer-bar {
   width: 70px;
   height: 4px;
-  border-radius: 2px;
+  border-radius: 2px; /* 4px 高微型条:半径=半高 pill */
   background: var(--tmd-bg-hover);
   overflow: hidden;
 }
 .ssh-transfer-fill {
   height: 100%;
   background: var(--tmd-accent);
-  transition: width 0.2s ease;
+  transition: width var(--tmd-dur-2) var(--tmd-ease-move);
 }
 

@@ -21,7 +21,7 @@
   color: var(--tmd-fg);
   background: var(--tmd-bg-popover);
   border: 1px solid var(--tmd-border);
-  border-radius: 10px;
+  border-radius: var(--tmd-radius-lg);
   padding: 6px;
   box-shadow: var(--tmd-shadow-popover);
 }
@@ -31,12 +31,12 @@
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg);
   user-select: none;
-  transition: background 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .panel-overflow-item:hover {
@@ -44,7 +44,7 @@
 }
 
 .panel-overflow-item.is-active {
-  background: var(--tmd-bg-hover);
+  background: var(--tmd-accent-soft);
 }
 
 .panel-overflow-item-icon {
@@ -83,14 +83,14 @@
   width: 16px;
   height: 16px;
   border: 1.5px solid var(--tmd-border-strong);
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   flex: 0 0 16px;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), border-color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .panel-overflow-item-check:hover {
@@ -100,12 +100,12 @@
 .panel-overflow-item-check svg {
   width: 0.6875rem;
   height: 0.6875rem;
-  color: rgb(23, 23, 23);
+  color: var(--tmd-accent-fg);
   stroke-width: 3;
 }
 .panel-overflow-item-check.is-checked {
-  background: var(--rail-accent-fallback);
-  border-color: var(--rail-accent-fallback);
+  background: var(--tmd-accent);
+  border-color: var(--tmd-accent);
 }
 /* ⋯ 菜单行激活按钮(等值迁移自内联样式,面板行与动作行共用)。 */
 .panel-overflow-item-btn { flex: 1 1 auto; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: none; background: none; font: inherit; color: inherit; cursor: inherit; text-align: left; }

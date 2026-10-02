@@ -193,6 +193,7 @@ export function mapPresetToTokens(preset: ThemePresetDefinition): ThemeCssVariab
       "list.hoverBackground",
       mixHexColors(panelBackground, isDark ? "#ffffff" : "#000000", isDark ? 0.06 : 0.04),
     ),
+    /* --tmd-bg-active 与 --tmd-accent-soft 同值双名(选中态语义),保留双名消费面不动,规范见 2026-10-02 spec R5。 */
     "--tmd-bg-active": withAlpha(accent, isDark ? 0.24 : 0.14),
     "--tmd-bg-input": getColor(
       colors,
@@ -206,8 +207,12 @@ export function mapPresetToTokens(preset: ThemePresetDefinition): ThemeCssVariab
     ),
     // 文字
     "--tmd-fg": fg,
-    "--tmd-fg-muted": mixHexColors(fg, bgBase, 0.34),
-    "--tmd-fg-subtle": mixHexColors(fg, bgBase, 0.48),
+    /* fg 三档浅色对比度收口(2026-10-02):muted/subtle 混 bg 权重自 0.34/0.48
+     * 收紧到 0.28/0.42,浅色三主题 muted@侧栏底 4.05~4.73 → 4.82~5.74(全 ≥4.5),
+     * 深色同步走高不回退;faint 保持 0.68——再降到 0.62 会让 mist/linen 的
+     * subtle↔faint 档距跌破 Δ1.5,三档区分度优先。契约见 themeTokens.test.ts。 */
+    "--tmd-fg-muted": mixHexColors(fg, bgBase, 0.28),
+    "--tmd-fg-subtle": mixHexColors(fg, bgBase, 0.42),
     "--tmd-fg-faint": mixHexColors(fg, bgBase, 0.68),
     // 边框
     "--tmd-border": border,
@@ -215,6 +220,7 @@ export function mapPresetToTokens(preset: ThemePresetDefinition): ThemeCssVariab
     // 强调
     "--tmd-accent": accent,
     "--tmd-accent-fg": getColor(colors, "button.foreground", getContrastingTextColor(accent)),
+    /* --tmd-bg-active 与 --tmd-accent-soft 同值双名(选中态语义),保留双名消费面不动,规范见 2026-10-02 spec R5。 */
     "--tmd-accent-soft": withAlpha(accent, isDark ? 0.24 : 0.14),
     // 语法高亮(CodeMirror / Prism 消费)
     "--tmd-syntax-keyword": normalizeHexColor(syntax.keyword) ?? FALLBACK_SYNTAX[appearance].keyword,

@@ -121,7 +121,7 @@ export function LessonPane({ cliId, course, lesson, index, isLast, onPrev, onNex
             <p>{lesson.practiceWhy}</p>
           </div>
           <button type="button" className="academy-btn is-pri" onClick={() => practice(lesson.practice ?? "")}>
-            <Flask size={12} aria-hidden />{t("试一试")}
+            <Flask size="0.75rem" aria-hidden />{t("试一试")}
           </button>
           {hint && (
             <p className="academy-practice-hint" role="status">{hint}</p>

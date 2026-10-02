@@ -38,7 +38,8 @@ function TaskRow({ task }: { task: GenTask }) {
       <div className="dj-ti-acts">
         {task.st === "run" && openSession && (
           <button type="button" className="dj-btn" onClick={openSession}>
-            <TerminalWindow size={10} /> {t("打开会话")}
+            {/* 密集任务行小钮图标:10px 例外档 */}
+            <TerminalWindow size="0.625rem" /> {t("打开会话")}
           </button>
         )}
         {(task.st === "queue" || task.st === "run") && (
@@ -72,7 +73,8 @@ function TaskRow({ task }: { task: GenTask }) {
               removeTask(task.id);
             }}
           >
-            <X size={10} />
+            {/* 密集任务行小钮图标:10px 例外档(同上) */}
+            <X size="0.625rem" />
           </button>
         )}
       </div>
@@ -89,7 +91,7 @@ export function TaskPanel({ onClose }: { onClose: () => void }) {
   return (
     <DialogShell
       title={t("后台任务 · 生成队列")}
-      icon={<ListChecks size={13} />}
+      icon={<ListChecks size="0.875rem" />}
       width={600}
       onClose={onClose}
       footer={<span className="dj-tpanel-foot-text">{t("任务由 app 后台调度;生成会话是真实 CLI 会话,随时可打开插话干涉。")}</span>}

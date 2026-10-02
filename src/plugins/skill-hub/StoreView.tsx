@@ -5,8 +5,9 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { MagnifyingGlass, ArrowClockwise } from "@phosphor-icons/react";
+import { MagnifyingGlass, ArrowClockwise, Storefront } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Empty } from "@kernel/Empty";
 import { listClawHubSkills, searchClawHubSkills } from "./clawhub";
 import {
   CLAWHUB_SORTS,
@@ -42,7 +43,7 @@ function StoreToolbar(props: {
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
-      <MagnifyingGlass size={13} className="shrink-0 text-(--tmd-fg-faint)" aria-hidden="true" />
+      <MagnifyingGlass size="0.875rem" className="shrink-0 text-(--tmd-fg-faint)" aria-hidden="true" />
       <input
         value={props.query}
         onChange={(e) => props.onQuery(e.target.value)}
@@ -69,7 +70,7 @@ function StoreToolbar(props: {
               key={tp}
               type="button"
               onClick={() => props.onTopic(tp)}
-              className={`rounded px-1.5 py-px text-[10px] ${
+              className={`rounded px-1.5 py-px text-meta ${
                 props.topic === tp
                   ? "bg-(--tmd-accent-soft) text-(--tmd-fg)"
                   : "bg-(--tmd-bg-sunken) text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
@@ -103,7 +104,7 @@ function StoreListArea(props: {
     return (
       <div className="min-h-0 flex-1 overflow-auto px-3 py-2" data-skill-store>
         <div className="flex flex-col items-center gap-2 py-8">
-          <div className="text-xs text-(--tmd-err)" data-store-error>
+          <div className="text-xs text-(--tmd-err)" data-store-error role="alert">
             {t("商店加载失败")}:{props.error}
           </div>
           <button
@@ -111,7 +112,7 @@ function StoreListArea(props: {
             onClick={props.onRetry}
             className="flex items-center gap-1 rounded border border-(--tmd-border) px-2.5 py-1 text-xs hover:bg-(--tmd-bg-hover)"
           >
-            <ArrowClockwise size={12} aria-hidden="true" />
+            <ArrowClockwise size="0.75rem" aria-hidden="true" />
             {t("重试")}
           </button>
         </div>
@@ -123,7 +124,8 @@ function StoreListArea(props: {
       {props.loading ? (
         <div className="py-8 text-center text-xs text-(--tmd-fg-faint)">{t("加载中…")}</div>
       ) : props.visible.length === 0 ? (
-        <div className="py-8 text-center text-xs text-(--tmd-fg-faint)">{props.emptyHint}</div>
+        /* 空态统一形制:无匹配/商店无内容共用商店域图标 */
+        <Empty icon={<Storefront aria-hidden />}>{props.emptyHint}</Empty>
       ) : (
         <>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2">
@@ -141,7 +143,8 @@ function StoreListArea(props: {
           {props.showMore && (
             <div className="flex flex-col items-center gap-1 py-3">
               {props.loadMoreError && (
-                <div className="text-[11px] text-(--tmd-err)">{t("翻页失败")}:{props.loadMoreError}</div>
+                /* 翻页失败:持久红字 + 下方「加载更多」钮即重试入口(R6 契约) */
+                <div className="text-xs text-(--tmd-err)" role="alert">{t("翻页失败")}:{props.loadMoreError}</div>
               )}
               <button
                 type="button"

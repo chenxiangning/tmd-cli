@@ -5,7 +5,7 @@
 .omp-ext-card {
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-md);
-  padding: 9px 11px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -25,26 +25,26 @@
 
 .omp-ext-pkg {
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .omp-ext-ver {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   white-space: nowrap;
 }
 
 .omp-ext-dl {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   white-space: nowrap;
 }
 
 .omp-ext-cur {
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   color: var(--tmd-accent);
   border: 1px solid var(--tmd-accent);
   border-radius: 999px;
@@ -53,7 +53,7 @@
 }
 
 .omp-ext-desc {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -72,7 +72,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-err);
   cursor: help;
 }
@@ -81,7 +81,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   text-decoration: none;
 }
@@ -103,8 +103,8 @@
   border-radius: var(--tmd-radius-sm);
   background: none;
   color: var(--tmd-fg);
-  font-size: 0.6875rem;
-  padding: 3px 10px;
+  font-size: var(--tmd-font-ui);
+  padding: 4px 10px;
   cursor: pointer;
 }
 
@@ -131,23 +131,17 @@
 .omp-ext-running {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 0.6875rem;
+  gap: 4px;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-accent);
 }
 
 .omp-ext-spin {
-  animation: omp-ext-rotate 1s linear infinite;
-}
-
-@keyframes omp-ext-rotate {
-  to {
-    transform: rotate(360deg);
-  }
+  animation: tmdSpin 1s linear infinite;
 }
 
 .omp-ext-done {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
 }
 
@@ -167,7 +161,7 @@
 .omp-ext-row-head {
   display: flex;
   align-items: baseline;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
   flex: 1;
   border: none;
@@ -183,7 +177,7 @@
   flex-shrink: 0;
   align-self: center;
   color: var(--tmd-fg-subtle);
-  transition: transform 0.15s;
+  transition: transform var(--tmd-dur-1) var(--tmd-ease-move);
 }
 
 .omp-ext-row.is-open .omp-ext-caret {
@@ -192,15 +186,15 @@
 
 .omp-ext-row-detail {
   flex-basis: 100%;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-muted);
   line-height: 1.5;
-  padding: 1px 17px 3px 15px;
+  padding: 1px 16px 4px 16px;
   cursor: default;
 }
 
 .omp-ext-badge {
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   color: var(--tmd-accent);
   border: 1px solid var(--tmd-accent);
   border-radius: 999px;
@@ -218,7 +212,7 @@
   display: flex;
   gap: 6px;
   align-items: flex-start;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-err);
   background: color-mix(in srgb, var(--tmd-err) 8%, transparent);
   border-radius: var(--tmd-radius-sm);
@@ -238,7 +232,7 @@
   border: 1px solid var(--tmd-border);
   border-radius: var(--tmd-radius-sm);
   padding: 6px 8px;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.5;
   color: var(--tmd-fg-muted);
   white-space: pre-wrap;
@@ -249,7 +243,7 @@
 .omp-ext-foot {
   padding: 8px 14px;
   border-top: 1px solid var(--tmd-border);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   line-height: 1.5;
 }

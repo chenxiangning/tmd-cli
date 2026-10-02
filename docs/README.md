@@ -246,4 +246,6 @@
 | 2026-10-02 | [高级感主题配色候选(低饱和高级灰 ×6 + 现行默认对照,frame 级目检)](design/premium-themes.html) | 已落地(tmd-paper/mist/linen/graphite/ink/ember;默认浅色=云白、深色=石墨;未提交) |
 | 2026-10-02 | [客户端打磨任务2 五路审计(主题适配长尾/i18n 译文质量/新近提交自查/设置面/微交互:64 项 + i18n 五类;P0×6 全部实证复核)](research/client-polish-task2-audit.md) | 已完成(处置见同日 spec) |
 | 2026-10-02 | [客户端打磨任务2 实施设计(P0+P1 全修 + P2 精选:原生弹窗清零/主题 token 裁决/术语统一译法/8 域并行分批;用户拍板范围)](superpowers/specs/2026-10-02-polish-task2-batch-design.md) | 已实施 |
+| 2026-10-02 | [客户端打磨任务3 五路审计(UI 整体效果:排版阶梯/间距密度/形制语言/动效状态/色彩层次;字号 27 值双轨/间距 36 档/圆角化率 44%/动效 11 档/选中五范式)](research/client-polish-task3-audit.md) | 已完成(处置见同日 spec) |
+| 2026-10-02 | [客户端打磨任务3 实施设计(设计系统收口:token 阶梯+层次模型+状态三原语+全仓迁移;用户拍板正文 12px/全量三梯队)](superpowers/specs/2026-10-02-polish-task3-design-system-design.md) | 已实施 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

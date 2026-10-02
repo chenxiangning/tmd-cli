@@ -16,7 +16,7 @@
   max-height: min(70vh, 480px);
   overflow-y: auto;
   padding-bottom: 4px;
-  border-radius: 12px;
+  border-radius: var(--tmd-radius-lg);
   border: 1px solid var(--border-quiet);
   /* bg-popover:浮层专用 token(dark #313131 提亮浮起 / light #ffffff);
      elevated 在 dark 比 base 还暗,弹窗会"陷进"背景 */
@@ -24,12 +24,7 @@
   /* 容器兜底文字色:pref-title 等只设字重不设色,portal 到 body 后
      继承不到 sidebar 作用域色,dark 下会黑底黑字 */
   color: var(--tmd-fg);
-  box-shadow: var(--tmd-shadow-modal);
-  scrollbar-width: none;
-}
-
-.wsbudget::-webkit-scrollbar {
-  display: none;
+  box-shadow: var(--tmd-shadow-popover);
 }
 
 .wsbudget-head {
@@ -40,7 +35,7 @@
 }
 
 .wsbudget-title {
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   font-weight: 600;
   color: var(--tmd-fg);
 }
@@ -53,7 +48,7 @@
   color: var(--text-muted);
   cursor: pointer;
   padding: 2px;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
 }
 
 .wsbudget-close:hover {
@@ -72,7 +67,7 @@
 }
 
 .wsbudget .pref-desc {
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
 }
 /* 输入框比浮层低一级:bg-popover 与 bg-input 在 dark 同为 #313131,
    不换 sunken 输入框会隐形;light 下白浮层 + 浅灰输入框同样有层次 */

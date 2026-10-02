@@ -8,11 +8,11 @@
   z-index: 1201;
   max-width: min(420px, calc(100vw - 32px));
   padding: 8px 12px;
-  border: 1px solid var(--tmd-border, rgba(0 0 0 / 0.18));
-  border-radius: 8px;
-  background: var(--tmd-bg-elevated, #fff);
-  box-shadow: 0 6px 20px rgba(0 0 0 / 0.2);
-  font-size: 0.75rem;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-popover);
+  box-shadow: var(--tmd-shadow-popover);
+  font-size: var(--tmd-font-ui);
   line-height: 1.5;
   color: var(--tmd-fg);
   word-break: break-word;

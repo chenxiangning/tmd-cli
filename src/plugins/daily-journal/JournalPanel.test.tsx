@@ -77,7 +77,7 @@ describe("JournalPanel 右栏轴视图宿主", () => {
   it("快照未就绪:加载行兜底,不渲染轴流", () => {
     H.monthsEmpty = true;
     const html = render();
-    expect(html).toContain("正在加载…");
+    expect(html).toContain("加载中…");
     expect(html).not.toContain("dj-flow-root");
   });
 });

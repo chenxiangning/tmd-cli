@@ -7,6 +7,7 @@
 
 import { t } from "@kernel/i18n";
 import { FileText, GitBranch, GitCommit } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import type { GitCommitFile, GitPushPreview } from "@kernel/ipc";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import { CommitFileTree } from "./CommitFileTree";
@@ -140,7 +141,7 @@ function PushCommitList({
           <div className="truncate font-medium text-(--tmd-fg)">
             {c.summary || t("(无提交信息)")}
           </div>
-          <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem] text-(--tmd-fg-muted)">
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-(--tmd-fg-muted)">
             <code className="font-mono">{c.shortSha}</code>
             <em className="not-italic">{c.authorName || t("未知")}</em>
             <time>{formatRelativeTime(c.authorWhen * 1000)}</time>
@@ -148,7 +149,7 @@ function PushCommitList({
         </button>
       ))}
       {preview?.hasMore && (
-        <div className="px-1.5 py-1 text-[0.6875rem] text-(--tmd-fg-faint)">
+        <div className="px-1.5 py-1 text-xs text-(--tmd-fg-faint)">
           {t("仅展示最近 {n} 条提交。", { n: PREVIEW_LIMIT })}
         </div>
       )}
@@ -182,7 +183,7 @@ function PushDetailContent({
         <div className="truncate font-medium text-(--tmd-fg)">
           {selected?.summary || t("(无提交信息)")}
         </div>
-        <div className="mt-0.5 flex items-center gap-2 text-[0.6875rem]">
+        <div className="mt-0.5 flex items-center gap-2 text-xs">
           <code className="font-mono">{selected?.longSha.slice(0, 16) ?? selectedSha.slice(0, 16)}…</code>
           <em className="not-italic">{selected?.authorName || t("未知")}</em>
           <time>
@@ -237,11 +238,11 @@ function PreviewPane({
       </div>
       <div className="mt-1 flex min-h-0 flex-1 flex-col">
         {loading ? (
-          <div className="px-1 py-2 text-xs text-(--tmd-fg-faint)">
-            {title === t("本次推送提交") ? t("正在加载推送预览提交…") : t("正在加载提交详情…")}
+          <div className="flex items-center gap-1.5 px-1 py-2 text-xs text-(--tmd-fg-faint)">
+            <Spinner /> {t("加载中…")}
           </div>
         ) : error ? (
-          <div className="px-1 py-2 text-xs leading-5 text-(--tmd-diff-removed)">{error}</div>
+          <div role="alert" className="px-1 py-2 text-xs leading-5 text-(--tmd-diff-removed)">{error}</div>
         ) : (
           children
         )}

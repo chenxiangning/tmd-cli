@@ -96,9 +96,9 @@ function FileTab({
         }}
       >
         {maximized ? (
-          <CornersIn size="0.6875rem" aria-hidden />
+          <CornersIn size="0.75rem" aria-hidden />
         ) : (
-          <CornersOut size="0.6875rem" aria-hidden />
+          <CornersOut size="0.75rem" aria-hidden />
         )}
       </button>
       <button
@@ -113,7 +113,7 @@ function FileTab({
           closeTab(tabId);
         }}
       >
-        <Cross size="0.6875rem" aria-hidden />
+        <Cross size="0.75rem" aria-hidden />
       </button>
     </div>
   );
@@ -129,7 +129,7 @@ export const EditorTabStrip = memo(function EditorTabStrip() {
 
   return (
     <div
-      className="tab-bar"
+      className="tab-bar tmd-scroll-hide"
       role="tablist"
       aria-label={t("打开的文件")}
       onWheel={(e) => {

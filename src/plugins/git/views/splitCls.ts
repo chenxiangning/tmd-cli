@@ -12,7 +12,7 @@ export const CONTENT_NOWRAP_CLS = "shrink-0 whitespace-pre pl-2";
  *  WebKit(Tauri 系统 WebView)不支持,静默塌行)。halves 模式另用 *_NW:
  *  whitespace-pre 恒单行,超长头随该列横滚,不撑高错位。 */
 export const HEADER_CLS: Record<"hunk" | "meta", string> = {
-  hunk: "my-1 min-h-[1.25em] border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-[0.625rem] text-(--tmd-accent)",
+  hunk: "my-1 min-h-[1.25em] border-y border-(color:--tmd-border) bg-(color:--tmd-bg-hover)/40 px-1 text-meta text-(--tmd-accent)",
   meta: "min-h-[1.25em] px-1 italic text-(--tmd-fg-faint)",
 };
 export const HEADER_NW_CLS: Record<"hunk" | "meta", string> = {

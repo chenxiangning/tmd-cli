@@ -52,7 +52,7 @@ function PickerMenu({
           width: pos.width,
           maxHeight: pos.maxHeight,
         }}
-        className="fixed overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) p-1 shadow-xl"
+        className="fixed overflow-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) p-1 shadow-(--tmd-shadow-popover)"
         onPointerDown={(e) => e.stopPropagation()}
       >
         {children}

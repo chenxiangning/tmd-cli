@@ -15,7 +15,7 @@
   gap: 0.625rem;
   padding: 0.875rem;
   border: 1px solid var(--tmd-border);
-  border-radius: 0.75rem;
+  border-radius: var(--tmd-radius-lg);
   background: var(--tmd-bg-base);
 }
 
@@ -24,7 +24,7 @@
 }
 
 .owdlg-title {
-  font-size: 0.875rem;
+  font-size: var(--tmd-font-lg);
   font-weight: 600;
   color: var(--tmd-fg);
 }
@@ -36,7 +36,7 @@
   max-height: min(48vh, 23.75rem);
   overflow: auto;
   padding: 0.25rem;
-  border-radius: 0.75rem;
+  border-radius: var(--tmd-radius-lg);
   border: 1px solid var(--tmd-border);
   background: color-mix(in srgb, var(--tmd-fg) 3%, transparent);
 }
@@ -50,11 +50,11 @@
   width: 100%;
   padding: 0.625rem 0.75rem;
   border: none;
-  border-radius: 0.625rem;
+  border-radius: var(--tmd-radius-md);
   background: transparent;
   color: var(--tmd-fg);
   text-align: left;
-  transition: background-color 120ms ease;
+  transition: background-color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .owdlg-row:hover:not(:disabled) {
@@ -75,7 +75,7 @@
   place-items: center;
   width: 1.75rem;
   height: 1.75rem;
-  border-radius: 0.5rem;
+  border-radius: var(--tmd-radius-md);
   border: 1px solid var(--tmd-border);
   background: var(--tmd-bg-base);
   overflow: hidden;
@@ -89,17 +89,17 @@
 }
 
 .owdlg-name {
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   font-weight: 600;
   color: var(--tmd-fg);
-  line-height: 1.25;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .owdlg-sub {
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   line-height: 1.3;
   overflow: hidden;
@@ -109,7 +109,7 @@
 
 .owdlg-added {
   flex-shrink: 0;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   color: var(--tmd-fg-subtle);
   white-space: nowrap;
 }
@@ -126,11 +126,11 @@
   justify-content: center;
   min-height: 2rem;
   padding: 0 0.875rem;
-  border-radius: 0.5rem;
+  border-radius: var(--tmd-radius-md);
   border: 1px dashed var(--tmd-border);
   background: transparent;
   color: var(--tmd-fg-muted);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
 }
 
 .owdlg-browse:hover {

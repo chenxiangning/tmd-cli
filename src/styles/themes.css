@@ -8,12 +8,42 @@
  * ────────────────────────────────────────────────────────── */
 
 :root {
+  /* ── 字号阶梯(2026-10-02 设计系统收口;正文 12px 用户拍板)──
+     9=角标计数/状态点文字,10=meta/时间戳/路径摘要,12=正文基准(列表/按钮/表单),
+     13=面板标题/分区头,14=强调正文/卡片标题(=text-sm),16=区块标题/弹窗标题(=text-base),
+     20=页面标题(--tmd-font-title)。markdown 渲染走 em 相对制不进阶梯。 */
+  --tmd-font-2xs: 9px;
+  --tmd-font-xs: 10px;
   --tmd-font-ui: 12px;
+  --tmd-font-md: 13px;
+  --tmd-font-lg: 14px;
+  --tmd-font-xl: 16px;
   --tmd-font-title: 20px;
+  /* ── 间距 4 栅格 ──
+     1=图标贴字/行内 gap,2=列表行 padding/组内,3=面板容器/组间/紧凑卡,
+     4=标准卡/弹层,5=分区标题上方,6=中央页水平边距/大分区。 */
+  --tmd-space-1: 4px;
+  --tmd-space-2: 8px;
+  --tmd-space-3: 12px;
+  --tmd-space-4: 16px;
+  --tmd-space-5: 20px;
+  --tmd-space-6: 24px;
+  /* ── 圆角五档(sm/md/lg 原有;xs 新增给图标微钮/迷你标签;pill 用 999px 字面)── */
+  --tmd-radius-xs: 4px;
   --tmd-radius-sm: 6px;
   --tmd-radius-md: 8px;
   --tmd-radius-lg: 12px;
   --tmd-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* ── 动效三档 + 两曲线 ──
+     1=hover/caret/文字色微反馈,2=浮层/toast/弹层入场(fade+rise),3=大容器位移;
+     ease-out 供微反馈,move 供位移(入场/折叠)。 */
+  --tmd-dur-1: 120ms;
+  --tmd-dur-2: 180ms;
+  --tmd-dur-3: 240ms;
+  --tmd-ease-out: ease-out;
+  --tmd-ease-move: cubic-bezier(0.2, 0, 0, 1);
+  /* 装饰强调色:rail 激活/复选框填充等暖橙(与 accent 平行的第二强调,收敛写死值)。 */
+  --tmd-decor: rgb(255, 140, 60);
 }
 
 :root[data-theme="dark"] {

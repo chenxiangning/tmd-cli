@@ -39,35 +39,35 @@ export function StoreCard({
               {card.displayName}
             </span>
             {card.latestVersion && (
-              <span className="shrink-0 text-[10px] text-(--tmd-fg-faint)">v{card.latestVersion}</span>
+              <span className="shrink-0 text-meta text-(--tmd-fg-faint)">v{card.latestVersion}</span>
             )}
           </div>
           {card.ownerHandle && (
-            <div className="truncate text-[10px] text-(--tmd-fg-faint)">@{card.ownerHandle}</div>
+            <div className="truncate text-meta text-(--tmd-fg-faint)">@{card.ownerHandle}</div>
           )}
         </div>
       </div>
-      <div className="line-clamp-2 text-[11px] leading-snug text-(--tmd-fg-muted)">
+      <div className="line-clamp-2 text-xs leading-snug text-(--tmd-fg-muted)">
         {card.summary || t("无描述")}
       </div>
       <div className="mt-1 flex flex-wrap gap-1">
         {card.topics.map((topic) => (
           <span
             key={topic}
-            className="rounded border border-(--tmd-border) bg-(--tmd-bg-sunken) px-1.5 py-px text-[10px] text-(--tmd-fg-muted)"
+            className="rounded border border-(--tmd-border) bg-(--tmd-bg-sunken) px-1.5 py-px text-meta text-(--tmd-fg-muted)"
           >
             {topic}
           </span>
         ))}
       </div>
       <div className="mt-auto flex items-center justify-between pt-1">
-        <div className="flex items-center gap-2 text-[10px] text-(--tmd-fg-faint)">
+        <div className="flex items-center gap-2 text-meta text-(--tmd-fg-faint)">
           <span className="flex items-center gap-0.5">
-            <DownloadSimple size={11} aria-hidden="true" />
+            <DownloadSimple size="0.75rem" aria-hidden="true" />
             {formatCount(card.downloads)}
           </span>
           <span className="flex items-center gap-0.5">
-            <Star size={11} aria-hidden="true" />
+            <Star size="0.75rem" aria-hidden="true" />
             {formatCount(card.stars)}
           </span>
         </div>
@@ -75,14 +75,14 @@ export function StoreCard({
           <div className="flex items-center gap-1.5">
             {updateAvailable && (
               <span
-                className="shrink-0 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[10px] text-(--tmd-fg)"
+                className="shrink-0 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-meta text-(--tmd-fg)"
                 data-store-updatable={card.slug}
               >
                 {t("可更新")}
               </span>
             )}
             <span
-              className="cursor-default rounded border border-(--tmd-border) px-2 py-0.5 text-[11px] text-(--tmd-fg-faint)"
+              className="cursor-default rounded border border-(--tmd-border) px-2 py-0.5 text-xs text-(--tmd-fg-faint)"
               data-store-installed={card.slug}
             >
               {t("已安装")}
@@ -91,7 +91,7 @@ export function StoreCard({
               <button
                 type="button"
                 onClick={() => onUpdate(card)}
-                className="rounded border border-(--tmd-border) px-2 py-0.5 text-[11px] hover:bg-(--tmd-bg-hover)"
+                className="rounded border border-(--tmd-border) px-2 py-0.5 text-xs hover:bg-(--tmd-bg-hover)"
                 data-store-update={card.slug}
               >
                 {t("更新")}
@@ -102,7 +102,7 @@ export function StoreCard({
           <button
             type="button"
             onClick={() => onInstall(card)}
-            className="rounded border border-(--tmd-border) px-2 py-0.5 text-[11px] hover:bg-(--tmd-bg-hover)"
+            className="rounded border border-(--tmd-border) px-2 py-0.5 text-xs hover:bg-(--tmd-bg-hover)"
             data-store-install={card.slug}
           >
             {t("安装")}

@@ -19,9 +19,9 @@ interface Props {
 }
 
 const btnCls =
-  "cursor-pointer text-[0.6875rem] hover:text-(--tmd-fg) hover:underline hover:underline-offset-2";
+  "cursor-pointer text-xs hover:text-(--tmd-fg) hover:underline hover:underline-offset-2";
 const dangerCls =
-  "cursor-pointer text-[0.6875rem] text-(--tmd-diff-removed) hover:underline hover:underline-offset-2";
+  "cursor-pointer text-xs text-(--tmd-diff-removed) hover:underline hover:underline-offset-2";
 
 export function DiffBatchBar({
   count,
@@ -34,7 +34,7 @@ export function DiffBatchBar({
 }: Props) {
   if (count === 0) return null;
   return (
-    <div className="sticky bottom-0 flex items-center gap-3 border-t border-(--tmd-border) bg-(--tmd-bg-base) px-3 py-1 text-[0.6875rem] text-(--tmd-fg-muted)">
+    <div className="sticky bottom-0 flex items-center gap-3 border-t border-(--tmd-border) bg-(--tmd-bg-base) px-3 py-1 text-xs text-(--tmd-fg-muted)">
       <span>{t("已选 {n}", { n: count })}</span>
       {stagePaths.length > 0 && (
         <button type="button" className={btnCls} onClick={() => onStage(stagePaths)}>

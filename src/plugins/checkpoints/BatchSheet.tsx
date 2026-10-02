@@ -12,8 +12,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CircleNotch } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
+import { Spinner } from "@kernel/Spinner";
 import { t } from "@kernel/i18n";
 import type { CkptBatch } from "@kernel/ipc";
 import { approveBatch, refreshBatches, revertBatch, useCkptVersion, useCkptBatches } from "./store";
@@ -165,7 +165,7 @@ function SheetBody({
       {actionError && (
         <div
           role="alert"
-          className="mx-4 mb-2 rounded border border-(--tmd-diff-removed) bg-(--tmd-diff-removed)/10 p-2 text-[0.6875rem] text-(--tmd-diff-removed)"
+          className="mx-4 mb-2 rounded border border-(--tmd-diff-removed) bg-(--tmd-diff-removed)/10 p-2 text-xs text-(--tmd-diff-removed)"
         >
           {actionError}
         </div>
@@ -198,7 +198,7 @@ function SheetBody({
           </div>
         ) : !patches ? (
           <div className="flex items-center justify-center gap-2 pt-10 text-(--tmd-fg-faint)">
-            <CircleNotch size="0.8125rem" className="animate-spin" aria-hidden /> {t("生成批 diff…")}
+            <Spinner size="0.875rem" /> {t("生成批 diff…")}
           </div>
         ) : (
           <>

@@ -77,7 +77,8 @@ function DayCard({ ym, day, today }: { ym: { y: number; m: number }; day: FlowDa
           {day.article && <span className="dj-fcard-headline">{day.article.title}</span>}
           {folded && notePeek && (
             <span className="dj-fcard-notepeek">
-              <PencilSimpleLine size={9} /> {notePeek}
+              {/* 密集折叠卡脚注图标:10px 例外档(9px 档收口取消) */}
+              <PencilSimpleLine size="0.625rem" /> {notePeek}
             </span>
           )}
           <button

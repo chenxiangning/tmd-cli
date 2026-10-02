@@ -33,14 +33,14 @@
   height: 24px;
   padding: 0;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--tmd-radius-md);
   background: transparent;
   color: var(--tmd-fg-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .panel-subbar-action:hover {
@@ -74,8 +74,8 @@
 
 .panel-ws-menu-group {
   padding: 6px 10px 2px;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
 }

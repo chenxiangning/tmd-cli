@@ -1,5 +1,7 @@
 import { t } from "@kernel/i18n";
-import { CircleNotch, FileText, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { FileText, MagnifyingGlass } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
+import { Empty } from "@kernel/Empty";
 
 import { BulkToolbar, EraSection, HomeActions } from "./HomeSections";
 import type { CanvasAnchorHealth } from "../../utils/staleSignals";
@@ -134,18 +136,16 @@ export function IntentCanvasHome(props: IntentCanvasHomeProps) {
 
       {status === "loading" && filteredEntries.length === 0 ? (
         <div className="intent-canvas-loading">
-          <CircleNotch aria-hidden className="is-spinning" /> {t("正在加载画布…")}
+          <Spinner /> {t("加载中…")}
         </div>
       ) : filteredEntries.length === 0 ? (
-        <div className="intent-canvas-empty-state">
-          <FileText aria-hidden />
-          <h3>{t("还没有画布")}</h3>
-          <p>{t("创建第一张图,把你的业务意图、模块关系和问题上下文画出来。")}</p>
-          <button type="button" className="is-primary" onClick={props.onCreateCanvas}>
-            <Plus aria-hidden />
-            {t("新建画布")}
-          </button>
-        </div>
+        /* 空态统一形制:图标 + 一句话 + 新建动作(原 h3+p+主钮三段并一句) */
+        <Empty
+          icon={<FileText aria-hidden />}
+          action={{ label: t("新建画布"), onClick: props.onCreateCanvas }}
+        >
+          {t("还没有画布 —— 创建第一张图,把你的业务意图、模块关系和问题上下文画出来。")}
+        </Empty>
       ) : (
         <div className="intent-canvas-eras">
           {eras.map((era, eraIndex) => (

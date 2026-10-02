@@ -123,7 +123,7 @@ export function WslDirBrowser({
             disabled={loading}
             onClick={goUp}
           >
-            <ArrowUpIcon size={12} aria-hidden />
+            <ArrowUpIcon size="0.75rem" aria-hidden />
           </button>
         )}
         <code className="wsl-dir-path" title={dir}>
@@ -131,7 +131,7 @@ export function WslDirBrowser({
         </code>
         {refresh && (
           <button type="button" className="wsl-icon-btn" title={t("刷新")} aria-label={t("刷新")} disabled={loading} onClick={() => load(dir)}>
-            <ArrowClockwiseIcon size={12} aria-hidden />
+            <ArrowClockwiseIcon size="0.75rem" aria-hidden />
           </button>
         )}
         {pickLabel && (
@@ -158,19 +158,19 @@ export function WslDirBrowser({
               aria-label={t("上一级")}
               onClick={goUp}
             >
-              <ArrowUpIcon size={11} aria-hidden />
+              <ArrowUpIcon size="0.75rem" aria-hidden />
               <span>..</span>
             </button>
           )}
           {rows.map((e) =>
             e.isDir ? (
               <button key={e.name} type="button" className="wsl-dir-row" onClick={() => load(joinWslPath(dir, e.name))}>
-                <FolderSimpleIcon size={12} aria-hidden />
+                <FolderSimpleIcon size="0.75rem" aria-hidden />
                 <span>{e.name}</span>
               </button>
             ) : (
               <span key={e.name} className="wsl-dir-row off">
-                <FolderSimpleIcon size={12} aria-hidden />
+                <FolderSimpleIcon size="0.75rem" aria-hidden />
                 <span>{e.name}</span>
               </span>
             ),

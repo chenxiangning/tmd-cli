@@ -13,7 +13,8 @@ import { formatRelativeTime } from "@kernel/relativeTime";
 import type { SessionViewTabPayload } from "@kernel/sessionViewTabs";
 import type { CliSessionTranscript } from "@kernel/cli";
 import { TranscriptView } from "./transcriptView";
-import { ArrowsClockwiseIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, Chats } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
 import { retryImport } from "@kernel/lazyImport";
 
 import "./session-viewer.css";
@@ -130,11 +131,17 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
         </button>
       </header>
       <div className="sv-scroll" ref={scrollRef} onScroll={onScroll}>
-        {state.phase === "loading" ? <div className="sv-empty">{t("读取中…")}</div> : null}
-        {state.phase === "error" ? <div className="sv-empty">{state.message}</div> : null}
+        {state.phase === "loading" ? <div className="sv-empty">{t("加载中…")}</div> : null}
+        {state.phase === "error" ? (
+          <div className="sv-empty" role="alert">
+            <span className="text-(--tmd-err)">{state.message}</span>
+          </div>
+        ) : null}
         {state.phase === "ok" ? (
           state.transcript.blocks.length === 0 ? (
-            <div className="sv-empty">{t("会话没有可解析的对话内容")}</div>
+            <div className="sv-empty">
+              <Empty icon={<Chats />}>{t("会话没有可解析的对话内容")}</Empty>
+            </div>
           ) : (
             <div className="sv-blocks">
               <TranscriptView

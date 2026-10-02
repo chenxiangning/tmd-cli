@@ -8,6 +8,8 @@ import { useCallback, useEffect } from "react";
 import { setGitViewRepo } from "@kernel/gitViewRepo";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
+import { GitBranch } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
 import { useGitRepos } from "./hooks/useGitRepos";
 import { resolveRepoContext } from "./repoContext";
 import { getSelectedRepo, setSelectedRepo } from "./panelStore";
@@ -59,8 +61,8 @@ export function GitPanel() {
       return <RepoGuide root={root!} repos={repos} truncated={truncated} onSelect={selectRepo} />;
     }
     return (
-      <div className="flex h-full items-center justify-center px-4 text-center text-xs text-(--tmd-fg-faint)">
-        {t("当前目录不是 Git 仓库")}
+      <div className="flex h-full items-center justify-center px-4">
+        <Empty icon={<GitBranch />}>{t("当前目录不是 Git 仓库")}</Empty>
       </div>
     );
   }

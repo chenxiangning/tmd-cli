@@ -9,7 +9,6 @@ export const MESSAGES_EN = {
   "点击管理该引擎": "Click to manage this engine",
   "读取失败": "Read failed",
   "尚未创建": "Not created yet",
-  "正在扫描…": "Scanning…",
   "没有可管理的引擎": "No manageable engines",
   "pi:—(靠 pi-mcp-adapter 扩展)": "pi: — (via pi-mcp-adapter extension)",
   "打开管理": "Open manager",
@@ -32,6 +31,7 @@ export const MESSAGES_EN = {
   "连通测试(一次性握手,不改配置)": "Connectivity test (one-shot handshake, no config change)",
   "编辑": "Edit",
   "删除": "Delete",
+  "删除确认": "Confirm deletion",
   "取消": "Cancel",
   "删除中…": "Deleting…",
   "从配置文件移除该条目;已开的会话不受影响": "Removes the entry from the config file; open sessions are unaffected",
@@ -61,13 +61,13 @@ export const MESSAGES_EN = {
   "在文件 tab 打开": "Open in file tab",
   "关闭": "Close",
   "文件不存在或不可读": "File missing or unreadable",
-  "读取中…": "Reading…",
 
   // ── 商店 ──
   "搜索 MCP 服务器": "Search MCP servers",
   "搜索后回车": "Search, then Enter",
   "清缓存重拉": "Clear cache and refetch",
   "刷新": "Refresh",
+  "重试": "Retry",
   "该源不可达或暂不可用": "Source unreachable or unavailable",
   "Glama 源请求失败(匿名访问已被限制,需 API key)":
     "Glama request failed (anonymous access is now restricted; an API key is required)",
@@ -94,7 +94,6 @@ export const MESSAGES_EN = {
   "写入目标引擎": "Write to target engine",
 
   // ── 导入 ──
-  "扫描中…": "Scanning…",
   "导入到目标引擎": "Import into target engine",
   "重新扫描": "Rescan",
   "手选文件": "Pick a file…",

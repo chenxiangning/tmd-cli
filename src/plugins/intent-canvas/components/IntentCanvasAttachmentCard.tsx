@@ -163,7 +163,7 @@ export function IntentCanvasAttachmentCard({
   const elementCount = document.aiContext.elementDigest.length;
   return (
     <div
-      className="inline-flex max-w-full items-center gap-1 rounded-full border border-(--tmd-accent) bg-(--tmd-bg-panel) p-px pr-0.5 text-[0.65rem] text-(--tmd-fg)"
+      className="inline-flex max-w-full items-center gap-1 rounded-full border border-(--tmd-accent) bg-(--tmd-bg-panel) p-px pr-0.5 text-meta text-(--tmd-fg)"
       title={document.summary.trim() || document.title}
     >
       <button

@@ -151,7 +151,7 @@ function SessionTabBarImpl() {
                       })
                     }
                   >
-                    <EyeIcon size="0.6875rem" aria-hidden />
+                    <EyeIcon size="0.75rem" aria-hidden />
                   </button>
                 ) : null}
                 <button
@@ -166,7 +166,7 @@ function SessionTabBarImpl() {
                     else pinSession(pinKey, "global", pinSnapshot);
                   }}
                 >
-                  <PinIcon size="0.6875rem" />
+                  <PinIcon size="0.75rem" />
                 </button>
                 <button
                   type="button"
@@ -178,7 +178,7 @@ function SessionTabBarImpl() {
                     requestSessionReveal(id);
                   }}
                 >
-                  <CrosshairSimple size="0.6875rem" aria-hidden />
+                  <CrosshairSimple size="0.75rem" aria-hidden />
                 </button>
                 <button
                   type="button"
@@ -187,7 +187,8 @@ function SessionTabBarImpl() {
                   title={t("从标签条移除(会话保持运行)")}
                   onClick={() => closeSessionTab(id)}
                 >
-                  <Cross size="0.625rem" aria-hidden />
+                  {/* R7 归档:tab 行内钮 10px→12px */}
+                  <Cross size="0.75rem" aria-hidden />
                 </button>
               </>
             )}

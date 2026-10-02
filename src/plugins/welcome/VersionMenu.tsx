@@ -68,7 +68,7 @@ export function VersionMenuBody({
           title={faved ? t("取消收藏该版本") : t("收藏该版本")}
           onClick={() => toggleVersionFav(engineId, version)}
         >
-          <Star size="0.8125rem" weight={faved ? "fill" : "regular"} aria-hidden />
+          <Star size="0.875rem" weight={faved ? "fill" : "regular"} aria-hidden />
         </button>
       </div>
     );

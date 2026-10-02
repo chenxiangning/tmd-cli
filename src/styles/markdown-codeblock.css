@@ -15,7 +15,7 @@
 
 .fvp-file-markdown :where(p code, li code, blockquote code, td code, th code) {
   padding: 0.18em 0.4em;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--fvp-markdown-inline-code-bg);
   font-size: 0.92em;
 }
@@ -23,7 +23,7 @@
 .fvp-file-markdown-codeblock {
   margin: 0 0 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--tmd-radius-lg);
   background: var(--message-codeblock-bg);
   overflow: hidden;
 }
@@ -33,9 +33,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 5px 14px;
+  padding: 4px 14px;
   border-bottom: 1px solid var(--message-codeblock-divider);
-  font-size: 0.8125rem;
+  font-size: var(--tmd-font-md);
   letter-spacing: normal;
   text-transform: none;
   color: var(--fvp-reader-faint);
@@ -89,7 +89,7 @@
   background: transparent;
   color: var(--fvp-reader-muted);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .fvp-file-markdown .markdown-codeblock-copy:hover,
@@ -171,8 +171,8 @@
   border-radius: 999px;
   min-width: 48px;
   padding: 4px 8px;
-  font-size: 0.625rem;
-  line-height: 1.2;
+  font-size: var(--tmd-font-xs);
+  line-height: 1.3;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--fvp-reader-faint);
@@ -233,7 +233,7 @@
 .fvp-file-markdown-mermaid-status {
   padding: 14px;
   color: var(--fvp-reader-muted);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
 }
 
 .fvp-file-markdown-mermaid-error {
@@ -247,7 +247,7 @@
   max-width: 100%;
   margin: 0 0 16px;
   border: 1px solid var(--fvp-markdown-rule);
-  border-radius: 12px;
+  border-radius: var(--tmd-radius-lg);
   background: color-mix(in srgb, var(--surface-card) 90%, transparent);
 }
 
@@ -281,9 +281,9 @@
   margin: 0 0 16px;
   padding: 18px 16px;
   border: 1px dashed var(--fvp-markdown-rule);
-  border-radius: var(--radius-lg);
+  border-radius: var(--tmd-radius-lg);
   color: var(--fvp-reader-faint);
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   text-align: center;
 }
 

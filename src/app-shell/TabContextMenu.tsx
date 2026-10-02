@@ -64,7 +64,7 @@ export function TabContextMenu({
           onClose();
         }}
       />
-      <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }}>
+      <div className="wsmenu session-menu tmd-scroll-hide" style={{ left: pos.x, top: pos.y }}>
         {onRename ? (
           <button
             className="wsmenu-item"
@@ -76,7 +76,7 @@ export function TabContextMenu({
             }}
           >
             <span className="wsmenu-item-icon">
-              <Pencil size="0.8125rem" />
+              <Pencil size="0.875rem" />
             </span>
             <span className="wsmenu-item-label">{t("重命名")}</span>
           </button>
@@ -90,7 +90,7 @@ export function TabContextMenu({
             }}
           >
             <span className="wsmenu-item-icon">
-              <SquaresFour size="0.8125rem" />
+              <SquaresFour size="0.875rem" />
             </span>
             <span className="wsmenu-item-label">
               {tileActive ? t("取消平铺") : t("平铺显示")}
@@ -105,7 +105,7 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <Cross size="0.8125rem" />
+            <Cross size="0.875rem" />
           </span>
           <span className="wsmenu-item-label">{t("关闭")}</span>
         </button>
@@ -117,7 +117,7 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <XSquare size="0.8125rem" />
+            <XSquare size="0.875rem" />
           </span>
           <span className="wsmenu-item-label">{t("关闭其他 tab")}</span>
         </button>
@@ -129,7 +129,7 @@ export function TabContextMenu({
           }}
         >
           <span className="wsmenu-item-icon">
-            <XCircle size="0.8125rem" />
+            <XCircle size="0.875rem" />
           </span>
           <span className="wsmenu-item-label">{t("关闭全部 tab")}</span>
         </button>

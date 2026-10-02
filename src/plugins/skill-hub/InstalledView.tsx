@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import { ArrowClockwise, Eye, Trash } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
 import {
   removeSkillRecord,
   useSkillRegistry,
@@ -148,7 +149,7 @@ export function InstalledView({ onGotoImport }: { onGotoImport?: () => void }) {
                       </span>
                       {updateCard && (
                         <span
-                          className="shrink-0 self-center rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[10px] text-(--tmd-fg)"
+                          className="shrink-0 self-center rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-meta text-(--tmd-fg)"
                           title={`${rec.version ?? ""} → ${updateCard.latestVersion ?? ""}`}
                           data-skill-updatable={rec.name}
                         >
@@ -156,7 +157,7 @@ export function InstalledView({ onGotoImport }: { onGotoImport?: () => void }) {
                         </span>
                       )}
                       <span
-                        className={`shrink-0 self-center rounded px-1.5 py-0.5 text-[10px] ${
+                        className={`shrink-0 self-center rounded px-1.5 py-0.5 text-meta ${
                           rec.source === "store"
                             ? "bg-(--tmd-accent-soft) text-(--tmd-fg)"
                             : "bg-(--tmd-bg-sunken) text-(--tmd-fg-muted)"
@@ -166,13 +167,13 @@ export function InstalledView({ onGotoImport }: { onGotoImport?: () => void }) {
                       </span>
                     </div>
                     {rec.description ? (
-                      <div className="line-clamp-2 text-[11px] leading-snug text-(--tmd-fg-muted)">
+                      <div className="line-clamp-2 text-xs leading-snug text-(--tmd-fg-muted)">
                         {rec.description}
                       </div>
                     ) : (
-                      <div className="text-[11px] leading-snug text-(--tmd-fg-faint)">{t("无描述")}</div>
+                      <div className="text-xs leading-snug text-(--tmd-fg-faint)">{t("无描述")}</div>
                     )}
-                    <div className="text-[10px] text-(--tmd-fg-faint)" title={rec.targets.join("\n")}>
+                    <div className="text-meta text-(--tmd-fg-faint)" title={rec.targets.join("\n")}>
                       {t("落位")}:{rec.targets.map((r) => (r === SHARED_SKILLS_REL ? t("公约位") : r)).join(" · ")}
                     </div>
                     <div className="flex items-center justify-end gap-1">
@@ -180,29 +181,29 @@ export function InstalledView({ onGotoImport }: { onGotoImport?: () => void }) {
                         <button
                           type="button"
                           onClick={() => setUpdating(updateCard)}
-                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-accent)"
+                          className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-accent)"
                           data-skill-update={rec.name}
                         >
-                          <ArrowClockwise size={12} aria-hidden="true" />
+                          <ArrowClockwise size="0.75rem" aria-hidden="true" />
                           {t("更新")}
                         </button>
                       )}
                       <button
                         type="button"
                         onClick={() => openPreview(rec)}
-                        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
+                        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
                         data-skill-detail={rec.name}
                       >
-                        <Eye size={12} aria-hidden="true" />
+                        <Eye size="0.75rem" aria-hidden="true" />
                         {t("详情")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setPendingDelete(rec)}
-                        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-err)"
+                        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-err)"
                         data-skill-delete={rec.name}
                       >
-                        <Trash size={12} aria-hidden="true" />
+                        <Trash size="0.75rem" aria-hidden="true" />
                         {t("删除")}
                       </button>
                     </div>
@@ -245,22 +246,29 @@ function DeleteConfirmDialog(props: {
 }) {
   const { rec } = props;
   const shared = rec.targets.includes(SHARED_SKILLS_REL);
+  /* 弹层 Esc 关闭;删除进行中锁定(R10 收口,与 mcp-hub 删除确认同形) */
+  useEscClose(props.onCancel, props.deleting);
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30">
-      <div className="w-80 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-4 shadow-xl" data-skill-delete-confirm>
+      <dialog
+        open
+        aria-label={t("删除确认")}
+        className="relative m-0 w-80 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left shadow-(--tmd-shadow-modal)"
+        data-skill-delete-confirm
+      >
         <div className="mb-2 text-xs font-medium">{t("删除技能「{name}」?", { name: rec.name })}</div>
-        <div className="mb-1 text-[11px] text-(--tmd-fg-muted)">
+        <div className="mb-1 text-xs text-(--tmd-fg-muted)">
           {t("落位")}:{rec.targets.join(" · ")}
         </div>
         {shared && (
-          <div className="mb-1 text-[11px] text-(--tmd-err)">
+          <div className="mb-1 text-xs text-(--tmd-err)">
             {t("公约位技能多家引擎共用,删除后全部失效")}
           </div>
         )}
         {props.error && (
-          <div className="mb-2 break-all text-[11px] text-(--tmd-err)">{props.error}</div>
+          <div className="mb-2 break-all text-xs text-(--tmd-err)" role="alert">{props.error}</div>
         )}
-        <div className="mb-3 text-[11px] text-(--tmd-fg-faint)">
+        <div className="mb-3 text-xs text-(--tmd-fg-subtle)">
           {t("移入系统回收站,可从废纸篓恢复;安装记录同步移除")}
         </div>
         <div className="flex justify-end gap-2">
@@ -275,12 +283,12 @@ function DeleteConfirmDialog(props: {
             type="button"
             onClick={props.onConfirm}
             disabled={props.deleting}
-            className="rounded bg-(--tmd-err) px-2.5 py-1 text-xs text-white disabled:opacity-50"
+            className="rounded bg-(--tmd-err) px-2.5 py-1 text-xs text-(--tmd-accent-fg) disabled:opacity-50"
           >
             {props.deleting ? t("删除中…") : t("删除")}
           </button>
         </div>
-      </div>
+      </dialog>
     </div>
   );
 }

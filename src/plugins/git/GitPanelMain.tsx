@@ -7,7 +7,8 @@
 import { useEffect } from "react";
 import { t } from "@kernel/i18n";
 import type { GitAheadBehind, GitFileStatus, GitRemoteRequest, GitRepoSummary, GitTotals } from "@kernel/ipc";
-import { CircleNotch, Cross } from "@phosphor-icons/react";
+import { Cross } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import type { GitLogState } from "./hooks/useGitLog";
 import type { GitBranchesState } from "./hooks/useGitBranches";
 import type { GitRepoContext } from "./repoContext";
@@ -86,6 +87,7 @@ function PanelBanners({
   onCloseNotice,
   onNotice,
   error,
+  onRetry,
   canUndo,
   undoOrigin,
   cwd,
@@ -97,6 +99,8 @@ function PanelBanners({
   onCloseNotice: () => void;
   onNotice: (msg: string | null) => void;
   error: string | null;
+  /** 状态取数失败重试(afterMutation 全量刷新面)。 */
+  onRetry: () => void;
   canUndo: boolean;
   undoOrigin: { cwd: string; branch: string } | null;
   cwd: string;
@@ -105,9 +109,8 @@ function PanelBanners({
   return (
     <>
       {busyLabel && (
-        <div className="flex shrink-0 items-center gap-1.5 border-b border-(--tmd-border) px-2 py-1 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" aria-hidden />
-          {t("正在{op}…", { op: busyLabel })}
+        <div className="flex shrink-0 items-center gap-1.5 border-b border-(--tmd-border) px-2 py-1 text-(--tmd-fg-subtle)">
+          <Spinner /> {t("正在{op}…", { op: busyLabel })}
         </div>
       )}
       {notice && (
@@ -123,8 +126,18 @@ function PanelBanners({
         </div>
       )}
       {error && (
-        <div className="shrink-0 border-b border-(--tmd-border) bg-(--tmd-bg-sunken) px-2 py-1 text-(--tmd-diff-removed)">
-          {gitErrorDisplay(error)}
+        <div
+          role="alert"
+          className="flex shrink-0 items-start gap-2 border-b border-(--tmd-border) bg-(--tmd-diff-removed)/8 px-2 py-1 text-(--tmd-diff-removed)"
+        >
+          <span className="min-w-0 flex-1 break-words">{gitErrorDisplay(error)}</span>
+          <button
+            type="button"
+            className="shrink-0 rounded border border-(--tmd-diff-removed)/40 px-1.5 hover:bg-(--tmd-diff-removed)/10"
+            onClick={onRetry}
+          >
+            {t("重试")}
+          </button>
         </div>
       )}
       {canUndo && undoOrigin != null && (
@@ -211,6 +224,7 @@ export function GitPanelMain({
         onCloseNotice={() => setNotice(null)}
         onNotice={setNotice}
         error={statusError}
+        onRetry={afterMutation}
         canUndo={canUndo}
         undoOrigin={undoOrigin}
         cwd={cwd}

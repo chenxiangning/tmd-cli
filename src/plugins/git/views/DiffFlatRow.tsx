@@ -120,9 +120,9 @@ function RowTrailer({
 }) {
   const numsBlank = !nums || (nums.i === 0 && nums.d === 0);
   return conflict ? (
-    <span className="shrink-0 text-[0.6875rem] text-(--tmd-diff-removed)">{t("冲突")}</span>
+    <span className="shrink-0 text-xs text-(--tmd-diff-removed)">{t("冲突")}</span>
   ) : (
-    <span className="shrink-0 text-[0.6875rem] tabular-nums">
+    <span className="shrink-0 text-xs tabular-nums">
       <span className={numsBlank ? "group-hover:invisible" : "group-hover:hidden"}>
         <span className="text-(--tmd-diff-inserted)">+{nums ? fmt(nums.i) : 0}</span>{" "}
         <span className="text-(--tmd-diff-removed)">−{nums ? fmt(nums.d) : 0}</span>
@@ -203,7 +203,7 @@ export function FRow({
       <span className="min-w-0 flex-1 truncate text-(--tmd-fg)">{name}</span>
       <span
         dir="rtl"
-        className="max-w-[38%] shrink-0 truncate text-right text-[0.6875rem] text-(--tmd-fg-faint)"
+        className="max-w-[38%] shrink-0 truncate text-right text-xs text-(--tmd-fg-faint)"
       >
         {dirLabel(file, dir)}
       </span>

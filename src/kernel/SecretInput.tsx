@@ -36,7 +36,8 @@ export function SecretInput({
         aria-label={show ? t("隐藏") : t("显示")}
         onClick={() => setShow(!show)}
       >
-        {show ? <Eye size={13} /> : <EyeClosed size={13} />}
+        {/* R7 归档:钮内图标 13px→14px,size 统一 rem 字符串 */}
+        {show ? <Eye size="0.875rem" /> : <EyeClosed size="0.875rem" />}
       </button>
     </div>
   );

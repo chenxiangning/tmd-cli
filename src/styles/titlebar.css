@@ -27,7 +27,7 @@
   flex-shrink: 0;
   user-select: none;
   -webkit-user-select: none;
-  font-size: 0.75rem;
+  font-size: var(--tmd-font-ui);
   -webkit-app-region: drag;
 }
 
@@ -146,7 +146,7 @@
   background: transparent;
   color: var(--tmd-fg-muted);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .win-traffic-light:hover {
@@ -173,11 +173,11 @@
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--tmd-radius-md);
   background: transparent;
   color: var(--tmd-fg-muted);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .titlebar-action:hover {

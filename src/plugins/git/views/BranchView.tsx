@@ -106,7 +106,7 @@ export function BranchView({ cwd, data, loading, currentName, dirty, onMutation 
           onClick={() => setCreateOpen((v) => !v)}
           aria-expanded={createOpen}
           title={t("新建分支")}
-          className="rounded p-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-elevated) hover:text-(--tmd-fg)"
+          className="rounded p-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
           <CreateCaret className="h-[0.75rem] w-[0.75rem]" />
         </button>

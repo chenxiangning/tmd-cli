@@ -18,7 +18,7 @@ export const MESSAGES_EN = {
   "关键词检索(FTS)…": "Keyword search (FTS)…",
   "全部来源": "All sources",
   "全部 {n}": "All {n}",
-  "读取中…": "Loading…",
+  "加载中…": "Loading…",
   "当前工作区还没有记忆": "No memories in this workspace yet",
   "无匹配": "No matches",
   /* ── 诊断 ── */

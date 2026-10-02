@@ -2,7 +2,8 @@
  * worktree 列表拆件(WorktreeManageDialog 拆出,文件规模铁则)——
  * 加载期 spinner(null 态不再空白)/ 空态 / 条目行(两段式移除确认)。
  */
-import { CircleNotch, Trash } from "@phosphor-icons/react";
+import { Trash } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { t } from "@kernel/i18n";
 import type { WorktreeEntry } from "@kernel/ipc";
 
@@ -26,7 +27,7 @@ export function WorktreeList({
     /* 加载期骨架(首拉在途):null 态不再空白(audit 工单:列表加载期无反馈)。 */
     return (
       <div className="flex items-center justify-center gap-2 py-3 text-xs text-(--tmd-fg-faint)">
-        <CircleNotch size="0.8125rem" className="animate-spin" aria-hidden />
+        <Spinner size="0.875rem" />
         {t("读取 worktree 列表…")}
       </div>
     );
@@ -41,11 +42,11 @@ export function WorktreeList({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 text-xs text-(--tmd-fg)">
               <span className="truncate font-medium">{entry.path}</span>
-              {entry.bare && <span className="text-[0.625rem] text-(--tmd-fg-faint)">{t("(bare)")}</span>}
-              {entry.locked && <span className="text-[0.625rem] text-(--tmd-warn)">{t("已锁")}</span>}
-              {entry.prunable && <span className="text-[0.625rem] text-(--tmd-warn)">{t("可清理")}</span>}
+              {entry.bare && <span className="text-meta text-(--tmd-fg-faint)">{t("(bare)")}</span>}
+              {entry.locked && <span className="text-meta text-(--tmd-warn)">{t("已锁")}</span>}
+              {entry.prunable && <span className="text-meta text-(--tmd-warn)">{t("可清理")}</span>}
             </div>
-            <div className="truncate text-[0.6875rem] text-(--tmd-fg-faint)">
+            <div className="truncate text-xs text-(--tmd-fg-faint)">
               {entry.detached ? t("(detached)") : entry.branch || entry.head}
             </div>
           </div>

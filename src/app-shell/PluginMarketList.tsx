@@ -32,7 +32,8 @@ export function PluginMarketList({
                     className="pm-card-icon"
                     style={plugin.meta.iconColor ? { color: plugin.meta.iconColor } : undefined}
                   >
-                    {Icon ? <Icon size="0.9375rem" /> : t(plugin.meta.abbr)}
+                    {/* R7 归档:卡片头图标 15px→14px */}
+                    {Icon ? <Icon size="0.875rem" /> : t(plugin.meta.abbr)}
                   </div>
                   <div className="pm-card-main">
                     <div className="pm-card-name">

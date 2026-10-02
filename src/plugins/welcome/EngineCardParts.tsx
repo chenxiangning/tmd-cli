@@ -218,7 +218,7 @@ export function RowActions({
         title={t("重新探针")}
       >
         <ArrowClockwise
-          size="0.6875rem"
+          size="0.75rem"
           aria-hidden
           className={probe.status === "loading" ? "is-spinning" : ""}
         />
@@ -226,7 +226,7 @@ export function RowActions({
       {docsUrl && (
         <a className="welcome-ab doc" href={docsUrl} target="_blank" rel="noreferrer">
           {t("官方文档")}
-          <ArrowSquareOut size="0.6875rem" aria-hidden />
+          <ArrowSquareOut size="0.75rem" aria-hidden />
         </a>
       )}
     </span>

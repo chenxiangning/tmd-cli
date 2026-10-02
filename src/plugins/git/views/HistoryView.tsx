@@ -8,11 +8,14 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
-import { CircleNotch } from "@phosphor-icons/react";
+import { ClockCounterClockwise } from "@phosphor-icons/react";
+import { Empty } from "@kernel/Empty";
+import { Spinner } from "@kernel/Spinner";
 import type { GitCommitFile, GitLogEntry } from "@kernel/ipc";
 import type { GitLogState } from "../hooks/useGitLog";
 import { useCommitFiles } from "../hooks/useCommitFiles";
 import { computeGitGraph } from "../graph/gitGraph";
+import { gitErrorDisplay } from "../gitError";
 import { openCommitDiffTab } from "../commitTab";
 import {
   HistoryRowItem,
@@ -173,10 +176,24 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
 
   return (
     <div ref={scrollerRef} className="h-full overflow-y-auto p-1">
-      {log.entries.length === 0 && !log.loading && (
-        <div className="flex h-24 items-center justify-center text-(--tmd-fg-faint)">
-          {log.error ? log.error.replace(/^E_[A-Z_]+:\s*/, "") : t("暂无提交历史")}
+      {/* 取数失败 = 持久条 + 重试(R6):空态与错误不再共用灰字分流。 */}
+      {log.error && (
+        <div
+          role="alert"
+          className="sticky top-0 z-10 flex items-start gap-2 border-b border-(--tmd-diff-removed)/20 bg-(--tmd-diff-removed)/8 px-2 py-1.5 text-xs text-(--tmd-diff-removed)"
+        >
+          <span className="min-w-0 flex-1 break-words">{gitErrorDisplay(log.error)}</span>
+          <button
+            type="button"
+            className="shrink-0 rounded border border-(--tmd-diff-removed)/40 px-1.5 hover:bg-(--tmd-diff-removed)/10"
+            onClick={() => log.loadMore()}
+          >
+            {t("重试")}
+          </button>
         </div>
+      )}
+      {log.entries.length === 0 && !log.loading && !log.error && (
+        <Empty icon={<ClockCounterClockwise />}>{t("暂无提交历史")}</Empty>
       )}
 
       <div style={{ height: offsets[from] }} aria-hidden />
@@ -201,11 +218,11 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
 
       {log.loading && (
         <div className="flex items-center justify-center gap-1.5 py-2 text-(--tmd-fg-faint)">
-          <CircleNotch className="h-[0.75rem] w-[0.75rem] animate-spin" /> {t("加载中…")}
+          <Spinner /> {t("加载中…")}
         </div>
       )}
       {!log.hasMore && log.entries.length > 0 && (
-        <div className="py-2 text-center text-[0.625rem] text-(--tmd-fg-faint)">{t("已到最早提交")}</div>
+        <div className="py-2 text-center text-meta text-(--tmd-fg-faint)">{t("已到最早提交")}</div>
       )}
     </div>
   );

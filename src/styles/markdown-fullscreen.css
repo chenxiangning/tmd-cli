@@ -41,7 +41,7 @@
 .viewer-toolbar > ul > li {
   background-color: var(--mermaid-fullscreen-toolbar-item-bg);
   color: var(--mermaid-fullscreen-button-fg);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
 }
 
 .viewer-toolbar > ul > li:hover {
@@ -60,7 +60,7 @@
 }
 
 .viewer-title {
-  color: var(--tmd-fg-faint);
+  color: var(--tmd-fg-subtle);
 }
 
 .viewer-navbar {

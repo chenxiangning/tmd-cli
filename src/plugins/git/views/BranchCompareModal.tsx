@@ -15,7 +15,8 @@ import { useEffect, useRef, useState } from "react";
 import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import { createPortal } from "react-dom";
-import { GitDiff, CircleNotch, Cross } from "@phosphor-icons/react";
+import { GitDiff, Cross } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { ipc, type GitBranchCompareSet, type GitBranchDiffFile, type GitLogEntry } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 import { CommitDetailsPanel } from "./CommitDetailsPanel";
@@ -55,7 +56,7 @@ function ModalHeader({
   return (
     <div className="shrink-0 border-b border-(--tmd-border) px-4 pt-3">
       <div className="flex items-center gap-2">
-        <span className="flex items-center gap-1 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-[0.625rem] font-medium text-(--tmd-accent)">
+        <span className="flex items-center gap-1 rounded bg-(--tmd-accent-soft) px-1.5 py-0.5 text-meta font-medium text-(--tmd-accent)">
           <GitDiff className="h-[0.75rem] w-[0.75rem]" />
           {badge}
         </span>
@@ -107,7 +108,7 @@ function ModalBody({
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
+        <Spinner size="0.875rem" /> {t("加载中…")}
       </div>
     );
   }
@@ -237,7 +238,7 @@ export function BranchCompareModal({
       onClick={onClose}
     >
       <div
-        className="flex h-[min(760px,86vh)] w-[min(1120px,94vw)] flex-col overflow-hidden rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) shadow-2xl"
+        className="flex h-[min(760px,86vh)] w-[min(1120px,94vw)] flex-col overflow-hidden rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) shadow-(--tmd-shadow-modal)"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部:徽标 + 标题 + 关闭;副标题 + 统计 */}

@@ -74,7 +74,7 @@
   position: absolute;
   border-radius: 999px;
   background: var(--tmd-border-strong);
-  transition: background 120ms ease;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 /* 默认:细线居中于轨道,抓手随之居中。 */

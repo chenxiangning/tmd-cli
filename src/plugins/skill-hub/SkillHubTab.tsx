@@ -36,7 +36,7 @@ export function SkillHubTab({ tab }: { tab: EditorTab }) {
           className={viewButton(view === "installed")}
           onClick={() => setView("installed")}
         >
-          <PuzzlePiece size={13} aria-hidden="true" />
+          <PuzzlePiece size="0.875rem" aria-hidden="true" />
           {t("已安装")}
         </button>
         <button
@@ -44,7 +44,7 @@ export function SkillHubTab({ tab }: { tab: EditorTab }) {
           className={viewButton(view === "store")}
           onClick={() => setView("store")}
         >
-          <Storefront size={13} aria-hidden="true" />
+          <Storefront size="0.875rem" aria-hidden="true" />
           {t("技能商店")}
         </button>
         <button
@@ -52,7 +52,7 @@ export function SkillHubTab({ tab }: { tab: EditorTab }) {
           className={viewButton(view === "import")}
           onClick={() => setView("import")}
         >
-          <ArrowSquareIn size={13} aria-hidden="true" />
+          <ArrowSquareIn size="0.875rem" aria-hidden="true" />
           {t("本地导入")}
         </button>
       </div>

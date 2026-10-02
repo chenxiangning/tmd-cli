@@ -40,12 +40,12 @@ export function MemoryHead({
         onClick={onToggle}
       >
         <span className="h-2 w-2 flex-none rounded-full bg-(--tmd-ok)" />
-        <span className="text-[0.6875rem] text-(--tmd-fg-muted)">{t("池就绪")}</span>
-        <span className="ml-auto text-[0.6875rem] font-semibold">{t("{count} 条", { count })}</span>
-        <CaretDown size="0.6875rem" className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
+        <span className="text-xs text-(--tmd-fg-muted)">{t("池就绪")}</span>
+        <span className="ml-auto text-xs font-semibold">{t("{count} 条", { count })}</span>
+        <CaretDown size="0.75rem" className={detailOpen ? "rotate-180 transition-transform" : "transition-transform"} />
       </button>
       {detailOpen && (
-        <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-[0.625rem] text-(--tmd-fg-muted)">
+        <div className="mb-2 flex flex-col gap-0.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) p-2 font-mono text-meta text-(--tmd-fg-muted)">
           <InfoRow text={t("库:{path}", { path: dbPath ?? t("未解析") })} title={dbPath ?? t("未解析")} />
           <InfoRow text={t("身份:{id}", { id: identity ?? t("非 git 工作区") })} title={identity ?? t("非 git 工作区")} />
           <div>{t("生效记忆:{count} 条 · 覆盖类目:{kinds} 类", { count, kinds: kindCount })}</div>
@@ -129,7 +129,7 @@ function ChipRow({
 function ChipBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
-      className={`h-5 rounded-full border px-2 text-[0.65625rem] ${
+      className={`h-5 rounded-full border px-2 text-meta ${
         active
           ? "border-(--tmd-accent) bg-(--tmd-bg-active) text-(--tmd-fg)"
           : "border-(--tmd-border) text-(--tmd-fg-subtle)"

@@ -83,7 +83,7 @@ function EntryCourse({ cliId, title, lessonCount, menuOpen, onToggleMenu, onDism
   return (
     <div className="academy-entry-course">
       <button type="button" className={`academy-entry-btn${menuOpen ? " is-on" : ""}`} onClick={onToggleMenu} aria-expanded={menuOpen}>
-        <Student size={13} className="academy-entry-glyph" aria-hidden />
+        <Student size="0.875rem" className="academy-entry-glyph" aria-hidden />
         <span className="academy-entry-tt">{title}</span>
         <span className="academy-entry-bar" aria-hidden><i style={{ width: `${pct}%` }} /></span>
         <span className="academy-entry-pct">{finished ? t("已结业") : `${pct}%`}</span>

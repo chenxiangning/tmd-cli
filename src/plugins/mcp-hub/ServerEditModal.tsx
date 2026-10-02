@@ -187,18 +187,18 @@ export function ServerEditModal({
   return (
     <DialogShell
       title={initialName === null ? t("新增 server · {engine}", { engine: engine.name }) : t("编辑 {name} · {engine}", { name: initialName, engine: engine.name })}
-      icon={<span className="text-[0.75rem]">MCP</span>}
+      icon={<span className="text-xs">MCP</span>}
       width={560}
       locked={busy}
       onClose={saved || !dirty ? onClose : () => undefined}
       footer={
         saved ? (
-          <div className="flex items-center justify-end gap-3 text-[0.6875rem] text-(--tmd-fg-faint)">
+          <div className="flex items-center justify-end gap-3 text-xs text-(--tmd-fg-faint)">
             {t("已保存,下次会话生效(不承诺即时生效)")}
           </div>
         ) : (
           <div className="flex flex-col items-end gap-1">
-            {error && <div className="max-w-full break-all text-[0.625rem] text-(--tmd-diff-removed)">{error}</div>}
+            {error && <div className="max-w-full break-all text-meta text-(--tmd-diff-removed)">{error}</div>}
             <DialogActions
               confirmLabel={t("保存")}
               confirmDisabled={missingRequired || busy}
@@ -210,7 +210,7 @@ export function ServerEditModal({
         )
       }
     >
-      <form className="flex flex-col gap-3 text-[0.6875rem]" onSubmit={(e) => { e.preventDefault(); if (!missingRequired && !busy && !saved) void save(); }}>
+      <form className="flex flex-col gap-3 text-xs" onSubmit={(e) => { e.preventDefault(); if (!missingRequired && !busy && !saved) void save(); }}>
         <label className="flex flex-col gap-1">
           <span className="text-(--tmd-fg-faint)">{t("名称(同文件内唯一)")}</span>
           <input
@@ -219,7 +219,7 @@ export function ServerEditModal({
             aria-label={t("名称(同文件内唯一)")}
             onChange={(e) => setDraft({ ...draft, id: e.target.value })}
           />
-          {idTaken && <span className="text-[0.625rem] text-(--tmd-diff-removed)">{t("同名 server 已存在")}</span>}
+          {idTaken && <span className="text-meta text-(--tmd-diff-removed)">{t("同名 server 已存在")}</span>}
         </label>
 
         <div className="flex flex-col gap-1">
@@ -262,7 +262,7 @@ export function ServerEditModal({
             <label className="flex flex-col gap-1">
               <span className="text-(--tmd-fg-faint)">{t("args(每行一条)")}</span>
               <textarea
-                className="mcphub-input h-20 font-mono text-[0.625rem]"
+                className="mcphub-input h-20 font-mono text-meta"
                 value={draft.argsText}
                 aria-label={t("args(每行一条)")}
                 onChange={(e) => setDraft({ ...draft, argsText: e.target.value })}

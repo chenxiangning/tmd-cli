@@ -44,7 +44,7 @@ function ModelSlot({
         <span
           aria-label={t("默认模型(尚未读到会话实况)")}
           title={t("来自 CLI 默认配置,尚未读到会话实况")}
-          className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[0.625rem] text-(--tmd-fg-muted)"
+          className="rounded-sm bg-(--tmd-bg-hover) px-1 text-meta text-(--tmd-fg-muted)"
         >
           {t("默认")}
         </span>
@@ -126,7 +126,7 @@ function ToolbarActions({
         onClick={expandComposerStage}
         className={`${iconBtn} ml-auto text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <DecorIcon id="stage-expand" Fallback={CaretUp} size="0.9375rem" data-action-id="stage-expand" />
+        <DecorIcon id="stage-expand" Fallback={CaretUp} size="0.875rem" data-action-id="stage-expand" />
       </button>
       <button
         type="button"
@@ -136,7 +136,7 @@ function ToolbarActions({
         onClick={collapseComposerStage}
         className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}
       >
-        <DecorIcon id="stage-collapse" Fallback={CaretDown} size="0.9375rem" data-action-id="stage-collapse" />
+        <DecorIcon id="stage-collapse" Fallback={CaretDown} size="0.875rem" data-action-id="stage-collapse" />
       </button>
       {/* 命令抽屉直达开关(closed ↔ open);原「只读」占位(openspec/changes/composer-command-drawer) */}
       <button
@@ -154,7 +154,7 @@ function ToolbarActions({
             : "text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         }`}
       >
-        <DecorIcon id="composer-drawer" Fallback={Sidebar} size="0.9375rem" data-action-id="composer-drawer" />
+        <DecorIcon id="composer-drawer" Fallback={Sidebar} size="0.875rem" data-action-id="composer-drawer" />
       </button>
     </>
   );
@@ -195,7 +195,7 @@ export function ComposerToolbar() {
   const stage = useComposerStage();
 
   return (
-    <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-[0.6875rem] leading-none text-(--tmd-fg-muted) select-none">
+    <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-xs leading-none text-(--tmd-fg-muted) select-none">
       <ModelSlot
         model={status?.model}
         seeded={seeded && !remoteEngine}

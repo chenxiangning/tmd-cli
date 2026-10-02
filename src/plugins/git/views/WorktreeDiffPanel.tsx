@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
-import { CircleNotch } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
 import { ipc, type GitBranchDiffFile, type GitFilePatch } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 import { useGitPanelState } from "../panelStore";
@@ -74,13 +74,13 @@ export function WorktreeDiffPanel({
 
       {/* 右:文件列表 */}
       <div className="flex w-[300px] shrink-0 flex-col border-l border-(--tmd-border)">
-        <div className="shrink-0 border-b border-(--tmd-border) px-2 py-1.5 text-[0.625rem] uppercase tracking-wider text-(--tmd-fg-faint)">
+        <div className="shrink-0 border-b border-(--tmd-border) px-2 py-1.5 text-meta uppercase tracking-wider text-(--tmd-fg-faint)">
           {t("文件({n})", { n: files.length })}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-1">
           {loading && (
             <div className="flex items-center justify-center gap-1.5 py-3 text-(--tmd-fg-faint)">
-              <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
+              <Spinner size="0.875rem" /> {t("加载中…")}
             </div>
           )}
           {!loading && error && (
@@ -103,7 +103,7 @@ export function WorktreeDiffPanel({
               title={f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
             >
               <span
-                className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-[0.625rem] ${
+                className={`shrink-0 rounded bg-(--tmd-bg-sunken) px-1 font-mono text-meta ${
                   STATUS_COLOR[f.status] ?? "text-(--tmd-fg-faint)"
                 }`}
               >
@@ -176,7 +176,7 @@ function WorktreePatchBody({
   if (patchLoading) {
     return (
       <div className="flex h-full items-center justify-center gap-1.5 text-(--tmd-fg-faint)">
-        <CircleNotch className="h-[0.875rem] w-[0.875rem] animate-spin" /> {t("加载中…")}
+        <Spinner size="0.875rem" /> {t("加载中…")}
       </div>
     );
   }

@@ -235,7 +235,7 @@ function FileRow({
       >
         <FileText className="h-[0.875rem] w-[0.875rem] shrink-0 text-(--tmd-fg-faint)" />
         <span className="min-w-0 flex-1 truncate">{depth > 0 ? file.path.slice(file.path.indexOf("/") + 1) : file.path}</span>
-        <span className={`font-mono text-[0.625rem] ${STATUS_COLOR[file.status] ?? ""}`}>
+        <span className={`font-mono text-meta ${STATUS_COLOR[file.status] ?? ""}`}>
           {displayStatus}
         </span>
       </button>
@@ -267,7 +267,7 @@ function FileRow({
         </button>
       )}
       {isConflict && (
-        <span className="shrink-0 text-[0.625rem] text-(--tmd-diff-removed)">{t("冲突")}</span>
+        <span className="shrink-0 text-meta text-(--tmd-diff-removed)">{t("冲突")}</span>
       )}
     </div>
   );

@@ -12,7 +12,7 @@ import { effectiveLabel, type CommandGroup } from "./shortcutListModel";
 /** 键帽芯片(对齐既有 KeyCap 视觉)。 */
 function KeyCap({ label }: { label: string }) {
   return (
-    <kbd className="inline-flex shrink-0 items-center rounded-[4px] border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-0.5 font-mono text-[0.6875rem] leading-none text-(--tmd-fg-muted)">
+    <kbd className="inline-flex shrink-0 items-center rounded-[4px] border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 py-0.5 font-mono text-xs leading-none text-(--tmd-fg-muted)">
       {label}
     </kbd>
   );
@@ -46,7 +46,7 @@ function CommandListItem({
           <span className="truncate">{t(cmd.title)}</span>
           {hasOverride ? (
             <span
-              className="rounded-sm bg-(--tmd-accent-soft) px-1 text-[0.625rem] text-(--tmd-accent)"
+              className="rounded-sm bg-(--tmd-accent-soft) px-1 text-meta text-(--tmd-accent)"
               title={t("已修改")}
             >
               {t("已修改")}
@@ -54,14 +54,14 @@ function CommandListItem({
           ) : null}
           {builtin ? (
             <span
-              className="rounded-sm bg-(--tmd-bg-hover) px-1 text-[0.625rem] text-(--tmd-fg-faint)"
+              className="rounded-sm bg-(--tmd-bg-hover) px-1 text-meta text-(--tmd-fg-faint)"
               title={t("此命令为内置键位,不可改")}
             >
               {t("内置")}
             </span>
           ) : null}
         </div>
-        <div className="truncate text-[0.625rem] text-(--tmd-fg-faint) font-mono">
+        <div className="truncate text-meta text-(--tmd-fg-faint) font-mono">
           {cmd.id}
         </div>
       </div>
@@ -87,10 +87,10 @@ export function CommandList({
       {groups.map((g) => (
         <div key={g.name} className="pref-card overflow-hidden">
           <div className="flex items-baseline justify-between px-4 pt-3 pb-1">
-            <span className="text-[0.6875rem] tracking-widest text-(--tmd-fg-faint)">
+            <span className="text-xs tracking-widest text-(--tmd-fg-faint)">
               {t(g.name)}
             </span>
-            <span className="text-[0.6875rem] text-(--tmd-fg-faint)">
+            <span className="text-xs text-(--tmd-fg-faint)">
               {g.commands.length}
             </span>
           </div>

@@ -38,6 +38,7 @@ export const MESSAGES = {
 
   /* view/DrawerItemList.tsx + drawerSections.ts (consumed at call sites) */
   "暂无命令或技能": "No commands or skills yet",
+  "去插件市场": "Go to plugin market",
   "⚡ 发送到幕布": "⚡ Send to terminal",
   "↵ 插入输入框": "↵ Insert into input",
   "⇱ 打开面板": "⇱ Open panel",

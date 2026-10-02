@@ -58,7 +58,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border: none;
   border-radius: var(--tmd-radius-sm);
   background: transparent;
@@ -182,8 +182,8 @@
 .segment {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
+  gap: 4px;
+  padding: 4px 10px;
   border: none;
   border-radius: var(--tmd-radius-sm);
   background: transparent;
@@ -231,7 +231,7 @@
   flex: 0 0 24px;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-hover);
   color: var(--tmd-fg);
 }
@@ -240,7 +240,7 @@
   height: 22px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: none;
   cursor: pointer;
 }
@@ -252,7 +252,7 @@
   height: 22px;
   padding: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: none;
   color: var(--tmd-fg-muted);
   cursor: pointer;

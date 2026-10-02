@@ -76,7 +76,7 @@ function PinCheckbox({
         onToggle();
       }}
     >
-      {pinned && <Check size="0.625rem" aria-hidden />}
+      {pinned && <Check size="0.75rem" aria-hidden />}
     </button>
   );
 }

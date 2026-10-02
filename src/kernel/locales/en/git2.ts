@@ -107,8 +107,6 @@ export const MESSAGES = {
   "选中提交详情": "Selected commit details",
   "请选择一条提交查看详情。": "Select a commit to view its details.",
   "变更文件": "Changed files",
-  "正在加载推送预览提交…": "Loading push preview commits...",
-  "正在加载提交详情…": "Loading commit details...",
 
   /* 拉取解释(Intent / Will Happen / Will NOT Happen) */
   "先从 {remote} 拉取 {targetBranch},再按当前仓库或用户的 Git 配置更新本地分支。":

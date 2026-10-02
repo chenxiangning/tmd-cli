@@ -17,6 +17,7 @@ export const MESSAGES_EN = {
   "详情": "Details",
   "编辑": "Edit",
   "删除": "Delete",
+  "删除确认": "Confirm deletion",
   "删除中…": "Deleting…",
   "取消": "Cancel",
   "关闭": "Close",

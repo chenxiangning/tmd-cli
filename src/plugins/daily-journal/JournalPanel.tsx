@@ -38,11 +38,11 @@ export function JournalPanel() {
     <div className="dj-panel">
       <div className="dj-panel-nav">
         <button type="button" className="dj-btn" aria-label={t("上个月")} onClick={() => nav(-1)}>
-          <CaretLeft size={12} weight="bold" />
+          <CaretLeft size="0.75rem" />
         </button>
         <span className="dj-month-title">{monthTitleOf(ym.y, ym.m)}</span>
         <button type="button" className="dj-btn" aria-label={t("下个月")} onClick={() => nav(1)}>
-          <CaretRight size={12} weight="bold" />
+          <CaretRight size="0.75rem" />
         </button>
         {/* 回本月:面板翻去远处后一键回(此前翻 1 月要连点 8 次) */}
         <button
@@ -60,9 +60,9 @@ export function JournalPanel() {
       </div>
       <div className="dj-panel-flow">
         {sessions === null ? (
-          <div className="dj-panel-stat">{t("正在扫描会话…")}</div>
+          <div className="dj-panel-stat">{t("加载中…")}</div>
         ) : !snap ? (
-          <div className="dj-panel-stat">{t("正在加载…")}</div>
+          <div className="dj-panel-stat">{t("加载中…")}</div>
         ) : (
           <FlowView ym={ym} snap={snap} sessions={sessions} today={todayKey()} />
         )}

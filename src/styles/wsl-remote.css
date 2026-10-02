@@ -22,7 +22,7 @@
 }
 .wsl-sec-lbl {
   flex: none;
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--tmd-fg-subtle);
@@ -45,7 +45,7 @@
 }
 .wsl-remote-err {
   color: var(--tmd-err);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
   line-height: 1.5;
 }
 
@@ -60,8 +60,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-left: 9px;
-  padding-left: 15px;
+  margin-left: 8px;
+  padding-left: 16px;
   border-left: 1px solid var(--tmd-border);
 }
 .wsl-host-grid {
@@ -75,7 +75,7 @@
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  font-size: 0.625rem;
+  font-size: var(--tmd-font-xs);
   letter-spacing: 0.04em;
   color: var(--tmd-fg-subtle);
 }
@@ -86,12 +86,12 @@
   height: 26px;
   padding: 0 8px;
   border: 1px solid var(--tmd-border);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: var(--tmd-bg-input);
   color: var(--tmd-fg);
   font: inherit;
-  font-size: 0.75rem;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  font-size: var(--tmd-font-ui);
+  transition: border-color var(--tmd-dur-1) var(--tmd-ease-out), box-shadow var(--tmd-dur-1) var(--tmd-ease-out);
 }
 .wsl-host-grid input:focus-visible {
   outline: none;
@@ -128,7 +128,7 @@
   width: 18px;
   height: 18px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--tmd-radius-xs);
   background: none;
   color: var(--tmd-fg-subtle);
   cursor: pointer;
@@ -140,10 +140,10 @@
 /* 行内错误条(设默认失败等一次性反馈;5s 自清) */
 .wsl-inline-err {
   margin: 6px 0 0;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border: 1px solid color-mix(in srgb, var(--tmd-err) 40%, transparent);
-  border-radius: 6px;
+  border-radius: var(--tmd-radius-sm);
   background: color-mix(in srgb, var(--tmd-err) 8%, transparent);
   color: var(--tmd-err);
-  font-size: 0.6875rem;
+  font-size: var(--tmd-font-ui);
 }

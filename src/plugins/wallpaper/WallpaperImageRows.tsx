@@ -67,7 +67,7 @@ export function WallpaperImageRows() {
           {currentItem && preview.src ? (
             <img src={preview.src} alt="" onError={preview.handleError} />
           ) : (
-            <ImageIcon size={14} aria-hidden />
+            <ImageIcon size="0.875rem" aria-hidden />
           )}
           <span>{t("选择壁纸")}</span>
         </button>

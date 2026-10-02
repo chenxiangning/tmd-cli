@@ -68,7 +68,7 @@ export function EnhancedPane({
         {t("增强后的提示词")}
         <span className="ml-auto">{paneStatus(running, fail, enhanced, fromCache)}</span>
         {showBadge && (
-          <span className="rounded-sm bg-(--tmd-accent-soft) px-1 text-[0.625rem] text-(--tmd-accent)">{t("缓存")}</span>
+          <span className="rounded-sm bg-(--tmd-accent-soft) px-1 text-meta text-(--tmd-accent)">{t("缓存")}</span>
         )}
       </div>
       <textarea
