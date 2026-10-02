@@ -171,10 +171,15 @@ export function Composer() {
     >
       <div
         ref={composerRef}
-        className={`relative flex h-full flex-col overflow-hidden border-t bg-(--tmd-bg-panel) ${
+        /* 顶线唯一来源规则(同 aside/handle 契约,杜绝双轨):非 min 段分界线 = 上方
+           handle 细线,这里不再画;border-t 仅 min 段保留(退出 Panel 体系无 handle);
+           dragOver 恢复 accent 顶线 = 拖拽高亮的一部分 */
+        className={`relative flex h-full flex-col overflow-hidden bg-(--tmd-bg-panel) ${
           dragOver
-            ? "border-(--tmd-accent) ring-2 ring-inset ring-(--tmd-accent-soft)"
-            : "border-(--tmd-border)"
+            ? "border-t border-(--tmd-accent) ring-2 ring-inset ring-(--tmd-accent-soft)"
+            : inputHidden
+              ? "border-t border-(--tmd-border)"
+              : ""
         }`}
       >
         {/* 状态/工具行(模型/思考/胶囊等贡献)整体包一层,底部分隔线与输入区分层;

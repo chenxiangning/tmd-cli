@@ -10,6 +10,13 @@
  * 全部色值吃 --tmd-* token,随主题 preset 联动。
  * ────────────────────────────────────────────────────────── */
 
+/* 输入区豁免全局键盘焦点环(global.css ::focus-visible 为无层区规则,压过工具类
+   outline-none):textarea 焦点反馈 = 光标本身,环画在输入区四周 = 顶压状态栏分隔线、
+   底压 rail 图标行,深色 accent 下呈两条横穿亮线(2026-10-02 大仙报「底部重叠」)。 */
+#composer-textarea:focus-visible {
+  outline: none;
+}
+
 /* composer.inputRail 挂载点容器:左下角水平图标行(assets 唤醒入口 + 平铺广播开关),
    常规流内行,不遮输入文本;relative 供广播 toast 向上锚定。 */
 .composer-input-rail {

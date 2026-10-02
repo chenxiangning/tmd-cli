@@ -195,7 +195,8 @@ export function ComposerToolbar() {
   const stage = useComposerStage();
 
   return (
-    <div className="flex h-7 shrink-0 items-center gap-2 border-b border-(--tmd-border) px-2 text-xs leading-none text-(--tmd-fg-muted) select-none">
+    /* 整行下边框由 Composer 包装层统一出(挂载点多贡献者堆叠时只留一条),本行不再自带 */
+    <div className="flex h-7 shrink-0 items-center gap-2 px-2 text-xs leading-none text-(--tmd-fg-muted) select-none">
       <ModelSlot
         model={status?.model}
         seeded={seeded && !remoteEngine}
