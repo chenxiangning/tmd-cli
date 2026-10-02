@@ -177,7 +177,11 @@ export function Composer() {
             : "border-(--tmd-border)"
         }`}
       >
-        <Mounts point="composer.statusBar" />
+        {/* 状态/工具行(模型/思考/胶囊等贡献)整体包一层,底部分隔线与输入区分层;
+            Mounts 是 fragment 无包装,直接挂无法对整行下边框 */}
+        <div className="border-b border-(--tmd-border)">
+          <Mounts point="composer.statusBar" />
+        </div>
         {sendError && <div className="px-3 py-1 text-xs text-(--tmd-err)">{sendError}</div>}
         {!inputHidden && (
         <>

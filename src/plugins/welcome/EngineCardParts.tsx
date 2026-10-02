@@ -124,10 +124,13 @@ function InstallAction({
   /* 按钮文案映射(行为不变):未装→安装;落后→更新;已装不落后→重装(同 onInstall)。 */
   const label = installActionLabel(installed, outdated);
   const title = installActionTitle(installed, outdated, depBlocked, depName, latest);
+  /* 已装且不落后 = 「重装」:次要动作,行 hover/游标时浮出(降行密度);
+     「安装」「更新」是主 CTA,常驻。 */
+  const cls = outdated && installed ? "welcome-ab pri" : installed ? "welcome-ab sec" : "welcome-ab";
   return (
     <button
       type="button"
-      className={outdated && installed ? "welcome-ab pri" : "welcome-ab"}
+      className={cls}
       onClick={onInstall}
       disabled={depBlocked || install.running}
       title={title}
@@ -208,7 +211,7 @@ export function RowActions({
       {installed && versionMenu}
       <button
         type="button"
-        className="welcome-ab"
+        className="welcome-ab sec"
         onClick={onProbe}
         disabled={probe.status === "loading" || install.running}
         aria-label={t("重新探针")}

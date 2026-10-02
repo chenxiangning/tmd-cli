@@ -69,8 +69,9 @@ describe("JournalPanel 右栏轴视图宿主", () => {
     const html = render();
     /* 回归钉:裸类 class="dj-mb-cell hN" 不允许再出现 */
     expect(html).not.toMatch(/class="dj-mb-cell h\d"/);
-    /* 当月 1 日有文章且有会话行 → 至少 h1 档(今日恰为 1 日则走 dj-mb-t,豁免) */
-    if (H.dd !== "01") expect(html).toContain("dj-mb-h1");
+    /* 当月 1 日有文章且有会话行 → 生成态必挂带前缀的热力档
+       (单活跃日时阈值坍缩 [1,1,1],1 条记录判 h4 而非 h1;今日恰为 1 日则走 dj-mb-t) */
+    if (H.dd !== "01") expect(html).toMatch(/dj-mb-cell dj-mb-(h[1-4]|t)/);
   });
 
   it("快照未就绪:加载行兜底,不渲染轴流", () => {

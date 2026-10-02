@@ -33,7 +33,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 2px 2px 10px;
+  padding: 2px 2px 8px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--tmd-border);
   font-size: 0.75rem;
   color: var(--tmd-fg-muted);
 }
@@ -173,6 +175,13 @@
 .welcome-row-cred.mut { color: var(--tmd-fg-faint); }
 
 .welcome-row-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+
+/* 次要动作(重装/版本/重探)常态降显,行 hover / 键盘游标 / 聚焦时浮出
+   —— 每行 5 钮的密度降噪;主 CTA(新会话/安装/更新/官方文档)常驻。 */
+.welcome-row-actions .welcome-ab.sec { opacity: 0.3; transition: opacity 0.15s ease; }
+.welcome-row-main:hover .welcome-ab.sec,
+.welcome-row.cur .welcome-ab.sec,
+.welcome-row-actions:focus-within .welcome-ab.sec { opacity: 1; }
 
 /* 行内动作按钮(文本簇,替代旧 icon-only) */
 .welcome-ab {

@@ -198,7 +198,7 @@ export function VersionMenuAction({
     <>
       <button
         type="button"
-        className="welcome-ab"
+        className="welcome-ab sec"
         disabled={installing}
         title={t("安装指定版本(回退/收藏)")}
         onClick={(e) => setAnchor({ x: e.clientX, y: e.clientY })}

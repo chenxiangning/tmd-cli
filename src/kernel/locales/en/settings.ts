@@ -36,6 +36,7 @@ export const MESSAGES = {
   "顶栏中央展示已打开的会话，点击切换；关闭后仍可从左侧栏进入会话。":
     "Show open sessions in the center of the title bar; click to switch. Closed sessions remain reachable from the left sidebar.",
   "会话标题 tab 条容量": "Session tab capacity",
+  "上限": "Max",
   "开启": "On",
   "关闭": "Off",
   "主题": "Theme",

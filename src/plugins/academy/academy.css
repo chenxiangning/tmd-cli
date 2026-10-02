@@ -28,7 +28,7 @@
 .academy-entry-glyph { flex: none; color: var(--tmd-accent); }
 .academy-entry-tt { flex: none; font-weight: 500; }
 .academy-entry-bar { flex: 1; min-width: 24px; max-width: 56px; height: 3px;
-  border-radius: 2px; background: var(--tmd-bg-hover); overflow: hidden; }
+  border-radius: 2px; background: var(--tmd-border); overflow: hidden; }
 .academy-entry-bar i { display: block; height: 100%; background: var(--tmd-accent);
   border-radius: 2px; transition: width 0.25s; }
 .academy-entry-pct { flex: none; color: var(--tmd-fg-faint);

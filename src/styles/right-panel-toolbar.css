@@ -132,7 +132,7 @@
   border: 0;
   height: 1px;
   margin: 4px 8px;
-  background: var(--tmd-border);
+  background: var(--tmd-border-strong);
   flex: 0 0 auto;
 }
 
@@ -196,9 +196,9 @@
 
 /* 分隔线 + ⋯ 组(参照图:紧随 tab 组之后,不钉底) */
 .panel-rail-sep {
-  width: 1.5rem;
+  width: 1rem;
   height: 1px;
-  margin: 6px 0;
-  background: var(--tmd-border);
+  margin: 8px 0;
+  background: var(--tmd-border-strong);
   flex: 0 0 auto;
 }
