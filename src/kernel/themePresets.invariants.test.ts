@@ -18,7 +18,7 @@ import {
 } from "./themePresets";
 import { normalizeHexColor } from "./themeTokens";
 
-/** 全部 preset(31 套)共同必备的核心 token,按字母序排列(2026-09-19 实测交集钉死) */
+/** 全部 preset(37 套)共同必备的核心 token,按字母序排列(2026-09-19 实测交集钉死) */
 const CORE_COLOR_KEYS = [
   "activityBar.background",
   "activityBar.foreground",
@@ -99,8 +99,8 @@ describe("themePresets 数据模块结构不变量", () => {
     expect(darkKeys).toEqual([...DARK_THEME_PRESET_IDS].sort());
     expect(lightKeys).toEqual([...LIGHT_THEME_PRESET_IDS].sort());
     // 目录规模钉死:整族被误删时即使 index 同步缩水也能在此暴露
-    expect(darkKeys).toHaveLength(12);
-    expect(lightKeys).toHaveLength(19);
+    expect(darkKeys).toHaveLength(15);
+    expect(lightKeys).toHaveLength(22);
     // 条目本体必须是含非空 colors 的对象,防止 undefined/残缺条目混入
     for (const [id, entry] of [
       ...Object.entries(DARK_PRESETS),

@@ -3,7 +3,8 @@
  *
  * 数据结构 = codemoss 原版(VsCodeThemeColors 键名即 VS Code workbench.colorCustomizations 键)。
  * label 已内联中文环境展示名;映射到 --tmd-* token 见 kernel/themeTokens.ts。
- * 本文件由源数据程序化生成,新增 preset 应回源 codemoss 同步,勿手改。
+ * vscode-* preset 由源数据程序化生成,改动应回源 codemoss 同步,勿手改;
+ * tmd-* 为本项目原创调色板(低饱和高级灰,2026-10-02 定稿,原型 docs/design/premium-themes.html),直接维护。
  */import { DARK_PRESETS } from "./dark";
 import { LIGHT_PRESETS } from "./light";
 
@@ -40,7 +41,13 @@ export type ThemePresetId =
   | "vscode-nord"
   | "vscode-catppuccin-mocha"
   | "vscode-tokyo-night"
-  | "vscode-rose-pine";
+  | "vscode-rose-pine"
+  | "tmd-paper"
+  | "tmd-mist"
+  | "tmd-linen"
+  | "tmd-graphite"
+  | "tmd-ink"
+  | "tmd-ember";
 
 type VsCodeThemeColors = Record<string, string>;
 
@@ -70,10 +77,13 @@ export interface ThemePresetDefinition {
   diff?: Partial<DiffTokens>;
 }
 
-export const DEFAULT_LIGHT_THEME_PRESET_ID: ThemePresetId = "vscode-light-modern";
-export const DEFAULT_DARK_THEME_PRESET_ID: ThemePresetId = "vscode-dark-modern";
+export const DEFAULT_LIGHT_THEME_PRESET_ID: ThemePresetId = "tmd-paper";
+export const DEFAULT_DARK_THEME_PRESET_ID: ThemePresetId = "tmd-graphite";
 
 export const LIGHT_THEME_PRESET_IDS = [
+  "tmd-paper",
+  "tmd-mist",
+  "tmd-linen",
   "vscode-light-modern",
   "vscode-light-plus",
   "vscode-github-light",
@@ -96,6 +106,9 @@ export const LIGHT_THEME_PRESET_IDS = [
 ] as const satisfies readonly ThemePresetId[];
 
 export const DARK_THEME_PRESET_IDS = [
+  "tmd-graphite",
+  "tmd-ink",
+  "tmd-ember",
   "vscode-dark-modern",
   "vscode-dark-plus",
   "vscode-github-dark",

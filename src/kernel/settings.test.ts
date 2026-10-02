@@ -38,9 +38,9 @@ describe("初始状态与默认值", () => {
     const s = settings.getSettingsState();
     expect(s.settings).toEqual({
       theme: "system",
-      lightThemePresetId: "vscode-light-modern",
-      darkThemePresetId: "vscode-dark-modern",
-      customThemePresetId: "vscode-dark-modern",
+      lightThemePresetId: "tmd-paper",
+      darkThemePresetId: "tmd-graphite",
+      customThemePresetId: "tmd-graphite",
       language: "zh",
       localPluginTrust: {},
       localPluginsDisabled: false,
@@ -130,7 +130,7 @@ describe("updateSettings 合并与清洗", () => {
     settings.updateSettings({ theme: "dark" });
     const s = settings.getSettingsState().settings;
     expect(s.theme).toBe("dark");
-    expect(s.lightThemePresetId).toBe("vscode-light-modern");
+    expect(s.lightThemePresetId).toBe("tmd-paper");
   });
 
   it("非法 theme 回落 system", () => {
@@ -141,7 +141,7 @@ describe("updateSettings 合并与清洗", () => {
   it("非法 preset id 回落默认 preset", () => {
     settings.updateSettings({ darkThemePresetId: "not-a-preset" as never });
     expect(settings.getSettingsState().settings.darkThemePresetId).toBe(
-      "vscode-dark-modern",
+      "tmd-graphite",
     );
   });
   it("非法 sendShortcut 回落 enter", () => {

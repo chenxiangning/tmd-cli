@@ -243,4 +243,5 @@
 | 2026-10-01 | [工作区全量变更检查清单(266 文件:两轮打磨叠加,按域列变更文件/内容/影响范围/检查方式与建议检查顺序;未提交)](review/2026-10-01-polish-worktree-review-manifest.md) | 供逐项检查 |
 | 2026-10-01 | [工作区死代码评审与清理(四路 grep 实证:零孤儿文件;修 1 个 YearView 热力前缀回归 + 删史前死类/死键 + 弱导出收敛 + useFocusTrap 五副本沉 kernel;门禁全绿;未提交)](review/2026-10-01-deadcode-review.md) | 已完成 |
 | 2026-10-01 | [工作区全量变更五路 code review(边界/性能/兼容/交互/外观:30+ 疑似逐条核实,真实问题 2 项已修——接力截断代理对 + cargo fmt;误报核实摘录防重查;门禁全绿;未提交)](review/2026-10-01-worktree-five-track-review.md) | 已完成 |
+| 2026-10-02 | [高级感主题配色候选(低饱和高级灰 ×6 + 现行默认对照,frame 级目检)](design/premium-themes.html) | 已落地(tmd-paper/mist/linen/graphite/ink/ember;默认浅色=云白、深色=石墨;未提交) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>高级感主题配色候选 — tmd-cli 2026-10-02</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #ececee; font-family: -apple-system, "PingFang SC", sans-serif; padding: 28px; color: #333; }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: #777; margin-bottom: 20px; }
+  .group-title { font-size: 14px; font-weight: 600; margin: 22px 0 10px; color: #555; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .card { background: #fff; border-radius: 10px; padding: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+  .meta { font-size: 11px; color: #888; margin-bottom: 10px; }
+  .frame { border-radius: 7px; overflow: hidden; border: 1px solid; font-size: 11px; }
+  .titlebar { height: 26px; display: flex; align-items: center; padding: 0 10px; gap: 6px; font-size: 11px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .body { display: flex; height: 150px; }
+  .sidebar { width: 108px; padding: 6px 4px; flex-shrink: 0; }
+  .srow { padding: 3px 8px; border-radius: 4px; margin-bottom: 1px; white-space: nowrap; overflow: hidden; }
+  .smain { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .editor { flex: 1; padding: 8px 10px; font-family: "SF Mono", Menlo, monospace; font-size: 10.5px; line-height: 1.55; overflow: hidden; }
+  .ln { display: inline-block; width: 18px; text-align: right; margin-right: 10px; user-select: none; }
+  .toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-top: 1px solid; }
+  .btn { padding: 3px 10px; border-radius: 4px; font-size: 10.5px; border: none; }
+  .link { font-size: 10.5px; text-decoration: none; }
+  .badge { padding: 1px 7px; border-radius: 8px; font-size: 9.5px; }
+  .term { padding: 5px 10px; font-family: "SF Mono", Menlo, monospace; font-size: 10px; display: flex; align-items: center; gap: 5px; border-top: 1px solid; }
+  .ansi { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .statusbar { height: 20px; display: flex; align-items: center; padding: 0 10px; font-size: 10px; gap: 10px; }
+  .swatches { display: flex; gap: 4px; margin-top: 8px; align-items: center; }
+  .sw { width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(0,0,0,.1); }
+  .swl { font-size: 10px; color: #999; margin-left: 4px; }
+</style>
+</head>
+<body>
+<h1>高级感主题配色候选(低饱和高级灰 · Linear/Vercel/Raycast 取向)</h1>
+<div class="sub">2026-10-02 · 每个框 = titlebar / 侧栏(含选中/hover 行)/ 编辑器(syntax 八色)/ 按钮·链接·徽标 / 终端条(ANSI 色点)/ 状态栏。前两个为现行默认对照。</div>
+<div id="root"></div>
+<script>
+const PALETTES = [
+{ group:"现行默认(对照)", name:"Light Modern", id:"vscode-light-modern", tag:"现行浅色默认", c:{
+  fg:"#3b3b3b", desc:"#3b3b3b", edBg:"#ffffff", edFg:"#3b3b3b", sideBg:"#f8f8f8", sideFg:"#3b3b3b",
+  panelBg:"#f8f8f8", border:"#e5e5e5", inputBg:"#ffffff", inputBorder:"#cecece",
+  btnBg:"#005fb8", btnFg:"#ffffff", btn2Bg:"#e5e5e5", btn2Fg:"#3b3b3b",
+  hover:"#f2f2f2", selBg:"#e8e8e8", selFg:"#000000", lineNo:"#6e7681", link:"#005fb8", badgeBg:"#cccccc", badgeFg:"#3b3b3b",
+  statusFg:"#3b3b3b", termBg:"#ffffff",
+  ansi:["#cd3131","#107c10","#949800","#0451a5","#bc05bc","#0598bc"],
+  syn:{kw:"#0000ff",str:"#a31515",com:"#008000",num:"#098658",fn:"#795e26",op:"#000000",ty:"#267f99",tag:"#0000ff"} } },
+{ group:"现行默认(对照)", name:"Dark Modern", id:"vscode-dark-modern", tag:"现行深色默认", c:{
+  fg:"#cccccc", desc:"#9d9d9d", edBg:"#1f1f1f", edFg:"#cccccc", sideBg:"#181818", sideFg:"#cccccc",
+  panelBg:"#181818", border:"#2b2b2b", inputBg:"#313131", inputBorder:"#3c3c3c",
+  btnBg:"#0078d4", btnFg:"#ffffff", btn2Bg:"#313131", btn2Fg:"#cccccc",
+  hover:"#242424", selBg:"#04395e", selFg:"#ffffff", lineNo:"#6e7681", link:"#4daafc", badgeBg:"#616161", badgeFg:"#f8f8f8",
+  statusFg:"#cccccc", termBg:"#1f1f1f",
+  ansi:["#f14c4c","#23d18b","#f5f543","#3b8eea","#d670d6","#29b8db"],
+  syn:{kw:"#569cd6",str:"#ce9178",com:"#6a9955",num:"#b5cea8",fn:"#dcdcaa",op:"#d4d4d4",ty:"#4ec9b0",tag:"#569cd6"} } },
+{ group:"新增浅色 ×3", name:"云白 Paper", id:"tmd-paper", tag:"★ 接任浅色默认 · Vercel 式中性,近黑主按钮", c:{
+  fg:"#26262b", desc:"#71717a", edBg:"#ffffff", edFg:"#26262b", sideBg:"#fafafa", sideFg:"#3f3f46",
+  panelBg:"#fafafa", border:"#e6e6e9", inputBg:"#ffffff", inputBorder:"#d9d9de",
+  btnBg:"#1a1a1e", btnFg:"#ffffff", btn2Bg:"#ececee", btn2Fg:"#26262b",
+  hover:"#f3f3f5", selBg:"#e9e9ec", selFg:"#17171a", lineNo:"#a8a8b0", link:"#4545a8", badgeBg:"#e4e4e7", badgeFg:"#26262b",
+  statusFg:"#71717a", termBg:"#ffffff",
+  ansi:["#cd3131","#107c10","#949800","#0451a5","#bc05bc","#0598bc"],
+  syn:{kw:"#6e56cf",str:"#9d5b38",com:"#8e8e96",num:"#9a6b2f",fn:"#7a5c17",op:"#52525a",ty:"#0f766e",tag:"#6e56cf"} } },
+{ group:"新增浅色 ×3", name:"雾灰 Mist", id:"tmd-mist", tag:"冷灰调,钢蓝点缀", c:{
+  fg:"#2c333b", desc:"#6b7682", edBg:"#f8f9fb", edFg:"#2c333b", sideBg:"#eff1f4", sideFg:"#3a424b",
+  panelBg:"#eff1f4", border:"#dde1e7", inputBg:"#ffffff", inputBorder:"#ccd3db",
+  btnBg:"#456089", btnFg:"#ffffff", btn2Bg:"#e2e6eb", btn2Fg:"#2c333b",
+  hover:"#e7eaee", selBg:"#d8e0ea", selFg:"#1f2733", lineNo:"#9aa4af", link:"#3e5c8a", badgeBg:"#dde2e8", badgeFg:"#2c333b",
+  statusFg:"#6b7682", termBg:"#f8f9fb",
+  ansi:["#cd3131","#107c10","#949800","#0451a5","#bc05bc","#0598bc"],
+  syn:{kw:"#5560b0",str:"#96603a",com:"#8a939e",num:"#96682c",fn:"#77591a",op:"#57616c",ty:"#166b75",tag:"#5560b0"} } },
+{ group:"新增浅色 ×3", name:"暖帛 Linen", id:"tmd-linen", tag:"暖纸调,青铜点缀", c:{
+  fg:"#35312a", desc:"#7d766a", edBg:"#fcfaf7", edFg:"#35312a", sideBg:"#f5f1eb", sideFg:"#453f36",
+  panelBg:"#f5f1eb", border:"#e7e0d5", inputBg:"#fffefb", inputBorder:"#d8d0c2",
+  btnBg:"#8f6b43", btnFg:"#fffaf2", btn2Bg:"#ece5da", btn2Fg:"#35312a",
+  hover:"#efe9e0", selBg:"#e3dacb", selFg:"#2e2a23", lineNo:"#a89f8f", link:"#7d5c36", badgeBg:"#e7dfd2", badgeFg:"#35312a",
+  statusFg:"#7d766a", termBg:"#fcfaf7",
+  ansi:["#cd3131","#107c10","#949800","#0451a5","#bc05bc","#0598bc"],
+  syn:{kw:"#7d5ba8",str:"#757531",com:"#99917f",num:"#96682c",fn:"#77591a",op:"#6b6558",ty:"#3d7a6e",tag:"#7d5ba8"} } },
+{ group:"新增深色 ×3", name:"石墨 Graphite", id:"tmd-graphite", tag:"★ 接任深色默认 · Linear 式中性,哑光靛蓝点缀", c:{
+  fg:"#d4d4d9", desc:"#8b8b93", edBg:"#0f0f12", edFg:"#d4d4d9", sideBg:"#131316", sideFg:"#b8b8bf",
+  panelBg:"#131316", border:"#232329", inputBg:"#1a1a1e", inputBorder:"#2c2c33",
+  btnBg:"#5b5bd6", btnFg:"#ffffff", btn2Bg:"#1f1f24", btn2Fg:"#c4c4cb",
+  hover:"#1b1b20", selBg:"#28284a", selFg:"#ececff", lineNo:"#4c4c55", link:"#7c7ce0", badgeBg:"#2a2a31", badgeFg:"#d4d4d9",
+  statusFg:"#8b8b93", termBg:"#0f0f12",
+  ansi:["#e5484d","#46a758","#e5c15c","#6e87e0","#c06ec0","#4fb3c4"],
+  syn:{kw:"#8a86e8",str:"#c9997c",com:"#62626b",num:"#c2a878",fn:"#c9bd85",op:"#a3a3ab",ty:"#6fb3b8",tag:"#8a86e8"} } },
+{ group:"新增深色 ×3", name:"黛蓝 Ink", id:"tmd-ink", tag:"冷青灰调,钢蓝点缀(Raycast 取向)", c:{
+  fg:"#ccd3dc", desc:"#7e8894", edBg:"#0e1218", edFg:"#ccd3dc", sideBg:"#12161d", sideFg:"#b0b9c4",
+  panelBg:"#12161d", border:"#222a35", inputBg:"#181e27", inputBorder:"#28303c",
+  btnBg:"#4a7db8", btnFg:"#ffffff", btn2Bg:"#1b222c", btn2Fg:"#bcc5d0",
+  hover:"#161d26", selBg:"#1e3049", selFg:"#e3ecf7", lineNo:"#49525e", link:"#6fa3d8", badgeBg:"#232b36", badgeFg:"#ccd3dc",
+  statusFg:"#7e8894", termBg:"#0e1218",
+  ansi:["#e5484d","#46a758","#e5c15c","#6e97d8","#bd7cc0","#4fb3c4"],
+  syn:{kw:"#8a9fd8",str:"#c2997c",com:"#5d6773",num:"#c2a878",fn:"#c9bd85",op:"#9aa4b0",ty:"#6fa8a8",tag:"#8a9fd8"} } },
+{ group:"新增深色 ×3", name:"暖炭 Ember", id:"tmd-ember", tag:"暖黑调,琥珀点缀", c:{
+  fg:"#d6d0c8", desc:"#91897e", edBg:"#131110", edFg:"#d6d0c8", sideBg:"#171413", sideFg:"#bcb3a6",
+  panelBg:"#171413", border:"#292421", inputBg:"#1d1a18", inputBorder:"#332d29",
+  btnBg:"#b3743f", btnFg:"#fff8f0", btn2Bg:"#211d1b", btn2Fg:"#c8c0b6",
+  hover:"#1c1917", selBg:"#332618", selFg:"#f0e6d8", lineNo:"#544e47", link:"#d0975c", badgeBg:"#2a2521", badgeFg:"#d6d0c8",
+  statusFg:"#91897e", termBg:"#131110",
+  ansi:["#e5484d","#46a758","#e0a458","#7a9bd8","#bd7cc0","#4fb3c4"],
+  syn:{kw:"#c98d6b",str:"#a8b57c",com:"#66605a",num:"#c2a878",fn:"#cfc085",op:"#a39a8e",ty:"#7ba8a0",tag:"#c98d6b"} } },
+];
+
+const CODE = [
+  ['<span style="color:{com}">// 会话状态机:四态模型</span>'],
+  ['<span style="color:{kw}">export function</span> <span style="color:{fn}">settleSession</span><span style="color:{op}">(</span><span>id</span><span style="color:{op}">:</span> <span style="color:{ty}">SessionId</span><span style="color:{op}">)</span> <span style="color:{op}">{</span>'],
+  ['  <span style="color:{kw}">const</span> <span>row</span> <span style="color:{op}">=</span> <span style="color:{fn}">parse</span><span style="color:{op}">(</span><span style="color:{str}">"pty://out/"</span> <span style="color:{op}">+</span> <span>id</span><span style="color:{op}">,</span> <span style="color:{num}">4096</span><span style="color:{op}">)</span>'],
+  ['  <span style="color:{kw}">return</span> <span style="color:{tag}">host</span><span style="color:{op}">.</span><span style="color:{fn}">removeSession</span><span style="color:{op}">(</span><span>row</span><span style="color:{op}">)</span>'],
+  ['<span style="color:{op}">}</span>'],
+];
+
+function frame(p) {
+  const c = p.c;
+  const code = CODE.map((line, i) =>
+    `<div><span class="ln" style="color:${c.lineNo}">${i + 1}</span>${line[0].replaceAll("{com}", c.syn.com).replaceAll("{kw}", c.syn.kw).replaceAll("{fn}", c.syn.fn).replaceAll("{op}", c.syn.op).replaceAll("{ty}", c.syn.ty).replaceAll("{str}", c.syn.str).replaceAll("{num}", c.syn.num).replaceAll("{tag}", c.syn.tag)}</div>`
+  ).join("");
+  return `
+  <div class="card">
+    <div class="name">${p.name} <span style="color:#999;font-weight:400">${p.id}</span></div>
+    <div class="meta">${p.tag}</div>
+    <div class="frame" style="border-color:${c.border};background:${c.edBg}">
+      <div class="titlebar" style="background:${c.sideBg};color:${c.fg};border-bottom:1px solid ${c.border}">
+        <span class="dot" style="background:#e5484d"></span><span class="dot" style="background:#e5c15c"></span><span class="dot" style="background:#46a758"></span>
+        <span style="margin-left:8px">tmd-cli — 工作区</span>
+      </div>
+      <div class="body">
+        <div class="sidebar" style="background:${c.sideBg};color:${c.sideFg}">
+          <div class="srow" style="background:${c.selBg};color:${c.selFg}">● omp 会话</div>
+          <div class="srow" style="background:${c.hover}">claude 重构</div>
+          <div class="srow" style="color:${c.desc}">codex 巡检</div>
+          <div class="srow">kimi 翻译</div>
+        </div>
+        <div class="smain">
+          <div class="editor" style="background:${c.edBg};color:${c.edFg}">${code}</div>
+          <div class="toolbar" style="border-color:${c.border};background:${c.panelBg}">
+            <button class="btn" style="background:${c.btnBg};color:${c.btnFg}">发送</button>
+            <button class="btn" style="background:${c.btn2Bg};color:${c.btn2Fg}">暂存</button>
+            <a class="link" href="#" style="color:${c.link}" onclick="return false">查看文档</a>
+            <span class="badge" style="background:${c.badgeBg};color:${c.badgeFg}">3 待审批</span>
+          </div>
+          <div class="term" style="background:${c.termBg};color:${c.fg};border-color:${c.border}">
+            <span>$</span><span>omp -p "总结今日"</span>
+            <span style="margin-left:auto;display:flex;gap:3px">${c.ansi.map(a => `<span class="ansi" style="background:${a}"></span>`).join("")}</span>
+          </div>
+        </div>
+      </div>
+      <div class="statusbar" style="background:${c.sideBg};color:${c.statusFg};border-top:1px solid ${c.border}">
+        <span>main*</span><span>✓ 0 问题</span><span style="margin-left:auto">Ln 3, Col 9</span>
+      </div>
+    </div>
+    <div class="swatches">
+      <span class="sw" style="background:${c.edBg}" title="editor"></span>
+      <span class="sw" style="background:${c.sideBg}" title="sidebar"></span>
+      <span class="sw" style="background:${c.border}" title="border"></span>
+      <span class="sw" style="background:${c.btnBg}" title="accent"></span>
+      <span class="sw" style="background:${c.selBg}" title="selection"></span>
+      <span class="swl">底 / 侧 / 边 / 缀 / 选</span>
+    </div>
+  </div>`;
+}
+
+const groups = [...new Set(PALETTES.map(p => p.group))];
+document.getElementById("root").innerHTML = groups.map(g =>
+  `<div class="group-title">${g}</div><div class="grid">${PALETTES.filter(p => p.group === g).map(frame).join("")}</div>`
+).join("");
+</script>
+</body>
+</html>

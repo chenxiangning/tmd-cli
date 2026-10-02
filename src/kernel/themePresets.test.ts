@@ -145,8 +145,8 @@ describe("与 themeTokens 的消费契约", () => {
 });
 
 describe("浅色主题终端可读性(2026-09-08 浅色扩充回归防线)", () => {
-  it("浅色 preset 共 19 套", () => {
-    expect(LIGHT_THEME_PRESET_IDS).toHaveLength(19);
+  it("浅色 preset 共 22 套", () => {
+    expect(LIGHT_THEME_PRESET_IDS).toHaveLength(22);
   });
 
   it("每套浅色 preset 自带 terminal.ansi* 16 槽(不落全局兜底表)", () => {

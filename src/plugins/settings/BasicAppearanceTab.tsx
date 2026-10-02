@@ -2,7 +2,7 @@
  * 基础设置 / 外观 tab —— 主题模式 + 自定义 preset 网格。
  *
  * 交互对齐 codemoss BasicAppearanceSection 的主题段:
- * segmented(跟随系统/浅色/深色/自定义) + 自定义时展开 21 preset 网格。
+ * segmented(跟随系统/浅色/深色/自定义) + 自定义时展开 37 preset 网格。
  * 全部写入 kernel/settings store,主题引擎即时生效,无需「保存」按钮。
  */
 
@@ -102,6 +102,7 @@ export function BasicAppearanceTab() {
         <div className="flex shrink-0 items-center gap-2">
           {settings.sessionTabsEnabled ? (
             <>
+              <span className="text-xs text-(--tmd-fg-subtle)">{t("上限")}</span>
               <input
                 type="range"
                 min={SESSION_TABS_LIMIT_MIN}

@@ -1,7 +1,7 @@
 /* ──────────────────────────────────────────────────────────
  * 主题 token 默认值 —— 由 kernel/themeTokens.ts 映射器从默认 preset 生成:
- *   dark  = Dark Modern (vscode-dark-modern)
- *   light = Light Modern (vscode-light-modern)
+ *   dark  = 石墨 (tmd-graphite)
+ *   light = 云白 (tmd-paper)
  * 运行时主题引擎(kernel/theme.ts)按当前 preset 内联覆盖这些值;
  * 此处的静态值只负责 JS 启动前的首屏防闪色。
  * token 语义清单见 design-tokens.md。
@@ -17,33 +17,33 @@
 }
 
 :root[data-theme="dark"] {
-  --tmd-bg-base: #1f1f1f;
-  --tmd-bg-elevated: #181818;
-  --tmd-bg-panel: #181818;
-  --tmd-bg-sunken: #181818;
-  --tmd-bg-hover: #242424;
-  --tmd-bg-active: rgba(0,120,212,0.24);
-  --tmd-bg-input: #313131;
-  --tmd-bg-popover: #313131;
-  --tmd-fg: #cccccc;
-  --tmd-fg-muted: #919191;
-  --tmd-fg-subtle: #797979;
-  --tmd-fg-faint: #565656;
-  --tmd-border: #3c3c3c;
-  --tmd-border-strong: #595959;
-  --tmd-accent: #0078d4;
+  --tmd-bg-base: #0f0f12;
+  --tmd-bg-elevated: #131316;
+  --tmd-bg-panel: #131316;
+  --tmd-bg-sunken: #131316;
+  --tmd-bg-hover: #1b1b20;
+  --tmd-bg-active: rgba(91,91,214,0.24);
+  --tmd-bg-input: #1a1a1e;
+  --tmd-bg-popover: #1a1a1e;
+  --tmd-fg: #d4d4d9;
+  --tmd-fg-muted: #919195;
+  --tmd-fg-subtle: #757579;
+  --tmd-fg-faint: #4e4e52;
+  --tmd-border: #2c2c33;
+  --tmd-border-strong: #4e4e54;
+  --tmd-accent: #5b5bd6;
   --tmd-accent-fg: #ffffff;
-  --tmd-accent-soft: rgba(0,120,212,0.24);
-  --tmd-syntax-keyword: #569cd6;
-  --tmd-syntax-string: #ce9178;
-  --tmd-syntax-comment: #6a9955;
-  --tmd-syntax-number: #b5cea8;
-  --tmd-syntax-function: #dcdcaa;
-  --tmd-syntax-operator: #d4d4d4;
-  --tmd-syntax-type: #4ec9b0;
-  --tmd-syntax-tag: #569cd6;
-  --tmd-diff-inserted: #2ea043;
-  --tmd-diff-removed: #f85149;
+  --tmd-accent-soft: rgba(91,91,214,0.24);
+  --tmd-syntax-keyword: #8a86e8;
+  --tmd-syntax-string: #c9997c;
+  --tmd-syntax-comment: #62626b;
+  --tmd-syntax-number: #c2a878;
+  --tmd-syntax-function: #c9bd85;
+  --tmd-syntax-operator: #a3a3ab;
+  --tmd-syntax-type: #6fb3b8;
+  --tmd-syntax-tag: #8a86e8;
+  --tmd-diff-inserted: #3d9a50;
+  --tmd-diff-removed: #e5484d;
   /* git 历史 graph 的 ref 语义色(本地分支/远端/base;固定语义色,不随 preset 映射) */
   --tmd-git-ref-local: #59a4f9;
   --tmd-git-ref-remote: #b180d7;
@@ -55,40 +55,40 @@
   /* 便签/节假日语义色(便签卡·预览·描边,周末节假日标红;深底亮一档保证对比) */
   --tmd-note: #fcd34d;
   --tmd-hol: #fda4a4;
-  --tmd-terminal-bg: #1f1f1f;
-  --tmd-terminal-fg: #cccccc;
-  --tmd-terminal-cursor: #cccccc;
-  --tmd-terminal-selection: #264f78;
+  --tmd-terminal-bg: #0f0f12;
+  --tmd-terminal-fg: #d4d4d9;
+  --tmd-terminal-cursor: #d4d4d9;
+  --tmd-terminal-selection: #2b2b45;
 }
 
 :root[data-theme="light"] {
   --tmd-bg-base: #ffffff;
-  --tmd-bg-elevated: #f8f8f8;
-  --tmd-bg-panel: #f8f8f8;
-  --tmd-bg-sunken: #f8f8f8;
-  --tmd-bg-hover: #f2f2f2;
-  --tmd-bg-active: rgba(0,95,184,0.14);
+  --tmd-bg-elevated: #fafafa;
+  --tmd-bg-panel: #fafafa;
+  --tmd-bg-sunken: #fafafa;
+  --tmd-bg-hover: #f3f3f5;
+  --tmd-bg-active: rgba(26,26,30,0.14);
   --tmd-bg-input: #ffffff;
   --tmd-bg-popover: #ffffff;
-  --tmd-fg: #3b3b3b;
-  --tmd-fg-muted: #7e7e7e;
-  --tmd-fg-subtle: #999999;
-  --tmd-fg-faint: #c0c0c0;
-  --tmd-border: #cecece;
-  --tmd-border-strong: #b1b1b1;
-  --tmd-accent: #005fb8;
+  --tmd-fg: #26262b;
+  --tmd-fg-muted: #707073;
+  --tmd-fg-subtle: #8e8e91;
+  --tmd-fg-faint: #bababb;
+  --tmd-border: #d9d9de;
+  --tmd-border-strong: #b5b5ba;
+  --tmd-accent: #1a1a1e;
   --tmd-accent-fg: #ffffff;
-  --tmd-accent-soft: rgba(0,95,184,0.14);
-  --tmd-syntax-keyword: #0000ff;
-  --tmd-syntax-string: #a31515;
-  --tmd-syntax-comment: #008000;
-  --tmd-syntax-number: #098658;
-  --tmd-syntax-function: #795e26;
-  --tmd-syntax-operator: #000000;
-  --tmd-syntax-type: #267f99;
-  --tmd-syntax-tag: #0000ff;
-  --tmd-diff-inserted: #2ea043;
-  --tmd-diff-removed: #f85149;
+  --tmd-accent-soft: rgba(26,26,30,0.14);
+  --tmd-syntax-keyword: #6e56cf;
+  --tmd-syntax-string: #9d5b38;
+  --tmd-syntax-comment: #8e8e96;
+  --tmd-syntax-number: #9a6b2f;
+  --tmd-syntax-function: #7a5c17;
+  --tmd-syntax-operator: #52525a;
+  --tmd-syntax-type: #0f766e;
+  --tmd-syntax-tag: #6e56cf;
+  --tmd-diff-inserted: #1a7f37;
+  --tmd-diff-removed: #cf222e;
   --tmd-git-ref-local: #0063d3;
   --tmd-git-ref-remote: #652d90;
   --tmd-git-ref-base: #ea5c00;
@@ -100,7 +100,7 @@
   --tmd-note: #78350f;
   --tmd-hol: #c0392b;
   --tmd-terminal-bg: #ffffff;
-  --tmd-terminal-fg: #3b3b3b;
-  --tmd-terminal-cursor: #005fb8;
-  --tmd-terminal-selection: #add6ff;
+  --tmd-terminal-fg: #26262b;
+  --tmd-terminal-cursor: #1a1a1e;
+  --tmd-terminal-selection: #dcdce0;
 }
