@@ -38,7 +38,6 @@ export const mcpHubPlugin: Plugin = {
       label: "MCP",
       icon: PlugsConnected,
       component: McpHubPanel,
-      showFileSubbar: false, /* 概览自带摘要行(MCP · 引擎数 · server 数) */
       order: 33, /* 能力生态组末席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应);旧注「紧随 cli-config」已废(cli-config 实为设置分区非面板) */
       railGroup: "ecosystem",
       railBottom: true,

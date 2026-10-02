@@ -95,7 +95,6 @@ export const marksPlugin: Plugin = {
       label: t("标记"),
       icon: BookmarkSimple,
       component: MarksPanel,
-      showFileSubbar: false,
       order: 11, /* 会话组首席(session:标记/审批线/审批/画布) */
       railGroup: "session",
       pinnedByDefault: true,

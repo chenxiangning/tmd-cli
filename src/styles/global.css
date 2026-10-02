@@ -3,6 +3,7 @@
 @import "./terminal.css";
 @import "./git-panel.css";
 @import "./file-tree.css";
+@import "./file-tree-toolbar.css";
 @import "./file-editor.css";
 @import "./workspace-file-browser.css";
 @import "./open-with.css";

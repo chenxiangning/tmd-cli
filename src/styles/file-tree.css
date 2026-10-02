@@ -40,6 +40,8 @@
 
 /* 滚动条收编到 global.css 全局细滚动条规则(4px、平时隐藏、悬停浮现)。 */
 
+/* 头部工具条按钮形制拆至 file-tree-toolbar.css(文件规模铁则;组件 FileTreeToolbar)。 */
+
 /* ── 行 ── */
 .file-tree-row-wrap {
   position: relative;

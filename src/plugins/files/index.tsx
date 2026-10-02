@@ -2,32 +2,31 @@
  * files 插件:右栏文件树(右键菜单 + 新建/重命名/删除)+ 中央 tab 文件编辑器。
  *
  * 视觉规范:
- * - 复刻 codemoss file-tree ─ 工作区选择器在顶栏,文件操作按钮在右栏底部(外壳渲染)。
+ * - 复刻 codemoss file-tree ─ 工作区选择器在顶栏,文件操作按钮在面板头工具条
+ *   (FileTreeToolbar,2026-10-02 自顶栏右区下放回面板,插件自渲染)。
  * - 文件/文件夹行用 fileVisual 图标;行 hover 右侧按钮 = 在访达中显示 + 复制路径。
  * - 右键菜单走 wsmenu 范式(FileTreeContextMenu),命名走居中卡片(NamePrompt)。
  *
  * 注册点:
  * - fileVisual:可插拔文件图标/颜色(编辑器高亮走 CodeMirror)
- * - filePanel:{ refresh / newFile / newFolder } 槽,外壳 subbar 按钮消费
+ * - filePanel:{ refresh / newFile / newFolder } 槽,键位命令(panel.refresh 等)消费
  * - shortcuts:files.save(⌘S 保存本地文件,when 限定激活 tab 为本地文件)
  *
  * 树组件拆至 FileTree.tsx / FileTreeRow.tsx(文件规模铁则),本文件只留注册面。
  */
 import { PencilSimple, Folder } from "@phosphor-icons/react";
-import { getActiveTab, getTabs } from "@kernel/tabs";
+import { getActiveTab } from "@kernel/tabs";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { FileTabContent } from "./FileTabContent";
 import { defaultFileVisualProvider } from "./fileVisual";
-import { reloadFile } from "./editor/fileCache";
 import { saveRequestRef } from "./editor/useFileDocument";
-import { collectRevealTargets } from "./treeHandles";
+import { collectRevealTargets, refreshFiles } from "./treeHandles";
 import { fileDetailActions, blameToggleRef } from "./fileDetailActions";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { fileHistoryOpenRef } from "@kernel/fileHistoryBridge";
 import { ActiveWorkspaceFileTree } from "./FileTree";
 import { setFileMarkBus } from "./markBridge";
 import { getActiveTreeHandles } from "./treeHandles";
-import { GitDecorateToggle } from "./gitDecorate";
 import { WorkspaceFileBrowser } from "./WorkspaceFileBrowser";
 import { registerWorkspaceFileBrowser } from "@kernel/workspaceFileBrowser";
 import { retryImport } from "@kernel/lazyImport";
@@ -58,17 +57,11 @@ export const filesPlugin: Plugin = {
       label: "文件",
       icon: Folder,
       component: ActiveWorkspaceFileTree,
-      refresh: async () => {
-        /* 刷新 = 树全量重拉(根层 + 展开目录)+ 打开中的文件 tab 重读磁盘,
-           消灭目录快照与文件内容两层缓存滞后;草稿不受影响。 */
-        await getActiveTreeHandles()?.reload();
-        for (const tab of getTabs()) {
-          if (tab.kind === "file") reloadFile(tab.path);
-        }
-      },
+      /* 刷新语义单一真源 = treeHandles.refreshFiles(树重拉 + 打开中 tab 重读),
+         与面板头工具条刷新钮同入口;草稿不受影响。 */
+      refresh: refreshFiles,
       newFile: () => getActiveTreeHandles()?.newFile(),
       newFolder: () => getActiveTreeHandles()?.newFolder(),
-      actions: GitDecorateToggle,
       /* rail 归组:工作区组(files/git 首组,位置不变;组间画分隔线) */
       order: 0,
       railGroup: "workspace",

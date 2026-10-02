@@ -29,7 +29,7 @@ import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketTogg
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 import { usePersistedToggle, useScrollbarProbe } from "./shellHooks";
 import { DesktopColumns } from "./DesktopColumns";
-import { PanelRail } from "./RightPanelToolbar";
+import { PanelRail } from "./PanelRail";
 import { TopBar } from "./TopBar";
 
 export function AppShell() {

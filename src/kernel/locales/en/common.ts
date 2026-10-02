@@ -220,7 +220,7 @@ export const MESSAGES = {
   // ── ExitSessionToast(续聊卡;自文件内联 registerMessages 迁入,i18n 收口) ──
   "续聊中…": "Resuming…",
   "续聊失败:{reason}": "Resume failed: {reason}",
-  // ── RightPanelToolbar 溢出菜单 ──
+  // ── PanelRail 溢出菜单 ──
   "面板与动作": "Panels & actions",
   // ── local-loader 隔离徽标(LocalSection 历史键落 common) ──
   "已熔断": "Quarantined",

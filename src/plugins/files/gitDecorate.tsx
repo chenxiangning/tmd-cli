@@ -1,5 +1,5 @@
 /**
- * 文件树 Git 变更着色 —— subbar 开关按钮 + 「绝对路径 → 颜色类」map。
+ * 文件树 Git 变更着色 —— 工具条开关按钮 + 「绝对路径 → 颜色类」map。
  *
  * 数据自取 ipc.gitStatus(kernel IPC 通用传输,不跨插件 import);
  * 开关关闭时零轮询零计算。开启时 5s 轮询对齐 git 插件 useGitStatus 策略
@@ -169,13 +169,13 @@ export function useGitDecorations(root: string): ReadonlyMap<string, string> {
   return on ? colors : EMPTY;
 }
 
-/** subbar 开关按钮(经 FilePanelContribution.actions 槽进外壳)。 */
+/** 文件树工具条开关按钮(FileTreeToolbar 内联渲染;2026-10-02 自外壳 actions 槽收编)。 */
 export function GitDecorateToggle() {
   const on = useSyncExternalStore(subscribe, isGitDecorateEnabled);
   return (
     <button
       type="button"
-      className={`panel-subbar-action${on ? " is-active" : ""}`}
+      className={`file-tree-toolbar-action${on ? " is-active" : ""}`}
       aria-label={t("按 Git 变更着色文件")}
       aria-pressed={on}
       title={on ? t("关闭 Git 变更着色") : t("按 Git 变更着色文件与文件夹")}

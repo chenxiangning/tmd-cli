@@ -1,0 +1,54 @@
+/* ──────────────────────────────────────────────────────────
+ * 文件树头部工具条 —— 自 file-tree.css 拆出(文件规模铁则)。
+ *
+ * 「文件」/远程源头标签右缘按钮组:新建文件/新建文件夹/刷新/Git 着色开关
+ * (组件 FileTreeToolbar)。2026-10-02 自顶栏右区(FileActionsBar)下放回
+ * 面板头,回归 codemoss file-tree 视觉规范;刷新全树唯一(树重拉 + 打开中
+ * tab 重读一并,单一真源 treeHandles.refreshFiles)。尺寸 22px/图标
+ * 0.875rem,对齐 git-multi-repo-v2 原型 panel-subbar 比例。
+ * ────────────────────────────────────────────────────────── */
+
+.file-tree-toolbar {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex: none;
+}
+
+.file-tree-toolbar-action {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--tmd-radius-md);
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
+}
+
+.file-tree-toolbar-action:hover {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg);
+}
+
+.file-tree-toolbar-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 面板专属动作激活态(如 Git 变更着色开关) */
+.file-tree-toolbar-action.is-active {
+  color: var(--tmd-accent);
+}
+
+/* 尺寸单一真源:svg 一律 0.875rem(Spinner 同档透传,覆盖 Phosphor size 属性) */
+.file-tree-toolbar-action svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  stroke-width: 1.75;
+}

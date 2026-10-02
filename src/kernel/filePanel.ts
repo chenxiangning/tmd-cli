@@ -29,16 +29,14 @@ export interface FilePanelContribution {
   icon: FilePanelIcon;
   /** 面板内容组件(激活时整栏渲染)。 */
   component: ComponentType;
-  /** 面板数据刷新(可选):外壳刷新按钮点击时调用;返回 Promise 则按钮转到 settle。
-   *  实现同样经插件内 store/引用转发到面板组件(如 FileTree 的 reload 全量重拉)。 */
+  /** 面板数据刷新(可选):面板头工具条刷新钮与键位命令(panel.refresh)调用;
+   *  返回 Promise 则按钮转到 settle。实现同样经插件内 store/引用转发到面板组件
+   *  (如 FileTree 的 reload 全量重拉,files 侧单一真源在 treeHandles.refreshFiles)。 */
   refresh?: () => void | Promise<void>;
-  /** 新建文件/文件夹(可选):底部文件操作条对应按钮点击时调用;缺省按钮置灰。 */
+  /** 新建文件/文件夹(可选):面板头工具条按钮与键位命令(panel.newFile /
+   *  panel.newFolder)调用;缺省 = 命令 when 拦下、工具条按钮置灰。 */
   newFile?: () => void;
   newFolder?: () => void;
-  /** 是否显示右栏底部文件操作条(新建/刷新;工作区选择器在顶栏);缺省 true。
-   * 自带摘要行的面板(git 聚合行 / checkpoints 审批线摘要 / ssh 连接段)声明 false ——
-   * 外壳不认识任何业务面板,可见性由面板自己声明,不硬编码 id。 */
-  showFileSubbar?: boolean;
   /** tab 排序,小的在前;缺省 0。面板与 rail 动作共用地带(按此并序渲染)。 */
   order?: number;
   /** rail 分组(2026-09-29 归组):同组相邻渲染,相邻两组之间画分隔线;
@@ -51,9 +49,6 @@ export interface FilePanelContribution {
   /** 一次性补钉(review 裁决:收进注册面,禁插件旁路直连):老用户 persisted 清单
    *  先于面板存在时新 id 落 ⋯ 菜单不可见;仅自动钉一次并留痕,手动取消钉后不复活。 */
   pinOnce?: boolean;
-  /** 面板专属动作按钮(可选):渲染在右栏底部文件操作条动作区末尾。
-   *  状态归插件组件自管(模块级 store),外壳只渲染不认识语义。 */
-  actions?: ComponentType;
   /** rail 联动的中央管理 tab(可选):open 幂等打开(重复 = 聚焦已有)。
    *  中央 tab 之间互不互斥、也不随右栏切换/收起被关(与普通 tab 同权,
    *  生命周期归用户);外壳只在面板打开方向调用 open,不做任何关闭联动。

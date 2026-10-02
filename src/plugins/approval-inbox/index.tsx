@@ -25,7 +25,6 @@ export const approvalInboxPlugin: Plugin = {
       label: "审批",
       icon: BellRinging,
       component: ApprovalInboxPanel,
-      showFileSubbar: false, /* 自带摘要行(在等待数),不挂文件操作条 */
       order: 13, /* 紧随审批线(checkpoints 12),语义相邻 */
       railGroup: "session",
     });

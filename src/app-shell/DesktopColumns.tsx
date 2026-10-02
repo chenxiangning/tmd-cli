@@ -119,7 +119,7 @@ export function DesktopColumns(props: {
                   );
                 })}
               </div>
-              {/* 文件操作条已上移顶栏右区(TopBar titlebar-actions,2026-09-27) */}
+              {/* 文件操作条已下放面板头工具条(插件自渲染 FileTreeToolbar,2026-10-02) */}
             </aside>
           </Panel>
         </>

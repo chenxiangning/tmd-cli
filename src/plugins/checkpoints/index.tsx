@@ -43,7 +43,6 @@ export const checkpointsPlugin: Plugin = {
       label: "审批线",
       icon: SealCheck,
       component: CheckpointsPanel,
-      showFileSubbar: false, // 审批线自带摘要行(审批线 · 批次规模 · 待审计数)
       order: 12,
       railGroup: "session", /* 会话组:标记/审批线/审批/画布相邻 */
     });

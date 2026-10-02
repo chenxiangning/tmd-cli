@@ -40,7 +40,6 @@ export const dailyJournalPlugin: Plugin = {
       label: t("每日工作日志"),
       icon: CalendarCheck,
       component: JournalPanel,
-      showFileSubbar: false,
       order: 36,
       railGroup: "ecosystem",
       railBottom: true,

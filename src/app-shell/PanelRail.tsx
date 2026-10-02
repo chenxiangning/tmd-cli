@@ -1,15 +1,13 @@
 /**
  * Right panel rail —— 右缘常驻竖排面板入口(2026-09-26 自顶栏 tab 条迁来,UI 参照 activity bar)。
  *
- * 拆分后:
- * - PanelRail: 窗口右缘竖条(钉住∪激活面板 + rail 动作统一并序,组间分隔线,
- *   ⋯ more 向左弹出),由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
- * - RightPanelToolbar: 内部组件,在顶栏右区(titlebar-actions 右缘)渲染
- *   FileActionsBar(新建/刷新/面板动作;工作区选择器 2026-09-14 上移顶栏,
- *   操作条 2026-09-27 自右栏底部同步上移)。
+ * 文件名即内容:本文件只有 PanelRail(2026-10-02 更名自 RightPanelToolbar.tsx ——
+ * 其顶栏右区渲染职责 FileActionsBar 已随文件操作条下放面板头移除)。
+ * 窗口右缘竖条(钉住∪激活面板 + rail 动作统一并序,组间分隔线,
+ * ⋯ more 向左弹出),由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
  */
 
-import { Fragment, memo, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, DotsThree } from "@phosphor-icons/react";
 import { togglePinned, useFilePanel, type FilePanelContribution } from "@kernel/filePanel";
@@ -18,7 +16,6 @@ import { useHost } from "@kernel/host";
 import { DecorIcon } from "@kernel/iconSet";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
-import { FileActionsBar } from "./FileActionsBar";
 import { activateRailPanel } from "./railPanelActivate";
 
 
@@ -265,16 +262,3 @@ function PanelOverflowMenu({
     document.body,
   );
 }
-
-/* ──────────────────────────────────────────────────────────
- * 顶栏右区渲染入口(TopBar titlebar-actions,右栏展开才挂;面板入口已迁右缘 PanelRail)。
- * ────────────────────────────────────────────────────────── */
-/* memo 兜底:无 props,父级(TopBar 右区)重渲染时不再连带重渲染。 */
-export const RightPanelToolbar = memo(function RightPanelToolbar() {
-  /* 是否显示文件操作条由面板注册时自声明(showFileSubbar,缺省 true)——
-     外壳不认识任何业务面板 id;当前仅 files 面板为缺省 true。 */
-  const { mode, panels } = useFilePanel();
-  const show = panels.find((p) => p.id === mode)?.showFileSubbar !== false;
-  if (!show) return null;
-  return <FileActionsBar />;
-});

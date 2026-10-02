@@ -16,7 +16,8 @@ import type { DirEntry } from "@kernel/ipc";
 import type { Workspace } from "@kernel/workspace";
 import type { RemoteFileSource } from "@kernel/fileSources";
 import { openFileInTab } from "@kernel/fileTabs";
-import { setActiveTreeHandles } from "./treeHandles";
+import { setActiveTreeHandles, refreshFiles } from "./treeHandles";
+import { FileTreeToolbar } from "./FileTreeToolbar";
 
 /** 单行渲染:目录 = 展开箭头 + 图标;文件 = 图标 + 名(点击开渲染 tab)。 */
 function RemoteRow({
@@ -85,15 +86,21 @@ export function FileTreeRemoteSource({
     void reloadRoot();
   }, [reloadRoot]);
 
+  /* 新建守卫:远程树 M1 不支持新建,工具条按钮与句柄槽共用同一提示回调。 */
+  const remoteNewGuard = useCallback(
+    () => setNotice(t("远程文件暂不支持在文件树新建(M1):请经终端会话操作")),
+    [],
+  );
+
   /* 动作句柄槽:刷新可用(远程树根层重拉);新建/文件夹在远程树上出 M1 提示(不静默)。 */
   useEffect(() => {
     setActiveTreeHandles({
       reload: reloadRoot,
-      newFile: () => setNotice(t("远程文件暂不支持在文件树新建(M1):请经终端会话操作")),
-      newFolder: () => setNotice(t("远程文件暂不支持在文件树新建(M1):请经终端会话操作")),
+      newFile: remoteNewGuard,
+      newFolder: remoteNewGuard,
     });
     return () => setActiveTreeHandles(null);
-  }, [reloadRoot]);
+  }, [reloadRoot, remoteNewGuard]);
 
   const toggle = useCallback(
     (entry: DirEntry) => {
@@ -127,6 +134,9 @@ export function FileTreeRemoteSource({
       <div className="file-tree-remote-head">
         <span className="file-tree-remote-dot" aria-hidden />
         <span>{source.label(workspace)}</span>
+        {/* 工具条与本地树同形制(2026-10-02 自顶栏右区下放):新建出 M1 提示,
+            刷新走 refreshFiles(根层重拉 + 打开中 tab 重读,同句柄槽语义)。 */}
+        <FileTreeToolbar onNewFile={remoteNewGuard} onNewFolder={remoteNewGuard} onRefresh={() => refreshFiles()} />
       </div>
       <div className="file-tree-list">
         {entries === null ? (
