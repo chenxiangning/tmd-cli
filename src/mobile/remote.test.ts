@@ -57,20 +57,20 @@ describe("attachShot(pending 生命周期:原图即时预览 → 完成/失败�
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:3");
   });
 
-  it("失败(相册):pending 撤卡 + flashErr(album) 单次上报(3s 自清归 useShots)", async () => {
+  it("失败(相册):pending 撤卡 + flashErr(album, 明细) 单次上报(3s 自清归 useShots)", async () => {
     const ev: string[] = [];
     await attachShot(
       {
         isBusy: false,
         setBusy: () => undefined,
         onShot: () => ev.push("shot"),
-        flashErr: (v) => ev.push(`err:${v}`),
+        flashErr: (v, detail) => ev.push(`err:${v}:${detail ?? ""}`),
         onPending: () => ev.push("pending"),
         onPendingDone: () => ev.push("pendingDone"),
       },
       { pick: () => file, shrink, upload: async () => { throw new Error("bridge down"); } },
     );
-    expect(ev).toEqual(["pending", "pendingDone", "err:album"]);
+    expect(ev).toEqual(["pending", "pendingDone", "err:album:bridge down"]);
   });
 
   it("失败(source=camera):错误分档 camera", async () => {

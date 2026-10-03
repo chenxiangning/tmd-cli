@@ -149,6 +149,8 @@ export interface MobileCtxValue {
   creds: MobileCreds;
   sessions: RemoteSession[];
   workspaces: RemoteWorkspace[];
+  /** workspaces 首拉是否已成功(冷启动「未加载」与「确无工作区」的分流依据)。 */
+  wsLoaded: boolean;
   titles: Record<string, string>;
   /** 归档覆盖层键集(wsId:profileId:cliSessionId;桌面 settings.sessionArchive 只读镜像)。 */
   archive: Set<string>;

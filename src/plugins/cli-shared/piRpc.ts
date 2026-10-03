@@ -21,9 +21,12 @@ export interface PiRpcFlavor {
   command: string;
 }
 
-/** 审批请求(extension_ui_request confirm;答案经 respond 回写)。 */
+/** 审批请求(extension_ui_request confirm;答案经 respond 回写)。
+ *  frameId 保原始类型(JSON-RPC id 可为数字;数值 confirm 帧若被字符串化,
+ *  引擎同型匹配不认领 → 审批静默丢失挂死轮次 —— 与 normWidgetFrameId 同律,
+ *  2026-10-03 二轮复查);React key 与 respond 透传都吃 string|number。 */
 export interface PiRpcConfirm {
-  frameId: string;
+  frameId: string | number;
   title: string;
   message: string;
 }
@@ -146,8 +149,8 @@ export class PiRpcSession {
     await this.request({ type: "abort" }).catch(() => undefined);
   }
 
-  /** 审批应答;confirmId 即 onConfirm 回传 frameId。进程已退时静默丢弃(UI 已终态)。 */
-  respond(confirmId: string, confirmed: boolean): void {
+  /** 审批应答;confirmId 即 onConfirm 回传 frameId(同型回写)。进程已退时静默丢弃(UI 已终态)。 */
+  respond(confirmId: string | number, confirmed: boolean): void {
     void this.raw({
       type: "extension_ui_response",
       id: confirmId,
@@ -216,7 +219,8 @@ export class PiRpcSession {
       case "extension_ui_request": {
         if (rec.method === "confirm") {
           this.handlers.onConfirm({
-            frameId: String(rec.id ?? ""),
+            /* 数值 id 原样(同型回传,见 PiRpcConfirm 注释);字符串守好空值。 */
+            frameId: typeof rec.id === "number" ? rec.id : String(rec.id ?? ""),
             title: String(rec.title ?? ""),
             message: String(rec.message ?? ""),
           });
@@ -229,7 +233,10 @@ export class PiRpcSession {
         const kind = rec.method;
         const fid = normWidgetFrameId(rec.id);
         if (typeof kind !== "string" || !kind || !fid) return;
-        void this.raw({ type: "extension_ui_response", id: fid, cancelled: true }).catch(() => undefined);
+        /* 数值 id 同型回传(JSON-RPC 应答 id 应与请求同型,数值 id 引擎若严格
+         * 类型匹配才认领;字符串帧归一后即原值)。 */
+        const rid = typeof rec.id === "number" ? rec.id : fid;
+        void this.raw({ type: "extension_ui_response", id: rid, cancelled: true }).catch(() => undefined);
         if (widgetTier(kind) === "chrome") {
           this.handlers.onBlocks(this.reducer.chromeCancel(kind, clockOf(new Date())), this.reducer.turnStart);
         } else {

@@ -21,6 +21,8 @@ import { baseName } from "@kernel/pathUtils";
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
   const [workspaces, setWorkspaces] = React.useState<RemoteWorkspace[]>([]);
+  /* 首拉成功标记:「未加载」与「确无工作区」分流(SpawnSheet blocked 文案)。 */
+  const [wsLoaded, setWsLoaded] = React.useState(false);
   const [titles, setTitles] = React.useState<Record<string, string>>({});
   const [pins, setPins] = React.useState<Record<string, { title?: string; pinnedAt?: number }>>({});
   const [archive, setArchive] = React.useState<Set<string>>(() => new Set());
@@ -41,6 +43,7 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       try {
         const [s, w] = await Promise.all([listSessions(), listWorkspaces()]);
         if (!alive) return;
+        setWsLoaded(true); /* 桥通即视首拉有效(两令同桥,一败俱败由 catch 兜) */
         const ns = JSON.stringify(s);
         const nw = JSON.stringify(w);
         if (ns !== sigS) { sigS = ns; setSessions(s); }
@@ -138,6 +141,7 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       creds: props.creds,
       sessions,
       workspaces,
+      wsLoaded,
       titles,
       archive,
       pins,
@@ -149,7 +153,7 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       togglePin,
       onRePair: props.onRePair,
     }),
-    [props.creds, sessions, workspaces, titles, archive, pins, conn, route, titleOf, togglePin, props.onRePair],
+    [props.creds, sessions, workspaces, wsLoaded, titles, archive, pins, conn, route, titleOf, togglePin, props.onRePair],
   );
 
   return (

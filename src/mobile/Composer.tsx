@@ -23,7 +23,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import type { ShotErr } from "./remote";
+import type { ShotError } from "./useShots";
 import { mobileEnterAction } from "./enterSend";
 import { KeyToolbar } from "./KeyToolbar";
 import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
@@ -104,9 +104,9 @@ function ShotStrip(props: {
 }
 
 /** 悬浮错误条组(浮在 composer 上缘,不挤布局;发送失败条内嵌重试 —— 图片
- *  上传在途时重试禁用:send() 本体另有硬闸,这里是可感知的 affordance);
- *  选图/拍照失败条按图源分档文案。 */
-function SendErrBars(props: { sendErr: boolean; shotErr: ShotErr; retryBlocked: boolean; onRetry: () => void }) {
+ *  上传在途/发送在途时重试禁用:send() 本体另有硬闸,这里是可感知的 affordance);
+ *  选图/拍照失败条优先展示原生桥明细(相机权限指引等),缺省按图源分档文案。 */
+function SendErrBars(props: { sendErr: boolean; shotErr: ShotError | null; retryBlocked: boolean; onRetry: () => void }) {
   if (!props.sendErr && !props.shotErr) return null;
   return (
     <div className="m-errs">
@@ -118,7 +118,10 @@ function SendErrBars(props: { sendErr: boolean; shotErr: ShotErr; retryBlocked: 
       ) : null}
       {props.shotErr ? (
         <div className="m-err-bar" role="alert">
-          <span>{props.shotErr === "camera" ? t("拍照失败,请重试") : t("选图失败,请重试")}</span>
+          <span>
+            {props.shotErr.detail ??
+              (props.shotErr.kind === "camera" ? t("拍照失败,请重试") : t("选图失败,请重试"))}
+          </span>
         </div>
       ) : null}
     </div>
@@ -135,7 +138,7 @@ export function Composer(props: {
   onSend: () => void;
   sending: boolean;
   sendErr: boolean;
-  shotErr: ShotErr;
+  shotErr: ShotError | null;
   onRetry: () => void;
   shots: { path: string; url: string }[];
   /** 上传中原图预览(objectURL;null = 无在途)。 */
@@ -188,8 +191,10 @@ export function Composer(props: {
   const hasBody = props.draft.trim().length > 0 || props.shots.length > 0;
   return (
     <>
-      <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "") + (taH !== null ? " grow" : "")}>
-        <SendErrBars sendErr={props.sendErr} shotErr={props.shotErr} retryBlocked={props.shotBusy} onRetry={props.onRetry} />
+      {/* kb-on 的条件含 !panel:面板展开时键条让位(下方 KeyToolbar hidden 同款),
+          安全区 padding 必须跟着回到 composer 承载 —— 否则面板末行压 Home indicator。 */}
+      <div className={"composer" + (kbOn && !kbOpen && !panel ? " kb-on" : "") + (taH !== null ? " grow" : "")}>
+        <SendErrBars sendErr={props.sendErr} shotErr={props.shotErr} retryBlocked={props.shotBusy || props.sending || props.pending != null} onRetry={props.onRetry} />
         <div className={"grabber" + (dragging ? " drag" : "")} {...grabHandlers} />
         <ShotStrip
           shots={props.shots}

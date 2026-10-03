@@ -27,6 +27,7 @@ vi.mock("./shared", () => ({
 }));
 
 import { Composer, PlusPanel } from "./Composer";
+import type { ShotError } from "./useShots";
 import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
 
 const base = {
@@ -36,7 +37,7 @@ const base = {
   onSend: () => undefined,
   sending: false,
   sendErr: false,
-  shotErr: null as "album" | "camera" | null,
+  shotErr: null as ShotError | null,
   onRetry: () => undefined,
   shots: [] as { path: string; url: string }[],
   pending: null as string | null,
@@ -100,6 +101,12 @@ describe("三态胶囊 composer 渲染契约", () => {
     expect(render({ sendErr: true })).toContain('<button type="button">重试</button>');
   });
 
+  it("发送在途(sending)重试钮同样禁用(2026-10-03 二轮:affordance 与本体闸一致)", () => {
+    expect(render({ sendErr: true, sending: true })).toContain('<button type="button" disabled="">重试</button>');
+    /* 上传在途(pending)亦禁:canSend 三条件全对齐(二轮复查补) */
+    expect(render({ sendErr: true, pending: "blob:p" })).toContain('<button type="button" disabled="">重试</button>');
+  });
+
   it("挂图 + 上传中共存:既有缩略卡与 chips 照常,pending 卡尾随,发送钮禁用", () => {
     const html = render({ shots: [shot], pending: "blob:p" });
     expect(html).toContain("cp-chips");
@@ -107,9 +114,12 @@ describe("三态胶囊 composer 渲染契约", () => {
     expect(html).toContain('aria-label="发送" disabled');
   });
 
-  it("错误条按图源分档:album 选图失败 / camera 拍照失败", () => {
-    expect(render({ shotErr: "album" })).toContain("选图失败,请重试");
-    expect(render({ shotErr: "camera" })).toContain("拍照失败,请重试");
+  it("错误条按图源分档:album 选图失败 / camera 拍照失败;原生明细(权限指引)优先展示", () => {
+    expect(render({ shotErr: { kind: "album" } })).toContain("选图失败,请重试");
+    expect(render({ shotErr: { kind: "camera" } })).toContain("拍照失败,请重试");
+    expect(render({ shotErr: { kind: "camera", detail: "相机权限被拒,请在系统设置开启" } })).toContain(
+      "相机权限被拒,请在系统设置开启",
+    );
   });
 
   it("CHIP_PROMPTS 标签与预填词成对,顺序同参考图", () => {

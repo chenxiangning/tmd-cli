@@ -157,6 +157,12 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     唤醒本循环;写失败 = 对端死,break 收线由客户端自愈重拨。relay 路径已有
     同款(relay_core::queue_heartbeat),此处补直连。 */
     let mut ping = tokio::time::interval(PING_INTERVAL);
+    /* 慢客户端把 ws_tx.send 拖过 15s 时按 Delay 补一拍,不 Burst 连发
+     * (对齐 relay_agent.rs 心跳同款)。桌面侧不做 pong 死线(relay 有):直连
+     * 单 TCP 串行,手机在途大帧会把 pong 排在帧后,入站静默无法区分「对端
+     * 死」与「对端上传中」,误杀恰复发本批要治的「图片第一次失败」——僵尸
+     * 线代价(分钟级 TCP 超时)小于误杀,取舍见 2026-10-03 二轮评审。 */
+    ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     /* invoke 并发帽:每连接 32 并发,超发快拒。 */
     let invoke_slots = std::sync::Arc::new(tokio::sync::Semaphore::new(32));
     loop {

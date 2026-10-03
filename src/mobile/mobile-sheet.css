@@ -1,7 +1,8 @@
 /* 手机底部 sheet 家族样式 —— 自 mobile.css 拆出(300 行铁则),先例同 mobile-dark.css。
    视觉基准 = docs/superpowers/specs/2026-10-03-mobile-spawn-sheet-polish-design:
    grabber/滑入动画/关闭钮进基座;工作区整行选中 + 引擎双列卡片 + 全宽 CTA + 提示卡。
-   token 沿用 .m-app 令牌(mobile.css 定义),暗色经令牌自动适配,不写死色。 */
+   token 沿用 .m-app 令牌(mobile.css 定义);alert 底为固定色板,暗色覆盖在
+   mobile-dark.css(与 .m-err-bar 同款处理)。 */
 /* 基座唯一形态:原生 <dialog> 铺满视口 flex 沉底(UA margin/border/padding/背景
  * 归零,视觉与 div 版等价),遮罩走 ::backdrop(浓度 .45 统一);hit = 垫卡片下的遮罩命中钮 */
 dialog.sheet-scrim{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:none;padding:0;background:transparent;color:inherit;overflow:visible}

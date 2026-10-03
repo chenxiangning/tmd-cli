@@ -3,14 +3,15 @@
 //! 骨架阶段：单层目录列举。递归/监听/忽略规则随 files 插件实装时补。
 //! 预览读取(文本/图片/二进制)→ fs_preview.rs;白名单删除 → fs_remove.rs(文件规模铁则)。
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
 use std::fs;
 
-/// 预览与删除原语 re-export:保持 crate::fs::{read_file, remove_path, …} 引用路径不变。
+/// 预览/删除/临时写原语 re-export:保持 crate::fs::{read_file, remove_path, …} 引用路径不变。
 pub use crate::fs_preview::{read_binary_file_base64, read_file, read_local_image_data_url};
 pub use crate::fs_remove::remove_path;
+pub use crate::fs_temp::write_temp_file;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,33 +48,6 @@ pub fn list_dir(path: &str) -> Result<Vec<DirEntry>, String> {
 }
 
 /// 把字节写入临时目录(用户上传的图片/截图)。返回绝对路径。
-pub fn write_temp_file(name: &str, bytes: &[u8]) -> Result<String, String> {
-    let base = std::env::temp_dir().join("tmd-cli");
-    fs::create_dir_all(&base).map_err(|e| format!("创建临时目录失败: {e}"))?;
-    // 从 name 抽扩展名(空则 bin)
-    let ext = name
-        .rsplit_once('.')
-        .map(|(_, e)| {
-            /* 白名单字母数字:用户可控 name 的 ext 不得带分隔符等拼进文件名 */
-            if e.len() <= 5 && !e.is_empty() && e.chars().all(|c| c.is_ascii_alphanumeric()) {
-                e
-            } else {
-                "bin"
-            }
-        })
-        .unwrap_or("bin");
-    /* 毫秒时间戳 + 进程内单调计数:同一毫秒内连续上传也不互相覆盖 */
-    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
-    let seq = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let path = base.join(format!("upload-{stamp}-{seq:x}.{ext}"));
-    fs::write(&path, bytes).map_err(|e| format!("写入临时文件失败: {e}"))?;
-    Ok(path.to_string_lossy().to_string())
-}
-
 /// 带修改时间的文件条目 —— CLI 磁盘会话扫描(fs_collect_files)的返回单元。
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

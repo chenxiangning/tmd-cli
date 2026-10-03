@@ -58,7 +58,7 @@
 |双通道竞速|凭证 `urls: string[]`(配对 offer 全端点);连接序 = `endpointCandidates`(钉选优先,auto 按 urls 序)逐个 `connectOne`(8s 超时换下一端点;pending/rejected 端点无关即返);钉选存 localStorage `tmd.mobile.channel.v1`,HostChip 端点 sheet 切换即重臂。旧凭证无 urls → 单 wsUrl 兼容。|
 |运行期撤销|`onRemoteRevoked` 回调**不清空**(常驻订阅跨多次逐出存活;bye+4001 双触发由消费方幂等吸收);`mountMobileShellGate` 注册常驻处理器:非 pending 逐出 → 清凭证 + reload 回配对屏(主应用挂载后 gate 已退订,B2 修复)。|
 |回前台重拨|`pageshow`/`visibilitychange` → `forceRemoteReconnect()`(iOS 后台掐 WS;退避最长 10s 不可等;closed/未配对 no-op)。|
-|直连心跳保活|直连 `/ws` 双向零心跳时,手机网 NAT 30~60s 静默回收空闲 TCP(无 RST 双端无感),readyState 仍 OPEN 的假活连接到下次 invoke 才暴露(真机实证「图片发送第一次失败,重试即成功」;真失败,帧未达桌面,重试不双发)。双保险:桌面直连 select 循环 15s `Ping`(节拍同 relay `HEARTBEAT_INTERVAL`,pong 由客户端协议栈自答,写失败即收线,2026-10-03)+ iOS WsTunnel 15s `sendPing` + 10s pong 超时 cancel 促重拨(死线自愈先于用户操作);relay 路径早有 `queue_heartbeat`。|
+|直连心跳保活|直连 `/ws` 双向零心跳时,手机网 NAT 30~60s 静默回收空闲 TCP(无 RST 双端无感),readyState 仍 OPEN 的假活连接到下次 invoke 才暴露(真机实证「图片发送第一次失败,重试即成功」;真失败,帧未达桌面,重试不双发)。双保险:桌面直连 select 循环 15s `Ping`(节拍同 relay `HEARTBEAT_INTERVAL`,missed-tick=Delay 同 relay;pong 由客户端协议栈自答,写失败即收线,2026-10-03)+ iOS WsTunnel 15s `sendPing` + 10s pong 死线 cancel 促重拨(死线自愈先于用户操作;在途发送未清空时顺延复查,防大帧上传期 ping 排队被误杀——同日二轮评审);relay 路径早有 `queue_heartbeat`。|
 |审批应答与通知|SessionScreen ask 卡(实况尾窗命中通用标记表 ASK_MARKER_RE → 卡上按键 = session_write 原始序列;写失败回滚弹卡)。**刻意子集**:不含 profile 私有 askMarks/1.2s 候选确认/写后 8s 抑制(桌面 askWatch 全量语义)。通知 = 卡首现 `notifyAsk` → `shellNotify`(AskMobile.tsx 浮标/边沿通知链已随紧凑化重构退役 2026-09-24)。|
 |审批线窄屏摘要|checkpoints 插件 `contribute("overlay")` → `CheckpointsMobileSummary`(批次只读清单 + 待审计数;刷新链仅窄屏启用防桌面双份轮询;写操作无入口)。|
 |软键盘避让|~~`useViewportHeight` → `--tmd-vvh`~~(退役:手机壳根改 `100dvh`,iOS 键盘自动缩;死钩子已删 2026-09-24)。|

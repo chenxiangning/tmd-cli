@@ -1,7 +1,8 @@
 /** PiRpcSession 生命周期守卫回归:exited 置位后 respond/非 confirm 部件取消
  *  静默(此前 exited 永不置位 → 退出后应答 = procStreamWrite 对已清注册表报错 =
  *  unhandled rejection,由 vitest 运行级捕获钉死);pending 统一 reject;
- *  kill-after-exit 不再外发 IPC。 */
+ *  kill-after-exit 不再外发 IPC。
+ *  部件帧 id 归一/同型回传族测试见 piRpcIds.test.ts(300 行铁则拆分)。 */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listeners = new Map<string, (p: unknown) => void>();
@@ -153,19 +154,12 @@ describe("chrome 部件聚合降噪", () => {
     expect(agg).toBeGreaterThan(ans); // 聚合行保序在消息块之后,不被截掉
     s.kill();
   });
-});
 
-describe("部件帧 id 归一(数值型宽容)", () => {
-  beforeEach(() => {
-    writes.length = 0;
-    listeners.clear();
-  });
-
-  it("数值 id 的真交互部件帧:归一后照答 cancelled 并逐条 notice,不再静默丢弃挂轮", async () => {
-    const notices: string[] = [];
+  it("流内 interactive notice(select)同样不被权威落定截掉(与聚合行同窗口,2026-10-03 二轮评审补)", async () => {
+    let blocks: { id: string; role: string; text: string }[] = [];
     const s = new PiRpcSession({ command: "omp" }, "/ws", {
       onBlocks: (next) => {
-        for (const b of next) if (b.role === "system" && !notices.includes(b.text)) notices.push(b.text);
+        blocks = next.map((b) => ({ id: b.id, role: b.role, text: b.text }));
       },
       onBusy: () => undefined,
       onConfirm: () => undefined,
@@ -176,19 +170,15 @@ describe("部件帧 id 归一(数值型宽容)", () => {
     await vi.waitUntil(() => writes.some((w) => w.includes("get_state")));
     frame({ type: "response", id: "tmd-1", success: true, data: {} });
     await started;
-    frame({ type: "extension_ui_request", method: "select", id: 42 });
-    await vi.waitUntil(() => writes.some((w) => w.includes('"id":"42"')));
-    expect(writes.some((w) => w.includes('"id":"42"') && w.includes('"cancelled":true'))).toBe(true);
-    expect(notices.some((x) => x.includes("CLI 发起 select 交互"))).toBe(true);
-    s.kill();
-  });
-
-  it("缺 id / null id 的畸形帧:仍不产应答", async () => {
-    const s = await boot();
-    const wCount = writes.length;
-    frame({ type: "extension_ui_request", method: "select" });
-    frame({ type: "extension_ui_request", method: "select", id: null });
-    expect(writes.length).toBe(wCount);
+    frame({ type: "message_start", message: { role: "assistant", content: [] } });
+    frame({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "流中" } });
+    frame({ type: "extension_ui_request", method: "select", id: "q9" });
+    frame({ type: "message_end", id: "e2", message: { role: "assistant", content: [{ type: "text", text: "落定" }] } });
+    const notice = blocks.findIndex((b) => b.role === "system");
+    const ans = blocks.findIndex((b) => b.role === "assistant");
+    expect(notice).toBeGreaterThanOrEqual(0);
+    expect(blocks[notice].text).toContain("CLI 发起 select 交互");
+    expect(notice).toBeGreaterThan(ans); // notice 保序在消息块之后,不被截掉
     s.kill();
   });
 });

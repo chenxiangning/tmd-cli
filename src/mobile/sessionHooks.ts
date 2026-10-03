@@ -37,24 +37,40 @@ export function useLiveTurns(
     let path: string | null = null;
     let size: number | null = null;
     let timer = 0;
+    /* 重入闸:tick 是 async(tick 内两个 await RPC 窗口);poke 若落在窗口内,
+     * clearTimeout 清不到在途 tick(其 id 已触发),恢复后与 poke 排的新拍
+     * 各自再排 → 轮询链翻倍累积(timer 只存最后一个 id,卸载前停不掉)。
+     * 闸内 poke 改为「记一次提前」由 tick 出口统一排程(2026-10-03 二轮)。 */
+    let ticking = false;
+    let poked = false;
     setTurns(null);
     const tick = async () => {
-      if (!alive) return;
-      if (!document.hidden) {
-        if (!path) path = await resolveTranscriptPath(profileId, cwd, sinceMs);
-        if (path) {
-          const next = await pollTranscript(path, size);
-          if (!alive) return;
-          if (next) {
-            size = next.size;
-            setTurns(next.turns);
+      if (!alive || ticking) return;
+      ticking = true;
+      try {
+        if (!document.hidden) {
+          if (!path) path = await resolveTranscriptPath(profileId, cwd, sinceMs);
+          if (path) {
+            const next = await pollTranscript(path, size);
+            if (!alive) return;
+            if (next) {
+              size = next.size;
+              setTurns(next.turns);
+            }
           }
         }
+      } finally {
+        ticking = false;
+        if (alive) timer = window.setTimeout(tick, poked ? POKE_DELAY_MS : POLL_MS);
+        poked = false;
       }
-      timer = window.setTimeout(tick, POLL_MS);
     };
     pokeRef.current = () => {
       if (!alive) return;
+      if (ticking) {
+        poked = true; /* 在途 tick 出口即按 POKE_DELAY_MS 接拍 */
+        return;
+      }
       clearTimeout(timer);
       timer = window.setTimeout(tick, POKE_DELAY_MS);
     };

@@ -53,6 +53,9 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
     let gapOff: (() => void) | null = null;
     let connOff: (() => void) | null = null;
     let timer = 0;
+    /* 尾沿节流排程句柄:声明在 effect 作用域,卸载 cleanup 可即撤(async 体
+     * 内声明的闭包变量 cleanup 够不着)。 */
+    let flushTimer = 0;
     setLive("");
     setEarlier("");
     setHasMore(false);
@@ -79,7 +82,6 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
        * 不再排;flush 时取全量 view()。尾沿必达——最后一帧总在距上次上屏
        * ≥100ms 处落屏,不存在丢尾。 */
       let lastSetAt = 0;
-      let flushTimer = 0;
       const flushView = () => {
         flushTimer = 0;
         lastSetAt = Date.now();
@@ -168,6 +170,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
     return () => {
       alive = false;
       clearInterval(timer);
+      clearTimeout(flushTimer); /* 卸载即撤尾沿排程(alive 闸下虽是 no-op,不留空转定时器) */
       off?.();
       gapOff?.();
       connOff?.();

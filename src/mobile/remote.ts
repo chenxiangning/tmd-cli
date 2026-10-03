@@ -136,9 +136,10 @@ async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promi
   }
 }
 
-/** 桥帧预算:手机 invoke 帧 ≤3.5MiB(transportBridge 守卫),JSON 数字数组
- *  每字节 ~3.6 字符 → 字节上限留余量取 900KB(1568/q0.8 的噪点照片可超 1MB)。 */
-const UPLOAD_BYTE_BUDGET = 900_000;
+/** 桥帧预算:手机 invoke 帧 ≤3.5MiB(transportBridge 守卫,按 UTF-16 字符
+ *  计),JSON 数字数组最坏全高字节 4 字符/字节 → 字节上限 850KB 留足余量
+ *  (900KB×4=3.6M 字符曾可误撞闸;1568/q0.8 的噪点照片可超 1MB)。 */
+const UPLOAD_BYTE_BUDGET = 850_000;
 
 /** base64 → JPEG Blob(native pickImage 回传还原;独立纯函数供单测)。 */
 export function blobFromB64(b64: string): Blob {
@@ -228,7 +229,8 @@ export async function attachShot(
     isBusy: boolean;
     setBusy: (v: boolean) => void;
     onShot: (shot: { path: string; url: string }) => void;
-    flashErr: (v: ShotErr) => void;
+    /** 失败上报(分档 + 原生桥明细,如相机权限指引;3s 自清等 UI 策略归调用方)。 */
+    flashErr: (v: ShotErr, detail?: string) => void;
     /** 图源确定即回(原图 objectURL):pending 缩略卡即时上屏。 */
     onPending?: (url: string) => void;
     /** pending 终态(成功替换/失败)必回一次,撤卡。 */
@@ -258,8 +260,9 @@ export async function attachShot(
     }
   } catch (e) {
     const kind = inj?.source ?? "album";
-    shellLog(`${kind === "camera" ? "拍照" : "选图"}上传失败: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
-    o.flashErr(kind);
+    const detail = String((e as Error)?.message ?? e).slice(0, 160);
+    shellLog(`${kind === "camera" ? "拍照" : "选图"}上传失败: ${detail}`);
+    o.flashErr(kind, detail);
   } finally {
     o.setBusy(false);
   }

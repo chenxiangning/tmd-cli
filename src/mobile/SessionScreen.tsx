@@ -16,6 +16,7 @@ import { isTailTruncated, MAX_TURNS } from "./sessionFile";
 import { ConnBanner } from "./ConnChip";
 import { askEdgeNotify, askRoundClear, notifyExit, useMobile } from "./shared";
 import { composeSendText, resumeExitedSession, tailAskLine, tailHasAskMarker, writeSession } from "./remote";
+import { canSend } from "./sendGate";
 import { useShots } from "./useShots";
 import { useDraft } from "./useDraft";
 import { shellInvoke } from "@kernel/shellBridge";
@@ -44,6 +45,10 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   /* 终局快照(退出后续聊/通知用退出前元数据):写入收进 effect 保 render 纯性。 */
   const metaRef = React.useRef<typeof meta>(undefined);
   useEffect(() => { if (meta) metaRef.current = meta; });
+  /* 草稿镜像(send 成功回调比对「是否续打」用,同 metaRef 模式):发送在途
+   * 继续输入的文字不随成功清稿 —— 只清「与发送时一致」的草稿。 */
+  const draftRef = React.useRef(draft);
+  useEffect(() => { draftRef.current = draft; });
   
   const ckpt = useCkptBadge(meta?.cwd, props.sessionId);
 
@@ -159,18 +164,24 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   const [sendErr, setSendErr] = useState(false);
   const [sending, setSending] = useState(false);
   const send = () => {
-    /* 在途闸:发送中/图片上传中(pending/选图中)一律不发 —— 发送钮禁用只是
-     * UI 闸,错误条「重试」钮与 ⌘/Ctrl+Enter 键路不经按钮,须在本体收口
-     * (2026-10-03 评审:否则文字先发、在途图片 clearShots 后落单「复活」)。 */
-    if (sending || pending != null || shotBusy) return;
-    const msg = composeSendText(draft, shots.map((s) => s.path));
+    /* 在途闸(纯函数 canSend 钉死,测试钉真值表):发送中/图片上传中(pending/
+     * 选图中)一律不发 —— 发送钮禁用只是 UI 闸,错误条「重试」钮与 ⌘/Ctrl+
+     * Enter 键路不经按钮,须在本体收口(2026-10-03 评审:否则文字先发、在途
+     * 图片 clearShots 后落单「复活」)。 */
+    if (!canSend(sending, pending != null, shotBusy)) return;
+    /* 发送起点快照:成功后只清这些 —— sending 在途新挂的图不在本次消息里,
+     * 全清会把它静默丢掉(2026-10-03 二轮评审:远程桥 RTT 秒级,窗口真实)。
+     * 草稿同理:在途续打的文字不随成功清稿,只清「与发送时一致」的草稿。 */
+    const sentPaths = shots.map((s) => s.path);
+    const sentDraft = draft;
+    const msg = composeSendText(draft, sentPaths);
     if (msg === null) return;
     /* 桌面契约 = 写入失败保草稿:成功才清草稿/挂图并清错,失败保留输入给可见错误条。 */
     setSending(true);
     writeSession(props.sessionId, `${msg}\r`)
       .then(() => {
-        clearDraft();
-        clearShots();
+        if (draftRef.current === sentDraft) clearDraft();
+        clearShots(sentPaths);
         setSendErr(false);
         poke();
       })

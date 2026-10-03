@@ -60,4 +60,15 @@ describe("SpawnSheet 排布契约", () => {
     expect(html).toContain("sheet-alert warn");
     expect(html).not.toContain("sheet-cta");
   });
+
+  it("冷启动分流:首拉未到(wsLoaded=false)不误报「还没有工作区」(2026-10-03 二轮)", () => {
+    ctx.useMobile.mockReturnValue({ workspaces: [], wsLoaded: false, connected: true });
+    const loading = render();
+    expect(loading).toContain("正在获取工作区…");
+    expect(loading).not.toContain("桌面还没有工作区");
+    ctx.useMobile.mockReturnValue({ workspaces: [], wsLoaded: true, connected: true });
+    const empty = render();
+    expect(empty).toContain("桌面还没有工作区");
+    expect(empty).not.toContain("正在获取工作区");
+  });
 });

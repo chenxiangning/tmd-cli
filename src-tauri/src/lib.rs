@@ -9,6 +9,7 @@ mod fs_preview;
 mod fs_remove;
 mod fs_search;
 mod fs_tail;
+mod fs_temp;
 mod fs_walk;
 mod git;
 mod hash;

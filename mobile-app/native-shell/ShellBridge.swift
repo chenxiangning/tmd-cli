@@ -89,6 +89,13 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
   private var activePick: FilePanelRelay?
 
   private func pickImage(id: Int) {
+    /* single-flight(同 takePhoto 的 shotInFlight):二次进入会覆盖 activePick,
+     * 旧 relay 释放 → picker delegate(weak)变 nil → 首个 JS promise 永挂。
+     * 入口到 present 无异步窗,守 activePick 在位即够。 */
+    guard activePick == nil else {
+      reply(id: id, ok: false, payload: "选图已在进行中")
+      return
+    }
     guard let root = UIApplication.shared.connectedScenes
       .compactMap({ $0 as? UIWindowScene })
       .flatMap({ $0.windows })
@@ -124,15 +131,26 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
   /// 黑屏取景器),故先查 AVCaptureDevice 授权态,被拒直接回错(JS 错误条上屏),
   /// 未决走系统弹窗后再判。
   private var activeShot: CameraRelay?
+  /* 拍照 single-flight:覆盖「权限弹窗未决 → present → 收图」全程;无此闸时
+     二次进入会覆盖 activeShot,旧 relay 释放 → 相机 delegate 变 nil → 首个
+     JS promise 永挂(JS 侧 shotBusy 禁钮只挡渲染后的双击,异步窗挡不住)。 */
+  private var shotInFlight = false
 
   private func takePhoto(id: Int) {
+    guard !shotInFlight else {
+      reply(id: id, ok: false, payload: "拍照已在进行中")
+      return
+    }
+    shotInFlight = true
     guard let root = UIApplication.shared.connectedScenes
       .compactMap({ $0 as? UIWindowScene })
       .flatMap({ $0.windows })
       .first(where: { $0.isKeyWindow })?.rootViewController else {
+      shotInFlight = false
       reply(id: id, ok: false, payload: "no key window"); return
     }
     guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+      shotInFlight = false
       reply(id: id, ok: false, payload: "相机不可用(无摄像头或模拟器)")
       return
     }
@@ -144,6 +162,7 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       let relay = CameraRelay()
       relay.onDone = { [weak self] data, reason in
         self?.activeShot = nil
+        self?.shotInFlight = false
         if let data {
           let b64 = data.base64EncodedString()
           ShellLog.write("shot: reply b64 \(b64.count) chars")
@@ -166,10 +185,14 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       AVCaptureDevice.requestAccess(for: .video) { granted in
         DispatchQueue.main.async {
           if granted { present(root) }
-          else { self.reply(id: id, ok: false, payload: "相机权限被拒,请在系统设置开启") }
+          else {
+            self.shotInFlight = false
+            self.reply(id: id, ok: false, payload: "相机权限被拒,请在系统设置开启")
+          }
         }
       }
     default:
+      shotInFlight = false
       reply(id: id, ok: false, payload: "相机权限被拒,请在系统设置开启")
     }
   }
@@ -271,6 +294,46 @@ final class WsTunnel {
   private var opened: Set<Int> = []
   weak var webview: WKWebView?
 
+  init() {
+    /* 回前台探测(2026-10-03 二轮相邻面):后台期 NAT 静默回收的僵尸线 JS 侧
+       仍见 OPEN(transportBridge.forceReconnect 只拆 CONNECTING 线),首次
+       发送挂在死线上直到 pong 死线顺延链走完(~2 分钟)。前台激活即发探测
+       ping:3s 无 pong 且无在途发送 = 判死拆线促重拨;活线毫秒级回 pong 零
+       打扰;在途大帧期(pong 排在帧后)交还周期死线链接管,不误杀。 */
+    NotificationCenter.default.addObserver(
+      forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      self?.probeOnForeground()
+    }
+  }
+
+  private func probeOnForeground() {
+    for (id, task) in tasks {
+      let lock = NSLock()
+      var settled = false
+      let finish: (Bool) -> Void = { alive in
+        lock.lock()
+        defer { lock.unlock() }
+        guard !settled else { return }
+        settled = true
+        if !alive {
+          ShellLog.write("ws fg probe dead id=\(id): cancel 促重拨")
+          task.cancel(with: .goingAway, reason: nil) /* receive 报错 → close 事件 */
+        }
+      }
+      task.sendPing { error in finish(error == nil) }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+        guard self.tasks[id] === task else { return } /* 线已换代:停摆 */
+        lock.lock()
+        let done = settled
+        lock.unlock()
+        guard !done else { return }
+        if self.inflightSendsById[id, default: 0] > 0 { return } /* 大帧在途:让周期死线链接管 */
+        finish(false)
+      }
+    }
+  }
+
   /* URLSession 回调在后台线程;evaluateJavaScript 是主线程专用 API(后台直调 =
    * WebKit 主动 crash),tasks/opened 状态也一律回主线程改,免锁。 */
   private func onMain(_ block: @escaping () -> Void) {
@@ -301,6 +364,7 @@ final class WsTunnel {
       let stale = self.tasks
       if !stale.isEmpty {
         self.tasks.removeAll()
+        self.inflightSendsById.removeValue(forKey: id) /* 同 id 重拨:老计数随拆线除账 */
         self.opened.subtract(stale.keys)
         for (_, t) in stale { t.cancel(with: .goingAway, reason: nil) }
         ShellLog.write("ws open id=\(id): evicted \(stale.count) stale conn(s)")
@@ -319,7 +383,16 @@ final class WsTunnel {
      仍 OPEN 的假活连接要到下一次 invoke 才暴露(真机实证「图片发送第一次失败,
      重试即成功」)。周期 ping 让 NAT 映射双向不过期;pong 超时 = 死线,cancel
      触发 receive 报错 → close 事件回注 JS → 桥退避重拨,用户下一次 invoke 已
-     走新线(自愈先于用户操作)。settled 锁防 pong/超时双到达双结算。 */
+     走新线(自愈先于用户操作)。settled 锁防 pong/超时双到达双结算。
+     死线感知在途发送:图片上传是单条 ~3.6MB WS 文本帧,ping 与它同一 TCP 流
+     按序排队,pong 要等大帧冲刷完才回(上行 1Mbps 冲刷 ~30s)—— 死线不看
+     在途会把慢上行正在传的帧连掐死(2026-10-03 评审:复发「图片第一次失败」
+     的换面)。在途 >0 时每 10s 复查,清空才判死;顺延上限 12 拍(2 分钟)防
+     永不判死。计数按线分账(key = 桥内连接 id):拆孤儿线/换代即除账,老线
+     完成回调的迟到递减只落到已除账键(max 兜底 0),不吃新线计数 —— 全局
+     单计数一旦漂高,健康空闲线会被死线顺延链误拆(2026-10-03 二轮复查)。 */
+  private var inflightSendsById: [Int: Int] = [:]
+
   private func schedulePing(id: Int, task: URLSessionWebSocketTask, delay: TimeInterval) {
     DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
       guard let self, self.tasks[id] === task else { return } /* 线已换代/已收:停摆 */
@@ -338,7 +411,25 @@ final class WsTunnel {
         }
       }
       task.sendPing { error in finish(error == nil) }
-      DispatchQueue.main.asyncAfter(deadline: .now() + 10) { finish(false) }
+      /* pong 死线:在途发送未清空只顺延复查,不判死(计数读写都在主线程) */
+      func armDeadline(attempt: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+          /* 线已换代/已收:停摆(外层闸只在首跳查过,顺延链内须复查) */
+          guard self.tasks[id] === task else { return }
+          lock.lock()
+          let done = settled
+          lock.unlock()
+          guard !done else { return }
+          /* self 由外层 guard let 强持(单例,链条 ≤2 分钟,无悬挂) */
+          if self.inflightSendsById[id, default: 0] > 0, attempt < 12 {
+            ShellLog.write("ws pong wait id=\(id): \(self.inflightSendsById[id, default: 0]) send(s) inflight, defer")
+            armDeadline(attempt: attempt + 1)
+          } else {
+            finish(false)
+          }
+        }
+      }
+      armDeadline(attempt: 0)
     }
   }
 
@@ -375,14 +466,19 @@ final class WsTunnel {
 
   func send(id: Int, text: String) {
     onMain { [weak self] in
-      guard let task = self?.tasks[id] else { return }
-      task.send(.string(text)) { _ in } // 发送失败由 close 事件承载
+      guard let self, let task = self.tasks[id] else { return }
+      self.inflightSendsById[id, default: 0] += 1 /* pong 死线感知:大帧冲刷期不误判死线 */
+      task.send(.string(text)) { [weak self] _ in /* 发送失败由 close 事件承载 */
+        guard let self else { return }
+        self.onMain { self.inflightSendsById[id, default: 0] = max(0, self.inflightSendsById[id, default: 0] - 1) }
+      }
     }
   }
 
   func close(id: Int) {
     onMain {
       self.opened.remove(id)
+      self.inflightSendsById.removeValue(forKey: id) /* 除账:老线迟到回调不减新线 */
       self.tasks.removeValue(forKey: id)?.cancel(with: .goingAway, reason: nil)
     }
   }
