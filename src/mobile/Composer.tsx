@@ -1,10 +1,10 @@
 /**
  * 三态胶囊 composer(豆包式重做,spec 2026-10-03-mobile-composer-redesign):
  * 常态胶囊条(相机=相册选图/输入框/键条开关/加号或发送蓝圆)+ 挂图态
- * (大圆角缩略卡 + 提示 chips,点 chip 填草稿由人确认发送)+ 「+」四格面板
- * (相册/切模型/检查点/快捷键)。草稿/挂图/发送状态留 SessionScreen,本件
- * 只持面板开合与软键盘感知;ShotStrip/SendErrBars 自 SessionChrome 随迁,
- * 键条随迁渲染(软键盘弹起整行隐藏,DOM 位置不变)。
+ * (大圆角缩略卡 + 提示 chips,点 chip 追加填草稿由人确认发送)+ 「+」四格
+ * 面板(相册/切模型/检查点/快捷键,输入条下方展开、动作后收起)。草稿/挂图/
+ * 发送状态留 SessionScreen,本件只持面板开合与软键盘感知;ShotStrip/SendErrBars
+ * 自 SessionChrome 随迁,键条随迁渲染(软键盘弹起或面板展开时整行隐藏)。
  */
 import { useEffect, useRef, useState } from "react";
 import {
@@ -179,17 +179,6 @@ export function Composer(props: {
             ))}
           </div>
         )}
-        {panel && (
-          <PlusPanel
-            shotBusy={props.shotBusy}
-            ckptReady={props.ckptReady}
-            kbOn={kbOn}
-            onShot={props.onShot}
-            onModel={() => { setPanel(false); fillDraft("/model"); }}
-            onCkpt={() => { setPanel(false); props.onCkpt(); }}
-            onToggleKb={toggleKb}
-          />
-        )}
         <div className="cp-pill">
           <button type="button" className="cp-ic" aria-label={t("相册选图")} disabled={props.shotBusy} onClick={props.onShot}>
             <Camera size={21} />
@@ -235,8 +224,22 @@ export function Composer(props: {
             </button>
           )}
         </div>
+        {/* 面板在输入条下方展开(参考图2:条在上、格在下;占键盘同款心理槽位)。
+         *  面板是瞬时菜单:四格动作(含相册)一律执行后收起;连加图走缩略行
+         *  「+」瓷砖;面板展开期间键条让位(hidden 加 panel 项)。 */}
+        {panel && (
+          <PlusPanel
+            shotBusy={props.shotBusy}
+            ckptReady={props.ckptReady}
+            kbOn={kbOn}
+            onShot={() => { setPanel(false); props.onShot(); }}
+            onModel={() => { setPanel(false); fillDraft("/model"); }}
+            onCkpt={() => { setPanel(false); props.onCkpt(); }}
+            onToggleKb={() => { setPanel(false); toggleKb(); }}
+          />
+        )}
       </div>
-      <KeyToolbar sessionId={props.sessionId} hidden={kbOpen || !kbOn} />
+      <KeyToolbar sessionId={props.sessionId} hidden={kbOpen || !kbOn || panel} />
     </>
   );
 }

@@ -1,7 +1,7 @@
 # 手机对话输入区三态重做提交后评审(交互/边界/架构)
 
 - 日期:2026-10-03
-- 状态:已完成(实锤 2 全修;疑似 4 择要留观;门禁全绿随提交收口)
+- 状态:已完成(一轮实锤 2 修 + 二轮真机反馈实锤 2 修;门禁全绿随提交收口)
 - 范围:9b9a9ee0(三态胶囊 composer 重做,11 文件 +449/-251);主会话只读复审 + 修复
 - 性质:评审记录,修复并入本轮提交
 
@@ -36,3 +36,23 @@
 ## 验证
 
 typecheck 0 错;test 454 文件/3523 例全绿(含 Composer 6 例);arch-boundary/file-size/i18n-keys/build 全过;react-doctor 100/100;无头 Chrome 引真实 CSS 三态渲染目检通过(临时页,不进仓库)。真机(iOS 壳)目检项留大仙:软键盘弹起收面板、键条显隐、相册→chips→追加填稿→发送整链、纯图发送。
+
+## 二轮(真机反馈:样式全丢/功能异常)
+
+- 反馈:手机端 composer 样式全丢、疑似功能全坏。
+- 根因 1(实锤,P0):mobile css 家族是**双入口挂链**——`main.tsx` mobile 分支
+  (手机壳经双态入口加载)与 `mobileMain.tsx`(dist-mobile 专用)。新拆的
+  `mobile-composer.css` 只挂了 mobileMain,main.tsx 漏挂 → 该路径下 composer
+  整块零样式:胶囊条退化成一摞全宽按钮、挂图原图尺寸铺开,视觉即「全坏」。
+  修复:main.tsx 挂链补齐 + 注释写死「新增 mobile css 必须两处同步」+ spec
+  方案取舍沉淀铁则;验证升维——双产物 grep(cp-pill 在 dist 与 dist-mobile
+  的 css chunk 均在场、mobile 分支 JS 引用 css 文件名)+ 本地起 dist-mobile
+  无头 Chrome 真页面截屏,不再只靠手写 mock 页。
+- 根因 2(实锤,P1):面板位置与参考图2 相反——实现成「面板在输入条上方」,
+  参考图与 spec 原文均为条上面下。修复:面板移到输入条下方;顺手把面板语义
+  收紧为瞬时菜单(四格动作执行后一律收起,连加图走缩略行「+」瓷砖;面板展开
+  期间键条让位 hidden 加 panel 项),spec 态3 描述同步改写。
+- 一轮「疑似与留观」中的「选图进行中仅降透明度」「切模型聚焦压键条」维持
+  留观不变;二轮无新增误报。
+- 门禁复跑:typecheck/test(454 文件 3523 例)/arch/file-size/i18n/build/
+  build:mobile/react-doctor 100 全绿。
