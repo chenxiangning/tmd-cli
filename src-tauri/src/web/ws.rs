@@ -20,6 +20,7 @@ use super::{
     devices, gate,
     server::WebCtx,
     state::RemoteSocket,
+    ws_ticks::{event_subscribed, kick_tick, recheck_tick},
 };
 
 #[derive(Deserialize)]
@@ -102,6 +103,9 @@ enum Inbound {
     },
 }
 
+/// 直连心跳节拍:与 relay_core::HEARTBEAT_INTERVAL(15s)同口径。
+const PING_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
+
 async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     /* 计数到 socket 真正结束:徽标语义 = 有浏览器在驾驶,与连接保活一致。 */
     let _remote = RemoteSocket::enter(ctx.app.clone());
@@ -146,6 +150,13 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
      * 跑完为止——批准 = SSH 级信任,断连同不杀在途,有意不复核批准态。 */
     let mut kick_rx = live_rx;
     let mut recheck = tokio::time::interval(std::time::Duration::from_secs(5));
+    /* 心跳保活(15s Ping):手机网 NAT 对空闲 TCP 静默回收(30~60s),选图/打字
+    的长空闲窗后 readyState 仍 OPEN 的假活连接要到下一次 invoke 才暴露(真机
+    实证「图片发送第一次失败,重试即成功」)。Ping 让映射双向不过期;pong 由
+    客户端协议栈自答(URLSessionWebSocketTask/浏览器皆自动),回包即入站流量
+    唤醒本循环;写失败 = 对端死,break 收线由客户端自愈重拨。relay 路径已有
+    同款(relay_core::queue_heartbeat),此处补直连。 */
+    let mut ping = tokio::time::interval(PING_INTERVAL);
     /* invoke 并发帽:每连接 32 并发,超发快拒。 */
     let invoke_slots = std::sync::Arc::new(tokio::sync::Semaphore::new(32));
     loop {
@@ -263,37 +274,11 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
                 }
             }
             _ = stop.changed() => break,
+            _ = ping.tick() => {
+                if ws_tx.send(Message::Ping(Vec::new().into())).await.is_err() {
+                    break;
+                }
+            }
         }
-    }
-}
-/// 事件帧是否该发往本连接:非 event 帧直通;event 帧只发订阅过的。
-fn event_subscribed(frame: &str, subs: &std::collections::HashSet<String>) -> bool {
-    let Ok(v) = serde_json::from_str::<Value>(frame) else {
-        return true;
-    };
-    if v.get("type").and_then(Value::as_str) != Some("event") {
-        return true;
-    }
-    v.get("event")
-        .and_then(Value::as_str)
-        .is_some_and(|name| subs.contains(name))
-}
-
-/// 浏览器连接无复查:永挂;设备连接 5s 一跳(interval 首跳即到 = 连上即查一次)。
-async fn recheck_tick(scope: &ConnScope, iv: &mut tokio::time::Interval) {
-    if let ConnScope::AppDevice { .. } = scope {
-        iv.tick().await;
-    } else {
-        std::future::pending::<()>().await;
-    }
-}
-
-/// 浏览器连接无踢通道:永挂;设备连接在撤销(revoke → kick)时被唤醒。
-async fn kick_tick(rx: &mut Option<tokio::sync::watch::Receiver<()>>) {
-    match rx {
-        Some(r) => {
-            let _ = r.changed().await;
-        }
-        None => std::future::pending::<()>().await,
     }
 }

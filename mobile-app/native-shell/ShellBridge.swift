@@ -279,6 +279,35 @@ final class WsTunnel {
       task.resume()
       ShellLog.write("ws dial id=\(id) host=\(url.host ?? "?") port=\(url.port ?? -1)")
       self.receive(id: id, task: task)
+      self.schedulePing(id: id, task: task, delay: 15)
+    }
+  }
+
+  /* 心跳保活(15s sendPing + 10s pong 超时,与桌面直连 ws 心跳同口径):手机网
+     NAT 对空闲 TCP 静默回收(30~60s),选图/拍照/打字的长空闲窗后 readyState
+     仍 OPEN 的假活连接要到下一次 invoke 才暴露(真机实证「图片发送第一次失败,
+     重试即成功」)。周期 ping 让 NAT 映射双向不过期;pong 超时 = 死线,cancel
+     触发 receive 报错 → close 事件回注 JS → 桥退避重拨,用户下一次 invoke 已
+     走新线(自愈先于用户操作)。settled 锁防 pong/超时双到达双结算。 */
+  private func schedulePing(id: Int, task: URLSessionWebSocketTask, delay: TimeInterval) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+      guard let self, self.tasks[id] === task else { return } /* 线已换代/已收:停摆 */
+      let lock = NSLock()
+      var settled = false
+      let finish: (Bool) -> Void = { alive in
+        lock.lock()
+        defer { lock.unlock() }
+        guard !settled else { return }
+        settled = true
+        if alive {
+          self.schedulePing(id: id, task: task, delay: 15)
+        } else {
+          ShellLog.write("ws ping dead id=\(id): cancel 促重拨")
+          task.cancel(with: .goingAway, reason: nil) /* receive 报错 → close 事件 */
+        }
+      }
+      task.sendPing { error in finish(error == nil) }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 10) { finish(false) }
     }
   }
 
