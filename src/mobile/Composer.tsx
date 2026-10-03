@@ -21,7 +21,7 @@ import {
 import { t } from "@kernel/i18n";
 import { mobileEnterAction } from "./enterSend";
 import { KeyToolbar } from "./KeyToolbar";
-import { CHIP_PROMPTS } from "./composerChips";
+import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
 
 /** 「+」四格面板(参考图2,去语音条;全部现有能力):
  *  相册 = pickImage 选图;切模型 = 填 /model 草稿(发送后键条驱动 TUI);
@@ -144,14 +144,15 @@ export function Composer(props: {
       localStorage.setItem("tmd.keybar.on", n ? "1" : "0");
     } catch { /* 隐私态 */ }
   };
-  /* 自动长高:随内容 2 行起步、132px 封顶(拖拽把手已删,纯内容驱动)。 */
+  /* 自动长高:单行起步、132px 封顶(拖拽把手已删,纯内容驱动)。 */
   useEffect(() => {
     const el = taRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
   }, [props.draft]);
-  /* chip/切模型统一填草稿并聚焦,发送由人确认(不自动发空枪)。 */
+  /* chip 填稿 = 追加不覆盖(joinPrompt,保已打文字);切模型 = 替换(命令语义)。
+   * 两者都只填草稿并聚焦,发送由人确认(不自动发空枪)。 */
   const fillDraft = (v: string) => {
     props.onDraft(v);
     taRef.current?.focus();
@@ -171,7 +172,7 @@ export function Composer(props: {
         {props.shots.length > 0 && (
           <div className="cp-chips">
             {CHIP_PROMPTS.map((c) => (
-              <button key={c.label} type="button" className="cp-chip" onClick={() => fillDraft(c.prompt)}>
+              <button key={c.label} type="button" className="cp-chip" onClick={() => fillDraft(joinPrompt(props.draft, c.prompt))}>
                 {t(c.label)}
                 <ArrowRight size={11} />
               </button>

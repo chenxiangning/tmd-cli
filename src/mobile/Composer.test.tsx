@@ -19,7 +19,7 @@ vi.mock("./remote", () => ({ writeSession: ctx.write }));
 vi.mock("./shared", () => ({ KEYS: [{ label: "esc", aria: "Esc", seq: "\u001b" }] }));
 
 import { Composer, PlusPanel } from "./Composer";
-import { CHIP_PROMPTS } from "./composerChips";
+import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
 
 const base = {
   sessionId: "s1",
@@ -72,6 +72,12 @@ describe("三态胶囊 composer 渲染契约", () => {
   it("CHIP_PROMPTS 标签与预填词成对,顺序同参考图", () => {
     expect(CHIP_PROMPTS.map((c) => c.label)).toEqual(["提取图中文字", "图片配文", "翻译图中文字"]);
     expect(CHIP_PROMPTS.every((c) => c.prompt.trim().length > 0)).toBe(true);
+  });
+
+  it("joinPrompt:空稿直填,非空稿换行追加不覆盖(保已打文字)", () => {
+    expect(joinPrompt("", "请提取图片中的文字")).toBe("请提取图片中的文字");
+    expect(joinPrompt("看下这张图", "请提取图片中的文字")).toBe("看下这张图\n请提取图片中的文字");
+    expect(joinPrompt("看下这张图\n", "请提取图片中的文字")).toBe("看下这张图\n请提取图片中的文字");
   });
 
   it("面板四格:检查点无 cwd 置灰,快捷键格随键条开关点亮", () => {
