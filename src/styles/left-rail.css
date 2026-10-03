@@ -56,8 +56,12 @@
   stroke-width: 1.75;
 }
 
-/* 底簇设置触发钮:下缘离窗口底线 3px 嵌进左下角系统圆弧(参考图贴合效果:
- * 弧线绕钮左下均匀留缝;3px 保证窗口圆弧半径 20px 时 logo 主体仍在弧内不裁)。 */
+/* 底簇设置触发钮:占满 rail 底格(全宽 × 30px 高,贴左缘贴底线),左下角
+ * 大圆角顺窗口弧线 —— 悬停底色与系统圆弧同弯曲(参考图红线区内满格)。 */
 .left-rail-settings {
-  margin-bottom: 3px;
+  align-self: stretch;
+  width: auto; /* 压过 .left-rail-tab 的定宽 26px,满 rail 内容格 */
+  height: 30px;
+  margin: 0;
+  border-bottom-left-radius: 14px;
 }
