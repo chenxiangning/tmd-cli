@@ -56,12 +56,22 @@
   stroke-width: 1.75;
 }
 
-/* 底簇设置触发钮:占满 rail 底格(全宽 × 30px 高,贴左缘贴底线),左下角
- * 大圆角顺窗口弧线 —— 悬停底色与系统圆弧同弯曲(参考图红线区内满格)。 */
+/* 底簇设置触发钮:logo 本体放大填满 rail 底格(全宽 × 28px 高,贴左缘贴底线),
+ * 顶线与侧栏底栏行顶线(27px 栏 + 1px 边框)对齐;左下角大圆角顺窗口弧线。
+ * 悬停不加背景,logo 提亮代替(logo 即填充块,无按钮背景)。 */
 .left-rail-settings {
   align-self: stretch;
   width: auto; /* 压过 .left-rail-tab 的定宽 26px,满 rail 内容格 */
-  height: 30px;
+  height: 28px;
   margin: 0;
   border-bottom-left-radius: 14px;
+}
+.left-rail-settings .settings-logo {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit; /* 与钮同弯曲:常规圆角 + 左下顺弧 14px */
+}
+.left-rail-settings:hover .settings-logo,
+.left-rail-settings.is-active .settings-logo {
+  filter: brightness(1.18);
 }
