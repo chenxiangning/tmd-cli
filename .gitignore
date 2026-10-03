@@ -37,6 +37,7 @@ CLAUDE.md
 .codex/hooks/__pycache__/
 .ccgui/
 .omx/
+memory/
 
 # i18n translation scratch workspace
 scripts/i18n/.work/
