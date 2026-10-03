@@ -50,7 +50,7 @@ export class LiveScreen {
    *  未知 ESC+字母按终端惯例吞掉不打印。 */
   private readonly tok = new RegExp(
     // eslint-disable-next-line no-control-regex -- 终端控制流本就是控制字节
-    "\\x1b\\][^\\x07\\x1b]*(?:\\x07|\\x1b\\\\)|\\x1b\\[[0-9:;<=>?]*[ -/]*[@-~]|\\x1b[()#][0-9A-Za-z]?|\\x1b[0-9A-Za-z]|[\\x00-\\x1a\\x1c-\\x1f\\x7f]",
+    "\\x1b\\][^\\x07\\x1b]*(?:\\x07|\\x1b\\\\)|\\x1b[PX^_][\\s\\S]*?\\x1b\\\\|\\x1b\\[[0-9:;<=>?]*[ -/]*[@-~]|\\x1b[()#][0-9A-Za-z]?|\\x1b[0-9A-Za-z]|[\\x00-\\x1a\\x1c-\\x1f\\x7f]",
     "g",
   );
   /** 跨 chunk 切断的未完成转义序列(真 PTY 分块会把 CSI/OSC 拦腰切)。 */
@@ -65,12 +65,16 @@ export class LiveScreen {
   feed(chunk: string): void {
     const data = this.pending + chunk;
     this.pending = "";
+    /* DCS/SOS/PM/APC 预扫:未收口族头切进 pending(否则单字节转义分支先吃掉 \x1bP,族体落屏 —— opentui 探测串实证);永不收口超长垃圾当文本吐掉。 */
+    const open = /\x1b[PX^_](?:(?!\x1b\\)[\s\S])*$/.exec(data);
+    const body = open && open[0].length <= 4096 ? data.slice(0, open.index) : data;
+    if (body !== data) this.pending = open![0];
     const re = this.tok;
     re.lastIndex = 0;
     let last = 0;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(data))) {
-      if (m.index > last) this.print(data.slice(last, m.index));
+    while ((m = re.exec(body))) {
+      if (m.index > last) this.print(body.slice(last, m.index));
       last = m.index + m[0].length;
       const c = m[0];
       if (c.charCodeAt(0) === 0x1b) this.escape(c);
@@ -80,7 +84,7 @@ export class LiveScreen {
       else if (c === "\b") this.col = Math.max(0, this.col - 1);
       /* 其余控制字符(BEL/DEL/转义残留):纯文本视口无关。 */
     }
-    if (last < data.length) this.tail(data.slice(last));
+    if (last < body.length) this.tail(body.slice(last));
   }
 
   /**
@@ -270,10 +274,16 @@ export class LiveScreen {
   }
 
   /** 原地改几何(尺寸轮询路径):溢出行进 scrollback、变高补空行、光标夹持。
-   *  不重放字节 —— 重放快照存在在途 chunk 双喂窗口(头信息重复的第二来源);
-   *  旧宽度换行由 CSS pre-wrap 兜底,应用层 WINCH 全帧重绘按新几何收敛。 */
+   *  不重放字节 —— 重放快照存在在途 chunk 双喂窗口(头信息重复的第二来源)。
+   *  缩列分两族:全帧重绘型(omp)WINCH 后按新几何收敛;差分重绘型(opentui)
+   *  只补新行,视口旧行按屏外格截断(见函数内注释);scrollback 一律原宽归 CSS。 */
   resize(cols: number, rows: number): void {
-    this.cols = Math.max(1, Math.min(cols || DEFAULT_COLS, MAX_LINE));
+    const nc = Math.max(1, Math.min(cols || DEFAULT_COLS, MAX_LINE));
+    if (nc < this.cols) {
+      /* 差分重绘型 TUI(opentui 实证:WINCH 只补新行,永不 ED/EL)缩列按「屏外格不可见」截视口旧行,否则 pre-wrap 折行整屏错位;scrollback 不截,历史归 CSS。 */
+      this.lines = this.lines.map((l) => (l && l.length > nc ? l.slice(0, nc) : l));
+    }
+    this.cols = nc;
     const nr = Math.max(1, Math.min(rows || DEFAULT_ROWS, 500));
     while (this.lines.length > nr) this.scrollback.push(this.lines.shift() ?? "");
     if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);

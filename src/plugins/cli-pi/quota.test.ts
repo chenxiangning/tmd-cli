@@ -7,14 +7,17 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@kernel/ipc", () => ({
   ipc: {
-    quotaEnvValue: async (name: string) =>
+    quotaEnvValue: vi.fn(async (name: string) =>
       name === "TEST_RELAY_KEY" ? "sk-env-resolved" : null,
+    ),
+    configHomeDir: vi.fn(async () => "/home/t"),
   },
 }));
 
+import { ipc } from "@kernel/ipc";
 import { vendorFromModel } from "../cli-shared/quota/vendors";
 import { parseJsonc } from "../cli-shared/jsonc";
-import { type PiLocalConfig } from "./piLocalConfig";
+import { piAgentDir, type PiLocalConfig } from "./piLocalConfig";
 import { providersForModelId, resolvePiRoute } from "./piRoute";
 import { resolveCredentialRefs } from "./quota";
 
@@ -179,5 +182,17 @@ describe("providersForModelId", () => {
       "m",
     );
     expect(out).toEqual(["a", "b"]);
+  });
+});
+
+describe("piAgentDir 目录解析", () => {
+  it("环境覆盖生效(桌面路径)", async () => {
+    vi.mocked(ipc.quotaEnvValue).mockResolvedValue("/custom/pi");
+    await expect(piAgentDir()).resolves.toBe("/custom/pi");
+  });
+
+  it("探测拒绝回落默认 ~/.pi/agent(手机桥白名单无 quota_env_value,实证回归)", async () => {
+    vi.mocked(ipc.quotaEnvValue).mockRejectedValue(new Error("denied"));
+    await expect(piAgentDir()).resolves.toBe("/home/t/.pi/agent");
   });
 });

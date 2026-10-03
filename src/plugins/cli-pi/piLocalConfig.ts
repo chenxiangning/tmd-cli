@@ -42,9 +42,11 @@ export interface PiLocalConfig {
   modelsJson: Record<string, PiModelsJsonProvider>;
 }
 
-/** pi 配置目录默认 ~/.pi/agent;允许 PI_CODING_AGENT_DIR 覆盖。 */
+/** pi 配置目录默认 ~/.pi/agent;允许 PI_CODING_AGENT_DIR 覆盖。
+ *  探测拒绝回落默认:手机桥白名单无 quota_env_value(conn.rs app_allowed),
+ *  不接住则 piSessionsDir 整链 reject,手机 pi transcript 永远回落实况(实证)。 */
 export async function piAgentDir(): Promise<string> {
-  const configured = await ipc.quotaEnvValue(AGENT_DIR_ENV);
+  const configured = await ipc.quotaEnvValue(AGENT_DIR_ENV).catch(() => null);
   if (configured) return configured.replace(/[\\/]+$/, "");
   return `${await ipc.configHomeDir()}/.pi/agent`;
 }

@@ -103,12 +103,12 @@ describe("LiveScreen 重绘收敛", () => {
     expect(s.view().split("\n")[0]).toBe("01234567ZC");
   });
 
-  it("wrap 开(默认)resize 缩列保留 pending-wrap:下一字符换行落新行,不覆写行尾旧字符", () => {
+  it("wrap 开(默认)resize 缩列:pending-wrap 换行语义保留,旧行按屏外格截断", () => {
     const s = new LiveScreen(8, 3);
     s.feed("12345678"); /* 恰满行,col=8 待换行 */
-    s.resize(4, 3); /* 缩列:待换行态须原样保留(2026-10-03 二轮评审实锤回归) */
+    s.resize(4, 3); /* 缩列:行截到新宽(差分重绘 TUI 屏外格语义),待换行态仍换行不覆写 */
     s.feed("X");
-    expect(s.view()).toBe("12345678\nX");
+    expect(s.view()).toBe("1234\nX");
   });
 
   it("pending-wrap 穿过 ?7l 存活:?7h 后恢复按待换行走(xterm.js 基准,2026-10-03 二轮复查)", () => {
@@ -139,11 +139,11 @@ describe("LiveScreen 重绘收敛", () => {
     expect(s.view()).toBe("AB");
     const t = new LiveScreen(40, 4);
     t.feed("\x1b[3;30Htext\x1b7"); /* 保存 (2,33):text 落 29..32 列 */
-    t.resize(20, 2); /* 缩屏:存档位(行2/列33)双双界外;首行滚出进 scrollback */
+    t.resize(20, 2); /* 缩屏:存档位(行2/列33)双双界外;首行滚出进 scrollback;界外 text 截断 */
     t.feed("\x1b8Z"); /* 恢复夹持到 (1,19),不撑视口也不落界外列 */
     const out = t.view().split("\n");
     expect(out).toHaveLength(3); /* scrollback 1(滚出的空行)+ 视口 2 */
-    expect(out[2]).toBe(" ".repeat(19) + "Z" + " ".repeat(9) + "text"); /* Z 夹持落末行第 19 列 */
+    expect(out[2]).toBe(" ".repeat(19) + "Z"); /* Z 夹持落末行第 19 列 */
   });
 
   it("EL1/ED1 含光标格擦除(VT510 inclusive),列位不塌", () => {
@@ -227,5 +227,40 @@ describe("LiveScreen 重绘收敛", () => {
     s.resize(10, 4); /* 缩到 10 列:列夹持到 9(xterm resize 夹持语义) */
     s.feed("X");
     expect(s.view().split("\n")[0]).toBe("         X"); /* X 落列 9,非原列 19 */
+  });
+});
+
+describe("LiveScreen DCS 与差分重绘 resize(opencode/opentui 实证)", () => {
+  it("DCS 探测串(…ST 收口)整段吞掉,不落屏", () => {
+    const s = new LiveScreen(80, 24);
+    s.feed("\x1b[?25l\x1b[s\x1b[6n\x1bP+q4d73\x1b\\\x1b[?2026$p\x1b[?uhi");
+    expect(s.view()).toBe("hi");
+  });
+
+  it("DCS 跨 chunk 断开:缓冲拼回后整段吞", () => {
+    const s = new LiveScreen(80, 24);
+    s.feed("A\x1bP+q4");
+    s.feed("d73\x1b\\");
+    s.feed("B");
+    expect(s.view()).toBe("AB");
+  });
+
+  it("缩列 resize:视口旧宽行截到新宽(差分重绘 TUI 屏外格语义)", () => {
+    const s = new LiveScreen(100, 6);
+    s.feed("\x1b[1;1H" + "x".repeat(100));
+    s.feed("\x1b[2;1H┌─ box ─┐");
+    s.resize(58, 6);
+    for (const l of s.view().split("\n")) expect(l.length).toBeLessThanOrEqual(58);
+    expect(s.view().split("\n")[0]).toBe("x".repeat(58));
+  });
+
+  it("scrollback 历史宽度不截:缩列只截视口(历史可读性归 CSS pre-wrap)", () => {
+    const s = new LiveScreen(20, 3);
+    for (const l of ["01234567890123456789", "abcdefghij", "klmnopqrst", "uv"]) s.feed(`${l}\n`);
+    s.resize(10, 3);
+    const out = s.view().split("\n");
+    expect(out[0]).toBe("01234567890123456789"); /* 已滚出的历史原宽保留 */
+    expect(out).toHaveLength(4);
+    expect(out.slice(1).every((l) => l.length <= 10)).toBe(true);
   });
 });
