@@ -17,6 +17,7 @@
 - lsp 引用 peek 与 hover 代码渲染打磨:lsp 域补 Prism token 配色映射治一片白,symRange 符号区间与高亮共存,右列表行 Prism 渲染(spec 同日)
 - checkpoints 时间线节点 hover 增复制钮,一键复制该节点发送原文;两钮补键盘聚焦现身,修 meta 行注释漂移
 - data-hint 支持 left 贴附放置,右缘 rail 悬停提示改抽屉式左滑
+- 左缘工具 rail 与工作区显隐菜单落地:看板/市场/回首页迁左 rail,网络代理迁右 rail 底簇,侧栏顶簇收敛;工作区显隐菜单自定义侧栏工作区卡可见性;⌘±0 缩放键位接管(zoomCommands)
 
 ### 修复
 
