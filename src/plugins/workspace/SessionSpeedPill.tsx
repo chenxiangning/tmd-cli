@@ -1,9 +1,11 @@
 /**
  * 会话速度 pill —— 活会话行(运行区/置顶区/组内 LiveSessionRow)共用的 tok/s
- * 指示:turnActive 期间 2s 巡航尾读会话 jsonl,末两条 usage 行差分得响应均速
- * (计算与口径天花板见 cli-shared/sessionUsage 的 recentTokPerSec)。
+ * 指示:turnActive 期间 2s 巡航尾读会话 jsonl,轮种子 + 近 5 对滑窗得响应均速
+ * (计算与口径天花板见 cli-shared/sessionUsage 的 recentTokPerSec /
+ * lastUserTurnSeed;实证与设计见 docs specs 2026-10-03-toks-pill-stability)。
  *
- * - codex 快照型单行无差分、未绑定磁盘身份、无 listSessions 适配 → 不显示
+ * - 增量型(omp/pi/claude 系)分子 = 本条 output;codex 快照型保留末两拍
+ *   差分(snapKeep=2);未绑定磁盘身份、无 listSessions 适配 → 不显示
  *   (缺失不猜测兜底,同会话查看器口径);
  * - 轮结束(isTurnActive=false)pill 消失;单一区域原则保证同一会话同一时刻
  *   至多一处行渲染,无重复巡航;
@@ -15,7 +17,7 @@ import type { CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { extractUsageFromHead, recentTokPerSec } from "../cli-shared/sessionUsage";
+import { extractUsageFromHead, lastUserTurnSeed, recentTokPerSec } from "../cli-shared/sessionUsage";
 
 const POLL_MS = 2000;
 const TAIL_BYTES = 64 * 1024;
@@ -62,9 +64,12 @@ export function SessionSpeedPill({
         const tail = await ipc.fsReadTailChanged(path, TAIL_BYTES, lastSize);
         if (!alive || !tail.changed) return;
         lastSize = tail.size;
-        const lines = extractUsageFromHead(tail.text, 0);
+        /* snapKeep=2:codex 快照型留末两拍供差分;增量型不受影响 */
+        const lines = extractUsageFromHead(tail.text, 0, 2);
         const last = lines[lines.length - 1];
-        if (last && Date.now() - last.ts <= STALE_MS) next = recentTokPerSec(lines);
+        if (last && Date.now() - last.ts <= STALE_MS) {
+          next = recentTokPerSec(lines, lastUserTurnSeed(tail.text) ?? undefined);
+        }
       } catch {
         return; // 单拍 IO 失败静默,下一拍重试
       }
