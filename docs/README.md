@@ -259,4 +259,6 @@
 | 2026-10-03 | [v0.2.8..HEAD 范围全量评审与整体修复(P1 死链索引/废案提交对 rebase 清除;P2 chrome 聚合截断/数值 id 挂轮/resize 列夹持/replay 注释如实化;新留观:endMsg 权威解析缺 event.id 恒空)](review/2026-10-03-v0.2.9-range-review.md) | 已完成(修复随本日三提交;门禁全绿) |
 | 2026-10-03 | [手机选图上传反馈与相册/拍照双入口设计(选图即时 pending 缩略卡+转圈遮罩消除空白期;胶囊条双 icon=Images 相册+Camera 拍照;iOS 原生 takePhoto 桥;上传中禁发送)](superpowers/specs/2026-10-03-mobile-shot-upload-feedback-design.md) | 已实施(真机目检留大仙) |
 | 2026-10-03 | [手机直连 WS 心跳保活设计(治「图片发送第一次失败,重试即成功」:NAT 静默回收空闲 TCP;桌面直连 15s Ping + iOS WsTunnel 15s sendPing/10s pong 超时自愈;ws.rs 拆 ws_ticks.rs 腾位)](superpowers/specs/2026-10-03-mobile-ws-heartbeat-keepalive-design.md) | 已实施(真机目检留大仙) |
+| 2026-10-03 | [手机快捷键条两行重排 + 实况 2 秒延迟治理(KEY_ROWS 两行大键网格 ≥44px;传输层逐环节实读排除批帧,根因=live 逐帧更新触发 TurnsView 全量 markdown 重解析——memo 止血 + setLive 100ms 尾沿节流 + 发送/应答写后 300ms 触拍)](superpowers/specs/2026-10-03-mobile-keybar-relayout-live-latency-design.md) | 已实施(真机目检留大仙) |
+| 2026-10-03 | [手机选图/拍照上传与 WS 心跳提交后评审(三路对抗:实锤 5 修——send 硬闸补重试/键路绕行、卸载 objectURL 泄漏、错误定时器交叠、plist 双源分叉、相机权限黑屏;疑点 2 修 4 留观;误报 5 条防重查)](review/2026-10-03-mobile-shot-upload-review.md) | 已完成(修复随本日提交;门禁全绿) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

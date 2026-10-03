@@ -217,11 +217,12 @@ export function uploadTempImage(name: string, bytes: Uint8Array): Promise<string
 }
 
 /** 选图/拍照 → 压缩 → fs_write_temp 落盘 → onShot 挂 composer 预览(objectURL
- *  随移除/发送释放)。**原图到手即回 onPending**(pending 缩略卡即时上屏,消除
- *  压缩+上传期的交互空白,spec 2026-10-03);完成/失败/取消统一 onPendingDone
- *  撤卡并释放预览 URL。图源 source 分流 picker(默认相册)与错误条文案分档;
- *  草稿不注 @路径(发送时统一拼 composeSendText);取消静默;失败 flashErr
- *  3s 自清(裸 setTimeout:node 单测无 window)。pick/shrink/upload = 测试注入。 */
+ *  随移除/发送/释放;卸载后到货由 useShots 即时 revoke)。**原图到手即回
+ *  onPending**(pending 缩略卡即时上屏,消除压缩+上传期的交互空白,spec
+ *  2026-10-03);完成/失败/取消统一 onPendingDone 撤卡并释放预览 URL。图源
+ *  source 分流 picker(默认相册)与错误分档;草稿不注 @路径(发送时统一拼
+ *  composeSendText);取消静默;失败 flashErr 单次上报(3s 自清等 UI 策略归
+ *  调用方)。pick/shrink/upload = 测试注入。 */
 export async function attachShot(
   o: {
     isBusy: boolean;
@@ -259,7 +260,6 @@ export async function attachShot(
     const kind = inj?.source ?? "album";
     shellLog(`${kind === "camera" ? "拍照" : "选图"}上传失败: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
     o.flashErr(kind);
-    setTimeout(() => o.flashErr(null), 3000);
   } finally {
     o.setBusy(false);
   }

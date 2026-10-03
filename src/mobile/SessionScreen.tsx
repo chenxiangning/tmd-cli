@@ -48,8 +48,9 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   const ckpt = useCkptBadge(meta?.cwd, props.sessionId);
 
   /* transcript(spec 2026-09-25-mobile-session-render):jsonl 定位 + 2s 增量生长;
-   * 失败/非契约引擎回落 null → PTY 尾流实况。 */
-  const turns = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId, props.spawnedAt);
+   * 失败/非契约引擎回落 null → PTY 尾流实况。poke = 写入成功后 300ms 补拍
+   * (spec 2026-10-03):发消息/应答 ~0.3s 上屏,不白等 2s 拍。 */
+  const { turns, poke } = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId, props.spawnedAt);
   /* 实况块:有对话时默认折叠(终端原始流在窄屏不可读),点开看;无对话=全屏实况。 */
   const [liveOpen, setLiveOpen] = useState(false);
   const liveShown = turns ? liveOpen : true;
@@ -151,13 +152,17 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
     setAsk(false);
     /* 写失败(断桥/死会话)回滚弹卡:否则卡瞬时消失且无后续输出复现(契约评审 face4)。 */
     writeSession(props.sessionId, data)
+      .then(() => poke())
       .catch(() => setAsk(true))
       .finally(() => setAnswering(false));
   };
   const [sendErr, setSendErr] = useState(false);
   const [sending, setSending] = useState(false);
   const send = () => {
-    if (sending) return; /* 在途闸:双击不双发 */
+    /* 在途闸:发送中/图片上传中(pending/选图中)一律不发 —— 发送钮禁用只是
+     * UI 闸,错误条「重试」钮与 ⌘/Ctrl+Enter 键路不经按钮,须在本体收口
+     * (2026-10-03 评审:否则文字先发、在途图片 clearShots 后落单「复活」)。 */
+    if (sending || pending != null || shotBusy) return;
     const msg = composeSendText(draft, shots.map((s) => s.path));
     if (msg === null) return;
     /* 桌面契约 = 写入失败保草稿:成功才清草稿/挂图并清错,失败保留输入给可见错误条。 */
@@ -167,6 +172,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
         clearDraft();
         clearShots();
         setSendErr(false);
+        poke();
       })
       .catch(() => setSendErr(true))
       .finally(() => setSending(false));

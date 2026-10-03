@@ -103,16 +103,17 @@ function ShotStrip(props: {
   );
 }
 
-/** 悬浮错误条组(浮在 composer 上缘,不挤布局;发送失败条内嵌重试;
- *  选图/拍照失败条按图源分档文案)。 */
-function SendErrBars(props: { sendErr: boolean; shotErr: ShotErr; onRetry: () => void }) {
+/** 悬浮错误条组(浮在 composer 上缘,不挤布局;发送失败条内嵌重试 —— 图片
+ *  上传在途时重试禁用:send() 本体另有硬闸,这里是可感知的 affordance);
+ *  选图/拍照失败条按图源分档文案。 */
+function SendErrBars(props: { sendErr: boolean; shotErr: ShotErr; retryBlocked: boolean; onRetry: () => void }) {
   if (!props.sendErr && !props.shotErr) return null;
   return (
     <div className="m-errs">
       {props.sendErr ? (
         <div className="m-err-bar" role="alert">
           <span>{t("发送失败,消息已保留")}</span>
-          <button type="button" onClick={props.onRetry}>{t("重试")}</button>
+          <button type="button" disabled={props.retryBlocked} onClick={props.onRetry}>{t("重试")}</button>
         </div>
       ) : null}
       {props.shotErr ? (
@@ -188,7 +189,7 @@ export function Composer(props: {
   return (
     <>
       <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "") + (taH !== null ? " grow" : "")}>
-        <SendErrBars sendErr={props.sendErr} shotErr={props.shotErr} onRetry={props.onRetry} />
+        <SendErrBars sendErr={props.sendErr} shotErr={props.shotErr} retryBlocked={props.shotBusy} onRetry={props.onRetry} />
         <div className={"grabber" + (dragging ? " drag" : "")} {...grabHandlers} />
         <ShotStrip
           shots={props.shots}

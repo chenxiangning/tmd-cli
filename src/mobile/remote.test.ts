@@ -57,50 +57,36 @@ describe("attachShot(pending 生命周期:原图即时预览 → 完成/失败�
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:3");
   });
 
-  it("失败(相册):pending 撤卡 + flashErr(album),3s 自清为 null", async () => {
-    vi.useFakeTimers();
-    try {
-      const ev: string[] = [];
-      await attachShot(
-        {
-          isBusy: false,
-          setBusy: () => undefined,
-          onShot: () => ev.push("shot"),
-          flashErr: (v) => ev.push(`err:${v}`),
-          onPending: () => ev.push("pending"),
-          onPendingDone: () => ev.push("pendingDone"),
-        },
-        { pick: () => file, shrink, upload: async () => { throw new Error("bridge down"); } },
-      );
-      expect(ev).toEqual(["pending", "pendingDone", "err:album"]);
-      vi.advanceTimersByTime(3000);
-      expect(ev).toEqual(["pending", "pendingDone", "err:album", "err:null"]);
-    } finally {
-      vi.useRealTimers();
-    }
+  it("失败(相册):pending 撤卡 + flashErr(album) 单次上报(3s 自清归 useShots)", async () => {
+    const ev: string[] = [];
+    await attachShot(
+      {
+        isBusy: false,
+        setBusy: () => undefined,
+        onShot: () => ev.push("shot"),
+        flashErr: (v) => ev.push(`err:${v}`),
+        onPending: () => ev.push("pending"),
+        onPendingDone: () => ev.push("pendingDone"),
+      },
+      { pick: () => file, shrink, upload: async () => { throw new Error("bridge down"); } },
+    );
+    expect(ev).toEqual(["pending", "pendingDone", "err:album"]);
   });
 
-  it("失败(source=camera):错误条分档 camera", async () => {
-    vi.useFakeTimers();
-    try {
-      const errs: string[] = [];
-      await attachShot(
-        {
-          isBusy: false,
-          setBusy: () => undefined,
-          onShot: () => undefined,
-          flashErr: (v) => errs.push(String(v)),
-          onPending: () => undefined,
-          onPendingDone: () => undefined,
-        },
-        { source: "camera", pick: () => file, shrink, upload: async () => { throw new Error("x"); } },
-      );
-      expect(errs).toEqual(["camera"]);
-      vi.advanceTimersByTime(3000);
-      expect(errs).toEqual(["camera", "null"]);
-    } finally {
-      vi.useRealTimers();
-    }
+  it("失败(source=camera):错误分档 camera", async () => {
+    const errs: string[] = [];
+    await attachShot(
+      {
+        isBusy: false,
+        setBusy: () => undefined,
+        onShot: () => undefined,
+        flashErr: (v) => errs.push(String(v)),
+        onPending: () => undefined,
+        onPendingDone: () => undefined,
+      },
+      { source: "camera", pick: () => file, shrink, upload: async () => { throw new Error("x"); } },
+    );
+    expect(errs).toEqual(["camera"]);
   });
 
   it("取消(picker 回 null):静默 —— 无 pending 无错误,预览 URL 不创建", async () => {

@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import ImageIO
 import PhotosUI
@@ -116,9 +117,12 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     relay.present(root, picker)
   }
 
-  /// 拍照:present 相机 UIImagePickerController(需 NSCameraUsageDescription,
-  /// 权限首启系统弹窗);拍摄原图限边 2048 转 JPEG 回 base64,回传形状与 pickImage
-  /// 同构({b64}/{cancelled});模拟器/无相机 → ok:false(JS 错误条上屏)。
+  /// 拍照:present 相机 UIImagePickerController(需 NSCameraUsageDescription)。
+  /// 拍摄原图限边 2048 转 JPEG 回 base64,回传形状与 pickImage 同构
+  /// ({b64}/{cancelled});无相机硬件(模拟器/无摄像头 iPad)→ ok:false。
+  /// 权限闸前置:isSourceTypeAvailable 只看硬件不看授权(拒授权时 present 出
+  /// 黑屏取景器),故先查 AVCaptureDevice 授权态,被拒直接回错(JS 错误条上屏),
+  /// 未决走系统弹窗后再判。
   private var activeShot: CameraRelay?
 
   private func takePhoto(id: Int) {
@@ -129,28 +133,45 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       reply(id: id, ok: false, payload: "no key window"); return
     }
     guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-      reply(id: id, ok: false, payload: "相机不可用(模拟器或权限被拒)")
+      reply(id: id, ok: false, payload: "相机不可用(无摄像头或模拟器)")
       return
     }
-    let picker = UIImagePickerController()
-    picker.sourceType = .camera
-    picker.modalPresentationStyle = .fullScreen /* 相机页必须全屏,卡片式呈现异常 */
-    let relay = CameraRelay()
-    relay.onDone = { [weak self] data, reason in
-      self?.activeShot = nil
-      if let data {
-        let b64 = data.base64EncodedString()
-        ShellLog.write("shot: reply b64 \(b64.count) chars")
-        self?.reply(id: id, ok: true, payload: ["b64": b64])
-      } else if reason == "cancelled" {
-        ShellLog.write("shot: user cancelled")
-        self?.reply(id: id, ok: true, payload: ["cancelled": true])
-      } else {
-        self?.reply(id: id, ok: false, payload: reason ?? "拍照失败")
+    let present: (UIViewController) -> Void = { [weak self] root in
+      guard let self else { return }
+      let picker = UIImagePickerController()
+      picker.sourceType = .camera
+      picker.modalPresentationStyle = .fullScreen /* 相机页必须全屏( iPad 同),卡片式呈现异常 */
+      let relay = CameraRelay()
+      relay.onDone = { [weak self] data, reason in
+        self?.activeShot = nil
+        if let data {
+          let b64 = data.base64EncodedString()
+          ShellLog.write("shot: reply b64 \(b64.count) chars")
+          self?.reply(id: id, ok: true, payload: ["b64": b64])
+        } else if reason == "cancelled" {
+          ShellLog.write("shot: user cancelled")
+          self?.reply(id: id, ok: true, payload: ["cancelled": true])
+        } else {
+          self?.reply(id: id, ok: false, payload: reason ?? "拍照失败")
+        }
       }
+      self.activeShot = relay /* 持活:契约同 activePick,present 后防 ARC 提前释放 */
+      relay.present(root, picker)
     }
-    activeShot = relay /* 持活:契约同 activePick,present 后防 ARC 提前释放 */
-    relay.present(root, picker)
+    switch AVCaptureDevice.authorizationStatus(for: .video) {
+    case .authorized:
+      present(root)
+    case .notDetermined:
+      /* 首启:系统弹窗后据实分流(回调在任意线程,呈现必须回主线程) */
+      AVCaptureDevice.requestAccess(for: .video) { granted in
+        DispatchQueue.main.async {
+          if granted { present(root) }
+          else { self.reply(id: id, ok: false, payload: "相机权限被拒,请在系统设置开启") }
+        }
+      }
+    default:
+      reply(id: id, ok: false, payload: "相机权限被拒,请在系统设置开启")
+    }
   }
 
   /// 壳原生 POST(自签中继场景:WKWebView fetch 无法信任自签证书,
@@ -273,7 +294,17 @@ final class WsTunnel {
     onMain {
       self.webview = webview
       self.opened.remove(id)
-      self.tasks[id]?.cancel(with: .goingAway, reason: nil)
+      /* 单连接不变量:JS 桥同一时刻只持一条 ws(transportBridge 单 socket);
+         残留线(页面 reload / WebContent 崩溃重载后 JS 侧无人收线)在保活改动
+         后将永生(ping 链 + 桌面自动 pong,旧版靠 NAT 30~60s 自然收割),开新线
+         时一律拆旧,防孤儿 socket 与 ping/receive 链堆积(2026-10-03 评审 S3)。 */
+      let stale = self.tasks
+      if !stale.isEmpty {
+        self.tasks.removeAll()
+        self.opened.subtract(stale.keys)
+        for (_, t) in stale { t.cancel(with: .goingAway, reason: nil) }
+        ShellLog.write("ws open id=\(id): evicted \(stale.count) stale conn(s)")
+      }
       let task = self.session.webSocketTask(with: url)
       self.tasks[id] = task
       task.resume()
@@ -510,13 +541,21 @@ final class CameraRelay: NSObject, UIImagePickerControllerDelegate, UINavigation
       finish(nil, reason: "相机未返回图像")
       return
     }
-    guard let data = Self.jpegData(from: image), !data.isEmpty else {
-      ShellLog.write("shot: encode failed")
-      finish(nil, reason: "照片编码失败")
-      return
+    /* 全幅解码(12MP≈49MB 位图)在主线程 0.3-0.8s 卡顿(2026-10-03 评审 S5),
+       挪 userInitiated 后台队列;done 收口/done 位只碰主线程,免竞。 */
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      let data = Self.jpegData(from: image)
+      DispatchQueue.main.async { [weak self] in
+        guard let self, !self.done else { return }
+        guard let data, !data.isEmpty else {
+          ShellLog.write("shot: encode failed")
+          self.finish(nil, reason: "照片编码失败")
+          return
+        }
+        ShellLog.write("shot: jpeg \(data.count)B")
+        self.finish(data, reason: nil)
+      }
     }
-    ShellLog.write("shot: jpeg \(data.count)B")
-    finish(data, reason: nil)
   }
 
   private func finish(_ data: Data?, reason: String? = nil, cancelled: Bool = false) {

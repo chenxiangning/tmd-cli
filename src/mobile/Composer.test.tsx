@@ -4,8 +4,9 @@
  * - 双入口:胶囊条左 [相册 Images] + [拍照 Camera] 并排(aria 相册选图/拍照上传);
  * - 有内容(文字或纯图同权):发送蓝圆顶替加号;
  * - 挂图态:缩略卡 + ✕ + 「再加一张」瓷砖 + 三条提示 chips(参考图文案);
- * - 上传中(pending):原图即时 pending 卡(转圈遮罩)上屏;期间发送钮禁用
- *   (防文字先发图片落单);仅 pending 无挂图时不出现 chips;
+ * - 上传中(pending):原图即时 pending 卡(转圈遮罩)上屏;期间发送钮与错误条
+ *   重试钮禁用(硬闸在 SessionScreen send 本体,此处 UI affordance);既有挂图
+ *   与 chips 与 pending 卡共存(chips 显隐只由 shots 决定);
  * - 错误条按图源分档:album=选图失败 / camera=拍照失败;
  * - 面板四格(相册/切模型/检查点/快捷键):无 cwd 检查点置灰,快捷键格随 kbOn 点亮;
  * - CHIP_PROMPTS 标签与预填词成对(点 chip 填草稿由人确认发送)。
@@ -20,7 +21,10 @@ vi.mock("@kernel/i18n", () => ({
 }));
 const ctx = vi.hoisted(() => ({ write: vi.fn(async () => undefined) }));
 vi.mock("./remote", () => ({ writeSession: ctx.write }));
-vi.mock("./shared", () => ({ KEYS: [{ label: "esc", aria: "Esc", seq: "\u001b" }] }));
+vi.mock("./shared", () => ({
+  KEYS: [{ label: "esc", aria: "Esc", seq: "\u001b" }],
+  KEY_ROWS: [[{ label: "esc", aria: "Esc", seq: "\u001b" }]],
+}));
 
 import { Composer, PlusPanel } from "./Composer";
 import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
@@ -82,13 +86,25 @@ describe("三态胶囊 composer 渲染契约", () => {
     for (const c of CHIP_PROMPTS) expect(html).toContain(c.label);
   });
 
-  it("上传中(pending):原图即时 pending 卡上屏,发送钮禁用,chips 不出现", () => {
+  it("上传中(pending):原图即时 pending 卡 + 卡内「上传中」转圈遮罩,发送钮禁用", () => {
     const html = render({ draft: "hi", pending: "blob:p" });
     expect(html).toContain('class="shot pending"');
     expect(html).toContain('src="blob:p"');
-    expect(html).toContain("上传中");
+    expect(html).toContain("shot-spin");
+    expect(html).toContain("上传中</span>"); /* 卡内可见文案(非 aria 子串误命中) */
     expect(html).toContain('aria-label="发送" disabled'); /* 上传中禁发:防图未挂完先发 */
-    expect(html).not.toContain("cp-chips");
+  });
+
+  it("上传中重试钮禁用(错误条重试不经发送钮,UI 层 affordance;硬闸在 send 本体)", () => {
+    expect(render({ sendErr: true, pending: "blob:p", shotBusy: true })).toContain('<button type="button" disabled="">重试</button>');
+    expect(render({ sendErr: true })).toContain('<button type="button">重试</button>');
+  });
+
+  it("挂图 + 上传中共存:既有缩略卡与 chips 照常,pending 卡尾随,发送钮禁用", () => {
+    const html = render({ shots: [shot], pending: "blob:p" });
+    expect(html).toContain("cp-chips");
+    expect(html).toContain('class="shot pending"');
+    expect(html).toContain('aria-label="发送" disabled');
   });
 
   it("错误条按图源分档:album 选图失败 / camera 拍照失败", () => {
