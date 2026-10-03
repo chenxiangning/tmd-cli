@@ -5,8 +5,8 @@
  * composer 裸 Enter=换行(软键盘无 Shift;发送归 ↑ 钮,⌘/Ctrl+Enter 兜底);
  * 软键盘弹起时键条隐藏(spec 2026-09-23-mobile-session-compact)。
  * 选图经 useShots 预览挂载,发送时统一拼 @路径(草稿只留文字;2026-09-30)。
- * composer 三态胶囊重做迁 Composer.tsx(spec 2026-10-03-mobile-composer-redesign,
- * 拖拽把手删除改自动长高);本屏只持草稿/挂图/发送状态。
+ * composer 三态胶囊重做迁 Composer.tsx(spec 2026-10-03-mobile-composer-redesign;
+ * 拖拽调高把手随迁移回 Composer,本屏只持草稿/挂图/发送状态)。
  */
 import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";

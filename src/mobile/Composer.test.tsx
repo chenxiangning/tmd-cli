@@ -50,6 +50,7 @@ describe("三态胶囊 composer 渲染契约", () => {
   it("空稿常态:加号开面板,发送圆与 chips 不出现,键条默认在场", () => {
     const html = render();
     expect(html).toContain("cp-pill");
+    expect(html).toContain("grabber"); /* 上下拖拽把手恒在(composer 顶缘) */
     expect(html).toContain("打开面板");
     expect(html).not.toContain("cp-send");
     expect(html).not.toContain("cp-chips");

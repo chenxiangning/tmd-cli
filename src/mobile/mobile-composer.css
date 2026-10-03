@@ -5,6 +5,13 @@
    适配(mobile-dark.css 只调错误条底色);shotIn 关键帧留在 mobile.css。 */
 .composer{position:relative;flex:none;background:var(--bg-panel);padding:8px 10px 6px;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
 .composer.kb-on{padding-bottom:6px}
+/* 上下拉把手:拖拽调输入框高(紧凑↔固定高;useComposerSize 落手记忆);touch-action:none
+ * 防页面滚动抢手势;命中区 ::after 外扩 ≥32px;拖拽中加深(dragging 态);双击回紧凑态 */
+.composer .grabber{position:relative;flex:none;width:52px;height:14px;margin:-2px auto 4px;border-radius:999px;background:var(--border-strong);opacity:.55;touch-action:none;cursor:ns-resize;transition:opacity .12s ease}
+.composer .grabber::after{content:"";position:absolute;inset:-9px}
+.composer .grabber.drag{opacity:1;background:var(--accent)}
+/* 拖拽钉高(grow):解 132px 封顶由内滚接管 */
+.composer.grow .cp-pill textarea{max-height:none}
 /* 胶囊条:左相机(相册选图)+ 输入框 + 右键条开关;尾槽按态切换 加号/发送蓝圆/收起 ✕ */
 .cp-pill{display:flex;align-items:flex-end;gap:4px;background:var(--bg-base);border:1px solid var(--border);border-radius:22px;padding:5px 6px 5px 8px}
 .cp-ic{position:relative;flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--fg-muted)}

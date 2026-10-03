@@ -5,6 +5,8 @@
  * 面板(相册/切模型/检查点/快捷键,输入条下方展开、动作后收起)。草稿/挂图/
  * 发送状态留 SessionScreen,本件只持面板开合与软键盘感知;ShotStrip/SendErrBars
  * 自 SessionChrome 随迁,键条随迁渲染(软键盘弹起或面板展开时整行隐藏)。
+ * 顶部把手上下拖拽调输入框高(useComposerSize:拖拽钉高/双击回紧凑/落手
+ * 记忆;2026-10-03 重做当日应大仙要求保真回归)。
  */
 import { useEffect, useRef, useState } from "react";
 import {
@@ -22,6 +24,7 @@ import { t } from "@kernel/i18n";
 import { mobileEnterAction } from "./enterSend";
 import { KeyToolbar } from "./KeyToolbar";
 import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
+import { useComposerSize } from "./useComposerSize";
 
 /** 「+」四格面板(参考图2,去语音条;全部现有能力):
  *  相册 = pickImage 选图;切模型 = 填 /model 草稿(发送后键条驱动 TUI);
@@ -144,13 +147,19 @@ export function Composer(props: {
       localStorage.setItem("tmd.keybar.on", n ? "1" : "0");
     } catch { /* 隐私态 */ }
   };
-  /* 自动长高:单行起步、132px 封顶(拖拽把手已删,纯内容驱动)。 */
+  /* 把手拖拽钉高(taH):null = 紧凑态随内容自长高(单行起步、132px 封顶),
+   * 数字 = 固定高直接钉 px(grow 态解 132 封顶,内滚)。 */
+  const { taH, dragging, grabHandlers } = useComposerSize(taRef);
   useEffect(() => {
     const el = taRef.current;
     if (!el) return;
+    if (taH !== null) {
+      el.style.height = `${taH}px`;
+      return;
+    }
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
-  }, [props.draft]);
+  }, [props.draft, taH]);
   /* chip 填稿 = 追加不覆盖(joinPrompt,保已打文字);切模型 = 替换(命令语义)。
    * 两者都只填草稿并聚焦,发送由人确认(不自动发空枪)。 */
   const fillDraft = (v: string) => {
@@ -160,8 +169,9 @@ export function Composer(props: {
   const hasBody = props.draft.trim().length > 0 || props.shots.length > 0;
   return (
     <>
-      <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "")}>
+      <div className={"composer" + (kbOn && !kbOpen ? " kb-on" : "") + (taH !== null ? " grow" : "")}>
         <SendErrBars sendErr={props.sendErr} shotErr={props.shotErr} onRetry={props.onRetry} />
+        <div className={"grabber" + (dragging ? " drag" : "")} {...grabHandlers} />
         <ShotStrip
           shots={props.shots}
           addDisabled={props.shotBusy}
