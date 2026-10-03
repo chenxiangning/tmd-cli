@@ -1,12 +1,14 @@
 /**
  * 三态胶囊 composer(豆包式重做,spec 2026-10-03-mobile-composer-redesign):
- * 常态胶囊条(相机=相册选图/输入框/键条开关/加号或发送蓝圆)+ 挂图态
- * (大圆角缩略卡 + 提示 chips,点 chip 追加填草稿由人确认发送)+ 「+」四格
- * 面板(相册/切模型/检查点/快捷键,输入条下方展开、动作后收起)。草稿/挂图/
- * 发送状态留 SessionScreen,本件只持面板开合与软键盘感知;ShotStrip/SendErrBars
- * 自 SessionChrome 随迁,键条随迁渲染(软键盘弹起或面板展开时整行隐藏)。
- * 顶部把手上下拖拽调输入框高(useComposerSize:拖拽钉高/双击回紧凑/落手
- * 记忆;2026-10-03 重做当日应大仙要求保真回归)。
+ * 常态胶囊条(相册 Images + 拍照 Camera 双入口/输入框/键条开关/加号或发送蓝圆)
+ * + 挂图态(大圆角缩略卡 + 提示 chips,点 chip 追加填草稿由人确认发送)+「+」
+ * 四格面板(相册/切模型/检查点/快捷键,输入条下方展开、动作后收起)。选图/拍照
+ * 后原图即刻挂 pending 缩略卡(转圈遮罩,spec 2026-10-03-mobile-shot-upload-
+ * feedback),上传完成无缝替换;草稿/挂图/发送状态留 SessionScreen,本件只持
+ * 面板开合与软键盘感知;ShotStrip/SendErrBars 自 SessionChrome 随迁,键条随迁
+ * 渲染(软键盘弹起或面板展开时整行隐藏)。顶部把手上下拖拽调输入框高
+ * (useComposerSize:拖拽钉高/双击回紧凑/落手记忆;2026-10-03 重做当日应大仙
+ * 要求保真回归)。
  */
 import { useEffect, useRef, useState } from "react";
 import {
@@ -21,6 +23,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import type { ShotErr } from "./remote";
 import { mobileEnterAction } from "./enterSend";
 import { KeyToolbar } from "./KeyToolbar";
 import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
@@ -60,16 +63,18 @@ export function PlusPanel(props: {
   );
 }
 
-/** 挂图缩略卡行(参考图1:大圆角卡 + 右上深色 ✕ + 尾随「+」瓷砖再加一张);
- *  空态返 null(加图走胶囊条相机钮),点缩略图全屏看图。 */
+/** 挂图缩略卡行(参考图1:大圆角卡 + 右上深色 ✕ + 尾随「+」瓷砖再加一张;
+ *  上传中的 pending 卡以原图即时预览 + 转圈遮罩占位,完成后无缝替换);空态返
+ *  null(加图走胶囊条相册/拍照钮),点缩略图全屏看图。 */
 function ShotStrip(props: {
   shots: { path: string; url: string }[];
+  pending: string | null;
   addDisabled: boolean;
   onAdd: () => void;
   onRemove: (path: string) => void;
   onPreview: (url: string) => void;
 }) {
-  if (!props.shots.length) return null;
+  if (!props.shots.length && !props.pending) return null;
   return (
     <div className="shots">
       {props.shots.map((s) => (
@@ -82,6 +87,15 @@ function ShotStrip(props: {
           </button>
         </div>
       ))}
+      {props.pending && (
+        <div className="shot pending" aria-label={t("图片上传中")}>
+          <img src={props.pending} alt="" />
+          <span className="shot-veil">
+            <span className="shot-spin" aria-hidden="true" />
+            {t("上传中")}
+          </span>
+        </div>
+      )}
       <button type="button" className="cp-shot-add" aria-label={t("再加一张")} disabled={props.addDisabled} onClick={props.onAdd}>
         <Plus size={20} />
       </button>
@@ -89,8 +103,9 @@ function ShotStrip(props: {
   );
 }
 
-/** 悬浮错误条组(浮在 composer 上缘,不挤布局;发送失败条内嵌重试)。 */
-function SendErrBars(props: { sendErr: boolean; shotErr: boolean; onRetry: () => void }) {
+/** 悬浮错误条组(浮在 composer 上缘,不挤布局;发送失败条内嵌重试;
+ *  选图/拍照失败条按图源分档文案)。 */
+function SendErrBars(props: { sendErr: boolean; shotErr: ShotErr; onRetry: () => void }) {
   if (!props.sendErr && !props.shotErr) return null;
   return (
     <div className="m-errs">
@@ -102,7 +117,7 @@ function SendErrBars(props: { sendErr: boolean; shotErr: boolean; onRetry: () =>
       ) : null}
       {props.shotErr ? (
         <div className="m-err-bar" role="alert">
-          <span>{t("选图失败,请重试")}</span>
+          <span>{props.shotErr === "camera" ? t("拍照失败,请重试") : t("选图失败,请重试")}</span>
         </div>
       ) : null}
     </div>
@@ -119,11 +134,14 @@ export function Composer(props: {
   onSend: () => void;
   sending: boolean;
   sendErr: boolean;
-  shotErr: boolean;
+  shotErr: ShotErr;
   onRetry: () => void;
   shots: { path: string; url: string }[];
+  /** 上传中原图预览(objectURL;null = 无在途)。 */
+  pending: string | null;
   shotBusy: boolean;
   onShot: () => void;
+  onPhoto: () => void;
   onRemoveShot: (path: string) => void;
   onPreview: (url: string) => void;
   ckptReady: boolean;
@@ -174,6 +192,7 @@ export function Composer(props: {
         <div className={"grabber" + (dragging ? " drag" : "")} {...grabHandlers} />
         <ShotStrip
           shots={props.shots}
+          pending={props.pending}
           addDisabled={props.shotBusy}
           onAdd={props.onShot}
           onRemove={props.onRemoveShot}
@@ -191,6 +210,9 @@ export function Composer(props: {
         )}
         <div className="cp-pill">
           <button type="button" className="cp-ic" aria-label={t("相册选图")} disabled={props.shotBusy} onClick={props.onShot}>
+            <Images size={21} />
+          </button>
+          <button type="button" className="cp-ic" aria-label={t("拍照上传")} disabled={props.shotBusy} onClick={props.onPhoto}>
             <Camera size={21} />
           </button>
           <textarea
@@ -225,7 +247,8 @@ export function Composer(props: {
               <X size={16} />
             </button>
           ) : hasBody ? (
-            <button type="button" className="cp-send" aria-label={t("发送")} disabled={props.sending} onClick={props.onSend}>
+            /* 上传中(pending)禁发送:防文字先发、图片落单挂起的竞态 */
+            <button type="button" className="cp-send" aria-label={t("发送")} disabled={props.sending || props.pending != null} onClick={props.onSend}>
               {props.sending ? "…" : <ArrowUp size={16} />}
             </button>
           ) : (

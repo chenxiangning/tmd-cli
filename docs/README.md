@@ -257,4 +257,5 @@
 | 2026-10-03 | [手机对话输入区三态重做设计(豆包式胶囊 composer:常态胶囊条/挂图卡+提示 chips/「+」四格面板;composer 拆 Composer.tsx,样式拆 mobile-composer.css;三轮修订:css 双入口挂链铁则、面板条上面下、拖拽把手回归)](superpowers/specs/2026-10-03-mobile-composer-redesign-design.md) | 已实施 |
 | 2026-10-03 | [手机对话输入区三态重做提交后评审(交互/边界/架构:一轮实锤 2 修——chip 覆盖草稿改 joinPrompt 追加、注释失实;二轮真机反馈实锤 2 修——mobile css 双入口漏挂链致样式全丢、面板位置与参考图相反,验证升维双产物 grep + 真页面截屏)](review/2026-10-03-mobile-composer-redesign-review.md) | 已完成(修复随两轮提交) |
 | 2026-10-03 | [v0.2.8..HEAD 范围全量评审与整体修复(P1 死链索引/废案提交对 rebase 清除;P2 chrome 聚合截断/数值 id 挂轮/resize 列夹持/replay 注释如实化;新留观:endMsg 权威解析缺 event.id 恒空)](review/2026-10-03-v0.2.9-range-review.md) | 已完成(修复随本日三提交;门禁全绿) |
+| 2026-10-03 | [手机选图上传反馈与相册/拍照双入口设计(选图即时 pending 缩略卡+转圈遮罩消除空白期;胶囊条双 icon=Images 相册+Camera 拍照;iOS 原生 takePhoto 桥;上传中禁发送)](superpowers/specs/2026-10-03-mobile-shot-upload-feedback-design.md) | 已实施(真机目检留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

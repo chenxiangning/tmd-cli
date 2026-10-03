@@ -26,7 +26,7 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>扫描桌面端配对二维码,完成设备配对</string>
+	<string>扫描桌面端配对二维码,以及拍摄照片上传到对话</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>连接局域网内的 tmd-cli 桌面端(配对与远程控制)</string>
 	<key>UILaunchScreen</key>

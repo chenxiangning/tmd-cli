@@ -12,7 +12,7 @@
 .composer .grabber.drag{opacity:1;background:var(--accent)}
 /* 拖拽钉高(grow):解 132px 封顶由内滚接管 */
 .composer.grow .cp-pill textarea{max-height:none}
-/* 胶囊条:左相机(相册选图)+ 输入框 + 右键条开关;尾槽按态切换 加号/发送蓝圆/收起 ✕ */
+/* 胶囊条:左双入口(Images 相册选图 + Camera 拍照上传)+ 输入框 + 右键条开关;尾槽按态切换 加号/发送蓝圆/收起 ✕ */
 .cp-pill{display:flex;align-items:flex-end;gap:4px;background:var(--bg-base);border:1px solid var(--border);border-radius:22px;padding:5px 6px 5px 8px}
 .cp-ic{position:relative;flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--fg-muted)}
 .cp-ic::after{content:"";position:absolute;inset:-7px}
@@ -36,6 +36,11 @@
 .shot img{display:block;width:76px;height:76px;object-fit:cover;border-radius:14px;border:1px solid var(--border)}
 .shot-x{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center}
 .shot-x::after{content:"";position:absolute;inset:-9px}
+/* pending 卡(上传中,spec 2026-10-03):原图即时预览 + 暗纱遮罩 + 白转圈
+   「上传中」—— 压缩/桥上传 1~3s 空白期的唯一可见反馈,完成无缝替换 */
+.shot.pending .shot-veil{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-radius:14px;background:rgba(0,0,0,.38);color:#fff;font-size:11px}
+.shot-spin{flex:none;width:18px;height:18px;border-radius:999px;border:2px solid rgba(255,255,255,.38);border-top-color:#fff;animation:shot-spin .8s linear infinite}
+@keyframes shot-spin{to{transform:rotate(360deg)}}
 .cp-shot-add{position:relative;flex:none;width:76px;height:76px;border-radius:14px;border:1px dashed var(--border-strong);background:var(--bg-base);color:var(--fg-muted);display:flex;align-items:center;justify-content:center}
 .cp-shot-add::after{content:"";position:absolute;inset:-6px}
 .cp-shot-add:disabled{opacity:.4}

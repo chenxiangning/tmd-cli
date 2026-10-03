@@ -37,7 +37,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   /* 草稿持久化(useDraft):返回 home 卸载不丢未发文字;发送成功清除。 */
   const { draft, setDraft, clear: clearDraft } = useDraft(props.sessionId);
   const [ckptSheet, setCkptSheet] = useState(false);
-  const { shots, onShot, removeShot, clearShots, busy: shotBusy, err: shotErr } = useShots();
+  const { shots, pending, onShot, onPhoto, removeShot, clearShots, busy: shotBusy, err: shotErr } = useShots();
   /* 挂图全屏预览(缩略图点开看大图,点击关闭)。 */
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const liveRef = React.useRef<HTMLDivElement | null>(null);
@@ -225,8 +225,10 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
         shotErr={shotErr}
         onRetry={send}
         shots={shots}
+        pending={pending}
         shotBusy={shotBusy}
         onShot={onShot}
+        onPhoto={onPhoto}
         onRemoveShot={removeShot}
         onPreview={setPreviewUrl}
         ckptReady={!!meta?.cwd}

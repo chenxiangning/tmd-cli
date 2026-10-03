@@ -54,7 +54,7 @@
 
 |面|契约|
 |---|---|
-|壳能力桥|`src/kernel/shellBridge.ts` ↔ Swift `ShellBridge`(`mobile-app/native-shell/ShellBridge.swift`):帧 `{id,method,args}` postMessage → `window.__TMD_SHELL_RESULT__(id,ok,payload)` 回注;能力 `notify`(UNUserNotificationCenter,权限拒静默 ok)/ `creds.get/set/delete`(Keychain GenericPassword,AfterFirstUnlockThisDeviceOnly)。**手机本机能力,不经桌面桥、不进 AppDevice 白名单**;非壳环境 `hasShellBridge()=false`,调用方降级。|
+|壳能力桥|`src/kernel/shellBridge.ts` ↔ Swift `ShellBridge`(`mobile-app/native-shell/ShellBridge.swift`):帧 `{id,method,args}` postMessage → `window.__TMD_SHELL_RESULT__(id,ok,payload)` 回注;能力 `notify`(UNUserNotificationCenter,权限拒静默 ok)/ `creds.get/set/delete`(Keychain GenericPassword,AfterFirstUnlockThisDeviceOnly)/ `ws.open/send/close`(URLSessionWebSocketTask 隧道,自签 ws WKWebView 发不出)/ `http.post`(自签中继 /pair,PinnedTLS 证书钉)/ `screen.orient`(iOS16+ requestGeometryUpdate)/ `pickImage`(PHPicker 相册选图)/ `takePhoto`(UIImagePickerController 相机拍摄,2026-10-03;两者回传同构 `{b64}`(native 限边 2048 转 JPEG,HEIC/竖拍在壳侧解)或 `{cancelled}`,JS 侧 pickResultToBlob 分流后压缩上传,见 `remote.attachShot` pending 生命周期)。**手机本机能力,不经桌面桥、不进 AppDevice 白名单**;非壳环境 `hasShellBridge()=false`,调用方降级。|
 |双通道竞速|凭证 `urls: string[]`(配对 offer 全端点);连接序 = `endpointCandidates`(钉选优先,auto 按 urls 序)逐个 `connectOne`(8s 超时换下一端点;pending/rejected 端点无关即返);钉选存 localStorage `tmd.mobile.channel.v1`,HostChip 端点 sheet 切换即重臂。旧凭证无 urls → 单 wsUrl 兼容。|
 |运行期撤销|`onRemoteRevoked` 回调**不清空**(常驻订阅跨多次逐出存活;bye+4001 双触发由消费方幂等吸收);`mountMobileShellGate` 注册常驻处理器:非 pending 逐出 → 清凭证 + reload 回配对屏(主应用挂载后 gate 已退订,B2 修复)。|
 |回前台重拨|`pageshow`/`visibilitychange` → `forceRemoteReconnect()`(iOS 后台掐 WS;退避最长 10s 不可等;closed/未配对 no-op)。|

@@ -1,8 +1,12 @@
 /**
  * 三态胶囊 composer 渲染契约(react-dom/server 静态渲染,模式同 SpawnSheet.test):
  * - 常态空稿:胶囊条 + 「打开面板」加号;发送蓝圆/chips 不出现,键条默认在场;
+ * - 双入口:胶囊条左 [相册 Images] + [拍照 Camera] 并排(aria 相册选图/拍照上传);
  * - 有内容(文字或纯图同权):发送蓝圆顶替加号;
  * - 挂图态:缩略卡 + ✕ + 「再加一张」瓷砖 + 三条提示 chips(参考图文案);
+ * - 上传中(pending):原图即时 pending 卡(转圈遮罩)上屏;期间发送钮禁用
+ *   (防文字先发图片落单);仅 pending 无挂图时不出现 chips;
+ * - 错误条按图源分档:album=选图失败 / camera=拍照失败;
  * - 面板四格(相册/切模型/检查点/快捷键):无 cwd 检查点置灰,快捷键格随 kbOn 点亮;
  * - CHIP_PROMPTS 标签与预填词成对(点 chip 填草稿由人确认发送)。
  */
@@ -28,11 +32,13 @@ const base = {
   onSend: () => undefined,
   sending: false,
   sendErr: false,
-  shotErr: false,
+  shotErr: null as "album" | "camera" | null,
   onRetry: () => undefined,
   shots: [] as { path: string; url: string }[],
+  pending: null as string | null,
   shotBusy: false,
   onShot: () => undefined,
+  onPhoto: () => undefined,
   onRemoveShot: () => undefined,
   onPreview: () => undefined,
   ckptReady: true,
@@ -57,6 +63,12 @@ describe("三态胶囊 composer 渲染契约", () => {
     expect(html).toContain("keybar");
   });
 
+  it("双入口:相册选图与拍照上传两钮并排在胶囊条左", () => {
+    const html = render();
+    expect(html).toContain("相册选图");
+    expect(html).toContain("拍照上传");
+  });
+
   it("有内容即出发送蓝圆:文字稿与纯图同权", () => {
     expect(render({ draft: "hi" })).toContain("cp-send");
     expect(render({ shots: [shot] })).toContain("cp-send");
@@ -68,6 +80,20 @@ describe("三态胶囊 composer 渲染契约", () => {
     expect(html).toContain("cp-shot-add");
     expect(html).toContain("cp-chips");
     for (const c of CHIP_PROMPTS) expect(html).toContain(c.label);
+  });
+
+  it("上传中(pending):原图即时 pending 卡上屏,发送钮禁用,chips 不出现", () => {
+    const html = render({ draft: "hi", pending: "blob:p" });
+    expect(html).toContain('class="shot pending"');
+    expect(html).toContain('src="blob:p"');
+    expect(html).toContain("上传中");
+    expect(html).toContain('aria-label="发送" disabled'); /* 上传中禁发:防图未挂完先发 */
+    expect(html).not.toContain("cp-chips");
+  });
+
+  it("错误条按图源分档:album 选图失败 / camera 拍照失败", () => {
+    expect(render({ shotErr: "album" })).toContain("选图失败,请重试");
+    expect(render({ shotErr: "camera" })).toContain("拍照失败,请重试");
   });
 
   it("CHIP_PROMPTS 标签与预填词成对,顺序同参考图", () => {

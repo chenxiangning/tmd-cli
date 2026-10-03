@@ -75,6 +75,9 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       /* 选图直连(见 pickImage):iOS 18.4 前的 WKUIDelegate 文件面板缺失,
          <input type=file> 低版本是静默死钮 —— 按钮不再走 input。 */
       pickImage(id: id)
+    case "takePhoto":
+      /* 拍照直连(见 takePhoto):相机拍摄上传,回传链路与 pickImage 同构。 */
+      takePhoto(id: id)
     default:
       reply(id: id, ok: false, payload: "unknown method \(method)")
     }
@@ -110,6 +113,43 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       }
     }
     activePick = relay /* 持活:防 present 后即被 ARC 释放,回调永挂 */
+    relay.present(root, picker)
+  }
+
+  /// 拍照:present 相机 UIImagePickerController(需 NSCameraUsageDescription,
+  /// 权限首启系统弹窗);拍摄原图限边 2048 转 JPEG 回 base64,回传形状与 pickImage
+  /// 同构({b64}/{cancelled});模拟器/无相机 → ok:false(JS 错误条上屏)。
+  private var activeShot: CameraRelay?
+
+  private func takePhoto(id: Int) {
+    guard let root = UIApplication.shared.connectedScenes
+      .compactMap({ $0 as? UIWindowScene })
+      .flatMap({ $0.windows })
+      .first(where: { $0.isKeyWindow })?.rootViewController else {
+      reply(id: id, ok: false, payload: "no key window"); return
+    }
+    guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+      reply(id: id, ok: false, payload: "相机不可用(模拟器或权限被拒)")
+      return
+    }
+    let picker = UIImagePickerController()
+    picker.sourceType = .camera
+    picker.modalPresentationStyle = .fullScreen /* 相机页必须全屏,卡片式呈现异常 */
+    let relay = CameraRelay()
+    relay.onDone = { [weak self] data, reason in
+      self?.activeShot = nil
+      if let data {
+        let b64 = data.base64EncodedString()
+        ShellLog.write("shot: reply b64 \(b64.count) chars")
+        self?.reply(id: id, ok: true, payload: ["b64": b64])
+      } else if reason == "cancelled" {
+        ShellLog.write("shot: user cancelled")
+        self?.reply(id: id, ok: true, payload: ["cancelled": true])
+      } else {
+        self?.reply(id: id, ok: false, payload: reason ?? "拍照失败")
+      }
+    }
+    activeShot = relay /* 持活:契约同 activePick,present 后防 ARC 提前释放 */
     relay.present(root, picker)
   }
 
@@ -408,5 +448,65 @@ final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
     let props: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: 0.9]
     CGImageDestinationAddImage(dst, img, props as CFDictionary)
     return CGImageDestinationFinalize(dst) ? out as Data : nil
+  }
+}
+
+/// 相机拍摄 relay:present UIImagePickerController → originalImage 限边 2048
+/// 转 JPEG(Data 恰一次回传;取消/失败/解不出统一经 finish 收口,契约同
+/// FilePanelRelay —— completionHandler 恰一次是 WebKit 应答的底线)。
+/// draw(in:) 按 imageOrientation 转正(竖拍),renderer scale=1 防Retina 屏放大。
+final class CameraRelay: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+  /* data=nil 且 reason=nil = 用户取消;reason 非空 = 失败(JS 上屏,不再静默)。 */
+  var onDone: ((Data?, String?) -> Void)?
+  private var done = false
+
+  func present(_ root: UIViewController, _ picker: UIImagePickerController) {
+    picker.delegate = self
+    root.present(picker, animated: true)
+  }
+
+  func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+    picker.dismiss(animated: true)
+    ShellLog.write("shot: user cancelled picker")
+    finish(nil, reason: nil, cancelled: true)
+  }
+
+  func imagePickerController(
+    _ picker: UIImagePickerController,
+    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+  ) {
+    picker.dismiss(animated: true)
+    guard !done else { return }
+    guard let image = info[.originalImage] as? UIImage else {
+      finish(nil, reason: "相机未返回图像")
+      return
+    }
+    guard let data = Self.jpegData(from: image), !data.isEmpty else {
+      ShellLog.write("shot: encode failed")
+      finish(nil, reason: "照片编码失败")
+      return
+    }
+    ShellLog.write("shot: jpeg \(data.count)B")
+    finish(data, reason: nil)
+  }
+
+  private func finish(_ data: Data?, reason: String? = nil, cancelled: Bool = false) {
+    guard !done else { return }
+    done = true
+    onDone?(data, cancelled ? "cancelled" : reason)
+    onDone = nil
+  }
+
+  /// UIImage → 限边 2048 JPEG(参数与 FilePanelRelay.jpegData 同闸:JS 侧
+  /// shrinkImage 1568 再压一道,双闸省内存)。
+  private static func jpegData(from image: UIImage) -> Data? {
+    let maxEdge: CGFloat = 2048
+    let scale = min(1, maxEdge / max(image.size.width, image.size.height))
+    let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    return UIGraphicsImageRenderer(size: size, format: format)
+      .image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+      .jpegData(compressionQuality: 0.9)
   }
 }
