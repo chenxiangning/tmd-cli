@@ -56,7 +56,8 @@ function clockOf(d: Date): string {
  * method 非 confirm(select/input/editor 等真交互部件)时,RPC 模式无人可答,
  * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
  * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)不经此函数,走
- * reducer.chromeCancel 聚合;缺 id 的畸形帧不产(无处应答也无从示警)。 */
+ * reducer.chromeCancel 聚合;缺 id 的畸形帧不产(无处应答也无从示警;调用侧
+ * 已将数值 id 归一为字符串,见 normWidgetFrameId)。 */
 export function widgetCancelledNotice(
   rec: Record<string, unknown>,
   now: Date = new Date(),
@@ -82,6 +83,14 @@ const CHROME_WIDGET_KINDS = new Set(["setStatus", "notify", "setWidget"]);
 /** 部件分档(纯函数,单测钉死):chrome = TUI 装饰,interactive = 其余一切。 */
 export function widgetTier(kind: string): "chrome" | "interactive" {
   return CHROME_WIDGET_KINDS.has(kind) ? "chrome" : "interactive";
+}
+
+/** 部件帧 id 归一:字符串原样、有限数字转字符串(JSON-RPC id 按协议可为数字,
+ * confirm 路同律;2026-10-03 范围评审实锤:字符串守卫会把数值 id 帧静默丢弃,
+ * 无应答可挂轮),其余返空 = 真畸形,不产。 */
+function normWidgetFrameId(v: unknown): string {
+  if (typeof v === "string" && v) return v;
+  return typeof v === "number" && Number.isFinite(v) ? String(v) : "";
 }
 
 export class PiRpcSession {
@@ -215,15 +224,16 @@ export class PiRpcSession {
         }
         /* select/input/editor 等部件:取消以免挂轮(monocode 同律),协议应答
          * 两档照发,只改展示面——chrome 装饰类聚合一处,真交互与未知 kind
-         * 逐条 notice(不再无声替答);缺 id/method 的畸形帧不产。 */
+         * 逐条 notice(不再无声替答);id 经 normWidgetFrameId 归一(数值 id
+         * 不再被静默丢弃),缺 id/method 的畸形帧不产。 */
         const kind = rec.method;
-        const frameId = rec.id;
-        if (typeof kind !== "string" || !kind || typeof frameId !== "string" || !frameId) return;
-        void this.raw({ type: "extension_ui_response", id: frameId, cancelled: true }).catch(() => undefined);
+        const fid = normWidgetFrameId(rec.id);
+        if (typeof kind !== "string" || !kind || !fid) return;
+        void this.raw({ type: "extension_ui_response", id: fid, cancelled: true }).catch(() => undefined);
         if (widgetTier(kind) === "chrome") {
           this.handlers.onBlocks(this.reducer.chromeCancel(kind, clockOf(new Date())), this.reducer.turnStart);
         } else {
-          const widget = widgetCancelledNotice(rec);
+          const widget = widgetCancelledNotice({ ...rec, id: fid });
           if (widget) this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart);
         }
         return;

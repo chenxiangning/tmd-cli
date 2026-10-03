@@ -156,7 +156,12 @@ export class PiRpcReducer {
         ...parsed,
         ...(fallbackText ? [fallbackText] : []),
       ];
-      this.settled = [...this.settled.slice(0, live.at), ...merged];
+      /* 权威落定只替换流内消息段,尾部保序拼接:live.at 之后流内追加的
+       * notice/chrome 聚合块不再被截掉(2026-10-03 范围评审实锤:旧
+       * slice(0, live.at) 会静默吞掉它们,而 spec 自述「setStatus 轮次中
+       * 也会来」,该窗口真实可达;assistant 无 settled 占位,live.at 之后
+       * 即流内追加块)。 */
+      this.settled = [...this.settled.slice(0, live.at), ...merged, ...this.settled.slice(live.at)];
     }
     this.rebuild();
   }

@@ -76,6 +76,11 @@ describe("widgetTier 部件分档", () => {
 });
 
 describe("chrome 部件聚合降噪", () => {
+  beforeEach(() => {
+    writes.length = 0;
+    listeners.clear();
+  });
+
   it("chrome 五连取消并成一条聚合行(×N 明细原地刷新),被 select 隔开后新开一条", async () => {
     let blocks: { id: string; role: string; text: string }[] = [];
     const s = new PiRpcSession({ command: "omp" }, "/ws", {
@@ -114,6 +119,76 @@ describe("chrome 部件聚合降噪", () => {
     expect(blocks.length).toBe(3);
     expect(blocks[2].text).toContain("×1(setStatus");
     expect(blocks[0].text).toContain("×5"); // 旧行不被刷新
+    s.kill();
+  });
+
+  it("流内 chrome 取消聚合行不被 message_end 权威落定截掉(2026-10-03 评审实锤回归)", async () => {
+    let blocks: { id: string; role: string; text: string }[] = [];
+    const s = new PiRpcSession({ command: "omp" }, "/ws", {
+      onBlocks: (next) => {
+        blocks = next.map((b) => ({ id: b.id, role: b.role, text: b.text }));
+      },
+      onBusy: () => undefined,
+      onConfirm: () => undefined,
+      onExit: () => undefined,
+      onError: () => undefined,
+    });
+    const started = s.start();
+    await vi.waitUntil(() => writes.some((w) => w.includes("get_state")));
+    frame({ type: "response", id: "tmd-1", success: true, data: {} });
+    await started;
+    /* assistant 流内来一条 setStatus(轮次中也会来,spec 自述):聚合行落消息中段 */
+    frame({ type: "message_start", message: { role: "assistant", content: [] } });
+    frame({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "草稿" } });
+    frame({ type: "extension_ui_request", method: "setStatus", id: "m1" });
+    frame({ type: "message_end", id: "e1", message: { role: "assistant", content: [{ type: "text", text: "答案" }] } });
+    const agg = blocks.findIndex((b) => b.role === "system");
+    const ans = blocks.findIndex((b) => b.role === "assistant");
+    expect(agg).toBeGreaterThanOrEqual(0);
+    expect(ans).toBeGreaterThanOrEqual(0);
+    expect(blocks[agg].text).toContain("×1(setStatus");
+    /* assistant 落定文本 = 流内 delta 兜底(endMsg 权威解析缺 event.id 恒空,
+     * 先于本批的留观项,见 docs/review/2026-10-03-v0.2.9-range-review.md)。 */
+    expect(blocks[ans].text).toBe("草稿");
+    expect(agg).toBeGreaterThan(ans); // 聚合行保序在消息块之后,不被截掉
+    s.kill();
+  });
+});
+
+describe("部件帧 id 归一(数值型宽容)", () => {
+  beforeEach(() => {
+    writes.length = 0;
+    listeners.clear();
+  });
+
+  it("数值 id 的真交互部件帧:归一后照答 cancelled 并逐条 notice,不再静默丢弃挂轮", async () => {
+    const notices: string[] = [];
+    const s = new PiRpcSession({ command: "omp" }, "/ws", {
+      onBlocks: (next) => {
+        for (const b of next) if (b.role === "system" && !notices.includes(b.text)) notices.push(b.text);
+      },
+      onBusy: () => undefined,
+      onConfirm: () => undefined,
+      onExit: () => undefined,
+      onError: () => undefined,
+    });
+    const started = s.start();
+    await vi.waitUntil(() => writes.some((w) => w.includes("get_state")));
+    frame({ type: "response", id: "tmd-1", success: true, data: {} });
+    await started;
+    frame({ type: "extension_ui_request", method: "select", id: 42 });
+    await vi.waitUntil(() => writes.some((w) => w.includes('"id":"42"')));
+    expect(writes.some((w) => w.includes('"id":"42"') && w.includes('"cancelled":true'))).toBe(true);
+    expect(notices.some((x) => x.includes("CLI 发起 select 交互"))).toBe(true);
+    s.kill();
+  });
+
+  it("缺 id / null id 的畸形帧:仍不产应答", async () => {
+    const s = await boot();
+    const wCount = writes.length;
+    frame({ type: "extension_ui_request", method: "select" });
+    frame({ type: "extension_ui_request", method: "select", id: null });
+    expect(writes.length).toBe(wCount);
     s.kill();
   });
 });
