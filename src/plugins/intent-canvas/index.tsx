@@ -77,7 +77,6 @@ export const intentCanvasPlugin: Plugin = {
       label: t("意图画布"),
       icon: Compass,
       order: 14, /* 会话组末席(session:标记/审批线/审批/画布) */
-      defaultPinned: true,
       railGroup: "session",
       /* rail 直挂:进侧栏钉住清单,⋯ 管理面板可勾选显隐(与内置终端/WSL 同款)。 */
       rail: true,

@@ -1,8 +1,8 @@
 /**
  * 会话看板覆盖层 —— overlay 挂点贡献,与插件市场同款切换效果:
  * 不透明盖住 titlebar 之下主区(下层保持挂载,会话现场/分栏零回放),
- * titlebar 左侧看板按钮(高亮态)或 Esc 收起。
- * BoardTab 自带工具栏/月历/日视图,这里只补覆盖壳。
+ * 左 rail 看板钮(2026-10-04 迁入,被本覆盖层盖住)、工具条 × 或 Esc 收起。
+ * BoardTab 自带工具栏/月历/日视图,这里只补覆盖壳 + Esc 链。
  */
 import { useEffect, useSyncExternalStore } from "react";
 import { BoardTab } from "./BoardTab";

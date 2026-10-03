@@ -1,11 +1,9 @@
 // AppShell 头部 titlebar(三区布局 + Windows 自绘窗口控件),自 AppShell.tsx 按「纯结构拆分、行为不变」拆出
-import { Tray, Plug, CaretLineLeft, CaretLineRight } from "@phosphor-icons/react";
-import { DecorIcon } from "@kernel/iconSet";
+import { CaretLineLeft, CaretLineRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { windowClose, windowMinimize, windowToggleMaximize } from "@kernel/ipc";
 import { Mounts } from "@kernel/Mounts";
 import { usePlatformKind } from "@kernel/platform";
-import { toggleHomeSession } from "./shortcutCommands";
 import { TitlebarBranchLabel, WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 /** macOS 用原生左侧 traffic lights,Windows 自绘右侧按钮组;窗口控制经 kernel/ipc 薄封装。 */
@@ -30,67 +28,37 @@ function WindowControls() {
 
 /**
  * 头部 —— codemoss 风格 33px titlebar,横向三区与下方三栏边界对齐:
- * - 左区:与左侧栏同宽(leftWidth 实测);macOS 红绿灯 inset 在左,折叠左栏按钮钉在左区最右缘
+ * - 左区:左缘 rail 宽 + 左侧栏宽(实测);macOS 红绿灯 inset 在左,折叠左栏按钮钉在左区最右缘
  * - 中区:会话/编辑 tab 条靠左,占据剩余宽度
  * - 右区:与右侧栏同宽(rightWidth 实测);折叠右栏按钮钉在右区最左缘,其余 icons 保持右对齐
+ * 插件市场/回到首页/会话看板入口已迁左缘 LeftRail(2026-10-04 用户口径),
+ * 顶栏左区只留插件挂点(header.leftCluster)+ 折叠左栏。
  */
 export function TopBar({
   onToggleLeft,
   onToggleRight,
   leftOpen,
   rightOpen,
-  marketOpen,
-  onToggleMarket,
 }: {
   onToggleLeft: () => void;
   onToggleRight: () => void;
   leftOpen: boolean;
   rightOpen: boolean;
-  marketOpen: boolean;
-  onToggleMarket: () => void;
 }) {
   const platform = usePlatformKind();
-  /* 回首页按钮 = 固定身份的纯 toggle:永远显示「回到首页」,点一下开首页,
-     再点一下切回打开首页之前的会话(toggle 记忆在 shortcutCommands);
-     市场覆盖层盖着首页,回首页前先收掉,否则切换在底下发生屏上无变化。 */
-  const goHome = () => {
-    if (marketOpen) onToggleMarket();
-    toggleHomeSession();
-  };
   return (
     <header className="titlebar" data-tauri-drag-region>
-      {/* 左区域:与左侧栏同宽,折叠左栏按钮钉在左区最右缘(+4px 吞掉分隔手柄,与栏边界对齐) */}
+      {/* 左区域:左缘 rail 宽 + 左侧栏宽(实测),折叠左栏按钮钉在左区最右缘
+          (+4px 吞掉分隔手柄,与栏边界对齐;rail 常驻,公式恒含其宽) */}
       <div
         className={`titlebar-zone-left${leftOpen ? " is-expanded" : ""}`}
         data-tauri-drag-region
-        style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + 4px)" } : undefined}
+        style={leftOpen ? { width: "calc(var(--tmd-left-aside-w) + var(--tmd-rail-w) + 4px)" } : undefined}
       >
         {platform === "macos" ? <div className="titlebar-leading" aria-hidden /> : null}
-        {/* 插件贡献的左区按钮簇(会话看板/远程控制徽标等):经 activate(ctx) 挂点登记 */}
+        {/* 插件贡献的左区按钮簇(远程控制徽标等):经 activate(ctx) 挂点登记;
+            会话看板/插件市场/回到首页已迁左缘 LeftRail(2026-10-04) */}
         <Mounts point="header.leftCluster" />
-        {/* 插件市场(插排页):整页替换下方三栏,再点或页内关闭即回 */}
-        <button
-          type="button"
-          className={`titlebar-action${marketOpen ? " is-active" : ""}`}
-          aria-label={t("插件市场")}
-          data-hint={t("插件市场")}
-          data-hint-cmd="shell.openMarket"
-          title=""
-          onClick={onToggleMarket}
-        >
-          <DecorIcon id="market" Fallback={Plug} size="0.875rem" aria-hidden data-action-id="market" />
-        </button>
-        <button
-          type="button"
-          className="titlebar-action"
-          aria-label={t("回到首页")}
-          data-hint={t("回到首页")}
-          data-hint-cmd="shell.goHome"
-          title=""
-          onClick={goHome}
-        >
-          <DecorIcon id="home" Fallback={Tray} size="0.875rem" aria-hidden data-action-id="home" />
-        </button>
         <button
           type="button"
           className="titlebar-action"

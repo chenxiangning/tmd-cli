@@ -29,19 +29,35 @@ export interface SidebarAction {
   /** 底栏默认钉住(壳层无用户钉住数据时回落用;归属插件自声明)。 */
   defaultPinned?: boolean;
   /** 激活态(开关/面板已开类动作);渲染期求值,缺省 = 恒不激活。
-   *  响应性随宿主组件重渲染(设置变更等),不自建订阅。 */
+   *  响应性随宿主组件重渲染:设置驱动类由宿主订阅 settings(先例
+   *  SidebarSettingsCluster/PanelRail);私有 store 驱动类经 subscribeActive
+   *  自声明通知(2026-10-04,先例 session-board 左 rail 钮),壳不自建猜测。 */
   active?: () => boolean;
+  /** active() 变更通知(可选):cb 触发宿主重渲、退订返回清理函数。
+   *  声明它的动作,宿主(左 rail 等)统一订阅驱动 active 重求值。 */
+  subscribeActive?: (cb: () => void) => () => void;
   /** 触发动作;anchor = 触发簇右缘锚点坐标(浮层类动作的定位参考);
    *  mods = 触发修饰键(rail 钮透传,如内置终端 ⌥/⌘/Ctrl 点击强制新建)。 */
   onSelect: (anchor: { x: number; y: number }, mods?: { altKey: boolean; metaKey: boolean; ctrlKey: boolean }) => void;
   /** 直挂右缘 PanelRail(2026-09-27):不进左下设置菜单、不进底栏钉住,
    *  由 rail 渲染为图标钮(active() 驱动点亮态)。归属插件自声明。 */
   rail?: boolean;
+  /** 直挂左缘 LeftRail(2026-10-04):不进左下设置菜单、不进底栏钉住,
+   *  由左 rail 渲染为图标钮。与 rail 的差异:左 rail 注册即常显 —— 无钉住
+   *  外显、无 ⋯ 溢出管理(条目多了再议);rail 与 leftRail 不得同时声明
+   *  (一个动作只住一处)。归属插件自声明。 */
+  leftRail?: boolean;
+  /** 钉到左 rail 底部簇(与右 rail 的 railBottom 同语义):排序不变。 */
+  leftRailBottom?: boolean;
   /** rail 分组(与 registerFilePanel.railGroup 同契约):与面板统一排序后,
    *  相邻两组之间画分隔线;缺省 = 不分组。 */
   railGroup?: string;
   /** 钉到 rail 底部簇(与 ⋯ 管理钮同挂 flex 空隙之后):排序/分组语义不变。 */
   railBottom?: boolean;
+  /** 一次性补钉(仅 rail 动作有效,FilePanelContribution.pinOnce 同语义):
+   *  存量钉住清单先于动作存在时新 id 落 ⋯ 菜单不可见;自动钉一次并留痕,
+   *  手动取消钉后不复活。入口迁移类动作用(先例 system-proxy 2026-10-04)。 */
+  pinOnce?: boolean;
   /** 动作内容在中央区(打开中央 tab 类):rail/菜单触发后折叠右栏让位中央内容。
    *  终端等幕布/浮层类动作不声明,保持原样。 */
   opensCenterTab?: boolean;
@@ -51,17 +67,21 @@ const state: { actions: readonly SidebarAction[] } = { actions: [] };
 
 const store = createSubscribable(state);
 
-/** 注册侧栏动作(插件 activate 内调用)。重复 id 抛错,与 registerFilePanel 同纪律。 */
+/** 注册侧栏动作(插件 activate 内调用)。重复 id 或同时声明 rail+leftRail
+ *  抛错(一个动作只住一处),与 registerFilePanel 同纪律。 */
 export function registerSidebarAction(action: SidebarAction): void {
   if (state.actions.some((a) => a.id === action.id)) {
     throw new Error(`侧栏动作重复注册: ${action.id}`);
+  }
+  if (action.rail && action.leftRail) {
+    throw new Error(`侧栏动作不得同时挂左右 rail: ${action.id}`);
   }
   state.actions = [...state.actions, action].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
   );
   /* rail 直挂动作与右栏面板共用同一份钉住清单:登记即按同规则入钉,
      ⋯ 菜单可勾选,外显 = 钉住 ∪ 激活(见 PanelRail)。 */
-  if (action.rail) registerRailActionPin(action.id);
+  if (action.rail) registerRailActionPin(action.id, true, action.pinOnce ?? false);
   store.commit({ actions: state.actions });
 }
 

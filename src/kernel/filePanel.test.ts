@@ -139,3 +139,61 @@ describe("钉住持久化(localStorage)", () => {
     expect(panel.getPinnedPanelIds()).toEqual(["files"]);
   });
 });
+
+describe("registerRailActionPin pinOnce(一次性补钉)", () => {
+  it("存量清单无此 id 时自动钉一次,合并写不截断未注册项", async () => {
+    /* 入口迁移场景:tmd.filePanel.pinned.v1 先于动作存在,缺 id 本应不钉;
+     * pinOnce 补钉 + autopin marker 留痕。写盘必须是「原清单 ∪ {id}」——
+     * 插件串行激活,此刻 memory 面板尚未注册,全量覆写会截断丢钉(P0 回归锁)。 */
+    const store = stubLocalStorage({ "tmd.filePanel.pinned.v1": JSON.stringify(["files", "memory"]) });
+    vi.resetModules();
+    panel = await import("./filePanel");
+    panel.registerRailActionPin("system-proxy", true, true);
+    /* state 快照只含本会话已注册项(此刻只补钉动作自身);写盘才是全量合并。 */
+    expect(panel.getPinnedPanelIds()).toEqual(["system-proxy"]);
+    expect(JSON.parse(store.get("tmd.filePanel.pinned.v1") ?? "null")).toEqual(["files", "memory", "system-proxy"]);
+    expect(store.get("tmd.filePanel.autopin.system-proxy")).toBe("1");
+  });
+
+  it("手动取消钉住后重注册不复活(marker 拦截)", async () => {
+    const store = stubLocalStorage({ "tmd.filePanel.pinned.v1": JSON.stringify(["files"]) });
+    vi.resetModules();
+    panel = await import("./filePanel");
+    panel.registerFilePanel(contribution("files")); /* 注册后才入 state 快照 */
+    panel.registerRailActionPin("system-proxy", true, true);
+    panel.togglePinned("system-proxy"); /* 用户手动取消 */
+    expect(panel.getPinnedPanelIds()).toEqual(["files"]);
+    /* 重启(全新模块实例)再注册:persisted 清单无 id 且 marker 已留痕 → 不复活。 */
+    vi.resetModules();
+    panel = await import("./filePanel");
+    panel.registerFilePanel(contribution("files"));
+    panel.registerRailActionPin("system-proxy", true, true);
+    expect(panel.getPinnedPanelIds()).toEqual(["files"]);
+    expect(JSON.parse(store.get("tmd.filePanel.pinned.v1") ?? "null")).toEqual(["files"]);
+  });
+  it("新装无清单:补钉只入 state 不落盘,默认钉播种不受污染", async () => {
+    /* persisted 缺时写 key 会让清单转权威,其它面板 pinnedByDefault 全灭;
+     * 且 marker 先行 —— 本会话取消钉(落盘)后,下次启动不复活(P1 回归锁)。 */
+    const store = stubLocalStorage();
+    vi.resetModules();
+    panel = await import("./filePanel");
+    panel.registerRailActionPin("system-proxy", true, true);
+    expect(panel.getPinnedPanelIds()).toEqual(["system-proxy"]);
+    expect(store.get("tmd.filePanel.pinned.v1")).toBeUndefined();
+    panel.togglePinned("system-proxy"); /* 取消 → 首次落盘 */
+    vi.resetModules();
+    panel = await import("./filePanel");
+    panel.registerFilePanel(contribution("files")); /* 清单在 → 权威,默认钉失效 */
+    panel.registerRailActionPin("system-proxy", true, true); /* marker 拦截,不复活 */
+    expect(panel.getPinnedPanelIds()).toEqual([]);
+  });
+
+  it("pinOnce 缺省 false:存量清单无 id 不补钉", async () => {
+    stubLocalStorage({ "tmd.filePanel.pinned.v1": JSON.stringify(["files"]) });
+    vi.resetModules();
+    panel = await import("./filePanel");
+    panel.registerFilePanel(contribution("files"));
+    panel.registerRailActionPin("terminal");
+    expect(panel.getPinnedPanelIds()).toEqual(["files"]);
+  });
+});

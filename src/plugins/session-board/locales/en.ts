@@ -44,6 +44,7 @@ export const MESSAGES_EN = {
   "底点 = 主引擎": "dots = top engines",
   "点击折叠/展开本列(跨日保持)": "Click to collapse/expand this lane (persists across days)",
   "会话看板": "Session board",
+  "关闭看板": "Close session board",
   /* DayPanel 键盘提示(2026-10 i18n 收口) */
   "逐日": "day by day",
 } as Record<string, string>;

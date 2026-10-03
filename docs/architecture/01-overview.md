@@ -8,11 +8,11 @@
 
 | 区域 | 第一版职责 |
 |---|---|
-| 头部工具栏 | 三区布局(左区按钮簇/中区会话与编辑 tab 条/右区非面板动作);面板入口已迁右缘竖排 rail(2026-09-27) |
-| 左侧栏 | 统一搜索折叠入口置顶 → 学堂 → 工作区 + 会话列表；会话是主入口；同仓 worktree 卡归簇共框 |
+| 头部工具栏 | 三区布局(左区挂点按钮簇+折叠钮/中区会话与编辑 tab 条/右区工作区切换器+折叠钮);面板入口已迁右缘竖排 rail(2026-09-27),看板/市场/回首页入口已迁左缘 rail(2026-10-04) |
+| 左侧栏 + 左缘 rail | 左缘竖排工具 rail(2026-10-04,右缘镜像):顶簇 会话看板〔插件 sidebarActions.leftRail 直挂〕/ 插件市场 / 回到首页 / 工作区切换;左侧栏 = 统一搜索折叠入口置顶 → 学堂 → 工作区 + 会话列表(会话是主入口;同仓 worktree 卡归簇共框),底栏「工作区显隐」多选菜单控制左栏显示集合 |
 | 中央区 | xterm.js 幕布透传 CLI 原生 PTY 输出，零消息/Markdown/Diff 二次渲染；无会话时 welcome 首页；文件编辑器/多形态预览、批审阅单、Git 提交 diff、SSH 远端文件编辑以中央 tab 并存 |
 | Composer | 富输入：工具栏显示当前 session 的模型/思考强度（只读）；输入支持截图、拖拽文件、`$` skill、`/` common、`@` 文件/文件夹、提示词增强、跨引擎接力 |
-| 右侧栏 + 右缘 rail | 竖排面板 rail:files 文件树 / git 面板(含工作树常驻区) / marks 文件标记 / checkpoints 审批线 / approval-inbox 审批收件箱 / memory 面板 / skill-hub·mcp-hub hub 面板 / daily-journal 日志面板,钉住与 ⋯ 溢出经 rail;ssh 面板走侧栏入口(全部经 kernel/filePanel 注册表);rail 另并排侧栏快捷动作(内置终端/会话看板/意图画布等 rail 位) |
+| 右侧栏 + 右缘 rail | 竖排面板 rail:files 文件树 / git 面板(含工作树常驻区) / marks 文件标记 / checkpoints 审批线 / approval-inbox 审批收件箱 / memory 面板 / skill-hub·mcp-hub hub 面板 / daily-journal 日志面板,钉住与 ⋯ 溢出经 rail;ssh 面板走侧栏入口(全部经 kernel/filePanel 注册表);rail 另并排侧栏快捷动作(内置终端/意图画布 rail 位,网络代理底簇;会话看板 2026-10-04 迁左缘 rail) |
 
 ## 2. 分层
 

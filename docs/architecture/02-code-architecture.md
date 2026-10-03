@@ -15,7 +15,7 @@ flowchart TB
         subgraph SHELL["app-shell/（宿主外壳）"]
             APPSHELL["AppShell.tsx<br/>三栏可拖布局 + 顶/底栏<br/>Mounts(point) 渲染挂点"]
             CONTRIB["contributions.tsx<br/>默认 UI：SessionList / Breadcrumb / TopTabs"]
-            SHELLX["app-shell 组件群:EditorCenter(文件预览面板) · SessionTabBar(顶栏会话 tab)<br/>TabContextMenu · editorMaximized · PanelRail(右缘竖排面板入口,2026-09-27 起)<br/>RightPanelToolbar(顶栏右区非面板动作) · SidebarSettingsCluster"]
+            SHELLX["app-shell 组件群:EditorCenter(文件预览面板) · SessionTabBar(顶栏会话 tab)<br/>TabContextMenu · editorMaximized · PanelRail(右缘竖排面板入口,2026-09-27 起)<br/>LeftRail(左缘竖排入口,2026-10-04 起:插件 sidebarActions.leftRail 动作 + 壳自有<br/>市场/回首页/工作区切换) · SidebarSettingsCluster(左下设置簇 + 工作区显隐多选)<br/>zoomCommands(⌘+/⌘−/⌘0 界面缩放键位)"]
         end
 
         subgraph KERNEL["kernel/（内核，不 import 任何插件）"]
@@ -461,7 +461,7 @@ subgraph MOUNT["MountPoint（plugin.ts 定义的 17 个挂点)"]
     P_SVIEW2["session-viewer 插件"] -->|"活会话转录浮层"| ECO
     P_SVIEW2 -->|"结构化视图切换钮<br/>(刷新钮收尾最右)"| TCR
     P_FILES2 & P_SSH2 -->|"kind= file / ssh-file"| TABRT
-    Note2["右栏面板并列 tab(files/git/marks/checkpoints/approval-inbox/memory/<br/>skill-hub/mcp-hub/daily-journal/ssh)<br/>不走挂点:经 ctx.registerFilePanel(kernel/filePanel 注册表),<br/>入口渲染 = 右缘 PanelRail(2026-09-27,钉住∪激活 + ⋯ 溢出 + rail 位侧栏动作)"]
+    Note2["右栏面板并列 tab(files/git/marks/checkpoints/approval-inbox/memory/<br/>skill-hub/mcp-hub/daily-journal/ssh)<br/>不走挂点:经 ctx.registerFilePanel(kernel/filePanel 注册表),<br/>入口渲染 = 右缘 PanelRail(2026-09-27,钉住∪激活 + ⋯ 溢出 + rail 位侧栏动作);<br/>左缘 LeftRail(2026-10-04)镜像入口 = leftRail 位侧栏动作(注册即常显、无钉住)<br/>+ 壳自有市场/回首页/工作区切换,顶簇/底簇两段"]
 
     Note["Mounts 是 kernel 公共渲染器；<br/>挂点按 order 升序渲染；<br/>composer.statusBar 已承载只读模型/思考强度工具栏；<br/>设置面板 section 经 ctx.registerSettingsSection 注册"]
 ```
@@ -654,7 +654,7 @@ sessionExited → checkpoint_seal(兜底,最后一轮落账)
 
 ## 10. 已知缺口（代码现状，非设计意图）
 
-- 挂点准入纪律:只声明外壳真的渲染的位点(footer.*/leftRail/rightRail 死插座已于 2026-09-05 审查删除);`overlay` 由 settings / network-proxy / ssh / wallpaper / search / session-board / lsp / academy / session-relay / session-search / checkpoints(窄屏摘要)贡献。
+- 挂点准入纪律:只声明外壳真的渲染的位点(footer.*/leftRail/rightRail 死插座已于 2026-09-05 审查删除;2026-10-04 注:左缘工具 rail 不是挂点复活 —— 插件入口经 sidebarActions 注册面的 leftRail/leftRailBottom 字段直挂、壳自有功能壳自渲染,挂点表保持 17 个不变);`overlay` 由 settings / network-proxy / ssh / wallpaper / search / session-board / lsp / academy / session-relay / session-search / checkpoints(窄屏摘要)贡献。
 - CLI 凭据盘点未覆盖 kimi/qoder/qoder-cn（`welcome/credentials.ts` 分支仅 omp/pi/codex/claude/grok/opencode）。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
 - `composer` 命令抽屉已归档(openspec archive/2026-09-02-composer-command-drawer,v0.1.2 起在产);mobile M2 代码已落地、真机验收余 8 项(钥匙串重启免重配 / ask 应答链 / 发送链 / 锁屏通知 / 双端点竞速等,task 板在案;7.4 代码半边竞速矩阵单测已随 v0.2.5 补位)。

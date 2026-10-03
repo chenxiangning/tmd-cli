@@ -61,6 +61,13 @@
   color: var(--tmd-fg);
 }
 
+/* 页头左端 ×(覆盖层盖住左 rail 后的顺手关闭位,2026-10-04):baseline 行内
+ * 按钮自对齐居中,与标题留一小口距。 */
+.pm-close-lead {
+  align-self: center;
+  margin-right: 2px;
+}
+
 /* ═══ 插排场景 ═══ */
 
 .pm-strip-scene {

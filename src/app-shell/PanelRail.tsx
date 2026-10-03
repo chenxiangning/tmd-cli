@@ -9,12 +9,13 @@
  * 抽屉式贴图标左缘滑出(kernel/Tooltip 的 left 放置模式),不再远距离弹窗。
  */
 
-import { Fragment, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment, useEffect, useMemo, useReducer, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, DotsThree } from "@phosphor-icons/react";
 import { togglePinned, useFilePanel, type FilePanelContribution } from "@kernel/filePanel";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { useHost } from "@kernel/host";
+import { useSettingsState } from "@kernel/settings";
 import { DecorIcon } from "@kernel/iconSet";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
@@ -48,9 +49,19 @@ export function PanelRail({
 }) {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
-  const railActions = useSidebarActions().filter((a) => a.rail);
+  /* registry 快照身份稳定;filter 结果 memo 钉住引用,下方订阅 effect 不空转。 */
+  const registry = useSidebarActions();
+  const railActions = useMemo(() => registry.filter((a) => a.rail), [registry]);
+  /* active 宿主重渲义务(sidebarActions 契约,与 LeftRail 同纪律):
+   * 私有 store 驱动类动作经 subscribeActive 统一订阅(现无住户,迁来即生效)。 */
+  const [, bumpActive] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    const offs = railActions.map((a) => a.subscribeActive?.(bumpActive));
+    return () => offs.forEach((off) => off?.());
+  }, [railActions]);
   useEditorTabs(); /* rail 直挂动作 active() 靠中央 tab 态(WSL),订阅保重渲 */
   useHost(); /* 同上,内置终端 active() 靠活跃会话态,订阅保重渲 */
+  useSettingsState(); /* 同上,网络代理 active() 靠 settings 开关态(2026-10-04 迁入) */
   /* 外显动作 = 钉住 ∪ 激活(与面板 tab 同规则;未钉可经 ⋯ 菜单勾回)。 */
   const visibleRailActions = railActions.filter(
     (a) => pinnedIds.has(a.id) || (a.active?.() ?? false),
@@ -203,7 +214,14 @@ function PanelOverflowMenu({
     <>
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
       {/* 混合选择弹层(激活按钮 + 钉选复选框),非纯 ARIA menu,不挂 menu/menuitem 角色。 */}
-      <div className="panel-overflow-menu" style={{ left: position.x, top: position.y }} role="group" aria-label={t("面板与动作")}>
+      {/* maxHeight = 视口余量:rail 动作增多后菜单高过视口,底部整段被剪
+          (2026-10-04 用户目检);改为菜单内滚动,锚定与估高夹取逻辑不动。 */}
+      <div
+        className="panel-overflow-menu"
+        style={{ left: position.x, top: position.y, maxHeight: `calc(100vh - ${position.y + 12}px)`, overflowY: "auto" }}
+        role="group"
+        aria-label={t("面板与动作")}
+      >
         {/* 面板与 rail 动作同口径并序分组;
             组间分隔线与 rail 一致,行点击语义随 kind 分流。 */}
         {mergeRailEntries(panels, railActions).map((entry, i, items) => {

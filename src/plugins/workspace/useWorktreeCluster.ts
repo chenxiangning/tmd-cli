@@ -76,6 +76,23 @@ async function probe(root: string): Promise<CacheEntry> {
   return job;
 }
 
+/** 同步读缓存(绝不 spawn git):侧栏挂载即对全部 root 预探,菜单打开时缓存必热。
+ *  供 app-shell 的工作区菜单行(底栏显隐多选/切换下拉)借用 worktree 身份选图标
+ *  —— 跨层消费声明(app-shell → @plugins/workspace,先例 DesktopApp 的挂点式引用):
+ *  簇知识与缓存归本模块,菜单只读不写;未探测过返回 null,调用方回落普通
+ *  文件夹图标,不做猜测兜底。
+ *  不设 TTL 门(2026-10-04 真窗目检二修):侧栏图标吃 hook 内 React state,
+ *  TTL 过期后照常显示 fork;菜单若因缓存过期回落文件夹,同屏两处对不上 ——
+ *  故读「最后已知簇身份」,与侧栏显示口径一致,下次探测自然纠正。 */
+export function peekWorktreeMeta(root: string): WorktreeClusterMeta | null {
+  const key = normalizeRoot(root);
+  for (const entry of cache.values()) {
+    const m = entry.members.get(key);
+    if (m) return m;
+  }
+  return null;
+}
+
 /** 侧栏传入的全部 root → 每卡的簇元数据(未加载完成前缺失键)。 */
 export function useWorktreeCluster(roots: readonly string[]): Record<string, WorktreeClusterMeta> {
   const [meta, setMeta] = useState<Record<string, WorktreeClusterMeta>>({});

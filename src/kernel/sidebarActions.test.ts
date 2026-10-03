@@ -3,7 +3,8 @@
  * registerSidebarAction 追加并按 order 升序(缺省 = 0);重复 id 抛错且注册表不变;
  * removeSidebarAction 幂等(未存在静默,且不触发订阅通知);
  * defaultPinnedActionIds 只取 defaultPinned 项;useSidebarActions 读快照,
- * 注册/移除换快照并通知订阅者;移除后原 id 可重新注册。
+ * 注册/移除换快照并通知订阅者;移除后原 id 可重新注册;
+rail 与 leftRail 不得同时声明(一个动作只住一处,双声明 fail fast)。
  * react 以最小桩替代(useSyncExternalStore 直取快照,并捕获订阅回调供断言)。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -110,5 +111,25 @@ describe("defaultPinnedActionIds", () => {
     expect(mod.defaultPinnedActionIds()).toEqual(["git"]);
     mod.removeSidebarAction("git");
     expect(mod.defaultPinnedActionIds()).toEqual([]);
+  });
+});
+
+describe("rail 位互斥(2026-10-04)", () => {
+  /* 一个动作只住一处:同时声明 rail 与 leftRail 直接抛错且注册表不变,
+   * 与重复 id 同款 fail fast;单侧声明照常注册。 */
+  it("rail+leftRail 双声明抛错,注册表不变", async () => {
+    const mod = await load();
+    expect(() =>
+      mod.registerSidebarAction({ ...actionOf("both"), rail: true, leftRail: true }),
+    ).toThrow(/不得同时挂左右 rail/);
+    expect(mod.useSidebarActions().every((a) => a.id !== "both")).toBe(true);
+  });
+
+  it("单侧 leftRail 声明照常注册", async () => {
+    const mod = await load();
+    mod.registerSidebarAction({ ...actionOf("board"), leftRail: true });
+    const a = mod.useSidebarActions().find((x) => x.id === "board");
+    expect(a?.leftRail).toBe(true);
+    expect(a?.rail).toBeUndefined();
   });
 });

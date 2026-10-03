@@ -4,7 +4,8 @@
  * 交互契约:点格开日视图、← → 逐日、Esc 收起(看板覆盖层开着时);引擎/状态 chips 过滤。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CaretLeft, CaretRight, ArrowClockwise, SquaresFour } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, ArrowClockwise, SquaresFour, X } from "@phosphor-icons/react";
+import { closeBoardOverlay } from "./boardOverlayStore";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { Empty } from "@kernel/Empty";
@@ -27,6 +28,13 @@ import { CalendarGrid, HeatLegend } from "./CalendarGrid";
 import { DayPanel } from "./DayPanel";
 import { ScanErrorBar } from "./ScanErrorBar";
 import "./session-board.css";
+
+/** 集 immutable 翻转:引擎/状态 chips 过滤共用(2026-10-04 抽出守 300 行铁则)。 */
+function toggleIn<T>(set: ReadonlySet<T>, v: T): Set<T> {
+  const next = new Set(set);
+  if (!next.delete(v)) next.add(v);
+  return next;
+}
 
 export function BoardTab() {
   const { list } = useWorkspaces();
@@ -141,6 +149,10 @@ export function BoardTab() {
   return (
     <div className="sb-root">
       <div className="sb-toolbar">
+        {/* 左上 × 收板(覆盖层盖住左 rail 后的顺手位,与市场页同位);右端 × 保留。 */}
+        <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
+          <X size="0.875rem" aria-hidden />
+        </button>
         <span className="sb-chips" role="group" aria-label={t("工作区")}>
           <button
             type="button"
@@ -213,14 +225,7 @@ export function BoardTab() {
                 style={{ "--ec": engineColor(e.id) } as React.CSSProperties}
                 aria-pressed={on}
                 title={`${e.name} · ${e.n}`}
-                onClick={() =>
-                  setEngOff((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(e.id)) next.delete(e.id);
-                    else next.add(e.id);
-                    return next;
-                  })
-                }
+                onClick={() => setEngOff(toggleIn(engOff, e.id))}
               >
                 <span className="sb-chip-dot" aria-hidden />
                 {e.name}
@@ -237,14 +242,7 @@ export function BoardTab() {
                 type="button"
                 className={`sb-chip${on ? " on" : ""}`}
                 aria-pressed={on}
-                onClick={() =>
-                  setStOff((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(key)) next.delete(key);
-                    else next.add(key);
-                    return next;
-                  })
-                }
+                onClick={() => setStOff(toggleIn(stOff, key))}
               >
                 {t(label)}
               </button>
@@ -254,8 +252,7 @@ export function BoardTab() {
         <HeatLegend />
         <span className="sb-toolbar-end">
           <span className="sb-count" title={t("未查看 = 结束未归档且 14 天内有活动")}>
-            {t("{n} 个会话", { n: filtered.length })} · {t("{n} 个未查看", { n: newCount })}
-          </span>
+            {t("{n} 个会话", { n: filtered.length })} · {t("{n} 个未查看", { n: newCount })}</span>
           <button
             type="button"
             className="sb-btn"
@@ -264,6 +261,9 @@ export function BoardTab() {
             onClick={() => setRefreshTick((v) => v + 1)}
           >
             <ArrowClockwise size="0.875rem" aria-hidden />
+          </button>
+          <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
+            <X size="0.875rem" aria-hidden />
           </button>
         </span>
       </div>

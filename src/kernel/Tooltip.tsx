@@ -6,6 +6,8 @@
  * 静态键位可直传 `data-hint-shortcut="⌘K"`,绕过命令注册表查询。
  * 贴右缘的竖条(如 PanelRail)加 `data-hint-side="left"`:气泡改用 right 锚定,
  * 右缘贴目标左缘、垂直居中,max-width 自 0 展开成抽屉式左滑(动画在 Tooltip.css)。
+ * 贴左缘的竖条(如 LeftRail)加 `data-hint-side="right"`:镜像语义,左缘贴
+ * 目标右缘、抽屉式右滑。
  *
  * 触发:mouseenter/focusin ~300ms 显示,~120ms 隐藏;mouseleave/focusout 立即清;
  * Esc 关闭;scroll/resize 重定位;靠近视口上下边自动翻向。
@@ -34,8 +36,8 @@ interface PopoverState {
   /** 浮层右缘距视口右缘的距离(仅 placement = "left" 参与 style) */
   right: number;
   y: number;
-  /** 箭头方向:bottom = 锚点下方(默认),top = 锚点上方,left = 锚点左缘贴附(抽屉) */
-  placement: "top" | "bottom" | "left";
+  /** 箭头方向:bottom = 锚点下方(默认),top = 锚点上方,left/right = 贴目标左/右缘(抽屉) */
+  placement: "top" | "bottom" | "left" | "right";
 }
 
 /**
@@ -84,8 +86,21 @@ function leftPopoverFromTarget(target: HintTarget, popH: number): PopoverState {
   };
 }
 
+/** right 贴附放置(左缘 rail 镜像):x 锚目标右缘,垂直居中 + 视口夹取同 left。 */
+function rightPopoverFromTarget(target: HintTarget, popH: number): PopoverState {
+  const rect = target.el.getBoundingClientRect();
+  return {
+    target,
+    x: rect.right + LEFT_GAP,
+    right: 0, /* right 走 x 锚定,不参与定位 */
+    y: Math.max(8, Math.min(rect.top + rect.height / 2 - popH / 2, window.innerHeight - popH - 8)),
+    placement: "right",
+  };
+}
+
 function popoverFromTarget(target: HintTarget): PopoverState {
   if (target.el.dataset.hintSide === "left") return leftPopoverFromTarget(target, LEFT_POP_H_EST);
+  if (target.el.dataset.hintSide === "right") return rightPopoverFromTarget(target, LEFT_POP_H_EST);
   const rect = target.el.getBoundingClientRect();
   const margin = 8;
   // 默认放在锚点下方,留出足够空间则不翻向
@@ -113,10 +128,10 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
   }, [state]);
 
   const bubbleRef = useRef<HTMLDivElement | null>(null);
-  /* left 贴附模式:估高与真值偏差 >2px 时按实测高再校一次垂直居中(top/bottom 路径不受影响)。 */
+  /* left/right 贴附模式:估高与真值偏差 >2px 时按实测高再校一次垂直居中(top/bottom 路径不受影响)。 */
   useLayoutEffect(() => {
     const s = state;
-    if (!s || s.placement !== "left") return;
+    if (!s || (s.placement !== "left" && s.placement !== "right")) return;
     const el = bubbleRef.current;
     if (!el) return;
     const h = el.offsetHeight;

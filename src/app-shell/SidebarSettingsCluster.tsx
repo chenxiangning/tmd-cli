@@ -1,38 +1,34 @@
 /**
- * Sidebar settings cluster —— 左下角「设置齿轮 + pinned 快捷 + 版本号」。
+ * Sidebar settings cluster —— 左下角「设置齿轮 + pinned 快捷 + 工作区显隐 + 版本号」。
  *
- * 布局（对齐参考截图）：
+ * 布局(对齐参考截图):
  *   ┌─ 上弹菜单 ──────────────┐
  *   │ (注册表动作…)        □ │  ← 右侧复选框 = pin 到底栏
  *   │ 设置                    │
  *   └────────────────────────┘
- *   [logo] [pinned…] [− 100% +]  v0.2.2  ← 底栏(缩放组 = 设置页同款 uiZoom 的便捷入口)
+ *   [logo] [pinned…] [工作区显隐]      v0.2.2  ← 底栏
  *
  * 动作数据源 = kernel/sidebarActions 注册表(插件 activate 时自注册),
  * 本组件只渲染注册表与钉住状态,不认识任何具体动作 —— 与右栏面板同纪律。
+ * 直挂 rail 的动作(right rail / left rail)不进菜单与底栏钉住。
  * 「设置」行是壳自有入口(openSettingsPanel),钉住/pin 上限 4 同 codemoss。
  * 版本号取 Tauri app version,浏览器 dev 环境回退 CHANGELOG 首条版本。
+ * 界面缩放组已隐藏(2026-10-04):⌘+/⌘−/⌘0 键位接管(zoomCommands),
+ * 数值仍走 settings.uiZoom,设置页外观卡可调。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { appVersion } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { defaultPinnedActionIds, useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { DecorIcon } from "@kernel/iconSet";
-import {
-  UI_ZOOM_DEFAULT,
-  UI_ZOOM_MAX,
-  UI_ZOOM_MIN,
-  UI_ZOOM_STEP,
-  openSettingsPanel,
-  updateSettings,
-  useSettingsState,
-} from "@kernel/settings";
+import { openSettingsPanel, useSettingsState } from "@kernel/settings";
 import logoUrl from "../assets/logo.png";
 import { Check, Gear } from "@phosphor-icons/react";
 import { VersionPopover } from "./VersionPopover";
 import { CHANGELOG_ENTRIES, isNewerVersion } from "./updateCheck";
 import { useUpdatePresence } from "./updatePresence";
+import { WorkspaceVisibilityPicker } from "./WorkspaceVisibilityPicker";
 
 /** 底栏空间有限,最多外显 4 个快捷入口(同 codemoss SIDEBAR_SETTINGS_PINNED_MAX)。 */
 const PINNED_MAX = 4;
@@ -83,13 +79,16 @@ function PinCheckbox({
 
 export function SidebarSettingsCluster() {
   const [open, setOpen] = useState(false);
+  /* 工作区显隐菜单开合态(2026-10-04):提升到簇级与齿轮菜单互斥 —— 触发钮
+   * 在本簇 rootRef 内,齿轮的点外关闭判定放行它,不互斥则同角落两层菜单叠压。 */
+  const [visOpen, setVisOpen] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<string[]>(loadPinned);
   const [version, setVersion] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [aboutAnchor, setAboutAnchor] = useState({ x: 0, y: 0 });
   /* 订阅设置:动作的 active 是渲染期求值的 getter,设置变更(如代理开关)时本簇
-     重渲、getter 重新取值;壳仅读 uiZoom 供底栏缩放组展示(写经 updateSettings)。 */
-  const { settings } = useSettingsState();
+     重渲、getter 重新取值;缩放组移除后本订阅只为 active 态重渲保留。 */
+  useSettingsState();
   const actions = useSidebarActions();
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -140,14 +139,29 @@ export function SidebarSettingsCluster() {
     return { x: (rect?.right ?? 0) + 8, y: rect?.top ?? 0 };
   };
 
-  /* 循环查表先建索引:find/includes 的 O(n) 扫描降为 O(1);rail 直挂动作不进本簇。 */
-  const actionById = new Map(actions.filter((a) => !a.rail).map((a) => [a.id, a]));
+  /* 循环查表先建索引:find/includes 的 O(n) 扫描降为 O(1);rail 直挂动作(右
+   * rail / 左 rail)不进本簇 —— 菜单与底栏钉住一并排除,一个动作只住一处。 */
+  const inCluster = (a: SidebarAction) => !a.rail && !a.leftRail;
+  const actionById = new Map(actions.filter(inCluster).map((a) => [a.id, a]));
   const pinnedSet = new Set(pinnedIds);
   const pinnedActions = pinnedIds.flatMap((id) => {
     const a = actionById.get(id);
     return a ? [a] : [];
   });
-  const atPinLimit = pinnedIds.length >= PINNED_MAX;
+  /* 迁移卫生(2026-10-04 回归审查 P1-1):钉住清单里已迁 rail/leftRail 的动作
+   * 永不在本簇渲染、无菜单行可取消 —— 一次性清出,防幽灵槽位白占 PINNED_MAX 席
+   * (先例:system-proxy 迁右 rail 后的存量 shell.settingsPinned.v1)。
+   * 未注册 id(插件拔出)保留:插件插回即恢复,语义不变;幂等,清单干净后空转。 */
+  const railMountedIds = useMemo(
+    () => new Set(actions.filter((a) => a.rail || a.leftRail).map((a) => a.id)),
+    [actions],
+  );
+  useEffect(() => {
+    if (!pinnedIds.some((id) => railMountedIds.has(id))) return;
+    persistPinned(pinnedIds.filter((id) => !railMountedIds.has(id)));
+  }, [pinnedIds, railMountedIds]);
+  /* 钉满口径 = 可见钉住数(幽灵已清,pinnedActions 即真实外显)。 */
+  const atPinLimit = pinnedActions.length >= PINNED_MAX;
 
   /* 更新感应:发现比当前版本新的发布 → 版本号旁亮短提示。版本未知期不判定;
      展示回落 = CHANGELOG 首条(浏览器 dev 无 runtime,比硬编码占位更真实)。 */
@@ -164,7 +178,7 @@ export function SidebarSettingsCluster() {
     <div className="settings-cluster" ref={rootRef}>
       {open && (
         <div className="settings-menu" role="menu" aria-label={t("设置菜单")}>
-          {actions.filter((a) => !a.rail).map((action) => {
+          {actions.filter(inCluster).map((action) => {
             const pinned = pinnedSet.has(action.id);
             const isActive = action.active?.() ?? false;
             return (
@@ -220,7 +234,10 @@ export function SidebarSettingsCluster() {
           data-hint={t("设置")}
           data-hint-cmd="shell.openSettings"
           title=""
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => {
+            setVisOpen(false); /* 开齿轮先收显隐菜单(簇级互斥) */
+            setOpen((v) => !v);
+          }}
         >
           <img src={logoUrl} alt="" className="settings-logo" />
         </button>
@@ -240,37 +257,16 @@ export function SidebarSettingsCluster() {
             </button>
           );
         })}
-        {/* 界面缩放便捷入口:− / 当前档位(点按重置 100%)+ / +;越界档由
-            kernel 设置层 sanitize 钳位(0.8–1.5,5% 一档),这里不重复钳。 */}
-        <div className="settings-zoom" role="group" aria-label={t("界面缩放")}>
-          <button
-            type="button"
-            className="settings-bar-btn"
-            aria-label={t("缩小")}
-            disabled={settings.uiZoom <= UI_ZOOM_MIN}
-            onClick={() => updateSettings({ uiZoom: settings.uiZoom - UI_ZOOM_STEP })}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            className="settings-zoom-value"
-            aria-label={t("重置缩放")}
-            title={t("重置缩放")}
-            onClick={() => updateSettings({ uiZoom: UI_ZOOM_DEFAULT })}
-          >
-            {Math.round(settings.uiZoom * 100)}%
-          </button>
-          <button
-            type="button"
-            className="settings-bar-btn"
-            aria-label={t("放大")}
-            disabled={settings.uiZoom >= UI_ZOOM_MAX}
-            onClick={() => updateSettings({ uiZoom: settings.uiZoom + UI_ZOOM_STEP })}
-          >
-            +
-          </button>
-        </div>
+        {/* 工作区显隐多选菜单(缩放组原位,2026-10-04):控制左栏显示哪些工作区,
+            勾选恢复显示时右侧文件树跟着切一次;缩放入口改 ⌘+/⌘−/⌘0 键位。
+            开合受控于簇:与齿轮菜单互斥(见 visOpen 注释)。 */}
+        <WorkspaceVisibilityPicker
+          open={visOpen}
+          onOpenChange={(o) => {
+            if (o) setOpen(false);
+            setVisOpen(o);
+          }}
+        />
         <span className="settings-cluster-spacer" />
         <button
           type="button"

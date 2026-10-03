@@ -22,6 +22,7 @@
 > 2026-09-27 全量补校(0.2.x 增量域):CLI 学堂(academy)、统一搜索折叠入口、会话历史检索(session-search)、跨引擎接力(session-relay)、审批收件箱(approval-inbox)、提示词增强(prompt-enhancer)、系统通知(notify)、异常退出 toast、会话卫生清扫、Worktree 关联管理(常驻区/三分区/侧栏归簇)、右缘面板 rail、部署历史含口令回填、手机截图注入;插件计数 32→38(10 engine / 24 feature / 3 core / 1 local)。契约沉淀:`docs/architecture/15`(学堂)、`16`(worktree)、`12`(部署历史与凭据口径)。
 > 2026-10-01 打磨轮补校(分级治理实施,spec 见 `docs/superpowers/specs/2026-10-01-client-polish-plan-design.md`,调研底稿 `docs/research/client-polish-half-month-audit.md`):审批高危红标右栏生效、会话检索多词高亮过滤、接力摘要截断、系统通知点击深链与多幕布额度、学堂引擎闸与版本漂移提示、skill-hub 更新闭环(已装视图经用户裁定维持安装记录制,不合并磁盘扫描)、mcp-hub 文案分源与删除浮层、意图画布 inbox 常驻轮询、LSP 手势反馈与永不再弹、marks i18n 接通与失锚重锚、看板错误条与渲染预算、打开方式失败 toast 与键盘导航、结构化会话部件 notice 与 exited 重开、每日日志无头徽标与便签确认、转录浮标分档、WSL 目录直达与远程降级横幅、Web 访问二维码与桥事件订阅、壁纸 lite 删除、卫生清扫如实文案、Git split 渲染预算、worktree 加载态、五弹层 a11y、手机通知链路重做等 13 项、i18n 缺键清零(check:i18n-keys 检查脚本入 package.json);另:0.2.5+ hub 域(画布/skill/mcp/日志)此前仅有校准注记无正文条目,本轮增设「能力 Hub」域段落承接。
 > 2026-10-04 补校(0.2.8/0.2.9 增量域,以代码为准):六套 tmd 原创低饱和主题 + 设计系统 token 阶梯 + 状态三原语(Empty/Spinner/错误契约三分)、原生弹窗清零、视图保活统一(全挂载 + display:none)、文件操作条下放面板头、幕布右上工具行与单会话幕布重建刷新钮、渲染健康守望第 3-5/11 轮(洪水降级宽限/泵侧后台慢拍/幕布数据链停滞探针,契约见 architecture/17)、结构化会话(omp/pi --mode rpc token 级流式 + 幕布|结构化双视图,契约见 architecture/19)、会话行 tok/s pill 口径修复、会话 tab 收敛、手机端对话链路整批重做(三态胶囊 composer/选图拍照双入口/直连 WS 心跳保活/快捷键条两行网格/首页卡片化);插件计数 38→44(10 engine / 30 feature / 3 core / 1 local,10-01 注记「不变 38」系漏校,结构化会话等 0.2.7 落地件未计入);russh 0.62.2→0.63.3。
+> 2026-10-04 左缘工具 rail 与工作区显隐补校:左缘常驻工具 rail(顶簇 会话看板/插件市场/回到首页/工作区切换;插件入口经 sidebarActions 新 leftRail/leftRailBottom 字段直挂,顶栏市场/首页/看板三钮迁出顶栏)、网络代理入口迁右缘 rail 底簇(sidebarActions 新增 pinOnce 一次性补钉,存量钉住清单无此 id 时自动钉一次)、底栏界面缩放组隐藏改 ⌘+/⌘−/⌘0 键位(app-shell/zoomCommands;Tooltip 补 right 抽屉式放置)、左下角工作区显隐多选菜单(settings.workspaceHiddenIds 隐藏清单语义,勾选恢复显示时活动工作区切一次、右侧文件树跟切不强绑定,最后一个可见工作区不可隐藏)。
 
 ## 工作区会话
 - 会话行 tok/s pill:活会话响应均速指示,轮结束自动隐藏;口径(2026-10-03 修复)分子按行型分派(全量行差分 / 增量行自增)+ 尾窗用户行轮种子 + 180s 剔停 + 单对 300 tok/s 可信上限 + 近 5 对滑窗平滑 + codex 双快照——回放实证可显率 49%→100%、跳变 p90 19.4x→1.5x(spec 2026-10-03-toks-pill-stability-design)
@@ -317,16 +318,16 @@
 - 跟随系统模式监听系统深浅色切换即时换肤;主题变更同步重刷终端幕布配色
 - 语言 i18n:设置/外观三语切换(简体中文/English/日本語),全 app 文案经 kernel/i18n t() 查表,切换即整树重挂载即时生效;缺失词条回落源中文;相对时间/日期随语言走 Intl 本地化
 - 界面字号:12–20 px(默认 16)滑杆即时生效,非默认出「重置」;html 根字号锚点驱动全库 rem 排版实现纯文字级缩放(文字与图标随动,布局壳间距与终端幕布不受影响),任意 px 字号类/CSS font-size/图标 size 已全库等值迁 rem;与界面缩放(webview zoom)、终端字号(幕布)三者正交
-- 界面缩放:80%–150% 步进 5%,webview 原生 setZoom(mac pageZoom/win zoomFactor,终端 canvas 保持清晰),浏览器 dev 回落 CSS zoom;重置一键回 100%;左下角工具条另有缩放按钮组(−/百分位/+)快捷调节
+- 界面缩放:80%–150% 步进 5%,webview 原生 setZoom(mac pageZoom/win zoomFactor,终端 canvas 保持清晰),浏览器 dev 回落 CSS zoom;⌘+/⌘− 放大缩小、⌘0 一键回 100%(2026-10-04 起,底栏缩放按钮组隐藏、键位接管,zoomCommands;设置页外观卡滑杆同源可调)
 - 终端字号:10–20 px 滑杆(默认 13),活幕布即时重排并同步 PTY 尺寸
 - 终端字体:平台默认栈 + 常见等宽字体下拉(Menlo/Monaco/SF Mono/Cascadia/Consolas/DejaVu/JetBrains Mono/Fira Code 等,按平台过滤),document.fonts.check 探测未安装项置灰,支持自定义 CSS family 串
 - 终端 ANSI 16 色:主题 token 派生兜底(浅/深各一套,默认采用 VS Code 官方终端配色,浅色表 bright 系不亮于 base 修复浅底看不清);每套浅色 preset 显式声明 16 槽(色相取自各主题官方终端色板,对比度不足保 H/S 降 L 至 WCAG ≥3:1),深色 preset 走兜底
-- 图标装饰:34 个界面图标独立取色 + 呼吸闪烁开关,设置卡两列铺排,即时写 CSS 变量与 data-icon-blink。原 17 键(新建会话 / SSH 入口 / 网络代理 / WSL 入口 / 内置终端 / 意图画布入口 / 会话看板 / 远程控制 / files-git-checkpoints-memory-marks-approval-inbox-skill-hub-mcp-hub 八面板 / Worktree 簇)颜色仍在各自样式表原地消费(两态仅点亮色);2026-09-29 扩编 17 键走统一 `data-action-id`(图标 svg 属性,缺省 currentColor 整图标着色):工作区行三钮(查看文件 Rows / 会话管理 ListChecks / 刷新会话 ArrowClockwise)、顶栏四钮(插件市场 Plug / 回到首页 Tray / 折叠左右栏 CaretLine)、composer 工具条三钮(展开/收起对话框 / 命令与技能抽屉)、输入轨七钮(智能体 Robot / 提示词 Quotes / AI 作画 Compass / 平铺广播 Broadcast / 提示词增强 Wand / 技能 Sparkle / MCP HardDrive);历史 8 键残留由 sanitize 白名单静默剔除;远程控制徽标 2026-09-25 从右栏工具区迁入顶栏左区最左(裸 icon,缺省 --tmd-warn),点击深链设置「Web 访问/设备」tab
+- 图标装饰:34 个界面图标独立取色 + 呼吸闪烁开关,设置卡两列铺排,即时写 CSS 变量与 data-icon-blink。原 17 键(新建会话 / SSH 入口 / 网络代理 / WSL 入口 / 内置终端 / 意图画布入口 / 会话看板 / 远程控制 / files-git-checkpoints-memory-marks-approval-inbox-skill-hub-mcp-hub 八面板 / Worktree 簇)颜色仍在各自样式表原地消费(两态仅点亮色);2026-09-29 扩编 17 键走统一 `data-action-id`(图标 svg 属性,缺省 currentColor 整图标着色):工作区行三钮(查看文件 Rows / 会话管理 ListChecks / 刷新会话 ArrowClockwise)、界面入口钮(插件市场 Plug / 回到首页 Tray〔2026-10-04 自顶栏迁左缘 rail〕/ 折叠左右栏 CaretLine)、composer 工具条三钮(展开/收起对话框 / 命令与技能抽屉)、输入轨七钮(智能体 Robot / 提示词 Quotes / AI 作画 Compass / 平铺广播 Broadcast / 提示词增强 Wand / 技能 Sparkle / MCP HardDrive);历史 8 键残留由 sanitize 白名单静默剔除;远程控制徽标 2026-09-25 从右栏工具区迁入顶栏左区最左(裸 icon,缺省 --tmd-warn),点击深链设置「Web 访问/设备」tab
 - 中央 tab 图标:`registerTabContent` 可选 icon(顶栏 tab 徽标,未注册回落文件类型徽标);装饰键位插件(skill-hub/mcp-hub/意图画布/memory/WSL)经 DecorIcon 包装随组合切换,tab 专属语义 kind(git diff 系/批审阅单/学堂/会话查看器)用 Phosphor 语义图标;非文件 tab 标签显示 title
 - 图标组合:装饰卡顶部五段切换 `settings.iconSet`(classic 现状圆胖 / solid 同字形 fill / metaphor 逐键换 Phosphor 字形 / lucide、lucide-alt 两套 Lucide 细线,4↔5 切换经 morphicons 弹簧变形全表同时过渡,跨族跳变);kernel `iconSetTables.ts` 三表 + `DecorIcon` 组件(渲染位 `<DecorIcon id Fallback>` 接管,未知动态 id 自动现状),fold 双键方向性 affordance 不换字形;颜色/闪烁与组合正交
 - 行为 tab:发送快捷键模式(Enter 发送 ↔ ⌘/Ctrl+Enter 发送互换)、Ask 提示音开关与音效、结束提示音、后台提醒、会话输出缓冲上限(5 万–1000 万字符,默认 50 万)
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
-- 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4,默认钉 Git Graph + 网络代理);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css)
+- 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4;默认钉位随网络代理 2026-10-04 迁右缘 rail 后清空,pin 机制保留);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css);直挂 rail 的动作(右 rail / 左 rail)不进菜单与底栏,一个动作只住一处
 - 侧栏底栏常显应用版本号(取 Tauri 应用版本,纯浏览器 dev 回落 0.1.1)
 - 版本号点击弹版本信息弹窗:内嵌 CHANGELOG 分页(超长截断,条目行内 Markdown 渲染,动作行三键一排)+ 在线检查更新(解析 GitHub releases atom,失败回退重试 / 去发布页,超时 10s)+ 自动更新按钮(updater latest.json 通道,签名校验,下载安装后提示重启)
 - 插件拔插状态(disabledPlugins)同落 settings,重启生效
@@ -349,7 +350,7 @@
 - 插排 / 清单双视图,44 个注册插件可视化插拔(10 engine + 30 feature + 3 core + 1 local;可拔面 = 引擎 10 + 功能 30 + local,核心 3 焊死),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature / local 可拔
 - 插排页双插排:内置插件一块(分类虚线分隔),本机插件(local 类)独立次级插排(品牌区「本机插件 · 免重启装载」)
-- 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
+- 插件市场经左缘 rail 插头按钮开合(2026-10-04 自标题栏迁入,⌘⇧X 不变;整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
 - 插拔变更即时标 dirty:插头标「待重启」、清单卡片标「重启后生效」徽章
 - 本地插件管理条:复制插件开发提示词 / 重新扫描 / 禁用全部(在线市场占位区上方,经 local-loader 插件分区)
 - 底部预留「在线市场 · 建设中」占位区(远程插件包,尚未开放)
@@ -421,8 +422,8 @@
 - 生效:Rust proxy.rs 进程 env 注入(HTTP(S)_PROXY/ALL_PROXY 大小写共 6 变量),覆盖客户端联网与之后 spawn 的 CLI 子进程;已在跑的旧会话需手动重启才走代理
 - 关闭:恢复启动时继承的 env 快照(还原用户 shell 原有代理);NO_PROXY 与继承值合并追加 localhost,127.0.0.1,::1
 - 拔出插件 = 浮层断电且功能下电(数值保留;Rust 读 settings.disabledPlugins,重启后 env 不再注入,开关为开也视同关)
-- 入口:侧栏齿轮菜单 / 底栏钉住按钮,经事件总线唤起,壳与插件互不引用
-- 浮层交互:Esc / 点背板 / 右上角 X 关闭;锚点右侧优先弹出,视口边距夹取
+- 入口:右缘 rail 底簇图标钮(2026-10-04 自底栏钉住位迁入,sidebarActions rail+railBottom+pinOnce 一次性补钉),经事件总线唤起,壳与插件互不引用
+- 浮层交互:Esc / 点背板 / 右上角 X 关闭;锚点右侧优先弹出、空间不足翻左侧,视口边距夹取
 
 ## 记忆协调(Memory)
 
@@ -440,11 +441,13 @@
 - 弹层 a11y 基建:发送确认 / 接力 / 检索 / 工作树管理 / 学堂向导五弹层 role="dialog" + 焦点圈闭 + Esc
 - Windows 自绘窗口控制:顶栏右侧最小化/最大化/关闭按钮组(macOS 用原生红绿灯);顶栏空白区为窗口拖拽区
 - 四栏布局可拖拽调宽,左/右栏折叠态 localStorage 持久化
-- 顶栏三区布局:左区与左栏同宽(macOS 红绿灯占位 + 插件贡献按钮簇〔远程控制徽标/内置终端/会话看板〕+ 插件市场/回到首页按钮)、中区会话/编辑 tab 条靠左、右区非面板动作与折叠钮(面板入口 2026-09-27 起不在顶栏)
+- 顶栏三区布局:左区 = 左缘 rail 宽 + 左栏宽(2026-10-04 公式补 rail 宽对齐;macOS 红绿灯占位 + 插件贡献按钮簇〔远程控制徽标〕+ 折叠左栏)、中区会话/编辑 tab 条靠左 + 分支 label、右区工作区切换器与折叠钮(面板入口 2026-09-27 起不在顶栏;市场/首页/看板入口 2026-10-04 起迁左缘 rail)
 - 顶栏左/右缘侧栏折叠按钮:收起/展开左栏与右栏,图标随态切换
 - 文件预览为条件第四栏:有打开的文件 tab 才出现,夹于幕布与右栏之间,宽度可拖
 - 顶栏「回到首页⇄回会话」toggle:会话中记住当前会话回欢迎页,首页中切回原会话(已退出则保持首页原样);市场覆盖层开启时先收市场再切换
 - 右缘面板 rail(2026-09-27,spec 2026-09-27-right-panel-rail-design;activity bar 形态):面板入口自顶栏右区迁窗口右缘常驻竖排工具条(30px,右栏收起也在),列表 = 钉住 ∪ 激活面板 + 横向分隔线 + ⋯ 溢出菜单(贴按钮左缘向左弹、纵向估高夹取);点击切面板并自动展开右栏(旧顶栏 tab 收起态点击无反馈的缺陷顺带根治);钉住语义与 localStorage `tmd.filePanel.pinned.v1` 零变更(⋯ 菜单行点击激活并顺带钉住,复选框仅切钉);rail 动作并入钉住管理,wsl 入 ⋯ 菜单可勾选
+- 左缘工具 rail(2026-10-04,右缘 rail 的镜像):窗口左缘常驻竖排工具条(30px,左栏收起也在),顶簇 = 会话看板(插件经 sidebarActions.leftRail 注册面直挂)/ 插件市场 / 回到首页(两钮自顶栏迁入,⌘⇧X/⌘⇧H 不变)/ 工作区切换(下拉与顶栏选择器共用 useWorkspaceSwitchMenus 同一菜单面);悬停提示 data-hint-side="right" 抽屉式右滑(Tooltip 镜像放置);插件条目与壳自有条目按 order 统一排序,壳只渲染注册表不认识业务。网络代理同日迁右缘 rail 底簇(rail+railBottom+pinOnce 一次性补钉,浮层自 rail 钮左缘翻弹)
+- 左下角工作区显隐多选(2026-10-04,缩放组原位):触发钮(ListChecks + 当前工作区名)上弹多选清单(portal + 限高滚动),控制左栏显示的工作区集合;语义 = 隐藏清单 `settings.workspaceHiddenIds`(空 = 全部显示,新建工作区自动可见,残留已删 id 无害),左栏过滤纯函数与菜单锁步(workspace/utils visibleWorkspaces);勾选恢复显示时活动工作区顺带切一次 → 右侧文件树跟切到「最后勾选的工作区」,只切一下不做强绑定;最后一个可见工作区不可隐藏(行禁用 + 提示);菜单不随勾选关闭,点外/Esc 关
 - 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
 - 幕布右上工具行(terminal.canvasRow 挂点,0.2.7):内核渲染行容器,幕布刷新钮收尾最右——单会话幕布重建(xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH 整帧重绘),PTY/CLI 不中断、其他会话零扰动;插件经挂点贡献同排工具钮(session-viewer「结构化幕布」切换钮);行不设 z,不透明画布浮层开启时整行隐没
 - 渲染健康守望(WKWebView 吊销粘死自愈,契约见 architecture/17):JS rAF 探针 1s 看门狗(hidden 真伪一律上报,可见性裁断权单一归 Rust)+ 壳侧 set_focus→reload 阶梯击打;PTY 泵洪水计量(5s 滑动窗 >256KB)洪水期 reload 降级 focus + 3 分钟宽限耗尽强击;泵侧后台慢拍(无人在视 session_set_viewed / 前端渲染暂停的会话,输出聚合窗钳 250ms,后台 TUI 状态动画事件率 20+/s→4/s);隐藏幕布实时字节 250ms 合帧写入;幕布数据链停滞探针(PTY 3s 内仍在产出而幕布订阅 6s 未收字节 = 数据链断供,canvasGen 自增自动重建,30s 冷却,与渲染死亡阶梯互斥分工)

@@ -29,8 +29,10 @@ import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketTogg
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 import { usePersistedToggle, useScrollbarProbe } from "./shellHooks";
 import { DesktopColumns } from "./DesktopColumns";
+import { LeftRail } from "./LeftRail";
 import { PanelRail } from "./PanelRail";
 import { TopBar } from "./TopBar";
+import "./zoomCommands"; /* 界面缩放键位(⌘+/⌘−/⌘0):模块级注册,随壳装配生效 */
 
 export function AppShell() {
   useHost();
@@ -73,14 +75,15 @@ export function AppShell() {
         onToggleRight={toggleRight}
         leftOpen={leftOpen}
         rightOpen={rightOpen}
-        marketOpen={marketOpen}
-        onToggleMarket={toggleMarket}
       />
       {/* 插件市场为不透明覆盖层,三栏保持挂载且可见地留在下层:会话现场/文件
           tab/分栏尺寸零回放零重排;也不可 display:none 隐藏三栏 —— 顶栏左右区
           宽度实测自侧栏(useElementWidth 写 CSS 变量),隐藏后 RO 上报 0 会把
           顶栏 icon 挤叠。市场页实底背景,盖住下层即可。 */}
       <div className="relative flex min-h-0 flex-1">
+        {/* 左缘入口 rail:常驻竖条(左栏收起也在),会话看板/市场/回首页/
+            工作区切换在顶簇;市场页打开时与三栏一起被覆盖。 */}
+        <LeftRail marketOpen={marketOpen} onToggleMarket={toggleMarket} />
         <DesktopColumns
           leftOpen={leftOpen}
           rightOpen={rightOpen}

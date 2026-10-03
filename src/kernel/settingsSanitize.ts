@@ -48,6 +48,7 @@ import { sanitizeShortcutOverrides } from "./settingsSanitizeShortcuts";
 import {
   sanitizeWorkspaceCollapsedMap,
   sanitizeWorkspaceGroups,
+  sanitizeWorkspaceHiddenIds,
 } from "./settingsSanitizeWorkspace";
 
 const THEME_PREFERENCES: readonly ThemePreference[] = ["system", "light", "dark", "custom"];
@@ -246,6 +247,7 @@ export function sanitize(raw: unknown): AppSettings {
     workspaceCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceCollapsedMap),
     workspaceGroups: sanitizeWorkspaceGroups(obj.workspaceGroups),
     workspaceGroupCollapsedMap: sanitizeWorkspaceCollapsedMap(obj.workspaceGroupCollapsedMap),
+    workspaceHiddenIds: sanitizeWorkspaceHiddenIds(obj.workspaceHiddenIds),
     networkProxyEnabled:
       typeof obj.networkProxyEnabled === "boolean"
         ? obj.networkProxyEnabled

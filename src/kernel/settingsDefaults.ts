@@ -61,6 +61,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   engineVersionFavs: {},
   workspaceArchiveView: false,
   workspaceOriginFilter: "local",
+  workspaceHiddenIds: [],
   networkProxyEnabled: false,
   networkProxyUrl: "",
   memoryDbPath: "",

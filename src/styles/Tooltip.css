@@ -1,7 +1,8 @@
 /* ──────────────────────────────────────────────────────────
  * Hint(自定义悬浮提示)—— 委托式 data-hint / data-hint-cmd 渲染。
  * 深色气泡 + 可选键帽;位置 top/bottom 自适应,左右贴视口边收敛;
- * data-hint-side="left" 走 right 锚定 + max-width 展开 = 右缘 rail 抽屉式左滑。
+ * data-hint-side="left" 走 right 锚定 + max-width 展开 = 右缘 rail 抽屉式左滑;
+ * data-hint-side="right" 镜像:x 锚目标右缘,左缘 rail 抽屉式右滑。
  * 颜色全走 --tmd-* 设计变量;深色气泡 = 反转语义(bg-popover + 边框)。
  * ────────────────────────────────────────────────────────── */
 
@@ -37,6 +38,18 @@
   animation: hint-drawer-left var(--tmd-dur-1) var(--tmd-ease-out);
 }
 @keyframes hint-drawer-left {
+  from {
+    max-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    opacity: 0;
+  }
+}
+/* right 贴附(左缘 rail 抽屉):镜像 left,x 已在 style 锚定目标右缘。 */
+.hint-bubble.is-right {
+  animation: hint-drawer-right var(--tmd-dur-1) var(--tmd-ease-out);
+}
+@keyframes hint-drawer-right {
   from {
     max-width: 0;
     padding-left: 0;

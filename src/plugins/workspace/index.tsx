@@ -32,6 +32,7 @@ import { createSessionRevealHandler } from "./revealSession";
 import { useWorkspaceBrowserSwap } from "./WorkspaceBrowserSwap";
 import { WorkspaceList } from "./WorkspaceList";
 import { groupWorkspaces } from "./groups";
+import { visibleWorkspaces } from "./utils";
 import { WorkspaceGroupsTab } from "./GroupSettingsTab";
 import { PinnedSessionsSection } from "./PinnedSessions";
 import { RunningZoneSection } from "./RunningZone";
@@ -69,11 +70,11 @@ function WorkspaceSection() {
     const origin = origins.find((o) => o.id === originFilter);
     return origin ? list.filter((ws) => origin.matches(ws)) : [];
   }, [list, origins, originFilter]);
-  const [menu, setMenu] = useState<{
-    workspace: Workspace;
-    x: number;
-    y: number;
-  } | null>(null);
+  /* 显隐层(底栏「工作区显隐」菜单,2026-10-04):来源过滤后再过隐藏清单,
+   * 空 = 全部;纯函数 ./utils 与菜单锁步。 */
+  const hiddenIds = settings.workspaceHiddenIds;
+  const visible = useMemo(() => visibleWorkspaces(filtered, hiddenIds), [filtered, hiddenIds]);
+  const [menu, setMenu] = useState<{ workspace: Workspace; x: number; y: number } | null>(null);
   /** 行内别名重命名中的工作区 id(单例:同时至多一行在改)。 */
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
@@ -87,9 +88,7 @@ function WorkspaceSection() {
   const isCollapsed = (id: string) => collapsedMap[id] ?? true;
   const allCollapsed = list.length > 0 && list.every((ws) => isCollapsed(ws.id));
   const setAllCollapsed = (v: boolean) =>
-    updateSettings({
-      workspaceCollapsedMap: Object.fromEntries(list.map((ws) => [ws.id, v])),
-    });
+    updateSettings({ workspaceCollapsedMap: Object.fromEntries(list.map((ws) => [ws.id, v])) });
   const setCollapsed = (id: string, v: boolean) =>
     updateSettings({
       workspaceCollapsedMap: { ...collapsedMap, [id]: v },
@@ -97,8 +96,8 @@ function WorkspaceSection() {
   /** 组头折叠态(持久化):缺失 = 展开;组定义/派生见 ./groups。 */
   const groupCollapsedMap = settings.workspaceGroupCollapsedMap;
   const grouped = useMemo(
-    () => groupWorkspaces(filtered, settings.workspaceGroups),
-    [filtered, settings.workspaceGroups],
+    () => groupWorkspaces(visible, settings.workspaceGroups),
+    [visible, settings.workspaceGroups],
   );
   const toggleGroup = (id: string) =>
     updateSettings({

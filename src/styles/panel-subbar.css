@@ -18,7 +18,8 @@
   text-align: left;
 }
 
-.panel-ws-item svg { width: 0.75rem; height: 0.75rem; flex: 0 0 auto; color: var(--tmd-accent); }
+/* 行尾 active Check(直子);行首文件夹图标走 panel-overflow-item-icon 的 muted 规格,不吃本规则。 */
+.panel-ws-item > svg { width: 0.75rem; height: 0.75rem; flex: 0 0 auto; color: var(--tmd-accent); }
 
 .panel-ws-menu-group {
   padding: 6px 10px 2px;

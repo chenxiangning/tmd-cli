@@ -1,5 +1,5 @@
 /**
- * 设置字段级清洗契约测试(提示音/后台提醒/网络代理/会话配额/Memory)——
+ * 设置字段级清洗契约测试(提示音/后台提醒/网络代理/会话配额/Memory/工作区显隐)——
  * 自 settings.test.ts 拆出(文件规模铁则收紧至 300 行)。
  * 模块级单例,每个用例经 vi.resetModules + 动态 import 取全新实例。
  */
@@ -130,6 +130,17 @@ describe("网络代理设置", () => {
     const s = settings.getSettingsState().settings;
     expect(s.networkProxyEnabled).toBe(false);
     expect(s.networkProxyUrl).toBe("socks5://127.0.0.1:1080");
+  });
+});
+
+describe("工作区显隐清单(workspaceHiddenIds,2026-10-04)", () => {
+  it("合法 id 数组合并生效;非串/重复条目清洗,非数组回落空表", () => {
+    settings.updateSettings({ workspaceHiddenIds: ["ws-a", "ws-b"] });
+    expect(settings.getSettingsState().settings.workspaceHiddenIds).toEqual(["ws-a", "ws-b"]);
+    settings.updateSettings({ workspaceHiddenIds: ["ws-a", "ws-a", "", 3 as never] });
+    expect(settings.getSettingsState().settings.workspaceHiddenIds).toEqual(["ws-a"]);
+    settings.updateSettings({ workspaceHiddenIds: "ws-a" as never });
+    expect(settings.getSettingsState().settings.workspaceHiddenIds).toEqual([]);
   });
 });
 describe("resolveCliSessionQuota", () => {
