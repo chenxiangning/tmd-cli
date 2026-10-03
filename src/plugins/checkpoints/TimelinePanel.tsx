@@ -189,7 +189,7 @@ function TimelineRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        {/* meta:序号 + 状态 + hover 出「定位幕布」 */}
+        {/* meta:序号 + 状态 + hover 出「复制 / 定位幕布」钮簇 */}
         <div className="mb-0.5 flex items-center gap-1.5 text-meta leading-4 text-(--tmd-fg-faint)">
           <span className="font-mono font-semibold text-(--tmd-fg-muted)">#{seq}</span>
           {live && (
@@ -199,11 +199,11 @@ function TimelineRow({
           )}
           {/* 复制该节点发送原文:与「定位幕布」同款 hover 现身,ml-auto 把两钮
               成簇推右(复制贴消息体一侧);回显期强制全亮,指针离场也能看到
-              「已复制」闪过。 */}
+              「已复制」闪过;group-focus-within 让键盘 Tab 聚焦时两钮同样现身。 */}
           <button
             type="button"
             onClick={onCopy}
-            className={`ml-auto rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) transition-opacity ${
+            className={`ml-auto rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) transition-opacity group-focus-within:opacity-100 ${
               copied ? "opacity-100" : "opacity-0 group-hover:opacity-100"
             }`}
           >
@@ -212,7 +212,7 @@ function TimelineRow({
           <button
             type="button"
             onClick={onJump}
-            className="rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100"
+            className="rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
           >
             {t("定位幕布")}
           </button>
