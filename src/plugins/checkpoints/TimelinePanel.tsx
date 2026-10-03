@@ -7,6 +7,9 @@
  *   右栏在位即订阅轮询(保活的代价:审批线态也保持 2s tick)。
  * - 「定位幕布」= jumpToAnchor 扎点定位(buffer 匹配 + 28% 留头);失败短暂
  *   闪烁(同 AnchorRail 语义)。整行不可点:消息文本要留选中/复制。
+ * - meta 行 hover 出「复制」:复制该节点发送原文(anchor.text,含 composer
+ *   附件 token 的原始口径,用户定向);成功短暂回显「已复制」,走 kernel
+ *   copyText 唯一原语(mac 同步 execCommand 路径)。
  * - 状态芯片只标「进行中」(promptSent → turnSettled 窗口内的最新条目);
  *   更早条目不标「已结算」—— 结算是默认态,逐条标是噪音。
  * - 条目无时间戳:CliUserMessage 契约只有 id + text,全量相对时间要动
@@ -14,10 +17,11 @@
  * - 与审批线零共享逻辑:仅同面板摘要行并列(用户定向:不动审批线代码)。
  */
 
-import { useCallback, useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { usePanelActive } from "@kernel/panelActivity";
 import { ClockClockwise, FileText } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
+import { copyText } from "@kernel/clipboard";
 import { host } from "@kernel/host";
 import {
   KernelTopics,
@@ -37,6 +41,8 @@ import { extractTimelineParts } from "./timelineText";
 const CLAMP_MIN_CHARS = 120;
 /** 跳转失败的红色闪烁时长(同 AnchorRail MISS_FLASH_MS 语义)。 */
 const MISS_FLASH_MS = 900;
+/** 复制成功的「已复制」回显时长(短暂确认,不持久占位)。 */
+const COPIED_FLASH_MS = 1200;
 
 export function TimelinePanel() {
   const [, bumpRender] = useReducer((x: number) => x + 1, 0);
@@ -146,6 +152,26 @@ function TimelineRow({
   const parts = useMemo(() => extractTimelineParts(anchor.text), [anchor.text]);
   const clampable = parts.text.length > CLAMP_MIN_CHARS;
 
+  /* 复制回显:行内局部态 + 定时归位;卸载清定时器防悬挂。 */
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+    },
+    [],
+  );
+
+  function onCopy() {
+    void copyText(anchor.text)
+      .then(() => {
+        setCopied(true);
+        if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+        copyTimer.current = window.setTimeout(() => setCopied(false), COPIED_FLASH_MS);
+      })
+      .catch(() => undefined); /* 双路径皆败:静默(与 workspace 各复制点同口径) */
+  }
+
   return (
     <div
       className={`group flex gap-2 rounded-(--tmd-radius-sm) px-1.5 py-[7px] transition-colors hover:bg-(--tmd-bg-hover) ${
@@ -171,10 +197,22 @@ function TimelineRow({
               {t("进行中")}
             </span>
           )}
+          {/* 复制该节点发送原文:与「定位幕布」同款 hover 现身,ml-auto 把两钮
+              成簇推右(复制贴消息体一侧);回显期强制全亮,指针离场也能看到
+              「已复制」闪过。 */}
+          <button
+            type="button"
+            onClick={onCopy}
+            className={`ml-auto rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) transition-opacity ${
+              copied ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+          >
+            {copied ? t("已复制") : t("复制")}
+          </button>
           <button
             type="button"
             onClick={onJump}
-            className="ml-auto rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100"
+            className="rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) opacity-0 transition-opacity group-hover:opacity-100"
           >
             {t("定位幕布")}
           </button>
