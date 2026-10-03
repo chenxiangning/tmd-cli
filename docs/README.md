@@ -252,13 +252,9 @@
 | 2026-10-02 | [界面模块打磨轮四路审计(原语长尾 26+32+6/壳层观感/功能面板观感/12px 密度与交互:共 78 项;附件清除疑点核实误报)](research/client-polish-task4-module-audit.md) | 已完成(处置见同日 spec) |
 | 2026-10-02 | [界面模块打磨轮实施设计(原语长尾全收+实锤清零+高频观感/保命全修+P2 精选;8 域并行;门禁全绿但按用户指令未提交留检)](superpowers/specs/2026-10-02-polish-task4-module-refine-design.md) | 已实施(未提交,待用户检查) |
 | 2026-10-02 | [界面模块打磨轮提交前三路评审(交互/视觉词条/边界性能:实锤 5 全修——保活轮询门控/强删链路恢复/mgrid 非法 CSS/mask 常驻/死键;误报摘录防重查)](review/2026-10-02-polish-task4-review.md) | 已完成(修复随 d3070345 提交) |
-| 2026-10-02 | [结构化会话启动部件 notice 降噪设计(语义分档 + 聚合一处:setStatus/notify/setWidget 取消并条 ×N 原地刷新,select/input/editor 及未知 kind 维持逐条可见;渲染层零改动)](superpowers/specs/2026-10-02-structured-session-boot-notice-design.md) | 已实现(门禁全绿;真机目检留大仙,未提交) |
-| 2026-10-03 | [手机首页精简原型 1:字排清单(零卡片零底色,字重/色字/发丝线承载全部层级)](design/mobile-home-min1-plain.html) | 设计探索 |
-| 2026-10-03 | [手机首页精简原型 2:时间流(不看工作区只看会话,新到旧单列平铺,引擎=色点)](design/mobile-home-min2-flow.html) | 设计探索 |
-| 2026-10-03 | [手机首页精简原型 3:工作区下钻(首页只显示单工作区,底部 sheet 切换)](design/mobile-home-min3-scoped.html) | 设计探索 |
-| 2026-10-03 | [手机首页精简原型 4:终端风(等宽 + 树线 + grep 搜索行)](design/mobile-home-min4-term.html) | 设计探索 |
-| 2026-10-03 | [手机首页精简原型 5:留白大字(浅色备忘录式,工作区=筛选胶囊,新建浮钮)](design/mobile-home-min5-airy.html) | 设计探索 |
+| 2026-10-02 | [结构化会话启动部件 notice 降噪设计(语义分档 + 聚合一处:setStatus/notify/setWidget 取消并条 ×N 原地刷新,select/input/editor 及未知 kind 维持逐条可见;渲染层零改动)](superpowers/specs/2026-10-02-structured-session-boot-notice-design.md) | 已落地(2026-10-03 提交;真机目检留大仙) |
 | 2026-10-03 | [手机端「发起会话」抽屉与 sheet 基座打磨设计(grabber/滑入动画/关闭钮进基座 + 工作区整行选中/引擎双列卡片/全宽 CTA/alert 卡片;sheet 样式拆 mobile-sheet.css)](superpowers/specs/2026-10-03-mobile-spawn-sheet-polish-design.md) | 已实施 |
 | 2026-10-03 | [手机对话输入区三态重做设计(豆包式胶囊 composer:常态胶囊条/挂图卡+提示 chips/「+」四格面板;composer 拆 Composer.tsx,样式拆 mobile-composer.css;三轮修订:css 双入口挂链铁则、面板条上面下、拖拽把手回归)](superpowers/specs/2026-10-03-mobile-composer-redesign-design.md) | 已实施 |
 | 2026-10-03 | [手机对话输入区三态重做提交后评审(交互/边界/架构:一轮实锤 2 修——chip 覆盖草稿改 joinPrompt 追加、注释失实;二轮真机反馈实锤 2 修——mobile css 双入口漏挂链致样式全丢、面板位置与参考图相反,验证升维双产物 grep + 真页面截屏)](review/2026-10-03-mobile-composer-redesign-review.md) | 已完成(修复随两轮提交) |
+| 2026-10-03 | [v0.2.8..HEAD 范围全量评审与整体修复(P1 死链索引/废案提交对 rebase 清除;P2 chrome 聚合截断/数值 id 挂轮/resize 列夹持/replay 注释如实化;新留观:endMsg 权威解析缺 event.id 恒空)](review/2026-10-03-v0.2.9-range-review.md) | 已完成(修复随本日三提交;门禁全绿) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
