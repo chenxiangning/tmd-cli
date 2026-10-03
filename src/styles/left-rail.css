@@ -64,7 +64,8 @@
   width: auto; /* 压过 .left-rail-tab 的定宽 26px,满 rail 内容格 */
   height: 28px;
   margin: 0;
-  border-bottom-left-radius: 14px;
+  border-radius: 0; /* 左上/右上/右下直角(压过 .left-rail-tab 圆角) */
+  border-bottom-left-radius: 14px; /* 唯一弧:左下顺窗口弧线 */
 }
 .left-rail-settings .settings-logo {
   width: 100%;
