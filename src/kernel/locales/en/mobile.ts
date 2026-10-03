@@ -40,17 +40,33 @@ export const MESSAGES = {
   "切换横竖屏": "Toggle orientation",
   "竖屏": "Portrait",
   "横屏": "Landscape",
-  "输入消息…": "Type a message…",
+  "发消息…": "Message…",
+  "相册选图": "Pick from album",
+  "拍照上传": "Take photo",
+  "图片上传中": "Image uploading",
+  "上传中": "Uploading",
+  "打开面板": "Open panel",
+  "收起面板": "Close panel",
+  "再加一张": "Add another image",
+  "相册": "Album",
+  "切模型": "Switch model",
+  "检查点": "Checkpoints",
+  "快捷键": "Shortcuts",
+  "提取图中文字": "Extract text",
+  "图片配文": "Caption image",
+  "翻译图中文字": "Translate text",
   "发送": "Send",
   "发送失败,消息已保留": "Send failed, message kept",
   "选图失败,请重试": "Image pick failed, please retry",
+  "拍照失败,请重试": "Camera failed, please retry",
   "查看大图": "View full image",
   "图片预览": "Image preview",
   "没有可用工作区": "No workspaces available",
   "未连接桌面:连接恢复后再发起会话(右上 ⇄ 可手动重试)":
     "Desktop not connected: start sessions after reconnecting (top-right ⇄ to retry)",
   "桌面还没有工作区:先在桌面端设置里添加": "No workspaces on desktop yet: add one in desktop settings first",
-  "在 {ws} 启动 {engine}": "Start {engine} in {ws}",
+  "正在获取工作区…": "Loading workspaces…",
+  "启动 {engine}": "Start {engine}",
   "审批请求": "Approval request",
   "CLI 正在等待确认;「允许」发送 Enter,「拒绝」发送 Esc":
     "CLI is waiting for confirmation; Allow sends Enter, Deny sends Esc",
@@ -98,8 +114,7 @@ export const MESSAGES = {
   "已显示最近 {n} 轮,更早内容在桌面客户端查看":
     "Showing the last {n} turns — view earlier content in the desktop app",
 
-  /* 截图注入(2026-09-26 批次六) */
-  "注入截图": "Attach screenshot",
+  /* 截图注入(2026-09-26 批次六;注入截图 aria 已随三态胶囊重做删除) */
   "移除图片": "Remove image",
 
   /* 通知与生命周期(2026-09-30 手机批) */

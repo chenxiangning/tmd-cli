@@ -25,7 +25,7 @@ export interface FastRenderEnv {
   sourceFilePath?: string | null;
 }
 
-const md: MarkdownIt = new MarkdownIt({
+const md = new MarkdownIt({
   html: false,
   linkify: true,
   breaks: false,
@@ -133,8 +133,9 @@ function buildLinkOpenTag(href: string, title: string | null, sourceFilePath: st
 
 md.renderer.rules.link_open = (tokens, idx, _opts, env) => {
   const token = tokens[idx];
-  const href = token.attrGet("href") ?? "#";
-  const title = token.attrGet("title");
+  /* markdown-it 15 属性值放宽为 string|number;href/title 语义恒为字符串,读出即收窄。 */
+  const href = String(token.attrGet("href") ?? "#");
+  const title = token.attrGet("title") != null ? String(token.attrGet("title")) : null;
   /* 本地文件分支需要源文件路径做相对解析(env 透传,同 image 规则)。 */
   return buildLinkOpenTag(href, title, (env as FastRenderEnv).sourceFilePath ?? null);
 };
@@ -144,7 +145,7 @@ md.renderer.rules.link_open = (tokens, idx, _opts, env) => {
    React 态,快路径不保留(绝大多数场景 assetUrl 直接可用)。 ── */
 md.renderer.rules.image = (tokens, idx, _opts, env) => {
   const token = tokens[idx];
-  const rawSrc = token.attrGet("src") ?? "";
+  const rawSrc = String(token.attrGet("src") ?? "");
   const alt = (token.children ?? [])
     .map((child) => (child.type === "text" ? child.content : ""))
     .join("");
@@ -153,7 +154,7 @@ md.renderer.rules.image = (tokens, idx, _opts, env) => {
     return "<img data-md-img-skipped alt=\"\">";
   }
   const title = token.attrGet("title");
-  const titleAttr = title ? ` title="${escapeHtml(title)}"` : "";
+  const titleAttr = title != null ? ` title="${escapeHtml(String(title))}"` : "";
   return (
     `<img data-md-img="${escapeHtml(resolved.localPath ?? resolved.src)}" ` +
     `src="${escapeHtml(resolved.src)}" alt="${escapeHtml(alt)}"${titleAttr} loading="lazy">`

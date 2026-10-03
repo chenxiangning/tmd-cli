@@ -6,8 +6,10 @@
  * 按列换行(DECAWM 可关),CUP 夹在视口内 → 重绘天然收敛为一份。
  * 滚出视口的行进 scrollback(上限 SCROLL_CAP 行),view(fromTop) 可取全量历史,
  * 手机实况区因此能向上滚动看旧输出。
- * 支持集:可打印、\n \r \t \b、CSI H/f/A/B/C/D/E/G/J/K/M/s/u、2J/3J、
- * 模式 ?7h/l(换行)?1049h/l(备屏清屏);SGR/其余忽略。桌面幕布用真 xterm,不共享。
+ * 支持集:可打印、\n \r \t \b、CSI H/f/A/B/C/D/E/G/J/K/M/s/u、2J/3J(真擦除,
+ * 不翻页——翻页会把整屏复制进 scrollback,resize 后 2J+全帧重绘即「头信息两份」,
+ * 实证:omp 每次 SIGWINCH 都走 2J 重绘;历史保全职责只归备屏切换)、模式
+ * ?7h/l(换行)?1049h/l(备屏清屏);SGR/其余忽略。桌面幕布用真 xterm,不共享。
  */
 
 /** 视口尺寸取不到时的回落(SSH/未知会话)。 */
@@ -42,10 +44,13 @@ export class LiveScreen {
   private wrap = true;
   private rows: number;
   private cols: number;
-  /* 切分器:OSC / CSI / 单字节转义 / 控制字符各自成段,段间 = 待写文本。 */
+  /* 切分器:OSC / CSI / 单字节转义 / 控制字符各自成段,段间 = 待写文本。
+   *  ESC+终字节(0x30-0x7E)类覆盖 DECSC/DECRC(\x1b7/\x1b8)等单段转义 ——
+   *  缺了它们会当字面落屏(escape() 的 \x1b7/\x1b8 分支随之不可达),其余
+   *  未知 ESC+字母按终端惯例吞掉不打印。 */
   private readonly tok = new RegExp(
     // eslint-disable-next-line no-control-regex -- 终端控制流本就是控制字节
-    "\\x1b\\][^\\x07\\x1b]*(?:\\x07|\\x1b\\\\)|\\x1b\\[[0-9:;<=>?]*[ -/]*[@-~]|\\x1b[()#][0-9A-Za-z]?|[\\x00-\\x1a\\x1c-\\x1f\\x7f]",
+    "\\x1b\\][^\\x07\\x1b]*(?:\\x07|\\x1b\\\\)|\\x1b\\[[0-9:;<=>?]*[ -/]*[@-~]|\\x1b[()#][0-9A-Za-z]?|\\x1b[0-9A-Za-z]|[\\x00-\\x1a\\x1c-\\x1f\\x7f]",
     "g",
   );
   /** 跨 chunk 切断的未完成转义序列(真 PTY 分块会把 CSI/OSC 拦腰切)。 */
@@ -110,8 +115,10 @@ export class LiveScreen {
         this.savedRow = this.row;
         this.savedCol = this.col;
       } else {
-        this.row = this.savedRow;
-        this.col = this.savedCol;
+        /* DECRC 恢复按当前几何夹持(同 CSI u 分支):缩屏后存档位界外会把
+         * lines 撑超视口行数。 */
+        this.row = Math.min(this.savedRow, this.rows - 1);
+        this.col = Math.min(this.savedCol, this.cols - 1);
       }
       return;
     }
@@ -123,6 +130,9 @@ export class LiveScreen {
       if (/\?(47|1047|1049)[hl]$/.test(c)) this.clear();
       else if (/\?7h$/.test(c)) this.wrap = true;
       else if (/\?7l$/.test(c)) this.wrap = false;
+      /* ?7l 不清 pending wrap(col 可悬在 cols):xterm 实测满行+?7l+?7h 后
+       * 打印仍按待换行走,提前夹持会把行尾字符覆写掉(2026-10-03 二轮复查,
+       * xterm.js 基准);?7l 期间打印由 print 的写位夹持停在末列,col 不动。 */
       /* 其余 ? 模式(光标/批处理/鼠标):纯文本视口无关。 */
       return;
     }
@@ -145,17 +155,18 @@ export class LiveScreen {
         break;
       case 0x44 /* D */:
       case 0x47 /* G */:
-        this.col = final === 0x47 ? Math.max(0, p(0, 1) - 1) : Math.max(0, this.col - p(0, 1));
+        /* G(CHA)夹持列:?7l 幽灵列的另一入口(与 CUP 同律,2026-10-03 二轮)。 */
+        this.col =
+          final === 0x47
+            ? Math.min(this.cols - 1, Math.max(0, p(0, 1) - 1))
+            : Math.max(0, this.col - p(0, 1));
         break;
       case 0x4d /* M */:
         this.reverseLineFeed(p(0, 1));
         break;
-      case 0x4a /* J */: {
-        const mode = nums[0] ?? 0;
-        if (mode === 2 || mode === 3) this.clear();
-        else this.eraseLine(mode);
+      case 0x4a /* J */:
+        this.eraseDisplay(nums[0] ?? 0);
         break;
-      }
       case 0x4b /* K */:
         this.eraseLine(nums[0] ?? 0);
         break;
@@ -180,10 +191,16 @@ export class LiveScreen {
         this.lineFeed();
       }
       const line = this.lines[this.row] ?? "";
-      const at = Math.min(this.col, MAX_LINE);
+      /* 写位夹持:?7l(DECAWM 关)下 xterm 光标停在末列原地覆写,不进界外
+       * 幽灵格(界外字符会原样进 view(),比真终端多显示一列)。只夹写位不
+       * 动 col:pending(col==cols,可能从 wrap 开期带入)原样保留,?7h 后
+       * 恢复按待换行走(xterm 实测语义;2026-10-03 二轮复查)。 */
+      const at = this.wrap ? Math.min(this.col, MAX_LINE) : Math.min(this.col, this.cols - 1);
       this.lines[this.row] =
         line.slice(0, at).padEnd(at, " ") + ch + line.slice(at + 1);
-      if (this.col < this.cols) this.col++;
+      /* 光标推进:wrap 开允许到 cols 挂起待换行(下一字符先 lineFeed 再落笔);
+       * wrap 关钉末列(col 本身可能停在 cols = 带 pending 的停泊位,写位已夹)。 */
+      if (this.wrap ? this.col < this.cols : this.col < this.cols - 1) this.col++;
     }
   }
 
@@ -208,8 +225,12 @@ export class LiveScreen {
   private eraseLine(mode: number): void {
     const line = this.lines[this.row] ?? "";
     if (mode === 2 || mode === 3) this.lines[this.row] = "";
-    else if (mode === 1) this.lines[this.row] = line.slice(Math.min(this.col, line.length));
-    else this.lines[this.row] = line.slice(0, Math.min(this.col, line.length));
+    else if (mode === 1) {
+      /* EL1 = 行首到光标含光标格擦除(VT510 inclusive;旧实现保留光标格
+       * 少擦一格);前段补空保列位(模型无格坐标,2026-10-03 二轮评审)。 */
+      const at = Math.min(this.col + 1, line.length);
+      this.lines[this.row] = " ".repeat(at) + line.slice(at);
+    } else this.lines[this.row] = line.slice(0, Math.min(this.col, line.length));
   }
 
   /** 屏切换/清屏 = 翻页:旧屏整体进 scrollback(手机「看全输出」要历史;当前屏重开)。 */
@@ -221,5 +242,46 @@ export class LiveScreen {
     this.lines = new Array(this.rows).fill("");
     this.row = 0;
     this.col = 0;
+  }
+
+  /** ED(擦显示):真擦除,不翻页 —— 2J 翻页会把整屏复制进 scrollback,
+   *  SIGWINCH 后的全帧重绘(omp 实证:2J + CUP)就变成头信息出现两份。
+   *  擦除的内容由紧随的全帧重绘原样补回,无信息损失;2J 不动光标(xterm 语义,
+   *  应用自会 [H)。3J = 清 saved lines(scrollback),视口不动。 */
+  private eraseDisplay(mode: number): void {
+    if (mode === 2) {
+      this.lines = new Array(this.rows).fill("");
+      return;
+    }
+    if (mode === 3) {
+      this.scrollback = [];
+      return;
+    }
+    const line = this.lines[this.row] ?? "";
+    if (mode === 0) {
+      this.lines[this.row] = line.slice(0, Math.min(this.col, line.length));
+      for (let i = this.row + 1; i < this.lines.length; i++) this.lines[i] = "";
+    } else {
+      /* ED1 = 屏首到光标含光标格擦除(VT510 inclusive;同 EL1 修正)。 */
+      const at = Math.min(this.col + 1, line.length);
+      this.lines[this.row] = " ".repeat(at) + line.slice(at);
+      for (let i = 0; i < this.row; i++) this.lines[i] = "";
+    }
+  }
+
+  /** 原地改几何(尺寸轮询路径):溢出行进 scrollback、变高补空行、光标夹持。
+   *  不重放字节 —— 重放快照存在在途 chunk 双喂窗口(头信息重复的第二来源);
+   *  旧宽度换行由 CSS pre-wrap 兜底,应用层 WINCH 全帧重绘按新几何收敛。 */
+  resize(cols: number, rows: number): void {
+    this.cols = Math.max(1, Math.min(cols || DEFAULT_COLS, MAX_LINE));
+    const nr = Math.max(1, Math.min(rows || DEFAULT_ROWS, 500));
+    while (this.lines.length > nr) this.scrollback.push(this.lines.shift() ?? "");
+    if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);
+    while (this.lines.length < nr) this.lines.push("");
+    this.rows = nr;
+    if (this.row >= nr) this.row = nr - 1;
+    /* 列不夹持(2026-10-03 二轮复查):wrap 开的 pending(col==cols)须原样
+     * 保留(夹掉 = 下一字符覆写行尾旧字符);wrap 关的界外 col 由 print 的
+     * 写位夹持兜住(停末列覆写),CUP/G 等绝对定位自身夹持。 */
   }
 }

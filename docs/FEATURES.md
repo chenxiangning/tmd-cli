@@ -28,6 +28,7 @@
 - 会话检索增强:多关键词 AND 匹配、命中词高亮、引擎过滤 chip
 - 学堂打磨(academy):「试一试」引擎前置闸、课程 sourceVersion 与装机版本漂移提示、左轨课程列表键盘导航
 - 结构化会话打磨(structured-session):非 confirm 部件自动取消在转录出 notice(不再静默替答)、exited 一键重新开启、入口按引擎能力显隐(死入口清零)、prompt 请求超时独立常量
+- 结构化会话启动降噪(structured-session):部件取消语义分档——chrome 装饰类(setStatus/notify/setWidget)聚成一条淡色行(×N 计数原地刷新),select/input/editor 及未知 kind 维持逐条可见;渲染层零改动
 - 转录浮标分档(session-viewer liveOverlay):按文件型会话显隐,非文件型引擎不露浮标
 - 会话看板打磨(session-board):扫描失败显式错误条 + 重试(不伪装 0 会话)、图例可读性修正、泳道卡渲染预算
 - 卫生清扫如实文案:清扫挂磁盘扫描结算点,回执数据不可得,设置卡如实说明不虚设回执

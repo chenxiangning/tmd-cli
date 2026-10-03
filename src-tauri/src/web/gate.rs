@@ -11,7 +11,7 @@ pub(super) fn new_token() -> String {
 
 /// 任意长度令牌(同字母表);设备 token/配对码共用。
 pub(super) fn gen(len: usize) -> String {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     (0..len)
         .map(|_| TOKEN_ALPHABET[rng.random_range(0..TOKEN_ALPHABET.len())] as char)

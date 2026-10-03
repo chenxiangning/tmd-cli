@@ -1,8 +1,9 @@
 /**
- * composer 输入框高度(taH):null = 紧凑态(随内容 48–144 自长高,逻辑在 SessionScreen);
+ * composer 输入框高度(taH):null = 紧凑态(随内容 34–132 自长高,逻辑在 Composer);
  * 数字 = 拖拽固定高,内滚。顶部把手经 Pointer Events 驱动(触屏/鼠标一路,
  * setPointerCapture 保证移出把手仍收 move,合成事件/旧引擎失败不碍主路);
  * 拖动中只改状态不落盘,落手一次持久化(localStorage,kbOn 同款)。
+ * 2026-10-03 三态胶囊重做时曾随把手删除,同日应大仙要求保真回归。
  */
 import React, { useState } from "react";
 

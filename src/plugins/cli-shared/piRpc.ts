@@ -21,9 +21,12 @@ export interface PiRpcFlavor {
   command: string;
 }
 
-/** 审批请求(extension_ui_request confirm;答案经 respond 回写)。 */
+/** 审批请求(extension_ui_request confirm;答案经 respond 回写)。
+ *  frameId 保原始类型(JSON-RPC id 可为数字;数值 confirm 帧若被字符串化,
+ *  引擎同型匹配不认领 → 审批静默丢失挂死轮次 —— 与 normWidgetFrameId 同律,
+ *  2026-10-03 二轮复查);React key 与 respond 透传都吃 string|number。 */
 export interface PiRpcConfirm {
-  frameId: string;
+  frameId: string | number;
   title: string;
   message: string;
 }
@@ -53,9 +56,11 @@ function clockOf(d: Date): string {
 }
 
 /** 非 confirm 部件自动取消判定(纯函数,单测钉死):extension_ui_request 且
- * method 非 confirm(select/input/editor 等 TUI 部件)时,RPC 模式无人可答,
+ * method 非 confirm(select/input/editor 等真交互部件)时,RPC 模式无人可答,
  * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
- * 回路不在此列;缺 id 的畸形帧不产(无处应答也无从示警)。 */
+ * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)不经此函数,走
+ * reducer.chromeCancel 聚合;缺 id 的畸形帧不产(无处应答也无从示警;调用侧
+ * 已将数值 id 归一为字符串,见 normWidgetFrameId)。 */
 export function widgetCancelledNotice(
   rec: Record<string, unknown>,
   now: Date = new Date(),
@@ -70,6 +75,25 @@ export function widgetCancelledNotice(
     kind,
     text: `${t("CLI 发起 {kind} 交互,已按协议自动取消", { kind })}(${clockOf(now)})`,
   };
+}
+
+/** TUI 装饰类部件(omp 18.x 启动/轮次帧实证:setStatus 状态行、notify 通知、
+ * setWidget 小部件注册):RPC 模式下永远无意义,取消后聚合一处降噪,不逐条
+ * 落行(2026-10-02 spec);select/input/editor 等真交互与未知 kind 一律
+ * interactive 逐条可见——宁可多显示不可静默。 */
+const CHROME_WIDGET_KINDS = new Set(["setStatus", "notify", "setWidget"]);
+
+/** 部件分档(纯函数,单测钉死):chrome = TUI 装饰,interactive = 其余一切。 */
+export function widgetTier(kind: string): "chrome" | "interactive" {
+  return CHROME_WIDGET_KINDS.has(kind) ? "chrome" : "interactive";
+}
+
+/** 部件帧 id 归一:字符串原样、有限数字转字符串(JSON-RPC id 按协议可为数字,
+ * confirm 路同律;2026-10-03 范围评审实锤:字符串守卫会把数值 id 帧静默丢弃,
+ * 无应答可挂轮),其余返空 = 真畸形,不产。 */
+function normWidgetFrameId(v: unknown): string {
+  if (typeof v === "string" && v) return v;
+  return typeof v === "number" && Number.isFinite(v) ? String(v) : "";
 }
 
 export class PiRpcSession {
@@ -125,8 +149,8 @@ export class PiRpcSession {
     await this.request({ type: "abort" }).catch(() => undefined);
   }
 
-  /** 审批应答;confirmId 即 onConfirm 回传 frameId。进程已退时静默丢弃(UI 已终态)。 */
-  respond(confirmId: string, confirmed: boolean): void {
+  /** 审批应答;confirmId 即 onConfirm 回传 frameId(同型回写)。进程已退时静默丢弃(UI 已终态)。 */
+  respond(confirmId: string | number, confirmed: boolean): void {
     void this.raw({
       type: "extension_ui_response",
       id: confirmId,
@@ -195,18 +219,29 @@ export class PiRpcSession {
       case "extension_ui_request": {
         if (rec.method === "confirm") {
           this.handlers.onConfirm({
-            frameId: String(rec.id ?? ""),
+            /* 数值 id 原样(同型回传,见 PiRpcConfirm 注释);字符串守好空值。 */
+            frameId: typeof rec.id === "number" ? rec.id : String(rec.id ?? ""),
             title: String(rec.title ?? ""),
             message: String(rec.message ?? ""),
           });
+          return;
+        }
+        /* select/input/editor 等部件:取消以免挂轮(monocode 同律),协议应答
+         * 两档照发,只改展示面——chrome 装饰类聚合一处,真交互与未知 kind
+         * 逐条 notice(不再无声替答);id 经 normWidgetFrameId 归一(数值 id
+         * 不再被静默丢弃),缺 id/method 的畸形帧不产。 */
+        const kind = rec.method;
+        const fid = normWidgetFrameId(rec.id);
+        if (typeof kind !== "string" || !kind || !fid) return;
+        /* 数值 id 同型回传(JSON-RPC 应答 id 应与请求同型,数值 id 引擎若严格
+         * 类型匹配才认领;字符串帧归一后即原值)。 */
+        const rid = typeof rec.id === "number" ? rec.id : fid;
+        void this.raw({ type: "extension_ui_response", id: rid, cancelled: true }).catch(() => undefined);
+        if (widgetTier(kind) === "chrome") {
+          this.handlers.onBlocks(this.reducer.chromeCancel(kind, clockOf(new Date())), this.reducer.turnStart);
         } else {
-          /* select/input/editor 等 TUI 部件:取消以免挂轮(monocode 同律),
-           * 并在转录流插可见 notice(不再无声替答)。 */
-          const widget = widgetCancelledNotice(rec);
-          if (widget) {
-            void this.raw({ type: "extension_ui_response", id: widget.frameId, cancelled: true }).catch(() => undefined);
-            this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart);
-          }
+          const widget = widgetCancelledNotice({ ...rec, id: fid });
+          if (widget) this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart);
         }
         return;
       }

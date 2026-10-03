@@ -9,6 +9,7 @@ import React from "react";
 import { t } from "@kernel/i18n";
 import { useMobile, endpointCandidates, endpointKind } from "./shared";
 import { SheetBase } from "./SheetBase";
+import { CheckIcon } from "./treeIcons";
 import { loadChannelPin, saveChannelPin } from "./creds";
 import {
   activeRemoteEndpoint,
@@ -89,22 +90,22 @@ function ChannelPanel(props: {
       <div className="sheet-opts">
         <button
           type="button"
-          className={`sheet-opt${pin === "auto" ? " on" : ""}`}
+          className={`ws-opt${pin === "auto" ? " on" : ""}`}
           onClick={() => props.onPick("auto")}
         >
-          <span className="tick">{pin === "auto" ? "✓" : ""}</span>
-          {t("自动(按序竞速)")}
+          <span className="fx-ellip">{t("自动(按序竞速)")}</span>
+          <span className="ck">{pin === "auto" ? <CheckIcon /> : null}</span>
         </button>
         {props.urls.map((u) => (
           <button
             key={u}
             type="button"
-            className={`sheet-opt${pin === u ? " on" : ""}`}
+            className={`ws-opt${pin === u ? " on" : ""}`}
             onClick={() => props.onPick(u)}
           >
-            <span className="tick">{pin === u ? "✓" : ""}</span>
             <span className="fx-ellip">{channelLabel(u)}</span>
             {props.connected && props.active === u && <span className="chip b">{t("当前")}</span>}
+            <span className="ck">{pin === u ? <CheckIcon /> : null}</span>
           </button>
         ))}
       </div>
@@ -149,8 +150,7 @@ export function HostChip() {
         <span className="cv">▾</span>
       </button>
       {sheet && (
-        <SheetBase onClose={() => setSheet(false)} label={t("连接")}>
-          <div className="sheet-h">{t("连接")}</div>
+        <SheetBase onClose={() => setSheet(false)} label={t("连接")} title={t("连接")}>
           <StatusPanel
               hostName={creds.hostName}
               connected={connected}
@@ -167,38 +167,34 @@ export function HostChip() {
               {connected ? (
                 <button
                   type="button"
-                  className="sheet-opt"
+                  className="sheet-act"
                   onClick={() => {
                     remoteDisconnect();
                     setSheet(false);
                   }}
                 >
-                  <span className="tick" />
                   {t("断开连接")}
                 </button>
               ) : (
                 <button
                   type="button"
-                  className="sheet-opt"
+                  className="sheet-act"
                   onClick={() => {
                     forceRemoteReconnect();
                     setSheet(false);
                   }}
                 >
-                  <span className="tick" />
                   {paused ? t("重新连接") : t("重试连接")}
                 </button>
               )}
               <button
                 type="button"
-                className="sheet-opt"
-                style={{ color: "var(--err)" }}
+                className="sheet-act danger"
                 onClick={() => {
                   setSheet(false);
                   onRePair();
                 }}
               >
-                <span className="tick" />
                 {t("重新配对(扫码)")}
               </button>
             </div>

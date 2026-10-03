@@ -43,3 +43,12 @@ export function ArchiveIcon() {
     </svg>
   );
 }
+
+/** 选中行尾对勾(sheet 整行选中态;1.8 stroke 保 14px 尺度下的辨识度)。 */
+export function CheckIcon(props: { size?: number }) {
+  return (
+    <svg viewBox="0 0 16 16" width={props.size ?? 14} height={props.size ?? 14} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="m3.5 8.6 3 3 6-7.2" />
+    </svg>
+  );
+}

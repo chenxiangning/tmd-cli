@@ -1,0 +1,68 @@
+/* 手机底部 sheet 家族样式 —— 自 mobile.css 拆出(300 行铁则),先例同 mobile-dark.css。
+   视觉基准 = docs/superpowers/specs/2026-10-03-mobile-spawn-sheet-polish-design:
+   grabber/滑入动画/关闭钮进基座;工作区整行选中 + 引擎双列卡片 + 全宽 CTA + 提示卡。
+   token 沿用 .m-app 令牌(mobile.css 定义);alert 底为固定色板,暗色覆盖在
+   mobile-dark.css(与 .m-err-bar 同款处理)。 */
+/* 基座唯一形态:原生 <dialog> 铺满视口 flex 沉底(UA margin/border/padding/背景
+ * 归零,视觉与 div 版等价),遮罩走 ::backdrop(浓度 .45 统一);hit = 垫卡片下的遮罩命中钮 */
+dialog.sheet-scrim{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:none;padding:0;background:transparent;color:inherit;overflow:visible}
+dialog.sheet-scrim::backdrop{background:rgba(0,0,0,.45);animation:scrim-in .2s ease}
+/* 进场:卡片上滑淡入;关闭即卸载,退出动画不做(YAGNI,取舍见 spec) */
+@keyframes sheet-up{from{transform:translateY(28px);opacity:.4}}
+@keyframes scrim-in{from{opacity:0}}
+.sheet-scrim-hit{position:absolute;inset:0;cursor:default;background:none;border:none;padding:0}
+/* 表单型卡片:顶部让位 grabber,底部吃安全区(全面屏 home 条不贴 CTA) */
+.sheet{position:relative;z-index:10;max-height:70vh;width:100%;overflow:auto;border-radius:16px 16px 0 0;border:1px solid var(--border);border-bottom:none;background:var(--bg-base);color:var(--fg);padding:10px 16px calc(24px + env(safe-area-inset-bottom));box-sizing:border-box;animation:sheet-up .22s cubic-bezier(.2,.8,.3,1)}
+/* 基座头:grabber 恒在;标题行(title 在场)带 ✕ 关闭钮 */
+.sheet-grab{width:36px;height:4px;border-radius:999px;background:var(--border-strong);opacity:.55;margin:2px auto 6px;flex:none}
+.sheet-titlebar{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.sheet-title{flex:1;min-width:0;font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sheet-x{position:relative;flex:none;width:28px;height:28px;border-radius:999px;border:1px solid var(--border);background:var(--bg-panel);color:var(--fg-muted);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.sheet-x::after{content:"";position:absolute;inset:-6px}
+.sheet-label{margin-bottom:6px;font-size:11.5px;font-weight:600;color:var(--fg-muted)}
+/* 选项容器:竖排行组(SpawnSheet 工作区 / ConnChip 动作行共用骨架) */
+.sheet-opts{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+/* 工作区整行选中态:panel 底 + 描边;选中 = accent 描边 + 淡底 + 行尾对勾 */
+.ws-opt{display:flex;align-items:center;gap:8px;width:100%;border:1px solid var(--border);border-radius:10px;background:var(--bg-panel);padding:11px 12px;font-size:13px;color:var(--fg);text-align:left;font-family:inherit;cursor:pointer}
+.ws-opt.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.ws-opt .ck{margin-left:auto;flex:none;display:none;color:var(--accent)}
+.ws-opt.on .ck{display:inline-flex}
+/* 引擎双列卡片:品牌 glyph + 名字;选中 = 描边 + 淡底 + 右上圆点 */
+.eng-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
+.eng-opt{position:relative;display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--bg-panel);padding:9px 11px;font-size:12.5px;color:var(--fg);text-align:left;font-family:inherit;cursor:pointer}
+.eng-opt.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+.eng-opt .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px}
+.eng-opt .dot{position:absolute;top:7px;right:7px;width:6px;height:6px;border-radius:999px;background:var(--accent);display:none}
+.eng-opt.on .dot{display:block}
+/* 全宽 CTA(替代 280px 悬左的 m-btn) */
+.sheet-cta{width:100%;padding:13px;border-radius:11px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer}
+.sheet-cta:disabled{opacity:.55}
+/* 提示卡:blocked / spawn 失败(替代裸 m-err 文本 + inline style) */
+.sheet-alert{border-radius:10px;border:1px solid;padding:10px 12px;font-size:12px;line-height:1.6;margin-bottom:10px}
+.sheet-alert.warn{background:rgba(161,98,7,.08);border-color:rgba(161,98,7,.3);color:var(--warn)}
+.sheet-alert.err{background:rgba(220,38,38,.06);border-color:rgba(220,38,38,.3);color:var(--err)}
+/* 动作行(ConnChip 断开/重试/重新配对):卡片行,危险项红 */
+.sheet-act{display:flex;align-items:center;gap:8px;width:100%;border:1px solid var(--border);border-radius:10px;background:var(--bg-panel);padding:11px 12px;font-size:13px;color:var(--fg);text-align:left;font-family:inherit;cursor:pointer}
+.sheet-act.danger{color:var(--err);border-color:rgba(220,38,38,.35)}
+/* 连接 sheet · 状态三行 */
+.conn-status{border:1px solid var(--border);border-radius:10px;background:var(--bg-panel);padding:2px 10px;margin-bottom:6px}
+.cs-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;border-bottom:.5px solid var(--border)}
+.cs-row:last-child{border-bottom:none}
+.cs-k{flex:none;color:var(--fg-muted)}
+.cs-v{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:11px}
+/* 审批线 sheet 行 */
+.ck-row{border-bottom:.5px solid var(--border);padding:6px 0}
+.ck-head{display:flex;align-items:center;gap:6px;width:100%;background:none;border:none;padding:4px 0;text-align:left;font-size:12px;color:var(--fg);font-family:inherit;cursor:pointer}
+.ck-idx{font-family:var(--mono);color:var(--fg-muted);flex:none}
+.ck-p{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ck-n{flex:none;font-size:10px;color:var(--fg-subtle)}
+.ck-files{padding:2px 0 4px 8px;display:flex;flex-direction:column;gap:2px}
+.ck-file{display:flex;gap:8px;font-family:var(--mono);font-size:10.5px;color:var(--fg-muted)}
+.ck-stat{flex:none;color:var(--fg-subtle)}
+.sheet-fine{font-size:10.5px;color:var(--fg-faint);margin-bottom:10px}
+/* git 动作表独立类(菜单行自带内距,基类内距会双份):面板底 + 安全区 */
+.gsheet{position:relative;z-index:10;max-height:70vh;width:100%;overflow:auto;box-sizing:border-box;border:1px solid var(--border);border-bottom:none;border-radius:14px 14px 0 0;background:var(--bg-panel);color:var(--fg);padding:10px 0 calc(8px + env(safe-area-inset-bottom));display:flex;flex-direction:column;animation:sheet-up .22s cubic-bezier(.2,.8,.3,1)}
+.sheet-row{width:100%;text-align:left;padding:12px 16px;font-size:13.5px;background:none;border:none;border-bottom:.5px solid var(--border);color:var(--fg)}
+.sheet-row.accent{color:var(--accent);font-weight:600}
+.sheet-head{padding:10px 16px 2px;font-size:13px;font-weight:700}
+.sheet-note{padding:4px 16px 8px;font-size:11.5px;color:var(--fg-muted);word-break:break-all}

@@ -290,6 +290,16 @@ export class WebBridge {
     this.openGate = null;
     this.openResolve?.();
     this.openResolve = null;
+    /* 换端点 = 在途 RPC 的旧线已拆,响应永不再到:pending 全拒防挂(对齐
+     * onClose 拆摊语义;三条换线路径唯此漏清算)。MobileApp 轮询链依赖
+     * invoke 必然 settle(pull().finally(tick)),悬一个 = 列表/覆盖层轮询
+     * 整体静默死亡(2026-10-03 二轮相邻面评审);hello 缓存已清,等待者
+     * 一并释放由新端点 hello 重新收敛。 */
+    const error = new Error("web bridge switching endpoint");
+    for (const entry of this.pending.values()) entry.reject(error);
+    this.pending.clear();
+    for (const w of this.versionWaiters.splice(0)) w(null);
+    for (const w of this.capsWaiters.splice(0)) w([]);
   }
 
   /** 拆当前 socket(先断关联,onClose 重试守卫不触发;静默 close)。 */

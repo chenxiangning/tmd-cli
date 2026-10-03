@@ -252,4 +252,14 @@
 | 2026-10-02 | [界面模块打磨轮四路审计(原语长尾 26+32+6/壳层观感/功能面板观感/12px 密度与交互:共 78 项;附件清除疑点核实误报)](research/client-polish-task4-module-audit.md) | 已完成(处置见同日 spec) |
 | 2026-10-02 | [界面模块打磨轮实施设计(原语长尾全收+实锤清零+高频观感/保命全修+P2 精选;8 域并行;门禁全绿但按用户指令未提交留检)](superpowers/specs/2026-10-02-polish-task4-module-refine-design.md) | 已实施(未提交,待用户检查) |
 | 2026-10-02 | [界面模块打磨轮提交前三路评审(交互/视觉词条/边界性能:实锤 5 全修——保活轮询门控/强删链路恢复/mgrid 非法 CSS/mask 常驻/死键;误报摘录防重查)](review/2026-10-02-polish-task4-review.md) | 已完成(修复随 d3070345 提交) |
+| 2026-10-02 | [结构化会话启动部件 notice 降噪设计(语义分档 + 聚合一处:setStatus/notify/setWidget 取消并条 ×N 原地刷新,select/input/editor 及未知 kind 维持逐条可见;渲染层零改动)](superpowers/specs/2026-10-02-structured-session-boot-notice-design.md) | 已落地(2026-10-03 提交;真机目检留大仙) |
+| 2026-10-03 | [手机端「发起会话」抽屉与 sheet 基座打磨设计(grabber/滑入动画/关闭钮进基座 + 工作区整行选中/引擎双列卡片/全宽 CTA/alert 卡片;sheet 样式拆 mobile-sheet.css)](superpowers/specs/2026-10-03-mobile-spawn-sheet-polish-design.md) | 已实施 |
+| 2026-10-03 | [手机对话输入区三态重做设计(豆包式胶囊 composer:常态胶囊条/挂图卡+提示 chips/「+」四格面板;composer 拆 Composer.tsx,样式拆 mobile-composer.css;三轮修订:css 双入口挂链铁则、面板条上面下、拖拽把手回归)](superpowers/specs/2026-10-03-mobile-composer-redesign-design.md) | 已实施 |
+| 2026-10-03 | [手机对话输入区三态重做提交后评审(交互/边界/架构:一轮实锤 2 修——chip 覆盖草稿改 joinPrompt 追加、注释失实;二轮真机反馈实锤 2 修——mobile css 双入口漏挂链致样式全丢、面板位置与参考图相反,验证升维双产物 grep + 真页面截屏)](review/2026-10-03-mobile-composer-redesign-review.md) | 已完成(修复随两轮提交) |
+| 2026-10-03 | [v0.2.8..HEAD 范围全量评审与整体修复(P1 死链索引/废案提交对 rebase 清除;P2 chrome 聚合截断/数值 id 挂轮/resize 列夹持/replay 注释如实化;新留观:endMsg 权威解析缺 event.id 恒空)](review/2026-10-03-v0.2.9-range-review.md) | 已完成(修复随本日三提交;门禁全绿) |
+| 2026-10-03 | [手机选图上传反馈与相册/拍照双入口设计(选图即时 pending 缩略卡+转圈遮罩消除空白期;胶囊条双 icon=Images 相册+Camera 拍照;iOS 原生 takePhoto 桥;上传中禁发送)](superpowers/specs/2026-10-03-mobile-shot-upload-feedback-design.md) | 已实施(真机目检留大仙) |
+| 2026-10-03 | [手机直连 WS 心跳保活设计(治「图片发送第一次失败,重试即成功」:NAT 静默回收空闲 TCP;桌面直连 15s Ping + iOS WsTunnel 15s sendPing/10s pong 超时自愈;ws.rs 拆 ws_ticks.rs 腾位)](superpowers/specs/2026-10-03-mobile-ws-heartbeat-keepalive-design.md) | 已实施(真机目检留大仙) |
+| 2026-10-03 | [手机快捷键条两行重排 + 实况 2 秒延迟治理(KEY_ROWS 两行大键网格 ≥44px;传输层逐环节实读排除批帧,根因=live 逐帧更新触发 TurnsView 全量 markdown 重解析——memo 止血 + setLive 100ms 尾沿节流 + 发送/应答写后 300ms 触拍)](superpowers/specs/2026-10-03-mobile-keybar-relayout-live-latency-design.md) | 已实施(真机目检留大仙) |
+| 2026-10-03 | [手机选图/拍照上传与 WS 心跳提交后评审(三路对抗:实锤 5 修——send 硬闸补重试/键路绕行、卸载 objectURL 泄漏、错误定时器交叠、plist 双源分叉、相机权限黑屏;疑点 2 修 4 留观;误报 5 条防重查)](review/2026-10-03-mobile-shot-upload-review.md) | 已完成(修复随本日提交;门禁全绿) |
+| 2026-10-03 | [v0.2.8..HEAD 范围二轮评审(五路分区对抗 + 主线精读 + 三轮遗留挖掘:二轮实锤 2B+3M+12m、三轮 4M+9m 全修——pong 死线感知在途大帧、StrictMode 钉死 useShots、resize/print/CHA 幽灵列三族、setEndpoint 不清算 pending、poke 重入翻链、发送在途续打续挂全保、confirm 数值 id 同型、fs_write_temp 服务端闸+老化清理、回前台探测等;留观 11 条)](review/2026-10-03-v0.2.9-range-review-2.md) | 已完成(修复随本日提交;门禁全绿) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

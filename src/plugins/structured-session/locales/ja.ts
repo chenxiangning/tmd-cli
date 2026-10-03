@@ -18,7 +18,9 @@ export const MESSAGES_JA: Record<string, string> = {
   "空闲": "アイドル",
   "等待确认": "確認待ち",
   "批准": "承認",
-  拒否: "拒否",
+  /* 键名误用日文词且未加引号 = 死键(逃过 check-i18n-keys 提取);JA 实靠
+   * kernel ssh 词典跨域巧合覆盖(2026-10-03 二轮评审顺手修正)。 */
+  "拒绝": "拒否",
   /* 极简联动键(sessionTab 与 session-viewer 同措辞;插件域自带一份防依赖注册序) */
   "极简": "ミニマル",
   "极简展示:每轮工作过程折叠为一行,只保留最终答复":
@@ -26,4 +28,7 @@ export const MESSAGES_JA: Record<string, string> = {
   /* 非 confirm 部件自动取消 notice(消费点在 cli-shared/piRpc,feature 插件带词典先例) */
   "CLI 发起 {kind} 交互,已按协议自动取消":
   "CLI が {kind} インタラクションを要求しました。プロトコルに従い自動キャンセル",
+  /* chrome 装饰类部件聚合行(明细括注与时刻由 piRpcReducer 拼接,协议词不译) */
+  "TUI 部件交互已自动取消 ×{count}":
+  "TUIウィジェット操作を{count}件自動キャンセル",
 }

@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import ImageIO
 import PhotosUI
@@ -75,6 +76,9 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
       /* 选图直连(见 pickImage):iOS 18.4 前的 WKUIDelegate 文件面板缺失,
          <input type=file> 低版本是静默死钮 —— 按钮不再走 input。 */
       pickImage(id: id)
+    case "takePhoto":
+      /* 拍照直连(见 takePhoto):相机拍摄上传,回传链路与 pickImage 同构。 */
+      takePhoto(id: id)
     default:
       reply(id: id, ok: false, payload: "unknown method \(method)")
     }
@@ -85,6 +89,13 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
   private var activePick: FilePanelRelay?
 
   private func pickImage(id: Int) {
+    /* single-flight(同 takePhoto 的 shotInFlight):二次进入会覆盖 activePick,
+     * 旧 relay 释放 → picker delegate(weak)变 nil → 首个 JS promise 永挂。
+     * 入口到 present 无异步窗,守 activePick 在位即够。 */
+    guard activePick == nil else {
+      reply(id: id, ok: false, payload: "选图已在进行中")
+      return
+    }
     guard let root = UIApplication.shared.connectedScenes
       .compactMap({ $0 as? UIWindowScene })
       .flatMap({ $0.windows })
@@ -111,6 +122,79 @@ final class ShellBridge: NSObject, WKScriptMessageHandler {
     }
     activePick = relay /* 持活:防 present 后即被 ARC 释放,回调永挂 */
     relay.present(root, picker)
+  }
+
+  /// 拍照:present 相机 UIImagePickerController(需 NSCameraUsageDescription)。
+  /// 拍摄原图限边 2048 转 JPEG 回 base64,回传形状与 pickImage 同构
+  /// ({b64}/{cancelled});无相机硬件(模拟器/无摄像头 iPad)→ ok:false。
+  /// 权限闸前置:isSourceTypeAvailable 只看硬件不看授权(拒授权时 present 出
+  /// 黑屏取景器),故先查 AVCaptureDevice 授权态,被拒直接回错(JS 错误条上屏),
+  /// 未决走系统弹窗后再判。
+  private var activeShot: CameraRelay?
+  /* 拍照 single-flight:覆盖「权限弹窗未决 → present → 收图」全程;无此闸时
+     二次进入会覆盖 activeShot,旧 relay 释放 → 相机 delegate 变 nil → 首个
+     JS promise 永挂(JS 侧 shotBusy 禁钮只挡渲染后的双击,异步窗挡不住)。 */
+  private var shotInFlight = false
+
+  private func takePhoto(id: Int) {
+    guard !shotInFlight else {
+      reply(id: id, ok: false, payload: "拍照已在进行中")
+      return
+    }
+    shotInFlight = true
+    guard let root = UIApplication.shared.connectedScenes
+      .compactMap({ $0 as? UIWindowScene })
+      .flatMap({ $0.windows })
+      .first(where: { $0.isKeyWindow })?.rootViewController else {
+      shotInFlight = false
+      reply(id: id, ok: false, payload: "no key window"); return
+    }
+    guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+      shotInFlight = false
+      reply(id: id, ok: false, payload: "相机不可用(无摄像头或模拟器)")
+      return
+    }
+    let present: (UIViewController) -> Void = { [weak self] root in
+      guard let self else { return }
+      let picker = UIImagePickerController()
+      picker.sourceType = .camera
+      picker.modalPresentationStyle = .fullScreen /* 相机页必须全屏( iPad 同),卡片式呈现异常 */
+      let relay = CameraRelay()
+      relay.onDone = { [weak self] data, reason in
+        self?.activeShot = nil
+        self?.shotInFlight = false
+        if let data {
+          let b64 = data.base64EncodedString()
+          ShellLog.write("shot: reply b64 \(b64.count) chars")
+          self?.reply(id: id, ok: true, payload: ["b64": b64])
+        } else if reason == "cancelled" {
+          ShellLog.write("shot: user cancelled")
+          self?.reply(id: id, ok: true, payload: ["cancelled": true])
+        } else {
+          self?.reply(id: id, ok: false, payload: reason ?? "拍照失败")
+        }
+      }
+      self.activeShot = relay /* 持活:契约同 activePick,present 后防 ARC 提前释放 */
+      relay.present(root, picker)
+    }
+    switch AVCaptureDevice.authorizationStatus(for: .video) {
+    case .authorized:
+      present(root)
+    case .notDetermined:
+      /* 首启:系统弹窗后据实分流(回调在任意线程,呈现必须回主线程) */
+      AVCaptureDevice.requestAccess(for: .video) { granted in
+        DispatchQueue.main.async {
+          if granted { present(root) }
+          else {
+            self.shotInFlight = false
+            self.reply(id: id, ok: false, payload: "相机权限被拒,请在系统设置开启")
+          }
+        }
+      }
+    default:
+      shotInFlight = false
+      reply(id: id, ok: false, payload: "相机权限被拒,请在系统设置开启")
+    }
   }
 
   /// 壳原生 POST(自签中继场景:WKWebView fetch 无法信任自签证书,
@@ -210,6 +294,46 @@ final class WsTunnel {
   private var opened: Set<Int> = []
   weak var webview: WKWebView?
 
+  init() {
+    /* 回前台探测(2026-10-03 二轮相邻面):后台期 NAT 静默回收的僵尸线 JS 侧
+       仍见 OPEN(transportBridge.forceReconnect 只拆 CONNECTING 线),首次
+       发送挂在死线上直到 pong 死线顺延链走完(~2 分钟)。前台激活即发探测
+       ping:3s 无 pong 且无在途发送 = 判死拆线促重拨;活线毫秒级回 pong 零
+       打扰;在途大帧期(pong 排在帧后)交还周期死线链接管,不误杀。 */
+    NotificationCenter.default.addObserver(
+      forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+    ) { [weak self] _ in
+      self?.probeOnForeground()
+    }
+  }
+
+  private func probeOnForeground() {
+    for (id, task) in tasks {
+      let lock = NSLock()
+      var settled = false
+      let finish: (Bool) -> Void = { alive in
+        lock.lock()
+        defer { lock.unlock() }
+        guard !settled else { return }
+        settled = true
+        if !alive {
+          ShellLog.write("ws fg probe dead id=\(id): cancel 促重拨")
+          task.cancel(with: .goingAway, reason: nil) /* receive 报错 → close 事件 */
+        }
+      }
+      task.sendPing { error in finish(error == nil) }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+        guard self.tasks[id] === task else { return } /* 线已换代:停摆 */
+        lock.lock()
+        let done = settled
+        lock.unlock()
+        guard !done else { return }
+        if self.inflightSendsById[id, default: 0] > 0 { return } /* 大帧在途:让周期死线链接管 */
+        finish(false)
+      }
+    }
+  }
+
   /* URLSession 回调在后台线程;evaluateJavaScript 是主线程专用 API(后台直调 =
    * WebKit 主动 crash),tasks/opened 状态也一律回主线程改,免锁。 */
   private func onMain(_ block: @escaping () -> Void) {
@@ -233,12 +357,79 @@ final class WsTunnel {
     onMain {
       self.webview = webview
       self.opened.remove(id)
-      self.tasks[id]?.cancel(with: .goingAway, reason: nil)
+      /* 单连接不变量:JS 桥同一时刻只持一条 ws(transportBridge 单 socket);
+         残留线(页面 reload / WebContent 崩溃重载后 JS 侧无人收线)在保活改动
+         后将永生(ping 链 + 桌面自动 pong,旧版靠 NAT 30~60s 自然收割),开新线
+         时一律拆旧,防孤儿 socket 与 ping/receive 链堆积(2026-10-03 评审 S3)。 */
+      let stale = self.tasks
+      if !stale.isEmpty {
+        self.tasks.removeAll()
+        self.inflightSendsById.removeValue(forKey: id) /* 同 id 重拨:老计数随拆线除账 */
+        self.opened.subtract(stale.keys)
+        for (_, t) in stale { t.cancel(with: .goingAway, reason: nil) }
+        ShellLog.write("ws open id=\(id): evicted \(stale.count) stale conn(s)")
+      }
       let task = self.session.webSocketTask(with: url)
       self.tasks[id] = task
       task.resume()
       ShellLog.write("ws dial id=\(id) host=\(url.host ?? "?") port=\(url.port ?? -1)")
       self.receive(id: id, task: task)
+      self.schedulePing(id: id, task: task, delay: 15)
+    }
+  }
+
+  /* 心跳保活(15s sendPing + 10s pong 超时,与桌面直连 ws 心跳同口径):手机网
+     NAT 对空闲 TCP 静默回收(30~60s),选图/拍照/打字的长空闲窗后 readyState
+     仍 OPEN 的假活连接要到下一次 invoke 才暴露(真机实证「图片发送第一次失败,
+     重试即成功」)。周期 ping 让 NAT 映射双向不过期;pong 超时 = 死线,cancel
+     触发 receive 报错 → close 事件回注 JS → 桥退避重拨,用户下一次 invoke 已
+     走新线(自愈先于用户操作)。settled 锁防 pong/超时双到达双结算。
+     死线感知在途发送:图片上传是单条 ~3.6MB WS 文本帧,ping 与它同一 TCP 流
+     按序排队,pong 要等大帧冲刷完才回(上行 1Mbps 冲刷 ~30s)—— 死线不看
+     在途会把慢上行正在传的帧连掐死(2026-10-03 评审:复发「图片第一次失败」
+     的换面)。在途 >0 时每 10s 复查,清空才判死;顺延上限 12 拍(2 分钟)防
+     永不判死。计数按线分账(key = 桥内连接 id):拆孤儿线/换代即除账,老线
+     完成回调的迟到递减只落到已除账键(max 兜底 0),不吃新线计数 —— 全局
+     单计数一旦漂高,健康空闲线会被死线顺延链误拆(2026-10-03 二轮复查)。 */
+  private var inflightSendsById: [Int: Int] = [:]
+
+  private func schedulePing(id: Int, task: URLSessionWebSocketTask, delay: TimeInterval) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+      guard let self, self.tasks[id] === task else { return } /* 线已换代/已收:停摆 */
+      let lock = NSLock()
+      var settled = false
+      let finish: (Bool) -> Void = { alive in
+        lock.lock()
+        defer { lock.unlock() }
+        guard !settled else { return }
+        settled = true
+        if alive {
+          self.schedulePing(id: id, task: task, delay: 15)
+        } else {
+          ShellLog.write("ws ping dead id=\(id): cancel 促重拨")
+          task.cancel(with: .goingAway, reason: nil) /* receive 报错 → close 事件 */
+        }
+      }
+      task.sendPing { error in finish(error == nil) }
+      /* pong 死线:在途发送未清空只顺延复查,不判死(计数读写都在主线程) */
+      func armDeadline(attempt: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+          /* 线已换代/已收:停摆(外层闸只在首跳查过,顺延链内须复查) */
+          guard self.tasks[id] === task else { return }
+          lock.lock()
+          let done = settled
+          lock.unlock()
+          guard !done else { return }
+          /* self 由外层 guard let 强持(单例,链条 ≤2 分钟,无悬挂) */
+          if self.inflightSendsById[id, default: 0] > 0, attempt < 12 {
+            ShellLog.write("ws pong wait id=\(id): \(self.inflightSendsById[id, default: 0]) send(s) inflight, defer")
+            armDeadline(attempt: attempt + 1)
+          } else {
+            finish(false)
+          }
+        }
+      }
+      armDeadline(attempt: 0)
     }
   }
 
@@ -275,14 +466,19 @@ final class WsTunnel {
 
   func send(id: Int, text: String) {
     onMain { [weak self] in
-      guard let task = self?.tasks[id] else { return }
-      task.send(.string(text)) { _ in } // 发送失败由 close 事件承载
+      guard let self, let task = self.tasks[id] else { return }
+      self.inflightSendsById[id, default: 0] += 1 /* pong 死线感知:大帧冲刷期不误判死线 */
+      task.send(.string(text)) { [weak self] _ in /* 发送失败由 close 事件承载 */
+        guard let self else { return }
+        self.onMain { self.inflightSendsById[id, default: 0] = max(0, self.inflightSendsById[id, default: 0] - 1) }
+      }
     }
   }
 
   func close(id: Int) {
     onMain {
       self.opened.remove(id)
+      self.inflightSendsById.removeValue(forKey: id) /* 除账:老线迟到回调不减新线 */
       self.tasks.removeValue(forKey: id)?.cancel(with: .goingAway, reason: nil)
     }
   }
@@ -408,5 +604,73 @@ final class FilePanelRelay: NSObject, PHPickerViewControllerDelegate {
     let props: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: 0.9]
     CGImageDestinationAddImage(dst, img, props as CFDictionary)
     return CGImageDestinationFinalize(dst) ? out as Data : nil
+  }
+}
+
+/// 相机拍摄 relay:present UIImagePickerController → originalImage 限边 2048
+/// 转 JPEG(Data 恰一次回传;取消/失败/解不出统一经 finish 收口,契约同
+/// FilePanelRelay —— completionHandler 恰一次是 WebKit 应答的底线)。
+/// draw(in:) 按 imageOrientation 转正(竖拍),renderer scale=1 防Retina 屏放大。
+final class CameraRelay: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+  /* data=nil 且 reason=nil = 用户取消;reason 非空 = 失败(JS 上屏,不再静默)。 */
+  var onDone: ((Data?, String?) -> Void)?
+  private var done = false
+
+  func present(_ root: UIViewController, _ picker: UIImagePickerController) {
+    picker.delegate = self
+    root.present(picker, animated: true)
+  }
+
+  func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+    picker.dismiss(animated: true)
+    ShellLog.write("shot: user cancelled picker")
+    finish(nil, reason: nil, cancelled: true)
+  }
+
+  func imagePickerController(
+    _ picker: UIImagePickerController,
+    didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+  ) {
+    picker.dismiss(animated: true)
+    guard !done else { return }
+    guard let image = info[.originalImage] as? UIImage else {
+      finish(nil, reason: "相机未返回图像")
+      return
+    }
+    /* 全幅解码(12MP≈49MB 位图)在主线程 0.3-0.8s 卡顿(2026-10-03 评审 S5),
+       挪 userInitiated 后台队列;done 收口/done 位只碰主线程,免竞。 */
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      let data = Self.jpegData(from: image)
+      DispatchQueue.main.async { [weak self] in
+        guard let self, !self.done else { return }
+        guard let data, !data.isEmpty else {
+          ShellLog.write("shot: encode failed")
+          self.finish(nil, reason: "照片编码失败")
+          return
+        }
+        ShellLog.write("shot: jpeg \(data.count)B")
+        self.finish(data, reason: nil)
+      }
+    }
+  }
+
+  private func finish(_ data: Data?, reason: String? = nil, cancelled: Bool = false) {
+    guard !done else { return }
+    done = true
+    onDone?(data, cancelled ? "cancelled" : reason)
+    onDone = nil
+  }
+
+  /// UIImage → 限边 2048 JPEG(参数与 FilePanelRelay.jpegData 同闸:JS 侧
+  /// shrinkImage 1568 再压一道,双闸省内存)。
+  private static func jpegData(from image: UIImage) -> Data? {
+    let maxEdge: CGFloat = 2048
+    let scale = min(1, maxEdge / max(image.size.width, image.size.height))
+    let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    return UIGraphicsImageRenderer(size: size, format: format)
+      .image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+      .jpegData(compressionQuality: 0.9)
   }
 }

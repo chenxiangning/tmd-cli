@@ -89,8 +89,8 @@ export function CkptSheet(props: { cwd: string; sessionId: string; onClose: () =
     <SheetBase
       onClose={props.onClose}
       label={t("审批线 · {session}", { session: props.sessionId.slice(0, 8) })}
+      title={t("审批线 · {session}", { session: props.sessionId.slice(0, 8) })}
     >
-      <div className="sheet-h">{t("审批线 · {session}", { session: props.sessionId.slice(0, 8) })}</div>
       <div className="sheet-fine">{t("只读摘要 · 处理请在桌面端进行")}</div>
       {err && (
         <div className="m-err" style={{ textAlign: "left" }}>

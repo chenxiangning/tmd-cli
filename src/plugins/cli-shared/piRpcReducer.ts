@@ -12,6 +12,7 @@
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
 import type { CliTranscriptBlock, CliToolPreview } from "@kernel/cliSessionTypes";
+import { t } from "@kernel/i18n";
 import { piToolPreview, piTranscriptLine } from "./piTranscript";
 
 const LIVE = "live:";
@@ -60,6 +61,10 @@ export class PiRpcReducer {
   private tools = new Map<string, ToolLive>();
   private toolOrder: string[] = [];
   turnStart = 0;
+  /** chrome 部件聚合尾块(id + kind→计数)。仅当 settled 尾块仍是它时原地
+   * 刷新;任何其他块落尾后引用自然失配,下次 chrome 取消新开一条——时序不回流。 */
+  private aggTail: { id: string; counts: Map<string, number> } | null = null;
+  private aggSeq = 0;
 
   feed(rec: Record<string, unknown>): CliTranscriptBlock[] {
     const type = rec.type;
@@ -151,7 +156,12 @@ export class PiRpcReducer {
         ...parsed,
         ...(fallbackText ? [fallbackText] : []),
       ];
-      this.settled = [...this.settled.slice(0, live.at), ...merged];
+      /* 权威落定只替换流内消息段,尾部保序拼接:live.at 之后流内追加的
+       * notice/chrome 聚合块不再被截掉(2026-10-03 范围评审实锤:旧
+       * slice(0, live.at) 会静默吞掉它们,而 spec 自述「setStatus 轮次中
+       * 也会来」,该窗口真实可达;assistant 无 settled 占位,live.at 之后
+       * 即流内追加块)。 */
+      this.settled = [...this.settled.slice(0, live.at), ...merged, ...this.settled.slice(live.at)];
     }
     this.rebuild();
   }
@@ -179,6 +189,28 @@ export class PiRpcReducer {
     this.settled = [...this.settled, { id: `${LIVE}n${this.settled.length}`, role: "system", text }];
     this.rebuild();
     return this.blocks;
+  }
+
+  /** chrome 部件(TUI 装饰类:setStatus/notify/setWidget,分档见 piRpc.widgetTier)
+   * 自动取消的聚合落点:连续取消并成一条 system 行原地刷新(×N 计数,降噪 spec
+   * 2026-10-02);被其他块隔开即新开一条。kind 是协议词不译,时刻取最近一次。 */
+  chromeCancel(kind: string, clock: string): CliTranscriptBlock[] {
+    const last = this.settled[this.settled.length - 1];
+    const target = last && this.aggTail && last.id === this.aggTail.id ? this.aggTail : this.newAggTail();
+    target.counts.set(kind, (target.counts.get(kind) ?? 0) + 1);
+    const total = [...target.counts.values()].reduce((a, b) => a + b, 0);
+    const detail = [...target.counts.entries()].map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(" · ");
+    const text = `${t("TUI 部件交互已自动取消 ×{count}", { count: total })}(${detail} · ${clock})`;
+    this.settled = this.settled.map((b) => (b.id === target.id ? { ...b, text } : b));
+    this.rebuild();
+    return this.blocks;
+  }
+
+  private newAggTail() {
+    const target = { id: `${LIVE}nagg${++this.aggSeq}`, counts: new Map<string, number>() };
+    this.aggTail = target;
+    this.settled = [...this.settled, { id: target.id, role: "system", text: "" }];
+    return target;
   }
 
   /** 活消息冻结(无权威帧时兜底;live.thinking/text 进基座)。 */

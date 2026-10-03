@@ -136,9 +136,10 @@ async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promi
   }
 }
 
-/** 桥帧预算:手机 invoke 帧 ≤3.5MiB(transportBridge 守卫),JSON 数字数组
- *  每字节 ~3.6 字符 → 字节上限留余量取 900KB(1568/q0.8 的噪点照片可超 1MB)。 */
-const UPLOAD_BYTE_BUDGET = 900_000;
+/** 桥帧预算:手机 invoke 帧 ≤3.5MiB(transportBridge 守卫,按 UTF-16 字符
+ *  计),JSON 数字数组最坏全高字节 4 字符/字节 → 字节上限 850KB 留足余量
+ *  (900KB×4=3.6M 字符曾可误撞闸;1568/q0.8 的噪点照片可超 1MB)。 */
+const UPLOAD_BYTE_BUDGET = 850_000;
 
 /** base64 → JPEG Blob(native pickImage 回传还原;独立纯函数供单测)。 */
 export function blobFromB64(b64: string): Blob {
@@ -148,11 +149,16 @@ export function blobFromB64(b64: string): Blob {
   return new Blob([bytes], { type: "image/jpeg" });
 }
 
+/** 图片来源:album = 相册选图(PHPicker);camera = 相机拍摄(takePhoto 桥)。 */
+export type ShotSource = "album" | "camera";
+/** 挂图错误条分档(null = 无错;文案按图源区分选图/拍照失败)。 */
+export type ShotErr = ShotSource | null;
+
 /** 选图结果分流:cancelled → null(用户取消);缺 b64 → throw(原因上屏);
- *  有 b64 → JPEG Blob。 */
-export function pickResultToBlob(r: { b64?: string; cancelled?: boolean }): Blob | null {
+ *  有 b64 → JPEG Blob。source 仅用于错误信息标图源(默认 pickImage)。 */
+export function pickResultToBlob(r: { b64?: string; cancelled?: boolean }, source = "pickImage"): Blob | null {
   if (r.cancelled) return null;
-  if (!r.b64) throw new Error(`pickImage 回传无图片数据: ${JSON.stringify(r).slice(0, 80)}`);
+  if (!r.b64) throw new Error(`${source} 回传无图片数据: ${JSON.stringify(r).slice(0, 80)}`);
   return blobFromB64(r.b64);
 }
 
@@ -161,6 +167,12 @@ export function pickResultToBlob(r: { b64?: string; cancelled?: boolean }): Blob
  *  取消 → null;失败 → throw(由 attachShot flashErr 上屏)。 */
 export async function pickShotImage(): Promise<Blob | null> {
   return pickResultToBlob(await shellInvoke<{ b64: string; cancelled?: boolean }>("pickImage"));
+}
+
+/** 拍照:native 相机直连(ShellBridge "takePhoto"),回传形状与 pickImage 同构
+ *  ({b64}/{cancelled});取消 → null;失败 → throw(错误条文案分档拍照)。 */
+export async function takePhotoImage(): Promise<Blob | null> {
+  return pickResultToBlob(await shellInvoke<{ b64?: string; cancelled?: boolean }>("takePhoto"), "takePhoto");
 }
 
 /** 图像压到长边 ≤maxEdge 的 JPEG(微信级),且压进桥帧预算(超预算逐级
@@ -205,31 +217,52 @@ export function uploadTempImage(name: string, bytes: Uint8Array): Promise<string
   return invokeSafe<string>("fs_write_temp", { name, data: Array.from(bytes) });
 }
 
-/** 选图(pickImage 直连;file 参数 = 测试注入)→ 压缩(压进桥帧预算)→
- *  fs_write_temp 落盘 → onShot 挂 composer 预览(objectURL 随移除/发送释放)。
- *  草稿不再注入 @路径(长路径挤占输入框):发送时统一拼(composeSendText)。
- *  取消/失败走 shell.log 且按钮 3s 变 ✕(手机屏上唯一可见反馈)。 */
+/** 选图/拍照 → 压缩 → fs_write_temp 落盘 → onShot 挂 composer 预览(objectURL
+ *  随移除/发送/释放;卸载后到货由 useShots 即时 revoke)。**原图到手即回
+ *  onPending**(pending 缩略卡即时上屏,消除压缩+上传期的交互空白,spec
+ *  2026-10-03);完成/失败/取消统一 onPendingDone 撤卡并释放预览 URL。图源
+ *  source 分流 picker(默认相册)与错误分档;草稿不注 @路径(发送时统一拼
+ *  composeSendText);取消静默;失败 flashErr 单次上报(3s 自清等 UI 策略归
+ *  调用方)。pick/shrink/upload = 测试注入。 */
 export async function attachShot(
   o: {
     isBusy: boolean;
     setBusy: (v: boolean) => void;
     onShot: (shot: { path: string; url: string }) => void;
-    flashErr: (v: boolean) => void;
+    /** 失败上报(分档 + 原生桥明细,如相机权限指引;3s 自清等 UI 策略归调用方)。 */
+    flashErr: (v: ShotErr, detail?: string) => void;
+    /** 图源确定即回(原图 objectURL):pending 缩略卡即时上屏。 */
+    onPending?: (url: string) => void;
+    /** pending 终态(成功替换/失败)必回一次,撤卡。 */
+    onPendingDone?: () => void;
   },
-  file?: Blob,
+  inj?: {
+    pick?: () => Blob | null | Promise<Blob | null>;
+    source?: ShotSource;
+    shrink?: (b: Blob) => Promise<Uint8Array<ArrayBuffer>>;
+    upload?: typeof uploadTempImage;
+  },
 ): Promise<void> {
   if (o.isBusy) return;
   o.setBusy(true);
   try {
-    const blob = file ?? (await pickShotImage());
-    if (!blob) return; /* 用户取消:静默 */
-    const bytes = await shrinkImage(blob);
-    const path = await uploadTempImage(`shot-${Date.now()}.jpg`, bytes);
-    o.onShot({ path, url: URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" })) });
+    const blob = await (inj?.pick ? inj.pick() : inj?.source === "camera" ? takePhotoImage() : pickShotImage());
+    if (!blob) return; /* 用户取消:静默(pending 未挂,无需撤) */
+    const preview = URL.createObjectURL(blob);
+    o.onPending?.(preview);
+    try {
+      const bytes = await (inj?.shrink ?? shrinkImage)(blob);
+      const path = await (inj?.upload ?? uploadTempImage)(`shot-${Date.now()}.jpg`, bytes);
+      o.onShot({ path, url: URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" })) });
+    } finally {
+      URL.revokeObjectURL(preview);
+      o.onPendingDone?.();
+    }
   } catch (e) {
-    shellLog(`上传截图失败: ${String((e as Error)?.message ?? e).slice(0, 160)}`);
-    o.flashErr(true);
-    window.setTimeout(() => o.flashErr(false), 3000);
+    const kind = inj?.source ?? "album";
+    const detail = String((e as Error)?.message ?? e).slice(0, 160);
+    shellLog(`${kind === "camera" ? "拍照" : "选图"}上传失败: ${detail}`);
+    o.flashErr(kind, detail);
   } finally {
     o.setBusy(false);
   }

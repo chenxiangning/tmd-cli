@@ -1,6 +1,6 @@
 [package]
 name = "tmd-cli"
-version = "0.2.8"
+version = "0.2.9"
 description = "Plugin-based multi-CLI desktop client"
 authors = ["Chen Xiangning"]
 license = "MIT"
@@ -8,7 +8,7 @@ repository = "https://github.com/chenxiangning/tmd-cli"
 homepage = "https://github.com/chenxiangning/tmd-cli"
 publish = false
 edition = "2021"
-rust-version = "1.80"
+rust-version = "1.85"
 
 [lib]
 name = "tmd_cli_lib"
@@ -43,9 +43,9 @@ md-5 = "0.10"
 tauri-plugin-shell = { version = "2", default-features = false }
 # 右键菜单「移到废纸篓」:走系统回收站(可挽回),不做物理删除;codemoss 同款。
 trash = "5"
-# SSH 引擎(russh 0.62 系实测组合;0.63 起 MSRV 1.85 超本仓 rust-version 1.80):
+# SSH 引擎(russh 0.63 系;0.63 起 MSRV 1.85,本仓 rust-version 随之抬到 1.85):
 # russh 客户端(连接/认证/KBI/通道)+ russh-sftp(SFTP subsystem)。
-russh = "0.62.2"
+russh = "0.63.3"
 # russh/转发/IO 泵直接使用 tokio 原语(mpsc/watch/Semaphore/Tcp/JoinSet);tauri 已传递引入,这里显式声明所需 feature。
 tokio = { version = "1", features = ["rt", "sync", "time", "net", "io-util", "fs", "macros"] }
 russh-sftp = "2.3"
@@ -54,18 +54,18 @@ sha2 = "0.10"
 # Web 远程访问桥:LAN HTTP/WS 服务(见 web/ 模块);ws feature 供 /ws 命令桥。
 axum = { version = "0.8", features = ["ws"] }
 # Web 桥访问令牌铸造(安全用途,CSPRNG)。
-rand = "0.9"
+rand = "0.10"
 # relay 密钥铸造。
 uuid = { version = "1", features = ["v4"] }
 futures-util = { version = "0.3", features = ["sink"] }
 # 外网中继:桌面出站拨号自有 relay(Cloudflare Worker / 自建)用的 WSS 客户端。
-tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
 # relay 出站 WSS:rustls 树同时含 aws-lc-rs(reqwest 启用)与 ring,provider 自动探测遇歧义 panic;
 # 拨号前显式装与 reqwest 一致的 aws-lc-rs(见 relay_agent::dial_agent)。
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "std"] }
-# 自建中继证书钉住(pinned_tls):摘要用 aws-lc-rs;默认根库与 tungstenite 对齐 0.26。
+# 自建中继证书钉住(pinned_tls):摘要用 aws-lc-rs;默认根库与 tungstenite 对齐 1.0。
 aws-lc-rs = "1"
-webpki-roots = "0.26"
+webpki-roots = "1.0"
 # relay agent URL 查询串编码(form_urlencoded;reqwest 传递依赖已在树内,显式声明直用,
 # 替代手搓 percent-encode 白名单表)。
 url = "2"

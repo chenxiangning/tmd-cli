@@ -3,7 +3,7 @@
  * 审批 sheet 排序 = 进行中置顶 + 轮次倒序(新批在上)。
  */
 import { describe, expect, it } from "vitest";
-import { KEYS, sortBatches, type CkptLite } from "./shared";
+import { KEY_ROWS, KEYS, sortBatches, type CkptLite } from "./shared";
 
 const seq = (label: string) => KEYS.find((k) => k.label === label)?.seq;
 
@@ -21,6 +21,11 @@ describe("键表序列", () => {
     expect(seq("↵")).toBe("\r");
     expect(seq("Pg↑")).toBe("\x1b[5~");
     expect(seq("Pg↓")).toBe("\x1b[6~");
+  });
+  it("两行分组(spec 2026-10-03):行1 导航五键/行2 功能六键,展平 = KEYS", () => {
+    expect(KEY_ROWS[0].map((k) => k.label)).toEqual(["←", "↑", "↓", "→", "↵"]);
+    expect(KEY_ROWS[1].map((k) => k.label)).toEqual(["esc", "tab", "⌃c", "Pg↑", "Pg↓", "model"]);
+    expect(KEYS).toEqual(KEY_ROWS.flat());
   });
 });
 

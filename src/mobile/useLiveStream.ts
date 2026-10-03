@@ -7,12 +7,15 @@
  * - loadEarlier:复用 session_history_page 分页(start_offset/has_more 桌面现成),
  *   剥 ANSI 线性文本前置渲染——LiveScreen 是 append-only VT 模型,不可前插字节。
  * - 尺寸:手机 useTerminalFit 随容器发 session_resize(与桌面共享同一 PTY),
- *   每 3s 校 session_size,变了即按新几何重建 + 重放日志尾(真机双页脚实证)。
+ *   每 3s 校 session_size,变了即 LiveScreen 原地 resize(不重放快照:重放会把
+ *   在途活 chunk 与快照字节双喂;真机双页脚实证的是几何,不是重放)。
  * - 内容零丢失(P0):事件跳帧(Lagged)与断连重连(onRemoteConnection 翻转)
  *   都按水位比对触发一次 rebuild 回放 —— 断连窗口的输出不再成永久缺口。水位 =
  *   尾页 start_offset+text.length,实况 chunk 到达即累加;回放期间新 chunk 进
  *   缓冲换屏后排空(与首载同一套序),免换屏竞态丢字节。
- * - rAF 脏标合帧:全量 view() 重建压到 ≤60Hz。
+ * - rAF 脏标合帧 → 100ms 尾沿节流(spec 2026-10-03-mobile-keybar-relayout):
+ *   全量 view() 重建压到 ~10Hz,文本视口观感仍瞬时,WKWebView 全文重排次数
+ *   较 60Hz 降约 6 倍;尾沿保证最后一帧必达。
  * - useSessionExit:pty://exit 订阅 + 列表消失兜底(会话屏终局横幅的数据面)。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +25,9 @@ import { LiveScreen } from "./liveText";
 import { onPtyOut } from "./remote";
 
 const PAGE_BYTES = 128 * 1024;
+
+/** setLive 尾沿节流间隔:文本视口 10Hz 观感瞬时(人眼对纯文本更新 ~70ms 起感)。 */
+const LIVE_FLUSH_MS = 100;
 
 export interface LiveStream {
   live: string;
@@ -47,6 +53,9 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
     let gapOff: (() => void) | null = null;
     let connOff: (() => void) | null = null;
     let timer = 0;
+    /* 尾沿节流排程句柄:声明在 effect 作用域,卸载 cleanup 可即撤(async 体
+     * 内声明的闭包变量 cleanup 够不着)。 */
+    let flushTimer = 0;
     setLive("");
     setEarlier("");
     setHasMore(false);
@@ -69,17 +78,22 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       let watermark = 0;
       /* 首载完成闸:未完不回放(首载本身就是全量拉尾,抢跑会双喂)。 */
       let ready = false;
+      /* 合帧节流(spec 2026-10-03):flushTimer 在途 = 已有排程,新 chunk 只喂屏
+       * 不再排;flush 时取全量 view()。尾沿必达——最后一帧总在距上次上屏
+       * ≥100ms 处落屏,不存在丢尾。 */
+      let lastSetAt = 0;
+      const flushView = () => {
+        flushTimer = 0;
+        lastSetAt = Date.now();
+        if (alive) setLive(screen.view());
+      };
       const feedChunk = (chunk: string) => {
         watermark += chunk.length;
         screen.feed(chunk);
-        if (dirty) return;
-        dirty = true;
-        requestAnimationFrame(() => {
-          dirty = false;
-          if (alive) setLive(screen.view());
-        });
+        if (flushTimer) return;
+        const wait = LIVE_FLUSH_MS - (Date.now() - lastSetAt);
+        flushTimer = window.setTimeout(flushView, Math.max(0, wait));
       };
-      let dirty = false;
       const un = await onPtyOut(sessionId, (chunk) => {
         if (!alive) return;
         if (streaming) feedChunk(chunk);
@@ -111,17 +125,19 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
           const key = `${s[0]}x${s[1]}`;
           if (key === sizeKey.current) return;
           sizeKey.current = key;
-          screen = new LiveScreen(s[0], s[1]);
-          const p = await pageOf(Number.MAX_SAFE_INTEGER);
-          if (!alive) return;
-          if (p?.text) screen.feed(p.text);
-          if (p) watermark = p.start_offset + p.text.length;
+          /* 原地改几何,不重放快照:pageOf 在途窗口的活 chunk 会与快照字节
+           * 双喂(旧实现在此把同一帧画两份)。旧宽换行由 CSS pre-wrap 兜底,
+           * CLI 的 WINCH 全帧重绘按新几何收敛。 */
+          screen.resize(s[0], s[1]);
           setLive(screen.view());
         })();
       };
       /* 断连重连 / 事件 Lagged 回放:拉尾页比对水位,涨了 = 有漏 → 按当前几何
        * 重建重放日志尾;没涨 = 什么都不漏,免重建。回放期间 streaming 关闭,新
-       * chunk 进缓冲,换屏后按序排空(与首载同序,免换屏竞态丢字节)。 */
+       * chunk 进缓冲;重建分支丢弃在途缓冲——快照已含的字节排空即同一帧画两份
+       * (旧版每次断连必现),而快照读取后才写入的字节会随之丢一拍(窄竞态,
+       * 非零概率),由水位比对在下次 gap/重连回放自愈,两害取轻;不重建分支
+       * 照常排空(屏未重喂,缓冲是唯一拷贝)。 */
       let replaying = false;
       const replay = () => {
         if (!alive || replaying || !ready) return;
@@ -136,6 +152,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
             screen.feed(p.text);
             watermark = p.start_offset + p.text.length;
             setLive(screen.view());
+            buffered.length = 0;
           }
           if (!alive) return;
           streaming = true;
@@ -153,6 +170,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
     return () => {
       alive = false;
       clearInterval(timer);
+      clearTimeout(flushTimer); /* 卸载即撤尾沿排程(alive 闸下虽是 no-op,不留空转定时器) */
       off?.();
       gapOff?.();
       connOff?.();

@@ -23,4 +23,7 @@
   .tr-user{border-color:rgba(0,120,212,.35)}
   /* 错误条深底 */
   .m-err-bar{background:#3a2525;border-color:rgba(248,113,113,.4)}
+  /* sheet 提示卡:warn/err 底与描边写死浅色 rgba(mobile-sheet.css),深底发闷 */
+  .sheet-alert.warn{background:rgba(161,98,7,.14);border-color:rgba(234,179,8,.35)}
+  .sheet-alert.err{background:rgba(220,38,38,.10);border-color:rgba(248,113,113,.35)}
 }
