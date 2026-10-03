@@ -16,6 +16,7 @@ import { openJavaGuide } from "./javaGuideStore";
 import { discoverJava, discoverPython, discoverTypeScript, resolveJavaRoot } from "./discovery";
 import "./locales";
 import "./lsp.css";
+import "./lsp-code.css";
 import "./lsp-gesture.css";
 
 export const lspPlugin: Plugin = {

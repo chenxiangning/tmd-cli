@@ -262,4 +262,5 @@
 | 2026-10-03 | [手机快捷键条两行重排 + 实况 2 秒延迟治理(KEY_ROWS 两行大键网格 ≥44px;传输层逐环节实读排除批帧,根因=live 逐帧更新触发 TurnsView 全量 markdown 重解析——memo 止血 + setLive 100ms 尾沿节流 + 发送/应答写后 300ms 触拍)](superpowers/specs/2026-10-03-mobile-keybar-relayout-live-latency-design.md) | 已实施(真机目检留大仙) |
 | 2026-10-03 | [手机选图/拍照上传与 WS 心跳提交后评审(三路对抗:实锤 5 修——send 硬闸补重试/键路绕行、卸载 objectURL 泄漏、错误定时器交叠、plist 双源分叉、相机权限黑屏;疑点 2 修 4 留观;误报 5 条防重查)](review/2026-10-03-mobile-shot-upload-review.md) | 已完成(修复随本日提交;门禁全绿) |
 | 2026-10-03 | [v0.2.8..HEAD 范围二轮评审(五路分区对抗 + 主线精读 + 三轮遗留挖掘:二轮实锤 2B+3M+12m、三轮 4M+9m 全修——pong 死线感知在途大帧、StrictMode 钉死 useShots、resize/print/CHA 幽灵列三族、setEndpoint 不清算 pending、poke 重入翻链、发送在途续打续挂全保、confirm 数值 id 同型、fs_write_temp 服务端闸+老化清理、回前台探测等;留观 11 条)](review/2026-10-03-v0.2.9-range-review-2.md) | 已完成(修复随本日提交;门禁全绿) |
+| 2026-10-03 | [LSP 语义弹窗 code 渲染打磨设计(peek 配色根因修复:lsp 域补 Prism token→--tmd-syntax-* 映射拆 lsp-code.css;symRange 纯字符串符号区间包裹与高亮共存;右列表行 code 渲染;peekLang 语言解析下沉)](superpowers/specs/2026-10-03-lsp-peek-code-render-design.md) | 已实施 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

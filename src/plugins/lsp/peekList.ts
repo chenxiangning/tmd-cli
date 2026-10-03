@@ -1,11 +1,15 @@
 /**
  * peek 引用列表 —— 行构建(基名:行号 + 行文本回填,目录退 title)+ 键盘导航
  *(↑↓/Home/End/Enter/Esc)+ 选中/hover 联动预览。行文本按唯一文件去重读,
- * 前 80 项回填;isConnected 闸防 peek 关闭后旧写。自 peekWidget 拆出(文件规模铁则)。
+ * 前 80 项回填,回填即 Prism code 渲染 + 符号区间底色(偏移按 trim 去头量校正);
+ * isConnected 闸防 peek 关闭后旧写。自 peekWidget 拆出(文件规模铁则)。
  */
 
 import { ipc } from "@kernel/ipc";
 import { normalizePath } from "@kernel/pathUtils";
+import { highlightLine } from "@kernel/syntaxHighlight";
+import { prismLangOf } from "./peekLang";
+import { wrapSymRange } from "./symRange";
 import type { PeekItem } from "./peekWidget";
 
 export interface PeekListActions {
@@ -84,11 +88,21 @@ export function buildPeekList(items: readonly PeekItem[], actions: PeekListActio
     uniquePaths.forEach((path, i) => {
       const lines = results[i];
       if (!lines) return;
+      const lang = prismLangOf(path);
       capped.forEach((item, index) => {
         if (normalizePath(item.path) !== path) return;
-        const text = lines[item.line - 1]?.trim();
+        const raw = lines[item.line - 1];
+        const text = raw?.trim();
         const codeEl = rows[index]?.querySelector(".lsp-peek-row-code");
-        if (codeEl && text) codeEl.textContent = text;
+        if (codeEl && raw !== undefined && text) {
+          /* 行文本 trim 后偏移按去头空白量左移;endChar null = 跨行,取到行尾。 */
+          const lead = raw.length - raw.trimStart().length;
+          codeEl.innerHTML = wrapSymRange(
+            highlightLine(text, lang),
+            item.startChar === undefined ? -1 : item.startChar - lead,
+            item.endChar == null ? Number.POSITIVE_INFINITY : item.endChar - lead,
+          );
+        }
       });
     });
   });
