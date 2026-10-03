@@ -354,6 +354,10 @@ export const ipc = {
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>
     invoke<void>("session_resize", { id, cols, rows }),
+  /** 幕布在视打点(TerminalView 激活态):泵侧聚合降档判据 —— 无人观看的
+   *  会话降 250ms 慢拍,TUI 状态动画洪水不再以快拍穿越 IPC/webview 主链。 */
+  sessionSetViewed: (id: string, viewed: boolean) =>
+    invoke<void>("session_set_viewed", { id, viewed }),
   /** 会话 PTY 当前尺寸 (cols, rows);SSH/未知会话回 null(后台镜像栅格真源,手机实况同源)。 */
   sessionSize: (id: string) => invoke<[number, number] | null>("session_size", { id }),
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),

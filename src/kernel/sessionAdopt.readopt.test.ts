@@ -9,12 +9,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const ipcMocks = vi.hoisted(() => ({
   sessionList: vi.fn(),
+  sessionSetViewed: vi.fn().mockResolvedValue(undefined),
   onPtyOutput: vi.fn(),
   onPtyExit: vi.fn(),
 }));
 
 vi.mock("./ipc", () => ({
-  ipc: { sessionList: ipcMocks.sessionList },
+  ipc: { sessionList: ipcMocks.sessionList, sessionSetViewed: ipcMocks.sessionSetViewed },
   onPtyOutput: ipcMocks.onPtyOutput,
   onPtyExit: ipcMocks.onPtyExit,
 }));
@@ -68,6 +69,12 @@ describe("readoptSessions", () => {
     expect(ipcMocks.onPtyExit).toHaveBeenCalledTimes(2);
     expect(activated).toEqual([]);
     expect(h.trackUnlisten).toHaveBeenCalledTimes(2);
+    /* 在视标记随接管复位:重载前 viewed=true 残留会让无人观看的会话继续
+       以快拍灌流(泵侧降档失效),幕布重挂载时会重新打点。 */
+    expect(ipcMocks.sessionSetViewed.mock.calls).toEqual([
+      ["a", false],
+      ["b", false],
+    ]);
   });
 
   it("已在表会话跳过,仅补缺失", async () => {

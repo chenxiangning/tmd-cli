@@ -268,4 +268,5 @@
 | 2026-10-03 | [手机首页工作区菜单精修(去折叠箭头,文件夹图标开合表达展开态,计数靠右着色)](design/mobile-ws-menu-refine.html) | 设计原型 |
 | 2026-10-03 | [mobile app 深色重设计:工作区与任务 + 发起会话流(老 UI 入口全保留:连接芯片+sheet/断连 banner/Git 新建 刷新/搜索/置顶+运行中双区/行置顶钮/审批 pill/本地归档分段切换/加载更多;长文本单行 ellipsis;会话行 = engineGlyphs.tsx 同源真实品牌标;六屏 = home/连接 sheet/断连快照/spawn 选态/spawn 阻态/启动后实况屏)](prototypes/mobile-app-workspaces.html) | 已实施(屏 1-5;屏 6 实况屏维持现状;假桥桩目检过,真机目检留大仙) |
 | 2026-10-03 | [会话行 tok/s pill 稳定性与口径修复(实证三根因:增量行误用差分分子→51% 空转+低估一半、两点差分无平滑→跳变 p90 16x、跨轮污染;修法=分子按行型分派+尾窗用户行轮种子+180s cap+单对 300 tok/s 可信上限+近 5 对滑窗+codex 双快照,回放可显率 49%→100%、跳变 p90→1.5x)](superpowers/specs/2026-10-03-toks-pill-stability-design.md) | 已实施(门禁全绿;UI 目检留用户) |
+| 2026-10-04 | [幕布假死第十一轮:泵侧后台慢拍 + 双份解析消除 + 数据链停滞探针(现场取证:活会话 55MB/9min 状态动画洪水 + WebContent 主线程 43% 样本在逐帧 updateRendering/深 flex 布局;修法=无人观看/渲染暂停会话泵聚合钳 250ms 事件率降 30 倍 + 挂幕布会话停喂 headless 镜像卸载 reseed 补种 + 「PTY 在流而幕布不吃字节」自动重建检出线补盲)](superpowers/specs/2026-10-04-canvas-stall-pump-background-design.md) | 已实施(门禁全绿;真机长时观察留用户) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

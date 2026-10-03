@@ -16,20 +16,23 @@ use crate::pty::{PtyHandle, PtyRegistry, SpawnSpec, SpawnedSession};
 use crate::resolve::{enriched_path, resolve_command};
 use crate::session_log::{append_log, session_log_path, LogMeta};
 
-/// 增量 UTF-8 解码(实现见 pty_decode.rs;再导出保 ssh/io.rs 既有引用不变)。
+/// 增量 UTF-8 解码(实现见 pty_decode.rs;再导出保 ssh/io.rs 引用不变)。
 #[path = "pty_decode.rs"]
 pub(crate) mod pty_decode;
 pub(crate) use pty_decode::{decode_utf8_chunk, flush_utf8_tail};
 
-/// 输出聚合窗:首个 chunk 到达后再收 8ms 内的后续 chunk,拼成一个事件发出。
-/// 8KB/次的 read 在高吞吐场景(编译刷屏、cat 大文件)会打成事件风暴,
-/// Tauri IPC 序列化 + WebView 派发是主线程开销大头;8ms ≈ 半个 60fps 帧,
-/// 人眼无感,事件数可降一个数量级。
+/// 输出聚合窗:首 chunk 后再收 8ms 内的后续 chunk 拼成一个事件。8KB/次的
+/// read 在高吞吐下会打成事件风暴,IPC 序列化 + WebView 派发是主线程开销大头。
 const OUT_AGGREGATE_WINDOW: Duration = Duration::from_millis(8);
-/// 自适应长窗上限:持续洪峰(窗内字节不断)时窗长逐批翻倍至此。50ms = TUI
-/// 整帧重绘 20fps 量级,观感无差;事件数再降数倍,给 WebView 主线程让路
-/// (2026-09-30 三会话并发工作期前端饱和卡死取证)。
+/// 自适应长窗上限:持续洪峰时窗长逐批翻倍至此。50ms = TUI 整帧 20fps 量级,
+/// 观感无差;事件数再降数倍(2026-09-30 并发工作期前端饱和卡死取证)。
 const OUT_AGGREGATE_WINDOW_MAX: Duration = Duration::from_millis(50);
+/// 后台慢拍窗:无激活幕布(viewed)或前端渲染暂停时聚合窗钳到此。omp 等 TUI
+/// 状态动画以 15-20tick/s 整帧重绘持续数十分钟(实测 55MB/9min),每事件都过
+/// IPC + 全守望链 + 双份 xterm 解析 —— 无人观看照单全收即主线程饱和底噪,正是
+/// WKWebView 吊销粘死(幕布假死)的触发土壤(2026-10-04 十一轮)。250ms 与
+/// 隐藏幕布合帧/镜像采样同拍:Ask/呼吸灯时延不变、字节零丢弃;激活幕布零改动。
+const OUT_BACKGROUND_WINDOW: Duration = Duration::from_millis(250);
 /// 单次聚合批次的字节上限:防恶意/失控输出在窗口内无限堆积撑爆内存。
 const OUT_AGGREGATE_MAX_BYTES: usize = 1024 * 1024;
 
@@ -44,11 +47,19 @@ fn next_aggregate_window(window: Duration, saturated: bool, batch_len: usize) ->
         window
     }
 }
-/// ConPTY 启动握手(仅 Windows):portable-pty 0.9 以 PSEUDOCONSOLE_INHERIT_CURSOR
-/// 建 pseudoconsole,ConPTY 会在输出侧发 DSR(ESC[6n)并扣住输出等 CPR 应答;
-/// 此刻 xterm 尚未接入(启动期 emit 无人监听,前端输入闸也会丢弃 CPR),必须在
-/// spawn 侧直接代答一次,否则终端永久黑屏(2026-09-06 win 新装机实证)。
-/// 非 Windows 无此握手,主动写入会向 shell 注入垃圾字节,必须 cfg 门控。
+
+/// 有效聚合窗(测试锚):前台(激活幕布+渲染活跃)保持自适应窗,后台钳到慢拍。
+/// 窗长只影响事件节拍,批次字节内容与日志保真不受触碰。
+fn effective_window(window: Duration, foreground: bool) -> Duration {
+    if foreground {
+        window
+    } else {
+        window.max(OUT_BACKGROUND_WINDOW)
+    }
+}
+/// ConPTY 启动握手(仅 Windows):ConPTY 输出侧发 DSR 并扣住输出等 CPR 应答,
+/// xterm 尚未接入(启动期 emit 无人监听,输入闸也丢弃 CPR),必须在 spawn 侧
+/// 代答一次,否则永久黑屏(2026-09-06 实证)。非 Windows 必须 cfg 门控。
 #[cfg(windows)]
 fn conpty_cpr_reply(writer: &mut dyn std::io::Write) -> std::io::Result<()> {
     writer.write_all(b"\x1b[1;1R")?;
@@ -176,6 +187,7 @@ pub(crate) fn spawn(
             master: pair.master,
             child,
             size: Mutex::new((spec.cols, spec.rows)),
+            viewed: std::sync::atomic::AtomicBool::new(false),
         },
     );
     std::thread::spawn(move || {
@@ -206,9 +218,17 @@ pub(crate) fn spawn(
         /* 阻塞等首 chunk;channel 关闭且排空 → 会话结束 */
         while let Ok(first) = out_rx.recv() {
             let mut batch = first;
+            /* 前台判据:激活幕布在视 + 前端渲染活跃(窗口隐藏/遮挡吊销期
+            rAF 停跳,webview 不再消费渲染 —— 快拍只喂饱和,降慢拍)。 */
+            let foreground = crate::render_health::render_active()
+                && out_sessions
+                    .lock()
+                    .get(&out_id)
+                    .map(|h| h.viewed.load(std::sync::atomic::Ordering::Relaxed))
+                    .unwrap_or(false);
             /* 聚合窗:drain 窗口内已到达的所有 chunk,合并为一个事件 */
             let mut saturated = false;
-            let deadline = Instant::now() + window;
+            let deadline = Instant::now() + effective_window(window, foreground);
             while batch.len() < OUT_AGGREGATE_MAX_BYTES {
                 let now = Instant::now();
                 if now >= deadline {

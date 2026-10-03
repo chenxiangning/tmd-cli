@@ -18,7 +18,7 @@
 //! 击打只落在聚焦窗口:未聚焦窗口 rAF 停发属后台设计内暂停(遮挡节流),
 //! 击打 = 抢用户焦点;真粘死在回焦时由 Focused 探针线检出接力。
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
 
 use tauri::{Manager, State, WebviewWindow};
@@ -46,6 +46,22 @@ const HEARTBEAT_DEAD_MS: u64 = 15_000;
 /// 全局 PTY 发字节数(泵 emit 处累加)。壳侧洪水计量源:传感器在 Rust 侧,
 /// webview 冻结后前端 floodGauge 不再可用,洪水判定不能依赖前端旗标。
 static PTY_BYTES_EMITTED: AtomicU64 = AtomicU64::new(0);
+
+/// 前端渲染活性(webview 侧 rAF 探针随 render_health 上报携带):true = 窗口
+/// 可见且原生 rAF 在跳。false(窗口隐藏/遮挡吊销/粘死)时泵把全部会话降为
+/// 慢拍聚合(pty_spawn OUT_BACKGROUND_WINDOW)—— 渲染暂停期不再以 20 事件/s
+/// 唤醒 webview 主链,直接压掉吊销粘死触发期的负载底噪(2026-10-04 十一轮)。
+/// 缺省 false:冷启动/前端未报时按慢拍,首拍心跳(≤5s)即对齐。
+static RENDER_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// 泵侧聚合降档判据(前端是否在渲染)。
+pub(crate) fn render_active() -> bool {
+    RENDER_ACTIVE.load(Ordering::Relaxed)
+}
+
+fn set_render_active(active: bool) {
+    RENDER_ACTIVE.store(active, Ordering::Relaxed);
+}
 
 /// 泵 emit 处按批累加(UTF-8 字节;与 floodGauge 字符数同量级,ANSI 流以
 /// ASCII 为主,共用 256KB/5s 阈值不失真)。
@@ -158,14 +174,17 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
     }
 }
 
-/// 前端上报入口(kernel/rafFallback.ts;camelCase 自动映射)。
+/// 前端上报入口(kernel/rafFallback.ts;camelCase 自动映射)。active = 前端
+/// 渲染活性(可见 + rAF 在跳),泵侧聚合降档消费;与击打阶梯正交。
 #[tauri::command]
 pub(crate) fn render_health(
     window: WebviewWindow,
     state: State<'_, AppState>,
     ok: bool,
     flood: bool,
+    active: bool,
 ) {
+    set_render_active(active);
     let ks = &state.render_kick;
     ks.last_report_ms.store(now_millis(), Ordering::Relaxed);
     if flood {

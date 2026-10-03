@@ -21,6 +21,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sessionList: "ipc.terminal",
   sessionWrite: "ipc.terminal",
   sessionResize: "ipc.terminal",
+  sessionSetViewed: "ipc.terminal",
   sessionKill: "ipc.terminal",
   sessionLogSize: "ipc.terminal",
   sessionHistoryPage: "ipc.terminal",

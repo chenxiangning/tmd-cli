@@ -146,6 +146,15 @@ pub fn session_resize(
     state.pty.resize(&id, cols, rows)
 }
 
+/// 幕布在视打点(TerminalView 激活/失活;webview 重载后 readopt 复位为 false):
+/// 泵侧聚合降档判据 —— 无人观看的会话降慢拍,TUI 状态动画洪水不再以
+/// 快拍穿越 IPC/webview 主链(2026-10-04 十一轮取证,见 pty_spawn.rs)。
+/// SSH 会话走独立 io 通道,本标记对其聚合无效果(幂等无害)。
+#[tauri::command]
+pub fn session_set_viewed(state: State<'_, AppState>, id: String, viewed: bool) {
+    state.pty.set_viewed(&id, viewed);
+}
+
 /// kill 涉及子进程回收,与写路径同纪律:spawn_blocking,不占主线程。
 #[tauri::command]
 pub async fn session_kill(app: AppHandle, id: String) -> Result<(), String> {

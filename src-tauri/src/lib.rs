@@ -244,6 +244,7 @@ pub fn run() {
             session_commands::session_report_activity,
             session_commands::session_write,
             session_commands::session_resize,
+            session_commands::session_set_viewed,
             session_commands::session_kill,
             session_commands::session_log_size,
             session_commands::session_size,

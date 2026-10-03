@@ -20,7 +20,8 @@
 
 > 2026-09-25 补校:自建中继「部署历史」落盘(settings.relayDeployHistory,一键部署成功后 Rust 写连接信息+密码,不含私钥内容,明文纪律同 ssh.hosts;历史列表点选整表回填免重输,上限 10 条);外网 tab「使用流程」文案大白话重写;远程控制徽标迁顶栏左区最左 + 点击深链设备 tab;图标装饰 7→12 键。
 > 2026-09-27 全量补校(0.2.x 增量域):CLI 学堂(academy)、统一搜索折叠入口、会话历史检索(session-search)、跨引擎接力(session-relay)、审批收件箱(approval-inbox)、提示词增强(prompt-enhancer)、系统通知(notify)、异常退出 toast、会话卫生清扫、Worktree 关联管理(常驻区/三分区/侧栏归簇)、右缘面板 rail、部署历史含口令回填、手机截图注入;插件计数 32→38(10 engine / 24 feature / 3 core / 1 local)。契约沉淀:`docs/architecture/15`(学堂)、`16`(worktree)、`12`(部署历史与凭据口径)。
-> 2026-10-01 打磨轮补校(分级治理实施,spec 见 `docs/superpowers/specs/2026-10-01-client-polish-plan-design.md`,调研底稿 `docs/research/client-polish-half-month-audit.md`):审批高危红标右栏生效、会话检索多词高亮过滤、接力摘要截断、系统通知点击深链与多幕布额度、学堂引擎闸与版本漂移提示、skill-hub 更新闭环(已装视图经用户裁定维持安装记录制,不合并磁盘扫描)、mcp-hub 文案分源与删除浮层、意图画布 inbox 常驻轮询、LSP 手势反馈与永不再弹、marks i18n 接通与失锚重锚、看板错误条与渲染预算、打开方式失败 toast 与键盘导航、结构化会话部件 notice 与 exited 重开、每日日志无头徽标与便签确认、转录浮标分档、WSL 目录直达与远程降级横幅、Web 访问二维码与桥事件订阅、壁纸 lite 删除、卫生清扫如实文案、Git split 渲染预算、worktree 加载态、五弹层 a11y、手机通知链路重做等 13 项、i18n 缺键清零(check:i18n-keys 检查脚本入 package.json);插件计数不变(38)。另:0.2.5+ hub 域(画布/skill/mcp/日志)此前仅有校准注记无正文条目,本轮增设「能力 Hub」域段落承接。
+> 2026-10-01 打磨轮补校(分级治理实施,spec 见 `docs/superpowers/specs/2026-10-01-client-polish-plan-design.md`,调研底稿 `docs/research/client-polish-half-month-audit.md`):审批高危红标右栏生效、会话检索多词高亮过滤、接力摘要截断、系统通知点击深链与多幕布额度、学堂引擎闸与版本漂移提示、skill-hub 更新闭环(已装视图经用户裁定维持安装记录制,不合并磁盘扫描)、mcp-hub 文案分源与删除浮层、意图画布 inbox 常驻轮询、LSP 手势反馈与永不再弹、marks i18n 接通与失锚重锚、看板错误条与渲染预算、打开方式失败 toast 与键盘导航、结构化会话部件 notice 与 exited 重开、每日日志无头徽标与便签确认、转录浮标分档、WSL 目录直达与远程降级横幅、Web 访问二维码与桥事件订阅、壁纸 lite 删除、卫生清扫如实文案、Git split 渲染预算、worktree 加载态、五弹层 a11y、手机通知链路重做等 13 项、i18n 缺键清零(check:i18n-keys 检查脚本入 package.json);另:0.2.5+ hub 域(画布/skill/mcp/日志)此前仅有校准注记无正文条目,本轮增设「能力 Hub」域段落承接。
+> 2026-10-04 补校(0.2.8/0.2.9 增量域,以代码为准):六套 tmd 原创低饱和主题 + 设计系统 token 阶梯 + 状态三原语(Empty/Spinner/错误契约三分)、原生弹窗清零、视图保活统一(全挂载 + display:none)、文件操作条下放面板头、幕布右上工具行与单会话幕布重建刷新钮、渲染健康守望第 3-5/11 轮(洪水降级宽限/泵侧后台慢拍/幕布数据链停滞探针,契约见 architecture/17)、结构化会话(omp/pi --mode rpc token 级流式 + 幕布|结构化双视图,契约见 architecture/19)、会话行 tok/s pill 口径修复、会话 tab 收敛、手机端对话链路整批重做(三态胶囊 composer/选图拍照双入口/直连 WS 心跳保活/快捷键条两行网格/首页卡片化);插件计数 38→44(10 engine / 30 feature / 3 core / 1 local,10-01 注记「不变 38」系漏校,结构化会话等 0.2.7 落地件未计入);russh 0.62.2→0.63.3。
 
 ## 工作区会话
 - 异常退出通知与一键续聊(ExitSessionToast):PTY 退出码打通(portable-pty → pty://exit 载荷),内核补发 sessionExitedDetail 详情事件;非 0/非 130 异常退出弹右下角 toast(12s TTL),续聊钮 = openDiskSession 原样 resume(shell/无磁盘身份不渲染)
@@ -335,7 +336,7 @@
 
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,38 个注册插件可视化插拔(10 engine + 24 feature + 3 core + 1 local;可拔面 = 引擎 10 + 功能 24 + local,核心 3 焊死),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- 插排 / 清单双视图,44 个注册插件可视化插拔(10 engine + 30 feature + 3 core + 1 local;可拔面 = 引擎 10 + 功能 30 + local,核心 3 焊死),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature / local 可拔
 - 插排页双插排:内置插件一块(分类虚线分隔),本机插件(local 类)独立次级插排(品牌区「本机插件 · 免重启装载」)
 - 插件市场经标题栏插头按钮开合(整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
@@ -376,7 +377,7 @@
 
 ## SSH 远程
 
-- SSH 一等会话(russh 0.62.2 + russh-sftp 2.3 引擎):输出走 `pty://out/{id}` 同构事件,幕布/tab 条/输出缓冲/翻页全链路复用;SSH 会话无 composer,不参与 Ask 检测/审批线/状态栏
+- SSH 一等会话(russh 0.63.3 + russh-sftp 2.3 引擎):输出走 `pty://out/{id}` 同构事件,幕布/tab 条/输出缓冲/翻页全链路复用;SSH 会话无 composer,不参与 Ask 检测/审批线/状态栏
 - 认证矩阵:password / privateKey(PEM 清洗 + passphrase + 路径展开)/ keyboard-interactive 多轮(上限 5 轮,密码类提示自动代答);私钥认证失败自动回落 KBI;KBI 被禁且允许密码时走密码回落提示
 - known_hosts:`~/.tmd-cli/ssh_known_hosts.json`(host+port → SHA256 指纹);首连/变更弹信任卡(120s 超时 = 拒绝),设置页可重置信任
 - 断线重连:keepalive 30s×3 探活,3 次退避重连(2/5/10s,单次 20s 超时),连接代际失效 SFTP/转发通道;重连失败会话退出(不复活)

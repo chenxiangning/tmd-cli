@@ -10,6 +10,7 @@
 
 use std::collections::HashMap;
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use crate::session_log::{read_history_page, HistoryPage, LogMeta};
@@ -28,6 +29,11 @@ pub(crate) struct PtyHandle {
     /// 必发一次 syncSize,重绘输出会被前端活动守望误判成一轮对话
     /// (呼吸灯绿→蓝 + 结束音),而用户并未发起任何对话。
     pub(crate) size: Mutex<(u16, u16)>,
+    /// 幕布在视标记(TerminalView 激活态打点,session_set_viewed):泵侧聚合
+    /// 降档判据之一 —— 无人观看的会话,其 TUI 状态动画(spinner/走马灯,实测
+    /// 20-100KB/s 持续数十分钟)不值得以快拍穿越 IPC 与 webview 主链
+    /// (2026-10-04 第十一轮卡死取证,见 pty_spawn.rs OUT_BACKGROUND_WINDOW)。
+    pub(crate) viewed: AtomicBool,
 }
 
 #[derive(Default)]
@@ -158,6 +164,13 @@ impl PtyRegistry {
         self.logs.lock().get(id).map(|m| m.written)
     }
 
+    /// 幕布在视打点(session_set_viewed;TerminalView 激活/失活时调用)。
+    pub fn set_viewed(&self, id: &str, viewed: bool) {
+        if let Some(handle) = self.sessions.lock().get(id) {
+            handle.viewed.store(viewed, Ordering::Relaxed);
+        }
+    }
+
     /// 会话 PTY 当前尺寸 (cols, rows);无此会话返回 None。手机实况据此建真实视口。
     pub fn session_size(&self, id: &str) -> Option<(u16, u16)> {
         let sessions = self.sessions.lock();
@@ -254,6 +267,7 @@ mod tests {
                 master: pair.master,
                 child,
                 size: Mutex::new((80, 24)),
+                viewed: AtomicBool::new(false),
             },
         );
         /* 同尺寸:幂等跳过,记录不变 */

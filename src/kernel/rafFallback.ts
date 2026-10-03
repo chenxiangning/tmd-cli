@@ -34,6 +34,8 @@ const INSTALLED_FLAG = "__tmdRafFallbackInstalled";
 const STUCK_GAP_MS = 10_000;
 /** 探针判活阈值(Rust Focused 戳醒时用,窗口刚获焦,要求更严)。 */
 const PROBE_OK_GAP_MS = 3_000;
+/** 渲染活性判活阈值:rAF 间隙超此值 = 渲染暂停(遮挡/吊销),泵侧降慢拍。 */
+const RENDER_ACTIVE_GAP_MS = 2_000;
 /** 上报最小间隔:防粘死态每秒轰炸 Rust。 */
 const REPORT_MIN_INTERVAL_MS = 10_000;
 /** 健康恢复上报:一次粘死后恢复,要通知 Rust 清 strikes(只在「曾上报过粘死」时)。 */
@@ -72,6 +74,13 @@ export function probeRenderHealth(): void {
   void report(nativeRafGapMs() < PROBE_OK_GAP_MS);
 }
 
+/** 前端渲染活性:窗口自认可见且原生 rAF 在跳。false = 窗口隐藏/遮挡吊销/
+ * 粘死 —— Rust 泵侧据此把全部会话降为慢拍聚合(OUT_BACKGROUND_WINDOW),
+ * 渲染暂停期不再以事件风暴喂养 webview 主链(2026-10-04 十一轮增补)。 */
+function renderActiveNow(): boolean {
+  return !document.hidden && nativeRafGapMs() < RENDER_ACTIVE_GAP_MS;
+}
+
 async function report(ok: boolean): Promise<void> {
   const now = Date.now();
   /* 去重只限粘死态重复轰炸;恢复上报是边沿事件,必须放行清 Rust 侧 strikes。 */
@@ -81,10 +90,14 @@ async function report(ok: boolean): Promise<void> {
   try {
     const { invoke } = await import("./transport");
     /* flood 随行:Rust 在洪水期把 reload 降级为 focus(reload = 回放风暴雪上加霜,
-       见 floodGauge.ts 头注与 src-tauri/src/render_health.rs)。 */
-    void invoke("render_health", { ok, flood: isPtyFloodHeavy() }).catch(
-      () => undefined,
-    );
+       见 floodGauge.ts 头注与 src-tauri/src/render_health.rs)。
+       active 随行:前端渲染活性(泵侧聚合降档判据;occlusion 期 rAF 停跳 →
+       false → 全会话慢拍,粘死触发期的负载底噪直接消失)。 */
+    void invoke("render_health", {
+      ok,
+      flood: isPtyFloodHeavy(),
+      active: renderActiveNow(),
+    }).catch(() => undefined);
   } catch {
     /* 浏览器桩/测试替身无 transport:静默(守望只服务桌面壳)。 */
   }

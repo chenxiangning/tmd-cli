@@ -24,6 +24,7 @@ vi.mock("./ipc", () => ({
     sessionKill: vi.fn(async () => undefined),
     sessionWrite: vi.fn(async () => undefined),
     sessionResize: vi.fn(async () => undefined),
+    sessionSetViewed: vi.fn(async () => undefined),
     sessionSize: vi.fn(async () => null),
     sessionLogSize: vi.fn(async (id: string) => logBackends.get(id)?.length ?? 0),
     sessionHistoryPage: vi.fn(async (id: string, _before: number, maxBytes: number) => {
@@ -146,13 +147,15 @@ describe("后台会话的屏幕态镜像(host 接线)", () => {
     await host.removeSession(s.id);
   });
 
-  it("幕布挂载时镜像让位(不置位);卸载后镜像接管", async () => {
+  it("幕布挂载时镜像让位(不吃流不置位);卸载 reseed 补种后镜像接管", async () => {
     const s = await host.createSession(PROFILE_ID, CWD);
     const handle = stubHandle();
     registerTerminalHandle(s.id, handle);
     ptyOutputCbs.get(s.id)!(OMP_FRAME);
     await vi.advanceTimersByTimeAsync(3_500);
-    expect(host.isWaitingConfirm(s.id)).toBe(false); /* 真实幕布负责,镜像不抢 */
+    expect(host.isWaitingConfirm(s.id)).toBe(false); /* 真实幕布负责,镜像不抢(feed 互斥不吃流) */
+    /* 幕布卸载时序(TerminalView 清理同款):注销前以幕布终态 reseed 补种镜像 */
+    host.reseedScreenMirror(s.id, 120, 32, OMP_FRAME);
     unregisterTerminalHandle(s.id, handle);
     await vi.advanceTimersByTimeAsync(3_500);
     expect(host.isWaitingConfirm(s.id)).toBe(true); /* 幕布卸载,镜像补盲接管 */
