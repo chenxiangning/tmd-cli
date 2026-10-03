@@ -27,15 +27,16 @@ const DIR_PRIORITY = [
   "text-(--tmd-git-modified)",
 ];
 
-/** 纯函数:git status 文件清单 → 绝对路径 → 颜色类(含全部祖先目录聚合)。 */
+/** 纯函数:git status 文件清单 → 绝对路径 → 颜色类(含全部祖先目录聚合)。
+ *  files 非数组按空清单处理(防御:调用面形状异常不抛,保贡献组件不熔断)。 */
 export function buildDecorationMap(
   root: string,
-  files: readonly GitFileStatus[],
+  files: readonly GitFileStatus[] | undefined | null,
 ): ReadonlyMap<string, string> {
   const base = root.replace(/\/+$/, "");
   const map = new Map<string, string>();
   const dirRank = new Map<string, number>();
-  for (const f of files) {
+  for (const f of files ?? []) {
     const cls = STATUS_COLOR[f.status];
     if (!cls) continue;
     map.set(`${base}/${f.path}`, cls);
@@ -65,10 +66,12 @@ export interface RepoStatusEntry {
  *  仓根目录 = 该仓聚合最高优先级色(树上一眼看出哪个仓脏);
  *  聚合不越仓界(buildDecorationMap 祖先止步于仓根)。 */
 export function mergeRepoStatusDecorations(
-  entries: readonly RepoStatusEntry[],
+  entries: readonly RepoStatusEntry[] | undefined | null,
 ): ReadonlyMap<string, string> {
   const out = new Map<string, string>();
-  const sorted = [...entries].sort((a, b) => (a.root < b.root ? -1 : a.root > b.root ? 1 : 0));
+  const sorted = [...(entries ?? [])].sort((a, b) =>
+    a.root < b.root ? -1 : a.root > b.root ? 1 : 0,
+  );
   for (const e of sorted) {
     const m = buildDecorationMap(e.root, e.files);
     let bestRank = -1;
@@ -90,12 +93,12 @@ export function statusLetter(status: GitFileStatus["status"]): string {
 /** 纯函数:逐仓 git status → 绝对路径 → 状态字母(仅文件条目;目录无字母)。
  *  与 buildDecorationMap 同源数据,供侧栏浏览器行尾字母标记。 */
 export function buildLetterMap(
-  entries: readonly RepoStatusEntry[],
+  entries: readonly RepoStatusEntry[] | undefined | null,
 ): ReadonlyMap<string, string> {
   const out = new Map<string, string>();
-  for (const e of entries) {
+  for (const e of entries ?? []) {
     const base = e.root.replace(/\/+$/, "");
-    for (const f of e.files) {
+    for (const f of e.files ?? []) {
       if (!f.path.endsWith("/")) out.set(`${base}/${f.path}`, statusLetter(f.status));
     }
   }
