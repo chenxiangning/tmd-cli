@@ -153,4 +153,13 @@ describe("LiveScreen 重绘收敛", () => {
     s.feed("z");
     expect(s.view()).toBe("x\ny\nz");
   });
+
+  it("resize 缩列夹持光标列:?7l 下打印落夹持列,不悬在界外覆写", () => {
+    const s = new LiveScreen(40, 4);
+    s.feed("\x1b[?7l"); /* 关自动换行(omp 画页脚同款),关掉后 print 无换行自愈 */
+    s.feed("\x1b[1;20H"); /* 光标行 0 列 19 */
+    s.resize(10, 4); /* 缩到 10 列:列夹持到 9(xterm resize 夹持语义) */
+    s.feed("X");
+    expect(s.view().split("\n")[0]).toBe("         X"); /* X 落列 9,非原列 19 */
+  });
 });

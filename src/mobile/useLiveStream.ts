@@ -121,8 +121,10 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       };
       /* 断连重连 / 事件 Lagged 回放:拉尾页比对水位,涨了 = 有漏 → 按当前几何
        * 重建重放日志尾;没涨 = 什么都不漏,免重建。回放期间 streaming 关闭,新
-       * chunk 进缓冲;重建分支丢弃响应前到达的缓冲(其字节已含于快照,排空
-       * 即同一帧画两份),不重建分支照常排空(屏未重喂,缓冲是唯一拷贝)。 */
+       * chunk 进缓冲;重建分支丢弃在途缓冲——快照已含的字节排空即同一帧画两份
+       * (旧版每次断连必现),而快照读取后才写入的字节会随之丢一拍(窄竞态,
+       * 非零概率),由水位比对在下次 gap/重连回放自愈,两害取轻;不重建分支
+       * 照常排空(屏未重喂,缓冲是唯一拷贝)。 */
       let replaying = false;
       const replay = () => {
         if (!alive || replaying || !ready) return;

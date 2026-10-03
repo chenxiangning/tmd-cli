@@ -256,5 +256,8 @@ export class LiveScreen {
     while (this.lines.length < nr) this.lines.push("");
     this.rows = nr;
     if (this.row >= nr) this.row = nr - 1;
+    /* 列缩窄同夹持:?7l(DECAWM 关)下 print 不经换行自愈,col 悬在界外会
+     * 反复覆写界外同格(xterm resize 夹持语义;2026-10-03 范围评审)。 */
+    if (this.col >= this.cols) this.col = this.cols - 1;
   }
 }
