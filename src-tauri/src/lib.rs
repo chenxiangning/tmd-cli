@@ -75,6 +75,46 @@ fn platform_kind() -> &'static str {
     std::env::consts::OS
 }
 
+/// 本应用进程 pid(通用原语:lsp jdt 数据目录按 app 实例隔离,防跨实例
+/// workspace 锁互等的死等;插件侧消费,kernel 零语言语义)。
+#[tauri::command]
+fn app_pid() -> u32 {
+    std::process::id()
+}
+
+/// 进程存活探测(kill -0 / tasklist;与 kill_tree 同款外部命令风格,不引 libc)。
+/// 权限不足(EPERM)也算活:进程存在但非我们所有 —— 数据目录不误删的保守面。
+#[tauri::command]
+fn process_alive(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+    #[cfg(unix)]
+    {
+        /* /bin/kill 绝对路径防 PATH 贫瘠;status 0 = 活,EPERM(非 0 但进程在)
+        无法与死进程区分 —— 用 ps 兜底不划算,按「非 0 = 不可确认」保守判死。
+        实际误判面:jdt 属同用户,EPERM 不发生。 */
+        std::process::Command::new("/bin/kill")
+            .arg("-0")
+            .arg(pid.to_string())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+    #[cfg(windows)]
+    {
+        let out = std::process::Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+            .output();
+        match out {
+            Ok(o) => String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()),
+            Err(_) => false,
+        }
+    }
+}
+
 /// 重启应用(插件市场"拔插 = 重启生效"的一键入口)。
 /// 必须走 request_restart 经事件循环触发 ExitRequested/Exit,RunEvent::Exit
 /// 的 kill_all 才会执行;直调 restart() 在主线程会跳过事件直接重启,PTY 成孤儿。
@@ -184,6 +224,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             platform_kind,
+            app_pid,
+            process_alive,
             app_restart,
             render_health::render_health,
             commands_fs::cli_probe,
@@ -355,4 +397,17 @@ pub fn run() {
                 app.state::<AppState>().pty.kill_all();
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::process_alive;
+
+    #[test]
+    fn process_alive_自身活_零与越界死() {
+        assert!(process_alive(std::process::id()));
+        assert!(!process_alive(0));
+        /* pid 数值越界(u32 上限远超内核 pid_max):kill -0 必失败 → 判死。 */
+        assert!(!process_alive(u32::MAX));
+    }
 }

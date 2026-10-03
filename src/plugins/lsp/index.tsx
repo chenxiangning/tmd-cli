@@ -44,9 +44,8 @@ export const lspPlugin: Plugin = {
       language: "java",
       extensions: [".java"],
       discover: async (root) => {
-        const launch = await discoverJava();
+        const launch = await discoverJava(root);
         if (!launch) openJavaGuide();
-        void root;
         return launch;
       },
       resolveRoot: (filePath, workspaceRoot) => resolveJavaRoot(filePath, workspaceRoot),

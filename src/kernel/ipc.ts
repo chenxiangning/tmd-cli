@@ -660,6 +660,10 @@ export const ipc = {
   },
   /** 应用配置目录(~/.tmd-cli),布局 owner 是 Rust session.rs;插件勿自拼。 */
   configDir: () => invoke<string>("config_dir"),
+  /** 本应用进程 pid(通用原语:lsp jdt 数据目录按 app 实例隔离用)。 */
+  appPid: () => invoke<number>("app_pid"),
+  /** 进程存活探测(kill -0;jdt 陈旧数据目录回收用)。 */
+  processAlive: (pid: number) => invoke<boolean>("process_alive", { pid }),
   /** 默认工作区根目录(~/.tmd-cli/default,Rust 侧已确保存在,mac/win 兼容)。 */
   configDefaultWorkspaceRoot: () =>
     invoke<string>("config_default_workspace_root"),
