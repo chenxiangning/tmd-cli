@@ -27,8 +27,14 @@ export function DesktopColumns(props: {
   filePanels: readonly FilePanelContribution[];
   /** 当前激活面板 id(渲染真值;失效 id 回落首注册项,同 AppShell 旧语义)。 */
   filePanelMode: string;
+  /** 设置菜单开合(归 AppShell;触发钮在左缘 rail 底簇,本体在左下簇)。 */
+  settingsMenuOpen: boolean;
+  onSettingsMenuOpenChange: (open: boolean) => void;
+  /** 工作区显隐菜单开合(归 AppShell;与设置菜单同角落互斥)。 */
+  visMenuOpen: boolean;
+  onVisMenuOpenChange: (open: boolean) => void;
 }) {
-  const { leftOpen, rightOpen, maximized, hasTabs, filePanels, filePanelMode } = props;
+  const { leftOpen, rightOpen, maximized, hasTabs, filePanels, filePanelMode, settingsMenuOpen, onSettingsMenuOpenChange, visMenuOpen, onVisMenuOpenChange } = props;
   const leftAsideRef = useElementWidth("--tmd-left-aside-w", maximized);
   const rightAsideRef = useElementWidth("--tmd-right-aside-w", maximized);
   const leftPanelRef = usePanelRef();
@@ -68,8 +74,13 @@ export function DesktopColumns(props: {
               <div className="min-h-0 flex-1 overflow-auto">
                 <Mounts point="leftSidebar.section" />
               </div>
-              {/* 左下角:设置齿轮 + pinned 快捷 + 版本号(复刻 codemoss) */}
-              <SidebarSettingsCluster />
+              {/* 左下角:设置菜单(触发钮在左 rail 底簇)+ pinned 快捷 + 版本号 */}
+              <SidebarSettingsCluster
+                open={settingsMenuOpen}
+                onOpenChange={onSettingsMenuOpenChange}
+                visOpen={visMenuOpen}
+                onVisOpenChange={onVisMenuOpenChange}
+              />
             </aside>
           </Panel>
           <PanelResizeHandle className="panel-handle panel-handle-v panel-handle-line-r" disabled={maximized} />

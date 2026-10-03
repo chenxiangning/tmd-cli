@@ -15,7 +15,7 @@ flowchart TB
         subgraph SHELL["app-shell/（宿主外壳）"]
             APPSHELL["AppShell.tsx<br/>三栏可拖布局 + 顶/底栏<br/>Mounts(point) 渲染挂点"]
             CONTRIB["contributions.tsx<br/>默认 UI：SessionList / Breadcrumb / TopTabs"]
-            SHELLX["app-shell 组件群:EditorCenter(文件预览面板) · SessionTabBar(顶栏会话 tab)<br/>TabContextMenu · editorMaximized · PanelRail(右缘竖排面板入口,2026-09-27 起)<br/>LeftRail(左缘竖排入口,2026-10-04 起:插件 sidebarActions.leftRail 动作 + 壳自有<br/>市场/回首页/工作区切换) · SidebarSettingsCluster(左下设置簇 + 工作区显隐多选)<br/>zoomCommands(⌘+/⌘−/⌘0 界面缩放键位)"]
+            SHELLX["app-shell 组件群:EditorCenter(文件预览面板) · SessionTabBar(顶栏会话 tab)<br/>TabContextMenu · editorMaximized · PanelRail(右缘竖排面板入口,2026-09-27 起)<br/>LeftRail(左缘竖排入口,2026-10-04 起:插件 sidebarActions.leftRail 动作 + 壳自有<br/>市场/回首页/工作区切换 + 底簇设置触发钮) · SidebarSettingsCluster(左下设置簇:<br/>菜单本体,开合受控于 AppShell + 工作区显隐多选)<br/>zoomCommands(⌘+/⌘−/⌘0 界面缩放键位)"]
         end
 
         subgraph KERNEL["kernel/（内核，不 import 任何插件）"]

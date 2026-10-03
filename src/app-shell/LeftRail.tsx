@@ -7,6 +7,8 @@
  * - 壳自有功能:插件市场(marketOpen 态)/ 回到首页(toggleHomeSession,市场
  *   覆盖层开着先收掉)/ 工作区切换(下拉复用 WorkspaceSwitcher 的菜单簇 hook)。
  * 顶栏不再放这三钮(2026-10-04 用户口径:移入左 rail,顶栏左区只留挂点+折栏)。
+ * 底簇再钉设置菜单触发钮(同日迁入,原侧栏底栏 logo 入口;菜单本体仍在
+ * SidebarSettingsCluster,开合经 AppShell 受控)。
  * 悬停提示走全局 data-hint;rail 贴左缘,加 data-hint-side="right" 让气泡
  * 抽屉式贴图标右缘滑出(kernel/Tooltip 的 right 放置模式)。
  */
@@ -19,6 +21,7 @@ import { t } from "@kernel/i18n";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { toggleHomeSession } from "./shortcutCommands";
 import { useWorkspaceSwitchMenus } from "./WorkspaceSwitcher";
+import logoUrl from "../assets/logo.png";
 
 /** 左 rail 条目(kind 判别联合):order 跨两源统一排序;bottom 钉底部簇。 */
 type LeftEntry =
@@ -40,9 +43,14 @@ type LeftEntry =
 export function LeftRail({
   marketOpen,
   onToggleMarket,
+  settingsOpen,
+  onToggleSettings,
 }: {
   marketOpen: boolean;
   onToggleMarket: () => void;
+  /** 设置菜单开合(归 AppShell):本 rail 只持触发钮,菜单本体在左下簇。 */
+  settingsOpen: boolean;
+  onToggleSettings: () => void;
 }) {
   /* registry 快照身份稳定(仅注册/注销换新);filter 结果 memo 钉住引用,
    * 下方订阅 effect 不随本组件重渲空转退订/重订。 */
@@ -187,6 +195,24 @@ export function LeftRail({
       {topEntries.map(renderEntry)}
       <div className="left-rail-spacer" aria-hidden />
       {bottomEntries.map(renderEntry)}
+      {/* 设置菜单触发钮(原侧栏底栏 logo 入口,2026-10-04 用户口径迁最左底;
+          菜单本体仍由 SidebarSettingsCluster 渲染,开合态受控提升 AppShell,
+          弹层锚左下簇、视觉紧邻本钮)。 */}
+      <button
+        type="button"
+        className={`left-rail-tab${settingsOpen ? " is-active" : ""}`}
+        aria-label={t("设置")}
+        aria-haspopup="menu"
+        aria-expanded={settingsOpen}
+        data-hint={t("设置")}
+        data-hint-cmd="shell.openSettings"
+        data-hint-side="right"
+        data-settings-trigger=""
+        title=""
+        onClick={onToggleSettings}
+      >
+        <img src={logoUrl} alt="" className="settings-logo" />
+      </button>
       {wsMenus.menus}
     </div>
   );

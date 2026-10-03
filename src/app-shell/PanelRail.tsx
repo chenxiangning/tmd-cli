@@ -86,7 +86,9 @@ export function PanelRail({
     // ⋯ 在右缘竖条:菜单贴按钮左缘向左弹出,视口内夹取(同 wsmenu 模式)。
     const rect = e.currentTarget.getBoundingClientRect();
     const width = 240;
-    const estHeight = 440; // ponytail: 菜单估高(12 行 + 组分隔线)只用于夹取,真值由内容撑开
+    // 估高 = 行数 × 行高 + 内距/分隔线余量,只服务视口夹取;真值由内容撑开
+    // (菜单不设高度、不滚动,2026-10-04 用户口径)。
+    const estHeight = mergeRailEntries(panels, railActions).length * 34 + 24;
     setOverflowPos({
       x: Math.max(12, rect.left - width - 4),
       y: Math.max(12, Math.min(rect.top, window.innerHeight - estHeight - 12)),
@@ -213,12 +215,12 @@ function PanelOverflowMenu({
   return createPortal(
     <>
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
-      {/* 混合选择弹层(激活按钮 + 钉选复选框),非纯 ARIA menu,不挂 menu/menuitem 角色。 */}
-      {/* maxHeight = 视口余量:rail 动作增多后菜单高过视口,底部整段被剪
-          (2026-10-04 用户目检);改为菜单内滚动,锚定与估高夹取逻辑不动。 */}
+      {/* 混合选择弹层(激活按钮 + 钉选复选框),非纯 ARIA menu,不挂 menu/menuitem 角色。
+          高度不设上限、无弹窗内滚动,随条目数自适应(2026-10-04 用户口径);
+          视口余量靠 toggleOverflow 的估高夹取兜底。 */}
       <div
         className="panel-overflow-menu"
-        style={{ left: position.x, top: position.y, maxHeight: `calc(100vh - ${position.y + 12}px)`, overflowY: "auto" }}
+        style={{ left: position.x, top: position.y }}
         role="group"
         aria-label={t("面板与动作")}
       >

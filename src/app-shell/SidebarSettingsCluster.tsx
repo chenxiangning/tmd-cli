@@ -1,12 +1,15 @@
 /**
- * Sidebar settings cluster —— 左下角「设置齿轮 + pinned 快捷 + 工作区显隐 + 版本号」。
+ * Sidebar settings cluster —— 左下角「设置菜单 + pinned 快捷 + 工作区显隐 + 版本号」。
  *
  * 布局(对齐参考截图):
  *   ┌─ 上弹菜单 ──────────────┐
  *   │ (注册表动作…)        □ │  ← 右侧复选框 = pin 到底栏
  *   │ 设置                    │
  *   └────────────────────────┘
- *   [logo] [pinned…] [工作区显隐]      v0.2.2  ← 底栏
+ *   [pinned…] [工作区显隐]      v0.2.2  ← 底栏(触发钮在左缘 rail 底簇)
+ *
+ * 设置菜单触发钮 2026-10-04 迁左缘 rail 底(用户口径「放最左边底部」),开合态
+ * 提升 AppShell 受控传入;菜单弹层仍锚本簇,视觉紧邻 rail 钮。
  *
  * 动作数据源 = kernel/sidebarActions 注册表(插件 activate 时自注册),
  * 本组件只渲染注册表与钉住状态,不认识任何具体动作 —— 与右栏面板同纪律。
@@ -23,7 +26,6 @@ import { t } from "@kernel/i18n";
 import { defaultPinnedActionIds, useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { DecorIcon } from "@kernel/iconSet";
 import { openSettingsPanel, useSettingsState } from "@kernel/settings";
-import logoUrl from "../assets/logo.png";
 import { Check, Gear } from "@phosphor-icons/react";
 import { VersionPopover } from "./VersionPopover";
 import { CHANGELOG_ENTRIES, isNewerVersion } from "./updateCheck";
@@ -77,11 +79,20 @@ function PinCheckbox({
   );
 }
 
-export function SidebarSettingsCluster() {
-  const [open, setOpen] = useState(false);
-  /* 工作区显隐菜单开合态(2026-10-04):提升到簇级与齿轮菜单互斥 —— 触发钮
-   * 在本簇 rootRef 内,齿轮的点外关闭判定放行它,不互斥则同角落两层菜单叠压。 */
-  const [visOpen, setVisOpen] = useState(false);
+export function SidebarSettingsCluster({
+  open,
+  onOpenChange,
+  visOpen,
+  onVisOpenChange,
+}: {
+  /** 设置菜单开合受控于 AppShell:触发钮在左缘 rail 底簇(2026-10-04 用户口径
+   *  迁入),本簇只持菜单本体;互斥在 AppShell 事件源做,不经 prop→state effect。 */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** 工作区显隐菜单开合同受控于 AppShell(同角落两层菜单不叠压)。 */
+  visOpen: boolean;
+  onVisOpenChange: (open: boolean) => void;
+}) {
   const [pinnedIds, setPinnedIds] = useState<string[]>(loadPinned);
   const [version, setVersion] = useState<string | null>(null);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -101,16 +112,26 @@ export function SidebarSettingsCluster() {
      init 在 main.tsx boot(左栏持久化关闭时本簇不挂载,检查不能停摆)。 */
   const presence = useUpdatePresence();
 
-  /* 点击外部 / Esc 关菜单。 */
+  /* onOpenChange 走 ref(effect event 语义):监听器只随 open 挂卸,不因父级
+   * 回调换身份反复退订重订(先例 WorkspaceVisibilityPicker 的 onOpenChangeRef)。 */
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  }, [onOpenChange]);
+
+  /* 点击外部 / Esc 关菜单。触发钮在左 rail(本簇 React 树之外):点它走按钮
+   * 自身 toggle,点外判定按 data-settings-trigger 放行 —— 否则 mousedown 关 +
+   * click 开 = 菜单在钮上永关不掉。 */
   useEffect(() => {
     if (!open) return;
     const onMouseDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-settings-trigger]")) return;
+      onOpenChangeRef.current(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") onOpenChangeRef.current(false);
     };
     document.addEventListener("mousedown", onMouseDown);
     document.addEventListener("keydown", onKeyDown);
@@ -170,7 +191,7 @@ export function SidebarSettingsCluster() {
     version !== null && presence.latest !== null && isNewerVersion(presence.latest.version, version);
 
   const select = (action: SidebarAction) => {
-    setOpen(false);
+    onOpenChange(false);
     action.onSelect(anchor());
   };
 
@@ -212,7 +233,7 @@ export function SidebarSettingsCluster() {
             role="menuitem"
             className="settings-menu-item settings-menu-settings"
             onClick={() => {
-              setOpen(false);
+              onOpenChange(false);
               openSettingsPanel();
             }}
           >
@@ -225,22 +246,8 @@ export function SidebarSettingsCluster() {
       )}
 
       <div className="settings-cluster-bar">
-        <button
-          type="button"
-          className={`settings-bar-btn settings-gear${open ? " is-active" : ""}`}
-          aria-label={t("设置")}
-          aria-expanded={open}
-          aria-haspopup="menu"
-          data-hint={t("设置")}
-          data-hint-cmd="shell.openSettings"
-          title=""
-          onClick={() => {
-            setVisOpen(false); /* 开齿轮先收显隐菜单(簇级互斥) */
-            setOpen((v) => !v);
-          }}
-        >
-          <img src={logoUrl} alt="" className="settings-logo" />
-        </button>
+        {/* 设置触发钮已迁左缘 rail 底簇(2026-10-04 用户口径):底栏现以
+            pinned 快捷/工作区显隐/版本号起头,菜单本体仍由本簇渲染。 */}
         {pinnedActions.map((action) => {
           const isActive = action.active?.() ?? false;
           return (
@@ -259,14 +266,8 @@ export function SidebarSettingsCluster() {
         })}
         {/* 工作区显隐多选菜单(缩放组原位,2026-10-04):控制左栏显示哪些工作区,
             勾选恢复显示时右侧文件树跟着切一次;缩放入口改 ⌘+/⌘−/⌘0 键位。
-            开合受控于簇:与齿轮菜单互斥(见 visOpen 注释)。 */}
-        <WorkspaceVisibilityPicker
-          open={visOpen}
-          onOpenChange={(o) => {
-            if (o) setOpen(false);
-            setVisOpen(o);
-          }}
-        />
+            开合受控于 AppShell,与设置菜单互斥在事件源做(同角落两层菜单)。 */}
+        <WorkspaceVisibilityPicker open={visOpen} onOpenChange={onVisOpenChange} />
         <span className="settings-cluster-spacer" />
         <button
           type="button"

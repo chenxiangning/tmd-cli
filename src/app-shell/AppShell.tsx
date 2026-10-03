@@ -43,6 +43,27 @@ export function AppShell() {
   /* 插件市场页开关:打开时以不透明覆盖层盖住三栏(见下方 JSX 注释),关掉零回放即回。 */
   const [marketOpen, setMarketOpen] = useState(false);
   const toggleMarket = useCallback(() => setMarketOpen((v) => !v), []);
+  /* 设置菜单开合(2026-10-04 触发钮迁左 rail 底):AppShell 持有,左 rail 钮与
+   * 左下簇(菜单本体)双端受控;工作区显隐菜单开合同收此处 —— 两菜单同角落,
+   * 互斥在各自开/关事件源做,不设 prop→state effect。左栏收起时菜单随簇卸载,
+   * 开态一并复位,防重开左栏时菜单凭空挂着。 */
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [visMenuOpen, setVisMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!leftOpen) {
+      setSettingsMenuOpen(false);
+      setVisMenuOpen(false);
+    }
+  }, [leftOpen]);
+  const toggleSettingsMenu = useCallback(() => {
+    if (!leftOpen) toggleLeft(); /* 栏收起先弹回:菜单本体随左下簇挂载 */
+    setVisMenuOpen(false); /* 互斥:开设置先收显隐 */
+    setSettingsMenuOpen((v) => !v);
+  }, [leftOpen, toggleLeft]);
+  const changeVisMenu = useCallback((o: boolean) => {
+    if (o) setSettingsMenuOpen(false); /* 互斥:开显隐先收设置 */
+    setVisMenuOpen(o);
+  }, []);
   const { tabs } = useEditorTabs();
   /* 编辑区最大化(editorMaximized store,持久化):有 tab 时仅中央幕布零宽
      让位(.group-maximized 纯样式折叠,见 panel-handle.css),左栏与右栏钉住
@@ -82,8 +103,13 @@ export function AppShell() {
           顶栏 icon 挤叠。市场页实底背景,盖住下层即可。 */}
       <div className="relative flex min-h-0 flex-1">
         {/* 左缘入口 rail:常驻竖条(左栏收起也在),会话看板/市场/回首页/
-            工作区切换在顶簇;市场页打开时与三栏一起被覆盖。 */}
-        <LeftRail marketOpen={marketOpen} onToggleMarket={toggleMarket} />
+            工作区切换在顶簇,设置触发钮钉底簇;市场页打开时与三栏一起被覆盖。 */}
+        <LeftRail
+          marketOpen={marketOpen}
+          onToggleMarket={toggleMarket}
+          settingsOpen={settingsMenuOpen}
+          onToggleSettings={toggleSettingsMenu}
+        />
         <DesktopColumns
           leftOpen={leftOpen}
           rightOpen={rightOpen}
@@ -91,6 +117,10 @@ export function AppShell() {
           hasTabs={tabs.length > 0}
           filePanels={filePanels}
           filePanelMode={filePanelMode}
+          settingsMenuOpen={settingsMenuOpen}
+          onSettingsMenuOpenChange={setSettingsMenuOpen}
+          visMenuOpen={visMenuOpen}
+          onVisMenuOpenChange={changeVisMenu}
         />
         {/* 右缘面板 rail:常驻竖条(右栏收起也在),点击切面板并展开右栏,
             再点已激活面板 = 折叠右栏(hub 类顺带关中央 tab);

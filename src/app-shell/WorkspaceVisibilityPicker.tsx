@@ -12,8 +12,9 @@
  * - 「至少留一个」按全局现存表计数(本菜单即全局口径;左栏另有来源视图
  *   过滤,极端组合下 local 视图可能临时为空,切视图即恢复,属视图层口径)。
  * - 菜单不随勾选关闭(多选连续操作);点外/Esc 关;窗口 resize 直接收菜单
- *   (fixed 一次性坐标不重算,与本仓 portal 菜单家族一致);开合态受控于簇
- *   (SidebarSettingsCluster 持有,与齿轮菜单簇级互斥,防同角落两层菜单叠压)。
+ *   (fixed 一次性坐标不重算,与本仓 portal 菜单家族一致);开合态受控于 AppShell
+ *   (经左下簇透传,与设置菜单互斥在事件源做,防同角落两层菜单叠压;
+ *   设置触发钮 2026-10-04 迁左缘 rail 底)。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -68,7 +69,7 @@ export function WorkspaceVisibilityPicker({
   open,
   onOpenChange,
 }: {
-  /** 受控开合:开合态归簇(SidebarSettingsCluster)持有 —— 与齿轮菜单簇级互斥,
+  /** 受控开合:开合态归 AppShell(左下簇透传)—— 与设置菜单同角落互斥在事件源做,
    *  同角落两层菜单不可能同开(2026-10-04 交互审查 P1-2)。 */
   open: boolean;
   onOpenChange: (open: boolean) => void;

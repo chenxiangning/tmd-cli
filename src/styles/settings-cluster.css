@@ -1,7 +1,8 @@
 /* ──────────────────────────────────────────────────────────
  * Sidebar settings cluster —— 复刻 codemoss 左下角设置区。
  *
- * 底栏:齿轮 + pinned 快捷图标 + 工作区显隐 + 右侧版本号;
+ * 底栏:pinned 快捷图标 + 工作区显隐 + 右侧版本号;设置触发钮已迁左缘 rail
+ * 底簇(2026-10-04,.settings-logo 随迁,样式留此共用)。
  * 菜单:向上弹出,每行 icon + label + pin 复选框,底部「设置」。
  * 界面缩放组已隐藏(2026-10-04,⌘+/⌘−/⌘0 键位接管):样式暂留,
  * 恢复底栏入口时直接复用(.settings-zoom 系)。
@@ -49,11 +50,7 @@
 /* per-action 点亮色随动作迁走:system-proxy 已迁右缘 PanelRail
    (right-panel-toolbar.css),此处不再持有其装饰规则。 */
 
-.settings-gear.is-active {
-  background: var(--tmd-bg-hover);
-  color: var(--tmd-fg);
-}
-/* 左下角入口用应用 logo 替代齿轮 */
+/* 设置入口用应用 logo(触发钮在左缘 rail 底簇,.left-rail-tab 内) */
 .settings-logo {
   display: block;
   width: 18px;
