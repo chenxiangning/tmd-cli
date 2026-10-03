@@ -218,9 +218,13 @@ export class PiRpcSession {
         return;
       case "extension_ui_request": {
         if (rec.method === "confirm") {
+          /* 畸形帧(缺 id / null / 异型)不产卡:应答 id 无从被引擎认领,产了
+           * 就是永不生效的审批卡(与 widget 路 !fid 同律,2026-10-04 复审)。 */
+          const cid = typeof rec.id === "number" ? rec.id : typeof rec.id === "string" && rec.id ? rec.id : null;
+          if (cid === null) return;
           this.handlers.onConfirm({
-            /* 数值 id 原样(同型回传,见 PiRpcConfirm 注释);字符串守好空值。 */
-            frameId: typeof rec.id === "number" ? rec.id : String(rec.id ?? ""),
+            /* 数值 id 原样(同型回传,见 PiRpcConfirm 注释)。 */
+            frameId: cid,
             title: String(rec.title ?? ""),
             message: String(rec.message ?? ""),
           });

@@ -175,7 +175,10 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
     const sentPaths = shots.map((s) => s.path);
     const sentDraft = draft;
     const msg = composeSendText(draft, sentPaths);
-    if (msg === null) return;
+    if (msg === null) {
+      setSendErr(false); /* 内容已清空:错误条失去重试对象,退场免死钮(2026-10-04 复审) */
+      return;
+    }
     /* 桌面契约 = 写入失败保草稿:成功才清草稿/挂图并清错,失败保留输入给可见错误条。 */
     setSending(true);
     writeSession(props.sessionId, `${msg}\r`)

@@ -14,9 +14,9 @@
  *   都按水位比对触发一次 rebuild 回放 —— 断连窗口的输出不再成永久缺口。水位 =
  *   尾页 start_offset+text.length,实况 chunk 到达即累加;回放期间新 chunk 进
  *   缓冲换屏后排空(与首载同一套序),免换屏竞态丢字节。
- * - rAF 脏标合帧 → 100ms 尾沿节流(spec 2026-10-03-mobile-keybar-relayout):
- *   全量 view() 重建压到 ~10Hz,文本视口观感仍瞬时,WKWebView 全文重排次数
- *   较 60Hz 降约 6 倍;尾沿保证最后一帧必达。
+ * - setLive 100ms 合帧节流(在途只喂屏,flush 取全量 view;spec 2026-10-03-
+ *   mobile-keybar-relayout):全量 view() 重建压到 ~10Hz,文本视口观感仍瞬时,
+ *   WKWebView 全文重排次数较 60Hz 降约 6 倍;尾沿保证最后一帧必达。
  * - useSessionExit:pty://exit 订阅 + 列表消失兜底(会话屏终局横幅的数据面)。
  */
 import { useCallback, useEffect, useRef, useState } from "react";

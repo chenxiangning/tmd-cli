@@ -175,12 +175,25 @@ export function Composer(props: {
   useEffect(() => {
     const el = taRef.current;
     if (!el) return;
-    if (taH !== null) {
-      el.style.height = `${taH}px`;
-      return;
-    }
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
+    const size = () => {
+      if (taH !== null) {
+        el.style.height = `${taH}px`;
+        return;
+      }
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
+    };
+    size();
+    /* 旋屏/分屏改宽 → 重算高度(scrollHeight 随宽变,静态 deps 够不着;2026-10-04
+     * 复审)。只认宽度变化:自设高度不改宽,RO 不自激。 */
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === w) return;
+      w = el.clientWidth;
+      size();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [props.draft, taH]);
   /* chip 填稿 = 追加不覆盖(joinPrompt,保已打文字);切模型 = 替换(命令语义)。
    * 两者都只填草稿并聚焦,发送由人确认(不自动发空枪)。 */
