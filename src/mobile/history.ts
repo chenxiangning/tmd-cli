@@ -79,7 +79,7 @@ export function groupHomeRows(args: {
   overlayTitles: Record<string, string>;
   titleOfLive: (s: RemoteSession) => string;
   titleOfDisk: (h: HistoryItem) => string;
-}): { wsId: string; name: string; rows: HomeRow[] }[] {
+}): { wsId: string; name: string; root: string; latest: number; rows: HomeRow[] }[] {
   const needle = args.q.trim().toLowerCase();
   const hit = (t: string) => !needle || t.toLowerCase().includes(needle);
 
@@ -92,7 +92,7 @@ export function groupHomeRows(args: {
   }
 
   const wsName = new Map(args.workspaces.map((w) => [w.id, w.name] as const));
-  const groups: { wsId: string; name: string; rows: HomeRow[]; latest: number }[] = [];
+  const groups: { wsId: string; name: string; root: string; rows: HomeRow[]; latest: number }[] = [];
 
   for (const w of args.workspaces) {
     const rows: HomeRow[] = [];
@@ -134,6 +134,7 @@ export function groupHomeRows(args: {
     groups.push({
       wsId: w.id,
       name: w.name,
+      root: w.root,
       rows,
       latest: rows[0]?.ts ?? 0,
     });
@@ -156,14 +157,13 @@ export function groupHomeRows(args: {
     });
     rows.sort((a, b) => b.ts - a.ts);
     if (rows.length) {
-      groups.push({ wsId, name: wsName.get(wsId) ?? wsId, rows, latest: rows[0].ts });
+      groups.push({ wsId, name: wsName.get(wsId) ?? wsId, root: "", rows, latest: rows[0].ts });
     }
   }
 
   /* 有内容的组按最近活动倒序,空组随后按配置顺序。 */
   return groups
-    .sort((a, b) => (a.rows.length && b.rows.length ? b.latest - a.latest : a.rows.length ? -1 : b.rows.length ? 1 : 0))
-    .map(({ wsId, name, rows }) => ({ wsId, name, rows }));
+    .sort((a, b) => (a.rows.length && b.rows.length ? b.latest - a.latest : a.rows.length ? -1 : b.rows.length ? 1 : 0));
 }
 
 /** 归档覆盖层 key(与桌面 kernel/sessionArchive key 同构;活会话无磁盘身份,恒本地)。 */

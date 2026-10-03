@@ -92,6 +92,9 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
           setTitles(o.titles);
           setArchive(o.archive);
           if (lastPinWriteAt.current <= reqAt) setPins(o.pins);
+          /* 周期兜底(2026-10-03):settings:changed 是唯一同步源,断连窗口丢事件
+             = 命名/归档/置顶无限期滞后;30s 全量重拉封死(轻 RPC,桌面读盘一次)。 */
+          timer = window.setTimeout(pull, 30_000);
         },
         () => {
           if (alive) timer = window.setTimeout(pull, 3000);
@@ -99,6 +102,10 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       );
     };
     pull();
+    /* 桥恢复即拉:断连期间错过的 settings:changed 不等 30s 周期。 */
+    const offConn = onRemoteConnection((c) => {
+      if (c.connected) pull();
+    });
     /* 防抖:桌面连发 settings:changed(如批量归档)只拉一次全量。 */
     const off = listen("settings:changed", () => {
       clearTimeout(timer);
@@ -107,6 +114,7 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
     return () => {
       alive = false;
       clearTimeout(timer);
+      offConn();
       void off.then((f) => f()).catch(() => undefined);
     };
   }, []);

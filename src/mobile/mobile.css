@@ -7,6 +7,9 @@
   --border:#cecece; --border-strong:#b1b1b1; --accent:#005fb8; --accent-soft:rgba(0,95,184,.14);
   --ok:#059669; --warn:#a16207; --err:#dc2626;
   --mono:ui-monospace,"SF Mono",Menlo,monospace;
+  /* cli-shared 品牌 glyph(engineGlyphs)消费 --tmd-fg/--tmd-fg-muted(桌面 global.css
+     定义);手机树不载桌面样式,别名到本树 token,深色随 .m-app 覆盖自动跟随。 */
+  --tmd-fg:var(--fg); --tmd-fg-muted:var(--fg-muted);
 }
 /* 壳根:吃满真机视口,浅色底(原型 screen 同款) */
 .m-app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg-base);
@@ -31,18 +34,17 @@
 /* ── home 列表 ── */
 .search{margin:10px 12px 4px;display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:12.5px;color:var(--fg-faint);background:var(--bg-input)}
 .search input{flex:1;border:none;outline:none;background:none;font-size:12.5px;color:var(--fg)}
-.ws-head{display:flex;align-items:center;gap:8px;padding:9px 12px 5px 10px}
-.ws-caret{width:36px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--fg-muted);background:none;border:none;cursor:pointer;padding:0;line-height:1}
-.ws-name{font-size:12.5px;font-weight:600;color:var(--fg-muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:none;background:none;font-family:inherit;font-size:13px;font-weight:700;line-height:inherit;color:var(--fg);text-align:left;padding:0;cursor:pointer}
 /* 工作区「本地/归档」切换:无边框 icon+文本,active 主色加粗,计数弱化 */
-.ws-seg{display:flex;gap:14px;flex:none;align-items:center}
-.ws-seg button{display:flex;align-items:center;gap:4px;border:none;background:none;font-family:inherit;font-size:11.5px;color:var(--fg-subtle);cursor:pointer;padding:4px 0}
-.ws-seg button .ic{font-size:12px;line-height:1;filter:grayscale(1);opacity:.55}
-.ws-seg button.on{color:var(--accent);font-weight:600}
-.ws-seg button.on .ic{filter:none;opacity:1}
-.ws-seg button b{font-weight:600;font-size:10.5px;color:var(--fg-faint)}
+.ws-seg{display:flex;flex:none;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.ws-seg button{display:flex;align-items:center;gap:4px;border:none;background:none;font-family:inherit;font-size:10.5px;color:var(--fg-subtle);cursor:pointer;padding:3px 8px;white-space:nowrap}
+.ws-seg button+button{border-left:1px solid var(--border)}
+.ws-seg button svg{opacity:.7}
+.ws-seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.ws-seg button.on svg{opacity:1}
+.ws-seg button b{font-weight:700;font-size:10px;color:var(--fg-faint)}
 .ws-seg button.on b{color:var(--accent)}
-.seg-empty{padding:10px 26px;font-size:11.5px}
+.seg-empty{margin-top:0;padding:10px;font-size:11.5px;text-align:center}
 .row{display:flex;align-items:stretch;width:100%}
 .row-main{display:flex;align-items:center;gap:8px;padding:10px 6px 10px 16px;font-size:12.5px;flex:1;min-width:0;background:none;border:none;text-align:left;cursor:pointer;color:inherit;font-family:inherit}
 .row .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -157,7 +159,15 @@
 /* nav 芯片(审批计数/新建) */
 .nav-chip{flex:none;font-size:11px;font-weight:600;color:var(--fg-muted);border:1px solid var(--border);background:var(--bg-panel);border-radius:999px;padding:3px 10px;cursor:pointer;font-family:inherit}
 .nav-chip.warn{background:rgba(161,98,7,.1);color:var(--warn);border-color:rgba(161,98,7,.4)}
-.home-t{font-size:14px}
+.home-t{font-size:14px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* home 顶栏两行(2026-10-03 卡片化重设计:标题+连接芯片 / 汇总+三钮) */
+.nav2{padding:10px 14px 9px;padding-top:calc(10px + env(safe-area-inset-top));border-bottom:.5px solid var(--border);flex:none;background:var(--bg-base)}
+.nav2 .r1{display:flex;align-items:center;gap:8px}
+.nav2 .r2{display:flex;align-items:center;margin-top:7px}
+.nav2 .sum{font-size:11px;color:var(--fg-muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ibtns{display:flex;gap:6px}
+.ibtn{width:28px;height:28px;border:1px solid var(--border);border-radius:8px;background:var(--bg-panel);color:var(--fg-muted);display:flex;align-items:center;justify-content:center}
+.ibtn .spin{display:flex}
 .chip.b{background:rgba(0,95,184,.08);color:var(--accent);border-color:rgba(0,95,184,.3)}
 .chip.r{background:rgba(220,38,38,.06);color:var(--err);border-color:rgba(220,38,38,.3)}
 /* transcript 长文展开柄 */
@@ -219,14 +229,16 @@
 
 /* ── 工作区树(样式照桌面侧栏:细线图标 + 折叠 chevron + 会话虚线引导;2026-09-25)── */
 .ws-caption{display:flex;align-items:center;gap:6px;padding:10px 16px 2px;font-size:11px;font-weight:600;color:var(--fg-subtle);letter-spacing:.02em}
-.ws-head{padding-left:8px}
-.ws-caret{width:36px;height:36px;color:var(--fg-muted)}
-.ws-head > svg{flex:none;color:var(--fg-muted)}
-.ws-name{color:var(--fg);font-size:13px}
-.ws-kids{margin-left:22px;border-left:1px dashed var(--border);padding-left:4px}
-.ws-kids > .row{position:relative}
-.ws-kids > .row::before{content:"";position:absolute;left:-4px;top:50%;width:4px;border-top:1px dashed var(--border)}
-.ws-kids .more{text-align:left;padding-left:22px}
+.ws-card{margin:0 10px 10px;border:1px solid var(--border);border-radius:12px;background:var(--bg-panel);padding:10px 12px}
+.c-head{display:flex;align-items:center;gap:7px}
+.c-head > svg{flex:none;color:var(--fg-muted)}
+.c-mid{display:flex;align-items:center;gap:8px;margin-top:7px}
+.c-path{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:10.5px;color:var(--fg-muted)}
+.c-foot{margin-top:6px;font-size:10.5px;color:var(--fg-subtle)}
+.ws-kids{margin-top:8px;border-top:1px solid var(--border);padding-top:2px}
+.ws-plus{flex:none;width:24px;height:24px;border:1px solid var(--border);border-radius:7px;color:var(--fg-muted);display:flex;align-items:center;justify-content:center}
+.ws-card .row-main{padding:8px 2px}
+.ws-card .more{text-align:center;padding-left:0}
 
 /* ── 原生工具类(Tailwind 死类改写:手机树不载 Tailwind,min-w-0/flex-1/truncate 等全部无效)── */
 /* 弹性行内截断:min-w-0 + flex-1 + truncate 三合一(通道行/批次文件行/工作区行) */

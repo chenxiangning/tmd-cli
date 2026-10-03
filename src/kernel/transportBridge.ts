@@ -18,6 +18,10 @@ type Listener = (payload: unknown) => void;
 
 interface PendingReq { resolve: (v: unknown) => void; reject: (e: Error) => void; }
 
+/** 单 invoke 响应超时:半开连接(中继边缘 socket open 而后端已死)响应永不回,
+ * 不设上限 = 手机轮询 pull 永挂 → 流量停摆 → 中继 idle 掐线 → 「重连中」横幅
+ * (2026-10-03 外网高频复现根因)。15s > 慢链路大帧正常 p99,< 中继 idle 窗。 */
+const INVOKE_TIMEOUT_MS = 15_000;
 /** WS open 等待上限:过时不等(但保留连接),防服务器无 /ws 时永久挂起。 */
 const OPEN_TIMEOUT_MS = 5_000;
 
@@ -236,9 +240,23 @@ export class WebBridge {
       reject,
     });
     this.ws.send(frame);
-    return promise;
+    /* 响应超时:半开线(边缘 open 而后端已死)响应永不回,迟到响应打在已删
+     * entry 上自然丢弃;超时弃 pending 并强断病线,交给 onClose/DialPolicy 重拨。
+     * 单发 timer 免句柄:正常应答后到点 fire 的空 rej 由兜底吞(race 已 settle)。 */
+    const timeout = new Promise<never>((_, rej) => {
+      setTimeout(() => rej(new Error("bridge response timeout")), INVOKE_TIMEOUT_MS);
+    });
+    void timeout.catch(() => undefined);
+    try {
+      return await Promise.race([promise, timeout]);
+    } catch (e) {
+      if (e instanceof Error && e.message === "bridge response timeout") {
+        this.pending.delete(id);
+        try { this.ws?.close(); } catch { /* 已关 */ }
+      }
+      throw e;
+    }
   }
-
   /** 事件跳帧通知(服务端 Lagged):幕布消费方重拉 history_page 重建。 */
   onEventGap(cb: () => void): () => void {
     this.gapCbs.add(cb);

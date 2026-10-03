@@ -266,5 +266,6 @@
 | 2026-10-03 | [LSP 弹窗 code 渲染提交收口复审(提交纯净性/门禁序/运行链路取证:11 文件零混入、vite:1421 服务端实证新模块已入已开窗口热更链;实锤 2 修——索引状态漏目检挂账后缀、docs 提交在含用户 WIP 的 93 分树落下且分数未闸门化(扣分项归属已取证零交集);留观 3 条)](review/2026-10-03-lsp-peek-code-render-review.md) | 已完成(实锤修复随本提交) |
 | 2026-10-03 | [手机首页 UI 打磨三方案(A 柔光分组 / B 内联摘要 / C 分色速览;保留置顶+运行中+工作区信息架构,聚焦工作区菜单展示优化)](design/mobile-home-polish-a.html) | 设计原型 |
 | 2026-10-03 | [手机首页工作区菜单精修(去折叠箭头,文件夹图标开合表达展开态,计数靠右着色)](design/mobile-ws-menu-refine.html) | 设计原型 |
+| 2026-10-03 | [mobile app 深色重设计:工作区与任务 + 发起会话流(老 UI 入口全保留:连接芯片+sheet/断连 banner/Git 新建 刷新/搜索/置顶+运行中双区/行置顶钮/审批 pill/本地归档分段切换/加载更多;长文本单行 ellipsis;会话行 = engineGlyphs.tsx 同源真实品牌标;六屏 = home/连接 sheet/断连快照/spawn 选态/spawn 阻态/启动后实况屏)](prototypes/mobile-app-workspaces.html) | 已实施(屏 1-5;屏 6 实况屏维持现状;假桥桩目检过,真机目检留大仙) |
 | 2026-10-03 | [会话行 tok/s pill 稳定性与口径修复(实证三根因:增量行误用差分分子→51% 空转+低估一半、两点差分无平滑→跳变 p90 16x、跨轮污染;修法=分子按行型分派+尾窗用户行轮种子+180s cap+单对 300 tok/s 可信上限+近 5 对滑窗+codex 双快照,回放可显率 49%→100%、跳变 p90→1.5x)](superpowers/specs/2026-10-03-toks-pill-stability-design.md) | 已实施(门禁全绿;UI 目检留用户) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

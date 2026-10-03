@@ -6,18 +6,21 @@ import { t } from "@kernel/i18n";
 import { ConnBanner, HostChip } from "./ConnChip";
 import { pollHomeWatch, useMobile } from "./shared";
 import { Row } from "./Row";
-import { ArchiveIcon, ChevronIcon, FolderIcon, LocalIcon } from "./treeIcons";
+import { ArchiveIcon, FolderIcon, GitIcon, LocalIcon, PlusIcon, RefreshIcon } from "./treeIcons";
 import { groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HistoryItem, type HomeRow } from "./history";
+import { relTime } from "./remote";
 
 /** 磁盘历史重扫节奏:读头有 mtime 缓存,稳态每轮只剩 fs_collect_files 轻量 RPC。 */
 const HISTORY_RESCAN_MS = 60_000;
+/** 命名追赶重扫:存在「已绑定磁盘身份但真名未解析」的活行时的加密档。 */
+const NAME_CHASE_RESCAN_MS = 5_000;
 /** 工作区分段分页:每页行数(分页水位按 工作区:分段 独立)。 */
 const PAGE_SIZE = 10;
 
 export function HomeScreen() {
   const { sessions, workspaces, titles, titleOf, route, go, archive, pins, togglePin } = useMobile();
   const [q, setQ] = useState("");
-  const [spawn, setSpawn] = useState(false);
+  const [spawn, setSpawn] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   /* 工作区视图分段:本地(默认)/ 归档;分页水位按视图独立(key = 工作区:分段)。 */
   const [wsTab, setWsTab] = useState<Record<string, "local" | "archive">>({});
@@ -66,9 +69,19 @@ export function HomeScreen() {
     };
   }, [items, route.sessionId, refreshTick]);
 
-  /* 磁盘历史扫描:工作区清单变化 / 挂载 / 60s 周期。签名依赖,避免 2.5s 轮询重触发。 */
-  /* 直接数组身份(P2-5:裸拼串遇 |/: 错位;MobileApp 签名比对后 set,身份稳定)。 */
+  /* 磁盘历史扫描:清单变化/挂载/60s 周期;签名依赖 + roots 直接数组身份(签名比对 set,身份稳定)。 */
   const roots = useMemo(() => workspaces.map((w) => w.root), [workspaces]);
+  /* 未解析命名活行数(有磁盘身份、无手动名、未扫到):>0 = 重扫压 5s 直至解析(60s→≤5s)。 */
+  const unresolved = useMemo(() => {
+    const rootOf = new Map(workspaces.map((w) => [w.id, w.root] as const));
+    return sessions.filter((s) => {
+      if (!s.cliSessionId || titles[`${s.profileId}:${s.cliSessionId}`]) return false;
+      const items = history.get(rootOf.get(s.workspaceId ?? "default") ?? "");
+      return !(items ?? []).some(
+        (h) => `${h.profileId}:${h.session.id}` === `${s.profileId}:${s.cliSessionId}`,
+      );
+    }).length;
+  }, [sessions, titles, history, workspaces]);
   React.useEffect(() => {
     let alive = true;
     /* 逐区串行 + 防重入:全并发 = 工作区×引擎 RPC 风暴(实测一波 7.9MB),
@@ -96,12 +109,12 @@ export function HomeScreen() {
         });
     };
     void scan();
-    const timer = setInterval(scan, HISTORY_RESCAN_MS);
+    const timer = setInterval(scan, unresolved > 0 ? NAME_CHASE_RESCAN_MS : HISTORY_RESCAN_MS);
     return () => {
       alive = false;
       clearInterval(timer);
     };
-  }, [roots, refreshTick]);
+  }, [roots, refreshTick, unresolved]);
 
   const titleOfDisk = React.useCallback(
     (h: HistoryItem) =>
@@ -167,14 +180,19 @@ export function HomeScreen() {
 
   return (
     <>
-      <div className="nav">
-        <span className="t home-t">tmd-cli</span>
-        <button type="button" className="nav-chip" aria-label={t("Git 面板")} onClick={() => go({ view: "git" })}>⎇ Git</button>
-        <button type="button" className="nav-chip" aria-label={t("发起会话")} onClick={() => setSpawn(true)}>
-          + {t("新建")}
-        </button>
-        <button type="button" className="nav-chip" aria-label={t("刷新")} aria-busy={refreshing} onClick={refresh}><span ref={spinRef} aria-hidden>⟳</span></button>
-        <HostChip />
+      <div className="nav2">
+        <div className="r1">
+          <span className="home-t">{t("当前设备上的工作区和任务")}</span>
+          <HostChip />
+        </div>
+        <div className="r2">
+          <span className="sum">{t("{n} 个工作区 · {m} 个任务", { n: workspaces.length, m: groups.reduce((a, g) => a + g.rows.length, 0) })}</span>
+          <span className="ibtns">
+            <button type="button" className="ibtn" aria-label={t("Git 面板")} onClick={() => go({ view: "git" })}><GitIcon /></button>
+            <button type="button" className="ibtn" aria-label={t("发起会话")} onClick={() => setSpawn("")}><PlusIcon /></button>
+            <button type="button" className="ibtn" aria-label={t("刷新")} aria-busy={refreshing} onClick={refresh}><span ref={spinRef} className="spin" aria-hidden><RefreshIcon /></span></button>
+          </span>
+        </div>
       </div>
       <ConnBanner />
       <div className="m-body">
@@ -212,42 +230,23 @@ export function HomeScreen() {
           /* 默认折叠;搜索词在场时强制展开(否则搜索结果不可见)。 */
           const open = q.trim() ? true : expanded[g.wsId] === true;
           return (
-            <React.Fragment key={g.wsId}>
-              <div className="ws-head">
-                <button
-                  type="button"
-                  className="ws-caret"
-                  aria-expanded={open}
-                  aria-label={open ? t("折叠") : t("展开")}
-                  onClick={() => setExpanded((m) => ({ ...m, [g.wsId]: !m[g.wsId] }))}
-                >
-                  <ChevronIcon open={open} />
-                </button>
+            <div key={g.wsId} className="ws-card">
+              <div className="c-head">
                 <FolderIcon open={open} size={16} />
-                <span className="ws-name">{g.name}</span>
+                <button type="button" className="ws-name" aria-expanded={open} onClick={() => setExpanded((m) => ({ ...m, [g.wsId]: !m[g.wsId] }))}>{g.name}</button>
+                <button type="button" className="ws-plus" aria-label={t("在此工作区发起会话")} onClick={() => setSpawn(g.wsId)}><PlusIcon size={11} /></button>
+              </div>
+              <div className="c-mid">
+                <span className="c-path">{g.root || "—"}</span>
                 <div className="ws-seg" role="tablist">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === "local"}
-                    className={tab === "local" ? "on" : ""}
-                    onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "local" }))}
-                  >
-                    <LocalIcon />
-                    {t("本地")} <b>{local.length}</b>
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === "archive"}
-                    className={tab === "archive" ? "on" : ""}
-                    onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: "archive" }))}
-                  >
-                    <ArchiveIcon />
-                    {t("归档")} <b>{archived.length}</b>
-                  </button>
+                  {(["local", "archived"] as const).map((v, i) => (
+                    <button key={v} type="button" role="tab" aria-selected={tab === (i ? "archive" : "local")} className={tab === (i ? "archive" : "local") ? "on" : ""} onClick={() => setWsTab((m) => ({ ...m, [g.wsId]: i ? "archive" : "local" }))}>
+                      {i ? <ArchiveIcon /> : <LocalIcon />}{i ? t("归档") : t("本地")} <b>{(i ? archived : local).length}</b>
+                    </button>
+                  ))}
                 </div>
               </div>
+              {g.latest > 0 && <div className="c-foot">{t("更新于 {when}", { when: relTime(g.latest) })}</div>}
               {open && (
                 <div className="ws-kids">
                   {rows.length === 0 && (
@@ -280,15 +279,16 @@ export function HomeScreen() {
                   )}
                 </div>
               )}
-            </React.Fragment>
+            </div>
           );
         })}
       </div>
-      {spawn && (
+      {spawn !== null && (
         <SpawnSheet
-          onClose={() => setSpawn(false)}
+          initialWsId={spawn}
+          onClose={() => setSpawn(null)}
           onSpawned={(sessionId) => {
-            setSpawn(false);
+            setSpawn(null);
             go({ view: "session", sessionId, spawnedAt: Date.now() });
           }}
         />
@@ -296,3 +296,4 @@ export function HomeScreen() {
     </>
   );
 }
+
