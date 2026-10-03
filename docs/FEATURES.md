@@ -24,10 +24,14 @@
 > 2026-10-04 补校(0.2.8/0.2.9 增量域,以代码为准):六套 tmd 原创低饱和主题 + 设计系统 token 阶梯 + 状态三原语(Empty/Spinner/错误契约三分)、原生弹窗清零、视图保活统一(全挂载 + display:none)、文件操作条下放面板头、幕布右上工具行与单会话幕布重建刷新钮、渲染健康守望第 3-5/11 轮(洪水降级宽限/泵侧后台慢拍/幕布数据链停滞探针,契约见 architecture/17)、结构化会话(omp/pi --mode rpc token 级流式 + 幕布|结构化双视图,契约见 architecture/19)、会话行 tok/s pill 口径修复、会话 tab 收敛、手机端对话链路整批重做(三态胶囊 composer/选图拍照双入口/直连 WS 心跳保活/快捷键条两行网格/首页卡片化);插件计数 38→44(10 engine / 30 feature / 3 core / 1 local,10-01 注记「不变 38」系漏校,结构化会话等 0.2.7 落地件未计入);russh 0.62.2→0.63.3。
 
 ## 工作区会话
+- 会话行 tok/s pill:活会话响应均速指示,轮结束自动隐藏;口径(2026-10-03 修复)分子按行型分派(全量行差分 / 增量行自增)+ 尾窗用户行轮种子 + 180s 剔停 + 单对 300 tok/s 可信上限 + 近 5 对滑窗平滑 + codex 双快照——回放实证可显率 49%→100%、跳变 p90 19.4x→1.5x(spec 2026-10-03-toks-pill-stability-design)
+- 会话 tab 收敛(0.2.8):行内 hover 只留 ×,view/pin/locate 收进右键菜单(带可用性门控);双 tab 溢出统一横向滚动 + 右缘渐隐;双击强删暗道移除,改两击武装 3s 回退
+- 视图保活统一(0.2.8):git 三视图 / checkpoints 双视图 / 右栏面板切换一律「全挂载 + display:none + aria-hidden」,回切不丢滚动位置;未访问面板渐进挂载,后台轮询按面板活性门控
 - 异常退出通知与一键续聊(ExitSessionToast):PTY 退出码打通(portable-pty → pty://exit 载荷),内核补发 sessionExitedDetail 详情事件;非 0/非 130 异常退出弹右下角 toast(12s TTL),续聊钮 = openDiskSession 原样 resume(shell/无磁盘身份不渲染)
 - 会话历史检索(session-search 插件):命令 `session-search.open` 开居中浮层,按用户输入全文(各 CLI profile 的 readSessionUserMessages,锚点栏同源)与磁盘标题检索当前工作区历史会话;索引增量构建(60ms/会话,mtime 缓存零重读),命中 openDiskSession 一键续聊;命中行带会话用量徽标(纯解析层下沉 cli-shared/sessionUsage,与首页 TOKENS 同源)
 - 会话检索增强:多关键词 AND 匹配、命中词高亮、引擎过滤 chip
 - 学堂打磨(academy):「试一试」引擎前置闸、课程 sourceVersion 与装机版本漂移提示、左轨课程列表键盘导航
+- 结构化会话(structured-session,0.2.7):omp/pi `--mode rpc` NDJSON 子进程 token 级流式(thinking/text/toolcall delta 原地累积,message_end 落权威块,与磁盘 JSONL 同构),幕布|结构化双视图切换,审批卡(confirm 回路)直答,PTY 零涉及;Rust proc_stream 四命令通用长驻流式原语(boot 期 kill_all 清孤儿;契约见 architecture/19)
 - 结构化会话打磨(structured-session):非 confirm 部件自动取消在转录出 notice(不再静默替答)、exited 一键重新开启、入口按引擎能力显隐(死入口清零)、prompt 请求超时独立常量
 - 结构化会话启动降噪(structured-session):部件取消语义分档——chrome 装饰类(setStatus/notify/setWidget)聚成一条淡色行(×N 计数原地刷新),select/input/editor 及未知 kind 维持逐条可见;渲染层零改动
 - 转录浮标分档(session-viewer liveOverlay):按文件型会话显隐,非文件型引擎不露浮标
@@ -212,6 +216,7 @@
 - 快照清理:prune 按保留条数(100 批)+ TTL(30 天)清账本,并对对象库做 reachability 清理(未被保留条目引用的 blob 直删,对象库不再单调增长)
 - prune 细节:各会话未封口的最新锚点及其 edit 行随批保留,悬空批次审核态一并清理;面板挂载/切换工作区时按工作区触发一次,同工作区每运行不重复
 - 会话时间线页签:面板「审批线|时间线」segmented 切换;按会话列出轮次批次,120 字内全文直显、超出三行截断点击展开,点击行定位到对话;引擎未声明消息读取能力时展示空态而非误报无记录
+- 时间线节点动作(2026-10-04):节点 hover 增复制钮,一键复制该节点发送原文;时间线两钮补键盘聚焦现身,meta 行注释漂移修复
 
 ## Git 面板
 - Worktree 关联管理(契约见 `docs/architecture/16`):Rust 原语 `git_worktree_{list,add,remove,prune}` shell-out(commands_worktree + worktree_parse 纯函数,porcelain 解析 + 路径回贴输入前缀防 symlink 误判;写命令 run_mut 成功后 evict 缓存句柄);新建分支统一 `wt/` 前缀(裸名才加,自带命名空间原样),目录名自动推导可改,分支已存在预检给可行动指引,创建即 addWorkspace 进侧栏;移除 = 对称清理流(worktreeOps.removeWorktreeWithCleanup 两处 UI 共用:摘同 root 工作区 + 分支尾巴安全删 `-d`,未合并保留并说明,被其他树检出跳过)
@@ -297,13 +302,18 @@
 - md 文件默认预览,右上角编辑/预览切换按路径记住(进程内存,重启回默认预览);预览始终渲染磁盘内容,未保存草稿不进预览
 - Markdown 本地图片:asset:// 直载失败回退 data URL(≤20MB,扩展名白名单)
 - 语义跳转与引用(LSP 通道):cmd/ctrl+点击使用点跳定义、定义点/⇧F12/右键「查找引用」开引用 peek(左源码预览右命中列表,点击跳转);F12 跳定义;hover 悬停签名;Rust lsp_spawn/lsp_send/lsp_stop 通用原语(只懂 Content-Length 组帧),语言知识全在 lsp 插件(TS5→typescript-language-server / TS7→tsgo `--lsp --stdio` 自动分叉,Python→pyright,Java→jdt.ls 首用引导下载);空闲 10 分钟自动关停;server 未就绪静默降级不猜测
+- LSP 弹窗 code 渲染(2026-10-03):peek 配色根因修复——lsp 域补 Prism token → --tmd-syntax-* 映射(lsp-code.css),symRange 纯字符串符号区间包裹与高亮共存,右列表行 code 渲染,peekLang 语言解析下沉;jdt 数据目录按 app 实例×工作区双键隔离并回收陈旧实例目录(根治双 jdt 共享 workspace 锁互等的语义跳转 60s 死等)
+- 文件操作条下放面板头(0.2.8):新建/上传/刷新/更多四钮并一行,刷新入口唯一化
 
 ## 设置与外观
 
+- 六套 tmd 原创低饱和主题(0.2.8):light 族 tmd-paper/mist/linen(云白/雾灰/暖帛)与 dark 族 tmd-graphite/ink/ember(石墨/黛蓝/暖炭),默认浅色切云白、深色切石墨;dark 族仿 light 先例补 16 槽降饱和 ANSI 表,浅色族过 WCAG 3:1 对比度闸(spec 2026-10-02-premium-themes / 设计原型 docs/design/premium-themes.html)
+- 设计系统 token 阶梯(0.2.8):themes.css @theme 桥接 Tailwind 标准类,全仓字面量迁移——字号六档(正文定 12px)/ 间距 4 栅格六档 / 圆角五档 / 动效三档 + 两曲线;层次模型(浮层统一 popover+阴影、模态统一遮罩、选中 = accent-soft+600);状态三原语沉淀 kernel:Empty(图标+一句话+引导钮)/ Spinner(一份 keyframes)/ 错误契约三分(可重试失败 = 持久条+重试钮、瞬态失败 = toast、行内校验 = 红字);图标四档 rem 化、prefers-reduced-motion 全局化(spec 2026-10-02-polish-task3-design-system-design)
+- 原生弹窗清零(0.2.8):Tauri WKWebView 下 confirm 可能不弹窗直接放行(破坏性操作裸奔),confirm/prompt/alert 全部换仓内确认弹层/输入弹层/toast;设置面原生 select/checkbox 归位 StyledSelect/segmented
 - 设置面板:overlay 常驻,section/tab 经 settingsRegistry 注册表扩展;左下角齿轮菜单「设置」进入,Esc 或「返回应用」关闭
 - Web 访问设置打磨:中继卡二维码、风险门「取消」可出 + 设置内重看入口、桥状态事件订阅(弃定时盲刷)
 - i18n 缺键清零:全仓 t() 字面量 × 三语词典 diff 清零,check:i18n-keys 检查脚本入 package.json
-- 外观 tab:主题跟随系统/浅色/深色/自定义 4 档 + 31 个 VS Code preset 网格(浅 19 深 12,仅自定义模式展开,点选即写 custom;内核 theme 引擎,--tmd-* token 派生)
+- 外观 tab:主题跟随系统/浅色/深色/自定义 4 档 + 31 个 VS Code preset 网格(浅 19 深 12,仅自定义模式展开,点选即写 custom;内核 theme 引擎,--tmd-* token 派生)+ 6 套 tmd 原创低饱和主题入网格
 - 跟随系统模式监听系统深浅色切换即时换肤;主题变更同步重刷终端幕布配色
 - 语言 i18n:设置/外观三语切换(简体中文/English/日本語),全 app 文案经 kernel/i18n t() 查表,切换即整树重挂载即时生效;缺失词条回落源中文;相对时间/日期随语言走 Intl 本地化
 - 界面字号:12–20 px(默认 16)滑杆即时生效,非默认出「重置」;html 根字号锚点驱动全库 rem 排版实现纯文字级缩放(文字与图标随动,布局壳间距与终端幕布不受影响),任意 px 字号类/CSS font-size/图标 size 已全库等值迁 rem;与界面缩放(webview zoom)、终端字号(幕布)三者正交
@@ -436,6 +446,8 @@
 - 顶栏「回到首页⇄回会话」toggle:会话中记住当前会话回欢迎页,首页中切回原会话(已退出则保持首页原样);市场覆盖层开启时先收市场再切换
 - 右缘面板 rail(2026-09-27,spec 2026-09-27-right-panel-rail-design;activity bar 形态):面板入口自顶栏右区迁窗口右缘常驻竖排工具条(30px,右栏收起也在),列表 = 钉住 ∪ 激活面板 + 横向分隔线 + ⋯ 溢出菜单(贴按钮左缘向左弹、纵向估高夹取);点击切面板并自动展开右栏(旧顶栏 tab 收起态点击无反馈的缺陷顺带根治);钉住语义与 localStorage `tmd.filePanel.pinned.v1` 零变更(⋯ 菜单行点击激活并顺带钉住,复选框仅切钉);rail 动作并入钉住管理,wsl 入 ⋯ 菜单可勾选
 - 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
+- 幕布右上工具行(terminal.canvasRow 挂点,0.2.7):内核渲染行容器,幕布刷新钮收尾最右——单会话幕布重建(xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH 整帧重绘),PTY/CLI 不中断、其他会话零扰动;插件经挂点贡献同排工具钮(session-viewer「结构化幕布」切换钮);行不设 z,不透明画布浮层开启时整行隐没
+- 渲染健康守望(WKWebView 吊销粘死自愈,契约见 architecture/17):JS rAF 探针 1s 看门狗(hidden 真伪一律上报,可见性裁断权单一归 Rust)+ 壳侧 set_focus→reload 阶梯击打;PTY 泵洪水计量(5s 滑动窗 >256KB)洪水期 reload 降级 focus + 3 分钟宽限耗尽强击;泵侧后台慢拍(无人在视 session_set_viewed / 前端渲染暂停的会话,输出聚合窗钳 250ms,后台 TUI 状态动画事件率 20+/s→4/s);隐藏幕布实时字节 250ms 合帧写入;幕布数据链停滞探针(PTY 3s 内仍在产出而幕布订阅 6s 未收字节 = 数据链断供,canvasGen 自增自动重建,30s 冷却,与渲染死亡阶梯互斥分工)
 - 幕布字体按平台:macOS Menlo 系 / Windows Cascadia Mono·Consolas / Linux DejaVu Sans Mono·Liberation Mono,13px,光标闪烁
 - 幕布滚动回放上界 5 万行,更早历史经滚顶「加载更早的输出」按钮翻页(RIS 重置整段重写幕布)
 - panic 落盘:任意线程 panic 的时间戳/线程/源码位置追加 `~/.tmd-cli/panic.log`,超 1MB 先清空再写
@@ -448,6 +460,12 @@
 - 插件激活失败整页报错,不白屏
 
 ## 手机 App
+- 手机会话输入区三态胶囊(0.2.9,豆包式 composer):常态胶囊条 / 挂图卡 + 提示 chips /「+」四格面板(相册·切模型·检查点·快捷键);面板收紧瞬时菜单(动作执行即收、软键盘弹起自动收、展开期键条让位);拖拽调高把手保真(钉高/双击回紧凑/落手记忆原样恢复);chip 填稿改换行追加不覆盖已打文字(spec 2026-10-03-mobile-composer-redesign-design)
+- 手机选图/拍照双入口(0.2.9):胶囊条 Images 相册 + Camera 拍照(新 iOS takePhoto 桥,相机权限前置闸免黑屏,拍摄解码挪后台);上传空白期补原图即时 pending 卡 + 转圈遮罩;上传中禁发送防图未挂完先发
+- 手机快捷键条两行大键网格重排(0.2.9,≥44px 触达);发起会话抽屉与 sheet 基座打磨(grabber/滑入动画/关闭钮进基座,工作区整行选中与引擎双列卡片,样式拆 mobile-sheet.css)
+- 直连 WS 心跳保活(0.2.9):桌面直连 15s Ping(节拍同 relay)+ iOS WsTunnel 15s sendPing/10s pong 超时自愈,根治 NAT 静默回收空闲 TCP 致「图片首发送失败,重试即成功」(spec 2026-10-03-mobile-ws-heartbeat-keepalive-design)
+- 手机实况屏治理(0.2.9):2 秒延迟三件套(TurnsView memo 止血 + setLive 尾沿节流 + 写后触拍);实况屏幽灵列与 ESC7-8、pending 三族对齐 xterm;2J/3J 真擦除并原地 resize 根治新建会话头信息重复
+- 手机首页卡片化重设计(2026-10-04):置顶 + 运行中 + 工作区信息架构保留,工作区菜单去折叠箭头改文件夹图标开合;活会话真名跨桶借全局磁盘索引(修 default 工作区兜底名永不解析);web 桥 invoke 对并发帽快拒做阶梯退避重试(修浏览器态 boot 扫描风暴下工作区列表整面缺失)
 - 截图注入(SessionScreen composer「图」钮):拍照/相册 → 端内压缩(长边 1568/JPEG q0.8)→ 桥 fs_write_temp 镜像落盘临时文件 → composer 注入 `@路径`(桌面附件同语义);零原生壳改动
 - 本地通知链路重做:检测挪 home 轮询边沿(不依赖会话屏挂载)、iOS 壳 willPresent 前台横幅、会话退出通知对齐桌面开关
 - pty://exit 消费:会话屏订阅退出事件,退出横幅 + 续聊引导(复用 resume 链)
