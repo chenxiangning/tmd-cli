@@ -68,6 +68,18 @@ export interface HomeRow {
   disk?: CliDiskSession;
 }
 
+/** 全局真名索引:`${profileId}:${session.id}` → 磁盘标题(跨桶;仅收录非空 title)。
+ *  消费方:groupHomeRows 活行借名、HomeScreen 追赶判定(无真名才算未解析)。 */
+export function globalDiskTitles(history: Map<string, HistoryItem[]>): Map<string, string> {
+  const idx = new Map<string, string>();
+  for (const items of history.values()) {
+    for (const h of items) {
+      if (h.session.title) idx.set(`${h.profileId}:${h.session.id}`, h.session.title);
+    }
+  }
+  return idx;
+}
+
 /** home 分组:全部工作区(含无会话的)+ 未归属桶,行按时间倒序。 */
 export function groupHomeRows(args: {
   workspaces: RemoteWorkspace[];
@@ -92,6 +104,11 @@ export function groupHomeRows(args: {
   }
 
   const wsName = new Map(args.workspaces.map((w) => [w.id, w.name] as const));
+  /* 全局真名索引(跨桶):活会话的 workspaceId 与 cwd 可能不同源(default 工作区里
+   * 起别的仓库会话),本卡 diskItems 按 root 分桶扫不到它的文件 → 只查本卡永远
+   * 兜底(2026-10-04 真机实锤:三活行全「OMP · tmd-cli」而真名在 tmd-cli 桶)。
+   * 真名按 `${profileId}:${session.id}` 全局借;归组/去重仍按卡,磁盘行不跨卡挪。 */
+  const diskTitleById = globalDiskTitles(args.history);
   const groups: { wsId: string; name: string; root: string; rows: HomeRow[]; latest: number }[] = [];
 
   for (const w of args.workspaces) {
@@ -101,9 +118,7 @@ export function groupHomeRows(args: {
     const bound = new Set<string>();
     for (const s of byWs.get(w.id) ?? []) {
       const idKey = s.cliSessionId ? `${s.profileId}:${s.cliSessionId}` : "";
-      const diskTitle = idKey
-        ? diskItems.find((h) => `${h.profileId}:${h.session.id}` === idKey)?.session.title
-        : undefined;
+      const diskTitle = idKey ? diskTitleById.get(idKey) : undefined;
       const title =
         (idKey ? args.overlayTitles[idKey] : undefined) ?? diskTitle ?? args.titleOfLive(s);
       if (idKey) bound.add(idKey);

@@ -7,7 +7,7 @@ import { ConnBanner, HostChip } from "./ConnChip";
 import { pollHomeWatch, useMobile } from "./shared";
 import { Row } from "./Row";
 import { ArchiveIcon, FolderIcon, GitIcon, LocalIcon, PlusIcon, RefreshIcon } from "./treeIcons";
-import { groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HistoryItem, type HomeRow } from "./history";
+import { globalDiskTitles, groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HistoryItem, type HomeRow } from "./history";
 import { relTime } from "./remote";
 
 /** 磁盘历史重扫节奏:读头有 mtime 缓存,稳态每轮只剩 fs_collect_files 轻量 RPC。 */
@@ -71,17 +71,16 @@ export function HomeScreen() {
 
   /* 磁盘历史扫描:清单变化/挂载/60s 周期;签名依赖 + roots 直接数组身份(签名比对 set,身份稳定)。 */
   const roots = useMemo(() => workspaces.map((w) => w.root), [workspaces]);
-  /* 未解析命名活行数(有磁盘身份、无手动名、未扫到):>0 = 重扫压 5s 直至解析(60s→≤5s)。 */
+  /* 未解析真名的活行数(有磁盘身份、无手动名、全局索引无真名):>0 = 重扫压 5s
+   * 直至解析(60s→≤5s)。全局索引同 groupHomeRows 借名口径:workspaceId 与 cwd
+   * 不同源时本卡扫不到,必须跨桶判。 */
   const unresolved = useMemo(() => {
-    const rootOf = new Map(workspaces.map((w) => [w.id, w.root] as const));
+    const titlesById = globalDiskTitles(history);
     return sessions.filter((s) => {
       if (!s.cliSessionId || titles[`${s.profileId}:${s.cliSessionId}`]) return false;
-      const items = history.get(rootOf.get(s.workspaceId ?? "default") ?? "");
-      return !(items ?? []).some(
-        (h) => `${h.profileId}:${h.session.id}` === `${s.profileId}:${s.cliSessionId}`,
-      );
+      return !titlesById.has(`${s.profileId}:${s.cliSessionId}`);
     }).length;
-  }, [sessions, titles, history, workspaces]);
+  }, [sessions, titles, history]);
   React.useEffect(() => {
     let alive = true;
     /* 逐区串行 + 防重入:全并发 = 工作区×引擎 RPC 风暴(实测一波 7.9MB),
