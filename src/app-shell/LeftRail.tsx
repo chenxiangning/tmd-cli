@@ -200,7 +200,7 @@ export function LeftRail({
           弹层锚左下簇、视觉紧邻本钮)。 */}
       <button
         type="button"
-        className={`left-rail-tab${settingsOpen ? " is-active" : ""}`}
+        className={`left-rail-tab left-rail-settings${settingsOpen ? " is-active" : ""}`}
         aria-label={t("设置")}
         aria-haspopup="menu"
         aria-expanded={settingsOpen}

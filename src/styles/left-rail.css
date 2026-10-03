@@ -11,7 +11,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 0 0 8px; /* 顶部贴零,与右 rail 同款 */
+  padding: 0; /* 顶部贴零,与右 rail 同款;底部归零,底簇 Settings 钮自带下距对齐底栏行 */
   border-right: 1px solid var(--tmd-border);
 }
 /* 底簇前弹性空隙:leftRailBottom 钉底项推底(当前无住户,机制保留)。 */
@@ -54,4 +54,10 @@
   width: 1rem;
   height: 1rem;
   stroke-width: 1.75;
+}
+
+/* 底簇设置触发钮:下距使钮心与侧栏底栏行垂直居中对齐(实测 900px 视口:
+ * 底栏行钮心距底 13.5px,本钮 26px + 0.5px 下距 = 钮心同高,亚像素内)。 */
+.left-rail-settings {
+  margin-bottom: 0.5px;
 }
