@@ -4,6 +4,24 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.2.9] - 2026-10-03
+
+本版主体 = 手机端对话链路整批重做(三态胶囊 composer + 选图/拍照上传 + 直连 WS 心跳保活),附 structured-session 启动降噪、部件帧治理与 dependabot 依赖批吸收;v0.2.8..HEAD 经三轮评审收口。
+
+### 新增
+
+- 手机会话输入区三态胶囊重做(豆包式 composer,spec 见 `docs/superpowers/specs/2026-10-03-mobile-composer-redesign-design.md`):常态胶囊条 / 挂图卡 + 提示 chips /「+」四格面板(相册·切模型·检查点·快捷键)三态;面板收紧瞬时菜单(动作执行即收、软键盘弹起自动收、展开期键条让位);拖拽调高把手保真回归——钉高/双击回紧凑/落手记忆原样恢复;chip 填稿改换行追加不覆盖已打文字;样式随迁 mobile-composer.css
+- 手机选图/拍照双入口:胶囊条 Images 相册 + Camera 拍照(新 iOS takePhoto 桥,相机权限前置闸免黑屏,拍摄解码挪后台);上传空白期补原图即时 pending 卡 + 转圈遮罩,上传中禁发送防图未挂完先发
+- 手机快捷键条两行大键网格重排;发起会话抽屉与 sheet 基座打磨(把手/滑入动画/关闭钮进基座,工作区整行选中与引擎双列卡片,样式拆 mobile-sheet.css)
+
+### 修复
+
+- 直连 WS 双侧心跳保活根治图片首发送失败:桌面 15s Ping 同 relay 节拍 + iOS WsTunnel 15s sendPing/10s pong 超时自愈(ws.rs 拆 ws_ticks.rs)
+- 手机实况屏三连修:2J/3J 改真擦除并原地 resize 根治新建会话头信息重复;resize 夹持光标列防 ?7l 界外覆写;实况 2 秒延迟治理(TurnsView memo 止血 + setLive 尾沿节流 + 写后触拍)
+- structured-session 启动部件 notice 降噪:setStatus/notify/setWidget 装饰类聚合成一条 ×N 计数行原地刷新,真交互与未知 kind 维持逐条可见;cli-shared 部件帧数值 id 归一免挂轮,流内聚合/notice 块不再被权威落定截掉
+- v0.2.8..HEAD 三轮评审整体收口:pong 死线感知在途大帧+按线分账+回前台探测、StrictMode 复位 useShots、发送在途图/稿/重试三保护(send 本体硬闸堵重试/键路绕行)、实况屏幽灵列与 ESC7-8 与 pending 三族对齐 xterm、confirm 数值 id 同型回传、setEndpoint 清算 pending、poke 重入闸、卸载在途 objectURL 即释、错误定时器单点管理、fs_write_temp 服务端闸+老化清理
+- 依赖批吸收(dependabot 8 项 PR):npm 分组 16 项 + markdown-it 15 + mermaid 12,cargo 全锁刷新 + russh 0.63/tungstenite 0.29/webpki-roots 1.0/rand 0.10;破坏面适配(证书型 host key 指纹、RngExt、attrGet 收窄、移除 @types/markdown-it,rust-version 抬 1.85)
+
 ## [0.2.8] - 2026-10-02
 
 本版主体 = 客户端打磨四连批(任务 1 交互与 i18n / 任务 2 原生弹窗与主题适配 / 任务 3 设计系统收口 / 任务 4 原语长尾与模块精修,分级治理方案见 `docs/superpowers/specs/2026-10-01-client-polish-plan-design.md`)。
