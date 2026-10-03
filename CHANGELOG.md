@@ -4,15 +4,19 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
-## [0.2.9] - 2026-10-03
+## [0.2.9] - 2026-10-04
 
-本版主体 = 手机端对话链路整批重做(三态胶囊 composer + 选图/拍照上传 + 直连 WS 心跳保活),附 structured-session 启动降噪、部件帧治理与 dependabot 依赖批吸收;v0.2.8..HEAD 经三轮评审收口。
+本版主体 = 手机端对话链路整批重做(三态胶囊 composer + 选图/拍照上传 + 直连 WS 心跳保活),附 structured-session 启动降噪、部件帧治理与 dependabot 依赖批吸收;v0.2.8..HEAD 经三轮评审收口,tag 后追补手机首页卡片化、lsp 引用 peek 渲染与幕布假死第十一轮等一批。
 
 ### 新增
 
 - 手机会话输入区三态胶囊重做(豆包式 composer,spec 见 `docs/superpowers/specs/2026-10-03-mobile-composer-redesign-design.md`):常态胶囊条 / 挂图卡 + 提示 chips /「+」四格面板(相册·切模型·检查点·快捷键)三态;面板收紧瞬时菜单(动作执行即收、软键盘弹起自动收、展开期键条让位);拖拽调高把手保真回归——钉高/双击回紧凑/落手记忆原样恢复;chip 填稿改换行追加不覆盖已打文字;样式随迁 mobile-composer.css
 - 手机选图/拍照双入口:胶囊条 Images 相册 + Camera 拍照(新 iOS takePhoto 桥,相机权限前置闸免黑屏,拍摄解码挪后台);上传空白期补原图即时 pending 卡 + 转圈遮罩,上传中禁发送防图未挂完先发
 - 手机快捷键条两行大键网格重排;发起会话抽屉与 sheet 基座打磨(把手/滑入动画/关闭钮进基座,工作区整行选中与引擎双列卡片,样式拆 mobile-sheet.css)
+- 手机首页卡片化重设计与会话名/外网连接稳定性打磨
+- lsp 引用 peek 与 hover 代码渲染打磨:lsp 域补 Prism token 配色映射治一片白,symRange 符号区间与高亮共存,右列表行 Prism 渲染(spec 同日)
+- checkpoints 时间线节点 hover 增复制钮,一键复制该节点发送原文;两钮补键盘聚焦现身,修 meta 行注释漂移
+- data-hint 支持 left 贴附放置,右缘 rail 悬停提示改抽屉式左滑
 
 ### 修复
 
@@ -21,6 +25,12 @@
 - structured-session 启动部件 notice 降噪:setStatus/notify/setWidget 装饰类聚合成一条 ×N 计数行原地刷新,真交互与未知 kind 维持逐条可见;cli-shared 部件帧数值 id 归一免挂轮,流内聚合/notice 块不再被权威落定截掉
 - v0.2.8..HEAD 三轮评审整体收口:pong 死线感知在途大帧+按线分账+回前台探测、StrictMode 复位 useShots、发送在途图/稿/重试三保护(send 本体硬闸堵重试/键路绕行)、实况屏幽灵列与 ESC7-8 与 pending 三族对齐 xterm、confirm 数值 id 同型回传、setEndpoint 清算 pending、poke 重入闸、卸载在途 objectURL 即释、错误定时器单点管理、fs_write_temp 服务端闸+老化清理
 - 依赖批吸收(dependabot 8 项 PR):npm 分组 16 项 + markdown-it 15 + mermaid 12,cargo 全锁刷新 + russh 0.63/tungstenite 0.29/webpki-roots 1.0/rand 0.10;破坏面适配(证书型 host key 指纹、RngExt、attrGet 收窄、移除 @types/markdown-it,rust-version 抬 1.85)
+- 幕布假死第十一轮:泵侧后台慢拍降档 + 镜像 feed 互斥与卸载补种 + 幕布数据链停滞探针
+- 手机活会话真名跨桶借全局磁盘索引,修 default 工作区兜底名永不解析
+- 会话行 tok/s pill 口径与稳定性:分子按行型分派 + 轮种子 + 180s 剔停 + 近 5 对滑窗 + codex 双快照,治时隐时现与离谱低值(实测可显率 49%→100%,跳变 p90 19.4x→1.5x)
+- web 桥 invoke 对并发帽快拒做阶梯退避重试,修浏览器态 boot 扫描风暴下工作区列表整面缺失
+- 文件树 git 着色链对 status files 缺形做形状防御,防贡献组件三崩熔断致文件树与渲染整面消失
+- lsp jdt 数据目录按 app 实例×工作区双键隔离并回收陈旧实例目录,根治双 jdt 共享 workspace 锁互等的语义跳转 60s 死等
 
 ## [0.2.8] - 2026-10-02
 
