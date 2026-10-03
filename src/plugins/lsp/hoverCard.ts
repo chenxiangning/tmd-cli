@@ -13,7 +13,7 @@ import { highlightLine } from "@kernel/syntaxHighlight";
 
 const MAX_HOVER_CHARS = 4000;
 
-const md: MarkdownIt = new MarkdownIt({
+const md = new MarkdownIt({
   html: false,
   linkify: false,
   breaks: false,

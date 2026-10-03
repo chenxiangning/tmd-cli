@@ -4,7 +4,7 @@
 use base64::Engine;
 use russh::client;
 use russh::keys::ssh_key::HashAlg;
-use russh::keys::{PublicKey, PublicKeyBase64};
+use russh::keys::PublicKeyBase64;
 use serde::Deserialize;
 use std::sync::Arc;
 use tokio::net::TcpStream;
@@ -96,8 +96,16 @@ impl client::Handler for SshClient {
 
     async fn check_server_key(
         &mut self,
-        server_public_key: &PublicKey,
+        server_public_key: &russh::keys::PublicKeyOrCertificate,
     ) -> Result<bool, Self::Error> {
+        // russh 0.63:握手回调同时承载裸公钥与 SSH 证书;证书按其底层公钥
+        // 取指纹(known_hosts 沿用密钥级信任,不引入 CA 语义)。
+        let server_public_key = match server_public_key {
+            russh::keys::PublicKeyOrCertificate::PublicKey { key, .. } => key.clone(),
+            russh::keys::PublicKeyOrCertificate::Certificate(cert) => {
+                cert.public_key().clone().into()
+            }
+        };
         let key_base64 =
             base64::engine::general_purpose::STANDARD.encode(server_public_key.public_key_bytes());
         let key = known_hosts::KnownHostKey {

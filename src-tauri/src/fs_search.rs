@@ -228,7 +228,7 @@ mod tests {
         write(&root, "bin.dat", b"match\0 rest");
         // \0 在探测窗之外:正文照搜
         let mut late = b"match".to_vec();
-        late.extend(std::iter::repeat(b'a').take(BINARY_SNIFF));
+        late.extend(std::iter::repeat_n(b'a', BINARY_SNIFF));
         late.extend_from_slice(b"\0match");
         write(&root, "late.txt", &late);
         // node_modules 整枝剪掉
