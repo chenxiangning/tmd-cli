@@ -1,5 +1,5 @@
 /**
- * file-size-exempt: 桥状态机核心(退避/轮换/订阅重放/pending 台账单一所有权),二轮评审补强后 332 行;再拆 = 两个文件共享十个私有字段。
+ * file-size-exempt: 桥状态机核心(退避/轮换/订阅重放/pending 台账单一所有权/并发帽快拒重试),356 行;再拆 = 两个文件共享十个私有字段。
  * WebBridge —— transport 的 WS 桥实现(自 transport.ts 按 300 行铁则拆出)。
  * 协议:JSON 帧 invoke/response/event/hello/bye;4001/bye = 桌面撤销逐出
  * (close code 过不了 relay 中继,bye 是权威语义)。重连退避/pending 释放/hello
@@ -203,6 +203,23 @@ export class WebBridge {
   }
 
   async invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+    /* 并发帽快拒重试:浏览器页 boot 期的扫描风暴会撞服务端每连接 32 并发帽
+     * (ws.rs try_acquire 快拒,命令未执行、重发安全),拒信「并发请求过多」。
+     * 不重试 = config_read_workspaces 等关键 boot 调用随机失败,工作区列表
+     * 整面缺失(2026-10-03 桥态实证)。阶梯退避覆盖 storm 收敛窗。 */
+    const BACKOFF_MS = [150, 350, 700, 1500, 3000];
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.invokeOnce<T>(cmd, args);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (attempt >= BACKOFF_MS.length - 1 || !msg.includes("并发请求过多")) throw e;
+        await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt]));
+      }
+    }
+  }
+
+  private async invokeOnce<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
     await this.ensure();
     if (!this.ws || this.ws.readyState !== WS_OPEN) {
       throw new Error("web bridge disconnected");
