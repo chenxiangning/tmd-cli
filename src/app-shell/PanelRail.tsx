@@ -5,6 +5,8 @@
  * 其顶栏右区渲染职责 FileActionsBar 已随文件操作条下放面板头移除)。
  * 窗口右缘竖条(钉住∪激活面板 + rail 动作统一并序,组间分隔线,
  * ⋯ more 向左弹出),由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
+ * 悬停提示走全局 data-hint;rail 贴右缘,加 data-hint-side="left" 让气泡
+ * 抽屉式贴图标左缘滑出(kernel/Tooltip 的 left 放置模式),不再远距离弹窗。
  */
 
 import { Fragment, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
@@ -93,7 +95,7 @@ export function PanelRail({
           {sep ? <div className="panel-rail-sep" aria-hidden /> : null}
           <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}${isActive && !rightOpen ? " is-collapsed" : ""}`} data-panel-id={panel.id}
             onClick={() => activateRailPanel(panel, { mode, rightOpen, setRightOpen })}
-            aria-label={t(panel.label)} aria-pressed={isOpen} data-hint={t(panel.label)} title="">
+            aria-label={t(panel.label)} aria-pressed={isOpen} data-hint={t(panel.label)} data-hint-side="left" title="">
             <DecorIcon id={panel.id === "ssh" ? "ssh-panel" : `panel-${panel.id}`} Fallback={panel.icon} aria-hidden />
           </button>
         </Fragment>
@@ -105,7 +107,7 @@ export function PanelRail({
       <Fragment key={action.id}>
         {sep ? <div className="panel-rail-sep" aria-hidden /> : null}
         <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}`} data-action-id={action.id}
-          aria-label={t(action.label)} aria-pressed={isActive} data-hint={t(action.label)} title=""
+          aria-label={t(action.label)} aria-pressed={isActive} data-hint={t(action.label)} data-hint-side="left" title=""
           onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
             action.onSelect({ x: r.left - 8, y: r.top }, { altKey: e.altKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
@@ -123,7 +125,7 @@ export function PanelRail({
       <i className="panel-rail-mark" aria-hidden>tmd-cli</i> {/* 签名:纯装饰,rail 流内项,钉在底簇正上方(CSS 注释同款纪律) */}
       {bottomEntries.map((e, i) => renderEntry(e, bottomEntries[i - 1]))}
       <button type="button" className="panel-rail-tab" onClick={toggleOverflow}
-        aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} data-hint={t("更多面板")} title="">
+        aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} data-hint={t("更多面板")} data-hint-side="left" title="">
         <DotsThree aria-hidden />
       </button>
       {overflowPos ? (

@@ -4,6 +4,8 @@
  * 用法:任何元素加 `data-hint="文案"` 即可;若该元素映射到快捷键命令,加
  * `data-hint-cmd="命令 id"`,HintProvider 自动读取 effective 键位拼到文案右侧;
  * 静态键位可直传 `data-hint-shortcut="⌘K"`,绕过命令注册表查询。
+ * 贴右缘的竖条(如 PanelRail)加 `data-hint-side="left"`:气泡改用 right 锚定,
+ * 右缘贴目标左缘、垂直居中,max-width 自 0 展开成抽屉式左滑(动画在 Tooltip.css)。
  *
  * 触发:mouseenter/focusin ~300ms 显示,~120ms 隐藏;mouseleave/focusout 立即清;
  * Esc 关闭;scroll/resize 重定位;靠近视口上下边自动翻向。
@@ -12,7 +14,7 @@
  * 屏蔽:目标自带原生 `title` 显示(用 `data-hint` 替换);`data-hint-disabled="true"` 抑制。
  * 失败:命中后清空目标原生 title 防双层气泡(还原逻辑在 targetLost 里恢复)。
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useEffectiveKeybindingChips, useEffectiveKeybindingLabel } from "./shortcutOverrides";
 
@@ -27,11 +29,13 @@ interface HintTarget {
 
 interface PopoverState {
   target: HintTarget;
-  /** 浮层相对视口的左上角(已做视口夹取) */
+  /** 浮层相对视口的左上角(已做视口夹取);placement = "left" 时不用 x,走 right 锚定 */
   x: number;
+  /** 浮层右缘距视口右缘的距离(仅 placement = "left" 参与 style) */
+  right: number;
   y: number;
-  /** 箭头方向:bottom = 锚点下方(默认),top = 锚点上方 */
-  placement: "top" | "bottom";
+  /** 箭头方向:bottom = 锚点下方(默认),top = 锚点上方,left = 锚点左缘贴附(抽屉) */
+  placement: "top" | "bottom" | "left";
 }
 
 /**
@@ -63,7 +67,25 @@ function ShortcutNode({ cmdId }: { cmdId: string }) {
   );
 }
 
+/** left 贴附放置的估高(挂载后量真值,偏差大再校正一次;单行 nowrap 高度恒定)。 */
+const LEFT_POP_H_EST = 36;
+/** left 贴附放置:气泡右缘与目标左缘的间距(视觉上贴着图标)。 */
+const LEFT_GAP = 4;
+
+/** left 贴附放置:right 锚目标左缘,垂直居中并做视口夹取(抽屉语义,假定目标靠右缘)。 */
+function leftPopoverFromTarget(target: HintTarget, popH: number): PopoverState {
+  const rect = target.el.getBoundingClientRect();
+  return {
+    target,
+    x: 0, /* left 走 right 锚定,x 不参与定位 */
+    right: window.innerWidth - rect.left + LEFT_GAP,
+    y: Math.max(8, Math.min(rect.top + rect.height / 2 - popH / 2, window.innerHeight - popH - 8)),
+    placement: "left",
+  };
+}
+
 function popoverFromTarget(target: HintTarget): PopoverState {
+  if (target.el.dataset.hintSide === "left") return leftPopoverFromTarget(target, LEFT_POP_H_EST);
   const rect = target.el.getBoundingClientRect();
   const margin = 8;
   // 默认放在锚点下方,留出足够空间则不翻向
@@ -74,7 +96,7 @@ function popoverFromTarget(target: HintTarget): PopoverState {
   const y = preferBottom
     ? Math.min(rect.bottom + margin, window.innerHeight - popH - 8)
     : Math.max(8, rect.top - popH - margin);
-  return { target, x, y, placement: preferBottom ? "bottom" : "top" };
+  return { target, x, y, right: 0, placement: preferBottom ? "bottom" : "top" };
 }
 
 export function HintProvider({ children }: { children: React.ReactNode }) {
@@ -88,6 +110,20 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
      ref 转交放 effect,避免渲染期写(React 渲染须纯)。 */
   useEffect(() => {
     stateRef.current = state;
+  }, [state]);
+
+  const bubbleRef = useRef<HTMLDivElement | null>(null);
+  /* left 贴附模式:估高与真值偏差 >2px 时按实测高再校一次垂直居中(top/bottom 路径不受影响)。 */
+  useLayoutEffect(() => {
+    const s = state;
+    if (!s || s.placement !== "left") return;
+    const el = bubbleRef.current;
+    if (!el) return;
+    const h = el.offsetHeight;
+    if (Math.abs(h - LEFT_POP_H_EST) <= 2) return;
+    const rect = s.target.el.getBoundingClientRect();
+    const y = Math.max(8, Math.min(rect.top + rect.height / 2 - h / 2, window.innerHeight - h - 8));
+    if (Math.abs(y - s.y) > 1) setState({ ...s, y });
   }, [state]);
 
   useEffect(() => {
@@ -199,8 +235,9 @@ export function HintProvider({ children }: { children: React.ReactNode }) {
       {children}
       {createPortal(
         <div
+          ref={bubbleRef}
           className={`hint-bubble is-${state.placement}`}
-          style={{ left: state.x, top: state.y }}
+          style={state.placement === "left" ? { right: state.right, top: state.y } : { left: state.x, top: state.y }}
           role="tooltip"
         >
           <span className="hint-label">{state.target.label}</span>
