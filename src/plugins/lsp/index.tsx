@@ -16,6 +16,7 @@ import { openJavaGuide } from "./javaGuideStore";
 import { discoverJava, discoverPython, discoverTypeScript, resolveJavaRoot } from "./discovery";
 import "./locales";
 import "./lsp.css";
+import "./lsp-code.css";
 import "./lsp-gesture.css";
 
 export const lspPlugin: Plugin = {
@@ -43,9 +44,8 @@ export const lspPlugin: Plugin = {
       language: "java",
       extensions: [".java"],
       discover: async (root) => {
-        const launch = await discoverJava();
+        const launch = await discoverJava(root);
         if (!launch) openJavaGuide();
-        void root;
         return launch;
       },
       resolveRoot: (filePath, workspaceRoot) => resolveJavaRoot(filePath, workspaceRoot),

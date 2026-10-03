@@ -3,13 +3,11 @@
  *
  * 生命周期:挂载 → 回放内核输出缓冲(切回不黑屏)→ 订阅实时总线。
  * 输入路径:xterm onData 直写 PTY;富 composer 实装后汇入同一条 write 通道。
- * 渲染层:xterm 内建 DOM 渲染器(WKWebView + WebglAddon glyph atlas 长时间运行后
- * 会因 WebKit texSubImage2D 缺陷静默损坏成马赛克——已弃用)。
+ * 渲染层:xterm 内建 DOM 渲染器(WebGL 方案因 WebKit texSubImage2D 缺陷弃用)。
  * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
  *
- * 文件规模铁则拆分(300 行):历史翻页器在 terminalHistory.ts,
- * 搜索浮层与 terminal.find 命令桥在 terminalSearch.tsx,
- * 加载遮罩在 terminalLoadOverlay.tsx,保底刷新钮在 terminalRefreshButton.tsx。
+ * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检分别在
+ * terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth。
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +16,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-import { openExternalUrl } from "@kernel/ipc";
+import { ipc, openExternalUrl } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
@@ -33,6 +31,12 @@ import { subscribeTerminalTheme } from "@kernel/terminalThemeBridge";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
+import {
+  buildReseedScreen,
+  startAskScreenProbe,
+  startCanvasStallProbe,
+} from "@kernel/terminalCanvasHealth";
+
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
@@ -62,18 +66,22 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
      实例随会话 keep-alive 常驻;惰性初值 = useState 初始化器只在首帧执行一次。 */
   const [inputGate] = useState(createReplayInputGate);
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
-  /** 幕布重建代数:刷新钮自增 → 主 effect 重跑 = xterm 销毁重建 + 缓冲回放 +
-      强制 SIGWINCH 整帧重绘(needsForceSync 初值 true),PTY/CLI 不中断。
-      会话内自救:幕布错乱/内容滞留时手动出口;WebKit 级像素冻结归守望阶梯。 */
+  /** 幕布重建代数:刷新钮/停滞探针自增 → 主 effect 重跑 = xterm 销毁重建 +
+      缓冲回放 + 强制 SIGWINCH 整帧重绘,PTY/CLI 不中断(会话内自救出口)。 */
   const [canvasGen, setCanvasGen] = useState(0);
-  /** 隐藏幕布合帧写入(Fix B,terminalReplay.ts):activeRef 是活性真相(effect
-     保持最新,避免闭包吃陈旧 prop);激活即冲刷攒帧,切换无感。 */
+  /** 隐藏幕布合帧写入(Fix B,terminalReplay.ts):activeRef 是活性真相;
+      激活即冲刷攒帧,切换无感。 */
   const activeRef = useRef(active);
   const flushDeferredRef = useRef<(() => void) | null>(null);
+  const lastLiveAtRef = useRef(0); /* 停滞探针活性真相(terminalCanvasHealth 消费) */
   useEffect(() => {
     activeRef.current = active;
     if (active) flushDeferredRef.current?.();
-  }, [active]);
+    /* 在视打点随活性同拍:泵侧聚合降档判据(无人观看 → 250ms 慢拍,见
+       pty_spawn.rs OUT_BACKGROUND_WINDOW;2026-10-04 十一轮)。 */
+    void ipc.sessionSetViewed(sessionId, active).catch(() => undefined);
+    return () => void ipc.sessionSetViewed(sessionId, false).catch(() => undefined);
+  }, [sessionId, active]);
   /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
   const loadEarlier = useCallback(async () => {
     const term = termRef.current;
@@ -144,16 +152,11 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     container.addEventListener("focusin", onFocusIn);
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
-    /* 渲染器 = xterm 内建 DOM(WKWebView 弃用 WebGL 方案):
-       此前 loadAddon(new WebglAddon()) 的 glyph atlas 长时间运行后
-       会被 WebKit 的 texSubImage2D 大纹理子上传 bug 损坏成马赛克
-       (atlas 越大越易触发,且 onContextLoss 不触发静默损坏——大仙
-       反馈"运行时间长,渲染乱码"即此)。addon-canvas 停更在 xterm 5 时代,
-       装不上 ^6。DOM 渲染器作为 xterm 核心兜底,Linux WebKitGTK 等无
-       WebGL 环境原本就在跑此路径。
-       ponytail: 若全屏 TUI 重绘性能实测不达标,复评
-       (webgl 上游 WebKit 修复 或 addon-canvas 适配 v6)。*/
-    termRef.current = term;
+    /* 渲染器 = xterm 内建 DOM:WebGL glyph atlas 长跑后被 WebKit texSubImage2D
+       大纹理子上传 bug 损坏成马赛克且 onContextLoss 不触发,已弃用;addon-canvas
+       停更 xterm 5 时代装不上 ^6。DOM 渲染器是核心兜底。ponytail: 全屏 TUI
+       重绘性能不达标时复评(webgl 上游修复 或 addon-canvas 适配 v6)。 */
+termRef.current = term;
     searchRef.current = search;
 
     const pager = new TerminalHistoryPager(sessionId, inputGate, (h, l) => {
@@ -163,6 +166,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     pagerRef.current = pager;
     /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次);输出装配见 terminalReplay.ts。 */
     streamReadyRef.current = false;
+    lastLiveAtRef.current = 0;
     const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress, () => {
       streamReadyRef.current = true;
     }, {
@@ -170,35 +174,25 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       bindFlush: (flush) => {
         flushDeferredRef.current = flush;
       },
+    }, () => {
+      lastLiveAtRef.current = Date.now();
     });
 
     /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */
     void pager.init();
-
     /* 滚动到顶才显示"加载更早的输出"入口 */
     setAtTop(term.buffer.active.viewportY === 0);
     const offScroll = term.onScroll((y) => setAtTop(y === 0));
-    /* Ask 屏幕态采样(askWatch v3):omp 等待期间 spinner 以光标寻址持续重绘,
-       面板标记一旦流出字节尾窗永不复现(实测 3h 挂起面板后流 7.4MB)——
-       字节流检测对此原理性无解,但屏幕上标记始终在:贴底时采整个视口喂检测器
-       (与后台镜像全屏同口径;omp 大窗口面板在中上部、底部留空,固定底窗
-       8→24 行两代都被实测证伪——2026-09-29 大窗实测标记距屏底 30-38 行)。
-       贴底闸:用户上翻历史时旧已答对话框会入视野,采样会假置位——非贴底停采
-       (状态冻结不误摘,作答/超时仍由字节流与写路径清位)。
-       就绪前(回放/流式相位)停采:磁盘回放的墓碑帧不进屏幕通道,Ask 恢复
-       只走 restoreTail(评审 F5)。 */
-    const askProbe = setInterval(() => {
-      if (!streamReadyRef.current) return; /* 就绪前墓碑帧不进屏幕通道 */
-      const buf = term.buffer.active;
-      if (buf.baseY + term.rows < buf.length - 2) return; /* 上翻中:停采防旧卡假置位 */
-      const bottom = Math.min(buf.length, buf.baseY + term.rows);
-      let screenTail = "";
-      for (let row = buf.baseY; row < bottom; row++) {
-        screenTail += (buf.getLine(row)?.translateToString(true) ?? "") + "\n";
-      }
-      host.observeAskScreen(sessionId, screenTail);
-      /* 250ms:置位延迟 ≈ ASK_CONFIRM_MS + 采样间隔;旧 1Hz 实测 2-3s,用户体感慢。 */
-    }, 250);
+    /* Ask 屏幕采样探针(语义与贴底闸见 terminalCanvasHealth.startAskScreenProbe)。 */
+    const stopAskProbe = startAskScreenProbe(term, sessionId, () => streamReadyRef.current);
+    /* 幕布数据链停滞探针(PTY 在流而幕布不吃字节 → 自动重建;判据见 canvasStall.ts)。 */
+    const stopStallProbe = startCanvasStallProbe({
+      sessionId,
+      isActive: () => activeRef.current,
+      isStreamReady: () => streamReadyRef.current,
+      getLastLiveAt: () => lastLiveAtRef.current,
+      onRebuild: () => setCanvasGen((g) => g + 1),
+    });
     /* 闸外照常写会话;闸窗内只弃用户形态输入、放行整段终端协议回传(标 synthetic,
        非用户输入不锚定对话)—— 活查询的应答远端正在等,回放窗也可能接到
        (连接先于挂载完成时 CPR 落缓冲走回放,见 terminalInputGate.ts 头注)。 */
@@ -223,6 +217,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
+
     /* 重挂载必发一次(needsForceSync 初值 true:重挂载即强制一次真 SIGWINCH 整帧
        重绘,根治关闭再开/切回后的错栅格滞留);重绘由活动守望抑制窗吸收。 */
     syncSize();
@@ -230,11 +225,16 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     observer.observe(container);
 
     return () => {
-      clearInterval(askProbe);
+      stopAskProbe();
+      stopStallProbe();
       offTokens();
       offFontSettings();
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
+      /* 屏幕镜像补种(feed 互斥收尾,buildReseedScreen):以幕布终态重建镜像,
+         后台 Ask 采样无缝接管;必须先于注销 handle —— 补种期间 feed 仍被
+         互斥,时序无交错。 */
+      host.reseedScreenMirror(sessionId, term.cols, term.rows, buildReseedScreen(term).text);
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();
       offInput.dispose();

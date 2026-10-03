@@ -43,7 +43,8 @@ const OUTPUT_BUFFER_LIMIT = 500_000; /* 缓冲上限兜底值(设置未落地前
 
 export class HostWatches {
   /* 屏幕态镜像:后台(幕布未挂载)CLI 会话的 Ask 屏幕采样源,补盲语义见 askScreenMirror.ts。 */
-  readonly screenMirror = new AskScreenMirror((id, text) => this.observeAskScreen(id, text), (id) => ipc.sessionSize(id));
+  readonly screenMirror = new AskScreenMirror((id, text) => this.observeAskScreen(id, text), (id) => ipc.sessionSize(id),
+    (id) => { const s = this.ctx.findSession(id); return !s || (s.kind ?? "cli") === "cli"; });
   private readonly identityWatch = new DiskIdentityWatch({
     getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
     sessionAlive: (sessionId) => this.ctx.hasSession(sessionId),
@@ -114,8 +115,7 @@ export class HostWatches {
   /** 手机运行区投影发布端(去抖/去重/失败重试见 activityReport.ts)。 */
   private readonly activityReport = new ActivityReporter(() => this.activity.snapshot());
 
-  /** 活会话绑定的 CLI 磁盘身份;未绑定(探测前)= undefined。 */
-  getCliSessionId(sessionId: string): string | undefined { return this.ledger.get(sessionId); }
+  getCliSessionId(sessionId: string): string | undefined { return this.ledger.get(sessionId); } /* 活会话绑定的 CLI 磁盘身份;未绑定(探测前)= undefined */
   /** 绑定终审见 IdentityLedger.bind;成功即镜像回写注册表(session_bind_cli;手机直读,失败无害)。 */
   bindIdentity(sessionId: string, cliSessionId: string): boolean {
     const ok = this.ledger.bind(sessionId, cliSessionId);
@@ -135,7 +135,7 @@ export class HostWatches {
       getSettingsState().settings.sessionOutputBufferLimit || OUTPUT_BUFFER_LIMIT;
     notePtyBytes(text.length); /* 洪水标尺(守望 reload 降级判据,见 floodGauge.ts) */
     const session = this.ctx.findSession(sessionId);
-    if (!session || (session.kind ?? "cli") === "cli") this.screenMirror.feed(sessionId, text);
+    this.screenMirror.feed(sessionId, text); /* CLI 闸在镜像 ctor 谓词 */
     const chunkBytes = this.outputBuffers.append(sessionId, text, limit);
     this.ctx.events.emit(ptyLiveTopic(sessionId), text);
 

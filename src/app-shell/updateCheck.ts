@@ -121,7 +121,7 @@ export async function checkLatestRelease(): Promise<UpdateCheckResult> {
     const reason = e instanceof Error ? e.message : String(e);
     return {
       release: null,
-      error: t("网络请求失败:{reason}。若网络需代理,请先在设置菜单「网络代理」中开启后重试。", { reason }),
+      error: t("网络请求失败:{reason}。若网络需代理,请先在右缘工具条底簇「网络代理」中开启后重试。", { reason }),
     };
   }
 }

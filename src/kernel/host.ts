@@ -201,7 +201,8 @@ class Host implements PluginContext {
     return ipc.sessionWrite(sessionId, data).then(() => true, () => false);
   }
   noteRemoteWrite = (sessionId: string): void => { if (this.sessions.some((s) => s.id === sessionId) && this.watches.onUserWrite(sessionId, false)) this.notify(); }; /* 桥写补锚定(session:remote-write);未装配会话不建档(评审:幽灵守望条目) */
-  /** 幕布尺寸同步唯一入口:记抑制窗+镜像同栅格+转发;force=自愈旗(同尺寸无 SIGWINCH,±1 行过山车逼整帧重绘,语义详见 TerminalView syncSize)。 */
+  reseedScreenMirror = (sessionId: string, cols: number, rows: number, text: string): void => void this.watches.screenMirror.reseed(sessionId, cols, rows, text); /* 幕布卸载补种镜像(feed 互斥收尾;CLI 闸在镜像 ctor 谓词) */
+  /** 幕布尺寸同步唯一入口:记抑制窗+镜像同栅格+转发;force=自愈旗(同尺寸无 SIGWINCH,±1 行过山车逼整帧重绘)。 */
   resizeSession(sessionId: string, cols: number, rows: number, force = false): void {
     this.watches.onResized(sessionId, cols, rows);
     for (const r of force ? [rows > 1 ? rows - 1 : rows + 1, rows] : [rows]) void ipc.sessionResize(sessionId, cols, r);
@@ -237,9 +238,7 @@ class Host implements PluginContext {
   isWindowFocused(): boolean { return this.windowFocused; }
 
   /** 会话最近输出时间戳(无输出为 0)。 */
-  getLastActivityAt(sessionId: string): number {
-    return this.watches.lastActivityAt(sessionId);
-  }
+  getLastActivityAt(sessionId: string): number { return this.watches.lastActivityAt(sessionId); }
 
   /** 测试专用:假时钟换届时重置巡航计时器(真实运行单例连续,无需调用)。 */
   resetStatusTimerForTest(): void {

@@ -1,6 +1,6 @@
 # tmd-cli 基础架构总览
 
-- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-07、2026-09-14、2026-09-19、2026-09-27 按当前代码校准）
+- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-07、2026-09-14、2026-09-19、2026-09-27、2026-10-04 按当前代码校准）
 - 状态：骨架已落地，持续演进
 - 铁律：**模块化 + 插件化**
 
@@ -8,11 +8,11 @@
 
 | 区域 | 第一版职责 |
 |---|---|
-| 头部工具栏 | 三区布局(左区按钮簇/中区会话与编辑 tab 条/右区非面板动作);面板入口已迁右缘竖排 rail(2026-09-27) |
-| 左侧栏 | 统一搜索折叠入口置顶 → 学堂 → 工作区 + 会话列表；会话是主入口；同仓 worktree 卡归簇共框 |
+| 头部工具栏 | 三区布局(左区挂点按钮簇+折叠钮/中区会话与编辑 tab 条/右区工作区切换器+折叠钮);面板入口已迁右缘竖排 rail(2026-09-27),看板/市场/回首页入口已迁左缘 rail(2026-10-04) |
+| 左侧栏 + 左缘 rail | 左缘竖排工具 rail(2026-10-04,右缘镜像):顶簇 会话看板〔插件 sidebarActions.leftRail 直挂〕/ 插件市场 / 回到首页 / 工作区切换;左侧栏 = 统一搜索折叠入口置顶 → 学堂 → 工作区 + 会话列表(会话是主入口;同仓 worktree 卡归簇共框),底栏「工作区显隐」多选菜单控制左栏显示集合 |
 | 中央区 | xterm.js 幕布透传 CLI 原生 PTY 输出，零消息/Markdown/Diff 二次渲染；无会话时 welcome 首页；文件编辑器/多形态预览、批审阅单、Git 提交 diff、SSH 远端文件编辑以中央 tab 并存 |
 | Composer | 富输入：工具栏显示当前 session 的模型/思考强度（只读）；输入支持截图、拖拽文件、`$` skill、`/` common、`@` 文件/文件夹、提示词增强、跨引擎接力 |
-| 右侧栏 + 右缘 rail | 竖排面板 rail:files 文件树 / git 面板(含工作树常驻区) / marks 文件标记 / checkpoints 审批线 / approval-inbox 审批收件箱 / memory 面板，钉住与 ⋯ 溢出经 rail；ssh 面板走侧栏入口（全部经 kernel/filePanel 注册表） |
+| 右侧栏 + 右缘 rail | 竖排面板 rail:files 文件树 / git 面板(含工作树常驻区) / marks 文件标记 / checkpoints 审批线 / approval-inbox 审批收件箱 / memory 面板 / skill-hub·mcp-hub hub 面板 / daily-journal 日志面板,钉住与 ⋯ 溢出经 rail;ssh 面板走侧栏入口(全部经 kernel/filePanel 注册表);rail 另并排侧栏快捷动作(内置终端/意图画布 rail 位,网络代理底簇;会话看板 2026-10-04 迁左缘 rail) |
 
 ## 2. 分层
 
@@ -38,6 +38,10 @@ Tauri Rust
 ├── session_commands.rs session_* 命令自 lib.rs 拆件(PTY/SSH 会话按 kind 路由)
 ├── fs_walk.rs        全仓文件索引(gitignore 系语义,composer `@` 候选)
 ├── proc_run.rs       通用短进程通道(CLI RPC 副车 / inspect,spawn_blocking)
+├── proc_stream.rs    通用长驻流式子进程通道(行事件 proc://stream/{id}/*;契约见 19)
+├── render_health.rs  渲染健康守望(rAF 探针上报 + 壳侧 set_focus→reload 阶梯 + 泵侧洪水/渲染活性计量;契约见 17)
+├── fs_temp.rs        临时上传写面(fs_write_temp 服务端字节闸 + 按年龄老化清理)
+├── skill_pkg.rs      skill 包三原子(下载/zip 解压防 zip-slip/symlink 落位)
 ├── fs.rs             文件树读取(只读)
 ├── fs_edit.rs        文件写操作:新建/重命名/废纸篓/访达显示/编辑器保存/受管副本拷贝 fs_copy_file(绝对路径,禁 .git 段,16MB 上限)
 ├── fs_preview.rs     文件预览读取(文本/图片 dataURL/二进制 base64,自 fs.rs 拆出)
@@ -146,7 +150,7 @@ QuotaChip (composer 插件)
 
 ## 8. 当前实现状态
 
-已完成:v0.2.4 全量。骨架 = 插件宿主与市场(38 注册:engine 10 / feature 24 / core 3 / local 1)、十 CLI profile + SSH 一等会话(russh,kind 路由)+ 内置终端(kind=shell)、PTY 全生命周期与输出落盘翻页、xterm 幕布、五区外壳、顶栏会话 tab 条、Composer(触发符/拖拽/截图/命令抽屉/锚点栏/Quota chip/提示词增强 prompt-enhancer/附件芯片 marks)、bracketed-paste、只读状态工具栏、Quota 全供应商识别 + relay 探测、welcome 首页(探针/安装/凭据盘点/RESUME·QUOTA·TOKENS 页脚)、Git 面板全量(差异/分支/历史 Graph + PR 一键/多仓 git_repos_scan + RepoBar 四象限)、**Worktree 关联管理**(`git_worktree_{list,add,remove,prune}` shell-out + porcelain 解析 worktree_parse;Git 面板常驻「工作树」区 + 分支按检出归属三分区 + 侧栏同仓卡归簇共框 + wt/ 前缀与移除安全清分支,契约见 architecture/16)、文件树 + CodeMirror 编辑器 + 渲染档案 + Markdown 预览、审批线(双归因/回退/影子对象库/批内危险度红标 classifyRisk)、审批收件箱(approval-inbox 右栏聚合 ask 会话一键直达)、SSH 右栏面板(SFTP/端口转发/远端编辑)、WSL(M1)、主题引擎 + 界面字号 rem 体系 + 图标装饰、网络代理、会话置顶/重命名/预算/管理模式(批量归档+归档视图+tombstone)/运行区、会话卫生清扫(超期默认 24h 自动归档+空会话删,挂磁盘扫描结算点零轮询)、Ask 检测(字节流+屏幕态双路)+ 提示音 + 系统通知(notify:Ask/轮次/退出/额度撞墙四开关失焦闸)、异常退出 toast 与一键续聊(pty://exit 退出码契约)、全局快捷键(注册表+分发器,session-search ⌘O)、memory-coordinator、cli-dsh、版本号弹窗+updater 自动更新、LSP 语义跳转(四语言发现链 + peek/hover/高亮二轮)、统一搜索折叠入口(左栏置顶:全文搜索/文件快开/会话历史三项经命令注册表分发)、会话历史检索(session-search 增量索引+用量徽标 cli-shared/sessionUsage)、跨引擎接力(session-relay 最近输入摘要首发)、CLI 学堂(academy:九家课程,kernel 注册面,契约见 15)、Web 远程访问(web/ 桥:LAN + Cloudflare + 自建中继 SSH 一键部署含 TLS/systemd,部署历史随存含口令,契约见 12)、手机 App(iOS SwiftUI/Android Kotlin 壳 + src/mobile 第二 UI 树,截图注入/对话分层/审批卡)、右缘面板 rail(2026-09-27:面板入口自顶栏迁竖排工具条)、panic 钩子加固(safe_eprintln 断管道免疫)。
+已完成:v0.2.9 全量。骨架 = 插件宿主与市场(44 注册:engine 10 / feature 30 / core 3 / local 1)、十 CLI profile + SSH 一等会话(russh 0.63,kind 路由)+ 内置终端(kind=shell)、PTY 全生命周期与输出落盘翻页(泵自适应聚合窗 8→50ms;后台/渲染暂停期钳 250ms 慢拍,session_set_viewed 在视打点)、xterm 幕布(DOM 渲染器)、五区外壳、顶栏会话 tab 条、Composer(触发符/拖拽/截图/命令抽屉/锚点栏/Quota chip/提示词增强 prompt-enhancer/附件芯片 marks/技能与 MCP 唤醒图标)、bracketed-paste、只读状态工具栏、Quota 全供应商识别 + relay 探测、welcome 首页(探针/安装/凭据盘点/RESUME·QUOTA·TOKENS 页脚)、Git 面板全量(差异/分支/历史 Graph + PR 一键/多仓 git_repos_scan + RepoBar 四象限)、**Worktree 关联管理**(Git 面板常驻「工作树」区 + 分支三分区 + 侧栏归簇,契约见 architecture/16)、文件树 + CodeMirror 编辑器 + 渲染档案 + Markdown 预览、审批线(双归因/回退/影子对象库/批内危险度红标,时间线节点复制原文)、审批收件箱(approval-inbox)、SSH 右栏面板(SFTP/端口转发/远端编辑)、WSL(M1)、主题引擎(31 个 VS Code preset + 六套 tmd 原创低饱和主题)+ 设计系统 token 阶梯(字号/间距/圆角/动效 + Empty/Spinner/错误契约三原语)+ 界面字号 rem 体系 + 图标装饰与五套图标组合、网络代理、会话置顶/重命名/预算/管理模式/运行区/会话行 tok/s pill(行型分派分子 + 近 5 对滑窗口径)、会话卫生清扫、Ask 检测(字节流+屏幕态双路,镜像与幕布互斥)+ 提示音 + 系统通知(notify)、异常退出 toast 与一键续聊、全局快捷键(注册表+分发器)、memory-coordinator、cli-dsh(幕布钉底光标纪律与会话 writer-held 分流,契约见 20)、版本号弹窗+updater 自动更新、LSP 语义跳转(四语言发现链 + peek/hover Prism 配色渲染)、统一搜索折叠入口、会话历史检索(session-search 增量索引+用量徽标)、跨引擎接力(session-relay)、CLI 学堂(academy:九家课程,契约见 15)、**能力 Hub 四件**(意图画布 intent-canvas / 技能中心 skill-hub / MCP 中心 mcp-hub / 每日工作日志 daily-journal,0.2.5..0.2.7 落地)、**结构化会话**(structured-session:proc_stream 原语 + omp/pi `--mode rpc` token 级流式,幕布|结构化双视图,审批卡直答,契约见 19;幕布右上工具行 terminal.canvasRow 挂点承载切换钮与刷新钮)、会话查看器(session-viewer 六族转录零 PTY + 极简展示)、Web 远程访问(web/ 桥:LAN + Cloudflare + 自建中继 SSH 一键部署,直连 WS 心跳保活,契约见 12)、手机 App(iOS SwiftUI/Android Kotlin 壳 + src/mobile 第二 UI 树:三态胶囊 composer/选图拍照上传/审批卡/Git 面板/历史续聊/首页卡片化)、右缘面板 rail、渲染健康守望(rAF 探针 + 壳侧心跳阶梯 + 洪水降级宽限 + 后台慢拍降档 + 幕布数据链停滞探针,契约见 17)、panic 钩子加固(safe_eprintln 断管道免疫)。
 
-在途变更契约:mobile M2 轻交互(代码已落地,真机验收余 8 项)、Web 远程访问提案(task 板欠账,能力已先行落地)、命令抽屉真机验收(余 5 项 `[V]`)、签名管道(macOS 管道就绪待 secrets)。其余已落地契约归档于 openspec/changes/archive/。
+在途变更契约:mobile M2 轻交互(代码已落地,真机验收余 7 项,openspec/changes/2026-09-22-mobile-app-m2-light-interaction)、skill-hub / mcp-hub 变更契约待归档(openspec/changes/ 在册)、签名管道(macOS 管道就绪待 APPLE_* secrets)。其余已落地契约归档于 openspec/changes/archive/。
 

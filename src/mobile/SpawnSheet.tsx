@@ -15,9 +15,18 @@ import { EngineMark } from "./EngineMark";
 import { CheckIcon } from "./treeIcons";
 import { ENGINES } from "./engines"; /* 单一来源(评审 P2-2:双份手抄已现 qoder cmd drift) */
 
-export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: string) => void }) {
-  const { workspaces, wsLoaded, connected } = useMobile();
-  const [wsId, setWsId] = useState(workspaces[0]?.id ?? "");
+export function SpawnSheet(props: {
+  /** 预置工作区(工作区卡 + 钮入口);空串 = 默认首项。 */
+  initialWsId?: string;
+  onClose: () => void;
+  onSpawned: (sessionId: string) => void;
+}) {
+  const { workspaces, wsLoaded, connected, sessions } = useMobile();
+  const [wsId, setWsId] = useState(
+    () => props.initialWsId && workspaces.some((w) => w.id === props.initialWsId)
+      ? props.initialWsId
+      : workspaces[0]?.id ?? "",
+  );
   const [engineId, setEngineId] = useState(ENGINES[0].id);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -73,6 +82,7 @@ export function SpawnSheet(props: { onClose: () => void; onSpawned: (sessionId: 
             onClick={() => setWsId(w.id)}
           >
             <span className="fx-ellip">{w.name}</span>
+            <span className="ws-cnt">{t("{n} 会话", { n: sessions.filter((s) => (s.workspaceId ?? "default") === w.id).length })}</span>
             <span className="ck">{wsId === w.id ? <CheckIcon /> : null}</span>
           </button>
         ))}

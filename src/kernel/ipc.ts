@@ -354,6 +354,10 @@ export const ipc = {
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>
     invoke<void>("session_resize", { id, cols, rows }),
+  /** 幕布在视打点(TerminalView 激活态):泵侧聚合降档判据 —— 无人观看的
+   *  会话降 250ms 慢拍,TUI 状态动画洪水不再以快拍穿越 IPC/webview 主链。 */
+  sessionSetViewed: (id: string, viewed: boolean) =>
+    invoke<void>("session_set_viewed", { id, viewed }),
   /** 会话 PTY 当前尺寸 (cols, rows);SSH/未知会话回 null(后台镜像栅格真源,手机实况同源)。 */
   sessionSize: (id: string) => invoke<[number, number] | null>("session_size", { id }),
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
@@ -660,6 +664,10 @@ export const ipc = {
   },
   /** 应用配置目录(~/.tmd-cli),布局 owner 是 Rust session.rs;插件勿自拼。 */
   configDir: () => invoke<string>("config_dir"),
+  /** 本应用进程 pid(通用原语:lsp jdt 数据目录按 app 实例隔离用)。 */
+  appPid: () => invoke<number>("app_pid"),
+  /** 进程存活探测(kill -0;jdt 陈旧数据目录回收用)。 */
+  processAlive: (pid: number) => invoke<boolean>("process_alive", { pid }),
   /** 默认工作区根目录(~/.tmd-cli/default,Rust 侧已确保存在,mac/win 兼容)。 */
   configDefaultWorkspaceRoot: () =>
     invoke<string>("config_default_workspace_root"),

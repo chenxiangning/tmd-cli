@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mobile app 深色重设计 — 工作区与任务(入口全保留 · 真实品牌标)</title>
+<link rel="stylesheet" href="mobile-app-shared.css">
+<style>
+/* 深色 token 覆盖(本页三屏全深色;浅色基准见 mobile-app-home.html) */
+:root{
+  --bg-base:#141414; --bg-panel:#1c1c1e; --bg-hover:#262628; --bg-input:#1c1c1e;
+  --fg:#e8e8e8; --fg-muted:#9a9a9e; --fg-subtle:#6e6e73; --fg-faint:#3a3a3e;
+  --border:#2c2c2e; --border-strong:#3a3a3e; --accent:#3b82f6; --accent-soft:rgba(59,130,246,.14);
+}
+body{background:#0b0b0f}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ── icon 尺寸档位(stroke 功能标 / fill 品牌标共用) ── */
+.ic{width:14px;height:14px;flex:none;display:block}
+.ic.s11{width:11px;height:11px}
+.ic.s12{width:12px;height:12px}
+.ic.s16{width:16px;height:16px}
+.ic.s18{width:18px;height:18px}
+
+/* ── 状态点 / 引擎 glyph 容器 ── */
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--fg-faint);flex:none}
+.sdot.run{background:#3fb950;animation:pulse 1.6s infinite}
+.sdot.ask{background:#e3b341}
+.sdot.unread{background:var(--accent)}
+.glyph{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:none;color:var(--fg)}
+
+/* ── 顶栏(标题行 + 汇总行;连接芯片/ Git / 新建 / 刷新全在) ── */
+.nav2{padding:12px 14px 9px;border-bottom:1px solid var(--border);flex:none}
+.nav2 .r1{display:flex;align-items:center;gap:8px}
+.nav2 .r1 b{font-size:13.5px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.host{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--fg-muted);border:1px solid var(--border);border-radius:999px;padding:3px 8px;background:none;cursor:pointer;max-width:104px;flex:none}
+.host .hn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav2 .r2{display:flex;align-items:center;margin-top:7px}
+.sum{font-size:11px;color:var(--fg-muted);flex:1}
+.ibtns{display:flex;gap:6px}
+.ibtns button{width:26px;height:26px;border:1px solid var(--border);border-radius:8px;background:none;color:var(--fg-muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* ── 断连 banner(ConnBanner 同位) ── */
+.banner{margin:8px 12px 0;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.35);color:#f87171;border-radius:9px;padding:6px 10px;font-size:11px;display:flex;align-items:center;gap:6px;flex:none}
+.banner .dot{width:6px;height:6px;border-radius:50%;background:#ef4444}
+.banner button{margin-left:auto;background:none;border:1px solid rgba(220,38,38,.4);color:#f87171;border-radius:6px;font-size:10.5px;padding:2px 8px;cursor:pointer}
+
+/* ── 搜索 / 分区头 / 会话行 ── */
+.search{margin:10px 12px 2px;background:var(--bg-panel);border:1px solid var(--border);border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px;color:var(--fg-subtle);font-size:12px}
+.zone{display:flex;align-items:center;gap:6px;padding:11px 16px 4px;font-size:11px;color:var(--fg-subtle);font-weight:600}
+.zdot{width:7px;height:7px;border-radius:50%;flex:none}
+.zdot.pin{background:#e3b341}
+.zdot.run{background:#3fb950;animation:pulse 1.6s infinite}
+.ws-caption{display:flex;gap:6px;align-items:center;padding:13px 16px 6px;font-size:11px;color:var(--fg-subtle);font-weight:600}
+.row{display:flex;align-items:center;gap:7px;padding:7px 14px}
+.row .t{font-size:12.5px;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .pill{font-size:10px;color:#e3b341;background:rgba(227,179,65,.15);border-radius:999px;padding:2px 7px;flex:none}
+.row .meta{font-size:10.5px;color:var(--fg-subtle);flex:none}
+.pinbtn{border:none;background:none;color:var(--fg-subtle);flex:none;cursor:pointer;padding:2px 3px;display:flex}
+.pinbtn.on{color:#e3b341}
+
+/* ── 工作区卡(展开态 kids 续接卡底) ── */
+.card{margin:0 10px 10px;background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.c-head{display:flex;align-items:center;gap:7px}
+.caret{color:var(--fg-subtle);flex:none;display:flex}
+.name{font-size:13.5px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{font-size:9.5px;color:var(--fg-muted);background:var(--bg-hover);border-radius:999px;padding:1px 7px;white-space:nowrap;flex:none}
+.plus{margin-left:auto;width:24px;height:24px;border:1px solid var(--border);border-radius:7px;color:var(--fg-muted);background:none;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center}
+.c-mid{display:flex;align-items:center;gap:8px;margin-top:7px}
+.path{font-family:var(--mono);font-size:10.5px;color:var(--fg-muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 本地/归档分段切换(老 UI ws-seg 同语义;计数即分段行数) */
+.seg{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex:none}
+.seg button{font-size:10.5px;padding:3px 8px;background:none;border:none;color:var(--fg-subtle);cursor:pointer;display:flex;gap:4px;align-items:center}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.seg b{font-weight:700}
+.c-foot{margin-top:6px;font-size:10.5px;color:var(--fg-subtle);padding-left:17px}
+.kids{margin-top:8px;border-top:1px solid var(--border);padding-top:2px}
+.kids .row{padding:7px 2px}
+.more{display:block;width:100%;border:none;background:none;color:var(--accent);font-size:11px;padding:6px;cursor:pointer}
+.seg-empty{font-size:11px;color:var(--fg-subtle);text-align:center;padding:10px}
+.dimmed .row,.dimmed .card,.dimmed .zone{opacity:.55}
+
+/* ── 连接 sheet(HostChip 点开态) ── */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.5);z-index:6}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg-panel);border-top:1px solid var(--border-strong);border-radius:16px 16px 0 0;padding:12px 16px 26px;z-index:7;max-height:80%;overflow:auto}
+.s-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.s-head b{font-size:14px}
+.s-head button{border:none;background:none;color:var(--fg-muted);cursor:pointer;display:flex}
+.s-label{font-size:10.5px;color:var(--fg-subtle);font-weight:600;margin:10px 0 4px;letter-spacing:.06em}
+.cs{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12px}
+.cs .k{color:var(--fg-muted);width:60px;flex:none}
+.cs .v{color:var(--fg);font-family:var(--mono);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.s-fine{font-size:10.5px;color:var(--fg-subtle);margin-top:6px;line-height:1.5}
+.opt{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:1px solid var(--border);background:none;border-radius:9px;padding:8px 10px;font-size:12px;color:var(--fg);margin-bottom:6px;cursor:pointer}
+.opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.opt .fx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chipb{font-size:9.5px;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:1px 6px;flex:none}
+.opt .ck{color:var(--accent);flex:none;display:flex}
+.s-acts{display:flex;gap:8px;margin-top:10px}
+.act{flex:1;border:1px solid var(--border);background:none;border-radius:9px;padding:8px;font-size:12px;color:var(--fg);cursor:pointer}
+.act.danger{color:#f87171;border-color:rgba(220,38,38,.4)}
+
+/* ── 发起会话 sheet(SpawnSheet 同构) ── */
+.ws-opt{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:1px solid var(--border);background:none;border-radius:10px;padding:9px 11px;font-size:12.5px;color:var(--fg);margin-bottom:6px;cursor:pointer}
+.ws-opt .fx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ws-opt .sub{font-size:10px;color:var(--fg-subtle);flex:none}
+.ws-opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.eng-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.eng-opt{display:flex;align-items:center;gap:7px;border:1px solid var(--border);background:none;border-radius:10px;padding:8px 9px;font-size:11.5px;color:var(--fg);cursor:pointer;min-width:0}
+.eng-opt .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eng-opt .st{width:6px;height:6px;border-radius:50%;background:var(--fg-faint);flex:none}
+.eng-opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.eng-opt.on .st{background:#3fb950}
+.cta{width:100%;border:none;background:var(--accent);color:#fff;border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;margin-top:10px}
+.cta.dis{background:var(--bg-hover);color:var(--fg-subtle);cursor:not-allowed}
+.alert{border-radius:9px;padding:7px 10px;font-size:11px;margin-top:8px;display:flex;gap:6px;align-items:center}
+.alert.warn{background:rgba(227,179,65,.12);border:1px solid rgba(227,179,65,.35);color:#e3b341}
+.alert.err{background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.35);color:#f87171}
+/* 启动后实况屏 */
+.s-top{display:flex;align-items:center;gap:7px;padding:10px 12px;border-bottom:1px solid var(--border);flex:none}
+.s-top .back{border:none;background:none;color:var(--fg-muted);cursor:pointer;display:flex;flex:none}
+.s-top .tt{font-size:12.5px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.live{flex:1;min-height:0;overflow:hidden;background:#0d0d0f;font-family:var(--mono);font-size:10.5px;line-height:1.65;color:#c9c9ce;padding:10px 12px;white-space:pre-wrap}
+.live .dim{color:var(--fg-subtle)}
+.live .ok{color:#3fb950}
+.live .ac{color:#79b8ff}
+.kb{display:flex;gap:6px;padding:7px 10px;border-top:1px solid var(--border);flex:none;overflow:hidden}
+.kb button{border:1px solid var(--border);background:var(--bg-panel);color:var(--fg-muted);border-radius:7px;font-size:10.5px;font-family:var(--mono);padding:4px 9px;flex:none;cursor:pointer}
+.comp{display:flex;gap:6px;padding:7px 10px 4px;border-top:1px solid var(--border);flex:none;align-items:center}
+.comp input{flex:1;min-width:0;background:var(--bg-panel);border:1px solid var(--border);border-radius:9px;color:var(--fg);font-size:11.5px;padding:7px 10px}
+.comp .send{width:30px;height:30px;border:none;background:var(--accent);color:#fff;border-radius:9px;flex:none;display:flex;align-items:center;justify-content:center;cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- icon sprite:功能标 stroke 1.6 圆头;品牌标与 src/plugins/cli-shared/engineGlyphs.tsx 同源矢量 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden>
+  <defs>
+    <linearGradient id="omp-grad" x1="2.5" y1="3" x2="21.5" y2="21" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E36BD4" /><stop offset="1" stop-color="#5B8BE8" />
+    </linearGradient>
+  </defs>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.4" fill="none" stroke="currentColor" stroke-width="1.6" /><path d="m10.4 10.4 3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></symbol>
+  <symbol id="i-git" viewBox="0 0 16 16"><circle cx="4.5" cy="3.5" r="2" fill="none" stroke="currentColor" stroke-width="1.5" /><circle cx="4.5" cy="12.5" r="2" fill="none" stroke="currentColor" stroke-width="1.5" /><circle cx="11.5" cy="5.5" r="2" fill="none" stroke="currentColor" stroke-width="1.5" /><path d="M4.5 5.5v5M11.5 7.5c0 2.5-3 2.6-5.2 3.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.2v9.6M3.2 8h9.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></symbol>
+  <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13.2 6.6A5.5 5.5 0 0 0 3 5.4M2.8 9.4a5.5 5.5 0 0 0 10.2 1.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><path d="M13.4 2.6v4h-4M2.6 13.4v-4h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="m4.5 6.2 3.5 3.6 3.5-3.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 16 16"><path d="m6.2 4.5 3.6 3.5-3.6 3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+  <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.8 4.2c0-.7.5-1.2 1.2-1.2h3l1.4 1.6h5.6c.7 0 1.2.5 1.2 1.2v6c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" /></symbol>
+  <symbol id="i-folder-open" viewBox="0 0 16 16"><path d="M1.8 4.2c0-.7.5-1.2 1.2-1.2h3l1.4 1.6h4.4c.7 0 1.2.5 1.2 1.2v1H4.2c-.6 0-1.1.4-1.3 1L1.8 11.6z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" /><path d="M4.2 7.6h10.4l-1.7 4.6c-.2.5-.6.8-1.2.8H2.4c-.4 0-.7-.3-.6-.7z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" /></symbol>
+  <symbol id="i-monitor" viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="8" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.5" /><path d="M6.4 13.4h3.2M8 11v2.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></symbol>
+  <symbol id="i-archive" viewBox="0 0 16 16"><rect x="2" y="2.6" width="12" height="3.2" rx=".8" fill="none" stroke="currentColor" stroke-width="1.4" /><path d="M3.2 5.8v6.4c0 .7.5 1.2 1.2 1.2h7.2c.7 0 1.2-.5 1.2-1.2V5.8M6.4 8.4h3.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></symbol>
+  <symbol id="i-pin" viewBox="0 0 16 16"><path d="M9.8 1.8l4.4 4.4-1.9.6-2.5 2.5-.3 2.6-1.5 1.5-3.4-3.4L2 12.6l2.6-2.6-3.4-3.4L2.7 5.1l2.6-.3 2.5-2.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" /></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="m3.4 8.6 3 3 6.2-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+  <symbol id="b-qodercn" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.6" /><path fill="currentColor" d="M17.9 16.9 21.8 20.8 20.9 21.7 17 17.8Z" /><circle cx="12" cy="12" r="2.4" fill="currentColor" /></symbol>
+  <!-- 品牌标:engineGlyphs.tsx 同源 -->
+  <symbol id="b-omp" viewBox="0 0 24 24"><path fill="url(#omp-grad)" d="M2.5 3h19v4h-19zM5.5 7h4.3v10H5.5zM13.2 7h4.3v14h-4.3z" /></symbol>
+  <symbol id="b-pi" viewBox="0 0 24 24" fill-rule="evenodd"><path fill="currentColor" d="M1 1h16.5v11H12v5.5H6.5V23H1V1zm5.5 5.5V12H12V6.5H6.5z" /><path fill="currentColor" d="M17.5 12H23v11h-5.5V12z" /></symbol>
+  <symbol id="b-claude" viewBox="0 0 24 24"><path fill="#D97757" d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z" /></symbol>
+  <symbol id="b-codex" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M9.205 8.658v-2.26c0-.19.072-.333.238-.428l4.543-2.616c.619-.357 1.356-.523 2.117-.523 2.854 0 4.662 2.212 4.662 4.566 0 .167 0 .357-.024.547l-4.71-2.759a.797.797 0 0 0-.856 0l-5.97 3.473zm10.609 8.8V12.06c0-.333-.143-.57-.429-.737l-5.97-3.473 1.95-1.118a.433.433 0 0 1 .476 0l4.543 2.617c1.309.76 2.189 2.378 2.189 3.948 0 1.808-1.07 3.473-2.76 4.163zM7.802 12.703l-1.95-1.142c-.167-.095-.239-.238-.239-.428V5.899c0-2.545 1.95-4.472 4.591-4.472 1 0 1.927.333 2.712.928L8.23 5.067c-.285.166-.428.404-.428.737v6.898zM12 15.128l-2.795-1.57v-3.33L12 8.658l2.795 1.57v3.33L12 15.128zm1.796 7.23c-1 0-1.927-.332-2.712-.927l4.686-2.712c.285-.166.428-.404.428-.737v-6.898l1.974 1.142c.167.095.238.238.238.428v5.233c0 2.545-1.974 4.472-4.614 4.472zm-5.637-5.303l-4.544-2.617c-1.308-.761-2.188-2.378-2.188-3.948A4.482 4.482 0 0 1 4.21 6.327v5.423c0 .333.143.571.428.738l5.947 3.449-1.95 1.118a.432.432 0 0 1-.476 0zm-.262 3.9c-2.688 0-4.662-2.021-4.662-4.519 0-.19.024-.38.047-.57l4.686 2.71c.286.167.571.167.856 0l5.97-3.448v2.26c0 .19-.07.333-.237.428l-4.543 2.616c-.619.357-1.356.523-2.117.523zm5.899 2.83a5.947 5.947 0 0 0 5.827-4.756C22.287 18.339 24 15.84 24 13.296c0-1.665-.713-3.282-1.998-4.448.119-.5.19-.999.19-1.498 0-3.401-2.759-5.947-5.946-5.947-.642 0-1.26.095-1.88.31A5.962 5.962 0 0 0 10.205 0a5.947 5.947 0 0 0-5.827 4.757C1.713 5.447 0 7.945 0 10.49c0 1.666.713 3.283 1.998 4.448-.119.5-.19 1-.19 1.499 0 3.401 2.759 5.946 5.946 5.946.642 0 1.26-.095 1.88-.309a5.96 5.96 0 0 0 4.162 1.713z" /></symbol>
+  <symbol id="b-kimi" viewBox="0 0 24 24"><path fill="currentColor" d="M5 3h4v6.6L14.6 3H20l-6.9 8.3L20 21h-5.5L9 12.9V21H5z" /></symbol>
+  <symbol id="b-grok" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M9.27 15.29l7.978-5.897c.391-.29.95-.177 1.137.272.98 2.369.542 5.215-1.41 7.169-1.951 1.954-4.667 2.382-7.149 1.406l-2.711 1.257c3.889 2.661 8.611 2.003 11.562-.953 2.341-2.344 3.066-5.539 2.388-8.42l.006.007c-.983-4.232.242-5.924 2.75-9.383.06-.082.12-.164.179-.248l-3.301 3.305v-.01L9.267 15.292M7.623 16.723c-2.792-2.67-2.31-6.801.071-9.184 1.761-1.763 4.647-2.483 7.166-1.425l2.705-1.25a7.808 7.808 0 00-1.829-1A8.975 8.975 0 005.984 5.83c-2.533 2.536-3.33 6.436-1.962 9.764 1.022 2.487-.653 4.246-2.34 6.022-.599.63-1.199 1.259-1.682 1.925l7.62-6.815" /></symbol>
+  <symbol id="b-qoder" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.6" /><path fill="currentColor" d="M17.9 16.9 21.8 20.8 20.9 21.7 17 17.8Z" /></symbol>
+  <symbol id="b-opencode" viewBox="0 0 512 512"><path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M384 416H128V96H384V416ZM320 160H192V352H320V160Z" /><rect x="192" y="224" width="128" height="128" fill="var(--fg-muted)" /></symbol>
+  <symbol id="b-dsh" viewBox="0 0 24 24"><path fill="#4D6BFE" d="M23.748 4.482c-.254-.124-.364.113-.512.234-.051.039-.094.09-.137.136-.372.397-.806.657-1.373.626-.829-.046-1.537.214-2.163.848-.133-.782-.575-1.248-1.247-1.548-.352-.156-.708-.311-.955-.65-.172-.241-.219-.51-.305-.774-.055-.16-.11-.323-.293-.35-.2-.031-.278.136-.356.276-.313.572-.434 1.202-.422 1.84.027 1.436.633 2.58 1.838 3.393.137.093.172.187.129.323-.082.28-.18.552-.266.833-.055.179-.137.217-.329.14a5.526 5.526 0 01-1.736-1.18c-.857-.828-1.631-1.742-2.597-2.458a11.365 11.365 0 00-.689-.471c-.985-.957.13-1.743.388-1.836.27-.098.093-.432-.779-.428-.872.004-1.67.295-2.687.684a3.055 3.055 0 01-.465.137 9.597 9.597 0 00-2.883-.102c-1.885.21-3.39 1.102-4.497 2.623C.082 8.606-.231 10.684.152 12.85c.403 2.284 1.569 4.175 3.36 5.653 1.858 1.533 3.997 2.284 6.438 2.14 1.482-.085 3.133-.284 4.994-1.86.47.234.962.327 1.78.397.63.059 1.236-.03 1.705-.128.735-.156.684-.837.419-.961-2.155-1.004-1.682-.595-2.113-.926 1.096-1.296 2.746-2.642 3.392-7.003.05-.347.007-.565 0-.845-.004-.17.035-.237.23-.256a4.173 4.173 0 001.545-.475c1.396-.763 1.96-2.015 2.093-3.517.02-.23-.004-.467-.247-.588zM11.581 18c-2.089-1.642-3.102-2.183-3.52-2.16-.392.024-.321.471-.235.763.09.288.207.486.371.739.114.167.192.416-.113.603-.673.416-1.842-.14-1.897-.167-1.361-.802-2.5-1.86-3.301-3.307-.774-1.393-1.224-2.887-1.298-4.482-.02-.386.093-.522.477-.592a4.696 4.696 0 011.529-.039c2.132.312 3.946 1.265 5.468 2.774.868.86 1.525 1.887 2.202 2.891.72 1.066 1.494 2.082 2.48 2.914.348.292.625.514.891.677-.802.09-2.14.11-3.054-.614zm1-6.44a.306.306 0 01.415-.287.302.302 0 01.2.288.306.306 0 01-.31.307.303.303 0 01-.304-.308zm3.11 1.596c-.2.081-.399.151-.59.16a1.245 1.245 0 01-.798-.254c-.274-.23-.47-.358-.552-.758a1.73 1.73 0 01.016-.588c.07-.327-.008-.537-.239-.727-.187-.156-.426-.199-.688-.199a.559.559 0 01-.254-.078c-.11-.054-.2-.19-.114-.358.028-.054.16-.186.192-.21.356-.202.767-.136 1.146.016.352.144.618.408 1.001.782.391.451.462.576.685.914.176.265.336.537.445.848.067.195-.019.354-.25.452z" /></symbol>
+</svg>
+
+<h1>mobile app 深色重设计:工作区与任务 + 发起会话流(入口全保留 · 真实品牌标)</h1>
+<p class="sub">对照 <code>src/mobile/HomeScreen.tsx</code> / <code>Row.tsx</code> / <code>ConnChip.tsx</code> / <code>SpawnSheet.tsx</code> 逐条保入口;会话行引擎标 = <code>src/plugins/cli-shared/engineGlyphs.tsx</code> 同源真实品牌矢量,功能标统一 stroke 圆头 SVG sprite;长文本一律单行 ellipsis 不换行(工作区名/会话标题/路径/引擎名)。屏 1-3 = home/连接 sheet/断连快照;屏 4-6 = 发起会话选态/阻态/启动后实况屏。</p>
+
+<div class="stage">
+
+  <!-- 屏 1:新 home,入口全保留 -->
+  <div>
+    <p class="panel-label">屏 1 · 新 home(卡片式 + 全入口)</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="nav2">
+          <div class="r1"><b>当前设备上的工作区和任务</b>
+            <button class="host"><span class="sdot run"></span><span class="hn">chenxiangning-MBP</span><svg class="ic s11"><use href="#i-chev" /></svg></button>
+          </div>
+          <div class="r2"><span class="sum">3 个工作区 · 91 个任务</span>
+            <span class="ibtns">
+              <button title="Git 面板"><svg class="ic s12"><use href="#i-git" /></svg></button>
+              <button title="发起会话"><svg class="ic s12"><use href="#i-plus" /></svg></button>
+              <button title="刷新"><svg class="ic s12"><use href="#i-refresh" /></svg></button>
+            </span>
+          </div>
+        </div>
+        <div class="body">
+          <div class="search"><svg class="ic s12"><use href="#i-search" /></svg>搜索会话…</div>
+
+          <div class="zone"><span class="zdot pin"></span>已置顶 · 1</div>
+          <div class="row"><span class="glyph"><svg class="ic s16"><use href="#b-omp" /></svg></span><span class="t">OMP · tmd-cli</span><span class="meta">1 小时前</span><span class="sdot"></span><button class="pinbtn on" title="取消置顶"><svg class="ic s12"><use href="#i-pin" /></svg></button></div>
+
+          <div class="zone"><span class="zdot run"></span>运行中 · 2</div>
+          <div class="row"><span class="glyph"><svg class="ic s16"><use href="#b-claude" /></svg></span><span class="t">查一下现在白屏问题.修一下.</span><span class="pill">审批 2</span><span class="meta">3 分</span><span class="sdot ask"></span><button class="pinbtn" title="置顶"><svg class="ic s12"><use href="#i-pin" /></svg></button></div>
+          <div class="row"><span class="glyph"><svg class="ic s16"><use href="#b-codex" /></svg></span><span class="t">0.2.2 打磨期收口与 CHANGELOG</span><span class="meta">刚刚</span><span class="sdot run"></span><button class="pinbtn" title="置顶"><svg class="ic s12"><use href="#i-pin" /></svg></button></div>
+
+          <div class="ws-caption"><svg class="ic s12"><use href="#i-folder" /></svg>工作区</div>
+
+          <div class="card">
+            <div class="c-head"><span class="caret"><svg class="ic s11"><use href="#i-chev" /></svg></span><svg class="ic s16" style="color:var(--fg-muted)"><use href="#i-folder-open" /></svg><span class="name">tmd-cli</span><span class="badge">本地</span><button class="plus" title="在此工作区发起会话"><svg class="ic s11"><use href="#i-plus" /></svg></button></div>
+            <div class="c-mid"><span class="path">/Users/chenxiangn…</span>
+              <div class="seg"><button class="on"><svg class="ic s11"><use href="#i-monitor" /></svg>本地 <b>2</b></button><button><svg class="ic s11"><use href="#i-archive" /></svg>归档 <b>0</b></button></div>
+            </div>
+            <div class="c-foot">更新于 3 天</div>
+            <div class="kids">
+              <div class="row"><span class="glyph"><svg class="ic s16"><use href="#b-omp" /></svg></span><span class="t">LSP 弹窗 code 渲染打磨</span><span class="meta">2 小时</span><span class="sdot unread"></span><button class="pinbtn" title="置顶"><svg class="ic s12"><use href="#i-pin" /></svg></button></div>
+              <div class="row"><span class="glyph"><svg class="ic s16"><use href="#b-claude" /></svg></span><span class="t">fix sidebar reload force index sync</span><span class="meta">5 小时</span><span class="sdot"></span><button class="pinbtn" title="置顶"><svg class="ic s12"><use href="#i-pin" /></svg></button></div>
+              <button class="more">加载更多(50)</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="c-head"><span class="caret"><svg class="ic s11"><use href="#i-chev-r" /></svg></span><svg class="ic s16" style="color:var(--fg-muted)"><use href="#i-folder" /></svg><span class="name">codemoss</span><span class="badge">本地</span><button class="plus" title="在此工作区发起会话"><svg class="ic s11"><use href="#i-plus" /></svg></button></div>
+            <div class="c-mid"><span class="path">/Users/chenxiangnin…</span>
+              <div class="seg"><button><svg class="ic s11"><use href="#i-monitor" /></svg>本地 <b>12</b></button><button class="on"><svg class="ic s11"><use href="#i-archive" /></svg>归档 <b>26</b></button></div>
+            </div>
+            <div class="c-foot">更新于 21 天</div>
+          </div>
+
+          <div class="card">
+            <div class="c-head"><span class="caret"><svg class="ic s11"><use href="#i-chev-r" /></svg></span><svg class="ic s16" style="color:var(--fg-muted)"><use href="#i-folder" /></svg><span class="name">springboot-demo</span><span class="badge">本地</span><button class="plus" title="在此工作区发起会话"><svg class="ic s11"><use href="#i-plus" /></svg></button></div>
+            <div class="c-mid"><span class="path">/Users/chenxiangn…</span>
+              <div class="seg"><button class="on"><svg class="ic s11"><use href="#i-monitor" /></svg>本地 <b>0</b></button><button><svg class="ic s11"><use href="#i-archive" /></svg>归档 <b>0</b></button></div>
+            </div>
+            <div class="c-foot">更新于 40 天</div>
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note">引擎标 = 真实品牌矢量:omp 粉紫→蓝渐变 π、claude 官方日芒 #D97757、codex OpenAI 六边,与桌面侧栏 EngineMark 同源同色。功能标(search/git/plus/refresh/chevron/folder/monitor/archive/pin)统一 1.5-1.7 stroke 圆头,视觉重量一档。工作区卡折叠态 = 闭口文件夹 + 右向 caret,展开态 = 开口文件夹 + 下向 caret(开合即展开语义,无独立箭头热区)。</p>
+  </div>
+
+  <!-- 屏 2:连接 sheet -->
+  <div>
+    <p class="panel-label">屏 2 · 连接 sheet(HostChip 点开)</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="nav2" style="opacity:.5">
+          <div class="r1"><b>当前设备上的工作区和任务</b>
+            <button class="host"><span class="sdot run"></span><span class="hn">chenxiangning-MBP</span><svg class="ic s11"><use href="#i-chev" /></svg></button>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="s-head"><b>连接</b><button title="关闭"><svg class="ic s12"><use href="#i-x" /></svg></button></div>
+          <div class="s-label">状态</div>
+          <div class="cs"><span class="sdot run"></span><span class="k">已连接</span><span class="v">chenxiangning-MBP</span></div>
+          <div class="cs"><span class="sdot"></span><span class="k">通道</span><span class="v">内网 192.168.1.8:8765</span></div>
+          <div class="cs"><span class="sdot"></span><span class="k">桌面版本</span><span class="v">0.2.2</span></div>
+          <div class="s-fine">内网通道要求手机与电脑在同一局域网;外网通道经中继转发,离开局域网后自动可用。</div>
+          <div class="s-label">通道</div>
+          <button class="opt on"><span class="fx">自动(按序竞速)</span><span class="ck"><svg class="ic s12"><use href="#i-check" /></svg></span></button>
+          <button class="opt"><span class="fx">内网 192.168.1.8:8765</span><span class="chipb">当前</span></button>
+          <button class="opt"><span class="fx">外网 relay.tmd.dev:443</span></button>
+          <div class="s-acts">
+            <button class="act">断开连接</button>
+            <button class="act danger">重新配对(扫码)</button>
+          </div>
+          <div class="s-fine">断开=暂停自动重连(如临时省电);桌面撤销或踢除设备需重新扫码配对。</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note">HostChip sheet 原样搬:StatusPanel 三行(状态/通道/桌面版本)+ ChannelPanel(自动竞速 + 全端点,钉选 ✓、活动端点「当前」徽标)+ 断开/重连 + 重新配对(扫码)危险钮。关闭钮与勾选标同 sprite,粗细与功能标一档。</p>
+  </div>
+
+  <!-- 屏 3:断连快照态 -->
+  <div>
+    <p class="panel-label">屏 3 · 断连 banner + 快照减淡</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="nav2">
+          <div class="r1"><b>当前设备上的工作区和任务</b>
+            <button class="host"><span class="sdot" style="background:#ef4444"></span><span class="hn">chenxiangning-MBP</span><svg class="ic s11"><use href="#i-chev" /></svg></button>
+          </div>
+          <div class="r2"><span class="sum">3 个工作区 · 91 个任务</span>
+            <span class="ibtns">
+              <button title="Git 面板"><svg class="ic s12"><use href="#i-git" /></svg></button>
+              <button title="发起会话"><svg class="ic s12"><use href="#i-plus" /></svg></button>
+              <button title="刷新"><svg class="ic s12"><use href="#i-refresh" /></svg></button>
+            </span>
+          </div>
+        </div>
+        <div class="banner"><span class="dot"></span>连接已断开 · 正在重连(第 3 次)<button>重试</button></div>
+        <div class="body dimmed">
+          <div class="zone"><span class="zdot pin"></span>已置顶 · 1</div>
+          <div class="row"><span class="glyph"><svg class="ic s16"><use href="#b-omp" /></svg></span><span class="t">OMP · tmd-cli</span><span class="meta">1 小时前</span><span class="sdot"></span><button class="pinbtn on"><svg class="ic s12"><use href="#i-pin" /></svg></button></div>
+          <div class="ws-caption"><svg class="ic s12"><use href="#i-folder" /></svg>工作区</div>
+          <div class="card">
+            <div class="c-head"><span class="caret"><svg class="ic s11"><use href="#i-chev" /></svg></span><svg class="ic s16" style="color:var(--fg-muted)"><use href="#i-folder-open" /></svg><span class="name">codemoss</span><span class="badge">本地</span><button class="plus"><svg class="ic s11"><use href="#i-plus" /></svg></button></div>
+            <div class="c-mid"><span class="path">/Users/chenxiangnin…</span>
+              <div class="seg"><button><svg class="ic s11"><use href="#i-monitor" /></svg>本地 <b>12</b></button><button class="on"><svg class="ic s11"><use href="#i-archive" /></svg>归档 <b>26</b></button></div>
+            </div>
+            <div class="kids"><div class="seg-empty">没有归档会话</div></div>
+          </div>
+          <div style="margin-top:18px;text-align:center;font-size:11px;color:var(--fg-muted);opacity:1">
+            列表为最近快照。<br>重连成功后自动按磁盘账本回放,<br>错过的输出不丢(磁盘先行契约)。
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note">ConnBanner 顶栏下方强告警不折叠(手动断开不催、恢复自消);列表快照减淡同老断连态。品牌标在减淡层内随容器一起降透明度,连接芯片状态点转红——断连一眼可辨。</p>
+  </div>
+
+  <!-- 屏 4:发起会话 sheet 选态 -->
+  <div>
+    <p class="panel-label">屏 4 · 发起会话 sheet(选工作区 × 选引擎)</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="nav2" style="opacity:.5">
+          <div class="r1"><b>当前设备上的工作区和任务</b>
+            <button class="host"><span class="sdot run"></span><span class="hn">chenxiangning-MBP</span><svg class="ic s11"><use href="#i-chev" /></svg></button>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="s-head"><b>发起会话</b><button title="关闭"><svg class="ic s12"><use href="#i-x" /></svg></button></div>
+          <div class="s-label">工作区</div>
+          <button class="ws-opt on"><svg class="ic s16" style="color:var(--fg-muted)"><use href="#i-folder-open" /></svg><span class="fx">tmd-cli</span><span class="sub">52 会话</span><span class="ck" style="color:var(--accent);display:flex"><svg class="ic s12"><use href="#i-check" /></svg></span></button>
+          <button class="ws-opt"><svg class="ic s16" style="color:var(--fg-muted)"><use href="#i-folder" /></svg><span class="fx">codemoss</span><span class="sub">38 会话</span></button>
+          <button class="ws-opt"><svg class="ic s16" style="color:var(--fg-muted)"><use href="#i-folder" /></svg><span class="fx">springboot-demo-long-name-overflow</span><span class="sub">2 会话</span></button>
+          <div class="s-label">引擎</div>
+          <div class="eng-grid">
+            <button class="eng-opt on"><svg class="ic s16"><use href="#b-omp" /></svg><span class="nm">OMP</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-pi" /></svg><span class="nm">Pi</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-claude" /></svg><span class="nm">Claude Code</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-codex" /></svg><span class="nm">Codex CLI</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-kimi" /></svg><span class="nm">Kimi</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-grok" /></svg><span class="nm">Grok</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-qoder" /></svg><span class="nm">Qoder</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-qodercn" /></svg><span class="nm">Qoder CN</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-opencode" /></svg><span class="nm">OpenCode</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-dsh" /></svg><span class="nm">DSH</span><span class="st"></span></button>
+          </div>
+          <button class="cta">启动 OMP</button>
+          <div class="s-fine">spec.command 受桌面域闸引擎白名单收敛;自由命令在桌面打回。</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note">SpawnSheet 同构:工作区整行选中(开/闭文件夹 + 会话计数 + ✓),引擎双列卡片 = 品牌标 + 名 + 就绪点(绿 = 桌面已装该引擎,灰 = 未装;ENGINES 十家全列,长名 ellipsis)。CTA 全宽「启动 {engine}」随选联动。</p>
+  </div>
+
+  <!-- 屏 5:发起会话 阻态 -->
+  <div>
+    <p class="panel-label">屏 5 · 发起会话(未连接阻态)</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="nav2" style="opacity:.5">
+          <div class="r1"><b>当前设备上的工作区和任务</b>
+            <button class="host"><span class="sdot" style="background:#ef4444"></span><span class="hn">chenxiangning-MBP</span><svg class="ic s11"><use href="#i-chev" /></svg></button>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="s-head"><b>发起会话</b><button title="关闭"><svg class="ic s12"><use href="#i-x" /></svg></button></div>
+          <div class="s-label">工作区</div>
+          <button class="ws-opt on"><svg class="ic s16" style="color:var(--fg-muted)"><use href="#i-folder-open" /></svg><span class="fx">tmd-cli</span><span class="sub">52 会话</span><span class="ck" style="color:var(--accent);display:flex"><svg class="ic s12"><use href="#i-check" /></svg></span></button>
+          <div class="s-label">引擎</div>
+          <div class="eng-grid">
+            <button class="eng-opt on"><svg class="ic s16"><use href="#b-omp" /></svg><span class="nm">OMP</span><span class="st"></span></button>
+            <button class="eng-opt"><svg class="ic s16"><use href="#b-claude" /></svg><span class="nm">Claude Code</span><span class="st"></span></button>
+          </div>
+          <div class="alert warn"><span class="sdot" style="background:#e3b341"></span>未连接桌面:连接恢复后再发起会话(右上 ⇄ 可手动重试)</div>
+          <button class="cta dis" disabled>启动 OMP</button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note">blocked 三文案分流:未连接 / 正在获取工作区… / 桌面还没有工作区。阻态 CTA 置灰不可点,告警条琥珀底;err 态(启动失败)同位换红条显示桥回错误原文。</p>
+  </div>
+
+  <!-- 屏 6:启动后实况屏 -->
+  <div>
+    <p class="panel-label">屏 6 · 启动成功 → 实况屏</p>
+    <div class="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:41</span><span></span></div>
+        <div class="s-top">
+          <button class="back" title="返回"><svg class="ic s12" style="transform:rotate(90deg)"><use href="#i-chev" /></svg></button>
+          <svg class="ic s16"><use href="#b-omp" /></svg>
+          <span class="tt">OMP · tmd-cli</span>
+          <span class="sdot run"></span>
+          <button class="pinbtn" title="置顶"><svg class="ic s12"><use href="#i-pin" /></svg></button>
+        </div>
+        <div class="live"><span class="dim">$ omp</span>
+<span class="ok">✓</span> 会话已启动 · worktree /Users/chenxiangning/code/AI/github/tmd-cli
+<span class="dim">⠿ 读取工作区上下文…</span>
+
+<span class="ac">omp ▸</span> 你好,我是 omp。当前工作区 tmd-cli,
+        检测到 3 个在途会话与 12 个未提交变更。
+        需要我先跑 typecheck 摸底吗?
+
+<span class="dim">⏱ 1.2s · tok 84/128k · ctx 6%</span></div>
+        <div class="kb">
+          <button>Esc</button><button>Ctrl+C</button><button>Enter</button><button>↑</button><button>↓</button><button>Tab</button>
+        </div>
+        <div class="comp">
+          <input placeholder="发消息…" />
+          <button class="send" title="发送"><svg class="ic s12" style="transform:rotate(-90deg)"><use href="#i-chev" /></svg></button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+    <p class="step-note">spawn 成功即 go(session):顶栏 = 返回 + 品牌标 + 标题 ellipsis + 运行脉冲 + 置顶钮;幕布 PTY 字节原样透传(无二次渲染),键工具条 Esc/Ctrl+C/Enter/↑/↓/Tab 补发真实键序列;composer 发送走 sendGate 闸(审批等待期锁发送)。</p>
+  </div>
+
+</div>
+</body>
+</html>

@@ -73,10 +73,12 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
 /** ── 图标装饰(icon decor)域 ── 34 个界面图标的独立颜色/呼吸闪烁;CSS 变量约定见 kernel/iconDecor.ts */
 
 /** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,
- *  动作键 = sidebarActions id(rail 直挂只剩 wsl-panel/terminal/intent-canvas;
- *  ssh 已迁面板键,键名保留防存量装饰丢失),
- *  顶栏钮键 = header.leftCluster 消费方自定 id(remote-control/session-board)
- *  与 titlebar 内建钮(market/home/fold-left/fold-right),
+ *  动作键 = sidebarActions id(rail 直挂 wsl-panel/terminal/intent-canvas/
+ *  system-proxy;ssh 已迁面板键,键名保留防存量装饰丢失),
+ *  左缘 LeftRail 钮键 = 直挂动作 id(session-board)与壳内建钮
+ *  (market/home;工作区切换钮不设装饰键,恒用 Phosphor 图标),顶栏钮键 =
+ *  header.leftCluster 消费方自定 id(remote-control)与 titlebar 内建钮
+ *  (fold-left/fold-right),
  *  结构键 = worktree(侧栏 worktree 簇标签 + fork 图标着色),
  *  工作区行键 = WorkspaceCard 行内操作钮(ws-*),
  *  composer 键 = 工具条三钮(stage-expand/stage-collapse/composer-drawer)

@@ -20,6 +20,15 @@ export const MESSAGES = {
   "新建文件夹": "New folder",
   "刷新文件树": "Refresh file tree",
 
+  // ── 左缘 LeftRail / 左下工作区显隐 / 缩放键位(2026-10-04)──
+  "左侧工具栏": "Left toolbar",
+  "工作区显隐": "Workspace visibility",
+  "显示的工作区": "Visible workspaces",
+  "至少保留一个可见工作区": "Keep at least one visible workspace",
+  "放大界面": "Zoom in",
+  "缩小界面": "Zoom out",
+  "重置界面缩放": "Reset zoom",
+
   // ── 会话 tab 条 ──
   "打开的会话": "Open sessions",
   "{title} · 等待确认": "{title} · awaiting confirmation",
@@ -144,8 +153,8 @@ export const MESSAGES = {
     "Update source returned HTTP {status}; try again later.",
   "更新源响应格式异常,未解析到发布版本。":
     "Unexpected response from the update source; no release parsed.",
-  "网络请求失败:{reason}。若网络需代理,请先在设置菜单「网络代理」中开启后重试。":
-    "Network request failed: {reason}. If your network needs a proxy, enable \"Network proxy\" in the settings menu and retry.",
+  "网络请求失败:{reason}。若网络需代理,请先在右缘工具条底簇「网络代理」中开启后重试。":
+    "Network request failed: {reason}. If your network needs a proxy, enable \"Network proxy\" in the bottom cluster of the right-edge toolbar and retry.",
 
   // ── 入口 ──
   "插件激活失败:{error}": "Plugin activation failed: {error}",

@@ -21,6 +21,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sessionList: "ipc.terminal",
   sessionWrite: "ipc.terminal",
   sessionResize: "ipc.terminal",
+  sessionSetViewed: "ipc.terminal",
   sessionKill: "ipc.terminal",
   sessionLogSize: "ipc.terminal",
   sessionHistoryPage: "ipc.terminal",
@@ -48,7 +49,6 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   wslExec: "ipc.exec",
   /* 未决 SSH 提示对账(只读注册表快照,无副作用)。 */
   sshPromptsPending: null,
-  /* 文件系统读。 */
   fsListDir: "ipc.fs.read",
   fsWalkFiles: "ipc.fs.read",
   fsWalkIndex: "ipc.fs.read",
@@ -57,7 +57,6 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsReadTail: "ipc.fs.read",
   fsReadTailChanged: "ipc.fs.read",
   fsReadHead: "ipc.fs.read",
-
   fsCollectFiles: "ipc.fs.read",
   readLocalImageDataUrl: "ipc.fs.read",
   readBinaryFileBase64: "ipc.fs.read",
@@ -176,8 +175,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sshForwardList: "ipc.ssh",
   sshForwardCheckPort: "ipc.ssh",
 
-  /* 纯函数杂项(无 IO)。 */
+  /* 纯函数杂项(无 IO)。appPid = 自身 pid(jdt 目录隔离键);processAlive = kill -0 只读(exec 类)。 */
   md5Hex: "ipc.util",
+  appPid: "ipc.util",
+  processAlive: "ipc.exec",
 
   /* 内核保留:全局 settings 盘文件 / 环境变量(凭据)/ 本地插件管理面(提权面)。 */
   configReadSettings: null,
@@ -265,7 +266,6 @@ export function wrapHost(grants: ReadonlySet<string>): Record<string, unknown> {
     },
   });
 }
-
 
 /** settings 直通的纯函数(无能力语义;出现新函数时在此登记或归入 read/write/保留)。 */
 export const SETTINGS_PURE_KEYS = [

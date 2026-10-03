@@ -27,8 +27,8 @@
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-13 | [omp 打开历史会话性能分析与常驻预热方案研究](research/omp-session-open-performance.md) | 已完成(方案已落地:预热接管,契约见 architecture/10) |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
-| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-14 校准:27 插件 / 挂点 14 / WSL / 壁纸 / 自动更新 / 预热秒开;09-19 校准:31 插件;09-27 校准 v0.2.4:38 插件 / 挂点 15 / Rust 层 web·lsp·open_with / §8 状态段重写;**10-01 校准 v0.2.7**:44 插件 / 挂点 17(+editorCenter.canvasOverlay、terminal.canvasRow)/ §8 状态段 v0.2.6) |
-| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07/09-10/09-14/09-19 校准史见旧注;09-27 校准 v0.2.4:命令面 151 分布 / PLUGINS 图补 0.2.x 十一插件 / 挂点 15 + composer.attachments / 两棵 UI 树动态分流 / worktree 与退出码数据流注记 / 契约见 architecture/16;**10-01 校准 v0.2.7**:命令面 162(+proc_stream×4、render_health)/ IPC 表补行 / PLUGINS 图 +session-viewer·daily-journal·structured-session) |
+| 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-14 校准:27 插件 / 挂点 14 / WSL / 壁纸 / 自动更新 / 预热秒开;09-19 校准:31 插件;09-27 校准 v0.2.4:38 插件 / 挂点 15 / Rust 层 web·lsp·open_with / §8 状态段重写;10-01 校准 v0.2.7:44 插件 / 挂点 17(+editorCenter.canvasOverlay、terminal.canvasRow);**10-04 校准 v0.2.9**:§8 状态段重写至 v0.2.9(44 注册 = engine 10 + feature 30;能力 Hub / 结构化会话 / 原创主题与设计系统 / 渲染健康族 / 手机 0.2.9 链路)/ §2 Rust 树补 proc_stream·render_health·fs_temp·skill_pkg) |
+| 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07/09-10/09-14/09-19 校准史见旧注;09-27 校准 v0.2.4:命令面 151 分布 / PLUGINS 图补 0.2.x 十一插件 / 挂点 15 + composer.attachments / 两棵 UI 树动态分流 / worktree 与退出码数据流注记 / 契约见 architecture/16;10-01 校准 v0.2.7:命令面 162(+proc_stream×4、render_health)/ IPC 表补行 / PLUGINS 图 +session-viewer·daily-journal·structured-session;**10-04 校准 v0.2.9**:命令面 165(+session_set_viewed、app_pid、process_alive)/ §6 挂点地图 15→17(补 canvasOverlay·canvasRow 节点)/ russh 0.63 / 源文件 1129) |
 | 2026-09-01 | [Composer 工具栏设计](superpowers/specs/2026-09-01-composer-toolbar-design.md) | 已确认 |
 | 2026-09-01 | [Composer 富输入框设计原型](design/composer-design.html) | 已落地 |
 | 2026-09-01~02 | [UI 原型:composer 工具栏 / 欢迎页额度 / 设置面板 / 消息锚点栏 / git 文件列表 ×3 / 批审阅面板 / 插排](prototypes/) | 设计定稿配套 |
@@ -43,7 +43,7 @@
 | 2026-09-03 | [插排徽标升级设计](superpowers/specs/2026-09-03-plugin-market-icons-design.md) | 已评审通过 |
 | 2026-09-03 | [会话标题 tab 条设计](superpowers/specs/2026-09-03-session-title-tabs-design.md) | 已落地 |
 | 2026-09-03 | [父子会话层级原型:方案 B 定稿(父节点即开关,保留 FLUX 时间轴)](design/session-hierarchy-schemes.html) | 设计原型 |
-| 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-19 补校:文件标记 / 全文搜索与快开 / md 快路径 / git 面板工具条 / 状态巡航尺寸闸,插件 31) |
+| 常态 | [功能清单 FEATURES](FEATURES.md) | 随代码演进(09-19 补校:文件标记 / 全文搜索与快开 / md 快路径 / git 面板工具条 / 状态巡航尺寸闸,插件 31;**10-04 补校 0.2.8/0.2.9 增量域**:原创主题与设计系统 / 结构化会话基座 / 渲染健康守望 / 手机对话链路整批 / tok/s pill 口径,插件 44,10-01「不变 38」漏校更正) |
 | 2026-09-04 | [Git 历史视图 Graph 化 + 提交 diff 进左侧文件容器](superpowers/specs/2026-09-04-git-history-graph-design.md) | 已落地 |
 | 2026-09-04 | [文件渲染档案:补齐 codemoss 全量文件预览形态](superpowers/specs/2026-09-04-file-render-profiles-design.md) | 已落地 |
 | 2026-09-04 | [SSH 模块竞品调研](research/ssh-module-reference.md) | 已完成 |
@@ -262,4 +262,14 @@
 | 2026-10-03 | [手机快捷键条两行重排 + 实况 2 秒延迟治理(KEY_ROWS 两行大键网格 ≥44px;传输层逐环节实读排除批帧,根因=live 逐帧更新触发 TurnsView 全量 markdown 重解析——memo 止血 + setLive 100ms 尾沿节流 + 发送/应答写后 300ms 触拍)](superpowers/specs/2026-10-03-mobile-keybar-relayout-live-latency-design.md) | 已实施(真机目检留大仙) |
 | 2026-10-03 | [手机选图/拍照上传与 WS 心跳提交后评审(三路对抗:实锤 5 修——send 硬闸补重试/键路绕行、卸载 objectURL 泄漏、错误定时器交叠、plist 双源分叉、相机权限黑屏;疑点 2 修 4 留观;误报 5 条防重查)](review/2026-10-03-mobile-shot-upload-review.md) | 已完成(修复随本日提交;门禁全绿) |
 | 2026-10-03 | [v0.2.8..HEAD 范围二轮评审(五路分区对抗 + 主线精读 + 三轮遗留挖掘:二轮实锤 2B+3M+12m、三轮 4M+9m 全修——pong 死线感知在途大帧、StrictMode 钉死 useShots、resize/print/CHA 幽灵列三族、setEndpoint 不清算 pending、poke 重入翻链、发送在途续打续挂全保、confirm 数值 id 同型、fs_write_temp 服务端闸+老化清理、回前台探测等;留观 11 条)](review/2026-10-03-v0.2.9-range-review-2.md) | 已完成(修复随本日提交;门禁全绿) |
+| 2026-10-03 | [LSP 语义弹窗 code 渲染打磨设计(peek 配色根因修复:lsp 域补 Prism token→--tmd-syntax-* 映射拆 lsp-code.css;symRange 纯字符串符号区间包裹与高亮共存;右列表行 code 渲染;peekLang 语言解析下沉)](superpowers/specs/2026-10-03-lsp-peek-code-render-design.md) | 已实施(窗口目检留大仙) |
+| 2026-10-03 | [LSP 弹窗 code 渲染提交收口复审(提交纯净性/门禁序/运行链路取证:11 文件零混入、vite:1421 服务端实证新模块已入已开窗口热更链;实锤 2 修——索引状态漏目检挂账后缀、docs 提交在含用户 WIP 的 93 分树落下且分数未闸门化(扣分项归属已取证零交集);留观 3 条)](review/2026-10-03-lsp-peek-code-render-review.md) | 已完成(实锤修复随本提交) |
+| 2026-10-03 | [手机首页 UI 打磨三方案(A 柔光分组 / B 内联摘要 / C 分色速览;保留置顶+运行中+工作区信息架构,聚焦工作区菜单展示优化)](design/mobile-home-polish-a.html) | 设计原型 |
+| 2026-10-03 | [手机首页工作区菜单精修(去折叠箭头,文件夹图标开合表达展开态,计数靠右着色)](design/mobile-ws-menu-refine.html) | 设计原型 |
+| 2026-10-03 | [mobile app 深色重设计:工作区与任务 + 发起会话流(老 UI 入口全保留:连接芯片+sheet/断连 banner/Git 新建 刷新/搜索/置顶+运行中双区/行置顶钮/审批 pill/本地归档分段切换/加载更多;长文本单行 ellipsis;会话行 = engineGlyphs.tsx 同源真实品牌标;六屏 = home/连接 sheet/断连快照/spawn 选态/spawn 阻态/启动后实况屏)](prototypes/mobile-app-workspaces.html) | 已实施(屏 1-5;屏 6 实况屏维持现状;假桥桩目检过,真机目检留大仙) |
+| 2026-10-03 | [会话行 tok/s pill 稳定性与口径修复(实证三根因:增量行误用差分分子→51% 空转+低估一半、两点差分无平滑→跳变 p90 16x、跨轮污染;修法=分子按行型分派+尾窗用户行轮种子+180s cap+单对 300 tok/s 可信上限+近 5 对滑窗+codex 双快照,回放可显率 49%→100%、跳变 p90→1.5x)](superpowers/specs/2026-10-03-toks-pill-stability-design.md) | 已实施(门禁全绿;UI 目检留用户) |
+| 2026-10-04 | [幕布假死第十一轮:泵侧后台慢拍 + 双份解析消除 + 数据链停滞探针(现场取证:活会话 55MB/9min 状态动画洪水 + WebContent 主线程 43% 样本在逐帧 updateRendering/深 flex 布局;修法=无人观看/渲染暂停会话泵聚合钳 250ms 事件率降 30 倍 + 挂幕布会话停喂 headless 镜像卸载 reseed 补种 + 「PTY 在流而幕布不吃字节」自动重建检出线补盲)](superpowers/specs/2026-10-04-canvas-stall-pump-background-design.md) | 已实施(门禁全绿;真机长时观察留用户) |
+| 2026-10-04 | [文档对码 v0.2.9(architecture 01·02 计数与状态段 / FEATURES 0.2.8·0.2.9 增量域 / README·README_EN 事实同步;命令面 165 = +session_set_viewed、app_pid、process_alive;源文件 1129;插件 44 = engine 10 + feature 30)](review/2026-10-04-docs-calibration-v0.2.9.md) | 已完成 |
+| 2026-10-04 | [幕布假死第十一轮提交收口复审(368499a3 纯净性审计:混入文档对码四片留档不返工;代码自审 8 项全过——viewed 生命周期/active 参数唯一调用方/泵侧节拍不动字节/reseed 时序与 CLI 谓词闸/停滞判据锚无关/双回执门禁;留观 5 条:打包版重构建、SSH 通道、链死类不可测、降档时延、双实例卫生)](review/2026-10-04-canvas-freeze-round11-closure-review.md) | 已完成(评审记录随本提交) |
+| 2026-10-04 | [左缘工具 rail/工作区显隐/缩放键位变更四角度评审(交互 UX/架构契约/回归风险/代码正确性;1 P0 看板无鼠标关闭 + 5 P1;契约沉淀 sidebarActions 扩 leftRail·leftRailBottom·subscribeActive)+ 二轮打磨评审(网络代理迁右 rail:1 P0 ensurePanelPinned 全量覆写截断钉住清单→合并写、1 P1 marker 晚写致取消复活、updateCheck 死指引三语改指、pinOnce 4 用例回归锁)](review/2026-10-04-left-rail-workspace-visibility-review.md) | 已完成(变更未提交待用户目检) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

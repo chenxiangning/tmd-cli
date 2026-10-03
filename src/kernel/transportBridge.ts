@@ -1,5 +1,5 @@
 /**
- * file-size-exempt: 桥状态机核心(退避/轮换/订阅重放/pending 台账单一所有权),二轮评审补强后 332 行;再拆 = 两个文件共享十个私有字段。
+ * file-size-exempt: 桥状态机核心(退避/轮换/订阅重放/pending 台账单一所有权/并发帽快拒重试),356 行;再拆 = 两个文件共享十个私有字段。
  * WebBridge —— transport 的 WS 桥实现(自 transport.ts 按 300 行铁则拆出)。
  * 协议:JSON 帧 invoke/response/event/hello/bye;4001/bye = 桌面撤销逐出
  * (close code 过不了 relay 中继,bye 是权威语义)。重连退避/pending 释放/hello
@@ -18,6 +18,10 @@ type Listener = (payload: unknown) => void;
 
 interface PendingReq { resolve: (v: unknown) => void; reject: (e: Error) => void; }
 
+/** 单 invoke 响应超时:半开连接(中继边缘 socket open 而后端已死)响应永不回,
+ * 不设上限 = 手机轮询 pull 永挂 → 流量停摆 → 中继 idle 掐线 → 「重连中」横幅
+ * (2026-10-03 外网高频复现根因)。15s > 慢链路大帧正常 p99,< 中继 idle 窗。 */
+const INVOKE_TIMEOUT_MS = 15_000;
 /** WS open 等待上限:过时不等(但保留连接),防服务器无 /ws 时永久挂起。 */
 const OPEN_TIMEOUT_MS = 5_000;
 
@@ -203,6 +207,23 @@ export class WebBridge {
   }
 
   async invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+    /* 并发帽快拒重试:浏览器页 boot 期的扫描风暴会撞服务端每连接 32 并发帽
+     * (ws.rs try_acquire 快拒,命令未执行、重发安全),拒信「并发请求过多」。
+     * 不重试 = config_read_workspaces 等关键 boot 调用随机失败,工作区列表
+     * 整面缺失(2026-10-03 桥态实证)。阶梯退避覆盖 storm 收敛窗。 */
+    const BACKOFF_MS = [150, 350, 700, 1500, 3000];
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.invokeOnce<T>(cmd, args);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (attempt >= BACKOFF_MS.length - 1 || !msg.includes("并发请求过多")) throw e;
+        await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt]));
+      }
+    }
+  }
+
+  private async invokeOnce<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
     await this.ensure();
     if (!this.ws || this.ws.readyState !== WS_OPEN) {
       throw new Error("web bridge disconnected");
@@ -219,9 +240,23 @@ export class WebBridge {
       reject,
     });
     this.ws.send(frame);
-    return promise;
+    /* 响应超时:半开线(边缘 open 而后端已死)响应永不回,迟到响应打在已删
+     * entry 上自然丢弃;超时弃 pending 并强断病线,交给 onClose/DialPolicy 重拨。
+     * 单发 timer 免句柄:正常应答后到点 fire 的空 rej 由兜底吞(race 已 settle)。 */
+    const timeout = new Promise<never>((_, rej) => {
+      setTimeout(() => rej(new Error("bridge response timeout")), INVOKE_TIMEOUT_MS);
+    });
+    void timeout.catch(() => undefined);
+    try {
+      return await Promise.race([promise, timeout]);
+    } catch (e) {
+      if (e instanceof Error && e.message === "bridge response timeout") {
+        this.pending.delete(id);
+        try { this.ws?.close(); } catch { /* 已关 */ }
+      }
+      throw e;
+    }
   }
-
   /** 事件跳帧通知(服务端 Lagged):幕布消费方重拉 history_page 重建。 */
   onEventGap(cb: () => void): () => void {
     this.gapCbs.add(cb);

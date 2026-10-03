@@ -63,6 +63,29 @@ describe("groupHomeRows", () => {
     titleOfDisk: (h: { session: CliDiskSession }) => h.session.title ?? h.session.id,
   };
 
+  it("workspaceId 与 cwd 不同源:活行跨桶借全局真名(2026-10-04 真机兜底名实锤)", () => {
+    const stray = {
+      id: "pty-x",
+      profileId: "omp",
+      cwd: "/elsewhere-repo",
+      workspaceId: "w1", // 归 w1 卡,但会话文件在别的桶
+      createdAt: 9500,
+      cliSessionId: "01a10267-9cb4-71bf-b998-108e7fec7545",
+    };
+    const groups = groupHomeRows({
+      ...args,
+      sessions: [stray],
+      history: new Map([
+        ["/w1", [{ profileId: "claude", session: claudeSession }]],
+        ["/elsewhere-repo", [
+          { profileId: "omp", session: { id: stray.cliSessionId, title: "工作区折叠改为绑定命名文字", modifiedAt: 9400, path: "/x.jsonl" } },
+        ]],
+      ]),
+    });
+    const live = groups[0].rows.find((r) => r.kind === "live");
+    expect(live?.title).toBe("工作区折叠改为绑定命名文字");
+  });
+
   it("活会话已落盘(cliSessionId 命中磁盘项):借磁盘真标题并对同会话磁盘行去重", () => {
     const bound = {
       id: "pty-9",

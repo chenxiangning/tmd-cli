@@ -204,7 +204,7 @@
 .lsp-peek-row-code {
   font-family: var(--tmd-font-mono, ui-monospace, monospace);
   font-size: var(--tmd-font-xs);
-  opacity: 0.65;
+  opacity: 0.75; /* code 渲染上色后 0.65 发闷(配色映射见 lsp-code.css) */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

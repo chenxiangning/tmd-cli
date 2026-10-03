@@ -74,6 +74,11 @@
   height: 0.875rem;
 }
 
+/* 行内 worktree fork 与侧栏卡同吃装饰色(worktree 键,类名同侧栏卡;缺省回落行图标色) */
+.panel-overflow-item-icon .is-worktree-icon {
+  color: var(--icon-decor-worktree, inherit);
+}
+
 .panel-overflow-item-label {
   flex: 1 1 auto;
   min-width: 0;

@@ -27,6 +27,9 @@ dialog.sheet-scrim::backdrop{background:rgba(0,0,0,.45);animation:scrim-in .2s e
 .ws-opt.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
 .ws-opt .ck{margin-left:auto;flex:none;display:none;color:var(--accent)}
 .ws-opt.on .ck{display:inline-flex}
+/* 工作区行会话计数(右靠弱化,选中行随强调色) */
+.ws-cnt{margin-left:auto;flex:none;font-size:10.5px;color:var(--fg-subtle)}
+.ws-opt.on .ws-cnt{color:var(--accent)}
 /* 引擎双列卡片:品牌 glyph + 名字;选中 = 描边 + 淡底 + 右上圆点 */
 .eng-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
 .eng-opt{position:relative;display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--bg-panel);padding:9px 11px;font-size:12.5px;color:var(--fg);text-align:left;font-family:inherit;cursor:pointer}

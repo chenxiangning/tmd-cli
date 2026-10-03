@@ -182,11 +182,12 @@
 .panel-rail-tab.is-active[data-panel-id="approval-inbox"] { color: var(--icon-decor-panel-approval-inbox, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-panel-id="skill-hub"] { color: var(--icon-decor-panel-skill-hub, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-panel-id="mcp-hub"] { color: var(--icon-decor-panel-mcp-hub, var(--rail-accent-fallback)); }
-/* rail 上的侧栏动作钮(ssh = 面板 tab;wsl/terminal/intent-canvas = rail 动作)同吃图标装饰点亮色 */
+/* rail 上的侧栏动作钮(ssh = 面板 tab;wsl/terminal/intent-canvas/system-proxy = rail 动作)同吃图标装饰点亮色 */
 .panel-rail-tab.is-active[data-panel-id="ssh"] { color: var(--icon-decor-ssh-panel, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-action-id="wsl-panel"] { color: var(--icon-decor-wsl-panel, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-action-id="terminal"] { color: var(--icon-decor-terminal, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-action-id="intent-canvas"] { color: var(--icon-decor-intent-canvas, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-action-id="system-proxy"] { color: var(--icon-decor-system-proxy, var(--rail-accent-fallback)); }
 
 .panel-rail-tab svg {
   width: 1rem;

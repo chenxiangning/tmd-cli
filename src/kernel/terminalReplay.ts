@@ -89,7 +89,9 @@ export function writeInChunks(
 }
 
 /** 回放 + 实时订阅 + 就绪探测装配;返回 cleanup(停订阅、清计时器、忽略迟到的回调)。
- *  hiddenDefer 可选:隐藏幕布合帧写入(Fix B,见 HIDDEN_FLUSH_MS 注)。 */
+ *  hiddenDefer 可选:隐藏幕布合帧写入(Fix B,见 HIDDEN_FLUSH_MS 注)。
+ *  onLive 可选:实时字节到达即戳(不分直写/攒队分支;幕布数据链停滞探针的
+ *  活性真源,见 canvasStall.ts)。 */
 export function attachTerminalStream(
   term: Pick<Terminal, "write">,
   sessionId: string,
@@ -97,6 +99,7 @@ export function attachTerminalStream(
   onProgress: (p: LoadProgress) => void,
   onReady?: () => void,
   hiddenDefer?: HiddenDeferControl,
+  onLive?: () => void,
 ): () => void {
   let cancelled = false;
   let quietTimer: ReturnType<typeof setTimeout> | undefined;
@@ -129,7 +132,7 @@ export function attachTerminalStream(
   };
   hiddenDefer?.bindFlush(flushDeferred);
   const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
-
+    onLive?.();
     if (liveQueue) {
       liveQueue.push(text);
       diskChunkSink?.(text);

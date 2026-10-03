@@ -3,9 +3,9 @@
  *
  * - 职责:「网络代理」浮层(滑动块启用开关 + 代理地址,校验/归一见 proxyCommit);
  *   经 overlay 挂点常驻(关闭态渲染 null),portal 挂 body。
- * - 入口:侧栏齿轮菜单/底栏钉住的「网络代理」按钮 —— 本插件 activate 时经
- *   kernel/sidebarActions 注册表自注册(标签/图标/激活态/回调),壳只渲染
- *   注册表,互不引用。
+ * - 入口:右缘 PanelRail 底部簇图标(2026-10-04 自左下底栏钉住位迁来)——
+ *   本插件 activate 时经 kernel/sidebarActions 注册表自注册(标签/图标/
+ *   激活态/回调),壳只渲染注册表,互不引用。
  * - 生效在 Rust proxy.rs(进程 env 注入):客户端联网 + 之后 spawn 的 CLI 子进程。
  *   拔出插件 = 注册表动作与浮层一并消失,settings 数值保留,重启客户端后
  *   env 不再注入(启动 apply 读字段恒定)。
@@ -61,7 +61,12 @@ export const networkProxyPlugin: Plugin = {
       label: "网络代理",
       icon: LadderIcon,
       order: 30,
-      defaultPinned: true,
+      /* 右 rail 底部簇:锚点取 rail 钮左缘,浮层实测后向左翻弹(ProxyPopover
+       * 落位双向);pinOnce 一次性钉入 —— 存量 tmd.filePanel.pinned.v1 无本 id,
+       * 不补钉则入口隐身、只能 ⋯ 菜单勾回。 */
+      rail: true,
+      railBottom: true,
+      pinOnce: true,
       active: () => getSettingsState().settings.networkProxyEnabled,
       onSelect: (anchor) => openProxyPopover(anchor.x, anchor.y),
     });

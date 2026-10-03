@@ -149,10 +149,15 @@ export function togglePinned(id: string): void {
   commit();
 }
 
-/** 一次性把新面板钉进 toolbar(registerFilePanel 的 pinOnce 选项内部调用,
- *  不导出——钉住写面只走注册面,插件无旁路)。 */
+/** 一次性把新面板/rail 动作钉进 toolbar(注册面 pinOnce 选项内部调用,
+ *  不导出——钉住写面只走注册面,插件无旁路)。
+ *  留痕先行:marker 一查一写在任何早退之前 —— 用户手动取消钉后重启,
+ *  marker 已存在即不再自动钉(「取消后不复活」契约,无清单路径同守)。
+ *  合并写防截断(2026-10-04 二轮评审 P0):persisted 在则写「原清单 ∪ {id}」,
+ *  不走 togglePinned 的全量覆写 —— 插件串行激活,此刻未注册面板/rail 动作
+ *  不在 state 快照,覆写会把它们的钉住截断丢盘;persisted 缺(新装)则只入
+ *  state 不落盘,提前造权威清单会反向丢掉其它面板的 pinnedByDefault 播种。 */
 function ensurePanelPinned(id: string): void {
-  if (!persistedPinnedIds || persistedPinnedIds.has(id)) return;
   const marker = `tmd.filePanel.autopin.${id}`;
   try {
     if (localStorage.getItem(marker)) return;
@@ -160,18 +165,24 @@ function ensurePanelPinned(id: string): void {
   } catch {
     return;
   }
-  if (!state.pinnedIds.has(id)) togglePinned(id);
+  if (state.pinnedIds.has(id)) return; /* 已钉(默认播种/清单在列):只补留痕 */
+  state.pinnedIds = new Set([...state.pinnedIds, id]);
+  if (persistedPinnedIds) persistPinnedIds(new Set([...persistedPinnedIds, id]));
+  commit();
 }
 
 /** rail 直挂动作(sidebarActions.rail)的钉住登记:与面板同规则 —— persisted
  *  清单存在即权威(缺 id = 不钉,可经 ⋯ 菜单勾回),清单缺失回落 pinnedByDefault;
- *  只入 state 不落盘,用户首次勾选才写 tmd.filePanel.pinned.v1。 */
-export function registerRailActionPin(id: string, pinnedByDefault = true): void {
+ *  只入 state 不落盘,用户首次勾选才写 tmd.filePanel.pinned.v1。
+ *  pinOnce = 面板 pinOnce 同语义的一次性补钉(存量清单无此 id 时自动钉一次,
+ *  手动取消后不复活;入口迁移类动作用,先例 system-proxy 2026-10-04)。 */
+export function registerRailActionPin(id: string, pinnedByDefault = true, pinOnce = false): void {
   const pinned = persistedPinnedIds ? persistedPinnedIds.has(id) : pinnedByDefault;
   if (pinned && !state.pinnedIds.has(id)) {
     state.pinnedIds = new Set([...state.pinnedIds, id]);
     commit();
   }
+  if (pinOnce) ensurePanelPinned(id);
 }
 
 export function getFilePanels(): readonly FilePanelContribution[] {

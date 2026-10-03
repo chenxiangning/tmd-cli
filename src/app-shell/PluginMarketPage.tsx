@@ -103,6 +103,17 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
     <div className="pm-page">
       <div className="pm-inner">
         <div className="pm-head">
+          {/* 左上 × 关闭(2026-10-04 用户口径):市场覆盖层盖住左缘 rail,
+              插头钮够不着,顺手位必须在页头左端;右端 pm-close 保留。 */}
+          <button
+            type="button"
+            className="pm-close pm-close-lead"
+            aria-label={t("关闭插件市场")}
+            title={t("关闭插件市场")}
+            onClick={onClose}
+          >
+            <Cross size="0.875rem" aria-hidden />
+          </button>
           <span className="pm-title">{t("插件市场")}</span>
           <span className="pm-sub">
             {t("客户端是插排,插件是插头 —— 插上即用,拔掉即停")}

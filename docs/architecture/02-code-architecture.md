@@ -1,7 +1,7 @@
 # tmd-cli 代码级架构（当前实现）
 
-- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-09、2026-09-14、2026-09-19、2026-09-27 按当前代码校准）
-- 状态：对应主干当前代码（v0.2.4）
+- 日期：2026-09-01（2026-09-04、2026-09-06、2026-09-09、2026-09-14、2026-09-19、2026-09-27、2026-10-04 按当前代码校准）
+- 状态：对应主干当前代码（v0.2.9，含 2026-10-04 渲染健康第十一轮）
 - 前置阅读：[01-overview.md](01-overview.md)（设计决策层）；本文是**代码事实层**——每个节点都能在仓库里找到对应文件/符号。
 
 ## 1. 全景分层
@@ -15,7 +15,7 @@ flowchart TB
         subgraph SHELL["app-shell/（宿主外壳）"]
             APPSHELL["AppShell.tsx<br/>三栏可拖布局 + 顶/底栏<br/>Mounts(point) 渲染挂点"]
             CONTRIB["contributions.tsx<br/>默认 UI：SessionList / Breadcrumb / TopTabs"]
-            SHELLX["app-shell 组件群:EditorCenter(文件预览面板) · SessionTabBar(顶栏会话 tab)<br/>TabContextMenu · editorMaximized · PanelRail(右缘竖排面板入口,2026-09-27 起)<br/>RightPanelToolbar(顶栏右区非面板动作) · SidebarSettingsCluster"]
+            SHELLX["app-shell 组件群:EditorCenter(文件预览面板) · SessionTabBar(顶栏会话 tab)<br/>TabContextMenu · editorMaximized · PanelRail(右缘竖排面板入口,2026-09-27 起)<br/>LeftRail(左缘竖排入口,2026-10-04 起:插件 sidebarActions.leftRail 动作 + 壳自有<br/>市场/回首页/工作区切换) · SidebarSettingsCluster(左下设置簇 + 工作区显隐多选)<br/>zoomCommands(⌘+/⌘−/⌘0 界面缩放键位)"]
         end
 
         subgraph KERNEL["kernel/（内核，不 import 任何插件）"]
@@ -80,8 +80,8 @@ flowchart TB
     end
 
     subgraph BE["Tauri Rust 后端（src-tauri/src/）"]
-        LIB["lib.rs<br/>162 个 tauri::command 注册(git 40(含 worktree 4 + pr 2 + file 2 + blame) + ssh 19 + commands_fs 18 + web/relay 13 + session_commands 13 + checkpoints 11 + fs_edit 8 + 本机插件 8(plugins_cmds 5 + skill_pkg 3) + wsl 6(wsl/wsl_remote/wsl_remote_ops 1/1/4) + proc_stream 4 + open_with 3 + lsp 3 + quota 2 + sqlite 2 + mcp_probe 1 + render_health 1 + lib.rs 直注册 10)<br/>panic 钩子落盘 panic.log(钩子内禁再 panic,safe_eprintln 断管道免疫)"]
-        PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出"]
+        LIB["lib.rs<br/>165 个 tauri::command 注册(git 40(含 worktree 4 + pr 2 + file 2 + blame) + ssh 19 + commands_fs 18 + web/relay 13 + session_commands 14 + checkpoints 11 + fs_edit 8 + 本机插件 8(plugins_cmds 5 + skill_pkg 3) + wsl 6(wsl/wsl_remote/wsl_remote_ops 1/1/4) + proc_stream 4 + open_with 3 + lsp 3 + quota 2 + sqlite 2 + mcp_probe 1 + render_health 1 + lib.rs 直注册 12(+app_pid/process_alive,2026-10-04))<br/>panic 钩子落盘 panic.log(钩子内禁再 panic,safe_eprintln 断管道免疫)"]
+        PTY["pty.rs — PtyRegistry<br/>portable-pty spawn/write/resize/kill<br/>reader→emitter 双线程聚合泵输出<br/>(自适应聚合窗 8→50ms;后台/渲染暂停<br/>钳 250ms 慢拍,viewed+render_active 双判据)"]
         SLOG["session_log.rs<br/>会话输出落盘(64MB 旋转) + 翻页读取"]
         RESOLVE["resolve/(mod·path_cache·which)<br/>PATH 富化 / 命令解析(pty·probe·installer 共用)"]
         PROBE["probe.rs + probe_prefix.rs<br/>CLI 探针 found/path/version/npmPrefix(8s 超时;npm 布局识别含 symlink 跟链)"]
@@ -91,7 +91,7 @@ flowchart TB
         FS["fs.rs<br/>list_dir / read_file / read_head / read_tail<br/>collect_files / write_temp / remove_path(白名单)<br/>read_local_image_data_url(md 预览)"]
         FSW["fs_walk.rs 全仓文件索引(gitignore 系)<br/>proc_run.rs 通用短进程通道"]
         GIT["git/<br/>libgit2 原语(status/diff/branch/log+refs装饰/commit)<br/>commit_view 单提交文件清单+patch(历史 Graph)<br/>远端 fetch/pull/push 与 worktree 走 shell-out(commands_worktree,<br/>写命令 run_mut 成功 evict 缓存句柄;porcelain 解析 worktree_parse)"]
-        SSHB["ssh/ — russh 0.62 引擎(输出走 pty://out 同构事件)<br/>transport·session·auth·known_hosts·control<br/>forward(L 本地转发)·sftp(+transfer/path)·io·proxy·e2e_tests"]
+        SSHB["ssh/ — russh 0.63 引擎(输出走 pty://out 同构事件)<br/>transport·session·auth·known_hosts·control<br/>forward(L 本地转发)·sftp(+transfer/path)·io·proxy·e2e_tests"]
         HASH["hash.rs<br/>md5_hex 通用哈希原语"]
         FSE["fs_edit.rs — 文件写操作<br/>新建/重命名/废纸篓/访达显示/编辑器保存<br/>(绝对路径,禁 .git 段,16MB 上限)"]
         PROXY["proxy.rs — 进程级代理 env 注入<br/>启动按 settings 应用,无 command 面"]
@@ -146,7 +146,7 @@ sequenceDiagram
     participant M as main.tsx
     participant H as host (Host 单例)
     participant R as Rust: session_list
-    participant P as allPlugins (38 个)
+    participant P as allPlugins (44 个)
     participant C as contributions.tsx
     participant A as AppShell
 
@@ -421,7 +421,7 @@ dsh(DeepSeek Harness)会话盘是 `session.jsonl.zstd` 压缩流,fs 文本原语
 
 ```mermaid
 flowchart LR
-subgraph MOUNT["MountPoint（plugin.ts 定义的 15 个挂点)"]
+subgraph MOUNT["MountPoint（plugin.ts 定义的 17 个挂点)"]
         direction TB
         HB["header.breadcrumb"]
         HLR["header.left / header.right"]
@@ -430,6 +430,8 @@ subgraph MOUNT["MountPoint（plugin.ts 定义的 15 个挂点)"]
         LS2["leftSidebar.workspaceCaption"]
         ECW["editorCenter.welcome"]
         ECC["editorCenter.composer"]
+        ECO["editorCenter.canvasOverlay"]
+        TCR["terminal.canvasRow"]
         CSB["composer.statusBar"]
         CIR["composer.inputRail"]
         CAT["composer.attachments"]
@@ -456,8 +458,10 @@ subgraph MOUNT["MountPoint（plugin.ts 定义的 15 个挂点)"]
     P_SSH2 -->|"「SSH 连接」入口"| WSM
     P_WSL2["wsl 插件"] -->|"WSL 主机卡"| WF
     P_LOCL2["local-loader"] -->|"本机插件次级插排"| MKT
+    P_SVIEW2["session-viewer 插件"] -->|"活会话转录浮层"| ECO
+    P_SVIEW2 -->|"结构化视图切换钮<br/>(刷新钮收尾最右)"| TCR
     P_FILES2 & P_SSH2 -->|"kind= file / ssh-file"| TABRT
-    Note2["右栏面板并列 tab(files/git/marks/checkpoints/approval-inbox/memory/ssh)<br/>不走挂点:经 ctx.registerFilePanel(kernel/filePanel 注册表),<br/>入口渲染 = 右缘 PanelRail(2026-09-27,钉住∪激活 + ⋯ 溢出)"]
+    Note2["右栏面板并列 tab(files/git/marks/checkpoints/approval-inbox/memory/<br/>skill-hub/mcp-hub/daily-journal/ssh)<br/>不走挂点:经 ctx.registerFilePanel(kernel/filePanel 注册表),<br/>入口渲染 = 右缘 PanelRail(2026-09-27,钉住∪激活 + ⋯ 溢出 + rail 位侧栏动作);<br/>左缘 LeftRail(2026-10-04)镜像入口 = leftRail 位侧栏动作(注册即常显、无钉住)<br/>+ 壳自有市场/回首页/工作区切换,顶簇/底簇两段"]
 
     Note["Mounts 是 kernel 公共渲染器；<br/>挂点按 order 升序渲染；<br/>composer.statusBar 已承载只读模型/思考强度工具栏；<br/>设置面板 section 经 ctx.registerSettingsSection 注册"]
 ```
@@ -508,20 +512,21 @@ flowchart TD
 
 ## 8. Rust 后端命令面
 
-注册的 162 个 `#[tauri::command]`(git 40:commands.rs 31 + commands_worktree 4 + commands_pr 2 + commands_file 2 + blame 1 · ssh 19 · commands_fs 18 · web/relay 13 · session_commands 13 · checkpoints 11 · fs_edit 8 · wsl 6(wsl/wsl_remote/wsl_remote_ops 1/1/4) · plugins_cmds 5 + skill_pkg 3 · proc_stream 4 · open_with 3 · lsp 3 · quota 2 · sqlite 2 · mcp_probe 1 · render_health 1 · lib.rs 直注册 10),与 `ipc.ts` 一一对应:
+注册的 165 个 `#[tauri::command]`(git 40:commands.rs 31 + commands_worktree 4 + commands_pr 2 + commands_file 2 + blame 1 · ssh 19 · commands_fs 18 · web/relay 13 · session_commands 14 · checkpoints 11 · fs_edit 8 · wsl 6(wsl/wsl_remote/wsl_remote_ops 1/1/4) · plugins_cmds 5 + skill_pkg 3 · proc_stream 4 · open_with 3 · lsp 3 · quota 2 · sqlite 2 · mcp_probe 1 · render_health 1 · lib.rs 直注册 12),与 `ipc.ts` 一一对应:
 
 | 命令 | 实现 | 说明 |
 |---|---|---|
 | `session_spawn` | `session_commands.rs` → `pty.rs`/`session.rs` | PTY:openpty → spawn 子进程 → 双线程泵 → 内存登记;SSH kind 路由 russh 引擎(spawn_blocking,冷路径内联 PATH 富化);kind/title 由调用方声明(内置终端 kind=shell,缺省 cli) |
 | `session_list` | `session_commands.rs` | 活会话纯内存注册表(进程重启即空;历史恢复走各 CLI 磁盘扫描;SSH 会话独立分组) |
 | `session_write` / `session_resize` / `session_kill` | `session_commands.rs` → `pty.rs` | writer 直写 / master.resize / child.kill(写路径 spawn_blocking 防全局锁卡 UI) |
+| `session_set_viewed` | `session_commands.rs` → `pty.rs` | 幕布在视打点(TerminalView 激活态上报,viewed 原子位):泵侧聚合降档判据之一 —— 无人在视或前端渲染暂停(render_health.active)的会话,输出聚合窗钳 250ms 慢拍(OUT_BACKGROUND_WINDOW),后台 TUI 状态动画不再以 20 事件/s 唤醒 webview 主链;字节与日志保真不受触碰(契约见 17) |
 | `session_log_size` / `session_history_page` | `session_commands.rs` + `session_log.rs` | 输出日志末尾偏移 / 绝对偏移前翻一页(转义+UTF-8 边界对齐) |
 | `session_set_workspace` / `session_link_log` / `session_disk_tail` | `session_commands.rs` + `session_disk_log.rs` | 会话补写工作区归属(预热接管路径)/ spawn 代日志指针写 / 磁盘尾读(磁盘先行回放寻址,profile+cwd+cliSessionId 三元) |
 | `cli_probe` | `probe.rs` | PATH 解析 + `--version`(8s 硬超时,spawn_blocking;输出带超时收集防孙进程握管道挂死);返回增发 `npmPrefix`:命中副本位于 npm 全局布局(unix `<X>/bin/<bin>` + `<X>/lib/node_modules`,win `<X>\<bin>.cmd` + `<X>\node_modules`)时返回其 prefix,官方原生副本(如 `.kimi-code\bin`)为 null |
 | `cli_install_run` | `installer.rs` | 参数化 InstallPlan 执行(npm / script / command 三通道,配方由前端 CliProfile 声明),`cli-install://{id}` 流式日志(300s 超时);npm 通道按探针 `npmPrefix` 加 `--prefix` 就地更新探针命中的副本(双副本遮蔽修复);主引擎安装通道由 welcome 按探针解析(`resolveInstallPlan`:npm 拥有的副本且声明通道非 script → npm;命中非 npm 原生副本且声明通道是 npm 时,`CliProfile.commandUpdate`(CLI 自带 update 子命令,如 qoder 的 `qodercli update`)→ command 通道就地自更新,否则声明通道),前置依赖门控在引擎卡:`CliProfile.requires` 声明(如 omp→bun),依赖未就位则安装/更新按钮禁用并引导先装依赖 |
 | `sqlite_query` / `sqlite_execute` | `sqlite.rs` | 只读代读(RW 打开 + query_only 连接:重放 WAL 看到未 checkpoint 行)/ 参数化写(opencode 删除会话,foreign_keys 级联);async + spawn_blocking(cli 持写锁时不冻主线程);CLI 私有库路径/表结构知识在插件侧(cli-shared/quota/ompAuth.ts、cli-opencode/db.ts) |
 | `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
-| `platform_kind` / `app_restart` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效) |
+| `platform_kind` / `app_restart` / `app_pid` / `process_alive` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效)/ 本应用进程 pid / 进程存活探测(kill -0,EPERM 保守判活)——后两者为 lsp jdt 数据目录按 app 实例×工作区双键隔离与陈旧实例回收的通用原语(5b0a841b,根治双 jdt workspace 锁互等 60s 死等) |
 | `fs_list_dir` | `fs.rs` | 单层列举，隐藏过滤，目录排前 |
 | `fs_read_file` | `fs.rs` | ≤512KB、非二进制、UTF-8 才给预览 |
 | `fs_write_temp` | `fs.rs` | 截图/拖拽文件落系统临时目录 `temp_dir()/tmd-cli` |
@@ -645,11 +650,11 @@ sessionExited → checkpoint_seal(兜底,最后一轮落账)
 | 会话状态只读 | `CliProfile.readSessionStatus` 负责 CLI 私有 JSONL 解析；Host 只缓存/刷新，Composer 通过 `composer.statusBar` 展示 |
 | 会话固定一个 CLI | `SessionMeta.profileId` 创建后不变；resume 用同 profile 重 spawn |
 | 幂等/防御 | `activateAll` Promise 并发闸；`registerDefaultContributions` registered 标志；`registerCliProfile` 重复即抛错 |
-| 组件治理(react-doctor) | 当前 876 个 .ts/.tsx 源文件(不含测试)得分 100/100(收口闸);约束:`only-export-components`(组件文件只留组件,纯函数/常量提同级 *Model.ts)、嵌套交互治理(button 不可嵌 button → 拆 DOM 兄弟 host span,hover/焦点显形吃宿主选择器)、渲染期写 ref → useEffect、自制 `<aside role=dialog>` → 原生 `<dialog open>` 时显式中和 UA `color: canvastext` + `max-width/max-height` 钳制(至少 `color: inherit` 与 `max-w-none max-h-none`);`doctor.config.json` 豁免须带证据注释 |
+| 组件治理(react-doctor) | 当前 1129 个 .ts/.tsx 源文件(不含测试,2026-10-04)得分 100/100(收口闸);约束:`only-export-components`(组件文件只留组件,纯函数/常量提同级 *Model.ts)、嵌套交互治理(button 不可嵌 button → 拆 DOM 兄弟 host span,hover/焦点显形吃宿主选择器)、渲染期写 ref → useEffect、自制 `<aside role=dialog>` → 原生 `<dialog open>` 时显式中和 UA `color: canvastext` + `max-width/max-height` 钳制(至少 `color: inherit` 与 `max-w-none max-h-none`);`doctor.config.json` 豁免须带证据注释 |
 
 ## 10. 已知缺口（代码现状，非设计意图）
 
-- 挂点准入纪律:只声明外壳真的渲染的位点(footer.*/leftRail/rightRail 死插座已于 2026-09-05 审查删除);`overlay` 由 settings / network-proxy / ssh / wallpaper / search / session-board / lsp / academy / session-relay / session-search / checkpoints(窄屏摘要)贡献。
+- 挂点准入纪律:只声明外壳真的渲染的位点(footer.*/leftRail/rightRail 死插座已于 2026-09-05 审查删除;2026-10-04 注:左缘工具 rail 不是挂点复活 —— 插件入口经 sidebarActions 注册面的 leftRail/leftRailBottom 字段直挂、壳自有功能壳自渲染,挂点表保持 17 个不变);`overlay` 由 settings / network-proxy / ssh / wallpaper / search / session-board / lsp / academy / session-relay / session-search / checkpoints(窄屏摘要)贡献。
 - CLI 凭据盘点未覆盖 kimi/qoder/qoder-cn（`welcome/credentials.ts` 分支仅 omp/pi/codex/claude/grok/opencode）。
 - Codex 的 session 状态解析采用容错字段匹配，完整 `turn_context` schema 仍需随 CLI 版本验证。
 - `composer` 命令抽屉已归档(openspec archive/2026-09-02-composer-command-drawer,v0.1.2 起在产);mobile M2 代码已落地、真机验收余 8 项(钥匙串重启免重配 / ask 应答链 / 发送链 / 锁屏通知 / 双端点竞速等,task 板在案;7.4 代码半边竞速矩阵单测已随 v0.2.5 补位)。
