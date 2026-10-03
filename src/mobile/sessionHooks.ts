@@ -2,27 +2,35 @@
  * sessionHooks —— SessionScreen 的独立副作用(尺寸自适应 + 审批线徽标 + transcript
  * 实时生长),抽出以控组件复杂度。
  */
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@kernel/transport";
 import type { TranscriptTurn } from "@kernel/transcript";
 import { pollTranscript, resolveTranscriptPath } from "./sessionFile";
 
-/** transcript 轮询周期:尺寸闸短路拍近零开销,2s 保证对话生长观感。 */
+/** transcript 轮询周期:尺寸闸短路拍近零开销,2s 保证对话生长观感;
+ * 写入侧 poke()(发送/应答成功后 300ms 补拍)消「白等下一拍」的迟滞。 */
 const POLL_MS = 2000;
+/** 写后补拍延迟:覆盖 CLI 收到输入 → jsonl 落盘的迟滞窗(立拍常读旧尾)。 */
+const POKE_DELAY_MS = 300;
 
 /** transcript 实时生长(spec 2026-09-25-mobile-session-render):定位 jsonl 后
  *  2s 一拍 pollTranscript(changed 才重解析 setState);后台标签页暂停拍但保活;
- *  非契约引擎持续重试定位(新会话 jsonl 懒落盘)。null = 尚无可解析对话,UI 回落实况。 */
+ *  非契约引擎持续重试定位(新会话 jsonl 懒落盘)。null = 尚无可解析对话,UI 回落实况。
+ *  返回 poke:写入成功后把下一拍提前到 ~300ms(spec 2026-10-03-mobile-keybar-
+ *  relayout),发消息/应答审批 ~0.3s 上屏而非白等 2s 拍;与在途拍竞态无害
+ *  (pollTranscript 只读,size 台账末写胜出,append-only 源不重排)。 */
 export function useLiveTurns(
   profileId: string | undefined,
   cwd: string | undefined,
   sessionKey: string,
   sinceMs?: number,
-): TranscriptTurn[] | null {
+): { turns: TranscriptTurn[] | null; poke: () => void } {
   const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
+  const pokeRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (!profileId || !cwd) {
       setTurns(null);
+      pokeRef.current = null;
       return;
     }
     let alive = true;
@@ -45,13 +53,20 @@ export function useLiveTurns(
       }
       timer = window.setTimeout(tick, POLL_MS);
     };
+    pokeRef.current = () => {
+      if (!alive) return;
+      clearTimeout(timer);
+      timer = window.setTimeout(tick, POKE_DELAY_MS);
+    };
     void tick();
     return () => {
       alive = false;
       clearTimeout(timer);
+      pokeRef.current = null;
     };
   }, [profileId, cwd, sessionKey, sinceMs]);
-  return turns;
+  const poke = useCallback(() => pokeRef.current?.(), []);
+  return { turns, poke };
 }
 
 /** 审批线 chip:checkpoint_list(白名单只读)60s 轻拉;仅 (cwd,sessionId) 齐备时。 */

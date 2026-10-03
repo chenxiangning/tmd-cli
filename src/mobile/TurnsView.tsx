@@ -4,8 +4,11 @@
  * (key 用下标是语义正解,非图省事)。助手长文默认 clamp,点击展开。
  * 视觉重皮(spec 2026-09-25-mobile-session-render,对标 codemoss 消息时间线):
  * 连续 tool turn 在渲染层归组折叠为一条「工具调用 {n} 次」芯片,数据与顺序不动。
+ * memo 止血(spec 2026-10-03-mobile-keybar-relayout):SessionScreen 的 live 逐帧
+ * 更新不再触发本树重渲——每条消息的 ReactMarkdown 重解析是手机实况 2 秒迟滞
+ * 的主因;turns 引用仅在 transcript 真变化时更换,AssistantMsg 再按 text 细分。
  */
-import { useState } from "react";
+import { memo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { t } from "@kernel/i18n";
@@ -26,7 +29,7 @@ function Md(props: { text: string }) {
   );
 }
 
-function AssistantMsg(props: { text: string }) {
+const AssistantMsg = memo(function AssistantMsg(props: { text: string }) {
   const [open, setOpen] = useState(false);
   const lines = props.text.split("\n");
   const long = lines.length > CLAMP_LINES;
@@ -51,7 +54,7 @@ function AssistantMsg(props: { text: string }) {
       </span>
     </button>
   );
-}
+});
 
 /** 折叠工具运行:默认一条芯片,点开逐条单行摘要;再点收起。 */
 function ToolRun(props: { items: TranscriptTurn[] }) {
@@ -78,7 +81,7 @@ function ToolRun(props: { items: TranscriptTurn[] }) {
   );
 }
 
-export function TurnsView(props: { turns: TranscriptTurn[] }) {
+export const TurnsView = memo(function TurnsView(props: { turns: TranscriptTurn[] }) {
   return (
     <div className="tr">
       {groupTurns(props.turns).map((seg) => {
@@ -94,7 +97,7 @@ export function TurnsView(props: { turns: TranscriptTurn[] }) {
       })}
     </div>
   );
-}
+});
 
 /** ask 审批卡:活流尾窗命中等待标记时出现;允许/拒绝 = 与幕布按键同一 session_write。
  *  busy = 应答在途(双钮禁用,外网 RTT 双击不双写)。 */

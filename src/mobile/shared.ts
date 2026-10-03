@@ -194,23 +194,31 @@ export function sortBatches(bs: CkptLite[]): CkptLite[] {
   return [...bs].sort((a, b) => Number(b.open) - Number(a.open) || b.index - a.index);
 }
 
-/** 键盘工具条键表(顺序 = 视觉顺序;窄屏横向可滚)。 */
+/** 键盘工具条键表(两行大键网格,spec 2026-10-03-mobile-keybar-relayout):
+ * 行1 导航五键(D-pad 心智,↑↓ 在中),行2 功能六键;PTY 序列契约不变。 */
 export interface KeyDef {
   label: string;
   seq: string;
   aria: string;
 }
 
-export const KEYS: KeyDef[] = [
-  { label: "model", seq: "/model\r", aria: "切换模型" },
-  { label: "esc", seq: "\x1b", aria: "Esc" },
-  { label: "tab", seq: "\t", aria: "Tab" },
-  { label: "⌃c", seq: "\x03", aria: "Ctrl+C" },
-  { label: "←", seq: "\x1b[D", aria: "Left" },
-  { label: "→", seq: "\x1b[C", aria: "Right" },
-  { label: "↑", seq: "\x1b[A", aria: "Up" },
-  { label: "↓", seq: "\x1b[B", aria: "Down" },
-  { label: "↵", seq: "\r", aria: "Enter" },
-  { label: "Pg↑", seq: "\x1b[5~", aria: "PageUp" },
-  { label: "Pg↓", seq: "\x1b[6~", aria: "PageDown" },
+export const KEY_ROWS: KeyDef[][] = [
+  [
+    { label: "←", seq: "\x1b[D", aria: "Left" },
+    { label: "↑", seq: "\x1b[A", aria: "Up" },
+    { label: "↓", seq: "\x1b[B", aria: "Down" },
+    { label: "→", seq: "\x1b[C", aria: "Right" },
+    { label: "↵", seq: "\r", aria: "Enter" },
+  ],
+  [
+    { label: "esc", seq: "\x1b", aria: "Esc" },
+    { label: "tab", seq: "\t", aria: "Tab" },
+    { label: "⌃c", seq: "\x03", aria: "Ctrl+C" },
+    { label: "Pg↑", seq: "\x1b[5~", aria: "PageUp" },
+    { label: "Pg↓", seq: "\x1b[6~", aria: "PageDown" },
+    { label: "model", seq: "/model\r", aria: "切换模型" },
+  ],
 ];
+
+/** 展平键表(兼容既有消费面;顺序 = 行优先)。 */
+export const KEYS: KeyDef[] = KEY_ROWS.flat();

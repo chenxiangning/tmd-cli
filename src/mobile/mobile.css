@@ -104,9 +104,13 @@
 .shot-preview{position:fixed;inset:0;z-index:50;margin:0;padding:0;max-width:none;max-height:none;width:100vw;height:100dvh;border:none;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.85);animation:shotIn .15s ease}
 .shot-preview img{max-width:96vw;max-height:92vh;object-fit:contain}
 @keyframes shotIn{from{opacity:0}to{opacity:1}}
-/* 键盘工具条(做实:session_write 原始序列;composer 聚焦时整行隐藏) */
-.keybar{height:38px;display:flex;align-items:center;gap:6px;padding:0 10px;padding-bottom:env(safe-area-inset-bottom);box-sizing:content-box;border-top:.5px solid var(--border);background:var(--bg-panel);flex:none;overflow-x:auto;-webkit-overflow-scrolling:touch}
-.keybar .key{position:relative;font-family:var(--mono);font-size:11px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:6px;padding:3px 9px;background:var(--bg-base);color:var(--fg-muted);white-space:nowrap;cursor:pointer;flex:none}
+/* 键盘工具条(两行大键网格,spec 2026-10-03-mobile-keybar-relayout;composer 聚焦时整行隐藏) */
+.keybar{display:flex;flex-direction:column;gap:7px;padding:7px 10px;padding-bottom:calc(7px + env(safe-area-inset-bottom));border-top:.5px solid var(--border);background:var(--bg-panel);flex:none}
+.keyrow{display:grid;gap:7px}
+.keyrow.nav{grid-template-columns:repeat(5,1fr)}
+.keyrow.fn{grid-template-columns:repeat(6,1fr)}
+.keybar .key{position:relative;min-height:44px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:9px;background:var(--bg-base);color:var(--fg);white-space:nowrap;cursor:pointer}
+.keyrow.nav .key{font-size:15px}
 .keybar .key::after{content:"";position:absolute;inset:-5px}
 .keybar .key:active{background:var(--accent-soft);color:var(--accent)}
 /* transcript:对话(用户/助手)与工具操作分型渲染 */

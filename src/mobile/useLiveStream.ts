@@ -13,7 +13,9 @@
  *   都按水位比对触发一次 rebuild 回放 —— 断连窗口的输出不再成永久缺口。水位 =
  *   尾页 start_offset+text.length,实况 chunk 到达即累加;回放期间新 chunk 进
  *   缓冲换屏后排空(与首载同一套序),免换屏竞态丢字节。
- * - rAF 脏标合帧:全量 view() 重建压到 ≤60Hz。
+ * - rAF 脏标合帧 → 100ms 尾沿节流(spec 2026-10-03-mobile-keybar-relayout):
+ *   全量 view() 重建压到 ~10Hz,文本视口观感仍瞬时,WKWebView 全文重排次数
+ *   较 60Hz 降约 6 倍;尾沿保证最后一帧必达。
  * - useSessionExit:pty://exit 订阅 + 列表消失兜底(会话屏终局横幅的数据面)。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,6 +25,9 @@ import { LiveScreen } from "./liveText";
 import { onPtyOut } from "./remote";
 
 const PAGE_BYTES = 128 * 1024;
+
+/** setLive 尾沿节流间隔:文本视口 10Hz 观感瞬时(人眼对纯文本更新 ~70ms 起感)。 */
+const LIVE_FLUSH_MS = 100;
 
 export interface LiveStream {
   live: string;
@@ -70,17 +75,23 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       let watermark = 0;
       /* 首载完成闸:未完不回放(首载本身就是全量拉尾,抢跑会双喂)。 */
       let ready = false;
+      /* 合帧节流(spec 2026-10-03):flushTimer 在途 = 已有排程,新 chunk 只喂屏
+       * 不再排;flush 时取全量 view()。尾沿必达——最后一帧总在距上次上屏
+       * ≥100ms 处落屏,不存在丢尾。 */
+      let lastSetAt = 0;
+      let flushTimer = 0;
+      const flushView = () => {
+        flushTimer = 0;
+        lastSetAt = Date.now();
+        if (alive) setLive(screen.view());
+      };
       const feedChunk = (chunk: string) => {
         watermark += chunk.length;
         screen.feed(chunk);
-        if (dirty) return;
-        dirty = true;
-        requestAnimationFrame(() => {
-          dirty = false;
-          if (alive) setLive(screen.view());
-        });
+        if (flushTimer) return;
+        const wait = LIVE_FLUSH_MS - (Date.now() - lastSetAt);
+        flushTimer = window.setTimeout(flushView, Math.max(0, wait));
       };
-      let dirty = false;
       const un = await onPtyOut(sessionId, (chunk) => {
         if (!alive) return;
         if (streaming) feedChunk(chunk);
