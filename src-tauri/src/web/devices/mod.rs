@@ -28,6 +28,9 @@ pub(crate) struct Device {
     /// 配对请求来源 IP(展示用;老行缺省空)。
     #[serde(default)]
     pub ip: String,
+    /// 设备平台标识("ios"/"android",配对时上报;展示徽标用,老行缺省 None)。
+    #[serde(default)]
+    pub platform: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]

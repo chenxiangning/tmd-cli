@@ -132,6 +132,7 @@ impl DeviceRegistry {
         code: &str,
         device_name: &str,
         ip: &str,
+        platform: Option<&str>,
         now: u64,
     ) -> Result<(String, String), PairError> {
         self.consume_code(code, now)?;
@@ -149,6 +150,19 @@ impl DeviceRegistry {
             last_seen_at: now,
             approved: false,
             ip: ip.to_string(),
+            /* 展示徽标:收紧到字母数字 16 字符,客户端面只发 ios/android。 */
+            platform: platform.and_then(|p| {
+                let s: String = p
+                    .chars()
+                    .filter(|c| c.is_ascii_alphanumeric())
+                    .take(16)
+                    .collect();
+                if s.is_empty() {
+                    None
+                } else {
+                    Some(s)
+                }
+            }),
         });
         save_devices(dir, &all).map_err(|_| PairError::Storage)?;
         Ok((device_id, token))

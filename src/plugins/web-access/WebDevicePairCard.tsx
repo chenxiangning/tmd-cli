@@ -230,7 +230,8 @@ export function WebDevicePairCard() {
                 aria-hidden
               />
               <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-[var(--tmd-bg-active)] text-meta font-semibold text-[var(--tmd-fg-muted)]">
-                iOS
+                {/* 平台徽标:配对时上报(老行无 platform 回落设备名首字,不断言 iOS)。 */}
+                {d.platform === "android" ? "Android" : d.platform === "ios" ? "iOS" : (d.name.slice(0, 1) || "?")}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-semibold">{d.name}</div>

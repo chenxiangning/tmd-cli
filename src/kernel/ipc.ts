@@ -1224,6 +1224,8 @@ export interface DeviceWire {
   online?: boolean;
   /** 配对请求来源 IP(展示;老行可能为空)。 */
   ip?: string;
+  /** 设备平台("ios"/"android";老行缺省,徽标回落设备名首字)。 */
+  platform?: string;
 }
 
 /** 设备表全量(pending + approved 由 approved 字段区分)。 */

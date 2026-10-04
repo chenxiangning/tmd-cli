@@ -40,7 +40,13 @@ async function tryPair(
   pin?: string,
 ): Promise<{ creds?: MobileCreds; error?: string }> {
   const url = `${base.replace(/\/+$/, "")}/pair`;
-  const body = JSON.stringify({ pairCode: code.trim(), deviceName });
+  const body = JSON.stringify({
+    pairCode: code.trim(),
+    deviceName,
+    /* 平台标识(UA 判定,壳内可信):桌面设备表徽标区分 iOS/安卓(老服务端
+     * 忽略未知字段,不破坏兼容)。 */
+    platform: navigator.userAgent.includes("Android") ? "android" : "ios",
+  });
   try {
     /* 壳内走原生 URLSession(自签中继;WKWebView fetch 过不了自签校验),浏览器态回落 fetch。pin=扫码即信任(TOFU)。 */
     const { status, body: text } = hasShellBridge()
