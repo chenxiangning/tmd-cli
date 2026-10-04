@@ -133,10 +133,10 @@ export function HomeScreen() {
   /** 行 → 归属工作区 id(顶区行跨组,按 groups 反查)。 */
   const wsIdOf = (r: HomeRow): string | undefined =>
     groups.find((g) => g.rows.includes(r))?.wsId;
-  /** 行打开:活 → 实况屏;磁盘 → 历史屏(带续聊三参)。 */
+  /** 行打开:活 → 实况屏(spawn 水位兜未绑定新会话;已绑定走身份匹配);磁盘 → 历史屏。 */
   const openRow = (r: HomeRow): void => {
     if (r.kind === "live") {
-      go({ view: "session", sessionId: r.live!.id });
+      go({ view: "session", sessionId: r.live!.id, spawnedAt: r.live!.createdAt });
       return;
     }
     const wsId = wsIdOf(r);

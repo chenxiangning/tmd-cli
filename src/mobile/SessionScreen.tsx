@@ -55,7 +55,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   /* transcript(spec 2026-09-25-mobile-session-render):jsonl 定位 + 2s 增量生长;
    * 失败/非契约引擎回落 null → PTY 尾流实况。poke = 写入成功后 300ms 补拍
    * (spec 2026-10-03):发消息/应答 ~0.3s 上屏,不白等 2s 拍。 */
-  const { turns, poke } = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId, props.spawnedAt);
+  const { turns, poke } = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId, props.spawnedAt, meta?.cliSessionId);
   /* 实况块:有对话时默认折叠(终端原始流在窄屏不可读),点开看;无对话=全屏实况。 */
   const [liveOpen, setLiveOpen] = useState(false);
   const liveShown = turns ? liveOpen : true;

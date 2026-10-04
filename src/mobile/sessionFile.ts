@@ -45,11 +45,17 @@ export function isTailTruncated(turns: TranscriptTurn[]): boolean {
 interface FileStamp {
   path: string;
   modifiedAt: number;
+  name: string;
 }
 
 async function collectStamps(dir: string, suffix: string): Promise<FileStamp[]> {
   try {
-    return await invoke<FileStamp[]>("fs_collect_files", { dir, suffix });
+    const raw = await invoke<{ path: string; modifiedAt: number }[]>(
+      "fs_collect_files",
+      { dir, suffix },
+    );
+    /* name 就地从 path 收尾段派生:身份匹配只用文件名,不引入第二信息源。 */
+    return raw.map((f) => ({ ...f, name: f.path.split(/[\\/]/).pop() ?? f.path }));
   } catch {
     return [];
   }
@@ -60,22 +66,42 @@ function watermarked(stamps: FileStamp[], sinceMs?: number): FileStamp[] {
   return sinceMs === undefined ? stamps : stamps.filter((s) => s.modifiedAt >= sinceMs);
 }
 
-async function newestFile(dir: string, sinceMs?: number): Promise<string | null> {
-  const pool = watermarked(await collectStamps(dir, ".jsonl"), sinceMs);
+/** mtime 最新(collect 本身倒序,显式排序兜底)。 */
+function newestOf(stamps: FileStamp[], sinceMs?: number): string | null {
+  const pool = watermarked(stamps, sinceMs);
   if (!pool.length) return null;
-  return pool.sort((a, b) => b.modifiedAt - a.modifiedAt)[0].path;
+  return pool.slice().sort((a, b) => b.modifiedAt - a.modifiedAt)[0].path;
+}
+
+/** 按 CLI 会话身份精确匹配文件名:claude `<uuid>.jsonl`、omp/pi `<ts>_<uuid>.jsonl`;
+ * 大小写不敏感对齐 APFS/NTFS。命中即权威绑定,水位/最新回落不参与。 */
+function matchJsonlById(stamps: FileStamp[], cliSessionId: string): string | null {
+  const id = cliSessionId.toLowerCase();
+  const hit = stamps.find((s) => {
+    const n = s.name.toLowerCase();
+    return n === `${id}.jsonl` || n.endsWith(`_${id}.jsonl`);
+  });
+  return hit?.path ?? null;
 }
 
 /** codex:~/.codex/sessions 全局树(不按 cwd 分目录),rollout 首行 session_meta
  *  自证归属 —— mtime 倒序逐个读头校验 cwd(extractMeta 纯函数,插件单一来源)。 */
-async function resolveCodexPath(cwd: string, sinceMs?: number): Promise<string | null> {
+async function resolveCodexPath(
+  cwd: string,
+  sinceMs?: number,
+  cliSessionId?: string,
+): Promise<string | null> {
   const home = await invoke<string>("config_home_dir").catch(() => "");
   if (!home) return null;
   const ci = getPlatformKind() !== "linux"; /* APFS/NTFS 大小写不敏感,同桌面判定 */
-  const pool = watermarked(
-    await collectStamps(`${home}/.codex/sessions`, ".jsonl"),
-    sinceMs,
-  ).slice(0, PROBE_LIMIT);
+  const all = await collectStamps(`${home}/.codex/sessions`, ".jsonl");
+  /* 身份优先:rollout 文件名含会话 uuid(cli-codex locateRollout 同律),
+   * 同 id 多文件(resume/fork)collect 倒序先见即最新。 */
+  if (cliSessionId) {
+    const hit = all.find((f) => f.name.toLowerCase().includes(cliSessionId.toLowerCase()));
+    if (hit) return hit.path;
+  }
+  const pool = watermarked(all, sinceMs).slice(0, PROBE_LIMIT);
   for (const f of pool) {
     const head = await invoke<string>("fs_read_head", { path: f.path, maxBytes: HEAD_BYTES })
       .catch(() => "");
@@ -93,15 +119,23 @@ export function kimiWirePathOf(sessionDir: string): string {
 /** kimi:~/.kimi-code/sessions/<桶>/<session_id>/agents/main/wire.jsonl,cwd 在
  *  同目录 state.json 里(纯函数 parseKimiState);老 home(~/.kimi ≤0.34 md5 桶)
  *  不在手机契约,回落实况。水位按 wire 自身 mtime(它就是被读的文件,权威)。 */
-async function resolveKimiPath(cwd: string, sinceMs?: number): Promise<string | null> {
+async function resolveKimiPath(
+  cwd: string,
+  sinceMs?: number,
+  cliSessionId?: string,
+): Promise<string | null> {
   const home = await invoke<string>("config_home_dir").catch(() => "");
   if (!home) return null;
-  const wires = watermarked(
-    (await collectStamps(`${home}/.kimi-code/sessions`, ".jsonl")).filter((f) =>
-      /[\\/][^\\/]+[\\/]session_[^\\/]+[\\/]agents[\\/]main[\\/]wire\.jsonl$/.test(f.path),
-    ),
-    sinceMs,
-  ).slice(0, PROBE_LIMIT);
+  const all = (await collectStamps(`${home}/.kimi-code/sessions`, ".jsonl")).filter((f) =>
+    /[\\/][^\\/]+[\\/]session_[^\\/]+[\\/]agents[\\/]main[\\/]wire\.jsonl$/.test(f.path),
+  );
+  /* 身份优先:目录名 session_<id> 即权威绑定(路径段精确比对,防 id 前缀串号)。 */
+  if (cliSessionId) {
+    const seg = `session_${cliSessionId}`;
+    const hit = all.find((w) => w.path.split(/[\\/]/).includes(seg));
+    if (hit) return hit.path;
+  }
+  const wires = watermarked(all, sinceMs).slice(0, PROBE_LIMIT);
   const sameDir = (a: string, b: string) =>
     a.replace(/[\\/]+$/, "") === b.replace(/[\\/]+$/, ""); /* kimiSessions sameDir 同律 */
   for (const w of wires) {
@@ -115,15 +149,18 @@ async function resolveKimiPath(cwd: string, sinceMs?: number): Promise<string | 
 }
 
 /** 定位会话 jsonl:插件适配器给出 cwd 对应目录(codex/kimi 全局树按内容归属)。
- *  sinceMs(spawn 水位,可省):只收该时刻之后有写的文件。 */
+ * cliSessionId(注册表绑定镜像/resume 直注,可省)在场时按文件名身份精确绑定 ——
+ * 同 cwd 多会话不再拿「最新文件」当本会话(2026-10-04 评审 P1);未绑定或
+ * 尚未落盘回落水位+最新。sinceMs(spawn 水位,可省):只收该时刻之后有写的文件。 */
 export async function resolveTranscriptPath(
   profileId: string,
   cwd: string,
   sinceMs?: number,
+  cliSessionId?: string,
 ): Promise<string | null> {
   const p = profileId.toLowerCase();
-  if (p === "codex") return resolveCodexPath(cwd, sinceMs);
-  if (p === "kimi") return resolveKimiPath(cwd, sinceMs);
+  if (p === "codex") return resolveCodexPath(cwd, sinceMs, cliSessionId);
+  if (p === "kimi") return resolveKimiPath(cwd, sinceMs, cliSessionId);
   const dir =
     p === "claude" || p === "cl"
       ? await claudeSessionsDir(cwd)
@@ -133,7 +170,12 @@ export async function resolveTranscriptPath(
           ? await ompSessionsDir(cwd)
           : null; /* qoder/grok/opencode:磁盘布局未进手机 transcript 契约,回落实况 */
   if (!dir) return null;
-  return newestFile(dir, sinceMs);
+  const stamps = await collectStamps(dir, ".jsonl");
+  if (cliSessionId) {
+    const byId = matchJsonlById(stamps, cliSessionId);
+    if (byId) return byId;
+  }
+  return newestOf(stamps, sinceMs);
 }
 
 /** 行型自证分发:文件头几行里第一个可识别的 type 字段决定解析器 ——
