@@ -71,13 +71,18 @@ export function HomeScreen() {
 
   /* 磁盘历史扫描:清单变化/挂载/60s 周期;签名依赖 + roots 直接数组身份(签名比对 set,身份稳定)。 */
   const roots = useMemo(() => workspaces.map((w) => w.root), [workspaces]);
-  /* 未解析真名的活行数(有磁盘身份、无手动名、全局索引无真名):>0 = 重扫压 5s
-   * 直至解析(60s→≤5s)。全局索引同 groupHomeRows 借名口径:workspaceId 与 cwd
-   * 不同源时本卡扫不到,必须跨桶判。 */
+  /* 未解析真名的「新鲜」活行数(有磁盘身份、无手动名、全局索引无真名、出生
+     2min 内):>0 = 重扫压 5s 直至解析。自动命名在会话出生时落盘,追赶只在这个
+     窗口有意义;旧会话未解析 = 名字不会突然落盘,5s 全量 collect 波只是复刻
+     风暴(2026-10-04 外网实锤:未解析常驻 → 永久 5s 波 + 读头重试灌爆链路)。
+     全局索引同 groupHomeRows 借名口径:workspaceId 与 cwd 不同源时本卡扫不到,
+     必须跨桶判。history 每波 setHistory 新 Map → 本 memo 随波重算,新鲜度实时。 */
   const unresolved = useMemo(() => {
     const titlesById = globalDiskTitles(history);
+    const freshBefore = Date.now() - 2 * 60_000;
     return sessions.filter((s) => {
       if (!s.cliSessionId || titles[`${s.profileId}:${s.cliSessionId}`]) return false;
+      if ((s.createdAt ?? 0) < freshBefore) return false;
       return !titlesById.has(`${s.profileId}:${s.cliSessionId}`);
     }).length;
   }, [sessions, titles, history]);

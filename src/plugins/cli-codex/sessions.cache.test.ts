@@ -3,7 +3,8 @@
  * 消失剪除 / 坏 meta 不缓存)。重扫 IO 主项 = 每工作区 200 个 rollout 读头 + 命中
  * 会话标题深读,缓存把它收敛为 1 次 fs_collect_files + 仅新/变文件读;
  * 池按 path 全局共享,多工作区并发扫同一目录的重复读直接消失。
- * 批量化(2026-10-04):meta 窗与标题浅窗走 fs_read_heads 批量,深窗兜底逐文件。
+ * 批量化(2026-10-04):meta 窗与标题浅窗走 fs_read_heads 批量,深窗兜底批量化
+ * (仅浅窗成功且无标题);负结果(无标题/读失败)带 TTL 入缓存免重试风暴。
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";

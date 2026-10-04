@@ -170,15 +170,28 @@ export async function readHeadSessionMeta(
 }
 
 /**
- * 读头缓存:重扫的 IO 主项是每文件读头(库内数千文件时一次全扫 = 数十 MB IPC 读),
- * 而读头内容是 append-only 日志的出生段(身份/标题/首条用户消息),落盘后不再变化
- * —— mtime 未变即复用上次解析产物,重扫收敛为 1 次 fs_collect_files + 仅新/变文件读头。
- * 仅缓存解析出非空结果的文件:尚无标题的文件每轮重读,追赶自动命名落盘(与
- * workspace 退避补扫同语义);读失败的旧条目一并丢弃。上限防旁路消费者
- * (claude/qoder 自有 list 循环)目录无限增长泄漏。
+ * 读头缓存:头内容是 append-only 日志的出生段,mtime 未变即复用解析产物,
+ * 重扫收敛为 1 次 collect + 仅新/变文件读头。负结果缓存(2026-10-04 外网
+ * 标题缺失根治):无标题/读失败也带 TTL 入池 —— 否则慢链路一波读头超时后
+ * 每轮重扫全库重读,5s 命名追赶节奏放大成永久拥塞(真机实锤大桶标题全空)。
+ * mtime 变化(自动命名落盘)立即失效;TTL 仅是「永不命名」的上限。上限防旁路
+ * 消费者(claude/qoder 自有 list 循环)目录无限增长泄漏。
  */
 const HEAD_CACHE_MAX = 8192;
-const headCache = new Map<string, { mtime: number; title?: string; createdAt?: number }>();
+/** 负结果缓存 TTL:窗内重扫免读(拥塞收敛);过窗追读一次。 */
+const HEAD_NEG_TTL_MS = 5 * 60_000;
+const headCache = new Map<string, { mtime: number; at: number; title?: string; createdAt?: number }>();
+
+/** Cache hit judgment: mtime match AND (positive result OR negative result not expired); expired negative results are removed and treated as miss. */
+function cacheHit(path: string, mtime: number) {
+  const c = headCache.get(path);
+  if (!c || c.mtime !== mtime) return null;
+  if (c.title === undefined && c.createdAt === undefined && Date.now() - c.at > HEAD_NEG_TTL_MS) {
+    headCache.delete(path);
+    return null;
+  }
+  return c;
+}
 
 /** 缓存剪除:本目录已消失的文件条目;其他目录的条目归旁路消费者,不动。
  * 两侧分隔符先归一:Windows 下 dir 拼型 `/` 与 Rust collect 返回的 `\` 不一致,
@@ -190,44 +203,38 @@ export function pruneHeadCache(dir: string, livePaths: Set<string>): void {
   }
 }
 
-/** 读头取标题 + 创建时刻,带 mtime 缓存(见 headCache 注)。 */
+/** Read-head to get title + creation moment, with mtime cache (see headCache note). */
 export function readHeadSessionMetaCached(
   path: string,
   mtime: number,
 ): Promise<{ title?: string; createdAt?: number }> {
-  const cached = headCache.get(path);
-  if (cached && cached.mtime === mtime) {
-    return Promise.resolve({ title: cached.title, createdAt: cached.createdAt });
-  }
+  const cached = cacheHit(path, mtime);
+  if (cached) return Promise.resolve({ title: cached.title, createdAt: cached.createdAt });
   return readHeadSessionMeta(path).then((meta) => {
     storeHeadCache(path, mtime, meta.title, meta.createdAt);
     return meta;
   });
 }
 
-/** 读头取标题,带 mtime 缓存(与 readHeadSessionMetaCached 共池 headCache):
- *  标题是 append-only 日志的出生段,mtime 未变即复用;无标题不缓存,追赶自动命名
- *  (同池语义)。先例:cli-codex 列表扫描标题消费(2026-09-30 每日日志扫描加速)。 */
+/** Read-head to get title, with mtime cache (shares pool headCache with readHeadSessionMetaCached):
+ *  title is the birth segment of an append-only log, reuse if mtime unchanged; no title goes to negative-result cache, chase re-reads after TTL
+ *  (same-pool semantics). Precedent: cli-codex list-scan title consumption (2026-09-30 daily log scan acceleration). */
 export function readHeadTitleCached(path: string, mtime: number): Promise<string | undefined> {
-  const cached = headCache.get(path);
-  if (cached && cached.mtime === mtime) return Promise.resolve(cached.title);
+  const cached = cacheHit(path, mtime);
+  if (cached) return Promise.resolve(cached.title);
   return readHeadTitle(path).then((title) => {
     storeHeadCache(path, mtime, title, undefined);
     return title;
   });
 }
 
-/** 缓存收口(单写点):非空才落池,否则摘除;FIFO 上限防泄漏。 */
+/** Cache convergence point (single write point): positive results enter the pool immediately; negative results (no title/read failure) enter the pool with timestamp for TTL chase; FIFO upper bound prevents leak. */
 function storeHeadCache(path: string, mtime: number, title: string | undefined, createdAt: number | undefined): void {
-  if (title !== undefined || createdAt !== undefined) {
-    if (headCache.size >= HEAD_CACHE_MAX) {
-      const oldest = headCache.keys().next().value;
-      if (oldest !== undefined) headCache.delete(oldest);
-    }
-    headCache.set(path, { mtime, title, createdAt });
-  } else {
-    headCache.delete(path);
+  if (headCache.size >= HEAD_CACHE_MAX) {
+    const oldest = headCache.keys().next().value;
+    if (oldest !== undefined) headCache.delete(oldest);
   }
+  headCache.set(path, { mtime, at: Date.now(), title, createdAt });
 }
 
 /** 单次批量请求的响应字节预算(base64 过中继 +33%,768KB → ~1MB < 4MiB 帧上限)。 */
@@ -254,7 +261,7 @@ export async function readHeadsBatched(paths: string[], bytes: number): Promise<
 export async function readHeadMetasBatch(
   files: { path: string; modifiedAt: number }[],
 ): Promise<{ title?: string; createdAt?: number }[]> {
-  const misses = files.filter((f) => headCache.get(f.path)?.mtime !== f.modifiedAt);
+  const misses = files.filter((f) => !cacheHit(f.path, f.modifiedAt));
   const heads = await readHeadsBatched(misses.map((m) => m.path), TITLE_HEAD_BYTES);
   const parsed = misses.map((f, i) => {
     const head = heads[i];
@@ -264,22 +271,27 @@ export async function readHeadMetasBatch(
     return {
       path: f.path,
       mtime: f.modifiedAt,
+      /* 浅窗读失败(空串)与真无标题同形:深窗只对「读到了但没标题」补读 ——
+       * 读失败更大窗同样读不到,逐文件重试只是复刻风暴(外网大桶实锤)。 */
+      shallowOk: head !== "",
       title: head ? extractJsonlTitle(head) : undefined,
       createdAt: identity?.createdAt,
     };
   });
-  /* 深窗兜底:串行(数量少;同 readHeadSessionMeta 两段式)。 */
-  for (const p of parsed) {
-    if (p.title) continue;
-    const deep = await ipc.fsReadHead(p.path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
-    if (deep) p.title = extractJsonlTitle(deep);
+  /* 深窗兜底批量化:仅浅窗成功且无标题的少数文件(同 readHeadSessionMeta 两段式)。 */
+  const deepTargets = parsed.filter((p) => p.shallowOk && !p.title);
+  if (deepTargets.length) {
+    const deeps = await readHeadsBatched(deepTargets.map((p) => p.path), TITLE_HEAD_BYTES_DEEP);
+    deepTargets.forEach((p, i) => {
+      if (deeps[i]) p.title = extractJsonlTitle(deeps[i]);
+    });
   }
   for (const p of parsed) storeHeadCache(p.path, p.mtime, p.title, p.createdAt);
   const byPath = new Map(parsed.map((p) => [p.path, { title: p.title, createdAt: p.createdAt }]));
   return files.map((f) => {
     const miss = byPath.get(f.path);
     if (miss) return miss;
-    const cached = headCache.get(f.path);
+    const cached = cacheHit(f.path, f.modifiedAt);
     return { title: cached?.title, createdAt: cached?.createdAt };
   });
 }

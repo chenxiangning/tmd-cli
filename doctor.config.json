@@ -4,6 +4,7 @@
     "files": [
       "mobile-app/**",
       "dist/**",
+      "dist-mobile/**",
       "docs/**"
     ],
     "overrides": [
