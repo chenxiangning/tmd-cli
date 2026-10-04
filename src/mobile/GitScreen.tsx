@@ -6,8 +6,8 @@
  * AppDevice 白名单 git_* 子集,读多写少,动作全部显式点按。
  * 工作区 = 顶部 chips(最近选择 localStorage 持久化)。
  */
-import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@kernel/transport";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import type {
   GitAheadBehind,
@@ -71,9 +71,13 @@ export function GitScreen(props: { onBack: () => void }) {
     } catch { /* 隐私态:不持久化 */ }
   }, [ws]);
 
+  /* 异步落定序号:慢链路乱序响应防串台(tapFile/load/loadCommitFiles 共用,失配即弃)。 */
+  const seqRef = useRef(0);
   const load = useCallback(async () => {
     if (!cwd) return;
+    const seq = ++seqRef.current;
     const snap = await loadGitSnapshot(cwd);
+    if (seq !== seqRef.current) return; /* 旧 cwd 的迟到快照 */
     setStatus(snap.status);
     setTotals(snap.totals);
     setAb(snap.ab);
@@ -174,24 +178,27 @@ export function GitScreen(props: { onBack: () => void }) {
       return `${t("已切换到")} ${name}`;
     });
   };
-
+  /* tapFile 键含 staged:同 path 双行(已暂存+未暂存)各自有面板,互不串台。 */
   const tapFile = async (path: string, staged: boolean, untracked: boolean) => {
-    if (openPatch === path) {
+    const key = `${path}|${staged ? 1 : 0}`;
+    if (openPatch === key) {
       setOpenPatch(null);
       return;
     }
-    setOpenPatch(path);
+    const seq = ++seqRef.current;
+    setOpenPatch(key);
     setPatch(t("加载中…"));
     const p = await fetchFilePatch(cwd, path, staged, untracked);
+    if (seq !== seqRef.current) return;
     setPatch(!p || p.binary ? `(${t(p?.binary ? "二进制文件" : "无法获取差异")})` : p.patch || `(${t("无差异")})`);
   };
-
   /* 提交改动清单三态:点开置 loading,成败分别落 done/error;error 可重试。 */
   const loadCommitFiles = (sha: string) => {
+    const seq = ++seqRef.current;
     setCommitFiles({ kind: "loading" });
     void fetchCommitFiles(cwd, sha)
-      .then((files) => setCommitFiles({ kind: "done", files }))
-      .catch(() => setCommitFiles({ kind: "error" }));
+      .then((files) => { if (seq === seqRef.current) setCommitFiles({ kind: "done", files }); })
+      .catch(() => { if (seq === seqRef.current) setCommitFiles({ kind: "error" }); });
   };
 
   const tapCommit = (sha: string) => {

@@ -27,7 +27,7 @@ import type { ShotError } from "./useShots";
 import { mobileEnterAction } from "./enterSend";
 import { KeyToolbar } from "./KeyToolbar";
 import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
-import { useComposerSize } from "./useComposerSize";
+import { useComposerSize, useKeyboardDismissFallback } from "./useComposerSize";
 
 /** 「+」四格面板(参考图2,去语音条;全部现有能力):
  *  相册 = pickImage 选图;切模型 = 填 /model 草稿(发送后键条驱动 TUI);
@@ -154,6 +154,7 @@ export function Composer(props: {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const [panel, setPanel] = useState(false);
   const [kbOpen, setKbOpen] = useState(false);
+  useKeyboardDismissFallback(() => setKbOpen(false));
   /* 键条开关(pref 持久化);软键盘弹起时键条整行隐藏(KeyToolbar 契约)。 */
   const [kbOn, setKbOn] = useState(() => {
     try {

@@ -222,5 +222,3 @@ export const KEY_ROWS: KeyDef[][] = [
   ],
 ];
 
-/** 展平键表(兼容既有消费面;顺序 = 行优先)。 */
-export const KEYS: KeyDef[] = KEY_ROWS.flat();

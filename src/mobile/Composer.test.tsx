@@ -22,7 +22,6 @@ vi.mock("@kernel/i18n", () => ({
 const ctx = vi.hoisted(() => ({ write: vi.fn(async () => undefined) }));
 vi.mock("./remote", () => ({ writeSession: ctx.write }));
 vi.mock("./shared", () => ({
-  KEYS: [{ label: "esc", aria: "Esc", seq: "\u001b" }],
   KEY_ROWS: [[{ label: "esc", aria: "Esc", seq: "\u001b" }]],
 }));
 
