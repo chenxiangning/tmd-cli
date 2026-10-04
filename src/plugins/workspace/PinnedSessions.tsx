@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
 /* 经 cli-shared 消费 jsonl 标题行型(无生命周期格式库,插件零直接依赖铁律
  * 下的合法通道,同 welcome/credentials.ts 的依赖声明)。 */
-import { readHeadTitle } from "../cli-shared/sessionHead";
+import { readHeadMetasBatch } from "../cli-shared/sessionHead";
 import { host, useHost } from "@kernel/host";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
@@ -140,7 +140,7 @@ export function PinnedSessionsSection() {
           const title = hit?.title
             ? hit.title
             : hit
-              ? (await readHeadTitle(hit.path)).title
+              ? (await readHeadMetasBatch([{ path: hit.path, modifiedAt: hit.modifiedAt }]))[0]?.title
               : undefined;
           return { key: row.key, title };
         }),

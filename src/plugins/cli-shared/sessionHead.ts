@@ -131,46 +131,6 @@ export function extractJsonlTitle(head: string): string | undefined {
   return sessionFieldTitle ?? summaryTitle ?? firstUserTitle;
 }
 
-/**
- * 读头取标题:浅窗不中再深窗补一次。omp/pi/claude/codex/qoder 的 listSessions
- * 与 workspace 置顶标题统一走此入口,读头窗口知识收敛在此,不再各家自带。
- */
-export async function readHeadTitle(path: string): Promise<{ title?: string; readOk: boolean }> {
-  const shallow = await ipc.fsReadHead(path, TITLE_HEAD_BYTES).catch(() => "");
-  if (shallow) {
-    const title = extractJsonlTitle(shallow);
-    if (title) return { title, readOk: true };
-  }
-  const deep = await ipc.fsReadHead(path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
-  return { title: deep ? extractJsonlTitle(deep) : undefined, readOk: deep !== "" };
-}
-
-/**
- * 读头取标题 + 创建时刻(一次浅窗双解析,深窗仅标题兜底):身份解析窗(4KB/8KB)
- * ⊂ 标题浅窗 32KB,同一 buffer 各解一遍 —— 比对「标题一读 + 身份一读」每文件省一次
- * IPC;pi 族与 claude 族行型互斥(type:"session" vs sessionId 字段),试解顺序不歧义。
- * 创建时刻定死看板日历落位(resume 只刷 mtime,创建 timestamp 不动)。
- */
-export async function readHeadSessionMeta(
-  path: string,
-): Promise<{ title?: string; createdAt?: number; readOk: boolean }> {
-  const shallow = await ipc.fsReadHead(path, TITLE_HEAD_BYTES).catch(() => "");
-  /* IPC 异型返回防御:契约是 string,但桩/封装层一旦返回对象,truthy 对象会
-   * 直接送进 split 链炸掉整个 Promise.all —— 该工作区扫描全灭(2026-09-17 桩目检实证)。 */
-  const head = typeof shallow === "string" ? shallow : "";
-  const identity = head
-    ? (parsePiFamilySessionHead(head) ?? parseClaudeFamilySessionHead(head))
-    : null;
-  let title = head ? extractJsonlTitle(head) : undefined;
-  let readOk = head !== "";
-  if (!title && readOk) {
-    const deepRaw = await ipc.fsReadHead(path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
-    const deep = typeof deepRaw === "string" ? deepRaw : "";
-    title = deep ? extractJsonlTitle(deep) : undefined;
-    readOk = deep !== "";
-  }
-  return { title, createdAt: identity?.createdAt, readOk };
-}
 
 /**
  * 读头缓存:头内容是 append-only 日志的出生段,mtime 未变即复用解析产物,
@@ -237,8 +197,14 @@ export async function readHeadsBatched(paths: string[], bytes: number): Promise<
   const out: string[] = [];
   for (let i = 0; i < paths.length; i += perChunk) {
     const chunk = paths.slice(i, i + perChunk);
-    const heads = await ipc.fsReadHeads(chunk, bytes).catch(() => chunk.map(() => ""));
-    out.push(...heads);
+    /* IPC 异型返回防御(2026-09-17 桩目检实证同款):契约是 string[],但桩/
+     * 封装层一旦回对象元素,truthy 值直进 split 链会炸掉整桶扫描——元素级
+     * 异型按读失败空串归一;整体非数组逐下标补空串,保下标对齐。 */
+    const heads: unknown[] = await ipc.fsReadHeads(chunk, bytes).catch(() => []);
+    for (let j = 0; j < chunk.length; j++) {
+      const h = heads[j];
+      out.push(typeof h === "string" ? h : "");
+    }
   }
   return out;
 }
@@ -246,7 +212,7 @@ export async function readHeadsBatched(paths: string[], bytes: number): Promise<
 /**
  * 批量读头解析(标题+创建时刻),listSessions 消费(omp/pi/claude/qoder):
  * mtime 命中走缓存;misses 一次批量浅窗,「浅窗成功但无标题」批量化深窗兜底 ——
- * 语义与 readHeadSessionMeta 逐文件版一致(身份 ⊂ 浅窗;深窗仅标题),缓存同池。
+ * 语义与逐文件两段式一致(身份 ⊂ 浅窗;深窗仅标题),缓存同池。
  * readOk(读成功才落池)随两段式传播:浅窗失败或深窗补读失败 = 不入池下轮重试。
  */
 export async function readHeadMetasBatch(
@@ -269,7 +235,7 @@ export async function readHeadMetasBatch(
       createdAt: identity?.createdAt,
     };
   });
-  /* 深窗兜底批量化:仅浅窗成功且无标题的少数文件(同 readHeadSessionMeta 两段式)。 */
+  /* 深窗兜底批量化:仅浅窗成功且无标题的少数文件(同两段式窗口语义)。 */
   const deepTargets = parsed.filter((p) => p.readOk && !p.title);
   if (deepTargets.length) {
     const deeps = await readHeadsBatched(deepTargets.map((p) => p.path), TITLE_HEAD_BYTES_DEEP);
