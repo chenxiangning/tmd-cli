@@ -72,7 +72,8 @@ export class WebBridge {
     const { promise, resolve } = Promise.withResolvers<void>();
     this.openGate = promise;
     this.openResolve = resolve;
-    const openTimer = setTimeout(() => this.openResolve?.(), OPEN_TIMEOUT_MS);
+    const openResolve = resolve; /* 闭包捕获:旧 dial 残留 timer 只放旧 gate,不误放新 dial */
+    const openTimer = setTimeout(() => openResolve(), OPEN_TIMEOUT_MS);
     ws.onopen = () => {
       clearTimeout(openTimer);
       this.dial.dialed();
@@ -217,7 +218,7 @@ export class WebBridge {
         return await this.invokeOnce<T>(cmd, args);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        if (attempt >= BACKOFF_MS.length - 1 || !msg.includes("并发请求过多")) throw e;
+        if (attempt >= BACKOFF_MS.length || !msg.includes("并发请求过多")) throw e;
         await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt]));
       }
     }
@@ -322,9 +323,6 @@ export class WebBridge {
     setPaused(this.paused);
     this.teardownWs();
     setConnected(false);
-    this.openGate = null;
-    this.openResolve?.();
-    this.openResolve = null;
     /* 换端点 = 在途 RPC 的旧线已拆,响应永不再到:pending 全拒防挂(对齐
      * onClose 拆摊语义;三条换线路径唯此漏清算)。MobileApp 轮询链依赖
      * invoke 必然 settle(pull().finally(tick)),悬一个 = 列表/覆盖层轮询
@@ -342,8 +340,17 @@ export class WebBridge {
     const ws = this.ws;
     if (!ws) return;
     this.ws = null;
+    /* onopen 一并断:迟到的旧 open 会假置 connected 并误放旧 gate。 */
+    ws.onopen = null;
     ws.onclose = null;
     ws.close();
+    /* 旧 dial 收尾(2026-10-04 评审 P1):forceReconnect 拆线必须释放旧
+     * openGate 等待者 —— invokeOnce 在 ensure() 上无超时兜底,悬一个 =
+     * 轮询链整体挂死(setEndpoint 同款);同时清 openResolve,旧 dial 残留
+     * 的 openTimer 到点变 no-op,不会误放新 dial 的 gate。 */
+    this.openGate = null;
+    this.openResolve?.();
+    this.openResolve = null;
   }
 
   /** 手动断开(手机连接面板):立即关连接并停止一切自动重拨。 */
