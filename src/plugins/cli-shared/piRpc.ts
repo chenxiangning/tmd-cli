@@ -15,45 +15,9 @@ import { ipc } from "@kernel/ipc";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { PiRpcReducer, clockOf, widgetCancelledNotice, widgetTier } from "./piRpcReducer";
 
-/** 家族分叉:启动命令 + 断线接续旗标(monocode piFlavor 同参照)。 */
-export interface PiRpcFlavor {
-  command: string;
-  /** 接续旗标(omp --resume <id> / pi --session <id>;2026-10-04 实证与 rpc 模式共存);缺省 = 新会话。 */
-  resumeArgs?: (sessionId: string) => string[];
-}
+import { parseState, type PiRpcCommand, type PiRpcConfirm, type PiRpcFlavor, type PiRpcModel, type PiRpcState, type PiRpcStats } from "./piRpcTypes";
 
-/** 模型行(get_available_models → models[];provider+id 唯一定位,name 展示)。 */
-export type PiRpcModel = { provider: string; id: string; name?: string };
-
-/** get_state 提炼的会话身份(握手与模型菜单刷新共用)。 */
-export interface PiRpcState {
-  sessionId?: string;
-  model?: PiRpcModel;
-  thinkingLevel?: string;
-  queuedMessageCount?: number;
-}
-
-function parseState(d: Record<string, unknown>): PiRpcState {
-  const m = d.model as Record<string, unknown> | null | undefined;
-  return {
-    sessionId: typeof d.sessionId === "string" ? d.sessionId : undefined,
-    model: m && typeof m.provider === "string" && typeof m.id === "string"
-      ? { provider: m.provider, id: m.id, name: typeof m.name === "string" ? m.name : undefined }
-      : undefined,
-    thinkingLevel: typeof d.thinkingLevel === "string" ? d.thinkingLevel : undefined,
-    queuedMessageCount: typeof d.queuedMessageCount === "number" ? d.queuedMessageCount : undefined,
-  };
-}
-
-/** 审批请求(extension_ui_request confirm;答案经 respond 回写)。
- *  frameId 保原始类型(JSON-RPC id 可为数字;数值 confirm 帧若被字符串化,
- *  引擎同型匹配不认领 → 审批静默丢失挂死轮次 —— 与 normWidgetFrameId 同律,
- *  2026-10-03 二轮复查);React key 与 respond 透传都吃 string|number。 */
-export interface PiRpcConfirm {
-  frameId: string | number;
-  title: string;
-  message: string;
-}
+export type { PiRpcFlavor, PiRpcModel, PiRpcState, PiRpcConfirm, PiRpcStats, PiRpcCommand } from "./piRpcTypes";
 
 export interface PiRpcHandlers {
   /** 转录块快照(变更即新数组引用)+ 当前轮首块下标(渲染层切「落定历史|流内活轮」)。 */
@@ -162,6 +126,36 @@ export class PiRpcSession {
 
   setThinkingLevel(level: string): Promise<unknown> {
     return this.request({ type: "set_thinking_level", level });
+  }
+
+  /* 用量与命令目录(get_session_stats → tokens.total + contextUsage.percent;
+   * get_available_commands → {commands:[{name,description,input?.hint}]},97 条实证)。
+   * 失败回空态:stats=null 不显示,commands=[] 不开补全。 */
+  async getStats(): Promise<PiRpcStats | null> {
+    const d = await this.request({ type: "get_session_stats" }).catch(() => null) as Record<string, unknown> | null;
+    if (!d) return null;
+    const tokens = d.tokens as Record<string, unknown> | undefined;
+    const ctx = d.contextUsage as Record<string, unknown> | undefined;
+    return {
+      totalTokens: typeof tokens?.total === "number" ? tokens.total : undefined,
+      contextPercent: typeof ctx?.percent === "number" ? ctx.percent : undefined,
+    };
+  }
+
+  async getCommands(): Promise<PiRpcCommand[]> {
+    const d = await this.request({ type: "get_available_commands" }).catch(() => null) as Record<string, unknown> | null;
+    const list = d?.commands;
+    if (!Array.isArray(list)) return [];
+    return list.flatMap((raw) => {
+      const c = raw as Record<string, unknown>;
+      if (typeof c?.name !== "string") return [];
+      const input = c.input as Record<string, unknown> | undefined;
+      return [{
+        name: c.name,
+        description: typeof c.description === "string" ? c.description : undefined,
+        hint: typeof input?.hint === "string" ? input.hint : undefined,
+      }];
+    });
   }
 
   /** 审批应答;confirmId 即 onConfirm 回传 frameId(同型回写)。进程已退时静默丢弃(UI 已终态)。 */

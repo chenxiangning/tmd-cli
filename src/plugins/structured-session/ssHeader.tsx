@@ -9,9 +9,9 @@ import { useEffect, useRef, useState } from "react";
 import { CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { host, useHost } from "@kernel/host";
-import { updateSettings } from "@kernel/settings";
-import type { PiRpcModel, PiRpcSession, PiRpcState } from "../cli-shared/piRpc";
+import type { PiRpcModel, PiRpcSession, PiRpcState, PiRpcStats } from "../cli-shared/piRpc";
 import { openStructuredSessionTab } from "./tabs";
+import { StatusCluster } from "./ssStatus";
 
 type MenuKind = "engine" | "model" | null;
 
@@ -87,7 +87,14 @@ function ModelMenuBody(props: {
         value={filter}
         placeholder={t("筛选模型…")}
         onChange={(e) => props.setFilter(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Escape") props.onClose(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") props.onClose();
+          /* Enter 选中首个匹配(空筛 = 当前清单第一项),tab 补全同效。 */
+          if ((e.key === "Enter" || e.key === "Tab") && filtered[0]) {
+            e.preventDefault();
+            props.apply(session.setModel(filtered[0].provider, filtered[0].id));
+          }
+        }}
       />
       {loading ? <div className="ss-menu-hint">{t("载入模型清单…")}</div> : null}
       {models !== null && models.length === 0 ? <div className="ss-menu-hint">{t("模型清单不可用")}</div> : null}
@@ -195,11 +202,13 @@ function ModelMenu(props: {
   );
 }
 
+
 export function SsHeader(props: {
   profileId: string;
   cwd: string;
   model: PiRpcModel | null;
   thinkingLevel: string | null;
+  stats: PiRpcStats | null;
   sessionId: string | null;
   busy: boolean;
   queued: number;
@@ -211,7 +220,7 @@ export function SsHeader(props: {
   onAbort: () => void;
 }) {
   useHost(); /* profile 注册/变化 */
-  const { profileId, cwd, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, session } = props;
+  const { profileId, cwd, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, session, stats } = props;
   const capable = host.getCliProfiles().filter((p) => p.structuredRpc);
   const [menu, setMenu] = useState<MenuKind>(null);
   const rootRef = useRef<HTMLElement>(null);
@@ -259,24 +268,7 @@ export function SsHeader(props: {
       ) : model ? (
         <span className="ss-model">{model.id}</span>
       ) : null}
-      {sessionId ? <span className="ss-sid">{sessionId.slice(0, 8)}</span> : null}
-      <button
-        type="button"
-        className={"ss-minimal" + (minimal ? " is-on" : "")}
-        title={t("极简展示:每轮工作过程折叠为一行,只保留最终答复")}
-        aria-pressed={minimal}
-        onClick={() => updateSettings({ sessionViewerMinimal: !minimal })}
-      >
-        {t("极简")}
-      </button>
-      <span className={`ss-dot${busy ? " is-busy" : ""}`} title={busy ? t("生成中") : t("空闲")} />
-      {queued > 0 ? <span className="ss-queued" title={t("当前轮结束后自动发送")}>{t("排队 {n}", { n: queued })}</span> : null}
-      {statusText ? <span className="ss-status" title={statusText}>{statusText.slice(0, 80)}</span> : null}
-      {busy ? (
-        <button type="button" className="ss-abort" onClick={props.onAbort}>
-          {t("中止")}
-        </button>
-      ) : null}
+      <StatusCluster sessionId={sessionId} stats={stats} minimal={minimal} busy={busy} queued={queued} statusText={statusText} onAbort={props.onAbort} />
     </header>
   );
 }

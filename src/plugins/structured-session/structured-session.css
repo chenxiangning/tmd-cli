@@ -33,6 +33,7 @@
 .ss-cwd { font-size: var(--tmd-font-ui); color: var(--tmd-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30%; }
 .ss-model { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 999px; padding: 1px 8px; }
 .ss-sid { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); font-family: var(--tmd-font-mono); }
+.ss-stats { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); font-family: var(--tmd-font-mono); white-space: nowrap; }
 .ss-dot { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--tmd-fg-faint); flex: none; }
 .ss-dot.is-busy { background: var(--tmd-accent); animation: ssPulse 1.2s ease-in-out infinite; }
 @keyframes ssPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -110,5 +111,13 @@
 .ss-toolrow-cmd { margin: 0 0 0 18px; font-size: var(--tmd-font-ui); color: var(--tmd-fg-faint); font-family: var(--tmd-font-mono); white-space: pre-wrap; word-break: break-all; max-height: 72px; overflow: hidden; }
 .ss-toolrow-out { margin: 2px 0 4px 18px; padding: 8px 10px; border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); font-size: var(--tmd-font-ui); color: var(--tmd-fg-muted); white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow-y: auto; }
 @keyframes ss-think-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
-
 .ss-toolrow.is-running .ss-toolrow-out.is-live { max-height: 220px; overflow-y: auto; background: var(--tmd-bg-sunken); }
+
+/* / 命令补全面(输入区上方弹层;同 ss-menu 弹层律,仅限 ss-root 内) */
+.ss-cmds { display: flex; flex-direction: column; gap: 2px; margin: 0 12px 4px; max-height: 240px; overflow-y: auto; padding: 6px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); }
+.ss-cmd { display: flex; align-items: baseline; gap: 8px; width: 100%; border: none; background: none; font: inherit; text-align: left; padding: 4px 8px; border-radius: var(--tmd-radius-sm); cursor: pointer; min-width: 0; }
+.ss-cmd.is-sel, .ss-cmd:hover { background: var(--tmd-bg-sunken); }
+.ss-cmd-name { font-family: var(--tmd-font-mono); font-size: var(--tmd-font-ui); color: var(--tmd-fg); flex: none; }
+.ss-cmd-hint-arg { font-family: var(--tmd-font-mono); font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); flex: none; }
+.ss-cmd-desc { font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.ss-cmd-hint { padding: 4px 8px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); }

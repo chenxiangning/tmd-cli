@@ -76,3 +76,22 @@ busy 排队发送、轮次结束 OS 通知、断线接续重开,并收口协议�
 - 单测:turn_start 轮界推进(18.4/18.6 双名)、resume 换壳(spawn 旗标 +
   种子回放 + 轮界对齐)。
 - 真机 tauri:dev 验收留大仙(OS 通知链路需真窗口)。
+
+## 追加打磨轮(同日第二提交)
+
+协议类型块迁 piRpcTypes.ts(piRpc 恒满 300),新增四件(全部真机抓包定形):
+
+1. 上下文用量:settled 边沿拉 `get_session_stats`,header 显示
+   `context% · tokens k`(title 给全量;失败静默不显示)。
+2. / 命令补全:composer 首个 `/` 触发懒载 `get_available_commands`(97 条
+   缓存至 tab 生命期),前缀过滤 8 条,↑↓/Tab/Enter 补全,Esc 关闭;
+   目录含 `input.hint` 参数提示。仅补全不代发(引擎自解析斜杠命令)。
+3. 草稿持久化:localStorage `tmd.ss.draft.<profile>:<cwd>`,reload/关 tab
+   不丢,send 成功即清;存储失效(隐私模式)退化为会话内。
+4. 模型筛选 Enter/Tab 选中首个匹配(空筛 = 首项)。
+
+验证:piRpc 单测 +2(getStats 提取/getCommands 过滤与 hint 映射;describe
+补 beforeEach 清 writes/listeners——跨 describe 陈旧监听器会吞掉 frame 应答,
+boot 假通过后握手挂死,5000ms 超时即此因);桩目检五链(stats pill `2.1% ·
+20.8k`、/se 过滤两行、Enter 补 `/security `、reload 草稿恢复、筛 deep 后
+Enter 发 `set_model:deepseek/deepseek-v4-pro`)。

@@ -4,7 +4,7 @@
  * busy 排队(follow_up,引擎结算自动起跑)、轮次结束 OS 通知(PTY 侧
  * notifyOsTurnEnd 同闸同文案)、stderr 降噪(ready 期噪声不进状态行)。
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
@@ -12,11 +12,21 @@ import type { CliTranscriptBlock } from "@kernel/cli";
 import { sendOsNotification } from "@kernel/ipc";
 import { openStructuredSessionTab, type StructuredSessionPayload } from "./tabs";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
-import { PiRpcSession, type PiRpcConfirm, type PiRpcModel, type PiRpcState } from "../cli-shared/piRpc";
+import { PiRpcSession, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
 
-export function useSsSession(payload: StructuredSessionPayload) {
+/** useSsSession 返回面(StructuredSessionTab 与子组件的共享契约)。 */
+export type SsSessionState = {
+  phase: Phase; statusText: string | null; blocks: CliTranscriptBlock[]; turnStart: number;
+  busy: boolean; elapsed: number; confirm: PiRpcConfirm | null;
+  model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
+  queued: number; stats: PiRpcStats | null; draft: string; setDraft: (v: string) => void;
+  sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
+  retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
+};
+
+export function useSsSession(payload: StructuredSessionPayload): SsSessionState {
   const [phase, setPhase] = useState<Phase>("starting");
   const [statusText, setStatusText] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<CliTranscriptBlock[]>([]);
@@ -29,7 +39,11 @@ export function useSsSession(payload: StructuredSessionPayload) {
   const [thinkingLevel, setThinkingLevel] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [queued, setQueued] = useState(0);
-  const [draft, setDraft] = useState("");
+  const [stats, setStats] = useState<PiRpcStats | null>(null);
+  const [draft, setDraft] = useState(() => {
+    /* 草稿持久化:tab 关闭/app 重启不丢(send 成功即清)。key 含 cwd,同引擎不同目录互不串。 */
+    try { return localStorage.getItem(`tmd.ss.draft.${payload.profileId}:${payload.cwd}`) ?? ""; } catch { return ""; }
+  });
   const sessionRef = useRef<PiRpcSession | null>(null);
   /* 贴底跟随标记(busy 流式期上翻停跟);scroll 副作用在组件侧读。 */
   const stickRef = useRef(true);
@@ -86,10 +100,10 @@ export function useSsSession(payload: StructuredSessionPayload) {
           setBusy(b);
           setBusySince(b ? Date.now() : null);
           if (!b) {
-            /* 结算即销账 + 排队数回读(队列自动起跑的后续轮结算会再触发本路)。 */
             void sessionRef.current?.getState()
               .then((st) => setQueued(st?.queuedMessageCount ?? 0))
               .catch(() => undefined);
+            void sessionRef.current?.getStats().then((s) => { if (s) setStats(s); }).catch(() => undefined);
             if (promptDebtRef.current > 0) {
               promptDebtRef.current--;
               /* 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦),点击深链回本 tab。 */
@@ -182,6 +196,14 @@ export function useSsSession(payload: StructuredSessionPayload) {
     phaseRef.current = phase;
   }, [phase]);
 
+  /* 草稿持久化镜像(初值在 useState 读;send 清空后此处同步移除 key)。 */
+  useEffect(() => {
+    try {
+      if (draft) localStorage.setItem(`tmd.ss.draft.${payload.profileId}:${payload.cwd}`, draft);
+      else localStorage.removeItem(`tmd.ss.draft.${payload.profileId}:${payload.cwd}`);
+    } catch { /* 隐私模式等存储失效:草稿退化为会话内 */ }
+  }, [draft, payload.profileId, payload.cwd]);
+
   const send = () => {
     const text = draft.trim();
     if (!text || phase !== "ready") return;
@@ -217,7 +239,7 @@ export function useSsSession(payload: StructuredSessionPayload) {
 
   return {
     phase, statusText, blocks, turnStart, busy, elapsed, confirm,
-    model, thinkingLevel, sessionId, queued, draft, setDraft,
+    model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
     sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh,
   };
 }

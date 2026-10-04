@@ -46,4 +46,8 @@ export const MESSAGES_EN: Record<string, string> = {
   "当前轮结束后自动发送": "Sends automatically when the current turn ends",
   /* 批次3:断线接续 */
   "接续重开": "Resume session",
+  /* 打磨轮:用量 + 命令补全 */
+  "上下文占用 {p}%,本轮会话累计 {n} tokens": "Context {p}% used, {n} tokens this session",
+  "载入命令目录…": "Loading command catalog…",
+  "无匹配命令": "No matching commands",
 }
