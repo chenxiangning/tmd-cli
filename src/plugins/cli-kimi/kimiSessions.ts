@@ -27,7 +27,8 @@ import {
   type UserMessageLineParser,
 } from "../cli-shared/userMessages";
 import type { CliDiskSession } from "@kernel/cli";
-import { readKimiStateCached, pruneKimiStateCache } from "./kimiStateCache";
+import { readKimiStatesBatched, pruneKimiStateCache } from "./kimiStateCache";
+import { readHeadsBatched } from "../cli-shared/sessionHead";
 
 /** 标题展示最大长度(与 cli-shared/diskSessions 的通用规则一致)。 */
 const TITLE_MAX_CHARS = 60;
@@ -185,36 +186,31 @@ async function listModernKimiSessions(
 ): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(root, ".json").catch(() => []);
   pruneKimiStateCache(new Set(files.map((f) => f.path)));
-  /* 先 regex 匹配再按 mtime 倒序截 LIMIT,只并发读最近 N 个候选(cli-codex 先 slice 后读同款);
-     单文件坏/读失败 catch 成 null 跳过,容错语义不变,LIMIT 截断与落表保持 files 原序。 */
+  /* 先 regex 匹配再按 mtime 倒序截 LIMIT;state 批量读(mtime 命中走缓存,外网
+     中继 N+1 削峰),单文件坏/读失败 = null 跳过,容错语义不变。 */
   const candidates = files
     .flatMap((f) => {
       const m = matchKimiStatePath(f.path);
       return m ? [{ m, modifiedAt: f.modifiedAt, path: f.path }] : [];
     })
     .slice(0, KIMI_SCAN_LIMIT);
-  const probed = await Promise.all(
-    candidates.map(async ({ m, modifiedAt, path }) => {
-      const state = await readKimiStateCached(path, modifiedAt, parseKimiState);
-      /* 归档会话 kimi 自己的 picker 也默认隐藏;cwd 缺失(首回合未落盘)= 还归属不明 */
-      if (!state || state.archived || !state.cwd || !sameDir(state.cwd, cwd)) return null;
-      return { m, modifiedAt, state };
-    }),
-  );
+  const probed = await readKimiStatesBatched(candidates, parseKimiState);
   const sessions: CliDiskSession[] = [];
-  for (const hit of probed) {
-    if (!hit) continue;
-    if (sessions.length >= KIMI_SCAN_LIMIT) break;
-    wirePathById.set(hit.m.id, `${hit.m.dir}/agents/main/wire.jsonl`);
+  for (let i = 0; i < candidates.length && sessions.length < KIMI_SCAN_LIMIT; i++) {
+    const { m, modifiedAt } = candidates[i];
+    const state = probed[i];
+    /* 归档会话 kimi 自己的 picker 也默认隐藏;cwd 缺失(首回合未落盘)= 还归属不明 */
+    if (!state || state.archived || !state.cwd || !sameDir(state.cwd, cwd)) continue;
+    wirePathById.set(m.id, `${m.dir}/agents/main/wire.jsonl`);
     sessions.push({
-      id: hit.m.id,
-      modifiedAt: hit.modifiedAt,
+      id: m.id,
+      modifiedAt,
       /* 创建时刻定死日历落位:state.createdAt(resume 不改写);缺省回退 modifiedAt。 */
-      createdAt: hit.state.createdAt,
+      createdAt: state.createdAt,
       /* path 约定"磁盘路径":kimi 会话是目录,CliDiskSession.path 指向目录,
          删除(fs_remove_path)按整目录删,与 CLI 自删的 rm -rf 语义一致 */
-      path: hit.m.dir,
-      title: kimiStateTitle(hit.state),
+      path: m.dir,
+      title: kimiStateTitle(state),
     });
   }
   return sessions;
@@ -234,12 +230,11 @@ async function listLegacyKimiSessions(
       ? [{ id: m[2], hash: m[1], modifiedAt: f.modifiedAt, path: f.path }]
       : [];
   });
-  /* wire.jsonl 读头互不依赖,并发一次发出;先截 LIMIT 再读(cli-codex 同款),
-     单文件读失败 catch 成 ""(无标题),容错语义不变;LIMIT 截断与落表保持 files 原序。 */
-  const heads = await Promise.all(
-    matched
-      .slice(0, KIMI_SCAN_LIMIT)
-      .map((entry) => ipc.fsReadHead(entry.path, 8 * 1024).catch(() => "")),
+  /* wire.jsonl 读头批量(8KB 窗;外网中继 N+1 削峰):先截 LIMIT 再读,单文件
+     读失败 = 空串(无标题),容错语义不变;LIMIT 截断与落表保持 files 原序。 */
+  const heads = await readHeadsBatched(
+    matched.slice(0, KIMI_SCAN_LIMIT).map((entry) => entry.path),
+    8 * 1024,
   );
   const sessions: CliDiskSession[] = [];
   for (const [i, entry] of matched.entries()) {

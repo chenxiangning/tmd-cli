@@ -1,17 +1,27 @@
 /**
- * scanJsonlSessions 读头缓存行为契约(mtime 命中免读头 / 变更重读 / 消失剪除 /
- * 空结果不缓存 / 深窗兜底结果同样入缓存)。重扫 IO 主项 = 每文件读头,缓存把
- * 「会话每开/关一次全库重扫 N 读头」收敛为 1 次 fs_collect_files + 仅新/变文件读头。
+ * scanJsonlSessions 读头缓存与批量化契约(经 sessionHead):mtime 命中免读头 /
+ * 变更重读 / 消失剪除 / 空结果不缓存 / 深窗兜底结果同样入缓存;浅窗走批量
+ * fs_read_heads(chunk 串行),深窗兜底仍逐文件 fs_read_head。重扫 IO 主项 =
+ * 每文件读头,缓存把「会话每开/关一次全库重扫 N 读头」收敛为 1 次
+ * fs_collect_files + 仅新/变文件读头。
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { scanJsonlSessions } from "./diskSessions";
+import { readHeadsBatched } from "./sessionHead";
 
 const mocks = vi.hoisted(() => ({
   fsCollectFiles: vi.fn(),
   fsReadHead: vi.fn(),
+  fsReadHeads: vi.fn(),
 }));
-vi.mock("@kernel/ipc", () => ({ ipc: { fsCollectFiles: mocks.fsCollectFiles, fsReadHead: mocks.fsReadHead } }));
+vi.mock("@kernel/ipc", () => ({
+  ipc: {
+    fsCollectFiles: mocks.fsCollectFiles,
+    fsReadHead: mocks.fsReadHead,
+    fsReadHeads: mocks.fsReadHeads,
+  },
+}));
 
 const UUID = "0d03dfef-6824-4a05-b32e-a738c8a48d03";
 const NAME = `2026-09-18T00-00-00-000Z_${UUID}.jsonl`;
@@ -23,6 +33,23 @@ const mkDir = () => `/tmp/tmd-cache-test/dir-${++seq}`;
 const stamp = (dir: string, mtime: number, name = NAME) => ({ name, path: `${dir}/${name}`, modifiedAt: mtime });
 const headLine = (title: string) => `${JSON.stringify({ type: "message", message: { role: "user", content: title } })}\n`;
 
+/** 头内容单源设定:浅窗批读与深窗单读共用同一 (path, bytes) 实现。 */
+const setHead = (impl: (p: string, bytes: number) => string) => {
+  mocks.fsReadHeads.mockImplementation(async (ps: string[], bytes: number) => ps.map((p) => impl(p, bytes)));
+  mocks.fsReadHead.mockImplementation(async (p: string, bytes: number) => impl(p, bytes));
+};
+/** 读头总量(批量按 path 数累计 + 深窗逐次)/ 已读路径按序。 */
+const readCount = () =>
+  mocks.fsReadHeads.mock.calls.reduce((n, c) => n + c[0].length, 0) + mocks.fsReadHead.mock.calls.length;
+const readPaths = () => [
+  ...mocks.fsReadHeads.mock.calls.flatMap((c) => c[0]),
+  ...mocks.fsReadHead.mock.calls.map((c) => c[0]),
+];
+const clearReads = () => {
+  mocks.fsReadHeads.mockClear();
+  mocks.fsReadHead.mockClear();
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -31,66 +58,97 @@ describe("scanJsonlSessions 读头缓存", () => {
   it("mtime 未变:二次扫描零读头,标题照常", async () => {
     const dir = mkDir();
     mocks.fsCollectFiles.mockResolvedValue([stamp(dir, 1000)]);
-    mocks.fsReadHead.mockResolvedValue(headLine("标题甲"));
+    setHead(() => headLine("标题甲"));
     const first = await scanJsonlSessions(dir);
     expect(first.map((s) => s.title)).toEqual(["标题甲"]);
-    expect(mocks.fsReadHead).toHaveBeenCalledTimes(1);
-    mocks.fsReadHead.mockClear();
+    expect(readCount()).toBe(1);
+    clearReads();
     const second = await scanJsonlSessions(dir);
     expect(second.map((s) => s.title)).toEqual(["标题甲"]);
-    expect(mocks.fsReadHead).not.toHaveBeenCalled();
+    expect(readCount()).toBe(0);
   });
 
   it("mtime 变化:仅重读该文件,其余走缓存", async () => {
     const dir = mkDir();
     const other = stamp(dir, 1000, `2026-09-18T00-00-00-000Z_11111111-2222-4333-8444-555555555555.jsonl`);
     mocks.fsCollectFiles.mockResolvedValue([stamp(dir, 1000), other]);
-    mocks.fsReadHead.mockResolvedValue(headLine("标题乙"));
+    setHead(() => headLine("标题乙"));
     await scanJsonlSessions(dir);
-    expect(mocks.fsReadHead).toHaveBeenCalledTimes(2);
+    expect(readCount()).toBe(2);
     mocks.fsCollectFiles.mockResolvedValue([stamp(dir, 2000), other]);
-    mocks.fsReadHead.mockClear();
+    clearReads();
     await scanJsonlSessions(dir);
-    expect(mocks.fsReadHead).toHaveBeenCalledTimes(1);
-    expect(mocks.fsReadHead.mock.calls[0][0]).toBe(`${dir}/${NAME}`);
+    expect(readCount()).toBe(1);
+    expect(readPaths()[0]).toBe(`${dir}/${NAME}`);
   });
 
   it("文件消失:缓存条目剪除,同路径同 mtime 再现会重读", async () => {
     const dir = mkDir();
     mocks.fsCollectFiles.mockResolvedValue([stamp(dir, 1000)]);
-    mocks.fsReadHead.mockResolvedValue(headLine("标题丙"));
+    setHead(() => headLine("标题丙"));
     await scanJsonlSessions(dir);
     mocks.fsCollectFiles.mockResolvedValue([]);
     await scanJsonlSessions(dir);
     mocks.fsCollectFiles.mockResolvedValue([stamp(dir, 1000)]);
-    mocks.fsReadHead.mockClear();
+    clearReads();
     await scanJsonlSessions(dir);
-    expect(mocks.fsReadHead).toHaveBeenCalledTimes(1);
+    expect(readCount()).toBe(1);
   });
 
   it("读头无标题:不缓存,下轮重读追赶自动命名", async () => {
     const dir = mkDir();
     mocks.fsCollectFiles.mockResolvedValue([stamp(dir, 1000)]);
-    mocks.fsReadHead.mockResolvedValue("not json garbage\n");
+    setHead(() => "not json garbage\n");
     await scanJsonlSessions(dir);
-    mocks.fsReadHead.mockClear();
+    clearReads();
     await scanJsonlSessions(dir);
     /* 浅窗 miss 后还有深窗兜底,一轮 = 2 读;关键是不落缓存 */
-    expect(mocks.fsReadHead).toHaveBeenCalledTimes(2);
+    expect(readCount()).toBe(2);
   });
 
   it("浅窗缺标题走深窗兜底:解析结果同样入缓存", async () => {
     const dir = mkDir();
     mocks.fsCollectFiles.mockResolvedValue([stamp(dir, 1000)]);
-    mocks.fsReadHead.mockImplementation(async (_p: string, bytes: number) =>
-      bytes >= DEEP ? headLine("深窗标题") : "",
-    );
+    setHead((_p, bytes) => (bytes >= DEEP ? headLine("深窗标题") : ""));
     const first = await scanJsonlSessions(dir);
     expect(first.map((s) => s.title)).toEqual(["深窗标题"]);
-    expect(mocks.fsReadHead).toHaveBeenCalledTimes(2); // 浅窗 miss + 深窗命中
-    mocks.fsReadHead.mockClear();
+    expect(readCount()).toBe(2); // 浅窗 miss + 深窗命中
+    clearReads();
     const second = await scanJsonlSessions(dir);
     expect(second.map((s) => s.title)).toEqual(["深窗标题"]);
+    expect(readCount()).toBe(0);
+  });
+
+  it("批量化:多文件浅窗合并一次 fs_read_heads(单 chunk),下标对齐", async () => {
+    const dir = mkDir();
+    const names = [0, 1, 2].map(
+      (i) => `2026-09-18T00-00-00-000Z_1111111${i}-2222-4333-8444-55555555555${i}.jsonl`,
+    );
+    mocks.fsCollectFiles.mockResolvedValue(names.map((n, i) => stamp(dir, 1000 + i, n)));
+    setHead((p) => headLine(`标题-${p.slice(-6)}`));
+    const rows = await scanJsonlSessions(dir);
+    /* 单 chunk:3 路径一次批量;无深窗(标题全中)。 */
+    expect(mocks.fsReadHeads).toHaveBeenCalledTimes(1);
+    expect(mocks.fsReadHeads.mock.calls[0][0]).toHaveLength(3);
     expect(mocks.fsReadHead).not.toHaveBeenCalled();
+    expect(rows.every((r) => r.title?.startsWith("标题-"))).toBe(true);
+  });
+});
+
+describe("readHeadsBatched 分片", () => {
+  it("响应预算分 chunk 串行:32KB 窗 25 路径 = 24+1 两次调用,顺序对齐", async () => {
+    mocks.fsReadHeads.mockImplementation(async (ps: string[]) => ps.map((p) => `h:${p}`));
+    const paths = Array.from({ length: 25 }, (_, i) => `/p/${i}.jsonl`);
+    const heads = await readHeadsBatched(paths, 32 * 1024);
+    expect(mocks.fsReadHeads).toHaveBeenCalledTimes(2);
+    expect(mocks.fsReadHeads.mock.calls[0][0]).toHaveLength(24);
+    expect(mocks.fsReadHeads.mock.calls[1][0]).toHaveLength(1);
+    expect(heads).toEqual(paths.map((p) => `h:${p}`));
+  });
+
+  it("批量调用整体失败:该 chunk 全空串(与逐文件失败同语义)", async () => {
+    mocks.fsReadHeads.mockRejectedValue(new Error("bridge disconnected"));
+    const heads = await readHeadsBatched(["/a", "/b"], 32 * 1024);
+    expect(heads).toEqual(["", ""]);
   });
 });

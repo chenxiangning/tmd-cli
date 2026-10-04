@@ -256,6 +256,7 @@ pub fn run() {
             commands_fs::fs_write_temp,
             commands_fs::fs_collect_files,
             commands_fs::fs_read_head,
+            commands_fs::fs_read_heads,
             commands_fs::fs_read_tail,
             commands_fs::fs_read_tail_changed,
             commands_fs::fs_remove_path,

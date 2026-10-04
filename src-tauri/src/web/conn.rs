@@ -29,6 +29,7 @@ pub(crate) const FS_READ: &[&str] = &[
     "fs_list_dir",
     "fs_read_file",
     "fs_read_head",
+    "fs_read_heads",
     "fs_read_tail",
     "fs_read_tail_changed",
     "fs_search",

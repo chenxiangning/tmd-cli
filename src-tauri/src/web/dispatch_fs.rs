@@ -33,6 +33,12 @@ pub(super) async fn try_dispatch(
             })
             .await
         }
+        "fs_read_heads" => {
+            go(raw, |a: ReadHeads| {
+                crate::commands_fs::fs_read_heads(a.paths, a.max_bytes)
+            })
+            .await
+        }
         "fs_read_tail" => {
             go(raw, |a: ReadSpan| {
                 crate::commands_fs::fs_read_tail(a.path, a.max_bytes)
@@ -120,6 +126,12 @@ struct Collect {
 #[serde(rename_all = "camelCase")]
 struct ReadSpan {
     path: String,
+    max_bytes: usize,
+}
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReadHeads {
+    paths: Vec<String>,
     max_bytes: usize,
 }
 

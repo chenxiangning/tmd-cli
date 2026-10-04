@@ -8,7 +8,7 @@ import { ipc } from "@kernel/ipc";
 import { getPlatformKind } from "@kernel/platform";
 import { pathsEqual } from "@kernel/pathUtils";
 import type { CliDiskSession } from "@kernel/cli";
-import { readHeadTitleCached } from "../cli-shared/diskSessions";
+import { readHeadMetasBatch, readHeadsBatched } from "../cli-shared/sessionHead";
 import { HEAD_BYTES, extractMeta } from "./sessionStatus";
 
 const CASE_INSENSITIVE_FS = getPlatformKind() !== "linux";
@@ -36,27 +36,31 @@ export async function listCodexSessions(cwd: string): Promise<CliDiskSession[]> 
   for (const p of [...metaCache.keys()]) {
     if (!live.has(p)) metaCache.delete(p);
   }
-  /* 读头并发一次发出(collect 已按 mtime 倒序,顺序保持 = 先见即最新;
-     手机 relay 场景串行 200 次 RTT 不可接受)。mtime 未变走缓存,重扫免读头。 */
+  /* 读头批量(mtime 未变走缓存):外网中继逐文件并发读头会撞桥并发帽(快拒→
+     会话缺列)+ 灌爆链路;批量 + 缓存把重扫收敛为 1 次 fs_collect_files + 仅
+     新/变文件。collect 已按 mtime 倒序,顺序保持 = 先见即最新。 */
   const candidates = rollouts.slice(0, SCAN_LIMIT);
-  const metas: CodexMeta[] = await Promise.all(
-    candidates.map(async (f) => {
-      const cached = metaCache.get(f.path);
-      if (cached && cached.mtime === f.modifiedAt) return cached.meta;
-      const head = await ipc.fsReadHead(f.path, HEAD_BYTES).catch(() => "");
-      const meta = head ? extractMeta(head) : null;
-      if (meta) {
-        if (metaCache.size >= META_CACHE_MAX) {
-          const oldest = metaCache.keys().next().value;
-          if (oldest !== undefined) metaCache.delete(oldest);
-        }
-        metaCache.set(f.path, { mtime: f.modifiedAt, meta });
-      } else {
-        metaCache.delete(f.path);
+  const misses = candidates.filter((f) => metaCache.get(f.path)?.mtime !== f.modifiedAt);
+  const heads = misses.length
+    ? await readHeadsBatched(misses.map((f) => f.path), HEAD_BYTES)
+    : [];
+  const headOf = new Map(misses.map((f, i) => [f.path, heads[i]]));
+  const metas = candidates.map((f) => {
+    const cached = metaCache.get(f.path);
+    if (cached && cached.mtime === f.modifiedAt) return cached.meta;
+    const head = headOf.get(f.path) ?? "";
+    const meta = head ? extractMeta(head) : null;
+    if (meta) {
+      if (metaCache.size >= META_CACHE_MAX) {
+        const oldest = metaCache.keys().next().value;
+        if (oldest !== undefined) metaCache.delete(oldest);
       }
-      return meta;
-    }),
-  );
+      metaCache.set(f.path, { mtime: f.modifiedAt, meta });
+    } else {
+      metaCache.delete(f.path);
+    }
+    return meta;
+  });
   const sessions: CliDiskSession[] = [];
   for (let i = 0; i < candidates.length && sessions.length < RESULT_LIMIT; i++) {
     const meta = metas[i];
@@ -72,10 +76,9 @@ export async function listCodexSessions(cwd: string): Promise<CliDiskSession[]> 
       title: "",
     });
   }
-  // codex 无 title 概念:标题 = 首条 role:user 的 response_item 文本,走共享两段式读头
-  // (meta 行带完整 system prompt 可达数十 KB,深窗覆盖;4KB meta 窗照旧先筛,成本可控)。
-  // 标题同走 mtime 缓存(共享 headCache 池),重扫只读新/变文件。
-  return Promise.all(
-    sessions.map(async (s) => ({ ...s, title: (await readHeadTitleCached(s.path, s.modifiedAt)) ?? "" })),
-  );
+  // codex 无 title 概念:标题 = 首条 role:user 的 response_item 文本,走共享批量
+  // 两段式读头(sessionHead.readHeadMetasBatch;meta 行带完整 system prompt 可达
+  // 数十 KB,深窗覆盖)。标题同走 mtime 缓存(共享 headCache 池),重扫只读新/变文件。
+  const titleMetas = await readHeadMetasBatch(sessions);
+  return sessions.map((s, i) => ({ ...s, title: titleMetas[i].title ?? "" }));
 }

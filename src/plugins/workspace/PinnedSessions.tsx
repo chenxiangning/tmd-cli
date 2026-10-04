@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
 /* 经 cli-shared 消费 jsonl 标题行型(无生命周期格式库,插件零直接依赖铁律
  * 下的合法通道,同 welcome/credentials.ts 的依赖声明)。 */
-import { readHeadTitle } from "../cli-shared/diskSessions";
+import { readHeadTitle } from "../cli-shared/sessionHead";
 import { host, useHost } from "@kernel/host";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";

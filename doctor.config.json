@@ -50,6 +50,14 @@
         "rules": [
           "react-doctor/no-pass-data-to-parent"
         ]
+      },
+      {
+        "files": [
+          "src/plugins/cli-shared/sessionHead.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
       }
     ]
   }

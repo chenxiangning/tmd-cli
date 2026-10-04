@@ -532,6 +532,7 @@ flowchart TD
 | `fs_write_temp` | `fs.rs` | 截图/拖拽文件落系统临时目录 `temp_dir()/tmd-cli` |
 | `fs_collect_files` | `fs.rs` | 递归收集指定后缀文件并按 mtime 倒序 |
 | `fs_read_head` / `fs_read_tail` | `fs.rs` | 读取 JSONL 头/尾，避免全文加载 |
+| `fs_read_heads` | `fs.rs` | 批量读头(≤512 文件/次,窗 ≤256KB,单文件失败 = 空串):手机外网扫描把 N 次读头合一次 IPC,防桥 32 并发帽快拒与中继拥塞(2026-10-04 外网列表慢/名称缺失/重连风暴根治);消费面 cli-shared/sessionHead.ts |
 | `fs_remove_path` | `fs.rs` | 物理删除文件/目录（会话删除双端统一）,NotFound 幂等成功 |
 | `fs_walk_files` | `fs_walk.rs` | 全仓文件索引(gitignore 系语义镜像 pi/omp TUI,cap 上限),composer `@` 候选 |
 | `proc_communicate` | `proc_run.rs` | 通用短进程通道(omp/pi RPC 副车、grok `inspect --json`),spawn_blocking |

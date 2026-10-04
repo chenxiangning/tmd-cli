@@ -24,6 +24,7 @@ import { parseEditEventsFromText } from "./sessionEdits";
 const mocks = vi.hoisted(() => ({
   fsCollectFiles: vi.fn(),
   fsReadHead: vi.fn(),
+  fsReadHeads: vi.fn(),
   fsReadTail: vi.fn(),
   fsReadTailChanged: vi.fn(),
 }));
@@ -34,6 +35,7 @@ vi.mock("@kernel/ipc", () => ({
     fsReadHead: mocks.fsReadHead,
     fsReadTail: mocks.fsReadTail,
     fsReadTailChanged: mocks.fsReadTailChanged,
+    fsReadHeads: mocks.fsReadHeads,
   },
 }));
 
@@ -88,6 +90,7 @@ beforeEach(async () => {
     const text = await read(path);
     return { changed: true, size: text.length, text };
   });
+  mocks.fsReadHeads.mockImplementation(async (ps: string[]) => Promise.all(ps.map((p) => read(p).catch(() => ""))));
   // 动态 import 例外:tailGate/headCache 模块级单例缓存,须 resetModules 取全新模块图
   mod = await import("./piFamily");
 });

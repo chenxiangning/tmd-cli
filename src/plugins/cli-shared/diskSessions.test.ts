@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { extractJsonlTitle } from "./diskSessions";
+import { extractJsonlTitle } from "./sessionHead";
 
 describe("extractJsonlTitle", () => {
   it("omp:title 记录(首行,带空格风格)直接定案", () => {

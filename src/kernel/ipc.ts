@@ -636,6 +636,10 @@ export const ipc = {
   /** 读文件头部 maxBytes 字节(解析 jsonl 首行 meta 用,避免全文加载)。 */
   fsReadHead: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_head", { path, maxBytes }),
+  /** 批量读头(下标对齐;单文件失败 = 空串):远程/中继链路把 N 次读头合一次
+   *  IPC,削峰防桥并发帽快拒与链路拥塞(2026-10-04 外网列表慢/名称缺失/频繁重连)。 */
+  fsReadHeads: (paths: string[], maxBytes: number) =>
+    invoke<string[]>("fs_read_heads", { paths, maxBytes }),
   /** 物理删除文件或目录(会话列表"删除会话"用);kimi 会话是目录,统一走此命令。
    *  路径不存在视为成功(幂等)。 */
   fsRemovePath: (path: string) => invoke<void>("fs_remove_path", { path }),
