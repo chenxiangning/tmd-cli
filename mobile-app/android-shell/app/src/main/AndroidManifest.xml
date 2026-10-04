@@ -8,7 +8,8 @@
 
     <application
         android:label="tmd-cli"
-        android:icon="@android:drawable/sym_def_app_icon"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
         <!-- configChanges 防旋转重载页面(页面自持 session_resize 适配);adjustResize 让键盘顶起 WebView -->
