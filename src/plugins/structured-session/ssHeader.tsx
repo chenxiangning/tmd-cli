@@ -151,9 +151,14 @@ function ModelMenu(props: {
   const [menuErr, setMenuErr] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
-  /* 开菜单时懒载一次(失败空表 → 菜单内提示;重开菜单即重试) */
+  /* 开菜单懒载一次;失败/空表留在菜单内提示,关菜单复位 —— 重开即重试
+   * (2026-10-05 二轮复审:守卫放行空表 + setModels([]) 新引用 = 自触发无限重试)。 */
   useEffect(() => {
-    if (!open || models !== null) return;
+    if (!open) {
+      if (models !== null && models.length === 0) setModels(null);
+      return;
+    }
+    if (models !== null) return;
     setLoading(true);
     void Promise.all([session.getAvailableModels(), session.getThinkingLevels()])
       .then(([ms, ls]) => { setModels(ms); setLevels(ls); })
