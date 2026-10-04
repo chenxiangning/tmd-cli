@@ -30,8 +30,9 @@ export function hasShellBridge(): boolean {
   return shellWindow() !== null;
 }
 
-/** 壳桥发信封;iOS 走 messageHandlers,Android 走 AndroidShell.post(JSON 串)。 */
-function shellPost(m: { id: number; method: string; args: unknown }): void {
+/** 壳桥发信封;iOS 走 messageHandlers,Android 走 AndroidShell.post(JSON 串)。
+ * shellWs(WS 隧道意图)同信道复用,勿在别处再造第二通道。 */
+export function shellPost(m: { id: number; method: string; args: unknown }): void {
   const w = shellWindow();
   if (!w) return;
   if (w.AndroidShell) w.AndroidShell.post(JSON.stringify(m));

@@ -54,4 +54,8 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    /* 扫码配对(iOS AVCapture QR 桥的安卓对端):自含 CaptureActivity(相机+取景
+     * UI+权限请求),纯离线无 Play 服务依赖;appcompat 是其 CaptureActivity 基类。 */
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }

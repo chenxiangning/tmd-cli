@@ -114,4 +114,22 @@ describe("shellWs 隧道", () => {
     fire("message", { data: "ghost" });
     expect(seen).toHaveLength(0);
   });
+
+  it("Android 通道:AndroidShell 在位即可用,信封走 JSON 串(2026-10-04 双壳接线)", () => {
+    const frames: string[] = [];
+    vi.stubGlobal("window", { AndroidShell: { post: (j: string) => frames.push(j) } });
+    try {
+      expect(shellWs.shellWsAvailable()).toBe(true);
+      const ws = shellWs.createShellWs("ws://a:2/ws");
+      const f = JSON.parse(frames.at(-1)!) as Posted;
+      expect(f).toMatchObject({ id: 0, method: "ws.open", args: { url: "ws://a:2/ws" } });
+      expect(frames.every((j) => typeof j === "string")).toBe(true);
+      ws.close();
+    } finally {
+      // 恢复 webkit 桩,后续用例不受影响
+      vi.stubGlobal("window", {
+        webkit: { messageHandlers: { shell: { postMessage: (m: unknown) => posted.push(m as Posted) } } },
+      });
+    }
+  });
 });

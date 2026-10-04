@@ -6,6 +6,7 @@
 import React from "react";
 import type { MobileCreds } from "./creds";
 import { hasShellBridge, shellHttpPost } from "@kernel/shellBridge";
+import { hasQrBridge, scanOfferLink } from "./qrBridge";
 import { t } from "@kernel/i18n";
 
 /** 解析 tmd://pair?c=… 短链;非该形状返回 null。 */
@@ -98,23 +99,7 @@ function deviceName(): string {
   return t("手机");
 }
 
-/** 壳是否有原生扫码桥。 */
-function hasQrBridge(): boolean {
-  return typeof (window as { webkit?: { messageHandlers?: { qr?: unknown } } })
-    .webkit?.messageHandlers?.qr !== "undefined";
-}
-
-/** 开原生扫码;取消返回 null。 */
-function scanOfferLink(): Promise<string | null> {
-  return new Promise((resolve) => {
-    const w = window as unknown as { __TMD_QR__?: (t: string | null) => void };
-    w.__TMD_QR__ = (t) => resolve(t);
-    (
-      (window as unknown as { webkit: { messageHandlers: { qr: { postMessage: (m: string) => void } } } })
-        .webkit.messageHandlers.qr
-    ).postMessage("start");
-  });
-}
+/** 壳原生扫码门面(iOS webkit.qr / Android AndroidShell)见 qrBridge.ts。 */
 
 /** offer → 端点配对;凭证存全部端点供 M2 双通道重选路。
  * 串行 LAN 先行(评审二轮 P2-4):并发 = 单次消费码必产生一次后到 403,
