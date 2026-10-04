@@ -894,6 +894,28 @@ export function windowToggleMaximize(): Promise<void> {
   return isWeb ? Promise.resolve() : getCurrentWindow().toggleMaximize();
 }
 
+/** 窗口四角是否呈方形(最大化或全屏;macOS 常态圆角在这两态消失)。
+ *  贴角顺弧 UI(左下设置 logo)据此回落直角。web 态无窗口可判 → 恒 false。 */
+export async function windowSquareCorners(): Promise<boolean> {
+  if (isWeb) return false;
+  const win = getCurrentWindow();
+  return (await win.isMaximized()) || (await win.isFullscreen());
+}
+
+/** 窗口几何变化订阅:最大化/全屏/还原均触发 resize,供圆角态重判。
+ *  web 态 no-op。返回退订函数(boot 常驻路径不退订)。 */
+export function onWindowGeometryChange(cb: () => void): () => void {
+  if (isWeb) return () => undefined;
+  let unlisten: (() => void) | undefined;
+  void getCurrentWindow()
+    .onResized(() => cb())
+    .then((u) => {
+      unlisten = u;
+    })
+    .catch(() => undefined);
+  return () => unlisten?.();
+}
+
 /** 界面缩放:webview 整页 zoom(mac pageZoom / win zoomFactor / gtk zoom_level)。
  *  需 capability core:webview:allow-set-webview-zoom;web 态 reject 由 kernel/uiZoom 兜底。 */
 export function setWebviewZoom(factor: number): Promise<void> {

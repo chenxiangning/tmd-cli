@@ -8,6 +8,7 @@ import { bootI18n } from "@kernel/i18n";
 import { startThemeEngine } from "@kernel/theme";
 import { useSettingsState } from "@kernel/settings";
 import { bootUiFontSize } from "@kernel/uiFontSize";
+import { bootWindowCorners } from "@kernel/windowCorners";
 import { bootUiZoom } from "@kernel/uiZoom";
 import { initUpdatePresence } from "./updatePresence";
 import { bootIconDecor } from "@kernel/iconDecor";
@@ -33,6 +34,7 @@ export function DesktopApp() {
     bootI18n(); /* 语言内核:<html lang> 同步;整树重挂载在下方 key 实现 */
     bootUiZoom(); /* 界面缩放:settings.uiZoom → webview 整页 zoom */
     bootUiFontSize(); /* 界面字号:settings.uiFontSize → html 根字号(rem 文字缩放) */
+    bootWindowCorners(); /* 窗口圆角态:最大化/全屏 → html[data-window-square],贴角顺弧件回落直角 */
     bootIconDecor(); /* 图标装饰:settings.iconDecor → html CSS 变量 + data-icon-blink */
     bootAskSound(host.events); /* Ask 提示音:消费 askDetected(host 主链路检测,见 askWatch.ts) */
     bootTurnSound(host.events); /* 轮次结束提示音:消费 turnSettled,延迟确认后播放 */

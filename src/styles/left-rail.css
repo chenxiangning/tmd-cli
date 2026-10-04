@@ -66,11 +66,20 @@
   margin: 0;
   border-radius: 0; /* 左上/右上/右下直角(压过 .left-rail-tab 圆角) */
   border-bottom-left-radius: 14px; /* 唯一弧:左下顺窗口弧线 */
+  overflow: hidden; /* 裁住放大溢出的 logo(素材自带圆角/透明边推出格外) */
+}
+
+/* 窗口最大化/全屏(系统圆角消失,kernel/windowCorners 置位):左下顺弧回落直角。 */
+html[data-window-square] .left-rail-settings {
+  border-bottom-left-radius: 0;
 }
 .left-rail-settings .settings-logo {
   width: 100%;
   height: 100%;
-  border-radius: inherit; /* 与钮同弯曲:常规圆角 + 左下顺弧 14px */
+  /* logo.png 素材自带 ~10/128 圆角与 2px 透明边:直接填满会在上/右/下三角
+   * 留月牙缝。放大 1.19 倍(取直临界:圆角收敛于 ~10/128,128/108≈1.185)
+   * 把烘焙圆角推出格外,上/右/下缘贴边框取直;左下弧由钮 14px 半径裁。 */
+  transform: scale(1.19);
 }
 .left-rail-settings:hover .settings-logo,
 .left-rail-settings.is-active .settings-logo {
