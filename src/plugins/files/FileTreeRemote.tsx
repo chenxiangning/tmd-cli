@@ -136,7 +136,7 @@ export function FileTreeRemoteSource({
         <span>{source.label(workspace)}</span>
         {/* 工具条与本地树同形制(2026-10-02 自顶栏右区下放):新建出 M1 提示,
             刷新走 refreshFiles(根层重拉 + 打开中 tab 重读,同句柄槽语义)。 */}
-        <FileTreeToolbar onNewFile={remoteNewGuard} onNewFolder={remoteNewGuard} onRefresh={() => refreshFiles()} />
+        <FileTreeToolbar onNewFile={remoteNewGuard} onNewFolder={remoteNewGuard} onRefresh={() => refreshFiles()} gitToggle={false} />
       </div>
       <div className="file-tree-list">
         {entries === null ? (

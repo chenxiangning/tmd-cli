@@ -18,6 +18,7 @@ export function FileTreeToolbar({
   onNewFile,
   onNewFolder,
   onRefresh,
+  gitToggle = true,
 }: {
   /** 新建文件;缺省按钮置灰(远程树宿主自给守卫回调,出 M1 提示)。 */
   onNewFile?: () => void;
@@ -25,6 +26,9 @@ export function FileTreeToolbar({
   onNewFolder?: () => void;
   /** 刷新:Promise settle 前按钮转忙态(并发点击不重启)。 */
   onRefresh: () => void | Promise<void>;
+  /** Git 变更着色开关:仅本地树消费(useGitDecorations 不挂远程源),远程树
+   *  宿主传 false 隐藏 —— 该钮对远程树是零效果假动作钮。 */
+  gitToggle?: boolean;
 }) {
   const [refreshBusy, setRefreshBusy] = useState(false);
   const refreshBatchRef = useRef(0);
@@ -78,7 +82,7 @@ export function FileTreeToolbar({
         {/* 尺寸单一真源 = file-tree.css svg 0.875rem(Spinner 同档透传) */}
         {refreshBusy ? <Spinner size="0.875rem" /> : <ArrowClockwise aria-hidden />}
       </button>
-      <GitDecorateToggle />
+      {gitToggle && <GitDecorateToggle />}
     </span>
   );
 }
