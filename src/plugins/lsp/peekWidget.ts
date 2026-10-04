@@ -7,13 +7,12 @@
  */
 
 import type { EditorView } from "@codemirror/view";
-import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { openFileAtLine } from "@kernel/fileTabs";
 import { highlightLine } from "@kernel/syntaxHighlight";
 import { prismLangOf } from "./peekLang";
 import { wrapSymRange } from "./symRange";
-import { buildPeekList } from "./peekList";
+import { buildPeekList, createPeekFileCache } from "./peekList";
 
 export interface PeekItem {
   path: string;
@@ -121,11 +120,15 @@ function previewRow(n: number, text: string, lang: string | null, item: PeekItem
   return row;
 }
 
-async function renderPreview(el: HTMLElement, item: PeekItem) {
+async function renderPreview(
+  el: HTMLElement,
+  item: PeekItem,
+  readFile: (path: string) => Promise<string>,
+) {
   const gen = generation;
   el.textContent = "";
   try {
-    const text = await ipc.fsReadFile(item.path);
+    const text = await readFile(item.path);
     if (gen !== generation) return; // peek 已替换/关闭:弃写
     const lines = text.split("\n");
     const lang = prismLangOf(item.path);
@@ -153,15 +156,17 @@ export function showPeek(view: EditorView, anchorPos: number, title: string, ite
   }
   const preview = document.createElement("div");
   preview.className = "lsp-peek-preview";
+  /* 读缓存随 peek 生命周期:行回填与预览共享一次整文件读(F3)。 */
+  const readFile = createPeekFileCache();
   const list = buildPeekList(shown, {
-    onSelect: (item) => void renderPreview(preview, item),
+    onSelect: (item) => void renderPreview(preview, item, readFile),
     onJump: (item) => {
       closePeek();
       openFileAtLine(item.path, item.line);
     },
     onClose: () => closePeek({ refocus: true }),
-  });
+  }, readFile);
   body.append(preview, list.el);
-  void renderPreview(preview, shown[0]);
+  void renderPreview(preview, shown[0], readFile);
   list.focus();
 }
