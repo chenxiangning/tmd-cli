@@ -7,7 +7,8 @@
  *   assistant#2 流;工具态挂单消息会在间隙丢失 → 挂在轮上。
  * - message_end 的 toolCall 项与 role=toolResult 消息不产生块(与 tool_execution
  *   帧重复;实证:双行 tool(bash/called)+tool(undefined) 即此因)。
- * - 渲染层切「落定历史|流内活轮」用 turnStart(session_settled 边沿推进)。
+ * - 渲染层切「落定历史|流内活轮」用 turnStart(轮首 session_start/turn_start
+ *   与轮末 session_settled 边沿推进)。
  * cli-shared 准入先例:cli-omp/cli-pi 的 structuredRpc 声明 + structured-session
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
@@ -52,6 +53,45 @@ function contentText(content: unknown): string | undefined {
   return parts.length ? parts.join("") : undefined;
 }
 
+/** 时分秒(词典无关的 locale 中立形态;notice 时刻用)。 */
+export function clockOf(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** 非 confirm 部件自动取消判定(纯函数,单测钉死):extension_ui_request 且
+ * method 非 confirm(select/input/editor 等真交互部件)时,RPC 模式无人可答,
+ * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
+ * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)不经此函数,走
+ * reducer.chromeCancel 聚合;缺 id 的畸形帧不产(无处应答也无从示警;调用侧
+ * 已将数值 id 归一为字符串,见 piRpc.normWidgetFrameId)。 */
+export function widgetCancelledNotice(
+  rec: Record<string, unknown>,
+  now: Date = new Date(),
+): { frameId: string; kind: string; text: string } | null {
+  if (rec.type !== "extension_ui_request") return null;
+  const kind = rec.method;
+  if (typeof kind !== "string" || !kind || kind === "confirm") return null;
+  const frameId = rec.id;
+  if (typeof frameId !== "string" || !frameId) return null;
+  return {
+    frameId,
+    kind,
+    text: `${t("CLI 发起 {kind} 交互,已按协议自动取消", { kind })}(${clockOf(now)})`,
+  };
+}
+
+/** TUI 装饰类部件(omp 18.x 启动/轮次帧实证:setStatus 状态行、notify 通知、
+ * setWidget 小部件注册):RPC 模式下永远无意义,取消后聚合一处降噪,不逐条
+ * 落行(2026-10-02 spec);select/input/editor 等真交互与未知 kind 一律
+ * interactive 逐条可见——宁可多显示不可静默。 */
+const CHROME_WIDGET_KINDS: Record<string, true> = { setStatus: true, notify: true, setWidget: true };
+
+/** 部件分档(纯函数,单测钉死):chrome = TUI 装饰,interactive = 其余一切。 */
+export function widgetTier(kind: string): "chrome" | "interactive" {
+  return CHROME_WIDGET_KINDS[kind] ? "chrome" : "interactive";
+}
+
 export class PiRpcReducer {
   /** 落定基座(唯一真源;不含流内块与工具行)。 */
   private settled: CliTranscriptBlock[] = [];
@@ -66,9 +106,18 @@ export class PiRpcReducer {
   private aggTail: { id: string; counts: Map<string, number> } | null = null;
   private aggSeq = 0;
 
+  /** 接续种子(断线重开换壳保转录):settled = 旧 blocks,轮界对齐尾。 */
+  seed(blocks: CliTranscriptBlock[]): void {
+    this.settled = [...blocks];
+    this.turnStart = blocks.length;
+    this.rebuild();
+  }
+
   feed(rec: Record<string, unknown>): CliTranscriptBlock[] {
     const type = rec.type;
-    if (type === "session_start") this.turnStart = this.blocks.length;
+    /* 18.6.0 起轮界帧更名 turn_start(18.4 实测为 session_start;双名兼容)。
+     * turn_end 与 session_settled 同义,结算仍走 session_settled(18.6 实测在发)。 */
+    if (type === "session_start" || type === "turn_start") this.turnStart = this.blocks.length;
     else if (type === "agent_start") { this.tools.clear(); this.toolOrder = []; }
     else if (type === "message_start") this.startMsg(rec);
     else if (type === "message_update") this.updateMsg(rec);

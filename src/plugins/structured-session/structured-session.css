@@ -2,6 +2,32 @@
    session-viewer(sv-*),本文件只管会话壳(头部/审批/输入面)。 */
 .ss-root { display: flex; flex-direction: column; height: 100%; background: var(--tmd-bg-base); color: var(--tmd-fg); }
 .ss-header { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px solid var(--tmd-border); flex: none; }
+/* header 弹层与胶囊钮(ssHeader;局部菜单 = academy 同款外点收起,无全局浮层) */
+.ss-anchor { position: relative; display: inline-flex; align-items: center; }
+.ss-pill-btn { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-md); cursor: pointer; }
+.ss-pill-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.ss-pill-btn.ss-model { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); }
+.ss-engine-static { display: inline-flex; align-items: center; gap: 4px; }
+.ss-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; display: flex; flex-direction: column; gap: 2px; min-width: 200px; max-height: 340px; padding: 6px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); overflow: hidden auto; }
+.ss-anchor-right .ss-menu { left: auto; right: 0; }
+.ss-menu-wide { width: 300px; }
+.ss-menu-filter { margin-bottom: 4px; padding: 4px 8px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-base); color: var(--tmd-fg); font-size: var(--tmd-font-ui); }
+.ss-menu-filter:focus { outline: none; border-color: color-mix(in srgb, var(--tmd-accent) 55%, transparent); }
+.ss-menu-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
+.ss-menu-item { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 5px 8px; border: none; border-radius: var(--tmd-radius-sm); background: none; cursor: pointer; text-align: left; }
+.ss-menu-item:hover:not(:disabled) { background: var(--tmd-bg-hover); }
+.ss-menu-item:disabled { cursor: default; opacity: 0.7; }
+.ss-menu-item.is-cur { background: var(--tmd-accent-soft); }
+.ss-menu-item-name { font-size: var(--tmd-font-ui); color: var(--tmd-fg); }
+.ss-menu-item-sub { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); font-family: var(--tmd-font-mono); }
+.ss-menu-hint { padding: 6px 8px; font-size: var(--tmd-font-ui); color: var(--tmd-fg-subtle); }
+.ss-menu-levels { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 4px; padding: 6px 4px 2px; border-top: 1px solid var(--tmd-border); }
+.ss-menu-levels-label { margin-right: 2px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); }
+.ss-lv { height: 20px; padding: 0 8px; border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-base); color: var(--tmd-fg-muted); font-size: var(--tmd-font-xs); cursor: pointer; }
+.ss-lv:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.ss-lv.is-cur { border-color: var(--tmd-accent); color: var(--tmd-accent); background: var(--tmd-accent-soft); }
+.ss-menu-err { padding: 4px 6px; font-size: var(--tmd-font-xs); color: var(--tmd-err); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-queued { font-size: var(--tmd-font-xs); color: var(--tmd-accent); border: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent); background: var(--tmd-accent-soft); border-radius: 999px; padding: 1px 8px; }
 .ss-engine-icon { display: inline-flex; color: var(--tmd-fg-muted); }
 .ss-engine-name { font-size: var(--tmd-font-md); font-weight: 600; }
 .ss-cwd { font-size: var(--tmd-font-ui); color: var(--tmd-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30%; }

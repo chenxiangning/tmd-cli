@@ -29,4 +29,21 @@ export const MESSAGES_EN: Record<string, string> = {
   /* chrome 装饰类部件聚合行(明细括注与时刻由 piRpcReducer 拼接,协议词不译) */
   "TUI 部件交互已自动取消 ×{count}":
   "{count} TUI widget interactions auto-cancelled",
+  /* header 菜单(ssHeader:引擎切换 / 模型与思考级) */
+  "模型与思考级": "Model & thinking level",
+  "筛选模型…": "Filter models…",
+  "载入模型清单…": "Loading models…",
+  "模型清单不可用": "Model list unavailable",
+  "无匹配模型": "No matching model",
+  "思考级": "Thinking level",
+  "切换引擎(另开 tab,当前会话保留)": "Switch engine (opens a new tab; this session stays)",
+  "切换引擎": "Switch engine",
+  "当前": "Current",
+  "模型": "Model",
+  /* 批次2:busy 排队发送 */
+  "输入下一问(排队,当前轮结束自动发送)": "Type the next question (queued; sends when this turn ends)",
+  "排队 {n}": "Queued {n}",
+  "当前轮结束后自动发送": "Sends automatically when the current turn ends",
+  /* 批次3:断线接续 */
+  "接续重开": "Resume session",
 }

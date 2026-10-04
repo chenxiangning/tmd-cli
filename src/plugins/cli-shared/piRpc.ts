@@ -12,13 +12,37 @@
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
 import { ipc } from "@kernel/ipc";
-import { t } from "@kernel/i18n";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { PiRpcReducer } from "./piRpcReducer";
+import { PiRpcReducer, clockOf, widgetCancelledNotice, widgetTier } from "./piRpcReducer";
 
-/** 家族分叉:启动命令(monocode piFlavor 同参照)。 */
+/** 家族分叉:启动命令 + 断线接续旗标(monocode piFlavor 同参照)。 */
 export interface PiRpcFlavor {
   command: string;
+  /** 接续旗标(omp --resume <id> / pi --session <id>;2026-10-04 实证与 rpc 模式共存);缺省 = 新会话。 */
+  resumeArgs?: (sessionId: string) => string[];
+}
+
+/** 模型行(get_available_models → models[];provider+id 唯一定位,name 展示)。 */
+export type PiRpcModel = { provider: string; id: string; name?: string };
+
+/** get_state 提炼的会话身份(握手与模型菜单刷新共用)。 */
+export interface PiRpcState {
+  sessionId?: string;
+  model?: PiRpcModel;
+  thinkingLevel?: string;
+  queuedMessageCount?: number;
+}
+
+function parseState(d: Record<string, unknown>): PiRpcState {
+  const m = d.model as Record<string, unknown> | null | undefined;
+  return {
+    sessionId: typeof d.sessionId === "string" ? d.sessionId : undefined,
+    model: m && typeof m.provider === "string" && typeof m.id === "string"
+      ? { provider: m.provider, id: m.id, name: typeof m.name === "string" ? m.name : undefined }
+      : undefined,
+    thinkingLevel: typeof d.thinkingLevel === "string" ? d.thinkingLevel : undefined,
+    queuedMessageCount: typeof d.queuedMessageCount === "number" ? d.queuedMessageCount : undefined,
+  };
 }
 
 /** 审批请求(extension_ui_request confirm;答案经 respond 回写)。
@@ -45,48 +69,9 @@ export interface PiRpcHandlers {
 }
 
 const REQUEST_TIMEOUT_MS = 30_000;
-/** prompt 类请求超时(独立常量):prompt 应答时机待真机实证 —— rpc 模式下
- * response 是否轮末才回尚无抓包数据,先与通用闸同值,实证后单独收口。 */
+/** prompt 超时:18.6 抓包实证应答为即时 ack(非轮末),与通用闸同值即可。 */
 const PROMPT_TIMEOUT_MS = 30_000;
 
-/** 时分秒(词典无关的 locale 中立形态;notice 时刻用)。 */
-function clockOf(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-/** 非 confirm 部件自动取消判定(纯函数,单测钉死):extension_ui_request 且
- * method 非 confirm(select/input/editor 等真交互部件)时,RPC 模式无人可答,
- * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
- * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)不经此函数,走
- * reducer.chromeCancel 聚合;缺 id 的畸形帧不产(无处应答也无从示警;调用侧
- * 已将数值 id 归一为字符串,见 normWidgetFrameId)。 */
-export function widgetCancelledNotice(
-  rec: Record<string, unknown>,
-  now: Date = new Date(),
-): { frameId: string; kind: string; text: string } | null {
-  if (rec.type !== "extension_ui_request") return null;
-  const kind = rec.method;
-  if (typeof kind !== "string" || !kind || kind === "confirm") return null;
-  const frameId = rec.id;
-  if (typeof frameId !== "string" || !frameId) return null;
-  return {
-    frameId,
-    kind,
-    text: `${t("CLI 发起 {kind} 交互,已按协议自动取消", { kind })}(${clockOf(now)})`,
-  };
-}
-
-/** TUI 装饰类部件(omp 18.x 启动/轮次帧实证:setStatus 状态行、notify 通知、
- * setWidget 小部件注册):RPC 模式下永远无意义,取消后聚合一处降噪,不逐条
- * 落行(2026-10-02 spec);select/input/editor 等真交互与未知 kind 一律
- * interactive 逐条可见——宁可多显示不可静默。 */
-const CHROME_WIDGET_KINDS = new Set(["setStatus", "notify", "setWidget"]);
-
-/** 部件分档(纯函数,单测钉死):chrome = TUI 装饰,interactive = 其余一切。 */
-export function widgetTier(kind: string): "chrome" | "interactive" {
-  return CHROME_WIDGET_KINDS.has(kind) ? "chrome" : "interactive";
-}
 
 /** 部件帧 id 归一:字符串原样、有限数字转字符串(JSON-RPC id 按协议可为数字,
  * confirm 路同律;2026-10-03 范围评审实锤:字符串守卫会把数值 id 帧静默丢弃,
@@ -109,13 +94,16 @@ export class PiRpcSession {
     private readonly flavor: PiRpcFlavor,
     private readonly cwd: string,
     private readonly handlers: PiRpcHandlers,
-  ) {}
+    private readonly opts?: { resume?: string; seedBlocks?: CliTranscriptBlock[] },
+  ) {
+    if (opts?.seedBlocks) this.reducer.seed(opts.seedBlocks);
+  }
 
-  /** spawn 子进程并完成 ready/get_state 握手;返回会话身份(state.data.sessionId)。 */
-  async start(): Promise<{ sessionId?: string; model?: string } | null> {
+  /** spawn 子进程并完成 ready/get_state 握手;返回会话身份(parseState 同源)。 */
+  async start(): Promise<PiRpcState | null> {
     const id = await ipc.procStreamSpawn({
       command: this.flavor.command,
-      args: ["--mode", "rpc"],
+      args: ["--mode", "rpc", ...(this.opts?.resume && this.flavor.resumeArgs ? this.flavor.resumeArgs(this.opts.resume) : [])],
       cwd: this.cwd,
     });
     /* spawn await 期间被 kill()(tab 立即关闭等):收割子进程,不订阅不握手。 */
@@ -130,13 +118,13 @@ export class PiRpcSession {
       await ipc.onProcStream(id, "exit", (code) => this.onExit(code as number | null)),
     );
     /* 握手:get_state 即就绪探测(ready 帧只是噪声起点,state 到 = 协议活)。 */
-    const state = (await this.request({ type: "get_state" })) as Record<string, unknown> | null;
-    return state
-      ? { sessionId: typeof state.sessionId === "string" ? state.sessionId : undefined,
-          model: typeof state.model === "object" && state.model
-            ? String((state.model as Record<string, unknown>).id ?? "") || undefined
-            : undefined }
-      : null;
+    return this.getState();
+  }
+
+  /** get_state 轻量刷新(set_model/set_thinking_level 后回读权威态)。 */
+  async getState(): Promise<PiRpcState | null> {
+    const d = (await this.request({ type: "get_state" })) as Record<string, unknown> | null;
+    return d ? parseState(d) : null;
   }
 
   /** 发一轮 prompt(字段 message,实证;text 会被 18.4.4 拒);超时走 prompt 专用闸。 */
@@ -144,9 +132,36 @@ export class PiRpcSession {
     await this.request({ type: "prompt", message: text }, PROMPT_TIMEOUT_MS);
   }
 
+  /** 轮次进行中排队下一条(follow_up;引擎结算后自动起跑,参数 message 与 prompt 同形,18.6 实证)。 */
+  async followUp(text: string): Promise<void> {
+    await this.request({ type: "follow_up", message: text }, PROMPT_TIMEOUT_MS);
+  }
+
   /** 中止在途轮。 */
   async abort(): Promise<void> {
     await this.request({ type: "abort" }).catch(() => undefined);
+  }
+
+  /* 模型/思考级(18.6 抓包实证:get_available_models→{models},set_model
+   * {provider,modelId} 会话级切换不落 CLI 配置,失败 reject(如
+   * "Model not found: p/m");get_available_thinking_levels→{levels},
+   * set_thinking_level {level})。清单失败回空表,UI 收空表不开菜单。 */
+  async getAvailableModels(): Promise<PiRpcModel[]> {
+    const d = (await this.request({ type: "get_available_models" }).catch(() => null)) as { models?: unknown } | null;
+    return Array.isArray(d?.models) ? (d.models as PiRpcModel[]) : [];
+  }
+
+  setModel(provider: string, modelId: string): Promise<unknown> {
+    return this.request({ type: "set_model", provider, modelId });
+  }
+
+  async getThinkingLevels(): Promise<string[]> {
+    const d = (await this.request({ type: "get_available_thinking_levels" }).catch(() => null)) as { levels?: unknown } | null;
+    return Array.isArray(d?.levels) ? (d.levels as string[]) : [];
+  }
+
+  setThinkingLevel(level: string): Promise<unknown> {
+    return this.request({ type: "set_thinking_level", level });
   }
 
   /** 审批应答;confirmId 即 onConfirm 回传 frameId(同型回写)。进程已退时静默丢弃(UI 已终态)。 */
@@ -201,6 +216,7 @@ export class PiRpcSession {
         return;
       }
       case "session_start":
+      case "turn_start":
       case "message_start":
       case "message_update":
       case "message_end":
@@ -250,7 +266,7 @@ export class PiRpcSession {
         return;
       }
       default:
-        return; // ready / extension 噪声 / available_commands / prompt_result 等
+        return; // ready / extension 噪声 / available_commands / prompt_result / turn_end(结算走 session_settled)等
     }
   }
 

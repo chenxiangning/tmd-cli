@@ -23,7 +23,8 @@ vi.mock("@kernel/ipc", () => ({
 }));
 
 import { ipc } from "@kernel/ipc";
-import { PiRpcSession, widgetCancelledNotice, widgetTier } from "./piRpc";
+import { PiRpcSession } from "./piRpc";
+import { widgetCancelledNotice, widgetTier } from "./piRpcReducer";
 
 function frame(obj: unknown): void {
   listeners.get("out")?.(JSON.stringify(obj));
@@ -44,6 +45,61 @@ async function boot(): Promise<PiRpcSession> {
   await started;
   return s;
 }
+
+describe("turn_start 轮界分发(18.6 更名)", () => {
+  it("onLine 转发 turn_start → reducer 推进 turnStart(18.4 session_start 同路)", async () => {
+    const seen: number[] = [];
+    const s = new PiRpcSession({ command: "omp" }, "/ws", {
+      onBlocks: (_b, ts) => { seen.push(ts); },
+      onBusy: () => undefined,
+      onConfirm: () => undefined,
+      onExit: () => undefined,
+      onError: () => undefined,
+    });
+    const started = s.start();
+    await vi.waitUntil(() => writes.some((w) => w.includes("get_state")));
+    frame({ type: "response", id: "tmd-1", success: true, data: { sessionId: "s1" } });
+    await started;
+    frame({ type: "message_start", message: { role: "user", content: [] } });
+    frame({ type: "message_end", message: { role: "user", content: [{ type: "text", text: "在吗" }] } });
+    frame({ type: "turn_start" });
+    expect(seen.at(-1)).toBe(1); // 用户块已落定,新轮界越过它
+    frame({ type: "session_start" }); // 18.4 名仍兼容
+    expect(seen.at(-1)).toBe(1);
+    s.kill();
+  });
+});
+
+describe("断线接续(resume 换壳)", () => {
+  it("resume opts:spawn 带 resumeArgs;种子块随首帧回放,轮界对齐尾", async () => {
+    const seen: Array<{ ts: number; texts: string[] }> = [];
+    const s = new PiRpcSession(
+      { command: "omp", resumeArgs: (id) => ["--resume", id] },
+      "/ws",
+      {
+        onBlocks: (b, ts) => { seen.push({ ts, texts: b.map((x) => x.text ?? x.role) }); },
+        onBusy: () => undefined,
+        onConfirm: () => undefined,
+        onExit: () => undefined,
+        onError: () => undefined,
+      },
+      { resume: "sess-1", seedBlocks: [{ id: "x", role: "system", text: "旧转录" }] },
+    );
+    const w0 = writes.length;
+    const started = s.start();
+    await vi.waitUntil(() => writes.slice(w0).some((w) => w.includes("get_state")));
+    frame({ type: "response", id: "tmd-1", success: true, data: { sessionId: "sess-1" } });
+    await started;
+    expect(ipc.procStreamSpawn).toHaveBeenLastCalledWith(expect.objectContaining({
+      command: "omp",
+      args: ["--mode", "rpc", "--resume", "sess-1"],
+    }));
+    frame({ type: "turn_start" });
+    expect(seen.at(-1)?.texts).toEqual(["旧转录"]);
+    expect(seen.at(-1)?.ts).toBe(1);
+    s.kill();
+  });
+});
 
 describe("widgetCancelledNotice 非 confirm 部件判定", () => {
   const T0 = new Date(2026, 9, 1, 8, 9, 5);
