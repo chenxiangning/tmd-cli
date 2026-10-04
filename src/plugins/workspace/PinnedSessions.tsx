@@ -140,7 +140,7 @@ export function PinnedSessionsSection() {
           const title = hit?.title
             ? hit.title
             : hit
-              ? await readHeadTitle(hit.path)
+              ? (await readHeadTitle(hit.path)).title
               : undefined;
           return { key: row.key, title };
         }),

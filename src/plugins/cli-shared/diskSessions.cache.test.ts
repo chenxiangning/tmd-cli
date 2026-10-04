@@ -1,10 +1,10 @@
 /**
- * scanJsonlSessions read-head cache and batching contract (via sessionHead): mtime hit skips read-head /
- * change re-read / disappearance prune / negative-result cache (no-title and read-failure enter the pool with TTL, re-read chase after window expiry or mtime change) /
- * deep-window fallback result likewise enters the cache; shallow window goes through batched
- * fs_read_heads (chunk serial), deep-window fallback only supplementary-reads "shallow window succeeded but no title" and batched.
- * Rescan IO main item = per-file read-head, cache converges "N read-heads per full-library rescan per session open/close" to 1
- * fs_collect_files + read-heads only for new/changed files.
+ * scanJsonlSessions 读头缓存与批量化契约(经 sessionHead):mtime 命中免读头 /
+ * 变更重读 / 消失剪除 / 负结果缓存(仅「读成功但无标题」带 TTL 入池,过窗或
+ * mtime 变化追读;读失败不入池下轮重试,保启动/重连波恢复路径) /
+ * 深窗兜底结果同样入缓存;浅窗走批量 fs_read_heads(chunk 串行),深窗兜底
+ * 仅补读「浅窗成功且无标题」且批量化。重扫 IO 主项 = 每文件读头,缓存把
+ * 「会话每开/关一次全库重扫 N 读头」收敛为 1 次 fs_collect_files + 仅新/变文件读头。
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -142,14 +142,18 @@ describe("scanJsonlSessions 读头缓存", () => {
     expect(readCount()).toBe(0);
   });
 
-  it("浅窗读失败(空串):不深窗补读,负结果缓存免重试风暴", async () => {
+  it("浅窗读失败(空串):不深窗补读且不入缓存,下轮重试恢复", async () => {
     const dir = mkDir();
     mocks.fsCollectFiles.mockResolvedValue([stamp(dir, 1000)]);
     setHead(() => "");
     await scanJsonlSessions(dir);
-    /* Read failure larger window likewise unreadable: only shallow window batch once, no per-file deep-window retry */
+    /* 读失败更大窗同样读不到:仅浅窗批量一次,无逐文件深窗重试 */
     expect(mocks.fsReadHeads).toHaveBeenCalledTimes(1);
     expect(mocks.fsReadHead).not.toHaveBeenCalled();
+    /* 读失败不入池(启动/重连桥未就绪波的恢复路径):下轮重扫重读,标题可恢复 */
+    clearReads();
+    await scanJsonlSessions(dir);
+    expect(readCount()).toBe(1);
   });
 
   it("批量化:多文件浅窗合并一次 fs_read_heads(单 chunk),下标对齐", async () => {

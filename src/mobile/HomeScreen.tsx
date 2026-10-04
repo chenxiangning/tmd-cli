@@ -71,12 +71,9 @@ export function HomeScreen() {
 
   /* 磁盘历史扫描:清单变化/挂载/60s 周期;签名依赖 + roots 直接数组身份(签名比对 set,身份稳定)。 */
   const roots = useMemo(() => workspaces.map((w) => w.root), [workspaces]);
-  /* 未解析真名的「新鲜」活行数(有磁盘身份、无手动名、全局索引无真名、出生
-     2min 内):>0 = 重扫压 5s 直至解析。自动命名在会话出生时落盘,追赶只在这个
-     窗口有意义;旧会话未解析 = 名字不会突然落盘,5s 全量 collect 波只是复刻
-     风暴(2026-10-04 外网实锤:未解析常驻 → 永久 5s 波 + 读头重试灌爆链路)。
-     全局索引同 groupHomeRows 借名口径:workspaceId 与 cwd 不同源时本卡扫不到,
-     必须跨桶判。history 每波 setHistory 新 Map → 本 memo 随波重算,新鲜度实时。 */
+  /* 未解析真名的「新鲜」活行数(有磁盘身份、无手动名、全局索引无真名、出生 2min 内):>0 = 重扫压 5s 直至解析。
+     自动命名在会话出生时落盘,追赶只在这个窗口有意义;旧会话未解析 = 名字不会突然落盘,5s 全量 collect 波只是复刻风暴(外网实锤)。
+     全局索引同 groupHomeRows 借名口径;history 每波新 Map → memo 随波重算。 */
   const unresolved = useMemo(() => {
     const titlesById = globalDiskTitles(history);
     const freshBefore = Date.now() - 2 * 60_000;
@@ -88,8 +85,7 @@ export function HomeScreen() {
   }, [sessions, titles, history]);
   React.useEffect(() => {
     let alive = true;
-    /* 逐区串行 + 防重入:全并发 = 工作区×引擎 RPC 风暴(实测一波 7.9MB),
-       蜂窝慢链路挤爆中继出站队列被桌面掐流;首轮未扫完时 60s 定时器不得叠波。 */
+    /* 逐区串行 + 防重入:全并发 = 工作区×引擎 RPC 风暴,慢链路挤爆中继出站队列被桌面掐流;首轮未扫完时 60s 定时器不得叠波。 */
     let running = false;
     const scan = () => {
       if (running) return; // 上一波未完:跳过,不叠 RPC 波

@@ -6,8 +6,9 @@
  *
  * 三层:
  * - 纯解析:extractJsonlTitle(四种 CLI 行型)+ 两段式读头窗口(浅窗不中深窗补);
- * - headCache(mtime):读头是 append-only 日志出生段,mtime 未变即复用;仅缓存
- *   非空结果,无标题文件每轮重读(追赶自动命名落盘);
+ * - headCache(mtime):读头是 append-only 日志出生段,mtime 未变即复用;读成功
+ *   但无标题 = 负结果带 TTL 入池(拥塞收敛),读失败不入池下轮重试(启动/重连
+ *   桥未就绪波的恢复路径,毒化整桶标题的回归根因);
  * - 批量 readHeadsBatched/readHeadMetasBatch:外网中继上逐文件读头 = N+1 RTT +
  *   桥 32 并发帽快拒(标题/会话缺列)+ 链路拥塞(invoke 15s 超时强断→重连风暴);
  *   chunk 串行发出,首扫多几个 RTT 换管道不被自家扫描流量掐死。
@@ -134,14 +135,14 @@ export function extractJsonlTitle(head: string): string | undefined {
  * 读头取标题:浅窗不中再深窗补一次。omp/pi/claude/codex/qoder 的 listSessions
  * 与 workspace 置顶标题统一走此入口,读头窗口知识收敛在此,不再各家自带。
  */
-export async function readHeadTitle(path: string): Promise<string | undefined> {
+export async function readHeadTitle(path: string): Promise<{ title?: string; readOk: boolean }> {
   const shallow = await ipc.fsReadHead(path, TITLE_HEAD_BYTES).catch(() => "");
   if (shallow) {
     const title = extractJsonlTitle(shallow);
-    if (title) return title;
+    if (title) return { title, readOk: true };
   }
   const deep = await ipc.fsReadHead(path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
-  return deep ? extractJsonlTitle(deep) : undefined;
+  return { title: deep ? extractJsonlTitle(deep) : undefined, readOk: deep !== "" };
 }
 
 /**
@@ -152,7 +153,7 @@ export async function readHeadTitle(path: string): Promise<string | undefined> {
  */
 export async function readHeadSessionMeta(
   path: string,
-): Promise<{ title?: string; createdAt?: number }> {
+): Promise<{ title?: string; createdAt?: number; readOk: boolean }> {
   const shallow = await ipc.fsReadHead(path, TITLE_HEAD_BYTES).catch(() => "");
   /* IPC 异型返回防御:契约是 string,但桩/封装层一旦返回对象,truthy 对象会
    * 直接送进 split 链炸掉整个 Promise.all —— 该工作区扫描全灭(2026-09-17 桩目检实证)。 */
@@ -161,21 +162,24 @@ export async function readHeadSessionMeta(
     ? (parsePiFamilySessionHead(head) ?? parseClaudeFamilySessionHead(head))
     : null;
   let title = head ? extractJsonlTitle(head) : undefined;
-  if (!title) {
+  let readOk = head !== "";
+  if (!title && readOk) {
     const deepRaw = await ipc.fsReadHead(path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
     const deep = typeof deepRaw === "string" ? deepRaw : "";
     title = deep ? extractJsonlTitle(deep) : undefined;
+    readOk = deep !== "";
   }
-  return { title, createdAt: identity?.createdAt };
+  return { title, createdAt: identity?.createdAt, readOk };
 }
 
 /**
  * 读头缓存:头内容是 append-only 日志的出生段,mtime 未变即复用解析产物,
  * 重扫收敛为 1 次 collect + 仅新/变文件读头。负结果缓存(2026-10-04 外网
- * 标题缺失根治):无标题/读失败也带 TTL 入池 —— 否则慢链路一波读头超时后
- * 每轮重扫全库重读,5s 命名追赶节奏放大成永久拥塞(真机实锤大桶标题全空)。
- * mtime 变化(自动命名落盘)立即失效;TTL 仅是「永不命名」的上限。上限防旁路
- * 消费者(claude/qoder 自有 list 循环)目录无限增长泄漏。
+ * 标题缺失根治)仅限「读成功但无标题」:带 TTL 入池,否则慢链路一波读头超时
+ * 后每轮重扫全库重读,5s 命名追赶节奏放大成永久拥塞(真机实锤大桶标题全空);
+ * mtime 变化(自动命名落盘)立即失效,TTL 兜「永不命名」上限。**读失败(空串)
+ * 不入池**:启动/重连桥未就绪波整桶读失败若入池 = 5 分钟标题毒化(行落 id
+ * 兜底实锤),不缓存则下轮自然重试恢复。上限防旁路消费者目录无限增长泄漏。
  */
 const HEAD_CACHE_MAX = 8192;
 /** 负结果缓存 TTL:窗内重扫免读(拥塞收敛);过窗追读一次。 */
@@ -203,33 +207,19 @@ export function pruneHeadCache(dir: string, livePaths: Set<string>): void {
   }
 }
 
-/** Read-head to get title + creation moment, with mtime cache (see headCache note). */
-export function readHeadSessionMetaCached(
+/** 缓存收口(单写点):readOk = 读头真读到了(非空串);读成功才落池(正结果立即
+ * 复用,无标题负结果带 TTL 追读),读失败不落池下轮重试(恢复路径)。FIFO 上限防泄漏。 */
+function storeHeadCache(
   path: string,
   mtime: number,
-): Promise<{ title?: string; createdAt?: number }> {
-  const cached = cacheHit(path, mtime);
-  if (cached) return Promise.resolve({ title: cached.title, createdAt: cached.createdAt });
-  return readHeadSessionMeta(path).then((meta) => {
-    storeHeadCache(path, mtime, meta.title, meta.createdAt);
-    return meta;
-  });
-}
-
-/** Read-head to get title, with mtime cache (shares pool headCache with readHeadSessionMetaCached):
- *  title is the birth segment of an append-only log, reuse if mtime unchanged; no title goes to negative-result cache, chase re-reads after TTL
- *  (same-pool semantics). Precedent: cli-codex list-scan title consumption (2026-09-30 daily log scan acceleration). */
-export function readHeadTitleCached(path: string, mtime: number): Promise<string | undefined> {
-  const cached = cacheHit(path, mtime);
-  if (cached) return Promise.resolve(cached.title);
-  return readHeadTitle(path).then((title) => {
-    storeHeadCache(path, mtime, title, undefined);
-    return title;
-  });
-}
-
-/** Cache convergence point (single write point): positive results enter the pool immediately; negative results (no title/read failure) enter the pool with timestamp for TTL chase; FIFO upper bound prevents leak. */
-function storeHeadCache(path: string, mtime: number, title: string | undefined, createdAt: number | undefined): void {
+  readOk: boolean,
+  title: string | undefined,
+  createdAt: number | undefined,
+): void {
+  if (!readOk) {
+    headCache.delete(path);
+    return;
+  }
   if (headCache.size >= HEAD_CACHE_MAX) {
     const oldest = headCache.keys().next().value;
     if (oldest !== undefined) headCache.delete(oldest);
@@ -255,8 +245,9 @@ export async function readHeadsBatched(paths: string[], bytes: number): Promise<
 
 /**
  * 批量读头解析(标题+创建时刻),listSessions 消费(omp/pi/claude/qoder):
- * mtime 命中走缓存;misses 一次批量浅窗,无标题文件串行深窗兜底 —— 语义与
- * readHeadSessionMeta 逐文件版完全一致(身份 ⊂ 浅窗;深窗仅标题),缓存同池。
+ * mtime 命中走缓存;misses 一次批量浅窗,「浅窗成功但无标题」批量化深窗兜底 ——
+ * 语义与 readHeadSessionMeta 逐文件版一致(身份 ⊂ 浅窗;深窗仅标题),缓存同池。
+ * readOk(读成功才落池)随两段式传播:浅窗失败或深窗补读失败 = 不入池下轮重试。
  */
 export async function readHeadMetasBatch(
   files: { path: string; modifiedAt: number }[],
@@ -273,20 +264,21 @@ export async function readHeadMetasBatch(
       mtime: f.modifiedAt,
       /* 浅窗读失败(空串)与真无标题同形:深窗只对「读到了但没标题」补读 ——
        * 读失败更大窗同样读不到,逐文件重试只是复刻风暴(外网大桶实锤)。 */
-      shallowOk: head !== "",
+      readOk: head !== "",
       title: head ? extractJsonlTitle(head) : undefined,
       createdAt: identity?.createdAt,
     };
   });
   /* 深窗兜底批量化:仅浅窗成功且无标题的少数文件(同 readHeadSessionMeta 两段式)。 */
-  const deepTargets = parsed.filter((p) => p.shallowOk && !p.title);
+  const deepTargets = parsed.filter((p) => p.readOk && !p.title);
   if (deepTargets.length) {
     const deeps = await readHeadsBatched(deepTargets.map((p) => p.path), TITLE_HEAD_BYTES_DEEP);
     deepTargets.forEach((p, i) => {
+      p.readOk = deeps[i] !== "";
       if (deeps[i]) p.title = extractJsonlTitle(deeps[i]);
     });
   }
-  for (const p of parsed) storeHeadCache(p.path, p.mtime, p.title, p.createdAt);
+  for (const p of parsed) storeHeadCache(p.path, p.mtime, p.readOk, p.title, p.createdAt);
   const byPath = new Map(parsed.map((p) => [p.path, { title: p.title, createdAt: p.createdAt }]));
   return files.map((f) => {
     const miss = byPath.get(f.path);
