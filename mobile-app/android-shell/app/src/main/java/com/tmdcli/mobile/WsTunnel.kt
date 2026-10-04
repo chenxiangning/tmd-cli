@@ -119,4 +119,12 @@ object WsTunnel {
         opened.remove(id)
         sockets.remove(id)?.close(1000, null)
     }
+
+    /** 全量拆线(Activity 销毁):OkHttp 线程与 15s ping 链不随进程驻留空转。 */
+    fun shutdown() {
+        for (k in sockets.keys.toList()) {
+            opened.remove(k)
+            sockets.remove(k)?.cancel()
+        }
+    }
 }

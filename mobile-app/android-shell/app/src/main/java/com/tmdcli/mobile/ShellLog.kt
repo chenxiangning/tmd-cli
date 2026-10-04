@@ -14,7 +14,10 @@ object ShellLog {
 
     fun write(line: String) {
         try {
-            File(dir, "shell.log").appendText("[" + System.currentTimeMillis() + "] " + line + "\n")
+            val f = File(dir, "shell.log")
+            /* 轮转上限(iOS 同款 5MB:断线风暴曾把日志撑到数百 MB,超限删档重建)。 */
+            if (f.length() > 5_000_000L) f.delete()
+            f.appendText("[" + System.currentTimeMillis() + "] " + line + "\n")
         } catch (_: Exception) {
             /* 日志写失败静默:诊断通道不可反噬主流程 */
         }

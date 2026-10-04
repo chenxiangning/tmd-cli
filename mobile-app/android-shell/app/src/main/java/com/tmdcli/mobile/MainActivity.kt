@@ -64,7 +64,14 @@ class MainActivity : android.app.Activity() {
             clipData = ClipData.newRawUri("output", uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         }
-        startActivityForResult(intent, ShellBridge.REQ_SHOT)
+        try {
+            startActivityForResult(intent, ShellBridge.REQ_SHOT)
+        } catch (e: android.content.ActivityNotFoundException) {
+            /* 无相机 app 接收(精简 ROM/专用设备):不崩进程;走 REQ_SHOT 取消
+             * 路径回灌 —— 桥侧除账,JS 收失败回执而非「拍照已在进行中」卡死。 */
+            ShellLog.write("camera app missing: ${e.message}")
+            onActivityResult(ShellBridge.REQ_SHOT, RESULT_CANCELED, null)
+        }
     }
 
     /** 配对扫码:zxing-android-embedded 自含 CaptureActivity(相机+取景 UI)。 */
@@ -129,7 +136,19 @@ class MainActivity : android.app.Activity() {
             override fun shouldInterceptRequest(
                 view: WebView,
                 request: WebResourceRequest,
-            ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
+            ): WebResourceResponse? {
+                /* 子帧/子资源加载闸(iOS isMainFrame 闸同语义):addJavascriptInterface
+                 * 对页面所有帧可见是平台特性,只能从加载面断 —— 外域 iframe 拿不到
+                 * 桥面(creds/http);主帧外域导航已由 shouldOverrideUrlLoading 拦。 */
+                if (request.url.host != "appassets.androidplatform.net") {
+                    ShellLog.write("res FAIL ${request.url}")
+                    return WebResourceResponse(
+                        "text/plain", null,
+                        java.io.ByteArrayInputStream(ByteArray(0)),
+                    )
+                }
+                return assetLoader.shouldInterceptRequest(request.url)
+            }
 
             /// 导航闸(对齐 iOS NavLog):壳内容是自有静态包,主帧没有合法理由跳外部。
             /// 放行外部导航 = 任意网页拿到壳桥(creds/http)——钉住体系被一次跳转旁路。
@@ -144,10 +163,14 @@ class MainActivity : android.app.Activity() {
             }
         }
 
-        /* 壳标识必须先于模块求值(gate 按 isMobileShell() 分流) */
+        /* 壳标识与设备名必须先于模块求值:gate 按 isMobileShell() 分流;设备名
+         * (MANUFACTURER MODEL,如 "Google Pixel 9")供配对上报与重连拨号 &name=
+         * 参数 —— iOS utsname 拼名同律,多机在桌面设备表可区分(引号/反斜杠转义)。 */
+        val deviceName = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}"
+            .replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'")
         WebViewCompat.addDocumentStartJavaScript(
             webView,
-            "window.__TMD_SHELL__ = 'mobile';",
+            "window.__TMD_SHELL__ = 'mobile'; window.__TMD_DEVICE_NAME__ = \"$deviceName\";",
             setOf("https://appassets.androidplatform.net"),
         )
         bridge = ShellBridge(this)
@@ -163,8 +186,22 @@ class MainActivity : android.app.Activity() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
+    override fun onPause() {
+        /* 暂停本 WebView 的布局/解析/JS 定时器(后台不空转;pauseTimers 是全局
+         * API,影响其它 WebView,不用)。 */
+        webView.onPause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        webView.onResume()
+    }
+
     override fun onDestroy() {
+        WsTunnel.shutdown()
         WsTunnel.attach(null)
+        webView.destroy()
         super.onDestroy()
     }
 
