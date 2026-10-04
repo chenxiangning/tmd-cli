@@ -125,8 +125,22 @@ pub(crate) fn spawn(
         .map_err(|e| format!("spawn `{}` 失败: {e}", spec.command))?;
     let pid = child.process_id();
 
-    /* 会话输出日志:~/.tmd-cli/session/<引擎>/<项目-slug>/<id>.log。
-    创建失败不阻塞终端,仅关闭"加载更早输出"能力 */
+    let mut reader = pair
+        .master
+        .try_clone_reader()
+        .map_err(|e| format!("clone reader 失败: {e}"))?;
+    /* mut 仅 Windows ConPTY CPR 应答(下方 cfg(windows))用;非 Windows 构建
+    writer 只读移交 PtyHandle 的 Mutex,mut 成假需求 —— 按目标平台消警。 */
+    #[cfg_attr(not(windows), allow(unused_mut))]
+    let mut writer = pair
+        .master
+        .take_writer()
+        .map_err(|e| format!("take writer 失败: {e}"))?;
+    #[cfg(windows)]
+    conpty_cpr_reply(&mut *writer).map_err(|e| format!("conpty CPR 应答失败: {e}"))?;
+    /* 会话输出日志:~/.tmd-cli/session/<引擎>/<项目-slug>/<id>.log;创建与插表压后到
+    reader/writer 双获取之后(2026-10-04 评审)—— emitter 线程是唯一清理点,提前
+    返回不留孤儿文件/账本条目;创建失败仅关"加载更早输出"能力。 */
     let log_path = session_log_path(profile_id, &spec.cwd, &id);
     let log_file = log_path
         .parent()
@@ -150,20 +164,6 @@ pub(crate) fn spawn(
             },
         );
     }
-
-    let mut reader = pair
-        .master
-        .try_clone_reader()
-        .map_err(|e| format!("clone reader 失败: {e}"))?;
-    /* mut 仅 Windows ConPTY CPR 应答(下方 cfg(windows))用;非 Windows 构建
-    writer 只读移交 PtyHandle 的 Mutex,mut 成假需求 —— 按目标平台消警。 */
-    #[cfg_attr(not(windows), allow(unused_mut))]
-    let mut writer = pair
-        .master
-        .take_writer()
-        .map_err(|e| format!("take writer 失败: {e}"))?;
-    #[cfg(windows)]
-    conpty_cpr_reply(&mut *writer).map_err(|e| format!("conpty CPR 应答失败: {e}"))?;
     /* 输出泵：PTY → Tauri event + 会话日志。xterm.js 只认事件通道。
     聚合选型:portable-pty 的 reader 只有阻塞 read(无 try_read),
     最小侵入方案是拆 channel 两段 ——
