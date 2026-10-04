@@ -267,7 +267,7 @@ class ShellBridge(private val activity: MainActivity) {
             /* 通知 id 递增:多条 ask 通知各自成横幅(iOS UUID id 同语义),不互相覆盖。 */
             notifySeq += 1
             manager.notify(notifySeq, builder.setContentTitle(title).setContentText(body)
-                .setSmallIcon(android.R.drawable.sym_def_app_icon)
+                .setSmallIcon(R.drawable.ic_stat_notify)
                 .setContentIntent(tap).setAutoCancel(true).build())
             reply(id, true, null)
         } catch (e: Exception) {
