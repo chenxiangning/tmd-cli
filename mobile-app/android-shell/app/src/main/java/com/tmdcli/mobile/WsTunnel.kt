@@ -35,8 +35,11 @@ object WsTunnel {
 
     fun open(context: android.content.Context, id: Int, urlStr: String) {
         try {
-            val url = java.net.URL(urlStr)
-            val scheme = if (url.protocol == "wss") "https" else "http"
+            /* java.net.URL 不认 ws/wss 协议(真机实锤:unknown protocol → 全部建连
+             * 即炸,配对后永远连不上);OkHttp 本身认,此处仅为提取 host/port 的解析,
+             * 协议改写成 http/https 再解。 */
+            val url = java.net.URL(urlStr.replaceFirst(Regex("^ws"), "http"))
+            val scheme = url.protocol
             if (!PinnedTls.targetAllowed(scheme, url.host)) {
                 ShellLog.write("ws dial reject id=$id host=${url.host}")
                 emit(id, "close", "{\"code\":1006,\"reason\":\"target not allowed\"}")
