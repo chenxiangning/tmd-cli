@@ -117,8 +117,8 @@
 }
 
 /* 环形操作组(portal + fixed:环心=齿轮屏幕坐标,右半环展开朝编辑区)。
-   定位走 transform + --dx/--dy px 变量(JS 注入,含 14px 居中补偿),
-   left/top 恒 0 —— 动画从环心(translate 0)飞到环位,不吃父级 overflow。
+   transform 由 JS 直写解析 px(见 RowActions RadialAction),left/top 恒 0 ——
+   动画从环心(translate 0)飞到环位,不吃父级 overflow。
    元素经 createPortal 挂 body,侧栏作用域变量不可达,一律用全局 --tmd-*。 */
 .sv-radial {
   position: fixed;
@@ -142,7 +142,6 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
   color: var(--tmd-fg-muted);
   cursor: pointer;
-  transform: translate(var(--dx), var(--dy));
   animation: sv-radial-pop var(--tmd-dur-2) cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
 }
 
@@ -153,10 +152,20 @@
   }
 }
 
+/* 放大效果只动内层 svg,绝不 transform 按钮本体 —— hover 态 transform 改变
+   命中盒,真实指针 hit-test 会穿透到 body(WKWebView/Chromium 双引擎实证,
+   elementFromPoint 不带真实光标探不出此 bug)。 */
+.sv-radial-item svg {
+  transition: transform var(--tmd-dur-1) var(--tmd-ease-out);
+}
+
 .sv-radial-item:hover {
   color: var(--tmd-fg);
   border-color: var(--tmd-fg-subtle);
-  transform: translate(var(--dx), var(--dy)) scale(1.12);
+}
+
+.sv-radial-item:hover svg {
+  transform: scale(1.12);
 }
 
 .sv-radial-item.is-danger { color: var(--tmd-err); }

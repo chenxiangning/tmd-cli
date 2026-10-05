@@ -122,7 +122,7 @@ pub(crate) fn web_devices_list() -> serde_json::Value {
                 "lastSeenAt": d.last_seen_at,
                 "approved": d.approved,
                 "online": conn::is_online(&d.device_id),
-                "ip": d.ip,
+                "platform": d.platform,
             })
         })
         .collect();

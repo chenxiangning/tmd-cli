@@ -166,6 +166,13 @@ export interface ChangedTail {
   text: string;
 }
 
+/** 区间读结果(对齐 Rust fs::RangeSpan):text 已行对齐;consumed = 本段实际
+ *  消费字节数(段尾残行被弃时 < maxBytes,续读起点 = start + consumed)。 */
+export interface RangeSpan {
+  text: string;
+  consumed: number;
+}
+
 /** 参数化安装计划(对齐 src-tauri/src/installer.rs InstallPlan;camelCase tagged)。 */
 export type CliInstallPlan =
   | { channel: "npm"; package: string }
@@ -354,6 +361,10 @@ export const ipc = {
     invoke<void>("session_write", { id, data }),
   sessionResize: (id: string, cols: number, rows: number) =>
     invoke<void>("session_resize", { id, cols, rows }),
+  /** 幕布在视打点(TerminalView 激活态):泵侧聚合降档判据 —— 无人观看的
+   *  会话降 250ms 慢拍,TUI 状态动画洪水不再以快拍穿越 IPC/webview 主链。 */
+  sessionSetViewed: (id: string, viewed: boolean) =>
+    invoke<void>("session_set_viewed", { id, viewed }),
   /** 会话 PTY 当前尺寸 (cols, rows);SSH/未知会话回 null(后台镜像栅格真源,手机实况同源)。 */
   sessionSize: (id: string) => invoke<[number, number] | null>("session_size", { id }),
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
@@ -629,9 +640,17 @@ export const ipc = {
    *  变化拍一次 IPC 完成探测与读取。会话状态巡航 2s 一拍的主力入口。 */
   fsReadTailChanged: (path: string, maxBytes: number, lastSize: number | null) =>
     invoke<ChangedTail>("fs_read_tail_changed", { path, maxBytes, lastSize }),
+  /** 区间读(语义见 Rust fs::read_range):自 start 起行对齐读 maxBytes;
+   *  时间线分段全程扫描用,与尾窗读互补。 */
+  fsReadRange: (path: string, start: number, maxBytes: number) =>
+    invoke<RangeSpan>("fs_read_range", { path, start, maxBytes }),
   /** 读文件头部 maxBytes 字节(解析 jsonl 首行 meta 用,避免全文加载)。 */
   fsReadHead: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_head", { path, maxBytes }),
+  /** 批量读头(下标对齐;单文件失败 = 空串):远程/中继链路把 N 次读头合一次
+   *  IPC,削峰防桥并发帽快拒与链路拥塞(2026-10-04 外网列表慢/名称缺失/频繁重连)。 */
+  fsReadHeads: (paths: string[], maxBytes: number) =>
+    invoke<string[]>("fs_read_heads", { paths, maxBytes }),
   /** 物理删除文件或目录(会话列表"删除会话"用);kimi 会话是目录,统一走此命令。
    *  路径不存在视为成功(幂等)。 */
   fsRemovePath: (path: string) => invoke<void>("fs_remove_path", { path }),
@@ -660,6 +679,10 @@ export const ipc = {
   },
   /** 应用配置目录(~/.tmd-cli),布局 owner 是 Rust session.rs;插件勿自拼。 */
   configDir: () => invoke<string>("config_dir"),
+  /** 本应用进程 pid(通用原语:lsp jdt 数据目录按 app 实例隔离用)。 */
+  appPid: () => invoke<number>("app_pid"),
+  /** 进程存活探测(kill -0;jdt 陈旧数据目录回收用)。 */
+  processAlive: (pid: number) => invoke<boolean>("process_alive", { pid }),
   /** 默认工作区根目录(~/.tmd-cli/default,Rust 侧已确保存在,mac/win 兼容)。 */
   configDefaultWorkspaceRoot: () =>
     invoke<string>("config_default_workspace_root"),
@@ -884,6 +907,28 @@ export function windowMinimize(): Promise<void> {
 /** 窗口最大化/还原切换。web 态 no-op。 */
 export function windowToggleMaximize(): Promise<void> {
   return isWeb ? Promise.resolve() : getCurrentWindow().toggleMaximize();
+}
+
+/** 窗口四角是否呈方形(最大化或全屏;macOS 常态圆角在这两态消失)。
+ *  贴角顺弧 UI(左下设置 logo)据此回落直角。web 态无窗口可判 → 恒 false。 */
+export async function windowSquareCorners(): Promise<boolean> {
+  if (isWeb) return false;
+  const win = getCurrentWindow();
+  return (await win.isMaximized()) || (await win.isFullscreen());
+}
+
+/** 窗口几何变化订阅:最大化/全屏/还原均触发 resize,供圆角态重判。
+ *  web 态 no-op。返回退订函数(boot 常驻路径不退订)。 */
+export function onWindowGeometryChange(cb: () => void): () => void {
+  if (isWeb) return () => undefined;
+  let unlisten: (() => void) | undefined;
+  void getCurrentWindow()
+    .onResized(() => cb())
+    .then((u) => {
+      unlisten = u;
+    })
+    .catch(() => undefined);
+  return () => unlisten?.();
 }
 
 /** 界面缩放:webview 整页 zoom(mac pageZoom / win zoomFactor / gtk zoom_level)。
@@ -1190,6 +1235,8 @@ export interface DeviceWire {
   online?: boolean;
   /** 配对请求来源 IP(展示;老行可能为空)。 */
   ip?: string;
+  /** 设备平台("ios"/"android";老行缺省,徽标回落设备名首字)。 */
+  platform?: string;
 }
 
 /** 设备表全量(pending + approved 由 approved 字段区分)。 */

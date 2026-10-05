@@ -1,0 +1,49 @@
+/* lsp 代码渲染配色 —— 独立分片(lsp.css 已近 300 行铁则上限)。
+   作用域:.lsp-peek(peek 预览/右列表行)与 .lsp-hover(hover 代码块)。
+   Prism token → --tmd-syntax-* 映射与 markdown 代码块/CodeMirror 同一色板,
+   随主题 preset 联动;此前 lsp 域无映射,token span 全部默认前景色(一片白)。 */
+
+.lsp-peek :is(.token.comment, .token.prolog, .token.doctype, .token.cdata),
+.lsp-hover :is(.token.comment, .token.prolog, .token.doctype, .token.cdata) {
+  color: var(--tmd-syntax-comment);
+}
+
+.lsp-peek .token.punctuation,
+.lsp-hover .token.punctuation {
+  color: var(--tmd-syntax-operator);
+}
+
+.lsp-peek :is(.token.property, .token.constant, .token.symbol, .token.deleted),
+.lsp-hover :is(.token.property, .token.constant, .token.symbol, .token.deleted) {
+  color: var(--tmd-syntax-type);
+}
+
+.lsp-peek .token.tag,
+.lsp-hover .token.tag {
+  color: var(--tmd-syntax-tag);
+}
+
+.lsp-peek :is(.token.boolean, .token.number),
+.lsp-hover :is(.token.boolean, .token.number) {
+  color: var(--tmd-syntax-number);
+}
+
+.lsp-peek :is(.token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted),
+.lsp-hover :is(.token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted) {
+  color: var(--tmd-syntax-string);
+}
+
+.lsp-peek :is(.token.operator, .token.entity, .token.url, .token.variable),
+.lsp-hover :is(.token.operator, .token.entity, .token.url, .token.variable) {
+  color: var(--tmd-syntax-operator);
+}
+
+.lsp-peek :is(.token.atrule, .token.attr-value, .token.keyword),
+.lsp-hover :is(.token.atrule, .token.attr-value, .token.keyword) {
+  color: var(--tmd-syntax-keyword);
+}
+
+.lsp-peek :is(.token.function, .token.class-name),
+.lsp-hover :is(.token.function, .token.class-name) {
+  color: var(--tmd-syntax-function);
+}

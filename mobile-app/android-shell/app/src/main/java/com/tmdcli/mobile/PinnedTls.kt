@@ -37,29 +37,46 @@ object PinnedTls {
     private fun builtinMatches(host: String): Boolean =
         host == BUILTIN_HOST && builtinSha256B64 != null
 
+    /** 归一比对(对齐 iOS b64Equal):签发端编码不做强约定 —— base64url、
+     *  padding 差异先归一再等值,换编码不断链。 */
+    private fun normB64(s: String): String =
+        s.trim().replace("-", "+").replace("_", "/").trimEnd('=')
+
     /// 一次性信任管理器:每次请求现场构造(内置 pin + creds pin + 一次性 pin 三来源)。
+    /// 仅命中 pin 源的主机强制钉住;其余主机走系统默认校验(iOS PinnedDelegate
+    /// performDefaultHandling 同律 —— CA 签发的 https 主机不因「无 pin」全断)。
     private class PinnedTrustManager(
         private val host: String,
         private val extraPin: String?,
         private val credsPin: String?,
         private val builtinB64: String?,
+        private val fallback: X509TrustManager,
     ) : X509TrustManager {
-        private fun accept(leafDer: ByteArray) {
-            val leafB64 = sha256Base64(leafDer)
-            if (extraPin != null && extraPin == leafB64) return
-            if (credsPin != null && credsPin == leafB64) return
-            if (builtinB64 != null && builtinB64 == leafB64) return
-            throw CertificateException("pin mismatch")
-        }
-
         override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
 
         override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
             if (chain.isEmpty()) throw CertificateException("empty chain")
-            accept(chain[0].encoded)
+            val pinned = extraPin != null || credsPin != null || builtinMatches(host)
+            if (!pinned) {
+                fallback.checkServerTrusted(chain, authType)
+                return
+            }
+            val leafB64 = normB64(sha256Base64(chain[0].encoded))
+            if (extraPin != null && normB64(extraPin) == leafB64) return
+            if (credsPin != null && normB64(credsPin) == leafB64) return
+            if (builtinMatches(host) && builtinB64 != null && normB64(builtinB64) == leafB64) return
+            throw CertificateException("pin mismatch")
         }
 
-        override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+        override fun getAcceptedIssuers(): Array<X509Certificate> = fallback.getAcceptedIssuers()
+    }
+
+    /// 系统默认 TrustManager(未钉住主机的回落校验面)。
+    private fun systemTrustManager(): X509TrustManager {
+        val factory = javax.net.ssl.TrustManagerFactory
+            .getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm())
+        factory.init(null as java.security.KeyStore?)
+        return factory.trustManagers.filterIsInstance<X509TrustManager>().first()
     }
 
     /// 目标闸(与 ShellBridge.postTargetAllowed 同语义,供 http 与 ws 共用)。
@@ -85,7 +102,7 @@ object PinnedTls {
     /// 钉住主机的自签证书由 PinnedTrustManager 放行,其余主机走正常校验。
     fun client(context: Context, host: String, oneShotPin: String?): OkHttpClient {
         val credsPin = try {
-            val json = CredsStore.read(context) ?: return baseClient(PinnedTrustManager(host, oneShotPin, null, builtinSha256B64))
+            val json = CredsStore.read(context) ?: return baseClient(PinnedTrustManager(host, oneShotPin, null, builtinSha256B64, systemTrustManager()))
             val obj = org.json.JSONObject(json)
             val pinHost = obj.optString("pinHost", "")
             val pin = obj.optString("pin", "")
@@ -94,7 +111,7 @@ object PinnedTls {
             ShellLog.write("pinned: creds read fail " + e.message)
             null
         }
-        return baseClient(PinnedTrustManager(host, oneShotPin, credsPin, builtinSha256B64))
+        return baseClient(PinnedTrustManager(host, oneShotPin, credsPin, builtinSha256B64, systemTrustManager()))
     }
 
     private fun baseClient(tm: X509TrustManager): OkHttpClient {

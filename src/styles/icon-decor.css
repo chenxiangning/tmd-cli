@@ -2,7 +2,7 @@
  * 图标装饰(icon decor)—— 呼吸闪烁消费规则。
  *
  * 颜色变量(--icon-decor-<id>)在各图标样式原地消费(workspace-sessions.css /
- * workspace-sidebar.css / right-panel-toolbar.css / settings-cluster.css);
+ * workspace-sidebar.css / right-panel-toolbar.css / left-rail.css);
  * 本文件只承担:闪烁动画(id → 选择器表)+ keyframes + reduced-motion 关停。
  * id 语义与清洗见 kernel/iconDecor.ts / settingsAppearance.ts。
  */
@@ -18,6 +18,10 @@
 }
 
 /* ── 无两态图标:恒呼吸 ── */
+/* 新建会话颜色吃装饰变量(旧 home 样式表 workspace-row.css 于 700abffb 收口整档删除,消费规则迁此) */
+.workspace-action-btn.is-newchat svg {
+  color: var(--icon-decor-newchat, currentColor);
+}
 html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
@@ -35,17 +39,17 @@ html[data-icon-blink~="panel-mcp-hub"] .panel-rail-tab[data-panel-id="mcp-hub"] 
 }
 
 /* ── 侧栏动作:右缘 rail 钮(ssh = 面板 tab 走 data-panel-id;
-   wsl/terminal = rail 动作走 data-action-id)
-   + 底栏钉住钮/设置菜单行(仅未迁 rail 的动作,如 system-proxy)── */
+   wsl/terminal/intent-canvas/system-proxy = rail 动作走 data-action-id)
+   + 左缘 LeftRail 钮(session-board,2026-10-04 迁入);
+   wsl-panel 的底栏/菜单行选择器为 rail 化前的历史遗留,无消费方 ── */
 html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
-html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
-html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon,
+html[data-icon-blink~="system-proxy"] .panel-rail-tab[data-action-id="system-proxy"],
 html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
 html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
 html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
 html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
 html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
-html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
+html[data-icon-blink~="session-board"] .left-rail-tab[data-action-id="session-board"] svg,
 html[data-icon-blink~="remote-control"] .remote-control-badge svg,
 html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,
 html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg {
@@ -106,14 +110,13 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
   html[data-icon-blink~="panel-skill-hub"] .panel-rail-tab[data-panel-id="skill-hub"] svg,
   html[data-icon-blink~="panel-mcp-hub"] .panel-rail-tab[data-panel-id="mcp-hub"] svg,
   html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
-  html[data-icon-blink~="system-proxy"] .settings-bar-btn[data-action-id="system-proxy"],
-  html[data-icon-blink~="system-proxy"] .settings-menu-row[data-action-id="system-proxy"] .settings-menu-icon,
+  html[data-icon-blink~="system-proxy"] .panel-rail-tab[data-action-id="system-proxy"],
   html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
   html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
   html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
   html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
   html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
-  html[data-icon-blink~="session-board"] .titlebar-action[data-action-id="session-board"],
+  html[data-icon-blink~="session-board"] .left-rail-tab[data-action-id="session-board"] svg,
   html[data-icon-blink~="remote-control"] .remote-control-badge svg,
   html[data-icon-blink~="worktree"] .ws-worktree-cluster-label,
   html[data-icon-blink~="worktree"] .ws-worktree-cluster .is-worktree-icon svg,

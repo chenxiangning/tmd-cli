@@ -68,6 +68,18 @@ export interface HomeRow {
   disk?: CliDiskSession;
 }
 
+/** 全局真名索引:`${profileId}:${session.id}` → 磁盘标题(跨桶;仅收录非空 title)。
+ *  消费方:groupHomeRows 活行借名、HomeScreen 追赶判定(无真名才算未解析)。 */
+export function globalDiskTitles(history: Map<string, HistoryItem[]>): Map<string, string> {
+  const idx = new Map<string, string>();
+  for (const items of history.values()) {
+    for (const h of items) {
+      if (h.session.title) idx.set(`${h.profileId}:${h.session.id}`, h.session.title);
+    }
+  }
+  return idx;
+}
+
 /** home 分组:全部工作区(含无会话的)+ 未归属桶,行按时间倒序。 */
 export function groupHomeRows(args: {
   workspaces: RemoteWorkspace[];
@@ -79,7 +91,7 @@ export function groupHomeRows(args: {
   overlayTitles: Record<string, string>;
   titleOfLive: (s: RemoteSession) => string;
   titleOfDisk: (h: HistoryItem) => string;
-}): { wsId: string; name: string; rows: HomeRow[] }[] {
+}): { wsId: string; name: string; root: string; latest: number; rows: HomeRow[] }[] {
   const needle = args.q.trim().toLowerCase();
   const hit = (t: string) => !needle || t.toLowerCase().includes(needle);
 
@@ -92,7 +104,12 @@ export function groupHomeRows(args: {
   }
 
   const wsName = new Map(args.workspaces.map((w) => [w.id, w.name] as const));
-  const groups: { wsId: string; name: string; rows: HomeRow[]; latest: number }[] = [];
+  /* 全局真名索引(跨桶):活会话的 workspaceId 与 cwd 可能不同源(default 工作区里
+   * 起别的仓库会话),本卡 diskItems 按 root 分桶扫不到它的文件 → 只查本卡永远
+   * 兜底(2026-10-04 真机实锤:三活行全「OMP · tmd-cli」而真名在 tmd-cli 桶)。
+   * 真名按 `${profileId}:${session.id}` 全局借;归组/去重仍按卡,磁盘行不跨卡挪。 */
+  const diskTitleById = globalDiskTitles(args.history);
+  const groups: { wsId: string; name: string; root: string; rows: HomeRow[]; latest: number }[] = [];
 
   for (const w of args.workspaces) {
     const rows: HomeRow[] = [];
@@ -101,9 +118,7 @@ export function groupHomeRows(args: {
     const bound = new Set<string>();
     for (const s of byWs.get(w.id) ?? []) {
       const idKey = s.cliSessionId ? `${s.profileId}:${s.cliSessionId}` : "";
-      const diskTitle = idKey
-        ? diskItems.find((h) => `${h.profileId}:${h.session.id}` === idKey)?.session.title
-        : undefined;
+      const diskTitle = idKey ? diskTitleById.get(idKey) : undefined;
       const title =
         (idKey ? args.overlayTitles[idKey] : undefined) ?? diskTitle ?? args.titleOfLive(s);
       if (idKey) bound.add(idKey);
@@ -134,6 +149,7 @@ export function groupHomeRows(args: {
     groups.push({
       wsId: w.id,
       name: w.name,
+      root: w.root,
       rows,
       latest: rows[0]?.ts ?? 0,
     });
@@ -156,14 +172,13 @@ export function groupHomeRows(args: {
     });
     rows.sort((a, b) => b.ts - a.ts);
     if (rows.length) {
-      groups.push({ wsId, name: wsName.get(wsId) ?? wsId, rows, latest: rows[0].ts });
+      groups.push({ wsId, name: wsName.get(wsId) ?? wsId, root: "", rows, latest: rows[0].ts });
     }
   }
 
   /* 有内容的组按最近活动倒序,空组随后按配置顺序。 */
   return groups
-    .sort((a, b) => (a.rows.length && b.rows.length ? b.latest - a.latest : a.rows.length ? -1 : b.rows.length ? 1 : 0))
-    .map(({ wsId, name, rows }) => ({ wsId, name, rows }));
+    .sort((a, b) => (a.rows.length && b.rows.length ? b.latest - a.latest : a.rows.length ? -1 : b.rows.length ? 1 : 0));
 }
 
 /** 归档覆盖层 key(与桌面 kernel/sessionArchive key 同构;活会话无磁盘身份,恒本地)。 */

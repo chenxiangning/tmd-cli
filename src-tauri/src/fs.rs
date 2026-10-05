@@ -109,8 +109,18 @@ pub fn read_head(path: &str, max_bytes: usize) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&buf[..n]).to_string())
 }
 
+/// 批量读头(对齐下标;单文件失败 = 空串,与前端逐文件 catch 同语义):
+/// 手机远程扫描的读头风暴收敛点 —— N 次读头 IPC 合一次,中继链路不再撞
+/// 桥并发帽快拒与链路拥塞(2026-10-04 外网列表慢/名称缺失/频繁重连根因)。
+pub fn read_heads(paths: &[String], max_bytes: usize) -> Vec<String> {
+    paths
+        .iter()
+        .map(|p| read_head(p, max_bytes).unwrap_or_default())
+        .collect()
+}
+
 /// 尾读原语 re-export:保持 crate::fs::{read_tail, read_tail_changed, ChangedTail} 引用路径不变。
-pub use crate::fs_tail::{read_tail, read_tail_changed, ChangedTail};
+pub use crate::fs_tail::{read_range, read_tail, read_tail_changed, ChangedTail, RangeSpan};
 
 #[cfg(test)]
 mod tests {
@@ -159,6 +169,21 @@ mod tests {
             .map(|e| e.name)
             .collect();
         assert_eq!(names, vec!["main.rs"]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn read_heads_下标对齐_失败项空串() {
+        let root = temp_root("heads");
+        fs::write(root.join("a.jsonl"), "{\"type\":\"title\"}\n").unwrap();
+        let paths = vec![
+            root.join("a.jsonl").to_string_lossy().to_string(),
+            root.join("missing.jsonl").to_string_lossy().to_string(),
+        ];
+        let heads = read_heads(&paths, 64);
+        assert_eq!(heads.len(), 2);
+        assert!(heads[0].starts_with("{\"type\""));
+        assert_eq!(heads[1], "");
         let _ = fs::remove_dir_all(&root);
     }
 

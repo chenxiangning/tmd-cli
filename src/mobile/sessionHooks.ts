@@ -14,16 +14,19 @@ const POLL_MS = 2000;
 const POKE_DELAY_MS = 300;
 
 /** transcript 实时生长(spec 2026-09-25-mobile-session-render):定位 jsonl 后
- *  2s 一拍 pollTranscript(changed 才重解析 setState);后台标签页暂停拍但保活;
- *  非契约引擎持续重试定位(新会话 jsonl 懒落盘)。null = 尚无可解析对话,UI 回落实况。
- *  返回 poke:写入成功后把下一拍提前到 ~300ms(spec 2026-10-03-mobile-keybar-
- *  relayout),发消息/应答审批 ~0.3s 上屏而非白等 2s 拍;与在途拍竞态无害
- *  (pollTranscript 只读,size 台账末写胜出,append-only 源不重排)。 */
+ * 2s 一拍 pollTranscript(changed 才重解析 setState);后台标签页暂停拍但保活;
+ * 非契约引擎持续重试定位(新会话 jsonl 懒落盘)。null = 尚无可解析对话,UI 回落实况。
+ * cliSessionId(可省)随绑定镜像到达重定位 —— 同 cwd 多会话按身份精确绑定,
+ * 不再拿「最新文件」当本会话(2026-10-04 评审 P1)。返回 poke:写入成功后把
+ * 下一拍提前到 ~300ms(spec 2026-10-03-mobile-keybar-relayout),发消息/应答
+ * 审批 ~0.3s 上屏而非白等 2s 拍;与在途拍竞态无害(pollTranscript 只读,
+ * size 台账末写胜出,append-only 源不重排)。 */
 export function useLiveTurns(
   profileId: string | undefined,
   cwd: string | undefined,
   sessionKey: string,
   sinceMs?: number,
+  cliSessionId?: string,
 ): { turns: TranscriptTurn[] | null; poke: () => void } {
   const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
   const pokeRef = useRef<(() => void) | null>(null);
@@ -49,7 +52,7 @@ export function useLiveTurns(
       ticking = true;
       try {
         if (!document.hidden) {
-          if (!path) path = await resolveTranscriptPath(profileId, cwd, sinceMs);
+          if (!path) path = await resolveTranscriptPath(profileId, cwd, sinceMs, cliSessionId);
           if (path) {
             const next = await pollTranscript(path, size);
             if (!alive) return;
@@ -80,7 +83,7 @@ export function useLiveTurns(
       clearTimeout(timer);
       pokeRef.current = null;
     };
-  }, [profileId, cwd, sessionKey, sinceMs]);
+  }, [profileId, cwd, sessionKey, sinceMs, cliSessionId]);
   const poke = useCallback(() => pokeRef.current?.(), []);
   return { turns, poke };
 }

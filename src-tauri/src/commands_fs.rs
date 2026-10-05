@@ -157,6 +157,20 @@ pub(crate) async fn fs_read_head(path: String, max_bytes: usize) -> Result<Strin
     spawn_fs(move || fs::read_head(&path, max_bytes)).await
 }
 
+/// 批量读头:一次 IPC 返回对齐头部数组(削峰见 fs::read_heads);上限与窗口
+/// 服务端钳制,块大小由调用方按响应预算分片。
+#[tauri::command]
+pub(crate) async fn fs_read_heads(
+    paths: Vec<String>,
+    max_bytes: usize,
+) -> Result<Vec<String>, String> {
+    if paths.len() > 512 {
+        return Err("fs_read_heads 单次至多 512 个文件".into());
+    }
+    let max_bytes = max_bytes.clamp(1, 262_144);
+    spawn_fs(move || Ok(fs::read_heads(&paths, max_bytes))).await
+}
+
 #[tauri::command]
 pub(crate) async fn fs_read_tail(path: String, max_bytes: usize) -> Result<String, String> {
     spawn_fs(move || fs::read_tail(&path, max_bytes)).await
@@ -170,6 +184,17 @@ pub(crate) async fn fs_read_tail_changed(
     last_size: Option<u64>,
 ) -> Result<fs::ChangedTail, String> {
     spawn_fs(move || fs::read_tail_changed(&path, max_bytes, last_size)).await
+}
+
+/// 区间读(语义见 fs::read_range):时间线分段全程扫描;单段上限 1MB 防滥用。
+#[tauri::command]
+pub(crate) async fn fs_read_range(
+    path: String,
+    start: u64,
+    max_bytes: usize,
+) -> Result<fs::RangeSpan, String> {
+    let max_bytes = max_bytes.clamp(1, 1_048_576);
+    spawn_fs(move || fs::read_range(&path, start, max_bytes)).await
 }
 
 #[tauri::command]

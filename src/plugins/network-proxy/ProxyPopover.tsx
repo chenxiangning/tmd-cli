@@ -1,8 +1,8 @@
 /**
  * 网络代理浮层(overlay 挂点渲染,portal 挂 body)—— 滑动块 + 代理地址。
  *
- * 入口:侧栏齿轮菜单/底栏钉住的「网络代理」按钮,经内核事件总线触发
- * (proxyPopoverStore);backdrop / Escape / 右上角 X 关闭。
+ * 入口:右缘 PanelRail 底簇「网络代理」图标钮(2026-10-04 迁入),经内核事件
+ * 总线触发(proxyPopoverStore);backdrop / Escape / 右上角 X 关闭。
  * 版式竖排(对齐 codemoss 参照):开关行 → 地址标签 → 整行输入框 → 提示;
  * 自带 pxy-* 排版类,不复用设置面板 pref-*(那是宽面板的横排度量,
  * 320px 浮层里会把文字列挤成窄条)。
@@ -58,7 +58,7 @@ export function ProxyPopover() {
     const h = el.offsetHeight;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    /* 锚点(x,y)= 侧栏簇右缘上角:右侧优先,空间不足翻到锚点左侧。 */
+    /* 锚点(x,y)= rail 钮左缘上角(右 rail 传 r.left-8):右侧优先,空间不足翻到锚点左侧。 */
     let left = x + ANCHOR_GAP;
     if (left + w > vw - VIEWPORT_MARGIN) {
       left = x - ANCHOR_GAP - w;

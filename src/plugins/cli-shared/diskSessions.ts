@@ -1,253 +1,33 @@
 /**
- * jsonl 会话磁盘格式共享库 —— 标题行型提取 + 目录扫描,供 cli-* 插件与
- * workspace(钉选会话列表)消费。原居 kernel/diskSessions.ts,因 extractJsonlTitle
- * 内含 omp/pi/claude/codex 四家私有行型知识,违反「内核不理解 CLI 私有格式」
- * 铁律,2026-09-04 下沉至 cli-shared(kernel 不得 import plugins,无法反向引用)。
- *
- * 目录约定(slug 规则/根路径)由各 CLI 插件自己声明;本库只管
- * "jsonl 文件内容 → 标题 / CliDiskSession"的行型解析。
+ * jsonl 会话目录扫描(omp/pi/qoder 布局:<ISO 时间戳>_<uuid>.jsonl,文件名尾段即
+ * 会话 id)—— 读头解析/缓存/批量化已拆至 sessionHead(300 行铁则;标题两段式
+ * 窗口与 mtime 缓存语义不变)。手机远程与桌面同源:一次扫描收敛为
+ * 1 次 fs_collect_files + 少量 chunked 批量读头 IPC。
  */
 
-import type { CliDiskSession } from "@kernel/cli";
 import { ipc } from "@kernel/ipc";
-import { parseClaudeFamilySessionHead, parsePiFamilySessionHead } from "./sessionIdentity";
-
-/** 标题展示最大长度:超出截断补省略号。 */
-const TITLE_MAX_CHARS = 60;
-/**
- * 标题读头窗口(两段式):首条用户消息常是大段粘贴,单行可达十几 KB 到几 MB,
- * 浅窗会把该行截成坏行 → 兜底失效显示短码。浅窗 32KB 保扫描基线成本,不中再对
- * 少数文件补深窗一次(实测本机四族兜底覆盖 88-96%;残留为贴图 base64/空会话,
- * 本就无文本可取,短码是诚实兜底)。
- */
-const TITLE_HEAD_BYTES = 32 * 1024;
-const TITLE_HEAD_BYTES_DEEP = 256 * 1024;
-
-/** 外部 JSON 逐层收窄:取 object 的 string 字段,缺失/异型返回 undefined。 */
-function stringField(obj: unknown, key: string): string | undefined {
-  if (!obj || typeof obj !== "object" || !(key in obj)) return undefined;
-  const value = (obj as Record<string, unknown>)[key];
-  return typeof value === "string" && value.trim() ? value : undefined;
-}
-
-/** content 字段(string | [{type:"text"|"input_text",text}...]) → 首段纯文本;tool_result 等异型跳过。 */
-function firstText(content: unknown): string | undefined {
-  if (typeof content === "string") return content.trim() ? content : undefined;
-  if (!Array.isArray(content)) return undefined;
-  for (const part of content) {
-    if (!part || typeof part !== "object") continue;
-    const type = (part as Record<string, unknown>).type;
-    if (type !== "text" && type !== "input_text") continue;
-    const text = stringField(part, "text");
-    if (text) return text;
-  }
-  return undefined;
-}
-
-/** 标题归一:折叠空白 + 截断;XML 包装(<command-…/<system-reminder>…)不是用户语义,丢弃。
- * 无可读词(纯 ?/�/符号)同值丢弃:CLI 侧编码损坏或旧版模型垃圾输出落盘的标题,
- * 不能永久顶在会话列表上 —— 跳过后继 title 记录/消息兜底(同 omp words===0 拒收口径,
- * 2026-09-11 win 用户「标题全是问号」排查:本地英文 tiny 模型给中文起名采样出 ?????)。 */
-function normalizeTitle(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
-  const collapsed = raw.replace(/\s+/g, " ").trim();
-  if (!collapsed || collapsed.startsWith("<")) return undefined;
-  if (!/\p{L}|\p{N}/u.test(collapsed)) return undefined;
-  return collapsed.length > TITLE_MAX_CHARS
-    ? `${collapsed.slice(0, TITLE_MAX_CHARS)}…`
-    : collapsed;
-}
-/**
- * 指令包装消息判定(实证):codex 把 AGENTS.md 全文包成首条 role:user 消息注入
- * (`# AGENTS.md instructions for <cwd>`),不是用户真实输入,跳过后继扫描。
- */
-function isInstructionWrapper(text: string): boolean {
-  return text.startsWith("# AGENTS.md instructions");
-}
-
-/**
- * jsonl 头部 → 展示标题(纯函数,可测)。四种 CLI 行型实证:
- * 1. omp:`{"type":"title",...}` 记录恒在首行(CLI 自动生成/覆写,最高优先);
- * 2. omp/pi:`{"type":"session",...,"title":"..."}` 行内字段;
- * 3. claude:`{"type":"summary","summary":"..."}` 行;
- * 4. 通用兜底:首条 role=user 消息文本
- *    (omp/pi type:"message"、claude type:"user"、codex type:"response_item")。
- * head 可能截断末行 → 逐行 try/catch,坏行跳过。
- */
-export function extractJsonlTitle(head: string): string | undefined {
-  let sessionFieldTitle: string | undefined;
-  let summaryTitle: string | undefined;
-  let firstUserTitle: string | undefined;
-  for (const line of head.split("\n")) {
-    if (!line.includes('"')) continue;
-    let event: unknown;
-    try {
-      event = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (!event || typeof event !== "object") continue;
-    const type = stringField(event, "type");
-
-    /* 1. omp title 记录(首行即真相,直接定案) */
-    if (type === "title") {
-      const title = normalizeTitle(stringField(event, "title"));
-      if (title) return title;
-      continue;
-    }
-    /* 2. session 行内 title 字段 */
-    if (type === "session" && !sessionFieldTitle) {
-      sessionFieldTitle = normalizeTitle(stringField(event, "title"));
-      continue;
-    }
-    /* 3. claude summary 行 */
-    if (type === "summary" && !summaryTitle) {
-      summaryTitle = normalizeTitle(stringField(event, "summary"));
-      continue;
-    }
-    /* 4. 首条用户消息(三种载体,取先到者) */
-    if (firstUserTitle) continue;
-    if (type === "message" || type === "user") {
-      const message = (event as Record<string, unknown>).message;
-      if (!message || typeof message !== "object") continue;
-      if (stringField(message, "role") !== "user") continue;
-      const text = firstText((message as Record<string, unknown>).content);
-      if (text && isInstructionWrapper(text.trim())) continue;
-      firstUserTitle = normalizeTitle(text);
-      continue;
-    }
-    if (type === "response_item") {
-      const payload = (event as Record<string, unknown>).payload;
-      if (!payload || typeof payload !== "object") continue;
-      if (stringField(payload, "type") !== "message") continue;
-      if (stringField(payload, "role") !== "user") continue;
-      const text = firstText((payload as Record<string, unknown>).content);
-      if (text && isInstructionWrapper(text.trim())) continue;
-      firstUserTitle = normalizeTitle(text);
-    }
-  }
-  return sessionFieldTitle ?? summaryTitle ?? firstUserTitle;
-}
-
-/**
- * 读头取标题:浅窗不中再深窗补一次。omp/pi/claude/codex/qoder 的 listSessions
- * 与 workspace 置顶标题统一走此入口,读头窗口知识收敛在此,不再各家自带。
- */
-export async function readHeadTitle(path: string): Promise<string | undefined> {
-  const shallow = await ipc.fsReadHead(path, TITLE_HEAD_BYTES).catch(() => "");
-  if (shallow) {
-    const title = extractJsonlTitle(shallow);
-    if (title) return title;
-  }
-  const deep = await ipc.fsReadHead(path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
-  return deep ? extractJsonlTitle(deep) : undefined;
-}
-
-/**
- * 读头取标题 + 创建时刻(一次浅窗双解析,深窗仅标题兜底):身份解析窗(4KB/8KB)
- * ⊂ 标题浅窗 32KB,同一 buffer 各解一遍 —— 比对「标题一读 + 身份一读」每文件省一次
- * IPC;pi 族与 claude 族行型互斥(type:"session" vs sessionId 字段),试解顺序不歧义。
- * 创建时刻定死看板日历落位(resume 只刷 mtime,创建 timestamp 不动)。
- */
-export async function readHeadSessionMeta(
-  path: string,
-): Promise<{ title?: string; createdAt?: number }> {
-  const shallow = await ipc.fsReadHead(path, TITLE_HEAD_BYTES).catch(() => "");
-  /* IPC 异型返回防御:契约是 string,但桩/封装层一旦返回对象,truthy 对象会
-     直接送进 split 链炸掉整个 Promise.all —— 该工作区扫描全灭(2026-09-17 桩目检实证)。 */
-  const head = typeof shallow === "string" ? shallow : "";
-  const identity = head
-    ? (parsePiFamilySessionHead(head) ?? parseClaudeFamilySessionHead(head))
-    : null;
-  let title = head ? extractJsonlTitle(head) : undefined;
-  if (!title) {
-    const deepRaw = await ipc.fsReadHead(path, TITLE_HEAD_BYTES_DEEP).catch(() => "");
-    const deep = typeof deepRaw === "string" ? deepRaw : "";
-    title = deep ? extractJsonlTitle(deep) : undefined;
-  }
-  return { title, createdAt: identity?.createdAt };
-}
-
-/**
- * 读头缓存:重扫的 IO 主项是每文件读头(库内数千文件时一次全扫 = 数十 MB IPC 读),
- * 而读头内容是 append-only 日志的出生段(身份/标题/首条用户消息),落盘后不再变化
- * —— mtime 未变即复用上次解析产物,重扫收敛为 1 次 fs_collect_files + 仅新/变文件读头。
- * 仅缓存解析出非空结果的文件:尚无标题的文件每轮重读,追赶自动命名落盘(与
- * workspace 退避补扫同语义);读失败的旧条目一并丢弃。上限防旁路消费者
- * (claude/qoder 自有 list 循环)目录无限增长泄漏。
- */
-const HEAD_CACHE_MAX = 8192;
-const headCache = new Map<string, { mtime: number; title?: string; createdAt?: number }>();
-
-/** 读头取标题 + 创建时刻,带 mtime 缓存(见 headCache 注)。mtime 以 fs_collect_files
- *  的 FileStamp 为准,调用方必须持戳调用;裸路径请用 readHeadSessionMeta。 */
-export function readHeadSessionMetaCached(
-  path: string,
-  mtime: number,
-): Promise<{ title?: string; createdAt?: number }> {
-  const cached = headCache.get(path);
-  if (cached && cached.mtime === mtime) {
-    return Promise.resolve({ title: cached.title, createdAt: cached.createdAt });
-  }
-  return readHeadSessionMeta(path).then((meta) => {
-    if (meta.title !== undefined || meta.createdAt !== undefined) {
-      if (headCache.size >= HEAD_CACHE_MAX) {
-        const oldest = headCache.keys().next().value;
-        if (oldest !== undefined) headCache.delete(oldest);
-      }
-      headCache.set(path, { mtime, title: meta.title, createdAt: meta.createdAt });
-    } else {
-      headCache.delete(path);
-    }
-    return meta;
-  });
-}
-
-/** 读头取标题,带 mtime 缓存(与 readHeadSessionMetaCached 共池 headCache):
- *  标题是 append-only 日志的出生段,mtime 未变即复用;无标题不缓存,追赶自动命名
- *  (同池语义)。先例:cli-codex 列表扫描标题消费(2026-09-30 每日日志扫描加速)。 */
-export function readHeadTitleCached(path: string, mtime: number): Promise<string | undefined> {
-  const cached = headCache.get(path);
-  if (cached && cached.mtime === mtime) return Promise.resolve(cached.title);
-  return readHeadTitle(path).then((title) => {
-    if (title !== undefined) {
-      if (headCache.size >= HEAD_CACHE_MAX) {
-        const oldest = headCache.keys().next().value;
-        if (oldest !== undefined) headCache.delete(oldest);
-      }
-      headCache.set(path, { mtime, title });
-    } else {
-      headCache.delete(path);
-    }
-    return title;
-  });
-}
+import type { CliDiskSession } from "@kernel/cli";
+import { pruneHeadCache, readHeadMetasBatch } from "./sessionHead";
 
 export async function scanJsonlSessions(dir: string): Promise<CliDiskSession[]> {
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  /* 缓存剪除:本目录已消失的文件条目;其他目录的条目归旁路消费者,不动。
-     两侧分隔符先归一:Windows 下 dir 拼型 `/` 与 Rust collect 返回的 `\` 不一致,
-     不归一则剪除恒 no-op(条目滞留到 FIFO 上限)。 */
-  const prefix = (dir.endsWith("/") || dir.endsWith("\\") ? dir : `${dir}/`).replace(/\\/g, "/");
-  const live = new Set(files.map((f) => f.path));
-  for (const p of [...headCache.keys()]) {
-    if (p.replace(/\\/g, "/").startsWith(prefix) && !live.has(p)) headCache.delete(p);
-  }
-  /* 读头彼此独立,并发一次发出:会话库几百个文件时顺序 await 是可感知的卡顿源。 */
-  const sessions = await Promise.all(
-    files.map(async (f) => {
-      // 2026-09-01T04-20-58-618Z_01a05b32-ea7a-738c-8a48-0d03dfef6824.jsonl
-      const m = f.name.match(/_([0-9a-f-]{36})\.jsonl$/);
-      const id = m?.[1];
-      if (!id) return null;
-      /* 一次读头双解析:标题 + 创建时刻(定死看板日历落位;此前 createdAt 缺位,
-         resume 刷 mtime 卡片跳日)。mtime 未变走缓存,重扫免读头。 */
-      const meta = await readHeadSessionMetaCached(f.path, f.modifiedAt);
-      const session: CliDiskSession = { id, modifiedAt: f.modifiedAt, createdAt: meta.createdAt, path: f.path, title: meta.title };
-      return session;
-    }),
-  );
-  return sessions
-    .filter((s): s is CliDiskSession => !!s)
+  /* 缓存剪除:本目录已消失的文件条目(sessionHead.pruneHeadCache,分隔符归一在彼)。 */
+  pruneHeadCache(dir, new Set(files.map((f) => f.path)));
+  const matched = files.flatMap((f) => {
+    // 2026-09-01T04-20-58-618Z_01a05b32-ea7a-738c-8a48-0d03dfef6824.jsonl
+    const m = f.name.match(/_([0-9a-f-]{36})\.jsonl$/);
+    return m ? [{ id: m[1], path: f.path, modifiedAt: f.modifiedAt }] : [];
+  });
+  /* 一次批量读头双解析:标题 + 创建时刻(定死看板日历落位;此前 createdAt 缺位,
+     resume 刷 mtime 卡片跳日)。mtime 未变走缓存,重扫免读头。 */
+  const metas = await readHeadMetasBatch(matched);
+  return matched
+    .map((f, i) => ({
+      id: f.id,
+      modifiedAt: f.modifiedAt,
+      createdAt: metas[i].createdAt,
+      path: f.path,
+      title: metas[i].title,
+    }))
     .sort((a, b) => b.modifiedAt - a.modifiedAt);
 }

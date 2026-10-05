@@ -138,6 +138,9 @@ export function readoptSessions(h: ReadoptHost, events: EventBus): Promise<void>
     const missing = remote.filter((m) => !h.findSession(m.id) && !isShadowedSession(m.id));
     if (missing.length === 0) return;
     h.setSessions([...h.getSessions(), ...missing]);
+    /* 在视标记复位:重载前的 viewed=true 残留在 Rust 注册表,不复位 = 无人
+       观看的会话继续以快拍灌流(泵侧降档失效);幕布重挂载时会重新打点。 */
+    for (const m of missing) void ipc.sessionSetViewed(m.id, false).catch(() => undefined);
     await Promise.all(
       missing.map((m) =>
         adoptPtySession(h, events, m.id, {

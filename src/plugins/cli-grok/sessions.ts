@@ -12,6 +12,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession, CliSessionStatus, SessionFileIdentity } from "@kernel/cli";
+import { readHeadsBatched } from "../cli-shared/sessionHead";
 
 export function grokSessionsDirName(cwd: string): string {
   return encodeURIComponent(cwd);
@@ -102,29 +103,28 @@ export async function listGrokSessions(cwd: string): Promise<CliDiskSession[]> {
   const dir = await grokSessionsDir(cwd);
   if (!dir) return [];
   const entries = await ipc.fsListDir(dir).catch(() => []);
-  /* summary.json 读取互不依赖,并发;结果保持 entries 原序,单文件失败容错不变。 */
-  return Promise.all(
-    entries.flatMap((entry) => {
-      // 会话目录 = UUID 命名;summary.json.lock 等杂项天然被正则排除。
-      if (!entry.isDir || !SESSION_ID_RE.test(entry.name)) return [];
-      return [
-        (async (): Promise<CliDiskSession> => {
-          const raw = await ipc
-            .fsReadFile(`${dir}/${entry.name}/summary.json`)
-            .catch(() => null);
-          const summary = raw ? parseGrokSummary(raw) : null;
-          return {
-            id: entry.name,
-            title: summary?.title,
-            modifiedAt: summary?.updatedAt ?? 0,
-            /* 创建时刻定死日历落位:resume 只刷 updated_at,created_at 不动。 */
-            createdAt: summary?.createdAt,
-            path: `${dir}/${entry.name}`,
-          };
-        })(),
-      ];
-    }),
+  /* 会话目录 = UUID 命名;summary.json.lock 等杂项天然被正则排除。批量读
+     (sessionHead.readHeadsBatched):外网中继逐会话 fsReadFile = N+1 RTT +
+     并发帽快拒(标题/会话缺列);summary.json 是小文件,64KB 窗即全文。 */
+  const dirs = entries.flatMap((e) =>
+    e.isDir && SESSION_ID_RE.test(e.name) ? [{ id: e.name, path: `${dir}/${e.name}` }] : [],
   );
+  const heads = await readHeadsBatched(
+    dirs.map((d) => `${d.path}/summary.json`),
+    64 * 1024,
+  );
+  /* 单文件失败容错(空串 → summary null)不变;结果保持 entries 原序。 */
+  return dirs.map((d, i) => {
+    const summary = heads[i] ? parseGrokSummary(heads[i]) : null;
+    return {
+      id: d.id,
+      title: summary?.title,
+      modifiedAt: summary?.updatedAt ?? 0,
+      /* 创建时刻定死日历落位:resume 只刷 updated_at,created_at 不动。 */
+      createdAt: summary?.createdAt,
+      path: d.path,
+    };
+  });
 }
 
 export async function readGrokSessionStatus(

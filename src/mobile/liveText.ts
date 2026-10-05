@@ -4,10 +4,9 @@
  * 无滚动区/插删行。上一版无固定视口:正文一超行,CUP(31) 就落回文档中段盖正文、
  * 页脚散落多行 = 重复(真机三次实证)。正解 = 忠实终端:固定高度,LF 到底上滚,
  * 按列换行(DECAWM 可关),CUP 夹在视口内 → 重绘天然收敛为一份。
- * 滚出视口的行进 scrollback(上限 SCROLL_CAP 行),view(fromTop) 可取全量历史,
+ * 滚出视口的行进 scrollback(上限 SCROLL_CAP 行),view() 取全量历史,
  * 手机实况区因此能向上滚动看旧输出。
- * 支持集:可打印、\n \r \t \b、CSI H/f/A/B/C/D/E/G/J/K/M/s/u、2J/3J(真擦除,
- * 不翻页——翻页会把整屏复制进 scrollback,resize 后 2J+全帧重绘即「头信息两份」,
+ * 支持集:可打印、\n \r \t \b、ESC 7/8/M/D/E、CSI H/f/A/B/C/D/E/G/J/K/M/s/u、2J/3J(真擦除,
  * 实证:omp 每次 SIGWINCH 都走 2J 重绘;历史保全职责只归备屏切换)、模式
  * ?7h/l(换行)?1049h/l(备屏清屏);SGR/其余忽略。桌面幕布用真 xterm,不共享。
  */
@@ -29,7 +28,8 @@ function incompleteEsc(t: string): boolean {
   if (t === "\x1b") return true;
   if (t.startsWith("\x1b[")) return !CSI_FULL.test(t);
   if (t.startsWith("\x1b]")) return !OSC_FULL.test(t);
-  return t === "\x1b(" || t === "\x1b)" || t === "\x1b#";
+  /* ESC+中间字节(0x20-0x2F,含 ()#%)结尾 = 等终字节,跨 chunk 不落屏。 */
+  return /^\x1b[ -/]+$/.test(t);
 }
 
 export class LiveScreen {
@@ -44,13 +44,12 @@ export class LiveScreen {
   private wrap = true;
   private rows: number;
   private cols: number;
-  /* 切分器:OSC / CSI / 单字节转义 / 控制字符各自成段,段间 = 待写文本。
-   *  ESC+终字节(0x30-0x7E)类覆盖 DECSC/DECRC(\x1b7/\x1b8)等单段转义 ——
-   *  缺了它们会当字面落屏(escape() 的 \x1b7/\x1b8 分支随之不可达),其余
-   *  未知 ESC+字母按终端惯例吞掉不打印。 */
+  /* 切分器:OSC / CSI / 单字节转义 / 控制字符各自成段,段间 = 待写文本。单字节类
+   *  含 =<>(DECKPAM/PNM)与中间字节族(\x1b%G 等)—— 缺类会当字面落屏,其余
+   *  未知 ESC 序列按终端惯例吞掉不打印。 */
   private readonly tok = new RegExp(
     // eslint-disable-next-line no-control-regex -- 终端控制流本就是控制字节
-    "\\x1b\\][^\\x07\\x1b]*(?:\\x07|\\x1b\\\\)|\\x1b\\[[0-9:;<=>?]*[ -/]*[@-~]|\\x1b[()#][0-9A-Za-z]?|\\x1b[0-9A-Za-z]|[\\x00-\\x1a\\x1c-\\x1f\\x7f]",
+    "\\x1b\\][^\\x07\\x1b]*(?:\\x07|\\x1b\\\\)|\\x1b[PX^_][\\s\\S]*?\\x1b\\\\|\\x1b\\[[0-9:;<=>?]*[ -/]*[@-~]|\\x1b[()#][0-9A-Za-z]?|\\x1b[ -/]+[0-9A-Za-z=<>]|\\x1b[0-9A-Za-z=<>]|[\\x00-\\x1a\\x1c-\\x1f\\x7f]",
     "g",
   );
   /** 跨 chunk 切断的未完成转义序列(真 PTY 分块会把 CSI/OSC 拦腰切)。 */
@@ -65,12 +64,16 @@ export class LiveScreen {
   feed(chunk: string): void {
     const data = this.pending + chunk;
     this.pending = "";
+    /* DCS/SOS/PM/APC 预扫:未收口族头切进 pending(否则单字节转义分支先吃掉 \x1bP,族体落屏 —— opentui 探测串实证);永不收口超长垃圾当文本吐掉。 */
+    const open = /\x1b[PX^_](?:(?!\x1b\\)[\s\S])*$/.exec(data);
+    const body = open && open[0].length <= 4096 ? data.slice(0, open.index) : data;
+    if (body !== data) this.pending = open![0];
     const re = this.tok;
     re.lastIndex = 0;
     let last = 0;
     let m: RegExpExecArray | null;
-    while ((m = re.exec(data))) {
-      if (m.index > last) this.print(data.slice(last, m.index));
+    while ((m = re.exec(body))) {
+      if (m.index > last) this.print(body.slice(last, m.index));
       last = m.index + m[0].length;
       const c = m[0];
       if (c.charCodeAt(0) === 0x1b) this.escape(c);
@@ -80,13 +83,10 @@ export class LiveScreen {
       else if (c === "\b") this.col = Math.max(0, this.col - 1);
       /* 其余控制字符(BEL/DEL/转义残留):纯文本视口无关。 */
     }
-    if (last < data.length) this.tail(data.slice(last));
+    if (last < body.length) this.tail(body.slice(last));
   }
 
-  /**
-   * 全量内容 = scrollback + 当前视口(去尾部空行)。实况区直接渲染它并允许向上滚动;
-   * fromTop 取前 N 行(供「跳到顶」)。alt-screen 切换会清 scrollback(见 clear)。
-   */
+  /** 全量内容 = scrollback + 当前视口(去尾部空行);alt-screen 切换会清 scrollback(见 clear)。 */
   view(): string {
     let end = this.lines.length;
     while (end > 0 && !this.lines[end - 1]) end--;
@@ -122,6 +122,9 @@ export class LiveScreen {
       }
       return;
     }
+    if (c === "\x1bM") { this.reverseLineFeed(1); return; } /* RI:与 CSI M 同路 */
+    if (c === "\x1bD") { const col = this.col; this.lineFeed(); this.col = col; return; } /* IND:行进不归列 */
+    if (c === "\x1bE") { this.lineFeed(); return; } /* NEL:CR+LF */
     if (c.charCodeAt(1) !== 0x5b) return; // 字符集/其余转义:忽略
     const body = c.slice(2, -1);
     const final = c.charCodeAt(c.length - 1);
@@ -136,8 +139,9 @@ export class LiveScreen {
       /* 其余 ? 模式(光标/批处理/鼠标):纯文本视口无关。 */
       return;
     }
-    const nums = body.match(/\d+/g)?.map(Number) ?? [];
-    const p = (i: number, d: number) => (nums[i] !== undefined && nums[i] !== 0 ? nums[i] : d);
+    /* 按位取参:空位/0 用默认(\x1b[;5H 的前导空位不可折叠,冒号子参取首段)。 */
+    const parts = body.split(";").map((s) => { const n = parseInt(s, 10); return n > 0 ? n : 0; });
+    const p = (i: number, d: number) => parts[i] || d;
     switch (final) {
       case 0x48 /* H */:
       case 0x66 /* f */:
@@ -148,7 +152,9 @@ export class LiveScreen {
         this.row = Math.max(0, this.row - p(0, 1));
         break;
       case 0x42 /* B */:
+      case 0x45 /* E CNL:下移 n 行归列首 */:
         this.row = Math.min(this.rows - 1, this.row + p(0, 1));
+        if (final === 0x45) this.col = 0;
         break;
       case 0x43 /* C */:
         this.col = Math.min(this.cols - 1, this.col + p(0, 1));
@@ -165,10 +171,10 @@ export class LiveScreen {
         this.reverseLineFeed(p(0, 1));
         break;
       case 0x4a /* J */:
-        this.eraseDisplay(nums[0] ?? 0);
+        this.eraseDisplay(parts[0] || 0);
         break;
       case 0x4b /* K */:
-        this.eraseLine(nums[0] ?? 0);
+        this.eraseLine(parts[0] || 0);
         break;
       case 0x73 /* s */:
         this.savedRow = this.row;
@@ -217,9 +223,8 @@ export class LiveScreen {
   }
 
   private reverseLineFeed(n: number): void {
-    /* 上滚到顶时把内容下推(极少用;保守:仅夹行不空滚)。 */
+    /* 上滚到顶保守仅夹行;列不动(xterm reverseIndex 同律,2026-10-04 复审)。 */
     this.row = Math.max(0, this.row - n);
-    this.col = 0;
   }
 
   private eraseLine(mode: number): void {
@@ -270,10 +275,16 @@ export class LiveScreen {
   }
 
   /** 原地改几何(尺寸轮询路径):溢出行进 scrollback、变高补空行、光标夹持。
-   *  不重放字节 —— 重放快照存在在途 chunk 双喂窗口(头信息重复的第二来源);
-   *  旧宽度换行由 CSS pre-wrap 兜底,应用层 WINCH 全帧重绘按新几何收敛。 */
+   *  不重放字节 —— 重放快照存在在途 chunk 双喂窗口(头信息重复的第二来源)。
+   *  缩列分两族:全帧重绘型(omp)WINCH 后按新几何收敛;差分重绘型(opentui)
+   *  只补新行,视口旧行按屏外格截断(见函数内注释);scrollback 一律原宽归 CSS。 */
   resize(cols: number, rows: number): void {
-    this.cols = Math.max(1, Math.min(cols || DEFAULT_COLS, MAX_LINE));
+    const nc = Math.max(1, Math.min(cols || DEFAULT_COLS, MAX_LINE));
+    if (nc < this.cols) {
+      /* 差分重绘型 TUI(opentui 实证:WINCH 只补新行,永不 ED/EL)缩列按「屏外格不可见」截视口旧行,否则 pre-wrap 折行整屏错位;scrollback 不截,历史归 CSS。 */
+      this.lines = this.lines.map((l) => (l && l.length > nc ? l.slice(0, nc) : l));
+    }
+    this.cols = nc;
     const nr = Math.max(1, Math.min(rows || DEFAULT_ROWS, 500));
     while (this.lines.length > nr) this.scrollback.push(this.lines.shift() ?? "");
     if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);

@@ -1,15 +1,7 @@
 /**
  * treeIcons —— 工作区树的细线图标(工作区 UI 照桌面侧栏图样,大仙 2026-09-25):
  * 全部 1.5 stroke / round cap,与桌面侧栏线条风格一致。纯展示,无状态。
- * chevron 方向按大仙指定基准图(展开=上尖);桌面 WorkspaceCard 相反,手机刻意独立。
  */
-export function ChevronIcon(props: { open: boolean; size?: number }) {
-  return (
-    <svg viewBox="0 0 16 16" width={props.size ?? 14} height={props.size ?? 14} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {props.open ? <path d="M3.5 10 8 5.5 12.5 10" /> : <path d="M3.5 6 8 10.5 12.5 6" />}
-    </svg>
-  );
-}
 
 export function FolderIcon(props: { open?: boolean; size?: number }) {
   return (
@@ -22,7 +14,6 @@ export function FolderIcon(props: { open?: boolean; size?: number }) {
     </svg>
   );
 }
-
 
 /** 本地 tab 图标(显示器线条)。 */
 export function LocalIcon() {
@@ -49,6 +40,37 @@ export function CheckIcon(props: { size?: number }) {
   return (
     <svg viewBox="0 0 16 16" width={props.size ?? 14} height={props.size ?? 14} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="m3.5 8.6 3 3 6-7.2" />
+    </svg>
+  );
+}
+
+/** 分支图标(Git 面板入口钮;1.5 stroke 同族)。 */
+export function GitIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+      <circle cx="4.5" cy="3.5" r="1.9" />
+      <circle cx="4.5" cy="12.5" r="1.9" />
+      <circle cx="11.5" cy="5.5" r="1.9" />
+      <path d="M4.5 5.4v5.2M11.5 7.4c0 2.4-3 2.6-5.2 3.4" />
+    </svg>
+  );
+}
+
+/** 加号图标(新建会话/工作区内发起)。 */
+export function PlusIcon(props: { size?: number }) {
+  return (
+    <svg viewBox="0 0 16 16" width={props.size ?? 13} height={props.size ?? 13} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
+      <path d="M8 3.2v9.6M3.2 8h9.6" />
+    </svg>
+  );
+}
+
+/** 刷新图标(手动重扫;旋转动画由消费方 WAAPI 驱动)。 */
+export function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M13.2 6.6A5.5 5.5 0 0 0 3 5.4M2.8 9.4a5.5 5.5 0 0 0 10.2 1.2" />
+      <path d="M13.4 2.6v4h-4M2.6 13.4v-4h4" />
     </svg>
   );
 }

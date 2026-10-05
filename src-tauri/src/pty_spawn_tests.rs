@@ -96,3 +96,24 @@ fn windows_conpty_启动输出在_cpr_代答后流动() {
     /* ConPTY 扣住输出时此 recv 必超时:10s 内来字节 = 代答有效 */
     assert!(rx.recv_timeout(Duration::from_secs(10)).is_ok());
 }
+
+/* 后台聚合降档契约(2026-10-04 十一轮):无人观看/渲染暂停的会话钳到 250ms
+ * 慢拍 —— TUI 状态动画洪水(实测 20-100KB/s 持续数十分钟)不再以快拍穿越
+ * IPC/webview 主链;前台保持自适应窗(可见面延迟零改动)。窗长打错 = 降档
+ * 失效(主线程饱和回归)或可见面延迟回归,两头都要钉。 */
+#[test]
+fn 有效聚合窗_前台保持自适应_后台钳到慢拍() {
+    let base = Duration::from_millis(8);
+    /* 前台:原样透传(8ms 基线与 50ms 饱和窗都不动) */
+    assert_eq!(effective_window(base, true), base);
+    assert_eq!(
+        effective_window(Duration::from_millis(50), true),
+        Duration::from_millis(50)
+    );
+    /* 后台:钳到 250ms 慢拍(比自适应窗更长的窗取其大) */
+    assert_eq!(effective_window(base, false), Duration::from_millis(250));
+    assert_eq!(
+        effective_window(Duration::from_millis(50), false),
+        Duration::from_millis(250)
+    );
+}

@@ -55,7 +55,7 @@ export async function isJsonlSessionEmpty(path: string): Promise<boolean> {
     return false;
   }
   /* 契约是 string;桩/封装层一旦返回对象,truthy 对象会在 includes 上炸 —— 与
-     readHeadSessionMeta 同款异型防御,异型按「判不了」处理。 */
+     sessionHead.readHeadsBatched 同款异型防御,异型按「判不了」处理。 */
   if (typeof head !== "string") return false;
   return !USER_MESSAGE_MARKERS.some((marker) => head.includes(marker));
 }

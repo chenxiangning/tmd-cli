@@ -309,6 +309,8 @@ final class WsTunnel {
 
   private func probeOnForeground() {
     for (id, task) in tasks {
+      guard opened.contains(id) else { continue } /* 握手未完成线不探测:ping 在
+        握手期排队,3s 死线会误杀慢 TLS(自签中继/弱网)促拨-杀抖动;交还周期死线链 */
       let lock = NSLock()
       var settled = false
       let finish: (Bool) -> Void = { alive in
@@ -364,7 +366,9 @@ final class WsTunnel {
       let stale = self.tasks
       if !stale.isEmpty {
         self.tasks.removeAll()
-        self.inflightSendsById.removeValue(forKey: id) /* 同 id 重拨:老计数随拆线除账 */
+        /* 拆线即除账:stale 各键全清(JS nextConn 单调递增,同 id 重拨只是特例,
+         * 错只删新 id 键会让换代前的计数滞留,2026-10-04 复审)。 */
+        for k in stale.keys { self.inflightSendsById.removeValue(forKey: k) }
         self.opened.subtract(stale.keys)
         for (_, t) in stale { t.cancel(with: .goingAway, reason: nil) }
         ShellLog.write("ws open id=\(id): evicted \(stale.count) stale conn(s)")
@@ -388,9 +392,9 @@ final class WsTunnel {
      按序排队,pong 要等大帧冲刷完才回(上行 1Mbps 冲刷 ~30s)—— 死线不看
      在途会把慢上行正在传的帧连掐死(2026-10-03 评审:复发「图片第一次失败」
      的换面)。在途 >0 时每 10s 复查,清空才判死;顺延上限 12 拍(2 分钟)防
-     永不判死。计数按线分账(key = 桥内连接 id):拆孤儿线/换代即除账,老线
-     完成回调的迟到递减只落到已除账键(max 兜底 0),不吃新线计数 —— 全局
-     单计数一旦漂高,健康空闲线会被死线顺延链误拆(2026-10-03 二轮复查)。 */
+     永不判死。计数按线分账(key = 桥内连接 id),表只持有在途>0 的线:归零
+     即除键,拆孤儿线/换代即整键清算,老线完成回调的迟到递减不吃新线计数 ——
+     全局单计数一旦漂高,健康空闲线会被死线顺延链误拆(2026-10-03 二轮复查)。 */
   private var inflightSendsById: [Int: Int] = [:]
 
   private func schedulePing(id: Int, task: URLSessionWebSocketTask, delay: TimeInterval) {
@@ -470,7 +474,11 @@ final class WsTunnel {
       self.inflightSendsById[id, default: 0] += 1 /* pong 死线感知:大帧冲刷期不误判死线 */
       task.send(.string(text)) { [weak self] _ in /* 发送失败由 close 事件承载 */
         guard let self else { return }
-        self.onMain { self.inflightSendsById[id, default: 0] = max(0, self.inflightSendsById[id, default: 0] - 1) }
+        self.onMain {
+          let v = max(0, self.inflightSendsById[id, default: 0] - 1)
+          if v == 0 { self.inflightSendsById.removeValue(forKey: id) } /* 归零即除键:表只持有在途>0 的线(迟到回调不再写回 0 键) */
+          else { self.inflightSendsById[id] = v }
+        }
       }
     }
   }

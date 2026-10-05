@@ -222,5 +222,16 @@ export const KEY_ROWS: KeyDef[][] = [
   ],
 ];
 
-/** 展平键表(兼容既有消费面;顺序 = 行优先)。 */
-export const KEYS: KeyDef[] = KEY_ROWS.flat();
+/** home 可见性(route 在 home 且文档前台):列表轮询节流开关(2026-10-05 列表
+ * 查询优化 P1)—— 他屏/后台时磁盘历史停扫、审批降频,回 home 重挂立扫补轮。 */
+export function useHomeVisible(inRoute: boolean): boolean {
+  const [visible, setVisible] = React.useState(inRoute && !document.hidden);
+  React.useEffect(() => {
+    const sync = () => setVisible(inRoute && !document.hidden);
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, [inRoute]);
+  return visible;
+}
+

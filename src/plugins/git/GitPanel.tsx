@@ -22,10 +22,15 @@ export function GitPanel() {
   const { list, activeId } = useWorkspaces();
   const active = list.find((w) => w.id === activeId) ?? list[0];
   const root = active?.root ?? null;
+  /* 远程工作区(SSH 远程 WSL 来源,wsl.hostId 非空)显式降级:git2 内核原语只认
+   * 本机路径,与其让底层扫描报错,不如一句横幅说清;本机 UNC(hostId null)不动。
+   * 降级必须同时断数据面:钩子收 null(短路)而非远端路径 —— 否则横幅可见期
+   * useGitStatus 5s / useGitRepos 60s 对远端路径持续必败空转(2026-10-04 评审 F1)。 */
+  const isRemote = Boolean(active?.wsl?.hostId);
 
   /* 多仓分档(spec 2026-09-07-git-multi-repo-design §3):cwd 换源 = 选中仓 ?? root。
    * 单仓档输出 selectedPath = root、零新 UI,与现状逐项一致(回归红线)。 */
-  const { repos, truncated, refresh: refreshRepos } = useGitRepos(root);
+  const { repos, truncated, refresh: refreshRepos } = useGitRepos(isRemote ? null : root);
   const remembered = active ? getSelectedRepo(active.id) : null;
   const repoCtx = resolveRepoContext(root, repos, remembered);
   const cwd = repoCtx.selectedPath ?? root;
@@ -43,12 +48,10 @@ export function GitPanel() {
     if (wsId) setGitViewRepo({ workspaceId: wsId, cwd: selectedPath });
   }, [wsId, selectedPath]);
 
-  const data = useGitPanelData(cwd, refreshRepos);
-  const remote = useGitPanelRemote(cwd, data.afterMutation);
+  const data = useGitPanelData(isRemote ? null : cwd, refreshRepos);
+  const remote = useGitPanelRemote(isRemote ? null : cwd, data.afterMutation);
 
-  /* 远程工作区(SSH 远程 WSL 来源,wsl.hostId 非空)显式降级:git2 内核原语只认
-   * 本机路径,与其让底层扫描报错,不如一句横幅说清;本机 UNC(hostId null)不动。 */
-  if (active?.wsl?.hostId) {
+  if (isRemote) {
     return (
       <div className="flex h-full items-center justify-center px-4 text-center text-xs text-(--tmd-fg-faint)">
         {t("远程工作区暂不支持 Git 面板")}

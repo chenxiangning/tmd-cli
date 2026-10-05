@@ -9,6 +9,9 @@
  *
  * 会话状态校准(resolveSessionStatus):状态 label 与呼吸灯共用同一状态机 ——
  * 运行时 / 空闲-未查看 / 空闲 / 从未对话不出签;进行中压过未读。
+ *
+ * 左栏工作区显隐(visibleWorkspaces):隐藏清单语义 —— 清单外一律显示,
+ * 空清单 = 全部;与底栏「工作区显隐」多选菜单锁步。
  */
 import { describe, expect, it } from "vitest";
 import { shortId } from "@kernel/sessionTitles";
@@ -17,8 +20,9 @@ import {
   isRunningZoneCandidate,
   realPinSnapshot,
   resolveSessionStatus,
-  TITLE_RESOLVE_MAX_ATTEMPTS,
   titleRetryDelay,
+  TITLE_RESOLVE_MAX_ATTEMPTS,
+  visibleWorkspaces,
 } from "./utils";
 import type { SessionMeta } from "@kernel/ipc";
 
@@ -133,5 +137,32 @@ describe("titleRetryDelay", () => {
     const total = Array.from({ length: TITLE_RESOLVE_MAX_ATTEMPTS }, (_, i) => titleRetryDelay(i + 1)).reduce((a, b) => a + b, 0);
     expect(total).toBeGreaterThanOrEqual(120_000);
     expect(total).toBeLessThan(180_000);
+  });
+});
+
+describe("visibleWorkspaces", () => {
+  /* 左栏显隐契约(隐藏清单语义):清单外一律显示,空 = 全部;残留已删 id 无害。
+   * 底栏「工作区显隐」多选菜单(唯一写方)与本过滤(唯一读方)锁步此源。 */
+  const wss = [
+    { id: "ws-a", name: "a" },
+    { id: "ws-b", name: "b" },
+    { id: "ws-c", name: "c" },
+  ];
+
+  it("空清单 = 全部显示(缺省态),返回副本不改原序", () => {
+    const out = visibleWorkspaces(wss, []);
+    expect(out.map((w) => w.id)).toEqual(["ws-a", "ws-b", "ws-c"]);
+    expect(out).not.toBe(wss);
+  });
+
+  it("清单内隐藏、清单外显示;残留已删 id 静默无害", () => {
+    expect(visibleWorkspaces(wss, ["ws-b", "ws-gone"]).map((w) => w.id)).toEqual([
+      "ws-a",
+      "ws-c",
+    ]);
+  });
+
+  it("全量隐藏 = 空表(UI 层另守「至少留一个可见」,纯函数如实返回)", () => {
+    expect(visibleWorkspaces(wss, ["ws-a", "ws-b", "ws-c"])).toEqual([]);
   });
 });

@@ -59,10 +59,33 @@ export class AskScreenMirror {
     private readonly onSample: (sessionId: string, screenText: string) => void,
     /** 真实 PTY 尺寸拉取(host 注入 ipc.sessionSize;测试缺省跳过)。null = 未知,守默认栅格。 */
     private readonly querySize?: (sessionId: string) => Promise<[number, number] | null>,
+    /** 会话可养镜像判定(host 注入 kind 闸:仅 CLI 会话,与旧 appendOutput 喂流闸同律;
+     *  缺省 = 全可(测试直驱)。feed 与 reseed 共用 —— shell/ssh 的 Ask 语义不成立。 */
+    private readonly isTrackable?: (sessionId: string) => boolean,
   ) {}
 
-  /** 实时字节入站(HostWatches.appendOutput 同流):镜像保持屏幕现势。 */
+  /** 实时字节入站(HostWatches.appendOutput 同流):镜像保持屏幕现势。
+   *  幕布互斥(feed 侧):已挂幕布的会话不喂流 —— 真幕布 askProbe 采样同屏,
+   *  同流双份 xterm 解析是纯浪费(挂载期主线程负载减半,2026-10-04 十一轮);
+   *  幕布卸载时经 reseed 以幕布终态补种,采样无缝接管(见 TerminalView 清理)。 */
   feed(sessionId: string, text: string): void {
+    if (getTerminalHandle(sessionId)) return;
+    if (this.isTrackable && !this.isTrackable(sessionId)) return;
+    this.entry(sessionId).term.write(text);
+  }
+
+  /** 幕布卸载补种:feed 互斥期镜像屏幕停在挂载前旧态,卸载瞬间以幕布终态
+   *  同步重建(几何用幕布实栅格),后台 Ask 采样自此无缝接管。同步直写:
+   *  不经 ready 门/异步尺寸拉取(几何由调用方给足,迟到拉取同值幂等)。 */
+  reseed(sessionId: string, cols: number, rows: number, text: string): void {
+    if (this.isTrackable && !this.isTrackable(sessionId)) return;
+    const old = this.entries.get(sessionId);
+    if (old) {
+      this.entries.delete(sessionId);
+      old.term.dispose();
+    }
+    if (!text) return; /* 空幕布不养镜像;下一字节到达再懒建 */
+    this.pendingSize.set(sessionId, [cols, rows]);
     this.entry(sessionId).term.write(text);
   }
 

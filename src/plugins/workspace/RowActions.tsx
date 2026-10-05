@@ -92,13 +92,14 @@ function RadialAction({
     <button
       type="button"
       className={`sv-radial-item${danger ? " is-danger" : ""}${armed ? " is-armed" : ""}`}
-      style={
-        {
-          "--dx": `${dx}px`,
-          "--dy": `${dy}px`,
-          animationDelay: `${order * 30}ms`,
-        } as React.CSSProperties
-      }
+      style={{
+        /* transform 必须直写解析值,严禁走 --dx/--dy 自定义属性:
+           var() 参与 transform 时 WKWebView/Chromium 的真实指针 hit-test
+            解析不了该值,命中区滞留环心,点击穿透(WKWebView/Chromium 双引擎实证;
+           elementFromPoint 走主线程探不出此 bug)。 */
+        transform: `translate(${dx}px, ${dy}px)`,
+        animationDelay: `${order * 30}ms`,
+      }}
       title={label}
       aria-label={label}
       onClick={(e) => {

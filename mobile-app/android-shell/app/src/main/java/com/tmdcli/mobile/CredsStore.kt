@@ -11,17 +11,29 @@ object CredsStore {
     private const val FILE = "tmd_creds"
     private const val KEY = "tmd.mobile.creds.v1"
 
+    @Volatile private var cached: SharedPreferences? = null
+
     private fun prefs(context: Context): SharedPreferences {
-        return try {
-            val master = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
-            EncryptedSharedPreferences.create(context, FILE, master,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
-        } catch (e: Exception) {
-            /* 加密库初始化失败(罕见,Keystore 异常):回落明文偏好并留痕,
-             * 「删不掉凭证」比「凭证降级存储」更难排查 */
-            ShellLog.write("creds: encrypted prefs init fail, fallback plain: " + e.message)
-            context.getSharedPreferences(FILE + "_plain", Context.MODE_PRIVATE)
+        /* 单例缓存:MasterKey + EncryptedSharedPreferences 初始化是 Keystore +
+         * 双文件 IO(数十 ms 级);WS 重拨/重连风暴期每次 http 都走这里会反复重建。
+         * applicationContext:缓存不得持 Activity。 */
+        cached?.let { return it }
+        synchronized(this) {
+            cached?.let { return it }
+            val ctx = context.applicationContext
+            val p = try {
+                val master = MasterKey.Builder(ctx).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+                EncryptedSharedPreferences.create(ctx, FILE, master,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
+            } catch (e: Exception) {
+                /* 加密库初始化失败(罕见,Keystore 异常):回落明文偏好并留痕,
+                 * 「删不掉凭证」比「凭证降级存储」更难排查 */
+                ShellLog.write("creds: encrypted prefs init fail, fallback plain: " + e.message)
+                ctx.getSharedPreferences(FILE + "_plain", Context.MODE_PRIVATE)
+            }
+            cached = p
+            return p
         }
     }
 

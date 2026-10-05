@@ -28,12 +28,12 @@ function frame(obj: unknown): void {
   listeners.get("out")?.(JSON.stringify(obj));
 }
 
-/** 握手完成(get_state 应答 tmd-1)后返回活会话。 */
-async function boot(): Promise<PiRpcSession> {
+/** 握手完成(get_state 应答 tmd-1)后返回活会话;onConfirm 可覆写(畸形帧断言用)。 */
+async function boot(onConfirm: () => void = () => undefined): Promise<PiRpcSession> {
   const s = new PiRpcSession({ command: "omp" }, "/ws", {
     onBlocks: () => undefined,
     onBusy: () => undefined,
-    onConfirm: () => undefined,
+    onConfirm,
     onExit: () => undefined,
     onError: () => undefined,
   });
@@ -96,12 +96,16 @@ describe("部件帧 id 归一(数值型宽容)", () => {
     s.kill();
   });
 
-  it("缺 id / null id 的畸形帧:仍不产应答", async () => {
-    const s = await boot();
+  it("缺 id / null id 的畸形帧:不产应答;confirm 同律不产卡(应答无从认领)", async () => {
+    let confirms = 0;
+    const s = await boot(() => { confirms += 1; });
     const wCount = writes.length;
     frame({ type: "extension_ui_request", method: "select" });
     frame({ type: "extension_ui_request", method: "select", id: null });
+    frame({ type: "extension_ui_request", method: "confirm", title: "t", message: "m" });
+    frame({ type: "extension_ui_request", method: "confirm", id: null, title: "t", message: "m" });
     expect(writes.length).toBe(wCount);
+    expect(confirms).toBe(0);
     s.kill();
   });
 

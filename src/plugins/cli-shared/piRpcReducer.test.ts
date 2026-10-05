@@ -1,5 +1,5 @@
 /**
- * pi 族 RPC reducer 测试:帧序取自 omp 18.4.4 真机探针
+ * pi 族 RPC reducer 测试:帧序取自 omp 18.4.4/18.6.0 真机探针(18.6 轮界更名 turn_start,轮末新增 turn_end)
  * (typert 信封;子类型在 assistantMessageEvent;工具走顶层 tool_execution_* 帧)。
  */
 import { describe, expect, it } from "vitest";
@@ -39,6 +39,24 @@ describe("PiRpcReducer(轮级工具行 + 流内 think/text)", () => {
     r.feed(msgEnd("user", [{ type: "text", text: "构建项目" }]));
     const user = r.feed(frame("session_settled")).find((b) => b.role === "user");
     expect(user?.text).toBe("构建项目");
+  });
+
+  it("18.6 帧序:turn_start 推进轮界,无 session_start 也不滞留", () => {
+    const r = new PiRpcReducer();
+    r.feed(frame("agent_start"));
+    r.feed(frame("turn_start"));
+    r.feed(msgStart("user"));
+    r.feed(msgEnd("user", [{ type: "text", text: "在吗" }]));
+    expect(r.turnStart).toBe(0); // 用户回显仍在活轮段(LiveTurn 渲染)
+    r.feed(msgStart("assistant"));
+    r.feed(delta("text_delta", "在"));
+    r.feed(frame("turn_end")); // 18.6 轮末同义帧,忽略(结算走 session_settled)
+    r.feed(frame("agent_end"));
+    r.feed(frame("session_settled"));
+    expect(r.turnStart).toBe(2); // user+assistant 已落定
+    r.feed(frame("agent_start"));
+    r.feed(frame("turn_start")); // 第二轮轮界照常推进
+    expect(r.turnStart).toBe(2);
   });
 
   it("assistant 流:thinking/text delta 原地累积,live 块 id 稳定", () => {

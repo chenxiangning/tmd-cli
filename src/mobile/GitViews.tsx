@@ -36,7 +36,7 @@ export function DiffView(props: {
                 <span className="pm"><b className="add">+{ft.insertions}</b> <b className="del">-{ft.deletions}</b></span>
               ) : null}
             </button>
-            {props.openPatch === f.path && <DiffPatch patch={props.patch} />}
+            {props.openPatch === `${f.path}|${f.staged ? 1 : 0}` && <DiffPatch patch={props.patch} />}
           </div>
         );
       })}

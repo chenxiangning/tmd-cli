@@ -8,6 +8,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { readHeadsBatched } from "../cli-shared/sessionHead";
 
 const STATE_CACHE_MAX = 8192;
 const stateCache = new Map<string, { mtime: number; state: unknown }>();
@@ -36,6 +37,38 @@ export function readKimiStateCached<T>(
     },
     () => null,
   );
+}
+
+/** 批量读 state(列表扫描消费):mtime 命中走缓存,misses 一次批量读头
+ *  (外网中继 N+1 削峰;读失败/坏 JSON = null 不落缓存,语义同逐文件版)。
+ *  返回与 entries 下标对齐。 */
+export async function readKimiStatesBatched<T>(
+  entries: { path: string; modifiedAt: number }[],
+  parse: (text: string) => T | null,
+): Promise<(T | null)[]> {
+  const misses = entries.filter((e) => stateCache.get(e.path)?.mtime !== e.modifiedAt);
+  const heads = misses.length
+    ? await readHeadsBatched(misses.map((m) => m.path), 64 * 1024)
+    : [];
+  const parsed = new Map<string, T | null>();
+  misses.forEach((m, i) => {
+    const value = heads[i] ? parse(heads[i]) : null;
+    if (value) {
+      if (stateCache.size >= STATE_CACHE_MAX) {
+        const oldest = stateCache.keys().next().value;
+        if (oldest !== undefined) stateCache.delete(oldest);
+      }
+      stateCache.set(m.path, { mtime: m.modifiedAt, state: value });
+    } else {
+      stateCache.delete(m.path);
+    }
+    parsed.set(m.path, value);
+  });
+  return entries.map((e) => {
+    const cached = stateCache.get(e.path);
+    if (cached && cached.mtime === e.modifiedAt) return cached.state as T;
+    return parsed.get(e.path) ?? null;
+  });
 }
 
 /** 缓存剪除:collect 已消失的 state 条目丢弃。 */

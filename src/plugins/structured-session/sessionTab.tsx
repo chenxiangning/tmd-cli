@@ -2,288 +2,245 @@
  * 结构化会话 tab 内容 —— RPC 驱动(omp/pi `--mode rpc`),token 级流式转录 +
  * 自带输入面 + 审批回路。数据链:PiRpcSession(cli-shared)← kernel proc_stream
  * 通用原语;PTY 零涉及。渲染复用 session-viewer 的 TranscriptView(极简联动
- * 同设置);关闭 tab = kill 子进程(useEffect 收割)。
+ * 同设置);关闭 tab = kill 子进程(useEffect 收割)。生命周期编排见 ssSession.ts。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  */
-import { lazy, useEffect, useRef, useState } from "react";
+import { lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { EditorTab } from "@kernel/tabs";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { useSettingsState, updateSettings } from "@kernel/settings";
-import type { CliTranscriptBlock } from "@kernel/cli";
+import { useSettingsState } from "@kernel/settings";
 import { retryImport } from "@kernel/lazyImport";
+import { SsHeader } from "./ssHeader";
 import { LiveTurn } from "./liveTurn";
 import { ConfirmCard } from "./confirmCard";
-import type { StructuredSessionPayload } from "./tabs";
 import { TranscriptView } from "@plugins/session-viewer/transcriptView";
-import {
-  PiRpcSession,
-  type PiRpcConfirm,
-} from "../cli-shared/piRpc";
+import { useSsSession, type Phase, type SsSessionState } from "./ssSession";
+import type { PiRpcCommand, PiRpcSession } from "../cli-shared/piRpc";
+import type { StructuredSessionPayload } from "./tabs";
 import "./structured-session.css";
 
 const MarkdownBody = lazy(retryImport(() =>
   import("@plugins/session-viewer/markdownBody").then((m) => ({ default: m.MarkdownBody })),
 ));
 
+/* / 命令补全(目录懒载缓存 tab 生命期;↑↓ 移动,Tab/Enter 补全,Esc 关闭;
+ * 仅补全不代发 —— 引擎自解析斜杠命令)。返回面接 textarea 与补全列表渲染。 */
+/** useCmdComplete 返回面(Composer 消费;键盘/变更钩 + 列表渲染数据)。 */
+type CmdComplete = {
+  onChange: (v: string) => void;
+  onKey: (e: { key: string; shiftKey: boolean; nativeEvent: { isComposing: boolean }; preventDefault(): void }) => boolean;
+  matches: PiRpcCommand[];
+  sel: number;
+  setSel: (n: number) => void;
+  complete: (c: PiRpcCommand) => void;
+  open: boolean;
+  cmdList: PiRpcCommand[] | null;
+};
+function useCmdComplete(session: PiRpcSession | null, draft: string, setDraft: (v: string) => void): CmdComplete {
+  const [cmdList, setCmdList] = useState<PiRpcCommand[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [sel, setSel] = useState(0);
+  const matches = useMemo(() => {
+    if (!open || !cmdList) return [];
+    const q = draft.slice(1).toLowerCase();
+    return cmdList.filter((c) => c.name.toLowerCase().startsWith(q)).slice(0, 8);
+  }, [open, cmdList, draft]);
+  const complete = (c: PiRpcCommand) => {
+    setDraft(`/${c.name} `);
+    setOpen(false);
+  };
+  /* textarea onKeyDown 前置钩;返回 true = 已消费该键。 */
+  const onKey = (e: { key: string; shiftKey: boolean; nativeEvent: { isComposing: boolean }; preventDefault(): void }): boolean => {
+    if (!open || matches.length === 0 || e.nativeEvent.isComposing) return false;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setSel((sel + (e.key === "ArrowDown" ? 1 : -1) + matches.length) % matches.length);
+      return true;
+    }
+    if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+      e.preventDefault();
+      complete(matches[sel]);
+      return true;
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setOpen(false);
+      return true;
+    }
+    return false;
+  };
+  const onChange = (v: string) => {
+    setDraft(v);
+    const opening = v.startsWith("/") && !v.includes(" ");
+    setOpen(opening);
+    setSel(0);
+    if (opening && cmdList === null && session) {
+      void session.getCommands().then(setCmdList).catch(() => setCmdList([]));
+    }
+  };
+  return { onChange, onKey, matches, sel, setSel, complete, open, cmdList };
+}
 
-type Phase = "starting" | "ready" | "exited" | "error";
+/* 滚动区相位横幅:启动中/启动失败/已结束(接续重开 = --resume 换壳,引擎
+ * 上下文 + 转录保形;否则全复位新会话)。已结束用紧凑横幅,不占视口高空块。 */
+function PhaseBanners(props: { phase: Phase; statusText: string | null; sessionId: string | null; resumable: boolean; onRetry: () => void }) {
+  const { phase, statusText, resumable } = props;
+  if (phase === "starting") return <div className="ss-empty">{t("启动 RPC 会话中…")}</div>;
+  if (phase === "error") {
+    return (
+      <div className="ss-empty">
+        {t("启动失败")}:{statusText}
+        <button type="button" className="ss-retry" onClick={props.onRetry}>{t("重试")}</button>
+      </div>
+    );
+  }
+  if (phase === "exited") {
+    return (
+      <div className="ss-ended">
+        {t("会话已结束(关闭此 tab 可再开)")}
+        <button type="button" className="ss-retry" onClick={props.onRetry}>
+          {resumable ? t("接续重开") : t("重新开启")}
+        </button>
+      </div>
+    );
+  }
+  return null;
+}
 
-/* RPC 会话壳:生命周期/审批/输入面集中编排,分支是协议状态机的本质复杂度。 */
-// react-doctor-disable-next-line react-doctor/no-high-complexity-react-function
+/* 输入面:/ 命令补全弹层 + textarea + 发送钮。confirm 在卡时 Esc 拒绝
+ * (Enter 不批准 —— 打字误敲是最高频误批准源,批准经卡内按钮)。 */
+function Composer(props: { ss: SsSessionState; cmd: CmdComplete }) {
+  const { ss, cmd } = props;
+  /* 输入框随手长高(两行式,桌面上限同款 180px;CSS overflow 兜底滚动)。 */
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+  };
+  return (
+    <>
+      {ss.phase === "ready" && cmd.open ? (
+        <div className="ss-cmds" role="listbox">
+          {cmd.cmdList === null ? <div className="ss-cmd-hint">{t("载入命令目录…")}</div> : null}
+          {cmd.cmdList !== null && cmd.matches.length === 0 ? <div className="ss-cmd-hint">{t("无匹配命令")}</div> : null}
+          {cmd.matches.map((c, i) => (
+            <button
+              type="button"
+              key={c.name}
+              role="option"
+              aria-selected={i === cmd.sel}
+              className={"ss-cmd" + (i === cmd.sel ? " is-sel" : "")}
+              onMouseDown={(e) => { e.preventDefault(); cmd.complete(c); }}
+              onMouseEnter={() => cmd.setSel(i)}
+            >
+              <span className="ss-cmd-name">/{c.name}</span>
+              {c.hint ? <span className="ss-cmd-hint-arg">{c.hint}</span> : null}
+              {c.description ? <span className="ss-cmd-desc">{c.description}</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {ss.confirm ? <ConfirmCard key={ss.confirm.frameId} confirm={ss.confirm} onAnswer={ss.answerConfirm} /> : null}
+      <div className="ss-input">
+        <textarea
+          className="ss-textarea"
+          value={ss.draft}
+          placeholder={ss.phase !== "ready" ? t("会话未就绪") : ss.busy ? t("输入下一问(排队,当前轮结束自动发送)") : t("发消息(Enter 发送,Shift+Enter 换行)")}
+          disabled={ss.phase !== "ready"}
+          onChange={(e) => cmd.onChange(e.target.value)}
+          onInput={(e) => autoResize(e.currentTarget)}
+          onKeyDown={(e) => {
+            if (ss.confirm && !e.nativeEvent.isComposing && e.key === "Escape") {
+              e.preventDefault();
+              ss.answerConfirm(false);
+              return;
+            }
+            /* / 命令补全优先(↑↓/Tab/Enter/Esc);未消费再走发送。 */
+            if (cmd.onKey(e)) return;
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              ss.send();
+            }
+          }}
+        />
+        <button type="button" className="ss-send" disabled={ss.phase !== "ready" || !ss.draft.trim()} onClick={ss.send}>
+          {t("发送")}
+        </button>
+      </div>
+    </>
+  );
+}
+
 export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   useHost(); /* profile 注册/工作区变化 */
   const payload = tab.payload as StructuredSessionPayload;
   const { settings } = useSettingsState();
   const minimal = settings.sessionViewerMinimal;
   const profile = host.getCliProfile(payload.profileId);
-  const [phase, setPhase] = useState<Phase>("starting");
-  const [statusText, setStatusText] = useState<string | null>(null);
-  const [blocks, setBlocks] = useState<CliTranscriptBlock[]>([]);
-  const [turnStart, setTurnStart] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [busySince, setBusySince] = useState<number | null>(null);
-  const [elapsed, setElapsed] = useState(0);
-  const [confirm, setConfirm] = useState<PiRpcConfirm | null>(null);
-  const [model, setModel] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
-  const sessionRef = useRef<PiRpcSession | null>(null);
+  const ss = useSsSession(payload);
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  /* token 级 delta 30-80 事件/s:攒 120ms 尾沿合帧再进 React(流式观感无差,
-   * 相位级 useMemo 与活块 markdown 重解析降频一个量级)。 */
-  const pendingBlocksRef = useRef<[CliTranscriptBlock[], number] | null>(null);
-  const flushTimerRef = useRef<number | null>(null);
-  const flushBlocks = () => {
-    if (flushTimerRef.current != null) {
-      clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-    }
-    const pending = pendingBlocksRef.current;
-    if (pending) {
-      pendingBlocksRef.current = null;
-      setBlocks(pending[0]);
-      setTurnStart(pending[1]);
-    }
-  };
-
-  /* 生命周期:mount 起 RPC 子进程,unmount(关 tab)kill 收割。StrictMode 双跑
-   * 由 startedRef 挡;失败先 kill 清残留子进程再进 error 态,重试按钮重跑启动。 */
-  const startedRef = useRef(false);
-  const startSession = () => {
-    const rpc = host.getCliProfile(payload.profileId)?.structuredRpc;
-    if (startedRef.current || !rpc) return;
-    startedRef.current = true;
-    setPhase("starting");
-    setStatusText(null);
-    let self: PiRpcSession;
-    const session = (self = new PiRpcSession(
-      rpc,
-      payload.cwd,
-      {
-        onBlocks: (next, ts) => {
-          pendingBlocksRef.current = [next, ts];
-          if (flushTimerRef.current == null) {
-            flushTimerRef.current = window.setTimeout(() => {
-              flushTimerRef.current = null;
-              flushBlocks();
-            }, 120);
-          }
-        },
-        onBusy: (b) => {
-          setBusy(b);
-          setBusySince(b ? Date.now() : null);
-        },
-        onConfirm: setConfirm,
-        onExit: () => {
-          if (sessionRef.current === self) {
-            flushBlocks();
-            setConfirm(null);
-            setBusy(false);
-            setBusySince(null);
-            setPhase("exited");
-          }
-        },
-        onError: (msg) => setStatusText(msg),
-      },
-    ));
-    sessionRef.current = session;
-    void session
-      .start()
-      .then((state) => {
-        if (sessionRef.current !== session) return;
-        setSessionId(state?.sessionId ?? null);
-        setModel(state?.model ?? null);
-        setPhase("ready");
-      })
-      .catch((e: unknown) => {
-        /* 启动失败:先收割残留子进程,再进可重试的 error 态。 */
-        session.kill();
-        if (sessionRef.current === session) {
-          sessionRef.current = null;
-          setStatusText(e instanceof Error ? e.message : String(e));
-          setPhase("error");
-        }
-      });
-  };
-  const retry = () => {
-    flushBlocks();
-    sessionRef.current?.kill();
-    sessionRef.current = null;
-    startedRef.current = false;
-    setBlocks([]);
-    setTurnStart(0);
-    setConfirm(null);
-    setBusy(false);
-    startSession();
-  };
-  useEffect(() => {
-    startSession();
-    return () => {
-      startedRef.current = false;
-      clearTimeout(flushTimerRef.current ?? undefined);
-      sessionRef.current?.kill();
-      sessionRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payload.profileId, payload.cwd]);
+  const cmd = useCmdComplete(ss.sessionRef.current, ss.draft, ss.setDraft);
 
   /* 贴底跟随(busy 流式期),上翻停跟。 */
-  const stickRef = useRef(true);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el && stickRef.current) el.scrollTop = el.scrollHeight;
-  }, [blocks]);
+    if (el && ss.stickRef.current) el.scrollTop = el.scrollHeight;
+  }, [ss.blocks, ss.stickRef]);
 
-  /* working 头计时(monocode「working for Ns」同语义):busy 起跳,结算归零。 */
-  useEffect(() => {
-    if (busySince === null) return;
-    const tick = () => setElapsed(Math.max(0, Math.round((Date.now() - busySince) / 1000)));
-    tick();
-    const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
-  }, [busySince]);
-
-  const send = () => {
-    const text = draft.trim();
-    if (!text || phase !== "ready" || busy) return;
-    setDraft("");
-    stickRef.current = true;
-    void sessionRef.current?.send(text).catch((e: unknown) => {
-      setStatusText(e instanceof Error ? e.message : String(e));
-      /* 发送失败保输入(桌面契约):仅在用户未另起输入时回填。 */
-      setDraft((d) => (d === "" ? text : d));
-    });
-  };
-  /* 审批应答(ConfirmCard 回路):应答即收卡,重复应答按无 confirm 短路。 */
-  const answerConfirm = (ok: boolean) => {
-    const cur = confirm;
-    if (!cur) return;
-    sessionRef.current?.respond(cur.frameId, ok);
-    setConfirm(null);
-  };
-  /* 输入框随手长高(两行式,桌面上限同款 180px;CSS overflow 兜底滚动)。 */
-  const autoResize = (el: HTMLTextAreaElement) => {
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
-  };
 
   if (!profile?.structuredRpc) {
     return <div className="ss-root"><div className="ss-empty">{t("该引擎不支持结构化会话")}</div></div>;
   }
-
   return (
     <div className="ss-root">
-      <header className="ss-header">
-        {profile.renderIcon ? <span className="ss-engine-icon">{profile.renderIcon("0.875rem")}</span> : null}
-        <span className="ss-engine-name">{profile.name}</span>
-        <span className="ss-cwd">{payload.cwd}</span>
-        {model ? <span className="ss-model">{model}</span> : null}
-        {sessionId ? <span className="ss-sid">{sessionId.slice(0, 8)}</span> : null}
-        {/* 极简展示切换(形制同 viewer 头 sv-minimal;设置同源全局生效) */}
-        <button
-          type="button"
-          className={"ss-minimal" + (minimal ? " is-on" : "")}
-          title={t("极简展示:每轮工作过程折叠为一行,只保留最终答复")}
-          aria-pressed={minimal}
-          onClick={() => updateSettings({ sessionViewerMinimal: !minimal })}
-        >
-          {t("极简")}
-        </button>
-        <span className={`ss-dot${busy ? " is-busy" : ""}`} title={busy ? t("生成中") : t("空闲")} />
-        {statusText ? <span className="ss-status" title={statusText}>{statusText.slice(0, 80)}</span> : null}
-        {busy ? (
-          <button type="button" className="ss-abort" onClick={() => void sessionRef.current?.abort()}>
-            {t("中止")}
-          </button>
-        ) : null}
-      </header>
+      <SsHeader
+        profileId={payload.profileId}
+        cwd={payload.cwd}
+        model={ss.model}
+        thinkingLevel={ss.thinkingLevel}
+        sessionId={ss.sessionId}
+        stats={ss.stats}
+        busy={ss.busy}
+        queued={ss.queued}
+        ready={ss.phase === "ready"}
+        minimal={minimal}
+        statusText={ss.statusText}
+        session={ss.sessionRef.current}
+        onStateRefresh={(s) => ss.onStateRefresh(s)}
+        onAbort={() => void ss.sessionRef.current?.abort()}
+      />
       <div
         className="ss-scroll"
         ref={scrollRef}
         onScroll={() => {
           const el = scrollRef.current;
-          if (el) stickRef.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
+          if (el) ss.stickRef.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
         }}
       >
-        {phase === "starting" ? <div className="ss-empty">{t("启动 RPC 会话中…")}</div> : null}
-        {phase === "error" ? (
-          <div className="ss-empty">
-            {t("启动失败")}:{statusText}
-            <button type="button" className="ss-retry" onClick={retry}>{t("重试")}</button>
-          </div>
-        ) : null}
-        {/* 已结束 = 紧凑横幅(不再视口高空块把残留内容顶出视野);重新开启 =
-            重跑该引擎 spawn 链(retry 同源:kill 残骸 → 全态复位 → 再握手)。 */}
-        {phase === "exited" ? (
-          <div className="ss-ended">
-            {t("会话已结束(关闭此 tab 可再开)")}
-            <button type="button" className="ss-retry" onClick={retry}>{t("重新开启")}</button>
-          </div>
-        ) : null}
+        <PhaseBanners
+          phase={ss.phase}
+          statusText={ss.statusText}
+          sessionId={ss.sessionId}
+          resumable={!!profile.structuredRpc.resumeArgs && !!ss.sessionId}
+          onRetry={ss.retry}
+        />
 
-        {blocks.length > 0 ? (
+        {ss.blocks.length > 0 ? (
           <div className="ss-blocks">
-            <TranscriptView blocks={blocks.slice(0, turnStart)} Markdown={MarkdownBody} minimal={minimal} />
-            <LiveTurn blocks={blocks.slice(turnStart)} busy={busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} />
+            <TranscriptView blocks={ss.blocks.slice(0, ss.turnStart)} Markdown={MarkdownBody} minimal={minimal} />
+            <LiveTurn blocks={ss.blocks.slice(ss.turnStart)} busy={ss.busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} />
           </div>
         ) : null}
       </div>
       {/* working 带移出滚动区(flex:none 底带):长轮次卷走看不见、与 860px 列错位两症同治 */}
-      {busy ? (
+      {ss.busy ? (
         <div className="ss-working">
           <span className="ss-spin-grid" aria-hidden>{Array.from({ length: 9 }, (_, i) => <i key={i} />)}</span>
-          <span className="ss-working-who">{model ?? profile.name}</span>
-          <span className="ss-working-for">{t("working for")}{elapsed}s</span>
+          <span className="ss-working-who">{ss.model?.id ?? profile.name}</span>
+          <span className="ss-working-for">{t("working for")}{ss.elapsed}s</span>
         </div>
       ) : null}
-      {confirm ? <ConfirmCard key={confirm.frameId} confirm={confirm} onAnswer={answerConfirm} /> : null}
-      <div className="ss-input">
-        <textarea
-          className="ss-textarea"
-          value={draft}
-          placeholder={phase === "ready" ? t("发消息(Enter 发送,Shift+Enter 换行)") : t("会话未就绪")}
-          disabled={phase !== "ready"}
-          onChange={(e) => setDraft(e.target.value)}
-          onInput={(e) => autoResize(e.currentTarget)}
-          onKeyDown={(e) => {
-            /* confirm 在卡:Esc 拒绝;Enter 不再批准(打字误敲是最高频误批准源),
-               批准经卡内按钮;composing 让路输入法 */
-            if (confirm && !e.nativeEvent.isComposing && e.key === "Escape") {
-              e.preventDefault();
-              answerConfirm(false);
-              return;
-            }
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
-        <button type="button" className="ss-send" disabled={phase !== "ready" || busy || !draft.trim()} onClick={send}>
-          {t("发送")}
-        </button>
-      </div>
+      <Composer ss={ss} cmd={cmd} />
     </div>
   );
 }

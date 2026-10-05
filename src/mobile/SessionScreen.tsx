@@ -12,6 +12,7 @@ import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { useLiveStream, useSessionExit } from "./useLiveStream";
 import { useCkptBadge, useLiveTurns, useTerminalFit } from "./sessionHooks";
+
 import { isTailTruncated, MAX_TURNS } from "./sessionFile";
 import { ConnBanner } from "./ConnChip";
 import { askEdgeNotify, askRoundClear, notifyExit, useMobile } from "./shared";
@@ -22,6 +23,9 @@ import { useDraft } from "./useDraft";
 import { shellInvoke } from "@kernel/shellBridge";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { CkptSheet } from "./CkptSheet";
+import { TimelineSheet } from "./timelineSheet";
+import { timelineSupported, type TimelineEntry } from "./timelineData";
+import { TimelineHistory } from "./timelineHistory";
 import { SessionHeader, ShotPreview } from "./SessionChrome";
 import { Composer } from "./Composer";
 
@@ -38,6 +42,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   /* 草稿持久化(useDraft):返回 home 卸载不丢未发文字;发送成功清除。 */
   const { draft, setDraft, clear: clearDraft } = useDraft(props.sessionId);
   const [ckptSheet, setCkptSheet] = useState(false);
+  const [tlSheet, setTlSheet] = useState(false);
   const { shots, pending, onShot, onPhoto, removeShot, clearShots, busy: shotBusy, err: shotErr } = useShots();
   /* 挂图全屏预览(缩略图点开看大图,点击关闭)。 */
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -51,11 +56,19 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   useEffect(() => { draftRef.current = draft; });
   
   const ckpt = useCkptBadge(meta?.cwd, props.sessionId);
+  /* 时间线跳转(2026-10-05 二轮):任意条目(offset 锚)→ 历史定位视图
+   * (前后文快照互斥替代尾窗,组件 timelineHistory);桌面 jumpToAnchor 的
+   * 「不在 buffer 逐页加载」在手机 = offset 精确分段读。 */
+  const [hist, setHist] = useState<{ path: string; entry: TimelineEntry } | null>(null);
+  const jumpToTimeline = (path: string, entry: TimelineEntry) => {
+    setTlSheet(false);
+    setHist({ path, entry });
+  };
 
   /* transcript(spec 2026-09-25-mobile-session-render):jsonl 定位 + 2s 增量生长;
    * 失败/非契约引擎回落 null → PTY 尾流实况。poke = 写入成功后 300ms 补拍
    * (spec 2026-10-03):发消息/应答 ~0.3s 上屏,不白等 2s 拍。 */
-  const { turns, poke } = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId, props.spawnedAt);
+  const { turns, poke } = useLiveTurns(meta?.profileId, meta?.cwd, props.sessionId, props.spawnedAt, meta?.cliSessionId);
   /* 实况块:有对话时默认折叠(终端原始流在窄屏不可读),点开看;无对话=全屏实况。 */
   const [liveOpen, setLiveOpen] = useState(false);
   const liveShown = turns ? liveOpen : true;
@@ -175,7 +188,10 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
     const sentPaths = shots.map((s) => s.path);
     const sentDraft = draft;
     const msg = composeSendText(draft, sentPaths);
-    if (msg === null) return;
+    if (msg === null) {
+      setSendErr(false); /* 内容已清空:错误条失去重试对象,退场免死钮(2026-10-04 复审) */
+      return;
+    }
     /* 桌面契约 = 写入失败保草稿:成功才清草稿/挂图并清错,失败保留输入给可见错误条。 */
     setSending(true);
     writeSession(props.sessionId, `${msg}\r`)
@@ -203,9 +219,15 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
       />
       <ConnBanner />
       <div className="live" ref={liveRef}>
-        {turns && <TurnsView turns={turns} />}
-        {turns && isTailTruncated(turns) && (
-          <div className="list-note">{t("已显示最近 {n} 轮,更早内容在桌面客户端查看", { n: MAX_TURNS })}</div>
+        {hist ? (
+          <TimelineHistory path={hist.path} entry={hist.entry} liveRef={liveRef} onBack={() => setHist(null)} />
+        ) : (
+          <>
+            {turns && <TurnsView turns={turns} />}
+            {turns && isTailTruncated(turns) && (
+              <div className="list-note">{t("已显示最近 {n} 轮,完整历史点时间线", { n: MAX_TURNS })}</div>
+            )}
+          </>
         )}
         <LiveBlock
           turns={turns}
@@ -249,11 +271,22 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
         onRemoveShot={removeShot}
         onPreview={setPreviewUrl}
         ckptReady={!!meta?.cwd}
+        timelineReady={!!meta?.cwd && timelineSupported(meta.profileId)}
+        onTimeline={() => setTlSheet(true)}
         onCkpt={() => setCkptSheet(true)}
       />
       <ShotPreview url={previewUrl} onClose={() => setPreviewUrl(null)} />
       {ckptSheet && meta?.cwd && (
         <CkptSheet cwd={meta.cwd} sessionId={props.sessionId} onClose={() => setCkptSheet(false)} />
+      )}
+      {tlSheet && meta?.cwd && meta.profileId && (
+        <TimelineSheet
+          profileId={meta.profileId}
+          cwd={meta.cwd}
+          cliSessionId={meta.cliSessionId}
+          onClose={() => setTlSheet(false)}
+          onJump={jumpToTimeline}
+        />
       )}
     </>
   );

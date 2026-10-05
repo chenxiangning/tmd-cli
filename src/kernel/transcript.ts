@@ -27,8 +27,9 @@ function clip(s: string): string {
 }
 
 /** 对话正文:剥 ANSI、去首尾空白,但保留换行 —— markdown 块级语法
- *  (标题/列表/围栏)依赖换行,压单行会让手机端格式渲染失效。 */
-function clipText(s: string): string {
+ *  (标题/列表/围栏)依赖换行,压单行会让手机端格式渲染失效。
+ *  导出:消费方(手机时间线可达判定)须与 turn.text 同口径归一比较。 */
+export function clipText(s: string): string {
   const one = stripAnsi(s).trim();
   return one.length > TURN_MAX ? `${one.slice(0, TURN_MAX)}…` : one;
 }

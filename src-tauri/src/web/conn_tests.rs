@@ -54,6 +54,96 @@ fn 白名单fs_git命令必有桥臂() {
     }
 }
 
+/// 反向漂移防线(2026-10-05 真机事故钉死):dispatch_fs.rs 每条 fs_ 桥臂必须在
+/// app 设备白名单(或写豁免)—— 单向「白名单→臂」查不出「臂在、白名单行被顶掉」
+/// (fs_read_tail_changed 被覆盖删除 → 真机「app 设备不在允许域」)。
+#[test]
+fn fs桥臂必在白名单() {
+    const FS: &str = include_str!("dispatch_fs.rs");
+    let mut arm = String::new();
+    for ch in FS.chars() {
+        if ch == '"' {
+            if arm.starts_with("fs_") {
+                /* webview 通道专用写/管理令(app 域禁)+ fs_write_temp 截图注入
+                 * 窄豁免。新写令加臂必须在此登记 —— 该测试红 = 逼一次
+                 * 「app 域放不放行」的显式决策,防白名单行被顶掉后真机才炸。 */
+                const WRITE_ARMS: &[&str] = &[
+                    "fs_write_temp",
+                    "fs_write_file",
+                    "fs_create_file",
+                    "fs_create_dir",
+                    "fs_copy_file",
+                    "fs_rename_entry",
+                    "fs_trash_entry",
+                    "fs_remove_path",
+                    "fs_reveal_in_file_manager",
+                ];
+                assert!(
+                    FS_READ.contains(&arm.as_str()) || WRITE_ARMS.contains(&arm.as_str()),
+                    "{arm} 有桥臂但不在 FS_READ 白名单"
+                );
+            }
+            arm.clear();
+        } else {
+            arm.push(ch);
+        }
+    }
+}
+
+/// git 域同款反向防线(2026-10-05 fs_read_tail_changed 顶行事故的姊妹面):
+/// dispatch_git*.rs 每条 git_ 桥臂必须在 GIT_READ 或 webview 专用写令集 ——
+/// 白名单数组行被顶掉时本地即红,不再等真机「app 设备不在允许域」。
+#[test]
+fn git桥臂必在白名单或写令集() {
+    const SRC: &str = include_str!("dispatch_git.rs");
+    const BRANCH: &str = include_str!("dispatch_git_branch.rs");
+    /* webview 通道专用臂(app 域不放行;含 commit_file_patch 等读臂 —— 手机只读
+     * 面按需扩权时把它挪进 GIT_READ)。新臂必须在此登记,否则本测试红。 */
+    const WEBVIEW_ONLY: &[&str] = &[
+        "git_branch_compare",
+        "git_branch_worktree_files",
+        "git_branch_worktree_patch",
+        "git_branches",
+        "git_commit_file_patch",
+        "git_remotes",
+        "git_checkout",
+        "git_checkout_remote",
+        "git_clean",
+        "git_commit",
+        "git_create_branch",
+        "git_delete_branch",
+        "git_discard",
+        "git_merge_branch",
+        "git_pr_defaults",
+        "git_pr_run",
+        "git_pull_push",
+        "git_push_preview",
+        "git_rebase_branch",
+        "git_remote_request",
+        "git_rename_branch",
+        "git_smart_checkout",
+        "git_smart_checkout_undo",
+        "git_stage",
+        "git_unstage",
+    ];
+    for src in [SRC, BRANCH] {
+        let mut arm = String::new();
+        for ch in src.chars() {
+            if ch == '"' {
+                if arm.starts_with("git_") {
+                    assert!(
+                        GIT_READ.contains(&arm.as_str()) || WEBVIEW_ONLY.contains(&arm.as_str()),
+                        "{arm} 有桥臂但不在 GIT_READ 白名单"
+                    );
+                }
+                arm.clear();
+            } else {
+                arm.push(ch);
+            }
+        }
+    }
+}
+
 /// fs_write_temp 窄豁免(截图注入:手机发图落桌面临时目录唯一写面)。
 #[test]
 fn fs域_截图注入写令放行_其余fs写仍拒() {

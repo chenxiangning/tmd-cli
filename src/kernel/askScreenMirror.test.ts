@@ -174,17 +174,24 @@ describe("屏幕态镜像采样器核心(askScreenMirror)", () => {
     expect(lastText()).toBe(screen(out.slice(-32)));
   });
 
-  it("幕布互斥:在册会话让位真实采样,注销后镜像接管;未在册会话不受牵连", async () => {
+  it("幕布互斥:在册会话不吃流不采样;reseed 以幕布终态补种,注销后接管", async () => {
     const handle = {} as TerminalHandle; /* 镜像只看在册与否,不调成员 */
     registerTerminalHandle("s1", handle);
-    mirror.feed("s1", plain(...PANEL_ROWS));
+    mirror.feed("s1", plain(...PANEL_ROWS)); /* 在册:字节不进镜像(feed 互斥) */
     mirror.feed("s2", plain(...PANEL_ROWS));
     await vi.advanceTimersByTimeAsync(500);
     expect(sampleIds()).toEqual(["s2", "s2"]); /* s1 在册跳过,s2 照发 */
+    /* 幕布卸载时序:reseed 以幕布终态同步补种(注销 handle 之前),采样首发即现势 */
+    mirror.reseed("s1", 120, 24, PANEL_ROWS.join("\r\n"));
     unregisterTerminalHandle("s1", handle);
     await vi.advanceTimersByTimeAsync(250);
     expect(sampleIds()).toEqual(["s1", "s2", "s2", "s2"]); /* s1 接管(含此前 s2 两发) */
-    expect(lastText()).toBe(screen(PANEL_ROWS)); /* 接管首发即现势 */
+    expect(lastText()).toBe(screen(PANEL_ROWS)); /* 接管首发即幕布终态 */
+    /* 注销后字节恢复直喂:整帧覆盖补种态 */
+    const next = Array.from({ length: 24 }, (_, i) => `post ${i}`);
+    mirror.feed("s1", addressedFrame(...next));
+    await vi.advanceTimersByTimeAsync(250);
+    expect(lastText()).toBe(screen(next));
   });
 
   it("整帧幂等:分片入站与同帧重放屏幕态不变", async () => {

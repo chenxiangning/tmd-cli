@@ -30,14 +30,14 @@ interface CommandContribution {
 4. **同键共存的条件**:同作用域双方都有 `when` 且语义互斥(先例:⌘S 按激活 tab kind 分家为 files.save / ssh.saveRemoteFile);否则注册即抛错。跨作用域同键允许,聚焦期聚焦作用域优先(09-20 加 editor:⌘W editor.expandSelection 编辑器聚焦期扩选,失焦期落回 global shell.closeTab 关 tab)。
 5. **组件局部状态经模块级 ref 桥**接命令(先例:TerminalView `findRequestRef`、ssh `saveRequestRef`、app-shell `shellBarToggles`)。
 6. 键位对齐主流:⌘,设置、⌘B 左栏、⌘⌥B 右栏、⌘W 关 tab(编辑器聚焦期例外 = 扩大选择,09-20)、⌘T 新建、⌘1-9 切换、⌘⇧E/G/M 右栏面板(VS Code 心智)、⌘⇧H 回首页⇄回会话 toggle(会话中记住当前会话回首页,首页中切回原会话;先收市场覆盖层,2026-09-12 8c4b3c7)。
-   一期键位之外,二期补:⌘J 切输入区高度段、Ctrl+Tab / Ctrl+⇧Tab 切标签页、⌃⌘F 最大化/还原编辑区、⌘⇧X 插件市场。
+   一期键位之外,二期补:⌘J 切输入区高度段、Ctrl+Tab / Ctrl+⇧Tab 切标签页、⌃⌘F 最大化/还原编辑区、⌘⇧X 插件市场、⌘+/⌘−/⌘0 界面缩放(2026-10-04,底栏缩放组隐藏后的键位入口;zoomIn 为 match 型,⌘= 与 ⌘⇧= 两态都吃)。
    插件贡献键位(09-19~09-26 补):search 插件 ⇧⌘F 全文搜索 / ⌘P 文件快开;session-search ⌘O 会话历史检索(2026-09-26 大仙指定);session-relay / approval-inbox / academy / prompt-enhancer / notify 无默认键位,经命令抽屉 / 侧栏入口 / 设置页可达,设置清单可绑。
 
 ## 消费点
 
 - 设置面板「基础设置 → 快捷键」tab:`useCommands()` 只读清单,按 id 前缀分组,`formatKeybinding` 展示;AppSettings 零新字段。
 - sidebarActions 经 host 委托处泛化镜像为 `sidebar.<id>` 无键位命令;composer 抽屉 feature 条目镜像为 `composer.drawer.<pluginId>`。
-- 壳级命令(shell.* / panel 焦点)在 `src/app-shell/shortcutCommands.ts` 模块级注册——外壳自身功能归外壳,不入 kernel。
+- 壳级命令(shell.* / panel 焦点)在 `src/app-shell/shortcutCommands.ts` 模块级注册——外壳自身功能归外壳,不入 kernel;界面缩放三命令(shell.zoomIn/Out/Reset)在 `src/app-shell/zoomCommands.ts` 拆出注册(300 行铁则),AppShell 装配期随同 import 生效。
 - terminal.copyMenu / terminal.find(幕布归内核)在 `kernel/terminalCopyMenuBridge.ts` / `kernel/terminalFindBridge.ts` 模块级注册;浮层 UI 在 terminalCopyMenu.tsx / terminalSearch.tsx,激活实例经模块级 ref 桶接收触发。
 - 无默认键位命令(panel.refresh / panel.newFile / panel.newFolder / git.fetch / git.pull / git.push / composer.send / sidebar.<id> / composer.drawer.<pluginId>):设置清单可绑定任意合法键位(2026-09-20 放开,原「内置置灰」为规格已知上限,已破除),分发走 effective 键位同通道。
 - 设置清单 UI 约定:键位用键帽芯片(kbd 描边小块),未绑定弱化字;顶部搜索框匹配标题/id/键位标签;组标题右侧计数;行 title 显示命令 id。

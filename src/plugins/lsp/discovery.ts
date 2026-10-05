@@ -8,6 +8,8 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { hashStableString } from "@kernel/textHash";
+import { normalizePath } from "@kernel/pathUtils";
 import type { LspServerLaunch } from "@kernel/lsp/lspRegistry";
 
 /** 文件存在性探测:读 1 字节成功即可读。 */
@@ -78,8 +80,52 @@ export interface JdtInstall {
   configDir: string;
 }
 
+/* ── jdt 数据目录隔离 ──
+ * 同一 -data 目录的两个 jdt.ls 实例会互等 workspace 锁,后到者永久静默 ——
+ * initialize 永不应答,前端 60s 超时后只剩失败 toast(2026-10-03 实证:
+ * 安装版与 dev 版并行、同 app 开两个 java 工作区都会踩)。数据目录按
+ * 「app 实例 × 工作区根」双键隔离,陈旧实例目录由 pid 存活探测回收。 */
+
+/** app pid(模块缓存;进程生命周期内恒定)。 */
+let appPidCache: Promise<number> | null = null;
+function appPid(): Promise<number> {
+  appPidCache ??= ipc.appPid();
+  return appPidCache;
+}
+
+/** 测试接缝:清 pid 缓存(用例间换假 pid 用)。 */
+export function __resetDiscoveryCacheForTest(): void {
+  appPidCache = null;
+}
+
+/** jdt 数据目录名:app-<pid>-<root hash>;同实例同工作区跨 idle 关停复用。 */
+function jdtDataDirName(pid: number, workspaceRoot: string): string {
+  return `app-${pid}-${hashStableString(normalizePath(workspaceRoot))}`;
+}
+
+/** 陈旧实例目录回收:pid 已死的 app-<pid>-* 整树移除(best-effort,不挡发现)。
+ *  存活探测失败按「活」处理(保守面:宁可留垃圾不误删活实例目录)。 */
+async function pruneStaleJdtDataDirs(home: string, alivePid: number): Promise<void> {
+  try {
+    const entries = await ipc.fsListDir(`${home}/lsp/jdt-ws`);
+    await Promise.all(
+      entries.map(async (entry) => {
+        const m = /^app-(\d+)-/.exec(entry.name);
+        if (!m) return; // 旧版共享目录等非实例形态:不动
+        const pid = Number(m[1]);
+        if (pid === alivePid) return;
+        const alive = await ipc.processAlive(pid).catch(() => true);
+        if (alive) return;
+        void ipc.fsRemovePath(entry.path).catch(() => undefined);
+      }),
+    );
+  } catch {
+    /* jdt-ws 不存在/读失败:无陈旧可清 */
+  }
+}
+
 /** Java:已安装(jdt 目录 installed.json)才有 launch;否则 null 走引导。 */
-export async function discoverJava(): Promise<LspServerLaunch | null> {
+export async function discoverJava(workspaceRoot: string): Promise<LspServerLaunch | null> {
   const home = await ipc.configDir().catch(() => null);
   if (!home) return null;
   const marker = `${home}/lsp/jdt/installed.json`;
@@ -87,6 +133,8 @@ export async function discoverJava(): Promise<LspServerLaunch | null> {
     const raw = await ipc.fsReadFile(marker);
     const parsed = JSON.parse(raw) as Partial<JdtInstall>;
     if (typeof parsed.launcherJar !== "string" || typeof parsed.configDir !== "string") return null;
+    const pid = await appPid().catch(() => 0);
+    void pruneStaleJdtDataDirs(home, pid);
     return {
       command: "java",
       args: [
@@ -95,7 +143,7 @@ export async function discoverJava(): Promise<LspServerLaunch | null> {
         "-configuration",
         parsed.configDir,
         "-data",
-        `${home}/lsp/jdt-ws`,
+        `${home}/lsp/jdt-ws/${jdtDataDirName(pid, workspaceRoot)}`,
       ],
       label: "jdt.ls",
     };

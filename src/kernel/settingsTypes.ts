@@ -224,6 +224,10 @@ export interface AppSettings {
   workspaceArchiveView: boolean;
   /** 侧栏工作区来源过滤:local = 本地(缺省);wsl 等 = 对应来源;空 = 全部(仅归档视图瞬态)。 */
   workspaceOriginFilter: string;
+  /** 左侧栏工作区显隐层(底栏「工作区显隐」多选菜单编辑域,2026-10-04):
+   *  隐藏清单语义 —— 清单外一律显示,空 = 全部(缺省);新建工作区自动可见,
+   *  残留已删 id 无害。左栏据此过滤;文件树跟随活动工作区,不强绑定本清单。 */
+  workspaceHiddenIds: string[];
   /**
    * 网络代理(network-proxy 插件的编辑域):客户端自身联网(quota_fetch 等
    * Rust reqwest 请求、installer 的 curl/npm 子进程)与之后 spawn 的 PTY CLI

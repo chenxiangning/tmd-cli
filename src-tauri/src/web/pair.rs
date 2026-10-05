@@ -19,6 +19,8 @@ use super::{devices, server::WebCtx};
 pub(crate) struct PairReq {
     pair_code: String,
     device_name: String,
+    /// 设备平台("ios"/"android";老客户端不发,缺省 None)。
+    platform: Option<String>,
 }
 
 /// 配对成功应答(device token 明文只此一次下发)。
@@ -141,6 +143,7 @@ async fn pair_inner(
         &req.pair_code,
         &req.device_name,
         &ip,
+        req.platform.as_deref(),
         devices::now_secs(),
     ) {
         Ok((device_id, token)) => {

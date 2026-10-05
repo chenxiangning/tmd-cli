@@ -256,9 +256,9 @@ export interface CliProfile {
   /** 无头 prompt 递送方式:true = 引擎从 stdin 读(codex exec - / claude -p 管道形态),
    *  genSession 在 spawn 后经 writeSession 注入全文;缺省 file = 引擎在模板内 @<promptFile> 引用。 */
   oneshotStdin?: boolean;
-  /** 结构化会话能力(omp/pi `--mode rpc` NDJSON):structured-session 插件按
-   *  command spawn RPC 子进程(token 级流,PTY 零涉及)。缺省 = 无。 */
-  structuredRpc?: { command: string };
+  /** 结构化会话能力(omp/pi `--mode rpc` NDJSON):structured-session 插件按 command
+   *  spawn RPC 子进程;resumeArgs = 断线接续旗标(omp --resume / pi --session <id>,2026-10-04 实证与 rpc 共存、上下文保留)。缺省 = 无。 */
+  structuredRpc?: { command: string; resumeArgs?: (sessionId: string) => string[] };
   /** spawn 前动态改写 SpawnSpec:插件运行时注入连接参数/路径等动态值(例 dsh 的 DSH
    *  host:port 来自 localStorage,无法在声明期固定)。返回改写后的 spec;缺省 = 不改写。 */
   spawnTransform?: (spec: SpawnSpec) => SpawnSpec | Promise<SpawnSpec>;

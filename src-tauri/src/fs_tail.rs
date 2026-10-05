@@ -22,6 +22,55 @@ pub fn read_tail(path: &str, max_bytes: usize) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&buf).to_string())
 }
 
+/// 区间读结果:text = 行对齐后的文本;consumed = 本段实际消费的字节数
+/// (段尾截在行中间时 < max_bytes,调用方以 start+consumed 续读)。
+#[derive(Debug, Serialize)]
+pub struct RangeSpan {
+    pub text: String,
+    pub consumed: u64,
+}
+
+/// 自 start 起读最多 max_bytes 字节(UTF-8 损失容忍)。未到文件尾且截在行中间时,
+/// 丢弃末尾残行(该行由续读段完整解析);start 超出文件长度回空段。
+/// 时间线分段全程扫描用(手机端全量用户消息),与 read_tail 的尾窗语义互补。
+pub fn read_range(path: &str, start: u64, max_bytes: usize) -> Result<RangeSpan, String> {
+    use std::io::{Read, Seek, SeekFrom};
+    let mut f = fs::File::open(path).map_err(|e| format!("打开文件失败: {e}"))?;
+    let len = f
+        .metadata()
+        .map_err(|e| format!("读取文件信息失败: {e}"))?
+        .len();
+    if start >= len {
+        return Ok(RangeSpan {
+            text: String::new(),
+            consumed: 0,
+        });
+    }
+    f.seek(SeekFrom::Start(start))
+        .map_err(|e| format!("定位文件失败: {e}"))?;
+    let want = ((len - start) as usize).min(max_bytes);
+    let mut buf = Vec::with_capacity(want);
+    f.take(want as u64)
+        .read_to_end(&mut buf)
+        .map_err(|e| format!("读取文件失败: {e}"))?;
+    /* 段尾对齐:读到边界(未 EOF)且末字节非换行 → 截到最后一个 \n(含);
+    无换行(整段一行)→ 全弃(该行留给续读段),consumed=0 由调用方前移重试。 */
+    let at_eof = start + buf.len() as u64 >= len;
+    let keep = if at_eof || buf.last() == Some(&b'\n') {
+        buf.len()
+    } else {
+        match buf.iter().rposition(|&b| b == b'\n') {
+            Some(i) => i + 1,
+            None => 0,
+        }
+    };
+    buf.truncate(keep);
+    Ok(RangeSpan {
+        text: String::from_utf8_lossy(&buf).to_string(),
+        consumed: keep as u64,
+    })
+}
+
 /// 条件尾读结果:changed = 尺寸相对 last_size 有变(或首次探测);size = 当前字节数。
 #[derive(Debug, Serialize)]
 pub struct ChangedTail {
@@ -110,6 +159,41 @@ mod tests {
         let shrunk = read_tail_changed(path, 1024, Some(999)).unwrap();
         assert!(shrunk.changed);
         assert_eq!(shrunk.text, "x\n");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn read_range_行对齐与越界() {
+        let root = temp_root("range");
+        let p = root.join("log.jsonl");
+        let path = p.to_str().unwrap();
+        std::fs::write(&p, "aaaa\nbbbb\ncccc\n").unwrap(); // 5+5+5 = 15 字节
+
+        // 段中截断:6 字节窗读到 "bbbb\nc" → 行对齐丢残行,consumed=5
+        let mid = read_range(path, 5, 6).unwrap();
+        assert_eq!(mid.text, "bbbb\n");
+        assert_eq!(mid.consumed, 5);
+
+        // 恰好到 EOF:末行保留(consumed = 实读字节)
+        let eof = read_range(path, 10, 5).unwrap();
+        assert_eq!(eof.text, "cccc\n");
+        assert_eq!(eof.consumed, 5);
+
+        // 段首即换行边界:原样保留
+        let aligned = read_range(path, 0, 5).unwrap();
+        assert_eq!(aligned.text, "aaaa\n");
+        assert_eq!(aligned.consumed, 5);
+
+        // 整段无换行(单行长于窗):全弃,调用方前移重试
+        std::fs::write(&p, "single-long-line-no-newline").unwrap();
+        let norow = read_range(path, 0, 8).unwrap();
+        assert_eq!(norow.text, "");
+        assert_eq!(norow.consumed, 0);
+
+        // start 越界:空段
+        let beyond = read_range(path, 999, 8).unwrap();
+        assert_eq!(beyond.text, "");
+        assert_eq!(beyond.consumed, 0);
         let _ = fs::remove_dir_all(&root);
     }
 }

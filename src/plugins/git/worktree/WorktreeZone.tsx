@@ -29,9 +29,12 @@ function DirtBadge({ cwd }: { cwd: string }) {
       .gitStatus(cwd)
       .then((st) => {
         if (!alive) return;
-        const plus = st.files.filter((f) => f.status.includes("A") || f.status.includes("M")).length;
-        const minus = st.files.filter((f) => f.status.includes("D")).length;
-        setS({ dirty: st.files.length, plus, minus });
+        /* 形状防御(与 files/gitDecorate 同源同闸):status files 缺形按空处理,
+         * 不让贡献组件三崩熔断整个 Git 面板挂点。 */
+        const files = Array.isArray(st?.files) ? st.files : [];
+        const plus = files.filter((f) => f.status.includes("A") || f.status.includes("M")).length;
+        const minus = files.filter((f) => f.status.includes("D")).length;
+        setS({ dirty: files.length, plus, minus });
       })
       .catch(() => alive && setS({ dirty: -1, plus: 0, minus: 0 }));
     return () => {

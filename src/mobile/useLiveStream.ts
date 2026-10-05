@@ -1,7 +1,8 @@
 /**
  * 会话活流 hook:PTY 字节喂 LiveScreen 迷你 VT 视口(固定 H×W + 触底上滚)。
- * - 先订阅后快照(二轮 P1-2):反序会留流中段缺口;缓冲后按序排空,重复窗仅
- *   服务端「订阅生效→快照读取」毫秒级,远优于任意长缺口 + ANSI 劈裂。
+ * - 先订阅后快照(二轮 P1-2):反序会留流中段缺口;缓冲后按序排空。订阅生效
+   →快照读取窗口内到达的 chunk 会与快照字节重叠,排空前按「快照尾 ∩ 缓冲头」
+   剥离(overlapLen),差分重绘型 CLI(opencode)对双喂不幂等,重复即上屏。
  * - 尺寸与首页并行拉(外网 RTT 减半);首页 128KB:回看深度一步到位(分页帧
  *   远低于中继 4MiB 上限)。
  * - loadEarlier:复用 session_history_page 分页(start_offset/has_more 桌面现成),
@@ -13,9 +14,9 @@
  *   都按水位比对触发一次 rebuild 回放 —— 断连窗口的输出不再成永久缺口。水位 =
  *   尾页 start_offset+text.length,实况 chunk 到达即累加;回放期间新 chunk 进
  *   缓冲换屏后排空(与首载同一套序),免换屏竞态丢字节。
- * - rAF 脏标合帧 → 100ms 尾沿节流(spec 2026-10-03-mobile-keybar-relayout):
- *   全量 view() 重建压到 ~10Hz,文本视口观感仍瞬时,WKWebView 全文重排次数
- *   较 60Hz 降约 6 倍;尾沿保证最后一帧必达。
+ * - setLive 100ms 合帧节流(在途只喂屏,flush 取全量 view;spec 2026-10-03-
+ *   mobile-keybar-relayout):全量 view() 重建压到 ~10Hz,文本视口观感仍瞬时,
+ *   WKWebView 全文重排次数较 60Hz 降约 6 倍;尾沿保证最后一帧必达。
  * - useSessionExit:pty://exit 订阅 + 列表消失兜底(会话屏终局横幅的数据面)。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,6 +24,15 @@ import { invoke, listen, onEventGap, onRemoteConnection } from "@kernel/transpor
 import { stripAnsi } from "@kernel/askDetect";
 import { LiveScreen } from "./liveText";
 import { onPtyOut } from "./remote";
+
+/** 快照尾与缓冲前缀的重叠字节长:排空缓冲前剥掉已含于快照的前缀(双喂防线,
+ * 纯函数,测试锚定)。上限 4KB 止损;最长后缀匹配 = 真实重叠(到达序 = 发射序,
+ * 快照读取前到达的必为缓冲前缀);短窗偶合误剥至多几字符,远轻于整段双喂。 */
+export function overlapLen(tail: string, pending: string): number {
+  const max = Math.min(tail.length, pending.length, 4096);
+  for (let k = max; k > 0; k--) if (tail.endsWith(pending.slice(0, k))) return k;
+  return 0;
+}
 
 const PAGE_BYTES = 128 * 1024;
 
@@ -69,6 +79,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
           before,
           maxBytes: PAGE_BYTES,
         }).catch(() => null);
+      /* 双喂防线:重叠剥离见模块级 overlapLen(首载排空与 replay 重建共用)。 */
       const buffered: string[] = [];
       let streaming = false;
       let screen = new LiveScreen(undefined, undefined);
@@ -113,8 +124,12 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       }
       streaming = true;
       setLive(screen.view());
-      for (const chunk of buffered) feedChunk(chunk);
-      buffered.length = 0;
+      {
+        const pending = buffered.join("");
+        buffered.length = 0;
+        const k = page ? overlapLen(page.text, pending) : 0;
+        if (pending.length > k) feedChunk(pending.slice(k));
+      }
       ready = true;
       const sizeKey = { current: size ? `${size[0]}x${size[1]}` : "" };
       const rebuild = () => {
@@ -126,18 +141,16 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
           if (key === sizeKey.current) return;
           sizeKey.current = key;
           /* 原地改几何,不重放快照:pageOf 在途窗口的活 chunk 会与快照字节
-           * 双喂(旧实现在此把同一帧画两份)。旧宽换行由 CSS pre-wrap 兜底,
-           * CLI 的 WINCH 全帧重绘按新几何收敛。 */
+           * 双喂(旧实现在此把同一帧画两份)。缩列截断见 LiveScreen.resize。 */
           screen.resize(s[0], s[1]);
           setLive(screen.view());
         })();
       };
       /* 断连重连 / 事件 Lagged 回放:拉尾页比对水位,涨了 = 有漏 → 按当前几何
        * 重建重放日志尾;没涨 = 什么都不漏,免重建。回放期间 streaming 关闭,新
-       * chunk 进缓冲;重建分支丢弃在途缓冲——快照已含的字节排空即同一帧画两份
-       * (旧版每次断连必现),而快照读取后才写入的字节会随之丢一拍(窄竞态,
-       * 非零概率),由水位比对在下次 gap/重连回放自愈,两害取轻;不重建分支
-       * 照常排空(屏未重喂,缓冲是唯一拷贝)。 */
+       * chunk 进缓冲;重建后缓冲经同一 overlapLen 剥离排空——快照已含的前缀
+       * 剥掉、快照读取后到达的后缀保留,双喂与「丢一拍」窄竞态一并消除;不
+       * 重建分支照常排空(屏未重喂,缓冲是唯一拷贝)。 */
       let replaying = false;
       const replay = () => {
         if (!alive || replaying || !ready) return;
@@ -152,12 +165,13 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
             screen.feed(p.text);
             watermark = p.start_offset + p.text.length;
             setLive(screen.view());
-            buffered.length = 0;
           }
           if (!alive) return;
           streaming = true;
-          for (const chunk of buffered) feedChunk(chunk);
+          const pending = buffered.join("");
           buffered.length = 0;
+          const k = p ? overlapLen(p.text, pending) : 0;
+          if (pending.length > k) feedChunk(pending.slice(k));
           replaying = false;
         })();
       };

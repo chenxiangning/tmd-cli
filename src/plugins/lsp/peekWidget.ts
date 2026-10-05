@@ -7,11 +7,12 @@
  */
 
 import type { EditorView } from "@codemirror/view";
-import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { openFileAtLine } from "@kernel/fileTabs";
 import { highlightLine } from "@kernel/syntaxHighlight";
-import { buildPeekList } from "./peekList";
+import { prismLangOf } from "./peekLang";
+import { wrapSymRange } from "./symRange";
+import { buildPeekList, createPeekFileCache } from "./peekList";
 
 export interface PeekItem {
   path: string;
@@ -96,53 +97,7 @@ export function showPeekLoading(view: EditorView, anchorPos: number, title: stri
   body.innerHTML = `<div class="lsp-peek-empty">${t("检索中…")}</div>`;
 }
 
-/* 扩展名 → Prism 语言 id(预览语法高亮;常见族,缺省原样转义)。 */
-const PRISM_LANG_BY_EXT: Record<string, string> = {
-  ts: "typescript",
-  mts: "typescript",
-  cts: "typescript",
-  tsx: "tsx",
-  js: "javascript",
-  mjs: "javascript",
-  cjs: "javascript",
-  jsx: "jsx",
-  py: "python",
-  java: "java",
-  rs: "rust",
-  go: "go",
-  c: "c",
-  h: "c",
-  cc: "cpp",
-  cpp: "cpp",
-  hpp: "cpp",
-  css: "css",
-  scss: "scss",
-  json: "json",
-  sh: "bash",
-  bash: "bash",
-  yml: "yaml",
-  yaml: "yaml",
-  md: "markdown",
-  sql: "sql",
-  rb: "ruby",
-  kt: "kotlin",
-  swift: "swift",
-  php: "php",
-};
-
-function prismLangOf(path: string): string | null {
-  const dot = path.lastIndexOf(".");
-  if (dot < 0) return null;
-  return PRISM_LANG_BY_EXT[path.slice(dot + 1).toLowerCase()] ?? null;
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+/* 扩展名 → Prism 语言 id 解析已下沉 peekLang.ts(peekList 回填高亮共用)。 */
 
 function previewRow(n: number, text: string, lang: string | null, item: PeekItem): HTMLDivElement {
   const row = document.createElement("div");
@@ -154,26 +109,26 @@ function previewRow(n: number, text: string, lang: string | null, item: PeekItem
   const code = document.createElement("span");
   code.className = "lsp-peek-code-t";
   const clipped = text.length > 500 ? `${text.slice(0, 500)}…` : text || " ";
+  /* 整行 Prism 高亮;当前行符号区间再包 .lsp-peek-sym(endChar null = 跨行,取到行尾)。 */
+  const highlighted = highlightLine(clipped, lang);
   if (current && item.startChar !== undefined) {
-    /* 当前行符号区间行内高亮:原始串按 UTF-16 列切三段逐段转义(实体不改列序)。 */
-    const end = item.endChar == null ? clipped.length : Math.min(item.endChar, clipped.length);
-    const start = Math.min(item.startChar, end);
-    code.innerHTML =
-      escapeHtml(clipped.slice(0, start)) +
-      `<span class="lsp-peek-sym">${escapeHtml(clipped.slice(start, end))}</span>` +
-      escapeHtml(clipped.slice(end));
+    code.innerHTML = wrapSymRange(highlighted, item.startChar, item.endChar ?? Number.POSITIVE_INFINITY);
   } else {
-    code.innerHTML = highlightLine(clipped, lang);
+    code.innerHTML = highlighted;
   }
   row.append(gutter, code);
   return row;
 }
 
-async function renderPreview(el: HTMLElement, item: PeekItem) {
+async function renderPreview(
+  el: HTMLElement,
+  item: PeekItem,
+  readFile: (path: string) => Promise<string>,
+) {
   const gen = generation;
   el.textContent = "";
   try {
-    const text = await ipc.fsReadFile(item.path);
+    const text = await readFile(item.path);
     if (gen !== generation) return; // peek 已替换/关闭:弃写
     const lines = text.split("\n");
     const lang = prismLangOf(item.path);
@@ -201,15 +156,17 @@ export function showPeek(view: EditorView, anchorPos: number, title: string, ite
   }
   const preview = document.createElement("div");
   preview.className = "lsp-peek-preview";
+  /* 读缓存随 peek 生命周期:行回填与预览共享一次整文件读(F3)。 */
+  const readFile = createPeekFileCache();
   const list = buildPeekList(shown, {
-    onSelect: (item) => void renderPreview(preview, item),
+    onSelect: (item) => void renderPreview(preview, item, readFile),
     onJump: (item) => {
       closePeek();
       openFileAtLine(item.path, item.line);
     },
     onClose: () => closePeek({ refocus: true }),
-  });
+  }, readFile);
   body.append(preview, list.el);
-  void renderPreview(preview, shown[0]);
+  void renderPreview(preview, shown[0], readFile);
   list.focus();
 }

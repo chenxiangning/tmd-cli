@@ -79,3 +79,18 @@ export function useComposerSize(taRef: React.RefObject<HTMLTextAreaElement | nul
   };
   return { taH, dragging, grabHandlers: { onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up } };
 }
+
+/** iOS 交互式键盘收起(下滑手势/滚动收起)有不触发 blur 的形态,kbOpen 滞留
+ * true → 键条整行持续隐藏(2026-10-04 留观;双端无害:Android 本就 blur)。
+ * 兜底:visualViewport 高度回满 ≈ 键盘已收,强制清位。 */
+export function useKeyboardDismissFallback(onDismiss: () => void) {
+  React.useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      if (vv.height >= window.innerHeight - 8) onDismiss();
+    };
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, [onDismiss]);
+}

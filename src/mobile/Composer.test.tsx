@@ -22,11 +22,11 @@ vi.mock("@kernel/i18n", () => ({
 const ctx = vi.hoisted(() => ({ write: vi.fn(async () => undefined) }));
 vi.mock("./remote", () => ({ writeSession: ctx.write }));
 vi.mock("./shared", () => ({
-  KEYS: [{ label: "esc", aria: "Esc", seq: "\u001b" }],
   KEY_ROWS: [[{ label: "esc", aria: "Esc", seq: "\u001b" }]],
 }));
 
-import { Composer, PlusPanel } from "./Composer";
+import { Composer } from "./Composer";
+import { PlusPanel } from "./plusPanel";
 import type { ShotError } from "./useShots";
 import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
 
@@ -48,6 +48,8 @@ const base = {
   onPreview: () => undefined,
   ckptReady: true,
   onCkpt: () => undefined,
+  timelineReady: true,
+  onTimeline: () => undefined,
 };
 
 function render(over: Partial<typeof base> = {}): string {
@@ -133,13 +135,19 @@ describe("三态胶囊 composer 渲染契约", () => {
     expect(joinPrompt("看下这张图\n", "请提取图片中的文字")).toBe("看下这张图\n请提取图片中的文字");
   });
 
-  it("面板四格:检查点无 cwd 置灰,快捷键格随键条开关点亮", () => {
+  it("面板四格:检查点不支持置灰,快捷键格随键条开关点亮;时间线入口在输入条行内", () => {
     const on = renderToStaticMarkup(createElement(PlusPanel, panelBase));
     for (const label of ["相册", "切模型", "检查点", "快捷键"]) expect(on).toContain(label);
+    expect(on).not.toContain("时间线"); /* 已挪出行内面板 */
     expect(on).toContain("cp-tile on");
     expect(on).not.toContain("disabled");
     const off = renderToStaticMarkup(createElement(PlusPanel, { ...panelBase, ckptReady: false, kbOn: false }));
     expect(off).toContain("disabled");
     expect(off).not.toContain("cp-tile on");
+  });
+
+  it("时间线行内入口:恒在胶囊条右,不支持引擎置灰(2026-10-05 真机反馈)", () => {
+    expect(render()).toContain('aria-label="时间线"');
+    expect(render({ timelineReady: false })).toContain("disabled");
   });
 });

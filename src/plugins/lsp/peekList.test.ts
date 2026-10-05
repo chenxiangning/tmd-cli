@@ -3,10 +3,11 @@
  * 1. 行构建:基名取末段、title 为目录部分、行号后缀 :N;Windows 反斜杠路径先归一再切
  * 2. 初始选中第 0 行且不触发 onSelect;mouseenter 联动选中、click 回调跳转
  * 3. 键盘 ↑↓/Home/End/Enter/Esc:越界收拢;幂等选中不重复回调;Enter 跳当前项;Esc 关闭
- * 4. 行文本回填:唯一文件去重只读一次、前 80 项截断;单文件失败不阻塞;越界行/空白行不回填
+ * 4. 行文本回填:唯一文件去重只读一次、前 80 项截断;单文件失败不阻塞;越界/空白行不回填;
+ *    回填即 code 渲染(Prism + 符号区间底色,偏移按 trim 去头量校正);读缓存去重复 IO
  * 5. isConnected 闸:peek 关闭(失连)后旧读弃写
- *
- * node 环境无 DOM:手写最小 FakeEl 覆盖被测代码用到的 DOM 面;ipc.fsReadFile 走 vi.mock。
+ * node 环境无 DOM:手写最小 FakeEl 覆盖被测代码用到的 DOM 面(innerHTML 落串,
+ * textContent 派生 = strip 标签 + 解实体);ipc.fsReadFile 走 vi.mock。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,7 +24,7 @@ vi.mock("@kernel/ipc", () => ({
   },
 }));
 
-import { buildPeekList } from "./peekList";
+import { buildPeekList, createPeekFileCache } from "./peekList";
 import type { PeekListActions } from "./peekList";
 import type { PeekItem } from "./peekWidget";
 
@@ -34,10 +35,11 @@ class FakeEl {
   children: FakeEl[] = [];
   title = "";
   tabIndex = 0;
-  textContent = "";
   isConnected = true;
   private classes = new Set<string>();
   private listeners = new Map<string, Listener[]>();
+  private html = "";
+  private explicitText: string | null = null;
 
   get className(): string {
     return [...this.classes].join(" ");
@@ -45,13 +47,31 @@ class FakeEl {
   set className(v: string) {
     this.classes = new Set(v.split(/\s+/).filter(Boolean));
   }
-  /* 只解析被测模板 <span class="..."></span>,按 class 顺序建子节点。 */
+  /* 回填走 innerHTML(code 渲染产物):textContent 派生 = strip 标签 + 解实体。 */
   set innerHTML(html: string) {
+    this.html = html;
+    this.explicitText = null;
+    this.children = [];
     for (const m of html.matchAll(/class="([^"]+)"/g)) {
       const child = new FakeEl();
       child.className = m[1];
       this.children.push(child);
     }
+  }
+  get innerHTML(): string {
+    return this.html;
+  }
+  get textContent(): string {
+    if (this.explicitText !== null) return this.explicitText;
+    return this.html
+      .replace(/<[^>]+>/g, "")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, "&");
+  }
+  set textContent(v: string) {
+    this.explicitText = v;
   }
   classList = {
     toggle: (name: string, force?: boolean) => {
@@ -99,7 +119,7 @@ const makeActions = (): PeekListActions => ({
 });
 const item = (path: string, line: number): PeekItem => ({ path, line, startChar: 0, endChar: null });
 const build = (items: PeekItem[], a: PeekListActions): Handle =>
-  buildPeekList(items, a) as unknown as Handle;
+  buildPeekList(items, a, createPeekFileCache()) as unknown as Handle;
 const rowsOf = (handle: Handle) => handle.el.children;
 const codeOf = (row: FakeEl) => row.querySelector(".lsp-peek-row-code") as FakeEl;
 
@@ -217,6 +237,24 @@ describe("行文本回填", () => {
     expect(codeOf(rowsOf(handle)[2]).textContent).toBe("gamma");
   });
 
+  it("回填即 code 渲染:行文本经 Prism 高亮,纯文本语义不变", async () => {
+    fileBodies.set("/w/a.ts", "const alpha = 1;");
+    const handle = build([item("/w/a.ts", 1)], makeActions());
+    await drainMicrotasks();
+    const code = codeOf(rowsOf(handle)[0]);
+    expect(code.textContent).toBe("const alpha = 1;");
+    expect(code.innerHTML).toContain('class="token');
+  });
+
+  it("符号区间底色:偏移按 trim 去头空白量左移校正", async () => {
+    fileBodies.set("/w/plain.txt", "    const alpha = 1;"); // .txt 无语言 = 原样转义
+    const handle = build([{ path: "/w/plain.txt", line: 1, startChar: 10, endChar: 15 }], makeActions());
+    await drainMicrotasks();
+    const code = codeOf(rowsOf(handle)[0]);
+    expect(code.textContent).toBe("const alpha = 1;");
+    expect(code.innerHTML).toBe('const <span class="lsp-peek-sym">alpha</span> = 1;');
+  });
+
   it("回填上限 80:第 81 项不读也不回填", async () => {
     const items = Array.from({ length: 81 }, (_, i) => item(`/w/f${i}.ts`, 1));
     for (const { path } of items) fileBodies.set(path, "code");
@@ -234,7 +272,15 @@ describe("行文本回填", () => {
     expect(codeOf(rowsOf(handle)[0]).textContent).toBe("");
     expect(codeOf(rowsOf(handle)[1]).textContent).toBe("fine");
   });
-
+  it("读缓存:同路径重复读只打一次 fsReadFile,失败不缓存可重读", async () => {
+    const read = createPeekFileCache();
+    fileBodies.set("/w/c.ts", "one");
+    await read("/w/c.ts"); await read("/w/c.ts");
+    expect(readCalls.filter((p) => p === "/w/c.ts")).toHaveLength(1);
+    await read("/w/missing.ts").catch(() => undefined);
+    fileBodies.set("/w/missing.ts", "now");
+    await expect(read("/w/missing.ts")).resolves.toBe("now");
+  });
   it("行号越界或整行空白不回填", async () => {
     fileBodies.set("/w/a.ts", "real\n   \n");
     const handle = build([item("/w/a.ts", 99), item("/w/a.ts", 2)], makeActions());

@@ -5,14 +5,17 @@
  * 其顶栏右区渲染职责 FileActionsBar 已随文件操作条下放面板头移除)。
  * 窗口右缘竖条(钉住∪激活面板 + rail 动作统一并序,组间分隔线,
  * ⋯ more 向左弹出),由 AppShell 渲染在内容行最右;点击 = 切面板并自动展开右栏。
+ * 悬停提示走全局 data-hint;rail 贴右缘,加 data-hint-side="left" 让气泡
+ * 抽屉式贴图标左缘滑出(kernel/Tooltip 的 left 放置模式),不再远距离弹窗。
  */
 
-import { Fragment, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment, useEffect, useMemo, useReducer, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Check, DotsThree } from "@phosphor-icons/react";
 import { togglePinned, useFilePanel, type FilePanelContribution } from "@kernel/filePanel";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
 import { useHost } from "@kernel/host";
+import { useSettingsState } from "@kernel/settings";
 import { DecorIcon } from "@kernel/iconSet";
 import { useEditorTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
@@ -46,9 +49,19 @@ export function PanelRail({
 }) {
   const { mode, pinnedIds, panels } = useFilePanel();
   const [overflowPos, setOverflowPos] = useState<{ x: number; y: number } | null>(null);
-  const railActions = useSidebarActions().filter((a) => a.rail);
+  /* registry 快照身份稳定;filter 结果 memo 钉住引用,下方订阅 effect 不空转。 */
+  const registry = useSidebarActions();
+  const railActions = useMemo(() => registry.filter((a) => a.rail), [registry]);
+  /* active 宿主重渲义务(sidebarActions 契约,与 LeftRail 同纪律):
+   * 私有 store 驱动类动作经 subscribeActive 统一订阅(现无住户,迁来即生效)。 */
+  const [, bumpActive] = useReducer((x: number) => x + 1, 0);
+  useEffect(() => {
+    const offs = railActions.map((a) => a.subscribeActive?.(bumpActive));
+    return () => offs.forEach((off) => off?.());
+  }, [railActions]);
   useEditorTabs(); /* rail 直挂动作 active() 靠中央 tab 态(WSL),订阅保重渲 */
   useHost(); /* 同上,内置终端 active() 靠活跃会话态,订阅保重渲 */
+  useSettingsState(); /* 同上,网络代理 active() 靠 settings 开关态(2026-10-04 迁入) */
   /* 外显动作 = 钉住 ∪ 激活(与面板 tab 同规则;未钉可经 ⋯ 菜单勾回)。 */
   const visibleRailActions = railActions.filter(
     (a) => pinnedIds.has(a.id) || (a.active?.() ?? false),
@@ -73,7 +86,9 @@ export function PanelRail({
     // ⋯ 在右缘竖条:菜单贴按钮左缘向左弹出,视口内夹取(同 wsmenu 模式)。
     const rect = e.currentTarget.getBoundingClientRect();
     const width = 240;
-    const estHeight = 440; // ponytail: 菜单估高(12 行 + 组分隔线)只用于夹取,真值由内容撑开
+    // 估高 = 行数 × 行高 + 内距/分隔线余量,只服务视口夹取;真值由内容撑开
+    // (菜单不设高度、不滚动,2026-10-04 用户口径)。
+    const estHeight = mergeRailEntries(panels, railActions).length * 34 + 24;
     setOverflowPos({
       x: Math.max(12, rect.left - width - 4),
       y: Math.max(12, Math.min(rect.top, window.innerHeight - estHeight - 12)),
@@ -93,7 +108,7 @@ export function PanelRail({
           {sep ? <div className="panel-rail-sep" aria-hidden /> : null}
           <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}${isActive && !rightOpen ? " is-collapsed" : ""}`} data-panel-id={panel.id}
             onClick={() => activateRailPanel(panel, { mode, rightOpen, setRightOpen })}
-            aria-label={t(panel.label)} aria-pressed={isOpen} data-hint={t(panel.label)} title="">
+            aria-label={t(panel.label)} aria-pressed={isOpen} data-hint={t(panel.label)} data-hint-side="left" title="">
             <DecorIcon id={panel.id === "ssh" ? "ssh-panel" : `panel-${panel.id}`} Fallback={panel.icon} aria-hidden />
           </button>
         </Fragment>
@@ -105,7 +120,7 @@ export function PanelRail({
       <Fragment key={action.id}>
         {sep ? <div className="panel-rail-sep" aria-hidden /> : null}
         <button type="button" className={`panel-rail-tab${isActive ? " is-active" : ""}`} data-action-id={action.id}
-          aria-label={t(action.label)} aria-pressed={isActive} data-hint={t(action.label)} title=""
+          aria-label={t(action.label)} aria-pressed={isActive} data-hint={t(action.label)} data-hint-side="left" title=""
           onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
             action.onSelect({ x: r.left - 8, y: r.top }, { altKey: e.altKey, metaKey: e.metaKey, ctrlKey: e.ctrlKey });
@@ -123,7 +138,7 @@ export function PanelRail({
       <i className="panel-rail-mark" aria-hidden>tmd-cli</i> {/* 签名:纯装饰,rail 流内项,钉在底簇正上方(CSS 注释同款纪律) */}
       {bottomEntries.map((e, i) => renderEntry(e, bottomEntries[i - 1]))}
       <button type="button" className="panel-rail-tab" onClick={toggleOverflow}
-        aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} data-hint={t("更多面板")} title="">
+        aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} data-hint={t("更多面板")} data-hint-side="left" title="">
         <DotsThree aria-hidden />
       </button>
       {overflowPos ? (
@@ -200,8 +215,15 @@ function PanelOverflowMenu({
   return createPortal(
     <>
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
-      {/* 混合选择弹层(激活按钮 + 钉选复选框),非纯 ARIA menu,不挂 menu/menuitem 角色。 */}
-      <div className="panel-overflow-menu" style={{ left: position.x, top: position.y }} role="group" aria-label={t("面板与动作")}>
+      {/* 混合选择弹层(激活按钮 + 钉选复选框),非纯 ARIA menu,不挂 menu/menuitem 角色。
+          高度不设上限、无弹窗内滚动,随条目数自适应(2026-10-04 用户口径);
+          视口余量靠 toggleOverflow 的估高夹取兜底。 */}
+      <div
+        className="panel-overflow-menu"
+        style={{ left: position.x, top: position.y }}
+        role="group"
+        aria-label={t("面板与动作")}
+      >
         {/* 面板与 rail 动作同口径并序分组;
             组间分隔线与 rail 一致,行点击语义随 kind 分流。 */}
         {mergeRailEntries(panels, railActions).map((entry, i, items) => {

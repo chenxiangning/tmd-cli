@@ -94,7 +94,10 @@ export function useRepoStatusState(
       if (single) {
         ipc.gitStatus(root).then(
           (s) => {
-            if (alive) apply([{ root, files: s.files }]);
+            /* files 形状防御:非数组按无变更处理 —— 着色纯函数 for..of 遇 undefined
+             * 会抛,贡献组件三崩即熔断 files 插件,文件树/渲染整面消失(会话内
+             * 不自愈,重启才恢复)。数据面异常不应升级为插件死亡。 */
+            if (alive) apply([{ root, files: Array.isArray(s?.files) ? s.files : [] }]);
           },
           () => {
             if (alive) apply([]); // 非仓库等错误 = 无变更数据,不扰树
@@ -108,7 +111,9 @@ export function useRepoStatusState(
         const next: RepoStatusEntry[] = [];
         list.forEach((r, i) => {
           const row = rows[i];
-          if (row.status === "fulfilled") next.push({ root: r.path, files: row.value.files });
+          if (row.status === "fulfilled") {
+            next.push({ root: r.path, files: Array.isArray(row.value?.files) ? row.value.files : [] });
+          }
         });
         apply(next);
       });

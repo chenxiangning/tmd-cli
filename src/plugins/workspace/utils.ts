@@ -114,3 +114,17 @@ export const TITLE_RESOLVE_MAX_ATTEMPTS = 8;
 export function titleRetryDelay(attempt: number): number {
   return Math.min(3_000 * 2 ** (attempt - 1), 24_000);
 }
+
+/**
+ * 左栏工作区显隐过滤(隐藏清单语义,契约见 settings.workspaceHiddenIds):
+ * 清单外一律显示,空清单 = 全部显示;清单残留已删工作区 id 自然无害。
+ * 底栏「工作区显隐」多选菜单是唯一写方,本过滤是唯一读方,锁步此纯函数。
+ */
+export function visibleWorkspaces<T extends { id: string }>(
+  list: readonly T[],
+  hiddenIds: readonly string[],
+): T[] {
+  if (hiddenIds.length === 0) return [...list];
+  const hidden = new Set(hiddenIds);
+  return list.filter((ws) => !hidden.has(ws.id));
+}

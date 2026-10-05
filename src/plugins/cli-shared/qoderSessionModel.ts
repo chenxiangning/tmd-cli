@@ -18,7 +18,7 @@ import type {
   CliSessionStatus,
   CliSessionTranscript,
 } from "@kernel/cli";
-import { readHeadSessionMetaCached } from "./diskSessions";
+import { readHeadMetasBatch } from "./sessionHead";
 import { readStatusTailGated } from "./sessionStatus";
 import { qoderUserMessageLine, readUserMessagesFromFile } from "./userMessages";
 import { parseClaudeFamilySessionHead } from "./sessionIdentity";
@@ -75,23 +75,21 @@ export async function listQoderSessions(
   const dir = await qoderSessionsDir(dataDirName, cwd);
   if (!dir) return [];
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  /* 一次读头双解析(身份自证窗 ⊂ 标题浅窗):标题 + createdAt(创建时刻定死看板日历
-     落位),比对「标题一读 + 身份一读」每文件省一次 IPC;结果保持 files 原序。 */
-  return Promise.all(
-    files.flatMap((f) => {
-      const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
-      if (!m) return [];
-      return [
-        readHeadSessionMetaCached(f.path, f.modifiedAt).then((meta) => ({
-          id: m[1],
-          modifiedAt: f.modifiedAt,
-          createdAt: meta.createdAt,
-          path: f.path,
-          title: meta.title,
-        })),
-      ];
-    }),
-  );
+  /* 一次批量读头双解析(身份自证窗 ⊂ 标题浅窗):标题 + createdAt(创建时刻定死
+     看板日历落位);批量 + mtime 缓存见 sessionHead(外网中继 N+1 读头削峰)。
+     <uuid>.jsonl 文件名即会话 id,直接喂 --resume;结果保持 files 原序。 */
+  const matched = files.flatMap((f) => {
+    const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
+    return m ? [{ id: m[1], path: f.path, modifiedAt: f.modifiedAt }] : [];
+  });
+  const metas = await readHeadMetasBatch(matched);
+  return matched.map((f, i) => ({
+    id: f.id,
+    modifiedAt: f.modifiedAt,
+    createdAt: metas[i].createdAt,
+    path: f.path,
+    title: metas[i].title,
+  }));
 }
 
 const QODER_STATUS_TAIL_BYTES = 256 * 1024;

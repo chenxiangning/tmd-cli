@@ -1,8 +1,11 @@
 /* ──────────────────────────────────────────────────────────
  * Sidebar settings cluster —— 复刻 codemoss 左下角设置区。
  *
- * 底栏:齿轮 + pinned 快捷图标 + 右侧版本号;
+ * 底栏:pinned 快捷图标 + 工作区显隐 + 右侧版本号;设置触发钮已迁左缘 rail
+ * 底簇(2026-10-04,.settings-logo 随迁,样式留此共用)。
  * 菜单:向上弹出,每行 icon + label + pin 复选框,底部「设置」。
+ * 界面缩放组已隐藏(2026-10-04,⌘+/⌘−/⌘0 键位接管):样式暂留,
+ * 恢复底栏入口时直接复用(.settings-zoom 系)。
  * ────────────────────────────────────────────────────────── */
 
 .settings-cluster {
@@ -44,15 +47,10 @@
 .settings-bar-btn.is-active {
   color: var(--tmd-decor); /* 与 right-panel-toolbar 激活色一致 */
 }
-.settings-bar-btn.is-active[data-action-id="system-proxy"] {
-  color: var(--icon-decor-system-proxy, var(--tmd-decor));
-}
+/* per-action 点亮色随动作迁走:system-proxy 已迁右缘 PanelRail
+   (right-panel-toolbar.css),此处不再持有其装饰规则。 */
 
-.settings-gear.is-active {
-  background: var(--tmd-bg-hover);
-  color: var(--tmd-fg);
-}
-/* 左下角入口用应用 logo 替代齿轮 */
+/* 设置入口用应用 logo(触发钮在左缘 rail 底簇,.left-rail-tab 内) */
 .settings-logo {
   display: block;
   width: 18px;
@@ -64,7 +62,8 @@
   flex: 1;
 }
 
-/* 界面缩放按钮组:− 当前档位(点按重置)+ / + */
+/* 界面缩放按钮组(已隐藏,2026-10-04:⌘+/⌘−/⌘0 键位接管;样式暂留待回归):
+ * − 当前档位(点按重置)+ / + */
 .settings-zoom {
   display: flex;
   align-items: center;
@@ -132,6 +131,59 @@
   color: var(--tmd-accent);
 }
 
+/* ── 工作区显隐多选菜单(2026-10-04,缩放组原位)── */
+
+/* 触发钮:图标 + 当前工作区名,随底栏高度收敛(settings-bar-btn 同基底)。 */
+.ws-vis-trigger {
+  width: auto;
+  gap: 4px;
+  padding: 0 4px;
+}
+.ws-vis-trigger-name {
+  max-width: 84px;
+  min-width: 0; /* 窄侧栏让位:先于版本号收缩,极限宽塌成纯图标不裁版本号 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tmd-font-ui);
+}
+
+/* 上弹多选清单:portal 挂 body + fixed(panel-overflow-menu 基底),行区限高滚动;
+ * 菜单限宽 + 行 label 省略:长别名/长名不撑宽菜单(触发锚定夹取按 240 估宽)。 */
+.ws-vis-menu {
+  min-width: 240px;
+  max-width: 300px;
+}
+.ws-vis-menu .panel-overflow-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-vis-caption {
+  padding: 4px 10px 6px;
+  font-size: var(--tmd-font-ui);
+  color: var(--tmd-fg-subtle);
+  user-select: none;
+}
+.ws-vis-rows {
+  max-height: min(320px, 60vh);
+  overflow-y: auto;
+}
+/* 隐藏中的行:标签与图标降透明,与可见行一眼可分(复选框空态已表义)。 */
+.ws-vis-menu .panel-overflow-item.is-dim .panel-overflow-item-label,
+.ws-vis-menu .panel-overflow-item.is-dim .panel-overflow-item-icon {
+  opacity: 0.55;
+}
+/* 最后一个可见行:不可再取消(空表 = 左栏无内容);行级 hover 一并压制,
+ * 免得禁用钮外层仍亮底色误导可点(2026-10-04 交互审查 P2-4,:has 需 WKWebView 15.4+)。 */
+.ws-vis-menu .panel-overflow-item:has(.panel-overflow-item-btn:disabled):hover {
+  background: transparent;
+}
+.ws-vis-menu .panel-overflow-item-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* ── 上弹菜单 ── */
 
 .settings-menu {
@@ -160,9 +212,6 @@
 
 .settings-menu-row.is-active .settings-menu-icon {
   color: var(--tmd-decor);
-}
-.settings-menu-row.is-active[data-action-id="system-proxy"] .settings-menu-icon {
-  color: var(--icon-decor-system-proxy, var(--tmd-decor));
 }
 
 .settings-menu-item {

@@ -1,6 +1,6 @@
 /**
  * 看板覆盖层开关 —— 插件局部状态(市场页同款「不透明覆盖、下层零回放」语义)。
- * BoardButton(左上角)/侧栏动作 toggle,BoardOverlay 渲染,Esc/× 收起。
+ * 左 rail 动作钮(2026-10-04 自顶栏左上角迁来)toggle,BoardOverlay 渲染,Esc/× 收起。
  */
 
 let open = false;

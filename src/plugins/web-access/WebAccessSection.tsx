@@ -1,12 +1,11 @@
 /**
- * WebAccessSection —— 「Web 访问」设置卡:启动/停止桥、token URL + 二维码、
- * 桥状态展示。LAN 一层 token(M1);外网卡与设备配对随 M2 增补。
- * web 端(isWeb)隐藏面控按钮(桥的启停是桌面职责);浏览器会话的权限
- * 与本机等权(token 即凭据),风险提示随 M2 外网卡弹窗一并给出。
+ * WebAccessSection —— 「Web 访问」设置卡:启动/停止桥、token URL、桥状态展示。
+ * LAN 一层 token(M1);外网卡与设备配对随 M2 增补;配对扫码统一收口「设备」tab,
+ * 本卡只承载浏览器访问地址。web 端(isWeb)隐藏面控按钮(桥的启停是桌面职责);
+ * 浏览器会话的权限与本机等权(token 即凭据),风险提示随 M2 外网卡弹窗一并给出。
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import { Globe, Copy, ArrowsClockwise } from "@phosphor-icons/react";
 import { webAccessStatus, type WebAccessInfo } from "@kernel/ipc";
 import { isWeb, listen } from "@kernel/transport";
@@ -95,27 +94,25 @@ export function WebAccessSection() {
         </div>
       )}
       {info && (
-        <div className="flex items-start gap-4">
-          <div className="rounded-lg bg-white p-2">
-            <QRCodeSVG value={info.url} size={112} level="M" />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-1.5">
+            <code className="min-w-0 flex-1 truncate rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-sunken)] px-2 py-1 text-xs">
+              {info.url}
+            </code>
+            <button
+              type="button"
+              className="rounded border border-[var(--tmd-border)] p-1 hover:bg-[var(--tmd-bg-hover)]"
+              onClick={copy}
+              title={copied ? t("已复制") : t("复制地址")}
+            >
+              <Copy size="0.875rem" aria-hidden />
+            </button>
           </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <div className="flex items-center gap-1.5">
-              <code className="min-w-0 flex-1 truncate rounded border border-[var(--tmd-border)] bg-[var(--tmd-bg-sunken)] px-2 py-1 text-xs">
-                {info.url}
-              </code>
-              <button
-                type="button"
-                className="rounded border border-[var(--tmd-border)] p-1 hover:bg-[var(--tmd-bg-hover)]"
-                onClick={copy}
-                title={copied ? t("已复制") : t("复制地址")}
-              >
-                <Copy size="0.875rem" aria-hidden />
-              </button>
-            </div>
-            <div className="text-xs text-[var(--tmd-fg-muted)]">
-              {t("端口")} {info.port} · LAN {info.lanIp}
-            </div>
+          <div className="text-xs text-[var(--tmd-fg-muted)]">
+            {t("端口")} {info.port} · LAN {info.lanIp}
+          </div>
+          <div className="text-xs text-[var(--tmd-fg-muted)]">
+            {t("手机 app 接入:到「设备」页扫码配对,授权后长期有效。")}
           </div>
         </div>
       )}

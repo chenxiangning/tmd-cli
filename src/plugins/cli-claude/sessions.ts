@@ -6,7 +6,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession } from "@kernel/cli";
-import { readHeadSessionMetaCached } from "../cli-shared/diskSessions";
+import { readHeadMetasBatch } from "../cli-shared/sessionHead";
 
 /**
  * claude 磁盘会话存储(实证自 ~/.claude/projects/ 真实目录,claude 2.1.251):
@@ -31,24 +31,20 @@ export async function listClaudeSessions(cwd: string): Promise<CliDiskSession[]>
   const dir = await claudeSessionsDir(cwd);
   if (!dir) return [];
   const files = await ipc.fsCollectFiles(dir, ".jsonl").catch(() => []);
-  /* 读头互不依赖,并发一次发出(同 scanJsonlSessions);结果保持 files 原序。 */
-  return Promise.all(
-    files.flatMap((f) => {
-      // 6b844d1a-d84e-44c3-8385-1e1770d0ffb0.jsonl —— 文件名即 sessionId,直接喂 --resume
-      const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
-      if (!m) return [];
-      /* claude 无 title 记录:标题走共享两段式读头;目录已按 cwd 分区,每个文件都值得读。
-         一次读头双解析(身份自证窗 ⊂ 标题浅窗):标题 + createdAt(创建时刻定死看板日历落位),
-         比对「标题一读 + 身份一读」每文件省一次 IPC。 */
-      return [
-        readHeadSessionMetaCached(f.path, f.modifiedAt).then((meta) => ({
-          id: m[1],
-          modifiedAt: f.modifiedAt,
-          createdAt: meta.createdAt,
-          path: f.path,
-          title: meta.title,
-        })),
-      ];
-    }),
-  );
+  /* 文件名即 sessionId(6b844d1a-…,直接喂 --resume);目录已按 cwd 分区,每个
+     文件都值得读。批量读头(sessionHead):外网中继 N+1 读头 = 并发帽快拒 +
+     链路拥塞,一次批量 + mtime 缓存把重扫收敛为 1+chunked 次 IPC;结果保持
+     files 原序。一次读头双解析:标题 + createdAt(创建时刻定死看板日历落位)。 */
+  const matched = files.flatMap((f) => {
+    const m = f.name.match(/^([0-9a-f-]{36})\.jsonl$/);
+    return m ? [{ id: m[1], path: f.path, modifiedAt: f.modifiedAt }] : [];
+  });
+  const metas = await readHeadMetasBatch(matched);
+  return matched.map((f, i) => ({
+    id: f.id,
+    modifiedAt: f.modifiedAt,
+    createdAt: metas[i].createdAt,
+    path: f.path,
+    title: metas[i].title,
+  }));
 }

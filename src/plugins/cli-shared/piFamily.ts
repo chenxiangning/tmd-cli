@@ -20,7 +20,8 @@ import type {
   SessionFileIdentity,
 } from "@kernel/cli";
 import type { RemoteExec } from "@kernel/cli";
-import { extractJsonlTitle, scanJsonlSessions } from "./diskSessions";
+import { scanJsonlSessions } from "./diskSessions";
+import { extractJsonlTitle } from "./sessionHead";
 import { parseJsonlStatusTail, readJsonlSessionStatus } from "./sessionStatus";
 import { parsePiFamilySessionHead } from "./sessionIdentity";
 import {

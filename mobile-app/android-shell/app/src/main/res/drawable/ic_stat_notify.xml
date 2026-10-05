@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 通知小图标:纯 alpha 白色矢量(状态栏只渲染 alpha 通道,彩色图会成白块);
+     终端提示符 >_ 呼应 tmd-cli CLI 定位。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,4 L11,12 L4,20 L7.2,20 L14.2,12 L7.2,4 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M16,17.6 h4.4 v2.4 h-4.4 Z" />
+</vector>

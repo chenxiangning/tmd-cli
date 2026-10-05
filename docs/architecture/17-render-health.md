@@ -1,7 +1,7 @@
 # 17 - 渲染健康守望(WKWebView 吊销粘死自愈)
 
 - 日期:2026-09-30
-- 状态:已落地(38239d71 垫片 + 本轮守望阶梯;洪水降级与合帧写入为 2026-09-30 晚第三轮卡死增补;壳侧心跳守望与泵侧计量为 2026-10-01 第四轮增补;洪水降级宽限为 2026-10-01 第五轮增补)
+- 状态:已落地(38239d71 垫片 + 本轮守望阶梯;洪水降级与合帧写入为 2026-09-30 晚第三轮卡死增补;壳侧心跳守望与泵侧计量为 2026-10-01 第四轮增补;洪水降级宽限为 2026-10-01 第五轮增补;泵侧后台慢拍 + 镜像 feed 互斥 + 数据链停滞探针为 2026-10-04 第十一轮增补)
 
 ## 背景与症状
 
@@ -55,6 +55,14 @@ reload 是被逼出来的根治手段,语义安全性有两重保证:会话/PTY 
 
 1. **洪水降级最长宽限**(render_health.rs):KickState 新增 `flood_since_ms`(首次被降级击打的时刻,痊愈 ok 上报与洪过清零);降级超 `FLOOD_GRACE_MS`(3 分钟)仍零痊愈 = 永久冻结实锤,`next_action` 无视洪水直接 reload,此后按 60s 冷却节拍重试直到页面复话。取舍翻转:永久冻结比重载风暴更糟——reload 语义安全(会话/PTY 跨重载存活),回放风暴风险由宽限期吸收(短洪水照旧不撞 reload)。
 
+## 第十一轮增补(2026-10-04,泵侧后台慢拍 + 镜像 feed 互斥 + 数据链停滞探针)
+
+第十轮后假死复发频率降低但未根除;本轮对打包实例现场取证:活会话 omp 状态动画以 15-20tick/s 整帧重绘持续整个轮次(实测 9 分钟 55MB ≈ 100KB/s),WebContent 主线程 ~43% 样本在逐帧 updateRendering/深嵌套 flex 布局 —— **主线程饱和是吊销粘死的触发土壤**;且既有守望全盯「渲染死亡」,「渲染活着、字节链断了」(订阅丢失/回放悬死)零覆盖。增补三件(完整取舍见 superpowers/specs/2026-10-04-canvas-stall-pump-background-design.md):
+
+1. **泵侧后台慢拍**(pty_spawn.rs `OUT_BACKGROUND_WINDOW` + `effective_window`):会话无激活幕布(`PtyHandle.viewed`,新 `session_set_viewed` 命令,TerminalView 激活态打点、readopt 复位)**或**前端渲染暂停(render_health 上报随行 `active` = !hidden && rAF 间隙 <2s,新全局 `RENDER_ACTIVE`)时,聚合窗钳 250ms —— 事件率 20+/s → 4/s,与隐藏幕布合帧/镜像采样同拍,Ask 徽标/呼吸灯时延不变;激活幕布保持自适应窗零改动;批次字节内容与日志保真不触碰。
+2. **镜像 feed 互斥补全**(askScreenMirror.ts):挂幕布会话停喂 headless 镜像(采样互斥早已有,喂流互斥本轮补全 —— 同流双份 xterm 解析减半);幕布卸载以幕布终态同步 `reseed`(先于注销 handle,时序无交错),后台 Ask 采样无缝接管;CLI 闸自 appendOutput 内联挪进镜像 ctor 谓词(feed/reseed 共用)。
+3. **幕布数据链停滞探针**(canvasStall.ts 纯函数 + terminalCanvasHealth.ts 接线):2s 巡检「PTY 缓冲字节仍在推进(getOutputBufferBytes 变化,锚无关;压实回落也算)而本幕布订阅 6s 未收任何字节(ptyLiveTopic 入口戳)」= 数据链断供 → canvasGen 自增自动重建(重订阅 + 缓冲回放)。判据刻意保守:仅激活 + 流就绪、rAF 间隙 ≥4s 退出(页级冻结归阶梯,重建无意义)、PTY 静默不判(无对照)、30s 重建冷却 —— 与渲染死亡阶梯互斥分工。
+
 ## 方案取舍
 
 - 被否决:纯 JS 修复(吊销态下 JS 画的帧不达像素);`setNeedsDisplay`/objc 级戳醒(Tauri 无暴露面,引 objc2 依赖过重);重建 webview 窗口(比 reload 更重且丢窗口状态)。
@@ -69,4 +77,5 @@ reload 是被逼出来的根治手段,语义安全性有两重保证:会话/PTY 
 - 真机回归(0.2.5,2026-09-30):打包实例复现「tab 内容 DOM 已渲染、像素不 paint」的黑屏;dev(vite)/prod dist 浏览器/打包四环境全量排查零渲染崩溃,锁定形态 B 停摆 —— 守望缺口修复后,粘死态 ~10s 首报 → 15s 去重后二击 reload 自愈,不再依赖 Focused 事件。
 - 第三轮现场定量:卡死会话 PTY 日志 37MB(57MB/27MB 同仓并发),CLI 完成后 PTY 尾帧为完整空闲帧而像素停在旧帧;WebContent 71 分钟 34 CPU 分钟。修复后并发工作期隐藏幕布行重建降两个数量级、洪峰事件数降数倍,主线程余量使 rAF 不再饿死(待长时观察确认)。
 - 门禁:typecheck / vitest / arch-boundary / file-size / build / cargo test / clippy -D warnings / fmt / react-doctor 100。
+- 第十一轮单测:canvasStall.test.ts 6 例(实锤/边界/非激活/渲染冻结退出/冷却/PTY 静默);askScreenMirror 互斥用例重写(feed 不吃流 + reseed 补种 + 注销后直喂);sessionAdopt.readopt 补 viewed 复位断言;pty_spawn_tests.rs effective_window(前台透传/后台钳 250ms)。门禁:typecheck / vitest 3588 / cargo test 339 / clippy -D warnings / fmt / react-doctor 100。
 - 待长时真机观察:0.2.6 发版后跟踪「界面卡死」复发率。

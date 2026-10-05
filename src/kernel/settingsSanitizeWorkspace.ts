@@ -39,3 +39,20 @@ export function sanitizeWorkspaceGroups(raw: unknown): WorkspaceGroup[] {
   }
   return groups;
 }
+
+/** 显隐清单上限(与折叠图同款确定性兜底口径)。 */
+const WORKSPACE_HIDDEN_MAX = 200;
+
+/** 工作区显隐清单清洗:只收非空字符串、去重、限量(顺序按首现保持稳定)。 */
+export function sanitizeWorkspaceHiddenIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (ids.length >= WORKSPACE_HIDDEN_MAX) break;
+    if (typeof item !== "string" || !item || seen.has(item)) continue;
+    seen.add(item);
+    ids.push(item);
+  }
+  return ids;
+}

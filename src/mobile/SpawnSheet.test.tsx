@@ -32,6 +32,7 @@ describe("SpawnSheet 排布契约", () => {
         { id: "w2", name: "beta", root: "/b" },
       ],
       connected: true,
+      sessions: [{ id: "s1", workspaceId: "w1" }],
     });
     const html = render();
     /* 基座头:grabber/标题行/关闭钮;旧标题类与 280px 悬左 CTA 退场 */
@@ -55,18 +56,18 @@ describe("SpawnSheet 排布契约", () => {
   });
 
   it("blocked 态:提示卡在场,CTA 退场", () => {
-    ctx.useMobile.mockReturnValue({ workspaces: [], connected: false });
+    ctx.useMobile.mockReturnValue({ workspaces: [], connected: false, sessions: [] });
     const html = render();
     expect(html).toContain("sheet-alert warn");
     expect(html).not.toContain("sheet-cta");
   });
 
   it("冷启动分流:首拉未到(wsLoaded=false)不误报「还没有工作区」(2026-10-03 二轮)", () => {
-    ctx.useMobile.mockReturnValue({ workspaces: [], wsLoaded: false, connected: true });
+    ctx.useMobile.mockReturnValue({ workspaces: [], wsLoaded: false, connected: true, sessions: [] });
     const loading = render();
     expect(loading).toContain("正在获取工作区…");
     expect(loading).not.toContain("桌面还没有工作区");
-    ctx.useMobile.mockReturnValue({ workspaces: [], wsLoaded: true, connected: true });
+    ctx.useMobile.mockReturnValue({ workspaces: [], wsLoaded: true, connected: true, sessions: [] });
     const empty = render();
     expect(empty).toContain("桌面还没有工作区");
     expect(empty).not.toContain("正在获取工作区");

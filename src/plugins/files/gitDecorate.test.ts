@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildDecorationMap, mergeRepoStatusDecorations } from "./gitDecorateModel";
+import { buildDecorationMap, buildLetterMap, mergeRepoStatusDecorations } from "./gitDecorateModel";
 import type { GitFileStatus } from "@kernel/ipc";
 
 const ADDED = "text-(--tmd-git-tree-added)";
@@ -99,5 +99,29 @@ describe("mergeRepoStatusDecorations(多仓合并)", () => {
       { root: "/ws/a/b", files: [] },
     ]);
     expect(clean.has("/ws/a/b")).toBe(false);
+  });
+});
+
+describe("形状防御(files/entries 异常不抛,贡献不熔断)", () => {
+  it("buildDecorationMap:files undefined/null → 空 map", () => {
+    expect(buildDecorationMap("/ws", undefined).size).toBe(0);
+    expect(buildDecorationMap("/ws", null).size).toBe(0);
+  });
+
+  it("mergeRepoStatusDecorations:entries/逐仓 files 非数组 → 不抛且跳过", () => {
+    expect(() => mergeRepoStatusDecorations(undefined)).not.toThrow();
+    expect(() => mergeRepoStatusDecorations(null)).not.toThrow();
+    const m = mergeRepoStatusDecorations([
+      { root: "/ws/a", files: undefined as unknown as [] },
+      { root: "/ws/b", files: [f("x.ts", "M")] },
+    ]);
+    expect(m.get("/ws/b/x.ts")).toBe(MODIFIED);
+    expect(m.has("/ws/a")).toBe(false);
+  });
+
+  it("buildLetterMap:entries/逐仓 files 非数组 → 不抛且跳过", () => {
+    expect(() => buildLetterMap(undefined)).not.toThrow();
+    const m = buildLetterMap([{ root: "/ws/a", files: null as unknown as [] }]);
+    expect(m.size).toBe(0);
   });
 });

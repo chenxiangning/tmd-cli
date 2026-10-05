@@ -5,6 +5,8 @@
  * 永不对插件下发);settings 按 read/write 两组键位授权(常量与纯函数直通);
  * host 整面授权。类别常量在 plugin.ts(PLUGIN_PERMISSIONS),威胁模型边界见其注释。
  * 穷尽性由 pluginPermissions.grants.test.ts 机器把关:ipc 新增方法未登记即测试红。
+ * file-size-exempt:IPC 方法→类别唯一事实源数据表(ipc 每方法一行,穷尽性测试
+ * 机器把关);拆分 = 两个表共享登记语义,伤「唯一事实源」。
  */
 import * as hostModule from "./host";
 import * as settingsModule from "./settings";
@@ -21,6 +23,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sessionList: "ipc.terminal",
   sessionWrite: "ipc.terminal",
   sessionResize: "ipc.terminal",
+  sessionSetViewed: "ipc.terminal",
   sessionKill: "ipc.terminal",
   sessionLogSize: "ipc.terminal",
   sessionHistoryPage: "ipc.terminal",
@@ -48,7 +51,6 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   wslExec: "ipc.exec",
   /* 未决 SSH 提示对账(只读注册表快照,无副作用)。 */
   sshPromptsPending: null,
-  /* 文件系统读。 */
   fsListDir: "ipc.fs.read",
   fsWalkFiles: "ipc.fs.read",
   fsWalkIndex: "ipc.fs.read",
@@ -56,13 +58,13 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsReadFile: "ipc.fs.read",
   fsReadTail: "ipc.fs.read",
   fsReadTailChanged: "ipc.fs.read",
+  fsReadRange: "ipc.fs.read",
   fsReadHead: "ipc.fs.read",
-
+  fsReadHeads: "ipc.fs.read",
   fsCollectFiles: "ipc.fs.read",
   readLocalImageDataUrl: "ipc.fs.read",
   readBinaryFileBase64: "ipc.fs.read",
   fsReadBytesBase64: "ipc.fs.read",
-
   /* 文件系统写/管理。 */
   fsWriteTemp: "ipc.fs.write",
   fsWriteFile: "ipc.fs.write",
@@ -176,8 +178,10 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sshForwardList: "ipc.ssh",
   sshForwardCheckPort: "ipc.ssh",
 
-  /* 纯函数杂项(无 IO)。 */
+  /* 纯函数杂项(无 IO)。appPid = 自身 pid(jdt 目录隔离键);processAlive = kill -0 只读(exec 类)。 */
   md5Hex: "ipc.util",
+  appPid: "ipc.util",
+  processAlive: "ipc.exec",
 
   /* 内核保留:全局 settings 盘文件 / 环境变量(凭据)/ 本地插件管理面(提权面)。 */
   configReadSettings: null,
@@ -265,7 +269,6 @@ export function wrapHost(grants: ReadonlySet<string>): Record<string, unknown> {
     },
   });
 }
-
 
 /** settings 直通的纯函数(无能力语义;出现新函数时在此登记或归入 read/write/保留)。 */
 export const SETTINGS_PURE_KEYS = [

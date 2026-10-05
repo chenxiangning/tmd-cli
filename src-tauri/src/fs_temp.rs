@@ -83,10 +83,12 @@ fn is_upload_artifact(name: &str) -> bool {
     let Some((pfx, seq)) = stem.rsplit_once('-') else {
         return false;
     };
-    /* "upload-" 恒 7 字节。 */
-    pfx.len() > 7
-        && &pfx[..7] == "upload-"
-        && pfx[7..].bytes().all(|b| b.is_ascii_digit())
+    /* "upload-" 恒 7 字节;字节面比对——str[..7] 在多字节字符内部会 panic
+     * (temp 目录共享,任何 '-' 前段含 CJK 的文件名都可达,panic 会吞掉整次写入)。 */
+    let b = pfx.as_bytes();
+    b.len() > 7
+        && b[..7] == *b"upload-"
+        && b[7..].iter().all(|c| c.is_ascii_digit())
         && !seq.is_empty()
         && seq.bytes().all(|b| b.is_ascii_hexdigit())
         && !ext.is_empty()
@@ -125,6 +127,7 @@ mod tests {
             "upload-1-1.",
             "shell.log",
             "别的文件.txt",
+            "日本語-upload-1.jpg", /* 旧实现 pfx[..7] 切在多字节字符内部 panic */
             "upload-1-1",
         ] {
             assert!(!is_upload_artifact(bad), "{bad} 应被判形外");
