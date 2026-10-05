@@ -186,6 +186,17 @@ pub(crate) async fn fs_read_tail_changed(
     spawn_fs(move || fs::read_tail_changed(&path, max_bytes, last_size)).await
 }
 
+/// 区间读(语义见 fs::read_range):时间线分段全程扫描;单段上限 1MB 防滥用。
+#[tauri::command]
+pub(crate) async fn fs_read_range(
+    path: String,
+    start: u64,
+    max_bytes: usize,
+) -> Result<fs::RangeSpan, String> {
+    let max_bytes = max_bytes.clamp(1, 1_048_576);
+    spawn_fs(move || fs::read_range(&path, start, max_bytes)).await
+}
+
 #[tauri::command]
 pub(crate) async fn fs_remove_path(path: String) -> Result<(), String> {
     spawn_fs(move || fs::remove_path(&path)).await

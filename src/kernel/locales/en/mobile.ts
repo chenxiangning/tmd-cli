@@ -166,5 +166,11 @@ export const MESSAGES = {
   "获取中…": "Fetching…",
   "等待会话身份绑定…": "Waiting for session identity…",
   "尚未找到会话记录文件": "Session transcript not found yet",
-  "会话较长,仅显示最近 {n} 条": "Long session — showing the latest {n} messages",
+  "正在载入更早消息 {pct}%": "Loading earlier messages {pct}%",
+  "会话超大,已显示最近一段内的 {n} 条": "Huge session — showing {n} messages from the recent span",
+  "正在载入历史…": "Loading history…",
+  "正在查看历史位置": "Viewing an earlier point",
+  "回到最新": "Back to latest",
+  "历史加载失败": "Failed to load history",
+  "已显示最近 {n} 轮,完整历史点时间线": "Showing the latest {n} turns — open Timeline for full history",
 } as Record<string, string>;

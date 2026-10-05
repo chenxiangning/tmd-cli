@@ -45,6 +45,12 @@ pub(super) async fn try_dispatch(
             })
             .await
         }
+        "fs_read_range" => {
+            go(raw, |a: ReadRange| {
+                crate::commands_fs::fs_read_range(a.path, a.start, a.max_bytes)
+            })
+            .await
+        }
         "fs_read_tail_changed" => {
             go(raw, |a: TailChanged| {
                 crate::commands_fs::fs_read_tail_changed(a.path, a.max_bytes, a.last_size)
@@ -126,6 +132,12 @@ struct Collect {
 #[serde(rename_all = "camelCase")]
 struct ReadSpan {
     path: String,
+    max_bytes: usize,
+}
+#[derive(serde::Deserialize)]
+struct ReadRange {
+    path: String,
+    start: u64,
     max_bytes: usize,
 }
 #[derive(serde::Deserialize)]

@@ -71,3 +71,28 @@ TimelineSheet 打开
 2. `pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size`。
 3. 1421 桩目检:假会话 jsonl 驱动——sheet 打开、列表渲染、窗外置灰、点击跳转滚动、不支持引擎降级。
 4. `npx react-doctor@latest -y` 达 100。
+
+## 二轮修订(2026-10-05 晚,真机反馈「要能点击跳转 + 显示全部」)
+
+用户否决首版两处保守:尾窗外置灰(不可跳)与 512KB 窗截断注记。二轮对齐桌面客户端
+语义(messageAnchors 首拍全量 + jumpToAnchor「不在 buffer 逐页加载」):
+
+- **显示全部**:新 Rust 通用原语 `fs_read_range(path, start, maxBytes)`(行对齐 +
+  consumed 回传,fs_tail.rs;桥 FS_READ 白名单 + dispatch + ipc.fsReadRange 全链)。
+  手机自尾向头分段(384KB/段,封包 ≈1MB 稳过壳 4MiB)渐进拉全程,条目按文件序合入;
+  64 段(24MB)护栏对齐桌面 32MB 口径,超出注记。每条记行字节 offset(TextEncoder 真字节,
+  汉字≠字符)。
+- **任意跳转**:统一历史定位视图(不再区分窗内/窗外)——点击条目 → 关 sheet →
+  `timelineHistory.tsx` 加载 [offset-64KB, offset+768KB) 快照解析 turns,顶条
+  「正在查看历史位置/回到最新」,锚行 clipText 同口径文本匹配滚动。互斥单视图
+  替代尾窗,零拼接零去重;offset 精确绑定使重复文本各自定位(旧「跳最新」限制消解)。
+  对应桌面 jumpToAnchor 的「翻页加载更早历史再试」在手机 = offset 精确分段读。
+- **被否决**:尾窗 turns 窗口化 + 无限上滑加载(改动面 useLiveTurns/sessionFile 连锁,
+  且「定位某一轮」体验不如快照视图直接);桌面代提取用户消息的新桥命令(CLI 格式
+  知识不得入 kernel/Rust,违铁律)。
+- 边界:段尾残行(Rust consumed 截行)/ 段首残行(JSON 失败跳行)/ 单行 >384KB 巨型
+  消息(快进,不入表)/ UTF-8 多字节 offset / 文件收缩越界(空段)/ 断网中途保留
+  partial 可重试 / cliSessionId 换绑自动重拉。
+- 验证:6 例协议测试(mini Rust 互证:行对齐/consumed 链/offset 字节/渐进单调/护栏/
+  reject)+ Rust 5 断言单测 + 桩目检全链(全量列表/任意条目点击/histView 渲染锚定/
+  回到最新)。

@@ -242,7 +242,7 @@ function blocksToTurns(blocks: CliTranscriptBlock[]): TranscriptTurn[] {
   return out;
 }
 
-function parseTurnsFromText(text: string): TranscriptTurn[] {
+export function parseTurnsFromText(text: string): TranscriptTurn[] {
   const lineOf = detectLineParser(text);
   return lineOf ? blocksToTurns(parseTranscriptBlocks(text, lineOf)) : parseTranscript(text);
 }

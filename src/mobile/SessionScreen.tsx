@@ -12,7 +12,7 @@ import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { useLiveStream, useSessionExit } from "./useLiveStream";
 import { useCkptBadge, useLiveTurns, useTerminalFit } from "./sessionHooks";
-import { clipText } from "@kernel/transcript";
+
 import { isTailTruncated, MAX_TURNS } from "./sessionFile";
 import { ConnBanner } from "./ConnChip";
 import { askEdgeNotify, askRoundClear, notifyExit, useMobile } from "./shared";
@@ -24,7 +24,8 @@ import { shellInvoke } from "@kernel/shellBridge";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { CkptSheet } from "./CkptSheet";
 import { TimelineSheet } from "./timelineSheet";
-import { timelineSupported } from "./timelineData";
+import { timelineSupported, type TimelineEntry } from "./timelineData";
+import { TimelineHistory } from "./timelineHistory";
 import { SessionHeader, ShotPreview } from "./SessionChrome";
 import { Composer } from "./Composer";
 
@@ -55,21 +56,13 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   useEffect(() => { draftRef.current = draft; });
   
   const ckpt = useCkptBadge(meta?.cwd, props.sessionId);
-  /* 时间线跳转:关 sheet 后在对话流找与条目同口径(clipText 归一,>600 字
-   * turn 截断后仍可命中)的 .tr-user(倒序 = 重复文本取最新位置)滚到视口
-   * 顶;置灰闸外无匹配时静默(防御路径)。 */
-  const jumpToMsg = (text: string) => {
+  /* 时间线跳转(2026-10-05 二轮):任意条目(offset 锚)→ 历史定位视图
+   * (前后文快照互斥替代尾窗,组件 timelineHistory);桌面 jumpToAnchor 的
+   * 「不在 buffer 逐页加载」在手机 = offset 精确分段读。 */
+  const [hist, setHist] = useState<{ path: string; entry: TimelineEntry } | null>(null);
+  const jumpToTimeline = (path: string, entry: TimelineEntry) => {
     setTlSheet(false);
-    requestAnimationFrame(() => {
-      const rows = liveRef.current?.querySelectorAll(".tr-user");
-      if (!rows) return;
-      for (let i = rows.length - 1; i >= 0; i--) {
-        if (rows[i].textContent === clipText(text)) {
-          rows[i].scrollIntoView({ behavior: "smooth", block: "start" });
-          return;
-        }
-      }
-    });
+    setHist({ path, entry });
   };
 
   /* transcript(spec 2026-09-25-mobile-session-render):jsonl 定位 + 2s 增量生长;
@@ -226,9 +219,15 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
       />
       <ConnBanner />
       <div className="live" ref={liveRef}>
-        {turns && <TurnsView turns={turns} />}
-        {turns && isTailTruncated(turns) && (
-          <div className="list-note">{t("已显示最近 {n} 轮,更早内容在桌面客户端查看", { n: MAX_TURNS })}</div>
+        {hist ? (
+          <TimelineHistory path={hist.path} entry={hist.entry} liveRef={liveRef} onBack={() => setHist(null)} />
+        ) : (
+          <>
+            {turns && <TurnsView turns={turns} />}
+            {turns && isTailTruncated(turns) && (
+              <div className="list-note">{t("已显示最近 {n} 轮,完整历史点时间线", { n: MAX_TURNS })}</div>
+            )}
+          </>
         )}
         <LiveBlock
           turns={turns}
@@ -285,9 +284,8 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
           profileId={meta.profileId}
           cwd={meta.cwd}
           cliSessionId={meta.cliSessionId}
-          turns={turns}
           onClose={() => setTlSheet(false)}
-          onJump={jumpToMsg}
+          onJump={jumpToTimeline}
         />
       )}
     </>

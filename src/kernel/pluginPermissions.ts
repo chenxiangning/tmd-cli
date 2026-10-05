@@ -5,6 +5,8 @@
  * 永不对插件下发);settings 按 read/write 两组键位授权(常量与纯函数直通);
  * host 整面授权。类别常量在 plugin.ts(PLUGIN_PERMISSIONS),威胁模型边界见其注释。
  * 穷尽性由 pluginPermissions.grants.test.ts 机器把关:ipc 新增方法未登记即测试红。
+ * file-size-exempt:IPC 方法→类别唯一事实源数据表(ipc 每方法一行,穷尽性测试
+ * 机器把关);拆分 = 两个表共享登记语义,伤「唯一事实源」。
  */
 import * as hostModule from "./host";
 import * as settingsModule from "./settings";
@@ -56,6 +58,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsReadFile: "ipc.fs.read",
   fsReadTail: "ipc.fs.read",
   fsReadTailChanged: "ipc.fs.read",
+  fsReadRange: "ipc.fs.read",
   fsReadHead: "ipc.fs.read",
   fsReadHeads: "ipc.fs.read",
   fsCollectFiles: "ipc.fs.read",

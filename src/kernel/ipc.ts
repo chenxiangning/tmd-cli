@@ -166,6 +166,13 @@ export interface ChangedTail {
   text: string;
 }
 
+/** 区间读结果(对齐 Rust fs::RangeSpan):text 已行对齐;consumed = 本段实际
+ *  消费字节数(段尾残行被弃时 < maxBytes,续读起点 = start + consumed)。 */
+export interface RangeSpan {
+  text: string;
+  consumed: number;
+}
+
 /** 参数化安装计划(对齐 src-tauri/src/installer.rs InstallPlan;camelCase tagged)。 */
 export type CliInstallPlan =
   | { channel: "npm"; package: string }
@@ -633,6 +640,10 @@ export const ipc = {
    *  变化拍一次 IPC 完成探测与读取。会话状态巡航 2s 一拍的主力入口。 */
   fsReadTailChanged: (path: string, maxBytes: number, lastSize: number | null) =>
     invoke<ChangedTail>("fs_read_tail_changed", { path, maxBytes, lastSize }),
+  /** 区间读(语义见 Rust fs::read_range):自 start 起行对齐读 maxBytes;
+   *  时间线分段全程扫描用,与尾窗读互补。 */
+  fsReadRange: (path: string, start: number, maxBytes: number) =>
+    invoke<RangeSpan>("fs_read_range", { path, start, maxBytes }),
   /** 读文件头部 maxBytes 字节(解析 jsonl 首行 meta 用,避免全文加载)。 */
   fsReadHead: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_head", { path, maxBytes }),

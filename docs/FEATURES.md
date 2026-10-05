@@ -469,7 +469,7 @@
 - 直连 WS 心跳保活(0.2.9):桌面直连 15s Ping(节拍同 relay)+ iOS WsTunnel 15s sendPing/10s pong 超时自愈,根治 NAT 静默回收空闲 TCP 致「图片首发送失败,重试即成功」(spec 2026-10-03-mobile-ws-heartbeat-keepalive-design)
 - 手机实况屏治理(0.2.9):2 秒延迟三件套(TurnsView memo 止血 + setLive 尾沿节流 + 写后触拍);实况屏幽灵列与 ESC7-8、pending 三族对齐 xterm;2J/3J 真擦除并原地 resize 根治新建会话头信息重复
 - 手机首页卡片化重设计(2026-10-04):置顶 + 运行中 + 工作区信息架构保留,工作区菜单去折叠箭头改文件夹图标开合;活会话真名跨桶借全局磁盘索引(修 default 工作区兜底名永不解析);web 桥 invoke 对并发帽快拒做阶梯退避重试(修浏览器态 boot 扫描风暴下工作区列表整面缺失)
-- 手机会话时间线(2026-10-05):composer「+」面板第五格 → 底部 sheet 列本会话全程用户消息(最新在顶,序号 + 3 行 clamp;2MB 尾窗超窗注记);点击条目关 sheet 滚动定位对话流对应轮(重复文本跳最新,不在 40 轮尾窗内置灰可读);数据链 = resolveTranscriptPath 身份绑定 → fs_read_tail_changed → cli-shared parseUserMessages 行型分发,零桌面改动零新命令面;仅 omp/pi/claude/cl/codex/kimi 契约引擎,其余置灰(spec 2026-10-05-mobile-session-timeline-design)
+- 手机会话时间线(2026-10-05,二轮全程化):composer「+」面板第五格 → 底部 sheet 列本会话**全程**用户消息(最新在顶,序号 + 3 行 clamp);fs_read_range 新通用原语自尾向头分段渐进拉全程(384KB/段,64 段 24MB 护栏,进度注记),每条记行字节 offset;**任意条目可点** → 历史定位视图(offset 前后文快照:前 64KB 后 768KB,顶条「正在查看历史位置/回到最新」,锚行同口径文本匹配滚动),重复文本各自精确绑定;数据链 = resolveTranscriptPath 身份绑定 → fs_read_tail_changed 探长 + fs_read_range 分段 → cli-shared 行型 parser 分发,桌面侧仅加通用原语零格式知识;仅 omp/pi/claude/cl/codex/kimi 契约引擎,其余置灰(spec 2026-10-05-mobile-session-timeline-design)
 - 截图注入(SessionScreen composer「图」钮):拍照/相册 → 端内压缩(长边 1568/JPEG q0.8)→ 桥 fs_write_temp 镜像落盘临时文件 → composer 注入 `@路径`(桌面附件同语义);零原生壳改动
 - 本地通知链路重做:检测挪 home 轮询边沿(不依赖会话屏挂载)、iOS 壳 willPresent 前台横幅、会话退出通知对齐桌面开关
 - pty://exit 消费:会话屏订阅退出事件,退出横幅 + 续聊引导(复用 resume 链)

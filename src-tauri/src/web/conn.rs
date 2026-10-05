@@ -31,7 +31,7 @@ pub(crate) const FS_READ: &[&str] = &[
     "fs_read_head",
     "fs_read_heads",
     "fs_read_tail",
-    "fs_read_tail_changed",
+    "fs_read_range",
     "fs_search",
     "fs_walk_files",
     "read_binary_file_base64",

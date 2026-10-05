@@ -120,7 +120,7 @@ pub fn read_heads(paths: &[String], max_bytes: usize) -> Vec<String> {
 }
 
 /// 尾读原语 re-export:保持 crate::fs::{read_tail, read_tail_changed, ChangedTail} 引用路径不变。
-pub use crate::fs_tail::{read_tail, read_tail_changed, ChangedTail};
+pub use crate::fs_tail::{read_range, read_tail, read_tail_changed, ChangedTail, RangeSpan};
 
 #[cfg(test)]
 mod tests {
