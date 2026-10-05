@@ -194,15 +194,15 @@ pnpm check:i18n-keys      # i18n 三语键位校验（CI 强制）
 
 ## 下载安装
 
-从 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 获取对应平台安装包。产物由 CI 在推送 `v*` tag 时自动构建(macOS universal / Windows x86_64 / Linux x86_64),以 Draft Release 形式落盘,确认后发布。
+从 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 获取对应平台安装包。产物由 CI 在推送 `v*` tag 时自动构建(macOS 分架构 aarch64/x86_64 + Android APK + iOS 未签名包 / Windows x86_64 / Linux x86_64),以 Draft Release 形式落盘,确认后发布。
 
-当前 v0.2.9 产物矩阵:
+当前 v0.3.0 产物矩阵:
 
 | 平台 | 产物 |
 |---|---|
-| macOS(universal:arm64 + x86_64) | `tmd-cli_0.2.9_universal.dmg`、`tmd-cli_universal.app.tar.gz` |
-| Windows(x86_64) | `tmd-cli_0.2.9_x64-setup.exe`(NSIS)、`tmd-cli_0.2.9_x64_en-US.msi` |
-| Linux(x86_64) | `tmd-cli_0.2.9_amd64.AppImage`、`tmd-cli_0.2.9_amd64.deb`、`tmd-cli-0.2.9-1.x86_64.rpm` |
+| macOS(aarch64 / x86_64 双架构) | `tmd-cli_0.3.0_aarch64.dmg`、`tmd-cli_0.3.0_x64.dmg`、`tmd-cli_aarch64.app.tar.gz`、`tmd-cli_x64.app.tar.gz`(updater 签名产物) |
+| Windows(x86_64) | `tmd-cli_0.3.0_x64-setup.exe`(NSIS)、`tmd-cli_0.3.0_x64_en-US.msi` |
+| Linux(x86_64) | `tmd-cli_0.3.0_amd64.AppImage`、`tmd-cli_0.3.0_amd64.deb`、`tmd-cli-0.3.0-1.x86_64.rpm` |
 
 当前产物默认未签名 / 未公证:macOS 首次打开需在「系统设置 → 隐私与安全性」手动放行。Release 管道已支持 macOS 代码签名 + 公证(配置 `APPLE_*` repo secrets 即自动启用,见 release.yml);Windows 签名待证书采购形态拍板后接线。
 

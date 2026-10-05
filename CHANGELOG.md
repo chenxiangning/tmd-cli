@@ -4,6 +4,36 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.0] - 2026-10-06
+
+本版主体 = 手机侧整批:会话时间线全程化(fs_read_range 通用原语 + offset 精确历史定位)、安卓壳能力对齐 iOS(选图/拍照/扫码配对/WS 隧道与心跳)、外网列表查询风暴三连根治(读头批量化/负结果缓存/视图节流+事件化重拉);附 structured-session 能力批(模型/思考级/引擎切换、follow_up 排队、断线接续、上下文用量与 / 补全)、设置入口迁左缘 rail、v0.2.9..HEAD 49 提交两轮评审收口(桥拆线、transcript 身份绑定、Git 屏竞态、pty 孤儿日志等)。
+
+### 新增
+
+- 手机会话时间线全程化(01cb1384/c9660325,spec 见 `docs/superpowers/specs/2026-10-05-mobile-session-timeline-design.md`):composer「+」面板第五格 → 底部 sheet 列本会话全程用户消息;新通用原语 `fs_read_range` 自尾向头分段渐进拉全程(384KB/段、64 段 24MB 护栏),任意条目可点跳转历史定位视图(offset 前后文快照,锚行文本匹配滚动);数据链 = cliSessionId 身份绑定 → 探长 + 分段 → cli-shared parser 分发,桌面内核零 CLI 格式知识;入口二轮挪输入条行内,加号面板回四格
+- 安卓壳能力对齐 iOS(e4247dd6/603b9357):选图/拍照/扫码配对/WS 隧道接线与心跳保活全量补齐;TLS 系统校验回落、pin 归一、凭证单例、日志轮转与生命周期收口;启动器图标复用 Tauri 安卓图标集,通知小图标改纯白 alpha 矢量根治状态栏白块
+- structured-session 能力批(577cbf38/e90e620a,spec 见 `docs/superpowers/specs/2026-10-04-structured-session-polish-design.md`):兼容 turn_start 帧名,落地模型/思考级切换、引擎切换、follow_up 排队、后台通知与断线接续;补上下文用量、/ 命令补全、草稿持久化与模型筛选回车选中
+- 设置入口迁左缘 rail 底簇(f409d185):右缘⋯菜单高度随条目自适应;底格 logo 顺窗口弧打磨
+- 欢迎页标题条恢复 GitHub 仓库 MIT 链接(00d8b1f1)
+- web-access 配对链上下行贯通设备平台字段,设备表徽标按值渲染不再断言 iOS(ce388b40);配对扫码统一收口设备页,内外网卡不再出码(b5fd154d)
+
+### 性能
+
+- 手机外网列表查询风暴三连根治(调研见 `docs/research/2026-10-05-mobile-list-query-analysis.md`,评审见 `docs/review/2026-10-05-mobile-list-optimization-review.md`):① 会话读头批量化为单次 IPC(e6684728);② 读头负结果缓存 + 深窗批量化,根治标题缺失重试风暴,契约沉淀 architecture/02(0b4fd2fd/33340b41/9955c6e7);③ 视图节流停后台扫描波 + 会话注册表事件驱动重拉(e6087a6f),桥恢复即拉补链(f30ad52b)
+- lsp peek 整文件读随生命周期缓存,行回填与预览共享一次 IO(0f72e366)
+
+### 修复
+
+- v0.2.9..HEAD 两轮多角度评审收口(评审见 `docs/review/2026-10-05-git59-multi-angle-review.md`):桥拆线释放挂起 openGate + 退避表用满 3000 档(fd42eebb);手机会话屏按 cliSessionId 身份绑定 transcript 根治同 cwd 多会话串台(0fef2c7e);Git 屏竞态序号闸与双行 patch 键 + 键盘收起兜底(a45f14d3);范围2提案四维复审收口——confirm 畸形 id 闸、WS 在途除账与前台探测守卫、composer 随宽量高、liveText 转义族四缺口(a6bf7420);批量读头 IPC 异型归一并删逐文件死函数(302ec060);安卓壳回前台拆线促重拨对齐 iOS(d79f1aa6)
+- 安卓壳 WS 隧道拨号协议改写,java.net.URL 不认 ws/wss 致配对后永远连不上;放开 LAN 明文对齐 iOS 直连(d2290d40)
+- 幕布:吞 DCS 探测串并按屏外语义截断缩列旧行;活流快照重叠剥离防差分重绘双喂;pi 目录探测拒绝回落修复手机 transcript(ccaca16b)
+- structured-session 模型清单失败重开可重试且不再自触发循环拉取(ad869225)
+- 桥臂 serde 契约防线:fs_read_range 参数结构体补 camelCase 并反序列化测试钉死(84bd2d97);fs/git 域补反向漂移防线,恢复被覆盖的 fs_read_tail_changed 白名单行(fe65b9b8/25653ef5)
+- 时间线真机读取失败:读窗降 512KB 避响应帧膨胀撞壳上限,失败态附错误细节(8e86d7c4);超长消息 clipText 归一可达判定与跳转匹配,补 3 词条 en/ja 词典(1a4a239b)
+- pty 日志文件创建与账本插表压后到 reader/writer 双获取,克隆失败不留孤儿(7c2ef16e);fs_temp 前缀判定改字节面防多字节文件名 panic(666bf035)
+- git 远程降级断数据面空转,DirtBadge 补形状防御与失败回退(e515de27);远程树隐藏无效果的 Git 着色开关(adb1fc2e)
+- 外壳打磨:左缘设置 logo 月牙缝/圆弧/底缝五连修(a4b6bfe7 等 6 笔);工作区齿轮环形动作组真实指针命中修复(c886e50f)
+
 ## [0.2.9] - 2026-10-04
 
 本版主体 = 手机端对话链路整批重做(三态胶囊 composer + 选图/拍照上传 + 直连 WS 心跳保活),附 structured-session 启动降噪、部件帧治理与 dependabot 依赖批吸收;v0.2.8..HEAD 经三轮评审收口,tag 后追补手机首页卡片化、lsp 引用 peek 渲染与幕布假死第十一轮等一批。
