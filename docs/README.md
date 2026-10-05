@@ -26,6 +26,7 @@
 | 2026-09-06 | [类似客户端产品盘点(GitHub,12 家公开项目 + 4 家闭源背景)](research/similar-products.md) | 已完成 |
 | 2026-09-01 | [omp CLI 学习笔记(14 课主课 + prompts/ 用户速查)](research/omp-cli-course/README.md) | 已完结 |
 | 2026-09-13 | [omp 打开历史会话性能分析与常驻预热方案研究](research/omp-session-open-performance.md) | 已完成(方案已落地:预热接管,契约见 architecture/10) |
+| 2026-10-05 | [手机列表页查询机制核对与优化设计](research/2026-10-05-mobile-list-query-analysis.md) | 调研完成,方案待确认(P1 视图节流可先做) |
 | 2026-09-03 | [omp 最近版本升级记录(v18.0.7-18.1.6)](research/omp-cli-course/releases.md) | 持续更新 |
 | 2026-09-01 | [基础架构总览](architecture/01-overview.md) | 已落地(09-14 校准:27 插件 / 挂点 14 / WSL / 壁纸 / 自动更新 / 预热秒开;09-19 校准:31 插件;09-27 校准 v0.2.4:38 插件 / 挂点 15 / Rust 层 web·lsp·open_with / §8 状态段重写;10-01 校准 v0.2.7:44 插件 / 挂点 17(+editorCenter.canvasOverlay、terminal.canvasRow);**10-04 校准 v0.2.9**:§8 状态段重写至 v0.2.9(44 注册 = engine 10 + feature 30;能力 Hub / 结构化会话 / 原创主题与设计系统 / 渲染健康族 / 手机 0.2.9 链路)/ §2 Rust 树补 proc_stream·render_health·fs_temp·skill_pkg) |
 | 2026-09-01 | [代码级架构（Mermaid）](architecture/02-code-architecture.md) | 对齐当前代码(09-07/09-10/09-14/09-19 校准史见旧注;09-27 校准 v0.2.4:命令面 151 分布 / PLUGINS 图补 0.2.x 十一插件 / 挂点 15 + composer.attachments / 两棵 UI 树动态分流 / worktree 与退出码数据流注记 / 契约见 architecture/16;10-01 校准 v0.2.7:命令面 162(+proc_stream×4、render_health)/ IPC 表补行 / PLUGINS 图 +session-viewer·daily-journal·structured-session;**10-04 校准 v0.2.9**:命令面 165(+session_set_viewed、app_pid、process_alive)/ §6 挂点地图 15→17(补 canvasOverlay·canvasRow 节点)/ russh 0.63 / 源文件 1129) |
