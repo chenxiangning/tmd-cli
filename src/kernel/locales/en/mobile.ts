@@ -172,5 +172,6 @@ export const MESSAGES = {
   "正在查看历史位置": "Viewing an earlier point",
   "回到最新": "Back to latest",
   "历史加载失败": "Failed to load history",
+  "还没有用户消息": "No user messages yet",
   "已显示最近 {n} 轮,完整历史点时间线": "Showing the latest {n} turns — open Timeline for full history",
 } as Record<string, string>;
