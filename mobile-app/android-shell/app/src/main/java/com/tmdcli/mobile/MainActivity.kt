@@ -195,6 +195,9 @@ class MainActivity : android.app.Activity() {
 
     override fun onResume() {
         super.onResume()
+        /* 回前台拆僵尸线促重拨(对齐 iOS didBecomeActive probe;iOS 是 3s 探测
+         * 死线才拆,安卓无公开按需 ping,无条件拆,活线闪断由桥自愈)。 */
+        WsTunnel.probeOnForeground()
         webView.onResume()
     }
 

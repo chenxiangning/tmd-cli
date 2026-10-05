@@ -127,4 +127,18 @@ object WsTunnel {
             sockets.remove(k)?.cancel()
         }
     }
+
+    /** 回前台重拨(对齐 iOS probeOnForeground 的安卓退化版):后台期 doze 掐网络
+     * 后,僵尸线 JS 侧仍 OPEN,首次 invoke 挂到 15s 超时;OkHttp 无公开按需
+     * ping(无法像 iOS 那样 3s 探测死线才拆),退化为无条件拆线 —— close 事件
+     * 驱动 JS 退避重拨(1~2s),活线闪断由桥「恢复即拉」自愈。零打扰探测需
+     * 自管 ping 线程(见 open 处 ponytail 注释的同一升级路)。 */
+    fun probeOnForeground() {
+        val stale = sockets.keys.toList()
+        for (k in stale) {
+            opened.remove(k)
+            sockets.remove(k)?.close(1000, "foreground probe")
+        }
+        if (stale.isNotEmpty()) ShellLog.write("ws fg probe: dropped ${stale.size} conn(s)")
+    }
 }

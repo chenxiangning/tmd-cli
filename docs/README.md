@@ -279,4 +279,5 @@
 | 2026-10-05 | [手机会话时间线 sheet 设计(composer「+」第五格;二轮全程化:fs_read_range 分段拉全程 + 任意条目 offset 精确跳转历史定位视图,首版尾窗跳转与 512KB 截断被用户否决;spec 含两轮方案取舍)](superpowers/specs/2026-10-05-mobile-session-timeline-design.md) | 已落地二轮(门禁全绿;桩目检过;真机目检留大仙) |
 | 2026-10-05 | [手机会话时间线提交后评审(对抗自查:1 P1——超 600 字消息 clipText 口径差恒置灰,归一修复;1 P2——3 词条 en/ja 缺失补齐;真机首轮「读取失败」= 2MB 响应帧膨胀撞壳 4MiB 上限超时,读窗降 512KB + 失败态错误细节;Rust 尾读契约/竞态/kimi import 链核过;留观 2)](review/2026-10-05-mobile-session-timeline-review.md) | 已完成(修复随本提交) |
 | 2026-10-05 | [手机列表查询优化评审(P1 视图节流 + P2 sessions:changed 事件驱动自身 diff 复核:1 缺口——桥恢复补拉漏加已修;P1 边界——手动刷新可达域/ask 首现双检测链/名称追赶暂停语义全核;P2 Rust——锁序块作用域/签名去抖/桌面零消费者/老桌面优雅降级;留观他屏 ask 60s 延迟)](review/2026-10-05-mobile-list-optimization-review.md) | 已完成(修复随本提交) |
+| 2026-10-05 | [iOS/安卓双端功能同步核对(14 项壳能力逐项对照:13 项同步,1 缺口已修——安卓缺回前台 WS 探测重拨,补 WsTunnel.probeOnForeground 退化版无条件拆线促重拨;2 平台性差异留观:OkHttp 死线不感知在途/活线闪断 vs iOS 零打扰)](review/2026-10-05-mobile-dual-platform-sync-review.md) | 已完成(修复随本提交;安卓真机回归留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
