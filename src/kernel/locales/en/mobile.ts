@@ -164,4 +164,7 @@ export const MESSAGES = {
   "拉取中…": "Pulling…",
   "推送中…": "Pushing…",
   "获取中…": "Fetching…",
+  "等待会话身份绑定…": "Waiting for session identity…",
+  "尚未找到会话记录文件": "Session transcript not found yet",
+  "会话较长,仅显示最近 {n} 条": "Long session — showing the latest {n} messages",
 } as Record<string, string>;

@@ -28,6 +28,7 @@ vi.mock("@kernel/transport", () => ({
 }));
 
 import { loadTimeline, reachableTexts, timelineSupported } from "./timelineData";
+import { clipText } from "@kernel/transcript";
 
 const CWD = "/Users/x/code/tmd-cli";
 const SID = "11111111-2222-4333-8444-555555555555";
@@ -60,6 +61,14 @@ describe("reachableTexts(尾窗可达判定)", () => {
     expect(reach.has("去修登录")).toBe(true);
     expect(reach.has("不存在")).toBe(false);
     expect(reachableTexts(null).size).toBe(0);
+  });
+
+  it("超长消息 clipText 归一后仍可达(>600 字 turn 截断,时间线原文不截,评审 P1)", () => {
+    const long = "长需求".repeat(300); /* 900 字,超 TURN_MAX=600 */
+    const turns = [{ role: "user", text: clipText(long) }] as never;
+    const reach = reachableTexts(turns);
+    expect(reach.has(clipText(long))).toBe(true); /* 组件侧 ok 判定同式 */
+    expect(reach.has(long)).toBe(false); /* 原文直比必失——证明归一步必要 */
   });
 });
 

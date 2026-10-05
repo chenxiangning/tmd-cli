@@ -12,6 +12,7 @@ import React, { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { useLiveStream, useSessionExit } from "./useLiveStream";
 import { useCkptBadge, useLiveTurns, useTerminalFit } from "./sessionHooks";
+import { clipText } from "@kernel/transcript";
 import { isTailTruncated, MAX_TURNS } from "./sessionFile";
 import { ConnBanner } from "./ConnChip";
 import { askEdgeNotify, askRoundClear, notifyExit, useMobile } from "./shared";
@@ -54,15 +55,16 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   useEffect(() => { draftRef.current = draft; });
   
   const ckpt = useCkptBadge(meta?.cwd, props.sessionId);
-  /* 时间线跳转:关 sheet 后在对话流找文本全等的 .tr-user(倒序 = 重复文本取
-   * 最新位置)滚到视口顶;置灰闸外无匹配时静默(防御路径)。 */
+  /* 时间线跳转:关 sheet 后在对话流找与条目同口径(clipText 归一,>600 字
+   * turn 截断后仍可命中)的 .tr-user(倒序 = 重复文本取最新位置)滚到视口
+   * 顶;置灰闸外无匹配时静默(防御路径)。 */
   const jumpToMsg = (text: string) => {
     setTlSheet(false);
     requestAnimationFrame(() => {
       const rows = liveRef.current?.querySelectorAll(".tr-user");
       if (!rows) return;
       for (let i = rows.length - 1; i >= 0; i--) {
-        if (rows[i].textContent === text) {
+        if (rows[i].textContent === clipText(text)) {
           rows[i].scrollIntoView({ behavior: "smooth", block: "start" });
           return;
         }

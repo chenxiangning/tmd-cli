@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import type { CliUserMessage } from "@kernel/cli";
-import type { TranscriptTurn } from "@kernel/transcript";
+import { clipText, type TranscriptTurn } from "@kernel/transcript";
 import { loadTimeline, reachableTexts } from "./timelineData";
 import { SheetBase } from "./SheetBase";
 
@@ -85,7 +85,7 @@ export function TimelineSheet(props: {
                   key={`${state.messages.length - i}:${m.id}`}
                   seq={state.messages.length - i}
                   text={m.text}
-                  ok={reach.has(m.text)}
+                  ok={reach.has(clipText(m.text))}
                   onJump={() => props.onJump(m.text)}
                 />
               ))}
