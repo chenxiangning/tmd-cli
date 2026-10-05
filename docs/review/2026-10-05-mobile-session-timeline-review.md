@@ -46,3 +46,25 @@
   桩侧另复现「home.replace is not a function」= 桩缺 config_home_dir 命令,
   ompSessionsDir(edits.ts)对非 string home 调 .replace;真机 dispatch 有该
   命令不受影响,非产品缺陷(记录备查:桥下未列命令的兜底形状陷阱)。
+
+## 真机二三轮复盘(2026-10-05 深夜,两笔 8e86d7c4 后的真机实锤链)
+
+三轮真机各炸一个环,全部是「桌面全套绿、只有真机炸」的桥接语义盲区:
+
+1. **白名单行被顶(fe65b9b8 修)**:加 `fs_read_range` 时编辑指令 PUT 34.=34
+   语义是替换,把 `fs_read_tail_changed` 白名单行顶掉 → 「app 设备不在允许域」。
+   旧测试只有单向(白名单→桥臂);补 fs + git 两域反向漂移测试(桥臂必在
+   白名单或显式豁免集),顶行本地即红。
+2. **serde 契约缺环(84bd2d97 修)**:`ReadRange` 参数 struct 漏
+   `#[serde(rename_all = "camelCase")]` → TS 传 maxBytes,Rust 要 max_bytes →
+   「参数错误: missing field max_bytes」。桩/mock 不过 serde、Rust 单测直调
+   函数也不过 serde,四道防线全盲;补 dispatch_fs.rs serde 契约测试组
+   (camelCase JSON 必须成功 + snake_case 必须报错,新参数 struct 登记一行)。
+   顺带钉死:clippy 的 non_snake_case 对「中文+下划线」放行、混入 ASCII 驼峰
+   (camelCase)才报,测试函数命名全中文或全 snake_case。
+
+**教训(通用)**:桥接链每一跳的「隐式契约」(serde 改名、域闸白名单、壳帧上限)
+在桌面环境全部不可见,桩与单测天然盲区;每炸一环必须把该环契约固化为本地
+红绿测试,并横向扫同族(dispatch_fs 全 struct、git 域全臂)一次修净。
+错误细节行(8e86d7c4)是这轮唯一能让真机一步定位的功臣——黑盒失败态的代价
+是三轮往返,保留并推广。
