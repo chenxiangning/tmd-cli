@@ -1,5 +1,5 @@
 /**
- * 首页窗体标题条 —— 标题 / 键盘与交互提示 / 手动刷新(GitHub 链接收纳在页脚)。
+ * 首页窗体标题条 —— 标题 / 键盘与交互提示 / GitHub 仓库 MIT 链接 / 手动刷新。
  *
  * 首页数据已 SWR 缓存(pageCache),回首页不再自动重拉,此按钮是唯一手动
  * 全量刷新入口:强制重探全部引擎与前置依赖(落 loading 可见),最新版/凭据
@@ -8,6 +8,9 @@
  */
 import { ArrowClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { openExternalUrl } from "@kernel/ipc";
+
+const GITHUB_URL = "https://github.com/chenxiangning/tmd-cli";
 
 export function WelcomeTbar({
   refreshing,
@@ -23,6 +26,16 @@ export function WelcomeTbar({
       <span className="welcome-hintline">
         {t("↑↓ 选引擎 · ⏎ 以所选工作区启动新会话 · 点击 ● 展开凭据额度")}
       </span>
+      <a
+        className="welcome-tbar-right"
+        href={GITHUB_URL}
+        onClick={(e) => {
+          e.preventDefault();
+          void openExternalUrl(GITHUB_URL);
+        }}
+      >
+        {t("GitHub 仓库")} · MIT
+      </a>
       <button
         type="button"
         className="welcome-refresh"
