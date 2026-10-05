@@ -33,8 +33,10 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   React.useEffect(() => onRemoteConnection(setConn), []);
   const [route, setRoute] = React.useState<MobileRoute>({ view: "home" });
 
-  /* 列表轮询:桥自愈重连,拉取失败保留快照(原型断连态「列表为最近快照」)。
-     签名比对后再 set:无脑 set 新数组 = ctx 重造全树 0.4Hz 重渲染(评审 P2-8)。 */
+  /* 列表同步:事件驱动 + 低频兜底(2026-10-05 列表查询优化 P2)。
+     sessions:changed(桌面注册表突变,签名去抖后广播)→ 防抖 300ms 立即拉;
+     兜底周期 LAN 15s / WAN 30s(断连窗口丢事件由兜底 + 恢复即拉罩住)。
+     签名比对后再 set:无脑 set 新数组 = ctx 重造全树重渲染(评审 P2-8)。 */
   React.useEffect(() => {
     let alive = true;
     let sigS = "";
@@ -53,18 +55,24 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       }
     };
     void pull();
-    /* 外网端点降频(评审三轮):中继链路每 RTT 都贵,轮询减半给交互请求让路;
-     * LAN 维持 2.5s。每轮按当前活动端点现算,切换通道即时生效。 */
     let timer = 0;
     const tick = () => {
       const ep = activeRemoteEndpoint();
-      const ms = ep && endpointKind(ep) === "wan" ? 5000 : 2500;
-      timer = window.setTimeout(() => void pull().finally(tick), ms);
+      timer = window.setTimeout(() => void pull().finally(tick), ep && endpointKind(ep) === "wan" ? 30_000 : 15_000);
     };
     tick();
+    /* 事件防抖:桌面连发(批量活动翻转)只拉一次;首拍竞态无害(签名比对)。 */
+    let deb = 0, queued = false;
+    const off = listen("sessions:changed", () => {
+      if (queued) return;
+      queued = true;
+      deb = window.setTimeout(() => { queued = false; void pull(); }, 300);
+    });
     return () => {
       alive = false;
       clearTimeout(timer);
+      clearTimeout(deb);
+      void off.then((f) => f()).catch(() => undefined);
     };
   }, []);
   /* 草稿键老化清理(挂载期一次):会话删除后草稿键无人引用,按台账年龄回收 */

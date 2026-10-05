@@ -163,9 +163,10 @@ fn settings_secret(key: &str) -> bool {
 
 /// 设备域事件订阅白名单(红队链3:命令域闸的事件面镜像)。pty:// = 会话实况/退出
 /// (设备可看用户全部会话 = 「批准设备=SSH 级信任」模型内,session_disk_tail 同理);
-/// settings:changed = 覆盖层同步。ssh:// / lsp:// / web://pair-alert / plugin 域全拒。
+/// settings:changed = 覆盖层同步;sessions:changed = 活会话注册表变化(空载荷,
+/// 手机事件驱动重拉,2026-10-05 列表查询优化 P2)。ssh:// / lsp:// / web://pair-alert / plugin 域全拒。
 pub(crate) fn event_allowed(event: &str) -> bool {
-    event.starts_with("pty://") || event == "settings:changed"
+    event.starts_with("pty://") || event == "settings:changed" || event == "sessions:changed"
 }
 
 /// spawn cwd 必须落在已注册工作区根(或默认工作区)内;canonicalize 双侧防 symlink/`..` 逃逸。

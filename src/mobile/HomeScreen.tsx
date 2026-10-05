@@ -4,12 +4,11 @@ import React, { useMemo, useState } from "react";
 import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
 import { ConnBanner, HostChip } from "./ConnChip";
-import { pollHomeWatch, useMobile } from "./shared";
+import { pollHomeWatch, useHomeVisible, useMobile } from "./shared";
 import { Row } from "./Row";
 import { ArchiveIcon, FolderIcon, GitIcon, LocalIcon, PlusIcon, RefreshIcon } from "./treeIcons";
 import { globalDiskTitles, groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HistoryItem, type HomeRow } from "./history";
 import { relTime } from "./remote";
-
 /** 磁盘历史重扫节奏:读头有 mtime 缓存,稳态每轮只剩 fs_collect_files 轻量 RPC。 */
 const HISTORY_RESCAN_MS = 60_000;
 /** 命名追赶重扫:存在「已绑定磁盘身份但真名未解析」的活行时的加密档。 */
@@ -31,6 +30,8 @@ export function HomeScreen() {
   const [history, setHistory] = useState<Map<string, HistoryItem[]>>(new Map());
   /* 手动刷新:顶栏钮触发一轮立即轮询(审批/ask + 磁盘历史);busy 态旋转指示。 */
   const [refreshing, setRefreshing] = useState(false), [refreshTick, setRefreshTick] = useState(0);
+  /* 视图节流(P1):他屏/后台 = 审批轮询 60s、磁盘历史停扫;回 home 立即补轮。 */
+  const homeVisible = useHomeVisible(route.view === "home");
   const spinRef = React.useRef<HTMLSpanElement | null>(null), spinAnim = React.useRef<Animation | null>(null);
   const refresh = () => {
     if (refreshing) return;
@@ -47,7 +48,6 @@ export function HomeScreen() {
       .map((s) => ({ id: s.id, cwd: s.cwd ?? "", title: titleOf(s), running: !!(s.activity?.turnActive || s.activity?.unread) })),
     [sessions, titleOf],
   );
-  /* 审批计数 + ask 首现边沿轮询(shared.pollHomeWatch 逐会话串行削峰);防重入防叠波,refreshTick = 手动刷新立即开轮。 */
   React.useEffect(() => {
     let alive = true;
     let busy = false;
@@ -61,14 +61,13 @@ export function HomeScreen() {
       spinAnim.current?.cancel();
       setRefreshing(false);
     };
-    void pull();
-    const timer = setInterval(pull, 10_000);
+    if (homeVisible) void pull(); /* 离开 home 的重挂不补轮;回 home/手动刷新立拉 */
+    const timer = setInterval(pull, homeVisible ? 10_000 : 60_000);
     return () => {
       alive = false;
       clearInterval(timer);
     };
-  }, [items, route.sessionId, refreshTick]);
-
+  }, [items, route.sessionId, refreshTick, homeVisible]);
   /* 磁盘历史扫描:清单变化/挂载/60s 周期;签名依赖 + roots 直接数组身份(签名比对 set,身份稳定)。 */
   const roots = useMemo(() => workspaces.map((w) => w.root), [workspaces]);
   /* 未解析真名的「新鲜」活行数(有磁盘身份、无手动名、全局索引无真名、出生 2min 内):>0 = 重扫压 5s 直至解析。
@@ -84,8 +83,9 @@ export function HomeScreen() {
     }).length;
   }, [sessions, titles, history]);
   React.useEffect(() => {
+    /* 他屏/后台停扫(纯列表数据,回 home 重挂立扫;审批轮询只降频不停 —— ask 通知语义)。 */
+    if (!homeVisible) return;
     let alive = true;
-    /* 逐区串行 + 防重入:全并发 = 工作区×引擎 RPC 风暴,慢链路挤爆中继出站队列被桌面掐流;首轮未扫完时 60s 定时器不得叠波。 */
     let running = false;
     const scan = () => {
       if (running) return; // 上一波未完:跳过,不叠 RPC 波
@@ -114,7 +114,7 @@ export function HomeScreen() {
       alive = false;
       clearInterval(timer);
     };
-  }, [roots, refreshTick, unresolved]);
+  }, [roots, refreshTick, unresolved, homeVisible]);
 
   const titleOfDisk = React.useCallback(
     (h: HistoryItem) =>

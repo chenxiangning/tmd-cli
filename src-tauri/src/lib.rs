@@ -212,6 +212,9 @@ pub fn run() {
             render_kick: render_health::KickState::default(),
         })
         .setup(|app| {
+            app.state::<AppState>()
+                .sessions
+                .set_notifier(app.handle().clone());
             app_setup::setup(app)?;
             web::web_access::autostart(app.handle());
             let app_handle = app.handle().clone();

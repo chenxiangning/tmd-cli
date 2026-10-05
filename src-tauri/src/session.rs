@@ -169,11 +169,41 @@ pub struct SessionRegistry {
     sessions: Mutex<HashMap<String, SessionMeta>>,
     /// 会话活动板(session_report_activity 全量替换;remove 随 PTY 一并清除)。
     activity: Mutex<HashMap<String, SessionActivity>>,
+    /// 变更广播器(手机列表事件驱动,2026-10-05 列表查询优化 P2):突变 → 快照
+    /// 签名比对,变了才 emit sessions:changed;活动板 2s 周期全量上报同签名
+    /// 静默,防退化为 2s 重拉风暴。None = 桌面测试态(setup 未注入)。
+    notifier: Mutex<Option<tauri::AppHandle>>,
+    last_sig: Mutex<String>,
+}
+
+impl SessionRegistry {
+    /// 注入广播器(setup 期一次;纯注册表测试不注入 = 静默)。
+    pub fn set_notifier(&self, app: tauri::AppHandle) {
+        *self.notifier.lock() = Some(app);
+    }
+
+    /// 突变收口:快照签名比对去抖后才 emit sessions:changed。
+    /// 只在突变方法的锁释放后调用(list 重取两把锁,parking_lot 非重入)。
+    fn notify_changed(&self) {
+        let app = match self.notifier.lock().clone() {
+            Some(app) => app,
+            None => return,
+        };
+        let sig = serde_json::to_string(&self.list()).unwrap_or_default();
+        let mut last = self.last_sig.lock();
+        if *last == sig {
+            return;
+        }
+        *last = sig;
+        drop(last);
+        let _ = crate::event_sink::emit(&app, "sessions:changed", &serde_json::json!({}));
+    }
 }
 
 impl SessionRegistry {
     pub fn register(&self, meta: SessionMeta) {
         self.sessions.lock().insert(meta.id.clone(), meta);
+        self.notify_changed();
     }
 
     /// 活表快照:活动板按 id 内联投影(手机 session_list 直读;桌面消费方忽略该字段)。
@@ -191,37 +221,49 @@ impl SessionRegistry {
     pub fn remove(&self, id: &str) {
         self.sessions.lock().remove(id);
         self.activity.lock().remove(id);
+        self.notify_changed();
     }
 
     /// 全量替换活动板(上报方 = 桌面前端守望,唯一权威;全量语义无累积漂移)。
     pub fn replace_activity(&self, entries: Vec<(String, SessionActivity)>) {
-        let mut board = self.activity.lock();
-        board.clear();
-        board.extend(entries);
+        {
+            let mut board = self.activity.lock();
+            board.clear();
+            board.extend(entries);
+        }
+        self.notify_changed();
     }
 
     /// 更新会话的工作区归属(会话被接管/转正时补写;预热 spawn 时归属未知)。
     pub fn set_workspace(&self, id: &str, workspace_id: Option<String>) -> bool {
-        let mut map = self.sessions.lock();
-        match map.get_mut(id) {
-            Some(meta) => {
-                meta.workspace_id = workspace_id;
-                true
+        let hit = {
+            let mut map = self.sessions.lock();
+            match map.get_mut(id) {
+                Some(meta) => {
+                    meta.workspace_id = workspace_id;
+                    true
+                }
+                None => false,
             }
-            None => false,
-        }
+        };
+        self.notify_changed();
+        hit
     }
 
     /// 回写 CLI 磁盘身份(桥 spawn 注入 / 桌面装配绑定后同步;None = 清除)。
     pub fn set_cli_session_id(&self, id: &str, cli_session_id: Option<String>) -> bool {
-        let mut map = self.sessions.lock();
-        match map.get_mut(id) {
-            Some(meta) => {
-                meta.cli_session_id = cli_session_id;
-                true
+        let hit = {
+            let mut map = self.sessions.lock();
+            match map.get_mut(id) {
+                Some(meta) => {
+                    meta.cli_session_id = cli_session_id;
+                    true
+                }
+                None => false,
             }
-            None => false,
-        }
+        };
+        self.notify_changed();
+        hit
     }
 }
 
