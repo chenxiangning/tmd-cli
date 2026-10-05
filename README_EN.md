@@ -194,15 +194,15 @@ pnpm check:i18n-keys      # i18n tri-lingual key checks (CI-enforced)
 
 ## Download & install
 
-Grab the installer for your platform from [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases). Artifacts are built automatically by CI when a `v*` tag is pushed (macOS universal / Windows x86_64 / Linux x86_64), land as a Draft Release, and go live after confirmation.
+Grab the installer for your platform from [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases). Artifacts are built automatically by CI when a `v*` tag is pushed (macOS per-arch aarch64/x86_64 + Android APK + unsigned iOS package / Windows x86_64 / Linux x86_64), land as a Draft Release, and go live after confirmation.
 
-Current v0.2.9 artifact matrix:
+Current v0.3.0 artifact matrix:
 
 | Platform | Artifacts |
 |---|---|
-| macOS (universal: arm64 + x86_64) | `tmd-cli_0.2.9_universal.dmg`, `tmd-cli_universal.app.tar.gz` |
-| Windows (x86_64) | `tmd-cli_0.2.9_x64-setup.exe` (NSIS), `tmd-cli_0.2.9_x64_en-US.msi` |
-| Linux (x86_64) | `tmd-cli_0.2.9_amd64.AppImage`, `tmd-cli_0.2.9_amd64.deb`, `tmd-cli-0.2.9-1.x86_64.rpm` |
+| macOS (aarch64 / x86_64, per-arch) | `tmd-cli_0.3.0_aarch64.dmg`, `tmd-cli_0.3.0_x64.dmg`, `tmd-cli_aarch64.app.tar.gz`, `tmd-cli_x64.app.tar.gz` (signed updater artifacts) |
+| Windows (x86_64) | `tmd-cli_0.3.0_x64-setup.exe` (NSIS), `tmd-cli_0.3.0_x64_en-US.msi` |
+| Linux (x86_64) | `tmd-cli_0.3.0_amd64.AppImage`, `tmd-cli_0.3.0_amd64.deb`, `tmd-cli-0.3.0-1.x86_64.rpm` |
 
 Current artifacts are unsigned / unnotarized by default: on first launch on macOS, allow the app under "System Settings → Privacy & Security". The release pipeline already supports macOS code signing + notarization (enabled automatically once `APPLE_*` repo secrets are configured, see release.yml); Windows signing awaits a certificate decision.
 

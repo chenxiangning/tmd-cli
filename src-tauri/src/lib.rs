@@ -89,6 +89,12 @@ fn process_alive(pid: u32) -> bool {
     if pid == 0 {
         return false;
     }
+    /* 越界 pid:传进 kill 会按 pid_t 截断成 -1,Linux 语义 = 广播探测全同用户进程,
+    命中任一即成功 → 误判活(Linux CI 实证,macOS 拒 -1 故本地不复现)。
+    超正 pid_t 区间一律判死,顺带消广播面。 */
+    if pid > i32::MAX as u32 {
+        return false;
+    }
     #[cfg(unix)]
     {
         /* /bin/kill 绝对路径防 PATH 贫瘠;status 0 = 活,EPERM(非 0 但进程在)

@@ -121,8 +121,15 @@
   color: var(--tmd-fg-faint);
 }
 
-.welcome-refresh:hover { color: var(--tmd-fg); }
-.welcome-refresh:focus { outline: none; }
+.welcome-tbar-right {
+  color: var(--tmd-fg-subtle);
+  font-size: var(--tmd-font-xs);
+  text-decoration: none;
+  white-space: nowrap;
+}
+/* hover 色变即反馈;点击跳转后焦点残留的蓝色虚线环去掉。 */
+.welcome-tbar-right:hover, .welcome-refresh:hover { color: var(--tmd-fg); }
+.welcome-tbar-right:focus, .welcome-refresh:focus { outline: none; }
 .welcome-refresh:disabled { cursor: not-allowed; }
 
 .welcome-row-main {

@@ -23,6 +23,7 @@
 > 2026-10-01 打磨轮补校(分级治理实施,spec 见 `docs/superpowers/specs/2026-10-01-client-polish-plan-design.md`,调研底稿 `docs/research/client-polish-half-month-audit.md`):审批高危红标右栏生效、会话检索多词高亮过滤、接力摘要截断、系统通知点击深链与多幕布额度、学堂引擎闸与版本漂移提示、skill-hub 更新闭环(已装视图经用户裁定维持安装记录制,不合并磁盘扫描)、mcp-hub 文案分源与删除浮层、意图画布 inbox 常驻轮询、LSP 手势反馈与永不再弹、marks i18n 接通与失锚重锚、看板错误条与渲染预算、打开方式失败 toast 与键盘导航、结构化会话部件 notice 与 exited 重开、每日日志无头徽标与便签确认、转录浮标分档、WSL 目录直达与远程降级横幅、Web 访问二维码与桥事件订阅、壁纸 lite 删除、卫生清扫如实文案、Git split 渲染预算、worktree 加载态、五弹层 a11y、手机通知链路重做等 13 项、i18n 缺键清零(check:i18n-keys 检查脚本入 package.json);另:0.2.5+ hub 域(画布/skill/mcp/日志)此前仅有校准注记无正文条目,本轮增设「能力 Hub」域段落承接。
 > 2026-10-04 补校(0.2.8/0.2.9 增量域,以代码为准):六套 tmd 原创低饱和主题 + 设计系统 token 阶梯 + 状态三原语(Empty/Spinner/错误契约三分)、原生弹窗清零、视图保活统一(全挂载 + display:none)、文件操作条下放面板头、幕布右上工具行与单会话幕布重建刷新钮、渲染健康守望第 3-5/11 轮(洪水降级宽限/泵侧后台慢拍/幕布数据链停滞探针,契约见 architecture/17)、结构化会话(omp/pi --mode rpc token 级流式 + 幕布|结构化双视图,契约见 architecture/19)、会话行 tok/s pill 口径修复、会话 tab 收敛、手机端对话链路整批重做(三态胶囊 composer/选图拍照双入口/直连 WS 心跳保活/快捷键条两行网格/首页卡片化);插件计数 38→44(10 engine / 30 feature / 3 core / 1 local,10-01 注记「不变 38」系漏校,结构化会话等 0.2.7 落地件未计入);russh 0.62.2→0.63.3。
 > 2026-10-04 左缘工具 rail 与工作区显隐补校:左缘常驻工具 rail(顶簇 会话看板/插件市场/回到首页/工作区切换;插件入口经 sidebarActions 新 leftRail/leftRailBottom 字段直挂,顶栏市场/首页/看板三钮迁出顶栏)、网络代理入口迁右缘 rail 底簇(sidebarActions 新增 pinOnce 一次性补钉,存量钉住清单无此 id 时自动钉一次)、底栏界面缩放组隐藏改 ⌘+/⌘−/⌘0 键位(app-shell/zoomCommands;Tooltip 补 right 抽屉式放置)、左下角工作区显隐多选菜单(settings.workspaceHiddenIds 隐藏清单语义,勾选恢复显示时活动工作区切一次、右侧文件树跟切不强绑定,最后一个可见工作区不可隐藏)。
+> 2026-10-06 补校(0.3.0 增量域,以代码为准):手机会话时间线全程化(fs_read_range 通用原语 + offset 历史定位,见「手机 App」域)、安卓壳能力对齐 iOS 整批(选图/拍照/扫码配对/WS 隧道与心跳/TLS 回落/凭证单例/日志轮转)、外网列表查询风暴三连根治(读头批量化单次 IPC/负结果缓存/视图节流+事件驱动重拉,契约见 architecture/02)、structured-session 能力批(turn_start 帧名兼容、模型/思考级/引擎切换、follow_up 排队、断线接续、上下文用量、/ 补全、草稿持久化)、设置入口迁左缘 rail 底簇、web-access 设备平台字段贯通与配对扫码收口设备页;桥拆线释放 openGate 与退避表补档、pty 孤儿日志闸、fs_temp 字节面前缀判定。
 
 ## 工作区会话
 - 会话行 tok/s pill:活会话响应均速指示,轮结束自动隐藏;口径(2026-10-03 修复)分子按行型分派(全量行差分 / 增量行自增)+ 尾窗用户行轮种子 + 180s 剔停 + 单对 300 tok/s 可信上限 + 近 5 对滑窗平滑 + codex 双快照——回放实证可显率 49%→100%、跳变 p90 19.4x→1.5x(spec 2026-10-03-toks-pill-stability-design)
@@ -35,6 +36,7 @@
 - 结构化会话(structured-session,0.2.7):omp/pi `--mode rpc` NDJSON 子进程 token 级流式(thinking/text/toolcall delta 原地累积,message_end 落权威块,与磁盘 JSONL 同构),幕布|结构化双视图切换,审批卡(confirm 回路)直答,PTY 零涉及;Rust proc_stream 四命令通用长驻流式原语(boot 期 kill_all 清孤儿;契约见 architecture/19)
 - 结构化会话打磨(structured-session):非 confirm 部件自动取消在转录出 notice(不再静默替答)、exited 一键重新开启、入口按引擎能力显隐(死入口清零)、prompt 请求超时独立常量
 - 结构化会话启动降噪(structured-session):部件取消语义分档——chrome 装饰类(setStatus/notify/setWidget)聚成一条淡色行(×N 计数原地刷新),select/input/editor 及未知 kind 维持逐条可见;渲染层零改动
+- 结构化会话能力批(2026-10-04,spec `docs/superpowers/specs/2026-10-04-structured-session-polish-design.md`):兼容 turn_start 帧名;模型/思考级切换、引擎切换、follow_up 排队、后台通知与断线接续;上下文用量展示、/ 命令补全、草稿持久化、模型筛选回车选中;模型清单失败重开可重试且不再自触发循环拉取
 - 转录浮标分档(session-viewer liveOverlay):按文件型会话显隐,非文件型引擎不露浮标
 - 会话看板打磨(session-board):扫描失败显式错误条 + 重试(不伪装 0 会话)、图例可读性修正、泳道卡渲染预算
 - 卫生清扫如实文案:清扫挂磁盘扫描结算点,回执数据不可得,设置卡如实说明不虚设回执
@@ -446,7 +448,7 @@
 - 文件预览为条件第四栏:有打开的文件 tab 才出现,夹于幕布与右栏之间,宽度可拖
 - 顶栏「回到首页⇄回会话」toggle:会话中记住当前会话回欢迎页,首页中切回原会话(已退出则保持首页原样);市场覆盖层开启时先收市场再切换
 - 右缘面板 rail(2026-09-27,spec 2026-09-27-right-panel-rail-design;activity bar 形态):面板入口自顶栏右区迁窗口右缘常驻竖排工具条(30px,右栏收起也在),列表 = 钉住 ∪ 激活面板 + 横向分隔线 + ⋯ 溢出菜单(贴按钮左缘向左弹、纵向估高夹取);点击切面板并自动展开右栏(旧顶栏 tab 收起态点击无反馈的缺陷顺带根治);钉住语义与 localStorage `tmd.filePanel.pinned.v1` 零变更(⋯ 菜单行点击激活并顺带钉住,复选框仅切钉);rail 动作并入钉住管理,wsl 入 ⋯ 菜单可勾选
-- 左缘工具 rail(2026-10-04,右缘 rail 的镜像):窗口左缘常驻竖排工具条(30px,左栏收起也在),顶簇 = 会话看板(插件经 sidebarActions.leftRail 注册面直挂)/ 插件市场 / 回到首页(两钮自顶栏迁入,⌘⇧X/⌘⇧H 不变)/ 工作区切换(下拉与顶栏选择器共用 useWorkspaceSwitchMenus 同一菜单面);悬停提示 data-hint-side="right" 抽屉式右滑(Tooltip 镜像放置);插件条目与壳自有条目按 order 统一排序,壳只渲染注册表不认识业务。网络代理同日迁右缘 rail 底簇(rail+railBottom+pinOnce 一次性补钉,浮层自 rail 钮左缘翻弹)
+- 左缘工具 rail(2026-10-04,右缘 rail 的镜像):窗口左缘常驻竖排工具条(30px,左栏收起也在),顶簇 = 会话看板(插件经 sidebarActions.leftRail 注册面直挂)/ 插件市场 / 回到首页(两钮自顶栏迁入,⌘⇧X/⌘⇧H 不变)/ 工作区切换(下拉与顶栏选择器共用 useWorkspaceSwitchMenus 同一菜单面);悬停提示 data-hint-side="right" 抽屉式右滑(Tooltip 镜像放置);插件条目与壳自有条目按 order 统一排序,壳只渲染注册表不认识业务。网络代理同日迁右缘 rail 底簇(rail+railBottom+pinOnce 一次性补钉,浮层自 rail 钮左缘翻弹)。2026-10-05 起设置入口迁左缘 rail 底簇(底格 logo 钮顺窗口左下弧,⌘, 不变),右缘⋯菜单高度随条目自适应
 - 左下角工作区显隐多选(2026-10-04,缩放组原位):触发钮(ListChecks + 当前工作区名)上弹多选清单(portal + 限高滚动),控制左栏显示的工作区集合;语义 = 隐藏清单 `settings.workspaceHiddenIds`(空 = 全部显示,新建工作区自动可见,残留已删 id 无害),左栏过滤纯函数与菜单锁步(workspace/utils visibleWorkspaces);勾选恢复显示时活动工作区顺带切一次 → 右侧文件树跟切到「最后勾选的工作区」,只切一下不做强绑定;最后一个可见工作区不可隐藏(行禁用 + 提示);菜单不随勾选关闭,点外/Esc 关
 - 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
 - 幕布右上工具行(terminal.canvasRow 挂点,0.2.7):内核渲染行容器,幕布刷新钮收尾最右——单会话幕布重建(xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH 整帧重绘),PTY/CLI 不中断、其他会话零扰动;插件经挂点贡献同排工具钮(session-viewer「结构化幕布」切换钮);行不设 z,不透明画布浮层开启时整行隐没
@@ -469,7 +471,10 @@
 - 直连 WS 心跳保活(0.2.9):桌面直连 15s Ping(节拍同 relay)+ iOS WsTunnel 15s sendPing/10s pong 超时自愈,根治 NAT 静默回收空闲 TCP 致「图片首发送失败,重试即成功」(spec 2026-10-03-mobile-ws-heartbeat-keepalive-design)
 - 手机实况屏治理(0.2.9):2 秒延迟三件套(TurnsView memo 止血 + setLive 尾沿节流 + 写后触拍);实况屏幽灵列与 ESC7-8、pending 三族对齐 xterm;2J/3J 真擦除并原地 resize 根治新建会话头信息重复
 - 手机首页卡片化重设计(2026-10-04):置顶 + 运行中 + 工作区信息架构保留,工作区菜单去折叠箭头改文件夹图标开合;活会话真名跨桶借全局磁盘索引(修 default 工作区兜底名永不解析);web 桥 invoke 对并发帽快拒做阶梯退避重试(修浏览器态 boot 扫描风暴下工作区列表整面缺失)
-- 手机会话时间线(2026-10-05,二轮全程化):composer「+」面板第五格 → 底部 sheet 列本会话**全程**用户消息(最新在顶,序号 + 3 行 clamp);fs_read_range 新通用原语自尾向头分段渐进拉全程(384KB/段,64 段 24MB 护栏,进度注记),每条记行字节 offset;**任意条目可点** → 历史定位视图(offset 前后文快照:前 64KB 后 768KB,顶条「正在查看历史位置/回到最新」,锚行同口径文本匹配滚动),重复文本各自精确绑定;数据链 = resolveTranscriptPath 身份绑定 → fs_read_tail_changed 探长 + fs_read_range 分段 → cli-shared 行型 parser 分发,桌面侧仅加通用原语零格式知识;仅 omp/pi/claude/cl/codex/kimi 契约引擎,其余置灰(spec 2026-10-05-mobile-session-timeline-design)
+- 手机会话时间线(2026-10-05,三轮):底部 sheet 列本会话**全程**用户消息(最新在顶,序号 + 3 行 clamp);入口终态 = 输入条行内钮(加号面板回四格);fs_read_range 新通用原语自尾向头分段渐进拉全程(384KB/段,64 段 24MB 护栏,进度注记;真机读窗降 512KB 避响应帧膨胀撞壳上限,失败态附错误细节),每条记行字节 offset;**任意条目可点** → 历史定位视图(offset 前后文快照:前 64KB 后 768KB,顶条「正在查看历史位置/回到最新」,锚行同口径文本匹配滚动),重复文本各自精确绑定;数据链 = resolveTranscriptPath 身份绑定 → fs_read_tail_changed 探长 + fs_read_range 分段 → cli-shared 行型 parser 分发,桌面侧仅加通用原语零格式知识;仅 omp/pi/claude/cl/codex/kimi 契约引擎,其余置灰(spec 2026-10-05-mobile-session-timeline-design)
+- 安卓壳能力对齐 iOS(2026-10-05):选图/拍照/扫码配对/WS 隧道接线与心跳保活全量补齐;WS 拨号协议改写(java.net.URL 不认 ws/wss 致配对后永连不上),放开 LAN 明文对齐 iOS 直连;TLS 系统校验回落、pin 归一、凭证单例、日志轮转与生命周期收口;回前台拆线促重拨同步 iOS;启动器图标复用 Tauri 安卓图标集,通知小图标改纯白 alpha 矢量根治状态栏白块
+- 手机外网列表查询风暴三连根治(2026-10-05,调研 `docs/research/2026-10-05-mobile-list-query-analysis.md`):① 会话读头批量化为单次 IPC;② 读头负结果缓存(mtime 失效 + TTL 追读,读失败不入池)+ 深窗批量化,契约沉淀 `docs/architecture/02`;③ 视图节流停后台扫描波 + 会话注册表事件驱动重拉(桥恢复即拉补链)
+- 手机会话屏按 cliSessionId 身份绑定 transcript,根治同 cwd 多会话串台;Git 屏竞态序号闸与双行 patch 键 + 键盘收起兜底
 - 截图注入(SessionScreen composer「图」钮):拍照/相册 → 端内压缩(长边 1568/JPEG q0.8)→ 桥 fs_write_temp 镜像落盘临时文件 → composer 注入 `@路径`(桌面附件同语义);零原生壳改动
 - 本地通知链路重做:检测挪 home 轮询边沿(不依赖会话屏挂载)、iOS 壳 willPresent 前台横幅、会话退出通知对齐桌面开关
 - pty://exit 消费:会话屏订阅退出事件,退出横幅 + 续聊引导(复用 resume 链)
