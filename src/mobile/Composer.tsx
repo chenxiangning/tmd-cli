@@ -16,6 +16,7 @@ import {
   ArrowRight,
   ArrowUp,
   Camera,
+  ClockCounterClockwise,
   Images,
   Keyboard,
   Plus,
@@ -231,6 +232,10 @@ export function Composer(props: {
           <button type="button" className={"cp-ic" + (kbOn ? " on" : "")} aria-label={t("键盘工具条")} onClick={toggleKb}>
             <Keyboard size={19} />
           </button>
+          {/* 时间线入口常驻输入条(2026-10-05 真机反馈:五格面板层级太深) */}
+          <button type="button" className="cp-ic" aria-label={t("时间线")} disabled={!props.timelineReady} onClick={props.onTimeline}>
+            <ClockCounterClockwise size={19} />
+          </button>
           {panel ? (
             <button type="button" className="cp-send close" aria-label={t("收起面板")} onClick={() => setPanel(false)}>
               <X size={16} />
@@ -253,12 +258,10 @@ export function Composer(props: {
           <PlusPanel
             shotBusy={props.shotBusy}
             ckptReady={props.ckptReady}
-            timelineReady={props.timelineReady}
             kbOn={kbOn}
             onShot={() => { setPanel(false); props.onShot(); }}
             onModel={() => { setPanel(false); fillDraft("/model"); }}
             onCkpt={() => { setPanel(false); props.onCkpt(); }}
-            onTimeline={() => { setPanel(false); props.onTimeline(); }}
             onToggleKb={() => { setPanel(false); toggleKb(); }}
           />
         )}
