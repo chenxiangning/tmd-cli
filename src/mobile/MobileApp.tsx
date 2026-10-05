@@ -60,7 +60,10 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       const ep = activeRemoteEndpoint();
       timer = window.setTimeout(() => void pull().finally(tick), ep && endpointKind(ep) === "wan" ? 30_000 : 15_000);
     };
-    tick();
+    /* 桥恢复即拉:断连窗口丢的 sessions:changed 不等兜底周期(settings 链同款)。 */
+    const offConn = onRemoteConnection((c) => {
+      if (c.connected) void pull();
+    });
     /* 事件防抖:桌面连发(批量活动翻转)只拉一次;首拍竞态无害(签名比对)。 */
     let deb = 0, queued = false;
     const off = listen("sessions:changed", () => {
@@ -72,6 +75,7 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       alive = false;
       clearTimeout(timer);
       clearTimeout(deb);
+      offConn();
       void off.then((f) => f()).catch(() => undefined);
     };
   }, []);
