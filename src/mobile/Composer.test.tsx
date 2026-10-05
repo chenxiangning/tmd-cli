@@ -25,7 +25,8 @@ vi.mock("./shared", () => ({
   KEY_ROWS: [[{ label: "esc", aria: "Esc", seq: "\u001b" }]],
 }));
 
-import { Composer, PlusPanel } from "./Composer";
+import { Composer } from "./Composer";
+import { PlusPanel } from "./plusPanel";
 import type { ShotError } from "./useShots";
 import { CHIP_PROMPTS, joinPrompt } from "./composerChips";
 
@@ -47,6 +48,8 @@ const base = {
   onPreview: () => undefined,
   ckptReady: true,
   onCkpt: () => undefined,
+  timelineReady: true,
+  onTimeline: () => undefined,
 };
 
 function render(over: Partial<typeof base> = {}): string {
@@ -54,7 +57,7 @@ function render(over: Partial<typeof base> = {}): string {
 }
 
 const shot = { path: "/tmp/shot-1.jpg", url: "blob:x" };
-const panelBase = { shotBusy: false, ckptReady: true, kbOn: true, onShot: () => undefined, onModel: () => undefined, onCkpt: () => undefined, onToggleKb: () => undefined };
+const panelBase = { shotBusy: false, ckptReady: true, timelineReady: true, kbOn: true, onShot: () => undefined, onModel: () => undefined, onCkpt: () => undefined, onTimeline: () => undefined, onToggleKb: () => undefined };
 
 describe("三态胶囊 composer 渲染契约", () => {
   it("空稿常态:加号开面板,发送圆与 chips 不出现,键条默认在场", () => {
@@ -132,12 +135,12 @@ describe("三态胶囊 composer 渲染契约", () => {
     expect(joinPrompt("看下这张图\n", "请提取图片中的文字")).toBe("看下这张图\n请提取图片中的文字");
   });
 
-  it("面板四格:检查点无 cwd 置灰,快捷键格随键条开关点亮", () => {
+  it("面板五格:检查点/时间线不支持时置灰,快捷键格随键条开关点亮", () => {
     const on = renderToStaticMarkup(createElement(PlusPanel, panelBase));
-    for (const label of ["相册", "切模型", "检查点", "快捷键"]) expect(on).toContain(label);
+    for (const label of ["相册", "切模型", "检查点", "时间线", "快捷键"]) expect(on).toContain(label);
     expect(on).toContain("cp-tile on");
     expect(on).not.toContain("disabled");
-    const off = renderToStaticMarkup(createElement(PlusPanel, { ...panelBase, ckptReady: false, kbOn: false }));
+    const off = renderToStaticMarkup(createElement(PlusPanel, { ...panelBase, ckptReady: false, timelineReady: false, kbOn: false }));
     expect(off).toContain("disabled");
     expect(off).not.toContain("cp-tile on");
   });

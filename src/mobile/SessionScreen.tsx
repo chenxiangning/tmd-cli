@@ -22,6 +22,8 @@ import { useDraft } from "./useDraft";
 import { shellInvoke } from "@kernel/shellBridge";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { CkptSheet } from "./CkptSheet";
+import { TimelineSheet } from "./timelineSheet";
+import { timelineSupported } from "./timelineData";
 import { SessionHeader, ShotPreview } from "./SessionChrome";
 import { Composer } from "./Composer";
 
@@ -38,6 +40,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   /* 草稿持久化(useDraft):返回 home 卸载不丢未发文字;发送成功清除。 */
   const { draft, setDraft, clear: clearDraft } = useDraft(props.sessionId);
   const [ckptSheet, setCkptSheet] = useState(false);
+  const [tlSheet, setTlSheet] = useState(false);
   const { shots, pending, onShot, onPhoto, removeShot, clearShots, busy: shotBusy, err: shotErr } = useShots();
   /* 挂图全屏预览(缩略图点开看大图,点击关闭)。 */
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -51,6 +54,21 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
   useEffect(() => { draftRef.current = draft; });
   
   const ckpt = useCkptBadge(meta?.cwd, props.sessionId);
+  /* 时间线跳转:关 sheet 后在对话流找文本全等的 .tr-user(倒序 = 重复文本取
+   * 最新位置)滚到视口顶;置灰闸外无匹配时静默(防御路径)。 */
+  const jumpToMsg = (text: string) => {
+    setTlSheet(false);
+    requestAnimationFrame(() => {
+      const rows = liveRef.current?.querySelectorAll(".tr-user");
+      if (!rows) return;
+      for (let i = rows.length - 1; i >= 0; i--) {
+        if (rows[i].textContent === text) {
+          rows[i].scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+      }
+    });
+  };
 
   /* transcript(spec 2026-09-25-mobile-session-render):jsonl 定位 + 2s 增量生长;
    * 失败/非契约引擎回落 null → PTY 尾流实况。poke = 写入成功后 300ms 补拍
@@ -252,11 +270,23 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
         onRemoveShot={removeShot}
         onPreview={setPreviewUrl}
         ckptReady={!!meta?.cwd}
+        timelineReady={!!meta?.cwd && timelineSupported(meta.profileId)}
+        onTimeline={() => setTlSheet(true)}
         onCkpt={() => setCkptSheet(true)}
       />
       <ShotPreview url={previewUrl} onClose={() => setPreviewUrl(null)} />
       {ckptSheet && meta?.cwd && (
         <CkptSheet cwd={meta.cwd} sessionId={props.sessionId} onClose={() => setCkptSheet(false)} />
+      )}
+      {tlSheet && meta?.cwd && meta.profileId && (
+        <TimelineSheet
+          profileId={meta.profileId}
+          cwd={meta.cwd}
+          cliSessionId={meta.cliSessionId}
+          turns={turns}
+          onClose={() => setTlSheet(false)}
+          onJump={jumpToMsg}
+        />
       )}
     </>
   );

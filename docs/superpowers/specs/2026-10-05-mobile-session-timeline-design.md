@@ -1,7 +1,7 @@
 # 手机会话时间线 sheet 设计
 
 - 日期:2026-10-05
-- 状态:已确认(实施中)
+- 状态:已落地(实施注记:数据层拆 timelineData.ts 守 react-doctor only-export-components;PlusPanel 拆 plusPanel.tsx 守 Composer 300 铁则;桩目检过——假 WS 桥全链驱动,列表/跳转/重复文本取最新实证)
 - 范围:仅手机树(`src/mobile/**`),桌面客户端零改动
 
 ## 背景与目标
