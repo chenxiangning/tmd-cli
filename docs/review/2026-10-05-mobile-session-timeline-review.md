@@ -32,3 +32,17 @@
 
 1. **多 text part 消息**:kernel pushParts 把多 text part 拆多 turn,userMessages 侧可能合并 → 极长尾口径差置灰。单段输入是绝对常态,多段属罕见形态,置灰可读不误导。
 2. **turns 增长挤出尾窗竞态**:reach 判定 ok 后、点击前新消息到达把目标挤出 40 轮尾窗 → DOM 无匹配静默(防御路径,注释已明)。概率极低且无错跳。
+
+## 真机首轮反馈修复(读取失败,2026-10-05 晚)
+
+- **现象**:真机开时间线 sheet 报「读取失败」。根因(预算链推演):2MB 尾窗响应帧
+  经 JSON 封包转义(反斜杠/引号翻倍)+ 中继 b64(×1.33)膨胀至 ≈4MB,撞手机壳
+  4MiB 收帧上限(PHONE_MAX_FRAME,壳侧常量;桌面无响应守卫,relay_core 注释为
+  设计意图未实现)→ 手机收不到响应帧 → invoke 15s 超时 reject。读头风暴同族
+  教训:当时只守了请求侧 3.5MiB 上行,响应侧膨胀漏算。
+- **修复**:读窗 2MB → 512KB(封包后 ≈1MB,4G 稳过 15s;用户消息密度低,512KB
+  容数千条 ≈ 全程覆盖);失败态新增错误细节行(message 前 120 字),不再黑盒。
+- **桩回归**:假 WS 桥全链 DOM 断言过(条目列表最新在顶/点击跳转关 sheet)。
+  桩侧另复现「home.replace is not a function」= 桩缺 config_home_dir 命令,
+  ompSessionsDir(edits.ts)对非 string home 调 .replace;真机 dispatch 有该
+  命令不受影响,非产品缺陷(记录备查:桥下未列命令的兜底形状陷阱)。

@@ -18,9 +18,11 @@ import {
 import { kimiUserMessageLine } from "@plugins/cli-kimi/kimiSessions";
 import { resolveTranscriptPath } from "./sessionFile";
 
-/** 时间线读窗:外网中继单 invoke 15s 强断,2MB 覆盖绝大多数会话全程用户消息;
- * 超窗截断注记(桌面 messageAnchors 的 32MB 全量口径不进手机契约)。 */
-const TIMELINE_BYTES = 2 * 1024 * 1024;
+/** 时间线读窗(真机实测定 512KB,2026-10-05):外网中继单 invoke 15s 强断,且响应帧
+ * 走 JSON 封包转义 + 中继 b64(×1.33)膨胀,2MB 原文 ≈ 4MB+ 撞手机壳 4MiB 收帧上限
+ * → invoke 超时「读取失败」;512KB 封包后 ~1MB,4G 稳过。用户消息密度低,512KB
+ * 容数千条 ≈ 全程覆盖;超窗截断注记(桌面 messageAnchors 32MB 全量口径不进手机契约)。 */
+const TIMELINE_BYTES = 512 * 1024;
 
 /** 行型 parser 分发(支持面与 resolveTranscriptPath 同构;qoder/grok 未进手机
  * transcript 契约 → 不在表 = 不支持,诚实降级不猜测)。 */

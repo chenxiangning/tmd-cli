@@ -79,7 +79,7 @@ describe("loadTimeline(定位 → 2MB 尾读 → 行解析)", () => {
     expect(r?.messages.map((m) => m.text)).toEqual(["第一问", "第二问"]);
     expect(r?.messages[0]?.id).toBe("m1");
     expect(r?.truncated).toBe(false);
-    expect(fsReadTailChanged).toHaveBeenCalledWith(expect.stringContaining(SID), 2 * 1024 * 1024, null);
+    expect(fsReadTailChanged).toHaveBeenCalledWith(expect.stringContaining(SID), 512 * 1024, null);
   });
 
   it("size 超 2MB 窗 → truncated(超窗注记,不谎称全量)", async () => {

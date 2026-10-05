@@ -14,7 +14,7 @@ import { SheetBase } from "./SheetBase";
 
 type TlState =
   | { kind: "loading" }
-  | { kind: "error" }
+  | { kind: "error"; message: string }
   | { kind: "nofile" }
   | { kind: "waitbind" }
   | { kind: "done"; messages: CliUserMessage[]; truncated: boolean };
@@ -52,7 +52,7 @@ export function TimelineSheet(props: {
     setState({ kind: "loading" });
     loadTimeline(props.profileId, props.cwd, props.cliSessionId)
       .then((r) => setState(r === null ? { kind: "nofile" } : { kind: "done", messages: r.messages, truncated: r.truncated }))
-      .catch(() => setState({ kind: "error" }));
+      .catch((e: unknown) => setState({ kind: "error", message: e instanceof Error ? e.message : String(e) }));
   }, [props.profileId, props.cwd, props.cliSessionId]);
   useEffect(pull, [pull]);
 
@@ -63,7 +63,8 @@ export function TimelineSheet(props: {
         {state.kind === "waitbind" && t("等待会话身份绑定…")}
         {state.kind === "error" && (
           <>
-            {t("读取失败")} <button type="button" className="lnk-btn" onClick={pull}>{t("重试")}</button>
+            {t("读取失败")} <span className="tl-err-detail">{state.message.slice(0, 120)}</span>{" "}
+            <button type="button" className="lnk-btn" onClick={pull}>{t("重试")}</button>
           </>
         )}
         {state.kind === "nofile" && (
