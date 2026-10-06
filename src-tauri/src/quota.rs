@@ -5,6 +5,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[path = "quota_vendor.rs"]
+pub mod quota_vendor;
+
 /// SSE 流式应答(text/event-stream)专用:流不关闭,.text() 读到 EOF 会挂到
 /// 15s 超时误判不可达(MCP streamable-http 探活)。仅对这类应答开「无新
 /// 数据窗 + 读体上限」——静默满窗带已读前缀返回,上限防长驻流无界累积;
@@ -42,14 +45,26 @@ pub struct QuotaResponse {
 /// 失败时返回 Err(string),由前端展示。
 #[tauri::command]
 pub async fn quota_fetch(spec: QuotaRequest) -> Result<QuotaResponse, String> {
-    let mut builder = reqwest::Client::builder().timeout(std::time::Duration::from_secs(15));
-    if spec.no_redirect.unwrap_or(false) {
-        builder = builder.redirect(reqwest::redirect::Policy::none());
-    }
-    let client = builder
-        .build()
-        .map_err(|e| format!("http client build: {e}"))?;
+    let policy = if spec.no_redirect.unwrap_or(false) {
+        reqwest::redirect::Policy::none()
+    } else {
+        reqwest::redirect::Policy::default()
+    };
+    let client = reqwest_client(policy).await?;
+    fetch_with(client, spec).await
+}
 
+async fn reqwest_client(policy: reqwest::redirect::Policy) -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .redirect(policy)
+        .build()
+        .map_err(|e| format!("http client build: {e}"))
+}
+
+/// 共享执行体:quota_fetch(本地,任意方法/重定向开关)与
+/// quota_vendor_fetch(设备域,白名单客户端)共用。
+async fn fetch_with(client: reqwest::Client, spec: QuotaRequest) -> Result<QuotaResponse, String> {
     let method = spec.method.as_deref().unwrap_or("GET").to_uppercase();
 
     let mut req = match method.as_str() {

@@ -93,11 +93,17 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
     if GIT_READ.contains(&cmd) {
         return true;
     }
-    // 配置/环境域:只读;config_write_* 与其余域(sqlite/wsl/lsp/plugins/ssh/cli
-    // 执行面/web 管理面)全部默认拒绝。
-    // 注:quota_fetch 不进 AppDevice —— 它是桌面出站的任意 HTTP 原语(任意 url+方法),
-    // 对设备通道即 SSRF 面;引擎版本 pill 在远程态降级(M1 取舍)。
-    // checkpoint 只放摘要二令(M2 审批线只读);anchor/apply/seal/restore/approve 写全拒。
+    // 配置/环境域:只读;config_write_* 与其余域(wsl/lsp/plugins/ssh/cli
+    // 执行面/web 管理面)默认拒绝。
+    // quota_fetch 不进 AppDevice —— 桌面出站任意 HTTP 原语 = SSRF 面,引擎版本
+    // pill 远程态降级(M1 取舍)不变;额度走收口版 quota_vendor_fetch。
+    // sqlite_query(2026-10-06 放行):本域「批准设备 = SSH 级信任」,FS_READ 已含
+    // 任意文件+二进制读 —— db 原始字节本可整库拖走,结构化读零边际攻击面;
+    // 手机额度链需要 omp agent.db 凭据查询。
+    // quota_env_value:quota.rs 侧已按 KEY/TOKEN/SECRET/QUOTA_/PI_ 名收口,
+    // 非密钥类变量读不到;pi $ENV 凭据引用需要。
+    // quota_vendor_fetch:额度专用 HTTP 代理,host 白名单+强制 GET+重定向同律
+    // 收口(见 quota.rs);checkpoint 只放摘要二令(M2 审批线只读),写全拒。
     matches!(
         cmd,
         "config_read_settings"
@@ -108,6 +114,9 @@ pub(crate) fn app_allowed(cmd: &str) -> bool {
             | "platform_kind"
             | "checkpoint_list"
             | "checkpoint_batch_diff"
+            | "quota_vendor_fetch"
+            | "quota_env_value"
+            | "sqlite_query"
     )
 }
 

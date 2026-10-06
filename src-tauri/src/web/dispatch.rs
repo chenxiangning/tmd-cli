@@ -82,6 +82,10 @@ async fn misc_dispatch(app: &AppHandle, cmd: &str, raw: Value) -> Result<Value, 
             let a = args::<OneSpec<crate::quota::QuotaRequest>>(&raw)?;
             ser(crate::quota::quota_fetch(a.spec).await)
         }
+        "quota_vendor_fetch" => {
+            let a = args::<OneSpec<crate::quota::QuotaRequest>>(&raw)?;
+            ser(crate::quota::quota_vendor::quota_vendor_fetch(a.spec).await)
+        }
         "quota_env_value" => {
             let a = args::<OneName>(&raw)?;
             val(crate::quota::quota_env_value(a.name))
@@ -287,6 +291,7 @@ mod tests {
         "platform_kind",
         "config_read_settings",
         "quota_fetch",
+        "quota_vendor_fetch",
         "cli_probe",
         "plugin_scan",
         "wsl_info",

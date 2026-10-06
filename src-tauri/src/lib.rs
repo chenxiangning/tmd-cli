@@ -358,6 +358,7 @@ pub fn run() {
             git::commands::git_smart_checkout,
             git::commands::git_smart_checkout_undo,
             quota::quota_fetch,
+            quota::quota_vendor::quota_vendor_fetch,
             quota::quota_env_value,
             sqlite::sqlite_query,
             sqlite::sqlite_execute,

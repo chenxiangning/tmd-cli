@@ -207,9 +207,11 @@ fn 配置只读_checkpoint只读_其余域全拒() {
     assert!(app_allowed("config_read_settings"));
     assert!(!app_allowed("config_merge_settings"));
     assert!(!app_allowed("config_write_workspaces"));
-    // quota_fetch = 桌面出站任意 HTTP 原语,SSRF 面,设备域不授
+    // quota_fetch(任意 URL)不授;额度走白名单版 quota_vendor_fetch(依据见 conn.rs)。
     assert!(!app_allowed("quota_fetch"));
-    assert!(!app_allowed("quota_env_value"));
+    assert!(app_allowed("quota_vendor_fetch"));
+    assert!(app_allowed("quota_env_value"));
+    assert!(app_allowed("sqlite_query"));
     // M2 审批线摘要:checkpoint 只读二令放行,写/回退全拒
     assert!(app_allowed("checkpoint_list"));
     assert!(app_allowed("checkpoint_batch_diff"));
@@ -219,7 +221,6 @@ fn 配置只读_checkpoint只读_其余域全拒() {
         "checkpoint_seal",
         "checkpoint_restore",
         "checkpoint_approve",
-        "sqlite_query",
         "sqlite_execute",
         "wsl_exec",
         "lsp_send",
