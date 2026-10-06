@@ -4,7 +4,8 @@
  * fixture 形状实证自本机 ~/.kimi-code(kimi-code 0.40.1)与 ~/.kimi(0.34.0)真实数据。
  */
 import { describe, expect, it } from "vitest";
-import { cliKimiPlugin, parseKimiConfigStatus } from "./index";
+import { cliKimiPlugin } from "./index";
+import { parseKimiConfigStatus } from "./configStatus";
 import type { CliProfile } from "@kernel/cli";
 import type { PluginContext } from "@kernel/plugin";
 import {

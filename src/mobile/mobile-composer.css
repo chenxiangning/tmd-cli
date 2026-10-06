@@ -13,8 +13,12 @@
 /* 拖拽钉高(grow):解 132px 封顶由内滚接管 */
 .composer.grow .cp-pill textarea{max-height:none}
 /* 胶囊条:左双入口(Images 相册选图 + Camera 拍照上传)+ 输入框 + 右键条开关;尾槽按态切换 加号/发送蓝圆/收起 ✕ */
-.cp-pill{display:flex;align-items:flex-end;gap:4px;background:var(--bg-base);border:1px solid var(--border);border-radius:22px;padding:5px 6px 5px 8px}
-.cp-ic{position:relative;flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--fg-muted)}
+.cp-pill{display:flex;align-items:flex-end;gap:4px;background:var(--bg-base);border:1px solid var(--border);border-radius:22px;padding:5px 6px 5px 8px;transition:border-color .12s ease,box-shadow .12s ease}
+/* 聚焦高亮环:细描边加深 + 柔光晕,不打断布局(盒影外扩不占地) */
+.cp-pill:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.cp-ic{position:relative;flex:none;width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--fg-muted);transition:color .12s ease,transform .1s ease}
+/* 点按反馈:轻缩 + 主题色,指尖确认感 */
+.cp-ic:active{color:var(--accent);transform:scale(.92)}
 .cp-ic::after{content:"";position:absolute;inset:-7px}
 .cp-ic:disabled{opacity:.4}
 .cp-ic.on{color:var(--accent)}
@@ -22,9 +26,10 @@
 /* 输入框 16px 铁则:iOS WebKit 对 <16px 输入框聚焦即页面自放大,16px 封死;
  * 高长由 Composer 内联 JS 控制(auto→scrollHeight,132px 封顶),这里只兜 max */
 .cp-pill textarea{flex:1;font-size:16px;line-height:1.5;color:var(--fg);background:none;border:none;outline:none;resize:none;font-family:inherit;padding:0;min-height:34px;max-height:132px}
-.cp-pill textarea::placeholder{color:var(--fg-faint)}
+.cp-pill textarea::placeholder{color:var(--fg-faint);opacity:.85}
 /* 发送蓝圆(参考图 ↑);面板开时同槽位变 ✕ 收起钮(描边灰) */
-.cp-send{position:relative;flex:none;width:34px;height:34px;border-radius:999px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
+.cp-send{position:relative;flex:none;width:34px;height:34px;border-radius:999px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;transition:transform .1s ease,opacity .12s ease}
+.cp-send:active{transform:scale(.92)}
 .cp-send::after{content:"";position:absolute;inset:-7px}
 .cp-send:disabled{opacity:.5}
 .cp-send.close{background:var(--bg-panel);color:var(--fg-muted);border:1px solid var(--border)}
@@ -46,7 +51,7 @@
 .cp-shot-add:disabled{opacity:.4}
 .cp-shot-add svg{display:block}
 /* 提示 chips(仅挂图时在参考位):胶囊描边 + 尾箭头,点了填草稿不自动发 */
-.cp-chips{display:flex;gap:8px;padding:0 2px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.cp-chips{display:flex;gap:8px;padding:0 2px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .cp-chip{position:relative;flex:none;display:flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;background:var(--bg-base);color:var(--fg);font-size:12.5px;padding:7px 12px}
 .cp-chip::after{content:"";position:absolute;inset:-6px}
 .cp-chip:active{background:var(--accent-soft);color:var(--accent)}
@@ -63,3 +68,9 @@
 .m-errs{position:absolute;left:10px;right:10px;bottom:calc(100% + 4px);display:flex;flex-direction:column;gap:6px;z-index:5}
 .m-err-bar{display:flex;align-items:center;gap:10px;background:#fdf0f0;border:1px solid rgba(220,38,38,.4);color:var(--err);border-radius:9px;padding:7px 12px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);animation:shotIn .15s ease}
 .m-err-bar button{margin-left:auto;flex:none;color:var(--err);font-weight:600;border:1px solid rgba(220,38,38,.4);border-radius:6px;padding:3px 12px;background:none}
+
+/* 会话状态条(composer 正上方,spec 2026-10-06-mobile-status-bar):模型/思考/
+ * 额度三 chip,与 .cp-chips 同族(小字、弱底、圆角);无内容整条不渲染 */
+.m-status{display:flex;gap:6px;padding:2px 12px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.m-status-chip{position:relative;flex:none;display:flex;align-items:center;border:1px solid var(--border);border-radius:999px;background:var(--bg-panel);color:var(--fg-muted);font-size:11px;padding:3px 10px;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button.m-status-chip:active{background:var(--accent-soft);color:var(--accent)}

@@ -3,8 +3,7 @@
  * fixture 形状实证自本机 ~/.claude/projects/(claude 2.1.251)。
  */
 import { describe, expect, it } from "vitest";
-import { claudeProjectSlug } from "./sessions";
-import { extractClaudeModel } from "./index";
+import { claudeProjectSlug, extractClaudeModel } from "./sessions";
 
 describe("claudeProjectSlug", () => {
   it("常规路径:斜杠替换为 -,大小写保留", () => {

@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import type { CliProfile } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
-import { ENGINES } from "./engines";
+import { ENGINES, engineWire } from "./engines";
 
 const PLUGINS: Record<string, () => Promise<Plugin>> = {
   omp: () => import("@plugins/cli-omp/index").then((m) => m.cliOmpPlugin),
@@ -27,7 +27,7 @@ const PLUGINS: Record<string, () => Promise<Plugin>> = {
 describe("手机引擎表与桌面插件 profile 对齐", () => {
   for (const e of ENGINES) {
     it(
-      `${e.id}: command 与 resumeArgs 一致`,
+      `${e.id}: command/resume/bracketedPaste 一致`,
       async () => {
         const plugin = await PLUGINS[e.id]();
         let profile: CliProfile | undefined;
@@ -41,10 +41,20 @@ describe("手机引擎表与桌面插件 profile 对齐", () => {
         expect(profile.id, "profile id").toBe(e.id);
         expect(profile.command, "启动命令").toBe(e.cmd);
         expect(profile.resumeArgs?.("S1"), "续聊参数").toEqual(e.resume("S1"));
+        /* BP 契约镜像(engineWire 靠它决定发送线格式),漂移 = 4 家引擎回车被吞。 */
+        expect(e.bracketedPaste ?? false, "bracketedPaste").toBe(profile.bracketedPaste ?? false);
       },
       /* 首个用例吃动态 import 冷变换(omp 插件 + academy 目录体量最大),
       本机可超 vitest 默认 5s —— 测的是 profile 形状不是速度(2026-09-28 实证) */
       30_000,
     );
   }
+});
+
+describe("engineWire 发送线格式", () => {
+  it("BP 引擎包标记再 CR,非 BP 引擎裸文本+CR", () => {
+    expect(engineWire("omp", "/model")).toBe("\u001b[200~/model\u001b[201~\r");
+    expect(engineWire("claude", "/model")).toBe("/model\r");
+    expect(engineWire("dsh", "hi")).toBe("hi\r");
+  });
 });
