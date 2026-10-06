@@ -36,11 +36,18 @@
 - E2 配对瞬间竞态:onPaired/onCancel credsRef 领先 state 写(撤销 P2 同款),罩住同窗迟到 hello.lan 读旧 token。
 - E3 探针映射守护:statusReaderIds/quotaFetcherIds 对齐 ENGINES 差集白名单断言,新引擎漏接线即红。
 - F1 journal TTL:窗口聚焦拍 TTL(scanCache 置空 + focusTick),外部落盘标题变更收敛到「一次失焦窗」;桩目检 focus 后重扫实证。
-- 剩余留观:OkHttp ping/时间线 TTL/env 枚举收窄/sqlite RO/ws_ticks 维持触发条件;C 档 intent-canvas 仍待痛点输入。
+- 剩余留观:OkHttp ping/时间线 TTL/env 枚举收窄/sqlite RO/ws_ticks 维持触发条件;时间线「重复拉 2MB」经核实已被增量缓存覆盖,从池中划掉。
+
+### G 批 canvas 每帧税 + 状态巡航闸 —— 已落地(2026-10-06 三批,3 笔 b59a892c..501ffe90)
+
+- G3 状态巡航尺寸闸:grok summary.json / kimi config.toml 接 readStatusTailGated(E1 只修了列表侧,状态侧每 2s 裸读漏网);探针短路语义测试 3 例(稳态零内容读/尺寸变化放行/兜底路径)。
+- G2 保存 I/O:saveIntentCanvasDocument 带出写后索引条目,Manager 直接落列表免第三次全量读(~0.5MB/次保存);同 id 保存回写不再重置草稿字段(吞在途键入根治),未保存画布编辑跨保存/重开存活。
+- G1 每帧税:onChange 只存原始三件套引用,sanitize+repair(O 全部元素)挪到保存/预览构建;bail-out setState 稳态编辑帧零重渲染,sceneVersion 仅右栏展开时推进。
+- G4 AI 作画串行导入(每条 2-4 次 ~0.5MB I/O 叠加)留观:M 改动量,连画 10 张变慢可感时再做(循环外读索引 + 合并 append)。
 
 ## 辅线(维持待命,不阻塞打磨)
 
-1. 发布收口:push 22 笔 → CI → 版本 bump + CHANGELOG → tag/Release。
+1. 发布收口:push 26 笔 → CI → 版本 bump + CHANGELOG → tag/Release。
 2. 真机验收 9 项清单(安卓四项/徽标/外网三件套/读头/大转录/双实例/updater)。
 3. 三决策:macOS 签名 secrets / Windows 证书路线 / Glama MCP 去留。
 4. 0.3.2 功能池(平板双栏/全文检索/审批代发/MCP 写回)独立排期不动。
