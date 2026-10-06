@@ -15,6 +15,8 @@ import {
   readQoderTranscript,
   readQoderUserMessages,
 } from "./qoderSessionModel";
+import { claudeTranscriptLine } from "./claudeTranscript";
+import { makeTranscriptTailReader } from "./sessionTranscript";
 import { isJsonlSessionEmpty } from "./sessionEmpty";
 import { listQoderSuggestions } from "./qoderSuggestions";
 import { listQoderMcpServers } from "./qoderMcp";
@@ -87,6 +89,7 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
         readSessionUserMessages: (cwd, cliSessionId, full) =>
           readQoderUserMessages(variant.dataDir, cwd, cliSessionId, full),
         readSessionTranscript: readQoderTranscript,
+        readTranscriptTail: makeTranscriptTailReader(claudeTranscriptLine("qoder")),
         readDefaultStatus: () => readQoderDefaultStatus(variant.dataDir),
       });
     },

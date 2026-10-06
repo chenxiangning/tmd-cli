@@ -16,6 +16,7 @@ import type { Plugin } from "@kernel/plugin";
 import { fetchClaudeQuota } from "./quota";
 import { claudeTranscriptLine } from "../cli-shared/claudeTranscript";
 import {
+  makeTranscriptTailReader,
   pairToolResults,
   parseTranscriptBlocks,
   readTranscriptText,
@@ -238,6 +239,7 @@ export const cliClaudePlugin: Plugin = {
       readSessionFileIdentity: readClaudeSessionIdentity,
       readSessionUserMessages: readClaudeUserMessages,
       readSessionTranscript: readClaudeTranscript,
+      readTranscriptTail: makeTranscriptTailReader(claudeTranscriptLine("claude")),
       /* 无头单发(--help 实证):-p 非交互答完即退且明确支持管道(prompt 从 stdin 读,
          oneshotStdin 递送);非交互态自动跳过 workspace trust 弹窗;--dangerously-skip-
          permissions 旁路全部审批(本版 help 无 --permission-mode,写文章文件必须放行)。 */

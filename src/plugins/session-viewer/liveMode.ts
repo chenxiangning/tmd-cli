@@ -4,7 +4,11 @@
  * (approval-inbox 先例):浮层组件订阅重渲染,退出剪除挂 index.tsx activate。
  * 设计:docs/superpowers/specs/2026-09-30-live-transcript-view-design.md
  */
-import type { CliTranscriptBlock } from "@kernel/cli";
+import type { CliDiskSession, CliTranscriptBlock } from "@kernel/cli";
+import type { CliProfile } from "@kernel/cliProfile";
+/* cli-shared 联合消费先例(AGENTS 准入:feature 插件 session-viewer 消费
+ * CLI 转录格式知识;2026-10-06 活视图增量尾读)。 */
+import { pairToolResults } from "../cli-shared/sessionTranscript";
 type Listener = () => void;
 
 const modes = new Map<string, boolean>();
@@ -80,4 +84,37 @@ export function stableBlocks(prev: CliTranscriptBlock[] | null, next: CliTranscr
       ? p
       : b;
   });
+}
+
+/** 增量尾读状态(组件 ref 持有):raw = 跨拍累计的未 pair 原始块;
+ *  offset = 行对齐续读偏移;truncated = 首读(全量拍)定格。 */
+export interface LiveTailState {
+  raw: CliTranscriptBlock[] | null;
+  offset: number | null;
+  truncated: boolean;
+}
+
+/** 变更拍读取:JSONL 追加式家族(readTranscriptTail 声明)增量段解析 + 跨拍
+ *  累计后全量 pairToolResults(工具结果块可与上拍的调用块配对,不能只对增量
+ *  段 pair);未声明家族回落 readSessionTranscript 全量重读。null = 读失败。
+ *  2026-10-06:8MB+ 大转录活视图全量重读(每秒约百毫秒主线程)时代结束。 */
+export async function readChangedTranscript(
+  profile: Pick<CliProfile, "readSessionTranscript" | "readTranscriptTail">,
+  session: CliDiskSession,
+  fileSize: number,
+  tail: LiveTailState,
+): Promise<{ blocks: CliTranscriptBlock[]; truncated: boolean } | null> {
+  const inc = profile.readTranscriptTail;
+  if (inc) {
+    /* 轮转/收缩守卫:文件变小 = 重写,增量偏移失效,since=null 全量重来。 */
+    const since = fileSize < (tail.offset ?? 0) ? null : tail.offset;
+    const r = await inc(session, since).catch(() => null);
+    if (!r) return null;
+    tail.raw = since === null ? r.blocks : [...(tail.raw ?? []), ...r.blocks];
+    tail.offset = r.offset;
+    tail.truncated = r.truncated ?? tail.truncated;
+    return { blocks: pairToolResults(tail.raw), truncated: tail.truncated };
+  }
+  const full = await profile.readSessionTranscript?.(session).catch(() => null);
+  return full ? { blocks: full.blocks, truncated: full.truncated ?? false } : null;
 }
