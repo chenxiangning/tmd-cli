@@ -41,56 +41,63 @@ export function useEditorDraft({
     () => document.scene.elements.filter((element) => !element.isDeleted).length,
   );
   const sceneRef = useRef(document.scene);
+  /* onChange 原始三件套(G1,2026-10-06):每帧只存引用零处理 —— sanitize+
+   * repair 是 O(全部元素) 的重活,挪到保存/构建草稿时跑一次;在场即优先于
+   * sceneRef(编辑过的场景才是真相)。 */
+  const rawSceneRef = useRef<{
+    elements: readonly OrderedExcalidrawElement[];
+    appState: AppState;
+    files: BinaryFiles;
+  } | null>(null);
+  const loadedIdRef = useRef(document.id);
 
   // eslint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- 打开新画布时重置草稿字段属有意重置,key 已随文档切换重建
   useEffect(() => {
-    setTitle(document.title);
-    setSummary(document.summary);
-    setFileLinksText(linksToText(document.links.filePaths));
-    setNodeLinksText(linksToText(document.links.projectMapNodeIds));
-    setThreadLinksText(linksToText(document.links.threadIds));
-    setIsDirty(false);
-    setSaveError(null);
+    const idChanged = loadedIdRef.current !== document.id;
+    loadedIdRef.current = document.id;
+    /* 同 id 的保存回写/重新打开不重置草稿字段(G2b):保存含数轮磁盘 IO,
+     * 窗口内用户在标题/摘要/链接框的键入会被旧快照静默回滚;未保存的画布
+     * 编辑(rawSceneRef)同样跨保存/重开存活 —— stale 闸要求「返回列表重新
+     * 打开后再保存」的流,重开后直接保存即用最新内容。sceneRef 无条件跟随
+     * (重开基线),raw 在场时 buildDraft 仍优先 raw。dirty 由保存成功自清。 */
+    if (idChanged) {
+      setTitle(document.title);
+      setSummary(document.summary);
+      setFileLinksText(linksToText(document.links.filePaths));
+      setNodeLinksText(linksToText(document.links.projectMapNodeIds));
+      setThreadLinksText(linksToText(document.links.threadIds));
+      setIsDirty(false);
+      setSaveError(null);
+      rawSceneRef.current = null;
+      setElementCount(document.scene.elements.filter((element) => !element.isDeleted).length);
+    }
     sceneRef.current = document.scene;
-    setElementCount(document.scene.elements.filter((element) => !element.isDeleted).length);
   }, [document]);
 
   const markDirty = useCallback(() => {
-
     setIsDirty(true);
-
     setSaveError(null);
-
   }, []);
 
-
-
   const handleSceneChange = useCallback(
-
     (
-
       elements: readonly OrderedExcalidrawElement[],
-
       appState: AppState,
-
       files: BinaryFiles,
-
     ) => {
-
-      const nextScene = sanitizeIntentCanvasScene(elements, appState, files);
-
-      sceneRef.current = nextScene;
-
-      setElementCount(elements.filter((element) => !element.isDeleted).length);
-
-      setSceneVersion((version) => version + 1);
-
-      setIsDirty(true);
-
+      rawSceneRef.current = { elements, appState, files };
+      /* bail-out 型 setState:同值返回原引用,React 跳过渲染 —— 稳态编辑帧
+       * 零重渲染(dirty 沿 false→true 只渲染一次;计数变了才渲染)。
+       * sceneVersion 仅右栏预览展开时推进(收起时无人消费,展开瞬间 deps
+       * 变化自然重算一次最新值)。 */
+      setIsDirty((dirty) => (dirty ? dirty : true));
+      setElementCount((count) => {
+        const next = elements.filter((element) => !element.isDeleted).length;
+        return next === count ? count : next;
+      });
+      if (contextPreviewActive) setSceneVersion((version) => version + 1);
     },
-
-    [],
-
+    [contextPreviewActive],
   );
 
 
@@ -113,7 +120,11 @@ export function useEditorDraft({
 
       const safeSummary = summary.trim();
 
-      const nextScene = sceneRef.current;
+      /* sanitize 从每帧路径挪到这里(保存/预览构建时一次,G1);未编辑过
+       * (rawSceneRef 空)时 sceneRef 已是正规化场景。 */
+      const nextScene = rawSceneRef.current
+        ? sanitizeIntentCanvasScene(rawSceneRef.current.elements, rawSceneRef.current.appState, rawSceneRef.current.files)
+        : sceneRef.current;
 
       return {
 

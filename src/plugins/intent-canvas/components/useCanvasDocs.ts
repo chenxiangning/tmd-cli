@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import type { Workspace } from "@kernel/workspace";
-import type { IntentCanvasDocument, IntentCanvasOpenRequest } from "../types";
+import type { IntentCanvasDocument, IntentCanvasIndexEntry, IntentCanvasOpenRequest } from "../types";
 import { loadIntentCanvasDocument, saveIntentCanvasDocument } from "../storage/documents";
 import { appendIntentCanvasDocumentFromRequest, createIntentCanvasDocument } from "../storage/documentOps";
 import { normalizeError } from "./EditorShared";
@@ -17,6 +17,8 @@ type UseCanvasDocsInput = {
   onOpenRequestConsumed?: (requestId: number) => void;
   /** openRequest 消费完毕后回调整(切换视图/刷新索引),由 Manager 注入。 */
   refreshIndex: () => Promise<void>;
+  /** 保存后直接落列表态(带出写后索引条目,免第三次全量读);未注入回落 refreshIndex。 */
+  applyIndexEntries?: (entries: IntentCanvasIndexEntry[]) => void;
   onFatalError: (message: string) => void;
 };
 
@@ -25,6 +27,7 @@ export function useCanvasDocs({
   openRequest,
   onOpenRequestConsumed,
   refreshIndex,
+  applyIndexEntries,
   onFatalError,
 }: UseCanvasDocsInput) {
   const [activeDocument, setActiveDocument] = useState<IntentCanvasDocument | null>(null);
@@ -44,15 +47,21 @@ export function useCanvasDocs({
       }
       setIsSaving(true);
       try {
-        const savedDocument = await saveIntentCanvasDocument(activeWorkspace.root, documentToSave);
+        const { document: savedDocument, indexEntries } = await saveIntentCanvasDocument(
+          activeWorkspace.root,
+          documentToSave,
+        );
         setActiveDocument(savedDocument);
-        await refreshIndex();
+        /* 写后条目直接落列表(省一次全量索引读);条目为空 = 索引中止路径
+           (抛错走不到这)或空索引,回落全量刷保语义一致。 */
+        if (applyIndexEntries && indexEntries.length > 0) applyIndexEntries(indexEntries);
+        else await refreshIndex();
         return savedDocument;
       } finally {
         setIsSaving(false);
       }
     },
-    [activeWorkspace, refreshIndex],
+    [activeWorkspace, applyIndexEntries, refreshIndex],
   );
 
   const openCanvas = useCallback(
@@ -138,6 +147,7 @@ export function useCanvasDocs({
       }
       await refreshIndex();
     };
+    // eslint-disable-next-line react-doctor/no-pass-live-state-to-parent -- openRequest 是命令式打开请求,消费只能在 effect;子层无事件源
     void executeRequest();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkspace, openRequest, workspaceRef]);

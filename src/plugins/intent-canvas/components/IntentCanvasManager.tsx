@@ -32,23 +32,17 @@ export type IntentCanvasManagerProps = {
   onOpenRequestConsumed?: (requestId: number) => void;
 };
 
-type IntentCanvasManagerAction = "open" | "duplicate" | "delete";
-
-type IntentCanvasActionPrompt = {
-  action: IntentCanvasManagerAction;
-  entry: IntentCanvasIndexEntry;
-};
+type IntentCanvasActionPrompt = { action: "open" | "duplicate" | "delete"; entry: IntentCanvasIndexEntry };
 
 export function IntentCanvasManager({
   openRequest = null,
   onOpenRequestConsumed,
 }: IntentCanvasManagerProps) {
-  /* 订阅式取活动工作区:boot 异步完成/切换时驱动重渲染(getActiveWorkspace 非响应式)。 */
   const { list: workspaceList, activeId } = useWorkspaces();
   const activeWorkspace = workspaceList.find((w) => w.id === activeId) ?? null;
-  const hostTick = useHost();
+  /* useHost 订阅驱动重渲染(getActiveWorkspace 非响应式;返回 tick 弃用)。 */
+  void useHost();
   const activeThreadId = host.getActiveSessionId();
-  void hostTick;
 
   const [status, setStatus] = useState<IntentCanvasHomeStatus>("idle");
   const [entries, setEntries] = useState<IntentCanvasIndexEntry[]>(EMPTY_CANVAS_ENTRIES);
@@ -109,12 +103,16 @@ export function IntentCanvasManager({
       cancelled = true;
     };
   }, [activeWorkspace?.root]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  const applyIndexEntries = useCallback(
+    (next: IntentCanvasIndexEntry[]) => { setEntries(next); setStatus("ready"); },
+    [],
+  );
   const docs = useCanvasDocs({
     activeWorkspace,
     openRequest,
     onOpenRequestConsumed,
     refreshIndex,
+    applyIndexEntries,
     onFatalError: (message) => setErrorMessage(message || null),
   });
 
@@ -172,7 +170,7 @@ export function IntentCanvasManager({
   }, [docs.activeDocument]);
 
   const handleCanvasActionRequest = useCallback(
-    (entry: IntentCanvasIndexEntry, action: IntentCanvasManagerAction) => {
+    (entry: IntentCanvasIndexEntry, action: "open" | "duplicate" | "delete") => {
       /* 打开是非破坏动作,直接切换编辑器;复制/删除才走确认气泡。 */
       if (action === "open") {
         void docs.openCanvas(entry.id);
