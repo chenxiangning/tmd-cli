@@ -13,6 +13,7 @@
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession, CliSessionStatus, SessionFileIdentity } from "@kernel/cli";
 import { readStatesBatched, pruneStateCache } from "../cli-shared/stateFileCache";
+import { readStatusTailGated } from "../cli-shared/sessionStatus";
 
 export function grokSessionsDirName(cwd: string): string {
   return encodeURIComponent(cwd);
@@ -139,10 +140,16 @@ export async function readGrokSessionStatus(
 ): Promise<CliSessionStatus | null> {
   const dir = await grokSessionsDir(cwd);
   if (!dir) return null;
-  const raw = await ipc
-    .fsReadFile(`${dir}/${cliSessionId}/summary.json`)
-    .catch(() => null);
-  const model = raw ? parseGrokSummary(raw)?.model : undefined;
-  // grok 推理强度不落盘到 summary(会话内 /model 或 --reasoning-effort 私有态),不提供 thinkingLevel。
-  return model ? { model } : null;
+  /* 状态巡航(2s)尺寸闸:summary.json 稳态不变,未变即短路不重读 ——
+   * 列表侧 E1 已走 stateFileCache,这里补状态侧同律(外网中继 2s 全量传输消)。
+   * 直拼路径型免 revalidateMs(grok 会话目录不移动)。 */
+  return readStatusTailGated(
+    `grok:${dir}/${cliSessionId}`,
+    async () => `${dir}/${cliSessionId}/summary.json`,
+    64 * 1024,
+    (text) => {
+      const model = parseGrokSummary(text)?.model;
+      return model ? { model } : null;
+    },
+  );
 }

@@ -11,6 +11,9 @@ vi.mock("@kernel/ipc", () => ({
   ipc: {
     configHomeDir: async () => "/home/x",
     fsReadFile,
+    /* G3:kimi/grok 状态走 readStatusTailGated(fsReadTailChanged),与
+       fsReadFile 同源 mock(首读 lastSize=null 恒 changed)。 */
+    fsReadTailChanged: async (path: string) => ({ text: await fsReadFile(path), size: 0, changed: true }),
   },
 }));
 

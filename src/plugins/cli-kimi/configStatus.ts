@@ -7,6 +7,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { readStatusTailGated } from "../cli-shared/sessionStatus";
 import type { CliSessionStatus } from "@kernel/cli";
 
 /**
@@ -42,12 +43,18 @@ export function parseKimiConfigStatus(configToml: string): CliSessionStatus | nu
 export async function readKimiConfigStatus(): Promise<CliSessionStatus | null> {
   const home = await ipc.configHomeDir().catch(() => null);
   if (!home) return null;
+  /* 状态巡航(2s)尺寸闸:config.toml 仅用户 /model 时变化,稳态尺寸恒定
+   * 即短路(消 2s 全量重读;readSessionStatus + readDefaultStatus 同源受益)。 */
   for (const path of [
     `${home}/.kimi-code/config.toml`,
     `${home}/.kimi/config.toml`,
   ]) {
-    const text = await ipc.fsReadFile(path).catch(() => null);
-    const status = text ? parseKimiConfigStatus(text) : null;
+    const status = await readStatusTailGated(
+      `kimi-config:${path}`,
+      async () => path,
+      16 * 1024,
+      parseKimiConfigStatus,
+    );
     if (status) return status;
   }
   return null;
