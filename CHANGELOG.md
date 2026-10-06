@@ -4,6 +4,35 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.1] - 2026-10-06
+
+本版主体 = 打磨与体验:手机外网三件套(状态条/磁盘缓存回显/凭证自愈)+ 桌面性能天花板清账(多仓 git 批量/活转录增量尾读/意图画布每帧税与保存 I/O)+ 竞态与安全六向收口;主体来自 0.3.1 打磨池三轮落地(A/B/D + E/F + G,规划与留观记录见 `docs/brainstorm/2026-10-06-next-steps.md`)。
+
+### 新增
+
+- 手机 composer 状态条(a96412b4):输入框上方「模型 + 思考级 + 额度」常驻,claude/kimi 读取器下放纯模块供手机树消费,发送线 bracketedPaste 镜像桌面;额度窗口改显示已用百分比(3e52f5b8)
+- 手机列表/详情/时间线磁盘缓存(d50b2983):外网二次进入瞬时回显,断线扫描波不毒化持久缓存
+- 凭证自愈链(73b78b34/5f263070):hello 帧下发 lan/host 内网权威地址,桌面重启换端口手机免重配对;撤销与迟到 hello 写口竞态双断
+- 侧栏嵌套仓 ignore(22a52c3c):工作区文件浏览器 ignore 前缀从单仓升级多仓拼接
+- daily-journal 聚焦拍 TTL(17767cc5):失焦再聚焦置空扫描缓存,外部 CLI 落盘的标题变更收敛到「一次失焦窗」
+
+### 性能
+
+- 多仓 git status 批量(0883063a):新 `git_status_batch` 命令线程并行逐仓,文件树着色 N 次 invoke 归一单往返
+- 活转录增量尾读(5359f501):session-viewer 活浮层改 `readTranscriptTail` 增量契约(残行回退对齐/轮转守卫),8MB+ 大转录不再每秒全量重读
+- 意图画布三连(501ffe90/d2362717):onChange 每帧只存原始引用零 sanitize(O 全元素扫描挪保存时一次);保存带出写后索引条目免第三次全量读;保存回写不再回滚在途键入
+- 状态小文件 mtime 闸(fc7d3f3f/b59a892c):kimi 私有缓存泛化 `cli-shared/stateFileCache`(grok 接入);grok summary / kimi config 状态巡航接尺寸闸,活跃会话稳态零内容重读,消外网 2s 全量传输
+- ask 检测事件化(8722f220):手机他屏 ask 通知从 60s 轮询改 turnActive 下降沿驱动,审批提醒秒级
+
+### 修复
+
+- 账本跨实例 flock(2a545f95):checkpoints 账本全局锁文件跨进程互斥,双实例 rewrite+append 吞行根治
+- 新建文件意图排队(a77d2053):切换工作区后立即新建从 400ms 定时器赌时序改为意图排队,树挂载即弹命名框,跨工作区强制排队防弹旧树
+- quota 安全三向收口(840a320b):设备域白名单通道 `quota_vendor_fetch`(IPv6 mapped/ULA/link-local 谓词补全、重定向 DNS 复核 any-内网即拒、relay 分支同律)
+- 手机竞态三连(1f0cd945/06928946):状态条与时间线迟到响应 seq 丢弃守卫;换桌面连接端点签名即时重拉;配对写口 credsRef 领先写;探针映射表全集守护(新引擎漏接线即红)
+- SearchPanel 高亮错位(c1379246):İ(U+0130)类 lower 变长字符索引错位回退正则原文索引
+- i18n 死键清理(1306f738):882 告警逐条核对,删真死键 12 项,动态可达 21 项证据保留
+
 ## [0.3.0] - 2026-10-06
 
 本版主体 = 手机侧整批:会话时间线全程化(fs_read_range 通用原语 + offset 精确历史定位)、安卓壳能力对齐 iOS(选图/拍照/扫码配对/WS 隧道与心跳)、外网列表查询风暴三连根治(读头批量化/负结果缓存/视图节流+事件化重拉);附 structured-session 能力批(模型/思考级/引擎切换、follow_up 排队、断线接续、上下文用量与 / 补全)、设置入口迁左缘 rail、v0.2.9..HEAD 49 提交两轮评审收口(桥拆线、transcript 身份绑定、Git 屏竞态、pty 孤儿日志等)。

@@ -6150,7 +6150,7 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tmd-cli"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "aws-lc-rs",
  "axum",
