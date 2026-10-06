@@ -6159,6 +6159,7 @@ dependencies = [
  "futures-util",
  "git2",
  "ignore",
+ "libc",
  "md-5",
  "parking_lot",
  "portable-pty",

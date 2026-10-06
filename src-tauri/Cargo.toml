@@ -75,6 +75,10 @@ tauri-plugin-notification = "2"
 # 最小 feature —— ClawHub/GitHub 式 zip 均 deflate 压缩,bzip2/zstd 等全家桶不要)。
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
+# checkpoints 账本跨实例 flock(unix;libc 已在传递依赖树,显式直用)。
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 # 产物体积与运行性能:lto 全量链接优化 + 单 codegen unit 提升内联,strip 去符号表,
 # opt-level=z 体积优先(GUI 交互场景实测无感,二进制约再省一成;若热路径变慢回调到 "s"/3)。
 # 不用 panic=abort:它把任何异步任务 panic(如 wry 自定义协议竞态,2026-09-03
