@@ -25,7 +25,7 @@ import { useDirTree } from "./useDirTree";
 import { useTreeOperations } from "./useTreeOperations";
 import { useSidebarTreeReveal } from "./treeHandles";
 import { FileTreeOverlays } from "./FileTreeOverlays";
-import { useRepoStatusState } from "./gitDecorate";
+import { useIgnoredPrefixes, useRepoStatusState } from "./gitDecorate";
 import { buildLetterMap } from "./gitDecorateModel";
 import type { WsfbRowMenu } from "./WsfbLists";
 import {
@@ -64,21 +64,12 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
     },
     [ops],
   );
-  const { entries: statusEntries, single } = useRepoStatusState(root, true);
+  const { entries: statusEntries, single, repos } = useRepoStatusState(root, true);
   const base = root.replace(/\/+$/, "");
 
-  /* 忽略前缀:挂载/手动刷新拉取(低频);非仓/失败 = 空集(绝对路径口径)。
-   * ponytail: 嵌套仓各自的 ignore 未并入,需要时逐仓再取。 */
-  const [ignored, setIgnored] = useState<string[]>([]);
-  useEffect(() => {
-    let alive = true;
-    ipc.gitIgnoredPrefixes(root).then(
-      (out) => { if (alive) setIgnored(out.map((p) => `${base}/${p}`)); },
-      () => { if (alive) setIgnored([]); },
-    );
-    return () => { alive = false; };
-  }, [root, base, tick]);
-
+  /* 忽略前缀(绝对口径;多仓逐仓拼接,嵌套仓 ignore 并入)—— 逻辑在
+   *  gitDecorate.useIgnoredPrefixes(挂载/手动刷新拉取,低频无轮询)。 */
+  const ignored = useIgnoredPrefixes(root, tick, single, repos);
   /* 装饰与剪枝(纯派生;颜色/字母与右栏同口径)。 */
   const colors = useMemo(
     () => decorationColors(root, statusEntries, single),
