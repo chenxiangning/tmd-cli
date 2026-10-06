@@ -27,7 +27,7 @@ import {
   type UserMessageLineParser,
 } from "../cli-shared/userMessages";
 import type { CliDiskSession } from "@kernel/cli";
-import { readKimiStatesBatched, pruneKimiStateCache } from "./kimiStateCache";
+import { readStatesBatched as readKimiStatesBatched, pruneStateCache as pruneKimiStateCache } from "../cli-shared/stateFileCache";
 import { readHeadsBatched } from "../cli-shared/sessionHead";
 
 /** 标题展示最大长度(与 cli-shared/diskSessions 的通用规则一致)。 */
@@ -179,7 +179,7 @@ export function extractKimiTitle(head: string): string | undefined {
 let wirePathById = new Map<string, string>();
 
 /** 新 home 扫描:<桶>/<session_id>/state.json,按 state.cwd 过滤出本工作区会话。
- *  解析缓存在 kimiStateCache(叶子模块,parser 注入防循环依赖),T 由 parseKimiState 推断。 */
+ *  解析缓存在 cli-shared/stateFileCache(mtime 闸),T 由 parseKimiState 推断。 */
 async function listModernKimiSessions(
   root: string,
   cwd: string,

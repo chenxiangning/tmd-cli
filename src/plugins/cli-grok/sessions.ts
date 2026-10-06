@@ -12,7 +12,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliDiskSession, CliSessionStatus, SessionFileIdentity } from "@kernel/cli";
-import { readHeadsBatched } from "../cli-shared/sessionHead";
+import { readStatesBatched, pruneStateCache } from "../cli-shared/stateFileCache";
 
 export function grokSessionsDirName(cwd: string): string {
   return encodeURIComponent(cwd);
@@ -102,27 +102,33 @@ export async function readGrokSessionIdentity(path: string): Promise<SessionFile
 export async function listGrokSessions(cwd: string): Promise<CliDiskSession[]> {
   const dir = await grokSessionsDir(cwd);
   if (!dir) return [];
-  const entries = await ipc.fsListDir(dir).catch(() => []);
-  /* 会话目录 = UUID 命名;summary.json.lock 等杂项天然被正则排除。批量读
-     (sessionHead.readHeadsBatched):外网中继逐会话 fsReadFile = N+1 RTT +
-     并发帽快拒(标题/会话缺列);summary.json 是小文件,64KB 窗即全文。 */
-  const dirs = entries.flatMap((e) =>
-    e.isDir && SESSION_ID_RE.test(e.name) ? [{ id: e.name, path: `${dir}/${e.name}` }] : [],
+  /* collect 直接收 summary.json(FileStamp 带 mtime):UUID 目录外杂项
+     天然不进,非 UUID 目录的 summary 同被 SESSION_ID_RE 滤掉。mtime 闸
+     (cli-shared/stateFileCache):summary 落盘后静态,resume/改名刷 mtime
+     才重读 —— 稳态重扫收敛为单次 collect(2026-10-06 消留观 1:原实现
+     fsListDir + 逐会话全量重读 summary,外网周期流量 N+1)。 */
+  const stamps = await ipc.fsCollectFiles(dir, "summary.json").catch(() => []);
+  const files = stamps.flatMap((s) => {
+    const m = /^(?:.*\/)?([^/]+)\/summary\.json$/.exec(s.path);
+    return m && SESSION_ID_RE.test(m[1])
+      ? [{ id: m[1], path: `${dir}/${m[1]}`, summaryPath: s.path, modifiedAt: s.modifiedAt }]
+      : [];
+  });
+  pruneStateCache(new Set(files.map((f) => f.summaryPath)));
+  const summaries = await readStatesBatched(
+    files.map((f) => ({ path: f.summaryPath, modifiedAt: f.modifiedAt })),
+    parseGrokSummary,
   );
-  const heads = await readHeadsBatched(
-    dirs.map((d) => `${d.path}/summary.json`),
-    64 * 1024,
-  );
-  /* 单文件失败容错(空串 → summary null)不变;结果保持 entries 原序。 */
-  return dirs.map((d, i) => {
-    const summary = heads[i] ? parseGrokSummary(heads[i]) : null;
+  /* collect 按 mtime 倒序;消费方(桌面/手机列表)均按时间排序,顺序变化无害。 */
+  return files.map((f, i) => {
+    const summary = summaries[i];
     return {
-      id: d.id,
+      id: f.id,
       title: summary?.title,
-      modifiedAt: summary?.updatedAt ?? 0,
+      modifiedAt: summary?.updatedAt ?? f.modifiedAt,
       /* 创建时刻定死日历落位:resume 只刷 updated_at,created_at 不动。 */
       createdAt: summary?.createdAt,
-      path: d.path,
+      path: f.path,
     };
   });
 }
