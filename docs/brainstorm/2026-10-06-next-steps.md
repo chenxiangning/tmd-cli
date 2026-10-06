@@ -1,54 +1,51 @@
-# 0.3.1 发布收口与下阶段规划
+# 0.3.1 后下阶段规划(体验打磨主线)
 
-- 日期:2026-10-06
-- 状态:进行中(11 笔提交待推送,发布动作待执行)
+- 日期:2026-10-06(二轮重梳:大仙拍板「继续打磨现有功能点」)
+- 状态:进行中
 
 ## 现状
 
-Tmd-0.3.1 分支 11 笔未推送提交,工作树干净,全门禁绿(vitest 471/3705、cargo 350、clippy、fmt、arch、file-size、i18n、build、react-doctor 100)。构成:
+Tmd-0.3.1 分支 12 笔提交待推送,工作树干净,全门禁绿。手机侧刚做完外网三件套 + 二轮对抗评审,短期不再开手机新面;下阶段主线 = **桌面与既有功能的体验打磨**,发布/决策动作降为辅线(见文末)。
 
-- 0.3.1 打磨批 4 笔:新建文件意图排队 / 手机 ask 事件化 / checkpoints flock / 活转录增量尾读
-- 手机外网三件套 7 笔:hello lan 自愈 / quota_vendor_fetch 白名单通道 / 凭证收敛+撤销断写口 / 三级磁盘缓存 / 状态条+读取器下放 / 额度已用口径 / 二轮评审文档
+## 打磨池(按 证据强度 × 使用频率 × 改动量 排序)
 
-## 第 1 位:发布收口(代码侧,无外部依赖)
+### A 桌面性能收尾:git 多仓批量 status
 
-1. push Tmd-0.3.1 → CI 绿。
-2. 版本号六处同步 bump 0.3.1(含 plist 双源)+ CHANGELOG 归档 0.3.1 段。
-3. `pnpm tauri:dev` 真窗口全量冒烟(上轮桩目检后的例行复核)。
-4. tag v0.3.1 + GitHub Release(便携版产物矩阵照 0.3.0 流程)。
+- 证据:`files/gitDecorate.tsx:154` ponytail 注释预写升级路径——多仓 N>10 逐仓串行 `git_status`,每仓一次 IPC 往返;git 视图是桌面常驻面。
+- 做法:Rust 侧加 `git_status_batch`(一次命令吃仓库列表,内部 rayon 并行),TS 数据源替换,map 逻辑不变。
+- 顺手同档:`WorkspaceFileBrowser.tsx:71` 嵌套仓 ignore 未并入(逐仓再取)。
+- 验收:桩目检多仓 N=15 装饰正确性 + 逐仓/批量计时对比。
 
-## 第 2 位:真机验收批(需要大仙手机,一次 session 清完)
+### B 一致性细节档(零风险纯打磨)
 
-0.3.0/0.3.1 代码验证充分、真机零实测的清单:
+- i18n 死键清理:词典 2937 vs t() 字面量 2501,死键告警 882(动态键误报混杂)——按模块人工核对一轮,真死键清除,动态键补白名单注释。
+- 「思考 {level}」misc/mobile 双处定义(2026-10-06 状态条批引入)——归一到 mobile,misc 删。
+- `SearchPanel.tsx:25` İ(U+0130)类 lower 变长字符切片错位——hay 切片改精确实现,一并钉边界测试。
+- 终端 `xterm` DOM 渲染器(上游阻塞档,列观):全屏 TUI 重绘不达标再复评 webgl;`lsp/javaInstall.ts` 一锤子下载无进度流——失败重点的体验换成进度提示。
 
-- 安卓四项:选图 / 拍照 / 扫码配对 / WS 心跳(安卓壳 iOS 对齐批遗留)。
-- 重配一台安卓机:设备名 + 平台徽标(platform 全链最后一跳)。
-- 外网三件套:LAN 自愈(桌面换地址后手机自动收敛)/ 缓存回显(列表/详情/时间线首屏瞬时)/ 状态条(模型 chip 点击切模型、额度 chip 刷新、5h/7d 已用百分比口径)。
-- 外网读头回归 + PinnedSessions 置顶行。
-- 大转录(8MB+)结构化视图滚动跟手度(增量尾读批)。
-- 双开实例下 checkpoint 操作(flock 批)。
-- 装机链路:0.3.1 dmg 首开 Gatekeeper 行为 + updater 冒烟。
+### C 重度模块精化:daily-journal / intent-canvas
 
-## 第 3 位:决策批(卡分发与增长,非代码)
+近期 churn 最高(186/171 文件次),天天在用的面,各留已知天花板:
 
-1. macOS 开发者账号($99/年)拍板 → secrets 落地启用签名/公证管道(openspec/changes/2026-09-26-signing-pipeline 就绪),消除首开手动放行;同账号解锁手机推送(APNs)二期。
-2. Windows 证书路线:OV/EV 采购 vs Azure Trusted Signing。
-3. Glama MCP 源:接 key 还是摘除。
+- daily-journal:`SCAN_TTL_MS` 只在 effect 实跑时咨询——外部标题变更需等触发才收敛(60s 非保证上界)。
+- intent-canvas:索引/文档两步写非事务(半写态自愈)+ 超限剥缩略图 O(n²)。
+- 方向待大仙点痛点:这两个模块打磨什么(性能/交互/视觉)由实际不爽处定,不盲改。
 
-## 第 4 位:留观池(带触发条件,不主动开工)
+### D 低风险竞态清账(留观池精选三项,纯展示面)
 
-| 项 | 触发条件 |
-|---|---|
-| grok 扫描波 mtime 闸(headCache 同池) | grok 会话多的工作区外网流量被抱怨 |
-| quota 迟到覆盖 seq 守卫 | 模型切换窗口期额度闪烁被注意到 |
-| OkHttp 自管 ping 线程 | 安卓外网在途发送误拆线复现 |
-| 时间线 mtime TTL(重复拉 2MB) | 外网时间线慢被抱怨 |
-| quota_env_value 后缀通配制枚举 | 安全收紧轮 |
-| sqlite 设备域 RW→RO 打开 | 同上 |
-| STATUS_READERS/QUOTA_FETCHERS 对齐守护 | 下次动映射表 |
-| timelineSheet pull 版本号 | 会话切换竞态复现 |
-| ws_ticks 每帧 serde / 直连无 pong 死线 | 2026-10-05 评审弃修,理由存档 |
+- quota 迟到覆盖无 seq 守卫(同会话模型切换窗口,120s 自愈)。
+- timelineSheet pull 无版本号(会话切换并发覆写,可达性低)。
+- 换桌面连接的内存态残留窗口(一个扫描波内旧 root 串显,持久面有信封保护)。
 
-## 第 5 位:0.3.2 功能池(独立排期维持)
+三项共模修法都是「结果丢弃守卫」,一小时内一批。其余留观项(grok mtime 闸/OkHttp ping/时间线 TTL/env 枚举/sqlite RO/STATUS_READERS 守护/ws_ticks)维持触发条件不动。
 
-平板双栏 / 手机 home 全文检索 / 审批问卷代发 / provider channels 与 MCP 写回扩家 —— 维持 0.3.1 计划时的「明确不做」,按用户需求热度再启。
+## 辅线(维持待命,不阻塞打磨)
+
+1. 发布收口:push 12 笔 → CI → 版本 bump + CHANGELOG → tag/Release。
+2. 真机验收 9 项清单(安卓四项/徽标/外网三件套/读头/大转录/双实例/updater)。
+3. 三决策:macOS 签名 secrets / Windows 证书路线 / Glama MCP 去留。
+4. 0.3.2 功能池(平板双栏/全文检索/审批代发/MCP 写回)独立排期不动。
+
+## 建议执行序
+
+A(git 批量)→ B(一致性档)→ D(竞态清账)→ C 等大仙痛点输入;每批收口照旧五门禁 + react-doctor 100 + 真窗口目检。
