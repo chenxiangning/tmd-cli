@@ -141,13 +141,14 @@ describe("groupHomeRows", () => {
 });
 
 describe("scanWorkspaceHistory", () => {
-  it("逐引擎扫描并注名 profileId;单引擎失败被吞掉不阻塞其余", async () => {
-    const items = await scanWorkspaceHistory("/w1");
+  it("逐引擎扫描并注名 profileId;失败引擎记入 failedEngines 不阻塞其余", async () => {
+    const { items, failedEngines } = await scanWorkspaceHistory("/w1");
     expect(items).toEqual([
       { profileId: "omp", session: ompSession },
       { profileId: "pi", session: piSession },
       { profileId: "claude", session: claudeSession },
     ]);
+    expect(failedEngines).toEqual(["codex"]);
   });
 });
 

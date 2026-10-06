@@ -21,6 +21,7 @@ import { canSend } from "./sendGate";
 import { useShots } from "./useShots";
 import { useDraft } from "./useDraft";
 import { shellInvoke } from "@kernel/shellBridge";
+import { engineWire } from "./engines";
 import { AskCard, LiveBlock, TurnsView } from "./TurnsView";
 import { CkptSheet } from "./CkptSheet";
 import { TimelineSheet } from "./timelineSheet";
@@ -28,6 +29,7 @@ import { timelineSupported, type TimelineEntry } from "./timelineData";
 import { TimelineHistory } from "./timelineHistory";
 import { SessionHeader, ShotPreview } from "./SessionChrome";
 import { Composer } from "./Composer";
+import { StatusBar } from "./StatusBar";
 
 /* 实况 = LiveScreen 迷你 VT 屏模型渲染(见 ./liveText)。 */
 
@@ -192,9 +194,9 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
       setSendErr(false); /* 内容已清空:错误条失去重试对象,退场免死钮(2026-10-04 复审) */
       return;
     }
-    /* 桌面契约 = 写入失败保草稿:成功才清草稿/挂图并清错,失败保留输入给可见错误条。 */
+    /* 桌面契约 = 写入失败保草稿:成功才清草稿/挂图并清错。 */
     setSending(true);
-    writeSession(props.sessionId, `${msg}\r`)
+    writeSession(props.sessionId, engineWire(meta?.profileId ?? "", msg))
       .then(() => {
         if (draftRef.current === sentDraft) clearDraft();
         clearShots(sentPaths);
@@ -250,6 +252,10 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
         </div>
       )}
       {ask && !exited && <AskCard q={askQ} onAnswer={answer} busy={answering} />}
+      {meta && (
+        <StatusBar sessionId={props.sessionId} profileId={meta.profileId} cwd={meta.cwd}
+          cliSessionId={meta.cliSessionId} turnActive={meta.activity?.turnActive} />
+      )}
       <Composer
         sessionId={props.sessionId}
         draft={draft}
@@ -291,4 +297,3 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
     </>
   );
 }
-

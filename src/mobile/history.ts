@@ -43,17 +43,31 @@ export interface HistoryItem {
   session: CliDiskSession;
 }
 
-/** 扫一个工作区的全部引擎磁盘历史;单引擎失败 = 该引擎空,不阻塞其余。 */
-export async function scanWorkspaceHistory(root: string): Promise<HistoryItem[]> {
+/** 扫描结果:failedEngines 非空 = 本波有引擎查询失败(RPC 断连/超时常态),
+ *  items 是残缺视图 —— 调用方须跳过 UI 覆写与缓存回写,防空/残列表毒化
+ *  持久缓存(2026-10-06 评审 P1:断桥波曾以全空覆写清掉首屏缓存)。 */
+export interface ScanResult {
+  items: HistoryItem[];
+  failedEngines: string[];
+}
+
+/** 扫一个工作区的全部引擎磁盘历史;单引擎失败记入 failedEngines 不阻塞其余。 */
+export async function scanWorkspaceHistory(root: string): Promise<ScanResult> {
   const lists = await Promise.all(
-    Object.entries(SCANNERS).map(async ([profileId, scan]) => [
-      profileId,
-      await scan(root).catch(() => [] as CliDiskSession[]),
-    ] as const),
+    Object.entries(SCANNERS).map(async ([profileId, scan]) => {
+      try {
+        return [profileId, await scan(root), false] as const;
+      } catch {
+        return [profileId, [] as CliDiskSession[], true] as const;
+      }
+    }),
   );
-  return lists.flatMap(([profileId, sessions]) =>
-    sessions.map((session) => ({ profileId, session })),
-  );
+  return {
+    items: lists.flatMap(([profileId, sessions]) =>
+      sessions.map((session) => ({ profileId, session })),
+    ),
+    failedEngines: lists.filter(([, , failed]) => failed).map(([profileId]) => profileId),
+  };
 }
 
 /** home 行:活会话(可进实况屏)或磁盘历史(只读 transcript)。 */
