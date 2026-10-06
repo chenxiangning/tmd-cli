@@ -11,6 +11,7 @@ import {
   forceRemoteReconnect,
   isRemotePaused,
   onRemoteRevoked,
+  onServerHello,
   serverCapabilities,
   serverVersion,
 } from "@kernel/transport";
@@ -18,7 +19,7 @@ import { shellLog } from "@kernel/shellBridge";
 import { bootI18n, t } from "@kernel/i18n";
 import { updateSettings, type UiLanguage } from "@kernel/settings";
 import { PairingScreen, ShellPage } from "./PairingScreen";
-import { loadCreds, persistCreds, resolveCreds, type MobileCreds } from "./creds";
+import { loadCreds, persistCreds, resolveCreds, withFreshLan, type MobileCreds } from "./creds";
 import { REQUIRED_CAPABILITY, endpointCandidates } from "./shared";
 import { MobileApp } from "./MobileApp";
 
@@ -141,27 +142,59 @@ export function MobileRoot() {
     };
   }, []);
 
+  /* hello.lan 同步的凭证镜像(2026-10-06):声明在撤销订阅之前 ——
+   * 撤销路径要置空本 ref 断 late hello 写口。 */
+  const credsRef = React.useRef(creds);
+  React.useEffect(() => {
+    credsRef.current = creds;
+  }, [creds]);
   /* 运行期撤销常驻订阅(评审 B2):清凭证 → 回配对屏。pending 由配对流程自消化;
    * bye+4001 双触发由 persistCreds(null)+reload 幂等吸收。 */
   React.useEffect(() => {
     if (creds === undefined || creds === null) return;
     return onRemoteRevoked((reason) => {
       if (reason === "pending") return;
+      /* 先断 late hello 的写口再清库(二轮评审 2026-10-06):撤销与 hello.lan
+       * 同窗时,迟到 hello 读旧 credsRef 回写 withFreshLan(旧 token) 可在
+       * persistCreds(null) 落地后复活凭证,reload 后带着废 token 自动重拨。 */
+      credsRef.current = null;
       void persistCreds(null);
       window.location.reload();
     });
   }, [creds]);
 
-  /* hello 能力探测:block 屏判定(有凭证才有意义)。 */
+  /* hello.lan 同步(2026-10-06):外网连上即把桌面最新内网地址刷进凭证候选
+   * (桌面重启换端口后免重新配对);当前连接不动,新候选下次竞速/重启生效。 */
   React.useEffect(() => {
-    if (!creds || blocked !== null) return;
-    void helloProbe(creds).then((o) => {
+    return onServerHello(({ lan }) => {
+      const cur = credsRef.current;
+      if (!cur || !lan) return;
+      const next = withFreshLan(cur, lan);
+      if (!next) return;
+      shellLog(`lan sync: ${(cur.urls ?? [cur.wsUrl]).find((u) => u.startsWith("ws://")) ?? "-"} → ${lan}`);
+      credsRef.current = next;
+      void persistCreds(next);
+      setCreds(next);
+    });
+  }, []);
+
+  /* hello 能力探测:block 屏判定(有凭证才有意义)。
+   *  身份键刻意取 配对核心(deviceId+token)+probeKey+blocked,不吃整个 creds
+   *  对象引用 —— hello.lan 同步只重排 urls(2026-10-06),若随 creds 重跑探测,
+   *  configureRemoteEndpoint 会无条件拆掉健康活连接再竞速,外网旗舰场景
+   *  每次桌面换址都白付 8-10s 断连(评审 P1);新候选留待下次自然竞速。 */
+  const probeTick = creds ? `${creds.deviceId}:${creds.token}:${probeKey}:${blocked}` : "";
+  React.useEffect(() => {
+    const c = credsRef.current;
+    if (!c) return;
+    void helloProbe(c).then((o) => {
       if (o.kind === "hello" && !o.caps.includes(REQUIRED_CAPABILITY)) {
         setBlocked(o.version);
       }
       // hello 正常 / pending / timeout:主界面自持(HostChip/banner 表达连接态)
     });
-  }, [creds, probeKey, blocked]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- probeTick 即探测身份(见上注)
+  }, [probeTick]);
 
   if (creds === undefined) return <div className="m-app" />;
   if (!creds) {

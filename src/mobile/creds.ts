@@ -119,3 +119,23 @@ export async function persistCreds(c: MobileCreds | null): Promise<void> {
   }
   lsWrite(null); // 钥匙串确认成功 → 清 localStorage(含迁移旧值)
 }
+
+/** hello.lan 同步:外网连上后把滞后的内网地址刷进候选(桌面重启换端口/换网卡后
+ *  不再等重新配对)。ws:// = 内网类(relay 皆 wss://),旧 LAN 候选全量收敛为最新一条,
+ *  保持 LAN 在前;wsUrl 属内网类时随迁;pin 钉在旧内网地址上时改钉新址。
+ *  回环地址(桌面无 LAN 接口的 127.0.0.1 回落)不采信——手机永远够不到桌面的 loopback。
+ *  无变化/形状不采信 → null(调用方免写库)。 */
+export function withFreshLan(creds: MobileCreds, lan: string): MobileCreds | null {
+  const lanWs = lan.replace(/^http/, "ws").replace(/\/+$/, "");
+  if (!lanWs.startsWith("ws://")) return null;
+  if (/^ws:\/\/(127\.0\.0\.1|localhost|\[?::1\]?)(:|\/|$)/.test(lanWs)) return null;
+  const old = creds.urls?.length ? creds.urls : [creds.wsUrl];
+  const urls = [lanWs, ...old.filter((u) => !u.startsWith("ws://"))];
+  const wsUrl = creds.wsUrl.startsWith("ws://") ? lanWs : creds.wsUrl;
+  const changed =
+    urls.length !== old.length || urls.some((u, i) => u !== old[i]) || wsUrl !== creds.wsUrl;
+  if (!changed) return null;
+  const pin = loadChannelPin();
+  if (pin.startsWith("ws://") && pin !== lanWs) saveChannelPin(lanWs);
+  return { ...creds, wsUrl, urls };
+}
