@@ -106,17 +106,20 @@ export function useRepoStatusState(
         return;
       }
       const list = repos!;
-      void Promise.allSettled(list.map((r) => ipc.gitStatus(r.path))).then((rows) => {
-        if (!alive) return;
-        const next: RepoStatusEntry[] = [];
-        list.forEach((r, i) => {
-          const row = rows[i];
-          if (row.status === "fulfilled") {
-            next.push({ root: r.path, files: Array.isArray(row.value?.files) ? row.value.files : [] });
+      void ipc.gitStatusBatch(list.map((r) => r.path)).then(
+        (rows) => {
+          if (!alive) return;
+          const next: RepoStatusEntry[] = [];
+          for (const row of rows) {
+            const files = row?.status?.files;
+            if (Array.isArray(files)) next.push({ root: row.root, files });
           }
-        });
-        apply(next);
-      });
+          apply(next); /* 失败仓 Rust 侧已省略,单批失败(非仓)整体空集 */
+        },
+        () => {
+          if (alive) apply([]);
+        },
+      );
     };
     void fetch();
     const id = window.setInterval(() => {
@@ -150,8 +153,8 @@ function sameEntries(
 
 /** 开启时轮询 git status,返回 绝对路径 → 颜色类;关闭时恒空 map(零副作用)。
  *  数据面见 useRepoStatusState;单仓(仅 root)保持旧路径输出 —— 与旧实现
- *  逐项一致(回归红线,不掺仓根聚合色);多仓逐仓并行后合并。
- *  ponytail: N > 10 后正确升级是 Rust 批量 status,换数据源即可,map 逻辑不变。 */
+ *  逐项一致(回归红线,不掺仓根聚合色);多仓走 Rust 批量
+ *  git_status_batch(2026-10-06 落地:N 次 invoke → 1 次往返)。 */
 export function useGitDecorations(root: string): ReadonlyMap<string, string> {
   const on = useSyncExternalStore(subscribe, isGitDecorateEnabled);
   const { entries, single } = useRepoStatusState(root, on);
@@ -172,6 +175,42 @@ export function useGitDecorations(root: string): ReadonlyMap<string, string> {
     setColors((prev) => (sameMap(prev, next) ? prev : next));
   }, [on, root, entries, single]);
   return on ? colors : EMPTY;
+}
+
+/** 忽略前缀(绝对口径):单仓 root / 多仓逐仓按各仓根拼接 —— 嵌套仓各自
+ *  ignore 并入(2026-10-06,替换「仅 root 仓」旧口径);非仓/失败 = 空集。
+ *  WorkspaceFileBrowser 降显用(挂载/手动刷新拉取,低频无轮询)。 */
+export function useIgnoredPrefixes(
+  root: string,
+  tick: number,
+  single: boolean,
+  repos: GitRepoSummary[] | null,
+): string[] {
+  const base = root.replace(/\/+$/, "");
+  const [ignored, setIgnored] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    if (single) {
+      ipc.gitIgnoredPrefixes(root).then(
+        (out) => { if (alive) setIgnored(out.map((p) => `${base}/${p}`)); },
+        () => { if (alive) setIgnored([]); },
+      );
+    } else {
+      const list = repos ?? [];
+      void Promise.allSettled(list.map((r) => ipc.gitIgnoredPrefixes(r.path))).then((rows) => {
+        if (!alive) return;
+        const next: string[] = [];
+        list.forEach((r, i) => {
+          const row = rows[i];
+          const rb = r.path.replace(/\/+$/, "");
+          if (row.status === "fulfilled") next.push(...row.value.map((p: string) => `${rb}/${p}`));
+        });
+        setIgnored(next);
+      });
+    }
+    return () => { alive = false; };
+  }, [root, base, tick, repos, single]);
+  return ignored;
 }
 
 /** 文件树工具条开关按钮(FileTreeToolbar 内联渲染;2026-10-02 自外壳 actions 槽收编)。 */

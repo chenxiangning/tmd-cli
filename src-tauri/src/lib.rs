@@ -302,6 +302,7 @@ pub fn run() {
             skill_pkg::skill_symlink,
             mcp_probe::mcp_probe,
             git::commands::git_status,
+            git::commands_batch::git_status_batch,
             git::commands::git_repos_scan,
             git::commands::git_ignored_prefixes,
             checkpoints::commands::checkpoint_anchor,

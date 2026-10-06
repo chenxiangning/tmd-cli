@@ -458,6 +458,9 @@ export const ipc = {
     invoke<void>("fs_write_bytes_base64", { path, data }),
   /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
   gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),
+  /** 多仓 status 批量(文件树着色专用):Rust thread::scope 并行,失败仓整行省略。 */
+  gitStatusBatch: (cwds: string[]) =>
+    invoke<{ root: string; status: GitDiffStatus }[]>("git_status_batch", { cwds }),
   /** 多仓发现:root 下 BFS 找 .git(深度上限 maxDepth,前端默认 2);
    *  结果按 path 排序,root 是仓时首个即 root;超 32 截断(truncated)。 */
   gitReposScan: (root: string, maxDepth: number) =>

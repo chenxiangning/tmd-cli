@@ -94,6 +94,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
 
   /* git 全域。 */
   gitStatus: "ipc.git",
+  gitStatusBatch: "ipc.git",
   gitReposScan: "ipc.git",
   gitIgnoredPrefixes: "ipc.git",
   gitTotals: "ipc.git",
