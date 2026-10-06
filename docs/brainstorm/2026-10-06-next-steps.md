@@ -29,11 +29,18 @@
 - StatusBar 状态/额度拉取 seq 守卫(同会话 model 切换窗口的迟到覆盖,同类 sibling 一起修)。
 - timelineSheet pull 版本号守卫(会话切换旧扫描 partial/then/catch 全作废)。
 - MobileApp 轮询 tick 端点签名比对(换桌面连接同桥不断线场景立即重拉,旧快照窗口收敛到一拍)。
-- 其余留观(grok mtime 闸/OkHttp ping/时间线 TTL/env 枚举/sqlite RO/STATUS_READERS 守护/ws_ticks)维持触发条件不动。
+
+### E 留观收口 + F journal 打磨 —— 已落地(2026-10-06 晚二批,3 笔 fc7d3f3f..17767cc5)
+
+- E1 grok mtime 闸:kimi 私有 stateCache 泛化 `cli-shared/stateFileCache.ts`(≥2 cli-* 消费准入),grok summary.json 接入 —— 稳态重扫收敛为单次 collect,消外网 N+1;4 例缓存语义测试(命中/失效/负结果/prune)。
+- E2 配对瞬间竞态:onPaired/onCancel credsRef 领先 state 写(撤销 P2 同款),罩住同窗迟到 hello.lan 读旧 token。
+- E3 探针映射守护:statusReaderIds/quotaFetcherIds 对齐 ENGINES 差集白名单断言,新引擎漏接线即红。
+- F1 journal TTL:窗口聚焦拍 TTL(scanCache 置空 + focusTick),外部落盘标题变更收敛到「一次失焦窗」;桩目检 focus 后重扫实证。
+- 剩余留观:OkHttp ping/时间线 TTL/env 枚举收窄/sqlite RO/ws_ticks 维持触发条件;C 档 intent-canvas 仍待痛点输入。
 
 ## 辅线(维持待命,不阻塞打磨)
 
-1. 发布收口:push 17 笔 → CI → 版本 bump + CHANGELOG → tag/Release。
+1. 发布收口:push 22 笔 → CI → 版本 bump + CHANGELOG → tag/Release。
 2. 真机验收 9 项清单(安卓四项/徽标/外网三件套/读头/大转录/双实例/updater)。
 3. 三决策:macOS 签名 secrets / Windows 证书路线 / Glama MCP 去留。
 4. 0.3.2 功能池(平板双栏/全文检索/审批代发/MCP 写回)独立排期不动。
