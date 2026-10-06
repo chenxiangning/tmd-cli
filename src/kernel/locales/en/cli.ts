@@ -211,8 +211,6 @@ export const MESSAGES = {
     "Web search / URL fetching / GitHub clone / PDF and video understanding",
   "MCP(Model Context Protocol)服务器接入适配":
     "MCP (Model Context Protocol) server adapter",
-  "Kiro OAuth 登录、额度用量与模型发现":
-    "Kiro OAuth login, quota usage, and model discovery",
   "基于 jscpd 的重复代码检测插件":
     "Duplicate-code detection plugin based on jscpd",
 
@@ -279,8 +277,6 @@ export const MESSAGES = {
   "{n} 个模型": "{n} models",
   "含 Key": "Has key",
   "无 Key": "No key",
-  "还没有自定义供应商,点右上角「编辑配置」添加":
-    "No custom providers yet — click “Edit config” at the top right to add one",
   "API Key(可空;建议 $ENV_VAR 引用)": "API Key (optional; a $ENV_VAR reference is recommended)",
   "协议": "Protocol",
   "模型(一行一个 id;高级字段用「编辑配置」)":

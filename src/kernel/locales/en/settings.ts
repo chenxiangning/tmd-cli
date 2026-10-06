@@ -257,8 +257,6 @@ export const MESSAGES = {
   "右卡点「连接中继」(地址和密钥上一步已自动填好)。圆点变绿,手机就能从外网连上这台电脑;内网桥顺带打开,不用先去内网 tab。":
     "Hit “Connect to relay” on the right card (URL and key were autofilled in step ①). When the dot turns green, your phone can reach this machine from anywhere. The LAN bridge opens along the way — no need to visit the LAN tab first.",
   "③ 手机打开地址": "③ Open the URL on your phone",
-  "右卡「手机打开」的地址,手机 Safari 直接开,加到主屏幕就当 app 用。地址里带的令牌就是钥匙,别转发给别人;用完回这里点「断开」。":
-    "Open the “Open on phone” URL from the right card in mobile Safari, then add it to the home screen and it works like an app. The token in the URL is the key — don't forward it; hit “Disconnect” here when you're done.",
   "中继跑在你自己的 Cloudflare 账号(免费额度足够)。API Token 仅本次部署使用,不保存。":
     "The relay runs on your own Cloudflare account (the free tier is enough). The API token is used only for this deployment and never stored.",
   "Cloudflare API Token 怎么申请?": "How do I get a Cloudflare API token?",

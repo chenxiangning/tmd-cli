@@ -54,7 +54,6 @@ export const MESSAGES = {
   "再加一张": "Add another image",
   "相册": "Album",
   "切模型": "Switch model",
-  "思考 {level}": "Thinking {level}",
   "额度 —": "Quota —",
   "刷新额度": "Refresh quota",
   "{label} 用 {p}%": "{label} {p}% used",

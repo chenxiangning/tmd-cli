@@ -15,7 +15,6 @@ const MESSAGES_EN = {
   "刷新首页数据": "Refresh home data",
   "版本获取失败": "version lookup failed",
   "最新版查询失败,点右上刷新按钮重试": "Latest version lookup failed — use the refresh button at top right to retry",
-  "启动新会话": "start new session",
   /* 引擎卡 */
   "官方文档": "Docs",
   "探针中…": "Probing…",
@@ -114,7 +113,6 @@ const MESSAGES_JA = {
   "刷新首页数据": "ホームデータを更新",
   "版本获取失败": "バージョン取得に失敗",
   "最新版查询失败,点右上刷新按钮重试": "最新版の取得に失敗しました — 右上の更新ボタンで再試行してください",
-  "启动新会话": "新規セッション開始",
 
   /* 引擎卡 */
   "官方文档": "ドキュメント",

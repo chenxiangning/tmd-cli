@@ -21,7 +21,6 @@ export const MESSAGES = {
   "删除智能体「{name}」?已选中的会话会自动取消。":
     "Delete agent \"{name}\"? Sessions that selected it will be deselected automatically.",
   "名称必填": "Name is required",
-  "名称已存在": "Name already exists",
   "名称已存在,或写入磁盘失败": "Name already exists, or the disk write failed",
   "删除失败:写入磁盘未成功": "Delete failed: could not write to disk",
   "图标(单个 emoji,可空)": "Icon (single emoji, optional)",
