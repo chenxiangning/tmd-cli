@@ -1,51 +1,39 @@
 # 0.3.1 后下阶段规划(体验打磨主线)
 
-- 日期:2026-10-06(二轮重梳:大仙拍板「继续打磨现有功能点」)
-- 状态:进行中
+- 日期:2026-10-06(二轮重梳:大仙拍板「继续打磨现有功能点」;当日 A/B/D 三批落地)
+- 状态:A/B/D 已完成(5 笔提交);C 待大仙痛点输入
 
-## 现状
+## 打磨池落地记录(2026-10-06)
 
-Tmd-0.3.1 分支 12 笔提交待推送,工作树干净,全门禁绿。手机侧刚做完外网三件套 + 二轮对抗评审,短期不再开手机新面;下阶段主线 = **桌面与既有功能的体验打磨**,发布/决策动作降为辅线(见文末)。
+### A 桌面性能收尾:git 多仓批量 status —— 已落地
 
-## 打磨池(按 证据强度 × 使用频率 × 改动量 排序)
+- `git_status_batch`(Rust `thread::scope` 逐仓一线程并行,失败仓整行省略对齐旧 allSettled fulfilled-only 语义)+ ipc 通道 + 权限登记 `ipc.git`。
+- `gitDecorate.tsx` 多仓分支换批量数据源(N 次 invoke → 1 次往返);单仓路径零改动(回归红线)。
+- 嵌套仓 ignore 并入:`useIgnoredPrefixes` hook(单仓 root / 多仓逐仓按各仓根拼接),WorkspaceFileBrowser 消费。
+- 验证:cargo 集成测试(非仓省略/master/a.txt)+ 1421 桩目检 12 仓(repos_scan → batch → f*.txt 行 modified 色落地)。
 
-### A 桌面性能收尾:git 多仓批量 status
+### B 一致性细节档 —— 已落地
 
-- 证据:`files/gitDecorate.tsx:154` ponytail 注释预写升级路径——多仓 N>10 逐仓串行 `git_status`,每仓一次 IPC 往返;git 视图是桌面常驻面。
-- 做法:Rust 侧加 `git_status_batch`(一次命令吃仓库列表,内部 rayon 并行),TS 数据源替换,map 逻辑不变。
-- 顺手同档:`WorkspaceFileBrowser.tsx:71` 嵌套仓 ignore 未并入(逐仓再取)。
-- 验收:桩目检多仓 N=15 装饰正确性 + 逐仓/批量计时对比。
+- i18n 死键清理:882 告警全量人工核对——删真死键 12 项(旧文案/前缀残留),动态可达 21 项逐条证据保留(面板切换模板/relativeTime 单位拼接/跨行文案拼接);重复键「思考 {level}」归一 misc。
+- `SearchPanel` İ(U+0130)类 lower 变长字符切片错位:长度相等走 indexOf 快路径,变长回退 RegExp 原文索引(索引恒准),`splitHits.ts` 拆纯函数模块 + 4 例边界测试。
+- 终端 webgl(上游阻塞)维持列观;LSP 安装进度流按 ponytail 跳过——阶段文案已有(下载 xxx 约 100MB)+ 失败可见可重点,字节级进度要新 IPC 面,价值/改动比不划算。
 
-### B 一致性细节档(零风险纯打磨)
+### C 重度模块精化:daily-journal / intent-canvas —— 待痛点输入
 
-- i18n 死键清理:词典 2937 vs t() 字面量 2501,死键告警 882(动态键误报混杂)——按模块人工核对一轮,真死键清除,动态键补白名单注释。
-- 「思考 {level}」misc/mobile 双处定义(2026-10-06 状态条批引入)——归一到 mobile,misc 删。
-- `SearchPanel.tsx:25` İ(U+0130)类 lower 变长字符切片错位——hay 切片改精确实现,一并钉边界测试。
-- 终端 `xterm` DOM 渲染器(上游阻塞档,列观):全屏 TUI 重绘不达标再复评 webgl;`lsp/javaInstall.ts` 一锤子下载无进度流——失败重点的体验换成进度提示。
+- daily-journal:`SCAN_TTL_MS` 只在 effect 实跑时咨询(60s 非保证上界)。
+- intent-canvas:索引/文档两步写非事务 + 超限剥缩略图 O(n²)。
+- 方向由大仙实际不爽处定,不盲改。
 
-### C 重度模块精化:daily-journal / intent-canvas
+### D 低风险竞态清账 —— 已落地
 
-近期 churn 最高(186/171 文件次),天天在用的面,各留已知天花板:
-
-- daily-journal:`SCAN_TTL_MS` 只在 effect 实跑时咨询——外部标题变更需等触发才收敛(60s 非保证上界)。
-- intent-canvas:索引/文档两步写非事务(半写态自愈)+ 超限剥缩略图 O(n²)。
-- 方向待大仙点痛点:这两个模块打磨什么(性能/交互/视觉)由实际不爽处定,不盲改。
-
-### D 低风险竞态清账(留观池精选三项,纯展示面)
-
-- quota 迟到覆盖无 seq 守卫(同会话模型切换窗口,120s 自愈)。
-- timelineSheet pull 无版本号(会话切换并发覆写,可达性低)。
-- 换桌面连接的内存态残留窗口(一个扫描波内旧 root 串显,持久面有信封保护)。
-
-三项共模修法都是「结果丢弃守卫」,一小时内一批。其余留观项(grok mtime 闸/OkHttp ping/时间线 TTL/env 枚举/sqlite RO/STATUS_READERS 守护/ws_ticks)维持触发条件不动。
+- StatusBar 状态/额度拉取 seq 守卫(同会话 model 切换窗口的迟到覆盖,同类 sibling 一起修)。
+- timelineSheet pull 版本号守卫(会话切换旧扫描 partial/then/catch 全作废)。
+- MobileApp 轮询 tick 端点签名比对(换桌面连接同桥不断线场景立即重拉,旧快照窗口收敛到一拍)。
+- 其余留观(grok mtime 闸/OkHttp ping/时间线 TTL/env 枚举/sqlite RO/STATUS_READERS 守护/ws_ticks)维持触发条件不动。
 
 ## 辅线(维持待命,不阻塞打磨)
 
-1. 发布收口:push 12 笔 → CI → 版本 bump + CHANGELOG → tag/Release。
+1. 发布收口:push 17 笔 → CI → 版本 bump + CHANGELOG → tag/Release。
 2. 真机验收 9 项清单(安卓四项/徽标/外网三件套/读头/大转录/双实例/updater)。
 3. 三决策:macOS 签名 secrets / Windows 证书路线 / Glama MCP 去留。
 4. 0.3.2 功能池(平板双栏/全文检索/审批代发/MCP 写回)独立排期不动。
-
-## 建议执行序
-
-A(git 批量)→ B(一致性档)→ D(竞态清账)→ C 等大仙痛点输入;每批收口照旧五门禁 + react-doctor 100 + 真窗口目检。
