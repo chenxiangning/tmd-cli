@@ -57,7 +57,7 @@ export const MESSAGES = {
   "思考 {level}": "Thinking {level}",
   "额度 —": "Quota —",
   "刷新额度": "Refresh quota",
-  "{label} 剩 {p}%": "{label} {p}% left",
+  "{label} 用 {p}%": "{label} {p}% used",
   "检查点": "Checkpoints",
   "快捷键": "Shortcuts",
   "提取图中文字": "Extract text",

@@ -92,13 +92,13 @@ export async function fetchMobileQuota(
   return fetcher(ctx);
 }
 
-/** 额度快照 → 行内短文本:余额直出;窗口 = 短标 + 剩余百分比,「 · 」连接;
- * 错误/空窗返 null(调用方显「额度 —」)。 */
+/** 额度快照 → 行内短文本:余额直出;窗口 = 短标 + 已用百分比,「 · 」连接
+ * (用户口径 2026-10-06:看消耗不看余量);错误/空窗返 null(调用方显「额度 —」)。 */
 export function formatQuotaLine(s: QuotaSnapshot): string | null {
   if (s.error) return null;
   if (s.balanceText) return s.balanceText;
   const parts = s.windows.map(
-    (w) => t("{label} 剩 {p}%", { label: SHORT_WINDOW_LABEL[w.label] ?? w.label, p: 100 - w.displayPercent }),
+    (w) => t("{label} 用 {p}%", { label: SHORT_WINDOW_LABEL[w.label] ?? w.label, p: w.displayPercent }),
   );
   return parts.length ? parts.join(" · ") : null;
 }

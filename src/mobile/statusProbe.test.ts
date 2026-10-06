@@ -34,7 +34,7 @@ describe("formatQuotaLine(额度快照 → 行内短文本)", () => {
     expect(formatQuotaLine(snap({ balanceText: "¥12.50" }))).toBe("¥12.50");
   });
 
-  it("窗口型:短标 + 剩余百分比,「 · 」连接", () => {
+  it("窗口型:短标 + 已用百分比,「 · 」连接", () => {
     expect(
       formatQuotaLine(
         snap({
@@ -44,13 +44,13 @@ describe("formatQuotaLine(额度快照 → 行内短文本)", () => {
           ],
         }),
       ),
-    ).toBe("5h 剩 60% · 7d 剩 20%");
+    ).toBe("5h 用 40% · 7d 用 80%");
   });
 
   it("未知窗口标签原样透传", () => {
     expect(
       formatQuotaLine(snap({ windows: [{ label: "1小时", displayPercent: 10 }] })),
-    ).toBe("1小时 剩 90%");
+    ).toBe("1小时 用 10%");
   });
 
   it("error 覆盖正常显示 → null(调用方显「—」)", () => {
