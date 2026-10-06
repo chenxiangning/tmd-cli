@@ -259,6 +259,24 @@ describe("transport web 态(WS 桥)", () => {
     await expect(transport.serverVersion()).resolves.toBe("1.2.3");
   });
 
+  it("hello lan/host:订阅广播 + 同步读取器;旧桌面缺字段 = null", async () => {
+    const seen: { lan: string | null; host: string | null }[] = [];
+    transport.onServerHello((h) => seen.push(h));
+    const p = transport.serverCapabilities();
+    const ws = lastWS();
+    ws.open();
+    await vi.advanceTimersByTimeAsync(0);
+    ws.recv(JSON.stringify({ type: "hello", version: "0.3.1", capabilities: ["app-device"], lan: "http://192.168.1.6:49598", host: "ab12" }));
+    await p;
+    expect(seen[0]).toEqual({ lan: "http://192.168.1.6:49598", host: "ab12" });
+    expect(transport.serverLanUrl()).toBe("http://192.168.1.6:49598");
+    expect(transport.serverHostId()).toBe("ab12");
+    ws.recv(JSON.stringify({ type: "hello", version: "0.2.0", capabilities: [] })); /* 旧桌面缺字段 → null 不采信 */
+    expect(seen[1]).toEqual({ lan: null, host: null });
+    expect(transport.serverLanUrl()).toBeNull();
+    expect(transport.serverHostId()).toBeNull();
+  });
+
   it("从未收到 hello(token 错 403)时 serverVersion 回落 null,状态栏不卡「…」", async () => {
     const p = transport.serverVersion();
     const ws = lastWS();

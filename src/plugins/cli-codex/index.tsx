@@ -18,6 +18,7 @@ import type {
 } from "@kernel/cli";
 import { codexTranscriptLine } from "./codexTranscript";
 import {
+  makeTranscriptTailReader,
   pairToolResults,
   parseTranscriptBlocks,
   readTranscriptText,
@@ -204,6 +205,7 @@ export const cliCodexPlugin: Plugin = {
       readSessionFileIdentity: readCodexSessionIdentity,
       readSessionUserMessages: readCodexUserMessages,
       readSessionTranscript: readCodexTranscript,
+      readTranscriptTail: makeTranscriptTailReader(codexTranscriptLine),
       readSessionEdits: readCodexSessionEdits,
     });
     /* 学堂:codex 斜杠命令课程,注册一份目录,学堂 UI 零改动 */

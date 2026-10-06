@@ -70,3 +70,23 @@ export function onRemoteRevoked(cb: (reason: string) => void): () => void {
 export function fireRevoked(reason: string): void {
   for (const cb of [...revokedCbs]) cb(reason);
 }
+
+/* hello 帧快照订阅(版本/能力之外的扩展字段:lan/host)——订阅独立于桥实例
+ * (配对探测前即可挂),每次 hello(含重连)触发;手机侧借此同步滞后内网地址。 */
+export interface ServerHello {
+  lan: string | null;
+  host: string | null;
+}
+let helloCbs: ((h: ServerHello) => void)[] = [];
+
+export function onServerHello(cb: (h: ServerHello) => void): () => void {
+  helloCbs.push(cb);
+  return () => {
+    helloCbs = helloCbs.filter((f) => f !== cb);
+  };
+}
+
+/** 桥侧触发 hello 快照广播。 */
+export function fireHello(h: ServerHello): void {
+  for (const cb of [...helloCbs]) cb(h);
+}

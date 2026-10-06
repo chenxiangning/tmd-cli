@@ -16,6 +16,7 @@ import { createPortal } from "react-dom";
 import { CaretDown, Check, FolderSimple, GitBranch, GitFork } from "@phosphor-icons/react";
 import { DecorIcon } from "@kernel/iconSet";
 import { peekWorktreeMeta } from "@plugins/workspace/useWorktreeCluster";
+import { queueTreeNew } from "@plugins/files/treeHandles";
 import { stringHue } from "@kernel/colorHash";
 import { setFilePanelMode, useFilePanel } from "@kernel/filePanel";
 import { resolveBranchCwd, useGitViewRepo } from "@kernel/gitViewRepo";
@@ -187,7 +188,10 @@ export function useWorkspaceSwitchMenus() {
   const openRowMenu = (ws: Workspace, x: number, y: number) => setRowMenu({ ws, x, y });
 
   /* 新建文件/文件夹:确保 files 面板 + 目标工作区激活,再经树句柄槽弹命名框。
-   * ponytail: 切换后固定等 400ms 让文件树重挂上交句柄;未就绪则静默,再点一次即可。 */
+   * 槽实现(files 插件 requestTreeNew)自带意图排队:树未重挂完时记待办,
+   * 挂载即弹 —— 无定时器赌时序,不再有「点了一次没反应」。
+   * 跨工作区分支走 queueTreeNew 强制排队:切换发起到新树 commit 重挂之间,
+   * 注册表句柄仍指旧树,立即执行会把命名框弹在旧树上随重挂销毁。 */
   const handleNewInTree = (wsId: string, kind: "file" | "folder") => {
     const filesPanel = panels.find((p) => p.id === "files");
     const slot = kind === "file" ? filesPanel?.newFile : filesPanel?.newFolder;
@@ -196,8 +200,12 @@ export function useWorkspaceSwitchMenus() {
       return;
     }
     setFilePanelMode("files");
-    if (wsId !== (active?.id ?? null)) setActiveWorkspace(wsId);
-    window.setTimeout(() => slot?.(), 400);
+    if (wsId !== (active?.id ?? null)) {
+      queueTreeNew(kind === "file" ? "newFile" : "newFolder");
+      setActiveWorkspace(wsId);
+      return;
+    }
+    slot?.();
   };
 
   const menus = (

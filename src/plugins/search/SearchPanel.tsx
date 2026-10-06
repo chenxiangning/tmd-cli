@@ -10,34 +10,11 @@ import { ipc, type FsSearchHit } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { normalizePath } from "@kernel/pathUtils";
 import { openFileAtLine } from "@kernel/fileTabs";
+import { splitHits } from "./splitHits";
 import { closeSearchOverlay, useActiveWorkspaceRoot } from "./overlayStore";
 
 /** 全局命中上限(护栏在 fs_search.rs;命中即提示截断)。 */
 const MAX_RESULTS = 2000;
-
-/** 行文本按 query 全部出现切段(大小写跟随开关);纯前端 indexOf。 */
-function splitHits(
-  text: string,
-  query: string,
-  caseSensitive: boolean,
-): { text: string; hit: boolean }[] {
-  if (!query) return [{ text, hit: false }];
-  /* ponytail: 大小写归一下切片用原 text,U+0130(İ)等 lower 变长字符会错位——
-     CJK/常规拉丁不受影响,接受;极端场景需精确时改用 hay 切片。 */
-  const hay = caseSensitive ? text : text.toLowerCase();
-  const needle = caseSensitive ? query : query.toLowerCase();
-  const parts: { text: string; hit: boolean }[] = [];
-  let cursor = 0;
-  for (;;) {
-    const at = hay.indexOf(needle, cursor);
-    if (at === -1) break;
-    if (at > cursor) parts.push({ text: text.slice(cursor, at), hit: false });
-    parts.push({ text: text.slice(at, at + query.length), hit: true });
-    cursor = at + query.length;
-  }
-  if (cursor < text.length) parts.push({ text: text.slice(cursor), hit: false });
-  return parts;
-}
 
 /** 命中按文件分组(保持首见顺序,行序即 walk 序自然递增)。 */
 function groupByFile(hits: readonly FsSearchHit[]): Map<string, FsSearchHit[]> {

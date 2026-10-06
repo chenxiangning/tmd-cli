@@ -24,9 +24,41 @@ export function getActiveTreeHandles(): TreeHandles | null {
   return activeTreeHandles;
 }
 
-/** FileTree 挂载时上交动作句柄;卸载即断开(置 null)。 */
+/* 新建意图排队(2026-10-06 消灭 400ms 魔数):树未挂载(切换工作区/面板
+ * 重挂中)时记一次性意图,FileTree 挂载注册句柄即消费 —— 意图必达新树,
+ * 不再依赖调用方定时器赌重挂时序。ponytail: 10s 过期窗口防滞留意图
+ * (用户闪电切走又长期不开 files 面板)在很久之后突然弹窗。 */
+const NEW_INTENT_TTL_MS = 10_000;
+type TreeNewKind = "newFile" | "newFolder";
+let pendingNew: { kind: TreeNewKind; at: number } | null = null;
+
+/** 新建文件/文件夹请求:树在则立即执行;不在则排队待挂载消费。
+ * 面板 newFile/newFolder 槽(工具条 + 键位命令)与工作区切换菜单共用,
+ * 后者的「先切工作区再弹命名框」场景由此获得可靠性保证。 */
+export function requestTreeNew(kind: TreeNewKind): void {
+  const h = getActiveTreeHandles();
+  if (h) {
+    h[kind]();
+    return;
+  }
+  queueTreeNew(kind);
+}
+
+/** 强制排队变体(工作区切换菜单专用):切换发起到新树 commit 重挂之间,注册表
+ *  句柄仍指**旧树** —— 立即执行会把命名框弹在旧工作区树上并随重挂销毁。
+ *  调用方先知(正要 setActiveWorkspace)走此口,新树挂载注册即消费。 */
+export function queueTreeNew(kind: TreeNewKind): void {
+  pendingNew = { kind, at: Date.now() };
+}
+
+/** FileTree 挂载时上交动作句柄;卸载即断开(置 null)。注册时消费排队中的
+ * 新建意图(TTL 内),过期丢弃。 */
 export function setActiveTreeHandles(handles: TreeHandles | null): void {
   activeTreeHandles = handles;
+  if (!handles || !pendingNew) return;
+  const { kind, at } = pendingNew;
+  pendingNew = null;
+  if (Date.now() - at <= NEW_INTENT_TTL_MS) handles[kind]();
 }
 
 /** 刷新语义单一真源:当前挂载树全量重拉(根层 + 展开目录)+ 打开中的文件

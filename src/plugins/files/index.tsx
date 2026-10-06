@@ -26,7 +26,7 @@ import { getActiveWorkspace } from "@kernel/workspace";
 import { fileHistoryOpenRef } from "@kernel/fileHistoryBridge";
 import { ActiveWorkspaceFileTree } from "./FileTree";
 import { setFileMarkBus } from "./markBridge";
-import { getActiveTreeHandles } from "./treeHandles";
+import { requestTreeNew } from "./treeHandles";
 import { WorkspaceFileBrowser } from "./WorkspaceFileBrowser";
 import { registerWorkspaceFileBrowser } from "@kernel/workspaceFileBrowser";
 import { retryImport } from "@kernel/lazyImport";
@@ -60,8 +60,10 @@ export const filesPlugin: Plugin = {
       /* 刷新语义单一真源 = treeHandles.refreshFiles(树重拉 + 打开中 tab 重读),
          与面板头工具条刷新钮同入口;草稿不受影响。 */
       refresh: refreshFiles,
-      newFile: () => getActiveTreeHandles()?.newFile(),
-      newFolder: () => getActiveTreeHandles()?.newFolder(),
+      /* 新建走 requestTreeNew:树未挂载(工作区/面板切换重挂中)时意图排队,
+         挂载即弹命名框 —— 消灭调用侧 400ms 定时器赌时序(见 treeHandles.ts)。 */
+      newFile: () => requestTreeNew("newFile"),
+      newFolder: () => requestTreeNew("newFolder"),
       /* rail 归组:工作区组(files/git 首组,位置不变;组间画分隔线) */
       order: 0,
       railGroup: "workspace",

@@ -79,7 +79,7 @@ describe("intent canvas sidecar storage", () => {
       workspace: { id: "ws-1", name: "demo" },
       request: { requestId: 1, mode: "architect", title: "登录流程" },
     });
-    const saved = await saveIntentCanvasDocument(ROOT, document);
+    const saved = (await saveIntentCanvasDocument(ROOT, document)).document;
     expect(saved.title).toBe("登录流程");
 
     const index = await loadIntentCanvasIndex(ROOT);
@@ -96,7 +96,7 @@ describe("intent canvas sidecar storage", () => {
       workspace: { id: "ws-1", name: "demo" },
       request: { requestId: 1, mode: "architect", title: "待删除" },
     });
-    const saved = await saveIntentCanvasDocument(ROOT, document);
+    const saved = (await saveIntentCanvasDocument(ROOT, document)).document;
     await deleteIntentCanvasDocument(ROOT, saved.id);
     expect(trashed.some((p) => p.includes(saved.id))).toBe(true);
     const index = await loadIntentCanvasIndex(ROOT);
@@ -123,10 +123,10 @@ describe("intent canvas sidecar storage", () => {
   });
 
   it("索引读取失败时中止索引覆写,修好后保存自愈", async () => {
-    const first = await saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
+    const first = (await saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
       workspace: { id: "ws-1", name: "demo" },
       request: { requestId: 1, mode: "architect", title: "画布甲" },
-    }));
+    }))).document;
     const indexPath = [...fileByPath.keys()].find((p) => p.endsWith("index.json"))!;
     fileByPath.set(indexPath, "{broken json");
     await expect(saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
@@ -224,7 +224,7 @@ describe("ai draw inbox protocol", () => {
       workspace: { id: "ws-1", name: "demo" },
       request: { requestId: 1, mode: "architect", title: "主画布" },
     });
-    const saved = await saveIntentCanvasDocument(ROOT, document);
+    const saved = (await saveIntentCanvasDocument(ROOT, document)).document;
     const inbox = `${await (await import("../storage/paths")).aiInboxDir(ROOT)}`;
     fileByPath.set(
       `${inbox}/ai-draw-2.json`,
@@ -239,10 +239,10 @@ describe("ai draw inbox protocol", () => {
   });
 
   it("append 缺 canvasId/title 时缺省落最近更新画布,不另开新图", async () => {
-    const saved = await saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
+    const saved = (await saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
       workspace: { id: "ws-1", name: "demo" },
       request: { requestId: 1, mode: "architect", title: "唯一画布" },
-    }));
+    }))).document;
     const inbox = `${await (await import("../storage/paths")).aiInboxDir(ROOT)}`;
     fileByPath.set(`${inbox}/ai-draw-default.json`, JSON.stringify({ ...validFile, mode: "append", title: undefined }));
     const imported = await pollAiDrawInbox(ROOT);
@@ -281,7 +281,7 @@ describe("ai draw inbox protocol", () => {
       workspace: { id: "ws-1", name: "demo" },
       request: { requestId: 1, mode: "architect", title: "追加目标" },
     });
-    const saved = await saveIntentCanvasDocument(ROOT, document);
+    const saved = (await saveIntentCanvasDocument(ROOT, document)).document;
     const inbox = `${await (await import("../storage/paths")).aiInboxDir(ROOT)}`;
     for (const name of ["ai-draw-a.json", "ai-draw-b.json"]) {
       fileByPath.set(

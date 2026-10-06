@@ -177,8 +177,6 @@ export const MESSAGES = {
   "重命名": "Rename",
   "已重命名 {from} 为 {to}": "Renamed {from} to {to}",
   "删除分支 {branch}?": "Delete branch {branch}?",
-  "未合并到当前分支的删除会被拒绝;强行删除请用行内删除按钮连点两次。":
-    "Deleting branches unmerged into the current branch is rejected; to force-delete, double-click the inline delete button.",
   "已删除 {branch}": "Deleted {branch}",
   "基于当前 HEAD 创建": "Create from current HEAD",
   "本地 ({n})": "Local ({n})",

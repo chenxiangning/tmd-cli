@@ -5,6 +5,7 @@
  * 钥匙串命中后 loadCreds 走缓存。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { MobileCreds } from "./creds";
 
 type Result = { value?: string | null; error?: string; pending?: boolean };
 
@@ -165,5 +166,65 @@ describe("mobileCreds 迁移矩阵", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("withFreshLan(hello.lan 同步)", () => {
+  const PIN = "tmd.mobile.channel.v1";
+  const base = (over: Partial<MobileCreds> = {}) => ({
+    ...CREDS,
+    wsUrl: "ws://192.168.1.6:56033",
+    urls: ["ws://192.168.1.6:56033", "wss://relay.example"],
+    ...over,
+  });
+
+  it("滞后内网地址被刷新,relay 候选保留且 LAN 在前", () => {
+    fakeLocalStorage();
+    const next = creds.withFreshLan(base(), "http://192.168.1.6:49598");
+    expect(next?.urls).toEqual(["ws://192.168.1.6:49598", "wss://relay.example"]);
+    expect(next?.wsUrl).toBe("ws://192.168.1.6:49598"); // wsUrl 属内网类随迁
+  });
+
+  it("已是最新 → null(调用方免写库)", () => {
+    fakeLocalStorage();
+    expect(
+      creds.withFreshLan(
+        base({ wsUrl: "ws://192.168.1.6:49598", urls: ["ws://192.168.1.6:49598", "wss://r"] }),
+        "http://192.168.1.6:49598/",
+      ),
+    ).toBeNull();
+  });
+
+  it("旧凭证无 urls:单 wsUrl 内网地址被替换", () => {
+    fakeLocalStorage();
+    const next = creds.withFreshLan(base({ urls: undefined }), "http://192.168.1.6:49598");
+    expect(next?.urls).toEqual(["ws://192.168.1.6:49598"]);
+    expect(next?.wsUrl).toBe("ws://192.168.1.6:49598");
+  });
+
+  it("relay 配对(wsUrl 为 wss):wsUrl 不动,候选前插内网", () => {
+    fakeLocalStorage();
+    const next = creds.withFreshLan(
+      base({ wsUrl: "wss://relay.example", urls: ["wss://relay.example"] }),
+      "http://192.168.1.6:49598",
+    );
+    expect(next?.wsUrl).toBe("wss://relay.example");
+    expect(next?.urls).toEqual(["ws://192.168.1.6:49598", "wss://relay.example"]);
+  });
+
+  it("回环/非内网形状不采信", () => {
+    fakeLocalStorage();
+    expect(creds.withFreshLan(base(), "http://127.0.0.1:49598")).toBeNull();
+    expect(creds.withFreshLan(base(), "http://localhost:49598")).toBeNull();
+    expect(creds.withFreshLan(base(), "ftp://192.168.1.6:1")).toBeNull();
+  });
+
+  it("pin 钉在旧内网地址 → 改钉新址;auto/relay pin 不动", () => {
+    const ls = fakeLocalStorage({ [PIN]: "ws://192.168.1.6:56033" });
+    creds.withFreshLan(base(), "http://192.168.1.6:49598");
+    expect(ls.get(PIN)).toBe("ws://192.168.1.6:49598");
+    const ls2 = fakeLocalStorage({ [PIN]: "wss://relay.example" });
+    creds.withFreshLan(base(), "http://192.168.1.6:49598");
+    expect(ls2.get(PIN)).toBe("wss://relay.example");
   });
 });

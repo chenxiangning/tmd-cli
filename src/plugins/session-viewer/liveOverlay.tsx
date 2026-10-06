@@ -3,10 +3,9 @@
  * 挂点;入口切换钮 = livePill.tsx,经 terminal.canvasRow 挂点并入幕布右上工具行)。
  * 命名契约:入口「结构化视图」/ 出口「PTY实况」,两面一致。
  * 幕布保活零卸载(覆盖不替换,PTY 链路零改动);数据 = 1s 探测短路轮询
- * (fsReadTailChanged 尺寸未变零读取)+ 变更即 readSessionTranscript 全量重读
- * (message 级刷新:JSONL 事件级追加,无 token 粒度——omp 全事件类型实证无
- * ponytail: 全量重读在超大转录(8MB+)每秒约百毫秒主线程;升级路径 = 契约暴露
- * per-family lineOf 做尾窗增量解析。
+ * (fsReadTailChanged 尺寸未变零读取)+ 变更拍 readChangedTranscript(JSONL
+ * 家族增量段解析,2026-10-06:8MB+ 大转录不再全量重读;未声明家族回落全量;
+ * message 级刷新,JSONL 事件级追加,无 token 粒度——omp 全事件类型实证)。
  * 设计:docs/superpowers/specs/2026-09-30-live-transcript-view-design.md
  */
 import { lazy, useEffect, useReducer, useRef, useState } from "react";
@@ -20,8 +19,7 @@ import { Spinner } from "@kernel/Spinner";
 import { Chats } from "@phosphor-icons/react";
 import { retryImport } from "@kernel/lazyImport";
 import { TranscriptView } from "./transcriptView";
-import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe, stableBlocks } from "./liveMode";
-
+import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe, stableBlocks, readChangedTranscript, type LiveTailState } from "./liveMode";
 /* md 渲染管线体积大,按需拆包(与 viewerTab 同款纪律)。 */
 const MarkdownBody = lazy(retryImport(() =>
   import("./markdownBody").then((m) => ({ default: m.MarkdownBody })),
@@ -70,15 +68,18 @@ export function LiveTranscriptOverlay() {
   /** 定位 miss 计数:退避节拍用(命中/会话切换归零)。 */
   const resolveMissRef = useRef(0);
   const sizeRef = useRef<number | null>(null);
-  const stickRef = useRef(true);
   /** 贴底跟随的渲染态镜像(ref 驱滚动逻辑,state 驱「回到底部」浮标显隐)。 */
+  const stickRef = useRef(true);
+  /** 增量尾读状态(见 liveMode.readChangedTranscript):raw 累计原始块,
+   *  offset 行对齐续读偏移,truncated 首读定格。 */
+  const tailRef = useRef<LiveTailState>({ raw: null, offset: null, truncated: false });
   const [atBottom, setAtBottom] = useState(true);
   const pendingRestoreRef = useRef<{ height: number; top: number } | null>(null);
 
   /* 会话/模式切换即整态复位(先于轮询 effect 声明,同拍先清后跑)。 */
   useEffect(() => {
     diskRef.current = null;
-    sizeRef.current = null;
+    tailRef.current = { raw: null, offset: null, truncated: false };
     stickRef.current = true;
     setAtBottom(true);
     pendingRestoreRef.current = null;
@@ -93,10 +94,9 @@ export function LiveTranscriptOverlay() {
     resolveMissRef.current = 0;
   }, [activeId, on]);
 
-  /* 轮询:定位磁盘会话 → 尺寸探测短路 → 变更全量重读。 */
+  /* 轮询:定位磁盘会话 → 尺寸探测短路 → 变更拍增量/全量读取(readChangedTranscript)。 */
   useEffect(() => {
     if (!on || !activeId || !profile?.readSessionTranscript || !meta?.cwd) return;
-    const reader = profile.readSessionTranscript;
     const listSessions = profile.listSessions;
     let stopped = false;
     let tick = 0;
@@ -133,15 +133,15 @@ export function LiveTranscriptOverlay() {
         return;
       }
       if (decision !== "read" || !probe || !probe.changed) return;
-      const transcript = await reader(diskRef.current);
+      const next = await readChangedTranscript(profile, diskRef.current, probe.size, tailRef.current);
       if (stopped) return;
       sizeRef.current = probe.size;
-      if (!transcript) {
+      if (!next) {
         setError(true);
         return;
       }
-      setBlocks((prev) => stableBlocks(prev, transcript.blocks));
-      setTruncated(transcript.truncated ?? false);
+      setBlocks((prev) => stableBlocks(prev, next.blocks));
+      setTruncated(next.truncated);
       setError(false);
     };
     const step = async () => {
@@ -202,7 +202,7 @@ export function LiveTranscriptOverlay() {
   /* 状态三分流:错误(含 unsupported)走持久条 role=alert + 重试,不抹已到转录;空态走 Empty;定位中走 Spinner。 */
   const errMsg = unsupported ? t("该引擎不支持实时转录") : error ? t("读取会话转录失败") : null;
   const retryLocate = () => { /* 清错误/熔断与定位缓存,重拍轮询 effect */
-    setError(false); setUnsupported(false);
+    tailRef.current = { raw: null, offset: null, truncated: false }; setError(false); setUnsupported(false);
     probeFailRef.current = 0; resolveMissRef.current = 0; diskRef.current = null; sizeRef.current = null;
     setRetryTick((v) => v + 1);
   };

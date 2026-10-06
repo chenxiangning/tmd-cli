@@ -1,6 +1,8 @@
 /**
  * CliProfile —— cli-* 插件声明载体的主接口,自 cli.ts 迁出(单文件 ≤300 行铁则)。
  * 触发符/补全候选等小件仍在 kernel/cli.ts;import 契约经 cli.ts re-export 保持。
+ * file-size-exempt:插件声明面主契约,按能力族分区(会话读取/行为声明/安装元数据),
+ * 再拆 = 契约碎片化(消费方 Pick 面跨三处);ipc.ts 同性质先例。
  */
 
 import type { ReactNode } from "react";
@@ -9,7 +11,7 @@ import type { SpawnSpec } from "./ipc";
 import type { CliPrerequisite } from "./cliPrerequisite";
 import type { TriggerKind, CliTriggerSpec, CliSuggestion } from "./cli";
 import type {
-  CliDiskSession, CliSessionEdit, CliSessionStatus, CliSessionTranscript,
+  CliDiskSession, CliSessionEdit, CliSessionStatus, CliSessionTranscript, CliTranscriptBlock,
   CliUserMessage, RemoteExec, SessionFileIdentity,
 } from "./cliSessionTypes";
 
@@ -147,6 +149,13 @@ export interface CliProfile {
   /** 会话完整转录(查看器数据源,只读;32MB 预算超限置 truncated)。
    *  块模型参考 monocode 裁剪,详见 cliSessionTypes.ts 头注。缺省 = 不支持转录查看。 */
   readSessionTranscript?: (session: CliDiskSession) => Promise<CliSessionTranscript | null>;
+  /** 活转录增量尾读(可选,JSONL 追加式家族):since=null 全量起步(预算与
+ *  truncated 同上),否则自 since(上次返回的行对齐 offset)读增量段。blocks 为
+ *  该窗原始块(未 pair,调用方跨拍累计后全量 pair);truncated 仅全量拍置值。 */
+  readTranscriptTail?: (
+    session: CliDiskSession,
+    since: number | null,
+  ) => Promise<{ blocks: CliTranscriptBlock[]; truncated?: boolean; offset: number } | null>;
   /**
    * 读取该 CLI 的默认模型与思考强度(配置层,非会话层)。
    * 用途:全新会话创建即赋值 —— 磁盘会话文件要等首条消息才落盘(实证 omp),

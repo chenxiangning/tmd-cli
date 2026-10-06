@@ -18,14 +18,59 @@ pub(crate) struct StatesFile {
     pub batches: BTreeMap<String, BatchState>,
 }
 /// 账本互斥:anchor/seal/restore/prune 都要读改 ledger.jsonl,
-/// 进程内串行化防并行会话同时落账交错。
-/* ponytail: 仅进程内锁;双实例同时 rewrite+append 会吞行(std 无 flock,不为此引依赖)。
-单用户单实例是常态;确需多实例共存时改 flock 或 prune 走 append 补偿行。 */
+/// 进程内串行化防并行会话同时落账交错;跨实例(dev + 打包版双开)再经
+/// 全局锁文件 flock 串行(2026-10-06 修双实例 rewrite+append 吞行)。
+/// 锁序恒定 LEDGER_LOCK → flock,单向无死锁;flock 内核级,崩溃自动释放。
+/* ponytail: 全局单锁(粗粒度,跨工作区共用一把)—— checkpoints 低频,
+ * 按工作区分锁要动全部调用点签名,不值;Windows 无 flock 保持进程内锁,
+ * 双实例吞行风险保留(unix 双开 dev 是实况主场景)。 */
 pub(crate) static LEDGER_LOCK: Mutex<()> = Mutex::new(());
 
-/// 持有 LEDGER_LOCK 的 RAII 守卫(测试 panic 毒化后可恢复)。
-pub(crate) fn lock_ledger() -> std::sync::MutexGuard<'static, ()> {
-    LEDGER_LOCK.lock().unwrap_or_else(|p| p.into_inner())
+/// 持有 LEDGER_LOCK 的 RAII 守卫:drop 时先松 flock(关 fd)再放进程内锁
+/// (字段按声明序 drop,_file 先声明先释放);测试 panic 毒化后可恢复。
+pub(crate) fn lock_ledger() -> LedgerGuard {
+    let inner = LEDGER_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let file = open_lock_file();
+    #[cfg(unix)]
+    if let Some(f) = file.as_ref() {
+        flock_exclusive(f);
+    }
+    LedgerGuard {
+        _file: file,
+        _inner: inner,
+    }
+}
+
+/// 账本全局锁文件句柄:打开失败(权限/磁盘满)= None,降级仅进程内锁。
+fn open_lock_file() -> Option<std::fs::File> {
+    let dir = base_dir();
+    std::fs::create_dir_all(&dir).ok()?;
+    std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(dir.join("ledger.lock"))
+        .ok()
+}
+
+/// 阻塞取独占 flock;EINTR 重试,其余失败(NFS 等)静默降级(进程内锁仍生效)。
+#[cfg(unix)]
+fn flock_exclusive(f: &std::fs::File) {
+    use std::os::unix::io::AsRawFd;
+    loop {
+        let rc = unsafe { libc::flock(f.as_raw_fd(), libc::LOCK_EX) };
+        if rc == 0 {
+            return;
+        }
+        if std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
+            return;
+        }
+    }
+}
+
+/// 账本守卫:字段按声明序 drop(_file 先声明先释放 = 先松 flock 再放进程内锁)。
+pub(crate) struct LedgerGuard {
+    _file: Option<std::fs::File>,
+    _inner: std::sync::MutexGuard<'static, ()>,
 }
 
 static SEQ: AtomicU64 = AtomicU64::new(0);

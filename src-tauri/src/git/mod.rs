@@ -14,6 +14,7 @@ mod ahead;
 mod blame;
 mod branch_ops;
 pub mod commands;
+pub mod commands_batch;
 pub mod commands_file;
 pub mod commands_pr;
 pub mod commands_worktree;

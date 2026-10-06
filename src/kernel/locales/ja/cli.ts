@@ -207,8 +207,6 @@ export const MESSAGES = {
     "ウェブ検索 / URL 取得 / GitHub クローン / PDF と動画の理解",
   "MCP(Model Context Protocol)服务器接入适配":
     "MCP(Model Context Protocol)サーバー接続アダプター",
-  "Kiro OAuth 登录、额度用量与模型发现":
-    "Kiro OAuth ログイン、クォータ使用状況、モデル発見",
   "基于 jscpd 的重复代码检测插件":
     "jscpd ベースの重複コード検出プラグイン",
 
@@ -275,8 +273,6 @@ export const MESSAGES = {
   "{n} 个模型": "モデル {n} 件",
   "含 Key": "キーあり",
   "无 Key": "キーなし",
-  "还没有自定义供应商,点右上角「编辑配置」添加":
-    "カスタムプロバイダーはまだありません。右上の「設定を編集」から追加してください",
   "API Key(可空;建议 $ENV_VAR 引用)": "API キー(空欄可;$ENV_VAR 参照を推奨)",
   "协议": "プロトコル",
   "模型(一行一个 id;高级字段用「编辑配置」)":

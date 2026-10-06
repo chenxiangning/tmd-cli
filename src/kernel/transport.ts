@@ -17,6 +17,7 @@ import {
   isRemotePaused,
   onRemoteConnection,
   onRemoteRevoked,
+  onServerHello,
 } from "./transportState";
 
 export const isWeb =
@@ -58,7 +59,8 @@ export function configureRemoteEndpoint(ep: RemoteEndpoint | null): void {
 }
 
 /* 桥连接态与撤销回调:实现在 transportBridge/transportState,此处再导出保持消费面单一。 */
-export { isRemoteConnected, isRemotePaused, activeRemoteEndpoint, onRemoteConnection, onRemoteRevoked };
+export { isRemoteConnected, isRemotePaused, activeRemoteEndpoint, onRemoteConnection, onRemoteRevoked, onServerHello };
+export type { ServerHello } from "./transportState";
 
 /** 手动断开(手机连接面板):停连且不再自动重拨;forceRemoteReconnect 恢复。 */
 export function remoteDisconnect(): void {
@@ -111,4 +113,15 @@ export function serverCapabilities(): Promise<string[]> {
   } catch {
     return Promise.resolve([]);
   }
+}
+
+/** 最近一次 hello 的 LAN 基址(http://ip:port);换端点才失效,断线后为陈旧值
+ *  (同 serverHostId 律:diskCache 桶键正依赖断线残留)。旧桌面无该字段 = null。 */
+export function serverLanUrl(): string | null {
+  return bridge?.lanValue ?? null;
+}
+
+/** 最近 hello 的桌面稳定身份(hostId;旧桌面/未连接 = null)。手机本地缓存作用域键。 */
+export function serverHostId(): string | null {
+  return bridge?.hostValue ?? null;
 }

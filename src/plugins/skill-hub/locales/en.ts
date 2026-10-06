@@ -28,7 +28,6 @@ export const MESSAGES_EN = {
   "删除技能「{name}」?": "Delete skill \"{name}\"?",
   "公约位技能多家引擎共用,删除后全部失效":
     "Convention-dir skills are shared by multiple engines, all of them lose it after deletion",
-  "移入系统回收站,可从废纸篓恢复": "Moved to system trash, restorable from Trash",
   "已装": "installed",
   "导入技能": "Import skill",
   "安装技能": "Install skill",
@@ -76,7 +75,6 @@ export const MESSAGES_EN = {
   "落位": "Placed at",
   "公约位": "shared dir",
   "移入系统回收站,可从废纸篓恢复;安装记录同步移除": "Moved to system trash (recoverable); install record removed too",
-  "正在扫描本机 CLI 目录…": "Scanning local CLI directories…",
   "本机未发现任何 CLI 技能目录": "No CLI skill directories found on this machine",
   "平铺形(单文件)技能暂不支持跨目录导入": "Flat (single-file) skills can't be imported across directories yet",
   "已在安装记录中;重新导入请先在「已安装」删除": "Already in install records — delete it in 'Installed' first to re-import",

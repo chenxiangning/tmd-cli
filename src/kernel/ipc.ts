@@ -11,7 +11,7 @@
  */
 
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { invoke, listen, webToken, isWeb, serverVersion } from "./transport";
+import { invoke, listen, webToken, isWeb, serverVersion, activeRemoteEndpoint } from "./transport";
 import type {
   SftpEntry,
   SftpEventPayload,
@@ -458,6 +458,9 @@ export const ipc = {
     invoke<void>("fs_write_bytes_base64", { path, data }),
   /* ── git(右栏面板;cwd 由调用方从活跃 workspace 取)── */
   gitStatus: (cwd: string) => invoke<GitDiffStatus>("git_status", { cwd }),
+  /** 多仓 status 批量(文件树着色专用):Rust thread::scope 并行,失败仓整行省略。 */
+  gitStatusBatch: (cwds: string[]) =>
+    invoke<{ root: string; status: GitDiffStatus }[]>("git_status_batch", { cwds }),
   /** 多仓发现:root 下 BFS 找 .git(深度上限 maxDepth,前端默认 2);
    *  结果按 path 排序,root 是仓时首个即 root;超 32 截断(truncated)。 */
   gitReposScan: (root: string, maxDepth: number) =>
@@ -694,9 +697,14 @@ export const ipc = {
   /** 补丁写全局设置:只携带被改顶层域,Rust 锁内合并落盘;schema 归 kernel/settings.ts。 */
   configMergeSettings: (patch: unknown) =>
     invoke<void>("config_merge_settings", { patch }),
-  /** 通用 HTTP 代理 ─ 各 CLI quota provider 通过此调用供应商 API。 */
+  /** 通用 HTTP 代理 ─ 各 CLI quota provider 通过此调用供应商 API。
+   *  远程(手机桥)态切白名单收口版 quota_vendor_fetch:quota_fetch 任意 URL
+   *  对设备通道是 SSRF 面,AppDevice 域闸不授(conn.rs);本地/网页面不受影响。 */
   quotaFetch: (spec: QuotaFetchSpec) =>
-    invoke<QuotaFetchResponse>("quota_fetch", { spec }),
+    invoke<QuotaFetchResponse>(
+      activeRemoteEndpoint() !== null ? "quota_vendor_fetch" : "quota_fetch",
+      { spec },
+    ),
   /** 通用只读 sqlite 查询(参数化绑定,READ_ONLY 连接)。
    *  CLI 私有库的路径/表结构知识在插件侧(cli-shared),内核只做代读原语。 */
   sqliteQuery: (dbPath: string, sql: string, params: string[]) =>

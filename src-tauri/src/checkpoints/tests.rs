@@ -23,6 +23,7 @@ mod events_apply;
 mod events_external;
 mod events_isolation;
 mod events_preimage;
+mod lock;
 mod parallel;
 mod restore;
 mod retention;
@@ -39,6 +40,7 @@ fn io_lock() -> std::sync::MutexGuard<'static, ()> {
 
 struct TempWs {
     dir: std::path::PathBuf,
+    base: std::path::PathBuf,
     _guard: std::sync::MutexGuard<'static, ()>,
 }
 
@@ -57,9 +59,12 @@ impl TempWs {
         let base =
             std::env::temp_dir().join(format!("tmd-ckpt-store-{}-{seq}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
-        fs::create_dir_all(&base).unwrap();
-        set_base_for_test(base);
-        Self { dir, _guard: guard }
+        set_base_for_test(base.clone());
+        Self {
+            dir,
+            base,
+            _guard: guard,
+        }
     }
 
     fn path(&self) -> &str {

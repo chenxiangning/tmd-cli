@@ -15,6 +15,7 @@
 
 import { ipc } from "@kernel/ipc";
 import type { CliToolPreviewKind, CliToolPreviewLine, CliTranscriptBlock } from "@kernel/cli";
+import type { CliProfile } from "@kernel/cliProfile";
 
 /** 全量读取预算:超出按尾窗截断(标 truncated)。 */
 export const TRANSCRIPT_BYTES = 32 * 1024 * 1024;
@@ -26,16 +27,73 @@ export type TranscriptLineParser = (
 
 /**
  * 读整份会话文件文本。文件不存在/读取失败返回 null(查看器显错误占位);
- * 文件超预算时尾窗截断,置 truncated。
+ * 文件超预算时尾窗截断,置 truncated。size = 当前文件字节数(增量尾读的
+ * 对齐基准,2026-10-06)。
  */
 export async function readTranscriptText(
   path: string,
-): Promise<{ text: string; truncated: boolean } | null> {
+): Promise<{ text: string; truncated: boolean; size: number } | null> {
   const tail = await ipc
     .fsReadTailChanged(path, TRANSCRIPT_BYTES, null)
     .catch(() => null);
   if (tail === null || !tail.changed) return null;
-  return { text: tail.text, truncated: tail.size > TRANSCRIPT_BYTES };
+  return { text: tail.text, truncated: tail.size > TRANSCRIPT_BYTES, size: tail.size };
+}
+
+/** 单拍增量窗护栏:与 Rust fs_read_range 单段上限(1MB,commands_fs clamp)对齐;
+ *  活会话追加节奏远小于此,超窗 = 多段续读语义交给下拍。 */
+export const TAIL_INCREMENT_BYTES = 1024 * 1024;
+
+/** text 末尾残行(无换行收尾)的字节长度;TextEncoder 只编码残行段,便宜。 */
+function trailingPartialBytes(text: string): number {
+  const lastNl = text.lastIndexOf("\n");
+  const residual = lastNl >= 0 ? text.slice(lastNl + 1) : text;
+  return residual.length ? new TextEncoder().encode(residual).length : 0;
+}
+
+/** 行对齐续读偏移:窗末是完整行(或空)→ absEnd;残行 → 回退到残行行首,
+ *  下拍自该行首重读(parse 跳过过的半行补全后完整解析,不丢消息)。 */
+function alignedNext(text: string, absEnd: number): number {
+  return absEnd - trailingPartialBytes(text);
+}
+
+/**
+ * 尾窗增量读(2026-10-06,活视图大转录增量解析):since = null 全量起步
+ * (32MB 尾窗预算);否则自 since(上次返回的 offset)fs_read_range 增量段。
+ * 返回该窗**原始块**(未 pair,调用方跨拍累计后全量 pairToolResults —— 工具
+ * 结果可与上拍的调用块配对,不能只对增量段 pair)与新对齐 offset。文件不可读
+ * → null。offset 恒 ≤ 文件当前末尾;调用方发现文件变小(轮转)应 since=null
+ * 全量重来。
+ */
+export async function readTranscriptTail(
+  path: string,
+  lineOf: TranscriptLineParser,
+  since: number | null,
+): Promise<{ blocks: CliTranscriptBlock[]; truncated?: boolean; offset: number } | null> {
+  if (since === null) {
+    const head = await readTranscriptText(path);
+    if (!head) return null;
+    return {
+      blocks: parseTranscriptBlocks(head.text, lineOf),
+      truncated: head.truncated,
+      offset: alignedNext(head.text, head.size),
+    };
+  }
+  const span = await ipc.fsReadRange(path, since, TAIL_INCREMENT_BYTES).catch(() => null);
+  if (!span) return null;
+  return {
+    blocks: parseTranscriptBlocks(span.text, lineOf),
+    offset: alignedNext(span.text, since + span.consumed),
+  };
+}
+
+/** family 一行声明增量尾读(签名对齐 CliProfile.readTranscriptTail)。
+ *  非 JSONL 追加式家族不声明,活视图自动回落全量;目录型会话(kimi/grok)
+ *  被浮层能力门拦截不出钮(pillCapable),不接。 */
+export function makeTranscriptTailReader(
+  lineOf: TranscriptLineParser,
+): NonNullable<CliProfile["readTranscriptTail"]> {
+  return (session, since) => readTranscriptTail(session.path, lineOf, since);
 }
 
 /** 文本 → 顺序块列表(纯函数,可测)。坏行/非 JSON 行跳过。 */

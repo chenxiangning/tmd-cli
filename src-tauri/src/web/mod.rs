@@ -27,4 +27,6 @@ pub mod server;
 pub mod state;
 pub mod web_access;
 mod ws;
+#[cfg(test)]
+mod ws_tests;
 mod ws_ticks;

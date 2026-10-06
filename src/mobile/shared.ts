@@ -97,11 +97,42 @@ export function askEdgeNotify(sessionId: string, present: boolean, title: string
   }
 }
 
+/** 单会话 ask 检查:拉尾页(8K,标记只在末屏)跑标记走边沿台账。
+ *  home 轮询(pollHomeWatch)与事件化沿检测(MobileApp turnActive 下降沿)共用,
+ *  同一 askRounds 台账保证幂等。失败 = 抛出由调用方吞(留下一轮)。 */
+export async function checkSessionAsk(id: string, title: string): Promise<void> {
+  const page = await invoke<{ text: string }>("session_history_page", {
+    id,
+    before: Number.MAX_SAFE_INTEGER,
+    maxBytes: 8192,
+  });
+  askEdgeNotify(id, await tailHasAskMarker(page.text ?? ""), title);
+}
+
 /** 会话终局清账(pty://exit / 列表消失时调)。 */
 export function askRoundClear(sessionId: string): void {
   askRounds.delete(sessionId);
 }
 
+/** turnActive 下降沿收集(ask 事件化沿检测,2026-10-06):维护 prev 快照,
+ *  返回本轮从活动翻空闲的会话 —— ask 首现必伴随活动翻 idle(sessions:changed
+ *  驱动列表重拉),沿上拉尾页检查即事件级检出(替代他屏 60s 轮询拍)。首见
+ *  与上升沿不触发;消失会话顺手清账。纯内存 diff,快照由调用方持有。 */
+export function collectIdleEdges(
+  prev: Map<string, boolean>,
+  sessions: RemoteSession[],
+): RemoteSession[] {
+  const out: RemoteSession[] = [];
+  const live = new Set<string>();
+  for (const s of sessions) {
+    live.add(s.id);
+    const active = !!s.activity?.turnActive;
+    if (prev.get(s.id) === true && !active) out.push(s);
+    prev.set(s.id, active);
+  }
+  for (const id of prev.keys()) if (!live.has(id)) prev.delete(id);
+  return out;
+}
 /** home 轮询一轮(逐会话串行削峰,对齐磁盘历史扫描纪律):审批线待审数 +
  *  运行中会话 ask 首现边沿(尾页 8K 跑标记,标记只在末屏)。checkpoint 失败
  *  记 0;尾页失败跳过(台账不动,留下一轮)。skipAskOf = 会话屏正打开的会话
@@ -127,14 +158,9 @@ export async function pollHomeWatch(
     }
     if (!it.running || it.id === skipAskOf) return;
     try {
-      const page = await invoke<{ text: string }>("session_history_page", {
-        id: it.id,
-        before: Number.MAX_SAFE_INTEGER,
-        maxBytes: 8192,
-      });
-      askEdgeNotify(it.id, await tailHasAskMarker(page.text ?? ""), it.title);
+      await checkSessionAsk(it.id, it.title);
     } catch {
-      /* 断连/死会话:本轮跳过 */
+      /* 断连/死会话:本轮跳过(台账不动,留下一轮) */
     }
   };
   /* 逐会话串行削峰(对齐磁盘历史扫描纪律):reduce 链 = 前一项 await 落定

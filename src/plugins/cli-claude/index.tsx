@@ -8,7 +8,6 @@ import { parseClaudeFamilySessionHead } from "../cli-shared/sessionIdentity";
 import type {
   CliDiskSession,
   CliProfile,
-  CliSessionStatus,
   CliSessionTranscript,
   CliSuggestion,
 } from "@kernel/cli";
@@ -16,6 +15,7 @@ import type { Plugin } from "@kernel/plugin";
 import { fetchClaudeQuota } from "./quota";
 import { claudeTranscriptLine } from "../cli-shared/claudeTranscript";
 import {
+  makeTranscriptTailReader,
   pairToolResults,
   parseTranscriptBlocks,
   readTranscriptText,
@@ -24,56 +24,10 @@ import { listClaudeSuggestions } from "./scanSuggestions";
 import { claudeConfigEntry } from "./configGui";
 import { CLAUDE_ACADEMY_COURSE } from "./academy/academyCatalog";
 import { applyClaudeChannel } from "./channelApply";
-import { claudeSessionsDir, listClaudeSessions } from "./sessions";
+import { claudeSessionsDir, listClaudeSessions, readClaudeSessionStatus } from "./sessions";
 import { ProviderChannelsCard } from "@plugins/cli-shared/providerChannels";
-import { readStatusTailGated } from "../cli-shared/sessionStatus";
 import { isJsonlSessionEmpty } from "../cli-shared/sessionEmpty";
 /* 磁盘会话扫描/目录布局在 ./sessions(叶子模块,移动端 home 历史同源复用)。 */
-
-
-const STATUS_TAIL_BYTES = 256 * 1024;
-
-/**
- * 从会话文件尾部提取当前模型(纯函数,可测)。
- * claude jsonl 行型实证:assistant 行的 message.model 是真相;倒序找最后一帧。
- * user/queue-operation 行无 model 字段,天然被 type 守卫排除。
- */
-export function extractClaudeModel(tail: string): string | undefined {
-  for (const line of tail.split("\n").reverse()) {
-    if (!line.includes('"model"')) continue;
-    try {
-      // 外部 JSON 逐层 in/typeof 收窄,不做 inline cast
-      const event: unknown = JSON.parse(line);
-      if (!event || typeof event !== "object" || !("type" in event)) continue;
-      if (event.type !== "assistant" || !("message" in event)) continue;
-      const message: unknown = event.message;
-      if (!message || typeof message !== "object" || !("model" in message)) continue;
-      const model: unknown = message.model;
-      if (typeof model === "string" && model) return model;
-    } catch {
-      // 尾部块的首行可能被截断,跳过继续读完整行。
-    }
-  }
-  return undefined;
-}
-
-async function readClaudeSessionStatus(
-  cwd: string,
-  cliSessionId: string,
-): Promise<CliSessionStatus | null> {
-  const dir = await claudeSessionsDir(cwd);
-  if (!dir) return null;
-  /* claude 思考强度不落盘到会话文件(settings 全局开关),不提供 thinkingLevel。 */
-  return readStatusTailGated(
-    `${dir}\u0000${cliSessionId}`,
-    async () => `${dir}/${cliSessionId}.jsonl`,
-    STATUS_TAIL_BYTES,
-    (tail) => {
-      const model = extractClaudeModel(tail);
-      return model ? { model } : null;
-    },
-  );
-}
 /** claude 文件名即会话 id,免扫目录直拼路径。 */
 async function readClaudeUserMessages(cwd: string, cliSessionId: string, full: boolean) {
   const dir = await claudeSessionsDir(cwd);
@@ -238,6 +192,7 @@ export const cliClaudePlugin: Plugin = {
       readSessionFileIdentity: readClaudeSessionIdentity,
       readSessionUserMessages: readClaudeUserMessages,
       readSessionTranscript: readClaudeTranscript,
+      readTranscriptTail: makeTranscriptTailReader(claudeTranscriptLine("claude")),
       /* 无头单发(--help 实证):-p 非交互答完即退且明确支持管道(prompt 从 stdin 读,
          oneshotStdin 递送);非交互态自动跳过 workspace trust 弹窗;--dangerously-skip-
          permissions 旁路全部审批(本版 help 无 --permission-mode,写文章文件必须放行)。 */

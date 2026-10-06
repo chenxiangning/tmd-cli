@@ -1,5 +1,4 @@
-/** home 屏:单顶栏+搜索+工作区分组(本地/归档分段);活会话+磁盘历史同列,
- * 断连 = banner + 快照减淡。 */
+/** home 屏:单顶栏+搜索+工作区分组(本地/归档分段);活会话+磁盘历史同列,断连 = banner + 快照减淡。 */
 import React, { useMemo, useState } from "react";
 import { SpawnSheet } from "./SpawnSheet";
 import { t } from "@kernel/i18n";
@@ -9,6 +8,7 @@ import { Row } from "./Row";
 import { ArchiveIcon, FolderIcon, GitIcon, LocalIcon, PlusIcon, RefreshIcon } from "./treeIcons";
 import { globalDiskTitles, groupHomeRows, partitionByArchive, pinKeyOf, scanWorkspaceHistory, topZones, type HistoryItem, type HomeRow } from "./history";
 import { relTime } from "./remote";
+import { useHomeHistory, writeHomeHistoryRoot } from "./diskCache";
 /** 磁盘历史重扫节奏:读头有 mtime 缓存,稳态每轮只剩 fs_collect_files 轻量 RPC。 */
 const HISTORY_RESCAN_MS = 60_000;
 /** 命名追赶重扫:存在「已绑定磁盘身份但真名未解析」的活行时的加密档。 */
@@ -26,8 +26,7 @@ export function HomeScreen() {
   const [limits, setLimits] = useState<Record<string, number>>({});
   /* 审批线待审数(home 行琥珀点 + pill;白名单 checkpoint_list 只读)。 */
   const [pending, setPending] = useState<Record<string, number>>({});
-  /* 磁盘历史:key = 工作区 root。 */
-  const [history, setHistory] = useState<Map<string, HistoryItem[]>>(new Map());
+  const [history, setHistory] = useHomeHistory(); /* 磁盘历史(key=root):挂载 hydrate 缓存(外网首屏即显),扫描波回写 */
   /* 手动刷新:顶栏钮触发一轮立即轮询(审批/ask + 磁盘历史);busy 态旋转指示。 */
   const [refreshing, setRefreshing] = useState(false), [refreshTick, setRefreshTick] = useState(0);
   /* 视图节流(P1):他屏/后台 = 审批轮询 60s、磁盘历史停扫;回 home 立即补轮。 */
@@ -88,17 +87,19 @@ export function HomeScreen() {
     let alive = true;
     let running = false;
     const scan = () => {
-      if (running) return; // 上一波未完:跳过,不叠 RPC 波
+      if (running) return; // 上一波未完跳过,不叠 RPC 波;逐区串行削峰,勿并发化
       running = true;
-      // promise 链 = 逐区串行(刻意削峰,勿并发化);单区失败保留旧值留下轮。
       void roots
         .reduce(
           (prev, root) =>
             prev.then(() => {
               if (!alive) return undefined;
               return scanWorkspaceHistory(root)
-                .then((items) => {
+                .then(({ items, failedEngines }) => {
+                  /* 有引擎失败 = 残缺视图:跳过 UI 覆写与缓存回写,旧值留下轮(防断桥空列表毒化缓存)。 */
+                  if (failedEngines.length > 0) return;
                   if (alive) setHistory((old) => new Map(old).set(root, items));
+                  writeHomeHistoryRoot(root, items);
                 })
                 .catch(() => undefined);
             }),
@@ -114,7 +115,7 @@ export function HomeScreen() {
       alive = false;
       clearInterval(timer);
     };
-  }, [roots, refreshTick, unresolved, homeVisible]);
+  }, [roots, refreshTick, unresolved, homeVisible, setHistory]);
 
   const titleOfDisk = React.useCallback(
     (h: HistoryItem) =>
@@ -296,4 +297,3 @@ export function HomeScreen() {
     </>
   );
 }
-

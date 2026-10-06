@@ -8,7 +8,8 @@ import { t } from "@kernel/i18n";
 import { ConnBanner, HostChip } from "./ConnChip";
 import { useMobile } from "./shared";
 import { EngineMark } from "./EngineMark";
-import { isTailTruncated, loadTranscriptAt, MAX_TURNS } from "./sessionFile";
+import { isTailTruncated, loadTranscriptAt, MAX_TURNS, pollTranscript } from "./sessionFile";
+import { readTranscriptCache, writeTranscriptCache } from "./diskCache";
 import { resumeDiskSession } from "./resume";
 import { engineOf } from "./engines";
 import { TurnsView } from "./TurnsView";
@@ -52,10 +53,25 @@ export function HistoryScreen(props: {
     let alive = true;
     setTurns(null);
     setLoadErr(false);
-    void loadTranscriptAt(props.path).then((r) => {
+    /* 缓存命中 → 立即 done 态上屏,再以缓存 size 增量拍(外网详情秒开);
+     * 无缓存 → pollTranscript(path, null) 首载(与 loadTranscriptAt 同语义,
+     * 尺寸闸一拍兼得 size,免多一次 RPC)。 */
+    const cached = readTranscriptCache(props.path);
+    if (cached) setTurns(cached.turns);
+    void pollTranscript(props.path, cached?.size ?? null).then(async (r) => {
       if (!alive) return;
-      if (r === null) setLoadErr(true);
-      else setTurns(r);
+      if (r) {
+        setTurns(r.turns);
+        writeTranscriptCache(props.path, r.size, r.turns); /* 只有非 null 结果入缓存 */
+      } else if (!cached) {
+        /* 首载 null 不可分「失败/空态」:loadTranscriptAt 兜底分流(两态分离契约),
+         * 仅在此边界多一次 RPC。 */
+        const full = await loadTranscriptAt(props.path);
+        if (!alive) return;
+        if (full === null) setLoadErr(true);
+        else setTurns(full);
+      }
+      /* 有缓存:unchanged/失败保缓存态,不翻 error */
     });
     return () => {
       alive = false;

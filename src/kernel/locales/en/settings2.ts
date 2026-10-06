@@ -11,8 +11,6 @@ export const MESSAGES = {
   "① 一键部署(只做一次)": "① One-click deploy (once)",
   "手边有一台带公网 IP 的服务器(阿里云/腾讯云轻量都行,装好 Node ≥ 18)?左卡填它的 IP、SSH 用户名、密码,点「一键部署」:上传中继、签证书、装服务全自动。成功后服务器记进「部署历史」,下次点一下整表回填,直接再部署。":
     "Got a server with a public IP (any cheap VPS will do, with Node ≥ 18 installed)? Fill its IP, SSH username and password on the left card and hit Deploy — uploading the relay, minting the certificate and installing the service all run automatically. Afterwards the server lands in “Deploy history”: next time one click refills the whole form and you can deploy again right away.",
-  "右卡「手机打开」的地址,手机浏览器直接开,加到主屏幕就当 app 用。地址里带的令牌就是钥匙,别转发给别人;用完回这里点「断开」。":
-    "Open the “Open on phone” URL from the right card in your phone browser, then add it to the home screen and it works like an app. The token in the URL is the key — don't forward it; hit “Disconnect” here when you're done.",
   // WebSelfHostCard(一键部署卡)
   "桌面经 SSH 自动完成:上传服务、现场签发 TLS 证书、安装 systemd、健康自检。成功后服务器记进下方「部署历史」,下次点一下整表回填;密码随历史保存在本机设置文件(与 SSH 主机清单同等纪律),私钥内容不保存。":
     "Fully automated over SSH from the desktop: upload the service, mint a TLS certificate on the spot, install systemd, run a health check. Afterwards the server lands in “Deploy history” below — one click refills the whole form. The password is stored with the history in your local settings file (same discipline as the SSH host list); private key contents are never stored.",

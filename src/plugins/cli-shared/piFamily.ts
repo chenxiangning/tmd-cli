@@ -32,6 +32,7 @@ import {
 import { readEditsTail } from "./sessionEdits";
 import { isJsonlSessionEmpty } from "./sessionEmpty";
 import {
+  makeTranscriptTailReader,
   pairToolResults,
   parseTranscriptBlocks,
   readTranscriptText,
@@ -107,6 +108,9 @@ export function piFamilySessions(store: PiFamilyStore) {
         truncated: file.truncated,
       };
     },
+
+    /** 活转录增量尾读(omp/pi JSONL 追加式;2026-10-06 大转录活视图增量解析)。 */
+    readTranscriptTail: makeTranscriptTailReader(piTranscriptLine),
     /** 会话卫生判空:path 即 jsonl 文件,共享标记子串判定(保守口径见 sessionEmpty.ts)。 */
     isDiskSessionEmpty: (session: CliDiskSession) => isJsonlSessionEmpty(session.path),
     /* 远程形态(WSL 发行版内)历史扫描与状态回填;未声明 dirSh 时值为 undefined,
