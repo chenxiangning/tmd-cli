@@ -18,7 +18,9 @@ import {
   fetchMobileQuota,
   formatQuotaLine,
   hasMobileQuotaFetcher,
+  quotaFetcherIds,
   readMobileSessionStatus,
+  statusReaderIds,
 } from "./statusProbe";
 
 const snap = (over: Partial<QuotaSnapshot>): QuotaSnapshot => ({
@@ -117,5 +119,22 @@ describe("额度抓取器映射", () => {
   it("无 fetcher 引擎 fetchMobileQuota → null(不发请求)", async () => {
     await expect(fetchMobileQuota("kimi", {})).resolves.toBeNull();
     await expect(fetchMobileQuota("dsh", {})).resolves.toBeNull();
+  });
+});
+
+describe("引擎映射表全集守护(engines.test 同款思路)", () => {
+  it("STATUS_READERS/QUOTA_FETCHERS 与 ENGINES 差集恰为白名单(新引擎必显式归类)", async () => {
+    const { ENGINES } = await import("./engines");
+    const engineIds = new Set(ENGINES.map((e) => e.id));
+    /* 可读全集 = STATUS_READERS ∪ {kimi}(kimi 走 readMobileSessionStatus
+     * 特判,dsh host RPC 桥不可及入白名单)。新引擎落桌忘接线 → 差集断言红,
+     * 提示三选一:接 reader / 入白名单(注明理由)。 */
+    const readers = new Set(statusReaderIds());
+    expect([...engineIds].filter((id) => !readers.has(id))).toEqual(["dsh"]);
+    /* 额度白名单 = 桌面亦无 fetcher(kimi/qoder 双档/opencode)+ 桥不可及(dsh)。 */
+    const fetchers = new Set(quotaFetcherIds());
+    expect([...engineIds].filter((id) => !fetchers.has(id)).sort()).toEqual(
+      ["dsh", "kimi", "opencode", "qoder", "qoder-cn"].sort(),
+    );
   });
 });

@@ -82,6 +82,10 @@ export function hasMobileQuotaFetcher(profileId: string): boolean {
   return profileId in QUOTA_FETCHERS;
 }
 
+/** 表键全集(守护测试对齐 ENGINES 用;新增引擎漏接线 = 差集断言红)。 */
+export const statusReaderIds = (): string[] => [...Object.keys(STATUS_READERS), "kimi"];
+export const quotaFetcherIds = (): string[] => Object.keys(QUOTA_FETCHERS);
+
 /** 手机端额度抓取;无 fetcher 返 null,失败 throw 上交(调用方显「—」)。 */
 export async function fetchMobileQuota(
   profileId: string,

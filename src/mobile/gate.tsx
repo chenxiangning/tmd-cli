@@ -205,9 +205,19 @@ export function MobileRoot() {
       <div className="m-app">
         <PairingScreen
           savedHostName={saved?.hostName ?? null}
-          onCancel={saved ? () => setCreds(saved) : undefined}
+          onCancel={
+            saved
+              ? () => {
+                  credsRef.current = saved; /* ref 领先写,同窗迟到 hello 不读旧值 */
+                  setCreds(saved);
+                }
+              : undefined
+          }
           onPaired={async (c) => {
             await persistCreds(c); // 评审 B4:写成功再进门,杀 app 不丢凭证
+            /* ref 领先 state 写(撤销 P2 同款):配对到 re-render 窗口内迟到
+             * hello.lan 不读旧 token/null(丢候选或污染新凭证)。 */
+            credsRef.current = c;
             setBlocked(null);
             setCreds(c);
           }}
