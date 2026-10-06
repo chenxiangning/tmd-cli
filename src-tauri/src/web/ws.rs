@@ -120,11 +120,7 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
         (None, None)
     };
     let (mut ws_tx, mut ws_rx) = socket.split();
-    let hello = json!({
-        "type": "hello",
-        "version": env!("CARGO_PKG_VERSION"),
-        "capabilities": [scope.capability()],
-    });
+    let hello = hello_frame(&scope, &ctx.lan);
     if ws_tx
         .send(Message::Text(hello.to_string().into()))
         .await
@@ -287,4 +283,15 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
             }
         }
     }
+}
+
+/// hello 帧:版本+能力+LAN 基址(手机同步滞后内网地址)+桌面稳定身份(手机缓存作用域键)。
+pub(super) fn hello_frame(scope: &ConnScope, lan: &str) -> Value {
+    json!({
+        "type": "hello",
+        "version": env!("CARGO_PKG_VERSION"),
+        "capabilities": [scope.capability()],
+        "lan": lan,
+        "host": devices::host_id(&devices::devices_dir()),
+    })
 }

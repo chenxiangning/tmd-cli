@@ -2,7 +2,7 @@
 //! WS 命令桥在 ws.rs(握手双凭据/连接生命周期);配对 HTTP 面在 pair.rs。
 //! 协议(与 src/kernel/transport.ts 对齐):
 //! - 客户端 → 桥:{"type":"invoke","id":N,"cmd":"…","args":{…}}
-//! - 桥 → 客户端:hello 帧 {"type":"hello","version","capabilities"};响应 {"type":"response","id","ok","payload"|"error"};事件帧 {"type":"event","event","payload"}(event_sink 广播)。
+//! - 桥 → 客户端:hello 帧 {"type":"hello","version","capabilities","lan","host"};响应 {"type":"response","id","ok","payload"|"error"};事件帧 {"type":"event","event","payload"}(event_sink 广播)。
 
 use axum::{
     extract::State as AxumState,
@@ -28,6 +28,8 @@ pub(super) struct WebCtx {
     pub(super) app: AppHandle,
     pub(super) token: Arc<String>,
     pub(super) stop: watch::Sender<bool>,
+    /// LAN 基址(http://ip:port,不含 token):hello 帧携带,手机外网连上后同步滞后内网地址。
+    pub(super) lan: Arc<String>,
 }
 
 /// 起服务:绑 LAN 接口 IP 随机端口,并同端口补绑 loopback(relay agent 回拨面)。
@@ -61,6 +63,7 @@ pub(super) async fn serve(
         app,
         token: Arc::new(token.clone()),
         stop: stop_watch.clone(),
+        lan: Arc::new(format!("http://{lan_ip}:{port}")),
     };
     /* oneshot 停机信号经 watch 转发,双 serve(LAN + loopback)共享同一停机。 */
     let (halt_tx, mut halt_rx) = watch::channel(false);
@@ -168,12 +171,15 @@ pub(super) fn lan_ip() -> Option<String> {
     let std::net::IpAddr::V4(v4) = socket.local_addr().ok()?.ip() else {
         return None;
     };
+    lan_v4_ok(v4).then(|| v4.to_string())
+}
+
+/// 纯过滤律(表驱动测试钉死):私网才采信,ClashX 增强模式假网段
+/// (198.18.0.0/15)与回环/公网一律 None(公网地址给手机也够不着,不如不给)。
+pub(super) fn lan_v4_ok(v4: std::net::Ipv4Addr) -> bool {
     if !v4.is_private() {
-        return None;
+        return false;
     }
     let o = v4.octets();
-    if o[0] == 198 && (o[1] & 0xFE) == 18 {
-        return None;
-    }
-    Some(v4.to_string())
+    !(o[0] == 198 && (o[1] & 0xFE) == 18)
 }

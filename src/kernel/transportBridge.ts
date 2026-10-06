@@ -8,7 +8,7 @@
 import { webToken, type RemoteEndpoint } from "./transport";
 import { shellLog } from "./shellBridge";
 import { createShellWs, shellWsAvailable, WS_CONNECTING, WS_OPEN, type WebSocketLike } from "./shellWs";
-import { fireRevoked, setActiveEndpoint, setConnected, setPaused } from "./transportState";
+import { fireHello, fireRevoked, setActiveEndpoint, setConnected, setPaused } from "./transportState";
 import { DialPolicy } from "./transportDial";
 
 /** @tauri-apps/api/event 的 UnlistenFn 真身就是 () => void;本地定义,守 R3 唯一通道。 */
@@ -44,6 +44,9 @@ export class WebBridge {
   private closed = false;
   private capsValue: string[] | null = null;
   private capsWaiters: ((v: string[]) => void)[] = [];
+  /** 最近 hello 的扩展字段(lan/host);换端点随 version/caps 一并失效。 */
+  public lanValue: string | null = null;
+  public hostValue: string | null = null;
   /** 手动断开置位(手机连接面板):ensure 快败,onClose 不再排重拨。 */
   private paused = false;
 
@@ -128,6 +131,8 @@ export class WebBridge {
       type?: string;
       version?: string;
       capabilities?: unknown;
+      lan?: unknown;
+      host?: unknown;
       id?: unknown;
       ok?: boolean;
       payload?: unknown;
@@ -149,6 +154,10 @@ export class WebBridge {
         : [];
       const caps: string[] = this.capsValue;
       for (const w of this.capsWaiters.splice(0)) w(caps);
+      /* lan/host(2026-10-06 协议扩展):旧桌面无此字段 → null,手机侧按缺省不采信。 */
+      this.lanValue = typeof msg.lan === "string" ? msg.lan : null;
+      this.hostValue = typeof msg.host === "string" ? msg.host : null;
+      fireHello({ lan: this.lanValue, host: this.hostValue });
       return;
     }
     if (msg.type === "response") {
@@ -317,7 +326,7 @@ export class WebBridge {
   /** 远程模式切换(壳配对成功 / 撤销清凭证)。null 且曾连接 → 停连不再重试。 */
   setEndpoint(ep: RemoteEndpoint | null) {
     this.endpoint = ep;
-    this.closed = ep === null; this.versionValue = null; this.capsValue = null; /* 换端点=新桌面:停连 + hello 缓存失效(评审:旧 caps 旁路 block 防线) */
+    this.closed = ep === null; this.versionValue = null; this.capsValue = null; this.lanValue = null; this.hostValue = null; /* 换端点=新桌面:停连 + hello 缓存失效(评审:旧 caps 旁路 block 防线) */
     this.paused = ep === null; // 换端点 = 重新开始;清凭证则一并停摆
     if (ep !== null) this.dial.arm(); /* 换端点=新意图:清退避闸与轮换态(否则 LAN 快败后 relay 探测烧满超时) */
     setPaused(this.paused);
