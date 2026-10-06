@@ -185,7 +185,26 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
   const [scan, setScan] = useState<DiskScan | null>(() =>
     scanCache && scanCache.wsKey === wsKey ? scanCache.scan : null,
   );
+  const [focusTick, setFocusTick] = useState(0);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  /* 窗口聚焦拍 TTL(2026-10-06 收口旧 ponytail 备注):外部落盘的标题变更
+   *   (CLI 在 tmd 外改名)没有事件面 —— host 活表变化走 liveKey 已即时,
+   *   盲区只剩磁盘层;切回窗口 = 用户即将看数据,此刻置空缓存强制重扫,
+   *   「60s 非保证上界」收敛为「一次失焦窗」。 */
+  useEffect(() => {
+    const onFocus = () => {
+      if (document.visibilityState === "visible") {
+        scanCache = null;
+        setFocusTick((v) => v + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
   useEffect(() => {
     if (workspaces.length === 0) {
       setScan(EMPTY_SCAN);
@@ -215,7 +234,7 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
     };
     // workspaces 由 wsKey 表征(引用每渲染可新,不进 deps)。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wsKey, refreshTick, liveKey]);
+  }, [wsKey, refreshTick, liveKey, focusTick]);
   const wsNames = useMemo(() => new Map(workspaces.map((w) => [w.id, w.name])), [workspaces]);
   /* getSessions 返回稳定数组引用(变更才换引用),作依赖即「活表变化即时重合并」。 */
   const metas = host.getSessions();
