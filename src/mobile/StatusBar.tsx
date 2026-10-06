@@ -34,9 +34,12 @@ export function StatusBar(props: {
   const [quota, setQuota] = useState<QuotaSnapshot | null>(null);
   const quotaAble = hasMobileQuotaFetcher(profileId);
 
+  /* 迟到覆盖守卫(profileId/model 变更后旧在途响应作废丢弃,不留 30s/120s 自愈尾巴)。 */
+  const statusSeq = useRef(0);
   const pullStatus = useCallback(() => {
+    const seq = ++statusSeq.current;
     void readMobileSessionStatus(profileId, cwd, cliSessionId)
-      .then((s) => setStatus(s))
+      .then((s) => { if (statusSeq.current === seq) setStatus(s); })
       .catch(() => undefined);
   }, [profileId, cwd, cliSessionId]);
 
@@ -57,11 +60,13 @@ export function StatusBar(props: {
 
   /* 额度:omp/pi 的供应商路由吃当前模型,模型变化重拉。 */
   const model = status?.model ?? null;
+  const quotaSeq = useRef(0);
   const refreshQuota = useCallback(() => {
     if (!hasMobileQuotaFetcher(profileId)) return;
+    const seq = ++quotaSeq.current;
     fetchMobileQuota(profileId, { model, cwd, cliSessionId })
-      .then((q) => setQuota(q))
-      .catch(() => setQuota(null));
+      .then((q) => { if (quotaSeq.current === seq) setQuota(q); })
+      .catch(() => { if (quotaSeq.current === seq) setQuota(null); });
   }, [profileId, cwd, cliSessionId, model]);
   useEffect(() => {
     if (!quotaAble) return;

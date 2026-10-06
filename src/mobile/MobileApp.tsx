@@ -56,8 +56,11 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
     };
     void pull();
     let timer = 0;
+    let sigEp = ""; /* 端点签名:换桌面连接(同桥不断线)也立即重拉,旧快照窗口收敛到一拍内 */
     const tick = () => {
       const ep = activeRemoteEndpoint();
+      const key = ep ? `${endpointKind(ep)}:${ep}` : "none";
+      if (key !== sigEp) { sigEp = key; void pull(); }
       timer = window.setTimeout(() => void pull().finally(tick), ep && endpointKind(ep) === "wan" ? 30_000 : 15_000);
     };
     /* 桥恢复即拉:断连窗口丢的 sessions:changed 不等兜底周期(settings 链同款)。 */

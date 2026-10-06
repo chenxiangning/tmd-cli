@@ -53,14 +53,18 @@ export function TimelineSheet(props: {
       alive.current = false;
     };
   }, []);
+  /* 版本守卫:会话切换重 pull 时,旧在途扫描的 partial/then/catch 全作废
+   *   (2026-10-06 收口:旧实现只有 unmount 守卫,旧会话条目可串显新会话)。 */
+  const pullSeq = useRef(0);
   const pull = useCallback(() => {
     if (!props.cliSessionId) {
       setState({ kind: "waitbind" });
       return;
     }
+    const seq = ++pullSeq.current;
     setState({ kind: "loading" });
     loadTimelineAll(props.profileId, props.cwd, props.cliSessionId, (entries, p) => {
-      if (!alive.current) return;
+      if (!alive.current || pullSeq.current !== seq) return;
       setState((cur) =>
         cur.kind === "loading"
           ? { kind: "done", path: p.path, entries, capped: false, loaded: p.loaded, total: p.total, scanning: true }
@@ -70,7 +74,7 @@ export function TimelineSheet(props: {
       );
     })
       .then((r) => {
-        if (!alive.current) return;
+        if (!alive.current || pullSeq.current !== seq) return;
         /* 渐进回调先于 then 落地;done 收口合并 path/capped/停扫。 */
         setState((cur) =>
           r === null
@@ -87,7 +91,7 @@ export function TimelineSheet(props: {
         );
       })
       .catch((e: unknown) => {
-        if (!alive.current) return;
+        if (!alive.current || pullSeq.current !== seq) return;
         /* partial 已在手时保留条目,只标错误可重试(全程扫描中途断网不白拉)。 */
         setState((cur) =>
           cur.kind === "done"
