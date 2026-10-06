@@ -1,13 +1,13 @@
 /**
  * 手机主应用:home(会话列表)↔ session(实况/审批/发送)两层路由。
- * 数据 = 远程 RPC 轮询(列表 2.5s)+ 活流订阅;连接态由 transport 自愈,
+ * 数据 = 会话注册表事件驱动重拉 + 低频兜底 + 活流订阅;连接态由 transport 自愈,
  * 断连 banner 与列表快照按原型 mobile-app-home.html 表达。
  * 手机端**不挂**桌面 host 单例(远程模式它恒空):等待态由 SessionScreen
  * 的活流 ask 检测驱动,ask 首现即弹本地通知(壳态)。
  */
 import React from "react";
 import type { MobileCreds } from "./creds";
-import { MobileAppCtx, endpointKind, type MobileRoute } from "./shared";
+import { checkSessionAsk, collectIdleEdges, MobileAppCtx, endpointKind, type MobileRoute } from "./shared";
 import { HomeScreen } from "./HomeScreen";
 import { SessionScreen } from "./SessionScreen";
 import { HistoryScreen } from "./HistoryScreen";
@@ -155,6 +155,20 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
       `${glyphOf2(s.profileId).text} · ${baseName(s.cwd) || s.cwd}`,
     [titles],
   );
+
+  /* ask 事件化沿检测(2026-10-06,消他屏 60s 轮询延迟):sessions:changed
+     (活动翻转驱动重拉)后算 turnActive 下降沿,沿上拉该会话尾页跑 ask 标记
+     —— 与 home 轮询共用 askRounds 台账,同一轮天然只通知一次。检出延迟
+     60s → 事件级(~1-3s);增量流量 = 每沿一个 8K 尾页(完工/ask 频率,低频)。
+     正看的会话跳过(SessionScreen 实况检测更即时);首见无沿可比,冷启动不扫。 */
+  const prevTurnActive = React.useRef(new Map<string, boolean>());
+  React.useEffect(() => {
+    const viewing = route.view === "session" ? route.sessionId : undefined;
+    for (const it of collectIdleEdges(prevTurnActive.current, sessions)) {
+      if (it.id === viewing) continue;
+      void checkSessionAsk(it.id, titleOf(it)).catch(() => undefined);
+    }
+  }, [sessions, route, titleOf]);
 
   const ctx = React.useMemo(
     () => ({
