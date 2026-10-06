@@ -149,7 +149,7 @@ async function assertNotStaleOverwrite(document: IntentCanvasDocument, path: str
 export async function saveIntentCanvasDocument(
   root: string,
   document: IntentCanvasDocument,
-): Promise<IntentCanvasDocument> {
+): Promise<{ document: IntentCanvasDocument; indexEntries: IntentCanvasIndexEntry[] }> {
   const now = new Date().toISOString();
   const nextDocument: IntentCanvasDocument = {
     ...document,
@@ -172,6 +172,9 @@ export async function saveIntentCanvasDocument(
     ...buildIndexEntry(nextDocument),
     ...(thumbnailSvg ? { thumbnailSvg } : {}),
   };
+  /* 写后索引条目随返回值带出(2026-10-06):调用方直接落列表态,免保存后
+   * 再全量读一次索引(每次保存省 ~0.5MB 读 + parse)。 */
+  let indexEntries: IntentCanvasIndexEntry[] = [];
   await withIndexTx(async () => {
     const indexResult = await loadIntentCanvasIndex(root);
     if (indexResult.warnings.length > 0) {
@@ -188,8 +191,9 @@ export async function saveIntentCanvasDocument(
       ...indexResult.value.filter((entry) => entry.id !== nextDocument.id),
     ];
     await writeIndex(root, nextEntries);
+    indexEntries = nextEntries;
   });
-  return nextDocument;
+  return { document: nextDocument, indexEntries };
 }
 
 

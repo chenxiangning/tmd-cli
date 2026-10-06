@@ -86,7 +86,7 @@ export async function importAiDrawFile(
   const target = file.mode === "new" ? null : await resolveTargetDocument(root, file);
   if (!target) {
     const document = createIntentCanvasDocumentForAiDraw(file, appendedScene, workspace);
-    const saved = await saveIntentCanvasDocument(root, document);
+    const saved = (await saveIntentCanvasDocument(root, document)).document;
     return { ok: true, canvasId: saved.id, canvasTitle: saved.title };
   }
   const nextScene = appendIntentCanvasScene(target.scene, appendedScene);
@@ -97,7 +97,7 @@ export async function importAiDrawFile(
     scene: nextScene,
     aiContext: buildIntentCanvasAiContext(nextScene, nextSummary),
   };
-  const saved = await saveIntentCanvasDocument(root, nextDocument);
+  const saved = (await saveIntentCanvasDocument(root, nextDocument)).document;
   return { ok: true, canvasId: saved.id, canvasTitle: saved.title };
 }
 
