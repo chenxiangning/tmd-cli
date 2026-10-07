@@ -90,7 +90,7 @@ export const EMPTY_META: MetaFile = { config: DEFAULT_CONFIG, days: {}, tasks: [
 export const pad2 = (n: number): string => String(n).padStart(2, "0");
 export const dayKey = (y: number, m: number, d: number): string => `${y}-${pad2(m)}-${pad2(d)}`;
 
-export interface DailyPaths {
+interface DailyPaths {
   root: string;
   article: (y: number, m: number, d: number) => string;
   /** 当日会话内容摘录(生成会话的事实来源;每次生成前重写)。 */

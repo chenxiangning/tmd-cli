@@ -44,8 +44,6 @@ export function readPromptGate(sessionId: string): PromptGateState {
   };
 }
 
-/** 随发携带的文件区间引用(类型定义在 events.ts,payload 同源)。 */
-export type { PromptSentRange } from "./events";
 
 /** 过闸后广播 promptSent(text 截 400 字,供审批线锚点快照;
  *  ranges = 本轮随发携带的区间引用(marks 标注等),未携带不传。 */
