@@ -3,7 +3,8 @@
  *
  * flowchart 未加引号的节点标签含括号时 lexer 会抛 PS token 错误。
  * LLM 生成的图几乎不给含 `(...)`、`<br/>` 的标签加引号。
- * 只给需要的长方形 `[...]` 和菱形 `{...}` 标签补引号,不改写其它形状:
+ * 只给需要的长方形 `[...]`/菱形 `{...}` 节点标签与 `|...|` 边标签补引号
+ * (边标签含裸 `()[]{}` 同样被拒;`<>` 无害,2026-10-07 实证),不改写其它形状:
  * - cylinder `id[(...)]`、circle `id((...))`、stadium `id([...])`、
  *   subroutine `id[[...]]`、hexagon `id{{...}}`、parallelogram `id[/.../]` 等
  * - 已加引号的 `id["..."]` / `id['...']`
@@ -40,8 +41,25 @@ function maybeQuoteDiamondLabel(id: string, label: string): string {
   return `${id}{"${escapeMermaidQuotedLabel(label)}"}`;
 }
 
+/** 会破坏未加引号边标签的字符(<> 无害,实证同上)。 */
+const EDGE_LABEL_NEEDS_QUOTE_RE = /[(){}[\]]/;
+
+function isQuotedLabel(label: string): boolean {
+  return (
+    (label.startsWith('"') && label.endsWith('"')) ||
+    (label.startsWith("'") && label.endsWith("'"))
+  );
+}
+
+function maybeQuoteEdgeLabel(label: string): string {
+  if (!EDGE_LABEL_NEEDS_QUOTE_RE.test(label) || isQuotedLabel(label)) {
+    return `|${label}|`;
+  }
+  return `|"${escapeMermaidQuotedLabel(label)}"|`;
+}
+
 /**
- * 遍历 flowchart 源码,给不安全的长方形/菱形节点标签补引号。
+ * 遍历 flowchart 源码,给不安全的节点标签(长方形/菱形)与边标签补引号。
  * 只对 flowchart/graph 图生效;其它图类型原样返回。
  */
 export function normalizeMermaidSource(source: string): string {
@@ -54,6 +72,20 @@ export function normalizeMermaidSource(source: string): string {
   const len = source.length;
 
   while (i < len) {
+    // 边标签 |...|:节点标签内的 | 已被节点分支整段消费,漏到这里的才按边标签处理。
+    // 无闭合 | 或标签跨行(长文本链/注释错位可能误配)原样放行:漏补比错改安全。
+    if (source[i] === "|") {
+      const close = source.indexOf("|", i + 1);
+      const label = close === -1 ? null : source.slice(i + 1, close);
+      if (label === null || label.includes("\n")) {
+        result += source[i];
+        i += 1;
+      } else {
+        result += maybeQuoteEdgeLabel(label);
+        i = close + 1;
+      }
+      continue;
+    }
     const idStart = i;
     if (/[A-Za-z_]/.test(source[i] ?? "")) {
       let j = i + 1;

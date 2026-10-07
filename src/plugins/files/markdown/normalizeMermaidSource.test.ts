@@ -71,4 +71,32 @@ B --> C[调用 /blade-system/open/v1/knowledge/**]`;
     const input = "graph TD\nA[x (y)] --> B[ok]";
     expect(normalizeMermaidSource(input)).toBe('graph TD\nA["x (y)"] --> B[ok]');
   });
+
+  it("边标签含 {} 补引号(pty://out/{sessionId} 实证)", () => {
+    const input = "flowchart LR\nB -->|pty://out/{sessionId} 原样字节| C[幕布]";
+    expect(normalizeMermaidSource(input)).toBe(
+      'flowchart LR\nB -->|"pty://out/{sessionId} 原样字节"| C[幕布]',
+    );
+  });
+
+  it("边标签含 () 或 [] 同样补引号", () => {
+    expect(normalizeMermaidSource("flowchart TD\nA -->|foo (bar)| B[x]")).toBe(
+      'flowchart TD\nA -->|"foo (bar)"| B[x]',
+    );
+    expect(normalizeMermaidSource("flowchart TD\nA -->|a [b]| B[x]")).toBe(
+      'flowchart TD\nA -->|"a [b]"| B[x]',
+    );
+  });
+
+  it("已引号与无危险字符的边标签不动", () => {
+    const quoted = 'flowchart TD\nA -->|"out/{id}"| B[x]';
+    expect(normalizeMermaidSource(quoted)).toBe(quoted);
+    const plain = "flowchart TD\nA -->|普通 文本 a<b>| B[x]";
+    expect(normalizeMermaidSource(plain)).toBe(plain);
+  });
+
+  it("无闭合 | 或跨行标签原样放行", () => {
+    const input = "flowchart TD\nA -- a | b --> B[x]";
+    expect(normalizeMermaidSource(input)).toBe(input);
+  });
 });
