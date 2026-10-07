@@ -19,7 +19,7 @@
 
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { composerDraftRef, composerSendTransforms, undoComposerSend } from "@kernel/composerExt";
+import { composerDraftRef, composerEmptySendPermitted, composerSendTransforms, undoComposerSend } from "@kernel/composerExt";
 import type { CliProfile } from "@kernel/cli";
 import { getSessionTabs, getSessionTile } from "@kernel/sessionTabs";
 import { emitPromptSent, readPromptGate, shouldBroadcastPrompt } from "@kernel/promptGate";
@@ -113,7 +113,7 @@ export function useComposerSend({
             );
             return;
           }
-          recordPrompt(trimmed);
+          if (trimmed) recordPrompt(trimmed); /* 空输入首发(接力芯片)不入 ↑ 召回史 */
           clearInputIfUnchanged(plan);
           clearAttachments();
           clearMatches();
@@ -158,7 +158,7 @@ export function useComposerSend({
         return;
       }
       emitPromptSent(gate, sid, trimmed, transforms.length > 0 ? carriedMarks() : undefined);
-      recordPrompt(trimmed);
+      if (trimmed) recordPrompt(trimmed); /* 空输入首发(接力芯片)不入 ↑ 召回史 */
       clearInputIfUnchanged(plan);
       clearAttachments();
       clearMatches();
@@ -176,10 +176,13 @@ export function useComposerSend({
 
   async function sendCurrent() {
     if (isConfirmPending()) return; // 模态闸:确认框在屏时发送键静默(防旧计划被顶替)
-    if (!value.trim()) return;
-    if (!profile || !host.getActiveSessionId()) return;
-    const sid = host.getActiveSessionId()!;
+    if (!profile) return;
+    const activeSid = host.getActiveSessionId();
+    if (!activeSid) return;
     const trimmed = value.trim();
+    /* 空输入默认拦;接力芯片等挂起内容经 kernel 空 provider 放行(marks 不注册,语义不动)。 */
+    if (!trimmed && !composerEmptySendPermitted(activeSid)) return;
+    const sid = activeSid;
     /* 确认段:计划期目标快照仅供展示;执行段重解析(≥2 才广播,缺员落单发)。 */
     const plan =
       broadcastModeRef.current && getSessionTile()

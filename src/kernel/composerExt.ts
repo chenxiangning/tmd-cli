@@ -92,6 +92,24 @@ export function registerComposerPendingCount(fn: () => number): () => void {
   };
 }
 
+/** 空输入放行 provider:声明「该会话有挂起注入内容(如接力摘要芯片),空文本
+ *  也构成一次合法发送」。未注册/全部否决 = 既有空输入拦截语义不变。 */
+export type ComposerEmptySendProvider = (sessionId: string | null) => boolean;
+const emptySendProviders: ComposerEmptySendProvider[] = [];
+
+export function registerComposerEmptySendProvider(fn: ComposerEmptySendProvider): () => void {
+  emptySendProviders.push(fn);
+  return () => {
+    const i = emptySendProviders.indexOf(fn);
+    if (i >= 0) emptySendProviders.splice(i, 1);
+  };
+}
+
+/** 空输入是否放行:任一 provider 命中即放行。 */
+export function composerEmptySendPermitted(sessionId: string | null): boolean {
+  return emptySendProviders.some((fn) => fn(sessionId));
+}
+
 export function composerPendingCount(): number {
   return pendingCounts.reduce((acc, fn) => acc + fn(), 0);
 }

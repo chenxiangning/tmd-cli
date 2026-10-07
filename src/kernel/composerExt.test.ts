@@ -1,62 +1,31 @@
 /**
- * composer 扩展注册表契约测试:触发源与发送变换的注册序、反注册移除自身、
- * 重复反注册安全、唤醒桥默认未挂载。注册表是模块级单例,用例内注册、
- * afterEach 经返回的反注册函数全量清理。
+ * composerExt 空发送放行契约测试 —— 注册面为新增性能,此处只锁行为:
+ * 无注册恒拦(默认语义不变);注册后按 sessionId 放行;注销回收。
  */
-import { afterEach, describe, expect, it } from "vitest";
-import {
-  composerSendTransforms,
-  composerTriggerSources,
-  composerWakeRef,
-  registerComposerSendTransform,
-  registerComposerTriggerSource,
-  type ComposerSendTransform,
-  type ComposerTriggerSource,
-} from "./composerExt";
+import { describe, expect, it } from "vitest";
+import { composerEmptySendPermitted, registerComposerEmptySendProvider } from "./composerExt";
 
-const cleanups: Array<() => void> = [];
-afterEach(() => {
-  for (const un of cleanups.splice(0)) un();
-});
-
-const src = (char: string): ComposerTriggerSource => ({ char, label: char, list: () => [] });
-const tf = (prefix: string): ComposerSendTransform => (text) => prefix + text;
-
-describe("触发源注册表", () => {
-  it("注册即合并进消费面,注册序保持", () => {
-    cleanups.push(registerComposerTriggerSource(src("!!")));
-    cleanups.push(registerComposerTriggerSource(src("##")));
-    expect(composerTriggerSources().map((s) => s.char)).toEqual(["!!", "##"]);
+describe("composerEmptySendProvider", () => {
+  it("无注册 = 空输入恒拦(既有语义不动)", () => {
+    expect(composerEmptySendPermitted("pty-1")).toBe(false);
+    expect(composerEmptySendPermitted(null)).toBe(false);
   });
 
-  it("反注册只移除自身,重复反注册安全", () => {
-    const unFirst = registerComposerTriggerSource(src("!!"));
-    const unSecond = registerComposerTriggerSource(src("##"));
-    unFirst();
-    unFirst();
-    expect(composerTriggerSources().map((s) => s.char)).toEqual(["##"]);
-    unSecond();
-    expect(composerTriggerSources()).toEqual([]);
+  it("注册后按 sessionId 放行,任一 provider 命中即放行", () => {
+    const off = registerComposerEmptySendProvider((sid) => sid === "pty-1");
+    expect(composerEmptySendPermitted("pty-1")).toBe(true);
+    expect(composerEmptySendPermitted("pty-2")).toBe(false);
+    off();
+    expect(composerEmptySendPermitted("pty-1")).toBe(false);
   });
-});
 
-describe("发送变换注册表", () => {
-  it("按注册序执行,反注册后不再参与", () => {
-    const unA = registerComposerSendTransform(tf("a"));
-    const unB = registerComposerSendTransform((text) => text + "b");
-    expect(composerSendTransforms().map((fn) => fn("x", null))).toEqual(["ax", "xb"]);
-    unA();
-    expect(composerSendTransforms().map((fn) => fn("x", null))).toEqual(["xb"]);
-    unB();
-    expect(composerSendTransforms()).toEqual([]);
-  });
-});
-
-describe("唤醒桥", () => {
-  it("默认未挂载(null),挂载后可交接", () => {
-    expect(composerWakeRef.current).toBeNull();
-    composerWakeRef.current = () => undefined;
-    expect(typeof composerWakeRef.current).toBe("function");
-    composerWakeRef.current = null;
+  it("多 provider 并存:任一 true 即 true;全部注销回默认", () => {
+    const offA = registerComposerEmptySendProvider(() => false);
+    const offB = registerComposerEmptySendProvider((sid) => sid === "pty-9");
+    expect(composerEmptySendPermitted("pty-9")).toBe(true);
+    expect(composerEmptySendPermitted("pty-1")).toBe(false);
+    offB();
+    expect(composerEmptySendPermitted("pty-9")).toBe(false);
+    offA();
   });
 });

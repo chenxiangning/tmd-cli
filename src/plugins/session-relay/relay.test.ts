@@ -4,7 +4,7 @@
  * 源转录截断标记传递)。
  */
 import { describe, expect, it } from "vitest";
-import { buildRelaySummary, relayTargets, RELAY_DIGEST_CAPS, appendCarriedMarks } from "./relay";
+import { buildRelaySummary, relayTargets, RELAY_DIGEST_CAPS } from "./relay";
 import { dshTranscriptLine } from "../cli-dsh/dshTranscript";
 import type { CliTranscriptBlock, CliTranscriptToolMeta } from "@kernel/cli";
 
@@ -120,23 +120,5 @@ describe("dsh 作接力源(契约:真实事件流过 parser → 摘要有角色�
     expect(built.text).toContain("用户:把审批策略改成三钟全出窗");
     expect(built.text).toContain("助手:已改完,封口时机迁移到三钟全出窗");
     expect(built.truncated).toBe(false);
-  });
-});
-
-describe("appendCarriedMarks", () => {
-  it("无携带原样返回;携带时引用块按 composer 同模板附尾", () => {
-    const mark = {
-      path: "src/kernel/store.ts",
-      startLine: 63,
-      endLine: 104,
-      note: "sidecar 真相源",
-      excerpt: "const ledgerPath",
-    };
-    expect(appendCarriedMarks("摘要正文", [])).toBe("摘要正文");
-    const two = { path: "src/b.ts", startLine: 41, endLine: 51, note: "状态机", excerpt: "flip()" };
-    const out = appendCarriedMarks("摘要正文", [mark, two]);
-    expect(out.startsWith("摘要正文\n\n")).toBe(true);
-    expect(out).toContain("请看我在文件里标记的 2 处:");
-    expect(out).toContain("src/kernel/store.ts:L63-L104\n  > const ledgerPath\n  标注:sidecar 真相源\n\nsrc/b.ts:L41-L51");
   });
 });

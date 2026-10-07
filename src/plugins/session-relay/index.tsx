@@ -11,9 +11,12 @@
 import { ArrowSquareOut } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { registerComposerEmptySendProvider, registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";
 import type { Plugin } from "@kernel/plugin";
 import { RelayLayer } from "./RelayDialog";
-import { setRelaySource } from "./relayStore";
+import { RelayComposerChip } from "./chip";
+import { getPendingRelay, setRelaySource } from "./relayStore";
+import { relaySendTransform, undoRelaySend } from "./relayCarry";
 import type { RelaySource } from "./relay";
 import { relayLiveRef, relayOpenRef } from "@kernel/relayBridge";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
@@ -60,6 +63,14 @@ export const sessionRelayPlugin: Plugin = {
       },
     });
     ctx.contribute("overlay", { order: 61, component: RelayLayer });
+    ctx.contribute("composer.attachments", { component: RelayComposerChip });
+    /* 发送变换:pending 摘要前置拼装 + 消费;失败回滚恢复芯片;空输入放行
+       (接力首发常为纯摘要零输入)。marks 不注册空 provider,语义不动。 */
+    const offs = [
+      registerComposerSendTransform(relaySendTransform),
+      registerComposerSendUndo(undoRelaySend),
+      registerComposerEmptySendProvider((sid) => !!sid && getPendingRelay(sid) !== null),
+    ];
     /* 开框桥登记:退出卡(快照)与 tab 右键「接力」(活会话)两口;
        停用/熔断经贡献回滚跑 cleanup → null,调用面按 null 闸消钮。 */
     relayOpenRef.current = (detail) => setRelaySource({ ...detail, model: null });
@@ -70,6 +81,7 @@ export const sessionRelayPlugin: Plugin = {
     return () => {
       relayOpenRef.current = null;
       relayLiveRef.current = null;
+      for (const off of offs) off();
     };
   },
 };

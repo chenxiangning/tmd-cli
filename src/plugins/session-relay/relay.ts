@@ -7,11 +7,7 @@
 
 import type { CliProfile } from "@kernel/cliProfile";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { t } from "@kernel/i18n";
 import { renderTranscriptDigest, type DigestCaps } from "@kernel/transcriptDigest";
-/* 跨插件消费 marks 声明的纯函数模块(mobile 树 import cli-* 适配器同款先例);
- * 序列化模板与回链正则成对同步,不得在 relay 侧另造格式。 */
-import { serializeMark } from "../marks/sendTransform";
 
 /** 接力摘要预算(字符):比文章摘录(DIGEST_CAPS 4000)粗 —— 接力要能接着干活,
  *  助手结论与工具产出必须在场;比例沿摘录层(user 最贵,tool 只留指纹)。 */
@@ -28,6 +24,8 @@ export interface RelaySource {
   cwd?: string;
   /** 源会话工作区 id(新会话落位;缺席 = 用当时激活工作区,活会话命令路径同值)。 */
   workspaceId?: string;
+  /** 编辑态标记:点击已挂芯片重开弹层时 = 目标会话 id(弹层改「更新/丢弃」,不再建新会话)。 */
+  editSessionId?: string;
 }
 
 /** 目标引擎候选:除当前外的全部 CLI profile(新会话用它 spawn)。 */
@@ -42,22 +40,6 @@ export interface RelaySummary {
   truncated: boolean;
 }
 
-/** 携带标注的最小形状(marks Mark 的结构子集)。 */
-export interface CarryMark {
-  path: string;
-  startLine: number;
-  endLine: number;
-  note: string;
-  excerpt: string;
-}
-
-/** 摘要 + 携带标注引用块 → 首发 prompt 全文(与 composer 变换同模板;
- *  无携带原样返回)。翻转 sent 由调用方在写入成功后执行(失败不翻)。 */
-export function appendCarriedMarks(summary: string, marks: readonly CarryMark[]): string {
-  if (marks.length === 0) return summary;
-  const block = marks.map((m) => serializeMark(m)).join("\n\n");
-  return `${summary}\n\n${t("请看我在文件里标记的 {n} 处:", { n: marks.length })}\n${block}`;
-}
 
 /**
  * 组装接力提示词。blocks 传源会话角色化块(文件顺序;读取失败传 null)。

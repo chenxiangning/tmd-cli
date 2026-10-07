@@ -290,4 +290,5 @@
 | 2026-10-07 | [0.3.2 W1+W3 工作区终审(三路并行复审:2 major 已修——活接力源补 cwd/workspaceId 修跨工作区静默丢史、引用标记标题提取剔除行内标注;5 minor 修——陈旧注释/已删工作区守卫/架构条款措辞/桥协议测试/三入口措辞统一;nit 修 2 留 1)](review/2026-10-07-032-workspace-final-review.md) | 已收口 |
 | 2026-10-07 | [0.3.2 W2 标注×检查点存证链设计(PromptSentEvent.ranges 载荷→账本 marks_refs 随 anchor 固化·seal 修订行携带;已生效=老侧 hunk 相交派生徽章零写路径,回退联动免费降级;参与轮次三值反查跳批审阅单;订正逻辑评审两处:new-range→老侧、relay 首发同填 refs;附 B 批清账范围)](superpowers/specs/2026-10-07-marks-checkpoints-evidence-chain-design.md) | 已定稿(待开工) |
 | 2026-10-07 | [W2 存证链批次配套原型(标注卡三态徽章+参与轮次三值片点击开批审阅单·相交 hunk 命中高亮;时间线「标 ×N」;回退/反悔/模拟封口全链可点,演示 evidence 派生与回退联动降级)](prototypes/marks-checkpoints-evidence-chain.html) | 待大仙目检 |
+| 2026-10-07 | [接力摘要芯片化设计(不直写 PTY:RelayDialog → createSession → composer 芯片「接力摘要 · N 字」,点击重开编辑态,发送时 transform 前置拼装可空输入首发;净删 writeSession 直写/appendCarriedMarks/carrySet 勾选;新增 kernel 空 provider 契约 composerEmptySendProvider)](superpowers/specs/2026-10-07-relay-composer-chip-design.md) | 已实施(门禁全绿+桩目检闭环;TDD 红→绿 22 新测) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
