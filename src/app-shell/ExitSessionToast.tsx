@@ -96,7 +96,7 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
           }}
         >
           <ArrowSquareOut size="0.75rem" aria-hidden />
-          {t("转其他引擎接力")}
+          {t("转到其他引擎接力…")}
         </button>
       )}
     </div>

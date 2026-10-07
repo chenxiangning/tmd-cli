@@ -16,6 +16,11 @@ interface RelayOpenDetail {
   workspaceId?: string;
 }
 
+/** 活会话开框(tmd 会话 id):session-relay 填充;null 闸同上(插件未启用不显示)。 */
+export const relayLiveRef: { current: ((sessionId: string) => void) | null } = {
+  current: null,
+};
+
 export const relayOpenRef: { current: ((detail: RelayOpenDetail) => void) | null } = {
   current: null,
 };

@@ -18,9 +18,9 @@ const MESSAGES_EN = {
   "摘要生成中…": "Summarizing…",
   "接力提示词未能送达(目标会话可能已退出),请重试或取消":
     "Relay prompt was not delivered (target session may have exited). Retry or cancel.",
-  "没有可用工作区": "No available workspace",
-  "已截断(单条 500 字 · 总长 8KB)":
-    "Truncated (500 chars per item · 8KB total)",
+  "携带未发标注({n}/{total} 条,随首条消息一并发出)":
+    "Carry unsent marks ({n}/{total}, sent with the first message)",
+  "已截断(超摘要预算)": "Truncated (over summary budget)",
 } as const;
 
 /** ja 词典 · session-relay 域。 */
@@ -37,9 +37,9 @@ const MESSAGES_JA = {
   "摘要生成中…": "要約生成中…",
   "接力提示词未能送达(目标会话可能已退出),请重试或取消":
     "引き継ぎプロンプトを送信できませんでした(切り替え先セッションが終了した可能性)。再試行またはキャンセルしてください。",
-  "没有可用工作区": "利用可能なワークスペースがありません",
-  "已截断(单条 500 字 · 总长 8KB)":
-    "切り詰め済み(1 条 500 字 · 合計 8KB)",
+  "携带未发标注({n}/{total} 条,随首条消息一并发出)":
+    "未送信のマークを同梱({n}/{total} 件、初回メッセージと一緒に送信)",
+  "已截断(超摘要预算)": "切り詰め済み(サマリー予算超過)",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

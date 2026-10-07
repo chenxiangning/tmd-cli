@@ -70,9 +70,9 @@ describe("退出卡接力入口(跨引擎接力接到失败现场)", () => {
 
   it("桥在 + CLI 有磁盘身份:渲染接力钮;插件停用(桥 null)即无钮", () => {
     relayBridge.current = () => undefined;
-    expect(renderCli()).toContain("转其他引擎接力");
+    expect(renderCli()).toContain("转到其他引擎接力…");
     relayBridge.current = null;
-    expect(renderCli()).not.toContain("转其他引擎接力");
+    expect(renderCli()).not.toContain("转到其他引擎接力");
   });
 
   it("ssh 会话不给接力钮:磁盘身份在远端,本地读取器无源", () => {
@@ -83,6 +83,6 @@ describe("退出卡接力入口(跨引擎接力接到失败现场)", () => {
         onClose: () => undefined,
       }),
     );
-    expect(html).not.toContain("转其他引擎接力");
+    expect(html).not.toContain("转到其他引擎接力");
   });
 });

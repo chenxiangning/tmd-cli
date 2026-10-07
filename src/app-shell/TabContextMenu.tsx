@@ -7,8 +7,8 @@
  * 不强制激活;dirty tab 与 × 按钮一致不加确认。
  * 可选首项「重命名」(传 onRename 启用,会话 tab 用):canRename=false 时禁用。
  * 会话 tab 的低频行内钮(查看转录/置顶/定位,2026-10-06 收敛)也在此挂:
- * onView 提供才显示;onTogglePin 恒显(canPin=false 禁用,未落盘不可扎);
- * onLocate 提供才显示。
+ * onView/onLocate/onRelay 提供才显(接力行仅 CLI 会话 tab);onTogglePin 恒显
+ * (canPin=false 禁用,未落盘不可扎)。
  */
 import { type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -20,6 +20,7 @@ import {
   SquaresFour,
   EyeIcon,
   CrosshairSimple,
+  ArrowSquareOut,
 } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useEscClose } from "@kernel/DialogShell";
@@ -67,6 +68,7 @@ export function TabContextMenu({
   onRename,
   canRename,
   onView,
+  onRelay,
   onTogglePin,
   canPin,
   pinned,
@@ -84,6 +86,8 @@ export function TabContextMenu({
   canRename?: boolean;
   /** 提供则显示「查看会话转录(只读)」(会话 tab:行内钮收敛后低频入口)。 */
   onView?: () => void;
+  /** 提供则显示「转到其他引擎接力…」(CLI 会话 tab;插件经 relayLiveRef 在册)。 */
+  onRelay?: () => void;
   /** 提供则显示「置顶到全局/取消置顶」;canPin=false 时禁用(未落盘不可扎)。 */
   onTogglePin?: () => void;
   canPin?: boolean;
@@ -99,7 +103,7 @@ export function TabContextMenu({
   tileActive?: boolean;
 }) {
   /* 高度按实显项数估算(3 项基座 120,可选项各 30)——只用于夹取,真值由内容撑开。 */
-  const optionalRows = [onRename, onView, onTogglePin, onLocate, onToggleTile].filter(Boolean).length;
+  const optionalRows = [onRename, onView, onRelay, onTogglePin, onLocate, onToggleTile].filter(Boolean).length;
   const pos = clampPosition(position.x, position.y, 120 + optionalRows * 30);
 
   useEscClose(onClose);
@@ -134,6 +138,13 @@ export function TabContextMenu({
             icon={<EyeIcon size="0.875rem" />}
             label={t("查看会话转录(只读)")}
             onPick={pick(onView)}
+          />
+        ) : null}
+        {onRelay ? (
+          <MenuRow
+            icon={<ArrowSquareOut size="0.875rem" />}
+            label={t("转到其他引擎接力…")}
+            onPick={pick(onRelay)}
           />
         ) : null}
         {onTogglePin ? (

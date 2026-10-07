@@ -14,9 +14,13 @@ import { getActiveWorkspace, getWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { prepareSendPayload } from "@kernel/profileSend";
 import { emitPromptSent, readPromptGate } from "@kernel/promptGate";
-import { relayTargets, buildRelaySummary, type RelaySource } from "./relay";
-import { clearRelaySource, useRelaySource } from "./relayStore";
+import { relayTargets, buildRelaySummary, appendCarriedMarks, type RelaySource } from "./relay";
+/* 跨插件消费 marks 声明的 store 数据函数(mobile 树 import cli-* 适配器同款
+ * 先例):一次性读 staged + 写入成功后翻 sent,不经注册面。 */
+import { stagedMarks, setMarkState } from "../marks/store";
+import type { Mark } from "../marks/anchor";
 import { useFocusTrap } from "@kernel/useFocusTrap";
+import { clearRelaySource, useRelaySource } from "./relayStore";
 
 /* 弹层焦点圈闭(同款见 SendConfirmDialog/SearchOverlay/WorktreeManageDialog/
    academy wizard;候选统一收口进 kernel/DialogShell):打开焦点入首控件、
@@ -40,7 +44,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
   const dialogRef = useFocusTrap(true);
   const [targetId, setTargetId] = useState<string | null>(targets[0]?.id ?? null);
   const [summary, setSummary] = useState("");
-  /* 截断标记:单条 500 字/总长 8KB 双闸任一触发即明示(不让用户误以为全文都在)。 */
+  /* 截断标记:摘要预算(RELAY_DIGEST_CAPS)或源转录 32MB 读取截断任一触发即明示(不让用户误以为全文都在)。 */
   const [summaryTruncated, setSummaryTruncated] = useState(false);
   const [summaryReady, setSummaryReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,19 +62,37 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
     textRef.current?.focus();
   }, []);
 
-  /* 摘要一次性组装:读源会话用户消息(全量),取最近 N 条确定性拼接。 */
+  /* 携带未发标注:源工作区 staged(已挂 composer 芯片)一次性快照,默认全带;
+   * pending 不带(未入对话)。开框期间名单冻结(与摘要同生命周期)。 */
+  const carryCwd = source.cwd ?? workspace?.root ?? "";
+  const [staged] = useState<readonly Mark[]>(() => (carryCwd ? stagedMarks(carryCwd) : []));
+  const [carryIds, setCarryIds] = useState<readonly string[]>(() => staged.map((m) => m.id));
+  /* 勾选集合(渲染与发送两处循环查找走 Set;名单动态增删)。 */
+  const carrySet = new Set(carryIds);
+  const toggleCarry = (id: string): void =>
+    setCarryIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+
+  /* 摘要一次性组装:读源会话角色化转录(readSessionTranscript,9 家族全声明),
+   * 压缩成用户/助手/工具三角色摘录;磁盘行定位同 viewerTab 先例 —— 无 path,
+   * 经 profile.listSessions(cwd) 一次性扫描找同 id 会话(查看动作触发,无轮询)。 */
   useEffect(() => {
     let alive = true;
-    const reader = source.cliSessionId
-      ? host.getCliProfile(source.profileId)?.readSessionUserMessages
-      : undefined;
-    const load = reader && source.cliSessionId && source.cliSessionId !== "unknown"
-      ? reader(source.cwd ?? workspace?.root ?? "", source.cliSessionId, true)
-      : Promise.resolve(null);
-    void load
-      .then((messages) => {
+    const profile =
+      source.cliSessionId && source.cliSessionId !== "unknown"
+        ? host.getCliProfile(source.profileId)
+        : undefined;
+    const locate =
+      profile?.readSessionTranscript && profile.listSessions && source.cliSessionId && source.cliSessionId !== "unknown"
+        ? (async () => {
+            const sessions = await profile!.listSessions!(source.cwd ?? workspace?.root ?? "").catch(() => null);
+            const hit = sessions?.find((s) => s.id === source.cliSessionId) ?? null;
+            return hit ? profile!.readSessionTranscript!(hit) : null;
+          })()
+        : Promise.resolve(null);
+    void locate
+      .then((transcript) => {
         if (alive) {
-          const built = buildRelaySummary(source, messages ?? []);
+          const built = buildRelaySummary(source, transcript?.blocks ?? null, transcript?.truncated);
           setSummary(built.text);
           setSummaryTruncated(built.truncated);
           setSummaryReady(true);
@@ -78,7 +100,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
       })
       .catch(() => {
         if (alive) {
-          const built = buildRelaySummary(source, []);
+          const built = buildRelaySummary(source, null);
           setSummary(built.text);
           setSummaryTruncated(built.truncated);
           setSummaryReady(true);
@@ -107,6 +129,10 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
         createdRef.current ?? (await host.createSession(targetId, ws.root, ws.id)).id;
       createdRef.current = sessionId;
       if (summary.trim()) {
+        /* 携带标注:勾选名单 ∩ staged 快照,引用块与 composer 变换同模板附尾;
+         * 失败不翻 sent(留框重试语义与 composer undo 对齐)。 */
+        const carried = staged.filter((m) => carrySet.has(m.id));
+        const fullText = appendCarriedMarks(summary.trim(), carried);
         /* 发送契约与 composer 同源:prepareSendPayload 做 bracketedPaste 包装 +
          * CR 提交(裸 \n 不会被 TUI 当 Enter,整串突发还会触发粘贴启发式吞掉
          * 提交回车 —— 直写 = 接力首发不成立)。triggers 清空 = 不做 $token
@@ -114,11 +140,12 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
          * 意图,盲译成 /skill: 会把首发变成技能调用且预览不可见(2026-09-28 三轮)。 */
         const profile = host.getCliProfile(targetId);
         const payload = profile
-          ? prepareSendPayload({ ...profile, triggers: [] }, summary.trim())
-          : `${summary.trim()}\r`;
+          ? prepareSendPayload({ ...profile, triggers: [] }, fullText)
+          : `${fullText}\r`;
         /* 轮次闸写前现读:接力首发 = 新会话空闲态,应恒广播 —— 不发则 checkpoint
            无锚点(首轮变更并入下一轮/整轮不可见)、tab 首条标题保底缺失
-           (2026-09-28 评审 F5,与 composer 三条写路径同契约)。 */
+           (2026-09-28 评审 F5,与 composer 三条写路径同契约)。emit 文本用摘要
+           原文(锚点/标题不混入引用块,与 composer emit 用户原文同语义)。 */
         const gate = readPromptGate(sessionId);
         const ok = await host.writeSession(sessionId, payload);
         if (!ok) {
@@ -133,6 +160,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
           return;
         }
         emitPromptSent(gate, sessionId, summary.trim());
+        for (const mark of carried) setMarkState(carryCwd, mark.id, "sent");
       }
       onClose();
     } catch (e) {
@@ -186,7 +214,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
             <span>{t("接力提示词(可编辑,将作为新会话首条消息发出)")}</span>
             {summaryTruncated && (
               <span className="rounded bg-(--tmd-bg-hover) px-1 text-meta text-(--tmd-git-modified)">
-                {t("已截断(单条 500 字 · 总长 8KB)")}
+                {t("已截断(超摘要预算)")}
               </span>
             )}
           </div>
@@ -200,6 +228,39 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
           />
         </div>
 
+        {staged.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <div className="text-xs text-(--tmd-fg-faint)">
+              {t("携带未发标注({n}/{total} 条,随首条消息一并发出)", {
+                n: carryIds.length,
+                total: staged.length,
+              })}
+            </div>
+            {staged.map((m) => {
+              const key = `${m.path}:${m.startLine}`;
+              return (
+                <label
+                  key={m.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-md border border-(--tmd-border) px-2 py-1 text-xs text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+                >
+                  <input
+                    type="checkbox"
+                    checked={carrySet.has(m.id)}
+                    onChange={() => toggleCarry(m.id)}
+                    disabled={busy}
+                    className="accent-(--tmd-accent)"
+                  />
+                  <span className="truncate font-mono" data-testid="carry-mark" data-key={key}>
+                    {m.path.split("/").at(-1)}:L{m.startLine}
+                    {m.startLine !== m.endLine ? `-L${m.endLine}` : ""}
+                  </span>
+                  {m.note && <span className="truncate text-meta">{m.note}</span>}
+                </label>
+              );
+            })}
+          </div>
+        )}
+
         {error && <div className="text-xs text-(--tmd-danger, #e5484d)">{error}</div>}
 
         <div className="flex items-center justify-end gap-2">
@@ -212,7 +273,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
           </button>
           <button
             type="button"
-            disabled={!targetId || busy || !summaryReady}
+            disabled={!targetId || busy || !summaryReady || !summary.trim()}
             onClick={() => void relay()}
             className="flex items-center gap-1.5 rounded-md bg-(--tmd-accent) px-3 py-1.5 text-xs font-medium text-(--tmd-accent-fg) disabled:opacity-50"
           >

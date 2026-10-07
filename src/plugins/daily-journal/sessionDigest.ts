@@ -1,87 +1,34 @@
 /**
- * 会话内容摘录 —— 每日文章的内容提取层(2026-09-30 重构)。
+ * 会话内容摘录 —— 每日文章的内容提取层(2026-09-30 重构;2026-10-06 压缩原语
+ * 下沉 kernel/transcriptDigest,本模块只留小节头装配与全日编排)。
  *
  * 旧路径只给生成会话一份标题清单,靠 agent 自行只读探测 7 家 CLI 的原始 jsonl 成文,
  * 格式异构导致普遍放弃 → 文章只剩标题复述。现改为:tmd 侧经各 CLI 插件声明的
  * readSessionTranscript 适配器(session-viewer 同款先例)读出角色化块,压缩成当日
  * 摘录文件落盘;生成会话以摘录为事实来源成文。行型知识仍在各家族插件内,本模块
  * 只做块级压缩,不碰任何 CLI 私有格式。
- *
- * 压缩纪律:reasoning/system 丢弃;user/assistant 压单行保头截断;tool 压单行
- * (失败态升格「报错」行,附 detail;适配器词表 error/failed);会话级 + 全日级
- * 双层字符预算,会话截断时保底追加末条助手结论(收尾结论是成文最贵的证据)。
  */
 import { host } from "@kernel/host";
 import type { CliTranscriptBlock } from "@kernel/cli";
+import { renderTranscriptDigest, DIGEST_CAPS, type DigestCaps } from "@kernel/transcriptDigest";
 import type { DaySessionRow } from "./daySessions";
 import { GEN_TASK_MARK } from "./promptGen";
 import { hmOf } from "./timeUtil";
 
-/** 单块与会话级截断预算(字符;user 原话最贵给足,tool 只留指纹)。 */
-export interface DigestCaps {
-  user: number;
-  assistant: number;
-  tool: number;
-  session: number;
-}
-
-export const DIGEST_CAPS: DigestCaps = { user: 800, assistant: 600, tool: 160, session: 4000 };
 
 /** 全日摘录字符预算:超出停止收录(24 会话 × 4KB 也用不满)。 */
 export const DAY_CHAR_CAP = 100_000;
 
-/** 任意文本 → 单行安全摘录(空白折叠 + 保头截断);md 结构符随单行化失效。 */
-export function capLine(text: string, n: number): string {
-  const one = text.replace(/\s+/g, " ").trim();
-  return one.length > n ? `${one.slice(0, n)}…(截断)` : one;
-}
-
-/** 单块 → 一行摘录;非内容块返回 null。 */
-function blockLine(b: CliTranscriptBlock, caps: DigestCaps): string | null {
-  const text = b.text.trim();
-  if (b.role === "user" && text) return `用户:${capLine(text, caps.user)}`;
-  if (b.role === "assistant" && text) return `助手:${capLine(text, caps.assistant)}`;
-  if (b.role === "tool") {
-    const title = (b.tool?.title || text).trim();
-    if (!title) return null;
-    /* 失败词表取适配器实产:error(部分家族)/failed(opencode 系透传)。 */
-    const failed = b.tool?.status === "error" || b.tool?.status === "failed";
-    const head = failed ? "报错" : "动作";
-    const detail = failed && b.tool?.detail ? ` — ${capLine(b.tool.detail, caps.tool)}` : "";
-    return `${head}:${capLine(title, caps.tool)}${detail}`;
-  }
-  return null;
-}
-
 /** 单会话块列表 → 摘录小节(md;空内容返回 null,调用方按仅标题处理)。 */
-export function renderSessionDigest(row: DaySessionRow, blocks: CliTranscriptBlock[], caps: DigestCaps = DIGEST_CAPS): string | null {
-  const lines: string[] = [];
-  let used = 0;
-  let cut = false;
-  /* 先全量定位真正末条助手结论:预算截断后循环到不了它,而它恰是收尾最贵证据。 */
-  let lastAssistant: string | null = null;
-  for (const b of blocks) {
-    if (b.role === "assistant" && b.text.trim()) lastAssistant = b.text.trim();
-  }
-  for (const b of blocks) {
-    const line = blockLine(b, caps);
-    if (line === null) continue;
-    if (used + line.length > caps.session) {
-      cut = true;
-      break;
-    }
-    lines.push(line);
-    used += line.length;
-  }
-  if (lines.length === 0) return null;
-  /* 截断保底:末条助手结论(常含最终结论/复盘)不在预算内时补一行尾摘。 */
-  if (cut && lastAssistant) {
-    const tail = `助手(结尾):${capLine(lastAssistant, 400)}`;
-    if (!lines.includes(`助手:${capLine(lastAssistant, caps.assistant)}`)) lines.push(tail);
-  }
-  if (cut) lines.push("(摘录超预算,后续内容省略)");
+export function renderSessionDigest(
+  row: DaySessionRow,
+  blocks: CliTranscriptBlock[],
+  caps: DigestCaps = DIGEST_CAPS,
+): string | null {
+  const digest = renderTranscriptDigest(blocks, caps);
+  if (!digest) return null;
   const head = `### ${hmOf(row.startedAt)} [${row.profileId}] ${row.title}${row.wsName ? `(${row.wsName})` : ""}`;
-  return [head, ...lines, ""].join("\n");
+  return [head, ...digest.lines, ""].join("\n");
 }
 
 export interface DayDigest {
@@ -104,7 +51,11 @@ export async function buildDayDigest(rows: DaySessionRow[]): Promise<DayDigest> 
   const profiles = host.getCliProfiles();
   const parts: Array<{ id: string; part: string | null }> = [];
   for (let i = 0; i < rows.length; i += DIGEST_READ_CONCURRENCY) {
-    if (i > 0) await new Promise((resolve) => setTimeout(resolve, 0));
+    if (i > 0) {
+      const { promise, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, 0);
+      await promise;
+    }
     const chunk = rows.slice(i, i + DIGEST_READ_CONCURRENCY);
     parts.push(
       ...await Promise.all(

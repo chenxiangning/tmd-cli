@@ -1,15 +1,11 @@
 /**
- * session-relay 纯逻辑契约测试:目标枚举排除当前、摘要拼装(最近 N 条截取/
- * 无消息占位/标题与模型行/单条与总长截断双闸)。
+ * session-relay 纯逻辑契约测试:目标枚举排除当前、角色化摘要拼装(三角色在场/
+ * reasoning 丢弃/无内容占位/标题与模型行/会话预算截断+末条助手结论保底/
+ * 源转录截断标记传递)。
  */
 import { describe, expect, it } from "vitest";
-import {
-  buildRelaySummary,
-  relayTargets,
-  SUMMARY_ITEM_MAX_CHARS,
-  SUMMARY_PROMPT_LIMIT,
-  SUMMARY_TOTAL_MAX_BYTES,
-} from "./relay";
+import { buildRelaySummary, relayTargets, RELAY_DIGEST_CAPS, appendCarriedMarks } from "./relay";
+import type { CliTranscriptBlock, CliTranscriptToolMeta } from "@kernel/cli";
 
 const PROFILES = [
   { id: "omp", name: "omp" },
@@ -17,7 +13,11 @@ const PROFILES = [
   { id: "codex", name: "codex" },
 ] as never[];
 
-const msg = (text: string) => ({ id: text, text });
+const block = (
+  role: CliTranscriptBlock["role"],
+  text: string,
+  tool?: CliTranscriptToolMeta,
+): CliTranscriptBlock => ({ id: Math.random().toString(36).slice(2), role, text, ...(tool ? { tool } : {}) });
 
 describe("relayTargets", () => {
   it("排除当前引擎,保持注册顺序", () => {
@@ -27,59 +27,79 @@ describe("relayTargets", () => {
 });
 
 describe("buildRelaySummary", () => {
-  it("取最近 N 条并编号,含来源标题与模型", () => {
-    const prompts = Array.from({ length: 14 }, (_, i) => msg(`任务${i + 1}`));
+  it("三角色在场:用户/助手/工具各成行,含来源标题与模型", () => {
+    const blocks = [
+      block("user", "帮我改审批线的封口时机"),
+      block("reasoning", "思考过程不该进接力摘要"),
+      block("assistant", "定位到 activityWatch 三钟出窗判据,建议 TURN_SILENCE_MS 提到 2s"),
+      block("tool", "编辑 src/kernel/activityWatch.ts", { title: "编辑 activityWatch.ts", status: "ok" }),
+    ];
     const built = buildRelaySummary(
       { profileId: "omp", engineName: "omp", cliSessionId: "x", title: "改审批线", model: "glm-5.3" },
-      prompts,
+      blocks,
     );
     expect(built.truncated).toBe(false);
     expect(built.text).toContain("接力自 omp 会话「改审批线」(模型 glm-5.3)");
-    expect(built.text).toContain(`1. 任务${14 - SUMMARY_PROMPT_LIMIT + 1}`); // 截掉最早 4 条
-    expect(built.text).toContain("10. 任务14");
-    expect(built.text).not.toContain("任务1\n");
+    expect(built.text).toContain("用户:帮我改审批线的封口时机");
+    expect(built.text).toContain("助手:定位到 activityWatch 三钟出窗判据");
+    expect(built.text).toContain("动作:编辑 activityWatch.ts");
+    expect(built.text).not.toContain("思考过程");
     expect(built.text).toContain("不要重复已完成");
   });
 
-  it("无消息时给诚实占位,不虚构历史", () => {
-    const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, []);
-    expect(built.text).toContain("未提取到历史输入");
-    expect(built.text).toContain("全新开始");
-    expect(built.truncated).toBe(false);
+  it("无内容块(读取失败/全 reasoning)给诚实占位,不虚构历史", () => {
+    for (const blocks of [null, [block("reasoning", "纯思考")]] as const) {
+      const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, blocks);
+      expect(built.text).toContain("未提取到历史输入");
+      expect(built.text).toContain("全新开始");
+      expect(built.truncated).toBe(false);
+    }
   });
 
   it("无标题时省略书名号段", () => {
-    const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, [msg("做点事")]);
+    const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, [block("user", "做点事")]);
     expect(built.text.startsWith("接力自 omp 会话。")).toBe(true);
   });
 
-  it("单条超 500 字截断尾部并标记", () => {
-    const long = "甲".repeat(SUMMARY_ITEM_MAX_CHARS + 200);
-    const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, [msg(long), msg("收尾")]);
+  it("超会话预算截断标记 + 末条助手结论保底(收尾结论在场)", () => {
+    /* 每条用户行 500+ 字(单行不触 user 1200 闸),累计必破 6000 会话闸;
+       末条助手结论在切断点之后,靠保底行进摘要。 */
+    const blocks = [
+      ...Array.from({ length: 12 }, (_, i) => block("user", `阶段${i} ` + "甲".repeat(500))),
+      block("assistant", "最终结论:封口时机改为三钟全出窗,已补集成测试"),
+    ];
+    const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, blocks);
     expect(built.truncated).toBe(true);
-    expect(built.text).toContain(`1. ${"甲".repeat(SUMMARY_ITEM_MAX_CHARS)}…`);
-    expect(built.text).not.toContain("甲".repeat(SUMMARY_ITEM_MAX_CHARS + 1));
-    expect(built.text).toContain("2. 收尾");
+    expect(built.text).toContain("(摘录超预算,后续内容省略)");
+    expect(built.text).toContain("助手(结尾):最终结论:封口时机改为三钟全出窗");
+    /* 头尾行与角色行都在场;预算行数有限,文本远小于全量转录 */
+    expect(built.text.length).toBeLessThan(RELAY_DIGEST_CAPS.session + 2000);
   });
 
-  it("单条截断不劈开代理对(emoji 截点回退,不产孤立代理)", () => {
-    /* 1 个 BMP 字 + N 个 emoji(各 2 码元):截点必落在某个代理对中间。 */
-    const emoji = "字" + "😀".repeat(SUMMARY_ITEM_MAX_CHARS);
-    const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, [msg(emoji), msg("收尾")]);
+  it("源转录超读取预算(32MB 截断)时 truncated 透传", () => {
+    const built = buildRelaySummary(
+      { profileId: "omp", engineName: "omp" },
+      [block("user", "一句话")],
+      true,
+    );
     expect(built.truncated).toBe(true);
-    expect(built.text).toContain(`1. 字${"😀".repeat(Math.floor((SUMMARY_ITEM_MAX_CHARS - 1) / 2))}…`);
-    expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(built.text)).toBe(false);
   });
+});
 
-  it("总长超 8KB(UTF-8 字节)从最旧条目起丢弃,最新一条恒保", () => {
-    /* 每条 480 个汉字(单条不触发 500 字闸),UTF-8 下 ≈1.4KB/条;
-       最近 10 条 ≈14KB > 8KB → 总长闸丢最旧,最新条(19 号)恒在。 */
-    const prompts = Array.from({ length: 20 }, (_, i) => msg(`${String(i).padStart(2, "0")} ` + "乙".repeat(480)));
-    const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, prompts);
-    expect(built.truncated).toBe(true);
-    /* 输出条目重编号 1..N:最新一条 = "10. 19 …",最旧一条("1. 10 …")被丢 */
-    expect(built.text).toContain("10. 19 ");
-    expect(built.text).not.toContain("1. 10 ");
-    expect(new TextEncoder().encode(built.text).length).toBeLessThanOrEqual(SUMMARY_TOTAL_MAX_BYTES);
+describe("appendCarriedMarks", () => {
+  it("无携带原样返回;携带时引用块按 composer 同模板附尾", () => {
+    const mark = {
+      path: "src/kernel/store.ts",
+      startLine: 63,
+      endLine: 104,
+      note: "sidecar 真相源",
+      excerpt: "const ledgerPath",
+    };
+    expect(appendCarriedMarks("摘要正文", [])).toBe("摘要正文");
+    const two = { path: "src/b.ts", startLine: 41, endLine: 51, note: "状态机", excerpt: "flip()" };
+    const out = appendCarriedMarks("摘要正文", [mark, two]);
+    expect(out.startsWith("摘要正文\n\n")).toBe(true);
+    expect(out).toContain("请看我在文件里标记的 2 处:");
+    expect(out).toContain("src/kernel/store.ts:L63-L104\n  > const ledgerPath\n  标注:sidecar 真相源\n\nsrc/b.ts:L41-L51");
   });
 });

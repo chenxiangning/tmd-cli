@@ -14,6 +14,7 @@ import { isSessionPinned, pinSession, sessionPinKey, unpinSession } from "@kerne
 import { PinIcon } from "@kernel/PinIcon";
 import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
 import { requestSessionReveal } from "@kernel/sessionReveal";
+import { relayLiveRef } from "@kernel/relayBridge";
 import { shellLeftEnsureOpen } from "./shortcutCommands";
 import { sessionTabState } from "@kernel/sessionTabState";
 import { host, useHost } from "@kernel/host";
@@ -194,14 +195,14 @@ function SessionTabMenu({
               })
           : undefined
       }
+      onRelay={meta?.kind === "cli" && relayLiveRef.current ? () => relayLiveRef.current?.(menu.id) : undefined}
       onTogglePin={() =>
         pinKey && (isSessionPinned(pinKey) ? unpinSession(pinKey) : pinSession(pinKey, "global", pinSnapshot))
       }
       canPin={pinKey != null}
       pinned={pinKey !== undefined && isSessionPinned(pinKey)}
       onLocate={() => {
-        shellLeftEnsureOpen.current?.();
-        requestSessionReveal(menu.id);
+        shellLeftEnsureOpen.current?.(); requestSessionReveal(menu.id);
       }}
       onRename={() => {
         if (!meta || !cliSessionId) return;

@@ -1,29 +1,21 @@
 /**
  * 跨引擎接力纯逻辑 ── 摘要组装与目标引擎枚举(单测覆盖)。
- * 摘要 = 确定性组装(最近 N 条用户 prompt + 引擎/模型/标题),零 AI 调用、
- * 可预览可编辑后发送;不读助手正文、不解析 CLI 私有格式。
+ * 摘要 = 确定性组装:经 readSessionTranscript 适配器读角色化块(9 家族全声明,
+ * 2026-10-06 起 dsh 源不再落「未提取到历史输入」占位),kernel/transcriptDigest
+ * 压缩(用户/助手/工具三角色,截断保末条助手结论),零 AI 调用、可预览可编辑后发送。
  */
 
 import type { CliProfile } from "@kernel/cliProfile";
-import type { CliUserMessage } from "@kernel/cliSessionTypes";
+import type { CliTranscriptBlock } from "@kernel/cli";
+import { t } from "@kernel/i18n";
+import { renderTranscriptDigest, type DigestCaps } from "@kernel/transcriptDigest";
+/* 跨插件消费 marks 声明的纯函数模块(mobile 树 import cli-* 适配器同款先例);
+ * 序列化模板与回链正则成对同步,不得在 relay 侧另造格式。 */
+import { serializeMark } from "../marks/sendTransform";
 
-/** 摘要携带的最近 prompt 条数。 */
-export const SUMMARY_PROMPT_LIMIT = 10;
-
-/** 单条 prompt 截断上限(字符):超长条目(贴日志/贴文件)尾部截断,
- *  防单条即撑爆目标上下文或触发 TUI 粘贴启发式。 */
-export const SUMMARY_ITEM_MAX_CHARS = 500;
-
-/** 摘要总长上限(UTF-8 字节,8KB):按字节计 —— 中文一条 500 字已达 ~1.5KB,
- *  10 条满额 ≈ 15KB 仍可撑爆目标上下文,超限从最旧条目起丢弃(保最近进度)。 */
-export const SUMMARY_TOTAL_MAX_BYTES = 8 * 1024;
-
-/** UTF-8 字节长度(TextEncoder 惰性单例;测试环境 node 18+ 全局自带)。 */
-let encoder: TextEncoder | null = null;
-function utf8Bytes(s: string): number {
-  encoder ??= new TextEncoder();
-  return encoder.encode(s).length;
-}
+/** 接力摘要预算(字符):比文章摘录(DIGEST_CAPS 4000)粗 —— 接力要能接着干活,
+ *  助手结论与工具产出必须在场;比例沿摘录层(user 最贵,tool 只留指纹)。 */
+export const RELAY_DIGEST_CAPS: DigestCaps = { user: 1200, assistant: 1000, tool: 200, session: 6000 };
 
 /** 接力源信息(当前会话侧)。 */
 export interface RelaySource {
@@ -46,55 +38,49 @@ export function relayTargets(profiles: readonly CliProfile[], currentProfileId: 
 /** 组装结果:文本 + 截断标记(预览区明示,不让用户误以为全文都在)。 */
 export interface RelaySummary {
   text: string;
-  /** 单条或总长截断发生。 */
+  /** 摘录层预算截断,或源转录本身超读取预算(32MB)被截。 */
   truncated: boolean;
 }
 
-/** 单条截断(纯函数):超上限尾部加省略号,标记 truncated。 */
-function truncateItem(text: string): { text: string; truncated: boolean } {
-  if (text.length <= SUMMARY_ITEM_MAX_CHARS) return { text, truncated: false };
-  let cut = text.slice(0, SUMMARY_ITEM_MAX_CHARS);
-  /* 截点落在代理对中间时回退一位:劈开的半个字符会以孤立代理对进提示词
-     (JSON 序列化成坏码点,目标引擎解析端行为不可控)。 */
-  const tail = cut.charCodeAt(cut.length - 1);
-  const next = text.charCodeAt(cut.length);
-  if (tail >= 0xd800 && tail <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
-    cut = cut.slice(0, -1);
-  }
-  return { text: `${cut}…`, truncated: true };
+/** 携带标注的最小形状(marks Mark 的结构子集)。 */
+export interface CarryMark {
+  path: string;
+  startLine: number;
+  endLine: number;
+  note: string;
+  excerpt: string;
+}
+
+/** 摘要 + 携带标注引用块 → 首发 prompt 全文(与 composer 变换同模板;
+ *  无携带原样返回)。翻转 sent 由调用方在写入成功后执行(失败不翻)。 */
+export function appendCarriedMarks(summary: string, marks: readonly CarryMark[]): string {
+  if (marks.length === 0) return summary;
+  const block = marks.map((m) => serializeMark(m)).join("\n\n");
+  return `${summary}\n\n${t("请看我在文件里标记的 {n} 处:", { n: marks.length })}\n${block}`;
 }
 
 /**
- * 组装接力提示词。prompts 传全量用户消息(文件顺序),函数取最近
- * SUMMARY_PROMPT_LIMIT 条;再按 单条 500 字 / 总长 8KB 双闸截断(总长超限
- * 从最旧条目起丢弃,至少保最新一条)。无消息时给出诚实占位(目标引擎自行判断)。
+ * 组装接力提示词。blocks 传源会话角色化块(文件顺序;读取失败传 null)。
+ * 压缩与截断纪律同 kernel/transcriptDigest:顺序收录超会话预算截断,末条助手
+ * 结论保底(换轨至少带上最终结论)。无内容块时给诚实占位(目标引擎自行判断)。
  */
 export function buildRelaySummary(
   source: RelaySource,
-  prompts: readonly CliUserMessage[],
+  blocks: readonly CliTranscriptBlock[] | null,
+  sourceTruncated?: boolean,
 ): RelaySummary {
-  const recent = prompts.slice(-SUMMARY_PROMPT_LIMIT).map((m) => truncateItem(m.text));
   const head = source.title
     ? `接力自 ${source.engineName} 会话「${source.title}」`
     : `接力自 ${source.engineName} 会话`;
   const model = source.model ? `(模型 ${source.model})` : "";
   const headLine = `${head}${model}。此前的对话里我提出过:`;
   const tailLine = "请接着以上进度继续工作,不要重复已完成的部分;先简要复述你的理解再动手。";
-  /* 无消息占位也算「条目」:进同一 items 数组,走同一总长闸。 */
-  let items = recent.map((r, i) => `${i + 1}. ${r.text}`);
-  if (items.length === 0) items = ["(未提取到历史输入,以下为全新开始)"];
-  /* 总长闸(UTF-8 字节,头尾行计入):从最旧条目起丢,最新一条恒保。 */
-  const budget = () =>
-    utf8Bytes(headLine) + utf8Bytes(tailLine) +
-    items.reduce((n, s) => n + utf8Bytes(s) + 1, 0);
-  let dropped = false;
-  while (items.length > 1 && budget() > SUMMARY_TOTAL_MAX_BYTES) {
-    items = items.slice(1);
-    dropped = true;
+  const digest = renderTranscriptDigest(blocks ?? [], RELAY_DIGEST_CAPS);
+  if (!digest) {
+    return { text: [headLine, "(未提取到历史输入,以下为全新开始)", tailLine].join("\n"), truncated: false };
   }
-  const truncated = dropped || recent.some((r) => r.truncated);
   return {
-    text: [headLine, ...items, tailLine].join("\n"),
-    truncated,
+    text: [headLine, ...digest.lines, tailLine].join("\n"),
+    truncated: digest.truncated || !!sourceTruncated,
   };
 }

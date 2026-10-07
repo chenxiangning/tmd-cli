@@ -1,6 +1,7 @@
 /** 摘录层测试(块压缩/预算截断/报错升格/末条结论保底/全日装配)。 */
 import { describe, expect, it, vi } from "vitest";
-import { buildDayDigest, capLine, renderSessionDigest, DAY_CHAR_CAP, type DigestCaps } from "./sessionDigest";
+import { buildDayDigest, renderSessionDigest, DAY_CHAR_CAP } from "./sessionDigest";
+import { capLine, type DigestCaps } from "@kernel/transcriptDigest";
 import type { DaySessionRow } from "./daySessions";
 import type { CliDiskSession, CliTranscriptBlock, CliTranscriptToolMeta } from "@kernel/cli";
 
