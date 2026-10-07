@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>W2 标注×检查点存证链 · 批次配套原型(0.3.2 A+B 批)</title>
+<style>
+  :root {
+    --bg-base: #ffffff; --bg-elevated: #f8f8f8; --bg-hover: #f2f2f2; --bg-active: rgba(0,95,184,.14);
+    --fg: #3b3b3b; --fg-muted: #7e7e7e; --fg-subtle: #999999; --fg-faint: #c0c0c0;
+    --border: #cecece; --border-strong: #b1b1b1;
+    --accent: #005fb8; --accent-fg: #ffffff; --accent-soft: rgba(0,95,184,.14);
+    --ok: #059669; --ok-soft: rgba(5,150,105,.12);
+    --warn: #a16207; --warn-soft: rgba(161,98,7,.12);
+    --err: #dc2626;
+    --violet: #7c3aed; --violet-soft: rgba(124,58,237,.10);
+    --mark: #b45309; --mark-soft: rgba(180,83,9,.09);
+    --ins: #1a7f37; --ins-bg: rgba(26,127,55,.10);
+    --del: #cf222e; --del-bg: rgba(207,34,46,.08);
+    --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
+    --mono: ui-monospace, Menlo, Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #ececec; color: var(--fg); font: 12px/1.55 -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; padding: 28px 20px 80px; }
+  .page { max-width: 1560px; margin: 0 auto; }
+  h1 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .lede { color: var(--fg-muted); margin-bottom: 14px; max-width: 1300px; }
+  .lede b { color: var(--fg); }
+  .lede code { font-family: var(--mono); font-size: 11px; background: var(--bg-hover); padding: 0 4px; border-radius: 4px; }
+
+  /* ── 本批清单 ── */
+  .batch { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .bcard { flex: 1; min-width: 300px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-base); padding: 10px 12px; }
+  .bcard b { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 6px; }
+  .bcard ul { list-style: none; }
+  .bcard li { display: flex; gap: 6px; padding: 2px 0; color: var(--fg-muted); font-size: 11px; }
+  .bcard li::before { content: "·"; color: var(--fg-faint); }
+  .bcard li.on-prototype { color: var(--fg); }
+  .bcard li.on-prototype::before { content: "▶"; color: var(--accent); font-size: 9px; padding-top: 2px; }
+  .k { font-family: var(--mono); font-size: 10px; background: var(--bg-active); color: var(--accent); border-radius: 4px; padding: 1px 5px; flex: none; }
+
+  /* ── 图例 ── */
+  .legendbar { display: flex; gap: 14px; align-items: center; font-size: 10px; color: var(--fg-subtle); margin-bottom: 12px; flex-wrap: wrap; }
+  .legendbar .grp { display: inline-flex; align-items: center; gap: 5px; }
+
+  /* 徽章族 */
+  .bdg { display: inline-flex; align-items: center; gap: 4px; height: 16px; padding: 0 6px; border-radius: 999px; font-size: 9.5px; font-weight: 600; flex: none; }
+  .bdg i { width: 5px; height: 5px; border-radius: 50%; flex: none; }
+  .bdg.pend  { background: var(--warn-soft); color: var(--warn); } .bdg.pend i { background: var(--warn); }
+  .bdg.sent  { background: var(--bg-hover); color: var(--fg-subtle); } .bdg.sent i { background: var(--fg-faint); }
+  .bdg.eff   { background: var(--ok-soft); color: var(--ok); } .bdg.eff i { background: var(--ok); }
+  .bdg.revt  { background: var(--violet-soft); color: var(--violet); } .bdg.revt i { background: var(--violet); }
+  .bdg.open  { background: var(--accent-soft); color: var(--accent); } .bdg.open i { background: var(--accent); }
+  .bdg.none  { background: var(--bg-hover); color: var(--fg-faint); } .bdg.none i { background: var(--fg-faint); }
+
+  /* 轮次小片(标注卡内) */
+  .rchip { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border: 1px solid var(--border); border-radius: 999px; font-size: 9.5px; cursor: pointer; background: var(--bg-base); color: var(--fg-muted); }
+  .rchip:hover { border-color: var(--accent); color: var(--accent); }
+  .rchip.eff  { border-color: rgba(5,150,105,.45); background: var(--ok-soft); color: var(--ok); }
+  .rchip.revt { border-color: rgba(124,58,237,.4); background: var(--violet-soft); color: var(--violet); }
+  .rchip.open { border-color: rgba(0,95,184,.4); background: var(--accent-soft); color: var(--accent); }
+  .rchip.none { color: var(--fg-faint); }
+  .rchip .en { font-family: var(--mono); font-size: 9px; opacity: .8; }
+
+  /* ── 窗口壳 ── */
+  .window { border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg-base); box-shadow: 0 8px 28px rgba(0,0,0,.08); position: relative; }
+  .titlebar { height: 33px; display: flex; align-items: center; gap: 12px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); padding: 0 10px 0 12px; }
+  .lights { display: flex; gap: 8px; }
+  .lights i { width: 12px; height: 12px; border-radius: 50%; }
+  .lights i:nth-child(1) { background: #ff5f57; } .lights i:nth-child(2) { background: #febc2e; } .lights i:nth-child(3) { background: #28c840; }
+  .tb-app { font-weight: 700; color: var(--fg-muted); font-size: 12px; }
+  .tb-tabs { display: flex; gap: 4px; align-self: flex-end; height: 100%; align-items: flex-end; margin-left: auto; }
+  .tb-tab { display: flex; align-items: center; gap: 6px; height: 27px; padding: 0 12px; font-size: 12px; color: var(--fg-muted); border-radius: 6px 6px 0 0; }
+  .tb-tab.on { background: var(--bg-base); color: var(--fg); border: 1px solid var(--border); border-bottom-color: var(--bg-base); }
+  .tb-tab svg { color: rgb(255,140,60); }
+  .tb-tab .x { color: var(--fg-faint); cursor: pointer; }
+
+  .body { display: flex; height: 880px; }
+
+  /* ── 侧栏(简化) ── */
+  .sidebar { flex: none; width: 200px; background: var(--bg-elevated); border-right: 1px solid var(--border); padding: 10px 8px; overflow: hidden; }
+  .sb-label { font-size: 10px; color: var(--fg-faint); padding: 6px 6px 4px; }
+  .ws-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: var(--r-sm); color: var(--fg-muted); }
+  .ws-row.on { background: var(--bg-active); color: var(--fg); font-weight: 600; }
+  .ws-row i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none; }
+  .th-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: var(--r-sm); color: var(--fg-muted); font-size: 11px; }
+  .th-row.on { background: var(--bg-active); color: var(--fg); }
+  .th-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+  .th-row .sub { color: var(--fg-faint); font-size: 9px; margin-left: auto; }
+
+  /* ── 中央:编辑器 / 批审阅单 ── */
+  .center { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; background: var(--bg-base); }
+  .ed-tabs { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border); padding: 0 8px; height: 30px; background: var(--bg-elevated); }
+  .ed-tab { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: var(--r-sm) var(--r-sm) 0 0; font-size: 11px; color: var(--fg-muted); cursor: pointer; border: 1px solid transparent; }
+  .ed-tab.on { background: var(--bg-base); color: var(--fg); border-color: var(--border); border-bottom-color: var(--bg-base); margin-bottom: -1px; }
+  .ed-tab .mk { font-size: 9px; color: var(--mark); }
+  .codebox { flex: 1; overflow: auto; padding: 8px 0 40px; font-family: var(--mono); font-size: 11px; }
+  .cl { display: flex; min-width: max-content; }
+  .cl .no { flex: none; width: 44px; text-align: right; padding-right: 12px; color: var(--fg-faint); user-select: none; position: sticky; left: 0; background: var(--bg-base); }
+  .cl .tx { white-space: pre; color: var(--fg); }
+  .cl.m1 .tx { background: var(--mark-soft); }
+  .cl.m1 .no { color: var(--mark); background: #fbf4ec; font-weight: 600; }
+  .cl.m3 .tx { background: rgba(161,98,7,.05); outline: 1px dashed rgba(180,83,9,.35); outline-offset: -1px; }
+  .cl.m2 .tx { background: var(--mark-soft); }
+  .cl.m2 .no { color: var(--mark); background: #fbf4ec; }
+  .cl.hit .tx { background: var(--ins-bg); box-shadow: inset 2px 0 0 var(--ok); }
+  .gtag { position: absolute; font-size: 9px; color: var(--mark); font-family: -apple-system, "PingFang SC", sans-serif; pointer-events: none; }
+  .flash { animation: flash 1.2s ease-out 2; }
+  @keyframes flash { 0%,100% { background: transparent; } 50% { background: var(--accent-soft); } }
+
+  /* 批审阅单(中央 tab 覆盖) */
+  .sheet { position: absolute; inset: 0; background: var(--bg-base); display: none; flex-direction: column; z-index: 5; }
+  .sheet.on { display: flex; }
+  .sheet-head { border-bottom: 1px solid var(--border); padding: 10px 14px 8px; }
+  .sheet-title { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .sheet-title b { font-size: 13px; }
+  .sheet-meta { display: flex; gap: 10px; flex-wrap: wrap; color: var(--fg-subtle); font-size: 10px; margin-top: 3px; }
+  .sheet-meta .mm { font-family: var(--mono); }
+  .carry { display: flex; align-items: center; gap: 5px; margin-top: 7px; flex-wrap: wrap; }
+  .carry .lb { font-size: 10px; color: var(--fg-subtle); }
+  .carry .mchip { display: inline-flex; gap: 4px; align-items: center; height: 17px; padding: 0 7px; border-radius: 5px; background: var(--mark-soft); color: var(--mark); font-size: 9.5px; cursor: pointer; }
+  .carry .mchip:hover { outline: 1px solid var(--mark); }
+  .sheet-body { flex: 1; overflow: auto; padding: 10px 14px 30px; }
+  .sec-title { font-size: 10px; color: var(--fg-faint); margin: 6px 0 4px; }
+  .frow { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: var(--r-sm); font-family: var(--mono); font-size: 11px; }
+  .frow:hover { background: var(--bg-hover); }
+  .frow .st { width: 14px; text-align: center; font-weight: 700; }
+  .frow .st.M { color: var(--warn); } .frow .st.A { color: var(--ok); } .frow .st.D { color: var(--err); }
+  .frow .ad { margin-left: auto; color: var(--ins); font-size: 10px; } .frow .de { color: var(--del); font-size: 10px; }
+  .patchbox { margin: 6px 0 10px; border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+  .ph { display: flex; font-family: var(--mono); font-size: 10.5px; }
+  .ph .no { flex: none; width: 40px; text-align: right; padding: 0 8px 0 0; color: var(--fg-faint); user-select: none; }
+  .ph .no.new { color: var(--fg-subtle); }
+  .ph .tx { white-space: pre; }
+  .ph.add .tx { background: var(--ins-bg); color: var(--ins); } .ph.add .no.new { color: var(--ins); }
+  .ph.del .tx { background: var(--del-bg); color: var(--del); }
+  .ph.ctx .tx { color: var(--fg-muted); }
+  .ph.hdr { background: var(--bg-elevated); color: var(--accent); padding: 2px 8px; }
+  .ph.hdr .hitr { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; color: var(--ok); font-family: -apple-system, "PingFang SC", sans-serif; font-size: 9.5px; font-weight: 600; }
+  .sheet-foot { display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--border); padding: 8px 14px; background: var(--bg-elevated); }
+  .btn { height: 26px; padding: 0 12px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--bg-base); font: inherit; font-size: 11px; color: var(--fg-muted); cursor: pointer; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .btn.primary:hover { opacity: .88; }
+  .btn.violet { border-color: rgba(124,58,237,.5); color: var(--violet); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .sheet-note { margin-left: auto; font-size: 10px; color: var(--fg-subtle); }
+
+  /* ── 右栏双面板 ── */
+  .rail { flex: none; width: 34px; background: var(--bg-elevated); border-left: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 8px 0; gap: 4px; }
+  .rail button { width: 26px; height: 26px; border: 0; background: none; color: var(--fg-subtle); cursor: pointer; border-radius: var(--r-sm); display: grid; place-items: center; }
+  .rail button:hover { color: var(--fg); background: var(--bg-hover); }
+  .rail button.on { color: var(--accent); background: var(--bg-active); }
+  .rail .sep { width: 16px; height: 1px; background: var(--border); margin: 3px 0; }
+
+  .rpanel { flex: none; width: 316px; border-left: 1px solid var(--border); display: flex; flex-direction: column; min-width: 0; }
+  .rp-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg-elevated); }
+  .rp-tab { flex: 1; height: 26px; border: 0; background: none; font: inherit; font-size: 11px; color: var(--fg-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+  .rp-tab.on { color: var(--fg); font-weight: 600; border-bottom-color: var(--accent); }
+  .rp-tab .cnt { color: var(--fg-faint); font-weight: 400; }
+  .rp-body { flex: 1; overflow-y: auto; padding: 8px; }
+
+  /* 标注卡 */
+  .mkfile { margin-bottom: 8px; }
+  .mkfile-h { display: flex; align-items: center; gap: 6px; padding: 0 2px 3px; font-family: var(--mono); font-size: 10px; color: var(--fg-subtle); }
+  .mkfile-h .n { color: var(--fg-faint); }
+  .mkcard { border: 1px solid var(--border); border-radius: var(--r-md); padding: 7px 9px; margin-bottom: 5px; background: var(--bg-base); }
+  .mkcard.eff { border-color: rgba(5,150,105,.4); }
+  .mkcard-top { display: flex; align-items: center; gap: 6px; }
+  .mkcard-top .rng { font-family: var(--mono); font-size: 10.5px; color: var(--fg); font-weight: 600; }
+  .mkcard-top .act { margin-left: auto; display: flex; gap: 4px; }
+  .mini { height: 18px; padding: 0 7px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg-base); font: inherit; font-size: 9.5px; color: var(--fg-muted); cursor: pointer; }
+  .mini:hover { border-color: var(--accent); color: var(--accent); }
+  .mini.stage { border-color: rgba(180,83,9,.5); color: var(--mark); }
+  .mkcard .ex { margin: 5px 0; font-family: var(--mono); font-size: 10px; color: var(--fg-subtle); white-space: pre; overflow: hidden; max-height: 30px; }
+  .rounds { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+  .rounds .lb { font-size: 9.5px; color: var(--fg-faint); flex: none; }
+  .rounds .more { font-size: 9.5px; color: var(--fg-subtle); }
+  .pending-hint { margin-top: 6px; font-size: 10px; color: var(--fg-faint); }
+
+  /* 审批线节点 */
+  .tl-node { position: relative; padding: 0 0 14px 22px; }
+  .tl-node::before { content: ""; position: absolute; left: 7px; top: 16px; bottom: 0; width: 1px; background: var(--border); }
+  .tl-node:last-child::before { display: none; }
+  .tl-dot { position: absolute; left: 3.5px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); }
+  .tl-node.open .tl-dot { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: pulse 1.6s infinite; }
+  .tl-node.reverted .tl-dot { background: var(--violet); }
+  .tl-node.stand .tl-dot { background: var(--warn); }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 2px var(--accent-soft); } 50% { box-shadow: 0 0 0 5px transparent; } }
+  .tl-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tl-head .turn { font-family: var(--mono); font-size: 10px; color: var(--fg-subtle); }
+  .tl-prompt { margin-top: 2px; color: var(--fg-muted); font-size: 11px; line-height: 1.45; }
+  .tl-meta { display: flex; gap: 8px; margin-top: 3px; font-size: 9.5px; color: var(--fg-faint); flex-wrap: wrap; align-items: center; }
+  .tl-meta .mm { font-family: var(--mono); }
+  .mkbadge { display: inline-flex; align-items: center; gap: 3px; height: 15px; padding: 0 6px; border-radius: 4px; background: var(--mark-soft); color: var(--mark); font-size: 9px; font-weight: 600; cursor: pointer; }
+  .mkbadge:hover { outline: 1px solid var(--mark); }
+  .tl-act { margin-top: 4px; display: flex; gap: 5px; }
+
+  /* toast */
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(16px); background: #2f2f2f; color: #fff; font-size: 11.5px; padding: 8px 16px; border-radius: 8px; opacity: 0; pointer-events: none; transition: .25s; z-index: 99; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 页脚 */
+  .foot { display: flex; gap: 10px; margin-top: 14px; }
+  .fcard { flex: 1; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-base); padding: 10px 12px; font-size: 11px; color: var(--fg-muted); }
+  .fcard b { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--fg); margin-bottom: 5px; }
+  .fcard p { margin: 2px 0; }
+  .fcard .skip { color: var(--fg-faint); }
+  .fcard code { font-family: var(--mono); font-size: 10px; background: var(--bg-hover); padding: 0 3px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>W2 标注 × 检查点存证链 · 本批配套原型</h1>
+  <p class="lede">spec:<b>docs/superpowers/specs/2026-10-07-marks-checkpoints-evidence-chain-design.md</b>。核心链路:<b>标了什么 → 哪轮改的 → 一键回滚</b>。锚点随批固化标注引用(PromptSentEvent.ranges → 账本 marks_refs);「已生效」是派生徽章(批 patch 老侧 hunk 与标记区间相交,零写路径);回退联动降级免费。本页可点:标注卡轮次片、时间线「标 ×N」、批审阅单回退/反悔/模拟封口。</p>
+
+  <div class="batch">
+    <div class="bcard">
+      <b><span class="k">W2</span>存证链(本页演示)</b>
+      <ul>
+        <li class="on-prototype">PromptSentEvent 增 ranges 载荷(主 composer 口 + 接力首发口;抽屉口不带)</li>
+        <li class="on-prototype">账本 marks_refs 随 anchor 固化,seal 修订行携带,list 回读</li>
+        <li class="on-prototype">标注卡徽章三态:待发送 / 已发送 / 已生效(派生)</li>
+        <li class="on-prototype">参与轮次三值 + 进行中;点击开批审阅单(相交 hunk 命中高亮)</li>
+        <li class="on-prototype">回退批次联动降级;反悔恢复;时间线节点「标 ×N」</li>
+      </ul>
+    </div>
+    <div class="bcard">
+      <b><span class="k">B</span>清账小件(同版,非本页)</b>
+      <ul>
+        <li>W1 P2 补测:transcriptDigest truncated 双旗叠加</li>
+        <li>W1 P2 补测:dsh relay fixture</li>
+        <li>W1 P2 补测:relay overlay 编辑 round-trip</li>
+        <li>daySessions 转活双行瞬态:磁盘行与活行按会话 id 合并去重(活行优先)</li>
+      </ul>
+    </div>
+    <div class="bcard">
+      <b><span class="k">天花板</span>本版不做</b>
+      <ul>
+        <li>跨会话历史批 join(已退出会话的批不追,需 cwd 级枚举面)</li>
+        <li>内容级精确比对(fingerprint 重放;老侧行号级近似够徽章语义)</li>
+        <li>marks sidecar 与 MarkState 不动(零写路径);store.ts 不拆</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="legendbar">
+    <span class="grp">徽章:</span>
+    <span class="bdg pend"><i></i>待发送</span>
+    <span class="bdg sent"><i></i>已发送</span>
+    <span class="bdg eff"><i></i>已生效</span>
+    <span class="grp" style="margin-left:8px">轮次片:</span>
+    <span class="rchip eff"><span class="en">R1</span>已生效</span>
+    <span class="rchip revt"><span class="en">R3</span>已回退</span>
+    <span class="rchip none"><span class="en">R2</span>未改写</span>
+    <span class="rchip open"><span class="en">R4</span>进行中</span>
+    <span class="grp" style="margin-left:8px">时间线:</span>
+    <span class="mkbadge">标 ×2</span>
+    <span style="color:var(--fg-faint)">= 本轮锚点携带的标注数</span>
+  </div>
+
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="tb-app">tmd-cli</span>
+      <div class="tb-tabs">
+        <div class="tb-tab on"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M4 6.5h8M4 9.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>store.ts</div>
+        <div class="tb-tab" id="tb-sheet" style="display:none"><svg width="11" height="11" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.6" fill="currentColor"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="8" cy="13" r="1.6" fill="currentColor"/><path d="M8 4.5v2M8 9.5v2" stroke="currentColor" stroke-width="1.4"/></svg><span id="tb-sheet-t">批审阅单</span><span class="x" onclick="closeSheet()">×</span></div>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sidebar">
+        <div class="sb-label">工作区</div>
+        <div class="ws-row on"><i></i>tmd-cli</div>
+        <div class="sb-label" style="margin-top:8px">会话</div>
+        <div class="th-row on"><span class="dot"></span>重构 marks 存证<span class="sub">omp</span></div>
+        <div class="th-row"><span class="dot" style="background:var(--fg-faint)"></span>排查 quota 断链<span class="sub">claude</span></div>
+        <div class="th-row"><span class="dot" style="background:var(--fg-faint)"></span>日志聚合口径<span class="sub">kimi</span></div>
+      </div>
+
+      <div class="center">
+        <div class="ed-tabs">
+          <div class="ed-tab on" id="ftab-a" onclick="switchFile('a')">src/plugins/marks/store.ts <span class="mk">⚑2</span></div>
+          <div class="ed-tab" id="ftab-b" onclick="switchFile('b')">src/cli-shared/stateFileCache.ts <span class="mk">⚑1</span></div>
+        </div>
+        <div class="codebox" id="codebox"></div>
+
+        <!-- 批审阅单 -->
+        <div class="sheet" id="sheet">
+          <div class="sheet-head">
+            <div class="sheet-title">
+              <b id="sh-turn">轮次 1</b>
+              <span class="bdg" id="sh-state">待审</span>
+              <span style="font-size:10px;color:var(--fg-faint);font-family:var(--mono)" id="sh-time"></span>
+            </div>
+            <div style="font-size:11px;color:var(--fg-muted)" id="sh-prompt"></div>
+            <div class="sheet-meta">
+              <span id="sh-engine"></span><span class="mm" id="sh-model"></span><span class="mm" id="sh-think"></span><span id="sh-attr"></span>
+            </div>
+            <div class="carry">
+              <span class="lb">本轮携带标注</span>
+              <span id="sh-carry"></span>
+            </div>
+          </div>
+          <div class="sheet-body" id="sh-body"></div>
+          <div class="sheet-foot">
+            <button class="btn violet" id="sh-revert" onclick="doRevert()">回退此批</button>
+            <button class="btn" id="sh-undo" onclick="doUndoRevert()">反悔回退</button>
+            <button class="btn primary" id="sh-seal" onclick="doSeal()">模拟本轮封口(判定生效)</button>
+            <span class="sheet-note" id="sh-note">回退可反悔;恢复点已留存</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rpanel">
+        <div class="rp-tabs">
+          <button class="rp-tab on" id="ptab-mk" onclick="switchPanel('mk')">标注中心 <span class="cnt" id="ptab-mk-cnt"></span></button>
+          <button class="rp-tab" id="ptab-tl" onclick="switchPanel('tl')">审批线 <span class="cnt" id="ptab-tl-cnt"></span></button>
+        </div>
+        <div class="rp-body" id="panel-mk"></div>
+        <div class="rp-body" id="panel-tl" style="display:none"></div>
+      </div>
+
+      <div class="rail">
+        <button class="on" id="rail-mk" title="标注中心" onclick="switchPanel('mk')"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 13.5L8.5 2l1.8 6.7L13 8.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></button>
+        <button id="rail-tl" title="审批线" onclick="switchPanel('tl')"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3" r="1.6" fill="currentColor"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/><circle cx="8" cy="13" r="1.6" fill="currentColor"/><path d="M8 4.5v2M8 9.5v2" stroke="currentColor" stroke-width="1.4"/></svg></button>
+        <div class="sep"></div>
+        <button title="文件"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2.5h7l3 3v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5"/><path d="M9.5 2.5v3.5H13" stroke="currentColor" stroke-width="1.5"/></svg></button>
+        <button title="Git"><svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="4.5" cy="4" r="1.8" stroke="currentColor" stroke-width="1.5"/><circle cx="4.5" cy="12" r="1.8" stroke="currentColor" stroke-width="1.5"/><circle cx="11.5" cy="6.5" r="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M4.5 5.8v4.4M6.3 4.7h2.4" stroke="currentColor" stroke-width="1.4"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="fcard">
+      <b><span class="k">数据链</span>存证怎么落</b>
+      <p>发送瞬间:transforms 翻 sent → <code>emitPromptSent(gate, sid, text, ranges)</code> → checkpoints 消费 <code>e.ranges</code> 传 <code>captureAnchor</code> → 账本 anchor 行落 <code>marks_refs</code>;seal 修订行携带;list 回读 <code>CkptBatch.marksRefs</code>。</p>
+      <p>接力首发(RelayDialog)同填 refs;抽屉路径不注入标注不带。</p>
+    </div>
+    <div class="fcard">
+      <b><span class="k">判定</span>已生效怎么来</b>
+      <p>纯前端 join:标注卡打开时对当前 cwd 活会话批清单,取 <code>marksRefs</code> 含该标记的批 → diffCache 懒取 patch → 老侧 hunk 区间 ∩ 标记区间(发送时点 = 批前空间,天然对齐)。</p>
+      <p class="skip">A/D 文件不参与;批 reverted 或文件 live=reverted 即不计入 → 徽章自动降级,零写回。</p>
+    </div>
+    <div class="fcard">
+      <b><span class="k">门禁</span>验证清单</b>
+      <p>evidence 纯函数(老侧解析/相交/排除/降级/进行中);Rust 级联(anchor→seal 携带→list 回读→旧账本兼容);桥协议 ranges 契测;1421 桩目检全链;typecheck/test/边界/行数/build + react-doctor 100。</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── 演示数据(与 evidence 推导同构) ─────────────────────── */
+const marks = {
+  M1: { id:'M1', file:'a', path:'src/plugins/marks/store.ts', range:[63,84], state:'sent',
+        excerpt:'export function marksPath(cwd: string): string {\n  return `${homedir()}/.tmd-cli/marks/…', note:'sidecar 路径这坨要抽 cli-shared' },
+  M2: { id:'M2', file:'b', path:'src/cli-shared/stateFileCache.ts', range:[18,30], state:'sent',
+        excerpt:'export function readGated(path: string, last: number) {\n  const st = await fsStat(path);…', note:'尺寸闸加负结果缓存' },
+  M3: { id:'M3', file:'a', path:'src/plugins/marks/store.ts', range:[96,101], state:'pending',
+        excerpt:'function parseSidecar(text: string): Mark[] {\n  try { return JSON.parse…', note:'脏数据守卫这里有漏洞?' },
+};
+/* 批:marksRefs = 锚点携带;hits = 老侧 hunk 与标记区间相交的判定结果(演示预置,实机由 evidence.ts 算) */
+const batches = {
+  R1: { turn:1, ts:'10:02', engine:'omp', model:'glm-5.3', think:'high', attr:'events', open:false, reverted:false,
+        prompt:'把 marks 的 sidecar 路径抽到 cli-shared,grok 也要用',
+        marksRefs:['M1'], files:[
+          { path:'src/plugins/marks/store.ts', st:'M', ad:'+18 −9', hunks:[
+            { oldRange:[65,72], lines:[ ['ctx','export function marksPath(cwd: string): string {'], ['del','  return `${homedir()}/.tmd/marks/${dirKeyOf(cwd)}.json`;'],
+                                        ['add','  return `${homedir()}/.tmd-cli/marks/${dirKeyOf(cwd)}.json`;'], ['ctx','}'], ['ctx',''], ['add','/** cli-shared 统一入口:grok summary / kimi config 共用。 */'] ] },
+            { oldRange:[78,82], lines:[ ['add','export function sharedMarksDir(): string {'], ['add','  return join(homedir(), \'.tmd-cli\', \'marks\');'], ['add','}'] ] },
+          ] } ] },
+  R2: { turn:2, ts:'10:31', engine:'claude', model:'sonnet-4.6', think:'', attr:'events', open:false, reverted:false,
+        prompt:'顺手把文件头注释的口径改成新架构术语',
+        marksRefs:['M1'], files:[
+          { path:'src/plugins/marks/store.ts', st:'M', ad:'+3 −3', hunks:[
+            { oldRange:[1,6], lines:[ ['del',' * marks 内存单源 —— 全局标记中心。'], ['add',' * marks 内存单源 + sidecar 持久化 —— 跨插件标注契约。'], ['ctx',' */'] ] },
+          ] } ] },
+  R3: { turn:3, ts:'11:14', engine:'kimi', model:'k2-thinking', think:'medium', attr:'git', open:false, reverted:true,
+        prompt:'给 store 补个导入去重,重名 id 合并时跳过墓碑',
+        marksRefs:['M1'], files:[
+          { path:'src/plugins/marks/store.ts', st:'M', ad:'+11 −2', hunks:[
+            { oldRange:[76,84], lines:[ ['ctx','function parseSidecar(text: string): Mark[] {'], ['add','  const seen = new Set(tombstones.get(cwd) ?? []);'], ['add','  return arr.filter((m) => !seen.has(m.id));'], ['ctx','}'] ] },
+          ] } ] },
+  R4: { turn:4, ts:'11:40', engine:'codex', model:'gpt-5.2', think:'', attr:'events', open:true, reverted:false,
+        prompt:'stateFileCache 的尺寸闸加负结果缓存,外网稳态零读',
+        marksRefs:['M2'], files:[
+          { path:'src/cli-shared/stateFileCache.ts', st:'M', ad:'+9 −1', hunks:[
+            { oldRange:[20,28], lines:[ ['ctx','export function readGated(path: string, last: number) {'], ['add','  const neg = negativeCache.get(path);'], ['add','  if (neg && neg.size === stat.size) return neg.value;'], ['ctx','  const text = await fsReadText(path);'] ] },
+          ] } ] },
+};
+
+/* ── evidence 推导(演示版,与 evidence.ts 同构:老侧区间相交 + reverted 排除) ── */
+function roundsOf(markId) {
+  return Object.values(batches)
+    .filter(b => b.marksRefs.includes(markId))
+    .sort((x,y) => x.turn - y.turn)
+    .map(b => {
+      const f = b.files.find(f => fileOfMark(markId) === f.path);
+      const hit = !b.open && !!f && f.st === 'M' &&
+        f.hunks.some(h => h.oldRange[1] >= marks[markId].range[0] && h.oldRange[0] <= marks[markId].range[1]);
+      const val = b.open ? 'open' : (hit ? (b.reverted ? 'revt' : 'eff') : 'none');
+      return { id:b.id ? b.id : b.turn, b, hit, val };
+    });
+}
+function fileOfMark(id) { return marks[id].path; }
+function badgeOf(markId) {
+  const m = marks[markId];
+  if (m.state === 'pending' || m.state === 'staged') return 'pend';
+  return roundsOf(markId).some(r => r.val === 'eff') ? 'eff' : 'sent';
+}
+const BADGE_LABEL = { pend:'待发送', sent:'已发送', eff:'已生效' };
+const ROUND_LABEL = { eff:'已生效', revt:'已回退', none:'未改写', open:'进行中' };
+
+/* ── 编辑器 ── */
+const FILES = {
+  a: { name:'src/plugins/marks/store.ts', top:55, lines: [
+    "import { homedir } from 'os';", "import { readFileSync, writeFileSync } from 'fs';", "",
+    "// v1 格式:文件指纹锚 + 行号范围 + 标注文本", "// 源文件零写入 —— 任何写路径只落 sidecar", "",
+    "export function dirKeyOf(cwd: string): string {", "  return cwd.replaceAll('/', '_');", "}", "",
+    "export function marksPath(cwd: string): string {", "  return `${homedir()}/.tmd-cli/marks/${dirKeyOf(cwd)}.json`;", "}", "",
+    "export function loadMarks(cwd: string): MarkFile {", "  try {", "    return JSON.parse(readFileSync(marksPath(cwd), 'utf8'));",
+    "  } catch { return { version: 1, marks: [] }; }", "}", "",
+    "export function saveMarks(cwd: string, file: MarkFile) {", "  writeFileSync(marksPath(cwd), JSON.stringify(file, null, 2));", "}", "",
+    "// 指纹锚:内容哈希 + 行号双锚,漂移时重定位", "export function anchorOf(doc: string, from: number, to: number) {", "  return { hash: fnv1a(lines(doc, from, to)), from, to };", "}", "",
+    "// ... store 后续:重定位、导入、批量操作", "", "// EOF" ] },
+  b: { name:'src/cli-shared/stateFileCache.ts', top:12, lines: [
+    "// 状态小文件 mtime/尺寸闸:kimi 私有缓存泛化,grok 接入", "import { fsStat, fsReadText } from '@kernel/ipc';", "",
+    "const cache = new Map<string, { size: number; text: string; ts: number }>();", "",
+    "export function readGated(path: string, last: number) {", "  const st = await fsStat(path);", "  if (st.size === last) return null;",
+    "  const text = await fsReadText(path);", "  cache.set(path, { size: st.size, text, ts: Date.now() });", "  return cache.get(path);", "}", "",
+    "export function prune(max = 64) {", "  const arr = [...cache.entries()].sort((a, b) => a[1].ts - b[1].ts);", "  for (const [k] of arr.slice(0, Math.max(0, arr.length - max))) cache.delete(k);", "}" ] },
+};
+let curFile = 'a';
+function renderCode(hitBatchId) {
+  const f = FILES[curFile]; const box = document.getElementById('codebox');
+  box.innerHTML = '';
+  f.lines.forEach((tx, i) => {
+    const no = f.top + i;
+    const div = document.createElement('div');
+    div.className = 'cl'; div.dataset.no = no;
+    const mk = Object.values(marks).find(m => m.file === curFile && no >= m.range[0] && no <= m.range[1]);
+    if (mk) div.classList.add(mk.state === 'pending' ? 'm3' : ('m' + mk.id));
+    if (hitBatchId) {
+      const b = batches[hitBatchId];
+      const fh = b && b.files.find(x => x.path === f.name);
+      const h = fh && fh.hunks.find(h => no >= h.oldRange[0] && no <= h.oldRange[1]);
+      if (h) div.classList.add('hit');
+    }
+    div.innerHTML = `<span class="no">${no}</span><span class="tx">${tx.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`;
+    box.appendChild(div);
+  });
+}
+function switchFile(k) {
+  curFile = k;
+  document.getElementById('ftab-a').classList.toggle('on', k === 'a');
+  document.getElementById('ftab-b').classList.toggle('on', k === 'b');
+  renderCode();
+}
+function revealMark(id) {
+  const m = marks[id]; switchFile(m.file); renderCode();
+  const el = document.querySelector(`.cl[data-no="${m.range[0]}"]`);
+  if (el) { el.scrollIntoView({ block:'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 2400); }
+}
+
+/* ── 右栏:标注中心 ── */
+function renderMarks() {
+  const root = document.getElementById('panel-mk');
+  const list = Object.values(marks);
+  const groups = new Map();
+  for (const m of list) { const g = groups.get(m.path) ?? []; g.push(m); groups.set(m.path, g); }
+  let html = `<div style="display:flex;align-items:center;gap:8px;padding:2px 2px 8px;font-size:11px;color:var(--fg-muted)">
+    <span>${list.length} 处标记 · ${groups.size} 个文件</span>
+    <span style="color:var(--warn)">${list.filter(m=>m.state==='pending').length ? '待发送 ' + list.filter(m=>m.state==='pending').length : ''}</span></div>`;
+  for (const [path, g] of groups) {
+    html += `<div class="mkfile"><div class="mkfile-h">${path.split('/').pop()}<span class="n">${g.length}</span></div>`;
+    for (const m of g) {
+      const bd = badgeOf(m.id);
+      const rounds = roundsOf(m.id);
+      html += `<div class="mkcard ${bd==='eff'?'eff':''}">
+        <div class="mkcard-top">
+          <span class="rng">L${m.range[0]}${m.range[1]!==m.range[0]?'-L'+m.range[1]:''}</span>
+          <span class="bdg ${bd}"><i></i>${BADGE_LABEL[bd]}</span>
+          <span class="act"><button class="mini" onclick="revealMark('${m.id}')">定位</button>${m.state==='pending'?`<button class="mini stage" onclick="stage('${m.id}')">发送到对话</button>`:''}</span>
+        </div>
+        <div class="ex">${m.excerpt.replace(/</g,'&lt;')}</div>
+        ${m.note ? `<div style="font-size:10px;color:var(--fg-subtle)">${m.note}</div>` : ''}
+        <div class="rounds"><span class="lb">参与轮次</span>`;
+      if (rounds.length === 0 && m.state === 'pending') {
+        html += `<span class="pending-hint" style="margin:0">未发送,发送后随锚点入链</span>`;
+      } else if (rounds.length === 0) {
+        html += `<span class="pending-hint" style="margin:0">本会话无携带记录</span>`;
+      } else {
+        for (const r of rounds) {
+          html += `<button class="rchip ${r.val}" onclick="openSheet('${r.b.turn===4?'R4':'R'+r.b.turn}')"><span class="en">轮${r.b.turn}</span>${ROUND_LABEL[r.val]}${r.b.open?'…':''}</button>`;
+        }
+      }
+      html += `</div>`;
+      const openRound = rounds.find(r => r.val === 'open');
+      if (openRound) html += `<div class="pending-hint">进行中,封口后判定${m.state!=='pending'?'':''}</div>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  root.innerHTML = html;
+  document.getElementById('ptab-mk-cnt').textContent = list.filter(m=>badgeOf(m.id)==='eff').length ? `已生效 ${list.filter(m=>badgeOf(m.id)==='eff').length}` : '';
+}
+function stage(id) { marks[id].state = 'staged'; renderMarks(); toast('已发送到对话:下次输入随引用块注入'); }
+
+/* ── 右栏:审批线 ── */
+function renderTimeline() {
+  const arr = Object.values(batches).sort((a,b) => b.turn - a.turn);
+  let html = '';
+  for (const b of arr) {
+    const cls = b.open ? 'open' : (b.reverted ? 'reverted' : 'stand');
+    const state = b.open ? '进行中' : (b.reverted ? '已退' : '待审');
+    const stateCls = b.open ? 'open' : (b.reverted ? 'revt' : 'pend');
+    html += `<div class="tl-node ${cls}">
+      <span class="tl-dot"></span>
+      <div class="tl-head"><span class="turn">轮 ${b.turn}</span><span class="bdg ${stateCls}"><i></i>${state}</span>
+        ${b.marksRefs.length ? `<span class="mkbadge" onclick="openSheet('R${b.turn}')" title="本轮锚点携带的标注">标 ×${b.marksRefs.length}</span>` : ''}</div>
+      <div class="tl-prompt">${b.prompt}</div>
+      <div class="tl-meta"><span>${b.engine}</span><span class="mm">${b.model}</span>${b.think?`<span class="mm">思考 ${b.think}</span>`:''}<span>${b.ts}</span><span>${b.attr==='events'?'事件归因':'git 窗口'}</span></div>
+      <div class="tl-act"><button class="mini" onclick="openSheet('R${b.turn}')">查看批次</button>${b.open?`<button class="mini" style="border-color:rgba(0,95,184,.5);color:var(--accent)" onclick="doSeal()">模拟封口</button>`:''}</div>
+    </div>`;
+  }
+  document.getElementById('panel-tl').innerHTML = html;
+  document.getElementById('ptab-tl-cnt').textContent = `${Object.values(batches).filter(b=>!b.open&&!b.reverted).length} 待审`;
+}
+
+/* ── 批审阅单 ── */
+let curBatch = null;
+function openSheet(rid) {
+  curBatch = rid; const b = batches[rid];
+  const state = b.open ? '进行中' : (b.reverted ? '已退' : '待审');
+  const stateCls = b.open ? 'open' : (b.reverted ? 'revt' : 'pend');
+  document.getElementById('sh-turn').textContent = `轮次 ${b.turn} · ${b.engine}`;
+  document.getElementById('sh-state').className = 'bdg ' + stateCls;
+  document.getElementById('sh-state').innerHTML = `<i></i>${state}`;
+  document.getElementById('sh-time').textContent = b.ts;
+  document.getElementById('sh-prompt').textContent = b.prompt;
+  document.getElementById('sh-engine').textContent = b.engine;
+  document.getElementById('sh-model').textContent = b.model;
+  document.getElementById('sh-think').textContent = b.think ? '思考 ' + b.think : '';
+  document.getElementById('sh-attr').textContent = b.attr === 'events' ? '事件归因' : 'git 窗口推断';
+  document.getElementById('sh-carry').innerHTML = b.marksRefs.map(id => {
+    const m = marks[id];
+    return `<span class="mchip" onclick="closeSheet();revealMark('${id}')" title="定位到编辑器">${id} · L${m.range[0]}-${m.range[1]}</span>`;
+  }).join('') || '<span style="font-size:10px;color:var(--fg-faint)">无</span>';
+
+  const body = document.getElementById('sh-body');
+  let html = '<div class="sec-title">文件</div>';
+  for (const f of b.files) {
+    html += `<div class="frow"><span class="st ${f.st}">${f.st}</span>${f.path}<span class="ad">${f.ad.split(' ')[0]}</span><span class="de">${f.ad.split(' ')[1] ?? ''}</span></div>`;
+    html += '<div class="patchbox">';
+    for (const h of f.hunks) {
+      const hitMark = b.marksRefs.find(id => marks[id].path === f.path &&
+        h.oldRange[1] >= marks[id].range[0] && h.oldRange[0] <= marks[id].range[1]);
+      html += `<div class="ph hdr"><span class="no"></span><span class="tx">@@ -${h.oldRange[0]},${h.oldRange[1]-h.oldRange[0]+1} +… @@</span>${hitMark && !b.open ? `<span class="hitr">◆ 命中标注 ${hitMark}(老侧区间相交)</span>` : (b.open ? `<span class="hitr" style="color:var(--fg-faint)">封口后判定</span>` : '')}</div>`;
+      for (const [k, tx] of h.lines) {
+        html += `<div class="ph ${k}"><span class="no"></span><span class="tx">${k==='add'?'+':k==='del'?'−':' '} ${tx.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span></div>`;
+      }
+    }
+    html += '</div>';
+  }
+  body.innerHTML = html;
+
+  document.getElementById('sh-revert').style.display = b.open || b.reverted ? 'none' : '';
+  document.getElementById('sh-undo').style.display = b.reverted ? '' : 'none';
+  document.getElementById('sh-seal').style.display = b.open ? '' : 'none';
+  document.getElementById('tb-sheet').style.display = '';
+  document.getElementById('tb-sheet-t').textContent = `轮次 ${b.turn} 批审阅单`;
+  document.getElementById('sheet').classList.add('on');
+  const f = b.files[0];
+  switchFile(f.path.includes('stateFileCache') ? 'b' : 'a');
+  renderCode(rid);
+}
+function closeSheet() {
+  document.getElementById('sheet').classList.remove('on');
+  document.getElementById('tb-sheet').style.display = 'none';
+  renderCode();
+}
+
+/* ── 动作:回退 / 反悔 / 封口 ── */
+function doRevert() {
+  if (!curBatch) return; const b = batches[curBatch]; b.reverted = true;
+  renderMarks(); renderTimeline(); openSheetRefresh();
+  toast(`已回退轮次 ${b.turn}:参与标注徽章联动降级(恢复点已留存,可反悔)`);
+}
+function doUndoRevert() {
+  if (!curBatch) return; const b = batches[curBatch]; b.reverted = false;
+  renderMarks(); renderTimeline(); openSheetRefresh();
+  toast(`已反悔回退轮次 ${b.turn}:命中标注恢复「已生效」`);
+}
+function doSeal() {
+  const b = batches.R4; if (!b.open) return;
+  b.open = false;
+  renderMarks(); renderTimeline();
+  if (curBatch === 'R4') openSheetRefresh();
+  const m2eff = badgeOf('M2') === 'eff';
+  toast(`轮次 4 已封口:落账 turn 条目(携带 marks_refs)→ ${m2eff ? 'M2 判定已生效' : 'M2 未改写'}`);
+}
+function openSheetRefresh() { const r = curBatch; closeSheet(); openSheet(r); }
+
+/* ── 面板切换 / toast ── */
+function switchPanel(p) {
+  document.getElementById('panel-mk').style.display = p === 'mk' ? '' : 'none';
+  document.getElementById('panel-tl').style.display = p === 'tl' ? '' : 'none';
+  document.getElementById('ptab-mk').classList.toggle('on', p === 'mk');
+  document.getElementById('ptab-tl').classList.toggle('on', p === 'tl');
+  document.getElementById('rail-mk').classList.toggle('on', p === 'mk');
+  document.getElementById('rail-tl').classList.toggle('on', p === 'tl');
+}
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.innerHTML = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+renderCode(); renderMarks(); renderTimeline();
+</script>
+</body>
+</html>
