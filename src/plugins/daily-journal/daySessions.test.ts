@@ -90,6 +90,7 @@ describe("assembleRows 活行装配", () => {
     expect(rows.map((r) => r.id)).toEqual(["pty-1"]);
     expect(rows[0].live).toBe(true);
     expect(rows[0].wsName).toBe("w");
+    expect(rows[0].wsId).toBe("w1"); /* 续聊定位凭证(openDiskSession 工作区解析) */
   });
 
   it("命中磁盘身份:凭证挂载 + modifiedAt 取大;未命中保持活形态", () => {
@@ -101,6 +102,7 @@ describe("assembleRows 活行装配", () => {
     expect(rows.find((r) => r.id === "pty-1")?.disk?.id).toBe("u-1");
     expect(rows.find((r) => r.id === "pty-1")?.modifiedAt).toBe(2000);
     expect(rows.find((r) => r.id === "pty-2")?.disk).toBeUndefined();
+    expect(rows.every((r) => r.wsId === "w1")).toBe(true);
   });
 });
 

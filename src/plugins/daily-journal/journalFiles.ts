@@ -27,6 +27,9 @@ export interface DayNote {
   text: string;
   images: DayNoteImage[];
   updatedAt: number;
+  /** 已完成勾选(2026-10-06 W3-a;缺席 = 未勾,旧档天然兼容)。
+   *  语义 = 从「昨日未完」聚合摘除;不参与文章生成与编辑链。 */
+  checked?: boolean;
 }
 
 /** 月度便签档:`{ "DD": DayNote }`。 */

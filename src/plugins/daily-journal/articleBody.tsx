@@ -9,13 +9,35 @@ import { t } from "@kernel/i18n";
 import { MarkdownBody } from "@plugins/session-viewer/markdownBody";
 import type { Article } from "./articleParse";
 import { noteMd } from "./articleParse";
+import { sessionKeyFromHref, withSessionLinks } from "./sessionRef";
 import type { DayNote, DayNoteImage, JournalBead } from "./journalFiles";
 import { loadNoteImage, noteImageUrl } from "./noteAssets";
+/** 会话引用面(可选):ArticleTab 注入当日行集 —— 命中标记转链接,点击回调
+ *  open(归一键);未注入(轴视图卡等)标记降级纯文本。 */
+export interface SessionLinkHost {
+  isValid: (key: string) => boolean;
+  open: (key: string) => void;
+}
 
-export function ArticleBody({ article }: { article: Article }) {
+export function ArticleBody({ article, sessionLinks }: { article: Article; sessionLinks?: SessionLinkHost }) {
+  /* 链接点击走事件委托:react-markdown 产 <a href="#tmd-sess-…">,容器统一
+   *  截获还原归一键 → open;MarkdownBody 组件零改动。 */
+  const onBodyClick = (e: React.MouseEvent<HTMLDivElement>): void => {
+    if (!sessionLinks) return;
+    const a = (e.target as HTMLElement).closest("a");
+    if (!a) return;
+    const key = sessionKeyFromHref(a.getAttribute("href") ?? "");
+    if (key === null) return;
+    e.preventDefault();
+    sessionLinks.open(key);
+  };
+  /* 恒跑标记处理:有 host = 链接化;无 host(轴视图卡)= 降级纯文本标题,
+   * 裸标记语法永不外露。lede 是纯文本节点,恒降级。 */
+  const transform = (md: string): string => withSessionLinks(md, sessionLinks?.isValid ?? (() => false));
   return (
-    <div className="dj-art-body">
-      {article.lede && <p className="dj-art-lede">{article.lede}</p>}
+    // eslint-disable-next-line react-doctor/click-events-have-key-events, react-doctor/no-static-element-interactions -- 键盘可达性由真实 <a> 承担(Tab+Enter 原生);div 仅点击截获转译,非独立交互元素
+    <div className="dj-art-body" onClick={sessionLinks ? onBodyClick : undefined}>
+      {article.lede && <p className="dj-art-lede">{withSessionLinks(article.lede, () => false)}</p>}
       {article.secs.map((sec) => (
         <section key={`${sec.title}-${sec.inc ?? ""}`} className="dj-asec">
           <div className="dj-asec-top">
@@ -23,7 +45,7 @@ export function ArticleBody({ article }: { article: Article }) {
             {sec.inc && <span className="dj-incb">{t("{t} 并入", { t: sec.inc })}</span>}
           </div>
           {/* body 原样 join(空白行保留 = md 段落边界;fence 已由解析器保真) */}
-          <MarkdownBody>{sec.body.join("\n")}</MarkdownBody>
+          <MarkdownBody>{transform(sec.body.join("\n"))}</MarkdownBody>
         </section>
       ))}
       {article.open.length > 0 && (
@@ -31,7 +53,8 @@ export function ArticleBody({ article }: { article: Article }) {
           <h4>{t("未完事项")}</h4>
           <ul>
             {article.open.map((o, j) => (
-              <li key={`${j}-${o}`}>{o}</li>
+              /* 未完事项是纯文本节点:标记一律降级标题文本(链接只在 md 正文) */
+              <li key={`${j}-${o}`}>{withSessionLinks(o, () => false)}</li>
             ))}
           </ul>
         </div>

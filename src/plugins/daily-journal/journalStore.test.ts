@@ -24,7 +24,7 @@ vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 interface StoreModule {
   bootJournal: () => Promise<void>;
   loadMonth: (y: number, m: number, force?: boolean) => Promise<void>;
-  saveNote: (y: number, m: number, d: number, note: { text: string; images: never[]; updatedAt: number } | null) => Promise<void>;
+  saveNote: (y: number, m: number, d: number, note: { text: string; images: never[]; updatedAt: number; checked?: boolean } | null) => Promise<void>;
   updateConfig: (patch: Partial<JournalConfig>) => void;
   addBead: (key: string, bead: { t: string; label: string }) => void;
   dayMetaOf: (key: string) => { beads: { t: string; label: string }[]; lastError?: string; updatedAt: number };
@@ -56,6 +56,17 @@ describe("journalStore", () => {
     expect(files.get("/home/u/.tmd-cli/daily/notes/2026-09.json")).toContain("全天在外");
     await store.saveNote(2026, 9, 22, null);
     expect(files.get("/home/u/.tmd-cli/daily/notes/2026-09.json")).toBe("{}");
+  });
+
+  it("checked 勾选态 round-trip:undefined 不落键,取消勾选回旧档形态", async () => {
+    await store.bootJournal();
+    await store.loadMonth(2026, 10);
+    await store.saveNote(2026, 10, 6, { text: "relay 预算", images: [], updatedAt: 1, checked: true });
+    const marked = files.get("/home/u/.tmd-cli/daily/notes/2026-10.json")!;
+    expect(marked).toContain('"checked": true');
+    await store.saveNote(2026, 10, 6, { text: "relay 预算", images: [], updatedAt: 1, checked: undefined });
+    const cleared = files.get("/home/u/.tmd-cli/daily/notes/2026-10.json")!;
+    expect(cleared).not.toContain("checked");
   });
 
   it("文章存在性进月快照;md 解析后可读标题", async () => {

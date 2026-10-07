@@ -1,0 +1,16 @@
+/* 「昨日未完」聚合面板(W3-b;样式独立文件,主 css 已贴 300 行铁则线)。 */
+.dj-unfinished { border: 1px solid color-mix(in srgb, var(--tmd-warn) 32%, var(--tmd-border)); background: color-mix(in srgb, var(--tmd-warn) 5%, transparent); border-radius: var(--tmd-radius-md); margin: 8px 0 12px; padding: 8px 12px; }
+.dj-unfinished h4 { display: flex; align-items: center; gap: 6px; font-size: var(--tmd-font-ui); font-weight: 700; color: var(--tmd-fg-muted); }
+.dj-uf-count { min-width: 16px; height: 16px; border-radius: var(--tmd-radius-sm); background: var(--tmd-warn); color: var(--tmd-bg-base); font-size: var(--tmd-font-2xs); display: inline-grid; place-items: center; padding: 0 4px; }
+.dj-uf-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: var(--tmd-font-ui); min-width: 0; }
+.dj-uf-kind { flex: none; font-size: var(--tmd-font-2xs); border-radius: var(--tmd-radius-xs); padding: 1px 6px; }
+.dj-uf-kind.idle { color: var(--tmd-accent); background: color-mix(in srgb, var(--tmd-accent) 10%, transparent); }
+.dj-uf-kind.unseen { color: var(--tmd-warn); background: color-mix(in srgb, var(--tmd-warn) 12%, transparent); }
+.dj-uf-kind.note { color: var(--tmd-note); background: color-mix(in srgb, var(--tmd-note) 10%, transparent); }
+.dj-uf-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dj-uf-time { flex: none; font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; }
+.dj-uf-act { flex: none; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-xs); background: none; color: var(--tmd-fg-subtle); font: inherit; font-size: var(--tmd-font-2xs); cursor: pointer; padding: 1px 8px; }
+.dj-uf-act:hover { color: var(--tmd-accent); border-color: var(--tmd-accent); }
+/* 文章正文会话引用链接(md 变换 + 事件委托渲染,sessionRef 同契约)。 */
+.dj-art-body a[href^="#tmd-sess-"] { color: var(--tmd-accent); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+.dj-art-body a[href^="#tmd-sess-"]:hover { text-decoration-style: solid; }

@@ -49,37 +49,50 @@ export function NoteEditor({
 
   if (!editing) {
     return (
-      <div className="dj-note-wrap">
-        {note ? (
-          <NoteReadonly note={note} onImageOpen={onImageOpen} />
-        ) : (
-          <button type="button" className="dj-nc-new" onClick={() => setEditing(true)}>
-            <PencilSimpleLine size="0.75rem" /> {t("给这一天写点什么(便签)")}
-          </button>
+      <>
+        <NoteReadonlyPanel
+          note={note}
+          onImageOpen={onImageOpen}
+          onEdit={() => {
+            const [t0, i0] = enterEdit(note);
+            setText(t0);
+            setImages(i0);
+            setSaveErr(false);
+            setEditing(true);
+          }}
+          onToggleDone={() => {
+            if (!note) return;
+            /* 只翻勾选态:文本/图片/updatedAt 原样保留(内容编辑另有入口)。 */
+            void saveNote(
+              y,
+              m,
+              d,
+              note.checked
+                ? { ...note, checked: undefined }
+                : { ...note, checked: true },
+            ).catch(() => setSaveErr(true));
+          }}
+          onWriteNew={() => setEditing(true)}
+        />
+        {/* 勾选写盘失败只读态也要可见:静默失败会让用户以为已摘除,次日聚合照挂。 */}
+        {saveErr && (
+          <div className="dj-nc-pasteerr">{t("保存失败,请重试")}</div>
         )}
-        {note && (
-          <button
-            type="button"
-            className="dj-nc-editbtn"
-            onClick={() => {
-              const [t0, i0] = enterEdit(note);
-              setText(t0);
-              setImages(i0);
-              setSaveErr(false);
-              setEditing(true);
-            }}
-          >
-            {t("编辑")}
-          </button>
-        )}
-
-      </div>
+      </>
     );
   }
 
   const save = async () => {
     const trimmed = text.trim();
-    const next: DayNote | null = trimmed || images.length ? { text: trimmed, images, updatedAt: Date.now() } : null;
+    const next: DayNote | null =
+      trimmed || images.length
+        ? {
+            text: trimmed,
+            images,
+            updatedAt: Date.now(),
+            ...(note?.checked ? { checked: true } : {}),
+          }
+        : null;
     setSaveErr(false);
     try {
       await saveNote(y, m, d, next);
@@ -100,7 +113,9 @@ export function NoteEditor({
     images.length !== (note?.images?.length ?? 0) ||
     images.some((img, i) => img.file !== note?.images?.[i]?.file);
   const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const item = [...(e.clipboardData?.items ?? [])].find((it) => it.type.startsWith("image/"));
+    const item = [...(e.clipboardData?.items ?? [])].find((it) =>
+      it.type.startsWith("image/"),
+    );
     if (!item) return;
     e.preventDefault();
     const blob = item.getAsFile();
@@ -125,7 +140,8 @@ export function NoteEditor({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             e.stopPropagation();
-            if (e.nativeEvent.isComposing) return; /* IME 组词期放行(仓内纪律):Esc 消候选不撤销编辑器 */
+            if (e.nativeEvent.isComposing)
+              return; /* IME 组词期放行(仓内纪律):Esc 消候选不撤销编辑器 */
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void save();
             /* Esc 弃稿:无未保存内容直接收;脏稿先弹确认(误按最高频的丢稿源);
                按钮取消是显式操作不拦。 */
@@ -136,12 +152,23 @@ export function NoteEditor({
           }}
           onPaste={onPaste}
         />
-        {pasteErr && <div className="dj-nc-pasteerr">{t("图片保存失败,请重试")}</div>}
-        {saveErr && <div className="dj-nc-pasteerr">{t("保存失败,请重试")}</div>}
+        {pasteErr && (
+          <div className="dj-nc-pasteerr">{t("图片保存失败,请重试")}</div>
+        )}
+        {saveErr && (
+          <div className="dj-nc-pasteerr">{t("保存失败,请重试")}</div>
+        )}
         {images.length > 0 && (
           <div className="dj-nc-imgs">
             {images.map((img, i) => (
-              <NoteImage key={img.file} img={img} editing onDelete={() => setImages((prev) => prev.filter((_, j) => j !== i))} />
+              <NoteImage
+                key={img.file}
+                img={img}
+                editing
+                onDelete={() =>
+                  setImages((prev) => prev.filter((_, j) => j !== i))
+                }
+              />
             ))}
           </div>
         )}
@@ -151,7 +178,11 @@ export function NoteEditor({
             <button type="button" className="dj-btn" onClick={cancel}>
               {t("取消")}
             </button>
-            <button type="button" className="dj-btn dj-btn-primary" onClick={save}>
+            <button
+              type="button"
+              className="dj-btn dj-btn-primary"
+              onClick={save}
+            >
               {t("保存 ⌘↵")}
             </button>
           </div>
@@ -166,6 +197,51 @@ export function NoteEditor({
           onConfirm={cancel}
           onClose={() => setAskDiscard(false)}
         />
+      )}
+    </div>
+  );
+}
+
+/** 只读态面板(从 NoteEditor 拆出控主函数复杂度):便签卡 + 编辑/完成勾选。 */
+function NoteReadonlyPanel({
+  note,
+  onImageOpen,
+  onEdit,
+  onToggleDone,
+  onWriteNew,
+}: {
+  note: DayNote | undefined;
+  onImageOpen?: (img: DayNoteImage) => void;
+  onEdit: () => void;
+  onToggleDone: () => void;
+  onWriteNew: () => void;
+}) {
+  return (
+    <div className={`dj-note-wrap${note?.checked ? " dj-note-done" : ""}`}>
+      {note ? (
+        <NoteReadonly note={note} onImageOpen={onImageOpen} />
+      ) : (
+        <button type="button" className="dj-nc-new" onClick={onWriteNew}>
+          <PencilSimpleLine size="0.75rem" /> {t("给这一天写点什么(便签)")}
+        </button>
+      )}
+      {note && (
+        <button type="button" className="dj-nc-editbtn" onClick={onEdit}>
+          {t("编辑")}
+        </button>
+      )}
+      {note && (
+        <button
+          type="button"
+          className="dj-nc-donebtn"
+          aria-pressed={note.checked ?? false}
+          title={
+            note.checked ? t("恢复为未完成") : t("标记完成(从昨日未完摘除)")
+          }
+          onClick={onToggleDone}
+        >
+          {note.checked ? t("已完成") : t("标记完成")}
+        </button>
       )}
     </div>
   );

@@ -17,6 +17,7 @@ import { bindTaskPersistence } from "./taskQueue";
 import { bootJournalSchedule } from "./journalSchedule";
 import { bindHolidayEnabled, ensureHolidays } from "./holidays";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
+import "./daily-journal-unfinished.css"; /* W3-b 面板/链接样式(全局 css,挂载点收口插件入口) */
 
 export const dailyJournalPlugin: Plugin = {
   id: "daily-journal",

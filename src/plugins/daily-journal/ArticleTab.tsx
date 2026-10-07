@@ -11,12 +11,18 @@ import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, dayMetaOf, deriveDayStatus, getJournalState, useJournalState } from "./journalStore";
 import { isRowSummarized, useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
+import { hmOf } from "./timeUtil";
+import { sessionRefKey } from "./sessionRef";
+import { UnfinishedPanel } from "./UnfinishedPanel";
+import { unfinishedPanelRows } from "./unfinished";
+import { requestSessionReveal } from "@kernel/sessionReveal";
 import { pad2 } from "./journalFiles";
 import type { ArticleTabPayload } from "./journalTabs";
 import { dayTitleOf } from "./dateTitle";
 import { holOf, useHolidays } from "./holidays";
 import { ArticleBody, BeadStrip, Lightbox } from "./articleBody";
-import type { DayNoteImage } from "./journalFiles";
+import type { SessionLinkHost } from "./articleBody";
+import type { DayNote, DayNoteImage } from "./journalFiles";
 import { NoteEditor } from "./NoteEditor";
 import { dayGenAction, statusChip } from "./statusText";
 import { noteImageUrl } from "./noteAssets";
@@ -161,6 +167,53 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   const chip = chipOf(liveTask, st);
   const [lightbox, setLightbox] = useState<DayNoteImage | null>(null);
   useHolidays();
+  /* 昨日未完聚合(仅昨日 tab):两桶行集(昨日桶活行 + 全表昨日最后写入盘行,
+   * unfinishedPanelRows)+ 当月 ≤ 昨日便签(勾选过滤单点在 collectUnfinished)。
+   * ponytail: 便签只扫当月;更早月份不遍历,真需要再开。 */
+  const isYesterday = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return key === `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  })();
+  const panelRows = useMemo(() => {
+    if (!isYesterday || !sessions) return [];
+    return unfinishedPanelRows(
+      sessions,
+      key,
+      new Date(y, m - 1, p.d).getTime(),
+      new Date(y, m - 1, p.d + 1).getTime(),
+    );
+  }, [isYesterday, sessions, key, y, m, p.d]);
+  const yesterdayNotes = useMemo<readonly (readonly [string, DayNote])[]>(
+    () =>
+      isYesterday
+        ? Object.entries(snap?.notes ?? {})
+            .filter(([dd]) => Number(dd) <= p.d)
+            .map(([dd, n]) => [dd, n] as const)
+        : [],
+    [isYesterday, snap, p.d],
+  );
+  /* 会话引用链接面:当日行集四段归一键 → 续聊/聚焦(枚举校验在 sessionRef)。 */
+  const sessionLinks: SessionLinkHost | undefined = useMemo(() => {
+    if (!rows || rows.length === 0) return undefined;
+    const byKey = new Map(rows.map((r) => [sessionRefKey(hmOf(r.startedAt), r.profileId, r.title), r]));
+    return {
+      isValid: (k: string) => byKey.has(k),
+      open: (k: string) => {
+        const r = byKey.get(k);
+        if (!r) return;
+        if (r.live && r.id) requestSessionReveal(r.id);
+        else if (r.disk) {
+          const ws = workspaces.find((w) => w.id === r.wsId);
+          /* 工作区已删(扫描缓存 60s 窗内):空 cwd 只会在 app 目录开垃圾会话,不续。 */
+          if (!ws) return;
+          void host.openDiskSession(r.profileId, ws.root, ws.id, r.disk.id);
+        }
+      },
+    };
+    // host/hmOf/requestSessionReveal 为模块级稳定引用,不入依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, workspaces]);
   /* 便签编辑重入信号:mount 时 autoEdit 起始,同 tab 深链 refresh(payload 换引用)
      再跳变 —— 取消后再点同空日也能重新进入编辑态。 */
   const [editSignal, setEditSignal] = useState(() => (p.autoEdit ? 1 : 0));
@@ -192,8 +245,11 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
           <h1 className="dj-art-title">{article?.title || t("这一天没有 AI 会话")}</h1>
           <GenSessionBar sessionId={meta.sessionId} engine={meta.engine} />
           <StatusHints st={st} sessionCount={rows.length} lastError={meta.lastError} />
+          {isYesterday && (
+            <UnfinishedPanel y={y} m={m} rows={panelRows} notes={yesterdayNotes} workspaces={workspaces} />
+          )}
           <NoteEditor key={editSignal} y={y} m={m} d={p.d} note={note} signal={editSignal} onImageOpen={setLightbox} />
-          {article && <ArticleBody article={article} />}
+          {article && <ArticleBody article={article} sessionLinks={sessionLinks} />}
           <DaySessions rows={rows} summarizedAt={meta.summarizedAt} />
           <BeadStrip beads={meta.beads} />
           {lightbox && noteImageUrl(lightbox.file) && (

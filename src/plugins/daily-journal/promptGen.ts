@@ -1,7 +1,8 @@
 /**
  * 生成 prompt 构造(纯函数,测试面)—— 文章 md 契约的唯一权威表述:
  * 结构(h1/总览/## 分节[问题/过程/关键片段/踩坑与规避]/## 未完事项)、半角留痕、
- * 增量不重写既有节、摘录文件为事实来源、「写完只回一行」收口。genSession 消费。
+ * 增量不重写既有节、摘录文件为事实来源、会话引用四段标记(sessionRef 同契约)、
+ * 「写完只回一行」收口。genSession 消费。
  */
 import type { DaySessionRow } from "./daySessions";
 import { isRowSummarized } from "./daySessions";
@@ -39,7 +40,9 @@ export function buildGenPrompt(
   const list = rows
     .map((r) => {
       const mark = rowMark(r, summarizedAt, digest);
-      return `- ${hmOf(r.startedAt)} 起 [${r.profileId}] ${r.title}${r.wsName ? `(${r.wsName})` : ""}${mark}`;
+      /* ws 后缀以 · 隔开:标题边界干净(引用标记四段的「标题」= ] 后到 ·/行尾),
+       * 紧贴会让 LLM 把 (ws) 并进标题 → 渲染层枚举校验系统性 miss。 */
+      return `- ${hmOf(r.startedAt)} 起 [${r.profileId}] ${r.title}${mark}${r.wsName ? ` · ${r.wsName}` : ""}`;
     })
     .join("\n");
   const markRule = summarizedAt !== undefined ? "清单中标注(新增)的是尚未并入的会话,(已归纳)的仅作上下文、不得为其新增节;" : "";
@@ -73,7 +76,9 @@ ${source}
     - 踩坑与规避:列出该主线踩的坑,每条坑后紧跟「下次避免:…」批注;确无坑写「踩坑与规避:无」。
   ## 未完事项
   - <遗留事项>(没有则写「- 无」)
-- 所有括号/冒号一律半角(尤其并入留痕章)。
+- 正文(总览/分节均可)提到某个具体会话时,行内原样插入标记 [会话|HH:MM|profileId|标题]:
+  四段取当日清单行原文;标题 = 清单行 [引擎] 之后的部分,剔除行尾 (有摘录)/(无摘录)/(已归纳)/(新增) 标注与 · 工作区后缀,逐字一致;
+  渲染层只认与清单完全一致的标记,查无此会话的标记会降级纯文本,不要自创格式或虚构会话。
 - ${incremental}
 - ${degrade}
 - 无论过程如何,最后必须把文章写入上述文件并回复那一行。

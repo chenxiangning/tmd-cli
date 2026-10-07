@@ -22,7 +22,9 @@ export interface DaySessionRow {
   modifiedAt: number;
   live: boolean;
   wsName: string;
-  /** 磁盘形态(活会话去重命中时也挂载):转录适配器的取数凭证,摘录层消费。 */
+  /** 归属工作区 id(磁盘行构造即带;活行 = SessionMeta.workspaceId)。
+   *  「昨日未完」续聊 openDiskSession 据它定位 cwd/工作区。 */
+  wsId?: string;
   disk?: CliDiskSession;
 }
 
@@ -65,6 +67,7 @@ export function diskRow(
     modifiedAt: disk.modifiedAt,
     live: false,
     wsName: ws.name,
+    wsId: ws.id,
     disk,
   };
 }
@@ -107,6 +110,7 @@ export function assembleRows(
     if (m.workspaceId && !wsNames.has(m.workspaceId)) continue;
     const row = liveRow(m, m.workspaceId ? (wsNames.get(m.workspaceId) ?? "") : "");
     if (!row) continue;
+    row.wsId = m.workspaceId;
     const key = m.cliSessionId ? `${m.workspaceId ?? ""}:${m.engine || m.profileId}:${m.cliSessionId}` : null;
     const disk = key ? liveDisk.get(key) : undefined;
     if (disk) {

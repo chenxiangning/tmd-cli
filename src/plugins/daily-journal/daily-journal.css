@@ -219,8 +219,7 @@
 .dj-note-wrap { position: relative; }
 .dj-nc-new { width: 100%; border: 1px dashed color-mix(in srgb, var(--tmd-note) 40%, var(--tmd-border)); border-radius: var(--tmd-radius-md); background: none; color: var(--tmd-fg-subtle); font: inherit; font-size: var(--tmd-font-ui); display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; }
 .dj-nc-new:hover { color: var(--tmd-note); }
-.dj-nc-editbtn { position: absolute; top: 8px; right: 12px; border: 0; background: none; color: var(--tmd-fg-faint); font: inherit; font-size: var(--tmd-font-2xs); cursor: pointer; padding: 2px 4px; border-radius: var(--tmd-radius-xs); }
-.dj-nc-editbtn:hover { color: var(--tmd-accent); background: var(--tmd-bg-hover); }
+.dj-nc-editbtn:hover, .dj-nc-donebtn:hover { color: var(--tmd-accent); background: var(--tmd-bg-hover); }
 .dj-notecard { border: 1px solid color-mix(in srgb, var(--tmd-note) 35%, var(--tmd-border)); background: color-mix(in srgb, var(--tmd-note) 7%, transparent); border-radius: var(--tmd-radius-md); margin: 8px 0; overflow: hidden; }
 .dj-nc-editbox { padding: 0 12px 8px; }
 .dj-nc-edit { width: 100%; min-height: 96px; border: 1px solid var(--tmd-accent); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-base); padding: 8px; font: inherit; font-size: var(--tmd-font-ui); line-height: 1.6; color: var(--tmd-fg); resize: vertical; outline: none; }
@@ -296,3 +295,5 @@
 .dj-pill.dj-hol.on { color: var(--tmd-ok); border-color: color-mix(in srgb, var(--tmd-ok) 25%, transparent); background: color-mix(in srgb, var(--tmd-ok) 6%, transparent); }
 .dj-node-hol { border-color: var(--tmd-hol); color: var(--tmd-hol); }
 .dj-mb-cell.dj-mb-hol { background: var(--tmd-hol); border-color: var(--tmd-hol); }
+.dj-nc-editbtn, .dj-nc-donebtn { position: absolute; top: 8px; right: 12px; border: 0; background: none; color: var(--tmd-fg-faint); font: inherit; font-size: var(--tmd-font-2xs); cursor: pointer; padding: 2px 4px; border-radius: var(--tmd-radius-xs); } .dj-nc-donebtn { right: 52px; }
+.dj-note-done .dj-nc-text { color: var(--tmd-fg-subtle); text-decoration: line-through; }
