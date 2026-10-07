@@ -33,6 +33,7 @@ function batch(state: CkptBatch["state"], open: boolean): CkptBatch {
     guardId: null,
     attribution: "git",
     files: [],
+    marksRefs: [],
   };
 }
 

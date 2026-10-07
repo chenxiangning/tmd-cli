@@ -162,6 +162,7 @@ async fn dispatch_inner(app: &AppHandle, cmd: &str, raw: &Value) -> Result<Value
                     a.model,
                     a.thinking,
                     a.attribution,
+                    a.marks_refs,
                 )
             })
             .await
@@ -358,6 +359,7 @@ struct AnchorArgs {
     model: String,
     thinking: String,
     attribution: Option<String>,
+    marks_refs: Option<Vec<crate::checkpoints::CkptMarkRef>>,
 }
 
 #[derive(serde::Deserialize)]

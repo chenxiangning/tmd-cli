@@ -65,10 +65,20 @@ export const KernelTopics = {
   promptSent: "kernel.sessions.promptSent",
 } as const;
 
-/** promptSent 负载:text = 发送的原文(prepareSendPayload 前,translate 后的展示文本截断)。 */
+/** promptSent 负载:text = 发送的原文(prepareSendPayload 前,translate 后的展示文本截断);
+ *  ranges = 本轮随发携带的文件区间引用(marks 标注等,审批线存证消费;未携带缺省)。 */
 export interface PromptSentEvent {
   sessionId: string;
   text: string;
+  ranges?: PromptSentRange[];
+}
+
+/** 随发携带的文件区间引用(id + 1 基闭区间;语义自定义,审批线存证消费)。 */
+export interface PromptSentRange {
+  id: string;
+  path: string;
+  startLine: number;
+  endLine: number;
 }
 
 /** turnSettled 负载:unviewed = 结算时未被查看(即标了完成未读);settledAt = 末次输出时刻。 */

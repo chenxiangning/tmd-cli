@@ -174,6 +174,7 @@ pub fn derive_batches(
             guard_id: stored.and_then(|s| s.guard_id.clone()),
             files,
             attribution: a.attribution.clone(),
+            marks_refs: a.marks_refs.clone(),
         });
     }
     out.reverse(); // UI 倒序(最新在前)

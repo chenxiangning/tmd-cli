@@ -124,6 +124,14 @@ export function BatchHeadButton({
               {t("{n} 高危", { n: highRisk })}
             </span>
           )}
+          {b.marksRefs.length > 0 && (
+            <span
+              className="flex-none rounded bg-(--tmd-warn)/12 px-1 text-meta leading-3.5 text-(--tmd-warn)"
+              title={t("本轮 prompt 随发携带的标注引用(标记中心可反查改写轮次)")}
+            >
+              {t("标 ×{n}", { n: b.marksRefs.length })}
+            </span>
+          )}
           {stats && (
             <span className="flex-none font-mono">
               <span className="text-(--tmd-diff-inserted)">+{stats.ins}</span>{" "}

@@ -9,7 +9,7 @@ use super::*;
 // ---- events 归因(AI 写入事件流,作者设计点严格版)--------------------------
 
 pub(super) fn anchor_events(ws: &TempWs, sid: &str, tmd: &str, prompt: &str) -> LedgerEntry {
-    anchor_turn(ws.path(), sid, tmd, prompt, "", "", "", "events").unwrap()
+    anchor_turn(ws.path(), sid, tmd, prompt, "", "", "", &[], "events").unwrap()
 }
 
 pub(super) fn edit(ws: &TempWs, sid: &str, tmd: &str, path: &str) -> bool {

@@ -40,6 +40,7 @@ pub fn anchor_turn(
     engine: &str,
     model: &str,
     thinking: &str,
+    marks_refs: &[super::CkptMarkRef],
     attribution: &str,
 ) -> Result<LedgerEntry, CkptError> {
     let _g = super::lock_ledger();
@@ -72,6 +73,7 @@ pub fn anchor_turn(
         engine: engine.chars().take(200).collect(),
         model: model.chars().take(200).collect(),
         thinking: thinking.chars().take(200).collect(),
+        marks_refs: marks_refs.to_vec(),
         files,
         attribution: attribution.to_string(),
         ..Default::default()

@@ -159,7 +159,13 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
           setBusy(false);
           return;
         }
-        emitPromptSent(gate, sessionId, summary.trim());
+        /* W2 存证链:接力首发携带的标注引用随锚点入账(id/路径/冻结区间)。 */
+        emitPromptSent(
+          gate,
+          sessionId,
+          summary.trim(),
+          carried.map((m) => ({ id: m.id, path: m.path, startLine: m.startLine, endLine: m.endLine })),
+        );
         for (const mark of carried) setMarkState(carryCwd, mark.id, "sent");
       }
       onClose();

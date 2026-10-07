@@ -24,6 +24,7 @@ mod events_external;
 mod events_isolation;
 mod events_preimage;
 mod lock;
+mod marks_refs;
 mod parallel;
 mod restore;
 mod retention;
@@ -116,7 +117,7 @@ impl TempWs {
 
     /// 记锚点:session_id = 会话身份,tmd_session_id = tmd 侧 id(同一会话恒定)。
     fn anchor(&self, sid: &str, tmd: &str, prompt: &str) -> super::LedgerEntry {
-        anchor_turn(self.path(), sid, tmd, prompt, "", "", "", "git").unwrap()
+        anchor_turn(self.path(), sid, tmd, prompt, "", "", "", &[], "git").unwrap()
     }
 
     /// 记带状态快照的锚点(引擎/模型/思考强度随批固化契约)。
@@ -137,6 +138,7 @@ impl TempWs {
             engine,
             model,
             thinking,
+            &[],
             "git",
         )
         .unwrap()
@@ -283,7 +285,8 @@ fn 非_git_目录_报_not_a_repo() {
     let base = dir.join("store");
     fs::create_dir_all(&base).unwrap();
     set_base_for_test(base);
-    let err = anchor_turn(dir.to_str().unwrap(), "s", "s", "p", "", "", "", "git").unwrap_err();
+    let err =
+        anchor_turn(dir.to_str().unwrap(), "s", "s", "p", "", "", "", &[], "git").unwrap_err();
     assert!(err.to_string().starts_with("E_NOT_A_REPO:"));
     let _ = fs::remove_dir_all(&dir);
 }

@@ -11,6 +11,7 @@ const ipcMock = vi.hoisted(() => ({
   checkpointList: vi.fn(),
   checkpointSealDead: vi.fn(),
   checkpointBatchDiff: vi.fn(),
+  checkpointAnchor: vi.fn(),
 }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
@@ -43,6 +44,7 @@ function batch(id: string, turn: number): CkptBatch {
     guardId: null,
     attribution: "git",
     files: [],
+    marksRefs: [],
   };
 }
 
@@ -210,11 +212,72 @@ describe("diffCache(批 diff 懒加载缓存)", () => {
     expect(diffStore.getCachedDiffError(CWD, CLI, "b1")).toBeNull();
   });
 
+  it("读命中刷 recency:活跃读的批驻留,淘汰只打最久未读(评审 P2 自旋锚)", async () => {
+    ipcMock.checkpointList.mockResolvedValue([]);
+    const { DIFF_CACHE_PER_CWD } = await import("./diffCache");
+    // 依次 load b0..bN(恰好顶满上限),再读 b0 刷 recency,最后 load 一个新批:
+    // 被逐出的应是最久未读的 b1,而非活跃读过的 b0。
+    const ids = Array.from({ length: DIFF_CACHE_PER_CWD }, (_, i) => `b${i}`);
+    for (const id of ids) {
+      ipcMock.checkpointBatchDiff.mockResolvedValueOnce([{ ...patch, path: id }]);
+      void diffStore.loadDiff(CWD, CLI, id);
+      await drain();
+    }
+    expect(diffStore.getCachedDiff(CWD, CLI, "b0")).toBeDefined();
+    ipcMock.checkpointBatchDiff.mockResolvedValueOnce([{ ...patch, path: "bx" }]);
+    void diffStore.loadDiff(CWD, CLI, "bx");
+    await drain();
+    expect(diffStore.getCachedDiff(CWD, CLI, "b0")).toBeDefined(); // 活跃读,幸存
+    expect(diffStore.getCachedDiff(CWD, CLI, "b1")).toBeUndefined(); // 最久未读,被逐
+  });
+
   it("byKey 外层键有界:超限摘最老键(连带 diff 态),活键不受扰", async () => {
     ipcMock.checkpointList.mockResolvedValue([batch("b1", 1)]);
     const keys = Array.from({ length: 33 }, (_, i) => `s${i}`);
     for (const sid of keys) await store.refreshBatches(CWD, sid, TMD);
     expect(store.getCkptBatches(CWD, "s0").batches).toEqual([]); // 最老键已被摘
     expect(store.getCkptBatches(CWD, "s32").batches.map((b) => b.id)).toEqual(["b1"]);
+  });
+});
+
+describe("markRefsFromRanges 路径口径(W2 缝隙:Mark 绝对路径 → 账本相对路径)", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("编辑器绝对路径剥 cwd 前缀;不在 cwd 下整条丢弃;缺省/空 = 空数组", async () => {
+    const s = await import("./store");
+    const ranges = [
+      { id: "m1", path: "/repo/src/a.ts", startLine: 2, endLine: 3 },
+      { id: "m2", path: "/elsewhere/b.ts", startLine: 1, endLine: 1 },
+    ];
+    expect(s.markRefsFromRanges(ranges, "/repo")).toEqual([
+      { markId: "m1", path: "src/a.ts", startLine: 2, endLine: 3 },
+    ]);
+    expect(s.markRefsFromRanges(undefined, "/repo")).toEqual([]);
+    expect(s.markRefsFromRanges([], "/repo")).toEqual([]);
+  });
+
+  it("cwd 是别的前缀子串不误剥也不误留(/repo-x 整条丢弃)", async () => {
+    const s = await import("./store");
+    const out = s.markRefsFromRanges([{ id: "m1", path: "/repo-x/a.ts", startLine: 1, endLine: 1 }], "/repo");
+    expect(out).toEqual([]);
+  });
+
+  it("captureAnchor 重试代数守卫:窗口内已有更新锚点,陈旧重试丢弃", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("window", { setTimeout }); // node 环境 store 直用 window.setTimeout;接被 fake 的全局
+    ipcMock.checkpointAnchor.mockReset();
+    ipcMock.checkpointAnchor.mockResolvedValue([]);
+    const s = await import("./store");
+    // 轮 1 首败(进 1500ms 重试窗)
+    ipcMock.checkpointAnchor.mockRejectedValueOnce(new Error("E_ONCE"));
+    s.captureAnchor(CWD, CLI, TMD, "p1", { engine: "omp", model: "glm-5.3", thinking: "high" }, "git", []);
+    // 窗口内轮 2 正常落账 → 轮 1 的重试已成陈旧代数
+    s.captureAnchor(CWD, CLI, TMD, "p2", { engine: "omp", model: "glm-5.3", thinking: "high" }, "git", []);
+    await vi.advanceTimersByTimeAsync(1600);
+    expect(ipcMock.checkpointAnchor).toHaveBeenCalledTimes(2); // p1 首调 + p2,无第三次
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 });

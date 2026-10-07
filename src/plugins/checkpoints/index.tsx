@@ -20,7 +20,7 @@ import {
   type TurnSettledEvent,
 } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
-import { captureAnchor, recordEdit, sealTurn } from "./store";
+import { captureAnchor, markRefsFromRanges, recordEdit, sealTurn } from "./store";
 import { checkpointIdentity } from "./identity";
 import { BATCH_TAB_KIND } from "./batchTab";
 import { CheckpointsPanel } from "./CheckpointsPanel";
@@ -109,7 +109,7 @@ export const checkpointsPlugin: Plugin = {
     // 批次边界:prompt 发送瞬间记锚点(失败不阻塞,store 内部重试)。
     // 归因模式随锚点固化:profile 声明 editMarks 或 readSessionEdits →
     // events(AI 写入事件流),否则 git(窗口推断)。
-    ctx.events.on<PromptSentEvent>(KernelTopics.promptSent, ({ sessionId, text }) => {
+    ctx.events.on<PromptSentEvent>(KernelTopics.promptSent, ({ sessionId, text, ranges }) => {
       const id = identity(sessionId);
       if (!id) return;
       const session = host.getSessions().find((s) => s.id === sessionId);
@@ -117,7 +117,15 @@ export const checkpointsPlugin: Plugin = {
       const eventsMode =
         (profile?.editMarks?.length ?? 0) > 0 || profile?.readSessionEdits != null;
       const capture = () =>
-        captureAnchor(id.cwd, id.cliId, id.tmdId, text, anchorMeta(sessionId), eventsMode ? "events" : "git");
+        captureAnchor(
+          id.cwd,
+          id.cliId,
+          id.tmdId,
+          text,
+          anchorMeta(sessionId),
+          eventsMode ? "events" : "git",
+          markRefsFromRanges(ranges, id.cwd),
+        );
       /* 磁盘事件源:先拉净上一轮尾巴再落锚 —— record_edit 恒记入最新 open
          锚点,锚点落地后才拉到的前轮事件会错记新轮(ts 守卫再兜一道);
          用 CLI 磁盘身份作 key:重启/resume 后 tmd 会话 id 会换,稳定 id 才能找回历史批次 */

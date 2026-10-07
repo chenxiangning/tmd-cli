@@ -70,6 +70,7 @@ pub(super) fn build_turn_entry(
                 engine: anchor.engine.clone(),
                 model: anchor.model.clone(),
                 thinking: anchor.thinking.clone(),
+                marks_refs: anchor.marks_refs.clone(),
                 seal_ts: now_millis(),
                 attribution: anchor.attribution.clone(),
                 ..Default::default()
@@ -97,6 +98,8 @@ pub(super) fn build_turn_entry(
         engine: anchor.engine.clone(),
         model: anchor.model.clone(),
         thinking: anchor.thinking.clone(),
+        // 标注引用同继承锚点:turn 行是同 id 修订行,读取以最后一行为准,不复制即丢
+        marks_refs: anchor.marks_refs.clone(),
         seal_ts: now_millis(),
         batch_id: String::new(),
         files: Vec::new(),

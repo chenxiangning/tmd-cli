@@ -7,6 +7,7 @@
  */
 
 import type { ComposerSendTransform } from "@kernel/composerExt";
+import type { PromptSentRange } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { marksSnapshot, setMarkState, stagedMarks } from "./store";
@@ -41,7 +42,20 @@ export function serializeMark(mark: {
 export function stageMarks(cwd: string, marks: readonly { id: string }[]): void {
   for (const mark of marks) setMarkState(cwd, mark.id, "staged");
 }
+
 let lastFlip: { cwd: string; ids: string[] } | null = null;
+
+/** 本轮随发名单(四字段;W2 存证链供 emitPromptSent ranges 载荷消费)。
+ *  只读不消费:undo 回滚语义照旧走 lastFlip;发射后名单失效于下次 transform。 */
+export function carriedMarks(): PromptSentRange[] {
+  if (!lastFlip) return [];
+  const live = marksSnapshot().byCwd[lastFlip.cwd] ?? [];
+  return lastFlip.ids.flatMap((id) => {
+    const m = live.find((x) => x.id === id);
+    return m ? [{ id: m.id, path: m.path, startLine: m.startLine, endLine: m.endLine }] : [];
+  });
+}
+
 export const marksSendTransform: ComposerSendTransform = (text) => {
   const cwd = getActiveWorkspace()?.root;
   if (!cwd) return text;

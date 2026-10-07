@@ -38,7 +38,18 @@ fn events_非_git_工作区_记账回退照常() {
     set_base_for_test(base);
 
     // 非 git:anchor(events)不报错;基线空 → 前像无 → A 语义
-    anchor_turn(dir.to_str().unwrap(), "s", "s", "p", "", "", "", "events").unwrap();
+    anchor_turn(
+        dir.to_str().unwrap(),
+        "s",
+        "s",
+        "p",
+        "",
+        "",
+        "",
+        &[],
+        "events",
+    )
+    .unwrap();
     fs::write(dir.join("new.txt"), "n1\n").unwrap();
     assert!(record_edit(dir.to_str().unwrap(), "s", "s", "new.txt", None).unwrap());
     assert!(seal_turn(dir.to_str().unwrap(), "s", "s").unwrap());
@@ -55,7 +66,18 @@ fn events_非_git_工作区_记账回退照常() {
     assert_eq!(fs::read_to_string(dir.join("new.txt")).unwrap(), "n1\n");
 
     // git 归因在非 git 目录维持旧灰化语义
-    let err = anchor_turn(dir.to_str().unwrap(), "s2", "s2", "p", "", "", "", "git").unwrap_err();
+    let err = anchor_turn(
+        dir.to_str().unwrap(),
+        "s2",
+        "s2",
+        "p",
+        "",
+        "",
+        "",
+        &[],
+        "git",
+    )
+    .unwrap_err();
     assert!(err.to_string().starts_with("E_NOT_A_REPO:"));
     let _ = fs::remove_dir_all(&dir);
 }
@@ -96,13 +118,35 @@ fn events_非git_跨轮修改既有文件_前像链_回退不误删() {
     set_base_for_test(base);
 
     // 轮 1:AI 新建 a.txt(v1)并封口
-    anchor_turn(dir.to_str().unwrap(), "s", "s", "一", "", "", "", "events").unwrap();
+    anchor_turn(
+        dir.to_str().unwrap(),
+        "s",
+        "s",
+        "一",
+        "",
+        "",
+        "",
+        &[],
+        "events",
+    )
+    .unwrap();
     fs::write(dir.join("a.txt"), "v1\n").unwrap();
     assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt", None).unwrap());
     assert!(seal_turn(dir.to_str().unwrap(), "s", "s").unwrap());
 
     // 轮 2:AI 修改同一文件(v2)并封口 —— 前像应链到轮 1 批后像(M),非 A
-    anchor_turn(dir.to_str().unwrap(), "s", "s", "二", "", "", "", "events").unwrap();
+    anchor_turn(
+        dir.to_str().unwrap(),
+        "s",
+        "s",
+        "二",
+        "",
+        "",
+        "",
+        &[],
+        "events",
+    )
+    .unwrap();
     fs::write(dir.join("a.txt"), "v2\n").unwrap();
     assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt", None).unwrap());
     assert!(seal_turn(dir.to_str().unwrap(), "s", "s").unwrap());
@@ -121,7 +165,18 @@ fn events_非git_跨轮修改既有文件_前像链_回退不误删() {
     // 链继续(回退感知):轮 2 已退(后像 v2 不在磁盘)→ 轮 3 前像链跳过
     // 轮 2 取轮 1 批后像(v1),回退轮 3 仍还原 v1 而非复活被拒的 v2
     // 走一轮仍闭环
-    anchor_turn(dir.to_str().unwrap(), "s", "s", "三", "", "", "", "events").unwrap();
+    anchor_turn(
+        dir.to_str().unwrap(),
+        "s",
+        "s",
+        "三",
+        "",
+        "",
+        "",
+        &[],
+        "events",
+    )
+    .unwrap();
     fs::write(dir.join("a.txt"), "v3\n").unwrap();
     assert!(record_edit(dir.to_str().unwrap(), "s", "s", "a.txt", None).unwrap());
     assert!(seal_turn(dir.to_str().unwrap(), "s", "s").unwrap());

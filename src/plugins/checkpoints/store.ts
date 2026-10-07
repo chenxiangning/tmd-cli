@@ -13,7 +13,8 @@
  */
 
 import { useSyncExternalStore } from "react";
-import { ipc, type CkptAnchorMeta, type CkptBatch } from "@kernel/ipc";
+import { ipc, type CkptAnchorMeta, type CkptBatch, type CkptMarkRef } from "@kernel/ipc";
+import type { PromptSentRange } from "@kernel/events";
 import { dropKey, invalidateDiff, pruneDiffCache } from "./diffCache";
 
 interface CwdCkptState {
@@ -111,11 +112,18 @@ export function captureAnchor(
   prompt: string,
   meta: CkptAnchorMeta,
   attribution: "events" | "git" = "git",
+  marksRefs?: readonly CkptMarkRef[],
 ): void {
+  /* 重试代数守卫:窗口内同会话已落过更新锚点时,旧锚点后到反成最新 open 轮、
+     轮序倒挂(评审 P2)—— 陈旧重试直接丢弃,缺口由封口推导兜。 */
+  const akey = `${cwd}|${sessionId}`;
+  const seq = (anchorSeq.get(akey) ?? 0) + 1;
+  anchorSeq.set(akey, seq);
   const run = () =>
-    ipc.checkpointAnchor(cwd, sessionId, tmdSessionId, prompt, meta, attribution);
+    ipc.checkpointAnchor(cwd, sessionId, tmdSessionId, prompt, meta, attribution, marksRefs);
   run().catch(() => {
     window.setTimeout(() => {
+      if (anchorSeq.get(akey) !== seq) return;
       run()
         .then(() => refreshBatches(cwd, sessionId, tmdSessionId))
         .catch(() => {
@@ -126,6 +134,31 @@ export function captureAnchor(
   });
   // 快路径:capture 完成有延迟,定时刷新也会兜住
   window.setTimeout(() => void refreshBatches(cwd, sessionId, tmdSessionId), 800);
+}
+
+/** per-(cwd,session) 锚点代数:captureAnchor 重试重排守卫。 */
+const anchorSeq = new Map<string, number>();
+
+/**
+ * promptSent ranges → 账本标注引用(纯函数,测试面)。
+ * 路径口径对齐:Mark.path 是编辑器绝对路径,账本契约是工作区内相对路径
+ * (与 TurnFile.path 同口径,evidence join 按它比对)—— 落账前剥 cwd 前缀;
+ * 剥不掉(跨工作区广播等)整条丢弃:入账即永不 join 的死行,还可能挂
+ * markId 撞名的假轮次片(评审 P2)。
+ */
+export function markRefsFromRanges(
+  ranges: readonly PromptSentRange[] | undefined,
+  cwd: string,
+): CkptMarkRef[] {
+  return (ranges ?? []).flatMap((r) => {
+    if (!r.path.startsWith(`${cwd}/`)) return [];
+    return [{
+      markId: r.id,
+      path: r.path.slice(cwd.length + 1),
+      startLine: r.startLine,
+      endLine: r.endLine,
+    }];
+  });
 }
 
 /**

@@ -29,6 +29,9 @@ import { recordPrompt } from "@kernel/promptHistory";
 import { broadcastModeRef } from "./broadcastMode";
 import { resolveBroadcastTargets } from "./broadcastTargets";
 import { buildBroadcastPlan, buildSinglePlan, isConfirmPending, setSendExecuting, type SendConfirmRequest, type SendPlan } from "./sendPlan";
+/* 跨插件先例:session-relay 直读 marks store「不经注册面」同款(composer 侧
+   消费随发名单,W2 存证链 ranges 载荷;app 树插件互引例外条款)。 */
+import { carriedMarks } from "../../marks/sendTransform";
 
 export function useComposerSend({
   profile,
@@ -83,13 +86,18 @@ export function useComposerSend({
                 trimmed,
               )
             : trimmed;
+          /* 闸关时 transforms 未跑、lastFlip 未清:carriedMarks 会带回上一轮
+             成功发送的残留名单,别轮标注错记本轮存证(评审 P1);口径与单发
+             transforms.length>0 对齐 —— 闸开但注册面空(marks 运行期卸载)同不读。 */
+          const carried =
+            gateOpen && composerSendTransforms().length > 0 ? carriedMarks() : undefined;
           const failed: string[] = (
             await Promise.all(
               targets.map(async ({ id, profile: p }): Promise<string | null> => {
                 const payload = prepareSendPayload(p, shared, []);
                 const gate = readPromptGate(id);
                 if (await host.writeSession(id, payload)) {
-                  emitPromptSent(gate, id, trimmed);
+                  emitPromptSent(gate, id, trimmed, carried);
                   return null;
                 }
                 return id;
@@ -149,7 +157,7 @@ export function useComposerSend({
         onSendError(t("发送失败:会话已断开,内容已保留"));
         return;
       }
-      emitPromptSent(gate, sid, trimmed);
+      emitPromptSent(gate, sid, trimmed, transforms.length > 0 ? carriedMarks() : undefined);
       recordPrompt(trimmed);
       clearInputIfUnchanged(plan);
       clearAttachments();

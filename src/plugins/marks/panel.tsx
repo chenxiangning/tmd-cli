@@ -7,10 +7,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
-import { ipc } from "@kernel/ipc";
+import { ipc, type CkptBatch } from "@kernel/ipc";
 import { relocateMark, type Mark, type MarkState } from "./anchor";
 import { removeMark, relocatePath, setMarkState, toggleExpanded, updateNote, useMarksState } from "./store";
 import { stageMarks } from "./sendTransform";
+import { useMarkRounds, type MarkRound } from "./evidenceScope";
 import { openAndReveal } from "./terminalLink";
 
 /** 面板「定位」触发的重锚窗:用户显式要求,比编辑器 ±3 巡检窗放宽。 */
@@ -32,6 +33,15 @@ const STATE_LABEL: Record<MarkState, string> = {
   lost: "失联",
 };
 
+/* 参与轮次片(W2 存证链):三值 + 进行中;紫 = 回退语义色(与审批线 STATE_META 同钉)。 */
+const ROUND_LABEL = { eff: "已生效", revt: "已回退", none: "未改写", open: "进行中…" } as const;
+const ROUND_CHIP = {
+  eff: "text-(--tmd-diff-inserted) border-(--tmd-diff-inserted)/40",
+  revt: "text-[#a78bfa] border-[#a78bfa]/40",
+  none: "text-(--tmd-fg-faint)",
+  open: "text-(--tmd-accent) border-(--tmd-accent)/40",
+} as const;
+
 function relPath(path: string, root: string): string {
   return path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path;
 }
@@ -40,14 +50,20 @@ function MarkCard({
   mark,
   root,
   expanded,
+  rounds,
+  onOpenRound,
   onLocate,
 }: {
   mark: Mark;
   root: string;
   expanded: boolean;
+  rounds: MarkRound[];
+  onOpenRound: (batch: CkptBatch, focusPath: string) => void;
   onLocate: (mark: Mark) => void;
 }) {
   const range = mark.startLine === mark.endLine ? `L${mark.startLine}` : `L${mark.startLine}-${mark.endLine}`;
+  /* 已生效 = 派生徽章(W2 存证链):sent 且存在相交未回退轮;回退联动降级天然免费 */
+  const eff = mark.state === "sent" && rounds.some((r) => r.verdict === "eff");
   return (
     <div className="rounded-lg border border-(--tmd-border) bg-(--tmd-bg-base) px-2 py-1.5 text-xs">
       <div className="flex items-center gap-2">
@@ -60,7 +76,11 @@ function MarkCard({
         >
           {range}
         </button>
-        <span className={`rounded-full px-1.5 ${STATE_COLOR[mark.state]}`}>{t(STATE_LABEL[mark.state])}</span>
+        {eff ? (
+          <span className="rounded-full bg-(--tmd-diff-inserted)/15 px-1.5 text-(--tmd-diff-inserted)">{t("已生效")}</span>
+        ) : (
+          <span className={`rounded-full px-1.5 ${STATE_COLOR[mark.state]}`}>{t(STATE_LABEL[mark.state])}</span>
+        )}
         <button
           type="button"
           className="ml-auto cursor-pointer text-(--tmd-fg-faint) hover:text-(--tmd-err)"
@@ -102,6 +122,22 @@ function MarkCard({
           {mark.state === "staged" ? t("↩ 撤回") : mark.state === "pending" ? t("⚑ 发送到对话") : t("↩ 重发")}
         </button>
       </div>
+      {rounds.length > 0 ? (
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          <span className="text-meta text-(--tmd-fg-faint)">{t("参与轮次")}</span>
+          {rounds.map(({ verdict, batch }) => (
+            <button
+              key={batch.id}
+              type="button"
+              className={`cursor-pointer rounded-full border px-1.5 text-meta ${ROUND_CHIP[verdict]} hover:brightness-110`}
+              onClick={() => onOpenRound(batch, relPath(mark.path, root))}
+              title={batch.prompt}
+            >
+              {t("轮 {n}", { n: batch.index })} · {t(ROUND_LABEL[verdict])}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -111,6 +147,8 @@ export function MarksPanel() {
   const { list, activeId } = useWorkspaces();
   const root = list.find((w) => w.id === activeId)?.root ?? list[0]?.root ?? null;
   const marks = root ? (snap.byCwd[root] ?? []) : [];
+  /* W2 存证链:参与轮次 join(活跃会话批清单 + diff 缓存懒取)+ 反查开批审阅单 */
+  const { roundsFor, openRoundBatch } = useMarkRounds();
   /* 重锚反馈(轻提示条,4s 自灭):lost 定位的先提示后尝试,失败给说明。 */
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<number | null>(null);
@@ -226,7 +264,15 @@ export function MarksPanel() {
               ) : null}
             </div>
             {group.map((mark) => (
-              <MarkCard key={mark.id} mark={mark} root={root ?? ""} expanded={expanded.has(mark.id)} onLocate={locateMark} />
+              <MarkCard
+                key={mark.id}
+                mark={mark}
+                root={root ?? ""}
+                expanded={expanded.has(mark.id)}
+                rounds={roundsFor(mark)}
+                onOpenRound={openRoundBatch}
+                onLocate={locateMark}
+              />
             ))}
           </div>
         ))}

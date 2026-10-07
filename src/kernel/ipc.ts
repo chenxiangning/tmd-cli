@@ -206,6 +206,15 @@ export interface CkptAnchorMeta {
   thinking: string;
 }
 
+/** 锚点随批固化的标注引用(发送时点冻结区间;W2 存证链,旧账本条目 = 空数组)。 */
+export interface CkptMarkRef {
+  markId: string;
+  path: string;
+  /** 1 基闭区间 */
+  startLine: number;
+  endLine: number;
+}
+
 export interface CkptBatch {
   id: string;
   /** 会话内 1-based 轮次(账本记录;纯阅读轮缺号 = 真实轮次) */
@@ -226,6 +235,8 @@ export interface CkptBatch {
   files: CkptBatchFile[];
   /** 归因模式:"events"(AI 事件流)| "git"(窗口推断;UI 提示可信度) */
   attribution: "events" | "git";
+  /** 本轮锚点携带的标注引用(继承锚点条目;open 轮也有;旧账本 = 空数组) */
+  marksRefs: CkptMarkRef[];
 }
 
 export interface CkptPatch {
@@ -481,6 +492,7 @@ export const ipc = {
     prompt: string,
     meta: CkptAnchorMeta,
     attribution?: "events" | "git",
+    marksRefs?: readonly CkptMarkRef[],
   ) =>
     invoke<string>("checkpoint_anchor", {
       cwd,
@@ -491,6 +503,7 @@ export const ipc = {
       model: meta.model,
       thinking: meta.thinking,
       attribution: attribution ?? "git",
+      ...(marksRefs && marksRefs.length > 0 ? { marksRefs: [...marksRefs] } : {}),
     }),
   /** AI 写入事件流式记账(EditWatch / 会话磁盘事件拉取命中即调)。
    *  ts = 写入事件时刻(磁盘事件源携带;PTY 标记无时刻传 null),Rust 侧

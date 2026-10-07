@@ -12,8 +12,12 @@ const MESSAGES_EN = {
     "This batch touches {n} sensitive file(s) (credentials / shell config / CI / services) — read the diff carefully before approving",
   "待审批次共 {n} 个高危文件(凭据/Shell 配置/CI/服务),建议逐批细读 diff":
     "{n} sensitive file(s) across pending batches (credentials / shell config / CI / services) — review each diff before approving",
-  /* 工作区外文件分区(BatchFileSection / BatchRowParts,2026-10 i18n 收口;
+  /* W2 存证链:批头携带标注计数 pill;
+     工作区外文件分区(BatchFileSection / BatchRowParts,2026-10 i18n 收口,
      前像术语沿用 kernel misc 既有译法 pre-batch image) */
+  "标 ×{n}": "Marks ×{n}",
+  "本轮 prompt 随发携带的标注引用(标记中心可反查改写轮次)":
+    "Marks carried by this round's prompt (the marks panel traces which rounds rewrote them)",
   "无前像": "No baseline",
   "工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退":
     "Outside-workspace file: its pre-batch image is unknowable on the first round — revert is disabled (so an existing file is never deleted by mistake); from the second round on it reverts normally",
@@ -31,6 +35,10 @@ const MESSAGES_JA = {
   /* 工作区外文件分区(BatchFileSection / BatchRowParts,2026-10 i18n 收口;
      前像术语沿用 kernel misc 既有译法 事前イメージ) */
   "无前像": "事前イメージなし",
+  /* W2 存证链:批头携带标注计数 pill */
+  "标 ×{n}": "マーク ×{n}",
+  "本轮 prompt 随发携带的标注引用(标记中心可反查改写轮次)":
+    "このラウンドのプロンプトに添付されたマーク参照(マーク中心から書き換えラウンドを追跡できます)",
   "工作区外文件,首轮批前像不可知 —— 禁回退(防误删既有文件);次轮起可正常回退":
     "ワークスペース外のファイル:初回ラウンドは事前イメージが不明のためロールバック不可(既存ファイルの誤削除を防止)。2 ラウンド目以降は通常どおりロールバックできます",
   "工作区外({n}) —— 首轮批前像不可知,禁回退;次轮起可正常回退":

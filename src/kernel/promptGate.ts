@@ -19,6 +19,7 @@
  */
 import { host } from "./host";
 import { KernelTopics } from "./events";
+import type { PromptSentRange } from "./events";
 
 /** 轮次闸输入:两个内核守望的瞬时态(writeSession 前读)。 */
 interface PromptGateState {
@@ -43,8 +44,21 @@ export function readPromptGate(sessionId: string): PromptGateState {
   };
 }
 
-/** 过闸后广播 promptSent(text 截 400 字,供审批线锚点快照)。 */
-export function emitPromptSent(gate: PromptGateState, sessionId: string, text: string): void {
+/** 随发携带的文件区间引用(类型定义在 events.ts,payload 同源)。 */
+export type { PromptSentRange } from "./events";
+
+/** 过闸后广播 promptSent(text 截 400 字,供审批线锚点快照;
+ *  ranges = 本轮随发携带的区间引用(marks 标注等),未携带不传。 */
+export function emitPromptSent(
+  gate: PromptGateState,
+  sessionId: string,
+  text: string,
+  ranges?: readonly PromptSentRange[],
+): void {
   if (!shouldBroadcastPrompt(gate, text)) return;
-  host.events.emit(KernelTopics.promptSent, { sessionId, text: text.slice(0, 400) });
+  host.events.emit(KernelTopics.promptSent, {
+    sessionId,
+    text: text.slice(0, 400),
+    ...(ranges && ranges.length > 0 ? { ranges: [...ranges] } : {}),
+  });
 }

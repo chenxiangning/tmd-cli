@@ -8,7 +8,7 @@ import { ipc } from "@kernel/ipc";
 import { emit, stateKey } from "./store";
 
 const diffCache = new Map<string, Map<string, CkptPatch[]>>();
-const DIFF_CACHE_PER_CWD = 24;
+export const DIFF_CACHE_PER_CWD = 24;
 /** 拉取在途批(防重)。不向 diffCache 插占位 [] —— 空数组与「真实空 diff」
     同形,在途窗口撞上任意 emit 会闪「+0 −0/本批无差异」假态(三轮 R3-CKPT-02)。 */
 const diffInflight = new Map<string, Set<string>>();
@@ -30,10 +30,14 @@ export function dropKey(key: string): void {
 }
 
 export function pruneDiffCache(key: string, batches: { id: string }[]): void {
-  const per = diffCache.get(key);
-  if (!per) return;
   const alive = new Set(batches.map((b) => b.id));
-  for (const id of [...per.keys()]) if (!alive.has(id)) per.delete(id);
+  diffCache.get(key)?.forEach((_, id) => {
+    if (!alive.has(id)) diffCache.get(key)?.delete(id);
+  });
+  /* error 行同步摘:已不在清单的批,错误短句不该滞留到 dropKey(nit)。 */
+  diffErrors.get(key)?.forEach((_, id) => {
+    if (!alive.has(id)) diffErrors.get(key)?.delete(id);
+  });
 }
 
 /** 批 diff 拉取失败短句(显式错误态供审阅单渲染重试入口)。 */
@@ -42,7 +46,15 @@ export function getCachedDiffError(cwd: string, sessionId: string, batchId: stri
 }
 
 export function getCachedDiff(cwd: string, sessionId: string, batchId: string): CkptPatch[] | undefined {
-  return diffCache.get(stateKey(cwd, sessionId))?.get(batchId);
+  /* 读命中刷 recency(delete+set 重插入):渲染期 join 活跃读的批驻留,
+     淘汰只打非活跃批 —— 否则 join 暖取与 LRU(24)互踩成自持 IPC 自旋(评审 P2)。 */
+  const per = diffCache.get(stateKey(cwd, sessionId));
+  const hit = per?.get(batchId);
+  if (per && hit) {
+    per.delete(batchId);
+    per.set(batchId, hit);
+  }
+  return hit;
 }
 
 export function refreshOpenDiff(cwd: string, sessionId: string, batchId: string): void {

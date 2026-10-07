@@ -10,6 +10,13 @@ export const MESSAGES_EN = {
   "已发送": "Sent",
   "漂移已重定位": "Relocated",
   "失联": "Lost",
+  /* W2 存证链:派生徽章与参与轮次片 */
+  "已生效": "Effective",
+  /* 已回退:kernel misc 同键同译,不重复注册 */
+  "未改写": "Untouched",
+  "进行中…": "In progress…",
+  "参与轮次": "Rounds",
+  "轮 {n}": "Round {n}",
   /* 行内卡 / 面板 */
   "点此添加标注": "Click to add a note",
   "写标注,随引用发送到对话…": "Write a note to send with the quote…",
