@@ -4,6 +4,27 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.2] - 2026-10-07
+
+本版主体 = 日常工作流整合三条焊缝(规划与两轮评审见 `docs/brainstorm/2026-10-07-0.3.2-*` 与 `docs/superpowers/specs/2026-10-07-marks-checkpoints-evidence-chain-design.md`):接力不失忆(W1)、标注×检查点存证链(W2)、昨日未完今日续起(W3);附 B 批测试补齐与竞态收口。
+
+### 新增
+
+- W1 接力不失忆(c78a5f67):接力摘要改换源角色化转录(7 家 CLI `readSessionTranscript` 适配器全接,缺失显示 — 不猜测兜底),未发标注可随接力携带;入口扩到会话 tab 右键「转到其他引擎接力…」与异常退出卡,命令 `session-relay.to-engine` 可改键
+- W2 标注存证链(cf52122b):随发标注落检查点账本(`marksRefs` 旧账本缺省空数组零迁移),审批线批头显「标 ×N」;标注卡徽章三态派生(已发送 → 已生效/已回退,生效 = 非回退批 M 类 patch 老侧 hunk 与标记区间相交,渲染期 join 不落盘);「参与轮次」片反查跳批审阅单,回退联动降级;时间线节点显携带标注
+- W3 昨日未完(1834411e):daily-journal 未完聚合面板(未查看窗聚合 + 便签勾选),文章会话引用 `[会话|HH:MM|引擎|标题]` 四段标记点击跳原会话
+
+### 修复
+
+- 竞态四向收口(cf52122b/33e1b46c):广播闸关不误带上轮随发名单;标注生效轮询切会话后打旧键;diff 缓存 LRU 与渲染 join 暖取互踩自旋;锚点重试窗口内代数守卫防轮序倒挂
+- 会话转活双行瞬态(33e1b46c):磁盘行与活行按会话 id 去重,活行优先
+- 跨工作区广播存证错根(9fb0a7ff 前收口):剥不掉 cwd 前缀的携带行整条丢弃,宁漏勿串
+
+### 内务
+
+- B 批补测(33e1b46c):接力摘要 truncated 双旗叠加 / dsh fixture / overlay 往返
+- 死代码清理(9fb0a7ff):PromptSentRange 死转发 re-export、DailyPaths 多余导出
+
 ## [0.3.1] - 2026-10-06
 
 本版主体 = 打磨与体验:手机外网三件套(状态条/磁盘缓存回显/凭证自愈)+ 桌面性能天花板清账(多仓 git 批量/活转录增量尾读/意图画布每帧税与保存 I/O)+ 竞态与安全六向收口;主体来自 0.3.1 打磨池三轮落地(A/B/D + E/F + G,规划与留观记录见 `docs/brainstorm/2026-10-06-next-steps.md`)。
