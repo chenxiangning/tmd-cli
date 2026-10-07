@@ -104,6 +104,21 @@ describe("assembleRows 活行装配", () => {
     expect(rows.find((r) => r.id === "pty-2")?.disk).toBeUndefined();
     expect(rows.every((r) => r.wsId === "w1")).toBe(true);
   });
+
+  it("转活去重:磁盘行与活会话同身份只留活行(扫描缓存窗口内不双行);异 id 不误伤", () => {
+    const metas = [
+      { id: "pty-1", kind: "cli", engine: "omp", workspaceId: "w1", cliSessionId: "u-1", createdAt: 500 },
+    ] as Parameters<typeof assembleRows>[2];
+    const diskRows = [
+      { ...row("omp", "1970-01-01"), id: "u-1", wsId: "w1", disk: disk[0] },
+      { ...row("omp", "1970-01-02"), id: "u-9", wsId: "w1" },
+    ];
+    const rows = assembleRows(diskRows, new Map([["w1:omp:u-1", disk[0]]]), metas, new Map([["w1", "w"]]));
+    expect(rows.filter((r) => r.id === "u-1")).toEqual([]);
+    expect(rows.find((r) => r.id === "pty-1")?.live).toBe(true);
+    expect(rows.find((r) => r.id === "pty-1")?.disk?.id).toBe("u-1");
+    expect(rows.find((r) => r.id === "u-9")).toBeDefined();
+  });
 });
 
 describe("collectSessionRowsBatched 分批回调", () => {

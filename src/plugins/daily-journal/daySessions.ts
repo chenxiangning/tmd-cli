@@ -105,7 +105,18 @@ export function assembleRows(
   metas: SessionMeta[],
   wsNames: Map<string, string>,
 ): DaySessionRow[] {
-  const out = diskRows.slice();
+  /* 转活去重:磁盘行与活会话同身份(wsId:家族:cliSessionId)只留活行 ——
+   *  扫描落定后会话转活(续聊/resume)时,缓存磁盘行未过期会双行 ≤60s,
+   *  活行信息更全(live 态/工作区凭证),磁盘凭证由 liveDisk 命中补挂。 */
+  const liveKeys = new Set<string>();
+  for (const m of metas) {
+    if (m.kind && m.kind !== "cli") continue;
+    if (m.workspaceId && !wsNames.has(m.workspaceId)) continue;
+    if (m.cliSessionId) liveKeys.add(`${m.workspaceId ?? ""}:${m.engine || m.profileId}:${m.cliSessionId}`);
+  }
+  const out = diskRows.filter(
+    (r) => !(r.wsId && r.id && liveKeys.has(`${r.wsId}:${r.profileId}:${r.id}`)),
+  );
   for (const m of metas) {
     if (m.workspaceId && !wsNames.has(m.workspaceId)) continue;
     const row = liveRow(m, m.workspaceId ? (wsNames.get(m.workspaceId) ?? "") : "");
@@ -133,8 +144,12 @@ export async function collectSessionRowsBatched(
   if (target.length === 0) return [];
   const profiles = host.getCliProfiles().filter((p) => p.listSessions);
   const metas = host.getSessions();
+  /* 谓词与 assembleRows 同源:只认 cli 会话(非 cli 且带 cliSessionId 的 meta
+     今日不可达,但扫描期不该压掉磁盘行;评审 nit)。无 workspaceId 的活行
+     键前缀空串,不与磁盘行匹配 = 桥 resume 收养窗口内短暂双行,自愈。 */
   const liveKeys = new Set(
     metas
+      .filter((m) => !m.kind || m.kind === "cli")
       .map((m) => (m.cliSessionId ? `${m.workspaceId ?? ""}:${m.engine || m.profileId}:${m.cliSessionId}` : null))
       .filter((k): k is string => k !== null),
   );

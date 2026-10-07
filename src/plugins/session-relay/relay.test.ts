@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { buildRelaySummary, relayTargets, RELAY_DIGEST_CAPS, appendCarriedMarks } from "./relay";
+import { dshTranscriptLine } from "../cli-dsh/dshTranscript";
 import type { CliTranscriptBlock, CliTranscriptToolMeta } from "@kernel/cli";
 
 const PROFILES = [
@@ -83,6 +84,42 @@ describe("buildRelaySummary", () => {
       true,
     );
     expect(built.truncated).toBe(true);
+  });
+
+  it("双旗叠加:源读取截断 + 摘录超预算同真,标记与结论保底共存不互斥", () => {
+    const blocks = [
+      ...Array.from({ length: 12 }, (_, i) => block("user", `阶段${i} ` + "甲".repeat(500))),
+      block("assistant", "最终结论:双旗叠加路径已核"),
+    ];
+    const built = buildRelaySummary({ profileId: "omp", engineName: "omp" }, blocks, true);
+    expect(built.truncated).toBe(true);
+    expect(built.text).toContain("(摘录超预算,后续内容省略)");
+    expect(built.text).toContain("助手(结尾):最终结论:双旗叠加路径已核");
+  });
+});
+
+describe("dsh 作接力源(契约:真实事件流过 parser → 摘要有角色行,非占位)", () => {
+  it("dshTranscriptLine 实产块喂 buildRelaySummary,用户/助手行在场", () => {
+    /* W1 换源前 dsh 无 readSessionUserMessages → 摘要恒「未提取到历史输入」;
+       换 readSessionTranscript 后 dsh 事件流即真实源,此 fixture 钉死该路径。 */
+    const blocks = [
+      ...dshTranscriptLine({
+        type: "user/message",
+        seq: 1,
+        time: 1787648514901,
+        data: { content: [{ type: "text", text: "把审批策略改成三钟全出窗" }], source: { kind: "user" }, role: "user", id: "u1" },
+      }),
+      ...dshTranscriptLine({
+        type: "assistant/message",
+        seq: 2,
+        time: 1787648515000,
+        data: { message: { role: "assistant", content: [{ type: "text", text: "已改完,封口时机迁移到三钟全出窗" }] } },
+      }),
+    ];
+    const built = buildRelaySummary({ profileId: "dsh", engineName: "dsh" }, blocks);
+    expect(built.text).toContain("用户:把审批策略改成三钟全出窗");
+    expect(built.text).toContain("助手:已改完,封口时机迁移到三钟全出窗");
+    expect(built.truncated).toBe(false);
   });
 });
 
