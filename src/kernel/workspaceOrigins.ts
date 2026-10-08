@@ -13,13 +13,19 @@
  *   不走本地 PTY spawn;未注册/未命中走默认本地 spawn);
  * - filterCliProfiles / sessionMenuNote:新建会话菜单对该来源工作区的引擎行
  *   过滤与提示行;
- * - addTab:添加工作区弹层的来源 tab(组件归来源插件,本协议只递 onAdded)。
+ * - addTab:添加工作区弹层的来源卡(组件归来源插件,本协议只递 onAdded)。
  */
 
 import type { ComponentType } from "react";
 import { createSubscribable } from "./subscribable";
 import type { CliProfile, RemoteExec } from "./cli";
 import type { Workspace } from "./workspace";
+
+/** 来源卡图标的最小 props 面(兼容 @phosphor-icons/react;同 SidebarActionIcon 先例)。 */
+export type WorkspaceOriginIcon = ComponentType<{
+  size?: number | string;
+  className?: string;
+}>;
 
 /** 添加工作区弹层来源 tab 的组件 props。 */
 export interface WorkspaceOriginAddTabProps {
@@ -46,8 +52,15 @@ export interface WorkspaceOrigin {
   filterCliProfiles?(ws: Workspace, profiles: CliProfile[]): CliProfile[];
   /** 新建会话菜单的提示行(未注册/null = 无)。 */
   sessionMenuNote?(ws: Workspace): string | null;
-  /** 添加工作区弹层的来源 tab(缺省 = 弹层只有本地目录)。 */
-  addTab?: { label: string; component: ComponentType<WorkspaceOriginAddTabProps> };
+  /** 添加工作区弹层的来源卡(缺省 = 弹层只有本地目录卡)。 */
+  addTab?: {
+    label: string;
+    /** 卡描述一句(缺省无)。 */
+    desc?: string;
+    /** 卡图标(缺省文件夹兜底)。 */
+    icon?: WorkspaceOriginIcon;
+    component: ComponentType<WorkspaceOriginAddTabProps>;
+  };
   /** 远程磁盘通道(来源提供传输,引擎适配器提供解析):来源工作区的历史
    *  扫描/状态回填改走远端;null = 该工作区当前无通道(如主机配置已删)。 */
   remoteExec?(ws: Workspace): RemoteExec | null;

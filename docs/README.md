@@ -291,4 +291,6 @@
 | 2026-10-07 | [0.3.2 W2 标注×检查点存证链设计(PromptSentEvent.ranges 载荷→账本 marks_refs 随 anchor 固化·seal 修订行携带;已生效=老侧 hunk 相交派生徽章零写路径,回退联动免费降级;参与轮次三值反查跳批审阅单;订正逻辑评审两处:new-range→老侧、relay 首发同填 refs;附 B 批清账范围)](superpowers/specs/2026-10-07-marks-checkpoints-evidence-chain-design.md) | 已定稿(待开工) |
 | 2026-10-07 | [W2 存证链批次配套原型(标注卡三态徽章+参与轮次三值片点击开批审阅单·相交 hunk 命中高亮;时间线「标 ×N」;回退/反悔/模拟封口全链可点,演示 evidence 派生与回退联动降级)](prototypes/marks-checkpoints-evidence-chain.html) | 待大仙目检 |
 | 2026-10-07 | [接力摘要芯片化设计(不直写 PTY:RelayDialog → createSession → composer 芯片「接力摘要 · N 字」,点击重开编辑态,发送时 transform 前置拼装可空输入首发;净删 writeSession 直写/appendCarriedMarks/carrySet 勾选;新增 kernel 空 provider 契约 composerEmptySendProvider)](superpowers/specs/2026-10-07-relay-composer-chip-design.md) | 已实施(门禁全绿+桩目检闭环;TDD 红→绿 22 新测) |
+| 2026-10-08 | [添加工作区浮层重构原型(现状复刻含段控裸类 bug + 方向 A 密排单步/方向 B 来源卡片两步对比,双主题)](design/workspace-add-restyle.html) | 已定稿(大仙拍板方向 B) |
+| 2026-10-08 | [添加工作区浮层重构设计(方向 B 来源卡片两步:addTab 契约扩 desc/icon,本地卡直达 picker,wsadd-* 中性类名独立 css,修段控裸类 bug 与 label 裸中文 i18n 缺口)](superpowers/specs/2026-10-08-workspace-add-restyle-design.md) | 已实施(门禁全绿+桩目检闭环) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

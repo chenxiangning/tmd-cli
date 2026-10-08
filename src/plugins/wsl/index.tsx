@@ -7,7 +7,7 @@
  * 拔掉本插件(重启生效)后注册表为空,宿主回内建形态(边界语义见 tasks §12)。
  */
 
-import { DesktopIcon } from "@phosphor-icons/react";
+import { DesktopIcon, WindowsLogo } from "@phosphor-icons/react";
 import { DecorIcon } from "@kernel/iconSet";
 import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
@@ -48,7 +48,12 @@ export const wslPlugin: Plugin = {
     /* 向宿主注册表贡献来源能力:经 ctx 通道登记,退订由贡献账本自动记账(拔插零残留)。 */
     ctx.registerRemoteFileSource(buildWslFileSource() as RemoteFileSource);
     ctx.registerWorkspaceOrigin(
-      buildWslWorkspaceOrigin({ label: "WSL 发行版", component: AddWslTab }),
+      buildWslWorkspaceOrigin({
+        label: t("WSL 发行版"),
+        desc: t("经 \\\\wsl.localhost 或 SSH 远程宿主添加"),
+        icon: WindowsLogo,
+        component: AddWslTab,
+      }),
     );
     ctx.registerSpecWrapper(wrapWslSpec);
     ctx.registerShellSpecProvider({

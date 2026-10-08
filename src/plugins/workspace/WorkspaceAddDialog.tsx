@@ -1,13 +1,21 @@
 /**
- * 添加工作区浮层 —— 本地目录 tab 内建;来源 tab(如 WSL 发行版)由
- * workspaceOrigins 注册表供给(来源插件启用才有),本组件零来源知识。
+ * 添加工作区浮层 —— 来源卡片两步形态:入口步 = 本地目录卡(点击直达系统
+ * picker)+ 各来源注册卡;来源卡进入第二步(返回键 + 来源 addTab 组件)。
+ * 来源卡由 workspaceOrigins 注册表供给(来源插件启用才有),本组件零来源知识。
  * 锚定入口按钮右侧滑出(portal + fixed,同 session-budget 浮层先例):
  * 居中 modal 离入口太远(2026-09-13 用户验收反馈),透明背板仅承担点外关闭。
+ * 样式:workspace-add.css(wsadd-* 自有类,不借来源插件类 —— review P2 收口)。
  */
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Cross } from "@phosphor-icons/react";
+import {
+  CaretLeft,
+  CaretRight,
+  Cross,
+  FolderOpen,
+  FolderSimplePlus,
+} from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { pickDirectory } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -23,7 +31,8 @@ export function WorkspaceAddDialog({
   onClose: () => void;
 }) {
   const origins = useWorkspaceOrigins().filter((o) => o.addTab);
-  const [tab, setTab] = useState<string>("local");
+  /* null = 入口步(来源卡);来源 id = 第二步(该来源 addTab)。 */
+  const [originId, setOriginId] = useState<string | null>(null);
   const [localHint, setLocalHint] = useState<string | null>(null);
 
   useEscClose(onClose);
@@ -41,11 +50,8 @@ export function WorkspaceAddDialog({
     }
   };
 
-  const tabs = [
-    { id: "local", label: t("本地目录") },
-    ...origins.map((o) => ({ id: o.id, label: o.addTab!.label })),
-  ];
-  const ActiveTab = origins.find((o) => o.id === tab)?.addTab?.component;
+  const activeOrigin = origins.find((o) => o.id === originId);
+  const ActiveTab = activeOrigin?.addTab?.component;
 
   return createPortal(
     <>
@@ -59,39 +65,63 @@ export function WorkspaceAddDialog({
         className="wsadd-pop relative m-0"
         style={{ left: position.x, top: position.y }}
       >
-        <div className="wsadd-head">
-          <span>{t("添加工作区")}</span>
-          <button type="button" className="wsadd-x" onClick={onClose} aria-label={t("关闭")}>
-            <Cross size="0.875rem" aria-hidden />
-          </button>
-        </div>
-        {tabs.length > 1 && (
-          <div className="wsl-mode-seg" role="tablist" aria-label={t("工作区来源")}>
-            {tabs.map((tb) => (
+        {ActiveTab && activeOrigin ? (
+          <>
+            <div className="wsadd-step-head">
               <button
-                key={tb.id}
                 type="button"
-                role="tab"
-                aria-selected={tab === tb.id}
-                className={tab === tb.id ? "on" : ""}
-                onClick={() => setTab(tb.id)}
+                className="wsadd-back"
+                onClick={() => setOriginId(null)}
               >
-                {tb.label}
+                <CaretLeft size="0.75rem" aria-hidden />
+                {t("来源")}
               </button>
-            ))}
-          </div>
-        )}
-        {ActiveTab ? (
-          <ActiveTab onAdded={onClose} />
+              <span className="wsadd-step-title">{activeOrigin.addTab!.label}</span>
+            </div>
+            <ActiveTab onAdded={onClose} />
+          </>
         ) : (
           <>
-            <div className="wsl-hint">{t("选择一个本机目录作为工作区根。")}</div>
-            {localHint && <div className="wsl-remote-err">{localHint}</div>}
-            <div className="wsl-dialog-foot">
-              <button type="button" className="wsl-btn primary" onClick={() => void pickLocal()}>
-                {t("选择目录…")}
+            <div className="wsadd-head">
+              <FolderSimplePlus size="0.9375rem" className="wsadd-head-ico" aria-hidden />
+              <span>{t("添加工作区")}</span>
+              <button type="button" className="wsadd-x" onClick={onClose} aria-label={t("关闭")}>
+                <Cross size="0.875rem" aria-hidden />
               </button>
             </div>
+            {/* 本地卡:整卡即动作,直达系统目录选择器(零表单步骤)。 */}
+            <button type="button" className="wsadd-card" onClick={() => void pickLocal()}>
+              <span className="wsadd-card-glyph">
+                <FolderOpen size="1.125rem" aria-hidden />
+              </span>
+              <span className="wsadd-card-txt">
+                <span className="wsadd-card-tt">{t("本地目录")}</span>
+                <span className="wsadd-card-dd">{t("选择一个本机目录作为工作区根。")}</span>
+              </span>
+              <CaretRight size="0.75rem" className="wsadd-card-caret" aria-hidden />
+            </button>
+            {origins.map((o) => {
+              const tab = o.addTab!;
+              const Icon = tab.icon ?? FolderOpen;
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  className="wsadd-card"
+                  onClick={() => setOriginId(o.id)}
+                >
+                  <span className="wsadd-card-glyph">
+                    <Icon size="1.125rem" aria-hidden />
+                  </span>
+                  <span className="wsadd-card-txt">
+                    <span className="wsadd-card-tt">{tab.label}</span>
+                    {tab.desc && <span className="wsadd-card-dd">{tab.desc}</span>}
+                  </span>
+                  <CaretRight size="0.75rem" className="wsadd-card-caret" aria-hidden />
+                </button>
+              );
+            })}
+            {localHint && <div className="wsadd-err">{localHint}</div>}
           </>
         )}
       </dialog>

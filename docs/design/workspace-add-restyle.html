@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>添加工作区浮层重构 · 设计探索</title>
+<!-- 设计探索期原型(2026-10-08):token 值逐字取自 src/styles/themes.css 云白/石墨双 preset -->
+<style>
+  :root {
+    --tmd-font-2xs: 9px; --tmd-font-xs: 10px; --tmd-font-ui: 12px; --tmd-font-md: 13px;
+    --tmd-font-lg: 14px; --tmd-font-xl: 16px; --tmd-font-title: 20px;
+    --tmd-radius-xs: 4px; --tmd-radius-sm: 6px; --tmd-radius-md: 8px; --tmd-radius-lg: 12px;
+    --tmd-dur-1: 120ms; --tmd-ease-out: ease-out; --tmd-ease-move: cubic-bezier(0.2, 0, 0, 1);
+    --tmd-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  :root[data-theme="dark"] {
+    --tmd-bg-base:#0f0f12; --tmd-bg-elevated:#131316; --tmd-bg-panel:#131316; --tmd-bg-sunken:#131316;
+    --tmd-bg-hover:#1b1b20; --tmd-bg-active:rgba(91,91,214,0.24); --tmd-bg-input:#1a1a1e; --tmd-bg-popover:#1a1a1e;
+    --tmd-fg:#d4d4d9; --tmd-fg-muted:#919195; --tmd-fg-subtle:#757579; --tmd-fg-faint:#4e4e52;
+    --tmd-border:#2c2c33; --tmd-border-strong:#4e4e54;
+    --tmd-accent:#5b5bd6; --tmd-accent-fg:#ffffff; --tmd-accent-soft:rgba(91,91,214,0.24);
+    --tmd-err:#f87171; --tmd-shadow-popover:0 4px 16px rgba(0,0,0,0.45); --tmd-shadow-modal:0 8px 30px rgba(0,0,0,0.55);
+  }
+  :root[data-theme="light"] {
+    --tmd-bg-base:#ffffff; --tmd-bg-elevated:#fafafa; --tmd-bg-panel:#fafafa; --tmd-bg-sunken:#fafafa;
+    --tmd-bg-hover:#f3f3f5; --tmd-bg-active:rgba(26,26,30,0.14); --tmd-bg-input:#ffffff; --tmd-bg-popover:#ffffff;
+    --tmd-fg:#26262b; --tmd-fg-muted:#707073; --tmd-fg-subtle:#8e8e91; --tmd-fg-faint:#bababb;
+    --tmd-border:#d9d9de; --tmd-border-strong:#b5b5ba;
+    --tmd-accent:#1a1a1e; --tmd-accent-fg:#ffffff; --tmd-accent-soft:rgba(26,26,30,0.14);
+    --tmd-err:#dc2626; --tmd-shadow-popover:0 4px 16px rgba(0,0,0,0.13); --tmd-shadow-modal:0 8px 30px rgba(0,0,0,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--tmd-bg-sunken); color: var(--tmd-fg);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: var(--tmd-font-ui); padding: 24px 28px 48px;
+  }
+  h1 { font-size: var(--tmd-font-lg); margin-bottom: 4px; }
+  .sub { color: var(--tmd-fg-subtle); margin-bottom: 20px; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 20px; align-items: center; }
+  .toolbar button {
+    font: inherit; cursor: pointer; padding: 4px 12px; border-radius: var(--tmd-radius-sm);
+    border: 1px solid var(--tmd-border); background: var(--tmd-bg-input); color: var(--tmd-fg);
+  }
+  .toolbar button.is-on { background: var(--tmd-bg-active); font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 28px; }
+  .cell h2 { font-size: var(--tmd-font-md); margin-bottom: 2px; }
+  .cell .verdict { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-xs); margin-bottom: 10px; }
+  .stage {
+    background: var(--tmd-bg-base); border: 1px solid var(--tmd-border);
+    border-radius: var(--tmd-radius-lg); min-height: 430px; padding: 18px;
+    display: flex; align-items: flex-start; justify-content: center; gap: 20px;
+    background-image: linear-gradient(var(--tmd-border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--tmd-border) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .pop {
+    width: 340px; align-self: flex-start;
+    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-lg);
+    background: var(--tmd-bg-popover); box-shadow: var(--tmd-shadow-popover);
+    padding: 12px 14px 14px; font-size: var(--tmd-font-ui);
+  }
+  .x-ico { margin-left: auto; }
+  svg { vertical-align: -2px; }
+
+  /* ── 现状复刻(含 bug:段控类无 CSS,两按钮黏连) ── */
+  .cur-head { display: flex; align-items: center; justify-content: space-between; font-weight: 600; padding: 2px 0 8px; }
+  .cur-seg button { font: inherit; border: none; background: transparent; color: var(--tmd-fg); cursor: pointer; padding: 0; }
+  .cur-hint { color: var(--tmd-fg-subtle); margin-top: 8px; }
+  .cur-foot { display: flex; justify-content: flex-end; margin-top: 12px; }
+
+  /* ── 共享控件语言(方向 A/B 用) ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 26px; padding: 0 12px; font: inherit; cursor: pointer;
+    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm);
+    background: var(--tmd-bg-input); color: var(--tmd-fg); white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--tmd-border-strong); background: var(--tmd-bg-hover); }
+  .btn:focus-visible { outline: none; border-color: var(--tmd-accent); box-shadow: 0 0 0 2px var(--tmd-accent-soft); }
+  .btn-pri { border-color: color-mix(in srgb, var(--tmd-accent) 80%, black); background: var(--tmd-accent); color: var(--tmd-accent-fg); }
+  .btn-pri:hover:not(:disabled) { border-color: color-mix(in srgb, var(--tmd-accent) 80%, black); background: color-mix(in srgb, var(--tmd-accent) 88%, white); }
+
+  /* ── 方向 A:密排打磨 ── */
+  .a-head { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--tmd-font-md); padding: 1px 0 10px; }
+  .a-head .x-ico { margin-left: auto; border: none; background: transparent; color: var(--tmd-fg-muted); cursor: pointer; padding: 2px 4px; border-radius: var(--tmd-radius-sm); }
+  .a-head .x-ico:hover { color: var(--tmd-fg); background: var(--tmd-bg-hover); }
+  .a-seg { display: flex; gap: 2px; padding: 2px; background: var(--tmd-bg-input); border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); }
+  .a-seg button {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 4px 10px; border: none; border-radius: var(--tmd-radius-sm);
+    background: transparent; color: var(--tmd-fg-muted); font: inherit; white-space: nowrap; cursor: pointer;
+  }
+  .a-seg button:hover { color: var(--tmd-fg); }
+  .a-seg button.is-active { background: var(--tmd-bg-active); color: var(--tmd-fg); font-weight: 600; }
+  .a-body { margin-top: 10px; }
+  .a-hint { color: var(--tmd-fg-subtle); line-height: 1.5; }
+  .a-pri {
+    margin-top: 10px; width: 100%; height: 32px; font-size: var(--tmd-font-md);
+    border: 1px solid color-mix(in srgb, var(--tmd-accent) 80%, black);
+    border-radius: var(--tmd-radius-md); background: var(--tmd-accent); color: var(--tmd-accent-fg);
+    display: flex; align-items: center; justify-content: center; gap: 7px; font: inherit; cursor: pointer;
+  }
+  .a-pri:hover { background: color-mix(in srgb, var(--tmd-accent) 88%, white); }
+  .a-field { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .a-field select {
+    flex: 1; height: 26px; padding: 0 8px; font: inherit; color: var(--tmd-fg);
+    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-input);
+  }
+  .a-dir {
+    margin-top: 8px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md);
+    max-height: 150px; overflow: auto; background: var(--tmd-bg-input);
+  }
+  .a-dir .row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; color: var(--tmd-fg-muted); cursor: pointer; }
+  .a-dir .row:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+  .a-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+  /* ── 方向 B:来源卡片 ── */
+  .b-card {
+    width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
+    padding: 11px 12px; margin-top: 8px; font: inherit; cursor: pointer;
+    border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md);
+    background: var(--tmd-bg-input); color: var(--tmd-fg);
+    transition: border-color var(--tmd-dur-1) var(--tmd-ease-out), background var(--tmd-dur-1) var(--tmd-ease-out);
+  }
+  .b-card:hover { border-color: var(--tmd-border-strong); background: var(--tmd-bg-hover); }
+  .b-card:focus-visible { outline: none; border-color: var(--tmd-accent); box-shadow: 0 0 0 2px var(--tmd-accent-soft); }
+  .b-card .glyph { flex: none; display: flex; width: 34px; height: 34px; align-items: center; justify-content: center;
+    border-radius: var(--tmd-radius-md); background: var(--tmd-accent-soft); color: var(--tmd-accent); }
+  :root[data-theme="light"] .b-card .glyph { color: var(--tmd-fg); }
+  .b-card .tt { font-weight: 600; }
+  .b-card .dd { color: var(--tmd-fg-subtle); margin-top: 1px; }
+  .b-card .caret { margin-left: auto; flex: none; color: var(--tmd-fg-faint); }
+  .b-back { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; border: none; background: none;
+    color: var(--tmd-fg-muted); font: inherit; cursor: pointer; padding: 2px 4px; border-radius: var(--tmd-radius-sm); }
+  .b-back:hover { color: var(--tmd-fg); background: var(--tmd-bg-hover); }
+</style>
+</head>
+<body>
+<h1>添加工作区浮层重构 · 方向对比</h1>
+<p class="sub">共同前提:锚定入口按钮右侧滑出的浮层形态保留(2026-09-13 验收拍板);两方向都修复段控裸类 bug(.wsl-mode-seg 全仓库无 CSS,两个 tab 按钮黏连)与跨插件类名耦合(review P2:弹层改自有 wsadd-* 中性类)。</p>
+
+<div class="toolbar">
+  <button id="tgL" class="is-on" onclick="setTheme('light')">浅色(云白)</button>
+  <button id="tgD" onclick="setTheme('dark')">深色(石墨)</button>
+</div>
+
+<div class="grid">
+
+  <!-- ══ 现状 ══ -->
+  <div class="cell">
+    <h2>现状复刻</h2>
+    <p class="verdict">段控两按钮无样式黏连;说明一行孤零;按钮缩在右下角,大量留白</p>
+    <div class="stage">
+      <div class="pop" style="width:360px; padding:10px 14px 14px;">
+        <div class="cur-head"><span>添加工作区</span>
+          <svg width="14" height="14" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16"><path d="M208 48 48 208M48 48l160 160"/></svg>
+        </div>
+        <div class="cur-seg" role="tablist">
+          <button>本地目录</button><button>WSL 发行版</button>
+        </div>
+        <div class="cur-hint">选择一个本机目录作为工作区根。</div>
+        <div class="cur-foot"><span class="btn btn-pri">选择目录…</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 方向 A ══ -->
+  <div class="cell">
+    <h2>方向 A · 密排打磨(推荐)</h2>
+    <p class="verdict">保单步结构;段控复用设置页 .segmented 语言;本地 tab 主按钮全宽化;类名中性化</p>
+    <div class="stage">
+      <div class="pop">
+        <div class="a-head">
+          <svg width="15" height="15" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16" style="color:var(--tmd-accent)"><path d="M216 72v120a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8h48l24 24h88a8 8 0 0 1 8 8Z"/><path d="M124 152h16v-24h24v-16h-24V88h-16v24h-24v16h24Z"/></svg>
+          <span>添加工作区</span>
+          <span class="x-ico"><svg width="14" height="14" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16"><path d="M208 48 48 208M48 48l160 160"/></svg></span>
+        </div>
+        <div class="a-seg" role="tablist">
+          <button id="aTabL" class="is-active" onclick="aTab('local')">
+            <svg width="13" height="13" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="18"><path d="M216 72v120a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8h48l24 24h88a8 8 0 0 1 8 8Z"/></svg>
+            本地目录
+          </button>
+          <button id="aTabW" onclick="aTab('wsl')">
+            <svg width="13" height="13" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="18"><path d="M40 52h72l32 36h72a8 8 0 0 1 8 8v100a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8V60a8 8 0 0 1 8-8Z"/></svg>
+            WSL 发行版
+          </button>
+        </div>
+        <div class="a-body" id="aLocal">
+          <div class="a-hint">选择一个本机目录作为工作区根;会话、文件树与 Git 面板随目录就位。</div>
+          <button class="a-pri">
+            <svg width="15" height="15" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="14"><path d="M216 72v120a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8h48l24 24h88a8 8 0 0 1 8 8Z"/><path d="M96 140h64"/></svg>
+            选择目录…
+          </button>
+        </div>
+        <div class="a-body" id="aWsl" style="display:none">
+          <div class="a-field"><span style="color:var(--tmd-fg-subtle);flex:none">发行版</span>
+            <select><option>Ubuntu-24.04(运行中)</option><option>Debian-12(已停止)</option></select>
+          </div>
+          <div class="a-dir">
+            <div class="row"><svg width="13" height="13" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="18"><path d="M213 128l-79 79a34 34 0 0 1-48 0L24 101V40h61l128 88Z"/></svg> home/cxn</div>
+            <div class="row">… ml-pipeline</div>
+            <div class="row">… blog</div>
+          </div>
+          <div class="a-hint" style="margin-top:8px">添加后以 \\wsl.localhost UNC 登记为本机 WSL 工作区。</div>
+          <div class="a-foot"><span class="btn">取消</span><span class="btn btn-pri">添加</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 方向 B ══ -->
+  <div class="cell">
+    <h2>方向 B · 来源卡片</h2>
+    <p class="verdict">入口步选来源,本地卡直达系统 picker,WSL 卡进第二步;更现代但多一层导航</p>
+    <div class="stage">
+      <div class="pop" id="bEntry">
+        <div class="a-head">
+          <svg width="15" height="15" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16" style="color:var(--tmd-accent)"><path d="M216 72v120a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8h48l24 24h88a8 8 0 0 1 8 8Z"/><path d="M124 152h16v-24h24v-16h-24V88h-16v24h-24v16h24Z"/></svg>
+          <span>添加工作区</span>
+          <span class="x-ico"><svg width="14" height="14" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16"><path d="M208 48 48 208M48 48l160 160"/></svg></span>
+        </div>
+        <button class="b-card" onclick="bGo()" title="点击直达系统目录选择器">
+          <span class="glyph"><svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="14"><path d="M216 72v120a8 8 0 0 1-8 8H48a8 8 0 0 1-8-8V64a8 8 0 0 1 8-8h48l24 24h88a8 8 0 0 1 8 8Z"/><path d="M124 152h16v-24h24v-16h-24V88h-16v24h-24v16h24Z"/></svg></span>
+          <span><span class="tt">本地目录</span><div class="dd">选择本机目录作为工作区根</div></span>
+          <span class="caret"><svg width="12" height="12" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="20"><path d="M96 48l80 80-80 80"/></svg></span>
+        </button>
+        <button class="b-card" onclick="bGo()">
+          <span class="glyph"><svg width="18" height="18" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="14"><path d="M40 52h72l32 36h72a8 8 0 0 1 8 8v100a8 8 0 0 1-8 8H40a8 8 0 0 1-8-8V60a8 8 0 0 1 8-8Z"/></svg></span>
+          <span><span class="tt">WSL 发行版</span><div class="dd">经 \\wsl.localhost 或 SSH 远程宿主添加</div></span>
+          <span class="caret"><svg width="12" height="12" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="20"><path d="M96 48l80 80-80 80"/></svg></span>
+        </button>
+      </div>
+      <div class="pop" id="bWsl" style="display:none">
+        <div class="a-head">
+          <button class="b-back" onclick="bBack()">
+            <svg width="12" height="12" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="20"><path d="M160 48L80 128l80 80"/></svg>
+            来源
+          </button>
+          <span>WSL 发行版</span>
+          <span class="x-ico"><svg width="14" height="14" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16"><path d="M208 48 48 208M48 48l160 160"/></svg></span>
+        </div>
+        <div class="a-field"><span style="color:var(--tmd-fg-subtle);flex:none">发行版</span>
+          <select><option>Ubuntu-24.04(运行中)</option></select>
+        </div>
+        <div class="a-dir">
+          <div class="row">… ml-pipeline</div><div class="row">… blog</div>
+        </div>
+        <div class="a-hint" style="margin-top:8px">添加后以 \\wsl.localhost UNC 登记为本机 WSL 工作区。</div>
+        <div class="a-foot"><span class="btn">取消</span><span class="btn btn-pri">添加</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  document.getElementById('tgL').classList.toggle('is-on', t === 'light');
+  document.getElementById('tgD').classList.toggle('is-on', t === 'dark');
+}
+function aTab(which) {
+  document.getElementById('aTabL').classList.toggle('is-active', which === 'local');
+  document.getElementById('aTabW').classList.toggle('is-active', which === 'wsl');
+  document.getElementById('aLocal').style.display = which === 'local' ? '' : 'none';
+  document.getElementById('aWsl').style.display = which === 'wsl' ? '' : 'none';
+}
+function bGo() {
+  document.getElementById('bEntry').style.display = 'none';
+  document.getElementById('bWsl').style.display = '';
+}
+function bBack() {
+  document.getElementById('bEntry').style.display = '';
+  document.getElementById('bWsl').style.display = 'none';
+}
+</script>
+</body>
+</html>

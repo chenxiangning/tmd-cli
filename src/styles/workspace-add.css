@@ -1,0 +1,173 @@
+/* 添加工作区浮层(wsadd-*)—— 锚定入口按钮右侧滑出;自 workspace-menu.css 拆出
+   (拆分动机:卡片两步重构后规则量必破 300 行铁则;背板复用 .wsmenu-backdrop,
+   不在此重复定义)。全部消费 --tmd-* token,类名中性不借来源插件类(review P2)。 */
+
+.wsadd-pop {
+  position: fixed;
+  z-index: 1201;
+  width: 360px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-lg);
+  background: var(--tmd-bg-popover);
+  color: var(--tmd-fg);
+  box-shadow: var(--tmd-shadow-popover);
+  transform-origin: left center;
+  animation: wsadd-in var(--tmd-dur-1) var(--tmd-ease-move);
+}
+
+@keyframes wsadd-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wsadd-pop {
+    animation: none;
+  }
+}
+
+/* ── 入口步:标题行 + 来源卡 ── */
+.wsadd-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: var(--tmd-font-md);
+  padding: 1px 0 2px;
+}
+
+.wsadd-head-ico {
+  color: var(--tmd-accent);
+}
+
+.wsadd-x {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--tmd-radius-sm);
+}
+.wsadd-x:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+
+.wsadd-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 10px 12px;
+  margin-top: 8px;
+  font: inherit;
+  color: var(--tmd-fg);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-input);
+  cursor: pointer;
+  transition:
+    border-color var(--tmd-dur-1) var(--tmd-ease-out),
+    background var(--tmd-dur-1) var(--tmd-ease-out);
+}
+
+.wsadd-card:hover {
+  border-color: var(--tmd-border-strong);
+  background: var(--tmd-bg-hover);
+}
+
+.wsadd-card:focus-visible {
+  outline: none;
+  border-color: var(--tmd-accent);
+  box-shadow: 0 0 0 2px var(--tmd-accent-soft);
+}
+
+.wsadd-card-glyph {
+  flex: none;
+  display: flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-accent-soft);
+  color: var(--tmd-accent);
+}
+
+.wsadd-card-txt {
+  min-width: 0;
+}
+
+.wsadd-card-tt {
+  display: block;
+  font-weight: 600;
+}
+
+.wsadd-card-dd {
+  display: block;
+  margin-top: 1px;
+  color: var(--tmd-fg-subtle);
+  line-height: 1.4;
+}
+
+.wsadd-card-caret {
+  margin-left: auto;
+  flex: none;
+  color: var(--tmd-fg-faint);
+}
+
+/* 本地 picker 失败提示(替代此前借用的 wsl-remote-err)。 */
+.wsadd-err {
+  margin-top: 8px;
+  color: var(--tmd-err);
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
+}
+
+/* ── 第二步:返回键 + 来源标题(内容体归来源 addTab 组件) ── */
+.wsadd-step-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0 6px;
+  border-bottom: 1px solid var(--tmd-border);
+  margin-bottom: 8px;
+}
+
+.wsadd-step-title {
+  font-weight: 600;
+  font-size: var(--tmd-font-md);
+}
+
+.wsadd-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--tmd-fg-muted);
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 6px 2px 4px;
+  border-radius: var(--tmd-radius-sm);
+}
+.wsadd-back:hover {
+  color: var(--tmd-fg);
+  background: var(--tmd-bg-hover);
+}
+.wsadd-back:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--tmd-accent-soft);
+}

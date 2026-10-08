@@ -182,61 +182,6 @@
   animation: tmdSpin 1s linear infinite;
 }
 
-/* ===== 添加工作区浮层(锚定入口按钮右侧滑出;背板复用 .wsmenu-backdrop) ===== */
-.wsadd-pop {
-  position: fixed;
-  z-index: 1201;
-  width: 360px;
-  max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 24px);
-  overflow-y: auto;
-  padding: 10px 14px 14px;
-  border: 1px solid var(--tmd-border);
-  border-radius: var(--tmd-radius-lg);
-  background: var(--tmd-bg-popover);
-  color: var(--tmd-fg);
-  box-shadow: var(--tmd-shadow-popover);
-  transform-origin: left center;
-  animation: wsadd-in var(--tmd-dur-1) var(--tmd-ease-move);
-}
-
-@keyframes wsadd-in {
-  from {
-    opacity: 0;
-    transform: translateX(-8px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wsadd-pop {
-    animation: none;
-  }
-}
-
-.wsadd-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: 600;
-  padding: 2px 0 8px;
-}
-
-.wsadd-x {
-  border: none;
-  background: transparent;
-  color: var(--tmd-fg-muted);
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: var(--tmd-radius-sm);
-}
-.wsadd-x:hover {
-  color: var(--tmd-fg);
-  background: var(--tmd-bg-hover);
-}
 
 /* 新建会话菜单提示行(远程 WSL 未探测/无引擎时;SessionMenu/VersionMenu 共用;
  * 自 wsl-remote.css 迁回消费面;--text-quiet 仅 workspace 菜单树作用域定义,
