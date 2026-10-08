@@ -59,6 +59,14 @@
         "rules": [
           "react-doctor/async-await-in-loop"
         ]
+      },
+      {
+        "files": [
+          "src/plugins/git/useBatchGitOps.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
       }
     ]
   }

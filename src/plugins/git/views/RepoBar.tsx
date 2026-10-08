@@ -18,12 +18,19 @@ export function RepoBar({
   selectedPath,
   chipSeq,
   onSelect,
+  scope,
+  onScope,
+  showScope,
 }: {
   repos: GitRepoSummary[];
   truncated: boolean;
   selectedPath: string;
   chipSeq: number;
   onSelect: (path: string) => void;
+  /** 范围段控(本仓/全部,spec 2026-10-08-git-batch-ops-design):仅多本机工作区出现。 */
+  scope: "repo" | "all";
+  onScope: (scope: "repo" | "all") => void;
+  showScope: boolean;
 }) {
   const chips = useRepoChips(repos, chipSeq);
   const ordered = useMemo(() => {
@@ -102,6 +109,24 @@ export function RepoBar({
         );
       })}
       </div>
+      {showScope && (
+        <span className="mr-1 flex shrink-0 items-center gap-px self-center rounded-[5px] border border-(--tmd-border) p-px">
+          {(["repo", "all"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onScope(s)}
+              className={`h-4 rounded-[3px] px-1.5 text-[10px] ${
+                scope === s
+                  ? "bg-(--tmd-bg-hover) font-semibold text-(--tmd-fg)"
+                  : "text-(--tmd-fg-muted)"
+              }`}
+            >
+              {s === "repo" ? t("本仓") : t("全部")}
+            </button>
+          ))}
+        </span>
+      )}
     </div>
   );
 }

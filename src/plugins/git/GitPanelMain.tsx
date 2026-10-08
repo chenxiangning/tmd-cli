@@ -46,6 +46,10 @@ interface GitPanelMainProps {
   truncated: boolean;
   chipSeq: number;
   onSelect: (path: string) => void;
+  /** 聚合范围(本仓/全部)与段控可见性(spec 2026-10-08-git-batch-ops-design)。 */
+  scope: "repo" | "all";
+  showScope: boolean;
+  onScope: (scope: "repo" | "all") => void;
   view: GitViewMode;
   layout: FileListLayout;
   files: GitFileStatus[];
@@ -159,6 +163,9 @@ export function GitPanelMain({
   truncated,
   chipSeq,
   onSelect,
+  scope,
+  showScope,
+  onScope,
   view,
   layout,
   files,
@@ -203,13 +210,17 @@ export function GitPanelMain({
   return (
     <div className="flex h-full flex-col text-xs">
       <GitToolbar cwd={repoCtx.selectedPath ?? undefined} />
-      {repoCtx.showRepoBar && (
+      {/* RepoBar:多仓(现状)或本机多工作区(聚合入口)时渲染(spec 2026-10-08)。 */}
+      {(repoCtx.showRepoBar || showScope) && (
         <RepoBar
           repos={repos}
           truncated={truncated}
           selectedPath={repoCtx.selectedPath!}
           chipSeq={chipSeq}
           onSelect={onSelect}
+          scope={scope}
+          onScope={onScope}
+          showScope={showScope}
         />
       )}
 

@@ -4,52 +4,90 @@
  * 本文件只留多仓语境解析与空态守卫(no-high-complexity 降分支 + 文件规模铁则)。
  */
 
-import { useCallback, useEffect } from "react";
-import { setGitViewRepo } from "@kernel/gitViewRepo";
-import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { GitBranch } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
-import { useGitRepos } from "./hooks/useGitRepos";
-import { resolveRepoContext } from "./repoContext";
-import { getSelectedRepo, setSelectedRepo } from "./panelStore";
+import { useGitPanelContext } from "./hooks/useGitPanelContext";
 import { useGitPanelData } from "./useGitPanelData";
 import { useGitPanelRemote } from "./useGitPanelRemote";
 import { GitPanelMain } from "./GitPanelMain";
+import { AggregateReposView } from "./views/AggregateReposView";
+import { RepoBar } from "./views/RepoBar";
+import { useAggregateScope } from "./useAggregateRepos";
+import type { GitRepoSummary } from "@kernel/ipc";
 import { RepoGuide } from "./views/RepoGuide";
 
-export function GitPanel() {
-  const { list, activeId } = useWorkspaces();
-  const active = list.find((w) => w.id === activeId) ?? list[0];
-  const root = active?.root ?? null;
-  /* 远程工作区(SSH 远程 WSL 来源,wsl.hostId 非空)显式降级:git2 内核原语只认
-   * 本机路径,与其让底层扫描报错,不如一句横幅说清;本机 UNC(hostId null)不动。
-   * 降级必须同时断数据面:钩子收 null(短路)而非远端路径 —— 否则横幅可见期
-   * useGitStatus 5s / useGitRepos 60s 对远端路径持续必败空转(2026-10-04 评审 F1)。 */
-  const isRemote = Boolean(active?.wsl?.hostId);
-
-  /* 多仓分档(spec 2026-09-07-git-multi-repo-design §3):cwd 换源 = 选中仓 ?? root。
-   * 单仓档输出 selectedPath = root、零新 UI,与现状逐项一致(回归红线)。 */
-  const { repos, truncated, refresh: refreshRepos } = useGitRepos(isRemote ? null : root);
-  const remembered = active ? getSelectedRepo(active.id) : null;
-  const repoCtx = resolveRepoContext(root, repos, remembered);
-  const cwd = repoCtx.selectedPath ?? root;
-  const selectRepo = useCallback(
-    (path: string) => {
-      if (active) setSelectedRepo(active.id, path);
-    },
-    [active],
+/** 「全部」态整壳:RepoBar(chips 仍是当前工作区仓,点 chip = 选仓回本仓)+ 聚合视图。 */
+function GitPanelAggregate({
+  repos,
+  truncated,
+  selectedPath,
+  chipSeq,
+  scope,
+  showScope,
+  onScope,
+  onSelectRepo,
+  onJump,
+  afterBatch,
+}: {
+  repos: GitRepoSummary[];
+  truncated: boolean;
+  selectedPath: string;
+  chipSeq: number;
+  scope: "repo" | "all";
+  showScope: boolean;
+  onScope: (scope: "repo" | "all") => void;
+  onSelectRepo: (path: string) => void;
+  onJump: (wsId: string, path: string) => void;
+  afterBatch: () => void;
+}) {
+  return (
+    <div className="flex h-full flex-col text-xs">
+      <RepoBar
+        repos={repos}
+        truncated={truncated}
+        selectedPath={selectedPath}
+        chipSeq={chipSeq}
+        onSelect={(p) => {
+          onSelectRepo(p);
+          onScope("repo");
+        }}
+        scope={scope}
+        onScope={onScope}
+        showScope={showScope}
+      />
+      <AggregateReposView onJump={onJump} afterBatch={afterBatch} />
+    </div>
   );
-  /* 顶栏分支 label 数据源(跨层契约 @kernel/gitViewRepo):解析后的选中仓
-   * 同步给 shell;guide 档未点选 selectedPath=null,label 回退工作区根。 */
-  const wsId = active?.id ?? null;
-  const selectedPath = repoCtx.selectedPath;
-  useEffect(() => {
-    if (wsId) setGitViewRepo({ workspaceId: wsId, cwd: selectedPath });
-  }, [wsId, selectedPath]);
+}
+
+export function GitPanel() {
+  const { root, isRemote, repos, truncated, refreshRepos, repoCtx, cwd, selectRepo } = useGitPanelContext();
 
   const data = useGitPanelData(isRemote ? null : cwd, refreshRepos);
   const remote = useGitPanelRemote(isRemote ? null : cwd, data.afterMutation);
+
+  /* 聚合模式(spec 2026-10-08-git-batch-ops-design):范围态组件内会话期有效;
+   * 段控入口 = 本机工作区 ≥2 或当前工作区多仓(单仓单工作区用户零新 UI,回归红线)。
+   * 聚合分支抽 GitPanelAggregate(文件头:本文件只留语境解析与空态守卫,降复杂度)。 */
+  const { scope, setScope, showScope, jumpToRepo } = useAggregateScope(repos);
+
+  if (scope === "all" && showScope) {
+    return (
+      <GitPanelAggregate
+        repos={repos}
+        truncated={truncated}
+        selectedPath={repoCtx.selectedPath ?? root ?? ""}
+        chipSeq={data.chipSeq}
+        scope={scope}
+        showScope={showScope}
+        onScope={setScope}
+        onSelectRepo={selectRepo}
+        onJump={jumpToRepo}
+        afterBatch={data.afterMutation}
+      />
+    );
+  }
 
   if (isRemote) {
     return (
@@ -78,6 +116,9 @@ export function GitPanel() {
       truncated={truncated}
       chipSeq={data.chipSeq}
       onSelect={selectRepo}
+      scope={scope}
+      showScope={showScope}
+      onScope={setScope}
       view={data.view}
       layout={data.layout}
       files={data.files}

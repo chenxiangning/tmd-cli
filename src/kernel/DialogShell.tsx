@@ -34,6 +34,7 @@ export function DialogShell({
   icon,
   repoName,
   width = 560,
+  zClass = "z-1000",
   locked,
   onClose,
   children,
@@ -44,6 +45,9 @@ export function DialogShell({
   /** 当前操作仓目录名;多仓语境显示(标题行右缘),单仓缺省不显示 */
   repoName?: string;
   width?: number;
+  /** 遮罩层级类;右栏层叠上下文会压 z-1000(先例:GitPicker z-1200 /
+   *  WorktreeManageDialog z-1201),压不住时调用方传 z-[1201]。 */
+  zClass?: string;
   /** 提交中:遮罩点击与 Esc 不再关闭 */
   locked?: boolean;
   onClose: () => void;
@@ -60,7 +64,7 @@ export function DialogShell({
   return createPortal(
     <div
       role="presentation"
-      className="fixed inset-0 z-1000 flex items-start justify-center overflow-auto bg-black/60 p-6"
+      className={`fixed inset-0 ${zClass} flex items-start justify-center overflow-auto bg-black/60 p-6`}
       onClick={(e) => {
         if (locked) return;
         if (e.target === e.currentTarget) onClose();

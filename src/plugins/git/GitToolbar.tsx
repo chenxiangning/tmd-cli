@@ -233,7 +233,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
 
 /** 类型化下拉的外壳:portal 挂 document.body + fixed(复用 panel-overflow-backdrop/menu,
  *  z 1200+);树内 absolute 会被右栏内容(聚合行 / sticky 组头 / 当前分支行)盖住。 */
-function MenuShell({
+export function MenuShell({
   position,
   width,
   onClose,

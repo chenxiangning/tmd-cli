@@ -295,4 +295,8 @@
 | 2026-10-08 | [添加工作区浮层重构设计(方向 B 来源卡片两步:addTab 契约扩 desc/icon,本地卡直达 picker,wsadd-* 中性类名独立 css,修段控裸类 bug 与 label 裸中文 i18n 缺口)](superpowers/specs/2026-10-08-workspace-add-restyle-design.md) | 已实施(门禁全绿+桩目检闭环) |
 | 2026-10-08 | [添加工作区浮层重构提交评审(22534a9f:2 minor 已修——ja「来源」键跨域覆盖改返回来源、spec 验证段如实化;nit 修 2 留 1——spec 状态升格、WSL 词条归位 wsl 域/留 addTab! 断言风格)](review/2026-10-08-workspace-add-commit-review.md) | 已收口 |
 | 2026-10-08 | [工作区双菜单 UI 重排评审(新建会话菜单引擎两列网格 592→431px 零滚动 + 操作项并排 + 刷新钮角标化;添加浮层 Cross→X 语义修正 + 卡片 hover 三联动;功能零改动)](review/2026-10-08-workspace-menus-ui-restyle.md) | 已收口 |
+| 2026-10-08 | [Git 跨工作区批量操作原型·方向 A(Git 面板「本仓/全部」段控:聚合全部工作区仓,批量 fetch/pull/push 逐仓执行,行级结果 + 重试失败,点行跳该仓语境)](design/git-batch-ops-a-panel.html) | 设计原型(待大仙目检) |
+| 2026-10-08 | [Git 跨工作区批量操作原型·方向 B(中央「仓库总览」tab:gita ll 式全仓表格,勾选/筛选批量,行级进度与失败重试)](design/git-batch-ops-b-hub.html) | 设计原型(待大仙目检) |
+| 2026-10-08 | [Git 跨工作区批量操作原型·方向 C(侧栏就地:零新面板,caption 下 Git 汇总条承载全部拉取/推送,工作区卡片 git 副行 + 进度条,toast 汇总)](design/git-batch-ops-c-sidebar.html) | 设计原型(待大仙目检) |
+| 2026-10-08 | [Git 跨工作区批量操作设计(方向 A 面板内聚合:RepoBar「本仓/全部」段控 + 聚合视图逐仓串行批量 fetch/pull/push,行级结果/重试失败/点行跳仓;Rust 零改动复用 git_pull_push 等原语)](superpowers/specs/2026-10-08-git-batch-ops-design.md) | 已实施(桩目检全链路通过;真机目检留大仙,未提交) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

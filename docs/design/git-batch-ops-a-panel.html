@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方向 A · Git 面板聚合模式 —— 批量拉取/推送不出面板</title>
+<style>
+/* 基准 = docs/prototypes/git-multi-repo-v2.html(1421 实测浅色 token)+ 左 rail(10-04 现状)。
+   新增仅:repobar 范围段控「本仓/全部」、聚合列表、批量条。其余复刻现状。 */
+:root {
+  --font-ui: 12px;
+  --radius-sm: 6px; --radius-md: 8px;
+  --rail-w: 30px; --left-w: 258px; --right-w: 344px; --titlebar-h: 33px;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.25,.7,.3,1);
+}
+:root[data-theme="light"] {
+  --tmd-bg-base:#ffffff; --tmd-bg-elevated:#f8f8f8; --tmd-bg-sunken:#f8f8f8;
+  --tmd-bg-hover:#f2f2f2; --tmd-bg-active:rgba(0,95,184,.14);
+  --tmd-bg-popover:#ffffff;
+  --tmd-fg:#3b3b3b; --tmd-fg-muted:#7e7e7e; --tmd-fg-subtle:#999999; --tmd-fg-faint:#c0c0c0;
+  --tmd-border:#cecece; --tmd-border-strong:#b1b1b1;
+  --tmd-accent:#005fb8; --tmd-accent-fg:#ffffff; --tmd-accent-soft:rgba(0,95,184,.14);
+  --tmd-diff-inserted:#2ea043; --tmd-diff-removed:#f85149;
+  --tmd-git-modified:#b7791f;
+  --tmd-panel-tab-active:rgb(255,140,60);
+  --tmd-titlebar-bg:rgba(248,248,248,.85);
+}
+:root[data-theme="dark"] {
+  --tmd-bg-base:#0f0f12; --tmd-bg-elevated:#131316; --tmd-bg-sunken:#131316;
+  --tmd-bg-hover:#1b1b20; --tmd-bg-active:rgba(91,91,214,.24);
+  --tmd-bg-popover:#1a1a1e;
+  --tmd-fg:#d4d4d9; --tmd-fg-muted:#9d9da1; --tmd-fg-subtle:#818185; --tmd-fg-faint:#4e4e52;
+  --tmd-border:#2c2c33; --tmd-border-strong:#4e4e54;
+  --tmd-accent:#5b5bd6; --tmd-accent-fg:#ffffff; --tmd-accent-soft:rgba(91,91,214,.24);
+  --tmd-diff-inserted:#3d9a50; --tmd-diff-removed:#e5534b;
+  --tmd-git-modified:#d29922;
+  --tmd-panel-tab-active:rgb(255,140,60);
+  --tmd-titlebar-bg:rgba(19,19,22,.85);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: var(--font-ui); color: var(--tmd-fg); background: #888; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+*:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--tmd-fg-faint) 70%, transparent); background-clip: content-box; }
+
+/* 原型控制条(非产品 UI) */
+.proto-bar {
+  flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 12px; background: var(--tmd-bg-elevated); border-bottom: 1px solid var(--tmd-border);
+}
+.proto-bar .lab { color: var(--tmd-fg-subtle); }
+.proto-btn { font-size: 11px; padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); background: var(--tmd-bg-popover); }
+.proto-btn.active { background: var(--tmd-accent-soft); border-color: var(--tmd-accent); color: var(--tmd-fg); }
+.proto-note { margin-left: auto; color: var(--tmd-fg-faint); }
+
+.app { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--tmd-bg-base); }
+.titlebar {
+  height: var(--titlebar-h); flex: none; display: flex; align-items: stretch; gap: 6px;
+  background: var(--tmd-titlebar-bg); border-bottom: 1px solid var(--tmd-border);
+  user-select: none; position: relative; padding-right: 12px;
+}
+.traffic { display: flex; gap: 8px; position: absolute; left: 12px; top: 10px; z-index: 5; }
+.traffic i { width: 12px; height: 12px; border-radius: 50%; }
+.traffic i:nth-child(1) { background: #ff5f57; } .traffic i:nth-child(2) { background: #febc2e; } .traffic i:nth-child(3) { background: #28c840; }
+.titlebar-zone-left { flex: none; display: flex; align-items: center; gap: 2px; padding-left: 76px; }
+.titlebar-center { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 10px; }
+.titlebar-actions { flex: none; display: flex; align-items: center; gap: 2px; border-left: 1px solid var(--tmd-border); padding-left: 3px; }
+.titlebar-action { width: 24px; height: 24px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-muted); }
+.titlebar-action:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.panel-tab { width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-subtle); }
+.panel-tab:hover { background: var(--tmd-bg-hover); }
+.panel-tab.is-active { color: var(--tmd-panel-tab-active); }
+.workspace-breadcrumb { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); }
+.workspace-breadcrumb:hover { background: var(--tmd-bg-hover); }
+.workspace-breadcrumb .chev { color: var(--tmd-fg-faint); }
+.session-tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow: hidden; }
+.session-tab { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); white-space: nowrap; max-width: 170px; }
+.session-tab:hover { background: var(--tmd-bg-hover); }
+.session-tab.is-active { background: var(--tmd-bg-active); color: var(--tmd-fg); }
+.session-tab .cli { font-size: 10px; color: var(--tmd-fg-subtle); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; }
+
+.body-row { flex: 1; min-height: 0; display: flex; }
+
+/* 左 rail(10-04 现状) */
+.left-rail { width: var(--rail-w); flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border-right: 1px solid var(--tmd-border); }
+.left-rail-tab { width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-subtle); }
+.left-rail-tab:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.left-rail-spacer { flex: 1; }
+.left-rail-settings { width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-subtle); }
+.left-rail-settings:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+
+/* 左栏工作区 */
+.left-aside { width: var(--left-w); flex: none; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--tmd-border); }
+.ws-caption { display: flex; align-items: center; gap: 6px; height: 28px; padding: 4px 6px; color: var(--tmd-fg-muted); }
+.ws-caption-label { display: flex; align-items: center; gap: 4px; font-size: 10px; }
+.ws-caption-btn { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; color: var(--tmd-fg-faint); margin-left: auto; }
+.ws-caption-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg-muted); }
+.ws-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 4px; }
+.workspace-row { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px; border-radius: var(--radius-sm); cursor: pointer; }
+.workspace-row:hover { background: var(--tmd-bg-hover); }
+.workspace-row.active { background: rgba(128,128,128,.14); }
+.workspace-row .wname { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.thread { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); }
+.thread:hover { background: var(--tmd-bg-hover); }
+.thread .t-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--tmd-fg-faint); }
+.thread .t-dot.run { background: #34d399; }
+.thread .t-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.thread .t-cli { font-size: 10px; color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; }
+
+/* 中央 PTY */
+.center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pty { flex: 1; min-height: 0; overflow: hidden; padding: 8px 12px; font-family: var(--mono); font-size: 12px; line-height: 1.55; background: #1e1e1e; color: #cccccc; white-space: pre-wrap; }
+.pty .dim { color: #9a9a9a; } .pty .ok { color: #2ea043; } .pty .br { color: #b180d7; }
+.composer { flex: none; height: 26%; display: flex; flex-direction: column; border-top: 1px solid var(--tmd-border); }
+.composer-toolbar { height: 28px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-bottom: 1px solid var(--tmd-border); font-size: 11px; color: var(--tmd-fg-muted); }
+.tb-btn { width: 24px; height: 24px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-subtle); }
+.composer-input { flex: 1; padding: 8px 12px; color: var(--tmd-fg-faint); font-size: 13px; }
+
+/* 右栏 Git 面板 */
+.right-aside { width: var(--right-w); flex: none; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--tmd-border); position: relative; }
+
+/* 既有 RepoBar + 新增范围段控 */
+.repobar { flex: none; display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-bottom: 1px solid var(--tmd-border); overflow-x: auto; scrollbar-width: none; }
+.repobar::-webkit-scrollbar { display: none; }
+.repo-chip { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); font-size: 11px; background: var(--tmd-bg-base); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.repo-chip.is-active { background: var(--tmd-accent-soft); border-color: var(--tmd-accent); color: var(--tmd-fg); }
+.repo-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tmd-fg-faint); }
+.repo-chip .dot.dirty { background: var(--tmd-git-modified); }
+.repo-chip .ab { font-size: 10px; color: var(--tmd-fg-subtle); }
+.repo-chip .ab .a { color: var(--tmd-diff-inserted); } .repo-chip .ab .b { color: var(--tmd-diff-removed); }
+/* 新增:范围段控(本仓 = 现状单仓语境;全部 = 跨工作区聚合) */
+.scope-seg { margin-left: auto; flex: none; display: flex; gap: 1px; padding: 1px; border: 1px solid var(--tmd-border); border-radius: 5px; }
+.scope-seg button { font-size: 10px; padding: 0 7px; height: 16px; border-radius: 3px; color: var(--tmd-fg-muted); }
+.scope-seg button.on { background: var(--tmd-bg-hover); color: var(--tmd-fg); font-weight: 600; }
+
+/* 既有 remote-bar */
+.remote-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-bottom: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); white-space: nowrap; }
+.remote-bar .branch { font-weight: 500; color: var(--tmd-fg); }
+.remote-bar .upstream { overflow: hidden; text-overflow: ellipsis; color: var(--tmd-fg-faint); }
+.remote-bar .spacer { flex: 1; }
+.rb-btn { display: flex; align-items: center; gap: 2px; border-radius: 4px; padding: 2px 4px; color: var(--tmd-fg-muted); font-size: 12px; }
+.rb-btn:hover { background: var(--tmd-bg-hover); }
+.agg { font-size: 12px; font-variant-numeric: tabular-nums; }
+.agg .ins { color: var(--tmd-diff-inserted); } .agg .del { color: var(--tmd-diff-removed); } .agg .cnt { margin-left: 6px; color: var(--tmd-fg-muted); }
+
+/* ═══ 新增:聚合模式(全部仓库)═══ */
+.batch-bar {
+  flex: none; display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px;
+  border-bottom: 1px solid var(--tmd-border); white-space: nowrap;
+}
+.batch-bar .sum { font-size: 11px; color: var(--tmd-fg-muted); font-variant-numeric: tabular-nums; }
+.batch-bar .sum b { color: var(--tmd-fg); font-weight: 600; }
+.batch-bar .spacer { flex: 1; }
+.bb-btn {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px;
+  border-radius: var(--radius-sm); border: 1px solid var(--tmd-border);
+  font-size: 11px; color: var(--tmd-fg); background: var(--tmd-bg-base);
+}
+.bb-btn:hover:not(:disabled) { background: var(--tmd-bg-hover); border-color: var(--tmd-border-strong); }
+.bb-btn.primary { background: var(--tmd-accent); border-color: var(--tmd-accent); color: var(--tmd-accent-fg); }
+.bb-btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.bb-btn:disabled { opacity: .45; cursor: default; }
+.bb-btn.warn { color: var(--tmd-diff-removed); border-color: var(--tmd-diff-removed); }
+
+.agg-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 0 12px; }
+.agg-ws { display: flex; align-items: center; gap: 6px; padding: 8px 10px 2px; color: var(--tmd-fg-faint); font-size: 10px; letter-spacing: .04em; }
+.agg-ws .wn { color: var(--tmd-fg-subtle); font-weight: 600; font-size: 11px; letter-spacing: 0; }
+.agg-ws .path { overflow: hidden; text-overflow: ellipsis; }
+.agg-row {
+  display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 4px 10px;
+  cursor: pointer; user-select: none; white-space: nowrap;
+}
+.agg-row:hover { background: var(--tmd-bg-hover); }
+.agg-row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tmd-fg-faint); flex: none; }
+.agg-row .dot.dirty { background: var(--tmd-git-modified); }
+.agg-row .nm { font-weight: 600; color: var(--tmd-fg); flex: none; max-width: 34%; overflow: hidden; text-overflow: ellipsis; }
+.agg-row .kind { font-size: 9.5px; color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; flex: none; }
+.agg-row .br { font-family: var(--mono); font-size: 11px; color: var(--tmd-fg-subtle); flex: none; max-width: 20%; overflow: hidden; text-overflow: ellipsis; }
+.agg-row .st { flex: none; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--tmd-fg-muted); }
+.agg-row .st .a { color: var(--tmd-diff-inserted); } .agg-row .st .b { color: var(--tmd-diff-removed); }
+.agg-row .st .dirty { color: var(--tmd-git-modified); }
+.agg-row .fill { flex: 1; min-width: 4px; }
+/* 行右侧:常态 = 结果文案或跳转提示;hover = 单行操作 */
+.agg-row .res { flex: none; font-size: 11px; }
+.agg-row .res.ok { color: var(--tmd-diff-inserted); }
+.agg-row .res.err { color: var(--tmd-diff-removed); }
+.agg-row .res.skip { color: var(--tmd-fg-faint); }
+.agg-row .res.run { color: var(--tmd-fg-muted); }
+.agg-row .jump { flex: none; font-size: 10.5px; color: var(--tmd-accent); opacity: 0; }
+.agg-row:hover .jump { opacity: 1; }
+.agg-row .rowops { flex: none; display: none; gap: 6px; }
+.agg-row:hover .rowops { display: flex; }
+[data-scene="agg-run"] .rowops, [data-scene="agg-done"] .rowops,
+[data-scene="agg-run"] .jump, [data-scene="agg-done"] .jump { display: none !important; }
+.rowops .ro { font-size: 11px; color: var(--tmd-fg-faint); }
+.rowops .ro:hover { color: var(--tmd-fg); text-decoration: underline; text-underline-offset: 2px; }
+
+.spin { display: inline-block; width: 10px; height: 10px; border: 1.5px solid var(--tmd-fg-faint); border-top-color: var(--tmd-accent); border-radius: 50%; animation: rot .7s linear infinite; vertical-align: -1px; }
+@keyframes rot { to { transform: rotate(360deg); } }
+
+.toast {
+  position: absolute; bottom: 12px; left: 50%; transform: translate(-50%, 8px);
+  z-index: 50; max-width: calc(100% - 24px);
+  background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
+  border-radius: var(--radius-sm); box-shadow: 0 6px 20px rgba(0,0,0,.14);
+  padding: 6px 12px; font-size: 11.5px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity .2s var(--ease), transform .2s var(--ease);
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast .tk { color: var(--tmd-diff-inserted); margin-right: 5px; }
+
+/* 场景路由 */
+[data-scene="single"] .agg-only, [data-scene="single"] .single-off { display: none !important; }
+[data-scene="agg-idle"] .single-only, [data-scene="agg-run"] .single-only, [data-scene="agg-done"] .single-only { display: none !important; }
+[data-scene="agg-idle"] .run-only, [data-scene="agg-idle"] .done-only,
+[data-scene="agg-run"] .idle-only, [data-scene="agg-run"] .done-only,
+[data-scene="agg-done"] .idle-only, [data-scene="agg-done"] .run-only { display: none !important; }
+[data-scene="agg-idle"] .st-run, [data-scene="agg-idle"] .st-done { display: none; }
+[data-scene="agg-run"] .st-idle, [data-scene="agg-run"] .st-done { display: none; }
+[data-scene="agg-done"] .st-idle, [data-scene="agg-done"] .st-run { display: none; }
+</style>
+</head>
+<body data-scene="agg-idle">
+
+<div class="proto-bar">
+  <span class="lab">方向 A · 面板内聚合</span>
+  <button class="proto-btn" data-s="single">本仓 · 现状</button>
+  <button class="proto-btn active" data-s="agg-idle">全部仓库 · 待操作</button>
+  <button class="proto-btn" data-s="agg-run">批量执行中</button>
+  <button class="proto-btn" data-s="agg-done">执行结果(含失败)</button>
+  <button class="proto-btn" id="theme-btn">🌓 主题</button>
+  <span class="proto-note">Git 面板加「本仓/全部」段控;批量 op 逐仓执行,行级结果,失败可重试</span>
+</div>
+
+<div class="app">
+  <header class="titlebar">
+    <span class="traffic"><i></i><i></i><i></i></span>
+    <div class="titlebar-zone-left"></div>
+    <div class="titlebar-center">
+      <button class="workspace-breadcrumb"><span>tmd-cli</span><span class="chev">›</span></button>
+      <div class="session-tabs">
+        <div class="session-tab is-active"><span>修复批量拉取</span><span class="cli">omp</span></div>
+        <div class="session-tab"><span>release 0.3.2</span><span class="cli">claude</span></div>
+      </div>
+    </div>
+    <div class="titlebar-actions">
+      <button class="panel-tab" title="文件">📄</button>
+      <button class="panel-tab is-active" title="Git">
+        <svg width="15" height="15" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16"><circle cx="68" cy="188" r="28"/><circle cx="68" cy="68" r="28"/><circle cx="188" cy="100" r="28"/><path d="M68 96v64M188 128c0 40-40 40-80 40"/></svg>
+      </button>
+      <button class="panel-tab" title="审批线">✓</button>
+    </div>
+  </header>
+
+  <div class="body-row">
+    <nav class="left-rail">
+      <button class="left-rail-tab" title="会话看板">▦</button>
+      <div class="left-rail-spacer"></div>
+      <button class="left-rail-settings" title="设置">⚙</button>
+    </nav>
+
+    <aside class="left-aside">
+      <div class="ws-caption"><span class="ws-caption-label">工作区</span><button class="ws-caption-btn">＋</button></div>
+      <div class="ws-list">
+        <div class="workspace-row active"><span class="wname">tmd-cli</span></div>
+        <div class="thread"><span class="t-dot run"></span><span class="t-name">修复批量拉取</span><span class="cli">omp</span></div>
+        <div class="thread"><span class="t-dot"></span><span class="t-name">release 0.3.2</span><span class="cli">claude</span></div>
+        <div class="workspace-row"><span class="wname">octop</span></div>
+        <div class="thread"><span class="t-dot run"></span><span class="t-name">打包 dmg</span><span class="cli">kimi</span></div>
+        <div class="workspace-row"><span class="wname">mossx</span></div>
+        <div class="workspace-row"><span class="wname">dotfiles</span></div>
+      </div>
+    </aside>
+
+    <main class="center">
+      <div class="pty"><span class="ok">➜</span> <span class="br">tmd-cli</span> <span class="dim">git:(</span><span class="ok">main</span><span class="dim">)</span> pnpm typecheck
+<span class="dim">…</span>
+<span class="ok">✓ 0 errors</span>
+<span class="ok">➜</span> <span class="br">tmd-cli</span> <span class="dim">git:(</span><span class="ok">main</span><span class="dim">)</span> </div>
+      <div class="composer">
+        <div class="composer-toolbar"><span>omp</span><button class="tb-btn">＠</button><button class="tb-btn">／</button></div>
+        <div class="composer-input">输入消息,Enter 发送…</div>
+      </div>
+    </main>
+
+    <aside class="right-aside">
+      <!-- RepoBar:既有仓 chips(当前工作区)+ 新增范围段控 -->
+      <div class="repobar">
+        <button class="repo-chip is-active"><span class="dot dirty"></span>tmd-cli<span class="ab"><span class="a">↑0</span> <span class="b">↓3</span></span></button>
+        <button class="repo-chip"><span class="dot"></span>tmd-docs<span class="ab"><span class="a">↑1</span> <span class="b">↓0</span></span></button>
+        <div class="scope-seg" role="tablist">
+          <button data-s="single" class="scope-btn">本仓</button>
+          <button data-s="agg-idle" class="scope-btn on">全部</button>
+        </div>
+      </div>
+
+      <!-- 本仓语境(现状,原样) -->
+      <div class="single-only" style="display:flex;flex-direction:column;flex:1;min-height:0">
+        <div class="remote-bar">
+          <span class="branch">main</span><span class="upstream">origin/main</span>
+          <span class="spacer"></span>
+          <span class="agg"><span class="ins">+128</span> <span class="del">-36</span><span class="cnt">4 文件</span></span>
+          <button class="rb-btn">⇅ 拉取</button>
+          <button class="rb-btn">⇧ 推送</button>
+        </div>
+        <div style="flex:1;display:grid;place-items:center;color:var(--tmd-fg-faint);font-size:12px">本仓 diff 列表(现状不变)</div>
+      </div>
+
+      <!-- 全部仓库聚合语境 -->
+      <div class="agg-only" style="display:flex;flex-direction:column;flex:1;min-height:0">
+        <div class="batch-bar">
+          <span class="sum idle-only"><b>6</b> 仓 · <b>3</b> 可拉 · <b>3</b> 可推 · <b>3</b> 有改动</span>
+          <span class="sum run-only"><span class="spin"></span>&nbsp;批量拉取 <b>3/6</b>…</span>
+          <span class="sum done-only"><b>4</b> 成功 · <b>1</b> 跳过 · <b>1</b> 失败</span>
+          <span class="spacer"></span>
+          <button class="bb-btn idle-only" id="btn-fetch">获取</button>
+          <button class="bb-btn primary idle-only" id="btn-pull">拉取全部</button>
+          <button class="bb-btn idle-only" id="btn-push">推送全部</button>
+          <button class="bb-btn warn run-only">取消</button>
+          <button class="bb-btn done-only">重试失败(1)</button>
+          <button class="bb-btn primary done-only" data-s="agg-idle">完成</button>
+        </div>
+        <div class="agg-body">
+          <div class="agg-ws"><span class="wn">tmd-cli</span><span class="path">~/code/AI/github/tmd-cli</span></div>
+          <div class="agg-row" data-state="ok">
+            <span class="dot dirty"></span><span class="nm">tmd-cli</span><span class="br">main</span>
+            <span class="st st-idle"><span class="a">↑0</span> <span class="b">↓3</span> · <span class="dirty">4 改动</span></span>
+            <span class="st st-run res run"><span class="spin"></span> 拉取中…</span>
+            <span class="st st-done res ok">✓ 快进 3 个提交</span>
+            <span class="fill"></span>
+            <span class="rowops"><button class="ro">拉取</button><button class="ro">推送</button></span>
+            <span class="jump">打开此仓 →</span>
+          </div>
+          <div class="agg-row" data-state="ok">
+            <span class="dot"></span><span class="nm">tmd-docs</span><span class="kind">submodule</span><span class="br">gh-pages</span>
+            <span class="st st-idle"><span class="a">↑1</span> <span class="b">↓0</span></span>
+            <span class="st st-run res run"><span class="spin"></span> 拉取中…</span>
+            <span class="st st-done res skip">⊘ 无落后,跳过</span>
+            <span class="fill"></span>
+            <span class="rowops"><button class="ro">拉取</button><button class="ro">推送</button></span>
+            <span class="jump">打开此仓 →</span>
+          </div>
+          <div class="agg-ws"><span class="wn">octop</span><span class="path">~/code/octop</span></div>
+          <div class="agg-row" data-state="ok">
+            <span class="dot dirty"></span><span class="nm">octop</span><span class="br">dev</span>
+            <span class="st st-idle"><span class="a">↑2</span> <span class="b">↓0</span> · <span class="dirty">1 改动</span></span>
+            <span class="st st-run res run"><span class="spin"></span> 拉取中…</span>
+            <span class="st st-done res ok">✓ 已是最新</span>
+            <span class="fill"></span>
+            <span class="rowops"><button class="ro">拉取</button><button class="ro">推送</button></span>
+            <span class="jump">打开此仓 →</span>
+          </div>
+          <div class="agg-row" data-state="err">
+            <span class="dot"></span><span class="nm">octop/desktop</span><span class="kind">嵌套</span><span class="br">dev</span>
+            <span class="st st-idle"><span class="a">↑0</span> <span class="b">↓1</span></span>
+            <span class="st st-run res run"><span class="spin"></span> 排队…</span>
+            <span class="st st-done res err">✗ 拒绝:本地改动会被覆盖</span>
+            <span class="fill"></span>
+            <span class="rowops"><button class="ro">拉取</button><button class="ro">推送</button></span>
+            <span class="jump">打开此仓 →</span>
+          </div>
+          <div class="agg-ws"><span class="wn">mossx</span><span class="path">~/code/mossx</span></div>
+          <div class="agg-row" data-state="ok">
+            <span class="dot dirty"></span><span class="nm">mossx</span><span class="br">master</span>
+            <span class="st st-idle"><span class="a">↑5</span> <span class="b">↓2</span> · <span class="dirty">12 改动</span></span>
+            <span class="st st-run res run"><span class="spin"></span> 排队…</span>
+            <span class="st st-done res ok">✓ 快进 2 个提交</span>
+            <span class="fill"></span>
+            <span class="rowops"><button class="ro">拉取</button><button class="ro">推送</button></span>
+            <span class="jump">打开此仓 →</span>
+          </div>
+          <div class="agg-row" data-state="skip">
+            <span class="dot"></span><span class="nm">ccgui-next</span><span class="br">main</span>
+            <span class="st st-idle">干净</span>
+            <span class="st st-run res run">—</span>
+            <span class="st st-done res skip">⊘ 干净,跳过</span>
+            <span class="fill"></span>
+            <span class="rowops"><button class="ro">拉取</button><button class="ro">推送</button></span>
+            <span class="jump">打开此仓 →</span>
+          </div>
+          <div class="agg-ws"><span class="wn">dotfiles</span><span class="path">~/dotfiles</span></div>
+          <div class="agg-row" data-state="err">
+            <span class="dot"></span><span class="nm">dotfiles</span><span class="br">main</span>
+            <span class="st st-idle"><span class="a">↑1</span> <span class="b">↓0</span></span>
+            <span class="st st-run res run"><span class="spin"></span> 排队…</span>
+            <span class="st st-done res err">✗ 网络超时</span>
+            <span class="fill"></span>
+            <span class="rowops"><button class="ro">拉取</button><button class="ro">推送</button></span>
+            <span class="jump">打开此仓 →</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast"><span class="tk">✓</span><span id="toast-text">已切换到聚合视图</span></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const body = document.body;
+function setScene(s){ body.dataset.scene = s;
+  document.querySelectorAll(".proto-btn[data-s]").forEach(b => b.classList.toggle("active", b.dataset.s === s));
+  document.querySelectorAll(".scope-btn").forEach(b => b.classList.toggle("on", b.dataset.s === (s === "single" ? "single" : "agg-idle")));
+}
+document.querySelectorAll("[data-s]").forEach(b => b.addEventListener("click", () => setScene(b.dataset.s)));
+document.getElementById("theme-btn").addEventListener("click", () => {
+  document.documentElement.dataset.theme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+});
+/* 点「拉取全部」演示:待操作 → 执行中 → 结果 */
+document.getElementById("btn-pull").addEventListener("click", () => {
+  setScene("agg-run");
+  setTimeout(() => { setScene("agg-done"); toast("拉取完成:4 成功 · 1 跳过 · 2 失败"); }, 1800);
+});
+function toast(t){ const el = document.getElementById("toast"); document.getElementById("toast-text").textContent = t;
+  el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2400); }
+</script>
+</body>
+</html>

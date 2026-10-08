@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方向 C · 侧栏就地批量 —— 工作区卡片带 Git 状态与行级操作</title>
+<style>
+/* 基准同 v2 浅色 token + 左 rail。新增:侧栏 caption 的 Git 汇总条、工作区卡片 git 副行、
+   卡片级批量进度、toast。零新面板/零新 tab。 */
+:root {
+  --font-ui: 12px;
+  --radius-sm: 6px; --radius-md: 8px;
+  --rail-w: 30px; --left-w: 258px; --right-w: 344px; --titlebar-h: 33px;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.25,.7,.3,1);
+}
+:root[data-theme="light"] {
+  --tmd-bg-base:#ffffff; --tmd-bg-elevated:#f8f8f8; --tmd-bg-sunken:#f8f8f8;
+  --tmd-bg-hover:#f2f2f2; --tmd-bg-active:rgba(0,95,184,.14);
+  --tmd-bg-popover:#ffffff;
+  --tmd-fg:#3b3b3b; --tmd-fg-muted:#7e7e7e; --tmd-fg-subtle:#999999; --tmd-fg-faint:#c0c0c0;
+  --tmd-border:#cecece; --tmd-border-strong:#b1b1b1;
+  --tmd-accent:#005fb8; --tmd-accent-fg:#ffffff; --tmd-accent-soft:rgba(0,95,184,.14);
+  --tmd-diff-inserted:#2ea043; --tmd-diff-removed:#f85149;
+  --tmd-git-modified:#b7791f;
+  --tmd-panel-tab-active:rgb(255,140,60);
+  --tmd-titlebar-bg:rgba(248,248,248,.85);
+}
+:root[data-theme="dark"] {
+  --tmd-bg-base:#0f0f12; --tmd-bg-elevated:#131316; --tmd-bg-sunken:#131316;
+  --tmd-bg-hover:#1b1b20; --tmd-bg-active:rgba(91,91,214,.24);
+  --tmd-bg-popover:#1a1a1e;
+  --tmd-fg:#d4d4d9; --tmd-fg-muted:#9d9da1; --tmd-fg-subtle:#818185; --tmd-fg-faint:#4e4e52;
+  --tmd-border:#2c2c33; --tmd-border-strong:#4e4e54;
+  --tmd-accent:#5b5bd6; --tmd-accent-fg:#ffffff; --tmd-accent-soft:rgba(91,91,214,.24);
+  --tmd-diff-inserted:#3d9a50; --tmd-diff-removed:#e5534b;
+  --tmd-git-modified:#d29922;
+  --tmd-panel-tab-active:rgb(255,140,60);
+  --tmd-titlebar-bg:rgba(19,19,22,.85);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: var(--font-ui); color: var(--tmd-fg); background: #888; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+*:hover::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--tmd-fg-faint) 70%, transparent); background-clip: content-box; }
+
+.proto-bar { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 12px; background: var(--tmd-bg-elevated); border-bottom: 1px solid var(--tmd-border); }
+.proto-bar .lab { color: var(--tmd-fg-subtle); }
+.proto-btn { font-size: 11px; padding: 3px 10px; border-radius: var(--radius-sm); border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); background: var(--tmd-bg-popover); }
+.proto-btn.active { background: var(--tmd-accent-soft); border-color: var(--tmd-accent); color: var(--tmd-fg); }
+.proto-note { margin-left: auto; color: var(--tmd-fg-faint); }
+
+.app { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--tmd-bg-base); }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: stretch; gap: 6px; background: var(--tmd-titlebar-bg); border-bottom: 1px solid var(--tmd-border); user-select: none; position: relative; padding-right: 12px; }
+.traffic { display: flex; gap: 8px; position: absolute; left: 12px; top: 10px; z-index: 5; }
+.traffic i { width: 12px; height: 12px; border-radius: 50%; }
+.traffic i:nth-child(1) { background: #ff5f57; } .traffic i:nth-child(2) { background: #febc2e; } .traffic i:nth-child(3) { background: #28c840; }
+.titlebar-zone-left { flex: none; display: flex; align-items: center; gap: 2px; padding-left: 76px; }
+.titlebar-center { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 10px; }
+.titlebar-actions { flex: none; display: flex; align-items: center; gap: 2px; border-left: 1px solid var(--tmd-border); padding-left: 3px; }
+.panel-tab { width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-subtle); }
+.panel-tab.is-active { color: var(--tmd-panel-tab-active); }
+.workspace-breadcrumb { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); }
+.session-tabs { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.session-tab { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); white-space: nowrap; }
+.session-tab.is-active { background: var(--tmd-bg-active); color: var(--tmd-fg); }
+.session-tab .cli { font-size: 10px; color: var(--tmd-fg-subtle); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; }
+
+.body-row { flex: 1; min-height: 0; display: flex; }
+.left-rail { width: var(--rail-w); flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px; border-right: 1px solid var(--tmd-border); }
+.left-rail-tab { width: 26px; height: 26px; border-radius: var(--radius-sm); display: grid; place-items: center; color: var(--tmd-fg-subtle); }
+.left-rail-tab:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.left-rail-spacer { flex: 1; }
+
+/* ═══ 左栏 + 新增 Git 汇总条/卡片副行 ═══ */
+.left-aside { width: var(--left-w); flex: none; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--tmd-border); position: relative; }
+.ws-caption { display: flex; align-items: center; gap: 6px; height: 28px; padding: 4px 6px; color: var(--tmd-fg-muted); }
+.ws-caption-label { font-size: 10px; }
+.ws-caption-btn { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; color: var(--tmd-fg-faint); margin-left: auto; }
+.ws-caption-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg-muted); }
+
+/* 新增:Git 汇总条(caption 之下,一行高 24) */
+.git-strip {
+  flex: none; display: flex; align-items: center; gap: 6px; height: 24px; margin: 0 4px 4px;
+  padding: 0 6px; border: 1px solid var(--tmd-border); border-radius: var(--radius-sm);
+  font-size: 10.5px; color: var(--tmd-fg-muted); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.git-strip .gs-ic { color: var(--tmd-fg-subtle); display: grid; place-items: center; }
+.git-strip .a { color: var(--tmd-diff-inserted); } .git-strip .b { color: var(--tmd-diff-removed); }
+.git-strip .d { color: var(--tmd-git-modified); }
+.git-strip .spacer { flex: 1; }
+.gs-btn { display: inline-flex; align-items: center; gap: 3px; height: 16px; padding: 0 6px; border-radius: 3px; font-size: 10px; color: var(--tmd-fg-muted); }
+.gs-btn:hover:not(:disabled) { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
+.gs-btn:disabled { opacity: .45; cursor: default; }
+.gs-btn.pull { color: var(--tmd-accent); }
+
+.ws-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 4px; }
+.workspace-card { margin-bottom: 2px; border-radius: var(--radius-sm); }
+.workspace-row { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px; border-radius: var(--radius-sm); cursor: pointer; position: relative; }
+.workspace-row:hover { background: var(--tmd-bg-hover); }
+.workspace-row.active { background: rgba(128,128,128,.14); }
+.workspace-row .wname { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* hover 行级 git 操作 */
+.workspace-row .wops { display: none; gap: 4px; }
+.workspace-row:hover .wops { display: flex; }
+.wops .wo { width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center; color: var(--tmd-fg-faint); font-size: 11px; }
+.wops .wo:hover { background: var(--tmd-bg-active); color: var(--tmd-fg); }
+/* 新增:卡片 git 副行(工作区行之下,聚合该工作区全部仓) */
+.ws-git {
+  display: flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px 0 22px;
+  font-size: 10.5px; color: var(--tmd-fg-muted); white-space: nowrap; cursor: pointer;
+  border-radius: var(--radius-sm); font-variant-numeric: tabular-nums;
+}
+.ws-git:hover { background: var(--tmd-bg-hover); }
+.ws-git .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--tmd-fg-faint); }
+.ws-git .dot.dirty { background: var(--tmd-git-modified); }
+.ws-git .a { color: var(--tmd-diff-inserted); } .ws-git .b { color: var(--tmd-diff-removed); }
+.ws-git .more { margin-left: auto; color: var(--tmd-fg-faint); font-size: 10px; }
+/* 批量进度:卡片底部细条 + 副行状态文案 */
+.ws-prog { height: 2px; margin: 0 6px 2px 22px; border-radius: 1px; background: var(--tmd-bg-hover); overflow: hidden; }
+.ws-prog i { display: block; height: 100%; background: var(--tmd-accent); transition: width .3s var(--ease); }
+.ws-prog.fail i { background: var(--tmd-diff-removed); }
+.ws-prog.ok i { background: var(--tmd-diff-inserted); }
+.ws-git .res.ok { color: var(--tmd-diff-inserted); }
+.ws-git .res.err { color: var(--tmd-diff-removed); }
+
+.thread { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 6px 0 22px; border-radius: var(--radius-sm); color: var(--tmd-fg-muted); }
+.thread .t-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--tmd-fg-faint); }
+.thread .t-dot.run { background: #34d399; }
+.thread .t-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.thread .t-cli { font-size: 10px; color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 3px; padding: 0 4px; }
+
+/* 中央 + 右栏(语境,复刻) */
+.center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pty { flex: 1; min-height: 0; overflow: hidden; padding: 8px 12px; font-family: var(--mono); font-size: 12px; line-height: 1.55; background: #1e1e1e; color: #cccccc; white-space: pre-wrap; }
+.pty .dim { color: #9a9a9a; } .pty .ok { color: #2ea043; } .pty .br { color: #b180d7; }
+.composer { flex: none; height: 26%; display: flex; flex-direction: column; border-top: 1px solid var(--tmd-border); }
+.composer-toolbar { height: 28px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-bottom: 1px solid var(--tmd-border); font-size: 11px; color: var(--tmd-fg-muted); }
+.composer-input { flex: 1; padding: 8px 12px; color: var(--tmd-fg-faint); font-size: 13px; }
+.right-aside { width: var(--right-w); flex: none; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--tmd-border); }
+.repobar { flex: none; display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-bottom: 1px solid var(--tmd-border); }
+.repo-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); font-size: 11px; }
+.repo-chip.is-active { background: var(--tmd-accent-soft); border-color: var(--tmd-accent); color: var(--tmd-fg); }
+.repo-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tmd-git-modified); }
+.remote-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-bottom: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); }
+.remote-bar .branch { font-weight: 500; color: var(--tmd-fg); }
+.remote-bar .spacer { flex: 1; }
+.rb-btn { display: flex; align-items: center; gap: 2px; border-radius: 4px; padding: 2px 4px; color: var(--tmd-fg-muted); font-size: 12px; }
+.agg { font-size: 12px; } .agg .ins { color: var(--tmd-diff-inserted); } .agg .del { color: var(--tmd-diff-removed); }
+
+.spin { display: inline-block; width: 9px; height: 9px; border: 1.5px solid var(--tmd-fg-faint); border-top-color: var(--tmd-accent); border-radius: 50%; animation: rot .7s linear infinite; vertical-align: -1px; }
+@keyframes rot { to { transform: rotate(360deg); } }
+
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translate(-50%, 8px); z-index: 50; background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong); border-radius: var(--radius-sm); box-shadow: 0 6px 20px rgba(0,0,0,.14); padding: 6px 12px; font-size: 11.5px; opacity: 0; pointer-events: none; transition: opacity .2s var(--ease), transform .2s var(--ease); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast .tk { color: var(--tmd-diff-inserted); margin-right: 5px; }
+.toast .act { color: var(--tmd-accent); margin-left: 8px; }
+
+/* 场景路由 */
+[data-scene="idle"] .st-run, [data-scene="idle"] .st-done, [data-scene="idle"] .run-only, [data-scene="idle"] .done-only,
+[data-scene="run"] .st-idle, [data-scene="run"] .st-done, [data-scene="run"] .idle-only, [data-scene="run"] .done-only,
+[data-scene="done"] .st-idle, [data-scene="done"] .st-run, [data-scene="done"] .idle-only, [data-scene="done"] .run-only { display: none !important; }
+</style>
+</head>
+<body data-scene="idle">
+
+<div class="proto-bar">
+  <span class="lab">方向 C · 侧栏就地</span>
+  <button class="proto-btn active" data-s="idle">常态</button>
+  <button class="proto-btn" data-s="run">批量拉取中</button>
+  <button class="proto-btn" data-s="done">结果(含失败)</button>
+  <button class="proto-btn" id="theme-btn">🌓 主题</button>
+  <span class="proto-note">零新面板:工作区卡片挂 git 副行;caption 下一条 Git 汇总条承载「全部拉取/推送」;失败经 toast 跳详情</span>
+</div>
+
+<div class="app">
+  <header class="titlebar">
+    <span class="traffic"><i></i><i></i><i></i></span>
+    <div class="titlebar-zone-left"></div>
+    <div class="titlebar-center">
+      <button class="workspace-breadcrumb"><span>tmd-cli</span><span style="color:var(--tmd-fg-faint)">›</span></button>
+      <div class="session-tabs">
+        <div class="session-tab is-active"><span>修复批量拉取</span><span class="cli">omp</span></div>
+        <div class="session-tab"><span>release 0.3.2</span><span class="cli">claude</span></div>
+      </div>
+    </div>
+    <div class="titlebar-actions">
+      <button class="panel-tab">📄</button>
+      <button class="panel-tab is-active"><svg width="15" height="15" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="16"><circle cx="68" cy="188" r="28"/><circle cx="68" cy="68" r="28"/><circle cx="188" cy="100" r="28"/><path d="M68 96v64M188 128c0 40-40 40-80 40"/></svg></button>
+    </div>
+  </header>
+
+  <div class="body-row">
+    <nav class="left-rail">
+      <button class="left-rail-tab" title="会话看板">▦</button>
+      <div class="left-rail-spacer"></div>
+      <button class="left-rail-tab" title="设置">⚙</button>
+    </nav>
+
+    <aside class="left-aside">
+      <div class="ws-caption"><span class="ws-caption-label">工作区</span><button class="ws-caption-btn">＋</button></div>
+
+      <!-- 新增:Git 汇总条 -->
+      <div class="git-strip">
+        <span class="gs-ic"><svg width="11" height="11" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="20"><circle cx="68" cy="188" r="28"/><circle cx="68" cy="68" r="28"/><circle cx="188" cy="100" r="28"/><path d="M68 96v64M188 128c0 40-40 40-80 40"/></svg></span>
+        <span class="st-idle">7 仓 <span class="a">↑9</span> <span class="b">↓6</span> · <span class="d">17 改动</span></span>
+        <span class="st-run" style="color:var(--tmd-fg-muted)"><span class="spin"></span> 拉取 3/7…</span>
+        <span class="st-done"><span style="color:var(--tmd-diff-inserted)">✓4</span> <span style="color:var(--tmd-fg-faint)">⊘2</span> <span style="color:var(--tmd-diff-removed)">✗1</span></span>
+        <span class="spacer"></span>
+        <button class="gs-btn idle-only">获取</button>
+        <button class="gs-btn pull idle-only" id="btn-pull">⇓ 拉取</button>
+        <button class="gs-btn idle-only">⇑ 推送</button>
+        <button class="gs-btn run-only" style="color:var(--tmd-diff-removed)">取消</button>
+        <button class="gs-btn done-only" id="btn-detail">详情</button>
+      </div>
+
+      <div class="ws-list">
+        <div class="workspace-card">
+          <div class="workspace-row active">
+            <span class="wname">tmd-cli</span>
+            <span class="wops"><button class="wo" title="拉取本工作区 2 仓">⇓</button><button class="wo" title="推送">⇑</button></span>
+          </div>
+          <div class="ws-git">
+            <span class="dot dirty"></span>
+            <span class="st-idle">2 仓 <span class="a">↑1</span> <span class="b">↓3</span> · 4 改动</span>
+            <span class="st-run"><span class="spin"></span> tmd-cli 拉取中…</span>
+            <span class="st-done"><span class="res ok">✓ 2/2</span></span>
+            <span class="more">›</span>
+          </div>
+          <div class="ws-prog st-run"><i style="width:45%"></i></div>
+          <div class="ws-prog ok st-done"><i style="width:100%"></i></div>
+          <div class="thread"><span class="t-dot run"></span><span class="t-name">修复批量拉取</span><span class="cli">omp</span></div>
+          <div class="thread"><span class="t-dot"></span><span class="t-name">release 0.3.2</span><span class="cli">claude</span></div>
+        </div>
+
+        <div class="workspace-card">
+          <div class="workspace-row">
+            <span class="wname">octop</span>
+            <span class="wops"><button class="wo" title="拉取本工作区 2 仓">⇓</button><button class="wo" title="推送">⇑</button></span>
+          </div>
+          <div class="ws-git">
+            <span class="dot dirty"></span>
+            <span class="st-idle">2 仓 <span class="a">↑2</span> <span class="b">↓1</span> · 1 改动</span>
+            <span class="st-run" style="color:var(--tmd-fg-faint)">排队…</span>
+            <span class="st-done"><span class="res err">✗ desktop 被拒:有未提交改动</span></span>
+            <span class="more">›</span>
+          </div>
+          <div class="ws-prog st-run"><i style="width:0%"></i></div>
+          <div class="ws-prog fail st-done"><i style="width:100%"></i></div>
+          <div class="thread"><span class="t-dot run"></span><span class="t-name">打包 dmg</span><span class="cli">kimi</span></div>
+        </div>
+
+        <div class="workspace-card">
+          <div class="workspace-row">
+            <span class="wname">mossx</span>
+            <span class="wops"><button class="wo" title="拉取本工作区 2 仓">⇓</button><button class="wo" title="推送">⇑</button></span>
+          </div>
+          <div class="ws-git">
+            <span class="dot dirty"></span>
+            <span class="st-idle">2 仓 <span class="a">↑5</span> <span class="b">↓2</span> · 12 改动</span>
+            <span class="st-run" style="color:var(--tmd-fg-faint)">排队…</span>
+            <span class="st-done"><span class="res ok">✓ 快进 2</span> <span style="color:var(--tmd-fg-faint)">⊘ 1 干净</span></span>
+            <span class="more">›</span>
+          </div>
+          <div class="ws-prog st-run"><i style="width:0%"></i></div>
+          <div class="ws-prog ok st-done"><i style="width:100%"></i></div>
+        </div>
+
+        <div class="workspace-card">
+          <div class="workspace-row">
+            <span class="wname">dotfiles</span>
+            <span class="wops"><button class="wo" title="拉取本工作区 1 仓">⇓</button><button class="wo" title="推送">⇑</button></span>
+          </div>
+          <div class="ws-git">
+            <span class="dot"></span>
+            <span class="st-idle">1 仓 <span class="a">↑1</span></span>
+            <span class="st-run" style="color:var(--tmd-fg-faint)">排队…</span>
+            <span class="st-done"><span class="res err">✗ 网络超时</span></span>
+            <span class="more">›</span>
+          </div>
+          <div class="ws-prog st-run"><i style="width:0%"></i></div>
+          <div class="ws-prog fail st-done"><i style="width:100%"></i></div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="center">
+      <div class="pty"><span class="ok">➜</span> <span class="br">tmd-cli</span> <span class="dim">git:(</span><span class="ok">main</span><span class="dim">)</span> pnpm typecheck
+<span class="ok">✓ 0 errors</span>
+<span class="ok">➜</span> <span class="br">tmd-cli</span> <span class="dim">git:(</span><span class="ok">main</span><span class="dim">)</span> </div>
+      <div class="composer">
+        <div class="composer-toolbar"><span>omp</span></div>
+        <div class="composer-input">输入消息,Enter 发送…</div>
+      </div>
+    </main>
+
+    <aside class="right-aside">
+      <div class="repobar">
+        <button class="repo-chip is-active"><span class="dot"></span>tmd-cli</button>
+        <button class="repo-chip">tmd-docs</button>
+      </div>
+      <div class="remote-bar">
+        <span class="branch">main</span><span style="color:var(--tmd-fg-faint)">origin/main</span>
+        <span class="spacer"></span>
+        <span class="agg"><span class="ins">+128</span> <span class="del">-36</span></span>
+        <button class="rb-btn">⇅ 拉取</button><button class="rb-btn">⇧ 推送</button>
+      </div>
+      <div style="flex:1;display:grid;place-items:center;color:var(--tmd-fg-faint);font-size:12px">本仓 diff 列表(现状不变)</div>
+    </aside>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="tk">✓</span><span id="toast-text"></span><button class="act">查看详情</button></div>
+
+<script>
+const body = document.body;
+function setScene(s){ body.dataset.scene = s;
+  document.querySelectorAll(".proto-btn[data-s]").forEach(b => b.classList.toggle("active", b.dataset.s === s));
+}
+document.querySelectorAll(".proto-btn[data-s]").forEach(b => b.addEventListener("click", () => setScene(b.dataset.s)));
+document.getElementById("theme-btn").addEventListener("click", () => {
+  document.documentElement.dataset.theme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+});
+document.getElementById("btn-pull").addEventListener("click", () => {
+  setScene("run");
+  setTimeout(() => { setScene("done"); toast("拉取完成:4 成功 · 2 跳过 · 1 失败"); }, 1800);
+});
+document.getElementById("btn-detail") && document.getElementById("btn-detail").addEventListener("click", () => toast("点击工作区副行 › 展开该工作区逐仓结果(可复用 A/B 的行形态)"));
+function toast(t){ const el = document.getElementById("toast"); document.getElementById("toast-text").textContent = t;
+  el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 3000); }
+</script>
+</body>
+</html>
