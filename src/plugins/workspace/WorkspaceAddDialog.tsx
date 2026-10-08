@@ -12,9 +12,9 @@ import { createPortal } from "react-dom";
 import {
   CaretLeft,
   CaretRight,
-  Cross,
   FolderOpen,
   FolderSimplePlus,
+  X,
 } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { pickDirectory } from "@kernel/ipc";
@@ -86,7 +86,7 @@ export function WorkspaceAddDialog({
               <FolderSimplePlus size="0.9375rem" className="wsadd-head-ico" aria-hidden />
               <span>{t("添加工作区")}</span>
               <button type="button" className="wsadd-x" onClick={onClose} aria-label={t("关闭")}>
-                <Cross size="0.875rem" aria-hidden />
+                <X size="0.875rem" aria-hidden />
               </button>
             </div>
             {/* 本地卡:整卡即动作,直达系统目录选择器(零表单步骤)。 */}

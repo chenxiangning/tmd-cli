@@ -43,7 +43,9 @@
   gap: 6px;
   font-weight: 600;
   font-size: var(--tmd-font-md);
-  padding: 1px 0 2px;
+  padding: 1px 0 9px;
+  border-bottom: 1px solid var(--tmd-border);
+  margin-bottom: 2px;
 }
 
 .wsadd-head-ico {
@@ -84,8 +86,19 @@
 }
 
 .wsadd-card:hover {
-  border-color: var(--tmd-border-strong);
+  border-color: var(--tmd-accent);
   background: var(--tmd-bg-hover);
+}
+
+/* hover 联动:图标块反色 + 箭头着色右移,整卡可点语义一眼可读 */
+.wsadd-card:hover .wsadd-card-glyph {
+  background: var(--tmd-accent);
+  color: var(--tmd-accent-fg);
+}
+
+.wsadd-card:hover .wsadd-card-caret {
+  color: var(--tmd-accent);
+  transform: translateX(2px);
 }
 
 .wsadd-card:focus-visible {
@@ -104,6 +117,9 @@
   border-radius: var(--tmd-radius-md);
   background: var(--tmd-accent-soft);
   color: var(--tmd-accent);
+  transition:
+    background var(--tmd-dur-1) var(--tmd-ease-out),
+    color var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .wsadd-card-txt {
@@ -126,6 +142,9 @@
   margin-left: auto;
   flex: none;
   color: var(--tmd-fg-faint);
+  transition:
+    color var(--tmd-dur-1) var(--tmd-ease-out),
+    transform var(--tmd-dur-1) var(--tmd-ease-move);
 }
 
 /* 本地 picker 失败提示(替代此前借用的 wsl-remote-err)。 */

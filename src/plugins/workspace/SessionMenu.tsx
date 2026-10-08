@@ -59,33 +59,36 @@ export function SessionMenuOverlay({
       <div className="wsmenu" style={{ left: position.x, top: position.y }}>
         <div className="wsmenu-group-title">{origin?.newSessionLabel?.(workspace) ?? t("新建会话")}</div>
         {menuNote && <div className="wsmenu-note">{menuNote}</div>}
-        {cliProfiles.map((p) => (
-          <div className="wsmenu-item-row" key={p.id}>
-            <button
-              className="wsmenu-item"
-              onClick={() => {
-                /* 来源适配(远程 WSL:SSH 包装会话 + 引擎档案透传)优先接管;
-                   spawn 被拒的原因已由内核广播 sessionStartFailed(toast),此处吞 rejection。 */
-                if (origin?.spawnCliSession?.(workspace, p)) {
+        {/* 引擎区:两列网格压高度(10 引擎 10 行 → 5 行);刷新钮收格内右上角,hover 显形。 */}
+        <div className="wsmenu-grid">
+          {cliProfiles.map((p) => (
+            <div className="wsmenu-cell" key={p.id}>
+              <button
+                className="wsmenu-item"
+                onClick={() => {
+                  /* 来源适配(远程 WSL:SSH 包装会话 + 引擎档案透传)优先接管;
+                     spawn 被拒的原因已由内核广播 sessionStartFailed(toast),此处吞 rejection。 */
+                  if (origin?.spawnCliSession?.(workspace, p)) {
+                    onClose();
+                    return;
+                  }
+                  host.createSession(p.id, workspace.root, workspace.id).catch(() => undefined);
                   onClose();
-                  return;
-                }
-                host.createSession(p.id, workspace.root, workspace.id).catch(() => undefined);
-                onClose();
-              }}
-            >
-              <span className="wsmenu-item-icon">{p.renderIcon?.(14)}</span>
-              <span className="wsmenu-item-label">{p.name}</span>
-            </button>
-            <button
-              className={`wsmenu-item-refresh${refreshing[p.id] ? " is-refreshing" : ""}`}
-              title={t("刷新 {profile} 会话列表", { profile: p.name })}
-              onClick={() => onRefresh(p.id)}
-            >
-              <ArrowClockwise />
-            </button>
-          </div>
-        ))}
+                }}
+              >
+                <span className="wsmenu-item-icon">{p.renderIcon?.(14)}</span>
+                <span className="wsmenu-item-label">{p.name}</span>
+              </button>
+              <button
+                className={`wsmenu-item-refresh${refreshing[p.id] ? " is-refreshing" : ""}`}
+                title={t("刷新 {profile} 会话列表", { profile: p.name })}
+                onClick={() => onRefresh(p.id)}
+              >
+                <ArrowClockwise />
+              </button>
+            </div>
+          ))}
+        </div>
 
         {/* 扩展入口:插件贡献的会话类型(如 ssh 插件的「SSH 连接」)。 */}
         <Mounts point="workspace.newSessionMenu" />
@@ -115,29 +118,32 @@ export function SessionMenuOverlay({
 
         <div className="wsmenu-divider" />
         <div className="wsmenu-group-title">{t("工作区操作")}</div>
-        <button
-          className="wsmenu-item"
-          onClick={onRename}
-        >
-          <span className="wsmenu-item-icon">
-            <PencilSimple size="0.8125rem" />
-          </span>
-          <span className="wsmenu-item-label">{t("设置别名")}</span>
-        </button>
-        {canRemove && (
+        {/* 两项并排行,再省一行高度;canRemove=false 时设置别名独占整行。 */}
+        <div className="wsmenu-ops">
           <button
-            className="wsmenu-item is-danger"
-            onClick={() => {
-              removeWorkspace(workspace.id);
-              onClose();
-            }}
+            className="wsmenu-item"
+            onClick={onRename}
           >
             <span className="wsmenu-item-icon">
-              <Trash size="0.8125rem" />
+              <PencilSimple size="0.8125rem" />
             </span>
-            <span className="wsmenu-item-label">{t("删除工作区")}</span>
+            <span className="wsmenu-item-label">{t("设置别名")}</span>
           </button>
-        )}
+          {canRemove && (
+            <button
+              className="wsmenu-item is-danger"
+              onClick={() => {
+                removeWorkspace(workspace.id);
+                onClose();
+              }}
+            >
+              <span className="wsmenu-item-icon">
+                <Trash size="0.8125rem" />
+              </span>
+              <span className="wsmenu-item-label">{t("删除工作区")}</span>
+            </button>
+          )}
+        </div>
       </div>
     </>,
     document.body,

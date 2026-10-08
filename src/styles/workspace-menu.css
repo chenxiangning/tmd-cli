@@ -41,9 +41,10 @@
 
 .wsmenu-group-title {
   font-size: var(--tmd-font-ui);
-  font-weight: 500;
-  color: var(--text-muted);
-  padding: 4px 8px 6px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  padding: 7px 10px 4px;
 }
 
 .wsmenu-divider {
@@ -56,6 +57,49 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* 引擎区两列网格(2026-10-08 菜单压高):10 引擎 10 行 → 5 行,菜单不再溢出滚动。 */
+.wsmenu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.wsmenu-cell {
+  position: relative;
+  min-width: 0;
+}
+
+.wsmenu-cell > .wsmenu-item {
+  width: 100%;
+  min-width: 0;
+  /* 右侧留出角标刷新位,防长名与 ⟳ 叠字 */
+  padding-right: 26px;
+}
+
+.wsmenu-cell .wsmenu-item-refresh {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+}
+
+.wsmenu-cell .wsmenu-item-refresh svg {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+/* 工作区操作两项并排(设置别名 + 删除工作区) */
+.wsmenu-ops {
+  display: flex;
+  gap: 2px;
+}
+
+.wsmenu-ops > .wsmenu-item {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .wsmenu-item-row > .wsmenu-item {
@@ -87,6 +131,11 @@
 
 .wsmenu-item.is-danger {
   color: var(--danger-strong);
+}
+
+/* 危险项悬停淡红染,与普通行灰底区分(武装态整项反色优先,见下) */
+.wsmenu-item.is-danger:hover:not(.is-armed) {
+  background: color-mix(in srgb, var(--tmd-err) 12%, transparent);
 }
 /* 会话行右键菜单:比新建会话菜单窄(仅 3 项操作) */
 .wsmenu.session-menu {
@@ -163,7 +212,27 @@
   justify-content: center;
   flex-shrink: 0;
   cursor: pointer;
-  transition: background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
+  /* 默认隐去(占位不位移),行悬停/聚焦/刷新中才显 —— 满列 ⟳ 视觉降噪 */
+  opacity: 0;
+  transition:
+    opacity var(--tmd-dur-1) var(--tmd-ease-out),
+    background-color var(--tmd-dur-1) var(--tmd-ease-out),
+    color var(--tmd-dur-1) var(--tmd-ease-out);
+}
+
+.wsmenu-item-row:hover .wsmenu-item-refresh,
+.wsmenu-item-row:focus-within .wsmenu-item-refresh,
+.wsmenu-cell:hover .wsmenu-item-refresh,
+.wsmenu-cell:focus-within .wsmenu-item-refresh,
+.wsmenu-item-refresh.is-refreshing {
+  opacity: 1;
+}
+
+/* 无悬停能力设备(触摸)常显,防动作不可达 */
+@media (hover: none) {
+  .wsmenu-item-refresh {
+    opacity: 1;
+  }
 }
 
 .wsmenu-item-refresh svg {
