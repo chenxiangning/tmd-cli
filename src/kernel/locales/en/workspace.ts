@@ -111,7 +111,7 @@ export const MESSAGES = {
 
   // ── 添加工作区浮层(WorkspaceAddDialog 来源卡两步)+ 视图 radiogroup + 分组重命名 ──
   "本地目录": "Local directory",
-  "来源": "Source",
+  "返回来源": "Back",
   "选择一个本机目录作为工作区根。": "Choose a local directory as the workspace root.",
   "选择目录失败(权限被拒或已取消)。":
     "Failed to choose a directory (permission denied or canceled).",

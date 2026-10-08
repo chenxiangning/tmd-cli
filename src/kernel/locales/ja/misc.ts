@@ -231,9 +231,6 @@ export const MESSAGES = {
   // WorkspaceDialog / AddWslTab(ワークスペース追加ダイアログ)
   "选这一层": "この階層を選ぶ",
   "发行版": "ディストリビューション",
-  "WSL 发行版": "WSL ディストリビューション",
-  "经 \\\\wsl.localhost 或 SSH 远程宿主添加":
-  "\\\\wsl.localhost UNC または SSH リモートホストから追加",
   "Linux 目录": "Linux ディレクトリ",
   "需选择发行版并填写 Linux 绝对路径(如 /home/chen/work/proj)":
   "ディストリビューションを選択し、Linux の絶対パスを入力してください(例: /home/chen/work/proj)",

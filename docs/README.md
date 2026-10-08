@@ -293,4 +293,5 @@
 | 2026-10-07 | [接力摘要芯片化设计(不直写 PTY:RelayDialog → createSession → composer 芯片「接力摘要 · N 字」,点击重开编辑态,发送时 transform 前置拼装可空输入首发;净删 writeSession 直写/appendCarriedMarks/carrySet 勾选;新增 kernel 空 provider 契约 composerEmptySendProvider)](superpowers/specs/2026-10-07-relay-composer-chip-design.md) | 已实施(门禁全绿+桩目检闭环;TDD 红→绿 22 新测) |
 | 2026-10-08 | [添加工作区浮层重构原型(现状复刻含段控裸类 bug + 方向 A 密排单步/方向 B 来源卡片两步对比,双主题)](design/workspace-add-restyle.html) | 已定稿(大仙拍板方向 B) |
 | 2026-10-08 | [添加工作区浮层重构设计(方向 B 来源卡片两步:addTab 契约扩 desc/icon,本地卡直达 picker,wsadd-* 中性类名独立 css,修段控裸类 bug 与 label 裸中文 i18n 缺口)](superpowers/specs/2026-10-08-workspace-add-restyle-design.md) | 已实施(门禁全绿+桩目检闭环) |
+| 2026-10-08 | [添加工作区浮层重构提交评审(22534a9f:2 minor 已修——ja「来源」键跨域覆盖改返回来源、spec 验证段如实化;nit 修 2 留 1——spec 状态升格、WSL 词条归位 wsl 域/留 addTab! 断言风格)](review/2026-10-08-workspace-add-commit-review.md) | 已收口 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

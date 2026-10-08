@@ -229,8 +229,6 @@ export const MESSAGES = {
   // WorkspaceDialog / AddWslTab(添加工作区对话框)
   "选这一层": "Choose this level",
   "发行版": "Distro",
-  "WSL 发行版": "WSL distro",
-  "经 \\\\wsl.localhost 或 SSH 远程宿主添加": "Add via a \\\\wsl.localhost UNC or an SSH remote host",
   "Linux 目录": "Linux directory",
   "需选择发行版并填写 Linux 绝对路径(如 /home/chen/work/proj)":
   "Pick a distro and enter an absolute Linux path (e.g. /home/chen/work/proj)",

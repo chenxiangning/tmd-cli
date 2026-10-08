@@ -3,6 +3,9 @@ export const MESSAGES = {
   // WslCard(设默认失败行)
   "设默认失败:{reason}": "Failed to set default: {reason}",
   "超时": "timed out",
+  // 插件注册(WorkspaceOrigin.addTab 卡片标题/描述)
+  "WSL 发行版": "WSL distro",
+  "经 \\\\wsl.localhost 或 SSH 远程宿主添加": "Add via a \\\\wsl.localhost UNC or an SSH remote host",
   // RemoteSection / AddWslTab / HostForm(探测与密码显隐)
   "必填": "Required",
   "1-65535": "1-65535",

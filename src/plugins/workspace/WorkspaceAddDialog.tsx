@@ -74,7 +74,7 @@ export function WorkspaceAddDialog({
                 onClick={() => setOriginId(null)}
               >
                 <CaretLeft size="0.75rem" aria-hidden />
-                {t("来源")}
+                {t("返回来源")}
               </button>
               <span className="wsadd-step-title">{activeOrigin.addTab!.label}</span>
             </div>

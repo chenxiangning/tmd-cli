@@ -1,7 +1,7 @@
 # 添加工作区浮层重构(来源卡片两步)设计
 
 日期:2026-10-08
-状态:已定稿(大仙于三向原型中拍板方向 B;原型 `docs/design/workspace-add-restyle.html`)
+状态:已落地(commit 22534a9f + 评审收口;门禁全绿、桩目检双主题闭环)
 
 ## 背景与目标
 
@@ -30,7 +30,7 @@
 
 ## 验证
 
-- 单测(新增 `WorkspaceAddDialog.test.tsx`):注册假来源后入口步出两卡;点来源卡进第二步(假组件渲染标记 + 返回键);返回回入口步;点本地卡调 `pickDirectory`(mock ipc)。
+- 单测(新增 `WorkspaceAddDialog.test.tsx`,node renderToStaticMarkup 静态渲染):注册假来源后入口步出两卡(label/desc 透传);无来源注册回落单卡;段控类回归锚(永不再现 `wsl-mode-seg`)。两步切换/返回/本地卡直达 picker 属交互路径,走桩目检不在此钉(仓库测试先例均为静态渲染)。
 - `wsl/contributions.test.ts` 回归:addTab 契约形状不变。
 - 桩目检(1421 + Tauri IPC 桩):浅/深主题截图对比卡片布局、hover/focus 态、WSL 第二步浏览器内容、返回键;确认段控黏连 bug 消失。
 - 门禁:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`;提交收口 react-doctor 100。
