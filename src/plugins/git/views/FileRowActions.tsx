@@ -10,7 +10,7 @@
 import { t } from "@kernel/i18n";
 import { FileText, FolderOpen } from "@phosphor-icons/react";
 import { openFileInTab } from "@kernel/fileTabs";
-import { ipc, type GitFileStatus } from "@kernel/ipc";
+import { ipc } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
 
 /** 仓库相对路径 → 绝对路径(git 恒以 `/` 给路径;拼法同 files 插件 joinPath)。 */
@@ -22,7 +22,14 @@ function worktreeAbsPath(cwd: string, relPath: string): string {
  * hover 动作位的两个小图标;status D(盘上已无文件)不渲染。
  * 冲突行由调用方规避(flat 行动作位整体不出现 / 树形行走冲突分支)。
  */
-export function FileOpenActions({ cwd, file }: { cwd: string; file: GitFileStatus }) {
+export function FileOpenActions({
+  cwd,
+  file,
+}: {
+  cwd: string;
+  /* 宽松为 string:历史提交清单(GitCommitFile.status)也是字母口径,D 同样跳过 */
+  file: { path: string; status: string };
+}) {
   if (file.status === "D") return null;
   const abs = worktreeAbsPath(cwd, file.path);
   return (

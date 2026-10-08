@@ -11,6 +11,7 @@ import { Spinner } from "@kernel/Spinner";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import { formatAbsolute, formatRelativeTime } from "@kernel/relativeTime";
 import type { GitCommitFile, GitLogEntry } from "@kernel/ipc";
+import { FileOpenActions } from "./FileRowActions";
 import type { GraphRow } from "../graph/gitGraph";
 import { GitGraphContinuationCell, GitGraphSvgCell } from "./GraphCells";
 import { STATUS_COLOR } from "./statusColor";
@@ -35,6 +36,8 @@ export interface HistoryRowItemProps {
   entry?: { loading?: boolean; error?: string | null; files?: GitCommitFile[] };
   onToggle?: (commit: GitLogEntry) => void;
   onOpenFile?: (commit: GitLogEntry, file: GitCommitFile) => void;
+  /** 文件行打开动作用:仓库根绝对路径 */
+  cwd?: string;
 }
 
 function MarkerRow({ row, upstream }: { row: Extract<HistoryRow, { type: "marker" }>; upstream: string | null }) {
@@ -54,9 +57,11 @@ function MarkerRow({ row, upstream }: { row: Extract<HistoryRow, { type: "marker
 
 function FileRow({
   row,
+  cwd,
   onOpenFile,
 }: {
   row: Extract<HistoryRow, { type: "file" }>;
+  cwd: string;
   onOpenFile?: HistoryRowItemProps["onOpenFile"];
 }) {
   const name = row.file.path.split("/").pop() ?? row.file.path;
@@ -65,8 +70,9 @@ function FileRow({
     : "";
   const icon = resolveFileVisual(name, false);
   return (
-    <button
-      type="button"
+    /* div 而非 button:行内嵌 FileOpenActions 小图标按钮,button 嵌 button 非法 */
+    <div
+      role="presentation"
       className={`${ROW_CLASS} cursor-pointer hover:bg-(--tmd-bg-hover)`}
       title={row.file.oldPath ? `${row.file.oldPath} → ${row.file.path}` : row.file.path}
       onClick={() => onOpenFile?.(row.commit, row.file)}
@@ -81,10 +87,12 @@ function FileRow({
         <span className="font-medium">{name}</span>
         {dir && <span className="ml-1 text-meta text-(--tmd-fg-faint)">{dir}</span>}
       </span>
+      {/* 打开文件/位置动作:与差异列表 FileOpenActions 同源;状态字母前 hover 出现 */}
+      <FileOpenActions cwd={cwd} file={row.file} />
       <span className={`w-3 shrink-0 text-center font-semibold ${STATUS_COLOR[row.file.status] ?? ""}`}>
         {row.file.status}
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -171,7 +179,7 @@ function CommitRow({
 export function HistoryRowItem(props: HistoryRowItemProps) {
   const { row } = props;
   if (row.type === "marker") return <MarkerRow row={row} upstream={props.upstream} />;
-  if (row.type === "file") return <FileRow row={row} onOpenFile={props.onOpenFile} />;
+  if (row.type === "file") return <FileRow row={row} cwd={props.cwd ?? ""} onOpenFile={props.onOpenFile} />;
   return (
     <CommitRow row={row} expanded={props.expanded ?? false} entry={props.entry} onToggle={props.onToggle} />
   );

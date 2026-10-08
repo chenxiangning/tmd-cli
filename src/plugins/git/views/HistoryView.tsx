@@ -212,6 +212,7 @@ export function HistoryView({ log, cwd, branch, upstream, ahead, behind }: Props
           entry={row.type === "commit" ? fileEntries[row.commit.longSha] : undefined}
           onToggle={toggleExpand}
           onOpenFile={openFile}
+          cwd={cwd}
         />
       ))}
       <div style={{ height: offsets[rows.length] - offsets[to] }} aria-hidden />
