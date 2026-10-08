@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { GitRemoteOpReport, GitRepoSummary } from "@kernel/ipc";
-import { dedupeGroups, selectTargets, formatRowResult, type AggRepo } from "./aggregateModel";
+import { dedupeGroups, selectTargets, formatRowResult, mapPool, type AggRepo } from "./aggregateModel";
 
 function repo(path: string, over: Partial<GitRepoSummary> = {}): GitRepoSummary {
   return { path, name: path.split("/").pop() ?? path, branch: "main", kind: "repo", ...over };
@@ -83,5 +83,48 @@ describe("formatRowResult", () => {
 
   it("pull 有文件变更但提交数为 0(squash 路径)回落「已是最新」", () => {
     expect(formatRowResult("pull", { ...base, commits: 0, files: 5 })).toBe("已是最新");
+  });
+});
+
+describe("mapPool", () => {
+  /** 纯微任务冲刷(无真实时钟):让已 resolve 的 worker 走完 补位→起跑 的续延链。 */
+  const flush = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
+
+  it("并发不超上限,完成即补位,全量处理", async () => {
+    const started: number[] = [];
+    const gates = new Map<number, PromiseWithResolvers<void>>();
+    const run = mapPool([1, 2, 3, 4, 5, 6, 7], 3, async (n) => {
+      started.push(n);
+      gates.set(n, Promise.withResolvers());
+      await gates.get(n)!.promise;
+    });
+    await flush();
+    expect(started).toEqual([1, 2, 3]); /* 上限 3,其余未起 */
+    gates.get(3)!.resolve();
+    await flush();
+    expect(started).toEqual([1, 2, 3, 4]); /* 完成一个才补位 */
+    gates.get(1)!.resolve();
+    gates.get(4)!.resolve();
+    await flush();
+    expect(started).toEqual([1, 2, 3, 4, 5, 6]);
+    gates.get(2)!.resolve();
+    gates.get(5)!.resolve();
+    gates.get(6)!.resolve();
+    await flush();
+    expect(started).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    gates.get(7)!.resolve();
+    await run;
+    expect(started).toHaveLength(7);
+  });
+
+  it("空清单与单元素清单直接完成", async () => {
+    await expect(mapPool([], 6, async () => {})).resolves.toBeUndefined();
+    const hit: string[] = [];
+    await mapPool(["a"], 6, async (x) => {
+      hit.push(x);
+    });
+    expect(hit).toEqual(["a"]);
   });
 });

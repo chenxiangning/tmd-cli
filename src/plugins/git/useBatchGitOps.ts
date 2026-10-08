@@ -1,14 +1,15 @@
 /**
  * useBatchGitOps —— 聚合模式批量远端操作执行器(spec 2026-10-08-git-batch-ops-design §批量执行语义)。
- * 逐仓串行(调研 §2.4:网络/凭据交互不并行,失败逐仓标注),取消 = 仓间断
- * (在途仓跑完,排队仓标「已取消」);行结果保留到下一次执行/手动刷新。
+ * 有界并发(BATCH_CONCURRENCY;2026-10-09 串行改并行:git CLI 每仓独立进程互不加锁,
+ * GIT_TERMINAL_PROMPT=0 禁交互无叠窗,失败按行标注与顺序无关),取消 = 仓间断
+ * (在途仓跑完,未起仓标「已取消」);行结果保留到下一次执行/手动刷新。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
 import { gitErrorDisplay, isAuth } from "./gitError";
-import { formatRowResult, selectTargets, splitUpstream, type AggRepo, type BatchOp } from "./aggregateModel";
+import { formatRowResult, mapPool, selectTargets, splitUpstream, BATCH_CONCURRENCY, type AggRepo, type BatchOp } from "./aggregateModel";
 
 export type RowPhase = "queued" | "running" | "ok" | "skip" | "err";
 export interface RowResult {
@@ -43,7 +44,7 @@ export function useBatchGitOps(onSettled: () => void) {
     onSettledRef.current = onSettled;
   }, [onSettled]);
 
-  /** 核心执行链:targets 逐仓串行;skipped 先落行(不进队列)。 */
+  /** 核心执行链:targets 有界并发;skipped 先落行(不进队列)。 */
   const execute = useCallback(async (op: BatchOp, targets: readonly AggRepo[], prefill: ReadonlyMap<string, RowResult>, pushOpts?: BatchPushOpts) => {
     lastOpRef.current = op;
     /* 每次执行都落 opts(undefined 也落):非弹窗推送/拉取不得残留上次的分支覆盖,否则重试失败会推错目标。 */
@@ -56,45 +57,44 @@ export function useBatchGitOps(onSettled: () => void) {
     setRunning({ op, done: 0, total: targets.length });
 
     let done = 0;
-    for (const r of targets) {
+    await mapPool(targets, BATCH_CONCURRENCY, async (r) => {
       if (cancelRef.current) {
         next.set(r.path, { phase: "skip", text: t("已取消") });
+      } else {
+        next.set(r.path, { phase: "running", text: opLabel });
         setRows(new Map(next));
-        continue;
-      }
-      next.set(r.path, { phase: "running", text: opLabel });
-      setRows(new Map(next));
-      try {
-        /* 带选项推送走结构化请求(remote/branch 优先弹窗覆盖,缺省行 upstream 拆分)。 */
-        const tgt =
-          op === "push" && r.upstream != null
-            ? (pushOpts?.targetByPath?.get(r.path) ?? splitUpstream(r.upstream))
-            : null;
-        const report =
-          op === "push" && pushOpts != null && tgt != null
-            ? await ipc.gitRemoteRequest(r.path, {
-                op: "push",
-                remote: tgt.remote,
-                branch: tgt.branch,
-                strategy: null,
-                noCommit: false,
-                noVerify: !pushOpts.runHooks,
-                forceWithLease: false,
-                followTags: pushOpts.followTags,
-                gerrit: null,
-              })
-            : await ipc.gitPullPush(r.path, op);
-        next.set(r.path, { phase: "ok", text: formatRowResult(op, report) });
-      } catch (e) {
-        next.set(r.path, {
-          phase: "err",
-          text: isAuth(e) ? t("凭据需要交互,请在终端执行") : gitErrorDisplay(e),
-        });
+        try {
+          /* 带选项推送走结构化请求(remote/branch 优先弹窗覆盖,缺省行 upstream 拆分)。 */
+          const tgt =
+            op === "push" && r.upstream != null
+              ? (pushOpts?.targetByPath?.get(r.path) ?? splitUpstream(r.upstream))
+              : null;
+          const report =
+            op === "push" && pushOpts != null && tgt != null
+              ? await ipc.gitRemoteRequest(r.path, {
+                  op: "push",
+                  remote: tgt.remote,
+                  branch: tgt.branch,
+                  strategy: null,
+                  noCommit: false,
+                  noVerify: !pushOpts.runHooks,
+                  forceWithLease: false,
+                  followTags: pushOpts.followTags,
+                  gerrit: null,
+                })
+              : await ipc.gitPullPush(r.path, op);
+          next.set(r.path, { phase: "ok", text: formatRowResult(op, report) });
+        } catch (e) {
+          next.set(r.path, {
+            phase: "err",
+            text: isAuth(e) ? t("凭据需要交互,请在终端执行") : gitErrorDisplay(e),
+          });
+        }
       }
       done += 1;
       setRows(new Map(next));
       setRunning({ op, done, total: targets.length });
-    }
+    });
     setRunning(null);
     onSettledRef.current();
   }, []);

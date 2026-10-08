@@ -93,3 +93,24 @@ export function formatRowResult(op: BatchOp, r: GitRemoteOpReport): string {
   if (op === "push") return t("已推 {n} 个提交", { n: r.commits });
   return r.commits > 0 ? t("合入 {n} 个提交", { n: r.commits }) : t("已是最新");
 }
+
+/** 批量远端操作并发上限:网络型 IO,6 并发已把超时面摊薄且不挤爆凭据链/网络。 */
+export const BATCH_CONCURRENCY = 6;
+
+/** 有界并发池:至多 limit 个 fn 同时在飞,全部落定后 resolve。单线程事件循环内
+ * cursor 自增无竞态;fn 内部异常须自行捕获(执行器按行落 err,不中断整批)。
+ * worker 用递归而非循环推进(等价:每次 await 经微任务续延,无栈增长)。 */
+export async function mapPool<T>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  let cursor = 0;
+  const runNext = async (): Promise<void> => {
+    if (cursor >= items.length) return;
+    const item = items[cursor++];
+    await fn(item);
+    await runNext();
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => runNext()));
+}

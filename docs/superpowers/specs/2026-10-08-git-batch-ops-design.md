@@ -17,7 +17,7 @@
 | A · 面板内聚合(RepoBar 加「本仓/全部」段控) | **选定** | 大仙 10-08 从三原型拍板;段控位置经截图指定在 RepoBar 行。复用现有面板与仓 chips,增量最小;聚合只是面板第二态,不动单仓肌肉记忆 |
 | B · 中央「仓库总览」tab(gita ll 式表格) | 否决 | 离开会话语境,中央区被占;仓数 <30 时表格的筛选/勾选是过剩能力 |
 | C · 侧栏汇总条就地批量 | 否决 | 失败详情无承载(toast 一行字说不清哪个仓为什么失败);侧栏行高预算紧张 |
-| 批量执行并行化 | 否决 | 调研 §2.4:交互/网络操作逐仓串行 + 逐仓标注结果;并行会叠凭据弹窗、难归因 |
+| 批量执行并行化 | ~~否决~~ **2026-10-09 改并行** | 原否决「叠凭据弹窗、难归因」不成立:子进程本就 GIT_TERMINAL_PROMPT=0 禁交互(凭据类失败按行 E_AUTH 标注),行结果按 path 存 Map 与顺序无关。落地 = 前端有界并发池 BATCH_CONCURRENCY=6(aggregateModel.mapPool),Rust 零改动(远端操作 shell-out git CLI 每仓独立进程,repo 缓存锁「同 repo 串行、跨 repo 并行」不变量本就允许跨仓并行) |
 | 聚合态挂轮询保活 | 否决 | 调研 §2.7:全仓高频轮询是反模式;进入聚合态/手动 ⟳/批量操作后各拉一次 |
 | Rust 新命令 | 否决 | 全部复用现有原语:`git_repos_scan` / `git_status_batch` / `git_ahead_behind` / `git_pull_push`,Rust 零改动 |
 
@@ -41,7 +41,7 @@
 ### 批量执行语义(useBatchGitOps + aggregateModel 纯函数)
 
 - 目标选择:fetch = 全部仓;pull = 有上游的仓(无上游行直接标 `⊘ 无上游分支`);push = 有上游且 ahead>0(其余标 `⊘ 无待推提交`)。
-- 逐仓串行 `gitPullPush(path, op)`;取消 = 仓间断(在途仓跑完,排队仓标跳过)。
+- 有界并发 `BATCH_CONCURRENCY=6`(aggregateModel.mapPool)执行 `gitPullPush(path, op)` / `gitRemoteRequest`;取消 = 仓间断(在途仓跑完,未起仓标跳过)。
 - 行结果文案(紧凑,区别于对话框长句):pull `已是最新` / `合入 n 个提交`;push `已是最新` / `已推 n 个提交`;fetch `已是最新` / `更新 n 个引用`;失败 = `gitErrorDisplay`,凭据类(isAuth)= `凭据需要交互,请在终端执行`。
 - 完成后自动重拉聚合状态(行内 ↑↓ 数字校正),并调 `afterMutation` 让当前仓面板数据失效重取。
 
@@ -51,7 +51,7 @@
   - 左列:全选行(`已选 n/m 仓`)+ 仓行(☐ + 仓名 + `↑n`;第二行完整 `branch → remote:target`,不截断);**target 行内可编辑**(点击进 input,Enter/失焦落定,Esc 还原;覆盖值高亮 accent,随推送下发并驱动右栏预览重拉)。可推(有上游且 ahead>0)默认全勾,不可推行禁选灰显并标注原因。
   - 右列:选中仓的本次推送内容(BatchPushPreview,复用单仓弹窗 `usePushPreview`/`useCommitDetails`)——上 = 提交清单(sha + 摘要 + 作者 + 相对时间,头部计数),下 = 选中提交的变更文件(状态字母着色 + 路径 + `+a/−d`,头部 `{n} 个文件`)。**提交清单按行内 `↑n` 截齐**(远端跟踪引用缺失时 Rust `push_preview` 回退全量历史,聚合口径只展示本次要推的)。
   - 层级:弹窗 `z-[1201]`(右栏层叠上下文压 z-1000 遮罩,先例 WorktreeManageDialog/network-proxy;DialogShell 加可选 `zClass` 参数,既有调用不变)。
-  - 底栏对齐单仓:`推送标签` / `运行 Git 挂钩` 开关 + `取消` / `推送(n)`;确认后逐仓串行执行,行内结果复用聚合列表三态。
+  - 底栏对齐单仓:`推送标签` / `运行 Git 挂钩` 开关 + `取消` / `推送(n)`;确认后同批有界并发执行(2026-10-09),行内结果复用聚合列表三态。
 - 执行通道:带选项推送走 `git_remote_request`(remote/branch 优先弹窗覆盖值,缺省拆自行内 upstream;`noVerify = !runHooks`、`followTags`);获取/拉取仍走 `git_pull_push` 快速原语。重试失败沿用上次弹窗选项。
 - 否决项:批量 force-with-lease(无逐仓确认,危险面太大)、批量 Gerrit(每仓 topic/reviewer 语义不同,图 2 的 Gerrit 区不适用于异构多仓)。
 
@@ -67,7 +67,7 @@
 
 ## 验证
 
-- `aggregateModel.test.ts`:目标选择(fetch 全/push 仅 ahead>0/pull 需上游)、跨工作区同 path 去重、行文案三 op 分支。
+- `aggregateModel.test.ts`:目标选择(fetch 全/push 仅 ahead>0/pull 需上游)、跨工作区同 path 去重、行文案三 op 分支、mapPool 并发上限/完成补位/空清单。
 - 门禁:`pnpm typecheck && pnpm test && pnpm check:arch-boundary && pnpm check:file-size && pnpm build`。
 - 桩目检:聚合列表分组/批量三态/跳仓链路。
 - reviewer 复核(2026-10-09)无 P0;已修:TargetEditor IME 守卫、空工作区早退复位 loading、execute 每次落 opts 堵陈旧分支覆盖、▾ 菜单坐标钳制、行级拉推仅显于有上游仓、执行中禁跳仓、`git_repos_scan` 截断标志透传组头「已截断」、全选框 indeterminate。
