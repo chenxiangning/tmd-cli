@@ -2,13 +2,14 @@
  * BatchRow 拆件 —— 自 BatchRow.tsx 拆出(文件规模铁则)。
  *
  * 内联确认卡(回退/应用共用,mode 区分文案与动作)+ 文件行
- * (状态 chip + 路径 + ± + 深链审阅单 + hover 单文件回退)。
+ * (状态 chip + 路径 + ± + 深链审阅单 + hover 打开文件/定位 + hover 单文件回退)。
  * ConfirmTarget 类型唯一定义于此,BatchRow re-export 维持既有导入契约。
  */
 
-import { ArrowCounterClockwise } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, FileText, FolderOpen } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import type { CkptBatch, CkptBatchFile } from "@kernel/ipc";
+import { ipc, type CkptBatch, type CkptBatchFile } from "@kernel/ipc";
+import { openFileInTab } from "@kernel/fileTabs";
 import { getCachedDiff } from "./diffCache";
 import { classifyRisk } from "./risk";
 import { openBatchTab } from "./batchTab";
@@ -111,6 +112,8 @@ export function FileRow({
   setConfirm: (v: ConfirmTarget | null) => void;
 }) {
   const canRevert = b.state === "pending" && f.live === "same" && !f.noBaseline;
+  /* hover 入口图标用:工作区外文件(无前像标记的外部路径)本身是绝对路径,原样打开 */
+  const abs = f.path.startsWith("/") ? f.path : `${cwd.replace(/[\\/]+$/, "")}/${f.path}`;
   const segs = f.path.split("/");
   const name = segs.pop() ?? f.path;
   const dir = segs.length ? segs.join("/") + "/" : "";
@@ -191,6 +194,27 @@ export function FileRow({
           </span>
         )}
       </button>
+      {/* 打开文件 / 打开文件位置:与 git 面板 FileOpenActions 同款(hover 出现);D 已从盘上消失不渲染 */}
+      {f.status !== "D" && (
+        <>
+          <button
+            type="button"
+            className="hidden h-[19px] w-[19px] flex-none place-items-center rounded text-(--tmd-fg-subtle) group-hover:grid hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+            title={t("打开文件")}
+            onClick={() => openFileInTab(abs)}
+          >
+            <FileText size="0.6875rem" aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="hidden h-[19px] w-[19px] flex-none place-items-center rounded text-(--tmd-fg-subtle) group-hover:grid hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+            title={t("打开文件位置")}
+            onClick={() => void ipc.fsRevealInFileManager(abs).catch(() => {})}
+          >
+            <FolderOpen size="0.6875rem" aria-hidden />
+          </button>
+        </>
+      )}
       {canRevert && (
         <button
           type="button"
