@@ -73,7 +73,7 @@ rcgen = { version = "=0.14.10", default-features = false, features = ["aws_lc_rs
 tauri-plugin-notification = "2"
 # skill-hub 插件的包解压(纯 Rust;default-features 全关,仅开 deflate 所需
 # 最小 feature —— ClawHub/GitHub 式 zip 均 deflate 压缩,bzip2/zstd 等全家桶不要)。
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "4", default-features = false, features = ["deflate"] }
 
 # checkpoints 账本跨实例 flock(unix;libc 已在传递依赖树,显式直用)。
 [target.'cfg(unix)'.dependencies]
