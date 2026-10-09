@@ -8,6 +8,7 @@
  * 以回调表达,本组件零树知识。
  */
 
+import { DecorIcon } from "@kernel/iconSet";
 import { ArrowClockwise, FilePlus, FolderSimplePlus } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
@@ -45,7 +46,8 @@ export function FileTreeToolbar({
         disabled={!onNewFile}
         onClick={onNewFile}
       >
-        <FilePlus aria-hidden />
+      {/* 图标组合纳管:字形随 settings.iconSet 切换,classic 回落现状 */}
+      <DecorIcon id="files-new-file" Fallback={FilePlus} aria-hidden />
       </button>
       <button
         type="button"
@@ -58,7 +60,7 @@ export function FileTreeToolbar({
         disabled={!onNewFolder}
         onClick={onNewFolder}
       >
-        <FolderSimplePlus aria-hidden />
+        <DecorIcon id="files-new-folder" Fallback={FolderSimplePlus} aria-hidden />
       </button>
       <button
         type="button"
@@ -71,7 +73,7 @@ export function FileTreeToolbar({
         onClick={() => spin(onRefresh)}
       >
         {/* 尺寸单一真源 = file-tree.css svg 0.875rem(Spinner 同档透传) */}
-        {refreshBusy ? <Spinner size="0.875rem" /> : <ArrowClockwise aria-hidden />}
+        {refreshBusy ? <Spinner size="0.875rem" /> : <DecorIcon id="files-refresh" Fallback={ArrowClockwise} aria-hidden />}
       </button>
       {gitToggle && <GitDecorateToggle />}
     </span>

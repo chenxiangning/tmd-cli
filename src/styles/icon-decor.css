@@ -128,6 +128,14 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
 .file-tree-toolbar-action[data-action-id="files-git-toggle"]:hover { color: var(--tmd-fg); }
 .file-tree-toolbar-action[data-action-id="files-git-toggle"].is-active { color: var(--icon-decor-files-git-toggle, #4da3ff); }
 
+/* ── 弹出菜单图标组:继承触发钮的装饰色纳管(字形不进组合表,色随键走) ── */
+[data-decor-from="git-view"] { color: var(--icon-decor-git-view, currentColor); }
+[data-decor-from="git-layout"] { color: var(--icon-decor-git-layout, currentColor); }
+[data-decor-from="git-remote"] { color: var(--icon-decor-git-remote, currentColor); }
+[data-decor-from="git-repo-ops"] { color: var(--icon-decor-git-repo-ops, currentColor); }
+[data-decor-from="files-new-file"] { color: var(--icon-decor-files-new-file, currentColor); }
+[data-decor-from="files-new-folder"] { color: var(--icon-decor-files-new-folder, currentColor); }
+
 /* 新键呼吸闪烁(2026-10-09 扩编 11 键) */
 html[data-icon-blink~="git-open"] [data-action-id="git-open"],
 html[data-icon-blink~="git-row-actions"] [data-action-id="git-row-actions"],

@@ -8,6 +8,7 @@
  */
 
 import { t } from "@kernel/i18n";
+import { DecorIcon } from "@kernel/iconSet";
 import { FileText, FolderOpen } from "@phosphor-icons/react";
 import { openFileInTab } from "@kernel/fileTabs";
 import { ipc } from "@kernel/ipc";
@@ -44,7 +45,7 @@ export function FileOpenActions({
         }}
         className="shrink-0"
       >
-        <FileText className="h-[0.75rem] w-[0.75rem]" />
+        <DecorIcon id="git-open" Fallback={FileText} className="h-[0.75rem] w-[0.75rem]" />
       </button>
       <button
         type="button"
@@ -56,7 +57,7 @@ export function FileOpenActions({
         }}
         className="shrink-0"
       >
-        <FolderOpen className="h-[0.75rem] w-[0.75rem]" />
+        <DecorIcon id="git-open" Fallback={FolderOpen} className="h-[0.75rem] w-[0.75rem]" />
       </button>
     </>
   );

@@ -10,6 +10,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePanelActive } from "@kernel/panelActivity";
 import { GitDiff, GitMerge } from "@phosphor-icons/react";
+import { DecorIcon } from "@kernel/iconSet";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import {
@@ -226,10 +227,14 @@ export function GitDecorateToggle() {
       title={on ? t("关闭 Git 变更着色") : t("按 Git 变更着色文件与文件夹")}
       onClick={toggleGitDecorate}
     >
-      {/* 两态双图标(字形明显不同):选中(着色中)= GitMerge 实心,未选中 = GitDiff 线性 */}
-      {on
-        ? <GitMerge size="0.75rem" weight="fill" aria-hidden />
-        : <GitDiff size="0.75rem" aria-hidden />}
+      {/* 图标组合纳管:classic 下 Fallback 随 on 切 GitDiff/GitMerge 保两态语义,
+          其余组合用组合字形(开关靠 is-active 颜色区分) */}
+      <DecorIcon
+        id="files-git-toggle"
+        Fallback={on ? GitMerge : GitDiff}
+        weight={on ? "fill" : "regular"}
+        aria-hidden
+      />
     </button>
   );
 }

@@ -133,7 +133,7 @@ export function RemoteActionRows({ onDone }: { onDone: () => void }) {
             }}
           >
             <span className="flex items-center gap-1.5">
-              {rowBusy ? <Spinner /> : <Icon className="h-[0.75rem] w-[0.75rem]" aria-hidden />}
+              {rowBusy ? <Spinner /> : <Icon className="h-[0.75rem] w-[0.75rem]" data-decor-from="git-remote" aria-hidden />}
               <span>{r.label}</span>
             </span>
             {r.count > 0 && <span>{r.count}</span>}
