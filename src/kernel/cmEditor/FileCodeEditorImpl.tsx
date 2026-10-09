@@ -26,13 +26,20 @@ const CodeMirror = lazy(retryImport(() => import("@uiw/react-codemirror").then((
 /** 基础键位 + 编辑器内查找扩展(Mod-s 保存 / Tab 缩进 / Mod-f 查找面板):
  * 与 CodeMirror 全家同批动态加载;@uiw basicSetup 不含搜索,显式补。 */
 async function loadBaseExts(onSave: () => void): Promise<Extension[]> {
-  const [{ keymap }, { indentWithTab }, { search, openSearchPanel }, blameMod] = await Promise.all([
+  const [{ keymap }, { indentWithTab }, { search, openSearchPanel }, blameMod, diffGutterMod] = await Promise.all([
     import("@codemirror/view"),
     import("@codemirror/commands"),
     import("@codemirror/search"),
-    import("./editorBlame"),
+    /* 必须走 @kernel 别名:files 插件注入侧(useFileBlame/useFileLineDiff)同用别名,
+       相对路径在 vite dev 下解析成 /src/ 而别名成 /@fs/ —— 两 URL 两模块实例,
+       gutter 的 StateField 单例分裂,注入静默落空。 */
+    import("@kernel/cmEditor/editorBlame"),
+    import("@kernel/cmEditor/editorDiffGutter"),
   ]);
-  const blameExt = await blameMod.editorBlameExtension();
+  const [blameExt, diffGutterExt] = await Promise.all([
+    blameMod.editorBlameExtension(),
+    diffGutterMod.editorDiffGutterExtension(),
+  ]);
   return [
     keymap.of([
       {
@@ -47,6 +54,7 @@ async function loadBaseExts(onSave: () => void): Promise<Extension[]> {
     ]),
     search({ top: true }),
     blameExt,
+    diffGutterExt,
   ];
 }
 
@@ -81,6 +89,10 @@ export default function FileCodeEditorImpl({
   const [themeExts, setThemeExts] = useState<Extension[]>([]);
   const [baseExts, setBaseExts] = useState<Extension[]>([]);
   const [pluginExts, setPluginExts] = useState<readonly Extension[]>([]);
+  /* baseExts 未就绪不挂 CM:初始 state 必须含 gutter field(editorBlame/
+     editorDiffGutter),否则先建空扩展视图再 reconfigure 的窗口期里,外部注入
+     的 StateEffect 因 field 缺席被静默丢弃。失败也放行(降级无扩展编辑器)。 */
+  const [baseReady, setBaseReady] = useState(false);
   const editorViewRef = useRef<EditorView | null>(null);
   const extFactories = useEditorExtensionFactories();
   /* saveRef 模式(codemoss 同款):异步键位扩展持有 ref,同时总调最新回调。 */
@@ -177,6 +189,8 @@ export default function FileCodeEditorImpl({
         if (!cancelled) setBaseExts(base);
       } catch {
         /* 主题/键位加载失败:保留旧值,编辑器以无主题扩展降级。 */
+      } finally {
+        if (!cancelled) setBaseReady(true);
       }
     })();
     return () => {
@@ -190,6 +204,7 @@ export default function FileCodeEditorImpl({
         <div className="h-full w-full" role="status" aria-label={t("加载编辑器…")} />
       }
     >
+    {baseReady ? (
     <CodeMirror
       className="fvp-cm"
       value={value}
@@ -223,6 +238,9 @@ export default function FileCodeEditorImpl({
         syntaxHighlighting: false,
       }}
     />
+    ) : (
+      <div className="h-full w-full" role="status" aria-label={t("加载编辑器…")} />
+    )}
     </Suspense>
   );
 }

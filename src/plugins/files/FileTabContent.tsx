@@ -56,6 +56,7 @@ import {
 import { isRemoteFileUri } from "@kernel/fileSources";
 import { OpenWithMenu } from "./OpenWithMenu";
 import { useFileBlame } from "./useFileBlame";
+import { useFileLineDiff } from "./useFileLineDiff";
 import { fileDetailActions } from "./fileDetailActions";
 import type { EditorView } from "@codemirror/view";
 import { useFileDetailMenu } from "./useFileDetailMenu";
@@ -90,6 +91,8 @@ function FileTabBody({
   const showEditor = !structuredKind ? (!isMd || mdEditor) : structuredEditor;
   /* 详情页右键菜单(JetBrains 同型最小集):viewRef 持编辑器实例,剪切/粘贴直驱事务。 */
   const viewRef = useRef<EditorView | null>(null);
+  /* 编辑器就绪信号:viewRef.current 首拍常为 null,tick 驱动数据钩子首拉。 */
+  const [viewTick, setViewTick] = useState(0);
   const editorActive = showEditor && !remote;
   /* 命令桥:内核快捷键(⌥F1 定位 / ⌥⇧H 历史 / ⌥⇧B blame)读当前详情上下文。 */
   useEffect(() => {
@@ -99,6 +102,7 @@ function FileTabBody({
     };
   }, [path, remote]);
   const { blameOn, toggleBlame } = useFileBlame({ path, active: editorActive, viewRef });
+  useFileLineDiff({ path, active: editorActive, dirty: doc.dirty, viewRef, viewTick });
   const { detailMenuProps, detailMenu } = useFileDetailMenu({
     variant: showEditor ? "editor" : "preview",
     path,
@@ -134,7 +138,7 @@ function FileTabBody({
               readOnly={remote}
               onChange={doc.setDoc}
               onSave={doc.save}
-              onViewReady={(view) => { viewRef.current = view; }}
+              onViewReady={(view) => { viewRef.current = view; if (view) setViewTick((v) => v + 1); }}
               revealLine={reveal?.line ?? null}
               revealSeq={reveal?.seq ?? 0}
             />

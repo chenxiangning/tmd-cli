@@ -243,3 +243,24 @@
   font-weight: 500;
   background: color-mix(in srgb, var(--tmd-syntax-string) 10%, var(--tmd-bg-elevated));
 }
+
+/* ===== 行号槽 diff 着色(editorDiffGutter,跟随文件树 Git 变更着色开关)=====
+   marker 只在变更行出现,无数据时 gutter 零宽不占位;3px 竖条贴行号左缘。 */
+.cm-diffGutter .cm-gutterElement {
+  padding: 0;
+  height: 100%;
+}
+.cm-dlg {
+  display: block;
+  width: 3px;
+  height: 100%;
+}
+.cm-dlg-add {
+  background: var(--tmd-git-tree-added);
+}
+.cm-dlg-mod {
+  background: var(--tmd-git-tree-modified);
+}
+.cm-dlg-del {
+  background: var(--tmd-diff-removed);
+}
