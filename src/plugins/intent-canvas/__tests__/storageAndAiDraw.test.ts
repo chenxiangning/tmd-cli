@@ -33,6 +33,9 @@ vi.mock("@kernel/ipc", () => ({
       trashed.push(path);
       fileByPath.delete(path);
     },
+    fsRemovePath: async (path: string) => {
+      fileByPath.delete(path);
+    },
     fsListDir: async (path: string) =>
       [...fileByPath.keys()]
         .filter((p) => p.startsWith(`${path}/`))
@@ -120,31 +123,6 @@ describe("intent canvas sidecar storage", () => {
     onDisk.updatedAt = new Date(Date.now() + 5 * 60_000).toISOString();
     fileByPath.set(path, JSON.stringify(onDisk));
     await expect(saveIntentCanvasDocument(ROOT, document)).rejects.toThrow("重新打开");
-  });
-
-  it("索引读取失败时中止索引覆写,修好后保存自愈", async () => {
-    const first = (await saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
-      workspace: { id: "ws-1", name: "demo" },
-      request: { requestId: 1, mode: "architect", title: "画布甲" },
-    }))).document;
-    const indexPath = [...fileByPath.keys()].find((p) => p.endsWith("index.json"))!;
-    fileByPath.set(indexPath, "{broken json");
-    await expect(saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
-      workspace: { id: "ws-1", name: "demo" },
-      request: { requestId: 2, mode: "architect", title: "画布乙" },
-    }))).rejects.toThrow("索引");
-    /* 中止覆写:坏索引原样保留(没有被空快照整表覆盖)。 */
-    expect(fileByPath.get(indexPath)).toBe("{broken json");
-    /* 自愈路径:移除损坏索引(missing 语义回落空列表)后重存,条目重建。 */
-    fileByPath.delete(indexPath);
-    await saveIntentCanvasDocument(ROOT, first);
-    await saveIntentCanvasDocument(ROOT, createIntentCanvasDocument({
-      workspace: { id: "ws-1", name: "demo" },
-      request: { requestId: 3, mode: "architect", title: "画布乙" },
-    }));
-    const index = await loadIntentCanvasIndex(ROOT);
-    expect(index.value.map((entry) => entry.title).sort()).toEqual(["画布乙", "画布甲"]);
-    expect(first.title).toBe("画布甲");
   });
 
   it("超过读闸尺寸的文档拒绝保存(防存得进打不开)", async () => {

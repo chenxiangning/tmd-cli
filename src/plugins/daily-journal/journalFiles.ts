@@ -148,11 +148,10 @@ export async function writeText(path: string, content: string): Promise<void> {
   await ipc.fsWriteFile(path, content);
 }
 
-/** 原子落盘(同目录 tmp + rename):meta 账本掉电截断会清零幂等标记与任务史;
- *  rename 残留的 .tmp 由下次写覆盖(单写者,fs::rename 双平台覆盖既有目标)。 */
+/** 落盘即原子:ipc.fsWriteFile 后端(fs_edit::write_file → session::write_atomic)
+ *  已是 tmp+rename 原子替换,允许覆写既有目标,无需 JS 侧再拼。不得改走
+ *  fsRenameEntry 自拼「原子写」——它撞名即报错(不静默覆盖),meta.json 恒存在
+ *  会让全部写入滞留 .tmp、账本永不再落盘(2026-10-01~09 水位/珠子/任务史停更事故根因)。 */
 export async function writeJson(path: string, data: unknown): Promise<void> {
-  await ensureParentDir(path);
-  const tmp = `${path}.tmp`;
-  await ipc.fsWriteFile(tmp, JSON.stringify(data, null, 1));
-  await ipc.fsRenameEntry(tmp, path.split("/").pop() as string);
+  await writeText(path, JSON.stringify(data, null, 1));
 }

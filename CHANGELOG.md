@@ -4,6 +4,28 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.5] - 2026-10-09
+
+本版主体 = 图标装饰扩编收口与打磨批:git/文件面图标全面纳管装饰、设置卡六域分组 + 名称检索;意图画布保存链事务化;mcp-hub 转圈与 reveal 口径两条评审 P3 收账。
+
+### 新增
+
+- 图标装饰纳管扩编(b42dfdb3/38e37a60/64fa4387):git 面板与文件树 11 个图标入口纳管(行内 hover 动作缺省色自 faint 提深一档),git 与文件面弹出菜单图标色随触发钮,差异视图工具与 worktree 区按钮跟进;IconSetTables 拆出 Lucide 独立表(iconSetTablesLucide)
+- 图标装饰设置卡分组与检索(3b5f52af):46+1 键按界面域六组展示(通用/右栏面板/侧栏工作区/输入框/Git/文件树),名称或 id 大小写不敏感检索,零命中空态提示;清单拆件 iconDecorItems.tsx 守 300 行铁则
+- 文件树 Git 着色开关改两态语义(a284d4d1/82c6231e):选中才吃装饰色,GitMerge 实心双图标切换,缺省浅蓝
+
+### 修复
+
+- 复审批(2026-10-10,记录见 `docs/review/2026-10-10-035-commit-review.md`):isMissingFileError 补 Windows 缺失文案识别(修复前新建画布保存/索引首读在 Windows 全断);「关闭」键跨域撞车收口(开关语义迁「开/关」短键,notify 撤全局覆盖,en/ja 30+ Close 位回归);画布保存整段入索引事务消回滚竞态窗,回滚自身失败孤儿认领自愈;索引排序平局 id 决胜;checkpoints 双钮与 DiffModeToggle 接装饰组合
+- 意图画布保存链事务化(426b313b):索引读取失败/超限不再留下「文档已落盘、索引无条目」的半写态,回滚本次文档写(覆写恢复旧字节、新建删除新文件,先核对盘上字节防覆盖并发 AI 导入);超限剥缩略图从逐条全量重预算 O(n²) 改为条目内嵌字节增量精确预算 O(n),最旧优先、够用即止
+- mcp-hub 失败行转圈拆分(9cb579b5):转圈态从面板级改行内私有,多引擎同败时点任意行重试只转该行
+- 文件管理器定位失败口径统一(c8df93e1):checkpoints/files/cli-config 四处静默吞改 console.warn,对齐 git 侧
+- daily-journal 账本直写覆写(3ae8af98):json 落盘不经 rename,修 rename 撞名致账本九日滞留 .tmp
+
+### 内务
+
+- 真机验收单落盘(d611c9ba):手机 M2 尾项 + 外网三件套/读头 + 安卓四项与徽标 + 双实例/updater 四段 14 项(docs/brainstorm/2026-10-09-035-acceptance-checklist.md),M2 8.2 断连快照保留代码面核实勾账
+
 ## [0.3.4] - 2026-10-09
 
 本版主体 = 多仓批量操作打磨与 24h 综合评审(记录见 `docs/review/2026-10-09-24h-commit-review.md`):批量推送对 Conductor 式无上游仓的语义修正、推送弹窗与聚合头部交互细化,评审三处 P1 全修。

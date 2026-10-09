@@ -86,7 +86,7 @@ export function BehaviorTab() {
             className={`segment${settings.sendConfirmEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ sendConfirmEnabled: true })}
           >
-            {t("开启")}
+            {t("开")}
           </button>
           <button
             type="button"
@@ -95,7 +95,7 @@ export function BehaviorTab() {
             className={`segment${!settings.sendConfirmEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ sendConfirmEnabled: false })}
           >
-            {t("关闭")}
+            {t("关")}
           </button>
         </div>
       </div>
@@ -112,7 +112,7 @@ export function BehaviorTab() {
             className={`segment${settings.promptHistoryEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ promptHistoryEnabled: true })}
           >
-            {t("开启")}
+            {t("开")}
           </button>
           <button
             type="button"
@@ -121,7 +121,7 @@ export function BehaviorTab() {
             className={`segment${!settings.promptHistoryEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ promptHistoryEnabled: false })}
           >
-            {t("关闭")}
+            {t("关")}
           </button>
         </div>
       </div>

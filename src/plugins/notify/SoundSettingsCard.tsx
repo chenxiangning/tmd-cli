@@ -46,7 +46,7 @@ export function ToggleRow(props: {
           className={`segment${props.on ? " is-active" : ""}`}
           onClick={() => props.onChange(true)}
         >
-          {t("开启")}
+          {t("开")}
         </button>
         <button
           type="button"
@@ -55,7 +55,7 @@ export function ToggleRow(props: {
           className={`segment${!props.on ? " is-active" : ""}`}
           onClick={() => props.onChange(false)}
         >
-          {t("关闭")}
+          {t("关")}
         </button>
       </div>
     </div>

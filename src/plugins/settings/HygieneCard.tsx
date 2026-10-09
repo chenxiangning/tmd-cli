@@ -42,7 +42,7 @@ export function HygieneCard() {
             className={`segment${settings.sessionHygieneEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ sessionHygieneEnabled: true })}
           >
-            {t("开启")}
+            {t("开")}
           </button>
           <button
             type="button"
@@ -51,7 +51,7 @@ export function HygieneCard() {
             className={`segment${!settings.sessionHygieneEnabled ? " is-active" : ""}`}
             onClick={() => updateSettings({ sessionHygieneEnabled: false })}
           >
-            {t("关闭")}
+            {t("关")}
           </button>
         </div>
       </div>

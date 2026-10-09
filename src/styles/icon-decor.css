@@ -40,13 +40,10 @@ html[data-icon-blink~="panel-mcp-hub"] .panel-rail-tab[data-panel-id="mcp-hub"] 
 
 /* ── 侧栏动作:右缘 rail 钮(ssh = 面板 tab 走 data-panel-id;
    wsl/terminal/intent-canvas/system-proxy = rail 动作走 data-action-id)
-   + 左缘 LeftRail 钮(session-board,2026-10-04 迁入);
-   wsl-panel 的底栏/菜单行选择器为 rail 化前的历史遗留,无消费方 ── */
+   + 左缘 LeftRail 钮(session-board,2026-10-04 迁入)── */
 html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
 html[data-icon-blink~="system-proxy"] .panel-rail-tab[data-action-id="system-proxy"],
 html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
-html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
-html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
 html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
 html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
 html[data-icon-blink~="session-board"] .left-rail-tab[data-action-id="session-board"] svg,
@@ -98,6 +95,67 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
   animation: icon-decor-breathe 5s ease-in-out infinite;
 }
 
+/* ── 2026-10-09 扩编 11 键:git 面板行内入口/工具条 + 文件树工具条 ──
+   git-open/git-row-actions/git-repo-ops 缺省回落 muted(2026-10-09 起
+   行内 hover 动作缺省色自 faint 提深一档,用户反馈太浅);工具条四键与
+   文件树四键缺省 = 现状(currentColor/inherit)。文件树钮经
+   .file-tree-toolbar-action 提特异性,压过其 home 样式表 base/hover。 */
+[data-action-id="git-open"] { color: var(--icon-decor-git-open, var(--tmd-fg-muted)); }
+[data-action-id="git-open"]:hover { color: var(--icon-decor-git-open, var(--tmd-fg)); }
+[data-action-id="git-open-location"] { color: var(--icon-decor-git-open-location, var(--tmd-fg-muted)); }
+[data-action-id="git-open-location"]:hover { color: var(--icon-decor-git-open-location, var(--tmd-fg)); }
+[data-action-id="git-row-actions"] { color: var(--icon-decor-git-row-actions, var(--tmd-fg-muted)); }
+[data-action-id="git-row-actions"]:hover { color: var(--icon-decor-git-row-actions, var(--tmd-fg)); }
+/* 放弃/删除(danger)hover 恒红:不可逆动作语义优先于装饰色 */
+[data-action-id="git-row-actions"][data-danger]:hover { color: var(--tmd-diff-removed); }
+/* 暂存/取消暂存字形钮(tree 行 +/−)hover 恒 accent,同理保两态语义 */
+[data-action-id="git-row-actions"][data-hover-accent]:hover { color: var(--tmd-accent); }
+[data-action-id="git-view"] { color: var(--icon-decor-git-view, currentColor); }
+[data-action-id="git-layout"] { color: var(--icon-decor-git-layout, currentColor); }
+[data-action-id="git-remote"] { color: var(--icon-decor-git-remote, currentColor); }
+[data-action-id="git-worktree"] { color: var(--icon-decor-git-worktree, currentColor); }
+[data-action-id="git-repo-ops"] { color: var(--icon-decor-git-repo-ops, var(--tmd-fg-muted)); }
+[data-action-id="git-repo-ops"]:hover { color: var(--icon-decor-git-repo-ops, var(--tmd-fg)); }
+.file-tree-toolbar-action[data-action-id="files-new-file"] { color: var(--icon-decor-files-new-file, inherit); }
+.file-tree-toolbar-action[data-action-id="files-new-file"]:hover { color: var(--icon-decor-files-new-file, var(--tmd-fg)); }
+.file-tree-toolbar-action[data-action-id="files-new-folder"] { color: var(--icon-decor-files-new-folder, inherit); }
+.file-tree-toolbar-action[data-action-id="files-new-folder"]:hover { color: var(--icon-decor-files-new-folder, var(--tmd-fg)); }
+.file-tree-toolbar-action[data-action-id="files-refresh"] { color: var(--icon-decor-files-refresh, inherit); }
+.file-tree-toolbar-action[data-action-id="files-refresh"]:hover { color: var(--icon-decor-files-refresh, var(--tmd-fg)); }
+/* files-git-toggle:着色开关,选中(on)才吃装饰色,关闭态保持工具条本色 */
+.file-tree-toolbar-action[data-action-id="files-git-toggle"] { color: inherit; }
+.file-tree-toolbar-action[data-action-id="files-git-toggle"]:hover { color: var(--tmd-fg); }
+.file-tree-toolbar-action[data-action-id="files-git-toggle"].is-active { color: var(--icon-decor-files-git-toggle, #4da3ff); }
+
+/* ── 弹出菜单图标组:继承触发钮的装饰色纳管(字形不进组合表,色随键走) ── */
+[data-decor-from="git-view"] { color: var(--icon-decor-git-view, currentColor); }
+[data-decor-from="git-layout"] { color: var(--icon-decor-git-layout, currentColor); }
+[data-decor-from="git-remote"] { color: var(--icon-decor-git-remote, currentColor); }
+[data-decor-from="git-repo-ops"] { color: var(--icon-decor-git-repo-ops, currentColor); }
+[data-decor-from="git-worktree"] { color: var(--icon-decor-git-worktree, currentColor); }
+[data-decor-from="files-new-file"] { color: var(--icon-decor-files-new-file, currentColor); }
+[data-decor-from="files-new-folder"] { color: var(--icon-decor-files-new-folder, currentColor); }
+
+/* 差异头部控制组(segmented 四钮图标;文字不吃装饰色) */
+.segment[data-action-id="git-diff-tools"] svg { color: var(--icon-decor-git-diff-tools, currentColor); }
+
+/* 新键呼吸闪烁(2026-10-09 扩编 11 键) */
+html[data-icon-blink~="git-open"] [data-action-id="git-open"],
+html[data-icon-blink~="git-open-location"] [data-action-id="git-open-location"],
+html[data-icon-blink~="git-row-actions"] [data-action-id="git-row-actions"],
+html[data-icon-blink~="git-view"] [data-action-id="git-view"],
+html[data-icon-blink~="git-layout"] [data-action-id="git-layout"],
+html[data-icon-blink~="git-remote"] [data-action-id="git-remote"],
+html[data-icon-blink~="git-worktree"] [data-action-id="git-worktree"],
+html[data-icon-blink~="git-repo-ops"] [data-action-id="git-repo-ops"],
+html[data-icon-blink~="files-new-file"] [data-action-id="files-new-file"],
+html[data-icon-blink~="files-new-folder"] [data-action-id="files-new-folder"],
+html[data-icon-blink~="files-refresh"] [data-action-id="files-refresh"],
+html[data-icon-blink~="files-git-toggle"] .file-tree-toolbar-action[data-action-id="files-git-toggle"].is-active,
+html[data-icon-blink~="git-diff-tools"] .segment[data-action-id="git-diff-tools"] svg {
+  animation: icon-decor-breathe 5s ease-in-out infinite;
+}
+
 /* reduced-motion 只关本呼吸,不碰其它动画(如 is-refreshing 转圈) */
 @media (prefers-reduced-motion: reduce) {
   html[data-icon-blink~="newchat"] .workspace-action-btn.is-newchat svg,
@@ -112,8 +170,6 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
   html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
   html[data-icon-blink~="system-proxy"] .panel-rail-tab[data-action-id="system-proxy"],
   html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
-  html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
-  html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
   html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
   html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
   html[data-icon-blink~="session-board"] .left-rail-tab[data-action-id="session-board"] svg,
@@ -136,7 +192,20 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
   html[data-icon-blink~="broadcast"] [data-action-id="broadcast"],
   html[data-icon-blink~="enhance"] [data-action-id="enhance"],
   html[data-icon-blink~="wake-skill"] [data-action-id="wake-skill"],
-  html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
+  html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"],
+  html[data-icon-blink~="git-open"] [data-action-id="git-open"],
+  html[data-icon-blink~="git-open-location"] [data-action-id="git-open-location"],
+  html[data-icon-blink~="git-row-actions"] [data-action-id="git-row-actions"],
+  html[data-icon-blink~="git-view"] [data-action-id="git-view"],
+  html[data-icon-blink~="git-layout"] [data-action-id="git-layout"],
+  html[data-icon-blink~="git-remote"] [data-action-id="git-remote"],
+  html[data-icon-blink~="git-worktree"] [data-action-id="git-worktree"],
+  html[data-icon-blink~="git-repo-ops"] [data-action-id="git-repo-ops"],
+  html[data-icon-blink~="files-new-file"] [data-action-id="files-new-file"],
+  html[data-icon-blink~="files-new-folder"] [data-action-id="files-new-folder"],
+  html[data-icon-blink~="files-refresh"] [data-action-id="files-refresh"],
+  html[data-icon-blink~="files-git-toggle"] .file-tree-toolbar-action[data-action-id="files-git-toggle"].is-active,
+  html[data-icon-blink~="git-diff-tools"] .segment[data-action-id="git-diff-tools"] svg {
     animation: none;
   }
 }

@@ -94,7 +94,7 @@ function TreeActions({
         onClick={() => openWorktreeWorkspace(entry.path)}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
-        <ArrowsClockwise size="0.75rem" aria-hidden />
+        <ArrowsClockwise size="0.75rem" data-decor-from="git-worktree" aria-hidden />
       </button>
       <button
         type="button"
@@ -103,7 +103,7 @@ function TreeActions({
         onClick={() => void spawnTerminalAt(entry.path)}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
-        <TerminalWindow size="0.75rem" aria-hidden />
+        <TerminalWindow size="0.75rem" data-decor-from="git-worktree" aria-hidden />
       </button>
       <button
         type="button"
@@ -112,7 +112,7 @@ function TreeActions({
         onClick={onStartConfirm}
         className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
       >
-        <Trash size="0.75rem" aria-hidden />
+        <Trash size="0.75rem" data-decor-from="git-worktree" aria-hidden />
       </button>
     </span>
   );

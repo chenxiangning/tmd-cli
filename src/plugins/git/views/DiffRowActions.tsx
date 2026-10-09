@@ -36,11 +36,12 @@ export function RowHoverActions({
         <button
           type="button"
           title={t("取消暂存(git reset)")}
+          data-action-id="git-row-actions"
           onClick={(e) => {
             e.stopPropagation();
             onUnstage();
           }}
-          className="text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
+          className="hover:underline hover:underline-offset-2"
         >
           {t("(取消暂存)")}
         </button>
@@ -48,11 +49,12 @@ export function RowHoverActions({
         <button
           type="button"
           title={t("暂存(git add)")}
+          data-action-id="git-row-actions"
           onClick={(e) => {
             e.stopPropagation();
             onStage();
           }}
-          className="text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
+          className="hover:underline hover:underline-offset-2"
         >
           {t("(暂存)")}
         </button>
@@ -61,11 +63,13 @@ export function RowHoverActions({
         <button
           type="button"
           title={t("放弃工作区改动(还原到暂存区;不可恢复)")}
+          data-action-id="git-row-actions"
+          data-danger
           onClick={(e) => {
             e.stopPropagation();
             onDiscard();
           }}
-          className="text-(--tmd-fg-faint) hover:text-(--tmd-diff-removed) hover:underline hover:underline-offset-2"
+          className="hover:underline hover:underline-offset-2"
         >
           {t("(放弃)")}
         </button>
@@ -74,11 +78,13 @@ export function RowHoverActions({
         <button
           type="button"
           title={t("删除未跟踪文件(git clean;不可恢复)")}
+          data-action-id="git-row-actions"
+          data-danger
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
           }}
-          className="text-(--tmd-fg-faint) hover:text-(--tmd-diff-removed) hover:underline hover:underline-offset-2"
+          className="hover:underline hover:underline-offset-2"
         >
           {t("(删除)")}
         </button>

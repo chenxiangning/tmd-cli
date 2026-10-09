@@ -6,7 +6,7 @@
  * - 每供应商 1 行 = 2 列网格: [定宽标题列] [窗口列],标题列定宽保证窗口列跨行同 x 起点;
  * - 窗口列内嵌 1fr 1fr 网格: 5h 段固定第 1 格,7d/30d 段固定第 2 格,
  *   单窗口供应商也按类型落格 → 各行 7d 进度条 y 轴对齐;
- * - 7d/30d 进度条橘色(沿用 quota.css rgb(255,140,60)),5h 维持 --tmd-accent 蓝;
+ * - 7d/30d 进度条橘色(沿用 quota.css --tmd-decor 装饰强调 token),5h 维持 --tmd-accent 蓝;
  * - reset 列定宽: 有数据显示 "重置18:30 · 4小时后",无数据留空槽,不推移进度条;
  * - 窗口短标 5h/7d 用 kernel/quota 的 SHORT_WINDOW_LABEL(与 QuotaChip 同源);
  * - 完整时刻(含日期)在 title tooltip,行内只放短格式。

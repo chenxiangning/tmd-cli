@@ -39,8 +39,6 @@ const MESSAGES_EN = {
   "额度预警阈值百分比": "Quota alert threshold percent",
   "0–100 的整数;清空或非法输入将保持当前值。":
     "An integer between 0 and 100; empty or invalid input keeps the current value.",
-  "开启": "On",
-  "关闭": "Off",
 } as const;
 
 /** ja 词典 · notify 域。 */
@@ -78,8 +76,6 @@ const MESSAGES_JA = {
   "额度预警阈值百分比": "クォータ警告しきい値(%)",
   "0–100 的整数;清空或非法输入将保持当前值。":
     "0–100 の整数。空欄や無効な入力では現在の値を維持します。",
-  "开启": "オン",
-  "关闭": "オフ",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

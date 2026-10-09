@@ -8,6 +8,7 @@
 import { useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
+import { DecorIcon } from "@kernel/iconSet";
 import { createPortal } from "react-dom";
 import {
   ArrowsDownUp,
@@ -118,9 +119,10 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         onClick={(e) => toggleMenu("view", e)}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "view"}
+        data-action-id="git-view"
         className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1 py-1 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
-        <ViewIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+        <DecorIcon id="git-view" Fallback={ViewIcon} className="h-[0.75rem] w-[0.75rem]" aria-hidden />
         <span>{t(VIEW_LABEL[view])}</span>
       </button>
       {/* 视图文字钮与三 icon 钮之间的竖分隔(弱色,不抢视觉) */}
@@ -135,9 +137,10 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         aria-label={t("文件列表视图")}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "layout"}
+        data-action-id="git-layout"
         className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
       >
-        <LayoutIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+        <DecorIcon id="git-layout" Fallback={LayoutIcon} className="h-[0.75rem] w-[0.75rem]" aria-hidden />
       </button>
       <button
         type="button"
@@ -146,19 +149,21 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         aria-label={t("远端操作")}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "remote"}
+        data-action-id="git-remote"
         className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
       >
-        <ArrowsDownUp className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+        <DecorIcon id="git-remote" Fallback={ArrowsDownUp} className="h-[0.75rem] w-[0.75rem]" aria-hidden />
       </button>
       {cwd && (
         <button
           type="button"
           title={t("Worktree 管理")}
           aria-label={t("Worktree 管理")}
+          data-action-id="git-worktree"
           onClick={() => setWorktreesOpen(true)}
           className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
         >
-          <TreeStructure className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+          <DecorIcon id="git-worktree" Fallback={TreeStructure} className="h-[0.75rem] w-[0.75rem]" aria-hidden />
         </button>
       )}
       {cwd && worktreesOpen && (
@@ -188,7 +193,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
                 }}
               >
                 <span className="flex items-center gap-1.5">
-                  <VIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+                  <VIcon className="h-[0.75rem] w-[0.75rem]" data-decor-from="git-view" aria-hidden />
                   <span>{t(VIEW_LABEL[v])}</span>
                 </span>
                 {view === v && <span>✓</span>}
@@ -213,7 +218,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
                 }}
               >
                 <span className="flex items-center gap-1.5">
-                  <LIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+                  <LIcon className="h-[0.75rem] w-[0.75rem]" data-decor-from="git-layout" aria-hidden />
                   <span>{l === "flat" ? t("平铺") : t("树形")}</span>
                 </span>
                 {layout === l && <span>✓</span>}

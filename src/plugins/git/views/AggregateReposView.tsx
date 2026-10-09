@@ -169,7 +169,7 @@ export function AggregateReposView({
                 className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-(--tmd-bg-hover) disabled:opacity-50"
               >
                 <span className="flex items-center gap-1.5">
-                  <RowIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+                  <RowIcon className="h-[0.75rem] w-[0.75rem]" data-decor-from="git-repo-ops" aria-hidden />
                   <span>{row.label}</span>
                 </span>
                 {row.count > 0 && <span>{row.count}</span>}

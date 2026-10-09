@@ -8,6 +8,7 @@
 
 import { ArrowCounterClockwise, FileText, FolderOpen } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { DecorIcon } from "@kernel/iconSet";
 import { ipc, type CkptBatch, type CkptBatchFile } from "@kernel/ipc";
 import { openFileInTab } from "@kernel/fileTabs";
 import { getCachedDiff } from "./diffCache";
@@ -199,19 +200,21 @@ export function FileRow({
         <>
           <button
             type="button"
+            data-action-id="git-open"
             className="hidden h-[19px] w-[19px] flex-none place-items-center rounded text-(--tmd-fg-subtle) group-hover:grid hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
             title={t("打开文件")}
             onClick={() => openFileInTab(abs)}
           >
-            <FileText size="0.6875rem" aria-hidden />
+            <DecorIcon id="git-open" Fallback={FileText} className="h-[0.6875rem] w-[0.6875rem]" />
           </button>
           <button
             type="button"
+            data-action-id="git-open-location"
             className="hidden h-[19px] w-[19px] flex-none place-items-center rounded text-(--tmd-fg-subtle) group-hover:grid hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
             title={t("打开文件位置")}
-            onClick={() => void ipc.fsRevealInFileManager(abs).catch(() => {})}
+            onClick={() => void ipc.fsRevealInFileManager(abs).catch((err) => console.warn("[reveal] 打开文件位置失败:", err))}
           >
-            <FolderOpen size="0.6875rem" aria-hidden />
+            <DecorIcon id="git-open-location" Fallback={FolderOpen} className="h-[0.6875rem] w-[0.6875rem]" />
           </button>
         </>
       )}
