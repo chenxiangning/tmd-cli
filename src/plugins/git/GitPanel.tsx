@@ -17,7 +17,7 @@ import { useAggregateScope } from "./useAggregateRepos";
 import type { GitRepoSummary } from "@kernel/ipc";
 import { RepoGuide } from "./views/RepoGuide";
 
-/** 「全部」态整壳:RepoBar(chips 仍是当前工作区仓,点 chip = 选仓回本仓)+ 聚合视图。 */
+/** 「全部」态整壳:聚合视图(顶行批量条;RepoBar 经 prop 渲染在批量条之下,chips 仍是当前工作区仓,点 chip = 选仓回本仓)。 */
 function GitPanelAggregate({
   repos,
   truncated,
@@ -43,20 +43,25 @@ function GitPanelAggregate({
 }) {
   return (
     <div className="flex h-full flex-col text-xs">
-      <RepoBar
-        repos={repos}
-        truncated={truncated}
-        selectedPath={selectedPath}
-        chipSeq={chipSeq}
-        onSelect={(p) => {
-          onSelectRepo(p);
-          onScope("repo");
-        }}
-        scope={scope}
-        onScope={onScope}
-        showScope={showScope}
+      <AggregateReposView
+        onJump={onJump}
+        afterBatch={afterBatch}
+        repoBar={
+          <RepoBar
+            repos={repos}
+            truncated={truncated}
+            selectedPath={selectedPath}
+            chipSeq={chipSeq}
+            onSelect={(p) => {
+              onSelectRepo(p);
+              onScope("repo");
+            }}
+            scope={scope}
+            onScope={onScope}
+            showScope={showScope}
+          />
+        }
       />
-      <AggregateReposView onJump={onJump} afterBatch={afterBatch} />
     </div>
   );
 }

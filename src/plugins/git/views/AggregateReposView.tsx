@@ -1,11 +1,10 @@
 /**
  * AggregateReposView —— Git 面板聚合模式(「全部」)主体(spec 2026-10-08-git-batch-ops-design)。
- * 批量条(数字摘要 + ⟳ + 分裂按钮组「拉取全部 ▾」,菜单含获取/推送全部)+ 按工作区分组的仓行;
- * 形制对齐 GitToolbar,两端头部同位同构不跳频。
+ * 批量条(数字摘要 + ⟳ + 分裂按钮组「拉取全部 ▾」,菜单含获取/推送全部)+ RepoBar + 按工作区分组的仓行。
  * 行三态:常态(hover 行级 拉取/推送,点行跳仓)→ 执行中(转圈/排队)→ 结果(✓/⊘/✗)。
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ArrowClockwise, ArrowDown, ArrowUp, CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
@@ -43,11 +42,14 @@ function RowStatus({ repo, result }: { repo: AggRepo; result: RowResult | undefi
 export function AggregateReposView({
   onJump,
   afterBatch,
+  repoBar,
 }: {
   /** 点行跳仓:置选中仓 + 切工作区 + 退回本仓态(由 GitPanel 编排)。 */
   onJump: (wsId: string, path: string) => void;
   /** 批量落定后让当前仓面板数据失效重取。 */
   afterBatch: () => void;
+  /** RepoBar(仓 chips + 本仓/全部开关),渲染在批量条之下(两行头部 2026-10-09 上下互换)。 */
+  repoBar: ReactNode;
 }) {
   const agg = useAggregateRepos();
   const batch = useBatchGitOps(() => {
@@ -72,8 +74,7 @@ export function AggregateReposView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* 批量条:形制对齐 GitToolbar(本仓态头部)——左侧数字摘要 + 右侧 ⟳ 与分裂按钮组,
-          两端头部同位同构,切「本仓/全部」不跳频。三个批量动作收进主钮 拉取全部 + ▾ 菜单。 */}
+      {/* 批量条:「全部」态顶行——左侧数字摘要 + 右侧 ⟳ 与分裂按钮组,三个批量动作收进主钮 拉取全部 + ▾ 菜单。 */}
       <div className="flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-(--tmd-border) px-2 py-1">
         <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg-muted) tabular-nums">
           {batch.running
@@ -166,6 +167,7 @@ export function AggregateReposView({
           </>
         )}
       </div>
+      {repoBar}
       {opsMenu && !batch.running && (
         <MenuShell position={opsMenu} width={176} onClose={() => setOpsMenu(null)}>
           {menuRows.map((row) => {
