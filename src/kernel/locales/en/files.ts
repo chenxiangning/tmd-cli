@@ -26,6 +26,7 @@ export const MESSAGES = {
   "没有变更文件": "No changed files",
   "显示全部文件": "Show all files",
   "仅显示有变更的文件": "Show only changed files",
+"展开全部目录": "Expand all folders",
   "更多操作": "More actions",
   "刷新": "Refresh",
   "仅显示前 {n} 条结果": "Showing first {n} results",

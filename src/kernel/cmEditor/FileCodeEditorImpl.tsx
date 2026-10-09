@@ -30,9 +30,8 @@ async function loadBaseExts(onSave: () => void): Promise<Extension[]> {
     import("@codemirror/view"),
     import("@codemirror/commands"),
     import("@codemirror/search"),
-    /* 必须走 @kernel 别名:files 插件注入侧(useFileBlame/useFileLineDiff)同用别名,
-       相对路径在 vite dev 下解析成 /src/ 而别名成 /@fs/ —— 两 URL 两模块实例,
-       gutter 的 StateField 单例分裂,注入静默落空。 */
+    /* 挂载侧与 files 插件注入侧(useFileBlame/useFileLineDiff)统一走 @kernel
+       别名:两侧必须解析到同一模块实例,gutter 的 StateEffect/StateField 才共享。 */
     import("@kernel/cmEditor/editorBlame"),
     import("@kernel/cmEditor/editorDiffGutter"),
   ]);
