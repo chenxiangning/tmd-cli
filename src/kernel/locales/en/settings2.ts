@@ -74,4 +74,5 @@ export const MESSAGES = {
   "变更行动作": "Change-row actions",
   "Git 视图切换": "Git view switch",
   "聚合仓行拉取/推送": "Aggregate repo-row pull/push",
+  "差异视图工具": "Diff view tools",
 } as Record<string, string>;

@@ -74,4 +74,5 @@ export const MESSAGES = {
   "变更行动作": "変更行アクション",
   "Git 视图切换": "Git ビュー切替",
   "聚合仓行拉取/推送": "集約リポジトリ行の pull/push",
+  "差异视图工具": "差分ビューツール",
 } as Record<string, string>;

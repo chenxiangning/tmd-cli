@@ -34,6 +34,7 @@ export function DiffModeToggle({
             aria-pressed={fullView}
             title={t("全文查看")}
             className={`segment ${fullView ? "is-active" : ""}`}
+            data-action-id="git-diff-tools"
             onClick={onToggleFullView}
           >
             <FileTextIcon className="h-[0.75rem] w-[0.75rem]" />
@@ -50,6 +51,7 @@ export function DiffModeToggle({
             aria-checked={diffMode === id}
             title={t(label)}
             className={`segment ${diffMode === id ? "is-active" : ""}`}
+            data-action-id="git-diff-tools"
             onClick={() => setGitDiffMode(id)}
           >
             <Icon className="h-[0.75rem] w-[0.75rem]" />
@@ -63,6 +65,7 @@ export function DiffModeToggle({
           aria-pressed={diffWrap}
           title={t("自动换行")}
           className={`segment ${diffWrap ? "is-active" : ""}`}
+          data-action-id="git-diff-tools"
           onClick={() => setGitDiffWrap(!diffWrap)}
         >
           <ArrowBendDownRightIcon className="h-[0.75rem] w-[0.75rem]" />
