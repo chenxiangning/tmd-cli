@@ -4,6 +4,29 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.4] - 2026-10-09
+
+本版主体 = 多仓批量操作打磨与 24h 综合评审(记录见 `docs/review/2026-10-09-24h-commit-review.md`):批量推送对 Conductor 式无上游仓的语义修正、推送弹窗与聚合头部交互细化,评审三处 P1 全修。
+
+### 新增
+
+- 文件行号槽 diff 着色(ab1dbddb):文件详情编辑态行号槽按 worktree vs index 标新增/修改/删除,跟随文件树「Git 变更着色」总开关,编辑期标记随行漂移、保存对齐
+- 全仓刷新钮点击保底转圈(5928a882):useMinSpin 计时核化,快动作也保证可见转圈反馈
+- 变更过滤「展开全部目录」(5928a882/f8c342e9):变更树一键展开并补齐双语词条
+- 批量推送弹窗失败日志行内抽屉(f4a50e27):失败徽标可点开展开完整 git stderr,复选框选中态着色强化,可推仓置顶排序
+
+### 修复
+
+- 批量推送无上游仓误判不可推(f4a50e27):Conductor 命名惯例分支(如 `chenxiangning/yokohama`)无 upstream 被整链判死——目标选择只看 ahead,行目标缺省 `origin:<branch>`,下发走显式 refspec 不再依赖上游;推送全部菜单项不再置灰
+- 聚合头部仓库选择器(f4a50e27):多仓横向滑动改为选择器按钮 + 弹出纵向列表,对齐 Git 面板仓库切换交互;批量条与 RepoBar 两行头部互换(12ef1f01)
+- 24h 评审三处 P1(fc74577b):useMinSpin 迟落定旧回调杀新点击停表致忙态永久卡死;useFileLineDiff 不归一工作区根路径,Windows 反斜杠根上行级着色整体静默失效;editorDiffGutter 替换行双 marker 块级叠放致红条越行错格
+- 评审 P2 一批(fc74577b):批量执行器同 tick 双触发可双跑整批(ref 同步闸);行级着色 `full=true` 全文 patch 过 IPC 改 3 行上下文(标记集逐位等价);磁盘外变文件标记错色(diskTick 信号);AggregateReposView 贴 300 行铁则(行件拆出)
+
+### 内务
+
+- 评审记录落盘(docs/review/2026-10-09-24h-commit-review.md):13 提交分三片并行体检,5 真问题全修、10 项 P3 记录不修,架构/边界/性能/死代码四维全绿
+- 补升 mobile 壳版本号:0.3.3 发版漏升 plist/project.yml 双源,本次随 0.3.4 一并补齐
+
 ## [0.3.3] - 2026-10-09
 
 本版主体 = Git 多仓批量操作(方向 A:面板内聚合模式,设计探索与评审见 `docs/design/git-batch-ops-*.html` 与 `docs/superpowers/specs/2026-10-08-git-batch-ops-design.md`)。跨工作区统一拉取/推送不再逐仓切换。
