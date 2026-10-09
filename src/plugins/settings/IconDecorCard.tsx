@@ -95,8 +95,8 @@ export function IconDecorCard() {
           </div>
           {visibleGroups.map(({ id, label, items }) => (
             <div key={id} className="icon-decor-group">
-              <div className="icon-decor-group-label">{t(label)}</div>
-              <div className="icon-decor-grid">
+              <div className="icon-decor-group-label" id={`icon-decor-group-${id}`}>{t(label)}</div>
+              <div className="icon-decor-grid" role="group" aria-labelledby={`icon-decor-group-${id}`}>
                 {items.map(({ id: itemId, label: itemLabel, icon: Icon }) => {
                   const item = settings.iconDecor[itemId];
                   const isDefault =
@@ -133,7 +133,7 @@ export function IconDecorCard() {
                             className={`segment${item.blink ? " is-active" : ""}`}
                             onClick={() => setItem(itemId, { blink: true })}
                           >
-                            {t("开启")}
+                            {t("开")}
                           </button>
                           <button
                             type="button"
@@ -142,7 +142,7 @@ export function IconDecorCard() {
                             className={`segment${!item.blink ? " is-active" : ""}`}
                             onClick={() => setItem(itemId, { blink: false })}
                           >
-                            {t("关闭")}
+                            {t("关")}
                           </button>
                         </div>
                         <button
