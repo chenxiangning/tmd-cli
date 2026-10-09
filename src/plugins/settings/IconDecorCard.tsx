@@ -1,6 +1,6 @@
 /**
  * 基础设置 / 外观 tab 的图标装饰卡 —— 顶部「图标组合」五套切换(应用层
- * kernel/iconSet.tsx)+ 34 个界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
+ * kernel/iconSet.tsx)+ 全部界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
  * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
  * store 即时生效,颜色由 kernel/iconDecor.ts 同步 <html>,预览走 DecorIcon
  * 即时反映组合与自定义色。
@@ -41,6 +41,13 @@ import {
   Tray,
   BroadcastIcon,
   MagicWandIcon,
+  GitDiff,
+  FileText,
+  ArrowsDownUp,
+  TreeStructure,
+  ArrowUp,
+  FilePlus,
+  FolderSimplePlus,
 } from "@phosphor-icons/react";
 import {
   DEFAULT_ICON_DECOR,
@@ -117,6 +124,17 @@ const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "enhance", label: "增强提示词", icon: MagicWandIcon },
   { id: "wake-skill", label: "技能($)", icon: Sparkle },
   { id: "wake-mcp", label: "MCP 服务器", icon: HardDrive },
+  { id: "git-open", label: "文件行打开入口", icon: FileText },
+  { id: "git-row-actions", label: "变更行动作", icon: ListChecks },
+  { id: "git-view", label: "Git 视图切换", icon: GitDiff },
+  { id: "git-layout", label: "文件列表视图", icon: Rows },
+  { id: "git-remote", label: "远端操作", icon: ArrowsDownUp },
+  { id: "git-worktree", label: "Worktree 管理", icon: TreeStructure },
+  { id: "git-repo-ops", label: "聚合仓行拉取/推送", icon: ArrowUp },
+  { id: "files-new-file", label: "新建文件", icon: FilePlus },
+  { id: "files-new-folder", label: "新建文件夹", icon: FolderSimplePlus },
+  { id: "files-refresh", label: "刷新文件树", icon: ArrowClockwise },
+  { id: "files-git-toggle", label: "按 Git 变更着色文件", icon: GitDiff },
 ];
 type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
   ? true

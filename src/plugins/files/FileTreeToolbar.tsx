@@ -40,6 +40,7 @@ export function FileTreeToolbar({
         aria-label={t("新建文件")}
         data-hint={t("新建文件")}
         data-hint-cmd="panel.newFile"
+        data-action-id="files-new-file"
         title=""
         disabled={!onNewFile}
         onClick={onNewFile}
@@ -52,6 +53,7 @@ export function FileTreeToolbar({
         aria-label={t("新建文件夹")}
         data-hint={t("新建文件夹")}
         data-hint-cmd="panel.newFolder"
+        data-action-id="files-new-folder"
         title=""
         disabled={!onNewFolder}
         onClick={onNewFolder}
@@ -64,6 +66,7 @@ export function FileTreeToolbar({
         aria-label={t("刷新文件树")}
         data-hint={t("刷新文件树")}
         data-hint-cmd="panel.refresh"
+        data-action-id="files-refresh"
         title=""
         onClick={() => spin(onRefresh)}
       >

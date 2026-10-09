@@ -118,6 +118,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         onClick={(e) => toggleMenu("view", e)}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "view"}
+        data-action-id="git-view"
         className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1 py-1 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
         <ViewIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
@@ -135,6 +136,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         aria-label={t("文件列表视图")}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "layout"}
+        data-action-id="git-layout"
         className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
       >
         <LayoutIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
@@ -146,6 +148,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         aria-label={t("远端操作")}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "remote"}
+        data-action-id="git-remote"
         className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
       >
         <ArrowsDownUp className="h-[0.75rem] w-[0.75rem]" aria-hidden />
@@ -155,6 +158,7 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
           type="button"
           title={t("Worktree 管理")}
           aria-label={t("Worktree 管理")}
+          data-action-id="git-worktree"
           onClick={() => setWorktreesOpen(true)}
           className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 hover:bg-(--tmd-bg-hover)"
         >

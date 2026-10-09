@@ -69,4 +69,9 @@ export const MESSAGES = {
     "This config has unsaved changes; switching will discard them.",
   "丢弃修改": "Discard changes",
   "关闭错误提示": "Dismiss error",
+  // IconDecorCard 2026-10-09 扩编 11 键(settings.ts 满行,溢出收纳)
+  "文件行打开入口": "File-row open entry",
+  "变更行动作": "Change-row actions",
+  "Git 视图切换": "Git view switch",
+  "聚合仓行拉取/推送": "Aggregate repo-row pull/push",
 } as Record<string, string>;

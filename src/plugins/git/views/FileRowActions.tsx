@@ -37,22 +37,24 @@ export function FileOpenActions({
       <button
         type="button"
         title={t("打开文件")}
+        data-action-id="git-open"
         onClick={(e) => {
           e.stopPropagation();
           openFileInTab(abs);
         }}
-        className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+        className="shrink-0"
       >
         <FileText className="h-[0.75rem] w-[0.75rem]" />
       </button>
       <button
         type="button"
         title={t("打开文件位置")}
+        data-action-id="git-open"
         onClick={(e) => {
           e.stopPropagation();
           ipc.fsRevealInFileManager(abs).catch((err) => console.warn(gitErrorDisplay(err)));
         }}
-        className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+        className="shrink-0"
       >
         <FolderOpen className="h-[0.75rem] w-[0.75rem]" />
       </button>

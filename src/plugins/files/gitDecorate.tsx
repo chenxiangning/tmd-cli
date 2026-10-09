@@ -222,6 +222,7 @@ export function GitDecorateToggle() {
       className={`file-tree-toolbar-action${on ? " is-active" : ""}`}
       aria-label={t("按 Git 变更着色文件")}
       aria-pressed={on}
+      data-action-id="files-git-toggle"
       title={on ? t("关闭 Git 变更着色") : t("按 Git 变更着色文件与文件夹")}
       onClick={toggleGitDecorate}
     >

@@ -41,8 +41,9 @@ export function RowQuickOps({ repo: r, onOp }: { repo: AggRepo; onOp: (op: Batch
         <button
           key={op}
           type="button"
+          data-action-id="git-repo-ops"
           onClick={(e) => { e.stopPropagation(); onOp(op); }}
-          className="text-[11px] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline"
+          className="text-[11px] hover:underline"
         >
           {t(op === "pull" ? "拉取" : "推送")}
         </button>
