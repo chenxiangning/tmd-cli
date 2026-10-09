@@ -209,7 +209,7 @@ export function FileRow({
             type="button"
             className="hidden h-[19px] w-[19px] flex-none place-items-center rounded text-(--tmd-fg-subtle) group-hover:grid hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
             title={t("打开文件位置")}
-            onClick={() => void ipc.fsRevealInFileManager(abs).catch(() => {})}
+            onClick={() => void ipc.fsRevealInFileManager(abs).catch((err) => console.warn("[reveal] 打开文件位置失败:", err))}
           >
             <FolderOpen size="0.6875rem" aria-hidden />
           </button>

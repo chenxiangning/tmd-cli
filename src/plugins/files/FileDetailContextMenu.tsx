@@ -128,7 +128,7 @@ function menuBody(p: FileDetailContextMenuProps & { pick: Pick }) {
         <>
           {item(t("复制路径"), <Copy size="0.8125rem" />, () => pick(() => void copyText(path)))}
           {item(t("在访达中显示"), <FolderOpen size="0.8125rem" />, () =>
-            pick(() => void ipc.fsRevealInFileManager(path).catch(() => undefined)),
+            pick(() => void ipc.fsRevealInFileManager(path).catch((err) => console.warn("[reveal] 访达显示失败:", err))),
           )}
         </>
       )}

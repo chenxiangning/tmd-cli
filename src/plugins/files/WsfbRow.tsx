@@ -135,7 +135,7 @@ export function WsfbMoreMenu({
         {item(
           t("在访达中显示"),
           <FolderOpen size="0.8125rem" />,
-          () => void ipc.fsRevealInFileManager(root).catch(() => {}),
+          () => void ipc.fsRevealInFileManager(root).catch((err) => console.warn("[reveal] 访达显示失败:", err)),
         )}
         {item(t("复制路径"), <Copy size="0.8125rem" />, () => void copyText(root))}
       </div>
