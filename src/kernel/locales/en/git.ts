@@ -258,7 +258,7 @@ export const MESSAGES = {
   "更多批量操作": "More batch actions",
   "已截断": "Truncated",
   "改目标": "Edit target",
-  "扫描结果超过 32 仓被截断,其余仓请在 RepoBar 逐仓操作": "Scan truncated at 32 repos; use RepoBar for the rest",
+  "扫描结果超过 32 仓被截断,其余仓请在仓库选择器逐仓操作": "Scan truncated at 32 repos; use the repository picker for the rest",
   "推送全部到远端": "Push all to remotes",
   "查看失败日志": "View failure log",
   "收起失败日志": "Collapse failure log",

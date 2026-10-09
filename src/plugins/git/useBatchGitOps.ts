@@ -36,6 +36,9 @@ export interface BatchPushOpts {
 export function useBatchGitOps(onSettled: () => void) {
   const [rows, setRows] = useState<ReadonlyMap<string, RowResult>>(new Map());
   const [running, setRunning] = useState<BatchRunning | null>(null);
+  /* 同步在途闸:running state 同一 tick 内双触发(双击/双入口)读到旧值会双跑整批,
+   * ref 置位先于首个 await,是权威闸;state 只管 UI。 */
+  const runningRef = useRef(false);
   const cancelRef = useRef(false);
   const lastOpRef = useRef<BatchOp>("pull");
   const lastPushOptsRef = useRef<BatchPushOpts | undefined>(undefined);
@@ -49,6 +52,7 @@ export function useBatchGitOps(onSettled: () => void) {
     lastOpRef.current = op;
     /* 每次执行都落 opts(undefined 也落):非弹窗推送/拉取不得残留上次的分支覆盖,否则重试失败会推错目标。 */
     lastPushOptsRef.current = pushOpts;
+    runningRef.current = true;
     cancelRef.current = false;
     const opLabel = op === "fetch" ? t("获取") : op === "pull" ? t("拉取") : t("推送");
     const next = new Map(prefill);
@@ -101,13 +105,14 @@ export function useBatchGitOps(onSettled: () => void) {
       setRunning({ op, done, total: targets.length });
     });
     setRunning(null);
+    runningRef.current = false;
     onSettledRef.current();
   }, []);
 
   /** 整批入口:目标选择(skip 直接落行)+ 执行;在途时忽略重复触发。 */
   const run = useCallback(
     (op: BatchOp, repos: readonly AggRepo[]) => {
-      if (running) return;
+      if (running || runningRef.current) return;
       const { targets, skipped } = selectTargets(op, repos);
       const prefill = new Map<string, RowResult>();
       for (const [path, reason] of skipped) prefill.set(path, { phase: "skip", text: reason });
@@ -128,7 +133,7 @@ export function useBatchGitOps(onSettled: () => void) {
   /** 单仓行级操作:绕过目标选择(ahead/behind 可能是旧值,交给 git 裁决)。 */
   const runSingle = useCallback(
     (op: BatchOp, repo: AggRepo) => {
-      if (running) return;
+      if (running || runningRef.current) return;
       void execute(op, [repo], rows);
     },
     [running, rows, execute],
@@ -137,7 +142,7 @@ export function useBatchGitOps(onSettled: () => void) {
   /** 重试失败:只对 err 行重跑上次 op(推送沿用上次弹窗选项)。 */
   const retryFailed = useCallback(
     (repos: readonly AggRepo[]) => {
-      if (running) return;
+      if (running || runningRef.current) return;
       const failed = repos.filter((r) => rows.get(r.path)?.phase === "err");
       if (failed.length === 0) return;
       const kept = new Map(rows);

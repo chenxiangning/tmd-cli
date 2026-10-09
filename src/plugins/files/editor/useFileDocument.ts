@@ -29,6 +29,8 @@ interface FileDocState {
   dirty: boolean;
   saving: boolean;
   error: string | null;
+  /** 磁盘外变自增(重读正文时 +1):行级 diff 着色的重拉信号。 */
+  diskTick: number;
   setDoc: (value: string) => void;
   save: () => void;
 }
@@ -44,6 +46,9 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
   const [saved, setSaved] = useState(init.saved);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* 磁盘外变自增:行级 diff 着色以此感知「正文已重读」,否则旧 patch 标记挂在
+   * 重读后的文档上(2026-10-09 评审 P2)。 */
+  const [diskTick, setDiskTick] = useState(0);
 
   /* 行尾标记放 ref:磁盘内容外变(刷新重读)时随新内容更新,保存还原才不会用旧行尾。 */
   const hasCRLFRef = useRef(init.hasCRLF);
@@ -69,6 +74,7 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     if (text === savedRef.current) return;
     setSaved(text);
     setContent(text);
+    setDiskTick((v) => v + 1);
   }, [diskContent]);
 
   const setDoc = useCallback(
@@ -126,5 +132,5 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     updateTab(`file:${path}`, { dirty });
   }, [path, dirty]);
 
-  return { content, dirty, saving, error, setDoc, save };
+  return { content, dirty, saving, error, diskTick, setDoc, save };
 }

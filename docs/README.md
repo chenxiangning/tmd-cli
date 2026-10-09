@@ -300,4 +300,5 @@
 | 2026-10-08 | [Git 跨工作区批量操作原型·方向 C(侧栏就地:零新面板,caption 下 Git 汇总条承载全部拉取/推送,工作区卡片 git 副行 + 进度条,toast 汇总)](design/git-batch-ops-c-sidebar.html) | 设计原型(待大仙目检) |
 | 2026-10-08 | [Git 跨工作区批量操作设计(方向 A 面板内聚合:RepoBar「本仓/全部」段控 + 聚合视图逐仓串行批量 fetch/pull/push,行级结果/重试失败/点行跳仓;Rust 零改动复用 git_pull_push 等原语)](superpowers/specs/2026-10-08-git-batch-ops-design.md) | 已实施(桩目检全链路通过;真机目检留大仙,未提交) |
 | 2026-10-09 | [0.3.3 近期内容整体打磨评审(六功能提交+两发版后提交:修历史行打开图标常显回归/doctor 死豁免/useGitPanelContext 死返回/cwd 可选坏路径/RowStatus 类型放宽/abs 重复计算;locale·CSS·并发改写·checkpoints 图标复核通过)](review/2026-10-09-033-polish-review.md) | 已收口(门禁全绿+桩目检实证) |
+| 2026-10-09 | [24h 变更综合评审(13 commits 三片并行:修 useMinSpin 迟落定卡死/useFileLineDiff win 反斜杠失效/diffGutter 双标记越行 3 P1,批量防重入/full=true 全文 IPC/磁盘外变错色/贴线拆件等 6 P2,P3 十条记录;兼容·性能·死代码·架构·边界五维全绿)](review/2026-10-09-24h-commit-review.md) | 已收口(P1/P2 已修+回归测试,P3 记录) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

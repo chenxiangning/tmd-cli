@@ -68,8 +68,15 @@ export function lineMarksFromPatch(patch: string): LineMark[] {
     }
   }
   flushRun();
+  /* del 让位:add/mod 已占据的行不再发 del(CM6 同行多 marker 是同槽内块级兄弟节点,
+   * .cm-dlg 为块级 3px 竖条会纵向叠放越行错格 —— 替换行只留蓝条);尾删多锚夹回同行去重。 */
+  const occupied = new Set(out.map((m) => m.line));
+  const emitted = new Set<number>();
   for (const a of delAnchors) {
-    out.push({ line: Math.max(1, Math.min(a, total)), kind: "del" });
+    const line = Math.max(1, Math.min(a, total));
+    if (occupied.has(line) || emitted.has(line)) continue;
+    emitted.add(line);
+    out.push({ line, kind: "del" });
   }
   out.sort((x, y) => x.line - y.line);
   return out;

@@ -1,5 +1,5 @@
 /** lineMarksFromPatch 纯函数校验:纯增段=add、含删段=mod、删行锚定后继行、
- *  文件首删夹回行 1、文件尾删夹回总行数、\\ 行不推进计数、元数据头跳过。 */
+ *  文件首删夹回行 1、文件尾删夹回总行数、\\ 行不推进计数、元数据头跳过、add/mod 已占行 del 让位(CM6 同行双 marker 块级叠放越行)。 */
 import { describe, expect, it } from "vitest";
 import { lineMarksFromPatch } from "./editorDiffGutter";
 
@@ -16,10 +16,7 @@ describe("lineMarksFromPatch", () => {
 
   it("同段含删的新增行标 mod,删除锚定后继行", () => {
     const patch = `${HEADER}@@ -1,3 +1,3 @@\n ctx1\n-old\n+new\n ctx2`;
-    expect(lineMarksFromPatch(patch)).toEqual([
-      { line: 2, kind: "mod" },
-      { line: 2, kind: "del" },
-    ]);
+    expect(lineMarksFromPatch(patch)).toEqual([{ line: 2, kind: "mod" }]);
   });
 
   it("文件首删锚夹回行 1", () => {
@@ -32,12 +29,14 @@ describe("lineMarksFromPatch", () => {
     expect(lineMarksFromPatch(patch)).toEqual([{ line: 1, kind: "del" }]);
   });
 
+  it("尾删多个锚夹回同行只发一枚 del(2026-10-09 评审补)", () => {
+    const patch = `${HEADER}@@ -1,6 +1,2 @@\n ctx1\n-a\n ctx2\n-b`;
+    expect(lineMarksFromPatch(patch)).toEqual([{ line: 2, kind: "del" }]);
+  });
+
   it("\\ No newline 行不推进新行号", () => {
     const patch = `${HEADER}@@ -1,1 +1,1 @@\n-old\n\\ No newline at end of file\n+new\n\\ No newline at end of file`;
-    expect(lineMarksFromPatch(patch)).toEqual([
-      { line: 1, kind: "mod" },
-      { line: 1, kind: "del" },
-    ]);
+    expect(lineMarksFromPatch(patch)).toEqual([{ line: 1, kind: "mod" }]);
   });
 
   it("多 hunk 各自独立计数", () => {
@@ -45,7 +44,6 @@ describe("lineMarksFromPatch", () => {
     expect(lineMarksFromPatch(patch)).toEqual([
       { line: 1, kind: "add" },
       { line: 11, kind: "mod" },
-      { line: 11, kind: "del" },
     ]);
   });
 });

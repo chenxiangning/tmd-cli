@@ -102,7 +102,7 @@ function FileTabBody({
     };
   }, [path, remote]);
   const { blameOn, toggleBlame } = useFileBlame({ path, active: editorActive, viewRef });
-  useFileLineDiff({ path, active: editorActive, dirty: doc.dirty, viewRef, viewTick });
+  useFileLineDiff({ path, active: editorActive, dirty: doc.dirty, viewRef, viewTick, diskTick: doc.diskTick });
   const { detailMenuProps, detailMenu } = useFileDetailMenu({
     variant: showEditor ? "editor" : "preview",
     path,
