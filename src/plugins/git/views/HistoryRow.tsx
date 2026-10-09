@@ -37,7 +37,7 @@ export interface HistoryRowItemProps {
   onToggle?: (commit: GitLogEntry) => void;
   onOpenFile?: (commit: GitLogEntry, file: GitCommitFile) => void;
   /** 文件行打开动作用:仓库根绝对路径 */
-  cwd?: string;
+  cwd: string;
 }
 
 function MarkerRow({ row, upstream }: { row: Extract<HistoryRow, { type: "marker" }>; upstream: string | null }) {
@@ -73,7 +73,7 @@ function FileRow({
     /* div 而非 button:行内嵌 FileOpenActions 小图标按钮,button 嵌 button 非法 */
     <div
       role="presentation"
-      className={`${ROW_CLASS} cursor-pointer hover:bg-(--tmd-bg-hover)`}
+      className={`${ROW_CLASS} group cursor-pointer hover:bg-(--tmd-bg-hover)`}
       title={row.file.oldPath ? `${row.file.oldPath} → ${row.file.path}` : row.file.path}
       onClick={() => onOpenFile?.(row.commit, row.file)}
     >
@@ -87,8 +87,10 @@ function FileRow({
         <span className="font-medium">{name}</span>
         {dir && <span className="ml-1 text-meta text-(--tmd-fg-faint)">{dir}</span>}
       </span>
-      {/* 打开文件/位置动作:与差异列表 FileOpenActions 同源;状态字母前 hover 出现 */}
-      <FileOpenActions cwd={cwd} file={row.file} />
+      {/* 打开文件/位置动作:与差异列表同款 hover 语义(常占位零位移,行悬停显形) */}
+      <span className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-60">
+        <FileOpenActions cwd={cwd} file={row.file} />
+      </span>
       <span className={`w-3 shrink-0 text-center font-semibold ${STATUS_COLOR[row.file.status] ?? ""}`}>
         {row.file.status}
       </span>
@@ -179,7 +181,7 @@ function CommitRow({
 export function HistoryRowItem(props: HistoryRowItemProps) {
   const { row } = props;
   if (row.type === "marker") return <MarkerRow row={row} upstream={props.upstream} />;
-  if (row.type === "file") return <FileRow row={row} cwd={props.cwd ?? ""} onOpenFile={props.onOpenFile} />;
+  if (row.type === "file") return <FileRow row={row} cwd={props.cwd} onOpenFile={props.onOpenFile} />;
   return (
     <CommitRow row={row} expanded={props.expanded ?? false} entry={props.entry} onToggle={props.onToggle} />
   );

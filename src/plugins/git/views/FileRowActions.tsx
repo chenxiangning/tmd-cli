@@ -39,7 +39,7 @@ export function FileOpenActions({
         title={t("打开文件")}
         onClick={(e) => {
           e.stopPropagation();
-          openFileInTab(worktreeAbsPath(cwd, file.path));
+          openFileInTab(abs);
         }}
         className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
       >

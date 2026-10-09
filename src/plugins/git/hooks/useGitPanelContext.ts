@@ -40,5 +40,5 @@ export function useGitPanelContext() {
     if (wsId) setGitViewRepo({ workspaceId: wsId, cwd: selectedPath });
   }, [wsId, selectedPath]);
 
-  return { active, root, isRemote, repos, truncated, refreshRepos, repoCtx, cwd, selectRepo };
+  return { root, isRemote, repos, truncated, refreshRepos, repoCtx, cwd, selectRepo };
 }

@@ -13,11 +13,11 @@ import { KIND_META } from "./repoKindMeta";
 import { BatchPushDialog } from "./BatchPushDialog";
 import { MenuShell } from "../GitToolbar";
 import { useAggregateRepos } from "../useAggregateRepos";
-import { useBatchGitOps } from "../useBatchGitOps";
+import { useBatchGitOps, type RowResult } from "../useBatchGitOps";
 import type { AggRepo, BatchOp } from "../aggregateModel";
 
 /** 单行状态列:执行结果优先于 ↑↓ 常态(结果保留到下次执行/手动 ⟳)。 */
-function RowStatus({ repo, result }: { repo: AggRepo; result: { phase: string; text: string } | undefined }) {
+function RowStatus({ repo, result }: { repo: AggRepo; result: RowResult | undefined }) {
   if (result) {
     if (result.phase === "running") {
       return (
