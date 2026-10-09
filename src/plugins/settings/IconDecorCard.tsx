@@ -1,164 +1,25 @@
 /**
- * 基础设置 / 外观 tab 的图标装饰卡 —— 顶部「图标组合」五套切换(应用层
- * kernel/iconSet.tsx)+ 全部界面图标的独立颜色与呼吸闪烁(可折叠,两列)。
- * 键清单是 UI 知识(键 = kernel/iconDecor.ts 的 CSS 变量约定 id);全部写 kernel/settings
- * store 即时生效,颜色由 kernel/iconDecor.ts 同步 <html>,预览走 DecorIcon
- * 即时反映组合与自定义色。
+ * 基础设置 / 外观 tab 的图标装饰卡 —— 顶部「图标组合」五套切换 + 名称检索,
+ * 清单按界面域六组展示(通用/右栏面板/侧栏工作区/输入框/Git/文件树),
+ * 逐图标取色与呼吸闪烁。清单与分组是纯 UI 知识,在 iconDecorItems.tsx。
  */
-
-import { useState, type ComponentType } from "react";
-import {
-  ArrowClockwise,
-  ArrowCounterClockwise,
-  BellRinging,
-  BookmarkSimple,
-  Brain,
-  Compass,
-  GitFork,
-  CalendarDots,
-  CaretDown,
-  CaretLineLeft,
-  CaretLineRight,
-  CaretRight,
-  CaretUp,
-  Desktop,
-  Folder,
-  GitBranch,
-  HardDrive,
-  ListChecks,
-  MonitorPlay,
-  PlugsConnected,
-  Plug,
-  PuzzlePiece,
-  Quotes,
-  Robot,
-  RocketLaunch,
-  Rows,
-  SealCheck,
-  Sidebar,
-  Sparkle,
-  TerminalWindow,
-  Tray,
-  BroadcastIcon,
-  MagicWandIcon,
-  GitDiff,
-  FileText,
-  ArrowsDownUp,
-  Columns,
-  TreeStructure,
-  ArrowUp,
-  FilePlus,
-  FolderSimplePlus,
-} from "@phosphor-icons/react";
+import { useState } from "react";
+import { ArrowCounterClockwise, CaretDown, CaretRight } from "@phosphor-icons/react";
 import {
   DEFAULT_ICON_DECOR,
   updateSettings,
   useSettingsState,
   type IconDecorId,
   type IconDecorItem,
-  type IconSetId,
 } from "@kernel/settings";
 import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
-
-/** system-proxy 的梯子图标是 network-proxy 插件内联 SVG,插件间不互 import,此处自绘同形。 */
-function LadderIcon({ size = 14 }: { size?: number | string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M6 4l-3 16" />
-      <path d="M18 4l3 16" />
-      <path d="M6 9h12" />
-      <path d="M6 14h12" />
-      <path d="M4.5 19h15" />
-    </svg>
-  );
-}
-
-/** 装饰清单(UI 知识):id 顺序即设置卡展示顺序。 */
-const ICON_DECOR_ITEMS: ReadonlyArray<{
-  id: IconDecorId;
-  label: string;
-  icon: ComponentType<{ size?: number | string }>;
-}> = [
-  { id: "newchat", label: "新建会话", icon: RocketLaunch },
-  { id: "ssh-panel", label: "SSH 入口", icon: HardDrive },
-  { id: "system-proxy", label: "网络代理", icon: LadderIcon },
-  { id: "wsl-panel", label: "WSL 入口", icon: Desktop },
-  { id: "terminal", label: "内置终端", icon: TerminalWindow },
-  { id: "intent-canvas", label: "意图画布入口", icon: Compass },
-  { id: "session-board", label: "会话看板", icon: CalendarDots },
-  { id: "remote-control", label: "远程控制", icon: MonitorPlay },
-  { id: "panel-files", label: "文件面板", icon: Folder },
-  { id: "panel-git", label: "Git 面板", icon: GitBranch },
-  { id: "panel-checkpoints", label: "审批线面板", icon: SealCheck },
-  { id: "panel-memory", label: "Memory 面板", icon: Brain },
-  { id: "panel-marks", label: "标记面板", icon: BookmarkSimple },
-  { id: "panel-approval-inbox", label: "审批收件箱面板", icon: BellRinging },
-  { id: "panel-skill-hub", label: "Skills 面板", icon: PuzzlePiece },
-  { id: "panel-mcp-hub", label: "MCP 面板", icon: PlugsConnected },
-  { id: "worktree", label: "Worktree 簇", icon: GitFork },
-  { id: "ws-files", label: "查看文件", icon: Rows },
-  { id: "ws-manage", label: "会话管理", icon: ListChecks },
-  { id: "ws-refresh", label: "刷新会话", icon: ArrowClockwise },
-  { id: "market", label: "插件市场", icon: Plug },
-  { id: "home", label: "回到首页", icon: Tray },
-  { id: "fold-left", label: "折叠左栏", icon: CaretLineLeft },
-  { id: "fold-right", label: "折叠右栏", icon: CaretLineRight },
-  { id: "stage-expand", label: "展开对话框", icon: CaretUp },
-  { id: "stage-collapse", label: "收起对话框", icon: CaretDown },
-  { id: "composer-drawer", label: "命令与技能", icon: Sidebar },
-  { id: "wake-agent", label: "智能体(##)", icon: Robot },
-  { id: "wake-prompt", label: "提示词(!!)", icon: Quotes },
-  { id: "ai-draw", label: "AI 作画", icon: Compass },
-  { id: "broadcast", label: "平铺广播", icon: BroadcastIcon },
-  { id: "enhance", label: "增强提示词", icon: MagicWandIcon },
-  { id: "wake-skill", label: "技能($)", icon: Sparkle },
-  { id: "wake-mcp", label: "MCP 服务器", icon: HardDrive },
-  { id: "git-open", label: "文件行打开入口", icon: FileText },
-  { id: "git-row-actions", label: "变更行动作", icon: ListChecks },
-  { id: "git-view", label: "Git 视图切换", icon: GitDiff },
-  { id: "git-layout", label: "文件列表视图", icon: Rows },
-  { id: "git-remote", label: "远端操作", icon: ArrowsDownUp },
-  { id: "git-worktree", label: "Worktree 管理", icon: TreeStructure },
-  { id: "git-repo-ops", label: "聚合仓行拉取/推送", icon: ArrowUp },
-  { id: "git-diff-tools", label: "差异视图工具", icon: Columns },
-  { id: "files-new-file", label: "新建文件", icon: FilePlus },
-  { id: "files-new-folder", label: "新建文件夹", icon: FolderSimplePlus },
-  { id: "files-refresh", label: "刷新文件树", icon: ArrowClockwise },
-  { id: "files-git-toggle", label: "按 Git 变更着色文件", icon: GitDiff },
-];
-type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
-  ? true
-  : never;
-/** 编译期穷尽钉:kernel 键表加键而本清单漏行时,上行类型塌缩为 never、此处报错(删键方向由 id 类型天然钉住)。 */
-export const _itemsCoverAllKeys: _ItemsCoverAllKeys = true;
-
-/** 取色器空值占位(无自定义色时的中性灰)。 */
-const COLOR_PLACEHOLDER = "#808080";
-
-/** 组合清单(UI 知识):id = kernel settings 白名单,label 三语词典键。 */
-const ICON_SETS = [
-  { id: "classic", label: "组合1 现状" },
-  { id: "solid", label: "组合2 实心" },
-  { id: "metaphor", label: "组合3 换隐喻" },
-  { id: "lucide", label: "组合4 细线" },
-  { id: "lucide-alt", label: "组合5 细线变体" },
-] as const satisfies ReadonlyArray<{ id: IconSetId; label: string }>;
+import { COLOR_PLACEHOLDER, ICON_DECOR_GROUPS, ICON_DECOR_ITEMS, ICON_SETS } from "./iconDecorItems";
 
 export function IconDecorCard() {
   const { settings } = useSettingsState();
   const [collapsed, setCollapsed] = useState(false);
+  const [query, setQuery] = useState("");
 
   const setItem = (id: IconDecorId, patch: Partial<IconDecorItem>) => {
     updateSettings({
@@ -171,6 +32,18 @@ export function IconDecorCard() {
       iconDecor: { ...settings.iconDecor, [id]: { ...DEFAULT_ICON_DECOR[id] } },
     });
   };
+
+  /* 检索:命中译名或 id,大小写不敏感;无命中的组整组隐藏。 */
+  const needle = query.trim().toLowerCase();
+  const visibleGroups = ICON_DECOR_GROUPS.map(({ id, label }) => ({
+    id,
+    label,
+    items: ICON_DECOR_ITEMS.filter(
+      ({ id: itemId, label: itemLabel, group }) =>
+        group === id &&
+        (needle === "" || t(itemLabel).toLowerCase().includes(needle) || itemId.includes(needle)),
+    ),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className="pref-card" data-testid="settings-icon-decor-card">
@@ -207,70 +80,91 @@ export function IconDecorCard() {
               ))}
             </div>
           </div>
-          <div className="icon-decor-grid">
-            {ICON_DECOR_ITEMS.map(({ id, label, icon: Icon }) => {
-            const item = settings.iconDecor[id];
-            const isDefault =
-              !item.color &&
-              (item.blink ?? false) === (DEFAULT_ICON_DECOR[id].blink ?? false);
-            return (
-              <div className="pref-row icon-decor-row" key={id}>
-                <div className="icon-decor-id">
-                  <span
-                    className="icon-decor-preview"
-                    style={item.color ? { color: item.color } : undefined}
-                  >
-                    <DecorIcon id={id} Fallback={Icon} size="0.875rem" />
-                  </span>
-                  <span className="pref-title">{t(label)}</span>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <input
-                    type="color"
-                    className="icon-decor-color"
-                    value={item.color ?? COLOR_PLACEHOLDER}
-                    aria-label={`${t(label)} ${t("颜色")}`}
-                    onChange={(e) => setItem(id, { color: e.target.value })}
-                  />
-                  <div
-                    className="segmented"
-                    role="radiogroup"
-                    aria-label={`${t(label)} ${t("闪烁")}`}
-                  >
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={!!item.blink}
-                      className={`segment${item.blink ? " is-active" : ""}`}
-                      onClick={() => setItem(id, { blink: true })}
-                    >
-                      {t("开启")}
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={!item.blink}
-                      className={`segment${!item.blink ? " is-active" : ""}`}
-                      onClick={() => setItem(id, { blink: false })}
-                    >
-                      {t("关闭")}
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    className="icon-decor-reset"
-                    disabled={isDefault}
-                    title={t("恢复默认")}
-                    aria-label={`${t(label)} ${t("恢复默认")}`}
-                    onClick={() => resetItem(id)}
-                  >
-                    <ArrowCounterClockwise size="0.875rem" aria-hidden />
-                  </button>
-                </div>
-              </div>
-            );
-            })}
+          <div className="pref-row icon-decor-row">
+            <div className="icon-decor-id">
+              <span className="pref-title">{t("检索图标")}</span>
+            </div>
+            <input
+              type="text"
+              className="h-7 w-full min-w-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2.5 text-xs text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint) focus:border-(--tmd-accent)"
+              value={query}
+              placeholder={t("按名称或 id 筛选…")}
+              aria-label={t("检索图标")}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
+          {visibleGroups.map(({ id, label, items }) => (
+            <div key={id} className="icon-decor-group">
+              <div className="icon-decor-group-label">{t(label)}</div>
+              <div className="icon-decor-grid">
+                {items.map(({ id: itemId, label: itemLabel, icon: Icon }) => {
+                  const item = settings.iconDecor[itemId];
+                  const isDefault =
+                    !item.color &&
+                    (item.blink ?? false) === (DEFAULT_ICON_DECOR[itemId].blink ?? false);
+                  return (
+                    <div className="pref-row icon-decor-row" key={itemId}>
+                      <div className="icon-decor-id">
+                        <span
+                          className="icon-decor-preview"
+                          style={item.color ? { color: item.color } : undefined}
+                        >
+                          <DecorIcon id={itemId} Fallback={Icon} size="0.875rem" />
+                        </span>
+                        <span className="pref-title">{t(itemLabel)}</span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <input
+                          type="color"
+                          className="icon-decor-color"
+                          value={item.color ?? COLOR_PLACEHOLDER}
+                          aria-label={`${t(itemLabel)} ${t("颜色")}`}
+                          onChange={(e) => setItem(itemId, { color: e.target.value })}
+                        />
+                        <div
+                          className="segmented"
+                          role="radiogroup"
+                          aria-label={`${t(itemLabel)} ${t("闪烁")}`}
+                        >
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={!!item.blink}
+                            className={`segment${item.blink ? " is-active" : ""}`}
+                            onClick={() => setItem(itemId, { blink: true })}
+                          >
+                            {t("开启")}
+                          </button>
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={!item.blink}
+                            className={`segment${!item.blink ? " is-active" : ""}`}
+                            onClick={() => setItem(itemId, { blink: false })}
+                          >
+                            {t("关闭")}
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          className="icon-decor-reset"
+                          disabled={isDefault}
+                          title={t("恢复默认")}
+                          aria-label={`${t(itemLabel)} ${t("恢复默认")}`}
+                          onClick={() => resetItem(itemId)}
+                        >
+                          <ArrowCounterClockwise size="0.875rem" aria-hidden />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {visibleGroups.length === 0 && (
+            <div className="pref-desc">{t("没有匹配的图标,换个关键词试试。")}</div>
+          )}
         </>
       )}
     </div>
