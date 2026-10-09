@@ -10,11 +10,11 @@ import { cacheAiDrawLatestCanvas } from "../aiDrawPrompt";
 import type {
   IntentCanvasDocument,
   IntentCanvasIndexEntry,
-  IntentCanvasIndexFile,
   IntentCanvasLoadResult,
 } from "../types";
 import { buildIntentCanvasAiContext } from "../scene/sceneState";
 import { buildIntentCanvasThumbnailSvg } from "../utils/thumbnail";
+import { compareIndexEntries, writeIndex } from "./indexWrite";
 import {
   buildIndexEntry,
   normalizeIntentCanvasDocument,
@@ -41,7 +41,7 @@ export async function loadIntentCanvasIndex(
     }
     const parsed = JSON.parse(raw) as unknown;
     const indexFile = normalizeIndexFile(parsed);
-    const canvases = indexFile.canvases.slice().sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1));
+    const canvases = indexFile.canvases.slice().sort((left, right) => compareIndexEntries(left, right));
     /* 作画缺省目标 = 最近更新画布(倒序首位):读后自喂同步缓存,sendTransform
        发送线程不 await 即可拿到目标(prompt 侧 aiDrawLatestCanvasSync)。 */
     cacheAiDrawLatestCanvas(root, canvases[0] ? { id: canvases[0].id, title: canvases[0].title } : null);
@@ -73,40 +73,7 @@ export async function loadIntentCanvasDocument(
 }
 
 
-/* 索引同受 fs_read_file 512KB 读闸:缩略图内联累积顶穿闸后索引恒读失败 →
-   列表清空且保存中止索引更新(状态随保存恶化)。写前同款闸收敛:超限从
-   最旧条目起剥缩略图(纯派生缓存,可重建,列表降级占位图);剥光仍超限
-   (元数据自身超阈,数千画布级)才拒写。 */
-const MAX_INDEX_JSON_BYTES = 496 * 1024;
-
-async function writeIndex(root: string, entries: IntentCanvasIndexEntry[]): Promise<void> {
-  const canvases = entries.slice().sort((left, right) => (left.updatedAt < right.updatedAt ? 1 : -1));
-  const enc = new TextEncoder();
-  const serialize = (list: IntentCanvasIndexEntry[]) =>
-    JSON.stringify({ version: 1, canvases: list } satisfies IntentCanvasIndexFile, null, 2);
-  let content = serialize(canvases);
-  if (enc.encode(content).byteLength > MAX_INDEX_JSON_BYTES) {
-    /* 超限从最旧条目起剥缩略图(纯派生缓存,可重建,列表降级占位图);剥光仍超限
-       (元数据自身超阈,数千画布级)才拒写。条目在文件内的字节贡献可精确相加
-       (整档 = 壳 + Σ条目内嵌字节):每条只量「带图/去图」两次差值,一遍扫完 O(n)。 */
-    const embeddedBytes = (entry: IntentCanvasIndexEntry) =>
-      enc.encode(JSON.stringify(entry, null, 2).split("\n").join("\n  ")).byteLength;
-    const sizes = canvases.map(embeddedBytes);
-    let remaining = enc.encode(content).byteLength;
-    for (let i = canvases.length - 1; i >= 0 && remaining > MAX_INDEX_JSON_BYTES; i -= 1) {
-      if (canvases[i].thumbnailSvg === undefined) continue;
-      const stripped = { ...canvases[i] };
-      delete stripped.thumbnailSvg;
-      remaining += embeddedBytes(stripped) - sizes[i];
-      canvases[i] = stripped;
-    }
-    content = serialize(canvases);
-    if (enc.encode(content).byteLength > MAX_INDEX_JSON_BYTES) {
-      throw new Error(t("画布索引超过存储读取上限(496KB),已拒绝写入,请删除部分画布后重试。"));
-    }
-  }
-  await ipc.fsWriteFile(`${await canvasDir(root)}/${INTENT_CANVAS_INDEX_PATH}`, content);
-}
+/* 索引同受 fs_read_file 512KB 读闸(预算与剥缩略图见 ./indexWrite)。 */
 
 /** marks store.ts 同构的两级幂等建目录:fsCreateDir 撞已存在即报错,一律吞掉。 */
 async function ensureCanvasDir(root: string): Promise<void> {
@@ -145,6 +112,12 @@ async function readPriorDocumentRaw(document: IntentCanvasDocument, path: string
   }
   try {
     const existing = normalizeIntentCanvasDocument(JSON.parse(raw));
+    /* 孤儿认领:盘上字节与上次回滚失败的本次写入全等 = 这是我们自己的孤儿文档,
+       不是别人的新内容,放行覆写(否则新建象限恒拦死)。认领即清账。 */
+    if (orphanClaims.get(path) === raw) {
+      orphanClaims.delete(path);
+      return raw;
+    }
     if (existing && existing.updatedAt > document.updatedAt) {
       throw new CanvasStaleOverwriteError(
         t("画布已在其他入口更新(AI 作画导入),请返回列表重新打开后再保存,否则会覆盖新内容。"),
@@ -160,8 +133,11 @@ async function readPriorDocumentRaw(document: IntentCanvasDocument, path: string
 }
 
 /* 索引侧失稳时回滚本次文档写,保存对索引全有或全无:覆写恢复旧字节,新建删新文件。
-   先核对盘上仍是本次写入的字节(防覆盖并发 AI 导入的新内容);回滚自身尽力而为,
-   失败则维持半写态(与索引更新中止同象限),下次保存自愈,告警不吞。 */
+   先核对盘上仍是本次写入的字节(锁内已无应用内并发,此核对兜外部写方);回滚自身
+   失败不静默:console.warn + 把「路径 → 本次写入字节」记入 orphanClaims,下次保存
+   的覆写闸凭全等字节认领自家孤儿放行(否则新建象限 stale 闸恒拦、画布无路可重开)。 */
+const orphanClaims = new Map<string, string>();
+
 async function rollbackDocumentWrite(documentPath: string, priorRaw: string | null, writtenJson: string): Promise<void> {
   try {
     const current = await ipc.fsReadFile(documentPath).catch(() => null);
@@ -173,8 +149,10 @@ async function rollbackDocumentWrite(documentPath: string, priorRaw: string | nu
     } else {
       await ipc.fsWriteFile(documentPath, priorRaw);
     }
+    orphanClaims.delete(documentPath);
   } catch (error) {
-    console.warn("[intent-canvas] 保存回滚失败(文档维持半写态,待下次保存自愈):", error);
+    orphanClaims.set(documentPath, writtenJson);
+    console.warn("[intent-canvas] 保存回滚失败(文档维持半写态,已记孤儿认领):", error);
   }
 }
 
@@ -194,25 +172,28 @@ export async function saveIntentCanvasDocument(
   }
   await ensureCanvasDir(root);
   const documentPath = `${await canvasDir(root)}/${resolveDocumentPath(nextDocument.id)}`;
-  /* 比较基线必须是调用方内存里的 document(加载/上次保存时刻),不能用
-     已盖 now 的 nextDocument —— 否则只有「保存瞬间并发写盘」才触发,真实的
-     「AI 导入发生在 load 与 save 之间」永不命中(评审 P1 残余缺口)。 */
-  const priorRaw = await readPriorDocumentRaw(document, documentPath);
-  await ipc.fsWriteFile(documentPath, json);
-  const thumbnailSvg = await buildIntentCanvasThumbnailSvg(nextDocument.scene);
-  const nextEntry: IntentCanvasIndexEntry = {
-    ...buildIndexEntry(nextDocument),
-    ...(thumbnailSvg ? { thumbnailSvg } : {}),
-  };
-  /* 写后索引条目随返回值带出(2026-10-06):调用方直接落列表态,免保存后
-   * 再全量读一次索引(每次保存省 ~0.5MB 读 + parse)。 */
+  /* 整段保存(覆写闸 + 文档写 + 索引更新)都在索引事务锁内:保存与 AI 导入两个
+     写方全串行,「gate 过后、写入前盘上换人」与「回滚 check-then-act 窗口被插入」
+     两类交错从结构上不存在。缩略图构建在锁内,代价是另一写方多等一次导出,可接受。 */
   let indexEntries: IntentCanvasIndexEntry[] = [];
-  try {
-    await withIndexTx(async () => {
+  await withIndexTx(async () => {
+    /* 比较基线必须是调用方内存里的 document(加载/上次保存时刻),不能用
+       已盖 now 的 nextDocument —— 否则只有「保存瞬间并发写盘」才触发,真实的
+       「AI 导入发生在 load 与 save 之间」永不命中(评审 P1 残余缺口)。 */
+    const priorRaw = await readPriorDocumentRaw(document, documentPath);
+    await ipc.fsWriteFile(documentPath, json);
+    try {
+      const thumbnailSvg = await buildIntentCanvasThumbnailSvg(nextDocument.scene);
+      const nextEntry: IntentCanvasIndexEntry = {
+        ...buildIndexEntry(nextDocument),
+        ...(thumbnailSvg ? { thumbnailSvg } : {}),
+      };
+      /* 写后索引条目随返回值带出(2026-10-06):调用方直接落列表态,免保存后
+       * 再全量读一次索引(每次保存省 ~0.5MB 读 + parse)。 */
       const indexResult = await loadIntentCanvasIndex(root);
       if (indexResult.warnings.length > 0) {
         /* 读失败时的空快照不可作覆写基线:整表覆写会把其余画布从列表抹掉且无重建
-           路径。抛错交外层 catch 回滚本次文档写,索引原样保留。 */
+           路径。抛错交外层回滚本次文档写,索引原样保留。 */
         throw new Error(t("画布索引读取失败,已中止本次索引更新:{warning}", { warning: indexResult.warnings[0] ?? "" }));
       }
       /* 缩略图是尽力而为的派生缓存:本次导出失败(超预算/chunk 未就绪)时
@@ -225,11 +206,11 @@ export async function saveIntentCanvasDocument(
       ];
       await writeIndex(root, nextEntries);
       indexEntries = nextEntries;
-    });
-  } catch (error) {
-    await rollbackDocumentWrite(documentPath, priorRaw, json);
-    throw error;
-  }
+    } catch (error) {
+      await rollbackDocumentWrite(documentPath, priorRaw, json);
+      throw error;
+    }
+  });
   return { document: nextDocument, indexEntries };
 }
 
