@@ -226,7 +226,8 @@ export function GitDecorateToggle() {
       title={on ? t("关闭 Git 变更着色") : t("按 Git 变更着色文件与文件夹")}
       onClick={toggleGitDecorate}
     >
-      <GitDiff size="0.75rem" aria-hidden />
+      {/* 两态双图标:选中(着色中)实心,未选中线性;着色规则 = 选中才吃装饰色 */}
+      <GitDiff size="0.75rem" weight={on ? "fill" : "regular"} aria-hidden />
     </button>
   );
 }

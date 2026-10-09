@@ -85,7 +85,7 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
  *  与输入轨七钮(wake-agent/wake-prompt/ai-draw/broadcast/enhance/wake-skill/wake-mcp),
  *  git 面板键 = 2026-10-09 扩编(文件行打开入口/变更行动作/工具条四钮/聚合仓行快操),
  *  文件树键 = 文件树工具条四钮(files-*;选择器经 .file-tree-toolbar-action 提特异性,
- *  缺省 inherit/is-active accent = 现状)。
+ *  缺省 inherit = 现状;files-git-toggle 是两态开关,仅选中(on)吃装饰色并双图标切换)。
  *  新键消费约定(2026-09-29 扩编):颜色经 [data-action-id] svg 直取
  *  (缺省 currentColor = 现状,整图标着色),选择器集中在本域消费文件
  *  styles/icon-decor.css;旧 17 键颜色仍在各自 home 样式表原地消费。 */
