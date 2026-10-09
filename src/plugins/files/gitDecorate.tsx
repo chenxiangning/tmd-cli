@@ -9,7 +9,7 @@
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePanelActive } from "@kernel/panelActivity";
-import { GitDiff } from "@phosphor-icons/react";
+import { GitDiff, GitMerge } from "@phosphor-icons/react";
 import { ipc, type GitRepoSummary } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import {
@@ -226,8 +226,10 @@ export function GitDecorateToggle() {
       title={on ? t("关闭 Git 变更着色") : t("按 Git 变更着色文件与文件夹")}
       onClick={toggleGitDecorate}
     >
-      {/* 两态双图标:选中(着色中)实心,未选中线性;着色规则 = 选中才吃装饰色 */}
-      <GitDiff size="0.75rem" weight={on ? "fill" : "regular"} aria-hidden />
+      {/* 两态双图标(字形明显不同):选中(着色中)= GitMerge 实心,未选中 = GitDiff 线性 */}
+      {on
+        ? <GitMerge size="0.75rem" weight="fill" aria-hidden />
+        : <GitDiff size="0.75rem" aria-hidden />}
     </button>
   );
 }

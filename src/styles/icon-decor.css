@@ -126,7 +126,7 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
 /* files-git-toggle:着色开关,选中(on)才吃装饰色,关闭态保持工具条本色 */
 .file-tree-toolbar-action[data-action-id="files-git-toggle"] { color: inherit; }
 .file-tree-toolbar-action[data-action-id="files-git-toggle"]:hover { color: var(--tmd-fg); }
-.file-tree-toolbar-action[data-action-id="files-git-toggle"].is-active { color: var(--icon-decor-files-git-toggle, var(--tmd-accent)); }
+.file-tree-toolbar-action[data-action-id="files-git-toggle"].is-active { color: var(--icon-decor-files-git-toggle, #4da3ff); }
 
 /* 新键呼吸闪烁(2026-10-09 扩编 11 键) */
 html[data-icon-blink~="git-open"] [data-action-id="git-open"],
