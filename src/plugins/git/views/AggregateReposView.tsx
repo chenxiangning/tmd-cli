@@ -38,6 +38,25 @@ function RowStatus({ repo, result }: { repo: AggRepo; result: RowResult | undefi
   );
 }
 
+/** 行级快操(hover 显):拉取需上游;推送 ahead>0 即可(无上游走缺省目标)。 */
+function RowQuickOps({ repo: r, onOp }: { repo: AggRepo; onOp: (op: BatchOp) => void }) {
+  const ops = [{ op: "pull" as const, on: r.upstream != null }, { op: "push" as const, on: r.ahead > 0 }].filter((o) => o.on);
+  return (
+    <span className="hidden shrink-0 gap-2 pr-2.5 group-hover:flex">
+      {ops.map(({ op }) => (
+        <button
+          key={op}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOp(op); }}
+          className="text-[11px] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline"
+        >
+          {t(op === "pull" ? "拉取" : "推送")}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 export function AggregateReposView({
   onJump,
   afterBatch,
@@ -61,7 +80,8 @@ export function AggregateReposView({
   const [pushed, setPushed] = useState<readonly string[]>([]);
   const all = agg.groups.flatMap((g) => g.repos);
   const pullable = all.filter((r) => r.upstream != null).length;
-  const pushable = all.filter((r) => r.upstream != null && r.ahead > 0).length;
+  /* 可推 = ahead>0:无上游但本地有独有提交也可推(目标缺省 origin:<branch>,弹窗可改)。 */
+  const pushable = all.filter((r) => r.ahead > 0).length;
   const dirty = all.filter((r) => r.dirty > 0).length;
   const errCount = all.filter((r) => batch.rows.get(r.path)?.phase === "err").length;
   const opLabels: Record<BatchOp, string> = { fetch: t("获取"), pull: t("拉取"), push: t("推送") };
@@ -177,7 +197,8 @@ export function AggregateReposView({
                 key={row.op}
                 type="button"
                 role="menuitem"
-                disabled={row.count === 0}
+                /* 推送项不按目标数置灰:0 可推也开弹窗(行给原因,确认自会拦);获取/拉取无可操作仓才禁。 */
+                disabled={row.op !== "push" && row.count === 0}
                 onClick={() => {
                   /* 推送必须经确认弹窗(勾选仓 + 挂钩/标签选项);获取/拉取直发。
                      菜单新开 = 清上次快照(查看进度重开则保留,续看同一次推送)。 */
@@ -258,29 +279,8 @@ export function AggregateReposView({
                       <RowStatus repo={r} result={result} />
                     </span>
                   </button>
-                  {!result && r.upstream != null && !batch.running && (
-                    <span className="hidden shrink-0 gap-2 pr-2.5 group-hover:flex">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          batch.runSingle("pull", r);
-                        }}
-                        className="text-[11px] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline"
-                      >
-                        {t("拉取")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          batch.runSingle("push", r);
-                        }}
-                        className="text-[11px] text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline"
-                      >
-                        {t("推送")}
-                      </button>
-                    </span>
+                  {!result && !batch.running && (r.upstream != null || r.ahead > 0) && (
+                    <RowQuickOps repo={r} onOp={(op) => batch.runSingle(op, r)} />
                   )}
                 </div>
               );

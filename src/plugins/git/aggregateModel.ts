@@ -55,7 +55,8 @@ export function dedupeGroups(
 
 /**
  * 批量目标选择:fetch = 全部仓;pull = 有上游(无上游没有可拉来源,直接标跳过);
- * push = 有上游且 ahead>0(无待推提交标跳过,不打无意义网络请求)。
+ * push = ahead>0(无上游也推:降级统计的 ahead 即本地独有提交,目标缺省
+ * origin:<branch>,弹窗行内可改 —— 与单仓 PushDialog 的无上游推送同一语义)。
  * 返回执行清单与跳过原因(按 path),跳过行不进执行队列。
  */
 export function selectTargets(
@@ -65,7 +66,7 @@ export function selectTargets(
   const skipped = new Map<string, string>();
   const targets: AggRepo[] = [];
   for (const r of repos) {
-    if (op !== "fetch" && r.upstream == null) {
+    if (op === "pull" && r.upstream == null) {
       skipped.set(r.path, t("无上游分支"));
       continue;
     }

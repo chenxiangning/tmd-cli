@@ -1,20 +1,4 @@
-/* Git 面板专属样式(多仓增量):对话框仓徽章 + 文件树仓标注。
- * 滚动条隐藏已收敛全局 .tmd-scroll-hide utility(RepoBar 已挂类)。 */
-
-/* 仓切换条:仓间虚线分隔(2px 竖线自绘虚线段,border-strong 保证浅色主题可见) */
-.repo-bar-divider {
-  flex: none;
-  align-self: center;
-  width: 2px;
-  height: 12px;
-  margin: 0 6px;
-  border-radius: 1px;
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--tmd-border-strong) 0 3px,
-    transparent 3px 7px
-  );
-}
+/* Git 面板专属样式(多仓增量):对话框仓徽章 + 文件树仓标注。 */
 
 /* 远端对话框标题行的当前仓徽章 */
 .git-dialog-repo {

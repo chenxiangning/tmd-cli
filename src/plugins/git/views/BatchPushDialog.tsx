@@ -1,11 +1,12 @@
 /**
  * BatchPushDialog —— 多仓推送确认弹窗(spec 2026-10-08-git-batch-ops-design §推送确认弹窗):
- * 左列 = 可推仓勾选列表(☐ + 仓名 + ↑n;第二行完整 `branch → remote:target`,
- *  target 行内可改,覆盖值随推送下发并驱动右侧预览);
+ * 左列 = 可推仓勾选列表(可推置顶、禁选沉底;☐ + 仓名 + ↑n;第二行完整 `branch → remote:target`,
+ *  target 行内可改,覆盖值随推送下发并驱动右侧预览;失败行徽标可点,行内展开完整失败日志);
  * 右列 = 选中仓的本次推送内容(BatchPushPreview:提交清单 + 选中提交变更文件);
  * 底栏对齐单仓 PushDialog:推送标签 / 运行 Git 挂钩 + 取消 / 推送(n)。
  * 不给 force-with-lease(批量强推无逐仓确认);不给 Gerrit;remote 固定取上游所属
- *  (多 remote 仓去单仓弹窗改,批量场景上游 remote 已覆盖绝大多数)。
+ *  (多 remote 仓去单仓弹窗改,批量场景上游 remote 已覆盖绝大多数);无上游行
+ *  (本地独有分支)同样可推,target 缺省 origin:<branch> 行内可改。
  */
 
 import { useMemo, useState } from "react";
@@ -17,9 +18,8 @@ import type { BatchRunning, RowResult } from "../useBatchGitOps";
 import { BatchPushPreview } from "./BatchPushPreview";
 import { BatchPushFooter, BatchPushRow } from "./BatchPushStatus";
 
-/** 行可推判定:有上游且 ahead>0;其余行禁选并给原因。 */
+/** 行可推判定:ahead>0 即可(无上游也推,目标缺省 origin:<branch>);否则禁选并给原因。 */
 function eligibleOf(r: AggRepo): string | null {
-  if (r.upstream == null) return t("无上游分支");
   if (r.ahead <= 0) return t("无待推提交");
   return null;
 }
@@ -67,6 +67,14 @@ export function BatchPushDialog({
   const checked = eligible.filter((r) => !excluded.has(r.path));
   const allChecked = eligible.length > 0 && checked.length === eligible.length;
   const selectedRepo = eligible.find((r) => r.path === selected) ?? null;
+  /* 行序:可推仓置顶(组内保持聚合序 —— sort 稳定),禁选行沉底一眼扫过。 */
+  const ordered = useMemo(
+    () =>
+      repos
+        .slice()
+        .sort((a, b) => Number(eligibility.get(a.path) != null) - Number(eligibility.get(b.path) != null)),
+    [repos, eligibility],
+  );
 
   /* 落定统计:按确认时快照的仓集计失败数(rows 含历史结果,只数本次)。 */
   let failCount = 0;
@@ -76,18 +84,19 @@ export function BatchPushDialog({
     }
   }
 
-  /** 行有效目标:覆盖值 > 上游 leaf。 */
+  /** 行有效目标:覆盖值 > 上游 leaf;无上游缺省 origin:<branch>(显式 refspec 推送不依赖上游)。 */
+  const defaultTargetOf = (r: AggRepo): { remote: string; branch: string } =>
+    r.upstream != null ? splitUpstream(r.upstream) : { remote: "origin", branch: r.branch };
   const targetOf = (r: AggRepo): { remote: string; branch: string } => {
-    const base = splitUpstream(r.upstream ?? "");
     const b = branchByPath[r.path];
-    return b ? { remote: base.remote, branch: b } : base;
+    return b ? { remote: defaultTargetOf(r).remote, branch: b } : defaultTargetOf(r);
   };
 
   const confirm = () => {
+    /* 全部勾选行都带显式目标下发:无上游行必须(执行器不再回落 gitPullPush),
+       有上游行与上游拆分等值,语义不变。 */
     const targetByPath = new Map<string, { remote: string; branch: string }>();
-    for (const r of checked) {
-      if (branchByPath[r.path]) targetByPath.set(r.path, targetOf(r));
-    }
+    for (const r of checked) targetByPath.set(r.path, targetOf(r));
     /* 快照由父层在 onConfirm 落(此处不再置)。 */
     onConfirm(checked, { followTags: tags, runHooks, targetByPath });
   };
@@ -127,11 +136,12 @@ export function BatchPushDialog({
                 if (el) el.indeterminate = !allChecked && checked.length > 0;
               }}
               onChange={() => setExcluded(allChecked ? new Set(eligible.map((r) => r.path)) : new Set())}
+              className="h-3.5 w-3.5 shrink-0 cursor-pointer accent-(--tmd-accent) disabled:cursor-default"
             />
             {t("已选 {n}/{m} 仓", { n: checked.length, m: eligible.length })}
           </label>
           <div className="min-h-0 flex-1 overflow-y-auto py-0.5">
-            {repos.map((r) => {
+            {ordered.map((r) => {
               const reason = eligibility.get(r.path) ?? null;
               /* 推送期间/落定后:行尾换逐仓状态(转圈/✓/✗),静态 ↑n 让位。 */
               const st = (running || settled) && pushedSet.has(r.path) ? rows.get(r.path) : undefined;
@@ -162,7 +172,7 @@ export function BatchPushDialog({
                     setEditing(null);
                     setBranchByPath((m) => {
                       const c = { ...m };
-                      if (next && next !== splitUpstream(r.upstream ?? "").branch) c[r.path] = next;
+                      if (next && next !== defaultTargetOf(r).branch) c[r.path] = next;
                       else delete c[r.path];
                       return c;
                     });

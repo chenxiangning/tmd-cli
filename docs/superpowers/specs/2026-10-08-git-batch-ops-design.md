@@ -41,6 +41,7 @@
 ### 批量执行语义(useBatchGitOps + aggregateModel 纯函数)
 
 - 目标选择:fetch = 全部仓;pull = 有上游的仓(无上游行直接标 `⊘ 无上游分支`);push = 有上游且 ahead>0(其余标 `⊘ 无待推提交`)。
+  **2026-10-09 修订(无上游仓推送识别)**:push 只看 ahead>0 —— 无上游的本地独有分支(Conductor worktree 常态,如 `chenxiangning/yokohama` → `origin/2-web-user-crud`)同样可推:降级统计的 ahead 即本地独有提交,目标缺省 `origin:<branch>`(弹窗行内可改,preview 按 `targetFound=false` 新分支首推口径),执行走结构化 `git_remote_request` 显式 refspec,不再回落 `git_pull_push`(其会报 no upstream);无上游仅拦 pull。「推送全部」菜单项不按可推数置灰(0 可推也开弹窗,行给原因、确认自会拦);行级 hover 快操推送按钮同口径(ahead>0 即显)。
 - 有界并发 `BATCH_CONCURRENCY=6`(aggregateModel.mapPool)执行 `gitPullPush(path, op)` / `gitRemoteRequest`;取消 = 仓间断(在途仓跑完,未起仓标跳过)。
 - 行结果文案(紧凑,区别于对话框长句):pull `已是最新` / `合入 n 个提交`;push `已是最新` / `已推 n 个提交`;fetch `已是最新` / `更新 n 个引用`;失败 = `gitErrorDisplay`,凭据类(isAuth)= `凭据需要交互,请在终端执行`。
 - 完成后自动重拉聚合状态(行内 ↑↓ 数字校正),并调 `afterMutation` 让当前仓面板数据失效重取。
@@ -48,10 +49,10 @@
 ### 推送确认弹窗(BatchPushDialog)
 
 - 菜单「推送全部」不直发,先开确认弹窗(对齐单仓 PushDialog 有确认闸;获取/拉取全部直发)。形态 = 单仓弹窗底栏 + JetBrains 多仓勾选列表:
-  - 左列:全选行(`已选 n/m 仓`)+ 仓行(☐ + 仓名 + `↑n`;第二行完整 `branch → remote:target`,不截断);**target 行内可编辑**(点击进 input,Enter/失焦落定,Esc 还原;覆盖值高亮 accent,随推送下发并驱动右栏预览重拉)。可推(有上游且 ahead>0)默认全勾,不可推行禁选灰显并标注原因。
+  - 左列:全选行(`已选 n/m 仓`)+ 仓行(☐ + 仓名 + `↑n`;第二行完整 `branch → remote:target`,不截断);**target 行内可编辑**(点击进 input,Enter/失焦落定,Esc 还原;覆盖值高亮 accent,随推送下发并驱动右栏预览重拉)。可推(有上游且 ahead>0;2026-10-09 起无上游也推,见目标选择修订)默认全勾,不可推行禁选灰显并标注原因。
   - 右列:选中仓的本次推送内容(BatchPushPreview,复用单仓弹窗 `usePushPreview`/`useCommitDetails`)——上 = 提交清单(sha + 摘要 + 作者 + 相对时间,头部计数),下 = 选中提交的变更文件(状态字母着色 + 路径 + `+a/−d`,头部 `{n} 个文件`)。**提交清单按行内 `↑n` 截齐**(远端跟踪引用缺失时 Rust `push_preview` 回退全量历史,聚合口径只展示本次要推的)。
   - 层级:弹窗 `z-[1201]`(右栏层叠上下文压 z-1000 遮罩,先例 WorktreeManageDialog/network-proxy;DialogShell 加可选 `zClass` 参数,既有调用不变)。
-  - 底栏对齐单仓:`推送标签` / `运行 Git 挂钩` 开关 + `取消` / `推送(n)`;确认后**留窗看进度**(2026-10-09 再修订):弹窗不即关,行尾换逐仓状态(转圈/✓/✗),底栏 `推送 {done}/{total}…` → 落定 `✓ 推送完成` / `✗ 推送完成,n 仓失败`;进行中「取消」= 假关闭(后台继续),聚合批量条给「查看进度」重开续看;执行期勾选/改目标/开关全冻结,确认计数冻结在确认时快照(防重扫 ahead=0 闪「推送(0)」)。**快照(pushed)归父层 AggregateReposView 持有**:重开不丢(重开弹窗续看逐仓状态与回执),仅菜单新开「推送全部」时清。配套:`DialogActions` 加 `cancelDisabled`/`cancelLabel`/`className`(顶距改调用方显式传 `mt-4`,内嵌 footer 行不传);单仓 PushDialog 同律留窗显 ✓/✗ 回执(开关弹窗即清,`locked` 解除允许假关闭),推送进行中工具栏推送行保持可点(重开看进度;`runDialog` 有 remoteBusy 闸防双推);拆件 `views/BatchPushStatus.tsx`(BatchRunStatus/RowPushBadge/BatchPushFooter/TargetEditor/BatchPushRow)。
+  - 底栏对齐单仓:`推送标签` / `运行 Git 挂钩` 开关 + `取消` / `推送(n)`;确认后**留窗看进度**(2026-10-09 再修订):弹窗不即关,行尾换逐仓状态(转圈/✓/✗),底栏 `推送 {done}/{total}…` → 落定 `✓ 推送完成` / `✗ 推送完成,n 仓失败`;进行中「取消」= 假关闭(后台继续),聚合批量条给「查看进度」重开续看;执行期勾选/改目标/开关全冻结,确认计数冻结在确认时快照(防重扫 ahead=0 闪「推送(0)」)。**快照(pushed)归父层 AggregateReposView 持有**:重开不丢(重开弹窗续看逐仓状态与回执),仅菜单新开「推送全部」时清。配套:`DialogActions` 加 `cancelDisabled`/`cancelLabel`/`className`(顶距改调用方显式传 `mt-4`,内嵌 footer 行不传);单仓 PushDialog 同律留窗显 ✓/✗ 回执(开关弹窗即清,`locked` 解除允许假关闭),推送进行中工具栏推送行保持可点(重开看进度;`runDialog` 有 remoteBusy 闸防双推);拆件 `views/BatchPushStatus.tsx`(BatchRunStatus/RowPushBadge/BatchPushFooter/TargetEditor/BatchPushRow)。**2026-10-09 打磨**:左列行序可推置顶(禁选沉底,组内保持聚合序);✗ 徽标可点 + 内联截断失败原因,点开行内日志抽屉(完整 git stderr,mono 折行超高滚动);复选框 `accent-(--tmd-accent)` 着色 + 行级 err 徽标移出选择按钮(禁嵌套 button)。
 - 执行通道:带选项推送走 `git_remote_request`(remote/branch 优先弹窗覆盖值,缺省拆自行内 upstream;`noVerify = !runHooks`、`followTags`);获取/拉取仍走 `git_pull_push` 快速原语。重试失败沿用上次弹窗选项。
 - 否决项:批量 force-with-lease(无逐仓确认,危险面太大)、批量 Gerrit(每仓 topic/reviewer 语义不同,图 2 的 Gerrit 区不适用于异构多仓)。
 

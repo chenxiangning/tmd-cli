@@ -29,7 +29,7 @@ export interface BatchPushOpts {
   followTags: boolean;
   /** 运行 Git 挂钩 = !noVerify。 */
   runHooks: boolean;
-  /** 目标分支覆盖(弹窗行内编辑;缺省 = 行 upstream 拆分)。 */
+  /** 目标分支覆盖(弹窗行内编辑;缺省 = 行 upstream 拆分,无上游 = origin:<branch>)。 */
   targetByPath?: ReadonlyMap<string, { remote: string; branch: string }>;
 }
 
@@ -64,22 +64,27 @@ export function useBatchGitOps(onSettled: () => void) {
         next.set(r.path, { phase: "running", text: opLabel });
         setRows(new Map(next));
         try {
-          /* 带选项推送走结构化请求(remote/branch 优先弹窗覆盖,缺省行 upstream 拆分)。 */
+          /* 带选项推送走结构化请求(remote/branch 优先弹窗覆盖,缺省行 upstream 拆分;
+             无上游缺省 origin:<branch> —— 显式 refspec 不依赖上游,gitPullPush 会报
+             「no upstream」,无上游行必须走结构化)。 */
           const tgt =
-            op === "push" && r.upstream != null
-              ? (pushOpts?.targetByPath?.get(r.path) ?? splitUpstream(r.upstream))
+            op === "push"
+              ? (pushOpts?.targetByPath?.get(r.path) ??
+                (r.upstream != null
+                  ? splitUpstream(r.upstream)
+                  : { remote: "origin", branch: r.branch }))
               : null;
           const report =
-            op === "push" && pushOpts != null && tgt != null
+            op === "push" && tgt != null && (pushOpts != null || r.upstream == null)
               ? await ipc.gitRemoteRequest(r.path, {
                   op: "push",
                   remote: tgt.remote,
                   branch: tgt.branch,
                   strategy: null,
                   noCommit: false,
-                  noVerify: !pushOpts.runHooks,
+                  noVerify: pushOpts ? !pushOpts.runHooks : false,
                   forceWithLease: false,
-                  followTags: pushOpts.followTags,
+                  followTags: pushOpts?.followTags ?? false,
                   gerrit: null,
                 })
               : await ipc.gitPullPush(r.path, op);

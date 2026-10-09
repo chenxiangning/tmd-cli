@@ -65,7 +65,7 @@
 | 非仓根有子仓 | root 非仓且 repos.length >= 1 | 空态改为发现引导列表,点击进入选中态 |
 | 空态 | root 非仓且 repos.length == 0 | 现状文案「当前目录不是 Git 仓库」不变 |
 
-- **仓切换条 RepoBar**(新文件 `views/RepoBar.tsx`,遵守 300 行铁则,`GitPanelBars` 拆分先例):横排仓 chips,每 chip = 仓名 + 类型标注(submodule/worktree 角标)+ dirty 文件数 + ↑↓;选中 chip 高亮 accent;超出横滚。chip 状态数据 = 轻量 per-repo `git_status`(branch + files.length,选中仓之外不上 5s 轮询,仅在发现周期/写操作后刷新)。
+- **仓切换条 RepoBar**(新文件 `views/RepoBar.tsx`,遵守 300 行铁则,`GitPanelBars` 拆分先例):横排仓 chips,每 chip = 仓名 + 类型标注(submodule/worktree 角标)+ dirty 文件数 + ↑↓;选中 chip 高亮 accent;超出横滚。chip 状态数据 = 轻量 per-repo `git_status`(branch + files.length,选中仓之外不上 5s 轮询,仅在发现周期/写操作后刷新)。**2026-10-09 交互改版**:横滚 chips 改为仓库选择器(选中仓名 + 仓数 + ▾,点击弹纵向仓库列表,行 = kind 图标 + 仓名 + dirty 点/数 + ↑↓,当前仓 ✓,dirty 降序,超 320px 滚动;复用 GitToolbar `MenuShell` portal 弹层)——仓数多(如 19 仓)时横滚找仓难,弹出列表一次看全;「n 仓」计数并入选择器标签。扫描在途空窗期(repos 空)整条不渲染。
 - **cwd 换源**:`GitPanel.tsx` 的 cwd 来源由 `active?.root` 改为 `selectedRepoPath ?? (root 为仓 ? root : repos[0])`,选中态存 panelStore(按 workspace 记忆,切换 workspace 失效)。hooks、DiffView、BranchView、HistoryView、远端对话框、GitRemoteBar 零改动。
 - **GitToolbar 聚合口径**:±行数与文件数 = 选中仓(title 注明);新增「N 仓」徽标,仅多仓模式显示。
 - **非仓根引导列表**:行 = 仓名 + branch + dirty 数 + ↑↓,点击即选中进入面板;`truncated` 时尾部提示「已截断,仅显示前 32 个」。

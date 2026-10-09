@@ -43,8 +43,7 @@ export const MESSAGES = {
   "工作树": "Worktree",
   "仓数已达发现上限({n}),仅显示前 {n} 仓":
     "Repository discovery limit reached ({n}); showing the first {n} only",
-  "工作区内发现的 Git 仓库数": "Git repositories found in the workspace",
-  "仓": "repos",
+  "切换仓库": "Switch repository",
   "领先 {n} 个提交": "{n} commits ahead",
   "落后 {n} 个提交": "{n} commits behind",
 
@@ -261,6 +260,8 @@ export const MESSAGES = {
   "改目标": "Edit target",
   "扫描结果超过 32 仓被截断,其余仓请在 RepoBar 逐仓操作": "Scan truncated at 32 repos; use RepoBar for the rest",
   "推送全部到远端": "Push all to remotes",
+  "查看失败日志": "View failure log",
+  "收起失败日志": "Collapse failure log",
   "已选 {n}/{m} 仓": "{n}/{m} repos selected",
   "推送({n})": "Push ({n})",
   "查看进度": "View progress",

@@ -55,12 +55,11 @@ describe("selectTargets", () => {
     expect(skipped.get("/ahead-no-upstream")).toBeTruthy();
   });
 
-  it("push = 有上游且 ahead>0;无待推与无上游分别标因", () => {
+  it("push = ahead>0 即可(无上游也推);无待推标因", () => {
     const { targets, skipped } = selectTargets("push", repos);
-    expect(targets.map((r) => r.path)).toEqual(["/ahead"]);
+    expect(targets.map((r) => r.path)).toEqual(["/ahead", "/ahead-no-upstream"]);
     expect(skipped.get("/clean")).toBeTruthy();
     expect(skipped.get("/no-upstream")).toBeTruthy();
-    expect(skipped.get("/ahead-no-upstream")).toBeTruthy();
   });
 });
 
