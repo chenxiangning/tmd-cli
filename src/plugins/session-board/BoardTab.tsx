@@ -1,12 +1,11 @@
-/**
- * 会话看板主视图 —— 工具栏 + 热力月历 + 聚焦日面板(定稿形态见原型
- * docs/design/session-calendar-heat-agenda.html;月历网格拆至 CalendarGrid.tsx)。
- * 交互契约:点格开日视图、← → 逐日、Esc 收起(看板覆盖层开着时);引擎/状态 chips 过滤。
- */
+/** 会话看板主视图:工具栏 + 热力月历 + 聚焦日面板(原型 docs/design/session-calendar-heat-agenda.html;
+ *  月历网格拆至 CalendarGrid.tsx;点格开日视图、← → 逐日、Esc 收起;引擎/状态 chips 过滤)。 */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CaretLeft, CaretRight, ArrowClockwise, SquaresFour, X } from "@phosphor-icons/react";
 import { closeBoardOverlay } from "./boardOverlayStore";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 import { host } from "@kernel/host";
 import { Empty } from "@kernel/Empty";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
@@ -48,8 +47,8 @@ export function BoardTab() {
   );
   const [refreshTick, setRefreshTick] = useState(0);
   const scan = useBoardSessions(targetWs, allMode, refreshTick);
+  const { spinning, spin } = useMinSpin();
   const sessions = scan?.rows ?? null;
-  /* 扫描失败引擎集:不伪装空板,出错误条 + 重试。 */
   const failedEngines = scan?.failedEngines ?? [];
   const now = new Date();
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
@@ -258,9 +257,9 @@ export function BoardTab() {
             className="sb-btn"
             aria-label={t("重新扫描")}
             title={t("重新扫描")}
-            onClick={() => setRefreshTick((v) => v + 1)}
+            onClick={() => spin(() => setRefreshTick((v) => v + 1))}
           >
-            <ArrowClockwise size="0.875rem" aria-hidden />
+            {spinning ? <Spinner size="0.875rem" /> : <ArrowClockwise size="0.875rem" aria-hidden />}
           </button>
           <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
             <X size="0.875rem" aria-hidden />

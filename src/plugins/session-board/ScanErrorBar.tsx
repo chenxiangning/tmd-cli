@@ -4,6 +4,8 @@
  */
 import { ArrowClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 
 export function ScanErrorBar({
   failedEngines,
@@ -13,12 +15,13 @@ export function ScanErrorBar({
   failedEngines: string[];
   onRetry: () => void;
 }) {
+  const { spinning, spin } = useMinSpin();
   if (failedEngines.length === 0) return null;
   return (
     <div className="sb-scan-error" role="alert" title={failedEngines.join(", ")}>
       <span>{t("{n} 个引擎扫描失败", { n: failedEngines.length })}</span>
-      <button type="button" className="sb-scan-retry" onClick={onRetry}>
-        <ArrowClockwise size="0.75rem" aria-hidden />
+      <button type="button" className="sb-scan-retry" onClick={() => spin(onRetry)}>
+        {spinning ? <Spinner size="0.75rem" /> : <ArrowClockwise size="0.75rem" aria-hidden />}
         {t("重试")}
       </button>
     </div>

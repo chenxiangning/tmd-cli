@@ -12,6 +12,8 @@ import {
 } from "@phosphor-icons/react";
 import { openExternalUrl } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 import { webUiUrl, type DshConnection } from "./dshConnection";
 
 /* 精致小按钮:细边、紧凑内距、小字号(与引擎行的 welcome-ab 视觉对齐)。 */
@@ -59,6 +61,7 @@ export function HostActions({
   onCancelStart: () => Promise<void>;
   onRefresh: () => Promise<void>;
 }) {
+  const { spinning, spin } = useMinSpin();
   if (pending === "start") {
     return (
       <button type="button" className={BTN} onClick={() => void onCancelStart()}>
@@ -112,9 +115,9 @@ export function HostActions({
         type="button"
         className={BTN}
         disabled={pending !== null}
-        onClick={() => void onRefresh()}
+        onClick={() => spin(onRefresh)}
       >
-        <ArrowClockwise size="0.6875rem" /> {t("重新检测")}
+        {spinning ? <Spinner size="0.6875rem" /> : <ArrowClockwise size="0.6875rem" />} {t("重新检测")}
       </button>
     </>
   );

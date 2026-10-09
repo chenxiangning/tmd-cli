@@ -8,11 +8,13 @@ import { ArrowClockwise, ArrowSquareIn, Plugs, PlugsConnected } from "@phosphor-
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 import { useHubState, refreshHub, selectEngine } from "./hubStore";
 import { openMcpHubTab } from "./hubTab";
 
 export function McpHubPanel() {
   const { engines, loading, selectedProfileId } = useHubState();
+  const { spinning, spin } = useMinSpin();
   /* 面板激活即拉一次(中央 tab 与面板共用 store,已在则即时显示)。 */
   useEffect(() => {
     if (engines.length === 0 && !loading) void refreshHub();
@@ -55,13 +57,13 @@ export function McpHubPanel() {
                 {t("读取失败")}
                 <button
                   type="button"
-                  onClick={() => void refreshHub()}
+                  onClick={() => spin(() => refreshHub())}
                   title={t("重试")}
                   aria-label={t("重试")}
                   className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
                   data-mcphub-engine-retry={engine.profileId}
                 >
-                  <ArrowClockwise size="0.75rem" aria-hidden />
+                  {spinning ? <Spinner size="0.75rem" /> : <ArrowClockwise size="0.75rem" aria-hidden />}
                 </button>
               </span>
             </div>

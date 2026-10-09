@@ -13,6 +13,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowClockwise, Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc, type CliProbeResult, type ProcRunResult } from "@kernel/ipc";
+import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 import {
   fetchExtCatalog,
   parseOmpPluginList,
@@ -32,6 +34,7 @@ function ExtMarketHead({
   onRefresh: () => void;
   onClose: () => void;
 }) {
+  const { spinning, spin } = useMinSpin();
   return (
     <header className="omp-ext-head">
       <span className="omp-ext-title">{t("omp 扩展")}</span>
@@ -46,9 +49,9 @@ function ExtMarketHead({
         className="omp-ext-iconbtn"
         title={t("刷新")}
         aria-label={t("刷新")}
-        onClick={onRefresh}
+        onClick={() => spin(onRefresh)}
       >
-        <ArrowClockwise size="0.75rem" aria-hidden />
+        {spinning ? <Spinner size="0.75rem" /> : <ArrowClockwise size="0.75rem" aria-hidden />}
       </button>
       <button
         type="button"

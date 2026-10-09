@@ -1,13 +1,12 @@
 /**
- * AggregateReposView —— Git 面板聚合模式(「全部」)主体(spec 2026-10-08-git-batch-ops-design)。
- * 批量条(数字摘要 + ⟳ + 分裂按钮组「拉取全部 ▾」,菜单含获取/推送全部)+ RepoBar + 按工作区分组的仓行。
- * 行三态:常态(hover 行级 拉取/推送,点行跳仓)→ 执行中(转圈/排队)→ 结果(✓/⊘/✗)。
+ * AggregateReposView —— Git 聚合「全部」主体(spec 2026-10-08-git-batch-ops-design):
+ * 批量条(摘要 + ⟳ + 「拉取全部 ▾」分裂钮)+ RepoBar + 仓行;行三态:常态(hover 拉取/推送,点行跳仓)→ 执行中 → 结果(✓/⊘/✗)。
  */
-
 import { useState, type ReactNode } from "react";
 import { ArrowClockwise, ArrowDown, ArrowUp, CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 import { KIND_META } from "./repoKindMeta";
 import { BatchPushDialog } from "./BatchPushDialog";
 import { MenuShell } from "../GitToolbar";
@@ -57,8 +56,8 @@ export function AggregateReposView({
     afterBatch();
   });
   const [opsMenu, setOpsMenu] = useState<{ x: number; y: number } | null>(null);
+  const { spinning: refreshing, spin: spinRefresh } = useMinSpin();
   const [pushOpen, setPushOpen] = useState(false);
-  /* 本次推送仓集快照:父层持有(假关闭重开不丢,菜单新开才清)——重开弹窗续看逐仓状态/回执的依据。 */
   const [pushed, setPushed] = useState<readonly string[]>([]);
   const all = agg.groups.flatMap((g) => g.repos);
   const pullable = all.filter((r) => r.upstream != null).length;
@@ -74,7 +73,6 @@ export function AggregateReposView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* 批量条:「全部」态顶行——左侧数字摘要 + 右侧 ⟳ 与分裂按钮组,三个批量动作收进主钮 拉取全部 + ▾ 菜单。 */}
       <div className="flex shrink-0 items-center gap-1 whitespace-nowrap border-b border-(--tmd-border) px-2 py-1">
         <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg-muted) tabular-nums">
           {batch.running
@@ -126,13 +124,15 @@ export function AggregateReposView({
               type="button"
               title={t("刷新")}
               aria-label={t("刷新")}
-              onClick={() => {
+              onClick={() => spinRefresh(() => {
                 batch.clear();
-                void agg.refresh();
-              }}
+                return agg.refresh();
+              })}
               className="flex shrink-0 items-center gap-0.5 rounded px-1 py-1 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
             >
-              <ArrowClockwise className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+              {refreshing
+                ? <Spinner size="0.75rem" />
+                : <ArrowClockwise className="h-[0.75rem] w-[0.75rem]" aria-hidden />}
             </button>
             {/* 分裂按钮组:主钮 = 拉取全部(最高频);▾ 菜单含获取/拉取/推送全部,带目标数。 */}
             <span className="flex shrink-0 items-stretch overflow-hidden rounded-md border border-(--tmd-accent)">

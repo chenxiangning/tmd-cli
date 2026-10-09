@@ -8,10 +8,10 @@
  * 以回调表达,本组件零树知识。
  */
 
-import { useRef, useState } from "react";
 import { ArrowClockwise, FilePlus, FolderSimplePlus } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 import { GitDecorateToggle } from "./gitDecorate";
 
 export function FileTreeToolbar({
@@ -30,19 +30,7 @@ export function FileTreeToolbar({
    *  宿主传 false 隐藏 —— 该钮对远程树是零效果假动作钮。 */
   gitToggle?: boolean;
 }) {
-  const [refreshBusy, setRefreshBusy] = useState(false);
-  const refreshBatchRef = useRef(0);
-  const handleRefresh = () => {
-    if (refreshBusy) return;
-    const myBatch = ++refreshBatchRef.current;
-    setRefreshBusy(true);
-    /* onRefresh 实现可能同步抛错:.then 包一层归入 rejection,finally 必然清忙态 */
-    void Promise.resolve()
-      .then(onRefresh)
-      .finally(() => {
-        if (refreshBatchRef.current === myBatch) setRefreshBusy(false);
-      });
-  };
+  const { spinning: refreshBusy, spin } = useMinSpin();
 
   return (
     <span className="file-tree-toolbar">
@@ -77,7 +65,7 @@ export function FileTreeToolbar({
         data-hint={t("刷新文件树")}
         data-hint-cmd="panel.refresh"
         title=""
-        onClick={handleRefresh}
+        onClick={() => spin(onRefresh)}
       >
         {/* 尺寸单一真源 = file-tree.css svg 0.875rem(Spinner 同档透传) */}
         {refreshBusy ? <Spinner size="0.875rem" /> : <ArrowClockwise aria-hidden />}

@@ -23,6 +23,7 @@ import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getQuotaProvider, SHORT_WINDOW_LABEL, type QuotaSnapshot } from "@kernel/quota";
 import { formatRelativeTime, formatResetAt } from "@kernel/relativeTime";
+import { useMinSpin } from "@kernel/useMinSpin";
 
 /** ms epoch → "14:30:05"(弹窗底部"更新于")。 */
 function formatClock(ms: number): string {
@@ -148,6 +149,7 @@ function QuotaDetailPopover({
   onClose: () => void;
 }) {
   useEscClose(onClose);
+  const { spinning, spin } = useMinSpin();
 
   return createPortal(
     <>
@@ -202,10 +204,10 @@ function QuotaDetailPopover({
           <button
             type="button"
             className="quota-popover-refresh"
-            onClick={onRefresh}
+            onClick={() => spin(onRefresh)}
             title={t("重新抓取额度")}
            >
-             <ArrowClockwise size="0.75rem" aria-hidden className={loading ? "is-spinning" : undefined} />
+             <ArrowClockwise size="0.75rem" aria-hidden className={loading || spinning ? "is-spinning" : undefined} />
             {t("刷新")}
           </button>
         </div>

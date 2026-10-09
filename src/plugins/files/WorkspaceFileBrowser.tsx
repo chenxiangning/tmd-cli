@@ -1,22 +1,15 @@
 /**
- * 侧栏工作区文件浏览器(复刻参考稿)—— 工作区行「查看文件」打开,整体替换
- * 左栏任务列表;「返回工作区」关闭(kernel workspaceFileBrowser 契约)。
- *
- * 复用面(右栏同源,零新逻辑):
- * - 目录浏览:useDirTree(右栏 FileTree 同一实现)
- * - git 状态:useRepoStatusState + gitDecorateModel 纯函数(颜色口径与右栏一致)
- * - 文件视觉/开 tab:resolveFileVisual / openFileInTab;行样式复用 .file-tree-* 类
- * 侧栏特有交互:搜索(文件名,fs_walk 同源扫描)/ 漏斗(仅看变更,变更剪枝树)/
- *  忽略降显(git_ignored_prefixes)/ ⋯ 菜单(访达+复制路径)。视觉件与列表态拆至
- *  WsfbChromeTop / WsfbRow / WsfbLists / WsfbBodies(文件规模铁则)。
- * git 装饰有意不受右栏「Git 变更」开关约束:浏览器自带字母/着色是浏览语义
- *  的一部分(搜索过滤后仍需要),开关只管辖右栏文件树的装饰渲染。
+ * 侧栏工作区文件浏览器(「查看文件」打开,整体替换左栏;返回工作区关闭)。
+ * 复用右栏同源件(useDirTree/useRepoStatusState/file 视觉开 tab);特有:搜索/
+ * 漏斗(仅看变更)/忽略降显/⋯菜单,视觉件拆 Wsfb*(文件规模铁则)。git 装饰
+ * 不受右栏「Git 变更」开关约束:浏览语义的一部分。
  */
-
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowClockwise, DotsThree, Funnel } from "@phosphor-icons/react";
+import { CaretDoubleDown, ArrowClockwise, DotsThree, Funnel } from "@phosphor-icons/react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 import { useWorkspaces, workspaceDisplayName } from "@kernel/workspace";
 import { findRemoteFileSource } from "@kernel/fileSources";
 import { openFileInTab } from "@kernel/fileTabs";
@@ -50,7 +43,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   const [hitsTruncated, setHitsTruncated] = useState(false);
   const [walkError, setWalkError] = useState(false);
   const [tick, setTick] = useState(0);
-  /* —— 数据面(右栏同源)—— */
+  const { spinning: refreshing, spin: spinRefresh } = useMinSpin();
   const { entries, expanded, selectedPath, setSelectedPath, loading, reloadAll, revealDir, toggle } = useDirTree(root);
   /* 行右键/命名弹窗/轻提示:与右栏 FileTree 同一 useTreeOperations(零新逻辑)。 */
   const ops = useTreeOperations({ root, revealDir, setSelected: setSelectedPath });
@@ -223,17 +216,35 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
           >
             <Funnel size="0.875rem" aria-hidden />
           </button>
+          {changedOnly && (
+            <button
+              type="button"
+              className="wsfb-head-btn"
+              title={t("展开全部目录")}
+              aria-label={t("展开全部目录")}
+              onClick={() => {
+                /* 变更剪枝树里所有带子目录的桶全部置开(仅会话内态)。 */
+                const all: Record<string, true> = {};
+                for (const [dir, kids] of changedTree) if (kids.some((c) => c.isDir)) all[dir] = true;
+                setChangedOpen(all);
+              }}
+            >
+              <CaretDoubleDown size="0.875rem" aria-hidden />
+            </button>
+          )}
           <button
             type="button"
             className="wsfb-head-btn"
             title={t("刷新")}
             aria-label={t("刷新")}
-            onClick={() => {
+            onClick={() => spinRefresh(() => {
               setTick((v) => v + 1);
-              void reloadAll();
-            }}
+              return reloadAll();
+            })}
           >
-            <ArrowClockwise size="0.875rem" aria-hidden />
+            {refreshing
+              ? <Spinner size="0.875rem" />
+              : <ArrowClockwise size="0.875rem" aria-hidden />}
           </button>
         </span>
       </div>

@@ -6,6 +6,7 @@
 import { ArrowClockwise, ListChecks, Palette, Plus, Square, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
+import { useMinSpin } from "@kernel/useMinSpin";
 import { cn } from "../../utils/cn";
 import { ConfirmBubble } from "../ConfirmBubble";
 import { IntentCanvasHomeCard } from "./IntentCanvasHomeCard";
@@ -87,6 +88,7 @@ export function HomeActions(props: {
   onToggleAiDraw: () => void;
   onCreateCanvas: () => void;
 }) {
+  const { spinning, spin } = useMinSpin();
   return (
     <div className="intent-canvas-manager-actions">
                   <button
@@ -110,12 +112,12 @@ export function HomeActions(props: {
           <button
             type="button"
             className="is-icon"
-            onClick={props.onRefresh}
+            onClick={() => spin(props.onRefresh)}
             disabled={props.status === "loading"}
             aria-label={t("刷新")}
             title={t("刷新")}
           >
-            {props.status === "loading" ? (
+            {props.status === "loading" || spinning ? (
               <Spinner size="0.875rem" />
             ) : (
               <ArrowClockwise aria-hidden />

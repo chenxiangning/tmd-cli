@@ -5,6 +5,7 @@
 import { ArrowClockwise, DownloadSimple } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { openExternalUrl } from "@kernel/ipc";
+import { useMinSpin } from "@kernel/useMinSpin";
 import type { ReleaseInfo } from "./updateCheck";
 import { parseInlineMarkdown } from "./inlineMarkdown";
 import { runAutoUpdate, useAutoUpdate, type AutoUpdateStage } from "./autoUpdate";
@@ -62,10 +63,11 @@ export function CheckActions({
   onCheck: () => void;
   onDownload: () => void;
 }) {
+  const { spinning, spin } = useMinSpin();
   return (
     <>
-      <button type="button" className="vp-btn" onClick={onCheck} disabled={checking}>
-        <ArrowClockwise size="0.875rem" className={checking ? "vp-spin" : undefined} />
+      <button type="button" className="vp-btn" onClick={() => spin(onCheck)} disabled={checking}>
+        <ArrowClockwise size="0.875rem" className={checking || spinning ? "vp-spin" : undefined} />
         {checking ? t("检查中…") : t("检查更新")}
       </button>
       <button type="button" className="vp-btn" onClick={onDownload}>
