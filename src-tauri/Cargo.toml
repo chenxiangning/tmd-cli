@@ -48,7 +48,7 @@ trash = "5"
 russh = "0.63.3"
 # russh/转发/IO 泵直接使用 tokio 原语(mpsc/watch/Semaphore/Tcp/JoinSet);tauri 已传递引入,这里显式声明所需 feature。
 tokio = { version = "1", features = ["rt", "sync", "time", "net", "io-util", "fs", "macros"] }
-russh-sftp = "2.3"
+russh-sftp = "3.0"
 # known_hosts 指纹 SHA256 展示。
 sha2 = "0.10"
 # Web 远程访问桥:LAN HTTP/WS 服务(见 web/ 模块);ws feature 供 /ws 命令桥。
