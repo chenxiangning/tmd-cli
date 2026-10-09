@@ -126,6 +126,8 @@ export const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "enhance", label: "增强提示词", icon: MagicWandIcon, group: "composer" },
   { id: "git-open", label: "文件行打开入口", icon: FileText, group: "git" },
   { id: "git-open-location", label: "打开文件位置", icon: FolderOpen, group: "git" },
+  /* git-row-actions / git-repo-ops 的真实挂点是文本/字符钮(DiffView ±/↺、聚合行
+     拉取/推送),组合切换不换字形;设置卡预览字形仅示意,色/闪烁两生效。 */
   { id: "git-row-actions", label: "变更行动作", icon: ListChecks, group: "git" },
   { id: "git-view", label: "Git 视图切换", icon: GitDiff, group: "git" },
   { id: "git-layout", label: "文件列表视图", icon: Rows, group: "git" },

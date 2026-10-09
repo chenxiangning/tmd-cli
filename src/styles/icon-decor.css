@@ -40,13 +40,10 @@ html[data-icon-blink~="panel-mcp-hub"] .panel-rail-tab[data-panel-id="mcp-hub"] 
 
 /* ── 侧栏动作:右缘 rail 钮(ssh = 面板 tab 走 data-panel-id;
    wsl/terminal/intent-canvas/system-proxy = rail 动作走 data-action-id)
-   + 左缘 LeftRail 钮(session-board,2026-10-04 迁入);
-   wsl-panel 的底栏/菜单行选择器为 rail 化前的历史遗留,无消费方 ── */
+   + 左缘 LeftRail 钮(session-board,2026-10-04 迁入)── */
 html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
 html[data-icon-blink~="system-proxy"] .panel-rail-tab[data-action-id="system-proxy"],
 html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
-html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
-html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
 html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
 html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
 html[data-icon-blink~="session-board"] .left-rail-tab[data-action-id="session-board"] svg,
@@ -173,8 +170,6 @@ html[data-icon-blink~="git-diff-tools"] .segment[data-action-id="git-diff-tools"
   html[data-icon-blink~="ssh-panel"] .panel-rail-tab[data-panel-id="ssh"],
   html[data-icon-blink~="system-proxy"] .panel-rail-tab[data-action-id="system-proxy"],
   html[data-icon-blink~="wsl-panel"] .panel-rail-tab[data-action-id="wsl-panel"],
-  html[data-icon-blink~="wsl-panel"] .settings-bar-btn[data-action-id="wsl-panel"],
-  html[data-icon-blink~="wsl-panel"] .settings-menu-row[data-action-id="wsl-panel"] .settings-menu-icon,
   html[data-icon-blink~="terminal"] .panel-rail-tab[data-action-id="terminal"],
   html[data-icon-blink~="intent-canvas"] .panel-rail-tab[data-action-id="intent-canvas"],
   html[data-icon-blink~="session-board"] .left-rail-tab[data-action-id="session-board"] svg,
