@@ -105,6 +105,8 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
    .file-tree-toolbar-action 提特异性,压过其 home 样式表 base/hover。 */
 [data-action-id="git-open"] { color: var(--icon-decor-git-open, var(--tmd-fg-muted)); }
 [data-action-id="git-open"]:hover { color: var(--icon-decor-git-open, var(--tmd-fg)); }
+[data-action-id="git-open-location"] { color: var(--icon-decor-git-open-location, var(--tmd-fg-muted)); }
+[data-action-id="git-open-location"]:hover { color: var(--icon-decor-git-open-location, var(--tmd-fg)); }
 [data-action-id="git-row-actions"] { color: var(--icon-decor-git-row-actions, var(--tmd-fg-muted)); }
 [data-action-id="git-row-actions"]:hover { color: var(--icon-decor-git-row-actions, var(--tmd-fg)); }
 /* 放弃/删除(danger)hover 恒红:不可逆动作语义优先于装饰色 */
@@ -142,6 +144,7 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
 
 /* 新键呼吸闪烁(2026-10-09 扩编 11 键) */
 html[data-icon-blink~="git-open"] [data-action-id="git-open"],
+html[data-icon-blink~="git-open-location"] [data-action-id="git-open-location"],
 html[data-icon-blink~="git-row-actions"] [data-action-id="git-row-actions"],
 html[data-icon-blink~="git-view"] [data-action-id="git-view"],
 html[data-icon-blink~="git-layout"] [data-action-id="git-layout"],
@@ -196,6 +199,7 @@ html[data-icon-blink~="git-diff-tools"] .segment[data-action-id="git-diff-tools"
   html[data-icon-blink~="wake-skill"] [data-action-id="wake-skill"],
   html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"],
   html[data-icon-blink~="git-open"] [data-action-id="git-open"],
+  html[data-icon-blink~="git-open-location"] [data-action-id="git-open-location"],
   html[data-icon-blink~="git-row-actions"] [data-action-id="git-row-actions"],
   html[data-icon-blink~="git-view"] [data-action-id="git-view"],
   html[data-icon-blink~="git-layout"] [data-action-id="git-layout"],

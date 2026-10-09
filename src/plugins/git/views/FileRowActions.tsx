@@ -50,14 +50,14 @@ export function FileOpenActions({
       <button
         type="button"
         title={t("打开文件位置")}
-        data-action-id="git-open"
+        data-action-id="git-open-location"
         onClick={(e) => {
           e.stopPropagation();
           ipc.fsRevealInFileManager(abs).catch((err) => console.warn(gitErrorDisplay(err)));
         }}
-        className="shrink-0"
+        className="shrink-0 ml-1"
       >
-        <DecorIcon id="git-open" Fallback={FolderOpen} className="h-[0.75rem] w-[0.75rem]" />
+        <DecorIcon id="git-open-location" Fallback={FolderOpen} className="h-[0.75rem] w-[0.75rem]" />
       </button>
     </>
   );
