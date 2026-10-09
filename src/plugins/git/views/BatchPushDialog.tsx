@@ -8,12 +8,14 @@
  *  (多 remote 仓去单仓弹窗改,批量场景上游 remote 已覆盖绝大多数)。
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
-import { DialogActions, DialogShell, OpToggle } from "@kernel/DialogShell";
-import { ArrowClockwise, GitBranch, Tag, UploadSimple } from "@phosphor-icons/react";
+import { DialogShell } from "@kernel/DialogShell";
+import { UploadSimple } from "@phosphor-icons/react";
 import { splitUpstream, type AggRepo } from "../aggregateModel";
+import type { BatchRunning, RowResult } from "../useBatchGitOps";
 import { BatchPushPreview } from "./BatchPushPreview";
+import { BatchPushFooter, BatchPushRow } from "./BatchPushStatus";
 
 /** 行可推判定:有上游且 ahead>0;其余行禁选并给原因。 */
 function eligibleOf(r: AggRepo): string | null {
@@ -22,48 +24,22 @@ function eligibleOf(r: AggRepo): string | null {
   return null;
 }
 
-/** 目标分支行内编辑:input 失焦/Enter 落定(空串 = 撤销覆盖),Esc 还原。 */
-function TargetEditor({
-  value,
-  onCommit,
-}: {
-  value: string;
-  onCommit: (next: string) => void;
-}) {
-  const [draft, setDraft] = useState(value);
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
-  return (
-    <input
-      ref={inputRef}
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => onCommit(draft.trim())}
-      onKeyDown={(e) => {
-        /* IME 组合中不拦截(同 WorktreeManageDialog 先例):组词 Enter=选词、Esc=消候选。 */
-        if (e.nativeEvent.isComposing) return;
-        if (e.key === "Enter") onCommit(draft.trim());
-        if (e.key === "Escape") onCommit(value);
-        e.stopPropagation();
-      }}
-      onClick={(e) => e.stopPropagation()}
-      className="w-28 rounded border border-(--tmd-accent) bg-transparent px-1 font-mono text-[11px] outline-none"
-      aria-label={t("目标远端分支")}
-    />
-  );
-}
-
 export function BatchPushDialog({
   repos,
+  running,
+  rows,
+  pushed,
   onClose,
   onConfirm,
 }: {
   repos: readonly AggRepo[];
+  /** 批量推送进行中态(null = 空闲);进行中弹窗可假关闭,重开续看进度。 */
+  running: BatchRunning | null;
+  /** 行结果(进行中/落定后逐仓 ✓/✗ 标识)。 */
+  rows: ReadonlyMap<string, RowResult>;
+  /** 本次推送仓集快照(父层持有):行状态徽章/落定回执的口径,重开不丢。 */
+  pushed: readonly string[];
   onClose: () => void;
-  /** 确认:勾选行 + 选项 + 目标分支覆盖(仅被改过的仓)。 */
   onConfirm: (
     rows: AggRepo[],
     opts: { followTags: boolean; runHooks: boolean; targetByPath: ReadonlyMap<string, { remote: string; branch: string }> },
@@ -77,10 +53,28 @@ export function BatchPushDialog({
   const [branchByPath, setBranchByPath] = useState<Record<string, string>>({});
   const [tags, setTags] = useState(false);
   const [runHooks, setRunHooks] = useState(true);
+  /* 落定派生:快照非空、running 已收、且快照行全部终态。快照归父层:假关闭重开续看,
+   *  菜单新开时父层清空 = 干净态;确认与父层 setRunning 同事件批处理,无「旧结果闪 settled」窗口。 */
+  const pushedSet = useMemo(() => new Set(pushed), [pushed]);
+  const settled =
+    !running &&
+    pushed.length > 0 &&
+    pushed.every((p) => {
+      const ph = rows.get(p)?.phase;
+      return ph === "ok" || ph === "err" || ph === "skip";
+    });
 
   const checked = eligible.filter((r) => !excluded.has(r.path));
   const allChecked = eligible.length > 0 && checked.length === eligible.length;
   const selectedRepo = eligible.find((r) => r.path === selected) ?? null;
+
+  /* 落定统计:按确认时快照的仓集计失败数(rows 含历史结果,只数本次)。 */
+  let failCount = 0;
+  if (settled) {
+    for (const p of pushed) {
+      if (rows.get(p)?.phase === "err") failCount += 1;
+    }
+  }
 
   /** 行有效目标:覆盖值 > 上游 leaf。 */
   const targetOf = (r: AggRepo): { remote: string; branch: string } => {
@@ -94,6 +88,7 @@ export function BatchPushDialog({
     for (const r of checked) {
       if (branchByPath[r.path]) targetByPath.set(r.path, targetOf(r));
     }
+    /* 快照由父层在 onConfirm 落(此处不再置)。 */
     onConfirm(checked, { followTags: tags, runHooks, targetByPath });
   };
 
@@ -105,17 +100,20 @@ export function BatchPushDialog({
       zClass="z-[1201]"
       onClose={onClose}
       footer={
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-(--tmd-border) pt-3">
-          <OpToggle active={tags} icon={<Tag className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("推送标签")} onToggle={() => setTags((v) => !v)} />
-          <OpToggle active={runHooks} icon={<ArrowClockwise className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("运行 Git 挂钩")} onToggle={() => setRunHooks((v) => !v)} />
-          <span className="flex-1" />
-          <DialogActions
-            confirmLabel={t("推送({n})", { n: checked.length })}
-            confirmDisabled={checked.length === 0}
-            onConfirm={confirm}
-            onCancel={onClose}
-          />
-        </div>
+        /* 冻结计数:落定后 repos 重扫 ahead=0,checked 塌成 0,标签不能闪成「推送(0)」。 */
+        <BatchPushFooter
+          tags={tags}
+          runHooks={runHooks}
+          running={running}
+          settled={settled}
+          failCount={failCount}
+          confirmCount={running || settled ? pushed.length : checked.length}
+          confirmDisabled={checked.length === 0 || running != null || settled}
+          onToggleTags={() => setTags((v) => !v)}
+          onToggleHooks={() => setRunHooks((v) => !v)}
+          onConfirm={confirm}
+          onCancel={onClose}
+        />
       }
     >
       <div className="flex min-h-0 gap-2" style={{ height: 380 }}>
@@ -124,6 +122,7 @@ export function BatchPushDialog({
             <input
               type="checkbox"
               checked={allChecked}
+              disabled={running != null || settled}
               ref={(el) => {
                 if (el) el.indeterminate = !allChecked && checked.length > 0;
               }}
@@ -133,84 +132,42 @@ export function BatchPushDialog({
           </label>
           <div className="min-h-0 flex-1 overflow-y-auto py-0.5">
             {repos.map((r) => {
-              const reason = eligibility.get(r.path);
-              const disabled = reason != null;
-              const tgt = targetOf(r);
-              const overridden = branchByPath[r.path] != null;
+              const reason = eligibility.get(r.path) ?? null;
+              /* 推送期间/落定后:行尾换逐仓状态(转圈/✓/✗),静态 ↑n 让位。 */
+              const st = (running || settled) && pushedSet.has(r.path) ? rows.get(r.path) : undefined;
               return (
-                <div
+                <BatchPushRow
                   key={r.path}
-                  className={`px-2.5 py-1 text-xs ${
-                    disabled ? "opacity-45" : selected === r.path ? "bg-(--tmd-bg-hover)" : "hover:bg-(--tmd-bg-hover)"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      aria-label={r.name}
-                      disabled={disabled}
-                      checked={!disabled && !excluded.has(r.path)}
-                      onChange={() => {
-                        const next = new Set(excluded);
-                        if (next.has(r.path)) next.delete(r.path);
-                        else next.add(r.path);
-                        setExcluded(next);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => setSelected(r.path)}
-                      className="min-w-0 flex-1 cursor-pointer text-left disabled:cursor-default"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate font-semibold">{r.name}</span>
-                        {!disabled && <span className="shrink-0 text-(--tmd-diff-inserted)">↑{r.ahead}</span>}
-                      </div>
-                      <div className="mt-0.5 flex items-center gap-1 whitespace-nowrap font-mono text-[11px] text-(--tmd-fg-subtle)">
-                        {disabled ? (
-                          <span className="font-sans">{reason}</span>
-                        ) : (
-                          <>
-                            <GitBranch className="h-3 w-3 shrink-0" aria-hidden />
-                            <span>{r.branch}</span>
-                            <span>→</span>
-                            <span>{tgt.remote} :</span>
-                            <span className={overridden ? "text-(--tmd-accent)" : ""}>{tgt.branch}</span>
-                          </>
-                        )}
-                      </div>
-                    </button>
-                    {!disabled &&
-                      (editing === r.path ? (
-                        <TargetEditor
-                          value={tgt.branch}
-                          onCommit={(next) => {
-                            setEditing(null);
-                            setBranchByPath((m) => {
-                              const c = { ...m };
-                              if (next && next !== splitUpstream(r.upstream ?? "").branch) c[r.path] = next;
-                              else delete c[r.path];
-                              return c;
-                            });
-                          }}
-                        />
-                      ) : (
-                        <button
-                          type="button"
-                          title={t("目标远端分支")}
-                          aria-label={t("目标远端分支")}
-                          onClick={() => {
-                            setSelected(r.path);
-                            setEditing(r.path);
-                          }}
-                          className="shrink-0 self-end rounded px-0.5 font-mono text-[11px] text-(--tmd-fg-faint) hover:bg-(--tmd-bg-active) hover:text-(--tmd-fg) hover:underline"
-                        >
-                          {t("改目标")}
-                        </button>
-                      ))}
-                  </div>
-                </div>
+                  repo={r}
+                  reason={reason}
+                  selected={selected === r.path}
+                  editing={editing === r.path}
+                  st={st}
+                  tgt={targetOf(r)}
+                  overridden={branchByPath[r.path] != null}
+                  checkedOn={!excluded.has(r.path)}
+                  interactive={running == null && !settled}
+                  onToggleExclude={() => {
+                    const next = new Set(excluded);
+                    if (next.has(r.path)) next.delete(r.path);
+                    else next.add(r.path);
+                    setExcluded(next);
+                  }}
+                  onSelect={() => setSelected(r.path)}
+                  onEditStart={() => {
+                    setSelected(r.path);
+                    setEditing(r.path);
+                  }}
+                  onEditCommit={(next) => {
+                    setEditing(null);
+                    setBranchByPath((m) => {
+                      const c = { ...m };
+                      if (next && next !== splitUpstream(r.upstream ?? "").branch) c[r.path] = next;
+                      else delete c[r.path];
+                      return c;
+                    });
+                  }}
+                />
               );
             })}
           </div>

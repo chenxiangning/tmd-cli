@@ -167,6 +167,7 @@ function ModelsEditorDialog({
       onClose={onClose}
       footer={
         <DialogActions
+          className="mt-4"
           confirmLabel={t("保存")}
           confirmDisabled={raw === initial}
           submitting={saving}

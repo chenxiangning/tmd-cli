@@ -166,6 +166,7 @@ export function InstallDraftModal({
           <div className="flex flex-col items-end gap-1">
             {error && <div className="max-w-full break-all text-meta text-(--tmd-diff-removed)">{error}</div>}
             <DialogActions
+              className="mt-4"
               confirmLabel={t("写入目标引擎")}
               confirmDisabled={missingRequired || busy || resolving || !draft}
               submitting={busy}

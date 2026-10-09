@@ -200,11 +200,11 @@ export function ServerEditModal({
           <div className="flex flex-col items-end gap-1">
             {error && <div className="max-w-full break-all text-meta text-(--tmd-diff-removed)">{error}</div>}
             <DialogActions
+              className="mt-4"
               confirmLabel={t("保存")}
               confirmDisabled={missingRequired || busy}
               submitting={busy}
-              onConfirm={() => void save()}
-              onCancel={onClose}
+              onConfirm={() => void save()} onCancel={onClose}
             />
           </div>
         )

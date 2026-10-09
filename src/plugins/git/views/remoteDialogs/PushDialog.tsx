@@ -4,6 +4,8 @@
  * 双栏预览(本次推送提交 + 选中提交详情变更文件树,见 PushPreviewColumns)/
  * 推送历史(会话内存)/ 远端 + 目标远端分支 / Push to Gerrit(见 PushGerritSection)/
  * 推送标签 / 运行 Git 挂钩 / Force with lease / 取消-推送。
+ * 点击推送后弹窗不即关:底栏呈现进行中转圈与 ✓/✗ 回执(outcome);进行中取消 = 假关闭
+ *  (后台继续跑,面板横幅仍有进度,再打开弹窗即见进行中态)。
  * 预览/详情数据 hooks 见 usePushPreview(预览 180ms 防抖;详情按选中 sha 拉取)。
  * hero tokens/推送历史/远端选择区拆至 pushDialogParts.tsx(降分支 + 文件规模铁则)。
  */
@@ -19,7 +21,7 @@ import { PushPreviewColumns } from "./PushPreviewColumns";
 import { PushGerritSection } from "./PushGerritSection";
 import { useCommitDetails, usePushPreview } from "./usePushPreview";
 import { loadPushHistory, rememberPushTarget, type PushTargetEntry } from "./pushHistory";
-import { PushHistoryRows, TargetPickers } from "./pushDialogParts";
+import { PushHistoryRows, PushRunStatus, TargetPickers } from "./pushDialogParts";
 import { buildPushHeroTokens, useSyncTargetToLeafs } from "./pushDialogModel";
 
 type PreviewCommit = GitPushPreview["commits"][number];
@@ -47,6 +49,7 @@ export function PushDialog({
   branch,
   repoName,
   submitting,
+  outcome,
   onClose,
   onRun,
 }: {
@@ -55,6 +58,8 @@ export function PushDialog({
   branch: string;
   repoName?: string;
   submitting: boolean;
+  /** 最近一次推送回执(底栏 ✓/✗ 展示;开关弹窗即清)。 */
+  outcome: { ok: boolean; text: string } | null;
   onClose: () => void;
   onRun: (req: GitRemoteRequest, opLabel: string) => void;
 }) {
@@ -152,7 +157,6 @@ export function PushDialog({
       icon={<UploadSimple className="h-[0.875rem] w-[0.875rem]" aria-hidden />}
       repoName={repoName}
       width={880}
-      locked={submitting}
       onClose={onClose}
       footer={
         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-(--tmd-border) pt-3">
@@ -160,11 +164,15 @@ export function PushDialog({
           <OpToggle active={runHooks} icon={<ArrowClockwise className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label={t("运行 Git 挂钩")} disabled={submitting} onToggle={() => setRunHooks((v) => !v)} />
           <OpToggle active={forceWithLease} icon={<Repeat className="h-[0.875rem] w-[0.875rem]" aria-hidden />} label="Force with lease" disabled={submitting} onToggle={() => setForceWithLease((v) => !v)} />
           <span className="flex-1" />
+          {/* 进度/结果标识:进行中转圈;落定后 ✓/✗ + 回执文案(与面板横幅同词)。 */}
+          <PushRunStatus submitting={submitting} outcome={outcome} />
           <DialogActions
             confirmLabel={t("推送")}
             confirmTitle={canConfirm ? undefined : t("无可推送提交,已禁用推送按钮。")}
-            confirmDisabled={!canConfirm}
+            confirmDisabled={!canConfirm || outcome?.ok === true}
             submitting={submitting}
+            cancelDisabled={false}
+            cancelLabel={submitting || outcome ? t("关闭") : undefined}
             onConfirm={confirm}
             onCancel={onClose}
           />

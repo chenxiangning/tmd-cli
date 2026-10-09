@@ -128,6 +128,7 @@ export function CreatePrDialog({
       onClose={onClose}
       footer={
         <DialogActions
+          className="mt-4"
           confirmLabel={t("创建 PR")}
           confirmDisabled={running || !canSubmit(form)}
           submitting={running}

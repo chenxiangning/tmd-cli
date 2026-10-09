@@ -51,7 +51,7 @@
   - 左列:全选行(`已选 n/m 仓`)+ 仓行(☐ + 仓名 + `↑n`;第二行完整 `branch → remote:target`,不截断);**target 行内可编辑**(点击进 input,Enter/失焦落定,Esc 还原;覆盖值高亮 accent,随推送下发并驱动右栏预览重拉)。可推(有上游且 ahead>0)默认全勾,不可推行禁选灰显并标注原因。
   - 右列:选中仓的本次推送内容(BatchPushPreview,复用单仓弹窗 `usePushPreview`/`useCommitDetails`)——上 = 提交清单(sha + 摘要 + 作者 + 相对时间,头部计数),下 = 选中提交的变更文件(状态字母着色 + 路径 + `+a/−d`,头部 `{n} 个文件`)。**提交清单按行内 `↑n` 截齐**(远端跟踪引用缺失时 Rust `push_preview` 回退全量历史,聚合口径只展示本次要推的)。
   - 层级:弹窗 `z-[1201]`(右栏层叠上下文压 z-1000 遮罩,先例 WorktreeManageDialog/network-proxy;DialogShell 加可选 `zClass` 参数,既有调用不变)。
-  - 底栏对齐单仓:`推送标签` / `运行 Git 挂钩` 开关 + `取消` / `推送(n)`;确认后同批有界并发执行(2026-10-09),行内结果复用聚合列表三态。
+  - 底栏对齐单仓:`推送标签` / `运行 Git 挂钩` 开关 + `取消` / `推送(n)`;确认后**留窗看进度**(2026-10-09 再修订):弹窗不即关,行尾换逐仓状态(转圈/✓/✗),底栏 `推送 {done}/{total}…` → 落定 `✓ 推送完成` / `✗ 推送完成,n 仓失败`;进行中「取消」= 假关闭(后台继续),聚合批量条给「查看进度」重开续看;执行期勾选/改目标/开关全冻结,确认计数冻结在确认时快照(防重扫 ahead=0 闪「推送(0)」)。**快照(pushed)归父层 AggregateReposView 持有**:重开不丢(重开弹窗续看逐仓状态与回执),仅菜单新开「推送全部」时清。配套:`DialogActions` 加 `cancelDisabled`/`cancelLabel`/`className`(顶距改调用方显式传 `mt-4`,内嵌 footer 行不传);单仓 PushDialog 同律留窗显 ✓/✗ 回执(开关弹窗即清,`locked` 解除允许假关闭),推送进行中工具栏推送行保持可点(重开看进度;`runDialog` 有 remoteBusy 闸防双推);拆件 `views/BatchPushStatus.tsx`(BatchRunStatus/RowPushBadge/BatchPushFooter/TargetEditor/BatchPushRow)。
 - 执行通道:带选项推送走 `git_remote_request`(remote/branch 优先弹窗覆盖值,缺省拆自行内 upstream;`noVerify = !runHooks`、`followTags`);获取/拉取仍走 `git_pull_push` 快速原语。重试失败沿用上次弹窗选项。
 - 否决项:批量 force-with-lease(无逐仓确认,危险面太大)、批量 Gerrit(每仓 topic/reviewer 语义不同,图 2 的 Gerrit 区不适用于异构多仓)。
 

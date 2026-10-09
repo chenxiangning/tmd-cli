@@ -35,6 +35,7 @@ export function FetchDialog({
       onClose={onClose}
       footer={
         <DialogActions
+          className="mt-4"
           confirmLabel={t("获取")}
           submitting={submitting}
           onConfirm={() => onRun(FETCH_REQUEST, t("获取"))}

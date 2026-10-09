@@ -4,9 +4,41 @@
  */
 
 import { t } from "@kernel/i18n";
-import { Cloud, GitBranch, ClockClockwise } from "@phosphor-icons/react";
+import { Spinner } from "@kernel/Spinner";
+import { CheckCircle, Cloud, GitBranch, ClockClockwise, XCircle } from "@phosphor-icons/react";
 import { BranchCombobox, PickerField, RemotePicker } from "./GitPicker";
 import { isSamePushTarget, type PushTargetEntry } from "./pushHistory";
+
+/** 底栏进度/结果标识(红框位):进行中转圈;落定后 ✓/✗ + 回执文案(与面板横幅同词)。 */
+export function PushRunStatus({
+  submitting,
+  outcome,
+}: {
+  submitting: boolean;
+  outcome: { ok: boolean; text: string } | null;
+}) {
+  if (submitting) {
+    return (
+      <span className="mr-0.5 flex shrink-0 items-center gap-1 text-xs text-(--tmd-fg-muted)">
+        <Spinner size="0.75rem" /> {t("{op}中…", { op: t("推送") })}
+      </span>
+    );
+  }
+  if (!outcome) return null;
+  return (
+    <span
+      title={outcome.text}
+      className={`mr-0.5 flex min-w-0 shrink items-center gap-1 text-xs ${outcome.ok ? "text-(--tmd-diff-inserted)" : "text-(--tmd-diff-removed)"}`}
+    >
+      {outcome.ok ? (
+        <CheckCircle className="h-[0.875rem] w-[0.875rem] shrink-0" weight="fill" aria-hidden />
+      ) : (
+        <XCircle className="h-[0.875rem] w-[0.875rem] shrink-0" weight="fill" aria-hidden />
+      )}
+      <span className="max-w-72 truncate">{outcome.text}</span>
+    </span>
+  );
+}
 
 
 /** 推送历史(会话内存):胶囊按钮,当前目标命中即高亮;空历史不渲染。 */

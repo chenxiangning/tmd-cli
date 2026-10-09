@@ -27,6 +27,7 @@ export function KeyDialog({
       onClose={onClose}
       footer={
         <DialogActions
+          className="mt-4"
           confirmLabel={t("保存")}
           confirmDisabled={!key.trim()}
           submitting={saving}

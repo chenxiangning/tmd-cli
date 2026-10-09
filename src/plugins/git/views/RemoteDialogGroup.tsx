@@ -17,6 +17,7 @@ export function RemoteDialogGroup({
   branch,
   repoName,
   remoteBusy,
+  pushOutcome,
   onClose,
   onRun,
 }: {
@@ -26,6 +27,8 @@ export function RemoteDialogGroup({
   /** 当前仓目录名(多仓语境显示于对话框标题行右缘);单仓 undefined 不显示 */
   repoName?: string;
   remoteBusy: "push" | "pull" | "fetch" | null;
+  /** 推送回执(推送弹窗底栏 ✓/✗;非推送 op 恒 null)。 */
+  pushOutcome: { ok: boolean; text: string } | null;
   onClose: () => void;
   onRun: (op: GitRemoteRequest["op"], req: GitRemoteRequest, label: string) => void;
 }) {
@@ -43,15 +46,27 @@ export function RemoteDialogGroup({
       />
     );
   }
-  const Dialog = dialog === "push" ? PushDialog : PullDialog;
+  if (dialog === "push") {
+    return (
+      <PushDialog
+        cwd={cwd}
+        branch={branch}
+        repoName={repoName}
+        submitting={remoteBusy === "push"}
+        outcome={pushOutcome}
+        onClose={onClose}
+        onRun={(req, label) => onRun("push", req, label)}
+      />
+    );
+  }
   return (
-    <Dialog
+    <PullDialog
       cwd={cwd}
       branch={branch}
       repoName={repoName}
-      submitting={remoteBusy === dialog}
+      submitting={remoteBusy === "pull"}
       onClose={onClose}
-      onRun={(req, label) => onRun(dialog, req, label)}
+      onRun={(req, label) => onRun("pull", req, label)}
     />
   );
 }

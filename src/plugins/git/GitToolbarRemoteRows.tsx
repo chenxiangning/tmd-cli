@@ -90,7 +90,8 @@ function remoteRows({ busy, detached, unborn, hasUpstream, ahead, behind }: Remo
             : t("推送新分支并建立 upstream")
           : t("推送(对话框内查看预览与选项)"),
       icon: UploadSimple,
-      disabled: remoteDisable,
+      /* 推送进行中行保持可点:重开弹窗看进度(runDialog 有 remoteBusy 闸,无双推)。 */
+      disabled: (busy !== null && busy !== "push") || detached || unborn,
       active: busy === "push" || ahead > 0,
       accent: ahead > 0,
       count: ahead,

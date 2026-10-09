@@ -34,6 +34,7 @@ interface GitPanelRemoteState {
   dialog: RemoteDialogOp | null;
   setDialog: (op: RemoteDialogOp | null) => void;
   remoteBusy: "push" | "pull" | "fetch" | null;
+  pushOutcome: { ok: boolean; text: string } | null;
   notice: string | null;
   setNotice: (msg: string | null) => void;
   runDialog: (op: GitRemoteRequest["op"], req: GitRemoteRequest, opLabel: string) => void;
@@ -185,7 +186,7 @@ export function GitPanelMain({
   prefill,
   remote,
 }: GitPanelMainProps) {
-  const { dialog, setDialog, remoteBusy, notice, setNotice, runDialog } = remote;
+  const { dialog, setDialog, remoteBusy, pushOutcome, notice, setNotice, runDialog } = remote;
   const canUndo = canUndoSmartSwitch(files, undoOrigin, cwd);
   /* 远端态镜像进 panelStore:顶栏视图下拉的刷新/获取/拉取/推送行只读消费。 */
   useEffect(() => {
@@ -283,6 +284,7 @@ export function GitPanelMain({
         branch={branchName}
         repoName={repoDisplayName(repos.length, cwd)}
         remoteBusy={remoteBusy}
+        pushOutcome={pushOutcome}
         onClose={() => setDialog(null)}
         onRun={runDialog}
       />

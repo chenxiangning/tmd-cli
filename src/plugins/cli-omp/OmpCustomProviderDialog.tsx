@@ -64,6 +64,7 @@ export function OmpCustomProviderDialog({
       onClose={onClose}
       footer={
         <DialogActions
+          className="mt-4"
           confirmLabel={t("添加")}
           confirmDisabled={!canSubmit}
           submitting={saving}

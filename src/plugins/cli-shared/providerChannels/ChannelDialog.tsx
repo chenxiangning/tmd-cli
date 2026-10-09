@@ -54,6 +54,7 @@ export function ChannelDialog({
       onClose={onClose}
       footer={
         <DialogActions
+          className="mt-4"
           confirmLabel={initial ? t("保存") : t("添加")}
           confirmDisabled={!valid}
           submitting={submitting}

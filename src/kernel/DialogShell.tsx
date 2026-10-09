@@ -94,6 +94,9 @@ export function DialogActions({
   confirmTitle,
   confirmDisabled,
   submitting,
+  cancelDisabled,
+  cancelLabel,
+  className,
   onConfirm,
   onCancel,
 }: {
@@ -101,18 +104,24 @@ export function DialogActions({
   confirmTitle?: string;
   confirmDisabled?: boolean;
   submitting?: boolean;
+  /** 覆盖「提交中禁取消」缺省:推送弹窗提交中允许取消 = 假关闭(后台继续跑)。 */
+  cancelDisabled?: boolean;
+  /** 覆盖「取消」文案:推送进行中/落定后左键实为关窗(不中止操作),应为「关闭」。 */
+  cancelLabel?: string;
+  /** 根节点追加类:独占 footer 的调用方传 "mt-4" 保持原顶距(内嵌 footer 行的不传,否则按钮与同行元素错位)。 */
+  className?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   return (
-    <div className="mt-4 flex items-center justify-end gap-2">
+    <div className={`flex items-center justify-end gap-2 ${className ?? ""}`}>
       <button
         type="button"
         onClick={onCancel}
-        disabled={submitting}
+        disabled={cancelDisabled ?? submitting}
         className="rounded border border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
       >
-        {t("取消")}
+        {cancelLabel ?? t("取消")}
       </button>
       <button
         type="button"

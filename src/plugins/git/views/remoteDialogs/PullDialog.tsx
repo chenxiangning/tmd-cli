@@ -115,7 +115,7 @@ export function PullDialog({
       repoName={repoName}
       onClose={onClose}
       footer={
-        <DialogActions confirmLabel={t("拉取")} submitting={submitting} onConfirm={confirm} onCancel={onClose} />
+        <DialogActions className="mt-4" confirmLabel={t("拉取")} submitting={submitting} onConfirm={confirm} onCancel={onClose} />
       }
     >
       {/* hero:远端 -> 目标分支 + 命令预览 */}

@@ -56,6 +56,8 @@ export function AggregateReposView({
   });
   const [opsMenu, setOpsMenu] = useState<{ x: number; y: number } | null>(null);
   const [pushOpen, setPushOpen] = useState(false);
+  /* 本次推送仓集快照:父层持有(假关闭重开不丢,菜单新开才清)——重开弹窗续看逐仓状态/回执的依据。 */
+  const [pushed, setPushed] = useState<readonly string[]>([]);
   const all = agg.groups.flatMap((g) => g.repos);
   const pullable = all.filter((r) => r.upstream != null).length;
   const pushable = all.filter((r) => r.upstream != null && r.ahead > 0).length;
@@ -89,13 +91,25 @@ export function AggregateReposView({
         </span>
         {batch.running && <Spinner />}
         {batch.running ? (
-          <button
-            type="button"
-            onClick={batch.cancel}
-            className="rounded-md border border-(--tmd-diff-removed) px-2 py-0.5 text-[11px] text-(--tmd-diff-removed)"
-          >
-            {t("取消")}
-          </button>
+          <>
+            {/* 推送弹窗假关闭后的重看入口:进度仍在跑,点开续看逐仓状态。 */}
+            {batch.running.op === "push" && !pushOpen && (
+              <button
+                type="button"
+                onClick={() => setPushOpen(true)}
+                className="rounded-md border border-(--tmd-border) px-2 py-0.5 text-[11px] hover:bg-(--tmd-bg-hover)"
+              >
+                {t("查看进度")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={batch.cancel}
+              className="rounded-md border border-(--tmd-diff-removed) px-2 py-0.5 text-[11px] text-(--tmd-diff-removed)"
+            >
+              {t("取消")}
+            </button>
+          </>
         ) : (
           <>
             {errCount > 0 && (
@@ -163,9 +177,12 @@ export function AggregateReposView({
                 role="menuitem"
                 disabled={row.count === 0}
                 onClick={() => {
-                  /* 推送必须经确认弹窗(勾选仓 + 挂钩/标签选项);获取/拉取直发。 */
-                  if (row.op === "push") setPushOpen(true);
-                  else batch.run(row.op, all);
+                  /* 推送必须经确认弹窗(勾选仓 + 挂钩/标签选项);获取/拉取直发。
+                     菜单新开 = 清上次快照(查看进度重开则保留,续看同一次推送)。 */
+                  if (row.op === "push") {
+                    setPushed([]);
+                    setPushOpen(true);
+                  } else batch.run(row.op, all);
                   setOpsMenu(null);
                 }}
                 className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-(--tmd-bg-hover) disabled:opacity-50"
@@ -183,10 +200,13 @@ export function AggregateReposView({
       {pushOpen && (
         <BatchPushDialog
           repos={all}
+          running={batch.running?.op === "push" ? batch.running : null}
+          rows={batch.rows}
+          pushed={pushed}
           onClose={() => setPushOpen(false)}
-          onConfirm={(rows, opts) => {
-            setPushOpen(false);
-            batch.runPush(rows, opts);
+          onConfirm={(sel, opts) => {
+            setPushed(sel.map((r) => r.path));
+            batch.runPush(sel, opts);
           }}
         />
       )}
