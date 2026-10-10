@@ -110,9 +110,8 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation, onEr
     // wt 优先:暂存后又改的复合文件,看 worktree 侧(= 勾选提交的实际内容)
     openDiffTab({
       cwd,
-      path: file.path,
+      focusPath: file.path,
       staged: file.staged && !file.wt,
-      status: file.status,
     });
 
   // 树形专用(平铺走 DiffFlatList 的三段分区)
@@ -251,8 +250,8 @@ function FileRow({
           data-action-id="git-row-actions"
           data-hover-accent
           onClick={file.staged ? onUnstage : onStage}
-          title={file.staged ? "unstage" : "stage"}
-          aria-label={file.staged ? "unstage" : "stage"}
+          title={file.staged ? t("取消暂存") : t("暂存")}
+          aria-label={file.staged ? t("取消暂存") : t("暂存")}
           className="w-4 shrink-0 text-center opacity-0 group-hover:opacity-100"
         >
           {file.staged ? "−" : "+"}

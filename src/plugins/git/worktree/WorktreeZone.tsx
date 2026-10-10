@@ -243,8 +243,8 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
           onClick={onCreate}
           className="ml-auto flex items-center gap-0.5 rounded px-1 py-0.5 text-xs text-(--tmd-accent) hover:bg-(--tmd-bg-hover)"
         >
-          <Plus size="0.625rem" aria-hidden />
-          {t("新建")}
+          <Plus size="0.625rem" aria-hidden data-decor-from="git-worktree" />
+          {t("新建工作树")}
         </button>
         <button
           type="button"
@@ -253,7 +253,7 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
           aria-label={t("刷新")}
           className="rounded p-0.5 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
         >
-          <ArrowsClockwise size="0.625rem" aria-hidden />
+          <ArrowsClockwise size="0.625rem" aria-hidden data-decor-from="git-worktree" />
         </button>
       </div>
       <div className="flex flex-col gap-1.5">

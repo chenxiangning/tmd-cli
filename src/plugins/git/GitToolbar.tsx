@@ -119,10 +119,10 @@ export function GitToolbar({ cwd }: { cwd?: string }) {
         onClick={(e) => toggleMenu("view", e)}
         aria-haspopup="menu"
         aria-expanded={menu?.kind === "view"}
-        data-action-id="git-view"
         className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap rounded px-1 py-1 text-xs font-medium hover:bg-(--tmd-bg-hover)"
       >
-        <DecorIcon id="git-view" Fallback={ViewIcon} className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+        {/* data-action-id 挂 svg 而非钮(LeftRail 先例):装饰色只染图标,文字标签不吃色/呼吸 */}
+        <DecorIcon id="git-view" Fallback={ViewIcon} className="h-[0.75rem] w-[0.75rem]" aria-hidden data-action-id="git-view" />
         <span>{t(VIEW_LABEL[view])}</span>
       </button>
       {/* 视图文字钮与三 icon 钮之间的竖分隔(弱色,不抢视觉) */}
