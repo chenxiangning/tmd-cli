@@ -127,7 +127,7 @@ function DaySessions({ rows, summarizedAt }: { rows: DaySessionRow[]; summarized
             <EngMark id={r.profileId} />
             <span className="dj-ds-text">
               {r.profileId} · {r.title}
-              {r.live ? ` · ${t("进行中")}` : ""}
+              {r.live ? ` · ${t("会话进行中")}` : ""}
             </span>
             <span className="dj-ds-ws">{r.wsName}</span>
             {summarizedAt !== undefined && (

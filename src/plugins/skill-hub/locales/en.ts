@@ -58,9 +58,9 @@ export const MESSAGES_EN = {
   "解压安装中…": "Extracting & installing…",
   "安装完成": "Install finished",
   "安装失败": "Install failed",
-  "完成": "done",
-  "失败": "failed",
-  "跳过": "skipped",
+  "完成": "Done",
+  "失败": "Failed",
+  "跳过": "Skipped",
   "claude 补链失败(不影响安装)": "Claude symlink failed (install unaffected)",
   "生效时间依各家引擎而定:下次会话或 /reload-skills 后可用":
     "Availability depends on each engine: takes effect next session or after /reload-skills",

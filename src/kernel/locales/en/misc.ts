@@ -25,7 +25,7 @@ export const MESSAGES = {
   "部分恢复 {n} 个文件,其余仍处已退,可再反悔":
   "Partially restored {n} files; the rest remain reverted, you can undo again",
   "待审": "Pending review",
-  "点击关闭": "click to dismiss",
+  "点击关闭": "Click to dismiss",
   "审批线清单刷新失败:{error} · 点击重试":
   "Failed to refresh the approval list: {error} · click to retry",
   "暂无活跃工作区": "No active workspace",

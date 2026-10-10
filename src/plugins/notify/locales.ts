@@ -6,7 +6,7 @@ import { registerMessages } from "@kernel/i18n";
 
 /** en 词典 · notify 域(键 = 中文源串;zh 恒等无词典)。 */
 const MESSAGES_EN = {
-  "等待确认": "Waiting for approval",
+  "等待确认": "Awaiting confirmation",
   "「{name}」在等你确认操作": "“{name}” is waiting for your approval",
   "轮次结束": "Turn finished",
   "「{name}」完成了一轮对话": "“{name}” finished a turn",
@@ -43,7 +43,7 @@ const MESSAGES_EN = {
 
 /** ja 词典 · notify 域。 */
 const MESSAGES_JA = {
-  "等待确认": "承認待ち",
+  "等待确认": "確認待ち",
   "「{name}」在等你确认操作": "「{name}」が承認を待っています",
   "轮次结束": "ターン終了",
   "「{name}」完成了一轮对话": "「{name}」が 1 ターン完了しました",

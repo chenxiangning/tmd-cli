@@ -1,7 +1,7 @@
 /** EN 词典 · 意图画布域(键 = 中文源串;zh 恒等无词典)。 */
 export const MESSAGES_EN = {
   "未命名意图画布": "Untitled Intent Canvas",
-  "保存中…": "Saving...",
+  "保存中…": "Saving…",
   "已保存": "Saved",
   "未保存": "Unsaved",
   "请先选择一个工作区后再使用意图画布。": "Select a workspace before using Intent Canvas.",
@@ -37,7 +37,7 @@ export const MESSAGES_EN = {
   "请选择工作区": "Select a workspace",
   "暂无摘要。": "No summary yet.",
   "打开": "Open",
-  "复制": "Duplicate",
+  "复制画布": "Duplicate",
   "删除": "Delete",
   "打开画布「{title}」?当前列表会切换到编辑器。": "Open canvas “{title}”? The list will switch to the editor.",
   "若当前有未保存的编辑器内容,请先保存后再打开其他画布。": "If another editor has unsaved work, save it before opening this canvas.",
@@ -70,7 +70,7 @@ export const MESSAGES_EN = {
   "来源追溯": "Source traceability",
   "导入图": "Imported graphs",
   "过期": "Stale",
-  "失联": "Unresolved",
+  "失联锚点": "Unresolved",
   "正在检查最新关系快照。": "Checking latest relationship snapshot.",
   "来源检查失败:{message}": "Source check failed: {message}",
   "{count} 个导入图来自旧扫描。": "{count} imported graph(s) came from an older scan.",

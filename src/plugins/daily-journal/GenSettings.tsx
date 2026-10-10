@@ -139,7 +139,7 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
             <span className="dj-hint">{t(INC_HINT[cfg.incPolicy])}</span>
           </div>
           <div className="dj-frow">
-            <span className="dj-flabel">{t("引擎")}</span>
+            <span className="dj-flabel">{t("生成引擎")}</span>
             <div className="dj-seg">
               {engines.map((p) => {
                 const Brand = engineGlyphOf(p.id);

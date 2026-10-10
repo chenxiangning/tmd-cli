@@ -37,7 +37,7 @@ const ACTION_TEXT: Record<"open" | "duplicate" | "delete", { label: string; conf
     hint: "若当前有未保存的编辑器内容,请先保存后再打开其他画布。",
   },
   duplicate: {
-    label: "复制",
+    label: "复制画布",
     confirm: "复制画布「{title}」?系统会创建一个新的画布副本。",
     hint: "副本会按工作区写入 ~/.tmd-cli/intent-canvas 目录。",
   },
@@ -151,8 +151,8 @@ function IntentCanvasHomeCardBase({
         <button
           type="button"
           onClick={() => onActionRequest(entry, "duplicate")}
-          aria-label={t("复制")}
-          title={t("复制")}
+          aria-label={t("复制画布")}
+          title={t("复制画布")}
         >
           <Copy aria-hidden />
         </button>

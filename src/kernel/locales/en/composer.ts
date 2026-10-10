@@ -70,7 +70,7 @@ export const MESSAGES = {
   "暂不支持额度查询": "Quota lookup not supported",
   "下次刷新: {abs} · {rel}": "Next refresh: {abs} · {rel}",
   "余额: {amount}": "Balance: {amount}",
-  "更新于 {time}": "Updated at {time}",
+  "更新于 {time}": "Updated {time}",
   "尚未加载": "Not loaded yet",
   "重新抓取额度": "Refetch quota",
   "刷新": "Refresh",

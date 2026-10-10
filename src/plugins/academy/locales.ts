@@ -22,7 +22,7 @@ const MESSAGES_EN = {
     "“Try it” fills the command into the composer — close the lesson and practice",
   "上一步": "Back",
   "下一步": "Next",
-  "完成": "Finish",
+  "完成学习": "Finish",
   "练习:{p}": "Practice: {p}",
   "全部章节过完。这张卡是每章最常用命令;完整指南在左栏学堂菜单里随时可查。":
     "All chapters covered. This card lists the most-used commands per chapter; the full guide lives in the academy menu in the left sidebar.",
@@ -50,7 +50,7 @@ const MESSAGES_EN = {
   "{title} 入门课": "{title} starter course",
   /* 入口与课步(2026-10 i18n 收口) */
   "学堂": "Academy",
-  "已完成": "Completed",
+  "已完成": "Done",
 } as const;
 
 /** ja 词典 · academy 域。 */
@@ -71,7 +71,7 @@ const MESSAGES_JA = {
     "「試す」でコマンドを入力欄に挿入——課程を閉じてそのまま練習",
   "上一步": "戻る",
   "下一步": "次へ",
-  "完成": "完了",
+  "完成学习": "完了",
   "练习:{p}": "練習:{p}",
   "全部章节过完。这张卡是每章最常用命令;完整指南在左栏学堂菜单里随时可查。":
     "全章完了。このカードは各章の最頻出コマンド;完全ガイドは左サイドバーの学堂メニューからいつでも。",

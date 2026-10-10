@@ -3,7 +3,7 @@ export const MESSAGES_EN: Record<string, string> = {
   刷新: "Refresh",
   极简: "Minimal",
   "极简展示:每轮工作过程折叠为一行,只保留最终答复":
-    "Minimal view: each turn's work folds into one row, keeping only the final reply",
+    "Minimal view: each turn's work collapses to one row, keeping only the final reply",
   "切换图片大小": "Toggle image size",
   "会话过大,已截断": "Session too large, truncated",
   "读取中…": "Loading…",

@@ -273,6 +273,7 @@ export const MESSAGES = {
   "本次推送提交": "Commits to push",
   "选择左侧仓查看提交": "Select a repo on the left to view commits",
   "打开此仓": "Open this repo",
+  "{n} 个文件": "{n} files",
   "已排除 {n} 个远程工作区(本机 Git 不支持远程路径)": "Excluded {n} remote workspaces (local Git cannot reach remote paths)",
   "本机工作区内未发现 Git 仓库": "No Git repositories found in local workspaces",
   "{n} 仓 · {p} 可拉 · {u} 可推 · {d} 有改动": "{n} repos · {p} pullable · {u} pushable · {d} dirty",

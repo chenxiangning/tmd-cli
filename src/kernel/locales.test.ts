@@ -4,7 +4,7 @@
  * 域文件内无重复键(对象字面量重复键 TS 编译即拦,这里防御合并期回归)、
  * 跨域同键异值(合并 spread 后者静默覆盖前者,0.3.5「关闭」Off/Close 撞车即此类)。
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { EN_MESSAGES } from "./locales/en";
 import { JA_MESSAGES } from "./locales/ja";
@@ -13,6 +13,7 @@ import { MESSAGES as enSettings } from "./locales/en/settings";
 import { MESSAGES as enSettings2 } from "./locales/en/settings2";
 import { MESSAGES as enWorkspace } from "./locales/en/workspace";
 import { MESSAGES as enGit } from "./locales/en/git";
+import { MESSAGES as enGit2 } from "./locales/en/git2";
 import { MESSAGES as enFiles } from "./locales/en/files";
 import { MESSAGES as enCli } from "./locales/en/cli";
 import { MESSAGES as enCli2 } from "./locales/en/cli2";
@@ -30,6 +31,7 @@ import { MESSAGES as jaSettings } from "./locales/ja/settings";
 import { MESSAGES as jaSettings2 } from "./locales/ja/settings2";
 import { MESSAGES as jaWorkspace } from "./locales/ja/workspace";
 import { MESSAGES as jaGit } from "./locales/ja/git";
+import { MESSAGES as jaGit2 } from "./locales/ja/git2";
 import { MESSAGES as jaFiles } from "./locales/ja/files";
 import { MESSAGES as jaCli } from "./locales/ja/cli";
 import { MESSAGES as jaCli2 } from "./locales/ja/cli2";
@@ -43,6 +45,23 @@ import { MESSAGES as jaMobile } from "./locales/ja/mobile";
 import { MESSAGES as jaTime } from "./locales/ja/time";
 import { MESSAGES as jaMarket } from "./locales/ja/market";
 
+/** 捕获插件 registerMessages:插件词典导出私有,只能从注册面取(glob eager 全量引入)。 */
+type MessagesDict = { en?: Record<string, string>; ja?: Record<string, string> };
+const { pluginDicts } = vi.hoisted(() => ({ pluginDicts: [] as MessagesDict[] }));
+vi.mock("@kernel/i18n", async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return {
+    ...actual,
+    registerMessages: (dicts: MessagesDict) => {
+      pluginDicts.push(dicts);
+    },
+  };
+});
+const pluginLocaleModules = import.meta.glob("../plugins/*/locales.ts", { eager: true });
+const pluginFaces = Object.keys(pluginLocaleModules).map((path) =>
+  path.replace("../plugins/", "").replace("/locales.ts", ""),
+);
+
 /** 从文本里提取 {name} 占位符集合。 */
 function placeholdersOf(text: string): Set<string> {
   return new Set([...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]));
@@ -51,14 +70,14 @@ function placeholdersOf(text: string): Set<string> {
 /** 域展开合并序(与 locales/{en,ja}/index.ts 的 spread 序一致;同键异值时后者静默覆盖前者)。 */
 const EN_DOMAINS: [string, Record<string, string>][] = [
   ["common", enCommon], ["settings", enSettings], ["settings2", enSettings2],
-  ["workspace", enWorkspace], ["git", enGit], ["files", enFiles],
+  ["workspace", enWorkspace], ["git", enGit], ["git2", enGit2], ["files", enFiles],
   ["cli", enCli], ["cli2", enCli2], ["composer", enComposer],
   ["ssh", enSsh], ["wsl", enWsl], ["assets", enAssets], ["misc", enMisc],
   ["misc2", enMisc2], ["mobile", enMobile], ["time", enTime], ["market", enMarket],
 ];
 const JA_DOMAINS: [string, Record<string, string>][] = [
   ["common", jaCommon], ["settings", jaSettings], ["settings2", jaSettings2],
-  ["workspace", jaWorkspace], ["git", jaGit], ["files", jaFiles],
+  ["workspace", jaWorkspace], ["git", jaGit], ["git2", jaGit2], ["files", jaFiles],
   ["cli", jaCli], ["cli2", jaCli2], ["composer", jaComposer],
   ["ssh", jaSsh], ["wsl", jaWsl], ["assets", jaAssets], ["misc", jaMisc],
   ["misc2", jaMisc2], ["mobile", jaMobile], ["time", jaTime], ["market", jaMarket],
@@ -119,5 +138,27 @@ describe("en/ja 词典契约", () => {
 
   it("ja 跨域同键异值为零(撞键须消歧或同译,禁止静默覆盖)", () => {
     expect(domainConflicts(JA_DOMAINS)).toEqual([]);
+  });
+
+  it("插件词典与 kernel 词典同键异值为零(registerMessages 面;「当前」current/Current 活例)", () => {
+    expect(pluginDicts.length, "glob 未捕获任何插件词典,守卫失效").toBeGreaterThan(0);
+    expect(pluginDicts.length).toBe(pluginFaces.length);
+    for (const [lang, all, pick] of [
+      ["en", EN_MESSAGES, (d: MessagesDict) => d.en],
+      ["ja", JA_MESSAGES, (d: MessagesDict) => d.ja],
+    ] as const) {
+      const faces: [string, Record<string, string>][] = [
+        ["kernel", all],
+        ...pluginFaces.map((name, i) => [name, pick(pluginDicts[i]) ?? {}] as [string, Record<string, string>]),
+      ];
+      expect(domainConflicts(faces), `${lang} 插件面撞键`).toEqual([]);
+    }
+  });
+
+  it("撞车扫描域表无漂移(index.ts 合并结果每个键都被域表覆盖;新增域文件须同步登记)", () => {
+    const coveredEn = new Set(EN_DOMAINS.flatMap(([, map]) => Object.keys(map)));
+    expect(Object.keys(EN_MESSAGES).filter((k) => !coveredEn.has(k))).toEqual([]);
+    const coveredJa = new Set(JA_DOMAINS.flatMap(([, map]) => Object.keys(map)));
+    expect(Object.keys(JA_MESSAGES).filter((k) => !coveredJa.has(k))).toEqual([]);
   });
 });

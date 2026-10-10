@@ -7,7 +7,7 @@ export const MESSAGES_EN = {
 
   "MCP · {n} 台引擎 · {m} 个服务器": "MCP · {n} engines · {m} servers",
   "点击管理该引擎": "Click to manage this engine",
-  "读取失败": "Read failed",
+  "读取失败": "Failed to load",
   "尚未创建": "Not created yet",
   "没有可管理的引擎": "No manageable engines",
   "pi:—(靠 pi-mcp-adapter 扩展)": "pi: — (via pi-mcp-adapter extension)",

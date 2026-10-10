@@ -1,7 +1,7 @@
 /** en 词典 · workspace 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */
 export const MESSAGES = {
   // ── WorkspaceSection caption & view toggle ──
-  "工作区": "Workspaces",
+  "工作区": "Workspace",
   "会话视图": "Session view",
   "归档": "Archive",
   "本地": "Local",
