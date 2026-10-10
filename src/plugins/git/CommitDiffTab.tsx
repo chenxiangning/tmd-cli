@@ -13,12 +13,12 @@ import { Spinner } from "@kernel/Spinner";
 import type { EditorTab } from "@kernel/tabs";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { ipc, type GitCommitFile, type GitFilePatch } from "@kernel/ipc";
-import type { GitDiffMode } from "@kernel/settings";
 import { readCommitTabPayload, type CommitTabPayload } from "./commitTab";
 import { useCommitFiles } from "./hooks/useCommitFiles";
-import { gitErrorMessage } from "./gitError";
-import { PatchLines } from "./views/PatchLines";
+import { gitErrorDisplay, gitErrorMessage } from "./gitError";
+import { DiffPatchPane } from "./views/DiffPatchPane";
 import { DiffModeToggle } from "./views/DiffModeToggle";
+import { countFoldRuns } from "./views/patchModel";
 import { STATUS_COLOR } from "./views/statusColor";
 import { useGitPanelState } from "./panelStore";
 
@@ -51,8 +51,10 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
   const [patch, setPatch] = useState<GitFilePatch | null>(null);
   const [patchLoading, setPatchLoading] = useState(false);
   const [patchError, setPatchError] = useState<string | null>(null);
-  /* 全文查看:per-tab 本地态,默认关;切文件即复位(见文件行 onClick)。 */
+  /* 全文查看:per-tab 本地态,默认关;切文件即复位(见文件行 onClick)。
+     expandFolds:折叠段展开入口在头部工具条;同随切文件复位。 */
   const [fullView, setFullView] = useState(false);
+  const [expandFolds, setExpandFolds] = useState(false);
   const tokenRef = useRef(0);
   useEffect(() => {
     if (!selected) {
@@ -86,7 +88,13 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
         entry={entry}
         fileCount={files.length}
         fullView={fullView}
-        onToggleFullView={() => setFullView((v) => !v)}
+        onToggleFullView={() => {
+          setFullView((v) => !v);
+          setExpandFolds(false);
+        }}
+        folds={fullView && patch ? countFoldRuns(patch.patch, diffMode === "split") > 0 : false}
+        expandFolds={expandFolds}
+        onToggleFolds={() => setExpandFolds((v) => !v)}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -97,15 +105,18 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
           onPick={(path) => {
             setPicked({ key: selKey, path });
             setFullView(false); /* 全文查看只管当前文件,下个文件重新开 */
+            setExpandFolds(false);
           }}
         />
-        <CommitPatchPane
+        <DiffPatchPane
           patchLoading={patchLoading}
           patchError={patchError}
           patch={patch}
           selected={selected}
           diffMode={diffMode}
           fullView={fullView}
+          expandFolds={expandFolds}
+          emptyText={t("无 patch 数据")}
         />
       </div>
     </div>
@@ -119,12 +130,18 @@ function CommitDiffHeader({
   fileCount,
   fullView,
   onToggleFullView,
+  folds,
+  expandFolds,
+  onToggleFolds,
 }: {
   payload: CommitTabPayload;
   entry: { files: GitCommitFile[]; loading: boolean; error: string | null } | undefined;
   fileCount: number;
   fullView: boolean;
   onToggleFullView: () => void;
+  folds: boolean;
+  expandFolds: boolean;
+  onToggleFolds: () => void;
 }) {
   return (
     <div className="shrink-0 border-b border-(--tmd-border) px-3 py-2">
@@ -139,7 +156,13 @@ function CommitDiffHeader({
         {entry && !entry.loading && (
           <span className="tabular-nums text-(--tmd-fg-faint)">{t("{n} 文件", { n: fileCount })}</span>
         )}
-        <DiffModeToggle fullView={fullView} onToggleFullView={onToggleFullView} />
+        <DiffModeToggle
+          fullView={fullView}
+          onToggleFullView={onToggleFullView}
+          folds={folds}
+          expandFolds={expandFolds}
+          onToggleFolds={onToggleFolds}
+        />
       </div>
     </div>
   );
@@ -165,7 +188,7 @@ function CommitFileList({
         </div>
       )}
       {entry?.error && (
-        <div className="px-2 py-2 text-(--tmd-diff-removed)">{gitErrorShort(entry.error)}</div>
+        <div className="px-2 py-2 text-(--tmd-diff-removed)">{gitErrorDisplay(entry.error)}</div>
       )}
       {files.map((f) => {
         const name = f.path.split("/").pop() ?? f.path;
@@ -201,47 +224,4 @@ function CommitFileList({
       })}
     </div>
   );
-}
-
-/** 右侧 patch 区:加载/错误/二进制/空各有文案。 */
-function CommitPatchPane({
-  patchLoading,
-  patchError,
-  patch,
-  selected,
-  diffMode,
-  fullView,
-}: {
-  patchLoading: boolean;
-  patchError: string | null;
-  patch: GitFilePatch | null;
-  selected: string | null;
-  diffMode: GitDiffMode;
-  fullView: boolean;
-}) {
-  return (
-    <div className="min-w-0 flex-1 overflow-auto">
-      {patchLoading ? (
-        <div className="flex items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
-          <Spinner size="0.875rem" /> {t("加载 diff…")}
-        </div>
-      ) : patchError ? (
-        <div className="px-3 py-3 text-(--tmd-diff-removed)">{gitErrorShort(patchError)}</div>
-      ) : patch?.binary ? (
-        <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("二进制文件,无文本 diff")}</div>
-      ) : patch ? (
-        <PatchLines key={selected} text={patch.patch} className="h-max min-h-full" mode={diffMode} fold={fullView} />
-      ) : selected ? (
-        <div className="px-3 py-6 text-center text-(--tmd-fg-faint)">{t("无 patch 数据")}</div>
-      ) : (
-        <div className="flex h-full items-center justify-center text-(--tmd-fg-faint)">
-          {t("选择左侧文件查看 diff")}
-        </div>
-      )}
-    </div>
-  );
-}
-/** tab 内错误只留正文(去 E_XXX: 前缀,右栏同款处理)。 */
-function gitErrorShort(message: string): string {
-  return message.replace(/^E_[A-Z_]+:\s*/, "");
 }

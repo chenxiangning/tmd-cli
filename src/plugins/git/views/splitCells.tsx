@@ -1,14 +1,22 @@
 /**
  * 双栏 diff 共享组件 —— 正文格(词级标注容器)、mod 对行、行号槽、词级标注
  * 预计算钩。组件与钩出此;类名表在 splitCls.ts(组件文件不放非组件导出),
- * 行语义在 patchModel.ts。SplitDiffView 的 grid/halves 两渲染器共用。
+ * 行语义在 patchModel.ts。SplitDiffView 的 grid/halves 两渲染器与单栏
+ * PatchLines 共用 CodeSpan/WordContent(lang = Prism 语言 id,空串不上色)。
  */
 import { useMemo, type CSSProperties } from "react";
-import { pairKind, type FoldItem, type PatchRow, type SplitRow } from "./patchModel";
+import { pairKind, type PatchRow, type SplitRow } from "./patchModel";
 import { wordDiff, type WordDiffPair, type WordPart } from "./wordDiff";
+import { highlightLine } from "@kernel/syntaxHighlight";
 import { CONTENT_WRAP_CLS, sideBand } from "./splitCls";
 
-export function WordContent({ parts, wrap }: { parts: WordPart[]; wrap: boolean }) {
+/** 静态语法上色的正文格:highlightLine 出转义 + token span 的 HTML(LRU 缓存),
+ *  lang 为空串时等于纯转义。三处调用点(单栏行/双栏 grid/halves)锁定同款行为。 */
+export function CodeSpan({ text, lang, className }: { text: string; lang: string; className: string }) {
+  return <span className={className} dangerouslySetInnerHTML={{ __html: highlightLine(text, lang || null) }} />;
+}
+
+export function WordContent({ parts, wrap, lang }: { parts: WordPart[]; wrap: boolean; lang: string }) {
   return (
     <span className={wrap ? "min-w-0 flex-1 whitespace-pre-wrap break-all pl-2" : "shrink-0 whitespace-pre pl-2"}>
       {parts.map((p, i) =>
@@ -16,11 +24,10 @@ export function WordContent({ parts, wrap }: { parts: WordPart[]; wrap: boolean 
           <span
             key={i}
             className={p.tag === "ins" ? "git-split-word git-split-word-ins" : "git-split-word git-split-word-del"}
-          >
-            {p.text}
-          </span>
+            dangerouslySetInnerHTML={{ __html: highlightLine(p.text, lang || null) }}
+          />
         ) : (
-          p.text
+          <span key={i} dangerouslySetInnerHTML={{ __html: highlightLine(p.text, lang || null) }} />
         ),
       )}
     </span>
@@ -50,24 +57,34 @@ export function LineNo({
 }
 
 /** mod 对 / 纯删 / 纯增 / ctx 行(wrap 态):逐行四列 grid,本侧色带,词级标注。 */
-export function GridPairRow({ row, cols, parts }: { row: Extract<SplitRow, { kind: "pair" }>; cols: string; parts: WordDiffPair | null }) {
+export function GridPairRow({
+  row,
+  cols,
+  parts,
+  lang,
+}: {
+  row: Extract<SplitRow, { kind: "pair" }>;
+  cols: string;
+  parts: WordDiffPair | null;
+  lang: string;
+}) {
   const [dParts, iParts] = parts ?? [null, null];
   return (
     <div className="grid [content-visibility:auto] [contain-intrinsic-size:auto_1em]" style={{ gridTemplateColumns: cols }}>
       <div className={`flex min-w-0 pr-2 ${sideBand(row.left, row.right)}`}>
         {dParts ? (
-          <WordContent parts={dParts} wrap={true} />
+          <WordContent parts={dParts} wrap={true} lang={lang} />
         ) : (
-          <span className={CONTENT_WRAP_CLS}>{row.left?.text ?? ""}</span>
+          <CodeSpan text={row.left?.text ?? ""} lang={lang} className={CONTENT_WRAP_CLS} />
         )}
       </div>
       <LineNo row={row.left} other={row.right} isLeft={true} />
       <LineNo row={row.right} other={row.left} isLeft={false} />
       <div className={`flex min-w-0 pr-2 ${sideBand(row.right, row.left)}`}>
         {iParts ? (
-          <WordContent parts={iParts} wrap={true} />
+          <WordContent parts={iParts} wrap={true} lang={lang} />
         ) : (
-          <span className={CONTENT_WRAP_CLS}>{row.right?.text ?? ""}</span>
+          <CodeSpan text={row.right?.text ?? ""} lang={lang} className={CONTENT_WRAP_CLS} />
         )}
       </div>
     </div>
@@ -75,7 +92,7 @@ export function GridPairRow({ row, cols, parts }: { row: Extract<SplitRow, { kin
 }
 
 /** mod 对词级标注预计算:随 rows 换代,每对同一 DP 只跑一遍(wrap/nowrap 两态共用)。 */
-export function useWordParts(rows: FoldItem[]) {
+export function useWordParts(rows: SplitRow[]) {
   return useMemo(
     () =>
       rows.map((row) =>

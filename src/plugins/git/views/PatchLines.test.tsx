@@ -1,6 +1,7 @@
 /**
  * PatchLines 渲染契约(node 环境 renderToStaticMarkup,只验呈现面):
- * - unified:自绘经典红绿,旧/新双行号槽;
+ * - unified:自绘经典红绿,旧/新双行号槽;mod 对词级实色块标注(与双栏同一
+ *   配对同一 DP);全文态连续 ctx 折成胶囊条(与双栏同 FoldBar);
  * - split:中缝连接带四列(左内容 | 旧号 | 新号 | 右内容),对位由 buildSplitRows,
  *   这里验 色带与缺侧空带、词级实色块标注、行号槽居中缝两侧、改动行 seam 贯通、
  *   nowrap 态左右独立横向滚动面 + 双号槽纵同步栈。
@@ -87,16 +88,40 @@ describe("PatchLines", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("split + fold:连续 ctx 折成胶囊条,缺省不折,改动块永远展开", () => {
+  it("unified:mod 对词级实色块标注(与双栏同一配对同一 DP)", () => {
+    const html = renderToStaticMarkup(createElement(PatchLines, { text: PATCH, mode: "unified" }));
+    expect(html).toContain("git-split-word-del");
+    expect(html).toContain("git-split-word-ins");
+    // 词级标注不扰乱行号槽与行序:del 仍在 add 前
+    expect(html.indexOf(">11<")).toBeLessThan(html.indexOf(">21<"));
+  });
+
+  it("unified + fold:段内 ctx 行隐去(无胶囊),缺省不折,改动块永远渲染", () => {
+    const patch = "@@ -1,7 +1,7 @@\n a\n b\n c\n-del\n+add1\n+add2\n+add3\n";
+    const plain = renderToStaticMarkup(createElement(PatchLines, { text: patch, mode: "unified" }));
+    expect(plain).toContain(">a<");
+    const folded = renderToStaticMarkup(createElement(PatchLines, { text: patch, mode: "unified", fold: true }));
+    expect(folded).not.toContain("git-split-fold"); // 就地胶囊已废,入口在头部工具条
+    expect(folded).not.toContain(">a<"); // 段内 ctx 行整体隐去(行号跳变即信号)
+    expect(folded).toContain(">del<"); // 改动块永远渲染
+  });
+
+  it("split + fold:段内 ctx 行隐去,缺省不折,改动块永远渲染", () => {
     const patch = "@@ -1,7 +1,7 @@\n a\n b\n c\n-del\n+add1\n+add2\n+add3\n";
     const plain = renderToStaticMarkup(createElement(PatchLines, { text: patch, mode: "split" }));
-    expect(plain).not.toContain("git-split-fold");
     expect(plain).toContain(">a<");
     const folded = renderToStaticMarkup(createElement(PatchLines, { text: patch, mode: "split", fold: true }));
-    expect(folded).toContain("git-split-fold");
-    expect(folded).toContain("行未改动");
-    expect(folded).toContain("1–3 / 1–3"); // 双侧行号区间
-    expect(folded).not.toContain(">a<"); // 折叠段行不渲染
-    expect(folded).toContain(">del<"); // 改动块永远展开
+    expect(folded).not.toContain("git-split-fold");
+    expect(folded).not.toContain(">a<");
+    expect(folded).toContain(">del<");
+  });
+
+  it("unified + path:Prism 静态上色(token span),无 path 纯转义", () => {
+    const patch = '@@ -1,1 +1,1 @@\n const x = "s";\n';
+    const plain = renderToStaticMarkup(createElement(PatchLines, { text: patch, mode: "unified" }));
+    expect(plain).not.toContain('class="token keyword');
+    const lit = renderToStaticMarkup(createElement(PatchLines, { text: patch, mode: "unified", path: "a.ts" }));
+    expect(lit).toContain('class="token keyword'); // const 关键字上色
+    expect(lit).toContain('class="token string'); // 字符串字面量上色
   });
 });

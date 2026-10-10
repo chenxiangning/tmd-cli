@@ -10,7 +10,7 @@ import type { EditorView } from "@codemirror/view";
 import { t } from "@kernel/i18n";
 import { openFileAtLine } from "@kernel/fileTabs";
 import { highlightLine } from "@kernel/syntaxHighlight";
-import { prismLangOf } from "./peekLang";
+import { prismLangOf } from "@kernel/syntaxHighlight";
 import { wrapSymRange } from "./symRange";
 import { buildPeekList, createPeekFileCache } from "./peekList";
 
@@ -97,7 +97,6 @@ export function showPeekLoading(view: EditorView, anchorPos: number, title: stri
   body.innerHTML = `<div class="lsp-peek-empty">${t("检索中…")}</div>`;
 }
 
-/* 扩展名 → Prism 语言 id 解析已下沉 peekLang.ts(peekList 回填高亮共用)。 */
 
 function previewRow(n: number, text: string, lang: string | null, item: PeekItem): HTMLDivElement {
   const row = document.createElement("div");

@@ -1,0 +1,38 @@
+/* Prism token → --tmd-syntax-* 全局映射(diff 正文上色启用;与 markdown
+   代码块 / lsp peek-hover / 结构化预览的 scoped 副本同一色板,后续可坍缩)。 */
+
+:is(.token.comment, .token.prolog, .token.doctype, .token.cdata) {
+  color: var(--tmd-syntax-comment);
+}
+
+.token.punctuation {
+  color: var(--tmd-syntax-operator);
+}
+
+:is(.token.property, .token.constant, .token.symbol, .token.deleted) {
+  color: var(--tmd-syntax-type);
+}
+
+.token.tag {
+  color: var(--tmd-syntax-tag);
+}
+
+:is(.token.boolean, .token.number) {
+  color: var(--tmd-syntax-number);
+}
+
+:is(.token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted) {
+  color: var(--tmd-syntax-string);
+}
+
+:is(.token.operator, .token.entity, .token.url, .token.variable) {
+  color: var(--tmd-syntax-operator);
+}
+
+:is(.token.atrule, .token.attr-value, .token.keyword) {
+  color: var(--tmd-syntax-keyword);
+}
+
+:is(.token.function, .token.class-name) {
+  color: var(--tmd-syntax-function);
+}

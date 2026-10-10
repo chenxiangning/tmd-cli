@@ -137,28 +137,22 @@ export function buildSplitRows(rows: PatchRow[]): SplitRow[] {
   return out;
 }
 
-/* ── 折叠焦点(N4,原型 git-split-diff-n4-collapse-focus):全文态连续 ctx
-   段压缩成就地展开条;规划在此(纯逻辑),胶囊交互件在 splitFold.tsx。 ── */
+/* ── 全文态未改动段折叠(N4):连续 ctx 段整体隐去,展开入口在头部工具条
+   (2026-10-10 起,就地展开胶囊废弃);规划在此(纯逻辑),渲染层只做过滤。 ── */
 
-/** 折叠段:连续 ctx pair ≥ 折叠下限;行号区间取双侧行号,key = 双侧起号
- *  (行号稳定键:他段展开不移位,wrap 翻转与同内容重拉均保展开态)。 */
+/** 折叠段:连续 ctx pair ≥ 折叠下限;行号区间取双侧行号。 */
 export interface FoldRun {
-  key: string;
-  count: number;
   oldFrom: number;
   oldTo: number;
   newFrom: number;
   newTo: number;
 }
 
-/** 渲染编排项:原 SplitRow 或折叠胶囊。 */
-export type FoldItem = SplitRow | { kind: "fold"; run: FoldRun };
-
 const FOLD_MIN = 3;
 
-/** 扫连续 ctx pair 段,≥ 折叠下限记为一段(起点下标 → run)。 */
-export function planFolds(rows: SplitRow[]): Map<number, FoldRun> {
-  const runs = new Map<number, FoldRun>();
+/** 扫连续 ctx pair 段,≥ 折叠下限记为一段。 */
+export function planFolds(rows: SplitRow[]): FoldRun[] {
+  const runs: FoldRun[] = [];
   let i = 0;
   while (i < rows.length) {
     const row = rows[i]!;
@@ -175,9 +169,7 @@ export function planFolds(rows: SplitRow[]): Map<number, FoldRun> {
     if (j - i >= FOLD_MIN) {
       const first = rows[i] as Extract<SplitRow, { kind: "pair" }>;
       const last = rows[j - 1] as Extract<SplitRow, { kind: "pair" }>;
-      runs.set(i, {
-        key: `${first.left!.oldLine}:${first.right!.newLine}`,
-        count: j - i,
+      runs.push({
         oldFrom: first.left!.oldLine!,
         oldTo: last.left!.oldLine!,
         newFrom: first.right!.newLine!,
@@ -189,20 +181,55 @@ export function planFolds(rows: SplitRow[]): Map<number, FoldRun> {
   return runs;
 }
 
-/** 折叠编排:段恒出一个胶囊项(条常驻,展开态 label 翻转「收起」),展开时段内
- *  原行紧随其后摊平;未启用折叠原数组直返。 */
-export function foldItems(rows: SplitRow[], runs: Map<number, FoldRun> | null, open: Set<string>): FoldItem[] {
-  if (!runs || runs.size === 0) return rows;
-  const out: FoldItem[] = [];
-  for (let i = 0; i < rows.length; i += 1) {
-    const run = runs.get(i);
-    if (run) {
-      out.push({ kind: "fold", run });
-      if (open.has(run.key)) for (let k = i; k < i + run.count; k += 1) out.push(rows[k]!);
-      i += run.count - 1;
+/* ── 单栏折叠焦点:与双栏同下限,规划对象是 PatchRow 的连续 ctx 段
+   (hunk/meta/add/del 皆断段)。 ── */
+
+/** 扫连续 ctx 行段,≥ 折叠下限记为一段。 */
+export function planUnifiedFolds(rows: PatchRow[]): FoldRun[] {
+  const runs: FoldRun[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    if (rows[i]!.kind !== "ctx") {
+      i += 1;
       continue;
     }
-    out.push(rows[i]!);
+    let j = i + 1;
+    while (j < rows.length && rows[j]!.kind === "ctx") j += 1;
+    if (j - i >= FOLD_MIN) {
+      runs.push({
+        oldFrom: rows[i]!.oldLine!,
+        oldTo: rows[j - 1]!.oldLine!,
+        newFrom: rows[i]!.newLine!,
+        newTo: rows[j - 1]!.newLine!,
+      });
+    }
+    i = j;
   }
-  return out;
+  return runs;
+}
+
+/** ctx 行是否落入任一折叠段(改动行单侧号,永不隐去)。 */
+export function rowInFoldRun(row: PatchRow, runs: FoldRun[]): boolean {
+  if (row.kind !== "ctx" || row.oldLine === null) return false;
+  return runs.some((r) => row.oldLine! >= r.oldFrom && row.oldLine! <= r.oldTo);
+}
+
+/** 折叠过滤:段内 ctx 行隐去;未启用(runs = null)原数组直返。 */
+export function visiblePatchRows(rows: PatchRow[], runs: FoldRun[] | null): PatchRow[] {
+  if (!runs || runs.length === 0) return rows;
+  return rows.filter((row) => !rowInFoldRun(row, runs));
+}
+
+/** 双栏同款过滤:只隐 ctx pair(双侧皆 ctx,左号即段号)。 */
+export function visibleSplitRows(rows: SplitRow[], runs: FoldRun[] | null): SplitRow[] {
+  if (!runs || runs.length === 0) return rows;
+  return rows.filter(
+    (row) => row.kind !== "pair" || pairKind(row.left, row.right) !== "ctx" || !rowInFoldRun(row.left!, runs),
+  );
+}
+
+/** 头部折叠开关可见性判定用:按 patch 文本 + 模式规划段数(与渲染层各自规划,纯函数开销可忽略)。 */
+export function countFoldRuns(text: string, split: boolean): number {
+  const rows = parsePatch(text);
+  return split ? planFolds(buildSplitRows(rows)).length : planUnifiedFolds(rows).length;
 }

@@ -9,7 +9,17 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildSplitRows, foldItems, pairKind, parsePatch, planFolds } from "./patchModel";
+import {
+  buildSplitRows,
+  countFoldRuns,
+  pairKind,
+  parsePatch,
+  planFolds,
+  planUnifiedFolds,
+  rowInFoldRun,
+  visiblePatchRows,
+  visibleSplitRows,
+} from "./patchModel";
 
 const PATCH = [
   "diff --git a/src/x.rs b/src/x.rs",
@@ -137,7 +147,7 @@ describe("buildSplitRows", () => {
   });
 });
 
-describe("planFolds / foldItems(N4 折叠焦点)", () => {
+describe("planFolds / visibleSplitRows(全文态未改动段折叠)", () => {
   const PATCH = [
     "@@ -1,9 +1,9 @@",
     " a",
@@ -154,32 +164,21 @@ describe("planFolds / foldItems(N4 折叠焦点)", () => {
     " i",
   ].join("\n");
 
-  it("≥3 行连续 ctx 记段(起点下标 + 双侧行号区间),2 行段与 header 切断不计", () => {
+  it("≥3 行连续 ctx 记段(双侧行号区间),2 行段与 header 切断不计", () => {
     const runs = planFolds(buildSplitRows(parsePatch(PATCH)));
-    expect([...runs.entries()]).toEqual([
-      [1, { key: "1:1", count: 3, oldFrom: 1, oldTo: 3, newFrom: 1, newTo: 3 }],
-      [8, { key: "20:20", count: 4, oldFrom: 20, oldTo: 23, newFrom: 20, newTo: 23 }],
+    expect(runs).toEqual([
+      { oldFrom: 1, oldTo: 3, newFrom: 1, newTo: 3 },
+      { oldFrom: 20, oldTo: 23, newFrom: 20, newTo: 23 },
     ]);
   });
 
-  it("foldItems:段恒出胶囊项,展开时原行紧随摊平,未启用折叠原数组直返", () => {
+  it("visibleSplitRows:段内 ctx 隐去,改动行与段外行保留,未启用原数组直返", () => {
     const rows = buildSplitRows(parsePatch(PATCH));
     const runs = planFolds(rows);
-    const closed = foldItems(rows, runs, new Set());
-    expect(closed.map((r) => (r.kind === "fold" ? `fold:${r.run.key}` : r.kind))).toEqual([
-      "header",
-      "fold:1:1",
-      "pair",
-      "pair",
-      "pair",
-      "header",
-      "fold:20:20",
-    ]);
-    const opened = foldItems(rows, runs, new Set(["1:1"]));
-    expect(opened).toHaveLength(10);
-    expect(opened[1]?.kind).toBe("fold"); // 条常驻
-    expect(opened[2]).toBe(rows[1]); // 原行原引用紧随摊平
-    expect(foldItems(rows, null, new Set())).toBe(rows);
+    const shown = visibleSplitRows(rows, runs);
+    expect(shown.map((r) => r.kind)).toEqual(["header", "pair", "pair", "pair", "header"]); // 3 行段隐去;末尾 2 行段不足下限保留
+    expect(shown[1]).toBe(rows[4]); // -x/+y 改动对原引用
+    expect(visibleSplitRows(rows, null)).toBe(rows);
   });
 
   it("del×add 同文 zip 对(补尾换行)是改动不是 ctx,不入折叠段", () => {
@@ -187,8 +186,50 @@ describe("planFolds / foldItems(N4 折叠焦点)", () => {
     const split = buildSplitRows(rows);
     expect(split[4]).toEqual({ kind: "pair", left: rows[4], right: rows[6] }); // 同文 zip 对
     expect(pairKind(rows[4], rows[6])).toBe("mod"); // 文本同但异源 = 改动
-    const runs = [...planFolds(split).values()];
-    expect(runs).toEqual([{ key: "1:1", count: 3, oldFrom: 1, oldTo: 3, newFrom: 1, newTo: 3 }]); // 不吞 zip 对
+    expect(planFolds(split)).toEqual([{ oldFrom: 1, oldTo: 3, newFrom: 1, newTo: 3 }]); // 不吞 zip 对
+  });
+
+  it("countFoldRuns:按文本 + 模式规划段数(split 与 unified 各自口径)", () => {
+    expect(countFoldRuns(PATCH, true)).toBe(2);
+    expect(countFoldRuns(PATCH, false)).toBe(2);
+    expect(countFoldRuns("@@ -1,3 +1,3 @@\n a\n b\n c\n", false)).toBe(1); // 纯 ctx 单段
   });
 });
 
+
+describe("planUnifiedFolds / visiblePatchRows(单栏折叠焦点)", () => {
+  const PATCH = [
+    "@@ -1,9 +1,9 @@",
+    " a",
+    " b",
+    " c",
+    "-x",
+    "+y",
+    " d",
+    " e",
+    "@@ -20,4 +20,4 @@",
+    " f",
+    " g",
+    " h",
+    " i",
+  ].join("\n");
+
+  it("≥3 行连续 ctx 记段(双侧行号区间),hunk/改动切断不计", () => {
+    const runs = planUnifiedFolds(parsePatch(PATCH));
+    expect(runs).toEqual([
+      { oldFrom: 1, oldTo: 3, newFrom: 1, newTo: 3 },
+      { oldFrom: 20, oldTo: 23, newFrom: 20, newTo: 23 },
+    ]);
+  });
+
+  it("visiblePatchRows:段内 ctx 隐去,改动与 hunk 保留,未启用原数组直返;rowInFoldRun 判定口径", () => {
+    const rows = parsePatch(PATCH);
+    const runs = planUnifiedFolds(rows);
+    const shown = visiblePatchRows(rows, runs);
+    expect(shown.map((r) => r.kind)).toEqual(["hunk", "del", "add", "ctx", "ctx", "hunk"]); // 末段 2 行不足下限保留
+    expect(shown[1]).toBe(rows[4]); // -x 原引用
+    expect(rowInFoldRun(rows[1]!, runs)).toBe(true); // ctx 行号 1 ∈ [1,3]
+    expect(rowInFoldRun(rows[4]!, runs)).toBe(false); // del 永不隐
+    expect(visiblePatchRows(rows, null)).toBe(rows);
+  });
+});

@@ -11,9 +11,9 @@
  * gitError —— gitErrorMessage 归一化(Error 取 message/裸串原样/原始值 String 化);
  *   isNotARepo 与 isAuth 按 E_*: 前缀判别且互不误报;gitErrorDisplay 剥前缀留原始描述。
  * gitEvents —— GIT_PREFILL_TOPIC 是 composer 与 git 面板唯一耦合点,值钉死。
- * diffTab —— openDiffTab 经真实 tabs store:id 按 侧+路径 锚定、title/path/payload 装配、
- *   工作区与暂存区各一 tab、重复打开=聚焦且保留首次注册;readDiffTabPayload kind 闸、
- *   缺 cwd/path 拒收、staged/status 兜底默认。
+ * diffTab —— openDiffTab 经真实 tabs store:id 按 侧+仓 锚定(一仓一侧一 tab)、
+ *   title/path/payload 装配、重复打开=聚焦且 refresh 刷 focusPath 深链;
+ *   readDiffTabPayload kind 闸、缺 cwd 拒收、staged 兜底默认。
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { closeAllTabs, getActiveTabId, getTabs, setActiveTab } from "@kernel/tabs";
@@ -130,23 +130,24 @@ describe("GIT_PREFILL_TOPIC(composer→面板唯一耦合点)", () => {
 });
 
 describe("readDiffTabPayload(tab 载荷反读,纯函数)", () => {
-  it("非本 kind 或 payload 缺 cwd/path 拒收为 null", () => {
+  it("非本 kind 或 payload 缺 cwd 拒收为 null", () => {
     expect(readDiffTabPayload({ kind: "file", payload: {} })).toBeNull();
     expect(readDiffTabPayload({ kind: "git-diff", payload: null })).toBeNull();
-    expect(readDiffTabPayload({ kind: "git-diff", payload: { path: "a.rs" } })).toBeNull();
-    expect(readDiffTabPayload({ kind: "git-diff", payload: { cwd: "/ws" } })).toBeNull();
+    expect(readDiffTabPayload({ kind: "git-diff", payload: { focusPath: "a.rs" } })).toBeNull();
   });
 
-  it("合法载荷透传;staged/status 缺省兜底 false/空串", () => {
+  it("合法载荷透传;staged 缺省兜底 false,focusPath 可缺省", () => {
     expect(
       readDiffTabPayload({
         kind: "git-diff",
-        payload: { cwd: "/ws", path: "src/a.rs", staged: true, status: "M" },
+        payload: { cwd: "/ws", staged: true, focusPath: "src/a.rs" },
       }),
-    ).toEqual({ cwd: "/ws", path: "src/a.rs", staged: true, status: "M" });
-    expect(
-      readDiffTabPayload({ kind: "git-diff", payload: { cwd: "/ws", path: "src/a.rs" } }),
-    ).toEqual({ cwd: "/ws", path: "src/a.rs", staged: false, status: "" });
+    ).toEqual({ cwd: "/ws", staged: true, focusPath: "src/a.rs" });
+    expect(readDiffTabPayload({ kind: "git-diff", payload: { cwd: "/ws" } })).toEqual({
+      cwd: "/ws",
+      staged: false,
+      focusPath: undefined,
+    });
   });
 });
 
@@ -157,34 +158,35 @@ describe("openDiffTab(经真实 tabs store)", () => {
     setActiveTab(null);
   });
 
-  it("装配 tab:id 按 侧+路径 锚定,title/path/payload 齐备并激活", () => {
-    openDiffTab({ cwd: "/ws", path: "src/a.rs", staged: false, status: "M" });
+  it("装配 tab:id 按 侧+仓 锚定,title/path/payload 齐备并激活", () => {
+    openDiffTab({ cwd: "/ws", staged: false, focusPath: "src/a.rs" });
     expect(getTabs()).toHaveLength(1);
     const tab = getTabs()[0];
-    expect(tab.id).toBe("git-diff:w:src/a.rs");
+    expect(tab.id).toBe("git-diff:w:/ws");
     expect(tab.kind).toBe("git-diff");
-    expect(tab.path).toBe("/ws/src/a.rs");
-    expect(tab.title).toBe("src/a.rs — 工作区 diff");
-    expect(tab.payload).toEqual({ cwd: "/ws", path: "src/a.rs", staged: false, status: "M" });
-    expect(getActiveTabId()).toBe("git-diff:w:src/a.rs");
+    expect(tab.path).toBe("/ws");
+    expect(tab.title).toBe("ws — 工作区 diff");
+    expect(tab.payload).toEqual({ cwd: "/ws", staged: false, focusPath: "src/a.rs" });
+    expect(getActiveTabId()).toBe("git-diff:w:/ws");
 
-    openDiffTab({ cwd: "/ws", path: "src/b.rs", staged: true, status: "A" });
+    openDiffTab({ cwd: "/ws", staged: true });
     const staged = getTabs()[1];
-    expect(staged.id).toBe("git-diff:s:src/b.rs");
-    expect(staged.title).toBe("src/b.rs — 已暂存 diff");
+    expect(staged.id).toBe("git-diff:s:/ws");
+    expect(staged.title).toBe("ws — 暂存区 diff");
   });
 
-  it("工作区与暂存区各占一 tab(同文件 s/w 侧不合并)", () => {
-    openDiffTab({ cwd: "/ws", path: "a.rs", staged: false, status: "M" });
-    openDiffTab({ cwd: "/ws", path: "a.rs", staged: true, status: "M" });
-    expect(getTabs().map((t) => t.id)).toEqual(["git-diff:w:a.rs", "git-diff:s:a.rs"]);
+  it("一仓一侧一 tab(同仓 s/w 侧不合并,异仓不合并)", () => {
+    openDiffTab({ cwd: "/ws", staged: false, focusPath: "a.rs" });
+    openDiffTab({ cwd: "/ws", staged: true, focusPath: "a.rs" });
+    openDiffTab({ cwd: "/other", staged: false, focusPath: "a.rs" });
+    expect(getTabs().map((t) => t.id)).toEqual(["git-diff:w:/ws", "git-diff:s:/ws", "git-diff:w:/other"]);
   });
 
-  it("重复打开=聚焦且保留首次注册(title/payload 不被覆盖)", () => {
-    openDiffTab({ cwd: "/ws", path: "a.rs", staged: false, status: "M" });
-    openDiffTab({ cwd: "/other", path: "a.rs", staged: false, status: "A" });
+  it("重复打开=聚焦且 refresh 刷 focusPath(深链跟手)", () => {
+    openDiffTab({ cwd: "/ws", staged: false, focusPath: "a.rs" });
+    openDiffTab({ cwd: "/ws", staged: false, focusPath: "b.rs" });
     expect(getTabs()).toHaveLength(1);
-    expect(getTabs()[0].payload).toMatchObject({ cwd: "/ws", status: "M" });
-    expect(getActiveTabId()).toBe("git-diff:w:a.rs");
+    expect(getTabs()[0].payload).toMatchObject({ cwd: "/ws", focusPath: "b.rs" });
+    expect(getActiveTabId()).toBe("git-diff:w:/ws");
   });
 });
