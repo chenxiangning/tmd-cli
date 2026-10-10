@@ -19,7 +19,6 @@ export const MESSAGES = {
   "SSH 密码": "SSH password",
   "私钥内容(粘贴;留空则按下方路径读取)":
     "Private key (paste; read from the path below if empty)",
-  "SSH 连接": "SSH connect",
   "签发证书": "Mint certificate",
   "上传部署": "Upload files",
   "安装服务": "Install service",

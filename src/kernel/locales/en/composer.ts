@@ -95,7 +95,7 @@ export const MESSAGES = {
   "发送目标": "Send target",
   "将发送到 {n} 块幕布:": "Will broadcast to {n} terminals:",
   "幕布 {n}": "Terminal {n}",
-  "当前": "current",
+  "当前": "Current",
   "内容": "Content",
   "Enter 确认 · Esc 取消": "Enter to confirm · Esc to cancel",
   "发送二次确认": "Send confirmation",

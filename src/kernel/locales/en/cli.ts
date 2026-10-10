@@ -92,7 +92,7 @@ export const MESSAGES = {
   "MiniMax API 错误 (code {code}): {msg}": "MiniMax API error (code {code}): {msg}",
   "智谱 API 错误: {msg}": "Zhipu API error: {msg}",
   "智谱响应缺 data 字段": "Zhipu response missing data field",
-  "未知": "unknown",
+  "未知": "Unknown",
   "base_url 不是合法 http(s) URL: {url}":
     "base_url is not a valid http(s) URL: {url}",
   "鉴权失败 (HTTP {status})": "Authentication failed (HTTP {status})",

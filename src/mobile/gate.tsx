@@ -245,7 +245,7 @@ export function MobileRoot() {
               setProbeKey((k) => k + 1);
             }}
           >
-            {t("重新检测")}
+            {t("重试检测")}
           </button>
           <button
             type="button"
