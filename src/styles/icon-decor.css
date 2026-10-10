@@ -139,17 +139,25 @@ html[data-icon-blink~="wake-mcp"] [data-action-id="wake-mcp"] {
 /* 差异头部控制组(segmented 四钮图标;文字不吃装饰色) */
 .segment[data-action-id="git-diff-tools"] svg { color: var(--icon-decor-git-diff-tools, currentColor); }
 
-/* 新键呼吸闪烁(2026-10-09 扩编 11 键) */
+/* 新键呼吸闪烁(2026-10-09 扩编 11 键);decor-from 挂点与 action-id 同键同呼吸
+   (卡区钮用 decor-from 挂法,不补则同键同屏呼吸分裂) */
 html[data-icon-blink~="git-open"] [data-action-id="git-open"],
 html[data-icon-blink~="git-open-location"] [data-action-id="git-open-location"],
 html[data-icon-blink~="git-row-actions"] [data-action-id="git-row-actions"],
 html[data-icon-blink~="git-view"] [data-action-id="git-view"],
+html[data-icon-blink~="git-view"] [data-decor-from="git-view"],
 html[data-icon-blink~="git-layout"] [data-action-id="git-layout"],
+html[data-icon-blink~="git-layout"] [data-decor-from="git-layout"],
 html[data-icon-blink~="git-remote"] [data-action-id="git-remote"],
+html[data-icon-blink~="git-remote"] [data-decor-from="git-remote"],
 html[data-icon-blink~="git-worktree"] [data-action-id="git-worktree"],
+html[data-icon-blink~="git-worktree"] [data-decor-from="git-worktree"],
 html[data-icon-blink~="git-repo-ops"] [data-action-id="git-repo-ops"],
+html[data-icon-blink~="git-repo-ops"] [data-decor-from="git-repo-ops"],
 html[data-icon-blink~="files-new-file"] [data-action-id="files-new-file"],
+html[data-icon-blink~="files-new-file"] [data-decor-from="files-new-file"],
 html[data-icon-blink~="files-new-folder"] [data-action-id="files-new-folder"],
+html[data-icon-blink~="files-new-folder"] [data-decor-from="files-new-folder"],
 html[data-icon-blink~="files-refresh"] [data-action-id="files-refresh"],
 html[data-icon-blink~="files-git-toggle"] .file-tree-toolbar-action[data-action-id="files-git-toggle"].is-active,
 html[data-icon-blink~="git-diff-tools"] .segment[data-action-id="git-diff-tools"] svg {
@@ -197,12 +205,19 @@ html[data-icon-blink~="git-diff-tools"] .segment[data-action-id="git-diff-tools"
   html[data-icon-blink~="git-open-location"] [data-action-id="git-open-location"],
   html[data-icon-blink~="git-row-actions"] [data-action-id="git-row-actions"],
   html[data-icon-blink~="git-view"] [data-action-id="git-view"],
+  html[data-icon-blink~="git-view"] [data-decor-from="git-view"],
   html[data-icon-blink~="git-layout"] [data-action-id="git-layout"],
+  html[data-icon-blink~="git-layout"] [data-decor-from="git-layout"],
   html[data-icon-blink~="git-remote"] [data-action-id="git-remote"],
+  html[data-icon-blink~="git-remote"] [data-decor-from="git-remote"],
   html[data-icon-blink~="git-worktree"] [data-action-id="git-worktree"],
+  html[data-icon-blink~="git-worktree"] [data-decor-from="git-worktree"],
   html[data-icon-blink~="git-repo-ops"] [data-action-id="git-repo-ops"],
+  html[data-icon-blink~="git-repo-ops"] [data-decor-from="git-repo-ops"],
   html[data-icon-blink~="files-new-file"] [data-action-id="files-new-file"],
+  html[data-icon-blink~="files-new-file"] [data-decor-from="files-new-file"],
   html[data-icon-blink~="files-new-folder"] [data-action-id="files-new-folder"],
+  html[data-icon-blink~="files-new-folder"] [data-decor-from="files-new-folder"],
   html[data-icon-blink~="files-refresh"] [data-action-id="files-refresh"],
   html[data-icon-blink~="files-git-toggle"] .file-tree-toolbar-action[data-action-id="files-git-toggle"].is-active,
   html[data-icon-blink~="git-diff-tools"] .segment[data-action-id="git-diff-tools"] svg {

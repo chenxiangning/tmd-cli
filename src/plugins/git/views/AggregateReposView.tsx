@@ -110,7 +110,7 @@ export function AggregateReposView({
             >
               {refreshing
                 ? <Spinner size="0.75rem" />
-                : <ArrowClockwise className="h-[0.75rem] w-[0.75rem]" aria-hidden data-decor-from="git-repo-ops" />}
+                : <ArrowDown className="h-[0.6875rem] w-[0.6875rem]" aria-hidden />}
             </button>
             {/* 分裂按钮组:主钮 = 拉取全部(最高频);▾ 菜单含获取/拉取/推送全部,带目标数。 */}
             <span className="flex shrink-0 items-stretch overflow-hidden rounded-md border border-(--tmd-accent)">
@@ -139,7 +139,7 @@ export function AggregateReposView({
                 }}
                 className="border-l border-(--tmd-accent-fg)/30 bg-(--tmd-accent) px-1 text-(--tmd-accent-fg) hover:brightness-108 disabled:opacity-45"
               >
-                <CaretDown className="h-[0.625rem] w-[0.625rem]" aria-hidden data-decor-from="git-repo-ops" />
+                <CaretDown className="h-[0.625rem] w-[0.625rem]" aria-hidden />
               </button>
             </span>
           </>
