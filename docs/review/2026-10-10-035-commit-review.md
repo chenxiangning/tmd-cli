@@ -1,7 +1,7 @@
 # 0.3.5 提交批换角度复审(3ae8a..ea0cb,9 commits)
 
 - 日期:2026-10-10
-- 状态:已收口(P1×2/P2×2 随评修复,P3 择要修复,余记录;死代码清理随手收)
+- 状态:已收口(P1×2/P2×2 随评修复,P3 择要修复,余记录;死代码清理随手收);同日续批补审前 5 笔图标装饰批(b42dfdb3..64fa4387)并清账词典跨域撞车存量,见文末「续批」
 - 方法:两路 reviewer 子代理并行分片(intent-canvas 保存链 / 图标装饰卡)+ 主审亲证 journal 直写、reveal 口径、版本源与死代码清扫;发现全部基于现态全文与错误链实证,禁凭 diff 猜测。
 
 ## 发现与裁决
@@ -45,3 +45,38 @@
 ## 验证
 
 typecheck、vitest 488 文件 / 3801 测试(含新增 paths.test 3 例 + storageTransaction 3 例)、check:arch-boundary、check:file-size(documents.ts 306 行超限随评拆出 storage/indexWrite.ts 后全绿)、build、react-doctor 100;1421 桩目检:图标卡 开/关 段上屏、六组 role=group aria 关联就位。
+
+---
+
+# 续批:前 5 笔图标装饰批复审 + 词典跨域撞车清账(2026-10-10)
+
+- 范围:b42dfdb3、a284d4d1、82c6231e、38e37a60、64fa4387(0.3.5 前 5 笔,上批未覆盖)+ 全 kernel locales 撞键存量
+- 方法:两路 reviewer 并行(kernel+files / git views)+ 主审亲证;词典撞车以全域对扫实测取证
+
+## 复审结论:图标装饰批零 P1/P2
+
+六个疑点全部有证据排除:拆表(iconSetTablesLucide)单一解析出口、测试活注册表全量循环无弱化(_itemsCoverAllKeys 编译期钉 47 键)、en/ja settings2 同构、files 两态矩阵四级自洽(关态不吃装饰色/呼吸仅 is-active)、`#4da3ff` 为 82c6231e 有意选定(right-panel-toolbar 先例)、菜单钩子按 `data-decor-from` 属性命中零泄漏、worktree 新旧键选择器集不相交无迁键问题。
+
+## P3 修复(随批)
+
+| # | 位置 | 问题 | 修复 |
+|---|---|---|---|
+| 1 | GitToolbar git-view 钮 | data-action-id 挂钮上,装饰色/呼吸染到「变更/历史」文字标签,偏离 LeftRail「attr 挂 svg」约定 | attr 挪 DecorIcon svg(LeftRail 先例),文字标签回归本色 |
+| 2 | checkpoints BatchRowParts 双钮 | `text-(--tmd-fg-subtle)/hover:text-(--tmd-fg)` 被 icon-decor.css 未分层规则级联顶掉成死类 | 删死类名,接受与 git 面板行钮一致化(缺省 muted) |
+| 3 | WorktreeZone 段头 + AggregateReposView 聚合头 | 新建工作树/刷新/刷新/拉取全部/▾ 五钮无装饰钩(漏网清单) | 按钮内 svg 挂 `data-decor-from`(git-worktree ×2 / git-repo-ops ×3);currentColor 回落继承钮色,缺省观感零变化 |
+| 4 | DiffView 树形 +/− 钮 | title/aria 裸英文 `unstage`/`stage` | 走 t(「暂存」/「取消暂存」),git 域补 en/ja 词条 |
+
+记录不挂:DiffBatchBar 三钮为纯文本钮无字形,不属图标装饰系统 scope(同上批「文本钮清单加注」口径);BranchView 域挂钩需另立语义键,待真实需求。
+
+## 词典跨域同键异值存量(21 行/16 键,全清)
+
+盲区与上批 P1-2「关闭」撞车同类:locales/{en,ja}/index.ts 裸 spread 合并,同键异值后者静默覆盖前者。全域对扫实测 21 行冲突,逐键定裁决:
+
+- **统一译值**(合并态不变或修正 casing):未知(Unknown)、当前(Current)、重命名、重命名…(省略号)、刷新(更新)、默认(既定)、已复制(コピーしました)、会话尚未落盘(、)
+- **拆键消歧**:新建 → workspace 留「新建」(Create/作成),assets 改用既有「新建提示词」;重新检测 → mobile 拆「重试检测」(gate 重试语义)
+- **删死键/重复域条目**:settings2「SSH 连接」、common「还原」、git「{n} 个文件」、mobile「二进制文件」(GitScreen 调用点自带括号,值内括号实为 en/ja 双括号渲染 bug,一并修「无差异」「无法获取差异」两键)
+- **防回归**:locales.test.ts 新增跨域同键异值为零断言(引全部 34 域文件,按 index.ts spread 序对扫),实施前红 21 行、清账后全绿
+
+## 验证
+
+typecheck、vitest 全套(locales.test 6/6 含新撞车断言)、check:arch-boundary、check:file-size、build 全绿;react-doctor HEAD 基线 100(worktree 对照法;工作区另有并行在途改动不属本批);1421 桩目检:git-view 装饰色只染 svg(span 保持 --tmd-fg)、WorktreeZone 段头五钩同吃装饰色、新键「新建工作树」上屏。
