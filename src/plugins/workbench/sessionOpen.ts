@@ -7,6 +7,32 @@ import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import type { Project, ProjectTask } from "./types";
+import type { ProjectSessionRow } from "./useProjectSessions";
+
+/** 死关联找回:旧关联(host 版 < cliSessionId 回写机制)没存磁盘身份。
+ *  按标题全等 → 创建时刻邻近(±5min,spawn≈link 时刻;CLI 改名场景)在
+ *  绑定 cwd 的磁盘会话里找身份 resume;找不到才回落提示重关联。 */
+function recoverDeadLink(
+  link: ProjectTask["sessions"][number],
+  project: Project,
+  workspaceId: string | undefined,
+  recent: ProjectSessionRow[] | null | undefined,
+  onToast: (m: string) => void,
+): void {
+  const at = Date.parse(link.createdAt);
+  const cand = recent?.find((r) =>
+    r.title === link.title ||
+    (r.disk.createdAt !== undefined && Math.abs(r.disk.createdAt - at) <= 5 * 60_000),
+  );
+  if (!cand || !project.cwd) {
+    onToast(t("会话已结束,可从列表移除后重新关联"));
+    return;
+  }
+  void host.openDiskSession(cand.profileId, project.cwd, workspaceId, cand.cliSessionId).then(
+    () => undefined,
+    () => onToast(t("打开会话失败")),
+  );
+}
 
 /** host 活会话先查注册表(已关 tab/被移除的 ref setActiveSession 是静默无效,
  *  必须先验存活),兜底磁盘恢复;disk 直接恢复。workspaceId 必传口径:不带
@@ -17,6 +43,7 @@ export function openLink(
   project: Project,
   workspaceId: string | undefined,
   onToast: (m: string) => void,
+  recent?: ProjectSessionRow[] | null,
 ): void {
   /* 调用方均为用户点击行(任务详情/项目详情会话列表):先声明「要看会话」,
    * app-shell 摘最大化让幕布可见(见 kernel/events.ts sessionViewRequested 红线)。 */
@@ -44,7 +71,7 @@ export function openLink(
       );
       return;
     }
-    onToast(t("会话已结束,可从列表移除后重新关联"));
+    recoverDeadLink(link, project, workspaceId, recent, onToast);
     return;
   }
   if (!project.cwd) {

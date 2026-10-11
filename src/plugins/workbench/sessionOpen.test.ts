@@ -55,6 +55,27 @@ describe("workbench openLink", () => {
     expect(onToast).toHaveBeenCalledWith("会话已结束,可从列表移除后重新关联");
   });
 
+  it("旧关联无身份:标题命中的磁盘行按行自身 profile resume", () => {
+    const recent = [{ key: "k", profileId: "codex", profileName: "Codex", cliSessionId: "disk-old", title: "项目分析", modifiedAt: 1, disk: { id: "disk-old", modifiedAt: 1, path: "/x" } }] as unknown as Parameters<typeof openLink>[4];
+    openLink(link({ title: "项目分析" }), project, "ws1", onToast, recent);
+    expect(hostMock.host.openDiskSession).toHaveBeenCalledWith("codex", "/tmp/proj", "ws1", "disk-old");
+    expect(onToast).not.toHaveBeenCalled();
+  });
+
+  it("旧关联无身份且 CLI 改名:创建时刻邻近(±5min)兜住", () => {
+    const at = Date.parse("2026-10-10T00:00:00Z");
+    const recent = [{ key: "k", profileId: "claude", profileName: "Claude", cliSessionId: "disk-renamed", title: "CLI 自动改名了", modifiedAt: 1, disk: { id: "disk-renamed", modifiedAt: 1, path: "/x", createdAt: at + 60_000 } }] as unknown as Parameters<typeof openLink>[4];
+    openLink(link({}), project, "ws1", onToast, recent);
+    expect(hostMock.host.openDiskSession).toHaveBeenCalledWith("claude", "/tmp/proj", "ws1", "disk-renamed");
+  });
+
+  it("旧关联无身份且既不同名也不同刻:仍提示重关联", () => {
+    const recent = [{ key: "k", profileId: "claude", profileName: "Claude", cliSessionId: "disk-far", title: "别的会话", modifiedAt: 1, disk: { id: "disk-far", modifiedAt: 1, path: "/x", createdAt: Date.parse("2026-10-01T00:00:00Z") } }] as unknown as Parameters<typeof openLink>[4];
+    openLink(link({}), project, "ws1", onToast, recent);
+    expect(hostMock.host.openDiskSession).not.toHaveBeenCalled();
+    expect(onToast).toHaveBeenCalledWith("会话已结束,可从列表移除后重新关联");
+  });
+
   it("disk 关联:直接按 ref resume", () => {
     openLink(link({ kind: "disk", ref: "disk-7" }), project, "ws1", onToast);
     expect(hostMock.host.openDiskSession).toHaveBeenCalledWith("claude", "/tmp/proj", "ws1", "disk-7");

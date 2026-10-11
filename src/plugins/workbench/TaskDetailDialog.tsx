@@ -193,7 +193,7 @@ export function TaskDetailDialog({
                 return (
                   <li key={link.ref} className="wb-attach-row">
                     <span className="wb-attach-ico"><ChatCircle size={13} /></span>
-                    <button type="button" className="wb-link" onClick={() => openLink(link, project, workspaceId, onToast)}>{name}</button>
+                    <button type="button" className="wb-link" onClick={() => openLink(link, project, workspaceId, onToast, recent)}>{name}</button>
                     <span className={`wb-attach-meta${live ? " wb-session-live" : ""}`}>{live ? t("运行中") : t("已完成")} · {link.createdAt.slice(0, 10)}</span>
                     <button
                       type="button" className="wb-btn wb-btn-xs wb-attach-del" aria-label={t("解除关联")}

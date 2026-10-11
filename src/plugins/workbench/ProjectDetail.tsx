@@ -232,7 +232,7 @@ function SessionsTab({ project, onToast }: {
             const profileName = host.getCliProfile(link.profileId)?.name ?? link.profileId;
             return (
               <li key={link.ref}>
-                <button type="button" className="wb-session-row" onClick={() => openLink(link, project, workspaceId, onToast)}>
+                <button type="button" className="wb-session-row" onClick={() => openLink(link, project, workspaceId, onToast, recent)}>
                   <span className="wb-attach-ico"><ChatCircle size={14} /></span>
                   <span className="wb-session-body">
                     <span className="wb-session-title">{live?.title || link.title || link.ref}</span>
