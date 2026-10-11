@@ -90,8 +90,8 @@ function SessionTab({
             className="session-tab-switch"
             title={hoverTitle(tabState, title)}
             onClick={() => {
-              /* 最大化时幕布被编辑区盖住,点会话 tab = 看会话:setActiveSession
-                 同 id 早退不发事件,这里显式还原(异 id 路径归激活守卫,同语义)。 */
+              /* 最大化时幕布被编辑区盖住,点会话 tab = 看会话,显式还原再切换
+                 (幂等;不用事件守卫——后台自动化激活会误伤,见 editorMaximized 头注)。 */
               restoreEditorMaximized();
               host.setActiveSession(id);
             }}
