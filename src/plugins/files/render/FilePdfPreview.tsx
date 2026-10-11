@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useMemo, useReducer, useRef } from "react";
-import { getDocument, type PDFDocumentProxy } from "pdfjs-dist";
+import { getDocument, type PDFDocumentLoadingTask, type PDFDocumentProxy } from "pdfjs-dist";
 import { ensurePdfPreviewWorker } from "./pdfRuntime";
 import { PdfPageCanvas } from "./PdfPageCanvas";
 import { loadPreviewBytes } from "./previewBytes";
@@ -72,17 +72,18 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
     dispatch({ type: "reset" });
 
     let disposed = false;
-    let loadedDocument: PDFDocumentProxy | null = null;
+    // pdfjs v6 起销毁入口只在 loadingTask 上(PDFDocumentProxy.destroy 已移除)
+    let activeTask: PDFDocumentLoadingTask | null = null;
 
     void (async () => {
       try {
         ensurePdfPreviewWorker();
         const bytes = await loadPreviewBytes(path);
         const loadingTask = getDocument({ data: bytes.slice() });
+        activeTask = loadingTask;
         const nextDocument = await loadingTask.promise;
-        loadedDocument = nextDocument;
         if (disposed) {
-          await nextDocument.destroy();
+          await loadingTask.destroy();
           return;
         }
         dispatch({ type: "loaded", pdfDocument: nextDocument, numPages: nextDocument.numPages });
@@ -94,8 +95,8 @@ export function FilePdfPreview({ path }: FilePdfPreviewProps) {
 
     return () => {
       disposed = true;
-      if (loadedDocument) {
-        void loadedDocument.destroy();
+      if (activeTask) {
+        void activeTask.destroy();
       }
     };
   }, [path]);

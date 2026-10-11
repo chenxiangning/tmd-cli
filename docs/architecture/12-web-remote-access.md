@@ -16,7 +16,7 @@
 |信任模型|**token 持有者 = 桌面等权**(dispatch 可达 fs/pty/sqlite/install 全量),风险弹窗如实告知。token 24 字符 CSPRNG,gate.rs 双侧 SipHash 后 u64 定长比较;每次起服务重铸(重启后旧链接 403,需重新扫码)。风险弹窗只承诺真实存在的机制:密钥即凭据/不转发/用完断开/重启重铸 —— 无设备管理面,不虚诺 per-device approval。|
 |停机语义|`watch::Sender<bool>` 广播:accept 循环 + 每连接 reader/writer。**select! 的 else 分支只在全分支 pattern 被禁用时执行**(治不了「stop 早于订阅」);订阅后必须立即 `borrow_and_update()` 吸收已置位,否则 socket 带完整派发权活到自行断连(2026-09-17 review P2 修复)。|
 |/file 范围|$HOME 内;**首段 dot 条目默认拒绝**(凭据/历史/OAuth 全在内),白名单仅 `.tmd-cli/wallpapers`;非 dot 维持放行(工作区预览)。canonicalize + $HOME 前缀校验防 symlink 逃逸;先验大小再读。黑名单枚举追不完新 CLI 凭据落点,允许制一刀切更稳(review P2 改造)。|
-|LAN 绑定|只绑 `lan_ip()` 解析出的接口 IP(与展示 URL 同源;解析失败回落 127.0.0.1),VPN tun/容器网段不随 0.0.0.0 全接口可达(review P2 改造);stderr 日志不打含 token 的完整 URL。|
+|LAN 绑定|只绑 `lan_ip()` 解析出的接口 IP(与展示 URL 同源;解析失败回落 127.0.0.1),VPN tun/容器网段不随 0.0.0.0 全接口可达(review P2 改造);stderr 日志不打含 token 的完整 URL。**LAN 惰性重绑(2026-10-12)**:桥只在启动时解析一次 LAN IP,DHCP 续租/换网/睡眠唤醒后绑定成死地址 = 手机内网必死而中继照常;手机触点(设置面 `web_access_status`/铸配对 offer/设备 WS 握手发完 hello)触发 `ensure_fresh_lan`,探测到**不同的具体私网 IP** 才在同 transition 闸内 stop+start 原地重启(preferred 端口稳定,手机凭证不失效;探测失败 = 瞬时断网不停活桥;设置已关不复活);手机 hello.lan 同步 + 下次竞速自然切回内网,零后台轮询。|
 |中继链路|桌面出站 WS 拨 Worker `/agent?key=`(key 32×27 字母表 ≈151bit);Worker 无策略转发,真正门禁仍在桥 gate token;DO 一 key 一实例防自交错;心跳 15s×2 判死。一键部署(CF API Token 仅内存直传,不落盘不进日志)与导出包产物同源(WORKER_SOURCE 与 zip 内 index.js 同字节)。**部署 ≠ 同意连接**:`webRelayOn` 只由 Rust 侧 start/stop 成功后落盘,部署卡只回填 url/key(review P2 修复:防 autostart 静默拨通外网)。拨号不走 `connect_async`(它不读 `*_PROXY` env,直连被墙时=整 20s 超时):`relay_agent::dial_agent` 按进程 env 代理(HTTP(S)_PROXY/ALL_PROXY/NO_PROXY,复用 ssh CONNECT/SOCKS5 握手)先打通 TCP 再升 TLS+WS;rustls 树内 ring+aws-lc-rs 双 provider 歧义 panic,拨号前显式装 aws-lc-rs(与 reqwest 一致)。|
 |自建服务器落点|中继第二落点(2026-09-24,spec 2026-09-24-selfhost-relay-deploy-design):用户自有公网服务器跑 `deploy/relay/tmd-relay-server.mjs`(与 Worker 同线协议;80 明文 + 443 真 TLS 双监听)。存在理由 = 国内蜂窝运营商 DPI:明文 WS upgrade 在所有端口被间歇吞(workers.dev 还被墙),唯一稳解是 443+TLS。一键部署 `relay_deploy_selfhost`:复用 ssh 引擎(russh 一次性 exec,文件走 exec+stdin 免 base64)→ 桌面 rcgen 现场铸 SAN=IP 十年自签(私钥不出桌面)→ 上传 mjs/env/cert/key → systemd enable --now → 服务器本机 healthz 自检;成功 Rust 一次写 settings(webRelayUrl/Key/CertHost/CertDer),凭据仅本次调用。手动兜底 `relay_selfhost_pack`(zip 烧好证书/key,README 三条命令与 UI 逐字一致)。|
 |证书钉住(动态)|不信任公共 CA:`pinned_tls.rs` 钉住表 = 内置 ECS 一张(编译期 DER)+ settings 动态一张(webRelayCertHost/Der,一键部署或导包落盘),仅命中 host 才钉、其余主机走 webpki-roots。配对 offer 带 `pin`(base64 SHA-256,仅 https 中继且 host 命中动态钉时),手机存进钥匙串 creds.pin/pinHost,壳 `PinnedTLS.swift` 内置指纹失败后查 creds 回落——换服务器 = 重新扫码,免重装 app。/pair 走壳原生 URLSession(WKWebView fetch 必拒自签)。|
@@ -25,7 +25,7 @@
 ## 方案取舍
 
 - **token 每次起服务重铸 vs 持久固定**:选重铸——泄露窗口有限,代价是重启后需重新扫码;「加到主屏幕当 app」的体验损失记为已知取舍。
-- **绑 lan_ip vs 0.0.0.0**:选 lan_ip(与展示 URL 同源);DHCP 换 IP 后桥需重启重绑,可接受(桥本就低频常驻)。
+- **绑 lan_ip vs 0.0.0.0**:选 lan_ip(与展示 URL 同源);DHCP 换 IP 原靠重启桌面恢复,2026-10-12 起手机触点惰性重绑自愈(见契约 LAN 绑定行),仍不引网卡枚举依赖。
 - **/file 允许制 vs 黑名单**:选允许制——新 CLI 凭据落点(.claude/.codex/.local…)追不完,枚举黑名单是维护负债。
 - **中继每帧 b64+JSON(~1.78× 膨胀)vs 二进制帧**:维持文本帧对齐 codemoss,终端量级可接受;大文件传输再上二进制帧(review 留档)。
 - **file-size-exempt 豁免**:web 域 6 个 Rust 文件(relay/dispatch 等)按「同源移植/命令面镜像总表,拆分即伤对照性」豁免;check-file-size.mjs 注释已承认该豁免类。

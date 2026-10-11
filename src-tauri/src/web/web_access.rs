@@ -58,8 +58,64 @@ pub(crate) async fn web_access_stop(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// 手机触点惰性重绑:桥只在启动时解析一次 LAN IP 并绑死;DHCP 续租/换网/睡眠
+/// 唤醒后该 IP 可能易主,绑定成死地址 —— 内网通道对手机必死而中继照常(桌面
+/// 出站流量),用户感知即「内网失败、外网成功」。在手机实际要碰内网地址的时点
+/// (设置面取状态/铸配对 offer/设备 WS 握手后)检测漂移并原地重启桥,零后台
+/// 轮询;preferred 端口跨重启稳定,手机凭证不失效。
+pub(crate) async fn ensure_fresh_lan(app: AppHandle) {
+    let Some(info) = web_state(&app).inner().web.status() else {
+        return; // 桥没在跑:无绑可刷
+    };
+    let Some(current) = server::lan_ip() else {
+        return; // 探测失败(瞬时断网)≠ IP 变更,不停活桥
+    };
+    if current == info.lan_ip || restart_bridge(&app).await.is_ok() {
+        return;
+    }
+    safe_eprintln(&format!(
+        "[web-bridge] LAN 端点刷新失败(绑定 {} 探测 {current})",
+        info.lan_ip
+    ));
+}
+
+/// 重绑判定(纯函数,表驱动测试钉死):只认「探测到不同的具体私网 IP」。
+pub(crate) fn lan_drifted(bound: &str, current: Option<&str>) -> bool {
+    matches!(current, Some(ip) if ip != bound)
+}
+
+/// 同一 transition 闸内 stop+start 原地重启:并发触发在闸内复检漂移(幂等,
+/// 免连环重启);设置开关不插队,已关则不复活;无论成败都 emit_info 让设置面
+/// 如实反映。
+async fn restart_bridge(app: &AppHandle) -> Result<(), String> {
+    let state = web_state(app);
+    let web = &state.inner().web;
+    let _guard = web.start_locked().await?;
+    let Some(info) = web.status() else {
+        return Ok(()); // 并发触发已处理(停了或已刷新)
+    };
+    if !lan_drifted(&info.lan_ip, server::lan_ip().as_deref()) {
+        return Ok(()); // 并发触发已刷新
+    }
+    safe_eprintln(&format!(
+        "[web-bridge] LAN IP 漂移 {} → {},重启桥刷新内网端点",
+        info.lan_ip,
+        server::lan_ip().unwrap_or_default()
+    ));
+    web.stop_running()?;
+    emit_info(app);
+    if !web_enabled(&crate::settings::load_settings()) {
+        return Ok(()); // 与设置关停竞态:顺设置,不复活
+    }
+    let (info, shutdown, stopped) = server::serve(app.clone()).await?;
+    web.publish(state::new_running(info, shutdown, stopped));
+    emit_info(app);
+    Ok(())
+}
+
 #[tauri::command]
-pub(crate) fn web_access_status(app: AppHandle) -> Option<state::WebAccessInfo> {
+pub(crate) async fn web_access_status(app: AppHandle) -> Option<state::WebAccessInfo> {
+    ensure_fresh_lan(app.clone()).await;
     web_state(&app).inner().web.status()
 }
 
@@ -102,7 +158,9 @@ fn emit_devices(app: &AppHandle) {
 
 /// 铸一次性配对 offer(桥须在运行):tmd://pair 短链 + 码 + 过期 unix 秒。
 #[tauri::command]
-pub(crate) fn web_pair_offer(app: AppHandle) -> Result<serde_json::Value, String> {
+pub(crate) async fn web_pair_offer(app: AppHandle) -> Result<serde_json::Value, String> {
+    /* 二维码里的内网地址是手机配对的第一触点:铸造前先过一遍惰性重绑。 */
+    ensure_fresh_lan(app.clone()).await;
     let (url, code, expires_at) = pair::mint_offer(&app)?;
     Ok(json!({ "url": url, "pairCode": code, "expiresAt": expires_at }))
 }
@@ -143,4 +201,19 @@ pub(crate) fn web_device_revoke(app: AppHandle, device_id: String) -> bool {
     let ok = devices::revoke(&devices::devices_dir(), &device_id);
     emit_devices(&app);
     ok
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lan_drifted;
+
+    #[test]
+    fn rebind_only_on_concrete_new_private_ip() {
+        // 同 IP:不动
+        assert!(!lan_drifted("192.168.1.4", Some("192.168.1.4")));
+        // 探测失败(瞬时断网/无私网出口)≠ 变更:不停活桥
+        assert!(!lan_drifted("192.168.1.4", None));
+        // 拿到不同的具体私网 IP:重启刷新
+        assert!(lan_drifted("192.168.1.4", Some("192.168.1.7")));
+    }
 }

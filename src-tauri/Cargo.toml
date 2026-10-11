@@ -45,10 +45,10 @@ tauri-plugin-shell = { version = "2", default-features = false }
 trash = "5"
 # SSH 引擎(russh 0.63 系;0.63 起 MSRV 1.85,本仓 rust-version 随之抬到 1.85):
 # russh 客户端(连接/认证/KBI/通道)+ russh-sftp(SFTP subsystem)。
-russh = "0.63.3"
+russh = "0.64.1"
 # russh/转发/IO 泵直接使用 tokio 原语(mpsc/watch/Semaphore/Tcp/JoinSet);tauri 已传递引入,这里显式声明所需 feature。
 tokio = { version = "1", features = ["rt", "sync", "time", "net", "io-util", "fs", "macros"] }
-russh-sftp = "2.3"
+russh-sftp = "3.0"
 # known_hosts 指纹 SHA256 展示。
 sha2 = "0.10"
 # Web 远程访问桥:LAN HTTP/WS 服务(见 web/ 模块);ws feature 供 /ws 命令桥。
@@ -59,7 +59,7 @@ rand = "0.10"
 uuid = { version = "1", features = ["v4"] }
 futures-util = { version = "0.3", features = ["sink"] }
 # 外网中继:桌面出站拨号自有 relay(Cloudflare Worker / 自建)用的 WSS 客户端。
-tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.30", features = ["rustls-tls-webpki-roots"] }
 # relay 出站 WSS:rustls 树同时含 aws-lc-rs(reqwest 启用)与 ring,provider 自动探测遇歧义 panic;
 # 拨号前显式装与 reqwest 一致的 aws-lc-rs(见 relay_agent::dial_agent)。
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "std"] }
@@ -73,7 +73,7 @@ rcgen = { version = "=0.14.10", default-features = false, features = ["aws_lc_rs
 tauri-plugin-notification = "2"
 # skill-hub 插件的包解压(纯 Rust;default-features 全关,仅开 deflate 所需
 # 最小 feature —— ClawHub/GitHub 式 zip 均 deflate 压缩,bzip2/zstd 等全家桶不要)。
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "4", default-features = false, features = ["deflate"] }
 
 # checkpoints 账本跨实例 flock(unix;libc 已在传递依赖树,显式直用)。
 [target.'cfg(unix)'.dependencies]

@@ -145,7 +145,7 @@ async fn misc_dispatch(app: &AppHandle, cmd: &str, raw: Value) -> Result<Value, 
             let a = args::<OneSpec<crate::proc_run::ProcRunSpec>>(&raw)?;
             ser(crate::commands_fs::proc_communicate(a.spec).await)
         }
-        "web_access_status" => val(crate::web::web_access::web_access_status(app.clone())),
+        "web_access_status" => val(crate::web::web_access::web_access_status(app.clone()).await),
         "remote_control_active" => val(crate::web::web_access::remote_control_active()),
         /* web_access_start/stop 桌面面控,不镜像(web 表面自己就是被控方);
         app_restart 桌面专属,同理由缺席。 */
