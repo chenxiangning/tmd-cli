@@ -124,6 +124,8 @@
  * 集恒定,卸载零发生,还原 = 摘类,分栏尺寸逐位复原。
  * 左栏与右栏钉住实测宽度(根 CSS 变量由 useElementWidth 维护):最大化
  * 只吃幕布让出的空间,编辑区在中间区域撑满;左栏可见性与右栏宽度都不动。
+ * 遮盖统一:激活会话(activeSessionChanged 事件,AppShell 装配守卫)即还原,
+ * 「切会话 = 看会话」;入口覆盖见 app-shell/editorMaximized.ts 头注。
  * 配套:三条竖 handle 保持可见(栏边界线唯一来源是 handle 细线,隐藏则
  * 编辑区两侧无界线);最大化下可拖 —— Separator disabled 拦住库拖拽,由
  * AppShell 手动双通道驱动(var 直写 + panelRef.resize,还原后尺寸保留)。

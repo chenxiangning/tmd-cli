@@ -24,7 +24,7 @@ import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
 import { ExitSessionToast } from "./ExitSessionToast";
 import { SettingsPersistToast } from "./SettingsPersistToast";
-import { useEditorMaximized } from "./editorMaximized";
+import { useEditorMaximized, installEditorMaximizedActivationGuard } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 import { usePersistedToggle, useScrollbarProbe } from "./shellHooks";
@@ -73,6 +73,8 @@ export function AppShell() {
 
   /* 全局快捷键分发器:挂载期安装一次,卸载退订;命令本体在 ./shortcutCommands 模块级注册。 */
   useEffect(() => installShortcutDispatcher(), []);
+  /* 激活会话即还原最大化(遮盖统一,见 editorMaximized):装配期订阅一次。 */
+  useEffect(() => installEditorMaximizedActivationGuard(), []);
   /* 栏折叠是组件局部状态:经 ref 桥喂给模块级命令(同 TerminalView 的 findRequestRef)。 */
   useEffect(() => {
     shellBarToggles.left = toggleLeft;

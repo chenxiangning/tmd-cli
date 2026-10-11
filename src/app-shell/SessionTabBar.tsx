@@ -29,7 +29,7 @@ import { t } from "@kernel/i18n";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { useSettingsState } from "@kernel/settings";
 import { shellLeftEnsureOpen } from "./shortcutCommands";
-import { toggleEditorMaximized, useEditorMaximized } from "./editorMaximized";
+import { restoreEditorMaximized } from "./editorMaximized";
 import { hoverTitle, resolveTabTitle } from "./sessionTabTitles";
 import { TabContextMenu } from "./TabContextMenu";
 
@@ -55,8 +55,6 @@ function SessionTab({
   onOpenMenu: (e: React.MouseEvent) => void;
 }) {
   const { settings } = useSettingsState(); /* 手动命名覆盖层 */
-  /* 最大化态点会话 tab 要先还原幕布(见下方 onClick),此处订阅开关。 */
-  const maximized = useEditorMaximized();
   /* 竞态防御:sessionsChanged 广播前先卸载消失 tab。 */
   const meta = host.getSessions().find((s) => s.id === id);
   if (!meta) return null;
@@ -92,9 +90,9 @@ function SessionTab({
             className="session-tab-switch"
             title={hoverTitle(tabState, title)}
             onClick={() => {
-              /* 最大化时幕布被编辑区盖住,点会话 tab = 看会话,先还原再切换;
-                 非最大化态保持原行为。编辑区 tab 不受影响(最大化下照常互切)。 */
-              if (maximized) toggleEditorMaximized();
+              /* 最大化时幕布被编辑区盖住,点会话 tab = 看会话:setActiveSession
+                 同 id 早退不发事件,这里显式还原(异 id 路径归激活守卫,同语义)。 */
+              restoreEditorMaximized();
               host.setActiveSession(id);
             }}
           >
