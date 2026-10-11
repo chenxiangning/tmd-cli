@@ -4,6 +4,7 @@
  */
 
 import { t } from "@kernel/i18n";
+import type { CSSProperties } from "react";
 import { timelineModel } from "../calendarTimeline";
 import { toneVar } from "../tone";
 import { WbEmpty } from "../ui";
@@ -16,7 +17,7 @@ export function TimelineScreen({ projects, today, onOpen }: WbScreenProps) {
     <div className="wb-timeline">
       {model.padded ? <p className="wb-muted wb-tl-pad-hint">{t("项目跨度过长,只显示前 210 天。")}</p> : null}
       <div className="wb-tl-scroll">
-        <div className="wb-tl-inner" style={{ minWidth: `${Math.max(model.totalDays * 14, 480)}px` }}>
+        <div className="wb-tl-inner" style={{ minWidth: `${Math.max(model.totalDays * 14, 480)}px`, "--wb-today": `${model.todayPercent}%` } as CSSProperties}>
           <div className="wb-tl-scale">
             {model.ticks.map((tick) => (
               <span key={tick.index} className="wb-tl-tick" style={{ left: `${tick.percent}%` }}>{tick.label}</span>

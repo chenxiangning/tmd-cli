@@ -1,5 +1,5 @@
 /**
- * 工作台 · 任务 prompt 与状态映射(纯数据,自 TaskDetailDialog.tsx 拆出守
+ * 工作台 · 任务 prompt 与状态映射(纯数据,自 TaskDetailView.tsx 拆出守
  * only-export-components)。taskPrompt = 开新会话时复制到剪贴板的任务上下文
  * + AI 回写约定(指向 AI-TASKS.md 文件规则)。
  */

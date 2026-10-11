@@ -1,5 +1,6 @@
 /**
- * 工作台 · 任务详情弹层(参考禅道任务详情,单栏自适应布局):
+ * 工作台 · 任务详情内嵌视图(参考禅道任务详情;与文档编辑器同款
+ * 「返回列表」两态,不再是弹层):
  * 描述(markdown 纯文本可编辑)+ 附件(上传/预览/删除)+ 关联会话
  * (开新会话/关联项目 cwd 最近会话/打开/解除)+ 右侧基本信息与状态切换。
  * 会话 link-only:host=活会话聚焦(失败兜底磁盘恢复),disk=磁盘恢复。
@@ -7,11 +8,10 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { t } from "@kernel/i18n";
-import { ChatCircle, Plus, X } from "@phosphor-icons/react";
+import { ArrowLeft, CalendarBlank, ChatCircle, Flag, Folder, FolderOpen, Plus, User, X } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
-import { DialogShell } from "@kernel/DialogShell";
 import { TASK_STATUS_LABELS } from "./kindLabels";
 import {
   attachTaskFile, detachTaskFile, linkTaskSession, unlinkTaskSession, updateTask, bindTaskSessionDiskId,
@@ -27,7 +27,7 @@ import { taskPrompt } from "./taskPrompt";
 import { runIpc } from "./ipcToast";
 import { openLink } from "./sessionOpen";
 
-export function TaskDetailDialog({
+export function TaskDetailView({
   project, task, onClose, onToast,
 }: {
   project: Project;
@@ -35,7 +35,7 @@ export function TaskDetailDialog({
   onClose: () => void;
   onToast: (message: string) => void;
 }) {
-  /* task 来自快照,弹层内编辑基于本地 draft(保存走 store,onChange 后父级换新快照)。 */
+  /* task 来自快照,视图内编辑基于本地 draft(保存走 store,父级换新快照)。 */
   const [description, setDescription] = useState(task.description ?? "");
   const [dirty, setDirty] = useState(false);
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
@@ -129,18 +129,14 @@ export function TaskDetailDialog({
   };
 
   return (
-    <DialogShell
-      title={task.title}
-      icon={null}
-      width={860}
-      cardClass="wb-task-shell"
-      onClose={onClose}
-      footer={
-        <div className="flex justify-end">
-          <button type="button" className="wb-btn" onClick={onClose}>{t("关闭")}</button>
-        </div>
-      }
-    >
+    <div className="wb-taskdetail-page">
+      <div className="wb-taskdetail-head">
+        <button type="button" className="wb-btn" onClick={onClose}>
+          <ArrowLeft size={12} />{t("返回列表")}
+        </button>
+        <WbBadge tone={task.status === "done" ? "ok" : task.status === "doing" ? "info" : "muted"}>{t(TASK_STATUS_LABELS[task.status])}</WbBadge>
+        <h3 className="wb-taskdetail-title">{task.title}</h3>
+      </div>
       <div className="wb-taskdetail">
         <div className="wb-taskdetail-main">
           <section className="wb-taskdetail-sec">
@@ -208,21 +204,20 @@ export function TaskDetailDialog({
         </div>
         <aside className="wb-taskdetail-side">
           <h4>{t("基本信息")}</h4>
-          <WbBadge tone={task.status === "done" ? "ok" : task.status === "doing" ? "info" : "muted"}>{t(TASK_STATUS_LABELS[task.status])}</WbBadge>
           <label className="wb-field">
             <span>{t("状态")}</span>
             <select value={task.status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
               {TASK_STATUSES.map((status) => <option key={status} value={status}>{t(TASK_STATUS_LABELS[status])}</option>)}
             </select>
           </label>
-          <div className="wb-info-row"><span className="wb-info-label">{t("负责人")}</span><span className="wb-info-value">{task.owner || "—"}</span></div>
-          <div className="wb-info-row"><span className="wb-info-label">{t("开始")}</span><span className="wb-info-value">{task.startedOn ?? "—"}</span></div>
-          <div className="wb-info-row"><span className="wb-info-label">{t("截止")}</span><span className="wb-info-value">{task.dueDate ?? "—"}</span></div>
-          <div className="wb-info-row"><span className="wb-info-label">{t("所属项目")}</span><span className="wb-info-value">{project.name}</span></div>
-          <div className="wb-info-row"><span className="wb-info-label">{t("绑定目录")}</span><span className="wb-info-value" title={project.cwd ?? ""}>{project.cwd ?? t("未绑定")}</span></div>
+          <div className="wb-info-row"><span className="wb-info-label"><User size={12} />{t("负责人")}</span><span className="wb-info-value">{task.owner || "—"}</span></div>
+          <div className="wb-info-row"><span className="wb-info-label"><CalendarBlank size={12} />{t("开始")}</span><span className="wb-info-value">{task.startedOn ?? "—"}</span></div>
+          <div className="wb-info-row"><span className="wb-info-label"><Flag size={12} />{t("截止")}</span><span className="wb-info-value">{task.dueDate ?? "—"}</span></div>
+          <div className="wb-info-row"><span className="wb-info-label"><Folder size={12} />{t("所属项目")}</span><span className="wb-info-value">{project.name}</span></div>
+          <div className="wb-info-row"><span className="wb-info-label"><FolderOpen size={12} />{t("绑定目录")}</span><span className="wb-info-value" title={project.cwd ?? ""}>{project.cwd ?? t("未绑定")}</span></div>
         </aside>
       </div>
       {preview ? <WbImgView name={preview.name} url={preview.url} onClose={() => setPreview(null)} /> : null}
-    </DialogShell>
+    </div>
   );
 }

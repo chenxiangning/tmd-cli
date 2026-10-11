@@ -5,17 +5,6 @@
  * → 抽屉/弹层/表单/问答/提示。
  */
 
-/* 任务详情弹层:内容自适应高(上限 86vh,正文滚动),宽 880 双栏;
- * 超高视口上下居中(flex 子项 margin auto),页脚常驻。 */
-.wb-task-shell {
-  width: min(880px, 94vw) !important;
-  max-height: 86vh;
-  margin-block: auto !important;
-  display: flex;
-  flex-direction: column;
-}
-.wb-task-shell .wb-taskdetail { flex: 1; min-height: 0; overflow: auto; }
-
 /* 关联会话行状态徽:运行中点亮,已完成静默。 */
 .wb-session-live { color: var(--tmd-accent, var(--tmd-fg)); font-weight: 600; }
 
@@ -49,9 +38,9 @@
 
 /* ── 页签 ── */
 .wb-tabs { display: flex; gap: 2px; padding: 6px 14px 0; border-bottom: 1px solid var(--tmd-border); }
-.wb-tab { border: none; background: none; color: var(--tmd-fg-muted); cursor: pointer; font: inherit; font-size: var(--tmd-font-ui); padding: 6px 12px; border-bottom: 2px solid transparent; }
-.wb-tab:hover { color: var(--tmd-fg); }
-.wb-tab.is-active { color: var(--tmd-accent); border-bottom-color: var(--tmd-accent); }
+.wb-tab { border: none; background: none; color: var(--tmd-fg-muted); cursor: pointer; font: inherit; font-size: var(--tmd-font-ui); padding: 6px 12px; border-bottom: 2px solid transparent; border-radius: var(--tmd-radius-sm) var(--tmd-radius-sm) 0 0; transition: background .12s ease, color .12s ease; }
+.wb-tab:hover { color: var(--tmd-fg); background: var(--tmd-bg-hover); }
+.wb-tab.is-active { color: var(--tmd-accent); border-bottom-color: var(--tmd-accent); font-weight: 600; }
 .wb-main > div:not(.wb-tabs), .wb-main > section { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; }
 
 /* ── 通用件 ── */
@@ -159,4 +148,35 @@
 .wb-progress-row { display: flex; align-items: center; gap: 6px; }
 .wb-progress-row .wb-progress { flex: 1; }
 .wb-progress-n { font-variant-numeric: tabular-nums; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); }
+
+/* ── 待跟进(分桶清单) ── */
+.wb-followups { display: flex; flex-direction: column; gap: 16px; }
+.wb-bucket { display: flex; flex-direction: column; gap: 6px; }
+.wb-bucket-head { display: flex; align-items: baseline; gap: 6px; margin: 0; font-weight: 600; }
+.wb-bucket-head b { font-size: var(--tmd-font-xs); }
+.wb-bucket-head span { color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
+.wb-bucket > .wb-muted { margin: 0; }
+.wb-bucket-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 7px 10px; transition: background .12s ease, border-color .12s ease; }
+.wb-bucket-row:hover { background: var(--tmd-bg-hover); border-color: var(--tmd-border-strong); }
+.wb-bucket-check { display: flex; align-items: center; flex: none; }
+.wb-bucket-check input { margin: 0; cursor: pointer; accent-color: var(--tmd-accent); }
+.wb-bucket-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.wb-bucket-title { font-size: var(--tmd-font-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-bucket-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
+
+/* ── 时间线(甘特):名称为定宽左列,刻度/轨道同一坐标系,--wb-today 贯通每行轨道 ── */
+.wb-timeline { display: flex; flex-direction: column; gap: 8px; }
+.wb-tl-pad-hint { margin: 0; }
+.wb-tl-scroll { flex: 1; min-height: 0; overflow: auto; }
+.wb-tl-inner { --wb-tl-name: 150px; --wb-tl-gap: 10px; display: flex; flex-direction: column; gap: 3px; padding-bottom: 8px; }
+.wb-tl-scale { position: relative; height: 18px; margin-left: calc(var(--wb-tl-name) + var(--wb-tl-gap)); border-bottom: 1px solid var(--tmd-border); }
+.wb-tl-tick { position: absolute; top: 2px; transform: translateX(-50%); color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wb-tl-tick::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 4px; background: var(--tmd-border); }
+.wb-tl-today { position: absolute; top: 0; height: 6px; width: 0; border-left: 2px solid var(--tmd-warn); }
+.wb-tl-row { display: flex; align-items: center; gap: var(--wb-tl-gap); }
+.wb-tl-name { width: var(--wb-tl-name); flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: var(--tmd-font-xs); }
+.wb-tl-track { position: relative; flex: 1; height: 20px; border-radius: 4px; background: color-mix(in srgb, var(--tmd-fg-faint) 8%, transparent); }
+.wb-tl-track::before { content: ""; position: absolute; top: 0; bottom: 0; left: var(--wb-today, -100%); width: 0; border-left: 1px dashed var(--tmd-warn); opacity: .6; pointer-events: none; }
+.wb-tl-bar { position: absolute; top: 4px; bottom: 4px; border: none; border-radius: 3px; cursor: pointer; opacity: .85; transition: opacity .12s ease, filter .12s ease; }
+.wb-tl-bar:hover { opacity: 1; filter: brightness(1.15); }
 

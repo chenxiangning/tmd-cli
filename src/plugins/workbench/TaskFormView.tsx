@@ -1,11 +1,11 @@
 /**
- * 工作台 · 任务表单弹窗(新建/编辑共用):项目/名称/负责人/起止/描述。
- * 新建走 addTask(init),编辑走 updateTask(patch)。
+ * 工作台 · 任务表单内嵌视图(新建/编辑共用;「返回列表」两态,不再是弹窗):
+ * 项目/名称/负责人/起止/描述。新建走 addTask(init),编辑走 updateTask(patch)。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
-import { DialogActions, DialogShell } from "@kernel/DialogShell";
+import { ArrowLeft, CalendarBlank, FloppyDisk, Notebook, User } from "@phosphor-icons/react";
 import { todayISO } from "./analysis";
 import { addTask, updateTask } from "./store";
 import type { Project, ProjectTask } from "./types";
@@ -19,7 +19,7 @@ export interface TaskFormValues {
   description: string;
 }
 
-export function TaskFormModal({
+export function TaskFormView({
   projects, project, task, onClose, onToast, onDone,
 }: {
   /** 可选项目集(覆盖层全量);缺省 = 单项目语境。 */
@@ -62,14 +62,18 @@ export function TaskFormModal({
   };
 
   return (
-    <DialogShell
-      title={task ? t("编辑任务") : t("建任务")}
-      icon={null}
-      width={520}
-      locked={busy}
-      onClose={onClose}
-      footer={<DialogActions confirmLabel={busy ? t("保存中…") : t("保存")} submitting={busy} onConfirm={submit} onCancel={onClose} />}
-    >
+    <div className="wb-taskform">
+      <div className="wb-taskdetail-head">
+        <button type="button" className="wb-btn" onClick={onClose} disabled={busy}>
+          <ArrowLeft size={12} />{t("返回列表")}
+        </button>
+        <h3 className="wb-taskdetail-title">{task ? t("编辑任务") : t("建任务")}</h3>
+        <span className="wb-taskform-actions">
+          <button type="button" className="wb-btn wb-btn-primary" onClick={submit} disabled={busy}>
+            <FloppyDisk size={12} />{busy ? t("保存中…") : t("保存")}
+          </button>
+        </span>
+      </div>
       <div className="wb-form-grid">
         {projects && projects.length > 1 && !task ? (
           <label className="wb-field wb-span2">
@@ -89,11 +93,11 @@ export function TaskFormModal({
           />
         </label>
         <label className="wb-field">
-          <span>{t("负责人")}</span>
+          <span><User size={12} />{t("负责人")}</span>
           <input value={owner} onChange={(e) => setOwner(e.target.value)} />
         </label>
         <div className="wb-field">
-          <span>{t("日程规划")}</span>
+          <span><CalendarBlank size={12} />{t("日程规划")}</span>
           <span className="wb-datepair">
             <input type="date" value={startedOn} onChange={(e) => setStartedOn(e.target.value)} aria-label={t("开始")} />
             <span className="wb-datepair-sep">→</span>
@@ -101,11 +105,11 @@ export function TaskFormModal({
           </span>
         </div>
         <label className="wb-field wb-span2">
-          <span>{t("任务描述")}</span>
-          <textarea rows={4} value={description} placeholder={t("任务目标、验收标准、相关链接…")} onChange={(e) => setDescription(e.target.value)} />
+          <span><Notebook size={12} />{t("任务描述")}</span>
+          <textarea rows={5} value={description} placeholder={t("任务目标、验收标准、相关链接…")} onChange={(e) => setDescription(e.target.value)} />
         </label>
       </div>
       {error ? <p className="wb-form-error">{error}</p> : null}
-    </DialogShell>
+    </div>
   );
 }

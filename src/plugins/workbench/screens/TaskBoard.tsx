@@ -1,6 +1,6 @@
 /**
  * 工作台 · 任务看板(2026-10-10 三轮口径:看板以任务为主,项目状态列并入
- * 模块看板):待办/进行中/已完成 三列任务卡,就地推进,点击开任务详情弹层
+ * 模块看板):待办/进行中/已完成 三列任务卡,就地推进,点击进任务详情内嵌视图
  * (描述/附件/关联会话;会话打开即收工作台覆盖层落回侧栏,交互闭环)。
  */
 
@@ -10,8 +10,8 @@ import { TASK_STATUS_LABELS } from "../kindLabels";
 import { updateTask } from "../store";
 import { TASK_STATUSES, type Project, type ProjectTask, type TaskStatus } from "../types";
 import { taskStatusTone } from "../taskPrompt";
-import { TaskDetailDialog } from "../TaskDetailDialog";
-import { TaskFormModal } from "../TaskFormModal";
+import { TaskDetailView } from "../TaskDetailView";
+import { TaskFormView } from "../TaskFormView";
 import { BoardHead, type WbScreenProps } from "./cards";
 import { WbEmpty } from "../ui";
 
@@ -67,6 +67,34 @@ export function TaskBoardScreen({ projects, today, onNewProject, onToast }: WbSc
   const total = projects.reduce((sum, project) => sum + project.tasks.length, 0);
   const detailProject = detail === null ? null : projects.find((project) => project.id === detail.projectId) ?? null;
   const detailTask = detailProject?.tasks.find((task) => task.id === detail?.taskId) ?? null;
+  /* 详情态整页替换看板(内嵌视图,「返回列表」回落看板)。 */
+  if (detailProject && detailTask) {
+    return (
+      <div className="wb-board">
+        <TaskDetailView
+          key={detailTask.id}
+          project={detailProject}
+          task={detailTask}
+          onClose={() => setDetail(null)}
+          onToast={onToast}
+        />
+      </div>
+    );
+  }
+  /* 表单态整页替换看板(内嵌,「返回列表」回落)。 */
+  if (formOpen) {
+    return (
+      <div className="wb-board">
+        <TaskFormView
+          project={projects[0]}
+          projects={projects}
+          task={null}
+          onClose={() => setFormOpen(false)}
+          onToast={onToast}
+        />
+      </div>
+    );
+  }
   const advance = (row: TaskRow) => {
     const status: TaskStatus = row.task.status === "todo" ? "doing" : "done";
     void updateTask(row.project.id, row.task.id, { status }).then(
@@ -107,24 +135,6 @@ export function TaskBoardScreen({ projects, today, onNewProject, onToast }: WbSc
         </div>
       )}
       <p className="wb-muted">{t("状态可手动推进;关联会话运行中会自动推进为进行中,也可由 AI 按 AI-TASKS.md 规则回写(顶栏「从磁盘同步」刷新)。")}</p>
-      {detailProject && detailTask ? (
-        <TaskDetailDialog
-          key={detailTask.id}
-          project={detailProject}
-          task={detailTask}
-          onClose={() => setDetail(null)}
-          onToast={onToast}
-        />
-      ) : null}
-      {formOpen ? (
-        <TaskFormModal
-          project={projects[0]}
-          projects={projects}
-          task={null}
-          onClose={() => setFormOpen(false)}
-          onToast={onToast}
-        />
-      ) : null}
     </div>
   );
 }

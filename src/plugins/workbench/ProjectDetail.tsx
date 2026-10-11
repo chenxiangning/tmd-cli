@@ -21,11 +21,10 @@ import { DrawerDocsTab } from "./DrawerDocsTab";
 import { updateProject } from "./store";
 import { updateTab } from "@kernel/tabs";
 import { ProjectFormModal } from "./ProjectFormModal";
-import { TaskFormModal } from "./TaskFormModal";
 import { openLink } from "./sessionOpen";
 import { DocPreviewDialog, type DocRequest } from "./DocPreviewDialog";
 import { docRequests } from "./wbTabs";
-import type { Project } from "./types";
+import type { Project, ProjectTask } from "./types";
 
 type DrawerTab = "info" | "docs" | "tasks" | "updates" | "sessions";
 
@@ -45,7 +44,8 @@ export function ProjectDetail({
 }) {
   const [tab, setTab] = useState<DrawerTab>("info");
   const [docRequest, setDocRequest] = useState<DocRequest | null>(null);
-  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  /* 任务表单状态上提:概要页「建任务」跳任务页签内嵌开单(不再是弹窗)。 */
+  const [taskForm, setTaskForm] = useState<{ open: boolean; task: ProjectTask | null }>({ open: false, task: null });
   const [editOpen, setEditOpen] = useState(false);
   const risk = projectRisk(project);
   const openTasks = project.tasks.filter((task) => task.status !== "done").length;
@@ -79,13 +79,13 @@ export function ProjectDetail({
           <InfoTab
             project={project}
             onEdit={() => setEditOpen(true)}
-            onNewTask={() => setTaskFormOpen(true)}
+            onNewTask={() => { setTab("tasks"); setTaskForm({ open: true, task: null }); }}
             onDoc={setDocRequest}
             onJump={setTab}
           />
         ) : null}
         {tab === "docs" ? <DrawerDocsTab project={project} onToast={onToast} /> : null}
-        {tab === "tasks" ? <DrawerTasksTab project={project} onToast={onToast} /> : null}
+        {tab === "tasks" ? <DrawerTasksTab project={project} form={taskForm} onFormChange={setTaskForm} onToast={onToast} /> : null}
         {tab === "updates" ? <DrawerUpdatesTab project={project} onToast={onToast} /> : null}
         {tab === "sessions" ? <SessionsTab project={project} onToast={onToast} /> : null}
       </div>
@@ -96,14 +96,6 @@ export function ProjectDetail({
           project={project}
           today={todayISO()}
           onClose={() => setDocRequest(null)}
-          onToast={onToast}
-        />
-      ) : null}
-      {taskFormOpen ? (
-        <TaskFormModal
-          project={project}
-          task={null}
-          onClose={() => setTaskFormOpen(false)}
           onToast={onToast}
         />
       ) : null}

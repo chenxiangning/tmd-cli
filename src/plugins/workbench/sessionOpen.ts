@@ -54,7 +54,7 @@ export function openLink(
       return;
     }
     /* 会话已结束:优先用关联时留存的 CLI 磁盘身份 resume(运行期绑定回写,
-     * 见 TaskDetailDialog 的 bindTaskSessionDiskId);无身份(旧关联/未绑定
+     * 见 TaskDetailView 的 bindTaskSessionDiskId);无身份(旧关联/未绑定
      * 即终结)不猜测,提示重关联。 */
     if (link.cliSessionId && project.cwd) {
       void host.openDiskSession(link.profileId, project.cwd, workspaceId, link.cliSessionId).then(

@@ -1,5 +1,5 @@
 /**
- * 工作台 · IPC 动作 toast 胶水(drawerTabs/DrawerDocsTab/TaskDetailDialog 三处
+ * 工作台 · IPC 动作 toast 胶水(drawerTabs/DrawerDocsTab/TaskDetailView 三处
  * 逐字重复收敛至此):成功 toast okMessage,失败 toast 错误消息,恒 void。
  */
 
