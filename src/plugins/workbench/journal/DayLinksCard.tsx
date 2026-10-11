@@ -15,7 +15,7 @@ import { dayProjectLinks, dayTaskLinks } from "./dayLinks";
 import type { DaySessionRow } from "./daySessions";
 
 export function DayLinks({ rows }: { rows: DaySessionRow[] }) {
-  const projects = useSyncExternalStore(subscribeWorkbench, workbenchSnapshot);
+  const projects = useSyncExternalStore(subscribeWorkbench, workbenchSnapshot, workbenchSnapshot); /* 第三参 = 静态渲染快照 */
   const { list } = useWorkspaces();
   /* 文章 tab 可先于工作台本页打开:确保 index 已加载,否则项目恒空假「无关联」。 */
   useEffect(() => {

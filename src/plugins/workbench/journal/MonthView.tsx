@@ -9,6 +9,9 @@ import { PencilSimpleLine } from "@phosphor-icons/react";
 import { stringHue } from "@kernel/colorHash";
 import type { DaySessionRow } from "./daySessions";
 import { isRowSummarized } from "./daySessions";
+import { openProjectTab } from "../wbTabs";
+import type { CalendarItem } from "../calendarTimeline";
+import { toneVar } from "../tone";
 import type { MonthSnapshot } from "./journalStore";
 import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, type DayStatus, type HeatThresholds } from "./journalStore";
 import { pad2 } from "./journalFiles";
@@ -31,6 +34,8 @@ interface DayCellProps {
   rows: DaySessionRow[];
   isToday: boolean;
   ts: HeatThresholds;
+  /** 当日日历叠层(空数组 = 无条目,不渲染行)。 */
+  cal: CalendarItem[];
 }
 
 /** 格 className(纯函数:今日/周末;热力与状态色改由正文 pill 承载,格底保持白净)。 */
@@ -75,7 +80,30 @@ function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: D
   );
 }
 
-function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
+/** 日历叠层条目:真 button,渲染在交互日格之外(cellwrap 直下兄弟位 ——
+ * 日格自身是 role=button 键盘单元,内嵌 focusable 构成嵌套交互件);
+ * 点条目开项目详情;超 2 条溢出 +N(title 看 label)。 */
+function DueStrip({ cal }: { cal: CalendarItem[] }) {
+  if (cal.length === 0) return null;
+  return (
+    <div className="dj-cell-due">
+      {cal.slice(0, 2).map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className="dj-cell-due-item"
+          style={{ color: toneVar(item.tone) }}
+          title={`${item.title}(${item.label})`}
+          onClick={() => openProjectTab(item.projectId, item.projectName ?? item.title)}
+        >
+          {item.title}
+        </button>
+      ))}
+      {cal.length > 2 && <span className="dj-cell-due-more">+{cal.length - 2}</span>}
+    </div>
+  );
+}
+function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, cal, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
   const st = deriveDayStatus(article, isToday, rows.length, meta);
   /* 调休上班日(off:false)不画周末底纹(与年视图/月条同律) */
   const we = [0, 6].includes(new Date(y, m - 1, d).getDay()) && !isWorkdayOverride(y, m, d);
@@ -143,6 +171,7 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
         ))}
       </div>
     </div>
+    <DueStrip cal={cal} />
     {canGen && (
       <div className="dj-genbtn">
         <button type="button" className={`dj-btn ${confirming ? "dj-btn-confirm" : "dj-btn-primary"}`} onClick={quickGen}>
@@ -154,16 +183,20 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, onToast }: D
   );
 }
 
+export type MonthViewCalItem = CalendarItem;
+
 export interface MonthViewProps {
   ym: { y: number; m: number };
   snap: MonthSnapshot;
   sessions: Map<string, DaySessionRow[]>;
   today: string;
+  /** 工作台日历叠层(项目 DDL/未完任务,iso 日 → 条目;2026-10-11 并入)。 */
+  calItems?: Map<string, CalendarItem[]>;
   /** 跨月补位格点击跳月(常见日历可供性;缺省无回调则维持纯展示)。 */
   onShiftMonth?: (delta: number) => void;
 }
 
-export function MonthView({ ym, snap, sessions, today, onShiftMonth }: MonthViewProps) {
+export function MonthView({ ym, snap, sessions, today, calItems, onShiftMonth }: MonthViewProps) {
   useHolidays(); /* 数据就位即重渲染(holOf 读快照) */
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -225,6 +258,7 @@ export function MonthView({ ym, snap, sessions, today, onShiftMonth }: MonthView
         rows={sessions.get(key) ?? []}
         isToday={key === today}
         ts={ts}
+        cal={calItems?.get(key) ?? []}
         onToast={showToast}
       />,
     );

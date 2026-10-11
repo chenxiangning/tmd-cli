@@ -1,6 +1,6 @@
 /**
  * 工作台本页中央 tab(kind "wb.console",activate 期注册)。
- * 结构:顶栏(标题 + 问一句 + OverlayActions)→ 页签 + 七视图;
+ * 结构:顶栏(标题 + 问一句 + OverlayActions)→ 页签 + 六视图(2026-10-11 日历并入工作日志月视图);
  * 详情弹层/表单/清空确认走 DialogShell 骨架。弹层自收,本组件不处理 Esc。
  */
 

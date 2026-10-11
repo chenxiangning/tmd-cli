@@ -79,6 +79,10 @@
 .dj-stat.dj-faint { background: transparent; color: var(--tmd-fg-faint); font-weight: 400; padding: 2px 0; }
 .dj-notepeek { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: var(--tmd-font-2xs); font-weight: 500; color: var(--dj-st-note); line-height: 1.4; background: color-mix(in srgb, var(--dj-st-note) 8%, transparent); border: 1px solid color-mix(in srgb, var(--dj-st-note) 30%, transparent); border-radius: var(--tmd-radius-xs); padding: 1px 6px; }
 .dj-notepeek-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dj-cell-due { display: flex; flex-direction: column; gap: 2px; padding: 0 6px 4px; min-width: 0; flex: none; background: var(--tmd-bg-base); position: relative; z-index: 3; } /* 同格白底防网格线透出;z3 抬过 hover 生成遮罩(genbtn z2),条目常可点 */
+.dj-cell-due-item { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; font-size: var(--tmd-font-2xs); line-height: 1.5; font-weight: 600; cursor: pointer; background: none; border: none; padding: 0; }
+.dj-cell-due-item:hover { text-decoration: underline; }
+.dj-cell-due-more { color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); }
 .dj-cell-engs { margin-top: auto; display: flex; align-items: center; gap: 4px; }
 .dj-engdot { width: 5px; height: 5px; border-radius: 50%; }
 .dj-engmark { display: inline-flex; align-items: center; flex: none; }

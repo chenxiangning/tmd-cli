@@ -1,18 +1,21 @@
 /**
  * 每日日志主视图 —— 工具栏(年/月/轴 seg + 月导航 + 状态 pill)+ 视图路由
  * (原型 docs/design/daily-journal-n4-merged.html;轴视图自右栏面板收编,
- *  2026-10-11 合并进工作台后由「日志」页签托管)。
+ *  2026-10-11 合并进工作台后由「工作日志」页签托管)。
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { CaretLeft, CaretRight, GearSix, ListChecks } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, useJournalState } from "./journalStore";
+import { ensureWorkbenchLoaded, subscribeWorkbench, workbenchSnapshot } from "../store";
+import { calendarMonth } from "../calendarTimeline";
+import { pad2 } from "./journalFiles";
 import { useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
 import type { MonthSnapshot } from "./journalStore";
-import { MonthView } from "./MonthView";
+import { MonthView, type MonthViewCalItem } from "./MonthView";
 import { FlowView } from "./FlowView";
 import { TaskPanel } from "./TaskPanel";
 import { GenSettings } from "./GenSettings";
@@ -96,6 +99,7 @@ function JournalStage({
   ym,
   snap,
   today,
+  calItems,
   openMonth,
   onShiftMonth,
 }: {
@@ -105,6 +109,7 @@ function JournalStage({
   ym: { y: number; m: number };
   snap: MonthSnapshot | undefined;
   today: string;
+  calItems?: Map<string, MonthViewCalItem[]>;
   openMonth: (m: number) => void;
   onShiftMonth: (delta: number) => void;
 }) {
@@ -122,7 +127,7 @@ function JournalStage({
   if (view === "y") return <YearView y={ym.y} sessions={sessions} today={today} onOpenMonth={openMonth} />;
   if (!snap) return <div className="dj-empty"><span className="dj-load"><Spinner /> {t("正在读取日志…")}</span></div>;
   if (view === "f") return <FlowView ym={ym} snap={snap} sessions={sessions} today={today} />;
-  return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} onShiftMonth={onShiftMonth} />;
+  return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} calItems={calItems} onShiftMonth={onShiftMonth} />;
 }
 
 /* view/ym 持久化(localStorage):重开 tab 不再恒回当月月视图;「今天」按钮
@@ -175,6 +180,20 @@ export function JournalTab() {
   );
   const state = useJournalState();
   const { days: sessions, progress } = useDaySessions(workspaces, refreshTick);
+  /* 工作台日历叠层(2026-10-11 并入):月视图日格叠项目 DDL/未完任务;
+   * 复用 calendarMonth 单一真相源(旧「日历」页签退役)。 */
+  const projects = useSyncExternalStore(subscribeWorkbench, workbenchSnapshot, workbenchSnapshot); /* 第三参 = 静态渲染快照 */
+  useEffect(() => {
+    void ensureWorkbenchLoaded();
+  }, []);
+  const calItems = useMemo(() => {
+    if (projects.length === 0) return undefined;
+    const map = new Map<string, MonthViewCalItem[]>();
+    for (const cell of calendarMonth(projects, todayKey(), `${ym.y}-${pad2(ym.m)}`).cells) {
+      if (cell.inMonth && cell.items.length > 0) map.set(cell.iso, cell.items);
+    }
+    return map;
+  }, [projects, ym]);
   useEffect(() => {
     void loadMonth(ym.y, ym.m);
     void ensureHolidays(ym.y); /* 跨年导航即拉当年(24h 窗内零请求) */
@@ -272,7 +291,7 @@ export function JournalTab() {
       {panel === "tasks" && <TaskPanel onClose={() => setPanel(null)} />}
       {panel === "cfg" && <GenSettings onClose={() => setPanel(null)} />}
       <div className="dj-stage">
-        <JournalStage view={view} sessions={sessions} progress={progress} ym={ym} snap={snap} today={today} openMonth={openMonth} onShiftMonth={nav} />
+        <JournalStage view={view} sessions={sessions} progress={progress} ym={ym} snap={snap} today={today} calItems={calItems} openMonth={openMonth} onShiftMonth={nav} />
       </div>
     </div>
   );

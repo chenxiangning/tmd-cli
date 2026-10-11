@@ -7,7 +7,7 @@ import { t } from "@kernel/i18n";
 import { openTab } from "@kernel/tabs";
 import { docKinds } from "./prompt";
 
-export type WbTab = "overview" | "board" | "list" | "calendar" | "timeline" | "followups" | "journal";
+export type WbTab = "overview" | "board" | "list" | "timeline" | "followups" | "journal";
 
 /** 工作台本页中央 tab。 */
 export const WB_CONSOLE_TAB_KIND = "wb.console";
@@ -50,8 +50,7 @@ export const WB_TAB_ITEMS: readonly { key: WbTab; label: string }[] = [
   { key: "overview", label: "概览" },
   { key: "board", label: "任务看板" },
   { key: "list", label: "项目列表" },
-  { key: "calendar", label: "日历" },
   { key: "timeline", label: "时间线" },
   { key: "followups", label: "待跟进" },
-  { key: "journal", label: "日志" },
+  { key: "journal", label: "工作日志" },
 ];

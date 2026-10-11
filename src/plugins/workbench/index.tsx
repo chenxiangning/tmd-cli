@@ -4,7 +4,7 @@
  * 日历 + AI 汇总文章 + 便签 + 后台生成;2026-10-11 自独立插件并入)。
  *
  * 注册点:
- * - 中央 tab:本页(wb.console,页签含「日志」)+ 项目详情(wb.project);
+ * - 中央 tab:本页(wb.console,页签含「工作日志」)+ 项目详情(wb.project);
  * - 左缘 LeftRail 第一位入口(2026-10-10 用户口径:rail 重排为
  *   工作台 → 回到首页 → 插件市场 → 会话看板 → 切换工作区)。
  * 数据自持:`~/.tmd-cli/workbench/` 与 `~/.tmd-cli/daily/`(journal 子域,

@@ -6,7 +6,6 @@ import type { ComponentType } from "react";
 import { OverviewScreen } from "./screens/Overview";
 import { TaskBoardScreen } from "./screens/TaskBoard";
 import { ListScreen } from "./screens/ListScreen";
-import { CalendarScreen } from "./screens/CalendarScreen";
 import { TimelineScreen } from "./screens/TimelineScreen";
 import { JournalTab } from "./journal/JournalTab";
 import { FollowupsScreen } from "./screens/Followups";
@@ -17,7 +16,6 @@ const SCREENS: Record<WbTab, ComponentType<WbScreenProps>> = {
   overview: OverviewScreen,
   board: TaskBoardScreen,
   list: ListScreen,
-  calendar: CalendarScreen,
   timeline: TimelineScreen,
   followups: FollowupsScreen,
   journal: JournalTab, /* 自足组件(无 screenProps 依赖);视图态经 localStorage 自持 */

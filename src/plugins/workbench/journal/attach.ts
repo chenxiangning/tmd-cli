@@ -1,7 +1,7 @@
 /**
  * 每日日志子域装配 —— 2026-10-11 自独立插件并入工作台(spec:
  * docs/superpowers/specs/2026-10-11-workbench-journal-merge-design.md)。
- * 主视图(年/月/轴)由工作台「日志」页签托管(JournalTab),这里只装:
+ * 主视图(年/月/轴)由工作台「工作日志」页签托管(JournalTab),这里只装:
  * 域 store/调度/节假日/任务持久化 + 每日文章中央 tab(深链)。
  * 原设计:docs/superpowers/specs/2026-09-29-daily-journal-design.md
  */

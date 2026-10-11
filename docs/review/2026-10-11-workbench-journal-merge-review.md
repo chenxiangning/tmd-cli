@@ -62,3 +62,21 @@ P1 门禁:typecheck 0 错 / 全量 3852 测试 / arch-boundary / file-size 全�
 - 1421 桩目检(桩:1 工作区 / claude+omp 当日会话 / 1 项目绑定 cwd / 1 任务挂磁盘链):左 rail「工作台」→ 中央 tab 页签含「日志」;年/月/轴三视图 seg(月缺省、轴持久化恢复);轴视图月条 31 格 + 当日 1 卡;月格点有记录日 → 文章 tab(标题/当日会话 3 行);「当日关联 1 个项目 · 1 个任务」chips(甲项目·3 会话 / 甲任务);点项目 chip → 项目详情中央 tab 打开。截图管线在 headless 桩超时,视觉留真窗口目检。
 - 文档对码:FEATURES.md 能力 Hub 段补合并条目;architecture 01(44 注册 = engine 10 / feature 30 / core 3 / local 1;右缘 rail 去 daily-journal 面板)+ 02(PLUGINS 图 P_DJ 节改 workbench·journal 子域;依赖铁律先例名更新;Note2 右栏 tab 清单注退役)。
 - 真机 tauri:dev 目检留大仙(轴视图宽幅视觉/生成会话真链路)。
+
+## M 批(日历并入工作日志月视图 + 页签改名)—— reviewer 结论:OK with notes(5×P2)
+
+背景:大仙裁定——工作台「日历」页签功能并入日志月视图,「日志」页签改名「工作日志」。同日 M1-M4 批。
+
+实现:MonthView 增可选 calItems(iso 日 → CalendarItem[]);DueStrip 组件渲染在交互日格外(cellwrap 直下兄弟位,真 button —— 防嵌套交互件三连 lint:button 嵌套/span 静态/anchor 伪按钮);JournalTab 经 useSyncExternalStore(补 getServerSnapshot 第三参)+ calendarMonth 单一真相源构 Map;日历页签退役(WbTab/SCREENS/ITEMS/删 CalendarScreen.tsx/wb-cal-* 死规则/「日历」键);改名 en Work Journal / ja 作業ログ,旧键清零。
+
+| # | 发现 | 处置 |
+|---|---|---|
+| P2-1 | 注释旧名「日志」6 处 + WorkbenchTab「七视图」计数过时 | 全部改注 |
+| P2-2 | 本批文档未落 | 收口段补齐(FEATURES/README/本记录) |
+| P2-3 | DueStrip 兄弟位透出网格底色;hover 生成遮罩(z2)盖条目 | .dj-cell-due 补 bg-base + z3;桩目检实证底色 rgb(15,15,18) |
+| P2-4 | 跨零点 tone 滞留(memo 不含 today) | 记录在案:与全视图既有跨零点课题同类,非本批新增类别 |
+| P2-5 | 测试不锁叠层放置(嵌套回归不红) | 补断言 `</div><div class="dj-cell-due">`(兄弟位结构锁) |
+
+评审期间文件并发修订三轮(内嵌 button→span role→兄弟位真 button),评审员以最终态复核确认结构缺陷全消。收口门禁(最终树):typecheck 0 错 / 3873 测试(494 文件)/ file-size / arch-boundary / react-doctor 100 / build 过;死键审计 workbench 域仅剩既有动态键(决策/待办)。
+
+1421 桩目检:页签条 = 概览/任务看板/项目列表/时间线/待跟进/工作日志(日历退役、改名生效);月视图今日格 3 任务(前 2 + 溢出 +1)、后天格项目 DDL;条目兄弟位(cellwrap :scope 断言);点条目 → 项目详情中央 tab 打开。真窗口视觉留大仙。
