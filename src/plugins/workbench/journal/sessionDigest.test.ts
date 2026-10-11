@@ -138,3 +138,53 @@ describe("buildDayDigest 装配", () => {
     h.profiles = [];
   });
 });
+
+describe("buildDayDigest 项目分组(P3)", () => {
+  it("组内小节前置并带项目节头,未挂组会话殿后;coveredIds 不丢不重", async () => {
+    h.profiles = [
+      { id: "omp", readSessionTranscript: async (d) => ({ blocks: [block("user", `内容 ${d.id}`)] }) },
+    ];
+    const rows = [drow("s1"), drow("s2"), drow("s3")];
+    const d = await buildDayDigest(rows, [{ name: "乙项目", ids: new Set(["s2"]) }, { name: "甲项目", ids: new Set(["s1"]) }]);
+    const headYi = d.md.indexOf("## 项目:乙项目");
+    const headJia = d.md.indexOf("## 项目:甲项目");
+    const s1 = d.md.indexOf("会话 s1"); /* 用标题定位,first ### 属于第一组 */
+    const s3 = d.md.indexOf("会话 s3");
+    expect(headYi).toBeGreaterThan(-1);
+    expect(headJia).toBeGreaterThan(headYi); /* 组间按 groups 序 */
+    expect(s1).toBeGreaterThan(headJia);
+    expect(s3).toBeGreaterThan(headYi);
+    expect(d.coveredIds.sort()).toEqual(["s1", "s2", "s3"]);
+    h.profiles = [];
+  });
+
+  it("groups 缺省/空:装配结构不变(无项目节头)", async () => {
+    h.profiles = [
+      { id: "omp", readSessionTranscript: async (d) => ({ blocks: [block("user", `内容 ${d.id}`)] }) },
+    ];
+    const rows = [drow("s1"), drow("s2")];
+    for (const d of [await buildDayDigest(rows), await buildDayDigest(rows, [])]) {
+      expect(d.md).not.toContain("## 项目:");
+      expect(d.coveredIds).toEqual(["s1", "s2"]);
+    }
+    h.profiles = [];
+  });
+});
+
+describe("buildDayDigest 评审补强(2026-10-11 P3 评审)", () => {
+  it("同会话命中多组归首组:单次收录,coveredIds 无重复", async () => {
+    h.profiles = [
+      { id: "omp", readSessionTranscript: async (d) => ({ blocks: [block("user", `内容 ${d.id}`)] }) },
+    ];
+    const rows = [drow("s1")];
+    const d = await buildDayDigest(rows, [
+      { name: "甲项目", ids: new Set(["s1"]) },
+      { name: "乙项目", ids: new Set(["s1"]) },
+    ]);
+    expect(d.md.match(/## 项目:/g)?.length).toBe(1);
+    expect(d.md).toContain("## 项目:甲项目");
+    expect(d.md).not.toContain("## 项目:乙项目");
+    expect(d.coveredIds).toEqual(["s1"]);
+    h.profiles = [];
+  });
+});

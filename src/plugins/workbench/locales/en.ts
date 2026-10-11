@@ -29,6 +29,7 @@ export const MESSAGES_EN = {
   "日历": "Calendar",
   "时间线": "Timeline",
   "待跟进": "Follow-ups",
+  "日志": "Journal",
   "项目总数": "Projects",
   "需关注": "Attention",
   "已逾期": "Overdue",

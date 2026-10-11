@@ -1,6 +1,7 @@
 /**
- * 每日日志主视图 tab —— 工具栏(年/月 seg + 月导航 + 状态 pill)+ 视图路由
- * (原型 docs/design/daily-journal-n4-merged.html;轴视图已迁右栏面板)。
+ * 每日日志主视图 —— 工具栏(年/月/轴 seg + 月导航 + 状态 pill)+ 视图路由
+ * (原型 docs/design/daily-journal-n4-merged.html;轴视图自右栏面板收编,
+ *  2026-10-11 合并进工作台后由「日志」页签托管)。
  */
 import { useEffect, useMemo, useState } from "react";
 import { CaretLeft, CaretRight, GearSix, ListChecks } from "@phosphor-icons/react";
@@ -12,6 +13,7 @@ import { loadMonth, useJournalState } from "./journalStore";
 import { useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
 import type { MonthSnapshot } from "./journalStore";
 import { MonthView } from "./MonthView";
+import { FlowView } from "./FlowView";
 import { TaskPanel } from "./TaskPanel";
 import { GenSettings } from "./GenSettings";
 import { useGenTasks } from "./taskQueue";
@@ -21,7 +23,7 @@ import { monthTitleOf } from "./dateTitle";
 import { ensureHolidays, useHolidays, type HolidayStatus } from "./holidays";
 import "./daily-journal.css";
 
-export type JournalView = "y" | "m";
+export type JournalView = "y" | "m" | "f";
 
 
 /* fillPendingDays 入队策略见 journalSchedule(「补齐待生成」按钮消费)。 */
@@ -86,7 +88,7 @@ function monthStats(
   return { days: days.length, sessTotal, artTotal, pending, todayLive };
 }
 
-/** 舞台视图路由(双视图一 tab;独立函数保全主组件控制流复杂度门禁)。 */
+/** 舞台视图路由(三视图一 tab;独立函数保全主组件控制流复杂度门禁)。 */
 function JournalStage({
   view,
   sessions,
@@ -119,6 +121,7 @@ function JournalStage({
   }
   if (view === "y") return <YearView y={ym.y} sessions={sessions} today={today} onOpenMonth={openMonth} />;
   if (!snap) return <div className="dj-empty"><span className="dj-load"><Spinner /> {t("正在读取日志…")}</span></div>;
+  if (view === "f") return <FlowView ym={ym} snap={snap} sessions={sessions} today={today} />;
   return <MonthView ym={ym} snap={snap} sessions={sessions} today={today} onShiftMonth={onShiftMonth} />;
 }
 
@@ -128,7 +131,8 @@ const VIEW_KEY = "tmd.journal.view";
 const YM_KEY = "tmd.journal.ym";
 function loadView(): JournalView {
   try {
-    return localStorage.getItem(VIEW_KEY) === "y" ? "y" : "m";
+    const raw = localStorage.getItem(VIEW_KEY);
+    return raw === "y" || raw === "f" ? raw : "m";
   } catch {
     return "m";
   }
@@ -201,6 +205,7 @@ export function JournalTab() {
             [
               ["y", t("年视图")],
               ["m", t("月视图")],
+              ["f", t("轴视图")],
             ] as const
           ).map(([v, label]) => (
             <button key={v} role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>

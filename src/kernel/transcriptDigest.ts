@@ -3,7 +3,7 @@
  *
  * 输入是 kernel 统一 CliTranscriptBlock(各 CLI 插件声明的 readSessionTranscript
  * 适配器产物),不含任何 CLI 私有格式知识。消费先例:
- * - daily-journal 会话摘录(每日文章事实来源,sessionDigest.ts 装配小节头);
+ * - workbench 日志子域会话摘录(每日文章事实来源,sessionDigest.ts 装配小节头);
  * - session-relay 跨引擎接力摘要(relay.ts 装配首尾行,预算独立常量)。
  *
  * 压缩纪律:reasoning/system 丢弃;user/assistant 压单行保头截断;tool 压单行

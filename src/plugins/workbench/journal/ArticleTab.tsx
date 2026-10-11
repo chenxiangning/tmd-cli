@@ -30,6 +30,7 @@ import { noteImageUrl } from "./noteAssets";
 import { dayGenTaskType, enqueueTask, useGenTasks } from "./taskQueue";
 import { EngMark } from "./EngMark";
 import { TerminalWindow } from "@phosphor-icons/react";
+import { DayLinks } from "./DayLinksCard";
 
 function StatusHints({ st, sessionCount, lastError }: { st: string; sessionCount: number; lastError?: string }) {
   return (
@@ -253,6 +254,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
           <NoteEditor key={editSignal} y={y} m={m} d={p.d} note={note} signal={editSignal} onImageOpen={setLightbox} />
           {article && <ArticleBody article={article} sessionLinks={sessionLinks} />}
           <DaySessions rows={rows} summarizedAt={meta.summarizedAt} />
+          <DayLinks rows={rows} />
           <BeadStrip beads={meta.beads} />
           {lightbox && noteImageUrl(lightbox.file) && (
             <Lightbox url={noteImageUrl(lightbox.file)} name={lightbox.name} onClose={() => setLightbox(null)} />

@@ -115,6 +115,11 @@
 .dj-ds-ws { margin-left: auto; color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); }
 .dj-ds-row .dj-chip { flex: none; }
 .dj-ds-count { margin-left: auto; font-weight: 400; font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); }
+.dj-dl-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 12px 10px; }
+.dj-dl-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); cursor: pointer; }
+.dj-dl-chip:hover { border-color: var(--tmd-accent); color: var(--tmd-fg); }
+.dj-dl-count { color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); }
+.dj-dl-task { border-style: dashed; } /* 任务 chip 与项目 chip 视觉区分 */
 .dj-notecard-readonly { border: 1px solid color-mix(in srgb, var(--tmd-note) 35%, var(--tmd-border)); background: color-mix(in srgb, var(--tmd-note) 7%, transparent); border-radius: var(--tmd-radius-md); margin: 8px 0; padding: 8px 12px 8px; }
 /* 图标+标题成行:Tailwind preflight 把 svg 置 block,非 flex 容器里会独占一行把标题挤下去 */
 .dj-nc-head { display: flex; align-items: center; gap: 4px; color: var(--tmd-note); font-size: var(--tmd-font-ui); font-weight: 700; }
@@ -128,16 +133,6 @@
 .dj-art-body .dj-asec img, .dj-notecard-readonly .dj-nc-text img { background: var(--tmd-bg-sunken); }
 .dj-nc-imgs { font-size: var(--tmd-font-2xs); color: var(--tmd-note); margin-top: 4px; }
 
-/* ── 右栏面板 ── */
-.dj-panel { display: flex; flex-direction: column; gap: 8px; padding: 10px; font-size: var(--tmd-font-ui); height: 100%; box-sizing: border-box; }
-.dj-panel-stat { color: var(--tmd-fg-muted); }
-.dj-panel-sub { color: var(--tmd-warn); font-size: var(--tmd-font-2xs); margin-bottom: 4px; }
-.dj-panel-nav { display: flex; align-items: center; gap: 6px; }
-.dj-panel-nav .dj-month-title { flex: 1; min-width: 0; font-size: var(--tmd-font-ui); }
-/* 轴流滚动区:负 margin 吃掉面板 padding,滚轴贴面板缘;内部再收紧轴流留白适配窄栏。 */
-.dj-panel-flow { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -10px -10px; padding: 0 10px 10px; }
-.dj-panel-flow .dj-minibar { position: sticky; top: 0; z-index: 3; padding: 8px 0; flex-direction: column; align-items: stretch; gap: 6px; }
-.dj-panel-flow .dj-flow { padding: 0 4px 16px; }
 /* 月条平铺:2026-10-01 用户裁定撤「7 列周网格定宽」覆盖,回归基础 flex 自动换行
    (31 格按栏宽自然断行,定尺寸不增高度;已装合并等历次覆盖均不再有) */
 /* 摘录引用专属样式(此前与正文无差别) */

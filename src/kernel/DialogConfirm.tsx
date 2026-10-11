@@ -12,7 +12,7 @@ import { DialogShell } from "@kernel/DialogShell";
 
 /** ConfirmDialog ── 通用二次确认弹层(2026-10-02 原生 window.confirm 清零轮立):
  *  danger=true 时主按钮红底;Esc/点背板取消;确认词默认「确认」为全仓统一口径。
- *  消费面:ssh/workspace/assets/local-loader/daily-journal/cli-config 等插件的
+ *  消费面:ssh/workspace/assets/local-loader/workbench(日志)/cli-config 等插件的
  *  破坏性操作前置确认(原生 window.confirm 的替换目标形制)。 */
 export function ConfirmDialog({
   title,

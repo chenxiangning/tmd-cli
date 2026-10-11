@@ -32,7 +32,6 @@ const OPENABLE_KINDS = [
   "skill-hub",
   "mcphub",
   "session-view",
-  "daily-journal",
   "daily-article",
   "structured-session",
   "wb.project",

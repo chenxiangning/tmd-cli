@@ -99,3 +99,42 @@ describe("buildGenPrompt", () => {
     expect(p).toContain("无——按空日处理");
   });
 });
+
+describe("buildGenPrompt 项目分组(工作台派生,P3)", () => {
+  const rows = [
+    row("2026-09-29T09:30:00", "omp", "甲会话", "s1"),
+    row("2026-09-29T11:00:00", "claude", "乙会话", "s2"),
+    row("2026-09-29T15:00:00", "omp", "散会话", "s3"),
+  ];
+  it("带分组:分组清单与会话数在位,分节指令优先按项目组织", () => {
+    const p = buildGenPrompt(2026, 9, 29, rows, false, "/dj/a.md", undefined, undefined, [
+      { name: "甲项目", titles: ["甲会话", "乙会话"] },
+    ]);
+    expect(p).toContain("当日项目分组(工作台派生");
+    expect(p).toContain("- 甲项目(2 会话):甲会话 / 乙会话");
+    expect(p).toContain("分节优先按项目组织");
+  });
+  it("无分组/空分组:与旧契约零差异(不出现分组字样)", () => {
+    const plain = buildGenPrompt(2026, 9, 29, rows, false, "/dj/a.md");
+    const empty = buildGenPrompt(2026, 9, 29, rows, false, "/dj/a.md", undefined, undefined, []);
+    for (const p of [plain, empty]) {
+      expect(p).not.toContain("项目分组");
+      expect(p).not.toContain("按项目组织");
+    }
+  });
+});
+
+describe("buildGenPrompt 增量 × 项目分组(2026-10-11 P3 评审补强)", () => {
+  it("增量模式下分组指令收窄:只组织新节,既有节逐字保留不重排", () => {
+    const p = buildGenPrompt(
+      2026, 9, 29,
+      [row("2026-09-29T09:30:00", "omp", "甲会话", "s1")],
+      true, "/dj/a.md", 1000, undefined,
+      [{ name: "甲项目", titles: ["甲会话"] }],
+    );
+    expect(p).toContain("新节分节优先按项目组织(既有节逐字保留,不重排进项目壳)");
+    expect(p).not.toContain("分节优先按项目组织(项目分组即主线)");
+    expect(p).toContain("逐字保留全部既有节");
+    expect(p).toContain("- 甲项目(1 会话):甲会话");
+  });
+});

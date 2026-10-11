@@ -25,6 +25,10 @@ import { buildGenPrompt, GEN_TASK_MARK, type DigestHandoff } from "./promptGen";
 import { finishTask, isTaskActive, noteTask, setTaskRunner, startTaskRun, type GenTask } from "./taskQueue";
 import { ARTICLE_TAB_KIND } from "./journalTabs";
 import { hmNow } from "./timeUtil";
+import { ensureWorkbenchLoaded, workbenchSnapshot } from "../store";
+import { dayProjectLinks } from "./dayLinks";
+import type { ProjectPromptGroup } from "./promptGen";
+import type { ProjectDigestGroup } from "./sessionDigest";
 
 /** 结算超时:prompt 送达后无 settle 判失败的兜底。摘录路径成文仍是短链(读一份
  *  摘录 + 写一篇 md),但四点式契约的文章体量与摘录读入都比旧清单路径长,放宽到 15 分;
@@ -170,10 +174,26 @@ async function runGeneration(task: GenTask): Promise<void> {
        摘录层另有首条用户消息同标记的兜底,见 sessionDigest)。 */
     return !r.title.includes(GEN_TASK_MARK) && !(r.disk?.title ?? "").includes(GEN_TASK_MARK);
   });
+  const summarizedAt = dayMetaOf(task.dayKey).summarizedAt;
   rows.sort((a, b) => a.startedAt - b.startedAt);
   /* 归纳水位 = 清单抓取时刻(非落盘时刻):生成期间继续活动的会话保持待归纳。 */
   const rowsAt = Date.now();
-  const summarizedAt = dayMetaOf(task.dayKey).summarizedAt;
+  /* 项目分组(工作台派生,2026-10-11 并入):行 wsId→工作区根↔Project.cwd 精确
+   * 匹配(dayLinks 单一真相源);工作台数据不可用/为空 = 零分组,生成照旧。 */
+  let projectGroups: ProjectPromptGroup[] = [];
+  let digestGroups: ProjectDigestGroup[] = [];
+  try {
+    await ensureWorkbenchLoaded();
+    const links = dayProjectLinks(
+      rows,
+      workbenchSnapshot(),
+      getWorkspaces().filter((w) => !findWorkspaceOrigin(w)?.remoteExec),
+    );
+    projectGroups = links.map((l) => ({ name: l.projectName, titles: l.rows.map((r) => r.title) }));
+    digestGroups = links.map((l) => ({ name: l.projectName, ids: new Set(l.rows.map((r) => r.id ?? "")) }));
+  } catch {
+    /* 降级:无分组生成 */
+  }
   /* 摘录先行:tmd 侧经声明的转录适配器提取当日会话内容落盘,生成会话凭它成文
      (2026-09-30 重构:旧路径只给标题清单,agent 探测 7 家原始格式普遍放弃 → 文章单薄)。
      增量语义:已归纳行(内容已在文章里)不重读转录,只摘新增;摘录构建/落盘失败
@@ -181,7 +201,7 @@ async function runGeneration(task: GenTask): Promise<void> {
   const digestRows = summarizedAt !== undefined ? rows.filter((r) => !isRowSummarized(r, summarizedAt)) : rows;
   let digest: DigestHandoff | undefined;
   try {
-    const built = await buildDayDigest(digestRows);
+    const built = await buildDayDigest(digestRows, digestGroups);
     if (built.md) {
       const p = paths.digest(y, m, d);
       await ensureParentDir(p);
@@ -191,7 +211,7 @@ async function runGeneration(task: GenTask): Promise<void> {
   } catch {
     digest = undefined;
   }
-  const prompt = buildGenPrompt(y, m, d, rows, !!existing, paths.article(y, m, d), summarizedAt, digest);
+  const prompt = buildGenPrompt(y, m, d, rows, !!existing, paths.article(y, m, d), summarizedAt, digest, projectGroups);
   /* 后台拉起(不抢中央区;用户经任务面板/文章 tab「打开会话」聚焦干涉)。
      模型走 spawn 参数(--model,profile.modelArg 声明制):进程起点即生效,
      不走 TUI /model 输入 —— 启动窗时序会吞行(真机实证两次)。

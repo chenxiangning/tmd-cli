@@ -1,26 +1,12 @@
 /**
- * 每日日志 tab 契约 —— 主视图单例 tab + 每日文章 tab(插件私有 kind,skill-hub
- * hubTab 先例:单插件语义不入 kernel,openTab 经 @kernel/tabs 运行时面直连)。
+ * 每日文章 tab 契约 —— 主视图已并入工作台「日志」页签(2026-10-11),
+ * 这里只剩文章深链(插件私有 kind;openTab 经 @kernel/tabs 运行时面直连)。
  */
 import { openTab } from "@kernel/tabs";
-import { t } from "@kernel/i18n";
 import { dayKey } from "./journalFiles";
 import { dayTitleOf } from "./dateTitle";
 
-export const JOURNAL_TAB_KIND = "daily-journal";
 export const ARTICLE_TAB_KIND = "daily-article";
-
-/** 打开主视图 tab(幂等:已开聚焦)。 */
-export function openJournalTab(): void {
-  openTab({
-    id: JOURNAL_TAB_KIND,
-    kind: JOURNAL_TAB_KIND,
-    title: t("每日工作日志"),
-    path: JOURNAL_TAB_KIND,
-    payload: {},
-  });
-}
-
 export interface ArticleTabPayload {
   y: number;
   m: number;

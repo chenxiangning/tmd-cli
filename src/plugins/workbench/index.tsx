@@ -1,13 +1,15 @@
 /**
  * workbench 插件 —— 工作台:多项目管理(模块/状态/任务看板、日历、时间线、
- * 待跟进、资料文档、问答与提示词生成)。
+ * 待跟进、资料文档、问答与提示词生成)+ 每日日志子域(./journal:年/月/轴
+ * 日历 + AI 汇总文章 + 便签 + 后台生成;2026-10-11 自独立插件并入)。
  *
  * 注册点:
- * - overlay 挂点:插件市场/会话看板同款全屏覆盖层(不透明盖住三栏,下层零回放);
+ * - 中央 tab:本页(wb.console,页签含「日志」)+ 项目详情(wb.project);
  * - 左缘 LeftRail 第一位入口(2026-10-10 用户口径:rail 重排为
  *   工作台 → 回到首页 → 插件市场 → 会话看板 → 切换工作区)。
- * 数据自持:`~/.tmd-cli/workbench/`(index.json + docs 目录实体),不经任何
- * CLI 会话通道;会话联动只走 kernel listSessions/openDiskSession 公共面。
+ * 数据自持:`~/.tmd-cli/workbench/` 与 `~/.tmd-cli/daily/`(journal 子域,
+ * 原路径不动,零迁移),不经任何 CLI 会话通道;会话联动只走 kernel
+ * listSessions/openDiskSession 公共面。
  */
 import { Kanban } from "@phosphor-icons/react";
 import type { Plugin, PluginContext } from "@kernel/plugin";
@@ -15,6 +17,7 @@ import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { ProjectTab } from "./ProjectTab";
 import { openWorkbenchTab, WB_CONSOLE_TAB_KIND, WB_CONSOLE_TAB_ID, WB_PROJECT_TAB_KIND } from "./wbTabs";
+import { attachJournal } from "./journal/attach";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import "./workbench.css";
 import "./workbench-dialogs.css";
@@ -24,7 +27,7 @@ export const workbenchPlugin: Plugin = {
   meta: {
     name: "工作台",
     abbr: "工作台",
-    desc: "多项目管理台:任务看板、项目列表、日历、时间线、资料文档与问一句",
+    desc: "多项目管理台:任务看板、项目列表、日历、时间线、待跟进、资料文档、每日日志与问一句",
     icon: Kanban,
     iconColor: "#C4885C",
     category: "feature",
@@ -45,5 +48,7 @@ export const workbenchPlugin: Plugin = {
       subscribeActive: subscribeEditorTabs,
       onSelect: () => openWorkbenchTab(),
     });
+    /* 每日日志子域:store/调度/文章 tab(退订随插件 deactivate)。 */
+    return attachJournal(ctx);
   },
 };

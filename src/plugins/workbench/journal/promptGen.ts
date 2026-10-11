@@ -18,6 +18,12 @@ export interface DigestHandoff {
   coveredIds: string[];
 }
 
+/** 工作台派生的项目分组(prompt 注入面;titles = 组内会话标题,按组内时序)。 */
+export interface ProjectPromptGroup {
+  name: string;
+  titles: readonly string[];
+}
+
 /** 行标注:水位区分 已归纳(仅上下文)/新增(增量成节对象);摘录标注按实际收录逐行判定。 */
 function rowMark(r: DaySessionRow, summarizedAt: number | undefined, digest: DigestHandoff | undefined): string {
   const digestMark = !digest ? "" : digest.coveredIds.includes(r.id ?? "") ? "(有摘录)" : "(无摘录)";
@@ -34,6 +40,7 @@ export function buildGenPrompt(
   articlePath: string,
   summarizedAt?: number,
   digest?: DigestHandoff,
+  projectGroups?: readonly ProjectPromptGroup[],
 ): string {
   const key = dayKey(y, m, d);
   const legend = digest ? "当日会话清单(标题后的 (有摘录)=摘录文件中有对应小节,(无摘录)=仅有标题):" : "当日会话清单:";
@@ -57,6 +64,16 @@ ${digest.path}
   const degrade = digest
     ? "摘录文件读取失败才降级:仅凭清单写简版(每主线两三句 + 未完事项),仍须写入上述文件。"
     : "工具调用失败/不可用时不得中止或追问,立即降级:仅凭清单成文。";
+  const groups = projectGroups?.length
+    ? `\n当日项目分组(工作台派生,供分节参考;未挂项目的会话照常独立成节):\n${projectGroups
+        .map((g) => `- ${g.name}(${g.titles.length} 会话):${g.titles.join(" / ")}`)
+        .join("\n")}`
+    : "";
+  const groupRule = projectGroups?.length
+    ? hasExisting
+      ? "- 新节分节优先按项目组织(既有节逐字保留,不重排进项目壳);\n"
+      : "- 分节优先按项目组织(项目分组即主线);跨项目或无项目主线可独立成节;\n"
+    : "";
   return `# 每日工作日志生成任务:${key}
 
 把今天(${rows.length} 个 AI 编程会话)整理成一篇当日工作汇总文章,直接写入文件:
@@ -79,12 +96,12 @@ ${source}
 - 正文(总览/分节均可)提到某个具体会话时,行内原样插入标记 [会话|HH:MM|profileId|标题]:
   四段取当日清单行原文;标题 = 清单行 [引擎] 之后的部分,剔除行尾 (有摘录)/(无摘录)/(已归纳)/(新增) 标注与 · 工作区后缀,逐字一致;
   渲染层只认与清单完全一致的标记,查无此会话的标记会降级纯文本,不要自创格式或虚构会话。
-- ${incremental}
+- ${groupRule}${incremental}
 - ${degrade}
 - 无论过程如何,最后必须把文章写入上述文件并回复那一行。
 
 ${legend}
 ${list || "(无——按空日处理,写一篇说明性短文即可)"}
-
+${groups}
 完成后只回复一行:已写入 <文件路径>`;
 }

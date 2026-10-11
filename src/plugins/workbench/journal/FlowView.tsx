@@ -1,7 +1,8 @@
 /**
- * 轴视图(宿主:右栏面板 JournalPanel)—— 迷你月条(日格快跳)+ 脊柱叙事流:
- * 有记录的日子出日卡(脊柱节点 + 生长珠子 + 折叠文章卡 + 只读便签),
- * 间隔空白日画 gap(原型 .flow/.day/.spine)。月导航由面板提供,自身不带。
+ * 轴视图(宿主:工作台「日志」页签 JournalTab 三视图之一;2026-10-11 自右栏
+ * 面板收编)—— 迷你月条(日格快跳)+ 脊柱叙事流:有记录的日子出日卡
+ * (脊柱节点 + 生长珠子 + 折叠文章卡 + 只读便签),间隔空白日画 gap
+ * (原型 .flow/.day/.spine)。月导航由 JournalTab 工具栏提供,自身不带。
  */
 import { useEffect, useMemo, useReducer, useRef } from "react";
 import { PencilSimpleLine } from "@phosphor-icons/react";

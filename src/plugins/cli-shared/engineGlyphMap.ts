@@ -1,7 +1,7 @@
 /**
  * profileId → 品牌 glyph 前缀映射 —— 自 engineGlyphs.tsx 拆出的纯映射
  * (组件文件保持 only-export-components)。消费方:mobile/EngineMark、
- * feature 插件 daily-journal 生成设置引擎行。
+ * feature 插件 workbench 日志生成设置引擎行。
  */
 import type { ComponentType } from "react";
 import {

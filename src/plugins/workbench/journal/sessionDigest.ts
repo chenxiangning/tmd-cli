@@ -41,13 +41,19 @@ export interface DayDigest {
   total: number;
 }
 
+/** 项目分组(工作台派生):ids = 组内会话 id 集;装配时组内小节前置 + 项目节头。 */
+export interface ProjectDigestGroup {
+  name: string;
+  ids: ReadonlySet<string>;
+}
+
 /** 转录读取并发上限:批量全量读+逐行解析全在 webview 主线程,无上限的
  *  Promise.all(实测单日数十会话)会饿死前台幕布渲染(2026-09-30 卡死根因之一)。 */
 const DIGEST_READ_CONCURRENCY = 4;
 
 /** 全日摘录装配:逐会话经声明的适配器读转录并压缩;单会话失败跳过不拖垮整日。
  *  分批读取:每批上限 4 会话,批间让出主线程一拍,渲染不至于被转录解析饿死。 */
-export async function buildDayDigest(rows: DaySessionRow[]): Promise<DayDigest> {
+export async function buildDayDigest(rows: DaySessionRow[], groups?: readonly ProjectDigestGroup[]): Promise<DayDigest> {
   const profiles = host.getCliProfiles();
   const parts: Array<{ id: string; part: string | null }> = [];
   for (let i = 0; i < rows.length; i += DIGEST_READ_CONCURRENCY) {
@@ -76,19 +82,45 @@ export async function buildDayDigest(rows: DaySessionRow[]): Promise<DayDigest> 
       ),
     );
   }
+  /* 分组重排:组内小节前置(组间按 groups 序;同会话命中多组归首组,不重复
+   * 收录)带「## 项目:」节头,未挂组会话殿后。节头延绑:预算循环里随首条
+   * 实收才发(首条被截断不落孤儿组头,后续较小成员仍可开组);节头计入预算。
+   * 无 groups/空组 = 原时序装配,零差异。 */
+  const usable = groups?.filter((g) => g.ids.size > 0) ?? [];
+  const ordered: Array<{ id: string; part: string; group?: number }> = [];
+  if (usable.length > 0) {
+    const grouped = new Set<string>();
+    usable.forEach((g, gi) => {
+      for (const { id, part } of parts) {
+        if (part === null || !g.ids.has(id) || grouped.has(id)) continue;
+        grouped.add(id);
+        ordered.push({ id, part, group: gi });
+      }
+    });
+    for (const { id, part } of parts) {
+      if (part === null || grouped.has(id)) continue;
+      ordered.push({ id, part });
+    }
+  } else {
+    for (const { id, part } of parts) {
+      if (part !== null) ordered.push({ id, part });
+    }
+  }
   const body: string[] = [];
   const coveredIds: string[] = [];
+  const openedGroups = new Set<number>();
   let used = 0;
   let skipped = 0;
-  for (const { id, part } of parts) {
-    if (part === null) continue;
-    if (used + part.length > DAY_CHAR_CAP) {
-      skipped += 1;
+  for (const { id, part, group } of ordered) {
+    const head = group !== undefined && !openedGroups.has(group) ? `## 项目:${usable[group].name}\n` : "";
+    if (used + head.length + part.length > DAY_CHAR_CAP) {
+      skipped += 1; /* 组未开:跳过本条,头留待后续成员 */
       continue;
     }
+    if (group !== undefined) openedGroups.add(group);
     coveredIds.push(id);
-    body.push(part);
-    used += part.length;
+    body.push(head + part);
+    used += head.length + part.length;
   }
   if (skipped > 0) body.push("(超出全日预算,部分会话摘录省略)");
   const md = body.length

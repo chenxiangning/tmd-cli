@@ -1,6 +1,5 @@
 /** en 词典 · daily-journal 域(键 = 中文源串;zh 恒等无词典)。 */
 export const MESSAGES_EN = {
-  "每日工作日志": "Daily Journal",
   "今天": "Today",
   "上个月": "Previous month",
   "下个月": "Next month",
@@ -28,6 +27,9 @@ export const MESSAGES_EN = {
   "{t} 并入": "Merged {t}",
   "未完事项": "Open items",
   "当日会话": "Sessions of the day",
+  "当日关联": "Linked today",
+  "{n} 个项目": "{n} projects",
+  "{n} 个任务": "{n} tasks",
   "已归纳": "Summarized",
   "待归纳": "Pending",
   "已归纳 {n}": "{n} summarized",
@@ -45,6 +47,7 @@ export const MESSAGES_EN = {
   "本月无记录——点上方日格直达任意一天写便签": "No records this month — click a day cell above to jump to any day and take a note",
   "年视图": "Year",
   "月视图": "Month",
+  "轴视图": "Axis",
   "热力弱": "Low",
   "给这一天写点什么(便签)": "Write something for this day (note)",
   "昨日未完": "Unfinished from yesterday",
@@ -102,7 +105,6 @@ export const MESSAGES_EN = {
   "生成引擎": "Engine",
   "模型(空 = 引擎默认)": "Model (empty = engine default)",
   "节假日数据(联网)": "Holidays (online)",
-  "关联": "On",
   "保存": "Save",
   "节假日 · 在线": "Holidays · online",
   "节假日 · 缓存": "Holidays · cached",
@@ -146,8 +148,6 @@ export const MESSAGES_EN = {
   // 月历与流转图导航/徽标(2026-10 i18n 收口)
   "上一年": "Previous year",
   "下一年": "Next year",
-  "今": "Today",
-  "回到本月": "Back to current month",
   "跳到上个月": "Go to previous month",
   "跳到下个月": "Go to next month",
   "热力高 = 会话数分位 · 黄 待提取 · 红 失败 · 蓝圈 今日":

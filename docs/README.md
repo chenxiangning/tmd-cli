@@ -306,4 +306,6 @@
 | 2026-10-10 | [0.3.5 提交批换角度复审(9 commits 两路并行 + 主审亲证:P1×2——isMissingFileError Windows 文案全漏致新建画布保存全断、「关闭」键跨域撞车致 en/ja 30+ Close 位显 Off;P2×2——回滚 check-then-act 竞态入 tx 串行化、回滚自身失败孤儿认领;P3 择要 + wsl 死选择器等死代码清理);同日续批补审前 5 笔图标装饰批(零 P1/P2,P3×4 随修)并清账词典跨域撞车存量 21 行 + 撞车测试防回归;复审二换角度审续批三笔:守卫盲区×3 补强(git2 嵌套桶/域表漂移守卫/插件 registerMessages 跨面断言),插件词典跨面 27 键 + ja 残账 5 组全清(含 wallpaper「关闭」Off 覆盖全局 Close 漏网活例),装饰 accent 填充钮撤钩与呼吸表双选择器](review/2026-10-10-035-commit-review.md) | 已收口(P1/P2/P3 随评修复,续批与复审二已清账) |
 | 2026-10-10 | [工作台(workbench)设计](superpowers/specs/2026-10-10-workbench-design.md) | 已实施(含三轮打磨;门禁全绿+桩目检) |
 | 2026-10-11 | [每日工作日志并入工作台可行性调研(合并面仅 allPlugins 两行+契约测试一行;嵌入=查表页签;日↔项目↔任务关联走 wsId↔cwd 与 TaskSessionLink 既有数据桥,零 kernel 改动;前置=workbench 收口提交)](research/workbench-daily-journal-merge.md) | 已完成(结论可行;开发未启动) |
+| 2026-10-11 | [每日工作日志并入工作台设计(目录迁移 workbench/journal 子域 + 入口统一工作台页签「日志」年/月/轴三视图 + 日↔项目↔任务派生关联 + 生成项目感知;三阶段 TDD 分期评审)](superpowers/specs/2026-10-11-workbench-journal-merge-design.md) | 已实施(三阶段 TDD;门禁全绿 + 1421 桩目检;评审记录同日) |
+| 2026-10-11 | [每日工作日志并入工作台:分阶段评审记录(P1 合并入口统一 OK with notes ×2 P2 修;P2 关联层 1×P1 disk 链转活假阴性修 + 5×P2 修;P3 生成项目感知 6×P2 修;收口门禁 3871 测试/doctor 100/桩目检)](review/2026-10-11-workbench-journal-merge-review.md) | 已完成(修复全落地) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -13,7 +13,7 @@ import type { DaySessionRow } from "./daySessions";
 /* 跨插件消费 session-board 声明的口径常量(app 树例外条款见
  * docs/architecture/02-code-architecture.md「依赖铁律」;mobile 树 import
  * cli-* 适配器同款先例):14 天未查看阈与 board 注意力面单一真相源。 */
-import { UNSEEN_WINDOW_MS } from "../session-board/boardRows";
+import { UNSEEN_WINDOW_MS } from "../../session-board/boardRows";
 
 export interface UnfinishedSessionInput {
   profileId: string;

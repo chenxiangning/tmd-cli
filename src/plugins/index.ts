@@ -46,7 +46,6 @@ import { sessionRelayPlugin } from "./session-relay";
 import { skillHubPlugin } from "./skill-hub";
 import { mcpHubPlugin } from "./mcp-hub";
 import { sessionViewerPlugin } from "./session-viewer";
-import { dailyJournalPlugin } from "./daily-journal";
 import { structuredSessionPlugin } from "./structured-session";
 import { workbenchPlugin } from "./workbench";
 
@@ -93,7 +92,6 @@ export const allPlugins: Plugin[] = [
   skillHubPlugin,
   mcpHubPlugin,
   sessionViewerPlugin,
-  dailyJournalPlugin,
   structuredSessionPlugin,
   workbenchPlugin,
 ];
