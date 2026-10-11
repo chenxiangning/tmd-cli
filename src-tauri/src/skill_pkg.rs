@@ -97,7 +97,7 @@ fn unix_mode_is_symlink(mode: Option<u32>) -> bool {
     mode.is_some_and(|m| m & 0o170000 == 0o120000)
 }
 
-fn entry_is_symlink(entry: &zip::read::ZipFile<'_>) -> bool {
+fn entry_is_symlink<R: Read>(entry: &zip::read::ZipFile<'_, R>) -> bool {
     unix_mode_is_symlink(entry.unix_mode())
 }
 
