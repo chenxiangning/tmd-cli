@@ -12,6 +12,8 @@
  * listSessions/openDiskSession 公共面。
  */
 import { Kanban } from "@phosphor-icons/react";
+import { t } from "@kernel/i18n";
+import { WorkbenchSettingsTab } from "./SettingsSection";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
 import { WorkbenchTab } from "./WorkbenchTab";
@@ -47,6 +49,23 @@ export const workbenchPlugin: Plugin = {
       active: () => getTabs().some((tab) => tab.id === WB_CONSOLE_TAB_ID),
       subscribeActive: subscribeEditorTabs,
       onSelect: () => openWorkbenchTab(),
+    });
+    /* 设置分区:文档详情默认视图等显示偏好(组件在 SettingsSection.tsx)。 */
+    ctx.registerSettingsSection({
+      id: "workbench",
+      title: t("工作台"),
+      description: t("文档、任务与每日日志的显示偏好。"),
+      icon: <Kanban size="0.875rem" aria-hidden />,
+      order: 47,
+      tabs: [
+        {
+          id: "general",
+          title: t("工作台"),
+          icon: <Kanban size="0.875rem" aria-hidden />,
+          order: 0,
+          component: WorkbenchSettingsTab,
+        },
+      ],
     });
     /* 每日日志子域:store/调度/文章 tab(退订随插件 deactivate)。 */
     return attachJournal(ctx);

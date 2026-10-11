@@ -6,13 +6,14 @@
 
 import { useState } from "react";
 import { t } from "@kernel/i18n";
-import { ArrowLeft, File, FileImage, FileText, Plus, X } from "@phosphor-icons/react";
+import { ArrowLeft, File, FileImage, FileText, FloppyDisk, Plus, X } from "@phosphor-icons/react";
 import { DOC_KIND_LABELS } from "./kindLabels";
 import type { Project, ProjectDoc } from "./types";
 import { attachDocFile, createDoc, deleteDoc, detachDocFile, readDoc, saveDoc } from "./store";
 import { readDocDataUrl, fileToBase64, isImageAttachment, docAttachmentPath } from "./workbenchFiles";
 import { openFileInTab } from "@kernel/fileTabs";
-import { WbImgView, WbAttachmentSection } from "./ui";
+import { WbBadge, WbImgView, WbAttachmentSection } from "./ui";
+import { DocEditor } from "./DocEditor";
 import { runIpc } from "./ipcToast";
 
 /** 文档类型图标(markdown / 图片 / 其余文件)。 */
@@ -99,19 +100,17 @@ export function DrawerDocsTab({ project, onToast }: { project: Project; onToast:
             aria-label={t("文档标题")}
           />
           {dirty ? <span className="wb-doc-dirty">{t("未保存")}</span> : null}
+          <WbBadge tone="muted">{t(DOC_KIND_LABELS[openDoc.kind])}</WbBadge>
           <button
             type="button" className="wb-btn wb-btn-primary" disabled={!dirty}
             onClick={saveOpenDoc}
-          >{t("保存文档")}</button>
+          ><FloppyDisk size={12} />{t("保存文档")}</button>
         </div>
-        <div className="wb-doc-edit-body">
-          <textarea
-            className="wb-doc-editor" value={draft}
-            aria-label={t("文档内容")}
-            placeholder={t("支持 markdown;附件/图片在下方上传。")}
-            onChange={(e) => { setDraft(e.target.value); setDirty(true); }}
-          />
-        </div>
+        <DocEditor
+          key={openDoc.id} value={draft}
+          onChange={(v) => { setDraft(v); setDirty(true); }}
+          onSave={saveOpenDoc}
+        />
         <WbAttachmentSection
           items={openDoc.attachments}
           onUpload={upload}

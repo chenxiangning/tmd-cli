@@ -177,6 +177,10 @@ export function sanitize(raw: unknown): AppSettings {
     sendShortcut: SEND_SHORTCUTS.includes(obj.sendShortcut as SendShortcut)
       ? (obj.sendShortcut as SendShortcut)
       : DEFAULT_SETTINGS.sendShortcut,
+    workbenchDocDefaultMode:
+      obj.workbenchDocDefaultMode === "preview" || obj.workbenchDocDefaultMode === "edit"
+        ? obj.workbenchDocDefaultMode
+        : DEFAULT_SETTINGS.workbenchDocDefaultMode,
     sendConfirmEnabled: typeof obj.sendConfirmEnabled === "boolean" ? obj.sendConfirmEnabled : DEFAULT_SETTINGS.sendConfirmEnabled,
     askSoundEnabled:
       typeof obj.askSoundEnabled === "boolean"

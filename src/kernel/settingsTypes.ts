@@ -12,6 +12,8 @@ import type { ThemePresetId } from "./themePresets";
 export type ThemePreference = "system" | "light" | "dark" | "custom";
 /** 发送快捷键:"enter" = Enter 发送 / Shift+Enter 换行;"cmdOrCtrlEnter" = ⌘/Ctrl+Enter 发送 / Enter 换行。 */
 export type SendShortcut = "enter" | "cmdOrCtrlEnter";
+/** 工作台文档详情的默认视图(workbench 插件消费)。 */
+export type WbDocDefaultMode = "preview" | "edit";
 /** Ask 提示音效 id(内置 wav 资产,见 kernel/askSound.ts 加载器)。 */
 export type AskSoundId = "default" | "chime" | "bell" | "ding";
 /** Ask 提示音效白名单(清洗与播放共用)。 */
@@ -49,37 +51,9 @@ export function resolveCliSessionQuota(
   return Math.max(0, Math.floor((budget.total - allocated) / unallocatedCount));
 }
 
-/** 置顶作用域:"global" = 左侧栏全局置顶区;"workspace" = 工作区 CLI 分组内顶部。 */
-export type SessionPinScope = "global" | "workspace";
-
-/** 单条置顶记录:作用域 + 置顶时间戳(ms) + 标题快照。 */
-export interface SessionPinEntry {
-  scope: SessionPinScope;
-  pinnedAt: number;
-  title: string;
-}
-
-/** 单条归档记录:仅归档时间戳(ms);归档语义见 kernel/sessionArchive.ts。 */
-export interface SessionArchiveEntry {
-  archivedAt: number;
-}
-
-/** 单条删除意图(tombstone)记录:仅删除时间戳(ms);语义见 kernel/sessionDeleted.ts。
- *  后台删盘失败时管理态仍删除并隐藏,磁盘数据保留(用户意图归 tmd-cli 所有)。 */
-export interface SessionDeletedEntry {
-  deletedAt: number;
-}
-
-/** 单条保留标记记录:仅标记时间戳(ms);语义见 kernel/sessionKeep.ts。
- *  手动取消归档时写入,会话卫生清扫据此跳过(防「取消归档又被扫回」)。 */
-export interface SessionKeepEntry {
-  keptAt: number;
-}
-
-/** 会话卫生清扫时窗(小时)白名单:12h / 24h / 48h / 7d。 */
-export type SessionHygieneHours = 12 | 24 | 48 | 168;
-export const SESSION_HYGIENE_HOURS: readonly SessionHygieneHours[] = [12, 24, 48, 168];
-export const SESSION_HYGIENE_HOURS_DEFAULT: SessionHygieneHours = 24;
+/* 会话覆盖层记录类型(置顶/归档/删除/保留/卫生时窗)拆至 settingsSessionEntries.ts。 */
+import type { SessionArchiveEntry, SessionDeletedEntry, SessionHygieneHours, SessionKeepEntry, SessionPinEntry } from "./settingsSessionEntries";
+export * from "./settingsSessionEntries";
 
 /** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
 export type GitPanelView = "diff" | "branch" | "history";
@@ -141,6 +115,8 @@ export interface AppSettings {
   sendConfirmEnabled: boolean;
   /** Composer 输入历史(ghost 补全 + 空输入 ↑↓ 召回)开关,默认开。 */
   promptHistoryEnabled: boolean;
+  /** 工作台文档详情默认视图:预览(默认)或编辑(workbench 插件设置分区可调)。 */
+  workbenchDocDefaultMode: WbDocDefaultMode;
   /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */
   askSoundEnabled: boolean;
   /** Ask 提示音效 id。 */

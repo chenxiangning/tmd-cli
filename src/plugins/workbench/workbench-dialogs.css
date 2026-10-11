@@ -115,10 +115,10 @@
 /* flex 项不写 flex:1(basis 0% 会吃掉 height);vh 直给,与 wb-drawer-body 的 100vh-240 上限配套。 */
 .wb-doc-editor-shell { height: max(220px, calc(100vh - 520px)); display: flex; flex-direction: column; gap: 6px; }
 .wb-doc-editor-toolbar { display: flex; justify-content: flex-end; flex: none; }
-.wb-doc-cm { flex: 1; min-height: 0; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); overflow: hidden; }
+.wb-doc-cm { flex: 1; min-height: 0; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); overflow: hidden; transition: border-color .12s ease; }
+.wb-doc-cm:focus-within { border-color: var(--tmd-accent); }
 .wb-doc-cm .cm-editor { height: 100%; background: transparent; color: var(--tmd-fg); }
 .wb-doc-cm .cm-editor.cm-focused { outline: none; }
-.wb-doc-cm .cm-editor.cm-focused { border-color: var(--tmd-accent); }
 .wb-doc-cm .cm-scroller { font-family: var(--tmd-font-mono); font-size: var(--tmd-font-ui); line-height: 1.7; }
 .wb-doc-preview-body { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 12px 14px; }
 .wb-docpreview { margin: 0; white-space: pre-wrap; font-family: var(--tmd-font-mono); font-size: var(--tmd-font-xs); line-height: 1.55; max-height: calc(100vh - 260px); overflow: auto; }
