@@ -49,6 +49,7 @@ import {
   House as LHouse,
   Inbox,
   KeyRound,
+  LayoutDashboard,
   Layers,
   LayoutGrid,
   LayoutList,
@@ -82,6 +83,7 @@ import {
   Sparkles,
   Split,
   SquareArrowOutUpRight,
+  SquareKanban,
   SquareTerminal,
   Star,
   Store,
@@ -99,6 +101,7 @@ import type { IconDecorId } from "./settingsAppearance";
 export const LUCIDE_A: Partial<Record<IconDecorId, LucideNode>> = {
   newchat: Rocket,
   "ssh-panel": Server,
+  workbench: SquareKanban,
   "system-proxy": Globe,
   "panel-files": Folder,
   "panel-git": GitBranch,
@@ -148,6 +151,7 @@ export const LUCIDE_A: Partial<Record<IconDecorId, LucideNode>> = {
 export const LUCIDE_B: Partial<Record<IconDecorId, LucideNode>> = {
   newchat: Sparkles,
   "ssh-panel": KeyRound,
+  workbench: LayoutDashboard,
   "system-proxy": Shuffle,
   "panel-files": FolderOpen,
   "panel-git": LGitMerge,

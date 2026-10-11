@@ -63,6 +63,7 @@ const METAPHOR_GLYPHS: Partial<Record<IconDecorId, Glyph>> = {
   newchat: Sparkle,
   "ssh-panel": LockKey,
   "system-proxy": Stairs,
+  workbench: SquaresFour,
   "panel-files": Folders,
   "panel-git": GitMerge,
   "panel-checkpoints": ClockCounterClockwise,

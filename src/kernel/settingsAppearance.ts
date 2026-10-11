@@ -75,7 +75,7 @@ export function sanitizeSessionTabsMax(raw: unknown): number {
 /** 可装饰图标 id 白名单:面板键 = filePanel 注册 id 加 panel- 前缀,
  *  动作键 = sidebarActions id(rail 直挂 wsl-panel/terminal/intent-canvas/
  *  system-proxy;ssh 已迁面板键,键名保留防存量装饰丢失),
- *  左缘 LeftRail 钮键 = 直挂动作 id(session-board)与壳内建钮
+ *  左缘 LeftRail 钮键 = 直挂动作 id(session-board/workbench)与壳内建钮
  *  (market/home;工作区切换钮不设装饰键,恒用 Phosphor 图标),顶栏钮键 =
  *  header.leftCluster 消费方自定 id(remote-control)与 titlebar 内建钮
  *  (fold-left/fold-right),
@@ -105,6 +105,7 @@ export const ICON_DECOR_IDS = [
   "terminal",
   "intent-canvas",
   "session-board",
+  "workbench",
   "remote-control",
   "worktree",
   "ws-files",
@@ -163,6 +164,7 @@ export const DEFAULT_ICON_DECOR: Record<IconDecorId, IconDecorItem> = {
   terminal: {},
   "intent-canvas": {},
   "session-board": {},
+  workbench: {},
   "remote-control": {},
   worktree: {},
   "ws-files": {},
