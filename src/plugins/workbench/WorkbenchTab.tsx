@@ -10,13 +10,12 @@ import { useWorkspaces } from "@kernel/workspace";
 import { sortByRisk, todayISO } from "./analysis";
 import { useTaskAutoStatus } from "./useTaskAutoStatus";
 import { QUESTION_EXAMPLES, answerQuestion } from "./query";
-import { clearAllProjects, createProject, ensureWorkbenchLoaded, subscribeWorkbench, updateProject, workbenchLoadError, workbenchSnapshot } from "./store";
+import { clearAllProjects, clearSampleProjects, createProject, ensureWorkbenchLoaded, reloadWorkbench, subscribeWorkbench, updateProject, workbenchLoadError, workbenchSnapshot } from "./store";
 import { linkableWorkspaces } from "./views";
 import { WbConfirm } from "./ui";
 import { ProjectFormModal, type ProjectFormValues } from "./ProjectFormModal";
 import { OverlayActions } from "./OverlayActions";
 import { DocPreviewDialog, type DocRequest } from "./DocPreviewDialog";
-import { reloadWorkbench } from "./store";
 import { openProjectTab } from "./wbTabs";
 import { WbScreen } from "./WbScreen";
 import { WB_TAB_ITEMS, type WbTab } from "./wbTabs";
@@ -32,7 +31,7 @@ export function WorkbenchTab() {
   const [answer, setAnswer] = useState<{ text: string; projectIds: string[] } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [formProject, setFormProject] = useState<Project | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClear, setConfirmClear] = useState<null | "all" | "samples">(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [docRequest, setDocRequest] = useState<DocRequest | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,7 +87,14 @@ export function WorkbenchTab() {
       () => toast(t("已清空")),
       (e) => toast(e instanceof Error ? e.message : String(e)),
     );
-    setConfirmClear(false);
+    setConfirmClear(null);
+  };
+  const clearSamplesNow = () => {
+    void clearSampleProjects().then(
+      (count) => toast(t("已清空:{count} 个示例项目", { count: String(count) })),
+      (e) => toast(e instanceof Error ? e.message : String(e)),
+    );
+    setConfirmClear(null);
   };
   const refreshNow = () => {
     setRefreshing(true);
@@ -118,7 +124,8 @@ export function WorkbenchTab() {
           onToast={toast}
           onNewProject={() => openForm(null)}
           onLinkWorkspaces={linkWorkspaces}
-          onRequestClear={() => setConfirmClear(true)}
+          onRequestClear={() => setConfirmClear("all")}
+          onRequestClearSamples={() => setConfirmClear("samples")}
           onDoc={setDocRequest}
           onRefresh={refreshNow}
           refreshing={refreshing}
@@ -172,12 +179,14 @@ export function WorkbenchTab() {
         />
       ) : null}
       <WbConfirm
-        open={confirmClear}
-        title={t("清空全部项目?")}
-        body={t("将删除全部项目(含资料与任务),不可恢复。")}
-        confirmLabel={t("清空")}
-        onConfirm={clearNow}
-        onCancel={() => setConfirmClear(false)}
+        open={confirmClear !== null}
+        title={confirmClear === "samples" ? t("清理示例数据?") : t("清空全部项目?")}
+        body={confirmClear === "samples"
+          ? t("将删除带「示例」标签的项目(含资料与任务),不影响其他项目;之后可重新生成。")
+          : t("将删除全部项目(含资料与任务),不可恢复。")}
+        confirmLabel={confirmClear === "samples" ? t("清理") : t("清空")}
+        onConfirm={confirmClear === "samples" ? clearSamplesNow : clearNow}
+        onCancel={() => setConfirmClear(null)}
       />
       {toastMessage ? <div className="wb-toast" role="status">{toastMessage}</div> : null}
     </div>

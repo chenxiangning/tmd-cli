@@ -42,7 +42,7 @@ vi.mock("@kernel/ipc", () => ({
 }));
 
 import {
-  AI_RULES_FILE, INDEX_PATH, attachDocFile, clearAllProjects, createDoc, createProject, createProjectId,
+  AI_RULES_FILE, INDEX_PATH, attachDocFile, clearAllProjects, clearSampleProjects, createDoc, createProject, createProjectId,
   deleteDoc, deleteProject, detachDocFile, detachTaskFile, ensureWorkbenchLoaded, generateSamples, linkTaskSession,
   readDoc, reloadWorkbench, resetWorkbenchForTest, subscribeWorkbench, unlinkTaskSession,
   updateTask, workbenchLoadError, workbenchSnapshot,
@@ -213,6 +213,23 @@ describe("workbench store · 数据安全", () => {
     await clearAllProjects();
     expect(workbenchSnapshot()).toHaveLength(0);
     expect([...fileByPath.keys()].filter((p) => p.startsWith(DOCS(withDocs!.id)) && p !== DOCS(withDocs!.id))).toHaveLength(0);
+  });
+
+  it("clearSampleProjects 只删「示例」标签项目并清落盘实体;无示例时返回 0", async () => {
+    await generateSamples(() => buildSampleProjects("2026-10-10"));
+    const realId = await seedProject();
+    expect(workbenchSnapshot()).toHaveLength(13);
+    const sample = workbenchSnapshot().find((p) => p.tags.includes("示例") && p.docs.length > 0)!;
+    await expect(clearSampleProjects()).resolves.toBe(12);
+    expect(workbenchSnapshot().map((p) => p.id)).toEqual([realId]);
+    const index = JSON.parse(fileByPath.get(INDEX)!) as { projects: Array<{ id: string }> };
+    expect(index.projects.map((p) => p.id)).toEqual([realId]);
+    expect([...fileByPath.keys()].filter((p) => p.startsWith(DOCS(sample.id)) && p !== DOCS(sample.id))).toHaveLength(0);
+    await expect(clearSampleProjects()).resolves.toBe(0);
+    /* 清理后可重新生成:幂等口径不受清理影响,示例文档重新落盘。 */
+    await generateSamples(() => buildSampleProjects("2026-10-10"));
+    expect(workbenchSnapshot()).toHaveLength(13);
+    expect(fileByPath.has(DOC_FILE(HOME, sample.id, sample.docs[0].fileName))).toBe(true);
   });
 
   it("deleteProject 移除索引项;首用(索引缺失)= 空表", async () => {

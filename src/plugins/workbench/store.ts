@@ -234,13 +234,45 @@ export function generateSamples(build: () => Project[]): Promise<void> {
   });
 }
 
-/** 清空全部项目(删除文档/附件实体;目录保留空壳)。 */
-export async function clearAllProjects(): Promise<void> {
-  const old = [...state.projects];
-  await mutate(() => []);
-  await Promise.all(old.flatMap((project) => [
+/** 删除项目集合的落盘实体(文档/任务附件/旧 PRD;项目目录保留空壳)。 */
+async function removeProjectArtifacts(projects: readonly Project[]): Promise<void> {
+  await Promise.all(projects.flatMap((project) => [
     ...project.docs.map((doc) => removeDocFile(project.id, doc.fileName)),
     ...project.tasks.flatMap((task) => task.attachments.map((att) => removeDocFile(project.id, att.fileName))),
     removeLegacyPrd(project.id).catch(() => undefined),
   ]));
+}
+
+/** 清空全部项目(删除文档/附件实体;目录保留空壳)。 */
+export function clearAllProjects(): Promise<void> {
+  /* 快照在队列内取:与在途变更严格串行,防「index 已清、实体快照缺项」的孤儿窗口。 */
+  return enqueue(async () => {
+    const old = state.projects;
+    try {
+      await writeIndexFile([]);
+      setProjects([]);
+    } catch (e) {
+      setProjects(state.projects, e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+    await removeProjectArtifacts(old);
+  });
+}
+
+/** 清理示例数据:只删带「示例」标签的项目(识别口径见 sample.ts),真实项目不动;返回清理数。 */
+export function clearSampleProjects(): Promise<number> {
+  return enqueue(async () => {
+    const old = state.projects.filter((p) => p.tags.includes("示例"));
+    if (old.length === 0) return 0;
+    const next = state.projects.filter((p) => !p.tags.includes("示例"));
+    try {
+      await writeIndexFile(next);
+      setProjects(next);
+    } catch (e) {
+      setProjects(state.projects, e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+    await removeProjectArtifacts(old);
+    return old.length;
+  });
 }

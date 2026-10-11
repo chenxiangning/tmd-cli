@@ -12,13 +12,14 @@ import { generateSamples } from "./store";
 import type { DocRequest } from "./DocPreviewDialog";
 
 export function OverlayActions({
-  today, onToast, onNewProject, onLinkWorkspaces, onRequestClear, onDoc, onRefresh, refreshing,
+  today, onToast, onNewProject, onLinkWorkspaces, onRequestClear, onRequestClearSamples, onDoc, onRefresh, refreshing,
 }: {
   today: string;
   onToast: (message: string) => void;
   onNewProject: () => void;
   onLinkWorkspaces: () => void;
   onRequestClear: () => void;
+  onRequestClearSamples: () => void;
   /** 文档类型点击 → 预览弹层(内容即差异;不再直接复制)。 */
   onDoc: (request: DocRequest) => void;
   /** AI 可能直接改过数据文件:从磁盘重读同步。 */
@@ -69,6 +70,9 @@ export function OverlayActions({
         {dataMenuOpen ? (
           <div className="wb-menu" role="menu">
             <button type="button" role="menuitem" className="wb-menu-item" onClick={generate}>{t("生成示例数据")}</button>
+            <button type="button" role="menuitem" className="wb-menu-item" onClick={() => { onRequestClearSamples(); setDataMenuOpen(false); }}>
+              {t("清理示例数据")}
+            </button>
             <button type="button" role="menuitem" className="wb-menu-item" onClick={() => { onRequestClear(); setDataMenuOpen(false); }}>
               {t("清空全部…")}
             </button>
