@@ -108,6 +108,7 @@ export const OMP_APIKEY_PROVIDERS: readonly OmpApiKeyProvider[] = [
 ];
 
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { closeSettingsPanel } from "@kernel/settings";
 
 /** 登录:打入登录命令到内置终端并关设置面板让用户看见流程。
@@ -119,6 +120,7 @@ export async function launchLogin(p: OmpOauthProvider): Promise<void> {
     .filter((s) => s.kind === "shell")
     .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))[0];
   const meta = latest ? latest : await host.createShellSession();
+  host.events.emit(KernelTopics.sessionViewRequested, null);
   host.setActiveSession(meta.id);
   host.writeSession(meta.id, `omp auth-broker login ${p.loginArg}\r`);
   closeSettingsPanel();

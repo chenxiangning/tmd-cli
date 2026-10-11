@@ -18,6 +18,7 @@ vi.mock("@kernel/host", () => ({
     getCliProfile: vi.fn(() => undefined),
     getCliSessionId: vi.fn(() => undefined),
     setActiveSession: vi.fn(),
+    events: { emit: vi.fn(), on: vi.fn(() => () => undefined) },
     getActiveSessionId: vi.fn(() => null),
     subscribe: vi.fn((fn: () => void) => {
       hostSubs.push(fn);

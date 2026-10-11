@@ -229,6 +229,26 @@ export function linkTaskSession(projectId: string, taskId: string, link: Omit<Ta
     }));
 }
 
+/** 关联的 host 会话绑定到 CLI 磁盘身份后回写(幂等):会话终结后凭它 resume,
+ *  语义同 kind:"disk"(见 TaskDetailDialog 活会话行回写与 sessionOpen 打开回落)。 */
+export function bindTaskSessionDiskId(projectId: string, taskId: string, ref: string, cliSessionId: string): Promise<void> {
+  return mutate((projects) =>
+    projects.map((p) => {
+      if (p.id !== projectId) return p;
+      return {
+        ...p,
+        updatedAt: new Date().toISOString(),
+        tasks: p.tasks.map((t) => {
+          if (t.id !== taskId) return t;
+          return {
+            ...t,
+            sessions: t.sessions.map((s) => (s.ref === ref && !s.cliSessionId ? { ...s, cliSessionId } : s)),
+          };
+        }),
+      };
+    }));
+}
+
 export function unlinkTaskSession(projectId: string, taskId: string, ref: string): Promise<void> {
   const now = new Date().toISOString();
   return mutate((projects) =>

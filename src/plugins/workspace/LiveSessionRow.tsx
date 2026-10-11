@@ -7,6 +7,7 @@
 
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import type { SessionMeta } from "@kernel/ipc";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
@@ -78,6 +79,7 @@ export function LiveSessionRow({
         className={`thread-row${isActive ? " active" : ""}`}
         onClick={() => {
           noteSessionTabTitle(session.id, title);
+          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
           host.setActiveSession(session.id);
         }}
         onContextMenu={onContextMenu}

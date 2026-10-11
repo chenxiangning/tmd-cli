@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PaperPlaneRight } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { getActiveWorkspace, getWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { relayTargets, buildRelaySummary, type RelaySource } from "./relay";
@@ -50,6 +51,7 @@ async function attachPendingRelay(args: {
     ? getWorkspaces().find((w) => w.id === args.source.workspaceId) ?? getActiveWorkspace()
     : getActiveWorkspace();
   if (!ws) throw new Error(t("没有可用工作区"));
+  host.events.emit(KernelTopics.sessionViewRequested, null);
   const sessionId =
     args.createdRef.current ?? (await host.createSession(args.targetId, ws.root, ws.id)).id;
   args.createdRef.current = sessionId;

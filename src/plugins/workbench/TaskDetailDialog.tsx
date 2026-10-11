@@ -5,15 +5,16 @@
  * 会话 link-only:host=活会话聚焦(失败兜底磁盘恢复),disk=磁盘恢复。
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { t } from "@kernel/i18n";
 import { ChatCircle, Plus, X } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
 import { DialogShell } from "@kernel/DialogShell";
 import { TASK_STATUS_LABELS } from "./kindLabels";
 import {
-  attachTaskFile, detachTaskFile, linkTaskSession, unlinkTaskSession, updateTask,
+  attachTaskFile, detachTaskFile, linkTaskSession, unlinkTaskSession, updateTask, bindTaskSessionDiskId,
 } from "./store";
 import { composerReplaceRef, queueComposerText } from "@kernel/composerExt";
 import { readDocDataUrl, fileToBase64, isImageAttachment, docAttachmentPath } from "./workbenchFiles";
@@ -41,6 +42,19 @@ export function TaskDetailDialog({
   const recent = useProjectSessions(project.cwd);
   useHost(); /* 活会话表变化即重渲(关联行实时名/状态徽)。 */
   const hostSessions = host.getSessions();
+  /* 活关联行的 CLI 磁盘身份回写(每次绑定只写一次):会话终结后行仍可凭
+   * 身份 resume(打开回落见 sessionOpen.openLink)。写失败静默,下次弹层重试。 */
+  const backfilled = useRef(new Set<string>());
+  const liveById = useMemo(() => new Map(hostSessions.map((s) => [s.id, s])), [hostSessions]);
+  useEffect(() => {
+    for (const link of task.sessions) {
+      if (link.kind !== "host" || link.cliSessionId || backfilled.current.has(link.ref)) continue;
+      const disk = liveById.get(link.ref) && host.getCliSessionId(link.ref);
+      if (!disk) continue;
+      backfilled.current.add(link.ref);
+      void bindTaskSessionDiskId(project.id, task.id, link.ref, disk).catch(() => backfilled.current.delete(link.ref));
+    }
+  }, [liveById, task.sessions, project.id, task.id]);
   /* cwd → 工作区 id:会话挂树必带,孤儿会话侧栏不收(精确命中,子目录取最深前缀)。 */
   const workspaceId = resolveWorkspaceId(useWorkspaces().list, project.cwd);
   /* 任务切换由调用方 key={task.id} 重挂复位,不写 prop→state 同步 effect。 */
@@ -96,6 +110,8 @@ export function TaskDetailDialog({
     const promptText = taskPrompt(project, task);
     void host.createSession(profileId, project.cwd, workspaceId).then(
       (meta) => {
+        /* 开新会话并关联 = 用户手势,摘最大化让幕布可见(遮盖统一)。 */
+        host.events.emit(KernelTopics.sessionViewRequested, null);
         host.setActiveSession(meta.id);
         /* 常驻 composer 不随会话切换重挂载,mount 期消费队列的时机不存在
          * (真机二轮实测)。主路径 = activation 提交后经 replace 桥整替——
@@ -105,7 +121,7 @@ export function TaskDetailDialog({
           if (composerReplaceRef.current) composerReplaceRef.current(promptText);
           else queueComposerText(promptText);
         }, 120);
-        void linkTaskSession(project.id, task.id, { kind: "host", ref: meta.id, profileId, title: task.title })
+        void linkTaskSession(project.id, task.id, { kind: "host", ref: meta.id, profileId, title: task.title, cliSessionId: host.getCliSessionId(meta.id) })
           .catch(() => undefined);
       },
       () => onToast(t("创建会话失败")),

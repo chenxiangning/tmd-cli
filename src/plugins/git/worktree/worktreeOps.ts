@@ -6,6 +6,7 @@
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { addWorkspace, getWorkspaces, removeWorkspace, setActiveWorkspace } from "@kernel/workspace";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 
 /** 路径归一(比较口径):`\`→`/`、去尾分隔符。worktree list 与 repos_scan
  *  的前缀口径已由 Rust 侧回贴统一,这里只兜格式差。 */
@@ -62,5 +63,6 @@ export function openWorktreeWorkspace(path: string): string {
 /** 在该 worktree 开内置终端:复用「打开为工作区」后走 kernel shell 会话装配。 */
 export async function spawnTerminalAt(path: string): Promise<void> {
   const wsId = openWorktreeWorkspace(path);
+  host.events.emit(KernelTopics.sessionViewRequested, null);
   await host.createShellSession(wsId);
 }

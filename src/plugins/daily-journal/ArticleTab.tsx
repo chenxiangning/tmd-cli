@@ -16,6 +16,7 @@ import { sessionRefKey } from "./sessionRef";
 import { UnfinishedPanel } from "./UnfinishedPanel";
 import { unfinishedPanelRows } from "./unfinished";
 import { requestSessionReveal } from "@kernel/sessionReveal";
+import { KernelTopics } from "@kernel/events";
 import { pad2 } from "./journalFiles";
 import type { ArticleTabPayload } from "./journalTabs";
 import { dayTitleOf } from "./dateTitle";
@@ -61,7 +62,7 @@ function GenSessionBar({ sessionId, engine }: { sessionId?: string; engine?: str
         <EngMark id={engine ?? ""} /> {engine ?? ""} · {sessionId}
       </span>
       {live && (
-        <button type="button" className="dj-btn" onClick={() => host.setActiveSession(sessionId)}>
+        <button type="button" className="dj-btn" onClick={() => { host.events.emit(KernelTopics.sessionViewRequested, null); host.setActiveSession(sessionId); }}>
           {t("打开会话(可干涉)")}
         </button>
       )}
@@ -207,6 +208,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
           const ws = workspaces.find((w) => w.id === r.wsId);
           /* 工作区已删(扫描缓存 60s 窗内):空 cwd 只会在 app 目录开垃圾会话,不续。 */
           if (!ws) return;
+          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
           void host.openDiskSession(r.profileId, ws.root, ws.id, r.disk.id);
         }
       },

@@ -22,7 +22,7 @@ export { AI_RULES_FILE, INDEX_PATH, createProjectId } from "./workbenchFiles";
 export {
   createDoc, readDoc, saveDoc, deleteDoc,
   attachDocFile, detachDocFile,
-  attachTaskFile, detachTaskFile, linkTaskSession, unlinkTaskSession,
+  attachTaskFile, detachTaskFile, linkTaskSession, unlinkTaskSession, bindTaskSessionDiskId,
 } from "./storeDocs";
 
 /* ── 装载:磁盘 → 内存(旧 PRD 分文件迁移为首篇文档)── */

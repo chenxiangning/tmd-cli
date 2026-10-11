@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CliProfile } from "@kernel/cli";
 import { host, useHost } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import type { SessionMeta } from "@kernel/ipc";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
@@ -176,9 +177,9 @@ export function RunningZoneSection() {
 
   const openRow = (row: RunningRow) => {
     noteSessionTabTitle(row.session.id, titleOf(row));
+    host.events.emit(KernelTopics.sessionViewRequested, null);
     host.setActiveSession(row.session.id);
   };
-
   const commitRename = (value: string | null) => {
     if (renaming && value !== null) {
       setSessionTitle(renaming.profileId, renaming.cliSessionId, value);

@@ -13,6 +13,7 @@ import { Key, LockKey, HardDrive, ShieldWarning, Cross } from "@phosphor-icons/r
 import { ipc, type SshHostConfig, type SshPromptEvent } from "@kernel/ipc";
 import { getSettingsState } from "@kernel/settings";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { useEscClose } from "@kernel/DialogShell";
 import { closeHostPicker, useSshState } from "./state";
@@ -49,6 +50,7 @@ function HostPicker() {
       const workspaceId =
         host.getSessions().find((s) => s.id === host.getActiveSessionId())?.workspaceId ??
         undefined;
+      host.events.emit(KernelTopics.sessionViewRequested, null);
       await host.createSshSession(config, workspaceId);
       closeHostPicker();
     } catch (e) {

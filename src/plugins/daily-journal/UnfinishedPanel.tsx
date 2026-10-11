@@ -9,6 +9,7 @@ import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
 import { requestSessionReveal } from "@kernel/sessionReveal";
+import { KernelTopics } from "@kernel/events";
 import type { Workspace } from "@kernel/workspace";
 import { saveNote } from "./journalStore";
 import type { DayNote } from "./journalFiles";
@@ -78,6 +79,7 @@ export function UnfinishedPanel({
     if (row.disk) {
       const ws = workspaces.find((w) => w.id === row.wsId);
       if (!ws) return;
+      host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
       void host.openDiskSession(row.profileId, ws.root, ws.id, row.disk.id);
     }
   };

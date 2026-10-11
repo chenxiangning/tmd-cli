@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { TerminalWindow } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
@@ -35,6 +36,7 @@ export function ShellSessionGroup({ workspace }: { workspace: Workspace }) {
             className={`thread-row${session.id === activeSessionId ? " active" : ""}`}
             onClick={() => {
               noteSessionTabTitle(session.id, title);
+              host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
               host.setActiveSession(session.id);
             }}
             onContextMenu={(e) => {

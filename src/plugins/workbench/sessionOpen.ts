@@ -5,6 +5,7 @@
 
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import type { Project, ProjectTask } from "./types";
 
 /** host 活会话先查注册表(已关 tab/被移除的 ref setActiveSession 是静默无效,
@@ -17,9 +18,22 @@ export function openLink(
   workspaceId: string | undefined,
   onToast: (m: string) => void,
 ): void {
+  /* 调用方均为用户点击行(任务详情/项目详情会话列表):先声明「要看会话」,
+   * app-shell 摘最大化让幕布可见(见 kernel/events.ts sessionViewRequested 红线)。 */
+  host.events.emit(KernelTopics.sessionViewRequested, null);
   if (link.kind === "host") {
     if (host.getSessions().some((s) => s.id === link.ref)) {
       host.setActiveSession(link.ref);
+      return;
+    }
+    /* 会话已结束:优先用关联时留存的 CLI 磁盘身份 resume(运行期绑定回写,
+     * 见 TaskDetailDialog 的 bindTaskSessionDiskId);无身份(旧关联/未绑定
+     * 即终结)不猜测,提示重关联。 */
+    if (link.cliSessionId && project.cwd) {
+      void host.openDiskSession(link.profileId, project.cwd, workspaceId, link.cliSessionId).then(
+        () => undefined,
+        () => onToast(t("打开会话失败")),
+      );
       return;
     }
     const cliSessionId = host.getCliSessionId(link.ref);

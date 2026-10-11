@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { deriveWorkspaceName } from "@kernel/pathUtils";
@@ -72,6 +73,7 @@ export function SessionSearchOverlay() {
 
   const openHit = (profileId: string, cliSessionId: string) => {
     closeSessionSearch();
+    host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
     void host.openDiskSession(profileId, cwd, getActiveWorkspace()?.id, cliSessionId);
   };
 

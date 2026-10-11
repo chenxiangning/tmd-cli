@@ -10,6 +10,7 @@
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import type { Workspace } from "@kernel/workspace";
 import type { DirEntry } from "@kernel/ipc";
 import type { WorkspaceOrigin } from "@kernel/workspaceOrigins";
@@ -60,6 +61,7 @@ export function buildWslWorkspaceOrigin(addTab: WorkspaceOrigin["addTab"]): Work
       const sshHost = sshHostOf(ws);
       if (!wsl || !sshHost) return false;
       /* spawn 被拒的原因由内核广播 sessionStartFailed(toast),此处吞掉 rejection。 */
+      host.events.emit(KernelTopics.sessionViewRequested, null);
       void host
         .createSshSession(
           sshHost,
@@ -93,6 +95,7 @@ export function buildWslWorkspaceOrigin(addTab: WorkspaceOrigin["addTab"]): Work
       if (!wsl || !cfg || !profile.resumeArgs) return false;
       const resume = profile.resumeArgs(cliSessionId);
       if (resume.length === 0) return false;
+      host.events.emit(KernelTopics.sessionViewRequested, null);
       void host
         .createSshSession(
           cfg,

@@ -53,6 +53,9 @@ export interface TaskSessionLink {
   profileId: string;
   title: string;
   createdAt: string;
+  /** CLI 磁盘身份(运行期绑定后回写;host 会话终结后凭它 resume,
+   *  语义同 kind:"disk"。旧关联/绑定前即终结者缺省,打开回落提示)。 */
+  cliSessionId?: string;
 }
 
 export interface ProjectUpdate {

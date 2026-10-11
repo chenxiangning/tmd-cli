@@ -13,6 +13,8 @@
  */
 
 import { useSyncExternalStore } from "react";
+import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 
 const STORAGE_KEY = "shell.editorMax";
 
@@ -32,6 +34,12 @@ export function toggleEditorMaximized(): void {
 /** 最大化态摘除(用户显式「看会话」路径共用);非最大化态幂等 no-op。 */
 export function restoreEditorMaximized(): void {
   if (maximized) setMaximized(false);
+}
+
+/** 遮盖还原装配:订阅用户显式「去看会话」手势(kernel.sessions.viewRequested),
+ *  摘最大化——幂等,非最大化 no-op。返回退订(AppShell 挂载期装一次)。 */
+export function installSessionViewReveal(): () => void {
+  return host.events.on(KernelTopics.sessionViewRequested, () => restoreEditorMaximized());
 }
 
 export function useEditorMaximized(): boolean {

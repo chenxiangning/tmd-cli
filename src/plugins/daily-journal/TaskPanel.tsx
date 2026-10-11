@@ -7,6 +7,7 @@ import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
 import { DialogShell } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import type { GenTask } from "./taskQueue";
 import { cancelTask, enqueueTask, removeTask, useGenTasks } from "./taskQueue";
 import { addBead } from "./journalStore";
@@ -24,7 +25,12 @@ function cancelRow(task: GenTask): void {
 
 function TaskRow({ task }: { task: GenTask }) {
   const [y, m, d] = [Number(task.dayKey.slice(0, 4)), Number(task.dayKey.slice(5, 7)), Number(task.dayKey.slice(8, 10))];
-  const openSession = task.sessionId ? () => host.setActiveSession(task.sessionId!) : null;
+  const openSession = task.sessionId
+    ? () => {
+        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
+        host.setActiveSession(task.sessionId!);
+      }
+    : null;
   return (
     <div className={`dj-titem dj-titem-${task.st}`}>
       <div className="dj-ti-main">

@@ -13,6 +13,7 @@
 import { TerminalWindow } from "@phosphor-icons/react";
 import type { Plugin } from "@kernel/plugin";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 
 /** 在途创建 Promise(shell 会话 spawn 装配未落地期间再点直接忽略)。 */
 let creating: Promise<unknown> | null = null;
@@ -30,6 +31,7 @@ function open(forceNew: boolean) {
     }
   }
   /* 失败已广播 sessionStartFailed(StartFailureToast 呈现),这里吞掉即可 */
+  host.events.emit(KernelTopics.sessionViewRequested, null);
   creating = host
     .createShellSession()
     .catch(() => undefined)

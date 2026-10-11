@@ -10,6 +10,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { t } from "@kernel/i18n";
 import { ChatCircle, FileText, ListChecks, Notebook, PencilSimple, Plus } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
 import { formatRemaining, projectRisk, todayISO } from "./analysis";
 import { useProjectSessions } from "./useProjectSessions";
@@ -205,7 +206,10 @@ function SessionsTab({ project, onToast }: {
       return;
     }
     void host.createSession(profileId, project.cwd, workspaceId).then(
-      (meta) => { host.setActiveSession(meta.id); },
+      (meta) => {
+        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
+        host.setActiveSession(meta.id);
+      },
       () => onToast(t("创建会话失败")),
     );
   };
