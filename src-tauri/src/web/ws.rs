@@ -128,6 +128,8 @@ async fn handle_socket(ctx: WebCtx, socket: WebSocket, scope: ConnScope) {
     {
         return;
     }
+    /* hello 已出即触发惰性重绑(ensure_fresh_lan):IP 漂移时本连接或被重启波及,自愈重拨拿新 lan,详见 web_access.rs */
+    tauri::async_runtime::spawn(super::web_access::ensure_fresh_lan(ctx.app.clone()));
     /* 出站:invoke 响应+事件广播合并进同一条 socket;收发同循环:任何收线
     分支都先发 Close 再断,避免半边 drop 把 4001 竞态成 1006。 */
     let (out_tx, mut out_rx) = tokio::sync::mpsc::channel::<String>(256);
