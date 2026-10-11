@@ -1,4 +1,6 @@
 /** ja 词典 · workbench 域(键 = 中文源串;zh 恒等无词典)。 */
+import { DOCGEN_JA } from "./ja-docgen";
+
 export const MESSAGES_JA = {
   // ── トップバー/ナビ ──
   "工作台": "ワークベンチ",
@@ -190,4 +192,5 @@ export const MESSAGES_JA = {
   "还没有资料文档;新建 markdown,附件/图片在文档内上传。": "資料ドキュメントはまだありません。Markdown を作成し、添付/画像はドキュメント内でアップロードします。",
   "附件打开失败": "添付を開けませんでした",
   "项目不存在或已删除。": "プロジェクトが存在しないか、削除されました。",
+  ...DOCGEN_JA,
 } as Record<string, string>;

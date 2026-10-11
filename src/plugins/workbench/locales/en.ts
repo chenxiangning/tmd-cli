@@ -1,4 +1,6 @@
 /** en 词典 · workbench 域(键 = 中文源串;zh 恒等无词典)。 */
+import { DOCGEN_EN } from "./en-docgen";
+
 export const MESSAGES_EN = {
   // ── 顶栏/导航 ──
   "工作台": "Workbench",
@@ -190,4 +192,5 @@ export const MESSAGES_EN = {
   "还没有资料文档;新建 markdown,附件/图片在文档内上传。": "No docs yet; create a markdown doc, then upload attachments/images inside it.",
   "附件打开失败": "Failed to open attachment",
   "项目不存在或已删除。": "Project missing or deleted.",
+  ...DOCGEN_EN,
 } as Record<string, string>;

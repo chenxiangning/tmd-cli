@@ -4,7 +4,7 @@
  * 输出是给 Agent/文档的内容文本,不过 UI 词典。
  */
 
-import { clampProgress, formatRemaining, latestUpdate, openTasks, overview, projectRisk, sortByRisk } from "./analysis";
+import { clampProgress, formatRemaining, openTasks, projectRisk, sortByRisk } from "./analysis";
 import { UPDATE_KIND_LABELS } from "./kindLabels";
 import type { Project } from "./types";
 
@@ -50,20 +50,6 @@ export function portfolioBrief(projects: readonly Project[], today: string): str
   return sorted.map((item) => projectBrief(item.project, today)).join("\n\n");
 }
 
-function portfolioNumbers(projects: readonly Project[], today: string): string {
-  const data = overview(projects, today);
-  const modules = data.modules
-    .filter((item) => item.total > 0)
-    .map((item) => `- ${item.module}:${item.total} 个(进行中 ${item.active}、危险 ${item.danger}、未完成任务 ${item.openTasks})`);
-  return [
-    `- 项目总数:${data.total}`,
-    `- 状态分布:${Object.entries(data.byStatus).map(([key, value]) => `${key} ${value}`).join("、") || "无"}`,
-    `- 风险分布:${Object.entries(data.byRisk).map(([key, value]) => `${key} ${value}`).join("、") || "无"}`,
-    "- 按模块:",
-    bullets(modules),
-  ].join("\n");
-}
-
 /** 「让 Agent 分析进展」的提示词。 */
 export function buildAnalysisPrompt(options: { projects?: readonly Project[]; project?: Project | null; today: string }): string {
   const { projects = [], project = null, today } = options;
@@ -83,87 +69,5 @@ export function buildAnalysisPrompt(options: { projects?: readonly Project[]; pr
     "---",
     "",
     body,
-  ].join("\n");
-}
-
-const DOC_KINDS: Record<string, string> = {
-  weekly: "周报",
-  status: "项目状态汇报",
-  risk: "风险清单",
-  meeting: "会议纪要骨架",
-};
-
-export function docKinds(): Array<{ value: string; label: string }> {
-  return Object.entries(DOC_KINDS).map(([value, label]) => ({ value, label }));
-}
-
-/** 生成一份文档草稿(Markdown):weekly | status | risk | meeting。 */
-export function buildDocDraft(kind: string, options: { projects?: readonly Project[]; project?: Project | null; today: string }): string {
-  const { projects = [], project = null, today } = options;
-  const only = project ? [project] : projects;
-  const title = project ? project.name : "全部项目";
-
-  if (kind === "risk") {
-    const rows = sortByRisk(only, today).map((item) => {
-      const risk = item.risk;
-      const tasks = openTasks(item.project);
-      return `| ${item.project.name} | ${item.project.module || "其他项目"} | ${item.project.status || "进行中"} | ${clampProgress(item.project)}% | ${item.project.dueDate || "未排期"} | ${risk.label} — ${risk.detail} | ${tasks.length} |`;
-    });
-    return [
-      `# 风险清单 · ${title}`, "", `生成时间:${today}`, "",
-      "| 项目 | 模块 | 状态 | 进度 | 截止 | 风险 | 任务 |",
-      "| --- | --- | --- | --- | --- | --- | --- |",
-      rows.length > 0 ? rows.join("\n") : "| (暂无项目) |  |  |  |  |  |  |",
-      "",
-      "## 处理建议",
-      bullets(sortByRisk(only, today).filter((item) => item.risk.rank <= 4)
-        .map((item) => `${item.project.name}:${item.risk.detail},建议先确认责任人并给出新的交付时间。`), "(当前没有需要升级处理的风险)"),
-    ].join("\n");
-  }
-
-  if (kind === "weekly") {
-    return [
-      `# 周报 · 项目推进(${today})`, "",
-      "## 一、整体情况", portfolioNumbers(only, today), "",
-      "## 二、本周进展", portfolioBrief(only, today), "",
-      "## 三、下周计划",
-      bullets(only.flatMap((item) => openTasks(item).slice(0, 3).map((task) =>
-        `${item.name}:${task.title}${task.dueDate ? `(${task.dueDate} 前)` : ""}`)), "(任务清单为空,请补充下周计划)"),
-      "",
-      "## 四、需要协调",
-      bullets(sortByRisk(only, today).filter((item) => ["overdue", "blocked", "urgent", "slipping"].includes(item.risk.level))
-        .map((item) => `${item.project.name}:${item.risk.detail}`), "(暂无)"),
-    ].join("\n");
-  }
-
-  if (kind === "meeting") {
-    return [
-      `# 会议纪要 · ${title}(${today})`, "", "参加会议:", "",
-      "## 一、项目现状", portfolioBrief(only, today), "",
-      "## 二、讨论与结论", "- (待补充)", "",
-      "## 三、行动项",
-      "| 事项 | 负责人 | 截止 | 状态 |",
-      "| --- | --- | --- | --- |",
-      bullets(only.flatMap((item) => openTasks(item).map((task) =>
-        `| ${item.name}:${task.title} | ${task.owner || "待定"} | ${task.dueDate || "待定"} | ${task.status === "doing" ? "进行中" : "未开始"} |`)), "| (待补充) |  |  |  |"),
-    ].join("\n");
-  }
-
-  const rows = sortByRisk(only, today).map((item) => {
-    const latest = latestUpdate(item.project);
-    return [
-      `### ${item.project.name}`,
-      `- 模块/状态:${item.project.module || "其他项目"}/${item.project.status || "进行中"}`,
-      `- 进度:${clampProgress(item.project)}%,${formatRemaining(item.project.dueDate, today)}`,
-      `- 时间风险:${item.risk.label} — ${item.risk.detail}`,
-      `- 最近进展:${latest ? `${String(latest.at).slice(0, 10)} ${latest.text}` : "无记录"}`,
-      `- 下一步:${openTasks(item.project).map((task) => task.title).slice(0, 3).join(";") || "待补充"}`,
-    ].join("\n");
-  });
-  return [
-    `# 项目状态汇报 · ${title}(${today})`, "",
-    "## 概要", portfolioNumbers(only, today), "",
-    "## 项目明细",
-    rows.length > 0 ? rows.join("\n\n") : "(暂无项目)",
   ].join("\n");
 }

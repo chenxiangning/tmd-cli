@@ -8,7 +8,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { t } from "@kernel/i18n";
-import { ChatCircle, FileText, ListChecks, Notebook, PencilSimple, Plus } from "@phosphor-icons/react";
+import { ChatCircle, FileText, ListChecks, Notebook, PencilSimple, Plus, Sparkle } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
@@ -22,11 +22,11 @@ import { updateProject } from "./store";
 import { updateTab } from "@kernel/tabs";
 import { ProjectFormModal } from "./ProjectFormModal";
 import { openLink } from "./sessionOpen";
-import { DocPreviewDialog, type DocRequest } from "./DocPreviewDialog";
-import { docRequests } from "./wbTabs";
+import { DocGenDialog } from "./docgen/DocGenDialog";
+import { openWorkbenchDocsTab } from "./wbTabs";
 import type { Project, ProjectTask } from "./types";
 
-type DrawerTab = "info" | "docs" | "tasks" | "updates" | "sessions";
+export type DrawerTab = "info" | "docs" | "tasks" | "updates" | "sessions";
 
 const TABS: readonly { key: DrawerTab; label: string }[] = [
   { key: "info", label: "概要" },
@@ -37,13 +37,15 @@ const TABS: readonly { key: DrawerTab; label: string }[] = [
 ];
 
 export function ProjectDetail({
-  project, onToast,
+  project, onToast, initialTab,
 }: {
   project: Project;
   onToast: (message: string) => void;
+  /** 深链聚焦页签(溯源「进展 →」跳转);缺省概要。 */
+  initialTab?: DrawerTab;
 }) {
-  const [tab, setTab] = useState<DrawerTab>("info");
-  const [docRequest, setDocRequest] = useState<DocRequest | null>(null);
+  const [tab, setTab] = useState<DrawerTab>(initialTab ?? "info");
+  const [docGenOpen, setDocGenOpen] = useState(false);
   /* 任务表单状态上提:概要页「建任务」跳任务页签内嵌开单(不再是弹窗)。 */
   const [taskForm, setTaskForm] = useState<{ open: boolean; task: ProjectTask | null }>({ open: false, task: null });
   const [editOpen, setEditOpen] = useState(false);
@@ -80,7 +82,7 @@ export function ProjectDetail({
             project={project}
             onEdit={() => setEditOpen(true)}
             onNewTask={() => { setTab("tasks"); setTaskForm({ open: true, task: null }); }}
-            onDoc={setDocRequest}
+            onDocGen={() => setDocGenOpen(true)}
             onJump={setTab}
           />
         ) : null}
@@ -89,13 +91,12 @@ export function ProjectDetail({
         {tab === "updates" ? <DrawerUpdatesTab project={project} onToast={onToast} /> : null}
         {tab === "sessions" ? <SessionsTab project={project} onToast={onToast} /> : null}
       </div>
-      {docRequest ? (
-        <DocPreviewDialog
-          request={docRequest}
+      {docGenOpen ? (
+        <DocGenDialog
+          lockedProject={project}
           projects={[project]}
-          project={project}
           today={todayISO()}
-          onClose={() => setDocRequest(null)}
+          onClose={() => setDocGenOpen(false)}
           onToast={onToast}
         />
       ) : null}
@@ -116,14 +117,13 @@ export function ProjectDetail({
   );
 }
 
-function InfoTab({ project, onEdit, onNewTask, onDoc, onJump }: {
+function InfoTab({ project, onEdit, onNewTask, onDocGen, onJump }: {
   project: Project;
   onEdit: (project: Project) => void;
   onNewTask: () => void;
-  onDoc: (request: DocRequest) => void;
+  onDocGen: () => void;
   onJump: (tab: DrawerTab) => void;
 }) {
-  const docs = useMemo(() => docRequests(), []);
   const rows: Array<[string, string]> = [
     [t("模块"), project.module || "其他项目"],
     [t("状态"), project.status],
@@ -170,10 +170,13 @@ function InfoTab({ project, onEdit, onNewTask, onDoc, onJump }: {
         <button type="button" className="wb-btn" onClick={onNewTask}>
           <Plus size={12} />{t("建任务")}
         </button>
-        <span className="wb-info-actions-label">{t("生成文档")}</span>
-        {docs.map((doc) => (
-          <button key={doc.kind} type="button" className="wb-btn wb-btn-xs" onClick={() => onDoc(doc)}>{doc.label}</button>
-        ))}
+        <span className="dg-sp" />
+        <button type="button" className="wb-info-link" onClick={() => openWorkbenchDocsTab(project.id)}>
+          {t("本项目生成记录 →")}
+        </button>
+        <button type="button" className="wb-btn wb-btn-primary" onClick={onDocGen}>
+          <Sparkle size={12} />{t("生成文档…")}
+        </button>
       </div>
     </div>
   );

@@ -20,6 +20,7 @@ import { WorkbenchTab } from "./WorkbenchTab";
 import { ProjectTab } from "./ProjectTab";
 import { openWorkbenchTab, WB_CONSOLE_TAB_KIND, WB_CONSOLE_TAB_ID, WB_PROJECT_TAB_KIND } from "./wbTabs";
 import { attachJournal } from "./journal/attach";
+import { attachDocGen } from "./docgen/attach";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import "./workbench.css";
 import "./workbench-dialogs.css";
@@ -67,7 +68,12 @@ export const workbenchPlugin: Plugin = {
         },
       ],
     });
-    /* 每日日志子域:store/调度/文章 tab(退订随插件 deactivate)。 */
-    return attachJournal(ctx);
+    /* 每日日志子域 + 生成文档流水线(退订随插件 deactivate)。 */
+    const offJournal = attachJournal(ctx);
+    const offDocGen = attachDocGen(ctx);
+    return () => {
+      offJournal();
+      offDocGen();
+    };
   },
 };

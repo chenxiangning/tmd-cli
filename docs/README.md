@@ -309,4 +309,7 @@
 | 2026-10-11 | [每日工作日志并入工作台设计(目录迁移 workbench/journal 子域 + 入口统一工作台页签「日志」年/月/轴三视图 + 日↔项目↔任务派生关联 + 生成项目感知;三阶段 TDD 分期评审)](superpowers/specs/2026-10-11-workbench-journal-merge-design.md) | 已实施(三阶段 TDD;门禁全绿 + 1421 桩目检;评审记录同日) |
 | 2026-10-11 | [每日工作日志并入工作台:分阶段评审记录(P1 合并入口统一 OK with notes ×2 P2 修;P2 关联层 1×P1 disk 链转活假阴性修 + 5×P2 修;P3 生成项目感知 6×P2 修;收口门禁 3871 测试/doctor 100/桩目检)](review/2026-10-11-workbench-journal-merge-review.md) | 已完成(修复全落地) |
 | 2026-10-11 | [工作台日历并入工作日志月视图(叠层条目兄弟位防嵌套交互件 + calendarMonth 单一真相源复用;「日历」页签退役、「日志」改名「工作日志」;评审 OK with notes 5×P2 全修 + 桩目检)](review/2026-10-11-workbench-journal-merge-review.md) | 已完成(记录见同文件 M 批段) |
+| 2026-10-11 | [生成文档二次开发 · B+C 融合定稿候选 v3(GLM 系设计工艺打磨:三层高度/字阶/动效节奏/柔色语义;能力:模板库/事实源/排程/溯源/分发/版本对比;含项目详情入口形态)](design/doc-gen-fused.html) | 设计原型(已定稿) |
+| 2026-10-11 | [生成文档闭环(docgen)设计:配置(模板库×事实源勾选×参数)→ journal 生命线姊妹实现的无头单发生成 → docgen.json+版本链沉淀 → 结构化解析(溯源徽标+条目级对比+失败回落)→ 落地分发(转任务/存项目文档/发送输入框/就此追问);自建轻队列不动 journal 基座;DocPreviewDialog 退役;三阶段分期](superpowers/specs/2026-10-11-docgen-loop-design.md) | 已实施(P1+P2+排程) |
+| 2026-10-12 | [生成文档流水线(docgen)已落地契约:数据布局 docgen.json+版本链实体分档;生成生命线三路结算;维度键队列;每周排程幂等闸;结构化五段解析契约;入口收敛与铁则对照](architecture/22-docgen.md) | 已完成 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

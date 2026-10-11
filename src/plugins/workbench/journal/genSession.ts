@@ -22,6 +22,7 @@ import { addBead, dayMetaOf, getJournalState, reloadDay, setDayResult } from "./
 import { collectSessionRowsBatched, isRowSummarized, rowDayKey, type DaySessionRow } from "./daySessions";
 import { buildDayDigest } from "./sessionDigest";
 import { buildGenPrompt, GEN_TASK_MARK, type DigestHandoff } from "./promptGen";
+import { DOC_GEN_MARK } from "../docgen/types";
 import { finishTask, isTaskActive, noteTask, setTaskRunner, startTaskRun, type GenTask } from "./taskQueue";
 import { ARTICLE_TAB_KIND } from "./journalTabs";
 import { hmNow } from "./timeUtil";
@@ -171,8 +172,10 @@ async function runGeneration(task: GenTask): Promise<void> {
   const rows = (await collectSessionRowsBatched()).filter((r: DaySessionRow) => {
     if (rowDayKey(r) !== task.dayKey) return false;
     /* 自指防混入:剔除插件自己 spawn 的历次生成会话(标题即 prompt 头;
-       摘录层另有首条用户消息同标记的兜底,见 sessionDigest)。 */
-    return !r.title.includes(GEN_TASK_MARK) && !(r.disk?.title ?? "").includes(GEN_TASK_MARK);
+       摘录层另有首条用户消息同标记的兜底,见 sessionDigest)。
+       [DOC-GEN] = docgen 流水线会话(同插件姊妹域),同属自指。 */
+    const title = `${r.title} ${r.disk?.title ?? ""}`;
+    return !title.includes(GEN_TASK_MARK) && !title.includes(DOC_GEN_MARK);
   });
   const summarizedAt = dayMetaOf(task.dayKey).summarizedAt;
   rows.sort((a, b) => a.startedAt - b.startedAt);

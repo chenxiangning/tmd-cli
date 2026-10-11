@@ -13,6 +13,7 @@ import type { CliTranscriptBlock } from "@kernel/cli";
 import { renderTranscriptDigest, DIGEST_CAPS, type DigestCaps } from "@kernel/transcriptDigest";
 import type { DaySessionRow } from "./daySessions";
 import { GEN_TASK_MARK } from "./promptGen";
+import { DOC_GEN_MARK } from "../docgen/types";
 import { hmOf } from "./timeUtil";
 
 
@@ -71,9 +72,10 @@ export async function buildDayDigest(rows: DaySessionRow[], groups?: readonly Pr
           try {
             const transcript = await profile.readSessionTranscript(row.disk);
             if (!transcript) return { id: row.id ?? "", part: null };
-            /* 自指防混入:首条用户消息即生成 prompt 的会话是插件自己 spawn 的,摘掉。 */
+            /* 自指防混入:首条用户消息即生成 prompt 的会话是插件自己 spawn 的,摘掉。
+               [DOC-GEN] = docgen 流水线会话,同属自指。 */
             const firstUser = transcript.blocks.find((b) => b.role === "user");
-            if (firstUser?.text.includes(GEN_TASK_MARK)) return { id: row.id ?? "", part: null };
+            if (firstUser?.text.includes(GEN_TASK_MARK) || firstUser?.text.includes(DOC_GEN_MARK)) return { id: row.id ?? "", part: null };
             return { id: row.id ?? "", part: renderSessionDigest(row, transcript.blocks) };
           } catch {
             return { id: row.id ?? "", part: null };

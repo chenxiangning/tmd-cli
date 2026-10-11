@@ -8,7 +8,7 @@ import { useState, useSyncExternalStore } from "react";
 import { t } from "@kernel/i18n";
 import type { EditorTab } from "@kernel/tabs";
 import { subscribeWorkbench, workbenchSnapshot } from "./store";
-import { ProjectDetail } from "./ProjectDetail";
+import { ProjectDetail, type DrawerTab } from "./ProjectDetail";
 import { useTaskAutoStatus } from "./useTaskAutoStatus";
 import { WbEmpty } from "./ui";
 
@@ -16,7 +16,8 @@ export function ProjectTab({ tab }: { tab: EditorTab }) {
   const projects = useSyncExternalStore(subscribeWorkbench, workbenchSnapshot);
   useTaskAutoStatus();
   const [message, setMessage] = useState<string | null>(null);
-  const projectId = (tab.payload as { projectId?: string } | null)?.projectId ?? "";
+  const payload = tab.payload as { projectId?: string; focusTab?: string } | null;
+  const projectId = payload?.projectId ?? "";
   const project = projects.find((item) => item.id === projectId);
   if (!project) {
     return <WbEmpty text={t("项目不存在或已删除。")} />;
@@ -24,7 +25,7 @@ export function ProjectTab({ tab }: { tab: EditorTab }) {
   const toast = (text: string) => setMessage(text);
   return (
     <div className="wb-project-tab">
-      <ProjectDetail project={project} onToast={toast} />
+      <ProjectDetail project={project} onToast={toast} initialTab={payload?.focusTab as DrawerTab | undefined} />
       {message ? <div className="wb-toast" role="status">{message}</div> : null}
     </div>
   );

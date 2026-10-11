@@ -6,13 +6,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
-import { docRequests } from "./wbTabs";
 import { buildSampleProjects, sampleSummary } from "./sample";
 import { generateSamples } from "./store";
-import type { DocRequest } from "./DocPreviewDialog";
 
 export function OverlayActions({
-  today, onToast, onNewProject, onLinkWorkspaces, onRequestClear, onRequestClearSamples, onDoc, onRefresh, refreshing,
+  today, onToast, onNewProject, onLinkWorkspaces, onRequestClear, onRequestClearSamples, onDocGen, onRefresh, refreshing,
 }: {
   today: string;
   onToast: (message: string) => void;
@@ -20,24 +18,23 @@ export function OverlayActions({
   onLinkWorkspaces: () => void;
   onRequestClear: () => void;
   onRequestClearSamples: () => void;
-  /** 文档类型点击 → 预览弹层(内容即差异;不再直接复制)。 */
-  onDoc: (request: DocRequest) => void;
+  /** 生成文档 → DocGenDialog(模板×事实源×周期;原 5 类型菜单已并入弹窗模板库)。 */
+  onDocGen: () => void;
   /** AI 可能直接改过数据文件:从磁盘重读同步。 */
   onRefresh: () => void;
   refreshing: boolean;
 }) {
-  const [docMenuOpen, setDocMenuOpen] = useState(false);
   const [dataMenuOpen, setDataMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  /* 点外部收菜单(academyEntry 先例;两个菜单一 arm 同收)。 */
+  /* 点外部收菜单(academyEntry 先例)。 */
   useEffect(() => {
-    if (!docMenuOpen && !dataMenuOpen) return;
+    if (!dataMenuOpen) return;
     const onDown = (e: PointerEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) { setDocMenuOpen(false); setDataMenuOpen(false); }
+      if (!rootRef.current?.contains(e.target as Node)) setDataMenuOpen(false);
     };
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
-  }, [docMenuOpen, dataMenuOpen]);
+  }, [dataMenuOpen]);
   const generate = () => {
     const samples = buildSampleProjects(today);
     void generateSamples(() => samples).then(
@@ -48,21 +45,7 @@ export function OverlayActions({
   };
   return (
     <div className="wb-top-actions" ref={rootRef}>
-      <div className="wb-menu-anchor">
-        <button type="button" className="wb-btn" aria-haspopup="menu" aria-expanded={docMenuOpen} onClick={() => setDocMenuOpen((v) => !v)}>
-          {t("生成文档")}
-        </button>
-        {docMenuOpen ? (
-          <div className="wb-menu" role="menu">
-            {docRequests().map((doc) => (
-              <button
-                key={doc.kind} type="button" role="menuitem" className="wb-menu-item"
-                onClick={() => { onDoc(doc); setDocMenuOpen(false); }}
-              >{doc.label}</button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+      <button type="button" className="wb-btn" onClick={onDocGen}>{t("生成文档")}</button>
       <div className="wb-menu-anchor">
         <button type="button" className="wb-btn" aria-haspopup="menu" aria-expanded={dataMenuOpen} onClick={() => setDataMenuOpen((v) => !v)}>
           {t("示例数据")}

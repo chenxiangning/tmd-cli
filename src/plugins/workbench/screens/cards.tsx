@@ -16,6 +16,10 @@ export interface WbScreenProps {
   onNewProject: () => void;
   onLinkWorkspaces: () => void;
   onToast: (message: string) => void;
+  /** 文档中心深链过滤(项目详情「本项目生成记录」);其余视图忽略。 */
+  docsFilter?: string | null;
+  /** 空态「生成文档」主按钮(带 projectId 时弹窗预锁该项目);仅文档中心消费。 */
+  onDocGen?: (projectId?: string) => void;
 }
 
 /** 看板段头(标题 + 计数);任务看板与模块看板的项目状态段共用。 */
