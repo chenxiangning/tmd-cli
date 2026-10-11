@@ -59,7 +59,7 @@ rand = "0.10"
 uuid = { version = "1", features = ["v4"] }
 futures-util = { version = "0.3", features = ["sink"] }
 # 外网中继:桌面出站拨号自有 relay(Cloudflare Worker / 自建)用的 WSS 客户端。
-tokio-tungstenite = { version = "0.29", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.30", features = ["rustls-tls-webpki-roots"] }
 # relay 出站 WSS:rustls 树同时含 aws-lc-rs(reqwest 启用)与 ring,provider 自动探测遇歧义 panic;
 # 拨号前显式装与 reqwest 一致的 aws-lc-rs(见 relay_agent::dial_agent)。
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "std"] }
