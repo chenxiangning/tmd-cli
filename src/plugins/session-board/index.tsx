@@ -34,7 +34,9 @@ export const sessionBoardPlugin: Plugin = {
       id: "session-board",
       label: "会话看板",
       icon: CalendarDots,
-      order: 10,
+      /* 2026-10-10 用户口径 rail 重排:工作台 10 / 首页 20 / 市场 30 / 本项 40 /
+       * 工作区 50 —— 看板从第一位让到第四位。 */
+      order: 40,
       leftRail: true,
       active: () => boardOverlayOpen(),
       subscribeActive: subscribeBoardOverlay,

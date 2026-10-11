@@ -10,12 +10,13 @@
 import { openTab } from "@kernel/tabs";
 import { baseName, normalizePath } from "@kernel/pathUtils";
 
-export function openFileInTab(path: string): void {
+/** 打开文件 tab;title 覆盖显示名(内部存储名难读时,如工作台附件用原名)。 */
+export function openFileInTab(path: string, title?: string): void {
   const p = normalizePath(path);
   openTab({
     id: `file:${p}`,
     kind: "file",
-    title: baseName(p) || p,
+    title: title || baseName(p) || p,
     path: p,
     payload: { path: p },
   });

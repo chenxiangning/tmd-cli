@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { composerWakeRef, composerInsertRef, composerDraftRef, composerReplaceRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
+import { useComposerDraft } from "./useComposerDraft";
 import { useComposerTriggers } from "./useComposerTriggers";
 import { useComposerAttachments } from "./useComposerAttachments";
 import { useSettingsState } from "@kernel/settings";
@@ -47,41 +48,8 @@ export function Composer() {
     () => workspaces.list.find((w) => w.id === workspaces.activeId)?.root ?? workspaces.list[0]?.root ?? "",
     [workspaces],
   );
-  /* 草稿持久化:按工作区 root 存 localStorage——挂载恢复、切换工作区换稿(旧稿先落盘)、
-   * 发送/清空随 value="" 落盘(发送失败保留草稿 = 持久化自然成立,见 useComposerSend)。 */
-  const draftKeyRef = useRef(`tmd.composerDraft.${cwd}`);
-  const [value, setValue] = useState(() => {
-    try {
-      return localStorage.getItem(draftKeyRef.current) ?? "";
-    } catch {
-      return "";
-    }
-  });
-  useEffect(() => {
-    const key = `tmd.composerDraft.${cwd}`;
-    if (key !== draftKeyRef.current) {
-      try {
-        localStorage.setItem(draftKeyRef.current, value);
-      } catch {
-        /* 配额满忽略 */
-      }
-      draftKeyRef.current = key;
-      try {
-        setValue(localStorage.getItem(key) ?? "");
-      } catch {
-        setValue("");
-      }
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      try {
-        localStorage.setItem(key, value);
-      } catch {
-        /* 配额满忽略 */
-      }
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [cwd, value]);
+  /* 草稿持久化(见 useComposerDraft);队列预填消费在下方 cursor 声明后。 */
+  const { value, setValue } = useComposerDraft(cwd);
   const [cursor, setCursor] = useState(0);
   /* 输入框注入桥:详情右键「发送到输入框」经 kernel ref 桥写入光标处;value 进 deps 为拿最新受控值。 */
   useEffect(() => {
@@ -102,7 +70,7 @@ export function Composer() {
       composerDraftRef.current = null;
       composerReplaceRef.current = null;
     };
-  }, [value]);
+  }, [value, setValue, setCursor]);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   /* 附件交互(拖放/粘贴/token 同步)职责在 useComposerAttachments */

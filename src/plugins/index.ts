@@ -48,6 +48,7 @@ import { mcpHubPlugin } from "./mcp-hub";
 import { sessionViewerPlugin } from "./session-viewer";
 import { dailyJournalPlugin } from "./daily-journal";
 import { structuredSessionPlugin } from "./structured-session";
+import { workbenchPlugin } from "./workbench";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -94,4 +95,5 @@ export const allPlugins: Plugin[] = [
   sessionViewerPlugin,
   dailyJournalPlugin,
   structuredSessionPlugin,
+  workbenchPlugin,
 ];

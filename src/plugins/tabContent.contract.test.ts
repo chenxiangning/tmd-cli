@@ -35,6 +35,8 @@ const OPENABLE_KINDS = [
   "daily-journal",
   "daily-article",
   "structured-session",
+  "wb.project",
+  "wb.console",
 ] as const;
 
 function activateCollecting(): Map<string, TabContentContribution> {

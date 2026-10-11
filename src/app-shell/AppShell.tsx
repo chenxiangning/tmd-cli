@@ -127,7 +127,9 @@ export function AppShell() {
             插件市场页打开时与三栏一起被覆盖层盖住。 */}
         <PanelRail rightOpen={rightOpen} setRightOpen={setRightOpen} />
         {marketOpen && (
-          <div className="absolute inset-0 z-50">
+          /* z-60:压过工作台/看板 overlay 页(z-50),rail 点市场即见层(切换语义);
+             收市场后其下 overlay 原样露出。 */
+          <div className="absolute inset-0 z-[60]">
             <PluginMarketPage onClose={() => setMarketOpen(false)} />
           </div>
         )}

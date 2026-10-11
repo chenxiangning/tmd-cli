@@ -43,6 +43,35 @@ export const composerDraftRef: { current: (() => string) | null } = { current: n
 /** 草稿整体替换桥:替换全文并聚焦尾部,未挂载 = null。同 composerInsertRef 先例。 */
 export const composerReplaceRef: { current: ((text: string) => void) | null } = { current: null };
 
+/** 待注入草稿槽:跨会话创建时序用(创建会话 → 激活 → 新 composer 挂载)。
+ *  写入方 queueComposerText,消费方 Composer 挂载期 takeQueuedComposerText ——
+ *  只在挂载点消费,避免 ref 桥把文本注进切换前旧会话的输入框。
+ *  TTL 10s:目标会话一直没挂载时过期作废,不污染无关 mount。 */
+let queuedText: string | null = null;
+let queuedAt = 0;
+const QUEUED_TTL_MS = 10_000;
+
+export function queueComposerText(text: string): void {
+  queuedText = text;
+  queuedAt = Date.now();
+}
+
+/** 作废未消费的预填(如会话创建失败):防泄漏进下一个挂载的无关 composer。 */
+export function clearQueuedComposerText(): void {
+  queuedText = null;
+}
+
+export function takeQueuedComposerText(): string | null {
+  if (queuedText === null) return null;
+  if (Date.now() - queuedAt > QUEUED_TTL_MS) {
+    queuedText = null;
+    return null;
+  }
+  const text = queuedText;
+  queuedText = null;
+  return text;
+}
+
 const triggerSources: ComposerTriggerSource[] = [];
 const sendTransforms: ComposerSendTransform[] = [];
 

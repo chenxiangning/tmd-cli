@@ -185,3 +185,8 @@ export function removeTabContent(kind: string): void {
 export function useEditorTabs(): TabState {
   return store.useStore();
 }
+
+/** 非响应式订阅(侧栏 action 的 subscribeActive 桥):tab 集合/激活变化即回调。 */
+export function subscribeEditorTabs(fn: () => void): () => void {
+  return store.subscribe(fn);
+}
