@@ -119,7 +119,7 @@
 .wb-card-tasks { color: var(--tmd-warn); }
 .wb-card.is-compact { padding: 8px; gap: 4px; }
 
-/* ── 任务看板(三列任务卡)/ 模块看板的项目状态列 ── */
+/* ── 任务看板(项目泳道:首行 = 吸顶状态列头,行 = 项目,列 = 状态)/ 模块看板的项目状态列 ── */
 .wb-board { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 18px; }
 .wb-board-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; font-size: var(--tmd-font-xs); }
 .wb-board-head b { font-size: var(--tmd-font-xs); }
@@ -127,13 +127,23 @@
 .wb-status-head { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--tmd-font-xs); }
 .wb-status-head span { color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
 
-.wb-task-board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: 8px; align-items: start; }
-.wb-task-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.wb-task-cards { display: flex; flex-direction: column; gap: 6px; }
+.wb-task-board { display: flex; flex-direction: column; min-width: 0; }
+.wb-lane-grid { display: grid; grid-template-columns: minmax(150px, 220px) repeat(3, minmax(240px, 1fr)); gap: 6px 8px; align-items: start; }
+.wb-lane-cols { position: sticky; top: 0; z-index: 2; background: var(--tmd-bg-base); padding: 2px 0 6px; border-bottom: 1px solid var(--tmd-border); }
+.wb-lane { padding: 10px 0 14px; border-bottom: 1px solid var(--tmd-border); }
+.wb-lane:last-child { border-bottom: 0; }
+.wb-lane-head { display: flex; align-items: center; gap: 2px; min-width: 0; padding: 2px 0; }
+.wb-lane-fold { display: inline-flex; align-items: center; flex: none; border: 0; background: none; color: var(--tmd-fg-faint); cursor: pointer; font: inherit; padding: 2px; }
+.wb-lane-fold:hover { color: var(--tmd-fg); }
+.wb-lane-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; border: 0; background: none; color: var(--tmd-fg); cursor: pointer; font: inherit; font-size: var(--tmd-font-xs); padding: 2px; text-align: left; }
+.wb-lane-title:hover b { color: var(--tmd-accent); }
+.wb-lane-title b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-lane-count { color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
+.wb-lane-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .wb-task-card { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 8px; display: flex; flex-direction: column; gap: 4px; }
 .wb-task-card.is-overdue { border-color: color-mix(in srgb, var(--tmd-err) 55%, var(--tmd-border)); }
 .wb-task-title { margin: 0; font-size: var(--tmd-font-ui); }
-.wb-task-project { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-subtle); }
+.wb-task-owner { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-subtle); }
 .wb-task-meta { display: flex; gap: 8px; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
 .wb-task-actions { display: flex; gap: 4px; justify-content: flex-end; }
 

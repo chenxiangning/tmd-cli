@@ -1,10 +1,12 @@
 /**
- * 工作台 · 任务看板(2026-10-10 三轮口径:看板以任务为主,项目状态列并入
- * 模块看板):待办/进行中/已完成 三列任务卡,就地推进,点击进任务详情内嵌视图
+ * 工作台 · 任务看板(2026-10-11 泳道化):项目为行、状态为列的项目泳道看板
+ * (待办/进行中/已完成),状态列头吸顶;泳道头 = 折叠开关 + 项目名(点击开
+ * 项目详情)+ 风险徽标 + 任务计数。任务卡就地推进,点击进任务详情内嵌视图
  * (描述/附件/关联会话;会话打开即收工作台覆盖层落回侧栏,交互闭环)。
  */
 
 import { useState } from "react";
+import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { TASK_STATUS_LABELS } from "../kindLabels";
 import { updateTask } from "../store";
@@ -12,7 +14,7 @@ import { TASK_STATUSES, type Project, type ProjectTask, type TaskStatus } from "
 import { taskStatusTone } from "../taskPrompt";
 import { TaskDetailView } from "../TaskDetailView";
 import { TaskFormView } from "../TaskFormView";
-import { BoardHead, type WbScreenProps } from "./cards";
+import { BoardHead, RiskPill, type WbScreenProps } from "./cards";
 import { WbEmpty } from "../ui";
 
 interface TaskRow {
@@ -31,18 +33,28 @@ function columnRows(status: TaskStatus, projects: readonly Project[]): TaskRow[]
   return rows.sort((a, b) => String(a.task.dueDate ?? "9999").localeCompare(String(b.task.dueDate ?? "9999")));
 }
 
+/** 泳道:有任务的项目各占一行(保持传入的风险排序),行内沿用列内序;空项目不成道。 */
+function boardLanes(projects: readonly Project[]): { project: Project; rows: TaskRow[] }[] {
+  return projects
+    .map((project) => ({
+      project,
+      rows: TASK_STATUSES.flatMap((status) => columnRows(status, [project])),
+    }))
+    .filter((lane) => lane.rows.length > 0);
+}
+
 function TaskCard({ row, today, onDetail, onAdvance }: {
   row: TaskRow;
   today: string;
   onDetail: () => void;
   onAdvance: () => void;
 }) {
-  const { task, project } = row;
+  const { task } = row;
   const overdue = task.status !== "done" && task.dueDate !== undefined && task.dueDate < today;
   return (
     <div className={`wb-task-card${overdue ? " is-overdue" : ""}`}>
       <button type="button" className="wb-link" onClick={onDetail}>{task.title}</button>
-      <span className="wb-task-project">{project.name}{task.owner ? ` · ${task.owner}` : ""}</span>
+      {task.owner ? <span className="wb-task-owner">{task.owner}</span> : null}
       <span className="wb-task-meta">
         <span className={overdue ? "wb-overdue" : undefined}>{task.dueDate ?? t("未排期")}</span>
         {task.sessions.length > 0 ? <span>{t("会话")} {task.sessions.length}</span> : null}
@@ -58,9 +70,10 @@ function TaskCard({ row, today, onDetail, onAdvance }: {
   );
 }
 
-export function TaskBoardScreen({ projects, today, onNewProject, onToast }: WbScreenProps) {
+export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast }: WbScreenProps) {
   const [detail, setDetail] = useState<{ projectId: string; taskId: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
   if (projects.length === 0) {
     return <WbEmpty text={t("当前筛选下没有项目。")}><button type="button" className="wb-btn" onClick={onNewProject}>{t("新建项目")}</button></WbEmpty>;
   }
@@ -112,24 +125,52 @@ export function TaskBoardScreen({ projects, today, onNewProject, onToast }: WbSc
         <p className="wb-muted">{t("还没有任务;在项目详情或这里直接建任务。")}</p>
       ) : (
         <div className="wb-task-board">
-          {TASK_STATUSES.map((status) => {
-            const rows = columnRows(status, projects);
+          <div className="wb-lane-grid wb-lane-cols">
+            <span aria-hidden="true" />
+            {TASK_STATUSES.map((status) => (
+              <h4 key={status} className="wb-status-head" style={{ color: taskStatusTone(status) }}>
+                <b>{t(TASK_STATUS_LABELS[status])}</b>
+                <span>{columnRows(status, projects).length}</span>
+              </h4>
+            ))}
+          </div>
+          {boardLanes(projects).map(({ project, rows }) => {
+            const isFolded = folded.has(project.id);
+            const toggleFold = () =>
+              setFolded((prev) => {
+                const next = new Set(prev);
+                if (next.has(project.id)) next.delete(project.id);
+                else next.add(project.id);
+                return next;
+              });
             return (
-              <div key={status} className="wb-task-col">
-                <h4 className="wb-status-head" style={{ color: taskStatusTone(status) }}>
-                  <b>{t(TASK_STATUS_LABELS[status])}</b>
-                  <span>{rows.length}</span>
-                </h4>
-                <div className="wb-task-cards">
-                  {rows.map((row) => (
-                    <TaskCard
-                      key={`${row.project.id}:${row.task.id}`} row={row} today={today}
-                      onDetail={() => setDetail({ projectId: row.project.id, taskId: row.task.id })}
-                      onAdvance={() => advance(row)}
-                    />
-                  ))}
+              <section key={project.id} className="wb-lane-grid wb-lane">
+                <div className="wb-lane-head">
+                  <button
+                    type="button" className="wb-lane-fold" aria-expanded={!isFolded}
+                    aria-label={isFolded ? t("展开") : t("收起")}
+                    onClick={toggleFold}
+                  >
+                    {isFolded ? <CaretRight size="0.75rem" /> : <CaretDown size="0.75rem" />}
+                  </button>
+                  <button type="button" className="wb-lane-title" onClick={() => onOpen(project.id)}>
+                    <b>{project.name}</b>
+                    <RiskPill project={project} today={today} />
+                    <span className="wb-lane-count">{rows.length}</span>
+                  </button>
                 </div>
-              </div>
+                {isFolded ? null : TASK_STATUSES.map((status) => (
+                  <div key={status} className="wb-lane-col">
+                    {columnRows(status, [project]).map((row) => (
+                      <TaskCard
+                        key={row.task.id} row={row} today={today}
+                        onDetail={() => setDetail({ projectId: row.project.id, taskId: row.task.id })}
+                        onAdvance={() => advance(row)}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </section>
             );
           })}
         </div>
