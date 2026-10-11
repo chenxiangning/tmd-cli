@@ -37,7 +37,14 @@ export function ListScreen({ projects, today, onOpen, onNewProject }: WbScreenPr
                 <td>{project.module || "其他项目"}</td>
                 <td>{project.status}</td>
                 <td>{project.owner || "未指定"}</td>
-                <td className="wb-table-progress"><WbProgress value={project.progress} /><span>{project.progress}%</span></td>
+                <td className="wb-table-progress">
+                  {/* flex 不能落在 td 上:td 脱离 table-cell 后 vertical-align:middle 失效,
+                      匿名单元格内按块顶排 = 进度线浮到行高上半部,与同行文字错位。 */}
+                  <span className="wb-progress-row">
+                    <WbProgress value={project.progress} />
+                    <span className="wb-progress-n">{project.progress}%</span>
+                  </span>
+                </td>
                 <td>{project.dueDate ?? "—"}</td>
                 <td>{formatRemaining(project.dueDate, today)}</td>
                 <td><span style={{ color: toneVar(risk.tone) }}>{risk.label}</span></td>

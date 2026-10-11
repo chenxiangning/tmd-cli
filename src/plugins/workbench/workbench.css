@@ -155,9 +155,10 @@
 .wb-table tbody tr { transition: background .12s ease; }
 .wb-table tbody tr:hover { background: var(--tmd-bg-hover); }
 .wb-table th { color: var(--tmd-fg-subtle); font-weight: 500; font-size: var(--tmd-font-xs); letter-spacing: .02em; }
-.wb-table-progress { display: flex; align-items: center; gap: 6px; min-width: 120px; }
-.wb-table-progress .wb-progress { flex: 1; }
-.wb-table-progress span { font-variant-numeric: tabular-nums; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); }
+.wb-table-progress { min-width: 120px; }
+.wb-progress-row { display: flex; align-items: center; gap: 6px; }
+.wb-progress-row .wb-progress { flex: 1; }
+.wb-progress-n { font-variant-numeric: tabular-nums; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); }
 
 /* ── 日历 ── */
 .wb-calendar { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
