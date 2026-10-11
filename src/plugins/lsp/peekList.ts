@@ -8,7 +8,7 @@
 import { ipc } from "@kernel/ipc";
 import { normalizePath } from "@kernel/pathUtils";
 import { highlightLine } from "@kernel/syntaxHighlight";
-import { prismLangOf } from "./peekLang";
+import { prismLangOf } from "@kernel/syntaxHighlight";
 import { wrapSymRange } from "./symRange";
 import type { PeekItem } from "./peekWidget";
 

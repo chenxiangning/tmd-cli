@@ -14,7 +14,17 @@ export function normalizeErrorMessage(error: unknown): string {
 
 export function isMissingFileError(error: unknown): boolean {
   const message = normalizeErrorMessage(error).toLowerCase();
-  return message.includes("not found") || message.includes("no such file") || message.includes("does not exist");
+  return (
+    message.includes("not found") ||
+    message.includes("no such file") ||
+    message.includes("does not exist") ||
+    /* Windows 缺失文案是 "The system cannot find the file specified."(zh Locale
+       「系统找不到指定的文件」),不携带上述任何字样;os error 2 双平台语义恒为
+       ENOENT / ERROR_FILE_NOT_FOUND,作结构化兜底(Rust read_file 未发哨兵前的锚)。 */
+    message.includes("os error 2") ||
+    message.includes("cannot find") ||
+    message.includes("找不到")
+  );
 }
 
 export function createCanvasId(): string {

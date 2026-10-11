@@ -69,23 +69,13 @@ export function LeftRail({
   /* 工作区切换菜单簇(下拉 + 行右键菜单):与顶栏 WorkspaceSwitcher 共用一套。 */
   const wsMenus = useWorkspaceSwitchMenus();
 
-  /* 壳自有条目(排序位与插件动作共享同一地带):市场 20 / 首页 30 / 工作区 40。 */
+  /* 壳自有条目(排序位与插件动作共享同一地带):工作台 10(插件)/ 首页 20 /
+     市场 30 / 会话看板 40(插件)/ 工作区 50 —— 2026-10-10 用户口径重排。 */
   const shellEntries: LeftEntry[] = [
     {
       kind: "shell",
-      id: "market",
-      order: 20,
-      bottom: false,
-      label: t("插件市场"),
-      icon: Plug,
-      active: marketOpen,
-      hintCmd: "shell.openMarket",
-      onSelect: () => onToggleMarket(),
-    },
-    {
-      kind: "shell",
       id: "home",
-      order: 30,
+      order: 20,
       bottom: false,
       label: t("回到首页"),
       icon: Tray,
@@ -98,8 +88,19 @@ export function LeftRail({
     },
     {
       kind: "shell",
+      id: "market",
+      order: 30,
+      bottom: false,
+      label: t("插件市场"),
+      icon: Plug,
+      active: marketOpen,
+      hintCmd: "shell.openMarket",
+      onSelect: () => onToggleMarket(),
+    },
+    {
+      kind: "shell",
       id: "workspace-switch",
-      order: 40,
+      order: 50,
       bottom: false,
       label: t("切换工作区"),
       icon: FolderOpen,

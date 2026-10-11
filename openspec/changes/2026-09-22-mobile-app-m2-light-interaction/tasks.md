@@ -51,7 +51,7 @@
 ## 8. 韧性验收
 
 - [x] 8.1 回前台(pagehide/pageshow)强制重连 + 磁盘水位回放补差(pageshow+visibilitychange→forceReconnect)
-- [ ] 8.2 断连期列表快照保留(不清 UI,RemoteHostBar 显断线态)
+- [x] 8.2 断连期列表快照保留(不清 UI,RemoteHostBar 显断线态)——代码面 2026-10-09 已核:MobileApp pull catch 保留快照、home/history/session 三屏挂 ConnBanner、HostChip 三态(已连接/重连中/已断开);停桥真机复验并入 0.3.5 验收单
 - [ ] 8.3 真机大会话(90 天级)回放摸底(数据喂 M3 soak 风险表)
 
 ## 9. 收口

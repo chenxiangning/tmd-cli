@@ -37,7 +37,6 @@ export const MESSAGES = {
   "从标签条移除(会话保持运行)": "Remove from tab bar (session keeps running)",
 
   // ── 编辑 tab 条 ──
-  "还原": "Restore",
   "最大化查看": "Maximize view",
   "最大化查看 {file}": "Maximize view of {file}",
   "关闭 {file}": "Close {file}",

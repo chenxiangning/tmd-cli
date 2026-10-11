@@ -19,8 +19,8 @@ targets:
       path: Info.plist
       properties:
         CFBundleDisplayName: tmd-cli
-        CFBundleShortVersionString: "0.3.4"
-        CFBundleVersion: "0.3.4"
+        CFBundleShortVersionString: "0.3.5"
+        CFBundleVersion: "0.3.5"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
         NSCameraUsageDescription: 扫描桌面端配对二维码,以及拍摄照片上传到对话

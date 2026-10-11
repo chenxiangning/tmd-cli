@@ -32,6 +32,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sendShortcut: "enter",
   sendConfirmEnabled: true,
   promptHistoryEnabled: true,
+  workbenchDocDefaultMode: "preview",
   askSoundEnabled: true,
   notifyOsAsk: true,
   notifyOsTurnEnd: true,

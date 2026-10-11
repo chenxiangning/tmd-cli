@@ -5,7 +5,7 @@
  *
  * 跨插件消费先例:经兄弟插件声明的具名数据函数窄口读写
  * (checkpoints store 的 getCkptBatches/refreshBatches/useCkptVersion、diffCache 的
- * getCachedDiff/loadDiff、identity 的 checkpointIdentity;先例 = daily-journal
+ * getCachedDiff/loadDiff、identity 的 checkpointIdentity;先例 = daily-journal(现 workbench 日志子域)
  * 消费 marks store staged/sent,架构文档 app 树例外条款)。
  * join 域 = 活跃会话批清单(与右栏审批线同口径,切 tab 即切语境);
  * 已退出会话的历史批不追(天花板见 evidence.ts 头注)。

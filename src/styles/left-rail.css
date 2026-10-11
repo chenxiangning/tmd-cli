@@ -49,6 +49,9 @@
 .left-rail-tab.is-active[data-action-id="session-board"] {
   color: var(--icon-decor-session-board, var(--rail-accent-fallback));
 }
+.left-rail-tab.is-active[data-action-id="workbench"] {
+  color: var(--icon-decor-workbench, var(--rail-accent-fallback));
+}
 
 .left-rail-tab svg {
   width: 1rem;

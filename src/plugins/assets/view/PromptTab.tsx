@@ -77,7 +77,7 @@ export function PromptTab() {
           placeholder={t("搜索名称或描述…")}
         />
         <button type="button" className="assets-btn is-primary" onClick={() => setEditing("new")}>
-          <Plus size="0.75rem" /> {t("新建")}
+          <Plus size="0.75rem" /> {t("新建提示词")}
         </button>
         <button
           type="button"

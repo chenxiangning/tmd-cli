@@ -8,6 +8,7 @@
  */
 
 import { t } from "@kernel/i18n";
+import { DecorIcon } from "@kernel/iconSet";
 import { FileText, FolderOpen } from "@phosphor-icons/react";
 import { openFileInTab } from "@kernel/fileTabs";
 import { ipc } from "@kernel/ipc";
@@ -37,24 +38,26 @@ export function FileOpenActions({
       <button
         type="button"
         title={t("打开文件")}
+        data-action-id="git-open"
         onClick={(e) => {
           e.stopPropagation();
           openFileInTab(abs);
         }}
-        className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+        className="shrink-0"
       >
-        <FileText className="h-[0.75rem] w-[0.75rem]" />
+        <DecorIcon id="git-open" Fallback={FileText} className="h-[0.75rem] w-[0.75rem]" />
       </button>
       <button
         type="button"
         title={t("打开文件位置")}
+        data-action-id="git-open-location"
         onClick={(e) => {
           e.stopPropagation();
           ipc.fsRevealInFileManager(abs).catch((err) => console.warn(gitErrorDisplay(err)));
         }}
-        className="shrink-0 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+        className="shrink-0 ml-1"
       >
-        <FolderOpen className="h-[0.75rem] w-[0.75rem]" />
+        <DecorIcon id="git-open-location" Fallback={FolderOpen} className="h-[0.75rem] w-[0.75rem]" />
       </button>
     </>
   );

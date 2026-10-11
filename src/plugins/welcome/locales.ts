@@ -19,7 +19,7 @@ const MESSAGES_EN = {
   "官方文档": "Docs",
   "探针中…": "Probing…",
   "已安装": "Installed",
-  "未安装": "Not installed",
+  "未安装": "not installed",
   "探针失败": "Probe failed",
   "已是最新": "Up to date",
   '当前 {current},最新 {version},点"更新"升级':
@@ -33,7 +33,7 @@ const MESSAGES_EN = {
   "版本": "Version",
   "安装指定版本(回退/收藏)": "Install a specific version (rollback/favorites)",
   "当前版本": "Current version",
-  "当前": "current",
+  "当前": "Current",
   "收藏": "Favorites",
   "收藏该版本": "Favorite this version",
   "取消收藏该版本": "Unfavorite this version",
@@ -93,7 +93,7 @@ const MESSAGES_EN = {
   "输入+缓存": "input+cache",
   "近 7 日无消费": "No usage in the last 7 days",
   "用量数据加载失败": "Failed to load usage",
-  "重试": "retry",
+  "重试": "Retry",
   "数据源 = 本地会话记录,仅统计近 7 日":
     "Source: local session logs, last 7 days only",
   /* 插件 meta(渲染点在市场清单/命令抽屉,主会话包裹) */

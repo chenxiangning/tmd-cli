@@ -26,6 +26,7 @@
 import { useState } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import type { SessionMeta } from "@kernel/ipc";
 import {
@@ -144,6 +145,7 @@ export function CliSessionGroup({
         archived={archivedView}
         renaming={renaming?.cliSessionId === s.id ? renaming : null}
         onOpen={() => {
+          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
           /* 来源工作区的远程磁盘会话:远程 resume 由来源插件接管(如 WSL 的
              SSH 包装 + 引擎 --resume),不走本地 openDiskSession。 */
           if (findWorkspaceOrigin(workspace)?.openRemoteDiskSession?.(workspace, profile, s.id)) {

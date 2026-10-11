@@ -74,7 +74,7 @@ flowchart TB
             P_WEB["web-access<br/>设置 section:LAN/Cloudflare/自建中继三通道管理"]
             P_MISC["assets / cli-config / local-loader / wsl / wallpaper / session-board / skill-hub / mcp-hub / intent-canvas<br/>(资产库 / CLI 图形配置 / 本机插件装载 / WSL 通道 / 壁纸 / 会话看板 / 技能·MCP hub / 意图画布)"]
             P_SVIEW["session-viewer<br/>会话转录浮层(editorCenter.canvasOverlay)<br/>+ 极简展示 + terminal.canvasRow 结构化切换钮"]
-            P_DJ["daily-journal<br/>每日工作日志:日/月/年视图 + 无头生成队列(契约见 18)"]
+            P_DJ["workbench·journal 日志子域<br/>年/月/轴视图 + 无头生成队列(契约见 18)<br/>2026-10-11 自独立插件并入 workbench"]
             P_SSTRUCT["structured-session<br/>结构化会话:proc_stream + omp/pi --mode rpc<br/>token 级流(契约见 19)"]
         end
     end
@@ -127,7 +127,7 @@ flowchart TB
 
  - 内核 `src/kernel/` 不 import 任何 `src/plugins/`；插件清单唯一入口是 `src/plugins/index.ts` 的 `allPlugins` 数组（编译期注册）。
  - 插件之间**零直接依赖**：协作仅通过 `PluginContext` 的注册面（`registerCliProfile` / `contribute` / `events` / `registerSettingsSection` / `registerFilePanel` / `registerTabContent` / `registerMarketPanel` / `registerSidebarAction` / `registerFileVisual` / `registerHomePanel` / `registerCommand` / `registerEditorExtension` / `registerTerminalLinkProvider` / `registerLanguageServer` / `registerAcademyCourse` / `registerCliConfig` / `registerRemoteFileSource` / `registerWorkspaceOrigin` / `registerSpecWrapper` / `registerShellSpecProvider`(2026-09-14 起 wsl 来源三注册表也走 ctx；2026-09-19 增编辑器扩展/终端链接；2026-09-25 增学堂课程)，quota 折叠为 `CliProfile.fetchQuota` 由 host 自动接线）——一切贡献经 ctx 登记，无旁路注册表；`plugins/cli-shared` 仅是无生命周期的共享格式库，不是插件（准入:≥2 cli-* 或 1 cli-*+feature 联合消费同一格式知识，AGENTS.md §1）。
- - **app 树例外(2026-10-06 W3 起)**:app 树插件可 import 兄弟插件**声明的纯函数/常量/纯 props 渲染件**(mobile 树同款口径),另允许经兄弟插件 store 声明的具名数据函数做窄口读写(先例:session-relay→marks `stagedMarks`/`setMarkState` 一次读+条件翻转),import 处注释声明先例,不触对方注册面与生命周期。先例:session-relay→marks(`serializeMark`/staged 翻转)、daily-journal→session-board(`UNSEEN_WINDOW_MS` 口径常量)、daily-journal→session-viewer/files(md 渲染件)。持续数据流协作仍走 ctx 注册面或内核事件总线(files↔marks `file-mark:*` 先例)。
+ - **app 树例外(2026-10-06 W3 起)**:app 树插件可 import 兄弟插件**声明的纯函数/常量/纯 props 渲染件**(mobile 树同款口径),另允许经兄弟插件 store 声明的具名数据函数做窄口读写(先例:session-relay→marks `stagedMarks`/`setMarkState` 一次读+条件翻转),import 处注释声明先例,不触对方注册面与生命周期。先例:session-relay→marks(`serializeMark`/staged 翻转)、workbench/journal→session-board(`UNSEEN_WINDOW_MS` 口径常量;并入前 daily-journal 先例)、workbench/journal→session-viewer/files(md 渲染件)。持续数据流协作仍走 ctx 注册面或内核事件总线(files↔marks `file-mark:*` 先例)。
  - 前端触达 Rust 的唯一通道是 `src/kernel/ipc.ts`（传输下沉后 `transport.ts` 继承同权,R3）；插件不直接 import `@tauri-apps/api`。
  - `src/mobile/` = 手机第二棵 UI 树(与 app-shell 平行,不入 allPlugins、不跑 activate)：只许 import `@kernel` 公共面与各 cli-* 插件声明的适配器/纯函数模块,禁 import 插件 UI/生命周期模块与 `@shell/*`；两棵树在 main.tsx 一律动态 import 分流。
 
@@ -462,7 +462,7 @@ subgraph MOUNT["MountPoint（plugin.ts 定义的 17 个挂点)"]
     P_SVIEW2["session-viewer 插件"] -->|"活会话转录浮层"| ECO
     P_SVIEW2 -->|"结构化视图切换钮<br/>(刷新钮收尾最右)"| TCR
     P_FILES2 & P_SSH2 -->|"kind= file / ssh-file"| TABRT
-    Note2["右栏面板并列 tab(files/git/marks/checkpoints/approval-inbox/memory/<br/>skill-hub/mcp-hub/daily-journal/ssh)<br/>不走挂点:经 ctx.registerFilePanel(kernel/filePanel 注册表),<br/>入口渲染 = 右缘 PanelRail(2026-09-27,钉住∪激活 + ⋯ 溢出 + rail 位侧栏动作);<br/>左缘 LeftRail(2026-10-04)镜像入口 = leftRail 位侧栏动作(注册即常显、无钉住)<br/>+ 壳自有市场/回首页/工作区切换,顶簇/底簇两段"]
+    Note2["右栏面板并列 tab(files/git/marks/checkpoints/approval-inbox/memory/<br/>skill-hub/mcp-hub/ssh;daily-journal 面板 2026-10-11 随插件并入 workbench 退役)<br/>不走挂点:经 ctx.registerFilePanel(kernel/filePanel 注册表),<br/>入口渲染 = 右缘 PanelRail(2026-09-27,钉住∪激活 + ⋯ 溢出 + rail 位侧栏动作);<br/>左缘 LeftRail(2026-10-04)镜像入口 = leftRail 位侧栏动作(注册即常显、无钉住)<br/>+ 壳自有市场/回首页/工作区切换,顶簇/底簇两段"]
 
     Note["Mounts 是 kernel 公共渲染器；<br/>挂点按 order 升序渲染；<br/>composer.statusBar 已承载只读模型/思考强度工具栏；<br/>设置面板 section 经 ctx.registerSettingsSection 注册"]
 ```

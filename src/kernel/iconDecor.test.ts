@@ -38,7 +38,7 @@ const settingsMock = vi.hoisted(() => {
   };
 });
 
-/** 全量 decor:白名单 7 键齐全(Record<IconDecorId, _> 是全键契约),partial 只覆盖显式项。 */
+/** 全量 decor:白名单全键齐全(Record<IconDecorId, _> 是全键契约),partial 只覆盖显式项。 */
 function fullDecor(partial: Record<string, { color?: string; blink?: boolean }>) {
   const out: Record<string, { color?: string; blink?: boolean }> = {};
   for (const id of settingsMock.ICON_DECOR_IDS) out[id] = partial[id] ?? {};

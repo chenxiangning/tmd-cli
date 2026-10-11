@@ -115,7 +115,7 @@ function SourceTraceCard(props: {
                   <dd>{traceability.staleGraphCount}</dd>
                 </div>
                 <div className={traceability.unresolvedAnchorCount > 0 ? "is-warning" : undefined}>
-                  <dt>{t("失联")}</dt>
+                  <dt>{t("失联锚点")}</dt>
                   <dd>{traceability.unresolvedAnchorCount}</dd>
                 </div>
               </dl>

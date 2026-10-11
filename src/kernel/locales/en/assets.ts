@@ -41,7 +41,6 @@ export const MESSAGES = {
   "没有匹配的提示词。新建一个,或从 codemoss / 目录导入;composer 里 !! 选中即把正文插入输入框。":
     "No matching prompts. Create one, or import from codemoss / a folder; picking one via !! in the composer inserts its body into the input.",
   "新建提示词": "New prompt",
-  "新建": "New",
   "从目录导入…": "Import from folder…",
   "选择提示词 md 目录": "Choose a prompt .md folder",
   "搜索名称或描述…": "Search name or description…",

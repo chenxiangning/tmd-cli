@@ -49,7 +49,7 @@ export function WallpaperSettingsTab() {
         desc={t("流体着色器动态背景,或本地图库壁纸;界面各栏随之变为半透明磨砂。")}
         value={state.mode}
         options={[
-          { value: "off" as const, label: t("关闭") },
+          { value: "off" as const, label: t("关") },
           { value: "fluid" as const, label: t("流体") },
           { value: "image" as const, label: t("图片") },
         ]}

@@ -17,10 +17,10 @@
  */
 import { createSubscribable } from "@kernel/subscribable";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { ipc } from "@kernel/ipc";
 import { stripAnsi } from "@kernel/askWatch";
 import { getTerminalHandle } from "@kernel/terminalHandles";
-import { KernelTopics } from "@kernel/events";
 import type { PluginEventBus } from "@kernel/plugin";
 import { parseAskCard, type AskCard } from "./askCard";
 
@@ -252,6 +252,7 @@ export function dismissFailure(): void {
  *  仍切激活静默(TerminalView 挂载后自带输入焦点)。拒绝引导落点:各 CLI
  *  拒绝键不同,收件箱不代发(M2 评审 A2),把人送进幕布自己按。 */
 export function gotoAndFocus(sessionId: string): void {
+  host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户点击直达,摘最大化 */
   host.setActiveSession(sessionId);
   getTerminalHandle(sessionId)?.focus();
 }

@@ -110,9 +110,8 @@ export function DiffView({ cwd, layout, files, totals, prefill, onMutation, onEr
     // wt 优先:暂存后又改的复合文件,看 worktree 侧(= 勾选提交的实际内容)
     openDiffTab({
       cwd,
-      path: file.path,
+      focusPath: file.path,
       staged: file.staged && !file.wt,
-      status: file.status,
     });
 
   // 树形专用(平铺走 DiffFlatList 的三段分区)
@@ -241,17 +240,19 @@ function FileRow({
         </span>
       </button>
       {!isConflict && (
-        <span className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-60">
+        <span className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100">
           <FileOpenActions cwd={cwd} file={file} />
         </span>
       )}
       {!isConflict && (
         <button
           type="button"
+          data-action-id="git-row-actions"
+          data-hover-accent
           onClick={file.staged ? onUnstage : onStage}
-          title={file.staged ? "unstage" : "stage"}
-          aria-label={file.staged ? "unstage" : "stage"}
-          className="w-4 shrink-0 text-center opacity-0 hover:text-(--tmd-accent) group-hover:opacity-60"
+          title={file.staged ? t("取消暂存") : t("暂存")}
+          aria-label={file.staged ? t("取消暂存") : t("暂存")}
+          className="w-4 shrink-0 text-center opacity-0 group-hover:opacity-100"
         >
           {file.staged ? "−" : "+"}
         </button>
@@ -259,10 +260,12 @@ function FileRow({
       {file.wt && !isConflict && (
         <button
           type="button"
+          data-action-id="git-row-actions"
+          data-danger
           onClick={onDiscard}
           title={t("放弃工作区改动(还原到暂存区;已暂存内容保留)")}
           aria-label={t("放弃工作区改动(还原到暂存区;已暂存内容保留)")}
-          className="w-4 shrink-0 text-center opacity-0 hover:text-(--tmd-diff-removed) group-hover:opacity-60"
+          className="w-4 shrink-0 text-center opacity-0 group-hover:opacity-100"
         >
           ↺
         </button>

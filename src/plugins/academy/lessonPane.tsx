@@ -174,7 +174,7 @@ function LessonFooter({ index, isLast, onPrev, onNext, onFinish }: {
       <span className="academy-spacer" />
       <button type="button" className="academy-btn" onClick={onPrev} disabled={index === 0}>{t("上一步")}</button>
       <button type="button" className="academy-btn is-pri" onClick={isLast ? onFinish : onNext}>
-        {isLast ? t("完成") : t("下一步")}
+        {isLast ? t("完成学习") : t("下一步")}
       </button>
     </div>
   );

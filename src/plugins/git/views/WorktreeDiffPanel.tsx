@@ -183,7 +183,7 @@ function WorktreePatchBody({
   if (patchError) {
     return <div className="p-3 text-(--tmd-diff-removed)">{patchError}</div>;
   }
-  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} mode={diffMode} />;
+  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} mode={diffMode} path={selected} />;
   if (patch) {
     return (
       <div className="p-3 text-(--tmd-fg-faint)">

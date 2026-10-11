@@ -7,6 +7,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { ChartBar, Clock } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { Empty } from "@kernel/Empty";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
@@ -48,6 +49,7 @@ async function scanAll(
 
 function openItem(item: ResumeItem): void {
   const title = item.session.title ?? item.session.id.slice(0, 8);
+  host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
   void host
     .openDiskSession(item.profile.id, item.workspace.root, item.workspace.id, item.session.id)
     .then((meta) => noteSessionTabTitle(meta.id, title))

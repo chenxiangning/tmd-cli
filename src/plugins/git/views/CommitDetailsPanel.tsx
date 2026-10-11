@@ -214,7 +214,7 @@ function FilePatchView({
         </span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto p-2">
-        <PatchBody loading={loading} error={error} patch={patch} />
+        <PatchBody loading={loading} error={error} patch={patch} path={path} />
       </div>
     </>
   );
@@ -225,10 +225,12 @@ function PatchBody({
   loading,
   error,
   patch,
+  path,
 }: {
   loading: boolean;
   error: string | null;
   patch: GitFilePatch | null;
+  path: string;
 }) {
   const { diffMode } = useGitPanelState();
   if (loading) {
@@ -239,7 +241,7 @@ function PatchBody({
     );
   }
   if (error) return <div className="text-(--tmd-diff-removed)">{error}</div>;
-  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} mode={diffMode} />;
+  if (patch && patch.patch.length > 0) return <PatchLines text={patch.patch} mode={diffMode} path={path} />;
   if (patch) {
     return (
       <div className="text-(--tmd-fg-faint)">

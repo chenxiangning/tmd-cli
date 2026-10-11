@@ -67,7 +67,7 @@ export function WorktreeList({
                 className="shrink-0 rounded-md border border-(--tmd-border) p-1 text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
                 aria-label={t("移除 worktree")}
               >
-                <Trash size="0.75rem" aria-hidden />
+                <Trash size="0.75rem" data-decor-from="git-worktree" aria-hidden />
               </button>
             )
           )}

@@ -53,6 +53,7 @@ describe("初始状态与默认值", () => {
       sessionTabsMax: 4,
       sendShortcut: "enter", sendConfirmEnabled: true,
       promptHistoryEnabled: true,
+      workbenchDocDefaultMode: "preview",
       askSoundEnabled: true,
       askSoundId: "default",
       soundVolume: 1,

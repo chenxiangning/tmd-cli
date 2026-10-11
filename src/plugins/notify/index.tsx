@@ -33,7 +33,10 @@ function dispatch(kind: NotifyKind, sessionId: string): void {
   const { settings } = getSettingsState();
   if (!shouldNotify(kind, settings, host.isWindowFocused())) return;
   const { title, body } = notifyText(kind, sessionId, host);
-  void sendOsNotification(title, body, () => host.setActiveSession(sessionId));
+  void sendOsNotification(title, body, () => {
+    host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势,摘最大化 */
+    host.setActiveSession(sessionId);
+  });
 }
 
 export const notifyPlugin: Plugin = {
@@ -81,7 +84,10 @@ export const notifyPlugin: Plugin = {
         if (!host.isWaitingConfirm?.(s.id) || waitingNotified.has(s.id)) continue;
         waitingNotified.add(s.id);
         const { title, body } = notifyText("ask", s.id, host);
-        void sendOsNotification(title, body, () => host.setActiveSession(s.id));
+        void sendOsNotification(title, body, () => {
+          host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势 */
+          host.setActiveSession(s.id);
+        });
       }
     };
     const onFocus = (): void => waitingNotified.clear();
@@ -126,7 +132,10 @@ export const notifyPlugin: Plugin = {
                   label: win.label,
                   pct: win.displayPercent,
                 }),
-                () => host.setActiveSession(session.id),
+                () => {
+                  host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势 */
+                  host.setActiveSession(session.id);
+                },
               );
             }
           })

@@ -36,8 +36,8 @@ function fitOptions(): Option<WallpaperFit>[] {
 
 function onOffOptions(): Option<boolean>[] {
   return [
-    { value: false, label: t("关闭") },
-    { value: true, label: t("开启") },
+    { value: false, label: t("关") },
+    { value: true, label: t("开") },
   ];
 }
 

@@ -9,12 +9,50 @@ import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import { useMinSpin } from "@kernel/useMinSpin";
-import { useHubState, refreshHub, selectEngine } from "./hubStore";
+import { useHubState, refreshHub, selectEngine, type McpEngineState } from "./hubStore";
 import { openMcpHubTab } from "./hubTab";
+
+/* 读失败 = 持久条(role=alert + 重试;R6 契约):点名仍可进管理看
+   原文与错误详情,重试走全量刷新。转圈态行内私有:多行同时失败时
+   点任意行只转该行(此前共用面板级 useMinSpin,全行同转)。 */
+function EngineErrorRow({ engine }: { engine: McpEngineState }) {
+  const { spinning, spin } = useMinSpin();
+  return (
+    <div
+      role="alert"
+      className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-xs"
+      data-mcphub-engine-error={engine.profileId}
+    >
+      <button
+        type="button"
+        onClick={() => {
+          selectEngine(engine.profileId);
+          openMcpHubTab();
+        }}
+        className="min-w-0 truncate text-left text-(--tmd-fg) hover:underline"
+        title={engine.error}
+      >
+        {engine.name}
+      </button>
+      <span className="ml-3 flex flex-none items-center gap-1 text-(--tmd-diff-removed)">
+        {t("读取失败")}
+        <button
+          type="button"
+          onClick={() => spin(() => refreshHub())}
+          title={t("重试")}
+          aria-label={t("重试")}
+          className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+          data-mcphub-engine-retry={engine.profileId}
+        >
+          {spinning ? <Spinner size="0.75rem" /> : <ArrowClockwise size="0.75rem" aria-hidden />}
+        </button>
+      </span>
+    </div>
+  );
+}
 
 export function McpHubPanel() {
   const { engines, loading, selectedProfileId } = useHubState();
-  const { spinning, spin } = useMinSpin();
   /* 面板激活即拉一次(中央 tab 与面板共用 store,已在则即时显示)。 */
   useEffect(() => {
     if (engines.length === 0 && !loading) void refreshHub();
@@ -34,39 +72,7 @@ export function McpHubPanel() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         {engines.map((engine) =>
           engine.entries === null ? (
-            /* 读失败 = 持久条(role=alert + 重试;R6 契约):点名仍可进管理看
-               原文与错误详情,重试走全量刷新。 */
-            <div
-              key={engine.profileId}
-              role="alert"
-              className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-xs"
-              data-mcphub-engine-error={engine.profileId}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  selectEngine(engine.profileId);
-                  openMcpHubTab();
-                }}
-                className="min-w-0 truncate text-left text-(--tmd-fg) hover:underline"
-                title={engine.error}
-              >
-                {engine.name}
-              </button>
-              <span className="ml-3 flex flex-none items-center gap-1 text-(--tmd-diff-removed)">
-                {t("读取失败")}
-                <button
-                  type="button"
-                  onClick={() => spin(() => refreshHub())}
-                  title={t("重试")}
-                  aria-label={t("重试")}
-                  className="rounded p-0.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
-                  data-mcphub-engine-retry={engine.profileId}
-                >
-                  {spinning ? <Spinner size="0.75rem" /> : <ArrowClockwise size="0.75rem" aria-hidden />}
-                </button>
-              </span>
-            </div>
+            <EngineErrorRow key={engine.profileId} engine={engine} />
           ) : (
             <button
               key={engine.profileId}

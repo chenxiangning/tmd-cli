@@ -1,6 +1,6 @@
 /**
  * 逐级建目录原语 —— fs_create_dir 非递归,插件写链的公共前置(dsh
- * adapterDeploy / memory-coordinator / daily-journal 各自手抄版,2026-09-30 收口)。
+ * adapterDeploy / memory-coordinator / 日志(原 daily-journal)各自手抄版,2026-09-30 收口)。
  * 每级「已存在」报错忽略;其余失败也忽略 —— 紧随其后的文件写入会自然暴露真实错误
  * (调用方 catch 兜底提示,与既有先例同一契约)。
  */

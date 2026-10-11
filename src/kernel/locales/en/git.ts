@@ -101,7 +101,7 @@ export const MESSAGES = {
   "推送…": "Push...",
   "仅当前分支可推送": "Only the current branch can be pushed",
   "打开推送对话框(可预览/选目标)": "Open the push dialog (preview and target selection)",
-  "重命名…": "Rename...",
+  "重命名…": "Rename…",
 
   /* 创建 PR 对话框(mossx 复刻;spec 2026-09-15) */
   "创建 PR": "Create PR",
@@ -174,6 +174,7 @@ export const MESSAGES = {
   "原分支名:": "Current name:",
   "请输入新的分支名称": "Enter a new branch name",
   "重命名": "Rename",
+  "新建工作树": "Create",
   "已重命名 {from} 为 {to}": "Renamed {from} to {to}",
   "删除分支 {branch}?": "Delete branch {branch}?",
   "已删除 {branch}": "Deleted {branch}",
@@ -192,6 +193,8 @@ export const MESSAGES = {
   /* 工作区右键菜单(app-shell/WorkspaceSubbar) */
   "提交目录…": "Commit directory...",
   "添加 / 暂存全部": "Add / stage all",
+  "暂存": "Stage",
+  "取消暂存": "Unstage",
   "提取…": "Fetch...",
 
   /* worktree 编排 */
@@ -268,9 +271,9 @@ export const MESSAGES = {
   "推送完成": "Push complete",
   "推送完成,{n} 仓失败": "Push complete; {n} repo(s) failed",
   "本次推送提交": "Commits to push",
-  "{n} 个文件": "{n} files",
   "选择左侧仓查看提交": "Select a repo on the left to view commits",
   "打开此仓": "Open this repo",
+  "{n} 个文件": "{n} files",
   "已排除 {n} 个远程工作区(本机 Git 不支持远程路径)": "Excluded {n} remote workspaces (local Git cannot reach remote paths)",
   "本机工作区内未发现 Git 仓库": "No Git repositories found in local workspaces",
   "{n} 仓 · {p} 可拉 · {u} 可推 · {d} 有改动": "{n} repos · {p} pullable · {u} pushable · {d} dirty",

@@ -40,7 +40,7 @@ const tabsMock = vi.hoisted(() => ({
 }));
 vi.mock("@kernel/tabs", () => tabsMock);
 
-const maximized = vi.hoisted(() => ({ toggleEditorMaximized: vi.fn() }));
+const maximized = vi.hoisted(() => ({ toggleEditorMaximized: vi.fn(), restoreEditorMaximized: vi.fn() }));
 vi.mock("./editorMaximized", () => maximized);
 
 const cmEditorMock = vi.hoisted(() => ({

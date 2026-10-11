@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { Mounts } from "@kernel/Mounts";
 import { useWorkspaces, workspaceDisplayName } from "@kernel/workspace";
 import { shortenHome, useHomeDir } from "./homeDir";
@@ -191,6 +192,7 @@ export function WelcomePage() {
   const spawnSession = useCallback(
     (engineId: string) => {
       if (!ws) return;
+      host.events.emit(KernelTopics.sessionViewRequested, null);
       void host.createSession(engineId, ws.root, ws.id).catch(() => undefined);
     },
     [ws],

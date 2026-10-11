@@ -13,19 +13,50 @@ import { Spinner } from "@kernel/Spinner";
 import { useEffect, useEffectEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+/* 弹层关闭瞬间的幽灵点击:连点两下关闭时第二击落进下层同位可点元素
+   (卡片/表格行),弹层刚关又被打开 =「点两下关不掉」。最后一个弹层卸载时
+   铺一张 400ms 透明全屏罩吃掉残余指针事件,全部消费方一次治愈。
+   落罩走 0ms 延时 + 存活计数复核:StrictMode 的挂载期假 cleanup 与
+   「上层弹层关闭、下层仍开」都不落罩,只吃真正的穿透窗口。 */
+const GHOST_CLICK_MS = 400;
+let liveDialogs = 0;
+
+function armGhostClickShield(): void {
+  if (liveDialogs > 0) return;
+  const shield = document.createElement("div");
+  shield.setAttribute("data-tmd-ghost-shield", "");
+  shield.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:transparent;";
+  const swallow = (e: Event) => { e.stopPropagation(); e.preventDefault(); };
+  for (const type of ["mousedown", "mouseup", "click", "dblclick", "contextmenu"]) {
+    shield.addEventListener(type, swallow);
+  }
+  document.body.appendChild(shield);
+  window.setTimeout(() => shield.remove(), GHOST_CLICK_MS);
+}
+
 /** Esc 关闭钩 —— 弹层/浮层公共 Esc 骨架(window keydown;locked 时忽略)。
  *  onClose 包 useEffectEvent:父层每轮重建回调不触发重订阅,effect 内永远读最新引用。
+ *  叠层仲裁:注册顺序即层序,只有栈顶响应 Esc(locked 仍占位不让下层漏接),
+ *  修「弹层摞弹层时一次 Esc 全关」;locked 顶层按住不动,下层不偷跑。
  *  消费:git 弹层族 / files 菜单族 / workspace 菜单族 / checkpoints / composer /
  *  network-proxy / session-budget / welcome(2026-09-30 自 17 处手抄 effect 收口)。 */
+const escStack: symbol[] = [];
+
 export function useEscClose(onClose: () => void, locked = false): void {
   const onEsc = useEffectEvent(() => onClose());
   useEffect(() => {
-    if (locked) return;
+    const token = Symbol();
+    escStack.push(token);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onEsc();
+      if (e.key !== "Escape" || escStack[escStack.length - 1] !== token || locked) return;
+      onEsc();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      const at = escStack.indexOf(token);
+      if (at >= 0) escStack.splice(at, 1);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [locked]);
 }
 
@@ -36,6 +67,7 @@ export function DialogShell({
   width = 560,
   zClass = "z-1000",
   locked,
+  cardClass = "",
   onClose,
   children,
   footer,
@@ -50,11 +82,20 @@ export function DialogShell({
   zClass?: string;
   /** 提交中:遮罩点击与 Esc 不再关闭 */
   locked?: boolean;
+  /** 卡片附加类(大弹层尺寸覆写;样式表需 !important 压过内联 width)。 */
+  cardClass?: string;
   onClose: () => void;
   children: ReactNode;
   footer: ReactNode;
 }) {
   useEscClose(onClose, locked);
+  useEffect(() => {
+    liveDialogs += 1;
+    return () => {
+      liveDialogs -= 1;
+      if (liveDialogs === 0) window.setTimeout(armGhostClickShield, 0);
+    };
+  }, []);
 
   /* 自制弹层换原生 dialog(非模态 open,不调 showModal,保留原 Esc/点背板关闭):
      两段式 —— 外层 role=presentation 遮罩 div 承担点背板关闭(target===currentTarget
@@ -74,7 +115,7 @@ export function DialogShell({
         open
         aria-label={title}
         style={{ width, animation: "tmdDialogIn var(--tmd-dur-2) var(--tmd-ease-move)" }}
-        className="relative m-0 h-fit max-h-none max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left text-(--tmd-fg) shadow-2xl"
+        className={`relative m-0 h-fit max-h-none max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left text-(--tmd-fg) shadow-2xl ${cardClass}`}
       >
         <div className="flex items-center gap-1.5 text-xs font-semibold text-(--tmd-fg)">
           {icon}

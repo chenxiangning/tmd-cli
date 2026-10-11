@@ -23,7 +23,7 @@ export const MESSAGES = {
   "已存指纹 {fp} 与本次不符,可能存在中间人攻击。仅在你确知服务器密钥确实更换时信任。":
     "The stored fingerprint {fp} does not match this connection, which may indicate a man-in-the-middle attack. Trust it only if you know the server key has really changed.",
   "首次连接此主机,核对指纹后信任。": "First connection to this host. Verify the fingerprint before trusting.",
-  "拒绝": "Reject",
+  "拒绝": "Deny",
   "信任并连接": "Trust and connect",
   "输入密码": "Enter password",
   "服务器要求输入": "Server requests input",

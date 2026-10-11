@@ -199,11 +199,12 @@ export function DiffFlatList({
                 <button
                   type="button"
                   title={t("git add 全部未暂存与未跟踪文件")}
+                  data-action-id="git-row-actions"
                   onClick={(e) => {
                     e.stopPropagation();
                     onStage([...unPaths, ...utPaths]);
                   }}
-                  className="text-xs text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
+                  className="text-xs hover:underline hover:underline-offset-2"
                 >
                   {t("(全部暂存)")}
                 </button>
@@ -212,11 +213,12 @@ export function DiffFlatList({
                 <button
                   type="button"
                   title={t("git reset 全部已暂存文件")}
+                  data-action-id="git-row-actions"
                   onClick={(e) => {
                     e.stopPropagation();
                     onUnstage(stPaths);
                   }}
-                  className="text-xs text-(--tmd-fg-faint) hover:text-(--tmd-fg) hover:underline hover:underline-offset-2"
+                  className="text-xs hover:underline hover:underline-offset-2"
                 >
                   {t("(全部取消)")}
                 </button>

@@ -18,6 +18,7 @@ import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { StyledSelect } from "@kernel/StyledSelect";
 import { wslRemoteSpawnCommand } from "./wslCore";
 import { HostForm } from "./HostForm";
@@ -104,6 +105,7 @@ export function WslRemoteSection() {
       ? host.getCliProfiles().find((p) => p.command === pickedEngine)?.id
       : undefined;
     setOpening(true);
+    host.events.emit(KernelTopics.sessionViewRequested, null);
     void host
       .createSshSession(
         selected,

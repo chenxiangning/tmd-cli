@@ -29,6 +29,15 @@ export const KernelTopics = {
   sessionsChanged: "kernel.sessions.changed",
   /** 当前激活会话切换。payload: sessionId | null */
   activeSessionChanged: "kernel.sessions.active",
+  /**
+   * 用户显式「去看这个会话」的手势信号(侧栏行/历史行/工作台会话链/续聊/
+   * 搜索命中/通知点击等)。payload: null。
+   * 消费方:app-shell 还原编辑区最大化(幕布被盖住时「打开 = 看不到」)。
+   * 红线:程序自动化(任务自动状态、会话退出 MRU 回落、adopt、activate:false
+   * 后台拉起)严禁发——「激活 ≠ 用户意图」,误发会把最大化持续打掉
+   * (2026-10-11 激活守卫翻车回撤的教训)。
+   */
+  sessionViewRequested: "kernel.sessions.viewRequested",
   /** 某会话 CLI 进程退出。payload: sessionId */
   sessionExited: "kernel.sessions.exited",
   /**

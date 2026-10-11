@@ -24,7 +24,7 @@ import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
 import { ExitSessionToast } from "./ExitSessionToast";
 import { SettingsPersistToast } from "./SettingsPersistToast";
-import { useEditorMaximized } from "./editorMaximized";
+import { useEditorMaximized, installSessionViewReveal } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 import { usePersistedToggle, useScrollbarProbe } from "./shellHooks";
@@ -73,6 +73,10 @@ export function AppShell() {
 
   /* 全局快捷键分发器:挂载期安装一次,卸载退订;命令本体在 ./shortcutCommands 模块级注册。 */
   useEffect(() => installShortcutDispatcher(), []);
+  /* 遮盖还原:用户显式「去看会话」手势(sessionViewRequested,各入口显式发,
+     自动化严禁)即摘最大化——幂等,非最大化 no-op。 */
+  useEffect(() => installSessionViewReveal(), []);
+
   /* 栏折叠是组件局部状态:经 ref 桥喂给模块级命令(同 TerminalView 的 findRequestRef)。 */
   useEffect(() => {
     shellBarToggles.left = toggleLeft;
@@ -127,7 +131,9 @@ export function AppShell() {
             插件市场页打开时与三栏一起被覆盖层盖住。 */}
         <PanelRail rightOpen={rightOpen} setRightOpen={setRightOpen} />
         {marketOpen && (
-          <div className="absolute inset-0 z-50">
+          /* z-60:压过工作台/看板 overlay 页(z-50),rail 点市场即见层(切换语义);
+             收市场后其下 overlay 原样露出。 */
+          <div className="absolute inset-0 z-[60]">
             <PluginMarketPage onClose={() => setMarketOpen(false)} />
           </div>
         )}

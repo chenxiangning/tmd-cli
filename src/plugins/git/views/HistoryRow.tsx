@@ -88,7 +88,7 @@ function FileRow({
         {dir && <span className="ml-1 text-meta text-(--tmd-fg-faint)">{dir}</span>}
       </span>
       {/* 打开文件/位置动作:与差异列表同款 hover 语义(常占位零位移,行悬停显形) */}
-      <span className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-60">
+      <span className="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100">
         <FileOpenActions cwd={cwd} file={row.file} />
       </span>
       <span className={`w-3 shrink-0 text-center font-semibold ${STATUS_COLOR[row.file.status] ?? ""}`}>

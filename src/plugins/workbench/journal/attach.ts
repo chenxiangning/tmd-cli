@@ -1,0 +1,29 @@
+/**
+ * 每日日志子域装配 —— 2026-10-11 自独立插件并入工作台(spec:
+ * docs/superpowers/specs/2026-10-11-workbench-journal-merge-design.md)。
+ * 主视图(年/月/轴)由工作台「工作日志」页签托管(JournalTab),这里只装:
+ * 域 store/调度/节假日/任务持久化 + 每日文章中央 tab(深链)。
+ * 原设计:docs/superpowers/specs/2026-09-29-daily-journal-design.md
+ */
+import { CalendarCheck } from "@phosphor-icons/react";
+import type { PluginContext } from "@kernel/plugin";
+import { ArticleTab } from "./ArticleTab";
+import { ARTICLE_TAB_KIND } from "./journalTabs";
+import { bootJournal, getJournalState, setMetaTasks } from "./journalStore";
+import { bindTaskPersistence } from "./taskQueue";
+import { bootJournalSchedule } from "./journalSchedule";
+import { bindHolidayEnabled, ensureHolidays } from "./holidays";
+import "./locales"; /* 域词典随子域自带:i18n.registerMessages(import 即注册) */
+import "./daily-journal-unfinished.css"; /* W3-b 面板/链接样式(全局 css,挂载点收口装配处) */
+
+/** workbench.activate 调用;返回退订(停定时器/事件/生成体)。 */
+export function attachJournal(ctx: PluginContext): () => void {
+  const ready = bootJournal().then(() => {
+    bindHolidayEnabled(() => getJournalState().config.holidaysOn);
+    void ensureHolidays(new Date().getFullYear());
+  });
+  bindTaskPersistence(setMetaTasks);
+  const offSchedule = bootJournalSchedule(ctx.events, ready);
+  ctx.registerTabContent({ kind: ARTICLE_TAB_KIND, component: ArticleTab, icon: CalendarCheck });
+  return offSchedule;
+}

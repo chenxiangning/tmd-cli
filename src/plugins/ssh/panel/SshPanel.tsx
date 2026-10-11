@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { usePanelActive } from "@kernel/panelActivity";
 import { Plus, ArrowClockwise, PlugCharging } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { SSH_STATUS_LABELS, openHostPicker, probeLatency, useSshSession } from "../state";
 import { ForwardSection } from "./ForwardSection";
@@ -75,6 +76,7 @@ function SessionCard({
     setError(null);
     try {
       const old = host.getSessions().find((s) => s.id === sessionId);
+      host.events.emit(KernelTopics.sessionViewRequested, null);
       await host.createSshSession(sessionId, old?.workspaceId);
     } catch (e) {
       setError(t("重连失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
@@ -87,7 +89,10 @@ function SessionCard({
       <button
         type="button"
         className="ssh-session-main"
-        onClick={() => host.setActiveSession(sessionId)}
+        onClick={() => {
+          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
+          host.setActiveSession(sessionId);
+        }}
       >
         <span className={`ssh-status-dot is-${status}`} aria-hidden />
         <span className="ssh-session-label">{label}</span>

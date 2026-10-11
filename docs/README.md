@@ -236,6 +236,7 @@
 | 2026-09-30 | [18 — 生成会话无头契约:CliProfile.oneshotArgs 声明制与无人值守会话输出纪律](architecture/18-oneshot-generation.md) | 生效中(omp/pi/codex/claude 已声明,dsh/kimi/grok/qoder/opencode 待接入清单见文内矩阵) |
 | 2026-10-01 | [19 — proc_stream 长驻流式原语与结构化会话:四命令面/行事件线/单一收割出口/structuredRpc 声明制/画布浮层挂点](architecture/19-proc-stream-structured-session.md) | 生效中(新增 RPC 类 CLI 能力或改 proc_stream 生命周期前必读) |
 | 2026-10-02 | [20 — cli-dsh 契约:幕布钉底光标纪律 / 会话身份与删除闸 / host 探针](architecture/20-cli-dsh-adapter-contracts.md) | 生效中(改 cli-dsh 适配器渲染、侧栏会话列表、host 面板前必读) |
+| 2026-10-10 | [21 — git diff 中央 tab 契约:一仓一侧一 tab + 左列变更清单 + 单双栏渲染同源(词级标注/折叠胶囊共用模型)](architecture/21-git-diff-tabs.md) | 生效中(改 git diff tab / PatchLines 渲染前必读) |
 | 2026-09-30 | [daily-journal 手动发起总结/增量更新入口:文章 tab 顶栏状态自适应按钮 + 月格全状态扩展(增量并入/生成此日/重试生成三态共用判定)](superpowers/specs/2026-09-30-daily-journal-manual-increment-design.md) | 已实现(门禁全绿;真机目检留大仙) |
 | 2026-09-30 | [活会话结构化视图设计(幕布|转录双视图:canvasOverlay 画布浮层挂点 + 1s 探测短路轮询 + 变更即全量重读 message 级刷新;幕布保活零卸载,PTY 零改动)](superpowers/specs/2026-09-30-live-transcript-view-design.md) | 已实现(门禁全绿;1421 桩目检过;真机验收留大仙,未提交) |
 | 2026-09-30 | [结构化会话设计(RPC 驱动,omp/pi 先行:Rust proc_stream 通用流式子进程原语 + cli-shared piRpc 客户端/reducer + structured-session 插件中央 tab;token 级流式;PTY 零改动;观察者/双开/改 PTY 三路实验否决记录)](superpowers/specs/2026-09-30-structured-session-rpc-design.md) | 已实现(门禁全绿;真机验收留大仙,Rust 改动须重启 tauri:dev,未提交) |
@@ -301,4 +302,14 @@
 | 2026-10-08 | [Git 跨工作区批量操作设计(方向 A 面板内聚合:RepoBar「本仓/全部」段控 + 聚合视图逐仓串行批量 fetch/pull/push,行级结果/重试失败/点行跳仓;Rust 零改动复用 git_pull_push 等原语)](superpowers/specs/2026-10-08-git-batch-ops-design.md) | 已实施(桩目检全链路通过;真机目检留大仙,未提交) |
 | 2026-10-09 | [0.3.3 近期内容整体打磨评审(六功能提交+两发版后提交:修历史行打开图标常显回归/doctor 死豁免/useGitPanelContext 死返回/cwd 可选坏路径/RowStatus 类型放宽/abs 重复计算;locale·CSS·并发改写·checkpoints 图标复核通过)](review/2026-10-09-033-polish-review.md) | 已收口(门禁全绿+桩目检实证) |
 | 2026-10-09 | [24h 变更综合评审(13 commits 三片并行:修 useMinSpin 迟落定卡死/useFileLineDiff win 反斜杠失效/diffGutter 双标记越行 3 P1,批量防重入/full=true 全文 IPC/磁盘外变错色/贴线拆件等 6 P2,P3 十条记录;兼容·性能·死代码·架构·边界五维全绿)](review/2026-10-09-24h-commit-review.md) | 已收口(P1/P2 已修+回归测试,P3 记录) |
+| 2026-10-09 | [0.3.5 真机验收单(手机 M2 尾项 2.3/3.4/5.2/5.3/6.3/7.4/8.2/8.3 + 0.3.1 外网三件套与读头 + git59 安卓四项与徽标 + 双实例/updater,四段 14 项合并执行序)](brainstorm/2026-10-09-035-acceptance-checklist.md) | 待大仙扫码勾验 |
+| 2026-10-10 | [0.3.5 提交批换角度复审(9 commits 两路并行 + 主审亲证:P1×2——isMissingFileError Windows 文案全漏致新建画布保存全断、「关闭」键跨域撞车致 en/ja 30+ Close 位显 Off;P2×2——回滚 check-then-act 竞态入 tx 串行化、回滚自身失败孤儿认领;P3 择要 + wsl 死选择器等死代码清理);同日续批补审前 5 笔图标装饰批(零 P1/P2,P3×4 随修)并清账词典跨域撞车存量 21 行 + 撞车测试防回归;复审二换角度审续批三笔:守卫盲区×3 补强(git2 嵌套桶/域表漂移守卫/插件 registerMessages 跨面断言),插件词典跨面 27 键 + ja 残账 5 组全清(含 wallpaper「关闭」Off 覆盖全局 Close 漏网活例),装饰 accent 填充钮撤钩与呼吸表双选择器](review/2026-10-10-035-commit-review.md) | 已收口(P1/P2/P3 随评修复,续批与复审二已清账) |
+| 2026-10-10 | [工作台(workbench)设计](superpowers/specs/2026-10-10-workbench-design.md) | 已实施(含三轮打磨;门禁全绿+桩目检) |
+| 2026-10-11 | [每日工作日志并入工作台可行性调研(合并面仅 allPlugins 两行+契约测试一行;嵌入=查表页签;日↔项目↔任务关联走 wsId↔cwd 与 TaskSessionLink 既有数据桥,零 kernel 改动;前置=workbench 收口提交)](research/workbench-daily-journal-merge.md) | 已完成(结论可行;开发未启动) |
+| 2026-10-11 | [每日工作日志并入工作台设计(目录迁移 workbench/journal 子域 + 入口统一工作台页签「日志」年/月/轴三视图 + 日↔项目↔任务派生关联 + 生成项目感知;三阶段 TDD 分期评审)](superpowers/specs/2026-10-11-workbench-journal-merge-design.md) | 已实施(三阶段 TDD;门禁全绿 + 1421 桩目检;评审记录同日) |
+| 2026-10-11 | [每日工作日志并入工作台:分阶段评审记录(P1 合并入口统一 OK with notes ×2 P2 修;P2 关联层 1×P1 disk 链转活假阴性修 + 5×P2 修;P3 生成项目感知 6×P2 修;收口门禁 3871 测试/doctor 100/桩目检)](review/2026-10-11-workbench-journal-merge-review.md) | 已完成(修复全落地) |
+| 2026-10-11 | [工作台日历并入工作日志月视图(叠层条目兄弟位防嵌套交互件 + calendarMonth 单一真相源复用;「日历」页签退役、「日志」改名「工作日志」;评审 OK with notes 5×P2 全修 + 桩目检)](review/2026-10-11-workbench-journal-merge-review.md) | 已完成(记录见同文件 M 批段) |
+| 2026-10-11 | [生成文档二次开发 · B+C 融合定稿候选 v3(GLM 系设计工艺打磨:三层高度/字阶/动效节奏/柔色语义;能力:模板库/事实源/排程/溯源/分发/版本对比;含项目详情入口形态)](design/doc-gen-fused.html) | 设计原型(已定稿) |
+| 2026-10-11 | [生成文档闭环(docgen)设计:配置(模板库×事实源勾选×参数)→ journal 生命线姊妹实现的无头单发生成 → docgen.json+版本链沉淀 → 结构化解析(溯源徽标+条目级对比+失败回落)→ 落地分发(转任务/存项目文档/发送输入框/就此追问);自建轻队列不动 journal 基座;DocPreviewDialog 退役;三阶段分期](superpowers/specs/2026-10-11-docgen-loop-design.md) | 已实施(P1+P2+排程) |
+| 2026-10-12 | [生成文档流水线(docgen)已落地契约:数据布局 docgen.json+版本链实体分档;生成生命线三路结算;维度键队列;每周排程幂等闸;结构化五段解析契约;入口收敛与铁则对照](architecture/22-docgen.md) | 已完成 |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

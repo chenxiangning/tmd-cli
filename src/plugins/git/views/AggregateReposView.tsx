@@ -110,7 +110,7 @@ export function AggregateReposView({
             >
               {refreshing
                 ? <Spinner size="0.75rem" />
-                : <ArrowClockwise className="h-[0.75rem] w-[0.75rem]" aria-hidden />}
+                : <ArrowDown className="h-[0.6875rem] w-[0.6875rem]" aria-hidden />}
             </button>
             {/* 分裂按钮组:主钮 = 拉取全部(最高频);▾ 菜单含获取/拉取/推送全部,带目标数。 */}
             <span className="flex shrink-0 items-stretch overflow-hidden rounded-md border border-(--tmd-accent)">
@@ -120,7 +120,7 @@ export function AggregateReposView({
                 onClick={() => batch.run("pull", all)}
                 className="flex items-center gap-1 bg-(--tmd-accent) px-2 py-0.5 text-[11px] text-(--tmd-accent-fg) hover:brightness-108 disabled:opacity-45"
               >
-                <ArrowDown className="h-[0.6875rem] w-[0.6875rem]" aria-hidden />
+                <ArrowDown className="h-[0.6875rem] w-[0.6875rem]" aria-hidden data-decor-from="git-repo-ops" />
                 {t("拉取全部")}
               </button>
               <button
@@ -169,7 +169,7 @@ export function AggregateReposView({
                 className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs hover:bg-(--tmd-bg-hover) disabled:opacity-50"
               >
                 <span className="flex items-center gap-1.5">
-                  <RowIcon className="h-[0.75rem] w-[0.75rem]" aria-hidden />
+                  <RowIcon className="h-[0.75rem] w-[0.75rem]" data-decor-from="git-repo-ops" aria-hidden />
                   <span>{row.label}</span>
                 </span>
                 {row.count > 0 && <span>{row.count}</span>}

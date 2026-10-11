@@ -78,11 +78,11 @@ export function FileTreeContextMenu({
         }}
       />
       <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
-        {item(t("新建文件"), <FilePlus size="0.8125rem" />, () => {
+        {item(t("新建文件"), <FilePlus size="0.8125rem" data-decor-from="files-new-file" />, () => {
           onClose();
           actions.createFile(newDir);
         })}
-        {item(t("新建文件夹"), <FolderSimplePlus size="0.8125rem" />, () => {
+        {item(t("新建文件夹"), <FolderSimplePlus size="0.8125rem" data-decor-from="files-new-folder" />, () => {
           onClose();
           actions.createFolder(newDir);
         })}

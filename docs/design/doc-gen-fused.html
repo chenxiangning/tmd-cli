@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>生成文档闭环 · B+C 融合 v3(专家打磨版) · 对齐工作台现状</title>
+<style>
+  /* ══ 设计基调:参考 GLM 系的克制与呼吸感,落到 tmd-cli 暗色工作台 ══
+     三层高度(base/sink/elevated/overlay)、单一字阶、4px 节奏、统一动效曲线 */
+  :root {
+    --bg-base:#0b0c0f; --bg-sink:#0e0f13; --bg-elevated:#14151b; --bg-overlay:#1b1c24;
+    --border:rgba(255,255,255,.065); --border-strong:rgba(255,255,255,.13);
+    --fg:#e9eaef; --fg-muted:#a2a5b2; --fg-faint:#676a76;
+    --accent:#e0655f; --accent-soft:rgba(224,101,95,.13); --accent-line:rgba(224,101,95,.42); --accent-fg:#f0b0ac;
+    --ok:#42b581; --ok-soft:rgba(66,181,129,.13); --ok-fg:#7fd8ad;
+    --warn:#d9a648; --warn-soft:rgba(217,166,72,.13); --warn-fg:#e4c489;
+    --info:#7c8ff0; --info-soft:rgba(124,143,240,.13); --info-fg:#a4b2f6;
+    --r-lg:14px; --r-md:10px; --r-sm:7px;
+    --shadow-pop:0 20px 56px rgba(0,0,0,.58), 0 3px 10px rgba(0,0,0,.35);
+    --shadow-card:0 1px 0 rgba(255,255,255,.03) inset;
+    --ease:cubic-bezier(.2,.8,.2,1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body { background: #060709; color: var(--fg); padding: 40px 28px 72px;
+         font: 13px/1.62 -apple-system, "SF Pro SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  button { font: inherit; }
+  ::selection { background: var(--accent-soft); }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.09); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  .page { max-width: 1240px; margin: 0 auto; }
+  .lede { color: var(--fg-muted); font-size: 12px; line-height: 1.9; max-width: 900px; margin-bottom: 24px; }
+  .lede b { color: var(--fg); font-weight: 600; }
+  .lede .tag { display: inline-block; border: 1px solid var(--border); border-radius: 99px; padding: 0 8px; margin-right: 6px; font-size: 10px; color: var(--fg-faint); letter-spacing: .02em; }
+
+  /* ── 窗口壳 ── */
+  .window { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg-sink); overflow: hidden; position: relative;
+            box-shadow: 0 24px 80px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3); }
+  .titlebar { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 1px solid var(--border); background: var(--bg-elevated); }
+  .lights { display: flex; gap: 7px; }
+  .lights i { width: 11px; height: 11px; border-radius: 50%; background: #3a3b43; }
+  .lights i:nth-child(1) { background: #e0655f; opacity: .85; } .lights i:nth-child(2) { background: #d9a648; opacity: .85; } .lights i:nth-child(3) { background: #42b581; opacity: .85; }
+  .crumb { font-size: 12px; color: var(--fg-muted); letter-spacing: .01em; }
+  .crumb b { color: var(--fg); font-weight: 500; }
+  .workspace-badge { font-size: 10px; border: 1px solid var(--border); border-radius: 99px; padding: 2px 9px; color: var(--fg-faint); margin-left: 2px; }
+  .titlebar .sp { flex: 1; }
+  .branch { font-size: 11px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
+
+  /* ── 按钮体系 ── */
+  .btn { border: 1px solid var(--border); background: var(--bg-elevated); color: var(--fg-muted);
+         border-radius: var(--r-sm); padding: 4px 13px; font-size: 12px; cursor: pointer; white-space: nowrap;
+         box-shadow: var(--shadow-card); transition: background .14s var(--ease), border-color .14s var(--ease), color .14s var(--ease), transform .1s var(--ease); }
+  .btn:hover { border-color: var(--border-strong); color: var(--fg); background: var(--bg-overlay); }
+  .btn:active { transform: scale(.97); }
+  .btn:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 1px; }
+  .btn.primary { background: linear-gradient(180deg, rgba(224,101,95,.24), rgba(224,101,95,.13)); border-color: var(--accent-line); color: var(--accent-fg); }
+  .btn.primary:hover { background: linear-gradient(180deg, rgba(224,101,95,.32), rgba(224,101,95,.18)); border-color: var(--accent); color: #f6c6c2; }
+  .btn.small { padding: 2px 9px; font-size: 11px; border-radius: 6px; }
+
+  .actions { display: flex; gap: 7px; align-items: center; }
+
+  /* ── 页签行 ── */
+  .tabs { display: flex; gap: 3px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--bg-sink); }
+  .tab { padding: 9px 13px 8px; font-size: 12.5px; color: var(--fg-faint); cursor: pointer; border: 0; background: none; position: relative;
+         letter-spacing: .02em; transition: color .14s var(--ease); }
+  .tab:hover { color: var(--fg-muted); }
+  .tab.on { color: var(--fg); font-weight: 500; }
+  .tab.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+  .tab .new { font-size: 9px; color: var(--accent-fg); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 99px; padding: 0 6px; margin-left: 5px; vertical-align: 1px; letter-spacing: 0; }
+
+  /* ── 内容区 ── */
+  .content { padding: 15px 16px; }
+  .sec-t { font-size: 10.5px; color: var(--fg-faint); letter-spacing: .12em; margin-bottom: 10px; }
+
+  /* KPI:数字表格化,层级靠字重与明度 */
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 9px; margin-bottom: 13px; }
+  .kpi { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elevated); padding: 11px 13px 9px; box-shadow: var(--shadow-card);
+         transition: border-color .14s var(--ease); }
+  .kpi:hover { border-color: var(--border-strong); }
+  .kpi .n { font-size: 19px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .kpi .n .u { font-size: 11px; font-weight: 400; color: var(--fg-faint); margin-left: 1px; }
+  .kpi .l { font-size: 10px; color: var(--fg-faint); margin-top: 3px; letter-spacing: .04em; }
+  .kpi.ok .n { color: var(--ok-fg); } .kpi.warn .n { color: var(--warn-fg); } .kpi.risk .n { color: var(--accent-fg); }
+
+  .projbar { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elevated); padding: 11px 14px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-card); }
+  .projbar .name { font-size: 12.5px; font-weight: 500; }
+  .projbar .pbar { flex: 1; }
+  .projbar .num { font-size: 11.5px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+  .pbar { height: 4px; background: rgba(255,255,255,.07); border-radius: 99px; overflow: hidden; }
+  .pbar i { display: block; height: 100%; background: linear-gradient(90deg, rgba(224,101,95,.75), var(--accent)); border-radius: 99px; }
+
+  /* ── 文档中心:列表 | 阅读器 ── */
+  .hub { display: grid; grid-template-columns: 300px 1fr; height: 580px; }
+  .list { border-right: 1px solid var(--border); overflow: auto; background: var(--bg-elevated); }
+  .list-head { padding: 13px 14px 9px; font-size: 10.5px; color: var(--fg-faint); letter-spacing: .08em; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .list-head .count { font-variant-numeric: tabular-nums; }
+  .lgroup { padding: 11px 14px 5px; font-size: 10px; color: var(--fg-faint); letter-spacing: .1em; }
+  .row { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; padding: 10px 14px; cursor: pointer;
+         border-left: 2px solid transparent; transition: background .13s var(--ease), border-color .13s var(--ease); }
+  .row + .row { border-top: 1px solid rgba(255,255,255,.035); }
+  .row:hover { background: rgba(255,255,255,.028); }
+  .row.on { background: var(--accent-soft); border-left-color: var(--accent); }
+  .row .t { font-size: 12.5px; font-weight: 500; letter-spacing: .01em; }
+  .row .st { font-size: 10px; padding: 1px 7px; border-radius: 99px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .st.gen { color: var(--warn-fg); background: var(--warn-soft); }
+  .st.ok { color: var(--ok-fg); background: var(--ok-soft); }
+  .st.fail { color: var(--accent-fg); background: var(--accent-soft); }
+  .st.sched { color: var(--info-fg); background: var(--info-soft); }
+  .row .m { grid-column: 2 / 4; font-size: 10.5px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.gen { background: var(--warn); animation: pulse 1.6s ease-in-out infinite; }
+  .dot.ok { background: var(--ok); } .dot.fail { background: var(--accent); } .dot.sched { background: var(--info); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .row .pmini { grid-column: 1 / 4; height: 3px; background: rgba(255,255,255,.07); border-radius: 99px; overflow: hidden; margin-top: 2px; }
+  .row .pmini i { display: block; height: 100%; width: 40%; background: var(--warn); border-radius: 99px; }
+  .row.srow { opacity: .92; }
+  .row .sbtn { grid-column: 1 / 4; justify-self: start; margin-top: 3px; }
+  .stt { font-size: 10px; border-radius: 99px; padding: 0 7px; margin-left: 6px; cursor: pointer; border: 1px solid transparent; transition: all .13s var(--ease); }
+  .stt.draft { color: var(--fg-faint); border-color: var(--border); }
+  .stt.shared { color: var(--ok-fg); background: var(--ok-soft); border-color: rgba(66,181,129,.3); }
+  .stt:hover { border-color: var(--border-strong); }
+  .vers { display: none; gap: 3px; align-items: center; margin-left: 2px; }
+  .vers.show { display: inline-flex; }
+  .xstop { position: absolute; right: 8px; top: 8px; display: none; border: 1px solid var(--border); background: var(--bg-overlay); color: var(--fg-faint);
+           width: 18px; height: 18px; border-radius: 5px; font-size: 10px; line-height: 1; cursor: pointer; transition: all .13s var(--ease); }
+  .row[data-state="gen"]:hover .xstop { display: block; }
+  .xstop:hover { color: var(--accent-fg); border-color: var(--accent-line); }
+  .row { position: relative; }
+
+  /* ── 阅读器 ── */
+  .reader { display: flex; flex-direction: column; background: var(--bg-sink); min-width: 0; }
+  .r-head { padding: 14px 18px 11px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .r-head .h-title { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .badge { font-size: 10px; background: var(--accent-soft); color: var(--accent-fg); border: 1px solid var(--accent-line); border-radius: 99px; padding: 1px 9px; }
+  .badge.ok { background: var(--ok-soft); color: var(--ok-fg); border-color: rgba(66,181,129,.32); }
+  .date { color: var(--fg-faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .seg { display: inline-flex; gap: 2px; background: var(--bg-sink); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+  .seg button { border: 0; background: none; color: var(--fg-faint); font-size: 11.5px; padding: 3px 11px; border-radius: 6px; cursor: pointer; letter-spacing: .02em;
+                transition: color .13s var(--ease), background .13s var(--ease); }
+  .seg button:hover { color: var(--fg-muted); }
+  .seg button.on { background: var(--bg-overlay); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+  .r-body { flex: 1; overflow: auto; padding: 18px 20px 24px; }
+  .r-actions { border-top: 1px solid var(--border); padding: 10px 16px; display: flex; gap: 7px; align-items: center; background: var(--bg-sink); }
+  .r-actions .sp { flex: 1; }
+
+  .stage { display: none; }
+  .stage.show { display: block; }
+
+  /* 生成态:步骤轨道 + 流式回显 */
+  .stagebar { display: flex; align-items: center; gap: 0; margin-bottom: 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elevated); }
+  .stage { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--fg-faint); white-space: nowrap; }
+  .stage .sdot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--border-strong); transition: all .2s var(--ease); }
+  .stage.done { color: var(--ok-fg); } .stage.done .sdot { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 8px rgba(66,181,129,.5); }
+  .stage.run { color: var(--fg); } .stage.run .sdot { background: var(--warn); border-color: var(--warn); animation: pulse 1.2s ease-in-out infinite; box-shadow: 0 0 8px rgba(217,166,72,.45); }
+  .sline { flex: 1; min-width: 14px; height: 1px; background: var(--border-strong); margin: 0 10px; }
+  .genlog { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elevated); padding: 13px 15px; font: 11.5px/1.75 ui-monospace, "SF Mono", monospace; color: var(--fg-muted); white-space: pre-wrap; max-height: 300px; overflow: auto; }
+  .genlog .caret { display: inline-block; width: 7px; height: 13px; background: var(--accent); vertical-align: -2px; margin-left: 2px; animation: pulse 1s steps(2) infinite; }
+
+  /* 结构化阅读:区块卡片,呼吸感来自 padding 与行距 */
+  .blk { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elevated); margin-bottom: 12px; padding: 13px 15px; box-shadow: var(--shadow-card); }
+  .blk-h { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; letter-spacing: .01em; margin-bottom: 10px; }
+  .blk-h .ic { width: 15px; height: 15px; color: var(--fg-faint); flex: none; }
+  .blk-h .cnt { margin-left: auto; font-size: 10px; color: var(--fg-faint); font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+  .mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .mini .k { border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-sink); padding: 9px 11px; }
+  .mini .n { font-size: 17px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .mini .l { font-size: 10px; color: var(--fg-faint); margin-top: 2px; }
+  .mini .warn { color: var(--warn-fg); } .mini .ok { color: var(--ok-fg); }
+
+  .prow { display: grid; grid-template-columns: 108px 1fr 60px; gap: 10px; align-items: center; padding: 7px 2px; font-size: 12px; }
+  .prow + .prow { border-top: 1px dashed rgba(255,255,255,.05); }
+  .prow .pct { text-align: right; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+  .srcchip { font-size: 9.5px; color: var(--info-fg); background: var(--info-soft); border: 1px solid rgba(124,143,240,.28); border-radius: 99px; padding: 0 7px; margin-left: 7px; cursor: pointer; vertical-align: 1px; white-space: nowrap; transition: all .13s var(--ease); }
+  .srcchip:hover { border-color: var(--info); background: rgba(124,143,240,.2); }
+
+  .risk { display: grid; grid-template-columns: auto 1fr auto; gap: 3px 11px; padding: 9px 2px; align-items: start; font-size: 12px; }
+  .risk + .risk { border-top: 1px dashed rgba(255,255,255,.05); }
+  .sev { font-size: 10px; padding: 1px 8px; border-radius: 99px; margin-top: 1px; white-space: nowrap; }
+  .sev.hi { background: var(--accent-soft); color: var(--accent-fg); border: 1px solid var(--accent-line); }
+  .sev.mid { background: var(--warn-soft); color: var(--warn-fg); border: 1px solid rgba(217,166,72,.3); }
+  .risk .rd { grid-column: 2 / 4; color: var(--fg-faint); font-size: 10.5px; margin-top: 1px; }
+  .w2t { justify-self: end; align-self: start; }
+  .risk.done { opacity: .45; } .risk.done .w2t { color: var(--ok-fg); border-color: rgba(66,181,129,.35); pointer-events: none; }
+
+  .act { display: flex; gap: 11px; align-items: flex-start; padding: 8px 2px; font-size: 12.5px; }
+  .act + .act { border-top: 1px dashed rgba(255,255,255,.05); }
+  .cb { width: 15px; height: 15px; border: 1.5px solid var(--border-strong); border-radius: 5px; flex: none; margin-top: 2px; cursor: pointer; transition: all .14s var(--ease); }
+  .cb:hover { border-color: var(--accent); }
+  .act.done .cb { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 6px rgba(66,181,129,.4); }
+  .act.done .at { color: var(--fg-faint); text-decoration: line-through; }
+  .who { font-size: 10.5px; color: var(--fg-faint); white-space: nowrap; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .sug { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 9px 2px; font-size: 12.5px; align-items: start; }
+  .sug + .sug { border-top: 1px dashed rgba(255,255,255,.05); }
+  .sug .sd { grid-column: 1 / 3; color: var(--fg-faint); font-size: 11px; }
+  .sug.done { opacity: .45; } .sug.done .w2t { color: var(--ok-fg); border-color: rgba(66,181,129,.35); pointer-events: none; }
+
+  /* 原文渲染 */
+  .raw { display: none; font-size: 12.5px; }
+  .reader.rawmode .raw { display: block; } .reader.rawmode .stage { display: none !important; }
+  .prose { color: #c9cbd3; line-height: 1.85; letter-spacing: .01em; }
+  .prose h1 { font-size: 17px; color: var(--fg); margin: 4px 0 12px; letter-spacing: -.01em; }
+  .prose h2 { font-size: 13.5px; color: var(--fg); margin: 18px 0 7px; padding-left: 10px; border-left: 3px solid var(--accent); }
+  .prose p { margin: 7px 0; } .prose ul { padding-left: 20px; margin: 7px 0; } .prose li { margin: 4px 0; }
+
+  /* 版本对比:条目级 diff */
+  .dview { display: none; }
+  .reader.diffmode .dview { display: block; } .reader.diffmode .stage { display: none !important; } .reader.diffmode .raw { display: none !important; }
+  .dvs { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 12px; color: var(--fg-muted); }
+  .dv { font-size: 10.5px; border: 1px solid var(--border); background: var(--bg-elevated); padding: 2px 11px; border-radius: 99px; cursor: pointer; color: var(--fg-muted); transition: all .13s var(--ease); }
+  .dv.on { border-color: var(--accent-line); color: var(--accent-fg); background: var(--accent-soft); }
+  .ditem { display: grid; grid-template-columns: 20px 1fr; gap: 10px; padding: 8px 2px; font-size: 12.5px; align-items: start; }
+  .ditem + .ditem { border-top: 1px dashed rgba(255,255,255,.05); }
+  .dsign { font-weight: 600; text-align: center; border-radius: 6px; font-size: 12px; line-height: 18px; margin-top: 1px; }
+  .dsign.add { color: var(--ok-fg); background: var(--ok-soft); }
+  .dsign.del { color: var(--accent-fg); background: var(--accent-soft); }
+  .dsign.chg { color: var(--warn-fg); background: var(--warn-soft); }
+
+  .failcard { border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: var(--r-md); padding: 14px 15px; }
+  .failcard .fr { color: var(--accent-fg); font-size: 12.5px; font-weight: 600; }
+  .failcard .fd { color: var(--fg-muted); font-size: 11.5px; margin: 6px 0 11px; line-height: 1.7; }
+  .empty { color: var(--fg-faint); text-align: center; padding: 70px 0; font-size: 12.5px; }
+
+  /* ── 配置弹窗(DialogShell 形制) ── */
+  .scrim { position: absolute; inset: 0; background: rgba(4,5,7,.62); backdrop-filter: blur(3px); display: none; align-items: center; justify-content: center; z-index: 10; }
+  .scrim.show { display: flex; }
+  @keyframes moIn { from { opacity: 0; transform: translateY(10px) scale(.982); } to { opacity: 1; transform: none; } }
+  .scrim.show .mo { animation: moIn .2s var(--ease); }
+  .mo:focus { outline: none; }
+  .mo { width: 660px; max-width: 94%; background: var(--bg-overlay); border: 1px solid var(--border-strong); border-radius: var(--r-lg); box-shadow: var(--shadow-pop); }
+  .mo-h { display: flex; align-items: center; padding: 15px 18px 0; }
+  .mo-h .mt { font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; }
+  .mo-h .mx { margin-left: auto; color: var(--fg-faint); background: none; border: 0; font-size: 16px; cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: all .13s var(--ease); }
+  .mo-h .mx:hover { color: var(--fg); background: rgba(255,255,255,.06); }
+  .mo-b { display: grid; grid-template-columns: 1fr 1.18fr; gap: 20px; padding: 15px 18px; }
+  .lb { font-size: 10.5px; color: var(--fg-faint); letter-spacing: .1em; margin: 13px 0 7px; display: flex; align-items: center; gap: 8px; }
+  .lb:first-child { margin-top: 0; }
+  .types { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .tcard { position: relative; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-elevated); padding: 8px 10px 7px; cursor: pointer;
+           transition: border-color .14s var(--ease), background .14s var(--ease), box-shadow .14s var(--ease); }
+  .tcard:hover { border-color: var(--border-strong); }
+  .tcard.on { border-color: var(--accent-line); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-line) inset; }
+  .tcard.on::after { content: ""; position: absolute; right: 8px; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 7px rgba(224,101,95,.7); }
+  .tcard .tn { font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 5px; }
+  .tcard .tag { font-size: 9px; color: var(--info-fg); background: var(--info-soft); border: 1px solid rgba(124,143,240,.28); border-radius: 99px; padding: 0 5px; font-weight: 400; }
+  .tcard .td { font-size: 10px; color: var(--fg-faint); margin-top: 2px; line-height: 1.5; }
+  .tmore { grid-column: 1 / 3; text-align: center; font-size: 10.5px; color: var(--fg-faint); padding: 4px 0 1px; cursor: pointer; letter-spacing: .02em; transition: color .13s var(--ease); }
+  .tmore:hover { color: var(--info-fg); }
+  .seg.wrap { display: flex; flex-wrap: wrap; }
+  .src { display: flex; gap: 9px; align-items: flex-start; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--bg-elevated); padding: 8px 11px; margin-bottom: 6px; cursor: pointer; font-size: 11.5px;
+         transition: border-color .14s var(--ease); }
+  .src:hover { border-color: var(--border-strong); }
+  .src:has(input:checked) { border-color: rgba(66,181,129,.32); }
+  .src input { accent-color: var(--ok); margin-top: 2px; }
+  .src small { display: block; color: var(--fg-faint); font-size: 10px; margin-top: 1px; line-height: 1.5; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--border); background: var(--bg-elevated); border-radius: 99px; padding: 3px 12px; font-size: 11.5px; color: var(--fg-muted); cursor: pointer; transition: all .13s var(--ease); }
+  .chip:hover { border-color: var(--border-strong); color: var(--fg); }
+  .chip.on { border-color: var(--accent-line); color: var(--accent-fg); background: var(--accent-soft); }
+  .chip .ver { font-size: 9.5px; opacity: .65; margin-left: 2px; }
+  select, textarea { width: 100%; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--fg); border-radius: var(--r-sm); padding: 6px 10px; font: inherit; font-size: 12px; transition: border-color .14s var(--ease); }
+  select:focus, textarea:focus { outline: none; border-color: var(--accent-line); }
+  textarea { resize: none; line-height: 1.6; }
+  .sched { display: flex; align-items: center; gap: 9px; border: 1px dashed var(--border-strong); border-radius: var(--r-sm); padding: 9px 12px; font-size: 11.5px; color: var(--fg-muted); cursor: pointer; transition: all .14s var(--ease); }
+  .sched.on { border-style: solid; border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent-fg); }
+  .sched .sw { width: 30px; height: 17px; border-radius: 99px; background: rgba(255,255,255,.1); position: relative; flex: none; transition: background .16s var(--ease); }
+  .sched .sw::after { content: ""; position: absolute; width: 13px; height: 13px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .16s var(--ease); }
+  .sched.on .sw { background: var(--accent); } .sched.on .sw::after { left: 15px; }
+  .mo-foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px 15px; border-top: 1px solid var(--border); }
+  .mo-foot .hint2 { font-size: 10px; color: var(--fg-faint); letter-spacing: .02em; }
+  .lockchip { display: none; align-items: center; gap: 5px; border: 1px solid var(--accent-line); border-radius: 99px; background: var(--accent-soft); color: var(--accent-fg); font-size: 10.5px; padding: 1px 9px; letter-spacing: 0; }
+  .lockchip.show { display: inline-flex; }
+  .lockchip b { font-weight: 500; }
+
+  /* ── 项目详情演示屏 ── */
+  .pd-head { display: flex; align-items: center; gap: 13px; margin: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elevated); padding: 10px 15px; box-shadow: var(--shadow-card); }
+  .pd-badge { flex: none; font-size: 10px; color: var(--ok-fg); border: 1px solid rgba(66,181,129,.35); background: var(--ok-soft); border-radius: 99px; padding: 1px 9px; }
+  .pd-head .pbar { flex: 1; }
+  .pd-head .rem { flex: none; font-size: 10.5px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
+  .dtabs { display: flex; gap: 3px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .dtabs .tab { padding: 7px 12px 6px; }
+  .pd-body { margin: 12px 16px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elevated); padding: 13px 16px; font-size: 12.5px; color: var(--fg-muted); box-shadow: var(--shadow-card); }
+  .pd-body .lbl { color: var(--fg-faint); font-size: 10px; letter-spacing: .05em; margin-bottom: 2px; }
+  .pd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+  .pd-body blockquote { margin: 11px 0 0; border-left: 3px solid var(--accent); padding-left: 11px; color: var(--fg-muted); font-size: 12px; line-height: 1.7; }
+  .pd-actions { display: flex; align-items: center; gap: 8px; margin: 0 16px 15px; border-top: 1px dashed var(--border); padding-top: 12px; }
+  .pd-actions .oldnote { font-size: 10px; color: var(--fg-faint); text-decoration: line-through; }
+  .pd-actions .sp { flex: 1; }
+  .pd-link { border: 0; background: none; color: var(--info-fg); font-size: 11.5px; cursor: pointer; padding: 0; letter-spacing: .01em; transition: color .13s var(--ease); }
+  .pd-link:hover { color: var(--info); text-decoration: underline; }
+
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border); background: var(--bg-sink); }
+  .toolbar .tips { color: var(--fg-faint); font-size: 11px; line-height: 1.7; }
+  .toolbar .tips b { color: var(--accent-fg); font-weight: 500; }
+
+  .notes { margin-top: 24px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-sink); padding: 18px 22px; color: var(--fg-muted); font-size: 12px; line-height: 1.95; }
+  .notes h5 { color: var(--fg); font-size: 13px; margin: 0 0 8px; letter-spacing: .02em; }
+  .notes h5 + p { margin-top: 0; }
+  .notes b { color: var(--fg); font-weight: 500; }
+  .notes ul { padding-left: 18px; } .notes li { margin: 3px 0; }
+
+  #toast { position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 12px); background: var(--bg-overlay); border: 1px solid var(--border-strong);
+           padding: 8px 18px; border-radius: 99px; font-size: 12px; color: var(--fg); box-shadow: var(--shadow-pop);
+           opacity: 0; pointer-events: none; transition: opacity .2s var(--ease), transform .2s var(--ease); z-index: 99; white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <p class="lede"><b>生成文档闭环 · B+C 融合 v3(专家打磨版)</b> <span class="tag">GLM 系克制排版 × tmd-cli 暗色工作台</span>
+  相对 v2 交互零变化,纯设计工艺升级:三层高度表面(base/sink/elevated/overlay)、统一字阶与字重层级、数字表格化(tabular-nums)、4px 节奏、
+  单一动效曲线(120–200ms cubic-bezier(.2,.8,.2,1))、弹窗入场与 toast 上滑、步骤轨道脉冲、区块卡片化、来源徽标与 diff 记号的柔色语义。
+  能力面不变:模板库 / 事实源 / 参数化 / 排程 / 溯源 / 分发 / 版本对比。v3.1 细节打磨:版本切换器(头部 v1…vN 回看只读)、「重新生成」真闭环(产出存 v N+1)、失败卡重试接线(原引擎/换 omp)、生成中行悬停终止钮(✕ 收割会话)+生成态底部「终止生成 · 20 分钟硬顶」说明、Esc 关弹窗与焦点入模态、生成/结算/终止全行参数化(切走不串台)。交互:生成文档 → 配置弹窗;行切换三视图;对比条目级 diff;转任务/采纳/勾选/状态徽;排程行暂停;下方第二窗口为项目详情概要页入口形态。</p>
+
+  <div class="window" style="position:relative">
+    <!-- 顶栏:与客户端 OverlayActions 按钮序一致 -->
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="crumb"><b>工作台</b></span>
+      <span class="workspace-badge">创业项目(默认)⌄</span>
+      <span class="sp"></span>
+      <div class="actions">
+        <button class="btn primary" id="genBtn">生成文档</button>
+        <button class="btn">示例数据</button>
+        <button class="btn">一键关联工作区</button>
+        <button class="btn">从磁盘同步</button>
+        <button class="btn">新建项目</button>
+      </div>
+    </div>
+
+    <!-- 页签行:与 wbTabs 一致,新增「文档」 -->
+    <div class="tabs">
+      <button class="tab">概览</button>
+      <button class="tab">任务看板</button>
+      <button class="tab">项目列表</button>
+      <button class="tab">时间线</button>
+      <button class="tab">待跟进</button>
+      <button class="tab on">文档<span class="new">新</span></button>
+      <button class="tab">工作日志</button>
+    </div>
+
+    <div class="content">
+      <div class="kpis">
+        <div class="kpi"><div class="n">8</div><div class="l">项目总数</div></div>
+        <div class="kpi"><div class="n">3</div><div class="l">进行中</div></div>
+        <div class="kpi ok"><div class="n">9<span class="u">/23</span></div><div class="l">已完成任务</div></div>
+        <div class="kpi warn"><div class="n">2</div><div class="l">临期(7 天内)</div></div>
+        <div class="kpi risk"><div class="n">4</div><div class="l">活跃风险</div></div>
+        <div class="kpi"><div class="n">31</div><div class="l">本周会话</div></div>
+      </div>
+      <div class="projbar"><span class="name">天穹客户端</span><div class="pbar"><i style="width:68%"></i></div><span class="num">12/18 · 截止 10-31</span></div>
+    </div>
+
+    <!-- 文档中心主体 -->
+    <div class="hub">
+      <div class="list" id="list">
+        <div class="list-head"><span>文档中心</span><span class="count">本月 12 份 · 排程 1</span></div>
+
+        <div class="lgroup">排程</div>
+        <div class="row srow" data-state="sched" data-title="定时 · 周报">
+          <i class="dot sched"></i><span class="t">每周五 17:00 · 周报</span><span class="st sched">运行中</span>
+          <span class="m">下次 10-16 17:00 · omp · 全项目 + 工作日志</span>
+          <button class="btn small sbtn">暂停</button>
+        </div>
+
+        <div class="lgroup">今天 · 10-11</div>
+        <div class="row" data-state="gen" data-title="周报 · 2026-W41">
+          <i class="dot gen"></i><span class="t">周报 · 2026-W41</span><span class="st gen">生成中 42s</span>
+          <span class="m">omp · 全项目 · 阶段 2/4 组装提示词</span>
+          <div class="pmini"><i style="width:34%"></i></div>
+          <button class="xstop" title="终止">✕</button>
+        </div>
+        <div class="row fail" data-state="fail" data-doc="risk" data-eng="claude" data-scope="单项目 · 数据网关" data-title="风险清单 · 数据网关">
+          <i class="dot fail"></i><span class="t">风险清单 · 数据网关</span><span class="st fail">失败</span>
+          <span class="m">claude · 产物未落盘(5 分钟轮询无增量)</span>
+        </div>
+
+        <div class="lgroup">更早</div>
+        <div class="row" data-state="done" data-doc="weekly" data-view="s" data-vmax="3" data-ver="3" data-eng="omp" data-scope="全项目 + 日志" data-title="周报 · 2026-W40">
+          <i class="dot ok"></i><span class="t">周报 · 2026-W40</span><span class="st ok">完成</span>
+          <span class="m">v3 · omp · 10-10 21:14 · 全项目 + 日志 · <span class="stt shared">已汇报</span></span>
+        </div>
+        <div class="row" data-state="done" data-doc="weekly" data-view="s" data-title="会议纪要 · 平台周会 10-08">
+          <i class="dot ok"></i><span class="t">会议纪要 · 平台周会 10-08</span><span class="st ok">完成</span>
+          <span class="m">v1 · claude · 会话摘录 3 条 · <span class="stt draft">草稿</span></span>
+        </div>
+        <div class="row" data-state="done" data-doc="weekly" data-view="s" data-title="项目状态汇报 · 天穹客户端">
+          <i class="dot ok"></i><span class="t">项目状态汇报 · 天穹</span><span class="st ok">完成</span>
+          <span class="m">v2 · omp · 10-07 · 单项目</span>
+        </div>
+        <div class="row" data-state="done" data-doc="weekly" data-view="s" data-title="发版说明 · v0.9.3">
+          <i class="dot ok"></i><span class="t">发版说明 · v0.9.3</span><span class="st ok">完成</span>
+          <span class="m">v1 · kimi · Git 提交 148 条 · <span class="stt shared">已发布</span></span>
+        </div>
+        <div class="row" data-state="done" data-doc="weekly" data-view="s" data-title="客户月度简报(自定义)">
+          <i class="dot ok"></i><span class="t">客户月度简报 · 9 月</span><span class="st ok">完成</span>
+          <span class="m">v1 · claude · 自定义模板 · 对外口径</span>
+        </div>
+      </div>
+
+      <div class="reader" id="reader">
+        <div class="head r-head">
+          <span class="h-title" id="rTitle">周报 · 2026-W40</span>
+          <span class="badge">AI 生成</span>
+          <span class="date" id="rMeta">v3 · omp · 10-10 21:14</span>
+          <span class="vers" id="versWrap"></span>
+          <span class="sp" style="flex:1"></span>
+          <div class="vt seg">
+            <button class="on" data-v="s">结构化</button>
+            <button data-v="d">对比</button>
+            <button data-v="r">原文</button>
+          </div>
+        </div>
+
+        <div class="body r-body">
+          <div class="stage show" id="stageWeekly">
+            <div class="blk">
+              <div class="blk-h"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 11h4"/></svg>本周概览<span class="cnt">4 项指标</span></div>
+              <div class="mini">
+                <div class="k"><div class="n">+9%</div><div class="l">整体进度 62→71%</div></div>
+                <div class="k"><div class="n">18</div><div class="l">新增进展</div></div>
+                <div class="k"><div class="n warn">4</div><div class="l">活跃风险</div></div>
+                <div class="k"><div class="n ok">7</div><div class="l">完成任务</div></div>
+              </div>
+            </div>
+            <div class="blk">
+              <div class="blk-h"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 13V7M6 13V4M10 13V8M14 13V3"/></svg>各项目进展<span class="cnt">3 个项目</span></div>
+              <div class="prow"><span>天穹客户端<span class="srcchip">源:进展 10-09</span></span><div class="pbar"><i style="width:68%"></i></div><span class="pct">68%</span></div>
+              <div class="prow"><span>数据网关<span class="srcchip">源:进展 10-10</span></span><div class="pbar"><i style="width:55%"></i></div><span class="pct">55%</span></div>
+              <div class="prow"><span>移动端 App</span><div class="pbar"><i style="width:82%"></i></div><span class="pct">82%</span></div>
+            </div>
+            <div class="blk">
+              <div class="blk-h"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2 14.5 13.5h-13L8 2z"/><path d="M8 6.5v3.2M8 11.4v.1"/></svg>风险与阻塞<span class="cnt">2 条 · 可转任务</span></div>
+              <div class="risk">
+                <span class="sev hi">高</span>
+                <span>「数据网关」灰度环境 P95 恶化至 812ms,阻塞 10-15 灰度发布<span class="srcchip">源:进展 10-02</span></span>
+                <button class="btn small w2t">转任务</button>
+                <span class="rd">环比 +210ms · 关联任务 #T-231 · 已连续两周上升</span>
+              </div>
+              <div class="risk">
+                <span class="sev mid">中</span>
+                <span>「移动端」灰度渠道崩溃率 0.8%,高于 0.3% 门槛<span class="srcchip">源:会话 10-03</span></span>
+                <button class="btn small w2t">转任务</button>
+                <span class="rd">影响 1.2 万灰度用户 · 建议冻结放量</span>
+              </div>
+            </div>
+            <div class="blk">
+              <div class="blk-h"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="3" width="11" height="11" rx="2"/><path d="M5.5 8.5 7.5 10.5 11 6.5"/></svg>下周行动项<span class="cnt">3 条 · 可勾选</span></div>
+              <div class="act"><span class="cb"></span><span class="at">网关降级预案评审并通过灰度门禁<span class="srcchip">源:决策 10-08</span></span><span class="who">陈鹏 · 10-13</span></div>
+              <div class="act"><span class="cb"></span><span class="at">移动端冻结放量,回捞崩溃 top5 堆栈</span><span class="who">李骁 · 10-12</span></div>
+              <div class="act"><span class="cb"></span><span class="at">客户端设计稿验收(登录/设置)</span><span class="who">王蕾 · 10-14</span></div>
+            </div>
+            <div class="blk">
+              <div class="blk-h"><svg class="ic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2a4.5 4.5 0 0 0-2.4 8.3c.6.4.9 1 .9 1.7h3c0-.7.3-1.3.9-1.7A4.5 4.5 0 0 0 8 2z"/><path d="M6.5 13.5h3"/></svg>AI 建议<span class="cnt">2 条 · 可采纳</span></div>
+              <div class="sug">
+                <span>数据网关灰度发布时间建议后移 2 天(10-17),为降级预案留出验证窗口</span><button class="btn small w2t">采纳</button>
+                <span class="sd">依据:风险 #1 未闭环 · 下游依赖 2 项 · 历史同类延期率 60%</span>
+              </div>
+              <div class="sug">
+                <span>移动端崩溃率连续两周超门槛,建议立项「稳定性专项」</span><button class="btn small w2t">采纳</button>
+                <span class="sd">依据:近 14 天崩溃会话 312 起,集中度 78% 于 v2.4.0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dview" id="dview">
+            <div class="dvs">对比
+              <button class="dv">v1 · 10-09</button>
+              <button class="dv on">v2 · 10-09</button>
+              →
+              <button class="dv on">v3 · 10-10</button>
+              <span style="color:var(--fg-faint);font-size:11px">条目级差异(结构化解析副产品)</span>
+            </div>
+            <div class="ditem"><span class="dsign chg">~</span><span>整体进度 62% → 71%(本周新增进展 18 条,环比 +9%)</span></div>
+            <div class="ditem"><span class="dsign add">+</span><span>新增风险:「移动端」灰度渠道崩溃率 0.8% 超门槛</span></div>
+            <div class="ditem"><span class="dsign add">+</span><span>新增进展:天穹客户端设置页验收通过(3 条)</span></div>
+            <div class="ditem"><span class="dsign del">−</span><span>已消除:设计稿交付延迟(10-09 晚补齐,风险关闭)</span></div>
+            <div class="ditem"><span class="dsign chg">~</span><span>活跃风险 3 → 4(新增 1、关闭 1、升级 1)</span></div>
+          </div>
+
+          <div class="raw">
+            <div class="prose">
+              <h1>团队周报 · 2026-W40</h1>
+              <p>周期:2026-10-05 ~ 2026-10-11 · 引擎:omp · 口径:管理层</p>
+              <h2>本周概览</h2>
+              <ul><li>整体进度 62% → 71%(环比 +9%)</li><li>新增进展 18 条 · 活跃风险 4 个 · 完成任务 7 项</li></ul>
+              <h2>各项目进展</h2>
+              <ul><li>天穹客户端:68%(+6%),设置页进入验收</li><li>数据网关:55%,灰度环境 P95 恶化,发布风险上升</li><li>移动端 App:82%,崩溃率超门槛,建议冻结放量</li></ul>
+              <h2>风险与阻塞 / 下周行动项 / AI 建议</h2>
+              <p>……(正文与结构化视图同源,markdown 原文,diff 与溯源标记存于行内注释)</p>
+            </div>
+          </div>
+
+          <div class="stage" id="stageGen">
+            <div class="stagebar">
+              <span class="stage" data-i="0"><i class="sdot"></i>收集事实源</span><span class="sline"></span>
+              <span class="stage" data-i="1"><i class="sdot"></i>组装提示词</span><span class="sline"></span>
+              <span class="stage" data-i="2"><i class="sdot"></i>模型生成</span><span class="sline"></span>
+              <span class="stage" data-i="3"><i class="sdot"></i>落盘结算</span>
+            </div>
+            <div class="genlog" id="genlog"></div>
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+              <button class="btn" id="genCancel">终止生成</button>
+              <span style="flex:1"></span>
+              <span style="font-size:10.5px;color:var(--fg-faint)">文件落盘即结算 · 20 分钟硬顶自动收割</span>
+            </div>
+          </div>
+
+          <div class="stage" id="stageFail">
+            <div class="failcard">
+              <div class="fr">生成失败 · 产物未落盘</div>
+              <div class="fd">claude 会话已退出,但 5 分钟轮询内目标文件无新增内容。可能原因:prompt 过长被截断 / 工作区未关联导致无写权限 / 模型拒答。消耗 2 次尝试。</div>
+              <button class="btn primary" id="failRetry">重试</button>
+              <button class="btn" id="failRetryAlt">换 omp 重试</button>
+              <button class="btn" id="failResidue">查看会话残留输出</button>
+            </div>
+          </div>
+
+          <div class="stage" id="stageSched">
+            <div class="blk">
+              <div class="blk-h">排程详情</div>
+              <p style="font-size:12.5px;line-height:2;color:var(--fg-muted)">每周五 17:00 自动生成「本周周报」:范围全部项目,事实源 = 项目摘要 + 工作日志,引擎 omp,受众管理层。<br>产物入文档列表并标记「排程生成」;错过窗口不补跑,行上显示「错过」徽标可手动补跑。</p>
+            </div>
+          </div>
+
+          <div class="stage empty" id="stageEmpty">从左侧选择一份文档;或点顶栏「生成文档」创建</div>
+        </div>
+
+        <div class="r-actions" id="readerActions">
+          <button class="btn" id="actCopy">复制 MD</button>
+          <button class="btn">导出</button>
+          <button class="btn" id="actSaveDoc">存为项目文档</button>
+          <button class="btn" id="actSend">发送到输入框</button>
+          <button class="btn" id="actAsk">就此追问</button>
+          <span class="sp"></span>
+          <button class="btn" id="actRegen">重新生成</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <span class="tips">v3 打磨:表面三层高度 · 字阶 10/11/12.5/15/19 · 数字 tabular-nums · 弹窗入场与 toast 上滑动效 · 步骤轨道脉冲 · 区块卡片化 · 柔色语义徽标。行为与 v2 一致。</span>
+    </div>
+
+    <!-- 配置弹窗 -->
+    <div class="scrim" id="cfgScrim">
+      <div class="mo">
+        <div class="mo-h"><span class="mt">生成文档</span><button class="mx" id="mCancel">✕</button></div>
+        <div class="mo-b">
+          <div>
+            <div class="lb">类型(模板库)</div>
+            <div class="types" id="mType">
+              <div class="tcard on" data-k="周报"><div class="tn">周报</div><div class="td">本周进展/风险/下周计划,管理层口径</div></div>
+              <div class="tcard" data-k="项目状态汇报"><div class="tn">状态汇报</div><div class="td">单项目里程碑/偏差/决策请求</div></div>
+              <div class="tcard" data-k="风险清单"><div class="tn">风险清单</div><div class="td">分级风险 + 缓解建议 + 负责人</div></div>
+              <div class="tcard" data-k="会议纪要"><div class="tn">会议纪要</div><div class="td">决议/行动项/未决问题骨架</div></div>
+              <div class="tcard" data-k="发版说明"><div class="tn">发版说明</div><div class="td">从 Git 提交归类新功能/修复/破坏性变更</div></div>
+              <div class="tcard" data-k="analysis"><div class="tn">进展分析提示词</div><div class="td">只生成 prompt 并复制,不 spawn 会话</div></div>
+              <div class="tcard" data-k="客户简报"><div class="tn">客户简报<span class="tag">自</span></div><div class="td">对外口径 · 隐藏内部代号与人员名</div></div>
+              <div class="tcard" data-k="迭代复盘"><div class="tn">迭代复盘<span class="tag">自</span></div><div class="td">做得好/待改进/下迭代行动</div></div>
+            </div>
+            <div class="tmore" id="mgmtTpl">管理模板…(内置 5 · 自定义 2 · 可新建,占位符引用工作台事实)</div>
+          </div>
+          <div>
+            <div class="lb">周期</div>
+            <div class="seg wrap" id="mPeriod">
+              <button class="on" data-p="本周">本周</button>
+              <button data-p="上周">上周</button>
+              <button data-p="本月">本月</button>
+              <button data-p="自定义">自定义…</button>
+            </div>
+            <div class="lb">范围 <span class="lockchip" id="mLock">已锁定:单项目 · <b id="mLockName"></b>(项目详情进入)</span></div>
+            <div id="mScopeWrap">
+              <div class="seg" id="mScope">
+                <button class="on" data-s="all">全部项目</button>
+                <button data-s="one">单项目</button>
+              </div>
+              <div id="mProjWrap" style="display:none;margin-top:6px">
+                <select><option>天穹客户端</option><option>数据网关</option><option>移动端 App</option></select>
+              </div>
+            </div>
+            <div class="lb">事实源(勾选进 prompt)</div>
+            <label class="src"><input type="checkbox" checked><span>项目摘要<small>任务 23 · 进展 14 · 风险 4(workbench 结构化数据)</small></span></label>
+            <label class="src"><input type="checkbox" checked><span>工作日志<small>10-05 ~ 10-11 · 七篇 AI 日志摘要(journal)</small></span></label>
+            <label class="src"><input type="checkbox"><span>会话摘录<small>本周 31 条会话 · 按项目匹配标题/收尾(sessionDigest)</small></span></label>
+            <label class="src"><input type="checkbox"><span>Git 提交<small>3 个关联仓库 · 148 commits(发版说明必选)</small></span></label>
+            <div class="lb">受众与语言</div>
+            <div class="seg" id="mAud" style="margin-bottom:6px">
+              <button class="on">管理层</button><button>团队</button><button>对外</button>
+            </div>
+            <select><option>语言:跟随界面(中文)</option><option>English</option><option>日本語</option></select>
+            <div class="lb">引擎</div>
+            <div class="chips" id="mEng">
+              <button class="chip on" data-e="omp">omp<span class="ver">18.1.13</span></button>
+              <button class="chip" data-e="claude">claude<span class="ver">2.0.14</span></button>
+              <button class="chip" data-e="kimi">kimi<span class="ver">0.58</span></button>
+              <button class="chip" data-e="auto">自动<span class="ver">首个健康</span></button>
+            </div>
+            <div class="lb">附加指令</div>
+            <textarea rows="2" placeholder="如:重点突出数据网关的发布风险,控制在 400 字内"></textarea>
+            <div class="lb">排程</div>
+            <div class="sched" id="mSched"><span class="sw"></span>每周五 17:00 自动生成本周周报(同一模板与口径)</div>
+          </div>
+        </div>
+        <div class="mo-foot">
+          <span class="hint2" id="mHint">预计 prompt ≈ 2.1k tokens · 产物落盘 docs/ 并加入左侧列表</span>
+          <span style="flex:1"></span>
+          <button class="btn" id="mCancel2">取消</button>
+          <button class="btn primary" id="mGo">开始生成</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 第二窗口:项目详情 · 概要页的生成文档入口改造 -->
+  <div class="window" style="margin-top:26px">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="crumb"><b>项目详情</b> · 创业小程序原型(概要页)</span>
+    </div>
+    <div class="pd-head">
+      <span class="pd-badge">正常</span>
+      <div class="pbar"><i style="width:0%"></i></div>
+      <span class="rem">0% · 还剩 25 天,节奏正常</span>
+    </div>
+    <div class="dtabs">
+      <button class="tab on">概要</button>
+      <button class="tab">文档</button>
+      <button class="tab">任务 1</button>
+      <button class="tab">进展</button>
+      <button class="tab">会话</button>
+    </div>
+    <div class="pd-body">
+      <div class="pd-grid">
+        <div><div class="lbl">模块</div>其他项目</div>
+        <div><div class="lbl">状态</div>待启动</div>
+        <div><div class="lbl">负责人</div>我</div>
+        <div><div class="lbl">起止</div>2026-10-11 → 2026-11-05</div>
+      </div>
+      <blockquote>先用两周做个能跑通的最小闭环,验证一下这个想法值不值得继续。</blockquote>
+    </div>
+    <div class="pd-actions">
+      <button class="btn">编辑</button>
+      <button class="btn">+ 建任务</button>
+      <span class="sp"></span>
+      <span class="oldnote">进展分析提示词 / 周报 / 项目状态汇报 / 风险清单 / 会议纪要骨架(旧 5 按钮组)</span>
+      <button class="pd-link" id="pdHistory">本项目生成记录 →</button>
+      <button class="btn primary" id="pdGen">生成文档…</button>
+    </div>
+    <div class="toolbar">
+      <span class="tips">此处形态变化:旧 5 个固定类型按钮收敛为一个「生成文档…」——类型选择进弹窗(模板库可扩展,固定按钮装不下自定义模板);项目语境自动<b>预锁范围=本项目</b>,周期/模板/事实源/引擎照选。「本项目生成记录」跳工作台「文档」页签(过滤本项目)。「存为项目文档」的产物落在抽屉「文档」页签,与生成记录分档。</span>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h5>能力面(相对截图 5 个类型的功能点突破)</h5>
+    <ul>
+      <li><b>类型即模板</b>:内置 5 类 + 自定义模板(管理入口);「进展分析提示词」保留纯 prompt 语义(生成即复制,不 spawn);</li>
+      <li><b>事实源组装</b>:项目摘要 / 工作日志 / 会话摘录 / Git 提交 四路勾选,prompt 组装器可视化;</li>
+      <li><b>参数化</b>:周期 × 受众(管理层/团队/对外)× 语言(i18n 跟随);</li>
+      <li><b>排程自动化</b>:定时生成入队列(journal 定时先例);</li>
+      <li><b>溯源证据链</b>:结构化条目带来源徽标(进展/会话/日志),点击可跳;转任务带来源链接;</li>
+      <li><b>分发落地</b>:存为项目文档 / 发送到会话输入框 / 就此追问(spawn 带文档上下文)/ 复制 / 导出;文档状态流转(草稿→已汇报);</li>
+      <li><b>版本对比</b>:条目级 diff(+新增 / ~变化 / −消除),结构化解析的副产品。</li>
+    </ul>
+    <p>生成生命线沿 journal 先例:真实 CLI 会话无头单发(oneshot)+ taskQueue 3 槽并发 + 20 分钟硬顶 + fileEditDetected 落盘结算 + toast 通知。</p>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+  /* ── toast ── */
+  let toastTimer;
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  /* ── 阅读器状态机:gen / fail / done / sched ── */
+  const STAGES = { gen: "#stageGen", fail: "#stageFail", done: "#stageWeekly", sched: "#stageSched", empty: "#stageEmpty" };
+  const reader = $("#reader");
+  let cur = null;
+
+  function stageShow(key) {
+    for (const [k, sel] of Object.entries(STAGES)) $(sel).classList.toggle("show", k === key);
+    reader.classList.toggle("rawmode", false);
+    reader.classList.toggle("diffmode", false);
+  }
+
+  function select(row) {
+    $$("#list .row").forEach(r => r.classList.remove("on"));
+    row.classList.add("on");
+    cur = row;
+    const state = row.dataset.state;
+    $("#rTitle").textContent = row.dataset.title;
+    const vt = $(".vt");
+    if (state === "done") {
+      stageShow("done");
+      vt.style.display = "";
+      $("#rMeta").textContent = row.querySelector(".m").childNodes[0].textContent.trim();
+      $(".vt button.on")?.classList.remove("on");
+      $('.vt button[data-v="s"]').classList.add("on");
+    } else if (state === "gen") {
+      stageShow("gen"); vt.style.display = "none"; startGenStages(row);
+    } else if (state === "fail") {
+      stageShow("fail"); vt.style.display = "none";
+    } else if (state === "sched") {
+      stageShow("sched"); vt.style.display = "none";
+    } else {
+      stageShow("empty"); vt.style.display = "none";
+    }
+    versRebuild(row);
+  }
+
+  /* 版本切换器:done 行按 vmax 渲染,回看只读 */
+  function versRebuild(row) {
+    const wrap = $("#versWrap");
+    wrap.innerHTML = "";
+    const vmax = +(row.dataset.vmax || 0);
+    if (row.dataset.state !== "done" || !vmax) { wrap.classList.remove("show"); return; }
+    const ver = +(row.dataset.ver || vmax);
+    for (let v = 1; v <= vmax; v++) {
+      const b = document.createElement("button");
+      b.className = "dv" + (v === ver ? " on" : "");
+      b.textContent = "v" + v;
+      b.onclick = (e) => {
+        e.stopPropagation();
+        row.dataset.ver = String(v);
+        versRebuild(row);
+        const m = row.querySelector(".m");
+        m.textContent = m.textContent.replace(/^v\d+/, "v" + v);
+        $("#rMeta").textContent = m.textContent;
+        toast("回看 v" + v + "(历史版本只读)");
+      };
+      wrap.appendChild(b);
+    }
+    wrap.classList.add("show");
+  }
+
+  /* 视图切换:结构化 / 对比 / 原文 */
+  $$(".vt button").forEach(b => b.onclick = () => {
+    if (!cur || cur.dataset.state !== "done") return;
+    $$(".vt button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    const v = b.dataset.v;
+    reader.classList.toggle("rawmode", v === "r");
+    reader.classList.toggle("diffmode", v === "d");
+    stageShow("done");
+    reader.classList.toggle("rawmode", v === "r");
+    reader.classList.toggle("diffmode", v === "d");
+  });
+
+  /* 生成阶段动画 + 流式回显(行参数化:选中他行不串台,后台照跑) */
+  let genTimer = null, genIv = null;
+  function startGenStages(row) {
+    clearTimeout(genTimer); clearInterval(genIv);
+    const stages = $$("#stageGen .stage");
+    stages.forEach(s => s.classList.remove("done", "run"));
+    const log = $("#genlog"); log.innerHTML = "";
+    const stream = "[14:02:11] spawn omp(oneshot, 无头单发)\n[14:02:11] prompt 落盘 /tmp/docgen-8f3a.md,@file 传入\n[14:02:12] 收集事实源:项目摘要 + 工作日志 7 篇\n[14:02:14] 组装提示词 ≈ 2.1k tokens,骨架契约附加\n[14:02:15] ── 模型输出(流式)──\n# 团队周报 · 2026-W41\n\n## 本周概览\n- 整体进度 71% → 78%(环比 +7%)\n- 新增进展 21 条 · 活跃风险 3 个 · 完成任务 9 项\n\n## 各项目进展\n- 天穹客户端:74%,设置页验收通过,进入联调\n";
+    let i = 0;
+    stages[0].classList.add("run");
+    genIv = setInterval(() => {
+      i += 9;
+      log.innerHTML = stream.slice(0, i).replace(/</g, "&lt;") + '<span class="caret"></span>';
+      log.scrollTop = log.scrollHeight;
+      if (i > 130) { stages[0].classList.replace("run", "done"); stages[1].classList.add("run"); }
+      if (i > 260) { stages[1].classList.replace("run", "done"); stages[2].classList.add("run"); }
+      if (i >= stream.length) {
+        clearInterval(genIv);
+        stages[2].classList.replace("run", "done"); stages[3].classList.add("run");
+        genTimer = setTimeout(() => { stages[3].classList.replace("run", "done"); settleGen(row); }, 1200);
+      }
+    }, 90);
+  }
+
+  /* 结算:版本递增 + 行元数据回写;仅当仍选中时才翻阅读器视图 */
+  function settleGen(row) {
+    if (row.dataset.state !== "gen") return;
+    const v = row.dataset.vmax ? +row.dataset.vmax + 1 : 1;
+    row.dataset.vmax = String(v); row.dataset.ver = String(v);
+    row.dataset.state = "done";
+    row.querySelector(".dot").className = "dot ok";
+    const st = row.querySelector(".st"); st.className = "st ok"; st.textContent = "完成";
+    row.querySelector(".m").textContent = "v" + v + " · " + (row.dataset.eng || "omp") + " · 刚刚 · " + (row.dataset.scope || "全部项目 + 日志");
+    row.querySelector(".pmini")?.remove();
+    row.querySelector(".xstop")?.remove();
+    if (cur === row) select(row);
+    toast("已生成 v" + v + " · 文档落盘并写入列表");
+  }
+
+  function terminateGen(row) {
+    clearTimeout(genTimer); clearInterval(genIv);
+    const fallback = $('.row[data-doc="weekly"]');
+    row.remove();
+    if (cur === row && fallback) select(fallback);
+    toast("已终止:收割会话并从队列移除");
+  }
+
+  document.addEventListener("click", (e) => {
+    const xs = e.target.closest(".xstop");
+    if (xs) { e.stopPropagation(); terminateGen(xs.closest(".row")); return; }
+    if (e.target.id === "genCancel" && cur?.dataset.state === "gen") terminateGen(cur);
+  });
+
+  /* 列表行点击 */
+  $$("#list .row").forEach(row => row.addEventListener("click", (e) => {
+    if (e.target.closest(".xstop, .sbtn, .stt")) return;
+    select(row);
+  }));
+
+  /* 失败行:阅读器失败卡重试(对当前选中行生效) */
+  function retryFail(eng) {
+    if (!cur || cur.dataset.state !== "fail") return;
+    const row = cur;
+    row.dataset.state = "gen"; row.dataset.eng = eng;
+    row.classList.remove("fail");
+    row.querySelector(".dot").className = "dot gen";
+    const st = row.querySelector(".st"); st.className = "st gen"; st.textContent = "生成中";
+    row.querySelector(".m").textContent = eng + " · 重试中 · 阶段 1/4 收集事实源";
+    if (!row.querySelector(".xstop")) {
+      const xs = document.createElement("button");
+      xs.className = "xstop"; xs.title = "终止"; xs.textContent = "✕";
+      row.appendChild(xs);
+    }
+    select(row);
+    toast("已重新入队(" + eng + ")");
+    setTimeout(() => settleGen(row), 6200);
+  }
+  $("#failRetry").onclick = () => retryFail("claude");
+  $("#failRetryAlt").onclick = () => retryFail("omp");
+  $("#failResidue").onclick = () => toast("会话残留输出 1.2k tokens,尾部为拒答(示意)");
+
+  /* 排程行暂停/恢复 */
+  $$(".srow .sbtn").forEach(b => b.onclick = (e) => {
+    e.stopPropagation();
+    const st = b.closest(".row").querySelector(".st");
+    if (st.textContent === "运行中") { st.textContent = "已暂停"; b.textContent = "恢复"; toast("排程已暂停:本周五不再自动生成"); }
+    else { st.textContent = "运行中"; b.textContent = "暂停"; toast("排程已恢复:下次 10-16 17:00"); }
+  });
+
+  /* 文档状态徽:草稿 ⇄ 已汇报 */
+  document.addEventListener("click", (e) => {
+    const stt = e.target.closest(".stt");
+    if (!stt) return;
+    e.stopPropagation();
+    if (stt.classList.contains("draft")) { stt.className = "stt shared"; stt.textContent = "已汇报"; toast("状态:草稿 → 已汇报"); }
+    else { stt.className = "stt draft"; stt.textContent = "草稿"; toast("状态:已汇报 → 草稿"); }
+  });
+
+  /* 转任务 / 采纳 / 勾选 / 溯源 */
+  document.addEventListener("click", (e) => {
+    const w = e.target.closest(".w2t");
+    if (w) {
+      const host = w.closest(".risk, .sug");
+      if (host) host.classList.add("done");
+      w.textContent = "已转任务";
+      toast("已写入工作台任务:「" + (w.dataset.t || w.closest(".risk, .sug").querySelector("span").textContent.slice(0, 18)) + "…」");
+      return;
+    }
+    const cb = e.target.closest(".act .cb");
+    if (cb) { cb.closest(".act").classList.toggle("done"); return; }
+    const sc = e.target.closest(".srcchip");
+    if (sc) toast("溯源:" + sc.textContent.replace("源:", "") + "(跳转对应进展/会话/日志)");
+  });
+
+  /* 阅读器动作 */
+  $("#actCopy").onclick = () => toast("已复制 markdown 原文(含骨架契约注释)");
+  $("#actSaveDoc").onclick = () => toast("已存为项目文档:天穹客户端 · 抽屉「文档」页签可见");
+  $("#actSend").onclick = () => toast("已发送到会话输入框(composer),可继续指令加工");
+  $("#actAsk").onclick = () => toast("已 spawn 追问会话(omp):文档全文作上下文");
+  $("#actRegen").onclick = () => {
+    if (!cur || cur.dataset.state !== "done") { toast("仅完成的文档可重新生成"); return; }
+    const row = cur;
+    row.dataset.state = "gen";
+    row.dataset.eng = row.dataset.eng || "omp";
+    row.querySelector(".dot").className = "dot gen";
+    const st = row.querySelector(".st"); st.className = "st gen"; st.textContent = "生成中";
+    row.querySelector(".m").textContent = row.dataset.eng + " · 重新生成 v" + ((+row.dataset.vmax || 1) + 1) + " 中 · 阶段 1/4";
+    if (!row.querySelector(".xstop")) {
+      const xs = document.createElement("button");
+      xs.className = "xstop"; xs.title = "终止"; xs.textContent = "✕";
+      row.appendChild(xs);
+    }
+    select(row);
+    toast("已重新入队:产出将存为新版本 v" + ((+row.dataset.vmax || 1) + 1));
+    setTimeout(() => settleGen(row), 6200);
+  };
+
+  /* ── 配置弹窗 ── */
+  const scrim = $("#cfgScrim");
+  function openCfg(lockedProject) {
+    const lock = $("#mLock");
+    if (lockedProject) { $("#mLockName").textContent = lockedProject; lock.classList.add("show"); $("#mScopeWrap").style.display = "none"; }
+    else { lock.classList.remove("show"); $("#mScopeWrap").style.display = ""; }
+    scrim.dataset.locked = lockedProject || "";
+    scrim.classList.add("show");
+    const mo = scrim.querySelector(".mo");
+    mo.setAttribute("tabindex", "-1");
+    mo.focus();
+  }
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && scrim.classList.contains("show")) scrim.classList.remove("show");
+  });
+  $("#genBtn").onclick = () => openCfg(null);
+  $("#pdGen").onclick = () => openCfg("创业小程序原型");
+  $("#pdHistory").onclick = () => toast("跳转工作台「文档」页签(过滤:创业小程序原型)");
+  $("#mCancel").onclick = () => scrim.classList.remove("show");
+  $("#mCancel2").onclick = () => scrim.classList.remove("show");
+  scrim.addEventListener("click", (e) => { if (e.target === scrim) scrim.classList.remove("show"); });
+
+  function segBind(sel) {
+    $$(sel + " button").forEach(b => b.onclick = () => {
+      $$(sel + " button").forEach(x => x.classList.remove("on"));
+      b.classList.add("on");
+    });
+  }
+  segBind("#mPeriod"); segBind("#mAud");
+  $$("#mScope button").forEach(b => b.onclick = () => {
+    $$("#mScope button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    $("#mProjWrap").style.display = b.dataset.s === "one" ? "" : "none";
+  });
+  $$("#mType .tcard").forEach(c => c.onclick = () => {
+    $$("#mType .tcard").forEach(x => x.classList.remove("on"));
+    c.classList.add("on");
+    $("#mHint").textContent = c.dataset.k === "analysis"
+      ? "提示词类模板:生成后立即复制,不产生队列与落盘"
+      : "预计 prompt ≈ 2.1k tokens · 产物落盘 docs/ 并加入左侧列表";
+  });
+  $$("#mEng .chip").forEach(c => c.onclick = () => {
+    $$("#mEng .chip").forEach(x => x.classList.remove("on"));
+    c.classList.add("on");
+  });
+  $("#mSched").onclick = () => {
+    const on = $("#mSched").classList.toggle("on");
+    toast(on ? "排程已开启:每周五 17:00 · 周报" : "排程已关闭");
+  };
+  $("#mgmtTpl").onclick = () => toast("模板管理(P3):新建/编辑自定义模板,占位符引用工作台事实");
+
+  $("#mGo").onclick = () => {
+    scrim.classList.remove("show");
+    const kind = $("#mType .tcard.on").dataset.k;
+    const eng = $("#mEng .chip.on").dataset.e;
+    const period = $("#mPeriod button.on").dataset.p;
+    if (kind === "analysis") { toast("已生成进展分析提示词并复制(未 spawn 会话)"); return; }
+    const locked = scrim.dataset.locked;
+    const scope = locked ? "单项目 · " + locked
+      : ($('#mScope button.on').dataset.s === "one" ? "单项目 · " + $("#mProjWrap select").value : "全部项目 + 日志");
+    enqueue(kind + (kind === "周报" ? " · " + period : "") + (locked ? " · " + locked : ""), eng, scope);
+  };
+
+  function enqueue(title, eng, scope) {
+    const grp = $$("#list .lgroup").find(g => g.textContent.includes("今天"));
+    const row = document.createElement("div");
+    row.className = "row"; row.dataset.state = "gen"; row.dataset.title = title;
+    row.dataset.eng = eng; row.dataset.scope = scope;
+    row.innerHTML = '<i class="dot gen"></i><span class="t">' + title + '</span><span class="st gen">生成中</span>' +
+      '<span class="m">' + eng + ' · 阶段 1/4 收集事实源</span><div class="pmini"><i style="width:8%"></i></div>' +
+      '<button class="xstop" title="终止">✕</button>';
+    grp.after(row);
+    row.addEventListener("click", (e) => { if (!e.target.closest(".xstop, .sbtn, .stt")) select(row); });
+    select(row);
+    toast("已加入生成队列(" + eng + ")");
+    setTimeout(() => settleGen(row), 6200);
+  }
+
+  /* 初始:选中 W40 完成行 */
+  select($('.row[data-state="done"]'));
+})();
+</script>
+</body>
+</html>

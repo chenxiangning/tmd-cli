@@ -27,7 +27,7 @@ function BlockingError({ title, message, path }: { title: string; message: strin
       <button
         type="button"
         className="cli-cfg-link"
-        onClick={() => void ipc.fsRevealInFileManager(path)}
+        onClick={() => void ipc.fsRevealInFileManager(path).catch((err) => console.warn("[reveal] 配置文件定位失败:", err))}
       >
         {t("在文件管理器中显示")}
       </button>

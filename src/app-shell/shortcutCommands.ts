@@ -21,7 +21,7 @@ import {
   getTabs,
   setActiveTab,
 } from "@kernel/tabs";
-import { toggleEditorMaximized } from "./editorMaximized";
+import { toggleEditorMaximized, restoreEditorMaximized } from "./editorMaximized";
 
 /** AppShell 局部折叠函数的挂载点:组件挂载期写入,卸载期清空。 */
 export const shellBarToggles: {
@@ -105,6 +105,7 @@ export function toggleHomeSession(): void {
     return;
   }
   if (homeReturnId && host.getSessions().some((s) => s.id === homeReturnId)) {
+    restoreEditorMaximized(); /* 回首页 = 用户要看幕布,摘最大化(遮盖统一) */
     host.setActiveSession(homeReturnId);
   }
 }
@@ -139,7 +140,10 @@ registerCommand({
   },
   run: () => {
     const session = host.getSessions()[focusSessionN - 1];
-    if (session) host.setActiveSession(session.id);
+    if (session) {
+      restoreEditorMaximized(); /* ⌘N = 用户要看会话,摘最大化 */
+      host.setActiveSession(session.id);
+    }
   },
 });
 

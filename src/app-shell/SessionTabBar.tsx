@@ -15,46 +15,23 @@ import { PinIcon } from "@kernel/PinIcon";
 import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
 import { requestSessionReveal } from "@kernel/sessionReveal";
 import { relayLiveRef } from "@kernel/relayBridge";
-import { shellLeftEnsureOpen } from "./shortcutCommands";
+import {
+  closeAllSessionTabs,
+  closeOtherSessionTabs,
+  closeSessionTab,
+  toggleSessionTile,
+  useSessionTabs,
+} from "@kernel/sessionTabs";
+import { setSessionTitle, shortId } from "@kernel/sessionTitles";
 import { sessionTabState } from "@kernel/sessionTabState";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { useSettingsState } from "@kernel/settings";
-import {
-  closeAllSessionTabs,
-  closeOtherSessionTabs,
-  closeSessionTab,
-  getSessionTabTitle,
-  toggleSessionTile,
-  useSessionTabs,
-} from "@kernel/sessionTabs";
-import { sessionTitleKey, setSessionTitle, shortId } from "@kernel/sessionTitles";
+import { shellLeftEnsureOpen } from "./shortcutCommands";
+import { restoreEditorMaximized } from "./editorMaximized";
+import { hoverTitle, resolveTabTitle } from "./sessionTabTitles";
 import { TabContextMenu } from "./TabContextMenu";
-
-/** 标题解析:手动命名 > 打开快照 > meta 标题 > 短码(与渲染优先级同源);meta 缺席 = 会话已逝。 */
-function resolveTabTitle(
-  titleOverrides: Record<string, string>,
-  id: string,
-): string | undefined {
-  const meta = host.getSessions().find((s) => s.id === id);
-  if (!meta) return undefined;
-  const cliSessionId = host.getCliSessionId(id);
-  return (
-    (cliSessionId
-      ? titleOverrides[sessionTitleKey(meta.profileId, cliSessionId)]
-      : undefined) ??
-    getSessionTabTitle(id) ??
-    meta.title ??
-    shortId(meta.id)
-  );
-}
-
-/** tab 悬停 title:等待确认/空闲态缀状态后缀(真值表见 kernel/sessionTabState)。 */
-function hoverTitle(state: string, title: string): string {
-  if (state === "waiting") return t("{title} · 等待确认", { title });
-  return state === "idle" ? t("{title} · 空闲", { title }) : title;
-}
 
 /** 三态点/后缀:等待确认(呼吸绿)> 运行中(静止绿)> 未读(accent)> 空闲(灰);无对话基线不出点。 */
 function tabDot(state: string) {
@@ -112,7 +89,12 @@ function SessionTab({
             aria-selected={active}
             className="session-tab-switch"
             title={hoverTitle(tabState, title)}
-            onClick={() => host.setActiveSession(id)}
+            onClick={() => {
+              /* 最大化时幕布被编辑区盖住,点会话 tab = 看会话,显式还原再切换
+                 (幂等;不用事件守卫——后台自动化激活会误伤,见 editorMaximized 头注)。 */
+              restoreEditorMaximized();
+              host.setActiveSession(id);
+            }}
           >
             {host.getCliProfile(meta.profileId)?.renderIcon?.("0.75rem")}
             {tabDot(tabState)}

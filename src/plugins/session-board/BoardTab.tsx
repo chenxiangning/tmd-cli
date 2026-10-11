@@ -7,6 +7,7 @@ import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { useMinSpin } from "@kernel/useMinSpin";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { Empty } from "@kernel/Empty";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { workspaceDisplayName, useWorkspaces } from "@kernel/workspace";
@@ -97,8 +98,8 @@ export function BoardTab() {
     return map;
   }, [filtered]);
 
-  /* 点卡只开 tab 不收板;openDiskSession 内部置 active;归档/打开用行自身归属。 */
-  const dayOpen = (s: BoardSession) => {
+  const dayOpen = (s: BoardSession) => { /* 点卡只开 tab 不收板;openDiskSession 内部置 active;归档/打开用行自身归属。 */
+    host.events.emit(KernelTopics.sessionViewRequested, null);
     if (s.live && s.hostId) {
       noteSessionTabTitle(s.hostId, s.title);
       host.setActiveSession(s.hostId);

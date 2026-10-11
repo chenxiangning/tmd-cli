@@ -6,6 +6,7 @@
 import { createPortal } from "react-dom";
 import { useEscClose } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { Mounts } from "@kernel/Mounts";
 import { removeWorkspace, type Workspace } from "@kernel/workspace";
@@ -72,7 +73,9 @@ export function SessionMenuOverlay({
                     onClose();
                     return;
                   }
-                  host.createSession(p.id, workspace.root, workspace.id).catch(() => undefined);
+                  host.events.emit(KernelTopics.sessionViewRequested, null);
+                  host.events.emit(KernelTopics.sessionViewRequested, null);
+  host.createSession(p.id, workspace.root, workspace.id).catch(() => undefined);
                   onClose();
                 }}
               >

@@ -8,6 +8,7 @@
 import { ArrowBendDownRightIcon, ColumnsIcon, FileTextIcon, RowsIcon } from "@phosphor-icons/react";
 
 import { t } from "@kernel/i18n";
+import { DecorIcon } from "@kernel/iconSet";
 import type { GitDiffMode } from "@kernel/settings";
 import { setGitDiffMode, setGitDiffWrap, useGitPanelState } from "../panelStore";
 
@@ -19,10 +20,17 @@ const OPTIONS: { id: GitDiffMode; label: string; icon: typeof RowsIcon }[] = [
 export function DiffModeToggle({
   fullView,
   onToggleFullView,
+  folds,
+  expandFolds,
+  onToggleFolds,
 }: {
   /** 提供即渲染「全文查看」开关(per-tab 本地态);缺省不出按钮。 */
   fullView?: boolean;
   onToggleFullView?: () => void;
+  /** 全文态存在未改动折叠段时渲染「展开/折叠未改动」开关(入口在头部,就地胶囊已废)。 */
+  folds?: boolean;
+  expandFolds?: boolean;
+  onToggleFolds?: () => void;
 }) {
   const { diffMode, diffWrap } = useGitPanelState();
   return (
@@ -34,10 +42,25 @@ export function DiffModeToggle({
             aria-pressed={fullView}
             title={t("全文查看")}
             className={`segment ${fullView ? "is-active" : ""}`}
+            data-action-id="git-diff-tools"
             onClick={onToggleFullView}
           >
-            <FileTextIcon className="h-[0.75rem] w-[0.75rem]" />
+            <DecorIcon id="git-diff-tools" Fallback={FileTextIcon} className="h-[0.75rem] w-[0.75rem]" />
             {t("全文")}
+          </button>
+        </div>
+      )}
+      {folds && (
+        <div className="segmented shrink-0" role="group" aria-label={t("未改动折叠")}>
+          <button
+            type="button"
+            aria-pressed={expandFolds}
+            title={t("未改动折叠")}
+            className={`segment ${expandFolds ? "is-active" : ""}`}
+            data-action-id="git-diff-tools"
+            onClick={onToggleFolds}
+          >
+            {expandFolds ? t("折叠未改动") : t("展开未改动")}
           </button>
         </div>
       )}
@@ -50,9 +73,10 @@ export function DiffModeToggle({
             aria-checked={diffMode === id}
             title={t(label)}
             className={`segment ${diffMode === id ? "is-active" : ""}`}
+            data-action-id="git-diff-tools"
             onClick={() => setGitDiffMode(id)}
           >
-            <Icon className="h-[0.75rem] w-[0.75rem]" />
+            <DecorIcon id="git-diff-tools" Fallback={Icon} className="h-[0.75rem] w-[0.75rem]" />
             {t(label)}
           </button>
         ))}
@@ -63,9 +87,10 @@ export function DiffModeToggle({
           aria-pressed={diffWrap}
           title={t("自动换行")}
           className={`segment ${diffWrap ? "is-active" : ""}`}
+          data-action-id="git-diff-tools"
           onClick={() => setGitDiffWrap(!diffWrap)}
         >
-          <ArrowBendDownRightIcon className="h-[0.75rem] w-[0.75rem]" />
+          <DecorIcon id="git-diff-tools" Fallback={ArrowBendDownRightIcon} className="h-[0.75rem] w-[0.75rem]" />
           {t("自动换行")}
         </button>
       </div>

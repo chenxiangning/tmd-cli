@@ -19,7 +19,6 @@ export const MESSAGES = {
   "SSH 密码": "SSH password",
   "私钥内容(粘贴;留空则按下方路径读取)":
     "Private key (paste; read from the path below if empty)",
-  "SSH 连接": "SSH connect",
   "签发证书": "Mint certificate",
   "上传部署": "Upload files",
   "安装服务": "Install service",
@@ -69,4 +68,20 @@ export const MESSAGES = {
     "This config has unsaved changes; switching will discard them.",
   "丢弃修改": "Discard changes",
   "关闭错误提示": "Dismiss error",
+  // IconDecorCard 2026-10-09 扩编 11 键(settings.ts 满行,溢出收纳)
+  "文件行打开入口": "File-row open entry",
+  "变更行动作": "Change-row actions",
+  "Git 视图切换": "Git view switch",
+  "聚合仓行拉取/推送": "Aggregate repo-row pull/push",
+  "差异视图工具": "Diff view tools",
+  // IconDecorCard 分组与检索
+  "通用与入口": "General & entries",
+  "右栏面板": "Right panel tabs",
+  "侧栏与工作区": "Sidebar & workspace",
+  "输入框": "Composer",
+  "Git": "Git",
+  "文件树": "File tree",
+  "检索图标": "Filter icons",
+  "按名称或 id 筛选…": "Filter by name or id…",
+  "没有匹配的图标,换个关键词试试。": "No matching icons; try another keyword.",
 } as Record<string, string>;

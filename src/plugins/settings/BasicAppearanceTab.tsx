@@ -200,7 +200,7 @@ export function BasicAppearanceTab() {
               className={`segment${settings.sessionTabsEnabled ? " is-active" : ""}`}
               onClick={() => updateSettings({ sessionTabsEnabled: true })}
             >
-              {t("开启")}
+              {t("开")}
             </button>
             <button
               type="button"
@@ -209,7 +209,7 @@ export function BasicAppearanceTab() {
               className={`segment${!settings.sessionTabsEnabled ? " is-active" : ""}`}
               onClick={() => updateSettings({ sessionTabsEnabled: false })}
             >
-              {t("关闭")}
+              {t("关")}
             </button>
           </div>
         </div>

@@ -19,6 +19,7 @@ import type { CliProfile } from "@kernel/cli";
  * 下的合法通道,同 welcome/credentials.ts 的依赖声明)。 */
 import { readHeadMetasBatch } from "../cli-shared/sessionHead";
 import { host, useHost } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import {
@@ -178,6 +179,7 @@ export function PinnedSessionsSection() {
     );
 
   const openRow = (row: PinnedRow) => {
+    host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
     const live = liveOf(row);
     if (live) {
       noteSessionTabTitle(live.id, titleOf(row));
