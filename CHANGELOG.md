@@ -35,11 +35,13 @@
 - mcp-hub 失败行转圈拆分(9cb579b5):转圈态从面板级改行内私有,多引擎同败时点任意行重试只转该行
 - 文件管理器定位失败口径统一(c8df93e1):checkpoints/files/cli-config 四处静默吞改 console.warn,对齐 git 侧
 - daily-journal 账本直写覆写(3ae8af98):json 落盘不经 rename,修 rename 撞名致账本九日滞留 .tmp
+- 手机内网通道 LAN IP 漂移必死(c217f1a1):web 触点改惰性重绑,漂移后自动换绑新地址恢复通道
 
 ### 内务
 
 - 示例数据清理拆分(8c784e04):「清理示例数据」从「清空全部」拆出独立确认,只删「示例」标签项目
 - 真机验收单落盘(d611c9ba):手机 M2 尾项 + 外网三件套/读头 + 安卓四项与徽标 + 双实例/updater 四段 14 项(docs/brainstorm/2026-10-09-035-acceptance-checklist.md),M2 8.2 断连快照保留代码面核实勾账
+- 依赖升级批次合入(#60–65):Rust russh 0.64.1 / russh-sftp 3.0.1 / tokio-tungstenite 0.30 / zip 4.6.1,JS pdfjs-dist 6.4.299 / katex 0.19.0 / lucide 1.52.0 / vite 8.3.3 / plugin-react 6.1.2;适配两处大版本 API 破坏——pdfjs v6 销毁入口迁至 PDFDocumentLoadingTask.destroy(PDFDocumentProxy.destroy 移除,77438b7d),zip 4 ZipFile 补 R: Read 泛型参数(a4604fa8)
 
 ## [0.3.4] - 2026-10-09
 
