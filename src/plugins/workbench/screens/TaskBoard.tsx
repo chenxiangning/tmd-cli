@@ -1,21 +1,25 @@
 /**
- * 工作台 · 任务看板(2026-10-11 泳道化):项目为行、状态为列的项目泳道看板
- * (待办/进行中/已完成),状态列头吸顶;泳道头 = 折叠开关 + 项目名(点击开
- * 项目详情)+ 风险徽标 + 任务计数。任务卡就地推进,点击进任务详情内嵌视图
- * (描述/附件/关联会话;会话打开即收工作台覆盖层落回侧栏,交互闭环)。
+ * 工作台 · 任务看板(2026-10-12 五态化重构):项目为行、状态为列的泳道看板
+ * (待办/进行中/待验收/已完成;已取消不占列,详情页下拉设置),状态列头吸顶;
+ * 泳道头 = 折叠开关 + 项目名(点击开项目详情)+ 风险徽标 + 任务计数。
+ * 卡片整卡可拖(原生 HTML5 DnD,同泳道跨列放置即改态,纯逻辑在 boardDnd.ts);
+ * 推进钮走 NEXT_TASK_STATUS 链;已完成列默认只显示近 7 天,更早收进「+N 更早」。
+ * 点击卡片进任务详情内嵌视图(描述/附件/关联会话;会话打开即收工作台覆盖层)。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent } from "react";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { TASK_STATUS_LABELS } from "../kindLabels";
 import { updateTask } from "../store";
-import { TASK_STATUSES, type Project, type ProjectTask, type TaskStatus } from "../types";
+import { BOARD_STATUSES, NEXT_TASK_STATUS, type Project, type TaskStatus } from "../types";
 import { taskStatusTone } from "../taskPrompt";
 import { TaskDetailView } from "../TaskDetailView";
 import { TaskFormView } from "../TaskFormView";
 import { BoardHead, RiskPill, type WbScreenProps } from "./cards";
 import { WbEmpty } from "../ui";
+import { BOARD_DND_TYPE, canDrop, isRecentDone, type BoardDrag } from "./boardDnd";
+import { TaskCard, type TaskRow } from "./TaskCard";
 
 /* 泳道折叠态 localStorage 自持(journal 视图态同口径;组件局部态切页即丢)。 */
 const BOARD_FOLD_KEY = "wb.boardCollapsed";
@@ -31,11 +35,6 @@ function loadFolded(): ReadonlySet<string> {
   }
 }
 
-interface TaskRow {
-  task: ProjectTask;
-  project: Project;
-}
-
 /** 列内序:未完成按截止升序(无截止沉底),已完成按完成时间倒序。 */
 function columnRows(status: TaskStatus, projects: readonly Project[]): TaskRow[] {
   const rows = projects.flatMap((project) =>
@@ -47,43 +46,14 @@ function columnRows(status: TaskStatus, projects: readonly Project[]): TaskRow[]
   return rows.sort((a, b) => String(a.task.dueDate ?? "9999").localeCompare(String(b.task.dueDate ?? "9999")));
 }
 
-/** 泳道:有任务的项目各占一行(保持传入的风险排序),行内沿用列内序;空项目不成道。 */
+/** 泳道:有看板可见任务的项目各占一行(保持传入的风险排序);空项目/仅已取消项目不成道。 */
 function boardLanes(projects: readonly Project[]): { project: Project; rows: TaskRow[] }[] {
   return projects
     .map((project) => ({
       project,
-      rows: TASK_STATUSES.flatMap((status) => columnRows(status, [project])),
+      rows: BOARD_STATUSES.flatMap((status) => columnRows(status, [project])),
     }))
     .filter((lane) => lane.rows.length > 0);
-}
-
-function TaskCard({ row, today, busy, onDetail, onAdvance }: {
-  row: TaskRow;
-  today: string;
-  /** 推进请求在途:禁用推进钮,防快照回写间隙二连点连跳两档。 */
-  busy: boolean;
-  onDetail: () => void;
-  onAdvance: () => void;
-}) {
-  const { task } = row;
-  const overdue = task.status !== "done" && task.dueDate !== undefined && task.dueDate < today;
-  return (
-    <div className={`wb-task-card${overdue ? " is-overdue" : ""}`}>
-      <button type="button" className="wb-link" onClick={onDetail}>{task.title}</button>
-      {task.owner ? <span className="wb-task-owner">{task.owner}</span> : null}
-      <span className="wb-task-meta">
-        <span className={overdue ? "wb-overdue" : undefined}>{task.dueDate ?? t("未排期")}</span>
-        {task.sessions.length > 0 ? <span>{t("会话")} {task.sessions.length}</span> : null}
-      </span>
-      {task.status !== "done" ? (
-        <span className="wb-task-actions">
-          <button type="button" className="wb-btn wb-btn-xs" onClick={onAdvance} disabled={busy}>
-            {task.status === "todo" ? t("进行") : t("完成")}
-          </button>
-        </span>
-      ) : null}
-    </div>
-  );
 }
 
 export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast }: WbScreenProps) {
@@ -97,6 +67,10 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
   }, [folded]);
   /* 推进在途集合(项目/任务键):二连点防护。 */
   const [advancing, setAdvancing] = useState<ReadonlySet<string>>(new Set());
+  /* 拖拽负载与高亮列(state 承载:dragover 期 dataTransfer 数据不可读);done 列「更早」展开态(会话内,不持久)。 */
+  const [drag, setDrag] = useState<BoardDrag | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ projectId: string; status: TaskStatus } | null>(null);
+  const [doneExpanded, setDoneExpanded] = useState<ReadonlySet<string>>(new Set());
   if (projects.length === 0) {
     return <WbEmpty text={t("还没有项目。")}><button type="button" className="wb-btn" onClick={onNewProject}>{t("新建项目")}</button></WbEmpty>;
   }
@@ -131,12 +105,11 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
       </div>
     );
   }
-  const advance = (row: TaskRow) => {
-    const key = `${row.project.id}/${row.task.id}`;
+  const setStatusOf = (projectId: string, taskId: string, status: TaskStatus) => {
+    const key = `${projectId}/${taskId}`;
     if (advancing.has(key)) return;
-    const status: TaskStatus = row.task.status === "todo" ? "doing" : "done";
     setAdvancing((prev) => new Set(prev).add(key));
-    void updateTask(row.project.id, row.task.id, { status }).then(
+    void updateTask(projectId, taskId, { status }).then(
       () => onToast(t("任务已更新")),
       () => onToast(t("任务更新失败")),
     ).finally(() => setAdvancing((prev) => {
@@ -145,6 +118,34 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
       return next;
     }));
   };
+  const advance = (row: TaskRow) => {
+    const next = NEXT_TASK_STATUS[row.task.status];
+    if (next) setStatusOf(row.project.id, row.task.id, next);
+  };
+  /* 拖拽:dargover 命中合法列才 preventDefault(放行 drop);高亮列 = 最后 dragover 命中的列,drop/dragend 清。 */
+  const colDragOver = (projectId: string, status: TaskStatus) => (e: DragEvent<HTMLDivElement>) => {
+    if (!canDrop(drag, projectId, status) || !e.dataTransfer.types.includes(BOARD_DND_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTarget((prev) => (prev?.projectId === projectId && prev.status === status ? prev : { projectId, status }));
+  };
+  const colDrop = (projectId: string, status: TaskStatus) => (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (drag && canDrop(drag, projectId, status)) setStatusOf(drag.projectId, drag.taskId, status);
+    setDrag(null);
+    setDropTarget(null);
+  };
+  const dragEnd = () => {
+    setDrag(null);
+    setDropTarget(null);
+  };
+  const toggleDone = (projectId: string) =>
+    setDoneExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
   return (
     <div className="wb-board">
       <div className="wb-board-head-row">
@@ -157,10 +158,11 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
         <div className="wb-task-board">
           <div className="wb-lane-grid wb-lane-cols">
             <span aria-hidden="true" />
-            {TASK_STATUSES.map((status) => (
-              <h4 key={status} className="wb-status-head" style={{ color: taskStatusTone(status) }}>
+            {BOARD_STATUSES.map((status) => (
+              <h4 key={status} className="wb-status-head">
+                <i className="wb-status-dot" style={{ background: taskStatusTone(status) }} />
                 <b>{t(TASK_STATUS_LABELS[status])}</b>
-                <span>{columnRows(status, projects).length}</span>
+                <span className="wb-status-count">{columnRows(status, projects).length}</span>
               </h4>
             ))}
           </div>
@@ -189,24 +191,45 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
                     <span className="wb-lane-count">{rows.length}</span>
                   </button>
                 </div>
-                {isFolded ? null : TASK_STATUSES.map((status) => (
-                  <div key={status} className="wb-lane-col">
-                    {columnRows(status, [project]).map((row) => (
-                      <TaskCard
-                        key={row.task.id} row={row} today={today}
-                        busy={advancing.has(`${row.project.id}/${row.task.id}`)}
-                        onDetail={() => setDetail({ projectId: row.project.id, taskId: row.task.id })}
-                        onAdvance={() => advance(row)}
-                      />
-                    ))}
-                  </div>
-                ))}
+                {isFolded ? null : BOARD_STATUSES.map((status) => {
+                  const all = columnRows(status, [project]);
+                  const expanded = doneExpanded.has(project.id);
+                  const visible = status === "done" && !expanded ? all.filter((row) => isRecentDone(row.task, today)) : all;
+                  const hiddenCount = all.length - visible.length;
+                  const isTarget = dropTarget?.projectId === project.id && dropTarget.status === status;
+                  return (
+                    <div
+                      key={status}
+                      className={`wb-lane-col${isTarget ? " is-drop-target" : ""}`}
+                      onDragOver={colDragOver(project.id, status)}
+                      onDrop={colDrop(project.id, status)}
+                    >
+                      {visible.map((row) => (
+                        <TaskCard
+                          key={row.task.id} row={row} today={today}
+                          busy={advancing.has(`${row.project.id}/${row.task.id}`)}
+                          dragging={drag?.taskId === row.task.id}
+                          onDetail={() => setDetail({ projectId: row.project.id, taskId: row.task.id })}
+                          onAdvance={() => advance(row)}
+                          onDragStart={setDrag}
+                          onDragEnd={dragEnd}
+                        />
+                      ))}
+                      {visible.length === 0 ? <div className="wb-lane-empty" aria-hidden="true">{t("拖到此列")}</div> : null}
+                      {hiddenCount > 0 ? (
+                        <button type="button" className="wb-lane-more" onClick={() => toggleDone(project.id)}>
+                          {t("+{n} 更早", { n: hiddenCount })}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </section>
             );
           })}
         </div>
       )}
-      <p className="wb-muted">{t("状态可手动推进;关联会话运行中会自动推进为进行中,也可由 AI 按 AI-TASKS.md 规则回写(顶栏「从磁盘同步」刷新)。")}</p>
+      <p className="wb-muted">{t("拖拽卡片跨列改状态,或点卡片右下角按钮逐档推进;关联会话运行中自动推进为进行中,也可由 AI 按 AI-TASKS.md 规则回写(顶栏「从磁盘同步」刷新)。")}</p>
     </div>
   );
 }

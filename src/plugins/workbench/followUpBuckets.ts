@@ -5,7 +5,7 @@
  */
 
 import { daysLeft, endOfWeek, todayISO } from "./analysis";
-import type { Project } from "./types";
+import { isTaskOpen, type Project } from "./types";
 
 export type FollowUpBucketKey = "overdue" | "today" | "week" | "later" | "none";
 
@@ -37,14 +37,14 @@ export interface FollowUpBucket {
   total: number;
 }
 
-/** 未完成任务按到期紧迫度分桶(含进行中;已完成不入桶)。 */
+/** 未完成任务按到期紧迫度分桶(含进行中/待验收;已完成与已取消不入桶)。 */
 export function followUpBuckets(projects: readonly Project[], today: string = todayISO()): FollowUpBucket[] {
   const weekEnd = endOfWeek(today);
   const buckets: FollowUpBucket[] = BUCKETS.map((bucket) => ({ ...bucket, items: [], total: 0 }));
   const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
   for (const project of projects) {
     for (const task of project.tasks) {
-      if (task.status === "done") continue;
+      if (!isTaskOpen(task)) continue;
       const left = daysLeft(task.dueDate, today);
       const key: FollowUpBucketKey = left === null ? "none" : left < 0 ? "overdue" : left === 0 ? "today" : (task.dueDate ?? "") <= weekEnd ? "week" : "later";
       byKey.get(key)!.items.push({

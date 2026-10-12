@@ -9,7 +9,12 @@ export const UPDATE_KIND_LABELS: Record<UpdateKind, string> = {
 };
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
-  todo: "待办", doing: "进行中", done: "已完成",
+  todo: "待办", doing: "进行中", review: "待验收", done: "已完成", cancelled: "已取消",
+};
+
+/** 推进钮标签(目标态口径):看板卡片与任务表共用。 */
+export const TASK_ADVANCE_LABELS: Readonly<Partial<Record<TaskStatus, string>>> = {
+  doing: "开始", review: "送验收", done: "完成",
 };
 
 export const DOC_KIND_LABELS: Record<DocKind, string> = {

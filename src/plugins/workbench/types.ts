@@ -9,8 +9,12 @@
 export type ProjectStatus = "进行中" | "待启动" | "阻塞" | "暂停" | "已完成";
 export const PROJECT_STATUSES: readonly ProjectStatus[] = ["进行中", "待启动", "阻塞", "暂停", "已完成"];
 
-export type TaskStatus = "todo" | "doing" | "done";
-export const TASK_STATUSES: readonly TaskStatus[] = ["todo", "doing", "done"];
+export type TaskStatus = "todo" | "doing" | "review" | "done" | "cancelled";
+export const TASK_STATUSES: readonly TaskStatus[] = ["todo", "doing", "review", "done", "cancelled"];
+/** 看板列(已取消不占列:看板隐藏该任务,设置入口 = 详情页状态下拉)。 */
+export const BOARD_STATUSES: readonly TaskStatus[] = ["todo", "doing", "review", "done"];
+/** 推进链(看板卡片/任务表推进钮共用):done/cancelled 无下一档。 */
+export const NEXT_TASK_STATUS: Readonly<Partial<Record<TaskStatus, TaskStatus>>> = { todo: "doing", doing: "review", review: "done" };
 
 export type UpdateKind = "note" | "progress" | "blocker" | "decision";
 export const UPDATE_KINDS: readonly UpdateKind[] = ["note", "progress", "blocker", "decision"];
@@ -113,6 +117,11 @@ export function isProjectStatus(value: unknown): value is ProjectStatus {
 
 export function isTaskStatus(value: unknown): value is TaskStatus {
   return TASK_STATUSES.includes(value as TaskStatus);
+}
+
+/** 未完成口径:done/cancelled 同为终结态(取消任务不计逾期、不进待跟进)。 */
+export function isTaskOpen(task: Pick<ProjectTask, "status">): boolean {
+  return task.status !== "done" && task.status !== "cancelled";
 }
 
 export function isUpdateKind(value: unknown): value is UpdateKind {

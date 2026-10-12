@@ -8,8 +8,9 @@ import { useState } from "react";
 import { t } from "@kernel/i18n";
 import { Plus, X } from "@phosphor-icons/react";
 import { openTasks, todayISO } from "./analysis";
-import { TASK_STATUS_LABELS, UPDATE_KIND_LABELS } from "./kindLabels";
-import { UPDATE_KINDS, type Project, type ProjectTask, type ProjectUpdate, type UpdateKind } from "./types";
+import { TASK_ADVANCE_LABELS, TASK_STATUS_LABELS, UPDATE_KIND_LABELS } from "./kindLabels";
+import { taskStatusBadgeTone } from "./taskPrompt";
+import { isTaskOpen, NEXT_TASK_STATUS, UPDATE_KINDS, type Project, type ProjectTask, type ProjectUpdate, type UpdateKind } from "./types";
 import { deleteTask, deleteUpdate, addUpdate, updateTask } from "./store";
 import { TaskDetailView } from "./TaskDetailView";
 import { TaskFormView } from "./TaskFormView";
@@ -54,7 +55,7 @@ export function DrawerTasksTab({ project, form, onFormChange, onToast }: {
       />
     );
   }
-  const rows = [...openTasks(project), ...project.tasks.filter((task) => task.status === "done")];
+  const rows = [...openTasks(project), ...project.tasks.filter((task) => !isTaskOpen(task))];
   const open = openTasks(project).length;
   const today = todayISO();
   return (
@@ -73,12 +74,13 @@ export function DrawerTasksTab({ project, form, onFormChange, onToast }: {
           </thead>
           <tbody>
             {rows.map((task) => {
-              const overdue = task.status !== "done" && !!task.dueDate && task.dueDate < today;
+              const overdue = isTaskOpen(task) && !!task.dueDate && task.dueDate < today;
+              const next = NEXT_TASK_STATUS[task.status];
               return (
-                <tr key={task.id} className={task.status === "done" ? "is-done" : ""}>
+                <tr key={task.id} className={isTaskOpen(task) ? "" : "is-done"}>
                   <td><button type="button" className="wb-link" onClick={() => setDetailId(task.id)}>{task.title}</button></td>
                   <td>
-                    <WbBadge tone={task.status === "done" ? "ok" : task.status === "doing" ? "info" : "muted"}>
+                    <WbBadge tone={taskStatusBadgeTone(task.status)}>
                       {t(TASK_STATUS_LABELS[task.status])}
                     </WbBadge>
                   </td>
@@ -87,11 +89,11 @@ export function DrawerTasksTab({ project, form, onFormChange, onToast }: {
                   <td>{task.sessions.length || "—"}</td>
                   <td>
                     <span className="wb-task-actions">
-                      {task.status !== "done" ? (
+                      {next ? (
                         <button
                           type="button" className="wb-btn wb-btn-xs"
-                          onClick={() => runIpc(updateTask(project.id, task.id, { status: task.status === "todo" ? "doing" : "done" }), onToast, t("任务已更新"))}
-                        >{task.status === "todo" ? t("进行") : t("完成")}</button>
+                          onClick={() => runIpc(updateTask(project.id, task.id, { status: next }), onToast, t("任务已更新"))}
+                        >{t(TASK_ADVANCE_LABELS[next] ?? "")}</button>
                       ) : null}
                       <button type="button" className="wb-btn wb-btn-xs" onClick={() => onFormChange({ open: true, task })}>{t("编辑")}</button>
                       <button

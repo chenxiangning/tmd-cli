@@ -1,11 +1,11 @@
 /**
  * 工作台 · 组合分析纯函数(风险分级/日期演算/排序/汇总)。
  * 移植自 projectHub shared/analysis.js;差异:待跟进 todos 升级为任务实体,
- * openTodos(project) → openTasks(project)(status !== "done" 即未完成)。
+ * openTodos(project) → openTasks(project)(done/cancelled 同为终结态)。
  * 时间一律本地日历日(YYYY-MM-DD)比较,避免时区把「还剩几天」算错。
  */
 
-import type { Project, ProjectStatus, ProjectTask } from "./types";
+import { isTaskOpen, type Project, type ProjectStatus, type ProjectTask } from "./types";
 
 export const MODULES = ["公司项目", "日常工作", "其他项目"] as const;
 export const STATUSES = ["进行中", "待启动", "阻塞", "已完成", "暂停"] as const;
@@ -106,9 +106,9 @@ export function endOfWeek(today: string = todayISO()): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** 未完成任务(status !== "done")。 */
+/** 未完成任务(done/cancelled 同为终结态,均不算未完成)。 */
 export function openTasks(project: Project): ProjectTask[] {
-  return project.tasks.filter((task) => task.status !== "done");
+  return project.tasks.filter(isTaskOpen);
 }
 
 export function latestUpdate(project: Project) {

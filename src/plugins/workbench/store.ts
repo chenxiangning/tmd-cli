@@ -198,9 +198,9 @@ export function updateTask(projectId: string, taskId: string, patch: Partial<Pic
         tasks: p.tasks.map((t) => {
           if (t.id !== taskId) return t;
           const status = patch.status ?? t.status;
-          /* 生命周期时间戳在唯一收口处维护:doing 首次落 startedOn(重开不覆盖),
-           * done 落 doneAt(离开 done 即清)。 */
-          const startedOn = status === "doing" ? (t.startedOn ?? patch.startedOn ?? now.slice(0, 10)) : (patch.startedOn ?? t.startedOn);
+          /* 生命周期时间戳在唯一收口处维护:doing/review 首次落 startedOn(重开不覆盖),
+           * done 落 doneAt(离开 done 即清,含取消)。 */
+          const startedOn = status === "doing" || status === "review" ? (t.startedOn ?? patch.startedOn ?? now.slice(0, 10)) : (patch.startedOn ?? t.startedOn);
           return {
             ...t, ...patch, status, startedOn,
             doneAt: status === "done" ? (t.doneAt ?? now) : undefined,

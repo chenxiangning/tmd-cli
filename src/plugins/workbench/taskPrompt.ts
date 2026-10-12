@@ -22,11 +22,16 @@ export function taskPrompt(project: Project, task: ProjectTask): string {
     "",
     "工作台约定:工作台数据在 ~/.tmd-cli/workbench/(规则见同目录 AI-TASKS.md)。",
     `本任务 id:${task.id}(index.json 中 projects[] 里 name 为「${project.name}」的项目下 tasks[] 按 id 定位)。`,
-    "当你判断任务开始推进时把该任务 status 改为 \"doing\",交付完成改为 \"done\" 并写 doneAt;只准按 AI-TASKS.md 允许的字段修改,其他数据一律不动。",
+    "当你判断任务开始推进时把该任务 status 改为 \"doing\",交付待验收改为 \"review\",验收完成改为 \"done\" 并写 doneAt,放弃改为 \"cancelled\";只准按 AI-TASKS.md 允许的字段修改,其他数据一律不动。",
   ].filter(Boolean).join("\n");
 }
 
 /** 状态 → 徽标/文字色(表格行用)。 */
 export function taskStatusTone(status: TaskStatus): string {
-  return status === "done" ? toneVar("ok") : status === "doing" ? toneVar("info") : toneVar("muted");
+  return status === "done" ? toneVar("ok") : status === "doing" ? toneVar("info") : status === "review" ? toneVar("warn") : toneVar("muted");
+}
+
+/** 状态 → WbBadge 语气名(详情页/抽屉表格徽标用;与 taskStatusTone 同映射、出名便于组件直传)。 */
+export function taskStatusBadgeTone(status: TaskStatus): string {
+  return status === "done" ? "ok" : status === "doing" ? "info" : status === "review" ? "warn" : "muted";
 }

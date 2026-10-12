@@ -4,9 +4,10 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { dayStart, daysLeft, endOfWeek, formatRemaining, projectRisk, sortByRisk, todayISO } from "../analysis";
+import { dayStart, daysLeft, endOfWeek, formatRemaining, openTasks, projectRisk, sortByRisk, todayISO } from "../analysis";
 import { collectLinkedSessions, linkableWorkspaces, pendingAutoDoing, resolveWorkspaceId, summarize } from "../views";
 import { followUpBuckets } from "../followUpBuckets";
+import { canDrop, isRecentDone } from "../screens/boardDnd";
 import { taskPrompt } from "../taskPrompt";
 import { normalizeProject, type Project, type TaskStatus } from "../types";
 import type { Workspace } from "@kernel/workspace";
@@ -187,5 +188,35 @@ describe("任务关联会话汇总(collectLinkedSessions)", () => {
     ] });
     expect(collectLinkedSessions(proj.tasks).map((l) => l.ref)).toEqual(["pty-2", "pty-1", "pty-3"]);
     expect(collectLinkedSessions([])).toEqual([]);
+  });
+});
+
+describe("看板拖拽纯逻辑(boardDnd)", () => {
+  it("canDrop:同泳道异列才放行;跨泳道/同列/空负载全拒", () => {
+    const drag = { projectId: "p-1", taskId: "t-1", status: "todo" as const };
+    expect(canDrop(drag, "p-1", "doing")).toBe(true);
+    expect(canDrop(drag, "p-1", "todo")).toBe(false); /* 同列回拖 no-op */
+    expect(canDrop(drag, "p-2", "doing")).toBe(false); /* 跨泳道禁止(任务归属项目不可变) */
+    expect(canDrop(null, "p-1", "doing")).toBe(false);
+  });
+
+  it("isRecentDone:含今天共 7 个日历日;越窗/缺 doneAt 收进更早", () => {
+    expect(isRecentDone({ doneAt: `${TODAY}T08:00:00Z` }, TODAY)).toBe(true);
+    expect(isRecentDone({ doneAt: "2026-10-04T23:59:00Z" }, TODAY)).toBe(true); /* 窗口下界 10-04 */
+    expect(isRecentDone({ doneAt: "2026-10-03T23:59:00Z" }, TODAY)).toBe(false);
+    expect(isRecentDone({ doneAt: undefined }, TODAY)).toBe(false);
+  });
+});
+
+describe("任务五态归一化与终结态口径", () => {
+  it("review/cancelled 原样保留;未知态回落 todo;cancelled 清 doneAt 且不算未完成", () => {
+    const proj = normalizeProject({ id: "p-5", name: "项目", tasks: [
+      { id: "t-a", title: "甲", status: "review", startedOn: TODAY },
+      { id: "t-b", title: "乙", status: "cancelled", doneAt: `${TODAY}T09:00:00Z` },
+      { id: "t-c", title: "丙", status: "bogus" },
+    ] });
+    expect(proj.tasks.map((task) => task.status)).toEqual(["review", "cancelled", "todo"]);
+    expect(proj.tasks[1].doneAt).toBeUndefined(); /* doneAt 仅 done 持有 */
+    expect(openTasks(proj).map((task) => task.id)).toEqual(["t-a", "t-c"]);
   });
 });
