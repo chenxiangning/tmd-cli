@@ -130,7 +130,12 @@ function abortRun(task: GenTask): void {
 
 /** activate 时装配:执行体注入 + 内核事件接线。返回退订。 */
 export function bootGenSession(events: PluginEventBus): () => void {
-  setTaskRunner(runGeneration, abortRun);
+  /* 兜预结算段抛错(createSession/prompt 落盘等拒绝):不接住会绕过 failGen——任务只 patch
+   * err 不落珠,定时族每 15min 重入队且当日无错可显。 */
+  setTaskRunner((task) => runGeneration(task).catch((e: unknown) => {
+    if (!isTaskActive(task.id)) return; /* 显式早退已 failGen,取消竞态不重复落账 */
+    failGen(task.id, task.dayKey, task.type, `${t("生成会话异常")}:${e instanceof Error ? e.message : String(e)}`);
+  }), abortRun);
   const offSettled = events.on<{ sessionId: string }>(KernelTopics.turnSettled, (e) => {
     const p = pending.get(e.sessionId);
     if (p) void onSettled(p);
@@ -167,7 +172,10 @@ async function runGeneration(task: GenTask): Promise<void> {
   /* 清单部分失败即中止:残缺清单落 summarizedAt 水位会把缺席会话永久错标「已归纳」(L19)。 */
   let scanFailed = 0;
   const collected = await collectSessionRowsBatched(undefined, (scan) => { scanFailed = scan.failed.length; });
-  if (scanFailed) failGen(task.id, task.dayKey, task.type, t("会话扫描部分失败,已中止本次生成(可重试)"));
+  if (scanFailed) {
+    failGen(task.id, task.dayKey, task.type, t("会话扫描部分失败,已中止本次生成(可重试)"));
+    return; /* 真中止:残缺清单不得继续走生成/结算,缺席会话会被永久错标已归纳(L19) */
+  }
   const rows = collected.filter((r: DaySessionRow) => {
     if (rowDayKey(r) !== task.dayKey) return false;
     /* 自指防混入:剔除插件自己 spawn 的历次生成会话(标题即 prompt 头;
@@ -196,10 +204,9 @@ async function runGeneration(task: GenTask): Promise<void> {
   } catch {
     /* 降级:无分组生成 */
   }
-  /* 摘录先行:tmd 侧经声明的转录适配器提取当日会话内容落盘,生成会话凭它成文
-     (2026-09-30 重构:旧路径只给标题清单,agent 探测 7 家原始格式普遍放弃 → 文章单薄)。
-     增量语义:已归纳行(内容已在文章里)不重读转录,只摘新增;摘录构建/落盘失败
-     不拦生成:无摘录路径走 prompt 内置的清单降级。 */
+  /* 摘录先行:tmd 侧经声明的转录适配器提取当日会话内容落盘,生成会话凭它成文(2026-09-30 重构:
+     旧路径只给标题清单,agent 探测 7 家原始格式普遍放弃 → 文章单薄)。增量语义:已归纳行(内容已在
+     文章里)不重读转录,只摘新增;摘录构建/落盘失败不拦生成:无摘录路径走 prompt 内置的清单降级。 */
   const digestRows = summarizedAt !== undefined ? rows.filter((r) => !isRowSummarized(r, summarizedAt)) : rows;
   let digest: DigestHandoff | undefined;
   try {
@@ -232,8 +239,7 @@ async function runGeneration(task: GenTask): Promise<void> {
     model: getJournalState().config.model || undefined,
     ...(headless ? { oneshot: { promptFile: promptPath! } } : {}),
   });
-  /* 取消竞态检查点:createSession 是武装结算超时前唯一的无界等待段,挂起期间
-     被取消 → 会话落地即弃。先绑 sessionId 再进入等待窗,取消才收割得到会话。 */
+  /* 取消竞态检查点:createSession 是唯一无界等待段,先绑 sessionId 再进等待窗,取消才收割得到会话。 */
   if (!isTaskActive(task.id)) {
     void host.removeSession(meta.id);
     return;

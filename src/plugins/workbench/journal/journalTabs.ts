@@ -2,7 +2,8 @@
  * 每日文章 tab 契约 —— 主视图已并入工作台「工作日志」页签(2026-10-11),
  * 这里只剩文章深链(插件私有 kind;openTab 经 @kernel/tabs 运行时面直连)。
  */
-import { getTabs, openTab } from "@kernel/tabs";
+import { useState } from "react";
+import { getTabs, openTab, type EditorTab } from "@kernel/tabs";
 import { dayKey } from "./journalFiles";
 import { dayTitleOf } from "./dateTitle";
 
@@ -15,6 +16,24 @@ export interface ArticleTabPayload {
   title?: string;
   /** 空日直开即进便签编辑态(月格空日点击语义;refresh 重开重入)。 */
   autoEdit?: boolean;
+}
+
+/** 文章 tab 编辑重入信号(从 ArticleTab 拆出守组件复杂度):mount 时 autoEdit
+ *  起始,同 tab 深链 refresh(payload 换引用)再跳变;重挂即重开,onRefresh
+ *  供调用方同步归零脏态——放行闸确认弃稿后不归零会留幻影脏圆点且闸判据失真
+ *  (提交后评审 M2)。渲染期调整(ProjectTab 同款),不过 effect。 */
+export function useArticleEditSignal(tab: EditorTab, onRefresh: () => void): number {
+  const p = tab.payload as ArticleTabPayload;
+  const [signal, setSignal] = useState(() => (p.autoEdit ? 1 : 0));
+  const [lastPayload, setLastPayload] = useState(tab.payload);
+  if (lastPayload !== tab.payload) {
+    setLastPayload(tab.payload);
+    if (p.autoEdit) {
+      onRefresh();
+      setSignal((v) => v + 1);
+    }
+  }
+  return signal;
 }
 
 /** 脏稿放行闸宿主桥(评审 M1):JournalTab 挂载安装、卸载摘除。openArticleTab

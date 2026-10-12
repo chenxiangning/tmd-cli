@@ -98,3 +98,19 @@
 1. **内核 dirty tab 关闭确认契约**:journal 便签脏稿的「关页签/⌘W」路径仍在域外(EditorTabStrip closeTab / TabContextMenu 注释明言 dirty tab 不加确认 / shell.closeTab)。keepAlive 只保切换不保关闭;需要 kernel tabs 提供 beforeClose 闸由编辑侧注册,涉全插件页签语义,单列后续批。
 2. OverlayActions 方向键导航(低危;Escape 关闭已补)。
 3. M9 失败 pill 未能桩驱动:各 CLI 扫描器内部吞错,listSessions 在桩环境永不 reject;渲染分支已接 + typecheck 覆盖,待真实磁盘错误场景目检。
+
+## 提交后对抗评审(2026-10-12 第二轮,回归面)
+
+四提交落地后换角度复审(不再找打磨点,专审修复本身),7 条发现全修:
+
+| # | 位置 | 发现 | 处置 |
+|---|---|---|---|
+| R1(high) | journal/genSession.ts:170 | 扫描部分失败「即中止」没中止:failGen 后缺 return,残缺清单照常生成并盖 summarizedAt 水位(L19 注释声称要防的危害原样发生) | 补 return 真中止 |
+| R2(med) | journal/genSession.ts:230 | 预结算段抛错(createSession/prompt 落盘)绕过 failGen:定时族无珠照旧 15min 重入队、当日无错可显 | runner 装配处兜 .catch → failGen(新键「生成会话异常」en/ja) |
+| R3(med) | journal/ArticleTab.tsx:241 | 放行闸确认弃稿重挂后 ArticleTab 脏态不归零:幻影脏圆点 + 闸判据失真反复弹确认 | 重入信号抽 useArticleEditSignal(journalTabs.ts),重挂同步 setDirty(false) |
+| R4(med) | drawerTabs.tsx:132 | 「成功才清」改造后进展提交无在途守卫,写盘窗内连点重复入账(旧版同步清空恰好挡住,属改造引入的回归面) | 补 pending 守卫 + 按钮禁用 |
+| R5(med) | journal/locales 170-172 | journal 三条错误词条与 docgen 词典同键异值,注册序靠后被覆盖成死键(撞 7f71b2e6 撞车零容忍纪律) | journal 侧五处译文对齐 docgen 同值 |
+| R6(low) | ProjectTab.tsx:40 | focusSeq 计数器:同值 focusTab 重复深链也整棵重挂 ProjectDetail,抽屉未保存输入被静默清掉 | 仅 focusTab 值变化才 bump key |
+| R7(low) | journal/NoteEditor.tsx:127 | Esc 确认弹层「丢弃」走 cancel 后 askDiscard 残留 true,重进编辑态弹幻影弃稿确认 | cancel() 补 setAskDiscard(false) |
+
+复审后门禁:typecheck(本批面)/ test 3901 / file-size / react-doctor 100 零违规复验;JournalTab/queue 既有断言全绿。

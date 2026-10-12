@@ -129,6 +129,7 @@ export function NoteEditor({
     setText(t0);
     setImages(i0);
     setEditing(false);
+    setAskDiscard(false); /* 归位:残留 true 会在重进编辑态时弹幻影弃稿确认 */
     reportDirty(false, t0, i0);
   };
   const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {

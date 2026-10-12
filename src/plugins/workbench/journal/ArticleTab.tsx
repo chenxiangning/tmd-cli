@@ -12,18 +12,16 @@ import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, dayMetaOf, deriveDayStatus, getJournalState, useJournalState } from "./journalStore";
 import { isRowSummarized, useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
-import { hmOf } from "./timeUtil";
-import { sessionRefKey } from "./sessionRef";
+import { buildSessionLinks } from "./sessionRef";
+import { useArticleEditSignal } from "./journalTabs";
 import { UnfinishedPanel } from "./UnfinishedPanel";
 import { unfinishedPanelRows } from "./unfinished";
-import { requestSessionReveal } from "@kernel/sessionReveal";
 import { KernelTopics } from "@kernel/events";
 import { pad2 } from "./journalFiles";
 import type { ArticleTabPayload } from "./journalTabs";
 import { dayTitleOf } from "./dateTitle";
 import { holOf, useHolidays } from "./holidays";
 import { ArticleBody, BeadStrip, Lightbox } from "./articleBody";
-import type { SessionLinkHost } from "./articleBody";
 import type { DayNote, DayNoteImage } from "./journalFiles";
 import { NoteEditor } from "./NoteEditor";
 import { dayGenAction, statusChip } from "./statusText";
@@ -184,62 +182,13 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
     [tab.id],
   );
   useHolidays();
-  /* 昨日未完聚合(仅昨日 tab):两桶行集(昨日桶活行 + 全表昨日最后写入盘行,
-   * unfinishedPanelRows)+ 当月 ≤ 昨日便签(勾选过滤单点在 collectUnfinished)。
-   * ponytail: 便签只扫当月;更早月份不遍历,真需要再开。 */
-  const isYesterday = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return key === `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  })();
-  const panelRows = useMemo(() => {
-    if (!isYesterday || !sessions) return [];
-    return unfinishedPanelRows(
-      sessions,
-      key,
-      new Date(y, m - 1, p.d).getTime(),
-      new Date(y, m - 1, p.d + 1).getTime(),
-    );
-  }, [isYesterday, sessions, key, y, m, p.d]);
-  const yesterdayNotes = useMemo<readonly (readonly [string, DayNote])[]>(
-    () =>
-      isYesterday
-        ? Object.entries(snap?.notes ?? {})
-            .filter(([dd]) => Number(dd) <= p.d)
-            .map(([dd, n]) => [dd, n] as const)
-        : [],
-    [isYesterday, snap, p.d],
-  );
-  /* 会话引用链接面:当日行集四段归一键 → 续聊/聚焦(枚举校验在 sessionRef)。 */
-  const sessionLinks: SessionLinkHost | undefined = useMemo(() => {
-    if (!rows || rows.length === 0) return undefined;
-    const byKey = new Map(rows.map((r) => [sessionRefKey(hmOf(r.startedAt), r.profileId, r.title), r]));
-    return {
-      isValid: (k: string) => byKey.has(k),
-      open: (k: string) => {
-        const r = byKey.get(k);
-        if (!r) return;
-        if (r.live && r.id) {
-          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化(与 disk 分支同口径,M12) */
-          requestSessionReveal(r.id);
-        } else if (r.disk) {
-          const ws = workspaces.find((w) => w.id === r.wsId);
-          /* 工作区已删(扫描缓存 60s 窗内):空 cwd 只会在 app 目录开垃圾会话,不续。 */
-          if (!ws) return;
-          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
-          void host.openDiskSession(r.profileId, ws.root, ws.id, r.disk.id);
-        }
-      },
-    };
-    // host/hmOf/requestSessionReveal 为模块级稳定引用,不入依赖
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, workspaces]);
-  /* 便签编辑重入信号:mount 时 autoEdit 起始,同 tab 深链 refresh(payload 换引用)
-     再跳变 —— 取消后再点同空日也能重新进入编辑态。 */
-  const [editSignal, setEditSignal] = useState(() => (p.autoEdit ? 1 : 0));
-  useEffect(() => {
-    if ((tab.payload as ArticleTabPayload).autoEdit) setEditSignal((v) => v + 1);
-  }, [tab.payload]);
+  /* 昨日未完聚合(仅昨日 tab):行集/便签口径在 useYesterdayAggregates(文件尾)。 */
+  const { isYesterday, panelRows, yesterdayNotes } = useYesterdayAggregates({ sessions, snap, key, y, m, d: p.d });
+  /* 会话引用链接面:当日行集四段归一键 → 续聊/聚焦(构建器在 sessionRef)。 */
+  const sessionLinks = buildSessionLinks(rows, workspaces);
+  /* 便签编辑重入信号:mount 时 autoEdit 起始,深链 refresh 再跳变(契约在 journalTabs);
+     重挂即重开,脏态同步归零(放行闸判据,提交后评审 M2)。 */
+  const editSignal = useArticleEditSignal(tab, () => setDirty(false));
   if (!snap || !rows)
     return (
       <div className="dj-article dj-article-loading">
@@ -280,4 +229,45 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
       </div>
     </div>
   );
+}
+
+/** 昨日未完聚合三件套(从 ArticleTab 拆出守组件复杂度):是否昨日 tab、
+ *  活行/盘行两桶(panelRows)、当月 ≤ 昨日便签(yesterdayNotes)。
+ *  ponytail: 便签只扫当月;更早月份不遍历,真需要再开。 */
+function useYesterdayAggregates({ sessions, snap, key, y, m, d }: {
+  sessions: Map<string, DaySessionRow[]> | null;
+  snap: { notes: Record<string, DayNote> } | undefined;
+  key: string;
+  y: number;
+  m: number;
+  d: number;
+}): {
+  isYesterday: boolean;
+  panelRows: DaySessionRow[];
+  yesterdayNotes: readonly (readonly [string, DayNote])[];
+} {
+  const isYesterday = (() => {
+    const t = new Date();
+    t.setDate(t.getDate() - 1);
+    return key === `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+  })();
+  const panelRows = useMemo(() => {
+    if (!isYesterday || !sessions) return [];
+    return unfinishedPanelRows(
+      sessions,
+      key,
+      new Date(y, m - 1, d).getTime(),
+      new Date(y, m - 1, d + 1).getTime(),
+    );
+  }, [isYesterday, sessions, key, y, m, d]);
+  const yesterdayNotes = useMemo<readonly (readonly [string, DayNote])[]>(
+    () =>
+      isYesterday
+        ? Object.entries(snap?.notes ?? {})
+            .filter(([dd]) => Number(dd) <= d)
+            .map(([dd, n]) => [dd, n] as const)
+        : [],
+    [isYesterday, snap, d],
+  );
+  return { isYesterday, panelRows, yesterdayNotes };
 }

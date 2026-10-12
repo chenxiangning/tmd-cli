@@ -6,6 +6,13 @@
  * 四段与当日会话清单行同源(时刻=清单起始时刻)。渲染层只把**与清单完全一致**
  * 的标记转成可点链接(枚举校验,宁缺勿错);不一致(含 LLM 编造)降级纯文本标题。
  */
+import { host } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
+import { requestSessionReveal } from "@kernel/sessionReveal";
+import { hmOf } from "./timeUtil";
+import type { DaySessionRow } from "./daySessions";
+import type { SessionLinkHost } from "./articleBody";
+
 export const SESSION_REF_RE = /\[会话\|([0-9]{2}:[0-9]{2})\|([^|\]\n]+)\|([^|\]\n]+)\]/g;
 
 /** 标记归一键(校验集合与点击回调的统一寻址)。 */
@@ -44,4 +51,31 @@ export function sessionKeyFromHref(href: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** 当日行集 → 链接面(四段归一键寻址:live 续聊聚焦 / disk 磁盘续开)。
+ *  从 ArticleTab 拆出守组件复杂度;host/requestSessionReveal 为模块级稳定引用。 */
+export function buildSessionLinks(
+  rows: readonly DaySessionRow[] | null,
+  workspaces: readonly { id: string; root: string }[],
+): SessionLinkHost | undefined {
+  if (!rows || rows.length === 0) return undefined;
+  const byKey = new Map(rows.map((r) => [sessionRefKey(hmOf(r.startedAt), r.profileId, r.title), r]));
+  return {
+    isValid: (k: string) => byKey.has(k),
+    open: (k: string) => {
+      const r = byKey.get(k);
+      if (!r) return;
+      if (r.live && r.id) {
+        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化(与 disk 分支同口径,M12) */
+        requestSessionReveal(r.id);
+      } else if (r.disk) {
+        const ws = workspaces.find((w) => w.id === r.wsId);
+        /* 工作区已删(扫描缓存 60s 窗内):空 cwd 只会在 app 目录开垃圾会话,不续。 */
+        if (!ws) return;
+        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
+        void host.openDiskSession(r.profileId, ws.root, ws.id, r.disk.id);
+      }
+    },
+  };
 }

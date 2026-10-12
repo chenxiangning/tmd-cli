@@ -128,13 +128,16 @@ export function DrawerTasksTab({ project, form, onFormChange, onToast }: {
 export function DrawerUpdatesTab({ project, onToast }: { project: Project; onToast: (message: string) => void }) {
   const [kind, setKind] = useState<UpdateKind>("progress");
   const [text, setText] = useState("");
+  const [pending, setPending] = useState(false);
   const [askDelete, setAskDelete] = useState<ProjectUpdate | null>(null);
   const submit = () => {
-    if (text.trim() === "") return;
-    /* 成功才清输入(TaskDetailView.tsx 保存描述同契约):失败留字可重试。 */
+    if (text.trim() === "" || pending) return;
+    /* 成功才清输入(TaskDetailView.tsx 保存描述同契约):失败留字可重试。
+       在途守卫:写盘窗内二连点/按住回车会连发多条记录(旧版同步清空恰好挡住)。 */
+    setPending(true);
     void addUpdate(project.id, kind, text.trim()).then(
-      () => { onToast(t("进展已记录")); setText(""); },
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      () => { onToast(t("进展已记录")); setText(""); setPending(false); },
+      (e) => { onToast(e instanceof Error ? e.message : String(e)); setPending(false); },
     );
   };
   return (
@@ -151,7 +154,7 @@ export function DrawerUpdatesTab({ project, onToast }: { project: Project; onToa
             if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
           }}
         />
-        <button type="button" className="wb-btn wb-btn-primary" onClick={submit}>
+        <button type="button" className="wb-btn wb-btn-primary" onClick={submit} disabled={pending}>
           <Plus size={12} />{t("记录")}
         </button>
       </div>

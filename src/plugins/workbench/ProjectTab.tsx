@@ -28,8 +28,11 @@ export function ProjectTab({ tab }: { tab: EditorTab }) {
    * 切换(渲染期调整;计数器驱动 key 重挂让 ProjectDetail 重新吃 initialTab)。 */
   const [focusSeq, setFocusSeq] = useState(0);
   if (lastPayload !== payload) {
+    /* 同值 focusTab 重复深链不重挂:整棵 ProjectDetail 重挂会静默清掉抽屉里
+       的未保存输入(进展文字/描述草稿/打开中的表单),溯源连点即触发。 */
+    const focusChanged = !!payload?.focusTab && payload.focusTab !== (lastPayload as typeof payload | null)?.focusTab;
     setLastPayload(payload);
-    if (payload?.focusTab) setFocusSeq((n) => n + 1);
+    if (focusChanged) setFocusSeq((n) => n + 1);
   }
   const projectId = payload?.projectId ?? "";
   const project = projects.find((item) => item.id === projectId);
