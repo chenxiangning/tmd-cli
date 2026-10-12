@@ -43,6 +43,7 @@ describe("taskPrompt(开新会话预填文本)", () => {
     expect(prompt).toContain("任务说明:梳理模块");
     expect(prompt).toContain("AI-TASKS.md");
     expect(prompt).toContain("updates[]");
+    expect(prompt).toContain("结果与产物"); /* 执行记录要写实质内容,不只报状态 */
     expect(prompt).toContain("- 附件:需求说明.md(磁盘路径 ~/.tmd-cli/workbench/docs/project-p-demo/a-1.md,15 KB)");
   });
 

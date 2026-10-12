@@ -13,7 +13,7 @@ import { openFileInTab } from "@kernel/fileTabs";
 import { useState } from "react";
 import { daysLeft } from "./analysis";
 import { remainingText } from "./insights";
-import { bytes, DOC_KIND_LABELS, TASK_STATUS_LABELS, UPDATE_KIND_LABELS } from "./kindLabels";
+import { bytes, DOC_KIND_LABELS, TASK_STATUS_LABELS, UPDATE_KIND_LABELS, sortUpdates } from "./kindLabels";
 import { taskStatusTone } from "./taskPrompt";
 import { collectLinkedSessions, resolveWorkspaceId } from "./views";
 import { useProjectSessions } from "./useProjectSessions";
@@ -119,7 +119,7 @@ function DocDash({ project, onJump, onToast }: { project: Project; onJump: (tab:
 }
 
 function UpdateDash({ project, onJump }: { project: Project; onJump: () => void }) {
-  const rows = [...project.updates].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3);
+  const rows = sortUpdates(project.updates, "desc").slice(0, 3);
   return (
     <section className="wb-info-card wb-dash">
       <DashHead label={t("进展")} count={project.updates.length} onJump={onJump} />

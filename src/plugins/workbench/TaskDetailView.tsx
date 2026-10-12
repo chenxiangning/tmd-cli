@@ -12,7 +12,7 @@ import { ArrowLeft, ArrowsClockwise, CalendarBlank, CalendarPlus, CheckCircle, F
 import { host, useHost } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
-import { TASK_STATUS_LABELS, UPDATE_KIND_LABELS, formatUpdateAt } from "./kindLabels";
+import { TASK_STATUS_LABELS, UPDATE_KIND_LABELS, formatUpdateAt, sortUpdates } from "./kindLabels";
 import { attachTaskFile, detachTaskFile, linkTaskSession, updateTask, bindTaskSessionDiskId } from "./store";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
 import { setPendingTaskCard } from "./taskCard";
@@ -33,7 +33,7 @@ function TaskUpdatesSec({ updates }: { updates: ProjectTask["updates"] }) {
       <h4>{t("执行记录")}<span className="wb-panel-sub">{updates.length}</span></h4>
       {updates.length > 0 ? (
         <ul className="wb-update-list">
-          {[...updates].sort((a, b) => a.at.localeCompare(b.at)).map((update) => (
+          {sortUpdates(updates, "asc").map((update) => (
             <li key={update.id} className={`wb-update-row is-${update.kind}`}>
               <i className="wb-update-dot" aria-hidden />
               <div className="wb-update-body">

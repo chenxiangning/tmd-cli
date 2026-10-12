@@ -5,7 +5,7 @@
  */
 
 import { clampProgress, formatRemaining, openTasks, projectRisk, sortByRisk } from "./analysis";
-import { UPDATE_KIND_LABELS } from "./kindLabels";
+import { UPDATE_KIND_LABELS, sortUpdates } from "./kindLabels";
 import type { Project } from "./types";
 
 function bullets(items: readonly string[], empty = "(暂无)"): string {
@@ -16,7 +16,7 @@ function bullets(items: readonly string[], empty = "(暂无)"): string {
 /** 单个项目的 Markdown 摘要,提示词和文档草稿共用。 */
 export function projectBrief(project: Project, today: string): string {
   const risk = projectRisk(project, today);
-  const updates = [...project.updates].sort((a, b) => String(b?.at ?? "").localeCompare(String(a?.at ?? "")));
+  const updates = sortUpdates(project.updates, "desc");
   const tasks = openTasks(project);
   const doneTasks = project.tasks.filter((task) => task.status === "done");
   return [

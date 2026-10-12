@@ -8,7 +8,7 @@ import { useState } from "react";
 import { t } from "@kernel/i18n";
 import { Plus, X } from "@phosphor-icons/react";
 import { openTasks, todayISO } from "./analysis";
-import { TASK_ADVANCE_LABELS, TASK_STATUS_LABELS, UPDATE_KIND_LABELS } from "./kindLabels";
+import { TASK_ADVANCE_LABELS, TASK_STATUS_LABELS, UPDATE_KIND_LABELS, sortUpdates } from "./kindLabels";
 import { taskStatusBadgeTone } from "./taskPrompt";
 import { isTaskOpen, NEXT_TASK_STATUS, UPDATE_KINDS, type Project, type ProjectTask, type ProjectUpdate, type UpdateKind } from "./types";
 import { deleteTask, deleteUpdate, addUpdate, updateTask } from "./store";
@@ -161,7 +161,7 @@ export function DrawerUpdatesTab({ project, onToast }: { project: Project; onToa
         </button>
       </div>
       <ul className="wb-update-list">
-        {[...project.updates].sort((a, b) => b.at.localeCompare(a.at)).map((update) => (
+        {sortUpdates(project.updates, "desc").map((update) => (
           <li key={update.id} className={`wb-update-row is-${update.kind}`}>
             <i className="wb-update-dot" aria-hidden />
             <div className="wb-update-body">

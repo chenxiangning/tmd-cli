@@ -34,3 +34,16 @@ export function formatUpdateAt(iso: string): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+/** 执行记录按发生时刻排序(asc=正序新在下 / desc=新在上,同刻按原串稳定)。
+ *  必须按解析时刻比:字符串直接比会在混合时区格式下乱序(2026-10-12 实证:
+ *  UTC 带偏移 13:44+00:00 与本地 21:35 混排);不可解析落 0 沉底。 */
+export function sortUpdates<T extends { at: string }>(updates: readonly T[], dir: "asc" | "desc"): T[] {
+  const atMs = (iso: string) => {
+    const ms = Date.parse(iso);
+    return Number.isNaN(ms) ? 0 : ms;
+  };
+  const cmp = (a: T, b: T) => atMs(b.at) - atMs(a.at) || b.at.localeCompare(a.at);
+  const sorted = [...updates].sort(cmp);
+  return dir === "desc" ? sorted : sorted.reverse();
+}

@@ -6,6 +6,7 @@
  */
 
 import { isTaskOpen, type Project, type ProjectStatus, type ProjectTask } from "./types";
+import { sortUpdates } from "./kindLabels";
 
 export const MODULES = ["公司项目", "日常工作", "其他项目"] as const;
 export const STATUSES = ["进行中", "待启动", "阻塞", "已完成", "暂停"] as const;
@@ -113,9 +114,7 @@ export function openTasks(project: Project): ProjectTask[] {
 
 export function latestUpdate(project: Project) {
   if (project.updates.length === 0) return null;
-  return project.updates.reduce((latest, item) =>
-    String(item?.at ?? "") > String(latest?.at ?? "") ? item : latest,
-  );
+  return sortUpdates(project.updates, "desc")[0];
 }
 
 export function clampProgress(project: Project): number {

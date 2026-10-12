@@ -243,8 +243,10 @@ const AI_RULES_CONTENT = `# 工作台任务数据 · AI 回写规则
 - \`doneAt\`:置 done 时写 ISO 时间戳;离开 done(回退 todo/doing/review 或取消)时删除该字段
 - \`updatedAt\`:每次修改写当前 ISO 时间戳
 - \`updates\`:执行记录数组,**只准追加,不准修改或删除已有条目**。在开始推进、
-  关键进展、交付完成等节点各追加一条:
-  \`{ "id": "u-<随机>", "at": "<当前 ISO 时间戳>", "kind": "note|progress|blocker|decision", "text": "<一句话中文:做了什么/结果是什么>" }\`
+  关键进展、交付完成等节点各追加一条,必须写实质内容:这一轮做了什么、怎么做/
+  关键决策、结果与产物(提交号、文档路径、验证结论),不要只报状态;一次做了
+  多件事就拆成多条。每条格式:
+  \`{ "id": "u-<随机>", "at": "<ISO 时间戳,必须带时区偏移如 +08:00>", "kind": "note|progress|blocker|decision", "text": "<中文,可多行>" }\`
 
 ## 禁止修改
 
