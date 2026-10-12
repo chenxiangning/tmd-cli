@@ -60,6 +60,7 @@
 - 文档与注释用简体中文;标点为半角符号与中文混排(与现有文档一致);**不用 emoji**。
 - 技术栈既定:React 19 + TypeScript(strict) + Tailwind 4 + xterm.js + Tauri 2(portable-pty / git2)。不引入新框架、新状态库、新 UI 组件库;确有必要,先在 spec 的「方案取舍」写明理由。
 - 结论先行:文档与回复第一段就给决定和理由,不写铺垫和客套。
+- 发版铁律:GitHub Release 正文必须携带 CHANGELOG 对应版本小节,禁止「Automated build」类占位文案;`release.yml` prep-release 会自动从 `CHANGELOG.md` 抠 `[x.y.z]` 小节注入(重打 tag 重跑同样刷新),手写正文时以 CHANGELOG 为唯一事实源——发版前 CHANGELOG 缺小节 = 发版未就绪(v0.3.6 曾中招,2026-10-13 立)。
 
 ## 4. 冲突裁决
 
