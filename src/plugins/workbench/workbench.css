@@ -8,6 +8,17 @@
 /* 关联会话行状态徽:运行中点亮,已完成静默。 */
 .wb-session-live { color: var(--tmd-accent, var(--tmd-fg)); font-weight: 600; }
 
+/* 关联会话行色彩点缀(仅任务详情;文档/附件行不受影响):
+ * 状态 pill(运行中 accent / 已完成 ok 绿)、动作链接 accent 胶囊、解除钮 hover 红。 */
+.wb-sess-status { display: inline-block; border-radius: 999px; padding: 0 7px; font-size: var(--tmd-font-2xs); line-height: 15px; font-weight: 500; }
+.wb-sess-status.is-live { color: var(--tmd-accent); border: 1px solid color-mix(in srgb, var(--tmd-accent) 35%, transparent); background: color-mix(in srgb, var(--tmd-accent) 10%, transparent); }
+.wb-sess-status.is-done { color: var(--tmd-ok); border: 1px solid color-mix(in srgb, var(--tmd-ok) 30%, transparent); background: color-mix(in srgb, var(--tmd-ok) 8%, transparent); }
+.wb-sess-acts { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.wb-sess-pill { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: var(--tmd-font-xs); white-space: nowrap; color: var(--tmd-accent); border: 1px solid color-mix(in srgb, var(--tmd-accent) 28%, transparent); border-radius: 999px; padding: 1px 8px; background: color-mix(in srgb, var(--tmd-accent) 7%, transparent); transition: background .12s ease, border-color .12s ease; }
+.wb-sess-pill:hover { background: color-mix(in srgb, var(--tmd-accent) 16%, transparent); border-color: color-mix(in srgb, var(--tmd-accent) 50%, transparent); text-decoration: none; }
+.wb-sess-row .wb-attach-del { opacity: .45; transition: opacity .12s ease, color .12s ease, border-color .12s ease; }
+.wb-sess-row .wb-attach-del:hover { color: var(--tmd-err); border-color: var(--tmd-err); opacity: 1; }
+
 .wb-console-tab { position: relative;
   height: 100%;
   display: flex;

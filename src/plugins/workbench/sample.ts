@@ -30,7 +30,7 @@ const task = (id: string, title: string, owner: string, today: string, days: num
   id, title, status, owner, dueDate: shift(today, days), order: 0,
   description, createdAt: stamp(today, days - 1), updatedAt: stamp(today, days - 1),
   doneAt: status === "done" ? stamp(today, days) : undefined,
-  attachments: [], sessions: [],
+  attachments: [], sessions: [], updates: [],
 });
 
 /** 示例文档(content 由 generateSamples 落盘)。 */

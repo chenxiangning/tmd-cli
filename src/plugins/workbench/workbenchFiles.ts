@@ -2,7 +2,7 @@
  * 工作台 · 磁盘文件面:`~/.tmd-cli/workbench/` 布局:
  * - index.json            项目元数据(含任务/进展/文档与附件的轻元数据)
  * - docs/project-<id>/*   文档与附件实体文件(markdown/图片/任意文件)
- * - AI-TASKS.md           AI 回写任务状态的文件规则(让 AI 本地改任务信息)
+ * - AI-TASKS.md           AI 回写任务状态与执行记录的文件规则(让 AI 本地改任务信息)
  * 读写守闸:索引 496KB 写闸(读闸 512KB);附件上传 24MB 前端闸(Rust 32MB)。
  * 自 store.ts 拆出守 300 行铁则。
  */
@@ -160,16 +160,17 @@ export async function removeDocFile(projectId: string, fileName: string): Promis
   await ipc.fsRemovePath(DOC_FILE(home, projectId, fileName)).catch(() => undefined);
 }
 
-/** AI 回写任务状态的文件规则(幂等;已存在则不动)。 */
+/** AI 回写任务状态的文件规则(幂等;内容与内置模板不一致即重写——
+ *  该文件是 app 生成的规则件而非用户数据,漂移重写老用户才能拿到新约定)。 */
 export async function ensureAiRulesFile(indexPath: string): Promise<void> {
-  const exists = await ipc.fsReadFile(indexPath).then(
-    () => true,
+  const current = await ipc.fsReadFile(indexPath).then(
+    (text) => text,
     (e) => {
-      if (isMissingFileError(e)) return false;
+      if (isMissingFileError(e)) return null;
       throw e;
     },
   );
-  if (exists) return;
+  if (current === AI_RULES_CONTENT) return;
   await ipc.fsWriteFile(indexPath, AI_RULES_CONTENT);
 }
 
@@ -184,14 +185,17 @@ const AI_RULES_CONTENT = `# 工作台任务数据 · AI 回写规则
 
 ## 允许 AI 修改的字段(仅限被明确要求的任务)
 
-- \`status\`:\`"todo" | "doing" | "done"\`
-- \`doneAt\`:置 done 时写 ISO 时间戳;回退 todo/doing 时删除该字段
+- \`status\`:\`"todo" | "doing" | "review" | "done" | "cancelled"\`(review=交付待验收,cancelled=已放弃)
+- \`doneAt\`:置 done 时写 ISO 时间戳;离开 done(回退 todo/doing/review 或取消)时删除该字段
 - \`updatedAt\`:每次修改写当前 ISO 时间戳
+- \`updates\`:执行记录数组,**只准追加,不准修改或删除已有条目**。在开始推进、
+  关键进展、交付完成等节点各追加一条:
+  \`{ "id": "u-<随机>", "at": "<当前 ISO 时间戳>", "kind": "note|progress|blocker|decision", "text": "<一句话中文:做了什么/结果是什么>" }\`
 
 ## 禁止修改
 
 任务标题/负责人/日期/描述/附件/会话关联、项目级任何字段、其他任务的任何字段、
-\`docs[]\` 与 \`updates[]\`。除非用户明确要求,否则不要新增或删除任务。
+\`docs[]\` 与项目级 \`updates[]\`。除非用户明确要求,否则不要新增或删除任务。
 
 ## 写入方式
 

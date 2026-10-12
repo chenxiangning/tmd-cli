@@ -2,7 +2,7 @@
  * 工作台 · 存储·装载与项目/任务片:`~/.tmd-cli/workbench/` index.json 单权威
  * + docs 目录实体(读写守闸在 workbenchFiles.ts)。内存写穿、变更串行队列、
  * 写失败回滚(底座在 storeCore.ts;资料/关联片在 storeDocs.ts,此处集中
- * 再出口保持消费方单入口)。任务状态可由 AI 会话按 AI-TASKS.md 规则直接改
+ * 再出口保持消费方单入口)。任务状态与执行记录可由 AI 会话按 AI-TASKS.md 规则直接改
  * index.json;reloadWorkbench() 重读磁盘同步内存。
  */
 
@@ -175,6 +175,7 @@ export function addTask(projectId: string, init: TaskInit): Promise<ProjectTask>
     updatedAt: now,
     attachments: [],
     sessions: [],
+    updates: [],
   };
   return enqueue(async () => {
     const snapshot = state.projects;

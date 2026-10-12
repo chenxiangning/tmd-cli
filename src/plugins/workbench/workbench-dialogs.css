@@ -75,9 +75,18 @@
 .wb-taskdetail-page { display: flex; flex-direction: column; gap: 12px; }
 .wb-taskdetail-head { display: flex; align-items: center; gap: 10px; }
 .wb-taskdetail-title { margin: 0; font-size: var(--tmd-font-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-taskdetail-page .wb-taskdetail-head .wb-taskdetail-title { font-size: var(--tmd-font-lg); }
+.wb-taskdetail-page .wb-taskdetail-head .wb-badge { margin-right: auto; }
+.wb-taskdetail-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.wb-taskdetail-head-actions .wb-btn { height: 28px; padding-block: 0; white-space: nowrap; }
+.wb-btn-plain { background: transparent; border-color: transparent; color: var(--tmd-fg-subtle); }
+.wb-btn-plain:hover { background: var(--tmd-bg-hover); border-color: transparent; color: var(--tmd-fg); }
+.wb-taskdetail-linksel { height: 28px; max-width: 190px; min-width: 0; border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); font: inherit; font-size: var(--tmd-font-ui); padding: 0 8px; cursor: pointer; text-overflow: ellipsis; transition: background .12s ease, color .12s ease, border-color .12s ease; }
+.wb-taskdetail-linksel:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); border-color: var(--tmd-border-strong); }
 .wb-taskdetail { display: grid; grid-template-columns: 1fr 250px; gap: 18px; }
 .wb-taskdetail-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.wb-taskdetail-side { display: flex; flex-direction: column; gap: 10px; align-self: start; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 12px 14px; }
+.wb-taskdetail-side { display: flex; flex-direction: column; gap: 12px; align-self: stretch; border-left: 1px solid var(--tmd-border); padding: 0 0 0 18px; }
+.wb-taskdetail-side .wb-field { padding-bottom: 12px; border-bottom: 1px solid var(--tmd-border); }
 .wb-taskdetail-side h4 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: var(--tmd-font-md); font-weight: 600; color: var(--tmd-fg); }
 .wb-taskdetail-side h4::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: var(--tmd-accent); flex: none; }
 .wb-taskdetail-side select { width: 100%; }
@@ -88,12 +97,17 @@
 /* 描述编辑区:自适应壳高度后不再强拉伸,min-height 保底可读。 */
 .wb-taskdetail-sec .wb-doc-editor { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 10px 12px; line-height: 1.7; min-height: 140px; }
 .wb-taskdetail-sec .wb-doc-editor:focus { outline: none; border-color: var(--tmd-accent); }
-.wb-taskdetail-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.wb-taskdetail-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+/* 关联会话段头合并行:标题居左,扫描失败提示居右。 */
+.wb-sess-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.wb-sess-head h4 { margin: 0; }
 .wb-attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .wb-attach-row { display: flex; align-items: center; gap: 10px; border: 1px solid transparent; border-radius: var(--tmd-radius-sm); padding: 7px 10px; font-size: var(--tmd-font-ui); transition: background .12s ease, border-color .12s ease; }
 .wb-attach-row:hover { background: var(--tmd-bg-hover); border-color: var(--tmd-border); }
 /* 行内标题链接:正文色,hover 才点亮 accent(密集列表避免满眼蓝字)。 */
 .wb-attach-row .wb-link, .wb-task-table .wb-link { color: var(--tmd-fg); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 关联会话行:名称占满剩余宽度,动作链接(带小图标)靠右成组。 */
+.wb-attach-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wb-attach-row .wb-link:hover, .wb-task-table .wb-link:hover { color: var(--tmd-accent); text-decoration: none; }
 .wb-attach-ico { flex: none; display: inline-flex; color: var(--tmd-fg-subtle); }
 .wb-attach-row:hover .wb-attach-ico { color: var(--tmd-accent); }

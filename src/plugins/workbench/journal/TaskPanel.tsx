@@ -2,6 +2,7 @@
  * 后台任务面板(工具栏「后台任务」入口的全屏遮罩弹层)—— 进行中(可打开
  * 生成会话/终止)/ 排队(可取消)/ 完成与失败(可跳文章/重试),任务史截尾 50。
  */
+import { useState } from "react";
 import { ListChecks, TerminalWindow, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
@@ -25,6 +26,9 @@ function cancelRow(task: GenTask): void {
 
 function TaskRow({ task }: { task: GenTask }) {
   const [y, m, d] = [Number(task.dayKey.slice(0, 4)), Number(task.dayKey.slice(5, 7)), Number(task.dayKey.slice(8, 10))];
+  /* 删除历史行两击确认(journal 内既有约定,MonthView/ArticleTab 同款):
+   *  首击武装 3s 变 warn 色,再击才移除。 */
+  const [arming, setArming] = useState(false);
   const openSession = task.sessionId
     ? () => {
         host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
@@ -73,10 +77,15 @@ function TaskRow({ task }: { task: GenTask }) {
         {(task.st === "done" || task.st === "err") && (
           <button
             type="button"
-            className="dj-btn"
+            className={`dj-btn${arming ? " dj-btn-confirm" : ""}`}
             aria-label={t("删除")}
-            title={t("删除")}
+            title={arming ? t("再点一次确认删除") : t("删除")}
             onClick={() => {
+              if (!arming) {
+                setArming(true);
+                setTimeout(() => setArming(false), 3000);
+                return;
+              }
               removeTask(task.id);
             }}
           >

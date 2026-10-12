@@ -87,6 +87,8 @@ export interface ProjectTask {
   doneAt?: string;
   attachments: Attachment[];
   sessions: TaskSessionLink[];
+  /** 执行记录(AI 按 AI-TASKS.md 约定回写;只追加不改删,时间正序展示)。 */
+  updates: ProjectUpdate[];
 }
 
 export interface Project {
@@ -159,19 +161,28 @@ export function normalizeProject(raw: unknown): Project {
           };
         })
       : [];
-  const updates = Array.isArray(source.updates)
-    ? source.updates
-        .map((item) => {
-          const update = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-          return {
-            id: str(update.id) ?? randId("u"),
-            at: str(update.at) ?? now,
-            kind: isUpdateKind(update.kind) ? update.kind : "note",
-            text: str(update.text) ?? "",
-          };
-        })
-        .filter((item) => item.text !== "")
-    : [];
+  const updatesOf = (value: unknown): ProjectUpdate[] => {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
+    return value
+      .map((item) => {
+        const update = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+        return {
+          id: str(update.id) ?? randId("u"),
+          at: str(update.at) ?? now,
+          kind: isUpdateKind(update.kind) ? update.kind : ("note" as const),
+          text: str(update.text) ?? "",
+        };
+      })
+      .filter((item) => item.text !== "")
+      /* id 是 React key:AI 手写出重 id(连写 u-1)时换发,渲染不炸。 */
+      .map((item) => {
+        if (seen.has(item.id)) return { ...item, id: randId("u") };
+        seen.add(item.id);
+        return item;
+      });
+  };
+  const updates = updatesOf(source.updates);
   const docs = Array.isArray(source.docs)
     ? source.docs
         .map((item) => {
@@ -224,6 +235,7 @@ export function normalizeProject(raw: unknown): Project {
             doneAt: status === "done" ? str(task.doneAt) ?? str(task.updatedAt) ?? now : undefined,
             attachments: taskAttachments,
             sessions,
+            updates: updatesOf(task.updates),
           };
         })
         .filter((task) => task.title !== "")

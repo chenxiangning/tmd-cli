@@ -36,16 +36,17 @@ describe("cwd → 工作区 id 解析", () => {
 
 describe("taskPrompt(开新会话预填文本)", () => {
   it("含任务标题/说明/回写约定;附件逐条列磁盘路径", () => {
-    const proj = project({ id: "p-demo", name: "springboot-demo", cwd: "/tmp/demo", tasks: [{ id: "t-1", title: "项目分析", description: "梳理模块", status: "todo", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [{ id: "a-1", name: "需求说明.md", fileName: "a-1.md", size: 15360, createdAt: `${TODAY}T00:00:00Z` }], sessions: [] }] });
+    const proj = project({ id: "p-demo", name: "springboot-demo", cwd: "/tmp/demo", tasks: [{ id: "t-1", title: "项目分析", description: "梳理模块", status: "todo", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [{ id: "a-1", name: "需求说明.md", fileName: "a-1.md", size: 15360, createdAt: `${TODAY}T00:00:00Z` }], sessions: [], updates: [] }] });
     const prompt = taskPrompt(proj, proj.tasks[0]);
     expect(prompt).toContain("我在推进任务「项目分析」(项目:springboot-demo / 公司项目)");
     expect(prompt).toContain("任务说明:梳理模块");
     expect(prompt).toContain("AI-TASKS.md");
+    expect(prompt).toContain("updates[]");
     expect(prompt).toContain("- 附件:需求说明.md(磁盘路径 ~/.tmd-cli/workbench/docs/project-p-demo/a-1.md,15 KB)");
   });
 
   it("无附件不出附件段", () => {
-    const proj = project({ id: "p-demo", name: "springboot-demo", tasks: [{ id: "t-1", title: "任务", status: "todo", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [] }] });
+    const proj = project({ id: "p-demo", name: "springboot-demo", tasks: [{ id: "t-1", title: "任务", status: "todo", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [], updates: [] }] });
     expect(taskPrompt(proj, proj.tasks[0])).not.toContain("附件");
   });
 });
@@ -113,11 +114,11 @@ describe("任务板与待跟进分桶", () => {
     const buckets = followUpBuckets([project({
       id: "p-b", name: "桶户",
       tasks: [
-        { id: "t1", title: "过期", status: "todo", order: 0, createdAt: "", updatedAt: "", dueDate: "2026-10-09", attachments: [], sessions: [] },
-        { id: "t2", title: "今天", status: "doing", order: 0, createdAt: "", updatedAt: "", dueDate: "2026-10-10", attachments: [], sessions: [] },
-        { id: "t3", title: "本周", status: "todo", order: 0, createdAt: "", updatedAt: "", dueDate: "2026-10-11", attachments: [], sessions: [] },
-        { id: "t4", title: "更晚", status: "todo", order: 0, createdAt: "", updatedAt: "", dueDate: "2026-10-12", attachments: [], sessions: [] },
-        { id: "t5", title: "没排", status: "todo", order: 0, createdAt: "", updatedAt: "", attachments: [], sessions: [] },
+        { id: "t1", title: "过期", status: "todo", order: 0, createdAt: "", updatedAt: "", dueDate: "2026-10-09", attachments: [], sessions: [], updates: [] },
+        { id: "t2", title: "今天", status: "doing", order: 0, createdAt: "", updatedAt: "", dueDate: "2026-10-10", attachments: [], sessions: [], updates: [] },
+        { id: "t3", title: "本周", status: "todo", order: 0, createdAt: "", updatedAt: "", dueDate: "2026-10-11", attachments: [], sessions: [], updates: [] },
+        { id: "t4", title: "更晚", status: "todo", order: 0, createdAt: "", updatedAt: "", dueDate: "2026-10-12", attachments: [], sessions: [], updates: [] },
+        { id: "t5", title: "没排", status: "todo", order: 0, createdAt: "", updatedAt: "", attachments: [], sessions: [], updates: [] },
       ],
     })], TODAY);
     const byKey = new Map(buckets.map((bucket) => [bucket.key, bucket.items.map((item) => item.title)]));
@@ -157,7 +158,7 @@ describe("一键关联候选", () => {
 
 describe("任务状态自动纳管(pendingAutoDoing)", () => {
   const task = (id: string, status: TaskStatus, refs: string[]) =>
-    ({ id, title: id, status, owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: refs.map((ref) => ({ ref, kind: "host" as const, profileId: "omp", title: ref, createdAt: `${TODAY}T00:00:00Z` })) });
+    ({ id, title: id, status, owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: refs.map((ref) => ({ ref, kind: "host" as const, profileId: "omp", title: ref, createdAt: `${TODAY}T00:00:00Z` })), updates: [] });
 
   it("todo 且关联会话命中活集合才推进;host id 与磁盘身份都算活;doing/done 与死链不动", () => {
     const proj = project({ id: "p-a", tasks: [
@@ -182,12 +183,48 @@ describe("任务关联会话汇总(collectLinkedSessions)", () => {
 
   it("跨任务同 ref 去重只留一条;按关联时间倒序;无关联返回空", () => {
     const proj = project({ tasks: [
-      { id: "t-1", title: "甲", status: "doing", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [linked("pty-2", `${TODAY}T10:00:00Z`), linked("pty-1", `${TODAY}T09:00:00Z`)] },
-      { id: "t-2", title: "乙", status: "todo", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [linked("pty-2", `${TODAY}T11:00:00Z`), linked("pty-3", `${TODAY}T08:00:00Z`)] },
-      { id: "t-3", title: "丙", status: "todo", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [] },
+      { id: "t-1", title: "甲", status: "doing", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [linked("pty-2", `${TODAY}T10:00:00Z`), linked("pty-1", `${TODAY}T09:00:00Z`)], updates: [] },
+      { id: "t-2", title: "乙", status: "todo", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [linked("pty-2", `${TODAY}T11:00:00Z`), linked("pty-3", `${TODAY}T08:00:00Z`)], updates: [] },
+      { id: "t-3", title: "丙", status: "todo", owner: "我", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [], updates: [] },
     ] });
     expect(collectLinkedSessions(proj.tasks).map((l) => l.ref)).toEqual(["pty-2", "pty-1", "pty-3"]);
     expect(collectLinkedSessions([])).toEqual([]);
+  });
+});
+
+describe("任务执行记录归一化(normalizeProject → task.updates)", () => {
+  /* 磁盘原始形状(刻意含坏数据),直接喂 normalizeProject(入参 unknown),
+   *  不走 project() 助手的 ProjectTask 类型闸。 */
+  const base = { id: "t-1", title: "任务", status: "todo", order: 0, createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`, attachments: [], sessions: [] };
+  const normalize = (task: unknown) => normalizeProject({ id: "p-x", name: "项目", tasks: [task] }).tasks[0];
+
+  it("合法条目原样保留;坏形状落缺省;空文本滤掉;缺字段补 id/at", () => {
+    const updates = normalize({ ...base, updates: [
+      { id: "u-1", at: `${TODAY}T09:00:00Z`, kind: "progress", text: "完成模块梳理" },
+      { id: "u-2", at: `${TODAY}T10:00:00Z`, kind: "bogus", text: "未知类型" },
+      { at: `${TODAY}T11:00:00Z`, kind: "blocker", text: "卡在依赖" },
+      { id: "u-4", at: `${TODAY}T12:00:00Z`, kind: "note", text: "" },
+      "junk",
+    ] }).updates;
+    expect(updates).toHaveLength(3);
+    expect(updates[0]).toEqual({ id: "u-1", at: `${TODAY}T09:00:00Z`, kind: "progress", text: "完成模块梳理" });
+    expect(updates[1].kind).toBe("note"); /* 非法 kind 落 note */
+    expect(updates[2].id).toMatch(/^u-/); /* 缺 id 自动补 */
+    expect(updates[2].text).toBe("卡在依赖");
+  });
+
+  it("磁盘缺 updates 字段(旧数据)归一化为空数组", () => {
+    expect(normalize({ ...base }).updates).toEqual([]);
+  });
+
+  it("AI 手写重复 id 时换发新 id,React key 不撞车", () => {
+    const updates = normalize({ ...base, updates: [
+      { id: "u-1", at: `${TODAY}T09:00:00Z`, kind: "progress", text: "第一条" },
+      { id: "u-1", at: `${TODAY}T10:00:00Z`, kind: "progress", text: "第二条" },
+      { id: "u-1", at: `${TODAY}T11:00:00Z`, kind: "progress", text: "第三条" },
+    ] }).updates;
+    expect(new Set(updates.map((u) => u.id)).size).toBe(3);
+    expect(updates.map((u) => u.text)).toEqual(["第一条", "第二条", "第三条"]);
   });
 });
 

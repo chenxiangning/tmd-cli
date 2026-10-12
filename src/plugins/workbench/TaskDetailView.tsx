@@ -8,24 +8,46 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { t } from "@kernel/i18n";
-import { ArrowLeft, CalendarBlank, ChatCircle, Flag, Folder, FolderOpen, Plus, User, X } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowsClockwise, CalendarBlank, CalendarPlus, CheckCircle, Flag, Folder, FolderOpen, Plus, User } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
-import { TASK_STATUS_LABELS } from "./kindLabels";
-import {
-  attachTaskFile, detachTaskFile, linkTaskSession, unlinkTaskSession, updateTask, bindTaskSessionDiskId,
-} from "./store";
+import { TASK_STATUS_LABELS, UPDATE_KIND_LABELS, formatUpdateAt } from "./kindLabels";
+import { attachTaskFile, detachTaskFile, linkTaskSession, updateTask, bindTaskSessionDiskId } from "./store";
 import { composerReplaceRef, queueComposerText } from "@kernel/composerExt";
 import { readDocDataUrl, fileToBase64, isImageAttachment, docAttachmentPath } from "./workbenchFiles";
 import { openFileInTab } from "@kernel/fileTabs";
 import { TASK_STATUSES, type Attachment, type Project, type ProjectTask, type TaskStatus } from "./types";
 import { useProjectSessions } from "./useProjectSessions";
 import { resolveWorkspaceId } from "./views";
-import { WbBadge, WbImgView, WbAttachmentSection } from "./ui";
-import { taskPrompt } from "./taskPrompt";
+import { TaskSessionsSec } from "./TaskSessionsSec";
+import { WbBadge, WbImgView, WbAttachmentSection, WbAttachmentUpload } from "./ui";
+import { taskPrompt, taskStatusBadgeTone } from "./taskPrompt";
 import { runIpc } from "./ipcToast";
-import { openLink } from "./sessionOpen";
+
+/** 执行记录段(AI 回写时间线;时间正序,新记录自然展开在下;无增删入口)。 */
+function TaskUpdatesSec({ updates }: { updates: ProjectTask["updates"] }) {
+  return (
+    <section className="wb-taskdetail-sec">
+      <h4>{t("执行记录")}<span className="wb-panel-sub">{updates.length}</span></h4>
+      {updates.length > 0 ? (
+        <ul className="wb-update-list">
+          {[...updates].sort((a, b) => a.at.localeCompare(b.at)).map((update) => (
+            <li key={update.id} className={`wb-update-row is-${update.kind}`}>
+              <i className="wb-update-dot" aria-hidden />
+              <div className="wb-update-body">
+                <span className="wb-update-meta">{formatUpdateAt(update.at)} · {t(UPDATE_KIND_LABELS[update.kind])}</span>
+                <p>{update.text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="wb-muted">{t("还没有执行记录;关联会话按 AI-TASKS.md 约定回写后,经顶栏「从磁盘同步」在此展示。")}</p>
+      )}
+    </section>
+  );
+}
 
 export function TaskDetailView({
   project, task, onClose, onToast,
@@ -144,11 +166,32 @@ export function TaskDetailView({
   return (
     <div className="wb-taskdetail-page">
       <div className="wb-taskdetail-head">
-        <button type="button" className="wb-btn" onClick={onClose}>
-          <ArrowLeft size={12} />{t("返回列表")}
-        </button>
-        <WbBadge tone={task.status === "done" ? "ok" : task.status === "doing" ? "info" : "muted"}>{t(TASK_STATUS_LABELS[task.status])}</WbBadge>
         <h3 className="wb-taskdetail-title">{task.title}</h3>
+        <WbBadge tone={taskStatusBadgeTone(task.status)}>{t(TASK_STATUS_LABELS[task.status])}</WbBadge>
+        {/* 关联/开会话/上传/返回操作组(松散排布,返回降级为弱化导航钮) */}
+        <div className="wb-taskdetail-head-actions">
+          {recent && recent.rows.length > 0 ? (
+            <select
+              className="wb-taskdetail-linksel"
+              aria-label={t("关联已有会话")} defaultValue=""
+              onChange={(e) => {
+                const row = recent.rows.find((item) => item.key === e.target.value);
+                if (row) runIpc(linkTaskSession(project.id, task.id, { kind: "disk", ref: row.cliSessionId, profileId: row.profileId, title: row.title }), onToast, t("已关联会话"));
+                e.target.value = "";
+              }}
+            >
+              <option value="">{t("关联已有会话…")}</option>
+              {recent.rows.map((row) => <option key={row.key} value={row.key}>{row.title.slice(0, 40)}({row.profileName})</option>)}
+            </select>
+          ) : null}
+          <button type="button" className="wb-btn wb-btn-primary" onClick={startLinked} disabled={creating}>
+            <Plus size={12} />{t("开会话")}
+          </button>
+          <WbAttachmentUpload onUpload={upload} />
+          <button type="button" className="wb-btn wb-btn-plain" onClick={onClose}>
+            <ArrowLeft size={12} />{t("返回")}
+          </button>
+        </div>
       </div>
       <div className="wb-taskdetail">
         <div className="wb-taskdetail-main">
@@ -169,57 +212,16 @@ export function TaskDetailView({
           <WbAttachmentSection
             items={task.attachments}
             onUpload={upload}
+            hideUpload
             onOpen={previewAttachment}
             onDelete={(att) => detachTaskFile(project.id, task.id, att.id)}
             onToast={onToast}
           />
-          <section className="wb-taskdetail-sec">
-            <h4>{t("关联会话")}<span className="wb-panel-sub">{task.sessions.length}</span></h4>
-            <div className="wb-taskdetail-actions">
-              <button type="button" className="wb-btn wb-btn-primary" onClick={startLinked} disabled={creating}>
-                <Plus size={12} />{t("开新会话并关联")}
-              </button>
-              {recent && recent.rows.length > 0 ? (
-                <select
-                  aria-label={t("关联已有会话")} defaultValue=""
-                  onChange={(e) => {
-                    const row = recent.rows.find((item) => item.key === e.target.value);
-                    if (row) runIpc(linkTaskSession(project.id, task.id, { kind: "disk", ref: row.cliSessionId, profileId: row.profileId, title: row.title }), onToast, t("已关联会话"));
-                    e.target.value = "";
-                  }}
-                >
-                  <option value="">{t("关联已有会话…")}</option>
-                  {recent.rows.map((row) => <option key={row.key} value={row.key}>{row.title.slice(0, 40)}({row.profileName})</option>)}
-                </select>
-              ) : null}
-              {recent?.failed ? (
-                <p className="wb-muted">
-                  {t("引擎会话扫描失败,列表可能不全。")}
-                  <button type="button" className="wb-link" onClick={recent.reload}>{t("重试")}</button>
-                </p>
-              ) : null}
-            </div>
-            <ul className="wb-attach-list">
-              {task.sessions.map((link) => {
-                /* 实时名/状态:host 注册表活会话优先(id 或磁盘身份命中);
-                 * CLI 自动改名后行名跟随,终结会话回落 link 快照。 */
-                const live = hostSessions.find((s) => s.id === link.ref || s.cliSessionId === link.ref);
-                const name = live?.title || link.title || link.ref;
-                return (
-                  <li key={link.ref} className="wb-attach-row">
-                    <span className="wb-attach-ico"><ChatCircle size={13} /></span>
-                    <button type="button" className="wb-link" onClick={() => openLink(link, project, workspaceId, onToast, recent)}>{name}</button>
-                    <span className={`wb-attach-meta${live ? " wb-session-live" : ""}`}>{live ? t("运行中") : t("已完成")} · {link.createdAt.slice(0, 10)}</span>
-                    <button
-                      type="button" className="wb-btn wb-btn-xs wb-attach-del" aria-label={t("解除关联")}
-                      onClick={() => runIpc(unlinkTaskSession(project.id, task.id, link.ref), onToast, t("已解除关联"))}
-                    ><X size={11} /></button>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="wb-muted">{t("会话以 link 方式关联,不影响会话本身;发起时任务上下文(含附件清单)会自动填入该会话输入框。")}</p>
-          </section>
+          <TaskSessionsSec
+            project={project} task={task} workspaceId={workspaceId} recent={recent}
+            hostSessions={hostSessions} onToast={onToast}
+          />
+          <TaskUpdatesSec updates={task.updates} />
         </div>
         <aside className="wb-taskdetail-side">
           <h4>{t("基本信息")}</h4>
@@ -234,6 +236,11 @@ export function TaskDetailView({
           <div className="wb-info-row"><span className="wb-info-label"><Flag size={12} />{t("截止")}</span><span className="wb-info-value">{task.dueDate ?? "—"}</span></div>
           <div className="wb-info-row"><span className="wb-info-label"><Folder size={12} />{t("所属项目")}</span><span className="wb-info-value">{project.name}</span></div>
           <div className="wb-info-row"><span className="wb-info-label"><FolderOpen size={12} />{t("绑定目录")}</span><span className="wb-info-value" title={project.cwd ?? ""}>{project.cwd ?? t("未绑定")}</span></div>
+          <div className="wb-info-row"><span className="wb-info-label"><CalendarPlus size={12} />{t("创建时间")}</span><span className="wb-info-value">{task.createdAt.slice(0, 10)}</span></div>
+          <div className="wb-info-row"><span className="wb-info-label"><ArrowsClockwise size={12} />{t("更新时间")}</span><span className="wb-info-value">{task.updatedAt.slice(0, 10)}</span></div>
+          {task.doneAt ? (
+            <div className="wb-info-row"><span className="wb-info-label"><CheckCircle size={12} />{t("完成")}</span><span className="wb-info-value">{task.doneAt.slice(0, 10)}</span></div>
+          ) : null}
         </aside>
       </div>
       {preview ? <WbImgView name={preview.name} url={preview.url} onClose={() => setPreview(null)} /> : null}

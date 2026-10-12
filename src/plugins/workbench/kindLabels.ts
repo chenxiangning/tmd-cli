@@ -25,3 +25,12 @@ export const DOC_KIND_LABELS: Record<DocKind, string> = {
 export function bytes(size: number): string {
   return size >= 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
 }
+
+/** 执行记录时间戳 → 本地「MM-DD HH:mm」(ISO 是 UTC,裸 slice 会差时区;
+ *  非法输入回落原串截断,绝不抛)。 */
+export function formatUpdateAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16).replace("T", " ");
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
