@@ -312,6 +312,6 @@
 | 2026-10-11 | [生成文档二次开发 · B+C 融合定稿候选 v3(GLM 系设计工艺打磨:三层高度/字阶/动效节奏/柔色语义;能力:模板库/事实源/排程/溯源/分发/版本对比;含项目详情入口形态)](design/doc-gen-fused.html) | 设计原型(已定稿) |
 | 2026-10-11 | [生成文档闭环(docgen)设计:配置(模板库×事实源勾选×参数)→ journal 生命线姊妹实现的无头单发生成 → docgen.json+版本链沉淀 → 结构化解析(溯源徽标+条目级对比+失败回落)→ 落地分发(转任务/存项目文档/发送输入框/就此追问);自建轻队列不动 journal 基座;DocPreviewDialog 退役;三阶段分期](superpowers/specs/2026-10-11-docgen-loop-design.md) | 已实施(P1+P2+排程) |
 | 2026-10-12 | [生成文档流水线(docgen)已落地契约:数据布局 docgen.json+版本链实体分档;生成生命线三路结算;维度键队列;每周排程幂等闸;结构化五段解析契约;入口收敛与铁则对照](architecture/22-docgen.md) | 已完成 |
-| 2026-10-12 | [工作台细节打磨全量评审:5×高危(normalizeProject 丢 cliSessionId 身份/表单失败关窗丢稿/docgen 排队取消卡 gen/弹窗无提交态/编辑器弃脏稿)+22×中危(丢稿族/journal 持久化竞态/定时重入队/i18n 漏网)+22×低危,全部带 file:line,含建议推进批次](review/2026-10-12-workbench-polish-survey.md) | 评审完成(待修) |
+| 2026-10-12 | [工作台细节打磨全量评审:5×高危(normalizeProject 丢 cliSessionId 身份/表单失败关窗丢稿/docgen 排队取消卡 gen/弹窗无提交态/编辑器弃脏稿)+22×中危(丢稿族/journal 持久化竞态/定时重入队/i18n 漏网)+22×低危,全部带 file:line,含建议推进批次](review/2026-10-12-workbench-polish-survey.md) | 已完成(49 条修复全落地,遗留 3 项见处置段) |
 | 2026-10-12 | [answer-me-with-html 能力调研与 tmd-cli 结合分析(Agent Skill 形态/安装四路/零改动直用路线/skill-hub 分发/am serve 远程场景;明确不做清单)](research/answer-me-with-html.md) | 已完成(已本地安装:公约位+claude symlink,冒烟通过) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
