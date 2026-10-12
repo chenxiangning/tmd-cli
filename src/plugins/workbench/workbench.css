@@ -74,14 +74,18 @@
 .wb-overdue { color: var(--tmd-err); }
 
 /* ── 概览 ── */
-.wb-overview { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-.wb-headline { margin: 0; color: var(--tmd-fg-muted); font-size: var(--tmd-font-xs); }
-.wb-kpis { display: grid; grid-template-columns: repeat(6, minmax(90px, 1fr)); gap: 10px; }
-.wb-kpi { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+/* 概览统一 6 列网格:KPI 每卡 1 列,图表面板各 3 列,关注区三面板各 2 列,所有竖缝对齐 */
+.wb-overview { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: grid; grid-template-columns: repeat(6, 1fr); align-content: start; gap: 10px; }
+.wb-headline { grid-column: 1 / -1; margin: 0; color: var(--tmd-fg-muted); font-size: var(--tmd-font-xs); }
+.wb-kpis { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+.wb-kpi { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .wb-kpi b { font-size: var(--tmd-font-lg); line-height: 1.2; font-variant-numeric: tabular-nums; }
 .wb-kpi span { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); }
-.wb-chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.wb-attention-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; }
+.wb-chart-grid { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+.wb-chart-grid .wb-panel { grid-column: span 3; display: flex; flex-direction: column; }
+.wb-chart-grid .wb-panel > :last-child { margin-block: auto; }
+.wb-attention-grid { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+.wb-attention-grid .wb-panel { grid-column: span 2; }
 .wb-panel { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 12px; min-width: 0; }
 .wb-panel h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: var(--tmd-font-xs); font-weight: 600; color: var(--tmd-fg-muted); }
 .wb-panel h4::before { content: ""; width: 3px; height: 12px; border-radius: 2px; background: var(--tmd-accent); flex: none; }

@@ -16,8 +16,9 @@ import { clampProgress, projectRisk, slippage, todayISO, type RiskInfo } from ".
 import { useProjectSessions } from "./useProjectSessions";
 import { collectLinkedSessions, resolveWorkspaceId } from "./views";
 import { RISK_LABELS, remainingText } from "./insights";
-import { WbBadge, WbProgress } from "./ui";
+import { WbBadge, WbProgress, WbSessionActs } from "./ui";
 import { DrawerTasksTab, DrawerUpdatesTab } from "./drawerTabs";
+import { InfoDashboard } from "./InfoDashboard";
 import { DrawerDocsTab } from "./DrawerDocsTab";
 import { updateProject } from "./store";
 import { updateTab } from "@kernel/tabs";
@@ -25,7 +26,7 @@ import { ProjectFormModal } from "./ProjectFormModal";
 import { openLink } from "./sessionOpen";
 import { DocGenDialog } from "./docgen/DocGenDialog";
 import { openWorkbenchDocsTab } from "./wbTabs";
-import type { Project, ProjectTask } from "./types";
+import { isTaskOpen, type Project, type ProjectTask } from "./types";
 
 export type DrawerTab = "info" | "docs" | "tasks" | "updates" | "sessions";
 
@@ -70,9 +71,11 @@ export function ProjectDetail({
   /* 任务表单状态上提:概要页「建任务」跳任务页签内嵌开单(不再是弹窗)。 */
   const [taskForm, setTaskForm] = useState<{ open: boolean; task: ProjectTask | null }>({ open: false, task: null });
   const [editOpen, setEditOpen] = useState(false);
+  /* 概要 dashboard 文档行深开:记录目标文档 id,切到文档页签即直开编辑器。 */
+  const [docJumpId, setDocJumpId] = useState<string | null>(null);
   const today = todayISO();
   const risk = projectRisk(project, today);
-  const openTasks = project.tasks.filter((task) => task.status !== "done").length;
+  const openTasks = project.tasks.filter(isTaskOpen).length;
 
   return (
     <div className="wb-drawer">
@@ -98,17 +101,20 @@ export function ProjectDetail({
           </button>
         ))}
       </nav>
-      <div className="wb-drawer-body">
+      <div className={`wb-drawer-body${tab === "info" ? " is-flow" : ""}`}>
         {tab === "info" ? (
           <InfoTab
             project={project}
+            today={today}
             onEdit={() => setEditOpen(true)}
             onNewTask={() => { setTab("tasks"); setTaskForm({ open: true, task: null }); }}
             onDocGen={() => setDocGenOpen(true)}
             onJump={setTab}
+            onOpenDoc={setDocJumpId}
+            onToast={onToast}
           />
         ) : null}
-        {tab === "docs" ? <DrawerDocsTab project={project} onToast={onToast} /> : null}
+        {tab === "docs" ? <DrawerDocsTab project={project} initialOpenDocId={docJumpId} onToast={onToast} /> : null}
         {tab === "tasks" ? <DrawerTasksTab project={project} form={taskForm} onFormChange={setTaskForm} onToast={onToast} /> : null}
         {tab === "updates" ? <DrawerUpdatesTab project={project} onToast={onToast} /> : null}
         {tab === "sessions" ? <SessionsTab project={project} onToast={onToast} /> : null}
@@ -139,12 +145,16 @@ export function ProjectDetail({
   );
 }
 
-function InfoTab({ project, onEdit, onNewTask, onDocGen, onJump }: {
+function InfoTab({ project, today, onEdit, onNewTask, onDocGen, onJump, onOpenDoc, onToast }: {
   project: Project;
+  today: string;
   onEdit: (project: Project) => void;
   onNewTask: () => void;
   onDocGen: () => void;
   onJump: (tab: DrawerTab) => void;
+  /** 概要 dashboard 文档行深开:回写目标文档 id,ProjectDetail 切文档页签直开编辑器。 */
+  onOpenDoc: (docId: string) => void;
+  onToast: (message: string) => void;
 }) {
   const rows: Array<[string, string]> = [
     [t("模块"), project.module || t("其他项目")],
@@ -159,6 +169,7 @@ function InfoTab({ project, onEdit, onNewTask, onDocGen, onJump }: {
     { key: "docs", label: t("资料文档"), count: project.docs.length, icon: <FileText size={15} /> },
     { key: "tasks", label: t("任务"), count: project.tasks.length, icon: <ListChecks size={15} /> },
     { key: "updates", label: t("进展记录"), count: project.updates.length, icon: <Notebook size={15} /> },
+    { key: "sessions", label: t("会话"), count: collectLinkedSessions(project.tasks).length, icon: <ChatCircle size={15} /> },
   ];
   return (
     <div className="wb-info">
@@ -173,6 +184,12 @@ function InfoTab({ project, onEdit, onNewTask, onDocGen, onJump }: {
           </button>
         ))}
       </div>
+      <InfoDashboard
+        project={project}
+        today={today}
+        onJump={(tab, docId) => { onJump(tab); if (docId) onOpenDoc(docId); }}
+        onToast={onToast}
+      />
       <section className="wb-info-card">
         <h4>{t("项目信息")}</h4>
         <div className="wb-info-grid">
@@ -259,7 +276,7 @@ function SessionsTab({ project, onToast }: {
             const live = hostSessions.find((s) => s.id === link.ref || s.cliSessionId === link.ref);
             const profileName = host.getCliProfile(link.profileId)?.name ?? link.profileId;
             return (
-              <li key={link.ref}>
+              <li key={link.ref} className="wb-session-li">
                 <button type="button" className="wb-session-row" onClick={() => openLink(link, project, workspaceId, onToast, recent)}>
                   <span className="wb-attach-ico"><ChatCircle size={14} /></span>
                   <span className="wb-session-body">
@@ -269,6 +286,7 @@ function SessionsTab({ project, onToast }: {
                     </span>
                   </span>
                 </button>
+                <WbSessionActs link={link} project={project} workspaceId={workspaceId} recent={recent} live={live} onToast={onToast} />
               </li>
             );
           })}

@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { dayStart, daysLeft, endOfWeek, formatRemaining, openTasks, projectRisk, sortByRisk, todayISO } from "../analysis";
 import { collectLinkedSessions, linkableWorkspaces, pendingAutoDoing, resolveWorkspaceId, summarize } from "../views";
 import { followUpBuckets } from "../followUpBuckets";
+import { dueTasks, taskStatusCounts } from "../summaryData";
 import { canDrop, isRecentDone } from "../screens/boardDnd";
 import { taskPrompt } from "../taskPrompt";
 import { normalizeProject, type Project, type TaskStatus } from "../types";
@@ -255,5 +256,34 @@ describe("任务五态归一化与终结态口径", () => {
     expect(proj.tasks.map((task) => task.status)).toEqual(["review", "cancelled", "todo"]);
     expect(proj.tasks[1].doneAt).toBeUndefined(); /* doneAt 仅 done 持有 */
     expect(openTasks(proj).map((task) => task.id)).toEqual(["t-a", "t-c"]);
+  });
+});
+
+describe("概要 dashboard 数据切片(summaryData)", () => {
+  const task = (id: string, status: TaskStatus, dueDate?: string) => ({
+    id, title: id, status, owner: "我", order: 0,
+    createdAt: `${TODAY}T00:00:00Z`, updatedAt: `${TODAY}T00:00:00Z`,
+    attachments: [], sessions: [], updates: [], ...(dueDate ? { dueDate } : {}),
+  });
+
+  it("taskStatusCounts:看板四态计数,已取消不进分布分母", () => {
+    const proj = project({ tasks: [
+      task("t-1", "todo"), task("t-2", "doing"), task("t-3", "doing"),
+      task("t-4", "done"), task("t-5", "cancelled"),
+    ] });
+    const { counts, total } = taskStatusCounts(proj.tasks);
+    expect(counts).toMatchObject({ todo: 1, doing: 2, review: 0, done: 1 });
+    expect(total).toBe(4); /* cancelled 不进分母(与看板同口径) */
+  });
+
+  it("dueTasks:只收未完成且有截止日,按日升序取前 limit", () => {
+    const proj = project({ tasks: [
+      task("t-1", "todo", "2026-10-20"),
+      task("t-2", "doing", "2026-10-11"),
+      task("t-3", "done", "2026-10-01"),   /* 已完成不收 */
+      task("t-4", "todo"),                  /* 无截止日不收 */
+      task("t-5", "review", "2026-10-15"),
+    ] });
+    expect(dueTasks(proj, 2).map((item) => item.id)).toEqual(["t-2", "t-5"]);
   });
 });

@@ -4,7 +4,7 @@
  * 脏标记/保存 + 填满编辑区 + 底部附件)两态。写穿 store,失败经 onToast 上抛。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
 import { ArrowLeft, File, FileImage, FileText, FloppyDisk, Plus, X } from "@phosphor-icons/react";
 import { DOC_KIND_LABELS } from "./kindLabels";
@@ -12,8 +12,9 @@ import type { Project, ProjectDoc } from "./types";
 import { attachDocFile, createDoc, deleteDoc, detachDocFile, readDoc, saveDoc } from "./store";
 import { readDocDataUrl, fileToBase64, isImageAttachment, docAttachmentPath } from "./workbenchFiles";
 import { openFileInTab } from "@kernel/fileTabs";
-import { WbBadge, WbConfirm, WbImgView, WbAttachmentSection } from "./ui";
-import { DocEditor } from "./DocEditor";
+import { WbBadge, WbConfirm, WbImgView, WbAttachmentSection, WbAttachmentUpload } from "./ui";
+import { DocEditor, DocModeSegmented } from "./DocEditor";
+import { initialDocMode, type DocEditorMode } from "./docMode";
 import { runIpc } from "./ipcToast";
 
 /** 文档类型图标(markdown / 图片 / 其余文件)。 */
@@ -23,13 +24,27 @@ function DocIcon({ doc }: { doc: ProjectDoc }) {
   return <File size={14} />;
 }
 
-export function DrawerDocsTab({ project, onToast }: { project: Project; onToast: (message: string) => void }) {
+export function DrawerDocsTab({ project, initialOpenDocId, onToast }: {
+  project: Project;
+  /** 概要 dashboard 文档行深开:挂载即直开该文档编辑器(readDoc 异步装内容)。 */
+  initialOpenDocId?: string | null;
+  onToast: (message: string) => void;
+}) {
   /* 编辑态只留 id:附件列表从 project.docs 派生(store 删附件行即消失,不留陈旧快照)。 */
   const [openDocId, setOpenDocId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!initialOpenDocId) return;
+    const doc = project.docs.find((d) => d.id === initialOpenDocId);
+    if (doc) openMarkdown(doc);
+    /* 仅响应深开目标变化;project.docs 每次快照换引用,不入依赖。 */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenDocId]);
   const [titleDraft, setTitleDraft] = useState("");
   const [draft, setDraft] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [mode, setMode] = useState<DocEditorMode>("edit");
   const [askDiscard, setAskDiscard] = useState(false);
+  const [askDeleteDoc, setAskDeleteDoc] = useState<ProjectDoc | null>(null);
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
   const openDoc = openDocId ? project.docs.find((d) => d.id === openDocId) ?? null : null;
 
@@ -45,6 +60,7 @@ export function DrawerDocsTab({ project, onToast }: { project: Project; onToast:
       setTitleDraft(doc.title);
       setDraft(text);
       setDirty(false);
+      setMode(initialDocMode(text));
     }, (e) => onToast(e instanceof Error ? e.message : String(e)));
   };
   const createAndOpen = () => {
@@ -98,9 +114,6 @@ export function DrawerDocsTab({ project, onToast }: { project: Project; onToast:
     return (
       <div className="wb-docs is-editing">
         <div className="wb-doc-editor-head">
-          <button type="button" className="wb-btn" onClick={closeEditor}>
-            <ArrowLeft size={12} />{t("返回列表")}
-          </button>
           <input
             className="wb-doc-title" value={titleDraft}
             onChange={(e) => { setTitleDraft(e.target.value); setDirty(true); }}
@@ -108,18 +121,24 @@ export function DrawerDocsTab({ project, onToast }: { project: Project; onToast:
           />
           {dirty ? <span className="wb-doc-dirty">{t("未保存")}</span> : null}
           <WbBadge tone="muted">{t(DOC_KIND_LABELS[openDoc.kind])}</WbBadge>
+          <DocModeSegmented mode={mode} onChange={setMode} />
+          <WbAttachmentUpload onUpload={upload} />
+          <button type="button" className="wb-btn" onClick={closeEditor}>
+            <ArrowLeft size={12} />{t("返回列表")}
+          </button>
           <button
             type="button" className="wb-btn wb-btn-primary" disabled={!dirty}
             onClick={saveOpenDoc}
           ><FloppyDisk size={12} />{t("保存文档")}</button>
         </div>
         <DocEditor
-          key={openDoc.id} value={draft}
+          key={openDoc.id} value={draft} mode={mode}
           onChange={(v) => { setDraft(v); setDirty(true); }}
           onSave={saveOpenDoc}
         />
         <WbAttachmentSection
           items={openDoc.attachments}
+          hideUpload
           onUpload={upload}
           onOpen={openAttachment}
           onDelete={(att) => detachDocFile(project.id, openDoc.id, att.id)}
@@ -166,12 +185,25 @@ export function DrawerDocsTab({ project, onToast }: { project: Project; onToast:
               </span>
               <button
                 type="button" className="wb-btn wb-btn-xs wb-attach-del" aria-label={t("删除")}
-                onClick={() => runIpc(deleteDoc(project.id, doc.id), onToast, t("文档已删除"))}
+                onClick={() => setAskDeleteDoc(doc)}
               ><X size={11} /></button>
             </li>
           ))}
         </ul>
       )}
+      {askDeleteDoc ? (
+        <WbConfirm
+          open
+          title={t("删除文档")}
+          body={t("将删除文档「{title}」,不可恢复。", { title: askDeleteDoc.title })}
+          confirmLabel={t("删除")}
+          onConfirm={() => {
+            runIpc(deleteDoc(project.id, askDeleteDoc.id), onToast, t("文档已删除"));
+            setAskDeleteDoc(null);
+          }}
+          onCancel={() => setAskDeleteDoc(null)}
+        />
+      ) : null}
       {preview ? <WbImgView name={preview.name} url={preview.url} onClose={() => setPreview(null)} /> : null}
     </div>
   );

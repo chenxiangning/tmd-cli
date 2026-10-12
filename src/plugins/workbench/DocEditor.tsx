@@ -9,11 +9,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Extension } from "@codemirror/state";
 import { t } from "@kernel/i18n";
-import { getSettingsState } from "@kernel/settings";
 import { retryImport } from "@kernel/lazyImport";
 import { useDarkTheme } from "@kernel/theme";
 import { loadCmLanguage } from "@kernel/cmEditor/cmLanguage";
 import { loadCmTheme } from "@kernel/cmEditor/cmTheme";
+import type { DocEditorMode } from "./docMode";
 
 /* 重型依赖双双按需进 chunk:CodeMirror 全家与 md 渲染管线只在首次编辑/预览时加载。 */
 const CodeMirror = lazy(retryImport(() => import("@uiw/react-codemirror").then((m) => ({ default: m.default }))));
@@ -21,18 +21,34 @@ const MarkdownBody = lazy(retryImport(() =>
   import("@plugins/session-viewer/markdownBody").then((m) => ({ default: m.MarkdownBody })),
 ));
 
-type DocEditorMode = "edit" | "preview";
+/** 编辑/预览切换段(文档头部动作行消费;状态在 DrawerDocsTab)。 */
+export function DocModeSegmented({ mode, onChange }: {
+  mode: DocEditorMode;
+  onChange: (mode: DocEditorMode) => void;
+}) {
+  return (
+    <div className="segmented" role="radiogroup" aria-label={t("文档编辑视图")}>
+      <button
+        type="button" role="radio" aria-checked={mode === "edit"}
+        className={`segment ${mode === "edit" ? "is-active" : ""}`}
+        onClick={() => onChange("edit")}
+      >{t("编辑")}</button>
+      <button
+        type="button" role="radio" aria-checked={mode === "preview"}
+        className={`segment ${mode === "preview" ? "is-active" : ""}`}
+        onClick={() => onChange("preview")}
+      >{t("预览")}</button>
+    </div>
+  );
+}
 
-export function DocEditor({ value, onChange, onSave }: {
+export function DocEditor({ value, onChange, onSave, mode }: {
   value: string;
   onChange: (value: string) => void;
   onSave: () => void;
+  mode: DocEditorMode;
 }) {
   const dark = useDarkTheme();
-  /* 初始视图按设置(默认预览);空内容恒进编辑 —— 空白预览无处落笔。 */
-  const [mode, setMode] = useState<DocEditorMode>(() =>
-    value.trim().length === 0 || getSettingsState().settings.workbenchDocDefaultMode === "edit" ? "edit" : "preview",
-  );
   const [exts, setExts] = useState<Extension[]>([]);
   /* 键位经 ref 取最新回调:扩展只随主题装载一次,不随父级重渲重建。 */
   const saveRef = useRef(onSave);
@@ -59,20 +75,6 @@ export function DocEditor({ value, onChange, onSave }: {
 
   return (
     <div className="wb-doc-editor-shell">
-      <div className="wb-doc-editor-toolbar">
-        <div className="segmented" role="radiogroup" aria-label={t("文档编辑视图")}>
-          <button
-            type="button" role="radio" aria-checked={mode === "edit"}
-            className={`segment ${mode === "edit" ? "is-active" : ""}`}
-            onClick={() => setMode("edit")}
-          >{t("编辑")}</button>
-          <button
-            type="button" role="radio" aria-checked={mode === "preview"}
-            className={`segment ${mode === "preview" ? "is-active" : ""}`}
-            onClick={() => setMode("preview")}
-          >{t("预览")}</button>
-        </div>
-      </div>
       {mode === "edit" ? (
         <Suspense fallback={null}>
           <CodeMirror

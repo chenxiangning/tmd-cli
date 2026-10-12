@@ -251,5 +251,11 @@ export const MESSAGES_EN = {
   "只剩 {days} 天": "{days} days left",
   "还剩 {days} 天,节奏正常": "{days} days left; on track",
   "时间已过 {percent}% 但进度只有 {progress}%": "{percent}% of the window has passed but progress is only {progress}%",
+  // ── 概要 dashboard(InfoDashboard)──
+  "全部 →": "All →",
+  "任务状态分布": "Task status breakdown",
+  "暂无到期任务": "Nothing due soon",
+  "还没有资料文档": "No docs yet",
+  "还没有进展记录": "No log entries yet",
   ...DOCGEN_EN,
 } as Record<string, string>;
