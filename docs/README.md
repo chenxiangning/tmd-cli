@@ -316,4 +316,5 @@
 | 2026-10-12 | [answer-me-with-html 能力调研与 tmd-cli 结合分析(Agent Skill 形态/安装四路/零改动直用路线/skill-hub 分发/am serve 远程场景;明确不做清单)](research/answer-me-with-html.md) | 已完成(已本地安装:公约位+claude symlink,冒烟通过) |
 | 2026-10-12 | [工作台任务详情细化设计:右栏基本信息垂直占满 + 任务执行记录(AI 按 AI-TASKS.md 约定回写 tasks[].updates[],复用 ProjectUpdate 形态;否决会话退出自动提炼与系统事件进时间线)](superpowers/specs/2026-10-12-task-execution-log-design.md) | 已实施(门禁全绿+doctor 100+1421 桩目检双态;未提交) |
 | 2026-10-12 | [任务看板重构设计:五态状态机(todo/doing/review/done + cancelled 终点)+ 泳道保留精修(列头色点计数胶囊/卡片 hover 浮起/空列虚线占位)+ 原生 HTML5 拖拽改态(同泳道内)+ 已完成列默认收近 7 天;否决纯列式与列内排序持久化](superpowers/specs/2026-10-12-task-board-redesign-design.md) | 已实施(门禁全绿;1421 桩目检通过;真机目检留大仙) |
+| 2026-10-12 | [全天提交收口 code review:1×blocker(CI 硬门 i18n 三语缺 134/135 键,远端 run 实挂,docgen/journal/看板/dashboard 四批新账)+1×med(markdownBody 管线静态 import 泄入主 chunk,DocGenBlocks/articleBody 两处)+7×low(别名/声明/Windows 保留名/裸串/死导出/死键 8 组);含三路干净面实证与 B1-B3 修复批次](review/2026-10-12-workbench-day-commits-review.md) | 已交付(待定修复批次;B1 落地前勿推 Tmd-0.3.6) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
