@@ -92,9 +92,11 @@ export function liveRow(meta: SessionMeta, wsName: string): DaySessionRow | null
 export interface DiskScan {
   diskRows: DaySessionRow[];
   liveDisk: Map<string, CliDiskSession>;
+  /** listSessions 失败的 (工作区:家族) 键:失败 ≠ 无会话,消费方据此跳过并示警(评审 L19)。 */
+  failed: string[];
 }
 
-const EMPTY_SCAN: DiskScan = { diskRows: [], liveDisk: new Map() };
+const EMPTY_SCAN: DiskScan = { diskRows: [], liveDisk: new Map(), failed: [] };
 
 /** 活行装配(纯函数,测试面):磁盘行 + 活会话表 → 完整行集。孤儿活会话
  *  (工作区集外)不混入;命中磁盘身份挂 disk 凭证,活行 modifiedAt 停在 spawn
@@ -154,7 +156,7 @@ export async function collectSessionRowsBatched(
       .filter((k): k is string => k !== null),
   );
   /* 活会话已落盘(omp 首条消息即落盘):按绑定身份去重,活形态优先,disk 凭证挂到活行。 */
-  const scan: DiskScan = { diskRows: [], liveDisk: new Map() };
+  const scan: DiskScan = { diskRows: [], liveDisk: new Map(), failed: [] };
   const total = target.length * profiles.length;
   let done = 0;
   await Promise.all(
@@ -162,21 +164,42 @@ export async function collectSessionRowsBatched(
       profiles.map((p) =>
         p
           .listSessions!(ws.root)
-          .catch(() => [] as CliDiskSession[])
           .then((list) => {
             for (const disk of list) {
               const key = `${ws.id}:${p.id}:${disk.id}`;
               if (liveKeys.has(key)) scan.liveDisk.set(key, disk);
               else scan.diskRows.push(diskRow(ws, p.id, disk));
             }
+          })
+          .catch(() => {
+            scan.failed.push(`${ws.id}:${p.id}`); /* 失败留痕(评审 L19):不得当「真无会话」的数据 */
+          })
+          .then(() => {
             done++;
-            onBatch?.({ diskRows: scan.diskRows.slice(), liveDisk: new Map(scan.liveDisk) }, done, total);
+            onBatch?.(
+              { diskRows: scan.diskRows.slice(), liveDisk: new Map(scan.liveDisk), failed: scan.failed.slice() },
+              done,
+              total,
+            );
           }),
       ),
     ),
   );
   const wsNames = new Map(target.map((w) => [w.id, w.name]));
   return assembleRows(scan.diskRows, scan.liveDisk, metas, wsNames);
+}
+
+/** 失败可感知版收集(调度/生成消费,评审 L19):failed 非空 = 部分引擎清单缺失,
+ *  调用方不得把 rows 当全集下结论(生成中止/调度跳过该轮,UI 走示警 pill)。 */
+export async function collectSessionRowsChecked(workspaces?: Workspace[]): Promise<{
+  rows: DaySessionRow[];
+  failed: string[];
+}> {
+  let failed: string[] = [];
+  const rows = await collectSessionRowsBatched(workspaces, (scan) => {
+    failed = scan.failed;
+  });
+  return { rows, failed };
 }
 
 
@@ -188,10 +211,12 @@ const SCAN_TTL_MS = 60_000;
 let scanCache: { wsKey: string; liveKey: string; scan: DiskScan; at: number } | null = null;
 
 /** 日索引 hook 视图:days null = 冷启动尚无任何数据;
- *  progress = 分批扫描进度(空态文案消费)。 */
+ *  progress = 分批扫描进度(空态文案消费);
+ *  scanFailed = 最近扫描 listSessions 失败的引擎数(0 = 完整,UI 示警消费)。 */
 export interface DaySessionsView {
   days: Map<string, DaySessionRow[]> | null;
   progress: { done: number; total: number } | null;
+  scanFailed: number;
 }
 
 /** 日索引 hook。旧数据先上屏:挂载遇同工作区集旧缓存立即渲染,后台重扫静默换新
@@ -261,7 +286,8 @@ export function useDaySessions(workspaces: Workspace[], refreshTick: number): Da
     () => (scan ? groupByDay(assembleRows(scan.diskRows, scan.liveDisk, metas, wsNames)) : null),
     [scan, metas, wsNames],
   );
-  return useMemo(() => ({ days, progress }), [days, progress]);
+  const scanFailed = scan?.failed.length ?? 0;
+  return useMemo(() => ({ days, progress, scanFailed }), [days, progress, scanFailed]);
 }
 
 /** 今日 key(本地时区)。 */

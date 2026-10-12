@@ -73,6 +73,7 @@ export function UnfinishedPanel({
     );
     if (!row) return;
     if (row.live && row.id) {
+      host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化(与盘行分支同口径,M12) */
       requestSessionReveal(row.id);
       return;
     }

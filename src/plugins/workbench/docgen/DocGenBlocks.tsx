@@ -2,9 +2,14 @@
  * docgen 阅读器 · 结构化区块(概览/项目进展/风险与阻塞/行动项/建议)。
  * 条目按钮 = 转任务(置绿防重);溯源 chip 点击上抛(Reader 统一 toast/跳转)。
  */
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { t } from "@kernel/i18n";
-import { MarkdownBody } from "@plugins/session-viewer/markdownBody";
+import { retryImport } from "@kernel/lazyImport";
+/* 跨插件 UI 复用先例(同 session-viewer→files、journal/articleBody):纯 props
+   渲染件;md 重管线 lazy 拆包(同 DocEditor),不进主 chunk。 */
+const MarkdownBody = lazy(retryImport(() =>
+  import("@plugins/session-viewer/markdownBody").then((m) => ({ default: m.MarkdownBody })),
+));
 import { diffParsed, type DocGenParsed } from "./parse";
 import { actionToItem, riskToItem, suggestionToItem, type TransferItem } from "../docgenView";
 
@@ -32,7 +37,7 @@ export function DocGenBlocks({ parsed, md, transferred, onTransfer, onJumpSrc }:
     setParsedFor(parsed);
     setCheckedActs(new Set((parsed?.actions ?? []).filter((a) => a.checked).map((a) => actionToItem(a).key)));
   }
-  if (!parsed) return <div className="dg-prose"><MarkdownBody>{md}</MarkdownBody></div>;
+  if (!parsed) return <div className="dg-prose"><Suspense fallback={null}><MarkdownBody>{md}</MarkdownBody></Suspense></div>;
   const toggle = (key: string) => {
     const next = new Set(collapsed);
     if (next.has(key)) next.delete(key);
@@ -60,14 +65,14 @@ export function DocGenBlocks({ parsed, md, transferred, onTransfer, onJumpSrc }:
     <div className="dg-blocks">
       <section className="dg-blk">
         <h4>{t("概览")}</h4>
-        <div className="dg-overview"><MarkdownBody>{parsed.overview.map((l) => (l.startsWith("-") ? l : `- ${l}`)).join("\n")}</MarkdownBody></div>
+        <div className="dg-overview"><Suspense fallback={null}><MarkdownBody>{parsed.overview.map((l) => (l.startsWith("-") ? l : `- ${l}`)).join("\n")}</MarkdownBody></Suspense></div>
       </section>
       {parsed.projects.map((p) => (
         <section key={p.name} className="dg-blk">
           <h4>
             <button type="button" className="dg-blk-toggle" aria-expanded={!collapsed.has(p.name)} onClick={() => toggle(p.name)}>{p.name}</button>
           </h4>
-          {!collapsed.has(p.name) ? <div className="dg-prose"><MarkdownBody>{p.lines.join("\n")}</MarkdownBody></div> : null}
+          {!collapsed.has(p.name) ? <div className="dg-prose"><Suspense fallback={null}><MarkdownBody>{p.lines.join("\n")}</MarkdownBody></Suspense></div> : null}
         </section>
       ))}
       <section className="dg-blk">

@@ -118,6 +118,7 @@
 .dj-ds-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--tmd-border); font-size: var(--tmd-font-ui); color: var(--tmd-fg-muted); }
 .dj-ds-ws { margin-left: auto; color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); }
 .dj-ds-row .dj-chip { flex: none; }
+.dj-ds-link { flex: none; border: none; background: none; padding: 0; font: inherit; font-size: var(--tmd-font-2xs); color: var(--tmd-fg-muted); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; } .dj-ds-link:hover { color: var(--tmd-fg); }
 .dj-ds-count { margin-left: auto; font-weight: 400; font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); }
 .dj-dl-row { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 12px 10px; }
 .dj-dl-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); cursor: pointer; }

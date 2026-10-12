@@ -2,8 +2,9 @@
  * 工作台 · 视图屏幕共享契约与项目卡(模块看板/状态看板/列表共用)。
  */
 
-import { formatRemaining, projectRisk } from "../analysis";
-import { taskDigest } from "../insights";
+import { t } from "@kernel/i18n";
+import { projectRisk } from "../analysis";
+import { RISK_LABELS, remainingText, taskDigest } from "../insights";
 import type { Project } from "../types";
 import { WbBadge, WbProgress } from "../ui";
 
@@ -20,6 +21,12 @@ export interface WbScreenProps {
   docsFilter?: string | null;
   /** 空态「生成文档」主按钮(带 projectId 时弹窗预锁该项目);仅文档中心消费。 */
   onDocGen?: (projectId?: string) => void;
+  /** 切页签(聚焦页清净态「去任务看板」);仅聚焦页消费。 */
+  onTab?: (tab: "board") => void;
+  /** 切看板并直接展开新建任务表单(聚焦页清净态);仅聚焦页消费。 */
+  onNewTask?: () => void;
+  /** 新建任务表单展开信号:挂载即展开一次(聚焦页清净态「新建任务」与看板挂载天然先后,不持久)。仅任务看板消费。 */
+  boardFormOpen?: boolean;
 }
 
 /** 看板段头(标题 + 计数);任务看板与模块看板的项目状态段共用。 */
@@ -34,7 +41,7 @@ export function BoardHead({ label, count }: { label: string; count: number }) {
 
 export function RiskPill({ project, today }: { project: Project; today: string }) {
   const risk = projectRisk(project, today);
-  return <WbBadge tone={risk.tone}>{risk.label}</WbBadge>;
+  return <WbBadge tone={risk.tone}>{t(RISK_LABELS[risk.level])}</WbBadge>;
 }
 
 /** 项目卡(模块看板/状态看板):名称 + 风险徽标 + 进度条 + 到期/任务微摘要。 */
@@ -52,13 +59,13 @@ export function ProjectCard({ project, today, onOpen, compact }: {
         <RiskPill project={project} today={today} />
       </span>
       <span className="wb-card-meta">
-        <span>{project.owner || "未指定"}</span>
-        <span>{formatRemaining(project.dueDate, today)}</span>
+        <span>{project.owner || t("未指定")}</span>
+        <span>{remainingText(project.dueDate, today)}</span>
       </span>
       <WbProgress value={project.progress} />
       <span className="wb-card-foot">
         <span>{project.progress}%</span>
-        {digest.open > 0 ? <span className="wb-card-tasks">{digest.open} 项任务</span> : null}
+        {digest.open > 0 ? <span className="wb-card-tasks">{t("{count} 项任务", { count: digest.open })}</span> : null}
       </span>
     </button>
   );

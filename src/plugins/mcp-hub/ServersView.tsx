@@ -1,15 +1,14 @@
 /**
  * server 卡片列表视图 —— 选中引擎的 server 增删改查入口 + 行内连通测试徽标。
  * 读失败 = 错误态 + 原始文件预览(拒编辑防覆写);文件缺失(JSON 家)=
- * 「尚未创建,首存即建」空态。删除走仓内确认浮层(skill-hub 已装删除弹窗
- * 同形制:遮罩 + popover 卡 + err 实心确认钮);测试结果为组件局部态,
- * 不产生任何持久状态。
+ * 「尚未创建,首存即建」空态。删除走 DialogShell 视口居中确认浮层
+ * (err 红实心确认钮);测试结果为组件局部态,不产生任何持久状态。
  */
 import { useState } from "react";
 import { Plus, Play, PencilSimple, TrashSimple, FileText, Plugs } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
-import { useEscClose } from "@kernel/DialogShell";
+import { DialogActions, DialogShell } from "@kernel/DialogShell";
 import type { McpServerEntry } from "@plugins/cli-shared/mcpWrite";
 import type { McpEngineState } from "./hubStore";
 import { removeServer } from "./hubStore";
@@ -50,8 +49,6 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
   const [pendingRemove, setPendingRemove] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
-  /* 删除确认浮层 Esc 关闭(删除进行中锁定防误关;R10 收口) */
-  useEscClose(() => setPendingRemove(null), removing);
 
   const names = engine.entries ? Object.keys(engine.entries) : [];
 
@@ -95,7 +92,7 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
   }
 
   return (
-    <div className="relative px-4 py-3">
+    <div className="px-4 py-3">
       <div className="mb-2 flex items-center justify-between">
         <div className="min-w-0 text-meta leading-relaxed text-(--tmd-fg-faint)">
           <span className="break-all">{engine.displayPath}</span>
@@ -184,45 +181,38 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
       )}
 
       {pendingRemove !== null && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30">
-          <dialog
-            open
-            aria-label={t("删除确认")}
-            className="relative m-0 w-80 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left shadow-(--tmd-shadow-modal)"
-            data-mcphub-remove-confirm={pendingRemove}
-          >
-            <div className="mb-2 text-xs font-medium">
+        <DialogShell
+          title={t("删除确认")}
+          icon={<TrashSimple size="0.875rem" aria-hidden />}
+          width={360}
+          locked={removing}
+          onClose={() => setPendingRemove(null)}
+          footer={
+            <DialogActions
+              className="mt-4"
+              danger
+              confirmLabel={t("删除")}
+              submitting={removing}
+              onConfirm={() => void doRemove()}
+              onCancel={() => setPendingRemove(null)}
+            />
+          }
+        >
+          <div data-mcphub-remove-confirm={pendingRemove}>
+            <div className="mt-2 text-xs font-medium">
               {t("删除 {engine} 的 server「{name}」?(各家方言:删除即卸载)", {
                 engine: engine.name,
                 name: pendingRemove,
               })}
             </div>
-            {removeError && (
-              <div className="mb-2 break-all text-xs text-(--tmd-err)" role="alert">{removeError}</div>
-            )}
-            <div className="mb-3 text-xs text-(--tmd-fg-subtle)">
+            <div className="mt-1 text-xs text-(--tmd-fg-subtle)">
               {t("从配置文件移除该条目;已开的会话不受影响")}
             </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingRemove(null)}
-                disabled={removing}
-                className="rounded border border-(--tmd-border) px-2.5 py-1 text-xs hover:bg-(--tmd-bg-hover) disabled:opacity-40"
-              >
-                {t("取消")}
-              </button>
-              <button
-                type="button"
-                onClick={() => void doRemove()}
-                disabled={removing}
-                className="rounded bg-(--tmd-err) px-2.5 py-1 text-xs text-(--tmd-accent-fg) disabled:opacity-50"
-              >
-                {removing ? t("删除中…") : t("删除")}
-              </button>
-            </div>
-          </dialog>
-        </div>
+            {removeError && (
+              <div className="mt-2 break-all text-xs text-(--tmd-err)" role="alert">{removeError}</div>
+            )}
+          </div>
+        </DialogShell>
       )}
     </div>
   );

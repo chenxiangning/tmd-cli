@@ -29,7 +29,7 @@
 
 ## 队列与排程
 
-- `docgen/queue.ts`:3 槽并发 + 20 分硬顶 + 30s 审计 + 维度键(模板×范围×周期)活跃去重(防两个 agent 写同一 v<N>);run 态取消经 abortRun 收割会话并 terminateEntry;启动恢复 run→err「中断」,queue 续跑;任务持久化经 `persistQueueTasks` → docgen.json tasks。
+- `docgen/queue.ts`:3 槽并发 + 20 分硬顶 + 30s 审计 + 维度键(模板×范围×周期)活跃去重(防两个 agent 写同一 v<N>);run 态取消经 abortRun 收割会话并 terminateEntry;排队取消对称 `failEntry`(entry 落 fail 拿重试入口,不卡 gen);启动恢复 run→err「中断」,queue 续跑;任务持久化经 `persistQueueTasks` → docgen.json tasks。
 - `docgen/schedule.ts`:每周 weekday HH:MM,幂等闸 = schedule.lastWeekKey(持久);15 分钟对表 + boot 补跑(journalSchedule 先例);配置存 docgen.json,弹窗可开,文档中心排程卡可暂停/恢复。
 
 ## 结构化契约(docgen/parse.ts)

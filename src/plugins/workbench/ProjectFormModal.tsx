@@ -61,6 +61,10 @@ export function ProjectFormModal({
       setError(t("项目名称不能为空"));
       return;
     }
+    if (values.startedOn !== "" && values.dueDate !== "" && values.startedOn > values.dueDate) {
+      setError(t("开始日期不能晚于截止日期"));
+      return;
+    }
     setBusy(true);
     onSubmit({
       ...values,

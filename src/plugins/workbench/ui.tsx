@@ -5,15 +5,20 @@
  */
 
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
-import { FileImage, Paperclip, X } from "@phosphor-icons/react";
+import { host } from "@kernel/host";
+import { openSessionViewTab, isSessionViewAvailable } from "@kernel/sessionViewTabs";
+import type { SessionMeta } from "@kernel/ipc";
+import { Eye, FileImage, Paperclip, TerminalWindow, X } from "@phosphor-icons/react";
 import { toneVar } from "./tone";
 import { bytes } from "./kindLabels";
 import { isImageAttachment } from "./workbenchFiles";
 import { runIpc } from "./ipcToast";
-import type { Attachment } from "./types";
+import { openLink } from "./sessionOpen";
+import type { Attachment, Project, TaskSessionLink } from "./types";
+import type { ProjectSessionsState } from "./useProjectSessions";
 
 export function WbBadge({ tone, children }: { tone: string; children: ReactNode }) {
   return (
@@ -87,32 +92,48 @@ export function WbConfirm({
   );
 }
 
+/** 附件上传控件(钮 + 隐藏 file input):任务详情把它放进顶部操作行,
+ *  文档编辑器仍由 WbAttachmentSection 内联渲染。 */
+export function WbAttachmentUpload({ onUpload }: { onUpload: (file: File) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <button type="button" className="wb-btn" onClick={() => fileRef.current?.click()}>
+        <Paperclip size={12} />{t("上传")}
+      </button>
+      <input
+        ref={fileRef} type="file" hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onUpload(file);
+          e.target.value = "";
+        }}
+      />
+    </>
+  );
+}
+
 /** 附件区(文档编辑器与任务详情逐字重复收敛至此):标题计数 + 上传钮 +
- *  隐藏 file input + 附件行列表;上传实现与打开/删除动作由调用方注入。 */
-export function WbAttachmentSection({ items, onUpload, onOpen, onDelete, onToast }: {
+ *  隐藏 file input + 附件行列表;上传实现与打开/删除动作由调用方注入。
+ *  删除先经 WbConfirm 二次确认(删实体文件,不可恢复)。 */
+export function WbAttachmentSection({ items, onUpload, onOpen, onDelete, onToast, hideUpload }: {
   items: Attachment[];
   onUpload: (file: File) => void;
   onOpen: (att: Attachment) => void;
   onDelete: (att: Attachment) => Promise<unknown>;
   onToast: (message: string) => void;
+  /** 上传控件外置(任务详情顶部操作行)时置 true,段内不再渲染。 */
+  hideUpload?: boolean;
 }) {
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [askDelete, setAskDelete] = useState<Attachment | null>(null);
   return (
     <section className="wb-taskdetail-sec">
       <h4>{t("附件")}<span className="wb-panel-sub">{items.length}</span></h4>
-      <div className="wb-taskdetail-actions">
-        <button type="button" className="wb-btn" onClick={() => fileRef.current?.click()}>
-          <Paperclip size={12} />{t("上传附件/图片")}
-        </button>
-        <input
-          ref={fileRef} type="file" hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onUpload(file);
-            e.target.value = "";
-          }}
-        />
-      </div>
+      {!hideUpload && (
+        <div className="wb-taskdetail-actions">
+          <WbAttachmentUpload onUpload={onUpload} />
+        </div>
+      )}
       <ul className="wb-attach-list">
         {items.map((att) => (
           <li key={att.id} className="wb-attach-row">
@@ -121,11 +142,60 @@ export function WbAttachmentSection({ items, onUpload, onOpen, onDelete, onToast
             <span className="wb-attach-meta">{bytes(att.size)}</span>
             <button
               type="button" className="wb-btn wb-btn-xs wb-attach-del" aria-label={t("删除")}
-              onClick={() => runIpc(onDelete(att), onToast, t("附件已删除"))}
+              onClick={() => setAskDelete(att)}
             ><X size={11} /></button>
           </li>
         ))}
       </ul>
+      {askDelete ? (
+        <WbConfirm
+          open
+          title={t("删除附件")}
+          body={t("将删除附件「{name}」,不可恢复。", { name: askDelete.name })}
+          confirmLabel={t("删除")}
+          onConfirm={() => {
+            runIpc(onDelete(askDelete), onToast, t("附件已删除"));
+            setAskDelete(null);
+          }}
+          onCancel={() => setAskDelete(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/** 会话行操作 pill 组:打开会话 + 查看转录(引擎支持转录 + 查看器在册 +
+ * 身份齐全才出)。任务详情/会话页签/概要会话区三处同款;点击不冒泡,
+ * 行体自身的点击(打开会话/跳页签)不被触发。 */
+export function WbSessionActs({ link, project, workspaceId, recent, live, onToast }: {
+  link: TaskSessionLink;
+  project: Project;
+  workspaceId: string | undefined;
+  recent: ProjectSessionsState | null;
+  live: SessionMeta | undefined;
+  onToast: (message: string) => void;
+}) {
+  /* 转录身份装配:取已存 cliSessionId,host link 回退活表已绑定身份,
+   * disk link 回退 ref 本身(与任务详情段同口径)。 */
+  const cliSessionId = link.cliSessionId ?? (link.kind === "disk" ? link.ref : live?.cliSessionId);
+  const canView =
+    host.getCliProfile(link.profileId)?.readSessionTranscript !== undefined &&
+    isSessionViewAvailable() && cliSessionId !== undefined;
+  return (
+    <span className="wb-sess-acts">
+      <button
+        type="button" className="wb-sess-pill"
+        onClick={(e) => { e.stopPropagation(); openLink(link, project, workspaceId, onToast, recent); }}
+      ><TerminalWindow size={12} />{t("打开会话")}</button>
+      {canView ? (
+        <button
+          type="button" className="wb-sess-pill"
+          onClick={(e) => {
+            e.stopPropagation();
+            openSessionViewTab({ profileId: link.profileId, cliSessionId, title: live?.title || link.title || link.ref, cwd: project.cwd });
+          }}
+        ><Eye size={12} />{t("查看转录")}</button>
+      ) : null}
+    </span>
   );
 }

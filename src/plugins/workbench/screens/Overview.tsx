@@ -1,13 +1,14 @@
 /**
- * 工作台 · 概览视图:KPI 行 + 一句话结论 + 风险分布环形图/模块负载堆叠条/
- * 进度分布直方图/负责人负载排行 + 需要马上处理 + 本周到期。
+ * 工作台 · 概览视图:KPI 行 + 一句话结论 + 风险分布环形图/进度分布直方图 +
+ * 任务统计 + 需要马上处理 + 本周到期。
  * 概览始终看全量(不受左栏筛选影响),筛选联动留给其它页签。
+ * 2026-10-12 收敛:模块负载/负责人负载两图建在死轴上(单人场景 16/16 同值),下线。
  */
 
 import { t } from "@kernel/i18n";
 import { DANGER_LEVELS, endOfWeek, sortByRisk } from "../analysis";
-import { headline, kpis, moduleWorkload, ownerWorkload, progressBuckets, riskBreakdown } from "../insights";
-import { DonutChart, Histogram, ModuleLoadBars, OwnerRankBars, SliceLegend } from "../charts";
+import { headline, kpis, progressBuckets, riskBreakdown } from "../insights";
+import { DonutChart, Histogram, SliceLegend } from "../charts";
 import { WbEmpty } from "../ui";
 import { ProjectCard, type WbScreenProps } from "./cards";
 
@@ -58,16 +59,8 @@ export function OverviewScreen({ allProjects, today, onOpen, onNewProject, onLin
           </div>
         </section>
         <section className="wb-panel">
-          <h4>{t("模块负载")}</h4>
-          <ModuleLoadBars rows={moduleWorkload(allProjects, today)} />
-        </section>
-        <section className="wb-panel">
           <h4>{t("进度分布")}</h4>
           <Histogram buckets={progressBuckets(allProjects)} />
-        </section>
-        <section className="wb-panel">
-          <h4>{t("负责人负载")}</h4>
-          <OwnerRankBars rows={ownerWorkload(allProjects, today)} />
         </section>
       </div>
       <div className="wb-attention-grid">
@@ -82,7 +75,7 @@ export function OverviewScreen({ allProjects, today, onOpen, onNewProject, onLin
                   strokeLinecap="round" strokeDasharray={`${(data.completion / 100) * 2 * Math.PI * 34} 999`}
                   transform="rotate(-90 42 42)"
                 />
-                <text x="42" y="47" textAnchor="middle" className="wb-donut-total" style={{ fontSize: "15px" }}>{data.completion}%</text>
+                <text x="42" y="47" textAnchor="middle" className="wb-donut-total" style={{ fontSize: "0.9375rem" }}>{data.completion}%</text>
               </svg>
               <span>{t("任务完成率")}</span>
             </div>

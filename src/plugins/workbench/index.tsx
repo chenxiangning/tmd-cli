@@ -19,10 +19,15 @@ import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { ProjectTab } from "./ProjectTab";
 import { openWorkbenchTab, WB_CONSOLE_TAB_KIND, WB_CONSOLE_TAB_ID, WB_PROJECT_TAB_KIND } from "./wbTabs";
+import { startIndexWatch } from "./storeWatch";
 import { attachJournal } from "./journal/attach";
 import { attachDocGen } from "./docgen/attach";
+import { TaskCardChip } from "./TaskCardChip";
+import { getPendingTaskCard, taskCardSendTransform, undoTaskCardSend } from "./taskCard";
+import { registerComposerEmptySendProvider, registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import "./workbench.css";
+import "./workbench-focus.css";
 import "./workbench-dialogs.css";
 
 export const workbenchPlugin: Plugin = {
@@ -68,10 +73,21 @@ export const workbenchPlugin: Plugin = {
         },
       ],
     });
+    /* 任务卡片:开新会话发起的任务上下文挂芯片(composer.attachments),点卡片
+       可编辑全文,发送变换前置拼装、空输入放行(接力芯片同款口径,见 taskCard.ts)。 */
+    ctx.contribute("composer.attachments", { component: TaskCardChip });
+    const offTaskCard = [
+      registerComposerSendTransform(taskCardSendTransform),
+      registerComposerSendUndo(undoTaskCardSend),
+      registerComposerEmptySendProvider((sid) => !!sid && getPendingTaskCard(sid) !== null),
+    ];
     /* 每日日志子域 + 生成文档流水线(退订随插件 deactivate)。 */
     const offJournal = attachJournal(ctx);
     const offDocGen = attachDocGen(ctx);
+    /* AI 直改 index.json 的自动感知轮询(常驻;幂等,见 storeWatch.ts)。 */
+    startIndexWatch();
     return () => {
+      for (const off of offTaskCard) off();
       offJournal();
       offDocGen();
     };

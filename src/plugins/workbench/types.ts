@@ -7,10 +7,15 @@
  */
 
 export type ProjectStatus = "进行中" | "待启动" | "阻塞" | "暂停" | "已完成";
-export const PROJECT_STATUSES: readonly ProjectStatus[] = ["进行中", "待启动", "阻塞", "暂停", "已完成"];
+/** 仅 isProjectStatus 内部消费;无外部引用面,不导出。 */
+const PROJECT_STATUSES: readonly ProjectStatus[] = ["进行中", "待启动", "阻塞", "暂停", "已完成"];
 
-export type TaskStatus = "todo" | "doing" | "done";
-export const TASK_STATUSES: readonly TaskStatus[] = ["todo", "doing", "done"];
+export type TaskStatus = "todo" | "doing" | "review" | "done" | "cancelled";
+export const TASK_STATUSES: readonly TaskStatus[] = ["todo", "doing", "review", "done", "cancelled"];
+/** 看板列(已取消不占列:看板隐藏该任务,设置入口 = 详情页状态下拉)。 */
+export const BOARD_STATUSES: readonly TaskStatus[] = ["todo", "doing", "review", "done"];
+/** 推进链(看板卡片/任务表推进钮共用):done/cancelled 无下一档。 */
+export const NEXT_TASK_STATUS: Readonly<Partial<Record<TaskStatus, TaskStatus>>> = { todo: "doing", doing: "review", review: "done" };
 
 export type UpdateKind = "note" | "progress" | "blocker" | "decision";
 export const UPDATE_KINDS: readonly UpdateKind[] = ["note", "progress", "blocker", "decision"];
@@ -83,6 +88,8 @@ export interface ProjectTask {
   doneAt?: string;
   attachments: Attachment[];
   sessions: TaskSessionLink[];
+  /** 执行记录(AI 按 AI-TASKS.md 约定回写;只追加不改删,时间正序展示)。 */
+  updates: ProjectUpdate[];
 }
 
 export interface Project {
@@ -113,6 +120,11 @@ export function isProjectStatus(value: unknown): value is ProjectStatus {
 
 export function isTaskStatus(value: unknown): value is TaskStatus {
   return TASK_STATUSES.includes(value as TaskStatus);
+}
+
+/** 未完成口径:done/cancelled 同为终结态(取消任务不计逾期、不进待跟进)。 */
+export function isTaskOpen(task: Pick<ProjectTask, "status">): boolean {
+  return task.status !== "done" && task.status !== "cancelled";
 }
 
 export function isUpdateKind(value: unknown): value is UpdateKind {
@@ -150,19 +162,28 @@ export function normalizeProject(raw: unknown): Project {
           };
         })
       : [];
-  const updates = Array.isArray(source.updates)
-    ? source.updates
-        .map((item) => {
-          const update = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
-          return {
-            id: str(update.id) ?? randId("u"),
-            at: str(update.at) ?? now,
-            kind: isUpdateKind(update.kind) ? update.kind : "note",
-            text: str(update.text) ?? "",
-          };
-        })
-        .filter((item) => item.text !== "")
-    : [];
+  const updatesOf = (value: unknown): ProjectUpdate[] => {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
+    return value
+      .map((item) => {
+        const update = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+        return {
+          id: str(update.id) ?? randId("u"),
+          at: str(update.at) ?? now,
+          kind: isUpdateKind(update.kind) ? update.kind : ("note" as const),
+          text: str(update.text) ?? "",
+        };
+      })
+      .filter((item) => item.text !== "")
+      /* id 是 React key:AI 手写出重 id(连写 u-1)时换发,渲染不炸。 */
+      .map((item) => {
+        if (seen.has(item.id)) return { ...item, id: randId("u") };
+        seen.add(item.id);
+        return item;
+      });
+  };
+  const updates = updatesOf(source.updates);
   const docs = Array.isArray(source.docs)
     ? source.docs
         .map((item) => {
@@ -197,6 +218,7 @@ export function normalizeProject(raw: unknown): Project {
                   profileId: str(link.profileId) ?? "",
                   title: str(link.title) ?? "",
                   createdAt: str(link.createdAt) ?? now,
+                  cliSessionId: str(link.cliSessionId),
                 };
               }).filter((link) => link.ref !== "")
             : [];
@@ -214,6 +236,7 @@ export function normalizeProject(raw: unknown): Project {
             doneAt: status === "done" ? str(task.doneAt) ?? str(task.updatedAt) ?? now : undefined,
             attachments: taskAttachments,
             sessions,
+            updates: updatesOf(task.updates),
           };
         })
         .filter((task) => task.title !== "")

@@ -69,8 +69,7 @@ export async function mutate(job: (projects: Project[]) => Project[]): Promise<v
     const snapshot = state.projects;
     const next = job([...snapshot]);
     try {
-      await writeIndexFile(next);
-      setProjects(next);
+      setProjects(await writeIndexFile(next));
     } catch (e) {
       setProjects(snapshot, e instanceof Error ? e.message : String(e)); /* 回滚内存态 */
       throw e;

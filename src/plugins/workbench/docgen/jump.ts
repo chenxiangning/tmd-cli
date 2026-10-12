@@ -42,7 +42,7 @@ export function useDocGenJump(entry: DocGenEntry, projects: readonly Project[], 
         return;
       }
       const frag = m[1].trim();
-      const row = (recentSessions ?? []).find((r) => r.title.includes(frag) || frag.includes(r.title));
+      const row = (recentSessions?.rows ?? []).find((r) => r.title.includes(frag) || frag.includes(r.title));
       if (!row) {
         onToast(t("溯源:{src}:未找到匹配会话(可能已清理)", { src }));
         return;

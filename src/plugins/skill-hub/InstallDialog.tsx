@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useEscClose } from "@kernel/DialogShell";
@@ -100,8 +101,8 @@ export function InstallDialog({
   const busy = stage === "download" || stage === "extract";
   useEscClose(onClose, busy); /* Esc 关闭;下载/解压中锁定 */
 
-  return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40" role="presentation">
+  return createPortal(
+    <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40 p-4" role="presentation">
       <dialog
         open
         aria-label={t("安装技能")}
@@ -227,6 +228,7 @@ export function InstallDialog({
         </div>
       </form>
       </dialog>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -42,8 +42,8 @@ function extractDictKeys(text) {
 function collectDict(file) {
   const rel = relative(ROOT, file).replaceAll("\\", "/");
   const text = readFileSync(file, "utf8");
-  if (/\/locales\/(en|ja)(\/[^/]+)?\.ts$/.test(rel)) {
-    const lang = /\/locales\/en([/.]|$)/.test(rel) ? "en" : "ja";
+  if (/\/locales\/(en|ja)(\/[^/]+|-[\w-]+)?\.ts$/.test(rel)) {
+    const lang = /\/locales\/en(?:[/.-]|$)/.test(rel) ? "en" : "ja";
     return [[lang, extractDictKeys(text)]];
   }
   if (/\/locales\.ts$/.test(rel)) {
@@ -62,7 +62,7 @@ function collectDict(file) {
 const allFiles = walk(SRC, [".ts", ".tsx"]);
 const dictFiles = allFiles.filter(
   (f) =>
-    (/\/locales\/(en|ja)(\/[^/]+)?\.ts$/.test(f) && !/\/index\.ts$/.test(f)) ||
+    (/\/locales\/(en|ja)(\/[^/]+|-[\w-]+)?\.ts$/.test(f) && !/\/index\.ts$/.test(f)) ||
     /\/locales\.ts$/.test(f),
 );
 const sourceFiles = allFiles.filter(

@@ -2,14 +2,14 @@
  * 工作台 · 磁盘文件面:`~/.tmd-cli/workbench/` 布局:
  * - index.json            项目元数据(含任务/进展/文档与附件的轻元数据)
  * - docs/project-<id>/*   文档与附件实体文件(markdown/图片/任意文件)
- * - AI-TASKS.md           AI 回写任务状态的文件规则(让 AI 本地改任务信息)
+ * - AI-TASKS.md           AI 回写任务状态与执行记录的文件规则(让 AI 本地改任务信息)
  * 读写守闸:索引 496KB 写闸(读闸 512KB);附件上传 24MB 前端闸(Rust 32MB)。
  * 自 store.ts 拆出守 300 行铁则。
  */
 
 import { ipc } from "@kernel/ipc";
 import { ensureDir } from "@kernel/fsDirs";
-import type { Project, ProjectDoc } from "./types";
+import { normalizeProject, type Project, type ProjectDoc, type ProjectTask } from "./types";
 
 export const INDEX_VERSION = 2;
 const MAX_INDEX_BYTES = 496 * 1024;
@@ -81,24 +81,78 @@ function toIndexProject(project: Project): IndexProject {
  *  变更时覆写外部数据,必须走错误条让人看见)。 */
 export async function readIndexFile(): Promise<IndexProject[] | null> {
   const home = await ipc.configHomeDir();
+  let text: string;
   try {
-    const raw = JSON.parse(await ipc.fsReadFile(INDEX_PATH(home))) as { projects?: unknown };
-    if (!Array.isArray(raw?.projects)) throw new Error("workbench index:projects 形状不符");
-    return raw.projects as IndexProject[];
+    text = await ipc.fsReadFile(INDEX_PATH(home));
   } catch (e) {
     if (isMissingFileError(e)) return null;
     throw e;
   }
+  const raw = JSON.parse(text) as { projects?: unknown };
+  if (!Array.isArray(raw?.projects)) throw new Error("workbench index:projects 形状不符");
+  lastIndexRaw = text;
+  return raw.projects as IndexProject[];
 }
 
-export async function writeIndexFile(projects: readonly Project[]): Promise<void> {
-  const home = await ipc.configHomeDir();
-  const content = JSON.stringify({ version: INDEX_VERSION, projects: projects.map(toIndexProject) }, null, 2);
+/* index 磁盘原文指纹:轮询外部回写的快速比对(read/write 成功后刷新;
+ * 原文一致即无 AI 侧改动,免整载 churn)。 */
+let lastIndexRaw: string | null = null;
+
+/** 外部回写探测:磁盘原文与上次已知一致返回 null(轮询快速路径),变化返回原文。 */
+export async function readIndexRawIfChanged(): Promise<string | null> {
+  const raw = await ipc.fsReadFile(INDEX_PATH(await ipc.configHomeDir()));
+  return raw === lastIndexRaw ? null : raw;
+}
+
+/* ── 写前合并:AI 会话按 AI-TASKS.md 直改磁盘的并发回写保护 ──
+ * 2026-10-12 实证:AI 关联会话把执行记录写进 index.json 后,前端任一变更整文件
+ * 重写即把它冲掉(会话转录留有「被工作台前端内存态回写覆盖」的复盘)。整文件
+ * 重写前重读磁盘,按 AI-TASKS.md 允许字段并入。 */
+
+/** 并入磁盘侧 AI 回写:项目集与项目级字段内存权威(AI 禁改);任务级 updates
+ *  恒取并集(AI 只追加、app 不改任务 updates);status/doneAt/updatedAt 按
+ *  updatedAt 新者胜——本 job 刚改过的任务时间戳最新,内存胜;AI 在装载后改过
+ *  的任务,磁盘胜。 */
+async function mergeExternalEdits(next: Project[]): Promise<Project[]> {
+  const disk = await readIndexFile();
+  if (disk === null) return next;
+  const diskTasks = new Map<string, ProjectTask>();
+  for (const meta of disk) {
+    if (typeof meta?.id !== "string" || !PROJECT_ID_PATTERN.test(meta.id)) continue;
+    for (const task of normalizeProject(meta as Record<string, unknown>).tasks) {
+      diskTasks.set(`${meta.id}/${task.id}`, task);
+    }
+  }
+  return next.map((project) => ({
+    ...project,
+    tasks: project.tasks.map((task) => {
+      const dt = diskTasks.get(`${project.id}/${task.id}`);
+      if (!dt) return task;
+      const extras = dt.updates.filter((u) => !task.updates.some((m) => m.id === u.id));
+      const diskNewer = String(dt.updatedAt ?? "") > String(task.updatedAt ?? "");
+      if (!diskNewer && extras.length === 0) return task;
+      return {
+        ...task,
+        ...(diskNewer ? { status: dt.status, doneAt: dt.doneAt, updatedAt: dt.updatedAt } : {}),
+        updates: extras.length > 0 ? [...task.updates, ...extras] : task.updates,
+      };
+    }),
+  }));
+}
+
+/** 落盘(写前重读磁盘并入 AI 并发回写,见 mergeExternalEdits);返回实际落盘的
+ *  合并态——调用方必须以它提交内存,否则磁盘有 AI 记录而内存缺失、指纹一致轮询
+ *  不会再拉,两态永久分叉。 */
+export async function writeIndexFile(projects: readonly Project[]): Promise<Project[]> {
+  const [merged, home] = await Promise.all([mergeExternalEdits([...projects]), ipc.configHomeDir()]);
+  const content = JSON.stringify({ version: INDEX_VERSION, projects: merged.map(toIndexProject) }, null, 2);
   if (new TextEncoder().encode(content).byteLength > MAX_INDEX_BYTES) {
     throw new Error("工作台索引超过 496KB,拒绝写入;请清理部分项目或缩短进展记录。");
   }
   await ensureDir(`${home}/.tmd-cli/workbench`);
   await ipc.fsWriteFile(INDEX_PATH(home), content);
+  lastIndexRaw = content;
+  return merged;
 }
 
 /** 读某项目旧版 PRD 分文件(迁移源;缺 = undefined)。 */
@@ -160,16 +214,17 @@ export async function removeDocFile(projectId: string, fileName: string): Promis
   await ipc.fsRemovePath(DOC_FILE(home, projectId, fileName)).catch(() => undefined);
 }
 
-/** AI 回写任务状态的文件规则(幂等;已存在则不动)。 */
+/** AI 回写任务状态的文件规则(幂等;内容与内置模板不一致即重写——
+ *  该文件是 app 生成的规则件而非用户数据,漂移重写老用户才能拿到新约定)。 */
 export async function ensureAiRulesFile(indexPath: string): Promise<void> {
-  const exists = await ipc.fsReadFile(indexPath).then(
-    () => true,
+  const current = await ipc.fsReadFile(indexPath).then(
+    (text) => text,
     (e) => {
-      if (isMissingFileError(e)) return false;
+      if (isMissingFileError(e)) return null;
       throw e;
     },
   );
-  if (exists) return;
+  if (current === AI_RULES_CONTENT) return;
   await ipc.fsWriteFile(indexPath, AI_RULES_CONTENT);
 }
 
@@ -184,17 +239,24 @@ const AI_RULES_CONTENT = `# 工作台任务数据 · AI 回写规则
 
 ## 允许 AI 修改的字段(仅限被明确要求的任务)
 
-- \`status\`:\`"todo" | "doing" | "done"\`
-- \`doneAt\`:置 done 时写 ISO 时间戳;回退 todo/doing 时删除该字段
+- \`status\`:\`"todo" | "doing" | "review" | "done" | "cancelled"\`(review=交付待验收,cancelled=已放弃)
+- \`doneAt\`:置 done 时写 ISO 时间戳;离开 done(回退 todo/doing/review 或取消)时删除该字段
 - \`updatedAt\`:每次修改写当前 ISO 时间戳
+- \`updates\`:执行记录数组,**只准追加,不准修改或删除已有条目**。在开始推进、
+  关键进展、交付完成等节点各追加一条,必须写实质内容:这一轮做了什么、怎么做/
+  关键决策、结果与产物(提交号、文档路径、验证结论),不要只报状态;一次做了
+  多件事就拆成多条。每条格式:
+  \`{ "id": "u-<随机>", "at": "<ISO 时间戳,必须带时区偏移如 +08:00>", "kind": "note|progress|blocker|decision", "text": "<中文,可多行>" }\`
 
 ## 禁止修改
 
 任务标题/负责人/日期/描述/附件/会话关联、项目级任何字段、其他任务的任何字段、
-\`docs[]\` 与 \`updates[]\`。除非用户明确要求,否则不要新增或删除任务。
+\`docs[]\` 与项目级 \`updates[]\`。除非用户明确要求,否则不要新增或删除任务。
 
 ## 写入方式
 
-整文件 JSON 重写(\`index.json\` 保持合法 JSON、2 空格缩进);写入前确认读到的
-\`version\` 为 2。修改完成后向用户说明改了哪个任务的 status。
+整文件 JSON 重写(\`index.json\` 保持合法 JSON、2 空格缩进);**写入前必须重新读取
+一次 \`index.json\`,在最新内容上修改后再写**(多个会话可能同时在改,基于旧内容
+整写会覆盖他人刚写的记录);写入前确认读到的 \`version\` 为 2。修改完成后向用户
+说明改了哪个任务的 status。
 `;

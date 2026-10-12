@@ -30,7 +30,7 @@ const task = (id: string, title: string, owner: string, today: string, days: num
   id, title, status, owner, dueDate: shift(today, days), order: 0,
   description, createdAt: stamp(today, days - 1), updatedAt: stamp(today, days - 1),
   doneAt: status === "done" ? stamp(today, days) : undefined,
-  attachments: [], sessions: [],
+  attachments: [], sessions: [], updates: [],
 });
 
 /** 示例文档(content 由 generateSamples 落盘)。 */
@@ -93,6 +93,7 @@ export function buildSampleProjects(today: string = todayISO()): Project[] {
       tasks: [
         task("demo-company-1-t1", "补齐结算接口的契约测试", "我", today, -3, "todo", "覆盖下单/退款/冲正三条主链路,历史订单口径以财务确认结果为准。"),
         task("demo-company-1-t2", "和财务确认历史订单的结算口径", "我", today, 1, "doing", "重点:2024 年以前的优惠券冲销记录是否参与重算。"),
+        task("demo-company-1-t3", "灰度切流方案评审材料", "我", today, 0, "review", "评审材料已发出,等架构组确认切流比例与回滚预案。"),
       ],
       docs: [doc("demo-company-1-doc1", "重构方案 PRD", today, "# 结算服务重构 PRD\n\n## 背景\n单体结算逻辑耦合严重,活动期频繁故障。\n\n## 目标\n- 拆分为独立结算服务,接口按领域重划\n- 历史数据可对账,误差为零\n\n## 验收标准\n- 契约测试全绿\n- 灰度 5% 无资损")],
     },
@@ -100,7 +101,11 @@ export function buildSampleProjects(today: string = todayISO()): Project[] {
       id: "demo-company-2", name: "数据中台订单域接入", module: "公司项目", progress: 40, start: -20, due: 2, last: -1,
       summary: "把订单库的增量变更实时打进数据中台,先跑通订单域的一张宽表。", tags: ["数据", "CDC"],
       updates: [update("demo-company-2-u1", today, -5, "progress", "订单域字段映射表确认,CDC 链路本地跑通")],
-      tasks: [task("demo-company-2-t1", "联调订单域增量同步,核对 24 小时延迟", "我", today, 2)],
+      tasks: [
+        task("demo-company-2-t1", "联调订单域增量同步,核对 24 小时延迟", "我", today, 2),
+        task("demo-company-2-t2", "订单域字段映射表初稿", "我", today, -2, "done"),
+        task("demo-company-2-t3", "CDC 链路可行性验证", "我", today, -20, "done"),
+      ],
     },
     {
       id: "demo-company-3", name: "移动端首屏性能优化", module: "公司项目", progress: 20, start: -25, due: 8, last: -6,

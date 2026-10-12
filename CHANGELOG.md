@@ -4,6 +4,36 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.6] - 2026-10-12
+
+本版主体 = 工作台批次二打磨 + 提交收口门禁聚合:任务看板五态状态机(泳道拖拽改态)、任务详情 AI 回写执行记录、项目概要 dashboard、三视图三撤一合「聚焦」页签 v1.1;新增 `check:gate` 聚合门禁,把 i18n 键比对与多并行会话推送前复验写入验证约定;收口评审与对抗评审多批修复。
+
+### 新增
+
+- 任务看板五态状态机(da6ba68b;设计 `docs/superpowers/specs/2026-10-12-task-board-redesign-design.md`):todo/doing/review/done + cancelled 终点,泳道内拖拽改态,已完成列默认收起
+- 任务详情 AI 回写执行记录(46b35a01;设计 `docs/superpowers/specs/2026-10-12-task-execution-log-design.md`):AI 会话按 `AI-TASKS.md` 约定回写 tasks[].updates[](只追加不改删);详情右栏竖向占满与删除确认补齐;回写不被整文件重写冲掉并 4s 自动感知上屏(edf4d8a5),按解析时刻排序修混时区乱序(6aa7568a)
+- 工作台聚焦页签(cfa9222a;调研 `docs/research/workbench-three-views-redesign.md`,契约 `docs/architecture/23-workbench-focus.md`):项目列表/时间线/待跟进三撤一合,三段 = 要处理(前三桶 + 更晚折叠 + 关联会话直达)/接下来 14 天(DDL chip + 密度徽标)/项目脉搏(活动流 + 空壳折叠索引);清净态一等公民,概览下线模块/负责人两死轴图,页签 7→5
+- 项目概要页 dashboard 四区块与概览六列网格统一(4e0f6c71)
+- 开会话先弹窗填关联名,任务上下文改挂输入框可编辑卡片(47129e84)
+- 当日会话清单行加打开会话与只读转录链接(8f5cc16f)
+- check:gate 聚合门禁(ae6f0b52):file-size/arch-boundary/i18n-keys/typecheck/test/build 六连检与 CI 前端 job 同链同序;AGENTS.md 验证清单改引聚合命令,写明多并行 AI 会话推送前必须在最新树上复验、动词典重点核对缺键/不对称/死键
+
+### 修复
+
+- i18n 键守卫双修(cd44f2eb/3f0ad11f):键守护补收录 locales 拆分词典并修 wallpaper ja 键名(CI 硬门缺键 134/135 红解),词典死键清理
+- 收口评审九项落地(3f0ad11f;评审 `docs/review/2026-10-12-workbench-day-commits-review.md`):markdownBody 管线 lazy 拆包不再泄入主 chunk、导出名防 Windows 保留名等
+- 提交后对抗评审回归修(7e5d2a52):扫描失败真中止、定时异常落珠、脏态归零口径、重复提交守卫
+- 工作台会话链四修(b08a9ba9):会话磁盘身份过装载保留、表单失败留窗、删除确认铺满、i18n 漏网清账
+- journal 便签守护(0074ad21):脏稿全程守护、落盘串行化失败上浮、定时失败落账防重入队
+- docgen 边角(447a1a8c):排队取消收割条目、弹窗提交锁窗、阅读器失败态与终止钮键盘可达
+- 生成运行文本不带会话 id,列表 chip 收缩省略防整列撑破(ddfd6a79)
+- 弹窗收口共享原语(9e07c5a1/a612fb74):skill 导入与 mcp 删除弹窗收口 DialogShell,skill-hub 导入弹窗自落位固定视口居中
+
+### 内务
+
+- AGENTS.md 补每日收口任务进展登记铁则(c914d6a0)
+- 评审与调研落盘:全天提交收口评审与 B1 根因勘误(0875fff4/372e9400)、工作台打磨评审 49 条修复完成(430c4f1e)、answer-me-with-html 能力调研(e4d45a84)、看板五态与执行记录两份设计 spec(c4bd4795)
+
 ## [0.3.5] - 2026-10-12
 
 本版主体 = 工作台全域成型 + 生成文档闭环:新增工作台插件(多项目任务/进展/文档管理)、每日工作日志与日历并入工作台、文档编辑器上 CodeMirror;生成文档流水线(docgen)以模板×事实源×周期配置弹窗驱动真实 CLI 会话无头生成、版本链落盘与结构化溯源阅读;另有图标装饰扩编收口、意图画布保存链事务化与词典撞键三批清账。

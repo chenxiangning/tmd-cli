@@ -18,6 +18,8 @@
 .wb-drawer-tab.is-active { color: var(--tmd-accent); border-bottom-color: var(--tmd-accent); }
 .wb-tab-n { background: var(--tmd-accent-soft, var(--tmd-bg-hover)); color: var(--tmd-accent); border-radius: 999px; font-size: var(--tmd-font-2xs); padding: 0 5px; }
 .wb-drawer-body { max-height: calc(100vh - 240px); min-height: 260px; overflow: auto; padding-right: 2px; }
+/* 概要内容高于上限时不再内部滚动:解除高度帽,随外层整页滚动,消灭页尾死区。 */
+.wb-drawer-body.is-flow { max-height: none; overflow: visible; }
 
 /* 概要 */
 .wb-info { display: flex; flex-direction: column; gap: 14px; }
@@ -65,6 +67,9 @@
 .wb-update-meta { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-xs); font-variant-numeric: tabular-nums; }
 .wb-session-list li { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); transition: border-color .12s ease, background .12s ease; }
 .wb-session-list li:hover { border-color: var(--tmd-border-strong); background: var(--tmd-bg-hover); }
+.wb-session-li { display: flex; align-items: center; gap: 8px; }
+.wb-session-li .wb-session-row { flex: 1; min-width: 0; }
+.wb-session-li .wb-sess-acts { padding-right: 10px; }
 .wb-session-row { display: flex; align-items: center; gap: 8px; width: 100%; border: none; background: none; color: var(--tmd-fg); cursor: pointer; font: inherit; text-align: left; padding: 8px 10px; }
 .wb-session-row .wb-attach-ico { margin-top: 0; }
 .wb-session-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -75,9 +80,18 @@
 .wb-taskdetail-page { display: flex; flex-direction: column; gap: 12px; }
 .wb-taskdetail-head { display: flex; align-items: center; gap: 10px; }
 .wb-taskdetail-title { margin: 0; font-size: var(--tmd-font-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-taskdetail-page .wb-taskdetail-head .wb-taskdetail-title { font-size: var(--tmd-font-lg); }
+.wb-taskdetail-page .wb-taskdetail-head .wb-badge { margin-right: auto; }
+.wb-taskdetail-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.wb-taskdetail-head-actions .wb-btn { height: 28px; padding-block: 0; white-space: nowrap; }
+.wb-btn-plain { background: transparent; border-color: transparent; color: var(--tmd-fg-subtle); }
+.wb-btn-plain:hover { background: var(--tmd-bg-hover); border-color: transparent; color: var(--tmd-fg); }
+.wb-taskdetail-linksel { height: 28px; max-width: 190px; min-width: 0; border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); font: inherit; font-size: var(--tmd-font-ui); padding: 0 8px; cursor: pointer; text-overflow: ellipsis; transition: background .12s ease, color .12s ease, border-color .12s ease; }
+.wb-taskdetail-linksel:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); border-color: var(--tmd-border-strong); }
 .wb-taskdetail { display: grid; grid-template-columns: 1fr 250px; gap: 18px; }
 .wb-taskdetail-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.wb-taskdetail-side { display: flex; flex-direction: column; gap: 10px; align-self: start; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 12px 14px; }
+.wb-taskdetail-side { display: flex; flex-direction: column; gap: 12px; align-self: stretch; border-left: 1px solid var(--tmd-border); padding: 0 0 0 18px; }
+.wb-taskdetail-side .wb-field { padding-bottom: 12px; border-bottom: 1px solid var(--tmd-border); }
 .wb-taskdetail-side h4 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: var(--tmd-font-md); font-weight: 600; color: var(--tmd-fg); }
 .wb-taskdetail-side h4::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: var(--tmd-accent); flex: none; }
 .wb-taskdetail-side select { width: 100%; }
@@ -88,12 +102,17 @@
 /* 描述编辑区:自适应壳高度后不再强拉伸,min-height 保底可读。 */
 .wb-taskdetail-sec .wb-doc-editor { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 10px 12px; line-height: 1.7; min-height: 140px; }
 .wb-taskdetail-sec .wb-doc-editor:focus { outline: none; border-color: var(--tmd-accent); }
-.wb-taskdetail-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+.wb-taskdetail-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+/* 关联会话段头合并行:标题居左,扫描失败提示居右。 */
+.wb-sess-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.wb-sess-head h4 { margin: 0; }
 .wb-attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .wb-attach-row { display: flex; align-items: center; gap: 10px; border: 1px solid transparent; border-radius: var(--tmd-radius-sm); padding: 7px 10px; font-size: var(--tmd-font-ui); transition: background .12s ease, border-color .12s ease; }
 .wb-attach-row:hover { background: var(--tmd-bg-hover); border-color: var(--tmd-border); }
 /* 行内标题链接:正文色,hover 才点亮 accent(密集列表避免满眼蓝字)。 */
 .wb-attach-row .wb-link, .wb-task-table .wb-link { color: var(--tmd-fg); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 关联会话行:名称占满剩余宽度,动作链接(带小图标)靠右成组。 */
+.wb-attach-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wb-attach-row .wb-link:hover, .wb-task-table .wb-link:hover { color: var(--tmd-accent); text-decoration: none; }
 .wb-attach-ico { flex: none; display: inline-flex; color: var(--tmd-fg-subtle); }
 .wb-attach-row:hover .wb-attach-ico { color: var(--tmd-accent); }
@@ -104,23 +123,32 @@
 .wb-imgview { width: max-content; max-width: min(88vw, 1200px); margin: auto; border: none; padding: 0; background: transparent; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: default; }
 .wb-imgview img { max-width: 82vw; max-height: 78vh; border-radius: var(--tmd-radius-md); box-shadow: 0 12px 40px rgb(0 0 0 / 40%); }
 .wb-imgview p { color: #fff; font-size: var(--tmd-font-xs); }
-/* 文档编辑器:工具行(返回/标题/脏标记/保存)+ 填满编辑区 + 底部附件。 */
-.wb-docs.is-editing { height: 100%; gap: 10px; }
-.wb-doc-editor-head { display: flex; align-items: center; gap: 8px; }
+/* 文档编辑态整链 flex 吃满可视区(:has 限定,其余页签不受影响):
+   容器定高 → 抽屉体填满 → 编辑页填满抽屉体;附件长时抽屉体内滚,零残留空白。 */
+.wb-project-tab:has(.wb-docs.is-editing) { display: flex; flex-direction: column; }
+.wb-project-tab:has(.wb-docs.is-editing) .wb-drawer { flex: 1; min-height: 0; }
+.wb-project-tab:has(.wb-docs.is-editing) .wb-drawer-body { flex: 1; min-height: 0; max-height: none; overflow: auto; display: flex; flex-direction: column; }
+.wb-docs.is-editing { flex: 1; height: auto; gap: 10px; }
+.wb-doc-editor-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wb-doc-editor-head .wb-btn, .wb-doc-editor-head .segmented { white-space: nowrap; flex: none; }
+/* 头部动作行等高:segmented 全局件(settings-panel)字号继承偏大,钉到 wb-btn 同框。 */
+.wb-doc-editor-head .wb-btn, .wb-doc-editor-head .segmented { height: 26px; }
+.wb-doc-editor-head .segmented { font-size: var(--tmd-font-ui); }
+.wb-doc-editor-head .segment { padding: 0 10px; }
 .wb-doc-title { flex: 1; border: 1px solid transparent; border-radius: var(--tmd-radius-sm); background: transparent; color: var(--tmd-fg); font: inherit; font-size: var(--tmd-font-md); font-weight: 600; padding: 4px 8px; min-width: 0; transition: border-color .12s ease, background .12s ease; }
 .wb-doc-title:hover { border-color: var(--tmd-border); }
 .wb-doc-title:focus { outline: none; border-color: var(--tmd-accent); background: var(--tmd-bg-elevated); }
 .wb-doc-dirty { display: inline-flex; align-items: center; gap: 5px; color: var(--tmd-warn); font-size: var(--tmd-font-2xs); white-space: nowrap; }
 .wb-doc-dirty::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-/* flex 项不写 flex:1(basis 0% 会吃掉 height);vh 直给,与 wb-drawer-body 的 100vh-240 上限配套。 */
-.wb-doc-editor-shell { height: max(220px, calc(100vh - 520px)); display: flex; flex-direction: column; gap: 6px; }
-.wb-doc-editor-toolbar { display: flex; justify-content: flex-end; flex: none; }
+/* 编辑壳 flex 吃满页面余量(容器高定死,basis auto 不吃高);附件随内容自然高。 */
+.wb-doc-editor-shell { flex: 1 1 auto; min-height: 260px; display: flex; flex-direction: column; gap: 6px; }
 .wb-doc-cm { flex: 1; min-height: 0; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); overflow: hidden; transition: border-color .12s ease; }
 .wb-doc-cm:focus-within { border-color: var(--tmd-accent); }
 .wb-doc-cm .cm-editor { height: 100%; background: transparent; color: var(--tmd-fg); }
 .wb-doc-cm .cm-editor.cm-focused { outline: none; }
 .wb-doc-cm .cm-scroller { font-family: var(--tmd-font-mono); font-size: var(--tmd-font-ui); line-height: 1.7; }
-.wb-doc-preview-body { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 12px 14px; }
+/* 预览直出,不套富文本容器:阅读面整幅呼吸,滚动仍由壳约束。 */
+.wb-doc-preview-body { flex: 1; min-height: 0; overflow: auto; }
 .wb-docpreview { margin: 0; white-space: pre-wrap; font-family: var(--tmd-font-mono); font-size: var(--tmd-font-xs); line-height: 1.55; max-height: calc(100vh - 260px); overflow: auto; }
 .wb-datepair { display: flex; align-items: center; gap: 6px; }
 .wb-datepair input { min-width: 0; flex: 1; }
@@ -140,6 +168,45 @@
 .wb-info-card { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
 .wb-info-card > h4 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: var(--tmd-font-md); font-weight: 600; color: var(--tmd-fg); }
 .wb-info-card > h4::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: var(--tmd-accent); flex: none; }
+
+/* 概要 dashboard(文档/任务/进展/会话四区块简略全局展示) */
+.wb-dash-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.wb-dash { gap: 10px; }
+.wb-dash-head { display: flex; align-items: center; justify-content: space-between; }
+.wb-dash-head h4 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: var(--tmd-font-md); font-weight: 600; color: var(--tmd-fg); }
+.wb-dash-head h4::before { content: ""; width: 3px; height: 13px; border-radius: 2px; background: var(--tmd-accent); flex: none; }
+.wb-dash-n { color: var(--tmd-fg-faint); font-size: var(--tmd-font-xs); font-weight: 400; font-variant-numeric: tabular-nums; }
+.wb-info-more { border: none; background: none; color: var(--tmd-fg-subtle); cursor: pointer; font: inherit; font-size: var(--tmd-font-xs); padding: 2px 6px; border-radius: var(--tmd-radius-sm); white-space: nowrap; transition: color .12s ease, background .12s ease; }
+.wb-info-more:hover { color: var(--tmd-accent); background: var(--tmd-bg-hover); }
+.wb-dash-bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--tmd-bg-hover); }
+.wb-dash-bar i { display: block; height: 100%; }
+.wb-dash-legend { display: flex; flex-wrap: wrap; gap: 3px 12px; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
+.wb-dash-legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }
+.wb-dash-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.wb-dash-rows li { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 0; }
+.wb-dash-rows li + li { border-top: 1px solid color-mix(in srgb, var(--tmd-border) 55%, transparent); }
+.wb-dash-rows .wb-session-row { padding: 5px 0; }
+/* 动作胶囊(打开会话/查看转录)半卡放不下常驻:绝对定位右侧,hover 浮现;行点击本身即打开会话。 */
+.wb-dash-rows li { position: relative; }
+.wb-dash-rows .wb-sess-acts { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); flex-wrap: nowrap; padding: 2px 4px; background: var(--tmd-bg-base); border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); opacity: 0; pointer-events: none; transition: opacity .12s ease; }
+.wb-dash-rows li:hover .wb-sess-acts, .wb-dash-rows li:focus-within .wb-sess-acts { opacity: 1; pointer-events: auto; }
+/* hover 让位:行文本在面板出现侧预截断,不顶到面板边。 */
+.wb-dash-rows .wb-session-row { transition: padding .12s ease; }
+.wb-dash-rows li:hover .wb-session-row, .wb-dash-rows li:focus-within .wb-session-row { padding-right: 156px; }
+.wb-dash-rows .wb-session-meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wb-dash-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tmd-font-ui); }
+/* 文档行 link 化:整行可点,悬停标题上 accent。 */
+.wb-dash-row { display: flex; align-items: center; gap: 8px; width: calc(100% + 12px); margin: 0 -6px; border: none; background: none; color: inherit; font: inherit; cursor: pointer; text-align: left; padding: 5px 6px; border-radius: var(--tmd-radius-sm); min-width: 0; transition: background .12s ease; }
+.wb-dash-row:hover { background: var(--tmd-bg-hover); }
+.wb-dash-row:hover .wb-dash-row-title { color: var(--tmd-accent); }
+.wb-dash-meta { flex: none; color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
+.wb-dash-due { flex: none; color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
+.wb-dash-due.is-near { color: var(--tmd-warn); }
+.wb-dash-due.is-over { color: var(--tmd-err); }
+.wb-dash-updates .wb-update-row { padding: 6px 0 6px 16px; }
+.wb-dash-updates .wb-update-row:last-child::before { display: none; }
+.wb-dash-updates .wb-update-body p { font-size: var(--tmd-font-xs); }
+.wb-dash-hint { margin: 0; }
 .wb-tasklist-wrap { padding: 0; }
 .wb-task-table td, .wb-task-table th { white-space: nowrap; }
 .wb-task-table td { vertical-align: middle; }
@@ -149,6 +216,9 @@
 
 /* ── 弹窗/表单(DialogShell 提供外壳;这里只留内容件)── */
 .wb-modal-body { color: var(--tmd-fg-muted); font-size: var(--tmd-font-xs); }
+/* 弹窗内单字段小表单(开会话名称/任务卡片编辑):wb-form 的定宽不适用。 */
+.wb-fieldform { display: flex; flex-direction: column; gap: 8px; }
+.wb-fieldform p { margin: 0; }
 .wb-form { width: min(560px, 94vw); }
 .wb-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-top: 10px; }
 .wb-form .wb-span2, .wb-taskform .wb-span2 { grid-column: span 2; }
@@ -156,10 +226,10 @@
 .wb-taskform .wb-form-grid { margin-top: 0; }
 .wb-taskform-actions { margin-left: auto; display: flex; gap: 6px; }
 .wb-taskform .wb-field > span { display: flex; align-items: center; gap: 5px; }
-.wb-form input, .wb-form select, .wb-form textarea, .wb-taskform input, .wb-taskform select, .wb-taskform textarea, .wb-ask input, .wb-nav-search, .wb-task-add input, .wb-update-add input, .wb-task-add select, .wb-update-add select {
+.wb-form input, .wb-form select, .wb-form textarea, .wb-taskform input, .wb-taskform select, .wb-taskform textarea, .wb-fieldform input, .wb-fieldform textarea, .wb-ask input, .wb-nav-search, .wb-task-add input, .wb-update-add input, .wb-task-add select, .wb-update-add select {
   border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); color: var(--tmd-fg); font: inherit; font-size: var(--tmd-font-ui); padding: 5px 9px; min-width: 0;
 }
-.wb-form input:focus, .wb-form select:focus, .wb-form textarea:focus, .wb-taskform input:focus, .wb-taskform select:focus, .wb-taskform textarea:focus, .wb-ask input:focus, .wb-nav-search:focus { outline: none; border-color: var(--tmd-accent); }
+.wb-form input:focus, .wb-form select:focus, .wb-form textarea:focus, .wb-taskform input:focus, .wb-taskform select:focus, .wb-taskform textarea:focus, .wb-fieldform input:focus, .wb-fieldform textarea:focus, .wb-ask input:focus, .wb-nav-search:focus { outline: none; border-color: var(--tmd-accent); }
 .wb-form-error { color: var(--tmd-err); font-size: var(--tmd-font-xs); margin: 8px 0 0; }
 
 /* ── 菜单/提示 ── */

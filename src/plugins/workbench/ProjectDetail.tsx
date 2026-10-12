@@ -10,23 +10,44 @@ import { useMemo, useState, type ReactNode } from "react";
 import { t } from "@kernel/i18n";
 import { ChatCircle, FileText, ListChecks, Notebook, PencilSimple, Plus, Sparkle } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
-import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
-import { formatRemaining, projectRisk, todayISO } from "./analysis";
+import { clampProgress, projectRisk, slippage, todayISO, type RiskInfo } from "./analysis";
 import { useProjectSessions } from "./useProjectSessions";
 import { collectLinkedSessions, resolveWorkspaceId } from "./views";
-import { WbBadge, WbProgress } from "./ui";
+import { RISK_LABELS, remainingText } from "./insights";
+import { WbBadge, WbProgress, WbSessionActs } from "./ui";
 import { DrawerTasksTab, DrawerUpdatesTab } from "./drawerTabs";
+import { InfoDashboard } from "./InfoDashboard";
 import { DrawerDocsTab } from "./DrawerDocsTab";
 import { updateProject } from "./store";
 import { updateTab } from "@kernel/tabs";
 import { ProjectFormModal } from "./ProjectFormModal";
-import { openLink } from "./sessionOpen";
+import { createSessionHere, openLink } from "./sessionOpen";
 import { DocGenDialog } from "./docgen/DocGenDialog";
 import { openWorkbenchDocsTab } from "./wbTabs";
-import type { Project, ProjectTask } from "./types";
+import { isTaskOpen, type Project, type ProjectTask } from "./types";
 
 export type DrawerTab = "info" | "docs" | "tasks" | "updates" | "sessions";
+
+/** risk.detail 渲染层 i18n:analysis 的 detail 是内容层中文(含插值),这里按
+ *  level 重建 —— remainingDays 随行携带,slipping 的百分比经 slippage 现算。 */
+function riskDetailText(risk: RiskInfo, project: Project, today: string): string {
+  const days = risk.remainingDays;
+  switch (risk.level) {
+    case "done": return t("已交付");
+    case "blocked": return t("处于阻塞状态,需要推动");
+    case "unscheduled": return t("未设置截止日期");
+    case "overdue": return t("已超过截止日期 {days} 天", { days: Math.abs(days ?? 0) });
+    case "urgent": return days === 0 ? t("今天到期") : t("只剩 {days} 天", { days: days ?? 0 });
+    case "soon": return t("还剩 {days} 天", { days: days ?? 0 });
+    case "normal": return t("还剩 {days} 天,节奏正常", { days: days ?? 0 });
+    case "slipping": {
+      const slip = slippage(project, today);
+      if (slip === null) return t("未设置截止日期");
+      return t("时间已过 {percent}% 但进度只有 {progress}%", { percent: Math.round(slip * 100), progress: clampProgress(project) });
+    }
+  }
+}
 
 const TABS: readonly { key: DrawerTab; label: string }[] = [
   { key: "info", label: "概要" },
@@ -49,18 +70,21 @@ export function ProjectDetail({
   /* 任务表单状态上提:概要页「建任务」跳任务页签内嵌开单(不再是弹窗)。 */
   const [taskForm, setTaskForm] = useState<{ open: boolean; task: ProjectTask | null }>({ open: false, task: null });
   const [editOpen, setEditOpen] = useState(false);
-  const risk = projectRisk(project);
-  const openTasks = project.tasks.filter((task) => task.status !== "done").length;
+  /* 概要 dashboard 文档行深开:记录目标文档 id,切到文档页签即直开编辑器。 */
+  const [docJumpId, setDocJumpId] = useState<string | null>(null);
+  const today = todayISO();
+  const risk = projectRisk(project, today);
+  const openTasks = project.tasks.filter(isTaskOpen).length;
 
   return (
     <div className="wb-drawer">
       <div className="wb-drawer-head">
-        <WbBadge tone={risk.tone}>{risk.label}</WbBadge>
+        <WbBadge tone={risk.tone}>{t(RISK_LABELS[risk.level])}</WbBadge>
         <div className="wb-progress-wrap">
           <WbProgress value={project.progress} tone={risk.tone} />
           <b className="wb-progress-pct">{project.progress}%</b>
         </div>
-        <span className="wb-drawer-head-meta">{risk.detail} · {formatRemaining(project.dueDate)}</span>
+        <span className="wb-drawer-head-meta">{riskDetailText(risk, project, today)} · {remainingText(project.dueDate, today)}</span>
       </div>
       <nav className="wb-drawer-tabs" role="tablist" aria-label={t("项目页签")}>
         {TABS.map((item) => (
@@ -76,17 +100,20 @@ export function ProjectDetail({
           </button>
         ))}
       </nav>
-      <div className="wb-drawer-body">
+      <div className={`wb-drawer-body${tab === "info" ? " is-flow" : ""}`}>
         {tab === "info" ? (
           <InfoTab
             project={project}
+            today={today}
             onEdit={() => setEditOpen(true)}
             onNewTask={() => { setTab("tasks"); setTaskForm({ open: true, task: null }); }}
             onDocGen={() => setDocGenOpen(true)}
             onJump={setTab}
+            onOpenDoc={setDocJumpId}
+            onToast={onToast}
           />
         ) : null}
-        {tab === "docs" ? <DrawerDocsTab project={project} onToast={onToast} /> : null}
+        {tab === "docs" ? <DrawerDocsTab project={project} initialOpenDocId={docJumpId} onToast={onToast} /> : null}
         {tab === "tasks" ? <DrawerTasksTab project={project} form={taskForm} onFormChange={setTaskForm} onToast={onToast} /> : null}
         {tab === "updates" ? <DrawerUpdatesTab project={project} onToast={onToast} /> : null}
         {tab === "sessions" ? <SessionsTab project={project} onToast={onToast} /> : null}
@@ -117,17 +144,21 @@ export function ProjectDetail({
   );
 }
 
-function InfoTab({ project, onEdit, onNewTask, onDocGen, onJump }: {
+function InfoTab({ project, today, onEdit, onNewTask, onDocGen, onJump, onOpenDoc, onToast }: {
   project: Project;
+  today: string;
   onEdit: (project: Project) => void;
   onNewTask: () => void;
   onDocGen: () => void;
   onJump: (tab: DrawerTab) => void;
+  /** 概要 dashboard 文档行深开:回写目标文档 id,ProjectDetail 切文档页签直开编辑器。 */
+  onOpenDoc: (docId: string) => void;
+  onToast: (message: string) => void;
 }) {
   const rows: Array<[string, string]> = [
-    [t("模块"), project.module || "其他项目"],
-    [t("状态"), project.status],
-    [t("负责人"), project.owner || "未指定"],
+    [t("模块"), project.module || t("其他项目")],
+    [t("状态"), t(project.status)],
+    [t("负责人"), project.owner || t("未指定")],
     [t("起止"), `${project.startedOn ?? t("未填")} → ${project.dueDate ?? t("未排期")}`],
     [t("标签"), project.tags.length > 0 ? project.tags.join("、") : "—"],
     [t("绑定目录"), project.cwd ?? t("未绑定")],
@@ -137,6 +168,7 @@ function InfoTab({ project, onEdit, onNewTask, onDocGen, onJump }: {
     { key: "docs", label: t("资料文档"), count: project.docs.length, icon: <FileText size={15} /> },
     { key: "tasks", label: t("任务"), count: project.tasks.length, icon: <ListChecks size={15} /> },
     { key: "updates", label: t("进展记录"), count: project.updates.length, icon: <Notebook size={15} /> },
+    { key: "sessions", label: t("会话"), count: collectLinkedSessions(project.tasks).length, icon: <ChatCircle size={15} /> },
   ];
   return (
     <div className="wb-info">
@@ -151,6 +183,12 @@ function InfoTab({ project, onEdit, onNewTask, onDocGen, onJump }: {
           </button>
         ))}
       </div>
+      <InfoDashboard
+        project={project}
+        today={today}
+        onJump={(tab, docId) => { onJump(tab); if (docId) onOpenDoc(docId); }}
+        onToast={onToast}
+      />
       <section className="wb-info-card">
         <h4>{t("项目信息")}</h4>
         <div className="wb-info-grid">
@@ -192,28 +230,20 @@ function SessionsTab({ project, onToast }: {
   const workspaceId = resolveWorkspaceId(useWorkspaces().list, project.cwd);
   /* 仅作「在此目录开新会话」的引擎档位(取该目录最近会话的 profile),与任务详情同口径。 */
   const recent = useProjectSessions(project.cwd);
+  /* 开新会话在途禁用:连点会重复建会话。 */
+  const [creating, setCreating] = useState(false);
   const links = useMemo(() => collectLinkedSessions(project.tasks), [project.tasks]);
   const newHere = () => {
-    if (!project.cwd) return;
-    const profileId = recent?.[0]?.profileId;
-    if (!profileId) {
-      onToast(t("该目录暂无可用引擎会话,请先在侧栏开过一次"));
-      return;
-    }
-    void host.createSession(profileId, project.cwd, workspaceId).then(
-      (meta) => {
-        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
-        host.setActiveSession(meta.id);
-      },
-      () => onToast(t("创建会话失败")),
-    );
+    if (!project.cwd || creating) return;
+    setCreating(true);
+    createSessionHere(project, workspaceId, recent, onToast, () => setCreating(false));
   };
   if (!project.cwd) return <p className="wb-muted">{t("未绑定工作区目录;绑定后可在任务里开会话并关联。")}</p>;
   return (
     <div className="wb-sessions">
       <div className="wb-list-head">
         <h3>{t("会话")}<span className="wb-count">{links.length}</span></h3>
-        <button type="button" className="wb-btn wb-btn-primary" onClick={newHere}>
+        <button type="button" className="wb-btn wb-btn-primary" onClick={newHere} disabled={creating}>
           <Plus size={12} />{t("在此目录开新会话")}
         </button>
       </div>
@@ -226,7 +256,7 @@ function SessionsTab({ project, onToast }: {
             const live = hostSessions.find((s) => s.id === link.ref || s.cliSessionId === link.ref);
             const profileName = host.getCliProfile(link.profileId)?.name ?? link.profileId;
             return (
-              <li key={link.ref}>
+              <li key={link.ref} className="wb-session-li">
                 <button type="button" className="wb-session-row" onClick={() => openLink(link, project, workspaceId, onToast, recent)}>
                   <span className="wb-attach-ico"><ChatCircle size={14} /></span>
                   <span className="wb-session-body">
@@ -236,6 +266,7 @@ function SessionsTab({ project, onToast }: {
                     </span>
                   </span>
                 </button>
+                <WbSessionActs link={link} project={project} workspaceId={workspaceId} recent={recent} live={live} onToast={onToast} />
               </li>
             );
           })}

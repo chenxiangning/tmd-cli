@@ -2,27 +2,27 @@
  * 每日文章 tab(详情即文件,不弹窗)—— 某一天的完整详情:标题/状态/会话清单 +
  * 文章本体(总览/分节/未完事项)+ 我的便签(B3 开编辑)。生成会话条 B4 接入。
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EditorTab } from "@kernel/tabs";
+import { updateTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
-import { host } from "@kernel/host";
+import { host, useHost } from "@kernel/host";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, dayMetaOf, deriveDayStatus, getJournalState, useJournalState } from "./journalStore";
 import { isRowSummarized, useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
-import { hmOf } from "./timeUtil";
-import { sessionRefKey } from "./sessionRef";
+import { buildSessionLinks, openDaySessionRow } from "./sessionRef";
+import { openSessionViewTab, isSessionViewAvailable } from "@kernel/sessionViewTabs";
+import { useArticleEditSignal } from "./journalTabs";
 import { UnfinishedPanel } from "./UnfinishedPanel";
 import { unfinishedPanelRows } from "./unfinished";
-import { requestSessionReveal } from "@kernel/sessionReveal";
 import { KernelTopics } from "@kernel/events";
 import { pad2 } from "./journalFiles";
 import type { ArticleTabPayload } from "./journalTabs";
 import { dayTitleOf } from "./dateTitle";
 import { holOf, useHolidays } from "./holidays";
 import { ArticleBody, BeadStrip, Lightbox } from "./articleBody";
-import type { SessionLinkHost } from "./articleBody";
 import type { DayNote, DayNoteImage } from "./journalFiles";
 import { NoteEditor } from "./NoteEditor";
 import { dayGenAction, statusChip } from "./statusText";
@@ -53,6 +53,7 @@ function chipOf(liveTask: { st: string } | undefined, st: string): { cls: string
 
 /** 生成会话条:绑定会话在表 = 可打开干涉;已退出 = 只读标识。 */
 function GenSessionBar({ sessionId, engine }: { sessionId?: string; engine?: string }) {
+  useHost(); /* 订阅面(L15):会话退出即重渲染,live 判定不再僵死在旧表 */
   if (!sessionId) return null;
   const live = host.getSessions().some((s) => s.id === sessionId);
   return (
@@ -109,8 +110,22 @@ function GenAction({ y, m, d, st, hasArticle, rows, summarizedAt }: { y: number;
   );
 }
 
-function DaySessions({ rows, summarizedAt }: { rows: DaySessionRow[]; summarizedAt?: number }) {
+function DaySessions({ rows, summarizedAt, workspaces }: { rows: DaySessionRow[]; summarizedAt?: number; workspaces: readonly { id: string; root: string }[] }) {
+  useHost(); /* 订阅面:活行身份绑定(getCliSessionId)与退出随时刷新 */
   if (rows.length === 0) return null;
+  /* 转录链接装配:引擎支持转录 + 查看器在册才有;活行经已绑定磁盘身份定位。 */
+  const viewOf = (r: DaySessionRow): (() => void) | undefined => {
+    const profile = host.getCliProfile(r.profileId);
+    const cliSessionId = r.disk?.id ?? (r.id !== undefined ? host.getCliSessionId(r.id) : undefined);
+    if (!profile?.readSessionTranscript || !isSessionViewAvailable() || !cliSessionId) return undefined;
+    const ws = workspaces.find((w) => w.id === r.wsId);
+    const cwd = r.live && r.id ? host.getSessions().find((s) => s.id === r.id)?.cwd : ws?.root;
+    return () =>
+      openSessionViewTab({
+        profileId: r.profileId, cliSessionId, title: r.title,
+        path: r.disk?.path, cwd,
+      });
+  };
   return (
     <div className="dj-day-sessions">
       <h4>
@@ -124,6 +139,7 @@ function DaySessions({ rows, summarizedAt }: { rows: DaySessionRow[]; summarized
       </h4>
       {rows.map((r) => {
         const done = isRowSummarized(r, summarizedAt);
+        const view = viewOf(r);
         return (
           <div key={`${r.profileId}-${r.startedAt}`} className="dj-ds-row">
             <EngMark id={r.profileId} />
@@ -132,6 +148,14 @@ function DaySessions({ rows, summarizedAt }: { rows: DaySessionRow[]; summarized
               {r.live ? ` · ${t("会话进行中")}` : ""}
             </span>
             <span className="dj-ds-ws">{r.wsName}</span>
+            <button type="button" className="dj-ds-link" onClick={() => openDaySessionRow(r, workspaces)}>
+              {t("打开会话")}
+            </button>
+            {view && (
+              <button type="button" className="dj-ds-link" onClick={view}>
+                {t("查看转录")}
+              </button>
+            )}
             {summarizedAt !== undefined && (
               <span className={`dj-chip ${done ? "" : "dj-chip-p"}`}>{done ? t("已归纳") : t("待归纳")}</span>
             )}
@@ -168,61 +192,27 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   const liveTask = tasks.find((tk) => tk.dayKey === key && (tk.st === "run" || tk.st === "queue"));
   const chip = chipOf(liveTask, st);
   const [lightbox, setLightbox] = useState<DayNoteImage | null>(null);
-  useHolidays();
-  /* 昨日未完聚合(仅昨日 tab):两桶行集(昨日桶活行 + 全表昨日最后写入盘行,
-   * unfinishedPanelRows)+ 当月 ≤ 昨日便签(勾选过滤单点在 collectUnfinished)。
-   * ponytail: 便签只扫当月;更早月份不遍历,真需要再开。 */
-  const isYesterday = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return key === `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  })();
-  const panelRows = useMemo(() => {
-    if (!isYesterday || !sessions) return [];
-    return unfinishedPanelRows(
-      sessions,
-      key,
-      new Date(y, m - 1, p.d).getTime(),
-      new Date(y, m - 1, p.d + 1).getTime(),
-    );
-  }, [isYesterday, sessions, key, y, m, p.d]);
-  const yesterdayNotes = useMemo<readonly (readonly [string, DayNote])[]>(
-    () =>
-      isYesterday
-        ? Object.entries(snap?.notes ?? {})
-            .filter(([dd]) => Number(dd) <= p.d)
-            .map(([dd, n]) => [dd, n] as const)
-        : [],
-    [isYesterday, snap, p.d],
-  );
-  /* 会话引用链接面:当日行集四段归一键 → 续聊/聚焦(枚举校验在 sessionRef)。 */
-  const sessionLinks: SessionLinkHost | undefined = useMemo(() => {
-    if (!rows || rows.length === 0) return undefined;
-    const byKey = new Map(rows.map((r) => [sessionRefKey(hmOf(r.startedAt), r.profileId, r.title), r]));
-    return {
-      isValid: (k: string) => byKey.has(k),
-      open: (k: string) => {
-        const r = byKey.get(k);
-        if (!r) return;
-        if (r.live && r.id) requestSessionReveal(r.id);
-        else if (r.disk) {
-          const ws = workspaces.find((w) => w.id === r.wsId);
-          /* 工作区已删(扫描缓存 60s 窗内):空 cwd 只会在 app 目录开垃圾会话,不续。 */
-          if (!ws) return;
-          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
-          void host.openDiskSession(r.profileId, ws.root, ws.id, r.disk.id);
-        }
-      },
-    };
-    // host/hmOf/requestSessionReveal 为模块级稳定引用,不入依赖
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, workspaces]);
-  /* 便签编辑重入信号:mount 时 autoEdit 起始,同 tab 深链 refresh(payload 换引用)
-     再跳变 —— 取消后再点同空日也能重新进入编辑态。 */
-  const [editSignal, setEditSignal] = useState(() => (p.autoEdit ? 1 : 0));
+  /* 脏稿统一持有(评审 M1):NoteEditor 上浮的脏态镜像 kernel tab 脏圆点
+   * (updateTab 既有通道,文件 tab 同款)—— keepAlive 下切走不清点,圆点持续指认
+   * 哪个页签有未保存草稿;卸载(= 关页签)时清点兜底。重开带草稿空日的放行
+   * 确认在 ArticleOpenGateHost(JournalTab),闸判据即此 dirty。 */
+  const [dirty, setDirty] = useState(false);
+  const handleDirty = useCallback((v: boolean) => setDirty(v), []);
   useEffect(() => {
-    if ((tab.payload as ArticleTabPayload).autoEdit) setEditSignal((v) => v + 1);
-  }, [tab.payload]);
+    updateTab(tab.id, { dirty });
+  }, [tab.id, dirty]);
+  useEffect(
+    () => () => updateTab(tab.id, { dirty: false }),
+    [tab.id],
+  );
+  useHolidays();
+  /* 昨日未完聚合(仅昨日 tab):行集/便签口径在 useYesterdayAggregates(文件尾)。 */
+  const { isYesterday, panelRows, yesterdayNotes } = useYesterdayAggregates({ sessions, snap, key, y, m, d: p.d });
+  /* 会话引用链接面:当日行集四段归一键 → 续聊/聚焦(构建器在 sessionRef)。 */
+  const sessionLinks = buildSessionLinks(rows, workspaces);
+  /* 便签编辑重入信号:mount 时 autoEdit 起始,深链 refresh 再跳变(契约在 journalTabs);
+     重挂即重开,脏态同步归零(放行闸判据,提交后评审 M2)。 */
+  const editSignal = useArticleEditSignal(tab, () => setDirty(false));
   if (!snap || !rows)
     return (
       <div className="dj-article dj-article-loading">
@@ -251,9 +241,9 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
           {isYesterday && (
             <UnfinishedPanel y={y} m={m} rows={panelRows} notes={yesterdayNotes} workspaces={workspaces} />
           )}
-          <NoteEditor key={editSignal} y={y} m={m} d={p.d} note={note} signal={editSignal} onImageOpen={setLightbox} />
+          <NoteEditor key={editSignal} y={y} m={m} d={p.d} note={note} signal={editSignal} onDirtyChange={handleDirty} onImageOpen={setLightbox} />
           {article && <ArticleBody article={article} sessionLinks={sessionLinks} />}
-          <DaySessions rows={rows} summarizedAt={meta.summarizedAt} />
+          <DaySessions rows={rows} summarizedAt={meta.summarizedAt} workspaces={workspaces} />
           <DayLinks rows={rows} />
           <BeadStrip beads={meta.beads} />
           {lightbox && noteImageUrl(lightbox.file) && (
@@ -263,4 +253,45 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
       </div>
     </div>
   );
+}
+
+/** 昨日未完聚合三件套(从 ArticleTab 拆出守组件复杂度):是否昨日 tab、
+ *  活行/盘行两桶(panelRows)、当月 ≤ 昨日便签(yesterdayNotes)。
+ *  ponytail: 便签只扫当月;更早月份不遍历,真需要再开。 */
+function useYesterdayAggregates({ sessions, snap, key, y, m, d }: {
+  sessions: Map<string, DaySessionRow[]> | null;
+  snap: { notes: Record<string, DayNote> } | undefined;
+  key: string;
+  y: number;
+  m: number;
+  d: number;
+}): {
+  isYesterday: boolean;
+  panelRows: DaySessionRow[];
+  yesterdayNotes: readonly (readonly [string, DayNote])[];
+} {
+  const isYesterday = (() => {
+    const t = new Date();
+    t.setDate(t.getDate() - 1);
+    return key === `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+  })();
+  const panelRows = useMemo(() => {
+    if (!isYesterday || !sessions) return [];
+    return unfinishedPanelRows(
+      sessions,
+      key,
+      new Date(y, m - 1, d).getTime(),
+      new Date(y, m - 1, d + 1).getTime(),
+    );
+  }, [isYesterday, sessions, key, y, m, d]);
+  const yesterdayNotes = useMemo<readonly (readonly [string, DayNote])[]>(
+    () =>
+      isYesterday
+        ? Object.entries(snap?.notes ?? {})
+            .filter(([dd]) => Number(dd) <= d)
+            .map(([dd, n]) => [dd, n] as const)
+        : [],
+    [isYesterday, snap, d],
+  );
+  return { isYesterday, panelRows, yesterdayNotes };
 }

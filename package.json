@@ -1,6 +1,6 @@
 {
   "name": "tmd-cli",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Plugin-based multi-CLI desktop client. Raw terminal canvas + rich composer.",
   "author": "Chen Xiangning",
   "homepage": "https://github.com/chenxiangning/tmd-cli#readme",
@@ -25,6 +25,7 @@
     "check:file-size": "node scripts/check-file-size.mjs",
     "check:arch-boundary": "node scripts/check-arch-boundary.mjs",
     "check:i18n-keys": "node scripts/check-i18n-keys.mjs",
+    "check:gate": "pnpm check:file-size && pnpm check:arch-boundary && pnpm check:i18n-keys && pnpm typecheck && pnpm test && pnpm build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",

@@ -89,7 +89,10 @@ export function TaskFormView({
             ref={titleRef} value={title}
             placeholder={t("要做什么…")}
             onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
+            onKeyDown={(e) => {
+              /* IME 组词回车(中文选词确认)不提交(kernel/shortcuts 纪律)。 */
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
+            }}
           />
         </label>
         <label className="wb-field">

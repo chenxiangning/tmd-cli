@@ -51,6 +51,8 @@ tmd-cli 是一个基于 **Tauri 2 + React + xterm.js + PTY** 的桌面应用，�
 
 ![审批线](docs/images/screenshot-checkpoints.png)
 
+**工作台** —— 中央 tab 多项目任务/进展/文档管理:任务看板五态状态机(泳道拖拽改态、已完成列收起)、任务执行记录(AI 会话按约定只追加回写)、「聚焦」页签三段要务(要处理 / 接下来 14 天 / 项目脉搏)、「工作日志」年月轴三视图、生成文档流水线 docgen(模板 × 事实源 × 周期,无头会话生成 + 版本链溯源)
+
 **插件市场(插排)** —— 内置 40 位可视插拔(CLI 引擎 10 / 界面功能 30;另有核心系统 3 焊死与本机插件加载器,共 44 注册),界面功能细分六子组横带铺排;重启生效;本机插件(`~/.tmd-cli/plugins/`)免重启装载、对话即变自动重扫;在线市场入口预留
 
 ![插件市场](docs/images/screenshot-plugin-market.png)
@@ -196,13 +198,13 @@ pnpm check:i18n-keys      # i18n 三语键位校验（CI 强制）
 
 从 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 获取对应平台安装包。产物由 CI 在推送 `v*` tag 时自动构建(macOS 分架构 aarch64/x86_64 + Android APK + iOS 未签名包 / Windows x86_64 / Linux x86_64),以 Draft Release 形式落盘,确认后发布。
 
-当前 v0.3.0 产物矩阵:
+当前 v0.3.6 产物矩阵:
 
 | 平台 | 产物 |
 |---|---|
-| macOS(aarch64 / x86_64 双架构) | `tmd-cli_0.3.0_aarch64.dmg`、`tmd-cli_0.3.0_x64.dmg`、`tmd-cli_aarch64.app.tar.gz`、`tmd-cli_x64.app.tar.gz`(updater 签名产物) |
-| Windows(x86_64) | `tmd-cli_0.3.0_x64-setup.exe`(NSIS)、`tmd-cli_0.3.0_x64_en-US.msi` |
-| Linux(x86_64) | `tmd-cli_0.3.0_amd64.AppImage`、`tmd-cli_0.3.0_amd64.deb`、`tmd-cli-0.3.0-1.x86_64.rpm` |
+| macOS(aarch64 / x86_64 双架构) | `tmd-cli_0.3.6_aarch64.dmg`、`tmd-cli_0.3.6_x64.dmg`、`tmd-cli_aarch64.app.tar.gz`、`tmd-cli_x64.app.tar.gz`(updater 签名产物) |
+| Windows(x86_64) | `tmd-cli_0.3.6_x64-setup.exe`(NSIS)、`tmd-cli_0.3.6_x64_en-US.msi` |
+| Linux(x86_64) | `tmd-cli_0.3.6_amd64.AppImage`、`tmd-cli_0.3.6_amd64.deb`、`tmd-cli-0.3.6-1.x86_64.rpm` |
 
 当前产物默认未签名 / 未公证:macOS 首次打开需在「系统设置 → 隐私与安全性」手动放行。Release 管道已支持 macOS 代码签名 + 公证(配置 `APPLE_*` repo secrets 即自动启用,见 release.yml);Windows 签名待证书采购形态拍板后接线。
 
@@ -240,7 +242,7 @@ pnpm check:i18n-keys      # i18n 三语键位校验（CI 强制）
 
 ## 当前状态
 
-已落地:插件宿主与插件市场(44 个注册插件:CLI 引擎 10 + 界面功能 30 + 核心 3 + 本机插件加载器,界面功能六子组横带铺排)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页(泵自适应聚合窗 + 后台慢拍降档)、xterm 幕布(右上工具行:结构化切换 / 单会话刷新重建)、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/tok/s 响应均速 pill/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符子串匹配/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste/技能与 MCP 直达图标,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、发送二次确认(目标卡 + 内容预览,广播并列展示)、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/PR 一键创建/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库/高危红标,时间线节点一键复制原文)、主题引擎(31 个 VS Code preset + 六套 tmd 原创低饱和主题)与设计系统 token 阶梯(字号/间距/圆角/动效 + Empty/Spinner/错误契约三原语,原生弹窗清零)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出(幕布钉底光标纪律)、Web 访问与手机 App(设备扫码配对与 token 授权、内网直连 / Cloudflare / 自建中继一键 SSH 部署 + TLS 证书钉住、直连 WS 心跳保活;iOS / Android 原生壳:卡片化首页 / 实况+transcript 对话分层(markdown / 工具折叠组 / 随流生长)/ 三态胶囊输入区与选图拍照上传 / 审批卡 / 两行快捷键条 / 横屏 / Git 面板 / 历史续聊;浏览器带 token 地址即用)、文件标记(marks)、全文搜索与文件快开、会话看板、LSP 语义跳转(cmd+点击 F12/⇧F12/hover,四语言;peek/hover Prism 配色渲染)、会话历史检索 ⌘O、跨引擎接力(含异常退出卡接力)、审批收件箱(omp select/multi 结构化问卷卡 + ask 历史会话绑定)、提示词增强、CLI 学堂(九家课程)、系统通知(notify)、异常退出 toast 与一键续聊、会话卫生清扫、Worktree 关联管理(面板常驻工作树区 + 分支归属三分区 + 侧栏归簇)、技能中心(十家技能扫描 / ClawHub 商店 / 本地导入 / 安装记录闭环)、MCP 中心(六家配置管理与三源商店 / mcp_probe 探活)、意图画布(Excalidraw 白板 / 结构化上下文注入 / AI 作画收件箱闭环 ⌘⌥I)、会话查看器(六族转录零 PTY 只读查看 + 齿轮环形动作四类行统一)、每日工作日志(年/月/轴三视图 + AI 汇总文章 + 便签 + 后台队列)、结构化会话(omp/pi --mode rpc token 级流式,幕布|结构化双视图与审批卡直答,契约见 architecture/19)、渲染健康守望(WKWebView 吊销粘死自愈:rAF 探针 / 壳侧 reload 阶梯 / 洪水降级宽限 / 后台慢拍 / 数据链停滞探针)、图标装饰 34 键取色呼吸与五套图标组合切换(中央 tab 徽标随组合)、右缘面板 rail(四簇归组 + 竖排签名 + 面板 icon 可逆折叠 + hub 联动中央 tab)、左缘工具 rail(看板/市场/回首页/工作区切换 + 底部网络代理)、左下工作区显隐多选与界面缩放 ⌘+/⌘−/⌘0 键位。
+已落地:插件宿主与插件市场(44 个注册插件:CLI 引擎 10 + 界面功能 30 + 核心 3 + 本机插件加载器,界面功能六子组横带铺排)、十 CLI profile(omp/pi/kimi/codex/claude/grok/qoder/qoder-cn/dsh/opencode)+ SSH 一等会话(russh 引擎)+ 内置终端(kind=shell)、PTY 全生命周期与会话输出落盘翻页(泵自适应聚合窗 + 后台慢拍降档)、xterm 幕布(右上工具行:结构化切换 / 单会话刷新重建)、工作区 FLUX 时间轴会话列表(呼吸灯/状态 label/tok/s 响应均速 pill/置顶/预算分页/自定分组)、顶栏会话 tab 条与会话 tab 平铺显示、Composer 全量(触发符子串匹配/拖拽/截图/命令抽屉 v3/消息锚点栏/Quota/bracketed-paste/技能与 MCP 直达图标,触发补全以 CLI 为真相源)、智能体/提示词资产库(!! / ## 消费)、CLI 独立配置(图形化编辑各 CLI 配置文件,模型角色路由 / 撞墙回退链)、本机插件(~/.tmd-cli/plugins/ 免重启装载 / 对话造插件 / 版本回退)、Ask 等待确认检测(字节流 + 屏幕态双通道)与双路提示音、发送二次确认(目标卡 + 内容预览,广播并列展示)、右栏 Git 面板全量(差异/分支/历史 Graph 化/提交 diff 中央 tab 双栏并排/远端 fetch/pull/push/PR 一键创建/三区拖选批量与未跟踪删除)、文件树 + CodeMirror 编辑器 + 文件渲染档案(图片/PDF/表格/docx/结构化)+ Markdown 预览、文件 tab 右键菜单与编辑区最大化、审批线(checkpoints 账本:双归因/回退/应用/反悔/影子对象库/高危红标,时间线节点一键复制原文)、主题引擎(31 个 VS Code preset + 六套 tmd 原创低饱和主题)与设计系统 token 阶梯(字号/间距/圆角/动效 + Empty/Spinner/错误契约三原语,原生弹窗清零)、全局界面字号与界面缩放、网络代理、欢迎页引擎选择器(全动作行 / RESUME / QUOTA / TOKENS)、只读 session 状态栏、全局快捷键与可视化改键、版本号弹窗与自动更新、记忆协调(Memory 面板 FTS 检索 / 胶囊 / 控制台)、Git 分支右键菜单与远端操作对话框、会话 tab 右键菜单、WSL 支持(本机 UNC + 远程 SSH 宿主 M1:连接/会话/历史/状态/只读文件通道)、工作区壁纸(本地图库 + 流体着色器,表面 token 打穿 + xterm 透底)、omp 历史会话预热接管秒开、dsh 会话流式输出(幕布钉底光标纪律)、Web 访问与手机 App(设备扫码配对与 token 授权、内网直连 / Cloudflare / 自建中继一键 SSH 部署 + TLS 证书钉住、直连 WS 心跳保活;iOS / Android 原生壳:卡片化首页 / 实况+transcript 对话分层(markdown / 工具折叠组 / 随流生长)/ 三态胶囊输入区与选图拍照上传 / 审批卡 / 两行快捷键条 / 横屏 / Git 面板 / 历史续聊;浏览器带 token 地址即用)、文件标记(marks)、全文搜索与文件快开、会话看板、LSP 语义跳转(cmd+点击 F12/⇧F12/hover,四语言;peek/hover Prism 配色渲染)、会话历史检索 ⌘O、跨引擎接力(含异常退出卡接力)、审批收件箱(omp select/multi 结构化问卷卡 + ask 历史会话绑定)、提示词增强、CLI 学堂(九家课程)、系统通知(notify)、异常退出 toast 与一键续聊、会话卫生清扫、Worktree 关联管理(面板常驻工作树区 + 分支归属三分区 + 侧栏归簇)、技能中心(十家技能扫描 / ClawHub 商店 / 本地导入 / 安装记录闭环)、MCP 中心(六家配置管理与三源商店 / mcp_probe 探活)、意图画布(Excalidraw 白板 / 结构化上下文注入 / AI 作画收件箱闭环 ⌘⌥I)、会话查看器(六族转录零 PTY 只读查看 + 齿轮环形动作四类行统一)、每日工作日志(年/月/轴三视图 + AI 汇总文章 + 便签 + 后台队列)、结构化会话(omp/pi --mode rpc token 级流式,幕布|结构化双视图与审批卡直答,契约见 architecture/19)、渲染健康守望(WKWebView 吊销粘死自愈:rAF 探针 / 壳侧 reload 阶梯 / 洪水降级宽限 / 后台慢拍 / 数据链停滞探针)、图标装饰 34 键取色呼吸与五套图标组合切换(中央 tab 徽标随组合)、右缘面板 rail(四簇归组 + 竖排签名 + 面板 icon 可逆折叠 + hub 联动中央 tab)、左缘工具 rail(看板/市场/回首页/工作区切换 + 底部网络代理)、左下工作区显隐多选与界面缩放 ⌘+/⌘−/⌘0 键位、工作台全域(多项目任务/进展/文档管理:五态看板泳道拖拽改态、AI 回写执行记录、「聚焦」页签三段要务、工作日志年月轴、docgen 模板×事实源生成文档流水线与版本链溯源)。
 
 进行中:mobile M2 真机验收(余 7 项,openspec/changes/2026-09-22-mobile-app-m2-light-interaction)与 CLI 交互式兼容性验证;签名管道 macOS 就绪待 secrets(openspec/changes/2026-09-26-signing-pipeline);skill-hub / mcp-hub 变更契约待归档;其余已落地契约归档于 openspec/changes/archive/。
 

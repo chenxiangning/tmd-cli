@@ -24,6 +24,9 @@ export function attachJournal(ctx: PluginContext): () => void {
   });
   bindTaskPersistence(setMetaTasks);
   const offSchedule = bootJournalSchedule(ctx.events, ready);
-  ctx.registerTabContent({ kind: ARTICLE_TAB_KIND, component: ArticleTab, icon: CalendarCheck });
+  /* keepAlive(评审 M1):便签草稿在组件态里,切走页签不再卸载 —— 切日/切月/
+   * 去主视图导航草稿全存活;唯一丢稿路径(重开带草稿空日 autoEdit 重挂)由
+   * openArticleTab 的 WbConfirm 闸把关,真正关闭仍由内核 tab 条负责。 */
+  ctx.registerTabContent({ kind: ARTICLE_TAB_KIND, component: ArticleTab, icon: CalendarCheck, keepAlive: true });
   return offSchedule;
 }

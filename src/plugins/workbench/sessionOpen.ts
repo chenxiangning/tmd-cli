@@ -7,31 +7,34 @@ import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import type { Project, ProjectTask } from "./types";
-import type { ProjectSessionRow } from "./useProjectSessions";
+import type { ProjectSessionsState } from "./useProjectSessions";
 
 /** 死关联找回:旧关联(host 版 < cliSessionId 回写机制)没存磁盘身份。
- *  按标题全等 → 创建时刻邻近(±5min,spawn≈link 时刻;CLI 改名场景)在
- *  绑定 cwd 的磁盘会话里找身份 resume;找不到才回落提示重关联。 */
+ *  判据 = 绑定 cwd 的磁盘会话 + 创建时刻邻近(±5min,spawn≈link 时刻);
+ *  任务标题对会话标题几乎必不命中(CLI 命名),不作判据。邻近命中唯一才
+ *  自动 resume,多候选即歧义,不赌——如实提示从侧栏手动打开。 */
 function recoverDeadLink(
   link: ProjectTask["sessions"][number],
   project: Project,
   workspaceId: string | undefined,
-  recent: ProjectSessionRow[] | null | undefined,
+  recent: ProjectSessionsState | null | undefined,
   onToast: (m: string) => void,
 ): void {
   const at = Date.parse(link.createdAt);
-  const cand = recent?.find((r) =>
-    r.title === link.title ||
-    (r.disk.createdAt !== undefined && Math.abs(r.disk.createdAt - at) <= 5 * 60_000),
+  const near = (recent?.rows ?? []).filter((r) =>
+    r.disk.createdAt !== undefined && Math.abs(r.disk.createdAt - at) <= 5 * 60_000,
   );
-  if (!cand || !project.cwd) {
-    onToast(t("会话已结束,可从列表移除后重新关联"));
+  if (near.length === 1 && project.cwd) {
+    const cand = near[0];
+    void host.openDiskSession(cand.profileId, project.cwd, workspaceId, cand.cliSessionId).then(
+      () => undefined,
+      () => onToast(t("打开会话失败")),
+    );
     return;
   }
-  void host.openDiskSession(cand.profileId, project.cwd, workspaceId, cand.cliSessionId).then(
-    () => undefined,
-    () => onToast(t("打开会话失败")),
-  );
+  onToast(near.length > 1
+    ? t("未找到原会话,请从侧栏手动打开")
+    : t("会话已结束,可从列表移除后重新关联"));
 }
 
 /** host 活会话先查注册表(已关 tab/被移除的 ref setActiveSession 是静默无效,
@@ -43,7 +46,7 @@ export function openLink(
   project: Project,
   workspaceId: string | undefined,
   onToast: (m: string) => void,
-  recent?: ProjectSessionRow[] | null,
+  recent?: ProjectSessionsState | null,
 ): void {
   /* 调用方均为用户点击行(任务详情/项目详情会话列表):先声明「要看会话」,
    * app-shell 摘最大化让幕布可见(见 kernel/events.ts sessionViewRequested 红线)。 */
@@ -81,5 +84,44 @@ export function openLink(
   void host.openDiskSession(link.profileId, project.cwd, workspaceId, link.ref).then(
     () => undefined,
     () => onToast(t("打开会话失败")),
+  );
+}
+
+/** 「在此目录开新会话」公共动作(项目详情会话页签与聚焦页脉搏行共一条路径):
+ *  引擎档位取该目录最近会话的 profile;三分 null=扫描中 / 空=真空或扫描失败 /
+ *  有=直接建。创建即声明「要看会话」并聚焦。onSettled 必调(调用方解禁用态)。 */
+export function createSessionHere(
+  project: Project,
+  workspaceId: string | undefined,
+  recent: ProjectSessionsState | null,
+  onToast: (m: string) => void,
+  onSettled: () => void,
+): void {
+  if (!project.cwd) {
+    onSettled();
+    return;
+  }
+  if (recent === null) {
+    onToast(t("正在扫描本地会话…"));
+    onSettled();
+    return;
+  }
+  if (recent.rows.length === 0) {
+    onToast(recent.failed
+      ? t("引擎会话扫描失败,列表可能不全。")
+      : t("该目录暂无可用引擎会话,请先在侧栏开过一次"));
+    onSettled();
+    return;
+  }
+  void host.createSession(recent.rows[0].profileId, project.cwd, workspaceId).then(
+    (meta) => {
+      host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
+      host.setActiveSession(meta.id);
+      onSettled();
+    },
+    () => {
+      onToast(t("创建会话失败"));
+      onSettled();
+    },
   );
 }

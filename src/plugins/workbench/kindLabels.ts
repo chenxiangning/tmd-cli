@@ -9,7 +9,12 @@ export const UPDATE_KIND_LABELS: Record<UpdateKind, string> = {
 };
 
 export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
-  todo: "待办", doing: "进行中", done: "已完成",
+  todo: "待办", doing: "进行中", review: "待验收", done: "已完成", cancelled: "已取消",
+};
+
+/** 推进钮标签(目标态口径):看板卡片与任务表共用。 */
+export const TASK_ADVANCE_LABELS: Readonly<Partial<Record<TaskStatus, string>>> = {
+  doing: "开始", review: "送验收", done: "完成",
 };
 
 export const DOC_KIND_LABELS: Record<DocKind, string> = {
@@ -19,4 +24,26 @@ export const DOC_KIND_LABELS: Record<DocKind, string> = {
 /** 附件大小 → 人读标签(KB/MB 感知;文档编辑器与任务详情共用一口径)。 */
 export function bytes(size: number): string {
   return size >= 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
+/** 执行记录时间戳 → 本地「MM-DD HH:mm」(ISO 是 UTC,裸 slice 会差时区;
+ *  非法输入回落原串截断,绝不抛)。 */
+export function formatUpdateAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16).replace("T", " ");
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 执行记录按发生时刻排序(asc=正序新在下 / desc=新在上,同刻按原串稳定)。
+ *  必须按解析时刻比:字符串直接比会在混合时区格式下乱序(2026-10-12 实证:
+ *  UTC 带偏移 13:44+00:00 与本地 21:35 混排);不可解析落 0 沉底。 */
+export function sortUpdates<T extends { at: string }>(updates: readonly T[], dir: "asc" | "desc"): T[] {
+  const atMs = (iso: string) => {
+    const ms = Date.parse(iso);
+    return Number.isNaN(ms) ? 0 : ms;
+  };
+  const cmp = (a: T, b: T) => atMs(b.at) - atMs(a.at) || b.at.localeCompare(a.at);
+  const sorted = [...updates].sort(cmp);
+  return dir === "desc" ? sorted : sorted.reverse();
 }

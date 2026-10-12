@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { ArrowClockwise, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { sortByRisk, todayISO } from "./analysis";
@@ -30,6 +31,7 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
   const { list: workspaces } = useWorkspaces();
   const [tab, setTab] = useState<WbTab>(payload?.tab === "docs" ? "docs" : "overview");
   const [docsFilter, setDocsFilter] = useState<string | null>(payload?.projectFilter ?? null);
+  const [boardFormOpen, setBoardFormOpen] = useState(false);
   const [docGen, setDocGen] = useState<{ locked: Project | null } | null>(null);
   const [lastPayload, setLastPayload] = useState(payload);
   /* 深链:openWorkbenchDocsTab 换 payload 重开本 tab → 页签与过滤跟移(渲染期调整)。 */
@@ -45,6 +47,8 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
   const [formOpen, setFormOpen] = useState(false);
   const [formProject, setFormProject] = useState<Project | null>(null);
   const [confirmClear, setConfirmClear] = useState<null | "all" | "samples">(null);
+  /* ✕ 关闭的是「这条」错误:换一条新错误(字符串不同)横幅重现,同文不重复打扰。 */
+  const [dismissedError, setDismissedError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   useTaskAutoStatus();
 
@@ -73,11 +77,14 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
 
   const today = todayISO();
   const filtered = useMemo(() => sortByRisk(projects, today).map((item) => item.project), [projects, today]);
+  /* 页签显式切换即复位一次性表单信号(防回看板时表单重弹)。 */
+  const switchTab = useCallback((next: WbTab) => { setTab(next); setBoardFormOpen(false); }, []);
   const screenProps: WbScreenProps = {
     projects: filtered,
     allProjects: projects,
     today,
     docsFilter,
+    boardFormOpen,
     onOpen: (id) => {
       const project = projects.find((item) => item.id === id);
       if (project) openProjectTab(project.id, project.name);
@@ -86,6 +93,9 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
     onLinkWorkspaces: linkWorkspaces,
     onToast: toast,
     onDocGen: (projectId) => setDocGen({ locked: projects.find((p) => p.id === projectId) ?? null }),
+    onTab: switchTab,
+    /* 聚焦页清净态「新建任务」:切看板并直接展开表单(一次性布尔,看板挂载即消费)。 */
+    onNewTask: () => { setTab("board"); setBoardFormOpen(true); },
   };
   const openForm = (project: Project | null) => {
     setFormProject(project);
@@ -123,10 +133,21 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
         />
       </header>
       {answer ? <AskAnswer answer={answer} projects={projects} onPick={openProjectTab} onClose={() => setAnswer(null)} /> : null}
-      {loadError ? <div className="wb-load-error">{t("数据加载失败")}:{loadError}</div> : null}
+      {loadError && dismissedError !== loadError ? (
+        <div className="wb-load-error">
+          <span className="wb-load-error-text">{t("数据加载失败")}:{loadError}</span>
+          <button
+            type="button" className="wb-btn wb-btn-xs" disabled={actions.refreshing}
+            onClick={() => { setDismissedError(null); actions.refreshNow(); }}
+          ><ArrowClockwise size={11} />{t("重试")}</button>
+          <button type="button" className="wb-btn wb-btn-xs" aria-label={t("关闭")} onClick={() => setDismissedError(loadError)}>
+            <X size={11} />
+          </button>
+        </div>
+      ) : null}
       <div className="wb-body">
         <main className="wb-main">
-          <WbTabBar tab={tab} onTab={setTab} />
+          <WbTabBar tab={tab} onTab={switchTab} />
           <WbScreen tab={tab} screenProps={screenProps} />
         </main>
       </div>
@@ -135,7 +156,9 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
           key={formProject?.id ?? "new"}
           project={formProject}
           onClose={() => setFormOpen(false)}
-          onSubmit={(values) => actions.submitForm(values).finally(() => setFormOpen(false))}
+          /* 关窗由 modal 自身 onSuccess 驱动(onSubmit.then(onClose));
+           * 失败留在窗内显示 wb-form-error,不丢稿。 */
+          onSubmit={actions.submitForm}
         />
       ) : null}
       {docGen ? (
@@ -204,7 +227,8 @@ function useWbActions(ctx: {
   };
   const refreshNow = () => {
     setRefreshing(true);
-    void reloadWorkbench().then(() => { setRefreshing(false); ctx.toast(t("已从磁盘同步")); });
+    /* finally 复位:失败走 store 错误横幅(可关闭/重试),同步钮不再永禁。 */
+    void reloadWorkbench().then(() => ctx.toast(t("已从磁盘同步"))).finally(() => setRefreshing(false));
   };
   return { submitForm, clearNow, clearSamplesNow, refreshNow, refreshing };
 }

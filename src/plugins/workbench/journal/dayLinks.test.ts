@@ -52,6 +52,7 @@ const task = (id: string, title: string, sessions: Project["tasks"][number]["ses
   updatedAt: "",
   attachments: [],
   sessions,
+  updates: [],
 });
 
 const projects: Project[] = [

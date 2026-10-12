@@ -172,7 +172,9 @@ async function runDocGen(task: DocGenTask): Promise<void> {
     void host.removeSession(meta.id);
     return;
   }
-  startDocGenTaskRun(task.id, meta.id, `${t("模型生成")} · ${headless ? t("无头生成") : t("生成会话")} ${meta.id}`);
+  /* run 文本进列表 chip 与 journal 任务行:不带会话 id(40 位无断点串会把
+   * dg-chip 撑破整列,打开会话走 task.sessionId,id 在此处无消费)。 */
+  startDocGenTaskRun(task.id, meta.id, `${t("模型生成")} · ${headless ? t("无头生成") : t("生成会话")}`);
   if (!headless) {
     await sleep(1200);
     const payload = prepareSendPayload({ ...profile, triggers: [] }, prompt);

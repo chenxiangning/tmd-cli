@@ -9,6 +9,7 @@
  */
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
+import { t } from "@kernel/i18n";
 import { updateTab } from "@kernel/tabs";
 import { prepareSendPayload } from "@kernel/profileSend";
 import type { SessionMeta } from "@kernel/ipc";
@@ -30,18 +31,10 @@ import { ensureWorkbenchLoaded, workbenchSnapshot } from "../store";
 import { dayProjectLinks } from "./dayLinks";
 import type { ProjectPromptGroup } from "./promptGen";
 import type { ProjectDigestGroup } from "./sessionDigest";
-
 /** 结算超时:prompt 送达后无 settle 判失败的兜底。摘录路径成文仍是短链(读一份
  *  摘录 + 写一篇 md),但四点式契约的文章体量与摘录读入都比旧清单路径长,放宽到 15 分;
  *  失败任务尽早离开运行区,不堵串行队列。 */
 const SETTLE_TIMEOUT_MS = 15 * 60_000;
-
-/** 定时等待(spawn 后等 TUI 就绪窗)。 */
-function sleep(ms: number): Promise<void> {
-  const { promise, resolve } = Promise.withResolvers<void>();
-  setTimeout(resolve, ms);
-  return promise;
-}
 
 interface PendingSettle {
   taskId: number;
@@ -55,8 +48,6 @@ interface PendingSettle {
   poll: number;
   /** 文章绝对路径(runGeneration 解析一次,轮询免重复 dailyPaths)。 */
   articlePath: string;
-  /** 定时族(定时生成/启动补跑/补齐生成):失败要落「尝试过」珠防 15min 重入队。 */
-  scheduled: boolean;
   type: string;
   /** 会话清单抓取时刻(ms);成功结算时落 DayMeta.summarizedAt。 */
   rowsAt: number;
@@ -64,8 +55,14 @@ interface PendingSettle {
 
 const pending = new Map<string, PendingSettle>(); /* sessionId → 结算 */
 
-/** 会话提前退出(无头=正常完工信号,成败以文章为准)。 */
-const EXIT_NO_ARTICLE = "会话退出但未产出文章(可重试)";
+/** 失败落账统一口(评审 M7):任务终态 + 日错误;定时族补失败珠 —— 幂等闸只认珠,
+ *  早退不落珠则 15min tick 持续重入队(最坏 ~96 次 spawn/天)。 */
+function failGen(taskId: number, dayKey: string, type: string, text: string): void {
+  finishTask(taskId, false, text);
+  setDayResult(dayKey, { lastError: text });
+  if (type === "定时生成" || type === "启动补跑" || type === "补齐生成")
+    addBead(dayKey, { t: hmNow(), label: `${type} · ${t("失败")}` });
+}
 
 /** 终态判定:文章在 = 成功(回写 tab 标题);不在 = 失败落账(定时族补失败珠防重入队)。 */
 async function finalize(p: PendingSettle, failText: string | null): Promise<void> {
@@ -87,9 +84,7 @@ async function finalize(p: PendingSettle, failText: string | null): Promise<void
     updateTab(`${ARTICLE_TAB_KIND}:${p.dayKey}`, { title: article.title.slice(0, 24) });
     return;
   }
-  finishTask(p.taskId, false, failText ?? EXIT_NO_ARTICLE);
-  setDayResult(p.dayKey, { lastError: failText ?? EXIT_NO_ARTICLE });
-  if (p.scheduled) addBead(p.dayKey, { t: hmNow(), label: `${p.type} · 失败` }); /* 幂等闸覆盖「尝试过」 */
+  failGen(p.taskId, p.dayKey, p.type, failText ?? t("会话退出但未产出文章(可重试)"));
 }
 
 /** turnSettled 到来但文章未现:内核存在假结算窗(长 TTFB/引擎无 busy 标记),
@@ -134,14 +129,19 @@ function abortRun(task: GenTask): void {
 
 /** activate 时装配:执行体注入 + 内核事件接线。返回退订。 */
 export function bootGenSession(events: PluginEventBus): () => void {
-  setTaskRunner(runGeneration, abortRun);
+  /* 兜预结算段抛错(createSession/prompt 落盘等拒绝):不接住会绕过 failGen——任务只 patch
+   * err 不落珠,定时族每 15min 重入队且当日无错可显。 */
+  setTaskRunner((task) => runGeneration(task).catch((e: unknown) => {
+    if (!isTaskActive(task.id)) return; /* 显式早退已 failGen,取消竞态不重复落账 */
+    failGen(task.id, task.dayKey, task.type, `${t("生成会话异常")}:${e instanceof Error ? e.message : String(e)}`);
+  }), abortRun);
   const offSettled = events.on<{ sessionId: string }>(KernelTopics.turnSettled, (e) => {
     const p = pending.get(e.sessionId);
     if (p) void onSettled(p);
   });
   const offExited = events.on<string>(KernelTopics.sessionExited, (sessionId) => {
     const p = pending.get(sessionId);
-    if (p) void finalize(p, EXIT_NO_ARTICLE);
+    if (p) void finalize(p, t("会话退出但未产出文章(可重试)"));
   });
   /* 文件写入事件命中当日文章:延迟 8s 结算(容忍 agent 随后的补充改写)。 */
   const offEdit = events.on<{ sessionId: string; paths: string[] }>(KernelTopics.fileEditDetected, (e) => {
@@ -163,13 +163,19 @@ async function runGeneration(task: GenTask): Promise<void> {
   const ws = getWorkspaces().find((w) => !findWorkspaceOrigin(w)?.remoteExec);
   const profile = host.getCliProfiles().find((p) => p.id === task.engine);
   if (!ws || !profile) {
-    finishTask(task.id, false, !ws ? "无本地工作区" : `引擎 ${task.engine} 不可用`);
-    setDayResult(task.dayKey, { lastError: !ws ? "无本地工作区" : `引擎 ${task.engine} 不可用` });
+    failGen(task.id, task.dayKey, task.type, !ws ? t("无本地工作区") : t("引擎 {engine} 不可用", { engine: task.engine }));
     return;
   }
   const paths = await dailyPaths();
   const existing = await readText(paths.article(y, m, d));
-  const rows = (await collectSessionRowsBatched()).filter((r: DaySessionRow) => {
+  /* 清单部分失败即中止:残缺清单落 summarizedAt 水位会把缺席会话永久错标「已归纳」(L19)。 */
+  let scanFailed = 0;
+  const collected = await collectSessionRowsBatched(undefined, (scan) => { scanFailed = scan.failed.length; });
+  if (scanFailed) {
+    failGen(task.id, task.dayKey, task.type, t("会话扫描部分失败,已中止本次生成(可重试)"));
+    return; /* 真中止:残缺清单不得继续走生成/结算,缺席会话会被永久错标已归纳(L19) */
+  }
+  const rows = collected.filter((r: DaySessionRow) => {
     if (rowDayKey(r) !== task.dayKey) return false;
     /* 自指防混入:剔除插件自己 spawn 的历次生成会话(标题即 prompt 头;
        摘录层另有首条用户消息同标记的兜底,见 sessionDigest)。
@@ -197,10 +203,9 @@ async function runGeneration(task: GenTask): Promise<void> {
   } catch {
     /* 降级:无分组生成 */
   }
-  /* 摘录先行:tmd 侧经声明的转录适配器提取当日会话内容落盘,生成会话凭它成文
-     (2026-09-30 重构:旧路径只给标题清单,agent 探测 7 家原始格式普遍放弃 → 文章单薄)。
-     增量语义:已归纳行(内容已在文章里)不重读转录,只摘新增;摘录构建/落盘失败
-     不拦生成:无摘录路径走 prompt 内置的清单降级。 */
+  /* 摘录先行:tmd 侧经声明的转录适配器提取当日会话内容落盘,生成会话凭它成文(2026-09-30 重构:
+     旧路径只给标题清单,agent 探测 7 家原始格式普遍放弃 → 文章单薄)。增量语义:已归纳行(内容已在
+     文章里)不重读转录,只摘新增;摘录构建/落盘失败不拦生成:无摘录路径走 prompt 内置的清单降级。 */
   const digestRows = summarizedAt !== undefined ? rows.filter((r) => !isRowSummarized(r, summarizedAt)) : rows;
   let digest: DigestHandoff | undefined;
   try {
@@ -233,23 +238,22 @@ async function runGeneration(task: GenTask): Promise<void> {
     model: getJournalState().config.model || undefined,
     ...(headless ? { oneshot: { promptFile: promptPath! } } : {}),
   });
-  /* 取消竞态检查点:createSession 是武装结算超时前唯一的无界等待段,挂起期间
-     被取消 → 会话落地即弃。先绑 sessionId 再进入等待窗,取消才收割得到会话。 */
+  /* 取消竞态检查点:createSession 是唯一无界等待段,先绑 sessionId 再进等待窗,取消才收割得到会话。 */
   if (!isTaskActive(task.id)) {
     void host.removeSession(meta.id);
     return;
   }
-  startTaskRun(task.id, meta.id, `${task.type} · ${headless ? "无头生成" : "生成会话"} ${meta.id}`);
+  /* run 文本进任务行 chip:不带会话 id(无断点长串撑破行布局;打开会话走 task.sessionId)。 */
+  startTaskRun(task.id, meta.id, `${task.type} · ${headless ? "无头生成" : "生成会话"}`);
   if (!headless) {
     /* TUI 路径(引擎无 oneshotArgs 声明):pi-tui 系冷启动窗 spawn 返回 ≠ TUI 就绪,
        过早写入会撞 cooked→raw 切换被吃。先等一拍再写(真机实证:立即写 → prompt
        以 [Paste] 悬在输入框永不提交)。 */
-    await sleep(1200);
+    await new Promise<void>((r) => setTimeout(r, 1200));
     const payload = prepareSendPayload({ ...profile, triggers: [] }, prompt);
     const sent = await host.writeSession(meta.id, payload);
     if (!sent) {
-      finishTask(task.id, false, "提示词未能送达(会话可能已退出)");
-      setDayResult(task.dayKey, { lastError: "提示词未能送达" });
+      failGen(task.id, task.dayKey, task.type, t("提示词未能送达(会话可能已退出)"));
       return;
     }
   } else if (profile.oneshotStdin) {
@@ -258,8 +262,7 @@ async function runGeneration(task: GenTask): Promise<void> {
        超 PTY 缓冲由读端流速自然排空,写端阻塞有 15 分硬顶兜底。 */
     const sent = await host.writeSession(meta.id, prompt);
     if (!sent) {
-      finishTask(task.id, false, "提示词未能送达(会话可能已退出)");
-      setDayResult(task.dayKey, { lastError: "提示词未能送达" });
+      failGen(task.id, task.dayKey, task.type, t("提示词未能送达(会话可能已退出)"));
       return;
     }
   }
@@ -275,12 +278,11 @@ async function runGeneration(task: GenTask): Promise<void> {
     timer: 0,
     poll: 0,
     articlePath: paths.article(y, m, d),
-    scheduled: task.type === "定时生成" || task.type === "启动补跑" || task.type === "补齐生成",
     type: task.type,
     rowsAt,
   };
   p.timer = window.setTimeout(() => {
-    void finalize(p, `生成超时(${SETTLE_TIMEOUT_MS / 60_000} 分钟无产出)`);
+    void finalize(p, t("生成超时({n} 分钟无产出)", { n: SETTLE_TIMEOUT_MS / 60_000 }));
   }, SETTLE_TIMEOUT_MS);
   pending.set(meta.id, p);
   startSettlePoll(p);

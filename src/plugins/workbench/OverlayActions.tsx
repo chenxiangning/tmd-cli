@@ -26,14 +26,21 @@ export function OverlayActions({
 }) {
   const [dataMenuOpen, setDataMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  /* 点外部收菜单(academyEntry 先例)。 */
+  /* 点外部收菜单(academyEntry 先例);Escape 收菜单(role=menu 的键盘最低契约)。 */
   useEffect(() => {
     if (!dataMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDataMenuOpen(false);
+    };
     const onDown = (e: PointerEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setDataMenuOpen(false);
     };
+    document.addEventListener("keydown", onKey);
     document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
   }, [dataMenuOpen]);
   const generate = () => {
     const samples = buildSampleProjects(today);
