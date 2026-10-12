@@ -197,6 +197,7 @@ export function normalizeProject(raw: unknown): Project {
                   profileId: str(link.profileId) ?? "",
                   title: str(link.title) ?? "",
                   createdAt: str(link.createdAt) ?? now,
+                  cliSessionId: str(link.cliSessionId),
                 };
               }).filter((link) => link.ref !== "")
             : [];

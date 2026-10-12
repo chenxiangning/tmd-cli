@@ -61,6 +61,8 @@ export function TaskDetailView({
 
   /* 快照经 useSyncExternalStore 已自动刷新,onChanged 桥是死的(2026-10-11 review 清除)。 */
   const setStatus = (status: TaskStatus) => runIpc(updateTask(project.id, task.id, { status }), onToast, t("任务已更新"));
+  /* 开新会话在途禁用:连点会重复建会话。 */
+  const [creating, setCreating] = useState(false);
   const saveDescription = () =>
     /* 成功才清 dirty:失败保留脏标记,保存钮可重试(吞错后仍清 = 按钮禁死)。 */
     void updateTask(project.id, task.id, { description }).then(
@@ -98,16 +100,25 @@ export function TaskDetailView({
     );
   };
   const startLinked = () => {
+    if (creating) return;
     if (!project.cwd) {
       onToast(t("项目未绑定目录;先在「编辑」里填 cwd 再开会话"));
       return;
     }
-    const profileId = recent?.[0]?.profileId;
-    if (!profileId) {
-      onToast(t("该目录暂无可用引擎会话,请先在侧栏开过一次"));
+    /* 三分:null=扫描中,空=真空/扫描失败,失败态如实提示。 */
+    if (recent === null) {
+      onToast(t("正在扫描本地会话…"));
       return;
     }
+    if (recent.rows.length === 0) {
+      onToast(recent.failed
+        ? t("引擎会话扫描失败,列表可能不全。")
+        : t("该目录暂无可用引擎会话,请先在侧栏开过一次"));
+      return;
+    }
+    const profileId = recent.rows[0].profileId;
     const promptText = taskPrompt(project, task);
+    setCreating(true);
     void host.createSession(profileId, project.cwd, workspaceId).then(
       (meta) => {
         /* 开新会话并关联 = 用户手势,摘最大化让幕布可见(遮盖统一)。 */
@@ -121,10 +132,12 @@ export function TaskDetailView({
           if (composerReplaceRef.current) composerReplaceRef.current(promptText);
           else queueComposerText(promptText);
         }, 120);
+        /* 关联写库失败不静默:会话已开但任务上看不到,必须提示。 */
         void linkTaskSession(project.id, task.id, { kind: "host", ref: meta.id, profileId, title: task.title, cliSessionId: host.getCliSessionId(meta.id) })
-          .catch(() => undefined);
+          .catch(() => onToast(t("会话已创建但关联失败")));
+        setCreating(false);
       },
-      () => onToast(t("创建会话失败")),
+      () => { onToast(t("创建会话失败")); setCreating(false); },
     );
   };
 
@@ -163,21 +176,27 @@ export function TaskDetailView({
           <section className="wb-taskdetail-sec">
             <h4>{t("关联会话")}<span className="wb-panel-sub">{task.sessions.length}</span></h4>
             <div className="wb-taskdetail-actions">
-              <button type="button" className="wb-btn wb-btn-primary" onClick={startLinked}>
+              <button type="button" className="wb-btn wb-btn-primary" onClick={startLinked} disabled={creating}>
                 <Plus size={12} />{t("开新会话并关联")}
               </button>
-              {recent && recent.length > 0 ? (
+              {recent && recent.rows.length > 0 ? (
                 <select
                   aria-label={t("关联已有会话")} defaultValue=""
                   onChange={(e) => {
-                    const row = recent.find((item) => item.key === e.target.value);
+                    const row = recent.rows.find((item) => item.key === e.target.value);
                     if (row) runIpc(linkTaskSession(project.id, task.id, { kind: "disk", ref: row.cliSessionId, profileId: row.profileId, title: row.title }), onToast, t("已关联会话"));
                     e.target.value = "";
                   }}
                 >
                   <option value="">{t("关联已有会话…")}</option>
-                  {recent.map((row) => <option key={row.key} value={row.key}>{row.title.slice(0, 40)}({row.profileName})</option>)}
+                  {recent.rows.map((row) => <option key={row.key} value={row.key}>{row.title.slice(0, 40)}({row.profileName})</option>)}
                 </select>
+              ) : null}
+              {recent?.failed ? (
+                <p className="wb-muted">
+                  {t("引擎会话扫描失败,列表可能不全。")}
+                  <button type="button" className="wb-link" onClick={recent.reload}>{t("重试")}</button>
+                </p>
               ) : null}
             </div>
             <ul className="wb-attach-list">

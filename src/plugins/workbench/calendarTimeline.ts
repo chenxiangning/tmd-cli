@@ -4,7 +4,9 @@
  * 跨度按项目起止自动取,补齐到周,最长 210 天。
  */
 
+import { t } from "@kernel/i18n";
 import { dayStart, openTasks, projectRisk, todayISO, daysLeft, type RiskInfo, type RiskTone } from "./analysis";
+import { RISK_LABELS } from "./insights";
 import type { Project } from "./types";
 
 const pad = (value: number): string => String(value).padStart(2, "0");
@@ -79,7 +81,7 @@ export function calendarMonth(
       if (project?.dueDate === iso) {
         const risk = projectRisk(project, today);
         items.push({
-          key: `${project.id}::due`, kind: "due", tone: risk.tone, label: risk.label,
+          key: `${project.id}::due`, kind: "due", tone: risk.tone, label: t(RISK_LABELS[risk.level]),
           title: project.name, projectId: project.id, module: project.module || "其他项目",
         });
       }
@@ -88,7 +90,7 @@ export function calendarMonth(
         const overdue = (daysLeft(iso, today) ?? 1) < 0;
         items.push({
           key: `${project.id}::${task.id}`, kind: "task", taskId: task.id,
-          tone: overdue ? "danger" : "muted", label: "任务", title: task.title,
+          tone: overdue ? "danger" : "muted", label: t("任务"), title: task.title,
           projectId: project.id, projectName: project.name, module: project.module || "其他项目",
         });
       }

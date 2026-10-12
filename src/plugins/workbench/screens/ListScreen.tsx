@@ -3,14 +3,15 @@
  */
 
 import { t } from "@kernel/i18n";
-import { formatRemaining, openTasks, projectRisk } from "../analysis";
+import { openTasks, projectRisk } from "../analysis";
 import { toneVar } from "../tone";
 import { WbEmpty, WbProgress } from "../ui";
-import type { WbScreenProps } from "./cards";
+import { RISK_LABELS, remainingText } from "../insights";
+import { type WbScreenProps } from "./cards";
 
 export function ListScreen({ projects, today, onOpen, onNewProject }: WbScreenProps) {
   if (projects.length === 0) {
-    return <WbEmpty text={t("当前筛选下没有项目。")}><button type="button" className="wb-btn" onClick={onNewProject}>{t("新建项目")}</button></WbEmpty>;
+    return <WbEmpty text={t("还没有项目。")}><button type="button" className="wb-btn" onClick={onNewProject}>{t("新建项目")}</button></WbEmpty>;
   }
   return (
     <div className="wb-table-wrap">
@@ -34,9 +35,9 @@ export function ListScreen({ projects, today, onOpen, onNewProject }: WbScreenPr
             return (
               <tr key={project.id}>
                 <td><button type="button" className="wb-link" onClick={() => onOpen(project.id)}>{project.name}</button></td>
-                <td>{project.module || "其他项目"}</td>
-                <td>{project.status}</td>
-                <td>{project.owner || "未指定"}</td>
+                <td>{project.module || t("其他项目")}</td>
+                <td>{t(project.status)}</td>
+                <td>{project.owner || t("未指定")}</td>
                 <td className="wb-table-progress">
                   {/* flex 不能落在 td 上:td 脱离 table-cell 后 vertical-align:middle 失效,
                       匿名单元格内按块顶排 = 进度线浮到行高上半部,与同行文字错位。 */}
@@ -46,8 +47,8 @@ export function ListScreen({ projects, today, onOpen, onNewProject }: WbScreenPr
                   </span>
                 </td>
                 <td>{project.dueDate ?? "—"}</td>
-                <td>{formatRemaining(project.dueDate, today)}</td>
-                <td><span style={{ color: toneVar(risk.tone) }}>{risk.label}</span></td>
+                <td>{remainingText(project.dueDate, today)}</td>
+                <td><span style={{ color: toneVar(risk.tone) }}>{t(RISK_LABELS[risk.level])}</span></td>
                 <td>{openTasks(project).length}</td>
               </tr>
             );

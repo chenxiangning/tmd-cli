@@ -8,11 +8,12 @@ import type { CSSProperties } from "react";
 import { timelineModel } from "../calendarTimeline";
 import { toneVar } from "../tone";
 import { WbEmpty } from "../ui";
+import { RISK_LABELS } from "../insights";
 import type { WbScreenProps } from "./cards";
 
 export function TimelineScreen({ projects, today, onOpen }: WbScreenProps) {
   const model = timelineModel(projects, today);
-  if (projects.length === 0) return <WbEmpty text={t("当前筛选下没有项目,时间线是空的。")} />;
+  if (projects.length === 0) return <WbEmpty text={t("还没有项目。")} />;
   return (
     <div className="wb-timeline">
       {model.padded ? <p className="wb-muted wb-tl-pad-hint">{t("项目跨度过长,只显示前 210 天。")}</p> : null}
@@ -31,7 +32,8 @@ export function TimelineScreen({ projects, today, onOpen }: WbScreenProps) {
                 <button
                   type="button"
                   className="wb-tl-bar"
-                  title={`${row.project.name}:${row.startIso} → ${row.endIso}(${row.risk.label})`}
+                  title={`${row.project.name}:${row.startIso} → ${row.endIso}(${t(RISK_LABELS[row.risk.level])})`}
+                  aria-label={`${row.project.name}: ${row.startIso} → ${row.endIso}(${t(RISK_LABELS[row.risk.level])})`}
                   style={{ left: `${row.leftPercent}%`, width: `${Math.max(row.widthPercent, 1.5)}%`, background: toneVar(row.risk.tone) }}
                   onClick={() => onOpen(row.project.id)}
                 />

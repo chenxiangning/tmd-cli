@@ -3,17 +3,21 @@
  * 行内勾完成 / 移进行中。
  */
 
+import { useState } from "react";
 import { t } from "@kernel/i18n";
+import { X } from "@phosphor-icons/react";
 import { followUpBuckets } from "../followUpBuckets";
 import { deleteTask, updateTask } from "../store";
 import { runIpc } from "../ipcToast";
 import { toneVar } from "../tone";
-import { WbEmpty } from "../ui";
+import { WbConfirm, WbEmpty } from "../ui";
 import type { WbScreenProps } from "./cards";
 
 export function FollowupsScreen({ projects, today, onOpen, onToast }: WbScreenProps) {
   const buckets = followUpBuckets(projects, today);
   const total = buckets.reduce((sum, bucket) => sum + bucket.total, 0);
+  /* 删除先确认:× 紧贴完成任务勾选区,单击即删曾误删。 */
+  const [askDelete, setAskDelete] = useState<{ projectId: string; taskId: string; title: string } | null>(null);
   if (total === 0) return <WbEmpty text={t("没有未完成任务,清清爽爽。")} />;
   return (
     <div className="wb-followups">
@@ -49,13 +53,26 @@ export function FollowupsScreen({ projects, today, onOpen, onToast }: WbScreenPr
                 ) : null}
                 <button
                   type="button" className="wb-btn wb-btn-xs" aria-label={t("删除")}
-                  onClick={() => runIpc(deleteTask(item.projectId, item.taskId), onToast, t("任务已删除"))}
-                >×</button>
+                  onClick={() => setAskDelete({ projectId: item.projectId, taskId: item.taskId, title: item.title })}
+                ><X size={11} /></button>
               </span>
             </div>
           ))}
         </section>
       ))}
+      {askDelete ? (
+        <WbConfirm
+          open
+          title={t("删除任务")}
+          body={t("将删除任务「{title}」及其附件,不可恢复。", { title: askDelete.title })}
+          confirmLabel={t("删除")}
+          onConfirm={() => {
+            runIpc(deleteTask(askDelete.projectId, askDelete.taskId), onToast, t("任务已删除"));
+            setAskDelete(null);
+          }}
+          onCancel={() => setAskDelete(null)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -12,7 +12,7 @@ import type { Project, ProjectDoc } from "./types";
 import { attachDocFile, createDoc, deleteDoc, detachDocFile, readDoc, saveDoc } from "./store";
 import { readDocDataUrl, fileToBase64, isImageAttachment, docAttachmentPath } from "./workbenchFiles";
 import { openFileInTab } from "@kernel/fileTabs";
-import { WbBadge, WbImgView, WbAttachmentSection } from "./ui";
+import { WbBadge, WbConfirm, WbImgView, WbAttachmentSection } from "./ui";
 import { DocEditor } from "./DocEditor";
 import { runIpc } from "./ipcToast";
 
@@ -29,8 +29,15 @@ export function DrawerDocsTab({ project, onToast }: { project: Project; onToast:
   const [titleDraft, setTitleDraft] = useState("");
   const [draft, setDraft] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [askDiscard, setAskDiscard] = useState(false);
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
   const openDoc = openDocId ? project.docs.find((d) => d.id === openDocId) ?? null : null;
+
+  /* 返回列表:脏稿先确认(journal NoteEditor 同款),干净态直通。 */
+  const closeEditor = () => {
+    if (dirty) { setAskDiscard(true); return; }
+    setOpenDocId(null);
+  };
 
   const openMarkdown = (doc: ProjectDoc) => {
     void readDoc(project.id, doc.id).then((text) => {
@@ -91,7 +98,7 @@ export function DrawerDocsTab({ project, onToast }: { project: Project; onToast:
     return (
       <div className="wb-docs is-editing">
         <div className="wb-doc-editor-head">
-          <button type="button" className="wb-btn" onClick={() => { setOpenDocId(null); setDirty(false); }}>
+          <button type="button" className="wb-btn" onClick={closeEditor}>
             <ArrowLeft size={12} />{t("返回列表")}
           </button>
           <input
@@ -119,6 +126,16 @@ export function DrawerDocsTab({ project, onToast }: { project: Project; onToast:
           onToast={onToast}
         />
         {preview ? <WbImgView name={preview.name} url={preview.url} onClose={() => setPreview(null)} /> : null}
+        {askDiscard ? (
+          <WbConfirm
+            open
+            title={t("丢弃修改")}
+            body={t("未保存的修改将丢失。")}
+            confirmLabel={t("丢弃")}
+            onConfirm={() => { setAskDiscard(false); setOpenDocId(null); setDirty(false); }}
+            onCancel={() => setAskDiscard(false)}
+          />
+        ) : null}
       </div>
     );
   }

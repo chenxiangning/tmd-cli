@@ -6,7 +6,7 @@
 
 import { t } from "@kernel/i18n";
 import { accentVar, toneVar } from "./tone";
-import type { ModuleLoad, OwnerLoad, ProgressBucket, RiskSlice } from "./insights";
+import { RISK_LABELS, type ModuleLoad, type OwnerLoad, type ProgressBucket, type RiskSlice } from "./insights";
 
 /** 风险分布环形图:多段圆弧,中心放总数。 */
 export function DonutChart({ slices, total }: { slices: RiskSlice[]; total: number }) {
@@ -30,7 +30,7 @@ export function DonutChart({ slices, total }: { slices: RiskSlice[]; total: numb
             strokeDashoffset={-offset}
             transform="rotate(-90 70 70)"
           >
-            <title>{`${slice.label} ${slice.count}`}</title>
+            <title>{`${t(RISK_LABELS[slice.level])} ${slice.count}`}</title>
           </circle>
         );
         offset += dash;
@@ -49,7 +49,7 @@ export function SliceLegend({ slices }: { slices: RiskSlice[] }) {
       {slices.map((slice) => (
         <li key={slice.level}>
           <i style={{ background: toneVar(slice.tone) }} />
-          <span>{slice.label}</span>
+          <span>{t(RISK_LABELS[slice.level])}</span>
           <b>{slice.count}</b>
         </li>
       ))}

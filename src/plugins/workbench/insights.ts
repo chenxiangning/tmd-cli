@@ -4,6 +4,8 @@
  * calendarTimeline.ts / followUpBuckets.ts,守 300 行铁则)。
  */
 
+import { t } from "@kernel/i18n";
+
 import {
   DANGER_LEVELS, RISK_LEVELS, RISK_META, WATCH_LEVELS, clampProgress, daysLeft, endOfWeek,
   moduleNames, openTasks, projectRisk, sortByRisk, todayISO,
@@ -146,15 +148,23 @@ export function ownerWorkload(projects: readonly Project[], today: string = toda
     .sort((a, b) => b.total - a.total || a.owner.localeCompare(b.owner, "zh-Hans-CN"));
 }
 
-/** 概览页顶部的一句话结论。 */
+/** 概览页顶部的一句话结论(整句模板走 i18n 词典;消费点渲染期调用,不固化语言)。 */
 export function headline(projects: readonly Project[], today: string = todayISO()): string {
   const data = kpis(projects, today);
-  if (data.total === 0) return "还没有项目,先登记几个再来看板。";
+  if (data.total === 0) return t("还没有项目,先登记几个再来看板。");
   if (data.overdue > 0) {
-    return `${data.total} 个项目里 ${data.overdue} 个已逾期、${data.danger} 个需要马上处理,先看「需关注」这一列。`;
+    return t("{total} 个项目里 {overdue} 个已逾期、{danger} 个需要马上处理,先看「需关注」这一列。", {
+      total: data.total, overdue: data.overdue, danger: data.danger,
+    });
   }
-  if (data.attention > 0) return `${data.total} 个项目整体在跑,${data.attention} 个需要盯一下,本周到期 ${data.weekDue} 个。`;
-  return `${data.total} 个项目节奏正常,平均进度 ${data.avgProgress}%,没有逾期项。`;
+  if (data.attention > 0) {
+    return t("{total} 个项目整体在跑,{attention} 个需要盯一下,本周到期 {weekDue} 个。", {
+      total: data.total, attention: data.attention, weekDue: data.weekDue,
+    });
+  }
+  return t("{total} 个项目节奏正常,平均进度 {avgProgress}%,没有逾期项。", {
+    total: data.total, avgProgress: data.avgProgress,
+  });
 }
 
 /** 概览「需要马上处理」行:危险级项目(复用 sortByRisk 排序)。 */
@@ -170,4 +180,20 @@ export function taskDigest(project: Project, today: string = todayISO()): { open
     .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))[0];
   void today;
   return { open: open.length, next };
+}
+
+/** 风险等级 UI 标签:analysis.RISK_META 的 label 是内容层中文,界面展示统一走词典。 */
+export const RISK_LABELS: Record<RiskLevel, string> = {
+  overdue: "已逾期", blocked: "阻塞", urgent: "紧急", slipping: "进度风险",
+  soon: "临近", unscheduled: "未排期", normal: "正常", done: "已完成",
+};
+
+/** 剩余天数/逾期 UI 文案:analysis.formatRemaining 是内容层中文,渲染端统一用这把。 */
+export function remainingText(dueDate: string | undefined, today: string): string {
+  const left = daysLeft(dueDate, today);
+  if (left === null) return t("未排期");
+  if (left < 0) return t("已逾期 {days} 天", { days: Math.abs(left) });
+  if (left === 0) return t("今天到期");
+  if (left === 1) return t("明天到期");
+  return t("还剩 {days} 天", { days: left });
 }

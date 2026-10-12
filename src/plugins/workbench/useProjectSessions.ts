@@ -4,7 +4,7 @@
  * (各 CLI 插件自扫自家存储的既有契约,工作台不做任何格式解析)。
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { host } from "@kernel/host";
 import type { CliDiskSession } from "@kernel/cli";
 
@@ -18,9 +18,20 @@ export interface ProjectSessionRow {
   disk: CliDiskSession;
 }
 
-/** 最近会话(修改时间倒序,上限 12);cwd 空 = 未绑定,null = 扫描中。 */
-export function useProjectSessions(cwd: string | undefined): ProjectSessionRow[] | null {
+/** 最近会话(修改时间倒序,上限 12);cwd 空 = 未绑定。 */
+export interface ProjectSessionsState {
+  rows: ProjectSessionRow[];
+  /** 任一引擎扫描失败:列表可能不全,不得当「无会话」用。 */
+  failed: boolean;
+  reload: () => void;
+}
+
+/** null = 扫描中(cwd 空或首扫未落定)。 */
+export function useProjectSessions(cwd: string | undefined): ProjectSessionsState | null {
   const [rows, setRows] = useState<ProjectSessionRow[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [nonce, setNonce] = useState(0);
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
   useEffect(() => {
     if (!cwd) {
       setRows(null);
@@ -28,10 +39,15 @@ export function useProjectSessions(cwd: string | undefined): ProjectSessionRow[]
     }
     let alive = true;
     setRows(null);
+    setFailed(false);
     void (async () => {
       const profiles = host.getCliProfiles().filter((p) => p.listSessions);
       const settled = await Promise.all(profiles.map(async (profile) => {
-        const list = await profile.listSessions!(cwd).catch(() => [] as CliDiskSession[]);
+        const list = await profile.listSessions!(cwd).catch(() => null);
+        if (list === null) {
+          if (alive) setFailed(true);
+          return [] as ProjectSessionRow[];
+        }
         return list.map((disk) => ({
           key: `${profile.id}:${disk.id}`,
           profileId: profile.id,
@@ -49,6 +65,7 @@ export function useProjectSessions(cwd: string | undefined): ProjectSessionRow[]
     return () => {
       alive = false;
     };
-  }, [cwd]);
-  return rows;
+  }, [cwd, nonce]);
+  if (rows === null) return null;
+  return { rows, failed, reload };
 }

@@ -9,11 +9,11 @@ import { t } from "@kernel/i18n";
 import { Plus, X } from "@phosphor-icons/react";
 import { openTasks, todayISO } from "./analysis";
 import { TASK_STATUS_LABELS, UPDATE_KIND_LABELS } from "./kindLabels";
-import { UPDATE_KINDS, type Project, type ProjectTask, type UpdateKind } from "./types";
+import { UPDATE_KINDS, type Project, type ProjectTask, type ProjectUpdate, type UpdateKind } from "./types";
 import { deleteTask, deleteUpdate, addUpdate, updateTask } from "./store";
 import { TaskDetailView } from "./TaskDetailView";
 import { TaskFormView } from "./TaskFormView";
-import { WbBadge } from "./ui";
+import { WbBadge, WbConfirm } from "./ui";
 import { runIpc } from "./ipcToast";
 
 /* ── 任务 ── */
@@ -28,6 +28,8 @@ export function DrawerTasksTab({ project, form, onFormChange, onToast }: {
   onToast: (message: string) => void;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
+  /* 删除先确认:× 紧贴完成任务勾选区,单击即删曾误删。 */
+  const [askDelete, setAskDelete] = useState<ProjectTask | null>(null);
   const detail = detailId === null ? null : project.tasks.find((task) => task.id === detailId) ?? null;
   /* 详情态/表单态整页替换列表(与文档编辑器同款「返回列表」内嵌)。 */
   if (detail) {
@@ -94,7 +96,7 @@ export function DrawerTasksTab({ project, form, onFormChange, onToast }: {
                       <button type="button" className="wb-btn wb-btn-xs" onClick={() => onFormChange({ open: true, task })}>{t("编辑")}</button>
                       <button
                         type="button" className="wb-btn wb-btn-xs" aria-label={t("删除")}
-                        onClick={() => runIpc(deleteTask(project.id, task.id), onToast, t("任务已删除"))}
+                        onClick={() => setAskDelete(task)}
                       ><X size={11} /></button>
                     </span>
                   </td>
@@ -104,6 +106,19 @@ export function DrawerTasksTab({ project, form, onFormChange, onToast }: {
           </tbody>
         </table>
       )}
+      {askDelete ? (
+        <WbConfirm
+          open
+          title={t("删除任务")}
+          body={t("将删除任务「{title}」及其附件,不可恢复。", { title: askDelete.title })}
+          confirmLabel={t("删除")}
+          onConfirm={() => {
+            runIpc(deleteTask(project.id, askDelete.id), onToast, t("任务已删除"));
+            setAskDelete(null);
+          }}
+          onCancel={() => setAskDelete(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -113,10 +128,14 @@ export function DrawerTasksTab({ project, form, onFormChange, onToast }: {
 export function DrawerUpdatesTab({ project, onToast }: { project: Project; onToast: (message: string) => void }) {
   const [kind, setKind] = useState<UpdateKind>("progress");
   const [text, setText] = useState("");
+  const [askDelete, setAskDelete] = useState<ProjectUpdate | null>(null);
   const submit = () => {
     if (text.trim() === "") return;
-    runIpc(addUpdate(project.id, kind, text.trim()), onToast, t("进展已记录"));
-    setText("");
+    /* 成功才清输入(TaskDetailView.tsx 保存描述同契约):失败留字可重试。 */
+    void addUpdate(project.id, kind, text.trim()).then(
+      () => { onToast(t("进展已记录")); setText(""); },
+      (e) => onToast(e instanceof Error ? e.message : String(e)),
+    );
   };
   return (
     <div className="wb-updates">
@@ -127,7 +146,10 @@ export function DrawerUpdatesTab({ project, onToast }: { project: Project; onToa
         <input
           value={text} placeholder={t("发生了什么…")}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
+          onKeyDown={(e) => {
+            /* IME 组词回车(中文选词确认)不提交(kernel/shortcuts 纪律)。 */
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
+          }}
         />
         <button type="button" className="wb-btn wb-btn-primary" onClick={submit}>
           <Plus size={12} />{t("记录")}
@@ -143,11 +165,24 @@ export function DrawerUpdatesTab({ project, onToast }: { project: Project; onToa
             </div>
             <button
               type="button" className="wb-btn wb-btn-xs wb-attach-del" aria-label={t("删除")}
-              onClick={() => runIpc(deleteUpdate(project.id, update.id), onToast, t("记录已删除"))}
+              onClick={() => setAskDelete(update)}
             ><X size={11} /></button>
           </li>
         ))}
       </ul>
+      {askDelete ? (
+        <WbConfirm
+          open
+          title={t("删除记录")}
+          body={t("将删除该进展记录,不可恢复。")}
+          confirmLabel={t("删除")}
+          onConfirm={() => {
+            runIpc(deleteUpdate(project.id, askDelete.id), onToast, t("记录已删除"));
+            setAskDelete(null);
+          }}
+          onCancel={() => setAskDelete(null)}
+        />
+      ) : null}
     </div>
   );
 }

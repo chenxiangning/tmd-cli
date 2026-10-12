@@ -82,7 +82,7 @@ export function OverviewScreen({ allProjects, today, onOpen, onNewProject, onLin
                   strokeLinecap="round" strokeDasharray={`${(data.completion / 100) * 2 * Math.PI * 34} 999`}
                   transform="rotate(-90 42 42)"
                 />
-                <text x="42" y="47" textAnchor="middle" className="wb-donut-total" style={{ fontSize: "15px" }}>{data.completion}%</text>
+                <text x="42" y="47" textAnchor="middle" className="wb-donut-total" style={{ fontSize: "0.9375rem" }}>{data.completion}%</text>
               </svg>
               <span>{t("任务完成率")}</span>
             </div>

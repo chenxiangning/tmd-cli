@@ -5,7 +5,7 @@
  * (描述/附件/关联会话;会话打开即收工作台覆盖层落回侧栏,交互闭环)。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { TASK_STATUS_LABELS } from "../kindLabels";
@@ -16,6 +16,20 @@ import { TaskDetailView } from "../TaskDetailView";
 import { TaskFormView } from "../TaskFormView";
 import { BoardHead, RiskPill, type WbScreenProps } from "./cards";
 import { WbEmpty } from "../ui";
+
+/* 泳道折叠态 localStorage 自持(journal 视图态同口径;组件局部态切页即丢)。 */
+const BOARD_FOLD_KEY = "wb.boardCollapsed";
+
+function loadFolded(): ReadonlySet<string> {
+  /* try/catch 包解析:脏数据/隐私模式回落全展开,不影响功能。 */
+  try {
+    const raw = localStorage.getItem(BOARD_FOLD_KEY);
+    const list: unknown = raw === null ? [] : JSON.parse(raw);
+    return new Set(Array.isArray(list) ? list.filter((item): item is string => typeof item === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
 
 interface TaskRow {
   task: ProjectTask;
@@ -43,9 +57,11 @@ function boardLanes(projects: readonly Project[]): { project: Project; rows: Tas
     .filter((lane) => lane.rows.length > 0);
 }
 
-function TaskCard({ row, today, onDetail, onAdvance }: {
+function TaskCard({ row, today, busy, onDetail, onAdvance }: {
   row: TaskRow;
   today: string;
+  /** 推进请求在途:禁用推进钮,防快照回写间隙二连点连跳两档。 */
+  busy: boolean;
   onDetail: () => void;
   onAdvance: () => void;
 }) {
@@ -61,7 +77,7 @@ function TaskCard({ row, today, onDetail, onAdvance }: {
       </span>
       {task.status !== "done" ? (
         <span className="wb-task-actions">
-          <button type="button" className="wb-btn wb-btn-xs" onClick={onAdvance}>
+          <button type="button" className="wb-btn wb-btn-xs" onClick={onAdvance} disabled={busy}>
             {task.status === "todo" ? t("进行") : t("完成")}
           </button>
         </span>
@@ -73,9 +89,16 @@ function TaskCard({ row, today, onDetail, onAdvance }: {
 export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast }: WbScreenProps) {
   const [detail, setDetail] = useState<{ projectId: string; taskId: string } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
+  const [folded, setFolded] = useState<ReadonlySet<string>>(loadFolded);
+  useEffect(() => {
+    try {
+      localStorage.setItem(BOARD_FOLD_KEY, JSON.stringify([...folded]));
+    } catch { /* 配额满/隐私模式:折叠态不持久,不影响功能。 */ }
+  }, [folded]);
+  /* 推进在途集合(项目/任务键):二连点防护。 */
+  const [advancing, setAdvancing] = useState<ReadonlySet<string>>(new Set());
   if (projects.length === 0) {
-    return <WbEmpty text={t("当前筛选下没有项目。")}><button type="button" className="wb-btn" onClick={onNewProject}>{t("新建项目")}</button></WbEmpty>;
+    return <WbEmpty text={t("还没有项目。")}><button type="button" className="wb-btn" onClick={onNewProject}>{t("新建项目")}</button></WbEmpty>;
   }
   const total = projects.reduce((sum, project) => sum + project.tasks.length, 0);
   const detailProject = detail === null ? null : projects.find((project) => project.id === detail.projectId) ?? null;
@@ -109,11 +132,18 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
     );
   }
   const advance = (row: TaskRow) => {
+    const key = `${row.project.id}/${row.task.id}`;
+    if (advancing.has(key)) return;
     const status: TaskStatus = row.task.status === "todo" ? "doing" : "done";
+    setAdvancing((prev) => new Set(prev).add(key));
     void updateTask(row.project.id, row.task.id, { status }).then(
       () => onToast(t("任务已更新")),
       () => onToast(t("任务更新失败")),
-    );
+    ).finally(() => setAdvancing((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    }));
   };
   return (
     <div className="wb-board">
@@ -164,6 +194,7 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
                     {columnRows(status, [project]).map((row) => (
                       <TaskCard
                         key={row.task.id} row={row} today={today}
+                        busy={advancing.has(`${row.project.id}/${row.task.id}`)}
                         onDetail={() => setDetail({ projectId: row.project.id, taskId: row.task.id })}
                         onAdvance={() => advance(row)}
                       />

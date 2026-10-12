@@ -30,7 +30,8 @@
 .wb-chip { border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); cursor: pointer; font-size: var(--tmd-font-xs); padding: 1px 10px; }
 .wb-chip:hover { color: var(--tmd-fg); border-color: var(--tmd-border-strong); }
 .wb-chip-quiet { border-style: dashed; }
-.wb-load-error { padding: 6px 14px; color: var(--tmd-err); font-size: var(--tmd-font-xs); border-bottom: 1px solid var(--tmd-border); }
+.wb-load-error { display: flex; align-items: center; gap: 8px; padding: 6px 14px; color: var(--tmd-err); font-size: var(--tmd-font-xs); border-bottom: 1px solid var(--tmd-border); }
+.wb-load-error-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── 布局 ── */
 .wb-body { display: flex; flex: 1; min-height: 0; }
@@ -76,8 +77,8 @@
 .wb-panel-sub { color: var(--tmd-fg-faint); font-weight: 400; font-size: var(--tmd-font-2xs); }
 .wb-donut-row { display: flex; align-items: center; gap: 12px; }
 .wb-donut { width: 132px; height: 132px; flex: none; }
-.wb-donut-total { fill: var(--tmd-fg); font-size: 22px; font-weight: 600; }
-.wb-donut-caption { fill: var(--tmd-fg-subtle); font-size: 11px; }
+.wb-donut-total { fill: var(--tmd-fg); font-size: 1.375rem; font-weight: 600; }
+.wb-donut-caption { fill: var(--tmd-fg-subtle); font-size: 0.6875rem; }
 .wb-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .wb-legend li { display: flex; align-items: center; gap: 6px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); }
 .wb-legend i { width: 9px; height: 9px; border-radius: 2px; }

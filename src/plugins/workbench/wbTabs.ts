@@ -26,7 +26,9 @@ export function openWorkbenchTab(): void {
 /** 项目详情中央 tab(kernel/tabs 路由;插件 activate 期注册内容组件)。 */
 export const WB_PROJECT_TAB_KIND = "wb.project";
 
-/** 打开项目详情中央 tab(focusTab 可直落概要/文档/任务/进展/会话某页签;溯源跳转用)。 */
+/** 打开项目详情中央 tab(focusTab 可直落概要/文档/任务/进展/会话某页签;溯源跳转用)。
+ *  refresh = 已存在 tab 也刷 title/payload(kernel 契约缺省保留首次 payload,
+ *  深链会被静默丢;纯激活走 openWorkbenchTab 不带 refresh)。 */
 export function openProjectTab(projectId: string, title: string, focusTab?: string): void {
   openTab({
     id: `wb-project:${projectId}`,
@@ -34,10 +36,11 @@ export function openProjectTab(projectId: string, title: string, focusTab?: stri
     title,
     path: t("工作台"),
     payload: focusTab ? { projectId, focusTab } : { projectId },
-  });
+  }, { refresh: true });
 }
 
-/** 打开/激活工作台「文档」页签(项目详情「本项目生成记录」深链;可带项目过滤)。 */
+/** 打开/激活工作台「文档」页签(项目详情「本项目生成记录」深链;可带项目过滤)。
+ *  同 openProjectTab:带 payload 的深链必须 refresh,否则重开被旧 payload 挡下。 */
 export function openWorkbenchDocsTab(projectFilter?: string): void {
   openTab({
     id: WB_CONSOLE_TAB_ID,
@@ -45,7 +48,7 @@ export function openWorkbenchDocsTab(projectFilter?: string): void {
     title: t("工作台"),
     path: t("工作台"),
     payload: { tab: "docs", projectFilter },
-  });
+  }, { refresh: true });
 }
 
 export const WB_TAB_ITEMS: readonly { key: WbTab; label: string }[] = [

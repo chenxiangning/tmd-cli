@@ -7,6 +7,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { blankProject, normalizeProject, type Project, type ProjectTask, type ProjectUpdate, type UpdateKind } from "./types";
 import {
   AI_RULES_FILE, PROJECT_ID_PATTERN, createProjectId, ensureAiRulesFile,
@@ -94,22 +95,32 @@ export function reloadWorkbench(): Promise<void> {
   });
 }
 
+/** 写穿提交(store.ts 侧共用模板):落盘成功才提交内存,失败回滚+错误条+上抛。 */
+async function commit(next: Project[], snapshot: readonly Project[]): Promise<void> {
+  try {
+    await writeIndexFile(next);
+    setProjects(next);
+  } catch (e) {
+    setProjects([...snapshot], e instanceof Error ? e.message : String(e));
+    throw e;
+  }
+}
+
 /* ── 项目 ── */
 
 export function createProject(partial: Partial<Project> & { name: string }): Promise<Project> {
   const project = blankProject({ id: createProjectId(), ...partial });
   return enqueue(async () => {
     const snapshot = state.projects;
-    /* 示例/迁移附带的文档内容随之落盘。 */
-    await Promise.all(project.docs.map(async (doc) => {
-      if (doc.content !== undefined) await writeDocFile(project.id, doc.fileName, doc.content);
-    }));
-    const next = [project, ...snapshot];
     try {
-      await writeIndexFile(next);
-      setProjects(next);
+      /* 示例/迁移附带的文档内容随之落盘。 */
+      await Promise.all(project.docs.map(async (doc) => {
+        if (doc.content !== undefined) await writeDocFile(project.id, doc.fileName, doc.content);
+      }));
+      await commit([project, ...snapshot], snapshot);
     } catch (e) {
-      setProjects(snapshot, e instanceof Error ? e.message : String(e));
+      /* index 未落定:全新 id 的已落盘文档整批回收,重试不再重复写。 */
+      await Promise.all(project.docs.map((doc) => removeDocFile(project.id, doc.fileName)));
       throw e;
     }
     return project;
@@ -118,11 +129,25 @@ export function createProject(partial: Partial<Project> & { name: string }): Pro
 
 /** 更新项目元数据(名称/模块/状态/负责人/日期/进度/说明/标签/cwd)。 */
 export function updateProject(id: string, patch: Partial<Omit<Project, "id" | "tasks" | "updates" | "docs">>): Promise<void> {
-  return mutate((projects) => projects.map((p) => (p.id === id ? normalizeProject({ ...p, ...patch, updatedAt: new Date().toISOString() }) : p)));
+  return mutate((projects) => {
+    /* 目标未命中 reject(编辑中被删盘+从磁盘同步后),不照常写盘假成功。 */
+    if (!projects.some((p) => p.id === id)) throw new Error(t("项目不存在或已删除。"));
+    return projects.map((p) => (p.id === id ? normalizeProject({ ...p, ...patch, updatedAt: new Date().toISOString() }) : p));
+  });
 }
 
 export function deleteProject(id: string): Promise<void> {
-  return mutate((projects) => projects.filter((p) => p.id !== id));
+  return enqueue(async () => {
+    const snapshot = state.projects;
+    const project = snapshot.find((p) => p.id === id);
+    if (!project) throw new Error(t("项目不存在或已删除。"));
+    await commit(snapshot.filter((p) => p.id !== id), snapshot);
+    /* index 落定后回收文档与任务附件实体(removeProjectArtifacts 同口径)。 */
+    await Promise.all([
+      ...project.docs.map((doc) => removeDocFile(project.id, doc.fileName)),
+      ...project.tasks.flatMap((task) => task.attachments.map((att) => removeDocFile(project.id, att.fileName))),
+    ]);
+  });
 }
 
 /* ── 任务 ── */
@@ -153,23 +178,19 @@ export function addTask(projectId: string, init: TaskInit): Promise<ProjectTask>
   };
   return enqueue(async () => {
     const snapshot = state.projects;
-    if (task.title === "") throw new Error("任务标题不能为空");
+    if (task.title === "") throw new Error(t("任务标题不能为空"));
+    if (!snapshot.some((p) => p.id === projectId)) throw new Error(t("项目不存在或已删除。"));
     const next = snapshot.map((p) => (p.id === projectId ? { ...p, tasks: [task, ...p.tasks], updatedAt: now } : p));
-    try {
-      await writeIndexFile(next);
-      setProjects(next);
-    } catch (e) {
-      setProjects(snapshot, e instanceof Error ? e.message : String(e));
-      throw e;
-    }
+    await commit(next, snapshot);
     return task;
   });
 }
 
 export function updateTask(projectId: string, taskId: string, patch: Partial<Pick<ProjectTask, "title" | "owner" | "dueDate" | "startedOn" | "description" | "status" | "order">>): Promise<void> {
   const now = new Date().toISOString();
-  return mutate((projects) =>
-    projects.map((p) => {
+  return mutate((projects) => {
+    if (!projects.some((p) => p.id === projectId && p.tasks.some((t) => t.id === taskId))) throw new Error(t("任务不存在或已删除。"));
+    return projects.map((p) => {
       if (p.id !== projectId) return p;
       return {
         ...p,
@@ -187,13 +208,20 @@ export function updateTask(projectId: string, taskId: string, patch: Partial<Pic
           };
         }),
       };
-    }));
+    });
+  });
 }
 
 export function deleteTask(projectId: string, taskId: string): Promise<void> {
   const now = new Date().toISOString();
-  return mutate((projects) =>
-    projects.map((p) => (p.id === projectId ? { ...p, tasks: p.tasks.filter((t) => t.id !== taskId), updatedAt: now } : p)));
+  return enqueue(async () => {
+    const snapshot = state.projects;
+    const task = snapshot.find((p) => p.id === projectId)?.tasks.find((t) => t.id === taskId);
+    if (!task) throw new Error(t("任务不存在或已删除。"));
+    await commit(snapshot.map((p) => (p.id === projectId ? { ...p, tasks: p.tasks.filter((t) => t.id !== taskId), updatedAt: now } : p)), snapshot);
+    /* index 落定后回收附件实体(clearAllProjects 同口径;单删不回收留 docs/project-* 孤儿)。 */
+    await Promise.all(task.attachments.map((att) => removeDocFile(projectId, att.fileName)));
+  });
 }
 
 /* ── 进展记录 ── */
@@ -223,12 +251,12 @@ export function generateSamples(build: () => Project[]): Promise<void> {
     const samples = build().filter((p) => !known.has(p.id));
     const pendingDocs = samples.flatMap((sample) =>
       sample.docs.filter((doc) => doc.content !== undefined).map((doc) => ({ sample, doc })));
-    await Promise.all(pendingDocs.map(({ sample, doc }) => writeDocFile(sample.id, doc.fileName, doc.content!)));
     try {
-      await writeIndexFile([...samples, ...snapshot]);
-      setProjects([...samples, ...snapshot]);
+      await Promise.all(pendingDocs.map(({ sample, doc }) => writeDocFile(sample.id, doc.fileName, doc.content!)));
+      await commit([...samples, ...snapshot], snapshot);
     } catch (e) {
-      setProjects(snapshot, e instanceof Error ? e.message : String(e));
+      /* index 未落定:回收已落盘示例文档,重试不再重复写。 */
+      await Promise.all(pendingDocs.map(({ sample, doc }) => removeDocFile(sample.id, doc.fileName)));
       throw e;
     }
   });
@@ -248,13 +276,7 @@ export function clearAllProjects(): Promise<void> {
   /* 快照在队列内取:与在途变更严格串行,防「index 已清、实体快照缺项」的孤儿窗口。 */
   return enqueue(async () => {
     const old = state.projects;
-    try {
-      await writeIndexFile([]);
-      setProjects([]);
-    } catch (e) {
-      setProjects(state.projects, e instanceof Error ? e.message : String(e));
-      throw e;
-    }
+    await commit([], old);
     await removeProjectArtifacts(old);
   });
 }
@@ -265,13 +287,7 @@ export function clearSampleProjects(): Promise<number> {
     const old = state.projects.filter((p) => p.tags.includes("示例"));
     if (old.length === 0) return 0;
     const next = state.projects.filter((p) => !p.tags.includes("示例"));
-    try {
-      await writeIndexFile(next);
-      setProjects(next);
-    } catch (e) {
-      setProjects(state.projects, e instanceof Error ? e.message : String(e));
-      throw e;
-    }
+    await commit(next, state.projects);
     await removeProjectArtifacts(old);
     return old.length;
   });
