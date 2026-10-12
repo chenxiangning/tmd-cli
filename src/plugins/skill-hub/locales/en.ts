@@ -87,6 +87,9 @@ export const MESSAGES_EN = {
   "导入完成,已入「已安装」;对话框 $ 触发即可级联": 'Imported — now in \'Installed\'; available via $ trigger in the composer',
   "导入中…": "Importing…",
   "已落位 {n} 处保留但未记入已安装:{targets}": "Copied to {n} location(s) but NOT recorded as installed: {targets}",
+  "{n} 处落位目录已有同名技能:{targets}(先在「已安装」删除,或改选其他目标)":
+    "{n} target location(s) already contain a skill with this name: {targets} — delete it under 'Installed' first, or pick other targets",
+  "已在落位,免复制:{targets}": "Already in place, copy skipped: {targets}",
 
   // ── 更新闭环(v2.2,已装维持记录制)──
   "导入": "Import",

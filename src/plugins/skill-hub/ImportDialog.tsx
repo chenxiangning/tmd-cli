@@ -1,15 +1,20 @@
 /**
- * 本地导入弹窗 ── 目标三选(引擎多选 / 公约位 + claude symlink 勾选),
+ * 本地导入弹窗 ── 目标三选(引擎多选 / 公约位 + claude symlink 勾选)。
+ * 落位走 importPlan 预检:源即落位目录(导入扫描源再次导回自家)免复制记档;
+ * 同名已存在且非源整体报错(既定流程:「已安装」删除后再导),不做半落位。
  * 确认 = fsCopyTree 逐目标复制 + symlink 补链 + upsertSkillRecord(关联层)。
- * 平铺形已在 ImportView 入口禁用;同名已存在的目标列冲突可勾覆盖(trash 旧目录)。
+ * 平铺形已在 ImportView 入口禁用。浮层 portal 到 body 固定视口居中(长列表
+ * 不随内容滚动漂移,全仓弹窗 fixed 惯例)。
  */
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useEscClose } from "@kernel/DialogShell";
 import { upsertSkillRecord } from "@plugins/cli-shared/skillRegistry";
 import { ENGINE_LABELS, INSTALL_ENGINES, SHARED_SKILLS_REL, type HubSkill } from "@plugins/cli-shared/skillSources";
 import { ipc } from "@kernel/ipc";
+import { planImportTargets } from "./importPlan";
 
 interface TargetOption {
   key: string;
@@ -33,6 +38,7 @@ export function ImportDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [symlinkNote, setSymlinkNote] = useState<string | null>(null);
+  const [inPlaceNote, setInPlaceNote] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   useEscClose(onClose, busy); /* Esc 关闭;导入中锁定,完成态仍可 Esc 收场 */
@@ -58,36 +64,66 @@ export function ImportDialog({
     }
     setBusy(true);
     setError(null);
+    setSymlinkNote(null);
+    setInPlaceNote(null);
     const targets: string[] = []; /* 提到 try 外:catch 里做半落位如实告知 */
     try {
       const home = await ipc.configHomeDir();
-      if (shared) {
-        await ipc.fsCreateDir(`${home}/${SHARED_SKILLS_REL}`).catch(() => undefined);
-        await ipc.fsCopyTree(skill.dir, `${home}/${SHARED_SKILLS_REL}/${skill.name}`);
-        targets.push(SHARED_SKILLS_REL);
-        if (claudeSymlink) {
-          try {
-            await ipc.skillSymlink(
-              `${home}/${SHARED_SKILLS_REL}/${skill.name}`,
-              `${home}/.claude/skills/${skill.name}`,
-            );
-            targets.push(".claude/skills");
-          } catch (e) {
-            setSymlinkNote(e instanceof Error ? e.message : String(e));
-          }
-        }
+      const relByKey = new Map(engineTargets.map((o) => [o.key, o.rel]));
+      const wantedSet = new Set<string>();
+      if (shared) wantedSet.add(SHARED_SKILLS_REL);
+      for (const key of engines) {
+        const rel = relByKey.get(key);
+        if (rel) wantedSet.add(rel);
+      }
+      const wanted = [...wantedSet];
+      /* 预检:逐目标列父目录条目(缺目录 = undefined 空位),一次性分类。 */
+      const listings = await Promise.all(
+        wanted.map((rel) =>
+          ipc
+            .fsListDir(`${home}/${rel}`)
+            .then((entries) => entries.map((e) => e.name))
+            .catch(() => undefined),
+        ),
+      );
+      const listing: Record<string, readonly string[] | undefined> = {};
+      wanted.forEach((rel, i) => {
+        listing[rel] = listings[i];
+      });
+      const plan = planImportTargets(home, skill.dir, skill.name, wanted, listing);
+      if (plan.conflicts.length > 0) {
+        setError(
+          t("{n} 处落位目录已有同名技能:{targets}(先在「已安装」删除,或改选其他目标)", {
+            n: plan.conflicts.length,
+            targets: plan.conflicts.join(" · "),
+          }),
+        );
+        return;
       }
       /* eslint-disable react-doctor/async-await-in-loop -- 逐目标串行复制与 install.ts
          同形态(失败定位到目标;并行复制多目标无收益,目录 IO 本身串行化)。 */
-      const relByKey = new Map(engineTargets.map((o) => [o.key, o.rel]));
-      for (const key of engines) {
-        const rel = relByKey.get(key);
-        if (!rel) continue;
+      for (const rel of plan.copy) {
         await ipc.fsCreateDir(`${home}/${rel}`).catch(() => undefined);
         await ipc.fsCopyTree(skill.dir, `${home}/${rel}/${skill.name}`);
         targets.push(rel);
       }
       /* eslint-enable react-doctor/async-await-in-loop */
+      targets.push(...plan.inPlace);
+      if (plan.inPlace.length > 0) {
+        setInPlaceNote(t("已在落位,免复制:{targets}", { targets: plan.inPlace.join(" · ") }));
+      }
+      if (shared && claudeSymlink) {
+        const link = `${home}/.claude/skills/${skill.name}`;
+        try {
+          await ipc.skillSymlink(`${home}/${SHARED_SKILLS_REL}/${skill.name}`, link);
+          targets.push(".claude/skills");
+        } catch (e) {
+          /* 已存在且可达(此前手动补链/导入过)视为已满足;不可达才降级提示。 */
+          const usable = await ipc.fsListDir(link).then(() => true).catch(() => false);
+          if (usable) targets.push(".claude/skills");
+          else setSymlinkNote(e instanceof Error ? e.message : String(e));
+        }
+      }
       await upsertSkillRecord({
         name: skill.name,
         description: skill.description || undefined,
@@ -113,8 +149,14 @@ export function ImportDialog({
     }
   };
 
-  return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40" role="presentation">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40 p-4"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !busy) onClose();
+      }}
+    >
       <dialog
         open
         aria-label={t("导入技能")}
@@ -202,6 +244,9 @@ export function ImportDialog({
             {t("claude 补链失败(不影响导入)")}:{symlinkNote}
           </div>
         )}
+        {inPlaceNote && (
+          <div className="mb-2 break-all text-xs text-(--tmd-fg-faint)">{inPlaceNote}</div>
+        )}
         {done && (
           <div className="mb-2 text-xs text-(--tmd-accent)">{t("导入完成,已入「已安装」;对话框 $ 触发即可级联")}</div>
         )}
@@ -225,6 +270,7 @@ export function ImportDialog({
         </div>
       </form>
       </dialog>
-    </div>
+    </div>,
+    document.body,
   );
 }
