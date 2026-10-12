@@ -32,9 +32,10 @@
 .dg-chip-fail { color: var(--tmd-err); background: var(--tmd-accent-soft); }
 .dg-chip-sched { color: var(--tmd-accent); background: var(--tmd-accent-soft); } /* 排程与成功同用 ok 时不可辨:排程走 accent 口径(同 dg-badge-sched) */
 .dg-chip-off { color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); }
-.dg-row-stop { display: none; flex: none; margin-right: 8px; border: 1px solid var(--tmd-border); border-radius: 5px; width: 18px; height: 18px; line-height: 16px; text-align: center; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); background: var(--tmd-bg-elevated); }
+.dg-row-stop { display: none; flex: none; margin-right: 8px; border: 1px solid var(--tmd-border); border-radius: 5px; width: 24px; height: 24px; line-height: 22px; text-align: center; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); background: var(--tmd-bg-elevated); }
 .dg-row:hover .dg-row-stop, .dg-row:focus-within .dg-row-stop { display: block; }
 .dg-row-stop:hover { color: var(--tmd-err); border-color: var(--tmd-err); }
+.dg-row-stop:focus-visible { outline: 2px solid var(--tmd-accent); outline-offset: 1px; }
 .dg-row-main:focus-visible { outline: 2px solid var(--tmd-accent); outline-offset: -2px; }
 .dg-stt { margin-left: 6px; border: 1px solid var(--tmd-border); background: none; border-radius: 999px; padding: 0 7px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); cursor: pointer; }
 .dg-stt-reported { color: var(--tmd-ok); border-color: var(--tmd-ok); background: var(--tmd-accent-soft); }
@@ -45,7 +46,7 @@
 
 .dg-schedcard { margin: 10px 10px 4px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 9px 11px; }
 .dg-sched-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.dg-sched-row b { font-size: var(--tmd-font-ui); }
+.dg-sched-row b { font-size: var(--tmd-font-ui); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dg-sched-meta { margin: 5px 0 0; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); line-height: 1.6; }
 .dg-empty { padding: 26px 14px; color: var(--tmd-fg-faint); font-size: var(--tmd-font-ui); line-height: 1.8; text-align: center; }
 .dg-empty-main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--tmd-fg); font-size: var(--tmd-font-md); }
@@ -57,7 +58,7 @@
 /* ── 阅读器 ── */
 .dg-reader { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .dg-reader-head { display: flex; align-items: center; gap: 9px; padding: 12px 16px; border-bottom: 1px solid var(--tmd-border); flex-wrap: wrap; }
-.dg-reader-title { font-size: var(--tmd-font-md); font-weight: 600; margin: 0; }
+.dg-reader-title { font-size: var(--tmd-font-md); font-weight: 600; margin: 0; flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dg-reader-meta { color: var(--tmd-fg-faint); font-size: var(--tmd-font-xs); font-variant-numeric: tabular-nums; }
 .dg-badge { font-size: var(--tmd-font-xs); border-radius: 999px; padding: 1px 9px; border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); }
 .dg-badge-sched { color: var(--tmd-accent); border-color: var(--tmd-accent); background: var(--tmd-accent-soft); }
@@ -73,6 +74,7 @@
 .dg-seg button:hover { color: var(--tmd-fg); }
 .dg-seg button.is-on { background: var(--tmd-bg-elevated); color: var(--tmd-fg); }
 .dg-reader-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 20px; }
+/* B2:ReaderFoot 恒文档流内落底(border-top 常规流,不悬浮盖正文);窄容器按钮换行仍占位不遮字。 */
 .dg-reader-foot { display: flex; gap: 7px; align-items: center; border-top: 1px solid var(--tmd-border); padding: 9px 14px; flex-wrap: wrap; }
 
 .dg-blk { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); margin-bottom: 10px; padding: 11px 14px; }
@@ -86,12 +88,14 @@
 .dg-sev-高 { color: var(--tmd-err); border-color: var(--tmd-err); background: var(--tmd-accent-soft); }
 .dg-sev-中 { color: var(--tmd-warn, var(--tmd-accent)); border-color: var(--tmd-warn, var(--tmd-accent)); }
 .dg-risk-text, .dg-act-text, .dg-sug-body { flex: 1; min-width: 0; line-height: 1.7; }
+.dg-act-hint { margin: 0 0 4px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); }
 .dg-act-meta { color: var(--tmd-fg-faint); font-size: var(--tmd-font-xs); white-space: nowrap; font-variant-numeric: tabular-nums; margin-top: 2px; }
 .dg-sug-basis { display: block; color: var(--tmd-fg-faint); font-size: var(--tmd-font-xs); margin-top: 2px; }
 .dg-src { border: none; background: none; padding: 0; margin-left: 6px; color: var(--tmd-accent); font-size: var(--tmd-font-xs); cursor: pointer; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--tmd-accent) 40%, transparent); }
 .dg-src:hover { text-decoration-color: var(--tmd-accent); }
-.dg-cb { width: 15px; height: 15px; border: 1.5px solid var(--tmd-border-strong); border-radius: 5px; flex: none; margin-top: 2px; cursor: pointer; background: none; padding: 0; }
+.dg-cb { width: 18px; height: 18px; border: 1.5px solid var(--tmd-border-strong); border-radius: 5px; flex: none; margin-top: 1px; cursor: pointer; background: none; padding: 0; }
 .dg-cb:hover { border-color: var(--tmd-accent); }
+.dg-cb:focus-visible, .dg-seg button:focus-visible, .dg-ver:focus-visible { outline: 2px solid var(--tmd-accent); outline-offset: 1px; }
 .dg-act.is-done .dg-cb { background: var(--tmd-ok); border-color: var(--tmd-ok); }
 .dg-act.is-done .dg-act-text { color: var(--tmd-fg-faint); text-decoration: line-through; }
 .dg-w2t { flex: none; border: 1px solid var(--tmd-border); background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); border-radius: 6px; font-size: var(--tmd-font-xs); padding: 1px 9px; cursor: pointer; }

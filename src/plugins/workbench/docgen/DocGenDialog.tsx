@@ -76,6 +76,11 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
       onToast(t("请先登记或选择一个项目"));
       return;
     }
+    /* F8:勾选排程但时间为空串禁止提交,防空时间落盘(ScheduleCard 显示空星期/时刻)。 */
+    if (schedOn && !schedTime) {
+      onToast(t("已勾选排程,请先选择时间"));
+      return;
+    }
     const range = periodRange(period, today);
     setBusy(true);
     void createEntry({
@@ -149,9 +154,9 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
         <div className="dg-col">
           <div className="dg-fld">
             <span className="dg-lb">{t("周期")}</span>
-            <div className="dg-seg">
+            <div className="dg-seg" role="radiogroup" aria-label={t("周期")}>
               {DOCGEN_PERIODS.map((p) => (
-                <button key={p} type="button" className={p === period ? "is-on" : ""} onClick={() => setPeriod(p)}>{t(p)}</button>
+                <button key={p} type="button" role="radio" aria-checked={p === period} className={p === period ? "is-on" : ""} onClick={() => setPeriod(p)}>{t(p)}</button>
               ))}
             </div>
           </div>
@@ -162,9 +167,9 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
             </span>
             {!lockedProject ? (
               <>
-                <div className="dg-seg">
-                  <button type="button" className={!scopeOne ? "is-on" : ""} onClick={() => setScopeOne(false)}>{t("全部项目")}</button>
-                  <button type="button" className={scopeOne ? "is-on" : ""} onClick={() => setScopeOne(true)}>{t("单项目")}</button>
+                <div className="dg-seg" role="radiogroup" aria-label={t("范围")}>
+                  <button type="button" role="radio" aria-checked={!scopeOne} className={!scopeOne ? "is-on" : ""} onClick={() => setScopeOne(false)}>{t("全部项目")}</button>
+                  <button type="button" role="radio" aria-checked={scopeOne} className={scopeOne ? "is-on" : ""} onClick={() => setScopeOne(true)}>{t("单项目")}</button>
                 </div>
                 {scopeOne ? (
                   <select className="dg-select" aria-label={t("选择项目")} value={oneProjectId} onChange={(e) => setOneProjectId(e.target.value)}>
@@ -187,12 +192,13 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
           </div>
           <div className="dg-fld">
             <span className="dg-lb">{t("受众与语言")}</span>
-            <div className="dg-seg">
+            <div className="dg-seg" role="radiogroup" aria-label={t("受众")}>
               {DOCGEN_AUDIENCES.map((a) => (
-                <button key={a} type="button" className={a === audience ? "is-on" : ""} onClick={() => setAudience(a)}>{t(a)}</button>
+                <button key={a} type="button" role="radio" aria-checked={a === audience} className={a === audience ? "is-on" : ""} onClick={() => setAudience(a)}>{t(a)}</button>
               ))}
             </div>
             <select className="dg-select" aria-label={t("书写语言")} value={language} onChange={(e) => setLanguage(e.target.value)}>
+              {/* E4:语言选项按母语名展示(各语言用户都要在列表里认出自己的语言),有意不走 t(),勿报 i18n 漏译。 */}
               <option value="">{t("语言:跟随界面")}</option>
               <option value="zh">简体中文</option>
               <option value="en">English</option>

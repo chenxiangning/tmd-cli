@@ -3,7 +3,7 @@
  * ReaderHead(标题/状态徽/版本 pills/三视图 seg)+ GenStateView(阶段条/终止)
  * + FailCard(失败卡/重试/换引擎)。
  */
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { DOC_STATE_KEYS, readerMeta } from "../docgenView";
@@ -31,7 +31,7 @@ export function ReaderHead({ entry, view, activeV, onVer, onView, onFlipState }:
       {entry.status === "done" ? <span className="dg-badge">{t("AI 生成")}</span> : null}
       {entry.scheduled ? <span className="dg-badge dg-badge-sched">{t("排程")}</span> : null}
       {entry.status === "done" ? (
-        <button type="button" className={`dg-docstate-${entry.docState}`} onClick={onFlipState} title={t("点击流转:草稿 → 已汇报 → 已归档")}>
+        <button type="button" className={`dg-docstate-${entry.docState}`} onClick={onFlipState} title={t("点击立即流转:草稿 → 已汇报 → 已归档(单击即生效)")}>
           {docStateLabel}
         </button>
       ) : null}
@@ -47,7 +47,7 @@ export function ReaderHead({ entry, view, activeV, onVer, onView, onFlipState }:
       {entry.status === "done" ? (
         <span className="dg-seg" role="tablist">
           {views.filter((x) => x.show).map((x) => (
-            <button key={x.v} type="button" className={view === x.v ? "is-on" : ""} onClick={() => onView(x.v)}>{x.label}</button>
+            <button key={x.v} type="button" role="tab" aria-selected={view === x.v} className={view === x.v ? "is-on" : ""} onClick={() => onView(x.v)}>{x.label}</button>
           ))}
         </span>
       ) : null}
@@ -82,14 +82,16 @@ export function FailCard({ entry, onRetry }: {
   onRetry: (engine: string) => void;
 }) {
   const profiles = host.getCliProfiles();
-  const nextEngine = profiles[(profiles.findIndex((p) => p.id === entry.engine) + 1) % Math.max(1, profiles.length)]?.id ?? entry.engine;
+  const [engine, setEngine] = useState(entry.engine);
   return (
     <div className="dg-failcard">
       <b>{t("生成失败")}</b>
       <p>{entry.error ?? t("产物未落盘")}</p>
       <div className="dg-fail-actions">
-        <button type="button" className="wb-btn wb-btn-primary" onClick={() => onRetry(entry.engine)}>{t("重试")}</button>
-        {nextEngine !== entry.engine ? <button type="button" className="wb-btn" onClick={() => onRetry(nextEngine)}>{t("换 {engine} 重试", { engine: nextEngine })}</button> : null}
+        <select className="dg-select dg-select-sm" aria-label={t("重试引擎")} value={engine} onChange={(e) => setEngine(e.target.value)}>
+          {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <button type="button" className="wb-btn wb-btn-primary" onClick={() => onRetry(engine)}>{t("重试")}</button>
       </div>
     </div>
   );

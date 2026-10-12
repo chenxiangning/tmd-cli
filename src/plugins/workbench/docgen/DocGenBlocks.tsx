@@ -90,7 +90,10 @@ export function DocGenBlocks({ parsed, md, transferred, onTransfer, onJumpSrc }:
       </section>
       <section className="dg-blk">
         <h4>{t("行动项")}<span className="dg-cnt">{parsed.actions.length}</span></h4>
-        {parsed.actions.length === 0 ? <p className="dg-muted">{t("无")}</p> : parsed.actions.map((a) => {
+        {parsed.actions.length === 0 ? <p className="dg-muted">{t("无")}</p> : (
+          <>
+            <p className="dg-muted dg-act-hint">{t("勾选仅保留在当前阅读会话,不会回写文档")}</p>
+            {parsed.actions.map((a) => {
           const item = actionToItem(a);
           const done = checkedActs.has(item.key);
           return (
@@ -101,7 +104,9 @@ export function DocGenBlocks({ parsed, md, transferred, onTransfer, onJumpSrc }:
               {transBtn(item)}
             </div>
           );
-        })}
+            })}
+          </>
+        )}
       </section>
       <section className="dg-blk">
         <h4>{t("建议")}<span className="dg-cnt">{parsed.suggestions.length}</span></h4>
@@ -122,20 +127,44 @@ export function DocGenBlocks({ parsed, md, transferred, onTransfer, onJumpSrc }:
   );
 }
 
-/** 对比视图(相邻两版条目级 diff;展示件与结构化区块同居 Blocks)。 */
-export function DiffView({ cur, prev }: { cur: DocGenParsed | null; prev: DocGenParsed | null | "loading" }) {
+/** 对比视图(相邻两版条目级 diff;展示件与结构化区块同居 Blocks)。
+ *  上一版失败分口径:文件丢失出可重试错误卡(对齐当前版),格式问题才报不可解析。 */
+export function DiffView({ cur, prev, prevErr, onRetryPrev }: {
+  cur: DocGenParsed | null;
+  prev: DocGenParsed | null | "loading";
+  prevErr: boolean;
+  onRetryPrev: () => void;
+}) {
   if (prev === "loading") return <p className="dg-muted">{t("上一版本读取中…")}</p>;
+  if (prevErr) {
+    return (
+      <div className="dg-failcard">
+        <b>{t("上一版读取失败")}</b>
+        <p>{t("上一版文件可能被移动或删除,可重试读取")}</p>
+        <div className="dg-fail-actions">
+          <button type="button" className="wb-btn wb-btn-primary" onClick={onRetryPrev}>{t("重试")}</button>
+        </div>
+      </div>
+    );
+  }
   if (!cur || !prev) return <p className="dg-muted">{t("版本不可解析,无条目级对比(可看原文)")}</p>;
   const items = diffParsed(prev, cur);
   if (items.length === 0) return <p className="dg-muted">{t("两版条目无差异")}</p>;
+  /* key = 符号+文本+同文出现序(非数组下标):重复风险条目常见,下标键会在
+   * 中段插入时错位复用;同文计数键稳定且消撞(F6)。 */
+  const seen = new Map<string, number>();
   return (
     <div className="dg-diff">
-      {items.map((item) => (
-        <div key={`${item.sign}:${item.text}`} className="dg-diff-row">
-          <span className={`dg-sign dg-sign-${item.sign}`}>{item.sign === "add" ? "+" : item.sign === "del" ? "−" : "~"}</span>
-          <span>{item.text}</span>
-        </div>
-      ))}
+      {items.map((item) => {
+        const nth = seen.get(item.text) ?? 0;
+        seen.set(item.text, nth + 1);
+        return (
+          <div key={`${item.sign}:${item.text}:${nth}`} className="dg-diff-row">
+            <span className={`dg-sign dg-sign-${item.sign}`}>{item.sign === "add" ? "+" : item.sign === "del" ? "−" : "~"}</span>
+            <span>{item.text}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
