@@ -135,6 +135,7 @@ export function DialogActions({
   confirmTitle,
   confirmDisabled,
   submitting,
+  danger,
   cancelDisabled,
   cancelLabel,
   className,
@@ -145,6 +146,8 @@ export function DialogActions({
   confirmTitle?: string;
   confirmDisabled?: boolean;
   submitting?: boolean;
+  /** 危险确认(删除等):确认钮换错误红底。 */
+  danger?: boolean;
   /** 覆盖「提交中禁取消」缺省:推送弹窗提交中允许取消 = 假关闭(后台继续跑)。 */
   cancelDisabled?: boolean;
   /** 覆盖「取消」文案:推送进行中/落定后左键实为关窗(不中止操作),应为「关闭」。 */
@@ -169,7 +172,7 @@ export function DialogActions({
         onClick={onConfirm}
         disabled={confirmDisabled || submitting}
         title={confirmTitle}
-        className="flex items-center justify-center gap-1.5 rounded bg-(--tmd-accent) px-3 py-1.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:opacity-50"
+        className={`flex items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs text-(--tmd-accent-fg) hover:opacity-90 disabled:opacity-50 ${danger ? "bg-(--tmd-err)" : "bg-(--tmd-accent)"}`}
       >
         {submitting ? (
           <>
@@ -192,7 +195,7 @@ export function OpToggle({
   onToggle,
 }: {
   active: boolean;
-  icon: ReactNode;
+  icon?: ReactNode;
   label: string;
   disabled?: boolean;
   onToggle: () => void;
