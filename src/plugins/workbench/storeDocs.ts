@@ -31,8 +31,7 @@ export function createDoc(projectId: string, init: { title: string; markdown?: s
     doc.size = new TextEncoder().encode(doc.content ?? "").byteLength;
     const next = snapshot.map((p) => (p.id === projectId ? { ...p, docs: [doc, ...p.docs], updatedAt: now } : p));
     try {
-      await writeIndexFile(next);
-      setProjects(next);
+      setProjects(await writeIndexFile(next));
     } catch (e) {
       setProjects(snapshot, e instanceof Error ? e.message : String(e));
       throw e;
@@ -73,8 +72,7 @@ export function saveDoc(projectId: string, docId: string, patch: { title?: strin
       };
     });
     try {
-      await writeIndexFile(next);
-      setProjects(next);
+      setProjects(await writeIndexFile(next));
     } catch (e) {
       setProjects(snapshot, e instanceof Error ? e.message : String(e));
       throw e;
@@ -89,8 +87,7 @@ export function deleteDoc(projectId: string, docId: string): Promise<void> {
     const doc = snapshot.find((p) => p.id === projectId)?.docs.find((d) => d.id === docId);
     if (!doc) return;
     const next = snapshot.map((p) => (p.id === projectId ? { ...p, docs: p.docs.filter((d) => d.id !== docId), updatedAt: now } : p));
-    await writeIndexFile(next);
-    setProjects(next);
+    setProjects(await writeIndexFile(next));
     await removeDocFile(projectId, doc.fileName);
   });
 }
@@ -121,8 +118,7 @@ export function attachDocFile(projectId: string, docId: string, file: { name: st
       };
     });
     try {
-      await writeIndexFile(next);
-      setProjects(next);
+      setProjects(await writeIndexFile(next));
     } catch (e) {
       setProjects(snapshot, e instanceof Error ? e.message : String(e));
       await removeDocFile(projectId, attachment.fileName);
@@ -146,8 +142,7 @@ export function detachDocFile(projectId: string, docId: string, attachmentId: st
         docs: p.docs.map((d) => (d.id === docId ? { ...d, attachments: d.attachments.filter((a) => a.id !== attachmentId), updatedAt: now } : d)),
       };
     });
-    await writeIndexFile(next);
-    setProjects(next);
+    setProjects(await writeIndexFile(next));
     await removeDocFile(projectId, att.fileName);
   });
 }
@@ -179,8 +174,7 @@ export function attachTaskFile(projectId: string, taskId: string, file: { name: 
       };
     });
     try {
-      await writeIndexFile(next);
-      setProjects(next);
+      setProjects(await writeIndexFile(next));
     } catch (e) {
       setProjects(snapshot, e instanceof Error ? e.message : String(e));
       await removeDocFile(projectId, attachment.fileName);
@@ -204,8 +198,7 @@ export function detachTaskFile(projectId: string, taskId: string, attachmentId: 
         tasks: p.tasks.map((t) => (t.id === taskId ? { ...t, attachments: t.attachments.filter((a) => a.id !== attachmentId), updatedAt: now } : t)),
       };
     });
-    await writeIndexFile(next);
-    setProjects(next);
+    setProjects(await writeIndexFile(next));
     await removeDocFile(projectId, att.fileName);
   });
 }

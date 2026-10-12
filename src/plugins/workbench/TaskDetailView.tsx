@@ -44,7 +44,7 @@ function TaskUpdatesSec({ updates }: { updates: ProjectTask["updates"] }) {
           ))}
         </ul>
       ) : (
-        <p className="wb-muted">{t("还没有执行记录;关联会话按 AI-TASKS.md 约定回写后,经顶栏「从磁盘同步」在此展示。")}</p>
+        <p className="wb-muted">{t("还没有执行记录;关联会话按 AI-TASKS.md 约定回写后自动在此展示。")}</p>
       )}
     </section>
   );

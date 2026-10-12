@@ -229,7 +229,7 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
           })}
         </div>
       )}
-      <p className="wb-muted">{t("拖拽卡片跨列改状态,或点卡片右下角按钮逐档推进;关联会话运行中自动推进为进行中,也可由 AI 按 AI-TASKS.md 规则回写(顶栏「从磁盘同步」刷新)。")}</p>
+      <p className="wb-muted">{t("拖拽卡片跨列改状态,或点卡片右下角按钮逐档推进;关联会话运行中自动推进为进行中,也可由 AI 按 AI-TASKS.md 规则回写(自动刷新)。")}</p>
     </div>
   );
 }

@@ -9,7 +9,7 @@
 
 import { ipc } from "@kernel/ipc";
 import { ensureDir } from "@kernel/fsDirs";
-import type { Project, ProjectDoc } from "./types";
+import { normalizeProject, type Project, type ProjectDoc, type ProjectTask } from "./types";
 
 export const INDEX_VERSION = 2;
 const MAX_INDEX_BYTES = 496 * 1024;
@@ -81,24 +81,78 @@ function toIndexProject(project: Project): IndexProject {
  *  变更时覆写外部数据,必须走错误条让人看见)。 */
 export async function readIndexFile(): Promise<IndexProject[] | null> {
   const home = await ipc.configHomeDir();
+  let text: string;
   try {
-    const raw = JSON.parse(await ipc.fsReadFile(INDEX_PATH(home))) as { projects?: unknown };
-    if (!Array.isArray(raw?.projects)) throw new Error("workbench index:projects 形状不符");
-    return raw.projects as IndexProject[];
+    text = await ipc.fsReadFile(INDEX_PATH(home));
   } catch (e) {
     if (isMissingFileError(e)) return null;
     throw e;
   }
+  const raw = JSON.parse(text) as { projects?: unknown };
+  if (!Array.isArray(raw?.projects)) throw new Error("workbench index:projects 形状不符");
+  lastIndexRaw = text;
+  return raw.projects as IndexProject[];
 }
 
-export async function writeIndexFile(projects: readonly Project[]): Promise<void> {
-  const home = await ipc.configHomeDir();
-  const content = JSON.stringify({ version: INDEX_VERSION, projects: projects.map(toIndexProject) }, null, 2);
+/* index 磁盘原文指纹:轮询外部回写的快速比对(read/write 成功后刷新;
+ * 原文一致即无 AI 侧改动,免整载 churn)。 */
+let lastIndexRaw: string | null = null;
+
+/** 外部回写探测:磁盘原文与上次已知一致返回 null(轮询快速路径),变化返回原文。 */
+export async function readIndexRawIfChanged(): Promise<string | null> {
+  const raw = await ipc.fsReadFile(INDEX_PATH(await ipc.configHomeDir()));
+  return raw === lastIndexRaw ? null : raw;
+}
+
+/* ── 写前合并:AI 会话按 AI-TASKS.md 直改磁盘的并发回写保护 ──
+ * 2026-10-12 实证:AI 关联会话把执行记录写进 index.json 后,前端任一变更整文件
+ * 重写即把它冲掉(会话转录留有「被工作台前端内存态回写覆盖」的复盘)。整文件
+ * 重写前重读磁盘,按 AI-TASKS.md 允许字段并入。 */
+
+/** 并入磁盘侧 AI 回写:项目集与项目级字段内存权威(AI 禁改);任务级 updates
+ *  恒取并集(AI 只追加、app 不改任务 updates);status/doneAt/updatedAt 按
+ *  updatedAt 新者胜——本 job 刚改过的任务时间戳最新,内存胜;AI 在装载后改过
+ *  的任务,磁盘胜。 */
+async function mergeExternalEdits(next: Project[]): Promise<Project[]> {
+  const disk = await readIndexFile();
+  if (disk === null) return next;
+  const diskTasks = new Map<string, ProjectTask>();
+  for (const meta of disk) {
+    if (typeof meta?.id !== "string" || !PROJECT_ID_PATTERN.test(meta.id)) continue;
+    for (const task of normalizeProject(meta as Record<string, unknown>).tasks) {
+      diskTasks.set(`${meta.id}/${task.id}`, task);
+    }
+  }
+  return next.map((project) => ({
+    ...project,
+    tasks: project.tasks.map((task) => {
+      const dt = diskTasks.get(`${project.id}/${task.id}`);
+      if (!dt) return task;
+      const extras = dt.updates.filter((u) => !task.updates.some((m) => m.id === u.id));
+      const diskNewer = String(dt.updatedAt ?? "") > String(task.updatedAt ?? "");
+      if (!diskNewer && extras.length === 0) return task;
+      return {
+        ...task,
+        ...(diskNewer ? { status: dt.status, doneAt: dt.doneAt, updatedAt: dt.updatedAt } : {}),
+        updates: extras.length > 0 ? [...task.updates, ...extras] : task.updates,
+      };
+    }),
+  }));
+}
+
+/** 落盘(写前重读磁盘并入 AI 并发回写,见 mergeExternalEdits);返回实际落盘的
+ *  合并态——调用方必须以它提交内存,否则磁盘有 AI 记录而内存缺失、指纹一致轮询
+ *  不会再拉,两态永久分叉。 */
+export async function writeIndexFile(projects: readonly Project[]): Promise<Project[]> {
+  const [merged, home] = await Promise.all([mergeExternalEdits([...projects]), ipc.configHomeDir()]);
+  const content = JSON.stringify({ version: INDEX_VERSION, projects: merged.map(toIndexProject) }, null, 2);
   if (new TextEncoder().encode(content).byteLength > MAX_INDEX_BYTES) {
     throw new Error("工作台索引超过 496KB,拒绝写入;请清理部分项目或缩短进展记录。");
   }
   await ensureDir(`${home}/.tmd-cli/workbench`);
   await ipc.fsWriteFile(INDEX_PATH(home), content);
+  lastIndexRaw = content;
+  return merged;
 }
 
 /** 读某项目旧版 PRD 分文件(迁移源;缺 = undefined)。 */
@@ -199,6 +253,8 @@ const AI_RULES_CONTENT = `# 工作台任务数据 · AI 回写规则
 
 ## 写入方式
 
-整文件 JSON 重写(\`index.json\` 保持合法 JSON、2 空格缩进);写入前确认读到的
-\`version\` 为 2。修改完成后向用户说明改了哪个任务的 status。
+整文件 JSON 重写(\`index.json\` 保持合法 JSON、2 空格缩进);**写入前必须重新读取
+一次 \`index.json\`,在最新内容上修改后再写**(多个会话可能同时在改,基于旧内容
+整写会覆盖他人刚写的记录);写入前确认读到的 \`version\` 为 2。修改完成后向用户
+说明改了哪个任务的 status。
 `;

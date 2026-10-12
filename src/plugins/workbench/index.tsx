@@ -19,6 +19,7 @@ import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
 import { WorkbenchTab } from "./WorkbenchTab";
 import { ProjectTab } from "./ProjectTab";
 import { openWorkbenchTab, WB_CONSOLE_TAB_KIND, WB_CONSOLE_TAB_ID, WB_PROJECT_TAB_KIND } from "./wbTabs";
+import { startIndexWatch } from "./storeWatch";
 import { attachJournal } from "./journal/attach";
 import { attachDocGen } from "./docgen/attach";
 import { TaskCardChip } from "./TaskCardChip";
@@ -82,6 +83,8 @@ export const workbenchPlugin: Plugin = {
     /* 每日日志子域 + 生成文档流水线(退订随插件 deactivate)。 */
     const offJournal = attachJournal(ctx);
     const offDocGen = attachDocGen(ctx);
+    /* AI 直改 index.json 的自动感知轮询(常驻;幂等,见 storeWatch.ts)。 */
+    startIndexWatch();
     return () => {
       for (const off of offTaskCard) off();
       offJournal();

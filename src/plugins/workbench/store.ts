@@ -98,8 +98,7 @@ export function reloadWorkbench(): Promise<void> {
 /** 写穿提交(store.ts 侧共用模板):落盘成功才提交内存,失败回滚+错误条+上抛。 */
 async function commit(next: Project[], snapshot: readonly Project[]): Promise<void> {
   try {
-    await writeIndexFile(next);
-    setProjects(next);
+    setProjects(await writeIndexFile(next));
   } catch (e) {
     setProjects([...snapshot], e instanceof Error ? e.message : String(e));
     throw e;

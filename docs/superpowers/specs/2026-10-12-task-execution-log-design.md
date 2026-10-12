@@ -62,3 +62,24 @@
 - 右栏:去掉边框/圆角/背景小卡片,改 `border-left` 细分隔线上下占满;补「创建时间/更新时间/完成」三行让栏有实质内容。词典键「创建/更新」与 kernel 撞键(同键异值「Create/Update」)被 locales 契约测试拦下,改「创建时间/更新时间」。
 - 复杂度拆分:`TaskSessionsSec` 独立成文件(react-doctor no-high-complexity + 300 行铁则双约束)。
 - 误判记录:桩种子误用旧签名 `attachTaskFile(pid,tid,name,b64,mime)` 致 `{name}` 未插值 + `NaN KB`,实为种子 bug 非代码 bug,现签名是 `(pid, tid, { name, bytesBase64, size })`。
+
+## 追加(同日三轮:回写丢失实证修复 + 自动感知)
+
+大仙实测:关联会话按约定回写后,执行记录仍不显示。实证(omp 会话转录为准):AI 确实把
+status/updates 写进了 index.json(21:02 自验读回成功),随后被工作台前端任一变更的整文件
+重写冲掉——会话侧复盘原文「被工作台前端内存态回写覆盖」;且展示层只在手动「从磁盘同步」
+后才重读磁盘,回写永远不可见。原设计的「AI 守约」代价不在守约,而在存储层把并发写当串行。
+修两处(方案 B 仍不做——记录仍由 AI 撰写,前端不自动提炼):
+
+- 写前合并(`workbenchFiles.mergeExternalEdits`):`writeIndexFile` 落盘前重读磁盘,任务级
+  `updates` 恒并集,`status/doneAt/updatedAt` 按 updatedAt 新者胜(本 job 刚改过的任务内存胜,
+  AI 装载后改过的任务磁盘胜);项目集与项目级字段内存权威(AI 禁改)。返回合并态,调用方以
+  此提交内存,防磁盘/内存两态分叉。全部写穿路径(storeCore.mutate / store.commit / storeDocs
+  七处)统一收口。
+- 自动感知(`storeWatch.ts`):4s 轮询 index.json 原文指纹,变化才整载(与变更同队列串行;
+  AI-TASKS.md 补「写入前必须重读」约定降多会话互覆)。文案去掉「从磁盘同步」手工指引
+  (任务详情空态 + 看板提示,三语词典同步)。
+
+验证:回归测试 4 条(未触碰任务保 AI 记录/同任务双写按 updatedAt 裁决/AI 更新则采纳磁盘
+状态/轮询指纹门控)+ 1421 桩目检(localStorage 供盘,模拟 AI 改盘后 ≤4s 执行记录自动上屏、
+空态消失)。
