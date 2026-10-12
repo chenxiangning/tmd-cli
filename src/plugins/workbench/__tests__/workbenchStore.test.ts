@@ -42,8 +42,8 @@ vi.mock("@kernel/ipc", () => ({
 }));
 
 import {
-  AI_RULES_FILE, INDEX_PATH, attachDocFile, clearAllProjects, clearSampleProjects, createDoc, createProject, createProjectId,
-  deleteDoc, deleteProject, detachDocFile, detachTaskFile, ensureWorkbenchLoaded, generateSamples, linkTaskSession,
+  AI_RULES_FILE, INDEX_PATH, addUpdate, attachDocFile, clearAllProjects, clearSampleProjects, createDoc, createProject, createProjectId,
+  deleteDoc, deleteProject, deleteUpdate, detachDocFile, detachTaskFile, ensureWorkbenchLoaded, generateSamples, linkTaskSession,
   readDoc, reloadWorkbench, resetWorkbenchForTest, subscribeWorkbench, unlinkTaskSession,
   updateTask, workbenchLoadError, workbenchSnapshot,
 } from "../store";
@@ -200,6 +200,16 @@ describe("workbench store · 数据安全", () => {
     await expect(createProject({ name: "会失败" })).rejects.toThrow("injected");
     expect(workbenchSnapshot()).toHaveLength(0);
     expect(workbenchLoadError()).toContain("injected");
+  });
+
+  it("addUpdate/deleteUpdate 目标未命中 reject 不假成功(与 updateProject 同契约)", async () => {
+    const pid = await seedProject();
+    await expect(addUpdate("p-missing", "note", "进展")).rejects.toThrow("项目不存在或已删除");
+    await expect(deleteUpdate(pid, "u-missing")).rejects.toThrow("项目不存在或已删除");
+    await addUpdate(pid, "note", "真实进展");
+    expect(workbenchSnapshot().find((p) => p.id === pid)!.updates).toHaveLength(1);
+    await deleteUpdate(pid, workbenchSnapshot().find((p) => p.id === pid)!.updates[0].id);
+    expect(workbenchSnapshot().find((p) => p.id === pid)!.updates).toHaveLength(0);
   });
 
   it("generateSamples 幂等且示例文档落盘;clearAllProjects 清实体", async () => {

@@ -3,10 +3,11 @@
  * 起止日期/进度/说明/标签/绑定 cwd/链接。cwd 提供现有工作区根的 datalist。
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
+import { WbConfirm } from "./ui";
 import { MODULES, STATUSES, moduleNames } from "./analysis";
 import type { Project, ProjectStatus } from "./types";
 
@@ -27,9 +28,9 @@ export interface ProjectFormValues {
 function toValues(project: Project | null): ProjectFormValues {
   return {
     name: project?.name ?? "",
-    module: project?.module ?? "其他项目",
+    module: project?.module ?? "",
     status: project?.status ?? "进行中",
-    owner: project?.owner ?? "我",
+    owner: project?.owner ?? "",
     startedOn: project?.startedOn ?? "",
     dueDate: project?.dueDate ?? "",
     progress: project?.progress ?? 0,
@@ -51,10 +52,18 @@ export function ProjectFormModal({
   const [tagText, setTagText] = useState(() => (project?.tags ?? []).join(", "));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* 脏标只被 requestClose 读(渲染不依赖),用 ref 免多余重渲;重挂随 key 复位。 */
+  const dirtyRef = useRef(false);
+  const [askDiscard, setAskDiscard] = useState(false);
   /* 项目切换由调用方 key={project.id ?? "new"} 重挂复位,不写 prop→state 同步 effect。 */
   const { list } = useWorkspaces();
   const knownModules = [...MODULES, ...moduleNames([])];
-  const patch = (part: Partial<ProjectFormValues>) => setValues((prev) => ({ ...prev, ...part }));
+  const patch = (part: Partial<ProjectFormValues>) => { dirtyRef.current = true; setValues((prev) => ({ ...prev, ...part })); };
+  /* Esc/点背板/取消共用:已填字段(脏)先确认,busy 期维持禁用(DialogShell locked)。 */
+  const requestClose = () => {
+    if (dirtyRef.current) { setAskDiscard(true); return; }
+    onClose();
+  };
 
   const submit = () => {
     if (values.name.trim() === "") {
@@ -66,6 +75,7 @@ export function ProjectFormModal({
       return;
     }
     setBusy(true);
+    /* 兜底值落库保持规范中文(存层内容态);展示态经 placeholder 走 t()。 */
     onSubmit({
       ...values,
       name: values.name.trim(),
@@ -85,8 +95,8 @@ export function ProjectFormModal({
       icon={null}
       width={560}
       locked={busy}
-      onClose={onClose}
-      footer={<DialogActions confirmLabel={busy ? t("保存中…") : t("保存")} submitting={busy} onConfirm={submit} onCancel={onClose} />}
+      onClose={requestClose}
+      footer={<DialogActions confirmLabel={busy ? t("保存中…") : t("保存")} submitting={busy} onConfirm={submit} onCancel={requestClose} />}
     >
       <div className="wb-form-grid">
           <label className="wb-field wb-span2">
@@ -95,7 +105,7 @@ export function ProjectFormModal({
           </label>
           <label className="wb-field">
             <span>{t("模块")}</span>
-            <input list="wb-module-options" value={values.module} onChange={(e) => patch({ module: e.target.value })} />
+            <input list="wb-module-options" value={values.module} placeholder={t("其他项目")} onChange={(e) => patch({ module: e.target.value })} />
             <datalist id="wb-module-options">
               {[...new Set([...knownModules, values.module])].map((name) => <option key={name} value={name} />)}
             </datalist>
@@ -103,12 +113,12 @@ export function ProjectFormModal({
           <label className="wb-field">
             <span>{t("状态")}</span>
             <select value={values.status} onChange={(e) => patch({ status: e.target.value as ProjectStatus })}>
-              {STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
+              {STATUSES.map((status) => <option key={status} value={status}>{t(status)}</option>)}
             </select>
           </label>
           <label className="wb-field">
             <span>{t("负责人")}</span>
-            <input value={values.owner} onChange={(e) => patch({ owner: e.target.value })} />
+            <input value={values.owner} placeholder={t("我")} onChange={(e) => patch({ owner: e.target.value })} />
           </label>
           <label className="wb-field">
             <span>{t("进度")} {values.progress}%</span>
@@ -124,7 +134,7 @@ export function ProjectFormModal({
           </label>
           <label className="wb-field">
             <span>{t("标签")}</span>
-            <input value={tagText} placeholder="示例, 后端" onChange={(e) => setTagText(e.target.value)} />
+            <input value={tagText} placeholder="示例, 后端" onChange={(e) => { dirtyRef.current = true; setTagText(e.target.value); }} />
           </label>
           <label className="wb-field">
             <span>{t("链接")}</span>
@@ -143,6 +153,16 @@ export function ProjectFormModal({
           </label>
         </div>
         {error ? <p className="wb-form-error">{error}</p> : null}
+        {askDiscard ? (
+          <WbConfirm
+            open
+            title={t("丢弃修改")}
+            body={t("未保存的修改将丢失。")}
+            confirmLabel={t("丢弃")}
+            onConfirm={() => { setAskDiscard(false); onClose(); }}
+            onCancel={() => setAskDiscard(false)}
+          />
+        ) : null}
     </DialogShell>
   );
 }

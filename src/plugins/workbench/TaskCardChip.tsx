@@ -33,10 +33,7 @@ function TaskCardEditDialog({ sessionId, card, onClose }: {
             setPendingTaskCard(sessionId, { ...card, text: draft.trim() });
             onClose();
           }}
-          onCancel={() => {
-            dropPendingTaskCard(sessionId);
-            onClose();
-          }}
+          onCancel={onClose}
         />
       }
     >

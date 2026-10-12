@@ -6,9 +6,9 @@
 
 import type { DragEvent } from "react";
 import { t } from "@kernel/i18n";
-import { ChatCircle, Pencil } from "@phosphor-icons/react";
-import { TASK_ADVANCE_LABELS } from "../kindLabels";
-import { isTaskOpen, NEXT_TASK_STATUS, type Project, type ProjectTask } from "../types";
+import { CaretDown, ChatCircle, Pencil } from "@phosphor-icons/react";
+import { TASK_ADVANCE_LABELS, TASK_STATUS_LABELS } from "../kindLabels";
+import { BOARD_STATUSES, isTaskOpen, NEXT_TASK_STATUS, type Project, type ProjectTask, type TaskStatus } from "../types";
 import { BOARD_DND_TYPE, type BoardDrag } from "./boardDnd";
 
 export interface TaskRow {
@@ -16,7 +16,7 @@ export interface TaskRow {
   project: Project;
 }
 
-export function TaskCard({ row, today, busy, dragging, onDetail, onEdit, onAdvance, onDragStart, onDragEnd }: {
+export function TaskCard({ row, today, busy, dragging, onDetail, onEdit, onAdvance, onSetStatus, onDragStart, onDragEnd }: {
   row: TaskRow;
   today: string;
   /** 推进请求在途:禁用推进钮,防快照回写间隙二连点连跳两档。 */
@@ -26,6 +26,8 @@ export function TaskCard({ row, today, busy, dragging, onDetail, onEdit, onAdvan
   onDetail: () => void;
   onEdit: () => void;
   onAdvance: () => void;
+  /** 「移到指定列」菜单选择(D3:键盘/触屏无拖拽路径,与拖拽同走 setStatusOf 的二连点防护)。 */
+  onSetStatus: (status: TaskStatus) => void;
   onDragStart: (drag: BoardDrag) => void;
   onDragEnd: () => void;
 }) {
@@ -63,6 +65,23 @@ export function TaskCard({ row, today, busy, dragging, onDetail, onEdit, onAdvan
             {t(TASK_ADVANCE_LABELS[next] ?? "")}
           </button>
         ) : null}
+        {/* D3:移到指定列(details/summary 原生开合,键盘可达;选中即关),覆盖无拖拽路径。 */}
+        <details className="wb-task-menu">
+          <summary className="wb-btn wb-btn-xs" aria-label={t("移到其他状态")} title={t("移到其他状态")}>
+            <CaretDown size="0.6875rem" aria-hidden />
+          </summary>
+          <div className="wb-task-menu-list">
+            {BOARD_STATUSES.filter((status) => status !== task.status).map((status) => (
+              <button
+                key={status} type="button"
+                onClick={(e) => {
+                  e.currentTarget.closest("details")?.removeAttribute("open");
+                  onSetStatus(status);
+                }}
+              >{t("移到 {status}", { status: t(TASK_STATUS_LABELS[status]) })}</button>
+            ))}
+          </div>
+        </details>
       </span>
     </div>
   );

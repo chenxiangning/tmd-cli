@@ -7,7 +7,7 @@
  * 点击卡片进任务详情内嵌视图(描述/附件/关联会话;会话打开即收工作台覆盖层)。
  */
 
-import { useEffect, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { TASK_STATUS_LABELS } from "../kindLabels";
@@ -73,10 +73,32 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
   const [drag, setDrag] = useState<BoardDrag | null>(null);
   const [dropTarget, setDropTarget] = useState<{ projectId: string; status: TaskStatus } | null>(null);
   const [doneExpanded, setDoneExpanded] = useState<ReadonlySet<string>>(new Set());
+  /* F5:泳道/列装配/列头计数一次派生(projects 引用不变即复用),消渲染期逐列全表重扫。 */
+  const lanes = useMemo(() => boardLanes(projects), [projects]);
+  const columnsByProject = useMemo(() => {
+    const map = new Map<string, ReadonlyMap<TaskStatus, TaskRow[]>>();
+    for (const project of projects) {
+      map.set(project.id, new Map(BOARD_STATUSES.map((status) => [status, columnRows(status, [project])])));
+    }
+    return map;
+  }, [projects]);
+  const statusTotals = useMemo(() => {
+    const totals = new Map<TaskStatus, number>();
+    for (const columns of columnsByProject.values()) {
+      for (const status of BOARD_STATUSES) {
+        totals.set(status, (totals.get(status) ?? 0) + (columns.get(status)?.length ?? 0));
+      }
+    }
+    return totals;
+  }, [columnsByProject]);
+  /* A6:已取消不占列,也不进「全部任务 N」总数(否则与四列头对不上)。 */
+  const total = useMemo(
+    () => projects.reduce((sum, project) => sum + project.tasks.filter((task) => task.status !== "cancelled").length, 0),
+    [projects],
+  );
   if (projects.length === 0) {
     return <WbEmpty text={t("还没有项目。")}><button type="button" className="wb-btn" onClick={onNewProject}>{t("新建项目")}</button></WbEmpty>;
   }
-  const total = projects.reduce((sum, project) => sum + project.tasks.length, 0);
   const detailProject = detail === null ? null : projects.find((project) => project.id === detail.projectId) ?? null;
   const detailTask = detailProject?.tasks.find((task) => task.id === detail?.taskId) ?? null;
   /* 详情态整页替换看板(内嵌视图,「返回列表」回落看板)。 */
@@ -168,11 +190,11 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
               <h4 key={status} className="wb-status-head">
                 <i className="wb-status-dot" style={{ background: taskStatusTone(status) }} />
                 <b>{t(TASK_STATUS_LABELS[status])}</b>
-                <span className="wb-status-count">{columnRows(status, projects).length}</span>
+                <span className="wb-status-count">{statusTotals.get(status) ?? 0}</span>
               </h4>
             ))}
           </div>
-          {boardLanes(projects).map(({ project, rows }) => {
+          {lanes.map(({ project, rows }) => {
             const isFolded = folded.has(project.id);
             const toggleFold = () =>
               setFolded((prev) => {
@@ -198,7 +220,7 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
                   </button>
                 </div>
                 {isFolded ? null : BOARD_STATUSES.map((status) => {
-                  const all = columnRows(status, [project]);
+                  const all = columnsByProject.get(project.id)?.get(status) ?? [];
                   const expanded = doneExpanded.has(project.id);
                   const visible = status === "done" && !expanded ? all.filter((row) => isRecentDone(row.task, today)) : all;
                   const hiddenCount = all.length - visible.length;
@@ -218,11 +240,13 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
                           onDetail={() => setDetail({ projectId: row.project.id, taskId: row.task.id })}
                           onEdit={() => setEditing(row)}
                           onAdvance={() => advance(row)}
+                          onSetStatus={(status) => setStatusOf(row.project.id, row.task.id, status)}
                           onDragStart={setDrag}
                           onDragEnd={dragEnd}
                         />
                       ))}
-                      {visible.length === 0 ? <div className="wb-lane-empty" aria-hidden="true">{t("拖到此列")}</div> : null}
+                      {/* A7:done 列有隐藏任务时说明并非真空列,空态占位与「+N 更早」互斥。 */}
+                      {visible.length === 0 && hiddenCount === 0 ? <div className="wb-lane-empty" aria-hidden="true">{t("拖到此列")}</div> : null}
                       {hiddenCount > 0 ? (
                         <button type="button" className="wb-lane-more" onClick={() => toggleDone(project.id)}>
                           {t("+{n} 更早", { n: hiddenCount })}
