@@ -128,9 +128,14 @@ describe("pulsePartition", () => {
 });
 
 describe("activityAge", () => {
+  /* 日差 = 「时刻的本地日历日」与 today 的差:时刻串必须是 naive 本地形态
+   * 才在任意时区下钉住同一本地日历日(带偏移串的本地日随 runner 时区漂)。 */
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const localIso = (y: number, mo: number, d: number, h: number, mi: number) =>
+    `${y}-${pad(mo)}-${pad(d)}T${pad(h)}:${pad(mi)}:00`;
   it("本地日历日差:今天 0,昨天 1,跨年不混", () => {
-    expect(activityAge("2026-10-12T23:59:00+08:00", TODAY)).toBe(0);
-    expect(activityAge("2026-10-11T00:01:00+08:00", TODAY)).toBe(1);
-    expect(activityAge("2025-12-31T12:00:00+08:00", TODAY)).toBeGreaterThan(200);
+    expect(activityAge(localIso(2026, 10, 12, 23, 59), TODAY)).toBe(0);
+    expect(activityAge(localIso(2026, 10, 11, 0, 1), TODAY)).toBe(1);
+    expect(activityAge(localIso(2025, 12, 31, 12, 0), TODAY)).toBeGreaterThan(200);
   });
 });
