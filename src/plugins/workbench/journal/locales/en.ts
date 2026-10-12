@@ -85,6 +85,7 @@ export const MESSAGES_EN = {
   "后台任务 · 生成队列": "Tasks · generation queue",
   "进行中(切走模块 / 失焦不中断)": "Running (survives tab switch / blur)",
   "排队": "Queued",
+  "中断(应用重启)": "Interrupted (app restarted)",
   "全部取消": "Cancel all",
   "完成 / 失败": "Done / failed",
   "暂无任务:生成会在后台排队执行,切走模块/失焦不中断。": "No tasks yet: generations queue in the background.",

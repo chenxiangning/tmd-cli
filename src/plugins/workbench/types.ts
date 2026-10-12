@@ -7,7 +7,8 @@
  */
 
 export type ProjectStatus = "进行中" | "待启动" | "阻塞" | "暂停" | "已完成";
-export const PROJECT_STATUSES: readonly ProjectStatus[] = ["进行中", "待启动", "阻塞", "暂停", "已完成"];
+/** 仅 isProjectStatus 内部消费;无外部引用面,不导出。 */
+const PROJECT_STATUSES: readonly ProjectStatus[] = ["进行中", "待启动", "阻塞", "暂停", "已完成"];
 
 export type TaskStatus = "todo" | "doing" | "review" | "done" | "cancelled";
 export const TASK_STATUSES: readonly TaskStatus[] = ["todo", "doing", "review", "done", "cancelled"];

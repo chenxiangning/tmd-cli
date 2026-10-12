@@ -10,10 +10,10 @@
  * 不引入「已查看」新写入口;不解析文章「未完事项」节(正文自带,上下文相邻)。
  */
 import type { DaySessionRow } from "./daySessions";
-/* 跨插件消费 session-board 声明的口径常量(app 树例外条款见
- * docs/architecture/02-code-architecture.md「依赖铁律」;mobile 树 import
- * cli-* 适配器同款先例):14 天未查看阈与 board 注意力面单一真相源。 */
-import { UNSEEN_WINDOW_MS } from "../../session-board/boardRows";
+/* 跨插件消费 session-board 声明的口径常量(纯常量单一真相源;先例同
+ * journal/articleBody 消费 session-viewer/markdownBody):14 天未查看阈与
+ * board 注意力面单一真相源。 */
+import { UNSEEN_WINDOW_MS } from "@plugins/session-board/boardRows";
 
 export interface UnfinishedSessionInput {
   profileId: string;

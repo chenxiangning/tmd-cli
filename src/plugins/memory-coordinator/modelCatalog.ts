@@ -1,5 +1,7 @@
 /**
  * omp 模型目录 —— 引擎配置卡的数据拉取源。
+ * 消费方:memory-coordinator 引擎配置卡、feature 插件 workbench journal 生成设置
+ * (模型下拉;声明先例,同 articleBody 消费 markdownBody 口径)。
  *
  * `omp models list --json`(PoC 向导同源):返回全部 provider 的模型
  * (selector/name/contextWindow/reasoning…),即安装向导「31 个模型选项」

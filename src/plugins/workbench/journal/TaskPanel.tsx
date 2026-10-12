@@ -44,7 +44,7 @@ function TaskRow({ task }: { task: GenTask }) {
           {task.engine}
           {task.st === "run" && <span className="dj-ti-live">{t("后台运行中")}</span>}
         </div>
-        <div className="dj-ti-sub">{task.text}</div>
+        <div className="dj-ti-sub">{t(task.text)}</div>
       </div>
       <div className="dj-ti-acts">
         {task.st === "run" && openSession && (

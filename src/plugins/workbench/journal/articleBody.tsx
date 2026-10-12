@@ -2,11 +2,15 @@
  * 文章本体渲染件(文章 tab 与轴视图卡共用):总览段 + 分节(并入留痕章)+
  * 未完事项 + 只读便签卡。纯展示,无数据依赖。
  */
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { t } from "@kernel/i18n";
+import { retryImport } from "@kernel/lazyImport";
 /* 跨插件 UI 复用先例(同 session-viewer→files):纯 props 渲染件,不涉
-   session-viewer 生命周期;日报正文是 agent 写的 markdown,须按 md 渲染。 */
-import { MarkdownBody } from "@plugins/session-viewer/markdownBody";
+   session-viewer 生命周期;日报正文是 agent 写的 markdown,须按 md 渲染。
+   md 重管线 lazy 拆包(同 DocEditor),不进主 chunk。 */
+const MarkdownBody = lazy(retryImport(() =>
+  import("@plugins/session-viewer/markdownBody").then((m) => ({ default: m.MarkdownBody })),
+));
 import type { Article } from "./articleParse";
 import { noteMd } from "./articleParse";
 import { sessionKeyFromHref, withSessionLinks } from "./sessionRef";
@@ -45,7 +49,7 @@ export function ArticleBody({ article, sessionLinks }: { article: Article; sessi
             {sec.inc && <span className="dj-incb">{t("{t} 并入", { t: sec.inc })}</span>}
           </div>
           {/* body 原样 join(空白行保留 = md 段落边界;fence 已由解析器保真) */}
-          <MarkdownBody>{transform(sec.body.join("\n"))}</MarkdownBody>
+          <Suspense fallback={null}><MarkdownBody>{transform(sec.body.join("\n"))}</MarkdownBody></Suspense>
         </section>
       ))}
       {article.open.length > 0 && (
@@ -105,7 +109,7 @@ export function NoteReadonly({ note, onImageOpen }: { note: DayNote; onImageOpen
       {note.text && (
         <div className="dj-nc-text">
           {/* 便签与文章同管线按 md 渲染;存储 verbatim,硬断是 view 侧转换 */}
-          <MarkdownBody>{noteMd(note.text)}</MarkdownBody>
+          <Suspense fallback={null}><MarkdownBody>{noteMd(note.text)}</MarkdownBody></Suspense>
         </div>
       )}
       {note.images.length > 0 && (

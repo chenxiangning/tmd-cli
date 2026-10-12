@@ -9,6 +9,8 @@ import { DialogShell } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
 import { updateConfig, useJournalState } from "./journalStore";
 import { ensureHolidays } from "./holidays";
+/* 跨插件消费 memory-coordinator 声明的纯数据拉取(先例同 journal/articleBody
+ * 消费 session-viewer/markdownBody):omp 模型目录单一真相源,不涉其生命周期。 */
 import { listModels } from "@plugins/memory-coordinator/modelCatalog";
 import { isCompleteTime, normalizeFullWidth, normalizeTimerTime } from "./timerInput";
 /* 品牌字形映射(cli-shared,先例:omp/pi/… 十家 renderIcon + mobile EngineMark 已消费)。 */
