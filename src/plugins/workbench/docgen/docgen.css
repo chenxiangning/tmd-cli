@@ -25,13 +25,13 @@
 .dg-dot-off { background: var(--tmd-fg-faint); }
 @keyframes dg-pulse { 50% { opacity: 0.35; } }
 .dg-chip { font-size: var(--tmd-font-xs); padding: 0 7px; border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.dg-chip-gen { color: var(--tmd-warn, var(--tmd-accent)); background: var(--tmd-accent-soft); }
+.dg-chip-gen { color: var(--tmd-warn, var(--tmd-accent)); background: color-mix(in srgb, var(--tmd-warn, var(--tmd-accent)) 14%, transparent); }
 .dg-chip-ok { color: var(--tmd-ok); background: var(--tmd-accent-soft, rgba(127, 127, 127, 0.12)); }
 .dg-chip-fail { color: var(--tmd-err); background: var(--tmd-accent-soft); }
-.dg-chip-sched { color: var(--tmd-ok); background: var(--tmd-accent-soft); }
+.dg-chip-sched { color: var(--tmd-accent); background: var(--tmd-accent-soft); } /* 排程与成功同用 ok 时不可辨:排程走 accent 口径(同 dg-badge-sched) */
 .dg-chip-off { color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); }
 .dg-row-stop { display: none; flex: none; margin-right: 8px; border: 1px solid var(--tmd-border); border-radius: 5px; width: 18px; height: 18px; line-height: 16px; text-align: center; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); background: var(--tmd-bg-elevated); }
-.dg-row:hover .dg-row-stop { display: block; }
+.dg-row:hover .dg-row-stop, .dg-row:focus-within .dg-row-stop { display: block; }
 .dg-row-stop:hover { color: var(--tmd-err); border-color: var(--tmd-err); }
 .dg-row-main:focus-visible { outline: 2px solid var(--tmd-accent); outline-offset: -2px; }
 .dg-stt { margin-left: 6px; border: 1px solid var(--tmd-border); background: none; border-radius: 999px; padding: 0 7px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); cursor: pointer; }
@@ -134,7 +134,8 @@
 .dg-lockchip { border: 1px solid var(--tmd-accent); border-radius: 999px; background: var(--tmd-accent-soft); color: var(--tmd-accent); font-size: var(--tmd-font-xs); padding: 0 9px; letter-spacing: 0; }
 .dg-srcrow { display: flex; align-items: center; gap: 8px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); padding: 6px 10px; margin-bottom: 5px; cursor: pointer; font-size: var(--tmd-font-ui); color: var(--tmd-fg); }
 .dg-srcrow:has(input:checked) { border-color: var(--tmd-ok); }
-.dg-srcrow input:disabled + ::first-line { color: var(--tmd-fg-faint); }
+/* 禁用行置灰 + 去手型:旧 `input:disabled + ::first-line` 因 input 后是文本节点永不命中,改 :has() 命中行容器。 */
+.dg-srcrow:has(input:disabled) { color: var(--tmd-fg-faint); cursor: default; }
 .dg-warn { color: var(--tmd-warn, var(--tmd-accent)); font-size: var(--tmd-font-xs); margin: 2px 0 0; }
 .dg-engines { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
 .dg-chipbtn { border: 1px solid var(--tmd-border); background: var(--tmd-bg-elevated); border-radius: 999px; padding: 2px 12px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); cursor: pointer; }

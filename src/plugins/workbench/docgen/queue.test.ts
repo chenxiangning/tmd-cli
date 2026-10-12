@@ -73,7 +73,7 @@ describe("docgen queue", () => {
     expect(stored.text).toContain("已取消");
   });
 
-  it("排队态取消:不经收割体", () => {
+  it("排队态取消:不经收割体,entry 经 failEntry 收割", async () => {
     const aborted: number[] = [];
     const gate = makeGate();
     q.setDocGenRunner(() => gate.promise, (task) => aborted.push(task.id));
@@ -84,6 +84,9 @@ describe("docgen queue", () => {
     expect(q.getDocGenTasks().find((x) => x.id === queued.id)!.st).toBe("queue");
     expect(q.cancelDocGenTask(queued.id)).toBe(true);
     expect(aborted).toEqual([]);
+    /* 排队取消对称收割:entry 落 fail 态拿重试入口,不经收割体。 */
+    const { failEntry } = await import("./store");
+    expect(failEntry).toHaveBeenCalledWith("dg-4", expect.stringContaining("已取消"));
   });
 
   it("启动恢复:run 改判中断并收割 entry,queue 保留续跑,id 序号推进", async () => {

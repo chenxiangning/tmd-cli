@@ -3,16 +3,15 @@
  * (结构化区块 / 条目级对比 / 原文 markdown)+ 底部分发动作。
  * 状态机:done 看三视图;gen 看生成态(队列文案+终止);fail 看失败卡(重试)。
  */
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
-import { host } from "@kernel/host";
 import { DiffView, DocGenBlocks } from "./DocGenBlocks";
 import { parseDocGenMarkdown, type DocGenParsed } from "./parse";
 import { docgenPaths, readText } from "./paths";
 import { createEntry, dimensionKeyOf, toggleDocState } from "./store";
 import { cancelDocGenTask, enqueueDocGenTask, useDocGenTasks, type DocGenTask } from "./queue";
-import { resolveTargetProjectId, readerMeta, riskToItem, actionToItem, suggestionToItem, DOC_STATE_KEYS, type TransferItem } from "../docgenView";
-import { DG_GEN_STAGES, dgGenStageOf } from "./genSession";
+import { resolveTargetProjectId, riskToItem, actionToItem, suggestionToItem, type TransferItem } from "../docgenView";
+import { FailCard, GenStateView, ReaderHead } from "./ReaderChrome";
 import { addTask } from "../store";
 import { useDocGenJump } from "./jump";
 import { ReaderFoot } from "./DocGenFoot";
@@ -30,6 +29,7 @@ export function DocGenReader({ entry, projects, onToast }: {
   const [ver, setVer] = useState<number | null>(null);
   const [view, setView] = useState<"s" | "d" | "r">("s");
   const [mdByVer, setMdByVer] = useState<Record<number, string>>({});
+  const [mdErr, setMdErr] = useState<Record<number, boolean>>({});
   const [lastEntryId, setLastEntryId] = useState(entry.id);
   /* 切换条目:渲染期调整状态(React 官方模式,替代 prop-change effect)。 */
   if (lastEntryId !== entry.id) {
@@ -37,6 +37,7 @@ export function DocGenReader({ entry, projects, onToast }: {
     setVer(null);
     setView("s");
     setMdByVer({});
+    setMdErr({});
   }
   const activeV = ver ?? latestV;
   const md = activeV === null ? undefined : mdByVer[activeV];
@@ -52,24 +53,32 @@ export function DocGenReader({ entry, projects, onToast }: {
     for (const s of curParsed.suggestions) { const it = suggestionToItem(s); if (titles.has(it.text.slice(0, 80))) set.add(it.key); }
     return set;
   }, [curParsed, projects]);
+  /* 正文读取失败(null/reject)置 mdErr,阅读区出错误卡可重试;不进 mdByVer 防 effect 循环。 */
   const diffing = view === "d" && activeV !== null && activeV > 1;
   const prevMd = diffing ? mdByVer[activeV - 1] : undefined;
   const prevParsed: DocGenParsed | null | "loading" = !diffing
     ? null
-    : prevMd === undefined ? "loading" : parseDocGenMarkdown(prevMd);
+    : mdErr[activeV - 1] ? null : prevMd === undefined ? "loading" : parseDocGenMarkdown(prevMd);
 
   useEffect(() => {
     if (activeV === null || mdByVer[activeV] !== undefined) return;
-    void loadVersionMd(entry.id, activeV).then((content) => {
-      if (content) setMdByVer((m) => ({ ...m, [activeV]: content }));
-    });
+    readVersionInto(entry.id, activeV, (content) => setMdByVer((m) => ({ ...m, [activeV]: content })), () => setMdErr((m) => (m[activeV] ? m : { ...m, [activeV]: true })));
   }, [activeV, entry.id, mdByVer]);
   useEffect(() => {
     if (!diffing || mdByVer[activeV - 1] !== undefined) return;
-    void loadVersionMd(entry.id, activeV - 1).then((content) => {
-      if (content) setMdByVer((m) => ({ ...m, [activeV - 1]: content }));
-    });
+    readVersionInto(entry.id, activeV - 1, (content) => setMdByVer((m) => ({ ...m, [activeV - 1]: content })), () => setMdErr((m) => (m[activeV - 1] ? m : { ...m, [activeV - 1]: true })));
   }, [diffing, activeV, entry.id, mdByVer]);
+  /** 错误卡重试:清失败标记后按版本重读(主动触发,不依赖 effect 重跑)。 */
+  const reloadMd = (v: number | null) => {
+    if (v === null) return;
+    setMdErr((m) => {
+      if (!m[v]) return m;
+      const next = { ...m };
+      delete next[v];
+      return next;
+    });
+    readVersionInto(entry.id, v, (content) => setMdByVer((m) => ({ ...m, [v]: content })), () => setMdErr((m) => (m[v] ? m : { ...m, [v]: true })));
+  };
 
   const transfer = (item: TransferItem) => {
     const target = resolveTargetProjectId(entry, projects);
@@ -102,7 +111,7 @@ export function DocGenReader({ entry, projects, onToast }: {
     }).then((e) => {
       const queued = enqueueDocGenTask("重试生成", e.id, dimensionKeyOf(e.templateId, e.scope, e.periodKey), engine);
       onToast(queued ? t("已重新入队({engine})", { engine }) : t("同维度已有任务在队列/运行中"));
-    });
+    }, (err) => onToast(err instanceof Error ? err.message : String(err)));
   };
 
   return (
@@ -112,13 +121,16 @@ export function DocGenReader({ entry, projects, onToast }: {
         entry={entry}
         view={view}
         task={task}
+        activeV={activeV}
         md={md}
+        mdErr={mdErr}
         curParsed={curParsed}
         prevParsed={prevParsed}
         transferred={transferred}
         onTransfer={transfer}
         onJumpSrc={jumpSrc}
         onRetry={retryWith}
+        onRetryMd={reloadMd}
         onToast={onToast}
       />
       {entry.status === "done" ? <ReaderFoot entry={entry} projects={projects} md={md} onToast={onToast} /> : null}
@@ -126,120 +138,97 @@ export function DocGenReader({ entry, projects, onToast }: {
   );
 }
 
-function ReaderBody({ entry, view, task, md, curParsed, prevParsed, transferred, onTransfer, onJumpSrc, onRetry, onToast }: {
+function ReaderBody({ entry, view, task, activeV, md, mdErr, curParsed, prevParsed, transferred, onTransfer, onJumpSrc, onRetry, onRetryMd, onToast }: {
   entry: DocGenEntry;
   view: "s" | "d" | "r";
   task?: DocGenTask;
+  activeV: number | null;
   md: string | undefined;
+  mdErr: Record<number, boolean>;
   curParsed: DocGenParsed | null;
   prevParsed: DocGenParsed | null | "loading";
   transferred: ReadonlySet<string>;
   onTransfer: (item: TransferItem) => void;
   onJumpSrc: (src: string) => void;
   onRetry: (engine: string) => void;
+  onRetryMd: (v: number | null) => void;
   onToast: (m: string) => void;
 }) {
+  /* 终止按 cancelDocGenTask 返回值如实提示:排队取消不收割会话,文案分口径;未取消不谎报。 */
+  const terminate = () => {
+    if (!task || !cancelDocGenTask(task.id)) {
+      onToast(t("任务已结束,无需终止"));
+      return;
+    }
+    onToast(task.st === "run" ? t("已终止:收割会话并回落") : t("已取消排队任务"));
+  };
   return (
     <div className="dg-reader-body">
       {entry.status === "gen" ? (
-        <GenStateView task={task} onTerminate={() => { if (task) cancelDocGenTask(task.id); onToast(t("已终止:收割会话并回落")); }} />
+        <GenStateView task={task} onTerminate={terminate} />
       ) : entry.status === "fail" ? (
         <FailCard entry={entry} onRetry={onRetry} />
-      ) : view === "d" ? (
-        <DiffView cur={curParsed} prev={prevParsed} />
-      ) : view === "r" ? (
-        <div className="dg-prose"><pre className="dg-raw">{md}</pre></div>
       ) : (
-        <DocGenBlocks parsed={curParsed} md={md ?? ""} transferred={transferred} onTransfer={onTransfer} onJumpSrc={onJumpSrc} />
+        <DoneBody
+          view={view}
+          activeV={activeV}
+          md={md}
+          mdErr={mdErr}
+          curParsed={curParsed}
+          prevParsed={prevParsed}
+          transferred={transferred}
+          onTransfer={onTransfer}
+          onJumpSrc={onJumpSrc}
+          onRetryMd={onRetryMd}
+        />
       )}
     </div>
   );
+}
+
+/** done 态正文:加载/错误卡/对比/原文/结构化五分支(与 gen/fail 开关分层守复杂度)。 */
+function DoneBody({ view, activeV, md, mdErr, curParsed, prevParsed, transferred, onTransfer, onJumpSrc, onRetryMd }: {
+  view: "s" | "d" | "r";
+  activeV: number | null;
+  md: string | undefined;
+  mdErr: Record<number, boolean>;
+  curParsed: DocGenParsed | null;
+  prevParsed: DocGenParsed | null | "loading";
+  transferred: ReadonlySet<string>;
+  onTransfer: (item: TransferItem) => void;
+  onJumpSrc: (src: string) => void;
+  onRetryMd: (v: number | null) => void;
+}) {
+  if (md === undefined) {
+    if (activeV !== null && mdErr[activeV]) {
+      return (
+        <div className="dg-failcard">
+          <b>{t("版本正文读取失败")}</b>
+          <p>{t("文件可能被移动或删除,可重试读取")}</p>
+          <div className="dg-fail-actions">
+            <button type="button" className="wb-btn wb-btn-primary" onClick={() => onRetryMd(activeV)}>{t("重试")}</button>
+          </div>
+        </div>
+      );
+    }
+    return <p className="dg-muted">{t("版本正文加载中…")}</p>;
+  }
+  if (view === "d") {
+    if (activeV !== null && activeV < 2) return <p className="dg-muted">{t("首版没有上一版,无可比对内容")}</p>;
+    return <DiffView cur={curParsed} prev={prevParsed} />;
+  }
+  if (view === "r") {
+    return <div className="dg-prose"><pre className="dg-raw">{md}</pre></div>;
+  }
+  return <DocGenBlocks parsed={curParsed} md={md} transferred={transferred} onTransfer={onTransfer} onJumpSrc={onJumpSrc} />;
 }
 
 function loadVersionMd(entryId: string, v: number): Promise<string | null> {
   return docgenPaths().then((p) => readText(p.version(entryId, v)));
 }
 
-function ReaderHead({ entry, view, activeV, onVer, onView, onFlipState }: {
-  entry: DocGenEntry;
-  view: "s" | "d" | "r";
-  activeV: number | null;
-  onVer: (v: number) => void;
-  onView: (v: "s" | "d" | "r") => void;
-  onFlipState: () => void;
-}) {
-  const docStateLabel = t(DOC_STATE_KEYS[entry.docState]);
-  const views = [
-    { v: "s" as const, label: t("结构化"), show: true },
-    { v: "d" as const, label: t("对比"), show: entry.versions.length > 1 },
-    { v: "r" as const, label: t("原文"), show: true },
-  ];
-  return (
-    <div className="dg-reader-head">
-      <h3 className="dg-reader-title">{entry.title}</h3>
-      {entry.status === "done" ? <span className="dg-badge">{t("AI 生成")}</span> : null}
-      {entry.scheduled ? <span className="dg-badge dg-badge-sched">{t("排程")}</span> : null}
-      {entry.status === "done" ? (
-        <button type="button" className={`dg-docstate-${entry.docState}`} onClick={onFlipState} title={t("点击流转:草稿 → 已汇报 → 已归档")}>
-          {docStateLabel}
-        </button>
-      ) : null}
-      <span className="dg-reader-meta">{readerMeta(entry, activeV)}</span>
-      <span className="dg-sp" />
-      {entry.versions.length > 1 ? (
-        <span className="dg-vers">
-          {entry.versions.map((v) => (
-            <button key={v.v} type="button" className={`dg-ver${(activeV ?? v.v) === v.v ? " is-on" : ""}`} onClick={() => onVer(v.v)}>v{v.v}</button>
-          ))}
-        </span>
-      ) : null}
-      {entry.status === "done" ? (
-        <span className="dg-seg" role="tablist">
-          {views.filter((x) => x.show).map((x) => (
-            <button key={x.v} type="button" className={view === x.v ? "is-on" : ""} onClick={() => onView(x.v)}>{x.label}</button>
-          ))}
-        </span>
-      ) : null}
-    </div>
-  );
+/** 读版本正文入状态:成功走 onOk,失败(null/reject)走 onFail(阅读区错误卡重试共用)。 */
+function readVersionInto(entryId: string, v: number, onOk: (md: string) => void, onFail: () => void): void {
+  void loadVersionMd(entryId, v).then((content) => (content === null ? onFail() : onOk(content)), onFail);
 }
 
-function GenStateView({ task, onTerminate }: { task?: DocGenTask; onTerminate: () => void }) {
-  const stage = dgGenStageOf(task);
-  return (
-    <div className="dg-genstate">
-      <div className="dg-stagebar">
-        {DG_GEN_STAGES.map((label, i) => (
-          <Fragment key={label}>
-            <span className={`dg-stage${i < stage ? " is-done" : i === stage ? " is-run" : ""}`}>
-              <i className="dg-sdot" />
-              {t(label)}
-            </span>
-            {i < DG_GEN_STAGES.length - 1 ? <span className="dg-sline" /> : null}
-          </Fragment>
-        ))}
-      </div>
-      <p className="dg-gen-line">{task ? task.text : t("生成中")}</p>
-      <p className="dg-gen-hint">{t("文件落盘即结算 · 20 分钟硬顶自动收割")}</p>
-      <button type="button" className="wb-btn" onClick={onTerminate}>{t("终止生成")}</button>
-    </div>
-  );
-}
-
-function FailCard({ entry, onRetry }: {
-  entry: DocGenEntry;
-  onRetry: (engine: string) => void;
-}) {
-  const profiles = host.getCliProfiles();
-  const nextEngine = profiles[(profiles.findIndex((p) => p.id === entry.engine) + 1) % Math.max(1, profiles.length)]?.id ?? entry.engine;
-  return (
-    <div className="dg-failcard">
-      <b>{t("生成失败")}</b>
-      <p>{entry.error ?? t("产物未落盘")}</p>
-      <div className="dg-fail-actions">
-        <button type="button" className="wb-btn wb-btn-primary" onClick={() => onRetry(entry.engine)}>{t("重试")}</button>
-        {nextEngine !== entry.engine ? <button type="button" className="wb-btn" onClick={() => onRetry(nextEngine)}>{t("换 {engine} 重试", { engine: nextEngine })}</button> : null}
-      </div>
-    </div>
-  );
-}

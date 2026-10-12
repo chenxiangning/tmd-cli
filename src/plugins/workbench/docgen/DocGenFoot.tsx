@@ -71,14 +71,19 @@ export function ReaderFoot({ entry, projects, md, onToast }: {
       return;
     }
     void host.createSession(entry.engine, ws.root, ws.id).then((meta) => {
+      /* 送达失败(resolve false / reject)都回收刚开的空会话,不留孤儿(照 genSession 收割口径)。 */
+      const giveUp = () => {
+        void host.removeSession(meta.id);
+        onToast(t("提示词未能送达"));
+      };
       void host.writeSession(meta.id, buildAskPrompt(entry, md)).then((sent) => {
         if (!sent) {
-          onToast(t("提示词未能送达"));
+          giveUp();
           return;
         }
         host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
         host.setActiveSession(meta.id);
-      });
+      }, giveUp);
     }, () => onToast(t("创建会话失败")));
   };
   const regen = () => {
@@ -91,15 +96,16 @@ export function ReaderFoot({ entry, projects, md, onToast }: {
     }).then((e) => {
       const queued = enqueueDocGenTask("重试生成", e.id, dimensionKeyOf(e.templateId, e.scope, e.periodKey), e.engine);
       onToast(queued ? t("已重新入队:产出将存为新版本") : t("同维度已有任务在队列/运行中"));
-    });
+    }, (err) => onToast(err instanceof Error ? err.message : String(err)));
   };
+  const mdHint = t("版本正文未加载");
   return (
     <div className="dg-reader-foot">
-      <button type="button" className="wb-btn" onClick={copyMd}>{t("复制 MD")}</button>
-      <button type="button" className="wb-btn" onClick={exportMd}>{t("导出")}</button>
-      <button type="button" className="wb-btn" onClick={saveAsDoc}>{t("存为项目文档")}</button>
-      <button type="button" className="wb-btn" onClick={sendToComposer}>{t("发送到输入框")}</button>
-      <button type="button" className="wb-btn" onClick={askHere}>{t("就此追问")}</button>
+      <button type="button" className="wb-btn" disabled={!md} title={md ? undefined : mdHint} onClick={copyMd}>{t("复制 MD")}</button>
+      <button type="button" className="wb-btn" disabled={!md} title={md ? undefined : mdHint} onClick={exportMd}>{t("导出")}</button>
+      <button type="button" className="wb-btn" disabled={!md} title={md ? undefined : mdHint} onClick={saveAsDoc}>{t("存为项目文档")}</button>
+      <button type="button" className="wb-btn" disabled={!md} title={md ? undefined : mdHint} onClick={sendToComposer}>{t("发送到输入框")}</button>
+      <button type="button" className="wb-btn" disabled={!md} title={md ? undefined : mdHint} onClick={askHere}>{t("就此追问")}</button>
       <span className="dg-sp" />
       <button type="button" className="wb-btn" onClick={regen}>{t("重新生成")}</button>
     </div>

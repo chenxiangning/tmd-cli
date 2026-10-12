@@ -41,6 +41,7 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
   const [schedOn, setSchedOn] = useState(false);
   const [schedWeekday, setSchedWeekday] = useState(schedule.weekday);
   const [schedTime, setSchedTime] = useState(schedule.time);
+  const [busy, setBusy] = useState(false);
   const template = getDocGenTemplate(templateId);
 
   const scopeText = useMemo(() => {
@@ -59,7 +60,7 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
   const toggleSource = (key: keyof DocGenSourceKey) => setSources((s) => ({ ...s, [key]: !s[key] }));
 
   const submit = () => {
-    if (!template) return;
+    if (!template || busy) return;
     if (template.analysisOnly) {
       const project = lockedProject ?? projects.find((p) => p.id === oneProjectId) ?? null;
       const content = buildAnalysisPrompt({ projects, project, today });
@@ -76,6 +77,7 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
       return;
     }
     const range = periodRange(period, today);
+    setBusy(true);
     void createEntry({
       templateId: template.id,
       title: `${template.label} · ${range.label}${project ? ` · ${project.name}` : ""}`,
@@ -92,11 +94,18 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
     }).then((entry) => {
       const queued = enqueueDocGenTask("手动生成", entry.id, dimensionKeyOf(entry.templateId, entry.scope, entry.periodKey), engine);
       if (schedOn) {
-        void updateSchedule({ on: true, weekday: schedWeekday, time: schedTime, templateId: template.id, engine }).catch(() => undefined);
+        /* M18:排程落盘失败不翻转状态(回滚内存态防假「运行中」),onToast 如实报错。 */
+        void updateSchedule({ on: true, weekday: schedWeekday, time: schedTime, templateId: template.id, engine }).catch((e) => {
+          void updateSchedule(schedule).catch(() => undefined);
+          onToast(e instanceof Error ? e.message : String(e));
+        });
       }
       onToast(queued ? t("已加入生成队列({engine})", { engine }) : t("同维度已有任务在队列/运行中"));
       onClose();
-    }, (e) => onToast(e instanceof Error ? e.message : String(e)));
+    }, (e) => {
+      setBusy(false);
+      onToast(e instanceof Error ? e.message : String(e));
+    });
   };
 
   return (
@@ -104,6 +113,7 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
       title={t("生成文档")}
       icon={null}
       width={860}
+      locked={busy}
       onClose={onClose}
       footer={
         <div className="dg-dialog-foot">
@@ -117,6 +127,7 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
             onConfirm={submit}
             onCancel={onClose}
             cancelLabel={t("取消")}
+            submitting={busy}
           />
         </div>
       }

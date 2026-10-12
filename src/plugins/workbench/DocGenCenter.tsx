@@ -5,6 +5,7 @@
  */
 import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
+import { X } from "@phosphor-icons/react";
 import { WbScreenProps } from "./screens/cards";
 import { useDocGenEntries, useDocGenSchedule, updateSchedule, toggleDocState } from "./docgen/store";
 import { cancelDocGenTask, useDocGenTasks } from "./docgen/queue";
@@ -86,7 +87,15 @@ function DocList({ visible, tasks, schedule, today, docsFilter, selectedId, onSe
   const rows = (list: DocGenEntry[]) =>
     list.map((entry) => (
       <ListRow key={entry.id} entry={entry} task={taskByEntry.get(entry.id)} selected={entry.id === selectedId}
-        onSelect={() => onSelect(entry.id)} onCancel={() => { const x = taskByEntry.get(entry.id); if (x) cancelDocGenTask(x.id); }} />
+        onSelect={() => onSelect(entry.id)} onCancel={() => {
+          /* 终止按 cancelDocGenTask 返回值如实提示(排队取消不收割会话,文案分口径)。 */
+          const x = taskByEntry.get(entry.id);
+          if (!x || !cancelDocGenTask(x.id)) {
+            onToast(t("任务已结束,无需终止"));
+            return;
+          }
+          onToast(x.st === "run" ? t("已终止:收割会话并回落") : t("已取消排队任务"));
+        }} />
     ));
   return (
     <aside className="dg-list">
@@ -178,7 +187,7 @@ function ListRow({ entry, task, selected, onSelect, onCancel }: {
         </button>
       ) : null}
       {chip.cls === "gen" ? (
-        <button type="button" className="dg-row-stop" aria-label={t("终止")} onClick={onCancel}>✕</button>
+        <button type="button" className="dg-row-stop" aria-label={t("终止")} onClick={onCancel}><X size={11} /></button>
       ) : null}
     </div>
   );

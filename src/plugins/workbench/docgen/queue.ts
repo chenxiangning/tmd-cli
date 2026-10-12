@@ -161,6 +161,8 @@ export function cancelDocGenTask(id: number): boolean {
     pump();
   } else {
     patch(id, { st: "err", text: t("已取消") });
+    /* 排队取消对称收割:entry 落 fail 态拿重试入口,否则永卡 gen(终止/重试双失效)。 */
+    void failEntry(task.entryId, t("已取消(尚未开始生成)")).catch(() => undefined);
   }
   return true;
 }
