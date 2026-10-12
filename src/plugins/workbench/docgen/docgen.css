@@ -14,8 +14,10 @@
 .dg-row:hover { background: var(--tmd-bg-hover); }
 .dg-row.is-on { background: var(--tmd-accent-soft); border-left-color: var(--tmd-accent); }
 .dg-row-main { display: block; flex: 1; min-width: 0; text-align: left; border: 0; background: none; color: var(--tmd-fg); padding: 8px 12px; cursor: pointer; }
-.dg-row-top { display: flex; align-items: center; gap: 7px; }
+.dg-row-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .dg-row-title { font-size: var(--tmd-font-ui); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 运行中文本(状态 chip)可能很长:必须可收缩省略,否则把整列撑出视口(2026-10-12 实证)。 */
+.dg-row-top .dg-chip { flex: none; min-width: 0; max-width: 70%; overflow: hidden; text-overflow: ellipsis; }
 .dg-row-meta { display: block; margin: 3px 0 0 14px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dg-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .dg-dot-gen { background: var(--tmd-warn, var(--tmd-accent)); animation: dg-pulse 1.6s var(--tmd-ease-out) infinite; }

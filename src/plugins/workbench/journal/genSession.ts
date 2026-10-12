@@ -244,7 +244,8 @@ async function runGeneration(task: GenTask): Promise<void> {
     void host.removeSession(meta.id);
     return;
   }
-  startTaskRun(task.id, meta.id, `${task.type} · ${headless ? "无头生成" : "生成会话"} ${meta.id}`);
+  /* run 文本进任务行 chip:不带会话 id(无断点长串撑破行布局;打开会话走 task.sessionId)。 */
+  startTaskRun(task.id, meta.id, `${task.type} · ${headless ? "无头生成" : "生成会话"}`);
   if (!headless) {
     /* TUI 路径(引擎无 oneshotArgs 声明):pi-tui 系冷启动窗 spawn 返回 ≠ TUI 就绪,
        过早写入会撞 cooked→raw 切换被吃。先等一拍再写(真机实证:立即写 → prompt
