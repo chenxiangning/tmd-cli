@@ -13,6 +13,8 @@
 
 ### B1(blocker)i18n 三语词典欠账,CI 硬门红
 
+> **勘误(修复时实证)**:本节根因判定有误。134/135「缺键」实为守护脚本盲区——`locales/en-docgen.ts`/`ja-docgen.ts` 拆分词典文件不在收录正则 `/\/locales\/(en|ja)(\/[^/]+)?\.ts$/` 内,词条早已翻好。真缺的只有 wallpaper ja 词典一处键名错(把译文「現在の壁紙」当键)。修复 = 脚本补收录 `<lang>-<段>.ts` 形态 + 修 wallpaper 键名,见提交 cd44f2eb;词条翻译零欠账。
+
 - 证据:`node scripts/check-i18n-keys.mjs` exit=1,`[缺键][en] 134 处`、`[缺键][ja] 135 处`;`.github/workflows/ci.yml` 将 `pnpm check:i18n-keys` 列为硬步骤;远端 run 38226396778(16:53,8f5cc16f)「i18n 键三语同步」失败实锤。
 - 分布(按文件计数):docgen/DocGenDialog.tsx 68、DocGenCenter.tsx 42、DocGenFoot.tsx 34、DocGenBlocks.tsx 28、genSession.ts 26、DocGenReader.tsx 24、ReaderChrome.tsx 20、docgen/queue.ts 10、jump.ts 8、docgenView.ts 4、ProjectDetail.tsx 4、welcome/locales.ts 2。
 - 说明:b08a9ba9「i18n 漏网清账」清的是上午存量;下午 journal 清单(8f5cc16f)、看板五态(da6ba68b)、任务右栏(46b35a01)、dashboard(4e0f6c71)四批 feature 又欠了新账。zh 侧零缺键(死代码评审逐一回查证实),欠的全是 en/ja。
