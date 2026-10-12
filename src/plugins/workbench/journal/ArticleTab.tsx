@@ -12,7 +12,8 @@ import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, dayMetaOf, deriveDayStatus, getJournalState, useJournalState } from "./journalStore";
 import { isRowSummarized, useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
-import { buildSessionLinks } from "./sessionRef";
+import { buildSessionLinks, openDaySessionRow } from "./sessionRef";
+import { openSessionViewTab, isSessionViewAvailable } from "@kernel/sessionViewTabs";
 import { useArticleEditSignal } from "./journalTabs";
 import { UnfinishedPanel } from "./UnfinishedPanel";
 import { unfinishedPanelRows } from "./unfinished";
@@ -109,8 +110,22 @@ function GenAction({ y, m, d, st, hasArticle, rows, summarizedAt }: { y: number;
   );
 }
 
-function DaySessions({ rows, summarizedAt }: { rows: DaySessionRow[]; summarizedAt?: number }) {
+function DaySessions({ rows, summarizedAt, workspaces }: { rows: DaySessionRow[]; summarizedAt?: number; workspaces: readonly { id: string; root: string }[] }) {
+  useHost(); /* 订阅面:活行身份绑定(getCliSessionId)与退出随时刷新 */
   if (rows.length === 0) return null;
+  /* 转录链接装配:引擎支持转录 + 查看器在册才有;活行经已绑定磁盘身份定位。 */
+  const viewOf = (r: DaySessionRow): (() => void) | undefined => {
+    const profile = host.getCliProfile(r.profileId);
+    const cliSessionId = r.disk?.id ?? (r.id !== undefined ? host.getCliSessionId(r.id) : undefined);
+    if (!profile?.readSessionTranscript || !isSessionViewAvailable() || !cliSessionId) return undefined;
+    const ws = workspaces.find((w) => w.id === r.wsId);
+    const cwd = r.live && r.id ? host.getSessions().find((s) => s.id === r.id)?.cwd : ws?.root;
+    return () =>
+      openSessionViewTab({
+        profileId: r.profileId, cliSessionId, title: r.title,
+        path: r.disk?.path, cwd,
+      });
+  };
   return (
     <div className="dj-day-sessions">
       <h4>
@@ -124,6 +139,7 @@ function DaySessions({ rows, summarizedAt }: { rows: DaySessionRow[]; summarized
       </h4>
       {rows.map((r) => {
         const done = isRowSummarized(r, summarizedAt);
+        const view = viewOf(r);
         return (
           <div key={`${r.profileId}-${r.startedAt}`} className="dj-ds-row">
             <EngMark id={r.profileId} />
@@ -132,6 +148,14 @@ function DaySessions({ rows, summarizedAt }: { rows: DaySessionRow[]; summarized
               {r.live ? ` · ${t("会话进行中")}` : ""}
             </span>
             <span className="dj-ds-ws">{r.wsName}</span>
+            <button type="button" className="dj-ds-link" onClick={() => openDaySessionRow(r, workspaces)}>
+              {t("打开会话")}
+            </button>
+            {view && (
+              <button type="button" className="dj-ds-link" onClick={view}>
+                {t("查看转录")}
+              </button>
+            )}
             {summarizedAt !== undefined && (
               <span className={`dj-chip ${done ? "" : "dj-chip-p"}`}>{done ? t("已归纳") : t("待归纳")}</span>
             )}
@@ -219,7 +243,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
           )}
           <NoteEditor key={editSignal} y={y} m={m} d={p.d} note={note} signal={editSignal} onDirtyChange={handleDirty} onImageOpen={setLightbox} />
           {article && <ArticleBody article={article} sessionLinks={sessionLinks} />}
-          <DaySessions rows={rows} summarizedAt={meta.summarizedAt} />
+          <DaySessions rows={rows} summarizedAt={meta.summarizedAt} workspaces={workspaces} />
           <DayLinks rows={rows} />
           <BeadStrip beads={meta.beads} />
           {lightbox && noteImageUrl(lightbox.file) && (

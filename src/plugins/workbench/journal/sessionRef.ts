@@ -53,6 +53,24 @@ export function sessionKeyFromHref(href: string): string | null {
   }
 }
 
+/** 单行打开(PTY 语义):live 聚焦终端 / disk 磁盘续开;工作区已删不续。
+ *  文章标记链接与当日清单行链接共用。 */
+export function openDaySessionRow(
+  r: DaySessionRow,
+  workspaces: readonly { id: string; root: string }[],
+): void {
+  if (r.live && r.id) {
+    host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化(与 disk 分支同口径,M12) */
+    requestSessionReveal(r.id);
+  } else if (r.disk) {
+    const ws = workspaces.find((w) => w.id === r.wsId);
+    /* 工作区已删(扫描缓存 60s 窗内):空 cwd 只会在 app 目录开垃圾会话,不续。 */
+    if (!ws) return;
+    host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
+    void host.openDiskSession(r.profileId, ws.root, ws.id, r.disk.id);
+  }
+}
+
 /** 当日行集 → 链接面(四段归一键寻址:live 续聊聚焦 / disk 磁盘续开)。
  *  从 ArticleTab 拆出守组件复杂度;host/requestSessionReveal 为模块级稳定引用。 */
 export function buildSessionLinks(
@@ -65,17 +83,7 @@ export function buildSessionLinks(
     isValid: (k: string) => byKey.has(k),
     open: (k: string) => {
       const r = byKey.get(k);
-      if (!r) return;
-      if (r.live && r.id) {
-        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化(与 disk 分支同口径,M12) */
-        requestSessionReveal(r.id);
-      } else if (r.disk) {
-        const ws = workspaces.find((w) => w.id === r.wsId);
-        /* 工作区已删(扫描缓存 60s 窗内):空 cwd 只会在 app 目录开垃圾会话,不续。 */
-        if (!ws) return;
-        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
-        void host.openDiskSession(r.profileId, ws.root, ws.id, r.disk.id);
-      }
+      if (r) openDaySessionRow(r, workspaces);
     },
   };
 }
