@@ -31,6 +31,23 @@ jobs:
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      # 发版铁律(AGENTS.md §3):Release 正文必须携带 CHANGELOG 对应版本小节,
+      # 禁「Automated build」占位(v0.3.6 曾中招)。keep-a-changelog 标题
+      # 「## [x.y.z] - 日期」,抠到下一个「## 」为止;缺小节回落占位并告警。
+      - name: Extract release notes from CHANGELOG
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VER" '
+            $0 ~ "^## \\[" ver "\\]" {flag = 1; next}
+            flag && /^## / {exit}
+            flag {print}
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "Automated build. See commit log for changes." > release-notes.md
+            echo "::warning::CHANGELOG.md 无 [$VER] 小节,Release 正文回落占位文案"
+          fi
       - name: Create draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -50,9 +67,13 @@ jobs:
             else
               echo "无 latest.json 或已删,继续"
             fi
+            # 重打 tag 重跑:正文同样刷成 CHANGELOG 小节(手写正文会被覆盖,
+            # 以 CHANGELOG 为唯一事实源)
+            gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md \
+              --repo "$GITHUB_REPOSITORY" > /dev/null
           else
             gh release create "$GITHUB_REF_NAME" --draft --title "tmd-cli $GITHUB_REF_NAME" \
-              --notes "Automated build. See commit log for changes." --repo "$GITHUB_REPOSITORY"
+              --notes-file release-notes.md --repo "$GITHUB_REPOSITORY"
           fi
 
   build:
@@ -192,6 +213,8 @@ jobs:
         with:
           tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/v') && format('tmd-cli {0}', github.ref_name) || '' }}
+          # tag 跑时 tauri-action 复用 prep-release 建好的 release(正文已是
+          # CHANGELOG 小节),此占位仅在非 tag 手动跑的极端兜底路径生效
           releaseBody: "Automated build. See commit log for changes."
           releaseDraft: true
           args: --target ${{ matrix.tauri-target }}
