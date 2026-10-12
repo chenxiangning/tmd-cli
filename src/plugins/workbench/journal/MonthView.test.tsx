@@ -85,14 +85,23 @@ describe("MonthView 月格单行状态描述", () => {
     expect(html).not.toContain(">引擎超时:OMP spawn failed</div>");
   });
 
-  it("空日:保留便签引导行;全月不再出现徽章与右上角计数", () => {
-    const html = renderMonth({ "03": null }, new Map(), key(30));
+  it("空日(近today):保留便签引导行;全月不再出现徽章与右上角计数", () => {
+    const html = renderMonth({ "03": null }, new Map(), key(3));
     expect(html).toContain("无会话 · 点开写便签");
     expect(html).not.toContain("dj-badge");
     expect(html).not.toContain("dj-cell-sub");
   });
 
-  it("有便签日:各状态行追加「有便签」标注,空日改「无会话 · 有便签」", () => {
+  it("空日(远离today,B3):灰字文案不渲染,引导降级为 hover title", () => {
+    const html = renderMonth({ "03": null }, new Map(), key(30));
+    /* 断言收窄到 3 日格本身:跨月尾的补位日(相对 today 的明天/后天)属「近today」,
+     * 合法保留灰字,不能全局 not.toContain。 */
+    const day3 = html.split("dj-cellwrap").find((chunk) => chunk.includes('"dj-daynum">3<'));
+    expect(day3).toContain('title="无会话 · 点开写便签"');
+    expect(day3).not.toContain(">无会话 · 点开写便签</div>");
+  });
+
+  it("有便签日:各状态行追加「有便签」标注,近today空日改「无会话 · 有便签」", () => {
     const note = { text: "记一笔\n第二行", images: [], updatedAt: 0 };
     const html = renderMonth(
       { "01": article, "03": null },
@@ -100,7 +109,7 @@ describe("MonthView 月格单行状态描述", () => {
         [key(1), rows(24)],
         [key(2), rows(17)],
       ]),
-      key(30),
+      key(2),
       { "01": note, "02": note, "03": note },
     );
     expect(html).toContain("已生成 · 24 条会话 · 有便签");

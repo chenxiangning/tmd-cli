@@ -2,7 +2,7 @@
  * 文章本体渲染件(文章 tab 与轴视图卡共用):总览段 + 分节(并入留痕章)+
  * 未完事项 + 只读便签卡。纯展示,无数据依赖。
  */
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import { retryImport } from "@kernel/lazyImport";
 /* 跨插件 UI 复用先例(同 session-viewer→files):纯 props 渲染件,不涉
@@ -146,8 +146,12 @@ export function BeadStrip({ beads }: { beads: JournalBead[] }) {
 
 /** 大图查看(Esc / 点击遮罩关闭;IME 组词期放行)。 */
 export function Lightbox({ url, name, onClose }: { url: string; name: string; onClose: () => void }) {
+  /* 打开即编程聚焦本钮(react-doctor 禁 autoFocus 属性):Esc onKeyDown 立即可用(D4)。 */
+  const boxRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { boxRef.current?.focus(); }, []);
   return (
     <button
+      ref={boxRef}
       type="button"
       className="dj-lightbox"
       aria-label={t("关闭大图")}

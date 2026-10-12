@@ -14,7 +14,6 @@ import { bindTaskPersistence } from "./taskQueue";
 import { bootJournalSchedule } from "./journalSchedule";
 import { bindHolidayEnabled, ensureHolidays } from "./holidays";
 import "./locales"; /* 域词典随子域自带:i18n.registerMessages(import 即注册) */
-import "./daily-journal-unfinished.css"; /* W3-b 面板/链接样式(全局 css,挂载点收口装配处) */
 
 /** workbench.activate 调用;返回退订(停定时器/事件/生成体)。 */
 export function attachJournal(ctx: PluginContext): () => void {

@@ -99,7 +99,7 @@
 .dj-chip-p { color: var(--tmd-warn); border-color: color-mix(in srgb, var(--tmd-warn) 25%, transparent); } .dj-chip-f { color: var(--tmd-err); border-color: color-mix(in srgb, var(--tmd-err) 25%, transparent); } .dj-chip-g { color: var(--tmd-ok); border-color: color-mix(in srgb, var(--tmd-ok) 25%, transparent); }
 .dj-art-sub { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); }
 .dj-art-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-.dj-art-page { max-width: 860px; margin: 0 auto; width: 100%; padding: 18px 24px 40px; }
+.dj-art-page { width: 100%; padding: 18px 24px 40px; }
 .dj-art-title { font-size: var(--tmd-font-xl); font-weight: 700; line-height: 1.4; margin: 4px 0 2px; }
 .dj-art-hint { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-ui); padding: 10px 0; }
 .dj-art-lede { color: var(--tmd-fg); font-size: var(--tmd-font-ui); line-height: 1.7; margin: 10px 0 6px; }
@@ -225,11 +225,11 @@
 .dj-nc-edit { width: 100%; min-height: 96px; border: 1px solid var(--tmd-accent); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-base); padding: 8px; font: inherit; font-size: var(--tmd-font-ui); line-height: 1.6; color: var(--tmd-fg); resize: vertical; outline: none; }
 .dj-nc-pasteerr { color: var(--tmd-err); font-size: var(--tmd-font-2xs); padding: 4px 0; }
 .dj-nc-imgs { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0; }
-.dj-nc-img .dj-nc-img-del:focus-visible { display: grid; outline: 1px solid var(--tmd-accent); }
 .dj-nc-img { position: relative; width: 84px; height: 56px; border-radius: var(--tmd-radius-sm); border: 1px solid var(--tmd-border); overflow: hidden; cursor: zoom-in; background: var(--tmd-bg-elevated); }
 .dj-nc-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.dj-nc-img .dj-nc-img-del { position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; border: 0; background: rgb(0 0 0 / 55%); color: #fff; font-size: var(--tmd-font-2xs); display: none; place-items: center; cursor: pointer; padding: 0; }
-.dj-nc-img:hover .dj-nc-img-del { display: grid; }
+/* 删除位(D5):20px 点击区 + opacity 显隐(非 display:none,键盘 Tab 常驻可达,focus-visible 恒显)。 */
+.dj-nc-img .dj-nc-img-del { position: absolute; top: 1px; right: 1px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgb(0 0 0 / 55%); color: #fff; font-size: var(--tmd-font-2xs); display: grid; place-items: center; cursor: pointer; padding: 0; opacity: 0; }
+.dj-nc-img:hover .dj-nc-img-del, .dj-nc-img .dj-nc-img-del:focus-visible { opacity: 1; } .dj-nc-img .dj-nc-img-del:focus-visible { outline: 1px solid var(--tmd-accent); outline-offset: 1px; }
 .dj-nc-foot { display: flex; align-items: center; gap: 8px; font-size: var(--tmd-font-2xs); color: var(--tmd-fg-faint); flex-wrap: wrap; }
 .dj-nc-acts { margin-left: auto; display: flex; gap: 6px; }
 .dj-btn-primary { background: var(--tmd-accent); border-color: var(--tmd-accent); color: var(--tmd-accent-fg); }

@@ -43,6 +43,7 @@ vi.mock("./journalFiles", () => ({
   dayKey: (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
   readText: vi.fn(async () => ""),
   writeText: vi.fn(async () => undefined),
+  articleChanged: (baseline: string | null, next: string | null) => next !== null && next.length > 0 && next !== baseline,
 }));
 vi.mock("./journalStore", () => ({
   addBead: vi.fn(),
@@ -185,13 +186,14 @@ describe("genSession 结算", () => {
     bootGenSession(makeBus()); /* 独立可跑:不依赖前例模块级残留 runner */
     const key = "2026-09-13";
     expect(enqueueTask("手动生成", key, "omp")).not.toBeNull();
-    readTextMock.mockResolvedValue("# 文章");
+    /* 首读钉 null:existing 读须先于「文章已写」桩翻转,否则 baseline 同文永无变化。 */
+    readTextMock.mockResolvedValueOnce(null).mockResolvedValue("# 文章");
     reloadDayMock.mockResolvedValue({ title: "t", lede: "", secs: [], open: [] });
     /* TUI 冷启动 sleep(1200) + 轮询 15s + 容忍 8s,一步推到底 */
     await vi.advanceTimersByTimeAsync(30_000);
     expect(taskOf(key)?.st).toBe("done"); /* 先收口释放队列,再断言注入面 */
     expect(vi.mocked(buildGenPrompt)).toHaveBeenCalledWith(
-      2026, 9, 13, expect.anything(), true, "/fake/2026-9-13.md", undefined, /* 结算用文章回读与 existing 同源,恒真 */
+      2026, 9, 13, expect.anything(), false, "/fake/2026-9-13.md", undefined, /* 首读钉 null 后 existing 同源为 false */
       { path: "/fake/digest-2026-9-13.md", coveredIds: ["s1"] },
       [{ name: "甲项目", titles: ["甲会话"] }],
     );
@@ -215,12 +217,12 @@ describe("genSession 结算", () => {
     bootGenSession(makeBus());
     const key = "2026-09-14";
     expect(enqueueTask("手动生成", key, "omp")).not.toBeNull();
-    readTextMock.mockResolvedValue("# 文章");
+    readTextMock.mockResolvedValueOnce(null).mockResolvedValue("# 文章");
     reloadDayMock.mockResolvedValue({ title: "t", lede: "", secs: [], open: [] });
     await vi.advanceTimersByTimeAsync(30_000);
     expect(taskOf(key)?.st).toBe("done");
     expect(vi.mocked(buildGenPrompt)).toHaveBeenLastCalledWith(
-      2026, 9, 14, expect.anything(), true, "/fake/2026-9-14.md", undefined, expect.anything(), [], /* store 拒 → 零分组;摘录照建 */
+      2026, 9, 14, expect.anything(), false, "/fake/2026-9-14.md", undefined, expect.anything(), [], /* store 拒 → 零分组;摘录照建 */
     );
     vi.mocked(collectSessionRowsBatched).mockResolvedValue([]);
     wb.load = async () => {};

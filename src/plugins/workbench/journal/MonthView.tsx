@@ -9,11 +9,9 @@ import { PencilSimpleLine } from "@phosphor-icons/react";
 import { stringHue } from "@kernel/colorHash";
 import type { DaySessionRow } from "./daySessions";
 import { isRowSummarized } from "./daySessions";
-import { openProjectTab } from "../wbTabs";
 import type { CalendarItem } from "../calendarTimeline";
-import { toneVar } from "../tone";
 import type { MonthSnapshot } from "./journalStore";
-import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, type DayStatus, type HeatThresholds } from "./journalStore";
+import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, type HeatThresholds } from "./journalStore";
 import { pad2 } from "./journalFiles";
 import { openArticleTab } from "./journalTabs";
 import { dayGenTaskType, enqueueTask } from "./taskQueue";
@@ -23,6 +21,8 @@ import type { DayNote, DayMeta } from "./journalFiles";
 import type { Article } from "./articleParse";
 import { notePeekOf } from "./statusText";
 import { holOf, isWorkdayOverride, useHolidays } from "./holidays";
+import { CellBody, DueStrip } from "./MonthCells";
+import { cellClass } from "./monthGrid";
 
 interface DayCellProps {
   y: number;
@@ -36,74 +36,11 @@ interface DayCellProps {
   ts: HeatThresholds;
   /** 当日日历叠层(空数组 = 无条目,不渲染行)。 */
   cal: CalendarItem[];
+  /** 今天 ISO 键(YYYY-MM-DD):空日灰字只出现在今天前后 3 天(B3)。 */
+  today: string;
 }
 
-/** 格 className(纯函数:今日/周末;热力与状态色改由正文 pill 承载,格底保持白净)。 */
-function cellClass(isToday: boolean, we: boolean): string {
-  return ["dj-cell", isToday && "dj-today", we && "dj-we"].filter(Boolean).join(" ");
-}
-
-/** 格正文(状态 pill 条:热力底 + 单行当日状态;状态行统一 title 全文兜住截断,
- *  失败日 title 优先完整错误;纯函数)。 */
-function cellBody(article: Article | null, st: DayStatus, meta: DayMeta, rows: DaySessionRow[], notePeek: string, heat: string): React.ReactNode {
-  const noteTag = notePeek ? ` · ${t("有便签")}` : "";
-  if (article) {
-    const line =
-      (st === "t" ? t("增量中 · {n} 条会话", { n: rows.length }) : t("已生成 · {n} 条会话", { n: rows.length })) + noteTag;
-    return (
-      <div className={`dj-stat ${st === "t" ? "dj-accent" : heat}`} title={line}>
-        {line}
-      </div>
-    );
-  }
-  if (st === "f") {
-    const line = t("生成失败 · {n} 条会话", { n: rows.length }) + noteTag;
-    return (
-      <div className="dj-stat dj-err" title={meta.lastError || line}>
-        {line}
-      </div>
-    );
-  }
-  if (st === "p") {
-    const line = t("待提取 · {n} 条会话", { n: rows.length }) + noteTag;
-    return (
-      <div className="dj-stat dj-warn" title={line}>
-        {line}
-      </div>
-    );
-  }
-  const line = notePeek ? t("无会话 · 有便签") : t("无会话 · 点开写便签");
-  return (
-    <div className="dj-stat dj-faint" title={line}>
-      {line}
-    </div>
-  );
-}
-
-/** 日历叠层条目:真 button,渲染在交互日格之外(cellwrap 直下兄弟位 ——
- * 日格自身是 role=button 键盘单元,内嵌 focusable 构成嵌套交互件);
- * 点条目开项目详情;超 2 条溢出 +N(title 看 label)。 */
-function DueStrip({ cal }: { cal: CalendarItem[] }) {
-  if (cal.length === 0) return null;
-  return (
-    <div className="dj-cell-due">
-      {cal.slice(0, 2).map((item) => (
-        <button
-          key={item.key}
-          type="button"
-          className="dj-cell-due-item"
-          style={{ color: toneVar(item.tone) }}
-          title={`${item.title}(${item.label})`}
-          onClick={() => openProjectTab(item.projectId, item.projectName ?? item.title)}
-        >
-          {item.title}
-        </button>
-      ))}
-      {cal.length > 2 && <span className="dj-cell-due-more">+{cal.length - 2}</span>}
-    </div>
-  );
-}
-function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, cal, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
+function DayCell({ y, m, d, article, note, meta, rows, isToday, today, ts, cal, onToast }: DayCellProps & { onToast: (msg: string) => void }) {
   const st = deriveDayStatus(article, isToday, rows.length, meta);
   /* 调休上班日(off:false)不画周末底纹(与年视图/月条同律) */
   const we = [0, 6].includes(new Date(y, m - 1, d).getDay()) && !isWorkdayOverride(y, m, d);
@@ -127,6 +64,13 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, cal, onToast
   };
   /* 有文章且存在待归纳行(含今日增量中)也出按钮:手动发起增量并入的月格入口。 */
   const hasPending = rows.some((r) => !isRowSummarized(r, meta.summarizedAt));
+  /* B3:空日灰字只在今天前后 3 天内出现(hover title 恒在),压掉整月占位噪音。 */
+  const nearToday =
+    Math.abs(
+      (Date.UTC(y, m - 1, d) -
+        Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)))) /
+        86_400_000,
+    ) <= 3;
   const canGen = st === "p" || st === "f" || (!!article && hasPending);
   return (
     <div className="dj-cellwrap">
@@ -151,7 +95,7 @@ function DayCell({ y, m, d, article, note, meta, rows, isToday, ts, cal, onToast
           休·{hol}
         </div>
       )}
-      {cellBody(article, st, meta, rows, notePeek, st === "g" ? heatOf(rows.length, ts) : "")}
+      <CellBody article={article} st={st} meta={meta} rows={rows} notePeek={notePeek} heat={st === "g" ? heatOf(rows.length, ts) : ""} showIdle={nearToday} />
       {notePeek && (
         <div className="dj-notepeek">
           {/* 密集月格脚注图标:10px 例外档(9px 档收口取消) */}
@@ -257,6 +201,7 @@ export function MonthView({ ym, snap, sessions, today, calItems, onShiftMonth }:
         meta={dayMetaOf(key)}
         rows={sessions.get(key) ?? []}
         isToday={key === today}
+        today={today}
         ts={ts}
         cal={calItems?.get(key) ?? []}
         onToast={showToast}

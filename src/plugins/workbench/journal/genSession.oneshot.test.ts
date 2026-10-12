@@ -46,6 +46,7 @@ vi.mock("./journalFiles", () => ({
   dayKey: (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
   readText: vi.fn(async () => ""),
   writeText: vi.fn(async () => undefined),
+  articleChanged: (baseline: string | null, next: string | null) => next !== null && next.length > 0 && next !== baseline,
 }));
 vi.mock("./journalStore", () => ({
   addBead: vi.fn(),

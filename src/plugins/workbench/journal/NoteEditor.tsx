@@ -43,6 +43,8 @@ export function NoteEditor({
   const [images, setImages] = useState<DayNoteImage[]>(note?.images ?? []);
   const [pasteErr, setPasteErr] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
+  /* 保存期间禁用按钮(C6):慢盘/大图落 assets 连按会重入写链。 */
+  const [saving, setSaving] = useState(false);
   /* Esc 弃稿确认弹层态:脏稿 Esc 不直接丢,先弹 ConfirmDialog;
      弹层自身 Esc/点背板 = 取消弃稿(内容保留),确认 = 执行 cancel()。 */
   const [askDiscard, setAskDiscard] = useState(false);
@@ -105,6 +107,7 @@ export function NoteEditor({
   }
 
   const save = async () => {
+    if (saving) return; /* 在途:连按不重入写链(C6) */
     const trimmed = text.trim();
     const next: DayNote | null =
       trimmed || images.length
@@ -116,12 +119,15 @@ export function NoteEditor({
           }
         : null;
     setSaveErr(false);
+    setSaving(true);
     try {
       await saveNote(y, m, d, next);
       setEditing(false);
       reportDirty(false, trimmed, images);
     } catch {
       setSaveErr(true); /* 写盘失败保持编辑态,内容不丢 */
+    } finally {
+      setSaving(false);
     }
   };
   const cancel = () => {
@@ -204,15 +210,16 @@ export function NoteEditor({
         <div className="dj-nc-foot">
           <span>{t("与 AI 文章独立落盘 · 重新生成不碰便签")}</span>
           <div className="dj-nc-acts">
-            <button type="button" className="dj-btn" onClick={cancel}>
+            <button type="button" className="dj-btn" onClick={cancel} disabled={saving}>
               {t("取消")}
             </button>
             <button
               type="button"
               className="dj-btn dj-btn-primary"
               onClick={save}
+              disabled={saving}
             >
-              {t("保存 ⌘↵")}
+              {saving ? t("保存中…") : t("保存 ⌘↵")}
             </button>
           </div>
         </div>

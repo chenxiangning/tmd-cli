@@ -16,6 +16,7 @@ import { pad2 } from "./journalFiles";
 import { useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
 import type { MonthSnapshot } from "./journalStore";
 import { MonthView, type MonthViewCalItem } from "./MonthView";
+import { monthStats } from "./monthGrid";
 import { ArticleOpenGateHost } from "./ArticleOpenGateHost";
 import { FlowView } from "./FlowView";
 import { TaskPanel } from "./TaskPanel";
@@ -73,23 +74,6 @@ function ToolbarEnd({ activeTasks, holOn, holStatus, onHol, onRescan, onTasks, o
       </button>
     </>
   );
-}
-
-/** 月统计(纯函数:有记录天数/会话总数/文章数/待生成数/今日活会话)。 */
-function monthStats(
-  sessions: Map<string, DaySessionRow[]> | null,
-  snap: MonthSnapshot | undefined,
-  ym: { y: number; m: number },
-  today: string,
-): { days: number; sessTotal: number; artTotal: number; pending: number; todayLive: number } {
-  if (!sessions) return { days: 0, sessTotal: 0, artTotal: 0, pending: 0, todayLive: 0 };
-  const prefix = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
-  const days = [...sessions.keys()].filter((k) => k.startsWith(prefix));
-  const sessTotal = days.reduce((a, k) => a + (sessions.get(k)?.length ?? 0), 0);
-  const artTotal = days.filter((k) => snap?.articles[k.slice(8)]).length;
-  const pending = days.filter((k) => !snap?.articles[k.slice(8)] && (sessions.get(k)?.length ?? 0) > 0).length;
-  const todayLive = sessions.get(today)?.filter((r) => r.live).length ?? 0;
-  return { days: days.length, sessTotal, artTotal, pending, todayLive };
 }
 
 /** 舞台视图路由(三视图一 tab;独立函数保全主组件控制流复杂度门禁)。 */
