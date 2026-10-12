@@ -129,7 +129,12 @@ async function mergeExternalEdits(next: Project[]): Promise<Project[]> {
       const dt = diskTasks.get(`${project.id}/${task.id}`);
       if (!dt) return task;
       const extras = dt.updates.filter((u) => !task.updates.some((m) => m.id === u.id));
-      const diskNewer = String(dt.updatedAt ?? "") > String(task.updatedAt ?? "");
+      /* 时刻比较而非字符串序:updatedAt 存在 UTC(Z)与本地时区(+08:00,AI 回写脚本
+       * 产出)两种 ISO 形态,字符串序把本地钟点当 UTC 比出假新——AI 23:32+08:00
+       * (= 15:32Z)的回写压过 app 次日 00:44(16:44Z)的真实更新,手动改状态被
+       * 静默回滚(2026-10-13 实证)。不可解析视作更旧,内存权威。 */
+      const instantOf = (v: unknown): number => { const n = Date.parse(String(v ?? "")); return Number.isNaN(n) ? -1 : n; };
+      const diskNewer = instantOf(dt.updatedAt) > instantOf(task.updatedAt);
       if (!diskNewer && extras.length === 0) return task;
       return {
         ...task,
