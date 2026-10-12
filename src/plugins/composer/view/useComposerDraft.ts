@@ -5,7 +5,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { takeQueuedComposerText } from "@kernel/composerExt";
 
 export function useComposerDraft(cwd: string): {
   value: string;
@@ -13,9 +12,6 @@ export function useComposerDraft(cwd: string): {
 } {
   const draftKeyRef = useRef(`tmd.composerDraft.${cwd}`);
   const [value, setValue] = useState(() => {
-    /* 会话创建方预填(如工作台任务包):初始化期消费待注入槽,首帧即正确值。 */
-    const queued = takeQueuedComposerText();
-    if (queued !== null) return queued;
     try {
       return localStorage.getItem(draftKeyRef.current) ?? "";
     } catch {

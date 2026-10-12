@@ -54,7 +54,7 @@ export function TaskSessionsSec({ project, task, workspaceId, recent, hostSessio
           );
         })}
       </ul>
-      <p className="wb-muted">{t("会话以 link 方式关联,不影响会话本身;发起时任务上下文(含附件清单)会自动填入该会话输入框。")}</p>
+      <p className="wb-muted">{t("会话以 link 方式关联,不影响会话本身;发起时任务上下文(含附件清单)以卡片挂进该会话输入框,点卡片可编辑,随发送一并发出。")}</p>
       {askUnlink ? (
         <WbConfirm
           open

@@ -14,7 +14,8 @@ import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
 import { TASK_STATUS_LABELS, UPDATE_KIND_LABELS, formatUpdateAt } from "./kindLabels";
 import { attachTaskFile, detachTaskFile, linkTaskSession, updateTask, bindTaskSessionDiskId } from "./store";
-import { composerReplaceRef, queueComposerText } from "@kernel/composerExt";
+import { DialogActions, DialogShell } from "@kernel/DialogShell";
+import { setPendingTaskCard } from "./taskCard";
 import { readDocDataUrl, fileToBase64, isImageAttachment, docAttachmentPath } from "./workbenchFiles";
 import { openFileInTab } from "@kernel/fileTabs";
 import { TASK_STATUSES, type Attachment, type Project, type ProjectTask, type TaskStatus } from "./types";
@@ -83,8 +84,10 @@ export function TaskDetailView({
 
   /* 快照经 useSyncExternalStore 已自动刷新,onChanged 桥是死的(2026-10-11 review 清除)。 */
   const setStatus = (status: TaskStatus) => runIpc(updateTask(project.id, task.id, { status }), onToast, t("任务已更新"));
-  /* 开新会话在途禁用:连点会重复建会话。 */
+  /* 开新会话在途禁用:连点会重复建会话。名称弹窗:发起前填关联会话列表名称。 */
   const [creating, setCreating] = useState(false);
+  const [naming, setNaming] = useState(false);
+  const [linkName, setLinkName] = useState(task.title);
   const saveDescription = () =>
     /* 成功才清 dirty:失败保留脏标记,保存钮可重试(吞错后仍清 = 按钮禁死)。 */
     void updateTask(project.id, task.id, { description }).then(
@@ -138,24 +141,24 @@ export function TaskDetailView({
         : t("该目录暂无可用引擎会话,请先在侧栏开过一次"));
       return;
     }
+    setLinkName(task.title);
+    setNaming(true);
+  };
+  /* 弹窗确认后真正建会话:name = 用户填写的关联列表名称(空回落任务标题)。 */
+  const createLinked = (name: string) => {
+    if (!project.cwd || recent === null || recent.rows.length === 0) return;
     const profileId = recent.rows[0].profileId;
-    const promptText = taskPrompt(project, task);
     setCreating(true);
     void host.createSession(profileId, project.cwd, workspaceId).then(
       (meta) => {
         /* 开新会话并关联 = 用户手势,摘最大化让幕布可见(遮盖统一)。 */
         host.events.emit(KernelTopics.sessionViewRequested, null);
         host.setActiveSession(meta.id);
-        /* 常驻 composer 不随会话切换重挂载,mount 期消费队列的时机不存在
-         * (真机二轮实测)。主路径 = activation 提交后经 replace 桥整替——
-         * 120ms 等 React commit(含 cwd 草稿切换的 setValue)先行,避免被
-         * 旧草稿覆盖;无消费方( composer 未挂载)才落队列,TTL 兜底。 */
-        window.setTimeout(() => {
-          if (composerReplaceRef.current) composerReplaceRef.current(promptText);
-          else queueComposerText(promptText);
-        }, 120);
+        /* 任务上下文不再整段灌输入框:挂任务卡片,点卡片可编辑全文,
+         * 随下一条消息前置发出(空输入 = 仅卡片,见 taskCard.ts)。 */
+        setPendingTaskCard(meta.id, { projectId: project.id, taskId: task.id, title: name, text: taskPrompt(project, task) });
         /* 关联写库失败不静默:会话已开但任务上看不到,必须提示。 */
-        void linkTaskSession(project.id, task.id, { kind: "host", ref: meta.id, profileId, title: task.title, cliSessionId: host.getCliSessionId(meta.id) })
+        void linkTaskSession(project.id, task.id, { kind: "host", ref: meta.id, profileId, title: name, cliSessionId: host.getCliSessionId(meta.id) })
           .catch(() => onToast(t("会话已创建但关联失败")));
         setCreating(false);
       },
@@ -244,6 +247,42 @@ export function TaskDetailView({
         </aside>
       </div>
       {preview ? <WbImgView name={preview.name} url={preview.url} onClose={() => setPreview(null)} /> : null}
+      {naming ? (
+        <DialogShell
+          title={t("开会话")}
+          icon={null}
+          width={440}
+          onClose={() => setNaming(false)}
+          footer={
+            <DialogActions
+              confirmLabel={t("开会话")}
+              onConfirm={() => {
+                setNaming(false);
+                createLinked(linkName.trim() || task.title);
+              }}
+              onCancel={() => setNaming(false)}
+            />
+          }
+        >
+          <div className="wb-fieldform wb-modal-body">
+            <label className="wb-field">
+              <span>{t("关联会话名称")}</span>
+              <input
+                autoFocus value={linkName}
+                placeholder={task.title}
+                onChange={(e) => setLinkName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setNaming(false);
+                    createLinked(linkName.trim() || task.title);
+                  }
+                }}
+              />
+            </label>
+            <p className="wb-muted">{t("名称用于任务的关联会话列表;创建后任务上下文以卡片挂进该会话输入框,点卡片可编辑。")}</p>
+          </div>
+        </DialogShell>
+      ) : null}
     </div>
   );
 }

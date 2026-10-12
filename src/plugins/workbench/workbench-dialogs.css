@@ -216,6 +216,9 @@
 
 /* ── 弹窗/表单(DialogShell 提供外壳;这里只留内容件)── */
 .wb-modal-body { color: var(--tmd-fg-muted); font-size: var(--tmd-font-xs); }
+/* 弹窗内单字段小表单(开会话名称/任务卡片编辑):wb-form 的定宽不适用。 */
+.wb-fieldform { display: flex; flex-direction: column; gap: 8px; }
+.wb-fieldform p { margin: 0; }
 .wb-form { width: min(560px, 94vw); }
 .wb-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-top: 10px; }
 .wb-form .wb-span2, .wb-taskform .wb-span2 { grid-column: span 2; }
@@ -223,10 +226,10 @@
 .wb-taskform .wb-form-grid { margin-top: 0; }
 .wb-taskform-actions { margin-left: auto; display: flex; gap: 6px; }
 .wb-taskform .wb-field > span { display: flex; align-items: center; gap: 5px; }
-.wb-form input, .wb-form select, .wb-form textarea, .wb-taskform input, .wb-taskform select, .wb-taskform textarea, .wb-ask input, .wb-nav-search, .wb-task-add input, .wb-update-add input, .wb-task-add select, .wb-update-add select {
+.wb-form input, .wb-form select, .wb-form textarea, .wb-taskform input, .wb-taskform select, .wb-taskform textarea, .wb-fieldform input, .wb-fieldform textarea, .wb-ask input, .wb-nav-search, .wb-task-add input, .wb-update-add input, .wb-task-add select, .wb-update-add select {
   border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); color: var(--tmd-fg); font: inherit; font-size: var(--tmd-font-ui); padding: 5px 9px; min-width: 0;
 }
-.wb-form input:focus, .wb-form select:focus, .wb-form textarea:focus, .wb-taskform input:focus, .wb-taskform select:focus, .wb-taskform textarea:focus, .wb-ask input:focus, .wb-nav-search:focus { outline: none; border-color: var(--tmd-accent); }
+.wb-form input:focus, .wb-form select:focus, .wb-form textarea:focus, .wb-taskform input:focus, .wb-taskform select:focus, .wb-taskform textarea:focus, .wb-fieldform input:focus, .wb-fieldform textarea:focus, .wb-ask input:focus, .wb-nav-search:focus { outline: none; border-color: var(--tmd-accent); }
 .wb-form-error { color: var(--tmd-err); font-size: var(--tmd-font-xs); margin: 8px 0 0; }
 
 /* ── 菜单/提示 ── */
