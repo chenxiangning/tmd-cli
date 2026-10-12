@@ -86,3 +86,42 @@ export function openLink(
     () => onToast(t("打开会话失败")),
   );
 }
+
+/** 「在此目录开新会话」公共动作(项目详情会话页签与聚焦页脉搏行共一条路径):
+ *  引擎档位取该目录最近会话的 profile;三分 null=扫描中 / 空=真空或扫描失败 /
+ *  有=直接建。创建即声明「要看会话」并聚焦。onSettled 必调(调用方解禁用态)。 */
+export function createSessionHere(
+  project: Project,
+  workspaceId: string | undefined,
+  recent: ProjectSessionsState | null,
+  onToast: (m: string) => void,
+  onSettled: () => void,
+): void {
+  if (!project.cwd) {
+    onSettled();
+    return;
+  }
+  if (recent === null) {
+    onToast(t("正在扫描本地会话…"));
+    onSettled();
+    return;
+  }
+  if (recent.rows.length === 0) {
+    onToast(recent.failed
+      ? t("引擎会话扫描失败,列表可能不全。")
+      : t("该目录暂无可用引擎会话,请先在侧栏开过一次"));
+    onSettled();
+    return;
+  }
+  void host.createSession(recent.rows[0].profileId, project.cwd, workspaceId).then(
+    (meta) => {
+      host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
+      host.setActiveSession(meta.id);
+      onSettled();
+    },
+    () => {
+      onToast(t("创建会话失败"));
+      onSettled();
+    },
+  );
+}

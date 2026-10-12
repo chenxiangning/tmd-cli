@@ -21,6 +21,12 @@ export interface WbScreenProps {
   docsFilter?: string | null;
   /** 空态「生成文档」主按钮(带 projectId 时弹窗预锁该项目);仅文档中心消费。 */
   onDocGen?: (projectId?: string) => void;
+  /** 切页签(聚焦页清净态「去任务看板」);仅聚焦页消费。 */
+  onTab?: (tab: "board") => void;
+  /** 切看板并直接展开新建任务表单(聚焦页清净态);仅聚焦页消费。 */
+  onNewTask?: () => void;
+  /** 新建任务表单展开信号:挂载即展开一次(聚焦页清净态「新建任务」与看板挂载天然先后,不持久)。仅任务看板消费。 */
+  boardFormOpen?: boolean;
 }
 
 /** 看板段头(标题 + 计数);任务看板与模块看板的项目状态段共用。 */

@@ -1,12 +1,12 @@
 /**
- * 工作台 · 手写 SVG 图表四件套(移植 projectHub charts.js 思路):
- * 风险分布环形图、模块负载堆叠条、进度分布直方图、负责人负载排行条。
+ * 工作台 · 手写 SVG 图表:风险分布环形图、进度分布直方图。
  * 无第三方图表库;颜色走 --tmd-*,随主题。
+ * (2026-10-12 下线模块负载堆叠条/负责人负载排行条:两轴在单人场景同值。)
  */
 
 import { t } from "@kernel/i18n";
-import { accentVar, toneVar } from "./tone";
-import { RISK_LABELS, type ModuleLoad, type OwnerLoad, type ProgressBucket, type RiskSlice } from "./insights";
+import { toneVar } from "./tone";
+import { RISK_LABELS, type ProgressBucket, type RiskSlice } from "./insights";
 
 /** 风险分布环形图:多段圆弧,中心放总数。 */
 export function DonutChart({ slices, total }: { slices: RiskSlice[]; total: number }) {
@@ -57,29 +57,6 @@ export function SliceLegend({ slices }: { slices: RiskSlice[] }) {
   );
 }
 
-/** 模块负载堆叠条:一行一模块,危险/关注/正常三段。 */
-export function ModuleLoadBars({ rows }: { rows: ModuleLoad[] }) {
-  if (rows.length === 0) return null;
-  return (
-    <div className="wb-loadbars">
-      {rows.map((row) => {
-        const total = Math.max(row.total, 1);
-        return (
-          <div key={row.module} className="wb-loadbar-row" title={`${row.module}:${row.total} 个,平均进度 ${row.avgProgress}%`}>
-            <span className="wb-loadbar-name">{row.module}</span>
-            <span className="wb-loadbar">
-              <i style={{ width: `${(row.danger / total) * 100}%`, background: "var(--tmd-err)" }} />
-              <i style={{ width: `${(row.watch / total) * 100}%`, background: "var(--tmd-warn)" }} />
-              <i style={{ width: `${(row.normal / total) * 100}%`, background: accentVar(row.accent) }} />
-            </span>
-            <b className="wb-loadbar-n">{row.total}</b>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 /** 进度分布直方图。 */
 export function Histogram({ buckets }: { buckets: ProgressBucket[] }) {
   const max = Math.max(1, ...buckets.map((bucket) => bucket.count));
@@ -90,25 +67,6 @@ export function Histogram({ buckets }: { buckets: ProgressBucket[] }) {
           <span className="wb-hist-n">{bucket.count || ""}</span>
           <i style={{ height: `${(bucket.count / max) * 72}px` }} />
           <span className="wb-hist-label">{bucket.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** 负责人负载排行条(前 6)。 */
-export function OwnerRankBars({ rows }: { rows: OwnerLoad[] }) {
-  if (rows.length === 0) return null;
-  const max = Math.max(1, ...rows.map((row) => row.total));
-  return (
-    <div className="wb-loadbars">
-      {rows.slice(0, 6).map((row) => (
-        <div key={row.owner} className="wb-loadbar-row" title={`${row.owner}:${row.total} 个项目,${row.openTasks} 项任务`}>
-          <span className="wb-loadbar-name">{row.owner}</span>
-          <span className="wb-loadbar">
-            <i style={{ width: `${(row.total / max) * 100}%`, background: row.danger > 0 ? "var(--tmd-warn)" : "var(--tmd-accent)" }} />
-          </span>
-          <b className="wb-loadbar-n">{row.total}</b>
         </div>
       ))}
     </div>

@@ -31,6 +31,7 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
   const { list: workspaces } = useWorkspaces();
   const [tab, setTab] = useState<WbTab>(payload?.tab === "docs" ? "docs" : "overview");
   const [docsFilter, setDocsFilter] = useState<string | null>(payload?.projectFilter ?? null);
+  const [boardFormOpen, setBoardFormOpen] = useState(false);
   const [docGen, setDocGen] = useState<{ locked: Project | null } | null>(null);
   const [lastPayload, setLastPayload] = useState(payload);
   /* 深链:openWorkbenchDocsTab 换 payload 重开本 tab → 页签与过滤跟移(渲染期调整)。 */
@@ -76,11 +77,14 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
 
   const today = todayISO();
   const filtered = useMemo(() => sortByRisk(projects, today).map((item) => item.project), [projects, today]);
+  /* 页签显式切换即复位一次性表单信号(防回看板时表单重弹)。 */
+  const switchTab = useCallback((next: WbTab) => { setTab(next); setBoardFormOpen(false); }, []);
   const screenProps: WbScreenProps = {
     projects: filtered,
     allProjects: projects,
     today,
     docsFilter,
+    boardFormOpen,
     onOpen: (id) => {
       const project = projects.find((item) => item.id === id);
       if (project) openProjectTab(project.id, project.name);
@@ -89,6 +93,9 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
     onLinkWorkspaces: linkWorkspaces,
     onToast: toast,
     onDocGen: (projectId) => setDocGen({ locked: projects.find((p) => p.id === projectId) ?? null }),
+    onTab: switchTab,
+    /* 聚焦页清净态「新建任务」:切看板并直接展开表单(一次性布尔,看板挂载即消费)。 */
+    onNewTask: () => { setTab("board"); setBoardFormOpen(true); },
   };
   const openForm = (project: Project | null) => {
     setFormProject(project);
@@ -140,7 +147,7 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
       ) : null}
       <div className="wb-body">
         <main className="wb-main">
-          <WbTabBar tab={tab} onTab={setTab} />
+          <WbTabBar tab={tab} onTab={switchTab} />
           <WbScreen tab={tab} screenProps={screenProps} />
         </main>
       </div>

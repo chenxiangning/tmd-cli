@@ -1,16 +1,15 @@
 /**
- * 工作台 · 日历与时间线模型(移植自 projectHub shared/insights.js 的两节)。
- * 日历:6 周网格,每格列出当天到期的项目与未完成任务;时间线:甘特式横条,
- * 跨度按项目起止自动取,补齐到周,最长 210 天。
+ * 工作台 · 日历模型(移植自 projectHub shared/insights.js):6 周网格,
+ * 每格列出当天到期的项目与未完成任务;消费方 = 工作日志月视图。
+ * (2026-10-12 三撤一合:甘特 timelineModel 随时间线页签退役 orphan。)
  */
 
 import { t } from "@kernel/i18n";
-import { dayStart, openTasks, projectRisk, todayISO, daysLeft, type RiskInfo, type RiskTone } from "./analysis";
+import { openTasks, projectRisk, todayISO, daysLeft, type RiskTone } from "./analysis";
 import { RISK_LABELS } from "./insights";
 import type { Project } from "./types";
 
 const pad = (value: number): string => String(value).padStart(2, "0");
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const monthKeyOf = (today: string = todayISO()): string => String(today).slice(0, 7);
 
@@ -112,74 +111,3 @@ export function calendarMonth(
   return { key, label: monthLabel(key), weeks, cells, monthItems, daysWithItems };
 }
 
-export interface TimelineRow {
-  project: Project;
-  risk: RiskInfo;
-  startIso: string;
-  endIso: string;
-  leftPercent: number;
-  widthPercent: number;
-}
-
-export interface TimelineModel {
-  from: string;
-  to: string;
-  totalDays: number;
-  ticks: Array<{ index: number; percent: number; label: string }>;
-  rows: TimelineRow[];
-  todayPercent: number;
-  padded: boolean;
-}
-
-/** 时间线(甘特)模型:横轴是日期,每行一个项目;跨度补齐到周,最长 210 天。 */
-export function timelineModel(projects: readonly Project[], today: string = todayISO()): TimelineModel {
-  if (projects.length === 0) {
-    return { from: today, to: today, totalDays: 0, ticks: [], rows: [], todayPercent: 0, padded: false };
-  }
-  const now = dayStart(today)!;
-  const points = [now];
-  for (const project of projects) {
-    points.push(dayStart(project?.startedOn) ?? now, dayStart(project?.dueDate) ?? now);
-  }
-  const rawFrom = Math.min(...points);
-  const rawTo = Math.max(...points);
-  const fromDate = new Date(Math.min(rawFrom, now - 3 * DAY_MS));
-  fromDate.setDate(fromDate.getDate() - fromDate.getDay());
-  const toDate = new Date(Math.max(rawTo, now + 3 * DAY_MS));
-  toDate.setDate(toDate.getDate() + (6 - toDate.getDay()));
-  let span = Math.round((toDate.getTime() - fromDate.getTime()) / DAY_MS) + 1;
-  let padded = false;
-  if (span > 210) {
-    padded = true;
-    toDate.setTime(fromDate.getTime() + 209 * DAY_MS);
-    span = 210;
-  }
-  const totalDays = span;
-  const offsetOf = (millis: number) => Math.max(0, Math.min(totalDays, (millis - fromDate.getTime()) / DAY_MS));
-  const percent = (value: number) => (totalDays === 0 ? 0 : (value / totalDays) * 100);
-  const isoOf = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-
-  const ticks = [];
-  for (let index = 0; index < totalDays; index += 7) {
-    const date = new Date(fromDate.getTime() + index * DAY_MS);
-    ticks.push({ index, percent: percent(index), label: `${date.getMonth() + 1}/${date.getDate()}` });
-  }
-
-  const rows = [...projects]
-    .sort((a, b) => String(a.dueDate || "9999").localeCompare(String(b.dueDate || "9999")))
-    .map((project) => {
-      const startMillis = dayStart(project?.startedOn) ?? now;
-      const dueMillis = dayStart(project?.dueDate) ?? now;
-      const left = offsetOf(Math.min(startMillis, dueMillis));
-      const right = offsetOf(Math.max(startMillis, dueMillis)) + 1;
-      return {
-        project,
-        risk: projectRisk(project, today),
-        startIso: isoOf(new Date(Math.min(startMillis, dueMillis))),
-        endIso: isoOf(new Date(Math.max(startMillis, dueMillis))),
-        leftPercent: percent(left),
-        widthPercent: percent(Math.max(1, right - left)),
-      };
-    });
-  return { from: isoOf(fromDate), to: isoOf(toDate), totalDays, ticks, rows, todayPercent: percent(offsetOf(now)), padded };
-}

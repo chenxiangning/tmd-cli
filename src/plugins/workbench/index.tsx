@@ -27,6 +27,7 @@ import { getPendingTaskCard, taskCardSendTransform, undoTaskCardSend } from "./t
 import { registerComposerEmptySendProvider, registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import "./workbench.css";
+import "./workbench-focus.css";
 import "./workbench-dialogs.css";
 
 export const workbenchPlugin: Plugin = {

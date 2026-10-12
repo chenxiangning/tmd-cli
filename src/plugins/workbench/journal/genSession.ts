@@ -31,7 +31,6 @@ import { ensureWorkbenchLoaded, workbenchSnapshot } from "../store";
 import { dayProjectLinks } from "./dayLinks";
 import type { ProjectPromptGroup } from "./promptGen";
 import type { ProjectDigestGroup } from "./sessionDigest";
-
 /** 结算超时:prompt 送达后无 settle 判失败的兜底。摘录路径成文仍是短链(读一份
  *  摘录 + 写一篇 md),但四点式契约的文章体量与摘录读入都比旧清单路径长,放宽到 15 分;
  *  失败任务尽早离开运行区,不堵串行队列。 */

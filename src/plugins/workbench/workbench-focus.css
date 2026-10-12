@@ -1,0 +1,80 @@
+/**
+ * 工作台 · 聚焦页样式(三撤一合,2026-10-12;v1.1 布局重构同日;自 workbench.css 拆出守 300 行铁则)。
+ * 三段:要处理(单流分组列表,桶头只在非空出现)→ 接下来 14 天(只有事日 chip 带)→
+ * 项目脉搏(grid 定列行 + 空壳折叠索引)。行件复用 workbench.css 的 wb-bucket 系列与 wb-chip。
+ */
+
+.wb-focus { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 16px; container-type: inline-size; }
+.wb-focus-line { margin: 0; font-size: var(--tmd-font-ui); color: var(--tmd-fg); }
+.wb-focus-sec { display: flex; flex-direction: column; gap: 8px; }
+.wb-focus-sec-head { margin: 0; font-size: var(--tmd-font-xs); font-weight: 600; color: var(--tmd-fg-muted); display: flex; align-items: center; gap: 6px; }
+.wb-focus-sec-head::before { content: ""; width: 3px; height: 12px; border-radius: 2px; background: var(--tmd-accent); flex: none; }
+
+/* ── 要处理:单流分组列表(空桶整组不渲染,行几何与更晚展开行一致) ── */
+.wb-focus-groups { display: flex; flex-direction: column; gap: 10px; }
+.wb-focus-group { display: flex; flex-direction: column; gap: 6px; }
+.wb-focus-bucket-head { display: flex; align-items: baseline; gap: 6px; margin: 0; font-weight: 600; }
+.wb-focus-bucket-head b { font-size: var(--tmd-font-xs); }
+.wb-focus-bucket-head span { color: var(--tmd-fg-faint); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
+.wb-focus-row { display: flex; align-items: center; gap: 10px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 7px 10px; transition: background .12s ease, border-color .12s ease; }
+.wb-focus-row:hover { background: var(--tmd-bg-hover); border-color: var(--tmd-border-strong); }
+.wb-focus-later { display: flex; flex-direction: column; gap: 6px; }
+.wb-focus-calm { border: 1px dashed var(--tmd-border); border-radius: var(--tmd-radius-md); padding: 18px 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.wb-focus-calm-t { margin: 0; font-size: var(--tmd-font-ui); color: var(--tmd-fg); }
+.wb-focus-calm .wb-muted { margin: 0; }
+.wb-focus-calm .wb-empty-actions { margin-top: 6px; }
+
+/* 折叠条(更晚桶/空壳索引共用):整行可点,chev 随展开转向。 */
+.wb-focus-strip-row { display: flex; align-items: center; gap: 10px; }
+.wb-focus-strip { display: flex; align-items: center; gap: 6px; border: none; background: none; color: var(--tmd-fg-faint); cursor: pointer; font: inherit; font-size: var(--tmd-font-xs); padding: 4px 2px; }
+.wb-focus-strip:hover { color: var(--tmd-fg); }
+.wb-focus-strip svg { transition: transform .12s ease; }
+.wb-focus-strip svg.is-open { transform: rotate(90deg); }
+.wb-focus-strip span { font-variant-numeric: tabular-nums; }
+
+/* ── 接下来 14 天:只有事日渲染为 chip(空日不占位,全空落一行说明) ── */
+.wb-focus-band { display: flex; flex-wrap: wrap; gap: 6px; }
+.wb-focus-day { display: flex; align-items: center; gap: 6px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); padding: 4px 8px; background: var(--tmd-bg-elevated); }
+.wb-focus-day.is-today { border-color: color-mix(in srgb, var(--tmd-accent) 55%, var(--tmd-border)); }
+.wb-focus-day-label { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wb-focus-day.is-today .wb-focus-day-label { color: var(--tmd-accent); font-weight: 600; }
+.wb-focus-day-wd { font-style: normal; color: var(--tmd-fg-faint); margin-left: 2px; }
+.wb-focus-ddl { display: block; border: 1px solid currentColor; border-radius: 3px; background: none; cursor: pointer; font: inherit; font-size: var(--tmd-font-2xs); padding: 0 4px; line-height: 16px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.wb-focus-ddl.is-danger { color: var(--tmd-err); }
+.wb-focus-ddl.is-warn { color: var(--tmd-warn); }
+.wb-focus-ddl.is-ok { color: var(--tmd-ok); }
+.wb-focus-ddl.is-muted { color: var(--tmd-fg-faint); }
+.wb-focus-cnt { font-size: var(--tmd-font-2xs); color: var(--tmd-fg-subtle); font-variant-numeric: tabular-nums; cursor: default; white-space: nowrap; }
+
+/* ── 项目脉搏:grid 定列行(名 | 风险 | 截止 | 未完 | 活动 | 操作),行与行对位 ── */
+.wb-focus-pulse { display: flex; flex-direction: column; gap: 4px; }
+.wb-pulse-row { display: grid; grid-template-columns: 150px auto auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 6px 10px; }
+.wb-pulse-row:hover { border-color: var(--tmd-border-strong); }
+.wb-pulse-name { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wb-pulse-namebtn { border: none; background: none; color: var(--tmd-fg); cursor: pointer; font: inherit; font-weight: 600; padding: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-pulse-namebtn:hover { color: var(--tmd-accent); }
+.wb-pulse-mini { display: block; width: 50%; height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--tmd-fg-faint) 18%, transparent); overflow: hidden; }
+.wb-pulse-mini i { display: block; height: 100%; background: var(--tmd-accent); border-radius: 1px; }
+.wb-pulse-due { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wb-pulse-open { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wb-pulse-act { min-width: 0; display: flex; align-items: center; gap: 5px; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); }
+.wb-pulse-act-kind { flex: none; color: var(--tmd-fg-muted); }
+.wb-pulse-act-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-pulse-actions { display: flex; gap: 4px; }
+
+/* ── 空壳折叠索引:过滤框并入折叠条行,展开即字母序 chip 墙 ── */
+.wb-focus-ghosts { display: flex; flex-direction: column; gap: 8px; }
+.wb-ghost-filter { height: 24px; padding: 0 8px; min-width: 180px; }
+.wb-ghost-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── 窄容器自适应(中栏实测 460-700px):行窄动作折行;脉搏回落 flex 换行 ── */
+@container (max-width: 920px) {
+  .wb-focus-row { flex-wrap: wrap; }
+  .wb-focus-row .wb-bucket-body { flex: 1 1 calc(100% - 34px); }
+  .wb-focus-row .wb-task-actions { flex: 1 1 100%; justify-content: flex-end; }
+}
+@container (max-width: 860px) {
+  .wb-pulse-row { display: flex; flex-wrap: wrap; }
+  .wb-pulse-row .wb-pulse-name { width: 150px; flex: none; }
+  .wb-pulse-row .wb-pulse-act { flex: 1 1 100%; order: 5; }
+}

@@ -10,7 +10,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import { t } from "@kernel/i18n";
 import { ChatCircle, FileText, ListChecks, Notebook, PencilSimple, Plus, Sparkle } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
-import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
 import { clampProgress, projectRisk, slippage, todayISO, type RiskInfo } from "./analysis";
 import { useProjectSessions } from "./useProjectSessions";
@@ -23,7 +22,7 @@ import { DrawerDocsTab } from "./DrawerDocsTab";
 import { updateProject } from "./store";
 import { updateTab } from "@kernel/tabs";
 import { ProjectFormModal } from "./ProjectFormModal";
-import { openLink } from "./sessionOpen";
+import { createSessionHere, openLink } from "./sessionOpen";
 import { DocGenDialog } from "./docgen/DocGenDialog";
 import { openWorkbenchDocsTab } from "./wbTabs";
 import { isTaskOpen, type Project, type ProjectTask } from "./types";
@@ -236,27 +235,8 @@ function SessionsTab({ project, onToast }: {
   const links = useMemo(() => collectLinkedSessions(project.tasks), [project.tasks]);
   const newHere = () => {
     if (!project.cwd || creating) return;
-    /* 三分:null=扫描中,空=真空/扫描失败,失败态如实提示。 */
-    if (recent === null) {
-      onToast(t("正在扫描本地会话…"));
-      return;
-    }
-    if (recent.rows.length === 0) {
-      onToast(recent.failed
-        ? t("引擎会话扫描失败,列表可能不全。")
-        : t("该目录暂无可用引擎会话,请先在侧栏开过一次"));
-      return;
-    }
-    const profileId = recent.rows[0].profileId;
     setCreating(true);
-    void host.createSession(profileId, project.cwd, workspaceId).then(
-      (meta) => {
-        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
-        host.setActiveSession(meta.id);
-        setCreating(false);
-      },
-      () => { onToast(t("创建会话失败")); setCreating(false); },
-    );
+    createSessionHere(project, workspaceId, recent, onToast, () => setCreating(false));
   };
   if (!project.cwd) return <p className="wb-muted">{t("未绑定工作区目录;绑定后可在任务里开会话并关联。")}</p>;
   return (

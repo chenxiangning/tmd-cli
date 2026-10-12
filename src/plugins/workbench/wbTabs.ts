@@ -6,7 +6,7 @@
 import { t } from "@kernel/i18n";
 import { openTab } from "@kernel/tabs";
 
-export type WbTab = "overview" | "board" | "list" | "timeline" | "followups" | "docs" | "journal";
+export type WbTab = "overview" | "focus" | "board" | "docs" | "journal";
 
 /** 工作台本页中央 tab。 */
 export const WB_CONSOLE_TAB_KIND = "wb.console";
@@ -53,10 +53,8 @@ export function openWorkbenchDocsTab(projectFilter?: string): void {
 
 export const WB_TAB_ITEMS: readonly { key: WbTab; label: string }[] = [
   { key: "overview", label: "概览" },
+  { key: "focus", label: "聚焦" },
   { key: "board", label: "任务看板" },
-  { key: "list", label: "项目列表" },
-  { key: "timeline", label: "时间线" },
-  { key: "followups", label: "待跟进" },
   { key: "docs", label: "文档" },
   { key: "journal", label: "工作日志" },
 ];

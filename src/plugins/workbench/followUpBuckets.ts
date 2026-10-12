@@ -5,7 +5,7 @@
  */
 
 import { daysLeft, endOfWeek, todayISO } from "./analysis";
-import { isTaskOpen, type Project } from "./types";
+import { isTaskOpen, type Project, type TaskSessionLink, type TaskStatus } from "./types";
 
 export type FollowUpBucketKey = "overdue" | "today" | "week" | "later" | "none";
 
@@ -27,6 +27,10 @@ export interface FollowUpItem {
   owner: string;
   dueDate?: string;
   overdueDays: number;
+  /** 当前状态(聚焦页推进钮按 NEXT_TASK_STATUS 取下一档)。 */
+  status: TaskStatus;
+  /** 关联会话(聚焦页「会话 ×n」徽标;原样引用,不拷贝)。 */
+  sessions: TaskSessionLink[];
 }
 
 export interface FollowUpBucket {
@@ -57,6 +61,8 @@ export function followUpBuckets(projects: readonly Project[], today: string = to
         owner: task.owner || project.owner || "",
         dueDate: task.dueDate,
         overdueDays: left === null || left >= 0 ? 0 : Math.abs(left),
+        status: task.status,
+        sessions: task.sessions,
       });
     }
   }

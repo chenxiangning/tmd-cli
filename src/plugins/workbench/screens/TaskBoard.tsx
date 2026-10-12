@@ -56,9 +56,9 @@ function boardLanes(projects: readonly Project[]): { project: Project; rows: Tas
     .filter((lane) => lane.rows.length > 0);
 }
 
-export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast }: WbScreenProps) {
+export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast, boardFormOpen }: WbScreenProps) {
   const [detail, setDetail] = useState<{ projectId: string; taskId: string } | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(boardFormOpen ?? false);
   const [folded, setFolded] = useState<ReadonlySet<string>>(loadFolded);
   useEffect(() => {
     try {
@@ -67,6 +67,8 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
   }, [folded]);
   /* 推进在途集合(项目/任务键):二连点防护。 */
   const [advancing, setAdvancing] = useState<ReadonlySet<string>>(new Set());
+  /* 编辑态:非 null 时表单页整页替换看板并带任务进编辑模式(TaskFormView task!=null 即 updateTask)。 */
+  const [editing, setEditing] = useState<TaskRow | null>(null);
   /* 拖拽负载与高亮列(state 承载:dragover 期 dataTransfer 数据不可读);done 列「更早」展开态(会话内,不持久)。 */
   const [drag, setDrag] = useState<BoardDrag | null>(null);
   const [dropTarget, setDropTarget] = useState<{ projectId: string; status: TaskStatus } | null>(null);
@@ -91,15 +93,19 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
       </div>
     );
   }
-  /* 表单态整页替换看板(内嵌,「返回列表」回落)。 */
-  if (formOpen) {
+  /* 表单态整页替换看板(内嵌,「返回列表」回落);editing 非 null 时带任务进编辑模式。 */
+  if (formOpen || editing) {
     return (
       <div className="wb-board">
         <TaskFormView
-          project={projects[0]}
+          key={editing?.task.id ?? "new"}
+          project={editing?.project ?? projects[0]}
           projects={projects}
-          task={null}
-          onClose={() => setFormOpen(false)}
+          task={editing?.task ?? null}
+          onClose={() => {
+            setFormOpen(false);
+            setEditing(null);
+          }}
           onToast={onToast}
         />
       </div>
@@ -210,6 +216,7 @@ export function TaskBoardScreen({ projects, today, onOpen, onNewProject, onToast
                           busy={advancing.has(`${row.project.id}/${row.task.id}`)}
                           dragging={drag?.taskId === row.task.id}
                           onDetail={() => setDetail({ projectId: row.project.id, taskId: row.task.id })}
+                          onEdit={() => setEditing(row)}
                           onAdvance={() => advance(row)}
                           onDragStart={setDrag}
                           onDragEnd={dragEnd}

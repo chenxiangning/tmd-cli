@@ -6,7 +6,7 @@
 
 import type { DragEvent } from "react";
 import { t } from "@kernel/i18n";
-import { ChatCircle } from "@phosphor-icons/react";
+import { ChatCircle, Pencil } from "@phosphor-icons/react";
 import { TASK_ADVANCE_LABELS } from "../kindLabels";
 import { isTaskOpen, NEXT_TASK_STATUS, type Project, type ProjectTask } from "../types";
 import { BOARD_DND_TYPE, type BoardDrag } from "./boardDnd";
@@ -16,7 +16,7 @@ export interface TaskRow {
   project: Project;
 }
 
-export function TaskCard({ row, today, busy, dragging, onDetail, onAdvance, onDragStart, onDragEnd }: {
+export function TaskCard({ row, today, busy, dragging, onDetail, onEdit, onAdvance, onDragStart, onDragEnd }: {
   row: TaskRow;
   today: string;
   /** 推进请求在途:禁用推进钮,防快照回写间隙二连点连跳两档。 */
@@ -24,6 +24,7 @@ export function TaskCard({ row, today, busy, dragging, onDetail, onAdvance, onDr
   /** 本卡正被拖拽:半透明示意,放置前不消失(放置写库后快照刷新自然换列)。 */
   dragging: boolean;
   onDetail: () => void;
+  onEdit: () => void;
   onAdvance: () => void;
   onDragStart: (drag: BoardDrag) => void;
   onDragEnd: () => void;
@@ -53,13 +54,16 @@ export function TaskCard({ row, today, busy, dragging, onDetail, onAdvance, onDr
           </span>
         ) : null}
       </span>
-      {next ? (
-        <span className="wb-task-actions">
+      <span className="wb-task-actions">
+        <button type="button" className="wb-btn wb-btn-xs" aria-label={t("编辑")} title={t("编辑")} onClick={onEdit}>
+          <Pencil size="0.6875rem" aria-hidden />
+        </button>
+        {next ? (
           <button type="button" className="wb-btn wb-btn-xs" onClick={onAdvance} disabled={busy}>
             {t(TASK_ADVANCE_LABELS[next] ?? "")}
           </button>
-        </span>
-      ) : null}
+        ) : null}
+      </span>
     </div>
   );
 }

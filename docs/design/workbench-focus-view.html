@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>工作台 · 聚焦页(方案 A v2)设计原型 · 三视图三撤一合</title>
+<style>
+  /* ══ 工艺沿用 doc-gen-fused 定稿基调:三层高度、单一字阶、4px 节奏、统一动效曲线 ══
+     v2 重构(自评四处缺口):① 14 天带收窄为 DDL + 任务密度徽标,不堆任务卡(防与要处理/看板第三处重复)
+     ② 空态一等公民:补「清净态」整屏 ③ 手工进度折为名下半宽微条,数值进 tooltip(原则=活动流优先)
+     ④ 结论行分工:聚焦页=行动一句话,概览 headline 保持全局健康口径 */
+  :root {
+    --bg-base:#0b0c0f; --bg-sink:#0e0f13; --bg-elevated:#14151b; --bg-overlay:#1b1c24;
+    --border:rgba(255,255,255,.065); --border-strong:rgba(255,255,255,.13);
+    --fg:#e9eaef; --fg-muted:#a2a5b2; --fg-faint:#676a76;
+    --danger:#e0655f; --danger-soft:rgba(224,101,95,.13); --danger-line:rgba(224,101,95,.42); --danger-fg:#f0b0ac;
+    --ok:#42b581; --ok-soft:rgba(66,181,129,.13); --ok-fg:#7fd8ad;
+    --warn:#d9a648; --warn-soft:rgba(217,166,72,.13); --warn-fg:#e4c489;
+    --info:#7c8ff0; --info-soft:rgba(124,143,240,.13); --info-fg:#a4b2f6;
+    --r-lg:14px; --r-md:10px; --r-sm:7px;
+    --shadow-pop:0 20px 56px rgba(0,0,0,.58), 0 3px 10px rgba(0,0,0,.35);
+    --shadow-card:0 1px 0 rgba(255,255,255,.03) inset;
+    --ease:cubic-bezier(.2,.8,.2,1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  body { background:#060709; color:var(--fg); padding:40px 28px 72px;
+         font:13px/1.62 -apple-system,"SF Pro SC","PingFang SC","Microsoft YaHei",sans-serif; }
+  button { font:inherit; cursor:pointer; }
+  input { font:inherit; }
+  ::selection { background:var(--danger-soft); }
+  ::-webkit-scrollbar { width:9px; height:9px; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.09); border-radius:99px; border:2px solid transparent; background-clip:content-box; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  .page { max-width:1240px; margin:0 auto; }
+  .lede { color:var(--fg-muted); font-size:12px; line-height:1.9; max-width:920px; margin-bottom:24px; }
+  .lede b { color:var(--fg); font-weight:600; }
+  .lede .tag { display:inline-block; border:1px solid var(--border); border-radius:99px; padding:0 8px; margin-right:6px; font-size:10px; color:var(--fg-faint); letter-spacing:.02em; }
+  .frame-cap { display:flex; align-items:baseline; gap:10px; margin:34px 0 10px; }
+  .frame-cap:first-of-type { margin-top:0; }
+  .frame-cap b { font-size:13px; font-weight:600; }
+  .frame-cap span { font-size:11px; color:var(--fg-faint); }
+
+  /* ── 窗口壳 ── */
+  .window { border:1px solid var(--border); border-radius:var(--r-lg); background:var(--bg-sink); overflow:hidden; position:relative;
+            box-shadow:0 24px 80px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3); }
+  .titlebar { display:flex; align-items:center; gap:10px; padding:11px 16px; border-bottom:1px solid var(--border); background:var(--bg-elevated); }
+  .lights { display:flex; gap:7px; }
+  .lights i { width:11px; height:11px; border-radius:50%; background:#3a3b43; }
+  .lights i:nth-child(1) { background:#e0655f; opacity:.85; } .lights i:nth-child(2) { background:#d9a648; opacity:.85; } .lights i:nth-child(3) { background:#42b581; opacity:.85; }
+  .crumb { font-size:12px; color:var(--fg-muted); } .crumb b { color:var(--fg); font-weight:500; }
+  .titlebar .sp { flex:1; }
+  .actions { display:flex; gap:7px; align-items:center; }
+  .btn { border:1px solid var(--border); background:var(--bg-elevated); color:var(--fg-muted);
+         border-radius:var(--r-sm); padding:4px 13px; font-size:12px; white-space:nowrap;
+         box-shadow:var(--shadow-card); transition:background .14s var(--ease), border-color .14s var(--ease), color .14s var(--ease), transform .1s var(--ease); }
+  .btn:hover { border-color:var(--border-strong); color:var(--fg); background:var(--bg-overlay); }
+  .btn:active { transform:scale(.97); }
+  .btn:focus-visible { outline:2px solid var(--danger-line); outline-offset:1px; }
+  .btn.primary { background:linear-gradient(180deg, rgba(224,101,95,.24), rgba(224,101,95,.13)); border-color:var(--danger-line); color:var(--danger-fg); }
+  .btn.primary:hover { background:linear-gradient(180deg, rgba(224,101,95,.32), rgba(224,101,95,.18)); border-color:var(--danger); color:#f6c6c2; }
+  .btn.xs { padding:1px 8px; font-size:11px; border-radius:6px; }
+  .btn.icon { padding:3px 7px; display:inline-flex; align-items:center; gap:4px; }
+  .btn.icon svg { width:11px; height:11px; }
+
+  /* ── 页签行:方案 A 目标态,7 → 5 ── */
+  .tabs { display:flex; gap:3px; padding:0 16px; border-bottom:1px solid var(--border); background:var(--bg-sink); }
+  .tab { padding:9px 13px 8px; font-size:12.5px; color:var(--fg-faint); border:0; background:none; position:relative;
+         letter-spacing:.02em; transition:color .14s var(--ease); }
+  .tab:hover { color:var(--fg-muted); }
+  .tab.on { color:var(--fg); font-weight:500; }
+  .tab.on::after { content:""; position:absolute; left:10px; right:10px; bottom:-1px; height:2px; border-radius:2px; background:var(--danger); }
+  .tab .new { font-size:9px; color:var(--danger-fg); background:var(--danger-soft); border:1px solid var(--danger-line); border-radius:99px; padding:0 6px; margin-left:5px; vertical-align:1px; letter-spacing:0; }
+
+  .content { padding:15px 16px 18px; }
+
+  /* ── 聚焦一句话:行动口径(概览 headline 保持全局健康口径,两处不重复措辞)── */
+  .focusline { display:flex; align-items:baseline; gap:10px; margin-bottom:13px; }
+  .focusline .t { font-size:14px; font-weight:600; letter-spacing:.01em; }
+  .focusline .t em { font-style:normal; color:var(--danger-fg); }
+  .focusline .t em.w { color:var(--warn-fg); }
+  .focusline .t em.calm { color:var(--ok-fg); }
+  .focusline .d { font-size:11px; color:var(--fg-faint); font-variant-numeric:tabular-nums; }
+
+  /* ── 段标题 ── */
+  .sec { margin-bottom:16px; }
+  .sec-h { display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .sec-h .st { font-size:10.5px; color:var(--fg-faint); letter-spacing:.12em; }
+  .sec-h .why { font-size:10.5px; color:var(--fg-faint); letter-spacing:.01em; }
+  .sec-h .sp { flex:1; }
+
+  /* ── 要处理:三桶并排(红橙蓝紧迫梯度一屏扫视;窄屏回落单列)── */
+  .buckets { display:grid; grid-template-columns:1fr 1fr 1.2fr; gap:9px; align-items:start; }
+  .bucket { border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg-elevated); box-shadow:var(--shadow-card); overflow:hidden; }
+  .bucket-h { display:flex; align-items:center; gap:7px; padding:8px 12px 7px; border-bottom:1px solid var(--border); }
+  .bucket-h b { font-size:12px; font-weight:600; letter-spacing:.02em; }
+  .bucket-h .n { font-size:10px; border-radius:99px; padding:0 7px; font-variant-numeric:tabular-nums; }
+  .bucket-h .hint { margin-left:auto; font-size:10px; color:var(--fg-faint); }
+  .bk-over .bucket-h b { color:var(--danger-fg); } .bk-over .n { color:var(--danger-fg); background:var(--danger-soft); }
+  .bk-today .bucket-h b { color:var(--warn-fg); } .bk-today .n { color:var(--warn-fg); background:var(--warn-soft); }
+  .bk-week .bucket-h b { color:var(--info-fg); } .bk-week .n { color:var(--info-fg); background:var(--info-soft); }
+  .trow { display:flex; gap:9px; align-items:flex-start; padding:8px 12px; transition:background .13s var(--ease); }
+  .trow + .trow { border-top:1px solid rgba(255,255,255,.035); }
+  .trow:hover { background:rgba(255,255,255,.028); }
+  .trow.done { opacity:.45; } .trow.done .tt { text-decoration:line-through; }
+  .trow input[type=checkbox] { appearance:none; width:14px; height:14px; margin-top:2px; border:1.5px solid var(--border-strong); border-radius:4px; cursor:pointer; flex:none;
+        transition:background .13s var(--ease), border-color .13s var(--ease); position:relative; }
+  .trow input[type=checkbox]:hover { border-color:var(--ok); }
+  .trow input[type=checkbox]:checked { background:var(--ok); border-color:var(--ok); }
+  .trow input[type=checkbox]:checked::after { content:""; position:absolute; left:3.5px; top:.5px; width:4px; height:8px; border:solid #0b0c0f; border-width:0 2px 2px 0; transform:rotate(45deg); }
+  .tbody { flex:1; min-width:0; }
+  .tt { font-size:12.5px; font-weight:500; letter-spacing:.01em; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tmeta { display:flex; gap:8px; align-items:center; margin-top:2px; font-size:10.5px; color:var(--fg-faint); font-variant-numeric:tabular-nums; }
+  .pchip { font-size:10px; color:var(--fg-muted); border:1px solid var(--border); border-radius:99px; padding:0 7px; cursor:pointer; transition:border-color .13s var(--ease), color .13s var(--ease); }
+  .pchip:hover { border-color:var(--border-strong); color:var(--fg); }
+  .ovd { color:var(--danger-fg); }
+  .tact { display:flex; gap:5px; align-items:center; flex:none; opacity:0; transition:opacity .13s var(--ease); }
+  .trow:hover .tact, .trow:focus-within .tact { opacity:1; }
+  .link-sess { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; color:var(--info-fg); background:var(--info-soft); border-radius:99px; padding:1px 8px; cursor:pointer; border:1px solid transparent; transition:border-color .13s var(--ease); }
+  .link-sess:hover { border-color:rgba(124,143,240,.4); }
+  .link-sess svg { width:10px; height:10px; }
+  .later-strip { margin-top:8px; display:flex; align-items:center; gap:8px; padding:7px 12px; border:1px dashed var(--border); border-radius:var(--r-md); font-size:11.5px; color:var(--fg-faint); cursor:pointer; transition:border-color .13s var(--ease), color .13s var(--ease); }
+  .later-strip:hover { border-color:var(--border-strong); color:var(--fg-muted); }
+  .later-strip .n { font-variant-numeric:tabular-nums; }
+  .later-strip .chev { transition:transform .16s var(--ease); }
+  .later-strip.open .chev { transform:rotate(90deg); }
+  .later-items { display:none; margin-top:6px; }
+  .later-items.open { display:block; }
+
+  /* ── 接下来 14 天:收窄为 DDL chip + 任务密度徽标,不堆任务卡 ── */
+  .band { border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg-elevated); box-shadow:var(--shadow-card); padding:10px 12px 12px; }
+  .band-grid { display:grid; grid-template-columns:repeat(14,1fr); gap:4px; }
+  .day { border-radius:var(--r-sm); border:1px solid transparent; padding:5px 2px 6px; min-height:64px; display:flex; flex-direction:column; gap:4px; transition:border-color .13s var(--ease), background .13s var(--ease); }
+  .day:hover { background:rgba(255,255,255,.03); border-color:var(--border); }
+  .day .dl { font-size:9.5px; text-align:center; color:var(--fg-faint); font-variant-numeric:tabular-nums; letter-spacing:.02em; }
+  .day .dw { font-size:8.5px; text-align:center; color:var(--fg-faint); opacity:.7; }
+  .day.today { border-color:var(--danger-line); background:var(--danger-soft); }
+  .day.today .dl { color:var(--danger-fg); font-weight:600; }
+  .day.we { background:rgba(255,255,255,.018); }
+  .ev { font-size:9.5px; border-radius:5px; padding:1px 5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:default; font-variant-numeric:tabular-nums; text-align:center; }
+  .ev.ddl.over { background:var(--danger-soft); color:var(--danger-fg); }
+  .ev.ddl.warn { background:var(--warn-soft); color:var(--warn-fg); }
+  .ev.ddl.info { background:var(--info-soft); color:var(--info-fg); }
+  .ev.cnt { background:rgba(255,255,255,.05); color:var(--fg-faint); }
+  .band-cap { margin-top:9px; font-size:10.5px; color:var(--fg-faint); display:flex; gap:14px; align-items:center; }
+  .band-cap i { font-style:normal; display:inline-flex; align-items:center; gap:5px; }
+  .band-cap .sw { width:14px; height:9px; border-radius:3px; display:inline-block; }
+  .band-cap .sw.ddlw { background:var(--warn-soft); } .band-cap .sw.cntw { background:rgba(255,255,255,.08); }
+
+  /* ── 项目脉搏:活动流行;手工进度折为名下半宽微条 ── */
+  .pulse { border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg-elevated); box-shadow:var(--shadow-card); overflow:hidden; }
+  .prow { display:grid; grid-template-columns:minmax(150px,1fr) 74px 70px 56px minmax(160px,1.3fr) auto; gap:10px; align-items:center; padding:9px 14px; transition:background .13s var(--ease); }
+  .prow + .prow { border-top:1px solid rgba(255,255,255,.035); }
+  .prow:hover { background:rgba(255,255,255,.028); }
+  .pcell { min-width:0; }
+  .prow .pn { font-size:12.5px; font-weight:500; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+  .prow .pn:hover { color:var(--danger-fg); }
+  .mini { height:2px; width:52%; background:rgba(255,255,255,.08); border-radius:99px; overflow:hidden; margin-top:4px; }
+  .mini i { display:block; height:100%; background:linear-gradient(90deg, rgba(224,101,95,.6), rgba(224,101,95,.85)); border-radius:99px; }
+  .pill { font-size:10px; border-radius:99px; padding:1px 8px; text-align:center; white-space:nowrap; }
+  .pill.over { color:var(--danger-fg); background:var(--danger-soft); }
+  .pill.warn { color:var(--warn-fg); background:var(--warn-soft); }
+  .pill.info { color:var(--info-fg); background:var(--info-soft); }
+  .pill.ok { color:var(--ok-fg); background:var(--ok-soft); }
+  .prow .due, .prow .acts-sess { font-size:11px; color:var(--fg-muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .prow .due.late { color:var(--danger-fg); }
+  .prow .recent { display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--fg-faint); min-width:0; }
+  .recent .src { flex:none; display:inline-flex; align-items:center; gap:3px; border-radius:99px; padding:0 7px; font-size:9.5px; }
+  .recent .src svg { width:9px; height:9px; }
+  .src.sess { color:var(--info-fg); background:var(--info-soft); }
+  .src.doc { color:var(--ok-fg); background:var(--ok-soft); }
+  .src.upd { color:var(--warn-fg); background:var(--warn-soft); }
+  .recent .what { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pact { display:flex; gap:5px; opacity:0; transition:opacity .13s var(--ease); }
+  .prow:hover .pact, .prow:focus-within .pact { opacity:1; }
+
+  /* ── 空壳折叠索引 ── */
+  .ghost-strip { display:flex; align-items:center; gap:9px; margin-top:8px; padding:8px 14px; border:1px dashed var(--border); border-radius:var(--r-md);
+                 font-size:11.5px; color:var(--fg-faint); cursor:pointer; transition:border-color .13s var(--ease), color .13s var(--ease); }
+  .ghost-strip:hover { border-color:var(--border-strong); color:var(--fg-muted); }
+  .ghost-strip .chev { transition:transform .16s var(--ease); }
+  .ghost-strip.open .chev { transform:rotate(90deg); }
+  .ghost-index { display:none; margin-top:8px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg-elevated); padding:11px 13px; }
+  .ghost-index.open { display:block; }
+  .ghost-top { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .ghost-top .gl { font-size:10.5px; color:var(--fg-faint); letter-spacing:.06em; }
+  .ghost-filter { flex:1; max-width:260px; margin-left:auto; background:var(--bg-sink); border:1px solid var(--border); border-radius:var(--r-sm); color:var(--fg); padding:4px 10px; font-size:12px; outline:none; transition:border-color .13s var(--ease); }
+  .ghost-filter:focus { border-color:var(--border-strong); }
+  .ghost-grid { display:flex; flex-wrap:wrap; gap:6px; }
+  .ghost-chip { font-size:11.5px; color:var(--fg-muted); background:var(--bg-sink); border:1px solid var(--border); border-radius:99px; padding:3px 11px; transition:border-color .13s var(--ease), color .13s var(--ease); }
+  .ghost-chip:hover { border-color:var(--border-strong); color:var(--fg); }
+  .ghost-empty { font-size:11.5px; color:var(--fg-faint); padding:2px 0; }
+
+  /* ── 清净态:空段不装忙,给出下一步 ── */
+  .calm { border:1px dashed var(--border); border-radius:var(--r-md); background:var(--bg-sink); padding:22px 16px; text-align:center; }
+  .calm .ct { font-size:13px; font-weight:600; color:var(--fg); margin-bottom:5px; }
+  .calm .ct em { font-style:normal; color:var(--ok-fg); }
+  .calm .cs { font-size:11.5px; color:var(--fg-faint); margin-bottom:12px; }
+  .calm .cact { display:flex; gap:8px; justify-content:center; }
+
+  /* ── 设计说明卡 ── */
+  .notes { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:26px; }
+  .note { border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg-sink); padding:14px 16px 13px; }
+  .note h3 { font-size:12.5px; font-weight:600; margin-bottom:7px; letter-spacing:.01em; }
+  .note h3 .no { color:var(--danger-fg); font-variant-numeric:tabular-nums; margin-right:6px; }
+  .note p { font-size:11.5px; color:var(--fg-muted); line-height:1.75; }
+  .note p b { color:var(--fg); font-weight:600; }
+  .note p code { font-size:10.5px; background:var(--bg-overlay); border:1px solid var(--border); border-radius:4px; padding:0 5px; }
+
+  /* 7 → 5 映射条 */
+  .mapstrip { margin-top:12px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--bg-sink); padding:13px 16px; display:grid; grid-template-columns:auto 1fr; gap:8px 18px; align-items:center; }
+  .mapstrip .mk { font-size:10.5px; color:var(--fg-faint); letter-spacing:.1em; }
+  .mapflow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:11.5px; }
+  .mfrom { color:var(--fg-faint); text-decoration:line-through; text-decoration-color:rgba(224,101,95,.55); border:1px solid var(--border); border-radius:99px; padding:2px 10px; }
+  .mto { color:var(--danger-fg); border:1px solid var(--danger-line); background:var(--danger-soft); border-radius:99px; padding:2px 10px; }
+  .mkeep { color:var(--fg-muted); border:1px solid var(--border); border-radius:99px; padding:2px 10px; }
+  .arrow { color:var(--fg-faint); font-size:11px; }
+
+  /* ── 确认弹层 ── */
+  .confirm-mask { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:60; }
+  .confirm-mask.show { display:flex; }
+  .confirm { width:340px; border:1px solid var(--border-strong); border-radius:var(--r-md); background:var(--bg-overlay); box-shadow:var(--shadow-pop); padding:16px 18px 14px; }
+  .confirm h4 { font-size:13px; font-weight:600; margin-bottom:6px; }
+  .confirm p { font-size:12px; color:var(--fg-muted); line-height:1.7; margin-bottom:14px; }
+  .confirm p b { color:var(--fg); }
+  .confirm .foot { display:flex; justify-content:flex-end; gap:8px; }
+
+  /* ── toast ── */
+  #toast { position:fixed; left:50%; bottom:34px; transform:translate(-50%,10px); background:var(--bg-overlay); border:1px solid var(--border-strong);
+           color:var(--fg); border-radius:var(--r-sm); padding:7px 16px; font-size:12px; opacity:0; pointer-events:none; transition:all .2s var(--ease); box-shadow:var(--shadow-pop); z-index:70; }
+  #toast.show { opacity:1; transform:translate(-50%,0); }
+
+  @media (max-width:1000px){ .buckets{grid-template-columns:1fr;} .notes{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="lede">
+    <span class="tag">设计探索 v2</span><span class="tag">方案 A</span><span class="tag">关联调研:docs/research/workbench-three-views-redesign.md</span><br>
+    <b>聚焦页 = 「项目列表 / 时间线 / 待跟进」三页签的三撤一合。</b>v2 自评重构四处:14 天带收窄为 DDL+密度徽标(防第三处重复)、补「清净态」空态、
+    手工进度折为名下半宽微条、结论行与概览 headline 分工。本页可交互:勾完成、推进、删除(带确认)、展开更晚桶、展开空壳索引、过滤框实时筛。数据为示意,项目名取自真实工作台。
+  </p>
+
+  <div class="frame-cap"><b>有事态</b><span>有逾期/今天到期任务时的正常工作日</span></div>
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="crumb"><b>工作台</b></span>
+      <span class="sp"></span>
+      <div class="actions">
+        <button class="btn" data-toast="原型:生成文档走既有 DocGenDialog,不变">生成文档</button>
+        <button class="btn" data-toast="原型:示例数据菜单不变">示例数据</button>
+        <button class="btn" data-toast="原型:从磁盘同步 = reloadWorkbench,不变">从磁盘同步</button>
+        <button class="btn primary" data-toast="原型:新建项目走既有 ProjectFormModal">新建项目</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab" data-toast="原型:概览页不在本示例范围(建议同步下线模块/负责人两死轴图)">概览</button>
+      <button class="tab on">聚焦<span class="new">新</span></button>
+      <button class="tab" data-toast="原型:任务看板保持 2026-10-12 五态化现状">任务看板</button>
+      <button class="tab" data-toast="原型:文档中心不变">文档</button>
+      <button class="tab" data-toast="原型:工作日志不变(月视图日格已承担到期展望)">工作日志</button>
+    </div>
+
+    <div class="content">
+      <div class="focusline">
+        <span class="t">今天 <em>2 条逾期</em>、<em class="w">2 条今天到期</em>,3 个项目活跃。</span>
+        <span class="d">2026-10-12 周一 · 行动口径(概览 headline 保持全局健康口径)</span>
+      </div>
+
+      <!-- ═══ 段一:要处理 ═══ -->
+      <div class="sec">
+        <div class="sec-h">
+          <span class="st">要处理</span>
+          <span class="why">唯一行动入口:原「待跟进」前三桶,行内操作沿用,补关联会话直达</span>
+        </div>
+        <div class="buckets">
+          <div class="bucket bk-over">
+            <div class="bucket-h"><b>已逾期</b><span class="n">2</span><span class="hint">最先处理</span></div>
+            <div class="trow" data-task>
+              <input type="checkbox" aria-label="完成任务">
+              <span class="tbody">
+                <span class="tt">聚焦页空态与空壳折叠文案</span>
+                <span class="tmeta"><span class="pchip" data-toast="原型:打开 tmd-cli 项目详情 tab">tmd-cli</span><span class="ovd">逾期 2 天</span><span>10-10 到期</span></span>
+              </span>
+              <span class="tact">
+                <span class="link-sess" data-toast="原型:收工作台覆盖层,跳转关联会话(工作台差异点能力)"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M6 2a4 4 0 0 0-4 4v2a4 4 0 0 0 4 4h1V10.5H6A2.5 2.5 0 0 1 3.5 8V6A2.5 2.5 0 0 1 6 3.5h4A2.5 2.5 0 0 1 12.5 6v1H14V6a4 4 0 0 0-4-4H6z"/><path d="M10 14a4 4 0 0 0 4-4V8h-1.5v2A2.5 2.5 0 0 1 10 12.5H6.5V14H10z"/></svg>会话 ×2</span>
+                <button class="btn xs" data-done>完成</button>
+                <button class="btn xs icon" aria-label="删除" data-del><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3.75A.75.75 0 0 1 3.25 3h9.5a.75.75 0 0 1 0 1.5h-9.5a.75.75 0 0 1-.75-.75zM4 6h8l-.7 7.05A2 2 0 0 1 9.31 15H6.7a2 2 0 0 1-1.99-1.95L4 6z"/></svg></button>
+              </span>
+            </div>
+            <div class="trow" data-task>
+              <input type="checkbox" aria-label="完成任务">
+              <span class="tbody">
+                <span class="tt">补 10-09 摘录核对并回填结论</span>
+                <span class="tmeta"><span class="pchip" data-toast="原型:打开 内容分析 项目详情 tab">内容分析</span><span class="ovd">逾期 1 天</span><span>10-11 到期</span></span>
+              </span>
+              <span class="tact">
+                <button class="btn xs" data-done>完成</button>
+                <button class="btn xs icon" aria-label="删除" data-del><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3.75A.75.75 0 0 1 3.25 3h9.5a.75.75 0 0 1 0 1.5h-9.5a.75.75 0 0 1-.75-.75zM4 6h8l-.7 7.05A2 2 0 0 1 9.31 15H6.7a2 2 0 0 1-1.99-1.95L4 6z"/></svg></button>
+              </span>
+            </div>
+          </div>
+          <div class="bucket bk-today">
+            <div class="bucket-h"><b>今天</b><span class="n">2</span><span class="hint">10-12</span></div>
+            <div class="trow" data-task>
+              <input type="checkbox" aria-label="完成任务">
+              <span class="tbody">
+                <span class="tt">三视图退役迁移与回归清单</span>
+                <span class="tmeta"><span class="pchip" data-toast="原型:打开 tmd-cli 项目详情 tab">tmd-cli</span><span>今天到期</span></span>
+              </span>
+              <span class="tact">
+                <span class="link-sess" data-toast="原型:收覆盖层,跳转关联会话"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M6 2a4 4 0 0 0-4 4v2a4 4 0 0 0 4 4h1V10.5H6A2.5 2.5 0 0 1 3.5 8V6A2.5 2.5 0 0 1 6 3.5h4A2.5 2.5 0 0 1 12.5 6v1H14V6a4 4 0 0 0-4-4H6z"/><path d="M10 14a4 4 0 0 0 4-4V8h-1.5v2A2.5 2.5 0 0 1 10 12.5H6.5V14H10z"/></svg>会话 ×1</span>
+                <button class="btn xs" data-done>完成</button>
+                <button class="btn xs icon" aria-label="删除" data-del><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3.75A.75.75 0 0 1 3.25 3h9.5a.75.75 0 0 1 0 1.5h-9.5a.75.75 0 0 1-.75-.75zM4 6h8l-.7 7.05A2 2 0 0 1 9.31 15H6.7a2 2 0 0 1-1.99-1.95L4 6z"/></svg></button>
+              </span>
+            </div>
+            <div class="trow" data-task>
+              <input type="checkbox" aria-label="完成任务">
+              <span class="tbody">
+                <span class="tt">支付回调联调(沙箱环境)</span>
+                <span class="tmeta"><span class="pchip" data-toast="原型:打开 springboot-demo 项目详情 tab">springboot-demo</span><span>今天到期</span></span>
+              </span>
+              <span class="tact">
+                <button class="btn xs" data-done>完成</button>
+                <button class="btn xs icon" aria-label="删除" data-del><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3.75A.75.75 0 0 1 3.25 3h9.5a.75.75 0 0 1 0 1.5h-9.5a.75.75 0 0 1-.75-.75zM4 6h8l-.7 7.05A2 2 0 0 1 9.31 15H6.7a2 2 0 0 1-1.99-1.95L4 6z"/></svg></button>
+              </span>
+            </div>
+          </div>
+          <div class="bucket bk-week">
+            <div class="bucket-h"><b>本周内</b><span class="n">3</span><span class="hint">至 10-18 周日</span></div>
+            <div class="trow" data-task>
+              <input type="checkbox" aria-label="完成任务">
+              <span class="tbody">
+                <span class="tt">对账差异批量修复脚本</span>
+                <span class="tmeta"><span class="pchip" data-toast="原型:打开 springboot-demo 项目详情 tab">springboot-demo</span><span>10-14 到期</span></span>
+              </span>
+              <span class="tact">
+                <button class="btn xs" data-done>完成</button>
+                <button class="btn xs icon" aria-label="删除" data-del><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3.75A.75.75 0 0 1 3.25 3h9.5a.75.75 0 0 1 0 1.5h-9.5a.75.75 0 0 1-.75-.75zM4 6h8l-.7 7.05A2 2 0 0 1 9.31 15H6.7a2 2 0 0 1-1.99-1.95L4 6z"/></svg></button>
+              </span>
+            </div>
+            <div class="trow" data-task>
+              <input type="checkbox" aria-label="完成任务">
+              <span class="tbody">
+                <span class="tt">周报生成模板换季更新</span>
+                <span class="tmeta"><span class="pchip" data-toast="原型:打开 内容分析 项目详情 tab">内容分析</span><span>10-15 到期</span></span>
+              </span>
+              <span class="tact">
+                <button class="btn xs" data-done>完成</button>
+                <button class="btn xs icon" aria-label="删除" data-del><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3.75A.75.75 0 0 1 3.25 3h9.5a.75.75 0 0 1 0 1.5h-9.5a.75.75 0 0 1-.75-.75zM4 6h8l-.7 7.05A2 2 0 0 1 9.31 15H6.7a2 2 0 0 1-1.99-1.95L4 6z"/></svg></button>
+              </span>
+            </div>
+            <div class="trow" data-task>
+              <input type="checkbox" aria-label="完成任务">
+              <span class="tbody">
+                <span class="tt">AI-TASKS.md 回写链路回归</span>
+                <span class="tmeta"><span class="pchip" data-toast="原型:打开 tmd-cli 项目详情 tab">tmd-cli</span><span>10-15 到期</span></span>
+              </span>
+              <span class="tact">
+                <span class="link-sess" data-toast="原型:收覆盖层,跳转关联会话"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M6 2a4 4 0 0 0-4 4v2a4 4 0 0 0 4 4h1V10.5H6A2.5 2.5 0 0 1 3.5 8V6A2.5 2.5 0 0 1 6 3.5h4A2.5 2.5 0 0 1 12.5 6v1H14V6a4 4 0 0 0-4-4H6z"/><path d="M10 14a4 4 0 0 0 4-4V8h-1.5v2A2.5 2.5 0 0 1 10 12.5H6.5V14H10z"/></svg>会话 ×3</span>
+                <button class="btn xs" data-done>完成</button>
+                <button class="btn xs icon" aria-label="删除" data-del><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2.5 3.75A.75.75 0 0 1 3.25 3h9.5a.75.75 0 0 1 0 1.5h-9.5a.75.75 0 0 1-.75-.75zM4 6h8l-.7 7.05A2 2 0 0 1 9.31 15H6.7a2 2 0 0 1-1.99-1.95L4 6z"/></svg></button>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="later-strip" id="laterStrip">
+          <svg class="chev" width="9" height="9" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l8 6-8 6V2z"/></svg>
+          更晚与未排期 <span class="n">2 条</span><span style="margin-left:auto;font-size:10px">默认折叠:不是现在的事</span>
+        </div>
+        <div class="later-items" id="laterItems">
+          <div class="buckets" style="grid-template-columns:1fr">
+            <div class="bucket bk-week">
+              <div class="trow" data-task>
+                <input type="checkbox" aria-label="完成任务">
+                <span class="tbody"><span class="tt">升级 Spring Boot 3.3 依赖基线</span><span class="tmeta"><span class="pchip">springboot-demo</span><span>10-22 到期</span></span></span>
+                <span class="tact"><button class="btn xs" data-done>完成</button></span>
+              </div>
+              <div class="trow" data-task>
+                <input type="checkbox" aria-label="完成任务">
+                <span class="tbody"><span class="tt">竞品配色抽样第二批次</span><span class="tmeta"><span class="pchip">内容分析</span><span>10-23 到期</span></span></span>
+                <span class="tact"><button class="btn xs" data-done>完成</button></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 段二:接下来 14 天(v2:DDL chip + 任务密度徽标,不堆任务卡)═══ -->
+      <div class="sec">
+        <div class="sec-h">
+          <span class="st">接下来 14 天</span>
+          <span class="why">只表达到期密度:DDL chip + 任务数徽标(悬停见明细);日级细节在工作日志月视图</span>
+        </div>
+        <div class="band">
+          <div class="band-grid" id="band"></div>
+          <div class="band-cap">
+            <i><span class="sw ddlw"></span>项目截止日(DDL)</i>
+            <i><span class="sw cntw"></span>当日到期任务数(悬停见明细)</i>
+            <span style="margin-left:auto">甘特的排程/依赖语义退役,见调研文档</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ 段三:项目脉搏 ═══ -->
+      <div class="sec">
+        <div class="sec-h">
+          <span class="st">项目脉搏</span>
+          <span class="why">只列有任务/有活动/有 DDL 的项目;手工进度折为名下半宽微条(数值在悬停 tooltip)</span>
+        </div>
+        <div class="pulse">
+          <div class="prow">
+            <span class="pcell"><span class="pn" data-toast="原型:打开 tmd-cli 项目详情 tab">tmd-cli</span><span class="mini" title="手工进度 65%(弱信号,以活动流为准)"><i style="width:65%"></i></span></span>
+            <span class="pill warn">进度风险</span>
+            <span class="due">10-15 截止</span>
+            <span class="acts-sess">未完 4</span>
+            <span class="recent"><span class="src sess"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm1 3v4.3l3 1.8-.75 1.2L7.5 9V4H9z"/></svg>会话</span><span class="what">12 分钟前 · fix(workbench) 会话磁盘身份过装载保留</span></span>
+            <span class="pact"><button class="btn xs" data-toast="原型:打开项目详情 tab">详情</button><button class="btn xs" data-toast="原型:在工作区开新会话并预填项目上下文">开会话</button></span>
+          </div>
+          <div class="prow">
+            <span class="pcell"><span class="pn" data-toast="原型:打开 内容分析 项目详情 tab">内容分析</span><span class="mini" title="手工进度 82%(弱信号,以活动流为准)"><i style="width:82%"></i></span></span>
+            <span class="pill over">已逾期</span>
+            <span class="due late">10-13 截止</span>
+            <span class="acts-sess">未完 1</span>
+            <span class="recent"><span class="src doc"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 1h6l4 4v10H4V1zm6 1v3h3l-3-3z"/></svg>文档</span><span class="what">昨天 · 周报 10-W41 生成落盘</span></span>
+            <span class="pact"><button class="btn xs" data-toast="原型:打开项目详情 tab">详情</button><button class="btn xs" data-toast="原型:在工作区开新会话并预填项目上下文">开会话</button></span>
+          </div>
+          <div class="prow">
+            <span class="pcell"><span class="pn" data-toast="原型:打开 springboot-demo 项目详情 tab">springboot-demo</span><span class="mini" title="手工进度 40%(弱信号,以活动流为准)"><i style="width:40%"></i></span></span>
+            <span class="pill info">临近</span>
+            <span class="due">10-18 截止</span>
+            <span class="acts-sess">未完 3</span>
+            <span class="recent"><span class="src upd"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M2 3h12v2H2V3zm0 4h12v2H2V7zm0 4h8v2H2v-2z"/></svg>进展</span><span class="what">3 小时前 · 支付链路联调过半</span></span>
+            <span class="pact"><button class="btn xs" data-toast="原型:打开项目详情 tab">详情</button><button class="btn xs" data-toast="原型:在工作区开新会话并预填项目上下文">开会话</button></span>
+          </div>
+        </div>
+        <div class="ghost-strip" id="ghostStrip">
+          <svg class="chev" width="9" height="9" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l8 6-8 6V2z"/></svg>
+          <span><b style="color:var(--fg-muted)">13 个未跟踪项目</b> · 「一键关联工作区」批量导入,无任务无活动无日期,默认沉底</span>
+        </div>
+        <div class="ghost-index" id="ghostIndex">
+          <div class="ghost-top">
+            <span class="gl">项目索引 · 字母序</span>
+            <input class="ghost-filter" id="ghostFilter" type="text" placeholder="过滤:输入名称关键字">
+          </div>
+          <div class="ghost-grid" id="ghostGrid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 清净态:空段不装忙 ═══ -->
+  <div class="frame-cap"><b>清净态</b><span>没有到期任务时的样子:空段给出口气与下一步,不装忙(16 项目 2 DDL 的常态)</span></div>
+  <div class="window">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="crumb"><b>工作台</b></span>
+      <span class="sp"></span>
+      <div class="actions">
+        <button class="btn" data-toast="原型:生成文档走既有 DocGenDialog,不变">生成文档</button>
+        <button class="btn" data-toast="原型:示例数据菜单不变">示例数据</button>
+        <button class="btn" data-toast="原型:从磁盘同步 = reloadWorkbench,不变">从磁盘同步</button>
+        <button class="btn primary" data-toast="原型:新建项目走既有 ProjectFormModal">新建项目</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab" data-toast="原型:概览页不在本示例范围">概览</button>
+      <button class="tab on">聚焦<span class="new">新</span></button>
+      <button class="tab" data-toast="原型:任务看板保持现状">任务看板</button>
+      <button class="tab" data-toast="原型:文档中心不变">文档</button>
+      <button class="tab" data-toast="原型:工作日志不变">工作日志</button>
+    </div>
+    <div class="content">
+      <div class="focusline">
+        <span class="t"><em class="calm">今天清净</em>:没有到期任务,最近活跃在 tmd-cli(12 分钟前)。</span>
+        <span class="d">2026-10-12 周一</span>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><span class="st">要处理</span><span class="why">空段不装忙:给下一步,不渲染三列空卡片</span></div>
+        <div class="calm">
+          <div class="ct"><em>没有逾期、今天或本周到期的任务</em></div>
+          <div class="cs">今天属于主线工作。想去排一排,或补一条任务?</div>
+          <div class="cact">
+            <button class="btn" data-toast="原型:切到任务看板页签">去任务看板</button>
+            <button class="btn" data-toast="原型:打开新建任务表单">新建任务</button>
+          </div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><span class="st">接下来 14 天</span><span class="why">稀疏也要诚实:仅剩的 DDL 照摆,空日不渲染占位物</span></div>
+        <div class="band">
+          <div class="band-grid" id="bandCalm"></div>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="sec-h"><span class="st">项目脉搏</span><span class="why">与有事态同构</span></div>
+        <div class="pulse">
+          <div class="prow">
+            <span class="pcell"><span class="pn" data-toast="原型:打开 tmd-cli 项目详情 tab">tmd-cli</span><span class="mini" title="手工进度 65%(弱信号,以活动流为准)"><i style="width:65%"></i></span></span>
+            <span class="pill warn">进度风险</span>
+            <span class="due">10-15 截止</span>
+            <span class="acts-sess">未完 4</span>
+            <span class="recent"><span class="src sess"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zm1 3v4.3l3 1.8-.75 1.2L7.5 9V4H9z"/></svg>会话</span><span class="what">12 分钟前 · fix(workbench) 会话磁盘身份过装载保留</span></span>
+            <span class="pact"><button class="btn xs" data-toast="原型:打开项目详情 tab">详情</button><button class="btn xs" data-toast="原型:在工作区开新会话并预填项目上下文">开会话</button></span>
+          </div>
+        </div>
+        <div class="ghost-strip" data-toast="原型:清净态空壳索引同构,此处不再展开">
+          <svg class="chev" width="9" height="9" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l8 6-8 6V2z"/></svg>
+          <span><b style="color:var(--fg-muted)">15 个未跟踪项目</b> · 无任务无活动无日期,默认沉底</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 设计说明(v2 重构后)═══ -->
+  <div class="notes">
+    <div class="note">
+      <h3><span class="no">01</span>三段 = 三个真实场景锚</h3>
+      <p><b>要处理</b>答「现在做什么」(S1,唯一行动入口);<b>接下来 14 天</b>答「近期有什么到期」(S4);<b>项目脉搏</b>答「各项目近况与找人」(S2/S3)。自上而下按「行动 → 展望 → 状态」排。结论行分工钉死:聚焦页是<b>行动一句话</b>,概览 headline 保持全局健康口径,不重复措辞。</p>
+    </div>
+    <div class="note">
+      <h3><span class="no">02</span>行动段砍两桶、补会话直达</h3>
+      <p>保留逾期/今天/本周三桶并排(红橙蓝紧迫梯度一屏扫视),<b>更晚与未排期折叠</b>为一行。行内沿用勾完成/推进/删除(带确认);<code>会话 ×n</code> 徽标点按收覆盖层直跳关联会话——任务↔会话闭环是工作台区别于独立 todo 应用的差异点,不该绕详情页。</p>
+    </div>
+    <div class="note">
+      <h3><span class="no">03</span>14 天带收窄(v2 重构)</h3>
+      <p>v1 在带里堆任务 chip,与要处理/任务看板构成<b>第三处任务数据重复</b>,已收窄:只放 <b>DDL chip + 当日到期任务数徽标</b>,明细走悬停 tooltip。14 格固定刻度保留「哪天有东西」的位置感;日级细节本来就在工作日志月视图日格里,两级各管各的粒度。</p>
+    </div>
+    <div class="note">
+      <h3><span class="no">04</span>空壳治理:沉底 + 可检索,不驱逐</h3>
+      <p>13 个批量导入的空壳(无任务/活动/日期)<b>默认折叠一行</b>,展开是带过滤框的字母序索引——找得到(目录汤里翻 .ssh 这种场景仍在),但不污染前三段。数据侧建议「一键关联工作区」后续改候选确认制,见调研文档「数据治理侧记」。</p>
+    </div>
+    <div class="note">
+      <h3><span class="no">05</span>脉搏行 = 活动流,手工字段退弱(v2 重构)</h3>
+      <p>行内容优先消费<b>自动可得数据</b>:最近活动(会话/文档/进展三源 + 相对时间)、风险与未完数(派生)、DDL。v1 给了手工进度独立列 + 百分比,违反自己原则;v2 折为<b>项目名下半宽 2px 微条</b>,数值收进 tooltip。模块/负责人等死轴字段不进此页,编辑仍在项目详情 tab。</p>
+    </div>
+    <div class="note">
+      <h3><span class="no">06</span>空态一等公民 + 实现面</h3>
+      <p>真实数据常态是「16 项目、6 任务、2 DDL」,<b>清净态不是边缘态</b>:要处理空段给出口气与下一步(去看板/建任务),14 天带稀疏照摆不渲染占位物,结论行换「今天清净」口径。实现:改 <code>wbTabs.ts</code> + <code>WbScreen.tsx</code> 查表,删三个 Screen;<code>followUpBuckets</code> 复用,<code>calendarTimeline</code> 只 orphan <code>timelineModel</code>;深链零破坏(仅 <code>tab:"docs"</code>)。页签 7 → 5。</p>
+    </div>
+  </div>
+
+  <div class="mapstrip">
+    <span class="mk">页签映射</span>
+    <div class="mapflow">
+      <span class="mkeep">概览</span><span class="arrow">+</span><span class="mto">聚焦(新)</span><span class="arrow">+</span><span class="mkeep">任务看板</span><span class="arrow">+</span><span class="mkeep">文档</span><span class="arrow">+</span><span class="mkeep">工作日志</span>
+      <span class="arrow" style="margin-left:14px">吸收</span>
+      <span class="mfrom">项目列表</span><span class="arrow">→</span><span class="mto">项目脉搏 + 空壳索引</span>
+      <span class="mfrom">时间线</span><span class="arrow">→</span><span class="mto">接下来 14 天</span>
+      <span class="mfrom">待跟进</span><span class="arrow">→</span><span class="mto">要处理</span>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-mask" id="confirmMask">
+  <div class="confirm" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h4 id="confirmTitle">删除任务</h4>
+    <p id="confirmBody">将删除任务「<b>—</b>」,不可恢复。</p>
+    <div class="foot">
+      <button class="btn" id="confirmCancel">取消</button>
+      <button class="btn primary" id="confirmOk">删除</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+  /* ── 14 天带(v2 数据形态:DDL + 任务密度,不堆任务卡)── */
+  const WD = ["日","一","二","三","四","五","六"];
+  const BANDS = [
+    { id: "band", days: {
+      0:  { tasks: ["三视图退役迁移与回归清单", "支付回调联调(沙箱环境)"] },
+      1:  { ddl: { t: "内容分析 DDL", k: "over" } },
+      2:  { tasks: ["对账差异批量修复脚本"] },
+      3:  { ddl: { t: "tmd-cli DDL", k: "warn" }, tasks: ["周报生成模板换季更新", "AI-TASKS.md 回写链路回归"] },
+      6:  { ddl: { t: "springboot-demo DDL", k: "info" } },
+      10: { tasks: ["升级 Spring Boot 3.3 依赖基线"] },
+      11: { tasks: ["竞品配色抽样第二批次"] },
+    }},
+    { id: "bandCalm", days: {
+      3:  { ddl: { t: "tmd-cli DDL", k: "warn" } },
+    }},
+  ];
+  const base = new Date(2026, 9, 12);
+  for (const { id, days } of BANDS) {
+    const el = document.getElementById(id);
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(base.getTime() + i * 86400000);
+      const cell = document.createElement("div");
+      cell.className = "day" + (i === 0 ? " today" : "") + ([0,6].includes(d.getDay()) ? " we" : "");
+      const mm = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+      const info = days[i];
+      let evs = "";
+      if (info?.ddl) evs += `<span class="ev ddl ${info.ddl.k}" title="${info.ddl.t} · 截止日">${info.ddl.t}</span>`;
+      if (info?.tasks?.length) evs += `<span class="ev cnt" title="当日到期任务:${info.tasks.join("、")}">任务 ×${info.tasks.length}</span>`;
+      cell.innerHTML = `<span class="dl">${i === 0 ? "今天" : mm + "/" + dd}</span><span class="dw">${WD[d.getDay()]}</span>${evs}`;
+      el.appendChild(cell);
+    }
+  }
+
+  /* ── 空壳索引(真实数据里的 13 个空壳)── */
+  const GHOSTS = [".ssh","Downloads","Octop","agentdeck","ccgui-plugin-wsl","codemoss","cxn","cxn-test","er-qi","guanjia","home","mossx","yokohama"];
+  const grid = document.getElementById("ghostGrid");
+  function renderGhosts(q) {
+    const list = GHOSTS.filter(g => !q || g.toLowerCase().includes(q.toLowerCase()));
+    grid.innerHTML = list.length
+      ? list.map(g => `<button class="ghost-chip" title="原型:打开项目详情 tab" data-toast="原型:打开 ${g} 项目详情 tab">${g}</button>`).join("")
+      : `<span class="ghost-empty">没有匹配的项目</span>`;
+  }
+  renderGhosts("");
+  document.getElementById("ghostFilter").addEventListener("input", e => renderGhosts(e.target.value.trim()));
+
+  /* ── 折叠交互 ── */
+  function toggle(strip, panel) {
+    strip.addEventListener("click", () => { strip.classList.toggle("open"); panel.classList.toggle("open"); });
+  }
+  toggle(document.getElementById("ghostStrip"), document.getElementById("ghostIndex"));
+  toggle(document.getElementById("laterStrip"), document.getElementById("laterItems"));
+
+  /* ── toast ── */
+  const toastEl = document.getElementById("toast");
+  let toastTimer;
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+  }
+  document.addEventListener("click", e => {
+    const el = e.target.closest("[data-toast]");
+    if (el) toast(el.dataset.toast);
+  });
+
+  /* ── 行内操作:完成 ── */
+  document.addEventListener("change", e => {
+    if (!e.target.matches('input[type=checkbox]')) return;
+    const row = e.target.closest(".trow");
+    row.classList.toggle("done", e.target.checked);
+    toast(e.target.checked ? "任务已完成(写 doneAt,收口 updateTask)" : "任务重新打开");
+  });
+  document.addEventListener("click", e => {
+    if (!e.target.closest("[data-done]")) return;
+    const box = e.target.closest(".trow").querySelector("input[type=checkbox]");
+    box.checked = !box.checked;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  /* ── 删除确认(沿用 WbConfirm 语义)── */
+  const mask = document.getElementById("confirmMask");
+  let pendingRow = null;
+  document.addEventListener("click", e => {
+    const del = e.target.closest("[data-del]");
+    if (!del) return;
+    pendingRow = del.closest(".trow");
+    document.getElementById("confirmBody").innerHTML =
+      `将删除任务「<b>${pendingRow.querySelector(".tt").textContent}</b>」及其附件,不可恢复。`;
+    mask.classList.add("show");
+  });
+  document.getElementById("confirmCancel").addEventListener("click", () => mask.classList.remove("show"));
+  document.getElementById("confirmOk").addEventListener("click", () => {
+    if (pendingRow) {
+      const bucket = pendingRow.closest(".bucket");
+      pendingRow.remove();
+      const n = bucket.querySelectorAll(".trow:not(.done)").length;
+      bucket.querySelector(".bucket-h .n").textContent = n;
+      toast("任务已删除");
+    }
+    mask.classList.remove("show");
+  });
+  mask.addEventListener("click", e => { if (e.target === mask) mask.classList.remove("show"); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") mask.classList.remove("show"); });
+</script>
+</body>
+</html>

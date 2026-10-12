@@ -21,6 +21,20 @@ export function weekdayLabelsMon(): string[] {
   return Array.from({ length: 7 }, (_, i) => f.format(new Date(2024, 0, 1 + i)));
 }
 
+/** 星期短称(zh「三」/ locale short;聚焦页 14 天带日用)。 */
+export function weekdayShortOf(date: Date): string {
+  const { language } = getSettingsState().settings;
+  if (language === "zh") return ZH_WD[date.getDay()];
+  return fmt(language, { weekday: "short" }).format(date);
+}
+
+/** 月日短格式(zh「10/14」/ locale numeric;聚焦页 14 天带日用)。 */
+export function dayShortOf(date: Date): string {
+  const { language } = getSettingsState().settings;
+  if (language === "zh") return `${date.getMonth() + 1}/${date.getDate()}`;
+  return fmt(language, { month: "numeric", day: "numeric" }).format(date);
+}
+
 /** 日标题(如「9 月 16 日 周三」/ locale 短格式)。 */
 export function dayTitleOf(y: number, m: number, d: number): string {
   const { language } = getSettingsState().settings;
