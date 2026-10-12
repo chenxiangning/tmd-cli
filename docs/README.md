@@ -314,4 +314,6 @@
 | 2026-10-12 | [生成文档流水线(docgen)已落地契约:数据布局 docgen.json+版本链实体分档;生成生命线三路结算;维度键队列;每周排程幂等闸;结构化五段解析契约;入口收敛与铁则对照](architecture/22-docgen.md) | 已完成 |
 | 2026-10-12 | [工作台细节打磨全量评审:5×高危(normalizeProject 丢 cliSessionId 身份/表单失败关窗丢稿/docgen 排队取消卡 gen/弹窗无提交态/编辑器弃脏稿)+22×中危(丢稿族/journal 持久化竞态/定时重入队/i18n 漏网)+22×低危,全部带 file:line,含建议推进批次](review/2026-10-12-workbench-polish-survey.md) | 已完成(49 条修复全落地,遗留 3 项见处置段) |
 | 2026-10-12 | [answer-me-with-html 能力调研与 tmd-cli 结合分析(Agent Skill 形态/安装四路/零改动直用路线/skill-hub 分发/am serve 远程场景;明确不做清单)](research/answer-me-with-html.md) | 已完成(已本地安装:公约位+claude symlink,冒烟通过) |
+| 2026-10-12 | [工作台任务详情细化设计:右栏基本信息垂直占满 + 任务执行记录(AI 按 AI-TASKS.md 约定回写 tasks[].updates[],复用 ProjectUpdate 形态;否决会话退出自动提炼与系统事件进时间线)](superpowers/specs/2026-10-12-task-execution-log-design.md) | 已实施(门禁全绿+doctor 100+1421 桩目检双态;未提交) |
+| 2026-10-12 | [任务看板重构设计:五态状态机(todo/doing/review/done + cancelled 终点)+ 泳道保留精修(列头色点计数胶囊/卡片 hover 浮起/空列虚线占位)+ 原生 HTML5 拖拽改态(同泳道内)+ 已完成列默认收近 7 天;否决纯列式与列内排序持久化](superpowers/specs/2026-10-12-task-board-redesign-design.md) | 已实施(门禁全绿;1421 桩目检通过;真机目检留大仙) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
