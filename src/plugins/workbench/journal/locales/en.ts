@@ -162,4 +162,16 @@ export const MESSAGES_EN = {
   "正在读取日志…": "Loading journal…",
   "热力高": "High",
   "节假日/便签": "Holiday/Note",
+  // 2026-10-12 打磨批:脏稿守护/生成链错误词条/扫描失败示警/定时输入归一
+  "空闲": "Idle",
+  "未保存的修改": "Unsaved changes",
+  "未保存的修改将丢失": "Unsaved changes will be lost.",
+  "会话退出但未产出文章(可重试)": "Session exited without producing an article (you can retry)",
+  "无本地工作区": "No local workspace",
+  "引擎 {engine} 不可用": "{engine} is unavailable",
+  "提示词未能送达(会话可能已退出)": "Prompt could not be delivered (the session may have exited)",
+  "生成超时({n} 分钟无产出)": "Generation timed out (no output for {n} minutes)",
+  "会话扫描部分失败,已中止本次生成(可重试)": "Session scan partially failed — this generation was aborted (retry available)",
+  "{n} 个引擎会话扫描失败,列表可能不全": "{n} engine(s) failed the session scan — the list may be incomplete",
+  "时间格式无效,已恢复原值": "Invalid time format — restored the previous value",
 };

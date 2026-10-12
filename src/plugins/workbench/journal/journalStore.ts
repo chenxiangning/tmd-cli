@@ -107,20 +107,31 @@ export async function reloadDay(y: number, m: number, d: number): Promise<Articl
   return article;
 }
 
-/** meta 写串行链:连续更新按序落盘(乱序会丢新值);链尾暴露给测试/收口等待。 */
+/** meta 写串行链:连续更新按序落盘(乱序会丢新值);链尾暴露给测试/收口等待。
+ *  persistMeta 返回本轮成败:配置保存流凭它决定关不关窗(评审 M6),链内仍吞错保活。 */
 let metaWrites: Promise<void> = Promise.resolve();
-function persistMeta(): void {
-  metaWrites = metaWrites
-    .then(() => dailyPaths().then((p) => writeJson(p.meta, store.snapshot.meta)))
-    .catch(() => undefined); /* 单次失败吞错保链活:后续写继续(内存态为准,下次成功即补齐) */
+function persistMeta(): Promise<boolean> {
+  const run = metaWrites.then(() => dailyPaths().then((p) => writeJson(p.meta, store.snapshot.meta)));
+  metaWrites = run.then(() => undefined, () => undefined); /* 单次失败吞错保链活:后续写继续(内存态为准,下次成功即补齐) */
+  return run.then(() => true, () => false);
 }
 
+/** notes 落盘串行链(metaWrites 同律,评审 M5):快照-写盘-提交整段入链,
+ *  同月两日快速保存不再交错 —— 后提交者读到的必是含前一笔的快照,内存与磁盘互不丢更新。 */
+let noteWrites: Promise<void> = Promise.resolve();
+
 export function journalWritesSettled(): Promise<void> {
-  return metaWrites;
+  return Promise.all([metaWrites, noteWrites]).then(() => undefined);
 }
 
 /** 写/删便签(text 与 images 全量替换;全空 = 删条目)。 */
-export async function saveNote(y: number, m: number, d: number, note: DayNote | null): Promise<void> {
+export function saveNote(y: number, m: number, d: number, note: DayNote | null): Promise<void> {
+  const run = noteWrites.then(() => saveNoteNow(y, m, d, note));
+  noteWrites = run.then(() => undefined, () => undefined); /* 单次失败吞错保链活:rejection 仍上浮给调用方 */
+  return run;
+}
+
+async function saveNoteNow(y: number, m: number, d: number, note: DayNote | null): Promise<void> {
   const paths = await dailyPaths();
   const id = monthId(y, m);
   let snap = store.snapshot.months[id];
@@ -137,12 +148,12 @@ export async function saveNote(y: number, m: number, d: number, note: DayNote | 
   store.commit({ ...store.snapshot, months });
 }
 
-/** 更新配置(全量替换持久化)。 */
-export function updateConfig(patch: Partial<JournalConfig>): void {
+/** 更新配置(全量替换持久化);返回落盘成败(失败时保存流不得关窗,评审 M6)。 */
+export function updateConfig(patch: Partial<JournalConfig>): Promise<boolean> {
   const config = { ...store.snapshot.config, ...patch };
   const meta = { ...store.snapshot.meta, config };
   store.commit({ ...store.snapshot, config, meta });
-  persistMeta();
+  return persistMeta();
 }
 
 /** 任务史写入(taskQueue 通道:改 meta.tasks 并落盘)。 */

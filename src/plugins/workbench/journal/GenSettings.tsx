@@ -10,7 +10,7 @@ import { host } from "@kernel/host";
 import { updateConfig, useJournalState } from "./journalStore";
 import { ensureHolidays } from "./holidays";
 import { listModels } from "@plugins/memory-coordinator/modelCatalog";
-import { isCompleteTime, normalizeTimerTime } from "./timerInput";
+import { isCompleteTime, normalizeFullWidth, normalizeTimerTime } from "./timerInput";
 /* 品牌字形映射(cli-shared,先例:omp/pi/… 十家 renderIcon + mobile EngineMark 已消费)。 */
 import { engineGlyphOf } from "@plugins/cli-shared/engineGlyphMap";
 import type { JournalConfig } from "./journalFiles";
@@ -69,29 +69,45 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
       cancelled = true;
     };
   }, [engine]);
+  /* 落盘失败上浮(评审 M6):不关窗、错误明示;saving 期禁关禁重复提交。 */
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(false);
+  /* 残缺输入失焦回落提示(L18):无效值不再无声回退。 */
+  const [timeHint, setTimeHint] = useState(false);
   const save = () => {
-    updateConfig({ ...cfg, engine });
-    void ensureHolidays(new Date().getFullYear(), true);
-    onClose();
+    if (saving) return;
+    setSaving(true);
+    setSaveErr(false);
+    void updateConfig({ ...cfg, engine }).then((ok) => {
+      if (!ok) {
+        setSaving(false);
+        setSaveErr(true);
+        return;
+      }
+      void ensureHolidays(new Date().getFullYear(), true);
+      onClose();
+    });
   };
   return (
     <DialogShell
       title={t("生成设置")}
       icon={<GearSix size="0.875rem" />}
       width={460}
+      locked={saving}
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="dj-btn" onClick={onClose}>
+          <button type="button" className="dj-btn" onClick={onClose} disabled={saving}>
             {t("取消")}
           </button>
-          <button type="button" className="dj-btn dj-btn-primary" onClick={save}>
+          <button type="button" className="dj-btn dj-btn-primary" onClick={save} disabled={saving}>
             {t("保存")}
           </button>
         </>
       }
     >
       <div className="dj-modal-body dj-modal-body-flush">
+          {saveErr && <div className="dj-nc-pasteerr">{t("保存失败,请重试")}</div>}
           <div className="dj-frow">
             <span className="dj-flabel">{t("定时生成")}</span>
             <div className="dj-timerow">
@@ -108,21 +124,25 @@ export function GenSettings({ onClose }: { onClose: () => void }) {
                 className="dj-tinput"
                 value={cfg.timerTime}
                 onChange={(e) => {
-                  /* 只挡非法字符(/^[0-9:]*$/):此前完整格式严检把 "0"/"09:" 等
-                   * 中间态全回滚,键盘实际不可编辑;完整性收口在 onBlur。 */
-                  const v = e.target.value;
+                  /* 全角数字/冒号先归一再验(L18,IME 高频误输);只挡其余非法字符:
+                   * 完整格式严检把 "0"/"09:" 等中间态全回滚,键盘实际不可编辑,完整性收口在 onBlur。 */
+                  const v = normalizeFullWidth(e.target.value);
                   if (!/^[0-9:]*$/.test(v)) return;
                   if (isCompleteTime(v)) timeRef.current = v;
+                  setTimeHint(false);
                   setCfg((c) => ({ ...c, timerTime: v }));
                 }}
                 onBlur={(e) => {
-                  /* 失焦归一(见 normalizeTimerTime):残缺回落最后完整值 */
-                  setCfg((c) => ({ ...c, timerTime: normalizeTimerTime(e.target.value, timeRef.current) }));
+                  /* 失焦归一(normalizeTimerTime):残缺回落最后完整值,且回落有提示(L18) */
+                  const v = normalizeFullWidth(e.target.value);
+                  setTimeHint(v !== "" && v !== normalizeTimerTime(v, timeRef.current));
+                  setCfg((c) => ({ ...c, timerTime: normalizeTimerTime(v, timeRef.current) }));
                 }}
                 aria-label={t("时间")}
               />
               <span className="dj-timerow-text">{t("生成前一日汇总文章")}</span>
             </div>
+            {timeHint && <span className="dj-nc-pasteerr">{t("时间格式无效,已恢复原值")}</span>}
             <span className="dj-hint">{t("到点未运行则下次启动补跑;一天一篇,重复生成整篇替换。便签不受影响。")}</span>
           </div>
           <div className="dj-frow">

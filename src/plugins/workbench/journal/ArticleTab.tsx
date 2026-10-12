@@ -2,11 +2,12 @@
  * 每日文章 tab(详情即文件,不弹窗)—— 某一天的完整详情:标题/状态/会话清单 +
  * 文章本体(总览/分节/未完事项)+ 我的便签(B3 开编辑)。生成会话条 B4 接入。
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { EditorTab } from "@kernel/tabs";
+import { updateTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
-import { host } from "@kernel/host";
+import { host, useHost } from "@kernel/host";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, dayMetaOf, deriveDayStatus, getJournalState, useJournalState } from "./journalStore";
@@ -53,6 +54,7 @@ function chipOf(liveTask: { st: string } | undefined, st: string): { cls: string
 
 /** 生成会话条:绑定会话在表 = 可打开干涉;已退出 = 只读标识。 */
 function GenSessionBar({ sessionId, engine }: { sessionId?: string; engine?: string }) {
+  useHost(); /* 订阅面(L15):会话退出即重渲染,live 判定不再僵死在旧表 */
   if (!sessionId) return null;
   const live = host.getSessions().some((s) => s.id === sessionId);
   return (
@@ -168,6 +170,19 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   const liveTask = tasks.find((tk) => tk.dayKey === key && (tk.st === "run" || tk.st === "queue"));
   const chip = chipOf(liveTask, st);
   const [lightbox, setLightbox] = useState<DayNoteImage | null>(null);
+  /* 脏稿统一持有(评审 M1):NoteEditor 上浮的脏态镜像 kernel tab 脏圆点
+   * (updateTab 既有通道,文件 tab 同款)—— keepAlive 下切走不清点,圆点持续指认
+   * 哪个页签有未保存草稿;卸载(= 关页签)时清点兜底。重开带草稿空日的放行
+   * 确认在 ArticleOpenGateHost(JournalTab),闸判据即此 dirty。 */
+  const [dirty, setDirty] = useState(false);
+  const handleDirty = useCallback((v: boolean) => setDirty(v), []);
+  useEffect(() => {
+    updateTab(tab.id, { dirty });
+  }, [tab.id, dirty]);
+  useEffect(
+    () => () => updateTab(tab.id, { dirty: false }),
+    [tab.id],
+  );
   useHolidays();
   /* 昨日未完聚合(仅昨日 tab):两桶行集(昨日桶活行 + 全表昨日最后写入盘行,
    * unfinishedPanelRows)+ 当月 ≤ 昨日便签(勾选过滤单点在 collectUnfinished)。
@@ -204,8 +219,10 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
       open: (k: string) => {
         const r = byKey.get(k);
         if (!r) return;
-        if (r.live && r.id) requestSessionReveal(r.id);
-        else if (r.disk) {
+        if (r.live && r.id) {
+          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化(与 disk 分支同口径,M12) */
+          requestSessionReveal(r.id);
+        } else if (r.disk) {
           const ws = workspaces.find((w) => w.id === r.wsId);
           /* 工作区已删(扫描缓存 60s 窗内):空 cwd 只会在 app 目录开垃圾会话,不续。 */
           if (!ws) return;
@@ -251,7 +268,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
           {isYesterday && (
             <UnfinishedPanel y={y} m={m} rows={panelRows} notes={yesterdayNotes} workspaces={workspaces} />
           )}
-          <NoteEditor key={editSignal} y={y} m={m} d={p.d} note={note} signal={editSignal} onImageOpen={setLightbox} />
+          <NoteEditor key={editSignal} y={y} m={m} d={p.d} note={note} signal={editSignal} onDirtyChange={handleDirty} onImageOpen={setLightbox} />
           {article && <ArticleBody article={article} sessionLinks={sessionLinks} />}
           <DaySessions rows={rows} summarizedAt={meta.summarizedAt} />
           <DayLinks rows={rows} />

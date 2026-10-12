@@ -16,6 +16,7 @@ import { pad2 } from "./journalFiles";
 import { useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
 import type { MonthSnapshot } from "./journalStore";
 import { MonthView, type MonthViewCalItem } from "./MonthView";
+import { ArticleOpenGateHost } from "./ArticleOpenGateHost";
 import { FlowView } from "./FlowView";
 import { TaskPanel } from "./TaskPanel";
 import { GenSettings } from "./GenSettings";
@@ -156,18 +157,14 @@ function loadYm(): { y: number; m: number } {
 
 export function JournalTab() {
   const [view, setView] = useState<JournalView>(loadView);
+  const [ym, setYm] = useState(loadYm);
+  /* 持久化走 useEffect(状态更新器内不得有副作用):view/ym 变更即落盘 */
   useEffect(() => {
     try {
       localStorage.setItem(VIEW_KEY, view);
-    } catch { /* 隐私态 */ }
-  }, [view]);
-  const [ym, setYm] = useState(loadYm);
-  /* 持久化走 useEffect(状态更新器内不得有副作用):ym 变更即落盘 */
-  useEffect(() => {
-    try {
       localStorage.setItem(YM_KEY, JSON.stringify(ym));
     } catch { /* 隐私态 */ }
-  }, [ym]);
+  }, [view, ym]);
   const [fillMsg, setFillMsg] = useState<string | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [panel, setPanel] = useState<"tasks" | "cfg" | null>(null);
@@ -179,7 +176,7 @@ export function JournalTab() {
     [list],
   );
   const state = useJournalState();
-  const { days: sessions, progress } = useDaySessions(workspaces, refreshTick);
+  const { days: sessions, progress, scanFailed } = useDaySessions(workspaces, refreshTick);
   /* 工作台日历叠层(2026-10-11 并入):月视图日格叠项目 DDL/未完任务;
    * 复用 calendarMonth 单一真相源(旧「日历」页签退役)。 */
   const projects = useSyncExternalStore(subscribeWorkbench, workbenchSnapshot, workbenchSnapshot); /* 第三参 = 静态渲染快照 */
@@ -252,6 +249,8 @@ export function JournalTab() {
           {t("今天")}
         </button>
         <StatusPills days={stats.days} sessTotal={stats.sessTotal} artTotal={stats.artTotal} pending={stats.pending} todayLive={stats.todayLive} />
+        {/* 扫描部分失败如实示警(L19):列表可能不全,失败 ≠ 无会话 */}
+        {scanFailed > 0 && <span className="dj-pill dj-pill-warn">{t("{n} 个引擎会话扫描失败,列表可能不全", { n: scanFailed })}</span>}
         {stats.pending > 0 && sessions && (
           <>
             <button
@@ -288,6 +287,8 @@ export function JournalTab() {
           />
         </div>
       </div>
+      {/* 脏稿放行确认宿主(M1):任一文章 tab 带脏标记时,开页签跳日先 WbConfirm */}
+      <ArticleOpenGateHost />
       {panel === "tasks" && <TaskPanel onClose={() => setPanel(null)} />}
       {panel === "cfg" && <GenSettings onClose={() => setPanel(null)} />}
       <div className="dj-stage">

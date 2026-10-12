@@ -23,6 +23,7 @@ export function NoteEditor({
   note,
   signal,
   onImageOpen,
+  onDirtyChange,
 }: {
   y: number;
   m: number;
@@ -32,6 +33,9 @@ export function NoteEditor({
   signal: number;
   /** 只读态点缩略图开大图(编辑态无此交互)。 */
   onImageOpen?: (img: DayNoteImage) => void;
+  /** 脏态上浮(评审 M1):编辑中与已存便签有差即 true;ArticleTab 统一持有
+   *  并镜像 kernel tab 脏圆点 + openArticleTab 放行闸。 */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   /* 信号 > 0 = 进入编辑态(ArticleTab 以 key={signal} 重挂驱动重入,草稿随之换新)。 */
   const [editing, setEditing] = useState(signal > 0);
@@ -47,6 +51,18 @@ export function NoteEditor({
     if (editing) taRef.current?.focus();
   }, [editing]);
 
+  /* 脏稿判定:文本或图片集与已存便签有差 = 有未保存内容(Esc 弃稿前确认用)。 */
+  const baseText = note?.text ?? "";
+  const baseImages = note?.images;
+  const isDirtyWith = (t: string, imgs: DayNoteImage[]) =>
+    t !== baseText ||
+    imgs.length !== (baseImages?.length ?? 0) ||
+    imgs.some((img, i) => img.file !== baseImages?.[i]?.file);
+  const dirty = isDirtyWith(text, images);
+  /* 脏态上浮在变更点直报(react-doctor 禁 prop 回调进 effect):六个变更入口各自调。 */
+  const reportDirty = (editingNow: boolean, t: string, imgs: DayNoteImage[]) =>
+    onDirtyChange?.(editingNow && isDirtyWith(t, imgs));
+
   if (!editing) {
     return (
       <>
@@ -59,10 +75,13 @@ export function NoteEditor({
             setImages(i0);
             setSaveErr(false);
             setEditing(true);
+            reportDirty(true, t0, i0);
           }}
           onToggleDone={() => {
             if (!note) return;
-            /* 只翻勾选态:文本/图片/updatedAt 原样保留(内容编辑另有入口)。 */
+            /* 只翻勾选态:文本/图片/updatedAt 原样保留(内容编辑另有入口)。
+               先清旧错:成功路径不得残留上轮错误(评审 L17)。 */
+            setSaveErr(false);
             void saveNote(
               y,
               m,
@@ -72,7 +91,10 @@ export function NoteEditor({
                 : { ...note, checked: true },
             ).catch(() => setSaveErr(true));
           }}
-          onWriteNew={() => setEditing(true)}
+          onWriteNew={() => {
+            setEditing(true);
+            reportDirty(true, text, images);
+          }}
         />
         {/* 勾选写盘失败只读态也要可见:静默失败会让用户以为已摘除,次日聚合照挂。 */}
         {saveErr && (
@@ -97,6 +119,7 @@ export function NoteEditor({
     try {
       await saveNote(y, m, d, next);
       setEditing(false);
+      reportDirty(false, trimmed, images);
     } catch {
       setSaveErr(true); /* 写盘失败保持编辑态,内容不丢 */
     }
@@ -106,12 +129,8 @@ export function NoteEditor({
     setText(t0);
     setImages(i0);
     setEditing(false);
+    reportDirty(false, t0, i0);
   };
-  /* 脏稿判定:文本或图片集与已存便签有差 = 有未保存内容(Esc 弃稿前确认用)。 */
-  const dirty =
-    text !== (note?.text ?? "") ||
-    images.length !== (note?.images?.length ?? 0) ||
-    images.some((img, i) => img.file !== note?.images?.[i]?.file);
   const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const item = [...(e.clipboardData?.items ?? [])].find((it) =>
       it.type.startsWith("image/"),
@@ -121,8 +140,12 @@ export function NoteEditor({
     const blob = item.getAsFile();
     if (!blob) return;
     void savePastedImage(y, m, d, blob, blob.name).then((img) => {
-      if (img) setImages((prev) => [...prev, img]);
-      else setPasteErr(true);
+      if (img) {
+        setPasteErr(false); /* 贴图成功即清旧错(L17):错误提示不常驻 */
+        const next = [...images, img];
+        setImages(next);
+        reportDirty(true, text, next);
+      } else setPasteErr(true);
     });
   };
 
@@ -137,7 +160,10 @@ export function NoteEditor({
           className="dj-nc-edit"
           value={text}
           placeholder={t("写点什么… ⌘/Ctrl+回车保存,Esc 取消,⌘V 可贴截图")}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            reportDirty(true, e.target.value, images);
+          }}
           onKeyDown={(e) => {
             e.stopPropagation();
             if (e.nativeEvent.isComposing)
@@ -165,9 +191,11 @@ export function NoteEditor({
                 key={img.file}
                 img={img}
                 editing
-                onDelete={() =>
-                  setImages((prev) => prev.filter((_, j) => j !== i))
-                }
+                onDelete={() => {
+                  const next = images.filter((_, j) => j !== i);
+                  setImages(next);
+                  reportDirty(true, text, next);
+                }}
               />
             ))}
           </div>
