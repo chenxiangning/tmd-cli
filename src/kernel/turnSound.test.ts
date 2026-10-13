@@ -49,6 +49,9 @@ function makeDeps() {
   };
 }
 
+/* 显式钩子预算:resetModules 后 3 个动态 import 要重估 ./settings 模块图,
+   重载机器上会超默认 10s 钩子预算(同 engines.test.ts 的冷变换超时,机器负载
+   敏感的历史欠账;用例本身无耗时逻辑)。 */
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
@@ -58,7 +61,7 @@ beforeEach(async () => {
   settings = await import("./settings");
   turnSound = await import("./turnSound");
   events = await import("./events");
-});
+}, 30_000);
 
 afterEach(() => {
   vi.useRealTimers();
