@@ -18,6 +18,7 @@ import { PencilSimple, Folder } from "@phosphor-icons/react";
 import { getActiveTab } from "@kernel/tabs";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { FileTabContent } from "./FileTabContent";
+import { fileBeforeClose } from "./fileCloseGuard";
 import { defaultFileVisualProvider } from "./fileVisual";
 import { saveRequestRef } from "./editor/useFileDocument";
 import { collectRevealTargets, refreshFiles } from "./treeHandles";
@@ -71,8 +72,11 @@ export const filesPlugin: Plugin = {
     /* 左栏工作区「查看文件」浏览器实现(kernel workspaceFileBrowser 契约);
        拔出本插件 = 入口按钮消失、已开视图自动关闭,右栏文件树零感知。 */
     registerWorkspaceFileBrowser(WorkspaceFileBrowser);
-    /* 中央文件 tab 内容:kind="file" 路由(kernel/tabs 注册表)。 */
-    ctx.registerTabContent({ kind: "file", component: FileTabContent });
+    /* 中央文件 tab 内容:kind="file" 路由(kernel/tabs 注册表)。
+       beforeClose 闸:用户手势关闭脏文档(× / ⌘W / 关其他 / 关全部)先确认,
+       确认丢弃才删内存草稿;程序性删除面(文件已删收 tab)不过闸,行为零变化
+       (契约 docs/architecture/24-tab-close-guard.md,2026-10-13 接入)。 */
+    ctx.registerTabContent({ kind: "file", component: FileTabContent, beforeClose: fileBeforeClose });
     /* ⌘S 保存命令:when 限定激活 tab 为本地文件 tab(kind="file"),否则键穿透;
        与 ssh.saveRemoteFile 同键,靠 when 互斥。触发经模块级 ref 桥转发到挂载中的编辑器。 */
     ctx.registerCommand({

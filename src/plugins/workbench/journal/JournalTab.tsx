@@ -17,7 +17,6 @@ import { useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
 import type { MonthSnapshot } from "./journalStore";
 import { MonthView, type MonthViewCalItem } from "./MonthView";
 import { monthStats } from "./monthGrid";
-import { ArticleOpenGateHost } from "./ArticleOpenGateHost";
 import { FlowView } from "./FlowView";
 import { TaskPanel } from "./TaskPanel";
 import { GenSettings } from "./GenSettings";
@@ -271,8 +270,8 @@ export function JournalTab() {
           />
         </div>
       </div>
-      {/* 脏稿放行确认宿主(M1):任一文章 tab 带脏标记时,开页签跳日先 WbConfirm */}
-      <ArticleOpenGateHost />
+      {/* 脏稿弃稿确认宿主已上移 AppShell 常驻 overlay(workbench activate 贡献,
+          2026-10-13):关文章 tab 时「工作日志」页签可能并未打开,宿主必须常驻 */}
       {panel === "tasks" && <TaskPanel onClose={() => setPanel(null)} />}
       {panel === "cfg" && <GenSettings onClose={() => setPanel(null)} />}
       <div className="dj-stage">

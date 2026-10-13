@@ -11,7 +11,12 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@kernel/i18n", () => ({ t: (k: string) => k }));
 vi.mock("@kernel/workspace", () => ({ useWorkspaces: () => ({ list: [] }) }));
 vi.mock("@kernel/workspaceOrigins", () => ({ findWorkspaceOrigin: () => null, registerWorkspaceOrigin: () => () => {} }));
-vi.mock("./journalTabs", () => ({ openArticleTab: vi.fn(), installArticleOpenGate: vi.fn() }));
+vi.mock("./journalTabs", () => ({
+  openArticleTab: vi.fn(),
+  askArticleDiscard: vi.fn(async () => true),
+  /* 契约:装闸返回卸载函数(effect cleanup 直接返回它) */
+  installArticleDiscardGate: vi.fn(() => () => {}),
+}));
 vi.mock("./taskQueue", () => ({ useGenTasks: () => [] }));
 vi.mock("./journalSchedule", () => ({ fillPendingDays: () => ({ queued: 0, remaining: 0 }) }));
 vi.mock("./TaskPanel", () => ({ TaskPanel: () => <div /> }));

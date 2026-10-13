@@ -16,11 +16,11 @@ import { openSettingsPanel } from "@kernel/settings";
 import { registerCommand, setEditorFocusProbe, type ShortcutKeyEvent } from "@kernel/shortcuts";
 import { expandEditorSelection, getActiveEditorView, hasFocusedEditor } from "@kernel/cmEditor/expandSelection";
 import {
-  closeTab,
   getActiveTabId,
   getTabs,
   setActiveTab,
 } from "@kernel/tabs";
+import { requestCloseTab } from "@kernel/tabClose";
 import { toggleEditorMaximized, restoreEditorMaximized } from "./editorMaximized";
 
 /** AppShell 局部折叠函数的挂载点:组件挂载期写入,卸载期清空。 */
@@ -66,7 +66,8 @@ registerCommand({
   when: () => getActiveTabId() !== null,
   run: () => {
     const id = getActiveTabId();
-    if (id) closeTab(id);
+    /* 过 kind 的 beforeClose 闸(脏稿确认)后才真关;闸缺省放行 */
+    if (id) void requestCloseTab(id);
   },
 });
 

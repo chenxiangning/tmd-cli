@@ -15,6 +15,7 @@ import { isRowSummarized, useDaySessions, todayKey, type DaySessionRow } from ".
 import { buildSessionLinks, openDaySessionRow } from "./sessionRef";
 import { openSessionViewTab, isSessionViewAvailable } from "@kernel/sessionViewTabs";
 import { useArticleEditSignal } from "./journalTabs";
+import { ArticleDiscardGate } from "./ArticleDiscardGate";
 import { KernelTopics } from "@kernel/events";
 import { pad2 } from "./journalFiles";
 import type { ArticleTabPayload } from "./journalTabs";
@@ -192,10 +193,19 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   const [lightbox, setLightbox] = useState<DayNoteImage | null>(null);
   /* 脏稿统一持有(评审 M1):NoteEditor 上浮的脏态镜像 kernel tab 脏圆点
    * (updateTab 既有通道,文件 tab 同款)—— keepAlive 下切走不清点,圆点持续指认
-   * 哪个页签有未保存草稿;卸载(= 关页签)时清点兜底。重开带草稿空日的放行
-   * 确认在 ArticleOpenGateHost(JournalTab),闸判据即此 dirty。 */
+   * 哪个页签有未保存草稿;卸载(= 关页签)时清点兜底。两条弃稿闸共用**本 tab 自己的**
+   * ArticleDiscardGate:重开带草稿空日的放行确认,与关闭闸 beforeClose 的判据
+   * 都是这个 dirty(2026-10-13)。 */
   const [dirty, setDirty] = useState(false);
-  const handleDirty = useCallback((v: boolean) => setDirty(v), []);
+  /* 变更回调里同步镜像,不等 effect 落地 —— 关闭闸读的是 kernel tab 上的
+   * dirty,滞后一帧就可能让「刚敲完就 ⌘W」漏拦。 */
+  const handleDirty = useCallback(
+    (v: boolean) => {
+      setDirty(v);
+      updateTab(tab.id, { dirty: v });
+    },
+    [tab.id],
+  );
   useEffect(() => {
     updateTab(tab.id, { dirty });
   }, [tab.id, dirty]);
@@ -212,6 +222,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   if (!snap || !rows)
     return (
       <div className="dj-article dj-article-loading">
+        <ArticleDiscardGate tabId={tab.id} />
         <span className="dj-load">
           <Spinner /> {t("正在读取日志…")}
         </span>
@@ -219,6 +230,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
     );
   return (
     <div className="dj-article">
+      <ArticleDiscardGate tabId={tab.id} />
       <div className="dj-art-bar">
         <span className="dj-art-date">{dayTitleOf(y, m, p.d)}</span>
         {holOf(y, m, p.d) && <span className="dj-holmini">休·{holOf(y, m, p.d)}</span>}

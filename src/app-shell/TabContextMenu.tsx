@@ -4,7 +4,9 @@
  * 不可反向 import,此处本地实现简化版视口夹取)。
  *
  * 关闭项集:关闭 / 关闭其他 tab / 关闭全部 tab —— 作用于被右键的 tab,
- * 不强制激活;dirty tab 与 × 按钮一致不加确认。
+ * 不强制激活;dirty tab 的确认由关闭协调器统一把关(2026-10-13 起三项均经
+ * requestClose* 过 kind 的 beforeClose 闸,见 kernel/tabClose.ts 与
+ * docs/architecture/24-tab-close-guard.md)。
  * 可选首项「重命名」(传 onRename 启用,会话 tab 用):canRename=false 时禁用。
  * 会话 tab 的低频行内钮(查看转录/置顶/定位,2026-10-06 收敛)也在此挂:
  * onView/onLocate/onRelay 提供才显(接力行仅 CLI 会话 tab);onTogglePin 恒显

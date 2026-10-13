@@ -8,7 +8,7 @@
 import { CalendarCheck } from "@phosphor-icons/react";
 import type { PluginContext } from "@kernel/plugin";
 import { ArticleTab } from "./ArticleTab";
-import { ARTICLE_TAB_KIND } from "./journalTabs";
+import { ARTICLE_TAB_KIND, askArticleDiscard } from "./journalTabs";
 import { bootJournal, getJournalState, setMetaTasks } from "./journalStore";
 import { bindTaskPersistence } from "./taskQueue";
 import { bootJournalSchedule } from "./journalSchedule";
@@ -24,8 +24,18 @@ export function attachJournal(ctx: PluginContext): () => void {
   bindTaskPersistence(setMetaTasks);
   const offSchedule = bootJournalSchedule(ctx.events, ready);
   /* keepAlive(评审 M1):便签草稿在组件态里,切走页签不再卸载 —— 切日/切月/
-   * 去主视图导航草稿全存活;唯一丢稿路径(重开带草稿空日 autoEdit 重挂)由
-   * openArticleTab 的 WbConfirm 闸把关,真正关闭仍由内核 tab 条负责。 */
-  ctx.registerTabContent({ kind: ARTICLE_TAB_KIND, component: ArticleTab, icon: CalendarCheck, keepAlive: true });
+   * 去主视图导航草稿全存活;两条丢稿路径各有关口:重开带草稿空日由
+   * openArticleTab 的确认闸把关,beforeClose 闸把关真关闭(关页签 / ⌘W /
+   * 关其他 / 关全部,2026-10-13 收口上轮遗留)。 */
+  ctx.registerTabContent({
+    kind: ARTICLE_TAB_KIND,
+    component: ArticleTab,
+    icon: CalendarCheck,
+    keepAlive: true,
+    /* 判据 = kernel tab 的 dirty 标记(ArticleTab 同步镜像),不脏不过闸;
+       闸本体按 tab id 注册在 ArticleTab 渲染的 ArticleDiscardGate 上
+       —— tab 在挂 = 闸在,不依赖任何外部挂点的挂载时机 */
+    beforeClose: (tab) => (tab.dirty ? askArticleDiscard(tab.id) : true),
+  });
   return offSchedule;
 }

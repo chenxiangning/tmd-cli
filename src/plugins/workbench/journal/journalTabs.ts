@@ -36,18 +36,43 @@ export function useArticleEditSignal(tab: EditorTab, onRefresh: () => void): num
   return signal;
 }
 
-/** 脏稿放行闸宿主桥(评审 M1):JournalTab 挂载安装、卸载摘除。openArticleTab
- *  重开「带未保存草稿的空日」(autoEdit 重挂必弃稿)先经宿主 WbConfirm 确认。
- *  无宿主(如 docgen 深链而日志页签未挂)按放行 —— tab 条脏圆点仍如实显示。 */
-let openGate: (() => Promise<boolean>) | null = null;
+/** 脏稿弃稿闸 —— 按 **tab id** 注册,由文章 tab 自身装/摘(ArticleDiscardGate)。
+ *  两个触发点共用同一闸:
+ *  - 开:openArticleTab 重开「带未保存草稿的空日」(autoEdit 重挂必弃稿);
+ *  - 关:tab 内容贡献的 beforeClose(关页签 / ⌘W / 关其他 / 关全部),
+ *    判据即 kernel tab 的 dirty 标记。
+ *
+ *  为什么按 id 而不是全局单闸:问「要不要丢稿」问的是**这个 tab 的**草稿,
+ *  答话的确认弹窗也就该由这个 tab 自己渲染 —— tab 在挂 = 闸在,不依赖任何
+ *  外部挂点(overlay / 工作日志页签)此刻在不在场。曾两版都挂在别处
+ *  (JournalTab 内 / 常驻 overlay),每版都要额外论证「宿主此刻在不在」,
+ *  少一个论证环节就退化成静默丢稿。keepAlive 保证切走的 tab 仍常驻挂载,
+ *  且闸在 closeTab 之前结算:问话时组件必然在挂。
+ *
+ *  无闸(未挂 / 未注册)按放行,与旧语义一致;tab 条脏圆点始终如实显示。 */
+const gates = new Map<string, () => Promise<boolean>>();
 
-export function installArticleOpenGate(gate: (() => Promise<boolean>) | null): void {
-  openGate = gate;
+/** 文章 tab 挂载期装闸;返回卸载摘除(幂等,只摘自己那一个)。 */
+export function installArticleDiscardGate(
+  tabId: string,
+  gate: () => Promise<boolean>,
+): () => void {
+  gates.set(tabId, gate);
+  return () => {
+    if (gates.get(tabId) === gate) gates.delete(tabId);
+  };
+}
+
+/** 问该 tab 的弃稿闸:无闸 = 放行。开/关两条路径共用。 */
+export function askArticleDiscard(tabId: string): Promise<boolean> {
+  return gates.get(tabId)?.() ?? Promise.resolve(true);
 }
 
 /** 打开某日文章 tab(幂等聚焦;空日也开 —— 便签编辑态在 tab 内)。
- *  页签 keepAlive(attach.ts):切日/切月草稿随页签存活不丢;唯一丢稿路径 =
- *  重开带草稿的空日(payload 换引用触发 autoEdit 重挂),此处先确认再放行。 */
+ *  页签 keepAlive(attach.ts):切日/切月草稿随页签存活不丢;两条丢稿路径
+ *  各有关口 —— 重开带草稿的空日(payload 换引用触发 autoEdit 重挂)在此先
+ *  确认再放行;真关闭(关页签 / ⌘W / 关其他 / 关全部)由 tab 内容贡献的
+ *  beforeClose 闸把关(2026-10-13,契约 docs/architecture/24-tab-close-guard.md)。 */
 export function openArticleTab(y: number, m: number, d: number, title?: string, autoEdit?: boolean): void {
   const key = dayKey(y, m, d);
   const proceed = () =>
@@ -66,7 +91,7 @@ export function openArticleTab(y: number, m: number, d: number, title?: string, 
     proceed();
     return;
   }
-  void (openGate?.() ?? Promise.resolve(true)).then((ok) => {
+  void askArticleDiscard(target.id).then((ok) => {
     if (ok) proceed();
   });
 }
