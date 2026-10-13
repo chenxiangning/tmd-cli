@@ -234,3 +234,26 @@ export function sanitizeIconSet(raw: unknown): IconSetId {
     ? (raw as IconSetId)
     : "classic";
 }
+
+/** ── 应用 Logo(app logo)域 ── 品牌位图标切换;资产注册表在 kernel/appLogo.ts */
+
+/** Logo 白名单:classic(出厂现状图)+ 2026-10 概念稿 orbit-routing 七款
+ *  (原八款中的 adaptive-routing-fabric 与出厂图同图重复,除重不入)。 */
+export const APP_LOGO_IDS = [
+  "classic",
+  "multi-orbit-hub",
+  "open-star-ring",
+  "gravitational-core",
+  "dual-orbit-handoff",
+  "layered-control-plane",
+  "four-port-router",
+  "triadic-router",
+] as const;
+export type AppLogoId = (typeof APP_LOGO_IDS)[number];
+
+/** 应用 Logo 清洗:白名单外一律回落 classic(存量用户零迁移)。 */
+export function sanitizeAppLogo(raw: unknown): AppLogoId {
+  return typeof raw === "string" && (APP_LOGO_IDS as readonly string[]).includes(raw)
+    ? (raw as AppLogoId)
+    : "classic";
+}

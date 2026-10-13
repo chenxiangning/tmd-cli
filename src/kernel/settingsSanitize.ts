@@ -17,6 +17,7 @@ import {
   sanitizeUiZoom,
   sanitizeIconDecor,
   sanitizeIconSet,
+  sanitizeAppLogo,
   type UiLanguage,
 } from "./settingsAppearance";
 import {
@@ -182,6 +183,7 @@ export function sanitize(raw: unknown): AppSettings {
     uiZoom: sanitizeUiZoom(obj.uiZoom),
     iconDecor: sanitizeIconDecor(obj.iconDecor),
     iconSet: sanitizeIconSet(obj.iconSet),
+    appLogo: sanitizeAppLogo(obj.appLogo),
     sessionTabsEnabled: typeof obj.sessionTabsEnabled === "boolean" ? obj.sessionTabsEnabled : DEFAULT_SETTINGS.sessionTabsEnabled,
     sessionViewerMinimal: typeof obj.sessionViewerMinimal === "boolean" ? obj.sessionViewerMinimal : DEFAULT_SETTINGS.sessionViewerMinimal,
     sessionTabsMax: sanitizeSessionTabsMax(obj.sessionTabsMax),

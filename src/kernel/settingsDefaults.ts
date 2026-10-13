@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   uiZoom: UI_ZOOM_DEFAULT,
   iconDecor: DEFAULT_ICON_DECOR,
   iconSet: "classic",
+  appLogo: "classic",
   sessionTabsMax: SESSION_TABS_LIMIT_DEFAULT,
   sessionTabsEnabled: true,
   sessionViewerMinimal: true,

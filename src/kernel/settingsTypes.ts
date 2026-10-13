@@ -5,7 +5,7 @@
  */
 
 import type { SshHostConfig } from "./sshTypes";
-import type { IconDecorId, IconDecorItem, IconSetId, UiLanguage } from "./settingsAppearance";
+import type { AppLogoId, IconDecorId, IconDecorItem, IconSetId, UiLanguage } from "./settingsAppearance";
 import type { RelayDeployHistoryEntry } from "./settingsRelayHistory";
 import type { ThemePresetId } from "./themePresets";
 
@@ -103,6 +103,8 @@ export interface AppSettings {
   iconDecor: Record<IconDecorId, IconDecorItem>;
   /** 图标组合:装饰位三套字形/线重组合(外观页可调;应用层 kernel/iconSet.tsx)。 */
   iconSet: IconSetId;
+  /** 应用 Logo:侧栏设置钮/WSL 卡等品牌位图标(外观页可调;资产注册表 kernel/appLogo.ts)。 */
+  appLogo: AppLogoId;
   /** 顶栏中央会话标题 tab 条开关(外观页可调,默认开启;见 kernel/sessionTabs.ts)。 */
   sessionTabsEnabled: boolean;
   /** 会话查看器极简展示:每轮工作过程(思考/工具/中途叙述)折叠为一行,只保留最终答复,默认开(查看器头部可切)。 */

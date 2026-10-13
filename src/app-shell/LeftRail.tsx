@@ -19,9 +19,10 @@ import { FolderOpen, Plug, Tray } from "@phosphor-icons/react";
 import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
+import { useSettingsState } from "@kernel/settings";
+import { getAppLogoUrl } from "@kernel/appLogo";
 import { toggleHomeSession } from "./shortcutCommands";
 import { useWorkspaceSwitchMenus } from "./WorkspaceSwitcher";
-import logoUrl from "../assets/logo.png";
 
 /** 左 rail 条目(kind 判别联合):order 跨两源统一排序;bottom 钉底部簇。 */
 type LeftEntry =
@@ -59,7 +60,7 @@ export function LeftRail({
   /* active 契约的宿主重渲义务(sidebarActions:渲染期求值,响应性随宿主):
    * 私有 store 驱动类(看板覆盖层)经动作自声明的 subscribeActive 统一订阅,
    * bump 强制重渲求值 —— 与 PanelRail 的 useEditorTabs/useHost「订阅保重渲」
-   * 同纪律(设置驱动类出现时再补 useSettingsState,先例 PanelRail)。 */
+   * 同纪律(设置驱动 logo 切换已补 useSettingsState,先例 PanelRail)。 */
   const [, bumpActive] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     /* dispatch 引用恒稳;actions = 注册表快照,registry 变化 → 重订阅。 */
@@ -68,6 +69,8 @@ export function LeftRail({
   }, [actions]);
   /* 工作区切换菜单簇(下拉 + 行右键菜单):与顶栏 WorkspaceSwitcher 共用一套。 */
   const wsMenus = useWorkspaceSwitchMenus();
+  /* 品牌位 logo 跟随外观页「应用 Logo」设置(设置钮本体,logo 即钮面)。 */
+  const { settings } = useSettingsState();
 
   /* 壳自有条目(排序位与插件动作共享同一地带):工作台 10(插件)/ 首页 20 /
      市场 30 / 会话看板 40(插件)/ 工作区 50 —— 2026-10-10 用户口径重排。 */
@@ -212,7 +215,7 @@ export function LeftRail({
         title=""
         onClick={onToggleSettings}
       >
-        <img src={logoUrl} alt="" className="settings-logo" />
+        <img src={getAppLogoUrl(settings.appLogo)} alt="" className="settings-logo" />
       </button>
       {wsMenus.menus}
     </div>

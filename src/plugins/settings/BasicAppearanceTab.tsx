@@ -26,6 +26,7 @@ import { resolveEffectiveAppearance } from "@kernel/theme";
 import { mixHexColors, normalizeHexColor, withAlpha } from "@kernel/themeTokens";
 import { SystemAppearanceCard } from "./AppearanceSystemCard";
 import { IconDecorCard } from "./IconDecorCard";
+import { LogoCard } from "./LogoCard";
 
 /** 浅色/深色的展示名。 */
 const appearanceLabel = (appearance: "light" | "dark") =>
@@ -217,6 +218,7 @@ export function BasicAppearanceTab() {
     </div>
     <SystemAppearanceCard />
     <IconDecorCard />
+    <LogoCard />
     </>
   );
 }
