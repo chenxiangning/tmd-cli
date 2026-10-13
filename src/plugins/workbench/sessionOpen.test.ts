@@ -80,6 +80,25 @@ describe("workbench openLink", () => {
     expect(onToast).toHaveBeenCalledWith("会话已结束,可从列表移除后重新关联");
   });
 
+  it("扫描失败:不拿残缺候选集判「会话已结束」,如实提示扫描失败", () => {
+    /* 失败态下 rows 可能被清空/截断 —— 此前会误报「会话已结束」 */
+    const recent = { rows: [], failed: true, reload: () => undefined } as unknown as Parameters<typeof openLink>[4];
+    openLink(link({}), project, "ws1", onToast, recent);
+    expect(hostMock.host.openDiskSession).not.toHaveBeenCalled();
+    expect(onToast).toHaveBeenCalledWith("引擎会话扫描失败,列表可能不全。");
+  });
+
+  it("扫描失败但存在单条邻近命中:仍不 resume(候选集不完整,不赌)", () => {
+    const recent = {
+      rows: [{ key: "k", profileId: "claude", profileName: "Claude", cliSessionId: "disk-x", title: "x", modifiedAt: 1, disk: { id: "disk-x", modifiedAt: 1, path: "/x", createdAt: Date.parse("2026-10-10T00:00:00Z") + 60_000 } }],
+      failed: true,
+      reload: () => undefined,
+    } as unknown as Parameters<typeof openLink>[4];
+    openLink(link({}), project, "ws1", onToast, recent);
+    expect(hostMock.host.openDiskSession).not.toHaveBeenCalled();
+    expect(onToast).toHaveBeenCalledWith("引擎会话扫描失败,列表可能不全。");
+  });
+
   it("disk 关联:直接按 ref resume", () => {
     openLink(link({ kind: "disk", ref: "disk-7" }), project, "ws1", onToast);
     expect(hostMock.host.openDiskSession).toHaveBeenCalledWith("claude", "/tmp/proj", "ws1", "disk-7");

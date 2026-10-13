@@ -20,6 +20,12 @@ function recoverDeadLink(
   recent: ProjectSessionsState | null | undefined,
   onToast: (m: string) => void,
 ): void {
+  /* 扫描失败时 rows 可能被清空/截断 —— 不能据此判「会话已结束」,也不能拿
+   * 残缺候选集当唯一命中去 resume(失败当事实是本轮收口的同类缺陷)。 */
+  if (recent?.failed) {
+    onToast(t("引擎会话扫描失败,列表可能不全。"));
+    return;
+  }
   const at = Date.parse(link.createdAt);
   const near = (recent?.rows ?? []).filter((r) =>
     r.disk.createdAt !== undefined && Math.abs(r.disk.createdAt - at) <= 5 * 60_000,
