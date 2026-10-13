@@ -33,6 +33,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sendConfirmEnabled: true,
   promptHistoryEnabled: true,
   workbenchDocDefaultMode: "preview",
+  workbenchDefaultEngine: "",
+  workbenchEngineModels: {},
   askSoundEnabled: true,
   notifyOsAsk: true,
   notifyOsTurnEnd: true,

@@ -10,13 +10,21 @@ const hostMock = vi.hoisted(() => ({
     getSessions: vi.fn((): Array<{ id: string; title: string }> => []),
     getCliSessionId: vi.fn(() => undefined),
     openDiskSession: vi.fn(async () => ({ id: "resumed" })),
+    createSession: vi.fn(async () => ({ id: "new-1" })),
     setActiveSession: vi.fn(),
     events: { emit: vi.fn(), on: vi.fn(() => () => undefined) },
+    getCliProfiles: vi.fn((): Array<{ id: string; listSessions?: unknown }> => []),
   },
 }));
 vi.mock("@kernel/host", () => hostMock);
 
-import { openLink } from "./sessionOpen";
+const settingsMock = vi.hoisted(() => ({
+  /* language 必带:t() 内部同读 getSettingsState,zh = 恒等返回键。 */
+  getSettingsState: vi.fn(() => ({ settings: { language: "zh", workbenchDefaultEngine: "", workbenchEngineModels: {} } })),
+}));
+vi.mock("@kernel/settings", () => ({ getSettingsState: settingsMock.getSettingsState }));
+
+import { createSessionHere, openLink } from "./sessionOpen";
 import type { Project, ProjectTask } from "./types";
 
 const project = {
@@ -108,5 +116,51 @@ describe("workbench openLink", () => {
     openLink(link({ kind: "disk", ref: "disk-7" }), { ...project, cwd: undefined }, "ws1", onToast);
     expect(hostMock.host.openDiskSession).not.toHaveBeenCalled();
     expect(onToast).toHaveBeenCalledWith("项目未绑定目录,无法恢复磁盘会话");
+  });
+});
+
+describe("workbench createSessionHere", () => {
+  const onSettled = vi.fn();
+  const recentOf = (n: number, profileId = "codex") =>
+    ({
+      rows: Array.from({ length: n }, (_, i) => ({ key: `k${i}`, profileId, profileName: profileId, cliSessionId: `d${i}`, title: `t${i}`, modifiedAt: i, disk: { id: `d${i}`, modifiedAt: i, path: "/x" } })),
+      failed: false,
+      reload: () => undefined,
+    }) as unknown as Parameters<typeof createSessionHere>[2];
+
+  beforeEach(() => {
+    settingsMock.getSettingsState.mockReturnValue({ settings: { language: "zh", workbenchDefaultEngine: "", workbenchEngineModels: {} } });
+  });
+
+  it("未设默认引擎:沿用旧行为,取该目录最近会话的 profile(不传模型)", () => {
+    createSessionHere(project, "ws1", recentOf(2), onToast, onSettled);
+    expect(hostMock.host.createSession).toHaveBeenCalledWith("codex", "/tmp/proj", "ws1");
+  });
+
+  it("未设默认引擎 + 扫描中/空目录:如实提示,不建会话", () => {
+    createSessionHere(project, "ws1", null, onToast, onSettled);
+    expect(onToast).toHaveBeenCalledWith("正在扫描本地会话…");
+    createSessionHere(project, "ws1", recentOf(0), onToast, onSettled);
+    expect(onToast).toHaveBeenCalledWith("该目录暂无可用引擎会话,请先在侧栏开过一次");
+    expect(hostMock.host.createSession).not.toHaveBeenCalled();
+  });
+
+  it("已设默认引擎:无视扫描态直接按它建,空目录也放行", async () => {
+    settingsMock.getSettingsState.mockReturnValue({ settings: { language: "zh", workbenchDefaultEngine: "claude", workbenchEngineModels: { claude: "claude-opus-4-6" } } });
+    hostMock.host.getCliProfiles.mockReturnValue([{ id: "claude" }]);
+    createSessionHere(project, "ws1", recentOf(0), onToast, onSettled);
+    await vi.waitFor(() => {
+      expect(hostMock.host.createSession).toHaveBeenCalledWith("claude", "/tmp/proj", "ws1", { model: "claude-opus-4-6" });
+    });
+    expect(hostMock.host.setActiveSession).toHaveBeenCalledWith("new-1");
+    expect(onSettled).toHaveBeenCalled();
+  });
+
+  it("已设默认引擎但 profile 失效:回落扫描行为,不拿死 id 建", () => {
+    settingsMock.getSettingsState.mockReturnValue({ settings: { language: "zh", workbenchDefaultEngine: "gone", workbenchEngineModels: {} } });
+    hostMock.host.getCliProfiles.mockReturnValue([]);
+    createSessionHere(project, "ws1", null, onToast, onSettled);
+    expect(hostMock.host.createSession).not.toHaveBeenCalled();
+    expect(onToast).toHaveBeenCalledWith("正在扫描本地会话…");
   });
 });

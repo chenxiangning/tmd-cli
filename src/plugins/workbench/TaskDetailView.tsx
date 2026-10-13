@@ -20,6 +20,7 @@ import { readDocDataUrl, fileToBase64, isImageAttachment, docAttachmentPath } fr
 import { openFileInTab } from "@kernel/fileTabs";
 import { TASK_STATUSES, type Attachment, type Project, type ProjectTask, type TaskStatus } from "./types";
 import { useProjectSessions } from "./useProjectSessions";
+import { resolveDefaultEngine } from "./defaultEngine";
 import { resolveWorkspaceId } from "./views";
 import { TaskSessionsSec } from "./TaskSessionsSec";
 import { WbBadge, WbConfirm, WbImgView, WbAttachmentSection, WbAttachmentUpload, TaskUpdatesSec } from "./ui";
@@ -109,6 +110,12 @@ export function TaskDetailView({
       onToast(t("项目未绑定目录;先在「编辑」里填 cwd 再开会话"));
       return;
     }
+    /* 概览页默认引擎已设:与目录扫描态无关,空目录也可直接开。 */
+    if (resolveDefaultEngine()) {
+      setLinkName(task.title);
+      setNaming(true);
+      return;
+    }
     /* 三分:null=扫描中,空=真空/扫描失败,失败态如实提示。 */
     if (recent === null) {
       onToast(t("正在扫描本地会话…"));
@@ -123,12 +130,14 @@ export function TaskDetailView({
     setLinkName(task.title);
     setNaming(true);
   };
-  /* 弹窗确认后真正建会话:name = 用户填写的关联列表名称(空回落任务标题)。 */
+  /* 弹窗确认后真正建会话:name = 用户填写的关联列表名称(空回落任务标题)。
+   * 引擎档位:默认引擎优先(含其默认模型),未设回落该目录最近会话的 profile。 */
   const createLinked = (name: string) => {
-    if (!project.cwd || recent === null || recent.rows.length === 0) return;
-    const profileId = recent.rows[0].profileId;
+    const def = resolveDefaultEngine();
+    if (!project.cwd || (!def && (recent === null || recent.rows.length === 0))) return;
+    const profileId = def?.profileId ?? recent!.rows[0].profileId;
     setCreating(true);
-    void host.createSession(profileId, project.cwd, workspaceId).then(
+    void host.createSession(profileId, project.cwd, workspaceId, { model: def?.model }).then(
       (meta) => {
         /* 开新会话并关联 = 用户手势,摘最大化让幕布可见(遮盖统一)。 */
         host.events.emit(KernelTopics.sessionViewRequested, null);

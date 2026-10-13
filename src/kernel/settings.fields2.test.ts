@@ -50,3 +50,21 @@ describe("工作台文档默认视图", () => {
     expect(settings.getSettingsState().settings.workbenchDocDefaultMode).toBe("edit");
   });
 });
+
+describe("工作台默认会话引擎与每引擎模型", () => {
+  it("引擎 id 自由串存取;模型表只留串值", () => {
+    settings.updateSettings({ workbenchDefaultEngine: "claude", workbenchEngineModels: { claude: "claude-opus-4-6", omp: "gpt-5.2", bad: 3 as never } });
+    const s = settings.getSettingsState().settings;
+    expect(s.workbenchDefaultEngine).toBe("claude");
+    expect(s.workbenchEngineModels).toEqual({ claude: "claude-opus-4-6", omp: "gpt-5.2" });
+    settings.updateSettings({ workbenchDefaultEngine: "" });
+    expect(settings.getSettingsState().settings.workbenchDefaultEngine).toBe("");
+  });
+
+  it("非法类型回落默认", () => {
+    settings.updateSettings({ workbenchDefaultEngine: 7 as never, workbenchEngineModels: "junk" as never });
+    const s = settings.getSettingsState().settings;
+    expect(s.workbenchDefaultEngine).toBe("");
+    expect(s.workbenchEngineModels).toEqual({});
+  });
+});

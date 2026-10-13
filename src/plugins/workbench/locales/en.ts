@@ -38,6 +38,11 @@ export const MESSAGES_EN = {
   "数据加载失败": "Failed to load data",
   // ── 页签/视图 ──
   "概览": "Overview",
+  "默认会话 CLI": "Default session CLI",
+  "不固定(跟随该目录最近会话)": "Unfixed (follow the directory's latest session)",
+  "默认模型": "Default model",
+  "使用 {engine} 默认模型": "Use {engine}'s default model",
+  "「开会话」「在此目录开新会话」「生成文档」等工作台发起的会话默认用它;不固定 = 跟随该目录最近会话。": "Used by default for sessions started from the workbench (open session, new session here, doc generation); unfixed = follow the directory's latest session.",
   "聚焦": "Focus",
   "任务看板": "Task board",
   "今天到期": "Due today",

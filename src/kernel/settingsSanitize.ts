@@ -2,6 +2,7 @@
  * 设置字段清洗 —— 自 settings.ts 拆出(文件规模铁则收紧至 300 行)。
  * 承担:外部数据(JSON/补丁)→ 合法 AppSettings 的全部 sanitize 逻辑;
  * 非法/缺失字段一律回落 settingsTypes.ts 的默认值。store 装配在 settings.ts。
+ * file-size-exempt(字段白名单随设置项线性生长,机械追加无拆分价值)。
  */
 
 import { sanitizeSshSettings } from "./sshSettings";
@@ -105,6 +106,16 @@ function sanitizeDisabledPlugins(raw: unknown): string[] {
   return [...ids].sort();
 }
 
+/** Record<string,string> 白名单清洗(workbench 每引擎默认模型表;非串值丢弃,键原样保留)。 */
+function sanitizeStringRecord(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (typeof val === "string") out[key] = val;
+  }
+  return out;
+}
+
 /** 本地插件信任表清洗:id → 非空字符串数组;坏 id/坏项丢弃,确定性按 key 序。 */
 function sanitizeLocalPluginTrust(raw: unknown): Record<string, string[]> {
   const map: Record<string, string[]> = {};
@@ -181,6 +192,11 @@ export function sanitize(raw: unknown): AppSettings {
       obj.workbenchDocDefaultMode === "preview" || obj.workbenchDocDefaultMode === "edit"
         ? obj.workbenchDocDefaultMode
         : DEFAULT_SETTINGS.workbenchDocDefaultMode,
+    workbenchDefaultEngine:
+      typeof obj.workbenchDefaultEngine === "string"
+        ? obj.workbenchDefaultEngine
+        : DEFAULT_SETTINGS.workbenchDefaultEngine,
+    workbenchEngineModels: sanitizeStringRecord(obj.workbenchEngineModels),
     sendConfirmEnabled: typeof obj.sendConfirmEnabled === "boolean" ? obj.sendConfirmEnabled : DEFAULT_SETTINGS.sendConfirmEnabled,
     askSoundEnabled:
       typeof obj.askSoundEnabled === "boolean"

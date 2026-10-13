@@ -8,6 +8,7 @@ import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
 import { buildAnalysisPrompt } from "../prompt";
+import { resolveDefaultEngine } from "../defaultEngine";
 import { createEntry, dimensionKeyOf, docgenSchedule, updateSchedule } from "./store";
 import { enqueueDocGenTask } from "./queue";
 import { DOCGEN_AUDIENCES, DOCGEN_PERIODS, DOCGEN_TEMPLATES, getDocGenTemplate, periodRange } from "./templates";
@@ -36,7 +37,8 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
   const [audience, setAudience] = useState("管理层");
   const [language, setLanguage] = useState("");
   const profiles = host.getCliProfiles();
-  const [engine, setEngine] = useState(() => profiles.find((p) => p.id === "omp")?.id ?? profiles[0]?.id ?? "omp");
+  /* 引擎初值:概览页默认引擎优先;未设/失效回落 omp(历史默认不动)。 */
+  const [engine, setEngine] = useState(() => resolveDefaultEngine()?.profileId ?? profiles.find((p) => p.id === "omp")?.id ?? profiles[0]?.id ?? "omp");
   const [additional, setAdditional] = useState("");
   const [schedOn, setSchedOn] = useState(false);
   const [schedWeekday, setSchedWeekday] = useState(schedule.weekday);

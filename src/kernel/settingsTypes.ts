@@ -117,6 +117,10 @@ export interface AppSettings {
   promptHistoryEnabled: boolean;
   /** 工作台文档详情默认视图:预览(默认)或编辑(workbench 插件设置分区可调)。 */
   workbenchDocDefaultMode: WbDocDefaultMode;
+  /** 工作台默认会话引擎(CLI profile id,自由串;"" = 不固定,跟随该目录最近会话)。概览页可配,开会话/生成文档等 spawn 路径优先取它(workbench 插件消费)。 */
+  workbenchDefaultEngine: string;
+  /** 各引擎记住的默认模型 selector(key = CLI profile id;空 = 引擎默认)。spawn 经 --model 传入,仅对声明 modelArg/oneshotArgs 的引擎生效。 */
+  workbenchEngineModels: Record<string, string>;
   /** Ask/确认面板提示音开关(行为页可调,默认开启)。 */
   askSoundEnabled: boolean;
   /** Ask 提示音效 id。 */

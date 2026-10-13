@@ -76,6 +76,14 @@
 /* ── 概览 ── */
 /* 概览统一 6 列网格:KPI 每卡 1 列,图表面板各 3 列,关注区三面板各 2 列,所有竖缝对齐 */
 .wb-overview { flex: 1; min-height: 0; overflow: auto; padding: 12px; display: grid; grid-template-columns: repeat(6, 1fr); align-content: start; gap: 10px; }
+/* 默认会话引擎选择条(行内轻量;视觉语言同 wb-taskdetail-linksel) */
+.wb-overview-empty { display: flex; flex-direction: column; }
+.wb-engbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wb-engbar-label { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-xs); }
+.wb-engbar-sel { height: 26px; max-width: 300px; min-width: 0; border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); border: 1px solid var(--tmd-border); color: var(--tmd-fg-muted); font: inherit; font-size: var(--tmd-font-ui); padding: 0 8px; cursor: pointer; transition: background .12s ease, color .12s ease, border-color .12s ease; }
+.wb-engbar-sel:hover:not(:disabled) { background: var(--tmd-bg-hover); color: var(--tmd-fg); border-color: var(--tmd-border-strong); }
+.wb-engbar-sel:disabled { opacity: .55; cursor: not-allowed; }
+.wb-engbar-model { flex: 0 1 300px; }
 .wb-headline { grid-column: 1 / -1; margin: 0; color: var(--tmd-fg-muted); font-size: var(--tmd-font-xs); }
 .wb-kpis { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
 .wb-kpi { border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }

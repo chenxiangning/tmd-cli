@@ -1,14 +1,18 @@
 /**
- * omp 模型目录 —— 引擎配置卡的数据拉取源。
- * 消费方:memory-coordinator 引擎配置卡、feature 插件 workbench journal 生成设置
- * (模型下拉;声明先例,同 articleBody 消费 markdownBody 口径)。
+ * 模型目录 —— 引擎配置卡/模型下拉的数据拉取单一真相源。
+ * 消费方:memory-coordinator 引擎配置卡、feature 插件 workbench(概览默认引擎条、
+ * journal 生成设置;声明先例,同 articleBody 消费 markdownBody 口径)。
  *
- * `omp models list --json`(PoC 向导同源):返回全部 provider 的模型
- * (selector/name/contextWindow/reasoning…),即安装向导「31 个模型选项」
- * 的同一数据面。失败(omp 缺席/超时)返回空,引擎卡降级为手动输入。
+ * - omp:`omp models list --json`(PoC 向导同源),返回全部 provider 的模型
+ *   (selector/name/contextWindow/reasoning…);失败(缺席/超时)返回空。
+ * - pi:无非交互列表命令,实况目录消费 cli-pi 声明的 piModelCatalog
+ *   (auth.json × models-store.json;feature 插件消费 cli-* 纯函数模块的
+ *   声明先例,同 workbench 消费本件口径),selector = provider/modelId。
+ * - opencode:`opencode models` 逐行 selector 文本。
  */
 
 import { ipc } from "@kernel/ipc";
+import { piModelCatalog } from "@plugins/cli-pi/configGui";
 
 export interface ModelEntry {
   selector: string;
@@ -66,6 +70,19 @@ export async function listModels(engine: ModelEngine = "omp", force = false): Pr
           reasoning: m.reasoning === true,
         }));
       }
+    } else if (engine === "pi") {
+      /* 实况目录 = cli-pi 声明的 piModelCatalog(登录态排前已排序);pi --model
+         接受 provider/modelId,与 pi 设置 defaultModel 同一 selector 形态。 */
+      const providers = await piModelCatalog();
+      entries = providers.flatMap((p) =>
+        p.models.map((m) => ({
+          selector: `${p.id}/${m.id}`,
+          name: m.label || m.id,
+          provider: p.id,
+          contextWindow: 0,
+          reasoning: false,
+        })),
+      );
     } else if (engine === "opencode") {
       // opencode models 无 --json:逐行 selector 文本
       const r = await ipc.procCommunicate({
@@ -82,12 +99,11 @@ export async function listModels(engine: ModelEngine = "omp", force = false): Pr
           .map((l) => ({ selector: l, name: l, provider: l.split("/")[0], contextWindow: 0, reasoning: false }));
       }
     }
-    // pi:无非交互模型列表命令(模型在交互 /model 里选)→ 空,UI 降级手填
   } catch {
     entries = [];
   }
-  /* 只缓存非空结果:失败(引擎缺席/超时)不进缓存,窗口期内引擎恢复下次调用
-     立即可重试;pi 恒空属设计,空结果不落缓存无进程开销。 */
+  /* 只缓存非空结果:失败(引擎缺席/超时/未登录供应商)不进缓存,窗口期内恢复
+     下次调用立即可重试;空结果不落缓存无进程开销。 */
   if (entries.length > 0) {
     cache.set(engine, entries);
     cacheAt.set(engine, Date.now());
