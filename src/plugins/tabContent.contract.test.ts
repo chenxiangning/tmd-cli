@@ -36,6 +36,7 @@ const OPENABLE_KINDS = [
   "structured-session",
   "wb.project",
   "wb.console",
+  "anim.projects",
 ] as const;
 
 function activateCollecting(): Map<string, TabContentContribution> {
