@@ -4,6 +4,31 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.7] - 2026-10-14
+
+本版主体 = 工作台第三批打磨收敛版(不含新能力面):10-12 survey 遗留与 10-13 二次现场评审(A–F 40+ 条)全量落码,含 journal 增量并入「假成功」根因修复;另落编辑器 tab 关闭闸、工作台概览默认会话引擎/模型、应用 Logo 切换三个小功能面与意图画布 excalidraw 钉装修复;发版正文自动注入 CI 上线。
+
+### 新增
+
+- 编辑器 tab 关闭闸契约(34a7f471;契约 `docs/architecture/24-tab-close-guard.md`):kernel 新增 `requestCloseTab/Other/All` 用户手势协调器与 `TabContentContribution.beforeClose?` 注册面,同步删除面保持不变;journal 日报文章、files 本地文档、ssh 远端文件三类脏页签经 × 钮/⌘W/右键菜单关闭先确认;缺省放行、抛错不放行、在途去重、陈旧确认作废、批量逐个过闸
+- 工作台概览默认会话 CLI 与模型选择(a78c64da):概览页新增默认会话 CLI 与模型选择,开会话与生成文档默认跟随它
+- 应用 Logo 切换(bd79d5e7):设置外观页新增应用 Logo 选择,侧栏设置钮与 WSL 卡品牌位跟随设置
+
+### 修复
+
+- journal 增量并入「假成功」根因修复(c7eb0ce3):旧结算只认文章文件存在,15s 轮询命中旧文即推水位收割会话,后续并入全空转;四层修复 = 唯一成败判据 `articleChanged(baseline,next)`、零新增不入队、无文章之日水位不推、结算机拆 `genSettle.ts`;10-12 残文备份后补跑即整日重生成
+- 写前合并按时刻比较 updatedAt(a49e18bc),修复混时区回写下手动改状态被静默回滚
+- 二次现场评审全量修复(135eac8a/874209bc/c7eb0ce3;评审 `docs/review/2026-10-13-workbench-0.3.7-ux-polish.md`):P0 四项——看板窄容器裁切致已完成列不可达、任务芯片「取消=丢弃」、命名弹窗 IME 选词回车误开会话、一键关联改候选勾选弹层(点开头目录默认不勾、在途锁、成败 toast 计数);P1——概览空壳口径对齐聚焦页(未跟踪集折叠一行)、确认强度倒挂(杀会话补确认)、深链冷启动不再假「不存在」(0e104dd8)、addUpdate 假成功、月视图统计与格子同源;P2 可达性与 i18n 尾账
+- docgen 阅读链闭环打磨(874209bc):生成终止先确认、失败重试可换引擎、行动项勾选补「未保存」暗示
+- 工作日志打磨(c7eb0ce3):摘除「昨日未完」晨启动面板(连带测试与专属词条);示例数据菜单补方向键导航与焦点管理(fe948b47)
+- 意图画布(f8b69504):恢复 excalidraw 预包钉装修画布 tab 熔断,lazy 加载补 504 重试护栏与钉装契约闸
+
+### 内务
+
+- 发版正文自动注入(891c30f2,PR #68):release.yml prep-release 先建 Draft 并从 CHANGELOG 抠 `[x.y.z]` 小节注入正文,同 tag 重跑复用 release、刷新正文并清陈旧 latest.json(防 updater 验签被旧条目挡);立「Release 正文必须携带 CHANGELOG 小节」铁律(v0.3.6 曾中招占位文案)
+- turnSound 与 mobile engines 测试冷启动预算放宽(9fc12aae)
+- 评审与指引落盘:0.3.7 二次打磨现场评审与处置(e269fcee)、tab 关闭闸契约 + 037 推进指引 + tmd-anim 立项调研(e0ed04ea)、tmd-anim M1 与两轮打磨交付记录(c6aa5a7c)
+
 ## [0.3.6] - 2026-10-12
 
 本版主体 = 工作台批次二打磨 + 提交收口门禁聚合:任务看板五态状态机(泳道拖拽改态)、任务详情 AI 回写执行记录、项目概要 dashboard、三视图三撤一合「聚焦」页签 v1.1;新增 `check:gate` 聚合门禁,把 i18n 键比对与多并行会话推送前复验写入验证约定;收口评审与对抗评审多批修复。
