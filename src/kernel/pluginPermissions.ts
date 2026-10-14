@@ -281,6 +281,7 @@ export const SETTINGS_PURE_KEYS = [
   "sanitizeSessionTabsMax",
   "sanitizeIconDecor",
   "sanitizeIconSet",
+  "sanitizeAppLogo",
   "sanitizeRelayDeployHistory",
   "onSettingsPersistFailed",
 ] as const;

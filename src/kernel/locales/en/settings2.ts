@@ -84,4 +84,16 @@ export const MESSAGES = {
   "检索图标": "Filter icons",
   "按名称或 id 筛选…": "Filter by name or id…",
   "没有匹配的图标,换个关键词试试。": "No matching icons; try another keyword.",
+  // LogoCard 字面量键 + kernel/appLogo.ts 注册表动态键
+  "应用 Logo": "App logo",
+  "侧栏设置钮等品牌位的应用图标,选中即时生效。":
+    "App icon for brand spots like the sidebar settings button; applies instantly on selection.",
+  "经典": "Classic",
+  "多轨枢纽": "Multi-orbit hub",
+  "开放星环": "Open star ring",
+  "引力核心": "Gravitational core",
+  "双轨接力": "Dual-orbit handoff",
+  "层叠控制面": "Layered control plane",
+  "四口路由": "Four-port router",
+  "三叉路由": "Triadic router",
 } as Record<string, string>;

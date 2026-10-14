@@ -13,11 +13,11 @@ import { openSessionViewTab, isSessionViewAvailable } from "@kernel/sessionViewT
 import type { SessionMeta } from "@kernel/ipc";
 import { Eye, FileImage, Paperclip, TerminalWindow, X } from "@phosphor-icons/react";
 import { toneVar } from "./tone";
-import { bytes } from "./kindLabels";
+import { bytes, UPDATE_KIND_LABELS, formatUpdateAt, sortUpdates } from "./kindLabels";
 import { isImageAttachment } from "./workbenchFiles";
 import { runIpc } from "./ipcToast";
 import { openLink } from "./sessionOpen";
-import type { Attachment, Project, TaskSessionLink } from "./types";
+import type { Attachment, Project, ProjectTask, TaskSessionLink } from "./types";
 import type { ProjectSessionsState } from "./useProjectSessions";
 
 export function WbBadge({ tone, children }: { tone: string; children: ReactNode }) {
@@ -93,20 +93,24 @@ export function WbConfirm({
 }
 
 /** 附件上传控件(钮 + 隐藏 file input):任务详情把它放进顶部操作行,
- *  文档编辑器仍由 WbAttachmentSection 内联渲染。 */
-export function WbAttachmentUpload({ onUpload }: { onUpload: (file: File) => void }) {
+ *  文档编辑器仍由 WbAttachmentSection 内联渲染。onUpload 返回 Promise 时
+ *  按钮进入 in-flight 态(禁用防连点),大文件 base64 编码期间不再无反馈。 */
+export function WbAttachmentUpload({ onUpload }: { onUpload: (file: File) => unknown }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
   return (
     <>
-      <button type="button" className="wb-btn" onClick={() => fileRef.current?.click()}>
-        <Paperclip size={12} />{t("上传")}
+      <button type="button" className="wb-btn" disabled={busy} onClick={() => fileRef.current?.click()}>
+        <Paperclip size={12} />{busy ? t("上传中…") : t("上传")}
       </button>
       <input
         ref={fileRef} type="file" hidden
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) onUpload(file);
           e.target.value = "";
+          if (!file || busy) return;
+          setBusy(true);
+          Promise.resolve(onUpload(file)).catch(() => undefined).finally(() => setBusy(false));
         }}
       />
     </>
@@ -160,6 +164,31 @@ export function WbAttachmentSection({ items, onUpload, onOpen, onDelete, onToast
           onCancel={() => setAskDelete(null)}
         />
       ) : null}
+    </section>
+  );
+}
+
+/** 执行记录段(AI 回写时间线;时间正序,新记录自然展开在下;无增删入口)。
+ *  自 TaskDetailView 拆入守 300 行铁则。 */
+export function TaskUpdatesSec({ updates }: { updates: ProjectTask["updates"] }) {
+  return (
+    <section className="wb-taskdetail-sec">
+      <h4>{t("执行记录")}<span className="wb-panel-sub">{updates.length}</span></h4>
+      {updates.length > 0 ? (
+        <ul className="wb-update-list">
+          {sortUpdates(updates, "asc").map((update) => (
+            <li key={update.id} className={`wb-update-row is-${update.kind}`}>
+              <i className="wb-update-dot" aria-hidden />
+              <div className="wb-update-body">
+                <span className="wb-update-meta">{formatUpdateAt(update.at)} · {t(UPDATE_KIND_LABELS[update.kind])}</span>
+                <p>{update.text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="wb-muted">{t("还没有执行记录;关联会话按 AI-TASKS.md 约定回写后自动在此展示。")}</p>
+      )}
     </section>
   );
 }

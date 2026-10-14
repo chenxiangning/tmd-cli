@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
-import { CaretRight, ChatCircle, FileText, Notebook, Plus, X } from "@phosphor-icons/react";
+import { CaretRight, ChatCircle, Plus, X } from "@phosphor-icons/react";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { NEXT_TASK_STATUS, type Project } from "../types";
 import { deleteTask, updateTask } from "../store";
@@ -16,28 +16,24 @@ import { runIpc } from "../ipcToast";
 import { toneVar } from "../tone";
 import { WbBadge, WbConfirm, WbEmpty } from "../ui";
 import { RISK_LABELS } from "../insights";
-import { TASK_ADVANCE_LABELS, formatUpdateAt } from "../kindLabels";
+import { TASK_ADVANCE_LABELS } from "../kindLabels";
 import { resolveWorkspaceId } from "../views";
 import { createSessionHere, openLink } from "../sessionOpen";
 import { useProjectSessions } from "../useProjectSessions";
 import {
-  activityAge, focusBand, focusBuckets, focusLine, pulsePartition,
-  type ActivityKind, type PulseRow,
+  focusBand, focusBuckets, focusLine, pulsePartition,
+  type PulseRow,
 } from "../focusModel";
 import type { FollowUpItem } from "../followUpBuckets";
-import { FocusBandSection, GhostIndex } from "./FocusParts";
+import { FocusBandSection, GhostIndex, PulseActivity } from "./FocusParts";
 import type { WbScreenProps } from "./cards";
-
-/** 活动源标签(内容层,UI 经 t() 过词典)。 */
-const ACTIVITY_LABELS: Record<ActivityKind, string> = { session: "会话", doc: "文档", update: "进展" };
-const ACTIVITY_ICONS: Record<ActivityKind, typeof ChatCircle> = { session: ChatCircle, doc: FileText, update: Notebook };
 
 export function FocusScreen({ allProjects, today, onOpen, onNewProject, onToast, onTab, onNewTask }: WbScreenProps) {
   const { list: workspaces } = useWorkspaces();
   const buckets = useMemo(() => focusBuckets(allProjects, today), [allProjects, today]);
   const band = useMemo(() => focusBand(allProjects, today), [allProjects, today]);
   const pulse = useMemo(() => pulsePartition(allProjects, today), [allProjects, today]);
-  const line = focusLine(buckets, pulse);
+  const line = useMemo(() => focusLine(buckets, pulse), [buckets, pulse]);
   const projectsById = useMemo(() => Object.fromEntries(allProjects.map((p) => [p.id, p])), [allProjects]);
   const [laterOpen, setLaterOpen] = useState(false);
   const [askDelete, setAskDelete] = useState<FollowUpItem | null>(null);
@@ -143,7 +139,7 @@ function FocusTaskRow({ item, workspaces, projectsById, onOpen, onToast, onAskDe
       <label className="wb-bucket-check">
         <input
           type="checkbox"
-          aria-label={t("完成任务")}
+          aria-label={t("完成任务:{title}", { title: item.title })}
           onChange={() => runIpc(updateTask(item.projectId, item.taskId, { status: "done" }), onToast, t("任务已更新"))}
         />
       </label>
@@ -167,19 +163,10 @@ function FocusTaskRow({ item, workspaces, projectsById, onOpen, onToast, onAskDe
             onClick={() => runIpc(updateTask(item.projectId, item.taskId, { status: next }), onToast, t("任务已更新"))}
           >{t(TASK_ADVANCE_LABELS[next] ?? "开始")}</button>
         ) : null}
-        <button type="button" className="wb-btn wb-btn-xs" aria-label={t("删除")} onClick={() => onAskDelete(item)}><X size={11} /></button>
+        <button type="button" className="wb-btn wb-btn-xs" aria-label={t("删除:{title}", { title: item.title })} onClick={() => onAskDelete(item)}><X size={11} /></button>
       </span>
     </div>
   );
-}
-
-/** 活动相对日:今天/昨天/N 天前,更早落 MM-DD HH:mm。 */
-function activityWhen(at: string, today: string): string {
-  const age = activityAge(at, today);
-  if (age === 0) return t("今天");
-  if (age === 1) return t("昨天");
-  if (age !== null && age >= 2 && age <= 6) return t("{n} 天前", { n: age });
-  return formatUpdateAt(at);
 }
 
 /** 脉搏行:项目名 + 手工进度微条(弱信号)/ 风险徽标 / 截止 / 未完数 / 最近活动 / 详情+开会话。 */
@@ -193,8 +180,6 @@ function PulseRowView({ row, today, onOpen, onToast }: {
   const { list: workspaces } = useWorkspaces();
   const recent = useProjectSessions(project.cwd);
   const [creating, setCreating] = useState(false);
-  const activity = row.activity;
-  const Icon = activity ? ACTIVITY_ICONS[activity.kind] : null;
   return (
     <div className="wb-pulse-row">
       <span className="wb-pulse-name">
@@ -207,13 +192,7 @@ function PulseRowView({ row, today, onOpen, onToast }: {
       <span className="wb-pulse-due">{project.dueDate ? t("{date} 截止", { date: project.dueDate.slice(5) }) : "—"}</span>
       <span className="wb-pulse-open">{t("未完 {count}", { count: row.open })}</span>
       <span className="wb-pulse-act">
-        {activity && Icon ? (
-          <>
-            <Icon size={12} />
-            <span className="wb-pulse-act-kind">{t(ACTIVITY_LABELS[activity.kind])}</span>
-            <span className="wb-pulse-act-text" title={activity.text}>{activityWhen(activity.at, today)} · {activity.text}</span>
-          </>
-        ) : "—"}
+        <PulseActivity row={row} today={today} />
       </span>
       <span className="wb-pulse-actions">
         <button type="button" className="wb-btn wb-btn-xs" onClick={() => onOpen(project.id)}>{t("详情")}</button>

@@ -18,6 +18,8 @@ import { ipc, type SessionMeta } from "@kernel/ipc";
 import { KernelTopics } from "@kernel/events";
 import { host } from "@kernel/host";
 import { getActiveTab } from "@kernel/tabs";
+import { askDialog } from "@kernel/askDialog";
+import { t } from "@kernel/i18n";
 import { SshOverlay } from "./SshOverlay";
 import { SshPanel } from "./panel/SshPanel";
 import { RemoteFileTab } from "./editor/RemoteFileTab";
@@ -63,8 +65,22 @@ export const sshPlugin: Plugin = {
     /* UI 注册面(四挂载点 + 右栏面板 + 设置分区)。 */
     ctx.contribute("overlay", { order: 30, component: SshOverlay });
     ctx.contribute("workspace.newSessionMenu", { order: 20, component: MenuEntry });
-    /* 远端文件编辑 tab:kind="ssh-file" 路由(kernel/tabs 注册表)。 */
-    ctx.registerTabContent({ kind: "ssh-file", component: RemoteFileTab });
+    /* 远端文件编辑 tab:kind="ssh-file" 路由(kernel/tabs 注册表)。
+       beforeClose 闸:脏远端文件关闭先确认 —— 远端编辑没有本地草稿缓存,
+       静默关闭即真丢稿;非 keepAlive,闸体走 askDialog 命令式确认(同 files)。 */
+    ctx.registerTabContent({
+      kind: "ssh-file",
+      component: RemoteFileTab,
+      beforeClose: (tab) =>
+        tab.dirty
+          ? askDialog({
+              title: t("未保存的修改"),
+              message: t("未保存的修改将丢失"),
+              confirmLabel: t("丢弃"),
+              danger: true,
+            })
+          : Promise.resolve(true),
+    });
     /* ⌘S 保存命令:when 限定激活 tab 为远端文件 tab(kind="ssh-file"),否则键穿透;
        与 files.save 同键,靠 when 互斥。触发经模块级 ref 桥转发到挂载中的编辑器。 */
     ctx.registerCommand({

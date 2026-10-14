@@ -124,14 +124,19 @@ function DocList({ visible, tasks, schedule, today, docsFilter, selectedId, onSe
   );
 }
 
-const WEEKDAY_LABELS: readonly string[] = ["", "周一", "周二", "周三", "周四", "周五"];
+/* E5:七日全量,0/6 手改数据不再显示空星期(旧空串占位导致「每周 09:00」缺星期)。 */
+const WEEKDAY_LABELS: readonly string[] = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
 function ScheduleCard({ schedule, onToast }: {
   schedule: DocGenSchedule;
   onToast: (m: string) => void;
 }) {
+  /* C6 toggle pending:在途禁用防连点乱序(连续 toggle 落盘顺序不保证,以禁用串行化)。 */
+  const [pending, setPending] = useState(false);
   const toggleSchedule = () => {
-    void updateSchedule({ on: !schedule.on }).then(
+    if (pending) return;
+    setPending(true);
+    void updateSchedule({ on: !schedule.on }).finally(() => setPending(false)).then(
       () => onToast(schedule.on ? t("排程已暂停") : t("排程已开启:{next}", { next: `${t(WEEKDAY_LABELS[schedule.weekday] ?? "")} ${schedule.time}` })),
       (e) => onToast(e instanceof Error ? e.message : String(e)),
     );
@@ -145,7 +150,7 @@ function ScheduleCard({ schedule, onToast }: {
         <i className={`dg-dot ${schedule.on ? "dg-dot-sched" : "dg-dot-off"}`} />
         <b>{t("每周{wd} {time} · {template}", { wd: t(WEEKDAY_LABELS[schedule.weekday] ?? "周五"), time: schedule.time, template: tpl ? t(tpl.label) : schedule.templateId })}</b>
         <span className={`dg-chip ${schedule.on ? "dg-chip-sched" : "dg-chip-off"}`}>{schedule.on ? t("运行中") : t("已暂停")}</span>
-        <button type="button" className="wb-btn wb-btn-xs" onClick={toggleSchedule}>
+        <button type="button" className="wb-btn wb-btn-xs" disabled={pending} onClick={toggleSchedule}>
           {schedule.on ? t("暂停") : t("开启排程")}
         </button>
       </div>
@@ -180,7 +185,7 @@ function ListRow({ entry, task, selected, onSelect, onCancel }: {
         <button
           type="button"
           className={`dg-stt dg-stt-${entry.docState}`}
-          title={t("点击流转:草稿 → 已汇报 → 已归档")}
+          title={t("点击立即流转:草稿 → 已汇报 → 已归档(单击即生效)")}
           onClick={(e) => { e.stopPropagation(); void toggleDocState(entry.id); }}
         >
           {t(DOC_STATE_KEYS[entry.docState])}

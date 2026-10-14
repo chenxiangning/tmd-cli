@@ -23,6 +23,7 @@ import {
   type NotesMonthFile,
 } from "./journalFiles";
 import { parseArticle, type Article } from "./articleParse";
+import { resolveDefaultEngine } from "../defaultEngine";
 import { restoreTasks } from "./taskQueue";
 
 /* 开发热更纪律:booted 标志/月快照/meta 写链/任务持久化回调都钉在 activate 期的模块
@@ -62,7 +63,10 @@ export function bootJournal(): Promise<void> {
   bootPromise ??= (async () => {
     const paths = await dailyPaths();
     const meta = await readJson<MetaFile>(paths.meta, EMPTY_META);
-    const config = { ...DEFAULT_CONFIG, ...(meta.config ?? {}) };
+    /* 首跑引擎跟随工作台默认(概览页可配);存量配置的 engine 一字不动。
+       未设/失效时 resolveDefaultEngine 返回 null,回落 DEFAULT_CONFIG.engine(omp)。 */
+    const stored = meta.config ?? {};
+    const config = { ...DEFAULT_CONFIG, ...stored, engine: stored.engine ?? resolveDefaultEngine()?.profileId ?? DEFAULT_CONFIG.engine };
     store.commit({ ...store.snapshot, ready: true, config, meta: { ...EMPTY_META, ...meta, config } });
     booted = true;
     restoreTasks(meta.tasks); /* 任务史恢复(run 改判中断);队列续跑见 taskQueue 头注 */

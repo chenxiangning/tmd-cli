@@ -5,7 +5,7 @@
  */
 
 import type { Attachment, ProjectDoc, TaskSessionLink } from "./types";
-import { enqueue, mutate, randId, setProjects, state } from "./storeCore";
+import { enqueue, markWriteError, mutate, randId, setProjects, state } from "./storeCore";
 import { readDocText, removeDocFile, safeAttachFileName, writeDocBytes, writeDocFile, writeIndexFile } from "./workbenchFiles";
 
 /* ── 项目文档 ── */
@@ -33,6 +33,7 @@ export function createDoc(projectId: string, init: { title: string; markdown?: s
     try {
       setProjects(await writeIndexFile(next));
     } catch (e) {
+      markWriteError(e instanceof Error ? e.message : String(e));
       setProjects(snapshot, e instanceof Error ? e.message : String(e));
       throw e;
     }
@@ -74,6 +75,7 @@ export function saveDoc(projectId: string, docId: string, patch: { title?: strin
     try {
       setProjects(await writeIndexFile(next));
     } catch (e) {
+      markWriteError(e instanceof Error ? e.message : String(e));
       setProjects(snapshot, e instanceof Error ? e.message : String(e));
       throw e;
     }
@@ -120,6 +122,7 @@ export function attachDocFile(projectId: string, docId: string, file: { name: st
     try {
       setProjects(await writeIndexFile(next));
     } catch (e) {
+      markWriteError(e instanceof Error ? e.message : String(e));
       setProjects(snapshot, e instanceof Error ? e.message : String(e));
       await removeDocFile(projectId, attachment.fileName);
       throw e;
@@ -176,6 +179,7 @@ export function attachTaskFile(projectId: string, taskId: string, file: { name: 
     try {
       setProjects(await writeIndexFile(next));
     } catch (e) {
+      markWriteError(e instanceof Error ? e.message : String(e));
       setProjects(snapshot, e instanceof Error ? e.message : String(e));
       await removeDocFile(projectId, attachment.fileName);
       throw e;

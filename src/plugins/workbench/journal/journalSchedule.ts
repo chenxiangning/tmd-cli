@@ -9,7 +9,7 @@ import type { PluginEventBus } from "@kernel/plugin";
 import { dailyPaths, dayKey, readText } from "./journalFiles";
 import { dayMetaOf, getJournalState, type MonthSnapshot } from "./journalStore";
 import { enqueueTask } from "./taskQueue";
-import { collectSessionRowsChecked, rowDayKey, todayKey, type DaySessionRow } from "./daySessions";
+import { collectSessionRowsChecked, isRowSummarized, rowDayKey, todayKey, type DaySessionRow } from "./daySessions";
 import { bootGenSession } from "./genSession";
 import { ensureHolidays } from "./holidays";
 
@@ -68,8 +68,14 @@ function scheduleAutoIncrement(engine: string, exitedSessionId: string): void {
       /* 扫描部分失败:本轮增量判定跳过(L19),下次会话退出重触发;失败本体由主视图示警 pill 可感知。 */
       const scan = await collectSessionRowsChecked();
       const hasSessions = !scan.failed.length && scan.rows.some((r) => rowDayKey(r) === key);
-      if (hasArticle) enqueueTask("增量并入", key, engine);
-      else if (hasSessions) enqueueTask("首次提取", key, engine);
+      if (hasSessions) {
+        /* 零新增不并入:水位后无未归纳行 = 文章已是最新,空跑只会白烧一次生成(2026-10-12 实证)。 */
+        const pendingRows = scan.rows.some(
+          (r) => rowDayKey(r) === key && !isRowSummarized(r, dayMetaOf(key).summarizedAt),
+        );
+        if (hasArticle && pendingRows) enqueueTask("增量并入", key, engine);
+        else if (!hasArticle) enqueueTask("首次提取", key, engine);
+      }
     })().catch(() => undefined); /* configDir 不可用等失败静默:增量判定非关键路径 */
   }, AUTO_INC_DEBOUNCE_MS);
 }

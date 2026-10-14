@@ -8,6 +8,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ArrowLeft, ChatText, FloppyDisk } from "@phosphor-icons/react";
 import { Spinner } from "@kernel/Spinner";
 import { t } from "@kernel/i18n";
+import { retryImport } from "@kernel/lazyImport";
 import { cn } from "../utils/cn";
 import type { ExcalidrawInitialDataState, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { buildTraceabilityProjection } from "../utils/traceability";
@@ -24,13 +25,18 @@ import { ConfirmBubble } from "./ConfirmBubble";
 
 /* 动态 import 是刻意的代码分割:excalidraw 体积 MB 级,静态引入会打进主 chunk,
    破坏 tmd-cli 首屏零加载预算(mossx 同款 lazy 模式);非运行时选路。
-   样式表必须与 JS 同 chunk 引入:漏掉 = 图标失去尺寸约束渲染成巨 SVG(0.2.5 验收实测)。 */
-const LazyExcalidraw = lazy(async () => {
+   样式表必须与 JS 同 chunk 引入:漏掉 = 图标失去尺寸约束渲染成巨 SVG(0.2.5 验收实测)。
+   retryImport 护栏与 files 视图同款:dev 冷启动依赖优化未完成时动态 import 撞 504,
+   React.lazy 会永久缓存 rejection 把整个贡献位熔断;重试链等优化完成即自愈(2026-10-13)。 */
+const loadExcalidrawModule = retryImport(async () => {
   const module = await import("@excalidraw/excalidraw");
   /* 样式表必须与 JS 同 chunk 引入:漏掉 = 图标失去尺寸约束渲染成巨 SVG(0.2.5 验收实测)。 */
   await import("@excalidraw/excalidraw/index.css");
-  return { default: module.Excalidraw };
+  return module;
 });
+const LazyExcalidraw = lazy(async () => ({
+  default: (await loadExcalidrawModule()).Excalidraw,
+}));
 
 
 export function IntentCanvasEditor({

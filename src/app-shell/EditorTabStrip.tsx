@@ -15,12 +15,16 @@ import { resolveFileVisual } from "@kernel/fileVisual";
 import { getTabIcon } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import {
-  closeAllTabs,
-  closeOtherTabs,
-  closeTab,
   setActiveTab,
   useEditorTabs,
 } from "@kernel/tabs";
+/* 用户手势关闭一律走协调器(过 kind 的 beforeClose 闸,脏稿不静默丢);
+ * 程序性删除面(文件已删等)才用 tabs 的同步 close*。 */
+import {
+  requestCloseAllTabs,
+  requestCloseOtherTabs,
+  requestCloseTab,
+} from "@kernel/tabClose";
 import { TabContextMenu } from "./TabContextMenu";
 import { toggleEditorMaximized, useEditorMaximized } from "./editorMaximized";
 
@@ -110,7 +114,7 @@ function FileTab({
         title=""
         onClick={(e) => {
           e.stopPropagation();
-          closeTab(tabId);
+          void requestCloseTab(tabId);
         }}
       >
         <Cross size="0.75rem" aria-hidden />
@@ -167,9 +171,9 @@ export const EditorTabStrip = memo(function EditorTabStrip() {
       {menu ? (
         <TabContextMenu
           position={{ x: menu.x, y: menu.y }}
-          onCloseTab={() => closeTab(menu.tabId)}
-          onCloseOthers={() => closeOtherTabs(menu.tabId)}
-          onCloseAll={() => closeAllTabs()}
+          onCloseTab={() => void requestCloseTab(menu.tabId)}
+          onCloseOthers={() => void requestCloseOtherTabs(menu.tabId)}
+          onCloseAll={() => void requestCloseAllTabs()}
           onClose={() => setMenu(null)}
         />
       ) : null}

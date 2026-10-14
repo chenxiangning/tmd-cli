@@ -56,6 +56,8 @@ export function focusBand(projects: readonly Project[], today: string = todayISO
   const open: FollowUpItem[] = [];
   for (const bucket of followUpBuckets(projects, today)) open.push(...bucket.items);
   const result: BandDay[] = [];
+  /* 固定 +24h 步进在 DST 切换日会偏 ±1 小时,但这里只取 Date 的本地年月日/星期
+   * (iso 拼接与 isWeekend),日历日不漂移;不做逐日进位是有意取舍,国内无感。 */
   for (let i = 0; i < days; i++) {
     const date = new Date(base + i * DAY_MS);
     const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -151,7 +153,7 @@ export interface FocusLine {
   topName?: string;
 }
 
-/** 聚焦页结论行(行动口径;概览 headline 保持全局健康口径,两处不重复措辞)。 */
+/** 聚焦页结论行(行动口径;概览 headline 同样按被跟踪集计账,A2 后两处同口径)。 */
 export function focusLine(buckets: FocusBuckets, pulse: PulsePartition): FocusLine {
   const overdue = buckets.main[0]?.total ?? 0;
   const dueToday = buckets.main[1]?.total ?? 0;

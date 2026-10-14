@@ -36,10 +36,10 @@ const tabsMock = vi.hoisted(() => ({
   setActiveTab: vi.fn((id: string) => {
     tabsMock.activeId = id;
   }),
-  closeTab: vi.fn(),
 }));
 vi.mock("@kernel/tabs", () => tabsMock);
-
+const tabCloseMock = vi.hoisted(() => ({ requestCloseTab: vi.fn() })); /* ⌘W 走关闭协调器(过闸) */
+vi.mock("@kernel/tabClose", () => tabCloseMock);
 const maximized = vi.hoisted(() => ({ toggleEditorMaximized: vi.fn(), restoreEditorMaximized: vi.fn() }));
 vi.mock("./editorMaximized", () => maximized);
 
@@ -178,12 +178,12 @@ describe("ref 桥类命令", () => {
     cmd("shell.goHome").run();
     expect(hostMock.setActiveSession).toHaveBeenLastCalledWith("c1");
   });
-  it("closeTab:无激活 tab 时 when 拦下,有则关闭当前 tab", () => {
+  it("closeTab:无激活 tab 时 when 拦下,有则经关闭协调器关当前 tab", () => {
     expect(cmd("shell.closeTab").when!()).toBe(false);
     tabsMock.list = [{ id: "t1" }]; tabsMock.activeId = "t1";
     expect(cmd("shell.closeTab").when!()).toBe(true);
     cmd("shell.closeTab").run();
-    expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");
+    expect(tabCloseMock.requestCloseTab).toHaveBeenCalledWith("t1");
   });
 
   it("⌘W:编辑器聚焦期路由 editor.expandSelection,失焦期落回 shell.closeTab", () => {
@@ -197,7 +197,7 @@ describe("ref 桥类命令", () => {
     cmEditorMock.view = null;
     expect(registry.resolveCommand(keyEvent("w"))?.id).toBe("shell.closeTab");
     registry.resolveCommand(keyEvent("w"))!.run();
-    expect(tabsMock.closeTab).toHaveBeenCalledWith("t1");
+    expect(tabCloseMock.requestCloseTab).toHaveBeenCalledWith("t1");
   });
 });
 describe("shell.focusSessionN", () => {

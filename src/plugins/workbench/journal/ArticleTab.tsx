@@ -15,15 +15,14 @@ import { isRowSummarized, useDaySessions, todayKey, type DaySessionRow } from ".
 import { buildSessionLinks, openDaySessionRow } from "./sessionRef";
 import { openSessionViewTab, isSessionViewAvailable } from "@kernel/sessionViewTabs";
 import { useArticleEditSignal } from "./journalTabs";
-import { UnfinishedPanel } from "./UnfinishedPanel";
-import { unfinishedPanelRows } from "./unfinished";
+import { ArticleDiscardGate } from "./ArticleDiscardGate";
 import { KernelTopics } from "@kernel/events";
 import { pad2 } from "./journalFiles";
 import type { ArticleTabPayload } from "./journalTabs";
 import { dayTitleOf } from "./dateTitle";
 import { holOf, useHolidays } from "./holidays";
 import { ArticleBody, BeadStrip, Lightbox } from "./articleBody";
-import type { DayNote, DayNoteImage } from "./journalFiles";
+import type { DayNoteImage } from "./journalFiles";
 import { NoteEditor } from "./NoteEditor";
 import { dayGenAction, statusChip } from "./statusText";
 import { noteImageUrl } from "./noteAssets";
@@ -194,10 +193,19 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   const [lightbox, setLightbox] = useState<DayNoteImage | null>(null);
   /* 脏稿统一持有(评审 M1):NoteEditor 上浮的脏态镜像 kernel tab 脏圆点
    * (updateTab 既有通道,文件 tab 同款)—— keepAlive 下切走不清点,圆点持续指认
-   * 哪个页签有未保存草稿;卸载(= 关页签)时清点兜底。重开带草稿空日的放行
-   * 确认在 ArticleOpenGateHost(JournalTab),闸判据即此 dirty。 */
+   * 哪个页签有未保存草稿;卸载(= 关页签)时清点兜底。两条弃稿闸共用**本 tab 自己的**
+   * ArticleDiscardGate:重开带草稿空日的放行确认,与关闭闸 beforeClose 的判据
+   * 都是这个 dirty(2026-10-13)。 */
   const [dirty, setDirty] = useState(false);
-  const handleDirty = useCallback((v: boolean) => setDirty(v), []);
+  /* 变更回调里同步镜像,不等 effect 落地 —— 关闭闸读的是 kernel tab 上的
+   * dirty,滞后一帧就可能让「刚敲完就 ⌘W」漏拦。 */
+  const handleDirty = useCallback(
+    (v: boolean) => {
+      setDirty(v);
+      updateTab(tab.id, { dirty: v });
+    },
+    [tab.id],
+  );
   useEffect(() => {
     updateTab(tab.id, { dirty });
   }, [tab.id, dirty]);
@@ -206,8 +214,6 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
     [tab.id],
   );
   useHolidays();
-  /* 昨日未完聚合(仅昨日 tab):行集/便签口径在 useYesterdayAggregates(文件尾)。 */
-  const { isYesterday, panelRows, yesterdayNotes } = useYesterdayAggregates({ sessions, snap, key, y, m, d: p.d });
   /* 会话引用链接面:当日行集四段归一键 → 续聊/聚焦(构建器在 sessionRef)。 */
   const sessionLinks = buildSessionLinks(rows, workspaces);
   /* 便签编辑重入信号:mount 时 autoEdit 起始,深链 refresh 再跳变(契约在 journalTabs);
@@ -216,6 +222,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
   if (!snap || !rows)
     return (
       <div className="dj-article dj-article-loading">
+        <ArticleDiscardGate tabId={tab.id} />
         <span className="dj-load">
           <Spinner /> {t("正在读取日志…")}
         </span>
@@ -223,6 +230,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
     );
   return (
     <div className="dj-article">
+      <ArticleDiscardGate tabId={tab.id} />
       <div className="dj-art-bar">
         <span className="dj-art-date">{dayTitleOf(y, m, p.d)}</span>
         {holOf(y, m, p.d) && <span className="dj-holmini">休·{holOf(y, m, p.d)}</span>}
@@ -238,9 +246,6 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
           <h1 className="dj-art-title">{article?.title || t("这一天没有 AI 会话")}</h1>
           <GenSessionBar sessionId={meta.sessionId} engine={meta.engine} />
           <StatusHints st={st} sessionCount={rows.length} lastError={meta.lastError} />
-          {isYesterday && (
-            <UnfinishedPanel y={y} m={m} rows={panelRows} notes={yesterdayNotes} workspaces={workspaces} />
-          )}
           <NoteEditor key={editSignal} y={y} m={m} d={p.d} note={note} signal={editSignal} onDirtyChange={handleDirty} onImageOpen={setLightbox} />
           {article && <ArticleBody article={article} sessionLinks={sessionLinks} />}
           <DaySessions rows={rows} summarizedAt={meta.summarizedAt} workspaces={workspaces} />
@@ -253,45 +258,4 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
       </div>
     </div>
   );
-}
-
-/** 昨日未完聚合三件套(从 ArticleTab 拆出守组件复杂度):是否昨日 tab、
- *  活行/盘行两桶(panelRows)、当月 ≤ 昨日便签(yesterdayNotes)。
- *  ponytail: 便签只扫当月;更早月份不遍历,真需要再开。 */
-function useYesterdayAggregates({ sessions, snap, key, y, m, d }: {
-  sessions: Map<string, DaySessionRow[]> | null;
-  snap: { notes: Record<string, DayNote> } | undefined;
-  key: string;
-  y: number;
-  m: number;
-  d: number;
-}): {
-  isYesterday: boolean;
-  panelRows: DaySessionRow[];
-  yesterdayNotes: readonly (readonly [string, DayNote])[];
-} {
-  const isYesterday = (() => {
-    const t = new Date();
-    t.setDate(t.getDate() - 1);
-    return key === `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
-  })();
-  const panelRows = useMemo(() => {
-    if (!isYesterday || !sessions) return [];
-    return unfinishedPanelRows(
-      sessions,
-      key,
-      new Date(y, m - 1, d).getTime(),
-      new Date(y, m - 1, d + 1).getTime(),
-    );
-  }, [isYesterday, sessions, key, y, m, d]);
-  const yesterdayNotes = useMemo<readonly (readonly [string, DayNote])[]>(
-    () =>
-      isYesterday
-        ? Object.entries(snap?.notes ?? {})
-            .filter(([dd]) => Number(dd) <= d)
-            .map(([dd, n]) => [dd, n] as const)
-        : [],
-    [isYesterday, snap, d],
-  );
-  return { isYesterday, panelRows, yesterdayNotes };
 }

@@ -25,6 +25,7 @@
 > 2026-10-04 左缘工具 rail 与工作区显隐补校:左缘常驻工具 rail(顶簇 会话看板/插件市场/回到首页/工作区切换;插件入口经 sidebarActions 新 leftRail/leftRailBottom 字段直挂,顶栏市场/首页/看板三钮迁出顶栏)、网络代理入口迁右缘 rail 底簇(sidebarActions 新增 pinOnce 一次性补钉,存量钉住清单无此 id 时自动钉一次)、底栏界面缩放组隐藏改 ⌘+/⌘−/⌘0 键位(app-shell/zoomCommands;Tooltip 补 right 抽屉式放置)、左下角工作区显隐多选菜单(settings.workspaceHiddenIds 隐藏清单语义,勾选恢复显示时活动工作区切一次、右侧文件树跟切不强绑定,最后一个可见工作区不可隐藏)。
 > 2026-10-06 补校(0.3.0 增量域,以代码为准):手机会话时间线全程化(fs_read_range 通用原语 + offset 历史定位,见「手机 App」域)、安卓壳能力对齐 iOS 整批(选图/拍照/扫码配对/WS 隧道与心跳/TLS 回落/凭证单例/日志轮转)、外网列表查询风暴三连根治(读头批量化单次 IPC/负结果缓存/视图节流+事件驱动重拉,契约见 architecture/02)、structured-session 能力批(turn_start 帧名兼容、模型/思考级/引擎切换、follow_up 排队、断线接续、上下文用量、/ 补全、草稿持久化)、设置入口迁左缘 rail 底簇、web-access 设备平台字段贯通与配对扫码收口设备页;桥拆线释放 openGate 与退避表补档、pty 孤儿日志闸、fs_temp 字节面前缀判定。
 > 2026-10-12 0.3.6 补校(工作台批次二,以代码为准;并补录 0.3.5 工作台基础):任务看板五态状态机(todo/doing/review/done + cancelled 终点,泳道拖拽改态,已完成列收近 7 天)、任务执行记录(AI 会话按 AI-TASKS.md 约定只追加回写 tasks[].updates[],4s 感知上屏,解析时刻排序防混时区)、项目概要 dashboard 四区块、三视图三撤一合「聚焦」页签 v1.1(要处理/接下来 14 天/项目脉搏,页签 7→5,契约 architecture/23)、开会话关联名弹窗与任务上下文可编辑卡片、当日会话清单行直达(打开会话/只读转录);补录 0.3.5:工作台插件本体(多项目任务/文档/进展管理,任务关联会话页签)与 docgen 生成文档流水线(模板×事实源×周期,版本链溯源)。
+> 2026-10-13 0.3.7 补校(工作台第三批打磨 + 零散新功能,以代码为准):编辑器 tab 关闭闸契约(kernel requestCloseTab/Other/All 用户手势协调器 + TabContentContribution.beforeClose 注册面,journal 日报/files 本地/ssh 远端三类脏页签关闭先确认,契约 architecture/24)、工作台概览默认会话 CLI 与模型选择、设置外观页应用 Logo 切换;journal 增量并入「假成功」根因修复(articleChanged 唯一成败判据)、一键关联候选勾选弹层、概览空壳口径对齐聚焦页、docgen 阅读链闭环、意图画布 excalidraw 预包钉装恢复。
 
 ## 工作区会话
 - 会话行 tok/s pill:活会话响应均速指示,轮结束自动隐藏;口径(2026-10-03 修复)分子按行型分派(全量行差分 / 增量行自增)+ 尾窗用户行轮种子 + 180s 剔停 + 单对 300 tok/s 可信上限 + 近 5 对滑窗平滑 + codex 双快照——回放实证可显率 49%→100%、跳变 p90 19.4x→1.5x(spec 2026-10-03-toks-pill-stability-design)
@@ -286,10 +287,11 @@
 - 编辑器与预览按需拆包:进入编辑态才拉 CodeMirror chunk,打开 md 才拉 markdown/katex/mermaid chunk
 - 编辑器基础配置:行号、折叠槽、括号匹配与自动闭合、高亮活动行、Tab 缩进(tabSize 2);配色走 --tmd-syntax-* token 随应用明暗
 - 语言包覆盖:ts/js/json/html/vue/svelte/css/scss/md/py/rs/xml/yaml 等扩展名;未识别纯文本,加载失败降级纯文本并按扩展名缓存不重试
-- 编辑器保存契约:⌘/Ctrl+S 全局捕获(焦点在幕布也生效);关脏 tab 不弹确认、草稿重开自动恢复(草稿为进程内存储不落盘,应用退出即丢);CRLF 行尾保持;无外部修改检测,保存直接覆写
+- 编辑器保存契约:⌘/Ctrl+S 全局捕获(焦点在幕布也生效);关脏 tab 先过关闭闸确认丢弃(2026-10-13 tab 关闭闸,契约 architecture/24;草稿为进程内存储不落盘,应用退出即丢);CRLF 行尾保持;无外部修改检测,保存直接覆写
 - 文件 tab:同路径重开仅激活;关闭激活 tab 回退首个剩余;目录删除/重命名级联关闭其下 tab,文件重命名迁移未保存草稿
 - 编辑 tab 条上移顶栏:文件/记忆/diff 等编辑区 tab 与会话 tab 条同排顶栏中区(挂点 order 200/300),双激活并存互不打断(会话 tab 管中央幕布、编辑 tab 管编辑栏);无 tab 不渲染;溢出走马灯滚动(滚轮竖向转横向,滚动条隐藏);tab 图标与文件树同源 fileVisual
-- 文件 tab 右键菜单:关闭 / 关闭其他 tab / 关闭全部 tab(作用于被右键的 tab,不强制激活;关脏 tab 不弹确认,与 × 一致)
+- 文件 tab 右键菜单:关闭 / 关闭其他 tab / 关闭全部 tab(作用于被右键的 tab,不强制激活;脏 tab 与 ×/⌘W 同过关闭闸先确认)
+- tab 关闭闸(2026-10-13,契约 architecture/24):用户手势关闭(× / ⌘W / 右键三项)先过 kind 级 beforeClose 闸再落同步删除面——本地文件脏 tab 经 askDialog 确认丢弃才删草稿,取消保留 tab,程序性收 tab(文件已删)不过闸;缺省放行、抛错不放行、在途去重、陈旧确认作废、批量逐个过闸
 - 文件 tab 最大化切换:tab 上图标一键隐藏左栏与幕布、编辑区与右文件面板(不参与)并占通栏,再点还原;状态 localStorage 持久化
 - 打开文件按渲染档案路由(9 形态,renderProfile 唯一分发依据):image(png/jpg/gif/svg/webp/avif/bmp/heic/tiff/ico 等)/ markdown / structured(shell·dockerfile)/ code·text(CodeMirror)/ pdf / tabular(csv 文本 + xls·xlsx 二进制)/ document(docx 走 mammoth 转 HTML:2MB 闸 + DOMPurify 消毒 + 标题大纲侧栏;legacy doc 占位说明)/ binary-unsupported 占位
 - 文本读取仍受 512KB 闸;图片/docx/pdf 经 `read_binary_file_base64` 字节通道;打开失败占位:二进制/超大/非 UTF-8/读取失败共用居中「⚠ 原因」占位,另有「加载中…」与「选中一个文件查看」两态,无重试按钮
@@ -332,6 +334,7 @@
 - 设置持久化 `~/.tmd-cli/settings.json`,前端 sanitize 归一,非法值回落默认,Rust 侧原子写
 - 侧栏齿轮菜单项可钉到底栏(localStorage 持久化,上限 4;默认钉位随网络代理 2026-10-04 迁右缘 rail 后清空,pin 机制保留);每行右侧 pin 复选框:16px 圆角方块、选中出对号(Check 图标),钉满置灰不可再钉(menuitemcheckbox 语义,类名 settings-menu-pin 定义于 settings-cluster.css);直挂 rail 的动作(右 rail / 左 rail)不进菜单与底栏,一个动作只住一处
 - 侧栏底栏常显应用版本号(取 Tauri 应用版本,纯浏览器 dev 回落 0.1.1)
+- 应用 Logo 切换(0.3.7):外观页新增应用 Logo 选择(7 款内置候选,kernel appLogo.ts 注册表),侧栏设置钮与 WSL 卡品牌位跟随设置
 - 版本号点击弹版本信息弹窗:内嵌 CHANGELOG 分页(超长截断,条目行内 Markdown 渲染,动作行三键一排)+ 在线检查更新(解析 GitHub releases atom,失败回退重试 / 去发布页,超时 10s)+ 自动更新按钮(updater latest.json 通道,签名校验,下载安装后提示重启)
 - 插件拔插状态(disabledPlugins)同落 settings,重启生效
 - 智能体 / 提示词 section:双 tab 管理 —— 智能体(名称 / emoji 图标 / 角色正文,发送时尾拼角色块)与提示词库(frontmatter md,全局 + 工作区两级目录,作用域筛选 + 搜索,新建/编辑/删除进废纸篓/移到工作区⇄全局);codemoss 三源导入(`~/.ccgui/agent.json` 合并撞名加 (N) 后缀、`~/.codex/prompts` 拷入、任意目录自选),行内计数反馈
@@ -378,6 +381,8 @@
 - 任务执行记录(2026-10-12):任务详情 AI 按 AI-TASKS.md 约定回写 updates[](kind=progress/blocker/decision/note,只追加不改删),4s 自动感知上屏,按解析时刻排序防混时区乱序;详情右栏竖向占满
 - 聚焦页签 v1.1(2026-10-12):项目列表/时间线/待跟进三撤一合;三段 = 要处理(前三桶 + 更晚折叠 + 关联会话直达徽标)/接下来 14 天(DDL chip + 密度徽标)/项目脉搏(活动流 + 空壳折叠索引);清净态一等公民;概览页签 7→5
 - 开会话关联名弹窗与当日会话直达(2026-10-12):开会话先弹窗填关联名,任务上下文挂输入框可编辑卡片;当日会话清单行加打开会话与只读转录链接
+- 概览默认会话 CLI 与模型(0.3.7):概览页新增默认会话 CLI 与模型选择,开会话/生成文档默认跟随它
+- 0.3.7 第三批打磨(2026-10-13 二次评审全量修复):journal 增量并入「假成功」根因修复(articleChanged(baseline,next) 唯一成败判据、零新增不入队、无文章之日水位不推、结算机拆 genSettle.ts)与写前合并按时刻比较 updatedAt;一键关联改候选勾选弹层(点开头目录默认不勾、在途锁、成败 toast);概览空壳口径对齐聚焦页(未跟踪集折叠一行);看板窄容器裁切与已完成列可达、任务芯片「取消=丢弃」、命名弹窗 IME 回车、确认强度倒挂、深链冷启动假「不存在」、月视图统计同源;docgen 终止确认/失败重试换引擎/行动项未保存暗示;「昨日未完」晨启动面板摘除
 
 ## 欢迎页
 

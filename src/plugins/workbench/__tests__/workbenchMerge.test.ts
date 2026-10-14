@@ -104,6 +104,22 @@ describe("workbench store · AI 磁盘回写合并", () => {
     expect(disk.updates.map((u) => u.id)).toContain("u-a1b2c3d4");
   });
 
+  it("混时区时间戳按时刻比较:+08:00 形态磁盘回写早于应用 Z 形态更新时不回滚应用状态", async () => {
+    /* 2026-10-13 实证:AI 回写脚本产本地时区形态 updatedAt,字符串序把本地钟点当
+     * UTC,晚 9 小时的真实旧值压过应用新值,手动「完成」被静默回滚。 */
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-12T16:44:00.000Z"));
+    try {
+      const { pid, t1 } = await seedTwoTasks();
+      aiRewriteTask(pid, t1, { status: "review", updatedAt: "2026-10-12T23:32:47.218+08:00" });
+      await updateTask(pid, t1, { status: "done" });
+      expect(diskTask(pid, t1).status).toBe("done");
+      expect(memoryTask(pid, t1).status).toBe("done");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("轮询:磁盘原文变化才整载,无变化零 churn", async () => {
     const { pid, t1 } = await seedTwoTasks();
     await ensureWorkbenchLoaded(); /* 真实应用先装载后轮询;装载同时落指纹 */

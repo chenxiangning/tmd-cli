@@ -19,6 +19,16 @@ interface State {
 export const state: State = { projects: [], loaded: false, error: null };
 const subs = new Set<() => void>();
 
+/* 最近一次写失败(模块级):reloadWorkbench 重读成功时不清写失败错误条,
+ * 只有下一次写成功才消除;读损坏类错误可被成功 reload 清除。 */
+let lastWriteError: string | null = null;
+export function markWriteError(message: string | null): void {
+  lastWriteError = message;
+}
+export function getWriteError(): string | null {
+  return lastWriteError;
+}
+
 export function emit(): void {
   for (const fn of subs) fn();
 }
@@ -45,12 +55,29 @@ export function workbenchLoadError(): string | null {
   return state.error;
 }
 
+export function workbenchLoaded(): boolean {
+  return state.loaded;
+}
+
 /* ── 变更串行队列:防并发 mutation 交错写 index ── */
 let tail: Promise<unknown> = Promise.resolve();
 export function enqueue<T>(job: () => Promise<T>): Promise<T> {
   const run = tail.then(job, job);
   tail = run.catch(() => undefined);
   return run;
+}
+
+/** 写穿模板:快照 → 落盘;失败回滚内存态+错误条+上抛。写失败记录进 lastWriteError。 */
+export async function commitProjects(next: Project[], snapshot: readonly Project[]): Promise<void> {
+  try {
+    setProjects(await writeIndexFile(next));
+    markWriteError(null);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    markWriteError(message);
+    setProjects([...snapshot], message);
+    throw e;
+  }
 }
 
 /** 读内存(未加载时先触发加载;loader 由 store.ts 注入避免环)。 */
@@ -70,8 +97,11 @@ export async function mutate(job: (projects: Project[]) => Project[]): Promise<v
     const next = job([...snapshot]);
     try {
       setProjects(await writeIndexFile(next));
+      markWriteError(null);
     } catch (e) {
-      setProjects(snapshot, e instanceof Error ? e.message : String(e)); /* 回滚内存态 */
+      const message = e instanceof Error ? e.message : String(e);
+      markWriteError(message);
+      setProjects(snapshot, message); /* 回滚内存态 */
       throw e;
     }
   });
@@ -82,5 +112,6 @@ export function resetWorkbenchForTest(): void {
   state.projects = [];
   state.loaded = false;
   state.error = null;
+  markWriteError(null);
   emit();
 }

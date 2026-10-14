@@ -6,7 +6,9 @@
  * modelCatalog —— resolveDistillEngine 只认 omp/pi/opencode,未知/空回落 omp;
  *   listModels:omp 走 models list --json,空 models 字段/非零退出/抛错 → 空数组;
  *   条目缺省归一(selector 回落 provider/id、contextWindow 缺省 0、reasoning 仅 true);
- *   opencode 逐行 selector 文本,仅含 "/" 的行入表;pi 无列表命令恒空;
+ *   opencode 逐行 selector 文本,仅含 "/" 的行入表;pi 实况目录走 cli-pi 声明的
+ *   piModelCatalog(auth.json × models-store.json,selector = provider/modelId),
+ *   文件缺失 → 空数组(调用方以「使用引擎默认」兜底);
  *   10 分钟缓存(未过期直接回缓存,force 绕过),失败结果同样进缓存。
  * engineConfigModel —— readEngineConfig 语义经 read/write 文件面验证:模型从
  *   block.pi/omp.model 取,嵌套字符串;sidekick 开关与块在否同构(关闭删块);
@@ -136,9 +138,28 @@ describe("listModels", () => {
     ]);
   });
 
-  it("pi:无列表命令,恒空且不发进程调用", async () => {
-    await expect(listModels("pi", true)).resolves.toEqual([]);
+  it("pi:实况目录 = cli-pi piModelCatalog,登录供应商排前,selector = provider/modelId", async () => {
+    fsReadFile.mockImplementation(async (path: string) => {
+      if (path.endsWith("auth.json")) return JSON.stringify({ zai: {} });
+      if (path.endsWith("models-store.json")) {
+        return JSON.stringify({
+          openai: { models: [{ id: "gpt-5.2" }] },
+          zai: { models: [{ id: "glm-5", name: "GLM-5" }] },
+        });
+      }
+      throw new Error("enoent");
+    });
+    const entries = await listModels("pi", true);
     expect(procCommunicate).not.toHaveBeenCalled();
+    expect(entries).toEqual([
+      { selector: "zai/glm-5", name: "GLM-5", provider: "zai", contextWindow: 0, reasoning: false },
+      { selector: "openai/gpt-5.2", name: "gpt-5.2", provider: "openai", contextWindow: 0, reasoning: false },
+    ]);
+  });
+
+  it("pi:目录文件缺失/损坏 → 空数组不外抛(调用方以引擎默认兜底)", async () => {
+    fsReadFile.mockRejectedValue(new Error("enoent"));
+    await expect(listModels("pi", true)).resolves.toEqual([]);
   });
 
   it("10 分钟内命中缓存,force 绕过重新拉取", async () => {

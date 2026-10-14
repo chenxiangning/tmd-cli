@@ -12,7 +12,7 @@ import { ArrowLeft, ArrowsClockwise, CalendarBlank, CalendarPlus, CheckCircle, F
 import { host, useHost } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
-import { TASK_STATUS_LABELS, UPDATE_KIND_LABELS, formatUpdateAt, sortUpdates } from "./kindLabels";
+import { TASK_STATUS_LABELS } from "./kindLabels";
 import { attachTaskFile, detachTaskFile, linkTaskSession, updateTask, bindTaskSessionDiskId } from "./store";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
 import { setPendingTaskCard } from "./taskCard";
@@ -20,35 +20,12 @@ import { readDocDataUrl, fileToBase64, isImageAttachment, docAttachmentPath } fr
 import { openFileInTab } from "@kernel/fileTabs";
 import { TASK_STATUSES, type Attachment, type Project, type ProjectTask, type TaskStatus } from "./types";
 import { useProjectSessions } from "./useProjectSessions";
+import { resolveDefaultEngine } from "./defaultEngine";
 import { resolveWorkspaceId } from "./views";
 import { TaskSessionsSec } from "./TaskSessionsSec";
-import { WbBadge, WbImgView, WbAttachmentSection, WbAttachmentUpload } from "./ui";
+import { WbBadge, WbConfirm, WbImgView, WbAttachmentSection, WbAttachmentUpload, TaskUpdatesSec } from "./ui";
 import { taskPrompt, taskStatusBadgeTone } from "./taskPrompt";
 import { runIpc } from "./ipcToast";
-
-/** 执行记录段(AI 回写时间线;时间正序,新记录自然展开在下;无增删入口)。 */
-function TaskUpdatesSec({ updates }: { updates: ProjectTask["updates"] }) {
-  return (
-    <section className="wb-taskdetail-sec">
-      <h4>{t("执行记录")}<span className="wb-panel-sub">{updates.length}</span></h4>
-      {updates.length > 0 ? (
-        <ul className="wb-update-list">
-          {sortUpdates(updates, "asc").map((update) => (
-            <li key={update.id} className={`wb-update-row is-${update.kind}`}>
-              <i className="wb-update-dot" aria-hidden />
-              <div className="wb-update-body">
-                <span className="wb-update-meta">{formatUpdateAt(update.at)} · {t(UPDATE_KIND_LABELS[update.kind])}</span>
-                <p>{update.text}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="wb-muted">{t("还没有执行记录;关联会话按 AI-TASKS.md 约定回写后自动在此展示。")}</p>
-      )}
-    </section>
-  );
-}
 
 export function TaskDetailView({
   project, task, onClose, onToast,
@@ -61,6 +38,7 @@ export function TaskDetailView({
   /* task 来自快照,视图内编辑基于本地 draft(保存走 store,父级换新快照)。 */
   const [description, setDescription] = useState(task.description ?? "");
   const [dirty, setDirty] = useState(false);
+  const [askDiscard, setAskDiscard] = useState(false);
   const [preview, setPreview] = useState<{ name: string; url: string } | null>(null);
   const recent = useProjectSessions(project.cwd);
   useHost(); /* 活会话表变化即重渲(关联行实时名/状态徽)。 */
@@ -86,6 +64,7 @@ export function TaskDetailView({
   const setStatus = (status: TaskStatus) => runIpc(updateTask(project.id, task.id, { status }), onToast, t("任务已更新"));
   /* 开新会话在途禁用:连点会重复建会话。名称弹窗:发起前填关联会话列表名称。 */
   const [creating, setCreating] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [naming, setNaming] = useState(false);
   const [linkName, setLinkName] = useState(task.title);
   const saveDescription = () =>
@@ -106,7 +85,8 @@ export function TaskDetailView({
       onToast(t("附件打开失败"));
       return;
     }
-    void attachTaskFile(project.id, task.id, { name: file.name, bytesBase64, size }).then(
+    /* 返回 promise:上传钮的 in-flight 态覆盖落盘全程(ui.WbAttachmentUpload)。 */
+    return attachTaskFile(project.id, task.id, { name: file.name, bytesBase64, size }).then(
       () => onToast(t("附件已上传")),
       (e) => onToast(e instanceof Error ? e.message : String(e)),
     );
@@ -130,6 +110,12 @@ export function TaskDetailView({
       onToast(t("项目未绑定目录;先在「编辑」里填 cwd 再开会话"));
       return;
     }
+    /* 概览页默认引擎已设:与目录扫描态无关,空目录也可直接开。 */
+    if (resolveDefaultEngine()) {
+      setLinkName(task.title);
+      setNaming(true);
+      return;
+    }
     /* 三分:null=扫描中,空=真空/扫描失败,失败态如实提示。 */
     if (recent === null) {
       onToast(t("正在扫描本地会话…"));
@@ -144,12 +130,14 @@ export function TaskDetailView({
     setLinkName(task.title);
     setNaming(true);
   };
-  /* 弹窗确认后真正建会话:name = 用户填写的关联列表名称(空回落任务标题)。 */
+  /* 弹窗确认后真正建会话:name = 用户填写的关联列表名称(空回落任务标题)。
+   * 引擎档位:默认引擎优先(含其默认模型),未设回落该目录最近会话的 profile。 */
   const createLinked = (name: string) => {
-    if (!project.cwd || recent === null || recent.rows.length === 0) return;
-    const profileId = recent.rows[0].profileId;
+    const def = resolveDefaultEngine();
+    if (!project.cwd || (!def && (recent === null || recent.rows.length === 0))) return;
+    const profileId = def?.profileId ?? recent!.rows[0].profileId;
     setCreating(true);
-    void host.createSession(profileId, project.cwd, workspaceId).then(
+    void host.createSession(profileId, project.cwd, workspaceId, { model: def?.model }).then(
       (meta) => {
         /* 开新会话并关联 = 用户手势,摘最大化让幕布可见(遮盖统一)。 */
         host.events.emit(KernelTopics.sessionViewRequested, null);
@@ -176,10 +164,13 @@ export function TaskDetailView({
           {recent && recent.rows.length > 0 ? (
             <select
               className="wb-taskdetail-linksel"
-              aria-label={t("关联已有会话")} defaultValue=""
+              aria-label={t("关联已有会话")} defaultValue="" disabled={linking}
               onChange={(e) => {
                 const row = recent.rows.find((item) => item.key === e.target.value);
-                if (row) runIpc(linkTaskSession(project.id, task.id, { kind: "disk", ref: row.cliSessionId, profileId: row.profileId, title: row.title }), onToast, t("已关联会话"));
+                if (row) {
+                  setLinking(true);
+                  void runIpc(linkTaskSession(project.id, task.id, { kind: "disk", ref: row.cliSessionId, profileId: row.profileId, title: row.title }), onToast, t("已关联会话")).finally(() => setLinking(false));
+                }
                 e.target.value = "";
               }}
             >
@@ -191,7 +182,7 @@ export function TaskDetailView({
             <Plus size={12} />{t("开会话")}
           </button>
           <WbAttachmentUpload onUpload={upload} />
-          <button type="button" className="wb-btn wb-btn-plain" onClick={onClose}>
+          <button type="button" className="wb-btn wb-btn-plain" onClick={() => { if (dirty) setAskDiscard(true); else onClose(); }}>
             <ArrowLeft size={12} />{t("返回")}
           </button>
         </div>
@@ -247,6 +238,16 @@ export function TaskDetailView({
         </aside>
       </div>
       {preview ? <WbImgView name={preview.name} url={preview.url} onClose={() => setPreview(null)} /> : null}
+      {askDiscard ? (
+        <WbConfirm
+          open
+          title={t("丢弃修改")}
+          body={t("未保存的修改将丢失。")}
+          confirmLabel={t("丢弃")}
+          onConfirm={() => { setAskDiscard(false); onClose(); }}
+          onCancel={() => setAskDiscard(false)}
+        />
+      ) : null}
       {naming ? (
         <DialogShell
           title={t("开会话")}
@@ -272,7 +273,8 @@ export function TaskDetailView({
                 placeholder={task.title}
                 onChange={(e) => setLinkName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+                  /* IME 组词回车(中文选词确认)不提交(TaskFormView 同款)。 */
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                     setNaming(false);
                     createLinked(linkName.trim() || task.title);
                   }

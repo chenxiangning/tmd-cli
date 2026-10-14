@@ -13,6 +13,7 @@ import { useTaskAutoStatus } from "./useTaskAutoStatus";
 import { QUESTION_EXAMPLES, answerQuestion } from "./query";
 import { clearAllProjects, clearSampleProjects, createProject, ensureWorkbenchLoaded, reloadWorkbench, subscribeWorkbench, updateProject, workbenchLoadError, workbenchSnapshot } from "./store";
 import { linkableWorkspaces } from "./views";
+import { LinkWorkspacesDialog } from "./LinkWorkspacesDialog";
 import { WbConfirm } from "./ui";
 import { ProjectFormModal, type ProjectFormValues } from "./ProjectFormModal";
 import { OverlayActions } from "./OverlayActions";
@@ -62,17 +63,17 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
     void ensureWorkbenchLoaded();
   }, []);
 
-  /* 一键关联:候选工作区各建一个项目(口径见 linkableWorkspaces)。 */
+  /* 一键关联:候选清单勾选弹层(A1),确认后逐个建项目;部分失败计数进 toast。
+   * 候选只算一处:门禁与弹层同源,防全量列表(default 兜底)漏进弹层。 */
+  const [linkOpen, setLinkOpen] = useState(false);
+  const linkCandidates = useMemo(() => linkableWorkspaces(workspaces, projects), [workspaces, projects]);
   const linkWorkspaces = useCallback(() => {
-    const pending = linkableWorkspaces(workspaces, projects);
-    if (pending.length === 0) {
+    if (linkCandidates.length === 0) {
       toast(t("工作区项目都已关联"));
       return;
     }
-    void Promise.all(pending.map((w) => createProject({ name: w.name, cwd: w.root })))
-      .then((created) => toast(t("已关联:{count} 个项目", { count: String(created.length) })))
-      .catch(() => undefined); /* 写盘失败已进 store.error 横幅 */
-  }, [projects, workspaces, toast]);
+    setLinkOpen(true);
+  }, [linkCandidates, toast]);
   const actions = useWbActions({ toast, formProject, setConfirmClear });
 
   const today = todayISO();
@@ -171,6 +172,13 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
         />
       ) : null}
       <ClearConfirm mode={confirmClear} onMode={setConfirmClear} onConfirm={confirmClear === "samples" ? actions.clearSamplesNow : actions.clearNow} />
+      {linkOpen ? (
+        <LinkWorkspacesDialog
+          workspaces={linkCandidates}
+          onClose={() => setLinkOpen(false)}
+          onToast={toast}
+        />
+      ) : null}
       {toastMessage ? <div className="wb-toast" role="status">{toastMessage}</div> : null}
     </div>
   );
@@ -227,8 +235,11 @@ function useWbActions(ctx: {
   };
   const refreshNow = () => {
     setRefreshing(true);
-    /* finally 复位:失败走 store 错误横幅(可关闭/重试),同步钮不再永禁。 */
-    void reloadWorkbench().then(() => ctx.toast(t("已从磁盘同步"))).finally(() => setRefreshing(false));
+    /* finally 复位:失败走 store 错误横幅(可关闭/重试),同步钮不再永禁。
+     * reloadWorkbench 永不 reject,按装载后错误态分流 toast,防「失败也报已同步」。 */
+    void reloadWorkbench()
+      .then(() => ctx.toast(workbenchLoadError() ?? t("已从磁盘同步")))
+      .finally(() => setRefreshing(false));
   };
   return { submitForm, clearNow, clearSamplesNow, refreshNow, refreshing };
 }

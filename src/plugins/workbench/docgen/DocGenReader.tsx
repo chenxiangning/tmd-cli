@@ -12,6 +12,7 @@ import { createEntry, dimensionKeyOf, toggleDocState } from "./store";
 import { cancelDocGenTask, enqueueDocGenTask, useDocGenTasks, type DocGenTask } from "./queue";
 import { resolveTargetProjectId, riskToItem, actionToItem, suggestionToItem, type TransferItem } from "../docgenView";
 import { FailCard, GenStateView, ReaderHead } from "./ReaderChrome";
+import { WbConfirm } from "../ui";
 import { addTask } from "../store";
 import { useDocGenJump } from "./jump";
 import { ReaderFoot } from "./DocGenFoot";
@@ -31,6 +32,9 @@ export function DocGenReader({ entry, projects, onToast }: {
   const [mdByVer, setMdByVer] = useState<Record<number, string>>({});
   const [mdErr, setMdErr] = useState<Record<number, boolean>>({});
   const [lastEntryId, setLastEntryId] = useState(entry.id);
+  /* 转任务乐观置灰(点击即点亮,不等工作台快照回写;失败回滚)+ 在途防双击。 */
+  const [localTransferred, setLocalTransferred] = useState<ReadonlySet<string>>(new Set());
+  const [confirmTerm, setConfirmTerm] = useState(false);
   /* 切换条目:渲染期调整状态(React 官方模式,替代 prop-change effect)。 */
   if (lastEntryId !== entry.id) {
     setLastEntryId(entry.id);
@@ -38,27 +42,31 @@ export function DocGenReader({ entry, projects, onToast }: {
     setView("s");
     setMdByVer({});
     setMdErr({});
+    setLocalTransferred(new Set());
+    setConfirmTerm(false);
   }
   const activeV = ver ?? latestV;
   const md = activeV === null ? undefined : mdByVer[activeV];
   const curParsed = useMemo(() => (md ? parseDocGenMarkdown(md) : null), [md]);
   /* 已转任务防重(重进持久):转任务落 task.title = 条目文本前 80 字,据工作台快照派生,
-     新转成功后快照更新自动点亮(spec:重进按来源已存在判定)。 */
+     新转成功后快照更新自动点亮(spec:重进按来源已存在判定);并入本地乐观集。 */
   const transferred = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(localTransferred);
     if (!curParsed) return set;
     const titles = new Set(projects.flatMap((p) => p.tasks).map((x) => x.title));
     for (const r of curParsed.risks) { const it = riskToItem(r); if (titles.has(it.text.slice(0, 80))) set.add(it.key); }
     for (const a of curParsed.actions) { const it = actionToItem(a); if (titles.has(it.text.slice(0, 80))) set.add(it.key); }
     for (const s of curParsed.suggestions) { const it = suggestionToItem(s); if (titles.has(it.text.slice(0, 80))) set.add(it.key); }
     return set;
-  }, [curParsed, projects]);
+  }, [curParsed, projects, localTransferred]);
   /* 正文读取失败(null/reject)置 mdErr,阅读区出错误卡可重试;不进 mdByVer 防 effect 循环。 */
   const diffing = view === "d" && activeV !== null && activeV > 1;
   const prevMd = diffing ? mdByVer[activeV - 1] : undefined;
+  /* 上一版读取失败与「版本不可解析」分口径:文件丢失出可重试错误卡,格式问题才报不可解析。 */
+  const prevErr = diffing && !!mdErr[activeV - 1];
   const prevParsed: DocGenParsed | null | "loading" = !diffing
     ? null
-    : mdErr[activeV - 1] ? null : prevMd === undefined ? "loading" : parseDocGenMarkdown(prevMd);
+    : prevMd === undefined ? "loading" : parseDocGenMarkdown(prevMd);
 
   useEffect(() => {
     if (activeV === null || mdByVer[activeV] !== undefined) return;
@@ -86,6 +94,8 @@ export function DocGenReader({ entry, projects, onToast }: {
       onToast(t("没有可落的目标项目"));
       return;
     }
+    /* 乐观置灰防双击:点击即标记,失败回滚(快照刷新窗口内不回亮也不会双建)。 */
+    setLocalTransferred((s) => (s.has(item.key) ? s : new Set(s).add(item.key)));
     const desc = [item.src ? `来源:${item.src}` : "", `出自文档《${entry.title}》`].filter(Boolean).join(" · ");
     void addTask(target.projectId, {
       title: item.text.slice(0, 80),
@@ -94,12 +104,29 @@ export function DocGenReader({ entry, projects, onToast }: {
       description: desc,
     }).then(
       () => onToast(target.fallback ? t("已写入任务:{name}(默认第一个进行中项目)", { name: target.projectName }) : t("已写入任务:{name}", { name: target.projectName })),
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => {
+        setLocalTransferred((s) => {
+          if (!s.has(item.key)) return s;
+          const next = new Set(s);
+          next.delete(item.key);
+          return next;
+        });
+        onToast(e instanceof Error ? e.message : String(e));
+      },
     );
   };
   const jumpSrc = useDocGenJump(entry, projects, onToast);
   const flipDocState = () => {
     void toggleDocState(entry.id);
+  };
+  /* 终止与删文档口径齐(WbConfirm 二次确认):run 态收割真实会话,单击即执行太重。 */
+  const terminate = () => {
+    setConfirmTerm(false);
+    if (!task || !cancelDocGenTask(task.id)) {
+      onToast(t("任务已结束,无需终止"));
+      return;
+    }
+    onToast(task.st === "run" ? t("已终止:收割会话并回落") : t("已取消排队任务"));
   };
   const retryWith = (engine: string) => {
     void createEntry({
@@ -126,19 +153,28 @@ export function DocGenReader({ entry, projects, onToast }: {
         mdErr={mdErr}
         curParsed={curParsed}
         prevParsed={prevParsed}
+        prevErr={prevErr}
         transferred={transferred}
         onTransfer={transfer}
         onJumpSrc={jumpSrc}
+        onTerminate={() => setConfirmTerm(true)}
         onRetry={retryWith}
         onRetryMd={reloadMd}
-        onToast={onToast}
+      />
+      <WbConfirm
+        open={confirmTerm && entry.status === "gen" && !!task}
+        title={t("终止生成")}
+        body={t("终止后将收割生成会话,已落盘内容保留,可稍后重试。")}
+        confirmLabel={t("终止")}
+        onConfirm={terminate}
+        onCancel={() => setConfirmTerm(false)}
       />
       {entry.status === "done" ? <ReaderFoot entry={entry} projects={projects} md={md} onToast={onToast} /> : null}
     </div>
   );
 }
 
-function ReaderBody({ entry, view, task, activeV, md, mdErr, curParsed, prevParsed, transferred, onTransfer, onJumpSrc, onRetry, onRetryMd, onToast }: {
+function ReaderBody({ entry, view, task, activeV, md, mdErr, curParsed, prevParsed, prevErr, transferred, onTransfer, onJumpSrc, onTerminate, onRetry, onRetryMd }: {
   entry: DocGenEntry;
   view: "s" | "d" | "r";
   task?: DocGenTask;
@@ -147,25 +183,18 @@ function ReaderBody({ entry, view, task, activeV, md, mdErr, curParsed, prevPars
   mdErr: Record<number, boolean>;
   curParsed: DocGenParsed | null;
   prevParsed: DocGenParsed | null | "loading";
+  prevErr: boolean;
   transferred: ReadonlySet<string>;
   onTransfer: (item: TransferItem) => void;
   onJumpSrc: (src: string) => void;
+  onTerminate: () => void;
   onRetry: (engine: string) => void;
   onRetryMd: (v: number | null) => void;
-  onToast: (m: string) => void;
 }) {
-  /* 终止按 cancelDocGenTask 返回值如实提示:排队取消不收割会话,文案分口径;未取消不谎报。 */
-  const terminate = () => {
-    if (!task || !cancelDocGenTask(task.id)) {
-      onToast(t("任务已结束,无需终止"));
-      return;
-    }
-    onToast(task.st === "run" ? t("已终止:收割会话并回落") : t("已取消排队任务"));
-  };
   return (
     <div className="dg-reader-body">
       {entry.status === "gen" ? (
-        <GenStateView task={task} onTerminate={terminate} />
+        <GenStateView task={task} onTerminate={onTerminate} />
       ) : entry.status === "fail" ? (
         <FailCard entry={entry} onRetry={onRetry} />
       ) : (
@@ -176,6 +205,7 @@ function ReaderBody({ entry, view, task, activeV, md, mdErr, curParsed, prevPars
           mdErr={mdErr}
           curParsed={curParsed}
           prevParsed={prevParsed}
+          prevErr={prevErr}
           transferred={transferred}
           onTransfer={onTransfer}
           onJumpSrc={onJumpSrc}
@@ -187,13 +217,14 @@ function ReaderBody({ entry, view, task, activeV, md, mdErr, curParsed, prevPars
 }
 
 /** done 态正文:加载/错误卡/对比/原文/结构化五分支(与 gen/fail 开关分层守复杂度)。 */
-function DoneBody({ view, activeV, md, mdErr, curParsed, prevParsed, transferred, onTransfer, onJumpSrc, onRetryMd }: {
+function DoneBody({ view, activeV, md, mdErr, curParsed, prevParsed, prevErr, transferred, onTransfer, onJumpSrc, onRetryMd }: {
   view: "s" | "d" | "r";
   activeV: number | null;
   md: string | undefined;
   mdErr: Record<number, boolean>;
   curParsed: DocGenParsed | null;
   prevParsed: DocGenParsed | null | "loading";
+  prevErr: boolean;
   transferred: ReadonlySet<string>;
   onTransfer: (item: TransferItem) => void;
   onJumpSrc: (src: string) => void;
@@ -215,7 +246,7 @@ function DoneBody({ view, activeV, md, mdErr, curParsed, prevParsed, transferred
   }
   if (view === "d") {
     if (activeV !== null && activeV < 2) return <p className="dg-muted">{t("首版没有上一版,无可比对内容")}</p>;
-    return <DiffView cur={curParsed} prev={prevParsed} />;
+    return <DiffView cur={curParsed} prev={prevParsed} prevErr={prevErr} onRetryPrev={() => onRetryMd(activeV !== null ? activeV - 1 : null)} />;
   }
   if (view === "r") {
     return <div className="dg-prose"><pre className="dg-raw">{md}</pre></div>;

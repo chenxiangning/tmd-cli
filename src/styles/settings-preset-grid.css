@@ -112,3 +112,56 @@
 .preset-card.is-active .preset-check {
   visibility: visible;
 }
+
+/* ── 应用 Logo 网格(外观页 LogoCard,复用 preset-card 的选中语汇) ── */
+
+.logo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.logo-card {
+  padding: 0;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  overflow: hidden;
+  background: var(--tmd-bg-base);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.logo-card:hover {
+  border-color: var(--tmd-border-strong);
+}
+
+.logo-card.is-active {
+  border-color: var(--tmd-accent);
+  box-shadow: 0 0 0 1px var(--tmd-accent);
+}
+
+.logo-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.logo-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  color: var(--tmd-fg-muted);
+}
+
+.logo-card.is-active .logo-name {
+  color: var(--tmd-fg);
+  font-weight: 600;
+}
+
+.logo-card.is-active .preset-check {
+  visibility: visible;
+}

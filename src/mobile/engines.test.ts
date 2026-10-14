@@ -6,7 +6,7 @@
  * 测试豁免 mobile import 禁令:本文件不进 mobile bundle(mobileMain 不引用),
  * activate 捕获是对齐测试的唯一手段(生产树禁令不受影响)。
  */
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { CliProfile } from "@kernel/cli";
 import type { Plugin } from "@kernel/plugin";
 import { ENGINES, engineWire } from "./engines";
@@ -24,12 +24,26 @@ const PLUGINS: Record<string, () => Promise<Plugin>> = {
   dsh: () => import("@plugins/cli-dsh/plugin").then((m) => m.cliDshPlugin),
 };
 
+/** 预热后的插件实例表(beforeAll 填)。 */
+const LOADED = new Map<string, Plugin>();
+
+/* 模块级预热:动态 import 的冷变换成本(omp 图最大 —— React 组件 + academy
+ * 目录 + phosphor 图标)与"profile 形状"无关,却记在用例预算里。2026-10-13
+ * 门禁实测:omp 那一例(文件内首个,吃全量冷变换)超 30s 硬顶必红,单跑亦复现。
+ * 把冷变换整体移出用例预算,用例只留 activate + 断言。 */
+beforeAll(async () => {
+  const ids = Object.keys(PLUGINS);
+  const mods = await Promise.all(ids.map((id) => PLUGINS[id]()));
+  ids.forEach((id, i) => LOADED.set(id, mods[i]));
+}, 300_000);
+
 describe("手机引擎表与桌面插件 profile 对齐", () => {
   for (const e of ENGINES) {
     it(
       `${e.id}: command/resume/bracketedPaste 一致`,
       async () => {
-        const plugin = await PLUGINS[e.id]();
+        const plugin = LOADED.get(e.id);
+        if (!plugin) throw new Error(`${e.id} 插件未装载(预热失败)`);
         let profile: CliProfile | undefined;
         /* activate 会登记多个注册面(cliConfig/marketPanel…),Proxy 全吞,只捕获 profile。 */
         const ctx = new Proxy(
@@ -44,9 +58,7 @@ describe("手机引擎表与桌面插件 profile 对齐", () => {
         /* BP 契约镜像(engineWire 靠它决定发送线格式),漂移 = 4 家引擎回车被吞。 */
         expect(e.bracketedPaste ?? false, "bracketedPaste").toBe(profile.bracketedPaste ?? false);
       },
-      /* 首个用例吃动态 import 冷变换(omp 插件 + academy 目录体量最大),
-      本机可超 vitest 默认 5s —— 测的是 profile 形状不是速度(2026-09-28 实证) */
-      30_000,
+      5_000,
     );
   }
 });

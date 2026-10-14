@@ -232,6 +232,13 @@
 .wb-form input:focus, .wb-form select:focus, .wb-form textarea:focus, .wb-taskform input:focus, .wb-taskform select:focus, .wb-taskform textarea:focus, .wb-fieldform input:focus, .wb-fieldform textarea:focus, .wb-ask input:focus, .wb-nav-search:focus { outline: none; border-color: var(--tmd-accent); }
 .wb-form-error { color: var(--tmd-err); font-size: var(--tmd-font-xs); margin: 8px 0 0; }
 
+/* 一键关联候选勾选弹层(LinkWorkspacesDialog) */
+.wb-link-candidates { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; display: flex; flex-direction: column; gap: 3px; }
+.wb-linkrow { display: flex; align-items: center; gap: 8px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); padding: 6px 10px; cursor: pointer; font-size: var(--tmd-font-ui); color: var(--tmd-fg); min-width: 0; }
+.wb-linkrow:has(input:checked) { border-color: var(--tmd-accent); }
+.wb-link-cand-name { flex: none; font-weight: 500; }
+.wb-link-cand-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); font-family: var(--tmd-font-mono); }
+
 /* ── 菜单/提示 ── */
 .wb-menu-anchor { position: relative; }
 .wb-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 80; min-width: 160px; background: var(--tmd-bg-base); border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); box-shadow: 0 8px 24px rgb(0 0 0 / 20%); padding: 4px; display: flex; flex-direction: column; }

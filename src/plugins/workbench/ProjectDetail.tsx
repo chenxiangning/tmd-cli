@@ -84,7 +84,12 @@ export function ProjectDetail({
           <WbProgress value={project.progress} tone={risk.tone} />
           <b className="wb-progress-pct">{project.progress}%</b>
         </div>
-        <span className="wb-drawer-head-meta">{riskDetailText(risk, project, today)} · {remainingText(project.dueDate, today)}</span>
+        {/* 天数表述只留一处:urgent/soon/normal/overdue 的 riskDetail 已含天数;
+         *  blocked/slipping 再补剩余天数,done/unscheduled 补天数只是噪声。 */}
+        <span className="wb-drawer-head-meta">
+          {riskDetailText(risk, project, today)}
+          {risk.level === "blocked" || risk.level === "slipping" ? ` · ${remainingText(project.dueDate, today)}` : null}
+        </span>
       </div>
       <nav className="wb-drawer-tabs" role="tablist" aria-label={t("项目页签")}>
         {TABS.map((item) => (

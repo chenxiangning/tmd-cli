@@ -6,6 +6,7 @@
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
+import { resolveDefaultEngine } from "./defaultEngine";
 import type { Project, ProjectTask } from "./types";
 import type { ProjectSessionsState } from "./useProjectSessions";
 
@@ -20,6 +21,12 @@ function recoverDeadLink(
   recent: ProjectSessionsState | null | undefined,
   onToast: (m: string) => void,
 ): void {
+  /* 扫描失败时 rows 可能被清空/截断 —— 不能据此判「会话已结束」,也不能拿
+   * 残缺候选集当唯一命中去 resume(失败当事实是本轮收口的同类缺陷)。 */
+  if (recent?.failed) {
+    onToast(t("引擎会话扫描失败,列表可能不全。"));
+    return;
+  }
   const at = Date.parse(link.createdAt);
   const near = (recent?.rows ?? []).filter((r) =>
     r.disk.createdAt !== undefined && Math.abs(r.disk.createdAt - at) <= 5 * 60_000,
@@ -88,8 +95,9 @@ export function openLink(
 }
 
 /** 「在此目录开新会话」公共动作(项目详情会话页签与聚焦页脉搏行共一条路径):
- *  引擎档位取该目录最近会话的 profile;三分 null=扫描中 / 空=真空或扫描失败 /
- *  有=直接建。创建即声明「要看会话」并聚焦。onSettled 必调(调用方解禁用态)。 */
+ *  概览页默认引擎已设 = 直接按它建(含默认模型,目录历史/扫描态无关);
+ *  未设 = 引擎档位取该目录最近会话的 profile,三分 null=扫描中 / 空=真空或
+ *  扫描失败 / 有=直接建。创建即声明「要看会话」并聚焦。onSettled 必调(调用方解禁用态)。 */
 export function createSessionHere(
   project: Project,
   workspaceId: string | undefined,
@@ -99,6 +107,21 @@ export function createSessionHere(
 ): void {
   if (!project.cwd) {
     onSettled();
+    return;
+  }
+  const def = resolveDefaultEngine();
+  if (def) {
+    void host.createSession(def.profileId, project.cwd, workspaceId, { model: def.model }).then(
+      (meta) => {
+        host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
+        host.setActiveSession(meta.id);
+        onSettled();
+      },
+      () => {
+        onToast(t("创建会话失败"));
+        onSettled();
+      },
+    );
     return;
   }
   if (recent === null) {

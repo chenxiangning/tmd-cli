@@ -148,6 +148,12 @@ export interface TabContentContribution {
    *  tab 才真卸载。长生命周期会话类 tab(结构化会话 RPC 子进程)用——
    *  中途切看文件预览不再被收割。默认 false,其余 tab 行为零变化。 */
   keepAlive?: boolean;
+  /** 关闭前闸(可选):返回 false(或抛错)则保留该 tab 不关。
+   *  只在**用户手势**关闭路径上被问(关页签 / ⌘W / 关其他 / 关全部,经
+   *  kernel/tabClose 的 request* 入口);程序性删除(文件已删、面板 toggle
+   *  收起)走 closeTab 直删面,不过闸 —— 那些场景问"要不要丢稿"没有意义。
+   *  缺省 = 直接关闭(全插件行为零变化)。 */
+  beforeClose?: (tab: EditorTab) => boolean | Promise<boolean>;
 }
 
 const tabContents = new Map<string, TabContentContribution>();
@@ -175,6 +181,18 @@ export function getTabIcon(kind: string): TabContentContribution["icon"] {
 /** 查询某 kind 是否声明保活(编辑区切走不卸载);未注册 = false。 */
 export function isKeepAliveTab(kind: string): boolean {
   return tabContents.get(kind)?.keepAlive === true;
+}
+
+/** 查询某 kind 的关闭前闸(用户手势关闭路径用);未注册 = 无闸直接关。 */
+export function getTabCloseGuard(
+  kind: string,
+): TabContentContribution["beforeClose"] {
+  return tabContents.get(kind)?.beforeClose;
+}
+
+/** 按 id 取 tab 本体(关闭协调器的实例同一性判据用);不存在 = null。 */
+export function getTab(id: string): EditorTab | null {
+  return state.tabs.find((t) => t.id === id) ?? null;
 }
 
 /** 撤销通道(激活失败回滚/熔断摘除):kind 未注册时静默(幂等)。 */

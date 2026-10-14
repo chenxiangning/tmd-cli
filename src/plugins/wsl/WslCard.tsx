@@ -17,7 +17,7 @@ import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { WslRemoteSection } from "./RemoteSection";
 import { AddWslWorkspaceDialog } from "./WorkspaceDialog";
-import logoUrl from "../../assets/logo.png";
+import { getAppLogoUrl } from "@kernel/appLogo";
 
 /** 卡头状态副行(本机检测态 / 本机不可用时的远程提示)。
  *  分支序:loading 先于 !info——首屏检测期(info=null, loading=true)必须显示
@@ -215,7 +215,7 @@ export function WslCard() {
         {adding && info && <AddWslWorkspaceDialog distros={info.distros} onClose={() => setAdding(false)} />}
       </section>
       <div className="wsl-brand" aria-hidden>
-        <img src={logoUrl} alt="" />
+        <img src={getAppLogoUrl(settings.appLogo)} alt="" />
         <span>tmd-cli</span>
       </div>
     </>

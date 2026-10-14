@@ -5,6 +5,7 @@
  * 队列不认识会话语义。
  */
 import { createSubscribable } from "@kernel/subscribable";
+import { t } from "@kernel/i18n";
 
 /* 开发热更纪律:本模块是 activate 期注入执行体(setTaskRunner)与持久化通道的常驻
  * 单例,却被组件模块(ArticleTab/MonthView/TaskPanel)直接引用 —— 组件边界热更会把
@@ -51,10 +52,10 @@ function ensureAudit(): void {
   if (auditTimer !== undefined) return;
   auditTimer = setInterval(() => {
     const now = Date.now();
-    for (const t of store.snapshot.tasks) {
-      if (t.st !== "run" || t.runAt === undefined || now - t.runAt < RUN_HARD_TOP_MS) continue;
-      patch(t.id, { st: "err", text: "运行超 20 分钟,自动判失败(可重试)" });
-      abortRun?.(t); /* 会话收割:pre-spawn 段无 sessionId,由检查点自弃 */
+    for (const task of store.snapshot.tasks) {
+      if (task.st !== "run" || task.runAt === undefined || now - task.runAt < RUN_HARD_TOP_MS) continue;
+      patch(task.id, { st: "err", text: t("运行超 {n} 分钟,自动判失败(可重试)", { n: 20 }) });
+      abortRun?.(task); /* 会话收割:pre-spawn 段无 sessionId,由检查点自弃 */
       pump();
     }
   }, AUDIT_TICK_MS);
@@ -103,7 +104,7 @@ function commit(): void {
 export function enqueueTask(type: GenTaskType, dayKey: string, engine: string): GenTask | null {
   const dup = store.snapshot.tasks.some((t) => t.dayKey === dayKey && (t.st === "run" || t.st === "queue"));
   if (dup) return null;
-  const task: GenTask = { id: nextId++, dayKey, type, engine, st: "queue", text: "排队中" };
+  const task: GenTask = { id: nextId++, dayKey, type, engine, st: "queue", text: t("排队中") };
   store.commit({ tasks: [task, ...store.snapshot.tasks] });
   commit();
   pump();
@@ -127,10 +128,10 @@ function pump(): void {
   ) {
     const next = [...store.snapshot.tasks].reverse().find((t) => t.st === "queue");
     if (!next) return;
-    patch(next.id, { st: "run", text: "生成中", runAt: Date.now() });
+    patch(next.id, { st: "run", text: t("生成中"), runAt: Date.now() });
     ensureAudit();
     void runner({ ...next, st: "run" }).catch((e: unknown) => {
-      patch(next.id, { st: "err", text: `任务异常:${String(e)}` });
+      patch(next.id, { st: "err", text: t("任务异常:{err}", { err: String(e) }) });
       pump();
     });
   }
@@ -167,14 +168,14 @@ export function finishTask(id: number, ok: boolean, text: string): void {
 /** 排队与运行皆可取消(run 态经 abortRun 收割会话后放行下一发;
  * 是 run 态卡死(spawn 挂起等无兜底窗口)时唯一的手动逃生口)。 */
 export function cancelTask(id: number): boolean {
-  const t = store.snapshot.tasks.find((x) => x.id === id);
-  if (!t || (t.st !== "queue" && t.st !== "run")) return false;
-  if (t.st === "run") {
-    patch(id, { st: "err", text: "已取消(终止运行)" });
-    abortRun?.(t);
+  const task = store.snapshot.tasks.find((x) => x.id === id);
+  if (!task || (task.st !== "queue" && task.st !== "run")) return false;
+  if (task.st === "run") {
+    patch(id, { st: "err", text: t("已取消(终止运行)") });
+    abortRun?.(task);
     pump();
   } else {
-    patch(id, { st: "err", text: "已取消" });
+    patch(id, { st: "err", text: t("已取消") });
   }
   return true;
 }
@@ -203,7 +204,7 @@ export function restoreTasks(saved: unknown): void {
       type: (r.type as GenTaskType) ?? "手动生成",
       engine: typeof r.engine === "string" ? r.engine : "omp",
       st,
-      text: st === "err" && r.st === "run" ? "中断(应用重启)" : String(r.text ?? ""),
+      text: st === "err" && r.st === "run" ? t("中断(应用重启)") : String(r.text ?? ""),
       sessionId: typeof r.sessionId === "string" ? (r.sessionId as string) : undefined,
     });
   }

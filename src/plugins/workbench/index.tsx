@@ -76,6 +76,9 @@ export const workbenchPlugin: Plugin = {
     /* 任务卡片:开新会话发起的任务上下文挂芯片(composer.attachments),点卡片
        可编辑全文,发送变换前置拼装、空输入放行(接力芯片同款口径,见 taskCard.ts)。 */
     ctx.contribute("composer.attachments", { component: TaskCardChip });
+    /* 脏稿弃稿确认闸不在此处挂:它随文章 tab 本体渲染(ArticleDiscardGate,
+       按 tab id 注册)—— tab 在挂 = 闸在,不需要「常驻宿主在不在」的额外论证。
+       契约 docs/architecture/24-tab-close-guard.md(2026-10-13 修订)。 */
     const offTaskCard = [
       registerComposerSendTransform(taskCardSendTransform),
       registerComposerSendUndo(undoTaskCardSend),

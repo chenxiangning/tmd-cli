@@ -13,12 +13,14 @@ import {
   AI_RULES_FILE, PROJECT_ID_PATTERN, createProjectId, ensureAiRulesFile,
   readIndexFile, readLegacyPrd, removeDocFile, removeLegacyPrd, writeDocFile, writeIndexFile,
 } from "./workbenchFiles";
-import { bindEnsureLoader, enqueue, mutate, randId, setProjects, state } from "./storeCore";
+import { bindEnsureLoader, commitProjects, enqueue, getWriteError, mutate, randId, setProjects, state } from "./storeCore";
 
 /* 集中出口:消费方只 import "./store"。 */
 export {
-  ensureWorkbenchLoaded, subscribeWorkbench, workbenchSnapshot, workbenchLoadError, resetWorkbenchForTest,
+  ensureWorkbenchLoaded, subscribeWorkbench, workbenchSnapshot, workbenchLoadError,
+  workbenchLoaded, resetWorkbenchForTest,
 } from "./storeCore";
+export { generateSamples, clearAllProjects, clearSampleProjects } from "./storeSamples";
 export { AI_RULES_FILE, INDEX_PATH, createProjectId } from "./workbenchFiles";
 export {
   createDoc, readDoc, saveDoc, deleteDoc,
@@ -62,14 +64,21 @@ async function loadLocked(): Promise<void> {
   try {
     const metas = await readIndexFile();
     if (metas === null) {
-      setProjects([]);
+      setProjects([], getWriteError());
       await writeAiRules().catch(() => undefined);
       return;
     }
-    const hydrated = await Promise.all(metas.map((meta) => hydrateProject(meta as Record<string, unknown> & { id: string })));
+    const allMeta = metas as Array<Record<string, unknown> & { id: string }>;
+    const hydrated = await Promise.all(allMeta.map((meta) => hydrateProject(meta)));
     const projects = hydrated.map((item) => item.project).filter((project): project is Project => project !== null);
     if (hydrated.some((item) => item.migrated)) await writeIndexFile(projects);
-    setProjects(projects);
+    /* 非法 id 的记录每次装载都被静默过滤 = 用户视角「数据丢了」,错误条计数可见。 */
+    const badCount = allMeta.filter((meta) => !PROJECT_ID_PATTERN.test(meta.id)).length;
+    const messages = [
+      badCount > 0 ? t("已忽略 {count} 条无法识别的项目记录。", { count: String(badCount) }) : null,
+      getWriteError(),
+    ].filter((m): m is string => m !== null);
+    setProjects(projects, messages.length > 0 ? messages.join(" ") : null);
     await writeAiRules().catch(() => undefined);
   } catch (e) {
     /* 首载失败 = 空表+错误条;reload 失败保留正在展示的旧数据,只落错误条。 */
@@ -95,16 +104,6 @@ export function reloadWorkbench(): Promise<void> {
   });
 }
 
-/** 写穿提交(store.ts 侧共用模板):落盘成功才提交内存,失败回滚+错误条+上抛。 */
-async function commit(next: Project[], snapshot: readonly Project[]): Promise<void> {
-  try {
-    setProjects(await writeIndexFile(next));
-  } catch (e) {
-    setProjects([...snapshot], e instanceof Error ? e.message : String(e));
-    throw e;
-  }
-}
-
 /* ── 项目 ── */
 
 export function createProject(partial: Partial<Project> & { name: string }): Promise<Project> {
@@ -116,7 +115,7 @@ export function createProject(partial: Partial<Project> & { name: string }): Pro
       await Promise.all(project.docs.map(async (doc) => {
         if (doc.content !== undefined) await writeDocFile(project.id, doc.fileName, doc.content);
       }));
-      await commit([project, ...snapshot], snapshot);
+      await commitProjects([project, ...snapshot], snapshot);
     } catch (e) {
       /* index 未落定:全新 id 的已落盘文档整批回收,重试不再重复写。 */
       await Promise.all(project.docs.map((doc) => removeDocFile(project.id, doc.fileName)));
@@ -140,7 +139,7 @@ export function deleteProject(id: string): Promise<void> {
     const snapshot = state.projects;
     const project = snapshot.find((p) => p.id === id);
     if (!project) throw new Error(t("项目不存在或已删除。"));
-    await commit(snapshot.filter((p) => p.id !== id), snapshot);
+    await commitProjects(snapshot.filter((p) => p.id !== id), snapshot);
     /* index 落定后回收文档与任务附件实体(removeProjectArtifacts 同口径)。 */
     await Promise.all([
       ...project.docs.map((doc) => removeDocFile(project.id, doc.fileName)),
@@ -181,7 +180,7 @@ export function addTask(projectId: string, init: TaskInit): Promise<ProjectTask>
     if (task.title === "") throw new Error(t("任务标题不能为空"));
     if (!snapshot.some((p) => p.id === projectId)) throw new Error(t("项目不存在或已删除。"));
     const next = snapshot.map((p) => (p.id === projectId ? { ...p, tasks: [task, ...p.tasks], updatedAt: now } : p));
-    await commit(next, snapshot);
+    await commitProjects(next, snapshot);
     return task;
   });
 }
@@ -218,7 +217,7 @@ export function deleteTask(projectId: string, taskId: string): Promise<void> {
     const snapshot = state.projects;
     const task = snapshot.find((p) => p.id === projectId)?.tasks.find((t) => t.id === taskId);
     if (!task) throw new Error(t("任务不存在或已删除。"));
-    await commit(snapshot.map((p) => (p.id === projectId ? { ...p, tasks: p.tasks.filter((t) => t.id !== taskId), updatedAt: now } : p)), snapshot);
+    await commitProjects(snapshot.map((p) => (p.id === projectId ? { ...p, tasks: p.tasks.filter((t) => t.id !== taskId), updatedAt: now } : p)), snapshot);
     /* index 落定后回收附件实体(clearAllProjects 同口径;单删不回收留 docs/project-* 孤儿)。 */
     await Promise.all(task.attachments.map((att) => removeDocFile(projectId, att.fileName)));
   });
@@ -228,67 +227,21 @@ export function deleteTask(projectId: string, taskId: string): Promise<void> {
 
 export function addUpdate(projectId: string, kind: UpdateKind, text: string): Promise<void> {
   const now = new Date().toISOString();
-  return mutate((projects) =>
-    projects.map((p) => {
+  return mutate((projects) => {
+    /* 目标未命中 reject,与 updateProject/updateTask 同契约。 */
+    if (!projects.some((p) => p.id === projectId)) throw new Error(t("项目不存在或已删除。"));
+    return projects.map((p) => {
       if (p.id !== projectId) return p;
       const update: ProjectUpdate = { id: randId("u"), at: now, kind, text };
       return { ...p, updates: [update, ...p.updates], updatedAt: now };
-    }));
+    });
+  });
 }
 
 export function deleteUpdate(projectId: string, updateId: string): Promise<void> {
-  return mutate((projects) =>
-    projects.map((p) => (p.id === projectId ? { ...p, updates: p.updates.filter((u) => u.id !== updateId) } : p)));
-}
-
-/* ── 示例与清空 ── */
-
-/** 生成示例数据(幂等按 id 追加;示例文档内容随项目落盘)。 */
-export function generateSamples(build: () => Project[]): Promise<void> {
-  return enqueue(async () => {
-    const snapshot = state.projects;
-    const known = new Set(snapshot.map((p) => p.id));
-    const samples = build().filter((p) => !known.has(p.id));
-    const pendingDocs = samples.flatMap((sample) =>
-      sample.docs.filter((doc) => doc.content !== undefined).map((doc) => ({ sample, doc })));
-    try {
-      await Promise.all(pendingDocs.map(({ sample, doc }) => writeDocFile(sample.id, doc.fileName, doc.content!)));
-      await commit([...samples, ...snapshot], snapshot);
-    } catch (e) {
-      /* index 未落定:回收已落盘示例文档,重试不再重复写。 */
-      await Promise.all(pendingDocs.map(({ sample, doc }) => removeDocFile(sample.id, doc.fileName)));
-      throw e;
-    }
-  });
-}
-
-/** 删除项目集合的落盘实体(文档/任务附件/旧 PRD;项目目录保留空壳)。 */
-async function removeProjectArtifacts(projects: readonly Project[]): Promise<void> {
-  await Promise.all(projects.flatMap((project) => [
-    ...project.docs.map((doc) => removeDocFile(project.id, doc.fileName)),
-    ...project.tasks.flatMap((task) => task.attachments.map((att) => removeDocFile(project.id, att.fileName))),
-    removeLegacyPrd(project.id).catch(() => undefined),
-  ]));
-}
-
-/** 清空全部项目(删除文档/附件实体;目录保留空壳)。 */
-export function clearAllProjects(): Promise<void> {
-  /* 快照在队列内取:与在途变更严格串行,防「index 已清、实体快照缺项」的孤儿窗口。 */
-  return enqueue(async () => {
-    const old = state.projects;
-    await commit([], old);
-    await removeProjectArtifacts(old);
-  });
-}
-
-/** 清理示例数据:只删带「示例」标签的项目(识别口径见 sample.ts),真实项目不动;返回清理数。 */
-export function clearSampleProjects(): Promise<number> {
-  return enqueue(async () => {
-    const old = state.projects.filter((p) => p.tags.includes("示例"));
-    if (old.length === 0) return 0;
-    const next = state.projects.filter((p) => !p.tags.includes("示例"));
-    await commit(next, state.projects);
-    await removeProjectArtifacts(old);
-    return old.length;
+  return mutate((projects) => {
+    const project = projects.find((p) => p.id === projectId);
+    if (!project || !project.updates.some((u) => u.id === updateId)) throw new Error(t("项目不存在或已删除。"));
+    return projects.map((p) => (p.id === projectId ? { ...p, updates: p.updates.filter((u) => u.id !== updateId) } : p));
   });
 }

@@ -7,14 +7,20 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { t } from "@kernel/i18n";
 import type { EditorTab } from "@kernel/tabs";
-import { subscribeWorkbench, workbenchSnapshot } from "./store";
+import { subscribeWorkbench, workbenchLoaded, workbenchSnapshot, ensureWorkbenchLoaded } from "./store";
 import { ProjectDetail, type DrawerTab } from "./ProjectDetail";
 import { useTaskAutoStatus } from "./useTaskAutoStatus";
 import { WbEmpty } from "./ui";
 
 export function ProjectTab({ tab }: { tab: EditorTab }) {
   const projects = useSyncExternalStore(subscribeWorkbench, workbenchSnapshot);
+  const loaded = useSyncExternalStore(subscribeWorkbench, workbenchLoaded);
   useTaskAutoStatus();
+  useEffect(() => {
+    /* 深链冷启动:store 未装载先触发装载,装载完成后本组件经订阅自动恢复,
+     * 不再渲染假「项目不存在或已删除」。 */
+    void ensureWorkbenchLoaded();
+  }, []);
   const [message, setMessage] = useState<string | null>(null);
   useEffect(() => {
     /* toast 与主页同口径 2600ms 自动清除,不永驻页底。 */
@@ -37,6 +43,8 @@ export function ProjectTab({ tab }: { tab: EditorTab }) {
   const projectId = payload?.projectId ?? "";
   const project = projects.find((item) => item.id === projectId);
   if (!project) {
+    /* 装载未完成 ≠ 不存在:装载态占位,loaded 后快照命中即恢复(订阅驱动,无需重挂)。 */
+    if (!loaded) return <WbEmpty text={t("正在加载…")} />;
     return <WbEmpty text={t("项目不存在或已删除。")} />;
   }
   return (

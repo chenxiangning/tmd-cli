@@ -123,6 +123,14 @@ export function dailyPaths(): Promise<DailyPaths> {
   return pathsLoading;
 }
 
+/** 生成结算判据:文章相对基线真的变化(首次=null→落盘;并入=内容不同)。
+ *  零字节文视同未落盘(空文件不是产物,判未变化走重试)。旧判据只认「文件存在」,
+ *  并入型任务开跑即假成功(生成会话 15s 被收割,2026-10-12 全天增量并入空转的根因)。 */
+export function articleChanged(baseline: string | null, next: string | null): boolean {
+  if (next === null || next.length === 0) return false;
+  return next !== baseline;
+}
+
 /** 读 JSON;文件不存在/损坏/不可读返回 fallback(数据文件宽容读)。 */
 export async function readJson<T>(path: string, fallback: T): Promise<T> {
   try {
