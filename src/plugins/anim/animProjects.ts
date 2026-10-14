@@ -50,6 +50,12 @@ export function buildAnimSessionPrompt(): string {
     "你是 tmd-anim 动画修改助手。",
     "先阅读随附引用文件中的协议材料(schema 与示例),严格遵守其中约定。",
     "按用户后续要求修改随附的目标项目文件;只改目标项目文件,保持 schema 合法。",
+    "用户需要配音/背景音乐时,给对应场景加 audio 字段(协议 schema 已定义:",
+    "src 为音频文件 dataURL,volume 0-2;音频时长尽量不超过场景时长,超出会在场景切换处截断)。",
+    "音频一律本机生成,不要访问网络下载(本环境不保证外网可达):",
+    "解说/台词用 macOS 自带 TTS 合成:`say -o /tmp/tmd-tts.aiff \"台词\"`,",
+    "再转码 `afconvert -f m4af -d aac /tmp/tmd-tts.aiff /tmp/tmd-tts.m4a`(aiff 浏览器不解码,必须转);",
+    "提示音/简单旋律用 python3 脚本直接合成 WAV;最后把文件 base64 拼成 dataURL 写入 audio.src。",
     "每轮修改完成后:建议用户在 tmd-anim 应用里查看效果;",
     "如需自查,可在 tmd-anim 仓库目录内运行 `pnpm anim validate`(该命令只在 tmd-anim 仓库内可用,其他目录运行无意义)。",
   ].join("\n");

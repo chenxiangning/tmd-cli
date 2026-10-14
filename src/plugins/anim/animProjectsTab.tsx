@@ -3,6 +3,7 @@
  *
  * 数据面:~/.tmd-anim/projects/*.json 逐文件最小解析(容错「无效项目」);
  * 2s 轮询仅在本 tab 挂载期运行(非 keepAlive,切走即卸载即停,勿挂常驻轮询)。
+ * 未就绪引导:应用探测缺席或项目目录缺失 → AnimInstallGuide(Releases 落点)。
  * 动作:「打开」= 探测 tmd-anim 应用后 open-with 项目文件;
  * 「AI 会话」= 先弹确认窗(项目 link 卡片 + 引用卡片预览 + 可二次编辑的初始
  * prompt),确认 spawn 默认引擎会话后:初始提示词与引用全部挂 composer 卡片
@@ -10,14 +11,16 @@
  * 输入框、不直写 PTY);取消零副作用(桩也不落盘)。
  */
 import { useEffect, useRef, useState } from "react";
-import { ArrowSquareOut, FilmSlate, Info } from "@phosphor-icons/react";
+import { FilmSlate } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
-import { ipc, openExternalUrl } from "@kernel/ipc";
+import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { ensureDir } from "@kernel/fsDirs";
 import type { OpenWithTarget } from "@kernel/settingsTypes";
 import { resolveDefaultEngine } from "@plugins/workbench/defaultEngine";
 import { AiSessionDialog, type AiSessionTarget } from "./AiSessionDialog";
+import { AnimInstallGuide } from "./AnimInstallGuide";
+import { AnimProjectRow } from "./AnimProjectRow";
 import {
   animProjectsDir,
   animSessionRefs,
@@ -33,9 +36,6 @@ const POLL_MS = 2000;
 
 /** fsOpenWith 的 tmd-anim 应用目标(mac `open -a tmd-anim`;productName 即应用名)。 */
 const ANIM_APP_TARGET: OpenWithTarget = { id: "tmd-anim", label: "tmd-anim", kind: "app", appName: "tmd-anim" };
-
-/** 未安装引导横幅的获取链接(源码仓库,README 含安装方式)。 */
-const ANIM_REPO_URL = "https://github.com/chenxiangning/tmd-anim";
 
 interface AnimRow {
   path: string;
@@ -200,68 +200,57 @@ export function AnimProjectsTab() {
     }
   };
 
+  /* 未就绪 = 应用探测缺席,或项目目录缺失(目录缺失 ≈ tmd-anim 未装/未跑过)。 */
+  const notReady = appInstalled === false || rows === null;
+
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-3 overflow-auto p-6">
       <header>
         <h2 className="text-sm font-semibold text-(--tmd-fg)">{t("动画项目")}</h2>
-        <p className="text-xs text-(--tmd-fg-muted)">~/.tmd-anim/projects · {t("目录变更约 2 秒内自动刷新")}</p>
+        <p className="text-xs text-(--tmd-fg-muted)">
+          ~/.tmd-anim/projects
+          {rows !== null && ` · ${t("共 {n} 个项目", { n: rows.length })}`} · {t("目录变更约 2 秒内自动刷新")}
+        </p>
       </header>
-      {appInstalled === false && (
-        <div className="flex items-center gap-2.5 rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-3 py-2.5">
-          <Info size="1rem" className="flex-none text-(--tmd-accent)" />
-          <p className="min-w-0 flex-1 text-xs text-(--tmd-fg-muted)">
-            {t("未检测到本机安装 tmd-anim —— 安装后这里会自动列出你的动画项目。")}
-          </p>
-          <button
-            type="button"
-            onClick={() => void openExternalUrl(ANIM_REPO_URL)}
-            className="flex flex-none items-center gap-1 rounded bg-(--tmd-accent-soft) px-2 py-1 text-xs text-(--tmd-accent) hover:opacity-80"
-          >
-            <ArrowSquareOut size="0.75rem" />
-            {t("获取 tmd-anim")}
-          </button>
-        </div>
-      )}
+      {rows !== null && rows.length > 0 && appInstalled === false && <AnimInstallGuide variant="banner" />}
       {rows === null || rows.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-          <FilmSlate size={28} className="text-(--tmd-fg-muted)" />
-          <p className="text-sm text-(--tmd-fg)">{t("还没有动画项目")}</p>
-          <p className="max-w-sm text-xs text-(--tmd-fg-muted)">
-            {t("在 tmd-anim 中新建的项目会出现在这里;也可以现在建一个项目桩,直接开 AI 会话。")}
-          </p>
-          <button
-            type="button"
-            disabled={starting}
-            onClick={() => void openAiDialog(null)}
-            className="mt-1 rounded bg-(--tmd-bg-subtle) px-2 py-1 text-xs text-(--tmd-fg) hover:text-(--tmd-accent) disabled:opacity-50"
-          >
-            {t("AI 会话")}
-          </button>
-        </div>
+        notReady ? (
+          <AnimInstallGuide
+            variant="card"
+            starting={starting}
+            onStub={() => void openAiDialog(null)}
+          />
+        ) : (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+            <div className="flex size-14 items-center justify-center rounded-xl border border-(--tmd-border) bg-(--tmd-bg-subtle)">
+              <FilmSlate size={28} className="text-(--tmd-fg-muted)" />
+            </div>
+            <p className="text-sm text-(--tmd-fg)">{t("还没有动画项目")}</p>
+            <p className="max-w-sm text-xs text-(--tmd-fg-muted)">
+              {t("在 tmd-anim 中新建的项目会出现在这里;也可以现在建一个项目桩,直接开 AI 会话。")}
+            </p>
+            <button
+              type="button"
+              disabled={starting}
+              onClick={() => void openAiDialog(null)}
+              className="mt-1 rounded border border-(--tmd-border) px-2.5 py-1 text-xs text-(--tmd-fg) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
+            >
+              {t("AI 会话")}
+            </button>
+          </div>
+        )
       ) : (
-        <ul className="flex flex-col gap-0.5">
+        <ul className="flex flex-col gap-1.5">
           {rows.map((row) => (
-            <li key={row.path} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-(--tmd-bg-subtle)">
-              <span className="min-w-0 shrink-0 truncate text-sm text-(--tmd-fg)">
-                {row.name ?? <span className="text-(--tmd-warn)">{t("无效项目")}</span>}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-xs text-(--tmd-fg-muted)">{row.file}</span>
-              <button
-                type="button"
-                onClick={() => void openInApp(row.path)}
-                className="flex-none rounded bg-(--tmd-bg-subtle) px-2 py-0.5 text-xs text-(--tmd-fg) hover:text-(--tmd-accent)"
-              >
-                {t("打开")}
-              </button>
-              <button
-                type="button"
-                disabled={starting}
-                onClick={() => void openAiDialog(row.path)}
-                className="flex-none rounded bg-(--tmd-bg-subtle) px-2 py-0.5 text-xs text-(--tmd-fg) hover:text-(--tmd-accent) disabled:opacity-50"
-              >
-                {t("AI 会话")}
-              </button>
-            </li>
+            <AnimProjectRow
+              key={row.path}
+              path={row.path}
+              file={row.file}
+              name={row.name}
+              starting={starting}
+              onOpen={() => void openInApp(row.path)}
+              onAi={() => void openAiDialog(row.path)}
+            />
           ))}
         </ul>
       )}

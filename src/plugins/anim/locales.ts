@@ -13,6 +13,13 @@ const MESSAGES_EN = {
     "Projects created in tmd-anim appear here; you can also create a project stub now and start an AI session right away.",
   "未检测到本机安装 tmd-anim —— 安装后这里会自动列出你的动画项目。":
     "tmd-anim is not installed on this machine — once installed, your animation projects will appear here automatically.",
+  "未检测到 tmd-anim": "tmd-anim not found",
+  "未找到 tmd-anim 应用或项目目录(~/.tmd-anim/projects)。安装后,这里会自动列出你的动画项目。":
+    "tmd-anim app or project directory (~/.tmd-anim/projects) not found. Once installed, your animation projects will appear here automatically.",
+  "前往 Releases 下载": "Download from Releases",
+  "共 {n} 个项目": "{n} projects",
+  "在编辑器中打开": "Open in editor",
+  "也可以先建一个项目桩,直接开 AI 会话": "Or create a project stub now and start an AI session right away",
   "获取 tmd-anim": "Get tmd-anim",
   "关联 AI 会话": "Link AI session",
   "协议 schema": "Protocol schema",
@@ -44,6 +51,13 @@ const MESSAGES_JA = {
     "tmd-anim で作成したプロジェクトがここに表示されます。今すぐスタブを作成してAIセッションを開始することもできます。",
   "未检测到本机安装 tmd-anim —— 安装后这里会自动列出你的动画项目。":
     "このマシンに tmd-anim がインストールされていません —— インストール後、アニメーションプロジェクトがここに自動表示されます。",
+  "未检测到 tmd-anim": "tmd-anim が見つかりません",
+  "未找到 tmd-anim 应用或项目目录(~/.tmd-anim/projects)。安装后,这里会自动列出你的动画项目。":
+    "tmd-anim アプリまたはプロジェクトディレクトリ(~/.tmd-anim/projects)が見つかりません。インストール後、アニメーションプロジェクトがここに自動表示されます。",
+  "前往 Releases 下载": "Releases からダウンロード",
+  "共 {n} 个项目": "全 {n} 件",
+  "在编辑器中打开": "エディターで開く",
+  "也可以先建一个项目桩,直接开 AI 会话": "先にスタブを作成してAIセッションを開始することもできます",
   "获取 tmd-anim": "tmd-anim を入手",
   "关联 AI 会话": "AIセッションを関連付け",
   "协议 schema": "プロトコル schema",
