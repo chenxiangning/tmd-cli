@@ -24,6 +24,7 @@ const MESSAGES_EN = {
   "关联 AI 会话": "Link AI session",
   "协议 schema": "Protocol schema",
   "协议示例": "Protocol example",
+  "目标项目": "Target project",
   "初始提示词(启动后以卡片挂入,点卡片可再编辑)": "Initial prompt (attached as a card on start — click the card to edit)",
   "初始提示词": "Initial prompt",
   "提示词随下一条消息一并发出;空输入 = 仅发卡片": "The prompt is sent with your next message; empty input sends just the card",
@@ -39,6 +40,7 @@ const MESSAGES_EN = {
   "打开失败": "Failed to open",
   "项目文件无效,请先在 tmd-anim 中修复": "Project file is invalid — fix it in tmd-anim first",
   "未设置默认引擎,请先在工作台概览选择": "No default engine set — pick one in the workbench overview first",
+  "主目录未就绪,请稍后再试": "Home directory not ready — try again shortly",
   "启动 AI 会话失败": "Failed to start AI session",
 } as const;
 
@@ -62,6 +64,7 @@ const MESSAGES_JA = {
   "关联 AI 会话": "AIセッションを関連付け",
   "协议 schema": "プロトコル schema",
   "协议示例": "プロトコル例",
+  "目标项目": "対象プロジェクト",
   "初始提示词(启动后以卡片挂入,点卡片可再编辑)": "初期プロンプト(起動後にカードとして添付。カードをクリックで編集)",
   "初始提示词": "初期プロンプト",
   "提示词随下一条消息一并发出;空输入 = 仅发卡片": "プロンプトは次のメッセージと一緒に送信。空入力 = カードのみ送信",
@@ -77,6 +80,7 @@ const MESSAGES_JA = {
   "打开失败": "開けませんでした",
   "项目文件无效,请先在 tmd-anim 中修复": "プロジェクトファイルが無効です。先に tmd-anim で修復してください",
   "未设置默认引擎,请先在工作台概览选择": "デフォルトエンジンが未設定です。先にワークベンチ概要で選択してください",
+  "主目录未就绪,请稍后再试": "ホームディレクトリの準備ができていません。しばらくしてからもう一度お試しください",
   "启动 AI 会话失败": "AIセッションの起動に失敗しました",
 } as const;
 

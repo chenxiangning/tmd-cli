@@ -102,7 +102,7 @@ export function AnimRefChips() {
           {t(ref.label)}
           <button
             type="button"
-            aria-label={t("移除引用 {label}", { label: ref.label })}
+            aria-label={t("移除引用 {label}", { label: t(ref.label) })}
             className="inline-flex cursor-pointer items-center text-(--tmd-fg-subtle) hover:text-(--tmd-fg)"
             onClick={() => dropPendingRef(sessionId, ref.path)}
           >

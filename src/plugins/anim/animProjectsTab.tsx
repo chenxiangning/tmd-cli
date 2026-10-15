@@ -24,12 +24,10 @@ import { AnimProjectRow } from "./AnimProjectRow";
 import {
   animProjectsDir,
   animSessionRefs,
-  buildAnimSessionPrompt,
   isAnimProjectFile,
   parseAnimProject,
-  stubProjectFileName,
-  stubProjectJson,
 } from "./animProjects";
+import { prepareAiSessionTarget, startAnimAiSession, type AnimEngine } from "./startSession";
 import { setPendingPrompt, setPendingRefs } from "./refStore";
 
 const POLL_MS = 2000;
@@ -127,77 +125,88 @@ export function AnimProjectsTab() {
     }
   };
 
-  /* 「AI 会话」点击:校验后开确认窗(link 卡片 + 可编辑 prompt),不 spawn 不落盘。
-   *  桩路径此处只生成候选文件名,确认时才写盘(取消零副作用)。 */
+  /* 「AI 会话」点击:prepareAiSessionTarget 只决策不落盘(取消零副作用);
+   *  桩路径此处只生成候选文件名,确认时才写盘。失败一律 toast,不静默。 */
   const openAiDialog = async (projectPath: string | null) => {
-    const def = resolveDefaultEngine();
-    const profile = def ? host.getCliProfile(def.profileId) : undefined;
-    if (!def || !profile) {
-      showToast(t("未设置默认引擎,请先在工作台概览选择"));
+    const result = await prepareAiSessionTarget({
+      home: homeRef.current,
+      engine: resolveAnimEngine(),
+      projectPath,
+      rowName: projectPath !== null ? rows?.find((r) => r.path === projectPath)?.name ?? null : null,
+      readFile: (p) => ipc.fsReadFile(p),
+      now: Date.now,
+      /* 文件名尾随机段:Math.random 足够,非安全场景。 */
+      rand: () => Math.random().toString(36).slice(2, 6),
+    });
+    if (!result.ok) {
+      showToast(
+        t(
+          result.reason === "no-engine"
+            ? "未设置默认引擎,请先在工作台概览选择"
+            : result.reason === "no-home"
+              ? "主目录未就绪,请稍后再试"
+              : "项目文件无效,请先在 tmd-anim 中修复",
+        ),
+      );
       return;
     }
-    const home = homeRef.current;
-    if (!home) return;
-    let path = projectPath;
-    let stub = false;
-    if (path !== null) {
-      const raw = await ipc.fsReadFile(path).catch(() => null);
-      if (raw === null) path = null; /* 列表后文件被删:回落建桩 */
-      else if (!parseAnimProject(raw)) {
-        showToast(t("项目文件无效,请先在 tmd-anim 中修复"));
-        return;
-      }
-    }
-    if (path === null) {
-      stub = true;
-      /* 文件名尾随机段:Math.random 足够,非安全场景。 */
-      path = `${animProjectsDir(home)}/${stubProjectFileName(Date.now(), Math.random().toString(36).slice(2, 6))}`;
-    }
-    const name = rows?.find((r) => r.path === path)?.name ?? "未命名动画";
-    const protocol = `${home}/.tmd-anim/protocol`;
-    setDialog({
-      name,
-      path,
-      prompt: buildAnimSessionPrompt(),
-      stub,
-      refs: [
-        { label: t("协议 schema"), path: `${protocol}/schema.md`, kind: "doc" },
-        { label: t("协议示例"), path: `${protocol}/bpe-example.json`, kind: "code" },
-      ],
-    });
+    /* 弹窗直渲 label(此处 t());pending 面另行走 animSessionRefs 源键(chip 端 t())。 */
+    setDialog({ ...result.target, refs: result.target.refs.map((r) => ({ ...r, label: t(r.label) })) });
   };
 
-  /* 确认窗「启动会话」:桩先落盘,再 spawn + 初始提示词与引用全部挂 composer
-   *  卡片(不直写 PTY、不灌输入框;workbench 任务卡片同款 —— 随下一条消息
-   *  发出,点提示词卡可再编辑)。失败不关窗(toast),保住已编辑 prompt。 */
+  /* 确认窗「启动会话」:startAnimAiSession 桩先落盘再 spawn,spawn 失败清理
+   *  本次落的桩(失败零残留);失败不关窗(toast),保住已编辑 prompt。 */
   const confirmAiSession = async (prompt: string) => {
     const target = dialog;
     if (!target || starting) return;
     setStarting(true);
     try {
-      const def = resolveDefaultEngine();
-      const profile = def ? host.getCliProfile(def.profileId) : undefined;
-      const home = homeRef.current;
-      if (!def || !profile || !home) return;
-      if (target.stub) {
-        await ensureDir(animProjectsDir(home));
-        await ipc.fsWriteFile(target.path, stubProjectJson());
-      }
-      const meta = await host.spawnRawSession(def.profileId, {
-        command: profile.command,
-        args: profile.args,
-        cwd: animProjectsDir(home),
-        env: profile.env,
-        title: `tmd-anim:${target.name}`,
+      const result = await startAnimAiSession({
+        home: homeRef.current,
+        engine: resolveAnimEngine(),
+        target,
+        deps: {
+          ensureDir: (dir) => ensureDir(dir),
+          writeFile: (p, c) => ipc.fsWriteFile(p, c),
+          removePath: (p) => ipc.fsRemovePath(p),
+          spawn: (eng, spec) =>
+            host.spawnRawSession(eng.profileId, {
+              command: eng.command,
+              args: eng.args,
+              cwd: spec.cwd,
+              env: eng.env,
+              title: spec.title,
+            }),
+        },
       });
-      setPendingPrompt(meta.id, prompt.trim());
-      setPendingRefs(meta.id, animSessionRefs(home, target.path));
+      if (!result.ok) {
+        showToast(
+          t(
+            result.reason === "no-engine"
+              ? "未设置默认引擎,请先在工作台概览选择"
+              : result.reason === "no-home"
+                ? "主目录未就绪,请稍后再试"
+                : "启动 AI 会话失败",
+          ),
+        );
+        return;
+      }
+      setPendingPrompt(result.sessionId, prompt.trim());
+      /* startAnimAiSession ok 已保证 home 非空。 */
+      setPendingRefs(result.sessionId, animSessionRefs(homeRef.current as string, target.path));
       setDialog(null);
-    } catch {
-      showToast(t("启动 AI 会话失败"));
     } finally {
       setStarting(false);
     }
+  };
+
+  /* 默认引擎 → 管线入参归一(profile 缺失视同未选,由模块上报 no-engine)。 */
+  const resolveAnimEngine = (): AnimEngine | null => {
+    const def = resolveDefaultEngine();
+    const profile = def ? host.getCliProfile(def.profileId) : undefined;
+    return def && profile
+      ? { profileId: def.profileId, command: profile.command, args: profile.args, env: profile.env ?? {} }
+      : null;
   };
 
   /* 未就绪 = 应用探测缺席,或项目目录缺失(目录缺失 ≈ tmd-anim 未装/未跑过)。 */
