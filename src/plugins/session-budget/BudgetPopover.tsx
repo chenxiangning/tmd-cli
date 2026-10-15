@@ -96,6 +96,7 @@ export function BudgetPopover({
       <div
         className="wsbudget tmd-scroll-hide"
         style={{ left: position.x, top: position.y }}
+        data-icon-decor="dialog"
         data-testid="session-list-budget-card"
       >
         <div className="wsbudget-head">

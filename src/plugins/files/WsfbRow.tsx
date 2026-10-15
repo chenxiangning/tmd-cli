@@ -129,6 +129,7 @@ export function WsfbMoreMenu({
       />
       <div
         className="wsmenu session-menu"
+        data-icon-decor="menu"
         style={{ left: position.x, top: position.y }}
         role="menu"
       >

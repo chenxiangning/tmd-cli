@@ -75,7 +75,7 @@ export function SessionContextMenu({
           onClose();
         }}
       />
-      <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }}>
+      <div className="wsmenu session-menu" data-icon-decor="menu" style={{ left: pos.x, top: pos.y }}>
         <button
           className="wsmenu-item"
           onClick={() => {
@@ -119,7 +119,7 @@ export function SessionContextMenu({
               }}
             >
               <span className="wsmenu-item-icon">
-                <Trash size="0.8125rem" />
+                <Trash size="0.8125rem" data-icon-keep />
               </span>
               <span className="wsmenu-item-label">
                 {armed ? t("确认删除?") : t("删除会话")}

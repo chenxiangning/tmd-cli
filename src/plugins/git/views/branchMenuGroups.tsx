@@ -176,7 +176,7 @@ function LocalMutateGroup({ ctx }: { ctx: MenuCtx }) {
   return (
     <>
       {item(t("重命名…"), <Pencil size="0.8125rem" />, pick(ctx, ctx.actions.rename), { disabled: ctx.busy })}
-      {item(t("删除"), <Trash size="0.8125rem" />, pick(ctx, ctx.actions.remove), {
+      {item(t("删除"), <Trash size="0.8125rem" data-icon-keep />, pick(ctx, ctx.actions.remove), {
         danger: true,
         disabled: ctx.isCurrent || ctx.busy,
         title: ctx.isCurrent ? t("不能删除当前分支") : undefined,

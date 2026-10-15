@@ -15,11 +15,11 @@ import {
   sanitizeUiFontSize,
   sanitizeSessionTabsMax,
   sanitizeUiZoom,
-  sanitizeIconDecor,
   sanitizeIconSet,
   sanitizeAppLogo,
   type UiLanguage,
 } from "./settingsAppearance";
+import { sanitizeIconDecor } from "./settingsIconDecor";
 import {
   ASK_SOUND_IDS,
   SESSION_HYGIENE_HOURS,

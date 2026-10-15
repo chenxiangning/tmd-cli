@@ -126,7 +126,7 @@ export function MemoryPanel() {
     );
   }
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col" data-icon-decor="memory">
       <MemoryHead
         detailOpen={detailOpen}
         onToggle={() => setDetailOpen(!detailOpen)}

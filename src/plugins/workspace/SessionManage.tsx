@@ -214,7 +214,7 @@ export function ManageList({
             armedChildren={<span className="wm-danger-arm">{t("确认")}</span>}
             onConfirm={() => void runDelete(row)}
           >
-            <Trash size="0.75rem" />
+            <Trash size="0.75rem" data-icon-keep />
           </DangerAction>
         </span>
       </div>

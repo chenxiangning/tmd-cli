@@ -151,7 +151,7 @@ function SheetBody({
   const revertable = batch.files.filter((f) => f.live === "same" && !f.noBaseline);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-icon-decor="checkpoints">
       {/* 工具条 */}
       <SheetToolbar
         batch={batch}

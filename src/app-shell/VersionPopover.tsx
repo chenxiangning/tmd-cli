@@ -207,6 +207,7 @@ export function VersionPopover({
         open
         className="vp-panel m-0"
         aria-label={t("版本与更新")}
+        data-icon-decor="menu"
         style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}
       >
         <div className="vp-header">

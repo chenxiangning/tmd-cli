@@ -21,7 +21,7 @@ export function SkillHubPanel() {
   const importCount = records.filter((r) => r.source === "import").length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col" data-icon-decor="skill-hub">
       <div className="min-h-0 flex-1 overflow-auto p-2">
         {!loaded ? (
           <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-(--tmd-fg-faint)">

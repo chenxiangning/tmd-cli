@@ -28,6 +28,7 @@ function CaptionBudgetButton() {
     <>
       <button
         className="ws-caption-btn"
+        data-icon-decor="session-view"
         title={t("会话列表显示预算")}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();

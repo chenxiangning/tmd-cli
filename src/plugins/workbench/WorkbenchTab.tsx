@@ -104,7 +104,7 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
   };
 
   return (
-    <div className="wb-console-tab">
+    <div className="wb-console-tab" data-icon-decor="workbench-view">
       <header className="wb-top">
         <h2 className="wb-brand">{t("工作台")}</h2>
         <form

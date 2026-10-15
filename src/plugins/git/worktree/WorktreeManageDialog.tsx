@@ -150,6 +150,7 @@ export function WorktreeManageDialog({
     <div
       role="presentation"
       className="fixed inset-0 z-[1201] flex items-start justify-center bg-black/45 pt-[12vh]"
+      data-icon-decor="dialog"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div

@@ -255,6 +255,7 @@ export function MenuShell({
       <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
       <div
         className="panel-overflow-menu"
+        data-icon-decor="menu"
         style={{ left: position.x, top: position.y, minWidth: width }}
         role="menu"
       >

@@ -81,7 +81,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
   }, [payload.cwd, payload.sha, selected, fullView]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col text-xs">
+    <div className="flex h-full min-h-0 flex-col text-xs" data-icon-decor="git-zone">
       {/* 提交头 */}
       <CommitDiffHeader
         payload={payload}

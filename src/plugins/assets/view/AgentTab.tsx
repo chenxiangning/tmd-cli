@@ -29,7 +29,7 @@ export function AgentTab() {
   };
 
   return (
-    <div className="assets-tab">
+    <div className="assets-tab" data-icon-decor="assets">
       <div className="assets-toolbar">
         <button type="button" className="assets-btn is-primary" onClick={() => setEditing("new")}>
           <Plus size="0.75rem" /> {t("新建智能体")}
@@ -62,7 +62,7 @@ export function AgentTab() {
                   <Pencil size="0.75rem" /> {t("编辑")}
                 </button>
                 <button type="button" className="assets-btn is-danger" onClick={() => setDeleting(agent)}>
-                  <Trash size="0.75rem" /> {t("删除")}
+                  <Trash size="0.75rem" data-icon-keep /> {t("删除")}
                 </button>
               </div>
             </div>

@@ -138,7 +138,7 @@ export function PanelRail({
       <i className="panel-rail-mark" aria-hidden>tmd-cli</i> {/* 签名:纯装饰,rail 流内项,钉在底簇正上方(CSS 注释同款纪律) */}
       {bottomEntries.map((e, i) => renderEntry(e, bottomEntries[i - 1]))}
       <button type="button" className="panel-rail-tab" onClick={toggleOverflow}
-        aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} data-hint={t("更多面板")} data-hint-side="left" title="">
+        aria-label={t("更多面板")} aria-expanded={overflowPos ? true : undefined} data-hint={t("更多面板")} data-hint-side="left" title="" data-icon-decor="menu">
         <DotsThree aria-hidden />
       </button>
       {overflowPos ? (
@@ -223,6 +223,7 @@ function PanelOverflowMenu({
         style={{ left: position.x, top: position.y }}
         role="group"
         aria-label={t("面板与动作")}
+        data-icon-decor="menu"
       >
         {/* 面板与 rail 动作同口径并序分组;
             组间分隔线与 rail 一致,行点击语义随 kind 分流。 */}

@@ -26,6 +26,7 @@ export function onSettingsPersistFailed(cb: (error: string) => void): () => void
 }
 export * from "./settingsTypes";
 export * from "./settingsAppearance";
+export * from "./settingsIconDecor";
 export * from "./settingsRelayHistory";
 interface SettingsState {
   settings: AppSettings;

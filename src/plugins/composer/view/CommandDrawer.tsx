@@ -181,6 +181,7 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
       open
       id="command-drawer"
       data-command-drawer
+      data-icon-decor="command-drawer"
       ref={asideRef}
       aria-label={t("命令与技能面板")}
       aria-hidden={!open}

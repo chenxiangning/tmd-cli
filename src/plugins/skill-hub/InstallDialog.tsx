@@ -102,7 +102,8 @@ export function InstallDialog({
   useEscClose(onClose, busy); /* Esc 关闭;下载/解压中锁定 */
 
   return createPortal(
-    <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40 p-4" role="presentation">
+    /* 自绘 portal 对齐 DialogShell 的 dialog 家族键 */
+    <div className="fixed inset-0 z-1000 flex items-center justify-center bg-black/40 p-4" role="presentation" data-icon-decor="dialog">
       <dialog
         open
         aria-label={t("安装技能")}

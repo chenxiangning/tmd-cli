@@ -125,7 +125,7 @@ export function WorkspaceRowMenu({
           onClose();
         }}
       />
-      <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
+      <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu" data-icon-decor="menu">
         <RowMenuItem
           icon={<FilePlus size="0.875rem" />}
           label={t("新建文件")}

@@ -12,7 +12,7 @@ function WindowControls() {
   if (platform !== "windows") return null;
   /* 浏览器 dev 无 Tauri runtime,ipc 窗口封装会抛错,必须在平台闸之后调用。 */
   return (
-    <div className="titlebar-window-controls win-traffic-lights" aria-label={t("窗口控制")}>
+    <div className="titlebar-window-controls win-traffic-lights" aria-label={t("窗口控制")} data-icon-decor="window-controls">
       <button aria-label={t("最小化")} title={t("最小化")} className="win-traffic-light" onClick={() => void windowMinimize()}>
         <svg viewBox="0 0 10 10" stroke="currentColor" strokeWidth="1.5" fill="none"><line x1="1" y1="5" x2="9" y2="5" /></svg>
       </button>

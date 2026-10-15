@@ -226,7 +226,7 @@ export function IntentCanvasManager({
 
   if (!activeWorkspace) {
     return (
-      <section className="intent-canvas-manager is-empty">
+      <section className="intent-canvas-manager is-empty" data-icon-decor="canvas">
         <div className="intent-canvas-empty-state">
           <FolderOpen aria-hidden />
           <h2>{t("请选择工作区")}</h2>
@@ -255,7 +255,7 @@ export function IntentCanvasManager({
   }
 
   return (
-    <section className="intent-canvas-manager" aria-label={t("意图画布管理")}>
+    <section className="intent-canvas-manager" data-icon-decor="canvas" aria-label={t("意图画布管理")}>
       <IntentCanvasHome
         status={status}
         filteredEntries={filteredEntries}

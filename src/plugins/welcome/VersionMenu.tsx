@@ -157,7 +157,8 @@ export function VersionMenu({
           onClose();
         }}
       />
-      <div className="wsmenu welcome-vermenu" style={{ left: pos.x, top: pos.y }}>
+      {/* 弹出菜单 portal 到 body,不在 welcome 页根内,按菜单家族纳管 */}
+      <div className="wsmenu welcome-vermenu" data-icon-decor="menu" style={{ left: pos.x, top: pos.y }}>
         <VersionMenuBody
           engineId={engineId}
           currentVersion={currentVersion}

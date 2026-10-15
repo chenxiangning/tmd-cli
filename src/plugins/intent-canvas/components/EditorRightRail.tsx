@@ -127,25 +127,25 @@ function SourceTraceCard(props: {
               ) : null}
               {sourceState.status === "error" ? (
                 <p className="intent-canvas-source-notice is-warning">
-                  <Warning aria-hidden />
+                  <Warning aria-hidden data-icon-keep />
                   {t("来源检查失败:{message}", { message: sourceState.error })}
                 </p>
               ) : null}
               {sourceState.status === "ready" && !sourceState.value.exists ? (
                 <p className="intent-canvas-source-notice is-warning">
-                  <Warning aria-hidden />
+                  <Warning aria-hidden data-icon-keep />
                   {t("当前没有可用的关系快照;画布内容会继续保留并可编辑。")}
                 </p>
               ) : null}
               {traceability.staleGraphCount > 0 ? (
                 <p className="intent-canvas-source-notice is-warning">
-                  <Warning aria-hidden />
+                  <Warning aria-hidden data-icon-keep />
                   {t("{count} 个导入图来自旧扫描。", { count: traceability.staleGraphCount })}
                 </p>
               ) : null}
               {traceability.unresolvedAnchorCount > 0 ? (
                 <p className="intent-canvas-source-notice is-warning">
-                  <Warning aria-hidden />
+                  <Warning aria-hidden data-icon-keep />
                   {t("{count} 个来源锚点已无法在最新关系快照中解析。", {
                     count: traceability.unresolvedAnchorCount,
                   })}

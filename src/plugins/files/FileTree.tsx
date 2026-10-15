@@ -127,7 +127,7 @@ function FileTree({ root }: { root: string }) {
   );
 
   return (
-    <div className="file-tree-panel">
+    <div className="file-tree-panel" data-icon-decor="files-zone">
       {/* 面板头工具条:与 git 面板统计条(GitToolbar)同级同形制(px-2 py-1 +
           底分隔线,标签左置);右缘按钮组 = 新建文件/新建文件夹/刷新/Git 着色
           (FileTreeToolbar,2026-10-02 自顶栏右区下放回面板头),刷新全树唯一

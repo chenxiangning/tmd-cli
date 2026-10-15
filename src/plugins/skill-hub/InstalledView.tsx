@@ -203,7 +203,7 @@ export function InstalledView({ onGotoImport }: { onGotoImport?: () => void }) {
                         className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-err)"
                         data-skill-delete={rec.name}
                       >
-                        <Trash size="0.75rem" aria-hidden="true" />
+                        <Trash size="0.75rem" aria-hidden="true" data-icon-keep />
                         {t("删除")}
                       </button>
                     </div>

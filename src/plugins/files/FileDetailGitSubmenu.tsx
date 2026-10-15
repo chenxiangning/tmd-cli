@@ -60,9 +60,9 @@ export function FileDetailGitSubmenu({
       </button>
       {pos && (
         <div className="wsmenu-submenu" role="menu" style={{ left: pos.x, top: pos.y }}>
-          {item(t("暂存"), <Plus size="0.8125rem" />, () => pick(() => run("stage")))}
-          {item(t("取消暂存"), <Minus size="0.8125rem" />, () => pick(() => run("unstage")))}
-          {item(armed ? t("确认放弃改动?") : t("放弃改动"), <ArrowCounterClockwise size="0.8125rem" />, () => {
+          {item(t("暂存"), <Plus size="0.8125rem" data-icon-keep />, () => pick(() => run("stage")))}
+          {item(t("取消暂存"), <Minus size="0.8125rem" data-icon-keep />, () => pick(() => run("unstage")))}
+          {item(armed ? t("确认放弃改动?") : t("放弃改动"), <ArrowCounterClockwise size="0.8125rem" data-icon-keep />, () => {
             if (!armed) {
               setArmed(true);
               return;

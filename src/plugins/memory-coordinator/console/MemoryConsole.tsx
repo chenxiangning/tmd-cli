@@ -145,7 +145,7 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
       : t("共享记忆库尚未初始化(Magic Context 未安装或未迁移),在下方安装卡完成安装与迁移即可。session / composer / approvals 不受影响。");
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-xs text-(--tmd-fg)">
+    <div className="h-full min-h-0 overflow-y-auto bg-(--tmd-bg-base) p-3 text-xs text-(--tmd-fg)" data-icon-decor="memory">
       <div className="mb-3 flex min-w-0 flex-none items-center gap-2.5">
         <span className="text-sm font-semibold">{t("Memory 控制台")}</span>
         {st.ready !== null && (

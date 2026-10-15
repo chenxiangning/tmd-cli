@@ -41,6 +41,7 @@ export function AcademyWizard() {
       aria-modal="true"
       aria-label={t("{title} 入门课", { title: course.title })}
       className="academy-wizard-page"
+      data-icon-decor="academy"
     >
       <WizardBody key={target.cliId} cliId={target.cliId} initialIdx={target.idx} />
       <span className="academy-hidden">{course.title}</span>

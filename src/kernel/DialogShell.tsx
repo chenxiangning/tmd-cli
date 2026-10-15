@@ -115,6 +115,7 @@ export function DialogShell({
         open
         aria-label={title}
         style={{ width, animation: "tmdDialogIn var(--tmd-dur-2) var(--tmd-ease-move)" }}
+        data-icon-decor="dialog"
         className={`relative m-0 h-fit max-h-none max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-4 text-left text-(--tmd-fg) shadow-2xl ${cardClass}`}
       >
         <div className="flex items-center gap-1.5 text-xs font-semibold text-(--tmd-fg)">

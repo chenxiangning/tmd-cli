@@ -24,7 +24,7 @@ export function RepoGuide({
 }) {
   const chips = useRepoChips(repos, 0);
   return (
-    <div className="flex h-full min-h-0 flex-col text-xs">
+    <div className="flex h-full min-h-0 flex-col text-xs" data-icon-decor="git-zone">
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         <div className="mb-2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) px-3 py-2.5">
           <div className="mb-1 flex items-center gap-1.5 font-semibold">

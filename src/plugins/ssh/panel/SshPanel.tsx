@@ -23,7 +23,7 @@ export function SshPanel() {
 
   if (sessions.length === 0) {
     return (
-      <div className="ssh-panel">
+      <div className="ssh-panel" data-icon-decor="ssh">
         <div className="ssh-panel-empty">
           <div>{t("还没有 SSH 会话")}</div>
           <button type="button" className="ssh-btn is-primary" onClick={() => openHostPicker()}>
@@ -35,7 +35,7 @@ export function SshPanel() {
   }
 
   return (
-    <div className="ssh-panel">
+    <div className="ssh-panel" data-icon-decor="ssh">
       <div className="ssh-session-list">
         {sessions.map((session) => (
           <SessionCard

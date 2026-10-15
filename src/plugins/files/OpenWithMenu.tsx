@@ -126,6 +126,7 @@ export function OpenWithMenu({ path }: { path: string }) {
             <div className="ow-backdrop" role="presentation" onClick={() => setOpen(false)} />
             <div
               className="ow-menu"
+              data-icon-decor="menu"
               role="menu"
               ref={menuRef}
               tabIndex={-1}

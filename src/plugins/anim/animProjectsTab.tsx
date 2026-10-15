@@ -213,7 +213,7 @@ export function AnimProjectsTab() {
   const notReady = appInstalled === false || rows === null;
 
   return (
-    <div className="mx-auto flex h-full max-w-3xl flex-col gap-3 overflow-auto p-6">
+    <div className="mx-auto flex h-full max-w-3xl flex-col gap-3 overflow-auto p-6" data-icon-decor="anim">
       <header>
         <h2 className="text-sm font-semibold text-(--tmd-fg)">{t("动画项目")}</h2>
         <p className="text-xs text-(--tmd-fg-muted)">

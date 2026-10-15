@@ -89,7 +89,7 @@ function EntryCourse({ cliId, title, lessonCount, menuOpen, onToggleMenu, onDism
         <span className="academy-entry-pct">{finished ? t("已结业") : `${pct}%`}</span>
       </button>
       {menuOpen && (
-        <div className="academy-entry-menu">
+        <div className="academy-entry-menu" data-icon-decor="menu">
           <button type="button" onClick={() => open(progress.cur)}>
             <b>{finished ? t("重温入门") : t("继续入门")}</b>
             <small>{t("第 {n} 课 / {total}", { n: Math.min(progress.cur + 1, lessonCount), total: lessonCount })}</small>

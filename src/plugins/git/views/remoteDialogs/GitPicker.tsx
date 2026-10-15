@@ -43,7 +43,7 @@ function PickerMenu({
   onClose: () => void;
 }) {
   return createPortal(
-    <div className="fixed inset-0 z-1200" onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
+    <div className="fixed inset-0 z-1200" data-icon-decor="dialog" onPointerDown={(e) => { e.preventDefault(); onClose(); }}>
       <div
         role="listbox"
         style={{

@@ -52,7 +52,7 @@ export function ImportModal({
   };
 
   return (
-    <div className="ssh-modal-backdrop" role="presentation" onClick={onClose}>
+    <div className="ssh-modal-backdrop" role="presentation" data-icon-decor="dialog" onClick={onClose}>
       <dialog
         open
         className="ssh-modal"

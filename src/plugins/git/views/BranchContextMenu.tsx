@@ -126,6 +126,7 @@ export function BranchContextMenu({
       <div
         ref={menuRef}
         className="wsmenu session-menu"
+        data-icon-decor="menu"
         style={{ left: pos.x, top: pos.y }}
         role="menu"
       >

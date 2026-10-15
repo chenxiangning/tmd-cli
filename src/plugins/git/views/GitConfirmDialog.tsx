@@ -37,6 +37,7 @@ export function GitConfirmDialog({
     >
       <div
         className="mx-4 w-80 rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-3 shadow-(--tmd-shadow-modal)"
+        data-icon-decor="dialog"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="text-xs font-medium text-(--tmd-fg)">{state.title}</div>

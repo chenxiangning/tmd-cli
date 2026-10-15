@@ -57,7 +57,7 @@ function BatchActionBar({
           title={t("标记本批已审阅(纯标记,不影响任何文件)")}
           onClick={() => void onApprove(b.id)}
         >
-          <Check size="0.625rem" aria-hidden /> {t("通过")}
+          <Check size="0.625rem" aria-hidden data-icon-keep /> {t("通过")}
         </button>
       )}
       {(st === "pending" || st === "approved") && revertable.length > 0 && (

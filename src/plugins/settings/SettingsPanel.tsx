@@ -53,7 +53,7 @@ export function SettingsPanel() {
   const ActiveTabComponent = activeTab?.component ?? null;
 
   return (
-    <dialog open className="settings-panel w-full h-full m-0 p-0 border-0 bg-transparent" aria-label={t("设置")}>
+    <dialog open className="settings-panel w-full h-full m-0 p-0 border-0 bg-transparent" aria-label={t("设置")} data-icon-decor="settings">
       <nav className="settings-nav">
         <button type="button" className="settings-back" onClick={closeSettingsPanel}>
           <ArrowLeft size="0.875rem" aria-hidden />

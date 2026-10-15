@@ -36,7 +36,7 @@ export function SearchHubEntry() {
   };
 
   return (
-    <div className="shrink-0 pb-1 text-[0.75rem]">
+    <div className="shrink-0 pb-1 text-[0.75rem]" data-icon-decor="search">
       <button
         type="button"
         className="flex h-6 w-full items-center gap-1 rounded px-1.5 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"

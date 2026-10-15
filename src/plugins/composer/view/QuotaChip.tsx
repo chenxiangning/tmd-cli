@@ -159,6 +159,7 @@ function QuotaDetailPopover({
         /* 自制弹层换原生 dialog(非模态 open,不调 showModal);m-0 中和 UA 居中边距。
            padding/背景/边框由 .quota-popover 自管,类选择器压过 UA 元素默认样式。 */
         className="quota-popover m-0"
+        data-icon-decor="dialog"
         style={{ left: position.x, bottom: position.bottom }}
         aria-label={t(snapshot.title)}
       >

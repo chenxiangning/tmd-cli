@@ -208,7 +208,7 @@ export function FileDetailContextMenu({
           onClose();
         }}
       />
-      <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
+      <div className="wsmenu session-menu" data-icon-decor="menu" style={{ left: pos.x, top: pos.y }} role="menu">
         {menuBody({ state, variant, path, view, selText, remote, dirty, canToggle, editorOpen, canBlame, blameActive, onToggleBlame, onToggle, onSave, onClose, pick })}
       </div>
     </>,

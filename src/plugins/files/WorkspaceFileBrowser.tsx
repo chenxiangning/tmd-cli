@@ -177,7 +177,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
   const headName = (ws ? workspaceDisplayName(ws) : "") || base.split("/").pop() || base;
 
   return (
-    <div className="wsfb">
+    <div className="wsfb" data-icon-decor="files-zone">
       <WsfbChromeTop
         query={query}
         onQuery={setQuery}

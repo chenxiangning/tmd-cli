@@ -189,10 +189,10 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
 
 
   if (!profile?.structuredRpc) {
-    return <div className="ss-root"><div className="ss-empty">{t("该引擎不支持结构化会话")}</div></div>;
+    return <div className="ss-root" data-icon-decor="structured-session"><div className="ss-empty">{t("该引擎不支持结构化会话")}</div></div>;
   }
   return (
-    <div className="ss-root">
+    <div className="ss-root" data-icon-decor="structured-session">
       <SsHeader
         profileId={payload.profileId}
         cwd={payload.cwd}

@@ -26,7 +26,7 @@ function CenterNote({ text }: { text: string }) {
 
 function Loading() {
   return (
-    <div className="flex h-full items-center justify-center text-(--tmd-fg-muted)" role="status">
+    <div className="flex h-full items-center justify-center text-(--tmd-fg-muted)" role="status" data-icon-decor="git-zone">
       <Spinner size="1rem" />
     </div>
   );
@@ -59,7 +59,7 @@ function HistoryList({ payload }: { payload: FileHistoryOpenRequest }) {
   if (!log) return <Loading />;
   if (log.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full items-center justify-center" data-icon-decor="git-zone">
         <Empty icon={<ClockCounterClockwise />}>{t("该文件暂无提交历史")}</Empty>
       </div>
     );

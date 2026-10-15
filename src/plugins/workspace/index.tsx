@@ -137,7 +137,7 @@ function WorkspaceSection() {
   };
   if (browserSwap) return browserSwap;
   return (
-    <div className="ws-sidebar" ref={sidebarRef}>
+    <div className="ws-sidebar" ref={sidebarRef} data-icon-decor="workspace-view">
       {/* 全局置顶区(codemoss Pinned 复刻):scope=global 的会话跨工作区汇总于此 */}
       <PinnedSessionsSection />
 

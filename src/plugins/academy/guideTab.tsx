@@ -148,7 +148,7 @@ export function GuideTab({ tab }: { tab: EditorTab }) {
   }
   const result = filterChapters(course.chapters, kw);
   return (
-    <div className="academy-guide">
+    <div className="academy-guide" data-icon-decor="academy">
       <div className="academy-guide-toolbar">
         <input
           className="academy-search"
