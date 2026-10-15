@@ -170,12 +170,13 @@ class Host implements PluginContext {
     return this.sessionServices.spawn.create(profileId, cwd, workspaceId, opts);
   }
   /** 按任意 spec spawn 并完整装配(见 SessionSpawnService.raw);activate:false = 后台拉起
-   *  (不抢中央区/tab,如 dsh 自动启动 host)。 */
+   *  (不抢中央区/tab,如 dsh 自动启动 host);identityTrack:true = 登记磁盘身份探测
+   *  (真 CLI 引擎拉起必开,否则时间线/审批线全盲,契约见 SessionSpawnService.raw)。 */
   spawnRawSession(
     profileId: string,
     spec: SpawnSpec,
     workspaceId?: string,
-    opts?: { activate?: boolean },
+    opts?: { activate?: boolean; identityTrack?: boolean },
   ): Promise<SessionMeta> {
     return this.sessionServices.spawn.raw(profileId, spec, workspaceId, opts);
   }

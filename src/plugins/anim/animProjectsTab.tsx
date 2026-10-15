@@ -170,13 +170,20 @@ export function AnimProjectsTab() {
           writeFile: (p, c) => ipc.fsWriteFile(p, c),
           removePath: (p) => ipc.fsRemovePath(p),
           spawn: (eng, spec) =>
-            host.spawnRawSession(eng.profileId, {
-              command: eng.command,
-              args: eng.args,
-              cwd: spec.cwd,
-              env: eng.env,
-              title: spec.title,
-            }),
+            /* identityTrack:真 CLI 引擎拉起必开,否则磁盘身份永不绑定,
+               时间线/审批线/状态读取全盲(契约见 SessionSpawnService.raw)。 */
+            host.spawnRawSession(
+              eng.profileId,
+              {
+                command: eng.command,
+                args: eng.args,
+                cwd: spec.cwd,
+                env: eng.env,
+                title: spec.title,
+              },
+              undefined,
+              { identityTrack: true },
+            ),
         },
       });
       if (!result.ok) {

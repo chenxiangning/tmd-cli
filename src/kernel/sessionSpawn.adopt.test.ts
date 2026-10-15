@@ -1,5 +1,5 @@
 /**
- * CLI 会话装配(SessionSpawnService.adoptSpawned)契约测试。
+ * CLI 会话装配(adoptSpawned,自 sessionSpawn 三路径调用)契约测试。
  *
  * 覆盖:正常装配(身份/活跃指针/状态种子 + 广播)、exit 清场(onExit 钩子
  * 先于 removeSession)、双订阅 await 缝隙的竞态守卫(成对退订 + 广播
@@ -37,6 +37,7 @@ vi.mock("./ipc", () => ({
 }));
 
 import { EventBus, KernelTopics } from "./events";
+import { ipc } from "./ipc";
 import { SessionSpawnService } from "./sessionSpawn";
 import { ADOPT_RACE_REASON } from "./sessionAdopt";
 
@@ -92,7 +93,7 @@ beforeEach(() => {
   listed = [{ id: "pty-1", profileId: "test-cli", cwd: "/proj" } as SessionMeta];
 });
 
-describe("SessionSpawnService.adoptSpawned", () => {
+describe("adoptSpawned(装配)", () => {
   it("正常装配:刷新活表 + 置 active + 广播 + 状态种子(全新会话)", async () => {
     const { svc, h, fired } = mkService();
     const meta = await svc.create("test-cli", "/proj");
@@ -138,6 +139,43 @@ describe("SessionSpawnService.adoptSpawned", () => {
         payload: expect.objectContaining({ sessionId: "pty-1", profileId: "test-cli" }),
       },
     ]);
+  });
+
+  it("raw identityTrack:true:spawn 前快照磁盘会话并登记身份探测(spec.cwd 分区)", async () => {
+    const { svc, h } = mkService();
+    const listSessions = vi.fn(async () => [{ id: "old-1", modifiedAt: 7 }]);
+    const withList = { ...profile, listSessions } as unknown as CliProfile;
+    h.getCliProfile.mockReturnValue(withList);
+    const order: string[] = [];
+    listSessions.mockImplementation(async () => {
+      order.push("snapshot");
+      return [{ id: "old-1", modifiedAt: 7 }];
+    });
+    vi.mocked(ipc.sessionSpawn).mockImplementation(async () => {
+      order.push("spawn");
+      return { id: "pty-1", pid: 100 };
+    });
+    await svc.raw("test-cli", { command: "true", args: [], cwd: "/proj" }, undefined, {
+      identityTrack: true,
+    });
+    expect(order).toEqual(["snapshot", "spawn"]); /* 快照先于 spawn:pre-spawn 旧文件不得抢绑 */
+    expect(h.identityTrack).toHaveBeenCalledWith(
+      "pty-1",
+      "test-cli",
+      "/proj",
+      new Map([["old-1", 7]]),
+      expect.any(Number),
+    );
+  });
+
+  it("raw 缺省不探测:profile 声明 listSessions 也不登记身份(dsh host 自管身份)", async () => {
+    const { svc, h } = mkService();
+    const listSessions = vi.fn(async () => []);
+    const withList = { ...profile, listSessions } as unknown as CliProfile;
+    h.getCliProfile.mockReturnValue(withList);
+    await svc.raw("test-cli", { command: "true", args: [], cwd: "/proj" });
+    expect(listSessions).not.toHaveBeenCalled();
+    expect(h.identityTrack).not.toHaveBeenCalled();
   });
 
 });

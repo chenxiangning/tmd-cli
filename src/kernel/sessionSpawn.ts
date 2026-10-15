@@ -9,8 +9,7 @@
 
 import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./events";
 import { ipc, type SessionMeta, type SpawnSpec, type SpawnedSession } from "./ipc";
-import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
-import { emitSessionStartFailed } from "./sessionStartFail";
+import { adoptSpawned } from "./sessionAdopt";
 import { prefetchDiskTail } from "./diskReplay";
 import type { CliProfile } from "./cli";
 import { applySpecWrappers } from "./ptyAdapters";
@@ -40,17 +39,33 @@ export class SessionSpawnService {
   /**
    * 按任意 spec spawn 并完整装配(通用原语,shell 之外的插件自定 PTY 会话用,
    * 例 dsh host 面板的自定义路径/参数启动)。与 create 的差异:spec 由调用方
-   * 给,不走 profile.command/args;身份探测/秒退守望按 profile 声明自然退化。
+   * 给,不走 profile.command/args;秒退守望按 profile 声明自然退化。
+   * opts.identityTrack(缺省关):spawn 前快照磁盘会话并登记身份探测
+   * (与 spawnNew 同款,spec.cwd 为分区)。真 CLI 引擎拉起(anim「AI 会话」)
+   * 必开 —— 不开则 cliSessionId 永不绑定,时间线/审批线/状态读取全盲
+   * (2026-10-15 实证);自管身份的后台会话(dsh host)不开,避免探测 RPC 空转。
    */
   async raw(
     profileId: string,
     spec: SpawnSpec,
     workspaceId?: string,
-    opts?: { activate?: boolean },
+    opts?: { activate?: boolean; identityTrack?: boolean },
   ): Promise<SessionMeta> {
     return this.guarded(profileId, async () => {
+      const profile = this.h.getCliProfile(profileId);
+      const spawnedAt = Date.now();
+      const before =
+        opts?.identityTrack && profile?.listSessions
+          ? await profile.listSessions(spec.cwd).then(
+              (list) => new Map(list.map((s) => [s.id, s.modifiedAt] as const)),
+              () => null,
+            )
+          : null;
       const spawned = await this.spawn(profileId, spec, workspaceId);
-      return this.adoptSpawned(spawned.id, profileId, undefined, opts?.activate);
+      if (opts?.identityTrack && profile?.listSessions) {
+        this.h.identityTrack(spawned.id, profileId, spec.cwd, before, spawnedAt);
+      }
+      return adoptSpawned(this.h, this.events, spawned.id, profileId, undefined, opts?.activate);
     });
   }
 
@@ -122,7 +137,7 @@ export class SessionSpawnService {
     if (!oneshotArgs && profile.listSessions) {
       this.h.identityTrack(spawned.id, profileId, cwd, before, spawnedAt);
     }
-    return this.adoptSpawned(spawned.id, profileId, undefined, opts?.activate);
+    return adoptSpawned(this.h, this.events, spawned.id, profileId, undefined, opts?.activate);
   }
 
   /**
@@ -217,7 +232,7 @@ export class SessionSpawnService {
           ? await profile.spawnTransform(coldSpec)
           : await applySpecWrappers(coldSpec);
         const spawned = await this.spawn(profileId, coldSpec, workspaceId);
-        return await this.adoptSpawned(spawned.id, profileId, cliSessionId);
+        return await adoptSpawned(this.h, this.events, spawned.id, profileId, cliSessionId);
       } finally {
         this.openingDiskSessions.delete(key);
       }
@@ -254,40 +269,6 @@ export class SessionSpawnService {
     if (workspaceId) {
       await ipc.sessionSetWorkspace(sessionId, workspaceId).catch(() => undefined);
     }
-    return await this.adoptSpawned(sessionId, profileId, cliSessionId);
-  }
-
-  /**
-   * spawn 后的统一装配:绑定磁盘身份、刷新活表、置为 active、常驻订阅输出与退出
-   * (订阅/竞态守卫/广播收口在 kernel/sessionAdopt.ts;守卫命中已广播,抛出上抛)。
-   */
-  private async adoptSpawned(
-    sessionId: string,
-    profileId: string,
-    cliSessionId?: string,
-    activate = true,
-  ): Promise<SessionMeta> {
-    /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
-       已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,不与既有
-       会话并账)。先刷表后绑定:绑定刻账本要能查到 meta(workspaceId/engine)——
-       磁盘回放指针覆写与「绑定即续命解除归档」(identityLedger.bind)都依赖此刻
-       可查,与 ssh/shell adopt 的 refreshSessions 先行同款序。 */
-    this.h.setSessions(await ipc.sessionList());
-    if (cliSessionId) this.h.bindIdentity(sessionId, cliSessionId);
-    if (activate) this.h.setActiveSessionId(sessionId);
-    /* 常驻订阅从会话诞生起持续缓冲输出(与幕布是否挂载无关);
-       秒退守望经 onExit 进退出回调 —— 缓冲随 removeSession 即清,摘尾须在清理前同步执行 */
-    const adoptedAt = Date.now();
-    const meta = await adoptPtySession(this.h, this.events, sessionId, {
-      profileId,
-      activate,
-      onExit: (id) => emitSessionStartFailed(this.h, this.events, id, profileId, adoptedAt),
-    });
-    if (!meta) throw new Error(ADOPT_RACE_REASON);
-    this.h.statusEnsurePolling();
-    void this.h.statusRefresh(sessionId);
-    /* 全新会话创建即赋值:磁盘文件要等首条消息才落盘,先种 CLI 默认配置 */
-    if (!cliSessionId) void this.h.statusSeed(sessionId);
-    return meta;
+    return await adoptSpawned(this.h, this.events, sessionId, profileId, cliSessionId);
   }
 }
