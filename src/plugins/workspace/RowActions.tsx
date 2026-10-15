@@ -211,7 +211,7 @@ export function ThreadRowActions({
           key: "delete",
           label: armed ? t("再点一次确认删除") : t("删除会话"),
           danger: true,
-          icon: <TrashIcon size="0.9375rem" />,
+          icon: <TrashIcon size="0.9375rem" data-icon-keep />,
           onClick: () => {
             if (!armed) {
               setArmed(true);
@@ -237,6 +237,7 @@ export function ThreadRowActions({
               />
               <div
                 className="sv-radial"
+                data-icon-decor="menu"
                 role="group"
                 aria-label={t("会话操作")}
                 style={{ left: anchor.x, top: anchor.y }}

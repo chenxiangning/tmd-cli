@@ -102,7 +102,7 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
     [state, visible],
   );
   return (
-    <div className="sv-root">
+    <div className="sv-root" data-icon-decor="session-view">
       <header className="sv-header">
         {profile?.renderIcon ? <span className="sv-engine-icon">{profile.renderIcon("0.875rem")}</span> : null}
         <span className="sv-title">{payload.title || payload.cliSessionId.slice(0, 8)}</span>

@@ -229,7 +229,7 @@ export function ArticleTab({ tab }: { tab: EditorTab }) {
       </div>
     );
   return (
-    <div className="dj-article">
+    <div className="dj-article" data-icon-decor="workbench-view">
       <ArticleDiscardGate tabId={tab.id} />
       <div className="dj-art-bar">
         <span className="dj-art-date">{dayTitleOf(y, m, p.d)}</span>

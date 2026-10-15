@@ -208,7 +208,7 @@ export function LiveTranscriptOverlay() {
   };
 
   return (
-    <div className="sv-root lv-view">
+    <div className="sv-root lv-view" data-icon-decor="session-view">
       <header className="sv-header">
         {profile.renderIcon ? <span className="sv-engine-icon">{profile.renderIcon("0.875rem")}</span> : null}
         {/* 主标题 = 会话展示名;引擎会话 id 降为次要 mono 小字(此前 8 位哈希当标题) */}

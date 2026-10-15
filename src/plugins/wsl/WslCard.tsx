@@ -177,7 +177,7 @@ export function WslCard() {
 
   return (
     <>
-      <section className="wsl-card">
+      <section className="wsl-card" data-icon-decor="wsl">
         <header className="wsl-card-head">
           <span className="wsl-card-glyph" aria-hidden>
             <DesktopIcon size="1rem" weight="duotone" />

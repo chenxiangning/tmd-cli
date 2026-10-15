@@ -209,7 +209,7 @@ export function GitPanelMain({
           ? t("推送")
           : null;
   return (
-    <div className="flex h-full flex-col text-xs">
+    <div className="flex h-full flex-col text-xs" data-icon-decor="git-zone">
       <GitToolbar cwd={repoCtx.selectedPath ?? undefined} />
       {/* RepoBar:多仓(现状)或本机多工作区(聚合入口)时渲染(spec 2026-10-08)。 */}
       {(repoCtx.showRepoBar || showScope) && (

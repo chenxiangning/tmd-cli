@@ -29,7 +29,7 @@ export function BoardOverlay() {
   }, [open]);
   if (!open) return null;
   return (
-    <div className="sb-overlay-page">
+    <div className="sb-overlay-page" data-icon-decor="board">
       <BoardTab />
     </div>
   );

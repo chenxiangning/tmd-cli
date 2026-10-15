@@ -18,6 +18,7 @@ export function ModeToggleButton({
     <button
       type="button"
       className="file-mode-toggle"
+      data-icon-decor="editor"
       title={editor ? t("预览") : t("编辑")}
       onClick={() => onToggle(!editor)}
     >

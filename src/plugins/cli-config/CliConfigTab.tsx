@@ -51,7 +51,7 @@ export function CliConfigTab() {
   }
 
   return (
-    <div className="cli-cfg" data-testid="cli-config-tab">
+    <div className="cli-cfg" data-icon-decor="cli-config" data-testid="cli-config-tab">
       <div className="cli-cfg-engines" role="tablist" aria-label={t("引擎")}>
         {entries.map((e) => (
           <button

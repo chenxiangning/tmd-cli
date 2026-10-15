@@ -57,7 +57,7 @@ export function SessionMenuOverlay({
     <>
       {/* 透明背板:纯点外关闭,role=presentation 豁免静态元素交互规则 */}
       <div className="wsmenu-backdrop" role="presentation" onClick={onClose} />
-      <div className="wsmenu" style={{ left: position.x, top: position.y }}>
+      <div className="wsmenu" data-icon-decor="menu" style={{ left: position.x, top: position.y }}>
         <div className="wsmenu-group-title">{origin?.newSessionLabel?.(workspace) ?? t("新建会话")}</div>
         {menuNote && <div className="wsmenu-note">{menuNote}</div>}
         {/* 引擎区:两列网格压高度(10 引擎 10 行 → 5 行);刷新钮收格内右上角,hover 显形。 */}
@@ -141,7 +141,7 @@ export function SessionMenuOverlay({
               }}
             >
               <span className="wsmenu-item-icon">
-                <Trash size="0.8125rem" />
+                <Trash size="0.8125rem" data-icon-keep />
               </span>
               <span className="wsmenu-item-label">{t("删除工作区")}</span>
             </button>

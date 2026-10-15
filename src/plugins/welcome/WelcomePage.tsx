@@ -223,7 +223,7 @@ export function WelcomePage() {
   );
 
   return (
-    <div className="welcome-page">
+    <div className="welcome-page" data-icon-decor="welcome">
       {/* 终端式首页:↑↓/⏎ 自定义游标(本容器 onKeyDown),listbox/option 语义对应行游标。 */}
       <div
         className="welcome-scroll welcome-mono"

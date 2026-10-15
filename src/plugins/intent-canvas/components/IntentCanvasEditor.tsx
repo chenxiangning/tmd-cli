@@ -113,7 +113,7 @@ export function IntentCanvasEditor({
   );
 
   return (
-    <section className="intent-canvas-editor" aria-label={t("意图画布编辑器")}>
+    <section className="intent-canvas-editor" data-icon-decor="canvas" aria-label={t("意图画布编辑器")}>
       <header className="intent-canvas-editor-topbar">
         <div className="intent-canvas-editor-titlebar">
           <button type="button" className="intent-canvas-icon-button" onClick={() => (isDirty ? setBackConfirmOpen(true) : onBack())}>

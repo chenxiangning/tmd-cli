@@ -17,6 +17,14 @@ export default defineConfig({
       "@uiw/react-codemirror",
       "@codemirror/language",
       "@codemirror/view",
+      /* 编辑器基础键位/查找/底座(FileCodeEditorImpl.loadBaseExts 与
+         editorBlame/editorDiffGutter 的纯动态 import,扫描器不可见):
+         不钉则 dev 首开代码文件时现场优化+强制 reload;dev 会话中预构建
+         缓存被清(如 pnpm install)会 504 Outdated Optimize Dep,编辑器
+         chunk 永挂 → 文件 tab 白屏(2026-10-14 anim 文件名打开白屏实证)。 */
+      "@codemirror/state",
+      "@codemirror/commands",
+      "@codemirror/search",
       "@lezer/highlight",
       "@codemirror/lang-javascript",
       "@codemirror/lang-json",

@@ -198,7 +198,7 @@ export function SidebarSettingsCluster({
   return (
     <div className="settings-cluster" ref={rootRef}>
       {open && (
-        <div className="settings-menu" role="menu" aria-label={t("设置菜单")}>
+        <div className="settings-menu" role="menu" aria-label={t("设置菜单")} data-icon-decor="menu">
           {actions.filter(inCluster).map((action) => {
             const pinned = pinnedSet.has(action.id);
             const isActive = action.active?.() ?? false;

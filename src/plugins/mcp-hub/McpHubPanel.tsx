@@ -61,7 +61,7 @@ export function McpHubPanel() {
   const total = engines.reduce((sum, e) => sum + (e.entries ? Object.keys(e.entries).length : 0), 0);
 
   return (
-    <div className="flex h-full flex-col bg-(--tmd-bg-base)">
+    <div className="flex h-full flex-col bg-(--tmd-bg-base)" data-icon-decor="mcp-hub">
       <div
         role="status"
         className="flex flex-none items-center gap-1.5 border-b border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-muted)"

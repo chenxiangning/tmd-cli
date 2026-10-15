@@ -30,7 +30,7 @@ export function McpHubTab(_props: { tab: EditorTab }) {
   const active = engines.find((e) => e.profileId === selectedProfileId) ?? engines[0];
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-(--tmd-bg-base)">
+    <div className="flex h-full min-h-0 flex-col bg-(--tmd-bg-base)" data-icon-decor="mcp-hub">
       <div className="flex flex-none items-center gap-1 border-b border-(--tmd-border) px-3 py-1.5">
         {VIEWS.map((v) => (
           <button

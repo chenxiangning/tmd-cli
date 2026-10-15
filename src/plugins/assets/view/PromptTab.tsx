@@ -58,7 +58,7 @@ export function PromptTab() {
   };
 
   return (
-    <div className="assets-tab">
+    <div className="assets-tab" data-icon-decor="assets">
       <div className="assets-toolbar">
         <StyledSelect
           ariaLabel={t("作用域筛选")}
@@ -124,7 +124,7 @@ export function PromptTab() {
                   className="assets-btn is-danger"
                   onClick={() => setDeleting(p)}
                 >
-                  <Trash size="0.75rem" /> {t("删除")}
+                  <Trash size="0.75rem" data-icon-keep /> {t("删除")}
                 </button>
               </div>
             </div>

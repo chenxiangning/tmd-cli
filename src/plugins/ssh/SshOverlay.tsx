@@ -25,7 +25,7 @@ export function SshOverlay() {
     <>
       {pickerOpen ? <HostPicker /> : null}
       {prompts.length > 0 ? (
-        <div className="ssh-prompt-stack">
+        <div className="ssh-prompt-stack" data-icon-decor="ssh">
           {prompts.map((view) =>
             view.prompt ? <PromptCard key={view.prompt.promptId} prompt={view.prompt} /> : null,
           )}
@@ -60,7 +60,7 @@ function HostPicker() {
   };
 
   return createPortal(
-    <div className="ssh-picker-backdrop" role="presentation" onClick={busy ? undefined : closeHostPicker}>
+    <div className="ssh-picker-backdrop" role="presentation" data-icon-decor="ssh" onClick={busy ? undefined : closeHostPicker}>
       <dialog
         open
         className="ssh-picker"

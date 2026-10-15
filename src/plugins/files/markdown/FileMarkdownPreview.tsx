@@ -185,6 +185,7 @@ export const FileMarkdownPreview = memo(function FileMarkdownPreview({
   );
   return (
     <div
+      data-icon-decor="editor"
       className={`fvp-markdown-preview-frame${
         /* 无大纲 = 无汉堡/浮层,两个折叠类都不打 —— 否则 marks 徽章/详情卡
            仍按右让位偏移(right:48/80px),无标题文档视觉空让位。 */

@@ -42,7 +42,7 @@ function GitPanelAggregate({
   afterBatch: () => void;
 }) {
   return (
-    <div className="flex h-full flex-col text-xs">
+    <div className="flex h-full flex-col text-xs" data-icon-decor="git-zone">
       <AggregateReposView
         onJump={onJump}
         afterBatch={afterBatch}
@@ -107,7 +107,7 @@ export function GitPanel() {
       return <RepoGuide root={root!} repos={repos} truncated={truncated} onSelect={selectRepo} />;
     }
     return (
-      <div className="flex h-full items-center justify-center px-4">
+      <div className="flex h-full items-center justify-center px-4" data-icon-decor="git-zone">
         <Empty icon={<GitBranch />}>{t("当前目录不是 Git 仓库")}</Empty>
       </div>
     );

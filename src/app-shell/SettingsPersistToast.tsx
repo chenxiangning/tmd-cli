@@ -31,7 +31,7 @@ export function SettingsPersistToast() {
 
   if (error === null) return null;
   return (
-    <div className="sft-stack" role="alert">
+    <div className="sft-stack" role="alert" data-icon-decor="toast">
       <div className="sft-card">
         <div className="sft-head">
           <Warning size="0.875rem" className="sft-icon" aria-hidden />

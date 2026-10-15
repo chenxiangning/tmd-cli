@@ -95,10 +95,10 @@ import {
   Zap,
 } from "lucide";
 import type { IconNode as LucideNode } from "lucide";
-import type { IconDecorId } from "./settingsAppearance";
+import type { IconSetGlyphId } from "./settingsIconDecor";
 
 /** 组合4(Lucide 细线)字形表:语义贴近组合1 现状。 */
-export const LUCIDE_A: Partial<Record<IconDecorId, LucideNode>> = {
+export const LUCIDE_A: Partial<Record<IconSetGlyphId, LucideNode>> = {
   newchat: Rocket,
   "ssh-panel": Server,
   workbench: SquareKanban,
@@ -148,7 +148,7 @@ export const LUCIDE_A: Partial<Record<IconDecorId, LucideNode>> = {
 };
 
 /** 组合5(Lucide 细线变体)字形表:逐键换隐喻,与组合4 逐键不同 → 4↔5 切换全表 morph。 */
-export const LUCIDE_B: Partial<Record<IconDecorId, LucideNode>> = {
+export const LUCIDE_B: Partial<Record<IconSetGlyphId, LucideNode>> = {
   newchat: Sparkles,
   "ssh-panel": KeyRound,
   workbench: LayoutDashboard,

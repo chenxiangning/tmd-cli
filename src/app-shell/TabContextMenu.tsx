@@ -125,7 +125,7 @@ export function TabContextMenu({
           onClose();
         }}
       />
-      <div className="wsmenu session-menu tmd-scroll-hide" style={{ left: pos.x, top: pos.y }}>
+      <div className="wsmenu session-menu tmd-scroll-hide" style={{ left: pos.x, top: pos.y }} data-icon-decor="menu">
         {onRename ? (
           <MenuRow
             icon={<Pencil size="0.875rem" />}

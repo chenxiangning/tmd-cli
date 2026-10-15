@@ -247,6 +247,7 @@ function SessionTabBarImpl() {
       className={`session-tabs${fadeEnd ? " fade-end" : ""} tmd-scroll-hide`}
       role="tablist"
       aria-label={t("打开的会话")}
+      data-icon-decor="session-tabs"
       /* 竖向滚轮转横向走马灯(与编辑 tab 条同款);scroll/wheel 后复算渐隐挂否。 */
       onWheel={(e) => {
         e.currentTarget.scrollLeft += e.deltaY + e.deltaX;

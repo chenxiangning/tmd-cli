@@ -73,6 +73,7 @@ export function SendConfirmDialog({
   return createPortal(
     <div
       className="fixed inset-0 z-1000 flex items-center justify-center bg-black/60"
+      data-icon-decor="dialog"
       onClick={() => settle(onCancel)}
     >
       <div

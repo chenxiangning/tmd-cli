@@ -42,7 +42,7 @@ export function HostModal({
   };
 
   return (
-    <div className="ssh-modal-backdrop" role="presentation" onClick={dirty ? undefined : onClose}>
+    <div className="ssh-modal-backdrop" role="presentation" data-icon-decor="dialog" onClick={dirty ? undefined : onClose}>
       <dialog
         open
         className="ssh-modal"

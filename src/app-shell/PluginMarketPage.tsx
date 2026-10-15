@@ -100,7 +100,7 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="pm-page">
+    <div className="pm-page" data-icon-decor="market-page">
       <div className="pm-inner">
         <div className="pm-head">
           {/* 左上 × 关闭(2026-10-04 用户口径):市场覆盖层盖住左缘 rail,

@@ -70,7 +70,7 @@ export function MergedStrip({
     );
   };
   return (
-    <div className="pm-strip-scene">
+    <div className="pm-strip-scene" data-icon-decor="market-page">
       <div className="pm-strip">
         <div className="pm-strip-brand">
           <div className="pm-brand-name">{b.name}</div>

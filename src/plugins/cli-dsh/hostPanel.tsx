@@ -198,7 +198,7 @@ export function DshHostPanel() {
 
 
   return (
-    <div className="mt-1">
+    <div className="mt-1" data-icon-decor="dsh">
       <div className="pref-card !mt-0 !border-0">
         {/* 标题行常驻:状态点 + 标题 + 动作按钮;点左侧文字区重新收起。 */}
         <div className="pref-row">

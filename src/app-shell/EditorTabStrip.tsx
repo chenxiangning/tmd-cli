@@ -148,6 +148,7 @@ export const EditorTabStrip = memo(function EditorTabStrip() {
       className={`tab-bar${fadeEnd ? " fade-end" : ""} tmd-scroll-hide`}
       role="tablist"
       aria-label={t("打开的文件")}
+      data-icon-decor="editor"
       onWheel={(e) => {
         /* 竖向滚轮转横向滚动;不 preventDefault(外层无纵向滚动链可劫持) */
         e.currentTarget.scrollLeft += e.deltaY + e.deltaX;

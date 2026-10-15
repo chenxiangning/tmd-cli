@@ -13,7 +13,7 @@
 import type { IconProps } from "@phosphor-icons/react";
 import { MorphIcon } from "morphicons/react";
 import { useSettingsState } from "./settings";
-import type { IconDecorId } from "./settingsAppearance";
+import type { IconDecorId } from "./settingsIconDecor";
 import { resolveDecorIcon, type Glyph } from "./iconSetTables";
 
 interface DecorIconProps extends IconProps {

@@ -5,7 +5,8 @@
  */
 
 import type { SshHostConfig } from "./sshTypes";
-import type { AppLogoId, IconDecorId, IconDecorItem, IconSetId, UiLanguage } from "./settingsAppearance";
+import type { AppLogoId, IconSetId, UiLanguage } from "./settingsAppearance";
+import type { IconDecorId, IconDecorItem } from "./settingsIconDecor";
 import type { RelayDeployHistoryEntry } from "./settingsRelayHistory";
 import type { ThemePresetId } from "./themePresets";
 

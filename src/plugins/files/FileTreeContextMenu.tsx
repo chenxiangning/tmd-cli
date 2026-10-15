@@ -77,7 +77,7 @@ export function FileTreeContextMenu({
           onClose();
         }}
       />
-      <div className="wsmenu session-menu" style={{ left: pos.x, top: pos.y }} role="menu">
+      <div className="wsmenu session-menu" data-icon-decor="menu" style={{ left: pos.x, top: pos.y }} role="menu">
         {item(t("新建文件"), <FilePlus size="0.8125rem" data-decor-from="files-new-file" />, () => {
           onClose();
           actions.createFile(newDir);
@@ -103,7 +103,7 @@ export function FileTreeContextMenu({
               actions.reveal(entry);
             })}
             <div className="wsmenu-divider" />
-            {item(armed ? t("确认移到废纸篓?") : t("移到废纸篓"), <Trash size="0.8125rem" />, () => {
+            {item(armed ? t("确认移到废纸篓?") : t("移到废纸篓"), <Trash size="0.8125rem" data-icon-keep />, () => {
               if (!armed) {
                 setArmed(true);
                 return;

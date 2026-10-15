@@ -164,7 +164,7 @@ export function WebDevicePairCard() {
       {error && <p className="text-xs text-[var(--tmd-err)]">{error}</p>}
       {alert && (
         <p className="flex items-center gap-1 text-xs text-[var(--tmd-warn)]">
-          <Warning size="0.75rem" aria-hidden />
+          <Warning size="0.75rem" aria-hidden data-icon-keep />
           {alert}
         </p>
       )}

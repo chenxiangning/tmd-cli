@@ -16,7 +16,7 @@ export function RelayComposerChip() {
     ? `${payload.source.engineName} · ${payload.source.title}`
     : payload.source.engineName;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-b border-(--tmd-border) px-2.5 py-1.5">
+    <div className="flex flex-wrap items-center gap-1.5 border-b border-(--tmd-border) px-2.5 py-1.5" data-icon-decor="session-view">
       <span className="text-meta text-(--tmd-fg-faint)">{t("接力摘要")}</span>
       <div
         className="inline-flex items-center gap-1 rounded-full border border-(--tmd-accent) py-px pl-1.5 pr-1 text-meta text-(--tmd-fg)"

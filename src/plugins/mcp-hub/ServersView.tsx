@@ -153,7 +153,7 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
                       disabled={removing}
                       onClick={() => setPendingRemove(name)}
                     >
-                      <TrashSimple size="0.75rem" aria-hidden />
+                      <TrashSimple size="0.75rem" aria-hidden data-icon-keep />
                     </button>
                   </div>
                 </div>

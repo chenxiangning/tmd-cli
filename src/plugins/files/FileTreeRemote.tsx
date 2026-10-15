@@ -130,7 +130,7 @@ export function FileTreeRemoteSource({
     ));
 
   return (
-    <div className="file-tree-panel">
+    <div className="file-tree-panel" data-icon-decor="files-zone">
       <div className="file-tree-remote-head">
         <span className="file-tree-remote-dot" aria-hidden />
         <span>{source.label(workspace)}</span>

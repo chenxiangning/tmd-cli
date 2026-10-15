@@ -18,6 +18,7 @@ export function CanvasComposerChips() {
   return (
     <div
       className="flex flex-wrap items-center gap-1.5 border-b border-(--tmd-border) px-2.5 py-1.5"
+      data-icon-decor="canvas"
       aria-label={t("已关联的意图画布")}
     >
       <span className="text-meta text-(--tmd-fg-faint)">{t("画布引用")}</span>

@@ -39,7 +39,7 @@ export function SkillHubTab({ tab }: { tab: EditorTab }) {
   }, [tab.payload]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col" data-skill-hub={view}>
+    <div className="flex h-full min-h-0 flex-col" data-skill-hub={view} data-icon-decor="skill-hub">
       <div className="flex items-center gap-1 border-b border-(--tmd-border) px-3 py-2">
         <button
           type="button"

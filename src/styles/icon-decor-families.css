@@ -1,0 +1,104 @@
+/*
+ * 图标装饰 · 家族键消费规则(2026-10-15 全量纳管)。
+ *
+ * 与逐点键(icon-decor.css 的 [data-action-id] 直取)不同,家族键在**容器根**打
+ * `data-icon-decor="<键>"`,本文件用 :where() 零特异性消费——
+ *   :where([data-icon-decor="X"]) svg { color: var(--icon-decor-X, currentColor); }
+ * 级联语义:任何 home 样式表/语义类规则(特异性 ≥ 0,1,0)恒压过家族色;
+ * 缺省回落 currentColor = 继承,像素零变化。容器内个别语义槽(danger/success/
+ * warn 等从祖先继承色的)以 data-icon-keep 保防,见文末。
+ * 键语义与清洗 kernel/settingsIconDecor.ts;清单与分组 plugins/settings/iconDecorItems.tsx。
+ * 变量名 --icon-decor-<键> 由 kernel/iconDecor.ts 统一写 <html>。
+ */
+
+/* ── 语义保防:标了 data-icon-keep 的图标恢复继承色,danger/success 等语义不被家族色抹掉 ── */
+:where([data-icon-decor]) [data-icon-keep],
+:where([data-icon-decor]) [data-icon-keep] svg {
+  color: inherit;
+}
+
+/* ── 跨切面浮层(menu/toast/search 均 portal 到 body,不嵌套面板根;dialog 例外见表尾) ── */
+:where([data-icon-decor="menu"]) svg { color: var(--icon-decor-menu, currentColor); }
+:where([data-icon-decor="toast"]) svg { color: var(--icon-decor-toast, currentColor); }
+:where([data-icon-decor="search"]) svg { color: var(--icon-decor-search, currentColor); }
+
+/* ── 壳层 chrome(标签条/编辑器/窗口控件/工作区侧栏/命令抽屉/git·files 视图区) ── */
+:where([data-icon-decor="window-controls"]) svg { color: var(--icon-decor-window-controls, currentColor); }
+:where([data-icon-decor="session-tabs"]) svg { color: var(--icon-decor-session-tabs, currentColor); }
+:where([data-icon-decor="editor"]) svg { color: var(--icon-decor-editor, currentColor); }
+:where([data-icon-decor="workspace-view"]) svg { color: var(--icon-decor-workspace-view, currentColor); }
+:where([data-icon-decor="command-drawer"]) svg { color: var(--icon-decor-command-drawer, currentColor); }
+:where([data-icon-decor="git-zone"]) svg { color: var(--icon-decor-git-zone, currentColor); }
+:where([data-icon-decor="files-zone"]) svg { color: var(--icon-decor-files-zone, currentColor); }
+
+/* ── 页面与插件(先 settings 后 cli-config:providerChannels 卡嵌在设置面板内,后到的近域胜出) ── */
+:where([data-icon-decor="welcome"]) svg { color: var(--icon-decor-welcome, currentColor); }
+:where([data-icon-decor="settings"]) svg { color: var(--icon-decor-settings, currentColor); }
+:where([data-icon-decor="market-page"]) svg { color: var(--icon-decor-market-page, currentColor); }
+:where([data-icon-decor="workbench-view"]) svg { color: var(--icon-decor-workbench-view, currentColor); }
+:where([data-icon-decor="board"]) svg { color: var(--icon-decor-board, currentColor); }
+:where([data-icon-decor="canvas"]) svg { color: var(--icon-decor-canvas, currentColor); }
+:where([data-icon-decor="session-view"]) svg { color: var(--icon-decor-session-view, currentColor); }
+:where([data-icon-decor="skill-hub"]) svg { color: var(--icon-decor-skill-hub, currentColor); }
+:where([data-icon-decor="mcp-hub"]) svg { color: var(--icon-decor-mcp-hub, currentColor); }
+:where([data-icon-decor="checkpoints"]) svg { color: var(--icon-decor-checkpoints, currentColor); }
+:where([data-icon-decor="memory"]) svg { color: var(--icon-decor-memory, currentColor); }
+:where([data-icon-decor="approval"]) svg { color: var(--icon-decor-approval, currentColor); }
+:where([data-icon-decor="assets"]) svg { color: var(--icon-decor-assets, currentColor); }
+:where([data-icon-decor="academy"]) svg { color: var(--icon-decor-academy, currentColor); }
+
+/* ── 连接与终端(cli-config 置尾:其卡面嵌在 settings 面板根内,近域胜出) ── */
+:where([data-icon-decor="ssh"]) svg { color: var(--icon-decor-ssh, currentColor); }
+:where([data-icon-decor="wsl"]) svg { color: var(--icon-decor-wsl, currentColor); }
+:where([data-icon-decor="dsh"]) svg { color: var(--icon-decor-dsh, currentColor); }
+:where([data-icon-decor="net-proxy"]) svg { color: var(--icon-decor-net-proxy, currentColor); }
+:where([data-icon-decor="anim"]) svg { color: var(--icon-decor-anim, currentColor); }
+:where([data-icon-decor="structured-session"]) svg { color: var(--icon-decor-structured-session, currentColor); }
+:where([data-icon-decor="cli-config"]) svg { color: var(--icon-decor-cli-config, currentColor); }
+
+/* ── dialog 置尾:个别自绘 modal(ssh HostModal/ImportModal、wsl WorkspaceDialog、
+   WebWanRiskDialog)内嵌在 settings 面板子树,同特异性按序取胜须压过一切父域;
+   portal 到 body 的对话框不受次序影响 ── */
+:where([data-icon-decor="dialog"]) svg { color: var(--icon-decor-dialog, currentColor); }
+
+/* ── anim/structured-session 左缘 rail 钮补齐逐点点亮色(原漏纳管;同 session-board 先例) ── */
+.left-rail-tab.is-active[data-action-id="anim"] { color: var(--icon-decor-anim, var(--rail-accent-fallback)); }
+.left-rail-tab.is-active[data-action-id="structured-session"] { color: var(--icon-decor-structured-session, var(--rail-accent-fallback)); }
+
+/* ── 家族键呼吸闪烁(html[data-icon-blink~="键"] × 容器,缺省全关) ── */
+html[data-icon-blink~="menu"] :where([data-icon-decor="menu"]) svg,
+html[data-icon-blink~="dialog"] :where([data-icon-decor="dialog"]) svg,
+html[data-icon-blink~="toast"] :where([data-icon-decor="toast"]) svg,
+html[data-icon-blink~="search"] :where([data-icon-decor="search"]) svg,
+html[data-icon-blink~="window-controls"] :where([data-icon-decor="window-controls"]) svg,
+html[data-icon-blink~="session-tabs"] :where([data-icon-decor="session-tabs"]) svg,
+html[data-icon-blink~="editor"] :where([data-icon-decor="editor"]) svg,
+html[data-icon-blink~="workspace-view"] :where([data-icon-decor="workspace-view"]) svg,
+html[data-icon-blink~="command-drawer"] :where([data-icon-decor="command-drawer"]) svg,
+html[data-icon-blink~="git-zone"] :where([data-icon-decor="git-zone"]) svg,
+html[data-icon-blink~="files-zone"] :where([data-icon-decor="files-zone"]) svg,
+html[data-icon-blink~="welcome"] :where([data-icon-decor="welcome"]) svg,
+html[data-icon-blink~="settings"] :where([data-icon-decor="settings"]) svg,
+html[data-icon-blink~="market-page"] :where([data-icon-decor="market-page"]) svg,
+html[data-icon-blink~="workbench-view"] :where([data-icon-decor="workbench-view"]) svg,
+html[data-icon-blink~="board"] :where([data-icon-decor="board"]) svg,
+html[data-icon-blink~="canvas"] :where([data-icon-decor="canvas"]) svg,
+html[data-icon-blink~="session-view"] :where([data-icon-decor="session-view"]) svg,
+html[data-icon-blink~="skill-hub"] :where([data-icon-decor="skill-hub"]) svg,
+html[data-icon-blink~="mcp-hub"] :where([data-icon-decor="mcp-hub"]) svg,
+html[data-icon-blink~="checkpoints"] :where([data-icon-decor="checkpoints"]) svg,
+html[data-icon-blink~="memory"] :where([data-icon-decor="memory"]) svg,
+html[data-icon-blink~="approval"] :where([data-icon-decor="approval"]) svg,
+html[data-icon-blink~="assets"] :where([data-icon-decor="assets"]) svg,
+html[data-icon-blink~="academy"] :where([data-icon-decor="academy"]) svg,
+html[data-icon-blink~="ssh"] :where([data-icon-decor="ssh"]) svg,
+html[data-icon-blink~="wsl"] :where([data-icon-decor="wsl"]) svg,
+html[data-icon-blink~="dsh"] :where([data-icon-decor="dsh"]) svg,
+html[data-icon-blink~="cli-config"] :where([data-icon-decor="cli-config"]) svg,
+html[data-icon-blink~="net-proxy"] :where([data-icon-decor="net-proxy"]) svg,
+html[data-icon-blink~="anim"] :where([data-icon-decor="anim"]) svg,
+html[data-icon-blink~="structured-session"] :where([data-icon-decor="structured-session"]) svg,
+html[data-icon-blink~="anim"] .left-rail-tab[data-action-id="anim"] svg,
+html[data-icon-blink~="structured-session"] .left-rail-tab[data-action-id="structured-session"] svg {
+  animation: icon-decor-breathe 5s ease-in-out infinite;
+}

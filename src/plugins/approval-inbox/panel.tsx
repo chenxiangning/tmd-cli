@@ -68,7 +68,7 @@ export function ApprovalInboxPanel() {
   }, [panelActive]);
 
   return (
-    <div className="flex h-full flex-col bg-(--tmd-bg-base)">
+    <div className="flex h-full flex-col bg-(--tmd-bg-base)" data-icon-decor="approval">
       <div
         role="status"
         className="flex-none border-b border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-muted)"

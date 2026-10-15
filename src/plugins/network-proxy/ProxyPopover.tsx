@@ -94,6 +94,7 @@ export function ProxyPopover() {
         className="pxy-popover m-0 p-0"
         style={pos ? { left: pos.left, top: pos.top } : { visibility: "hidden" }}
         aria-label={t("网络代理")}
+        data-icon-decor="net-proxy"
         data-testid="network-proxy-popover"
       >
         <div className="pxy-head">

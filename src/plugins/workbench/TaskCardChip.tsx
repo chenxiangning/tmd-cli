@@ -57,7 +57,8 @@ export function TaskCardChip() {
   const [editing, setEditing] = useState(false);
   if (!sessionId || !card) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-b border-(--tmd-border) px-2.5 py-1.5">
+    /* 挂在 composer.attachments(不在工作台 tab 树内),补打同键纳管 */
+    <div className="flex flex-wrap items-center gap-1.5 border-b border-(--tmd-border) px-2.5 py-1.5" data-icon-decor="workbench-view">
       <span className="text-meta text-(--tmd-fg-faint)">{t("任务卡片")}</span>
       <div
         className="inline-flex items-center gap-1 rounded-full border border-(--tmd-accent) py-px pl-1.5 pr-1 text-meta text-(--tmd-fg)"

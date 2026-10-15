@@ -7,6 +7,7 @@
  * document 以最小桩替代,settings 以可控桩替代。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ICON_DECOR_IDS } from "./settingsIconDecor";
 
 const settingsMock = vi.hoisted(() => {
   const listeners = new Set<() => void>();
@@ -25,31 +26,26 @@ const settingsMock = vi.hoisted(() => {
         listeners.delete(fn);
       };
     },
-    /* 与 settingsAppearance.ts 白名单同源;模块整替后由桩供给 */
-    ICON_DECOR_IDS: [
-      "newchat",
-      "ssh-panel",
-      "system-proxy",
-      "panel-files",
-      "panel-git",
-      "panel-checkpoints",
-      "panel-memory",
-    ],
   };
 });
 
 /** 全量 decor:白名单全键齐全(Record<IconDecorId, _> 是全键契约),partial 只覆盖显式项。 */
 function fullDecor(partial: Record<string, { color?: string; blink?: boolean }>) {
   const out: Record<string, { color?: string; blink?: boolean }> = {};
-  for (const id of settingsMock.ICON_DECOR_IDS) out[id] = partial[id] ?? {};
+  for (const id of ICON_DECOR_IDS) out[id] = partial[id] ?? {};
   return out;
 }
 
-vi.mock("./settings", () => ({
-  getSettingsState: settingsMock.getSettingsState,
-  subscribeSettings: settingsMock.subscribeSettings,
-  ICON_DECOR_IDS: settingsMock.ICON_DECOR_IDS,
-}));
+vi.mock("./settings", async () => {
+  /* vi.mock 工厂被提升到顶层 import 之前执行,静态导入在此不可见,只能 await import;
+   * 白名单与 settingsIconDecor.ts 真表同源(域文件),桩不自带列表防漂移 */
+  const { ICON_DECOR_IDS } = await import("./settingsIconDecor");
+  return {
+    getSettingsState: settingsMock.getSettingsState,
+    subscribeSettings: settingsMock.subscribeSettings,
+    ICON_DECOR_IDS,
+  };
+});
 
 type IconDecorModule = typeof import("./iconDecor");
 
@@ -91,7 +87,7 @@ describe("bootIconDecor", () => {
       ...style.setProperty.mock.calls.map((c) => c[0]),
       ...style.removeProperty.mock.calls.map((c) => c[0]),
     ]);
-    expect(touched.size).toBe(settingsMock.ICON_DECOR_IDS.length);
+    expect(touched.size).toBe(ICON_DECOR_IDS.length);
   });
 
   it("blink 项按白名单顺序空格拼接写 data-icon-blink", async () => {

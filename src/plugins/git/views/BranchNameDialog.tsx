@@ -64,6 +64,7 @@ export function BranchNameDialog({
         open
         aria-label={state.title}
         className="relative m-0 w-80 max-w-[calc(100vw-48px)] rounded-lg border border-(--tmd-border) bg-(--tmd-bg-popover) p-3 text-left text-(--tmd-fg) shadow-(--tmd-shadow-modal)"
+        data-icon-decor="dialog"
       >
         <div className="text-xs font-medium text-(--tmd-fg)">{state.title}</div>
         <div className="mt-2 text-xs text-(--tmd-fg-muted)">

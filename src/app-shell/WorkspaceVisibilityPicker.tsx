@@ -141,6 +141,7 @@ export function WorkspaceVisibilityPicker({
       <button
         type="button"
         className="settings-bar-btn ws-vis-trigger"
+        data-icon-decor="menu"
         aria-label={t("工作区显隐")}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -162,6 +163,7 @@ export function WorkspaceVisibilityPicker({
             style={{ left: pos.x, top: pos.y, transform: "translateY(-100%)" }}
             role="menu"
             aria-label={t("显示的工作区")}
+            data-icon-decor="menu"
           >
             <div className="ws-vis-caption">{t("显示的工作区")}</div>
             <div className="ws-vis-rows">

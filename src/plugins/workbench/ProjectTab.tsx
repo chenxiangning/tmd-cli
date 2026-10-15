@@ -48,7 +48,7 @@ export function ProjectTab({ tab }: { tab: EditorTab }) {
     return <WbEmpty text={t("项目不存在或已删除。")} />;
   }
   return (
-    <div className="wb-project-tab">
+    <div className="wb-project-tab" data-icon-decor="workbench-view">
       <ProjectDetail
         key={focusSeq}
         project={project}

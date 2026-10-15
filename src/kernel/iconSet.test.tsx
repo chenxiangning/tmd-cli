@@ -19,13 +19,13 @@ vi.mock("./settings", () => ({
 }));
 import { DecorIcon } from "./iconSet";
 import { resolveDecorIcon } from "./iconSetTables";
-import type { IconDecorId } from "./settingsAppearance";
-import { ICON_DECOR_IDS } from "./settingsAppearance";
+import type { IconSetGlyphId } from "./settingsIconDecor";
+import { ICON_DECOR_POINT_IDS } from "./settingsIconDecor";
 
-const ALL_IDS = ICON_DECOR_IDS;
+const ALL_IDS = ICON_DECOR_POINT_IDS;
 
 
-function render(id: IconDecorId, Fallback: Icon, props?: Record<string, unknown>): string {
+function render(id: IconSetGlyphId, Fallback: Icon, props?: Record<string, unknown>): string {
   return renderToStaticMarkup(createElement(DecorIcon, { id, Fallback, ...props }));
 }
 

@@ -14,6 +14,8 @@
 import { KernelTopics, type EventBus } from "./events";
 import { ipc, onPtyExit, onPtyOutput, type SessionMeta } from "./ipc";
 import { isShadowedSession, restoreShadowSessions } from "./sessionShadowing";
+import { emitSessionStartFailed } from "./sessionStartFail";
+import type { SessionSpawnHost } from "./sessionSpawnHost";
 
 /** host 侧最小依赖面(三服务的 ctx 均满足;箭头函数惰性绑定避免构造顺序耦合)。 */
 interface SessionAdoptHost {
@@ -153,4 +155,42 @@ export function readoptSessions(h: ReadoptHost, events: EventBus): Promise<void>
     readoptInflight = null;
   });
   return readoptInflight;
+}
+
+/**
+ * spawn 后的统一装配:绑定磁盘身份、刷新活表、置为 active、常驻订阅输出与退出
+ * (订阅/竞态守卫/广播收口在本文件 adoptPtySession;守卫命中已广播,抛出上抛)。
+ * create/raw/open 三条 spawn 路径共用;自 sessionSpawn.ts 移居(300 行铁则,
+ * 装配语义本就属 adopt)。
+ */
+export async function adoptSpawned(
+  h: SessionSpawnHost,
+  events: EventBus,
+  sessionId: string,
+  profileId: string,
+  cliSessionId?: string,
+  activate = true,
+): Promise<SessionMeta> {
+  /* 显式恢复路径的绑定也走唯一写入口:入口去重的兜底闸 —— 同一磁盘会话
+     已有活 PTY 时新 PTY 照常运行,但身份不绑(账本/UI 按 tmd id 隔离,不与既有
+     会话并账)。先刷表后绑定:绑定刻账本要能查到 meta(workspaceId/engine)——
+     磁盘回放指针覆写与「绑定即续命解除归档」(identityLedger.bind)都依赖此刻
+     可查,与 ssh/shell adopt 的 refreshSessions 先行同款序。 */
+  h.setSessions(await ipc.sessionList());
+  if (cliSessionId) h.bindIdentity(sessionId, cliSessionId);
+  if (activate) h.setActiveSessionId(sessionId);
+  /* 常驻订阅从会话诞生起持续缓冲输出(与幕布是否挂载无关);
+     秒退守望经 onExit 进退出回调 —— 缓冲随 removeSession 即清,摘尾须在清理前同步执行 */
+  const adoptedAt = Date.now();
+  const meta = await adoptPtySession(h, events, sessionId, {
+    profileId,
+    activate,
+    onExit: (id) => emitSessionStartFailed(h, events, id, profileId, adoptedAt),
+  });
+  if (!meta) throw new Error(ADOPT_RACE_REASON);
+  h.statusEnsurePolling();
+  void h.statusRefresh(sessionId);
+  /* 全新会话创建即赋值:磁盘文件要等首条消息才落盘,先种 CLI 默认配置 */
+  if (!cliSessionId) void h.statusSeed(sessionId);
+  return meta;
 }

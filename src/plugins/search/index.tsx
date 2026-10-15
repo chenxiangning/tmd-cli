@@ -26,6 +26,7 @@ function SearchOverlay() {
       <div
         role="presentation"
         className="fixed inset-0 z-[1201] flex items-start justify-center px-4 pt-[12vh]"
+        data-icon-decor="search"
         onClick={(e) => {
           if (e.target === e.currentTarget) closeSearchOverlay();
         }}

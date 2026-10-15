@@ -63,7 +63,7 @@ function DiffTab({ payload }: { payload: DiffTabPayload }) {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col text-xs">
+    <div className="flex h-full min-h-0 flex-col text-xs" data-icon-decor="git-zone">
       {/* 头:侧标签 + 仓根 + 文件数 + 视图切换 */}
       <div className="shrink-0 border-b border-(--tmd-border) px-3 py-2">
         <div className="truncate font-medium text-(--tmd-fg)">

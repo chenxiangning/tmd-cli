@@ -85,7 +85,7 @@ export function MemoryCapsule() {
 
   return (
     <>
-      <div className="flex min-w-0 flex-none flex-wrap items-center gap-x-2 gap-y-1 border-b border-(--tmd-border) bg-(--tmd-accent-soft) px-2.5 py-1">
+      <div className="flex min-w-0 flex-none flex-wrap items-center gap-x-2 gap-y-1 border-b border-(--tmd-border) bg-(--tmd-accent-soft) px-2.5 py-1" data-icon-decor="memory">
         <button
           type="button"
           className="flex h-[22px] items-center gap-1.5 rounded-full bg-(--tmd-bg-active) px-2.5 text-xs text-(--tmd-fg) hover:shadow-[0_0_0_1px_var(--tmd-accent)]"
@@ -106,7 +106,7 @@ export function MemoryCapsule() {
       </div>
 
       {expanded && (
-        <div className="flex-none border-b border-(--tmd-border) px-2.5 pb-2 pt-1.5">
+        <div className="flex-none border-b border-(--tmd-border) px-2.5 pb-2 pt-1.5" data-icon-decor="memory">
           <div className="mb-1.5 flex items-center gap-2">
             <span className="text-xs font-semibold">{t("项目记忆")}</span>
             <span className="text-meta text-(--tmd-fg-faint)">{t("勾选后注入为消息前缀")}</span>

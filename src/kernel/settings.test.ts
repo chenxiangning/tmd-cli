@@ -6,7 +6,7 @@
  * 模块级单例,每个用例经 vi.resetModules + 动态 import 取全新实例。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_ICON_DECOR } from "./settingsAppearance";
+import { DEFAULT_ICON_DECOR } from "./settingsIconDecor";
 
 const ipcMock = vi.hoisted(() => ({
   configReadSettings: vi.fn(),

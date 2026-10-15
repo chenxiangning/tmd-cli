@@ -10,7 +10,7 @@
  * 读写原语在 cli-shared/mcpWrite(声明先例见其头注);
  * 连通测试 = 一次性握手(stdio 走 Rust mcp_probe;http/sse 前端握手),
  * 不做长驻 MCP client / call_tool(上游调研否决 C)。
- * 设计:openspec/changes/2026-09-28-mcp-hub-plugin/proposal.md
+ * 设计:openspec/changes/archive/2026-09-28-mcp-hub-plugin/proposal.md
  */
 import { PlugsConnected } from "@phosphor-icons/react";
 import type { Plugin, PluginContext } from "@kernel/plugin";

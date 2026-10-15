@@ -133,6 +133,7 @@ function WorkspaceSwitchMenu({
         className="panel-overflow-menu panel-ws-menu"
         style={{ left: position.x, top: position.y }}
         role="menu"
+        data-icon-decor="menu"
       >
         {workspaces.map((ws) => {
           const isActive = ws.id === activeId;
@@ -251,6 +252,7 @@ export function WorkspaceSwitcher() {
         aria-label={t("切换工作区")}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
+        data-icon-decor="menu"
         title={active.root}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();

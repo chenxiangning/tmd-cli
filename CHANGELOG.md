@@ -4,6 +4,26 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.8] - 2026-10-15
+
+本版主体 = anim 插件首发(tmd-anim 项目列表一键打开与 AI 会话拉起)+ 客户端界面图标装饰全量纳管 + 0.3.8 技术债清账(anim 交互刺 TDD 修复、openspec 账实对齐、workbench 空壳治理);发版正文自动注入 CI 上线。
+
+### 新增
+
+- anim 插件(15dda1b2/7c4a27d9;设计 `docs/superpowers/specs/2026-10-14-anim-plugin-design.md`):tmd-anim 项目列表一键打开与 AI 会话拉起——spawnRawSession 装配默认引擎会话,初始提示词与引用挂 composer 卡片不灌输入框;未装引导横幅拆独立组件补 Releases 下载卡,项目行拆组件,头部加项目计数,会话提示词补本机音频生成指引;零内核零 Rust
+- raw spawn 身份探测选项(ccaaffc7):spawnRawSession 增 opts.identityTrack,真 CLI 引擎拉起(anim「AI 会话」)登记磁盘身份探测,时间线/审批线/状态读取不再全盲;spawn 后统一装配收口为 sessionAdopt.adoptSpawned,create/raw/open 三条 spawn 路径共用
+- 图标装饰扩 32 家族键全量纳管客户端界面图标(16e38970;契约 `docs/architecture/25-icon-decor.md`)
+
+### 修复
+
+- anim AI 会话启动失败改 toast 上报并清理失败桩(3ff52f23;评审 `docs/review/2026-10-15-038-debt-cleanup-review.md`):引擎缺失/home 未就绪不再静默 return,spawn 失败只清本次落的桩零残留;决策/副作用抽 startSession 纯 DI 管线,13 例单测钉行为
+- files 插件 dev 首开代码文件 504 强刷后编辑器 chunk 永挂白屏(8cd20e44):optimizeDeps 钉 codemirror state/commands/search
+
+### 内务
+
+- openspec 账实对齐(7fb63459):已落地的 mcp-hub 与 skill-hub 变更契约 git mv 进 changes/archive/,docs/README 状态改「已归档」
+- 技术债清账评审三轮全过(全量 → 窄增量 → 终轮查漏),check:gate 全链绿 + react-doctor 100/100;workbench 空壳项目手工清理 13 个(16 → 3,备份后删)
+
 ## [0.3.7] - 2026-10-14
 
 本版主体 = 工作台第三批打磨收敛版(不含新能力面):10-12 survey 遗留与 10-13 二次现场评审(A–F 40+ 条)全量落码,含 journal 增量并入「假成功」根因修复;另落编辑器 tab 关闭闸、工作台概览默认会话引擎/模型、应用 Logo 切换三个小功能面与意图画布 excalidraw 钉装修复;发版正文自动注入 CI 上线。

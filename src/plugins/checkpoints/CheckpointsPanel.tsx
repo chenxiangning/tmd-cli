@@ -199,7 +199,7 @@ export function CheckpointsPanel() {
   );
 
   return (
-    <div className="flex h-full flex-col bg-(--tmd-bg-base)">
+    <div className="flex h-full flex-col bg-(--tmd-bg-base)" data-icon-decor="checkpoints">
       <PanelSummaryBar view={view} onView={setView} shown={shown} pendingCount={pendingCount} pendingHighRisk={pendingHighRisk} />
 
       {view === "batch" && notice && (

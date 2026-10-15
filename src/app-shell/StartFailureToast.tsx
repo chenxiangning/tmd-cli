@@ -63,7 +63,7 @@ export function StartFailureNotices({
 }) {
   if (notices.length === 0) return null;
   return (
-    <div className="sft-stack" role="alert">
+    <div className="sft-stack" role="alert" data-icon-decor="toast">
       {notices.map((n) => (
         <NoticeCard key={n.id} n={n} onClose={onClose} />
       ))}

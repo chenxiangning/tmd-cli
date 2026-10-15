@@ -34,7 +34,7 @@ export function AddWslWorkspaceDialog({ distros, onClose }: { distros: WslDistro
   };
 
   return (
-    <div className="wsl-backdrop" role="presentation" onClick={onClose}>
+    <div className="wsl-backdrop" role="presentation" data-icon-decor="dialog" onClick={onClose}>
       <dialog open className="wsl-dialog m-0" aria-label={t("添加 WSL 工作区")} onClick={(e) => e.stopPropagation()}>
         <div className="wsl-dialog-head">
           <span>{t("添加 WSL 工作区")}</span>

@@ -63,6 +63,7 @@ export function WorkspaceAddDialog({
         open
         aria-label={t("添加工作区")}
         className="wsadd-pop relative m-0"
+        data-icon-decor="dialog"
         style={{ left: position.x, top: position.y }}
       >
         {ActiveTab && activeOrigin ? (

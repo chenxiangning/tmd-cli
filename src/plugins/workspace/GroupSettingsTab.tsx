@@ -103,7 +103,7 @@ export function WorkspaceGroupsTab() {
               title={t("删除组")}
               onClick={() => setDeleting({ id: g.id, name: g.name })}
             >
-              <Trash size="0.75rem" />
+              <Trash size="0.75rem" data-icon-keep />
             </button>
           </div>
         </div>

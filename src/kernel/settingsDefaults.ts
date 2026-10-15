@@ -10,8 +10,8 @@ import {
   TERMINAL_FONT_SIZE_DEFAULT,
   UI_FONT_SIZE_DEFAULT,
   UI_ZOOM_DEFAULT,
-  DEFAULT_ICON_DECOR,
 } from "./settingsAppearance";
+import { DEFAULT_ICON_DECOR } from "./settingsIconDecor";
 import { DEFAULT_DARK_THEME_PRESET_ID, DEFAULT_LIGHT_THEME_PRESET_ID } from "./themePresets";
 
 export const DEFAULT_SETTINGS: AppSettings = {
