@@ -36,6 +36,8 @@ export interface PrepareAiSessionInput {
   projectPath: string | null;
   /** 行上解析出的项目名(stub 回落「未命名动画」)。 */
   rowName: string | null;
+  /** Windows 平台标记:prompt 的配音指引按系统分支(先例 tmd-anim buildAiPrompt)。 */
+  windows?: boolean;
   readFile: (path: string) => Promise<string>;
   now: () => number;
   /** 桩文件名随机段(非安全场景,组件供 Math.random 尾段)。 */
@@ -47,7 +49,7 @@ export type PrepareAiSessionResult =
   | { ok: false; reason: PrepareFailReason };
 
 export async function prepareAiSessionTarget(input: PrepareAiSessionInput): Promise<PrepareAiSessionResult> {
-  const { home, engine, projectPath, rowName, readFile, now, rand } = input;
+  const { home, engine, projectPath, rowName, windows, readFile, now, rand } = input;
   if (!engine) return { ok: false, reason: "no-engine" };
   if (!home) return { ok: false, reason: "no-home" };
   let path = projectPath;
@@ -74,10 +76,11 @@ export async function prepareAiSessionTarget(input: PrepareAiSessionInput): Prom
       name,
       path,
       stub,
-      prompt: buildAnimSessionPrompt(),
+      prompt: buildAnimSessionPrompt(windows ?? false),
       refs: [
         { label: "协议 schema", path: `${protocol}/schema.md`, kind: "doc" },
-        { label: "协议示例", path: `${protocol}/bpe-example.json`, kind: "code" },
+        { label: "小黑风格配方", path: `${protocol}/xiaohei-style.md`, kind: "doc" },
+        { label: "小黑风格示例", path: `${protocol}/xiaohei-example.json`, kind: "code" },
       ],
     },
   };

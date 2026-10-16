@@ -16,6 +16,7 @@ export function AnimProjectRow({
   path,
   file,
   name,
+  scenes,
   starting,
   onOpen,
   onAi,
@@ -24,6 +25,8 @@ export function AnimProjectRow({
   file: string;
   /** 解析出的项目名;null = 无效项目(警示态)。 */
   name: string | null;
+  /** 解析出的场景数;null = 无效项目(不显示)。 */
+  scenes: number | null;
   starting: boolean;
   onOpen: () => void;
   onAi: () => void;
@@ -36,8 +39,15 @@ export function AnimProjectRow({
         <FileCode size="1rem" className="flex-none text-(--tmd-fg-muted)" />
       )}
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm text-(--tmd-fg)">
-          {name ?? <span className="text-(--tmd-warn)">{t("无效项目")}</span>}
+        <div className="flex items-center gap-2">
+          <span className="min-w-0 truncate text-sm text-(--tmd-fg)">
+            {name ?? <span className="text-(--tmd-warn)">{t("无效项目")}</span>}
+          </span>
+          {scenes !== null && (
+            <span className="flex-none rounded-full border border-(--tmd-border) px-1.5 text-meta text-(--tmd-fg-muted)">
+              {t("{n} 幕", { n: scenes })}
+            </span>
+          )}
         </div>
         <button
           type="button"

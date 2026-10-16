@@ -73,7 +73,7 @@ describe("prepareAiSessionTarget", () => {
     ).resolves.toEqual({ ok: false, reason: "invalid-project" });
   });
 
-  it("正常路径:行名透传 + 协议两引用 + 指令正文,零落盘", async () => {
+  it("正常路径:行名透传 + 协议三引用 + 指令正文,零落盘", async () => {
     const readFile = vi.fn<(p: string) => Promise<string>>().mockResolvedValue(validProject);
     const r = await prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/a.json`, rowName: "演示项目", readFile, now: () => 1, rand: () => "ab12" });
     expect(r.ok).toBe(true);
@@ -81,9 +81,16 @@ describe("prepareAiSessionTarget", () => {
     expect(r.target).toMatchObject({ name: "演示项目", path: `${DIR}/a.json`, stub: false });
     expect(r.target.refs).toEqual([
       { label: "协议 schema", path: `${HOME}/.tmd-anim/protocol/schema.md`, kind: "doc" },
-      { label: "协议示例", path: `${HOME}/.tmd-anim/protocol/bpe-example.json`, kind: "code" },
+      { label: "小黑风格配方", path: `${HOME}/.tmd-anim/protocol/xiaohei-style.md`, kind: "doc" },
+      { label: "小黑风格示例", path: `${HOME}/.tmd-anim/protocol/xiaohei-example.json`, kind: "code" },
     ]);
     expect(r.target.prompt).toContain("tmd-anim 动画修改助手");
+  });
+
+  it("windows: prompt 配音指引切 PowerShell 分支", async () => {
+    const readFile = vi.fn<(p: string) => Promise<string>>().mockResolvedValue(validProject);
+    const r = await prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/a.json`, rowName: "演示项目", windows: true, readFile, now: () => 1, rand: () => "ab12" });
+    expect(r.ok && r.target.prompt).toContain("System.Speech");
   });
 
   it("行名瞬态缺失(rows 失明)但文件合法:名回落文件解析名,不再误显「未命名动画」", async () => {

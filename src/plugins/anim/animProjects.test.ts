@@ -23,12 +23,12 @@ describe("isAnimProjectFile", () => {
 });
 
 describe("parseAnimProject", () => {
-  it("最小合法项目:version/name/scenes 三字段即认", () => {
-    expect(parseAnimProject('{"version":1,"name":"演示","scenes":[]}')).toEqual({ name: "演示" });
+  it("最小合法项目:version/name/scenes 三字段即认,scenes 数量带出", () => {
+    expect(parseAnimProject('{"version":1,"name":"演示","scenes":[{},{}]}')).toEqual({ name: "演示", scenes: 2 });
   });
 
   it("多余字段(canvas)忽略,scenes 非数组拒绝", () => {
-    expect(parseAnimProject('{"version":1,"name":"a","scenes":[],"canvas":{"width":100}}')).toEqual({ name: "a" });
+    expect(parseAnimProject('{"version":1,"name":"a","scenes":[],"canvas":{"width":100}}')).toEqual({ name: "a", scenes: 0 });
     expect(parseAnimProject('{"version":1,"name":"a","scenes":{}}')).toBeNull();
   });
 
@@ -43,7 +43,7 @@ describe("parseAnimProject", () => {
 describe("stubProjectJson / stubProjectFileName", () => {
   it("桩即最小合法项目,能被自家解析器认回", () => {
     const parsed = parseAnimProject(stubProjectJson());
-    expect(parsed).toEqual({ name: "未命名动画" });
+    expect(parsed).toEqual({ name: "未命名动画", scenes: 0 });
   });
 
   it("桩文件名 = p_anim_<base36 时间>_<短随机>.json", () => {
@@ -52,28 +52,50 @@ describe("stubProjectJson / stubProjectFileName", () => {
 });
 
 describe("buildAnimSessionPrompt", () => {
-  const prompt = buildAnimSessionPrompt();
-
   it("指令语义:协议材料/目标项目以随附引用表述,路径不入正文", () => {
+    const prompt = buildAnimSessionPrompt();
     expect(prompt).toContain("随附引用文件");
     expect(prompt).toContain("pnpm anim validate");
     expect(prompt).not.toContain("/.tmd-anim/protocol/schema.md");
   });
 
-  it("写明 validate 仅在 tmd-anim 仓库内可用", () => {
-    expect(prompt).toContain("只在 tmd-anim 仓库内可用");
+  it("小黑风格指路 + http-example 大文件按需提及(对齐 tmd-anim 0.1.6)", () => {
+    const prompt = buildAnimSessionPrompt();
+    expect(prompt).toContain("小黑");
+    expect(prompt).toContain("http-example.json");
+    expect(prompt).toContain("按需选读");
+  });
+
+  it("配音语义:超长自动延长不截断(0.1.6 起),validate 带文件参数", () => {
+    const prompt = buildAnimSessionPrompt();
+    expect(prompt).toContain("自动延长到配音结束");
+    expect(prompt).not.toContain("场景切换处截断");
+    expect(prompt).toContain("pnpm anim validate <目标项目文件路径>");
+  });
+
+  it("TTS 按平台分支:默认 macOS,Windows 走 PowerShell", () => {
+    expect(buildAnimSessionPrompt()).toContain("say -o /tmp/tmd-tts.aiff");
+    expect(buildAnimSessionPrompt()).not.toContain("System.Speech");
+    const win = buildAnimSessionPrompt(true);
+    expect(win).toContain("System.Speech.Synthesis.SpeechSynthesizer");
+    expect(win).not.toContain("say -o");
   });
 });
 
 describe("animSessionRefs", () => {
   const refs = animSessionRefs("/Users/u", "/Users/u/.tmd-anim/projects/p.json");
 
-  it("协议材料两件与目标项目三个引用,label 为 i18n 源键", () => {
+  it("协议 schema 与小黑风格包两件 + 目标项目,label 为 i18n 源键", () => {
     expect(refs.map((ref) => `${ref.label}:${ref.path}`)).toEqual([
       "协议 schema:/Users/u/.tmd-anim/protocol/schema.md",
-      "协议示例:/Users/u/.tmd-anim/protocol/bpe-example.json",
+      "小黑风格配方:/Users/u/.tmd-anim/protocol/xiaohei-style.md",
+      "小黑风格示例:/Users/u/.tmd-anim/protocol/xiaohei-example.json",
       "目标项目:/Users/u/.tmd-anim/projects/p.json",
     ]);
+  });
+
+  it("不再引用 tmd-anim 0.1.5+ 已停止投递的 bpe-example.json", () => {
+    expect(refs.some((ref) => ref.path.includes("bpe-example"))).toBe(false);
   });
 });
 

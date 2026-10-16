@@ -15,6 +15,7 @@ import { FilmSlate } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { getPlatformKind } from "@kernel/platform";
 import { ensureDir } from "@kernel/fsDirs";
 import type { OpenWithTarget } from "@kernel/settingsTypes";
 import { resolveDefaultEngine } from "@plugins/workbench/defaultEngine";
@@ -40,8 +41,9 @@ interface AnimRow {
   file: string;
   /** 解析出的项目名;null = 无效项目(展示态,不参与 AI 会话)。 */
   name: string | null;
+  /** 解析出的场景数;null = 无效项目。 */
+  scenes: number | null;
 }
-
 export function AnimProjectsTab() {
   const [rows, setRows] = useState<AnimRow[] | null>(null); /* null = 目录不存在/未读到 */
   const [toast, setToast] = useState<string | null>(null);
@@ -59,7 +61,9 @@ export function AnimProjectsTab() {
     toastTimer.current = window.setTimeout(() => setToast(null), 2400);
   };
 
-  /* 2s 轮询:本 tab 挂载即轮、卸载即停(busy 闸防上一轮未归并发堆叠)。 */
+  /* 2s 轮询:本 tab 挂载即轮、卸载即停(busy 闸防上一轮未归并发堆叠)。
+   * fsCollectFiles(collect_files 原语):目录 .json 收集并按修改时间倒序(最近改动排最前),
+   * 目录缺失回空表 —— 「装了 app 但从未跑过」与「没有项目」同走空态,不再误报未装。 */
   useEffect(() => {
     let alive = true;
     const tick = () => {
@@ -70,20 +74,16 @@ export function AnimProjectsTab() {
           const home = await ipc.configHomeDir();
           homeRef.current = home;
           const dir = animProjectsDir(home);
-          const entries = await ipc.fsListDir(dir);
-          const files = entries
-            .filter((e) => !e.isDir && isAnimProjectFile(e.name))
-            .sort((a, b) => a.name.localeCompare(b.name));
+          const stamps = await ipc.fsCollectFiles(dir, ".json");
           const next: AnimRow[] = await Promise.all(
-            files.map(async (f) => ({
-              path: f.path,
-              file: f.name,
-              name: (await ipc.fsReadFile(f.path).then(parseAnimProject, () => null))?.name ?? null,
-            })),
+            stamps.filter((f) => isAnimProjectFile(f.name)).map(async (f) => {
+              const parsed = await ipc.fsReadFile(f.path).then(parseAnimProject, () => null);
+              return { path: f.path, file: f.name, name: parsed?.name ?? null, scenes: parsed?.scenes ?? null };
+            }),
           );
           if (alive) setRows(next);
         } catch {
-          if (alive) setRows(null); /* 目录不存在:tmd-anim 未装/未跑过 */
+          if (alive) setRows(null); /* invoke 异常:短暂回未读到态,下一轮重试 */
         } finally {
           loadingRef.current = false;
         }
@@ -133,6 +133,7 @@ export function AnimProjectsTab() {
       engine: resolveAnimEngine(),
       projectPath,
       rowName: projectPath !== null ? rows?.find((r) => r.path === projectPath)?.name ?? null : null,
+      windows: getPlatformKind() === "windows",
       readFile: (p) => ipc.fsReadFile(p),
       now: Date.now,
       /* 文件名尾随机段:Math.random 足够,非安全场景。 */
@@ -216,8 +217,8 @@ export function AnimProjectsTab() {
       : null;
   };
 
-  /* 未就绪 = 应用探测缺席,或项目目录缺失(目录缺失 ≈ tmd-anim 未装/未跑过)。 */
-  const notReady = appInstalled === false || rows === null;
+  /* 未就绪 = 应用探测缺席(fsCollectFiles 对目录缺失回空表,「装了没跑过」走空态而非未装引导)。 */
+  const notReady = appInstalled === false;
 
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col gap-3 overflow-auto p-6" data-icon-decor="anim">
@@ -263,6 +264,7 @@ export function AnimProjectsTab() {
               path={row.path}
               file={row.file}
               name={row.name}
+              scenes={row.scenes}
               starting={starting}
               onOpen={() => void openInApp(row.path)}
               onAi={() => void openAiDialog(row.path)}
