@@ -15,48 +15,16 @@ import { host } from "@kernel/host";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "@plugins/git/worktree/dirName";
 import { finalBranchName, recordWtSession } from "./worktreeSession";
 
-export function WorktreeSessionDialog({
-  repoCwd,
-  workspaceId,
-  profileId,
-  title,
-  onClose,
-}: {
-  /** 仓库根(会话 cwd):worktree 父目录与 node_modules 复用源都由此推导。 */
-  repoCwd: string;
-  workspaceId: string;
-  profileId: string;
-  /** 原会话标题:分支基名 slug 预填 + 新会话标题沿用。 */
-  title: string;
-  onClose: () => void;
-}) {
-  const [entries, setEntries] = useState<WorktreeEntry[] | null>(null);
-  const [existingBranch, setExistingBranch] = useState("");
-  /* newBranch = 基于当前 HEAD 新建分支(默认);false = 检出已有分支。 */
-  const [newBranch, setNewBranch] = useState(true);
-  const [base, setBase] = useState(() => dirNameFromBranch(title));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [done, setDone] = useState(false);
-
-  const closeGuarded = useCallback((): void => {
-    if (busy) return; /* 创建中禁关:防 fire-and-forget 残留。 */
-    onClose();
-  }, [busy, onClose]);
-  useEscClose(closeGuarded);
-  const dialogRef = useFocusTrap(true);
-
-  useEffect(() => {
-    let alive = true;
-    void ipc
-      .gitWorktreeList(repoCwd)
-      .then((list) => alive && setEntries(list))
-      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
-    return () => {
-      alive = false;
-    };
-  }, [repoCwd]);
-
+/** 派生纯函数(自 hook 拆出:分支密集段离开 React 函数;语义不变)。 */
+function deriveWtForm(
+  repoCwd: string,
+  entries: WorktreeEntry[] | null,
+  newBranch: boolean,
+  base: string,
+  existingBranch: string,
+  busy: boolean,
+  done: boolean,
+) {
   const takenBranches = new Set((entries ?? []).map((e) => e.branch).filter(Boolean));
   const finalBranch = newBranch ? finalBranchName(base.trim(), takenBranches) : existingBranch;
   const bareBranch = newBranch ? branchForWorktree(base.trim()) : "";
@@ -72,6 +40,70 @@ export function WorktreeSessionDialog({
   const dirErr = validateDirName(dirName);
   const wtPath = dirErr ? null : worktreePathFor(repoCwd, dirName);
   const canCreate = !busy && !done && !baseErr && !dirErr && !!wtPath && (newBranch || existingBranch !== "");
+  return { takenBranches, finalBranch, conflict, baseErr, wtPath, canCreate };
+}
+
+/** 表单态 + 派生(自组件拆出,react-doctor 复杂度;语义不变)。 */
+function useWtSessionForm(repoCwd: string, title: string) {
+  const [entries, setEntries] = useState<WorktreeEntry[] | null>(null);
+  const [existingBranch, setExistingBranch] = useState("");
+  /* newBranch = 基于当前 HEAD 新建分支(默认);false = 检出已有分支。 */
+  const [newBranch, setNewBranch] = useState(true);
+  const [base, setBase] = useState(() => dirNameFromBranch(title));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void ipc
+      .gitWorktreeList(repoCwd)
+      .then((list) => alive && setEntries(list))
+      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      alive = false;
+    };
+  }, [repoCwd]);
+
+  const { takenBranches, finalBranch, conflict, baseErr, wtPath, canCreate } = deriveWtForm(
+    repoCwd, entries, newBranch, base, existingBranch, busy, done,
+  );
+
+  return {
+    entries, existingBranch, setExistingBranch, newBranch, setNewBranch,
+    base, setBase, busy, setBusy, error, setError, done, setDone,
+    finalBranch, conflict, baseErr, wtPath, canCreate, takenBranches,
+  };
+}
+
+export function WorktreeSessionDialog({
+  repoCwd,
+  workspaceId,
+  profileId,
+  title,
+  onClose,
+}: {
+  /** 仓库根(会话 cwd):worktree 父目录与 node_modules 复用源都由此推导。 */
+  repoCwd: string;
+  workspaceId: string;
+  profileId: string;
+  /** 原会话标题:分支基名 slug 预填 + 新会话标题沿用。 */
+  title: string;
+  onClose: () => void;
+}) {
+  const form = useWtSessionForm(repoCwd, title);
+  const {
+    busy, done, error, setError, setBusy, setDone, canCreate, wtPath, finalBranch, newBranch,
+    setNewBranch, base, setBase, existingBranch, setExistingBranch, conflict, baseErr,
+    takenBranches,
+  } = form;
+
+  const closeGuarded = useCallback((): void => {
+    if (busy) return; /* 创建中禁关:防 fire-and-forget 残留。 */
+    onClose();
+  }, [busy, onClose]);
+  useEscClose(closeGuarded);
+  const dialogRef = useFocusTrap(true);
 
   const create = async (): Promise<void> => {
     if (!canCreate || !wtPath) return;
@@ -140,11 +172,11 @@ export function WorktreeSessionDialog({
         </div>
 
         <label className="flex items-center gap-2 text-xs text-(--tmd-fg)">
-          <input type="radio" checked={newBranch} onChange={() => setNewBranch(true)} />
+          <input type="radio" name="wt-base" checked={newBranch} onChange={() => setNewBranch(true)} />
           {t("新建分支(基于当前 HEAD)")}
         </label>
         <label className="flex items-center gap-2 text-xs text-(--tmd-fg)">
-          <input type="radio" checked={!newBranch} onChange={() => setNewBranch(false)} />
+          <input type="radio" name="wt-base" checked={!newBranch} onChange={() => setNewBranch(false)} />
           {t("检出已有分支")}
         </label>
 

@@ -14,10 +14,9 @@
 import { Kanban } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { WorkbenchSettingsTab } from "./SettingsSection";
+import { lazySuspense } from "@kernel/lazyTab";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
-import { WorkbenchTab } from "./WorkbenchTab";
-import { ProjectTab } from "./ProjectTab";
 import { openWorkbenchTab, WB_CONSOLE_TAB_KIND, WB_CONSOLE_TAB_ID, WB_PROJECT_TAB_KIND } from "./wbTabs";
 import { startIndexWatch } from "./storeWatch";
 import { attachJournal } from "./journal/attach";
@@ -42,8 +41,8 @@ export const workbenchPlugin: Plugin = {
   },
   activate(ctx: PluginContext) {
     /* 本页与项目详情都走中央 tab(kernel/tabs kind 路由注册表)。 */
-    ctx.registerTabContent({ kind: WB_CONSOLE_TAB_KIND, component: WorkbenchTab, icon: Kanban, keepAlive: true });
-    ctx.registerTabContent({ kind: WB_PROJECT_TAB_KIND, component: ProjectTab, icon: Kanban, keepAlive: true });
+    ctx.registerTabContent({ kind: WB_CONSOLE_TAB_KIND, component: lazySuspense(() => import("./WorkbenchTab").then((m) => ({ default: m.WorkbenchTab }))), icon: Kanban, keepAlive: true });
+    ctx.registerTabContent({ kind: WB_PROJECT_TAB_KIND, component: lazySuspense(() => import("./ProjectTab").then((m) => ({ default: m.ProjectTab }))), icon: Kanban, keepAlive: true });
     /* 左 rail 顶部簇第一位入口:打开/激活工作台本页 tab;active = tab 已开,
      * 重渲通知经 useEditorTabs 的 store 订阅桥接(壳统一订阅,不 import 插件私有 store)。 */
     ctx.registerSidebarAction({

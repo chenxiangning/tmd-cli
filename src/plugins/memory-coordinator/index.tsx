@@ -12,13 +12,12 @@
 import { Brain, Notebook } from "@phosphor-icons/react";
 import { DecorIcon } from "@kernel/iconSet";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
+import { lazySuspense } from "@kernel/lazyTab";
 import type { Plugin } from "@kernel/plugin";
 import { MemoryPanel } from "./panel/MemoryPanel";
-import { MemoryConsole } from "./console/MemoryConsole";
 import { MemoryCapsule } from "./capsule/MemoryCapsule";
 import { attachAutoDistill } from "./phase2/autoDistill";
 import { attachWikiStore } from "./wiki/wikiHook";
-import { WikiPanel } from "./wiki/WikiPanel";
 import "./wiki/locales"; /* agent wiki 域词典 */
 
 let detachAutoDistill: (() => void) | null = null;
@@ -48,12 +47,12 @@ export const memoryCoordinatorPlugin: Plugin = {
     });
     ctx.registerTabContent({
       kind: "memory-console",
-      component: MemoryConsole,
+      component: lazySuspense(() => import("./console/MemoryConsole").then((m) => ({ default: m.MemoryConsole }))),
       icon: (p) => <DecorIcon id="panel-memory" Fallback={Brain} {...p} />,
     });
     ctx.registerTabContent({
       kind: "agent-wiki",
-      component: WikiPanel,
+      component: lazySuspense(() => import("./wiki/WikiPanel").then((m) => ({ default: m.WikiPanel }))),
       icon: (p) => <DecorIcon id="panel-memory" Fallback={Notebook} {...p} />,
     });
     ctx.contribute("composer.statusBar", {

@@ -2,15 +2,12 @@ import { ClockCounterClockwise, GitBranch, GitCommit, GitDiff } from "@phosphor-
 import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
 import { getFilePanelMode } from "@kernel/filePanel";
+import { lazySuspense } from "@kernel/lazyTab";
 import { hydrateGitPanelPrefs, requestRemoteDialog } from "./panelStore";
-import { GitPanel } from "./GitPanel";
-import { CommitDiffTabContent } from "./CommitDiffTab";
-import { DiffTabContent } from "./DiffTabContent";
 import { COMMIT_TAB_KIND } from "./commitTab";
 import { DIFF_TAB_KIND } from "./diffTab";
 import { FILE_HISTORY_TAB_KIND, openFileHistoryTab } from "./fileHistoryTab";
 import { fileHistoryOpenRef } from "@kernel/fileHistoryBridge";
-import { FileHistoryTabContent } from "./fileHistoryViews";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 /** Git 插件入口:单视图三段面板(差异/分支/历史)+ 提交 diff 中央 tab。
@@ -28,15 +25,15 @@ export const gitPlugin: Plugin = {
       id: "git",
       label: "Git",
       icon: GitBranch,
-      component: GitPanel,
+      component: lazySuspense(() => import("./GitPanel").then((m) => ({ default: m.GitPanel }))),
       order: 1, /* 工作区组次席(railGroup 注释见 files) */
       railGroup: "workspace",
     });
     // 右栏 Git 面板(差异/分支/历史)由工具栏与中央 tab 进入,不再单独暴露侧栏快捷动作。
     // 提交 diff tab + 工作区 diff tab:右栏点文件 → 编辑器区打开(同 checkpoints 批审阅单模式)
-    ctx.registerTabContent({ kind: COMMIT_TAB_KIND, component: CommitDiffTabContent, icon: GitCommit });
-    ctx.registerTabContent({ kind: DIFF_TAB_KIND, component: DiffTabContent, icon: GitDiff });
-    ctx.registerTabContent({ kind: FILE_HISTORY_TAB_KIND, component: FileHistoryTabContent, icon: ClockCounterClockwise });
+    ctx.registerTabContent({ kind: COMMIT_TAB_KIND, component: lazySuspense(() => import("./CommitDiffTab").then((m) => ({ default: m.CommitDiffTabContent }))), icon: GitCommit });
+    ctx.registerTabContent({ kind: DIFF_TAB_KIND, component: lazySuspense(() => import("./DiffTabContent").then((m) => ({ default: m.DiffTabContent }))), icon: GitDiff });
+    ctx.registerTabContent({ kind: FILE_HISTORY_TAB_KIND, component: lazySuspense(() => import("./fileHistoryViews").then((m) => ({ default: m.FileHistoryTabContent }))), icon: ClockCounterClockwise });
     // 远端动作命令化(fetch/pull/push):无键位仅暴露,为设置清单改键预留;
     // 常规入口是分支视图右键菜单 + 顶栏视图下拉(更新/获取/拉取/推送),命令与 requestRemoteDialog 同通道
     for (const op of ["fetch", "pull", "push"] as const) {

@@ -8,6 +8,7 @@
  * 工作台默认引擎逻辑复用 workbench/defaultEngine,不另设猜测。
  */
 import { FilmSlate } from "@phosphor-icons/react";
+import { lazySuspense } from "@kernel/lazyTab";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import {
   registerComposerEmptySendProvider,
@@ -15,7 +16,6 @@ import {
   registerComposerSendUndo,
 } from "@kernel/composerExt";
 import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
-import { AnimProjectsTab } from "./animProjectsTab";
 import { ANIM_TAB_ID, ANIM_TAB_KIND, openAnimTab } from "./animStores";
 import { getPendingPrompt, getPendingRefs } from "./refStore";
 import { animRefsSendTransform, undoAnimRefsSend } from "./sessionRefs";
@@ -33,7 +33,7 @@ export const animPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
-    ctx.registerTabContent({ kind: ANIM_TAB_KIND, component: AnimProjectsTab, icon: FilmSlate });
+    ctx.registerTabContent({ kind: ANIM_TAB_KIND, component: lazySuspense(() => import("./animProjectsTab").then((m) => ({ default: m.AnimProjectsTab }))), icon: FilmSlate });
     /* 左 rail 入口(active = 项目列表 tab 已开,重渲通知经 tabs store 桥接,
      *  先例 workbench/session-board;排序 45 = 看板 40 与工作区 50 之间)。 */
     ctx.registerSidebarAction({
