@@ -11,6 +11,7 @@ import { DIFF_TAB_KIND } from "./diffTab";
 import { FILE_HISTORY_TAB_KIND, openFileHistoryTab } from "./fileHistoryTab";
 import { fileHistoryOpenRef } from "@kernel/fileHistoryBridge";
 import { FileHistoryTabContent } from "./fileHistoryViews";
+import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 /** Git 插件入口:单视图三段面板(差异/分支/历史)+ 提交 diff 中央 tab。
  *  契约见 openspec/changes/git-right-panel/ 与

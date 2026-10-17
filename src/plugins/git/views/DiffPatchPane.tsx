@@ -9,7 +9,7 @@ import { Spinner } from "@kernel/Spinner";
 import type { GitDiffMode } from "@kernel/settings";
 import type { GitFilePatch } from "@kernel/ipc";
 import { gitErrorDisplay } from "../gitError";
-import { PatchLines } from "./PatchLines";
+import { PatchLines, type PatchNoteCtx } from "./PatchLines";
 
 function paneBody(props: {
   patchLoading: boolean;
@@ -20,8 +20,9 @@ function paneBody(props: {
   fullView: boolean;
   expandFolds: boolean;
   emptyText: string;
+  noteCtx: PatchNoteCtx | null;
 }): ReactNode {
-  const { patchLoading, patchError, patch, selected, diffMode, fullView, expandFolds, emptyText } = props;
+  const { patchLoading, patchError, patch, selected, diffMode, fullView, expandFolds, emptyText, noteCtx } = props;
   if (patchLoading) {
     return (
       <div className="flex h-full items-center justify-center gap-1.5 py-6 text-(--tmd-fg-faint)">
@@ -44,6 +45,7 @@ function paneBody(props: {
         mode={diffMode}
         fold={fullView && !expandFolds}
         path={selected}
+        noteCtx={noteCtx}
       />
     );
   }
@@ -67,6 +69,8 @@ export function DiffPatchPane(props: {
   expandFolds: boolean;
   /** patch 就绪但无文本时的空态文案(工作区/提交各有措辞)。 */
   emptyText: string;
+  /** 行级批注上下文;缺省 null = 不启用(工作区 tab 现状)。 */
+  noteCtx?: PatchNoteCtx | null;
 }) {
-  return <div className="min-w-0 flex-1 overflow-auto">{paneBody(props)}</div>;
+  return <div className="min-w-0 flex-1 overflow-auto">{paneBody({ ...props, noteCtx: props.noteCtx ?? null })}</div>;
 }

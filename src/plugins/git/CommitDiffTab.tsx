@@ -16,6 +16,10 @@ import { ipc, type GitCommitFile, type GitFilePatch } from "@kernel/ipc";
 import { readCommitTabPayload, type CommitTabPayload } from "./commitTab";
 import { useCommitFiles } from "./hooks/useCommitFiles";
 import { gitErrorDisplay, gitErrorMessage } from "./gitError";
+import { host } from "@kernel/host";
+import { add, sessionKeyOf, useDiffNotesStore } from "./diffNotes";
+import type { PatchNoteCtx } from "./views/PatchLines";
+import { DiffNotesPanel } from "./views/DiffNotesPanel";
 import { DiffPatchPane } from "./views/DiffPatchPane";
 import { DiffModeToggle } from "./views/DiffModeToggle";
 import { countFoldRuns } from "./views/patchModel";
@@ -80,6 +84,19 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
     );
   }, [payload.cwd, payload.sha, selected, fullView]);
 
+  /* 行级批注:会话键 = 批注时刻激活会话快照(add 时取),面板按当前键隔离展示。 */
+  const store = useDiffNotesStore();
+  const sessionKey = sessionKeyOf(host.getActiveSessionId(), payload.cwd);
+  const noteCtx: PatchNoteCtx | null = selected
+    ? {
+        file: selected,
+        notes: store.groups[sessionKey]?.filter((n) => n.file === selected) ?? [],
+        onAdd: (hash, lineNo, text, excerpt) => {
+          add(sessionKey, selected, hash, lineNo, text, excerpt);
+        },
+      }
+    : null;
+
   return (
     <div className="flex h-full min-h-0 flex-col text-xs" data-icon-decor="git-zone">
       {/* 提交头 */}
@@ -108,16 +125,20 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
             setExpandFolds(false);
           }}
         />
-        <DiffPatchPane
-          patchLoading={patchLoading}
-          patchError={patchError}
-          patch={patch}
-          selected={selected}
-          diffMode={diffMode}
-          fullView={fullView}
-          expandFolds={expandFolds}
-          emptyText={t("无 patch 数据")}
-        />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <DiffPatchPane
+            patchLoading={patchLoading}
+            patchError={patchError}
+            patch={patch}
+            selected={selected}
+            diffMode={diffMode}
+            fullView={fullView}
+            expandFolds={expandFolds}
+            emptyText={t("无 patch 数据")}
+            noteCtx={noteCtx}
+          />
+          <DiffNotesPanel sessionKey={sessionKey} />
+        </div>
       </div>
     </div>
   );
