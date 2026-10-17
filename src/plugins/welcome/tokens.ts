@@ -10,10 +10,13 @@ import {
   extractUsageFromHead,
   type UsageLine,
 } from "../cli-shared/sessionUsage";
+import { windowResetFor } from "./quotaWindow";
 
 
 /** 头窗口字节数(与 diskSessions 的深窗一致)。 */
 const HEAD_BYTES = 256 * 1024;
+/** claude 窗口推算的尾窗字节数:覆盖最近 5h 活动的 usage 行(≈250+ 条)。 */
+const TAIL_BYTES = 128 * 1024;
 /** 7 日窗口 ms。 */
 export const WINDOW_MS = 7 * 86400_000;
 
@@ -47,6 +50,9 @@ export interface TokenAgg {
   totals: { input: number; output: number; cacheRead: number; cost: number };
   /** 窗口内消费过的会话数。 */
   sessions: number;
+  /** 限额窗口重置推算(profileId → 推算结果;只对有行的 profile 键,
+   * 口径未知的家族值为 null)。 */
+  windows: Record<string, { startMs: number; resetAtMs: number } | null>;
 }
 
 /* ── 聚合(纯函数,可测)──────────────────────────── */
@@ -109,6 +115,22 @@ export function aggregateUsage(
     byEngine[profileId] = eng;
   }
 
+  /* 限额窗口推算:按 profile 收拢全量行(usageBySession 经 path 关联),
+   * 只对有行的 profile 键;口径未知的家族 windowResetFor 返回 null。 */
+  const linesByProfile: Record<string, UsageLine[]> = {};
+  for (const [profileId, sessions_] of Object.entries(sessionsByProfile)) {
+    for (const s of sessions_) {
+      const lines = usageBySession[s.path];
+      if (!lines || lines.length === 0) continue;
+      (linesByProfile[profileId] ??= []).push(...lines);
+    }
+  }
+  const windows: TokenAgg["windows"] = {};
+  for (const [profileId, lines] of Object.entries(linesByProfile)) {
+    const w = windowResetFor(profileId, lines, now);
+    windows[profileId] = w ? { startMs: w.windowStartMs, resetAtMs: w.resetAtMs } : null;
+  }
+
   /* daily 恒 7 天,升序。 */
   const daily: DailyUsage[] = [];
   for (let i = 6; i >= 0; i--) {
@@ -121,6 +143,7 @@ export function aggregateUsage(
     daily,
     totals,
     sessions,
+    windows,
   };
 }
 
@@ -140,6 +163,9 @@ export async function collectTokenUsage(
   const sessionsByProfile: Record<string, (CliDiskSession | { path: string })[]> = {};
   const usageBySession: Record<string, UsageLine[]> = {};
   const reads: Promise<void>[] = [];
+  /* claude 窗口推算专用尾读:usage 行追加在文件尾,>HEAD_BYTES 的长会话头部
+   * 只有过期行,窗口推算必须吃尾(claude 无额度 API,只能本地推算)。 */
+  const usageTailBySession: Record<string, UsageLine[]> = {};
 
   await Promise.all(
     profiles.map(async (profile) => {
@@ -161,6 +187,16 @@ export async function collectTokenUsage(
                 })
                 .catch(() => undefined), // 单会话失败跳过
             );
+            if (profile.id === "claude") {
+              reads.push(
+                ipc
+                  .fsReadTail(s.path, TAIL_BYTES)
+                  .then((tail) => {
+                    usageTailBySession[s.path] = extractUsageFromHead(tail, startMs);
+                  })
+                  .catch(() => undefined),
+              );
+            }
           }
         }),
       );
@@ -169,5 +205,18 @@ export async function collectTokenUsage(
   );
 
   await Promise.all(reads);
-  return { agg: aggregateUsage(now, labels, sessionsByProfile, usageBySession), labels };
+  const agg = aggregateUsage(now, labels, sessionsByProfile, usageBySession);
+  /* claude 窗口以尾读行精化(尾读空则退回头读结果):tail 行覆盖最近活动,
+   * 推算锚点不再受长会话文件头截断影响。 */
+  const claude = profiles.find((p) => p.id === "claude");
+  if (claude) {
+    const tailLines = Object.values(usageTailBySession).flat();
+    if (tailLines.length > 0) {
+      const w = windowResetFor("claude", tailLines, now);
+      agg.windows["claude"] = w
+        ? { startMs: w.windowStartMs, resetAtMs: w.resetAtMs }
+        : null;
+    }
+  }
+  return { agg, labels };
 }

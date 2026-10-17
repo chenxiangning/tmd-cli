@@ -11,6 +11,7 @@ import { host } from "@kernel/host";
 import { useWorkspaces } from "@kernel/workspace";
 import type { TokenAgg } from "./tokens";
 import { collectTokenUsage } from "./tokens";
+import { TokenDashboardWindow } from "./TokenDashboardWindow";
 import "./tokens.css";
 
 /** token 数展示缩略:1.4M / 320k / 780。 */
@@ -179,6 +180,10 @@ export function TokenDashboard({ refreshTick }: { refreshTick: number }) {
           </div>
         </div>
       )}
+      <TokenDashboardWindow
+        profileIds={engineRows.map((e) => e.profileId)}
+        windows={agg.windows}
+      />
       <div className="note">{t("数据源 = 本地会话记录,仅统计近 7 日")}</div>
     </div>
   );

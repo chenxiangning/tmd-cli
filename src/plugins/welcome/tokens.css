@@ -57,6 +57,14 @@
 }
 .trow .pct { text-align: right; color: var(--tmd-fg-faint); }
 
+/* 窗口重置小节:复用 .trow 行语言,进度条单色 */
+.tokens-win { margin-top: 10px; }
+.tokens-win .tokens-win-head {
+  font-size: var(--tmd-font-ui); color: var(--tmd-fg-faint); margin-bottom: 2px;
+}
+.tokens-win .strip.win { background: var(--tmd-accent, var(--tmd-ok)); width: var(--w, 0%); }
+.tokens-win .strip.win + .bv { left: min(calc(var(--w, 0%) + 6px), calc(100% - 8rem)); }
+
 /* 近 7 日趋势柱 */
 .trend { display: flex; align-items: flex-end; gap: 10px; height: 116px; padding-top: 4px; }
 .trend .day {
@@ -92,4 +100,11 @@
     border-left: none; border-top: 1px solid var(--tmd-border); padding-left: 0; padding-top: 8px;
   }
   .tokens-stats { display: none; }
+}
+
+/* 汇总条:下一个可用窗口(0.3.9 窗口重置小节) */
+.tokens-win-next {
+  margin-left: auto;
+  font-size: 12px;
+  color: #c2410c;
 }

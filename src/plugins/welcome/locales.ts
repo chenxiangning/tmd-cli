@@ -96,6 +96,12 @@ const MESSAGES_EN = {
   "重试": "Retry",
   "数据源 = 本地会话记录,仅统计近 7 日":
     "Source: local session logs, last 7 days only",
+  /* tokens dashboard · 窗口重置小节 */
+  "窗口重置": "Window reset",
+  "{h}小时{m}分后重置": "Resets in {h}h {m}m",
+  "口径未知,不猜测兜底": "Policy unknown — no guessing fallback",
+  "下一个可用窗口:{id},{cd}": "Next available window: {id}, {cd}",
+  "无最近会话数据": "No recent session data",
   /* 插件 meta(渲染点在市场清单/命令抽屉,主会话包裹) */
   "欢迎页": "Welcome page",
   "无会话首页:引擎全动作行、凭据额度、续作":
@@ -195,6 +201,12 @@ const MESSAGES_JA = {
   "重试": "再試行",
   "数据源 = 本地会话记录,仅统计近 7 日":
     "ソース:ローカルセッション記録(過去 7 日のみ)",
+  /* tokens ダッシュボード · ウィンドウリセット節 */
+  "窗口重置": "ウィンドウリセット",
+  "{h}小时{m}分后重置": "{h}時間{m}分後にリセット",
+  "口径未知,不猜测兜底": "方式不明のため推測しない",
+  "下一个可用窗口:{id},{cd}": "次の利用可能ウィンドウ:{id},{cd}",
+  "无最近会话数据": "最近のセッションデータなし",
 
   /* 插件 meta(渲染点在市场清单/命令抽屉,主会话包裹) */
   "欢迎页": "ウェルカムページ",
