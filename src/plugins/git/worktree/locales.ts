@@ -27,6 +27,8 @@ const MESSAGES_EN = {
   "取消": "Cancel",
   "磁盘占用(不含 .git)": "Disk usage (excluding .git)",
   "{n} 个会话在此 worktree 中启动": "{n} session(s) started in this worktree",
+  "在新 worktree 中起会话…": "Start session in new worktree…",
+  "引擎": "Engine",
 } as const;
 
 /** ja 词典 · worktree 域。 */
@@ -51,6 +53,8 @@ const MESSAGES_JA = {
   "取消": "キャンセル",
   "磁盘占用(不含 .git)": "ディスク使用量(.git を除く)",
   "{n} 个会话在此 worktree 中启动": "この worktree で {n} 件のセッションを開始",
+  "在新 worktree 中起会话…": "新しい worktree でセッションを開始…",
+  "引擎": "エンジン",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

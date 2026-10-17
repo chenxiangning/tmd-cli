@@ -26,7 +26,8 @@ import { spinRemainder } from "@kernel/spin";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { registerSessionRevealHandler } from "@kernel/sessionReveal";
 import { SessionMenuOverlay } from "./SessionMenu";
-import { anchorPopoverPosition, clampMenuPosition } from "./utils";
+import { WorktreeSessionDialog } from "./WorktreeSessionDialog";
+import { anchorPopoverPosition, clampMenuPosition, refreshingMapOf } from "./utils";
 import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
 import { useWorkspaceBrowserSwap } from "./WorkspaceBrowserSwap";
@@ -41,7 +42,6 @@ import { WorkspaceAddDialog } from "./WorkspaceAddDialog";
 /** ⌘T 桥:新建会话菜单开合态在 WorkspaceSection 组件内,命令却在 activate 期注册 ——
  *  模块级 ref 接收分发器触发(先例:TerminalView findRequestRef)。 */
 const openNewSessionMenuRef: { current: (() => void) | null } = { current: null };
-
 function WorkspaceSection() {
   useHost();
   /* 顶栏 tab「定位」:消费 kernel/sessionReveal 请求,展开并滚动到该会话行(见 revealSession.ts)。 */
@@ -75,6 +75,8 @@ function WorkspaceSection() {
   const hiddenIds = settings.workspaceHiddenIds;
   const visible = useMemo(() => visibleWorkspaces(filtered, hiddenIds), [filtered, hiddenIds]);
   const [menu, setMenu] = useState<{ workspace: Workspace; x: number; y: number } | null>(null);
+  /* worktree 会话弹层(工作区右键菜单入口):独立于 menu state——菜单关闭不连带卸弹层。 */
+  const [wtWs, setWtWs] = useState<Workspace | null>(null);
   /** 行内别名重命名中的工作区 id(单例:同时至多一行在改)。 */
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
@@ -90,9 +92,7 @@ function WorkspaceSection() {
   const setAllCollapsed = (v: boolean) =>
     updateSettings({ workspaceCollapsedMap: Object.fromEntries(list.map((ws) => [ws.id, v])) });
   const setCollapsed = (id: string, v: boolean) =>
-    updateSettings({
-      workspaceCollapsedMap: { ...collapsedMap, [id]: v },
-    });
+    updateSettings({ workspaceCollapsedMap: { ...collapsedMap, [id]: v } });
   /** 组头折叠态(持久化):缺失 = 展开;组定义/派生见 ./groups。 */
   const groupCollapsedMap = settings.workspaceGroupCollapsedMap;
   const grouped = useMemo(
@@ -100,9 +100,7 @@ function WorkspaceSection() {
     [visible, settings.workspaceGroups],
   );
   const toggleGroup = (id: string) =>
-    updateSettings({
-      workspaceGroupCollapsedMap: { ...groupCollapsedMap, [id]: !groupCollapsedMap[id] },
-    });
+    updateSettings({ workspaceGroupCollapsedMap: { ...groupCollapsedMap, [id]: !groupCollapsedMap[id] } });
   /** ⌘T 入口:无点击锚点,菜单开在左栏顶部;工作区取活动者,缺省首个,皆无则不动。
    *  useCallback 钉住引用:下方 ref 同步 effect 以它为依赖,每轮重建会反复重同步。 */
   const openMenu = useCallback(() => {
@@ -238,17 +236,20 @@ function WorkspaceSection() {
           workspace={menu.workspace}
           canRemove={list.length > 1}
           position={{ x: menu.x, y: menu.y }}
-          refreshing={Object.fromEntries(
-            host
-              .getCliProfiles()
-              .map((p) => [p.id, refreshing[`${menu.workspace.id}:${p.id}`] ?? false]),
-          )}
+          refreshing={refreshingMapOf(menu.workspace.id, refreshing)}
           onRefresh={(profileId) => bumpTick(menu.workspace.id, profileId)}
           onRename={() => {
             setRenamingId(menu.workspace.id);
             setMenu(null);
           }}
+          onWorktree={() => setWtWs(menu.workspace)}
           onClose={() => setMenu(null)}
+        />
+      )}
+
+      {wtWs && (
+        <WorktreeSessionDialog
+          repoCwd={wtWs.root} workspaceId={wtWs.id} title={wtWs.name} onClose={() => setWtWs(null)}
         />
       )}
     </div>

@@ -13,6 +13,7 @@ import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "@plugins/git/worktree/dirName";
+import { defaultEngineCandidates, resolveDefaultEngine } from "@plugins/workbench/defaultEngine";
 import { finalBranchName, recordWtSession } from "./worktreeSession";
 
 /** 派生纯函数(自 hook 拆出:分支密集段离开 React 函数;语义不变)。 */
@@ -86,11 +87,21 @@ export function WorktreeSessionDialog({
   /** 仓库根(会话 cwd):worktree 父目录与 node_modules 复用源都由此推导。 */
   repoCwd: string;
   workspaceId: string;
-  profileId: string;
+  /** 引擎预填(会话右键路径 = 原会话引擎);缺省 = 弹层内引擎选择行(工作区右键路径)。 */
+  profileId?: string;
   /** 原会话标题:分支基名 slug 预填 + 新会话标题沿用。 */
   title: string;
   onClose: () => void;
 }) {
+  /* 引擎选择(仅未预填时):默认引擎回落首个候选;生产行(dsh)排除同 GenSettings。 */
+  const candidates = defaultEngineCandidates();
+  const [pickedProfile, setPickedProfile] = useState(() => {
+    if (profileId) return profileId;
+    const def = resolveDefaultEngine();
+    if (def && candidates.some((p) => p.id === def.profileId)) return def.profileId;
+    return candidates[0]?.id ?? "";
+  });
+  const engineId = profileId ?? pickedProfile;
   const form = useWtSessionForm(repoCwd, title);
   const {
     busy, done, error, setError, setBusy, setDone, canCreate, wtPath, finalBranch, newBranch,
@@ -125,8 +136,8 @@ export function WorktreeSessionDialog({
       /* 走 kernel 统一生成面:identityTrack/事件广播/侧栏装配全在里面;
        * 直调 ipc.sessionSpawn 会绕过装配(侧栏不可见、审批/时间线全盲)。 */
       const spawned = await host.spawnRawSession(
-        profileId,
-        { command: host.getCliProfile(profileId)?.command ?? "", args: host.getCliProfile(profileId)?.args ?? [], cwd: wtPath, title },
+        engineId,
+        { command: host.getCliProfile(engineId)?.command ?? "", args: host.getCliProfile(engineId)?.args ?? [], cwd: wtPath, title },
         workspaceId,
         { activate: true, identityTrack: true },
       );
@@ -167,6 +178,30 @@ export function WorktreeSessionDialog({
         className="flex w-[440px] flex-col gap-3 rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-(--tmd-shadow-modal)"
       >
         <div className="text-sm font-medium text-(--tmd-fg)">{t("在新 worktree 中起会话")}</div>
+        {!profileId && (
+          <div>
+            <div className="mb-1 text-xs text-(--tmd-fg-faint)">{t("引擎")}</div>
+            <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t("引擎")}>
+              {candidates.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={engineId === p.id}
+                  onClick={() => setPickedProfile(p.id)}
+                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${
+                    engineId === p.id
+                      ? "border-(--tmd-accent) text-(--tmd-fg)"
+                      : "border-(--tmd-border) text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+                  }`}
+                >
+                  {p.renderIcon?.(12)}
+                  <span>{p.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="text-xs text-(--tmd-fg-faint)">
           {t("目录:{dir}", { dir: wtPath ?? "…" })}
         </div>

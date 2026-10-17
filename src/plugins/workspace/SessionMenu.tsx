@@ -13,7 +13,7 @@ import { removeWorkspace, type Workspace } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useSettingsState } from "@kernel/settings";
 import { assignToGroup } from "./groups";
-import { ArrowClockwise, Check, PencilSimple, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, Check, GitBranch, PencilSimple, Trash } from "@phosphor-icons/react";
 
 
 /* 菜单定位夹取函数 clampMenuPosition 已迁至 ./utils(only-export-components:
@@ -31,6 +31,7 @@ export function SessionMenuOverlay({
   refreshing,
   onRefresh,
   onRename,
+  onWorktree,
   onClose,
 }: {
   workspace: Workspace;
@@ -39,6 +40,8 @@ export function SessionMenuOverlay({
   refreshing: Record<string, boolean>;
   onRefresh: (profileId: string) => void;
   onRename: () => void;
+  /** 「在新 worktree 中起会话…」:弹层归调用方持有(菜单卸载不连带杀弹层)。 */
+  onWorktree: () => void;
   onClose: () => void;
 }) {
   const profiles = host.getCliProfiles();
@@ -95,6 +98,21 @@ export function SessionMenuOverlay({
 
         {/* 扩展入口:插件贡献的会话类型(如 ssh 插件的「SSH 连接」)。 */}
         <Mounts point="workspace.newSessionMenu" />
+
+        {/* 新 worktree 会话:git 仓工作区可用;非仓在弹层内如实报错(入口恒在,发现性优先)。 */}
+        <div className="wsmenu-divider" />
+        <button
+          className="wsmenu-item"
+          onClick={() => {
+            onClose();
+            onWorktree();
+          }}
+        >
+          <span className="wsmenu-item-icon">
+            <GitBranch size="0.8125rem" />
+          </span>
+          <span className="wsmenu-item-label">{t("在新 worktree 中起会话…")}</span>
+        </button>
 
         {/* 移动到组(codemoss assign-workspace-group 同款):仅存在组时出现,当前组打勾。 */}
         {groups.length > 0 && (

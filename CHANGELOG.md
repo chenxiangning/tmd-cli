@@ -10,7 +10,7 @@
 
 ### 新增
 
-- worktree 会话链路:会话卡右键「在新 worktree 中起会话」(分支名 slug 预填+冲突 -2/-3 实时校验+基于 HEAD/指定分支),node_modules 符号链接复用主仓,spawn 走 kernel 统一生成面(spawnRawSession,identityTrack 全装配);会话↔worktree 双向徽标;worktree 管理面新增磁盘占用列(Rust `git_worktree_disk_usage`,跳 .git 不跟符号链接)
+- worktree 会话链路:会话卡右键「在新 worktree 中起会话」(分支名 slug 预填+冲突 -2/-3 实时校验+基于 HEAD/指定分支),node_modules 符号链接复用主仓,spawn 走 kernel 统一生成面(spawnRawSession,identityTrack 全装配);会话↔worktree 双向徽标;worktree 管理面新增磁盘占用列(Rust `git_worktree_disk_usage`,跳 .git 不跟符号链接);入口重梳——工作区右键菜单新增「在新 worktree 中起会话…」(空工作区唯一入口,弹层内选引擎,默认引擎预选),会话右键项保留并预填原会话引擎
 - diff 行级批注回传:diff 行悬停批注钮,气泡以「文件路径+行内容哈希」锚定(防行号漂移),同文重复行归属最近行;右栏批注列表与 diff 行双向定位;一键拼结构化消息经 composer 插入桥回传(不自动发送),会话级生存期 LRU 40 组
 - claude 限额窗口重置推算:claude 无额度 API,本地从会话 JSONL usage 行推算 5h 滚动窗口(尾读 128KB 精化,长会话头部截断不失锚);tokens dashboard「窗口重置」小节+「下一个可用窗口」汇总条,30s 本地重算零网络;codex/omp/pi 走既有真额度体系,口径不明显「—」不猜测兜底
 - agent wiki(memory-coordinator 子模块):会话退出(`kernel.sessions.exited`)取用户消息尾段自动沉淀至工作区 `.tmd/wiki.json`(零模型成本,一会话一条幂等);双栏面板(已决策/开放问题/待归类),拍板流转可撤回,Memory 面板入口;本地单文件无云同步

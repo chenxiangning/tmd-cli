@@ -1,5 +1,6 @@
 import { shortId } from "@kernel/sessionTitles";
 import { clampToViewport } from "@kernel/menuClamp";
+import { host } from "@kernel/host";
 import type { SessionMeta } from "@kernel/ipc";
 
 /** 0 配额组「更多...」首击的展开步长(正配额组从配额值起翻倍:quota → 2× → 4×)。 */
@@ -127,4 +128,14 @@ export function visibleWorkspaces<T extends { id: string }>(
   if (hiddenIds.length === 0) return [...list];
   const hidden = new Set(hiddenIds);
   return list.filter((ws) => !hidden.has(ws.id));
+}
+
+/** 工作区菜单刷新态:profiles × `${wsId}:${profileId}` 键映射(SessionMenuOverlay 用)。 */
+export function refreshingMapOf(
+  wsId: string,
+  refreshing: Record<string, boolean>,
+): Record<string, boolean> {
+  return Object.fromEntries(
+    host.getCliProfiles().map((p) => [p.id, refreshing[`${wsId}:${p.id}`] ?? false]),
+  );
 }

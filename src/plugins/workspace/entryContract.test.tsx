@@ -23,8 +23,23 @@ vi.mock("@kernel/i18n", () => ({
 }));
 vi.stubGlobal("document", { body: {} });
 vi.mock("@kernel/host", () => ({
-  host: { events: { on: () => () => undefined }, getSessions: () => [] },
+  host: {
+    events: { on: () => () => undefined, emit: () => undefined },
+    getSessions: () => [],
+    getCliProfiles: () => [
+      { id: "claude", name: "claude", command: "claude", args: [], renderIcon: () => null },
+    ],
+    getCliProfile: (id: string) =>
+      id === "claude" ? { id: "claude", name: "claude", command: "claude", args: [] } : undefined,
+    createSession: () => Promise.resolve({ id: "pty-x" }),
+  },
 }));
+vi.mock("@kernel/settings", () => ({
+  useSettingsState: () => ({ settings: { workspaceGroups: [] } }),
+}));
+vi.mock("@kernel/workspaceOrigins", () => ({ findWorkspaceOrigin: () => null }));
+vi.mock("@kernel/Mounts", () => ({ Mounts: () => null }));
+vi.mock("./groups", () => ({ assignToGroup: () => undefined }));
 vi.mock("@kernel/menuClamp", () => ({
   clampToViewport: (x: number, y: number) => ({ x, y }),
   clampMenuPosition: (x: number, y: number) => ({ x, y }),
@@ -50,9 +65,9 @@ vi.mock("@kernel/workspace", () => ({
 }));
 
 import { SessionContextMenu } from "./SessionContextMenu";
+import { SessionMenuOverlay } from "./SessionMenu";
 import { MemoryPanelFooter } from "../memory-coordinator/panel/MemoryPanelParts";
 import { DiffNotesPanel } from "../git/views/DiffNotesPanel";
-import { add, setNoteStorageForTest } from "../git/diffNotes";
 
 describe("入口闭环审计", () => {
   it("① 会话右键菜单:传 spawnWorktreeFor 时显「在新 worktree 中起会话」;不传时不显", () => {
@@ -97,5 +112,21 @@ describe("入口闭环审计", () => {
     expect(html).toContain("本回合批注");
     expect(html).toContain("PTY");
     expect(html).toContain("回传给 agent(1 条)");
+  });
+
+  it("④ 工作区右键菜单:新建会话区恒显「在新 worktree 中起会话…」(空工作区唯一入口)", () => {
+    const html = renderToStaticMarkup(
+      createElement(SessionMenuOverlay, {
+        workspace: { id: "ws1", name: "tmd-cli", root: "/tmp/ws" },
+        canRemove: true,
+        position: { x: 60, y: 60 },
+        refreshing: {},
+        onRefresh: () => undefined,
+        onRename: () => undefined,
+        onClose: () => undefined,
+      } as never),
+    );
+    expect(html).toContain("新建会话");
+    expect(html).toContain("在新 worktree 中起会话…");
   });
 });
