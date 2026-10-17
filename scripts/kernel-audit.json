@@ -1,0 +1,14 @@
+{
+  "ipc.ts": {
+    "tag": "host",
+    "note": "IPC 命令面唯一入口"
+  },
+  "host.ts": {
+    "tag": "host",
+    "note": "插件宿主机制"
+  },
+  "i18n.ts": {
+    "tag": "contract",
+    "note": "跨插件词典契约"
+  }
+}

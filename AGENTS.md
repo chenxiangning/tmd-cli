@@ -25,6 +25,7 @@
 2. 设计 spec 必含四段:`日期` + `状态` 头、`背景与目标`、`方案取舍`(选定方案与被否决方案各附理由,写成对照)、`验证`。范本:`docs/superpowers/specs/2026-09-03-plugin-market-icons-design.md`。
 3. 明令禁止:根目录散落文档(白名单仅 `README.md` / `AGENTS.md` / `LICENSE`)、把设计文档写进 `src/` 旁、在 `.pi/` `re-local/` `.claude/` 等本地产物目录放业务文档、自造 `docs/designs/` `NOTES.md` `PLAN.md` 之类平行体系。
 4. 设计定稿并落地后,把结论沉淀进 `docs/architecture/`,不允许 architecture 停留旧貌。
+5. 分类归组,禁止长期平铺(2026-10-17 立):同一主题的成组产出(系列原型/多篇调研/一个任务的多附件)必须建 `docs/<类>/<主题>/` 子目录归组管理(如 `docs/design/040-candidates/`),原型目录配 `index.html` 导航、组内配 `README.md` 说明任务;散篇可平铺,但同一目录下同主题第二篇出现时即应归组。新文档先归类再落盘,禁止往既有平铺层继续堆同类文件。
 
 ## 1. 架构铁律(CI 强制)
 
@@ -47,7 +48,7 @@
 
 ## 2. 验证(交付前必跑)
 
-- 前端改动:`pnpm check:gate` 一条命令跑全(typecheck + test + 架构边界 + 300 行铁则 + i18n 键比对 + build,与 CI 前端 job 同链同序,绿了推上去 CI 前端 job 不会红);不得只跑其中一段替代全链。
+- 前端改动:`pnpm check:gate` 一条命令跑全(typecheck + test + 架构边界 + 300 行铁则 + i18n 键比对 + kernel 分区盘点 + build,与 CI 前端 job 同链同序,绿了推上去 CI 前端 job 不会红);不得只跑其中一段替代全链。
 - 多并行 AI 会话同仓推进约定:提交收口前跑一次 `pnpm check:gate`;**推送前必须在最新树上再跑一次**——并行会话的提交可能落在你提交之后、推送之前,提交时的绿不算推送时的绿。凡动过词典(`src/**/locales*`)或 `t("…")` 调用,重点核对 `check:i18n-keys` 输出的缺键/不对称/死键三段。
 - Rust 改动(在 `src-tauri/` 下):`cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check`
 - UI 行为改动必须 `pnpm tauri:dev` 打开真实窗口目检交互,测试绿不算数。

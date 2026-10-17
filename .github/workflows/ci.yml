@@ -29,6 +29,9 @@ jobs:
       # i18n 键三语同步:t() 字面量键 × en/ja 词典全量比对(scripts/check-i18n-keys.mjs)
       - name: i18n 键三语同步
         run: pnpm check:i18n-keys
+      # kernel 分区盘点:标签合法 + tag=move 无 kernel 内残留引用(scripts/check-kernel-audit.mjs)
+      - name: kernel 分区盘点
+        run: pnpm check:kernel-audit
 
       - run: pnpm typecheck
       - run: pnpm test
