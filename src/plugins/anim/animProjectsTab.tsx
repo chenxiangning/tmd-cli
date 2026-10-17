@@ -36,6 +36,10 @@ const POLL_MS = 2000;
 /** fsOpenWith 的 tmd-anim 应用目标(mac `open -a tmd-anim`;productName 即应用名)。 */
 const ANIM_APP_TARGET: OpenWithTarget = { id: "tmd-anim", label: "tmd-anim", kind: "app", appName: "tmd-anim" };
 
+/** 「打开」= mac `open -a` 语义,仅 macOS 可用;非 mac 跳过探测与「打开」钮,
+ *  避免 which 兜底误报「未安装」横幅(AI 会话不依赖本机 app,不受影响)。 */
+const IS_MAC = getPlatformKind() === "macos";
+
 interface AnimRow {
   path: string;
   file: string;
@@ -99,6 +103,7 @@ export function AnimProjectsTab() {
 
   /* 挂载即探测 tmd-anim 应用:缺席 → 常驻引导横幅(探测失败不抛错,保持 null 不打扰)。 */
   useEffect(() => {
+    if (!IS_MAC) return;
     let alive = true;
     ipc
       .fsProbeOpenApp(ANIM_APP_TARGET)
@@ -266,6 +271,7 @@ export function AnimProjectsTab() {
               name={row.name}
               scenes={row.scenes}
               starting={starting}
+              canOpen={IS_MAC}
               onOpen={() => void openInApp(row.path)}
               onAi={() => void openAiDialog(row.path)}
             />

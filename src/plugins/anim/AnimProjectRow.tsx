@@ -18,6 +18,8 @@ export function AnimProjectRow({
   name,
   scenes,
   starting,
+  /** false(非 macOS)= 不渲染「打开」钮(open -a 仅 mac 语义,不留死 affordance)。 */
+  canOpen,
   onOpen,
   onAi,
 }: {
@@ -28,6 +30,7 @@ export function AnimProjectRow({
   /** 解析出的场景数;null = 无效项目(不显示)。 */
   scenes: number | null;
   starting: boolean;
+  canOpen: boolean;
   onOpen: () => void;
   onAi: () => void;
 }) {
@@ -58,9 +61,11 @@ export function AnimProjectRow({
           {file}
         </button>
       </div>
-      <button type="button" onClick={onOpen} className={ACTION_CLS}>
-        {t("打开")}
-      </button>
+      {canOpen && (
+        <button type="button" onClick={onOpen} className={ACTION_CLS}>
+          {t("打开")}
+        </button>
+      )}
       <button type="button" disabled={starting} onClick={onAi} className={ACTION_CLS}>
         {t("AI 会话")}
       </button>
