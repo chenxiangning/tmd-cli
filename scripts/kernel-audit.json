@@ -10,5 +10,9 @@
   "i18n.ts": {
     "tag": "contract",
     "note": "跨插件词典契约"
+  },
+  "lazyTab.tsx": {
+    "tag": "contract",
+    "note": "跨插件懒加载原语(五插件消费)"
   }
 }

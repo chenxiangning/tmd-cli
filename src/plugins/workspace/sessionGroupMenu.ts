@@ -58,7 +58,8 @@ export function useSessionGroupMenu({
     if (isSessionPinned(key)) {
       unpinSession(key);
     } else {
-      pinSession(key, "global", realTitle(cliSessionId) ?? cliSessionId);
+      /* pinSession 铁律:仅收真标题,短码/UUID 兜底不入库(缺快照由全局区读盘回填)。 */
+      pinSession(key, "global", realTitle(cliSessionId));
     }
   };
   /** 菜单目标的磁盘身份:未绑定(活会话未落盘)则不可重命名/置顶。 */
