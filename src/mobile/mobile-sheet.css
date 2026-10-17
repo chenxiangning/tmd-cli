@@ -32,7 +32,7 @@ dialog.sheet-scrim::backdrop{background:rgba(0,0,0,.45);animation:scrim-in .2s e
 .ws-opt.on .ws-cnt{color:var(--accent)}
 /* 引擎双列卡片:品牌 glyph + 名字;选中 = 描边 + 淡底 + 右上圆点 */
 .eng-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px}
-.eng-opt{position:relative;display:flex;align-items:center;gap:8px;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--bg-panel);padding:9px 11px;font-size:12.5px;color:var(--fg);text-align:left;font-family:inherit;cursor:pointer}
+.eng-opt{position:relative;display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;border:1px solid var(--border);border-radius:10px;background:var(--bg-panel);padding:9px 11px;font-size:12.5px;color:var(--fg);text-align:left;font-family:inherit;cursor:pointer}
 .eng-opt.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
 .eng-opt .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px}
 .eng-opt .dot{position:absolute;top:7px;right:7px;width:6px;height:6px;border-radius:999px;background:var(--accent);display:none}
