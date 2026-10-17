@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0.3.9 候选功能视觉示例 · 导航</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; background: #f6f6f4; color: #1c1917; line-height: 1.6; padding: 48px 24px; }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .sub { color: #57534e; font-size: 14px; margin-bottom: 8px; }
+  .feas { font-size: 13px; margin-bottom: 28px; }
+  .feas a { color: #2563eb; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  a.card { display: block; background: #fff; border: 1px solid #e4e4e0; border-radius: 10px; padding: 16px 18px; text-decoration: none; color: inherit; box-shadow: 0 1px 3px rgba(0,0,0,.06); transition: border-color .15s, box-shadow .15s; cursor: pointer; }
+  a.card:hover { border-color: #ea580c; box-shadow: 0 2px 8px rgba(234,88,12,.12); }
+  .num { font-size: 12px; color: #ea580c; font-weight: 600; }
+  .name { font-size: 16px; font-weight: 600; margin: 2px 0 4px; }
+  .desc { font-size: 13px; color: #57534e; }
+  .base { font-size: 12px; color: #15803d; margin-top: 4px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: #ffedd5; color: #9a3412; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>0.3.9 候选功能视觉示例</h1>
+  <p class="sub">调研:docs/research/client-deep-research-2026-10.md · 2026-10-18 裁定 7 项,已按代码级可行性重构(已有能力标注为对照,不重复画)</p>
+  <p class="feas">可行性分析:<a href="feasibility.md">feasibility.md</a> · 调研表编号在各页角注</p>
+  <div class="grid">
+    <a class="card" href="1-worktree-min.html"><div class="num">01</div><div class="name">worktree 会话链路</div><div class="desc">会话卡一键起 worktree 会话 + 关联徽标 + 磁盘占用</div><div class="base">已有底子:管理面 618 行 + porcelain 解析</div><span class="tag">补最后一环</span></a>
+    <a class="card" href="2-diff-annotate.html"><div class="num">02</div><div class="name">diff 行级批注回传</div><div class="desc">内容哈希锚定批注,经 composer 回传 agent</div><div class="base">已有底子:词级 diff 渲染 + composer 链路</div><span class="tag">低-中成本</span></a>
+    <a class="card" href="3-quota-reset.html"><div class="num">03</div><div class="name">限额 reset 可视化</div><div class="desc">claude/codex 本地推算倒计时,口径不明显示「—」</div><div class="base">已有底子:sessionUsage 四家用量行</div><span class="tag">不猜测兜底</span></a>
+    <a class="card" href="4-agent-wiki.html"><div class="num">04</div><div class="name">agent wiki 决策沉淀</div><div class="desc">已决策/开放问题,退出时本地截取零模型成本</div><div class="base">已有底子:memory-coordinator + exited 事件</div><span class="tag">子模块挂载</span></a>
+    <a class="card" href="5-plugin-lazy.html"><div class="num">05</div><div class="name">插件懒加载</div><div class="desc">首包 3,718KB → ~1,600KB,两段式 activate</div><div class="base">红线:kernel/cli-shared 必须静态</div><span class="tag">回归面大</span></a>
+    <a class="card" href="6-kernel-audit.html"><div class="num">06</div><div class="name">kernel 分区盘点</div><div class="desc">脚本产清单,人工贴标签,迁出标签进 CI</div><div class="base">已有底子:check-file-size / arch-boundary 先例</div><span class="tag">零运行时</span></a>
+    <a class="card" href="7-webgl-bench.html"><div class="num">07</div><div class="name">WebGL 终端基准</div><div class="desc">独立 bench 页三场景,通过才入依赖且按需加载</div><div class="base">现状:addon 未装,先测再定</div><span class="tag">先测再定</span></a>
+  </div>
+</main>
+</body>
+</html>

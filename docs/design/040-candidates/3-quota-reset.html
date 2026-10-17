@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.3.9 候选 · 3/7 — 用量/限额重置时间可视化</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --warn-deep: #92400e;
+    --err: #dc2626; --err-deep: #b91c1c; --info-deep: #1d4ed8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: system-ui, -apple-system, "PingFang SC", sans-serif;
+    font-size: 14px; line-height: 1.6;
+    display: flex; justify-content: center; padding: 40px 24px 64px;
+  }
+  .page { width: 100%; max-width: 1080px; }
+
+  /* 页头 */
+  .page-header { margin-bottom: 24px; }
+  .badge {
+    display: inline-block; font-size: 12px; color: var(--accent-deep);
+    background: var(--accent-soft); border-radius: 999px;
+    padding: 2px 10px; font-weight: 500; margin-bottom: 8px;
+  }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+
+  /* 模拟区 */
+  .mock-label { font-size: 12px; color: var(--fg2); margin-bottom: 8px; }
+  .panel {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    overflow: hidden;
+  }
+  .panel-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+  }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn {
+    font-size: 12px; color: var(--fg2); border: 1px solid var(--border);
+    border-radius: 6px; background: var(--card); padding: 8px 14px;
+    cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* 汇总条 */
+  .summary {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px; background: var(--accent-soft);
+    border-bottom: 1px solid var(--border);
+  }
+  .summary svg { flex-shrink: 0; }
+  .summary-main { font-weight: 600; }
+  .summary-main strong { color: var(--accent-deep); }
+  .summary-note { font-size: 12px; color: var(--warn-deep); margin-left: auto; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); }
+  .qcard { background: var(--card); padding: 20px 24px; }
+  .qcard-top { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .qcard-name { font-weight: 600; }
+  .pill {
+    font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500;
+  }
+  .pill-plan { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-ok { background: #dcfce7; color: var(--ok-deep); }
+  .pill-limited { background: #fee2e2; color: var(--err-deep); }
+  .pill-infer { background: #dbeafe; color: var(--info-deep); }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .qcard-body { display: flex; align-items: center; gap: 20px; }
+
+  .ring-wrap { position: relative; width: 76px; height: 76px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); display: block; }
+  .ring-pct {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 15px; font-weight: 600;
+    line-height: 1.2;
+  }
+  .ring-pct small { font-size: 10px; color: var(--fg2); font-weight: 400; }
+
+  .cd-label { font-size: 12px; color: var(--fg2); }
+  .cd {
+    font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums;
+    line-height: 1.3;
+  }
+  .cd.accent { color: var(--err); font-size: 22px; }
+  .cd.ok { color: var(--ok); }
+  .cd-sub { font-size: 12px; color: var(--fg2); margin-top: 2px; }
+  .muted { color: #78716c; }
+
+  .bar-row { display: flex; gap: 6px; margin-top: 12px; }
+  .mini-bar { position: relative; flex: 1; height: 4px; border-radius: 2px; background: #f0f0ee; overflow: visible; }
+  .mini-bar i { display: block; height: 100%; border-radius: 2px; pointer-events: none; }
+  /* 迷你条可见 tooltip:原生 title 触屏/键盘不可达,改自定义浮层,悬停/聚焦均显示 */
+  .mini-bar::after {
+    content: attr(data-tip);
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%) translateY(2px);
+    background: #1c1917; color: #fff; font-size: 11px; line-height: 1.4;
+    padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; z-index: 5;
+  }
+  .mini-bar:hover::after, .mini-bar:focus-visible::after {
+    opacity: 1; transform: translateX(-50%) translateY(0);
+  }
+  .mini-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .mini-bar::after { transition: none; } }
+  .bar-cap { font-size: 11px; color: var(--fg2); margin-top: 6px; }
+
+  /* 灰态卡:口径未知,不猜测兜底 */
+  .qcard-unknown .qcard-name { color: var(--fg2); }
+  .unknown-note { font-size: 12px; color: var(--fg2); margin-top: 14px; }
+
+  /* toast 反馈 */
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px);
+    background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px;
+    border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18);
+    opacity: 0; pointer-events: none; max-width: 90%; z-index: 10;
+    transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+  /* 交互说明 */
+  .notes {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px;
+  }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before {
+    content: ""; position: absolute; left: 2px; top: 9px;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="page-header">
+    <span class="badge">0.3.9 候选 · 3/7(调研表编号 05)</span>
+    <h1>用量 / 限额重置时间可视化</h1>
+    <p class="page-desc">Quota 面板基于 session JSONL 用量行(sessionUsage.ts,已覆盖 omp/pi/claude/codex)展示用量与重置窗口;claude / codex 可本地推算并标「可推算」,grok / kimi 口径未知,显示「—」不猜测兜底。</p>
+  </header>
+
+  <p class="mock-label">Mock · Quota 面板(工作区 ~/code/tmd-cli)</p>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1c1917" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-9-9"/><path d="M12 7v5l3 3"/><path d="M21 3l-9 9"/>
+        </svg>
+        用量与限额
+        <span class="panel-sub">数据源:session JSONL 用量行</span>
+        <span class="panel-sub" id="lastcalc"></span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="refresh" type="button">刷新重算</button>
+        <button class="btn" id="fastfwd" type="button">快进到重置(演示)</button>
+      </div>
+    </div>
+
+    <!-- 汇总条(与引擎卡同源渲染,倒计时不会漂移) -->
+    <div class="summary">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>
+      </svg>
+      <span class="summary-main" id="sum-main"></span>
+      <span class="summary-note">倒计时为本地推算,无网络轮询 · 期间建议切 codex 继续工作</span>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="notes">
+    <h2>交互说明</h2>
+    <ul>
+      <li><strong>推算规则</strong>:claude 窗口起点由本窗口首条用量行推算;打开面板算一次,本地每分钟重算,点「刷新重算」立即重算——全程读 session JSONL,无网络请求。</li>
+      <li><strong>窗口起点联动</strong>:「窗口起点 HH:MM」= 当前时间 − 剩余时间 + 5 小时窗口,与倒计时同一次渲染、同一份数据反推,每分钟重算时两者同步走针,不会出现起点不变、倒计时在动的漂移。</li>
+      <li><strong>两个按钮的分工</strong>:「刷新重算」= 按当前时间立即重推算(演示无网络重算);「快进到重置(演示)」= 把可推算引擎剩余时间压到 45 秒,归零即见「已重置」终态,再点「恢复初始倒计时」复位,可反复把玩。</li>
+      <li><strong>可推算标注</strong>:claude / codex 卡标蓝「可推算」——用量与时间戳均来自 session JSONL 解析,窗口与重置时间由前端按当前时间本地推算。</li>
+      <li><strong>灰态卡</strong>:grok / kimi 的 reset 语义各家不同且部分无公开口径,面板不编数;hover 灰卡可看原因,且灰态引擎不参与汇总条排序。</li>
+      <li><strong>倒计时格式</strong>:「1小时 18分」,不足 1 小时切分钟粒度;归零后卡片转「已重置」终态(用量清零、pill 转充裕),汇总条自动让位给下一个窗口。</li>
+      <li><strong>汇总条</strong>:取重置时间最早的可推算引擎,「(推算)」标注说明该值为本地推算;灰态引擎不参与排序。</li>
+      <li><strong>状态着色</strong>:充裕 = 绿环、已限额 = 灰环 + 红色强调倒计时;口径未知 = 整卡灰态,与可推算卡明确区分。</li>
+      <li><strong>数字同源</strong>:汇总条、引擎卡、「刷新重算」提示三处倒计时由同一份数据渲染,不会漂移;环形「已用 %」即近 4 窗口迷你条的末位(最近窗口)。</li>
+      <li><strong>迷你条读数</strong>:近 4 窗口迷你条悬停或键盘 Tab 聚焦时浮出「第 N 窗口 · 已用 X%」,不用原生 title(触屏/键盘不可达)。</li>
+    </ul>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  // ring: SVG stroke-dasharray 环形进度;r=32, 周长 C=2πr≈201.06
+  const R = 32, C = 2 * Math.PI * R;
+  const WINDOW_MIN = 300; // 演示口径:5 小时窗口
+  const T0 = Date.now();
+
+  // mode: infer = 用量行已解析、窗口可推算;unknown = 口径未知,不猜测兜底(grok/kimi 不在 sessionUsage 覆盖内)
+  // remain0 = 打开页面这一刻的剩余秒数(演示基准);bars 末位 = 最近窗口用量,未重置时环形百分比与其相等(同源自洽)
+  const engines = [
+    {
+      name: 'claude', plan: 'Max 20x', mode: 'infer', status: 'limited',
+      pillText: '已限额', pillCls: 'pill-limited', remain0: 78 * 60, // 1小时 18分
+      windowSrc: '由本窗口首条用量行推算', bars: [42, 88, 65, 100], barColor: '#dc2626'
+    },
+    {
+      name: 'codex', plan: 'Plus', mode: 'infer', status: 'ok',
+      pillText: '充裕', pillCls: 'pill-ok', remain0: 245 * 60, // 4小时 05分
+      windowSrc: '由会话内用量行推算', bars: [20, 55, 31, 38], barColor: '#15803d'
+    },
+    { name: 'grok', plan: 'SuperGrok', mode: 'unknown' },
+    { name: 'kimi', plan: '标准档', mode: 'unknown' }
+  ];
+  const inferEngines = engines.filter(e => e.mode === 'infer');
+
+  const remainSec = e => Math.max(0, Math.round(e.remain0 - (Date.now() - T0) / 1000));
+  const isReset = e => remainSec(e) <= 0;
+  const fmtCd = sec => {
+    const m = Math.max(1, Math.ceil(sec / 60));
+    const h = Math.floor(m / 60), mm = m % 60;
+    return h > 0 ? h + '小时 ' + String(mm).padStart(2, '0') + '分' : mm + '分';
+  };
+  const two = n => String(n).padStart(2, '0');
+  const hhmm = d => two(d.getHours()) + ':' + two(d.getMinutes());
+  const hms = d => hhmm(d) + ':' + two(d.getSeconds());
+
+  function ring(pct, color, track) {
+    const dash = (C * Math.min(pct, 100) / 100).toFixed(2);
+    return '<svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">' +
+      '<circle cx="38" cy="38" r="' + R + '" fill="none" stroke="' + track + '" stroke-width="6"/>' +
+      '<circle cx="38" cy="38" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="6" ' +
+      'stroke-linecap="round" stroke-dasharray="' + dash + ' ' + C.toFixed(2) + '"/></svg>';
+  }
+
+  function greyRing() {
+    return '<svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">' +
+      '<circle cx="38" cy="38" r="' + R + '" fill="none" stroke="#f0f0ee" stroke-width="6"/></svg>';
+  }
+
+  const stateStyle = {
+    limited: { color: '#d6d3d1', track: '#f0f0ee', pctColor: '#57534e' },
+    ok:      { color: '#15803d', track: '#dcfce7', pctColor: '#1c1917' }
+  };
+
+  function cardHtml(e) {
+    if (e.mode === 'unknown') {
+      return '<div class="qcard qcard-unknown" title="口径未知:各家 reset 语义无公开标准,sessionUsage 未覆盖此引擎,不编数、不参与汇总排序">' +
+        '<div class="qcard-top">' +
+          '<span class="qcard-name">' + e.name + '</span>' +
+          '<span class="pill pill-plan">' + e.plan + '</span>' +
+          '<span class="pill pill-grey">口径未知</span>' +
+        '</div>' +
+        '<div class="qcard-body">' +
+          '<div class="ring-wrap" role="img" aria-label="' + e.name + ' 口径未知,无用量数据">' + greyRing() +
+            '<div class="ring-pct muted">—<small>不猜测</small></div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="cd-label">限额重置</div>' +
+            '<div class="cd muted">—</div>' +
+            '<div class="cd-sub">重置口径无公开标准,不猜测兜底</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="unknown-note">sessionUsage 未覆盖此引擎 · 不编数 · 不参与汇总排序</div>' +
+      '</div>';
+    }
+    const done = isReset(e);
+    const remain = remainSec(e);
+    const s = stateStyle[done ? 'ok' : e.status];
+    const pct = done ? 0 : e.bars[e.bars.length - 1]; // 环形读数 = 最近窗口用量;重置后新窗口从 0 起算
+    const pill = done
+      ? '<span class="pill pill-ok">充裕</span>'
+      : '<span class="pill ' + e.pillCls + '">' + e.pillText + '</span>';
+    return '<div class="qcard" title="用量来自 session JSONL 用量行">' +
+      '<div class="qcard-top">' +
+        '<span class="qcard-name">' + e.name + '</span>' +
+        '<span class="pill pill-plan">' + e.plan + '</span>' + pill +
+        '<span class="pill pill-infer">可推算</span>' +
+      '</div>' +
+      '<div class="qcard-body">' +
+        '<div class="ring-wrap" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="' + e.name + ' 当前窗口已用 ' + pct + '%">' +
+          ring(pct, s.color, s.track) +
+          '<div class="ring-pct" style="color:' + s.pctColor + '">' + pct + '%<small>已用</small></div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="cd-label">限额重置(推算)</div>' +
+          (done
+            ? '<div class="cd ok">已重置</div><div class="cd-sub">新窗口已开始计数,用量从 0 起算</div>'
+            : '<div class="cd ' + (e.status === 'limited' ? 'accent' : 'ok') + '">' + fmtCd(remain) + '后</div>' +
+              '<div class="cd-sub">窗口起点 ' + hhmm(new Date(Date.now() + remain * 1000 - WINDOW_MIN * 60000)) + ' · ' + e.windowSrc + '</div>') +
+        '</div>' +
+      '</div>' +
+      '<div class="bar-row">' +
+        e.bars.map((b, i) =>
+          '<div class="mini-bar" tabindex="0" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + b + '" aria-label="近 4 窗口 · 第 ' + (i + 1) + ' 个窗口已用 ' + b + '%" data-tip="第 ' + (i + 1) + ' 窗口 · 已用 ' + b + '%">' +
+            '<i style="width:' + b + '%;background:' + (done && i === e.bars.length - 1 ? '#d6d3d1' : e.barColor) + '"></i>' +
+          '</div>').join('') +
+      '</div>' +
+      '<div class="bar-cap">近 4 窗口用量(末位 = 最近窗口,未重置时与环形读数相同)</div>' +
+    '</div>';
+  }
+
+  function nextEngine() {
+    return inferEngines.filter(e => !isReset(e)).sort((a, b) => remainSec(a) - remainSec(b))[0];
+  }
+
+  function render() {
+    document.getElementById('grid').innerHTML = engines.map(cardHtml).join('');
+    const next = nextEngine();
+    document.getElementById('sum-main').innerHTML = next
+      ? '下一个可用窗口:<strong>' + next.name + '</strong>(推算),' + fmtCd(remainSec(next)) + '后重置'
+      : '全部可推算窗口均已重置,可正常使用';
+    document.getElementById('lastcalc').textContent = '· 最近推算 ' + hms(new Date());
+  }
+
+  // 刷新:演示「本地推算重算」——重读同源数据立即重绘,无网络请求
+  const toast = document.getElementById('toast');
+  let toastTimer;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  const btn = document.getElementById('refresh');
+  btn.addEventListener('click', function () {
+    btn.disabled = true;
+    btn.textContent = '推算中…';
+    setTimeout(function () {
+      render();
+      btn.disabled = false;
+      btn.textContent = '刷新重算';
+      const next = nextEngine();
+      showToast('已按本地时间重算(session JSONL,无网络请求)· 下一个窗口:' +
+        (next ? next.name + ' ' + fmtCd(remainSec(next)) + '后重置' : '全部可用'));
+    }, 350);
+  });
+
+  // 快进(演示):把可推算引擎剩余时间压到 45 秒,归零即可看「已重置」终态;再点恢复初始倒计时
+  const ORIG = engines.map(e => e.remain0);
+  let fwd = false;
+  const ffBtn = document.getElementById('fastfwd');
+  ffBtn.addEventListener('click', function () {
+    fwd = !fwd;
+    engines.forEach((e, i) => { if (e.mode === 'infer') e.remain0 = fwd ? 45 : ORIG[i]; });
+    ffBtn.textContent = fwd ? '恢复初始倒计时' : '快进到重置(演示)';
+    render();
+    showToast(fwd
+      ? '已快进:剩余时间压至 45 秒,归零后即见「已重置」终态'
+      : '已恢复初始倒计时(1小时 18分 / 4小时 05分)');
+  });
+
+  render();
+  setInterval(render, 60000); // 本地每分钟重算,与交互说明一致
+</script>
+</body>
+</html>

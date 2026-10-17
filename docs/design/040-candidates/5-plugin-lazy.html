@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>插件懒加载 · 0.3.9 候选 5/7</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f6f6f4; color: #1c1917;
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px; line-height: 1.6;
+    padding: 40px 24px;
+  }
+  .page { max-width: 1080px; margin: 0 auto; }
+  header .kicker { font-size: 12px; color: #57534e; letter-spacing: .5px; }
+  header h1 { font-size: 24px; margin: 4px 0 2px; }
+  header .desc { color: #57534e; }
+  .card {
+    background: #fff; border: 1px solid #e4e4e0; border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px;
+  }
+  .mock { margin: 20px 0; }
+  .panel-title { font-size: 13px; font-weight: 600; color: #57534e; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  svg.ic { width: 20px; height: 20px; stroke: #57534e; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* 对比条形图 */
+  .bar-row { display: grid; grid-template-columns: 96px 1fr 200px; gap: 12px; align-items: center; margin-bottom: 14px; }
+  .bar-label { font-size: 13px; color: #57534e; text-align: right; }
+  .bar-track {
+    background-color: #fafaf9;
+    background-image:
+      linear-gradient(#e4e4e0, #e4e4e0),
+      linear-gradient(#e4e4e0, #e4e4e0),
+      linear-gradient(#e4e4e0, #e4e4e0);
+    background-size: 1px 100%;
+    background-position: 26.9% 0, 53.8% 0, 80.7% 0; /* 1,000 / 2,000 / 3,000 KB 刻度,满轴 = 3,718 KB */
+    background-repeat: no-repeat;
+    border: 1px solid #e4e4e0; border-radius: 6px; height: 30px; overflow: hidden;
+  }
+  .bar-fill { height: 100%; display: flex; align-items: center; }
+  .bar-fill.now { width: 100%; background: #ffedd5; border-right: 2px solid #ea580c; }
+  .bar-fill.now span { margin-left: auto; margin-right: 8px; font-size: 12px; font-weight: 600; color: #c2410c; white-space: nowrap; }
+  .bar-fill.lazy { width: 43%; background: #dcfce7; border-right: 2px solid #15803d; }
+  .bar-fill.lazy span { margin-left: auto; margin-right: 8px; font-size: 12px; font-weight: 600; color: #15803d; white-space: nowrap; }
+  .bar-note { font-size: 12px; color: #57534e; }
+  .bar-note b { color: #15803d; font-size: 14px; }
+  .delta-badge {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 4px;
+    background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d;
+    border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600;
+  }
+  .bar-scale { display: grid; grid-template-columns: 96px 1fr 200px; gap: 12px; margin: -6px 0 14px; }
+  .bar-axis { position: relative; height: 15px; font-size: 12px; color: #57534e; }
+  .bar-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+  .bar-axis .t-first, .bar-axis .t-max { transform: none; }
+  .bar-axis .t-max { font-weight: 600; }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid #e4e4e0; border-radius: 8px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; font-size: 13px; border-bottom: 1px solid #e4e4e0; }
+  th { background: #fafaf9; color: #57534e; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 500; }
+  .pill.yes { background: #ffedd5; color: #c2410c; }
+  .pill.no { background: #f5f5f4; color: #57534e; }
+  .pill.eager { background: #eff6ff; color: #2563eb; }
+  .pill.onopen { background: #fefce8; color: #b45309; }
+  .pill.static { position: relative; cursor: help; background: #fef2f2; color: #b91c1c; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+  .pill.static svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .pill.static .tip {
+    display: none; position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 10;
+    width: max-content; max-width: 320px; text-align: left;
+    background: #1c1917; color: #fff; font-size: 12px; font-weight: 400; line-height: 1.5;
+    padding: 8px 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .pill.static:hover .tip, .pill.static:focus-visible .tip { display: block; }
+  tr.expandable { cursor: pointer; }
+  tr.expandable:hover td { background: #fafaf9; }
+  tr.expandable:focus-visible { outline: 2px solid #ea580c; outline-offset: -2px; }
+  :focus-visible { outline: 2px solid #ea580c; outline-offset: 2px; }
+  .caret { display: inline-block; transition: transform .15s; margin-right: 6px; color: #57534e; }
+  tr.expandable.open .caret { transform: rotate(90deg); }
+  tr.detail td { background: #fffbf5; font-size: 12.5px; color: #57534e; padding: 12px 14px 12px 40px; border-bottom: 1px solid #e4e4e0; }
+  tr.detail td b { color: #c2410c; }
+  tr.detail[hidden] { display: none; }
+  tr.note td { background: #f0f9ff; font-size: 12.5px; color: #57534e; padding: 12px 14px; border-bottom: 1px solid #e4e4e0; }
+  tr.note td b { color: #2563eb; }
+  .code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; background: #f5f5f4; border-radius: 4px; padding: 1px 6px; }
+
+  .hint { margin-top: 12px; font-size: 12px; color: #57534e; display: flex; align-items: center; gap: 6px; }
+
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { padding-left: 20px; color: #1c1917; }
+  .notes li { margin-bottom: 6px; }
+  .notes li::marker { color: #ea580c; }
+  .notes li b { color: #1c1917; }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="kicker">0.3.9 候选 · 5/7(调研表编号 11)</div>
+    <h1>插件懒加载(结构件)</h1>
+    <p class="desc">现状 46 个插件全部静态 import,打进 DesktopApp 单 chunk(实测 3,718KB / gzip 988KB);改为低频 tab 内容 React.lazy 按需加载、插件 activate 分两段,Vite 手动分包配合。</p>
+  </header>
+
+  <div class="mock card">
+    <div class="panel-title">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><rect x="7" y="10" width="3" height="6" rx=".5"/><rect x="12" y="7" width="3" height="9" rx=".5"/><rect x="17" y="4" width="3" height="12" rx=".5"/></svg>
+      首包体积对比(DesktopApp chunk)
+    </div>
+
+    <div class="bar-row">
+      <div class="bar-label">现状</div>
+      <div class="bar-track"><div class="bar-fill now"><span>3,718 KB</span></div></div>
+      <div class="bar-note">46 个插件全量静态 import(<span class="code">src/plugins/index.ts:53</span>)</div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">懒加载后</div>
+      <div class="bar-track"><div class="bar-fill lazy"><span>~1,600 KB</span></div></div>
+      <div class="bar-note">常驻件(cli-shared / kernel / 终端)+ 低频 tab 按需 · 保守估计</div>
+    </div>
+    <div class="bar-scale" aria-hidden="true">
+      <div></div>
+      <div class="bar-axis">
+        <span class="t-first" style="left:0">0</span>
+        <span style="left:26.9%">1,000</span>
+        <span style="left:53.8%">2,000</span>
+        <span style="left:80.7%">3,000</span>
+        <span class="t-max" style="right:0">3,718 KB</span>
+      </div>
+      <div></div>
+    </div>
+    <div class="delta-badge">
+      <svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:#15803d"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg>
+      3,718 KB → ~1,600 KB · 约减少 57%(保守估计)
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>插件 / 模块</th><th>共享依赖</th><th>首屏需要</th><th>加载时机</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>cli-shared</td>
+          <td><span class="pill static" tabindex="0" aria-describedby="tip-cli-shared"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>必须静态<span class="tip" role="tooltip" id="tip-cli-shared">共享单例:被全部插件复用,懒加载会破坏单例契约,必须随首包常驻</span></span></td>
+          <td><span class="pill yes">是</span></td>
+          <td><span class="pill eager">启动时</span> · 共享单例</td>
+        </tr>
+        <tr>
+          <td>kernel</td>
+          <td><span class="pill static" tabindex="0" aria-describedby="tip-kernel"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>必须静态<span class="tip" role="tooltip" id="tip-kernel">共享单例:被全部插件复用,懒加载会破坏单例契约,必须随首包常驻</span></span></td>
+          <td><span class="pill yes">是</span></td>
+          <td><span class="pill eager">启动时</span> · 共享单例</td>
+        </tr>
+        <tr class="note">
+          <td colspan="4"><b>分两段 activate:</b>插件元信息(manifest 与贡献点)启动时常驻注册;重逻辑 activate(视图 / 命令 / 重依赖)推迟到首次打开对应 tab 时执行。</td>
+        </tr>
+        <tr>
+          <td>终端(xterm)</td>
+          <td>—</td>
+          <td><span class="pill yes">是</span></td>
+          <td><span class="pill eager">启动时</span> · 常驻首屏,不懒加载</td>
+        </tr>
+        <tr class="expandable" id="row-workbench" tabindex="0" aria-expanded="false" aria-controls="detail-workbench">
+          <td><span class="caret" aria-hidden="true">▸</span>工作台(19.4k 行)</td>
+          <td>—</td>
+          <td><span class="pill no">否</span></td>
+          <td><span class="pill onopen">首次打开工作台 tab</span></td>
+        </tr>
+        <tr class="detail" id="detail-workbench" hidden>
+          <td colspan="4">
+            <b>懒加载最大收益项:</b>19.4k 行源码整块打进首包,但属于低频 tab;component 经 <b>React.lazy</b> 拆为独立 chunk,首次打开时动态 import + 重逻辑 activate,之后常驻缓存零开销。同为体积大头的终端 / xterm 因常驻首屏,不参与懒加载。
+          </td>
+        </tr>
+        <tr class="expandable open" id="row-anim" tabindex="0" aria-expanded="true" aria-controls="detail-anim">
+          <td><span class="caret" aria-hidden="true">▸</span>动画</td>
+          <td>—</td>
+          <td><span class="pill no">否</span></td>
+          <td><span class="pill onopen">首次打开动画 tab</span></td>
+        </tr>
+        <tr class="detail" id="detail-anim">
+          <td colspan="4">
+            <b>懒加载方式:</b>首次点击动画 tab 时才动态 import 插件模块并执行重逻辑 activate;加载期间 tab 骨架占位,一帧内替换;之后再进 tab 命中已加载缓存,零开销。
+          </td>
+        </tr>
+        <tr>
+          <td>git 面板 / 文件预览</td>
+          <td>—</td>
+          <td><span class="pill no">否</span></td>
+          <td><span class="pill onopen">首次打开对应 tab</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="hint">
+      <svg class="ic" viewBox="0 0 24 24" style="width:16px;height:16px"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
+      <span><span class="code">src/plugins/index.ts</span> 共 46 个插件静态 import;上表为代表性行,其余低频插件按同规则归入按需段。</span>
+    </div>
+  </div>
+
+  <div class="card notes">
+    <h2>交互说明</h2>
+    <ul>
+      <li><b>现状:</b><span class="code">src/plugins/index.ts</span> 的 <span class="code">allPlugins</span> 46 个插件全部静态 import(53 行数组),DesktopApp 单 chunk 实测 3,718KB(gzip 988KB)。</li>
+      <li><b>改法:</b><span class="code">registerTabContent</span> 的 component 用 <span class="code">React.lazy</span> 包裹;插件 activate 分两段——元信息(manifest / 贡献点)启动时常驻注册,重逻辑 activate 首次打开 tab 时加载。</li>
+      <li><b>边界:</b>cli-shared 与 kernel 是共享单例,必须保持静态;终端 / xterm 虽是体积大头但常驻首屏,不参与懒加载;真正可懒的是 workbench(19.4k 行)/ anim / git 面板 / files 预览等低频 tab。</li>
+      <li>配合 Vite 手动分包(<span class="code">vite.config</span> 的 rolldownOptions manualChunks),共享单例与大依赖拆为稳定 chunk,避免懒加载后首包回涨。</li>
+      <li>命令面板 / 快捷键对未激活插件保持可见:由常驻的元信息贡献,触发时先激活对应插件再执行命令。</li>
+      <li>点击上表任意带 ▸ 的行可展开 / 收起说明(「工作台」初始收起、「动画」初始展开,即两态小样;切换只是演示态,不影响初始示意);键盘 Tab 聚焦行后按 Enter / 空格等效,再按一次复位。</li>
+      <li>「必须静态」行不是交互行:悬停或键盘 Tab 聚焦锁图标可看到原因提示——共享单例被全部插件复用,必须随首包常驻。</li>
+    </ul>
+  </div>
+</div>
+<script>
+  document.querySelectorAll('tr.expandable').forEach(function (tr) {
+    var detail = document.getElementById('detail-' + tr.id.replace('row-', ''));
+    if (!detail) return;
+    function toggle() {
+      detail.hidden = !detail.hidden;
+      tr.classList.toggle('open', !detail.hidden);
+      tr.setAttribute('aria-expanded', String(!detail.hidden));
+    }
+    tr.addEventListener('click', toggle);
+    tr.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+</script>
+</body>
+</html>

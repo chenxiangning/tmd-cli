@@ -193,6 +193,9 @@
 | 2026-09-25 | [CLI 学堂(cli-academy)设计:多 CLI 通用引导学习体系(kernel 课程注册面 + cli-* 供数据 + academy feature 插件;omp 首接入 82 命令/13 课)](superpowers/specs/2026-09-25-cli-academy-design.md) | 已落地(dd78bae/d86e1b5/80554fb;阶段 1-3 双轮 review PASS;真窗口已启动,目检清单待大仙) |
 | 2026-09-25 | [15 — CLI 学堂契约:课程注册面/AcademyCourse 结构/供给方与消费方职责/练习桥时序/契约测试](architecture/15-cli-academy.md) | 已落地(随 cli-academy 实施) |
 | 2026-09-26 | [客户端能力盘点:多智能体工作台痛点对照与优化方向(六类痛点 × 能力矩阵;P0 通知闭环/撞墙接力/历史检索,P1 审批纵深/worktree 编排/失败分类/用量纵深;similar-products 状态校正)](research/client-capability-gap-analysis.md) | 已完成(建议清单待拍板) |
+| 2026-10-17 | [客户端下一阶段不足盘点与打磨方向(09-26 调研 P0 全落地对账;缺口三层:worktree 表桩化/审批纵深/失败 Retry、巨石插件与死键噪音、RPC 扩家族与 Teams 式编排;0.4.0 候选组合待拍板)](research/client-gap-analysis-2026-10.md) | 已被深度版取代 → client-deep-research-2026-10.md |
+| 2026-10-17 | [客户端深度调研·终稿(竞品 12 家逐个摸底+官方平台矩阵+代码体检三路;行业商业模式集体失败信号、基准线抬高对账、包体/测试密度/kernel 边界/a11y 实测、15 项引入评估与 0.4.0 组合建议)](research/client-deep-research-2026-10.md) | 已完成(候选待拍板) |
+| 2026-10-17 | [0.3.9 候选功能视觉示例(2026-10-18 裁定 7 项进 0.3.9:worktree 会话链路/diff 批注/quota reset/agent wiki/懒加载/kernel 盘点/WebGL 基准;已按代码级可行性重构并三轮打磨,附 feasibility.md;入口 design/040-candidates/index.html)](design/040-candidates/README.md) | 已完成(示例待大仙目检拍板) |
 | 2026-09-26 | [系统通知与额度撞墙预警(离开工位盲区收口;失焦闸/额度轻轮询/三开关+阈值)](../openspec/changes/archive/2026-09-26-os-notifications/proposal.md) | 已落地(真机目检待大仙;notify 插件随本提案提交) |
 | 2026-09-26 | [会话历史检索(工作区用户消息全文;profile 声明面复用/mtime 缓存/增量索引)](../openspec/changes/archive/2026-09-26-session-search/proposal.md) | 已落地(真机目检待大仙;session-search 插件随本提案提交) |
 | 2026-09-26 | [跨引擎一键接力(确定性摘要拼装/预览编辑/新会话首发)](../openspec/changes/archive/2026-09-26-session-relay/proposal.md) | 已落地(真机目检待大仙;session-relay 插件随本提案提交) |

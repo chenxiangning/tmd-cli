@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>worktree 会话链路 · 0.3.9 候选 1/7</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0; --border-soft: #f0efe9;
+    --fg: #1c1917; --muted: #57534e; --faint: #a8a29e;
+    --accent: #ea580c; --accent-soft: #ffedd5; --accent-deep: #9a3412;
+    --ok: #15803d; --ok-dot: #16a34a;
+    --warn: #b45309; --warn-dot: #d97706;
+    --err: #dc2626; --info: #2563eb;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "PingFang SC", "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--fg); font-size: 14px; line-height: 1.6;
+    padding: 48px 24px 64px;
+  }
+  .page { max-width: 1080px; margin: 0 auto; }
+
+  /* 页头 */
+  .kicker {
+    display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .02em;
+    color: var(--accent-deep); background: var(--accent-soft);
+    padding: 2px 10px; border-radius: 99px;
+  }
+  h1 { font-size: 22px; letter-spacing: -.01em; margin: 10px 0 4px; }
+  .desc { color: var(--muted); max-width: 760px; margin-bottom: 26px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .block { padding: 20px 22px; margin-bottom: 16px; }
+  .mock-tag { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 14px; }
+  .mock-tag b { color: var(--accent); margin-right: 6px; }
+
+  /* 图标:内联 SVG symbol,描边风 */
+  .ic { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; display: inline-block; vertical-align: middle; }
+  .s20 { width: 20px; height: 20px; } .s15 { width: 15px; height: 15px; }
+  .s14 { width: 14px; height: 14px; } .s12 { width: 12px; height: 12px; }
+
+  /* 双列(②③) */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; margin-bottom: 16px; }
+  .duo .block { margin-bottom: 0; }
+  @media (max-width: 959px) { .duo { grid-template-columns: 1fr; } .duo .block { margin-bottom: 16px; } .duo .block:last-child { margin-bottom: 0; } }
+
+  /* ── ① 会话卡 + 右键菜单(展开态) ─────────────────── */
+  .demo { position: relative; display: flex; gap: 28px; min-height: 344px; }
+  .sidebar-fake {
+    width: 430px; flex: none; align-self: flex-start;
+    background: #fafaf9; border: 1px solid var(--border-soft);
+    border-radius: 8px; padding: 18px 14px;
+  }
+  .sidebar-cap { font-size: 11px; color: var(--muted); margin-bottom: 10px; letter-spacing: .04em; }
+  .session-row {
+    position: relative; display: flex; gap: 10px; padding: 10px 12px;
+    background: var(--card); border: 1.5px solid var(--accent); border-radius: 8px;
+    box-shadow: 0 0 0 3px var(--accent-soft); cursor: context-menu;
+  }
+  .session-row.plain { border: 1px solid var(--border); box-shadow: none; cursor: default; }
+  .s-dot {
+    width: 8px; height: 8px; border-radius: 99px; background: var(--ok-dot);
+    box-shadow: 0 0 0 3px rgba(22,163,74,.15); margin-top: 7px; flex: none;
+  }
+  .s-dot.off { background: #d6d3d1; box-shadow: none; }
+  .sidebar-fake .session-row + .session-row { margin-top: 8px; }
+  .sidebar-fake .session-row { padding: 8px 10px; }
+  .sidebar-fake .session-row.plain { padding: 8px 10px; opacity: .78; }
+  .s-title { font-size: 13.5px; font-weight: 600; }
+  .s-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .eng-pill { font-size: 11px; line-height: 18px; padding: 0 7px; border-radius: 99px; background: #f5f5f4; border: 1px solid var(--border); color: var(--muted); }
+  .branch-chip { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 11.5px; line-height: 18px; padding: 0 7px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-deep); }
+  .wt-badge {
+    display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono);
+    font-size: 11.5px; line-height: 18px; padding: 0 10px; min-height: 28px; border: 0; border-radius: 99px;
+    background: #c2410c; color: #fff; font-weight: 600; cursor: pointer;
+  }
+  .rc-chip {
+    position: absolute; top: -11px; right: 10px; display: inline-flex; align-items: center; gap: 4px;
+    background: #c2410c; color: #fff; font-size: 11px; line-height: 1; padding: 4px 8px; border-radius: 99px;
+  }
+  .ctx-menu {
+    position: absolute; left: 168px; top: 118px; width: 312px; z-index: 5;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(0,0,0,.13); padding: 5px;
+  }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px; width: 100%;
+    background: none; border: 0; font-family: inherit; text-align: left;
+    border-radius: 6px; font-size: 13px; color: var(--fg); cursor: pointer; transition: background .12s;
+  }
+  .menu-item:hover { background: #f5f5f4; }
+  .menu-item .mi-hint { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+  .menu-item.is-new { background: var(--accent-soft); color: var(--accent-deep); font-weight: 600; }
+  .menu-item.is-new .ic { color: var(--accent); }
+  .menu-item.is-new:hover { background: #fed7aa; }
+  .new-chip { margin-left: auto; font-size: 10.5px; line-height: 17px; padding: 0 7px; border-radius: 99px; background: var(--accent-deep); color: #fff; font-weight: 600; }
+  .menu-sep { height: 1px; background: var(--border-soft); margin: 5px 6px; }
+  .aside-notes { flex: 1; min-width: 0; padding: 112px 0 0 44px; display: flex; flex-direction: column; gap: 14px; }
+  .aside-note { border-left: 3px solid var(--accent-soft); padding: 2px 0 2px 12px; font-size: 12.5px; color: var(--muted); max-width: 400px; }
+  .aside-note b { color: var(--fg); }
+
+  /* ── ② 新分支确认弹层 ─────────────────────────────── */
+  .dlg-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .dlg-icon { width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none; }
+  .dlg-head h3 { font-size: 15px; font-weight: 600; line-height: 1.3; }
+  .dlg-sub { font-size: 12px; color: var(--muted); }
+  .fld { margin-bottom: 12px; }
+  .fld-label { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+  .fld-label .fld-opt { font-weight: 400; color: var(--muted); }
+  .fld input[type="text"] {
+    width: 100%; font-family: var(--mono); font-size: 13px; padding: 0 12px; height: 36px;
+    border: 1px solid var(--border); border-radius: 8px; background: #fafaf9; color: var(--fg);
+  }
+  .fld input[type="text"]:focus { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
+  .fld-hint { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+  .fld-hint.is-warn { color: var(--warn); }
+  .fld-hint.is-err { color: #b91c1c; }
+  .radio-row { display: flex; flex-direction: column; gap: 7px; }
+  .radio-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; padding: 4px 0; }
+  .radio-opt .mono { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .radio-opt select {
+    font-family: var(--mono); font-size: 12px; padding: 0 8px; height: 32px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--fg);
+  }
+  .radio-opt select:disabled { color: var(--faint); background: #fafaf9; cursor: not-allowed; }
+  input[type="radio"] { accent-color: var(--accent); width: 14px; height: 14px; flex: none; cursor: pointer; }
+  .copy-note { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--muted); background: #fafaf9; border: 1px solid var(--border-soft); border-radius: 6px; padding: 8px 10px; margin: 14px 0; }
+  .copy-note .ic { color: var(--info); margin-top: 2px; }
+  .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; }
+  .btn { font-size: 13px; padding: 0 14px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; }
+  .btn:hover { color: var(--fg); }
+  .btn-primary { border: none; background: #c2410c; color: #fff; font-weight: 500; transition: background .12s; }
+  .btn-primary:hover { background: #9a3412; color: #fff; }
+  .btn:disabled, .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+  .btn-primary.is-done { background: var(--ok); cursor: default; opacity: 1; }
+
+  /* ── ③ 会话卡徽标与双向关联 ───────────────────────── */
+  .link-arrow { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11.5px; margin: 10px 0 10px 26px; }
+  .link-arrow .flip { transform: rotate(180deg); }
+  .wt-mini-row {
+    display: flex; align-items: center; gap: 10px; background: #fafaf9;
+    border: 1px solid var(--border-soft); border-radius: 8px; padding: 10px 12px;
+  }
+  .wt-mini-row .wt-branch { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 13px; font-weight: 500; min-width: 0; }
+  .wt-mini-row .wt-branch .ic { color: var(--faint); }
+  .wt-mini-row .wt-path { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wt-mini-row .grow { flex: 1; min-width: 0; }
+  .disk { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 12.5px; color: var(--muted); flex: none; }
+  .anno { display: flex; gap: 7px; align-items: flex-start; font-size: 12px; color: var(--warn); margin-top: 10px; line-height: 1.55; }
+  .anno .ic { margin-top: 2px; }
+  .after-cap { font-size: 11px; color: var(--muted); letter-spacing: .04em; margin-bottom: 10px; }
+
+  /* ── ④ 已有能力对照(灰色) ────────────────────────── */
+  .ref-block { border-style: dashed; background: #fbfbfa; box-shadow: none; }
+  .ref-block .mock-tag b { color: var(--faint); }
+  .ref-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .ref-icon { width: 30px; height: 30px; border-radius: 8px; background: #f5f5f4; color: var(--faint); display: grid; place-items: center; flex: none; }
+  .ref-head h3 { font-size: 15px; font-weight: 600; }
+  .ref-badge { margin-left: auto; font-size: 11.5px; line-height: 20px; padding: 0 10px; border-radius: 99px; background: #f5f5f4; border: 1px solid var(--border); color: var(--muted); }
+  .mini-thumb { border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden; background: var(--card); margin-bottom: 10px; }
+  .mini-head { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: #fafaf9; border-bottom: 1px solid var(--border-soft); font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+  .mini-row { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; padding: 6px 12px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+  .mini-row + .mini-row { border-top: 1px solid var(--border-soft); }
+  .mini-row .mini-dot { width: 6px; height: 6px; border-radius: 99px; background: #d6d3d1; justify-self: center; }
+  .mini-row .stx { font-family: system-ui; font-size: 10.5px; line-height: 17px; padding: 0 7px; border-radius: 99px; background: #f5f5f4; color: var(--muted); }
+  .mini-new { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; letter-spacing: 0; }
+  .mini-new em { font-style: normal; font-size: 10.5px; line-height: 16px; padding: 0 6px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-deep); font-weight: 600; }
+  .mini-foot { padding: 7px 12px; border-top: 1px solid var(--border-soft); background: #fafaf9; font-family: system-ui; font-size: 11.5px; color: var(--muted); }
+  .mini-foot b { font-family: var(--mono); color: var(--fg); }
+  .ref-note { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .anchor-list { font-family: var(--mono); font-size: 12px; color: var(--muted); display: grid; gap: 5px; }
+  .anchor-list code { font-family: inherit; background: #f5f5f4; padding: 1px 6px; border-radius: 4px; color: var(--fg); }
+  .anchor-list .gap-line { color: var(--warn); }
+
+  /* 焦点可见 / 动效降级 / toast / 闪高亮 / 弹层终态 */
+  :where(button, a, input, select, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .spin { animation: wt-spin .8s linear infinite; }
+  @keyframes wt-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 8px); background: var(--fg); color: #fff; font-size: 13px; padding: 8px 14px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.18); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .flash { border-color: var(--accent) !important; box-shadow: 0 0 0 3px var(--accent-soft) !important; }
+  .session-row, .wt-mini-row, .card { transition: border-color .25s, box-shadow .25s; }
+  .dlg-result { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--muted); background: var(--bg); border: 1px solid var(--border-soft); border-left: 3px solid var(--ok); border-radius: 6px; padding: 9px 11px; margin-bottom: 12px; }
+  .dlg-result[hidden] { display: none; }
+  .dlg-result .ic { color: var(--ok); margin-top: 2px; flex: none; }
+  .dlg-result b { color: var(--fg); font-family: var(--mono); font-size: 12px; }
+  .dlg-result .mono-path { font-family: var(--mono); font-size: 11.5px; }
+
+  /* 交互说明 */
+  .notes-card { padding: 20px 22px; margin-top: 16px; }
+  .notes-card h2 { font-size: 15px; margin-bottom: 10px; }
+  .notes-card ul { padding-left: 20px; display: grid; gap: 7px; font-size: 13.5px; color: var(--muted); }
+  .notes-card li b { color: var(--fg); }
+</style>
+</head>
+<body>
+<!-- 内联图标库(feather 风,24 viewBox,stroke 1.5) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-branch" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
+    <symbol id="i-pointer" viewBox="0 0 24 24"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></symbol>
+    <symbol id="i-drive" viewBox="0 0 24 24"><line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <span class="kicker">0.3.9 候选 · 1/7(调研表编号 01)</span>
+  <h1>worktree 会话链路</h1>
+  <p class="desc">worktree 管理面(列表 / 新建 / 移除 / 清理悬空)0.3.x 已落地,不再重复;0.3.9 只补「会话 ↔ worktree」最后一公里——右键一键在新 worktree 起会话、双向关联徽标、磁盘占用统计。</p>
+
+  <!-- ① 会话卡右键菜单(新增项高亮) -->
+  <section class="card block">
+    <p class="mock-tag"><b>①</b>会话卡右键菜单 · 新增项(展开态)</p>
+    <div class="demo">
+      <div class="sidebar-fake">
+        <div class="sidebar-cap">会话列表 · 工作区 tmd-cli</div>
+        <div class="session-row">
+          <span class="rc-chip"><svg class="ic s12"><use href="#i-pointer"/></svg>右键呼出</span>
+          <span class="s-dot" title="运行中"></span>
+          <div>
+            <div class="s-title">修复侧栏分组切换时的重载闪断</div>
+            <div class="s-meta">
+              <span class="eng-pill">claude</span>
+              <span class="branch-chip"><svg class="ic s12"><use href="#i-branch"/></svg>main</span>
+              <span>3 分钟前</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="session-row plain">
+          <span class="s-dot off" title="已结束"></span>
+          <div>
+            <div class="s-title">worktree 磁盘占用统计命令设计</div>
+            <div class="s-meta">
+              <span class="eng-pill">omp</span>
+              <span class="branch-chip"><svg class="ic s12"><use href="#i-branch"/></svg>feat/wt-disk</span>
+              <span>2 小时前</span>
+            </div>
+          </div>
+        </div>
+        <div class="session-row plain">
+          <span class="s-dot off" title="已结束"></span>
+          <div>
+            <div class="s-title">quota pill 引擎版本缓存去重</div>
+            <div class="s-meta">
+              <span class="eng-pill">codex</span>
+              <span class="branch-chip"><svg class="ic s12"><use href="#i-branch"/></svg>fix/quota-pill</span>
+              <span>昨天</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ctx-menu" role="menu" aria-label="会话操作菜单">
+        <button type="button" class="menu-item is-new" role="menuitem" id="mi-wt">
+          <svg class="ic s20"><use href="#i-branch"/></svg>在新 worktree 中起会话
+          <span class="new-chip">新增</span>
+        </button>
+        <div class="menu-sep"></div>
+        <button type="button" class="menu-item" role="menuitem" id="mi-copy">
+          <svg class="ic s20"><use href="#i-copy"/></svg>复制会话路径
+        </button>
+        <button type="button" class="menu-item" role="menuitem" id="mi-archive">
+          <svg class="ic s20"><use href="#i-archive"/></svg>归档会话
+        </button>
+      </div>
+
+      <div class="aside-notes">
+        <p class="aside-note"><b>管理面已有,不再重复:</b>worktree 列表 / 新建 / 移除 / 清理悬空 / prunable 标记 0.3.x 已落地(见底部灰色对照块);本提案不新增任何管理入口,只把「会话」接上 worktree。</p>
+        <p class="aside-note"><b>一个入口,四步并一步:</b>新建分支 → 复制工作区 → node_modules 符号链接共享 → 在新目录拉起会话;原会话保持运行,互不影响。</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="duo">
+    <!-- ② 新分支确认弹层 -->
+    <section class="card block" id="dlg-card">
+      <p class="mock-tag"><b>②</b>新分支确认弹层 · 分支名预填</p>
+      <div class="dlg-head">
+        <span class="dlg-icon"><svg class="ic s20"><use href="#i-branch"/></svg></span>
+        <div>
+          <h3>在新 worktree 中起会话</h3>
+          <div class="dlg-sub">工作区 ~/code/tmd-cli · 当前分支 main</div>
+        </div>
+      </div>
+
+      <div class="fld">
+        <div class="fld-label"><span>新分支名</span><span class="fld-opt">预填,可修改</span></div>
+        <input type="text" id="dlg-branch" value="fix/sidebar-sync" aria-label="新分支名">
+        <div class="fld-hint" id="dlg-hint">由会话标题自动生成,冲突时追加 -2、-3</div>
+      </div>
+
+      <div class="fld">
+        <div class="fld-label"><span>基于</span></div>
+        <div class="radio-row">
+          <label class="radio-opt"><input type="radio" name="wt-base" id="rb-head" checked>基于 HEAD<span class="mono">main @ a1b2c3d</span></label>
+          <label class="radio-opt"><input type="radio" name="wt-base" id="rb-other">指定分支
+            <select id="rb-select" disabled aria-label="选择基准分支"><option>main</option><option>develop</option><option>release/0.3</option></select>
+          </label>
+        </div>
+      </div>
+
+      <div class="copy-note">
+        <svg class="ic s14"><use href="#i-link"/></svg>
+        <span>node_modules 以符号链接共享、构建缓存写时复制(COW)共享;创建秒级完成,磁盘增量只有源码本身。</span>
+      </div>
+
+      <div class="dlg-result" id="dlg-result" hidden>
+        <svg class="ic s14" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>已创建 <b id="dlg-result-branch">fix/sidebar-sync</b>,新会话已在 <span class="mono-path" id="dlg-result-path">~/code/tmd-cli/.worktrees/fix-sidebar-sync</span> 拉起;worktree 徽标已挂到会话卡(见 ③)。</div>
+      </div>
+
+      <div class="dlg-foot">
+        <button type="button" class="btn" id="dlg-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="dlg-go">创建并起会话</button>
+      </div>
+    </section>
+
+    <!-- ③ 起会话后:徽标与双向关联 -->
+    <section class="card block">
+      <p class="mock-tag"><b>③</b>起会话后 · 会话卡徽标与双向关联</p>
+      <div class="after-cap">会话列表 · 新会话卡</div>
+      <div class="session-row plain" id="s-new">
+        <span class="s-dot" title="运行中"></span>
+        <div>
+          <div class="s-title">修复侧栏分组切换时的重载闪断</div>
+          <div class="s-meta">
+            <span class="eng-pill">claude</span>
+            <button type="button" class="wt-badge" id="wt-badge-session" title="点击跳到 worktree 列表对应行"><svg class="ic s12"><use href="#i-link"/></svg><span id="wb-s-text">worktree · fix/sidebar-sync</span></button>
+            <span>刚刚</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="link-arrow">
+        <svg class="ic s12 flip"><use href="#i-arrow"/></svg>同一徽标,双向可点<svg class="ic s12"><use href="#i-arrow"/></svg>
+      </div>
+
+      <div class="wt-mini-row" id="wt-row">
+        <div class="grow">
+          <div class="wt-branch"><svg class="ic s14"><use href="#i-branch"/></svg><span id="wt-branch-name">fix/sidebar-sync</span></div>
+          <div class="wt-path" id="wt-path-name">~/code/tmd-cli/.worktrees/fix-sidebar-sync</div>
+        </div>
+        <span class="disk" title="磁盘占用(新增列)"><svg class="ic s14"><use href="#i-drive"/></svg>96 MB</span>
+        <button type="button" class="wt-badge" id="wt-badge-row" title="点击跳到对应会话卡"><svg class="ic s12"><use href="#i-link"/></svg><span id="wb-r-text">worktree · fix/sidebar-sync</span></button>
+      </div>
+
+      <p class="anno">
+        <svg class="ic s14"><use href="#i-drive"/></svg>
+        <span>「磁盘占用」为新增列:Rust 侧现有解析(<span style="font-family:var(--mono)">git worktree list --porcelain</span>)无此项,需新增 walkdir 统计,异步执行、结果可缓存。</span>
+      </p>
+    </section>
+  </div>
+
+  <!-- ④ 已有能力对照(灰) -->
+  <section class="card block ref-block">
+    <p class="mock-tag"><b>④</b>已有能力对照 · 本提案不改动</p>
+    <div class="ref-head">
+      <span class="ref-icon"><svg class="ic s20"><use href="#i-branch"/></svg></span>
+      <h3>worktree 管理面</h3>
+      <span class="ref-badge">已有能力 · 0.3.x 已落地</span>
+    </div>
+
+    <div class="mini-thumb">
+      <div class="mini-head">
+        <svg class="ic s12"><use href="#i-branch"/></svg>worktree · ~/code/tmd-cli(灰度示意 · 含 0.3.9 磁盘列)
+        <span class="mini-new">磁盘占用<em>新增</em></span>
+      </div>
+      <div class="mini-row"><span class="mini-dot"></span><span>main · 主工作树</span><span></span><span class="disk">—</span><span class="stx">活跃</span></div>
+      <div class="mini-row"><span class="mini-dot"></span><span>fix/quota-pill</span><span></span><span class="disk"><svg class="ic s12"><use href="#i-drive"/></svg>84 MB</span><span class="stx">活跃</span></div>
+      <div class="mini-row"><span class="mini-dot"></span><span>fix/table-virtual-scroll</span><svg class="ic s12" style="color:#d6d3d1"><use href="#i-trash"/></svg><span class="disk"><svg class="ic s12"><use href="#i-drive"/></svg>71 MB</span><span class="stx">悬空</span></div>
+      <div class="mini-foot">worktree 增量合计 <b>155 MB</b>(84 + 71,不含主工作树;新链路创建的同样计入,如 ③ 的 96 MB)</div>
+    </div>
+
+    <p class="ref-note">列表 / 新建 / 移除 / 清理悬空 / prunable 标记均已可用;当前实现与「会话」无关联。磁盘占用列为 0.3.9 新增(上方示意列),会话关联徽标见 ②③。</p>
+    <div class="anchor-list">
+      <div><code>src/plugins/git/worktree/</code> WorktreeManageDialog · WorktreeList · WorktreeZone(共 618 行)</div>
+      <div><code>src-tauri/src/git/commands_worktree.rs</code> + <code>worktree_parse.rs</code>(git worktree list --porcelain)</div>
+      <div class="gap-line">缺口:会话关联 + 磁盘占用 → 即本提案 ①②③</div>
+    </div>
+  </section>
+
+  <!-- 交互说明 -->
+  <section class="card notes-card">
+    <h2>交互说明</h2>
+    <ul>
+      <li><b>管理面已有,本提案只补会话链路:</b>worktree 列表 / 新建 / 移除 / 清理悬空 0.3.x 已落地并继续可用;以下均为「会话 ↔ worktree」增量。</li>
+      <li><b>右键会话卡一键起会话:</b>「在新 worktree 中起会话」自动完成新建分支 → 复制工作区 → node_modules 符号链接 → 在新目录拉起会话,原会话不受影响;菜单键盘可达(Tab 进入、↑↓/Home/End 移动、Enter 触发、Escape 关闭)。</li>
+      <li><b>分支名预填可改:</b>默认由会话标题生成(冲突追加 -2、-3);可基于 HEAD 或指定分支创建,确认弹层即所见即所得。</li>
+      <li><b>弹层实时校验与终态:</b>分支名与已有分支冲突时自动改 -2、-3 并黄字提示,空名/含空格禁用「创建」;点击创建(或输入框内 Enter)后转圈 → 成功终态,worktree 徽标同步出现在 ③ 会话卡;「再来一次」整体复位可反复演示,输入框 Escape 一键清空回预填。</li>
+      <li><b>双向关联徽标:</b>会话卡与 worktree 列表行互显同一「worktree · 分支名」徽标,点任一侧跳到对应另一侧;会话结束徽标随之消失。</li>
+      <li><b>磁盘占用列为新增:</b>Rust 侧需在现有 porcelain 解析之外新增 walkdir 目录统计(异步 + 缓存),列表按占用排序便于回收决策。</li>
+      <li><b>共享省磁盘:</b>node_modules 符号链接指向主工作树,构建缓存走 APFS/btrfs COW;新建 worktree 秒级完成,磁盘增量只有源码本身。</li>
+    </ul>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  (function () {
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.querySelectorAll('svg.ic').forEach(function (s) { s.setAttribute('aria-hidden', 'true'); });
+
+    var toastEl = document.getElementById('toast');
+    var toastTimer = null;
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2400);
+    }
+    function flash(el) {
+      el.classList.add('flash');
+      setTimeout(function () { el.classList.remove('flash'); }, 1400);
+    }
+    function goTo(el, msg) {
+      el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+      flash(el);
+      if (msg) toast(msg);
+    }
+    function txt(id, s) { document.getElementById(id).textContent = s; }
+
+    /* ① 右键菜单:每项点击都有走向 */
+    document.getElementById('mi-wt').addEventListener('click', function () {
+      goTo(document.getElementById('dlg-card'), '已定位到「新分支确认弹层 ②」');
+    });
+    document.getElementById('mi-copy').addEventListener('click', function () {
+      toast('会话路径已复制(示意)');
+    });
+    document.getElementById('mi-archive').addEventListener('click', function () {
+      toast('会话已归档(示意),可在归档视图找回');
+    });
+
+    /* ① 右键菜单键盘:方向键在菜单项间移动,Escape 离开菜单 */
+    var menu = document.querySelector('.ctx-menu');
+    var menuItems = Array.prototype.slice.call(menu.querySelectorAll('[role="menuitem"]'));
+    menu.addEventListener('keydown', function (e) {
+      var i = menuItems.indexOf(document.activeElement);
+      if (e.key === 'ArrowDown') { e.preventDefault(); menuItems[(i + 1) % menuItems.length].focus(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); menuItems[(i - 1 + menuItems.length) % menuItems.length].focus(); }
+      else if (e.key === 'Home') { e.preventDefault(); menuItems[0].focus(); }
+      else if (e.key === 'End') { e.preventDefault(); menuItems[menuItems.length - 1].focus(); }
+      else if (e.key === 'Escape') { menu.blur(); toast('已关闭菜单(示意)'); }
+    });
+
+    /* ② 基准分支联动 */
+    var rbHead = document.getElementById('rb-head');
+    var rbOther = document.getElementById('rb-other');
+    var select = document.getElementById('rb-select');
+    function syncBase() { select.disabled = !rbOther.checked; }
+    rbHead.addEventListener('change', syncBase);
+    rbOther.addEventListener('change', syncBase);
+
+    /* ② 分支名校验:冲突追加 -2、-3 */
+    var EXISTING = ['main', 'develop', 'release/0.3', 'fix/quota-pill', 'fix/table-virtual-scroll'];
+    var DEFAULT_BRANCH = 'fix/sidebar-sync';
+    var DEFAULT_PATH = '~/code/tmd-cli/.worktrees/fix-sidebar-sync';
+    var branch = document.getElementById('dlg-branch');
+    var hint = document.getElementById('dlg-hint');
+    var go = document.getElementById('dlg-go');
+    var result = document.getElementById('dlg-result');
+    var HINT_NORMAL = '由会话标题自动生成,冲突时追加 -2、-3';
+    var busy = false, done = false;
+
+    function validate() {
+      var v = branch.value.trim();
+      hint.classList.remove('is-warn', 'is-err');
+      if (!v) {
+        hint.textContent = '分支名不能为空';
+        hint.classList.add('is-err');
+        go.disabled = true;
+        return null;
+      }
+      if (/\s/.test(v)) {
+        hint.textContent = '分支名不能包含空格';
+        hint.classList.add('is-err');
+        go.disabled = true;
+        return null;
+      }
+      if (EXISTING.indexOf(v) !== -1) {
+        var n = 2;
+        while (EXISTING.indexOf(v + '-' + n) !== -1) n++;
+        var alt = v + '-' + n;
+        hint.textContent = '分支 ' + v + ' 已存在,将自动创建 ' + alt;
+        hint.classList.add('is-warn');
+        go.disabled = false;
+        return alt;
+      }
+      hint.textContent = HINT_NORMAL;
+      go.disabled = false;
+      return v;
+    }
+    branch.addEventListener('input', function () {
+      if (busy || done) return;
+      validate();
+    });
+    /* 输入框键盘闭环:Enter 提交,Escape 清空回预填 */
+    branch.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (!go.disabled && !busy && !done) go.click();
+      } else if (e.key === 'Escape') {
+        if (busy || done) return;
+        e.preventDefault();
+        branch.value = DEFAULT_BRANCH;
+        validate();
+      }
+    });
+
+    /* ② 创建:转圈 → 成功终态,徽标同步到 ③ */
+    var ICON_CHECK = '<svg class="ic s14" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+    var ICON_SPIN = '<svg class="ic s14 spin" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/></svg>';
+    go.addEventListener('click', function () {
+      if (busy || done) return;
+      var finalName = validate();
+      if (!finalName) return;
+      busy = true;
+      go.disabled = true;
+      go.innerHTML = ICON_SPIN + '创建中…';
+      setTimeout(function () {
+        busy = false;
+        done = true;
+        go.classList.add('is-done');
+        go.innerHTML = ICON_CHECK + '已创建 · 会话已在新目录拉起';
+      document.getElementById('dlg-cancel').textContent = '再来一次';
+        var path = '~/code/tmd-cli/.worktrees/' + finalName.replace(/\//g, '-');
+        txt('dlg-result-branch', finalName);
+        txt('dlg-result-path', path);
+        result.hidden = false;
+        txt('wb-s-text', 'worktree · ' + finalName);
+        txt('wb-r-text', 'worktree · ' + finalName);
+        txt('wt-branch-name', finalName);
+        txt('wt-path-name', path);
+        toast('新会话已拉起,worktree 徽标已挂到会话卡(见 ③)');
+      }, reduced ? 350 : 900);
+    });
+    document.getElementById('dlg-cancel').addEventListener('click', function () {
+      busy = false;
+      done = false;
+      go.classList.remove('is-done');
+      go.disabled = false;
+      go.textContent = '创建并起会话';
+      document.getElementById('dlg-cancel').textContent = '取消';
+      result.hidden = true;
+      branch.value = DEFAULT_BRANCH;
+      txt('wb-s-text', 'worktree · ' + DEFAULT_BRANCH);
+      txt('wb-r-text', 'worktree · ' + DEFAULT_BRANCH);
+      txt('wt-branch-name', DEFAULT_BRANCH);
+      txt('wt-path-name', DEFAULT_PATH);
+      validate();
+      toast('已取消,弹层已复位(示意)');
+    });
+
+    /* ⑤ 双向关联徽标互跳 */
+    document.getElementById('wt-badge-session').addEventListener('click', function () {
+      goTo(document.getElementById('wt-row'), '已跳到 worktree 列表对应行');
+    });
+    document.getElementById('wt-badge-row').addEventListener('click', function () {
+      goTo(document.getElementById('s-new'), '已跳到对应会话卡');
+    });
+
+    validate();
+  })();
+</script>
+</body>
+</html>

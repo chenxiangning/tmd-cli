@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>0.3.9 候选 4/7 · Agent Wiki 决策沉淀(评估示例 · 调研表编号 09)</title>
+<style>
+  :root{
+    --bg:#f6f6f4; --card:#ffffff; --line:#e4e4e0; --fg:#1c1917; --fg2:#57534e;
+    --accent:#ea580c; --accent-soft:#ffedd5; --ok:#15803d; --warn:#b45309; --err:#dc2626; --info:#2563eb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:system-ui,-apple-system,"PingFang SC","Segoe UI",sans-serif;
+    font-size:14px; line-height:1.6;
+    display:flex; justify-content:center; min-height:100vh; padding:40px 24px;
+  }
+  .page{width:100%; max-width:1080px}
+  .kicker-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .pagehead .kicker{font-size:12px; color:#c2410c; font-weight:600; letter-spacing:.05em}
+  .sub-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600;
+    color:#c2410c; background:var(--accent-soft); border:1px solid #fed7aa;
+    border-radius:999px; padding:2px 9px;
+  }
+  .pagehead h1{font-size:24px; line-height:1.3; margin:4px 0 6px}
+  .pagehead p{color:var(--fg2)}
+  .banner{
+    margin-top:16px; display:flex; gap:10px; align-items:flex-start;
+    background:var(--accent-soft); border:1px solid #fed7aa; border-radius:10px;
+    padding:12px 14px; color:#92400e; font-size:13px;
+  }
+  .banner svg{flex:none; margin-top:2px}
+  .banner strong{color:#9a3412}
+
+  /* ===== mock:Agent Wiki 面板 ===== */
+  .pane{
+    margin-top:16px; background:var(--card); border:1px solid var(--line);
+    border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.06); overflow:hidden;
+  }
+  .wiki-top{
+    display:flex; align-items:center; gap:12px; padding:14px 16px;
+    border-bottom:1px solid var(--line);
+  }
+  .wiki-brand{display:flex; align-items:center; gap:10px}
+  .wiki-brand .icon{
+    flex:none; width:34px; height:34px; border-radius:8px; background:var(--accent-soft);
+    color:var(--accent); display:flex; align-items:center; justify-content:center;
+  }
+  .wiki-brand .t{font-size:15px; font-weight:600; line-height:1.3}
+  .wiki-brand .p{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; color:var(--fg2);
+  }
+  .wiki-sync{
+    margin-left:auto; display:flex; align-items:center; gap:12px;
+  }
+  .last-sync{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--fg2)}
+  .last-sync b{color:var(--fg); font-weight:600}
+  .btn-sync{
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+    font-family:inherit; font-size:13px; font-weight:600;
+    background:var(--accent-soft); color:#c2410c; border:1px solid #fed7aa;
+    border-radius:8px; padding:10px 14px; line-height:1; transition:background .15s;
+  }
+  .btn-sync:hover{background:#fed7aa}
+
+  .wiki-cols{display:grid; grid-template-columns:1.08fr 1fr}
+  .col{padding:14px 16px}
+  .col + .col{border-left:1px solid var(--line)}
+  .col-head{display:flex; align-items:center; gap:7px; font-size:13px; font-weight:600; margin-bottom:10px}
+  .col-head .cnt{
+    font-size:11px; font-weight:600; color:var(--fg2); background:#f5f5f4;
+    border:1px solid var(--line); border-radius:999px; padding:0 8px;
+  }
+  .col-head .hint{margin-left:auto; font-size:11px; font-weight:400; color:var(--fg2)}
+
+  .entry{
+    border:1px solid var(--line); border-radius:8px; background:var(--card);
+    padding:10px 12px; margin-bottom:10px; transition:border-color .15s, box-shadow .15s;
+  }
+  .entry:last-child{margin-bottom:0}
+  .entry:hover{border-color:#d6d3d1; box-shadow:0 2px 8px rgba(234,88,12,.12)}
+  .e-title{display:flex; align-items:flex-start; gap:8px; font-size:13.5px; font-weight:600; line-height:1.45}
+  .eng{
+    flex:none; display:inline-flex; align-items:center; gap:5px; margin-left:auto;
+    font-size:11px; font-weight:500; color:var(--fg2);
+    background:#f5f5f4; border:1px solid var(--line); border-radius:999px; padding:1px 8px;
+  }
+  .eng .dot{width:6px; height:6px; border-radius:50%}
+  .dot.claude{background:#d97757}
+  .dot.omp{background:#7c3aed}
+  .dot.pi{background:#0891b2}
+  .dot.codex{background:#10a37f}
+  .e-ex{
+    margin-top:5px; font-size:13px; color:var(--fg2);
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .e-gen{
+    margin-top:6px; font-size:11px; color:var(--fg2); line-height:1.5;
+    background:#fafaf9; border:1px dashed var(--line); border-radius:6px;
+    padding:5px 8px; display:flex; gap:6px; align-items:flex-start;
+  }
+  .e-gen svg{flex:none; margin-top:2px; color:var(--ok)}
+  .e-foot{margin-top:7px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--fg2)}
+  .st{flex:none; font-size:11px; font-weight:600; border-radius:999px; padding:1px 8px}
+  .st.discuss{background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe}
+  .st.pending{background:var(--accent-soft); color:#c2410c; border:1px solid #fed7aa}
+  .open-source{
+    margin-left:auto; display:inline-flex; align-items:center; gap:4px;
+    background:none; border:none; font-family:inherit;
+    font-size:12px; color:var(--info); cursor:pointer;
+    padding:4px 6px; min-height:35px; border-radius:6px;
+    opacity:0; transition:opacity .15s;
+  }
+  .entry:hover .open-source,
+  .entry:focus-within .open-source{opacity:1}
+  .open-source:hover{color:#1d4ed8; text-decoration:underline}
+
+  .wiki-foot{
+    border-top:1px solid var(--line); padding:8px 16px;
+    font-size:12px; color:var(--fg2);
+    display:flex; align-items:center; gap:4px 14px; flex-wrap:wrap;
+  }
+  .wiki-foot b{color:var(--fg); font-weight:600}
+  .store-chip{
+    display:inline-flex; align-items:center; gap:5px; margin-left:auto;
+    background:none; border:none; padding:4px 8px; min-height:35px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px;
+    color:var(--info); cursor:pointer; border-radius:6px; transition:background .15s;
+  }
+  .store-chip:hover{background:#f5f5f4}
+  .decide-btn{
+    display:inline-flex; align-items:center; background:var(--card);
+    border:1px solid #fed7aa; color:#c2410c; cursor:pointer;
+    font-family:inherit; font-size:11.5px; font-weight:600;
+    border-radius:999px; padding:4px 10px; min-height:35px; transition:background .15s;
+  }
+  .decide-btn:hover{background:var(--accent-soft)}
+
+  /* 焦点可见 / 禁用态 / 动效降级 */
+  .btn-sync:focus-visible,.open-source:focus-visible,
+  .decide-btn:focus-visible,.store-chip:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  .btn-sync:disabled{opacity:.55; cursor:not-allowed}
+  @keyframes flashIn{from{background:#ffedd5}to{background:var(--card)}}
+  .entry.flash{animation:flashIn 1.4s ease-out}
+  @media (prefers-reduced-motion: reduce){
+    .entry.flash{animation:none}
+    .toast{transition:none}
+  }
+
+  /* ===== 底部交互说明 ===== */
+  .notes{
+    margin-top:16px; background:var(--card); border:1px solid var(--line);
+    border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.06); padding:16px 20px;
+  }
+  .notes h2{font-size:15px; font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:8px}
+  .notes h2 svg{color:var(--accent)}
+  .notes ul{padding-left:0; list-style:none}
+  .notes li{
+    padding:5px 0 5px 22px; position:relative; color:var(--fg2); font-size:13px;
+  }
+  .notes li::before{
+    content:""; position:absolute; left:4px; top:13px; width:6px; height:6px;
+    border-radius:2px; background:var(--accent);
+  }
+  .notes li b{color:var(--fg)}
+  .foot{margin-top:14px; text-align:center; font-size:12px; color:var(--fg2)}
+
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translate(-50%,8px);
+    background:#1c1917; color:#fff; font-size:13px; padding:9px 16px; border-radius:8px;
+    box-shadow:0 4px 12px rgba(0,0,0,.18); opacity:0; pointer-events:none;
+    transition:opacity .2s, transform .2s; z-index:9;
+  }
+  .toast.show{opacity:1; transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="pagehead">
+    <div class="kicker-row">
+      <div class="kicker">0.3.9 候选 · 4/7(调研表编号 09)</div>
+      <span class="sub-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/></svg>
+        memory-coordinator 新子模块
+      </span>
+    </div>
+    <h1>Agent Wiki 决策沉淀面板(评估示例)</h1>
+    <p>把散落在各次 AI 会话里的结论结构化沉淀成工作区知识库:「已决策」与「开放问题」分栏陈列,会话退出时取尾部 assistant 消息本地截取写入,每条都可回溯到来源会话。</p>
+  </header>
+
+  <div class="banner">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/><path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/></svg>
+    <div><strong>可行性已核,仍未排期。</strong>本页为 0.3.9 候选功能的静态视觉示例。已核对的真实锚点:挂 memory-coordinator 下作为新子模块(capsule / console / install 之外);沉淀复用 kernel.sessions.exited(记忆沉淀链 d7ca11d 同款挂点);存储为工作区本地 wiki.json,无账号云同步;摘录生成零模型成本。落地排期未拍板,不构成实现承诺。</div>
+  </div>
+
+  <section class="pane">
+    <!-- 顶栏:上次沉淀 + 手动沉淀 -->
+    <div class="wiki-top">
+      <div class="wiki-brand">
+        <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
+        <div>
+          <div class="t">Agent Wiki</div>
+          <div class="p">memory-coordinator · wiki 子模块</div>
+        </div>
+      </div>
+      <div class="wiki-sync">
+        <span class="last-sync">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          上次沉淀:<b id="lastSync">今天 23:12</b> · <span id="lastRunBy">kernel.sessions.exited 触发写入</span>
+        </span>
+        <button class="btn-sync" id="syncBtn" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
+          <span id="syncLabel">手动沉淀</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 双栏:已决策 / 开放问题 -->
+    <div class="wiki-cols">
+      <div class="col" id="colDecided">
+        <div class="col-head">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg>
+          已决策 <span class="cnt" id="cntDecided">4</span>
+          <span class="hint">按时间倒序</span>
+        </div>
+
+        <div class="entry">
+          <div class="e-title">0.3.9 定位 = 混合版:验收收口 + 两件拍板项
+            <span class="eng"><span class="dot omp"></span>omp</span>
+          </div>
+          <div class="e-ex" title="0.3.x 不再加新功能,验收目标是全部闭环;拍板项定为快捷键系统重构与 checkpoint 自动锚点,其余一律拒收。">0.3.x 不再加新功能,验收目标是全部闭环;拍板项定为快捷键系统重构与 checkpoint 自动锚点,其余一律拒收。</div>
+          <div class="e-foot">10-16 23:04
+            <button class="open-source" type="button" data-src="omp · 10-16 23:04">查看来源会话
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="entry">
+          <div class="e-title">vite dev 端口固定 1421
+            <span class="eng"><span class="dot claude"></span>claude</span>
+          </div>
+          <div class="e-ex" title="用户常驻 tauri:dev 占着 1421;目检一律复用 http://127.0.0.1:1421(自带 HMR 最新代码),不再起第二个 dev server。">用户常驻 tauri:dev 占着 1421;目检一律复用 http://127.0.0.1:1421(自带 HMR 最新代码),不再起第二个 dev server。</div>
+          <div class="e-foot">10-11 15:47
+            <button class="open-source" type="button" data-src="claude · 10-11 15:47">查看来源会话
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="entry">
+          <div class="e-title">快捷键命中即拦截,零 PTY 字节
+            <span class="eng"><span class="dot codex"></span>codex</span>
+          </div>
+          <div class="e-ex" title="terminal 作用域优先、global 兜底;⌘V 与 Escape 永不注册,⌘C 走 copyMenu 例外(复制 / 停止终端)。">terminal 作用域优先、global 兜底;⌘V 与 Escape 永不注册,⌘C 走 copyMenu 例外(复制 / 停止终端)。</div>
+          <div class="e-foot">10-08 21:12
+            <button class="open-source" type="button" data-src="codex · 10-08 21:12">查看来源会话
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="entry">
+          <div class="e-title">CLI 分组默认折叠;批量条放行集之后
+            <span class="eng"><span class="dot pi"></span>pi/omp</span>
+          </div>
+          <div class="e-ex" title="会话列表按引擎分组缺省折叠;批量操作条放在放行集之后,避免拖选时行位漂移导致只选中 1 行。">会话列表按引擎分组缺省折叠;批量操作条放在放行集之后,避免拖选时行位漂移导致只选中 1 行。</div>
+          <div class="e-foot">09-30 19:38
+            <button class="open-source" type="button" data-src="pi/omp · 09-30 19:38">查看来源会话
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col" id="colOpen">
+        <div class="col-head">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4"/><path d="M12 17h.01"/></svg>
+          开放问题 <span class="cnt" id="cntOpen">4</span>
+          <span class="hint">被回答后移入左栏</span>
+        </div>
+
+        <div class="entry">
+          <div class="e-title">ACP 要不要进 0.5.0
+            <span class="eng"><span class="dot omp"></span>omp</span>
+          </div>
+          <div class="e-ex" title="zed 的 ACP 能统一 claude / qoder 的接入方式,但要动 kernel.session 适配层;先看 0.4 验收反馈再定。">zed 的 ACP 能统一 claude / qoder 的接入方式,但要动 kernel.session 适配层;先看 0.4 验收反馈再定。</div>
+          <div class="e-foot"><span class="st discuss">讨论中</span>今天 22:40
+            <button class="open-source" type="button" data-src="omp · 今天 22:40">查看来源会话
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="entry">
+          <div class="e-title">决策库按工作区隔离,还是全局共享?
+            <span class="eng"><span class="dot claude"></span>claude</span>
+          </div>
+          <div class="e-ex" title="monorepo 里 ~/code/tmd-cli 与子包的决策互相可见会更有用,但跨工作区写入权限还没想清楚。">monorepo 里 ~/code/tmd-cli 与子包的决策互相可见会更有用,但跨工作区写入权限还没想清楚。</div>
+          <div class="e-foot"><span class="st pending">待拍板</span>10-17 11:20
+            <button class="open-source" type="button" data-src="claude · 10-17 11:20">查看来源会话
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="entry" id="entryDistill">
+          <div class="e-title">截取范围只覆盖 omp / pi 够吗?
+            <span class="eng"><span class="dot omp"></span>omp</span>
+          </div>
+          <div class="e-ex" title="各家 transcript 格式不一,统一截取要逐家写解析器;先只挂 omp / pi 的退出链路,claude / codex 靠手动沉淀兜底是否够用。">各家 transcript 格式不一,统一截取要逐家写解析器;先只挂 omp / pi 的退出链路,claude / codex 靠手动沉淀兜底是否够用。</div>
+          <div class="e-foot"><span class="st pending">待拍板</span>10-15 09:05<button class="decide-btn" id="decideBtn" type="button">拍板(演示)</button>
+            <button class="open-source" type="button" data-src="omp · 10-15 09:05">查看来源会话
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="entry">
+          <div class="e-title">纯截取的摘录质量够用吗?
+            <span class="eng"><span class="dot codex"></span>codex</span>
+          </div>
+          <div class="e-ex" title="摘录不经模型改写,冗余与噪声要靠面板上人工删改兜底;先按零成本路线评估质量上限。">摘录不经模型改写,冗余与噪声要靠面板上人工删改兜底;先按零成本路线评估质量上限。</div>
+          <div class="e-gen">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            生成方式:退出时取会话尾部 N 条 assistant 消息本地截取,不调模型 · 零模型成本
+          </div>
+          <div class="e-foot"><span class="st discuss">讨论中</span>今天 23:12
+            <button class="open-source" type="button" data-src="codex · 今天 23:12">查看来源会话
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wiki-foot"><span>共 <b id="cntTotal">8</b> 条记录 · 今日新增 <b id="cntToday">2</b>(口径:今日新写入条数,拍板流转不计入)· kernel.sessions.exited 自动维护</span><button class="store-chip" id="storeBtn" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>本地 wiki.json · 无云同步</button></div>
+  </section>
+
+  <section class="notes">
+    <h2>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>
+      交互说明
+    </h2>
+    <ul>
+      <li><b>退出即沉淀:</b>复用 kernel.sessions.exited 事件(autoDistill.ts 同款挂点,记忆沉淀链 d7ca11d 先例),会话退出即触发写入,默认 opt-in;顶栏常显上次写入时间。</li>
+      <li><b>生成零模型成本:</b>摘录 = 退出时取会话尾部 N 条 assistant 消息本地截取,不经模型改写、不产生额外调用费用;质量上限见右栏开放问题。</li>
+      <li><b>本地存储:</b>工作区目录下 .tmd/wiki.json 本地单文件,无账号体系、无云同步;换机器即换库,可随工作区目录一起备份。页脚 wiki.json 徽标可点,展示同一存储位置。</li>
+      <li><b>挂载为子模块:</b>挂在现有 memory-coordinator 插件下(capsule / console / install 之外新增 wiki 子模块),面板入口随插件注册,不是新插件。</li>
+      <li><b>来源可回溯:</b>每条记录带 harness 徽标(harnessLabel 映射:pi 显示为 pi/omp,其余原样透传)与日期,hover 浮出「查看来源会话」,键盘 Tab 聚焦条目时同样浮出,点击回跳原始 transcript。</li>
+      <li><b>手动沉淀与流转:</b>不等退出,点右上「手动沉淀」对最近会话跑同一套本地截取入库(再点一次演示去重空态);开放问题被回答后移入「已决策」,本页待拍板条目带「拍板」演示按钮可现场移栏,误拍板可点「撤回拍板」回到原位,同主题重复沉淀自动去重。</li>
+      <li><b>「今日新增」口径:</b>只统计今日新写入 wiki.json 的条数(退出自动沉淀与手动沉淀均计入);拍板流转 / 撤回只是在栏间移动,不产生写入,数字不变。</li>
+    </ul>
+  </section>
+
+  <div class="foot">tmd-cli 0.3.9 候选功能视觉示例 · 仅评估用途 · 数据为虚构 · 调研表编号 09</div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  var toast=document.getElementById('toast'),tmr;
+  function say(m){
+    toast.textContent=m;
+    toast.classList.add('show');
+    clearTimeout(tmr);
+    tmr=setTimeout(function(){toast.classList.remove('show')},2600);
+  }
+
+  /* 手动沉淀首次点击入库的新条目(演示态) */
+  var NEW_ENTRY='<div class="entry flash">'
+    +'<div class="e-title">exited 事件 payload 要不要升级为对象?'
+    +'<span class="eng"><span class="dot claude"></span>claude</span></div>'
+    +'<div class="e-ex" title="当前 payload 是裸字符串 sessionId,消费方要回查会话表;升级为 {sessionId, exitReason} 可省一次查询,但牵动记忆沉淀链各消费方。">当前 payload 是裸字符串 sessionId,消费方要回查会话表;升级为 {sessionId, exitReason} 可省一次查询,但牵动记忆沉淀链各消费方。</div>'
+    +'<div class="e-foot"><span class="st discuss">讨论中</span>刚刚'
+    +'<button class="open-source" type="button" data-src="claude · 刚刚">查看来源会话'
+    +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></svg>'
+    +'</button></div></div>';
+
+  /* 计数自洽:栏内徽标与页脚合计一律由 DOM 实时推导,杜绝写死 */
+  var cntDecided=document.getElementById('cntDecided'),
+      cntOpen=document.getElementById('cntOpen'),
+      cntTotal=document.getElementById('cntTotal'),
+      cntToday=document.getElementById('cntToday'),
+      colDecided=document.getElementById('colDecided'),
+      colOpen=document.getElementById('colOpen');
+  var todayNew=2;
+  function recalc(){
+    var nL=colDecided.querySelectorAll('.entry').length,
+        nR=colOpen.querySelectorAll('.entry').length;
+    cntDecided.textContent=nL;
+    cntOpen.textContent=nR;
+    cntTotal.textContent=nL+nR;
+    cntToday.textContent=todayNew;
+  }
+  recalc();
+
+  /* 查看来源会话(事件委托,沉淀新增条目同样生效) */
+  document.addEventListener('click',function(e){
+    var b=e.target&&e.target.closest?e.target.closest('.open-source'):null;
+    if(b) say('跳转来源会话:'+b.getAttribute('data-src'));
+  });
+
+  /* 手动沉淀:首次点击入库(成功态),再次点击去重无新增(空态);每次运行都更新上次沉淀时间与触发来源 */
+  var syncBtn=document.getElementById('syncBtn'),
+      syncLabel=document.getElementById('syncLabel'),
+      lastSync=document.getElementById('lastSync'),
+      lastRunBy=document.getElementById('lastRunBy'),
+      syncedOnce=false;
+  syncBtn.addEventListener('click',function(){
+    if(syncBtn.disabled) return;
+    syncBtn.disabled=true;
+    syncLabel.textContent='沉淀中…';
+    setTimeout(function(){
+      lastSync.textContent='刚刚';
+      lastRunBy.textContent='手动沉淀触发写入';
+      if(!syncedOnce){
+        syncedOnce=true;
+        todayNew++;
+        colOpen.insertAdjacentHTML('afterbegin',NEW_ENTRY);
+        say('手动沉淀完成:新增 1 条开放问题,已写入 wiki.json(本地截取,零模型成本)');
+      }else{
+        say('手动沉淀完成:本次无新增,同主题重复记录已自动去重(空态演示)');
+      }
+      recalc();
+      syncBtn.disabled=false;
+      syncLabel.textContent='手动沉淀';
+    },600);
+  });
+
+  /* 开放问题 → 已决策 流转演示:摘徽标、移入左栏倒序位、高亮新落点;误拍板可「撤回」回到开放问题原位 */
+  var decideBtn=document.getElementById('decideBtn');
+  decideBtn.addEventListener('click',function(){
+    var entry=document.getElementById('entryDistill'),
+        foot=entry.querySelector('.e-foot'),
+        st=foot.querySelector('.st');
+    entry._undo={st:st, btn:decideBtn, next:entry.nextSibling};
+    st.remove();
+    decideBtn.remove();
+    var undo=document.createElement('button');
+    undo.className='decide-btn'; undo.type='button'; undo.textContent='撤回拍板';
+    undo.addEventListener('click',function(){
+      undo.remove();
+      foot.insertBefore(entry._undo.st, foot.firstChild);
+      var src=foot.querySelector('.open-source');
+      if(src) foot.insertBefore(entry._undo.btn, src); else foot.appendChild(entry._undo.btn);
+      colOpen.insertBefore(entry, entry._undo.next||null);
+      entry.classList.remove('flash');
+      void entry.offsetWidth;
+      entry.classList.add('flash');
+      say('已撤回拍板:该条回到「开放问题」栏(可重新演示拍板)');
+      recalc();
+    });
+    foot.insertBefore(undo, foot.querySelector('.open-source'));
+    colDecided.insertBefore(entry,colDecided.children[2]); /* 10-16 之后,维持倒序 */
+    entry.classList.remove('flash');
+    void entry.offsetWidth;
+    entry.classList.add('flash');
+    say('已拍板:该条移入「已决策」栏(误拍板可点「撤回拍板」);今日新增口径不变');
+    recalc();
+  });
+
+  /* 本地 wiki.json 存储说明(口径与页脚徽标、说明卡一致) */
+  document.getElementById('storeBtn').addEventListener('click',function(){
+    say('存储位置:工作区目录下 .tmd/wiki.json · 本地单文件,无云同步,随目录一起备份');
+  });
+})();
+</script>
+</body>
+</html>

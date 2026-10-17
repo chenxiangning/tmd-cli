@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>0.3.9 候选 6/7(调研表编号 12) · kernel 分区盘点(结构件)</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#f6f6f4; color:#1c1917;
+    font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px; line-height:1.6;
+  }
+  .page { max-width:1080px; margin:0 auto; padding:32px 24px 48px; }
+  .kicker { font-size:12px; color:#57534e; letter-spacing:.05em; }
+  h1 { font-size:22px; font-weight:600; margin:4px 0 6px; }
+  .sub { color:#57534e; margin-bottom:24px; }
+  .sub b { color:#1c1917; font-weight:600; }
+  code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .card {
+    background:#fff; border:1px solid #e4e4e0; border-radius:10px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06); padding:20px 24px; margin-bottom:20px;
+  }
+  .card h2 { font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .card .desc { font-size:13px; color:#57534e; margin-bottom:14px; }
+  svg.ic { width:20px; height:20px; stroke:currentColor; stroke-width:1.5; fill:none; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+
+  /* 堆叠条 + 图例 */
+  .stack { display:flex; gap:2px; height:14px; border-radius:7px; overflow:hidden; margin-bottom:10px; }
+  .seg { transition:width .25s ease; min-width:2px; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 18px; font-size:12.5px; color:#57534e; margin-bottom:16px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .dot { width:8px; height:8px; border-radius:2px; display:inline-block; }
+  .legend .pct { font-family:ui-monospace,Menlo,monospace; color:#1c1917; }
+  .stack-note { display:flex; align-items:center; gap:6px; width:fit-content; font-size:12px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:4px 10px; margin:0 0 12px; }
+  .stack-note svg.ic { width:14px; height:14px; }
+
+  /* 四张汇总卡 */
+  .sum-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .sum-card { border:1px solid #e4e4e0; border-radius:8px; padding:12px 14px; background:#fafaf9; }
+  .sum-name { font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  .sum-num { font-family:ui-monospace,Menlo,monospace; font-size:22px; font-weight:600; margin:2px 0 0; }
+  .sum-num.pending { font-family:inherit; font-size:15px; font-weight:500; font-style:italic; color:#57534e; }
+  .sum-foot { display:flex; align-items:center; gap:8px; margin-top:6px; }
+  .sum-badge { font-size:11px; border-radius:99px; padding:1px 8px; white-space:nowrap; }
+  .sum-note { font-size:11.5px; color:#57534e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .b-ok   { color:#166534; background:#f0fdf4; border:1px solid #bbf7d0; }
+  .b-warn { color:#92400e; background:#fffbeb; border:1px solid #fde68a; }
+  .b-err  { color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; }
+
+  /* 待审便车列表 */
+  .prow {
+    display:flex; align-items:center; gap:14px; padding:11px 12px 11px 15px;
+    border:1px solid #e4e4e0; border-left:3px solid #e4e4e0; border-radius:8px;
+    margin-bottom:8px; background:#fff; transition:border-color .2s, background .15s;
+  }
+  .prow:hover { background:#fafaf9; }
+  .prow-main { flex:1; min-width:0; }
+  .pname { display:flex; align-items:baseline; gap:8px; }
+  .pname svg.ic { width:16px; height:16px; align-self:center; color:#57534e; }
+  .pname code { font-size:13px; font-weight:600; }
+  .plines { font-family:ui-monospace,Menlo,monospace; font-size:12px; color:#57534e; }
+  .pmeta { font-size:12.5px; color:#57534e; margin-top:1px; }
+  .pmeta b { color:#1c1917; font-weight:600; }
+  .pmeta .sep { margin:0 8px; color:#d6d3d1; }
+  .prow-side { display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex:none; }
+  .tag-group { display:inline-flex; border:1px solid #e4e4e0; border-radius:6px; overflow:hidden; }
+  .tagbtn {
+    cursor:pointer; border:none; background:#fff; color:#57534e;
+    font-family:inherit; font-size:12px; padding:6px 12px; min-height:30px; transition:background .12s, color .12s;
+  }
+  .tagbtn + .tagbtn { border-left:1px solid #e4e4e0; }
+  .tagbtn:hover { background:#f6f6f4; color:#1c1917; }
+  .tagbtn.active.host     { background:#dbeafe; color:#1d4ed8; font-weight:600; }
+  .tagbtn.active.contract { background:#dcfce7; color:#166534; font-weight:600; }
+  .tagbtn.active.move     { background:#fef2f2; color:#b91c1c; font-weight:600; }
+  .pstatus { font-size:11.5px; color:#57534e; }
+  .pstatus.is-host     { color:#1d4ed8; font-weight:500; }
+  .pstatus.is-contract { color:#166534; font-weight:500; }
+  .pstatus.is-move     { color:#b91c1c; font-weight:500; }
+  .prow.list-foot { background:#fafaf9; color:#57534e; font-size:12.5px; border-left-color:#e4e4e0; padding:8px 15px; }
+
+  /* 交互说明 */
+  .howto ul { list-style:none; }
+  .howto li { padding:6px 0 6px 20px; position:relative; color:#1c1917; }
+  .howto li::before { content:""; position:absolute; left:2px; top:14px; width:6px; height:6px;
+    border-radius:50%; background:#ea580c; }
+  .howto li b { font-weight:600; }
+
+  /* 焦点可见 + 动效降级 */
+  button:focus-visible { outline:2px solid #ea580c; outline-offset:2px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition:none !important; animation:none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="kicker">0.3.9 候选 · 6/7(调研表编号 12)</div>
+  <h1>kernel 分区盘点(结构件)</h1>
+  <div class="sub"><b>只贴标签不搬家,盘点先行。</b>给 kernel 实测 310 文件 / 29,529 行按「宿主机制 / 跨插件契约 / 待审便车 / 纯插件语义」四个分区贴标签,把「单插件语义不入 kernel」红线变成可执行的存量清单。</div>
+
+  <!-- 上半:四分区汇总 -->
+  <div class="card">
+    <h2>
+      <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/></svg>
+      kernel 构成 · 四分区
+    </h2>
+    <div class="desc">盘点不预填估算:scripts/check-kernel-audit.mjs(先例:check-file-size / check-arch-boundary)产出「文件 × 行数 × 引用方」清单,分区行数盘点后回填;人工只裁决「待审便车」区的存疑文件。</div>
+
+    <div class="stack" aria-hidden="true">
+      <div class="seg" id="seg-host" style="width:42.0%;background:#2563eb"></div>
+      <div class="seg" id="seg-contract" style="width:33.2%;background:#15803d"></div>
+      <div class="seg" id="seg-pend" style="width:14.6%;background:#b45309"></div>
+      <div class="seg" id="seg-move" style="width:10.2%;background:#dc2626"></div>
+    </div>
+    <div class="stack-note"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M12 11v5"/></svg>示意图,分区占比与行数以盘点脚本 scripts/check-kernel-audit.mjs 输出为准,前端不做估算。</div>
+    <div class="legend">
+      <span><i class="dot" style="background:#2563eb"></i>宿主机制 <span class="pct">~42%</span></span>
+      <span><i class="dot" style="background:#15803d"></i>跨插件契约 <span class="pct">~33%</span></span>
+      <span><i class="dot" style="background:#b45309"></i>待审便车 <span class="pct">~15%</span></span>
+      <span><i class="dot" style="background:#dc2626"></i>纯插件语义 <span class="pct">~10%</span></span>
+    </div>
+
+    <div class="sum-grid">
+      <div class="sum-card">
+        <div class="sum-name">宿主机制</div>
+        <div class="sum-num pending" id="n-host">盘点后回填</div>
+        <div class="sum-foot"><span class="sum-badge b-ok">合理</span><span class="sum-note">PTY / 会话壳 / 调度</span></div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-name">跨插件契约</div>
+        <div class="sum-num pending" id="n-contract">盘点后回填</div>
+        <div class="sum-foot"><span class="sum-badge b-ok">合理</span><span class="sum-note">askWatch / transport / quota</span></div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-name">待审便车</div>
+        <div class="sum-num pending" id="n-pend">盘点后回填</div>
+        <div class="sum-foot"><span class="sum-badge b-warn" id="badge-pend">13 文件待审</span><span class="sum-note">疑似私有语义,待人工甄别</span></div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-name">纯插件语义</div>
+        <div class="sum-num pending" id="n-move">盘点后回填</div>
+        <div class="sum-foot"><span class="sum-badge b-err">应迁出</span><span class="sum-note">红线存量,迁移待办池</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 下半:待审便车列表 -->
+  <div class="card">
+    <h2>
+      <svg class="ic" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M8 6.5a5.5 5.5 0 1 0 8 0"/><path d="M5 21h14"/></svg>
+      待审便车 · 按行数排序
+    </h2>
+    <div class="desc">每个文件附脚本 import 扫描出的引用方证据;右侧三键裁决,结果写入 scripts/kernel-audit.json,待审剩余计数实时刷新。</div>
+
+    <div class="prow">
+      <div class="prow-main">
+        <div class="pname">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9l-6-6z"/><path d="M13 3v6h6"/></svg>
+          <code>activityWatch.ts</code><span class="plines">1,120 行</span>
+        </div>
+        <div class="pmeta">引用方:<b>workbench / memory</b> 两家<span class="sep">|</span>迁移建议:<b>迁 cli-shared</b></div>
+      </div>
+      <div class="prow-side">
+        <div class="tag-group" title="点击已选中的键即撤回,重新落入待审" role="group" aria-label="标记 activityWatch.ts 的分区">
+          <button type="button" class="tagbtn host" data-tag="host" aria-pressed="false">宿主</button>
+          <button type="button" class="tagbtn contract" data-tag="contract" aria-pressed="false">契约</button>
+          <button type="button" class="tagbtn move" data-tag="move" aria-pressed="false">迁出</button>
+        </div>
+        <div class="pstatus">待人工甄别</div>
+      </div>
+    </div>
+
+    <div class="prow">
+      <div class="prow-main">
+        <div class="pname">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9l-6-6z"/><path d="M13 3v6h6"/></svg>
+          <code>askScreenMirror.ts</code><span class="plines">640 行</span>
+        </div>
+        <div class="pmeta">引用方:仅 <b>workbench</b>(会话投屏镜像)<span class="sep">|</span>迁移建议:<b>迁 workbench 插件</b></div>
+      </div>
+      <div class="prow-side">
+        <div class="tag-group" title="点击已选中的键即撤回,重新落入待审" role="group" aria-label="标记 askScreenMirror.ts 的分区">
+          <button type="button" class="tagbtn host" data-tag="host" aria-pressed="false">宿主</button>
+          <button type="button" class="tagbtn contract" data-tag="contract" aria-pressed="false">契约</button>
+          <button type="button" class="tagbtn move" data-tag="move" aria-pressed="false">迁出</button>
+        </div>
+        <div class="pstatus">待人工甄别</div>
+      </div>
+    </div>
+
+    <div class="prow">
+      <div class="prow-main">
+        <div class="pname">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9l-6-6z"/><path d="M13 3v6h6"/></svg>
+          <code>transcriptDigest.ts</code><span class="plines">520 行</span>
+        </div>
+        <div class="pmeta">引用方:仅 <b>anim</b>(配音文稿摘要)<span class="sep">|</span>迁移建议:<b>迁 anim 插件</b></div>
+      </div>
+      <div class="prow-side">
+        <div class="tag-group" title="点击已选中的键即撤回,重新落入待审" role="group" aria-label="标记 transcriptDigest.ts 的分区">
+          <button type="button" class="tagbtn host" data-tag="host" aria-pressed="false">宿主</button>
+          <button type="button" class="tagbtn contract" data-tag="contract" aria-pressed="false">契约</button>
+          <button type="button" class="tagbtn move" data-tag="move" aria-pressed="false">迁出</button>
+        </div>
+        <div class="pstatus">待人工甄别</div>
+      </div>
+    </div>
+
+    <div class="prow" data-cur="host" style="border-left-color:#2563eb">
+      <div class="prow-main">
+        <div class="pname">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9l-6-6z"/><path d="M13 3v6h6"/></svg>
+          <code>themePresets.ts</code><span class="plines">380 行</span>
+        </div>
+        <div class="pmeta">引用方:<b>settings 面板 + 会话壳</b><span class="sep">|</span>迁移建议:<b>归宿主机制</b>(纯 UI 底座)</div>
+      </div>
+      <div class="prow-side">
+        <div class="tag-group" title="点击已选中的键即撤回,重新落入待审" role="group" aria-label="标记 themePresets.ts 的分区">
+          <button type="button" class="tagbtn host active" data-tag="host" aria-pressed="true">宿主</button>
+          <button type="button" class="tagbtn contract" data-tag="contract" aria-pressed="false">契约</button>
+          <button type="button" class="tagbtn move" data-tag="move" aria-pressed="false">迁出</button>
+        </div>
+        <div class="pstatus is-host">已归入:宿主机制</div>
+      </div>
+    </div>
+
+    <div class="prow list-foot" id="pend-foot"><span id="pend-count" aria-live="polite">已甄别 1 / 14</span> · 完整「文件 × 行数 × 引用方」清单由 scripts/check-kernel-audit.mjs 产出,标签落 scripts/kernel-audit.json。</div>
+  </div>
+
+  <!-- 交互说明 -->
+  <div class="card howto">
+    <h2>
+      <svg class="ic" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="0.5"/></svg>
+      交互说明
+    </h2>
+    <ul>
+      <li><b>盘点脚本化:</b>新增 scripts/check-kernel-audit.mjs(先例:check-file-size.mjs / check-arch-boundary.mjs),产出「文件 × 行数 × 引用方」清单;脚本只产数据,分区判定一律人工。</li>
+      <li><b>只贴标签不搬家:</b>裁决结果落 scripts/kernel-audit.json 并入库,标签是唯一事实源;文件迁移是标签确认后的独立动作,本页所有按钮只改标签,不动任何文件。</li>
+      <li><b>三键裁决:</b>待审文件按「宿主 / 契约 / 迁出」三键人工归区,可反复改判,点击已选中的键即撤回、重新落入待审;待审剩余计数实时刷新,分区行数不做前端估算,以盘点脚本输出为准。</li>
+      <li><b>迁出红线进 CI:</b>「迁出」标签与 check 脚本联动——check-arch-boundary.mjs 已守 R1/R3/R4;贴「迁出」的文件若仍被 kernel 内其他文件引用,CI 直接红,先解除引用再迁。</li>
+      <li><b>盘点可复跑:</b>脚本复跑与标签清单做 diff,新增文件默认落入「待审便车」,不允许静默进入其他分区;红色「纯插件语义」分区即「单插件语义不入 kernel」红线的存量清单。</li>
+    </ul>
+  </div>
+
+</div>
+<script>
+(function(){
+  // 示例清单规模;实际规模与行数、引用方均以 scripts/check-kernel-audit.mjs 输出为准
+  var PEND_TOTAL = 14;
+  var NAMES = { host:'宿主机制', contract:'跨插件契约', move:'纯插件语义' };
+  var COLORS = { host:'#2563eb', contract:'#15803d', move:'#dc2626' };
+  var STATUS_CLS = { host:'is-host', contract:'is-contract', move:'is-move' };
+  var PENDING_TEXT = '待人工甄别';
+  var badge = document.getElementById('badge-pend');
+  var count = document.getElementById('pend-count');
+  var rows = [].slice.call(document.querySelectorAll('.prow:not(.list-foot)'));
+
+  function refresh(){
+    var judged = rows.filter(function(r){ return r.dataset.cur; }).length;
+    var allDone = judged === rows.length;
+    badge.textContent = (PEND_TOTAL - judged) + ' 文件待审';
+    count.textContent = '已甄别 ' + judged + ' / ' + PEND_TOTAL +
+      (allDone ? '(本页 ' + rows.length + ' 行示例已全部甄别)'
+               : (judged === 0 ? '(尚未裁决,点击行尾三键归类)' : ''));
+  }
+
+  function setRow(row, tag){
+    var status = row.querySelector('.pstatus');
+    row.querySelectorAll('.tagbtn').forEach(function(b){
+      var on = b.dataset.tag === tag;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    if(tag){
+      row.dataset.cur = tag;
+      row.style.borderLeftColor = COLORS[tag];
+      status.textContent = '已归入:' + NAMES[tag];
+      status.className = 'pstatus ' + STATUS_CLS[tag];
+    }else{
+      delete row.dataset.cur;
+      row.style.borderLeftColor = '';
+      status.textContent = PENDING_TEXT;
+      status.className = 'pstatus';
+    }
+  }
+
+  rows.forEach(function(row){
+    row.querySelectorAll('.tagbtn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        // 点击已选中的键 = 撤回,重新落入待审
+        setRow(row, row.dataset.cur === btn.dataset.tag ? null : btn.dataset.tag);
+        refresh();
+      });
+    });
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>

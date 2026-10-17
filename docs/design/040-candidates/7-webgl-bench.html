@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<title>07 · WebGL 终端渲染基准 — 0.3.9 候选视觉示例</title>
+<style>
+  :root{
+    --bg:#f6f6f4; --card:#ffffff; --line:#e4e4e0; --fg:#1c1917; --fg2:#57534e;
+    --accent:#ea580c; --accent-soft:#ffedd5; --ok:#15803d; --ok-soft:#dcfce7;
+    --warn:#b45309; --warn-soft:#fef3c7; --err:#dc2626; --info:#2563eb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--fg);
+    font:14px/1.6 system-ui,-apple-system,"PingFang SC","Segoe UI",sans-serif;
+    padding:40px 24px 64px;
+  }
+  .page{max-width:1080px;margin:0 auto}
+  .kicker{font-size:12px;color:var(--fg2);letter-spacing:.06em}
+  .kicker b{color:#c2410c;font-weight:600}
+  h1{font-size:22px;line-height:1.35;margin:6px 0 4px;font-weight:650}
+  .desc{color:var(--fg2);max-width:760px}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .mock{margin-top:24px;overflow:hidden}
+  .panel-head{display:flex;align-items:center;gap:10px;padding:16px 20px 12px}
+  .panel-head .ic{color:var(--accent);display:flex}
+  .panel-head h2{font-size:15px;font-weight:650}
+  .pill{
+    font-size:12px;font-weight:600;border-radius:999px;padding:2px 10px;line-height:1.5;
+  }
+  .pill-ok{background:var(--ok-soft);color:var(--ok)}
+  .pill-run{background:var(--accent-soft);color:#c2410c}
+  .env{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    padding:10px 20px;border-top:1px solid var(--line);background:#fafaf9;
+    color:var(--fg2);font-size:12.5px;
+  }
+  .env .ic{display:flex;color:var(--fg2)}
+  .env .sep{color:var(--line)}
+  .env .stamp{margin-left:auto}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  thead th{
+    text-align:left;font-size:12px;font-weight:600;color:var(--fg2);
+    padding:10px 20px;border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  thead th.num,td.num{text-align:right}
+  thead th .th-sub{font-weight:400;color:#78716c;margin-left:4px}
+  tbody td{padding:14px 20px;border-bottom:1px solid var(--line);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr{transition:background .12s}
+  tbody tr:hover{background:#fafaf9}
+  tr.row-warn{background:var(--warn-soft);box-shadow:inset 3px 0 0 var(--warn)}
+  tr.row-warn:hover{background:#fde68a40}
+  .scene b{font-weight:600}
+  .scene .cmd{
+    font-size:12px;color:var(--fg2);margin-top:2px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .fps{font-size:16px;font-weight:650}
+  .fps small{font-size:11px;font-weight:400;color:var(--fg2);margin-left:2px}
+  .delta-wrap{display:flex;align-items:center;gap:12px;min-width:340px}
+  .track{flex:1;height:8px;border-radius:999px;background:#f0efec;overflow:hidden}
+  tr.row-warn .track{background:#fde68a66}
+  .fill{display:block;height:100%;border-radius:999px;background:var(--ok);width:0;transition:width .5s ease}
+  .fill.warn{background:var(--warn)}
+  .delta{width:48px;text-align:right;font-weight:650;font-size:13px}
+  .delta.warn{color:var(--warn)} .delta.ok{color:var(--ok)}
+  .verdict{white-space:nowrap}
+  .verdict .pill{font-weight:600}
+  .verdict .v-ok{background:var(--ok-soft);color:var(--ok)}
+  .verdict .v-warn{background:var(--warn-soft);color:var(--warn)}
+  .table-foot{
+    padding:10px 20px;border-top:1px solid var(--line);
+    color:var(--fg2);font-size:12px;background:#fcfcfb;
+  }
+  .conclusion{
+    margin:16px 20px 20px;background:var(--accent-soft);border:1px solid #fed7aa;
+    border-radius:10px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start;
+  }
+  .conclusion .ic{color:var(--accent);display:flex;margin-top:2px}
+  .conclusion .body{flex:1}
+  .conclusion .body b{color:#9a3412}
+  .conclusion .sub{color:#9a3412;font-size:12.5px;margin-top:2px}
+  .conclusion .tiers{
+    margin-top:8px;display:flex;flex-direction:column;gap:3px;
+    font-size:12.5px;color:#9a3412;counter-reset:tier;
+  }
+  .conclusion .tier{display:flex;align-items:baseline;gap:7px}
+  .conclusion .tier::before{
+    counter-increment:tier;content:counter(tier);
+    flex:none;width:16px;height:16px;border-radius:999px;
+    background:#ffffff;border:1px solid #fdba74;color:#9a3412;
+    font-size:10.5px;font-weight:700;line-height:14px;text-align:center;
+    transform:translateY(2px);
+  }
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;border:none;border-radius:8px;
+    background:var(--accent);color:#fff;font:600 13px/1.6 inherit;
+    padding:8px 14px;cursor:pointer;white-space:nowrap;transition:background .12s;
+  }
+  .btn:hover{background:#c2410c}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  @media (prefers-reduced-motion: reduce){
+    .fill{transition:none}
+    tbody tr{transition:none}
+    .btn{transition:none}
+  }
+  .notes{margin-top:20px;padding:18px 20px}
+  .notes h2{font-size:15px;font-weight:650;margin-bottom:10px}
+  .notes ul{padding-left:0;list-style:none}
+  .notes li{
+    position:relative;padding-left:18px;color:var(--fg2);margin:6px 0;
+  }
+  .notes li::before{
+    content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;
+    border-radius:999px;background:var(--accent);
+  }
+  .notes li b{color:var(--fg);font-weight:600}
+  code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+    background:#f5f5f4;border:1px solid var(--line);border-radius:4px;padding:0 4px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="kicker">0.3.9 候选 · 7/7(调研表编号 14)</div>
+    <h1>WebGL 终端渲染基准</h1>
+    <p class="desc">先测再决定:在真机上回放三类典型终端场景,量化 WebGL addon 相对默认 canvas 渲染器的帧率收益——差异无感就不装,可感知才按需启用。</p>
+  </header>
+
+  <!-- ============ mock:基准报告面板 ============ -->
+  <section class="card mock">
+    <div class="panel-head">
+      <span class="ic">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 15a8 8 0 0 1 16 0"/><path d="M12 15l3.5-4"/><circle cx="12" cy="15" r="1"/>
+          <path d="M2.5 15h1.5M20 15h1.5M12 4.5V6"/>
+        </svg>
+      </span>
+      <h2>终端渲染基准报告</h2>
+      <span class="pill pill-ok" id="status-pill" role="status" aria-live="polite">已完成 3/3 场景</span>
+    </div>
+
+    <div class="env">
+      <span class="ic">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>
+        </svg>
+      </span>
+      <span><b style="color:var(--fg);font-weight:600">M2 Pro</b> · 1440×900 · xterm 6.0</span>
+      <span class="sep">|</span>
+      <span>基准页独立于主包,vite dev 可达(/bench 路由或独立 html)</span>
+      <span class="stamp" id="stamp">2026-10-17 21:42 生成 · 总耗时 31s</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:34%">场景</th>
+          <th class="num" style="width:15%">当前 canvas 渲染<span class="th-sub">fps</span></th>
+          <th class="num" style="width:15%">WebGL addon<span class="th-sub">fps</span></th>
+          <th>差异<span class="th-sub">(WebGL − canvas)/canvas</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="scene"><b>cat 10 万行日志</b>
+            <div class="cmd">cat ~/code/tmd-cli/app-2026-10-17.log(一次性洪峰回放)</div>
+          </td>
+          <td class="num"><span class="fps fps-a">46<small>fps</small></span></td>
+          <td class="num"><span class="fps fps-b">48<small>fps</small></span></td>
+          <td>
+            <div class="delta-wrap">
+              <span class="track" role="progressbar" aria-label="fps 提升幅度" aria-valuemin="0" aria-valuemax="100"><span class="fill"></span></span>
+              <span class="delta ok">+4%</span>
+              <span class="verdict"><span class="pill v-ok">无感</span></span>
+            </div>
+          </td>
+        </tr>
+        <tr class="row-warn">
+          <td class="scene"><b>htop 持续刷新</b>
+            <div class="cmd">htop(1s 定时器全屏重绘,持续 10s)</div>
+          </td>
+          <td class="num"><span class="fps fps-a">41<small>fps</small></span></td>
+          <td class="num"><span class="fps fps-b">58<small>fps</small></span></td>
+          <td>
+            <div class="delta-wrap">
+              <span class="track" role="progressbar" aria-label="fps 提升幅度" aria-valuemin="0" aria-valuemax="100"><span class="fill warn"></span></span>
+              <span class="delta warn">+41%</span>
+              <span class="verdict"><span class="pill v-warn">可感知</span></span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td class="scene"><b>vim 滚动</b>
+            <div class="cmd">vim src/kernel/shortcuts.ts(Ctrl+F 连续滚屏 5,000 行)</div>
+          </td>
+          <td class="num"><span class="fps fps-a">59<small>fps</small></span></td>
+          <td class="num"><span class="fps fps-b">60<small>fps</small></span></td>
+          <td>
+            <div class="delta-wrap">
+              <span class="track" role="progressbar" aria-label="fps 提升幅度" aria-valuemin="0" aria-valuemax="100"><span class="fill"></span></span>
+              <span class="delta ok">+2%</span>
+              <span class="verdict"><span class="pill v-ok">无感</span></span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="table-foot">每场景采样 10s 取中位数;两行绿 = 中位数 fps 提升 &lt;5%,判定无感;黄行 = ≥5%,判定可感知。基准在独立页运行,不影响主窗口会话。</div>
+
+    <div class="conclusion">
+      <span class="ic">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18h6"/><path d="M10 21h4"/>
+          <path d="M12 3a6 6 0 0 1 3.7 10.7c-.7.6-.7 1.3-.7 2.3h-6c0-1 0-1.7-.7-2.3A6 6 0 0 1 12 3z"/>
+        </svg>
+      </span>
+      <div class="body">
+        <b>依赖决策</b>:基准通过才入 <code>package.json</code>,不预装;当前 addon 未装,基准页临时引入 <code>@xterm/addon-webgl@6</code> 测完再定去留。
+        <div class="tiers">
+          <div class="tier"><b>不通过</b> → 不装,依赖保持 fit / search / web-links 三 addon 现状</div>
+          <div class="tier"><b>通过</b> → 按需 dynamic import,不进首包</div>
+          <div class="tier"><b>持续重绘检测</b> → 自动切换,命中会话启用 WebGL 渲染</div>
+        </div>
+        <div class="sub">+86 KB gzip 仅计入动态加载该 addon 的会话。</div>
+      </div>
+      <button class="btn" id="rerun">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.9 1 6.6 2.6L21 8"/><path d="M21 3v5h-5"/>
+        </svg>
+        <span id="rerun-label">复测</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ============ 交互说明 ============ -->
+  <section class="card notes">
+    <h2>交互说明</h2>
+    <ul>
+      <li><b>入口</b>:基准页独立于主包、不进 bundle——vite dev 下挂 <code>/bench</code> 路由或独立 html 即可达,应用内无常驻入口。</li>
+      <li><b>运行</b>:场景脚本真实执行——<code>cat</code> 10 万行日志、htop 模拟全屏重绘、vim 连续滚屏;每场景采样 10s 取中位数,进度逐行点亮。</li>
+      <li><b>判定</b>:中位数 fps 提升 =(WebGL − canvas)/canvas,&lt;5% 视为无感(绿)→ 维持现状;≥5% 可感知(黄)→ 进入按需启用名单;条形长度按差异占比缩放。</li>
+      <li><b>依赖决策</b>:基准通过才入 <code>package.json</code>,不预装;addon 未装时由基准页临时引入 <code>@xterm/addon-webgl@6</code>,测完再定去留。</li>
+      <li><b>分层落地</b>:不通过 → 不装;通过 → 命中持续重绘的会话按需 <code>import('@xterm/addon-webgl')</code>;持续重绘检测命中 → 该会话自动切换,随会话生命周期加载/卸载。</li>
+      <li><b>缓存与复测</b>:报告按机型 + xterm 版本缓存,升级 xterm 或换机后状态变「环境已变化」并提示复测;「复测」重跑全部场景覆盖旧报告,旧值保留为对比基线。</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function(){
+  // 每场景 3 组采样轮换,判定按构造恒定(绿 <5%、黄 >40%)
+  var samples=[
+    {a:[46,45,47],b:[48,47,49]},
+    {a:[41,40,43],b:[58,57,61]},
+    {a:[59,58,60],b:[60,59,61]}
+  ];
+  var gen=0,running=false;
+  var btn=document.getElementById('rerun'),
+      label=document.getElementById('rerun-label'),
+      pill=document.getElementById('status-pill'),
+      stamp=document.getElementById('stamp'),
+      rows=document.querySelectorAll('tbody tr');
+  btn.addEventListener('click',function(){
+    if(running) return;
+    running=true;
+    btn.disabled=true; label.textContent='复测中…';
+    pill.textContent='采样中…'; pill.className='pill pill-run';
+    setTimeout(function(){
+      gen=(gen+1)%samples.length;
+      rows.forEach(function(row,i){
+        var a=samples[i].a[gen],b=samples[i].b[gen];
+        row.querySelector('.fps-a').innerHTML=a+'<small>fps</small>';
+        row.querySelector('.fps-b').innerHTML=b+'<small>fps</small>';
+        var pct=Math.round((b-a)/a*100);
+        var warn=pct>=5;
+        row.classList.toggle('row-warn',warn);
+        var d=row.querySelector('.delta');
+        d.textContent='+'+pct+'%';
+        d.className='delta '+(warn?'warn':'ok');
+        var fill=row.querySelector('.fill');
+        fill.className='fill'+(warn?' warn':'');
+        fill.style.width=Math.min(pct/45*100,100)+'%';
+        var track=row.querySelector('.track');
+        track.setAttribute('aria-valuenow',Math.min(Math.round(pct/45*100),100));
+        var v=row.querySelector('.verdict .pill');
+        v.className='pill '+(warn?'v-warn':'v-ok');
+        v.textContent=warn?'可感知':'无感';
+      });
+      pill.textContent='已完成 3/3 场景'; pill.className='pill pill-ok';
+      var now=new Date(),pad=function(n){return (n<10?'0':'')+n};
+      stamp.textContent=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())
+        +' '+pad(now.getHours())+':'+pad(now.getMinutes())+' 复测 · 总耗时 31s';
+      btn.disabled=false; label.textContent='复测'; running=false;
+    },1200);
+  });
+  // 首帧按数据渲染条形
+  rows.forEach(function(row){
+    var a=parseInt(row.querySelector('.fps-a').textContent,10);
+    var b=parseInt(row.querySelector('.fps-b').textContent,10);
+    var pct=Math.round((b-a)/a*100);
+    var w=Math.min(Math.round(pct/45*100),100);
+    row.querySelector('.fill').style.width=w+'%';
+    row.querySelector('.track').setAttribute('aria-valuenow',w);
+  });
+})();
+</script>
+</body>
+</html>
