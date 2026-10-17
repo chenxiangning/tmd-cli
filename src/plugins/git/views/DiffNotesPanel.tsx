@@ -23,7 +23,7 @@ function sessionBadge(sessionKey: string): string {
 }
 
 /** 回传文本:按文件排序聚块,每批注一带行锚(hash)与 excerpt 引文。 */
-export function buildNoteReport(notes: readonly DiffNote[]): string {
+function buildNoteReport(notes: readonly DiffNote[]): string {
   const sorted = [...notes].sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : a.lineNo - b.lineNo));
   const blocks = sorted.map(
     (n) => `文件 ${n.file}#${n.lineHash} 行 ${n.lineNo}:\n> ${n.excerpt}\n批注:${n.text}`,

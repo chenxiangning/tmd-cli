@@ -208,6 +208,26 @@
   flex-shrink: 0;
 }
 
+/* worktree 徽标:会话行(分支名,title = wtPath)与管理弹窗列表行(关联
+   会话数)双向共用;accent 系与「等待确认」的 ok 绿区分。 */
+.thread-wt-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  max-width: 96px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tmd-accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tmd-accent) 50%, transparent);
+  color: var(--tmd-accent);
+  font-size: var(--tmd-font-2xs);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
 /* 会话速度指示(SessionSpeedPill):生成中活会话行的 tok/s 响应均速。
    纯文字无胶囊底(数值态,与「等待确认」行动徽标区分);tabular-nums 防数字跳宽。 */
 .thread-speed-pill {
