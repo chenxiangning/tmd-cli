@@ -1,0 +1,121 @@
+/**
+ * agent wiki 自动沉淀钩子 —— 会话退出时取用户消息尾段,零模型成本落盘。
+ *
+ * 任意 profileId 的 CLI 会话退出(非仅 omp):profile.readSessionUserMessages
+ * 存在则读尾段,append 一条 auto 条目到该会话 cwd 的 .tmd/wiki.json。
+ * 幂等:模块级 Set,一会话生命周期只触发一次(同 autoDistill.prune 模式)。
+ * 并发退出经模块级队列串行化(多会话同刻退出时避免读改写竞态);
+ * 面板写盘也过同一队列(withWikiLock),两侧不再互相盲写覆盖。
+ *
+ * 时序铁律(kernel 退出链约定,checkpoints 消费者注释同源):exited 事件发射时
+ * 会话与 CLI 身份仍在列表里,同步取齐后才能进异步;排队任务内重查 sessionId
+ * 会撞上 hostWatches 已清账本 → 条目静默丢失。
+ */
+
+import { host } from "@kernel/host";
+import { ipc } from "@kernel/ipc";
+import type { CliUserMessage } from "@kernel/cli";
+import { addEntry, excerptFromMsgs, parseWikiDoc, serializeWikiDoc, type WikiDoc } from "./wiki";
+
+/** wiki 单文件在会话 cwd 内的固定落点。 */
+export function wikiFilePath(cwd: string): string {
+  return `${cwd}/.tmd/wiki.json`;
+}
+
+/** 已沉淀会话(幂等:一次会话生命周期只触发一次)。 */
+const distilled = new Set<string>();
+
+/** 幂等集防无界增长:超限剪除已不在活会话列表的 id(同 autoDistill.prune 模式)。 */
+function pruneDistilled(): void {
+  if (distilled.size < 400) return;
+  const alive = new Set(host.getSessions().map((s) => s.id));
+  for (const id of distilled) if (!alive.has(id)) distilled.delete(id);
+}
+
+/** 写队列:所有落盘读改写(钩子+面板)串行过队,消并发竞态。 */
+let queue: Promise<void> = Promise.resolve();
+
+/** 面板/钩子共用的互斥窗:任务内先读后写,队列保证无交叉 RMW。 */
+export function withWikiLock<T>(task: () => Promise<T>): Promise<T> {
+  const run = queue.then(task);
+  queue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+/** 退出时同步取齐的会话身份(exited 发射刻身份仍在账本,过期不候)。 */
+interface ExitedCtx {
+  cwd: string;
+  harness: string;
+  cliSessionId: string;
+  readMsgs: (cwd: string, cliSessionId: string, full: boolean) => Promise<CliUserMessage[] | null>;
+}
+
+async function appendAutoEntry(ctx: ExitedCtx, sessionId: string): Promise<boolean> {
+  const msgs = await ctx.readMsgs(ctx.cwd, ctx.cliSessionId, true);
+  const excerpt = excerptFromMsgs(msgs ?? []);
+  if (!excerpt) return false;
+  const path = wikiFilePath(ctx.cwd);
+  return withWikiLock(async () => {
+    let doc: WikiDoc = { version: 1, entries: [] };
+    try {
+      doc = parseWikiDoc(await ipc.fsReadFile(path));
+    } catch {
+      /* 首次落盘:文件不存在,从空文档起步。 */
+    }
+    const next = addEntry(doc, {
+      ts: Date.now(),
+      harness: ctx.harness,
+      sessionId,
+      excerpt,
+      kind: "auto",
+    });
+    if (next === doc) return false; /* 幂等命中:同会话 auto 已在,不重写。 */
+    try {
+      await ipc.fsWriteFile(path, serializeWikiDoc(next));
+    } catch {
+      /* .tmd 目录不存在 → 建目录后重试一次(fsCreateDir 同名已存在报错,一并吞)。 */
+      await ipc.fsCreateDir(`${ctx.cwd}/.tmd`).catch(() => undefined);
+      await ipc.fsWriteFile(path, serializeWikiDoc(next));
+    }
+    return true;
+  }).then((written) => {
+    if (written) {
+      /* 开着的 Wiki 面板即时刷新(host.events 同通道,面板订阅同 topic)。 */
+      host.events.emit("memory-coordinator.wiki.updated", { cwd: ctx.cwd });
+    }
+    return written;
+  });
+}
+
+function onSessionExited(sessionId: string): void {
+  pruneDistilled();
+  if (distilled.has(sessionId)) return;
+  const meta = host.getSessions().find((s) => s.id === sessionId);
+  if (!meta || !meta.cwd) return;
+  const profile = host.getCliProfile(meta.profileId);
+  const readMsgs = profile?.readSessionUserMessages;
+  if (!readMsgs) return;
+  distilled.add(sessionId);
+  const ctx: ExitedCtx = {
+    cwd: meta.cwd,
+    harness: meta.profileId,
+    cliSessionId: host.getCliSessionId(sessionId) ?? "",
+    readMsgs,
+  };
+  /* appendAutoEntry 的读改写段内部已过 withWikiLock,此处不再外包(嵌套即死锁)。 */
+  appendAutoEntry(ctx, sessionId).catch((err) => {
+    /* 失败归还幂等位:本会话还有重试口(下次同类触发不再被 Set 拦截)。 */
+    distilled.delete(sessionId);
+    console.warn("[agent-wiki] 沉淀异常", err);
+  });
+}
+
+/** 插件 activate 期挂载;返回退订函数(payload = 裸 sessionId 字符串)。 */
+export function attachWikiStore(): () => void {
+  return host.events.on<string>("kernel.sessions.exited", (sessionId) => {
+    if (sessionId) onSessionExited(sessionId);
+  });
+}

@@ -9,7 +9,7 @@
  *   · Memory 控制台 tab(EditorCenter 位,kind="memory-console")
  */
 
-import { Brain } from "@phosphor-icons/react";
+import { Brain, Notebook } from "@phosphor-icons/react";
 import { DecorIcon } from "@kernel/iconSet";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 import type { Plugin } from "@kernel/plugin";
@@ -17,8 +17,12 @@ import { MemoryPanel } from "./panel/MemoryPanel";
 import { MemoryConsole } from "./console/MemoryConsole";
 import { MemoryCapsule } from "./capsule/MemoryCapsule";
 import { attachAutoDistill } from "./phase2/autoDistill";
+import { attachWikiStore } from "./wiki/wikiHook";
+import { WikiPanel } from "./wiki/WikiPanel";
+import "./wiki/locales"; /* agent wiki 域词典 */
 
 let detachAutoDistill: (() => void) | null = null;
+let detachWikiStore: (() => void) | null = null;
 
 export const memoryCoordinatorPlugin: Plugin = {
   id: "memory-coordinator",
@@ -32,6 +36,7 @@ export const memoryCoordinatorPlugin: Plugin = {
   },
   activate(ctx) {
     detachAutoDistill = attachAutoDistill();
+    detachWikiStore = attachWikiStore();
     ctx.registerFilePanel({
       id: "memory",
       label: "Memory",
@@ -46,6 +51,11 @@ export const memoryCoordinatorPlugin: Plugin = {
       component: MemoryConsole,
       icon: (p) => <DecorIcon id="panel-memory" Fallback={Brain} {...p} />,
     });
+    ctx.registerTabContent({
+      kind: "agent-wiki",
+      component: WikiPanel,
+      icon: (p) => <DecorIcon id="panel-memory" Fallback={Notebook} {...p} />,
+    });
     ctx.contribute("composer.statusBar", {
       order: 20,
       component: MemoryCapsule,
@@ -54,5 +64,7 @@ export const memoryCoordinatorPlugin: Plugin = {
   deactivate() {
     detachAutoDistill?.();
     detachAutoDistill = null;
+    detachWikiStore?.();
+    detachWikiStore = null;
   },
 };

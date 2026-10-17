@@ -12,6 +12,7 @@ import { CaretDown } from "@phosphor-icons/react";
 import { type MemoryItem } from "../protocol";
 import { memoryPool } from "../pool";
 import { toggleConsoleTab } from "../console/consoleTab";
+import { toggleWikiTab } from "../wiki/wikiTab";
 import { t } from "@kernel/i18n";
 import { formatDate } from "@kernel/relativeTime";
 import { categoryLabel, highlight } from "./memoryText";
@@ -186,14 +187,16 @@ export function MemorySelectBar({
   );
 }
 
-/** 底部工具条:控制台切换 + 诊断按钮 + 上游治理提示(诊断后显示结果行)。 */
+/** 底部工具条:控制台切换 + Wiki 切换 + 诊断按钮 + 上游治理提示(诊断后显示结果行)。 */
 export function MemoryPanelFooter({
   consoleOpen,
+  wikiOpen,
   diag,
   diagRunning,
   onDiag,
 }: {
   consoleOpen: boolean;
+  wikiOpen: boolean;
   diag: string[];
   diagRunning: boolean;
   onDiag: () => void;
@@ -206,6 +209,13 @@ export function MemoryPanelFooter({
         title={t("打开/关闭中央编辑区的 Memory 控制台")}
       >
         {consoleOpen ? t("关闭控制台") : t("控制台")}
+      </button>
+      <button
+        className="flex-none rounded-md border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+        onClick={toggleWikiTab}
+        title={t("打开/关闭中央编辑区的 Agent Wiki")}
+      >
+        {wikiOpen ? t("关闭 Wiki") : t("Wiki")}
       </button>
       <button
         className="flex-none rounded-md border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"

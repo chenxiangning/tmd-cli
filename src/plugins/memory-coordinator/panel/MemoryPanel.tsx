@@ -103,11 +103,13 @@ export function MemoryPanel() {
     void reload();
   }, [reload]);
 
+  const wikiOpen = editorTabs.tabs.some((t) => t.id === "agent-wiki" && t.id === editorTabs.activeId);
   /* 两分支共用的底部工具条(duplicate-jsx 消重):元素对象可安全复用,
      同一轮渲染只会落进其中一个返回分支。 */
   const footer = (
     <MemoryPanelFooter
       consoleOpen={consoleOpen}
+      wikiOpen={wikiOpen}
       diag={diag}
       diagRunning={diagRunning}
       onDiag={runDiag}

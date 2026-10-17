@@ -1,0 +1,20 @@
+/** agent wiki en 词典(键 = 中文源串)。 */
+export const MESSAGES_EN = {
+  "Agent Wiki": "Agent Wiki",
+  "标为已决策": "Mark as decision",
+  "标为开放问题": "Mark as open question",
+  "删除条目": "Delete entry",
+  "未选择工作区": "No workspace selected",
+  "上次沉淀 {time}": "Last distilled {time}",
+  "共 {count} 条": "{count} entries",
+  "手动沉淀一句话…": "Distill a one-liner manually…",
+  "加为已决策": "Add as decision",
+  "加为开放问题": "Add as open question",
+  "加载中…": "Loading…",
+  "暂无": "None yet",
+  "待归类(自动沉淀)": "Unclassified (auto-distilled)",
+  "已决策": "Decisions",
+  "开放问题": "Open questions",
+  "落盘失败,改动可能未保存": "Save failed — changes may not be persisted",
+  "本工作区还没有 wiki 条目;会话退出时会自动沉淀用户消息尾段": "No wiki entries in this workspace yet; session exits are auto-distilled from user message tails",
+};

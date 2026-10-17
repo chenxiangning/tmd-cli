@@ -27,6 +27,7 @@ const OPENABLE_KINDS = [
   "ckpt-batch",
   "wsl",
   "memory-console",
+  "agent-wiki",
   "academy.guide",
   "intent-canvas",
   "skill-hub",
