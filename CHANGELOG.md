@@ -4,6 +4,26 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.3.9] - 2026-10-17
+
+本版主体 = anim 插件打磨批(协议对齐 tmd-anim 0.1.6 + 「打开」动作平台语义)+ 移动端引擎选择器触控达标 + 空壳批量归档 spec 立项;规划 `docs/brainstorm/2026-10-17-039-next-steps.md`(混合版:跨三版真机验收债清单附文内,真机项走验收单)。
+
+### 新增
+
+- anim 项目列表按修改时间倒序并加幕数徽标(4e134462)
+
+### 修复
+
+- anim 引用卡与提示词对齐 tmd-anim 0.1.6(4e134462):小黑风格包入卡、弃投 bpe-example,配音超长自动延长语义,TTS 平台分支(macOS say+afconvert / Windows PowerShell),validate 命令带项目路径
+- anim「打开」非 macOS 平台语义:`open -a` 仅 mac 可用,非 mac 跳过应用探测(不再误报「未安装」横幅)且行内不渲染「打开」钮,AI 会话不受影响;新增 AnimProjectRow 平台闸测试 3 例
+- 移动端引擎选择器触控目标 ≥44px(.eng-opt 补 min-height,M2 验收单 5.3 码面项)
+- 移动端触控目标全面达标(M2 5.3 扩面):会话列表行/置顶钮 min-height 44px(原 35px),主页顶栏 Git/发起会话/刷新三钮与会话横竖屏切换钮 `::after` 扩热区(视觉尺寸不变、热区 44px),ibtn 间距 6→16px 防热区重叠串击
+
+### 内务
+
+- 工作台空壳项目批量归档 spec 立项(`docs/superpowers/specs/2026-10-17-workbench-shell-archive-design.md`;软归档可逆、复用 pulsePartition ghosts 判据,码量归 0.4.0)
+- re-local Info.plist 版本追平(0.3.7 → 0.3.9)
+
 ## [0.3.8] - 2026-10-15
 
 本版主体 = anim 插件首发(tmd-anim 项目列表一键打开与 AI 会话拉起)+ 客户端界面图标装饰全量纳管 + 0.3.8 技术债清账(anim 交互刺 TDD 修复、openspec 账实对齐、workbench 空壳治理);发版正文自动注入 CI 上线。
