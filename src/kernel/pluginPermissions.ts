@@ -71,6 +71,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsWriteBytesBase64: "ipc.fs.write",
   fsCreateFile: "ipc.fs.write",
   fsCreateDir: "ipc.fs.write",
+  fsSymlinkDir: "ipc.fs.write",
   fsRenameEntry: "ipc.fs.write",
   fsTrashEntry: "ipc.fs.write",
   fsRemovePath: "ipc.fs.write",
@@ -134,6 +135,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitWorktreeAdd: "ipc.git",
   gitWorktreeRemove: "ipc.git",
   gitWorktreePrune: "ipc.git",
+  gitWorktreeDiskUsage: "ipc.git",
 
   /* checkpoints 全域。 */
   checkpointAnchor: "ipc.checkpoints",

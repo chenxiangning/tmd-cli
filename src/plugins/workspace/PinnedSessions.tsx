@@ -35,6 +35,8 @@ import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/wor
 import { copyText } from "@kernel/clipboard";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { spawnWorktreeFor } from "./worktreeSession";
+import { WorktreeBadge } from "./WorktreeBadge";
 import {
   orShortId,
   realPinSnapshot,
@@ -263,6 +265,7 @@ export function PinnedSessionsSection() {
                   {/* 绑定的活会话正等待确认:同组内行,置顶区也亮「等待确认」标签 */}
                   {live && host.isWaitingConfirm(live.id) ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
                   {live ? <SessionSpeedPill sessionId={live.id} profile={row.profile} cliSessionId={row.cliSessionId} cwd={live.cwd ?? row.workspace.root} /> : null}
+                  <WorktreeBadge sessionId={live?.id} />
                   <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
                 </span>
               </button>
@@ -284,13 +287,10 @@ export function PinnedSessionsSection() {
           position={{ x: menu.x, y: menu.y }}
           canRename
           pinScope="global"
-          onCopyId={() => {
-            void copyText(menu.row.cliSessionId).catch(() => undefined);
-          }}
+          spawnWorktreeFor={spawnWorktreeFor(menu.row, liveOf(menu.row)?.cwd ?? null, titleOf(menu.row))}
+          onCopyId={() => void copyText(menu.row.cliSessionId).catch(() => undefined)}
           onRename={() => renameOf(menu.row)}
-          onPinScope={(scope) =>
-            toggleSessionPin(menu.row.key, scope, titleOf(menu.row))
-          }
+          onPinScope={(scope) => toggleSessionPin(menu.row.key, scope, titleOf(menu.row))}
           onClose={() => setMenu(null)}
         />
       )}

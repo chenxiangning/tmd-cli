@@ -639,13 +639,18 @@ export const ipc = {
   /** 还原一次「暂存并切换」:reset --hard 清冲突 → 切回 original → 恢复 stash。 */
   gitSmartCheckoutUndo: (cwd: string, original: string) =>
     invoke<void>("git_smart_checkout_undo", { cwd, original }),
-  /** worktree 编排(批次四):列表 porcelain 解析 / 新建(new_branch = `-b` 新分支,否则检出已有)/ 移除 / 清理悬空。 */
+  /** worktree 编排:列表 porcelain 解析 / 新建(new_branch = `-b` 新分支,否则检出已有)/ 移除 / 清理悬空。 */
   gitWorktreeList: (cwd: string) => invoke<WorktreeEntry[]>("git_worktree_list", { cwd }),
   gitWorktreeAdd: (cwd: string, path: string, branch: string, newBranch: boolean) =>
     invoke<void>("git_worktree_add", { cwd, path, branch, newBranch }),
   gitWorktreeRemove: (cwd: string, path: string, force: boolean) =>
     invoke<void>("git_worktree_remove", { cwd, path, force }),
   gitWorktreePrune: (cwd: string) => invoke<void>("git_worktree_prune", { cwd }),
+  /** worktree 磁盘占用(字节):walkdir 累计,跳 .git、不跟符号链接。列表惰性调用。 */
+  gitWorktreeDiskUsage: (cwd: string, path: string) =>
+    invoke<number>("git_worktree_disk_usage", { cwd, path }),
+  /** 目录符号链接(worktree 会话链:新树复用主仓 node_modules);Windows 无特权降级 junction。 */
+  fsSymlinkDir: (target: string, link: string) => invoke<void>("fs_symlink_dir", { target, link }),
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */
   fsCollectFiles: (dir: string, suffix: string) =>
     invoke<FileStamp[]>("fs_collect_files", { dir, suffix }),

@@ -40,6 +40,7 @@ import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { spawnWorktreeFor } from "./worktreeSession";
 import type { RenameTarget } from "@kernel/RenameInput";
 import { DiskSessionRow } from "./SessionRows";
 import { LiveSessionRow, type MenuTarget } from "./LiveSessionRow";
@@ -261,6 +262,9 @@ export function CliSessionGroup({
         <SessionContextMenu
           position={{ x: menu.x, y: menu.y }}
           canRename={menuCliSessionId !== undefined}
+          spawnWorktreeFor={
+            menu.kind === "live" ? spawnWorktreeFor({ workspace, profile }, menu.session.cwd || workspace.root, displayTitle(menuCliSessionId, menu.session.id)) : undefined
+          }
           pinScope={
             menuPinKey === undefined ? undefined : (pins[menuPinKey]?.scope ?? null)
           }

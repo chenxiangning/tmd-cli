@@ -9,12 +9,21 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Copy, Pencil, Trash } from "@phosphor-icons/react";
+import { Copy, GitBranch, Pencil, Trash } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import type { SessionPinScope } from "@kernel/sessionPins";
 import { t } from "@kernel/i18n";
 import { clampMenuPosition } from "./utils";
 import { PinIcon } from "@kernel/PinIcon";
+import { WorktreeSessionDialog } from "./WorktreeSessionDialog";
+
+/** 「在新 worktree 中起会话」所需上下文;undefined = 不出该项。 */
+export interface SpawnWorktreeTarget {
+  repoCwd: string;
+  workspaceId: string;
+  profileId: string;
+  title: string;
+}
 
 export function SessionContextMenu({
   position,
@@ -26,6 +35,7 @@ export function SessionContextMenu({
   onRename,
   onPinScope,
   onDelete,
+  spawnWorktreeFor,
   onClose,
 }: {
   position: { x: number; y: number };
@@ -36,10 +46,14 @@ export function SessionContextMenu({
   onPinScope: (scope: SessionPinScope) => void;
   /** 缺省时隐藏删除项(全局置顶区不持有磁盘文件路径,删除回工作区分组操作)。 */
   onDelete?: () => void;
+  /** 有 cwd 的会话才传:右键项「在新 worktree 中起会话」。 */
+  spawnWorktreeFor?: SpawnWorktreeTarget;
   onClose: () => void;
 }) {
-  /** 删除武装态:首击仅进入确认,再击才执行物理删除。 */
+  /** 删除武装态:首击仅进入确认,再击执行物理删除。 */
   const [armed, setArmed] = useState(false);
+  /** worktree 弹层承载:菜单点击后关菜单、原地开弹层(调用方零增量)。 */
+  const [wtDialog, setWtDialog] = useState<SpawnWorktreeTarget | null>(null);
   const pos = clampMenuPosition(position.x, position.y);
 
   useEscClose(onClose);
@@ -65,17 +79,23 @@ export function SessionContextMenu({
 
   return createPortal(
     <>
-      {/* 透明背板:纯点外关闭(左键/右键皆关),role=presentation 豁免静态元素交互规则 */}
-      <div
-        className="wsmenu-backdrop"
-        role="presentation"
-        onClick={onClose}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onClose();
-        }}
-      />
-      <div className="wsmenu session-menu" data-icon-decor="menu" style={{ left: pos.x, top: pos.y }}>
+      {/* worktree 弹层打开期间菜单本体卸载(菜单若先 onClose 会连本组件一起
+       *  卸载丢态);弹层关闭即整体关菜单(调用方零增量)。 */}
+      {wtDialog ? (
+        <WorktreeSessionDialog {...wtDialog} onClose={onClose} />
+      ) : (
+        <>
+        {/* 透明背板:纯点外关闭(左键/右键皆关),role=presentation 豁免静态元素交互规则 */}
+        <div
+          className="wsmenu-backdrop"
+          role="presentation"
+          onClick={onClose}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            onClose();
+          }}
+        />
+        <div className="wsmenu session-menu" data-icon-decor="menu" style={{ left: pos.x, top: pos.y }}>
         <button
           className="wsmenu-item"
           onClick={() => {
@@ -104,6 +124,17 @@ export function SessionContextMenu({
         </button>
         {pinItem("global", t("置顶到全局"))}
         {pinItem("workspace", t("置顶到工作区内"))}
+        {spawnWorktreeFor ? (
+          <button
+            className="wsmenu-item"
+            onClick={() => setWtDialog(spawnWorktreeFor)}
+          >
+            <span className="wsmenu-item-icon">
+              <GitBranch size="0.8125rem" />
+            </span>
+            <span className="wsmenu-item-label">{t("在新 worktree 中起会话")}</span>
+          </button>
+        ) : null}
         {onDelete ? (
           <>
             <div className="wsmenu-divider" />
@@ -127,7 +158,9 @@ export function SessionContextMenu({
             </button>
           </>
         ) : null}
-      </div>
+        </div>
+        </>
+      )}
     </>,
     document.body,
   );

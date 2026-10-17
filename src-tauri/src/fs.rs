@@ -119,6 +119,55 @@ pub fn read_heads(paths: &[String], max_bytes: usize) -> Vec<String> {
         .collect()
 }
 
+/// 目录符号链接(worktree 会话链:新树复用主仓 node_modules,免重装)。
+/// 链接已存在 = 报错由调用方裁决;Windows 无特权时 symlink_dir 失败降级
+/// junction(mklink /J 无需特权;std 无 junction 原语,shell-out 是零依赖唯一路)。
+pub fn symlink_dir(target: &str, link: &str) -> Result<(), String> {
+    let link_path = std::path::Path::new(link);
+    if link_path.symlink_metadata().is_ok() {
+        return Err(format!("链接路径已存在: {link}"));
+    }
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink(target, link_path).map_err(|e| format!("创建符号链接失败: {e}"))
+    }
+    #[cfg(windows)]
+    {
+        match std::os::windows::fs::symlink_dir(target, link_path) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                /* junction 降级:mklink 对无空格参数不加引号,而 & ^ % 是 NTFS
+                 * 合法字符——裸传会被 cmd 当命令分隔符/变量展开。显式引包裹
+                 * (引号内即字面量)并把两参归一反斜杠(mklink 对正斜杠不容忍)。 */
+                let link_bs = link.replace('/', "\\");
+                let target_bs = target.replace('/', "\\");
+                let out = std::process::Command::new("cmd")
+                    .args([
+                        "/c",
+                        "mklink",
+                        "/J",
+                        &format!("\"{link_bs}\""),
+                        &format!("\"{target_bs}\""),
+                    ])
+                    .output()
+                    .map_err(|cmd_err| {
+                        format!(
+                            "创建符号链接失败(需开发者模式/特权): {e};junction 降级失败: {cmd_err}"
+                        )
+                    })?;
+                if out.status.success() {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "创建符号链接失败(需开发者模式/特权): {e};junction 降级失败: {}",
+                        String::from_utf8_lossy(&out.stderr)
+                    ))
+                }
+            }
+        }
+    }
+}
+
 /// 尾读原语 re-export:保持 crate::fs::{read_tail, read_tail_changed, ChangedTail} 引用路径不变。
 pub use crate::fs_tail::{read_range, read_tail, read_tail_changed, ChangedTail, RangeSpan};
 
@@ -184,6 +233,29 @@ mod tests {
         assert_eq!(heads.len(), 2);
         assert!(heads[0].starts_with("{\"type\""));
         assert_eq!(heads[1], "");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn symlink_dir_建链_已存在报错() {
+        let root = temp_root("symlink");
+        fs::create_dir_all(root.join("node_modules")).unwrap();
+        let link = root.join("wt/node_modules");
+        fs::create_dir_all(link.parent().unwrap()).unwrap();
+
+        symlink_dir(
+            root.join("node_modules").to_str().unwrap(),
+            link.to_str().unwrap(),
+        )
+        .unwrap();
+        /* 建好的链接解出来是目录;再建同路径 = 报错(TS 侧裁决)。 */
+        assert!(link.is_dir());
+        let err = symlink_dir(
+            root.join("node_modules").to_str().unwrap(),
+            link.to_str().unwrap(),
+        )
+        .unwrap_err();
+        assert!(err.contains("已存在"));
         let _ = fs::remove_dir_all(&root);
     }
 

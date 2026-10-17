@@ -32,8 +32,10 @@ import { copyText } from "@kernel/clipboard";
 import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { spawnWorktreeFor } from "./worktreeSession";
 import { SessionSpeedPill } from "./SessionSpeedPill";
 import { SessionStatusLabel } from "./SessionRows";
+import { WorktreeBadge } from "./WorktreeBadge";
 import { ThreadRowActions } from "./RowActions";
 import { sessionViewOpener } from "@kernel/sessionViewTabs";
 import { compareLiveSessions, isRunningZoneCandidate, orShortId, TITLE_RESOLVE_MAX_ATTEMPTS, titleRetryDelay } from "./utils";
@@ -242,6 +244,7 @@ export function RunningZoneSection() {
                 <span className="thread-meta">
                   <SessionStatusLabel sessionId={row.session.id} />
                   {host.isWaitingConfirm(row.session.id) ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
+                  <WorktreeBadge sessionId={row.session.id} />
                   <SessionSpeedPill sessionId={row.session.id} profile={row.profile} cliSessionId={row.cliSessionId} cwd={row.session.cwd ?? row.workspace.root} />
                   <span className="thread-time">{workspaceDisplayName(row.workspace)}</span>
                 </span>
@@ -264,6 +267,7 @@ export function RunningZoneSection() {
         <SessionContextMenu
           position={{ x: menu.x, y: menu.y }}
           canRename={menu.row.cliSessionId !== undefined}
+          spawnWorktreeFor={spawnWorktreeFor(menu.row, menu.row.session.cwd ?? null, titleOf(menu.row))}
           pinScope={
             menu.row.cliSessionId === undefined
               ? undefined
@@ -275,18 +279,12 @@ export function RunningZoneSection() {
                   )
                 ]?.scope ?? null)
           }
-          onCopyId={() => {
-            void copyText(menu.row.cliSessionId ?? menu.row.session.id).catch(() => undefined);
-          }}
+          onCopyId={() => void copyText(menu.row.cliSessionId ?? menu.row.session.id).catch(() => undefined)}
           onRename={() => renameOf(menu.row)}
           onPinScope={(scope) => {
             if (menu.row.cliSessionId === undefined) return;
             toggleSessionPin(
-              sessionPinKey(
-                menu.row.workspace.id,
-                menu.row.profile.id,
-                menu.row.cliSessionId,
-              ),
+              sessionPinKey(menu.row.workspace.id, menu.row.profile.id, menu.row.cliSessionId),
               scope,
               titleOf(menu.row),
             );

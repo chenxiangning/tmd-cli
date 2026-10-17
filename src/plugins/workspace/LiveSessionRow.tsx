@@ -13,6 +13,7 @@ import type { SessionMeta } from "@kernel/ipc";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { ActivityDot, SessionStatusLabel } from "./SessionRows";
+import { WorktreeBadge } from "./WorktreeBadge";
 import { SessionSpeedPill } from "./SessionSpeedPill";
 import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
 import { ThreadRowActions } from "./RowActions";
@@ -93,6 +94,7 @@ export function LiveSessionRow({
         <span className="thread-meta">
           <SessionStatusLabel sessionId={session.id} />
           {waiting ? <span className="thread-ask-badge">{t("等待确认")}</span> : null}
+          <WorktreeBadge sessionId={session.id} />
           <SessionSpeedPill sessionId={session.id} profile={profile} cliSessionId={cliSessionId} cwd={session.cwd} />
         </span>
       </button>

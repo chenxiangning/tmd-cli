@@ -106,6 +106,47 @@ pub async fn git_worktree_remove(cwd: String, path: String, force: bool) -> Resu
     .await
 }
 
+/// 递归累计目录磁盘占用(字节)。跳过 .git(worktree 的 .git 是文件,主仓共享
+/// 对象不计入);符号链接不跟随(防环,链接自身字节忽略);个别项读不到按 0 计
+/// (占用统计不因权限/竞态整体失败)。
+fn dir_size(path: &std::path::Path) -> u64 {
+    let mut total = 0u64;
+    let Ok(rd) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    for entry in rd.flatten() {
+        let Ok(ft) = entry.file_type() else { continue };
+        if ft.is_symlink() {
+            continue;
+        }
+        let p = entry.path();
+        if ft.is_dir() {
+            if p.file_name().is_some_and(|n| n == ".git") {
+                continue;
+            }
+            total += dir_size(&p);
+        } else if let Ok(m) = entry.metadata() {
+            total += m.len();
+        }
+    }
+    total
+}
+
+/// worktree 磁盘占用(字节);cwd 仅为命令面一致性保留(路径自含)。
+#[tauri::command]
+pub async fn git_worktree_disk_usage(cwd: String, path: String) -> Result<u64, String> {
+    let _ = cwd;
+    tokio::task::spawn_blocking(move || {
+        let p = std::path::PathBuf::from(&path);
+        if !p.is_dir() {
+            return Err(format!("路径不存在或不是目录: {path}"));
+        }
+        Ok(dir_size(&p))
+    })
+    .await
+    .map_err(|e| format!("占用统计任务失败: {e}"))?
+}
+
 /// 清理悬空记录(目录已被外部删除的 worktree 元数据)。
 #[tauri::command]
 pub async fn git_worktree_prune(cwd: String) -> Result<(), String> {
@@ -118,7 +159,24 @@ pub async fn git_worktree_prune(cwd: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::ensure_branch_free;
+    use super::{dir_size, ensure_branch_free};
+
+    #[test]
+    fn 占用统计_跳_git_不跟随符号链接() {
+        let root = std::env::temp_dir().join(format!("tmd-cli-dirsize-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join(".git/objects")).unwrap();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join(".git/objects/big"), vec![0u8; 4096]).unwrap();
+        std::fs::write(root.join("src/a.rs"), vec![0u8; 100]).unwrap();
+        std::fs::write(root.join("b.txt"), vec![0u8; 30]).unwrap();
+        /* 符号链接指向外部大目录:不跟随,不计入。 */
+        #[cfg(unix)]
+        std::os::unix::fs::symlink("/etc", root.join("etc-link")).unwrap();
+
+        assert_eq!(dir_size(&root), 130);
+        let _ = std::fs::remove_dir_all(&root);
+    }
 
     #[test]
     fn 预检_分支已存在给指引_不存在放行() {

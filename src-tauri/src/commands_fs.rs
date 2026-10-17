@@ -202,6 +202,12 @@ pub(crate) async fn fs_remove_path(path: String) -> Result<(), String> {
     spawn_fs(move || fs::remove_path(&path)).await
 }
 
+/// 目录符号链接(worktree 会话链:新树复用主仓 node_modules)。语义见 fs::symlink_dir。
+#[tauri::command]
+pub(crate) async fn fs_symlink_dir(target: String, link: String) -> Result<(), String> {
+    spawn_fs(move || fs::symlink_dir(&target, &link)).await
+}
+
 /// fs 命令公共模板:spawn_blocking 包裹 + JoinError 转 String。
 pub(crate) async fn spawn_fs<T, F>(f: F) -> Result<T, String>
 where

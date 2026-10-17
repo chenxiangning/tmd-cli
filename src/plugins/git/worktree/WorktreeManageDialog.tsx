@@ -10,12 +10,15 @@ import { createPortal } from "react-dom";
 import { ArrowsClockwise, Plus } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
+import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
 import { removeWorktreeWithCleanup } from "./worktreeOps";
 import { useFocusTrap } from "@kernel/useFocusTrap";
 import { WorktreeList } from "./WorktreeList";
+// 跨插件消费(workspace 供读会话↔worktree 映射,纯模块不涉其生命周期;先例:notify→composer)
+import { countSessionsForWtPath, pruneWtSessions } from "@plugins/workspace/worktreeSession";
 import { bumpGitRefresh } from "../panelStore";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
@@ -42,9 +45,13 @@ export function WorktreeManageDialog({
   const [existingBranches, setExistingBranches] = useState<string[]>([]);
   /* 两段式移除确认:记待确认路径,再点同钮执行。 */
   const [confirmPath, setConfirmPath] = useState<string | null>(null);
+  /* 磁盘占用缓存(弹层内惰性逐行拉取,跨刷新复用)。 */
+  const [usage, setUsage] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     let alive = true;
+    /* 幽灵映射收口:已关会话的 worktree 记录剪除,徽标计数不虚高。 */
+    pruneWtSessions(new Set(host.getSessions().map((s) => s.id)));
     void ipc.gitWorktreeList(cwd)
       .then((list) => {
         if (alive) setList(list);
@@ -184,6 +191,11 @@ export function WorktreeManageDialog({
             confirmPath={confirmPath}
             setConfirmPath={setConfirmPath}
             onRemove={(entry) => void remove(entry)}
+            usage={usage}
+            onUsage={(path, bytes) =>
+              setUsage((m) => new Map(m).set(path, bytes))
+            }
+            sessionCount={countSessionsForWtPath}
           />
         </div>
 
