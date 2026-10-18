@@ -211,24 +211,10 @@ pub async fn skill_extract(
         .map_err(|e| format!("解压任务失败: {e}"))?
 }
 
-/// 建符号链接的同步核心(单测直测;Windows 需特权,失败原样报错)。
+/// 建符号链接的同步核心(单测直测)。委托 fs::symlink_dir 单一原语
+/// (父目录创建/已存在报错/Windows junction 降级都收在那边,勿再分叉)。
 fn create_skill_symlink(target: &str, link: &str) -> Result<(), String> {
-    let link_path = Path::new(link);
-    if link_path.symlink_metadata().is_ok() {
-        return Err("链接路径已存在".into());
-    }
-    if let Some(parent) = link_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("创建链接父目录失败: {e}"))?;
-    }
-    #[cfg(unix)]
-    {
-        std::os::unix::fs::symlink(target, link_path).map_err(|e| format!("创建符号链接失败: {e}"))
-    }
-    #[cfg(windows)]
-    {
-        std::os::windows::fs::symlink_dir(target, link_path)
-            .map_err(|e| format!("创建符号链接失败(Windows 需开发者模式/特权): {e}"))
-    }
+    crate::fs::symlink_dir(target, link)
 }
 
 /// 建目录符号链接(公约位安装的 claude 补链;链接已存在 = 报错由调用方裁决)。

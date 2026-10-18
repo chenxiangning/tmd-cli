@@ -76,6 +76,7 @@ export function BranchNameDialog({
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return; /* IME 选词 Enter 不触发提交(NoteInline 同守卫)。 */
             if (e.key === "Enter") submit();
           }}
           placeholder={state.placeholder}

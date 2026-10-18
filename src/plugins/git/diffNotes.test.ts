@@ -40,13 +40,13 @@ describe("sessionKeyOf", () => {
 });
 
 describe("add / ls / toggleSent / remove", () => {
-  it("add 落组且 ls 可读;sent 标记单向置位", () => {
+  it("add 落组且 ls 可读;sent 标记来回切换(回传置位/撤销复位)", () => {
     const n = add("s1", "a.ts", lineHash("foo()"), 12, "这里命名不对", "foo()");
     expect(ls("s1")).toHaveLength(1);
     toggleSent("s1", n.id);
     expect(ls("s1")[0]?.sent).toBe(true);
-    toggleSent("s1", n.id); // 重复置位无害
-    expect(ls("s1")[0]?.sent).toBe(true);
+    toggleSent("s1", n.id); // 撤销已回传标记
+    expect(ls("s1")[0]?.sent).toBe(false);
   });
 
   it("remove 删条目,空组回收", () => {

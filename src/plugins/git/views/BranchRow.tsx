@@ -145,7 +145,10 @@ export function BranchCreateRow({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && onSubmit()}
+        onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return; /* IME 选词 Enter 不触发提交(NoteInline 同守卫)。 */
+          if (e.key === "Enter") onSubmit();
+        }}
         placeholder={t("新分支名…")}
         className="min-w-0 flex-1 rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-xs outline-none focus:border-(--tmd-accent)"
       />

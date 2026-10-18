@@ -207,7 +207,9 @@ export async function collectTokenUsage(
   await Promise.all(reads);
   const agg = aggregateUsage(now, labels, sessionsByProfile, usageBySession);
   /* claude 窗口以尾读行精化(尾读空则退回头读结果):tail 行覆盖最近活动,
-   * 推算锚点不再受长会话文件头截断影响。 */
+   * 推算锚点不再受长会话文件头截断影响。已知偏差方向:尾读只保证最新锚 L 在窗,
+   * 若真实窗口首行早于该会话尾 128KB 且该会话近期静默,start 偏晚 → 倒计时偏长
+   * (本地启发式的保守侧,不猜更早锚)。 */
   const claude = profiles.find((p) => p.id === "claude");
   if (claude) {
     const tailLines = Object.values(usageTailBySession).flat();

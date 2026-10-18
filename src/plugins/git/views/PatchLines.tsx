@@ -60,8 +60,7 @@ function UnifiedRow({
   parts,
   lang,
   ctx,
-  byKey,
-  ownerRow,
+  rowNotes,
   editingKey,
   onStartEdit,
   onEndEdit,
@@ -72,8 +71,8 @@ function UnifiedRow({
   parts: WordPart[] | null;
   lang: string;
   ctx: PatchNoteCtx | null;
-  byKey: Map<string, DiffNote[]>;
-  ownerRow?: Map<string, PatchRow>;
+  /** 归属本行的批注(逐条裁决);undefined = 本行不持有任何批注锚。 */
+  rowNotes: readonly DiffNote[] | undefined;
   editingKey: string | null;
   onStartEdit: (key: string) => void;
   onEndEdit: () => void;
@@ -99,17 +98,15 @@ function UnifiedRow({
     return <div className={`flex [content-visibility:auto] [contain-intrinsic-size:auto_1em] ${ROW_CLS[row.kind]}`}>{line}</div>;
   }
   const key = noteKey(ctx.file, lineHash(row.text));
-  const rowNotes = byKey.get(key) ?? [];
-  /* 同文重复行归属:ownerRow 表指明的行才挂气泡/定位锚/闪示,其余命中行只留添加钮。 */
-  const isOwner = !ownerRow || ownerRow.get(key) === row;
+  /* 逐条归属裁决后的本行批注;非持有行只留添加钮(不挂气泡/定位锚/闪示)。 */
   const editing = editingKey === patchRowKey(row);
   return (
     <div
-      data-dnkey={isOwner ? key : undefined}
-      className={`group relative ${ROW_CLS[row.kind]} ${flash && isOwner ? "outline outline-1 -outline-offset-1 outline-(--tmd-accent)" : ""}`}
+      data-dnkey={rowNotes ? key : undefined}
+      className={`group relative ${ROW_CLS[row.kind]} ${flash ? "outline outline-1 -outline-offset-1 outline-(--tmd-accent)" : ""}`}
     >
       <div className="flex [content-visibility:auto] [contain-intrinsic-size:auto_1em]">{line}</div>
-      {isOwner && rowNotes.map((n) => (
+      {rowNotes?.map((n) => (
         <NoteBubble key={n.id} note={n} />
       ))}
       {editing && (
@@ -144,50 +141,39 @@ function UnifiedLines({
   const runs = useMemo(() => (fold ? planUnifiedFolds(rows) : null), [rows, fold]);
   const items = useMemo(() => visiblePatchRows(rows, runs), [rows, runs]);
   const ctx = noteCtx;
-  /* 行键 → 批注:noteKey(file, 行内容哈希),内容不变行号漂移仍命中。 */
-  const byKey = useMemo(() => {
-    const map = new Map<string, DiffNote[]>();
-    if (ctx)
-      for (const n of ctx.notes) {
-        const k = noteKey(n.file, n.lineHash);
-        const list = map.get(k) ?? [];
-        list.push(n);
-        map.set(k, list);
-      }
-    return map;
-  }, [ctx]);
-  /* 同文重复行的归属裁决:每个 key 只归 |行号−批注行号| 最小的可见行
-     (同分取首现),气泡/揭示锚不再散挂到所有同文行。 */
-  const ownerRow = useMemo(() => {
+  /* 逐条归属裁决:每条批注归 |行号−批注行号| 最小的同文可见行(同分取首现),
+   * 一行可承载多条;气泡/揭示锚不再散挂到所有同文行。 */
+  const notesForRow = useMemo(() => {
     if (!ctx || ctx.notes.length === 0) return undefined;
-    const byHash = new Map<string, number>(); // hash → 最小 |ΔlineNo|
+    const m = new Map<PatchRow, DiffNote[]>();
     for (const n of ctx.notes) {
-      const k = noteKey(n.file, n.lineHash);
-      byHash.set(k, Math.min(byHash.get(k) ?? Infinity, n.lineNo));
-    }
-    const owners = new Map<string, PatchRow>();
-    const best = new Map<string, number>();
-    for (const row of items) {
-      if (row.kind === "hunk") continue;
-      const k = noteKey(ctx.file, lineHash(row.text));
-      const want = byHash.get(k);
-      if (want === undefined) continue;
-      const lineNo = row.newLine ?? row.oldLine ?? 0;
-      const d = Math.abs(lineNo - want);
-      if (!owners.has(k) || d < best.get(k)!) {
-        owners.set(k, row);
-        best.set(k, d);
+      let best: PatchRow | null = null;
+      let bestD = Infinity;
+      for (const row of items) {
+        if (row.kind === "hunk") continue;
+        if (lineHash(row.text) !== n.lineHash) continue;
+        const d = Math.abs((row.newLine ?? row.oldLine ?? 0) - n.lineNo);
+        if (d < bestD) {
+          bestD = d;
+          best = row;
+        }
+      }
+      if (best) {
+        const list = m.get(best);
+        if (list) list.push(n);
+        else m.set(best, [n]);
       }
     }
-    return owners;
+    return m;
   }, [ctx, items]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const flashTimer = useRef<number | null>(null);
-  /* 揭示桥:列表卡点击 → 定位 diff 行 + 闪示 1.4s;仅批注上下文在挂时接管。 */
+  /* 揭示桥:列表卡点击 → 定位 diff 行 + 闪示 1.4s;仅批注上下文在挂时接管。
+   * 卸载身份守卫(Composer.tsx 先例):后挂者覆盖时本例卸载不清掉他人 handler。 */
   useEffect(() => {
     if (!ctx) return;
-    diffNoteRevealRef.current = (key: string) => {
+    const impl = (key: string) => {
       preRef.current
         ?.querySelector(`[data-dnkey="${CSS.escape(key)}"]`)
         ?.scrollIntoView({ block: "center" });
@@ -195,8 +181,9 @@ function UnifiedLines({
       if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
       flashTimer.current = window.setTimeout(() => setFlashKey(null), 1400);
     };
+    diffNoteRevealRef.current = impl;
     return () => {
-      if (diffNoteRevealRef.current !== null) diffNoteRevealRef.current = null;
+      if (diffNoteRevealRef.current === impl) diffNoteRevealRef.current = null;
       if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
     };
   }, [ctx]);
@@ -224,12 +211,15 @@ function UnifiedLines({
           parts={wordParts.get(item) ?? null}
           lang={lang}
           ctx={ctx}
-          byKey={byKey}
-          ownerRow={ownerRow}
+          rowNotes={notesForRow?.get(item)}
           editingKey={editingKey}
           onStartEdit={setEditingKey}
           onEndEdit={() => setEditingKey(null)}
-          flash={ctx != null && flashKey === noteKey(ctx.file, lineHash(item.text))}
+          flash={
+            ctx != null &&
+            flashKey === noteKey(ctx.file, lineHash(item.text)) &&
+            notesForRow?.has(item) === true
+          }
         />
       ))}
     </pre>

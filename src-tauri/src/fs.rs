@@ -127,6 +127,9 @@ pub fn symlink_dir(target: &str, link: &str) -> Result<(), String> {
     if link_path.symlink_metadata().is_ok() {
         return Err(format!("链接路径已存在: {link}"));
     }
+    if let Some(parent) = link_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("创建链接父目录失败: {e}"))?;
+    }
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(target, link_path).map_err(|e| format!("创建符号链接失败: {e}"))
@@ -136,19 +139,17 @@ pub fn symlink_dir(target: &str, link: &str) -> Result<(), String> {
         match std::os::windows::fs::symlink_dir(target, link_path) {
             Ok(()) => Ok(()),
             Err(e) => {
-                /* junction 降级:mklink 对无空格参数不加引号,而 & ^ % 是 NTFS
-                 * 合法字符——裸传会被 cmd 当命令分隔符/变量展开。显式引包裹
-                 * (引号内即字面量)并把两参归一反斜杠(mklink 对正斜杠不容忍)。 */
+                /* junction 降级:mklink 是 cmd 内建,须 shell-out。整段命令行经
+                 * raw_arg 一次成形(/d /s /c 后接完整命令,显式双引包路径)——
+                 * std 逐参转义会把预包引号二次转义,cmd 剥不出真路径;引号内
+                 * & ^ 等 cmd 元字符安全。%var% 展开是 cmd 语义固有面(路径含
+                 * 字面 % 极罕见),不设防。 */
                 let link_bs = link.replace('/', "\\");
                 let target_bs = target.replace('/', "\\");
+                use std::os::windows::process::CommandExt;
                 let out = std::process::Command::new("cmd")
-                    .args([
-                        "/c",
-                        "mklink",
-                        "/J",
-                        &format!("\"{link_bs}\""),
-                        &format!("\"{target_bs}\""),
-                    ])
+                    .args(["/d", "/s", "/c"])
+                    .raw_arg(format!("mklink /J \"{link_bs}\" \"{target_bs}\""))
                     .output()
                     .map_err(|cmd_err| {
                         format!(

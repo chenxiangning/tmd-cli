@@ -15,12 +15,15 @@
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import type { CliUserMessage } from "@kernel/cli";
-import { addEntry, excerptFromMsgs, parseWikiDoc, serializeWikiDoc, type WikiDoc } from "./wiki";
+import { addEntry, excerptFromMsgs, isMissingReadErr, parseWikiDoc, serializeWikiDoc, type WikiDoc } from "./wiki";
 
 /** wiki 单文件在会话 cwd 内的固定落点。 */
 export function wikiFilePath(cwd: string): string {
   return `${cwd}/.tmd/wiki.json`;
 }
+
+/** 跨窗广播 beat 键:任一窗写盘后 bump,对端 WikiPanel 经 storage 事件重读。 */
+export const WIKI_BEAT_KEY = "tmd.wiki.beat.v1";
 
 /** 已沉淀会话(幂等:一次会话生命周期只触发一次)。 */
 const distilled = new Set<string>();
@@ -59,12 +62,19 @@ async function appendAutoEntry(ctx: ExitedCtx, sessionId: string): Promise<boole
   if (!excerpt) return false;
   const path = wikiFilePath(ctx.cwd);
   return withWikiLock(async () => {
-    let doc: WikiDoc = { version: 1, entries: [] };
+    let text: string;
     try {
-      doc = parseWikiDoc(await ipc.fsReadFile(path));
-    } catch {
-      /* 首次落盘:文件不存在,从空文档起步。 */
+      text = await ipc.fsReadFile(path);
+    } catch (e) {
+      if (!isMissingReadErr(String(e))) {
+        /* 读失败 ≠ 空库:环境抖动(fd 压力/IO 错误)时落笔会把整个 wiki
+         * 清成只剩本条。放弃本条并告警,下次同类触发不再被幂等集拦(上层归还)。 */
+        console.warn("[agent-wiki] 读 wiki 失败,放弃本条沉淀", e);
+        return false;
+      }
+      text = "";
     }
+    const doc: WikiDoc = text ? parseWikiDoc(text) : { version: 1, entries: [] };
     const next = addEntry(doc, {
       ts: Date.now(),
       harness: ctx.harness,
@@ -83,8 +93,15 @@ async function appendAutoEntry(ctx: ExitedCtx, sessionId: string): Promise<boole
     return true;
   }).then((written) => {
     if (written) {
-      /* 开着的 Wiki 面板即时刷新(host.events 同通道,面板订阅同 topic)。 */
+      /* 开着的 Wiki 面板即时刷新(host.events 同通道,面板订阅同 topic);
+       * 跨窗补一记 localStorage beat:host.events 是进程内总线,另一窗收不到,
+       * 对端面板经 storage 事件重读(diffNotes 同先例)。 */
       host.events.emit("memory-coordinator.wiki.updated", { cwd: ctx.cwd });
+      try {
+        localStorage.setItem(WIKI_BEAT_KEY, JSON.stringify({ cwd: ctx.cwd, ts: Date.now() }));
+      } catch {
+        /* 存储不可达(隐私模式等)时静默:单窗场景不受影响。 */
+      }
     }
     return written;
   });

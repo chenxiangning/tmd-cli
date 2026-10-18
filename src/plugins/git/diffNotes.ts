@@ -43,7 +43,8 @@ const listeners = new Set<() => void>();
 let snapshot: Readonly<Store> = emptyStore();
 let idSeq = 0;
 
-/** 测试注入口:传 null 复位为 localStorage(浏览器全局缺失时保持 null = 内存态)。 */
+/** 测试注入口:传 null 复位为 localStorage;全局无 localStorage 时保持 null,
+ * 此时无落盘面、写后 store 即归零(仅测试/嵌入场景可达,生产 Tauri webview 有 localStorage)。 */
 export function setNoteStorageForTest(s: Pick<Storage, "getItem" | "setItem"> | null): void {
   storage = s;
   cache = null;
@@ -170,10 +171,11 @@ export function add(
   return note;
 }
 
+/** 回传标记切换:回传处置位;面板「撤销已回传(重新回传)」复此取消。 */
 export function toggleSent(sessionKey: string, noteId: string): void {
   const note = load().groups[sessionKey]?.find((n) => n.id === noteId);
   if (!note) return;
-  note.sent = true;
+  note.sent = !note.sent;
   save();
 }
 

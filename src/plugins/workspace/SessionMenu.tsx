@@ -77,8 +77,7 @@ export function SessionMenuOverlay({
                     return;
                   }
                   host.events.emit(KernelTopics.sessionViewRequested, null);
-                  host.events.emit(KernelTopics.sessionViewRequested, null);
-  host.createSession(p.id, workspace.root, workspace.id).catch(() => undefined);
+                  host.createSession(p.id, workspace.root, workspace.id).catch(() => undefined);
                   onClose();
                 }}
               >
@@ -99,20 +98,26 @@ export function SessionMenuOverlay({
         {/* 扩展入口:插件贡献的会话类型(如 ssh 插件的「SSH 连接」)。 */}
         <Mounts point="workspace.newSessionMenu" />
 
-        {/* 新 worktree 会话:git 仓工作区可用;非仓在弹层内如实报错(入口恒在,发现性优先)。 */}
-        <div className="wsmenu-divider" />
-        <button
-          className="wsmenu-item"
-          onClick={() => {
-            onClose();
-            onWorktree();
-          }}
-        >
-          <span className="wsmenu-item-icon">
-            <GitBranch size="0.8125rem" />
-          </span>
-          <span className="wsmenu-item-label">{t("在新 worktree 中起会话…")}</span>
-        </button>
+        {/* 新 worktree 会话:仅本地工作区。建树链 = 本地 git + 本地 PTY spawn,对
+            来源工作区(WSL/SSH)语义错误;来源的新会话引擎行已由 origin 接管,
+            这里不放绕过通道。非 git 仓在弹层内如实报错(本地空工作区可达,发现性优先)。 */}
+        {!origin && (
+          <>
+            <div className="wsmenu-divider" />
+            <button
+              className="wsmenu-item"
+              onClick={() => {
+                onClose();
+                onWorktree();
+              }}
+            >
+              <span className="wsmenu-item-icon">
+                <GitBranch size="0.8125rem" />
+              </span>
+              <span className="wsmenu-item-label">{t("在新 worktree 中起会话…")}</span>
+            </button>
+          </>
+        )}
 
         {/* 移动到组(codemoss assign-workspace-group 同款):仅存在组时出现,当前组打勾。 */}
         {groups.length > 0 && (

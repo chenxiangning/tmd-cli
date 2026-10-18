@@ -17,7 +17,7 @@ export function retryImport<T>(load: () => Promise<T>): () => Promise<T> {
   let cached: Promise<T> | null = null;
   const attempt = (i: number): Promise<T> =>
     load().catch((err: unknown) => {
-      /* 500ms 起指数退避、8s 封顶,14 次总计约 70s —— 覆盖最慢冷优化。 */
+      /* 500ms 起指数退避、8s 封顶,14 次总计约 87.5s —— 覆盖最慢冷优化。 */
       if (i >= 14) throw err;
       return delay(Math.min(500 * 2 ** i, 8_000)).then(() => attempt(i + 1));
     });

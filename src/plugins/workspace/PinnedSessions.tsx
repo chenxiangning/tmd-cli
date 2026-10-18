@@ -22,13 +22,7 @@ import { host, useHost } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
-import {
-  listSessionPins,
-  refreshPinTitle,
-  toggleSessionPin,
-  unpinSession,
-  type SessionPinEntry,
-} from "@kernel/sessionPins";
+import { listSessionPins, refreshPinTitle, toggleSessionPin, unpinSession, type SessionPinEntry } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
@@ -169,15 +163,14 @@ export function PinnedSessionsSection() {
   if (rows.length === 0) return null;
   const toggleCollapsed = () => pinnedSection.set(!collapsed);
 
+  /** 真标题等价物(手动命名 > 垃圾过滤快照;可能 undefined,pinSession 铁律禁短码入库)。 */
+  const realTitleOf = (row: PinnedRow): string | undefined =>
+    settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
+    realPinSnapshot(row.entry.title, row.cliSessionId);
 
-  /** 行标题:手动命名 > 置顶快照(短码垃圾视为无快照)> 短码(orShortId 锁步)。 */
+  /** 行标题:真标题 > 短码(orShortId 锁步)。 */
   const titleOf = (row: PinnedRow): string =>
-    orShortId(
-      settings.sessionTitles[sessionTitleKey(row.profile.id, row.cliSessionId)] ??
-        realPinSnapshot(row.entry.title, row.cliSessionId),
-      row.cliSessionId,
-      row.cliSessionId,
-    );
+    orShortId(realTitleOf(row), row.cliSessionId, row.cliSessionId);
 
   const openRow = (row: PinnedRow) => {
     host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
@@ -286,9 +279,9 @@ export function PinnedSessionsSection() {
           position={{ x: menu.x, y: menu.y }}
           canRename
           pinScope="global"
-                    onCopyId={() => void copyText(menu.row.cliSessionId).catch(() => undefined)}
+          onCopyId={() => void copyText(menu.row.cliSessionId).catch(() => undefined)}
           onRename={() => renameOf(menu.row)}
-          onPinScope={(scope) => toggleSessionPin(menu.row.key, scope, titleOf(menu.row))}
+          onPinScope={(scope) => toggleSessionPin(menu.row.key, scope, realTitleOf(menu.row))}
           onClose={() => setMenu(null)}
         />
       )}

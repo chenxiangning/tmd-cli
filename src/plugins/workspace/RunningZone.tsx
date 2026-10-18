@@ -284,7 +284,8 @@ export function RunningZoneSection() {
             toggleSessionPin(
               sessionPinKey(menu.row.workspace.id, menu.row.profile.id, menu.row.cliSessionId),
               scope,
-              titleOf(menu.row),
+              /* 快照只收真标题(pinSession 铁律):titleOf 的短码兜底不入库。 */
+              realTitleOf(menu.row),
             );
           }}
           onClose={() => setMenu(null)}

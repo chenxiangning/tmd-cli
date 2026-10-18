@@ -15,6 +15,7 @@ export const MESSAGES_EN = {
   "待归类(自动沉淀)": "Unclassified (auto-distilled)",
   "已决策": "Decisions",
   "开放问题": "Open questions",
-  "落盘失败,改动可能未保存": "Save failed — changes may not be persisted",
+  "读写失败,改动可能未保存": "Read/write failed — changes may not be persisted",
+  "读取 wiki 失败": "Failed to read wiki",
   "本工作区还没有 wiki 条目;会话退出时会自动沉淀用户消息尾段": "No wiki entries in this workspace yet; session exits are auto-distilled from user message tails",
 };

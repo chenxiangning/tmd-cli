@@ -13,8 +13,9 @@ import { t } from "@kernel/i18n";
 import { formatDate, formatTime } from "@kernel/relativeTime";
 import { ipc } from "@kernel/ipc";
 import { Empty } from "@kernel/Empty";
-import { addEntry, parseWikiDoc, serializeWikiDoc, type WikiDoc, type WikiEntry } from "./wiki";
-import { wikiFilePath, withWikiLock } from "./wikiHook";
+import { addEntry, isMissingReadErr, parseWikiDoc, serializeWikiDoc, type WikiDoc, type WikiEntry } from "./wiki";
+import { wikiFilePath, withWikiLock, WIKI_BEAT_KEY } from "./wikiHook";
+import { harnessLabel } from "../protocol";
 
 type Kind = WikiEntry["kind"];
 
@@ -29,12 +30,17 @@ async function persistDoc(root: string, doc: WikiDoc): Promise<void> {
   }
 }
 
+/** 读盘:文件缺失(含 .tmd 目录缺失)= 空文档起步;其他读错误向上抛
+ *  (环境抖动时以空库为基线落盘会清空整个 wiki,禁止)。 */
 async function loadDoc(root: string): Promise<WikiDoc> {
+  let text: string;
   try {
-    return parseWikiDoc(await ipc.fsReadFile(wikiFilePath(root)));
-  } catch {
-    return { version: 1, entries: [] };
+    text = await ipc.fsReadFile(wikiFilePath(root));
+  } catch (e) {
+    if (isMissingReadErr(String(e))) return { version: 1, entries: [] };
+    throw e;
   }
+  return parseWikiDoc(text);
 }
 
 /** 单条目行:两行截断摘要(title 全文)+ 徽标 + 日期 + 按钮组。 */
@@ -59,7 +65,7 @@ function EntryRow({
           {e.excerpt}
         </div>
         <div className="mt-1 flex items-center gap-2 text-[11px] text-(--tmd-fg-muted)">
-          <span className="rounded bg-(--tmd-border) px-1 py-px font-mono">{e.harness}</span>
+          <span className="rounded bg-(--tmd-border) px-1 py-px font-mono">{harnessLabel(e.harness)}</span>
           <span>{formatDate(e.ts)}</span>
         </div>
       </div>
@@ -99,24 +105,39 @@ export function WikiPanel() {
 
   useEffect(() => {
     setDoc(null);
+    setDraft(""); /* 草稿不跨工作区残留:切区即清,防写错工作区。 */
     if (!root) return;
     let alive = true;
     const reload = () => {
-      void loadDoc(root).then((d) => {
-        if (alive) setDoc(d);
-      });
+      void loadDoc(root)
+        .then((d) => {
+          if (alive) setDoc(d);
+        })
+        .catch(() => {
+          /* 非缺失读错误(环境抖动):面板停在未读态并如实告知,不以空库续写。 */
+          if (alive) {
+            setDoc(null);
+            showToast(t("读取 wiki 失败"));
+          }
+        });
     };
     reload();
-    /* 钩子落盘后即时刷新(host.events 同通道,与 autoDistill 同一总线约定)。 */
+    /* 钩子落盘后即时刷新(host.events 同通道,与 autoDistill 同一总线约定);
+     * storage 事件 = 另一窗写盘广播(WIKI_BEAT_KEY),重读对齐。 */
     const off = host.events.on<{ cwd?: string }>("memory-coordinator.wiki.updated", (p) => {
       if (p?.cwd && p.cwd !== root) return;
       reload();
     });
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === WIKI_BEAT_KEY) reload();
+    };
+    window.addEventListener("storage", onStorage);
     return () => {
       alive = false;
       off();
+      window.removeEventListener("storage", onStorage);
     };
-  }, [root]);
+  }, [root, showToast]);
 
   useEffect(() => () => {
     /* 卸载清 toast 定时器(悬空 setState 无害但不留尾巴)。 */
@@ -124,21 +145,28 @@ export function WikiPanel() {
   }, []);
 
   /* 读改写过 withWikiLock(与钩子同一队列):基于锁内最新盘上档套用变更,
-   * 消面板/钩子互相盲写覆盖;乐观上屏先给,写盘失败 toast 并以盘上档校正。 */
+   * 消面板/钩子互相盲写覆盖;乐观上屏先给,读/写失败 toast 并以盘上档校正。 */
   const mutate = useCallback(
     (fn: (d: WikiDoc) => WikiDoc) => {
       if (!root || !doc) return;
       setDoc(fn(doc));
       void withWikiLock(async () => {
-        const cur = await loadDoc(root);
+        const cur = await loadDoc(root); /* 非缺失读错误向上抛,不以空库续写。 */
         const next = fn(cur);
         await persistDoc(root, next);
         setDoc(next);
-        /* 双窗同步:面板写盘也广播(钩子侧同款),另一窗的 WikiPanel 订阅后重读。 */
+        /* 双窗同步:本窗走 host.events,另一窗经 storage beat 重读。 */
         host.events.emit("memory-coordinator.wiki.updated", { cwd: root });
+        try {
+          localStorage.setItem(WIKI_BEAT_KEY, JSON.stringify({ cwd: root, ts: Date.now() }));
+        } catch {
+          /* 存储不可达时静默(单窗场景不受影响)。 */
+        }
       }).catch(() => {
-        showToast(t("落盘失败,改动可能未保存"));
-        void loadDoc(root).then((d) => setDoc(d));
+        showToast(t("读写失败,改动可能未保存"));
+        void loadDoc(root)
+          .then((d) => setDoc(d))
+          .catch(() => undefined); /* 校正重读再失败:保持乐观态,下次操作再试。 */
       });
     },
     [root, doc, showToast],
@@ -155,9 +183,8 @@ export function WikiPanel() {
   const addManual = (kind: Kind) => {
     const text = draft.trim();
     if (!text || !root || !doc) return; /* doc 未加载:mutate 会早退,草稿不清防丢稿。 */
-    mutate((d) =>
-      addEntry(d, { ts: Date.now(), harness: "manual", sessionId: `manual-${text}`, excerpt: text, kind }),
-    );
+    /* sessionId 对 manual 无幂等语义,置占位(不塞全文,免双份存储)。 */
+    mutate((d) => addEntry(d, { ts: Date.now(), harness: "manual", sessionId: "manual", excerpt: text, kind }));
     setDraft("");
   };
 

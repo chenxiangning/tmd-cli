@@ -13,6 +13,6 @@
   },
   "lazyTab.tsx": {
     "tag": "contract",
-    "note": "跨插件懒加载原语(五插件消费)"
+    "note": "跨插件懒加载原语(四插件 9 处消费:anim 1 / git 4 / memory-coordinator 2 / workbench 2)"
   }
 }

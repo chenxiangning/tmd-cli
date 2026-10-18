@@ -1,10 +1,11 @@
 /**
  * 会话 ↔ worktree 关联(批次三):localStorage 映射 + slug/冲突递增纯函数。
- * 会话卡右键「在新 worktree 中起会话」创建后记录,徽标双向反查(map 反查,
+ * 工作区右键菜单「在新 worktree 中起会话」创建后记录,徽标双向反查(map 反查,
  * 不新增扫描);磁盘占用走 git_worktree_disk_usage,与本模块无关。
  */
 
 import { branchForWorktree } from "@plugins/git/worktree/dirName";
+import { normalizeRoot } from "@plugins/git/worktree/worktreeOps";
 /* 词典随链路注册(workspace 弹层先于 git 插件加载时保证 en/ja 命中)。 */
 import "@plugins/git/worktree/locales";
 
@@ -17,13 +18,20 @@ export interface WtSessionRef {
   root: string;
 }
 
+/** 版本号作读缓存键:map 每读重建,行区高频渲染经此免重复 parse。 */
+let mapMemo: { v: number; map: Record<string, WtSessionRef> } | null = null;
+
 export function loadWtSessions(): Record<string, WtSessionRef> {
+  if (mapMemo?.v === version) return mapMemo.map;
+  let map: Record<string, WtSessionRef> = {};
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, WtSessionRef>) : {};
+    if (raw) map = JSON.parse(raw) as Record<string, WtSessionRef>;
   } catch {
-    return {};
+    map = {};
   }
+  mapMemo = { v: version, map };
+  return map;
 }
 
 /** 幽灵清理:按存活 tmd 会话 id 集剪除映射(会话关闭无删除点,管理弹窗
@@ -65,12 +73,11 @@ export function wtSessionOf(sessionId: string | undefined): WtSessionRef | undef
   return loadWtSessions()[sessionId];
 }
 
-/** wtPath → 关联会话数(管理弹窗列表行徽标;map 反查)。 */
+/** wtPath → 关联会话数(管理弹窗列表行徽标;map 反查;路径归一比较,
+ *  worktreePathFor 产混合分隔符形态而 Rust 回贴随形,Windows 下裸比较恒不等)。 */
 export function countSessionsForWtPath(wtPath: string): number {
-  const target = wtPath.replace(/[\\/]+$/, "");
-  return Object.values(loadWtSessions()).filter(
-    (r) => r.wtPath.replace(/[\\/]+$/, "") === target,
-  ).length;
+  const target = normalizeRoot(wtPath);
+  return Object.values(loadWtSessions()).filter((r) => normalizeRoot(r.wtPath) === target).length;
 }
 
 /**

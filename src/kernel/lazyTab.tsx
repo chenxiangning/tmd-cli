@@ -12,7 +12,9 @@ import { t } from "./i18n";
 import { retryImport } from "./lazyImport";
 
 /** 任意 props 形状的组件懒加载(Suspense 内嵌,调用方零改动)。
- * retryImport 护栏:dev 冷加载 504 等瞬时失败若裸交 lazy 会被永久缓存,中央区永挂占位。 */
+ * retryImport 护栏:dev 冷加载 504 等瞬时失败若裸交 lazy 会被永久缓存,中央区永挂占位。
+ * 已知限制:重试链终败(约 87.5s)后 rejection 被 React lazy 永久缓存,PluginBoundary
+ * 的「重试该贡献位」对此无效,仅整页 reload 可恢复(失败文案已如实写明)。 */
 export function lazySuspense<P extends object>(
   load: () => Promise<{ default: ComponentType<P> }>,
 ): ComponentType<P> {

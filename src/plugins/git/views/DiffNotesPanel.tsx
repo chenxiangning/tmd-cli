@@ -33,9 +33,15 @@ function buildNoteReport(notes: readonly DiffNote[]): string {
 
 export function DiffNotesPanel({
   sessionKey,
+  selectedFile = null,
+  onPickFile,
   splitDisabled = false,
 }: {
   sessionKey: string;
+  /** 当前 diff 选中的文件:批注卡指向他文件时先切文件(再点即揭示)。 */
+  selectedFile?: string | null;
+  /** 切换 diff 选中文件(缺省 = 无切换能力,跨文件点击不动作)。 */
+  onPickFile?: (path: string) => void;
   /** 双栏 diff 模式:行级批注 UI 不渲染(PatchLines split 分支未接),空态改提示。 */
   splitDisabled?: boolean;
 }) {
@@ -87,7 +93,14 @@ export function DiffNotesPanel({
               type="button"
               className="min-w-0 flex-1 truncate text-left hover:text-(--tmd-fg)"
               title={`${n.file}#${n.lineHash}:${n.lineNo}\n${n.text}`}
-              onClick={() => diffNoteRevealRef.current?.(noteKey(n.file, n.lineHash))}
+              onClick={() => {
+                /* 非当前文件:先切文件(patch 异步装载),再点即揭示定位。 */
+                if (selectedFile !== null && n.file !== selectedFile && onPickFile) {
+                  onPickFile(n.file);
+                  return;
+                }
+                diffNoteRevealRef.current?.(noteKey(n.file, n.lineHash));
+              }}
             >
               <span className="font-mono text-(--tmd-accent)">{n.file.split("/").pop()}:{n.lineNo}</span>{" "}
               <span className={n.sent ? "text-(--tmd-diff-inserted)" : "text-(--tmd-fg-muted)"}>{n.text}</span>

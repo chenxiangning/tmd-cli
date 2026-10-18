@@ -106,3 +106,10 @@ export function excerptFromMsgs(msgs: { text: string }[]): string {
 }
 
 export { EXCERPT_MAX, newId };
+
+/** 读失败是否为「文件不存在」形态(Rust 侧包装的 std io 错误文本:unix
+ * "No such file or directory (os error 2)";Windows 文件/路径缺失为 os error 2/3,
+ * 本地化文案也带该后缀)。非缺失的读错误 = 环境抖动,不得当空库覆写。 */
+export function isMissingReadErr(msg: string): boolean {
+  return /os error [23]\b|no such file/i.test(msg);
+}

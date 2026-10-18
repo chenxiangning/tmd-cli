@@ -33,6 +33,10 @@ const MESSAGES_EN = {
   "创建失败,已回滚:{msg}": "Create failed, rolled back: {msg}",
   "创建失败:{msg}(可重试;残留树可在 git 面板 worktree 管理中移除)":
     "Create failed: {msg} (retry; remove leftover tree via git panel worktree manager)",
+  "创建失败:{msg}": "Create failed: {msg}",
+  "会话已启动,但未记录 worktree 关联:{msg}": "Session started, but worktree association was not recorded: {msg}",
+  "没有可检出的分支(已被其他 worktree 占用的分支不可检出)":
+    "No branch available for checkout (branches already checked out by another worktree are excluded)",
 } as const;
 
 /** ja 词典 · worktree 域。 */
@@ -63,6 +67,10 @@ const MESSAGES_JA = {
   "创建失败,已回滚:{msg}": "作成に失敗し、ロールバックしました:{msg}",
   "创建失败:{msg}(可重试;残留树可在 git 面板 worktree 管理中移除)":
     "作成に失敗:{msg}(再試行可。残骸は git パネルの worktree 管理から削除できます)",
+  "创建失败:{msg}": "作成に失敗:{msg}",
+  "会话已启动,但未记录 worktree 关联:{msg}": "セッションは開始されましたが、worktree 関連の記録に失敗しました:{msg}",
+  "没有可检出的分支(已被其他 worktree 占用的分支不可检出)":
+    "チェックアウト可能なブランチがありません(他の worktree が使用中のブランチは除外)",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

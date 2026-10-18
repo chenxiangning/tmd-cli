@@ -162,7 +162,7 @@ fn 建链_与_链接已存在报错() {
     assert!(link.is_dir(), "链接应可当目录用");
     assert_eq!(
         create_skill_symlink(&target_str, &link_str).unwrap_err(),
-        "链接路径已存在"
+        format!("链接路径已存在: {link_str}")
     );
     let _ = fs::remove_dir_all(&root);
 }

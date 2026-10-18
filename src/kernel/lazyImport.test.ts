@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { retryImport } from "./lazyImport";
 
-/** 计时器全走假钟:重试节奏不真等;14 次退避总计约 95s,推进 120s 覆盖。 */
+/** 计时器全走假钟:重试节奏不真等;14 次退避总计约 87.5s,推进 120s 覆盖。 */
 vi.useFakeTimers();
 
 function flush() {

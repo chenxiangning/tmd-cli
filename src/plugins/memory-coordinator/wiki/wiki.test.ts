@@ -1,6 +1,6 @@
 /** agent wiki 纯逻辑测试:解析兜底 / 幂等追加 / 摘录截断 / 序列化 roundtrip。 */
 import { describe, expect, it } from "vitest";
-import { addEntry, excerptFromMsgs, parseWikiDoc, serializeWikiDoc } from "./wiki";
+import { addEntry, excerptFromMsgs, isMissingReadErr, parseWikiDoc, serializeWikiDoc, type WikiDoc } from "./wiki";
 
 const base = { id: "e1", ts: 1, harness: "omp", sessionId: "s1", excerpt: "hello", kind: "auto" as const };
 
@@ -53,14 +53,48 @@ describe("addEntry 幂等", () => {
 });
 
 describe("excerptFromMsgs", () => {
-  it("尾段拼接;超 800 字保尾部截断", () => {
+  it("尾段拼接;超 800 字真触发保尾截断(总量确超上限)", () => {
     const long = Array.from({ length: 60 }, (_, i) => `m${i}`);
     const out = excerptFromMsgs(long.map((text) => ({ text })));
     expect(out.length).toBeLessThanOrEqual(800);
     expect(out.endsWith("m59")).toBe(true);
   });
+  it("单条超 800 字:只留尾部 800 字,开头被截掉", () => {
+    const text = `${"x".repeat(900)}TAIL`;
+    const out = excerptFromMsgs([{ text }]);
+    expect(out).toBe(`${"x".repeat(796)}TAIL`);
+    expect(out.length).toBe(800);
+  });
   it("短消息原样拼接", () => {
     expect(excerptFromMsgs([{ text: "a" }, { text: "b" }])).toBe("a\n---\nb");
+  });
+});
+
+describe("addEntry 上限剪枝", () => {
+  it("超 500 条剪最旧 auto,decision/open 保留", () => {
+    let doc: WikiDoc = { version: 1, entries: [] };
+    /* 3 条 decision 打头(新,保留),再灌 499 条 auto → 总量 502,应剪 2 条最旧 auto。 */
+    for (let i = 0; i < 3; i += 1) {
+      doc = addEntry(doc, { ts: i, harness: "omp", sessionId: `d${i}`, excerpt: `d${i}`, kind: "decision" });
+    }
+    for (let i = 0; i < 499; i += 1) {
+      doc = addEntry(doc, { ts: 100 + i, harness: "omp", sessionId: `a${i}`, excerpt: `a${i}`, kind: "auto" });
+    }
+    expect(doc.entries).toHaveLength(500);
+    expect(doc.entries.filter((e) => e.kind === "decision")).toHaveLength(3);
+    const autos = doc.entries.filter((e) => e.kind === "auto");
+    expect(autos[0]?.sessionId).toBe("a2"); /* a0/a1 被剪,a2 起保留 */
+    expect(autos.at(-1)?.sessionId).toBe("a498");
+  });
+});
+
+describe("isMissingReadErr", () => {
+  it("unix ENOENT 与 Windows os error 2/3 均判缺失;其余错误不判", () => {
+    expect(isMissingReadErr("读取文件信息失败: No such file or directory (os error 2)")).toBe(true);
+    expect(isMissingReadErr("读取文件信息失败: 系统找不到指定的文件。 (os error 2)")).toBe(true);
+    expect(isMissingReadErr("读取文件信息失败: 系统找不到指定的路径。 (os error 3)")).toBe(true);
+    expect(isMissingReadErr("读取文件信息失败: Too many open files (os error 24)")).toBe(false);
+    expect(isMissingReadErr("读取文件信息失败: Permission denied (os error 13)")).toBe(false);
   });
 });
 

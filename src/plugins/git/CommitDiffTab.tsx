@@ -7,12 +7,13 @@
  * kind 路由由 kernel/tabs 注册表保证,本组件只见 git-commit-diff tab。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import type { EditorTab } from "@kernel/tabs";
 import { formatAbsolute } from "@kernel/relativeTime";
 import { ipc, type GitCommitFile, type GitFilePatch } from "@kernel/ipc";
+import { KernelTopics } from "@kernel/events";
 import { readCommitTabPayload, type CommitTabPayload } from "./commitTab";
 import { useCommitFiles } from "./hooks/useCommitFiles";
 import { gitErrorDisplay, gitErrorMessage } from "./gitError";
@@ -84,18 +85,32 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
     );
   }, [payload.cwd, payload.sha, selected, fullView]);
 
-  /* 行级批注:会话键 = 批注时刻激活会话快照(add 时取),面板按当前键隔离展示。 */
+  /* 行级批注:会话键 = 激活会话(订阅切换广播,渲染期直读不触发重渲会陈旧);
+   * noteCtx 记忆化:稳定引用免揭示桥每渲染拆装。 */
   const store = useDiffNotesStore();
-  const sessionKey = sessionKeyOf(host.getActiveSessionId(), payload.cwd);
-  const noteCtx: PatchNoteCtx | null = selected
-    ? {
-        file: selected,
-        notes: store.groups[sessionKey]?.filter((n) => n.file === selected) ?? [],
-        onAdd: (hash, lineNo, text, excerpt) => {
-          add(sessionKey, selected, hash, lineNo, text, excerpt);
-        },
-      }
-    : null;
+  const [activeSessionId, setActiveSessionId] = useState(() => host.getActiveSessionId());
+  useEffect(() => {
+    const off = host.events.on(KernelTopics.activeSessionChanged, (id) =>
+      setActiveSessionId(id as string | null),
+    );
+    return () => {
+      off();
+    };
+  }, []);
+  const sessionKey = sessionKeyOf(activeSessionId, payload.cwd);
+  const noteCtx = useMemo<PatchNoteCtx | null>(
+    () =>
+      selected
+        ? {
+            file: selected,
+            notes: store.groups[sessionKey]?.filter((n) => n.file === selected) ?? [],
+            onAdd: (hash, lineNo, text, excerpt) => {
+              add(sessionKey, selected, hash, lineNo, text, excerpt);
+            },
+          }
+        : null,
+    [selected, store, sessionKey],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col text-xs" data-icon-decor="git-zone">
@@ -137,7 +152,12 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
             emptyText={t("无 patch 数据")}
             noteCtx={noteCtx}
           />
-          <DiffNotesPanel sessionKey={sessionKey} splitDisabled={diffMode === "split"} />
+          <DiffNotesPanel
+            sessionKey={sessionKey}
+            selectedFile={selected}
+            onPickFile={(path) => setPicked({ key: selKey, path })}
+            splitDisabled={diffMode === "split"}
+          />
         </div>
       </div>
     </div>
