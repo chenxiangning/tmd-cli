@@ -16,6 +16,9 @@ export interface TickState {
   primed: boolean;
 }
 
+/** onIndex 快照合流间隔:扫描期每步全语料重扫代价高,≥120ms 才发一次。 */
+const INDEX_EMIT_INTERVAL_MS = 120;
+
 /**
  * 一拍推进:prime(首拍)→ 时间盒内连做缓存命中步/真读步;返回下一拍延迟
  * (-1 = 扫完/空索引,停拍)。独立组件外函数——控制流不进 React 函数体
@@ -57,6 +60,23 @@ export function startIndexerTicks(
   now: () => number = () => performance.now(),
 ): () => void {
   const state: TickState = { primed: false };
+  /* 快照发射合流:距上次发射 ≥120ms 才发(扫描期每步全语料重扫代价高),
+   * settle 时无条件补发终态快照,最终计数不丢。状态挂循环闭包,跨拍持续。 */
+  let lastEmitAt = -Infinity;
+  const emit = () => {
+    const t = now();
+    if (t - lastEmitAt < INDEX_EMIT_INTERVAL_MS) return;
+    lastEmitAt = t;
+    onIndex({ ...indexer.index });
+  };
+  const flush = () => {
+    lastEmitAt = now();
+    onIndex({ ...indexer.index });
+  };
+  const settle = () => {
+    flush();
+    onSettled();
+  };
   /* 单步失败只跳过该会话(坏行/越权读),不灭循环 —— 否则一步 reject
    * 永久停摆且 indexing 永不落位,搜索静默变成「永远扫不完」。
    * 自调度 setTimeout 链:上一拍 await 完才排下一拍,单会话读取(数 MB)
@@ -68,7 +88,7 @@ export function startIndexerTicks(
     const run = async () => {
       let delay = STEP_INTERVAL_MS;
       try {
-        delay = await indexerTick(indexer, state, onIndex, onSettled, now);
+        delay = await indexerTick(indexer, state, emit, settle, now);
       } catch {
         delay = STEP_INTERVAL_MS; /* 单步失败跳过,不灭循环 */
       }

@@ -95,6 +95,7 @@ export function HistoryDrawer({ open, style, onPick, onClose }: HistoryDrawerPro
       /* 键盘挂在容器(焦点在搜索框):Esc 关闭不回填,stopPropagation 防穿透
          (确认弹层等 window 级 Esc 监听不应被本关闭动作连带触发) */
       onKeyDown={(e) => {
+        if (e.nativeEvent.isComposing) return; /* IME 确认键不当导航/回填(composerTextareaKeys 同款) */
         if (e.key === "ArrowDown") {
           e.preventDefault();
           move(1);

@@ -57,8 +57,8 @@ export function useCheckpointActions(
           ? t("已回退 {n} 个文件;跳过:{skipped}", { n, skipped })
           : t("已回退 {n} 个路径 · 恢复点已留存,可反悔", { n });
       } catch (e) {
-        /* plan 空(E_EMPTY):不是错误 —— 免弹分支的中性提示(042 项6)。 */
-        if (String(e).includes("没有可回退的文件")) return t("本批已无可回退的改动");
+        /* plan 空(E_EMPTY_PLAN):不是错误 —— 免弹分支的中性提示(042 项6)。 */
+        if (String(e).startsWith("E_EMPTY_PLAN")) return t("本批已无可回退的改动");
         throw e;
       }
     });

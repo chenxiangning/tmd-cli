@@ -28,6 +28,9 @@ export const MESSAGES = {
   "放大界面": "Zoom in",
   "缩小界面": "Zoom out",
   "重置界面缩放": "Reset zoom",
+  "放大终端字号": "Zoom Terminal Font In",
+  "缩小终端字号": "Zoom Terminal Font Out",
+  "重置终端字号": "Reset Terminal Font Size",
 
   // ── 会话 tab 条 ──
   "打开的会话": "Open sessions",

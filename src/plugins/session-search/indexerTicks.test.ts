@@ -118,3 +118,29 @@ describe("startIndexerTicks 自调度", () => {
     expect(settled).toHaveBeenCalledOnce();
   });
 });
+
+/* ── onIndex 快照合流(120ms 节流,settle 补发终态;经自调度循环验跨拍持续) ── */
+
+describe("startIndexerTicks onIndex 合流", () => {
+  it("120ms 窗口内多步只发一次;窗口过后步进即发射;settle 无条件补发终态", async () => {
+    /* 真读步 60ms 一拍:缓存在 0ms 续排下一盒,一拍内就排空,跨不了窗口 */
+    const indexer = makeIndexer(4, false);
+    const emitted = vi.fn();
+    const settled = vi.fn();
+    let clock = 0;
+    const stop = startIndexerTicks(indexer, emitted, settled, () => clock);
+    await vi.advanceTimersByTimeAsync(60); /* prime 拍:flush 无条件发 */
+    expect(emitted).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(120); /* 步 1、2 全落 0ms 窗口内:全吞 */
+    expect(indexer.steps).toBe(2);
+    expect(emitted).toHaveBeenCalledTimes(1);
+    clock = 200; /* 越过 120ms 窗口 */
+    await vi.advanceTimersByTimeAsync(60); /* 步 3:窗口已过,步进即发射 */
+    expect(emitted).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(60); /* 步 4 扫完:settle 补发终态 */
+    expect(indexer.steps).toBe(4);
+    expect(emitted).toHaveBeenCalledTimes(3);
+    expect(settled).toHaveBeenCalledOnce();
+    stop();
+  });
+});

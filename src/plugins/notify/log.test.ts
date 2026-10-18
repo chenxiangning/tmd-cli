@@ -1,8 +1,8 @@
 /**
- * 通知流水纯函数契约:坏文件解析、追加剪枝(过期/上限)、面板今日分组。
- * 模块级纯函数,直接 import 无需环境桩。
+ * 通知流水纯函数契约:坏文件解析、追加剪枝(过期/上限)、面板今日分组;
+ * markQuotaSeen 读失败守卫(mock ipc)。
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ENTRIES_MAX,
   appendEntry,
@@ -11,6 +11,12 @@ import {
   type NotifyDoc,
   type NotifyEntry,
 } from "./log";
+
+const fsReadFile = vi.hoisted(() => vi.fn());
+const fsWriteFile = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("@kernel/ipc", () => ({
+  ipc: { fsReadFile, fsWriteFile, configDir: vi.fn(async () => "/tmp") },
+}));
 
 const mk = (ts: number, kind: NotifyEntry["kind"] = "ask"): Omit<NotifyEntry, "id"> => ({
   ts,
@@ -130,5 +136,28 @@ describe("groupNotifyEntries(面板今日/更早分组)", () => {
 
   it("空流水 → 两组皆空", () => {
     expect(groupNotifyEntries([], new Date())).toEqual({ today: [], earlier: [] });
+  });
+});
+
+describe("markQuotaSeen(读失败守卫)", () => {
+  beforeEach(() => {
+    fsReadFile.mockReset();
+    fsWriteFile.mockClear();
+  });
+
+  it("读 reject 非 ENOENT → 放弃落盘,不把流水当空库覆写", async () => {
+    const { markQuotaSeen } = await import("./log");
+    const doc = JSON.stringify({ version: 1, entries: [], quotaSeen: [] });
+    fsReadFile
+      .mockRejectedValueOnce(Object.assign(new Error("EIO"), { code: "EIO" }))
+      .mockResolvedValueOnce(doc);
+    /* 队列 FIFO:第二次调用的写盘只在第一次任务完成后执行,可据此断言第一次未写。 */
+    markQuotaSeen(["k1"], 7);
+    markQuotaSeen(["k2"], 7);
+    await vi.waitFor(() => expect(fsWriteFile).toHaveBeenCalledTimes(1));
+    const call = fsWriteFile.mock.calls[0] as unknown as [string, string];
+    const written = call[1];
+    expect(written).toContain("k2");
+    expect(written).not.toContain("k1");
   });
 });

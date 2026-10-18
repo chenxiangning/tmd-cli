@@ -110,6 +110,12 @@ describe("resolvePath(root 拼接与区外静默)", () => {
     await expect(resolvePath("../x.ts", ROOT)).resolves.toBe("/repo/x.ts");
   });
 
+  it("Windows cwd + 相对路径:盘符段不加前导 /,拼出 C:/ 形态", async () => {
+    mocks.getSessions.mockReturnValue([{ id: "pty-1", profileId: "omp", cwd: "C:\\repo" }]);
+    await expect(resolvePath("src/app.ts", "C:\\repo")).resolves.toBe("C:/repo/src/app.ts");
+    await expect(resolvePath("..\\sib\\x.ts", "C:\\repo")).resolves.toBeNull(); // 区外静默
+  });
+
   it("~/ 经 configHomeDir 展开,root 内归一", async () => {
     await expect(resolvePath("~/repo/notes.md", "/home/x")).resolves.toBe("/home/x/repo/notes.md");
     await expect(resolvePath("~/other/notes.md", ROOT)).resolves.toBeNull();

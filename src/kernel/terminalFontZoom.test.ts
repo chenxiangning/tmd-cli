@@ -4,7 +4,7 @@
  * mac「⌘⇧= → e.key='+'」两态、平台严格分流(mac 仅 meta、win 仅 ctrl、
  * unknown 双任一;mac 的 Ctrl± 不劫持)、alt 排除、裸键穿透、shift 态区分
  * (⌘⇧− 不吃,防误缩)。写值链路:terminalFontSize ±1 / 回落默认 13,
- * 越界钳位归 settings sanitize(与 zoomCommands 同裁决,不重复断言)。
+ * ±1 写入前在本模块按 MIN/MAX 夹取(settings sanitize 是越界回落默认非钳位)。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ShortcutKeyEvent } from "@kernel/shortcuts";
@@ -12,10 +12,13 @@ import type { ShortcutKeyEvent } from "@kernel/shortcuts";
 const settingsMock = vi.hoisted(() => ({
   terminalFontSize: 13,
   TERMINAL_FONT_SIZE_DEFAULT: 13,
+  TERMINAL_FONT_SIZE_MIN: 10,
+  TERMINAL_FONT_SIZE_MAX: 20,
   getSettingsState: () => ({ settings: { terminalFontSize: settingsMock.terminalFontSize } }),
   updateSettings: vi.fn(),
 }));
 vi.mock("@kernel/settings", () => settingsMock);
+vi.mock("@kernel/i18n", () => ({ t: (k: string) => k }));
 
 /* 平台可变 mock:mac 严格 meta / win 严格 ctrl / unknown 双任一(kernel/platform)。 */
 const platformMock = vi.hoisted(() => ({ kind: "macos" as string }));
@@ -91,5 +94,14 @@ describe("写值链路", () => {
     settingsMock.terminalFontSize = 17;
     cmd("terminal.zoomReset").run();
     expect(settingsMock.updateSettings).toHaveBeenCalledWith({ terminalFontSize: 13 });
+  });
+
+  it("边界夹取:20 时 ⌘+ 不再 +1(不回落默认),10 时 ⌘− 不再 −1", () => {
+    settingsMock.terminalFontSize = 20;
+    cmd("terminal.zoomIn").run();
+    expect(settingsMock.updateSettings).toHaveBeenCalledWith({ terminalFontSize: 20 });
+    settingsMock.terminalFontSize = 10;
+    cmd("terminal.zoomOut").run();
+    expect(settingsMock.updateSettings).toHaveBeenCalledWith({ terminalFontSize: 10 });
   });
 });

@@ -17,6 +17,8 @@ function snap(partial: Partial<TerminalFreezeSnapshot> & { sessionId: string }):
     cols: 80,
     rows: 24,
     screenText: "SCREEN",
+    cursorX: 0,
+    cursorY: 0,
     unloadChars: 0,
     bytePos: 0,
     headSample: "",

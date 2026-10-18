@@ -170,7 +170,7 @@ pub fn plan_restore(
     }
 
     if plan.is_empty() {
-        return Err(CkptError::Empty(
+        return Err(CkptError::EmptyPlan(
             "没有可回退的文件(全部已处理或内容已变)".into(),
         ));
     }

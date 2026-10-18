@@ -194,8 +194,13 @@ export function markQuotaSeen(keys: readonly string[], maxDays: number): void {
     let text = "";
     try {
       text = await ipc.fsReadFile(path);
-    } catch {
-      /* 读失败按空文档继续:写坏/竞态不阻塞去重落盘。 */
+    } catch (e) {
+      if (!isMissingReadErr(String(e))) {
+        /* 读失败 ≠ 空库(recordNotifyEntry 同款守卫):按空继续会连同 entries
+           整本覆写,一次瞬时读失败清空流水。放弃本次去重落盘,宁多勿漏。 */
+        console.warn("[notify] 读通知流水失败,放弃本次去重落盘", e);
+        return;
+      }
     }
     const doc = text ? parseNotifyLog(text) : EMPTY;
     const cutoff = Date.now() - maxDays * 86_400_000;

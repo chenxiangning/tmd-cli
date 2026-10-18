@@ -81,7 +81,7 @@ fn 内容失配_自动已处理且回退被拒() {
 
     let err = restore_batch(ws.path(), &a.id, None).unwrap_err();
     assert!(
-        err.to_string().starts_with("E_EMPTY:"),
+        err.to_string().starts_with("E_EMPTY_PLAN:"),
         "失配文件不可回退: {err}"
     );
 }

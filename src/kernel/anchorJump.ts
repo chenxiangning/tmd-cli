@@ -154,7 +154,10 @@ export async function openThenJumpToText(
   opts?: { timeoutMs?: number },
 ): Promise<JumpTextOutcome> {
   const liveId = findLiveSessionId(target.cliSessionId);
-  if (liveId) return (await jumpToText(liveId, text)) ? "jumped" : "miss";
+  /* 活会话但幕布 handle 不在册(被 tab 条挤除/已关 tab)时落穿打开路径:
+   * open() 对活会话幂等,不会开第二条 PTY。 */
+  if (liveId && getTerminalHandle(liveId))
+    return (await jumpToText(liveId, text)) ? "jumped" : "miss";
   const needle = textNeedle(text);
   try {
     const meta = await host.openDiskSession(

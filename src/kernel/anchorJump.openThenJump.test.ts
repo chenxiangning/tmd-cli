@@ -104,6 +104,25 @@ describe("openThenJumpToText", () => {
     expect(hostMock.openDiskSession).not.toHaveBeenCalled();
   });
 
+  it("活会话但 handle 不在册:落穿打开路径,open 后 jumped", async () => {
+    hostMock.state.sessions = [{ id: "tmd-evicted", profileId: "omp" }];
+    hostMock.state.cliOf["tmd-evicted"] = "cli-ev";
+    /* 不注册 handle,模拟被 tab 条挤除/已关 tab */
+    const resumed = fakeHandle(["挤除会话的原文行"]);
+    hostMock.openDiskSession.mockImplementation(async () => {
+      registerTerminalHandle("tmd-evicted", resumed.handle);
+      return { id: "tmd-evicted" };
+    });
+
+    const outcome = await openThenJumpToText(
+      { profileId: "omp", cwd: "/w", cliSessionId: "cli-ev" },
+      "挤除会话的原文行",
+    );
+    expect(outcome).toBe("jumped");
+    expect(hostMock.openDiskSession).toHaveBeenCalledWith("omp", "/w", undefined, "cli-ev");
+    unregisterTerminalHandle("tmd-evicted", resumed.handle);
+  });
+
   it("账本身份 = tmd id(未绑定链)时按会话 id 直认", async () => {
     hostMock.state.sessions = [{ id: "tmd-raw", profileId: "omp" }];
     const { handle } = fakeHandle(["阅读轮的原文行"]);

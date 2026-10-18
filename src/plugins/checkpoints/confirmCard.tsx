@@ -25,8 +25,8 @@ export interface ConfirmTarget {
 
 /** 预览表默认行上限(常量,非用户可调;超出折叠进「共 N 文件」展开)。 */
 const PREVIEW_ROW_LIMIT = 6;
-/** plan 空信号(E_EMPTY 业务句,免弹直接走回退)。 */
-const EMPTY_PLAN_MARK = "没有可回退的文件";
+/** plan 空信号(E_EMPTY_PLAN 结构化前缀,免弹直接走回退)。 */
+const EMPTY_PLAN_MARK = "E_EMPTY_PLAN";
 
 /** 冻结预览:仅挂载时拉一次(undo 走缓存复用,弹层内不刷新);plan 空免弹直走回退。 */
 function useFrozenPreview(
@@ -52,8 +52,8 @@ function useFrozenPreview(
       .then(setPreview)
       .catch((e: unknown) => {
         const raw = String(e);
-        if (raw.includes(EMPTY_PLAN_MARK)) {
-          // plan 空(E_EMPTY):免弹直接走回退(空操作),中性提示由 doRevert 出。
+        if (raw.startsWith(EMPTY_PLAN_MARK)) {
+          // plan 空(E_EMPTY_PLAN):免弹直接走回退(空操作),中性提示由 doRevert 出。
           setConfirm(null);
           void onRevert(confirm.batchId, confirm.paths);
           return;

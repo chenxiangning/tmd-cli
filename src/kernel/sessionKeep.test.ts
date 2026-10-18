@@ -77,6 +77,14 @@ describe("settings 清洗", () => {
     expect(sanitize.sanitize(null).sessionKeep).toEqual({});
   });
 
+  it("sessionKeep:2000 条保留重启装载不被截(上限与 SESSION_KEEP_MAX 同源)", () => {
+    const entries: Record<string, { keptAt: number }> = {};
+    for (let i = 0; i < 2000; i++) entries[`ws1:claude:s${i}`] = { keptAt: i };
+    const out = sanitize.sanitize({ sessionKeep: entries }).sessionKeep;
+    expect(Object.keys(out)).toHaveLength(2000);
+    expect(out["ws1:claude:s1999"]).toEqual({ keptAt: 1999 });
+  });
+
   it("sessionHygieneHours:白名单值通过,非白名单回落 24", () => {
     for (const h of [12, 24, 48, 168]) {
       expect(sanitize.sanitize({ sessionHygieneHours: h }).sessionHygieneHours).toBe(h);

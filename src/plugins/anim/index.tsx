@@ -17,7 +17,6 @@ import {
 } from "@kernel/composerExt";
 import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
 import { ANIM_TAB_ID, ANIM_TAB_KIND, openAnimTab } from "./animStores";
-import { getPendingPrompt } from "@kernel/sessionPending";
 import { getPendingRefs } from "./refStore";
 import { animRefsSendTransform, undoAnimRefsSend } from "./sessionRefs";
 import { AnimRefChips } from "./chip";
@@ -47,15 +46,14 @@ export const animPlugin: Plugin = {
       subscribeActive: subscribeEditorTabs,
       onSelect: () => openAnimTab(),
     });
-    /* 卡片挂 composer 顶部 + 发送变换消费(初始提示词前置、引用清单块后置,
-     *  失败回滚;空输入仅发卡片也放行 —— workbench 任务卡片同款管线)。 */
+    /* 卡片挂 composer 顶部 + 发送变换消费(引用清单块后置,失败回滚;空输入
+     *  仅发卡片也放行 —— workbench 任务卡片同款管线)。初始提示词半区已上移
+     *  kernel(@kernel/sessionPending),本插件只作生产者。 */
     ctx.contribute("composer.attachments", { component: AnimRefChips });
     const offs = [
       registerComposerSendTransform(animRefsSendTransform),
       registerComposerSendUndo(undoAnimRefsSend),
-      registerComposerEmptySendProvider(
-        (sid) => !!sid && (getPendingRefs(sid).length > 0 || getPendingPrompt(sid) !== null),
-      ),
+      registerComposerEmptySendProvider((sid) => !!sid && getPendingRefs(sid).length > 0),
     ];
     return () => {
       for (const off of offs) off();

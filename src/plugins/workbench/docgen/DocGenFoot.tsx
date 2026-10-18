@@ -10,7 +10,7 @@ import { getWorkspaces } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { pickSavePath } from "@kernel/ipc";
 import { createEntry, dimensionKeyOf } from "./store";
-import { writeText } from "./paths";
+import { safeFileBase, writeText } from "./paths";
 import { enqueueDocGenTask } from "./queue";
 import { resolveTargetProjectId, buildAskPrompt } from "../docgenView";
 import { createDoc } from "../store";
@@ -45,9 +45,8 @@ export function ReaderFoot({ entry, projects, md, onToast }: {
   };
   const exportMd = () => {
     if (!md) return;
-    /* Windows 保留设备名带扩展名同样禁写(CON.md 等),命中加尾 _;其余平台无害。 */
-    const base = entry.title.replace(/[\\/:*?"<>|]/g, "_");
-    const name = `${/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(base) ? `${base}_` : base}.md`;
+    const base = safeFileBase(entry.title.replace(/[\\/:*?"<>|]/g, "_"));
+    const name = `${base}.md`;
     void pickSavePath(t("导出文档"), name).then((path) => {
       if (!path) return; /* 用户取消/web 桩态:静默 */
       void writeText(path, md).then(

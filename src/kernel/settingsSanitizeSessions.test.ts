@@ -5,7 +5,7 @@
  * - 非法输入(null/标量/数组)回落空对象/空数组,不抛错
  * - 合法值原样透传(标题 trim+截断除外)
  * - 边界:空串 key/值、负数/NaN/Infinity 时间戳、畸形 entry、重复 id
- * - 确定性兜底:超上限按 key 序限量纳入(500/200/2000/100)
+ * - 确定性兜底:超上限按 key 序限量纳入(titles 500 / pins 200 / archive·keep 2000 / favs 100)
  * - 引擎收藏 key 形状 engineId@semver;scope 只收 global|workspace
  * - 工作区折叠图只收 boolean;分组 name trim 后非空、截断 60、id 去重
  */
@@ -116,7 +116,8 @@ describe("sanitizeSessionArchive / sanitizeSessionDeleted / sanitizeSessionKeep"
     });
 
     it(`${fn.name}: 超上限按 key 序限量纳入`, () => {
-      const cap = fn === sanitizeSessionArchive ? 2000 : 200;
+      /* keep 与 archive 同为 2000(双源同步,见 sessionKeep.ts SESSION_KEEP_MAX);deleted 仍 200。 */
+      const cap = fn === sanitizeSessionKeep || fn === sanitizeSessionArchive ? 2000 : 200;
       const raw: Record<string, unknown> = {};
       for (let i = 0; i < cap + 10; i++) raw[`k${String(i).padStart(5, "0")}`] = { [field]: i };
       const out = fn(raw);

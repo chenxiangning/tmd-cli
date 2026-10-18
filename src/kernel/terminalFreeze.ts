@@ -24,6 +24,9 @@ export interface TerminalFreezeSnapshot {
   rows: number;
   /** 卸载时终态屏幕投影(buildReseedScreen 同源载荷)。 */
   screenText: string;
+  /** 投影时光标列/行(视口相对,0 起)。fast 路径写完投影后用 CSI H 还原,活跃 TUI 相对寻址不错位。 */
+  cursorX: number;
+  cursorY: number;
   /** 卸载时内存缓冲字符数(增量切片锚:重开缓冲以此为界切增量,UTF-16 码元)。 */
   unloadChars: number;
   /** 卸载时内存缓冲 UTF-8 字节数(快速否决;与翻页锚点 logSize-bytePos 同语义)。 */

@@ -36,7 +36,9 @@ function joinCwd(cwd: string, rel: string): string {
     if (seg === "..") out.pop();
     else if (seg !== "." && seg !== "") out.push(seg);
   }
-  return `/${out.join("/")}`;
+  const joined = out.join("/");
+  // Windows 盘符段(C:)不加前导 /,否则 /C:/repo 形态 inRoot 恒 false
+  return /^[A-Za-z]:/.test(joined) ? joined : `/${joined}`;
 }
 
 /** root 前缀守卫:返回 root 内归一绝对路径,区外返回 null(静默)。 */

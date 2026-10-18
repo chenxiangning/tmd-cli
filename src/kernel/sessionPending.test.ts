@@ -3,8 +3,10 @@ import {
   consumePendingPrompt,
   dropPendingPrompt,
   getPendingPrompt,
+  pendingPromptSendTransform,
   setPendingPrompt,
   subscribePendingPrompts,
+  undoPendingPromptSend,
 } from "./sessionPending";
 
 describe("sessionPending", () => {
@@ -43,5 +45,24 @@ describe("sessionPending", () => {
     dropPendingPrompt("s1"); /* 已被 consume 清空,no-op */
     expect(fn).toHaveBeenCalledTimes(2);
     off();
+  });
+
+  it("pendingPromptSendTransform:提示词前置注入并消费,不依赖 anim 在场", () => {
+    setPendingPrompt("s1", "初始提示词全文");
+    expect(pendingPromptSendTransform("补充一句", "s1")).toBe("初始提示词全文\n\n补充一句");
+    expect(getPendingPrompt("s1")).toBeNull(); /* 消费即出队 */
+    /* 二次发送零残留(与 anim refs 半区不重复消费的前提)。 */
+    expect(pendingPromptSendTransform("再来一条", "s1")).toBe("再来一条");
+  });
+
+  it("undoPendingPromptSend:发送失败回写最后一次消费的提示词(幂等)", () => {
+    expect(undoPendingPromptSend()).toBeUndefined(); /* 无消费 no-op */
+    setPendingPrompt("s2", "待注入");
+    pendingPromptSendTransform("", "s2"); /* 空输入 = 仅提示词 */
+    expect(getPendingPrompt("s2")).toBeNull();
+    undoPendingPromptSend();
+    expect(getPendingPrompt("s2")).toBe("待注入");
+    undoPendingPromptSend(); /* 幂等 */
+    expect(getPendingPrompt("s2")).toBe("待注入");
   });
 });

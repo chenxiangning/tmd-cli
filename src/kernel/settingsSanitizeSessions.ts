@@ -10,6 +10,7 @@ import type {
   SessionPinEntry,
   SessionPinScope,
 } from "./settingsTypes";
+import { SESSION_KEEP_MAX } from "./sessionKeep";
 
 /** 手动命名覆盖层上限:500 条(超出按 key 序丢弃,确定性兜底);标题 1–200 字符。 */
 const SESSION_TITLES_MAX_ENTRIES = 500;
@@ -102,14 +103,14 @@ export function sanitizeSessionDeleted(raw: unknown): Record<string, SessionDele
 
 /**
  * 保留标记层清洗:只收有限非负时间戳的项,按 key 序限量纳入(与归档/删除同款确定性兜底)。
- * 上限与 overlayEvict 缺省容量(200)同,沿用 SESSION_PINS_MAX_ENTRIES。
+ * 上限与 sessionKeep.SESSION_KEEP_MAX(2000)双源同源,直接引用(改须同改 → 只改源头即可)。
  */
 export function sanitizeSessionKeep(raw: unknown): Record<string, SessionKeepEntry> {
   const keep: Record<string, SessionKeepEntry> = {};
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return keep;
   const entries = raw as Record<string, unknown>;
   for (const key of Object.keys(entries).sort()) {
-    if (Object.keys(keep).length >= SESSION_PINS_MAX_ENTRIES) break;
+    if (Object.keys(keep).length >= SESSION_KEEP_MAX) break;
     const value = entries[key];
     if (!key || !value || typeof value !== "object") continue;
     const entry = value as Record<string, unknown>;

@@ -91,8 +91,9 @@ describe("sessionExportFileName", () => {
     expect(sessionExportFileName("我的 会话:标题", "sess-1", DAY)).toBe("我的 会话_标题-20261018.md");
   });
 
-  it("Windows 保留设备名命中加尾 _(safeFileBase 复用)", () => {
-    expect(sessionExportFileName("CON", "sess-1", DAY)).toBe("CON_-20261018.md");
+  it("Windows 保留设备名命中加主干前缀 _(safeFileBase 复用;含保留名+扩展名形态)", () => {
+    expect(sessionExportFileName("CON", "sess-1", DAY)).toBe("_CON-20261018.md");
+    expect(sessionExportFileName("CON.md", "sess-1", DAY)).toBe("_CON.md-20261018.md");
     expect(sessionExportFileName("普通标题", "sess-1", DAY)).toBe("普通标题-20261018.md");
   });
 

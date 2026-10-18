@@ -43,7 +43,7 @@ fn plan_restore_路径不在批次内_拒绝() {
 }
 
 #[test]
-fn plan_restore_全部跳过_空计划_e_empty() {
+fn plan_restore_全部跳过_空计划_e_empty_plan() {
     let ws = TempWs::new();
     ws.write("a.txt", "v1\n");
     ws.commit_all("init");
@@ -55,10 +55,10 @@ fn plan_restore_全部跳过_空计划_e_empty() {
     // 他人改动与本批同区域重叠 → 手术不可行 → 全部 skip → plan 空
     ws.write("a.txt", "totally different\n");
     let err = plan_restore(ws.path(), &a.id, None).unwrap_err();
-    assert!(err.to_string().contains("没有可回退的文件"), "{err}");
+    assert!(err.to_string().contains("E_EMPTY_PLAN"), "{err}");
 
     let err = restore_preview(ws.path(), &a.id, None).unwrap_err();
-    assert!(err.to_string().contains("没有可回退的文件"), "{err}");
+    assert!(err.to_string().contains("E_EMPTY_PLAN"), "{err}");
 }
 
 #[test]
