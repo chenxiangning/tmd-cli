@@ -28,6 +28,8 @@ export interface NotifyEntry {
 export interface NotifyDoc {
   version: 1;
   entries: NotifyEntry[];
+  /** 额度预警去重键(带引擎前缀),头部持久化 —— 重启不失忆;随 notifyLogDays 同批裁剪。 */
+  quotaSeen: Array<{ k: string; at: number }>;
 }
 
 /** 条数上限兜底(过期过滤之外的第二道体积闸)。 */
@@ -54,18 +56,30 @@ function entryOk(e: unknown): e is NotifyEntry {
   );
 }
 
-/** 解析磁盘文本;坏 JSON / version≠1 / 条目形状不合法 → 丢弃或空文档,绝不抛。 */
+/** 解析磁盘文本;坏 JSON / version≠1 / 条目形状不合法 → 丢弃或空文档,绝不抛。
+ *  quotaSeen 写坏按无记录处理(宁多勿漏:去重失效最多重复提醒,不丢提醒)。 */
 export function parseNotifyLog(text: string): NotifyDoc {
   try {
-    const raw = JSON.parse(text) as { version?: unknown; entries?: unknown };
-    if (raw?.version !== 1 || !Array.isArray(raw.entries)) return { version: 1, entries: [] };
-    return { version: 1, entries: raw.entries.filter(entryOk) };
+    const raw = JSON.parse(text) as { version?: unknown; entries?: unknown; quotaSeen?: unknown };
+    if (raw?.version !== 1 || !Array.isArray(raw.entries)) return { version: 1, entries: [], quotaSeen: [] };
+    const quotaSeen = Array.isArray(raw.quotaSeen)
+      ? raw.quotaSeen.filter(
+          (s): s is { k: string; at: number } =>
+            typeof s === "object" &&
+            s !== null &&
+            typeof (s as Record<string, unknown>).k === "string" &&
+            typeof (s as Record<string, unknown>).at === "number" &&
+            Number.isFinite((s as Record<string, unknown>).at),
+        )
+      : [];
+    return { version: 1, entries: raw.entries.filter(entryOk), quotaSeen };
   } catch {
-    return { version: 1, entries: [] };
+    return { version: 1, entries: [], quotaSeen: [] };
   }
 }
 
-/** 追加 + 双闸剪枝:过滤 ts < now - maxDays 的过期条目,超上限从最旧剪。 */
+/** 追加 + 双闸剪枝:过滤 ts < now - maxDays 的过期条目,超上限从最旧剪;
+ *  quotaSeen 用同一 cutoff 同批清理(一个生命周期,不另设裁剪)。 */
 export function appendEntry(
   doc: NotifyDoc,
   entry: Omit<NotifyEntry, "id">,
@@ -74,7 +88,11 @@ export function appendEntry(
 ): NotifyDoc {
   const cutoff = now - maxDays * 86_400_000;
   const entries = [...doc.entries, { ...entry, id: newId() }].filter((e) => e.ts >= cutoff);
-  return { version: 1, entries: entries.slice(Math.max(0, entries.length - ENTRIES_MAX)) };
+  return {
+    version: 1,
+    entries: entries.slice(Math.max(0, entries.length - ENTRIES_MAX)),
+    quotaSeen: doc.quotaSeen.filter((s) => s.at >= cutoff),
+  };
 }
 
 /** 面板分组纯函数:今日(与 now 同一本地日历日)/ 更早;组内最新在前。 */
@@ -98,8 +116,15 @@ function isMissingReadErr(msg: string): boolean {
 
 /* ── 持久化(互斥队列 + 内存快照 store,面板订阅面) ─────────────────── */
 
-const EMPTY: NotifyDoc = { version: 1, entries: [] };
+const EMPTY: NotifyDoc = { version: 1, entries: [], quotaSeen: [] };
 const store = createSubscribable<readonly NotifyEntry[]>(EMPTY.entries);
+/* 全文档内存缓存:quotaSeen 去重的同步读面(poll 每轮查,不读盘)。 */
+let docCache: NotifyDoc = EMPTY;
+
+/** 额度预警去重键集合(每次返回新 Set:调用方边判定边插入,不污染缓存)。 */
+export function quotaSeenKeys(): Set<string> {
+  return new Set(docCache.quotaSeen.map((s) => s.k));
+}
 
 /** React 订阅(面板渲染面)。 */
 export function useNotifyLog(): readonly NotifyEntry[] {
@@ -126,9 +151,11 @@ export function bootNotifyLog(): void {
   void withLogLock(async () => {
     try {
       const text = await ipc.fsReadFile(await logFilePath());
-      store.commit(parseNotifyLog(text).entries);
+      docCache = parseNotifyLog(text);
+      store.commit(docCache.entries);
     } catch (e) {
       if (!isMissingReadErr(String(e))) console.warn("[notify] 读通知流水失败,按空流水", e);
+      docCache = EMPTY;
       store.commit(EMPTY.entries);
     }
   });
@@ -154,6 +181,39 @@ export function recordNotifyEntry(entry: Omit<NotifyEntry, "id" | "ts">, maxDays
     } catch {
       return; /* 写失败静默:内存快照已含本条,下次追加会重写全量。 */
     }
+    docCache = next;
+    store.commit(next.entries);
+  });
+}
+
+/** 追加额度去重键(RMW 走互斥锁;读失败按空记录处理宁多勿漏 —— 最多重复提醒)。 */
+export function markQuotaSeen(keys: readonly string[], maxDays: number): void {
+  if (keys.length === 0) return;
+  void withLogLock(async () => {
+    const path = await logFilePath();
+    let text = "";
+    try {
+      text = await ipc.fsReadFile(path);
+    } catch {
+      /* 读失败按空文档继续:写坏/竞态不阻塞去重落盘。 */
+    }
+    const doc = text ? parseNotifyLog(text) : EMPTY;
+    const cutoff = Date.now() - maxDays * 86_400_000;
+    const known = new Set(doc.quotaSeen.map((s) => s.k));
+    const next: NotifyDoc = {
+      version: 1,
+      entries: doc.entries,
+      quotaSeen: [
+        ...doc.quotaSeen.filter((s) => s.at >= cutoff),
+        ...keys.filter((k) => !known.has(k)).map((k) => ({ k, at: Date.now() })),
+      ],
+    };
+    try {
+      await ipc.fsWriteFile(path, `${JSON.stringify(next, null, 2)}\n`);
+    } catch {
+      return; /* 写失败静默:内存缓存已更新,下轮 RMW 会重写全量。 */
+    }
+    docCache = next;
     store.commit(next.entries);
   });
 }
@@ -166,6 +226,7 @@ export function clearNotifyLog(): void {
     } catch {
       return;
     }
+    docCache = EMPTY;
     store.commit(EMPTY.entries);
   });
 }

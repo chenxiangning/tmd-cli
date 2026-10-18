@@ -12,7 +12,7 @@ import {
 } from "../cli-shared/sessionUsage";
 /* 经 cli-shared 消费批量读头原语(feature 联合消费声明,同 welcome/credentials.ts 通道)。 */
 import { readHeadsBatched } from "../cli-shared/sessionHead";
-import { windowResetFor } from "./quotaWindow";
+import { windowResetFor } from "../cli-shared/quota/quotaWindow";
 
 
 /** 头窗口字节数(与 diskSessions 的深窗一致)。 */

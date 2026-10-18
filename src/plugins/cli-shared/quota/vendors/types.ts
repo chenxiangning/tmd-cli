@@ -26,6 +26,8 @@ export interface VendorQuota {
   windows: QuotaWindow[];
   /** 余额型供应商: 例 "¥12.50" / "$5.00"。 */
   balanceText?: string;
+  /** 余额数值(仅 deepseek/relay 透传;阈值告警用,货币跟随 balanceText 符号)。 */
+  balanceValue?: number;
   planLabel?: string;
 }
 

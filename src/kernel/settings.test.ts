@@ -80,7 +80,7 @@ describe("初始状态与默认值", () => {
       notifyOsAsk: true,
       notifyOsTurnEnd: true,
       notifyOsSessionExit: false,
-      notifyQuotaWarnPercent: 10,
+      notifyOsQuota: true, notifyQuotaWarnPercent: 10, notifyQuotaBalanceBelow: 0, notifyQuotaResetMinutes: 30,
       notifyDndEnabled: false, notifyDndStart: "22:00", notifyDndEnd: "08:00", notifyLogDays: 7,
       memoryDbPath: "",
       memoryEnabled: true,

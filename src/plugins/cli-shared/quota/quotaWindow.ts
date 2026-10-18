@@ -2,10 +2,13 @@
  * claude 限额窗口重置推算(纯函数)—— claude 无额度查询 API,窗口起点只能从
  * 本地会话 JSONL 的 usage 行时间戳推算(5h 滚动窗口口径公开)。codex/omp/pi
  * 等家族有真额度数据(cli-shared/quota/ 体系与凭据区),不在此列,返回 null;
- * 零网络,仅本地时间运算。welcome/tokens 聚合消费。
+ * 零网络,仅本地时间运算。
+ *
+ * 落位声明(联合消费先例):本文件属 cli-shared/quota,由 notify(额度低水位
+ * 轮询腿)与 welcome(tokens 聚合)两家消费;改窗口口径须同步两家。
  */
 
-import type { UsageLine } from "../cli-shared/sessionUsage";
+import type { UsageLine } from "../sessionUsage";
 
 /** claude 官方 5h 滚动限额窗口。 */
 export const QUOTA_WINDOW_MS = 5 * 3600_000;

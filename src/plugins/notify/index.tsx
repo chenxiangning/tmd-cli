@@ -16,7 +16,7 @@
 import { BellRinging, Bell } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics, type SessionExitedDetailEvent } from "@kernel/events";
-import { sendOsNotification } from "@kernel/ipc";
+import { sendOsNotification, type SessionMeta } from "@kernel/ipc";
 import { getSessionTabs } from "@kernel/sessionTabs";
 import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
@@ -26,9 +26,17 @@ import type { Plugin } from "@kernel/plugin";
 import { keptSessionIds } from "@plugins/composer/view/broadcastTargets";
 import { NotifySettingsTab } from "./NotifySettingsTab";
 import { NotifyCenterPanel } from "./NotifyCenterPanel";
-import { bootNotifyLog, recordNotifyEntry } from "./log";
+import { bootNotifyLog, markQuotaSeen, quotaSeenKeys, recordNotifyEntry } from "./log";
 import { notifyText, shouldNotify, type NotifyKind } from "./logic";
-import { QUOTA_POLL_FIRST_MS, QUOTA_POLL_INTERVAL_MS, pickQuotaWarnings, watchedQuotaSessions } from "./quotaWatch";
+import {
+  QUOTA_POLL_FIRST_MS,
+  QUOTA_POLL_INTERVAL_MS,
+  pickBalanceWarning,
+  pickQuotaWarnings,
+  quotaWindowKey,
+  watchedQuotaSessions,
+} from "./quotaWatch";
+import { claudeResetWarning } from "./claudeWindow";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 /** 统一发送闸:分类开关 + 失焦判定,过了才走 OS 通道。
@@ -132,12 +140,29 @@ export const notifyPlugin: Plugin = {
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
 
-    /* 额度侧:轻轮询(首查 30s,此后 10 分钟一次;监控面见 poll 内注),过阈去重后发 OS 通知。 */
-    const warned = new Set<string>();
+    /* 额度侧:轻轮询(首查 30s,此后 10 分钟一次;监控面见 poll 内注),三腿判定:
+       窗口已用%腿 / 余额低水位腿(仅 deepseek/relay 透传数值)/ claude 本地窗口
+       重置腿。去重键持久化在 notify-log.json 头部 quotaSeen,重启不失忆。 */
+    const fireQuota = (session: Pick<SessionMeta, "id">, profileId: string, title: string, body: string) => {
+      const { settings } = getSettingsState();
+      /* 流水照记(全量历史,免打扰也记);OS 走与事件类同款三闸 —— quota 曾绕过
+         免打扰窗直发 OS 通知(真 bug,此处修复)。 */
+      recordNotifyEntry(
+        { kind: "quota", sessionId: session.id, profileId, title, snippet: body },
+        settings.notifyLogDays,
+      );
+      if (!shouldNotify("quota", settings, host.isWindowFocused(), settings)) return;
+      void sendOsNotification(title, body, () => {
+        host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势 */
+        host.setActiveSession(session.id);
+      });
+    };
     const poll = () => {
       const { settings } = getSettingsState();
       const threshold = settings.notifyQuotaWarnPercent;
-      if (threshold <= 0) return;
+      const below = settings.notifyQuotaBalanceBelow;
+      const resetMin = settings.notifyQuotaResetMinutes;
+      if (threshold <= 0 && below <= 0 && resetMin <= 0) return;
       /* 失焦闸与事件类通知同口径(设置分区描述「仅在窗口失焦时发送」;
          聚焦时 chip 已有红灯,不叠 OS 通知)。 */
       if (host.isWindowFocused()) return;
@@ -152,6 +177,22 @@ export const notifyPlugin: Plugin = {
         const profileId = session.engine ?? session.profileId;
         if (seenProfile.has(profileId)) continue; /* 供应商去重:每家查一次 */
         seenProfile.add(profileId);
+        /* claude 腿:官方 OAuth 无 HTTP 面,本地尾读推算(异步,失败静默)。
+           每轮新取去重集副本:判定插入与磁盘持久化(markQuotaSeen)分离。 */
+        if (resetMin > 0 && profileId === "claude") {
+          void claudeResetWarning(
+            session,
+            host.getCliProfile(profileId),
+            host.getCliSessionId(session.id),
+            resetMin,
+            Date.now(),
+            quotaSeenKeys(),
+          ).then((w) => {
+            if (!w) return;
+            markQuotaSeen([w.key], getSettingsState().settings.notifyLogDays);
+            fireQuota(session, profileId, w.title, w.body);
+          });
+        }
         const provider = getQuotaProvider(profileId);
         if (!provider) continue; /* 无 fetchQuota 的家保持跳过,不猜 */
         provider
@@ -159,25 +200,45 @@ export const notifyPlugin: Plugin = {
             model: host.getSessionStatus(session.id)?.model ?? null,
             cwd: session.cwd,
             cliSessionId: host.getCliSessionId(session.id),
-            })
+          })
           .then((snapshot) => {
-            if (!snapshot.windows.length) return; // 余额型(无窗口)不参与
-            for (const win of pickQuotaWarnings(snapshot.windows, threshold, warned)) {
-              const title = t("额度预警 · {provider}", { provider: snapshot.providerLabel });
-              const body = t("{title}:{label} 窗口已用 {pct}%", {
-                title: snapshot.title,
-                label: win.label,
-                pct: win.displayPercent,
-              });
-              /* 流水照记(OS 闸已在 poll 口);quota 行不支持回跳,面板置灰。 */
-              recordNotifyEntry(
-                { kind: "quota", sessionId: session.id, profileId, title, snippet: body },
-                getSettingsState().settings.notifyLogDays,
-              );
-              void sendOsNotification(title, body, () => {
-                host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势 */
-                host.setActiveSession(session.id);
-              });
+            const now = Date.now();
+            const seen = quotaSeenKeys();
+            /* 窗口腿:键带引擎前缀,持久化与判定共用 quotaWindowKey 公式。 */
+            if (threshold > 0) {
+              const fired = pickQuotaWarnings(snapshot.windows, threshold, seen, `${profileId}:`);
+              if (fired.length > 0) {
+                markQuotaSeen(fired.map((w) => quotaWindowKey(w, `${profileId}:`)), getSettingsState().settings.notifyLogDays);
+              }
+              for (const win of fired) {
+                fireQuota(
+                  session,
+                  profileId,
+                  t("额度预警 · {provider}", { provider: snapshot.providerLabel }),
+                  t("{title}:{label} 窗口已用 {pct}%", {
+                    title: snapshot.title,
+                    label: win.label,
+                    pct: win.displayPercent,
+                  }),
+                );
+              }
+            }
+            /* 余额腿:仅 deepseek/relay 有 balanceValue;键 = 引擎前缀 + 越线小时桶。 */
+            if (below > 0) {
+              const key = `${profileId}:bal:${Math.floor(now / 3_600_000)}`;
+              if (pickBalanceWarning(snapshot.balanceValue, below, key, seen)) {
+                markQuotaSeen([key], getSettingsState().settings.notifyLogDays);
+                fireQuota(
+                  session,
+                  profileId,
+                  t("额度预警 · {provider}", { provider: snapshot.providerLabel }),
+                  t("{title}:余额 {amount} 已低于下限 {below}", {
+                    title: snapshot.title,
+                    amount: snapshot.balanceText ?? String(snapshot.balanceValue),
+                    below,
+                  }),
+                );
+              }
             }
           })
           .catch(() => {

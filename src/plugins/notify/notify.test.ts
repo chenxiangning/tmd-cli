@@ -5,9 +5,19 @@
 import { describe, expect, it } from "vitest";
 import type { SessionMeta } from "@kernel/ipc";
 import { notifyText, shouldNotify } from "./logic";
-import { pickQuotaWarnings, watchedQuotaSessions } from "./quotaWatch";
+import {
+  pickBalanceWarning,
+  pickQuotaWarnings,
+  pickResetWarning,
+  watchedQuotaSessions,
+} from "./quotaWatch";
 
-const PREFS = { notifyOsAsk: true, notifyOsTurnEnd: true, notifyOsSessionExit: false };
+const PREFS = {
+  notifyOsAsk: true,
+  notifyOsTurnEnd: true,
+  notifyOsSessionExit: false,
+  notifyOsQuota: true,
+};
 
 const LOOKUP = {
   getSessions: () => [{ id: "s1", profileId: "omp", title: "改审批线" }],
@@ -27,10 +37,24 @@ describe("shouldNotify(发送闸)", () => {
   });
 
   it("关掉开关即不发(逐类独立)", () => {
-    const off = { notifyOsAsk: false, notifyOsTurnEnd: false, notifyOsSessionExit: true };
+    const off = {
+      notifyOsAsk: false,
+      notifyOsTurnEnd: false,
+      notifyOsSessionExit: true,
+      notifyOsQuota: true,
+    };
     expect(shouldNotify("ask", off, false)).toBe(false);
     expect(shouldNotify("turnEnd", off, false)).toBe(false);
     expect(shouldNotify("exit", off, false)).toBe(true);
+  });
+
+  it("quota 走同款三闸:聚焦/免打扰窗静默,notifyOsQuota 开关独立", () => {
+    /* 免打扰窗内 OS 静但流水照记(fireQuota 记流水在前,闸只拦 OS 通道)。 */
+    const allday = { notifyDndEnabled: true, notifyDndStart: "00:00", notifyDndEnd: "00:00" };
+    expect(shouldNotify("quota", PREFS, false, allday)).toBe(false);
+    expect(shouldNotify("quota", PREFS, true)).toBe(false);
+    expect(shouldNotify("quota", PREFS, false)).toBe(true);
+    expect(shouldNotify("quota", { ...PREFS, notifyOsQuota: false }, false)).toBe(false);
   });
 
   it("免打扰窗内静默(三闸之一);开关关不受影响", () => {
@@ -61,6 +85,14 @@ describe("notifyText(文案)", () => {
 describe("pickQuotaWarnings(额度阈值判定)", () => {
   const W = (label: string, pct: number, resetsAt?: number) => ({ label, displayPercent: pct, resetsAt });
   const labels = (ws: Array<{ label: string }>) => ws.map((w) => w.label);
+
+  it("引擎前缀隔离去重键:不同供应商同标签窗口互不吞键", () => {
+    const seen = new Set<string>();
+    expect(labels(pickQuotaWarnings([W("5小时", 90, 1000)], 10, seen, "omp:"))).toEqual(["5小时"]);
+    /* omp 报过的键不拦 pi 的同形窗口(键带前缀)。 */
+    expect(labels(pickQuotaWarnings([W("5小时", 90, 1000)], 10, seen, "pi:"))).toEqual(["5小时"]);
+    expect(pickQuotaWarnings([W("5小时", 95, 1000)], 10, seen, "pi:")).toEqual([]);
+  });
 
   it("过阈告警,未阈不报", () => {
     const seen = new Set<string>();
@@ -106,5 +138,48 @@ describe("watchedQuotaSessions(额度监控面:运行中 ∪ 平铺幕布)", () 
   it("kept 死 id(tab 残留)找不到会话即忽略;空并集返回空", () => {
     expect(watchedQuotaSessions([], ["ghost"])).toEqual([]);
     expect(watchedQuotaSessions([S("a")], [])).toHaveLength(1);
+  });
+});
+
+describe("pickBalanceWarning(余额低水位腿)", () => {
+  it("低于下限报一次,同键去重;等于/高于不报", () => {
+    const seen = new Set<string>();
+    expect(pickBalanceWarning(5, 10, "p:bal:1", seen)).toBe(true);
+    expect(pickBalanceWarning(4, 10, "p:bal:1", seen)).toBe(false); // 同小时桶已报
+    expect(pickBalanceWarning(10, 10, "p:bal:2", seen)).toBe(false); // 等于下限不报
+    expect(pickBalanceWarning(20, 10, "p:bal:2", seen)).toBe(false);
+  });
+
+  it("below<=0(关)/无数值(非 deepseek/relay)不参与", () => {
+    const seen = new Set<string>();
+    expect(pickBalanceWarning(0, 0, "k", seen)).toBe(false);
+    expect(pickBalanceWarning(undefined, 10, "k", seen)).toBe(false);
+    expect(seen.size).toBe(0);
+  });
+
+  it("新小时桶可再报(键随越线小时翻新,持续低水位每小时至多一条)", () => {
+    const seen = new Set<string>();
+    expect(pickBalanceWarning(5, 10, "p:bal:1", seen)).toBe(true);
+    expect(pickBalanceWarning(5, 10, "p:bal:2", seen)).toBe(true);
+  });
+});
+
+describe("pickResetWarning(claude 窗口重置腿)", () => {
+  const NOW = Date.parse("2026-10-18T12:00:00Z");
+
+  it("距重置不足 N 分钟告警,同 resetAt 键去重", () => {
+    const seen = new Set<string>();
+    const soon = NOW + 20 * 60_000; // 20 分钟后
+    expect(pickResetWarning(soon, NOW, 30, "claude:reset:1", seen)).toBe(true);
+    expect(pickResetWarning(soon + 1, NOW, 30, "claude:reset:1", seen)).toBe(false);
+    expect(pickResetWarning(soon + 1, NOW, 30, "claude:reset:2", seen)).toBe(true); // 新 resetAt = 新周期
+  });
+
+  it("超出提醒提前量/无推算/分钟数<=0 不报", () => {
+    const seen = new Set<string>();
+    expect(pickResetWarning(NOW + 60 * 60_000, NOW, 30, "k1", seen)).toBe(false); // 还有 60 分
+    expect(pickResetWarning(null, NOW, 30, "k2", seen)).toBe(false);
+    expect(pickResetWarning(NOW + 10 * 60_000, NOW, 0, "k3", seen)).toBe(false);
+    expect(seen.size).toBe(0);
   });
 });

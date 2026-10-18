@@ -167,9 +167,11 @@ export async function fetchDeepseek(key: string): Promise<VendorQuota> {
   const info = body.balance_infos?.[0];
   const currency = info?.currency?.trim() || "UNKNOWN";
   const symbol = currency === "CNY" ? "¥" : currency === "USD" ? "$" : `${currency} `;
+  const balanceNum = asNum(info?.total_balance);
   return {
     windows: [],
     balanceText: `${symbol}${info?.total_balance ?? "0"}`,
+    ...(balanceNum !== undefined ? { balanceValue: balanceNum } : {}),
     planLabel: body.is_available ? "available" : "unavailable",
   };
 }

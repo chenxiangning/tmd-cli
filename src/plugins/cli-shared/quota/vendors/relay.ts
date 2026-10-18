@@ -150,6 +150,7 @@ async function fetchSub2api(baseUrl: string, key: string): Promise<VendorQuota> 
      多于 3 的未知窗口按服务端顺序截断)。 */
   const quota: VendorQuota = { windows: windows.slice(0, 3) };
   if (balanceNum !== undefined) quota.balanceText = `${symbol}${twoDecimals(balanceNum)}`;
+  if (balanceNum !== undefined) quota.balanceValue = balanceNum;
   if (planName?.trim()) quota.planLabel = planName.trim();
   return quota;
 }
@@ -171,6 +172,7 @@ async function fetchNewApi(baseUrl: string, key: string): Promise<VendorQuota> {
   const quota: VendorQuota = {
     windows: [],
     balanceText: `$${twoDecimals(Math.max(0, quotaRaw / 500_000))}`,
+    balanceValue: Math.max(0, quotaRaw / 500_000),
   };
   const group = typeof data.group === "string" ? data.group.trim() : "";
   if (group) quota.planLabel = group;

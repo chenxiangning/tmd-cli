@@ -136,12 +136,18 @@ export interface AppSettings {
   turnEndSoundId: AskSoundId;
   /** 后台提醒:窗口失焦时激活会话完成一轮也视为未查看(标蓝 + 结束音)。 */
   backgroundNotify: boolean;
-  /** 系统通知(桌面 OS 级,notify 插件;失焦才发):Ask 等待 / 轮次结束 / 会话退出(默认关)。 */
+  /** 系统通知(桌面 OS 级,notify 插件;失焦才发):Ask 等待 / 轮次结束 / 会话退出(默认关)/ 额度预警。 */
   notifyOsAsk: boolean;
   notifyOsTurnEnd: boolean;
   notifyOsSessionExit: boolean;
+  /** 额度预警 OS 通知开关(默认开;流水不受此闸,免打扰窗另算)。 */
+  notifyOsQuota: boolean;
   /** 额度预警阈值(窗口已用 %,0 = 关;激活会话供应商轮询,一次/窗口周期)。 */
   notifyQuotaWarnPercent: number;
+  /** 余额低水位告警(绝对金额,0 = 关;仅 deepseek/relay 有余额数值)。 */
+  notifyQuotaBalanceBelow: number;
+  /** claude 窗口重置前提醒分钟数(5-240,默认 30;本地 5h 窗口尾读推算)。 */
+  notifyQuotaResetMinutes: number;
   /** 免打扰窗开关(开 = 窗口内静音 OS 通知与应用内提示音;通知中心流水照记)。 */
   notifyDndEnabled: boolean;
   /** 免打扰起止(HH:mm;支持跨夜如 22:00-08:00;起 = 止 视为全天静默)。 */

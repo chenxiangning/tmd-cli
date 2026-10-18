@@ -54,6 +54,7 @@ export function toQuotaSnapshot(
     usedLabel: "已使用",
     windows: quota.windows,
     balanceText: quota.balanceText,
+    balanceValue: quota.balanceValue,
     planLabel: quota.planLabel,
   };
 }

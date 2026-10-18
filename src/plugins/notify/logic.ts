@@ -11,14 +11,15 @@ export interface SessionLookup {
   getSessions(): Array<{ id: string; profileId: string; title?: string }>;
 }
 
-/** 通知类别:Ask 等待确认 / 轮次结束 / 会话退出。 */
-export type NotifyKind = "ask" | "turnEnd" | "exit";
+/** 通知类别:Ask 等待确认 / 轮次结束 / 会话退出 / 额度预警。 */
+export type NotifyKind = "ask" | "turnEnd" | "exit" | "quota";
 
 /** 分类开关(settings 的子集;键名与 kernel/settingsTypes 对齐)。 */
 export interface NotifyPrefs {
   notifyOsAsk: boolean;
   notifyOsTurnEnd: boolean;
   notifyOsSessionExit: boolean;
+  notifyOsQuota: boolean;
 }
 
 /**
@@ -36,6 +37,7 @@ export function shouldNotify(
   if (dnd && isDndActive(dnd)) return false;
   if (kind === "ask") return prefs.notifyOsAsk;
   if (kind === "turnEnd") return prefs.notifyOsTurnEnd;
+  if (kind === "quota") return prefs.notifyOsQuota;
   return prefs.notifyOsSessionExit;
 }
 
@@ -57,5 +59,7 @@ export function notifyText(
     return { title: t("等待确认"), body: t("「{name}」在等你确认操作", { name }) };
   if (kind === "turnEnd")
     return { title: t("轮次结束"), body: t("「{name}」完成了一轮对话", { name }) };
+  if (kind === "quota")
+    return { title: t("额度预警"), body: t("「{name}」的额度需要关注", { name }) };
   return { title: t("会话退出"), body: t("「{name}」已退出", { name }) };
 }

@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 
 import { QUOTA_WINDOW_MS, windowResetFor } from "./quotaWindow";
-import type { UsageLine } from "../cli-shared/sessionUsage";
+import type { UsageLine } from "../sessionUsage";
 
 const NOW = Date.parse("2026-09-11T12:00:00Z");
 const H = 3600_000;
