@@ -163,6 +163,10 @@ export const MESSAGES = {
   // ── 终端搜索 ──
   "终端搜索": "Terminal search",
   "搜索终端输出": "Search terminal output",
+  "区分大小写 (Aa)": "Match case (Aa)",
+  "正则表达式 (.*)": "Regular expression (.*)",
+  "{n}/{m}": "{n}/{m}",
+  "0/0": "0/0",
   "上一个 (Shift+Enter)": "Previous (Shift+Enter)",
   "下一个 (Enter)": "Next (Enter)",
   "关闭 (Esc)": "Close (Esc)",
