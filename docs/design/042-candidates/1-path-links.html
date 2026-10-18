@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 1/8 — 终端文件路径可点击</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-deep); color: #fff; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; }
+  .pill-engine { background: var(--accent-soft); color: var(--accent-deep); }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-warn { background: var(--warn-soft); color: var(--warn-deep); }
+  .pill-ok { background: var(--ok-soft); color: var(--ok-deep); }
+  .pill-err { background: var(--err-soft); color: var(--err-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  /* ---- 页级:幕布 / 文件面板两栏联动 ---- */
+  .duo { display: grid; grid-template-columns: 1.35fr 1fr; border-top: 1px solid var(--border); }
+  @media (max-width: 860px) { .duo { grid-template-columns: 1fr; } }
+  .curtain-side { padding: 16px 20px; background: #fafaf9; border-right: 1px solid var(--border); min-width: 0; }
+  .fileside { padding: 16px 20px; min-width: 0; }
+  .side-cap { font-size: 11px; color: var(--fg2); letter-spacing: .04em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .curtain { background: #1c1917; border-radius: 8px; padding: 14px 16px; font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.75; color: #d6d3d1; overflow-x: auto; }
+  .curtain .dim { color: #78716c; }
+  .curtain .err { color: #f87171; }
+  .curtain .warn { color: #fbbf24; }
+  .tlink { color: #fdba74; text-decoration: none; cursor: pointer; border-bottom: 1px solid transparent; transition: color .12s, border-color .12s; }
+  .tlink:hover, .tlink:focus-visible { color: #fb923c; border-bottom-color: #fb923c; outline: none; }
+  .tlink.miss { color: #a8a29e; }
+  .tlink.miss:hover { color: #d6d3d1; border-bottom-color: #78716c; }
+  .tlink.live { background: rgba(234,88,12,.28); border-radius: 3px; }
+  .hintline { font-size: 12px; color: var(--fg2); margin-top: 10px; }
+  /* 文件面板 */
+  .files-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+  .files-path { font-family: ui-monospace, Menlo, monospace; font-weight: 600; }
+  .code { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; line-height: 1.9; background: var(--card); }
+  .code .crow { display: flex; gap: 12px; padding: 0 12px; white-space: pre; color: var(--fg2); transition: background .2s; }
+  .code .ln { width: 22px; text-align: right; color: #a8a29e; user-select: none; flex-shrink: 0; }
+  .code .crow.hit { background: var(--accent-soft); color: var(--fg); font-weight: 500; }
+  .code .crow.hit .ln { color: var(--accent-deep); font-weight: 700; }
+  .files-empty { font-size: 12px; color: var(--fg2); border: 1px dashed var(--border); border-radius: 8px; padding: 18px; text-align: center; }
+  /* ---- 页级:识别范围 / 误报 / 边界 表格 ---- */
+  .trows { padding: 6px 0; }
+  .trow { display: flex; align-items: baseline; gap: 14px; padding: 9px 20px; border-top: 1px solid #f0f0ee; flex-wrap: wrap; }
+  .trow:first-child { border-top: none; }
+  .trow .tlabel { width: 168px; flex-shrink: 0; font-size: 12.5px; font-weight: 600; }
+  .trow .texample { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; background: #fafaf9; border: 1px solid var(--border); border-radius: 5px; padding: 1px 8px; }
+  .trow .tnote { font-size: 12px; color: var(--fg2); flex: 1; min-width: 180px; }
+  .arrow { color: var(--accent); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .toast, .tlink, .code .crow { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+  <div class="page-header">
+    <div class="badge">0.4.0 候选 · 1/8(新特性 · 深化版)</div>
+    <h1>终端文件路径可点击</h1>
+    <p class="page-desc">提案:在 terminalLinks 的链接提供者注册表上追加「本地路径[:行号]」TerminalLinkProvider,点击幕布内路径直达文件面板对应行。关键裁决:复用现成的聚合单 ILinkProvider 通道与 marks 回链先例,不引第二套链接机制;识别在 provideLinks 快路径完成,非路径文本零开销返回空。</p>
+  </div>
+
+  <!-- 主流程:两栏联动示意 -->
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">主流程 · 点击路径 → 文件面板定位
+        <span class="panel-sub">循先例:src/kernel/terminalLinks.ts:38 注册表已聚合单 ILinkProvider,marks 插件即经此回链</span>
+      </div>
+      <button class="btn" id="resetDemo" type="button">复位演示</button>
+    </div>
+    <div class="duo">
+      <div class="curtain-side">
+        <div class="side-cap">幕布 · 引擎输出(示例:claude 会话,cwd = ~/code/AI/github/tmd-cli)</div>
+        <div class="curtain"><span class="dim">$ claude "修复 sidebar 折叠态不同步"</span>
+<span class="err">ERROR</span> in src/kernel/sidebarSync.ts:112 —
+  Cannot read properties of undefined (reading 'collapsed')
+    at syncGroupState (src/kernel/sidebarSync.ts:112:19)
+    at ~/code/AI/github/tmd-cli/src/plugins/workspace/SessionList.tsx:88
+<span class="warn">WARN</span> codex: 2 similar hits in src/kernel/sidebarSync.ts:40, src/kernel/sidebarSync.ts:121
+<span class="dim">diff --git a/src/plugins/workspace/SessionList.tsx b/src/plugins/workspace/SessionList.tsx</span>
+<span class="dim">hint: 相关配置见 ~/.config/tmd-cli/settings.toml</span></div>
+        <p class="hintline">交互:hover 路径出下划线 + 光标 pointer;点击后<b>右栏文件面板</b>打开该文件并滚到行(幕布侧零二次渲染,无闪帧高亮)。灰色路径(<span class="tlink miss">~/.config/tmd-cli/settings.toml</span> 会话外路径)与不存在文件<b>静默不跳</b>(循 marks「解析失败静默」先例)。已知天花板:相对路径按会话 spawn 时 cwd 解析,PTY 内 cd 后不追踪(OSC 7 追踪多平台差异大,S 项不做,文件头注释如实钉明)。</p>
+      </div>
+      <div class="fileside">
+        <div class="side-cap">文件面板 · 联动结果</div>
+        <div class="files-head">
+          <span class="files-path" id="filePath">未打开文件</span>
+          <span class="pill pill-grey" id="filePos" style="display:none;"></span>
+        </div>
+        <div class="files-empty" id="fileEmpty">文件面板空闲 · 点击左侧幕布中的路径试试</div>
+        <div class="code" id="codeBox" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 识别范围 -->
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">识别范围 <span class="panel-sub">provideLinks 逐行正则命中即出链接;相对路径按会话 cwd 解析</span></div>
+      <span class="pill pill-engine">路径形态 5 类</span>
+    </div>
+    <div class="trows">
+      <div class="trow"><span class="tlabel">相对路径 + 行号</span><span class="texample">src/foo.ts:42</span><span class="tnote">最常见形态,引擎报错主力;按会话 cwd 拼绝对路径后校验存在</span></div>
+      <div class="trow"><span class="tlabel">行:列</span><span class="texample">src/kernel/sidebarSync.ts:112:19</span><span class="tnote">列号忽略,只跳行(reveal 契约仅 line)</span></div>
+      <div class="trow"><span class="tlabel">裸相对路径</span><span class="texample">src/foo.ts</span><span class="tnote">无行号 → 只打开文件,滚动到顶部</span></div>
+      <div class="trow"><span class="tlabel">绝对路径</span><span class="texample">~/code/AI/github/tmd-cli/src/plugins/workspace/SessionList.tsx:88</span><span class="tnote">含 ~ 展开;绝对路径不做 cwd 拼接,直接校验</span></div>
+      <div class="trow"><span class="tlabel">Windows 盘符</span><span class="texample">D:\src\a.ts:12</span><span class="tnote">反斜杠形态单列识别,防止盘符冒号被误当行号分隔</span></div>
+    </div>
+  </div>
+
+  <!-- 误报防线 -->
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">误报防线 <span class="panel-sub">provideLinks 逐行高频调用——快路径先过「是否像路径」再触碰文件系统,非路径文本返回空数组,零 I/O</span></div>
+      <span class="pill pill-warn">性能红线</span>
+    </div>
+    <div class="trows">
+      <div class="trow"><span class="tlabel">版本号</span><span class="texample">v1.2.3 · 0.4.1-rc.2</span><span class="tnote"><span class="arrow">→</span> 不命中:无路径分隔符,正则前置排除纯数字段</span></div>
+      <div class="trow"><span class="tlabel">时间戳</span><span class="texample">2026-10-18T10:00:00Z</span><span class="tnote"><span class="arrow">→</span> 不命中:冒号后非纯数字段,ISO 形态显式排除</span></div>
+      <div class="trow"><span class="tlabel">比例 / 端口</span><span class="texample">3:2 · 127.0.0.1:1421</span><span class="tnote"><span class="arrow">→</span> 不命中:无扩展名与分隔符;URL 形态交还 WebLinksAddon</span></div>
+      <div class="trow"><span class="tlabel">已删 / 不存在</span><span class="texample">src/foo.ts:42</span><span class="tnote"><span class="arrow">→</span> 快路径阶段不查盘(高频),点击时才校验,见下节边界态</span></div>
+    </div>
+  </div>
+
+  <!-- 边界态 -->
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">边界态 <span class="panel-sub">点击时才做存在性校验;区外/不存在静默(循 marks 先例),行号越界由 CodeMirror clamp 到文件尾,均无提示</span></div>
+      <button class="btn" id="btnMiss" type="button">演示 · 文件已删</button>
+      <button class="btn" id="btnOob" type="button">演示 · 行号越界</button>
+    </div>
+    <div class="trows">
+      <div class="trow"><span class="tlabel">cwd 不存在 / 文件已删 / 会话外路径</span><span class="texample">session cwd 已移除</span><span class="tnote"><span class="arrow">→</span> 点击时校验失败 → <b>静默不跳</b>,文件面板保持原状(toast 噪音方案被否,与 marks「解析失败静默」一致)</span></div>
+      <div class="trow"><span class="tlabel">行号越界</span><span class="texample">src/foo.ts:9999</span><span class="tnote"><span class="arrow">→</span> 打开文件,CodeMirror clamp 到文件尾定位,无额外提示(reveal 契约只有 line)</span></div>
+      <div class="trow"><span class="tlabel">文件面板已占</span><span class="texample">正看着别的文件</span><span class="tnote"><span class="arrow">→</span> 在现有标签内切换定位,不新开标签;复用文件面板既有打开语义</span></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>notes · 行为边界与明确不做</h2>
+    <ul>
+      <li><strong>注册位置:</strong>provider(识别+打开)整体落 <span class="texample">src/plugins/files/terminalPathLinks.ts</span>(≤60 行,PATH_RE + provider 导出供单测),files/index.tsx 的 activate 内经 ctx.registerTerminalLinkProvider 注册,kernel 零改动。正则由 marks 的 ABS_PATH_RE 判定思路复制自包含——一个正则不值跨插件契约;也<b>不进 cli-shared</b>(cli-shared 是 CLI 转录解析层,单插件语义被禁,此归属被否);marks 回链与 WebLinksAddon 行为不变。</li>
+      <li><strong>明确不做 · 幕布内文件预览 / 内嵌 diff:</strong>PTY 透传红线,幕布只负责出链接,渲染一律进文件面板。</li>
+      <li><strong>明确不做 · URL 链接:</strong>WebLinksAddon 已覆盖 http(s),路径 provider 正则显式让位,不重复出链接。</li>
+      <li><strong>明确不做 · markdown 渲染 / 代码高亮:</strong>幕布内容保持引擎原样透传,不做二次排版。</li>
+      <li><strong>行为边界:</strong>存在性校验只在点击时发生一次;hover 阶段零 I/O,保证逐行 provideLinks 的开销封顶在正则快路径。</li>
+      <li><strong>示例声明:</strong>本页仅表达交互形态,不承诺实现;幕布文案为虚构示例。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子:</b>src/kernel/terminalLinks.ts:38 链接提供者注册表(聚合单 ILinkProvider,现唯一消费者 marks 插件,先例 terminalLink.ts 即 openFileAtLine + requestReveal) · src/kernel/fileTabs.ts:25-46 openFileAtLine 现成 · WebLinksAddon 只认 URL。<b>成本:</b>S(provider ≤60 行 + files/index.tsx 注册一行,kernel 零改动)。<b>风险:</b>相对路径按会话 spawn 时 cwd 解析,PTY 内 cd 后不追踪(天花板如实写入文件头注释;OSC 7 shell 集成追踪被否——多平台差异 S 项装不下)。<b>验证:</b>正则单测矩阵——绝对/相对/盘符/UNC/:line/:line:col/URL 排除/空格路径/无扩展名反例/root 拼接/区外静默;1421 桩目检——hover pointer 光标、点击开 tab 滚到位、冻结快照回放后点击仍通。<b>设置:</b>零新键。</p>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var toastEl = document.getElementById("toast");
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 2600);
+  }
+
+  var filePathEl = document.getElementById("filePath");
+  var filePosEl = document.getElementById("filePos");
+  var fileEmptyEl = document.getElementById("fileEmpty");
+  var codeBoxEl = document.getElementById("codeBox");
+
+  var FILES = {
+    "src/kernel/sidebarSync.ts": [
+      "import { workspaceBus } from \"./bus\";",
+      "",
+      "export function syncGroupState(groups) {",
+      "  for (const g of groups) {",
+      "    if (g.children.length === 0) continue;",
+      "    const collapsed = g.state.collapsed;",
+      "    g.header.classList.toggle(\"is-collapsed\", collapsed);",
+      "  }",
+      "  workspaceBus.emit(\"sidebar:synced\");",
+      "}",
+      "",
+      "// TODO: 折叠态持久化待接 settings.v1"
+    ],
+    "src/plugins/workspace/SessionList.tsx": [
+      "export function SessionList({ workspace }) {",
+      "  const [rows, setRows] = useState([]);",
+      "  useEffect(() => {",
+      "    return workspaceBus.on(\"sidebar:synced\", refresh);",
+      "  }, []);",
+      "  return (",
+      "    <div className=\"session-list\">",
+      "      {rows.map((r) => <ThreadRow key={r.id} row={r} />)}",
+      "    </div>",
+      "  );",
+      "}"
+    ]
+  };
+
+  var firstHit = true;
+
+  function renderFile(path, line, mode) {
+    var lines = FILES[path];
+    filePathEl.textContent = path;
+    fileEmptyEl.style.display = "none";
+    codeBoxEl.style.display = "";
+    var html = "";
+    for (var i = 0; i < lines.length; i++) {
+      var n = i + 1;
+      var hit = mode === "line" && line === n;
+      html += '<div class="crow' + (hit ? " hit" : "") + '"><span class="ln">' + n + "</span><span>" +
+        lines[i].replace(/&/g, "&amp;").replace(/</g, "&lt;") + "</span></div>";
+    }
+    codeBoxEl.innerHTML = html;
+    filePosEl.style.display = "";
+    if (mode === "line") {
+      filePosEl.textContent = "第 " + line + " 行";
+      filePosEl.className = "pill pill-engine";
+    } else {
+      filePosEl.textContent = "已打开 · 未滚行";
+      filePosEl.className = "pill pill-warn";
+    }
+    var hitEl = codeBoxEl.querySelector(".crow.hit");
+    if (hitEl && firstHit) { firstHit = false; }
+  }
+
+  function openPath(path, line) {
+    if (!FILES[path]) {
+      return; /* 区外/不存在:静默不跳,文件面板保持原状(循 marks 先例) */
+    }
+    if (line != null && line > FILES[path].length) {
+      line = FILES[path].length; /* 行号越界:CodeMirror clamp 到文件尾,无提示 */
+    }
+    renderFile(path, line, line != null ? "line" : "open");
+  }
+
+  var live = [
+    ["src/kernel/sidebarSync.ts", 112],
+    ["src/kernel/sidebarSync.ts", 112, 19],
+    ["~/code/AI/github/tmd-cli/src/plugins/workspace/SessionList.tsx", 88],
+    ["src/kernel/sidebarSync.ts", 40],
+    ["src/kernel/sidebarSync.ts", 121],
+    ["src/plugins/workspace/SessionList.tsx", null]
+  ];
+
+  var curtain = document.querySelector(".curtain");
+  var walk = function (node) {
+    if (node.nodeType !== 3) { Array.prototype.forEach.call(node.childNodes, walk); return; }
+    var text = node.nodeValue;
+    var idx = -1, found = null;
+    for (var i = 0; i < live.length; i++) {
+      var p = live[i][0];
+      var at = text.indexOf(p);
+      if (at !== -1 && (found === null || at < idx)) { idx = at; found = live[i]; }
+    }
+    if (!found) return;
+    var frag = document.createDocumentFragment();
+    var start = idx, end = idx + found[0].length;
+    if (start > 0) frag.appendChild(document.createTextNode(text.slice(0, start)));
+    var a = document.createElement("span");
+    a.className = "tlink";
+    a.href = "javascript:void(0)";
+    a.setAttribute("role", "link");
+    a.setAttribute("tabindex", "0");
+    a.textContent = found[0];
+    a.dataset.path = found[0].replace("~/code/AI/github/tmd-cli/", "");
+    a.dataset.line = found[1] == null ? "" : String(found[1]);
+    frag.appendChild(a);
+    if (end < text.length) frag.appendChild(document.createTextNode(text.slice(end)));
+    node.parentNode.replaceChild(frag, node);
+  };
+  walk(curtain);
+
+  curtain.addEventListener("click", function (e) {
+    var t = e.target.closest ? e.target.closest(".tlink") : null;
+    if (!t) return;
+    Array.prototype.forEach.call(curtain.querySelectorAll(".tlink.live"), function (x) { x.classList.remove("live"); });
+    t.classList.add("live");
+    openPath(t.dataset.path, t.dataset.line === "" ? null : parseInt(t.dataset.line, 10));
+  });
+  curtain.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var t = e.target.closest ? e.target.closest(".tlink") : null;
+    if (t) { e.preventDefault(); t.click(); }
+  });
+
+  document.getElementById("resetDemo").addEventListener("click", function () {
+    filePathEl.textContent = "未打开文件";
+    filePosEl.style.display = "none";
+    fileEmptyEl.style.display = "";
+    codeBoxEl.style.display = "none";
+    codeBoxEl.innerHTML = "";
+    Array.prototype.forEach.call(curtain.querySelectorAll(".tlink.live"), function (x) { x.classList.remove("live"); });
+  });
+
+  document.getElementById("btnMiss").addEventListener("click", function () {
+    openPath("src/deleted/ghost.ts", 42); /* 真实行为:静默;toast 仅为演示说明 */
+    toast("示意:文件不存在 → 静默不跳,文件面板保持原状(循 marks 先例)");
+  });
+  document.getElementById("btnOob").addEventListener("click", function () {
+    openPath("src/kernel/sidebarSync.ts", 9999); /* 真实行为:clamp 到文件尾 */
+    toast("示意:行号越界 → 已打开并 clamp 到文件尾,无额外提示");
+  });
+})();
+</script>
+</body>
+</html>

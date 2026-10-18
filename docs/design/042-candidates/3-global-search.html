@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 3/8 — 跨工作区全局检索 chip</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-deep); color: #fff; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; }
+  .pill-engine { background: var(--accent-soft); color: var(--accent-deep); }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-warn { background: var(--warn-soft); color: var(--warn-deep); }
+  .pill-ok { background: var(--ok-soft); color: var(--ok-deep); }
+  .steps { padding: 14px 20px; border-top: 1px solid var(--border); background: #fafaf9; }
+  .steps h3 { font-size: 13px; margin-bottom: 8px; }
+  .lane { display: flex; gap: 6px; flex-wrap: wrap; }
+  .step { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--fg2); background: var(--card); transition: all .2s; }
+  .step.on { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); font-weight: 600; }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes h3 { font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li.no::before { background: #a8a29e; border-radius: 0; transform: rotate(45deg); top: 7px; }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 页级:搜索浮层示意 */
+  .overlay { border: 1px solid var(--border); border-radius: 12px; margin: 20px; box-shadow: 0 8px 24px rgba(0,0,0,.10); overflow: hidden; background: var(--card); }
+  .ov-search { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .ov-glyph { width: 18px; height: 18px; flex-shrink: 0; color: var(--fg2); }
+  .ov-input { flex: 1; font-size: 14px; color: var(--fg); min-width: 0; }
+  .ov-input .caret { display: inline-block; width: 1px; height: 15px; background: var(--accent); vertical-align: -2px; margin-right: 1px; }
+  .ov-input .typed { color: var(--fg); }
+  .ov-kbd { font-size: 11px; color: var(--fg2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; background: #fafaf9; white-space: nowrap; }
+  .chips { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; background: #fafaf9; }
+  .chip { font-size: 12px; border: 1px solid var(--border); border-radius: 999px; padding: 3px 12px; color: var(--fg2); background: var(--card); cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+  .chip:hover { border-color: var(--accent); color: var(--accent-deep); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .chip.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-deep); font-weight: 600; }
+  .chip-group-label { font-size: 11px; color: var(--fg2); letter-spacing: .04em; }
+  .chip-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+  .results { max-height: none; }
+  .hit { display: flex; align-items: center; gap: 12px; padding: 10px 16px; cursor: pointer; border-bottom: 1px solid #f0f0ee; }
+  .hit:last-child { border-bottom: none; }
+  .hit:hover, .hit.sel { background: #fafaf9; }
+  .hit.sel { box-shadow: inset 3px 0 0 var(--accent); }
+  .hit-glyph { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+  .hit-body { flex: 1; min-width: 0; }
+  .hit-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hit-snip { font-size: 12px; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hit-snip mark { background: var(--accent-soft); color: var(--accent-deep); padding: 0 2px; border-radius: 3px; }
+  .hit-meta { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+  .ov-foot { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; font-size: 12px; color: var(--fg2); background: #fafaf9; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+  .progress { display: flex; align-items: center; gap: 8px; }
+  .progress-bar { width: 120px; height: 4px; border-radius: 999px; background: var(--border); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s; }
+  .empty { padding: 32px 16px; text-align: center; color: var(--fg2); }
+  .empty .etitle { font-size: 13px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+  .empty .esub { font-size: 12px; }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .duo > .empty:first-child { border-right: 1px solid var(--border); }
+  @media (max-width: 760px) { .duo { grid-template-columns: 1fr; } .duo > .empty:first-child { border-right: none; border-bottom: 1px solid var(--border); } }
+  @media (prefers-reduced-motion: reduce) { .toast, .step, .chip, .progress-fill { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 3/8(新特性 · 深化版)</span>
+    <h1>跨工作区全局检索 chip</h1>
+    <p class="page-desc">提案:搜索浮层加作用域 chip「本工作区 / 全部工作区」,「全部」态遍历 getWorkspaces() 各 root 复用同一 SessionIndexer,命中行带工作区名 pill;关键裁决:prime() 缓存剪枝按 cwd 命名空间留存 + 全局条目 LRU 上限 3000 双管齐下,否则切作用域互踢缓存。示例仅表达交互形态,不承诺实现。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">搜索浮层 · 作用域 chip 段 <span class="panel-sub">循 0.4.0 页 5 搜索增强先例:引擎 chip + 时间 chip 已有,本页只加一段</span></div>
+      <button class="btn" id="replay-scan">重放扫描进度</button>
+    </div>
+
+    <div class="overlay">
+      <div class="ov-search">
+        <svg class="ov-glyph" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="9" cy="9" r="6"></circle><path d="m13.5 13.5 4 4"></path></svg>
+        <span class="ov-input"><span class="caret"></span><span class="typed">quota_window 推算</span></span>
+        <span class="ov-kbd">↑↓ 选择</span>
+        <span class="ov-kbd">Enter resume</span>
+        <span class="ov-kbd">Esc 关闭</span>
+      </div>
+      <div class="chips" role="group" aria-label="检索过滤">
+        <span class="chip-group-label">作用域</span>
+        <button class="chip scope on" data-scope="ws" aria-pressed="true">本工作区</button>
+        <button class="chip scope" data-scope="all" aria-pressed="false">全部工作区(7)</button>
+        <span class="chip-sep" aria-hidden="true"></span>
+        <span class="chip-group-label">引擎</span>
+        <button class="chip eng on">omp</button>
+        <button class="chip eng">claude</button>
+        <button class="chip eng">codex</button>
+        <span class="chip-sep" aria-hidden="true"></span>
+        <span class="chip-group-label">时间</span>
+        <button class="chip on">近 7 天</button>
+        <button class="chip">近 30 天</button>
+        <button class="chip">全部</button>
+      </div>
+
+      <div class="results" id="results-ws">
+        <div class="hit sel" data-kind="local" role="button" tabindex="0">
+          <span class="hit-glyph">▶</span>
+          <div class="hit-body">
+            <div class="hit-name">5h 限额窗口推算落地 <span class="pill pill-engine">omp</span><span class="pill pill-grey">今天 14:02</span></div>
+            <div class="hit-snip">窗口边界回溯集合为 <mark>ts &gt; L-5h</mark>,resetAt = windowStart + 5h……</div>
+          </div>
+        </div>
+        <div class="hit" data-kind="local" role="button" tabindex="0">
+          <span class="hit-glyph">▶</span>
+          <div class="hit-body">
+            <div class="hit-name">quotaWindow 纯函数测试 <span class="pill pill-engine">claude</span><span class="pill pill-grey">昨天 21:47</span></div>
+            <div class="hit-snip">修正为严格大于后 6 用例全过,<mark>ts == L-5h</mark> 不属窗口……</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="results" id="results-all" hidden>
+        <div class="hit" data-kind="cross" role="button" tabindex="0">
+          <span class="hit-glyph">▶</span>
+          <div class="hit-body">
+            <div class="hit-name">5h 限额窗口推算落地 <span class="pill pill-grey">tmd-cli</span><span class="pill pill-engine">omp</span><span class="pill pill-grey">今天 14:02</span></div>
+            <div class="hit-snip">窗口边界回溯集合为 <mark>ts &gt; L-5h</mark>,其余家族返回 null 不猜测兜底……</div>
+          </div>
+          <div class="hit-meta"><span class="pill pill-grey">~/code/AI/github/tmd-cli</span></div>
+        </div>
+        <div class="hit" data-kind="cross" role="button" tabindex="0">
+          <span class="hit-glyph">▶</span>
+          <div class="hit-body">
+            <div class="hit-name">TokenDashboard 窗口子组件 <span class="pill pill-grey">tmd-cli</span><span class="pill pill-engine">codex</span><span class="pill pill-grey">今天 01:45</span></div>
+            <div class="hit-snip">拆独立 <mark>TokenDashboardWindow</mark>.tsx(70 行)避免主文件超 300 行……</div>
+          </div>
+          <div class="hit-meta"><span class="pill pill-grey">~/code/AI/github/tmd-cli</span></div>
+        </div>
+        <div class="hit" data-kind="cross" role="button" tabindex="0">
+          <span class="hit-glyph">▶</span>
+          <div class="hit-body">
+            <div class="hit-name">GLM 配额窗口调研 <span class="pill pill-grey">glm-vision</span><span class="pill pill-engine">kimi</span><span class="pill pill-grey">10-14 09:20</span></div>
+            <div class="hit-snip">MCP 路径按调用路径判套餐额度,<mark>quota</mark> 口径与 CLI 直连不同……</div>
+          </div>
+          <div class="hit-meta"><span class="pill pill-grey">~/code/AI/glm-vision</span></div>
+        </div>
+        <div class="hit" data-kind="gone" role="button" tabindex="0" title="该工作区已移走,无法跳转">
+          <span class="hit-glyph">▶</span>
+          <div class="hit-body">
+            <div class="hit-name">hermes 引擎配额巡检 <span class="pill pill-warn">工作区已移走</span><span class="pill pill-engine">grok</span><span class="pill pill-grey">10-11 16:33</span></div>
+            <div class="hit-snip">root 复核失败的角色行标灰,点击提示不静默跳转(worktreeSession 先例)……</div>
+          </div>
+          <div class="hit-meta"><span class="pill pill-warn">~/code/AI/hermes-old</span></div>
+        </div>
+      </div>
+
+      <div class="results" id="results-empty-ws" hidden>
+        <div class="empty">
+          <div class="etitle">本工作区没有匹配「quota_window 推算」的会话</div>
+          <div class="esub">换个关键词,或切到「全部工作区」再试——其他 6 个工作区可能有命中。</div>
+        </div>
+      </div>
+
+      <div class="results" id="results-empty-all" hidden>
+        <div class="empty">
+          <div class="etitle">全部 7 个工作区都没有匹配「quota_window 推算」的会话</div>
+          <div class="esub">索引只覆盖会话标题与摘要;助手消息正文不在检索范围(041 裁决缓行)。</div>
+        </div>
+      </div>
+
+      <div class="ov-foot">
+        <span id="foot-count">2 条命中 · 本工作区(tmd-cli)</span>
+        <span class="progress" id="scan-progress" hidden>
+          <span id="scan-label">正在扫描 1/7 个工作区</span>
+          <span class="progress-bar"><span class="progress-fill" id="scan-fill" style="width:14%"></span></span>
+        </span>
+        <span>Enter = resume + 行级定位(openThenJumpToText 复用)</span>
+      </div>
+    </div>
+
+    <div class="steps">
+      <h3>跨工作区命中跳转时序(时序桥已有,先切后跳)</h3>
+      <div class="lane" id="lane">
+        <span class="step">↑↓ 选中命中行</span>
+        <span class="step">Enter</span>
+        <span class="step">目标 ≠ 当前 → setActiveWorkspace(桥)</span>
+        <span class="step">resume 该会话</span>
+        <span class="step">openThenJumpToText 行级定位</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar"><div class="panel-title">全部作用域 · 索引量边界 <span class="panel-sub">indexerTicks 宏任务节奏先例,扫描不卡浮层输入</span></div>
+      <button class="btn" id="try-empty-ws">试看「本区 0 条」</button>
+      <button class="btn" id="try-empty-all">试看「全部 0 条」</button>
+    </div>
+    <div style="padding:14px 20px;">
+      <div class="frow" style="margin-bottom:0;">
+        <span class="flabel">进度提示</span>
+        <span class="fval"><span class="pill pill-grey">浮层底部行内进度条,不弹窗不遮输入</span><span class="pill pill-grey">扫描期间命中增量上屏,可边扫边选</span><span class="pill pill-warn">切回「本工作区」即中止扫描</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>行为边界与明确不做</h2>
+    <h3>行为边界</h3>
+    <ul>
+      <li><strong>作用域只是过滤器段</strong>:引擎 / 时间 chip 行为不变;切「全部」= 遍历 getWorkspaces() 各 root 逐个喂同一 SessionIndexer,不新建第二条索引管线。</li>
+      <li><strong>prime() 剪枝(定稿)</strong>:cwd 命名空间留存 + 全局条目 LRU 上限 3000 双管齐下——prime 只剪「cwd===本次 && 不在 live 集」的键,超量按最近使用淘汰;纯 LRU 会把本区热缓存挤光(回到互踢),纯命名空间无失控护栏。扫描节奏加 12ms 时间盒排空(缓存命中步连做,真读步维持 60ms 间隔),否则全部态暖缓存也要分钟级。</li>
+      <li><strong>命中行三 pill</strong>:工作区名(deriveWorkspaceName 现成)+ 引擎 + 时间;本工作区态不显示工作区 pill,减少噪音。</li>
+      <li><strong>失效工作区</strong>:root 复核失败的命中标灰 + 「工作区已移走」pill,可看不可跳——点击仅 toast 提示,不跑跳转(定稿:被否「cwd 在就跳」,开出的会话 workspaceId 为空、侧栏永不可见,比不跳更坑)。</li>
+      <li><strong>扫描节奏</strong>:复用 indexerTicks 宏任务切片,逐工作区上报进度「正在扫描 N/M 个工作区」;期间键盘选择不受影响。</li>
+      <li><strong>键盘契约不变</strong>:↑↓ 选择、Enter = 先切工作区(时序桥已有)再 resume + openThenJumpToText 行级定位,Esc 关闭,零新快捷键。</li>
+      <li><strong>设置口径</strong>:零新键——作用域 chip 为浮层局部 state,不持久化,关掉浮层再开回到「本工作区」。</li>
+    </ul>
+    <h3>明确不做</h3>
+    <ul>
+      <li class="no"><strong>助手消息入全局索引</strong>:041 已裁决缓行,替身见 041 组页 5(搜索增强);本页只索引会话标题与摘要,口径与现状一致。</li>
+      <li class="no"><strong>FTS5 / 倒排 / 向量检索</strong>:维持 mtime 缓存懒扫描 + 开浮层 re-prime,不引存储引擎。</li>
+      <li class="no"><strong>定时刷新 / 后台常驻索引</strong>:不建后台任务,索引生命周期跟随浮层。</li>
+      <li class="no"><strong>跨工作区合并排序算法</strong>:各工作区命中按现有时序归并展示,不做相关性打分。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:SessionIndexer(引擎无关,mtime 懒扫描)+ SearchOverlay(引擎/时间 chip + ↑↓/Enter/Esc)+ openThenJumpToText 行级定位 + 切工作区时序桥 + deriveWorkspaceName + indexerTicks 宏任务节奏。<b>成本</b>:中。<b>风险</b>:prime() 剪枝改造影响面(已定稿:命名空间留存+LRU 3000,见行为边界);indexer.ts 已 279 行,先拆 searchCore.ts 再动;7+ 工作区首扫时长(时间盒排空兜)。<b>验证</b>:本区/全部双态切换缓存不互踢;跨工作区命中 Enter 后落在正确工作区与行;扫描中输入不卡顿、切回本区即中止;空结果双态文案可区分。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const results = {
+    "ws":  document.getElementById("results-ws"),
+    "all": document.getElementById("results-all"),
+    "empty-ws":  document.getElementById("results-empty-ws"),
+    "empty-all": document.getElementById("results-empty-all")
+  };
+  const footCount = document.getElementById("foot-count");
+  const footDefault = footCount.textContent;
+  const state = { scope: "ws", empty: false, scanTimer: null, sel: 0 };
+
+  function show(which) {
+    Object.keys(results).forEach((k) => { results[k].hidden = (k !== which); });
+  }
+  function updateFoot() {
+    if (state.empty) {
+      footCount.textContent = state.scope === "ws" ? "0 条命中 · 本工作区" : "0 条命中 · 全部工作区";
+    } else if (state.scope === "ws") {
+      footCount.textContent = "2 条命中 · 本工作区(tmd-cli)";
+    } else {
+      footCount.textContent = "4 条命中 · 全部工作区(含 1 个已移走)";
+    }
+  }
+
+  document.querySelectorAll(".chip.scope").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".chip.scope").forEach((c) => {
+        const on = c === chip;
+        c.classList.toggle("on", on);
+        c.setAttribute("aria-pressed", String(on));
+      });
+      state.scope = chip.dataset.scope;
+      state.empty = false;
+      clearInterval(state.scanTimer);
+      document.getElementById("scan-progress").hidden = true;
+      show(state.scope === "ws" ? "ws" : "all");
+      updateFoot();
+      if (state.scope === "all") showToast("「全部」态:遍历 7 个工作区复用同一 SessionIndexer;prime 剪枝改按 cwd 命名空间防互踢");
+    });
+  });
+
+  document.querySelectorAll(".chip.eng").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      chip.classList.toggle("on");
+      showToast("引擎 chip 行为不变(0.4.0 页 5 先例):多选过滤当前作用域命中");
+    });
+  });
+
+  function bindHits(root) {
+    root.querySelectorAll(".hit").forEach((hit) => {
+      const go = () => {
+        if (hit.dataset.kind === "gone") {
+          showToast("该工作区已移走,无法跳转"); // 定稿:不跑跳转 lane,被否「cwd 在就跳」会开出 workspaceId 为空的会话
+        } else if (hit.dataset.kind === "cross") {
+          runLane("目标 ≠ 当前 → setActiveWorkspace(桥)");
+          showToast("跨工作区命中:先切工作区(时序桥)→ resume → openThenJumpToText 行级定位");
+        } else {
+          runLane(null);
+          showToast("本区命中:直接 resume + 行级定位,键盘契约不变");
+        }
+      };
+      hit.addEventListener("click", go);
+      hit.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+      hit.addEventListener("mouseenter", () => {
+        root.querySelectorAll(".hit").forEach((h) => h.classList.remove("sel"));
+        hit.classList.add("sel");
+      });
+    });
+  }
+  Object.values(results).forEach(bindHits);
+
+  function runLane() {
+    const steps = document.querySelectorAll("#lane .step");
+    steps.forEach((s) => s.classList.remove("on"));
+    if (reduceMotion) { steps.forEach((s) => s.classList.add("on")); return; }
+    let i = 0;
+    const step = () => {
+      if (i >= steps.length) return;
+      steps[i].classList.add("on");
+      i++;
+      setTimeout(step, 520);
+    };
+    step();
+  }
+
+  document.getElementById("replay-scan").addEventListener("click", () => {
+    const prog = document.getElementById("scan-progress");
+    const fill = document.getElementById("scan-fill");
+    const label = document.getElementById("scan-label");
+    clearInterval(state.scanTimer);
+    prog.hidden = false;
+    let n = 1;
+    const tick = () => {
+      label.textContent = "正在扫描 " + n + "/7 个工作区";
+      fill.style.width = Math.round(n / 7 * 100) + "%";
+      if (n >= 7) {
+        clearInterval(state.scanTimer);
+        setTimeout(() => { prog.hidden = true; showToast("扫描完成:4 条命中增量上屏,期间输入与 ↑↓ 选择不中断"); }, reduceMotion ? 0 : 600);
+        return;
+      }
+      n++;
+      state.scanTimer = setTimeout(tick, reduceMotion ? 0 : 520);
+    };
+    tick();
+    showToast("indexerTicks 宏任务切片:逐工作区扫,浮层可边扫边选;切回「本工作区」即中止");
+  });
+
+  document.getElementById("try-empty-ws").addEventListener("click", () => {
+    state.empty = true; state.scope = "ws";
+    show("empty-ws"); updateFoot();
+    showToast("空结果双态:本区 0 条 → 引导切「全部工作区」,不静默放空");
+  });
+  document.getElementById("try-empty-all").addEventListener("click", () => {
+    state.empty = true; state.scope = "all";
+    show("empty-all"); updateFoot();
+    showToast("空结果双态:全部 0 条 → 说明索引口径(标题+摘要),与 041 助手消息裁决呼应");
+  });
+</script>
+</body>
+</html>

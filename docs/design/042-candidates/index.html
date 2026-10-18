@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0.4.0 批次候选规划(混合版 · 深化示例)· 导航</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; background: #f6f6f4; color: #1c1917; line-height: 1.6; padding: 48px 24px; }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .sub { color: #57534e; font-size: 14px; margin-bottom: 6px; }
+  .feas { font-size: 13px; margin-bottom: 20px; }
+  .feas a { color: #2563eb; }
+  .angle { background: #fff; border: 1px solid #e4e4e0; border-left: 3px solid #ea580c; border-radius: 10px; padding: 12px 18px; font-size: 13px; color: #57534e; margin-bottom: 14px; }
+  .angle b { color: #1c1917; font-weight: 600; }
+  .moved { background: #fff; border: 1px solid #e4e4e0; border-left: 3px solid #92400e; border-radius: 10px; padding: 12px 18px; font-size: 13px; color: #57534e; margin-bottom: 14px; }
+  .debt { background: #fff; border: 1px solid #e4e4e0; border-left: 3px solid #15803d; border-radius: 10px; padding: 12px 18px; font-size: 13px; color: #57534e; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  a.card { display: block; background: #fff; border: 1px solid #e4e4e0; border-radius: 10px; padding: 16px 18px; text-decoration: none; color: inherit; box-shadow: 0 1px 3px rgba(0,0,0,.06); transition: border-color .15s, box-shadow .15s; cursor: pointer; }
+  a.card:hover { border-color: #ea580c; box-shadow: 0 2px 8px rgba(234,88,12,.12); }
+  .num { font-size: 12px; color: #ea580c; font-weight: 600; }
+  .name { font-size: 16px; font-weight: 600; margin: 2px 0 4px; }
+  .desc { font-size: 13px; color: #57534e; }
+  .base { font-size: 12px; color: #15803d; margin-top: 4px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: #ffedd5; color: #9a3412; margin-top: 8px; }
+  .tag.star { background: #ffedd5; color: #9a3412; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>0.4.0 批次候选规划(混合版 · 深化示例)</h1>
+  <p class="sub">2026-10-18 · 七路并行缺口盘点(约 50 候选提级 20 进菜单)· 大仙拍板:1/3/4/6/7 五项入选深度推演,2/5/8 删除 · 可行性:<a href="feasibility.md">feasibility.md(带 path:line 锚点,入选五项已完成推演定稿)</a></p>
+  <div class="angle">
+    <b>定位:混合版</b>(沿 0.3.9 先例)——债收尾批固定 + 新特性五项(已拍板)。落选三页(codex/qoder 懒自算标题 / viewer 会话内查找 / 设置导入导出)已按大仙指令删除,不翻案;规划全文与全文池:<a href="../../brainstorm/2026-10-18-042-next-steps.md">docs/brainstorm/2026-10-18-042-next-steps.md</a>。
+  </div>
+  <div class="debt">
+    <b>债收尾批(固定,不占新特性名额)</b>:workbench 空壳批量归档工具落地(spec 已立项,软归档可逆)· 真机验收债集中焚烧 AI 陪跑(mobile M2 余 6 项 + 0.3.5×14 + 0.3.7×6 + anim 真窗口 + M9 失败 pill)· S 级随手带:搜索浮层 Aa/.* + n/m 计数、检索多命中展开、⌘± 字号缩放、anim Windows explorer /select。
+  </div>
+  <div class="moved">
+    <b>落选与不投记录</b>:OSC 52 剪贴板透传(要碰幕布写入旁路)· 助手消息入全局索引(041 裁决缓行,替身 = 页 5)· 成本估算单价表(调价维护负担,与「口径未知不猜测」冲突)· merge 冲突就地解决(等真实冲突频率数据)· 会话备注/标签层、预设应用芯片(先让预设长真实用法)· journal 脏稿 beforeClose 闸(kernel tabs 语义级改动,挂账不丢,值得单独立项)。全文池见 brainstorm 文档。
+  </div>
+  <div class="grid">
+    <a class="card" href="1-path-links.html"><div class="num">01</div><div class="name">终端文件路径可点击</div><div class="desc">「src/foo.ts:42」死文本 → 点击定位文件面板;链接注册表现成,只差一个 provider</div><div class="base">锚点:terminalLinks.ts 注册表 + marks 唯一消费者 + WebLinksAddon 只认 URL</div><span class="tag star">已拍板 · 成本低</span></a>
+    <a class="card" href="3-global-search.html"><div class="num">03</div><div class="name">跨工作区全局检索</div><div class="desc">「忘了哪个项目做过 X」不用先切工作区;作用域 chip + 缓存剪枝改命名空间</div><div class="base">锚点:indexer.ts 硬绑 cwd + SearchOverlay chip 面 + prime 剪枝改造点</div><span class="tag star">已拍板 · 成本中</span></a>
+    <a class="card" href="4-prompt-history.html"><div class="num">04</div><div class="name">输入历史修复 + 浏览抽屉</div><div class="desc">300 字符截断让 ghost 补全给残句,Tab 接受写坏草稿;存全文 + 子串过滤抽屉回填</div><div class="base">锚点:promptHistory.ts:18,72 截断点 + usePromptHistory 两形态 + ⌘K 抽屉视觉复用</div><span class="tag star">已拍板 · 成本低-中</span></a>
+    <a class="card" href="6-restore-preview.html"><div class="num">06</div><div class="name">checkpoint 恢复 dry-run 预览</div><div class="desc">回滚前先看会覆盖哪些未提交改动:快照 vs 工作区 diff 摘要,无变化免弹</div><div class="base">锚点:restore.rs 直执行点 + diff.rs 现成能力 + useCheckpointActions 确认弹层</div><span class="tag star">已拍板 · 成本中</span></a>
+    <a class="card" href="7-quota-alert.html"><div class="num">07</div><div class="name">额度低水位告警</div><div class="desc">告警主体 0.2.8 已落地,本项增量补三腿:余额绝对阈值(deepseek/relay)/claude 窗口提前量/去重持久化,顺手修免打扰闸缺口</div><div class="base">锚点:notify 轮询链(8c08a44f)+ vendors balanceValue 两家可得 + quotaWindow 迁 cli-shared</div><span class="tag star">已拍板 · 成本低</span></a>
+  </div>
+</main>
+</body>
+</html>

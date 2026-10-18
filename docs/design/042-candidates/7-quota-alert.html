@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 7/8 — 额度低水位告警</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; }
+  .pill-engine { background: var(--accent-soft); color: var(--accent-deep); }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-warn { background: var(--warn-soft); color: var(--warn-deep); }
+  .pill-ok { background: var(--ok-soft); color: var(--ok-deep); }
+  .pill-err { background: var(--err-soft); color: var(--err-deep); }
+  /* 通知行(应用内通知中心已落地形态复用) */
+  .nrow { display: flex; align-items: flex-start; gap: 10px; padding: 12px 20px; border-bottom: 1px solid #f0f0ee; cursor: pointer; }
+  .nrow:last-child { border-bottom: none; }
+  .nrow:hover { background: #fafaf9; }
+  .nbody { flex: 1; min-width: 0; }
+  .ntitle { font-size: 13px; }
+  .nsub { font-size: 12px; color: var(--fg2); margin-top: 1px; }
+  .nmeta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .ntime { font-size: 11px; color: var(--fg2); }
+  .unread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .footbar { padding: 10px 20px; font-size: 12px; color: var(--fg2); border-top: 1px solid var(--border); background: #fafaf9; }
+  /* 设置行 */
+  .srow { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid #f0f0ee; flex-wrap: wrap; }
+  .srow:last-child { border-bottom: none; }
+  .slabel { font-size: 13px; font-weight: 500; }
+  .sdesc { font-size: 12px; color: var(--fg2); }
+  .switch { position: relative; width: 34px; height: 19px; flex-shrink: 0; margin-left: auto; }
+  .switch input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .switch i { position: absolute; inset: 0; border-radius: 999px; background: var(--border); transition: background .15s; }
+  .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch input:checked + i { background: var(--accent); }
+  .switch input:checked + i::after { transform: translateX(15px); }
+  .num { font-size: 12px; width: 64px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 4px 8px; font-variant-numeric: tabular-nums; color: var(--fg); }
+  .num:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .num:disabled { color: var(--fg2); background: #fafaf9; cursor: not-allowed; }
+  /* 表格(边界态) */
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12px; padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+  tr:last-child td { border-bottom: none; }
+  td.y { color: var(--ok-deep); font-weight: 600; }
+  td.n { color: var(--err-deep); }
+  /* 去重时间线 */
+  .lane { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .lane-wrap { padding: 14px 20px; border-top: 1px solid var(--border); background: #fafaf9; }
+  .lane-wrap + .lane-wrap { border-top: 1px solid #f0f0ee; }
+  .lane-wrap h3 { font-size: 13px; margin-bottom: 8px; }
+  .step { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--fg2); background: var(--card); transition: all .2s; }
+  .step.on { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); font-weight: 600; }
+  .step.mute { border-color: var(--border); color: var(--fg2); background: #f5f5f4; }
+  .arrow { color: var(--fg2); font-size: 12px; }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast, .step, .switch i, .switch i::after { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 7/8(新特性 · 深化版)</span>
+    <h1>额度低水位告警</h1>
+    <p class="page-desc">推演修正:告警主体 0.2.8 已落地(notify 撞墙预警,轮询式,首查 30s + 10min 间隔,commit 8c08a44f)——本候选收窄为<b>增量补三腿</b>:①余额腿(deepseek/relay 结构化 balanceValue + 绝对阈值);②claude 窗口腿(quotaWindow 迁 cli-shared,notify 侧尾读推算,重置前 N 分钟报);③去重腿(notify-log.json 头部 quotaSeen 持久化,修「重启失忆」)。顺手修现存真 bug:quota 分支不走 shouldNotify,免打扰窗不拦 OS 通知。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">① 通知中心流水里的告警卡 <span class="panel-sub">应用内通知中心已落地,告警是其中一种条目类型 · 点击跳凭据区</span></div>
+      <button class="btn" id="replay-btn">重放一条告警</button>
+    </div>
+
+    <div class="nrow" role="button" tabindex="0" data-jump="credentials" data-kind="balance">
+      <span class="unread-dot"></span>
+      <div class="nbody">
+        <div class="ntitle"><span class="pill pill-engine">deepseek</span> 余额约 ¥12.50(低于绝对阈值)</div>
+        <div class="nsub">balanceValue 只有 deepseek/relay 做得出(total_balance/balanceNum 本就是 number)· 绝对阈值,无百分比分母</div>
+      </div>
+      <div class="nmeta"><span class="ntime">14:02</span></div>
+    </div>
+
+    <div class="nrow" role="button" tabindex="0" data-jump="credentials" data-kind="window">
+      <span class="unread-dot"></span>
+      <div class="nbody">
+        <div class="ntitle"><span class="pill pill-engine">claude</span> 窗口约 18:42 重置(还剩 28 分钟)</div>
+        <div class="nsub">quotaWindow 迁 cli-shared 后 notify 侧尾读推算 · 等 or 切引擎自行决定</div>
+      </div>
+      <div class="nmeta"><span class="ntime">18:14</span></div>
+    </div>
+
+    <div class="nrow" role="button" tabindex="0" data-jump="credentials" data-kind="normal">
+      <span class="unread-dot"></span>
+      <div class="nbody">
+        <div class="ntitle"><span class="pill pill-engine">omp</span> 会话已退出(exit code 0)</div>
+        <div class="nsub">对照组:通知中心既有条目类型;其余家族(kimi/minimax/zhipu/codex)无余额概念,不渲染余额行——无余额 ≠ 解析失败,不显「—」</div>
+      </div>
+      <div class="nmeta"><span class="ntime">昨天</span></div>
+    </div>
+
+    <div class="footbar">触发时机 = 既有额度轮询(0.2.8 起,首查 30s + 10min 间隔)回包处顺带比较,零新增定时器 · 告警与其他通知同走 host 通知通道,自动入流水,免打扰窗改拦 OS 通知(本次顺手修的闸)</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">② 设置行 <span class="panel-sub">两个阈值键,原生 number 输入 · 循设置页既有行先例 · 归 NotifySettingsTab 免打扰卡旁</span></div>
+    </div>
+
+    <div class="srow">
+      <span class="slabel">余额阈值 <span class="sdesc" style="font-weight:400">· 键 notifyQuotaBalanceBelow</span></span>
+      <span class="sdesc">仅 deepseek/relay 生效(结构化余额回包);绝对金额比较,货币跟随回包不换算;默认 0 = 关闭余额腿</span>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <input class="num" type="number" id="th-balance" value="0" min="0" step="1" aria-label="余额绝对阈值 notifyQuotaBalanceBelow"><span class="sdesc">以下告警</span>
+      </span>
+    </div>
+    <div class="srow">
+      <span class="slabel">窗口重置提前量 <span class="sdesc" style="font-weight:400">· 键 notifyQuotaResetMinutes</span></span>
+      <span class="sdesc">仅 claude 5h 窗口家族生效;默认 30 分钟,范围 5-240;其余家族无窗口概念,此键对其无效</span>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <input class="num" type="number" id="th-window" value="30" min="5" max="240" aria-label="窗口重置提前分钟数 notifyQuotaResetMinutes"><span class="sdesc">分钟</span>
+      </span>
+    </div>
+    <div class="srow">
+      <span class="slabel">既有键不动</span>
+      <span class="sdesc">notifyQuotaWarnPercent(默认 10%,撞墙预警百分比阈值)维持原语义与默认值,本候选零改动</span>
+      <span class="pill pill-grey" style="margin-left:auto">0.2.8 已有</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title" style="padding:12px 20px;">③ 去重语义 <span class="panel-sub">同一越线窗口只报一次 · 扩 notify-log.json 头部 quotaSeen(单文件单源,零新文件,随 notifyLogDays 裁剪同批清理)</span></div>
+    <div class="lane-wrap">
+      <h3>余额告警:回包两次都在同一低水位区间,第二次静默</h3>
+      <div class="lane" id="lane-dedupe">
+        <span class="step">额度轮询回包 #1</span>
+        <span class="arrow">→</span>
+        <span class="step">余额 12.50 越线(低于绝对阈值)</span>
+        <span class="arrow">→</span>
+        <span class="step">状态文件无记录 → 发通知 + 记 windowKey</span>
+        <span class="arrow">→</span>
+        <span class="step">回包 #2:余额 9.80 仍越线</span>
+        <span class="arrow">→</span>
+        <span class="step mute">命中已记 windowKey → 不再发</span>
+      </div>
+    </div>
+    <div class="lane-wrap">
+      <h3>窗口重置提醒:resetAt 翻新即新窗口,可再次提醒</h3>
+      <div class="lane" id="lane-window">
+        <span class="step">18:42 窗口:剩 28 分钟 &lt; 30min 越线 → 发一次</span>
+        <span class="arrow">→</span>
+        <span class="step">18:42 重置后新窗口开始</span>
+        <span class="arrow">→</span>
+        <span class="step">旧 windowKey 失效</span>
+        <span class="arrow">→</span>
+        <span class="step">下个窗口临近重置时按新 key 再报</span>
+      </div>
+    </div>
+    <div class="lane-wrap">
+      <h3>状态文件写坏 / 缺失</h3>
+      <div class="lane" id="lane-corrupt">
+        <span class="step">读取失败或字段缺失</span>
+        <span class="arrow">→</span>
+        <span class="step mute">按无记录处理,可能多发一条</span>
+        <span class="arrow">→</span>
+        <span class="step">宁多勿漏,不做修复重试</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">④ 边界态:结构化余额与家族差异 <span class="panel-sub">balanceValue 全量逐家盘点自 feasibility 定稿:只有 deepseek/relay 有结构化余额;无余额 ≠ 解析失败,UI 不渲染余额行而非显「—」;未被定稿盘点的引擎一律按「不猜测」归入无余额,不硬解析格式化串</span></div>
+    </div>
+    <table>
+      <thead>
+        <tr><th>引擎</th><th>结构化余额 balanceValue</th><th>余额阈值腿</th><th>窗口重置腿</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="pill pill-engine">deepseek</span></td><td class="y">✔ 回包即 number</td><td class="y">参与</td><td class="n">无 5h 窗口</td><td>info.total_balance 本就是 number,adapter 旁挂透传 +1 行;货币跟随回包不换算</td></tr>
+        <tr><td><span class="pill pill-engine">relay</span></td><td class="y">✔ balanceNum</td><td class="y">参与</td><td class="n">无 5h 窗口</td><td>balanceNum 直接透传;两家币种/套餐粒度不同,故只设绝对阈值,不做百分比分母</td></tr>
+        <tr><td><span class="pill pill-engine">claude</span></td><td class="n">官方 OAuth 分支直接 throw</td><td class="n">不可得,不参与</td><td class="y">参与(唯一窗口腿)</td><td>余额官方回包直接抛错;窗口腿 = quotaWindow 迁 cli-shared 纯 cutover + notify 侧尾读推算</td></tr>
+        <tr><td><span class="pill pill-grey">kimi · minimax · zhipu · codex</span></td><td class="n">无余额概念</td><td class="n">不参与</td><td class="n">不参与</td><td>非解析失败:UI 不渲染余额行而非显「—」;minimax windows 语义是「剩余」百分比,逐家断言单测钉口径</td></tr>
+        <tr><td><span class="pill pill-grey">grok</span></td><td class="n">未在定稿盘点出现</td><td class="n">不参与</td><td class="n">不参与</td><td>按「不猜测」原则归入无余额概念,不硬解析 balanceText 格式化串</td></tr>
+        <tr><td><span class="pill pill-grey">dsh</span></td><td class="n">无公开 API 恒 unsupported</td><td class="n">不参与</td><td class="n">不参与</td><td>unsupported → poll 分支 catch 静默,不出现在任何告警里</td></tr>
+        <tr><td><span class="pill pill-grey">百炼</span></td><td class="n">无公开 API</td><td class="n">不参与</td><td class="n">不参与</td><td>同上,恒 unsupported</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>轮询主体已落地</strong>:notify 撞墙预警 0.2.8 起 10min 轮询(commit 8c08a44f),本项是增量三腿,不新增定时器。</li>
+      <li><strong>结构化下沉</strong>:vendors/types.ts 在 balanceText 旁新增 balanceValue(number);只有 deepseek(total_balance)/relay(balanceNum) 透传得出,其余家不填——无余额 ≠ 解析失败,UI 不渲染该行而非显「—」。</li>
+      <li><strong>claude 窗口腿</strong>:windowResetFor 迁 cli-shared/quota(welcome 改 import 纯 cutover,零新依赖);notify 侧对 claude 会话尾读推算,resetAt − now &lt; notifyQuotaResetMinutes 报「N 分后重置」。</li>
+      <li><strong>去重持久化</strong>:扩 notify-log.json 头部 quotaSeen(键沿用 pickQuotaWarnings windowKey + 引擎前缀,窗口键自带 resetsAt 天然按周期翻新,余额键用首次越线小时桶),修「重启失忆」;写坏按无记录处理,宁多勿漏。</li>
+      <li><strong>顺手修真 bug</strong>:quota 分支改走 dispatch 同款三闸(NotifyKind 加 "quota"),免打扰窗拦 OS 通知但流水照记——现状 quota 分支绕过 shouldNotify 是缺口。</li>
+      <li><strong>行为边界</strong>:告警不阻塞、不弹打断;阈值改动即时生效;余额阈值 = 0 即关闭余额腿(不发、不写 quotaSeen),窗口腿不受影响;写坏按无记录处理;minimax windows 语义是「剩余」百分比而 QuotaSnapshot usedLabel 恒「已使用」,实现时逐家断言单测钉死口径。</li>
+      <li class="no"><strong>明确不做</strong>:新增轮询/提频(10min 轮询是 0.2.8 既有);余额百分比阈值(无额度分母,deepseek/relay 币种与套餐粒度不同,纯属发明数据);凭据懒刷新挂点(只在打开首页时有新数据,不看首页 = 永不告警,主场景失效);预算熔断 / 自动停跑(熔断交给引擎自身);成本估算单价表(不做用量换算,只展示引擎回包口径)。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:notify 撞墙预警轮询链(0.2.8 起,8c08a44f)+ 阈值键 notifyQuotaWarnPercent + pickQuotaWarnings 去重 + 通知中心流水 + quotaWindow 纯函数(welcome,迁 cli-shared)。<b>成本</b>:低。<b>风险</b>:minimax 窗口「剩余」口径与 usedLabel 不一致(逐家断言钉死);quotaSeen 写坏(按无记录处理,宁多勿漏)。<b>验证</b>:越线 → 通知中心出卡;同窗口二次轮询不重发;重启后仍去重;窗口翻新后可再报;免打扰窗 OS 静+流水记。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+
+  const MSG = {
+    balance: "打开凭据区,定位到该引擎凭据 · 告警卡点击即跳转,不新开面板",
+    window: "打开凭据区查看窗口明细 · 是否等重置由你决定,本候选不做自动切换",
+    normal: "通知中心既有条目类型:告警与其同级共存"
+  };
+  document.querySelectorAll(".nrow").forEach((row) => {
+    const go = () => showToast(MSG[row.dataset.kind] || MSG.normal);
+    row.addEventListener("click", go);
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") go(); });
+  });
+
+  const thBalance = document.getElementById("th-balance");
+  const thWindow = document.getElementById("th-window");
+  thBalance.addEventListener("change", () => {
+    if (Number(thBalance.value) === 0) showToast("余额阈值 = 0:关闭余额腿,deepseek/relay 不发余额告警;窗口腿不受影响");
+  });
+  thWindow.addEventListener("change", () => {
+    if (Number(thWindow.value) < 5 || Number(thWindow.value) > 240) showToast("notifyQuotaResetMinutes 范围 5-240,默认 30;越界输入将被夹取");
+  });
+
+  function runLane(laneId, doneMsg) {
+    const steps = document.querySelectorAll("#" + laneId + " .step");
+    steps.forEach((s) => s.classList.remove("on"));
+    let i = 0;
+    const step = () => {
+      if (i > 0) steps[i - 1].classList.remove("on");
+      if (i >= steps.length) { steps[steps.length - 1].classList.add("on"); if (doneMsg) showToast(doneMsg); return; }
+      steps[i].classList.add("on");
+      i++;
+      setTimeout(step, 620);
+    };
+    step();
+  }
+  document.getElementById("lane-dedupe").addEventListener("click", () => runLane("lane-dedupe", "同窗口第二次越线:命中已记 windowKey,不再发"));
+  document.getElementById("lane-window").addEventListener("click", () => runLane("lane-window", "resetAt 翻新 = 新 windowKey,下个窗口临近重置可再报"));
+  document.getElementById("lane-corrupt").addEventListener("click", () => runLane("lane-corrupt", "状态文件写坏按无记录处理:宁多勿漏,不做修复重试"));
+  ["lane-dedupe", "lane-window", "lane-corrupt"].forEach((id) => {
+    const lane = document.getElementById(id);
+    lane.style.cursor = "pointer";
+    lane.setAttribute("role", "button");
+    lane.setAttribute("tabindex", "0");
+    lane.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") lane.click(); });
+  });
+
+  document.getElementById("replay-btn").addEventListener("click", () => {
+    showToast("演示:额度轮询回包 #2 余额 9.80 仍越线 → 命中已记 windowKey,本条不会重发");
+  });
+</script>
+</body>
+</html>

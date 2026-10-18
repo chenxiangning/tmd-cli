@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 6/8 — 恢复前 dry-run 预览</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-deep); color: #fff; }
+  .btn.danger { background: var(--err); border-color: var(--err); color: #fff; }
+  .btn.danger:hover { background: var(--err-deep); color: #fff; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; white-space: nowrap; }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-warn { background: var(--warn-soft); color: var(--warn-deep); }
+  .pill-ok { background: var(--ok-soft); color: var(--ok-deep); }
+  .pill-err { background: var(--err-soft); color: var(--err-deep); }
+  .pill-engine { background: var(--accent-soft); color: var(--accent-deep); }
+  .steps { padding: 14px 20px; border-top: 1px solid var(--border); background: #fafaf9; }
+  .steps h3 { font-size: 13px; margin-bottom: 8px; }
+  .lane { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .step { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--fg2); background: var(--card); transition: all .2s; }
+  .step.on { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); font-weight: 600; }
+  .step.bad { border-color: var(--err-soft); color: var(--err-deep); background: var(--err-soft); }
+  .arrow { color: var(--fg2); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 8px 14px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12.5px; padding: 9px 14px; border-bottom: 1px solid #f0f0ee; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.path { font-size: 11px; color: var(--fg2); font-family: ui-monospace, Menlo, monospace; word-break: break-all; }
+  .chip { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+  .chip.A { background: rgba(21,128,61,.15); color: var(--ok-deep); }
+  .chip.M { background: rgba(180,83,9,.15); color: var(--warn-deep); }
+  .chip.D { background: rgba(220,38,38,.15); color: var(--err-deep); }
+  .delta { font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
+  .delta b { color: var(--ok-deep); font-weight: 500; }
+  .delta i { color: var(--err-deep); font-style: normal; }
+  /* 弹层示意 */
+  .dialog-mock { border: 1px solid var(--border); border-radius: 10px; margin: 20px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,.10); }
+  .dlg-head { padding: 14px 20px 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .dlg-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .dlg-meta { font-size: 12px; color: var(--fg2); margin-top: 2px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .dlg-meta b { color: var(--fg); font-weight: 500; }
+  .override-strip { margin: 14px 20px 0; border: 1px solid var(--err-soft); background: var(--err-soft); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: var(--err-deep); }
+  .override-strip b { font-weight: 600; }
+  .override-strip ul { list-style: none; margin-top: 6px; }
+  .override-strip li { font-family: ui-monospace, Menlo, monospace; font-size: 11px; padding-left: 14px; position: relative; }
+  .override-strip li::before { content: "!"; position: absolute; left: 0; font-weight: 700; }
+  .dlg-foot { padding: 12px 20px; border-top: 1px solid var(--border); background: #fafaf9; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .dlg-foot .hint { font-size: 12px; color: var(--fg2); }
+  .morebar { padding: 9px 14px; font-size: 12px; color: var(--fg2); background: #fafaf9; text-align: center; cursor: pointer; border-top: 1px solid #f0f0ee; }
+  .morebar:hover { color: var(--accent-deep); }
+  .row-hidden { display: none; }
+  .row-hidden.open { display: table-row; }
+  /* 免弹态 / 边界态小卡 */
+  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0; }
+  .case { padding: 16px 20px; border-top: 1px solid var(--border); }
+  .case + .case { border-left: 1px solid var(--border); }
+  @media (max-width: 720px) { .case + .case { border-left: none; } }
+  .case h3 { font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .case p { font-size: 12px; color: var(--fg2); }
+  .mini-flow { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+  .mini-flow span { font-size: 11px; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; background: var(--card); color: var(--fg2); }
+  .mini-flow span.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-deep); font-weight: 600; }
+  .mini-flow span.bad { border-color: var(--err-soft); background: var(--err-soft); color: var(--err-deep); }
+  .mini-flow .a { color: var(--fg2); font-size: 11px; }
+  .editor { border-top: 1px solid var(--border); background: #fafaf9; padding: 16px 20px; }
+  .editor h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .frow { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; flex-wrap: wrap; }
+  .flabel { font-size: 12px; color: var(--fg2); width: 110px; flex-shrink: 0; text-align: right; }
+  .fval { font-size: 12.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li.no::before { background: var(--fg2); opacity: .4; }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast, .step { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 6/8(新特性 · 深化版)</span>
+    <h1>checkpoint 恢复前 dry-run 预览</h1>
+    <p class="page-desc">提案:恢复执行前先算「目标态 vs 当前工作区」受影响文件 diff 摘要(账本 before/after oid,不是快照树 checkout),把 ConfirmCard 从纯文案确认升级为预览表(成本 M);裁决:确认流仍是两步武装确认,只做信息升级;计划为空免弹直接过;undo_revert 复用同一预览不新发 dry-run。先例:diff.rs blob_patch 能力、open_batch_patches 快照↔工作区先例、fileChipCls 同源配色。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">流程对比 <span class="panel-sub">现状 restore.rs:38 全量直执行 → 预览在执行前插入一步只读 diff</span></div>
+      <button class="btn" id="playflow">点亮流程</button>
+    </div>
+    <div class="steps">
+      <h3>现状(盲回滚)</h3>
+      <div class="lane" id="lane-old">
+        <span class="step">点击「恢复到此」</span><span class="arrow">→</span>
+        <span class="step">ConfirmCard 文案确认(仅「恢复 N 文件」)</span><span class="arrow">→</span>
+        <span class="step">3s 武装</span><span class="arrow">→</span>
+        <span class="step bad">restore_batch 全量直执行</span><span class="arrow">→</span>
+        <span class="step bad">未提交改动被静默覆盖</span>
+      </div>
+      <h3 style="margin-top:14px;">提案(dry-run 预览)</h3>
+      <div class="lane" id="lane-new">
+        <span class="step">点击「恢复到此」</span><span class="arrow">→</span>
+        <span class="step">checkpoint_restore_preview(plan_restore 只读抽取)</span><span class="arrow">→</span>
+        <span class="step">plan 空(E_Empty)?免弹直接 doRevert</span><span class="arrow">→</span>
+        <span class="step">预览弹层:A/M/D + 覆盖警示</span><span class="arrow">→</span>
+        <span class="step">两步武装确认(不变)</span><span class="arrow">→</span>
+        <span class="step">restore_batch 执行</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">确认弹层升级形态 <span class="panel-sub">ConfirmCard 同位改造 · 药丸配色复用 fileChipCls(A 绿 / M amber / D 红)</span></div>
+      <span class="pill pill-grey">示意图</span>
+    </div>
+
+    <div class="dialog-mock">
+      <div class="dlg-head">
+        <div>
+          <div class="dlg-title">恢复预览 <span class="pill pill-warn">覆盖本地 3 文件(手术擦除)</span></div>
+          <div class="dlg-meta">
+            <span>快照:<b>轮 42 · 14:32:07</b></span>
+            <span>批次:<b>#188(turn_files × 3 + git 归因 × 2)</b></span>
+            <span>受影响:<b>47 文件</b></span>
+            <span>引擎:<span class="pill pill-engine">omp</span></span>
+          </div>
+        </div>
+        <button class="btn" id="closemock">关闭</button>
+      </div>
+
+      <div class="override-strip">
+        <b>以下行的本地现状会被这次恢复改写</b>(账本 surgical 判定:live 已偏离批后像但仍可精准擦除——不用 git status 求交集,git 会把会话自己刚写的未提交改动全员误标):
+        <ul>
+          <li>src/plugins/checkpoints/BatchRowParts.tsx(本地 +36/-12)</li>
+          <li>src-tauri/src/checkpoints/restore.rs(本地 +8/-3)</li>
+          <li>docs/design/042-candidates/notes.md(本地 +64,新建)</li>
+        </ul>
+      </div>
+
+      <table>
+        <thead><tr><th style="width:34px;"></th><th>文件</th><th style="width:120px;">状态</th><th style="width:110px;" class="num">行变化</th></tr></thead>
+        <tbody id="diffbody">
+          <tr>
+            <td><span class="chip M">M</span></td>
+            <td class="path">src/plugins/checkpoints/BatchRowParts.tsx</td>
+            <td><span class="pill pill-warn">修改</span> <span class="pill pill-err">覆盖本地</span></td>
+            <td class="num delta"><b>+36</b> / <i>-12</i></td>
+          </tr>
+          <tr>
+            <td><span class="chip M">M</span></td>
+            <td class="path">src-tauri/src/checkpoints/restore.rs</td>
+            <td><span class="pill pill-warn">修改</span> <span class="pill pill-err">覆盖本地</span></td>
+            <td class="num delta"><b>+8</b> / <i>-3</i></td>
+          </tr>
+          <tr>
+            <td><span class="chip A">A</span></td>
+            <td class="path">docs/design/042-candidates/notes.md</td>
+            <td><span class="pill pill-ok">恢复新增</span> <span class="pill pill-err">覆盖本地</span></td>
+            <td class="num delta"><b>+64</b> / <i>-0</i></td>
+          </tr>
+          <tr>
+            <td><span class="chip M">M</span></td>
+            <td class="path">src/plugins/checkpoints/TurnFilesChip.tsx</td>
+            <td><span class="pill pill-warn">修改</span></td>
+            <td class="num delta"><b>+21</b> / <i>-9</i></td>
+          </tr>
+          <tr>
+            <td><span class="chip D">D</span></td>
+            <td class="path">src/plugins/checkpoints/legacyConfirm.tsx</td>
+            <td><span class="pill pill-err">恢复将删除</span></td>
+            <td class="num delta"><b>+0</b> / <i>-47</i></td>
+          </tr>
+          <tr>
+            <td><span class="chip M">M</span></td>
+            <td class="path">src/kernel/ipc.ts</td>
+            <td><span class="pill pill-warn">修改</span></td>
+            <td class="num delta"><b>+12</b> / <i>-2</i></td>
+          </tr>
+          <tr class="row-hidden" id="xrow1">
+            <td><span class="chip A">A</span></td>
+            <td class="path">src/plugins/checkpoints/previewBridge.ts</td>
+            <td><span class="pill pill-ok">恢复新增</span></td>
+            <td class="num delta"><b>+58</b> / <i>-0</i></td>
+          </tr>
+          <tr class="row-hidden" id="xrow2">
+            <td><span class="chip M">M</span></td>
+            <td class="path">docs/architecture/05-checkpoints.md</td>
+            <td><span class="pill pill-warn">修改</span></td>
+            <td class="num delta"><b>+17</b> / <i>-4</i></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="morebar" id="morebar">共 47 文件,已显示 6 · 展开其余 41(仅摘要清单,不渲染全 patch)</div>
+
+      <div class="dlg-foot">
+        <span class="hint">确认后仍走 3s 武装回弹;Esc / 关闭即放弃,diff 只读不落盘</span>
+        <span style="display:flex;gap:8px;">
+          <button class="btn" id="cancelmock">取消</button>
+          <button class="btn danger" id="armmock">按预览恢复 47 文件</button>
+        </span>
+      </div>
+    </div>
+
+    <div class="editor">
+      <h3>预览行规格</h3>
+      <div class="frow"><span class="flabel">快照信息</span><span class="fval">轮次 + 时间 + 批次构成 + 引擎 pill;引擎名取大仙真实名单(omp/claude/codex/kimi/grok/qoder/dsh)</span></div>
+      <div class="frow"><span class="flabel">药丸语义</span><span class="fval">A=恢复新增(绿)· M=修改(amber)· D=恢复将删除(红);surgical 擦除行(覆盖本地现状)追加 <span class="pill pill-err">覆盖本地</span>,skip 行走既有 skippedNote 文案</span></div>
+      <div class="frow"><span class="flabel">行数摘要</span><span class="fval">每文件 +/-N 行;binary 文件按 0/0 行计;只出摘要清单,不渲染全 patch(300 行铁则)</span></div>
+      <div class="frow"><span class="flabel">截断</span><span class="fval">默认显示前 6 行 + 「共 N 文件」计数;点展开补齐摘要行,不展开 patch</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">免弹态与边界态 <span class="panel-sub">零差异短路 · diff 失败回落文案确认 · undo_revert 对称</span></div>
+    </div>
+    <div class="cases">
+      <div class="case">
+        <h3>plan 为空(E_Empty) <span class="pill pill-ok">免弹直接执行</span></h3>
+        <p>阶段一算出的 plan 为空时,免 ConfirmCard <strong>直接 doRevert</strong>(空操作),前端 E_Empty 分支只出中性提示「本批已无可回退的改动」——不是错误,也不进 3s 武装。注意:plan 非空但全部 untouched(0/0 行)不属免弹,照常弹预览。</p>
+        <div class="mini-flow"><span class="on">点击恢复</span><span class="a">→</span><span>plan 空</span><span class="a">→</span><span class="on">直接执行(空操作)</span><span class="a">→</span><span>中性提示:本批已无可回退的改动</span></div>
+      </div>
+      <div class="case">
+        <h3>脏工作区 · 无交集 <span class="pill pill-grey">正常预览</span></h3>
+        <p>工作区有未提交改动但与快照文件不相交:预览照常渲染,不出现「覆盖本地」药丸与红色警示段——本地改动安全的事实要说清,靠表格而不是恐吓文案。</p>
+        <div class="mini-flow"><span class="on">预览 47 文件</span><span class="a">·</span><span>覆盖本地 ×0</span></div>
+      </div>
+      <div class="case">
+        <h3>preview 命令失败 <span class="pill pill-warn">回落文案确认</span></h3>
+        <p>checkpoint_restore_preview 报错或 IPC 失败:弹层退化为既有纯文案 ConfirmCard,不阻塞恢复主流程;toast 提示「预览不可用,已回落文案确认」(不做定时超时,与既有批 diff 同风险面)。</p>
+        <div class="mini-flow"><span class="bad">IPC 失败</span><span class="a">→</span><span class="on">文案确认(现状形态)</span><span class="a">→</span><span>武装执行</span></div>
+      </div>
+      <div class="case">
+        <h3>undo_revert 对称 <span class="pill pill-engine">复用同一份预览</span></h3>
+        <p>「撤销应用」(review.rs:35)与恢复走同一预览组件;撤销<strong>复用该批恢复时的预览数据,不新发 dry-run</strong>——guard 信息=回退前一刻工作区,增量≈0,且省一条 IPC。被否单独 dry-run:guard 无 per-path plan 结构,要新造。</p>
+        <div class="mini-flow"><span class="on">点击撤销应用</span><span class="a">→</span><span class="on">同一预览弹层(复用数据)</span><span class="a">→</span><span>undo_revert 执行</span></div>
+      </div>
+    </div>
+    <div class="editor">
+      <h3>设置口径</h3>
+      <div class="frow"><span class="flabel">零新键</span><span class="fval">预览是信息增强不是门槛——checkpoints 设置分区不加任何行为开关</span></div>
+      <div class="frow"><span class="flabel">截断常量</span><span class="fval">预览默认显示前 6 行为常量(非用户可调),超出折叠进「共 N 文件」展开</span></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>行为边界与明确不做</h2>
+    <ul>
+      <li><strong>行为边界:</strong>预览为只读 plan_restore 计算(账本 before/after oid + live 一次读),不落盘、不改 ledger;弹层出现与武装确认之间不刷新预览(窗口内冻结,执行时 restore_batch 以最新 live 重新判定,skip 兜底安全)。</li>
+      <li><strong>行为边界:</strong>「覆盖本地」判定 = 账本 untouched/surgical 判定(surgical 擦除行),不用 git status 交集——git 会把会话自己刚写的未提交改动全员误标,恐吓化;归因只到文件粒度,不猜行级冲突。</li>
+      <li><strong>行为边界:</strong>预览失败路径必须可降级—— dry-run 是信息增强,永远不是恢复的门槛。</li>
+      <li class="no"><strong>明确不做:</strong>审批卡语义不变——确认弹层仍是两步武装确认(3s 回弹),只做信息升级,不引入二次审批或多步向导。</li>
+      <li class="no"><strong>明确不做:</strong>不渲染全 patch;不做逐 hunk 勾选、不提供「只恢复部分文件」的选择性恢复。</li>
+      <li class="no"><strong>明确不做:</strong>不做 checkpoint 浏览大改——预览挂在既有确认弹层位置,不新增独立页面/标签页。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>示例说明</b>:本页仅表达 0.4.0 候选「恢复前 dry-run 预览」的交互形态与边界态,不承诺实现;数据为虚构示意,路径与文案贴近仓库真实结构;实现口径以 feasibility.md 定稿为准。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var toast = document.getElementById("toast"), tId;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(tId);
+    tId = setTimeout(function () { toast.classList.remove("show"); }, 2200);
+  }
+
+  // 流程点亮
+  var lanes = ["lane-old", "lane-new"];
+  var playing = false;
+  document.getElementById("playflow").addEventListener("click", function () {
+    if (playing) return;
+    playing = true;
+    lanes.forEach(function (id) {
+      var steps = document.querySelectorAll("#" + id + " .step");
+      var i = 0;
+      (function next() {
+        if (i > 0) steps[i - 1].classList.remove("on");
+        if (i >= steps.length) { playing = false; return; }
+        steps[i].classList.add("on");
+        i++;
+        if (reduce) { next(); } else { setTimeout(next, 420); }
+      })();
+    });
+  });
+
+  // 截断展开
+  var morebar = document.getElementById("morebar"), expanded = false;
+  morebar.addEventListener("click", function () {
+    expanded = !expanded;
+    document.querySelectorAll(".row-hidden").forEach(function (r) { r.classList.toggle("open", expanded); });
+    morebar.textContent = expanded
+      ? "已展开全部摘要行 · 收起"
+      : "共 47 文件,已显示 6 · 展开其余 41(仅摘要清单,不渲染全 patch)";
+  });
+
+  // 弹层示意按钮(仅示意,不真实执行)
+  document.getElementById("closemock").addEventListener("click", function () {
+    showToast("示意:关闭弹层即放弃,不执行恢复");
+  });
+  document.getElementById("cancelmock").addEventListener("click", function () {
+    showToast("示意:取消,回到批次详情");
+  });
+  document.getElementById("armmock").addEventListener("click", function () {
+    showToast("示意:进入 3s 武装回弹(两步确认不变)");
+  });
+})();
+</script>
+</body>
+</html>

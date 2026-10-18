@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 4/8 — 输入历史全文修复 + 历史浏览抽屉</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-deep); color: #fff; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; }
+  .pill-engine { background: var(--accent-soft); color: var(--accent-deep); }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-warn { background: var(--warn-soft); color: var(--warn-deep); }
+  .pill-ok { background: var(--ok-soft); color: var(--ok-deep); }
+  .pill-err { background: var(--err-soft); color: var(--err-deep); }
+  .editor { border-top: 1px solid var(--border); background: #fafaf9; padding: 16px 20px; }
+  .editor h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 860px) { .compare { grid-template-columns: 1fr; } }
+  .cmp-col { border: 1px solid var(--border); border-radius: 8px; background: var(--card); overflow: hidden; }
+  .cmp-head { font-size: 12px; font-weight: 600; padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .cmp-head.bad { color: var(--err-deep); background: var(--err-soft); }
+  .cmp-head.good { color: var(--ok-deep); background: var(--ok-soft); }
+  .composer { font-size: 12.5px; padding: 12px 14px; min-height: 120px; white-space: pre-wrap; word-break: break-all; color: var(--fg); }
+  .composer .clip { color: var(--fg2); }
+  .composer .caret { display: inline-block; width: 1px; height: 14px; background: var(--accent); vertical-align: -2px; }
+  .composer-bar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px dashed var(--border); flex-wrap: wrap; }
+  mark { background: var(--accent-soft); color: var(--accent-deep); border-radius: 2px; padding: 0 1px; }
+  /* 历史抽屉 */
+  .drawer-wrap { position: relative; padding: 24px 20px 28px; background: #fafaf9; border-top: 1px solid var(--border); }
+  .drawer { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.12); overflow: hidden; max-width: 720px; margin: 0 auto; }
+  .drawer-top { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .drawer-search { flex: 1; font-size: 13px; border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; background: var(--bg); color: var(--fg); }
+  .drawer-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .drawer-list { max-height: 300px; overflow-y: auto; padding: 6px 0; }
+  .hitem { display: block; width: 100%; text-align: left; border: 0; background: none; font: inherit; color: var(--fg); padding: 10px 16px; cursor: pointer; border-left: 2px solid transparent; }
+  .hitem:hover { background: #fafaf9; }
+  .hitem.sel { background: var(--accent-soft); border-left-color: var(--accent); }
+  .htext { font-size: 12.5px; color: var(--fg2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; }
+  .drawer-empty { padding: 36px 16px; text-align: center; color: var(--fg2); font-size: 13px; }
+  .drawer-foot { display: flex; gap: 14px; padding: 8px 16px; border-top: 1px solid var(--border); background: #fafaf9; font-size: 11px; color: var(--fg2); flex-wrap: wrap; }
+  .kbd { font-size: 11px; border: 1px solid var(--border); border-radius: 4px; background: var(--card); padding: 0 5px; font-family: ui-monospace, monospace; }
+  .frow { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; flex-wrap: wrap; }
+  .frow:last-child { margin-bottom: 0; }
+  .flabel { font-size: 12px; color: var(--fg2); width: 96px; flex-shrink: 0; text-align: right; }
+  .fval { font-size: 12.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .fake-input { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 4px 10px; }
+  .fake-input.disabled { color: var(--err-deep); border-color: var(--err-soft); background: var(--err-soft); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes h3 { font-size: 13px; font-weight: 600; margin: 14px 0 8px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .notes li.no::before { background: var(--fg2); opacity: .35; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <div class="page-header">
+    <span class="badge">0.4.0 候选 · 4/8(新特性 · 深化版)</span>
+    <h1>输入历史全文修复 + 历史浏览抽屉</h1>
+    <p class="page-desc">提案:历史存全文,单条硬上限 8000 字符(防御病态长粘贴),300 字符截断只降级作用在 ghost 匹配窗口;总量字节封顶 512KB,超限从最旧淘汰、写入静默不 throw;快捷键 Cmd+L 开历史抽屉(全库零命中键,已定稿),模糊子串过滤 + 命中高亮 + 点击回填编辑不直发。裁决:回填一律进 composer 可编辑态,绝不直接发送。</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">修复对照:同一条超长历史,ghost 残句 vs 全文回填 <span class="panel-sub">循先例:promptHistory 已有 record/去重置底/计数,只动存储窗口与展示</span></div>
+    </div>
+    <div class="editor">
+      <div class="compare">
+        <div class="cmp-col">
+          <div class="cmp-head bad">现在 <span class="pill pill-err">slice(0, 300)</span></div>
+          <div class="composer">帮我把 src/plugins/workspace 下三个列表组件的 pinned 过滤收敛进 useSessionFilter:保留 original 语义, pinnedSessions 用 useMemo 聚合,空态文案改成「暂无置顶会话」…<span class="clip">(300 字符处截断 +「…」)</span></div>
+          <div class="composer-bar">
+            <button class="btn" id="try-ghost">试试 ghost 状态按 Tab</button>
+            <span class="pill pill-grey">↑ 线性翻旧条 · 无搜索</span>
+          </div>
+        </div>
+        <div class="cmp-col">
+          <div class="cmp-head good">修后 <span class="pill pill-ok">全文存储 · 截断只限 ghost 窗口</span></div>
+          <div class="composer" id="fixed-composer">帮我把 src/plugins/workspace 下三个列表组件的 pinned 过滤收敛进 useSessionFilter:保留 original 语义,pinnedSessions 用 useMemo 聚合,空态文案改成「暂无置顶会话」。注意 SessionList 里 cwd || root 的回退别改成 ??,空串语义有别;改完跑 pnpm vitest run src/plugins/workspace。<span class="caret"></span></div>
+          <div class="composer-bar">
+            <button class="btn" id="try-full">试试完整历史回填</button>
+            <span class="pill pill-ok">召回完整 · Tab 不写坏草稿</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">历史浏览抽屉 <span class="panel-sub">循先例:命令抽屉(⌘K)同款视觉;触发键定稿 Cmd+L(全库零命中);抽屉状态用 Composer 局部 state,不进 drawerOpen 三态机;列表仅渲染全文文本——time/engine/ws 药丸无数据源,本版不做(schema v2 后置增强)</span></div>
+    </div>
+    <div class="drawer-wrap">
+      <div class="drawer" role="dialog" aria-label="输入历史浏览">
+        <div class="drawer-top">
+          <input class="drawer-search" id="hist-q" type="text" placeholder="子串过滤,如:useSessionFilter" value="useSessionFilter" aria-label="过滤历史">
+          <span class="pill pill-grey" id="hist-count">3 / 5 条</span>
+          <button class="btn" id="hist-clear-q">清空</button>
+        </div>
+        <div class="drawer-list" id="hist-list"></div>
+        <div class="drawer-foot">
+          <span><span class="kbd">↑</span> <span class="kbd">↓</span> 选择</span>
+          <span><span class="kbd">Enter</span> 回填到输入框(不发送)</span>
+          <span><span class="kbd">Esc</span> 关闭</span>
+          <span style="margin-left:auto;">最旧超限逐条淘汰 · 按字节封顶</span>
+        </div>
+      </div>
+    </div>
+    <div class="editor">
+      <h3>边界态</h3>
+      <div class="frow"><span class="flabel">空结果</span><span class="fval"><span class="pill pill-grey">「没有匹配的历史」+ 保留输入框继续改词,不自动关抽屉</span><button class="btn" id="try-empty-search">预览空结果</button></span></div>
+      <div class="frow"><span class="flabel">存量截断</span><span class="fval"><span class="pill pill-grey">v1 已存的 300 字符条目无法恢复;不打「已截断」标(无法区分恰好 300 字符的新条目,假阳性),去重置底会让高频条目自然自愈为全文</span></span></div>
+      <div class="frow"><span class="flabel">容量封顶</span><span class="fval"><span class="fake-input disabled">单条硬上限 8000 字符(防御病态长粘贴)· ghost 匹配窗口沿用 300 · 总字节封顶 512KB · 超限从最旧淘汰,写入永不 throw</span></span></div>
+      <div class="frow"><span class="flabel">重复提交</span><span class="fval"><span class="pill pill-grey">去重置底 + 计数沿用现契约,抽屉里同文只出现一条(存储无时间戳,列表序即 recency)</span></span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">回填后可编辑态 <span class="panel-sub">WorktreeSessionDialog 同款防呆:回填≠提交</span></div>
+    </div>
+    <div class="editor">
+      <div class="composer" style="border:1px solid var(--border); border-radius:8px; min-height:64px;" id="backfill-composer"><span class="clip">(点击抽屉任一条目回填到这里)</span><span class="caret" hidden></span></div>
+      <div class="composer-bar">
+        <span class="pill pill-ok">光标在末尾 · 可改后手动发送</span>
+        <button class="btn" id="try-backfill">模拟点击抽屉条目</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <h3>行为边界</h3>
+    <ul>
+      <li><strong>全文存储,截断降级</strong>:promptHistory.ts 的 MAX_TEXT_LENGTH=300(slice)只保留在 ghost 匹配窗口——ghost 前缀匹配不需要全文;展示与回填一律全文。硬上限 8000 字符防御病态长粘贴。</li>
+      <li><strong>字节封顶兜底 localStorage</strong>:条目数 200 上限之外新增总量字节上限,超限最旧淘汰;写入失败(配额满)静默降级为不记,不影响发送主流程。</li>
+      <li><strong>存量条目不动不打标</strong>:v1 已存的 300 字符条目按现长度保留,不打「已截断」标(无法区分恰好 300 字符的新条目,假阳性);新记录起存全文,去重置底会让高频条目自然自愈,不猜不补。</li>
+      <li><strong>抽屉与 ghost 互补不互斥</strong>:空输入 ↑ 仍是线性翻旧,前缀 ghost 仍在;抽屉负责「记得片段不记得开头」的场景,子串模糊过滤命中高亮。</li>
+      <li><strong>键盘契约</strong>:抽屉内 ↑↓ 移动选中、Enter 回填并关抽屉、Esc 关闭不回填;视觉/交互复用 ⌘K 命令抽屉,一份样式两处消费。</li>
+      <li><strong>设置页清单跟随</strong>:getPromptHistoryWithCounts 的清单展示全文(原来只能看到截断文本),删除/清空行为不变。</li>
+      <li><strong>设置口径</strong>:复用既有 promptHistoryEnabled 总开关——关闭时 Cmd+L 与历史记录同闸不触发,<strong>零新增设置键</strong>。</li>
+      <li><strong>无后台扫描</strong>:抽屉打开才读(同步内存 cache,零 IO),不常驻监听 localStorage;两窗口各自 localStorage 分区互不可见(现状,非本项扩大)。</li>
+    </ul>
+    <h3>明确不做</h3>
+    <ul>
+      <li class="no"><strong>模板变量引擎</strong>({{date}} 等占位符展开)——无需求,回填后自己改。</li>
+      <li class="no"><strong>回填直接发送</strong>——已裁决:长历史直发误触成本高,一律进 composer 可编辑态。</li>
+      <li class="no"><strong>time/engine/ws 元数据药丸</strong>——存储形状无元数据字段,本版不做,schema v2 后置增强。</li>
+      <li class="no"><strong>斜杠命令不入史开关</strong>——已裁决:不做开关,行为维持现状。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:promptHistory store(record/去重置底/计数/订阅)+ ghost 前缀补全(findPromptCompletion)+ 设置页历史清单 + ⌘K 命令抽屉样式。<b>成本</b>:S-M(存储窗口改动 + 抽屉组件)。<b>风险</b>:存量截断条目不可恢复,不打标、去重置底自然自愈;ghost 匹配窗口与全文展示的双轨语义要在注释与测试里钉死。<b>验证</b>:超长历史全文回填;Tab 接受不写坏草稿;抽屉过滤高亮/空态/键盘全链路;字节封顶最旧淘汰;写入失败不阻塞发送。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const SEED = [
+    "帮我把 src/plugins/workspace 下三个列表组件的 pinned 过滤收敛进 useSessionFilter:保留 original 语义,pinnedSessions 用 useMemo 聚合,空态文案改成「暂无置顶会话」。注意 SessionList 里 cwd || root 的回退别改成 ??,空串语义有别;改完跑 pnpm vitest run src/plugins/workspace。",
+    "给 useSessionFilter 补三组用例:置顶跨分组排序、归档视图独立水位、空 pinnedSessions 返回原数组引用(别每次新建,下游有 Object.is 依赖)。",
+    "修 useSessionFilter 在会话重命名后 pin 丢踪的问题:pinScope 以 sessionId 为键,重命名只改 title 不该触发重排——先写一个失败用例再修。",
+    "跑一遍 grep 把残留的 filterSessions 调用点清掉,统一走 useSessionFilter 出口,列表页不再直接消费原始 session 数组。",
+    "把 tmd-anim 对齐分布工具条 AlignBar 的按钮尺寸和 session 列表工具条统一到 26px,图标用 0.8125rem。"
+  ];
+  const items = SEED.map((s, i) => ({ id: i, text: s }));
+  let selected = 0;
+  let query = document.getElementById("hist-q").value;
+
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+
+  function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function hi(text, q) {
+    if (!q) return esc(text);
+    const lower = text.toLowerCase(), ql = q.toLowerCase();
+    let out = "", i = 0;
+    while (i < text.length) {
+      const at = lower.indexOf(ql, i);
+      if (at < 0) { out += esc(text.slice(i)); break; }
+      out += esc(text.slice(i, at)) + "<mark>" + esc(text.slice(at, at + q.length)) + "</mark>";
+      i = at + q.length;
+    }
+    return out;
+  }
+
+  const listEl = document.getElementById("hist-list");
+  const countEl = document.getElementById("hist-count");
+  const qEl = document.getElementById("hist-q");
+
+  function filtered() {
+    const q = query.trim().toLowerCase();
+    return items.filter((it) => !q || it.text.toLowerCase().includes(q));
+  }
+
+  function render() {
+    const rows = filtered();
+    if (selected >= rows.length) selected = Math.max(0, rows.length - 1);
+    countEl.textContent = rows.length + " / " + items.length + " 条";
+    if (!rows.length) {
+      listEl.innerHTML = '<div class="drawer-empty">没有匹配的历史 · 改一下关键词,或 Esc 关闭</div>';
+      return;
+    }
+    listEl.innerHTML = rows.map((it, idx) =>
+      '<button class="hitem' + (idx === selected ? " sel" : "") + '" data-idx="' + idx + '">' +
+        '<span class="htext">' + hi(it.text, query.trim()) + '</span>' +
+      '</button>'
+    ).join("");
+    listEl.querySelectorAll(".hitem").forEach((b) => {
+      b.addEventListener("click", () => backfill(filtered()[Number(b.dataset.idx)]));
+    });
+  }
+
+  const bf = document.getElementById("backfill-composer");
+  function backfill(it) {
+    if (!it) return;
+    bf.innerHTML = esc(it.text) + '<span class="caret"></span>';
+    showToast("已回填到输入框(可编辑后再发,不直接发送)");
+  }
+
+  qEl.addEventListener("input", () => { query = qEl.value; selected = 0; render(); });
+  document.getElementById("hist-clear-q").addEventListener("click", () => { qEl.value = ""; query = ""; selected = 0; render(); qEl.focus(); });
+  qEl.addEventListener("keydown", (e) => {
+    const rows = filtered();
+    if (!rows.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); selected = (selected + 1) % rows.length; render(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); selected = (selected - 1 + rows.length) % rows.length; render(); }
+    else if (e.key === "Enter") { e.preventDefault(); backfill(rows[selected]); }
+    else if (e.key === "Escape") { showToast("Esc 关闭抽屉,不回填"); }
+  });
+  document.getElementById("try-empty-search").addEventListener("click", () => {
+    qEl.value = "不存在的词xyz"; query = qEl.value; render();
+    qEl.focus();
+    showToast("空结果态:保留输入框继续改词,不自动关抽屉");
+  });
+
+  document.getElementById("try-ghost").addEventListener("click", () =>
+    showToast("现状:ghost 只有 300 字符残句,Tab 接受把「…」写进草稿——比没有更危险"));
+  document.getElementById("try-full").addEventListener("click", () =>
+    showToast("修后:全文存储,Tab 接受回填完整历史,截断只存在于 ghost 匹配窗口"));
+  document.getElementById("try-backfill").addEventListener("click", () => backfill(items[0]));
+
+  render();
+</script>
+</body>
+</html>
