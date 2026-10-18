@@ -4,6 +4,31 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.0] - 2026-10-18
+
+本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。
+
+### 新增
+
+- 工作区会话保留律收尾:keep 保留层容量 200 → 2000(与归档层同级,手动取消归档密度对齐);启动补扫——activate 后 45s 一次性对本会话未展开的本地工作区顺序跑既有保留律扫描(远程/SSH/WSL 跳过,前台在途扫描让路,零轮询不新增触发面)
+- 应用内通知中心:notify 三类事件与额度预警旁挂全局流水 `~/.tmd-cli/notify-log.json`(聚焦静默/免打扰也记,OS 通知才受闸;追加时顺带过滤 `notifyLogDays` 默认 7 天+500 条上限);右栏「通知中心」面板(今日/更早分组,行点击回跳会话,配额行置灰,清空两步武装确认)
+- 免打扰窗:`kernel/dnd.ts` 纯判定(HH:mm 跨夜窗,起含终不含,start===end 全天静默);三闸齐静——notify `shouldNotify`、ask 音(事件路径)、回合结束音(3s 延迟确认播放刻);设置页 NotifySettingsTab 免打扰卡(ToggleRow+原生 time 输入)
+- 会话预设(workspace):工作区右键菜单「会话预设」段(本地工作区恒显,引擎候选空禁点),一键起会话=预设引擎/模型/提示词;两步管线——`spawnRawSession`(identityTrack 全装配)成功后经 kernel `sessionPending` 队列注入初始提示词(anim pending 队列核心上移为跨插件契约,≥2 消费);提示词引用存 (scope,wsId,name) 三元组消费时现读,改名/删除悬空灰态不猜测;管理弹层(增删改查+两步确认删除+撞名校验),存储 `~/.tmd-cli/session-presets.json`(agents.json 同款单文件+内存单源)
+- 会话检索增强:时间过滤 chip(全部/24小时/7天/30天,`searchSessions` 闭区间谓词,与引擎 chip 叠加);命中行级定位——消息命中经 kernel `openThenJumpToText` 时序桥(活会话直接跳;已关会话 resume 后订阅幕布注册表等挂载再跳,needle 24/14/8 字符梯队+≤12 页回溯),opened/miss 轻提示不阻断
+- 存储管家(settings 新区 `storage-audit` 插件):Rust 只读体检命令 `fs_dir_usage`(多类目并行 spawn_blocking+单类目 20s 超时不阻塞,不跟符号链接,skip 目录取调用方参数——checkpoints objects.git 计入);九类目体检表(checkpoints/docgen/七家 CLI 会话目录,只读零触碰);清理白名单——checkpoints 按工作区 `checkpoint_prune(10,30)` 两步武装确认、docgen 已归档版本确认卡删除(索引先落、目录后删)
+- 会话转录导出(session-viewer):查看 tab 工具行「导出 Markdown」——`blocksToMarkdown` 纯函数(user→`## 用户`、assistant→`## 助手`、tool 折叠一行、thinking/图片跳过计数,truncated 头部标注)+ docgen 导出三件套(pickSavePath→writeText 原子写→toast,Windows 保留设备名 sanitize 沉淀为 docgen `safeFileBase` 共享导出)
+- checkpoint↔转录时间线互跳(checkpoints):时间线每条用户消息挂「本轮 N 文件」chip(prompt 与账本 BatchInfo.prompt 全等、多轮同文按出现序配对,匹配不到不渲染,git 归因带「推断」标注),行下内联展开 turn_files 变更集(A/M/D 药丸,配色同源 `fileChipCls.ts`);审阅单消息卡「看对话」——活会话 `jumpToText` 直跳、已关会话 resume 后跳(账本无 prompt 的轮次不出动作)
+- 后台会话冻结快照(kernel `terminalFreeze.ts`):tab 条容量挤除卸载时把本就要算的 reseed 投影连同缓冲水位存档(LRU 8),重开时身份指纹/字节水位/字符水位/头样本四闸全过 → 投影同步上屏+增量分块补写,免 0.5s 遮罩免全量回放;任一闸不过回落既有全量路径,磁盘重开与会话关闭路径不变
+
+### 修复
+
+- 集成期:workspace 组折叠 `toggleGroup` 压缩时误写工作区折叠 map(点组头错折工作区),回归组 id 语义
+
+### 内务
+
+- IPC 权限表登记 `fsDirUsage: ipc.fs.read`;doctor.config 新增 hygieneBootSweep 有意串行豁免(对齐 tabClose/sessionHead 先例);anchorJump 等幕布挂载由 80ms 轮询改订阅注册表广播(零轮询),seeConversation 引擎认领改并行扫描唯一命中
+- 版本源六处同步 0.4.0(package.json/Cargo.toml/Cargo.lock/tauri.conf.json/Info.plist/project.yml)
+
 ## [0.3.9] - 2026-10-17
 
 本版主体 = **0.3.9 七候选全量落地**(深度调研 `docs/research/client-deep-research-2026-10.md` → 视觉示例 `docs/design/040-candidates/` → 可行性分析 → 四批次实施,每批次双角度 review):worktree 会话链 / diff 行级批注回传 / claude 限额窗口推算 / agent wiki / 插件懒加载 / kernel 分区盘点 / WebGL 终端基准。另含 anim 插件打磨批(协议对齐 tmd-anim 0.1.6 + 「打开」动作平台语义)+ 移动端触控达标;真机验收债清单见 `docs/brainstorm/2026-10-17-039-next-steps.md`。

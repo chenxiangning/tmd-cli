@@ -67,6 +67,14 @@
         "rules": [
           "react-doctor/async-await-in-loop"
         ]
+      },
+      {
+        "files": [
+          "src/plugins/workspace/hygieneBootSweep.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
       }
     ]
   }
