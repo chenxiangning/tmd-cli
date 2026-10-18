@@ -1,5 +1,6 @@
 /** en 词典 · workbench 域(键 = 中文源串;zh 恒等无词典)。 */
 import { DOCGEN_EN } from "./en-docgen";
+import { ARCHIVE_EN } from "./en-archive";
 
 export const MESSAGES_EN = {
   // ── 顶栏/导航 ──
@@ -293,5 +294,6 @@ export const MESSAGES_EN = {
   "暂无到期任务": "Nothing due soon",
   "还没有资料文档": "No docs yet",
   "还没有进展记录": "No log entries yet",
+  ...ARCHIVE_EN,
   ...DOCGEN_EN,
 } as Record<string, string>;

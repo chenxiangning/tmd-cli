@@ -134,6 +134,24 @@ export function updateProject(id: string, patch: Partial<Omit<Project, "id" | "t
   });
 }
 
+/** 批量软归档(概览「清理空壳」入口):置 archived + archivedAt,不删实体。 */
+export function archiveProjects(ids: readonly string[]): Promise<void> {
+  const now = new Date().toISOString();
+  const idSet = new Set(ids);
+  return mutate((projects) => {
+    if (!projects.some((p) => idSet.has(p.id))) throw new Error(t("项目不存在或已删除。"));
+    return projects.map((p) => (idSet.has(p.id) ? { ...p, archived: true, archivedAt: now, updatedAt: now } : p));
+  });
+}
+
+/** 恢复单个归档项目(清 archived 标记,archivedAt 保留作取证)。 */
+export function restoreProject(id: string): Promise<void> {
+  return mutate((projects) => {
+    if (!projects.some((p) => p.id === id)) throw new Error(t("项目不存在或已删除。"));
+    return projects.map((p) => (p.id === id ? { ...p, archived: false, updatedAt: new Date().toISOString() } : p));
+  });
+}
+
 export function deleteProject(id: string): Promise<void> {
   return enqueue(async () => {
     const snapshot = state.projects;

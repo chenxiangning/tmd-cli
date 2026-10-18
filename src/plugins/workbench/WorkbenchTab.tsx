@@ -11,8 +11,9 @@ import { useWorkspaces } from "@kernel/workspace";
 import { sortByRisk, todayISO } from "./analysis";
 import { useTaskAutoStatus } from "./useTaskAutoStatus";
 import { QUESTION_EXAMPLES, answerQuestion } from "./query";
-import { clearAllProjects, clearSampleProjects, createProject, ensureWorkbenchLoaded, reloadWorkbench, subscribeWorkbench, updateProject, workbenchLoadError, workbenchSnapshot } from "./store";
-import { linkableWorkspaces } from "./views";
+import { clearAllProjects, clearSampleProjects, createProject, ensureWorkbenchLoaded, reloadWorkbench, restoreProject, subscribeWorkbench, updateProject, workbenchLoadError, workbenchSnapshot } from "./store";
+import { activeProjects, linkableWorkspaces } from "./views";
+import { runIpc } from "./ipcToast";
 import { LinkWorkspacesDialog } from "./LinkWorkspacesDialog";
 import { WbConfirm } from "./ui";
 import { ProjectFormModal, type ProjectFormValues } from "./ProjectFormModal";
@@ -77,15 +78,22 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
   const actions = useWbActions({ toast, formProject, setConfirmClear });
 
   const today = todayISO();
-  const filtered = useMemo(() => sortByRisk(projects, today).map((item) => item.project), [projects, today]);
+  /* 归档项目在此单点退出全部视图(概览/聚焦/看板/文档中心统计与列表)。 */
+  const visible = useMemo(() => activeProjects(projects), [projects]);
+  const archived = useMemo(() => projects.filter((p) => p.archived), [projects]);
+  const filtered = useMemo(() => sortByRisk(visible, today).map((item) => item.project), [visible, today]);
   /* 页签显式切换即复位一次性表单信号(防回看板时表单重弹)。 */
   const switchTab = useCallback((next: WbTab) => { setTab(next); setBoardFormOpen(false); }, []);
   const screenProps: WbScreenProps = {
     projects: filtered,
-    allProjects: projects,
+    allProjects: visible,
     today,
     docsFilter,
     boardFormOpen,
+    archivedProjects: archived,
+    onRestoreProject: (id) => {
+      void runIpc(restoreProject(id), toast, t("已恢复:「{name}」", { name: projects.find((p) => p.id === id)?.name ?? id }));
+    },
     onOpen: (id) => {
       const project = projects.find((item) => item.id === id);
       if (project) openProjectTab(project.id, project.name);

@@ -25,6 +25,9 @@ export interface WbScreenProps {
   onTab?: (tab: "board") => void;
   /** 切看板并直接展开新建任务表单(聚焦页清净态);仅聚焦页消费。 */
   onNewTask?: () => void;
+  /** 已归档项目(聚焦页底「已归档」折叠段 + 逐个恢复);仅聚焦页消费。 */
+  archivedProjects?: readonly Project[];
+  onRestoreProject?: (id: string) => void;
   /** 新建任务表单展开信号:挂载即展开一次(聚焦页清净态「新建任务」与看板挂载天然先后,不持久)。仅任务看板消费。 */
   boardFormOpen?: boolean;
 }
