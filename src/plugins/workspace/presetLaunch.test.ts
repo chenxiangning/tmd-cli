@@ -13,7 +13,6 @@ function baseInput(overrides?: Partial<LaunchPresetInput>): LaunchPresetInput {
     env: {},
     cwd: "/ws",
     title: "预设名",
-    workspaceId: "ws1",
     promptText: "初始提示词",
     deps: {
       spawn: vi.fn(async () => ({ id: "pty-1" })),

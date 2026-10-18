@@ -9,6 +9,7 @@ import {
   searchSessions,
   timeRangeFor,
   applyFilters,
+  engineFilterDangling,
   locateTargetOf,
 } from "./searchCore";
 
@@ -130,6 +131,13 @@ describe("时间 chip 枚举与叠加管线", () => {
     /* 时间窗已把 omp 全滤出时再选 omp = 不在集合,恒等回落(不误清空)。 */
     const narrowed = searchSessions(indexOf(HITS_FIXTURE), "checkpoints", 50, { fromMs: 1500 });
     expect(applyFilters(narrowed, "omp")).toHaveLength(1);
+  });
+
+  it("engineFilterDangling:引擎掉出结果集 = 悬空应复位;在集合/null 不悬空", () => {
+    const engines = ["omp", "kimi"];
+    expect(engineFilterDangling("codex", engines)).toBe(true); // 查询变更后掉出
+    expect(engineFilterDangling("omp", engines)).toBe(false); // 合法选中不被每键重置
+    expect(engineFilterDangling(null, engines)).toBe(false);
   });
 });
 

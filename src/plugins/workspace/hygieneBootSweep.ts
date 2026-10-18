@@ -15,6 +15,7 @@
  */
 
 import { host } from "@kernel/host";
+import { getSettingsState } from "@kernel/settings";
 import { getWorkspaces, workspacesReady } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { scanAndSweep } from "./sessionSweep";
@@ -25,6 +26,8 @@ const BOOT_SWEEP_DELAY_MS = 45_000;
 
 /** 顺序补扫全部本地工作区;返回删除的会话总数(仅记数)。 */
 export async function bootSweepLocalWorkspaces(): Promise<number> {
+  /* 卫生清扫总闸关闭即短路:不读工作区表、不扫任何 listSessions(sessionSweep 同闸)。 */
+  if (!getSettingsState().settings.sessionHygieneEnabled) return 0;
   /* 工作区表自磁盘装载是异步的,等待就绪(慢盘 >45s 时宁可不扫也不扫空表)。 */
   await workspacesReady.catch(() => undefined);
   let deletedTotal = 0;

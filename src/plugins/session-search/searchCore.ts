@@ -26,9 +26,11 @@ export interface SessionSubHit {
   matchToken: string;
   /** 命中消息全文(行级定位 needle 源,与首命中 message 同口径)。 */
   message: string;
+  /** 命中消息在会话内的序号(重复消息时列表 key 的稳定标识)。 */
+  mi: number;
 }
 
-/** 子命中展开上限:防病态长会话撑爆浮层(超出部分计数仍含在条目标题里)。 */
+/** 子命中展开上限:防病态长会话撑爆浮层(到 cap 即停,超出不计入列表也不计入标题)。 */
 export const SUB_HIT_CAP = 20;
 
 /** 检索时间窗(闭区间,按条目 modifiedAt 过滤;缺省端 = 该侧不限)。 */
@@ -105,11 +107,14 @@ export function searchSessions(
     /* 子命中:全量扫描收集(消息全文在内存,纯展示层重组,零 IO);
      * 首条即原 snippet/matchToken 来源,展示契约不变。 */
     const subHits: SessionSubHit[] = [];
+    let mi = -1;
     for (const m of entry.messages) {
+      mi++;
+      if (subHits.length >= SUB_HIT_CAP) break; /* 截顶即停,剩余命中不做无谓匹配 */
       const lm = m.toLowerCase();
       if (!tokens.every((tk) => lm.includes(tk))) continue;
       const snip = snippetOf(m, tokens);
-      if (subHits.length < SUB_HIT_CAP) subHits.push({ snippet: snip.snippet, matchToken: snip.matchToken, message: m });
+      subHits.push({ snippet: snip.snippet, matchToken: snip.matchToken, message: m, mi });
     }
     const first = subHits[0];
     if (!inTitle && !first) continue;
@@ -143,6 +148,11 @@ export function applyFilters(
   return rawHits.some((h) => h.entry.profileId === engineFilter)
     ? rawHits.filter((h) => h.entry.profileId === engineFilter)
     : rawHits;
+}
+
+/** 引擎 chip 悬空判定:选中引擎不在当前结果集(查询/时间窗已变)= chip 悬空。 */
+export function engineFilterDangling(filter: string | null, engines: readonly string[]): boolean {
+  return filter != null && !engines.includes(filter);
 }
 
 /** 命中 → 行级定位入参(kernel anchorJump.openThenJumpToText 的 target 与

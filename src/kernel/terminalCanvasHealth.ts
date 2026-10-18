@@ -143,6 +143,5 @@ export function settleTerminalFreeze(sessionId: string, term: Terminal): void {
     bytePos: host.getOutputBufferBytes(sessionId),
     headSample: bufferText.slice(0, HEAD_SAMPLE_CHARS),
     fingerprint: sessionFreezeFingerprint(host.getSessions().find((s) => s.id === sessionId)),
-    at: Date.now(),
   });
 }

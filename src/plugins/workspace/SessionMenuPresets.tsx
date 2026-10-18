@@ -62,7 +62,6 @@ export function SessionMenuPresets({
       model: preset.model,
       cwd: workspace.root,
       title: preset.name,
-      workspaceId: workspace.id,
       promptText: presetPromptText(preset, contentOf),
       deps: {
         spawn: (spec) => host.spawnRawSession(profile.id, spec, workspace.id, { identityTrack: true }),

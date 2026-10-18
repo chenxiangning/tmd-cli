@@ -63,7 +63,6 @@ function seedFreeze(id: string, unload: string, fingerprint: string, screenText:
     bytePos: new TextEncoder().encode(unload).length,
     headSample: unload,
     fingerprint,
-    at: 1,
   });
 }
 

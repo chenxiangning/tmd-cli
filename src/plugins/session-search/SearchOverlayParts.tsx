@@ -207,7 +207,7 @@ export function HitRow({ hit, onOpen, onOpenSub, selected, gone, workspaceName }
         <div className="border-t border-(--tmd-border)/40">
           {hit.subHits.map((sub) => (
             <button
-              key={`${sub.matchToken}·${sub.snippet.slice(0, 24)}`}
+              key={sub.mi}
               type="button"
               onClick={() => onOpenSub(hit, sub)}
               className="block w-full px-6 py-1.5 text-left text-xs leading-4 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"

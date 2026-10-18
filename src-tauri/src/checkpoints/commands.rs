@@ -130,7 +130,8 @@ pub async fn checkpoint_restore(
 }
 
 /// 恢复 dry-run 预览(只读):阶段一计划 + 逐路径 live↔target 行摘要。
-/// 不落守卫、不动工作区;plan 空与 restore 同一 E_Empty(前端免弹信号)。
+/// 不落守卫、不动工作区与账本;blob_patch 可能向 sidecar ODB 物化去重
+/// loose object(未引用由 prune 回收)。plan 空与 restore 同一 E_Empty。
 #[tauri::command]
 pub async fn checkpoint_restore_preview(
     cwd: String,

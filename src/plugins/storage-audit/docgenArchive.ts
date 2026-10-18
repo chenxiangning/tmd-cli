@@ -17,13 +17,24 @@ export function archivedEntries(entries: DocGenEntry[]): DocGenEntry[] {
   return entries.filter((e) => e.docState === "archived");
 }
 
-/** 删除一份已归档文档:索引回写先落,实体目录随后整删(缺目录幂等)。 */
+/** 删除一份已归档文档:索引回写先落,实体目录随后整删(缺目录幂等)。
+ *  取舍:先改索引后删目录——删除失败时把条目 filter 回索引补偿回写并向上
+ *  抛错(宁可条目复活可重删,不可索引与盘面脱节成永不清理的孤儿)。 */
 export async function removeArchivedDoc(entryId: string): Promise<void> {
   const index = await readDocGenIndex();
+  const removed = index.entries.filter((e) => e.id === entryId);
   await writeDocGenIndex({
     ...index,
     entries: index.entries.filter((e) => e.id !== entryId),
   });
   /* removeEntryDir = fsRemovePath 整目录删 docs/<id>/(含版本链 + prompt-latest.md)。 */
-  await removeEntryDir(entryId);
+  try {
+    await removeEntryDir(entryId);
+  } catch (e) {
+    await writeDocGenIndex({
+      ...index,
+      entries: [...index.entries.filter((e) => e.id !== entryId), ...removed],
+    });
+    throw e;
+  }
 }

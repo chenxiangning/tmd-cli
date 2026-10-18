@@ -24,6 +24,7 @@ import {
   searchSessions,
   timeRangeFor,
   applyFilters,
+  engineFilterDangling,
   locateTargetOf,
   type SessionSearchHit,
   type SessionSubHit,
@@ -88,6 +89,11 @@ export function SessionSearchOverlay() {
     [rawHits],
   );
   const hits = useMemo(() => applyFilters(rawHits, engineFilter), [rawHits, engineFilter]);
+  /* 引擎 chip 悬空收口:查询/时间窗变更使所选引擎掉出结果集时复位(null);
+     扫描进行中结果集不全,不收口(避免把尚未出现的合法选中提前清掉)。 */
+  useEffect(() => {
+    if (!indexing && engineFilterDangling(engineFilter, engines)) setEngineFilter(null);
+  }, [engines, engineFilter, indexing]);
   /* 越界收口(命中集随索引推进/过滤变化);选中行滚入视野(QuickOpen 惯例)。 */
   const sel = Math.min(active, Math.max(hits.length - 1, 0));
   useEffect(() => {

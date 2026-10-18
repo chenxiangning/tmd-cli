@@ -3,7 +3,8 @@
  *
  * 路径常量对齐各 cli-* 插件的会话目录实证(feasibility §6):
  * omp/pi = ~/.omp|~/.pi/agent/sessions,claude/qoder = ~/.claude|~/.qoder/projects,
- * codex = ~/.codex/sessions,kimi = ~/.kimi-code/sessions,grok = ~/.grok/sessions。
+ * codex = ~/.codex/sessions,kimi 新旧两代 = ~/.kimi-code|~/.kimi/sessions,
+ * grok = ~/.grok/sessions,qoder-cn = ~/.qoder-cn/projects,dsh = ~/.dsh/sessions。
  * checkpoints/docgen 在 ~/.tmd-cli 内(configDir 注入,桩环境可测)。
  */
 
@@ -27,7 +28,10 @@ export function auditCategories(home: string, configDir: string): AuditCategory[
     { key: "qoder", path: `${home}/.qoder/projects`, skipDirNames: [] },
     { key: "codex", path: `${home}/.codex/sessions`, skipDirNames: [] },
     { key: "kimi", path: `${home}/.kimi-code/sessions`, skipDirNames: [] },
+    { key: "kimi-legacy", path: `${home}/.kimi/sessions`, skipDirNames: [] },
+    { key: "qoder-cn", path: `${home}/.qoder-cn/projects`, skipDirNames: [] },
     { key: "grok", path: `${home}/.grok/sessions`, skipDirNames: [] },
+    { key: "dsh", path: `${home}/.dsh/sessions`, skipDirNames: [] },
   ];
 }
 

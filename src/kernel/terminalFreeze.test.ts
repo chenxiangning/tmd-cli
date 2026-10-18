@@ -23,7 +23,6 @@ function snap(partial: Partial<TerminalFreezeSnapshot> & { sessionId: string }):
     bytePos: 0,
     headSample: "",
     fingerprint: "7:5",
-    at: 1,
     ...partial,
   };
 }

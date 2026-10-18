@@ -6,6 +6,7 @@
  * (会话原文仍在客户端,md 面向归档/检索)。
  * 文件名助手 sessionExportFileName:`<标题slug>-<YYYYMMDD>.md`,
  * Windows 保留名清洗复用 docgen/paths 的 safeFileBase(两处导出同一约定)。
+ * 语言取舍:导出物是归档快照,正文元信息固定中文,不随 UI 语言切换。
  */
 import type { CliSessionTranscript } from "@kernel/cli";
 import { safeFileBase } from "@plugins/workbench/docgen/paths";

@@ -35,8 +35,6 @@ export interface TerminalFreezeSnapshot {
   headSample: string;
   /** 会话进程身份指纹(pid+createdAt):防同 id 重 spawn 后错认旧屏幕。 */
   fingerprint: string;
-  /** 卸载时刻 ms epoch。 */
-  at: number;
 }
 
 /** 模块级存档(MRU 在 Map 尾部);key = sessionId,同会话重卸载覆盖刷新。 */

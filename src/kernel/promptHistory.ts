@@ -65,13 +65,21 @@ function get(): PromptHistoryData {
 
 function save(): void {
   try {
+    /* 总量字符封顶(serialized.length 为 UTF-16 字符数,localStorage 配额同单位):
+       序列化一次,超限先按各条序列化长度估算一次性切到 ≤ 上限,再终序列化写回,
+       避免逐条淘汰整文档重序列化(最坏百余遍×1M+ 字符)。 */
     const data = get();
-    /* 总量字节封顶:超限从 items[0] 连 counts 一起最旧淘汰(数组序=recency)。
-       上限 200 条×8000 字符最坏 1.6MB,此防线把常态压进 512KB。 */
     let serialized = JSON.stringify(data);
-    while (serialized.length > MAX_BYTES && data.items.length > 0) {
-      const oldest = data.items.shift()!;
-      delete data.counts[oldest];
+    if (serialized.length > MAX_BYTES && data.items.length > 0) {
+      const perItem = data.items.map((t) => JSON.stringify(t).length + 1); /* 含逗号/引号间隔 */
+      let total = serialized.length;
+      let cut = 0;
+      while (cut < data.items.length && total - perItem[cut] > MAX_BYTES) {
+        total -= perItem[cut];
+        cut++;
+      }
+      const dropped = data.items.splice(0, cut);
+      for (const oldest of dropped) delete data.counts[oldest];
       serialized = JSON.stringify(data);
     }
     localStorage.setItem(STORAGE_KEY, serialized);

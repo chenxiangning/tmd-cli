@@ -143,8 +143,8 @@ describe("ResultBody 多命中展开呈现(042)", () => {
   function multiHit(): SessionSearchHit {
     const h = hit("m");
     h.subHits = [
-      { snippet: "第一处 归因", matchToken: "归因", message: "第一处 归因" },
-      { snippet: "第二处 归因", matchToken: "归因", message: "第二处 归因" },
+      { snippet: "第一处 归因", matchToken: "归因", message: "第一处 归因", mi: 0 },
+      { snippet: "第二处 归因", matchToken: "归因", message: "第二处 归因", mi: 1 },
     ];
     return h;
   }
@@ -160,7 +160,7 @@ describe("ResultBody 多命中展开呈现(042)", () => {
 
   it("子命中 ≤1:无展开钮(单命中无需展开)", () => {
     const single = hit("s");
-    single.subHits = [{ snippet: "唯一 归因", matchToken: "归因", message: "唯一 归因" }];
+    single.subHits = [{ snippet: "唯一 归因", matchToken: "归因", message: "唯一 归因", mi: 0 }];
     const html = renderToStaticMarkup(
       createElement(ResultBody, { ...base, hits: [single], active: 0 }),
     );

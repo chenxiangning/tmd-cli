@@ -63,7 +63,7 @@ export function useSearchToast(): string | null {
   return useSyncExternalStore(
     (onStoreChange) => {
       toastListeners.add(onStoreChange);
-      return () => listeners.delete(onStoreChange);
+      return () => toastListeners.delete(onStoreChange);
     },
     () => toast,
   );

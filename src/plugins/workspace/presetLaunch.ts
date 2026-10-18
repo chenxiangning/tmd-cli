@@ -17,7 +17,6 @@ export interface LaunchPresetInput {
   model?: string;
   cwd: string;
   title: string;
-  workspaceId?: string;
   /** 已解析的初始提示词(空 = 不注入)。 */
   promptText: string;
   deps: {

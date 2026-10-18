@@ -146,6 +146,8 @@ function withLogLock(task: () => Promise<void>): Promise<void> {
   return run;
 }
 
+/* 落盘即原子:ipc.fsWriteFile 后端(fs_edit::write_file → session::write_atomic)
+   已是 tmp+rename 原子替换,journalFiles.writeJson 同款契约,勿再自拼 tmp+rename。 */
 /** 启动装载(activate 调一次):读盘 → 内存快照;失败按空流水,面板仍可用。 */
 export function bootNotifyLog(): void {
   void withLogLock(async () => {
@@ -179,7 +181,7 @@ export function recordNotifyEntry(entry: Omit<NotifyEntry, "id" | "ts">, maxDays
     try {
       await ipc.fsWriteFile(path, `${JSON.stringify(next, null, 2)}\n`);
     } catch {
-      return; /* 写失败静默:内存快照已含本条,下次追加会重写全量。 */
+      return; /* 写失败静默:缓存未更新(宁多勿漏),下次追加会重读全量补写。 */
     }
     docCache = next;
     store.commit(next.entries);
@@ -216,7 +218,7 @@ export function markQuotaSeen(keys: readonly string[], maxDays: number): void {
     try {
       await ipc.fsWriteFile(path, `${JSON.stringify(next, null, 2)}\n`);
     } catch {
-      return; /* 写失败静默:内存缓存已更新,下轮 RMW 会重写全量。 */
+      return; /* 写失败静默:缓存未更新(宁多勿漏),下轮 RMW 会重读全量补写。 */
     }
     docCache = next;
     store.commit(next.entries);
