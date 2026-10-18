@@ -10,23 +10,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { host } from "@kernel/host";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
+import { formatDate, formatTime } from "@kernel/relativeTime";
 import { ipc } from "@kernel/ipc";
 import { Empty } from "@kernel/Empty";
 import { addEntry, parseWikiDoc, serializeWikiDoc, type WikiDoc, type WikiEntry } from "./wiki";
 import { wikiFilePath, withWikiLock } from "./wikiHook";
 
 type Kind = WikiEntry["kind"];
-
-function fmtTime(ts: number): string {
-  const d = new Date(ts);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function fmtDate(ts: number): string {
-  const d = new Date(ts);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
 
 async function persistDoc(root: string, doc: WikiDoc): Promise<void> {
   const path = wikiFilePath(root);
@@ -70,7 +60,7 @@ function EntryRow({
         </div>
         <div className="mt-1 flex items-center gap-2 text-[11px] text-(--tmd-fg-muted)">
           <span className="rounded bg-(--tmd-border) px-1 py-px font-mono">{e.harness}</span>
-          <span>{fmtDate(e.ts)}</span>
+          <span>{formatDate(e.ts)}</span>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
@@ -144,6 +134,8 @@ export function WikiPanel() {
         const next = fn(cur);
         await persistDoc(root, next);
         setDoc(next);
+        /* 双窗同步:面板写盘也广播(钩子侧同款),另一窗的 WikiPanel 订阅后重读。 */
+        host.events.emit("memory-coordinator.wiki.updated", { cwd: root });
       }).catch(() => {
         showToast(t("落盘失败,改动可能未保存"));
         void loadDoc(root).then((d) => setDoc(d));
@@ -162,7 +154,7 @@ export function WikiPanel() {
 
   const addManual = (kind: Kind) => {
     const text = draft.trim();
-    if (!text || !root) return;
+    if (!text || !root || !doc) return; /* doc 未加载:mutate 会早退,草稿不清防丢稿。 */
     mutate((d) =>
       addEntry(d, { ts: Date.now(), harness: "manual", sessionId: `manual-${text}`, excerpt: text, kind }),
     );
@@ -200,7 +192,7 @@ export function WikiPanel() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-(--tmd-border) p-2.5 text-xs">
         <span className="text-(--tmd-fg-muted)">
-          {t("上次沉淀 {time}", { time: lastAutoTs ? fmtTime(lastAutoTs) : "—" })}
+          {t("上次沉淀 {time}", { time: lastAutoTs ? formatTime(lastAutoTs) : "—" })}
         </span>
         <span className="text-(--tmd-fg-muted)">{t("共 {count} 条", { count: entries.length })}</span>
         <button
@@ -219,6 +211,7 @@ export function WikiPanel() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return; /* IME 选词 Enter 不触发提交。 */
             if (e.key === "Enter") addManual("decision");
           }}
         />

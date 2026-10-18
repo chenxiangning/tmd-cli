@@ -24,13 +24,21 @@ export function NoteEditor({
     else onCancel();
   };
   return (
-    <div className="my-1 ml-8 rounded border border-(--tmd-accent)/50 bg-(--tmd-bg) p-1.5">
+    <div
+      className="my-1 ml-8 rounded border border-(--tmd-accent)/50 bg-(--tmd-bg) p-1.5"
+      onBlur={(e) => {
+        /* 焦点离开编辑器即提交草稿(relatedTarget 在容器内 = 点取消/提交钮,不双触发);
+         * 空文本 commit 内部有 trim 守卫 = 等效取消。 */
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commit();
+      }}
+    >
       <textarea
         ref={ref}
         rows={2}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
+          if (e.nativeEvent.isComposing) return; /* IME 选词 Enter/Esc 不触发编辑操作。 */
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             commit();
@@ -91,7 +99,7 @@ export function NoteHoverButton({ onStart }: { onStart: () => void }) {
         e.stopPropagation();
         onStart();
       }}
-      className="ml-auto shrink-0 self-center rounded px-1 text-(--tmd-fg-faint) opacity-0 group-hover:opacity-100 hover:text-(--tmd-accent)"
+      className="ml-auto shrink-0 self-center rounded px-1 text-(--tmd-fg-faint) opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 hover:text-(--tmd-accent)"
     >
       <ChatText weight="bold" className="h-3.5 w-3.5" />
     </button>

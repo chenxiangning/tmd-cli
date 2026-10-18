@@ -29,6 +29,10 @@ const MESSAGES_EN = {
   "{n} 个会话在此 worktree 中启动": "{n} session(s) started in this worktree",
   "在新 worktree 中起会话…": "Start session in new worktree…",
   "引擎": "Engine",
+  "{dir} 不是 git 仓库,无法创建 worktree。": "{dir} is not a git repository — cannot create a worktree.",
+  "创建失败,已回滚:{msg}": "Create failed, rolled back: {msg}",
+  "创建失败:{msg}(可重试;残留树可在 git 面板 worktree 管理中移除)":
+    "Create failed: {msg} (retry; remove leftover tree via git panel worktree manager)",
 } as const;
 
 /** ja 词典 · worktree 域。 */
@@ -55,6 +59,10 @@ const MESSAGES_JA = {
   "{n} 个会话在此 worktree 中启动": "この worktree で {n} 件のセッションを開始",
   "在新 worktree 中起会话…": "新しい worktree でセッションを開始…",
   "引擎": "エンジン",
+  "{dir} 不是 git 仓库,无法创建 worktree。": "{dir} は git リポジトリではないため worktree を作成できません。",
+  "创建失败,已回滚:{msg}": "作成に失敗し、ロールバックしました:{msg}",
+  "创建失败:{msg}(可重试;残留树可在 git 面板 worktree 管理中移除)":
+    "作成に失敗:{msg}(再試行可。残骸は git パネルの worktree 管理から削除できます)",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

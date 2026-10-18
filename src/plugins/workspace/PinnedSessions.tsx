@@ -35,7 +35,6 @@ import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/wor
 import { copyText } from "@kernel/clipboard";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { spawnWorktreeFor } from "./worktreeSession";
 import { WorktreeBadge } from "./WorktreeBadge";
 import {
   orShortId,
@@ -287,8 +286,7 @@ export function PinnedSessionsSection() {
           position={{ x: menu.x, y: menu.y }}
           canRename
           pinScope="global"
-          spawnWorktreeFor={spawnWorktreeFor(menu.row, liveOf(menu.row)?.cwd ?? null, titleOf(menu.row))}
-          onCopyId={() => void copyText(menu.row.cliSessionId).catch(() => undefined)}
+                    onCopyId={() => void copyText(menu.row.cliSessionId).catch(() => undefined)}
           onRename={() => renameOf(menu.row)}
           onPinScope={(scope) => toggleSessionPin(menu.row.key, scope, titleOf(menu.row))}
           onClose={() => setMenu(null)}

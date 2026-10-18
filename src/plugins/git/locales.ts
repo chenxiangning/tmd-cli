@@ -15,6 +15,8 @@ const MESSAGES_EN = {
   "本回合批注 ({n})": "Notes this round ({n})",
   "工作区": "Workspace",
   "还没有批注;在 diff 行悬停点批注钮添加": "No notes yet; hover a diff line and click the note button to add one",
+  "行级批注在双栏 diff 下不可用,请切换单栏视图": "Line notes are unavailable in split diff — switch to unified view",
+  "撤销已回传标记(重新回传)": "Undo sent mark (send again)",
   "删除批注": "Delete note",
   "已回传": "Sent",
   "没有可回传的批注": "No notes to send back",
@@ -36,6 +38,9 @@ const MESSAGES_JA = {
   "工作区": "ワークスペース",
   "还没有批注;在 diff 行悬停点批注钮添加":
     "批注はまだありません。diff 行にホバーして批注ボタンから追加してください",
+  "行级批注在双栏 diff 下不可用,请切换单栏视图":
+    "行批注は 2 カラム diff では使えません。1 カラム表示に切り替えてください",
+  "撤销已回传标记(重新回传)": "送信済みマークを取り消す(再送信)",
   "删除批注": "批注を削除",
   "已回传": "送信済み",
   "没有可回传的批注": "返送できる批注はありません",

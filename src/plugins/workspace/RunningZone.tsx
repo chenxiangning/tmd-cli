@@ -32,7 +32,6 @@ import { copyText } from "@kernel/clipboard";
 import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
-import { spawnWorktreeFor } from "./worktreeSession";
 import { SessionSpeedPill } from "./SessionSpeedPill";
 import { SessionStatusLabel } from "./SessionRows";
 import { WorktreeBadge } from "./WorktreeBadge";
@@ -267,8 +266,7 @@ export function RunningZoneSection() {
         <SessionContextMenu
           position={{ x: menu.x, y: menu.y }}
           canRename={menu.row.cliSessionId !== undefined}
-          spawnWorktreeFor={spawnWorktreeFor(menu.row, menu.row.session.cwd ?? null, titleOf(menu.row))}
-          pinScope={
+                    pinScope={
             menu.row.cliSessionId === undefined
               ? undefined
               : (settings.sessionPins[

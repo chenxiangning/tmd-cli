@@ -10,11 +10,13 @@ import { createPortal } from "react-dom";
 import { useEscClose } from "@kernel/DialogShell";
 import { useFocusTrap } from "@kernel/useFocusTrap";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
+import { addWorkspace, removeWorkspace } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "@plugins/git/worktree/dirName";
 import { defaultEngineCandidates, resolveDefaultEngine } from "@plugins/workbench/defaultEngine";
 import { finalBranchName, recordWtSession } from "./worktreeSession";
+import { CreateBody, NotGitBody } from "./WorktreeDialogBodies";
 
 /** 派生纯函数(自 hook 拆出:分支密集段离开 React 函数;语义不变)。 */
 function deriveWtForm(
@@ -54,13 +56,15 @@ function useWtSessionForm(repoCwd: string, title: string) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  /** 非 git 仓:gitWorktreeList 直接失败 → 前置拦截,创建区整体替换为说明(不裸奔报错)。 */
+  const [notGit, setNotGit] = useState(false);
 
   useEffect(() => {
     let alive = true;
     void ipc
       .gitWorktreeList(repoCwd)
       .then((list) => alive && setEntries(list))
-      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
+      .catch(() => alive && setNotGit(true));
     return () => {
       alive = false;
     };
@@ -72,41 +76,35 @@ function useWtSessionForm(repoCwd: string, title: string) {
 
   return {
     entries, existingBranch, setExistingBranch, newBranch, setNewBranch,
-    base, setBase, busy, setBusy, error, setError, done, setDone,
+    base, setBase, busy, setBusy, error, setError, done, setDone, notGit,
     finalBranch, conflict, baseErr, wtPath, canCreate, takenBranches,
   };
 }
 
 export function WorktreeSessionDialog({
   repoCwd,
-  workspaceId,
-  profileId,
   title,
   onClose,
 }: {
   /** 仓库根(会话 cwd):worktree 父目录与 node_modules 复用源都由此推导。 */
   repoCwd: string;
-  workspaceId: string;
-  /** 引擎预填(会话右键路径 = 原会话引擎);缺省 = 弹层内引擎选择行(工作区右键路径)。 */
-  profileId?: string;
   /** 原会话标题:分支基名 slug 预填 + 新会话标题沿用。 */
   title: string;
   onClose: () => void;
 }) {
-  /* 引擎选择(仅未预填时):默认引擎回落首个候选;生产行(dsh)排除同 GenSettings。 */
+  /* 引擎选择:默认引擎回落首个候选;生产行(dsh)排除同 GenSettings。 */
   const candidates = defaultEngineCandidates();
   const [pickedProfile, setPickedProfile] = useState(() => {
-    if (profileId) return profileId;
     const def = resolveDefaultEngine();
     if (def && candidates.some((p) => p.id === def.profileId)) return def.profileId;
     return candidates[0]?.id ?? "";
   });
-  const engineId = profileId ?? pickedProfile;
+  const engineId = pickedProfile;
   const form = useWtSessionForm(repoCwd, title);
   const {
     busy, done, error, setError, setBusy, setDone, canCreate, wtPath, finalBranch, newBranch,
     setNewBranch, base, setBase, existingBranch, setExistingBranch, conflict, baseErr,
-    takenBranches,
+    takenBranches, notGit,
   } = form;
 
   const closeGuarded = useCallback((): void => {
@@ -120,6 +118,8 @@ export function WorktreeSessionDialog({
     if (!canCreate || !wtPath) return;
     setBusy(true);
     setError("");
+    /** 新工作区(addWorkspace 产出);spawn 失败回滚时对称移除,不留悬空行。 */
+    let ws: ReturnType<typeof addWorkspace> | null = null;
     try {
       await ipc.gitWorktreeAdd(repoCwd, wtPath, finalBranch, newBranch);
       /* 主仓有 node_modules → 符号链接复用。失败不阻断(依赖可后补装),
@@ -133,12 +133,18 @@ export function WorktreeSessionDialog({
       } catch {
         console.warn("[wt-session] node_modules 符号链接失败(不阻断)", wtPath);
       }
-      /* 走 kernel 统一生成面:identityTrack/事件广播/侧栏装配全在里面;
-       * 直调 ipc.sessionSpawn 会绕过装配(侧栏不可见、审批/时间线全盲)。 */
+      /* 沿用既有心智:worktree = 独立工作区(WorktreeManageDialog 同款 addWorkspace),
+       * 侧栏出现新工作区行;会话在新工作区里起(identityTrack 全装配)。 */
+      ws = addWorkspace(wtPath);
       const spawned = await host.spawnRawSession(
         engineId,
-        { command: host.getCliProfile(engineId)?.command ?? "", args: host.getCliProfile(engineId)?.args ?? [], cwd: wtPath, title },
-        workspaceId,
+        {
+          command: host.getCliProfile(engineId)?.command ?? "",
+          args: host.getCliProfile(engineId)?.args ?? [],
+          cwd: wtPath,
+          title,
+        },
+        ws.id,
         { activate: true, identityTrack: true },
       );
       recordWtSession(spawned.id, { branch: finalBranch, wtPath, root: repoCwd });
@@ -151,13 +157,14 @@ export function WorktreeSessionDialog({
       try {
         await ipc.gitWorktreeRemove(repoCwd, wtPath, true);
         rolledBack = true;
+        if (ws) removeWorkspace(ws.id); /* 对称清理:不留指向已删目录的悬空工作区。 */
       } catch {
         /* 回滚失败也如实告知入口。 */
       }
       setError(
         rolledBack
-          ? msg
-          : `${msg}(已残留 worktree ${wtPath},可在 git 面板 worktree 管理中移除后重试)`,
+          ? t("创建失败,已回滚:{msg}", { msg: msg })
+          : t("创建失败:{msg}(可重试;残留树可在 git 面板 worktree 管理中移除)", { msg: msg }),
       );
       setBusy(false);
     }
@@ -178,7 +185,7 @@ export function WorktreeSessionDialog({
         className="flex w-[440px] flex-col gap-3 rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-(--tmd-shadow-modal)"
       >
         <div className="text-sm font-medium text-(--tmd-fg)">{t("在新 worktree 中起会话")}</div>
-        {!profileId && (
+        {!notGit && (
           <div>
             <div className="mb-1 text-xs text-(--tmd-fg-faint)">{t("引擎")}</div>
             <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t("引擎")}>
@@ -202,20 +209,27 @@ export function WorktreeSessionDialog({
             </div>
           </div>
         )}
-        <div className="text-xs text-(--tmd-fg-faint)">
-          {t("目录:{dir}", { dir: wtPath ?? "…" })}
-        </div>
+        {!notGit && (
+          <div className="text-xs text-(--tmd-fg-faint)">
+            {t("目录:{dir}", { dir: wtPath ?? "…" })}
+          </div>
+        )}
 
+        {!notGit && (
         <label className="flex items-center gap-2 text-xs text-(--tmd-fg)">
           <input type="radio" name="wt-base" checked={newBranch} onChange={() => setNewBranch(true)} />
           {t("新建分支(基于当前 HEAD)")}
         </label>
+        )}
+        {!notGit && (
         <label className="flex items-center gap-2 text-xs text-(--tmd-fg)">
           <input type="radio" name="wt-base" checked={!newBranch} onChange={() => setNewBranch(false)} />
           {t("检出已有分支")}
         </label>
+        )}
 
-        {newBranch ? (
+        {!notGit &&
+          (newBranch ? (
           <>
             <input
               value={base}
@@ -246,32 +260,16 @@ export function WorktreeSessionDialog({
               </option>
             ))}
           </select>
+          ))}
+
+        {notGit ? (
+          <NotGitBody repoCwd={repoCwd} onCancel={closeGuarded} />
+        ) : (
+          <CreateBody
+            error={error} done={done} busy={busy} canCreate={canCreate}
+            onCancel={closeGuarded} onCreate={() => void create()}
+          />
         )}
-
-        <div className="text-xs text-(--tmd-fg-faint)">
-          {t("主仓 node_modules 存在时以符号链接复用,新树免重装依赖。")}
-        </div>
-
-        {error && <div className="text-xs text-(--tmd-danger, #e5484d)">{error}</div>}
-        {done && <div className="text-xs text-(--tmd-fg-faint)">{t("已创建并起会话")}</div>}
-
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={closeGuarded}
-            className="rounded-md border border-(--tmd-border) px-2.5 py-1 text-xs text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
-          >
-            {t("取消")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void create()}
-            disabled={!canCreate}
-            className="rounded-md bg-(--tmd-accent) px-2.5 py-1 text-xs font-medium text-(--tmd-accent-fg) disabled:opacity-50"
-          >
-            {busy ? t("创建中…") : t("创建并起会话")}
-          </button>
-        </div>
       </div>
     </div>,
     document.body,

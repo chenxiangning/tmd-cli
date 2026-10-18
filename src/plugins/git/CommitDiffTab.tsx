@@ -137,7 +137,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
             emptyText={t("无 patch 数据")}
             noteCtx={noteCtx}
           />
-          <DiffNotesPanel sessionKey={sessionKey} />
+          <DiffNotesPanel sessionKey={sessionKey} splitDisabled={diffMode === "split"} />
         </div>
       </div>
     </div>

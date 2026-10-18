@@ -93,6 +93,9 @@ function emit(): void {
 
 function save(): void {
   backing()?.setItem(STORE_KEY, JSON.stringify(load()));
+  /* cache 置空强制 load() 重新解析出**新对象** —— 否则原地改 cache 后
+   * snapshot 引用不变,useSyncExternalStore 判等跳过重渲(写后 UI 冻结)。 */
+  cache = null;
   emit();
 }
 

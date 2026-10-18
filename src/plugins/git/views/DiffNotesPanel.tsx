@@ -31,7 +31,14 @@ function buildNoteReport(notes: readonly DiffNote[]): string {
   return `代码批注回传:\n\n${blocks.join("\n\n")}`;
 }
 
-export function DiffNotesPanel({ sessionKey }: { sessionKey: string }) {
+export function DiffNotesPanel({
+  sessionKey,
+  splitDisabled = false,
+}: {
+  sessionKey: string;
+  /** 双栏 diff 模式:行级批注 UI 不渲染(PatchLines split 分支未接),空态改提示。 */
+  splitDisabled?: boolean;
+}) {
   const store = useDiffNotesStore();
   const notes = store.groups[sessionKey] ?? [];
   const [toast, setToast] = useState<string | null>(null);
@@ -69,7 +76,9 @@ export function DiffNotesPanel({ sessionKey }: { sessionKey: string }) {
       <div className="max-h-36 overflow-y-auto px-3">
         {notes.length === 0 && (
           <div className="py-1.5 text-meta text-(--tmd-fg-faint)">
-            {t("还没有批注;在 diff 行悬停点批注钮添加")}
+            {splitDisabled
+              ? t("行级批注在双栏 diff 下不可用,请切换单栏视图")
+              : t("还没有批注;在 diff 行悬停点批注钮添加")}
           </div>
         )}
         {notes.map((n) => (
@@ -83,11 +92,21 @@ export function DiffNotesPanel({ sessionKey }: { sessionKey: string }) {
               <span className="font-mono text-(--tmd-accent)">{n.file.split("/").pop()}:{n.lineNo}</span>{" "}
               <span className={n.sent ? "text-(--tmd-diff-inserted)" : "text-(--tmd-fg-muted)"}>{n.text}</span>
             </button>
-            {n.sent && <CheckCircle weight="fill" className="mt-0.5 h-3 w-3 shrink-0 text-(--tmd-diff-inserted)" />}
+            {n.sent && (
+              <button
+                type="button"
+                aria-label={t("撤销已回传标记(重新回传)")}
+                title={t("撤销已回传标记(重新回传)")}
+                className="mt-0.5 shrink-0 text-(--tmd-diff-inserted) opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-(--tmd-fg-muted)"
+                onClick={() => toggleSent(sessionKey, n.id)}
+              >
+                <CheckCircle weight="fill" className="h-3 w-3" />
+              </button>
+            )}
             <button
               type="button"
               aria-label={t("删除批注")}
-              className="shrink-0 text-(--tmd-fg-faint) opacity-0 group-hover:opacity-100 hover:text-(--tmd-diff-removed)"
+              className="shrink-0 text-(--tmd-fg-faint) opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-(--tmd-diff-removed)"
               onClick={() => remove(sessionKey, n.id)}
             >
               <Trash className="h-3 w-3" />

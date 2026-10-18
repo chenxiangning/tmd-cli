@@ -1,7 +1,7 @@
 /**
  * 0.3.9 七候选入口契约 —— 入口消失 = 功能不可达(消费者可见回归):
- * ① worktree 菜单项随 spawnWorktreeFor 出没;② Memory 面板 Wiki 开关钮;
- * ③ diff 批注面板非空组渲染与回传钮可用性。
+ * ① 会话右键无 worktree 项(入口收编到工作区右键);② Memory 面板 Wiki 开关钮;
+ * ③ diff 批注面板非空组渲染与回传钮可用性;④ 工作区右键菜单恒显 worktree 入口。
  * 手法同 WorkspaceAddDialog.test(portal 平铺内联,node 环境无 document;
  * useSyncExternalStore 消费端以桩 store 只验渲染面,store 语义另有专门测试)。
  */
@@ -70,26 +70,21 @@ import { MemoryPanelFooter } from "../memory-coordinator/panel/MemoryPanelParts"
 import { DiffNotesPanel } from "../git/views/DiffNotesPanel";
 
 describe("入口闭环审计", () => {
-  it("① 会话右键菜单:传 spawnWorktreeFor 时显「在新 worktree 中起会话」;不传时不显", () => {
-    const base = {
-      position: { x: 60, y: 60 },
-      canRename: true,
-      pinScope: null,
-      onCopyId: () => undefined,
-      onRename: () => undefined,
-      onPinScope: () => undefined,
-      onDelete: () => undefined,
-      onClose: () => undefined,
-    };
-    const withWt = renderToStaticMarkup(
+  it("① 会话右键菜单:无 worktree 项(入口收编到工作区右键,2026-10-18 反馈)", () => {
+    const html = renderToStaticMarkup(
       createElement(SessionContextMenu, {
-        ...base,
-        spawnWorktreeFor: { repoCwd: "/tmp/ws", workspaceId: "ws1", profileId: "claude", title: "审计" },
+        position: { x: 60, y: 60 },
+        canRename: true,
+        pinScope: null,
+        onCopyId: () => undefined,
+        onRename: () => undefined,
+        onPinScope: () => undefined,
+        onDelete: () => undefined,
+        onClose: () => undefined,
       }),
     );
-    expect(withWt).toContain("在新 worktree 中起会话");
-    const withoutWt = renderToStaticMarkup(createElement(SessionContextMenu, { ...base }));
-    expect(withoutWt).not.toContain("在新 worktree 中起会话");
+    expect(html).toContain("复制 Session ID");
+    expect(html).not.toContain("在新 worktree 中起会话");
   });
 
   it("② Memory 面板底部:显「Wiki」开关钮", () => {

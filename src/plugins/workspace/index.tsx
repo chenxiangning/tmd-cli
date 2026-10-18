@@ -249,7 +249,7 @@ function WorkspaceSection() {
 
       {wtWs && (
         <WorktreeSessionDialog
-          repoCwd={wtWs.root} workspaceId={wtWs.id} title={wtWs.name} onClose={() => setWtWs(null)}
+          repoCwd={wtWs.root} title={wtWs.name} onClose={() => setWtWs(null)}
         />
       )}
     </div>

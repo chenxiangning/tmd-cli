@@ -89,17 +89,3 @@ export function bumpBranch(base: string, taken: ReadonlySet<string>): string {
 export function finalBranchName(base: string, taken: ReadonlySet<string>): string {
   return bumpBranch(branchForWorktree(base), taken);
 }
-
-/** 右键菜单 worktree 目标构造:活会话 cwd 优先,否则回工作区根;其余透传。 */
-export function spawnWorktreeFor(
-  row: { workspace: { id: string; root: string }; profile: { id: string } },
-  liveCwd: string | null,
-  title: string,
-): { repoCwd: string; workspaceId: string; profileId: string; title: string } {
-  return {
-    repoCwd: liveCwd ?? row.workspace.root,
-    workspaceId: row.workspace.id,
-    profileId: row.profile.id,
-    title,
-  };
-}

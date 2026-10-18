@@ -68,7 +68,11 @@ export function serializeWikiDoc(doc: WikiDoc): string {
   return JSON.stringify(doc, null, 2) + "\n";
 }
 
-/** 幂等追加:同 sessionId 的 auto 条目已存在则原样返回(一会话生命周期只写一次)。 */
+/** 条目上限:超过后从最旧剪 auto 条目(decision/open 是人工拍板,保留)。 */
+const ENTRIES_MAX = 500;
+
+/** 幂等追加:同 sessionId 的 auto 条目已存在则原样返回(一会话生命周期只写一次);
+ * 总量超限剪最旧 auto(decision/open 不动)。 */
 export function addEntry(doc: WikiDoc, entry: Omit<WikiEntry, "id">): WikiDoc {
   if (
     entry.kind === "auto" &&
@@ -76,7 +80,20 @@ export function addEntry(doc: WikiDoc, entry: Omit<WikiEntry, "id">): WikiDoc {
   ) {
     return doc;
   }
-  return { version: 1, entries: [...doc.entries, { ...entry, id: newId() }] };
+  let entries = [...doc.entries, { ...entry, id: newId() }];
+  if (entries.length > ENTRIES_MAX) {
+    const keep: typeof entries = [];
+    let overflow = entries.length - ENTRIES_MAX;
+    for (const e of entries) {
+      if (overflow > 0 && e.kind === "auto") {
+        overflow -= 1;
+        continue;
+      }
+      keep.push(e);
+    }
+    entries = keep;
+  }
+  return { version: 1, entries };
 }
 
 /** 用户消息尾段摘录:取尾段拼接,截 800 字(保尾部 —— 越靠后越接近结论)。 */
