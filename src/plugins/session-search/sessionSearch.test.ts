@@ -1,154 +1,92 @@
 /**
- * session-search 纯逻辑契约测试:indexer 的增量/mtime 缓存与 searchSessions 检索。
- * host 以 vi.mock 桩注入(两条 profile:omp 全功能 / shell 无读取器被过滤)。
+ * searchCore 纯逻辑契约测试:子串检索(标题优先/AND/大小写/matchToken)、
+ * 时间谓词(闭区间)、引擎过滤叠加、行级定位目标构造(042:cwd/workspaceId
+ * 取自带,跨区先切后跳)。fixture 直造,零 IO 零 mock。
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const profiles = vi.hoisted(() => ({
-  list: [] as Array<Record<string, unknown>>,
-}));
-
-vi.mock("@kernel/host", () => ({
-  host: {
-    getCliProfiles: () => profiles.list,
-    getCliProfile: (id: string) => profiles.list.find((p) => p.id === id),
-  },
-}));
-
+import { describe, expect, it } from "vitest";
+import type { SessionIndex, SessionIndexEntry } from "./indexer";
 import {
-  SessionIndexer,
-  clearIndexCache,
   searchSessions,
   timeRangeFor,
   applyFilters,
   locateTargetOf,
-  type SessionIndex,
-  type SessionIndexEntry,
-} from "./indexer";
+} from "./searchCore";
 
-/** omp 桩工厂:每用例新建,避免跨用例改桩污染。 */
-function makeOmp() {
+function entryOf(
+  profileId: string,
+  id: string,
+  modifiedAt: number,
+  message: string,
+  extra?: { title?: string; cwd?: string; workspaceId?: string },
+): SessionIndexEntry {
   return {
-    id: "omp",
-    name: "omp",
-    listSessions: async () => [
-      { id: "a", title: "改审批线", modifiedAt: 200, path: "/tmp/a.jsonl" },
-      { id: "b", modifiedAt: 100, path: "/tmp/b.jsonl" },
-    ],
-    readSessionUserMessages: async (_cwd: string, id: string) => [
-      { id: "m1", text: id === "a" ? "帮我修 checkpoints 的归因 bug" : "写个爬虫抓价格" },
-    ],
+    profileId,
+    cliSessionId: id,
+    modifiedAt,
+    cwd: extra?.cwd ?? "/ws",
+    workspaceId: extra?.workspaceId ?? "w1",
+    title: extra?.title,
+    messages: [message],
   };
 }
 
-beforeEach(() => {
-  profiles.list = [makeOmp(), { id: "shell" }]; // shell 无 listSessions/readSessionUserMessages → 过滤
-  clearIndexCache();
-});
-
-describe("SessionIndexer", () => {
-  it("过滤无读取器的 profile,枚举作业按最近修改排序", async () => {
-    const indexer = new SessionIndexer("/ws");
-    const total = await indexer.prime();
-    expect(total).toBe(2);
-    await indexer.step();
-    expect(indexer.index.entries[0]?.cliSessionId).toBe("a"); // modifiedAt 200 在前
-  });
-
-  it("step 推进至 done;消息文本进索引", async () => {
-    const indexer = new SessionIndexer("/ws");
-    await indexer.prime();
-    const more1 = await indexer.step();
-    const more2 = await indexer.step();
-    const more3 = await indexer.step();
-    expect([more1, more2, more3]).toEqual([true, false, false]);
-    expect(indexer.index.entries).toHaveLength(2);
-    expect(indexer.index.entries[1]?.messages[0]).toContain("爬虫");
-  });
-
-  it("mtime 未变的会话零读取(缓存命中)", async () => {
-    const indexer = new SessionIndexer("/ws");
-    await indexer.prime();
-    await indexer.step();
-    await indexer.step();
-    let reads = 0;
-    profiles.list = [
-      {
-        ...makeOmp(),
-        readSessionUserMessages: async (): Promise<null> => {
-          reads += 1;
-          return null;
-        },
-      },
-      { id: "shell" },
-    ];
-    const indexer2 = new SessionIndexer("/ws");
-    await indexer2.prime();
-    await indexer2.step();
-    await indexer2.step();
-    expect(reads).toBe(0); // 两个会话 mtime 未变
-  });
-});
-
-describe("searchSessions", () => {
-  it("标题命中优先于消息命中", async () => {
-    const indexer = new SessionIndexer("/ws");
-    await indexer.prime();
-    await indexer.step();
-    await indexer.step();
-    const hits = searchSessions(indexer.index, "审批线");
-    expect(hits).toHaveLength(1);
-    expect(hits[0]?.inTitle).toBe(true);
-    expect(hits[0]?.snippet).toContain("审批线");
-  });
-
-  it("消息正文命中;大小写不敏感;空查询返回空", async () => {
-    const indexer = new SessionIndexer("/ws");
-    await indexer.prime();
-    await indexer.step();
-    await indexer.step();
-    expect(searchSessions(indexer.index, "爬虫")).toHaveLength(1);
-    expect(searchSessions(indexer.index, "CHECKPOINTS")).toHaveLength(1);
-    expect(searchSessions(indexer.index, "  ")).toEqual([]);
-  });
-
-  it("多关键词空格分词全命中(AND):缺一不可", async () => {
-    const indexer = new SessionIndexer("/ws");
-    await indexer.prime();
-    await indexer.step();
-    await indexer.step();
-    expect(searchSessions(indexer.index, "修 checkpoints")).toHaveLength(1); // 同一条消息双词
-    expect(searchSessions(indexer.index, "修 爬虫")).toHaveLength(0); // 两词分属两条会话,单条不含全词
-  });
-
-  it("命中片段带 matchToken(高亮拆分锚);标题命中回落首词", async () => {
-    const indexer = new SessionIndexer("/ws");
-    await indexer.prime();
-    await indexer.step();
-    await indexer.step();
-    const [msgHit] = searchSessions(indexer.index, "归因");
-    expect(msgHit?.matchToken).toBe("归因");
-    expect(msgHit?.snippet).toContain("归因");
-    const [titleHit] = searchSessions(indexer.index, "审批线");
-    expect(titleHit?.matchToken).toBe("审批线");
-  });
-});
-
-/* ── 时间谓词(闭区间,等值命中)与 chip 叠加管线 ────────────────── */
-
-function entryOf(profileId: string, id: string, modifiedAt: number, message: string): SessionIndexEntry {
-  return { profileId, cliSessionId: id, modifiedAt, messages: [message] };
-}
-
 function indexOf(entries: SessionIndexEntry[]): SessionIndex {
-  return { cwd: "/ws", entries, scanned: entries.length, total: entries.length, listFailed: 0 };
+  return {
+    cwd: "/ws",
+    entries,
+    scanned: entries.length,
+    total: entries.length,
+    listFailed: 0,
+    workspacesTotal: 1,
+    scannedWorkspaces: 1,
+    goneCwds: [],
+  };
 }
 
 const HITS_FIXTURE = [
   entryOf("omp", "old", 1000, "修 checkpoints 归因"),
   entryOf("omp", "mid", 2000, "写个爬虫抓价格"),
-  entryOf("kimi", "new", 3000, "再修 checkpoints"),
+  entryOf("kimi", "new", 3000, "再看 checkpoints 口径"),
 ];
+
+describe("searchSessions", () => {
+  it("标题命中优先于消息命中", () => {
+    const index = indexOf([
+      entryOf("omp", "t1", 500, "帮我修 checkpoints 的归因 bug", { title: "改审批线" }),
+      ...HITS_FIXTURE,
+    ]);
+    const hits = searchSessions(index, "审批线");
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.inTitle).toBe(true);
+    expect(hits[0]?.snippet).toContain("审批线");
+  });
+
+  it("消息正文命中;大小写不敏感;空查询返回空", () => {
+    const index = indexOf(HITS_FIXTURE);
+    expect(searchSessions(index, "爬虫")).toHaveLength(1);
+    expect(searchSessions(index, "CHECKPOINTS")).toHaveLength(2); // old/new 均含
+    expect(searchSessions(index, "  ")).toEqual([]);
+  });
+
+  it("多关键词空格分词全命中(AND):缺一不可", () => {
+    const index = indexOf(HITS_FIXTURE);
+    expect(searchSessions(index, "修 checkpoints")).toHaveLength(1); // 同一条消息双词
+    expect(searchSessions(index, "修 爬虫")).toHaveLength(0); // 两词分属两条会话,单条不含全词
+  });
+
+  it("命中片段带 matchToken(高亮拆分锚);标题命中回落首词", () => {
+    const index = indexOf([
+      entryOf("omp", "t1", 500, "帮我修 checkpoints 的归因 bug", { title: "改审批线" }),
+    ]);
+    const [msgHit] = searchSessions(index, "归因");
+    expect(msgHit?.matchToken).toBe("归因");
+    expect(msgHit?.snippet).toContain("归因");
+    const [titleHit] = searchSessions(index, "审批线");
+    expect(titleHit?.matchToken).toBe("审批线");
+  });
+});
+
+/* ── 时间谓词(闭区间,等值命中)与 chip 叠加管线 ────────────────── */
 
 describe("searchSessions 时间谓词", () => {
   it("fromMs/toMs 闭区间:两端等值命中,界外滤除", () => {
@@ -195,13 +133,13 @@ describe("时间 chip 枚举与叠加管线", () => {
   });
 });
 
-describe("行级定位目标构造", () => {
+describe("行级定位目标构造(042:cwd/workspaceId 取自带,跨区先切后跳)", () => {
   it("消息命中构造 openThenJumpToText 入参(target + needle 原文)", () => {
     const [hit] = searchSessions(indexOf(HITS_FIXTURE), "爬虫");
     expect(hit?.message).toBe("写个爬虫抓价格");
-    const locate = locateTargetOf(hit!, "/ws2", "ws1");
+    const locate = locateTargetOf(hit!);
     expect(locate).toEqual({
-      target: { profileId: "omp", cwd: "/ws2", workspaceId: "ws1", cliSessionId: "mid" },
+      target: { profileId: "omp", cwd: "/ws", workspaceId: "w1", cliSessionId: "mid" },
       text: "写个爬虫抓价格",
     });
   });
@@ -212,13 +150,57 @@ describe("行级定位目标构造", () => {
       cliSessionId: "t1",
       title: "标题词",
       modifiedAt: 1000,
+      cwd: "/ws",
       messages: [],
     };
     const [hit] = searchSessions(indexOf([entry]), "标题词");
     expect(hit?.inTitle).toBe(true);
     expect(hit?.message).toBeUndefined();
-    expect(locateTargetOf(hit!, "/ws")).toBeNull();
+    expect(locateTargetOf(hit!)).toBeNull();
     const [msgHit] = searchSessions(indexOf([entry]), "标题词");
-    expect(locateTargetOf({ ...msgHit!, message: "正文" }, "/ws")?.target.workspaceId).toBeUndefined();
+    expect(locateTargetOf({ ...msgHit!, message: "正文" })?.target.workspaceId).toBeUndefined();
+  });
+});
+
+/* ── 多命中子列表(042 随手带):同会话全部命中收集 + 跳该处 ────────── */
+
+describe("searchSessions 子命中收集", () => {
+  it("同一会话多条命中消息全部入 subHits;首条即 snippet/matchToken 来源", () => {
+    const entry = entryOf("omp", "multi", 1000, "第一处 归因", { title: "x" });
+    entry.messages.push("第二处 归因", "无关消息");
+    const [hit] = searchSessions(indexOf([entry]), "归因");
+    expect(hit?.subHits.map((s) => s.message)).toEqual(["第一处 归因", "第二处 归因"]);
+    expect(hit?.snippet).toBe(hit?.subHits[0]?.snippet);
+    expect(hit?.matchToken).toBe("归因");
+    expect(hit?.message).toBe("第一处 归因");
+  });
+
+  it("标题 + 消息双命中:subHits 只收消息命中;纯标题命中 subHits 为空", () => {
+    const both = entryOf("omp", "b", 1000, "正文 归因", { title: "标题 归因" });
+    const [hitBoth] = searchSessions(indexOf([both]), "归因");
+    expect(hitBoth?.inTitle).toBe(true);
+    expect(hitBoth?.subHits).toHaveLength(1);
+    const titleOnly = entryOf("omp", "t", 1000, "无关", { title: "标题 归因" });
+    const [hitTitle] = searchSessions(indexOf([titleOnly]), "归因");
+    expect(hitTitle?.subHits).toEqual([]);
+    expect(hitTitle?.message).toBeUndefined();
+  });
+
+  it("subHits 截顶 SUB_HIT_CAP;首条不受截顶影响", () => {
+    const entry = entryOf("omp", "cap", 1000, "命中 归因");
+    for (let i = 0; i < 30; i++) entry.messages.push(`补 ${i} 归因`);
+    const [hit] = searchSessions(indexOf([entry]), "归因");
+    expect(hit?.subHits).toHaveLength(20);
+    expect(hit?.subHits[0]?.message).toBe("命中 归因");
+  });
+
+  it("locateTargetOf 带子命中跳该处;缺省回落首命中", () => {
+    const entry = entryOf("omp", "jump", 1000, "第一处 归因");
+    entry.messages.push("第二处 归因");
+    const [hit] = searchSessions(indexOf([entry]), "归因");
+    const sub = hit?.subHits[1];
+    expect(locateTargetOf(hit!, sub)?.text).toBe("第二处 归因");
+    expect(locateTargetOf(hit!)?.text).toBe("第一处 归因");
+    expect(locateTargetOf(hit!, sub)?.target.cliSessionId).toBe("jump");
   });
 });
