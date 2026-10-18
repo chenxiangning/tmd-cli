@@ -10,10 +10,12 @@
 
 import { PenNib } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
+import { getSettingsState } from "@kernel/settings";
 import type { Plugin } from "@kernel/plugin";
 import { t } from "@kernel/i18n";
 import { Composer } from "./view/Composer";
 import { composerSendRef } from "./view/composerSendRef";
+import { historyToggleRef } from "./view/historyToggleRef";
 import { TileBroadcastButton } from "./view/TileBroadcastButton";
 import { RailWakeIcons } from "./view/RailWakeIcons";
 import { ComposerToolbar } from "./view/ComposerToolbar";
@@ -72,6 +74,15 @@ export const composerPlugin: Plugin = {
       keybinding: "Cmd+K",
       when: () => !!host.getActiveSessionId(),
       run: toggleDrawerIgnoreRepeat,
+    });
+    /* ⌘L 开合输入历史抽屉(042 定稿:全库零命中键;when 同 ⌘K + 总开关闸,
+       promptHistoryEnabled 关闭时键穿透不触发);开合执行在 Composer 局部 state */
+    ctx.registerCommand({
+      id: "composer.toggleHistory",
+      title: t("打开/关闭输入历史抽屉"),
+      keybinding: "Cmd+L",
+      when: () => !!host.getActiveSessionId() && getSettingsState().settings.promptHistoryEnabled,
+      run: () => historyToggleRef.current?.(),
     });
     /* 发送消息:无键位仅暴露(设置清单数据面);发送行为完全归 Composer 既有路径 */
     ctx.registerCommand({

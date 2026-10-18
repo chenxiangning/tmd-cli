@@ -32,6 +32,8 @@ import { composerSendRef } from "./composerSendRef";
 import { insertAtCursor } from "./useComposerAttachments";
 import { PromptGhostMirror } from "./PromptGhostMirror";
 import { useComposerSend } from "./useComposerSend";
+import { HistoryDrawer } from "./HistoryDrawer";
+import { historyToggleRef } from "./historyToggleRef";
 
 import { usePromptCompletion, usePromptHistoryNav } from "./usePromptHistory";
 import { composerTextareaKeyDown } from "./composerTextareaKeys";
@@ -105,11 +107,19 @@ export function Composer() {
   useEffect(() => {
     composerSendRef.current = () => sendCurrent();
     composerWakeRef.current = wakeTrigger;
+    /* ⌘L 历史抽屉开合桥:总开关关闭时同闸不触发(定稿,零新增设置键) */
+    historyToggleRef.current = () => {
+      if (!settings.promptHistoryEnabled) return;
+      setHistoryOpen((o) => !o);
+    };
     return () => {
       composerSendRef.current = null;
       composerWakeRef.current = null;
+      historyToggleRef.current = null;
     };
   });
+  /* 输入历史浏览抽屉:局部 state,不经 drawerOpen 三态机(042 定稿) */
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   /* 输入历史:ghost 补全 + 空输入 ↑↓ 召回;IME 组合期禁 ghost,召回走 setValue+光标复位 */
   const [imeComposing, setImeComposing] = useState(false);
@@ -246,6 +256,28 @@ export function Composer() {
             onSend={sendFromDrawer}
             onInsert={insertFromDrawer}
             onOpen={openFromDrawer}
+          />,
+          document.body,
+        )}
+        {boxRect && createPortal(
+          <HistoryDrawer
+            style={{
+              right: window.innerWidth - boxRect.right,
+              bottom: popupBottom,
+              maxHeight: popupMaxHeight,
+            }}
+            open={historyOpen}
+            onPick={(text) => {
+              /* 整替草稿 + 光标末尾,可编辑不直发(composerReplaceRef 语义) */
+              setValue(text);
+              setCursor(text.length);
+              const ta = ref.current;
+              if (ta) {
+                ta.focus();
+                ta.setSelectionRange(text.length, text.length);
+              }
+            }}
+            onClose={() => setHistoryOpen(false)}
           />,
           document.body,
         )}
