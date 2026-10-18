@@ -99,4 +99,23 @@ export const MESSAGES_EN = {
 
   // ── 空态深链(右栏面板直达商店页)──
   "打开技能商店": "Open skill store",
+
+  // ── 磁盘导入(GitHub 下载源码:目录 / zip)──
+  "从文件夹导入技能…": "Import skill from folder…",
+  "从 zip 导入…": "Import from zip…",
+  "选择技能目录(含 SKILL.md)": "Choose a skill folder (containing SKILL.md)",
+  "选择技能 zip 包": "Choose a skill zip file",
+  "只支持 .zip 包": "Only .zip files are supported",
+  "未在所选位置发现技能(需要含 SKILL.md/skill.json 的目录)":
+    "No skills found in the selected location (directories containing SKILL.md/skill.json are required)",
+  "zip 解压失败": "Failed to extract zip",
+  "磁盘导入:{label}": "Disk import: {label}",
+  "从 GitHub 导入…": "Import from GitHub…",
+  "从 GitHub 导入": "Import from GitHub",
+  "下载并发现": "Download & scan",
+  "GitHub 仓库链接": "GitHub repository link",
+  "支持仓库页、/tree 分支页、.git、git@ 或 owner/repo;技能目录自动发现,仓库内层级不限":
+    "Repo page, /tree branch page, .git, git@, or owner/repo; skill dirs are found automatically at any depth",
+  "无法识别的 GitHub 链接": "Unrecognized GitHub link",
+  "GitHub 下载失败": "GitHub download failed",
 } as Record<string, string>;
