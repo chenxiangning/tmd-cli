@@ -32,6 +32,11 @@ export {
   findAnchorRow,
   jumpToAnchor,
   resolveActiveAnchorId,
+  textNeedle,
+  jumpToText,
+  openThenJumpToText,
+  type JumpTextOutcome,
+  type DiskJumpTarget,
 } from "./anchorJump";
 
 /** 锚点 = 一条用户消息(与 CliUserMessage 同形,内核内改名强调导航语义)。 */

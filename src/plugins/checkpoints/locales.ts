@@ -23,6 +23,13 @@ const MESSAGES_EN = {
     "Outside-workspace file: its pre-batch image is unknowable on the first round — revert is disabled (so an existing file is never deleted by mistake); from the second round on it reverts normally",
   "工作区外({n}) —— 首轮批前像不可知,禁回退;次轮起可正常回退":
     "Outside workspace ({n}) — pre-batch image unknown on the first round, revert disabled; reverts normally from the second round on",
+  /* 候选8 checkpoint↔转录互跳:时间线轮次 chip + 批审阅单「看对话」 */
+  "本轮 {n} 文件": "{n} files this turn",
+  "看对话": "View conversation",
+  "定位这轮消息在对话中的位置(已结束的会话会先恢复再定位)":
+    "Locate this message in the conversation (a closed session is resumed first)",
+  "会话已打开,未定位到该条消息": "Session opened, but the message could not be located",
+  "未能定位到该条对话消息": "Could not locate this message in the conversation",
 } as const;
 
 /** ja 词典 · checkpoints 域。 */
@@ -43,6 +50,13 @@ const MESSAGES_JA = {
     "ワークスペース外のファイル:初回ラウンドは事前イメージが不明のためロールバック不可(既存ファイルの誤削除を防止)。2 ラウンド目以降は通常どおりロールバックできます",
   "工作区外({n}) —— 首轮批前像不可知,禁回退;次轮起可正常回退":
     "ワークスペース外({n})——初回は事前イメージが不明のためロールバック不可。2 ラウンド目以降は通常どおり",
+  /* 候选8 checkpoint↔转录互跳:时间线轮次 chip + 批审阅单「会話を見る」 */
+  "本轮 {n} 文件": "このターンのファイル {n} 件",
+  "看对话": "会話を見る",
+  "定位这轮消息在对话中的位置(已结束的会话会先恢复再定位)":
+    "このメッセージの会話内の位置へ移動します(終了したセッションは先に復元されます)",
+  "会话已打开,未定位到该条消息": "セッションは開きましたが、該当メッセージを見つけられませんでした",
+  "未能定位到该条对话消息": "このメッセージの会話内の位置を特定できませんでした",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

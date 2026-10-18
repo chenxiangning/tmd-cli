@@ -20,6 +20,7 @@ import { approveBatch, refreshBatches, revertBatch, useCkptVersion, useCkptBatch
 import { getCachedDiff, getCachedDiffError, loadDiff, refreshOpenDiff } from "./diffCache";
 import { readBatchPayload } from "./batchTab";
 import { extractPromptImages } from "./promptImagesExtract";
+import { viewBatchConversation } from "./seeConversation";
 import { Center, FileSections } from "./BatchFileSection";
 import { SheetConfirmBar, SheetPromptCard, SheetToolbar } from "./batchSheetParts";
 
@@ -104,6 +105,32 @@ function SheetBody({
   const promptContent = useMemo(() => extractPromptImages(batch.prompt), [batch.prompt]);
   const [flash, setFlash] = useState<string | null>(focusPath ?? null);
 
+  /* 「看对话」轻反馈(本表局部,PluginMarketPage 同款模式):jumped 静默
+     (幕布可见),opened/miss 短暂回显原因。 */
+  const [jumpNotice, setJumpNotice] = useState<string | null>(null);
+  const jumpTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
+    },
+    [],
+  );
+  async function seeConversation() {
+    const outcome = await viewBatchConversation({
+      cwd,
+      ledgerSessionId: batch.sessionId,
+      prompt: batch.prompt,
+    });
+    if (outcome === "jumped") return;
+    setJumpNotice(
+      outcome === "opened"
+        ? t("会话已打开,未定位到该条消息")
+        : t("未能定位到该条对话消息"),
+    );
+    if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
+    jumpTimer.current = window.setTimeout(() => setJumpNotice(null), 2600);
+  }
+
   // 深链定位:滚动到目标分区并高亮
   useEffect(() => {
     if (!focusPath || !patches) return;
@@ -181,6 +208,12 @@ function SheetBody({
         />
       )}
 
+      {jumpNotice && (
+        <div className="flex-none border-b border-(--tmd-border) bg-(--tmd-bg-elevated) px-3 py-1.5 text-xs text-(--tmd-fg-muted)">
+          {jumpNotice}
+        </div>
+      )}
+
       {/* 审阅单 */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         {!patches && diffError ? (
@@ -202,7 +235,7 @@ function SheetBody({
           </div>
         ) : (
           <>
-            <SheetPromptCard batch={batch} prompt={promptContent} />
+            <SheetPromptCard batch={batch} prompt={promptContent} onSeeConversation={() => void seeConversation()} />
             <FileSections
               batch={batch}
               patches={patches}

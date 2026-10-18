@@ -14,6 +14,7 @@ import { openFileInTab } from "@kernel/fileTabs";
 import { getCachedDiff } from "./diffCache";
 import { classifyRisk } from "./risk";
 import { openBatchTab } from "./batchTab";
+import { fileChipCls } from "./fileChipCls";
 
 /** 内联确认卡目标:mode 区分回退(默认,兼容既有 paths 子集语义)与应用。 */
 export interface ConfirmTarget {
@@ -22,11 +23,7 @@ export interface ConfirmTarget {
   mode?: "revert" | "apply";
 }
 
-function fileChipCls(st: string): string {
-  if (st === "A") return "bg-(--tmd-diff-inserted)/15 text-(--tmd-diff-inserted)";
-  if (st === "D") return "bg-(--tmd-diff-removed)/15 text-(--tmd-diff-removed)";
-  return "bg-(--tmd-git-modified)/15 text-(--tmd-git-modified)";
-}
+/** ConfirmCard 既有;fileChipCls 移居独立模块 ./fileChipCls。 */
 
 export function ConfirmCard({
   batchId,

@@ -162,14 +162,19 @@ export function SheetConfirmBar({
 }
 
 /** 用户消息卡:账本随批固化的引擎/模型/思考/时刻元信息 + 附件缩略图 + 净文本(降分支拆件;
- *  2026-10 审计:engine/model/思考统一同一 mono 文本形制 fg-muted,废除 engine 旧 chip 形)。 */
+ *  2026-10 审计:engine/model/思考统一同一 mono 文本形制 fg-muted,废除 engine 旧 chip 形)。
+ *  「看对话」= 反向跳到这轮消息在对话中的位置(活会话直跳;已关会话恢复后跳,
+ *  见 seeConversation);账本无 prompt 的轮次不显示。 */
 export function SheetPromptCard({
   batch,
   prompt,
+  onSeeConversation,
 }: {
   batch: CkptBatch;
   prompt: PromptImagesExtract;
+  onSeeConversation?: () => void;
 }) {
+  const canSee = Boolean(onSeeConversation) && batch.prompt.trim().length > 0;
   return (
     <>
       <div className="mb-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-(--tmd-fg-faint)">
@@ -191,6 +196,16 @@ export function SheetPromptCard({
         </span>
         {batch.tsEnd != null && batch.tsEnd > batch.ts && (
           <span className="flex-none">{t("耗时 {duration}", { duration: formatDuration(batch.tsEnd - batch.ts) })}</span>
+        )}
+        {canSee && (
+          <button
+            type="button"
+            className="ml-auto flex-none rounded border border-(--tmd-border) bg-(--tmd-bg-input) px-1.5 text-meta leading-4 text-(--tmd-accent) hover:bg-(--tmd-bg-hover)"
+            title={t("定位这轮消息在对话中的位置(已结束的会话会先恢复再定位)")}
+            onClick={onSeeConversation}
+          >
+            {t("看对话")}
+          </button>
         )}
       </div>
       {/* 图片附件缩略图横排(点击放大);净文本为空(纯附件消息)不出文本块 */}

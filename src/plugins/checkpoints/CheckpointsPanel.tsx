@@ -5,13 +5,15 @@
  * (no-high-complexity 降分支 + 文件规模铁则)。
  */
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { ClockClockwise, ClockCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
+import { host } from "@kernel/host";
+import { messageAnchors } from "@kernel/messageAnchors";
 import { BatchRow, type ConfirmTarget } from "./BatchRow";
-import { TimelineCount, TimelinePanel } from "./TimelinePanel";
+import { TimelinePanel } from "./TimelinePanel";
 import { refreshBatches, useCkptBatches } from "./store";
 import { useCheckpointActions } from "./useCheckpointActions";
 import { useCkptAutoRefresh, useCkptScope } from "./useCkptScope";
@@ -24,6 +26,17 @@ interface CwdCkptState {
   loading: boolean;
   error: string | null;
   notARepo: boolean;
+}
+
+/** 摘要行右侧计数;仅时间线态挂载(摘要行条件渲染,与面板保活独立)。 */
+function TimelineCount() {
+  const sessionId = host.getActiveSessionId();
+  const anchors = useSyncExternalStore(messageAnchors.subscribe, () =>
+    messageAnchors.getAnchors(sessionId),
+  );
+  return (
+    <span className="flex-none text-(--tmd-fg-faint)">{t("{count} 条", { count: anchors.length })}</span>
+  );
 }
 
 /** 摘要行 —— 字号对齐面板体系(11px 为主),项目名用扁平标签非胶囊(降分支拆件)。 */
@@ -236,7 +249,7 @@ export function CheckpointsPanel() {
         className={view === "timeline" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
         aria-hidden={view !== "timeline"}
       >
-        <TimelinePanel />
+        <TimelinePanel batches={state.batches} />
       </div>
     </div>
   );

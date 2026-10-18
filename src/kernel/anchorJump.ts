@@ -1,10 +1,12 @@
 /**
  * 锚点定位与跳转逻辑 —— 自 messageAnchors.ts 拆出(文件规模铁则收紧至 300 行)。
- * 承担:needle 提取、buffer 行匹配、点击跳转(翻页重试)、平滑滚动、active 锚点追踪。
+ * 承担:needle 提取、buffer 行匹配、点击跳转(翻页重试)、平滑滚动、active 锚点追踪、
+ * 文本跳转契约(jumpToText / openThenJumpToText,checkpoint↔转录互跳与检索增强共用)。
  * 纯逻辑,fake TerminalHandle 可测;handle 注册表在 terminalHandles.ts。
  */
 
-import { getTerminalHandle, type TerminalHandle } from "./terminalHandles";
+import { host } from "./host";
+import { getTerminalHandle, subscribeTerminalRegistry, type TerminalHandle } from "./terminalHandles";
 import type { UserMessageAnchor } from "./messageAnchors";
 
 /** composer 注入的附件引用 token(@path),幕布气泡里不显示原文,匹配前剥掉。 */
@@ -23,15 +25,20 @@ const JUMP_PAGE_LIMIT = 12;
 
 const needleCache = new WeakMap<UserMessageAnchor, string>();
 
-/** 消息文本 → 幕布匹配 needle:剥 @token、折叠空白、取首行首 24 字符。 */
-export function anchorNeedle(anchor: UserMessageAnchor): string {
-  const cached = needleCache.get(anchor);
-  if (cached !== undefined) return cached;
-  const firstLine = anchor.text.split("\n").find((l) => l.trim()) ?? "";
+/** 任意文本 → 幕布匹配 needle:剥 @token、折叠空白、取首行首 24 字符。 */
+export function textNeedle(text: string): string {
+  const firstLine = text.split("\n").find((l) => l.trim()) ?? "";
   const stripped = firstLine.replace(ATTACH_TOKEN_RE, " ").replace(/\s+/g, " ").trim();
   /* 纯附件消息剥空后回退原文首行,仍有机会命中气泡里的残留文本 */
   const source = stripped || firstLine.replace(/\s+/g, " ").trim();
-  const needle = source.slice(0, NEEDLE_LENGTHS[0]);
+  return source.slice(0, NEEDLE_LENGTHS[0]);
+}
+
+/** 消息文本 → 幕布匹配 needle(同一归一管线;锚点对象按引用缓存)。 */
+export function anchorNeedle(anchor: UserMessageAnchor): string {
+  const cached = needleCache.get(anchor);
+  if (cached !== undefined) return cached;
+  const needle = textNeedle(anchor.text);
   needleCache.set(anchor, needle);
   return needle;
 }
@@ -81,6 +88,87 @@ async function jumpScanPages(
   /* 翻页无进展(加载中重入/日志读空)即放弃,防空转 */
   if (handle.bufferLength() === before) return false;
   return jumpScanPages(handle, needle, page + 1);
+}
+
+/* ── 文本跳转契约(checkpoint↔转录互跳;候选5检索增强同款消费)────────── */
+
+/** 跳转结果:jumped = 幕布已定位;opened = 会话已打开但文本未命中;miss = 未打开/未定位。 */
+export type JumpTextOutcome = "jumped" | "opened" | "miss";
+
+/** 磁盘恢复目标:账本/检索侧持有的寻址凭证(内核不理解其语义,只透传)。 */
+export interface DiskJumpTarget {
+  profileId: string;
+  cwd: string;
+  workspaceId?: string;
+  cliSessionId: string;
+}
+
+/** 打开会话后等幕布 handle 注册的默认上限(冷启动 spawn + 首帧挂载的富余)。 */
+const OPEN_JUMP_TIMEOUT_MS = 8000;
+
+/** 文本跳转(活会话):幕布定位;无 handle 或 needle 未命中返回 false。 */
+export async function jumpToText(sessionId: string, text: string): Promise<boolean> {
+  const handle = getTerminalHandle(sessionId);
+  if (!handle) return false;
+  return jumpScanPages(handle, textNeedle(text), 0);
+}
+
+/** 账本/检索身份 → 活会话:按 tmd id 或绑定 cli 身份反查(resume 换壳后 tmd id 已变)。 */
+function findLiveSessionId(cliSessionId: string): string | null {
+  const live = host
+    .getSessions()
+    .find((s) => s.id === cliSessionId || host.getCliSessionId(s.id) === cliSessionId);
+  return live?.id ?? null;
+}
+
+/** 等幕布 handle 注册(打开会话 → TerminalView 挂载注册;超时放弃)。 */
+async function waitForTerminalHandle(
+  sessionId: string,
+  timeoutMs: number,
+): Promise<TerminalHandle | undefined> {
+  const immediate = getTerminalHandle(sessionId);
+  if (immediate) return immediate;
+  /* 订阅注册表变更(挂载即广播),零轮询;超时兜底放弃。 */
+  const { promise, resolve } = Promise.withResolvers<TerminalHandle | undefined>();
+  const settle = (h: TerminalHandle | undefined) => {
+    off();
+    window.clearTimeout(timer);
+    resolve(h);
+  };
+  const off = subscribeTerminalRegistry(() => {
+    const h = getTerminalHandle(sessionId);
+    if (h) settle(h);
+  });
+  const timer = window.setTimeout(() => settle(undefined), timeoutMs);
+  return promise;
+}
+
+/**
+ * 共用时序桥:活会话直接跳;已关会话经 openDiskSession 恢复、等幕布挂载后再跳。
+ * jumped = 已定位(两路同义,调用方无需提示);opened = 会话已打开但 needle 未
+ * 命中(调用方提示可手动查找);miss = 打开失败 / handle 超时 / 活会话未命中。
+ */
+export async function openThenJumpToText(
+  target: DiskJumpTarget,
+  text: string,
+  opts?: { timeoutMs?: number },
+): Promise<JumpTextOutcome> {
+  const liveId = findLiveSessionId(target.cliSessionId);
+  if (liveId) return (await jumpToText(liveId, text)) ? "jumped" : "miss";
+  const needle = textNeedle(text);
+  try {
+    const meta = await host.openDiskSession(
+      target.profileId,
+      target.cwd,
+      target.workspaceId,
+      target.cliSessionId,
+    );
+    const handle = await waitForTerminalHandle(meta.id, opts?.timeoutMs ?? OPEN_JUMP_TIMEOUT_MS);
+    if (!handle) return "miss";
+    return (await jumpScanPages(handle, needle, 0)) ? "jumped" : "opened";
+  } catch {
+    return "miss";
+  }
 }
 
 /* ── 平滑滚动 ────────────────────────────────────────────── */

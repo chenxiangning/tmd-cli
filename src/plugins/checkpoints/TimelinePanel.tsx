@@ -14,12 +14,15 @@
  *   更早条目不标「已结算」—— 结算是默认态,逐条标是噪音。
  * - 条目无时间戳:CliUserMessage 契约只有 id + text,全量相对时间要动
  *   10 家 CLI 适配器解析,二期再议(序号 #N 已给先后)。
- * - 与审批线零共享逻辑:仅同面板摘要行并列(用户定向:不动审批线代码)。
+ * - 「本轮 N 文件」chip:prompt 全等正向匹配审批线批次(turnMatch),点击
+ *   行下内联展开该轮变更集;匹配不到不渲染(不猜测),git 归因带「推断」
+ *   标注(候选8 正向闭环)。
+ * - 与审批线动作零共享(回退/通过等仍只在批视图);chip 仅读批次清单。
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { usePanelActive } from "@kernel/panelActivity";
-import { ClockClockwise, FileText } from "@phosphor-icons/react";
+import { ClockClockwise } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
 import { copyText } from "@kernel/clipboard";
 import { host } from "@kernel/host";
@@ -35,7 +38,11 @@ import {
   type UserMessageAnchor,
 } from "@kernel/messageAnchors";
 import { PromptImages } from "./PromptImages";
+import { AttachmentFiles, RowRail } from "./TimelineRowParts";
 import { extractTimelineParts } from "./timelineText";
+import { matchTurnBatches } from "./turnMatch";
+import { TurnFileList, TurnFilesChip } from "./TurnFilesChip";
+import type { CkptBatch } from "@kernel/ipc";
 
 /** 文本超过该长度才出「展开全文」(CSS line-clamp-3 收敛);短消息无折叠件。 */
 const CLAMP_MIN_CHARS = 120;
@@ -44,7 +51,7 @@ const MISS_FLASH_MS = 900;
 /** 复制成功的「已复制」回显时长(短暂确认,不持久占位)。 */
 const COPIED_FLASH_MS = 1200;
 
-export function TimelinePanel() {
+export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
   const [, bumpRender] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const off = host.events.on(KernelTopics.activeSessionChanged, bumpRender);
@@ -61,6 +68,11 @@ export function TimelinePanel() {
       [panelActive],
     ),
     () => messageAnchors.getAnchors(sessionId),
+  );
+  /* 正向映射:prompt 全等 + 同文按出现序配对(turnMatch);匹配不到不渲染 chip。 */
+  const turnBatches = useMemo(
+    () => matchTurnBatches(anchors, batches ?? []),
+    [anchors, batches],
   );
 
   /* 在途轮追踪:promptSent 置位、turnSettled/切会话复位。 */
@@ -121,6 +133,7 @@ export function TimelinePanel() {
           live={live && anchor.id === lastId}
           miss={missId === anchor.id}
           open={openIds.has(anchor.id)}
+          turnBatch={turnBatches.get(anchor.id)}
           onToggle={() => toggleOpen(anchor.id)}
           onJump={() => void onJump(anchor)}
         />
@@ -136,6 +149,7 @@ function TimelineRow({
   live,
   miss,
   open,
+  turnBatch,
   onToggle,
   onJump,
 }: {
@@ -146,11 +160,15 @@ function TimelineRow({
   live: boolean;
   miss: boolean;
   open: boolean;
+  /** 正向匹配到的审批线批次(prompt 全等;未匹配 = 不出 chip)。 */
+  turnBatch?: CkptBatch;
   onToggle: () => void;
   onJump: () => void;
 }) {
   const parts = useMemo(() => extractTimelineParts(anchor.text), [anchor.text]);
   const clampable = parts.text.length > CLAMP_MIN_CHARS;
+  /* 「本轮 N 文件」展开态:行内局部,切换会话随行卸载归零。 */
+  const [turnOpen, setTurnOpen] = useState(false);
 
   /* 复制回显:行内局部态 + 定时归位;卸载清定时器防悬挂。 */
   const [copied, setCopied] = useState(false);
@@ -178,15 +196,8 @@ function TimelineRow({
         miss ? "bg-(--tmd-diff-removed)/10" : ""
       }`}
     >
-      {/* 左轨:圆点 + 向下连接线(最旧一条不画) */}
-      <div className="relative w-3 flex-none" aria-hidden>
-        {!last && <div className="absolute top-4 -bottom-2 left-[5px] w-px bg-(--tmd-border)" />}
-        <span
-          className={`absolute top-[7px] left-[2px] h-2 w-2 rounded-full border-2 border-(--tmd-accent) ${
-            live ? "bg-(--tmd-accent)" : "bg-(--tmd-bg-base)"
-          }`}
-        />
-      </div>
+      {/* 左轨:圆点 + 向下连接线(最旧一条不画)—— 详见 TimelineRowParts.RowRail */}
+      <RowRail last={last} live={live} />
 
       <div className="min-w-0 flex-1">
         {/* meta:序号 + 状态 + hover 出「复制 / 定位幕布」钮簇 */}
@@ -196,6 +207,13 @@ function TimelineRow({
             <span className="rounded bg-(--tmd-accent)/15 px-1 text-(--tmd-accent)">
               {t("进行中")}
             </span>
+          )}
+          {turnBatch && (
+            <TurnFilesChip
+              batch={turnBatch}
+              open={turnOpen}
+              onToggle={() => setTurnOpen((v) => !v)}
+            />
           )}
           {/* 复制该节点发送原文:与「定位幕布」同款 hover 现身,ml-auto 把两钮
               成簇推右(复制贴消息体一侧);回显期强制全亮,指针离场也能看到
@@ -241,39 +259,12 @@ function TimelineRow({
         {/* 图片附件:缩略图横排 + lightbox(复用审批线消息卡件) */}
         <PromptImages images={parts.images} />
 
-        {/* 文件附件 chip:目录截断 + 文件名常驻 */}
-        {parts.files.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {parts.files.map((p) => {
-              const slash = p.lastIndexOf("/");
-              return (
-                <span
-                  key={p}
-                  title={p}
-                  className="flex max-w-full items-center gap-1 rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-elevated) px-1.5 py-px text-meta leading-4 text-(--tmd-fg-muted)"
-                >
-                  <FileText size="0.625rem" className="flex-none text-(--tmd-fg-subtle)" aria-hidden />
-                  <span className="truncate font-mono text-(--tmd-fg-faint)">
-                    {p.slice(0, slash + 1)}
-                  </span>
-                  <span className="flex-none font-mono text-(--tmd-fg)">{p.slice(slash + 1)}</span>
-                </span>
-              );
-            })}
-          </div>
-        )}
+        {/* 文件附件 chip:目录截断 + 文件名常驻 —— 详见 TimelineRowParts.AttachmentFiles */}
+        <AttachmentFiles files={parts.files} />
+
+        {/* 正向展开:该轮 turn_files 变更集(A/M/D 药丸,审批线同源配色) */}
+        {turnBatch && turnOpen && <TurnFileList files={turnBatch.files} />}
       </div>
     </div>
-  );
-}
-
-/** 摘要行右侧计数;仅时间线态挂载(摘要行条件渲染,与面板保活独立)。 */
-export function TimelineCount() {
-  const sessionId = host.getActiveSessionId();
-  const anchors = useSyncExternalStore(messageAnchors.subscribe, () =>
-    messageAnchors.getAnchors(sessionId),
-  );
-  return (
-    <span className="flex-none text-(--tmd-fg-faint)">{t("{count} 条", { count: anchors.length })}</span>
   );
 }
