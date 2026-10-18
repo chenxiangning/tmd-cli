@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 4/8 — 会话预设(一键起会话)</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-deep); color: #fff; }
+  .menu { padding: 6px 0; }
+  .menu-head { font-size: 11px; color: var(--fg2); padding: 8px 20px 4px; letter-spacing: .04em; }
+  .preset { display: flex; align-items: center; gap: 12px; padding: 11px 20px; cursor: pointer; }
+  .preset:hover { background: #fafaf9; }
+  .preset.stale { opacity: .55; }
+  .play { width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-deep); display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+  .pbody { flex: 1; min-width: 0; }
+  .pname { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pdesc { font-size: 12px; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; }
+  .pill-engine { background: var(--accent-soft); color: var(--accent-deep); }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-warn { background: var(--warn-soft); color: var(--warn-deep); }
+  .pill-ok { background: var(--ok-soft); color: var(--ok-deep); }
+  .steps { padding: 14px 20px; border-top: 1px solid var(--border); background: #fafaf9; }
+  .steps h3 { font-size: 13px; margin-bottom: 8px; }
+  .lane { display: flex; gap: 6px; flex-wrap: wrap; }
+  .step { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--fg2); background: var(--card); transition: all .2s; }
+  .step.on { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); font-weight: 600; }
+  .editor { border-top: 1px solid var(--border); background: #fafaf9; padding: 16px 20px; }
+  .editor h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .frow { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; flex-wrap: wrap; }
+  .flabel { font-size: 12px; color: var(--fg2); width: 96px; flex-shrink: 0; text-align: right; }
+  .fval { font-size: 12.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .fake-input { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 4px 10px; }
+  .fake-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .fake-input.disabled { color: var(--err-deep); border-color: var(--err-soft); background: var(--err-soft); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast, .step { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 4/8(新特性 · 深化版)</span>
+    <h1>会话预设(一键起会话配方)</h1>
+    <p class="page-desc">引擎、模型、工作区、是否开 worktree、初始提示词存成条目,入口一键起会话。深化定稿:起会话走 anim 插件趟平的两步管线(spawn → pending 队列注入 prompt);提示词库无 id,引用存 (scope, wsId, name) 三元组;存储用 agents.json 同款单文件 + 内存单源。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">工作区右键菜单 · 会话预设段 <span class="panel-sub">循 worktree 项「恒显 + 弹层内报错」先例,空工作区可达</span></div>
+      <button class="btn" id="new-preset">新建预设</button>
+    </div>
+
+    <div class="menu">
+      <div class="menu-head">会话预设</div>
+      <div class="preset" data-kind="ok" role="button" tabindex="0">
+        <span class="play">▶</span>
+        <div class="pbody">
+          <div class="pname">修 CI <span class="pill pill-engine">omp</span><span class="pill pill-grey">新 worktree</span><span class="pill pill-grey">引用「修 CI 检查单」</span></div>
+          <div class="pdesc">复现失败用例 → 修复 → 跑绿(分支 slug 冲突自动递增)</div>
+        </div>
+      </div>
+      <div class="preset" data-kind="ok" role="button" tabindex="0">
+        <span class="play">▶</span>
+        <div class="pbody">
+          <div class="pname">周报草稿 <span class="pill pill-engine">codex</span><span class="pill pill-grey">当前工作区</span><span class="pill pill-ok">库条目跟随</span></div>
+          <div class="pdesc">引用提示词库「周报模板」(scope=global)· 消费时现读,库更新即跟随</div>
+        </div>
+      </div>
+      <div class="preset stale" data-kind="stale" role="button" tabindex="0">
+        <span class="play">▶</span>
+        <div class="pbody">
+          <div class="pname">旧仓实验 <span class="pill pill-engine">claude</span><span class="pill pill-warn">工作区已移走</span></div>
+          <div class="pdesc">消费时以 root 复核(worktreeSession 先例)· 失效标灰,点击提示改绑不静默跳转</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="steps">
+      <h3>起会话两步管线(anim 先例照抄,取消零副作用)</h3>
+      <div class="lane" id="lane">
+        <span class="step">点预设</span>
+        <span class="step">① spawnRawSession(identityTrack 开)</span>
+        <span class="step">桩先落盘 · 失败即清</span>
+        <span class="step">② 会话就绪 → pending 队列注入 prompt/refs</span>
+        <span class="step">时间线/审批线全装配</span>
+      </div>
+    </div>
+
+    <div class="editor" id="editor" hidden>
+      <h3>新建预设</h3>
+      <div class="frow"><span class="flabel">名称</span><span class="fval"><span class="fake-input" tabindex="0">修 CI</span></span></div>
+      <div class="frow"><span class="flabel">引擎 / 模型</span><span class="fval"><span class="fake-input" tabindex="0">omp</span><span class="fake-input" tabindex="0">默认模型(跟随)</span><span class="pill pill-grey">候选 = defaultEngineCandidates(非 dsh);留空跟随 workbench 默认</span></span></div>
+      <div class="frow"><span class="flabel">范围</span><span class="fval"><span class="fake-input" tabindex="0">新 worktree</span><span class="pill pill-grey">分支 finalBranchName 冲突递增;里程碑回滚配方现成</span></span></div>
+      <div class="frow"><span class="flabel">初始提示词</span><span class="fval"><span class="fake-input" tabindex="0">引用:{scope:"global", name:"修 CI 检查单"}</span><span class="pill pill-warn">库无 id,存三元组</span><span class="pill pill-grey">或内联文本</span></span></div>
+      <div class="frow"><span class="flabel">失效兜底</span><span class="fval"><span class="pill pill-grey">库条目改名/删除 → 悬空标注,编辑面板改绑或转内联</span></span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar"><div class="panel-title">引擎候选为空时 <span class="panel-sub">WorktreeSessionDialog 同款防呆先例</span></div></div>
+    <div style="padding:14px 20px;">
+      <div class="frow" style="margin-bottom:0;">
+        <span class="flabel">引擎</span><span class="fval"><span class="fake-input disabled">无可用引擎(候选 = 有 listSessions 且非 dsh)</span></span>
+        <button class="btn" id="try-empty" style="margin-left:auto;">试试点「保存」</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>两步管线是定稿关键</strong>:prompt 不进 spawn spec——spawn 成功后 setPendingPrompt / setPendingRefs 经 pending 队列在会话就绪后注入(anim 已趟平时序,照抄即免踩「就绪前用户手动输入」的竞争)。</li>
+      <li><strong>预设实体</strong>:~/.tmd/session-presets.json(agents.json 同款:单文件 + 模块级内存单源 + emit);字段 = 名称/引擎+模型/范围/初始提示词(三元组引用或内联)。</li>
+      <li><strong>identityTrack 必开</strong>:真 CLI 引擎 spawn 前快照 listSessions、spawn 后绑定磁盘身份——不开则时间线/审批线全盲(内核契约,非可选项)。</li>
+      <li><strong>入口与契约测试</strong>:工作区右键段恒显(空工作区可达,发现性优先,worktree 入口先例)+ 会话右键「以此预设起新会话」(onDelete 缺省隐藏模式);补 entryContract 同款测试钉「恒显」。</li>
+      <li><strong>软失效</strong>:预设引用的工作区 id 消费时以 root 复核(wtSessionOf 先例),失效标灰;库条目悬空在编辑面板改绑或转内联。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:spawnRawSession + anim startSession 两步管线(纯 DI 可 node 测试)+ 提示词库(promptStore 三元组身份)+ worktree 分支递增/里程碑回滚 + defaultEngineCandidates + entryContract 恒显先例。<b>成本</b>:低-中。<b>风险</b>:pending 注入时序(anim 已趟);三元组悬空的改绑体验。<b>验证</b>:预设 → worktree 会话 → 时间线/审批线可见;中途取消不残留桩;库条目删除后预设悬空标注。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+  function runLane() {
+    const steps = document.querySelectorAll("#lane .step");
+    steps.forEach((s) => s.classList.remove("on"));
+    let i = 0;
+    const step = () => {
+      if (i > 0) steps[i - 1].classList.remove("on");
+      if (i >= steps.length) { steps[steps.length - 1].classList.add("on"); showToast("identityTrack 全装配:时间线/审批线可见,prompt 经 pending 队列注入"); return; }
+      steps[i].classList.add("on");
+      i++;
+      setTimeout(step, 620);
+    };
+    step();
+  }
+  document.querySelectorAll(".preset").forEach((p) => {
+    const go = () => {
+      if (p.dataset.kind === "stale") { showToast("预设失效:工作区已移走,消费时 root 复核发现——提示改绑,不静默跳转"); return; }
+      runLane();
+    };
+    p.addEventListener("click", go);
+    p.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") go(); });
+  });
+  document.getElementById("new-preset").addEventListener("click", () => {
+    const ed = document.getElementById("editor");
+    ed.hidden = !ed.hidden;
+  });
+  document.getElementById("try-empty").addEventListener("click", () => {
+    showToast("引擎候选空 → 禁创建防空 spawn(WorktreeSessionDialog 同款防呆)");
+  });
+</script>
+</body>
+</html>

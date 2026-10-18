@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0.4.0 候选规划(向内治理批 · 深化版)· 导航</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; background: #f6f6f4; color: #1c1917; line-height: 1.6; padding: 48px 24px; }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .sub { color: #57534e; font-size: 14px; margin-bottom: 6px; }
+  .feas { font-size: 13px; margin-bottom: 20px; }
+  .feas a { color: #2563eb; }
+  .angle { background: #fff; border: 1px solid #e4e4e0; border-left: 3px solid #ea580c; border-radius: 10px; padding: 12px 18px; font-size: 13px; color: #57534e; margin-bottom: 14px; }
+  .angle b { color: #1c1917; font-weight: 600; }
+  .moved { background: #fff; border: 1px solid #e4e4e0; border-left: 3px solid #92400e; border-radius: 10px; padding: 12px 18px; font-size: 13px; color: #57534e; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  a.card { display: block; background: #fff; border: 1px solid #e4e4e0; border-radius: 10px; padding: 16px 18px; text-decoration: none; color: inherit; box-shadow: 0 1px 3px rgba(0,0,0,.06); transition: border-color .15s, box-shadow .15s; cursor: pointer; }
+  a.card:hover { border-color: #ea580c; box-shadow: 0 2px 8px rgba(234,88,12,.12); }
+  .num { font-size: 12px; color: #ea580c; font-weight: 600; }
+  .name { font-size: 16px; font-weight: 600; margin: 2px 0 4px; }
+  .desc { font-size: 13px; color: #57534e; }
+  .base { font-size: 12px; color: #15803d; margin-top: 4px; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: #ffedd5; color: #9a3412; margin-top: 8px; }
+  .tag.done { background: #dcfce7; color: #166534; }
+  .tag.new { background: #dbeafe; color: #1d4ed8; }
+</style>
+</head>
+<body>
+<main>
+  <h1>0.4.0 候选规划(向内治理批 · 深化版)</h1>
+  <p class="sub">2026-10-18 深化 v2 · 裁掉原候选 4(敏感信息守门),六项闭环深化 + 新增 2 特性 · 可行性:<a href="feasibility.md">feasibility.md(带 path:line 锚点)</a></p>
+  <div class="angle">
+    <b>角度不变:向内治理</b>——多开会、长周期使用之后的八个面:时间(会话堆积)、内存(幕布常驻)、通知(看完即逝)、效率(重复起会话)、找回(检索最后一公里)、磁盘(无人盘点)、带走(转录导出)、粘合(checkpoint↔对话)。
+    深化方法:七路并行源码核对,全部结论带 path:line 锚点。
+  </div>
+  <div class="moved">
+    <b>移出与不投记录</b>:敏感信息守门(大仙拍板删除)· 助手消息入索引(需新解析器族 + 索引缓存版本戳,超开关成本)· 全局命令面板(⌘K 已被 composer 占用,global 注册表已有两个消费面,弱缺口)。
+  </div>
+  <div class="grid">
+    <a class="card" href="1-session-retention.html"><div class="num">01</div><div class="name">工作区会话保留律(24h)</div><div class="desc">深化发现已全量落地(sessionSweep)——页改为拍板口径×实现对账,附两个待拍板缺口(启动补扫?keep 容量 2000?)</div><div class="base">锚点:sessionSweep.ts + sessionHygieneHours 白名单 + 六家族空会话钩子</div><span class="tag done">已落地对账</span></a>
+    <a class="card" href="2-session-freeze.html"><div class="num">02</div><div class="name">后台会话分级保活</div><div class="desc">挤除(sessionTabsMax 默认 4)升级为冻结快照:重开快照即上屏,pager 后台回填,消全量回放遮罩</div><div class="base">锚点:buildReseedScreen 卸载时已在算 + outputBuffers 字节尾 + 磁盘 512KB 分页</div><span class="tag">深化修正 · 成本中</span></a>
+    <a class="card" href="3-notify-center.html"><div class="num">03</div><div class="name">应用内通知中心</div><div class="desc">三处 dispatch 旁挂流水(聚焦也记,失焦才发 OS)+ 免打扰三闸 + 回跳;行为矩阵四象限逐格测</div><div class="base">锚点:registerFilePanel 10+ 先例 + wiki 本地 JSON 模式 + sessionViewRequested 手势语义</div><span class="tag">新特性 · 低-中成本</span></a>
+    <a class="card" href="4-session-presets.html"><div class="num">04</div><div class="name">会话预设(一键起会话)</div><div class="desc">两步管线(spawn → pending 队列注入 prompt);提示词引用存三元组;存储 agents.json 同款单文件</div><div class="base">锚点:anim startSession 先例 + spawnRawSession identityTrack + worktree 配方</div><span class="tag">新特性 · 低-中成本</span></a>
+    <a class="card" href="5-search-plus.html"><div class="num">05</div><div class="name">会话检索增强</div><div class="desc">时间过滤一行谓词 + 命中行级定位(needle 梯队现成,磁盘会话 resume 后也可跳);助手索引移出</div><div class="base">锚点:searchSessions 谓词挂点 + jumpToAnchor 梯队/12 页回溯 + miss 闪烁语义</div><span class="tag">收窄 · 低-中成本</span></a>
+    <a class="card" href="6-storage-audit.html"><div class="num">06</div><div class="name">存储管家(磁盘体检)</div><div class="desc">体检 = 新 Rust 只读命令(dir_size 配方扩分桶);清理 = checkpoint_prune 现成命令组装,CLI 目录零触碰</div><div class="base">锚点:dir_size 单测配方 + checkpoint_prune(cwd,keep,ttl) + ConfirmCard/武装回弹</div><span class="tag">清理面现成 · 中成本</span></a>
+    <a class="card" href="7-transcript-export.html"><div class="num">07</div><div class="name">会话转录导出(md 快照)</div><div class="desc">九家 transcript 数据全在、零导出出口;blocksToMarkdown 纯函数 + docgen 导出三件套照抄</div><div class="base">锚点:readSessionTranscript 九家声明 + pickSavePath/writeText + Windows 文件名 sanitize</div><span class="tag new">新增特性 · 低成本</span></a>
+    <a class="card" href="8-checkpoint-link.html"><div class="num">08</div><div class="name">checkpoint↔转录时间线互跳</div><div class="desc">账本 BatchInfo 存着 prompt 原文 = jumpToAnchor 的 needle;时间线挂「本轮 M 文件」chip,批次行「看对话」</div><div class="base">锚点:LedgerEntry/BatchInfo 账本结构 + messageAnchors + 零 Rust 零新解析器</div><span class="tag new">新增特性 · 粘合活</span></a>
+  </div>
+</main>
+</body>
+</html>

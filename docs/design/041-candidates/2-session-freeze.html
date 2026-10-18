@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 2/8 — 后台会话分级保活(挤除升级为冻结快照)</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --info-deep: #1d4ed8; --info-soft: #dbeafe;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-deep); color: #fff; }
+  .tabs { display: flex; gap: 6px; padding: 10px 16px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .tab { font-size: 12px; border: 1px solid var(--border); border-bottom: none; border-radius: 8px 8px 0 0; padding: 7px 14px; background: #fafaf9; color: var(--fg2); display: flex; align-items: center; gap: 6px; }
+  .tab.active { background: var(--card); color: var(--fg); font-weight: 600; border-color: var(--accent); }
+  .tab .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+  .tab-note { padding: 8px 20px; font-size: 12px; color: var(--fg2); border-bottom: 1px solid var(--border); background: #fafaf9; }
+  .demo { padding: 16px 20px; }
+  .demo h3 { font-size: 13px; margin-bottom: 10px; }
+  .lane { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .step { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--fg2); background: #fafaf9; transition: all .2s; }
+  .step.on { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); font-weight: 600; }
+  .step.bad.on { border-color: var(--err); color: var(--err-deep); background: var(--err-soft); }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+  .compare-cell { background: var(--card); padding: 16px 20px; }
+  .compare-cell h3 { font-size: 12px; color: var(--fg2); font-weight: 500; margin-bottom: 8px; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; padding: 3px 0; }
+  .kv b { font-weight: 600; }
+  .kv .down { color: var(--ok-deep); }
+  .kv .bad { color: var(--err-deep); }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; }
+  .pill-ok { background: var(--ok-soft); color: var(--ok-deep); }
+  .pill-info { background: var(--info-soft); color: var(--info-deep); }
+  .pill-err { background: var(--err-soft); color: var(--err-deep); }
+  .states { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px 20px; border-top: 1px solid var(--border); background: #fafaf9; align-items: center; }
+  .states span.lbl { font-size: 12px; color: var(--fg2); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast, .step { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 2/8(性能优化点 · 深化修正版)</span>
+    <h1>后台会话分级保活(挤除升级为冻结快照)</h1>
+    <p class="page-desc">v1 两处硬伤已修正:① sessionTabsMax 默认 4(1-10),不是「全部」——现状本来就是「超出 4 个挤除即卸载,回归全量回放 + 0.5s 遮罩」;② 卸载前 buildReseedScreen 快照已经在算(喂 ask 镜像)——本项只需把这份现成快照升级为「重开即上屏」的回归源,不新造数据面。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">幕布 tab 条 <span class="panel-sub">sessionTabsMax = 4(MRU,设置现成)</span></div>
+      <button class="btn primary" id="open5">开第 5 场会话(触发挤除)</button>
+    </div>
+    <div class="tabs" id="tabs">
+      <div class="tab" data-name="omp 主链路"><span class="live-dot"></span>omp 主链路</div>
+      <div class="tab" data-name="codex 重构"><span class="live-dot"></span>codex 重构</div>
+      <div class="tab" data-name="omp 文档"><span class="live-dot"></span>omp 文档</div>
+      <div class="tab active" data-name="claude 审计"><span class="live-dot"></span>claude 审计</div>
+    </div>
+    <div class="tab-note" id="tabnote">4 场常驻挂载;第 5 场挤掉最久未看的「omp 主链路」。挤出后它从条内消失(会话仍在侧栏),再打开 = 现状全量回放,本项 = 快照即上屏。</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">重开「omp 主链路」的两条路</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" id="demo-old">现状路径</button>
+        <button class="btn primary" id="demo-new">本项路径</button>
+      </div>
+    </div>
+    <div class="demo">
+      <h3 id="demo-title">点上方按钮对比</h3>
+      <div class="lane" id="lane-old" hidden>
+        <span class="step">点侧栏会话行</span>
+        <span class="step">重新挂载 TerminalView</span>
+        <span class="step bad">全量回放输出缓冲/磁盘尾</span>
+        <span class="step bad">0.5s 静默判据遮罩(大会话秒级)</span>
+        <span class="step">撤罩可交互</span>
+      </div>
+      <div class="lane" id="lane-new" hidden>
+        <span class="step">点侧栏会话行</span>
+        <span class="step">读冻结存档(cols/rows/text)</span>
+        <span class="step">快照即上屏(无遮罩)</span>
+        <span class="step">后台:内存尾 + 磁盘 512KB 页回填</span>
+        <span class="step">回填期间可读可滚可输入</span>
+      </div>
+      <div style="font-size:12px;color:var(--fg2);" id="demo-note">回填数据源已核实:内存 outputBuffers(精确字节尾)+ 磁盘 session_history_page 按字节分页,锚点 = sessionLogSize − bufferBytes,两段无缝拼——冻结不引入任何新数据面。</div>
+    </div>
+    <div class="compare">
+      <div class="compare-cell">
+        <h3>现状(v1 修正后口径)</h3>
+        <div class="kv"><span>tab 条容量</span><b>4(MRU,超即卸载)</b></div>
+        <div class="kv"><span>重开最旧会话</span><b class="bad">全量回放 + 遮罩</b></div>
+        <div class="kv"><span>卸载时的快照</span><b>算了,只喂 ask 镜像</b></div>
+        <div class="kv"><span>CPU</span><b>泵降档已在(非在视 250ms 慢拍)</b></div>
+      </div>
+      <div class="compare-cell">
+        <h3>本项 <span class="pill pill-ok">内存不涨,回归不痛</span></h3>
+        <div class="kv"><span>tab 条容量</span><b>4(不变,语义零变)</b></div>
+        <div class="kv"><span>挤除时</span><b class="down">快照存档(每会话 cols/rows/text,LRU 少量)</b></div>
+        <div class="kv"><span>重开</span><b class="down">快照即上屏,无遮罩</b></div>
+        <div class="kv"><span>设置面</span><b>零新增(存档开关默认开,关 = 现状)</b></div>
+      </div>
+    </div>
+    <div class="states">
+      <span class="lbl">冻结状态机必冒烟的状态对:</span>
+      <span class="pill pill-info">激活 × 冻结</span>
+      <span class="pill pill-info">后台 × 冻结(ask 镜像照常)</span>
+      <span class="pill pill-info">栏折叠 × 冻结(kept 集不动,正交)</span>
+      <span class="pill pill-info">最大化 × 冻结(纯 CSS 折叠,永不卸载)</span>
+      <span class="pill pill-info">重载恢复 × 冻结(纯内存,⌘R 后回落现状)</span>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>插入点唯一</strong>:MainPanel kept map 的挤除路径——卸载前把已算出的 buildReseedScreen 结果存进会话级 LRU 冻结存档;重开会话时 TerminalView 挂载流先查存档。</li>
+      <li><strong>失败即回落</strong>:存档缺失或几何不符(cols/rows 变了)→ 回落现状全量回放,零行为劣化;快照只保「屏上状态」,滚出屏的历史本来就走 pager,语义无损。</li>
+      <li><strong>ask 采样不受影响</strong>:后台采样由 headless 镜像接管,不依赖幕布挂载;reseedScreenMirror 卸载时序(feed 互斥)原样保留。</li>
+      <li><strong>栏折叠/最大化不动</strong>:栏折叠 = 整条不渲染但 kept 集照旧;最大化 = 纯样式零宽折叠——两者的「永不卸载」纪律与本项正交。</li>
+      <li><strong>重载恢复</strong>:冻结存档是纯内存,⌘R 后全部回落现状路径(readopt 磁盘尾恢复链兜底),不做持久化。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:buildReseedScreen(卸载时已在算)+ outputBuffers 精确字节尾 + session_history_page 512KB 分页 + terminalReplay 静默撤罩判据 + sessionTabsMax 设置。<b>成本</b>:中(v1 估中-高,深化后下调——新写的只有存档 LRU 与重开分流)。<b>风险</b>:幕布是回归敏感区,五个状态对逐条冒烟是硬要求。<b>验证</b>:造 5+ 会话挤除,重开最旧会话对比现状遮罩时长与首屏内容;terminalReplay 测试链补快照路径用例。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  let evicted = false;
+  document.getElementById("open5").addEventListener("click", () => {
+    const tabs = document.getElementById("tabs");
+    if (evicted) { showToast("已触发过挤除:omp 主链路 在存档里,点下方按钮看重开路径"); return; }
+    const t = tabs.querySelector('[data-name="omp 主链路"]');
+    t.classList.add("frozen");
+    t.style.cssText = "background:var(--info-soft);color:var(--info-deep);border-style:dashed;";
+    t.innerHTML = "❄ omp 主链路(挤除 → 冻结存档)";
+    document.getElementById("tabnote").textContent = "现状:挤除 = 彻底卸载,快照只喂 ask 镜像;本项:同一时刻多存一份 {cols,rows,text},重开免回放。";
+    evicted = true;
+    showToast("第 5 场挤掉最久未看的 omp 主链路;会话仍在侧栏");
+  });
+  function runLane(laneId, title, note, done) {
+    document.getElementById("lane-old").hidden = laneId !== "lane-old";
+    document.getElementById("lane-new").hidden = laneId !== "lane-new";
+    document.getElementById("demo-title").textContent = title;
+    document.getElementById("demo-note").textContent = note;
+    const steps = document.querySelectorAll("#" + laneId + " .step");
+    steps.forEach((s) => s.classList.remove("on"));
+    let i = 0;
+    const step = () => {
+      if (i > 0) steps[i - 1].classList.remove("on");
+      if (i >= steps.length) { steps[steps.length - 1].classList.add("on"); if (done) done(); return; }
+      steps[i].classList.add("on");
+      i++;
+      setTimeout(step, 600);
+    };
+    step();
+  }
+  document.getElementById("demo-old").addEventListener("click", () => {
+    if (!evicted) { showToast("先点「开第 5 场会话」触发挤除"); return; }
+    runLane("lane-old", "现状路径:卸载即丢,回归全量回放", "遮罩由 terminalReplay 的 0.5s 静默判据控制,大会话(磁盘尾 512KB 分页)秒级。",
+      () => showToast("现状:回放完成才可交互"));
+  });
+  document.getElementById("demo-new").addEventListener("click", () => {
+    if (!evicted) { showToast("先点「开第 5 场会话」触发挤除"); return; }
+    runLane("lane-new", "本项路径:快照先行,历史后补", "回填源 = 内存 outputBuffers 精确尾 + 磁盘 session_history_page;几何不符或存档缺失 → 回落现状路径。",
+      () => showToast("本项:快照上屏即可读,回填期间可输入"));
+  });
+</script>
+</body>
+</html>

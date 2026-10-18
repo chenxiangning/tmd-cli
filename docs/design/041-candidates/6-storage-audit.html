@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 6/8 — 存储管家(磁盘体检)</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: var(--accent-deep); color: #fff; }
+  .btn.armed { background: var(--err); border-color: var(--err); color: #fff; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12.5px; padding: 11px 14px; border-bottom: 1px solid #f0f0ee; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.path { font-size: 11px; color: var(--fg2); font-family: ui-monospace, Menlo, monospace; word-break: break-all; }
+  .cat b { font-size: 12.5px; }
+  .cat small { display: block; font-size: 11px; color: var(--fg2); font-weight: 400; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; white-space: nowrap; }
+  .pill-ro { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-clean { background: var(--warn-soft); color: var(--warn-deep); }
+  .pill-ok { background: var(--ok-soft); color: var(--ok-deep); }
+  .footbar { padding: 10px 20px; font-size: 12px; color: var(--fg2); border-top: 1px solid var(--border); background: #fafaf9; display: flex; gap: 16px; flex-wrap: wrap; }
+  .confirm-strip { padding: 14px 20px; background: #fffbeb; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--warn-deep); display: none; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .confirm-strip.show { display: flex; }
+  .loop { padding: 12px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .loop span { font-size: 11px; border: 1px solid var(--border); background: #fafaf9; border-radius: 6px; padding: 3px 8px; color: var(--fg2); }
+  .loop b { font-size: 11px; color: var(--accent-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 6/8(存储优化点 · 深化版)</span>
+    <h1>存储管家(磁盘体检与白名单清理)</h1>
+    <p class="page-desc">深化定稿:体检必须新增一个 Rust 只读命令(fs 原语无 size,dir_size 配方可扩);清理面几乎全是现成件——checkpoint_prune(cwd, keep, ttl) 命令已存在,docgen 有 removeEntryDir 先例,确认流组合 ConfirmCard + 3s 武装回弹。CLI 会话目录只读红线不变。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">设置 · 存储 <span class="panel-sub">registerSettingsSection 新分区(assets order=45 先例)· 类目路径全部源码核实</span></div>
+      <button class="btn primary" id="rescan">开始体检</button>
+    </div>
+
+    <table>
+      <thead><tr><th>类目</th><th>体积(示意)</th><th>条数</th><th>处置</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="cat"><b>CLI 会话目录 · omp / pi</b><td class="path">~/.omp/agent/sessions · ~/.pi/agent/sessions</td></td>
+          <td class="num">1.2 GB</td><td class="num">214 会话</td>
+          <td><span class="pill pill-ro">只读</span></td>
+          <td style="font-size:12px;color:var(--fg2);">清理走各家 CLI 自带命令</td>
+        </tr>
+        <tr>
+          <td class="cat"><b>CLI 会话目录 · claude / qoder / codex</b><td class="path">~/.claude/projects · ~/.qoder/projects · ~/.codex/sessions/YYYY/MM/DD</td></td>
+          <td class="num">860 MB</td><td class="num">178 会话</td>
+          <td><span class="pill pill-ro">只读</span></td>
+          <td style="font-size:12px;color:var(--fg2);">同上,客户端不代删</td>
+        </tr>
+        <tr>
+          <td class="cat"><b>CLI 会话目录 · kimi / grok</b><td class="path">~/.kimi-code/sessions/&lt;wd桶&gt; · ~/.grok/sessions/&lt;encodeURIComponent(cwd)&gt;</td></td>
+          <td class="num">310 MB</td><td class="num">96 会话</td>
+          <td><span class="pill pill-ro">只读</span></td>
+          <td style="font-size:12px;color:var(--fg2);">同上</td>
+        </tr>
+        <tr>
+          <td class="cat"><b>checkpoints(本项目)</b><small>~/.tmd-cli/checkpoints/&lt;md5(cwd)&gt;/{ledger.jsonl, states.json, objects.git}</small></td>
+          <td class="num">312 MB</td><td class="num">89 快照</td>
+          <td><span class="pill pill-clean">可清理</span></td>
+          <td><button class="btn clean" data-cat="ckpt">清理…</button></td>
+        </tr>
+        <tr>
+          <td class="cat"><b>docgen 版本链(已归档)</b><small>~/.tmd-cli/workbench/docgen/docs/&lt;entryId&gt;/v&lt;N&gt;.md · docState="archived" 判定</small></td>
+          <td class="num">48 MB</td><td class="num">23 版本</td>
+          <td><span class="pill pill-clean">可清理</span></td>
+          <td><button class="btn clean" data-cat="doc">清理…</button></td>
+        </tr>
+        <tr>
+          <td class="cat"><b>.tmd(工作区)</b><small>wiki / 工作台台账 · 空会话删除归保留律(候选 1)管</small></td>
+          <td class="num">6 MB</td><td class="num">—</td>
+          <td><span class="pill pill-ro">只读</span></td>
+          <td style="font-size:12px;color:var(--fg2);">条数联动 isDiskSessionEmpty 现成钩子</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="confirm-strip" id="confirm-strip">
+      <span id="confirm-text">清理 checkpoints 老快照:保留最近 30 个,清理 59 个(约 208 MB)· 走 checkpoint_prune(cwd, keep, ttl) 现成命令,按账本 ts 不按 mtime(天然避开 Linux coarse-clock 陷阱)</span>
+      <button class="btn" id="cancel-clean" style="margin-left:auto;">取消</button>
+      <button class="btn armed" id="do-clean">武装:再点确认(3s 回弹)</button>
+    </div>
+
+    <div class="loop">
+      <b>闭环</b>
+      <span>点「开始体检」</span><b>→</b>
+      <span>Rust 只读命令(dir_size 配方扩 Vec&lt;{category,bytes,count}&gt;)</span><b>→</b>
+      <span>结果本地缓存(不常驻不轮询)</span><b>→</b>
+      <span>白名单行首击展开明细</span><b>→</b>
+      <span>3s 武装回弹确认</span><b>→</b>
+      <span>执行(prune / fsRemovePath)</span>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>体检命令是本项唯一的 Rust 新增</strong>:fs 原语清单核实无 size/stat;配方照抄 git_worktree_disk_usage 的 dir_size(手写递归、跳 .git、不跟符号链接、spawn_blocking、有单测),扩成分桶返回。</li>
+      <li><strong>清理白名单默认全关</strong>:checkpoints 用现成 checkpoint_prune(账本 rewrite + 清悬空 states/孤儿对象,零新删除逻辑);docgen 已归档版本链走 fsRemovePath(removeEntryDir 先例)。</li>
+      <li><strong>两段确认组合</strong>:行首击展开明细卡(ConfirmCard 先例:风险说明 + 可反悔提示)+ 3s 无操作武装回弹(marketInstalledRow 先例)——误删三道闸的最后一块。</li>
+      <li><strong>红线</strong>:各家 CLI 会话目录只报告不代删(会话生命周期归各家 CLI);.tmd 只读;磁盘数字仅供决策,无自动清理。</li>
+      <li><strong>与候选 1 分工</strong>:保留律管列表呈现与归档;本项管磁盘占用与白名单清理,条数联动不重复检测。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:dir_size 配方与单测 + checkpoint_prune 现成命令 + docgen removeEntryDir + ConfirmCard/武装回弹两个确认先例 + registerSettingsSection 注册面 + isDiskSessionEmpty 条数联动。<b>成本</b>:中(体检命令 + 分区 UI;清理面是组装)。<b>风险</b>:误删——白名单默认全关 + 明细二次确认 + CLI 目录零触碰三道闸。<b>验证</b>:体检数字与 du 对账;prune 后 checkpoint_list 一致性(既有测试链)。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  document.getElementById("rescan").addEventListener("click", () => showToast("体检:Rust 只读 walkdir 分桶统计(dir_size 配方扩展),结果缓存;不常驻不轮询"));
+  const strip = document.getElementById("confirm-strip");
+  const doBtn = document.getElementById("do-clean");
+  let armed = false, rearm = null;
+  document.querySelectorAll(".clean").forEach((b) => {
+    b.addEventListener("click", () => {
+      document.getElementById("confirm-text").textContent = b.dataset.cat === "ckpt"
+        ? "清理 checkpoints 老快照:保留最近 30 个,清理 59 个(约 208 MB)· 走 checkpoint_prune(cwd, keep, ttl) 现成命令,按账本 ts 不按 mtime"
+        : "清理 docgen 已归档旧版本:docState=\"archived\" 条目的 docs/<entryId>/ 目录,走 fsRemovePath(removeEntryDir 先例)";
+      strip.classList.add("show");
+      showToast("白名单清理:先出明细确认条,3s 无操作武装回弹");
+    });
+  });
+  document.getElementById("cancel-clean").addEventListener("click", () => strip.classList.remove("show"));
+  doBtn.addEventListener("click", () => {
+    if (!armed) {
+      armed = true;
+      doBtn.textContent = "再点一次确认执行(3s 内)";
+      clearTimeout(rearm);
+      rearm = setTimeout(() => { armed = false; doBtn.textContent = "武装:再点确认(3s 回弹)"; }, 3000);
+      return;
+    }
+    armed = false;
+    clearTimeout(rearm);
+    doBtn.textContent = "武装:再点确认(3s 回弹)";
+    strip.classList.remove("show");
+    showToast("已执行(prune / fsRemovePath);白名单默认全关,本次为演示");
+  });
+</script>
+</body>
+</html>

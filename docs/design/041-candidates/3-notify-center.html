@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 3/8 — 应用内通知中心</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .switch { position: relative; width: 34px; height: 19px; flex-shrink: 0; }
+  .switch input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .switch i { position: absolute; inset: 0; border-radius: 999px; background: var(--border); transition: background .15s; }
+  .switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch input:checked + i { background: var(--accent); }
+  .switch input:checked + i::after { transform: translateX(15px); }
+  .dnd { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: #fafaf9; flex-wrap: wrap; }
+  .dnd-label { font-size: 13px; font-weight: 500; }
+  .dnd-window { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; font-variant-numeric: tabular-nums; }
+  .dnd-note { font-size: 12px; color: var(--fg2); }
+  .nrow { display: flex; align-items: flex-start; gap: 10px; padding: 12px 20px; border-bottom: 1px solid #f0f0ee; }
+  .nrow:last-child { border-bottom: none; }
+  .nrow:hover { background: #fafaf9; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; flex-shrink: 0; margin-top: 2px; }
+  .pill-ask { background: var(--err-soft); color: var(--err-deep); }
+  .pill-turn { background: var(--ok-soft); color: var(--ok-deep); }
+  .pill-exit { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-accent { background: var(--accent-soft); color: var(--accent-deep); }
+  .nbody { flex: 1; min-width: 0; }
+  .ntitle { font-size: 13px; }
+  .nsub { font-size: 12px; color: var(--fg2); margin-top: 1px; }
+  .nmeta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .ntime { font-size: 11px; color: var(--fg2); }
+  .unread-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .footbar { padding: 10px 20px; font-size: 12px; color: var(--fg2); border-top: 1px solid var(--border); background: #fafaf9; }
+  .cols { display: grid; grid-template-columns: 7fr 5fr; gap: 14px; align-items: start; margin-top: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12px; padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+  tr:last-child td { border-bottom: none; }
+  td.y { color: var(--ok-deep); font-weight: 600; }
+  td.n { color: var(--err-deep); }
+  .loop { padding: 12px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--border); background: #fafaf9; }
+  .loop span { font-size: 11px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 3px 8px; color: var(--fg2); }
+  .loop b { font-size: 11px; color: var(--accent-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 3/8(新特性 · 深化版)</span>
+    <h1>应用内通知中心(通知历史与免打扰)</h1>
+    <p class="page-desc">OS 通知看完即逝。本项在 notify 插件的三处 dispatch 调用点旁挂一条「写流水」——聚焦也记、失焦才发 OS,这是中心相对 OS 通知的净增量;外加免打扰窗与点击回跳。深化确认:右栏面板注册面、本地 JSON 先例、回跳 topic 全部现成。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">通知 <span class="panel-sub">右栏面板(registerFilePanel,10+ 插件先例)· 流水 = ~/.tmd-cli/notify-log.json</span></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn">全部已读</button>
+        <button class="btn">清空</button>
+      </div>
+    </div>
+
+    <div class="dnd">
+      <label class="switch"><input type="checkbox" id="dnd" aria-label="免打扰"><i></i></label>
+      <span class="dnd-label">免打扰</span>
+      <span class="dnd-window">22:00 – 08:00</span>
+      <span class="dnd-note" id="dnd-note">免打扰 = 三闸齐静(OS 通知 / ask 音 / 回合音),流水照记</span>
+    </div>
+
+    <div class="nrow">
+      <span class="pill pill-ask">等待确认</span>
+      <div class="nbody">
+        <div class="ntitle"><b>omp 主链路</b>:是否写入 src/plugins/session-search/indexer.ts?</div>
+        <div class="nsub">聚焦中也记录(此时 OS 通知被聚焦闸静默)· OS 通知 = 失焦时同源补发</div>
+      </div>
+      <div class="nmeta"><span class="unread-dot" aria-hidden="true"></span><span class="ntime">2 分钟前</span><button class="btn jump">回跳</button></div>
+    </div>
+    <div class="nrow">
+      <span class="pill pill-turn">回合结算</span>
+      <div class="nbody">
+        <div class="ntitle"><b>codex 重构</b>:回合已结束(仅 unviewed:true 记录)</div>
+        <div class="nsub">turnSettled 载荷带 unviewed 位 · 3s 延迟确认闸后未读才算</div>
+      </div>
+      <div class="nmeta"><span class="unread-dot" aria-hidden="true"></span><span class="ntime">18 分钟前</span><button class="btn jump">回跳</button></div>
+    </div>
+    <div class="nrow">
+      <span class="pill pill-exit">会话退出</span>
+      <div class="nbody">
+        <div class="ntitle"><b>grok 调研</b>:会话已退出</div>
+        <div class="nsub">sessionExitedDetail 载荷含 title/profileId 快照</div>
+      </div>
+      <div class="nmeta"><span class="ntime">1 小时前</span><button class="btn jump">回跳</button></div>
+    </div>
+    <div class="nrow">
+      <span class="pill pill-grey">额度预警</span>
+      <div class="nbody">
+        <div class="ntitle"><b>claude</b>:5h 窗口 21:40 重置</div>
+        <div class="nsub">quotaWatch 独立面(30s 首查 + 10min 间隔),与三事件同池入流水</div>
+      </div>
+      <div class="nmeta"><span class="ntime">2 小时前</span><button class="btn jump">回跳</button></div>
+    </div>
+
+    <div class="loop">
+      <b>闭环</b>
+      <span>事件(askDetected / turnSettled / sessionExited / quota)</span><b>→</b>
+      <span>shouldNotify 闸(聚焦静 OS)</span><b>→</b>
+      <span>流水追加(追加时顺带滤 7 天前)</span><b>→</b>
+      <span>失焦才发 OS + 声音</span><b>→</b>
+      <span>回跳 = sessionViewRequested(用户手势,幂等摘最大化)</span>
+    </div>
+    <div class="footbar">过期:追加时顺带过滤(默认 7 天,可配)+ 条数上限兜底 · 流水本地单文件,不云同步 · 手机树不双写(web 态无 OS 通知)</div>
+  </div>
+
+  <div class="cols">
+    <div class="panel">
+      <div class="panel-bar"><div class="panel-title">行为矩阵 <span class="panel-sub">深化新增:三通道 × 四象限,实现按此逐格测</span></div></div>
+      <table>
+        <thead><tr><th>状态</th><th>OS 通知</th><th>声音</th><th>流水</th></tr></thead>
+        <tbody>
+          <tr><td>聚焦 · 免打扰关</td><td class="n">不发</td><td class="n">不响</td><td class="y">记</td></tr>
+          <tr><td>失焦 · 免打扰关</td><td class="y">发</td><td class="y">响</td><td class="y">记</td></tr>
+          <tr><td>聚焦 · 免打扰开</td><td class="n">不发</td><td class="n">不响</td><td class="y">记</td></tr>
+          <tr><td>失焦 · 免打扰开</td><td class="n">静</td><td class="n">静</td><td class="y">记</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="panel-bar"><div class="panel-title">免打扰的三道闸 <span class="panel-sub">深化实证:现有闸分散,无统一概念</span></div></div>
+      <div style="padding:12px 20px;">
+        <div class="kv" style="display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px dashed #f0f0ee;"><span>notify.shouldNotify(分类开关 + 聚焦闸)</span><b>挂时间窗判定</b></div>
+        <div class="kv" style="display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-bottom:1px dashed #f0f0ee;"><span>kernel/askSound.playAskSound(ask 音)</span><b>同窗双静</b></div>
+        <div class="kv" style="display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;"><span>turnSound.observeTurnSettled(3s 延迟确认闸)</span><b>同窗双静</b></div>
+        <p style="font-size:12px;color:var(--fg2);margin-top:10px;">设置字段挂 notify 段旁(settingsTypes);设置页用现成 ToggleRow 行控件,窗期编辑复用阈值输入的钳制回落先例。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>事件源零新增</strong>:三类内核信号 + 额度预警同池入流水;流水写挂三处 dispatch 调用点旁,不动 OS 触发逻辑。</li>
+      <li><strong>持久化</strong>:~/.tmd-cli/notify-log.json(通知是全局语义,不进工作区 .tmd);wiki 同款 {version,entries},坏 JSON 解析为空文档不抛;过期用「追加时顺带过滤」省掉定时器,条数上限兜底。</li>
+      <li><strong>回跳</strong>:流水条目点击 = 与 OS 通知点击同一路径(sessionViewRequested + setActiveSession);该 topic 全库纪律是仅用户手势,消费方幂等。</li>
+      <li><strong>聚焦补扫先例照用</strong>:失焦期间漏掉的 ask 已有 onBlur 补扫账(onFocus 清账),流水同样受益。</li>
+      <li><strong>手机不联动</strong>:首版桌面独立流水,手机树独立无 OS 通知,不双写。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:notify 三事件 + quotaWatch + registerFilePanel(10+ 先例)+ wiki 本地 JSON 读写模式 + sessionViewRequested 用户手势语义。<b>成本</b>:低-中。<b>风险</b>:免打扰与既有 per-开关声音布尔的口径叠加要在设置页讲清;流水体积双闸(7 天 + 条数)可控。<b>验证</b>:行为矩阵四象限 × 三通道逐格测;坏 JSON / 磁盘只读两个失败路径各一。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3000);
+  }
+  document.getElementById("dnd").addEventListener("change", (e) => {
+    showToast(e.target.checked ? "免打扰开:OS/ask 音/回合音三闸齐静,流水照记" : "免打扰关:恢复即时 OS 通知与声音");
+  });
+  document.querySelectorAll(".jump").forEach((b) => {
+    b.addEventListener("click", () => showToast("回跳 = sessionViewRequested(仅用户手势)+ setActiveSession,幂等摘最大化"));
+  });
+</script>
+</body>
+</html>

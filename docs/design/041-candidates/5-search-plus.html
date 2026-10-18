@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 5/8 — 会话检索增强</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --mark-bg: #fde68a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.on { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); font-weight: 600; }
+  .search-head { padding: 14px 20px 0; }
+  .search-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-size: 13px; background: #fafaf9; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 0 12px; align-items: center; }
+  .chip-label { font-size: 11px; color: var(--fg2); margin-right: 2px; }
+  .rrow { padding: 12px 20px; border-top: 1px solid #f0f0ee; }
+  .rtitle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .pill-accent { background: var(--accent-soft); color: var(--accent-deep); }
+  .preview { font-size: 12px; color: var(--fg2); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preview mark { background: var(--mark-bg); color: inherit; border-radius: 2px; padding: 0 1px; }
+  .rfoot { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  .rtime { font-size: 11px; color: var(--fg2); }
+  .steps { padding: 14px 20px; border-top: 1px solid var(--border); background: #fafaf9; }
+  .steps h3 { font-size: 13px; margin-bottom: 8px; }
+  .lane { display: flex; gap: 6px; flex-wrap: wrap; }
+  .step { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--fg2); background: var(--card); transition: all .2s; }
+  .step.on { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); font-weight: 600; }
+  .step.bad.on { border-color: var(--err); color: var(--err-deep); background: var(--err-soft); }
+  .ladder { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #fafaf9; }
+  .ladder span { font-size: 11px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 3px 8px; color: var(--fg2); }
+  .ladder b { font-size: 11px; color: var(--accent-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .moved { margin-top: 10px; background: var(--warn-soft); border: 1px solid #fde68a; border-radius: 8px; padding: 12px 16px; font-size: 12.5px; color: var(--warn-deep); }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast, .step { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 5/8(检索优化点 · 深化收窄版)</span>
+    <h1>会话检索增强(时间过滤与命中定位)</h1>
+    <p class="page-desc">深化收窄:时间过滤 = 谓词循环头一行;命中行级定位 = 命中文本直接构造锚点(needle 梯队与逐页回溯全部现成),磁盘会话 resume 后同样可跳。「助手消息入索引」深化后移出本批——需要新写一族解析器 + 索引缓存版本戳,成本远超开关。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">会话检索 <span class="panel-sub">工作区 ~/code/tmd-cli · 增量索引(mtime 判等零读取)</span></div>
+    </div>
+
+    <div class="search-head">
+      <input class="search-input" value="quota 窗口" aria-label="检索关键词" readonly>
+      <div class="chips" role="group" aria-label="过滤">
+        <span class="chip-label">引擎</span>
+        <button class="btn on">omp</button>
+        <button class="btn">codex</button>
+        <span class="chip-label" style="margin-left:10px;">时间(新增,复刻引擎 chip 模式)</span>
+        <button class="btn t">今天</button>
+        <button class="btn t on">7 天</button>
+        <button class="btn t">30 天</button>
+        <button class="btn t">全部</button>
+      </div>
+    </div>
+
+    <div class="rrow">
+      <div class="rtitle">限额窗口推算讨论 <span class="pill pill-grey">omp</span><span class="pill pill-accent">命中 3 处</span></div>
+      <div class="preview">…回溯集合为 ts &gt; L−5h,resetAt = <mark>windowStart</mark> + 5h,严格大于…</div>
+      <div class="rfoot">
+        <span class="rtime">10-17 14:20</span>
+        <button class="btn jump" data-case="live">跳到命中行(活会话)</button>
+        <button class="btn jump" data-case="disk">跳到命中行(磁盘会话)</button>
+      </div>
+    </div>
+    <div class="rrow">
+      <div class="rtitle">TokenDashboardWindow 接线 <span class="pill pill-grey">codex</span><span class="pill pill-accent">命中 1 处</span></div>
+      <div class="preview">…「窗口重置」小节读取 <mark>quota</mark> <mark>窗口</mark> 推算结果…</div>
+      <div class="rfoot">
+        <span class="rtime">10-16 11:05</span>
+        <button class="btn jump" data-case="far">跳到命中行(超 12 页)</button>
+      </div>
+    </div>
+
+    <div class="steps">
+      <h3 id="seq-title">跳转序列(点上方按钮看三种场景)</h3>
+      <div class="lane" id="lane">
+        <span class="step">命中文本 → UserMessageAnchor(id = fnv1a32)</span>
+        <span class="step">openDiskSession(resume;活会话跳过)</span>
+        <span class="step">等 xterm handle 注册(唯一接线风险点)</span>
+        <span class="step">needle 梯队 buffer 匹配 → 滚到 28% 留头</span>
+        <span class="step">miss → 逐页 loadEarlier 重试(≤12 页)</span>
+        <span class="step bad">仍 miss → 红闪 900ms + 提示(不猜测)</span>
+      </div>
+    </div>
+
+    <div class="ladder">
+      <b>needle 梯队(现成)</b>
+      <span>首行剥 @token</span>
+      <span>空白折叠</span>
+      <span>24 字符</span>
+      <span>→ 14</span>
+      <span>→ 8</span>
+      <span>自底向上匹配 · 命中滚到 28% 留头</span>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>时间过滤是纯检索期谓词</strong>:索引缓存键只有 path→mtime,过滤不动索引循环——加 chip 零额外扫描成本,静态枚举比引擎 chip(动态生成)更简单。</li>
+      <li><strong>定位的映射键现成</strong>:命中消息就是 CliUserMessage.text 同源(userMessages.ts 提取),构造 UserMessageAnchor 无需新数据;jumpToAnchor 的梯队匹配 + 12 页回溯是批注揭示/锚点栏在用的同一条路。</li>
+      <li><strong>磁盘会话也能跳</strong>(v1 说不能,修正):openDiskSession = resume spawn,完成后即有 handle——只是要等 handle 注册(晚于激活),等 terminalRegistryVersion 或事件是唯一接线点。</li>
+      <li><strong>失败降级如实</strong>:定位失败红色闪烁(AnchorRail/TimelinePanel 同款 miss 语义)+ 提示手动定位,不做模糊猜测。</li>
+    </ul>
+    <div class="moved"><strong>移出本批</strong>:助手消息入索引——userMessages.ts 五种行型解析器只产 user 行,assistant 行需逐家新写解析器(claude 的 model 判别是唯一现成注释),且索引缓存 value 形状变化要加版本戳,否则旧缓存永远命中旧值。如要做,单独立项。</div>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:SessionIndexer/searchSessions(谓词挂点 indexer.ts:189)+ 引擎 chip 模式 + openDiskSession(resume 单例闸)+ jumpToAnchor 梯队与逐页回溯 + miss 闪烁语义。<b>成本</b>:低-中。<b>风险</b>:handle 就绪时序(唯一接线点);超长 needle 梯队 miss(fallback 已有)。<b>验证</b>:活会话滚出屏 / 磁盘 resume / 超 12 页三场景各一 + miss 降级路径。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+  document.querySelectorAll(".chips .btn").forEach((b) => {
+    b.addEventListener("click", () => {
+      b.classList.toggle("on");
+      showToast("过滤 chip:检索期谓词,索引循环零改动");
+    });
+  });
+  const cases = {
+    live: "活会话:跳过 spawn,直接 needle 梯队匹配 → 滚到命中行",
+    disk: "磁盘会话:openDiskSession(resume)→ 等 handle 注册 → 同链跳转(v1 误判不可跳,深化修正)",
+    far: "超 12 页:逐页 loadEarlier 重试到上限,仍 miss → 红闪 900ms + 提示手动定位"
+  };
+  document.querySelectorAll(".jump").forEach((b) => {
+    b.addEventListener("click", () => {
+      const steps = document.querySelectorAll("#lane .step");
+      steps.forEach((s) => s.classList.remove("on"));
+      document.getElementById("seq-title").textContent = "跳转序列:" + cases[b.dataset.case];
+      let i = 0;
+      const step = () => {
+        if (i > 0) steps[i - 1].classList.remove("on");
+        if (i >= steps.length) { showToast(cases[b.dataset.case]); return; }
+        steps[i].classList.add("on");
+        i++;
+        setTimeout(step, 620);
+      };
+      step();
+    });
+  });
+</script>
+</body>
+</html>

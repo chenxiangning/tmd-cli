@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 候选 · 8/8 — checkpoint↔转录时间线互跳</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 14px; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .trow { padding: 12px 20px; border-bottom: 1px solid #f0f0ee; }
+  .trow:last-child { border-bottom: none; }
+  .trow:hover { background: #fafaf9; }
+  .thead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .seq { font-size: 11px; color: var(--fg2); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .text { font-size: 13px; flex: 1; min-width: 0; }
+  .chip { font-size: 11px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; color: var(--accent-deep); background: var(--accent-soft); cursor: pointer; flex-shrink: 0; }
+  .chip:hover { border-color: var(--accent); }
+  .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .chip.none { color: var(--fg2); background: #f5f5f4; cursor: default; }
+  .turns { margin: 10px 0 0 34px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .turn { display: flex; gap: 10px; padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #f0f0ee; align-items: center; flex-wrap: wrap; }
+  .turn:last-child { border-bottom: none; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; font-weight: 500; display: inline-block; }
+  .pill-a { background: var(--ok-soft); color: var(--ok-deep); }
+  .pill-m { background: var(--warn-soft); color: var(--warn-deep); }
+  .pill-d { background: var(--err-soft); color: var(--err-deep); }
+  .pill-grey { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .path { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--fg2); }
+  .legend { padding: 10px 20px; font-size: 11.5px; color: var(--fg2); border-top: 1px solid var(--border); background: #fafaf9; }
+  .steps { padding: 14px 20px; border-top: 1px solid var(--border); background: #fafaf9; }
+  .steps h3 { font-size: 13px; margin-bottom: 8px; }
+  .lane { display: flex; gap: 6px; flex-wrap: wrap; }
+  .step { font-size: 12px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--fg2); background: var(--card); transition: all .2s; }
+  .step.on { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); font-weight: 600; }
+  .flash { animation: flashbg .9s; }
+  @keyframes flashbg { 0% { background: var(--err-soft); } 100% { background: transparent; } }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast, .step, .flash { animation: none; transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 候选 · 8/8(新特性 · 缺口盘点新增 · 粘合活)</span>
+    <h1>checkpoint↔转录时间线互跳</h1>
+    <p class="page-desc">深化核实的钥匙:账本 BatchInfo 里存着每轮的 prompt 原文——而转录侧用户消息就是同一文本,prompt 文本正是 jumpToAnchor 的 needle。两个插件的数据都在,双向互跳只差一个前端文本映射,零 Rust 零新解析器。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">右栏 · 时间线 <span class="panel-sub">本会话用户消息纵向流(现有)· 新增「本轮」chip</span></div>
+      <span class="pill pill-grey">数据:messageAnchors 2s 轮询 + checkpoints 账本</span>
+    </div>
+
+    <div class="trow">
+      <div class="thead">
+        <span class="seq">#4</span>
+        <span class="text">修一下 TokenDashboardWindow 的窗口重置小节</span>
+        <button class="chip" data-turn="t3">本轮 2 · 3 文件 ⇄</button>
+      </div>
+      <div class="turns" id="t3" hidden>
+        <div class="turn"><span class="pill pill-m">M</span><span class="path">src/plugins/welcome/TokenDashboardWindow.tsx</span><span class="pill pill-grey">归因:events</span></div>
+        <div class="turn"><span class="pill pill-m">M</span><span class="path">src/plugins/welcome/locales.ts</span><span class="pill pill-grey">归因:events</span></div>
+        <div class="turn"><span class="pill pill-a">A</span><span class="path">src/plugins/welcome/quotaWindow.test.ts</span><span class="pill pill-grey">归因:events</span></div>
+        <div class="turn" style="color:var(--fg2);">↑ 匹配自账本 BatchInfo {index:3, prompt 同文, turn_files}· 点「看对话」反向跳</div>
+      </div>
+    </div>
+    <div class="trow">
+      <div class="thead">
+        <span class="seq">#3</span>
+        <span class="text">把 5h 窗口的回溯边界改成严格大于</span>
+        <button class="chip" data-turn="t2">本轮 1 · 2 文件 ⇄</button>
+      </div>
+      <div class="turns" id="t2" hidden>
+        <div class="turn"><span class="pill pill-m">M</span><span class="path">src/plugins/welcome/quotaWindow.ts</span><span class="pill pill-grey">归因:events</span></div>
+      </div>
+    </div>
+    <div class="trow">
+      <div class="thead">
+        <span class="seq">#2</span>
+        <span class="text">看看 CLI 家族的限额口径都有哪些公开的</span>
+        <span class="chip none">无轮次(纯阅读轮,不匹配不猜测)</span>
+      </div>
+    </div>
+    <div class="trow">
+      <div class="thead">
+        <span class="seq">#1</span>
+        <span class="text">帮我把这个仓库的工作区结构画成图</span>
+        <button class="chip" data-turn="t1">本轮 1 · git 归因 ⇄</button>
+      </div>
+      <div class="turns" id="t1" hidden>
+        <div class="turn"><span class="pill pill-m">M</span><span class="path">docs/architecture/01-workspace.md</span><span class="pill pill-warn">归因:git(推断,可信度提示复用现有文案)</span></div>
+      </div>
+    </div>
+
+    <div class="legend">chip 只在匹配到账本轮次时渲染;匹配不到不渲染(不猜测)。归因 "git" = 推断模式,提示语义复用现有 UI。</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">反向:checkpoints 面板 → 对话</div>
+      <button class="btn primary" id="see-dialog">批次行「看对话」演示</button>
+    </div>
+    <div class="steps">
+      <h3>批次行「看对话」→ 转录定位链(与候选 5 共享时序桥)</h3>
+      <div class="lane" id="lane">
+        <span class="step">BatchInfo.prompt 原文(账本现成)</span>
+        <span class="step">构造 UserMessageAnchor</span>
+        <span class="step">活会话:jumpToAnchor 直接跳</span>
+        <span class="step">已关会话:openDiskSession(resume)→ 等 handle</span>
+        <span class="step">needle 梯队匹配 → 滚到 28% 留头</span>
+      </div>
+    </div>
+    <div class="trow" id="target-row" style="border-top:1px solid var(--border);">
+      <div class="thead">
+        <span class="seq">#3</span>
+        <span class="text">把 5h 窗口的回溯边界改成严格大于</span>
+        <span class="pill pill-grey">← 跳转落点示意</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>映射键 = prompt 文本</strong>:账本 BatchInfo.prompt 与转录用户消息同源(都是发送原文),而 prompt 文本本身就是 jumpToAnchor 的 needle(24/14/8 字符梯队 + ≤12 页回溯,批注揭示/锚点栏同款)——两个既有数据面之间只差一个前端映射函数。</li>
+      <li><strong>方向 B 匹配口径</strong>:TimelinePanel 条目按 session_id + prompt 文本匹配 BatchInfo;同名 prompt 多轮按 seq 最近匹配;miss = chip 不渲染,不猜测。</li>
+      <li><strong>方向 A 复用检索增强的时序桥</strong>:已关会话 openDiskSession → 等 xterm handle → jumpToAnchor——与候选 5 是同一座桥,两候选共享实现。</li>
+      <li><strong>归因可信度不冒充</strong>:attribution="git"(推断模式)的轮次,变更集上沿用现有「git 归因」提示文案。</li>
+      <li><strong>边界如实</strong>:CliUserMessage 无时间戳(补时间戳要动 10 家适配器,既有注释明言二期)——本项用文本匹配绕开,不碰适配器。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:LedgerEntry/BatchInfo 账本结构(prompt/turn_files/attribution 全在)+ TimelinePanel(messageAnchors 订阅 + miss 闪烁语义)+ jumpToAnchor needle 梯队 + CheckpointsPanel 批次行。<b>成本</b>:低-中(纯前端映射 + 两个面板各一组 chip/按钮)。<b>风险</b>:CLI 规范化/截断 prompt 致 needle miss(降级 = 不渲染/闪烁);同名 prompt 多轮(seq 最近匹配)。<b>验证</b>:真实仓库跑 3 轮会话,双向跳转各 3 次 + git 归因轮提示正确。</p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+  document.querySelectorAll(".chip[data-turn]").forEach((c) => {
+    c.addEventListener("click", () => {
+      const t = document.getElementById(c.dataset.turn);
+      t.hidden = !t.hidden;
+    });
+  });
+  function runLane(done) {
+    const steps = document.querySelectorAll("#lane .step");
+    steps.forEach((s) => s.classList.remove("on"));
+    let i = 0;
+    const step = () => {
+      if (i > 0) steps[i - 1].classList.remove("on");
+      if (i >= steps.length) { steps[steps.length - 1].classList.add("on"); if (done) done(); return; }
+      steps[i].classList.add("on");
+      i++;
+      setTimeout(step, 600);
+    };
+    step();
+  }
+  document.getElementById("see-dialog").addEventListener("click", () => {
+    runLane(() => {
+      const row = document.getElementById("target-row");
+      row.classList.remove("flash");
+      void row.offsetWidth;
+      row.classList.add("flash");
+      showToast("prompt 原文 = needle:滚到命中消息并 28% 留头(红闪为落点示意)");
+    });
+  });
+</script>
+</body>
+</html>
