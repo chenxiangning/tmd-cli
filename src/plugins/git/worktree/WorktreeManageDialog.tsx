@@ -10,7 +10,6 @@ import { createPortal } from "react-dom";
 import { ArrowsClockwise, Plus } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
-import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
 import { branchForWorktree, dirNameFromBranch, validateDirName, worktreePathFor } from "./dirName";
@@ -18,7 +17,7 @@ import { removeWorktreeWithCleanup } from "./worktreeOps";
 import { useFocusTrap } from "@kernel/useFocusTrap";
 import { WorktreeList } from "./WorktreeList";
 // 跨插件消费(workspace 供读会话↔worktree 映射,纯模块不涉其生命周期;先例:notify→composer)
-import { countSessionsForWtPath, pruneWtSessions } from "@plugins/workspace/worktreeSession";
+import { countSessionsForWtPath } from "@plugins/workspace/worktreeSession";
 import { bumpGitRefresh } from "../panelStore";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
@@ -50,8 +49,6 @@ export function WorktreeManageDialog({
 
   useEffect(() => {
     let alive = true;
-    /* 幽灵映射收口:已关会话的 worktree 记录剪除,徽标计数不虚高。 */
-    pruneWtSessions(new Set(host.getSessions().map((s) => s.id)));
     void ipc.gitWorktreeList(cwd)
       .then((list) => {
         if (alive) setList(list);

@@ -4,6 +4,7 @@
  * 不新增扫描);磁盘占用走 git_worktree_disk_usage,与本模块无关。
  */
 
+import { host } from "@kernel/host";
 import { branchForWorktree } from "@plugins/git/worktree/dirName";
 import { normalizeRoot } from "@plugins/git/worktree/worktreeOps";
 /* 词典随链路注册(workspace 弹层先于 git 插件加载时保证 en/ja 命中)。 */
@@ -34,17 +35,6 @@ export function loadWtSessions(): Record<string, WtSessionRef> {
   return map;
 }
 
-/** 幽灵清理:按存活 tmd 会话 id 集剪除映射(会话关闭无删除点,管理弹窗
- * 打开时收口一次,防会话数徽标对死会话永久虚高)。 */
-export function pruneWtSessions(liveIds: ReadonlySet<string>): void {
-  const map = loadWtSessions();
-  const kept = Object.keys(map).filter((id) => liveIds.has(id));
-  if (kept.length === Object.keys(map).length) return;
-  const next: Record<string, WtSessionRef> = {};
-  for (const id of kept) next[id] = map[id];
-  saveWtSessions(next);
-}
-
 function saveWtSessions(map: Record<string, WtSessionRef>): void {
   localStorage.setItem(STORE_KEY, JSON.stringify(map));
   version += 1;
@@ -67,17 +57,23 @@ export function recordWtSession(sessionId: string, ref: WtSessionRef): void {
   saveWtSessions({ ...loadWtSessions(), [sessionId]: ref });
 }
 
-/** 会话 id → 关联记录;无记录 = undefined。 */
+/** 会话 id → 关联记录(仅活会话且实跑在该 worktree 才返回:映射随 localStorage
+ *  跨运行残留,pty id 会被新运行复用,以活会话 cwd 复核防张冠李戴)。 */
 export function wtSessionOf(sessionId: string | undefined): WtSessionRef | undefined {
   if (!sessionId) return undefined;
-  return loadWtSessions()[sessionId];
+  const ref = loadWtSessions()[sessionId];
+  if (!ref) return undefined;
+  const live = host.getSessions().find((s) => s.id === sessionId);
+  return live && normalizeRoot(live.cwd) === normalizeRoot(ref.wtPath) ? ref : undefined;
 }
 
-/** wtPath → 关联会话数(管理弹窗列表行徽标;map 反查;路径归一比较,
- *  worktreePathFor 产混合分隔符形态而 Rust 回贴随形,Windows 下裸比较恒不等)。 */
+/** wtPath → 在此运行的活会话数(移除闸 + 管理弹窗徽标)。以活会话表 cwd 为准
+ *  (归一比较):映射是 spawn 时的写入侧账本,拿它计数会把已关会话与上次运行
+ *  的残留 id 一并算上(移除闸误拦);cwd 口径还天然覆盖终端/普通 spawn 落在
+ *  worktree 的会话,不漏不虚。 */
 export function countSessionsForWtPath(wtPath: string): number {
   const target = normalizeRoot(wtPath);
-  return Object.values(loadWtSessions()).filter((r) => normalizeRoot(r.wtPath) === target).length;
+  return host.getSessions().filter((s) => normalizeRoot(s.cwd) === target).length;
 }
 
 /**
