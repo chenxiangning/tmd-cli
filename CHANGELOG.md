@@ -42,6 +42,7 @@
 - 插件懒加载(kernel `lazySuspense` 原语):workbench 双 tab/anim/git 面板与三 diff tab/memory 控制台与 wiki 注册组件按需加载,DesktopApp 首包 3,718KB → 2,870KB(−23%,gzip −222KB);Suspense 占位统一
 - WebGL 终端基准独立工具页(`scripts/bench.html`,vite dev `/scripts/bench.html`):canvas vs WebGL 三场景(cat 10 万行/htop 模拟/vim 滚动)按 onRender 真实绘制帧计 fps(非 rAF 节拍),中位数判定 <5% 无感;依赖决策后置——基准通过才入 package.json 且按需 dynamic import
 - kernel 分区盘点:`scripts/check-kernel-audit.mjs` 产「文件×行数×引用方」清单(副作用导入/vi.mock 引用全入账,Set 去重),标签文件 `scripts/kernel-audit.json`(host/contract/move/pending),`--check` 迁出红线(tag=move 仍有 kernel 内引用即红)入 CI 与 check:gate
+- skill-hub 本地导入扩面:除单文件外支持磁盘目录/zip 包/GitHub 仓库链接导入,统一走既有安装记录公约位(eff86967)
 
 ### 新增(anim 打磨批,前批)
 
@@ -54,6 +55,8 @@
 - 移动端引擎选择器触控目标 ≥44px(.eng-opt 补 min-height,M2 验收单 5.3 码面项)
 - 移动端触控目标全面达标(M2 5.3 扩面):会话列表行/置顶钮 min-height 44px(原 35px),主页顶栏 Git/发起会话/刷新三钮与会话横竖屏切换钮 `::after` 扩热区(视觉尺寸不变、热区 44px),ibtn 间距 6→16px 防热区重叠串击
 - Windows junction 降级:`mklink /J` 参数显式引包裹并归一反斜杠(含 `&`/`^` 的路径不再被 cmd 截断,fs_symlink_dir)
+- frontmatter 解析支持 YAML 块标量折叠与字面形态(| 与 > 两种块标量,提示词/技能文件不再解析丢正文,e5005a5b)
+- worktree 移除闸改按活会话 cwd 判定:映射残留(会话已关但记录未清)不再误拦移除(d20dba3a)
 
 ### 内务
 
