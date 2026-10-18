@@ -8,12 +8,15 @@ import { useCallback, useEffect, useMemo, useRef, useState, lazy } from "react";
 import type { EditorTab } from "@kernel/tabs";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { pickSavePath } from "@kernel/ipc";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { SessionViewTabPayload } from "@kernel/sessionViewTabs";
 import type { CliSessionTranscript } from "@kernel/cli";
+import { writeText } from "@plugins/workbench/docgen/paths";
 import { TranscriptView } from "./transcriptView";
-import { ArrowsClockwiseIcon, Chats } from "@phosphor-icons/react";
+import { blocksToMarkdown, sessionExportFileName, type MarkdownExport } from "./blocksToMarkdown";
+import { ArrowsClockwiseIcon, Chats, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import { retryImport } from "@kernel/lazyImport";
@@ -26,6 +29,16 @@ const MarkdownBody = lazy(retryImport(() =>
 
 /** 首屏/增量批次(块级;工具卡与 md 块自身还有行级截断,见 transcriptView)。 */
 const RENDER_BATCH = 200;
+
+/** 导出完成 toast:有跳过(思考/图片)才带括注。 */
+function exportedToast(out: MarkdownExport): string {
+  const parts: string[] = [];
+  if (out.skippedThinking > 0) parts.push(t("思考 {n}", { n: out.skippedThinking }));
+  if (out.skippedImages > 0) parts.push(t("图片 {n}", { n: out.skippedImages }));
+  return parts.length > 0
+    ? t("已导出 {n} 块(跳过 {d})", { n: out.blocks, d: parts.join("/") })
+    : t("已导出 {n} 块", { n: out.blocks });
+}
 
 type LoadState =
   | { phase: "loading" }
@@ -40,6 +53,35 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
   const [visible, setVisible] = useState(RENDER_BATCH);
   const [nonce, setNonce] = useState(0);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  /* 轻反馈 toast(本面板局部,PluginMarketPage 同款模式;仓内无全局 toast 体系)。 */
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+  }, []);
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2400);
+  };
+
+  /* 导出:pickSavePath → docgen writeText(原子写)→ toast;取消/桩态静默。 */
+  const exportMd = useCallback(() => {
+    if (state.phase !== "ok" || state.transcript.blocks.length === 0) return;
+    const out = blocksToMarkdown(state.transcript, {
+      title: payload.title,
+      cliSessionId: payload.cliSessionId,
+      profileId: payload.profileId,
+    });
+    const name = sessionExportFileName(payload.title, payload.cliSessionId);
+    void pickSavePath(t("导出会话转录"), name).then((path) => {
+      if (!path) return; /* 用户取消/web 桩态:静默 */
+      void writeText(path, out.markdown).then(
+        () => showToast(exportedToast(out)),
+        (e) => showToast(e instanceof Error ? e.message : String(e)),
+      );
+    });
+  }, [state, payload.title, payload.cliSessionId, payload.profileId]);
 
   const profile = useMemo(
     () => host.getCliProfiles().find((p) => p.id === payload.profileId),
@@ -103,34 +145,16 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
   );
   return (
     <div className="sv-root" data-icon-decor="session-view">
-      <header className="sv-header">
-        {profile?.renderIcon ? <span className="sv-engine-icon">{profile.renderIcon("0.875rem")}</span> : null}
-        <span className="sv-title">{payload.title || payload.cliSessionId.slice(0, 8)}</span>
-        <span className="sv-engine-name">{profile?.name ?? payload.profileId}</span>
-        {payload.modifiedAt ? (
-          <span className="sv-time">{formatRelativeTime(payload.modifiedAt)}</span>
-        ) : null}
-        {state.phase === "ok" && state.transcript.truncated ? (
-          <span className="sv-truncated">{t("会话过大,已截断")}</span>
-        ) : null}
-        <button
-          type="button"
-          className={`sv-minimal${minimal ? " is-on" : ""}`}
-          aria-pressed={minimal}
-          title={t("极简展示:每轮工作过程折叠为一行,只保留最终答复")}
-          onClick={() => updateSettings({ sessionViewerMinimal: !minimal })}
-        >
-          {t("极简")}
-        </button>
-        <button
-          type="button"
-          className="sv-refresh"
-          title={t("刷新")}
-          onClick={() => setNonce((n) => n + 1)}
-        >
-          <ArrowsClockwiseIcon size="0.875rem" />
-        </button>
-      </header>
+      <ViewerHeader
+        payload={payload}
+        profile={profile}
+        phase={state.phase}
+        truncated={state.phase === "ok" ? state.transcript.truncated : false}        minimal={minimal}
+        exportDisabled={state.phase !== "ok" || (state.phase === "ok" && state.transcript.blocks.length === 0)}
+        onToggleMinimal={() => updateSettings({ sessionViewerMinimal: !minimal })}
+        onExport={exportMd}
+        onRefresh={() => setNonce((n) => n + 1)}
+      />
       <div className="sv-scroll" ref={scrollRef} onScroll={onScroll}>
         {state.phase === "loading" ? (
           <div className="sv-empty">
@@ -171,6 +195,65 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
           )
         ) : null}
       </div>
+      {toast ? <div className="sv-toast" role="status">{toast}</div> : null}
     </div>
+  );
+}
+
+/** 头部条:引擎图标/标题/相对时间/截断标注 + 极简、导出、刷新三钮(复杂度摊平拆件)。 */
+function ViewerHeader({
+  payload,
+  profile,
+  phase,
+  truncated,
+  minimal,
+  exportDisabled,
+  onToggleMinimal,
+  onExport,
+  onRefresh,
+}: {
+  payload: SessionViewTabPayload;
+  profile: ReturnType<typeof host.getCliProfiles>[number] | undefined;
+  phase: LoadState["phase"];
+  truncated: boolean | undefined;
+  minimal: boolean;
+  exportDisabled: boolean;
+  onToggleMinimal: () => void;
+  onExport: () => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <header className="sv-header">
+      {profile?.renderIcon ? <span className="sv-engine-icon">{profile.renderIcon("0.875rem")}</span> : null}
+      <span className="sv-title">{payload.title || payload.cliSessionId.slice(0, 8)}</span>
+      <span className="sv-engine-name">{profile?.name ?? payload.profileId}</span>
+      {payload.modifiedAt ? (
+        <span className="sv-time">{formatRelativeTime(payload.modifiedAt)}</span>
+      ) : null}
+      {phase === "ok" && truncated ? (
+        <span className="sv-truncated">{t("会话过大,已截断")}</span>
+      ) : null}
+      <button
+        type="button"
+        className={`sv-minimal${minimal ? " is-on" : ""}`}
+        aria-pressed={minimal}
+        title={t("极简展示:每轮工作过程折叠为一行,只保留最终答复")}
+        onClick={onToggleMinimal}
+      >
+        {t("极简")}
+      </button>
+      <button
+        type="button"
+        className="sv-export"
+        title={t("导出 Markdown")}
+        disabled={exportDisabled}
+        onClick={onExport}
+      >
+        <DownloadSimpleIcon size="0.875rem" />
+      </button>
+      <button type="button" className="sv-refresh" title={t("刷新")} onClick={onRefresh}>
+        <ArrowsClockwiseIcon size="0.875rem" />
+      </button>
+    </header>
   );
 }

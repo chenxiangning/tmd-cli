@@ -32,4 +32,11 @@ export const MESSAGES_EN: Record<string, string> = {
   "working for": "working for ",
   /* live 浮层错误/不支持持久条重试钮(2026-10 打磨) */
   "重试": "Retry",
+  /* 转录导出(候选7) */
+  "导出 Markdown": "Export Markdown",
+  "导出会话转录": "Export session transcript",
+  "已导出 {n} 块": "Exported {n} blocks",
+  "已导出 {n} 块(跳过 {d})": "Exported {n} blocks (skipped {d})",
+  "思考 {n}": "thinking {n}",
+  "图片 {n}": "images {n}",
 };
