@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useSettingsState, updateSettings } from "@kernel/settings";
+import { parseHhMm } from "@kernel/dnd";
 import { t } from "@kernel/i18n";
 import { SoundSettingsCard, ToggleRow } from "./SoundSettingsCard";
 
@@ -44,6 +45,12 @@ export function NotifySettingsTab() {
     }
   };
 
+  /** 免打扰时刻提交:非法(含清空)回落旧值;合法且变化才写。 */
+  const commitHhMm = (key: "notifyDndStart" | "notifyDndEnd", raw: string) => {
+    if (parseHhMm(raw) === null || raw === settings[key]) return;
+    updateSettings(key === "notifyDndStart" ? { notifyDndStart: raw } : { notifyDndEnd: raw });
+  };
+
   const osToggles = [
     {
       key: "notifyOsAsk" as const,
@@ -78,6 +85,49 @@ export function NotifySettingsTab() {
             onChange={(on) => updateSettings({ [item.key]: on })}
           />
         ))}
+      </div>
+
+      <div className="pref-card" data-testid="settings-dnd-card">
+        <CardHead
+          title={t("免打扰")}
+          desc={t("时段内静音桌面通知与 Ask/结束提示音;通知中心流水照常记录,回来照样回看。")}
+        />
+        <ToggleRow
+          title={t("启用免打扰窗")}
+          desc={t("按下方起止时间静音;支持跨夜(如 22:00 至次日 08:00),起 = 止 视为全天静默。")}
+          on={settings.notifyDndEnabled}
+          onChange={(on) => updateSettings({ notifyDndEnabled: on })}
+        />
+        {settings.notifyDndEnabled && (
+          <>
+            <div className="pref-row">
+              <div>
+                <div className="pref-title">{t("开始时间")}</div>
+                <div className="pref-desc">{t("时刻到达即进入静默。")}</div>
+              </div>
+              <input
+                type="time"
+                value={settings.notifyDndStart}
+                onChange={(e) => commitHhMm("notifyDndStart", e.target.value)}
+                aria-label={t("免打扰开始时间")}
+                className="w-20 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
+              />
+            </div>
+            <div className="pref-row">
+              <div>
+                <div className="pref-title">{t("结束时间")}</div>
+                <div className="pref-desc">{t("到达该时刻即解除(不含);起 = 止 则全天静默。")}</div>
+              </div>
+              <input
+                type="time"
+                value={settings.notifyDndEnd}
+                onChange={(e) => commitHhMm("notifyDndEnd", e.target.value)}
+                aria-label={t("免打扰结束时间")}
+                className="w-20 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <SoundSettingsCard />

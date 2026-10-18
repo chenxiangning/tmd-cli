@@ -39,6 +39,29 @@ const MESSAGES_EN = {
   "额度预警阈值百分比": "Quota alert threshold percent",
   "0–100 的整数;清空或非法输入将保持当前值。":
     "An integer between 0 and 100; empty or invalid input keeps the current value.",
+  "通知中心": "Notification center",
+  "通知流水 · {n} 条": "Notification log · {n} entries",
+  "暂无通知记录;等待确认/轮次结束/会话退出/额度预警都会记在这里":
+    "No notifications yet; approval prompts, finished turns, session exits, and quota alerts all land here.",
+  "今日": "today",
+  "更早": "Earlier",
+  "清空": "Clear",
+  "确认清空?": "Confirm clear?",
+  "额度类通知不支持会话回跳": "Quota alerts can't jump to a session",
+  "回跳并激活该会话": "Jump to and focus this session",
+  "免打扰": "Do not disturb",
+  "时段内静音桌面通知与 Ask/结束提示音;通知中心流水照常记录,回来照样回看。":
+    "Silences desktop notifications and ask/turn-end sounds during the window; the notification log keeps recording either way, so you can catch up afterwards.",
+  "启用免打扰窗": "Enable do-not-disturb window",
+  "按下方起止时间静音;支持跨夜(如 22:00 至次日 08:00),起 = 止 视为全天静默。":
+    "Mutes between the start and end times below; overnight ranges (e.g. 22:00–08:00) work, and equal times mean all day.",
+  "开始时间": "Start time",
+  "结束时间": "End time",
+  "时刻到达即进入静默。": "Silence begins at this time.",
+  "到达该时刻即解除(不含);起 = 止 则全天静默。":
+    "Silence lifts at this time (exclusive); equal times mean all day.",
+  "免打扰开始时间": "Do-not-disturb start time",
+  "免打扰结束时间": "Do-not-disturb end time",
 } as const;
 
 /** ja 词典 · notify 域。 */
@@ -76,6 +99,29 @@ const MESSAGES_JA = {
   "额度预警阈值百分比": "クォータ警告しきい値(%)",
   "0–100 的整数;清空或非法输入将保持当前值。":
     "0–100 の整数。空欄や無効な入力では現在の値を維持します。",
+  "通知中心": "通知センター",
+  "通知流水 · {n} 条": "通知ログ · {n} 件",
+  "暂无通知记录;等待确认/轮次结束/会话退出/额度预警都会记在这里":
+    "通知はまだありません。承認待ち/ターン終了/セッション終了/クォータ警告がすべてここに記録されます。",
+  "今日": "今日",
+  "更早": "それ以前",
+  "清空": "クリア",
+  "确认清空?": "消去しますか?",
+  "额度类通知不支持会话回跳": "クォータ警告はセッションへジャンプできません",
+  "回跳并激活该会话": "このセッションへジャンプしてアクティブにする",
+  "免打扰": "おやすみモード",
+  "时段内静音桌面通知与 Ask/结束提示音;通知中心流水照常记录,回来照样回看。":
+    "時間帯内はデスクトップ通知と Ask/ターン終了音を消音します。通知ログは通常どおり記録されるので、あとで見返せます。",
+  "启用免打扰窗": "おやすみモードを有効化",
+  "按下方起止时间静音;支持跨夜(如 22:00 至次日 08:00),起 = 止 视为全天静默。":
+    "下の開始・終了時刻の間で消音。日をまたぐ設定(例:22:00〜08:00)に対応し、開始 = 終了は終日消音。",
+  "开始时间": "開始時刻",
+  "结束时间": "終了時刻",
+  "时刻到达即进入静默。": "この時刻に消音を開始。",
+  "到达该时刻即解除(不含);起 = 止 则全天静默。":
+    "この時刻で解除(時刻自体は含まず)。開始 = 終了は終日消音。",
+  "免打扰开始时间": "おやすみモード開始時刻",
+  "免打扰结束时间": "おやすみモード終了時刻",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

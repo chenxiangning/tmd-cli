@@ -44,6 +44,7 @@ import {
   sanitizeSessionTitles,
 } from "./settingsSanitizeSessions";
 import { sanitizeOpenWithTargets } from "./settingsSanitizeOpenWith";
+import { parseHhMm } from "./dnd";
 import { sanitizeGitPanel } from "./settingsSanitizeGit";
 import { sanitizeShortcutOverrides } from "./settingsSanitizeShortcuts";
 
@@ -157,6 +158,17 @@ function sanitizeClampPercent(raw: unknown): number {
   return Math.min(100, Math.max(0, Math.round(raw)));
 }
 
+/** 免打扰时刻清洗:非 "HH:mm" 回落默认(判定侧 kernel/dnd 另有非法不静默兜底)。 */
+function sanitizeHhMm(raw: unknown, fallback: string): string {
+  return typeof raw === "string" && parseHhMm(raw) !== null ? raw : fallback;
+}
+
+/** 流水保留天数清洗:1-365 整数钳制,非数字回落默认 7(0 会使过期过滤失义,不放开)。 */
+function sanitizeNotifyLogDays(raw: unknown): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return DEFAULT_SETTINGS.notifyLogDays;
+  return Math.min(365, Math.max(1, Math.round(raw)));
+}
+
 /** 外部数据 → 合法 AppSettings;非法/缺失字段回落默认值。 */
 export function sanitize(raw: unknown): AppSettings {
   const obj = (raw ?? {}) as Record<string, unknown>;
@@ -215,6 +227,13 @@ export function sanitize(raw: unknown): AppSettings {
         ? obj.notifyOsSessionExit
         : DEFAULT_SETTINGS.notifyOsSessionExit,
     notifyQuotaWarnPercent: sanitizeClampPercent(obj.notifyQuotaWarnPercent),
+    notifyDndEnabled:
+      typeof obj.notifyDndEnabled === "boolean"
+        ? obj.notifyDndEnabled
+        : DEFAULT_SETTINGS.notifyDndEnabled,
+    notifyDndStart: sanitizeHhMm(obj.notifyDndStart, DEFAULT_SETTINGS.notifyDndStart),
+    notifyDndEnd: sanitizeHhMm(obj.notifyDndEnd, DEFAULT_SETTINGS.notifyDndEnd),
+    notifyLogDays: sanitizeNotifyLogDays(obj.notifyLogDays),
     askSoundId: ASK_SOUND_IDS.includes(obj.askSoundId as AskSoundId)
       ? (obj.askSoundId as AskSoundId)
       : DEFAULT_SETTINGS.askSoundId,

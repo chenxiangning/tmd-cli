@@ -12,6 +12,7 @@
 import { KernelTopics, type EventBus, type TurnSettledEvent } from "./events";
 import { getSettingsState } from "./settings";
 import { playAskSound } from "./askSound";
+import { isDndActive } from "./dnd";
 import { host } from "./host";
 
 /** 延迟确认窗口:结算后静默至此仍未被查看、无新输出,才认定"这轮真结束了"。 */
@@ -57,6 +58,8 @@ export function observeTurnSettled(
     /* 复查:仍为完成未读,且末次输出时刻与结算时一致(无新输出)才播 */
     if (!deps.isUnread(payload.sessionId)) return;
     if (deps.getLastActivityAt(payload.sessionId) !== payload.settledAt) return;
+    /* 免打扰在播放刻再判(结算与播放隔 3s,窗界可能已越过)。 */
+    if (isDndActive(getSettingsState().settings)) return;
     deps.play(turnEndSoundId);
   }, TURN_END_CONFIRM_MS);
   pendingConfirms.set(payload.sessionId, { settledAt: payload.settledAt, timer });

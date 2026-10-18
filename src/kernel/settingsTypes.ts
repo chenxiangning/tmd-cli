@@ -142,6 +142,13 @@ export interface AppSettings {
   notifyOsSessionExit: boolean;
   /** 额度预警阈值(窗口已用 %,0 = 关;激活会话供应商轮询,一次/窗口周期)。 */
   notifyQuotaWarnPercent: number;
+  /** 免打扰窗开关(开 = 窗口内静音 OS 通知与应用内提示音;通知中心流水照记)。 */
+  notifyDndEnabled: boolean;
+  /** 免打扰起止(HH:mm;支持跨夜如 22:00-08:00;起 = 止 视为全天静默)。 */
+  notifyDndStart: string;
+  notifyDndEnd: string;
+  /** 通知中心流水保留天数(追加时顺带过滤过期,另有 500 条上限兜底)。 */
+  notifyLogDays: number;
     /** 单会话输出环形缓冲上限(字符);切回会话的回放深度由它决定,更早历史走幕布翻页。 */
   sessionOutputBufferLimit: number;
   /** 工作区会话列表显示预算(总数 + 按 CLI 配额)。 */

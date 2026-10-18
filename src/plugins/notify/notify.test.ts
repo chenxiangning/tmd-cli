@@ -32,6 +32,13 @@ describe("shouldNotify(发送闸)", () => {
     expect(shouldNotify("turnEnd", off, false)).toBe(false);
     expect(shouldNotify("exit", off, false)).toBe(true);
   });
+
+  it("免打扰窗内静默(三闸之一);开关关不受影响", () => {
+    /* start === end = 全天静默:与运行时刻无关,断言确定。 */
+    const allday = { notifyDndEnabled: true, notifyDndStart: "00:00", notifyDndEnd: "00:00" };
+    expect(shouldNotify("ask", PREFS, false, allday)).toBe(false);
+    expect(shouldNotify("ask", PREFS, false, { ...allday, notifyDndEnabled: false })).toBe(true);
+  });
 });
 
 describe("notifyText(文案)", () => {

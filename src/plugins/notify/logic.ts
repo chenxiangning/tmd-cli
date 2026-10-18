@@ -4,6 +4,7 @@
  */
 
 import { t } from "@kernel/i18n";
+import { isDndActive, type DndPrefs } from "@kernel/dnd";
 
 /** 会话查名最小面(生产传 host,测试传桩)。 */
 export interface SessionLookup {
@@ -22,14 +23,17 @@ export interface NotifyPrefs {
 
 /**
  * 发送闸:窗口聚焦 = 用户在场,一切通知静默(chip/呼吸灯/提示音已足够);
- * 失焦时按分类开关放行。
+ * 失焦时按分类开关放行;dnd 免打扰窗(可选,生产传 settings)内再静默 ——
+ * 三闸之一,另两闸在 kernel/askSound 与 kernel/turnSound。流水不受此闸。
  */
 export function shouldNotify(
   kind: NotifyKind,
   prefs: NotifyPrefs,
   windowFocused: boolean,
+  dnd?: DndPrefs,
 ): boolean {
   if (windowFocused) return false;
+  if (dnd && isDndActive(dnd)) return false;
   if (kind === "ask") return prefs.notifyOsAsk;
   if (kind === "turnEnd") return prefs.notifyOsTurnEnd;
   return prefs.notifyOsSessionExit;

@@ -15,6 +15,7 @@
 
 import { KernelTopics, type EventBus } from "./events";
 import { getSettingsState, ASK_SOUND_IDS, type AskSoundId } from "./settings";
+import { isDndActive } from "./dnd";
 
 /** 内置音效懒加载:首次播放才拉取 wav,promise 缓存,失败逐出使下次重试。 */
 const SOUND_URL_LOADERS: Record<AskSoundId, () => Promise<string>> = {
@@ -72,7 +73,9 @@ let askUnlisten: (() => void) | null = null;
 export function bootAskSound(bus: EventBus): void {
   if (askUnlisten) return;
   askUnlisten = bus.on<string>(KernelTopics.askDetected, () => {
-    const { askSoundEnabled, askSoundId } = getSettingsState().settings;
-    if (askSoundEnabled) playAskSound(askSoundId);
+    const settings = getSettingsState().settings;
+    const { askSoundEnabled, askSoundId } = settings;
+    /* 免打扰窗静默(真实事件路径;playAskSound 直连不闸 —— 设置页「测试」按钮不受窗拘)。 */
+    if (askSoundEnabled && !isDndActive(settings)) playAskSound(askSoundId);
   });
 }

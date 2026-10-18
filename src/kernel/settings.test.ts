@@ -8,10 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_ICON_DECOR } from "./settingsIconDecor";
 
-const ipcMock = vi.hoisted(() => ({
-  configReadSettings: vi.fn(),
-  configMergeSettings: vi.fn(),
-}));
+const ipcMock = vi.hoisted(() => ({ configReadSettings: vi.fn(), configMergeSettings: vi.fn() }));
 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 
@@ -84,6 +81,7 @@ describe("初始状态与默认值", () => {
       notifyOsTurnEnd: true,
       notifyOsSessionExit: false,
       notifyQuotaWarnPercent: 10,
+      notifyDndEnabled: false, notifyDndStart: "22:00", notifyDndEnd: "08:00", notifyLogDays: 7,
       memoryDbPath: "",
       memoryEnabled: true,
       memoryCapsuleMode: "manual",

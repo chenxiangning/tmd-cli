@@ -9,9 +9,11 @@
  *
  * 通知通道 = kernel/ipc.sendOsNotification(R3 薄包装,web 态恒不发射)。
  * 发送闸与阈值判定抽在 logic.ts / quotaWatch.ts(模块级纯函数,单测覆盖)。
+ * 另挂通知中心右栏面板(log.ts 单文件流水):全量历史含聚焦静默,
+ * OS/提示音才受失焦与免打扰窗闸(kernel/dnd)。
  */
 
-import { BellRinging } from "@phosphor-icons/react";
+import { BellRinging, Bell } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { KernelTopics, type SessionExitedDetailEvent } from "@kernel/events";
 import { sendOsNotification } from "@kernel/ipc";
@@ -23,16 +25,30 @@ import type { Plugin } from "@kernel/plugin";
 /* kept 公式唯一源消费(与平铺广播目标同构):平铺幕布集合不自抄一份防漂移。 */
 import { keptSessionIds } from "@plugins/composer/view/broadcastTargets";
 import { NotifySettingsTab } from "./NotifySettingsTab";
+import { NotifyCenterPanel } from "./NotifyCenterPanel";
+import { bootNotifyLog, recordNotifyEntry } from "./log";
 import { notifyText, shouldNotify, type NotifyKind } from "./logic";
 import { QUOTA_POLL_FIRST_MS, QUOTA_POLL_INTERVAL_MS, pickQuotaWarnings, watchedQuotaSessions } from "./quotaWatch";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 /** 统一发送闸:分类开关 + 失焦判定,过了才走 OS 通道。
- *  onClick = 通知点击深链(聚焦主窗后激活对应会话;桌面最小档语义见 ipc.ts 注)。 */
+ *  onClick = 通知点击深链(聚焦主窗后激活对应会话;桌面最小档语义见 ipc.ts 注)。
+ *  流水 = 全量历史:聚焦静默/免打扰也记,OS 通道才受闸;去重沿用事件边沿与
+ *  waitingNotified/warned 集合语义(边沿一次 = 流水一条)。 */
 function dispatch(kind: NotifyKind, sessionId: string): void {
   const { settings } = getSettingsState();
-  if (!shouldNotify(kind, settings, host.isWindowFocused())) return;
   const { title, body } = notifyText(kind, sessionId, host);
+  recordNotifyEntry(
+    {
+      kind: kind === "turnEnd" ? "turn" : "ask",
+      sessionId,
+      profileId: host.getSessions().find((s) => s.id === sessionId)?.profileId,
+      title,
+      snippet: body,
+    },
+    settings.notifyLogDays,
+  );
+  if (!shouldNotify(kind, settings, host.isWindowFocused(), settings)) return;
   void sendOsNotification(title, body, () => {
     host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势,摘最大化 */
     host.setActiveSession(sessionId);
@@ -50,6 +66,18 @@ export const notifyPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
+    /* 流水装载(单文件 ~/.tmd-cli/notify-log.json;失败按空流水,面板仍可用)。 */
+    bootNotifyLog();
+    /* 通知中心右栏面板:三/四处 dispatch 的旁挂流水的回看面(含聚焦静默记录)。 */
+    ctx.registerFilePanel({
+      id: "notify-center",
+      label: t("通知中心"),
+      icon: Bell,
+      component: NotifyCenterPanel,
+      order: 14, /* 紧随审批收件箱(13),语义相邻 */
+      railGroup: "session",
+    });
+
     /* 事件侧:三类内核信号,边沿触发,检测零新增。
        turnSettled 只提醒"未被查看"的结算(查看过的轮次不值得打断);
        退出走 sessionExitedDetail(payload 是移除前快照,名字档位才可达)。 */
@@ -68,9 +96,14 @@ export const notifyPlugin: Plugin = {
       ),
       ctx.events.on<SessionExitedDetailEvent>(KernelTopics.sessionExitedDetail, (e) => {
         const { settings } = getSettingsState();
-        if (!shouldNotify("exit", settings, host.isWindowFocused())) return;
         const name = e.title || host.getCliProfile(e.profileId)?.name || e.profileId;
         const { title, body } = notifyText("exit", e.sessionId, host, name);
+        /* 流水先记(全量历史,免打扰也记),OS 才受闸。 */
+        recordNotifyEntry(
+          { kind: "exit", sessionId: e.sessionId, profileId: e.profileId, title, snippet: body },
+          settings.notifyLogDays,
+        );
+        if (!shouldNotify("exit", settings, host.isWindowFocused(), settings)) return;
         void sendOsNotification(title, body);
       }),
     ];
@@ -79,11 +112,16 @@ export const notifyPlugin: Plugin = {
        失焦那一刻扫一遍等待中的会话补发(去重按会话,聚焦恢复即清账)。 */
     const onBlur = (): void => {
       const { settings } = getSettingsState();
-      if (!settings.notifyOsAsk || host.isWindowFocused()) return;
+      /* 与 dispatch 同闸(失焦 + 分类开关 + 免打扰窗);补盲会话无边沿流水,记一条。 */
+      if (!shouldNotify("ask", settings, host.isWindowFocused(), settings)) return;
       for (const s of host.getSessions()) {
         if (!host.isWaitingConfirm?.(s.id) || waitingNotified.has(s.id)) continue;
         waitingNotified.add(s.id);
         const { title, body } = notifyText("ask", s.id, host);
+        recordNotifyEntry(
+          { kind: "ask", sessionId: s.id, profileId: s.profileId, title, snippet: body },
+          settings.notifyLogDays,
+        );
         void sendOsNotification(title, body, () => {
           host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势 */
           host.setActiveSession(s.id);
@@ -125,18 +163,21 @@ export const notifyPlugin: Plugin = {
           .then((snapshot) => {
             if (!snapshot.windows.length) return; // 余额型(无窗口)不参与
             for (const win of pickQuotaWarnings(snapshot.windows, threshold, warned)) {
-              void sendOsNotification(
-                t("额度预警 · {provider}", { provider: snapshot.providerLabel }),
-                t("{title}:{label} 窗口已用 {pct}%", {
-                  title: snapshot.title,
-                  label: win.label,
-                  pct: win.displayPercent,
-                }),
-                () => {
-                  host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势 */
-                  host.setActiveSession(session.id);
-                },
+              const title = t("额度预警 · {provider}", { provider: snapshot.providerLabel });
+              const body = t("{title}:{label} 窗口已用 {pct}%", {
+                title: snapshot.title,
+                label: win.label,
+                pct: win.displayPercent,
+              });
+              /* 流水照记(OS 闸已在 poll 口);quota 行不支持回跳,面板置灰。 */
+              recordNotifyEntry(
+                { kind: "quota", sessionId: session.id, profileId, title, snippet: body },
+                getSettingsState().settings.notifyLogDays,
               );
+              void sendOsNotification(title, body, () => {
+                host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势 */
+                host.setActiveSession(session.id);
+              });
             }
           })
           .catch(() => {
