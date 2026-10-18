@@ -23,12 +23,15 @@ export type { SessionKeepEntry };
 /** 保留 key:`${workspaceId}:${profileId}:${cliSessionId}` —— 与归档 key 同构。 */
 export const sessionKeepKey = sessionOverlayKey;
 
-const overlay = makeOverlay<SessionKeepEntry>("sessionKeep", "keptAt");
+/* 手动取消归档与自动归档同密度量级(恢复旧会话常成批),2000 上限与归档层对齐
+ * (2026-10-18 自 200 提容);sanitize 侧只验时间戳无容量上限,无双源同步负担。 */
+const SESSION_KEEP_MAX = 2000;
+const overlay = makeOverlay<SessionKeepEntry>("sessionKeep", "keptAt", SESSION_KEEP_MAX);
 
 /** 是否已标记保留(清扫跳过)。 */
 export const isSessionKept = overlay.has;
 
-/** 标记保留;已标记时刷新时间戳(幂等);满额(200)逐出 keptAt 最旧条目。 */
+/** 标记保留;已标记时刷新时间戳(幂等);满额(2000)逐出 keptAt 最旧条目。 */
 export const keepSession = overlay.mark;
 
 /** 取消保留;未标记为 no-op。重新归档一条 keep 过的会话时调用(手动归档 = 撤回保留意图)。 */

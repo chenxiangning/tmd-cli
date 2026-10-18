@@ -19,7 +19,12 @@ import { sessionTitleKey } from "@kernel/sessionTitles";
 import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
 import { TITLE_RESOLVE_MAX_ATTEMPTS, titleRetryDelay } from "./utils";
-import { sweepStaleSessions } from "./sessionSweep";
+import { scanAndSweep } from "./sessionSweep";
+
+/** 前台扫描在途登记(键 = `${workspaceId}:${profileId}`,与刷新键同构):
+ *  扫描 effect 生命周期写,启动补扫(hygieneBootSweep)读 —— 前台正在扫的
+ *  区跳过避免双扫。 */
+export const foregroundScansInflight = new Set<string>();
 
 export function useCliDiskScan({
   profile,
@@ -88,82 +93,63 @@ export function useCliDiskScan({
     isSessionDeleted(sessionDeletedKey(workspace.id, profile.id, cliSessionId));
   useEffect(() => {
     let stale = false;
-    /** 扫描结算即清扫:超期归档(写覆盖层)+ 空会话删除。远程分支 allowDelete=false
-     *  (本地删不到远端文件,删了会重扫复活成幽灵);有删除才补扫一次,让行即时消失。 */
-    const sweep = (sessions: CliDiskSession[], allowDelete: boolean) => {
-      const liveIds = new Set(
+    /* 扫描结算即清扫:超期归档(写覆盖层)+ 空会话删除。远程分支 allowDelete=false
+     *  (本地删不到远端文件,删了会重扫复活成幽灵);有删除才补扫一次,让行即时消失。
+     *  扫描→清扫组装见 sessionSweep.scanAndSweep(启动补扫共用同一核心)。 */
+    const getLiveIds = () =>
+      new Set(
         liveRef.current
           .map((s) => host.getCliSessionId(s.id))
           .filter((id): id is string => id !== undefined),
       );
-      void sweepStaleSessions({
-        profile,
-        workspace,
-        sessions,
-        liveCliIds: liveIds,
-        allowDelete,
-      }).then((deleted) => {
-        if (!stale && deleted > 0) setRescanTick((t) => t + 1);
-      });
+    /** 磁盘真标题落定随手喂 tab 快照(本机/远程同款):活行标题跟随自动命名
+     *  (手动命名优先,不受影响)。 */
+    const feedTitles = (list: CliDiskSession[]) => {
+      const titles = new Map(
+        list.flatMap((d): [string, string][] => (d.title ? [[d.id, d.title]] : [])),
+      );
+      for (const s of liveRef.current) {
+        const cliId = host.getCliSessionId(s.id);
+        const title = cliId !== undefined ? titles.get(cliId) : undefined;
+        if (title) noteSessionTabTitle(s.id, title);
+      }
     };
-    if (remoteScan && remoteAdapter) {
-      void remoteAdapter
-        .list(remoteScan, workspace.root)
-        .then((diskList) => {
-          if (stale) return;
-          setSessions(diskList);
-          /* 磁盘真标题落定随手喂 tab 快照(与本机扫描分支同款):远程会话恢复
-             (openRemoteDiskSession)后活行标题跟随远端自动命名。 */
-          const titles = new Map(
-            diskList.flatMap((d): [string, string][] => (d.title ? [[d.id, d.title]] : [])),
-          );
-          for (const s of liveRef.current) {
-            const cliId = host.getCliSessionId(s.id);
-            const title = cliId !== undefined ? titles.get(cliId) : undefined;
-            if (title) noteSessionTabTitle(s.id, title);
-          }
-          sweep(diskList, false);
-          onScannedEvent();
-        })
-        .catch(() => {
-          if (!stale) {
-            setSessions([]);
-            onScannedEvent();
-          }
-        });
-      return () => {
-        stale = true;
-      };
-    }
+    const settle = (list: CliDiskSession[]) => {
+      if (stale) return false; /* 过期扫描:不碰 UI 也不清扫 */
+      setSessions(list);
+      feedTitles(list);
+      onScannedEvent();
+    };
     if (!profile.listSessions || skipLocalDiskHistory) {
       setSessions([]);
       onScannedEvent();
       return;
     }
-    void profile
-      .listSessions(workspace.root)
-      .then((list) => {
-        if (stale) return;
-        setSessions(list);
-        /* 磁盘真标题落定随手喂 tab 快照:tab 标签跟随自动命名(手动命名优先,不受影响) */
-        const titles = new Map(
-          list.flatMap((d): [string, string][] => (d.title ? [[d.id, d.title]] : [])),
-        );
-        for (const s of liveRef.current) {
-          const cliId = host.getCliSessionId(s.id);
-          const title = cliId !== undefined ? titles.get(cliId) : undefined;
-          if (title) noteSessionTabTitle(s.id, title);
-        }
-        sweep(list, true);
+    /* 无扫描能力/本机历史关闭已短路;此后登记在途,启动补扫据此让路。 */
+    const inflightKey = `${workspace.id}:${profile.id}`;
+    foregroundScansInflight.add(inflightKey);
+    void scanAndSweep({
+      profile,
+      workspace,
+      scan: remoteScan && remoteAdapter
+        ? () => remoteAdapter.list(remoteScan, workspace.root)
+        : () => profile.listSessions!(workspace.root),
+      getLiveCliIds: getLiveIds,
+      allowDelete: !(remoteScan && remoteAdapter),
+      onSettled: settle,
+    })
+      .then((deleted) => {
+        if (!stale && deleted > 0) setRescanTick((t) => t + 1);
       })
       .catch(() => {
-        if (!stale) setSessions([]);
-      })
-      .finally(() => {
-        if (!stale) onScannedEvent();
+        if (!stale) {
+          setSessions([]);
+          onScannedEvent();
+        }
       });
     return () => {
       stale = true;
+      foregroundScansInflight.delete(inflightKey);
     };
   }, [profile, workspace, liveSessions.length, refreshTick, rescanTick, skipLocalDiskHistory, remoteScan, remoteAdapter]);
 

@@ -18,7 +18,8 @@ export function sessionOverlayKey(
   return `${workspaceId}:${profileId}:${cliSessionId}`;
 }
 
-/** 覆盖层默认容量;sessionArchive 自动归档写入密度高,实例化处单独提容。 */
+/** 覆盖层默认容量;sessionArchive(自动归档)与 sessionKeep(手动取消归档)
+ *  写入密度高,实例化处单独提容。 */
 const OVERLAY_MAX_ENTRIES = 200;
 
 type OverlaySettingsKey = "sessionArchive" | "sessionDeleted" | "sessionKeep";

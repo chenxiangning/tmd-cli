@@ -38,7 +38,7 @@ vi.mock("./sessionOps", () => ({
   deleteDiskSessionFull: mocks.deleteDiskSessionFull,
 }));
 
-import { sweepStaleSessions } from "./sessionSweep";
+import { scanAndSweep, sweepStaleSessions } from "./sessionSweep";
 
 const HOUR = 3_600_000;
 const NOW = 1_800_000_000_000;
@@ -168,5 +168,42 @@ describe("sweepStaleSessions 空会话删除", () => {
     expect(await sweep([entry("old", 30)], { profile: profile(true), allowDelete: false })).toBe(0);
     expect(mocks.archiveSessions).toHaveBeenCalledWith(["ws1:omp:old"]);
     expect(mocks.deleteDiskSessionFull).not.toHaveBeenCalled();
+  });
+});
+
+describe("scanAndSweep 扫描结算核心", () => {
+  /** 可复用核心契约(hook 与启动补扫共用):扫描落定 → 结算回调 → 清扫 →
+   *  返回删除数;过期扫描放弃清扫;清扫内部失败吞 0 不上抛。 */
+  const core = (over: Partial<Parameters<typeof scanAndSweep>[0]> = {}) =>
+    scanAndSweep({
+      profile: profile(true),
+      workspace: ws,
+      scan: async () => [entry("old", 30)],
+      getLiveCliIds: () => new Set<string>(),
+      allowDelete: true,
+      ...over,
+    });
+
+  it("扫描落定即结算(settle 收到列表)→ 清扫 → 返回删除数", async () => {
+    const settled: CliDiskSession[][] = [];
+    expect(
+      await core({ onSettled: (list) => void settled.push(list) }),
+    ).toBe(1);
+    expect(settled).toHaveLength(1);
+    expect(settled[0]![0]!.id).toBe("old");
+    expect(mocks.deleteDiskSessionFull).toHaveBeenCalled();
+  });
+
+  it("onSettled 返回 false(过期扫描):不碰 UI 语义面也不清扫,零归档写", async () => {
+    expect(await core({ onSettled: () => false })).toBe(0);
+    expect(mocks.archiveSessions).not.toHaveBeenCalled();
+    expect(mocks.deleteDiskSessionFull).not.toHaveBeenCalled();
+  });
+
+  it("清扫内部失败:吞掉归 0,不上抛拖垮调用方", async () => {
+    mocks.archiveSessions.mockImplementation(() => {
+      throw new Error("persist");
+    });
+    await expect(core()).resolves.toBe(0);
   });
 });

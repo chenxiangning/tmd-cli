@@ -73,3 +73,37 @@ export async function sweepStaleSessions(opts: {
   );
   return results.filter((deleted) => deleted).length;
 }
+
+/**
+ * 扫描结算 → 清扫的可复用核心(useCliDiskScan 各分支与启动补扫共用)。
+ * 扫描落定 → 同步回调结算面(setSessions/标题喂 tab 等)→ 清扫,返回删除数;
+ * deleted>0 的处置归调用方(hook 侧补扫刷 UI,启动补扫只记数)。清扫失败不
+ * 拖垮扫描结算(调用方只消费删除数,吞掉归 0);onSettled 返回 false = 本轮
+ * 扫描已过期(hook 的 stale 竞态),放弃清扫。
+ */
+export async function scanAndSweep(opts: {
+  profile: CliProfile;
+  workspace: Workspace;
+  /** 扫描来源(hook 本机/远程分支各自注入;启动补扫 = 本机 listSessions)。 */
+  scan: () => Promise<CliDiskSession[]>;
+  /** 清扫时点的活会话磁盘身份(hook 读 liveRef,启动补扫读内核会话表)。 */
+  getLiveCliIds: () => Set<string>;
+  /** 远程扫描分支传 false:只归档不删盘(见文件头)。 */
+  allowDelete: boolean;
+  /** 扫描结算回调;返回 false 放弃清扫。 */
+  onSettled?: (sessions: CliDiskSession[]) => boolean | void;
+}): Promise<number> {
+  const sessions = await opts.scan();
+  if (opts.onSettled?.(sessions) === false) return 0;
+  try {
+    return await sweepStaleSessions({
+      profile: opts.profile,
+      workspace: opts.workspace,
+      sessions,
+      liveCliIds: opts.getLiveCliIds(),
+      allowDelete: opts.allowDelete,
+    });
+  } catch {
+    return 0;
+  }
+}
