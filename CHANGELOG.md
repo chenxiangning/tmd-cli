@@ -6,7 +6,7 @@
 
 ## [0.4.0] - 2026-10-18
 
-本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。
+本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。**追加 042 混合批**(视觉示例与推演定稿 `docs/design/042-candidates/`,大仙拍板 1/3/4/6/7 五项,打磨对齐定稿后实施):终端路径点击 / 输入历史全文+抽屉 / 额度告警增量三腿 / 跨工作区全局检索 / checkpoint 恢复预览 + workbench 空壳归档债批 + 随手带四项。
 
 ### 新增
 
@@ -19,10 +19,18 @@
 - 会话转录导出(session-viewer):查看 tab 工具行「导出 Markdown」——`blocksToMarkdown` 纯函数(user→`## 用户`、assistant→`## 助手`、tool 折叠一行、thinking/图片跳过计数,truncated 头部标注)+ docgen 导出三件套(pickSavePath→writeText 原子写→toast,Windows 保留设备名 sanitize 沉淀为 docgen `safeFileBase` 共享导出)
 - checkpoint↔转录时间线互跳(checkpoints):时间线每条用户消息挂「本轮 N 文件」chip(prompt 与账本 BatchInfo.prompt 全等、多轮同文按出现序配对,匹配不到不渲染,git 归因带「推断」标注),行下内联展开 turn_files 变更集(A/M/D 药丸,配色同源 `fileChipCls.ts`);审阅单消息卡「看对话」——活会话 `jumpToText` 直跳、已关会话 resume 后跳(账本无 prompt 的轮次不出动作)
 - 后台会话冻结快照(kernel `terminalFreeze.ts`):tab 条容量挤除卸载时把本就要算的 reseed 投影连同缓冲水位存档(LRU 8),重开时身份指纹/字节水位/字符水位/头样本四闸全过 → 投影同步上屏+增量分块补写,免 0.5s 遮罩免全量回放;任一闸不过回落既有全量路径,磁盘重开与会话关闭路径不变
+- 终端文件路径可点击(files):terminalLinks 注册表追加路径 provider,「src/foo.ts:42」死文本点击直达文件面板对应行;绝对/相对/`~/`/盘符/UNC/`:line` 识别(col 忽略只跳行),URL 段预挖防尾巴误命中,空格路径续段须分隔符防误吃;区外/不存在静默(循 marks 先例);cwd 取 spawn 时值不追踪 cd(天花板文件头钉明,OSC 7 被否)
+- 输入历史全文修复 + 浏览抽屉(composer):历史存全文(单条 8000 字符硬上限,总量 512KB 字节封顶、超限最旧淘汰且写入不 throw),300 字符截断语义降级为 ghost 匹配/展示窗口;Cmd+L 历史抽屉(⌘K 同款视觉,Composer 局部 state)子串过滤+命中高亮+↑↓/Enter 回填整替草稿可编辑不直发、Esc 关闭不回填;存量截断条目不动不打标,去重置底自愈
+- 跨工作区全局检索(session-search):搜索浮层作用域 chip「本工作区/全部工作区(N)」,跨区命中先 setActiveWorkspace 再行级定位(先切后跳),失效区命中(root 复核失败)灰 pill 不可跳;indexer 缓存改路径唯一 key+cwd 命名空间留存+全局 LRU 3000,prime 只剪本区死键,12ms 时间盒排空缓存命中步(真读步 60ms)不卡浮层输入;纯函数面拆 `searchCore.ts`
+- checkpoint 恢复 dry-run 预览(checkpoints,Rust):抽 `plan_restore` 纯函数(plan/execute 共用一份计划),新只读命令 `checkpoint_restore_preview`(plan+blob_patch 摘要,binary 0/0 行);ConfirmCard 升级预览表(快照头+A/M/D 药丸+「覆盖本地」仅 surgical 擦除行+默认 6 行截断展开),plan 空免弹直接执行(中性提示「本批已无可回退的改动」),undo_revert 复用恢复时预览不新发 dry-run,弹层内冻结,IPC 失败回落纯文案确认不阻塞;零新设置键
+- 额度低水位告警增量三腿(notify+cli-shared):①余额腿——vendors 结构化 `balanceValue` 仅 deepseek/relay 透传,绝对阈值 `notifyQuotaBalanceBelow`(默认 0=关,货币跟随回包);②claude 窗口腿——`windowResetFor` 迁 cli-shared/quota(welcome+notify 联合消费),尾读推算,`notifyQuotaResetMinutes`(默认 30,5-240)近重置报「N 分后重置」;③去重腿——notify-log.json 头部 `quotaSeen` 持久化(窗口键自带 resetsAt 按周期翻新,余额键首次越线小时桶),修「重启失忆」,写坏按无记录宁多勿漏
+- workbench 空壳项目批量归档(债批):概览未跟踪行尾「清理空壳」入口(ghosts ≥2 才渲染)勾选确认弹层,软归档(archived+archivedAt 可恢复,不删数据)退出全部统计与列表,聚焦页底「已归档」折叠段恢复
+- 随手带四项:终端搜索浮层 Aa/大小写 + .*/正则 toggle 与 n/m 命中计数;检索多命中「N 处命中」展开子命中、逐项行级跳转;终端 ⌘+/⌘-/⌘0 字号缩放写回 `terminalFontSize`(terminal 作用域,界面缩放兜底);anim Windows「打开」=`explorer /select` 目录 reveal(0.3.9 非 mac 隐藏口径修订)
 
 ### 修复
 
 - 集成期:workspace 组折叠 `toggleGroup` 压缩时误写工作区折叠 map(点组头错折工作区),回归组 id 语义
+- quota 告警分支绕过 `shouldNotify`:免打扰窗此前不拦 quota OS 通知(真缺口);现 NotifyKind 增 "quota" 走 dispatch 同款三闸——免打扰/聚焦静默拦 OS 通知,应用内流水照记
 
 ### 内务
 
