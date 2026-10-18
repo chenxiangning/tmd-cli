@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  animOpenAction,
   animProjectsDir,
   animSessionRefs,
   buildAnimSessionPrompt,
@@ -102,5 +103,16 @@ describe("animSessionRefs", () => {
 describe("animProjectsDir", () => {
   it("拼接 home 绝对路径", () => {
     expect(animProjectsDir("/Users/u")).toBe("/Users/u/.tmd-anim/projects");
+  });
+});
+
+/* ── 「打开」平台分派(042 随手带,0.3.9 口径修订)────────────────── */
+
+describe("animOpenAction", () => {
+  it("mac = 应用 open-with;windows = 文件管理器目录定位;其余平台隐藏", () => {
+    expect(animOpenAction("macos")).toBe("app");
+    expect(animOpenAction("windows")).toBe("reveal");
+    expect(animOpenAction("linux")).toBeNull();
+    expect(animOpenAction("unknown")).toBeNull();
   });
 });

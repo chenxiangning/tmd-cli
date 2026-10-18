@@ -4,7 +4,8 @@
  * 数据面:~/.tmd-anim/projects/*.json 逐文件最小解析(容错「无效项目」);
  * 2s 轮询仅在本 tab 挂载期运行(非 keepAlive,切走即卸载即停,勿挂常驻轮询)。
  * 未就绪引导:应用探测缺席或项目目录缺失 → AnimInstallGuide(Releases 落点)。
- * 动作:「打开」= 探测 tmd-anim 应用后 open-with 项目文件;
+ * 动作:「打开」= 按平台分派(useAnimOpen):mac 探测 tmd-anim 应用后 open-with 项目文件,
+ *  windows = explorer /select 目录定位;非 mac 非 win 隐藏;
  * 「AI 会话」= 先弹确认窗(项目 link 卡片 + 引用卡片预览 + 可二次编辑的初始
  * prompt),确认 spawn 默认引擎会话后:初始提示词与引用全部挂 composer 卡片
  * (workbench 任务卡片同款 —— 随下一条消息发出,点提示词卡可再编辑,不灌
@@ -17,7 +18,6 @@ import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { getPlatformKind } from "@kernel/platform";
 import { ensureDir } from "@kernel/fsDirs";
-import type { OpenWithTarget } from "@kernel/settingsTypes";
 import { resolveDefaultEngine } from "@plugins/workbench/defaultEngine";
 import { AiSessionDialog, type AiSessionTarget } from "./AiSessionDialog";
 import { AnimInstallGuide } from "./AnimInstallGuide";
@@ -28,18 +28,12 @@ import {
   isAnimProjectFile,
   parseAnimProject,
 } from "./animProjects";
+import { useAnimOpen } from "./useAnimOpen";
 import { prepareAiSessionTarget, startAnimAiSession, type AnimEngine } from "./startSession";
 import { setPendingPrompt } from "@kernel/sessionPending";
 import { setPendingRefs } from "./refStore";
 
 const POLL_MS = 2000;
-
-/** fsOpenWith 的 tmd-anim 应用目标(mac `open -a tmd-anim`;productName 即应用名)。 */
-const ANIM_APP_TARGET: OpenWithTarget = { id: "tmd-anim", label: "tmd-anim", kind: "app", appName: "tmd-anim" };
-
-/** 「打开」= mac `open -a` 语义,仅 macOS 可用;非 mac 跳过探测与「打开」钮,
- *  避免 which 兜底误报「未安装」横幅(AI 会话不依赖本机 app,不受影响)。 */
-const IS_MAC = getPlatformKind() === "macos";
 
 interface AnimRow {
   path: string;
@@ -53,8 +47,6 @@ export function AnimProjectsTab() {
   const [rows, setRows] = useState<AnimRow[] | null>(null); /* null = 目录不存在/未读到 */
   const [toast, setToast] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
-  /* null = 探测未归;false → 常驻未安装引导横幅(点「打开」时仍会复核探测)。 */
-  const [appInstalled, setAppInstalled] = useState<boolean | null>(null);
   const [dialog, setDialog] = useState<AiSessionTarget | null>(null);
   const toastTimer = useRef<number | null>(null);
   const homeRef = useRef<string | null>(null);
@@ -65,6 +57,8 @@ export function AnimProjectsTab() {
     setToast(m);
     toastTimer.current = window.setTimeout(() => setToast(null), 2400);
   };
+  /* 「打开」动作面(平台分派/应用探测/reveal,useAnimOpen):windows = 目录定位。 */
+  const { action: openAction, appInstalled, open: openInApp } = useAnimOpen(showToast);
 
   /* 2s 轮询:本 tab 挂载即轮、卸载即停(busy 闸防上一轮未归并发堆叠)。
    * fsCollectFiles(collect_files 原语):目录 .json 收集并按修改时间倒序(最近改动排最前),
@@ -101,35 +95,6 @@ export function AnimProjectsTab() {
       window.clearInterval(iv);
     };
   }, []);
-
-  /* 挂载即探测 tmd-anim 应用:缺席 → 常驻引导横幅(探测失败不抛错,保持 null 不打扰)。 */
-  useEffect(() => {
-    if (!IS_MAC) return;
-    let alive = true;
-    ipc
-      .fsProbeOpenApp(ANIM_APP_TARGET)
-      .then((probe) => {
-        if (alive) setAppInstalled(probe.ok);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  /* 「打开」:先探测应用再 open-with;失败 toast,不抛错。 */
-  const openInApp = async (path: string) => {
-    try {
-      const probe = await ipc.fsProbeOpenApp(ANIM_APP_TARGET);
-      if (!probe.ok) {
-        showToast(t("未检测到 tmd-anim,请先安装"));
-        return;
-      }
-      await ipc.fsOpenWith(path, ANIM_APP_TARGET);
-    } catch {
-      showToast(t("打开失败"));
-    }
-  };
 
   /* 「AI 会话」点击:prepareAiSessionTarget 只决策不落盘(取消零副作用);
    *  桩路径此处只生成候选文件名,确认时才写盘。失败一律 toast,不静默。 */
@@ -272,7 +237,7 @@ export function AnimProjectsTab() {
               name={row.name}
               scenes={row.scenes}
               starting={starting}
-              canOpen={IS_MAC}
+              canOpen={openAction !== null}
               onOpen={() => void openInApp(row.path)}
               onAi={() => void openAiDialog(row.path)}
             />
