@@ -21,6 +21,29 @@ describe("parseFrontmatter", () => {
     const r = parseFrontmatter("---\nname: x\n无闭合");
     expect(Object.keys(r.fields)).toContain("name");
   });
+
+  it("折叠块标量 >-:段内换行并空格,空行成段界(answer-me-with-html 实证形态)", () => {
+    const { fields } = parseFrontmatter(
+      "---\nname: a\ndescription: >-\n  第一行折行\n  续行同段。\n\n  第二段。\n---\n正文",
+    );
+    expect(fields.description).toBe("第一行折行 续行同段。\n第二段。");
+  });
+
+  it("字面块标量 |:保留换行;块标量后接其他 key 正常续解析", () => {
+    const { fields } = parseFrontmatter(
+      "---\ndescription: |\n  行一\n  行二\nname: b\n---\n正文",
+    );
+    expect(fields.description).toBe("行一\n行二");
+    expect(fields.name).toBe("b");
+  });
+
+  it("块标量在 frontmatter 闭合处正确终止", () => {
+    const { fields, firstBodyLine } = parseFrontmatter(
+      "---\ndescription: >\n  折叠描述\n---\n\n首行\n",
+    );
+    expect(fields.description).toBe("折叠描述");
+    expect(firstBodyLine).toBe("首行");
+  });
 });
 
 describe("frontmatterDescription", () => {
