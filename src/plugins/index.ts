@@ -49,6 +49,7 @@ import { sessionViewerPlugin } from "./session-viewer";
 import { structuredSessionPlugin } from "./structured-session";
 import { workbenchPlugin } from "./workbench";
 import { animPlugin } from "./anim";
+import { storageAuditPlugin } from "./storage-audit";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -96,4 +97,5 @@ export const allPlugins: Plugin[] = [
   structuredSessionPlugin,
   workbenchPlugin,
   animPlugin,
+  storageAuditPlugin,
 ];

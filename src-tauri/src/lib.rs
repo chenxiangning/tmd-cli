@@ -1,4 +1,4 @@
-// file-size-exempt: 301 行仅超 1 行,含文件头注释;拆出即伤对照性(dispatch 是命令面镜像总表,lib.rs 是装配总表)。
+// file-size-exempt: 432 行(装配总表 + 命令面镜像,豁免沿袭;拆出即伤对照性)。
 mod app_setup;
 mod checkpoints;
 mod commands_fs;
@@ -10,6 +10,7 @@ mod fs_remove;
 mod fs_search;
 mod fs_tail;
 mod fs_temp;
+mod fs_usage;
 mod fs_walk;
 mod git;
 mod hash;
@@ -290,6 +291,7 @@ pub fn run() {
             fs_edit::fs_reveal_in_file_manager,
             fs_edit::fs_copy_file,
             fs_edit::fs_copy_tree,
+            fs_usage::fs_dir_usage,
             open_with::fs_open_with,
             open_with::fs_probe_open_app,
             open_with::fs_open_app_icon,

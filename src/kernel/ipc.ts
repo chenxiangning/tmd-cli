@@ -658,6 +658,10 @@ export const ipc = {
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */
   fsCollectFiles: (dir: string, suffix: string) =>
     invoke<FileStamp[]>("fs_collect_files", { dir, suffix }),
+  /** 目录占用体检(存储管家):只读递归统计,不跟符号链接;单类目 20s 超时
+   *  以 timedOut 标记返回(与「未使用」区分);跳过目录名由调用方传。 */
+  fsDirUsage: (specs: { label: string; path: string; skipDirNames: string[] }[]) =>
+    invoke<{ label: string; bytes: number; files: number; timedOut: boolean }[]>("fs_dir_usage", { specs }),
   /** 读取文件尾部 maxBytes 字节,供 session 状态增量解析。 */
   fsReadTail: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_tail", { path, maxBytes }),

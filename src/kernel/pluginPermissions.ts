@@ -62,6 +62,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   fsReadHead: "ipc.fs.read",
   fsReadHeads: "ipc.fs.read",
   fsCollectFiles: "ipc.fs.read",
+  fsDirUsage: "ipc.fs.read",
   readLocalImageDataUrl: "ipc.fs.read",
   readBinaryFileBase64: "ipc.fs.read",
   fsReadBytesBase64: "ipc.fs.read",
