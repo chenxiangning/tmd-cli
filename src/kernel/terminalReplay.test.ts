@@ -27,6 +27,8 @@ vi.mock("@kernel/host", () => ({
       },
     },
     getOutputBuffer: (id: string) => hoisted.buffers.get(id) ?? null,
+    getOutputBufferBytes: (id: string) => new TextEncoder().encode(hoisted.buffers.get(id) ?? "").length,
+    getSessions: () => [],
     getCliSessionId: (id: string) => hoisted.cliIds.get(id),
     observeReplayTail: () => undefined,
     restoreDiskTail: (id: string, tail: string) => hoisted.restored.push([id, tail]),
@@ -290,8 +292,7 @@ describe("attachTerminalStream 磁盘先行回放", () => {
     hoisted.diskTail = { cliId: "cli-1", promise: Promise.resolve({ text: "T".repeat(200 * 1024) }) }; // 两块,留卸载窗
     const term = fakeTerm(); const realGate = createReplayInputGate();
     const off = attachTerminalStream(term, "s1", realGate, () => undefined);
-    await vi.advanceTimersByTimeAsync(5); // 回放链启动
-    off(); // 中途卸载
+    await vi.advanceTimersByTimeAsync(5); off(); // 回放链启动后中途卸载
     await vi.advanceTimersByTimeAsync(50); // 剩余回放 promise 链走完
     expect(realGate.blocked()).toBe(false);
   });

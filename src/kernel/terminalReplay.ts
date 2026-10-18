@@ -25,6 +25,7 @@ import type { Terminal } from "@xterm/xterm";
 import { host, ptyLiveTopic } from "@kernel/host";
 import type { ReplayInputGate } from "@kernel/terminalInputGate";
 import { consumeDiskTail } from "./diskReplay";
+import { resolveFreezeReplay, sessionFreezeFingerprint, takeTerminalFreeze } from "./terminalFreeze";
 
 /** 单块字符数:足够小使进度平滑,又不至于回调过频。 */
 const REPLAY_CHUNK_CHARS = 128 * 1024;
@@ -150,40 +151,63 @@ export function attachTerminalStream(
     }
   });
 
+  /* 就绪收口(幂等):置 ready、放输入闸、回调、撤罩。静默表与 12s 兜底都延迟到
+     这里执行;冻结快照命中路径屏幕即时成立,补写完直接调用,不等静默窗。 */
+  const setReady = (): void => {
+    if (cancelled || ready) return;
+    ready = true;
+    inputGate.release();
+    onReady?.();
+    onProgress(null);
+  };
+
   /* 静默判就绪:回放完后(或本无回放)输出安静 QUIET_READY_MS → 撤罩;
      每次新字节重置。无字节也起表——空缓冲空会话 0.5s 后即视为就绪。 */
   const armQuiet = (): void => {
     clearTimeout(quietTimer);
-    quietTimer = setTimeout(() => {
-      /* ready 幂等守卫:12s 兜底先触发后,挂起的静默表不得再放一次闸(重复 release
-         会跨窗 pop 掉翻页器的 arm,重写期 xterm 自动应答漏进活 PTY)。 */
-      if (cancelled || ready) return;
-      ready = true;
-      inputGate.release();
-      onReady?.();
-      onProgress(null);
-    }, QUIET_READY_MS);
+    quietTimer = setTimeout(setReady, QUIET_READY_MS);
   };
 
   const memoryReplay = host.getOutputBuffer(sessionId);
   const diskTail = memoryReplay ? null : consumeDiskTail(host.getCliSessionId(sessionId));
   if (memoryReplay) {
-    inputGate.arm();
-    onProgress({ kind: "replay", pct: 0 });
-    void writeInChunks(term, memoryReplay, (done, total) => {
-      if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
-    }).then(() => {
-      /* 卸载竞态不冻结输入闸(随组件重挂载重生,闸门泄漏才致命);其余全部忽略。 */
-      inputGate.release();
-      if (cancelled) return;
-      const pending = liveQueue ?? [];
-      liveQueue = null;
-      for (const text of pending) term.write(text);
-      if (!ready) {
-        onProgress({ kind: "stream", chars: received });
-        armQuiet();
-      }
-    });
+    /* 挤除冻结快照(候选2):tab 挤除卸载存过终态屏幕投影,重开且缓冲前缀完好
+       → 投影同步上屏 + 卸载水位起增量补写,免遮罩免全量重写。就绪即时收口:
+       幕布首帧即终态,无需静默窗;补写完成前活流照常攒队,尽后按序补写(幂等保序)。 */
+    const freeze = resolveFreezeReplay(
+      memoryReplay,
+      host.getOutputBufferBytes(sessionId),
+      takeTerminalFreeze(sessionId),
+      sessionFreezeFingerprint(host.getSessions().find((s) => s.id === sessionId)),
+    );
+    if (freeze.mode === "fast") {
+      term.write(freeze.snap.screenText);
+      void writeInChunks(term, freeze.incremental, () => undefined).then(() => {
+        inputGate.release();
+        if (cancelled) return;
+        const pending = liveQueue ?? [];
+        liveQueue = null;
+        for (const text of pending) term.write(text);
+        setReady();
+      });
+    } else {
+      inputGate.arm();
+      onProgress({ kind: "replay", pct: 0 });
+      void writeInChunks(term, memoryReplay, (done, total) => {
+        if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
+      }).then(() => {
+        /* 卸载竞态不冻结输入闸(随组件重挂载重生,闸门泄漏才致命);其余全部忽略。 */
+        inputGate.release();
+        if (cancelled) return;
+        const pending = liveQueue ?? [];
+        liveQueue = null;
+        for (const text of pending) term.write(text);
+        if (!ready) {
+          onProgress({ kind: "stream", chars: received });
+          armQuiet();
+        }
+      });
+    }
     host.observeReplayTail(sessionId);
   } else if (diskTail) {
     /* 磁盘先行:首开/指针缺失共用这个分支(prefetch 错配/无 cliSessionId 回落直流)。
@@ -253,13 +277,7 @@ export function attachTerminalStream(
 
   /* 12s 兜底:防 CLI 不重绘导致遮罩永挂(内存回放/直流通路;磁盘编排自带 30s 兜底) */
   if (!diskTail) {
-    failsafe = setTimeout(() => {
-      if (cancelled || ready) return;
-      ready = true;
-      inputGate.release();
-      onReady?.();
-      onProgress(null);
-    }, PROGRESS_FAILSAFE_MS);
+    failsafe = setTimeout(setReady, PROGRESS_FAILSAFE_MS);
   }
 
   return () => {

@@ -13,6 +13,11 @@ import type { Terminal } from "@xterm/xterm";
 import { host } from "@kernel/host";
 import { nativeRafGapMs } from "@kernel/rafFallback";
 import { shouldRebuildCanvas } from "@kernel/canvasStall";
+import {
+  HEAD_SAMPLE_CHARS,
+  saveTerminalFreeze,
+  sessionFreezeFingerprint,
+} from "@kernel/terminalFreeze";
 
 /** Ask 屏幕采样节拍:置位延迟 ≈ ASK_CONFIRM_MS + 采样间隔(旧 1Hz 实测 2-3s,用户体感慢)。 */
 const ASK_PROBE_MS = 250;
@@ -105,4 +110,28 @@ export function buildReseedScreen(term: Terminal): {
     lines.push(buf.getLine(row)?.translateToString(true) ?? "");
   }
   return { cols: term.cols, rows: term.rows, text: lines.join("\r\n") };
+}
+
+/**
+ * 幕布卸载收尾:镜像补种(语义不变)+ 挤除冻结快照存档(候选2)。投影一次
+ * 计算两用;空缓冲(新会话/已退出即被清)不存。重建卸载(刷新钮/停滞自愈)的
+ * 幕布可能滞留停滞期旧帧,存档由重挂侧弃存量兜底(见 TerminalView 主 effect),
+ * 卸载侧不辨因一律存 —— 快照至多存活一次消费,误存不外溢。
+ */
+export function settleTerminalFreeze(sessionId: string, term: Terminal): void {
+  const reseed = buildReseedScreen(term);
+  host.reseedScreenMirror(sessionId, reseed.cols, reseed.rows, reseed.text);
+  const bufferText = host.getOutputBuffer(sessionId);
+  if (!bufferText) return;
+  saveTerminalFreeze({
+    sessionId,
+    cols: reseed.cols,
+    rows: reseed.rows,
+    screenText: reseed.text,
+    unloadChars: bufferText.length,
+    bytePos: host.getOutputBufferBytes(sessionId),
+    headSample: bufferText.slice(0, HEAD_SAMPLE_CHARS),
+    fingerprint: sessionFreezeFingerprint(host.getSessions().find((s) => s.id === sessionId)),
+    at: Date.now(),
+  });
 }

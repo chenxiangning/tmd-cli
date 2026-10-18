@@ -32,11 +32,11 @@ import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
 import {
-  buildReseedScreen,
+  settleTerminalFreeze,
   startAskScreenProbe,
   startCanvasStallProbe,
 } from "@kernel/terminalCanvasHealth";
-
+import { takeTerminalFreeze } from "@kernel/terminalFreeze";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
@@ -47,7 +47,6 @@ import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
 import { readTerminalTheme } from "@kernel/terminalXtermTheme";
 
-/** 从文档计算样式读终端 token → xterm theme(实现见 kernel/terminalXtermTheme.ts)。 */
 /* 导出级 memo:props 全原始类型,浅比较稳定。keep-alive 语义(MainPanel):
    tab 条内会话常驻挂载,非激活 display:none;active 切换不重挂,仅 ref 所有权迁移。 */
 function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: boolean }) {
@@ -94,6 +93,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    /* 重建重挂(canvasGen>0)弃挤除快照:重建前幕布可能滞留停滞期旧帧,投影不可信走全量。 */
+    if (canvasGen > 0) takeTerminalFreeze(sessionId);
 
     /* 字号/字体吃 settings(外观页即时改);平台默认栈解析见 kernel/terminalFonts.ts。 */
     const fontSettings = getSettingsState().settings;
@@ -231,10 +232,9 @@ termRef.current = term;
       offFontSettings();
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
-      /* 屏幕镜像补种(feed 互斥收尾,buildReseedScreen):以幕布终态重建镜像,
-         后台 Ask 采样无缝接管;必须先于注销 handle —— 补种期间 feed 仍被
-         互斥,时序无交错。 */
-      host.reseedScreenMirror(sessionId, term.cols, term.rows, buildReseedScreen(term).text);
+      /* 屏幕镜像补种 + 挤除快照存档(settleTerminalFreeze):幕布终态收尾;
+         必须先于注销 handle —— 补种期间 feed 仍被互斥,时序无交错。 */
+      settleTerminalFreeze(sessionId, term);
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();
       offInput.dispose();
