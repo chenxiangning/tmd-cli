@@ -24,6 +24,9 @@ const MESSAGES_EN = {
   "回传给 agent({n} 条)": "Send back to agent ({n})",
   "已填入输入框,按 Enter 发送": "Inserted into the input box — press Enter to send",
   "输入框未就绪,打开会话后再回传": "Input box not ready — open a session before sending notes",
+  "该行不在当前视图(已折叠或不在本 diff)": "Row not in current view (folded or not in this diff)",
+  "另有 {n} 条工作区暂存批注(无活跃会话时可见)":
+    "{n} more in the workspace stash (visible when no session is active)",
 } as const;
 
 /** ja 词典 · git 域。 */
@@ -48,6 +51,10 @@ const MESSAGES_JA = {
   "回传给 agent({n} 条)": "agent に返送({n} 件)",
   "已填入输入框,按 Enter 发送": "入力欄に挿入しました。Enter で送信してください",
   "输入框未就绪,打开会话后再回传": "入力欄の準備が未完了です。セッションを開いてから送信してください",
+  "该行不在当前视图(已折叠或不在本 diff)":
+    "この行は現在のビューにありません(折りたたみ済み、またはこの diff に存在しない)",
+  "另有 {n} 条工作区暂存批注(无活跃会话时可见)":
+    "ワークスペース一時保管に {n} 件あります(セッション非選択時に表示)",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

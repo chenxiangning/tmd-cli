@@ -231,6 +231,7 @@ export const MESSAGES = {
   "面板与动作": "パネルとアクション",
   // ── local-loader 隔离徽标(LocalSection 历史键落 common) ──
   "已熔断": "隔離済み",
+  "组件资源加载失败;请重载页面恢复": "コンポーネントリソースの読み込みに失敗しました。ページを再読み込みすると復旧します",
 
   // ── 手机远程 UI(src/mobile 树) ──
 } as Record<string, string>;

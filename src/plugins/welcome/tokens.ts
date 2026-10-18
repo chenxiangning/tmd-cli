@@ -10,6 +10,8 @@ import {
   extractUsageFromHead,
   type UsageLine,
 } from "../cli-shared/sessionUsage";
+/* 经 cli-shared 消费批量读头原语(feature 联合消费声明,同 welcome/credentials.ts 通道)。 */
+import { readHeadsBatched } from "../cli-shared/sessionHead";
 import { windowResetFor } from "./quotaWindow";
 
 
@@ -171,6 +173,8 @@ export async function collectTokenUsage(
     profiles.map(async (profile) => {
       if (!profile.listSessions) return;
       const per: { path: string }[] = [];
+      const headPaths: string[] = [];
+      const tailPaths: string[] = [];
       await Promise.all(
         workspaces.map(async (ws) => {
           const sessions = await profile
@@ -179,28 +183,44 @@ export async function collectTokenUsage(
           for (const s of sessions) {
             if (s.modifiedAt < startMs) continue; // 7 日窗口外
             per.push(s);
-            reads.push(
-              ipc
-                .fsReadHead(s.path, HEAD_BYTES)
-                .then((head) => {
-                  usageBySession[s.path] = extractUsageFromHead(head, startMs);
-                })
-                .catch(() => undefined), // 单会话失败跳过
-            );
-            if (profile.id === "claude") {
-              reads.push(
-                ipc
-                  .fsReadTail(s.path, TAIL_BYTES)
-                  .then((tail) => {
-                    usageTailBySession[s.path] = extractUsageFromHead(tail, startMs);
-                  })
-                  .catch(() => undefined),
-              );
-            }
+            headPaths.push(s.path);
+            if (profile.id === "claude") tailPaths.push(s.path);
           }
         }),
       );
       if (per.length > 0) sessionsByProfile[profile.id] = per;
+      /* 批量分块读(readHeadsBatched 按预算串行分块):逐会话全量并发在重用户
+       * (100+ 会话 ×384KB)会撞 fd 上限与中继 32 并发帽——wiki 读失败守卫防的
+       * 正是这类抖动,源头不造抖动。读失败项 = 空串跳过,与逐文件 catch 同语义。 */
+      reads.push(
+        (async () => {
+          const heads = await readHeadsBatched(headPaths, HEAD_BYTES);
+          headPaths.forEach((p, i) => {
+            const head = heads[i];
+            if (head) usageBySession[p] = extractUsageFromHead(head, startMs);
+          });
+        })(),
+      );
+      if (tailPaths.length > 0) {
+        reads.push(
+          (async () => {
+            /* 尾读必须走 fsReadTail(usage 行在文件尾,fsReadHeads 取不到):
+             * 无批量命令,4 并发闸防 fd 风暴(与 readHeadsBatched 同理由)。 */
+            for (let i = 0; i < tailPaths.length; i += 4) {
+              await Promise.all(
+                tailPaths.slice(i, i + 4).map(async (p) => {
+                  try {
+                    const tail = await ipc.fsReadTail(p, TAIL_BYTES);
+                    if (tail) usageTailBySession[p] = extractUsageFromHead(tail, startMs);
+                  } catch {
+                    /* 单会话失败跳过 */
+                  }
+                }),
+              );
+            }
+          })(),
+        );
+      }
     }),
   );
 

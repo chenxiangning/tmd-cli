@@ -337,6 +337,7 @@ pub fn run() {
             git::commands::git_commit_file_patch,
             git::commands::git_commit_message,
             git::commands::git_branches,
+            git::commands_exclude::git_ensure_local_exclude,
             git::commands::git_checkout,
             git::commands::git_checkout_remote,
             git::commands::git_create_branch,

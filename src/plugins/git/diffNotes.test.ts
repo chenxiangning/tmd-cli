@@ -67,12 +67,13 @@ describe("add / ls / toggleSent / remove", () => {
 });
 
 describe("LRU 剪除", () => {
-  it("超过 40 会话剪最旧;最近访问的组存活", () => {
+  it("超过 40 会话按添加序剪最旧(生产面板直读快照,读不触碰)", () => {
     for (let i = 0; i < 40; i++) add(`old-${i}`, "a.ts", "h", 1, "t", "x");
-    expect(ls("old-0")).toHaveLength(1); // touch:old-0 移到最新
+    expect(ls("old-0")).toHaveLength(1); // 读不改序
     for (let i = 40; i < 45; i++) add(`new-${i}`, "a.ts", "h", 1, "t", "x");
-    expect(ls("old-0")).toHaveLength(1); // 刚 touch 过,存活
-    expect(ls("old-1")).toHaveLength(0); // 最旧被剪
+    expect(ls("old-0")).toHaveLength(0); // 最旧 5 组被剪(old-0..old-4)
+    expect(ls("old-5")).toHaveLength(1); // 剪除边界后的组存活
+    expect(ls("new-44")).toHaveLength(1); // 最新存活
   });
 });
 

@@ -35,6 +35,7 @@ export function DiffNotesPanel({
   sessionKey,
   selectedFile = null,
   onPickFile,
+  wsFallbackCount = 0,
   splitDisabled = false,
 }: {
   sessionKey: string;
@@ -42,6 +43,8 @@ export function DiffNotesPanel({
   selectedFile?: string | null;
   /** 切换 diff 选中文件(缺省 = 无切换能力,跨文件点击不动作)。 */
   onPickFile?: (path: string) => void;
+  /** 工作区回退组(ws:<root>)的批注数:当前会话组空而它非空时提示,防「刚写的批注隐没」。 */
+  wsFallbackCount?: number;
   /** 双栏 diff 模式:行级批注 UI 不渲染(PatchLines split 分支未接),空态改提示。 */
   splitDisabled?: boolean;
 }) {
@@ -85,6 +88,9 @@ export function DiffNotesPanel({
             {splitDisabled
               ? t("行级批注在双栏 diff 下不可用,请切换单栏视图")
               : t("还没有批注;在 diff 行悬停点批注钮添加")}
+            {notes.length === 0 && !splitDisabled && wsFallbackCount > 0 && (
+              <div>{t("另有 {n} 条工作区暂存批注(无活跃会话时可见)", { n: wsFallbackCount })}</div>
+            )}
           </div>
         )}
         {notes.map((n) => (
@@ -99,7 +105,11 @@ export function DiffNotesPanel({
                   onPickFile(n.file);
                   return;
                 }
-                diffNoteRevealRef.current?.(noteKey(n.file, n.lineHash));
+                const hit = diffNoteRevealRef.current?.(noteKey(n.file, n.lineHash));
+                if (hit === false) {
+                  setToast(t("该行不在当前视图(已折叠或不在本 diff)"));
+                  window.setTimeout(() => setToast(null), 2400);
+                }
               }}
             >
               <span className="font-mono text-(--tmd-accent)">{n.file.split("/").pop()}:{n.lineNo}</span>{" "}

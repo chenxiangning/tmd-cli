@@ -7,6 +7,8 @@
 import { ipc } from "@kernel/ipc";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { KernelTopics } from "@kernel/events";
+import { updateSettings, getSettingsState } from "@kernel/settings";
 import { addWorkspace, removeWorkspace } from "@kernel/workspace";
 import { recordWtSession } from "./worktreeSession";
 
@@ -63,6 +65,12 @@ export async function runWorktreeCreate(input: {
     /* worktree = 独立工作区(WorktreeManageDialog 同款 addWorkspace),会话在新工作区起。 */
     const ws = addWorkspace(input.wtPath);
     wsId = ws.id;
+    /* 用户手势惯例:摘最大化让幕布可见(SessionMenu/worktreeOps 终端入口同款);
+     * 新工作区卡缺省折叠,展开让会话行立即可见。 */
+    host.events.emit(KernelTopics.sessionViewRequested, null);
+    updateSettings({
+      workspaceCollapsedMap: { ...getSettingsState().settings.workspaceCollapsedMap, [ws.id]: false },
+    });
     const spawned = await host.spawnRawSession(
       input.engineId,
       {

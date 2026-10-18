@@ -7,6 +7,9 @@ import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { addWorkspace, getWorkspaces, removeWorkspace, setActiveWorkspace } from "@kernel/workspace";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
+import { t } from "@kernel/i18n";
+// 跨插件消费(workspace 供读会话↔worktree 映射,纯模块不涉其生命周期;先例:WorktreeManageDialog)
+import { countSessionsForWtPath } from "@plugins/workspace/worktreeSession";
 
 /** 路径归一(比较口径):`\`→`/`、去尾分隔符。worktree list 与 repos_scan
  *  的前缀口径已由 Rust 侧回贴统一,这里只兜格式差。 */
@@ -36,6 +39,12 @@ export async function removeWorktreeWithCleanup(
   entry: WorktreeEntry,
   siblings: readonly WorktreeEntry[],
 ): Promise<{ branchDeleted: boolean; branchKept: boolean }> {
+  /* 活会话闸:树删了会话成幽灵(cwd 消失、侧栏行摘除,进程仍写盘全败)。
+   * 一处闸收两处 UI(管理弹窗/常驻区),报错可行动。 */
+  const live = countSessionsForWtPath(entry.path);
+  if (live > 0) {
+    throw new Error(t("有 {n} 个会话在此 worktree 中运行,请先关闭会话再移除", { n: live }));
+  }
   await ipc.gitWorktreeRemove(cwd, entry.path, false);
   const ws = getWorkspaces().find((w) => normalizeRoot(w.root) === normalizeRoot(entry.path));
   if (ws) removeWorkspace(ws.id);

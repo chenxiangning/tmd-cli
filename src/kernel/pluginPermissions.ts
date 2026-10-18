@@ -136,6 +136,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitWorktreeRemove: "ipc.git",
   gitWorktreePrune: "ipc.git",
   gitWorktreeDiskUsage: "ipc.git",
+  gitEnsureLocalExclude: "ipc.git",
 
   /* checkpoints 全域。 */
   checkpointAnchor: "ipc.checkpoints",

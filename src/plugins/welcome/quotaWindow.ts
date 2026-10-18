@@ -27,10 +27,13 @@ export function windowResetFor(
   now: number,
 ): QuotaWindow | null {
   if (family !== "claude" || lines.length === 0) return null;
+  /* 未来行(他设备时钟超前/本机回拨)整体剔除:留它当窗口锚会把倒计时拉飞 skew+5h */
+  const fresh = lines.filter((l) => l.ts <= now);
+  if (fresh.length === 0) return null;
   let latest = -Infinity;
-  for (const l of lines) if (l.ts > latest) latest = l.ts;
+  for (const l of fresh) if (l.ts > latest) latest = l.ts;
   let start = Infinity;
-  for (const l of lines) {
+  for (const l of fresh) {
     if (l.ts > latest - QUOTA_WINDOW_MS && l.ts < start) start = l.ts;
   }
   if (!Number.isFinite(start)) return null;

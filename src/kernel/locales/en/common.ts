@@ -231,6 +231,7 @@ export const MESSAGES = {
   "面板与动作": "Panels & actions",
   // ── local-loader 隔离徽标(LocalSection 历史键落 common) ──
   "已熔断": "Quarantined",
+  "组件资源加载失败;请重载页面恢复": "Component resources failed to load — reload the page to recover",
 
   // ── 手机远程 UI(src/mobile 树) ──
 } as Record<string, string>;

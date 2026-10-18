@@ -82,3 +82,32 @@
 ## 五、收口
 
 本文件所列 23 项 findings 全部修复并随 `fix(review)` 提交;验证链见「三」。登记于 `docs/README.md` 文档索引。
+
+## 六、二轮打磨:主线链路追踪(同日,四路并行,13 项全修)
+
+一轮收口后对四条主线链路做端到端追踪(worktree 生命周期 / diff 批注 / wiki 沉淀 / quota+lazy),只收真实执行路径问题:
+
+### major ×3
+1. **worktree 移除无活会话闸**(FlowWorktree):omp/pi 类会话文件落全局目录,树净即可删 → 活会话 cwd 被删成幽灵(进程仍写盘全败)。修:`removeWorktreeWithCleanup` 开头按 `countSessionsForWtPath` 拒绝,一处闸收两处 UI。
+2. **wiki resume 重复沉淀**(FlowWiki):幂等键原为 tmd sessionId,续聊换 tmd id 后同 CLI 会话每轮退出 +1 条重复,并加速挤出真老条目。修:幂等键与落盘 `sessionId` 改 CLI 磁盘身份。
+3. **quota 采集无界并发**(FlowQuotaLazy):逐会话 `fsReadHead`+`fsReadTail` 一次性全发,重用户 100+ 会话撞 fd 上限与中继 32 并发帽——正是 wiki 读失败守卫防的抖动源。修:头读走现成 `readHeadsBatched`(768KB 预算分块串行),尾读 4 并发闸。
+
+### minor ×6
+4. 移除 worktree 创建链缺 `sessionViewRequested`,最大化编辑器盖住新会话;新工作区卡缺省折叠看不到会话行 → 编排补 emit + 展开(FlowWorktree)。
+5. 冲突/递增判定集漏未挂本地分支(树已删分支未删的残留,`git -b` 必拒一跳)→ 判定集改树占用 ∪ 本地分支全集(FlowWorktree)。
+6. 揭示锚失配三态全程静默(纯删除行跨 diff/折叠隐去/切文件装载窗)→ 揭示桥返回命中布尔,miss 走面板 toast(FlowAnnotate)。
+7. ws: 回退组批注在会话启动后「凭空隐没」且空态文案矛盾 → 空态补工作区暂存计数提示(FlowAnnotate)。
+8. WikiPanel 非缺失读错误后永停「加载中…」假加载态 → 失败态 + 重试钮(reload 提升为 useCallback)(FlowWiki)。
+9. 未来时间戳行(多设备时钟超前)把窗口倒计时拉飞 skew+5h → 推窗前整体剔除未来行,补 skew 用例(FlowQuotaLazy)。
+
+### nit ×4
+10. lazy 终败计入插件熔断计数,「重试该贡献位」每点 +1,3 次隔离整插件且毒化兄弟贡献位 → `LazyChunkError` + `LazyChunkBoundary` 迷你边界承接(不计数、指引 reload),非懒错误照常上抛主边界(FlowQuotaLazy)。
+11. meta 行(`\ No newline at end of file`)出批注钮可产生行号 0 批注 → 悬停钮与归属裁决均排除 meta(FlowAnnotate)。
+12. `ls()`「读即 LRU touch」为生产死代码语义(生产直读快照)→ 去触碰,注释与测试改钉「按添加序剪除」真语义(FlowAnnotate)。
+13. wiki 读失败分支注释承诺的重试口实际不可达 → 修注释(FlowWiki)。
+
+### 二轮专项裁决:wiki 存储位置不迁库
+FlowWiki 提出迁移 `~/.tmd-cli/wiki/`(marks 零污染先例)消掉 `.tmd/` untracked 污染与 worktree 移除被拒。**裁定保留项目内 `.tmd/wiki.json`**(CHANGELOG/architecture/26 明示契约:随仓共享、人工可查),改用 `git_ensure_local_exclude` 新命令把 `.tmd/` 写进仓库本地排除(`.git/info/exclude`,幂等、零用户文件改动、worktree gitdir 局部生效)——同时消掉 git status 污染与 `git worktree remove` 因 untracked 被拒两个症状。钩子与面板两条写路径 best-effort 调用,非 git 仓静默。若大仙后续更倾向零项目足迹,迁移面仅 wikiHook/WikiPanel 两文件。
+
+### 二轮验证
+`pnpm check:gate` 全绿(520 files + build);`cargo test` 356 passed + clippy -D warnings + fmt 全绿;`react-doctor` 100/100。活会话闸/exclude 命令为集成路径,验证至编译链与单测层,真机目检随验收。

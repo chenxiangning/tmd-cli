@@ -56,7 +56,7 @@ interface ExitedCtx {
   readMsgs: (cwd: string, cliSessionId: string, full: boolean) => Promise<CliUserMessage[] | null>;
 }
 
-async function appendAutoEntry(ctx: ExitedCtx, sessionId: string): Promise<boolean> {
+async function appendAutoEntry(ctx: ExitedCtx): Promise<boolean> {
   const msgs = await ctx.readMsgs(ctx.cwd, ctx.cliSessionId, true);
   const excerpt = excerptFromMsgs(msgs ?? []);
   if (!excerpt) return false;
@@ -68,7 +68,7 @@ async function appendAutoEntry(ctx: ExitedCtx, sessionId: string): Promise<boole
     } catch (e) {
       if (!isMissingReadErr(String(e))) {
         /* 读失败 ≠ 空库:环境抖动(fd 压力/IO 错误)时落笔会把整个 wiki
-         * 清成只剩本条。放弃本条并告警,下次同类触发不再被幂等集拦(上层归还)。 */
+         * 清成只剩本条。放弃本条并告警(exited 一会话仅一次触发,无重试口)。 */
         console.warn("[agent-wiki] 读 wiki 失败,放弃本条沉淀", e);
         return false;
       }
@@ -78,11 +78,12 @@ async function appendAutoEntry(ctx: ExitedCtx, sessionId: string): Promise<boole
     const next = addEntry(doc, {
       ts: Date.now(),
       harness: ctx.harness,
-      sessionId,
+      /* 幂等键 = CLI 磁盘身份:resume 换 tmd 会话(id 变)不重沉淀同内容条目。 */
+      sessionId: ctx.cliSessionId,
       excerpt,
       kind: "auto",
     });
-    if (next === doc) return false; /* 幂等命中:同会话 auto 已在,不重写。 */
+    if (next === doc) return false; /* 幂等命中:同 CLI 会话 auto 已在,不重写。 */
     try {
       await ipc.fsWriteFile(path, serializeWikiDoc(next));
     } catch {
@@ -90,6 +91,9 @@ async function appendAutoEntry(ctx: ExitedCtx, sessionId: string): Promise<boole
       await ipc.fsCreateDir(`${ctx.cwd}/.tmd`).catch(() => undefined);
       await ipc.fsWriteFile(path, serializeWikiDoc(next));
     }
+    /* .tmd 进仓库本地排除(.git/info/exclude,幂等):git status 零污染,
+     * worktree 移除不因 untracked 被拒。非 git 仓静默失败。 */
+    void ipc.gitEnsureLocalExclude(ctx.cwd, ".tmd/").catch(() => undefined);
     return true;
   }).then((written) => {
     if (written) {
@@ -123,7 +127,7 @@ function onSessionExited(sessionId: string): void {
     readMsgs,
   };
   /* appendAutoEntry 的读改写段内部已过 withWikiLock,此处不再外包(嵌套即死锁)。 */
-  appendAutoEntry(ctx, sessionId).catch((err) => {
+  appendAutoEntry(ctx).catch((err) => {
     /* 失败归还幂等位:本会话还有重试口(下次同类触发不再被 Set 拦截)。 */
     distilled.delete(sessionId);
     console.warn("[agent-wiki] 沉淀异常", err);

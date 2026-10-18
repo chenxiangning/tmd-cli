@@ -86,7 +86,7 @@ function UnifiedRow({
     <>
       <Gutter oldLine={row.oldLine} newLine={row.newLine} />
       {parts ? <WordContent parts={parts} wrap={wrap} lang={lang} /> : <CodeSpan text={row.text} lang={lang} className={content} />}
-      {ctx && (
+      {ctx && row.kind !== "meta" && (
         <NoteHoverButton
           onStart={() => onStartEdit(patchRowKey(row))}
         />
@@ -150,7 +150,7 @@ function UnifiedLines({
       let best: PatchRow | null = null;
       let bestD = Infinity;
       for (const row of items) {
-        if (row.kind === "hunk") continue;
+        if (row.kind === "hunk" || row.kind === "meta") continue; /* meta 行无行号语义,不出批注钮 */
         if (lineHash(row.text) !== n.lineHash) continue;
         const d = Math.abs((row.newLine ?? row.oldLine ?? 0) - n.lineNo);
         if (d < bestD) {
@@ -173,13 +173,16 @@ function UnifiedLines({
    * 卸载身份守卫(Composer.tsx 先例):后挂者覆盖时本例卸载不清掉他人 handler。 */
   useEffect(() => {
     if (!ctx) return;
-    const impl = (key: string) => {
+    const impl = (key: string): boolean => {
+      const hit = Boolean(preRef.current?.querySelector(`[data-dnkey="${CSS.escape(key)}"]`));
+      if (!hit) return false; /* 锚失配(行已删/折叠隐去/他文件)由调用方提示,不假闪示 */
       preRef.current
         ?.querySelector(`[data-dnkey="${CSS.escape(key)}"]`)
         ?.scrollIntoView({ block: "center" });
       setFlashKey(key);
       if (flashTimer.current !== null) window.clearTimeout(flashTimer.current);
       flashTimer.current = window.setTimeout(() => setFlashKey(null), 1400);
+      return true;
     };
     diffNoteRevealRef.current = impl;
     return () => {

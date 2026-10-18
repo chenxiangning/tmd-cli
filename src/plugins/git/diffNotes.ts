@@ -123,11 +123,10 @@ export function sessionKeyOf(activeSessionId: string | null, wsRoot: string): st
   return activeSessionId ?? `ws:${wsRoot}`;
 }
 
-/** 会话内取批注(读即 LRU touch)。 */
+/** 组内批注读取(测试便利;生产走 useDiffNotesStore 快照)。
+ *  LRU 实际按 add 时序修剪(touch 只在 add 调用),此处不做读触碰。 */
 export function ls(sessionKey: string): readonly DiffNote[] {
-  const s = load();
-  touch(sessionKey);
-  return s.groups[sessionKey] ?? [];
+  return load().groups[sessionKey] ?? [];
 }
 
 function touch(sessionKey: string): void {
@@ -195,5 +194,6 @@ export function noteKey(file: string, hash: string): string {
   return `${file}#${hash}`;
 }
 
-/** 揭示桥:列表卡点击 → PatchLines 滚动定位对应 diff 行并闪示(模块级 ref 桥先例)。 */
-export const diffNoteRevealRef: { current: ((key: string) => void) | null } = { current: null };
+/** 揭示桥:列表卡点击 → PatchLines 滚动定位对应 diff 行并闪示(模块级 ref 桥先例)。
+ *  返回是否命中(行不在当前视图/桥未挂 = false,调用方给提示)。 */
+export const diffNoteRevealRef: { current: ((key: string) => boolean) | null } = { current: null };

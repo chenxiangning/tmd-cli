@@ -93,6 +93,7 @@ export function WikiPanel() {
   const ws = list.find((w) => w.id === activeId) ?? null;
   const root = ws?.root ?? "";
   const [doc, setDoc] = useState<WikiDoc | null>(null); /* null = 未读 */
+  const [loadFailed, setLoadFailed] = useState(false); /* 非缺失读错误:停失败态待重试 */
   const [draft, setDraft] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
@@ -103,24 +104,23 @@ export function WikiPanel() {
     toastTimer.current = window.setTimeout(() => setToast(null), 2400);
   }, []);
 
+  const reload = useCallback((): void => {
+    if (!root) return;
+    setLoadFailed(false);
+    void loadDoc(root)
+      .then((d) => setDoc(d))
+      .catch(() => {
+        /* 非缺失读错误(环境抖动):停失败态并如实告知,不以空库续写;可重试。 */
+        setDoc(null);
+        setLoadFailed(true);
+      });
+  }, [root]);
+
   useEffect(() => {
     setDoc(null);
     setDraft(""); /* 草稿不跨工作区残留:切区即清,防写错工作区。 */
+    setLoadFailed(false);
     if (!root) return;
-    let alive = true;
-    const reload = () => {
-      void loadDoc(root)
-        .then((d) => {
-          if (alive) setDoc(d);
-        })
-        .catch(() => {
-          /* 非缺失读错误(环境抖动):面板停在未读态并如实告知,不以空库续写。 */
-          if (alive) {
-            setDoc(null);
-            showToast(t("读取 wiki 失败"));
-          }
-        });
-    };
     reload();
     /* 钩子落盘后即时刷新(host.events 同通道,与 autoDistill 同一总线约定);
      * storage 事件 = 另一窗写盘广播(WIKI_BEAT_KEY),重读对齐。 */
@@ -133,11 +133,10 @@ export function WikiPanel() {
     };
     window.addEventListener("storage", onStorage);
     return () => {
-      alive = false;
       off();
       window.removeEventListener("storage", onStorage);
     };
-  }, [root, showToast]);
+  }, [root, reload]);
 
   useEffect(() => () => {
     /* 卸载清 toast 定时器(悬空 setState 无害但不留尾巴)。 */
@@ -162,6 +161,7 @@ export function WikiPanel() {
         } catch {
           /* 存储不可达时静默(单窗场景不受影响)。 */
         }
+        void ipc.gitEnsureLocalExclude(root, ".tmd/").catch(() => undefined);
       }).catch(() => {
         showToast(t("读写失败,改动可能未保存"));
         void loadDoc(root)
@@ -258,7 +258,20 @@ export function WikiPanel() {
         </button>
       </div>
       {doc === null ? (
-        <div className="p-3 text-xs text-(--tmd-fg-muted)">{t("加载中…")}</div>
+        loadFailed ? (
+          <div className="flex items-center gap-2 p-3 text-xs text-(--tmd-fg-muted)">
+            {t("读取 wiki 失败")}
+            <button
+              type="button"
+              className="rounded border border-(--tmd-border) px-1.5 py-0.5 hover:text-(--tmd-fg)"
+              onClick={reload}
+            >
+              {t("重试")}
+            </button>
+          </div>
+        ) : (
+          <div className="p-3 text-xs text-(--tmd-fg-muted)">{t("加载中…")}</div>
+        )
       ) : !entries.length ? (
         <div className="h-full">
           <Empty>{t("本工作区还没有 wiki 条目;会话退出时会自动沉淀用户消息尾段")}</Empty>

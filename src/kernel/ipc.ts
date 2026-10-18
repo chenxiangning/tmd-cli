@@ -649,6 +649,10 @@ export const ipc = {
   /** worktree 磁盘占用(字节):walkdir 累计,跳 .git、不跟符号链接。列表惰性调用。 */
   gitWorktreeDiskUsage: (cwd: string, path: string) =>
     invoke<number>("git_worktree_disk_usage", { cwd, path }),
+  /** sidecar 目录进仓库本地排除(.git/info/exclude,幂等):git status 零污染、
+   *  worktree 移除不因 untracked 被拒;非 git 仓报错由调用方吞。 */
+  gitEnsureLocalExclude: (cwd: string, pattern: string) =>
+    invoke<void>("git_ensure_local_exclude", { cwd, pattern }),
   /** 目录符号链接(worktree 会话链:新树复用主仓 node_modules);Windows 无特权降级 junction。 */
   fsSymlinkDir: (target: string, link: string) => invoke<void>("fs_symlink_dir", { target, link }),
   /** 递归收集目录下指定后缀文件,按修改时间倒序。目录不存在 = 空表。 */

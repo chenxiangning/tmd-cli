@@ -156,6 +156,7 @@ function CommitDiffTab({ payload }: { payload: CommitTabPayload }) {
             sessionKey={sessionKey}
             selectedFile={selected}
             onPickFile={(path) => setPicked({ key: selKey, path })}
+            wsFallbackCount={store.groups[sessionKeyOf(null, payload.cwd)]?.length ?? 0}
             splitDisabled={diffMode === "split"}
           />
         </div>

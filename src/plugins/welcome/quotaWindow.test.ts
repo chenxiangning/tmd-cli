@@ -65,4 +65,16 @@ describe("windowResetFor", () => {
       resetAtMs: NOW - 4 * H + QUOTA_WINDOW_MS,
     });
   });
+
+  it("未来时间戳行(他设备时钟超前)钳到 now:窗口不拉飞", () => {
+    /* 唯一 fresh 行在未来 skew 处,钳后窗口内无行 → null(不显 skew+5h 倒计时)。 */
+    const skewOnly = [line(NOW - 9 * H), line(NOW + 3 * H)];
+    expect(windowResetFor("claude", skewOnly, NOW)).toBeNull();
+    /* 未来行 + 真实 fresh 行并存:锚取真实行,不被未来行拉飞。 */
+    const mixed = [line(NOW + 3 * H), line(NOW - 2 * H)];
+    expect(windowResetFor("claude", mixed, NOW)).toEqual({
+      windowStartMs: NOW - 2 * H,
+      resetAtMs: NOW - 2 * H + QUOTA_WINDOW_MS,
+    });
+  });
 });

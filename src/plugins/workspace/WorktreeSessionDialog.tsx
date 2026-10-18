@@ -22,6 +22,7 @@ import { runWorktreeCreate, wtCreateOutcomeMessage } from "./worktreeCreate";
 function deriveWtForm(
   repoCwd: string,
   entries: WorktreeEntry[] | null,
+  localBranches: readonly string[],
   newBranch: boolean,
   base: string,
   existingBranch: string,
@@ -29,9 +30,11 @@ function deriveWtForm(
   done: boolean,
 ) {
   const takenBranches = new Set((entries ?? []).map((e) => e.branch).filter(Boolean));
-  const finalBranch = newBranch ? finalBranchName(base.trim(), takenBranches) : existingBranch;
+  /* 冲突/递增判定集 = 树占用 ∪ 本地分支全集:残留分支(树已删分支未删)git -b 同样拒绝 */
+  const conflictSet = new Set([...takenBranches, ...localBranches]);
+  const finalBranch = newBranch ? finalBranchName(base.trim(), conflictSet) : existingBranch;
   const bareBranch = newBranch ? branchForWorktree(base.trim()) : "";
-  const conflict = newBranch && base.trim() !== "" && takenBranches.has(bareBranch);
+  const conflict = newBranch && base.trim() !== "" && conflictSet.has(bareBranch);
   const baseErr = newBranch
     ? base.trim() === ""
       ? t("分支名不能为空")
@@ -79,7 +82,7 @@ function useWtSessionForm(repoCwd: string, title: string) {
   }, [repoCwd]);
 
   const { takenBranches, finalBranch, conflict, baseErr, wtPath, canCreate, dirErr } = deriveWtForm(
-    repoCwd, entries, newBranch, base, existingBranch, busy, done,
+    repoCwd, entries, localBranches, newBranch, base, existingBranch, busy, done,
   );
 
   return {
