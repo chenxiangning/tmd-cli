@@ -24,6 +24,12 @@ const MESSAGES_EN = {
     "↑↓ to select · Enter to open a session in {name} · Esc to close",
   "按引擎过滤": "Filter by engine",
   "全部": "All",
+  "按时间过滤": "Filter by time",
+  "24小时": "24 hours",
+  "7天": "7d",
+  "30天": "30d",
+  "已打开会话(未定位到命中行)": "Session opened (matching line not located)",
+  "未定位到命中行": "Couldn't locate the matching line",
 } as const;
 
 /** ja 词典 · session-search 域。 */
@@ -46,6 +52,12 @@ const MESSAGES_JA = {
     "↑↓ で選択 · Enter で {name} の履歴セッションを開く · Esc で閉じる",
   "按引擎过滤": "エンジンで絞り込み",
   "全部": "すべて",
+  "按时间过滤": "期間で絞り込み",
+  "24小时": "24時間",
+  "7天": "7日",
+  "30天": "30日",
+  "已打开会话(未定位到命中行)": "セッションを開きました(一致行は見つかりません)",
+  "未定位到命中行": "一致行を見つけられませんでした",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

@@ -4,7 +4,9 @@
  * 数据面零新增:每个 CLI 的用户消息解析器经 CliProfile.readSessionUserMessages
  * 声明(与对话锚点栏同一数据源);本模块只做编排——按工作区枚举磁盘会话、
  * 增量抽取(单会话一步,调用方驱动节奏)、mtime 缓存跨开关复用、子串检索。
- * v1 只索引用户消息(「我让它做过什么」是回忆的主键);助手正文随二期评估。
+ * v1 只索引用户消息(「我让它做过什么」是回忆的主键)。边界声明:助手消息
+ * 入索引明确不做(041 检索增强批裁决,见 feasibility.md §5);行级定位亦以
+ * 命中的用户消息原文为 needle,不扩到助手正文。
  */
 
 import { host } from "@kernel/host";
@@ -142,6 +144,30 @@ export interface SessionSearchHit {
   matchToken: string;
   /** 命中发生在标题(优先展示)。 */
   inTitle: boolean;
+  /** 命中的用户消息全文(标题命中无正文 = undefined;行级定位 needle 源)。 */
+  message?: string;
+}
+
+/** 检索时间窗(闭区间,按条目 modifiedAt 过滤;缺省端 = 该侧不限)。 */
+export interface SessionTimeRange {
+  fromMs?: number;
+  toMs?: number;
+}
+
+/** 时间 chip 静态枚举:键 → 回溯时长(ms);all = 0 表示不限窗。 */
+export const TIME_FILTER_MS = {
+  all: 0,
+  "24h": 24 * 60 * 60_000,
+  "7d": 7 * 24 * 60 * 60_000,
+  "30d": 30 * 24 * 60 * 60_000,
+} as const;
+
+export type TimeFilterKey = keyof typeof TIME_FILTER_MS;
+
+/** chip 键 → 查询窗(nowMs 注入保纯;all = undefined 即不过滤)。 */
+export function timeRangeFor(key: TimeFilterKey, nowMs: number): SessionTimeRange | undefined {
+  const span = TIME_FILTER_MS[key];
+  return span > 0 ? { fromMs: nowMs - span } : undefined;
 }
 
 /** 查询分词:空白切分(多关键词 AND —— 全命中才算一条;大小写不敏感)。 */
@@ -182,11 +208,15 @@ export function searchSessions(
   index: SessionIndex,
   query: string,
   limit = 50,
+  range?: SessionTimeRange,
 ): SessionSearchHit[] {
   const tokens = tokenizeQuery(query);
   if (tokens.length === 0) return [];
   const hits: SessionSearchHit[] = [];
   for (const entry of index.entries) {
+    /* 时间谓词(闭区间,等值命中):只按 modifiedAt 判,零索引结构改动 */
+    if (range?.fromMs != null && entry.modifiedAt < range.fromMs) continue;
+    if (range?.toMs != null && entry.modifiedAt > range.toMs) continue;
     const lowerTitle = entry.title?.toLowerCase();
     const inTitle = lowerTitle ? tokens.every((tk) => lowerTitle.includes(tk)) : false;
     const message = entry.messages.find((m) => {
@@ -197,7 +227,7 @@ export function searchSessions(
     const snip = message
       ? snippetOf(message, tokens)
       : { snippet: entry.title ?? "", matchToken: tokens[0] };
-    hits.push({ entry, snippet: snip.snippet, matchToken: snip.matchToken, inTitle });
+    hits.push({ entry, snippet: snip.snippet, matchToken: snip.matchToken, inTitle, message });
   }
   /* 先排序后限量:标题命中必须浮出,不能被先到的消息命中挤掉配额 */
   hits.sort((a, b) => {
@@ -205,6 +235,42 @@ export function searchSessions(
     return b.entry.modifiedAt - a.entry.modifiedAt;
   });
   return hits.slice(0, limit);
+}
+
+/**
+ * 浮层命中管线第二层:引擎过滤 chip 叠加在(时间窗过滤后的)结果集上。
+ * 选中的引擎不在集合 = 查询/时间已变,视为未选恒等返回。
+ */
+export function applyFilters(
+  rawHits: SessionSearchHit[],
+  engineFilter: string | null,
+): SessionSearchHit[] {
+  if (engineFilter == null) return rawHits;
+  return rawHits.some((h) => h.entry.profileId === engineFilter)
+    ? rawHits.filter((h) => h.entry.profileId === engineFilter)
+    : rawHits;
+}
+
+/** 命中 → 行级定位入参(kernel anchorJump.openThenJumpToText 的 target 与
+ *  needle 文本);标题命中无消息原文返回 null = 只开会话不定位。 */
+export function locateTargetOf(
+  hit: SessionSearchHit,
+  cwd: string,
+  workspaceId?: string,
+): {
+  target: { profileId: string; cwd: string; workspaceId?: string; cliSessionId: string };
+  text: string;
+} | null {
+  if (!hit.message) return null;
+  return {
+    target: {
+      profileId: hit.entry.profileId,
+      cwd,
+      workspaceId,
+      cliSessionId: hit.entry.cliSessionId,
+    },
+    text: hit.message,
+  };
 }
 
 /** 清空 mtime 缓存(单测隔离用;生产常驻复用)。 */

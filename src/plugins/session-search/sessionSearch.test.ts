@@ -15,7 +15,16 @@ vi.mock("@kernel/host", () => ({
   },
 }));
 
-import { SessionIndexer, clearIndexCache, searchSessions } from "./indexer";
+import {
+  SessionIndexer,
+  clearIndexCache,
+  searchSessions,
+  timeRangeFor,
+  applyFilters,
+  locateTargetOf,
+  type SessionIndex,
+  type SessionIndexEntry,
+} from "./indexer";
 
 /** omp 桩工厂:每用例新建,避免跨用例改桩污染。 */
 function makeOmp() {
@@ -122,5 +131,94 @@ describe("searchSessions", () => {
     expect(msgHit?.snippet).toContain("归因");
     const [titleHit] = searchSessions(indexer.index, "审批线");
     expect(titleHit?.matchToken).toBe("审批线");
+  });
+});
+
+/* ── 时间谓词(闭区间,等值命中)与 chip 叠加管线 ────────────────── */
+
+function entryOf(profileId: string, id: string, modifiedAt: number, message: string): SessionIndexEntry {
+  return { profileId, cliSessionId: id, modifiedAt, messages: [message] };
+}
+
+function indexOf(entries: SessionIndexEntry[]): SessionIndex {
+  return { cwd: "/ws", entries, scanned: entries.length, total: entries.length, listFailed: 0 };
+}
+
+const HITS_FIXTURE = [
+  entryOf("omp", "old", 1000, "修 checkpoints 归因"),
+  entryOf("omp", "mid", 2000, "写个爬虫抓价格"),
+  entryOf("kimi", "new", 3000, "再修 checkpoints"),
+];
+
+describe("searchSessions 时间谓词", () => {
+  it("fromMs/toMs 闭区间:两端等值命中,界外滤除", () => {
+    const hits = searchSessions(indexOf(HITS_FIXTURE), "checkpoints", 50, { fromMs: 1000, toMs: 3000 });
+    expect(hits.map((h) => h.entry.cliSessionId).sort()).toEqual(["new", "old"]);
+  });
+
+  it("区间收窄滤除界外;缺省端该侧不限;无 range 恒等", () => {
+    const index = indexOf(HITS_FIXTURE);
+    expect(searchSessions(index, "checkpoints", 50, { fromMs: 1001 }).map((h) => h.entry.cliSessionId)).toEqual(["new"]);
+    expect(searchSessions(index, "checkpoints", 50, { toMs: 2999 }).map((h) => h.entry.cliSessionId)).toEqual(["old"]);
+    expect(searchSessions(index, "checkpoints", 50, { fromMs: 1000 })).toHaveLength(2); // 缺 toMs = 不限上界
+    expect(searchSessions(index, "checkpoints")).toHaveLength(2); // 无 range = 不过滤
+  });
+
+  it("时间窗与查询 AND 叠加:窗外有条目不因查询命中而复活", () => {
+    const hits = searchSessions(indexOf(HITS_FIXTURE), "爬虫", 50, { fromMs: 5000 });
+    expect(hits).toHaveLength(0);
+  });
+});
+
+describe("时间 chip 枚举与叠加管线", () => {
+  it("timeRangeFor 映射回溯窗(仅下界);all = undefined 不限", () => {
+    expect(timeRangeFor("24h", 5_000_000)).toEqual({ fromMs: 5_000_000 - 24 * 60 * 60_000 });
+    expect(timeRangeFor("7d", 5_000_000)).toEqual({ fromMs: 5_000_000 - 7 * 24 * 60 * 60_000 });
+    expect(timeRangeFor("30d", 5_000_000)).toEqual({ fromMs: 5_000_000 - 30 * 24 * 60 * 60_000 });
+    expect(timeRangeFor("all", 5_000_000)).toBeUndefined();
+  });
+
+  it("applyFilters 引擎子集;选中引擎不在集合视为未选;null 恒等", () => {
+    const raw = searchSessions(indexOf(HITS_FIXTURE), "checkpoints");
+    expect(applyFilters(raw, "omp").map((h) => h.entry.cliSessionId)).toEqual(["old"]);
+    expect(applyFilters(raw, "codex")).toBe(raw); // codex 无命中 = 恒等
+    expect(applyFilters(raw, null)).toBe(raw);
+  });
+
+  it("时间窗 + 引擎 chip 双层叠加:两层同时收口", () => {
+    const raw = searchSessions(indexOf(HITS_FIXTURE), "checkpoints", 50, { fromMs: 1000, toMs: 3000 });
+    expect(applyFilters(raw, "omp").map((h) => h.entry.cliSessionId)).toEqual(["old"]);
+    expect(applyFilters(raw, "kimi").map((h) => h.entry.cliSessionId)).toEqual(["new"]);
+    /* 时间窗已把 omp 全滤出时再选 omp = 不在集合,恒等回落(不误清空)。 */
+    const narrowed = searchSessions(indexOf(HITS_FIXTURE), "checkpoints", 50, { fromMs: 1500 });
+    expect(applyFilters(narrowed, "omp")).toHaveLength(1);
+  });
+});
+
+describe("行级定位目标构造", () => {
+  it("消息命中构造 openThenJumpToText 入参(target + needle 原文)", () => {
+    const [hit] = searchSessions(indexOf(HITS_FIXTURE), "爬虫");
+    expect(hit?.message).toBe("写个爬虫抓价格");
+    const locate = locateTargetOf(hit!, "/ws2", "ws1");
+    expect(locate).toEqual({
+      target: { profileId: "omp", cwd: "/ws2", workspaceId: "ws1", cliSessionId: "mid" },
+      text: "写个爬虫抓价格",
+    });
+  });
+
+  it("标题命中无消息正文返回 null = 只开会话不定位;workspaceId 可缺省", () => {
+    const entry: SessionIndexEntry = {
+      profileId: "omp",
+      cliSessionId: "t1",
+      title: "标题词",
+      modifiedAt: 1000,
+      messages: [],
+    };
+    const [hit] = searchSessions(indexOf([entry]), "标题词");
+    expect(hit?.inTitle).toBe(true);
+    expect(hit?.message).toBeUndefined();
+    expect(locateTargetOf(hit!, "/ws")).toBeNull();
+    const [msgHit] = searchSessions(indexOf([entry]), "标题词");
+    expect(locateTargetOf({ ...msgHit!, message: "正文" }, "/ws")?.target.workspaceId).toBeUndefined();
   });
 });

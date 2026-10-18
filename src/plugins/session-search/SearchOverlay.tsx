@@ -13,8 +13,19 @@ import { KernelTopics } from "@kernel/events";
 import { getActiveWorkspace } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { deriveWorkspaceName } from "@kernel/pathUtils";
-import { closeSessionSearch, useSessionSearchOpen } from "./overlayStore";
-import { SessionIndexer, searchSessions, type SessionIndex } from "./indexer";
+import { openThenJumpToText } from "@kernel/anchorJump";
+import { closeSessionSearch, showSearchToast, useSearchToast, useSessionSearchOpen } from "./overlayStore";
+import {
+  SessionIndexer,
+  searchSessions,
+  timeRangeFor,
+  applyFilters,
+  locateTargetOf,
+  TIME_FILTER_MS,
+  type SessionIndex,
+  type SessionSearchHit,
+  type TimeFilterKey,
+} from "./indexer";
 import { IndexingChip, ResultBody } from "./SearchOverlayParts";
 import { startIndexerTicks } from "./indexerTicks";
 import { useFocusTrap } from "@kernel/useFocusTrap";
@@ -33,6 +44,10 @@ export function SessionSearchOverlay() {
   const [active, setActive] = useState(0);
   /* 引擎过滤 chip:按当前结果集的引擎集合生成,点击过滤(再点/点「全部」清)。 */
   const [engineFilter, setEngineFilter] = useState<string | null>(null);
+  /* 时间过滤 chip:静态枚举恒渲染;换挡即换查询窗(chip 不变时 now 不重算,
+     回溯窗以打开浮层那一刻为基准,足够语义)。 */
+  const [timeFilter, setTimeFilter] = useState<TimeFilterKey>("all");
+  const toast = useSearchToast();
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useFocusTrap(open);
@@ -51,16 +66,17 @@ export function SessionSearchOverlay() {
     return startIndexerTicks(indexer, setIndex, () => setIndexing(false));
   }, [open, cwd]);
 
-  const rawHits = useMemo(() => (index ? searchSessions(index, query) : []), [index, query]);
-  /* 过滤 chip 的引擎集合来自未过滤结果;选中的引擎不在集合时视为清空(查询已变)。 */
+  const timeRange = useMemo(() => timeRangeFor(timeFilter, Date.now()), [timeFilter]);
+  const rawHits = useMemo(
+    () => (index ? searchSessions(index, query, 50, timeRange) : []),
+    [index, query, timeRange],
+  );
+  /* 过滤 chip 的引擎集合来自时间窗过滤后的结果;选中的引擎不在集合时视为清空(查询已变)。 */
   const engines = useMemo(
     () => Array.from(new Set(rawHits.map((h) => h.entry.profileId))),
     [rawHits],
   );
-  const hits = useMemo(
-    () => (engineFilter && engines.includes(engineFilter) ? rawHits.filter((h) => h.entry.profileId === engineFilter) : rawHits),
-    [rawHits, engineFilter, engines],
-  );
+  const hits = useMemo(() => applyFilters(rawHits, engineFilter), [rawHits, engineFilter]);
   /* 越界收口(命中集随索引推进/过滤变化);选中行滚入视野(QuickOpen 惯例)。 */
   const sel = Math.min(active, Math.max(hits.length - 1, 0));
   useEffect(() => {
@@ -69,18 +85,27 @@ export function SessionSearchOverlay() {
       ?.scrollIntoView({ block: "nearest" });
   }, [sel]);
 
-  if (!open || !cwd) return null;
-
-  const openHit = (profileId: string, cliSessionId: string) => {
+  const openHit = (hit: SessionSearchHit) => {
     closeSessionSearch();
     host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
-    void host.openDiskSession(profileId, cwd, getActiveWorkspace()?.id, cliSessionId);
+    const locate = locateTargetOf(hit, cwd!, getActiveWorkspace()?.id);
+    if (!locate) {
+      /* 标题命中无消息原文,无可定位行:维持纯打开语义(不猜不定位)。 */
+      void host.openDiskSession(hit.entry.profileId, cwd!, getActiveWorkspace()?.id, hit.entry.cliSessionId);
+      return;
+    }
+    void openThenJumpToText(locate.target, locate.text).then((r) => {
+      /* jumped = 已定位到行,不扰;jumped 以外都说明行没定位上,轻提示告知。 */
+      if (r === "opened") showSearchToast(t("已打开会话(未定位到命中行)"));
+      else if (r === "miss") showSearchToast(t("未定位到命中行"));
+    });
   };
 
   return createPortal(
     <>
       {/* 全屏容器(z-1201)统一收 Esc 与遮罩点击(自靶判定):容器自身即覆盖
           全屏,独立捕获层会被其整体遮蔽成死代码,故不设。 */}
+      {open && cwd && (
       <div
         role="presentation"
         className="fixed inset-0 z-[1201] flex items-start justify-center bg-black/45 pt-[12vh]"
@@ -120,7 +145,7 @@ export function SessionSearchOverlay() {
                 setActive(Math.max(sel - 1, 0));
               } else if (e.key === "Enter") {
                 const hit = hits[sel];
-                if (hit) openHit(hit.entry.profileId, hit.entry.cliSessionId);
+                if (hit) openHit(hit);
               }
             }}
             placeholder={t("搜索本工作区的会话历史(你输入过的内容)…")}
@@ -129,30 +154,46 @@ export function SessionSearchOverlay() {
           />
           {indexing && <IndexingChip index={index} />}
         </div>
-        {engines.length > 1 && (
-          /* 引擎过滤 chip:结果引擎集合生成(单引擎不出,无噪音)。 */
-          <div className="flex flex-wrap items-center gap-1 border-b border-(--tmd-border) px-3 py-1.5" role="group" aria-label={t("按引擎过滤")}>
-            <button
-              type="button"
-              aria-pressed={engineFilter == null}
-              onClick={() => setEngineFilter(null)}
-              className={chipCls(engineFilter == null)}
-            >
-              {t("全部")}
-            </button>
-            {engines.map((e) => (
+        <div className="flex flex-wrap items-center gap-1 border-b border-(--tmd-border) px-3 py-1.5">
+          {/* 时间过滤 chip:静态枚举恒渲染(与结果集无关,常驻锚点)。 */}
+          <div className="flex items-center gap-1" role="group" aria-label={t("按时间过滤")}>
+            {(Object.keys(TIME_FILTER_MS) as TimeFilterKey[]).map((k) => (
               <button
-                key={e}
+                key={k}
                 type="button"
-                aria-pressed={engineFilter === e}
-                onClick={() => setEngineFilter(engineFilter === e ? null : e)}
-                className={chipCls(engineFilter === e)}
+                aria-pressed={timeFilter === k}
+                onClick={() => setTimeFilter(k)}
+                className={chipCls(timeFilter === k)}
               >
-                {host.getCliProfile(e)?.name ?? e}
+                {k === "all" ? t("全部") : t(TIME_FILTER_LABEL[k])}
               </button>
             ))}
           </div>
-        )}
+          {engines.length > 1 && (
+            /* 引擎过滤 chip:结果引擎集合生成(单引擎不出,无噪音)。 */
+            <div className="flex items-center gap-1 border-l border-(--tmd-border) pl-2" role="group" aria-label={t("按引擎过滤")}>
+              <button
+                type="button"
+                aria-pressed={engineFilter == null}
+                onClick={() => setEngineFilter(null)}
+                className={chipCls(engineFilter == null)}
+              >
+                {t("全部")}
+              </button>
+              {engines.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  aria-pressed={engineFilter === e}
+                  onClick={() => setEngineFilter(engineFilter === e ? null : e)}
+                  className={chipCls(engineFilter === e)}
+                >
+                  {host.getCliProfile(e)?.name ?? e}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div ref={listRef} className="min-h-0 flex-1 overflow-auto">
           <ResultBody
             queryEmpty={query.trim() === ""}
@@ -168,6 +209,15 @@ export function SessionSearchOverlay() {
         </div>
         </div>
       </div>
+      )}
+      {/* 定位轻提示:浮层关闭后仍要呈现(openThenJumpToText 异步回调),常驻 portal 承载。 */}
+      {toast && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[1201] flex justify-center">
+          <div className="rounded-lg border border-(--tmd-border) bg-(--tmd-bg-panel) px-3 py-1.5 text-xs text-(--tmd-fg) shadow-(--tmd-shadow-modal)">
+            {toast}
+          </div>
+        </div>
+      )}
     </>,
     document.body,
   );
@@ -181,3 +231,10 @@ function chipCls(on: boolean): string {
       : "border-(--tmd-border) text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
   }`;
 }
+
+/** 时间 chip 键 → 展示文案键(zh 源串;en/ja 词典在 locales.ts)。 */
+const TIME_FILTER_LABEL: Record<Exclude<TimeFilterKey, "all">, string> = {
+  "24h": "24小时",
+  "7d": "7天",
+  "30d": "30天",
+};

@@ -37,12 +37,12 @@ function SnippetText({ text, token }: { text: string; token: string }) {
 }
 
 /** 单条命中行:标题回退链(标题/首条消息/短 id)+ usage 徽标 + 相对时间。 */
-export function HitRow({ hit, onOpen, selected }: { hit: SessionSearchHit; onOpen: (profileId: string, cliSessionId: string) => void; selected: boolean }) {
+export function HitRow({ hit, onOpen, selected }: { hit: SessionSearchHit; onOpen: (hit: SessionSearchHit) => void; selected: boolean }) {
   return (
     <button
       type="button"
       data-sel={selected || undefined}
-      onClick={() => onOpen(hit.entry.profileId, hit.entry.cliSessionId)}
+      onClick={() => onOpen(hit)}
       className={`block w-full border-b border-(--tmd-border)/60 px-3 py-2 text-left ${selected ? "bg-(--tmd-bg-hover)" : "hover:bg-(--tmd-bg-hover)"}`}
     >
       <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export function ResultBody({ queryEmpty, indexing, index, hits, active, onOpen }
   index: SessionIndex | null;
   hits: SessionSearchHit[];
   active: number;
-  onOpen: (profileId: string, cliSessionId: string) => void;
+  onOpen: (hit: SessionSearchHit) => void;
 }) {
   if (queryEmpty) {
     return <Empty icon={<MagnifyingGlass />}>{t("输入关键词,按标题与你的历史输入检索会话")}</Empty>;

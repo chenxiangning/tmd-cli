@@ -32,3 +32,39 @@ export function useSessionSearchOpen(): boolean {
     () => open,
   );
 }
+
+/* 定位结果轻提示 ── 命中打开瞬间浮层已关,提示必须活得比浮层久;
+   与浮层开关同款模块级单例,呈现件由 SessionSearchOverlay 常驻 portal 承载。 */
+
+const TOAST_TTL_MS = 3000;
+
+let toast: string | null = null;
+const toastListeners = new Set<() => void>();
+let toastTimer: number | null = null;
+
+function emitToast(): void {
+  for (const fn of toastListeners) fn();
+}
+
+/** 弹出轻提示(TTL 自销;连弹覆盖前弹并重置计时)。 */
+export function showSearchToast(text: string): void {
+  toast = text;
+  if (toastTimer !== null) window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => {
+    toast = null;
+    toastTimer = null;
+    emitToast();
+  }, TOAST_TTL_MS);
+  emitToast();
+}
+
+/** 订阅轻提示文本(无提示 = null)。 */
+export function useSearchToast(): string | null {
+  return useSyncExternalStore(
+    (onStoreChange) => {
+      toastListeners.add(onStoreChange);
+      return () => listeners.delete(onStoreChange);
+    },
+    () => toast,
+  );
+}
