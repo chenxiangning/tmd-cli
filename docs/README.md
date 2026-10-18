@@ -197,6 +197,7 @@
 | 2026-10-17 | [客户端深度调研·终稿(竞品 12 家逐个摸底+官方平台矩阵+代码体检三路;行业商业模式集体失败信号、基准线抬高对账、包体/测试密度/kernel 边界/a11y 实测、15 项引入评估与 0.4.0 组合建议)](research/client-deep-research-2026-10.md) | 已完成(候选待拍板) |
 | 2026-10-17 | [0.3.9 候选功能视觉示例(2026-10-18 裁定 7 项进 0.3.9:worktree 会话链路/diff 批注/quota reset/agent wiki/懒加载/kernel 盘点/WebGL 基准;已按代码级可行性重构并三轮打磨,附 feasibility.md;入口 design/040-candidates/index.html)](design/040-candidates/README.md) | 已完成(示例待大仙目检拍板) |
 | 2026-10-18 | [0.4.0 候选规划·向内治理批(深化 v2:裁敏感守门,六项闭环深化带 path:line 锚点——24h 保留律确认已落地转对账/冻结快照修正/通知行为矩阵/预设两步管线/检索行级定位/存储体检+prune 现成;新增转录导出与 checkpoint↔对话互跳;入口 design/041-candidates/index.html)](design/041-candidates/README.md) | 已落地(0.4.0 八项全量,openspec/changes/2026-10-18-inward-batch-041) |
+| 2026-10-18 | [0.3.9 发版终审(21 commits 六项重点核验+CHANGELOG 全对账;唯一阻断=worktree 条目入口表述失实已改;发布树 gate/cargo/clippy/fmt/react-doctor 全绿实测)](review/2026-10-18-039-release-review.md) | 已发版(v0.3.9) |
 | 2026-09-26 | [系统通知与额度撞墙预警(离开工位盲区收口;失焦闸/额度轻轮询/三开关+阈值)](../openspec/changes/archive/2026-09-26-os-notifications/proposal.md) | 已落地(真机目检待大仙;notify 插件随本提案提交) |
 | 2026-09-26 | [会话历史检索(工作区用户消息全文;profile 声明面复用/mtime 缓存/增量索引)](../openspec/changes/archive/2026-09-26-session-search/proposal.md) | 已落地(真机目检待大仙;session-search 插件随本提案提交) |
 | 2026-09-26 | [跨引擎一键接力(确定性摘要拼装/预览编辑/新会话首发)](../openspec/changes/archive/2026-09-26-session-relay/proposal.md) | 已落地(真机目检待大仙;session-relay 插件随本提案提交) |
