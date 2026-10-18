@@ -13,6 +13,7 @@ import { removeWorkspace, type Workspace } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useSettingsState } from "@kernel/settings";
 import { assignToGroup } from "./groups";
+import { SessionMenuPresets } from "./SessionMenuPresets";
 import { ArrowClockwise, Check, GitBranch, PencilSimple, Trash } from "@phosphor-icons/react";
 
 
@@ -32,6 +33,7 @@ export function SessionMenuOverlay({
   onRefresh,
   onRename,
   onWorktree,
+  onManagePresets,
   onClose,
 }: {
   workspace: Workspace;
@@ -42,6 +44,8 @@ export function SessionMenuOverlay({
   onRename: () => void;
   /** 「在新 worktree 中起会话…」:弹层归调用方持有(菜单卸载不连带杀弹层)。 */
   onWorktree: () => void;
+  /** 「管理预设…」:同 worktree 先例,弹层归调用方持有。 */
+  onManagePresets: () => void;
   onClose: () => void;
 }) {
   const profiles = host.getCliProfiles();
@@ -117,6 +121,11 @@ export function SessionMenuOverlay({
               <span className="wsmenu-item-label">{t("在新 worktree 中起会话…")}</span>
             </button>
           </>
+        )}
+
+        {/* 会话预设段:同 worktree 项先例,仅本地工作区恒显(建链 = 本地 spawn)。 */}
+        {!origin && (
+          <SessionMenuPresets workspace={workspace} onManage={onManagePresets} onClose={onClose} />
         )}
 
         {/* 移动到组(codemoss assign-workspace-group 同款):仅存在组时出现,当前组打勾。 */}

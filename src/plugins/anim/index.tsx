@@ -17,7 +17,8 @@ import {
 } from "@kernel/composerExt";
 import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
 import { ANIM_TAB_ID, ANIM_TAB_KIND, openAnimTab } from "./animStores";
-import { getPendingPrompt, getPendingRefs } from "./refStore";
+import { getPendingPrompt } from "@kernel/sessionPending";
+import { getPendingRefs } from "./refStore";
 import { animRefsSendTransform, undoAnimRefsSend } from "./sessionRefs";
 import { AnimRefChips } from "./chip";
 import "./locales"; /* 域词典随插件自带:import 即注册 */

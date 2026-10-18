@@ -27,6 +27,8 @@ import { updateSettings, useSettingsState } from "@kernel/settings";
 import { registerSessionRevealHandler } from "@kernel/sessionReveal";
 import { SessionMenuOverlay } from "./SessionMenu";
 import { WorktreeSessionDialog } from "./WorktreeSessionDialog";
+import { SessionPresetsDialog } from "./SessionPresetsDialog";
+import { loadSessionPresets } from "./sessionPresets";
 import { anchorPopoverPosition, clampMenuPosition, refreshingMapOf } from "./utils";
 import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
@@ -38,6 +40,7 @@ import { WorkspaceGroupsTab } from "./GroupSettingsTab";
 import { PinnedSessionsSection } from "./PinnedSessions";
 import { RunningZoneSection } from "./RunningZone";
 import { WorkspaceAddDialog } from "./WorkspaceAddDialog";
+import { scheduleBootSweep } from "./hygieneBootSweep";
 
 /** ⌘T 桥:新建会话菜单开合态在 WorkspaceSection 组件内,命令却在 activate 期注册 ——
  *  模块级 ref 接收分发器触发(先例:TerminalView findRequestRef)。 */
@@ -77,6 +80,8 @@ function WorkspaceSection() {
   const [menu, setMenu] = useState<{ workspace: Workspace; x: number; y: number } | null>(null);
   /* worktree 会话弹层(工作区右键菜单入口):独立于 menu state——菜单关闭不连带卸弹层。 */
   const [wtWs, setWtWs] = useState<Workspace | null>(null);
+  /* 会话预设管理弹层(菜单「管理预设…」入口):同款独立持层。 */
+  const [presetsOpen, setPresetsOpen] = useState(false);
   /** 行内别名重命名中的工作区 id(单例:同时至多一行在改)。 */
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
@@ -91,16 +96,14 @@ function WorkspaceSection() {
   const allCollapsed = list.length > 0 && list.every((ws) => isCollapsed(ws.id));
   const setAllCollapsed = (v: boolean) =>
     updateSettings({ workspaceCollapsedMap: Object.fromEntries(list.map((ws) => [ws.id, v])) });
-  const setCollapsed = (id: string, v: boolean) =>
-    updateSettings({ workspaceCollapsedMap: { ...collapsedMap, [id]: v } });
+  const setCollapsed = (id: string, v: boolean) => updateSettings({ workspaceCollapsedMap: { ...collapsedMap, [id]: v } });
   /** 组头折叠态(持久化):缺失 = 展开;组定义/派生见 ./groups。 */
   const groupCollapsedMap = settings.workspaceGroupCollapsedMap;
   const grouped = useMemo(
     () => groupWorkspaces(visible, settings.workspaceGroups),
     [visible, settings.workspaceGroups],
   );
-  const toggleGroup = (id: string) =>
-    updateSettings({ workspaceGroupCollapsedMap: { ...groupCollapsedMap, [id]: !groupCollapsedMap[id] } });
+  const toggleGroup = (id: string) => updateSettings({ workspaceGroupCollapsedMap: { ...groupCollapsedMap, [id]: !groupCollapsedMap[id] } });
   /** ⌘T 入口:无点击锚点,菜单开在左栏顶部;工作区取活动者,缺省首个,皆无则不动。
    *  useCallback 钉住引用:下方 ref 同步 effect 以它为依赖,每轮重建会反复重同步。 */
   const openMenu = useCallback(() => {
@@ -168,14 +171,8 @@ function WorkspaceSection() {
                     : { workspaceArchiveView: false, workspaceOriginFilter: value },
                 );
               return (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  className={active ? "is-on" : ""}
-                  onClick={pick}
-                >
+                <button key={value} type="button" role="radio" aria-checked={active}
+                  className={active ? "is-on" : ""} onClick={pick}>
                   {t(label)}
                 </button>
               );
@@ -238,20 +235,16 @@ function WorkspaceSection() {
           position={{ x: menu.x, y: menu.y }}
           refreshing={refreshingMapOf(menu.workspace.id, refreshing)}
           onRefresh={(profileId) => bumpTick(menu.workspace.id, profileId)}
-          onRename={() => {
-            setRenamingId(menu.workspace.id);
-            setMenu(null);
-          }}
+          onRename={() => { setRenamingId(menu.workspace.id); setMenu(null); }}
           onWorktree={() => setWtWs(menu.workspace)}
+          onManagePresets={() => setPresetsOpen(true)}
           onClose={() => setMenu(null)}
         />
       )}
 
-      {wtWs && (
-        <WorktreeSessionDialog
-          repoCwd={wtWs.root} title={wtWs.name} onClose={() => setWtWs(null)}
-        />
-      )}
+      {wtWs && <WorktreeSessionDialog repoCwd={wtWs.root} title={wtWs.name} onClose={() => setWtWs(null)} />}
+
+      {presetsOpen && <SessionPresetsDialog onClose={() => setPresetsOpen(false)} />}
     </div>
   );
 }
@@ -267,6 +260,8 @@ export const workspacePlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
+    /* 会话预设装载一次(坏文件回落空库,agents.json 范式;语义见 ./sessionPresets)。 */
+    void loadSessionPresets();
     ctx.contribute("leftSidebar.section", {
       order: 0,
       component: WorkspaceSection,
@@ -295,5 +290,6 @@ export const workspacePlugin: Plugin = {
         },
       ],
     });
+    return scheduleBootSweep(); /* 启动补扫(会话卫生):45s 一次性兜底,零轮询;拔出清定时器 */
   },
 };

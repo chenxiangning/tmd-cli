@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  dropPendingPrompt,
-  getPendingPrompt,
-  getPendingRefs,
-  setPendingPrompt,
-  setPendingRefs,
-} from "./refStore";
+import { dropPendingPrompt, getPendingPrompt, setPendingPrompt } from "@kernel/sessionPending";
+import { getPendingRefs, setPendingRefs } from "./refStore";
 import { animRefsSendTransform, undoAnimRefsSend } from "./sessionRefs";
 
 describe("animRefsSendTransform", () => {

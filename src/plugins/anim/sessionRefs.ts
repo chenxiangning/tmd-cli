@@ -4,12 +4,10 @@
  * 发送失败由 undo 恢复。空输入 = 仅卡片(空输入放行由插件注册 provider)。
  */
 import type { ComposerSendTransform } from "@kernel/composerExt";
+import { consumePendingPrompt, setPendingPrompt } from "@kernel/sessionPending";
 import {
-  dropPendingPrompt,
   dropPendingRefs,
-  getPendingPrompt,
   getPendingRefs,
-  setPendingPrompt,
   setPendingRefs,
   type PendingAnimRef,
 } from "./refStore";
@@ -18,11 +16,10 @@ let lastConsumed: { sessionId: string; prompt: string | null; refs: PendingAnimR
 
 export const animRefsSendTransform: ComposerSendTransform = (text, sessionId) => {
   if (!sessionId) return text;
-  const prompt = getPendingPrompt(sessionId);
+  const prompt = consumePendingPrompt(sessionId);
   const refs = getPendingRefs(sessionId);
   if (prompt === null && refs.length === 0) return text;
   lastConsumed = { sessionId, prompt, refs };
-  if (prompt !== null) dropPendingPrompt(sessionId);
   if (refs.length > 0) dropPendingRefs(sessionId);
   const block = refs.length > 0
     ? ["引用文件:", ...refs.map((ref) => `- ${ref.label}:${ref.path}`)].join("\n")

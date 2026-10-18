@@ -9,13 +9,8 @@ import { FileText, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
 import { host } from "@kernel/host";
-import {
-  dropPendingRef,
-  dropPendingPrompt,
-  setPendingPrompt,
-  usePendingPrompt,
-  usePendingRefs,
-} from "./refStore";
+import { dropPendingPrompt, setPendingPrompt, usePendingPrompt } from "@kernel/sessionPending";
+import { dropPendingRef, usePendingRefs } from "./refStore";
 
 /** 提示词卡编辑弹层(任务卡片编辑态同款两键:更新写回 pending,取消不动)。 */
 function PromptEditDialog({ sessionId, text, onClose }: {

@@ -29,7 +29,8 @@ import {
   parseAnimProject,
 } from "./animProjects";
 import { prepareAiSessionTarget, startAnimAiSession, type AnimEngine } from "./startSession";
-import { setPendingPrompt, setPendingRefs } from "./refStore";
+import { setPendingPrompt } from "@kernel/sessionPending";
+import { setPendingRefs } from "./refStore";
 
 const POLL_MS = 2000;
 
