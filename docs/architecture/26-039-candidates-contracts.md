@@ -4,7 +4,7 @@
 
 ## 会话↔worktree 映射(workspace 持有)
 
-- 存储:localStorage `tmd.wtSessions.v1` = `{ [tmdSessionId]: { branch, wtPath, root } }`;写者 = workspace 的 WorktreeSessionDialog(会话卡右键「在新 worktree 中起会话」),读者 = workspace 三处行徽标(WorktreeBadge)+ git 管理面会话数徽标。
+- 存储:localStorage `tmd.wtSessions.v1` = `{ [tmdSessionId]: { branch, wtPath, root } }`;写者 = workspace 的 WorktreeSessionDialog(工作区右键菜单「在新 worktree 中起会话…」,唯一入口),读者 = workspace 三处行徽标(WorktreeBadge)+ git 管理面会话数徽标。
 - git ⇄ workspace 双向插件依赖为仓库首例,双侧消费纯模块(无生命周期、不经 ctx),import 处带豁免注释;若第三域再来消费,应把 store 上提到中立位置。
 - 幽灵清理:WorktreeManageDialog 打开时按 `host.getSessions()` 存活 id 集 `pruneWtSessions` 一次。
 - 创建链铁律:spawn 必须走 `host.spawnRawSession`(kernel 统一装配:identityTrack/事件广播/侧栏可见);直调 `ipc.sessionSpawn` 绕过装配 = 侧栏不可见+审批/时间线全盲。symlink 失败不阻断;后续失败 best-effort 回滚残留树并在错误文案指明手工入口;busy 期间禁关窗。

@@ -29,13 +29,13 @@
 - IPC 权限表登记 `fsDirUsage: ipc.fs.read`;doctor.config 新增 hygieneBootSweep 有意串行豁免(对齐 tabClose/sessionHead 先例);anchorJump 等幕布挂载由 80ms 轮询改订阅注册表广播(零轮询),seeConversation 引擎认领改并行扫描唯一命中
 - 版本源六处同步 0.4.0(package.json/Cargo.toml/Cargo.lock/tauri.conf.json/Info.plist/project.yml)
 
-## [0.3.9] - 2026-10-17
+## [0.3.9] - 2026-10-18
 
 本版主体 = **0.3.9 七候选全量落地**(深度调研 `docs/research/client-deep-research-2026-10.md` → 视觉示例 `docs/design/040-candidates/` → 可行性分析 → 四批次实施,每批次双角度 review):worktree 会话链 / diff 行级批注回传 / claude 限额窗口推算 / agent wiki / 插件懒加载 / kernel 分区盘点 / WebGL 终端基准。另含 anim 插件打磨批(协议对齐 tmd-anim 0.1.6 + 「打开」动作平台语义)+ 移动端触控达标;真机验收债清单见 `docs/brainstorm/2026-10-17-039-next-steps.md`。
 
 ### 新增
 
-- worktree 会话链路:会话卡右键「在新 worktree 中起会话」(分支名 slug 预填+冲突 -2/-3 实时校验+基于 HEAD/指定分支),node_modules 符号链接复用主仓,spawn 走 kernel 统一生成面(spawnRawSession,identityTrack 全装配);会话↔worktree 双向徽标;worktree 管理面新增磁盘占用列(Rust `git_worktree_disk_usage`,跳 .git 不跟符号链接);入口重梳——工作区右键菜单新增「在新 worktree 中起会话…」(空工作区唯一入口,弹层内选引擎,默认引擎预选),会话右键项保留并预填原会话引擎
+- worktree 会话链路:工作区右键菜单「在新 worktree 中起会话…」(唯一入口;空工作区可达,弹层内选引擎、默认引擎预选,分支名 slug 预填+冲突 -2/-3 实时校验+基于 HEAD/指定分支),新建成功即加入侧栏工作区;node_modules 符号链接复用主仓,spawn 走 kernel 统一生成面(spawnRawSession,identityTrack 全装配);会话↔worktree 双向徽标;worktree 管理面新增磁盘占用列(Rust `git_worktree_disk_usage`,跳 .git 不跟符号链接)
 - diff 行级批注回传:diff 行悬停批注钮,气泡以「文件路径+行内容哈希」锚定(防行号漂移),同文重复行归属最近行;右栏批注列表与 diff 行双向定位;一键拼结构化消息经 composer 插入桥回传(不自动发送),会话级生存期 LRU 40 组
 - claude 限额窗口重置推算:claude 无额度 API,本地从会话 JSONL usage 行推算 5h 滚动窗口(尾读 128KB 精化,长会话头部截断不失锚);tokens dashboard「窗口重置」小节+「下一个可用窗口」汇总条,30s 本地重算零网络;codex/omp/pi 走既有真额度体系,口径不明显「—」不猜测兜底
 - agent wiki(memory-coordinator 子模块):会话退出(`kernel.sessions.exited`)取用户消息尾段自动沉淀至工作区 `.tmd/wiki.json`(零模型成本,一会话一条幂等);双栏面板(已决策/开放问题/待归类,auto 可改类、decision/open 可删),Memory 面板入口;本地单文件无云同步,跨窗经 storage beat 对齐

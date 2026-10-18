@@ -18,7 +18,7 @@
 interface FrontmatterResult {
   /** 单行 key: value 形态的字段(引号已剥)。 */
   fields: Record<string, string>;
-  /** 剥掉 frontmatter 后首个非空行(escription 回落源)。 */
+  /** 剥掉 frontmatter 后首个非空行(description 回落源)。 */
   firstBodyLine: string;
 }
 
