@@ -27,6 +27,7 @@ import { MESSAGES as enMobile } from "./locales/en/mobile";
 import { MESSAGES as enTime } from "./locales/en/time";
 import { MESSAGES as enMarket } from "./locales/en/market";
 import { MESSAGES as enIconDecor } from "./locales/en/iconDecor";
+import { MESSAGES as enCheckpoints } from "./locales/en/checkpoints";
 import { MESSAGES as jaCommon } from "./locales/ja/common";
 import { MESSAGES as jaSettings } from "./locales/ja/settings";
 import { MESSAGES as jaSettings2 } from "./locales/ja/settings2";
@@ -46,6 +47,7 @@ import { MESSAGES as jaMobile } from "./locales/ja/mobile";
 import { MESSAGES as jaTime } from "./locales/ja/time";
 import { MESSAGES as jaMarket } from "./locales/ja/market";
 import { MESSAGES as jaIconDecor } from "./locales/ja/iconDecor";
+import { MESSAGES as jaCheckpoints } from "./locales/ja/checkpoints";
 
 /** 捕获插件 registerMessages:插件词典导出私有,只能从注册面取(glob eager 全量引入)。 */
 type MessagesDict = { en?: Record<string, string>; ja?: Record<string, string> };
@@ -76,7 +78,7 @@ const EN_DOMAINS: [string, Record<string, string>][] = [
   ["cli", enCli], ["cli2", enCli2], ["composer", enComposer],
   ["ssh", enSsh], ["wsl", enWsl], ["assets", enAssets], ["misc", enMisc],
   ["misc2", enMisc2], ["mobile", enMobile], ["time", enTime], ["market", enMarket],
-  ["iconDecor", enIconDecor],
+  ["iconDecor", enIconDecor], ["checkpoints", enCheckpoints],
 ];
 const JA_DOMAINS: [string, Record<string, string>][] = [
   ["common", jaCommon], ["settings", jaSettings], ["settings2", jaSettings2],
@@ -84,7 +86,7 @@ const JA_DOMAINS: [string, Record<string, string>][] = [
   ["cli", jaCli], ["cli2", jaCli2], ["composer", jaComposer],
   ["ssh", jaSsh], ["wsl", jaWsl], ["assets", jaAssets], ["misc", jaMisc],
   ["misc2", jaMisc2], ["mobile", jaMobile], ["time", jaTime], ["market", jaMarket],
-  ["iconDecor", jaIconDecor],
+  ["iconDecor", jaIconDecor], ["checkpoints", jaCheckpoints],
 ];
 
 /** 扫同键异值:同键同译的跨域覆盖无害(有意共享),异值即某域 UI 被静默改写。 */

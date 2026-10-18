@@ -1,9 +1,9 @@
 /**
  * BatchRow 拆件 —— 自 BatchRow.tsx 拆出(文件规模铁则)。
  *
- * 内联确认卡(回退/应用共用,mode 区分文案与动作)+ 文件行
- * (状态 chip + 路径 + ± + 深链审阅单 + hover 打开文件/定位 + hover 单文件回退)。
- * ConfirmTarget 类型唯一定义于此,BatchRow re-export 维持既有导入契约。
+ * 文件行(状态 chip + 路径 + ± + 深链审阅单 + hover 打开文件/定位 + hover 单文件回退)。
+ * 内联确认卡(含恢复 dry-run 预览表)与 ConfirmTarget 拆至 confirmCard.tsx
+ * (042 项6),此处 re-export 维持既有导入契约。
  */
 
 import { ArrowCounterClockwise, FileText, FolderOpen } from "@phosphor-icons/react";
@@ -15,82 +15,10 @@ import { getCachedDiff } from "./diffCache";
 import { classifyRisk } from "./risk";
 import { openBatchTab } from "./batchTab";
 import { fileChipCls } from "./fileChipCls";
+import type { ConfirmTarget } from "./confirmCard";
 
-/** 内联确认卡目标:mode 区分回退(默认,兼容既有 paths 子集语义)与应用。 */
-export interface ConfirmTarget {
-  batchId: string;
-  paths?: string[];
-  mode?: "revert" | "apply";
-}
-
-/** ConfirmCard 既有;fileChipCls 移居独立模块 ./fileChipCls。 */
-
-export function ConfirmCard({
-  batchId,
-  confirm,
-  busy,
-  setConfirm,
-  onRevert,
-  onApply,
-}: {
-  batchId: string;
-  confirm: ConfirmTarget;
-  busy: boolean;
-  setConfirm: (v: ConfirmTarget | null) => void;
-  onRevert: (batchId: string, paths?: string[]) => Promise<void>;
-  onApply: (batchId: string) => Promise<void>;
-}) {
-  const apply = confirm.mode === "apply";
-  return (
-    <div className="ml-4 mb-2 rounded-(--tmd-radius-sm) border border-(--tmd-border-strong) bg-(--tmd-bg-popover) p-2.5">
-      <div className="mb-1 text-xs font-semibold">
-        {apply
-          ? t("应用回此批")
-          : t("回退{target}", {
-              target: confirm.paths ? t("{n} 个路径", { n: confirm.paths.length }) : t("整批"),
-            })}
-      </div>
-      <div className="mb-2 text-xs leading-relaxed text-(--tmd-fg-muted)">
-        {apply ? (
-          <>
-            {t("按账本副本把这轮改动精确写回磁盘(回退的镜像);")}
-            <span className="text-(--tmd-diff-inserted)">{t("执行前已自动打恢复点,可反悔")}</span>。
-            {t("live 已偏离批前像的文件按 diff 精准重放,改动重叠才跳过。")}
-          </>
-        ) : (
-          <>
-            {t("改动将还原到这轮消息发出之前;")}
-            <span className="text-(--tmd-diff-inserted)">{t("回退前已自动打恢复点,可反悔")}</span>。
-            {t("共改文件按 diff 精准擦除(只擦本批改动),重叠才跳过。")}
-          </>
-        )}
-      </div>
-      <div className="flex justify-end gap-1.5">
-        <button
-          type="button"
-          className="h-6 rounded border border-(--tmd-border) px-2 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover)"
-          onClick={() => setConfirm(null)}
-        >
-          {t("取消")}
-        </button>
-        <button
-          type="button"
-          disabled={busy}
-          className={
-            apply
-              ? "h-6 rounded border border-(--tmd-diff-inserted)/50 px-2 text-(--tmd-diff-inserted) hover:bg-(--tmd-diff-inserted)/10 disabled:opacity-40"
-              : "h-6 rounded border border-[rgba(167,139,250,.5)] px-2 text-[#a78bfa] hover:bg-[#a78bfa]/10 disabled:opacity-40"
-          }
-          onClick={() =>
-            apply ? void onApply(batchId) : void onRevert(batchId, confirm.paths)
-          }
-        >
-          {apply ? t("确认应用") : t("确认回退")}
-        </button>
-      </div>
-    </div>
-  );
-}
+export { ConfirmCard } from "./confirmCard";
+export type { ConfirmTarget } from "./confirmCard";
 
 export function FileRow({
   file: f,

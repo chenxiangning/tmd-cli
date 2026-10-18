@@ -248,6 +248,23 @@ export interface CkptPatch {
   binary: boolean;
 }
 
+/** 恢复 dry-run 预览行(plan_restore + live↔target 行摘要)。 */
+export interface CkptPreviewRow {
+  path: string;
+  /** A 恢复新增 / M 修改 / D 恢复将删除 */
+  kind: "A" | "D" | "M";
+  additions: number;
+  deletions: number;
+  /** 精准擦除成功行 = 执行将改写本地现状(「覆盖本地」药丸) */
+  overwrites: boolean;
+}
+
+/** 恢复预览:行摘要清单 + skip 清单(plan 空走 E_EMPTY,前端免弹分支信号)。 */
+export interface CkptRestorePreview {
+  rows: CkptPreviewRow[];
+  skipped: CkptSkipEntry[];
+}
+
 interface CkptSkipEntry {
   path: string;
   reason: string;
@@ -535,6 +552,9 @@ export const ipc = {
   /** 回退整批或子集;返回恢复点 id 供反悔。 */
   checkpointRestore: (cwd: string, batchId: string, paths?: string[]) =>
     invoke<CkptRestoreOutcome>("checkpoint_restore", { cwd, batchId, paths: paths ?? null }),
+  /** 恢复 dry-run 预览(只读):计划 + live↔target 行摘要;plan 空 = E_EMPTY 免弹信号。 */
+  checkpointRestorePreview: (cwd: string, batchId: string, paths?: string[]) =>
+    invoke<CkptRestorePreview>("checkpoint_restore_preview", { cwd, batchId, paths: paths ?? null }),
   /** 应用:把账本固化的批后像精确写回磁盘(回退的镜像);守卫可反悔。 */
   checkpointApply: (cwd: string, batchId: string, paths?: string[]) =>
     invoke<CkptRestoreOutcome>("checkpoint_apply", { cwd, batchId, paths: paths ?? null }),

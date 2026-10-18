@@ -13,8 +13,8 @@ function errMsg(e: unknown): string {
   return String(e).replace(/^E_\w+:\s*/, "");
 }
 
-/** 回退/应用结果 → 通知文案(跳过清单拼进句尾)。 */
-function skippedNote(skipped: Array<{ path: string; reason: string }>): string {
+/** 回退/应用结果 → 通知文案(跳过清单拼进句尾);确认卡预览 skip 行同源复用。 */
+export function skippedNote(skipped: Array<{ path: string; reason: string }>): string {
   return skipped.map((s) => `${s.path}(${s.reason})`).join("、");
 }
 
@@ -49,12 +49,18 @@ export function useCheckpointActions(
 
   function doRevert(batchId: string, paths?: string[]) {
     return run(async (c, s) => {
-      const out = await revertBatch(c, s, batchId, paths);
-      const n = out.restored.length + out.deleted.length;
-      const skipped = skippedNote(out.skipped);
-      return skipped
-        ? t("已回退 {n} 个文件;跳过:{skipped}", { n, skipped })
-        : t("已回退 {n} 个路径 · 恢复点已留存,可反悔", { n });
+      try {
+        const out = await revertBatch(c, s, batchId, paths);
+        const n = out.restored.length + out.deleted.length;
+        const skipped = skippedNote(out.skipped);
+        return skipped
+          ? t("已回退 {n} 个文件;跳过:{skipped}", { n, skipped })
+          : t("已回退 {n} 个路径 · 恢复点已留存,可反悔", { n });
+      } catch (e) {
+        /* plan 空(E_EMPTY):不是错误 —— 免弹分支的中性提示(042 项6)。 */
+        if (String(e).includes("没有可回退的文件")) return t("本批已无可回退的改动");
+        throw e;
+      }
     });
   }
 

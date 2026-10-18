@@ -17,6 +17,7 @@ import { MESSAGES as mobile } from "./mobile";
 import { MESSAGES as market } from "./market";
 import { MESSAGES as time } from "./time";
 import { MESSAGES as iconDecor } from "./iconDecor";
+import { MESSAGES as checkpoints } from "./checkpoints";
 
 export const JA_MESSAGES: Record<string, string> = {
   ...common,
@@ -37,4 +38,5 @@ export const JA_MESSAGES: Record<string, string> = {
   ...time,
   ...market,
   ...iconDecor,
+  ...checkpoints,
 };

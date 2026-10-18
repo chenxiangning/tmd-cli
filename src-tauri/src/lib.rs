@@ -314,6 +314,7 @@ pub fn run() {
             checkpoints::commands::checkpoint_seal_dead,
             checkpoints::commands::checkpoint_list,
             checkpoints::commands::checkpoint_batch_diff,
+            checkpoints::commands::checkpoint_restore_preview,
             checkpoints::commands::checkpoint_restore,
             checkpoints::commands::checkpoint_apply,
             checkpoints::commands::checkpoint_approve,

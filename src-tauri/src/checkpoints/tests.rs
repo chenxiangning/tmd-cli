@@ -26,6 +26,7 @@ mod events_preimage;
 mod lock;
 mod marks_refs;
 mod parallel;
+mod preview;
 mod restore;
 mod retention;
 mod session;
