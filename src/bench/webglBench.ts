@@ -178,6 +178,7 @@ async function main() {
     };
     const { rows, webglOk } = await runAll($("term-a"), $("term-b"), scene);
     if (!webglOk) {
+      renderRows(rows, prev); /* b 列全 0:上下文不可建,数值无意义但状态可见 */
       $("decision").innerHTML = "<b>WebGL 上下文不可用</b> → 无法对照,维持现状。";
     } else {
       const report: Report = { ua: navigator.userAgent, env: BENCH_ENV, ts: Date.now(), rows };
