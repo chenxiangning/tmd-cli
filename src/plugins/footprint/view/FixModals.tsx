@@ -67,9 +67,10 @@ export function FixModals(p: FixModalsProps) {
   const [mTitle, setMTitle] = useState("");
   const [mSummary, setMSummary] = useState("");
   const d = p.dialog;
-  if (!d || !p.detail) return null;
-  const cards = p.detail.cards;
-  const sessionEntries = Object.entries(p.detail.rollup?.sessions ?? {}).map(
+  /* detail 允许 null(当日明细加载失败也能补归纳,只是无会话可勾) */
+  if (!d) return null;
+  const cards = p.detail?.cards ?? [];
+  const sessionEntries = Object.entries(p.detail?.rollup?.sessions ?? {}).map(
     ([sid, e]) => [sid, { engine: e.engine }] as [string, { engine: string }],
   );
   const toggle = (sid: string) =>

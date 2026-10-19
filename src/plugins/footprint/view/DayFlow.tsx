@@ -26,6 +26,9 @@ export function DayFlow({ detail, range, rangeDetails, query, today, focusIdx, f
   if (range) return <div className="flex-1 overflow-y-auto px-4 pt-4"><RangeBanner details={rangeDetails} /></div>;
 
   const tt = dayTotals(detail.rollup);
+  /* 会话徽标口径:账本(封口事件)与 CLI 扫描取大者 —— 插件部署前的会话无封口账,
+   * 只按账本计会出现「列表有会话、徽标 0」的自相矛盾(2026-10-20 大仙真机反馈)。 */
+  const sessionCount = Math.max(tt.sessions, detail.rows.length);
   const hasFeatures = detail.cards.length > 0;
   const ungrouped = !hasFeatures && detail.rollup ? ungroupedFiles(detail.rollup) : [];
   const projOrder = [...new Set(ungrouped.map((f) => f.project))];
@@ -46,9 +49,12 @@ export function DayFlow({ detail, range, rangeDetails, query, today, focusIdx, f
           <b className="text-[var(--tmd-fg,var(--tmd-fg))]">{detail.cards.length}</b> {t("项功能")}
         </span>
         <span className="rounded-full bg-[var(--tmd-bg-hover)] px-2 py-0.5">
-          <b className="text-[var(--tmd-fg,var(--tmd-fg))]">{tt.sessions}</b> {t("场会话")}
+          <b className="text-[var(--tmd-fg,var(--tmd-fg))]">{sessionCount}</b> {t("场会话")}
         </span>
-        <span className="rounded-full bg-[var(--tmd-bg-hover)] px-2 py-0.5 font-mono">
+        <span
+          className="rounded-full bg-[var(--tmd-bg-hover)] px-2 py-0.5 font-mono"
+          title={tt.plus + tt.minus === 0 ? t("账本无改动记录:footprint 部署前的会话不产生封口账;此列提交可在下方 Git 硬证据区核对") : undefined}
+        >
           <b className="text-emerald-600">+{tt.plus}</b> / <b className="text-red-500">−{tt.minus}</b>
         </span>
         <span>{t("证据随点随取:点功能卡看会话 / 文件 / diff")}</span>

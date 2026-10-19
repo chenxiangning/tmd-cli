@@ -98,4 +98,5 @@ export const MESSAGES_EN = {
   "功能名称(≤12 字)": "Feature name (≤12 chars)",
   "一句话说明(≤40 字)": "One-line summary (≤40 chars)",
   "重命名 / 标记为无关 / 合并 / 拆分 直接写修正层(.user.json)· 手动补归纳建新卡": "Rename / hide / merge / split write the fix layer (.user.json) directly · manual digest creates a new card",
+  "账本无改动记录:footprint 部署前的会话不产生封口账;此列提交可在下方 Git 硬证据区核对": "No ledger changes: sessions before footprint was deployed produce no seal entries; check commits in the Git hard-evidence section below",
 };
