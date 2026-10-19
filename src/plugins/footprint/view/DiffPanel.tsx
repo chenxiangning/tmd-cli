@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { t } from "@kernel/i18n";
 import type { CkptPatch } from "@kernel/ipc";
 import { EngTag, FicoButton, IcoFolder, IcoOpen } from "./bits";
+import type { FileSel } from "./useFpFiles";
 
 /** 一行 diff 的渲染分类。 */
 type LineKind = "add" | "del" | "hunk" | "ctx";
@@ -18,8 +19,8 @@ function classifyLine(line: string): LineKind {
 }
 
 const LINE_CLS: Record<LineKind, string> = {
-  add: "bg-[var(--tmd-green-weak,var(--tmd-ok))] text-emerald-800",
-  del: "bg-[var(--tmd-red-weak,var(--tmd-err))] text-red-700",
+  add: "bg-[color-mix(in_srgb,var(--tmd-diff-inserted)_14%,transparent)]",
+  del: "bg-[color-mix(in_srgb,var(--tmd-diff-removed)_12%,transparent)]",
   hunk: "bg-[var(--tmd-bg-hover)] text-[var(--tmd-fg-muted)]",
   ctx: "",
 };
@@ -96,7 +97,7 @@ export function DiffPanel({ path, patch, loading, engine, degraded, add, del, on
         <div className="max-h-[360px] overflow-auto px-3 py-2 font-mono text-[11.5px] leading-relaxed">
           {(() => {
             const seen = new Map<string, number>();
-            return lines.map((line, i) => {
+            return lines.map((line) => {
               const kind = classifyLine(line);
               const base = `${kind}:${line.slice(0, 24)}`;
               const n = seen.get(base) ?? 0;
@@ -104,7 +105,7 @@ export function DiffPanel({ path, patch, loading, engine, degraded, add, del, on
               const sign = kind === "add" ? "+" : kind === "del" ? "−" : " ";
               return (
                 <div key={n === 0 ? base : `${base}#${n}`} className={`flex whitespace-pre ${LINE_CLS[kind]}`}>
-                  <span className="w-9 flex-none pr-2 text-right text-[10.5px] text-[var(--tmd-fg-muted)] select-none">{i + 1}</span>
+                  <span className="w-9 flex-none pr-2 text-right text-[10.5px] text-[var(--tmd-fg-muted)] select-none" />
                   <span className="flex-1 pr-3">
                     {sign} {line}
                   </span>
@@ -115,6 +116,34 @@ export function DiffPanel({ path, patch, loading, engine, degraded, add, del, on
           {lines.length === 0 && <div className="p-3 text-center text-[11.5px] text-[var(--tmd-fg-muted)]">{t("无 diff 内容")}</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+/** 主流宽 diff 面板的外壳(条件渲染 + 动作接线,守 FootprintView 300 行)。 */
+export function FpMainDiff({ fileSel, onClose, onOpenFile, onRevealFile, onGitFallback }: {
+  fileSel: FileSel | null;
+  onClose: () => void;
+  onOpenFile: (path: string) => void;
+  onRevealFile: (path: string) => void;
+  onGitFallback: () => void;
+}) {
+  if (!fileSel) return null;
+  return (
+    <div id="fp-main-diff" className="px-4">
+      <DiffPanel
+        path={fileSel.path}
+        patch={fileSel.patch}
+        loading={fileSel.loading}
+        degraded={fileSel.degraded}
+        engine={fileSel.engine}
+        add={fileSel.add}
+        del={fileSel.del}
+        onOpen={() => onOpenFile(fileSel.path)}
+        onReveal={() => onRevealFile(fileSel.path)}
+        onClose={onClose}
+        onGitFallback={onGitFallback}
+      />
     </div>
   );
 }

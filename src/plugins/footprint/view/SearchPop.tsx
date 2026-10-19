@@ -5,11 +5,12 @@
 import { useEffect, useRef } from "react";
 import { t } from "@kernel/i18n";
 import type { FpHit, SearchKind } from "../dataSource";
+import { Hi } from "./bits";
 
 const KIND_CLS: Record<SearchKind, string> = {
   card: "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]",
-  quote: "bg-[var(--tmd-violet-weak,var(--tmd-accent-soft))] text-violet-600",
-  article: "bg-[var(--tmd-violet-weak,var(--tmd-accent-soft))] text-violet-600",
+  quote: "bg-[color-mix(in_srgb,var(--tmd-syntax-tag)_12%,transparent)] text-[var(--tmd-syntax-tag)]",
+  article: "bg-[color-mix(in_srgb,var(--tmd-syntax-tag)_12%,transparent)] text-[var(--tmd-syntax-tag)]",
   path: "bg-[var(--tmd-bg-hover)] text-[var(--tmd-fg)] font-mono",
 };
 
@@ -18,6 +19,14 @@ const KIND_LABEL: Record<SearchKind, string> = {
   quote: "原话",
   article: "日报",
   path: "路径",
+};
+
+/** 分组头(原型 sp-group);数据源已按 kind 稳定归并,组名变化处插标题。 */
+const KIND_GROUP: Record<SearchKind, string> = {
+  card: "功能卡",
+  quote: "用户原话",
+  article: "日报",
+  path: "文件路径",
 };
 
 export interface SearchPopProps {
@@ -75,26 +84,43 @@ export function SearchPop({ open, query, hits, cursor, onQuery, onCursor, onPick
       </div>
       <div ref={listRef} className="max-h-[420px] overflow-y-auto p-1.5">
         {hits === null ? (
-          <div className="p-6 text-center text-[12.5px] text-[var(--tmd-fg-muted)]">{t("建索引中…")}</div>
+          query.trim() === "" ? (
+            <div className="p-6 text-center text-[12.5px] text-[var(--tmd-fg-muted)]">
+              {t("输入关键词,从功能卡 / 日报 / 用户原话 / 文件路径四个来源反查历史")}
+            </div>
+          ) : (
+            <div className="p-6 text-center text-[12.5px] text-[var(--tmd-fg-muted)]">{t("建索引中…")}</div>
+          )
         ) : hits.length === 0 ? (
           <div className="p-6 text-center text-[12.5px] text-[var(--tmd-fg-muted)]">{t("无命中")}</div>
         ) : (
-          hits.map((h, i) => (
-            <button
-              type="button"
-              key={`${h.day}:${h.kind}:${h.featureId ?? h.snippet.slice(0, 24)}`}
-              data-i={i}
-              className={`block w-full cursor-pointer rounded-lg border-0 p-0 text-left ${i === cursor ? "bg-[var(--tmd-bg-hover)]" : ""}`}
-              onMouseEnter={() => onCursor(i)}
-              onClick={() => onPick(h)}
-            >
-              <span className={`flex items-center gap-2 px-2.5 py-1.5 text-[12.5px]`}>
-                <span className={`flex-none rounded px-1.5 py-px text-[9.5px] font-bold ${KIND_CLS[h.kind]}`}>{t(KIND_LABEL[h.kind])}</span>
-                <span className="min-w-0 flex-1 truncate">{h.snippet}</span>
-                <span className="flex-none text-[10.5px] text-[var(--tmd-fg-muted)]">{h.day}</span>
-              </span>
-            </button>
-          ))
+          hits.map((h, i) => {
+            const prevKind = i > 0 ? hits[i - 1].kind : null;
+            return (
+              <div key={`${h.day}:${h.kind}:${h.featureId ?? h.snippet.slice(0, 24)}`}>
+                {prevKind !== h.kind && (
+                  <div className="px-2.5 pt-2 pb-0.5 text-[10.5px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
+                    {t(KIND_GROUP[h.kind])}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  data-i={i}
+                  className={`block w-full cursor-pointer rounded-lg border-0 p-0 text-left ${i === cursor ? "bg-[var(--tmd-bg-hover)]" : ""}`}
+                  onMouseEnter={() => onCursor(i)}
+                  onClick={() => onPick(h)}
+                >
+                  <span className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px]">
+                    <span className={`flex-none rounded px-1.5 py-px text-[9.5px] font-bold ${KIND_CLS[h.kind]}`}>{t(KIND_LABEL[h.kind])}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      <Hi text={h.snippet} q={query} />
+                    </span>
+                    <span className="flex-none text-[10.5px] text-[var(--tmd-fg-muted)] tabular-nums">{h.day.slice(5)}</span>
+                  </span>
+                </button>
+              </div>
+            );
+          })
         )}
       </div>
       <div className="flex gap-3.5 border-t border-[var(--tmd-border,var(--tmd-border))] px-3.5 py-2 text-[10.5px] text-[var(--tmd-fg-muted)]">

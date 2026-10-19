@@ -9,8 +9,8 @@ import type { FpCardView, FpHit } from "../dataSource";
 import { dayKeyOf, loadDayDetail, searchDays } from "../dataSource";
 import { useFootprintRev, gotoToday } from "../fpTab";
 import { DayFlow } from "./DayFlow";
-import { DiffPanel } from "./DiffPanel";
-import { EvidenceDrawer } from "./EvidenceDrawer";
+import { FpMainDiff } from "./DiffPanel";
+import { FpDrawer } from "./EvidenceDrawer";
 import { FixModals } from "./FixModals";
 import { FpOverlays } from "./FpOverlays";
 import { FpTopbar } from "./FpTopbar";
@@ -28,7 +28,7 @@ export function FootprintView() {
   const ymStr = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
   const [sel, setSel] = useState(today);
   const [range, setRange] = useState<[string, string] | null>(null);
-  const anchorRef = useRef<string | null>(null);
+  const [anchor, setAnchor] = useState<string | null>(null); /* 区间起点(ranging 态左栏提示消费) */
   const [heat, setHeat] = useState<HeatMode>("lines");
   const { month, detail, rangeDetails, setDetail } = useFpData({ ymStr, sel, range, rev });
   const [card, setCard] = useState<FpCardView | null>(null);
@@ -39,6 +39,8 @@ export function FootprintView() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [fixCard, setFixCard] = useState<string | null>(null);
+  const [fixPos, setFixPos] = useState<{ left: number; top: number } | null>(null);
+  const [sessSel, setSessSel] = useState<string | null>(null);
   const [focusIdx, setFocusIdx] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const toastTimer = useRef<number | null>(null);
@@ -67,34 +69,34 @@ export function FootprintView() {
 
   const selectDay = useCallback(
     (day: string, shift: boolean) => {
-      /* 区间中点单日 = 退出区间进当日(原型语义) */
+      /* 区间中点单日 = 退出区间进当日(原型语义);起点已选时再点任意日 = 完成区间 */
       if (range) {
         setRange(null);
-        anchorRef.current = null;
-      } else if (shift && anchorRef.current) {
-        const a = anchorRef.current;
-        setRange(a <= day ? [a, day] : [day, a]);
-        anchorRef.current = null;
+        setAnchor(null);
+      } else if (anchor) {
+        setRange(anchor <= day ? [anchor, day] : [day, anchor]);
+        setAnchor(null);
         setCard(null);
         setFileSel(null);
+        setFocusIdx(-1);
         return;
       } else if (shift) {
-        anchorRef.current = day;
+        setAnchor(day);
         showToast(t("已选区间起点 {day}", { day }));
         return;
       }
-      anchorRef.current = null;
+      setAnchor(null);
       setSel(day);
       setCard(null);
       setFileSel(null);
       setFocusIdx(-1);
     },
-    [range, showToast, setFileSel],
+    [range, anchor, showToast, setFileSel],
   );
 
   const anchorDay = useCallback(
     (day: string) => {
-      anchorRef.current = day;
+      setAnchor(day);
       showToast(t("已选区间起点 {day}", { day }));
     },
     [showToast],
@@ -103,6 +105,8 @@ export function FootprintView() {
   const openCard = useCallback((c: FpCardView) => {
     setCard(c);
     setFileSel(null);
+    setSessSel(c.sessions[0] ?? null);
+    setFocusIdx(-1);
   }, [setFileSel]);
 
   /* ⌘K / 搜索 */
@@ -142,14 +146,14 @@ export function FootprintView() {
         void loadDayDetail(h.day).then((dd) => {
           setDetail(dd);
           const hitCard = h.featureId !== undefined ? dd.cards[h.featureId] : undefined;
-          if (hitCard) setCard(hitCard);
+          if (hitCard) openCard(hitCard);
         });
       } else {
         setCard(null);
       }
       setFileSel(null);
     },
-    [ym, setDetail, setFileSel],
+    [ym, setDetail, setFileSel, openCard],
   );
 
   /* 键盘:j/k/t/1/2/?/esc/方向键(容器聚焦期生效,不抢 composer) */
@@ -159,7 +163,7 @@ export function FootprintView() {
     fixCard,
     card,
     sel,
-    detail,
+    cards: range ? rangeDetails.flatMap((d) => d.cards) : (detail?.cards ?? []),
     focusIdx,
     openSearch,
     closeSearch: () => setSearchOpen(false),
@@ -188,7 +192,7 @@ export function FootprintView() {
         onShiftMonth={shiftMonth}
         onToday={() => {
           setRange(null);
-          anchorRef.current = null;
+          setAnchor(null);
           gotoToday(setYm, setSel);
         }}
         onQuery={setQuery}
@@ -201,8 +205,8 @@ export function FootprintView() {
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-[248px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--tmd-border,var(--tmd-border))] py-3">
           <MonthCal y={ym.y} m={ym.m} cells={month} today={today} sel={sel} range={range} heat={heat} onSelectDay={selectDay} onAnchorDay={anchorDay} />
-          <div className="px-4 text-[10.5px] leading-relaxed text-[var(--tmd-fg-muted)]">
-            {t("区间模式:shift 点起点再点终点 · 右键同效 · 点单日退出")}
+          <div className={`px-4 text-[10.5px] leading-relaxed ${anchor ? "text-[var(--tmd-accent,var(--tmd-accent))]" : "text-[var(--tmd-fg-muted)]"}`}>
+            {anchor ? t("区间模式:再点一天完成选择 · 点单日退出") : t("区间模式:shift 点起点再点终点 · 右键同效 · 点单日退出")}
           </div>
         </aside>
 
@@ -214,49 +218,40 @@ export function FootprintView() {
             query={searchOpen ? query : ""}
             today={today}
             focusIdx={focusIdx}
-            fixCardTitle={fixCard}
             onOpenCard={openCard}
-            onFix={(c) => setFixCard(fixCard === c.title ? null : c.title)}
+            onFix={(c, rect) => {
+              setFixCard(fixCard === c.title ? null : c.title);
+              setFixPos({ left: rect.left, top: rect.bottom });
+            }}
             onManualDigest={() => setDialog({ kind: "manual" })}
           />
-          {/* 主流宽 diff 面板(点抽屉文件行展开) */}
-          <div id="fp-main-diff" className="px-4">
-            {card && fileSel && detail && (
-              <DiffPanel
-                path={fileSel.path}
-                patch={fileSel.patch}
-                loading={fileSel.loading}
-                degraded={fileSel.degraded}
-                engine={fileSel.engine}
-                add={fileSel.add}
-                del={fileSel.del}
-                onOpen={() => openFile(fileSel.path)}
-                onReveal={() => revealFile(fileSel.path)}
-                onClose={() => setFileSel(null)}
-                onGitFallback={() => showToast(t("git 跳转:git_repos_log_range 收口后接提交视图"))}
-              />
-            )}
-          </div>
+          <FpMainDiff
+            fileSel={card && detail ? fileSel : null}
+            onClose={() => setFileSel(null)}
+            onOpenFile={openFile}
+            onRevealFile={revealFile}
+            onGitFallback={() => showToast(t("git 跳转:git_repos_log_range 收口后接提交视图"))}
+          />
         </main>
 
-        <aside className="flex w-[340px] flex-none flex-col border-l border-[var(--tmd-border,var(--tmd-border))]">
-          {card && detail ? (
-            <EvidenceDrawer
-              card={card}
-              detail={detail}
-              query={searchOpen ? "" : query}
-              selPath={fileSel?.path ?? null}
-              onSelectFile={pickFile}
-              onResumeSession={resumeSession}
-              onOpenFile={openFile}
-              onRevealFile={revealFile}
-            />
-          ) : (
-            <div className="flex flex-1 items-center justify-center px-6 text-center text-[12px] text-[var(--tmd-fg-muted)]">
-              {t("点功能卡打开证据抽屉:会话 resume / 文件清单 / diff")}
-            </div>
-          )}
-        </aside>
+        {card && detail && (
+          <FpDrawer
+            card={card}
+            detail={detail}
+            query={searchOpen ? "" : query}
+            selPath={fileSel?.path ?? null}
+            selSess={sessSel}
+            onClose={() => {
+              setCard(null);
+              setFileSel(null);
+            }}
+            onSelectSess={setSessSel}
+            onSelectFile={pickFile}
+            onResumeSession={resumeSession}
+            onOpenFile={openFile}
+            onRevealFile={revealFile}
+          />
+        )}
       </div>
 
       {/* 弹层们 */}
@@ -267,15 +262,20 @@ export function FootprintView() {
         cursor={cursor}
         helpOpen={helpOpen}
         fixCard={fixCard}
+        fixPos={fixPos}
         toast={toast}
         searchInputRef={searchInputRef}
         onQuery={setQuery}
         onCursor={setCursor}
         onPickHit={pickHit}
         onCloseSearch={() => setSearchOpen(false)}
-        onCloseFix={() => setFixCard(null)}
+        onCloseFix={() => {
+          setFixCard(null);
+          setFixPos(null);
+        }}
         onFixAction={(a) => {
           setFixCard(null);
+          setFixPos(null);
           openFixAction(a, fixCard);
         }}
         renameOpen={renaming !== null}

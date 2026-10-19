@@ -23,6 +23,8 @@ export interface FpOverlaysProps {
   cursor: number;
   helpOpen: boolean;
   fixCard: string | null;
+  /** 修正菜单定位(修正按钮 rect);null = 不显示。 */
+  fixPos: { left: number; top: number } | null;
   toast: string | null;
   renameOpen: boolean;
   renameValue: string;
@@ -59,13 +61,20 @@ export function FpOverlays(p: FpOverlaysProps) {
           {HELP_ROWS.map(([key, keys]) => (
             <div key={key} className="flex items-center justify-between px-2.5 py-1 text-[12px] text-[var(--tmd-fg)]">
               <span>{t(key)}</span>
-              <kbd className="font-mono text-[11px] text-[var(--tmd-fg-muted)]">{keys}</kbd>
+              <kbd className="rounded border border-[var(--tmd-border,var(--tmd-border))] border-b-2 bg-[var(--tmd-bg-hover)] px-1.5 py-px font-mono text-[11px] text-[var(--tmd-fg-muted)]">{keys}</kbd>
             </div>
           ))}
         </div>
       )}
-      {p.fixCard && !p.renameOpen && (
-        <div className="absolute bottom-16 left-1/2 z-40 -translate-x-1/2 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-1 shadow-lg">
+      {p.fixCard && !p.renameOpen && p.fixPos && (
+        <div
+          className="absolute z-40 min-w-40 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-1 shadow-lg"
+          style={{
+            left: Math.max(8, p.fixPos.left - 120),
+            /* 4 项菜单 ≈130px;贴视口底时上翻到按钮上方(评审 P1-5) */
+            top: p.fixPos.top + 4 + 138 > window.innerHeight ? Math.max(8, p.fixPos.top - 142) : p.fixPos.top + 4,
+          }}
+        >
           {FIX_ACTIONS.map((a) => (
             <button
               key={a}
@@ -87,7 +96,11 @@ export function FpOverlays(p: FpOverlaysProps) {
             onChange={(e) => p.onRenameValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") p.onRenameSubmit();
-              if (e.key === "Escape") p.onRenameCancel();
+              if (e.key === "Escape") {
+                /* 只取消重命名,不冒泡关抽屉(评审 P1-6) */
+                e.stopPropagation();
+                p.onRenameCancel();
+              }
             }}
             className="w-[220px] rounded-lg border border-[var(--tmd-border,var(--tmd-border))] bg-transparent px-2.5 py-1 text-[12.5px] outline-none focus:border-[var(--tmd-accent,var(--tmd-accent))]"
           />

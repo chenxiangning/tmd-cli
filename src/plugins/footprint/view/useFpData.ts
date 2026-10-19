@@ -52,7 +52,7 @@ export function useFpData({ ymStr, sel, range, rev }: FpDataParams): FpData {
     }
     let alive = true;
     const days: string[] = [];
-    const cur = new Date(range[0]);
+    const cur = new Date(`${range[0]}T12:00:00`);
     while (dayKeyOf(cur) <= range[1] && days.length < 62) {
       days.push(dayKeyOf(cur));
       cur.setDate(cur.getDate() + 1);

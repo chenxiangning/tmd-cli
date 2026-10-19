@@ -29,6 +29,25 @@ export function IcoOpen({ size = 13 }: { size?: number }) {
   );
 }
 
+/** 会话(气泡)图标,功能卡 meta 用。 */
+export function IcoChat({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a8 8 0 1 1-4-6.9" />
+      <path d="M8 11h8M8 15h5" />
+    </svg>
+  );
+}
+
+/** 文件列表图标,功能卡 meta 用。 */
+export function IcoFiles({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7h16M4 12h16M4 17h10" />
+    </svg>
+  );
+}
+
 /** 所在文件夹图标。 */
 export function IcoFolder({ size = 13 }: { size?: number }) {
   return (
@@ -44,7 +63,7 @@ export function FicoButton({ title, onClick, children }: { title: string; onClic
     <button
       type="button"
       title={title}
-      className="rounded p-0.5 leading-none text-[var(--tmd-fg-muted)] opacity-40 transition-colors hover:bg-[var(--tmd-bg-elevated)] hover:text-[var(--tmd-accent,var(--tmd-accent))] hover:opacity-100"
+      className="rounded p-0.5 leading-none text-[var(--tmd-fg-muted)] transition-colors hover:bg-[var(--tmd-bg-elevated)] hover:text-[var(--tmd-accent,var(--tmd-accent))]"
       onClick={(e) => {
         e.stopPropagation();
         onClick();

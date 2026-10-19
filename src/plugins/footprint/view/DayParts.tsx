@@ -4,7 +4,7 @@
  */
 import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail } from "../dataSource";
-import { Hi } from "./bits";
+import { Hi, IcoChat, IcoFiles } from "./bits";
 import { engineColor } from "./engineColor";
 
 function cardStats(detail: FpDayDetail | null, card: FpCardView): { engs: string[]; files: number; plus: number; minus: number } {
@@ -24,7 +24,7 @@ function cardStats(detail: FpDayDetail | null, card: FpCardView): { engs: string
   return { engs, files, plus, minus };
 }
 
-function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpenCard, onFix }: {
+export function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpenCard, onFix }: {
   card: FpCardView;
   origin: "ai" | "user-edited" | "manual" | null;
   detail: FpDayDetail | null;
@@ -33,14 +33,15 @@ function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpe
   query: string;
   focused: boolean;
   onOpenCard: (c: FpCardView) => void;
-  onFix: (c: FpCardView) => void;
+  onFix: (c: FpCardView, rect: DOMRect) => void;
 }) {
   const stats = cardStats(detail, card);
+  const manual = origin === "manual" || origin === "user-edited";
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border bg-[var(--tmd-bg-panel)] transition-shadow hover:shadow-md ${focused ? "border-[var(--tmd-accent,var(--tmd-accent))] ring-1 ring-[var(--tmd-accent,var(--tmd-accent))]" : "border-[var(--tmd-border,var(--tmd-border))]"}`}
+      className={`group relative overflow-hidden rounded-xl border bg-[var(--tmd-bg-panel)] transition-all hover:-translate-y-px hover:border-[var(--tmd-border-strong,var(--tmd-border))] hover:shadow-md ${focused ? "border-[var(--tmd-accent,var(--tmd-accent))] ring-1 ring-[var(--tmd-accent,var(--tmd-accent))]" : "border-[var(--tmd-border,var(--tmd-border))]"}`}
     >
-      <span className="absolute inset-y-0 left-0 w-1 bg-[var(--tmd-accent,var(--tmd-accent))] opacity-60" />
+      <span className={`absolute inset-y-0 left-0 w-1 ${manual ? "bg-[var(--tmd-warn)]" : "bg-[var(--tmd-accent,var(--tmd-accent))]"}`} />
       <div className="flex items-start gap-2 py-3 pr-2 pl-4">
         <button
           type="button"
@@ -51,7 +52,7 @@ function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpe
             <span className="text-[13.5px] font-bold">
               <Hi text={card.title} q={query} />
             </span>
-            <span className={`rounded px-1.5 text-[9.5px] font-semibold ${card.unverified ? "border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] text-[var(--tmd-fg-muted)]" : "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]"}`}>
+            <span className={`rounded px-1.5 text-[9.5px] font-semibold ${card.unverified ? "border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] text-[var(--tmd-fg-muted)]" : manual ? "bg-[color-mix(in_srgb,var(--tmd-warn)_12%,transparent)] text-[var(--tmd-warn)]" : "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]"}`}>
               {card.unverified
                 ? t("会话引用未验证")
                 : origin === "manual"
@@ -60,15 +61,19 @@ function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpe
                     ? t("已修正")
                     : t("AI 归纳")}
             </span>
-            {inRange && <span className="text-[10.5px] text-[var(--tmd-fg-muted)]">{day.slice(5)}</span>}
+            {inRange && (
+              <span className="rounded-full bg-[color-mix(in_srgb,var(--tmd-syntax-tag)_12%,transparent)] px-2 py-px text-[10.5px] font-semibold text-[var(--tmd-syntax-tag)]">
+                {t("{m} 月 {d} 日", { m: Number(day.slice(5, 7)), d: Number(day.slice(8, 10)) })}
+              </span>
+            )}
           </div>
           <div className="mt-1 text-[12.5px] text-[var(--tmd-fg)]">
             <Hi text={card.summary} q={query} />
           </div>
           {card.quote && (
-            <div className="mt-1.5 border-l-2 border-[var(--tmd-accent-weak,var(--tmd-accent-soft))] pl-2 text-[12px] text-[var(--tmd-fg)] italic">
+            <div className="mt-1.5 rounded-r-lg border-l-[3px] border-[var(--tmd-border-strong,var(--tmd-border))] bg-[var(--tmd-bg-hover)] py-1.5 pl-2.5 text-[12px] text-[var(--tmd-fg)] italic">
               「<Hi text={card.quote.text} q={query} />」
-              <span className="ml-1 text-[10.5px] not-italic text-[var(--tmd-fg-muted)]">
+              <span className="mt-0.5 block font-mono text-[10.5px] not-italic text-[var(--tmd-fg-muted)]">
                 —— {card.quote.time} · {t("用户原话锚点")}
               </span>
             </div>
@@ -87,8 +92,14 @@ function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpe
                 </i>
               ))}
             </span>
-            <span>{card.sessions.length} {t("场会话")}</span>
-            <span>{stats.files} {t("文件")}</span>
+            <span className="inline-flex items-center gap-1">
+              <IcoChat />
+              {card.sessions.length} {t("场会话")}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <IcoFiles />
+              {stats.files} {t("文件")}
+            </span>
             <span className="text-[var(--tmd-ok)]">+{stats.plus}</span>
             <span className="text-[var(--tmd-err)]">−{stats.minus}</span>
           </div>
@@ -98,7 +109,7 @@ function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpe
           className="flex-none rounded-md bg-[var(--tmd-bg-hover)] px-2 py-1 text-[11px] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--tmd-bg-elevated)] focus:opacity-100"
           onClick={(e) => {
             e.stopPropagation();
-            onFix(card);
+            onFix(card, e.currentTarget.getBoundingClientRect());
           }}
         >
           {t("修正")} ▾
@@ -120,37 +131,29 @@ export function RawRow({ left, tag, tagColor, text, mono }: { left: string; tag:
   );
 }
 
-/** 区间汇总条(按天聚合 ±;项目横条按 cwd 顶层目录)。 */
-
-export function CardList({ detail, query, focusIdx, fixCardTitle, onOpenCard, onFix }: {
+/** 功能卡流。点卡内容 = 打开证据抽屉;悬停出修正入口。 */
+export function CardList({ detail, query, focusIdx, onOpenCard, onFix }: {
   detail: FpDayDetail;
   query: string;
   focusIdx: number;
-  fixCardTitle: string | null;
   onOpenCard: (c: FpCardView) => void;
-  onFix: (c: FpCardView) => void;
+  onFix: (c: FpCardView, rect: DOMRect) => void;
 }) {
   return (
     <div className="mb-4 flex flex-col gap-2.5">
       {detail.cards.map((c, i) => (
-        <div key={c.title}>
-          <FeatureCard
-            card={c}
-            day={detail.day}
-            inRange={false}
-            query={query}
-            focused={i === focusIdx}
-            origin={detail.cardsOrigin}
-            detail={detail}
-            onOpenCard={onOpenCard}
-            onFix={onFix}
-          />
-          {fixCardTitle === c.title && (
-            <div className="ml-1 mt-1 rounded-lg border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] px-3 py-2 text-[11px] text-[var(--tmd-fg-muted)]">
-              {t("重命名 / 标记为无关 / 合并 / 拆分 直接写修正层(.user.json)· 手动补归纳建新卡")}
-            </div>
-          )}
-        </div>
+        <FeatureCard
+          key={`${detail.day}:${i}`}
+          card={c}
+          day={detail.day}
+          inRange={false}
+          query={query}
+          focused={i === focusIdx}
+          origin={detail.cardsOrigin}
+          detail={detail}
+          onOpenCard={onOpenCard}
+          onFix={onFix}
+        />
       ))}
     </div>
   );

@@ -10,13 +10,11 @@ import { RawRow } from "./DayParts";
 export function RangeBanner({ details }: { details: FpDayDetail[] }) {
   let plus = 0;
   let minus = 0;
-  let sess = 0;
   const proj = new Map<string, { plus: number; minus: number }>();
   for (const d of details) {
     const tt = dayTotals(d.rollup);
     plus += tt.plus;
     minus += tt.minus;
-    sess += tt.sessions;
     if (!d.rollup) continue;
     for (const [path, stat] of Object.entries(d.rollup.files)) {
       const cwd = stat.refs.map((sid) => d.rollup?.sessions[sid]?.cwd).find(Boolean) ?? "";
@@ -28,11 +26,17 @@ export function RangeBanner({ details }: { details: FpDayDetail[] }) {
     }
   }
   const total = Math.max(1, plus + minus);
-  const colors = ["var(--tmd-accent)", "var(--tmd-accent)", "var(--tmd-ok)", "#d97757"];
+  const colors = ["var(--tmd-accent)", "var(--tmd-syntax-tag)", "var(--tmd-ok)", "#d97757"];
   return (
-    <div className="mb-3 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-3">
-      <div className="mb-1 text-[11px] font-bold text-[var(--tmd-fg-muted)]">
-        {t("区间汇总")} <span className="font-normal">{t("· 点月历任意单日退出区间")}</span>
+    <div
+      className="mb-3 rounded-xl p-3"
+      style={{
+        background: "color-mix(in srgb, var(--tmd-syntax-tag) 10%, transparent)",
+        border: "1px solid color-mix(in srgb, var(--tmd-syntax-tag) 25%, transparent)",
+      }}
+    >
+      <div className="mb-1 text-[12.5px] font-semibold">
+        {t("区间汇总")} <span className="ml-1 font-normal text-[11.5px] text-[var(--tmd-fg-muted)]">{t("· 点月历任意单日退出区间")}</span>
       </div>
       <div className="mb-2 flex flex-wrap gap-3 text-[12px]">
         {[...proj.entries()].map(([name, v]) => (
@@ -41,7 +45,7 @@ export function RangeBanner({ details }: { details: FpDayDetail[] }) {
           </span>
         ))}
       </div>
-      <div className="flex h-2 overflow-hidden rounded-full bg-[var(--tmd-bg-hover)]">
+      <div className="flex h-2 overflow-hidden rounded-full">
         {[...proj.entries()].map(([name, v], i) => (
           <i
             key={name}
@@ -49,12 +53,6 @@ export function RangeBanner({ details }: { details: FpDayDetail[] }) {
             style={{ width: `${((v.plus + v.minus) / total * 100).toFixed(1)}%`, background: colors[i % colors.length] }}
           />
         ))}
-      </div>
-      <div className="mt-1.5 flex gap-2 text-[11px] text-[var(--tmd-fg-muted)]">
-        <span>{t("{n} 天", { n: details.length })}</span>
-        <span>{t("{n} 场", { n: sess })}</span>
-        <span className="text-emerald-600">+{plus}</span>
-        <span className="text-red-500">−{minus}</span>
       </div>
     </div>
   );
@@ -68,7 +66,7 @@ export function FallbackList({ detail, ungrouped, projOrder, onManualDigest }: {
   onManualDigest: () => void;
 }) {
   return (
-    <div className="mb-4 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-3">
+    <div className="mb-4 rounded-xl border border-dashed border-[var(--tmd-border-strong,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-3">
       <div className="mb-1 text-[12.5px] font-bold">
         {t("该日无功能归纳")}
         <span className="ml-2 rounded bg-[var(--tmd-bg-hover)] px-1.5 py-px text-[10px] font-normal text-[var(--tmd-fg-muted)]">
@@ -130,7 +128,7 @@ export function DayTail({ detail, hasFeatures, ungrouped }: {
           <div className="mb-2 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
             {t("Git 硬证据(提交即权威,不受账本清理影响)")}
           </div>
-          <div className="mb-4 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] px-3 py-2">
+          <div className="mb-4">
             {detail.commits.map((c) => (
               <RawRow key={c.hash} left={c.time.slice(11, 16)} tag="git" tagColor="var(--tmd-fg-muted)" text={`${c.hash} ${c.subject}`} mono />
             ))}
@@ -143,7 +141,7 @@ export function DayTail({ detail, hasFeatures, ungrouped }: {
       )}
 
       {detail.scanFailed && (
-        <div className="text-[11px] text-amber-600">
+        <div className="text-[11px] text-[var(--tmd-warn)]">
           {t("部分引擎会话清单扫描失败,当日会话数可能偏少")}
         </div>
       )}

@@ -28,7 +28,16 @@ function Shell({
     bodyRef.current?.querySelector("input")?.focus();
   }, []);
   return (
-    <div className="absolute bottom-14 left-1/2 z-40 w-[380px] -translate-x-1/2 overflow-hidden rounded-xl border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] shadow-[var(--tmd-shadow-popover,0_8px_24px_rgba(0,0,0,0.35))]">
+    <div
+      className="absolute bottom-14 left-1/2 z-40 w-[380px] -translate-x-1/2 overflow-hidden rounded-xl border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] shadow-[var(--tmd-shadow-popover,0_8px_24px_rgba(0,0,0,0.35))]"
+      onKeyDown={(e) => {
+        /* 最上层弹层吃掉 Escape:关弹层,不冒泡连关抽屉(评审 P1-6) */
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+    >
       <div className="border-b border-[var(--tmd-border)] px-4 pt-3 pb-2.5">
         <div className="text-[13px] font-bold text-[var(--tmd-fg)]">{title}</div>
         {hint && <div className="mt-0.5 text-[11px] text-[var(--tmd-fg-muted)]">{hint}</div>}

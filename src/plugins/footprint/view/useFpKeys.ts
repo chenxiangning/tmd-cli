@@ -5,7 +5,7 @@
 import { useCallback } from "react";
 import type { KeyboardEvent } from "react";
 import { dayKeyOf } from "../dataSource";
-import type { FpCardView, FpDayDetail } from "../dataSource";
+import type { FpCardView } from "../dataSource";
 import type { HeatMode } from "./MonthCal";
 
 export interface FpKeysParams {
@@ -14,7 +14,8 @@ export interface FpKeysParams {
   fixCard: string | null;
   card: FpCardView | null;
   sel: string;
-  detail: FpDayDetail | null;
+  /** 当前可键盘导航的扁平卡表(日视图 = 当日卡;区间 = 区间全部卡,评审 P1-1)。 */
+  cards: FpCardView[];
   focusIdx: number;
   openSearch: () => void;
   closeSearch: () => void;
@@ -43,7 +44,7 @@ export function useFpKeys(p: FpKeysParams): (e: KeyboardEvent) => void {
       }
       if (e.key === "Escape") {
         if (p.searchOpen) p.setSearchOpen(false);
-        else if (p.helpOpen) p.setHelpOpen((v) => !v);
+        else if (p.helpOpen) p.setHelpOpen(() => false);
         else if (p.fixCard) p.setFixCard(null);
         else if (p.card) {
           p.setCard(null);
@@ -63,11 +64,11 @@ export function useFpKeys(p: FpKeysParams): (e: KeyboardEvent) => void {
         p.selectDay(dayKeyOf(d), false);
       } else if (e.key === "j" || e.key === "k") {
         e.preventDefault();
-        const n = p.detail?.cards.length ?? 0;
+        const n = p.cards.length;
         if (n === 0) return;
         p.setFocusIdx((prev) => (prev < 0 ? 0 : Math.max(0, Math.min(n - 1, e.key === "j" ? prev + 1 : prev - 1))));
-      } else if (e.key === "Enter" && p.focusIdx >= 0 && p.detail?.cards[p.focusIdx]) {
-        p.openCard(p.detail.cards[p.focusIdx]);
+      } else if (e.key === "Enter" && p.focusIdx >= 0 && p.cards[p.focusIdx]) {
+        p.openCard(p.cards[p.focusIdx]);
       } else if (e.key === "t") {
         p.setRange(null);
         const d = new Date();

@@ -5,6 +5,7 @@
  */
 import { ipc, type CkptPatch } from "@kernel/ipc";
 import { collectSessionRowsChecked, type DaySessionRow } from "@plugins/workbench/journal/daySessions";
+import { dailyPaths } from "@plugins/workbench/journal/journalFiles";
 import { getWorkspaces } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { resolveDefaultOpenWithFor } from "@kernel/openWith";
@@ -72,8 +73,12 @@ function knownSessionIds(rollup: FpDay | null, rows: DaySessionRow[]): Set<strin
   return ids;
 }
 
+/* journal 产物路径与写侧 dailyPaths 同源(旧硬编码 workbench/journal/daily 前缀是死路径,
+ * article/digest 在真机恒 null;2026-10-20 评审顺手修) */
 async function journalPath(kind: "article" | "digest", day: string): Promise<string> {
-  return `${await ipc.configDir()}/workbench/journal/daily/${kind}/${day}.md`;
+  const [y, m, d] = day.split("-").map(Number);
+  const paths = await dailyPaths();
+  return kind === "article" ? paths.article(y, m, d) : paths.digest(y, m, d);
 }
 
 async function readTextOrNull(path: string): Promise<string | null> {
@@ -218,12 +223,19 @@ export async function loadPatch(cwd: string, batchId: string, path: string): Pro
 
 export type FpHit = SearchHit;
 
-/** 四来源搜索(当月 ± 前后月;按日倒序,上限 40)。 */
+/** 四来源搜索(当月 ± 前后月;kind 主序稳定归并后按日倒序,上限 40)。
+ *  归并原因:摊平序按日交错,SearchPop 组头渲染要求同 kind 相邻(评审 P1-11)。 */
+const HIT_KIND_ORDER: Record<FpHit["kind"], number> = { card: 0, quote: 1, article: 2, path: 3 };
+
 export async function searchDays(query: string): Promise<FpHit[]> {
   const byDay = await querySearch(query);
   const out: FpHit[] = [];
   for (const day of Object.keys(byDay).sort().reverse()) out.push(...byDay[day]);
-  return out.slice(0, 40);
+  return out
+    .map((h, i) => ({ h, i }))
+    .sort((a, b) => HIT_KIND_ORDER[a.h.kind] - HIT_KIND_ORDER[b.h.kind] || a.i - b.i)
+    .map(({ h }) => h)
+    .slice(0, 40);
 }
 
 /* ── 打开文件/所在文件夹(真实通道:既有 open-with / reveal IPC) ── */

@@ -8,8 +8,15 @@ import type { HeatCell } from "../dataSource";
 /** 热力口径:按改动量 / 按会话数。 */
 export type HeatMode = "lines" | "sessions";
 
-/** 热力五档色(弱 → 强;原型 HEAT_SCALE)。 */
-const HEAT_SCALE = ["var(--tmd-border)", "var(--tmd-accent-soft)", "var(--tmd-accent-soft)", "var(--tmd-accent)", "var(--tmd-accent)"];
+/** 热力五档色(弱 → 强;原型 HEAT_SCALE 蓝阶,accent 阶)。
+ * 整格不染色,热力走格底 14×3 色条,与 today/sel/区间高亮解耦(原型语义)。 */
+const HEAT_SCALE = [
+  "var(--tmd-border)",
+  "color-mix(in srgb, var(--tmd-accent, #3370ff) 30%, transparent)",
+  "color-mix(in srgb, var(--tmd-accent, #3370ff) 50%, transparent)",
+  "color-mix(in srgb, var(--tmd-accent, #3370ff) 72%, transparent)",
+  "var(--tmd-accent, #3370ff)",
+];
 
 const DOW_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
 
@@ -67,20 +74,20 @@ export function MonthCal({ y, m, cells, today, sel, range, heat, onSelectDay, on
   }
 
   return (
-    <div className="flex flex-col gap-2 px-3">
+    <div className="flex h-full flex-col gap-2 px-3">
       <div className="text-[11px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
         {t("月历")} <span className="font-normal">{t("热力点 = 当日强度")}</span>
       </div>
       <div className="grid grid-cols-7 gap-1">
         {DOW_LABELS.map((d) => (
-          <div key={d} className="text-center text-[10px] text-[var(--tmd-fg-muted)]">
+          <div key={d} className="text-center text-[10px] font-semibold text-[var(--tmd-fg-muted)]">
             {d}
           </div>
         ))}
         {cellsGrid.map((c) => {
           if (!c.day) {
             return (
-              <div key={c.key} className="flex h-9 items-center justify-center rounded text-[11px] text-[var(--tmd-fg-muted)]">
+              <div key={c.key} className="flex h-9 items-center justify-center rounded text-[11px] text-[var(--tmd-fg-muted)] opacity-45">
                 {c.d}
               </div>
             );
@@ -90,23 +97,28 @@ export function MonthCal({ y, m, cells, today, sel, range, heat, onSelectDay, on
           const tier = v === 0 ? -1 : Math.min(3, Math.floor((v / max) * 4));
           const inRange = range !== null && day >= range[0] && day <= range[1];
           const edge = range !== null && (day === range[0] || day === range[1]);
-          const cls = [
-            "relative flex h-9 cursor-pointer select-none items-center justify-center rounded-md border-0 p-0 text-[11.5px] transition-colors hover:ring-1 hover:ring-[var(--tmd-accent,var(--tmd-accent))]",
-            day === today && "ring-1 ring-[var(--tmd-accent,var(--tmd-accent))]",
-            day === sel && range === null && "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] font-bold text-[var(--tmd-accent,var(--tmd-accent))]",
-            inRange && "bg-[var(--tmd-bg-hover)]",
-            edge && "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] font-bold",
-          ]
-            .filter(Boolean)
-            .join(" ");
+          const selected = day === sel && range === null;
+          /* 分支互斥选定,杜绝同组工具类冲突(边框色/hover 底各归各分支;评审 P0-1/P1-8) */
+          let cls: string;
+          if (selected) {
+            cls = "rounded-md border-[var(--tmd-accent,var(--tmd-accent))] bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] font-bold text-[var(--tmd-accent,var(--tmd-accent))] hover:bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))]";
+          } else if (day === today) {
+            cls = "rounded-md border-[var(--tmd-accent,var(--tmd-accent))] font-semibold text-[var(--tmd-accent,var(--tmd-accent))] hover:bg-[var(--tmd-bg-hover)]";
+          } else if (edge) {
+            cls = "rounded-md border-transparent bg-[var(--tmd-accent,var(--tmd-accent))] font-bold text-white hover:bg-[var(--tmd-accent,var(--tmd-accent))]";
+          } else if (inRange) {
+            cls = "rounded-none border-transparent bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))]";
+          } else {
+            cls = "rounded-md border-transparent hover:bg-[var(--tmd-bg-hover)]";
+          }
+          cls = `relative flex h-9 cursor-pointer select-none items-center justify-center border text-[11.5px] transition-colors ${cls}`;
           return (
             <button
               type="button"
               key={day}
               className={cls}
-              style={tier >= 0 && day !== sel && !inRange ? { background: HEAT_SCALE[tier + 1] } : undefined}
               title={`${day} · ${v > 0 ? (heat === "lines" ? `±${v}` : t("{n} 场", { n: v })) : t("无记录")}`}
-              onClick={(e) => (e.shiftKey ? onAnchorDay(day) : onSelectDay(day, e.shiftKey))}
+              onClick={(e) => onSelectDay(day, e.shiftKey)}
               onContextMenu={(e) => {
                 e.preventDefault();
                 onAnchorDay(day);
@@ -115,8 +127,11 @@ export function MonthCal({ y, m, cells, today, sel, range, heat, onSelectDay, on
               {c.d}
               {v > 0 && (
                 <span
-                  className="absolute right-1 bottom-0.5 h-1.5 w-1.5 rounded-full"
-                  style={{ background: HEAT_SCALE[Math.min(4, tier + 1)] }}
+                  className="absolute bottom-[3px] h-[3px] w-3.5 rounded-full"
+                  style={{
+                    /* 高亮格随前景反差(edge 白字→白条,sel/区间→文字色);常态走热力档色(评审 P1-9) */
+                    background: selected || inRange ? "color-mix(in srgb, currentColor 55%, transparent)" : HEAT_SCALE[tier + 1],
+                  }}
                 />
               )}
             </button>
@@ -125,23 +140,23 @@ export function MonthCal({ y, m, cells, today, sel, range, heat, onSelectDay, on
       </div>
       <div className="flex items-center gap-1 text-[10px] text-[var(--tmd-fg-muted)]">
         {t("弱")}
-        {HEAT_SCALE.slice(1).map((c) => (
-          <i key={c} className="inline-block h-2.5 w-3.5 rounded-sm" style={{ background: c }} />
+        {HEAT_SCALE.slice(1).map((c, i) => (
+          <i key={i} className="inline-block h-[3px] w-3.5 rounded-full" style={{ background: c }} />
         ))}
         {t("强")}
       </div>
-      <div className="mt-1 flex flex-col gap-1 rounded-lg bg-[var(--tmd-bg-hover)] p-2 text-[11.5px]">
+      <div className="mt-auto flex flex-col gap-1 border-t border-[var(--tmd-border,var(--tmd-border))] pt-2 text-[11.5px]">
         <div className="flex justify-between">
           <span className="text-[var(--tmd-fg-muted)]">{t("活跃天数")}</span>
-          <b>{t("{n} 天", { n: statDays })}</b>
+          <b className="font-medium tabular-nums">{t("{n} 天", { n: statDays })}</b>
         </div>
         <div className="flex justify-between">
           <span className="text-[var(--tmd-fg-muted)]">{t("会话")}</span>
-          <b>{t("{n} 场", { n: statSess })}</b>
+          <b className="font-medium tabular-nums">{t("{n} 场", { n: statSess })}</b>
         </div>
         <div className="flex justify-between">
           <span className="text-[var(--tmd-fg-muted)]">{t("改动行")}</span>
-          <b className="font-mono">
+          <b className="font-mono font-medium tabular-nums">
             <span className="text-emerald-600">+{statPlus}</span> / <span className="text-red-500">−{statMinus}</span>
           </b>
         </div>
