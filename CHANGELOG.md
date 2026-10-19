@@ -33,11 +33,12 @@
 - 通知会话级静音/暂停(notify+kernel `sessionMutes.ts`):三档——静音通知(turnEnd/exit/quota 静,ask 穿透=安全默认)/完全静音(含 ask,askRing 可放行)/静音至回合结束(snooze,turnSettled 自清,exit 穿透防永挂);三段身份 key(cliSessionId 跨 resume 存活),存储仿 sessionPins 全套(双实例 mutedAt 合并+sanitize 帽 2000);闸插点=四路径 record 之后 send 之前,quota 腿绝不写 quotaSeen(跨周期去重不受伤),ask 音/回合音同步同闸;入口=两套会话右键菜单+通知中心行钮+设置页「静音中的会话」概览卡;流水照记全量语义不变
 - 转录批量导出与活会话快照(session-viewer+workspace):抽 `exportMdTo` 落盘内核;SessionManage 多选批量条「导出」——pickDirectory 选目录一次落 N 个 md(帽 50 超限拒开跑提示分批,串行进度可取消,失败列表归因 no-adapter/unreadable,write-failed 中止已写留存,文件名 slug+日期防撞 -2 递增);会话右键「导出转录快照」=当前磁盘快照(041 明示后补项,活会话仅磁盘绑定会话显示,toast 注明快照时点);零 Rust
 - 首页页尾改版(welcome):RESUME 列与 TOKENS 用量区摘除(TokenDashboard/tokens.ts/welcome-footer.css 全删),换 QUOTA 套餐水位面板——真额度环卡 + claude 窗口推算卡(可推算)+ 7 天窗并列窗口块,汇总条取跨卡跨窗口最近重置;查不到的卡不渲染,空态一行提示
-- WebGL 终端渲染基准页(bench,独立入口):canvas vs @xterm/addon-webgl 同参对照三场景,分帧喂养测渲染吞吐,中位数 3 轮取中+UA/环境键缓存基线,判定线 5%;独立 rollup 入口不进主 chunk(devDep 零进主包,产物 dist/bench.html 单独可达)
+- WebGL 终端渲染基准页(bench,独立入口):canvas vs @xterm/addon-webgl 同参对照三场景,分帧喂养测渲染吞吐,中位数 3 轮取中+UA/环境键缓存基线,判定线 5%;独立 rollup 入口不进主 chunk(devDep 零进主包,产物 dist/bench/index.html 单独可达)
 - 每日工作足迹插件(footprint,侧栏入口「每日足迹」):月历热力(按改动量/按会话数双口径,shift/右键选区间)+ 日视图功能卡流(AI 归纳卡:标题/一句话/用户原话锚点/meta 行)+ 证据抽屉(会话 resume/文件清单/主流宽 diff 面板)+ ⌘K 四来源反查(功能卡/日报/用户原话/文件路径)。数据链:L1 rollup 挂 checkpoints 封口事件(`ckptTurnSealed`)按月落盘单文件单飞串行写,L3 功能卡由 journal 生成会话顺手直写(枚举校验防编造 + Chain-of-Key 防漂移 + <80% 通过率升级管线 B 闸);修正层二期——合并/拆分/手动补归纳/改名写 `.user.json` 覆盖层(读侧双档探测来源徽标:手动/已修正/AI 归纳),补归纳允许不带会话引用;区间视图按日分组卡流 + 汇总条;视图按 v2 原型校准(月历热力色条/证据抽屉按需渲染/修正菜单跟随定位/键盘 j/k 导航跨区间扁平卡表);架构契约 `docs/architecture/30-footprint.md`
 
 ### 修复
 
+- 打包产物丢主入口(0.4.0 首发实证,首发包体启动白屏 `asset not found: index.html`):bench 基准页给 `rollupOptions.input` 只配了 bench 一项,而 vite 显式 input 会整体替换默认入口 → dist 只产出基准页,主应用 index.html 与全部业务 chunk 缺席,Tauri 包体启动即白屏且包体骤减;主入口在 input 显式占回一行,build 链尾补 `scripts/check-dist.mjs` 产物断言防再犯
 - 集成期:workspace 组折叠 `toggleGroup` 压缩时误写工作区折叠 map(点组头错折工作区),回归组 id 语义
 - quota 告警分支绕过 `shouldNotify`:免打扰窗此前不拦 quota OS 通知(真缺口);现 NotifyKind 增 "quota" 走 dispatch 同款三闸——免打扰/聚焦静默拦 OS 通知,应用内流水照记
 - 二轮发版评审收口:通知 blur 补扫死路径(ask 被闸拦后仍记去重集,失焦永不补发)、预设库非缺失读错误拒写盘防清库、docgen 归档删除收进单写者队列(裸写索引被内存单权威整体重写静默复活)、claude 推算卡被 note-only 聚合误判压制、恢复预览 revert 挂载现发 dry-run 防跨弹层陈旧、互跳同文多轮按出现序定位(正向 chip 轮号对齐防空批挤位,反向「看对话」不再恒落最新)、冻结快照卸载先冲刷攒帧防重开跳字、体检超时并行收束(挂死类目不再 240s 串行)、索引扫描中止后在途拍不写态、路径点击括号包裹死链与绝对路径 `..` 越区归一、搜索浮层 IME 组合态 Enter/Esc 误触发、workbench 归档撤退残留(问一句/DocGen 生成面改喂可见集)、结构化 turnEnd 通知补免打扰闸
