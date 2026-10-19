@@ -496,6 +496,10 @@ export const ipc = {
    *  结果按 path 排序,root 是仓时首个即 root;超 32 截断(truncated)。 */
   gitReposScan: (root: string, maxDepth: number) =>
     invoke<GitRepoScanResult>("git_repos_scan", { root, maxDepth }),
+  /** 日期窗多仓提交清单(footprint Git 硬证据区;单仓失败整仓省略) */
+  gitCommitsRange: (root: string, sinceIso: string, untilIso: string) =>
+    invoke<{ repo: string; hash: string; subject: string; time: string }[]>(
+      "git_repos_log_range", { root, since: sinceIso, until: untilIso }),
   /** 忽略项前缀(git status --ignored 口径;整体忽略目录折叠带尾斜杠,如 "node_modules/")。
    *  侧栏工作区文件浏览器降显用;非仓报错由调用方兜底空集。 */
   gitIgnoredPrefixes: (cwd: string) => invoke<string[]>("git_ignored_prefixes", { cwd }),

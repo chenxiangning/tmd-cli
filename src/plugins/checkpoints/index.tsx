@@ -15,6 +15,7 @@ import { ClipboardText, SealCheck } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import {
   KernelTopics,
+  type CkptTurnSealedEvent,
   type FileEditEvent,
   type PromptSentEvent,
   type TurnSettledEvent,
@@ -146,7 +147,14 @@ export const checkpointsPlugin: Plugin = {
     const sealWith = (sessionId: string) => {
       const id = identity(sessionId);
       if (!id) return;
-      const seal = () => sealTurn(id.cwd, id.cliId, id.tmdId);
+      const seal = () =>
+        sealTurn(id.cwd, id.cliId, id.tmdId, (cwd, cliId, tmdId) =>
+          ctx.events.emit<CkptTurnSealedEvent>(KernelTopics.ckptTurnSealed, {
+            cwd,
+            sessionId: cliId,
+            tmdSessionId: tmdId,
+          }),
+        );
       if (diskEditSource(sessionId)) void pullSessionEdits(sessionId).then(seal, seal);
       else seal();
     };

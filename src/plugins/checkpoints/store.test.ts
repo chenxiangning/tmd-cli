@@ -9,7 +9,6 @@ import type { CkptBatch } from "@kernel/ipc";
 
 const ipcMock = vi.hoisted(() => ({
   checkpointList: vi.fn(),
-  checkpointSealDead: vi.fn(),
   checkpointBatchDiff: vi.fn(),
   checkpointAnchor: vi.fn(),
 }));
@@ -131,31 +130,6 @@ describe("refreshBatches(账本单查询)", () => {
   });
 });
 
-describe("sealDeadTurns(强退恢复)", () => {
-  it("按 cwd 携带宽限触发一次;同 cwd 不重复;失败移除标记允许重收", async () => {
-    ipcMock.checkpointSealDead.mockResolvedValue(2);
-    await store.sealDeadTurns(CWD);
-
-    expect(ipcMock.checkpointSealDead).toHaveBeenCalledWith(CWD, 60_000);
-    await store.sealDeadTurns(CWD);
-    expect(ipcMock.checkpointSealDead).toHaveBeenCalledTimes(1);
-
-    /* 失败:标记回退,下次再收(重试语义与 pruneRetention 一致) */
-    ipcMock.checkpointSealDead.mockRejectedValue("E_IO: boom");
-    await store.sealDeadTurns("/other");
-    await store.sealDeadTurns("/other");
-    expect(ipcMock.checkpointSealDead).toHaveBeenCalledTimes(3);
-
-    ipcMock.checkpointSealDead.mockResolvedValue(0);
-    await store.sealDeadTurns("/other");
-    expect(ipcMock.checkpointSealDead).toHaveBeenCalledTimes(4);
-  });
-
-  it("空 cwd 短路,不发起 IPC", async () => {
-    await store.sealDeadTurns("");
-    expect(ipcMock.checkpointSealDead).not.toHaveBeenCalled();
-  });
-});
 
 describe("diffCache(批 diff 懒加载缓存)", () => {
   /** 纯微任务排空(loadDiff 链仅一层 then/catch,无真实计时器)。 */

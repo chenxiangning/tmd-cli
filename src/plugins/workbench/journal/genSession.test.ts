@@ -1,5 +1,6 @@
 /** genSession 结算测试 —— 轮询捕获成文 8s 后成功/超时失败/假结算由轮询收口/补提交 CR 走 synthetic;无头单发
- *  (prompt 落盘 @file 与 stdin 递送)三态。重依赖全 mock;文件内不 resetModules(会丢 mock 登记),跨测隔离靠唯一 dayKey。 */
+ *  (prompt 落盘 @file 与 stdin 递送)三态。重依赖全 mock;文件内不 resetModules(会丢 mock 登记),跨测隔离靠唯一 dayKey。
+ *  file-size-exempt:vi.mock 为文件级 hoisted 不可跨文件共享,拆 describe 须整份复制 ~110 行 mock 形状,得不偿失。 */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { host } from "@kernel/host";
 import { cancelTask, enqueueTask, getGenTasks } from "./taskQueue";
@@ -39,6 +40,7 @@ vi.mock("./journalFiles", () => ({
     article: (y: number, m: number, d: number) => `/fake/${y}-${m}-${d}.md`,
     digest: (y: number, m: number, d: number) => `/fake/digest-${y}-${m}-${d}.md`,
     prompt: (y: number, m: number, d: number) => `/fake/prompt-${y}-${m}-${d}.md`,
+    featureCards: (y: number, m: number, d: number) => `/fake/footprint/features/${y}-${m}-${d}.json`,
   })),
   dayKey: (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
   readText: vi.fn(async () => ""),
@@ -158,6 +160,7 @@ describe("genSession 结算", () => {
       undefined,
       { path: "/fake/digest-2026-9-12.md", coveredIds: ["s1"] },
       [], /* 项目分组:store 桩空快照 → 零分组 */
+      "/fake/footprint/features/2026-9-12.json", /* 功能卡契约段路径 */
     );
     /* 收口任务(终态释放单并发队列,不饿死后续用例)。 */
     readTextMock.mockResolvedValue("# 文章");
@@ -196,6 +199,7 @@ describe("genSession 结算", () => {
       2026, 9, 13, expect.anything(), false, "/fake/2026-9-13.md", undefined, /* 首读钉 null 后 existing 同源为 false */
       { path: "/fake/digest-2026-9-13.md", coveredIds: ["s1"] },
       [{ name: "甲项目", titles: ["甲会话"] }],
+      "/fake/footprint/features/2026-9-13.json",
     );
     const digest = vi.mocked(writeText).mock.calls.find((c) => c[0] === "/fake/digest-2026-9-13.md")?.[1] as string;
     expect(digest).toContain("## 项目:甲项目");
@@ -223,6 +227,7 @@ describe("genSession 结算", () => {
     expect(taskOf(key)?.st).toBe("done");
     expect(vi.mocked(buildGenPrompt)).toHaveBeenLastCalledWith(
       2026, 9, 14, expect.anything(), false, "/fake/2026-9-14.md", undefined, expect.anything(), [], /* store 拒 → 零分组;摘录照建 */
+      "/fake/footprint/features/2026-9-14.json",
     );
     vi.mocked(collectSessionRowsBatched).mockResolvedValue([]);
     wb.load = async () => {};

@@ -98,6 +98,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitStatus: "ipc.git",
   gitStatusBatch: "ipc.git",
   gitReposScan: "ipc.git",
+  gitCommitsRange: "ipc.git",
   gitIgnoredPrefixes: "ipc.git",
   gitTotals: "ipc.git",
   gitAheadBehind: "ipc.git",

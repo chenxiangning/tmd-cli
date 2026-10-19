@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>tmd-cli · 每日工作足迹 · 交互原型 v2</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --surface:#ffffff; --surface-2:#f2f3f5;
+    --border:#e4e6eb; --border-strong:#d0d4dc;
+    --fg:#1f2329; --fg-2:#646a73; --fg-3:#8f959e;
+    --accent:#3370ff; --accent-weak:#e8efff;
+    --green:#2b9e68; --green-weak:#e2f4ec;
+    --red:#d54941; --red-weak:#fdeceb;
+    --amber:#b8860b; --amber-weak:#fdf3e0;
+    --violet:#7a5af8; --violet-weak:#efeafd;
+    --mono:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    --shadow-1:0 1px 2px rgba(31,35,41,.05);
+    --shadow-2:0 4px 14px rgba(31,35,41,.09);
+    --shadow-3:0 10px 34px rgba(31,35,41,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--fg);font:13px/1.6 var(--sans);overflow:hidden}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d4d7dd;border-radius:6px;border:2px solid transparent;background-clip:content-box}
+  kbd{font:11px var(--mono);background:var(--surface-2);border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:4px;padding:0 5px;color:var(--fg-2)}
+
+  /* ============ 顶栏 ============ */
+  .topbar{height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--surface);border-bottom:1px solid var(--border);position:relative;z-index:50}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;white-space:nowrap}
+  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .nav-arrows{display:flex;gap:2px}
+  .icon-btn{width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--fg-2);transition:background .15s}
+  .icon-btn:hover{background:var(--surface-2);color:var(--fg)}
+  .icon-btn svg{width:16px;height:16px}
+  .month-title{font-size:13.5px;font-weight:600;min-width:96px;text-align:center}
+  .today-btn{font-size:12px;color:var(--accent);padding:3px 10px;border-radius:6px;transition:background .15s}
+  .today-btn:hover{background:var(--accent-weak)}
+  .searchbox{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;width:320px;color:var(--fg-3);cursor:pointer;transition:border-color .15s, background .15s}
+  .searchbox:hover,.searchbox:focus-within{border-color:var(--border-strong);background:var(--surface)}
+  .searchbox svg{width:14px;height:14px;flex:none}
+  .searchbox input{border:none;outline:none;background:none;font:inherit;flex:1;color:var(--fg);min-width:0}
+  .searchbox input::placeholder{color:var(--fg-3)}
+  .seg{display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:2px}
+  .seg button{padding:3px 10px;border-radius:6px;font-size:12px;color:var(--fg-2);transition:all .15s}
+  .seg button.on{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:var(--shadow-1)}
+
+  /* ============ 总布局 ============ */
+  .layout{display:grid;grid-template-columns:272px 1fr;height:calc(100vh - 52px)}
+  .layout.drawer-open{grid-template-columns:272px 1fr 400px}
+
+  /* ============ 左:月历导航 ============ */
+  .rail{border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;overflow-y:auto}
+  .rail-section{padding:14px 14px 10px}
+  .rail-label{font-size:11.5px;color:var(--fg-3);font-weight:600;letter-spacing:.4px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+  .cal .dow{font-size:10.5px;color:var(--fg-3);text-align:center;padding:2px 0;font-weight:600}
+  .cal .day{position:relative;aspect-ratio:1;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;color:var(--fg-2);cursor:pointer;transition:background .15s;border:1px solid transparent}
+  .cal .day:hover{background:var(--surface-2)}
+  .cal .day.other{color:var(--fg-3);opacity:.45}
+  .cal .day.sel{background:var(--accent-weak);border-color:var(--accent);color:var(--accent);font-weight:700}
+  .cal .day.today:not(.sel){border-color:var(--accent);color:var(--accent);font-weight:600}
+  .cal .day.range{background:var(--accent-weak);border-radius:0}
+  .cal .day.range.edge{border-radius:7px;background:var(--accent);color:#fff;font-weight:700}
+  .cal .heat{position:absolute;bottom:3px;width:14px;height:3px;border-radius:2px}
+  .cal .day.sel .heat,.cal .day.range .heat{background:rgba(255,255,255,.85)!important}
+  .legend{display:flex;gap:5px;align-items:center;font-size:10.5px;color:var(--fg-3);margin-top:8px}
+  .legend i{width:14px;height:3px;border-radius:2px;display:inline-block}
+  .rail-stat{padding:10px 14px;border-top:1px solid var(--border);margin-top:auto}
+  .rail-stat .row{display:flex;justify-content:space-between;font-size:12px;color:var(--fg-2);padding:2px 0}
+  .rail-stat .row b{color:var(--fg);font-weight:600;font-variant-numeric:tabular-nums}
+  .range-hint{font-size:11px;color:var(--accent);padding:6px 14px 0;display:none}
+  .ranging .range-hint{display:block}
+
+  /* ============ 主流 ============ */
+  .main{overflow-y:auto;padding:18px 26px 60px;scroll-behavior:smooth}
+  .day-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .day-head h1{font-size:20px;font-weight:700}
+  .day-head .dow{color:var(--fg-3);font-size:13px}
+  .live-pill{display:none;align-items:center;gap:5px;font-size:11px;color:var(--green);background:var(--green-weak);padding:2px 8px;border-radius:99px;font-weight:600}
+  .live-pill i{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .summary-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--fg-2);margin:6px 0 16px}
+  .summary-line .chip{background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:2px 10px;display:inline-flex;gap:6px;align-items:center;font-variant-numeric:tabular-nums}
+  .chip b{color:var(--fg);font-weight:600}
+  .pos{color:var(--green)} .neg{color:var(--red)}
+
+  /* 区间汇总条 */
+  .range-banner{display:none;background:var(--violet-weak);border:1px solid #ddd0fb;border-radius:10px;padding:10px 14px;margin-bottom:16px}
+  .range-banner.show{display:block}
+  .range-banner .rb-head{display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:600;margin-bottom:8px}
+  .range-banner .rb-head .x{margin-left:auto;font-weight:400;color:var(--fg-3);font-size:11.5px}
+  .range-banner .rb-total{font-size:12px;color:var(--fg-2);display:flex;gap:14px;flex-wrap:wrap}
+  .rb-bar{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:8px}
+  .rb-bar i{display:block;height:100%}
+
+  /* 功能卡流 */
+  .flow-label{font-size:11.5px;color:var(--fg-3);font-weight:600;letter-spacing:.4px;margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+  .flow-label::after{content:"";flex:1;height:1px;background:var(--border)}
+  .fcard{position:relative;display:flex;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;cursor:pointer;transition:box-shadow .18s,border-color .18s,transform .18s;overflow:hidden}
+  .fcard:hover{box-shadow:var(--shadow-2);border-color:var(--border-strong);transform:translateY(-1px)}
+  .fcard:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .fcard .stripe{width:4px;flex:none;background:var(--accent)}
+  .fcard.manual .stripe{background:var(--amber)}
+  .fcard-body{flex:1;padding:12px 14px 11px;min-width:0}
+  .fcard-top{display:flex;align-items:center;gap:8px}
+  .fcard-title{font-size:14px;font-weight:650}
+  .src-badge{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:99px;white-space:nowrap}
+  .src-badge.ai{background:var(--accent-weak);color:var(--accent)}
+  .src-badge.fixed{background:var(--amber-weak);color:var(--amber)}
+  .fcard-desc{margin:4px 0 8px;color:var(--fg-2);font-size:12.5px}
+  .fcard-desc mark{background:transparent;color:var(--accent);font-weight:700}
+  .quote{margin:6px 0 0;padding:6px 10px;border-left:3px solid var(--border-strong);background:var(--surface-2);border-radius:0 8px 8px 0;font-size:12px;color:var(--fg-2)}
+  .quote .q-src{display:block;font-size:10.5px;color:var(--fg-3);margin-top:2px;font-family:var(--mono)}
+  .fcard-meta{display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--fg-3);flex-wrap:wrap;font-variant-numeric:tabular-nums}
+  .eng-dots{display:inline-flex}
+  .eng-dots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--surface);display:grid;place-items:center;font-size:9px;font-weight:700;font-style:normal;color:#fff;margin-left:-5px}
+  .eng-dots i:first-child{margin-left:0}
+  .fcard-meta .m{display:inline-flex;align-items:center;gap:4px}
+  .fcard-meta svg{width:12px;height:12px}
+  .fcard-actions{position:absolute;top:10px;right:10px;display:none;gap:4px}
+  .fcard:hover .fcard-actions{display:flex}
+  .mini-btn{font-size:11px;color:var(--fg-2);background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:2px 8px;box-shadow:var(--shadow-1)}
+  .mini-btn:hover{color:var(--fg);border-color:var(--border-strong)}
+  .range-date-tag{display:none;font-size:10.5px;color:var(--violet);background:var(--violet-weak);border-radius:99px;padding:1px 8px;font-weight:600}
+  .in-range .range-date-tag{display:inline-flex}
+
+  /* 未归纳日 */
+  .rawday{background:var(--surface);border:1px dashed var(--border-strong);border-radius:12px;padding:14px}
+  .rawday h3{font-size:13px;color:var(--fg-2);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .rawday h3 .tag{font-size:10.5px;background:var(--surface-2);border:1px solid var(--border);padding:1px 8px;border-radius:99px;color:var(--fg-3);font-weight:500}
+  .raw-row{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;font-size:12.5px;cursor:pointer;transition:background .15s}
+  .raw-row:hover{background:var(--surface-2)}
+  .raw-row .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .raw-row .hm{font-family:var(--mono);font-size:11px;color:var(--fg-3)}
+  .eng-tag{font-size:10px;font-weight:700;color:#fff;border-radius:5px;padding:1px 6px;flex:none}
+  .rawday .foot{margin-top:10px;font-size:11.5px;color:var(--fg-3)}
+
+  /* ============ 右:证据抽屉 ============ */
+  .drawer{background:var(--surface);border-left:1px solid var(--border);display:none;flex-direction:column;overflow:hidden}
+  .drawer-open .drawer{display:flex}
+  .drawer-head{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+  .drawer-head .dh-title{font-size:14.5px;font-weight:700;padding-right:24px}
+  .drawer-head .dh-sub{font-size:11.5px;color:var(--fg-3);margin-top:2px}
+  .drawer-close{position:absolute;top:12px;right:12px}
+  .drawer-scroll{flex:1;overflow-y:auto}
+  .drawer h4{font-size:11px;color:var(--fg-3);font-weight:700;letter-spacing:.4px;padding:14px 16px 6px;display:flex;align-items:center;gap:6px}
+  .drawer h4 .cnt{background:var(--surface-2);border-radius:99px;padding:0 7px;font-size:10.5px;color:var(--fg-2)}
+  .sess-row{display:flex;align-items:center;gap:8px;padding:7px 16px;cursor:pointer;transition:background .15s;border-left:2px solid transparent}
+  .sess-row:hover{background:var(--surface-2)}
+  .sess-row.on{background:var(--accent-weak);border-left-color:var(--accent)}
+  .sess-row .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+  .sess-row .hm{font-family:var(--mono);font-size:10.5px;color:var(--fg-3);flex:none}
+  .resume-btn{font-size:10.5px;color:var(--accent);border:1px solid var(--accent-weak);background:var(--accent-weak);border-radius:6px;padding:1px 8px;flex:none}
+  .resume-btn:hover{background:#dbe7ff}
+  .file-row{display:flex;align-items:center;gap:8px;padding:6px 16px;cursor:pointer;font-size:12px;border-left:2px solid transparent;transition:background .15s}
+  .file-row:hover{background:var(--surface-2)}
+  .file-row.on{background:var(--accent-weak);border-left-color:var(--accent)}
+  .file-row .p{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:11.5px}
+  .cfg-pill{flex:none;font-size:9.5px;border:1px solid var(--amber);color:var(--amber);border-radius:4px;padding:0 4px;font-weight:600}
+  .pm{display:flex;flex-direction:column;width:74px;flex:none;gap:2px;align-items:flex-end}
+  .pm .bar{height:4px;border-radius:2px;min-width:2px}
+  .pm .nums{font-size:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .pruned{font-size:10px;color:var(--fg-3)}
+  .ficos{display:inline-flex;gap:2px;flex:none;opacity:.4}
+  .file-row:hover .ficos{opacity:1}
+  .fico{border:0;background:transparent;color:var(--fg-3);cursor:pointer;padding:2px;border-radius:5px;line-height:0}
+  .fico:hover{background:var(--surface-3);color:var(--accent)}
+  .main-diff{margin:4px 0 16px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface);box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  .main-diff .diff-body{max-height:360px}
+  .main-diff .md-actions{margin-left:auto;display:flex;gap:2px;align-items:center}
+  .attr-chip{font-size:9.5px;border-radius:4px;padding:0 5px;font-weight:600;flex:none}
+  .attr-chip.ev{background:var(--accent-weak);color:var(--accent)}
+  .attr-chip.inf{border:1px dashed var(--border-strong);color:var(--fg-3)}
+  .attr-chip.cfg{background:#fdf1e4;color:var(--amber)}
+  .diff-wrap{margin:4px 12px 16px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .diff-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);font-size:11px;color:var(--fg-2);flex-wrap:wrap}
+  .diff-head .path{font-family:var(--mono);font-weight:600;color:var(--fg)}
+  .diff-body{font-family:var(--mono);font-size:11.5px;line-height:1.55;max-height:300px;overflow:auto;padding:8px 0}
+  .dl{display:flex;white-space:pre}
+  .dl .ln{width:34px;flex:none;text-align:right;padding-right:10px;color:var(--fg-3);user-select:none;font-size:10.5px}
+  .dl.add{background:var(--green-weak)} .dl.add .lc{color:#1c7a4d}
+  .dl.del{background:var(--red-weak)} .dl.del .lc{color:#b03a32;text-decoration:line-through;text-decoration-color:rgba(213,73,65,.4)}
+  .dl .lc{flex:1;padding-right:12px}
+  .dl.hunk{background:var(--surface-2);color:var(--fg-3)}
+  .degraded{padding:16px;text-align:center;color:var(--fg-3);font-size:12px}
+  .degraded .big{font-size:13px;color:var(--fg-2);font-weight:600;margin-bottom:4px}
+  .degraded .nums{font-family:var(--mono);margin-top:6px;color:var(--fg-2)}
+  .degraded .why{margin-top:8px;font-size:11px}
+
+  /* ============ 搜索弹层 ============ */
+  .search-pop{position:absolute;top:56px;left:50%;transform:translateX(-50%) translateY(-6px);width:560px;max-width:calc(100vw - 40px);background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-3);z-index:100;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
+  .search-pop.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+  .sp-input{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .sp-input svg{width:15px;height:15px;color:var(--fg-3);flex:none}
+  .sp-input input{flex:1;border:none;outline:none;font:inherit;font-size:13.5px;background:none}
+  .sp-results{max-height:420px;overflow-y:auto;padding:6px}
+  .sp-group{font-size:10.5px;color:var(--fg-3);font-weight:700;letter-spacing:.4px;padding:8px 10px 3px}
+  .sp-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:12.5px}
+  .sp-item:hover,.sp-item.on{background:var(--surface-2)}
+  .sp-item .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sp-item mark{background:transparent;color:var(--accent);font-weight:700}
+  .sp-item .d{font-size:10.5px;color:var(--fg-3);flex:none;font-variant-numeric:tabular-nums}
+  .sp-kind{flex:none;font-size:9.5px;font-weight:700;border-radius:4px;padding:1px 5px}
+  .k-feat{background:var(--accent-weak);color:var(--accent)}
+  .k-article{background:var(--violet-weak);color:var(--violet)}
+  .k-path{background:var(--surface-2);color:var(--fg-2);font-family:var(--mono)}
+  .sp-empty{padding:26px;text-align:center;color:var(--fg-3);font-size:12.5px}
+  .sp-foot{display:flex;gap:14px;padding:8px 14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--fg-3)}
+
+  /* 快捷键浮层 / 修正菜单 / toast */
+  .overlay-pop{position:absolute;top:56px;right:14px;width:300px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-3);z-index:100;display:none;padding:6px}
+  .overlay-pop.show{display:block}
+  .overlay-pop .oh{padding:8px 10px 4px;font-size:11px;font-weight:700;color:var(--fg-3);letter-spacing:.4px}
+  .overlay-pop .or{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;font-size:12px;color:var(--fg-2)}
+  .fix-menu{position:fixed;z-index:120;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-3);padding:4px;display:none;min-width:160px}
+  .fix-menu.show{display:block}
+  .fix-menu button{display:block;width:100%;text-align:left;padding:6px 10px;border-radius:7px;font-size:12.5px}
+  .fix-menu button:hover{background:var(--surface-2)}
+  #toasts{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center}
+  .toast{background:#26292e;color:#fff;font-size:12px;padding:7px 16px;border-radius:99px;box-shadow:var(--shadow-3);animation:tin .2s}
+  @keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  .flash-note{animation:flash 1.6s}
+  @keyframes flash{0%{background:var(--accent-weak)}100%{background:transparent}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="dot"></span>每日工作足迹 <span style="color:var(--fg-3);font-weight:400">原型 v2 · 功能卡为一级实体</span></div>
+  <div class="nav-arrows">
+    <button class="icon-btn" id="prevM" title="上月(⇧←)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <button class="icon-btn" id="nextM" title="下月(⇧→)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></button>
+  </div>
+  <div class="month-title" id="monthTitle"></div>
+  <button class="today-btn" id="todayBtn">回到今日</button>
+  <div class="searchbox" id="searchBox">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="searchInput" placeholder="反查:账号密码 / 配置文件 / 路径…"/>
+    <kbd>⌘K</kbd>
+  </div>
+  <div class="seg" id="heatSeg" title="月历热力口径">
+    <button data-k="lines" class="on">按改动量</button>
+    <button data-k="sessions">按会话数</button>
+  </div>
+  <button class="icon-btn" id="helpBtn" title="快捷键(?)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 1 1 3.6 2.4c-.8.4-1.1.9-1.1 1.8"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg></button>
+</header>
+
+<div class="layout" id="layout">
+  <!-- 左:月历导航 -->
+  <aside class="rail" id="rail">
+    <div class="rail-section">
+      <div class="rail-label">月历 <span style="font-weight:400;color:var(--fg-3)">热力点 = 当日强度</span></div>
+      <div class="cal" id="cal"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="range-hint">区间模式:再点一天完成选择 · 点单日退出</div>
+    <div class="rail-stat" id="railStat"></div>
+  </aside>
+
+  <!-- 主流 -->
+  <main class="main" id="main">
+    <div class="day-head">
+      <h1 id="dayTitle"></h1><span class="dow" id="dayDow"></span>
+      <span class="live-pill" id="livePill"><i></i>今日 · 会话进行中</span>
+    </div>
+    <div class="summary-line" id="summaryLine"></div>
+    <div class="range-banner" id="rangeBanner"></div>
+    <div id="flow"></div>
+  </main>
+
+  <!-- 右:证据抽屉 -->
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head" style="position:relative">
+      <div class="dh-title" id="dhTitle"></div>
+      <div class="dh-sub" id="dhSub"></div>
+      <button class="icon-btn drawer-close" id="drawerClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="drawer-scroll" id="drawerScroll"></div>
+  </aside>
+</div>
+
+<!-- 搜索弹层 -->
+<div class="search-pop" id="searchPop">
+  <div class="sp-input">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input id="spReal" placeholder="输入关键词反查历史:功能卡 / 日报 / 文件路径"/>
+  </div>
+  <div class="sp-results" id="spResults"></div>
+  <div class="sp-foot"><span><kbd>↑↓</kbd> 选择</span><span><kbd>↵</kbd> 跳转到当日</span><span><kbd>esc</kbd> 关闭</span></div>
+</div>
+
+<!-- 快捷键浮层 -->
+<div class="overlay-pop" id="helpPop">
+  <div class="oh">快捷键</div>
+  <div class="or"><span>切换日期</span><span><kbd>←</kbd> <kbd>→</kbd></span></div>
+  <div class="or"><span>卡片间移动 / 打开</span><span><kbd>j</kbd> <kbd>k</kbd> <kbd>↵</kbd></span></div>
+  <div class="or"><span>回到今日</span><span><kbd>t</kbd></span></div>
+  <div class="or"><span>切换热力口径</span><span><kbd>1</kbd> <kbd>2</kbd></span></div>
+  <div class="or"><span>反查搜索</span><span><kbd>⌘K</kbd></span></div>
+  <div class="or"><span>关闭抽屉/弹层</span><span><kbd>esc</kbd></span></div>
+</div>
+
+<!-- 修正菜单 -->
+<div class="fix-menu" id="fixMenu">
+  <button data-a="rename">重命名功能卡</button>
+  <button data-a="merge">合并到其他卡…</button>
+  <button data-a="split">拆分此卡…</button>
+  <button data-a="none" style="color:var(--red)">标记为无关</button>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+/* ================= mock(对齐 v1 叙事:2026-08-14 账号密码登录日) ================= */
+const ENG = {
+  claude:{label:"claude",color:"#d97757"}, kimi:{label:"kimi",color:"#1f8fff"},
+  codex:{label:"codex",color:"#10a37f"}, qoder:{label:"qoder",color:"#7c3aed"},
+  omp:{label:"omp",color:"#f59e0b"}, pi:{label:"pi",color:"#0ea5e9"},
+  gemini:{label:"gemini",color:"#3b82f6"}, grok:{label:"grok",color:"#111827"},
+};
+const DIFF = [
+  ["hunk","@@ -1,6 +1,7 @@"],
+  ["ctx"," import { useState } from \"react\";"],
+  ["del","-export function LoginForm() {"],
+  ["add","+export function LoginForm({ onSuccess }: { onSuccess: () => void }) {"],
+  ["ctx","   const [email, setEmail] = useState(\"\");"],
+  ["add","+  const [password, setPassword] = useState(\"\");"],
+  ["add","+  const [error, setError] = useState<string | null>(null);"],
+  ["ctx","   return ("],
+  ["add","+    <form onSubmit={handleSubmit} data-testid=\"login-form\">"],
+  ["del","-    <div className=\"login\">"],
+];
+/* 功能卡:quotes = 用户原话锚点(管线 A/B 产出的 evidence) */
+const DAYS = {
+  "2026-08-14":{ features:[
+    { id:"f1", title:"账号密码登录", src:"ai",
+      desc:"完成 admin-web 登录页邮箱+密码表单、提交校验与失败提示,打通会话状态。",
+      quotes:[{text:"登录要支持邮箱加密码,失败三次先提示,锁定后面再议。",who:"kimi · 09:12"}],
+      sessions:[
+        {hm:"09:12",eng:"kimi",title:"admin-web 登录页:邮箱密码表单 + 提交校验",files:6,plus:212,minus:61},
+        {hm:"14:05",eng:"claude",title:"登录失败提示与会话状态打通",files:4,plus:97,minus:36},
+      ]},
+    { id:"f2", title:"登录失败锁定(3 次)", src:"ai",
+      desc:"auth 服务加失败计数与 15 分钟锁定窗口,配置阈值进 config.yaml。",
+      quotes:[{text:"失败三次先提示,锁定后面再议 —— 先做计数和提示。",who:"kimi · 09:12"}],
+      sessions:[
+        {hm:"16:20",eng:"codex",title:"auth: 登录失败计数与锁定窗口",files:3,plus:112,minus:19},
+      ]},
+    { id:"f3", title:"登录配置项与文档", src:"ai",
+      desc:"auth.config.yaml 增 max_attempts/lock_window;docs/auth 补登录流程说明。",
+      sessions:[
+        {hm:"17:48",eng:"omp",title:"docs: 登录流程与配置说明",files:1,plus:54,minus:0},
+      ]},
+  ]},
+  "2026-08-15":{ features:[
+    { id:"f4", title:"登录页 UI 走查修正", src:"ai",
+      desc:"输入框错误态红边、按钮 loading 态、错误文案统一进 i18n。",
+      sessions:[
+        {hm:"10:02",eng:"claude",title:"登录页错误态与 loading 走查",files:4,plus:132,minus:44},
+        {hm:"15:30",eng:"kimi",title:"i18n: 登录相关文案收口",files:2,plus:21,minus:12},
+      ]},
+  ]},
+  "2026-08-16":{ features:[] /* 未归纳日:演示空态 */ },
+};
+const RAW = { "2026-08-16":[
+  {hm:"09:40",eng:"claude",title:"api-server 分页参数默认值梳理"},
+  {hm:"11:15",eng:"codex",title:"docker compose 本地编排调整"},
+  {hm:"14:22",eng:"kimi",title:"README 部署章节补图"},
+]};
+const COMMITS = {
+  "2026-08-14":[
+    {hash:"a3f9c21",msg:"feat(auth): 邮箱密码登录 + 失败提示",time:"18:02"},
+    {hash:"7be04d8",msg:"feat(auth): 失败计数与 15min 锁定窗口",time:"18:10"},
+    {hash:"e5519aa",msg:"docs: 登录配置项说明",time:"18:31"},
+  ],
+  "2026-08-15":[{hash:"c8823f0",msg:"fix(login): 错误态与 loading 态",time:"16:44"}],
+  "2026-08-16":[],
+};
+const PRUNED = new Set(["admin-web/src/pages/login.tsx"]);
+const ARTICLES = {
+  "2026-08-14":"## 账号密码登录\n今日主线是 admin-web 的账号密码登录…涉及登录失败锁定与配置文档。\n\n## 登录配置项\nauth.config.yaml 增加 max_attempts 与 lock_window…",
+  "2026-08-15":"## 登录页走查\nUI 细节修正日:错误态、loading、文案收口。",
+  "2026-08-16":null,
+};
+/* 月历热力(其余日稀疏噪声) */
+const HEAT = {};
+(function(){
+  const r=(a,b)=>Math.floor(a+Math.random()*(b-a));
+  for(let d=1;d<=31;d++){ const k="2026-08-"+String(d).padStart(2,"0");
+    if(DAYS[k])continue;
+    if(Math.random()<.3){ HEAT[k]={sessions:r(1,4),plus:r(10,180),minus:r(5,90)}; } }
+  HEAT["2026-08-14"]={sessions:5,plus:475,minus:116};
+  HEAT["2026-08-15"]={sessions:4,plus:153,minus:56};
+  HEAT["2026-08-16"]={sessions:3,plus:60,minus:20};
+})();
+const heatVal=(k,mode)=>{ const h=HEAT[k]; if(!h)return 0; return mode==="lines"?h.plus+h.minus:h.sessions; };
+const HEAT_SCALE=["#dfe3ea","#c7dbff","#8fb8ff","#4f8dff","#1f6bff"];
+
+/* per-file 明细:主流 diff 面板与抽屉文件列表同源 */
+const FILES_BY_FEATURE={
+  f1:[
+    {path:"api-server/src/auth/login.ts",add:64,del:0,attr:"events",lang:"TS"},
+    {path:"api-server/src/auth/jwt.ts",add:28,del:6,attr:"events",lang:"TS"},
+    {path:"api-server/src/auth/lockout.ts",add:30,del:0,attr:"events",lang:"TS"},
+    {path:"api-server/src/auth/session.ts",add:12,del:20,attr:"events",lang:"TS"},
+    {path:"api-server/config/auth.config.yaml",add:9,del:2,attr:"events",lang:"YAML",cfg:true},
+    {path:"api-server/migrations/0022_users.sql",add:18,del:0,attr:"窗口推断",lang:"SQL"},
+    {path:"api-server/tests/auth/login.spec.ts",add:31,del:0,attr:"events",lang:"TS"},
+    {path:"admin-web/src/pages/Login.tsx",add:66,del:30,attr:"窗口推断",lang:"TSX"},
+    {path:"admin-web/src/api/auth.ts",add:22,del:11,attr:"窗口推断",lang:"TS"},
+    {path:"admin-web/src/pages/login.tsx",add:29,del:28,attr:"events",lang:"TSX",pruned:true},
+  ],
+  f2:[
+    {path:"api-server/src/auth/lockout.ts",add:52,del:0,attr:"events",lang:"TS"},
+    {path:"api-server/config/auth.config.yaml",add:9,del:2,attr:"events",lang:"YAML",cfg:true},
+    {path:"api-server/src/ratelimit/window.ts",add:51,del:17,attr:"窗口推断",lang:"TS"},
+  ],
+  f3:[
+    {path:"api-server/config/auth.config.yaml",add:6,del:0,attr:"窗口推断",lang:"YAML",cfg:true},
+    {path:"docs/auth/login-flow.md",add:48,del:0,attr:"窗口推断",lang:"MD"},
+  ],
+  f4:[
+    {path:"admin-web/src/pages/Login.tsx",add:88,del:12,attr:"窗口推断",lang:"TSX"},
+    {path:"admin-web/src/i18n/zh-CN/login.ts",add:14,del:8,attr:"窗口推断",lang:"TS"},
+    {path:"admin-web/tests/e2e/login.spec.ts",add:30,del:24,attr:"窗口推断",lang:"TS"},
+  ],
+};
+
+/* ================= 状态 ================= */
+const TODAY="2026-08-14"; /* mock 今天,演示 live 态 */
+const state={ y:2026, m:8, sel:TODAY, mode:"day", heat:"lines",
+  range:null, rangeAnchor:null, drawerFeature:null, drawerSess:null, drawerFile:null };
+const $=id=>document.getElementById(id);
+const fmtD=k=>k.slice(0,4)+"年"+(+k.slice(5,7))+"月"+(+k.slice(8,10))+"日";
+const DOW="日一二三四五六";
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const hi=(text,q)=>{ if(!q)return esc(text); const i=text.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0)return esc(text); return esc(text.slice(0,i))+"<mark>"+esc(text.slice(i,i+q.length))+"</mark>"+esc(text.slice(i+q.length)); };
+
+/* ================= toast ================= */
+function toast(msg){ const el=document.createElement("div"); el.className="toast"; el.textContent=msg;
+  $("toasts").appendChild(el); setTimeout(()=>el.remove(),1900); }
+const ICO_OPEN='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+const ICO_FOLDER='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+const ICO_X='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+/* ================= 月历 ================= */
+function renderCal(){
+  $("monthTitle").textContent=state.y+"年"+state.m+"月";
+  const first=new Date(state.y,state.m-1,1), startDow=first.getDay(), dim=new Date(state.y,state.m,0).getDate();
+  const prevDim=new Date(state.y,state.m-1,0).getDate();
+  let html=["一","二","三","四","五","六","日"].map(d=>'<div class="dow">'+d+'</div>').join("");
+  const cells=[];
+  for(let i=0;i<42;i++){
+    const n=i-startDow+1;
+    if(n<1) cells.push({d:prevDim+n,other:true,k:null});
+    else if(n>dim) cells.push({d:n-dim,other:true,k:null});
+    else cells.push({d:n,k:state.y+"-"+String(state.m).padStart(2,"0")+"-"+String(n).padStart(2,"0")});
+  }
+  const vals=cells.filter(c=>c.k).map(c=>heatVal(c.k,state.heat)).filter(v=>v>0);
+  const max=Math.max(1,...vals);
+  for(const c of cells){
+    if(!c.k){ html+='<div class="day other">'+c.d+'</div>'; continue; }
+    const v=heatVal(c.k,state.heat);
+    const tier=v===0?-1:Math.min(3,Math.floor(v/max*4));
+    let cls="day";
+    if(c.k===TODAY)cls+=" today";
+    if(state.mode==="day"&&c.k===state.sel)cls+=" sel";
+    if(state.mode==="range"&&state.range&&c.k>=state.range[0]&&c.k<=state.range[1]){
+      cls+=" range"; if(c.k===state.range[0]||c.k===state.range[1])cls+=" edge";
+    }
+    const bg=tier>=0?HEAT_SCALE[tier+1]:"transparent";
+    html+='<div class="'+cls+'" data-day="'+c.k+'" title="'+fmtD(c.k)+(v?' · '+(state.heat==="lines"?"±"+v:v+" 场"):'')+'">'
+        +c.d+(v?'<span class="heat" style="background:'+bg+'"></span>':'')+'</div>';
+  }
+  $("cal").innerHTML=html;
+  $("legend").innerHTML="弱 "+HEAT_SCALE.slice(1).map(c=>'<i style="background:'+c+'"></i>').join("")+" 强";
+  /* 当月统计 */
+  let sN=0,sPlus=0,sMinus=0,sDays=0;
+  for(const[k,h]of Object.entries(HEAT)){ if(!k.startsWith(state.y+"-"+String(state.m).padStart(2,"0")))continue;
+    sDays++; sN+=h.sessions; sPlus+=h.plus; sMinus+=h.minus; }
+  $("railStat").innerHTML=
+    '<div class="row"><span>活跃天数</span><b>'+sDays+' 天</b></div>'
+   +'<div class="row"><span>会话</span><b>'+sN+' 场</b></div>'
+   +'<div class="row"><span>改动行</span><b>+'+sPlus+' / −'+sMinus+'</b></div>';
+}
+$("cal").addEventListener("click",e=>{
+  const cell=e.target.closest(".day"); if(!cell||!cell.dataset.day)return;
+  const k=cell.dataset.day;
+  if(e.shiftKey&&!state.rangeAnchor){ state.rangeAnchor=k; document.body.classList.add("ranging");
+    toast("已选区间起点 "+fmtD(k)); return; }
+  if(state.rangeAnchor){ /* 完成区间 */
+    state.range=[state.rangeAnchor<=k?state.rangeAnchor:k, state.rangeAnchor<=k?k:state.rangeAnchor];
+    state.mode="range"; state.rangeAnchor=null; state.drawerFeature=null;
+    document.body.classList.remove("ranging"); renderAll(); return;
+  }
+  if(state.mode==="range"){ /* 区间内点单日 → 退出区间进当日 */
+    state.mode="day"; state.sel=k; state.range=null; renderAll(); return;
+  }
+  clickDay(k);
+});
+$("cal").addEventListener("contextmenu",e=>{ /* 右键/长按起点:进区间选择 */
+  const cell=e.target.closest(".day"); if(!cell||!cell.dataset.day)return;
+  e.preventDefault(); state.rangeAnchor=cell.dataset.day; document.body.classList.add("ranging");
+  toast("已选区间起点 "+fmtD(cell.dataset.day));
+});
+function clickDay(k){ state.mode="day"; state.sel=k; state.range=null; state.drawerFeature=null; renderAll(); }
+
+/* ================= 主流 ================= */
+function fcardHTML(f,dayKey,inRange,q){
+  const sess=f.sessions||[];
+  const files=sess.reduce((a,s)=>a+s.files,0), plus=sess.reduce((a,s)=>a+s.plus,0), minus=sess.reduce((a,s)=>a+s.minus,0);
+  const engs=[...new Set(sess.map(s=>s.eng))];
+  const dots=engs.slice(0,4).map(e=>'<i style="background:'+ENG[e].color+'" title="'+ENG[e].label+'">'+ENG[e].label[0].toUpperCase()+'</i>').join("");
+  const quotes=(f.quotes||[]).map(qu=>'<div class="quote">「'+esc(qu.text)+'」<span class="q-src">—— '+esc(qu.who)+' · 用户原话锚点</span></div>').join("");
+  return '<div class="fcard'+(f.src==="fixed"?" manual":"")+(inRange?" in-range":"")+'" data-f="'+f.id+'" data-day="'+dayKey+'" tabindex="0" data-flash="'+(q?"命中关键词「"+esc(q)+"」":"N 处命中")+'">'
+    +'<div class="stripe"></div><div class="fcard-body">'
+    +'<div class="fcard-top"><span class="fcard-title">'+hi(f.title,q)+'</span>'
+    +'<span class="src-badge '+(f.src==="fixed"?"fixed":"ai")+'">'+(f.src==="fixed"?"已修正":"AI 归纳")+'</span>'
+    +'<span class="range-date-tag">'+fmtD(dayKey).slice(5)+'</span></div>'
+    +'<div class="fcard-desc">'+hi(f.desc,q)+'</div>'
+    +quotes
+    +'<div class="fcard-meta"><span class="eng-dots">'+dots+'</span>'
+    +'<span class="m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 1 1-4-6.9"/><path d="M8 11h8M8 15h5"/></svg>'+sess.length+' 场会话</span>'
+    +'<span class="m"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>'+files+' 文件</span>'
+    +'<span class="m pos">+'+plus+'</span><span class="m neg">−'+minus+'</span></div>'
+    +'</div>'
+    +'<div class="fcard-actions"><button class="mini-btn" data-fix="'+f.id+'">修正 ▾</button></div>'
+    +'</div>';
+}
+function renderMain(){
+  $("rangeBanner").classList.toggle("show",state.mode==="range");
+  $("livePill").style.display=(state.mode==="day"&&state.sel===TODAY)?"inline-flex":"none";
+  if(state.mode==="range"){ renderRange(); return; }
+  const k=state.sel, d=DAYS[k];
+  $("dayTitle").textContent=fmtD(k);
+  $("dayDow").textContent="周"+DOW[new Date(k+"T12:00:00").getDay()];
+  const feats=d?d.features:[];
+  const raw=RAW[k]||[];
+  const h=HEAT[k]||{sessions:0,plus:0,minus:0};
+  $("summaryLine").innerHTML=
+     '<span class="chip"><b>'+feats.length+'</b> 项功能</span>'
+    +'<span class="chip"><b>'+(feats.length?feats.reduce((a,f)=>a+f.sessions.length,0):raw.length)+'</b> 场会话</span>'
+    +'<span class="chip"><b class="pos">+'+h.plus+'</b> / <b class="neg">−'+h.minus+'</b></span>'
+    +'<span style="color:var(--fg-3)">证据随点随取:点功能卡看会话 / 文件 / diff</span>';
+  let html="";
+  if(feats.length){
+    html+='<div class="flow-label">功能与任务(AI 归纳 · 悬停可修正)</div>'
+        +feats.map(f=>fcardHTML(f,k,false,"")).join("");
+  }
+  if(raw.length){
+    html+='<div class="flow-label">当日会话(未归纳 · 规则降级罗列)</div><div class="rawday">'
+        +'<h3>该日无功能归纳 <span class="tag">features 文件缺失或生成失败</span></h3>'
+        +raw.map(s=>'<div class="raw-row"><span class="eng-tag" style="background:'+ENG[s.eng].color+'">'+s.eng+'</span><span class="t">'+esc(s.title)+'</span><span class="hm">'+s.hm+'</span></div>').join("")
+        +'<div class="foot">主管线按项目分组诚实罗列,不装作聚了类 · 可手动补归纳(修正层)</div></div>';
+  }
+  if(COMMITS[k]&&COMMITS[k].length){
+    html+='<div class="flow-label">Git 硬证据(提交即权威,不受账本清理影响)</div>'
+        +COMMITS[k].map(c=>'<div class="raw-row" style="cursor:default"><span class="hm" style="font-family:var(--mono);color:var(--fg-3)">'+c.time+'</span><span class="eng-tag" style="background:var(--fg-2)">git</span><span class="t" style="font-family:var(--mono);font-size:11.5px">'+esc(c.hash)+' '+esc(c.msg)+'</span></div>').join("");
+  }
+  if(!feats.length&&!raw.length&&!COMMITS[k].length) html+='<div class="sp-empty">该日无记录</div>';
+  html+=mainDiffHTML();
+  $("flow").innerHTML=html;
+}
+function renderRange(){
+  const[a,b]=state.range;
+  $("dayTitle").textContent=fmtD(a).slice(5)+" — "+fmtD(b).slice(5);
+  $("dayDow").textContent="区间视图";
+  const days=Object.keys(DAYS).filter(k=>k>=a&&k<=b);
+  let feats=[],plus=0,minus=0,sessN=0;
+  for(const k of days){ const d=DAYS[k]; if(!d)continue;
+    for(const f of d.features){ feats.push([k,f]);
+      plus+=f.sessions.reduce((x,s)=>x+s.plus,0); minus+=f.sessions.reduce((x,s)=>x+s.minus,0);
+      sessN+=f.sessions.length; } }
+  $("summaryLine").innerHTML='<span class="chip"><b>'+days.length+'</b> 天</span><span class="chip"><b>'+feats.length+'</b> 项功能</span><span class="chip"><b class="pos">+'+plus+'</b> / <b class="neg">−'+minus+'</b></span><span class="chip"><b>'+sessN+'</b> 场会话</span>';
+  /* 项目横条:按主工作区(mock 简化为按功能聚合) */
+  const proj={}; for(const[k,f]of feats){ const key=f.title.includes("登录")?"账号模块":"其他";
+    proj[key]=proj[key]||{plus:0,minus:0}; for(const s of f.sessions){proj[key].plus+=s.plus;proj[key].minus+=s.minus;} }
+  const total=Math.max(1,plus+minus);
+  const colors=["#4f8dff","#7a5af8","#2b9e68","#d97757"];
+  $("rangeBanner").innerHTML='<div class="rb-head">区间汇总 <span class="x">点月历任意单日退出区间</span></div>'
+    +'<div class="rb-total">'+Object.entries(proj).map(([n,v])=>'<span><b>'+n+'</b> <span class="pos">+'+v.plus+'</span> <span class="neg">−'+v.minus+'</span></span>').join("")+'</div>'
+    +'<div class="rb-bar">'+Object.entries(proj).map(([n,v],i)=>'<i style="width:'+((v.plus+v.minus)/total*100).toFixed(1)+'%;background:'+colors[i%4]+'" title="'+n+' ±'+(v.plus+v.minus)+'"></i>').join("")+'</div>';
+  $("flow").innerHTML='<div class="flow-label">区间功能卡流(按日分组)</div>'
+    +feats.map(([k,f])=>fcardHTML(f,k,true,"")).join("")
+    +(feats.length?"":'<div class="sp-empty">区间内无功能归纳</div>');
+}
+
+/* ================= 主流 Diff 面板(点抽屉文件在此展开,宽面板) ================= */
+function mainDiffHTML(){
+  if(!state.drawerFeature||state.drawerFile===null) return "";
+  const {day,fid}=state.drawerFeature;
+  const f=DAYS[day]&&DAYS[day].features.find(x=>x.id===fid); if(!f)return "";
+  const files=FILES_BY_FEATURE[f.id]||[]; const fl=files[state.drawerFile]; if(!fl)return "";
+  const sess=f.sessions||[]; const s=sess.length?sess[state.drawerFile%sess.length]:{eng:"kimi"};
+  const act=a=>'<button class="fico" data-mdact="'+a+'" title="'+(a==="open"?"打开文件":a==="folder"?"打开所在文件夹":"关闭 diff")+'">'+(a==="open"?ICO_OPEN:a==="folder"?ICO_FOLDER:ICO_X)+'</button>';
+  let body;
+  if(fl.pruned){
+    body='<div class="degraded" style="margin:12px">'
+      +'<div class="big">diff 已随账本清理(30 天 TTL)</div>'
+      +'数字仍在:该文件当日 +'+fl.add+' / −'+fl.del+' · 会话与 turn 索引保留'
+      +'<div class="why">诚实降级 —— 语义层(功能卡)与量化层(±)持久,字节层跟随账本生命周期,prune 可回收</div>'
+      +'<div style="margin-top:10px"><button class="mini-btn" onclick="toast(\'真实实现:跳 git 提交视图(按窗口归因)\')">从 git 提交看改动 →</button></div>'
+      +'</div>';
+  }else{
+    body='<div class="diff-body">'+DIFF.map(l=>{
+      const cls=l[0]==="hunk"?"hunk":l[0]==="add"?"add":l[0]==="del"?"del":"";
+      const sign=l[0]==="add"?"+":l[0]==="del"?"−":" ";
+      return '<div class="dl '+cls+'"><span class="ln"></span><span class="lc">'+sign+" "+esc(l[1]||l[0])+'</span></div>';
+    }).join("")+'</div>';
+  }
+  return '<div class="flow-label">Diff 预览(点右侧文件在此展开 · 主流宽面板)</div>'
+    +'<div class="main-diff" id="mainDiff"><div class="diff-head"><span class="path">'+esc(fl.path)+'</span>'
+    +'<span class="eng-tag" style="background:'+ENG[s.eng].color+'">'+s.eng+'</span>'
+    +'<span>turn 3</span>'
+    +(fl.attr==="events"?'<span class="attr-chip ev">events 归因</span>':'<span class="attr-chip inf">窗口推断</span>')
+    +(fl.cfg?'<span class="attr-chip cfg">配置</span>':'')
+    +'<span class="md-actions">'+act("open")+act("folder")+act("close")+'</span></div>'
+    +body+'</div>';
+}
+
+/* ================= 证据抽屉 ================= */
+function openDrawer(dayKey,fid,q){
+  const f=DAYS[dayKey].features.find(x=>x.id===fid);
+  state.drawerFeature={day:dayKey,fid}; state.drawerSess=0; state.drawerFile=null;
+  $("layout").classList.add("drawer-open");
+  $("dhTitle").textContent=f.title;
+  $("dhSub").textContent=fmtD(dayKey)+" · "+(f.src==="fixed"?"用户修正":"AI 归纳 · 会话引用已校验");
+  renderDrawer(f,q);
+  if(q)toast("已定位到 "+fmtD(dayKey)+" · 「"+f.title+"」"+(q?" · 命中「"+q+"」":""));
+}
+function renderDrawer(f,q){
+  const sess=f.sessions||[];
+  const files=FILES_BY_FEATURE[f.id]||[];
+  let html='<h4>会话 <span class="cnt">'+sess.length+'</span></h4>'
+    +sess.map((s,i)=>'<div class="sess-row'+(state.drawerSess===i?" on":"")+'" data-sess="'+i+'">'
+      +'<span class="eng-tag" style="background:'+ENG[s.eng].color+'">'+s.eng+'</span>'
+      +'<span class="t">'+hi(s.title,q)+'</span><span class="hm">'+s.hm+'</span>'
+      +'<button class="resume-btn">resume</button></div>').join("")
+    +'<h4>改动文件 <span class="cnt">'+files.length+'</span> <span style="font-weight:400;text-transform:none">· 点文件在左侧出 diff · 数字永久,diff 随账本 30 天</span></h4>'
+    +files.map((fl,i)=>{
+      const pw=Math.min(38,fl.add/6),mw=Math.min(38,fl.del/6);
+      return '<div class="file-row'+(state.drawerFile===i?" on":"")+'" data-file="'+i+'">'
+        +'<span class="p">'+esc(fl.path)+(fl.cfg?'<span class="cfg-pill">配置</span>':'')+'</span>'
+        +'<span class="ficos">'
+          +'<button class="fico" data-act="open" title="打开文件">'+ICO_OPEN+'</button>'
+          +'<button class="fico" data-act="folder" title="打开所在文件夹">'+ICO_FOLDER+'</button>'
+        +'</span>'
+        +'<span class="pm">'+(fl.pruned?'<span class="pruned">账本已清理</span>'
+          :'<span class="bar" style="width:'+pw+'px;background:var(--green)"></span><span class="bar" style="width:'+mw+'px;background:var(--red)"></span>')
+        +'<span class="nums"><span class="pos">+'+fl.add+'</span> <span class="neg">−'+fl.del+'</span></span></span></div>';
+    }).join("");
+  $("drawerScroll").innerHTML=html;
+}
+$("drawerScroll").addEventListener("click",e=>{
+  const sr=e.target.closest(".sess-row");
+  if(sr){ state.drawerSess=+sr.dataset.sess; state.drawerFile=null;
+    const {day,fid}=state.drawerFeature; renderDrawer(DAYS[day].features.find(x=>x.id===fid),null); renderMain();
+    if(e.target.closest(".resume-btn"))toast("演示:resume 复用会话(接 tmd 会话系统)");
+    return; }
+  const fico=e.target.closest(".fico");
+  if(fico){ e.stopPropagation();
+    toast(fico.dataset.act==="open"?"真实实现:调系统默认程序打开该文件":"真实实现:在系统文件管理器中显示所在目录");
+    return; }
+  const fr=e.target.closest(".file-row");
+  if(fr){ state.drawerFile=+fr.dataset.file;
+    const {day,fid}=state.drawerFeature; renderDrawer(DAYS[day].features.find(x=>x.id===fid),null); renderMain();
+    requestAnimationFrame(()=>{ const md=$("mainDiff"); if(md)md.scrollIntoView({behavior:"smooth",block:"nearest"}); }); }
+});
+$("drawerClose").onclick=()=>{ state.drawerFeature=null; $("layout").classList.remove("drawer-open"); };
+
+/* 卡点击 / 修正菜单 */
+$("flow").addEventListener("click",e=>{
+  const md=e.target.closest("[data-mdact]");
+  if(md){ const a=md.dataset.mdact;
+    if(a==="close"){ state.drawerFile=null;
+      if(state.drawerFeature){ const {day,fid}=state.drawerFeature;
+        renderDrawer(DAYS[day].features.find(x=>x.id===fid),null); } }
+    else toast(a==="open"?"真实实现:调系统默认程序打开该文件":"真实实现:在系统文件管理器中显示所在目录");
+    renderMain(); return; }
+  const fix=e.target.closest("[data-fix]");
+  if(fix){ e.stopPropagation();
+    const m=$("fixMenu"); m.classList.add("show");
+    const r=fix.getBoundingClientRect(); m.style.top=(r.bottom+4)+"px"; m.style.left=(r.left-120)+"px"; return; }
+  const card=e.target.closest(".fcard");
+  if(card) openDrawer(card.dataset.day,card.dataset.f,null);
+});
+$("flow").addEventListener("keydown",e=>{
+  if(e.key==="Enter"){ const card=e.target.closest(".fcard");
+    if(card){ e.preventDefault(); openDrawer(card.dataset.day,card.dataset.f,null); } }
+});
+$("fixMenu").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b)return;
+  $("fixMenu").classList.remove("show");
+  toast("修正层演示:真实实现落盘优先于 AI 归纳("+( {rename:"重命名",merge:"合并",split:"拆分",none:"标记无关"}[b.dataset.a] )+")");
+});
+document.addEventListener("click",e=>{ if(!e.target.closest("#fixMenu")&&!e.target.closest("[data-fix]"))$("fixMenu").classList.remove("show"); });
+
+/* ================= 搜索反查 ================= */
+const searchIndex=[];
+(function(){ for(const[k,d]of Object.entries(DAYS)){ if(!d)continue;
+  for(const f of d.features){ searchIndex.push({kind:"feat",day:k,ref:f.id,title:f.title,detail:f.desc});
+    for(const s of f.sessions) searchIndex.push({kind:"sess",day:k,ref:f.id,title:s.title,detail:""});
+    for(const qu of (f.quotes||[])) searchIndex.push({kind:"quote",day:k,ref:f.id,title:qu.text,detail:""}); } }
+  for(const[k,t]of Object.entries(ARTICLES)){ if(!t)continue;
+    t.split("\n").forEach(line=>{ if(line.trim())searchIndex.push({kind:"article",day:k,ref:null,title:line.replace(/^#+\s*/,""),detail:""}); }); }
+  searchIndex.push({kind:"path",day:"2026-08-14",ref:"f1",title:"admin-web/src/pages/login.tsx",detail:""});
+  searchIndex.push({kind:"path",day:"2026-08-14",ref:"f2",title:"auth/internal/config.yaml",detail:"配置"});
+})();
+function renderSearch(q){
+  const box=$("spResults");
+  if(!q){ box.innerHTML='<div class="sp-empty">输入关键词,从功能卡 / 日报 / 用户原话 / 文件路径四个来源反查历史</div>'; return; }
+  const ql=q.toLowerCase();
+  const hits=searchIndex.filter(x=>(x.title+" "+x.detail).toLowerCase().includes(ql)).slice(0,30);
+  if(!hits.length){ box.innerHTML='<div class="sp-empty">无命中</div>'; return; }
+  const grp={feat:"功能卡",quote:"用户原话",sess:"会话标题",article:"日报",path:"文件路径"};
+  let html="",lastKind=null;
+  for(const h of hits){ if(h.kind!==lastKind){ html+='<div class="sp-group">'+grp[h.kind]+'</div>'; lastKind=h.kind; }
+    const kindClass=h.kind==="feat"?"k-feat":h.kind==="article"?"k-article":"k-path";
+    html+='<div class="sp-item" data-day="'+h.day+'" data-ref="'+(h.ref||"")+'" data-q="'+esc(q)+'">'
+      +'<span class="sp-kind '+kindClass+'">'+(h.kind==="feat"?"功能":h.kind==="article"?"日报":h.kind==="path"?"路径":h.kind==="quote"?"原话":"会话")+'</span>'
+      +'<span class="t">'+hi(h.title,q)+(h.detail&&h.kind!=="path"?" <span style='color:var(--fg-3)'>· "+hi(h.detail,q)+"</span>":"")+'</span>'
+      +'<span class="d">'+fmtD(h.day).slice(5)+'</span></div>'; }
+  box.innerHTML=html;
+}
+function openSearch(focus){ $("searchPop").classList.add("show"); renderSearch(""); if(focus!==false)$("spReal").focus(); }
+function closeSearch(){ $("searchPop").classList.remove("show"); $("spReal").blur(); $("searchInput").blur(); }
+$("searchBox").addEventListener("click",()=>openSearch());
+$("searchInput").addEventListener("focus",()=>openSearch());
+$("searchInput").addEventListener("input",e=>{ openSearch(false); $("spReal").value=e.target.value; renderSearch(e.target.value); });
+$("spReal").addEventListener("input",e=>{ $("searchInput").value=e.target.value; renderSearch(e.target.value); });
+$("spResults").addEventListener("click",e=>{
+  const it=e.target.closest(".sp-item"); if(!it)return;
+  closeSearch(); const k=it.dataset.day;
+  state.mode="day"; state.sel=k; state.range=null;
+  if(it.dataset.ref){ renderAll(); openDrawer(k,it.dataset.ref,it.dataset.q); }
+  else{ renderAll(); toast("已定位到 "+fmtD(k)+" 的日报"); }
+});
+document.addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){ e.preventDefault();
+    $("searchPop").classList.contains("show")?closeSearch():openSearch(); return; }
+  const typing=/input|textarea/i.test(e.target.tagName);
+  if(e.key==="Escape"){ closeSearch(); $("helpPop").classList.remove("show"); $("fixMenu").classList.remove("show");
+    if(state.drawerFeature){ state.drawerFeature=null; $("layout").classList.remove("drawer-open"); } return; }
+  if(typing)return;
+  if(e.key==="?"){ $("helpPop").classList.toggle("show"); return; }
+  if(e.key==="ArrowLeft"){ shiftDay(-1); return; }
+  if(e.key==="ArrowRight"){ shiftDay(1); return; }
+  if(e.key==="1"||e.key==="2"){ setHeat(e.key==="1"?"lines":"sessions"); return; }
+  if(e.key.toLowerCase()==="t"){ clickDay(TODAY); return; }
+  if(e.key.toLowerCase()==="j"||e.key.toLowerCase()==="k"){
+    const cards=[...document.querySelectorAll(".fcard")]; if(!cards.length)return;
+    e.preventDefault();
+    const idx=cards.indexOf(document.activeElement);
+    const next=e.key.toLowerCase()==="j"?Math.min(cards.length-1,idx+1):Math.max(0,idx-1);
+    cards[next].focus(); cards[next].scrollIntoView({block:"nearest"}); return; }
+});
+function shiftDay(n){
+  if(state.mode==="range"){ state.mode="day"; state.range=null; }
+  const d=new Date(state.sel+"T12:00:00"); d.setDate(d.getDate()+n);
+  clickDay(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"));
+}
+function setHeat(mode){ state.heat=mode;
+  document.querySelectorAll("#heatSeg button").forEach(b=>b.classList.toggle("on",b.dataset.k===mode));
+  renderCal(); }
+$("heatSeg").addEventListener("click",e=>{ const b=e.target.closest("button"); if(b)setHeat(b.dataset.k); });
+$("prevM").onclick=()=>{ state.m--; if(state.m<1){state.m=12;state.y--;} renderCal(); };
+$("nextM").onclick=()=>{ state.m++; if(state.m>12){state.m=1;state.y++;} renderCal(); };
+$("todayBtn").onclick=()=>clickDay(TODAY);
+$("helpBtn").onclick=()=>$("helpPop").classList.toggle("show");
+
+function renderAll(){ renderCal(); renderMain();
+  if(state.drawerFeature){ const{day,fid}=state.drawerFeature;
+    if(DAYS[day]&&DAYS[day].features.find(x=>x.id===fid))renderDrawer(DAYS[day].features.find(x=>x.id===fid),null);
+    else{ state.drawerFeature=null; $("layout").classList.remove("drawer-open"); } } }
+renderAll();
+</script>
+</body>
+</html>

@@ -307,6 +307,7 @@ pub fn run() {
             git::commands::git_status,
             git::commands_batch::git_status_batch,
             git::commands::git_repos_scan,
+            git::repos_log_range::git_repos_log_range,
             git::commands::git_ignored_prefixes,
             checkpoints::commands::checkpoint_anchor,
             checkpoints::commands::checkpoint_record_edit,

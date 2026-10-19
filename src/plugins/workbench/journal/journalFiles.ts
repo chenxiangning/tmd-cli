@@ -100,6 +100,8 @@ interface DailyPaths {
   digest: (y: number, m: number, d: number) => string;
   /** 当日生成 prompt(无头单发经 @file 传入引擎;摘录+清单可达数百 KB,不挤 argv)。 */
   prompt: (y: number, m: number, d: number) => string;
+  /** footprint 功能卡文件(L3 管线 A:生成会话顺手直写;不在 daily 根下,读侧 = footprint 插件)。 */
+  featureCards: (y: number, m: number, d: number) => string;
   notes: (y: number, m: number) => string;
   meta: string;
   assets: string;
@@ -118,6 +120,7 @@ export function dailyPaths(): Promise<DailyPaths> {
       article: (y, m, d) => `${root}/article/${dayKey(y, m, d)}.md`,
       digest: (y, m, d) => `${root}/digest/${dayKey(y, m, d)}.md`,
       prompt: (y, m, d) => `${root}/prompt/${dayKey(y, m, d)}.md`,
+      featureCards: (y, m, d) => `${base}/footprint/features/${dayKey(y, m, d)}.json`,
       notes: (y, m) => `${root}/notes/${y}-${pad2(m)}.json`,
       meta: `${root}/meta.json`,
       assets: `${root}/assets`,

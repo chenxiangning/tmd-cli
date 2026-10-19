@@ -2,7 +2,8 @@
  * 生成 prompt 构造(纯函数,测试面)—— 文章 md 契约的唯一权威表述:
  * 结构(h1/总览/## 分节[问题/过程/关键片段/踩坑与规避]/## 未完事项)、半角留痕、
  * 增量不重写既有节、摘录文件为事实来源、会话引用四段标记(sessionRef 同契约)、
- * 「写完只回一行」收口。genSession 消费。
+ * 「写完只回一行」收口;文章契约段后附功能卡契约段(footprint features JSON
+ * 直写,spec L3 管线 A)。genSession 消费。
  */
 import type { DaySessionRow } from "./daySessions";
 import { isRowSummarized } from "./daySessions";
@@ -41,6 +42,8 @@ export function buildGenPrompt(
   summarizedAt?: number,
   digest?: DigestHandoff,
   projectGroups?: readonly ProjectPromptGroup[],
+  /** footprint 功能卡文件路径(缺省 = 契约段整体省略,行为与旧版一致)。 */
+  featuresPath?: string,
 ): string {
   const key = dayKey(y, m, d);
   const legend = digest ? "当日会话清单(标题后的 (有摘录)=摘录文件中有对应小节,(无摘录)=仅有标题):" : "当日会话清单:";
@@ -74,6 +77,24 @@ ${digest.path}
       ? "- 新节分节优先按项目组织(既有节逐字保留,不重排进项目壳);\n"
       : "- 分节优先按项目组织(项目分组即主线);跨项目或无项目主线可独立成节;\n"
     : "";
+  const fileScope = featuresPath
+    ? "文章为 UTF-8 Markdown;只写文中给定的两个文件(文章与功能卡),不要创建或修改其他任何文件;"
+    : "UTF-8 Markdown;只写这一个文件,不要创建或修改其他任何文件;";
+  /* 功能卡契约段(spec L3 管线 A):与文章同任务同会话直写第二个文件,零新增调度。
+   * 铁律:sessions/quote.sid 只能引用摘录小节标题 · 之后的真实会话 id(摘录头已带
+   * id,见 sessionDigest.renderSessionDigest),禁止编造;增量日旧卡 title 冻结,
+   * 只允许归并新会话或新建卡,不改写措辞;单日 1-8 张,宁缺勿滥。features 文件
+   * 缺失不判任务失败(结算只看文章,读侧宽容自校验),故不设专属重试/降级条款。 */
+  const features = featuresPath
+    ? `
+功能卡(第二个直写文件,与文章同次生成):另把当日功能卡 JSON 直接写入文件:
+${featuresPath}
+schema 严格遵守(version 固定为 1):
+{"version":1,"cards":[{"title":"功能名(≤12字)","summary":"一句话(≤40字)","sessions":["必须取自当日摘录中出现的会话 id"],"quote":{"sid":"会话id","text":"用户原话(≤60字)","time":"HH:MM"}}]}
+- 每张卡对应一条当日功能主线(可参考项目分组),单日 1-8 张,宁缺勿滥;当日确无实质工作(空日说明文)才允许不写此文件。
+- quote 每卡至多一条,选最有代表性的用户原话,time 用 24 小时制 HH:MM。
+- sessions 与 quote.sid 只能引用摘录小节标题里 · 之后的会话 id(即当日摘录真实覆盖的会话),禁止编造;查无此 id 的卡会被读侧校验降级。${hasExisting ? "\n- 功能卡文件已存在(增量并入):先读它;旧卡 title 一经生成即冻结,只允许向语义相符的既有卡追加 sessions(不改旧卡 title/summary 等任何措辞),或为全新主线新建卡。" : ""}`
+    : "";
   return `# 每日工作日志生成任务:${key}
 
 把今天(${rows.length} 个 AI 编程会话)整理成一篇当日工作汇总文章,直接写入文件:
@@ -82,7 +103,7 @@ ${articlePath}
 ${source}
 
 要求:
-- UTF-8 Markdown;只写这一个文件,不要创建或修改其他任何文件;禁止扫描目录或逐个探测原始会话文件(事实只来自摘录与清单);全程不得向用户提问,工具失败不中止。
+- ${fileScope}禁止扫描目录或逐个探测原始会话文件(事实只来自摘录与清单);全程不得向用户提问,工具失败不中止。
 - 结构严格遵守:
   # <自拟标题:概括当日主线>
   <总览段:当天干了什么、主线与产出,3-6 句>
@@ -99,6 +120,7 @@ ${source}
 - ${groupRule}${incremental}
 - ${degrade}
 - 无论过程如何,最后必须把文章写入上述文件并回复那一行。
+${features}
 
 ${legend}
 ${list || "(无——按空日处理,写一篇说明性短文即可)"}
