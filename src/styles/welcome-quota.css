@@ -1,0 +1,157 @@
+/* ──────────────────────────────────────────────────────────
+ * Welcome 页 · 页尾 QUOTA 套餐水位面板(卡片网格)
+ * (自 welcome.css 按 300 行铁则分片;设计
+ *  docs/design/040-candidates/3-quota-reset.html;颜色零硬编码,
+ *  --tmd-* token)。
+ * ────────────────────────────────────────────────────────── */
+
+.welcome-quota {
+  border-top: 1px solid var(--tmd-border);
+  margin-top: 10px;
+}
+
+/* 面板条 */
+.wq-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 4px 8px;
+  border-bottom: 1px solid var(--tmd-border);
+}
+.wq-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-weight: 600;
+  color: var(--tmd-fg);
+}
+.wq-sub {
+  font-size: var(--tmd-font-xs);
+  font-weight: 400;
+  color: var(--tmd-fg-subtle);
+}
+.wq-btn {
+  flex-shrink: 0;
+  font-size: var(--tmd-font-ui);
+  font-family: inherit;
+  color: var(--tmd-fg-muted);
+  background: var(--tmd-bg-elevated);
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-sm);
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.wq-btn:not(:disabled):hover {
+  border-color: var(--tmd-accent);
+  color: var(--tmd-fg);
+}
+.wq-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* 汇总条:下一个可用窗口 */
+.wq-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--tmd-border);
+}
+.wq-sum-main { font-weight: 600; color: var(--tmd-fg); }
+.wq-sum-note {
+  margin-left: auto;
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-warn);
+}
+
+/* 卡网格:1px 缝隙出分隔线(灰态沉底,见 quotaPanel.buildQuotaCards 排序) */
+.wq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1px;
+  background: var(--tmd-border);
+}
+.wq-card {
+  background: var(--tmd-bg-base);
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.wq-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.wq-name { font-weight: 600; color: var(--tmd-fg); }
+
+.wq-pill {
+  font-size: var(--tmd-font-xs);
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+.wq-plan {
+  background: var(--tmd-bg-hover);
+  color: var(--tmd-fg-muted);
+  border: 1px solid var(--tmd-border);
+}
+.wq-ok { background: var(--tmd-ok); color: #fff; }
+.wq-limited { background: var(--tmd-err); color: #fff; }
+
+/* 卡体:窗口块(5 小时 + 7 天并列);单窗卡环 76,多窗卡环 60 */
+.wq-wins { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.wq-win { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.wq-ring {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+}
+.wq-multi .wq-ring { width: 60px; height: 60px; }
+.wq-ring svg { transform: rotate(-90deg); display: block; }
+.wq-ring-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--tmd-font-xl);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--tmd-fg);
+  font-variant-numeric: tabular-nums;
+}
+.wq-ring-pct small {
+  font-size: var(--tmd-font-2xs);
+  font-weight: 400;
+  color: var(--tmd-fg-subtle);
+}
+.wq-ring-pct.muted { color: var(--tmd-fg-subtle); }
+
+.wq-cd { min-width: 0; }
+.wq-cd-label {
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-subtle);
+}
+.wq-cd-val {
+  font-size: var(--tmd-font-xl);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--tmd-fg);
+  font-variant-numeric: tabular-nums;
+}
+.wq-hot-text { color: var(--tmd-err); }
+.wq-ok-text { color: var(--tmd-ok); }
+.wq-cd-sub {
+  font-size: var(--tmd-font-xs);
+  color: var(--tmd-fg-subtle);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .wq-grid { grid-template-columns: 1fr; }
+}

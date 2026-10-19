@@ -24,8 +24,9 @@ export type { SessionKeepEntry };
 export const sessionKeepKey = sessionOverlayKey;
 
 /* 手动取消归档与自动归档同密度量级(恢复旧会话常成批),2000 上限与归档层对齐
- * (2026-10-18 自 200 提容);sanitize 侧只验时间戳无容量上限,无双源同步负担。 */
-const SESSION_KEEP_MAX = 2000;
+ * (2026-10-18 自 200 提容);此常量为双源同源:settingsSanitizeSessions 的
+ * sanitizeSessionKeep 引用同一值(改须同改 → 只改这里即可)。 */
+export const SESSION_KEEP_MAX = 2000;
 const overlay = makeOverlay<SessionKeepEntry>("sessionKeep", "keptAt", SESSION_KEEP_MAX);
 
 /** 是否已标记保留(清扫跳过)。 */

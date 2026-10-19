@@ -31,6 +31,7 @@ import { requestTreeNew } from "./treeHandles";
 import { WorkspaceFileBrowser } from "./WorkspaceFileBrowser";
 import { registerWorkspaceFileBrowser } from "@kernel/workspaceFileBrowser";
 import { retryImport } from "@kernel/lazyImport";
+import { filePathLinkProvider } from "./terminalPathLinks";
 
 export const filesPlugin: Plugin = {
   id: "files",
@@ -72,6 +73,9 @@ export const filesPlugin: Plugin = {
     /* 左栏工作区「查看文件」浏览器实现(kernel workspaceFileBrowser 契约);
        拔出本插件 = 入口按钮消失、已开视图自动关闭,右栏文件树零感知。 */
     registerWorkspaceFileBrowser(WorkspaceFileBrowser);
+    /* 幕布内裸文件路径可点击(terminalLinks 注册表;区外/不存在静默,行为钉在
+       terminalPathLinks.test.ts);注册循 marks 先例,退订并入插件卸载。 */
+    const offPathLinks = ctx.registerTerminalLinkProvider(filePathLinkProvider);
     /* 中央文件 tab 内容:kind="file" 路由(kernel/tabs 注册表)。
        beforeClose 闸:用户手势关闭脏文档(× / ⌘W / 关其他 / 关全部)先确认,
        确认丢弃才删内存草稿;程序性删除面(文件已删收 tab)不过闸,行为零变化
@@ -120,6 +124,9 @@ export const filesPlugin: Plugin = {
       when: () => getActiveTab()?.kind === "file",
       run: () => blameToggleRef.current?.(),
     });
-    return () => registerWorkspaceFileBrowser(null);
+    return () => {
+      offPathLinks();
+      registerWorkspaceFileBrowser(null);
+    };
   },
 };

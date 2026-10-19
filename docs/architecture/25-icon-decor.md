@@ -1,10 +1,10 @@
-# 25 图标装饰全量纳管:80 键白名单 + 容器级家族键
+# 25 图标装饰全量纳管:81 键白名单 + 容器级家族键
 
-日期:2026-10-15(前史:docs/superpowers/specs/2026-09-08-icon-decor-design.md 七键起步;2026-09-29 扩 17 键;2026-10-09 扩 11 键;本篇 = 全量纳管收口)
+日期:2026-10-15(前史:docs/superpowers/specs/2026-09-08-icon-decor-design.md 七键起步;2026-09-29 扩 17 键;2026-10-09 扩 11 键;本篇 = 全量纳管收口;2026-10-19 扩 1 键 panel-memory-files,042 追加批项 10)
 
 ## 结论
 
-图标装饰(settings.iconDecor)从 48 个逐点键扩为 **80 键 = 48 逐点键 + 32 家族键**,客户端全部界面图标可被「图标装饰」设置纳管(独立颜色 + 呼吸闪烁)。逐点键管单个挂点,家族键管一个界面域(容器根打标,整域生效)。
+图标装饰(settings.iconDecor)从 48 个逐点键扩为 **81 键 = 49 逐点键 + 32 家族键**,客户端全部界面图标可被「图标装饰」设置纳管(独立颜色 + 呼吸闪烁)。逐点键管单个挂点,家族键管一个界面域(容器根打标,整域生效)。
 
 ## 契约速览
 
@@ -18,7 +18,7 @@ export type IconSetGlyphId = (typeof ICON_DECOR_POINT_IDS)[number]; // iconSet �
 
 两类键的消费方式不同:
 
-| | 逐点键(48) | 家族键(32) |
+| | 逐点键(49) | 家族键(32) |
 |---|---|---|
 | 挂点 | 挂点元素/svg 上 `data-action-id`/`data-panel-id`/home 样式表类钩子 | **容器根** `data-icon-decor="<键>"` |
 | 消费 | `styles/icon-decor.css`(旧 17 键在各自 home 样式表原地) | `styles/icon-decor-families.css` |
@@ -42,5 +42,5 @@ export type IconSetGlyphId = (typeof ICON_DECOR_POINT_IDS)[number]; // iconSet �
 
 ## 验证
 
-- check:gate 全链绿(4002 测试含 iconDecor 契约/settingsIconDecor 80 键钉/locales 撞车扫描);react-doctor 100。
+- check:gate 全链绿(4002 测试含 iconDecor 契约/settingsIconDecor 81 键钉(2026-10-19 起,项 10 panel-memory-files)/locales 撞车扫描);react-doctor 100。
 - 1421 桩目检:家族色落真实容器(.ws-sidebar 10 svg 中 4 吃家族色、6 自有类色保留)、`data-icon-keep` 胜家族色、抹变量回落 currentColor 像素零变化、设置卡 9 组 80 行(含 弹出与浮层/页面与插件/连接与终端 三新组)。

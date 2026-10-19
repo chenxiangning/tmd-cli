@@ -40,10 +40,15 @@ pub struct TurnFile {
     pub before_oid: String,
     /// 批后像 blob(sidecar);"" = 批后无内容(删除)或内容不可知(skip)
     pub after_oid: String,
+    #[serde(default)]
     pub existed_before: bool,
+    #[serde(default)]
     pub existed_after: bool,
+    #[serde(default)]
     pub additions: u32,
+    #[serde(default)]
     pub deletions: u32,
+    #[serde(default)]
     pub binary: bool,
     /// unified diff 文本(封口瞬间固化);binary 为空串
     #[serde(default)]
@@ -167,6 +172,10 @@ pub struct BatchFile {
     pub stale: bool,
     /// 本轮 AI 写入事件计数(events 归因的轨迹;git 归因 = 0)
     pub edit_count: u32,
+    /// 账本口径 ± 行数(TurnFile 封口瞬间固化;回退不回缩)。变更总览跨批
+    /// 聚合用;open 轮未封口为 0,与批审阅单懒加载 diff 求和口径双注明。
+    pub additions: u32,
+    pub deletions: u32,
     /// 工作区外首轮无前像(批前像不可知):禁回退,仅可查看 / 应用
     pub no_baseline: bool,
 }

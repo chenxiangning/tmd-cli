@@ -26,6 +26,7 @@ import { emitPromptSent, readPromptGate, shouldBroadcastPrompt } from "@kernel/p
 import { prepareSendPayload } from "@kernel/profileSend";
 import { clearAttachments } from "../state/attachments";
 import { recordPrompt } from "@kernel/promptHistory";
+import { getSettingsState } from "@kernel/settings";
 import { broadcastModeRef } from "./broadcastMode";
 import { resolveBroadcastTargets } from "./broadcastTargets";
 import { buildBroadcastPlan, buildSinglePlan, isConfirmPending, setSendExecuting, type SendConfirmRequest, type SendPlan } from "./sendPlan";
@@ -113,7 +114,8 @@ export function useComposerSend({
             );
             return;
           }
-          if (trimmed) recordPrompt(trimmed); /* 空输入首发(接力芯片)不入 ↑ 召回史 */
+          /* promptHistoryEnabled 关时不记 ↑ 召回史(与 Composer.tsx 键位闸同键;空输入首发(接力芯片)不入史) */
+          if (trimmed && getSettingsState().settings.promptHistoryEnabled) recordPrompt(trimmed);
           clearInputIfUnchanged(plan);
           clearAttachments();
           clearMatches();
@@ -158,7 +160,8 @@ export function useComposerSend({
         return;
       }
       emitPromptSent(gate, sid, trimmed, transforms.length > 0 ? carriedMarks() : undefined);
-      if (trimmed) recordPrompt(trimmed); /* 空输入首发(接力芯片)不入 ↑ 召回史 */
+      /* promptHistoryEnabled 关时不记 ↑ 召回史(与 Composer.tsx 键位闸同键;空输入首发(接力芯片)不入史) */
+      if (trimmed && getSettingsState().settings.promptHistoryEnabled) recordPrompt(trimmed);
       clearInputIfUnchanged(plan);
       clearAttachments();
       clearMatches();

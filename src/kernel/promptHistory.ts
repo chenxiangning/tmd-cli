@@ -8,14 +8,25 @@
  *
  * 契约:
  * - items 最旧在前(newest-last);record 去重(同文本移到最底)并计数 +1;
- * - 上限 200 条,单条截断 300 字符;delete/clear 同步清计数;
+ * - 上限 200 条;单条硬上限 MAX_ENTRY_LENGTH(8000,防御病态长粘贴)——
+ *   v1 的 slice(0,300) 已移除,新记录起存全文;存量截断条目不打标,去重置底自然自愈;
+ * - 总量封顶 MAX_CHARS(512K UTF-16 字符,≈1MB localStorage 配额):save 期
+ *   stringify 超限从 items[0] 连 counts 一起最旧淘汰(排序键=数组序 recency);
+ *   localStorage 写满静默降级,永不 throw;
+ * - MAX_TEXT_LENGTH 语义改为「ghost 匹配/展示窗口」(展示截断在 usePromptHistory,
+ *   匹配侧 startsWith 天然只比对前缀,零代码);
  * - findPromptCompletion:前缀匹配(大小写不敏感)且比查询长,按使用次数降序、
  *   同次数取更短;查询 clean 后不足 2 字符返回 null。
  */
 
 const STORAGE_KEY = "tmd.composer.promptHistory.v1";
 const MAX_ITEMS = 200;
-const MAX_TEXT_LENGTH = 300;
+/** ghost 匹配/展示窗口(不再作用于存储截断,仅 usePromptHistory 消费)。 */
+export const MAX_TEXT_LENGTH = 300;
+/** 单条硬上限:防御病态长粘贴,8000 字符足以覆盖一切真实提示词。 */
+const MAX_ENTRY_LENGTH = 8000;
+/** 总量封顶(UTF-16 字符数,localStorage 按同单位计配额):超限最旧淘汰。 */
+const MAX_CHARS = 512 * 1024;
 
 interface PromptHistoryData {
   items: string[];
@@ -55,7 +66,24 @@ function get(): PromptHistoryData {
 
 function save(): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(get()));
+    /* 总量字符封顶(serialized.length 为 UTF-16 字符数,localStorage 配额同单位):
+       序列化一次,超限先按各条序列化长度估算一次性切到 ≤ 上限,再终序列化写回,
+       避免逐条淘汰整文档重序列化(最坏百余遍×1M+ 字符)。 */
+    const data = get();
+    let serialized = JSON.stringify(data);
+    if (serialized.length > MAX_CHARS && data.items.length > 0) {
+      const perItem = data.items.map((t) => JSON.stringify(t).length + 1); /* 含逗号/引号间隔 */
+      let total = serialized.length;
+      let cut = 0;
+      while (cut < data.items.length && total - perItem[cut] > MAX_CHARS) {
+        total -= perItem[cut];
+        cut++;
+      }
+      const dropped = data.items.splice(0, cut);
+      for (const oldest of dropped) delete data.counts[oldest];
+      serialized = JSON.stringify(data);
+    }
+    localStorage.setItem(STORAGE_KEY, serialized);
   } catch {
     /* 存储不可用/写满不致命:内存态保留到本次会话 */
   }
@@ -69,7 +97,7 @@ export function getPromptHistory(): string[] {
 
 /** 记录一条提交(去重置底 + 计数);空串忽略。 */
 export function recordPrompt(text: string): void {
-  const entry = text.trim().slice(0, MAX_TEXT_LENGTH);
+  const entry = text.trim().slice(0, MAX_ENTRY_LENGTH);
   if (!entry) return;
   const data = get();
   const existing = data.items.indexOf(entry);

@@ -25,6 +25,7 @@ import { findWorkspaceOrigin, useWorkspaceOrigins } from "@kernel/workspaceOrigi
 import { spinRemainder } from "@kernel/spin";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { registerSessionRevealHandler } from "@kernel/sessionReveal";
+import { registerPendingPromptConsumption } from "@kernel/sessionPending";
 import { SessionMenuOverlay } from "./SessionMenu";
 import { WorktreeSessionDialog } from "./WorktreeSessionDialog";
 import { SessionPresetsDialog } from "./SessionPresetsDialog";
@@ -262,6 +263,8 @@ export const workspacePlugin: Plugin = {
   activate(ctx) {
     /* 会话预设装载一次(坏文件回落空库,agents.json 范式;语义见 ./sessionPresets)。 */
     void loadSessionPresets();
+    /* pending 初始提示词消费面(kernel 自持,不依赖可拔插件在场;语义见 @kernel/sessionPending)。 */
+    const offPendingPrompt = registerPendingPromptConsumption();
     ctx.contribute("leftSidebar.section", {
       order: 0,
       component: WorkspaceSection,
@@ -290,6 +293,7 @@ export const workspacePlugin: Plugin = {
         },
       ],
     });
-    return scheduleBootSweep(); /* 启动补扫(会话卫生):45s 一次性兜底,零轮询;拔出清定时器 */
+    const offSweep = scheduleBootSweep(); /* 启动补扫(会话卫生):45s 一次性兜底,零轮询;拔出清定时器 */
+    return () => { offPendingPrompt(); offSweep(); };
   },
 };

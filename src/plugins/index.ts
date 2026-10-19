@@ -50,6 +50,7 @@ import { structuredSessionPlugin } from "./structured-session";
 import { workbenchPlugin } from "./workbench";
 import { animPlugin } from "./anim";
 import { storageAuditPlugin } from "./storage-audit";
+import { footprintPlugin } from "./footprint";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -98,4 +99,5 @@ export const allPlugins: Plugin[] = [
   workbenchPlugin,
   animPlugin,
   storageAuditPlugin,
+  footprintPlugin,
 ];

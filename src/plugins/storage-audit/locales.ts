@@ -21,6 +21,9 @@ const MESSAGES_EN = {
   "文件数": "Files",
   "超时": "timed out",
   "未使用": "Unused",
+  "合计": "Total",
+  "部分类目超时,体积合计不含": "timed-out categories excluded",
+  "清理": "Remove",
   "CLI 会话目录,只读零触碰": "CLI session directory — read-only, never touched",
   "恢复点数据,可按工作区清理(见下方清理)":
     "Checkpoint data — cleanable per workspace (see cleanup below)",
@@ -69,6 +72,9 @@ const MESSAGES_JA = {
   "文件数": "ファイル数",
   "超时": "タイムアウト",
   "未使用": "未使用",
+  "合计": "合計",
+  "部分类目超时,体积合计不含": "タイムアウトしたカテゴリは合計に含みません",
+  "清理": "削除",
   "CLI 会话目录,只读零触碰": "CLI セッションディレクトリ:読み取り専用、一切触れません",
   "恢复点数据,可按工作区清理(见下方清理)":
     "チェックポイントデータ。ワークスペース単位でクリーンアップ可能(下記参照)",

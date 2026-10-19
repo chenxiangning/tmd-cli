@@ -9,6 +9,7 @@ import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { KernelTopics } from "@kernel/events";
 import { updateSettings, getSettingsState } from "@kernel/settings";
+import { setPendingPrompt } from "@kernel/sessionPending";
 import { addWorkspace, removeWorkspace } from "@kernel/workspace";
 import { recordWtSession } from "./worktreeSession";
 
@@ -44,6 +45,11 @@ export async function runWorktreeCreate(input: {
   newBranch: boolean;
   engineId: string;
   title: string;
+  /** 会话预设(候选4)覆盖面:spawn 参数/环境/初始提示词;缺省 = profile 原样(对话框路径零变化)。 */
+  spawnArgs?: string[];
+  spawnEnv?: Record<string, string>;
+  /** 非空 = spawn 成功后经 kernel pending 队列注入(会话就绪后 composer 消费,失败零残留)。 */
+  promptText?: string;
 }): Promise<WtCreateOutcome> {
   let wsId: string | null = null;
   let added = false;
@@ -71,18 +77,31 @@ export async function runWorktreeCreate(input: {
     updateSettings({
       workspaceCollapsedMap: { ...getSettingsState().settings.workspaceCollapsedMap, [ws.id]: false },
     });
+    const profile = host.getCliProfile(input.engineId);
+    const spec: {
+      command: string;
+      args: string[];
+      cwd: string;
+      env?: Record<string, string>;
+      title: string;
+    } = {
+      command: profile?.command ?? "",
+      args: input.spawnArgs ?? profile?.args ?? [],
+      cwd: input.wtPath,
+      title: input.title,
+    };
+    if (input.spawnEnv) spec.env = input.spawnEnv;
     const spawned = await host.spawnRawSession(
       input.engineId,
-      {
-        command: host.getCliProfile(input.engineId)?.command ?? "",
-        args: host.getCliProfile(input.engineId)?.args ?? [],
-        cwd: input.wtPath,
-        title: input.title,
-      },
+      spec,
       ws.id,
       { activate: true, identityTrack: true },
     );
     spawnedId = spawned.id;
+    /* 注入先于记账:setPendingPrompt 是同步内存写不会失败,recordWtSession
+       (localStorage)配额满可抛 —— 反序会把已启动会话的初始提示词丢成孤儿。 */
+    const prompt = input.promptText?.trim();
+    if (prompt) setPendingPrompt(spawned.id, prompt);
     recordWtSession(spawned.id, { branch: input.finalBranch, wtPath: input.wtPath, root: input.repoCwd });
     return { ok: true };
   } catch (e) {

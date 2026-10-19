@@ -21,6 +21,8 @@
   .desc { font-size: 13px; color: #57534e; }
   .base { font-size: 12px; color: #15803d; margin-top: 4px; }
   .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: #ffedd5; color: #9a3412; margin-top: 8px; }
+  .tag.done { background: #dcfce7; color: #166534; }
+  .tag.todo { background: #fef9c3; color: #854d0e; }
 </style>
 </head>
 <body>
@@ -29,13 +31,13 @@
   <p class="sub">调研:docs/research/client-deep-research-2026-10.md · 2026-10-18 裁定 7 项,已按代码级可行性重构(已有能力标注为对照,不重复画)</p>
   <p class="feas">可行性分析:<a href="feasibility.md">feasibility.md</a> · 调研表编号在各页角注</p>
   <div class="grid">
-    <a class="card" href="1-worktree-min.html"><div class="num">01</div><div class="name">worktree 会话链路</div><div class="desc">会话卡一键起 worktree 会话 + 关联徽标 + 磁盘占用</div><div class="base">已有底子:管理面 618 行 + porcelain 解析</div><span class="tag">补最后一环</span></a>
-    <a class="card" href="2-diff-annotate.html"><div class="num">02</div><div class="name">diff 行级批注回传</div><div class="desc">内容哈希锚定批注,经 composer 回传 agent</div><div class="base">已有底子:词级 diff 渲染 + composer 链路</div><span class="tag">低-中成本</span></a>
-    <a class="card" href="3-quota-reset.html"><div class="num">03</div><div class="name">限额 reset 可视化</div><div class="desc">claude/codex 本地推算倒计时,口径不明显示「—」</div><div class="base">已有底子:sessionUsage 四家用量行</div><span class="tag">不猜测兜底</span></a>
-    <a class="card" href="4-agent-wiki.html"><div class="num">04</div><div class="name">agent wiki 决策沉淀</div><div class="desc">已决策/开放问题,退出时本地截取零模型成本</div><div class="base">已有底子:memory-coordinator + exited 事件</div><span class="tag">子模块挂载</span></a>
-    <a class="card" href="5-plugin-lazy.html"><div class="num">05</div><div class="name">插件懒加载</div><div class="desc">首包 3,718KB → ~1,600KB,两段式 activate</div><div class="base">红线:kernel/cli-shared 必须静态</div><span class="tag">回归面大</span></a>
-    <a class="card" href="6-kernel-audit.html"><div class="num">06</div><div class="name">kernel 分区盘点</div><div class="desc">脚本产清单,人工贴标签,迁出标签进 CI</div><div class="base">已有底子:check-file-size / arch-boundary 先例</div><span class="tag">零运行时</span></a>
-    <a class="card" href="7-webgl-bench.html"><div class="num">07</div><div class="name">WebGL 终端基准</div><div class="desc">独立 bench 页三场景,通过才入依赖且按需加载</div><div class="base">现状:addon 未装,先测再定</div><span class="tag">先测再定</span></a>
+    <a class="card" href="1-worktree-min.html"><div class="num">01</div><div class="name">worktree 会话链路</div><div class="desc">会话卡一键起 worktree 会话 + 关联徽标 + 磁盘占用</div><div class="base">已有底子:管理面 618 行 + porcelain 解析</div><span class="tag">补最后一环</span><span class="tag done">已落地 · b865c78b(入口重梳 bc0edfbc)</span></a>
+    <a class="card" href="2-diff-annotate.html"><div class="num">02</div><div class="name">diff 行级批注回传</div><div class="desc">内容哈希锚定批注,经 composer 回传 agent</div><div class="base">已有底子:词级 diff 渲染 + composer 链路</div><span class="tag">低-中成本</span><span class="tag done">已落地 · 68243e8e(IME/撤销 67ca88c7)</span></a>
+    <a class="card" href="3-quota-reset.html"><div class="num">03</div><div class="name">限额 reset 可视化</div><div class="desc">claude/codex 本地推算倒计时,口径不明显示「—」</div><div class="base">已有底子:sessionUsage 四家用量行</div><span class="tag">不猜测兜底</span><span class="tag done">已落地 · 页尾 QUOTA 套餐水位面板(真额度环卡 5 小时+7 天双窗并列 + claude 推算卡,查不到的卡不渲染,旧 RESUME/TOKENS 区摘除)</span></a>
+    <a class="card" href="4-agent-wiki.html"><div class="num">04</div><div class="name">agent wiki 决策沉淀</div><div class="desc">已决策/开放问题,退出时本地截取零模型成本</div><div class="base">已有底子:memory-coordinator + exited 事件</div><span class="tag">子模块挂载</span><span class="tag done">已落地(幂等键改 CLI 身份 · 67ca88c7/3955b567)</span></a>
+    <a class="card" href="5-plugin-lazy.html"><div class="num">05</div><div class="name">插件懒加载</div><div class="desc">首包 3,718KB → ~1,600KB,两段式 activate</div><div class="base">红线:kernel/cli-shared 必须静态</div><span class="tag">回归面大</span><span class="tag done">已落地 · 5b001b2d(lazySuspense 原语,首包 -23%,终败护栏 d499892c)</span></a>
+    <a class="card" href="6-kernel-audit.html"><div class="num">06</div><div class="name">kernel 分区盘点</div><div class="desc">脚本产清单,人工贴标签,迁出标签进 CI</div><div class="base">已有底子:check-file-size / arch-boundary 先例</div><span class="tag">零运行时</span><span class="tag done">已落地 · pnpm check:kernel-audit 已入 check:gate CI 链</span></a>
+    <a class="card" href="7-webgl-bench.html"><div class="num">07</div><div class="name">WebGL 终端基准</div><div class="desc">独立 bench 页三场景,通过才入依赖且按需加载</div><div class="base">现状:addon 未装,先测再定</div><span class="tag">先测再定</span><span class="tag done">已落地 · bench/index.html 三场景基准页(devDep addon 0.19.0,主包零携带;真机判定待大仙客户端复测)</span></a>
   </div>
 </main>
 </body>

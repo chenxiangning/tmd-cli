@@ -1,11 +1,18 @@
 /**
- * 跨插件契约 · 会话 pending 初始提示词队列(anim refStore 提示词半区上移,
- * 2026-10-18 候选4;≥2 插件消费:anim AI 会话 / workspace 会话预设)──
- * 模块级单例,keyed by 目标会话 id:composer 芯片展示,发送变换经
- * consumePendingPrompt 原子读+清(发送失败由消费方 setPendingPrompt 回写)。
+ * 跨插件契约 · 会话 pending 初始提示词队列(workspace 会话预设写入,
+ * 2026-10-18 自 anim 提取消费半区)──模块级单例,keyed by 目标会话 id:
+ * composer 芯片展示,发送变换经 consumePendingPrompt 原子读+清(消费面在
+ * 本模块收口,kernel 自持,不依赖任何可拔 feature 插件在场;发送失败由
+ * undoPendingPromptSend 回写)。anim 等插件只作生产者(setPendingPrompt)。
  */
 
 import { useSyncExternalStore } from "react";
+import {
+  registerComposerEmptySendProvider,
+  registerComposerSendTransform,
+  registerComposerSendUndo,
+  type ComposerSendTransform,
+} from "./composerExt";
 
 /* ponytail: 上限 8 条 —— 并发预设/anim 会话少见,Map 插入序 LRU 够用,溢出即最老丢弃。 */
 const MAX_PENDING_PROMPTS = 8;
@@ -55,4 +62,34 @@ export function usePendingPrompt(sessionId: string | null): string | null {
   return useSyncExternalStore(subscribePendingPrompts, () =>
     sessionId ? getPendingPrompt(sessionId) : null,
   );
+}
+
+let lastConsumedPrompt: { sessionId: string; prompt: string } | null = null;
+
+/** 提示词前置注入消费面(kernel 自持,与 anim refs 半区同构拼接)。 */
+export const pendingPromptSendTransform: ComposerSendTransform = (text, sessionId) => {
+  if (!sessionId) return text;
+  const prompt = consumePendingPrompt(sessionId);
+  if (prompt === null) return text;
+  lastConsumedPrompt = { sessionId, prompt };
+  return [prompt, text].filter((part) => part !== "").join("\n\n");
+};
+
+/** 发送失败回滚:恢复最后一次消费的提示词(幂等,无消费 no-op)。 */
+export function undoPendingPromptSend(): void {
+  if (!lastConsumedPrompt) return;
+  setPendingPrompt(lastConsumedPrompt.sessionId, lastConsumedPrompt.prompt);
+  lastConsumedPrompt = null;
+}
+
+/** 注册提示词消费面(变换 + 发送失败回滚 + 仅提示词时空输入放行);返回反注册。 */
+export function registerPendingPromptConsumption(): () => void {
+  const offs = [
+    registerComposerSendTransform(pendingPromptSendTransform),
+    registerComposerSendUndo(undoPendingPromptSend),
+    registerComposerEmptySendProvider(
+      (sid) => !!sid && getPendingPrompt(sid) !== null,
+    ),
+  ];
+  return () => offs.forEach((off) => off());
 }

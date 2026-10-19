@@ -28,10 +28,31 @@ export interface NotifyEntry {
 export interface NotifyDoc {
   version: 1;
   entries: NotifyEntry[];
+  /** 额度预警去重键(带引擎前缀),头部持久化 —— 重启不失忆;窗口键按
+   *  resetsAt 存活(长窗不剪),余额键随 notifyLogDays 同批裁剪。 */
+  quotaSeen: Array<{ k: string; at: number }>;
 }
 
 /** 条数上限兜底(过期过滤之外的第二道体积闸)。 */
 export const ENTRIES_MAX = 500;
+
+/** quotaSeen 条数帽(键体积极小;防 365 天流水 × 持续低余额多供应商无界增长)。 */
+export const QUOTA_SEEN_MAX = 500;
+
+/** quotaSeen 剪枝:窗口键(reset:<ms>)按 resetsAt 存活 —— 30 天型长窗在
+ *  notifyLogDays=7 下不剪,同周期不重复告警;余额小时桶仍随 cutoff;
+ *  超帽从最旧剪。 */
+function pruneQuotaSeen(
+  seen: NotifyDoc["quotaSeen"],
+  now: number,
+  cutoff: number,
+): NotifyDoc["quotaSeen"] {
+  const kept = seen.filter((s) => {
+    const m = /:reset:(\d+)$/.exec(s.k);
+    return m ? Number(m[1]) > now : s.at >= cutoff;
+  });
+  return kept.length <= QUOTA_SEEN_MAX ? kept : kept.slice(kept.length - QUOTA_SEEN_MAX);
+}
 
 /** 生成短随机 id(wiki 同款;碰撞面 = 同毫秒同随机段,可忽略)。 */
 function newId(): string {
@@ -54,18 +75,30 @@ function entryOk(e: unknown): e is NotifyEntry {
   );
 }
 
-/** 解析磁盘文本;坏 JSON / version≠1 / 条目形状不合法 → 丢弃或空文档,绝不抛。 */
+/** 解析磁盘文本;坏 JSON / version≠1 / 条目形状不合法 → 丢弃或空文档,绝不抛。
+ *  quotaSeen 写坏按无记录处理(宁多勿漏:去重失效最多重复提醒,不丢提醒)。 */
 export function parseNotifyLog(text: string): NotifyDoc {
   try {
-    const raw = JSON.parse(text) as { version?: unknown; entries?: unknown };
-    if (raw?.version !== 1 || !Array.isArray(raw.entries)) return { version: 1, entries: [] };
-    return { version: 1, entries: raw.entries.filter(entryOk) };
+    const raw = JSON.parse(text) as { version?: unknown; entries?: unknown; quotaSeen?: unknown };
+    if (raw?.version !== 1 || !Array.isArray(raw.entries)) return { version: 1, entries: [], quotaSeen: [] };
+    const quotaSeen = Array.isArray(raw.quotaSeen)
+      ? raw.quotaSeen.filter(
+          (s): s is { k: string; at: number } =>
+            typeof s === "object" &&
+            s !== null &&
+            typeof (s as Record<string, unknown>).k === "string" &&
+            typeof (s as Record<string, unknown>).at === "number" &&
+            Number.isFinite((s as Record<string, unknown>).at),
+        )
+      : [];
+    return { version: 1, entries: raw.entries.filter(entryOk), quotaSeen };
   } catch {
-    return { version: 1, entries: [] };
+    return { version: 1, entries: [], quotaSeen: [] };
   }
 }
 
-/** 追加 + 双闸剪枝:过滤 ts < now - maxDays 的过期条目,超上限从最旧剪。 */
+/** 追加 + 双闸剪枝:过滤 ts < now - maxDays 的过期条目,超上限从最旧剪;
+ *  quotaSeen 窗口键按 resetsAt 存活、余额键随 cutoff 同批清理。 */
 export function appendEntry(
   doc: NotifyDoc,
   entry: Omit<NotifyEntry, "id">,
@@ -74,7 +107,11 @@ export function appendEntry(
 ): NotifyDoc {
   const cutoff = now - maxDays * 86_400_000;
   const entries = [...doc.entries, { ...entry, id: newId() }].filter((e) => e.ts >= cutoff);
-  return { version: 1, entries: entries.slice(Math.max(0, entries.length - ENTRIES_MAX)) };
+  return {
+    version: 1,
+    entries: entries.slice(Math.max(0, entries.length - ENTRIES_MAX)),
+    quotaSeen: pruneQuotaSeen(doc.quotaSeen, now, cutoff),
+  };
 }
 
 /** 面板分组纯函数:今日(与 now 同一本地日历日)/ 更早;组内最新在前。 */
@@ -98,8 +135,15 @@ function isMissingReadErr(msg: string): boolean {
 
 /* ── 持久化(互斥队列 + 内存快照 store,面板订阅面) ─────────────────── */
 
-const EMPTY: NotifyDoc = { version: 1, entries: [] };
+const EMPTY: NotifyDoc = { version: 1, entries: [], quotaSeen: [] };
 const store = createSubscribable<readonly NotifyEntry[]>(EMPTY.entries);
+/* 全文档内存缓存:quotaSeen 去重的同步读面(poll 每轮查,不读盘)。 */
+let docCache: NotifyDoc = EMPTY;
+
+/** 额度预警去重键集合(每次返回新 Set:调用方边判定边插入,不污染缓存)。 */
+export function quotaSeenKeys(): Set<string> {
+  return new Set(docCache.quotaSeen.map((s) => s.k));
+}
 
 /** React 订阅(面板渲染面)。 */
 export function useNotifyLog(): readonly NotifyEntry[] {
@@ -121,14 +165,18 @@ function withLogLock(task: () => Promise<void>): Promise<void> {
   return run;
 }
 
+/* 落盘即原子:ipc.fsWriteFile 后端(fs_edit::write_file → session::write_atomic)
+   已是 tmp+rename 原子替换,journalFiles.writeJson 同款契约,勿再自拼 tmp+rename。 */
 /** 启动装载(activate 调一次):读盘 → 内存快照;失败按空流水,面板仍可用。 */
 export function bootNotifyLog(): void {
   void withLogLock(async () => {
     try {
       const text = await ipc.fsReadFile(await logFilePath());
-      store.commit(parseNotifyLog(text).entries);
+      docCache = parseNotifyLog(text);
+      store.commit(docCache.entries);
     } catch (e) {
       if (!isMissingReadErr(String(e))) console.warn("[notify] 读通知流水失败,按空流水", e);
+      docCache = EMPTY;
       store.commit(EMPTY.entries);
     }
   });
@@ -152,8 +200,46 @@ export function recordNotifyEntry(entry: Omit<NotifyEntry, "id" | "ts">, maxDays
     try {
       await ipc.fsWriteFile(path, `${JSON.stringify(next, null, 2)}\n`);
     } catch {
-      return; /* 写失败静默:内存快照已含本条,下次追加会重写全量。 */
+      return; /* 写失败静默:缓存未更新(宁多勿漏),下次追加会重读全量补写。 */
     }
+    docCache = next;
+    store.commit(next.entries);
+  });
+}
+
+/** 追加额度去重键(RMW 走互斥锁;读失败按空记录处理宁多勿漏 —— 最多重复提醒)。 */
+export function markQuotaSeen(keys: readonly string[], maxDays: number): void {
+  if (keys.length === 0) return;
+  void withLogLock(async () => {
+    const path = await logFilePath();
+    let text = "";
+    try {
+      text = await ipc.fsReadFile(path);
+    } catch (e) {
+      if (!isMissingReadErr(String(e))) {
+        /* 读失败 ≠ 空库(recordNotifyEntry 同款守卫):按空继续会连同 entries
+           整本覆写,一次瞬时读失败清空流水。放弃本次去重落盘,宁多勿漏。 */
+        console.warn("[notify] 读通知流水失败,放弃本次去重落盘", e);
+        return;
+      }
+    }
+    const doc = text ? parseNotifyLog(text) : EMPTY;
+    const cutoff = Date.now() - maxDays * 86_400_000;
+    const known = new Set(doc.quotaSeen.map((s) => s.k));
+    const next: NotifyDoc = {
+      version: 1,
+      entries: doc.entries,
+      quotaSeen: [
+        ...doc.quotaSeen.filter((s) => s.at >= cutoff),
+        ...keys.filter((k) => !known.has(k)).map((k) => ({ k, at: Date.now() })),
+      ],
+    };
+    try {
+      await ipc.fsWriteFile(path, `${JSON.stringify(next, null, 2)}\n`);
+    } catch {
+      return; /* 写失败静默:缓存未更新(宁多勿漏),下轮 RMW 会重读全量补写。 */
+    }
+    docCache = next;
     store.commit(next.entries);
   });
 }
@@ -166,6 +252,7 @@ export function clearNotifyLog(): void {
     } catch {
       return;
     }
+    docCache = EMPTY;
     store.commit(EMPTY.entries);
   });
 }

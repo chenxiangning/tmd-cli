@@ -1,0 +1,866 @@
+<!doctype html>
+<!-- 每日工作足迹 · 交互设计原型(设计探索期)
+     配套调研:docs/research/daily-work-footprint.md
+     交互:点日历切日 · ←/→ 键切日 · 热力口径切换 · 点文件看 diff(含账本已清理降级) ·
+           搜索页关键词反查 · 区间汇总(先点「区间」再点两个日期)
+     数据为虚构样例,围绕「2026-08-14 做账号密码登录」主叙事编排。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工作足迹 · 交互原型</title>
+<style>
+  :root{
+    --bg:#ffffff; --elev:#f6f6f4; --elev2:#efefec; --border:#e4e4e0; --border2:#d5d5d0;
+    --fg:#1f2328; --muted:#57606a; --faint:#8c959f;
+    --accent:#d9480f; --accent-soft:#fceee7; --accent-ring:rgba(217,72,15,.35);
+    --ok:#1a7f37; --err:#cf222e; --warn:#9a6700;
+    --add-fg:#1a7f37; --del-fg:#cf222e;
+    --h1:#dbeafe; --h2:#d3f0dd; --h3:#ffe8cc; --h4:#ffd4d2;
+    --diff-add:#e6ffec; --diff-del:#ffebe9;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --radius:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI","Microsoft YaHei",sans-serif;color:var(--fg);background:var(--elev)}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+  .num{font-variant-numeric:tabular-nums}
+  svg{display:block}
+
+  .app{display:flex;flex-direction:column;height:100vh;max-width:1280px;margin:0 auto;background:var(--bg);border-left:1px solid var(--border);border-right:1px solid var(--border)}
+
+  /* ── 工具条(对齐客户端 dj-toolbar 语言) ── */
+  .toolbar{flex:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--border)}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}
+  .brand small{font-weight:400;color:var(--faint);font-size:12px}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;padding:2px;gap:2px;background:var(--bg)}
+  .seg button{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:4px 12px;color:var(--muted);white-space:nowrap}
+  .seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .nav{display:flex;align-items:center;gap:6px}
+  .month-title{font-size:15px;font-weight:700;min-width:96px;text-align:center;font-variant-numeric:tabular-nums}
+  .btn{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--muted);white-space:nowrap}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+  .toolbar-end{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .legend{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--faint)}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  .body{flex:1;display:flex;min-height:0}
+
+  /* ── 月历 ── */
+  .cal{flex:none;width:284px;border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .dow div{text-align:center;font-size:12px;color:var(--faint);padding:2px 0}
+  .mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+  .cell{position:relative;aspect-ratio:1/1;border-radius:8px;border:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:box-shadow .15s}
+  .cell:hover{box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .cell.dim{opacity:.32;cursor:default}
+  .cell.dim:hover{box-shadow:none}
+  .cell .d{font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}
+  .cell .s{font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px}
+  .cell.empty .s{visibility:hidden}
+  .cell.h1{background:var(--h1);border-color:transparent}
+  .cell.h2{background:var(--h2);border-color:transparent}
+  .cell.h3{background:var(--h3);border-color:transparent}
+  .cell.h4{background:var(--h4);border-color:transparent}
+  .cell.sel{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+  .cell.today .d{color:var(--accent)}
+  .cell.today::after{content:"";position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .cell.live::before{content:"";position:absolute;top:5px;left:5px;width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .month-foot{border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+  .month-foot b{font-variant-numeric:tabular-nums;color:var(--fg)}
+  .tip{font-size:12px;color:var(--faint);line-height:1.5;border:1px dashed var(--border2);border-radius:8px;padding:8px 10px}
+
+  /* ── 当日主区 ── */
+  .main{flex:1;min-width:0;overflow-y:auto;padding:18px 22px 40px}
+  .day-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .day-head h1{margin:0;font-size:19px;font-weight:700}
+  .day-head .wd{color:var(--muted);font-size:13px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 20px}
+  .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted);background:var(--bg)}
+  .chip b{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:600}
+  .chip.add b{color:var(--add-fg)} .chip.del b{color:var(--del-fg)}
+  .chip.warn{color:var(--warn);border-color:rgba(154,103,0,.35)}
+  .sec{margin-bottom:26px}
+  .sec>h2{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+  .sec>h2::after{content:"";flex:1;height:1px;background:var(--border)}
+
+  /* 功能卡 */
+  .feat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+  .feat{border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;cursor:pointer;transition:border-color .15s,box-shadow .15s;background:var(--bg)}
+  .feat:hover{border-color:var(--accent);box-shadow:0 1px 6px rgba(31,35,40,.06)}
+  .feat h3{margin:0 0 4px;font-size:14px}
+  .feat p{margin:0 0 10px;font-size:12.5px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .feat .meta{display:flex;gap:10px;font-size:12px;color:var(--faint)}
+  .feat .meta b{color:var(--fg);font-variant-numeric:tabular-nums}
+  .feat.main-card{border-color:rgba(217,72,15,.45);background:linear-gradient(180deg,var(--accent-soft),var(--bg) 70%)}
+
+  /* 项目卡与文件行 */
+  .proj{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+  .proj-head{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--elev);border-bottom:1px solid var(--border)}
+  .proj-head .nm{font-weight:700}
+  .proj-head .pth{font-size:12px;color:var(--faint);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .proj-head .pm{margin-left:auto;display:flex;gap:8px;font-size:12px;align-items:center}
+  .pm .a{color:var(--add-fg);font-variant-numeric:tabular-nums} .pm .d{color:var(--del-fg);font-variant-numeric:tabular-nums}
+  .dir{font-size:12px;color:var(--faint);font-family:var(--mono);padding:8px 14px 2px}
+  .frow{display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;border-top:1px solid transparent}
+  .frow:hover{background:var(--accent-soft)}
+  .frow+.frow{border-top-color:var(--elev2)}
+  .ext{flex:none;width:34px;text-align:center;font-size:10px;font-weight:700;border-radius:4px;padding:1px 0;letter-spacing:.02em}
+  .ext.ts{background:#ddf4ff;color:#0969da} .ext.json{background:#fbefff;color:#8250df} .ext.sql{background:#fff1e5;color:#bc4c00}
+  .ext.md{background:#dafbe1;color:#1a7f37} .ext.env{background:#fff8c5;color:#9a6700} .ext.tsx{background:#ddf4ff;color:#0969da}
+  .frow .fp{font-family:var(--mono);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{flex:none;font-size:10.5px;border-radius:4px;padding:1px 6px;border:1px solid var(--border2);color:var(--muted)}
+  .badge.cfg{color:var(--warn);border-color:rgba(154,103,0,.4);background:#fff8c566}
+  .badge.new{color:var(--ok);border-color:rgba(26,127,55,.4);background:#dafbe166}
+  .badge.ev{color:#0969da;border-color:rgba(9,105,218,.35);background:#ddf4ff66}
+  .badge.gw{color:var(--muted)}
+  .frow .st{flex:none;width:14px;text-align:center;font-weight:700;font-size:13px}
+  .st.M{color:var(--warn)} .st.A{color:var(--ok)} .st.D{color:var(--err)}
+  .pm2{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+  .bars{display:flex;height:6px;width:90px;border-radius:3px;overflow:hidden;background:var(--elev2)}
+  .bars i{display:block;height:100%}
+  .bars .ba{background:#3fb950} .bars .bd{background:#f85149}
+  .nums{font-size:12px;font-variant-numeric:tabular-nums;min-width:86px;text-align:right}
+  .nums .a{color:var(--add-fg)} .nums .d{color:var(--del-fg)}
+
+  /* 时间线 */
+  .tl{position:relative;padding-left:18px}
+  .tl::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--border)}
+  .trow{position:relative;padding:8px 10px 8px 14px;border-radius:8px;cursor:pointer}
+  .trow:hover{background:var(--accent-soft)}
+  .trow::before{content:"";position:absolute;left:-17px;top:16px;width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--accent)}
+  .trow .t1{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .trow time{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;width:40px}
+  .trow .ti{font-weight:600}
+  .eng{flex:none;font-size:10.5px;font-weight:600;border-radius:4px;padding:1px 6px}
+  .eng.claude{background:#f0e0d1;color:#8a4b0f} .eng.codex{background:#e2e8f0;color:#334155}
+  .eng.omp{background:#ffe4f0;color:#bf1d68} .eng.kimi{background:#e0f2fe;color:#0369a1}
+  .trow .t2{display:flex;gap:12px;margin-top:2px;font-size:12px;color:var(--faint);padding-left:48px;flex-wrap:wrap;align-items:center}
+  .t2 .a{color:var(--add-fg)} .t2 .d{color:var(--del-fg)}
+  .t2 .lnk{color:var(--accent)}
+  .pill-live{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--ok);border:1px solid rgba(26,127,55,.4);border-radius:999px;padding:0 7px}
+
+  /* git 提交 */
+  .commit{display:flex;gap:10px;align-items:center;padding:7px 10px;border-radius:8px;font-size:13px}
+  .commit:hover{background:var(--elev)}
+  .commit .h{font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:1px 6px}
+  .commit .r{font-size:11px;color:var(--faint);border:1px solid var(--border);border-radius:4px;padding:0 5px}
+  .commit time{margin-left:auto;font-size:12px;color:var(--faint)}
+
+  /* 空态/退化态 */
+  .void{border:1px dashed var(--border2);border-radius:var(--radius);padding:36px 20px;text-align:center;color:var(--faint)}
+  .void h3{margin:0 0 4px;font-size:14px;color:var(--muted)}
+  .legacy-note{display:flex;gap:8px;align-items:flex-start;border:1px solid rgba(154,103,0,.35);background:#fff8c54d;color:var(--warn);border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px}
+
+  /* 搜索态 */
+  .search-hero{margin-bottom:18px}
+  .sinput{display:flex;align-items:center;gap:8px;border:1px solid var(--border2);border-radius:10px;padding:9px 14px;background:var(--bg)}
+  .sinput:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
+  .sinput input{flex:1;border:0;outline:0;font:inherit;font-size:15px;color:var(--fg);background:none}
+  .sinput input::placeholder{color:var(--faint)}
+  .quick{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .quick button{font-size:12px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:2px 10px}
+  .quick button:hover{border-color:var(--accent);color:var(--accent)}
+  .hit-day{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+  .hit-head{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--elev);border-bottom:1px solid var(--border);cursor:pointer}
+  .hit-head:hover{background:var(--accent-soft)}
+  .hit-head .dd{font-weight:700;font-variant-numeric:tabular-nums}
+  .hit-head .heat{width:12px;height:12px;border-radius:3px}
+  .hit-head .ct{font-size:12px;color:var(--faint)}
+  .hit-head .go{margin-left:auto;font-size:12px;color:var(--accent)}
+  .hit{padding:8px 14px;display:flex;gap:10px;align-items:baseline}
+  .hit+.hit{border-top:1px solid var(--elev2)}
+  .hit .src{flex:none;width:56px;font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:4px;text-align:center;padding:1px 0}
+  .hit .src.article{color:#8250df;border-color:#d8b9fd;background:#fbefff66}
+  .hit .src.title{color:#0969da;border-color:#a5d5ff;background:#ddf4ff66}
+  .hit .src.digest{color:#1a7f37;border-color:#9fdbb4;background:#dafbe166}
+  .hit .src.path{color:#bc4c00;border-color:#ffc59d;background:#fff1e566}
+  .hit .txt{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hit .txt mark{background:#fff3b8;color:inherit;border-radius:2px;padding:0 1px}
+  .hit .jump{margin-left:auto;flex:none;font-size:12px;color:var(--accent)}
+
+  /* 区间汇总 */
+  .range-strip{border:1px solid rgba(217,72,15,.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;background:linear-gradient(180deg,var(--accent-soft),var(--bg) 80%)}
+  .range-strip h3{margin:0 0 8px;font-size:14px}
+  .range-strip .tot{display:flex;gap:14px;font-size:13px;color:var(--muted);flex-wrap:wrap;margin-bottom:10px}
+  .rbrow{display:grid;grid-template-columns:110px 1fr 96px;gap:10px;align-items:center;font-size:12.5px;margin:6px 0}
+  .rbrow .bar{height:10px;border-radius:5px;background:var(--elev2);overflow:hidden;display:flex}
+  .rbrow .bar i{height:100%}
+  .rbrow .bar .ba{background:#3fb950} .rbrow .bar .bd{background:#f85149}
+  .range-days{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .range-days button{font-size:12px;border:1px solid var(--border);border-radius:6px;padding:2px 8px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .range-days button:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* diff 浮出 */
+  .shade{position:fixed;inset:0;background:rgba(31,35,40,.28);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+  .shade.open{opacity:1;pointer-events:auto}
+  .diffpanel{position:fixed;top:0;right:-520px;width:520px;max-width:94vw;height:100vh;background:var(--bg);border-left:1px solid var(--border);box-shadow:-8px 0 24px rgba(31,35,40,.12);transition:right .22s ease;z-index:50;display:flex;flex-direction:column}
+  .diffpanel.open{right:0}
+  .dp-head{flex:none;display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .dp-head .pth{font-family:var(--mono);font-size:13px;word-break:break-all;font-weight:600}
+  .dp-head .sub{font-size:12px;color:var(--faint);margin-top:3px}
+  .dp-close{margin-left:auto;flex:none;color:var(--faint);padding:2px}
+  .dp-close:hover{color:var(--fg)}
+  .dp-meta{flex:none;padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--elev)}
+  .dp-body{flex:1;overflow:auto;padding:12px 0;background:var(--bg)}
+  .dp-body pre{margin:0;font-family:var(--mono);font-size:12px;line-height:1.6}
+  .dl{display:flex;padding:0 16px;white-space:pre}
+  .dl .no{flex:none;width:34px;text-align:right;margin-right:14px;color:#b0b8c0;user-select:none}
+  .dl.add{background:var(--diff-add)} .dl.add .no{color:var(--add-fg)}
+  .dl.del{background:var(--diff-del)} .dl.del .no{color:var(--del-fg)}
+  .dl.hunk{color:#8250df;background:#fbefff66;margin:6px 0}
+  .dp-foot{flex:none;padding:9px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--faint);display:flex;gap:8px;align-items:center}
+  .pruned-box{margin:60px 24px;text-align:center;color:var(--faint)}
+  .pruned-box .ic{margin:0 auto 10px;width:44px;height:44px;border-radius:12px;background:var(--elev);display:grid;place-items:center}
+  .pruned-box h3{margin:0 0 4px;font-size:14px;color:var(--muted)}
+  .pruned-box p{margin:0;font-size:12.5px;line-height:1.6}
+
+  /* 页脚提示条 */
+  .foot{flex:none;border-top:1px solid var(--border);padding:6px 16px;font-size:12px;color:var(--faint);display:flex;gap:16px;flex-wrap:wrap}
+  .foot b{color:var(--muted);font-weight:600}
+  kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--border2);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--elev)}
+
+  @media (max-width:900px){ .cal{display:none} }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="toolbar">
+    <div class="brand">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="#d9480f" stroke-width="1.4"/><path d="M4.5 6h3M4.5 8.5h7M4.5 11h5" stroke="#d9480f" stroke-width="1.3" stroke-linecap="round"/></svg>
+      工作足迹 <small>daily footprint</small>
+    </div>
+    <div class="seg" id="modeSeg">
+      <button data-m="trace" class="on">足迹</button>
+      <button data-m="search">搜索反查</button>
+    </div>
+    <div class="nav" id="monthNav">
+      <button class="btn" id="prevM" aria-label="上一月"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M8 2 4 6l4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></button>
+      <div class="month-title" id="monthTitle">2026年8月</div>
+      <button class="btn" id="nextM" aria-label="下一月"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></button>
+      <button class="btn" id="todayBtn">今日</button>
+    </div>
+    <div class="toolbar-end">
+      <div class="seg" id="heatSeg">
+        <button data-h="pm" class="on">热力:改动量</button>
+        <button data-h="sess">热力:会话数</button>
+      </div>
+      <div class="legend" id="legend">
+        <span>少</span><i style="background:var(--h1)"></i><i style="background:var(--h2)"></i><i style="background:var(--h3)"></i><i style="background:var(--h4)"></i><span>多</span>
+      </div>
+      <button class="btn" id="rangeBtn">区间汇总</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="cal">
+      <div class="dow"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div></div>
+      <div class="mgrid" id="mgrid"></div>
+      <div class="month-foot" id="monthFoot"></div>
+      <div class="tip" id="calTip">格底色 = 当日改动量分四档;悬停看摘要,点格进当日。今日右侧橙点,进行中会话左侧绿点呼吸。</div>
+    </aside>
+
+    <main class="main" id="main"></main>
+  </div>
+
+  <footer class="foot">
+    <span><kbd>←</kbd><kbd>→</kbd> 前后一天</span>
+    <span>点文件行看 <b>diff</b>(老日子演示「账本已清理」降级)</span>
+    <span>点两次日期出 <b>区间汇总</b>(或先点「区间汇总」钮)</span>
+    <span>搜索反查:<b>从词回到天</b></span>
+  </footer>
+</div>
+
+<div class="shade" id="shade"></div>
+<aside class="diffpanel" id="diffpanel" aria-hidden="true"></aside>
+
+<script>
+/* ───────────────────────── 虚构样例数据 ─────────────────────────
+   stats:月历聚合(真实实现来自 rollup 账,按日一条聚合)
+   days:当日详情(真实实现 = rollup + 会话索引 + article/digest + git log_range) */
+const TODAY = "2026-10-19";
+
+const stats = {
+  "2026-07-30":{s:3,add:96,del:22,live:0},
+  "2026-07-31":{s:2,add:41,del:12,live:0},
+  "2026-08-04":{s:4,add:188,del:64,live:0},
+  "2026-08-07":{s:2,add:75,del:18,live:0},
+  "2026-08-11":{s:5,add:302,del:97,live:0},
+  "2026-08-14":{s:5,add:486,del:132,live:0},
+  "2026-08-15":{s:1,add:36,del:4,live:0},
+  "2026-08-18":{s:3,add:154,del:38,live:0},
+  "2026-08-25":{s:2,add:64,del:21,live:0},
+  "2026-08-28":{s:4,add:210,del:75,live:0},
+  "2026-09-02":{s:3,add:129,del:44,live:0},
+  "2026-09-09":{s:6,add:372,del:118,live:0},
+  "2026-09-17":{s:4,add:244,del:66,live:0},
+  "2026-09-24":{s:2,add:58,del:15,live:0},
+  "2026-10-08":{s:3,add:141,del:39,live:0},
+  "2026-10-16":{s:4,add:398,del:87,live:0},
+  "2026-10-19":{s:2,add:0,del:0,live:2},
+};
+
+const days = {
+  "2026-08-14": {
+    legacy:false,
+    summary:"当日主线:账号密码登录。后端接口与 JWT 签发(api-server)、登录页与表单校验(admin-web)、失败锁定与限流、配置模板与部署文档,收尾集成测试。",
+    features:[
+      {t:"账号密码登录",main:true,d:"POST /auth/login + JWT 签发与刷新;Login 页表单校验与错误态;验证码预留位。",s:2,f:8,add:212,del:48},
+      {t:"登录失败锁定与限流",d:"连续失败 5 次锁 15 分钟;按 IP 滑窗限流,Redis 计数。",s:1,f:3,add:96,del:21},
+      {t:"配置模板与部署文档",d:"补 .env.example 鉴权段与 auth-flow 时序文档,同步部署手册。",s:1,f:3,add:64,del:12},
+    ],
+    projects:[
+      {name:"api-server",path:"~/code/work/api-server",add:312,del:96,
+       groups:[
+        {dir:"src/auth/",files:[
+          {p:"login.ts",ext:"ts",st:"A",add:148,del:0,cfg:false,attr:"ev",
+           diff:{turn:"轮 2 · 09:41",eng:"Claude Code",attr:"events",lines:[
+            ["hunk","@@ -0,0 +1,64 @@ 草签接口与 JWT 签发(新增文件节选)"],
+            ["add","  1","import { signAccess, signRefresh } from \x22./jwt\x22;"],
+            ["add","  2","import { verifyPassword } from \x22./password\x22;"],
+            ["add","  3","import { isLocked, recordFailure } from \x22./lockout\x22;"],
+            ["add","  4",""],
+            ["add","  5","export async function login(req: LoginReq): Promise<LoginRes> {"],
+            ["add","  6","  if (await isLocked(req.email)) throw new Err(\x22AUTH_LOCKED\x22, 423);"],
+            ["add","  7","  const user = await users.byEmail(req.email);"],
+            ["add","  8","  const ok = user && (await verifyPassword(req.password, user.hash));"],
+            ["add","  9","  if (!ok) { await recordFailure(req.email); throw new Err(\x22BAD_CRED\x22, 401); }"],
+            ["add"," 10","  return { access: signAccess(user.id), refresh: signRefresh(user.id) };"],
+            ["add"," 11","}"]]}},
+          {p:"jwt.ts",ext:"ts",st:"A",add:82,del:0,cfg:false,attr:"ev",diff:null},
+          {p:"lockout.ts",ext:"ts",st:"A",add:61,del:0,cfg:false,attr:"ev",diff:null},
+          {p:"session.ts",ext:"ts",st:"M",add:21,del:12,cfg:false,attr:"ev",diff:null},
+        ]},
+        {dir:"config/",files:[
+          {p:"auth.config.json",ext:"json",st:"M",add:9,del:2,cfg:true,attr:"ev",diff:null},
+        ]},
+        {dir:"migrations/",files:[
+          {p:"0022_users.sql",ext:"sql",st:"A",add:34,del:0,cfg:false,attr:"gw",diff:null},
+        ]},
+        {dir:"tests/auth/",files:[
+          {p:"login.test.ts",ext:"ts",st:"A",add:96,del:0,cfg:false,attr:"ev",diff:null},
+        ]},
+       ]},
+      {name:"admin-web",path:"~/code/work/admin-web",add:174,del:36,
+       groups:[
+        {dir:"src/pages/",files:[
+          {p:"Login.tsx",ext:"tsx",st:"A",add:112,del:0,cfg:false,attr:"ev",diff:null},
+        ]},
+        {dir:"src/api/",files:[
+          {p:"auth.ts",ext:"ts",st:"M",add:38,del:14,cfg:false,attr:"ev",diff:null},
+        ]},
+        {dir:"(根目录)",files:[
+          {p:".env.example",ext:"env",st:"M",add:6,del:0,cfg:true,attr:"gw",diff:null},
+          {p:"README.md",ext:"md",st:"M",add:18,del:22,cfg:false,attr:"gw",diff:null},
+        ]},
+       ]},
+    ],
+    sessions:[
+      {time:"09:12",dur:"1h24m",eng:"claude",cls:"claude",title:"实现账号密码登录接口与 JWT 签发",ws:"api-server",add:212,del:48,live:false},
+      {time:"11:03",dur:"48m",eng:"codex",cls:"codex",title:"登录失败锁定与 IP 限流",ws:"api-server",add:96,del:21,live:false},
+      {time:"14:20",dur:"1h02m",eng:"claude",cls:"claude",title:"Login 页面、表单校验与错误态",ws:"admin-web",add:112,del:24,live:false},
+      {time:"16:45",dur:"26m",eng:"omp",cls:"omp",title:"补 .env.example 鉴权段与部署文档",ws:"admin-web",add:42,del:10,live:false},
+      {time:"19:30",dur:"37m",eng:"codex",cls:"codex",title:"auth 集成测试补齐(锁定/限流/刷新)",ws:"api-server",add:34,del:29,live:false},
+    ],
+    commits:[
+      {hash:"f3a91c2",repo:"api-server",subj:"feat(auth): 账号密码登录接口与 JWT 签发",time:"18:02"},
+      {hash:"c88e4f1",repo:"admin-web",subj:"feat(login): 登录页与表单校验",time:"18:40"},
+      {hash:"7d20b1e",repo:"api-server",subj:"test(auth): 登录锁定与限流集成测试",time:"20:15"},
+    ],
+  },
+
+  "2026-10-16": {
+    legacy:false,
+    summary:"首页套餐额度面板:真额度环卡 + claude 推算卡,7 天窗口并列;砍掉无历史数据支撑的迷你条。",
+    features:[
+      {t:"首页套餐额度面板",main:true,d:"双环窗口卡(5 小时 / 7 天),查不到的卡不渲染,汇总条取全卡最近重置。",s:3,f:6,add:398,del:87},
+    ],
+    projects:[
+      {name:"tmd-cli",path:"~/code/AI/github/tmd-cli",add:398,del:87,
+       groups:[
+        {dir:"src/plugins/welcome/quota/",files:[
+          {p:"quotaCards.ts",ext:"ts",st:"M",add:141,del:38,cfg:false,attr:"ev",
+           diff:{turn:"轮 3 · 11:22",eng:"Claude Code",attr:"events",lines:[
+            ["hunk","@@ -12,7 +12,16 @@ export interface UsageRow { vendor: string; windows: Window[] }"],
+            ["del","  12","- export function buildQuotaCards(rows: UsageRow[]): QuotaCard[] {"],
+            ["del","  13","-   const cards = rows.filter((r) => r.vendor !== \x22unknown\x22);"],
+            ["add","  12","+ export interface QuotaWindowView {"],
+            ["add"," 13","+   label: string;"],
+            ["add"," 14","+   usedPct: number;"],
+            ["add"," 15","+   resetsAt: number;"],
+            ["add"," 16","+ }"],
+            ["add"," 17","+"],
+            ["add"," 18","+ export function buildQuotaCards(rows: UsageRow[]): QuotaCard[] {"],
+            ["add"," 19","+   /* 查不到的卡一律不渲染,空态只留一行说明 */"],
+            ["add"," 20","+   const cards = rows.filter((r) => r.vendor !== \x22unknown\x22 && r.windows.length > 0);"],
+            ["ctx","   21","    return cards.map(toCard);"],
+            ["add"," 22","+ }"]]}},
+          {p:"QuotaPanel.tsx",ext:"tsx",st:"M",add:96,del:31,cfg:false,attr:"ev",diff:null},
+        ]},
+        {dir:"src/plugins/welcome/quota/(新)",files:[
+          {p:"windows.ts",ext:"ts",st:"A",add:87,del:0,cfg:false,attr:"ev",diff:null},
+        ]},
+        {dir:"src/plugins/welcome/locales/",files:[
+          {p:"en.ts",ext:"ts",st:"M",add:41,del:2,cfg:false,attr:"ev",diff:null},
+          {p:"ja.ts",ext:"ts",st:"M",add:33,del:2,cfg:false,attr:"ev",diff:null},
+        ]},
+       ]},
+    ],
+    sessions:[
+      {time:"10:05",dur:"1h38m",eng:"claude",cls:"claude",title:"首页 QUOTA 套餐水位面板:claude 推算链打通",ws:"tmd-cli",add:212,del:41,live:false},
+      {time:"13:40",dur:"52m",eng:"claude",cls:"claude",title:"额度卡二轮调整:双环窗口 + 空态收敛",ws:"tmd-cli",add:124,del:33,live:false},
+      {time:"15:12",dur:"18m",eng:"omp",cls:"omp",title:"桩目检:codex 真额度卡链路验证",ws:"tmd-cli",add:62,del:13,live:false},
+      {time:"16:30",dur:"9m",eng:"kimi",cls:"kimi",title:"额度词典补译(en/ja)",ws:"tmd-cli",add:0,del:0,live:false},
+    ],
+    commits:[
+      {hash:"9b1e07d",repo:"tmd-cli",subj:"feat(welcome): 首页套餐额度面板(双环窗口卡)",time:"17:05"},
+    ],
+  },
+
+  "2026-10-19": {
+    legacy:false,
+    todayLive:true,
+    summary:"进行中:每日工作足迹功能调研与交互原型。",
+    features:[],
+    projects:[],
+    sessions:[
+      {time:"19:46",dur:"进行中",eng:"omp",cls:"omp",title:"每日工作足迹:竞品调研与交互原型",ws:"tmd-cli",add:0,del:0,live:true},
+      {time:"20:31",dur:"进行中",eng:"claude",cls:"claude",title:"footprint rollup 层数据结构草拟",ws:"tmd-cli",add:0,del:0,live:true},
+    ],
+    commits:[],
+  },
+
+  /* 老日子:早于 rollup/账本可用窗口,演示「归因缺失」退化态 */
+  "2026-07-30": {
+    legacy:true,
+    summary:"checkpoints 归因仲裁的时钟陷阱修复:Linux coarse 时钟导致 mtime 窗口误判,测试显式钉 mtime。",
+    features:[{t:"checkpoints 时钟陷阱修复",main:true,d:"ext4 mtime 粗时钟 vs 账本细粒度 ts,窗口仲裁误归;TempWs.touch 显式钉 mtime。",s:3,f:0,add:96,del:22}],
+    projects:[],
+    sessions:[
+      {time:"10:02",dur:"1h12m",eng:"claude",cls:"claude",title:"复现 Linux CI 归因漂移并定位 coarse 时钟",ws:"tmd-cli",add:41,del:9,live:false},
+      {time:"14:15",dur:"38m",eng:"codex",cls:"codex",title:"TempWs.touch 显式钉 mtime 改造集成测试",ws:"tmd-cli",add:38,del:8,live:false},
+      {time:"16:02",dur:"21m",eng:"omp",cls:"omp",title:"回归验证 checkpoints 全量测试",ws:"tmd-cli",add:17,del:5,live:false},
+    ],
+    commits:[
+      {hash:"fa54492",repo:"tmd-cli",subj:"fix(checkpoints): 归因窗口仲裁钉 mtime 免时钟漂移",time:"16:44"},
+    ],
+  },
+};
+
+/* 搜索反查索引(真实实现 = article/digest 全文 + 会话标题 + rollup 文件路径) */
+const searchIndex = [
+  {day:"2026-08-14",src:"article",txt:"……当日主线:账号密码登录。后端 POST /auth/login 与 JWT 签发,失败锁定 15 分钟,Login 页表单校验……"},
+  {day:"2026-08-14",src:"title",txt:"实现账号密码登录接口与 JWT 签发"},
+  {day:"2026-08-14",src:"digest",txt:"09:12 [claude] 用 argon2id 做密码哈希,登录成功签发 access(15m)+ refresh(7d) 双 token"},
+  {day:"2026-08-14",src:"path",txt:"api-server · src/auth/login.ts(新) · config/auth.config.json"},
+  {day:"2026-08-15",src:"article",txt:"……补昨夜遗留:账号密码登录的刷新 token 轮换与登出撤销……"},
+  {day:"2026-08-11",src:"digest",txt:"16:40 [claude] 评测 argon2id 与 bcrypt,定密码哈希选型,为账号密码登录做准备"},
+  {day:"2026-08-18",src:"title",txt:"账号密码登录联调:验证码阈值与风控误杀排查"},
+  {day:"2026-09-09",src:"article",txt:"……登录态在多标签页失步,session 广播通道补齐(账号体系稳定性收尾)……"},
+  {day:"2026-10-16",src:"title",txt:"首页 QUOTA 套餐水位面板:claude 推算链打通"},
+  {day:"2026-10-16",src:"path",txt:"tmd-cli · src/plugins/welcome/quota/quotaCards.ts · QuotaPanel.tsx"},
+  {day:"2026-10-16",src:"article",txt:"……首页套餐额度面板:真额度环卡,7 天窗口并列,查不到的卡不渲染……"},
+  {day:"2026-10-08",src:"digest",txt:"11:20 [codex] token 用量行并入 sessionUsage,为首页额度面板供数"},
+  {day:"2026-07-30",src:"article",txt:"……checkpoints 归因仲裁时钟陷阱:ext4 coarse 时钟致 mtime 窗口误判……"},
+];
+
+/* ───────────────────────── 状态与工具 ───────────────────────── */
+const state = { mode:"trace", y:2026, m:8, day:"2026-08-14", heat:"pm",
+                range:{on:false,a:null,b:null}, q:"", flash:null };
+
+const $ = (s)=>document.querySelector(s);
+const pad=(n)=>String(n).padStart(2,"0");
+const key=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
+const fmtAdd=(n)=>n?`+${n}`:"";
+const fmtDel=(n)=>n?`−${n}`:"";
+const esc=(s)=>s.replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* 热力分档:改动量 = ±合计按全局分位(样例固定四档);会话数 = 1/2-3/4-5/6+ */
+function heatClass(k){
+  const st = stats[k]; if(!st) return "";
+  if(state.heat==="sess"){
+    if(st.s>=6) return "h4"; if(st.s>=4) return "h3"; if(st.s>=2) return "h2"; return "h1";
+  }
+  const v = st.add+st.del;
+  if(v>=450) return "h4"; if(v>=250) return "h3"; if(v>=100) return "h2"; return "h1";
+}
+
+/* ───────────────────────── 月历 ───────────────────────── */
+function renderCal(){
+  const {y,m}=state;
+  $("#monthTitle").textContent = `${y}年${m}月`;
+  const grid=$("#mgrid"); grid.innerHTML="";
+  const first=new Date(y,m-1,1);
+  let lead=(first.getDay()+6)%7;              // 周一开头
+  const dim=new Date(y,m,0).getDate();
+  const prevDim=new Date(y,m-1,0).getDate();
+  const cells=[];
+  for(let i=lead;i>0;i--) cells.push({d:prevDim-i+1,out:true});
+  for(let d=1;d<=dim;d++) cells.push({d,out:false});
+  while(cells.length%7) cells.push({d:cells.length, out:true, tail:true});
+  for(const c of cells){
+    const b=document.createElement("button");
+    b.className="cell empty"+(c.out?" dim":"");
+    let k=null;
+    if(!c.out){
+      k=key(y,m,c.d);
+      const st=stats[k];
+      b.classList.remove("empty");
+      const h=heatClass(k); if(h) b.classList.add(h);
+      if(k===TODAY) b.classList.add("today");
+      if(st&&st.live>0) b.classList.add("live");
+      if(k===state.day) b.classList.add("sel");
+      b.title = st
+        ? `${k} · ${st.s} 会话${st.live?`(${st.live} 进行中)`:""} · ${st.add?`+${st.add}`:"0"} / ${st.del?`−${st.del}`:"0"}`
+        : `${k} · 无记录`;
+      b.innerHTML = `<span class="d num">${c.d}</span><span class="s">${st?fmtAdd(st.add):""}</span>`;
+      b.addEventListener("click",()=>clickDay(k));
+    } else {
+      b.innerHTML = `<span class="d num">${c.d}</span><span class="s"></span>`;
+    }
+    grid.appendChild(b);
+  }
+  /* 月脚合计 */
+  const ks=Object.keys(stats).filter((k)=>k.startsWith(`${y}-${pad(m)}`));
+  const s=ks.reduce((a,k)=>{a.sess+=stats[k].s;a.add+=stats[k].add;a.del+=stats[k].del;a.days++;return a;},{sess:0,add:0,del:0,days:0});
+  $("#monthFoot").innerHTML =
+    `<div>有记录 <b>${s.days}</b> 天 · 会话 <b>${s.sess}</b> 场</div>`+
+    `<div>改动 <b style="color:var(--add-fg)">+${s.add}</b> / <b style="color:var(--del-fg)">−${s.del}</b> 行</div>`+
+    (state.range.on?`<div style="color:var(--accent)">区间模式:再点一个日期</div>`:"");
+}
+
+function clickDay(k, keepFlash){
+  if(state.range.on || (state.range.a&&!state.range.b)){
+    if(!state.range.a){ state.range.a=k; }
+    else if(!state.range.b && k!==state.range.a){
+      const [x,y2]=[state.range.a,k].sort();
+      state.range.a=x; state.range.b=y2; state.range.on=false;
+      state.mode="trace";
+      renderMode();
+      renderMain(`<div class="day-head"><h1>区间汇总</h1></div>`,renderRange);
+    } else { state.range.a=null; }
+    renderCal();
+    return;
+  }
+  state.day=k; if(!keepFlash) state.flash=null;
+  const [yy,mm]=k.split("-").map(Number);
+  if(yy!==state.y||mm!==state.m){ state.y=yy; state.m=mm; }
+  renderCal(); renderTrace();
+}
+
+/* ───────────────────────── 当日足迹 ───────────────────────── */
+function statChips(st,d){
+  const c=[];
+  c.push(`<span class="chip">会话 <b>${st?st.s:"0"}</b>${d&&d.sessions.some(s=>s.live)?` <span class="pill-live"><i style="width:5px;height:5px;border-radius:50%;background:var(--ok);display:inline-block"></i>进行中</span>`:""}</span>`);
+  if(st){
+    const files = d?d.projects.reduce((a,p)=>a+p.groups.reduce((b,g)=>b+g.files.length,0),0):0;
+    c.push(`<span class="chip">项目 <b>${d?d.projects.length:0}</b></span>`);
+    if(files) c.push(`<span class="chip">文件 <b>${files}</b></span>`);
+    c.push(`<span class="chip add">改动 <b>${fmtAdd(st.add)}</b></span><span class="chip del"><b>${fmtDel(st.del)}</b></span>`);
+  }
+  return c.join("");
+}
+
+function renderTrace(){
+  const k=state.day, d=days[k], st=stats[k];
+  const [y,mm,dd]=k.split("-").map(Number);
+  const wd=["日","一","二","三","四","五","六"][new Date(y,mm-1,dd).getDay()];
+  let h=`<div class="day-head"><h1>${mm}月${dd}日</h1><span class="wd">${y} 年 · 周${wd}${k===TODAY?" · 今天":""}</span></div>`;
+  h+=`<div class="chips">${statChips(st,d)}</div>`;
+  if(state.flash) h+=`<div class="legacy-note" style="border-color:rgba(217,72,15,.4);background:var(--accent-soft);color:var(--accent)">从搜索跳转,命中来源:<b>${state.flash}</b>,已定位到相关分区。</div>`;
+
+  if(!st){ /* 空态 */
+    h+=`<div class="void"><h3>这一天没有工作记录</h3><p style="margin:0">没有会话、没有日报、没有 git 提交。<br>如果确定做过东西,检查工作区是否被移除或 CLI 会话目录是否迁移。</p></div>`;
+    $("#main").innerHTML=h; $("#main").scrollTop=0; return;
+  }
+
+  /* 功能与任务 */
+  if(d&&d.features.length){
+    h+=`<section class="sec"><h2>功能与任务(按当日会话与日报聚类)</h2><div class="feat-row">`;
+    for(const f of d.features){
+      h+=`<div class="feat${f.main?" main-card":""}" data-feat="${esc(f.t)}">
+        <h3>${esc(f.t)}</h3><p>${esc(f.d)}</p>
+        <div class="meta"><span><b>${f.s}</b> 会话</span><span><b>${f.f}</b> 文件</span><span><b class="num" style="color:var(--add-fg)">${fmtAdd(f.add)}</b> <b class="num" style="color:var(--del-fg)">${fmtDel(f.del)}</b></span></div>
+      </div>`;
+    }
+    h+=`</div></section>`;
+  }
+
+  /* 项目与文件 */
+  if(d&&d.projects.length){
+    h+=`<section class="sec"><h2>项目与文件改动</h2>`;
+    for(const p of d.projects){
+      h+=`<div class="proj"><div class="proj-head">
+        <span class="nm">${esc(p.name)}</span><span class="pth">${esc(p.path)}</span>
+        <div class="pm"><span class="a num">${fmtAdd(p.add)}</span><span class="d num">${fmtDel(p.del)}</span></div></div>`;
+      for(const g of p.groups){
+        h+=`<div class="dir">${esc(g.dir)}</div>`;
+        for(const f of g.files){
+          h+=`<div class="frow" data-file="${esc(p.name+"/"+g.dir+f.p)}" data-pruned="${f.diff?0:1}">
+            <span class="ext ${f.ext}">${f.ext.toUpperCase()}</span>
+            <span class="st ${f.st}">${f.st}</span>
+            <span class="fp">${esc(f.p)}</span>
+            ${f.cfg?`<span class="badge cfg">配置</span>`:""}
+            ${f.st==="A"?`<span class="badge new">新增</span>`:""}
+            <span class="badge ${f.attr==="ev"?"ev":"gw"}" title="${f.attr==="ev"?"events:AI 写入事件流逐文件归因,可信":"git:mtime 窗口推断,并行会话可能误归"}">${f.attr==="ev"?"events":"窗口推断"}</span>
+            <div class="pm2"><div class="bars"><i class="ba" style="width:${barW(f.add,p.add)}%"></i><i class="bd" style="width:${barW(f.del,p.del)}%"></i></div>
+            <span class="nums"><span class="a">${fmtAdd(f.add)}</span> <span class="d">${fmtDel(f.del)}</span></span></div>
+          </div>`;
+        }
+      }
+      h+=`</div>`;
+    }
+    h+=`<div class="tip">徽标口径:<b>配置</b> = 非代码资产(配置/环境/迁移);<b>events</b> = AI 写入事件流逐文件归因(最可信);<b>窗口推断</b> = mtime 窗口仲裁(并行会话可能误归)。± 为足迹账固化值,与检查点账本解耦。</div></section>`;
+  }
+
+  /* 老日子退化提示 */
+  if(d&&d.legacy){
+    h+=`<section class="sec"><h2>文件改动</h2>
+      <div class="legacy-note"><svg width="14" height="14" viewBox="0 0 16 16" style="flex:none;margin-top:2px"><circle cx="8" cy="8" r="6.4" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="M8 5v3.6M8 10.8v.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>该日早于足迹账启用,文件级 ± 未采集。功能聚类来自当日日报与会话标题;改动量见 git 提交。</span></div></section>`;
+  }
+
+  /* 会话时间线 */
+  if(d&&d.sessions.length){
+    h+=`<section class="sec"><h2>会话时间线</h2><div class="tl">`;
+    for(const s of d.sessions){
+      h+=`<div class="trow"><div class="t1">
+        <time>${s.time}</time><span class="ti">${esc(s.title)}</span>
+        <span class="eng ${s.cls}">${engName(s.eng)}</span>
+        ${s.live?`<span class="pill-live"><i style="width:5px;height:5px;border-radius:50%;background:var(--ok);display:inline-block"></i>进行中</span>`:`<span class="badge">${s.dur}</span>`}
+      </div><div class="t2">
+        <span>${esc(s.ws)}</span>
+        ${(s.add||s.del)?`<span class="a">${fmtAdd(s.add)}</span><span class="d">${fmtDel(s.del)}</span>`:""}
+        <span class="lnk" data-act="open-session">打开会话</span>
+        ${(s.add||s.del)?`<span class="lnk" data-act="open-changes">查看改动</span>`:""}
+      </div></div>`;
+    }
+    h+=`</div></section>`;
+  }
+
+  /* git 提交(硬证据) */
+  if(d&&d.commits.length){
+    h+=`<section class="sec"><h2>git 提交(硬证据,不依赖 AI 数据)</h2>`;
+    for(const c of d.commits){
+      h+=`<div class="commit"><span class="h">${c.hash}</span><span>${esc(c.subj)}</span><span class="r">${esc(c.repo)}</span><time>${c.time}</time></div>`;
+    }
+    h+=`</section>`;
+  }
+
+  /* 当日日报摘录 */
+  if(d&&d.summary){
+    h+=`<section class="sec"><h2>当日日报(AI 摘要)</h2>
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;color:var(--muted);font-size:13.5px">${esc(d.summary)}</div>
+      <div class="tip" style="margin-top:8px">全文在 ~/.tmd-cli/daily/article/${k}.md;反查索引同时覆盖日报与当日摘录。</div></section>`;
+  }
+
+  $("#main").innerHTML=h; $("#main").scrollTop=0;
+  bindDayActions();
+}
+
+function barW(v,total){ return total? Math.max(2, Math.round(v/total*100)) : 0; }
+function engName(e){ return {claude:"Claude Code",codex:"Codex",omp:"omp",kimi:"Kimi"}[e]||e; }
+
+function bindDayActions(){
+  document.querySelectorAll(".frow").forEach((el)=>{
+    el.addEventListener("click",()=>openDiff(el.dataset.file, el.dataset.pruned==="1"));
+  });
+  document.querySelectorAll('[data-act="open-changes"]').forEach((el)=>{
+    el.addEventListener("click",(e)=>{e.stopPropagation();
+      const first=document.querySelector(".frow"); if(first) first.scrollIntoView({behavior:"smooth",block:"center"});});
+  });
+  document.querySelectorAll(".feat").forEach((el)=>{
+    el.addEventListener("click",()=>{ const f=document.querySelector(".proj"); if(f) f.scrollIntoView({behavior:"smooth"}); });
+  });
+}
+
+/* ───────────────────────── diff 浮出 ───────────────────────── */
+function openDiff(pathKey, pruned){
+  const dp=$("#diffpanel"), shade=$("#shade");
+  const p=pathKey.split("/");
+  const file=p.pop(), dir=p.join("/");
+  if(pruned){
+    dp.innerHTML=`<div class="dp-head"><div><div class="pth">${esc(file)}</div><div class="sub">${esc(dir)}</div></div>
+      <button class="dp-close" aria-label="关闭"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>
+      <div class="pruned-box"><div class="ic"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="3" y="8" width="14" height="9" rx="2" stroke="#8c959f" stroke-width="1.5" fill="none"/><path d="M6.5 8V6a3.5 3.5 0 017 0v2" stroke="#8c959f" stroke-width="1.5" fill="none"/></svg></div>
+      <h3>检查点账本已清理</h3><p>该文件超出账本保留窗口(最近 100 批 / 30 天)。<br>路径与 ± 行数来自足迹账固化值,diff 原文不可回放。<br>如需原文,走 git 历史视图按当日提交查看。</p></div>
+      <div class="dp-foot">足迹账与账本解耦:数字永久,diff 跟随账本生命周期。</div>`;
+  } else {
+    /* 找到样例 diff(原型只有 login.ts / quotaCards.ts 配了内容) */
+    const src=Object.values(days).flatMap(x=>x.projects||[]).flatMap(x=>x.groups).flatMap(g=>g.files).find(f=>f.p===file&&f.diff);
+    const d=src&&src.diff;
+    dp.innerHTML=`<div class="dp-head"><div><div class="pth">${esc(file)}</div><div class="sub">${esc(dir)}</div></div>
+      <button class="dp-close" aria-label="关闭"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>
+      <div class="dp-meta">
+        <span class="badge ev">${esc(d?d.eng:"")}</span><span class="badge">${esc(d?d.turn:"")}</span>
+        <span class="badge ${d&&d.attr==="events"?"ev":"gw"}">${d? (d.attr==="events"?"events 归因":"窗口推断"):""}</span>
+      </div>
+      <div class="dp-body"><pre>${(d?d.lines:[["ctx","","(原型:该文件未配 diff 样例)"]]).map(l=>diffLine(l)).join("")}</pre></div>
+      <div class="dp-foot">真实实现:此处深链 checkpoints 批审阅单的账本 diff(封口瞬间固化,零重算)。</div>`;
+  }
+  dp.classList.add("open"); dp.setAttribute("aria-hidden","false");
+  shade.classList.add("open");
+  dp.querySelector(".dp-close").addEventListener("click",closeDiff);
+}
+function diffLine(l){
+  const t=l[0];
+  if(t==="hunk") return `<div class="dl hunk">${esc(l[1])}</div>`;
+  const no=l[1]||"", tx=l[2]||"";
+  const cls=t==="add"?"add":t==="del"?"del":"";
+  return `<div class="dl ${cls}"><span class="no">${no}</span>${esc(tx)}</div>`;
+}
+function closeDiff(){
+  $("#diffpanel").classList.remove("open"); $("#diffpanel").setAttribute("aria-hidden","true");
+  $("#shade").classList.remove("open");
+}
+$("#shade").addEventListener("click",closeDiff);
+
+/* ───────────────────────── 搜索反查 ───────────────────────── */
+function renderSearch(){
+  const q=state.q.trim();
+  let h=`<div class="search-hero">
+    <div class="sinput">
+      <svg width="15" height="15" viewBox="0 0 15 15"><circle cx="6.5" cy="6.5" r="4.5" stroke="#8c959f" stroke-width="1.5" fill="none"/><path d="M10 10l3 3" stroke="#8c959f" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input id="q" placeholder="搜功能词,如:账号密码登录 / 额度面板 / checkpoints" value="${esc(q)}" autofocus>
+    </div>
+    <div class="quick">${["账号密码","登录","额度","checkpoints","归因"].map((w)=>`<button data-q="${w}">${w}</button>`).join("")}</div>
+    <div class="tip" style="margin-top:8px">检索范围:每日日报全文 · 当日摘录 · 会话标题 · 文件路径(足迹账)。命中按日分组,点命中跳当日。</div>
+  </div>`;
+  if(!q){
+    h+=`<div class="void"><h3>输入关键词开始反查</h3><p style="margin:0">典型场景:「账号密码登录」是哪天做的?改了哪些文件?——输入词,回到那天。</p></div>`;
+    $("#main").innerHTML=h; bindSearch(); return;
+  }
+  const hits=searchIndex.filter((e)=>e.txt.toLowerCase().includes(q.toLowerCase()))
+    .sort((a,b)=>b.day.localeCompare(a.day));
+  if(!hits.length){ h+=`<div class="void"><h3>没有命中</h3><p style="margin:0">换个词,或缩短关键词。</p></div>`; $("#main").innerHTML=h; bindSearch(); return; }
+  const byDay=new Map();
+  for(const e of hits){ if(!byDay.has(e.day)) byDay.set(e.day,[]); byDay.get(e.day).push(e); }
+  const srcName={article:"日报",title:"标题",digest:"摘录",path:"路径"};
+  for(const [day,list] of byDay){
+    const st=stats[day];
+    h+=`<div class="hit-day"><div class="hit-head" data-day="${day}" data-flash="命中 ${list.length} 处(${[...new Set(list.map((e)=>e.src))].map((s)=>({article:"日报",title:"标题",digest:"摘录",path:"路径"})[s]).join("/")})">
+      <span class="heat ${heatClass(day)||""}" style="${heatClass(day)?"":"border:1px solid var(--border)"}"></span>
+      <span class="dd">${day}</span><span class="ct">${st?`${st.s} 会话 · ${fmtAdd(st.add)}${fmtDel(st.del)}`:"无记录"} · ${list.length} 处命中</span>
+      <span class="go">进当日 →</span></div>`;
+    for(const e of list){
+      h+=`<div class="hit" data-day="${day}"><span class="src ${e.src}">${srcName[e.src]}</span>
+        <span class="txt">${hl(e.txt,q)}</span><span class="jump">跳转</span></div>`;
+    }
+    h+=`</div>`;
+  }
+  $("#main").innerHTML=h; $("#main").scrollTop=0; bindSearch();
+}
+function hl(txt,q){
+  const i=txt.toLowerCase().indexOf(q.toLowerCase()); if(i<0) return esc(txt);
+  return esc(txt.slice(0,i))+"<mark>"+esc(txt.slice(i,i+q.length))+"</mark>"+esc(txt.slice(i+q.length));
+}
+function bindSearch(){
+  const input=$("#q");
+  input&&input.addEventListener("input",()=>{ state.q=input.value; renderSearchKeepFocus(); });
+  input&&input.addEventListener("keydown",(e)=>{ if(e.key==="Enter") input.blur(); });
+  document.querySelectorAll(".quick button").forEach((b)=>b.addEventListener("click",()=>{ state.q=b.dataset.q; renderSearch(); }));
+  document.querySelectorAll(".hit,.hit-head").forEach((el)=>{
+    el.addEventListener("click",()=>{
+      const day=el.dataset.day;
+      const src=el.querySelector(".src");
+      const srcName={article:"日报",title:"会话标题",digest:"当日摘录",path:"文件路径"};
+      state.flash = el.dataset.flash
+        ? `「${state.q}」${el.dataset.flash}`
+        : (src ? `「${state.q}」命中${srcName[src.classList[1]]||"内容"}` : null);
+      clickDay(day, true);
+      setMode("trace");
+    });
+  });
+}
+function renderSearchKeepFocus(){
+  renderSearch();
+  const input=$("#q"); if(input){ input.focus(); input.setSelectionRange(input.value.length,input.value.length); }
+}
+
+/* ───────────────────────── 区间汇总 ───────────────────────── */
+function renderRange(){
+  const {a,b}=state.range;
+  const ks=Object.keys(stats).filter((k)=>k>=a&&k<=b).sort();
+  const tot=ks.reduce((x,k)=>{x.s+=stats[k].s;x.add+=stats[k].add;x.del+=stats[k].del;return x;},{s:0,add:0,del:0});
+  /* 项目维度:从 day 详情聚合,未展开的日子按比例示意(原型口径) */
+  const perProj={};
+  for(const k of ks){ const d=days[k]; if(!d) continue;
+    for(const p of (d.projects||[])){ perProj[p.name]=perProj[p.name]||{add:0,del:0};
+      perProj[p.name].add+=p.add; perProj[p.name].del+=p.del; } }
+  const rows=Object.entries(perProj).sort((x,y)=>(y[1].add+y[1].del)-(x[1].add+x[1].del));
+  const max=Math.max(1,...rows.map(([,v])=>v.add+v.del));
+  let h=`<div class="range-strip">
+    <h3>${a} ~ ${b}</h3>
+    <div class="tot num"><span>活跃 ${ks.length} 天</span><span>会话 <b>${tot.s}</b></span>
+      <span style="color:var(--add-fg)">+${tot.add}</span><span style="color:var(--del-fg)">−${tot.del}</span></div>`;
+  if(rows.length){
+    for(const [nm,v] of rows){
+      h+=`<div class="rbrow"><span>${esc(nm)}</span>
+        <div class="bar"><i class="ba" style="width:${Math.round(v.add/max*100)}%"></i><i class="bd" style="width:${Math.round(v.del/max*100)}%"></i></div>
+        <span class="num" style="text-align:right"><span style="color:var(--add-fg)">+${v.add}</span> <span style="color:var(--del-fg)">−${v.del}</span></span></div>`;
+    }
+  } else {
+    h+=`<div class="tip">区间内日子的项目拆分需展开当日数据;此处汇总来自足迹账聚合(原型仅演示交互)。</div>`;
+  }
+  h+=`<div class="range-days">${ks.map((k)=>`<button data-day="${k}">${k.slice(5)}</button>`).join("")}</div>
+    <div class="tip" style="margin-top:10px">回答「这两周某模块改了多少」:区间口径 = 足迹账按日聚合再求和,项目条形为 WakaTime 式占比。</div></div>`;
+  return h;
+}
+
+/* ───────────────────────── 模式与全局 ───────────────────────── */
+function renderMain(prefixHtml, innerFn){
+  $("#main").innerHTML = prefixHtml + (innerFn?innerFn():"");
+  $("#main").scrollTop=0;
+}
+function renderMode(){
+  if(state.mode==="search"){ renderSearch(); }
+  else { renderTrace(); }
+}
+function setMode(m){
+  state.mode=m;
+  document.querySelectorAll("#modeSeg button").forEach((b)=>b.classList.toggle("on",b.dataset.m===m));
+  $("#monthNav").style.display = m==="trace"?"flex":"none";
+  renderMode();
+}
+$("#modeSeg").addEventListener("click",(e)=>{
+  const b=e.target.closest("button"); if(b) setMode(b.dataset.m);
+});
+$("#heatSeg").addEventListener("click",(e)=>{
+  const b=e.target.closest("button"); if(!b) return;
+  state.heat=b.dataset.h;
+  document.querySelectorAll("#heatSeg button").forEach((x)=>x.classList.toggle("on",x===b));
+  renderCal();
+});
+$("#prevM").addEventListener("click",()=>{ state.m--; if(!state.m){state.m=12;state.y--;} renderCal(); });
+$("#nextM").addEventListener("click",()=>{ state.m++; if(state.m>12){state.m=1;state.y++;} renderCal(); });
+$("#todayBtn").addEventListener("click",()=>{
+  const [y,m,d]=TODAY.split("-").map(Number);
+  state.y=y;state.m=m; state.day=TODAY; setMode("trace"); renderCal(); renderTrace();
+});
+$("#rangeBtn").addEventListener("click",()=>{
+  state.range={on:true,a:null,b:null};
+  renderCal();
+  $("#main").innerHTML=`<div class="void"><h3>区间汇总:选起止两天</h3><p style="margin:0">在左侧月历点第一个日期,再点第二个日期。</p></div>`;
+});
+document.addEventListener("keydown",(e)=>{
+  if(e.target.tagName==="INPUT") return;
+  if(state.mode!=="trace") return;
+  const map=Object.keys(stats).sort();
+  if(e.key==="ArrowLeft"||e.key==="ArrowRight"){
+    const i=map.indexOf(state.day);
+    const ni=e.key==="ArrowLeft"?Math.max(0,i-1):Math.min(map.length-1,i+1);
+    if(ni!==i&&i>=0){ clickDay(map[ni]); }
+  }
+  if(e.key==="Escape") closeDiff();
+});
+
+/* 启动:落在主叙事日 2026-08-14(两个月前的那天) */
+renderCal();
+renderTrace();
+</script>
+</body>
+</html>

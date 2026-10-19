@@ -51,6 +51,8 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
     activate(ctx) {
       ctx.registerCliProfile({
         id: variant.profileId,
+        /* 原生记忆文件(academy 文案:/init 生成 AGENTS.md;qoder 两版同源)。 */
+        memoryFiles: [{ scope: "project", label: "AGENTS.md", relPath: "AGENTS.md" }],
         docsUrl: variant.docsUrl,
         npmPackage: variant.npmPackage,
         commandUpdate: variant.commandUpdate,

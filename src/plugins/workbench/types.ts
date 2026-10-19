@@ -107,6 +107,10 @@ export interface Project {
   tags: string[];
   /** 可选绑定的工作区根(绝对路径);绑定后任务可在此 cwd 开会话、详情可见最近会话。 */
   cwd?: string;
+  /** 软归档:退出概览/看板/聚焦全部统计与列表,不删实体,可恢复。 */
+  archived?: boolean;
+  /** 归档时刻(恢复时保留,仅作取证)。 */
+  archivedAt?: string;
   docs: ProjectDoc[];
   createdAt: string;
   updatedAt: string;
@@ -253,6 +257,8 @@ export function normalizeProject(raw: unknown): Project {
     progress: Number.isFinite(source.progress) ? Math.min(100, Math.max(0, Math.round(Number(source.progress)))) : 0,
     link: str(source.link),
     summary: str(source.summary),
+    archived: source.archived === true,
+    archivedAt: str(source.archivedAt),
     tags: Array.isArray(source.tags) ? source.tags.map((tag) => str(tag) ?? "").filter(Boolean) : [],
     cwd: str(source.cwd),
     docs,

@@ -98,6 +98,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   gitStatus: "ipc.git",
   gitStatusBatch: "ipc.git",
   gitReposScan: "ipc.git",
+  gitCommitsRange: "ipc.git",
   gitIgnoredPrefixes: "ipc.git",
   gitTotals: "ipc.git",
   gitAheadBehind: "ipc.git",
@@ -150,6 +151,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   checkpointRestore: "ipc.checkpoints",
   checkpointApply: "ipc.checkpoints",
   checkpointUndoRevert: "ipc.checkpoints",
+  checkpointRestorePreview: "ipc.checkpoints",
   checkpointPrune: "ipc.checkpoints",
 
   /* 网络(quota_fetch = 任意 URL 的通用 HTTP 代理)。 */

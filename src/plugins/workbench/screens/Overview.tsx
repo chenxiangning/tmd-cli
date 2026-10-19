@@ -5,11 +5,12 @@
  * 2026-10-12 收敛:模块负载/负责人负载两图建在死轴上(单人场景 16/16 同值),下线。
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { t } from "@kernel/i18n";
 import { DANGER_LEVELS, endOfWeek, sortByRisk } from "../analysis";
 import { headline, kpis, progressBuckets, riskBreakdown } from "../insights";
 import { pulsePartition } from "../focusModel";
+import { ArchiveGhostsDialog } from "../ArchiveGhostsDialog";
 import { DonutChart, Histogram, SliceLegend } from "../charts";
 import { WbEmpty } from "../ui";
 import { DefaultEngineBar } from "./DefaultEngineBar";
@@ -24,7 +25,8 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
   );
 }
 
-export function OverviewScreen({ allProjects, today, onOpen, onNewProject, onLinkWorkspaces }: WbScreenProps) {
+export function OverviewScreen({ allProjects, today, onOpen, onNewProject, onLinkWorkspaces, onToast }: WbScreenProps) {
+  const [archiveOpen, setArchiveOpen] = useState(false);
   /* A2:概览与聚焦同口径——KPI/风险环/进度分布/结论行只按「被跟踪集」计账
    * (有未完成任务|有 DDL|近 7 天活动,判定复用 focusModel.pulsePartition),
    * 空壳并入一行「未跟踪 N 个」。F5:全部派生 useMemo,消渲染期全表重扫。 */
@@ -66,7 +68,16 @@ export function OverviewScreen({ allProjects, today, onOpen, onNewProject, onLin
       {pulse.ghosts.length > 0 ? (
         <p className="wb-headline wb-muted" title={pulse.ghosts.map((ghost) => ghost.name).join(t("、"))}>
           {t("{count} 个未跟踪项目", { count: pulse.ghosts.length })}
+          {/* 空壳治理入口(042 债批):≥2 才渲染,低频动作不占常驻位。 */}
+          {pulse.ghosts.length >= 2 ? (
+            <button type="button" className="wb-link" style={{ marginInlineStart: 8 }} onClick={() => setArchiveOpen(true)}>
+              {t("清理空壳")}
+            </button>
+          ) : null}
         </p>
+      ) : null}
+      {archiveOpen ? (
+        <ArchiveGhostsDialog ghosts={pulse.ghosts} onClose={() => setArchiveOpen(false)} onToast={onToast} />
       ) : null}
       <div className="wb-kpis">
         <Kpi label={t("项目总数")} value={data.total} />

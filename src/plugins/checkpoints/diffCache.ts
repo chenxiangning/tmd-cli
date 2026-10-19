@@ -3,7 +3,7 @@
  * 键与 byKey 同源(`${cwd}|${sessionId}`,批清单按会话拉取 —— cwd 键控会让
  * 跨会话差集清理误摘他在看的批,2026-09-28 评审 P1);LRU 上限 + refresh 差集。
  */
-import type { CkptPatch } from "@kernel/ipc";
+import type { CkptPatch, CkptRestorePreview } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
 import { emit, stateKey } from "./store";
 
@@ -27,6 +27,10 @@ export function dropKey(key: string): void {
   diffCache.delete(key);
   diffErrors.delete(key);
   diffInflight.delete(key);
+  previewCache.delete(key);
+  for (const full of [...previewInflight.keys()]) {
+    if (full.startsWith(`${key}·`)) previewInflight.delete(full);
+  }
 }
 
 export function pruneDiffCache(key: string, batches: { id: string }[]): void {
@@ -107,4 +111,86 @@ export function loadDiff(cwd: string, sessionId: string, batchId: string): CkptP
       emit(); // 失败显式可见 + 可重试,不静默删缓存卡 spinner
     });
   return null;
+}
+
+// ---- 恢复 dry-run 预览(042 项6)------------------------------------------
+// 与批 diff 同一套缓存纪律:LRU + 在途防重。revert 挂载每次现发 dry-run
+// (fresh,防跨弹层陈旧);undo_revert 复用 revert 时缓存的这份,不新发
+// dry-run(feasibility §6 undo 对称裁决),故动作后不清缓存。
+
+const previewCache = new Map<string, Map<string, CkptRestorePreview>>();
+/** 拉取在途(防重,同 diffInflight 语义):整键 = stateKey + 预览键。 */
+const previewInflight = new Map<string, Promise<CkptRestorePreview>>();
+
+/** 预览键:整批 = batchId;子集 = batchId + 排序路径拼接(undo 只认整批键)。 */
+export function previewKey(batchId: string, paths?: string[]): string {
+  return paths?.length ? `${batchId}|${[...paths].sort().join("|")}` : batchId;
+}
+
+export function getCachedPreview(
+  cwd: string,
+  sessionId: string,
+  key: string,
+): CkptRestorePreview | undefined {
+  return previewCache.get(stateKey(cwd, sessionId))?.get(key);
+}
+
+/**
+ * undo 复用入口:取该批恢复时缓存的预览(整批键优先,子集键兜底 —— 回退
+ * 入口常带显式 paths,键带排序路径后缀)。冻结数据,不新发 dry-run。
+ */
+export function getCachedPreviewForBatch(
+  cwd: string,
+  sessionId: string,
+  batchId: string,
+): CkptRestorePreview | undefined {
+  const per = previewCache.get(stateKey(cwd, sessionId));
+  if (!per) return undefined;
+  const exact = per.get(batchId);
+  if (exact) return exact;
+  for (const k of per.keys()) {
+    if (k.startsWith(`${batchId}|`)) return per.get(k);
+  }
+  return undefined;
+}
+
+/**
+ * 拉取恢复预览:命中缓存直接返回;在途复用同一 Promise;失败 reject 原始
+ * 错误串(卡片侧判 E_EMPTY 免弹分支 / 其余回落文案确认,不阻塞确认流)。
+ * opts.fresh = 跳过缓存命中现发 dry-run(revert 模式挂载用):预览只读且
+ * 廉价,弹层间动作会让缓存陈旧(回退/应用/外部改动后旧预览骗人)。
+ */
+export function loadPreview(
+  cwd: string,
+  sessionId: string,
+  batchId: string,
+  paths?: string[],
+  opts?: { fresh?: boolean },
+): Promise<CkptRestorePreview> {
+  const key = stateKey(cwd, sessionId);
+  const pkey = previewKey(batchId, paths);
+  if (!opts?.fresh) {
+    const hit = previewCache.get(key)?.get(pkey);
+    if (hit) return Promise.resolve(hit);
+  }
+  const full = `${key}·${pkey}`;
+  const inflight = previewInflight.get(full);
+  if (inflight) return inflight;
+  const p = ipc
+    .checkpointRestorePreview(cwd, batchId, paths)
+    .then((pv) => {
+      const per = previewCache.get(key) ?? new Map<string, CkptRestorePreview>();
+      per.set(pkey, pv);
+      previewCache.set(key, per);
+      /* LRU 与批 diff 同上限;刚插入的本键不会被摘 */
+      while (per.size > DIFF_CACHE_PER_CWD) {
+        const oldest = per.keys().next().value;
+        if (oldest === undefined || oldest === pkey) break;
+        per.delete(oldest);
+      }
+      return pv;
+    })
+    .finally(() => previewInflight.delete(full));
+  previewInflight.set(full, p);
+  return p;
 }

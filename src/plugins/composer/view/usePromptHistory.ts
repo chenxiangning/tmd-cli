@@ -14,10 +14,22 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import {
   findPromptCompletion,
   getPromptHistory,
+  MAX_TEXT_LENGTH,
   subscribePromptHistory,
 } from "@kernel/promptHistory";
 
 const INVISIBLE_CHARS_RE = /[\u200B-\u200D\uFEFF]/g;
+
+/**
+ * ghost 后缀展示截断(纯函数,单测直测)——双轨语义钉死:
+ * 存储与 accept() 一律全文(042 定稿,去掉了 recordPrompt 的 slice);
+ * 只有展示窗口截断到 MAX_TEXT_LENGTH(300)+「…」,超长后缀不再整段糊进输入框。
+ */
+export function ghostSuffix(suggestion: string, clean: string): string {
+  if (suggestion.length <= clean.length) return "";
+  const raw = suggestion.slice(clean.length);
+  return raw.length > MAX_TEXT_LENGTH ? `${raw.slice(0, MAX_TEXT_LENGTH)}…` : raw;
+}
 
 export function usePromptCompletion(text: string, enabled: boolean): {
   suffix: string;
@@ -36,8 +48,7 @@ export function usePromptCompletion(text: string, enabled: boolean): {
   }, [text, enabled]);
 
   const clean = text.replace(INVISIBLE_CHARS_RE, "").trim();
-  const suffix =
-    suggestion !== null && suggestion.length > clean.length ? suggestion.slice(clean.length) : "";
+  const suffix = suggestion !== null ? ghostSuffix(suggestion, clean) : "";
 
   const accept = useCallback((): string | null => {
     setSuggestion(null);

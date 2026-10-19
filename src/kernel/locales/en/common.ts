@@ -28,6 +28,9 @@ export const MESSAGES = {
   "放大界面": "Zoom in",
   "缩小界面": "Zoom out",
   "重置界面缩放": "Reset zoom",
+  "放大终端字号": "Zoom Terminal Font In",
+  "缩小终端字号": "Zoom Terminal Font Out",
+  "重置终端字号": "Reset Terminal Font Size",
 
   // ── 会话 tab 条 ──
   "打开的会话": "Open sessions",
@@ -163,6 +166,10 @@ export const MESSAGES = {
   // ── 终端搜索 ──
   "终端搜索": "Terminal search",
   "搜索终端输出": "Search terminal output",
+  "区分大小写 (Aa)": "Match case (Aa)",
+  "正则表达式 (.*)": "Regular expression (.*)",
+  "{n}/{m}": "{n}/{m}",
+  "0/0": "0/0",
   "上一个 (Shift+Enter)": "Previous (Shift+Enter)",
   "下一个 (Enter)": "Next (Enter)",
   "关闭 (Esc)": "Close (Esc)",
@@ -232,6 +239,16 @@ export const MESSAGES = {
   // ── local-loader 隔离徽标(LocalSection 历史键落 common) ──
   "已熔断": "Quarantined",
   "组件资源加载失败;请重载页面恢复": "Component resources failed to load — reload the page to recover",
+
+  // ── 草稿安全网(0.4.0 项 12:draftMirrorBar 恢复条 + quitGuard 聚合退出弹层) ──
+  // 相对时间三键({n} 分钟前/小时前/天前)已落 misc 域,此处不重收。
+  "检测到上次未保存草稿({time})": "Unsaved draft from last session ({time})",
+  "草稿超过 256KB,恢复仅保留前缀": "Draft exceeded 256KB — only the leading part is kept",
+  "恢复": "Restore",
+  "丢弃": "Discard",
+  "有 {n} 个未保存草稿": "{n} unsaved drafts",
+  "放弃并退出": "Discard and quit",
+  "本次不再问": "Don't ask again this session",
 
   // ── 手机远程 UI(src/mobile 树) ──
 } as Record<string, string>;

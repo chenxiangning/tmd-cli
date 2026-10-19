@@ -77,6 +77,12 @@ export function groupByModule(projects: readonly Project[], today: string = toda
     });
 }
 
+/** 在册项目(单点过滤 selector):归档项目退出概览/看板/聚焦全部统计与列表
+ * (WorkbenchTab 派生 screenProps 前统一过此筛,各视图不再各自判 archived)。 */
+export function activeProjects(projects: readonly Project[]): Project[] {
+  return projects.filter((project) => !project.archived);
+}
+
 /** 一键关联候选:未绑定过的工作区根(default 兜底工作区除外),保持工作区顺序。 */
 export function linkableWorkspaces(workspaces: readonly Workspace[], projects: readonly Project[]): Workspace[] {
   const linked = new Set(projects.map((p) => p.cwd).filter((cwd) => cwd !== undefined));

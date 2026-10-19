@@ -1,8 +1,8 @@
 /**
- * 通知流水纯函数契约:坏文件解析、追加剪枝(过期/上限)、面板今日分组。
- * 模块级纯函数,直接 import 无需环境桩。
+ * 通知流水纯函数契约:坏文件解析、追加剪枝(过期/上限)、面板今日分组;
+ * markQuotaSeen 读失败守卫(mock ipc)。
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ENTRIES_MAX,
   appendEntry,
@@ -11,6 +11,12 @@ import {
   type NotifyDoc,
   type NotifyEntry,
 } from "./log";
+
+const fsReadFile = vi.hoisted(() => vi.fn());
+const fsWriteFile = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("@kernel/ipc", () => ({
+  ipc: { fsReadFile, fsWriteFile, configDir: vi.fn(async () => "/tmp") },
+}));
 
 const mk = (ts: number, kind: NotifyEntry["kind"] = "ask"): Omit<NotifyEntry, "id"> => ({
   ts,
@@ -22,9 +28,9 @@ const mk = (ts: number, kind: NotifyEntry["kind"] = "ask"): Omit<NotifyEntry, "i
 
 describe("parseNotifyLog(坏文件不抛)", () => {
   it("坏 JSON / version 不符 / entries 非数组 → 空文档", () => {
-    expect(parseNotifyLog("not json")).toEqual({ version: 1, entries: [] });
-    expect(parseNotifyLog('{"version":2,"entries":[]}')).toEqual({ version: 1, entries: [] });
-    expect(parseNotifyLog('{"version":1,"entries":{}}')).toEqual({ version: 1, entries: [] });
+    expect(parseNotifyLog("not json")).toEqual({ version: 1, entries: [], quotaSeen: [] });
+    expect(parseNotifyLog('{"version":2,"entries":[]}')).toEqual({ version: 1, entries: [], quotaSeen: [] });
+    expect(parseNotifyLog('{"version":1,"entries":{}}')).toEqual({ version: 1, entries: [], quotaSeen: [] });
   });
 
   it("形状不合法的条目逐条弃,合法保留", () => {
@@ -41,13 +47,28 @@ describe("parseNotifyLog(坏文件不抛)", () => {
     const doc = parseNotifyLog(text);
     expect(doc.entries.map((e) => e.id)).toEqual(["a"]);
   });
+
+  it("quotaSeen 合法保留、坏形状逐条弃、写坏整体按空处理", () => {
+    const text = JSON.stringify({
+      version: 1,
+      entries: [],
+      quotaSeen: [
+        { k: "claude:reset:1", at: 100 },
+        { k: 1, at: 200 }, // k 非串弃
+        { k: "x" }, // at 缺失弃
+        "junk",
+      ],
+    });
+    expect(parseNotifyLog(text).quotaSeen).toEqual([{ k: "claude:reset:1", at: 100 }]);
+    expect(parseNotifyLog('{"version":1,"entries":[],"quotaSeen":"bad"}').quotaSeen).toEqual([]);
+  });
 });
 
 describe("appendEntry(追加 + 过期/上限双闸)", () => {
   const DAY = 86_400_000;
 
   it("追加生成 id,原条目不动", () => {
-    const doc = appendEntry({ version: 1, entries: [] }, mk(100), 200, 7);
+    const doc = appendEntry({ version: 1, entries: [], quotaSeen: [] }, mk(100), 200, 7);
     expect(doc.entries).toHaveLength(1);
     expect(doc.entries[0].id).toBeTruthy();
     expect(doc.entries[0].ts).toBe(100);
@@ -63,6 +84,7 @@ describe("appendEntry(追加 + 过期/上限双闸)", () => {
           { id: "edge", ts: now - 7 * DAY, kind: "ask", sessionId: "s", title: "t" },
           { id: "fresh", ts: now - DAY, kind: "ask", sessionId: "s", title: "t" },
         ],
+        quotaSeen: [],
       },
       mk(now),
       now,
@@ -72,11 +94,29 @@ describe("appendEntry(追加 + 过期/上限双闸)", () => {
   });
 
   it("条数上限:超 ENTRIES_MAX 从最旧剪", () => {
-    let doc: NotifyDoc = { version: 1, entries: [] };
+    let doc: NotifyDoc = { version: 1, entries: [], quotaSeen: [] };
     for (let i = 0; i < ENTRIES_MAX + 10; i++) doc = appendEntry(doc, mk(i), i + DAY, 365);
     expect(doc.entries).toHaveLength(ENTRIES_MAX);
     expect(doc.entries[0].ts).toBe(10); // 最旧 10 条被剪
     expect(doc.entries.at(-1)!.ts).toBe(ENTRIES_MAX + 9);
+  });
+
+  it("quotaSeen 随 notifyLogDays 同批裁剪:过期弃、边界保留", () => {
+    const now = 10 * DAY;
+    const doc = appendEntry(
+      {
+        version: 1,
+        entries: [],
+        quotaSeen: [
+          { k: "stale", at: now - 8 * DAY }, // 超 7 天剪
+          { k: "edge", at: now - 7 * DAY }, // 恰边界留
+        ],
+      },
+      mk(now),
+      now,
+      7,
+    );
+    expect(doc.quotaSeen.map((s) => s.k)).toEqual(["edge"]);
   });
 });
 
@@ -96,5 +136,28 @@ describe("groupNotifyEntries(面板今日/更早分组)", () => {
 
   it("空流水 → 两组皆空", () => {
     expect(groupNotifyEntries([], new Date())).toEqual({ today: [], earlier: [] });
+  });
+});
+
+describe("markQuotaSeen(读失败守卫)", () => {
+  beforeEach(() => {
+    fsReadFile.mockReset();
+    fsWriteFile.mockClear();
+  });
+
+  it("读 reject 非 ENOENT → 放弃落盘,不把流水当空库覆写", async () => {
+    const { markQuotaSeen } = await import("./log");
+    const doc = JSON.stringify({ version: 1, entries: [], quotaSeen: [] });
+    fsReadFile
+      .mockRejectedValueOnce(Object.assign(new Error("EIO"), { code: "EIO" }))
+      .mockResolvedValueOnce(doc);
+    /* 队列 FIFO:第二次调用的写盘只在第一次任务完成后执行,可据此断言第一次未写。 */
+    markQuotaSeen(["k1"], 7);
+    markQuotaSeen(["k2"], 7);
+    await vi.waitFor(() => expect(fsWriteFile).toHaveBeenCalledTimes(1));
+    const call = fsWriteFile.mock.calls[0] as unknown as [string, string];
+    const written = call[1];
+    expect(written).toContain("k2");
+    expect(written).not.toContain("k1");
   });
 });

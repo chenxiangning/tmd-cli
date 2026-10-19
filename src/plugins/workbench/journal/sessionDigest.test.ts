@@ -50,6 +50,12 @@ describe("renderSessionDigest", () => {
     expect(md).not.toContain("context injected");
   });
 
+  it("小节头尾缀会话 id(功能卡 sessions 引用锚点);无 id 行保持旧格式", () => {
+    const withId = renderSessionDigest({ ...row, id: "s-ab12" }, [block("user", "修好了")], caps)!;
+    expect(withId).toMatch(/^### 15:48 \[omp\] 修复工作区选择器\(tmd-cli\) · s-ab12\n/);
+    expect(renderSessionDigest(row, [block("user", "修好了")], caps)).toMatch(/^### 15:48 \[omp\] 修复工作区选择器\(tmd-cli\)\n/);
+  });
+
   it("工具报错升格「报错」行并附 detail(error/failed 两词表)", () => {
     const md = renderSessionDigest(row, [
       block("tool", "", { title: "pnpm test", status: "error", detail: "FAIL src/x.test.ts 3 failed" }),

@@ -52,6 +52,8 @@ export const cliOpencodePlugin: Plugin = {
     ctx.registerAcademyCourse(OPENCODE_ACADEMY_COURSE);
     ctx.registerCliProfile({
       id: "opencode",
+      /* 原生记忆文件(academy 文案:约定压缩前落 AGENTS.md)。 */
+      memoryFiles: [{ scope: "project", label: "AGENTS.md", relPath: "AGENTS.md" }],
       docsUrl: "https://opencode.ai/docs",
       npmPackage: "opencode-ai",
       name: "opencode",

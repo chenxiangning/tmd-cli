@@ -8,6 +8,8 @@ pub enum CkptError {
     NotARepo(String),
     /// 输入/状态校验失败(批次不存在/已处理/无可回退路径)
     Empty(String),
+    /// 回退计划为空(全部已处理/内容已变);独立前缀供前端免弹直走回退
+    EmptyPlan(String),
     /// sidecar 存储损坏
     Store(String),
     /// libgit2 错误(用户仓库或 sidecar)
@@ -21,6 +23,7 @@ impl fmt::Display for CkptError {
         match self {
             Self::NotARepo(p) => write!(f, "E_NOT_A_REPO: {p}"),
             Self::Empty(m) => write!(f, "E_EMPTY: {m}"),
+            Self::EmptyPlan(m) => write!(f, "E_EMPTY_PLAN: {m}"),
             Self::Store(m) => write!(f, "E_STORE: {m}"),
             Self::Libgit2(e) => write!(f, "E_GIT2: {}", e.message()),
             Self::Io(e) => write!(f, "E_IO: {e}"),
@@ -64,6 +67,7 @@ mod tests {
     fn prefix_stable() {
         assert!(String::from(CkptError::NotARepo("/x".into())).starts_with("E_NOT_A_REPO:"));
         assert!(String::from(CkptError::Empty("m".into())).starts_with("E_EMPTY:"));
+        assert!(String::from(CkptError::EmptyPlan("m".into())).starts_with("E_EMPTY_PLAN:"));
         assert!(String::from(CkptError::Store("s".into())).starts_with("E_STORE:"));
     }
 }

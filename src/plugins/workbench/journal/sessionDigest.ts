@@ -28,7 +28,10 @@ export function renderSessionDigest(
 ): string | null {
   const digest = renderTranscriptDigest(blocks, caps);
   if (!digest) return null;
-  const head = `### ${hmOf(row.startedAt)} [${row.profileId}] ${row.title}${row.wsName ? `(${row.wsName})` : ""}`;
+  /* 头部尾缀带会话 id(· 隔开,同清单行 ws 后缀惯例):功能卡契约(L3 管线 A)要求
+   * 生成会话在 features JSON 的 sessions 里引用摘录真实覆盖的会话 id,id 不在摘录
+   * 里出现则该铁律无从执行(只能编造)。无 id(旧行/缺扫)保持旧格式。 */
+  const head = `### ${hmOf(row.startedAt)} [${row.profileId}] ${row.title}${row.wsName ? `(${row.wsName})` : ""}${row.id ? ` · ${row.id}` : ""}`;
   return [head, ...digest.lines, ""].join("\n");
 }
 

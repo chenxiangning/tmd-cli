@@ -1,5 +1,6 @@
 /** ja 词典 · workbench 域(键 = 中文源串;zh 恒等无词典)。 */
 import { DOCGEN_JA } from "./ja-docgen";
+import { ARCHIVE_JA } from "./ja-archive";
 
 export const MESSAGES_JA = {
   // ── トップバー/ナビ ──
@@ -293,5 +294,6 @@ export const MESSAGES_JA = {
   "暂无到期任务": "期限が近いタスクはありません",
   "还没有资料文档": "資料ドキュメントはまだありません",
   "还没有进展记录": "進捗記録はまだありません",
+  ...ARCHIVE_JA,
   ...DOCGEN_JA,
 } as Record<string, string>;

@@ -117,7 +117,10 @@ fn extract_zip(
     let mut tops: BTreeSet<String> = BTreeSet::new();
     for i in 0..zip.len() {
         let entry = zip.by_index(i).map_err(|e| format!("读取条目失败: {e}"))?;
-        let name = entry.name().to_string();
+        let name = entry
+            .name()
+            .map_err(|e| format!("读取条目名失败: {e}"))?
+            .into_owned(); // zip 9 起名字经编码检测,失败即坏包
         if name.is_empty() {
             continue;
         }

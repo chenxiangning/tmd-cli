@@ -29,6 +29,7 @@ import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/wor
 import { copyText } from "@kernel/clipboard";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { useSnapshotExport } from "./transcriptExport";
 import { WorktreeBadge } from "./WorktreeBadge";
 import {
   orShortId,
@@ -73,6 +74,7 @@ export function PinnedSessionsSection() {
     null,
   );
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
+  const { run: runSnapshotExport, toast: snapshotToast } = useSnapshotExport();
   const collapsed = pinnedSection.use();
   /** 重命名装配(行内环与右键菜单共用)。 */
   const renameOf = (row: PinnedRow) =>
@@ -274,13 +276,16 @@ export function PinnedSessionsSection() {
           );
         })}
 
+      {snapshotToast}
       {menu && (
         <SessionContextMenu
           position={{ x: menu.x, y: menu.y }}
           canRename
           pinScope="global"
+          muteKey={menu ? menu.row.key : undefined}
           onCopyId={() => void copyText(menu.row.cliSessionId).catch(() => undefined)}
           onRename={() => renameOf(menu.row)}
+          onExportSnapshot={() => runSnapshotExport({ cliSessionId: menu.row.cliSessionId, title: titleOf(menu.row), profileId: menu.row.profile.id, cwd: liveOf(menu.row)?.cwd ?? menu.row.workspace.root })}
           onPinScope={(scope) => toggleSessionPin(menu.row.key, scope, realTitleOf(menu.row))}
           onClose={() => setMenu(null)}
         />

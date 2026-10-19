@@ -72,7 +72,22 @@ export const KernelTopics = {
    * ask 作答与轮中控制命令(如 /model 切模型)不开轮、不广播。
    */
   promptSent: "kernel.sessions.promptSent",
+  /**
+   * checkpoints 一轮真实封口落账(checkpoint_seal 返回 true 的边沿,幂等封口
+   * 不广播)。payload: CkptTurnSealedEvent —— 只带身份三元组;批内容(文件±/
+   * batchId/引擎)由消费方经 checkpointList 拉最新批自取,契约不复制账本形状。
+   * 消费方:footprint 插件落按日 rollup。sealDeadTurns 的代封不广播(无单会话
+   * 身份,残留轮缺口诚实留给 git 证据兜底)。
+   */
+  ckptTurnSealed: "kernel.checkpoints.turn.sealed",
 } as const;
+
+/** ckptTurnSealed 负载:CLI 会话 id + tmd 会话 id + 工作区(查询键,非内容)。 */
+export interface CkptTurnSealedEvent {
+  cwd: string;
+  sessionId: string;
+  tmdSessionId: string;
+}
 
 /** promptSent 负载:text = 发送的原文(prepareSendPayload 前,translate 后的展示文本截断);
  *  ranges = 本轮随发携带的文件区间引用(marks 标注等,审批线存证消费;未携带缺省)。 */

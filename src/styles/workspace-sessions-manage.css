@@ -201,3 +201,40 @@
   font-weight: 600;
   line-height: 1;
 }
+
+/* 转录导出 toast(批量导出进度/汇总 + 活会话快照;局部 toast,无全局体系):
+   底部居中悬浮,pre-line 支持失败列表多行;取消钮可点(区别于纯展示 toast)。 */
+.wm-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 72vw;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--tmd-fg);
+  color: var(--tmd-bg-base);
+  font-size: var(--tmd-font-ui);
+  pointer-events: auto;
+}
+
+.wm-toast-text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.wm-toast-cancel {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

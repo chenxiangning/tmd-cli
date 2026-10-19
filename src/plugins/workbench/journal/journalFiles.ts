@@ -89,6 +89,9 @@ export const EMPTY_META: MetaFile = { config: DEFAULT_CONFIG, days: {}, tasks: [
 
 export const pad2 = (n: number): string => String(n).padStart(2, "0");
 export const dayKey = (y: number, m: number, d: number): string => `${y}-${pad2(m)}-${pad2(d)}`;
+/** 便签草稿镜像槽(kernel/draftMirror;崩溃/强退恢复条用,NoteEditor 与
+ *  ArticleDiscardGate 两处弃稿/恢复点共用同一拼装)。 */
+export const noteMirrorSlot = (y: number, m: number, d: number): string => `journal-note:${dayKey(y, m, d)}`;
 
 interface DailyPaths {
   root: string;
@@ -97,6 +100,8 @@ interface DailyPaths {
   digest: (y: number, m: number, d: number) => string;
   /** 当日生成 prompt(无头单发经 @file 传入引擎;摘录+清单可达数百 KB,不挤 argv)。 */
   prompt: (y: number, m: number, d: number) => string;
+  /** footprint 功能卡文件(L3 管线 A:生成会话顺手直写;不在 daily 根下,读侧 = footprint 插件)。 */
+  featureCards: (y: number, m: number, d: number) => string;
   notes: (y: number, m: number) => string;
   meta: string;
   assets: string;
@@ -115,6 +120,7 @@ export function dailyPaths(): Promise<DailyPaths> {
       article: (y, m, d) => `${root}/article/${dayKey(y, m, d)}.md`,
       digest: (y, m, d) => `${root}/digest/${dayKey(y, m, d)}.md`,
       prompt: (y, m, d) => `${root}/prompt/${dayKey(y, m, d)}.md`,
+      featureCards: (y, m, d) => `${base}/footprint/features/${dayKey(y, m, d)}.json`,
       notes: (y, m) => `${root}/notes/${y}-${pad2(m)}.json`,
       meta: `${root}/meta.json`,
       assets: `${root}/assets`,

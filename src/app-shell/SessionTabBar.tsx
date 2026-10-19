@@ -183,6 +183,7 @@ function SessionTabMenu({
       }
       canPin={pinKey != null}
       pinned={pinKey !== undefined && isSessionPinned(pinKey)}
+      muteKey={pinKey}
       onLocate={() => {
         shellLeftEnsureOpen.current?.(); requestSessionReveal(menu.id);
       }}

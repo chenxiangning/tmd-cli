@@ -30,6 +30,26 @@ export interface SessionKeepEntry {
   keptAt: number;
 }
 
+/** 通知静音档位:mute = 静音通知(ask 穿透)/ full = 完全静音 / snooze = 静音至回合结束。 */
+export type SessionMuteMode = "mute" | "full" | "snooze";
+export const SESSION_MUTE_MODES: readonly SessionMuteMode[] = ["mute", "full", "snooze"];
+
+/** 单条静音记录:档位 + 静音时刻(ms);语义与三档 × 四类别矩阵见 kernel/sessionMutes.ts。
+ *  askRing 仅 full 档语义:true = ask 穿透仍响铃;缺省 false = ask 亦静。 */
+export interface SessionMuteEntry {
+  mutedAt: number;
+  mode: SessionMuteMode;
+  askRing?: boolean;
+}
+
+/** 重启现场恢复设置:enabled 总闸(默认开);keys = 三段身份 MRU 序
+ *  (首 = 最新,`wsId:profileId:cliSessionId`),帽随 sessionTabsMax 动态读。
+ *  语义与启动恢复编排见 kernel/sessionRestore.ts。 */
+export interface SessionRestoreSettings {
+  enabled: boolean;
+  keys: string[];
+}
+
 /** 会话卫生清扫时窗(小时)白名单:12h / 24h / 48h / 7d。 */
 export type SessionHygieneHours = 12 | 24 | 48 | 168;
 export const SESSION_HYGIENE_HOURS: readonly SessionHygieneHours[] = [12, 24, 48, 168];

@@ -40,7 +40,9 @@ import {
   sanitizeSessionArchive,
   sanitizeSessionDeleted,
   sanitizeSessionKeep,
+  sanitizeSessionMutes,
   sanitizeSessionPins,
+  sanitizeSessionRestore,
   sanitizeSessionTitles,
 } from "./settingsSanitizeSessions";
 import { sanitizeOpenWithTargets } from "./settingsSanitizeOpenWith";
@@ -169,6 +171,22 @@ function sanitizeNotifyLogDays(raw: unknown): number {
   return Math.min(365, Math.max(1, Math.round(raw)));
 }
 
+/** 余额低水位清洗:>=0 数值钳制,非数字回落默认 0(0 = 关)。 */
+function sanitizeBalanceBelow(raw: unknown): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) {
+    return DEFAULT_SETTINGS.notifyQuotaBalanceBelow;
+  }
+  return Math.max(0, raw);
+}
+
+/** 窗口重置提醒分钟数清洗:5-240 整数钳制,非数字回落默认 30。 */
+function sanitizeResetMinutes(raw: unknown): number {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) {
+    return DEFAULT_SETTINGS.notifyQuotaResetMinutes;
+  }
+  return Math.min(240, Math.max(5, Math.round(raw)));
+}
+
 /** 外部数据 → 合法 AppSettings;非法/缺失字段回落默认值。 */
 export function sanitize(raw: unknown): AppSettings {
   const obj = (raw ?? {}) as Record<string, unknown>;
@@ -227,6 +245,10 @@ export function sanitize(raw: unknown): AppSettings {
         ? obj.notifyOsSessionExit
         : DEFAULT_SETTINGS.notifyOsSessionExit,
     notifyQuotaWarnPercent: sanitizeClampPercent(obj.notifyQuotaWarnPercent),
+    notifyOsQuota:
+      typeof obj.notifyOsQuota === "boolean" ? obj.notifyOsQuota : DEFAULT_SETTINGS.notifyOsQuota,
+    notifyQuotaBalanceBelow: sanitizeBalanceBelow(obj.notifyQuotaBalanceBelow),
+    notifyQuotaResetMinutes: sanitizeResetMinutes(obj.notifyQuotaResetMinutes),
     notifyDndEnabled:
       typeof obj.notifyDndEnabled === "boolean"
         ? obj.notifyDndEnabled
@@ -266,6 +288,8 @@ export function sanitize(raw: unknown): AppSettings {
     sessionArchive: sanitizeSessionArchive(obj.sessionArchive),
     sessionDeleted: sanitizeSessionDeleted(obj.sessionDeleted),
     sessionKeep: sanitizeSessionKeep(obj.sessionKeep),
+    sessionMutes: sanitizeSessionMutes(obj.sessionMutes),
+    sessionRestore: sanitizeSessionRestore(obj.sessionRestore, sanitizeSessionTabsMax(obj.sessionTabsMax)),
     sessionHygieneEnabled:
       typeof obj.sessionHygieneEnabled === "boolean"
         ? obj.sessionHygieneEnabled

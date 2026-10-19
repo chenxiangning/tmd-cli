@@ -1,7 +1,7 @@
 /**
  * AnimProjectRow 渲染契约测试(node 环境 renderToStaticMarkup):
- * - canOpen=false(非 macOS)不渲染「打开」钮,「AI 会话」钮保留;
- * - canOpen=true 两钮齐出;无效项目(name=null)显示警示「无效项目」。
+ * - canOpen=false(平台无打开语义:非 mac 非 win)不渲染「打开」钮,「AI 会话」钮保留;
+ * - canOpen=true(mac app / windows reveal 两态)两钮齐出;无效项目(name=null)显示警示「无效项目」。
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";

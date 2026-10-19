@@ -134,7 +134,7 @@ async function runGeneration(task: GenTask): Promise<void> {
   } catch {
     digest = undefined;
   }
-  const prompt = buildGenPrompt(y, m, d, rows, !!existing, paths.article(y, m, d), effectiveSummarized, digest, projectGroups);
+  const prompt = buildGenPrompt(y, m, d, rows, !!existing, paths.article(y, m, d), effectiveSummarized, digest, projectGroups, paths.featureCards(y, m, d));
   /* 后台拉起(不抢中央区;用户经任务面板/文章 tab「打开会话」聚焦干涉)。
      模型走 spawn 参数(--model,profile.modelArg 声明制):进程起点即生效,
      不走 TUI /model 输入 —— 启动窗时序会吞行(真机实证两次)。

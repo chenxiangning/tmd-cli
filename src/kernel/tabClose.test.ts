@@ -154,3 +154,37 @@ describe("getTabCloseGuard", () => {
     expect(tabs.getTabCloseGuard("file")).toBeUndefined();
   });
 });
+
+describe("requestCloseAllTabs 退出模式(0.4.0 项 12 关窗闸)", () => {
+  it("强制绕闸:拒绝闸不被询问也照关(退出已整体裁决)", async () => {
+    const guard = vi.fn(() => false);
+    registerGated(guard);
+    tabs.openTab(tab("a", { kind: GATED, dirty: true }));
+    tabs.openTab(tab("b", { dirty: true }));
+    await tabClose.requestCloseAllTabs({ quit: true });
+    expect(guard).not.toHaveBeenCalled();
+    expect(tabs.getTabs()).toEqual([]);
+  });
+
+  it("结算等待:在途闸 promise 结算落地才返回,不悬挂退出", async () => {
+    const deferred = Promise.withResolvers<boolean>();
+    registerGated(() => deferred.promise);
+    tabs.openTab(tab("a", { kind: GATED, dirty: true }));
+    void tabClose.requestCloseTab("a"); /* 在途问话挂起 */
+    const quit = tabClose.requestCloseAllTabs({ quit: true });
+    /* 同步段已强制关完(绕闸),但返回要等在途闸结算 —— 用立即兑现的
+     * microtask 做 race 探针:quit 仍未决 = 结算等待成立(确定性,不赌时延)。 */
+    expect(tabs.getTabs()).toEqual([]);
+    const winner = await Promise.race([quit.then(() => "quit"), Promise.resolve("pending")]);
+    expect(winner).toBe("pending");
+    deferred.resolve(false);
+    await quit;
+  });
+
+  it("无闸无在途:同普通清空", async () => {
+    tabs.openTab(tab("a"));
+    await tabClose.requestCloseAllTabs({ quit: true });
+    expect(tabs.getTabs()).toEqual([]);
+    expect(tabs.getActiveTabId()).toBeNull();
+  });
+});

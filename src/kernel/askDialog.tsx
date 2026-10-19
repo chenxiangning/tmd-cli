@@ -18,6 +18,16 @@ import { createRoot } from "react-dom/client";
 import type { ReactNode } from "react";
 import { ConfirmDialog } from "./DialogConfirm";
 
+/** 在途问话结算面(quitGuard 退出编排消费):退出整体裁决后,过期的单 tab
+ *  问话按不放行结清 —— 命令式弹层不随 tab 卸载自愈,留着会挂住退出模式的
+ *  结算等待(requestCloseAllTabs({ quit: true }))。 */
+const liveSettles = new Set<(ok: boolean) => void>();
+
+/** 按不放行结清全部在途问话(无在途 = 幂等空操作)。 */
+export function cancelAllAsks(): void {
+  for (const settle of [...liveSettles]) settle(false);
+}
+
 export function askDialog(options: {
   title: string;
   message: ReactNode;
@@ -27,29 +37,32 @@ export function askDialog(options: {
   danger?: boolean;
 }): Promise<boolean> {
   if (typeof document === "undefined") return Promise.resolve(false);
-  return new Promise((resolve) => {
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    let settled = false;
-    const settle = (ok: boolean) => {
-      if (settled) return;
-      settled = true;
-      resolve(ok);
-      setTimeout(() => {
-        root.unmount();
-        host.remove();
-      }, 0);
-    };
-    const root = createRoot(host);
-    root.render(
-      <ConfirmDialog
-        title={options.title}
-        message={options.message}
-        confirmLabel={options.confirmLabel}
-        danger={options.danger}
-        onConfirm={() => settle(true)}
-        onClose={() => settle(false)}
-      />,
-    );
-  });
+  const { promise, resolve } = Promise.withResolvers<boolean>();
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  let settled = false;
+  const settle = (ok: boolean) => {
+    if (settled) return;
+    settled = true;
+    liveSettles.delete(tracked);
+    resolve(ok);
+    setTimeout(() => {
+      root.unmount();
+      host.remove();
+    }, 0);
+  };
+  const tracked = (ok: boolean) => settle(ok);
+  liveSettles.add(tracked);
+  const root = createRoot(host);
+  root.render(
+    <ConfirmDialog
+      title={options.title}
+      message={options.message}
+      confirmLabel={options.confirmLabel}
+      danger={options.danger}
+      onConfirm={() => settle(true)}
+      onClose={() => settle(false)}
+    />,
+  );
+  return promise;
 }

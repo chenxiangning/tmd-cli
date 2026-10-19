@@ -6,14 +6,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { io } = vi.hoisted(() => ({
-  io: { read: null as string | null, writes: [] as { path: string; content: string }[], failWrite: false },
+  io: {
+    read: null as string | null,
+    writes: [] as { path: string; content: string }[],
+    failWrite: false,
+    /** 非缺失读错误(EACCES/EBUSY 形态):触发 readBroken 拒写路径。 */
+    failRead: false,
+  },
 }));
 
 vi.mock("@kernel/ipc", () => ({
   ipc: {
     configHomeDir: async () => "/home",
     fsReadFile: async () => {
-      if (io.read === null) throw new Error("missing");
+      if (io.failRead) throw new Error("读取失败: os error 13 (permission denied)");
+      if (io.read === null) throw new Error("读取失败: os error 2 (no such file)");
       return io.read;
     },
     fsWriteFile: async (path: string, content: string) => {
@@ -25,6 +32,7 @@ vi.mock("@kernel/ipc", () => ({
 
 import {
   deletePreset,
+  draftOf,
   loadSessionPresets,
   presetPromptText,
   readSessionPresets,
@@ -37,6 +45,7 @@ async function reset(): Promise<void> {
   io.read = null;
   io.writes.length = 0;
   io.failWrite = false;
+  io.failRead = false;
   await loadSessionPresets();
 }
 
@@ -51,6 +60,15 @@ describe("sessionPresets 存储", () => {
     io.read = JSON.stringify({ version: 1, presets: "nope" });
     await loadSessionPresets();
     expect(readSessionPresets()).toEqual({ loaded: true, presets: [] });
+  });
+
+  it("非缺失读错误 = 库不可读:空视图渲染但拒写盘,savePreset/deletePreset 返败不覆写真库", async () => {
+    io.failRead = true;
+    await loadSessionPresets();
+    expect(readSessionPresets()).toEqual({ loaded: true, presets: [] });
+    expect(await savePreset({ name: "新预设", engineId: "claude" })).toBeNull();
+    expect(await deletePreset("不存在")).toBe(true); /* 未命中幂等成功,本就不落盘 */
+    expect(io.writes).toEqual([]); /* 近空 state 一字未落盘 */
   });
 
   it("sanitize 白名单:坏形条目/prompt 坏形整条弃置,空白 model 弃置", async () => {
@@ -114,8 +132,23 @@ describe("sessionPresets 存储", () => {
     expect(
       presetPromptText(
         { id: "p", name: "n", engineId: "e", prompt: { ref: { scope: "global", name: "review" } } },
-        (name) => `正文:${name}`,
+        (ref) => `正文:${ref.scope}:${ref.name}`,
       ),
-    ).toBe("正文:review");
+    ).toBe("正文:global:review");
+  });
+
+  it("worktree 范围:true 落盘、false 归一 undefined;回读 sanitize 保留;draftOf 回填", async () => {
+    await reset();
+    const wt = await savePreset({ name: "修 CI", engineId: "omp", worktree: true });
+    const plain = await savePreset({ name: "周报", engineId: "omp", worktree: false });
+    expect(wt?.worktree).toBe(true);
+    expect(plain?.worktree).toBeUndefined();
+    /* 磁盘回读:true 保留、false 已归一 undefined(存储恒净形) */
+    io.read = io.writes.at(-1)!.content;
+    io.writes.length = 0;
+    await loadSessionPresets();
+    expect(readSessionPresets().presets.map((p) => p.worktree)).toEqual([true, undefined]);
+    expect(draftOf(wt!, "omp").worktree).toBe(true);
+    expect(draftOf(null, "omp").worktree).toBe(false);
   });
 });

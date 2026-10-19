@@ -45,6 +45,8 @@ export interface QuotaSnapshot {
   windows: QuotaWindow[];
   /** 余额型供应商(deepseek/中转站)无窗口,直接给展示文本: 例 "¥12.50"。 */
   balanceText?: string;
+  /** 余额数值(仅 deepseek/relay 透传;notify 低水位阈值用,货币跟随 balanceText)。 */
+  balanceValue?: number;
   /** 套餐标签: 例 kimi plan_type / zhipu level / 中转站 planName。 */
   planLabel?: string;
   /** 错误信息; 存在则覆盖正常显示。 */

@@ -15,7 +15,6 @@ import { statusText, toolbarCls } from "./editor/editorChromeLogic";
 import { useDarkTheme } from "@kernel/theme";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
-import { Spinner } from "@kernel/Spinner";
 import {
   getFileCacheVersion,
   loadFile,
@@ -23,22 +22,8 @@ import {
 } from "./editor/fileCache";
 import { takeFileRevealLine } from "@kernel/fileTabs";
 
-/* 编辑器(CodeMirror 全家 + 主题/语言包)按需拆包:真正进入编辑态才拉 chunk。
-   useFileDocument 只依赖轻量 fileCache,静态引入不拖累拆包。 */
-const FileCodeEditor = lazy(retryImport(() => import("@kernel/cmEditor/FileCodeEditor").then((m) => ({ default: m.FileCodeEditor }))));
-import { useFileDocument } from "./editor/useFileDocument";
-
-/* md 预览管线(react-markdown/katex/mermaid/viewerjs 体积大)按需拆包:
-   仅当真正打开 md 文件时才加载该 chunk。 */
-const FileMarkdownPreview = lazy(retryImport(() =>
-  import("./markdown/FileMarkdownPreview").then((m) => ({ default: m.FileMarkdownPreview })),
-));
-
-/* 结构化预览(连带 Prism 高亮)按需拆包:仅 sh/Dockerfile 拉取。 */
-const FileStructuredPreview = lazy(retryImport(() =>
-  import("./render/FileStructuredPreview").then((m) => ({ default: m.FileStructuredPreview })),
-));
-/* pdf.js / xlsx / mammoth 三条重库管线:各自类型才拉 chunk。 */
+/* 编辑器/中央三分支渲染(CodeMirror、md 预览、结构化预览)在 FileCenterView,
+   三条重管线的按需拆包定义随分支同住;pdf.js / xlsx / mammoth 留此各自拆包。 */
 const FilePdfPreview = lazy(retryImport(() =>
   import("./render/FilePdfPreview").then((m) => ({ default: m.FilePdfPreview })),
 ));
@@ -46,14 +31,12 @@ const FileTabularPreview = lazy(retryImport(() => import("./render/FileTabularPr
 const FileDocumentPreview = lazy(retryImport(() => import("./render/FileDocumentPreview").then((m) => ({ default: m.FileDocumentPreview }))));
 
 import { FileImagePreview } from "./render/FileImagePreview";
+import { useFileDocument } from "./editor/useFileDocument";
+import { FileCenterView, LOADING } from "./FileCenterView";
 import { FileBinaryUnsupported } from "./render/FileBinaryUnsupported";
-import {
-  isTabularBinaryPath,
-  resolveFileRenderProfile,
-  resolveStructuredPreviewKind,
-  type FileRenderKind,
-} from "./render/renderProfile";
+import { isTabularBinaryPath, resolveFileRenderProfile, resolveStructuredPreviewKind, type FileRenderKind } from "./render/renderProfile";
 import { isRemoteFileUri } from "@kernel/fileSources";
+import { DraftMirrorBar } from "@kernel/draftMirrorBar";
 import { OpenWithMenu } from "./OpenWithMenu";
 import { useFileBlame } from "./useFileBlame";
 import { useFileLineDiff } from "./useFileLineDiff";
@@ -128,33 +111,19 @@ function FileTabBody({
   });
   return (
     <div className="file-editor-shell">
+      {doc.mirror && <DraftMirrorBar mirror={doc.mirror} onRestore={doc.restoreMirror} onDiscard={doc.dismissMirror} />}
       <div className="file-editor-body" {...detailMenuProps}>
-        {showEditor ? (
-          <Suspense fallback={<LOADING />}>
-            <FileCodeEditor
-              path={path}
-              value={doc.content}
-              dark={dark}
-              readOnly={remote}
-              onChange={doc.setDoc}
-              onSave={doc.save}
-              onViewReady={(view) => { viewRef.current = view; if (view) setViewTick((v) => v + 1); }}
-              revealLine={reveal?.line ?? null}
-              revealSeq={reveal?.seq ?? 0}
-            />
-          </Suspense>
-        ) : isMd ? (
-          /* md 预览自带滚动容器(fvp-markdown-preview-frame/scroll,章节浮窗锚点依赖它) */
-          <Suspense fallback={<LOADING />}>
-            <FileMarkdownPreview value={content} sourceFilePath={path} />
-          </Suspense>
-        ) : (
-          <div className="fvp-preview-scroll">
-            <Suspense fallback={<LOADING />}>
-              <FileStructuredPreview filePath={path} value={content} />
-            </Suspense>
-          </div>
-        )}
+        <FileCenterView
+          path={path}
+          content={content}
+          reveal={reveal}
+          showEditor={showEditor}
+          isMd={isMd}
+          remote={remote}
+          dark={dark}
+          doc={doc}
+          onViewReady={(view) => { viewRef.current = view; if (view) setViewTick((v) => v + 1); }}
+        />
       </div>
       {/* 矮工具条:状态文字在左;右侧 = 编辑/预览切换钮(md 与结构化才有)+ 打开方式入口(远程文件不出) */}
       <div
@@ -187,13 +156,6 @@ function FileTabBody({
     </div>
   );
 }
-
-const LOADING = () => (
-  <div className="flex h-full items-center justify-center gap-1.5 text-xs text-(--tmd-fg-faint)">
-    <Spinner />
-    {t("加载中…")}
-  </div>
-);
 
 /** 字节通道型渲染形态(不走 fileCache 文本管线的分支集合)。 */
 function isByteChannelKind(path: string, kind: FileRenderKind): boolean {

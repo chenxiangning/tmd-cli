@@ -18,6 +18,7 @@ import {
   type ThemePreference,
 } from "@kernel/settings";
 import { t } from "@kernel/i18n";
+import { setSessionRestoreEnabled } from "@kernel/sessionRestore";
 import {
   getAllThemePresets,
   type ThemePresetDefinition,
@@ -213,6 +214,34 @@ export function BasicAppearanceTab() {
               {t("关")}
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+    <div className="pref-card" data-testid="settings-session-restore-card">
+      <div className="pref-card-head">{t("重启后恢复上次打开的会话")}</div>
+      <div className="pref-row">
+        <div className="pref-desc">
+          {t("启动后自动重新打开上次打开的会话(数量随会话标题 tab 条容量)。")}
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t("重启后恢复上次打开的会话")}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={settings.sessionRestore.enabled}
+            className={`segment${settings.sessionRestore.enabled ? " is-active" : ""}`}
+            onClick={() => setSessionRestoreEnabled(true)}
+          >
+            {t("开")}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!settings.sessionRestore.enabled}
+            className={`segment${!settings.sessionRestore.enabled ? " is-active" : ""}`}
+            onClick={() => setSessionRestoreEnabled(false)}
+          >
+            {t("关")}
+          </button>
         </div>
       </div>
     </div>

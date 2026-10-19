@@ -3,9 +3,10 @@
  * docs/design/home-redesign-s-full-actions.html)。
  *
  * 结构:窗体标题条 / prompt 行(工作区选择,右侧 engines/updates 统计)/
- * 引擎全动作行 ×N / 页脚(RESUME + QUOTA)。状态集中在页级:探针/最新版/凭据盘点
- * 按引擎 id 存 Record,行纯渲染;凭据详情点击行内 ● 展开,homePanel 常驻行下。
- * 键盘:↑↓ 移游标、⏎ 以所选工作区启动游标引擎新会话(组件局部,不进命令注册表)。
+ * 引擎全动作行 ×N / 页尾 QUOTA 套餐水位面板(卡片网格)。状态集中在页级:
+ * 探针/最新版/凭据盘点按引擎 id 存 Record,行纯渲染;凭据详情点击行内 ● 展开,
+ * homePanel 常驻行下。键盘:↑↓ 移游标、⏎ 以所选工作区启动游标引擎新会话
+ * (组件局部,不进命令注册表)。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -30,9 +31,8 @@ import {
   probeCache,
 } from "./pageCache";
 import { EngineSection } from "./EngineSection";
-import { WelcomeFooter } from "./WelcomeFooter";
+import { QuotaPanel } from "./QuotaPanel";
 import { WelcomeTbar } from "./WelcomeTbar";
-import { TokenDashboard } from "./TokenDashboard";
 
 export function WelcomePage() {
   /* 订阅快照 = 注册集指纹:仅 profile 注册/注销(启动激活、插件市场开关)时
@@ -160,8 +160,8 @@ export function WelcomePage() {
     };
   }, [visibleMetas, refreshTick]);
 
-  /* 手动全量刷新(标题条按钮):重探全部引擎与前置依赖(落 loading 可见),
-     最新版/凭据/页脚 RESUME 重扫/TOKENS 重扫经 refreshTick 重跑 effect 静默续拉。 */
+  /* 手动全量刷新(标题条/QUOTA 面板按钮):重探全部引擎与前置依赖(落 loading 可见),
+     最新版/凭据/QUOTA claude 窗口推算经 refreshTick 重跑 effect 静默续拉。 */
   const refreshAll = useCallback(() => {
     for (const meta of visibleMetas) void runProbe(meta.id, true);
     for (const req of requires) void runDepProbe(req.binary, true);
@@ -285,8 +285,7 @@ export function WelcomePage() {
               />
             ))}
           </div>
-          <WelcomeFooter credsMap={credsMap} refreshTick={refreshTick} />
-          <TokenDashboard refreshTick={refreshTick} />
+          <QuotaPanel credsMap={credsMap} refreshTick={refreshTick} onRefresh={refreshAll} />
           {/* 页尾跨引擎面板(插件经 welcome.footer 挂点贡献) */}
           <Mounts point="welcome.footer" />
         </div>

@@ -61,6 +61,7 @@ export function SessionPresetsDialog({ onClose }: { onClose: () => void }) {
         name: draft.name,
         engineId: draft.engineId,
         model: draft.model,
+        worktree: draft.worktree,
         prompt: promptOf(draft),
       });
       if (!saved) return setError(t("保存失败,请重试"));

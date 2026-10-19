@@ -4,25 +4,45 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
-## [0.4.0] - 2026-10-18
+## [0.4.0] - 2026-10-20
 
-本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。
+本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。**追加 042 混合批**(视觉示例与推演定稿 `docs/design/042-candidates/`,大仙拍板 1/3/4/6/7 五项,打磨对齐定稿后实施):终端路径点击 / 输入历史全文+抽屉 / 额度告警增量三腿 / 跨工作区全局检索 / checkpoint 恢复预览 + workbench 空壳归档债批 + 随手带四项。**再追加连续性批六项**(示例页 042 组页 9-14,大仙拍板分五批实施,每批 review 防跑偏;裁决与深扫修正 `docs/brainstorm/2026-10-19-042-followup.md` + `openspec/changes/2026-10-19-042-followup-batch/`):重启现场恢复 / 跨引擎记忆文件面板 / 会话变更总览 / 草稿安全网 / 通知会话级静音 / 转录批量导出。
 
 ### 新增
 
 - 工作区会话保留律收尾:keep 保留层容量 200 → 2000(与归档层同级,手动取消归档密度对齐);启动补扫——activate 后 45s 一次性对本会话未展开的本地工作区顺序跑既有保留律扫描(远程/SSH/WSL 跳过,前台在途扫描让路,零轮询不新增触发面)
-- 应用内通知中心:notify 三类事件与额度预警旁挂全局流水 `~/.tmd-cli/notify-log.json`(聚焦静默/免打扰也记,OS 通知才受闸;追加时顺带过滤 `notifyLogDays` 默认 7 天+500 条上限);右栏「通知中心」面板(今日/更早分组,行点击回跳会话,配额行置灰,清空两步武装确认)
+- 应用内通知中心:notify 三类事件与额度预警旁挂全局流水 `~/.tmd-cli/notify-log.json`(事件类聚焦静默/免打扰也记,quota 轮询腿失焦才跑,OS 通知才受闸;追加时顺带过滤 `notifyLogDays` 默认 7 天+500 条上限);右栏「通知中心」面板(今日/更早分组,行点击回跳会话,配额行置灰,清空两步武装确认)
 - 免打扰窗:`kernel/dnd.ts` 纯判定(HH:mm 跨夜窗,起含终不含,start===end 全天静默);三闸齐静——notify `shouldNotify`、ask 音(事件路径)、回合结束音(3s 延迟确认播放刻);设置页 NotifySettingsTab 免打扰卡(ToggleRow+原生 time 输入)
-- 会话预设(workspace):工作区右键菜单「会话预设」段(本地工作区恒显,引擎候选空禁点),一键起会话=预设引擎/模型/提示词;两步管线——`spawnRawSession`(identityTrack 全装配)成功后经 kernel `sessionPending` 队列注入初始提示词(anim pending 队列核心上移为跨插件契约,≥2 消费);提示词引用存 (scope,wsId,name) 三元组消费时现读,改名/删除悬空灰态不猜测;管理弹层(增删改查+两步确认删除+撞名校验),存储 `~/.tmd-cli/session-presets.json`(agents.json 同款单文件+内存单源)
+- 会话预设(workspace):工作区右键菜单「会话预设」段(本地工作区恒显,引擎候选空禁点),一键起会话=预设引擎/模型/提示词,可勾「新 worktree」范围(分支 = 预设名 slug 加 wt/ 前缀,冲突自动递增,起在 wt 目录内);两步管线——`spawnRawSession`(identityTrack 全装配)成功后经 kernel `sessionPending` 队列注入初始提示词(anim pending 队列核心上移为跨插件契约,≥2 消费);提示词引用存 (scope,wsId,name) 三元组消费时现读(scope+wsId+name 全等才命中,跨区启动 = 灰态不猜测),改名/删除悬空灰态不猜测;管理弹层(增删改查+两步确认删除+撞名校验),存储 `~/.tmd-cli/session-presets.json`(agents.json 同款单文件+内存单源)
 - 会话检索增强:时间过滤 chip(全部/24小时/7天/30天,`searchSessions` 闭区间谓词,与引擎 chip 叠加);命中行级定位——消息命中经 kernel `openThenJumpToText` 时序桥(活会话直接跳;已关会话 resume 后订阅幕布注册表等挂载再跳,needle 24/14/8 字符梯队+≤12 页回溯),opened/miss 轻提示不阻断
-- 存储管家(settings 新区 `storage-audit` 插件):Rust 只读体检命令 `fs_dir_usage`(多类目并行 spawn_blocking+单类目 20s 超时不阻塞,不跟符号链接,skip 目录取调用方参数——checkpoints objects.git 计入);九类目体检表(checkpoints/docgen/七家 CLI 会话目录,只读零触碰);清理白名单——checkpoints 按工作区 `checkpoint_prune(10,30)` 两步武装确认、docgen 已归档版本确认卡删除(索引先落、目录后删)
+- 存储管家(settings 新区 `storage-audit` 插件):Rust 只读体检命令 `fs_dir_usage`(多类目并行 spawn_blocking+单类目 20s 超时并行收束不阻塞,不跟符号链接,skip 目录取调用方参数——checkpoints objects.git 计入);十二类目体检表(checkpoints/docgen/十家 CLI 会话目录,只读零触碰),审计表按体积降序+比例条+合计行;清理白名单——checkpoints 按工作区 `checkpoint_prune(10,30)` 两步武装确认、docgen 已归档版本确认卡删除(单写者队列内索引先落、目录后删)
 - 会话转录导出(session-viewer):查看 tab 工具行「导出 Markdown」——`blocksToMarkdown` 纯函数(user→`## 用户`、assistant→`## 助手`、tool 折叠一行、thinking/图片跳过计数,truncated 头部标注)+ docgen 导出三件套(pickSavePath→writeText 原子写→toast,Windows 保留设备名 sanitize 沉淀为 docgen `safeFileBase` 共享导出)
-- checkpoint↔转录时间线互跳(checkpoints):时间线每条用户消息挂「本轮 N 文件」chip(prompt 与账本 BatchInfo.prompt 全等、多轮同文按出现序配对,匹配不到不渲染,git 归因带「推断」标注),行下内联展开 turn_files 变更集(A/M/D 药丸,配色同源 `fileChipCls.ts`);审阅单消息卡「看对话」——活会话 `jumpToText` 直跳、已关会话 resume 后跳(账本无 prompt 的轮次不出动作)
+- checkpoint↔转录时间线互跳(checkpoints):时间线每条用户消息挂「本轮 N 文件」chip(账本轮号与锚点序号对齐 + prompt 全等双闸,纯阅读轮占号不挤位,匹配不到不渲染,git 归因带「推断」标注),行下内联展开 turn_files 变更集(A/M/D 药丸,配色同源 `fileChipCls.ts`);审阅单消息卡「看对话」——同文多轮按本批出现序定位(反向不再恒落最新),活会话 `jumpToText` 直跳、已关会话 resume 后跳(账本无 prompt 的轮次不出动作)
 - 后台会话冻结快照(kernel `terminalFreeze.ts`):tab 条容量挤除卸载时把本就要算的 reseed 投影连同缓冲水位存档(LRU 8),重开时身份指纹/字节水位/字符水位/头样本四闸全过 → 投影同步上屏+增量分块补写,免 0.5s 遮罩免全量回放;任一闸不过回落既有全量路径,磁盘重开与会话关闭路径不变
+- 终端文件路径可点击(files):terminalLinks 注册表追加路径 provider,「src/foo.ts:42」死文本点击直达文件面板对应行;绝对/相对/`~/`/盘符/UNC/`:line` 识别(col 忽略只跳行),URL 段预挖防尾巴误命中,空格路径续段须分隔符防误吃;区外/不存在静默(循 marks 先例);cwd 取 spawn 时值不追踪 cd(天花板文件头钉明,OSC 7 被否)
+- 输入历史全文修复 + 浏览抽屉(composer):历史存全文(单条 8000 字符硬上限,总量 512K 字符封顶、超限最旧淘汰且写入不 throw),300 字符截断语义降级为 ghost 匹配/展示窗口;Cmd+L 历史抽屉(⌘K 同款视觉,Composer 局部 state)子串过滤+命中高亮+↑↓/Enter 回填整替草稿可编辑不直发、Esc 关闭不回填;存量截断条目不动不打标,去重置底自愈
+- 跨工作区全局检索(session-search):搜索浮层作用域 chip「本工作区/全部工作区(N)」,跨区命中先 setActiveWorkspace 再行级定位(先切后跳),失效区命中(root 复核失败)灰 pill 不可跳;indexer 缓存改路径唯一 key+cwd 命名空间留存+全局 LRU 5000(高于自估语料,保证缓存排空路径可达),prime 只剪可达区死键,12ms 时间盒排空缓存命中步(真读步 60ms)不卡浮层输入,扫描中止后在途拍不写态;纯函数面拆 `searchCore.ts`
+- checkpoint 恢复 dry-run 预览(checkpoints,Rust):抽 `plan_restore` 纯函数(plan/execute 共用一份计划),新只读命令 `checkpoint_restore_preview`(plan+blob_patch 摘要,binary 0/0 行);ConfirmCard 升级预览表(快照头+A/M/D 药丸+「覆盖本地」仅 surgical 擦除行+默认 6 行截断展开),plan 空免弹直接执行(中性提示「本批已无可回退的改动」),undo_revert 复用恢复时预览不新发 dry-run,弹层内冻结,IPC 失败回落纯文案确认不阻塞;零新设置键
+- 额度低水位告警增量三腿(notify+cli-shared):①余额腿——vendors 结构化 `balanceValue` 仅 deepseek/relay 透传,绝对阈值 `notifyQuotaBalanceBelow`(默认 0=关,货币跟随回包);②claude 窗口腿——`windowResetFor` 迁 cli-shared/quota(welcome+notify 联合消费),尾读推算,`notifyQuotaResetMinutes`(默认 30,5-240)近重置报「N 分后重置」;③去重腿——notify-log.json 头部 `quotaSeen` 持久化(窗口键自带 resetsAt 按周期翻新,余额键首次越线小时桶),修「重启失忆」,写坏按无记录宁多勿漏
+- workbench 空壳项目批量归档(债批):概览未跟踪行尾「清理空壳」入口(ghosts ≥2 才渲染)勾选确认弹层,软归档(archived+archivedAt 可恢复,不删数据)退出全部统计与列表,聚焦页底「已归档」折叠段恢复
+- 随手带四项:终端搜索浮层 Aa/大小写 + .*/正则 toggle 与 n/m 命中计数;检索多命中「N 处命中」展开子命中、逐项行级跳转;终端 ⌘+/⌘-/⌘0 字号缩放写回 `terminalFontSize`(terminal 作用域,界面缩放兜底);anim Windows「打开」=`explorer /select` 目录 reveal(0.3.9 非 mac 隐藏口径修订)
+- 重启现场恢复(kernel `sessionRestore.ts`):打开的会话以三段身份持久化于 settings(`sessionRestore.keys`,帽随 `sessionTabsMax`),重启 ready 后 45s 错峰(hygiene 先例)逐条串行 `openDiskSession` 回位(远程工作区走 `openRemoteDiskSession` 同族通道并跳过本机扫盘预判);失败矩阵五路径——保留律清掉/工作区删=evict,引擎缺/spawn 败=保留 key 下次再试,在途=聚焦去重;恢复 pill「正在恢复上次会话 N/M」可跳过,设置页默认开可关;持久的是三段身份不是 PTY id(头注「不持久化」前提正面推翻),恢复走磁盘回放不走冻结快照
+- 跨引擎原生记忆文件面板(memory-coordinator):profile 声明式 `memoryFiles`(scope project/user+relPath;claude 双路径/codex 双路径/kimi·qoder·qoder-cn·opencode·pi 项目 AGENTS.md,全部来自 academy 既有公开知识,内核零路径知识);右栏「记忆文件」面板三组(项目级/用户级/未声明灰组)三态(在=点击 openFileInTab 进编辑器/未生成=hint 终端跑 /init/未声明=「—」不猜测),重新探测批量 head;零代写零 AI,编辑复用 files 未保存闸
+- 会话变更总览(checkpoints):右栏第三视图「变更」——跨批次按文件折叠(线性建组,≤100 批零索引),状态合成优先级写死(最近批字段:reverted→已回退/D→已删除/changed→内容已变/committed→已提交/same→改动中可回退,no_baseline 附加 chip),摘要条「N 文件 · X 可回退 · Y 高危 · ±账本累计」;± 走 BatchFile 账本透传字段(回退不回缩,与审阅单 diff 缓存口径双注明),过滤 chips+路径子串+双排序+cap 50 展开,行点击 openBatchTab focusPath 深链回最近批次 diff;BatchFile 序列化追加 additions/deletions 透传(零新命令零聚合)
+- 草稿安全网(kernel `draftMirror.ts`+`quitGuard.tsx`):关窗闸——onCloseRequested 接退出模式,有脏 tab 先弹聚合确认(列 dirty+「放弃并退出」/「取消」/「本次不再问」本次运行内存标志),确认后绕闸强关等 Promise 全结算再放行窗口;⌘Q 应用退出腿裁决取消(tauri 2.12.1 的 ExitRequested{code:None} 实为最后窗 Destroyed,拦它=无窗僵尸进程;macOS 无 ExitRequested 路径,需菜单装配另立);草稿镜像——files 内存草稿/journal 便签/ssh 远程编辑三处旁路 localStorage 镜像(防抖 300ms+256KB 截断+7 天 TTL 台账+配额满静默),重开顶部黄条「检测到上次未保存草稿(N 分钟前)」恢复/丢弃;composer/ss 已持久草稿不重复接
+- 通知会话级静音/暂停(notify+kernel `sessionMutes.ts`):三档——静音通知(turnEnd/exit/quota 静,ask 穿透=安全默认)/完全静音(含 ask,askRing 可放行)/静音至回合结束(snooze,turnSettled 自清,exit 穿透防永挂);三段身份 key(cliSessionId 跨 resume 存活),存储仿 sessionPins 全套(双实例 mutedAt 合并+sanitize 帽 2000);闸插点=四路径 record 之后 send 之前,quota 腿绝不写 quotaSeen(跨周期去重不受伤),ask 音/回合音同步同闸;入口=两套会话右键菜单+通知中心行钮+设置页「静音中的会话」概览卡;流水照记全量语义不变
+- 转录批量导出与活会话快照(session-viewer+workspace):抽 `exportMdTo` 落盘内核;SessionManage 多选批量条「导出」——pickDirectory 选目录一次落 N 个 md(帽 50 超限拒开跑提示分批,串行进度可取消,失败列表归因 no-adapter/unreadable,write-failed 中止已写留存,文件名 slug+日期防撞 -2 递增);会话右键「导出转录快照」=当前磁盘快照(041 明示后补项,活会话仅磁盘绑定会话显示,toast 注明快照时点);零 Rust
+- 首页页尾改版(welcome):RESUME 列与 TOKENS 用量区摘除(TokenDashboard/tokens.ts/welcome-footer.css 全删),换 QUOTA 套餐水位面板——真额度环卡 + claude 窗口推算卡(可推算)+ 7 天窗并列窗口块,汇总条取跨卡跨窗口最近重置;查不到的卡不渲染,空态一行提示
+- WebGL 终端渲染基准页(bench,独立入口):canvas vs @xterm/addon-webgl 同参对照三场景,分帧喂养测渲染吞吐,中位数 3 轮取中+UA/环境键缓存基线,判定线 5%;独立 rollup 入口不进主 chunk(devDep 零进主包,产物 dist/bench/index.html 单独可达)
+- 每日工作足迹插件(footprint,侧栏入口「每日足迹」):月历热力(按改动量/按会话数双口径,shift/右键选区间)+ 日视图功能卡流(AI 归纳卡:标题/一句话/用户原话锚点/meta 行)+ 证据抽屉(会话 resume/文件清单/主流宽 diff 面板)+ ⌘K 四来源反查(功能卡/日报/用户原话/文件路径)。数据链:L1 rollup 挂 checkpoints 封口事件(`ckptTurnSealed`)按月落盘单文件单飞串行写,L3 功能卡由 journal 生成会话顺手直写(枚举校验防编造 + Chain-of-Key 防漂移 + <80% 通过率升级管线 B 闸);修正层二期——合并/拆分/手动补归纳/改名写 `.user.json` 覆盖层(读侧双档探测来源徽标:手动/已修正/AI 归纳),补归纳允许不带会话引用;区间视图按日分组卡流 + 汇总条;视图按 v2 原型校准(月历热力色条/证据抽屉按需渲染/修正菜单跟随定位/键盘 j/k 导航跨区间扁平卡表);架构契约 `docs/architecture/30-footprint.md`
 
 ### 修复
 
+- 打包产物丢主入口(0.4.0 首发实证,首发包体启动白屏 `asset not found: index.html`):bench 基准页给 `rollupOptions.input` 只配了 bench 一项,而 vite 显式 input 会整体替换默认入口 → dist 只产出基准页,主应用 index.html 与全部业务 chunk 缺席,Tauri 包体启动即白屏且包体骤减;主入口在 input 显式占回一行,build 链尾补 `scripts/check-dist.mjs` 产物断言防再犯
 - 集成期:workspace 组折叠 `toggleGroup` 压缩时误写工作区折叠 map(点组头错折工作区),回归组 id 语义
+- quota 告警分支绕过 `shouldNotify`:免打扰窗此前不拦 quota OS 通知(真缺口);现 NotifyKind 增 "quota" 走 dispatch 同款三闸——免打扰/聚焦静默拦 OS 通知,应用内流水照记
+- 二轮发版评审收口:通知 blur 补扫死路径(ask 被闸拦后仍记去重集,失焦永不补发)、预设库非缺失读错误拒写盘防清库、docgen 归档删除收进单写者队列(裸写索引被内存单权威整体重写静默复活)、claude 推算卡被 note-only 聚合误判压制、恢复预览 revert 挂载现发 dry-run 防跨弹层陈旧、互跳同文多轮按出现序定位(正向 chip 轮号对齐防空批挤位,反向「看对话」不再恒落最新)、冻结快照卸载先冲刷攒帧防重开跳字、体检超时并行收束(挂死类目不再 240s 串行)、索引扫描中止后在途拍不写态、路径点击括号包裹死链与绝对路径 `..` 越区归一、搜索浮层 IME 组合态 Enter/Esc 误触发、workbench 归档撤退残留(问一句/DocGen 生成面改喂可见集)、结构化 turnEnd 通知补免打扰闸
+- footprint 发版前评审 16 项:月历区间中格漏 `border-transparent`(Tailwind 4 preflight 下被 currentColor 描边切块带)、diff 行引用不存在的 `--tmd-green-weak/--tmd-red-weak` 回落实色致删除行不可读(改 color-mix 语义色)、区间模式 j/k 用单日卡表与高亮错位(改跨日扁平卡表)、搜索同 kind 命中按日交错致组头反复插(摊平后 kind 稳定归并)、深色 violet/amber 硬编码对比不足(落 `--tmd-syntax-tag`/`--tmd-warn` 双主题 token)、日明细 journal 路径硬编码死前缀致 article/digest 恒 null(与写侧 `dailyPaths()` 同源)、区间起点 UTC 解析负时区多算一天、Escape 弹层链连关抽屉、修正菜单贴底越界、抽屉文件行漏 group 悬停失效、卡 key 用 title 撞名串卡等
 
 ### 内务
 

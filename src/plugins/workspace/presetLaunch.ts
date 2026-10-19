@@ -6,6 +6,12 @@
  * 时间线/审批线全盲(契约见 SessionSpawnService.raw)。
  */
 
+import { t } from "@kernel/i18n";
+import { dirNameFromBranch, validateDirName, worktreePathFor } from "@plugins/git/worktree/dirName";
+import type { WtCreateOutcome } from "./worktreeCreate";
+import { wtCreateOutcomeMessage } from "./worktreeCreate";
+import { finalBranchName } from "./worktreeSession";
+
 export interface LaunchPresetInput {
   profileId: string;
   command: string;
@@ -17,7 +23,6 @@ export interface LaunchPresetInput {
   model?: string;
   cwd: string;
   title: string;
-  workspaceId?: string;
   /** 已解析的初始提示词(空 = 不注入)。 */
   promptText: string;
   deps: {
@@ -59,4 +64,83 @@ export async function launchPresetSession(input: LaunchPresetInput): Promise<Lau
   const prompt = input.promptText.trim();
   if (prompt) input.deps.setPendingPrompt(sessionId, prompt);
   return { ok: true, sessionId };
+}
+
+/* ── 范围 = 新 worktree 的一键启动(候选4 定稿:无对话框,分支 = 预设名 slug,
+ *    finalBranchName 冲突自动递增;建树→spawn→pending 注入复用 runWorktreeCreate
+ *    里程碑回滚链;失败经 deps.startFailed 广播 sessionStartFailed 呈现,不静默)。 */
+
+/** git 侧冲突判定集来源:worktree 树占用分支 ∪ 本地分支全集(WtSessionDialog 同源)。 */
+export interface WorktreeGitInfo {
+  takenBranches: string[];
+  localBranches: string[];
+}
+
+export interface LaunchPresetWorktreeInput {
+  profileId: string;
+  /** 预设名:分支基名 slug 源 + 会话标题。 */
+  name: string;
+  workspaceRoot: string;
+  args: string[];
+  env: Record<string, string>;
+  /** 引擎声明的模型旗标;与 model 同给才追加进程参数(同 launchPresetSession 口径)。 */
+  modelArg?: string;
+  model?: string;
+  /** 已解析的初始提示词(空 = 不注入)。 */
+  promptText: string;
+  deps: {
+    /** null = 非 git 仓(worktreeList 失败,NotGit 前置拦截同款)。 */
+    gitInfo: (cwd: string) => Promise<WorktreeGitInfo | null>;
+    create: (input: {
+      repoCwd: string;
+      wtPath: string;
+      finalBranch: string;
+      newBranch: true;
+      engineId: string;
+      title: string;
+      spawnArgs: string[];
+      spawnEnv: Record<string, string>;
+      promptText: string;
+    }) => Promise<WtCreateOutcome>;
+    /** 失败呈现(组件侧广播 sessionStartFailed → StartFailureToast)。 */
+    startFailed: (reason: string) => void;
+  };
+}
+
+export async function launchPresetWorktreeSession(
+  input: LaunchPresetWorktreeInput,
+): Promise<{ ok: boolean }> {
+  const info = await input.deps.gitInfo(input.workspaceRoot);
+  if (!info) {
+    input.deps.startFailed(t("非 git 仓库,无法创建 worktree"));
+    return { ok: false };
+  }
+  /* 分支 = 预设名 slug 加 wt/ 前缀,树占用 ∪ 本地分支全集中冲突自动 -2/-3。 */
+  const conflictSet = new Set([...info.takenBranches, ...info.localBranches]);
+  const finalBranch = finalBranchName(dirNameFromBranch(input.name), conflictSet);
+  const dirName = dirNameFromBranch(finalBranch);
+  const dirErr = validateDirName(dirName);
+  const wtPath = dirErr ? null : worktreePathFor(input.workspaceRoot, dirName);
+  if (!wtPath) {
+    input.deps.startFailed(dirErr ?? t("无法确定 worktree 目录"));
+    return { ok: false };
+  }
+  const spawnArgs =
+    input.model && input.modelArg ? [...input.args, input.modelArg, input.model] : input.args;
+  const outcome = await input.deps.create({
+    repoCwd: input.workspaceRoot,
+    wtPath,
+    finalBranch,
+    newBranch: true,
+    engineId: input.profileId,
+    title: input.name,
+    spawnArgs,
+    spawnEnv: input.env,
+    promptText: input.promptText.trim(),
+  });
+  if (!outcome.ok) {
+    input.deps.startFailed(wtCreateOutcomeMessage(outcome));
+    return { ok: false };
+  }
+  return { ok: true };
 }

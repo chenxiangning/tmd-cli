@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   }) => Promise<number>>(async () => 0),
   getCliProfiles: vi.fn<() => CliProfile[]>(() => []),
   inflight: new Set<string>(),
+  hygiene: true,
 }));
 
 vi.mock("@kernel/host", () => ({
@@ -39,6 +40,9 @@ vi.mock("./sessionSweep", () => ({
 vi.mock("./useCliDiskScan", () => ({
   foregroundScansInflight: mocks.inflight,
 }));
+vi.mock("@kernel/settings", () => ({
+  getSettingsState: () => ({ settings: { sessionHygieneEnabled: mocks.hygiene } }),
+}));
 
 import { bootSweepLocalWorkspaces, scheduleBootSweep } from "./hygieneBootSweep";
 
@@ -51,6 +55,7 @@ beforeEach(() => {
   mocks.inflight.clear();
   mocks.findWorkspaceOrigin.mockReturnValue(null);
   mocks.scanAndSweep.mockResolvedValue(0);
+  mocks.hygiene = true;
 });
 
 afterEach(() => {
@@ -58,6 +63,13 @@ afterEach(() => {
 });
 
 describe("bootSweepLocalWorkspaces", () => {
+  it("sessionHygieneEnabled=false 短路:不读工作区表、零扫描", async () => {
+    mocks.hygiene = false;
+    await expect(bootSweepLocalWorkspaces()).resolves.toBe(0);
+    expect(mocks.getWorkspaces).not.toHaveBeenCalled();
+    expect(mocks.scanAndSweep).not.toHaveBeenCalled();
+  });
+
   it("远程/SSH 工作区跳过,仅本地逐区清扫(顺序不并行)", async () => {
     const local1 = ws("ws1");
     const remote = ws("ws2");

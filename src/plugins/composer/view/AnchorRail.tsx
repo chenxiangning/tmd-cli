@@ -124,11 +124,11 @@ export function AnchorRail() {
 
   if (!sessionId || anchors.length === 0) return null;
 
-  const handleJump = (anchor: UserMessageAnchor) => {
+  const handleJump = (anchor: UserMessageAnchor, occurrence: number) => {
     setPreview(null);
     setHoverIndex(null);
     setActiveId(anchor.id);
-    void jumpToAnchor(sessionId, anchor).then((ok) => {
+    void jumpToAnchor(sessionId, anchor, occurrence).then((ok) => {
       if (ok) return;
       setMissId(anchor.id);
       window.setTimeout(() => setMissId((cur) => (cur === anchor.id ? null : cur)), MISS_FLASH_MS);
@@ -168,7 +168,7 @@ export function AnchorRail() {
                 setPreview(null);
                 setHoverIndex(null);
               }}
-              onClick={() => handleJump(anchor)}
+              onClick={() => handleJump(anchor, index + 1)}
               data-testid="composer-anchor-dash"
             />
           </div>

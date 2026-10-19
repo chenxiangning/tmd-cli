@@ -18,7 +18,7 @@ export function AnimProjectRow({
   name,
   scenes,
   starting,
-  /** false(非 macOS)= 不渲染「打开」钮(open -a 仅 mac 语义,不留死 affordance)。 */
+  /** false(平台无打开语义:非 mac 非 win)= 不渲染「打开」钮,不留死 affordance。 */
   canOpen,
   onOpen,
   onAi,

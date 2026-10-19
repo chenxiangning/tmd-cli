@@ -42,11 +42,14 @@ export async function resolveLedgerProfileId(
   return hits.length === 1 ? hits[0] : null; /* 零命中或多引擎同 id,歧义不猜 */
 }
 
-/** 批次 → 对话:解析 profileId 后交内核时序桥;profileId 解析不到 = miss。 */
+/** 批次 → 对话:解析 profileId 后交内核时序桥;profileId 解析不到 = miss。
+ *  occurrence = 本批 prompt 在同文批次中的出现序(1-based,反向跳同文
+ *  多轮时定位本批那条,缺省 1)。 */
 export async function viewBatchConversation(opts: {
   cwd: string;
   ledgerSessionId: string;
   prompt: string;
+  occurrence?: number;
 }): Promise<JumpTextOutcome> {
   const profileId = await resolveLedgerProfileId(opts.cwd, opts.ledgerSessionId);
   if (!profileId) return "miss";
@@ -58,5 +61,6 @@ export async function viewBatchConversation(opts: {
       cliSessionId: opts.ledgerSessionId,
     },
     opts.prompt,
+    { occurrence: opts.occurrence },
   );
 }

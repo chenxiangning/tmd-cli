@@ -12,6 +12,7 @@ import { ipc } from "@kernel/ipc";
 import { updateTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { isRemoteFileUri } from "@kernel/fileSources";
+import { draftMirrorClear, draftMirrorGet, type DraftMirrorEntry } from "@kernel/draftMirror";
 import {
   cacheRefreshContent,
   draftDelete,
@@ -24,7 +25,7 @@ import {
 /** files.save 命令桥:挂载中的文件编辑器实例经此接收保存触发(先例 TerminalView.findRequestRef)。 */
 export const saveRequestRef: { current: (() => void) | null } = { current: null };
 
-interface FileDocState {
+export interface FileDocState {
   content: string;
   dirty: boolean;
   saving: boolean;
@@ -33,6 +34,10 @@ interface FileDocState {
   diskTick: number;
   setDoc: (value: string) => void;
   save: () => void;
+  /** 跨崩溃/强退的草稿镜像(无 = 不出恢复条);恢复/丢弃语义见下。 */
+  mirror: DraftMirrorEntry | null;
+  restoreMirror: () => void;
+  dismissMirror: () => void;
 }
 
 export function useFileDocument(path: string, diskContent: string): FileDocState {
@@ -132,5 +137,23 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     updateTab(`file:${path}`, { dirty });
   }, [path, dirty]);
 
-  return { content, dirty, saving, error, diskTick, setDoc, save };
+  /* 草稿镜像恢复条(0.4.0 项 12):内存草稿在场 = 本运行内的关脏重开,编辑
+   * 态已是草稿本体,不弹条;镜像条只服务跨崩溃/强退(内存草稿已随进程蒸发)
+   * 的场景,且镜像与磁盘内容有差才有恢复价值。 */
+  const [mirror, setMirror] = useState<DraftMirrorEntry | null>(() => {
+    if (draftGet(path) !== undefined) return null;
+    const m = draftMirrorGet(`file:${path}`);
+    return m && m.text !== init.saved ? m : null;
+  });
+  const restoreMirror = useCallback(() => {
+    if (!mirror) return;
+    setDoc(mirror.text); /* 写回编辑器并置脏(draftSet/镜像在 setDoc 续写) */
+    setMirror(null);
+  }, [mirror, setDoc]);
+  const dismissMirror = useCallback(() => {
+    draftMirrorClear(`file:${path}`);
+    setMirror(null);
+  }, [path]);
+
+  return { content, dirty, saving, error, diskTick, setDoc, save, mirror, restoreMirror, dismissMirror };
 }

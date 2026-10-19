@@ -10,7 +10,8 @@ import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
 import { checkpointIdentity } from "./identity";
-import { pruneRetention, refreshBatches, sealDeadTurns } from "./store";
+import { pruneRetention, sealDeadTurns } from "./retention";
+import { refreshBatches } from "./store";
 
 const POLL_MS = 6000;
 

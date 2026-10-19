@@ -4,7 +4,8 @@
 
 use super::{
     anchor_turn, apply_batch, approve_batch, batch_patches, derive_batches, prune, record_edit,
-    restore_batch, seal_dead_turns, seal_turn, undo_revert, CkptError, RestoreOutcome,
+    restore_batch, restore_preview, seal_dead_turns, seal_turn, undo_revert, CkptError,
+    RestoreOutcome,
 };
 
 async fn run<T, F>(f: F) -> Result<T, String>
@@ -126,6 +127,18 @@ pub async fn checkpoint_restore(
     paths: Option<Vec<String>>,
 ) -> Result<RestoreOutcome, String> {
     run(move || restore_batch(&cwd, &batch_id, paths)).await
+}
+
+/// 恢复 dry-run 预览(只读):阶段一计划 + 逐路径 live↔target 行摘要。
+/// 不落守卫、不动工作区与账本;blob_patch 可能向 sidecar ODB 物化去重
+/// loose object(未引用由 prune 回收)。plan 空与 restore 同一 E_Empty。
+#[tauri::command]
+pub async fn checkpoint_restore_preview(
+    cwd: String,
+    batch_id: String,
+    paths: Option<Vec<String>>,
+) -> Result<super::RestorePreview, String> {
+    run(move || restore_preview(&cwd, &batch_id, paths)).await
 }
 
 /// 通过标记:纯标记,不动文件/不碰 git;approved 批仍可回退。

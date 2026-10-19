@@ -82,8 +82,20 @@ export const MESSAGES = {
   "输入区": "Composer",
   "Composer:富文本输入、附件、建议": "Composer: rich input, attachments, suggestions",
   "打开/关闭命令抽屉": "Open / close command drawer",
+  "打开/关闭输入历史抽屉": "Open / close prompt history drawer",
   "发送消息": "Send message",
   "切换输入区高度段": "Toggle input area height",
+
+  /* view/HistoryDrawer.tsx (042 prompt history drawer) */
+  "输入历史": "Prompt history",
+  "过滤输入历史…": "Filter prompt history…",
+  "过滤输入历史": "Filter prompt history",
+  "清空过滤词": "Clear filter",
+  "{n} / {m} 条": "{n} / {m}",
+  "没有匹配的历史": "No matching entries",
+  "↑↓ 选择": "↑↓ select",
+  "Enter 回填输入框(不发送)": "Enter fills input (does not send)",
+  "Esc 关闭": "Esc close",
 
   /* drawerItems.ts pluginDrawerCommands() */
   "打开 {name}": "Open {name}",

@@ -47,28 +47,33 @@ function normalizeLine(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-/** 自底向上找 needle 所在行;长 needle 不命中逐级退化到 8 字符。 */
-export function findAnchorRow(handle: TerminalHandle, needle: string): number | null {
+/** 自顶向下找第 occurrence 个 needle 命中行(同文多轮定位第 k 条,1-based);
+ *  命中数不足 occurrence 返回 null —— 调用方翻页补更早历史后重数(更早历史
+ *  只会从顶部增加命中,已见命中相对序不变)。长 needle 命中不足逐级退化。 */
+export function findAnchorRow(handle: TerminalHandle, needle: string, occurrence = 1): number | null {
   if (!needle) return null;
   for (const len of NEEDLE_LENGTHS) {
     const n = needle.slice(0, len);
     if (!n) continue;
-    for (let row = handle.bufferLength() - 1; row >= 0; row--) {
-      if (normalizeLine(handle.lineText(row)).includes(n)) return row;
+    let seen = 0;
+    for (let row = 0; row < handle.bufferLength(); row++) {
+      if (normalizeLine(handle.lineText(row)).includes(n) && ++seen === occurrence) return row;
     }
   }
   return null;
 }
 
-/** 点击跳转:buffer 定位 → 28% 留头;消息太老不在 buffer 时逐页加载更早历史再试。 */
+/** 点击跳转:buffer 定位 → 28% 留头;消息太老不在 buffer 时逐页加载更早历史再试。
+ *  occurrence = 同文消息序号(锚点在 anchors 正序中的位置 +1),缺省 1。 */
 export async function jumpToAnchor(
   sessionId: string,
   anchor: UserMessageAnchor,
+  occurrence = 1,
 ): Promise<boolean> {
   const handle = getTerminalHandle(sessionId);
   if (!handle) return false;
   const needle = anchorNeedle(anchor);
-  return jumpScanPages(handle, needle, 0);
+  return jumpScanPages(handle, needle, 0, occurrence);
 }
 
 /** 逐页向后扫描(递归替代轮询循环;深度 = JUMP_PAGE_LIMIT 上界)。 */
@@ -76,8 +81,9 @@ async function jumpScanPages(
   handle: TerminalHandle,
   needle: string,
   page: number,
+  occurrence = 1,
 ): Promise<boolean> {
-  const row = findAnchorRow(handle, needle);
+  const row = findAnchorRow(handle, needle, occurrence);
   if (row !== null) {
     await smoothScrollToLine(handle, Math.max(0, row - Math.round(handle.rows() * JUMP_HEADROOM)));
     return true;
@@ -106,11 +112,12 @@ export interface DiskJumpTarget {
 /** 打开会话后等幕布 handle 注册的默认上限(冷启动 spawn + 首帧挂载的富余)。 */
 const OPEN_JUMP_TIMEOUT_MS = 8000;
 
-/** 文本跳转(活会话):幕布定位;无 handle 或 needle 未命中返回 false。 */
-export async function jumpToText(sessionId: string, text: string): Promise<boolean> {
+/** 文本跳转(活会话):幕布定位;无 handle 或 needle 未命中返回 false。
+ *  occurrence = 同文消息序号(1-based,账本轮次排名),缺省 1 取首条。 */
+export async function jumpToText(sessionId: string, text: string, occurrence = 1): Promise<boolean> {
   const handle = getTerminalHandle(sessionId);
   if (!handle) return false;
-  return jumpScanPages(handle, textNeedle(text), 0);
+  return jumpScanPages(handle, textNeedle(text), 0, occurrence);
 }
 
 /** 账本/检索身份 → 活会话:按 tmd id 或绑定 cli 身份反查(resume 换壳后 tmd id 已变)。 */
@@ -151,10 +158,14 @@ async function waitForTerminalHandle(
 export async function openThenJumpToText(
   target: DiskJumpTarget,
   text: string,
-  opts?: { timeoutMs?: number },
+  opts?: { timeoutMs?: number; occurrence?: number },
 ): Promise<JumpTextOutcome> {
   const liveId = findLiveSessionId(target.cliSessionId);
-  if (liveId) return (await jumpToText(liveId, text)) ? "jumped" : "miss";
+  const occurrence = opts?.occurrence ?? 1;
+  /* 活会话但幕布 handle 不在册(被 tab 条挤除/已关 tab)时落穿打开路径:
+   * open() 对活会话幂等,不会开第二条 PTY。 */
+  if (liveId && getTerminalHandle(liveId))
+    return (await jumpToText(liveId, text, occurrence)) ? "jumped" : "miss";
   const needle = textNeedle(text);
   try {
     const meta = await host.openDiskSession(
@@ -165,7 +176,7 @@ export async function openThenJumpToText(
     );
     const handle = await waitForTerminalHandle(meta.id, opts?.timeoutMs ?? OPEN_JUMP_TIMEOUT_MS);
     if (!handle) return "miss";
-    return (await jumpScanPages(handle, needle, 0)) ? "jumped" : "opened";
+    return (await jumpScanPages(handle, needle, 0, occurrence)) ? "jumped" : "opened";
   } catch {
     return "miss";
   }

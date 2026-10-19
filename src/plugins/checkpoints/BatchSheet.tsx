@@ -70,6 +70,9 @@ function BatchSheet({
   if (!batch) {
     return <Center>{t("批次不存在或已随会话结束(审批线生命周期 = 单个会话)")}</Center>;
   }
+  /* 同文多轮出现序(1-based):反向「看对话」定位本批那条,不恒落最新 */
+  const occurrence =
+    batches.filter((b) => b.prompt === batch.prompt).sort((x, y) => x.index - y.index).findIndex((b) => b.id === batch.id) + 1;
   return (
     <SheetBody
       cwd={cwd}
@@ -77,6 +80,7 @@ function BatchSheet({
       tmdSessionId={tmdSessionId}
       batch={batch}
       focusPath={focusPath}
+      occurrence={occurrence}
     />
   );
 }
@@ -87,12 +91,15 @@ function SheetBody({
   tmdSessionId,
   batch,
   focusPath,
+  occurrence,
 }: {
   cwd: string;
   sessionId: string;
   tmdSessionId?: string;
   batch: CkptBatch;
   focusPath?: string;
+  /** 本批 prompt 在同文批次升序中的出现序(1-based,BatchSheet 计算)。 */
+  occurrence: number;
 }) {
   useCkptVersion();
   const patches = getCachedDiff(cwd, sessionId, batch.id) ?? null;
@@ -120,6 +127,7 @@ function SheetBody({
       cwd,
       ledgerSessionId: batch.sessionId,
       prompt: batch.prompt,
+      occurrence,
     });
     if (outcome === "jumped") return;
     setJumpNotice(

@@ -43,10 +43,56 @@ describe("recordPrompt", () => {
     expect(items[199]).toBe("p204");
   });
 
-  it("空串与纯空白不入史;单条截断 300 字符", () => {
+  it("空串与纯空白不入史;超长全文入库(042:去 300 截断),硬上限 8000", () => {
     recordPrompt("   ");
     recordPrompt("a".repeat(400));
-    expect(getPromptHistory()).toEqual(["a".repeat(300)]);
+    expect(getPromptHistory()).toEqual(["a".repeat(400)]);
+    recordPrompt("b".repeat(9000));
+    expect(getPromptHistory()[1]).toBe("b".repeat(8000));
+  });
+
+  it("超长全文入库;存量截断条目不打标不动(042:去重置底自然自愈)", () => {
+    /* 存量截断条目(恰好 300,模拟 v1 数据):原样保留、无标记 */
+    const truncated = "x".repeat(300);
+    __setStorageForTest(JSON.stringify({ items: [truncated], counts: { [truncated]: 1 } }));
+    const full = truncated + "y".repeat(100);
+    recordPrompt(full);
+    /* 新记录存全文(不再 300 截断);旧截断条目无法恢复也不动 */
+    expect(getPromptHistory()).toEqual([truncated, full]);
+    expect(full).toHaveLength(400);
+    /* 同文本重提交:去重置底,计数沿用,存储即全文 round-trip */
+    recordPrompt(full);
+    expect(getPromptHistory()).toEqual([truncated, full]);
+    expect(getPromptHistoryWithCounts().find((e) => e.text === full)?.count).toBe(2);
+  });
+
+  it("512KB 字节封顶:save 期最旧淘汰且 counts 同步清除", () => {
+    /* 70 条 × 8000 字符 ≈ 570KB > 512KB:写入即从 items[0] 连 counts 淘汰 */
+    for (let i = 0; i < 70; i++) recordPrompt(`p${String(i).padStart(4, "0")}-` + "x".repeat(7990));
+    const items = getPromptHistory();
+    const serialized = JSON.stringify({ items, counts: Object.fromEntries(items.map((t) => [t, 1])) });
+    expect(serialized.length).toBeLessThanOrEqual(512 * 1024);
+    /* 最旧的 p0000 已被淘汰,最新的保留 */
+    expect(items.some((t) => t.startsWith("p0000-"))).toBe(false);
+    expect(items.at(-1)?.startsWith("p0069-")).toBe(true);
+  });
+
+  it("localStorage 写入 throw:静默不抛,内存态保留", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("QuotaExceeded");
+      },
+      removeItem: () => undefined,
+    });
+    expect(() => recordPrompt("survives")).not.toThrow();
+    expect(getPromptHistory()).toEqual(["survives"]);
+    /* 恢复共享 backing stub,避免影响后续用例的持久化断言 */
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => backing.get(k) ?? null,
+      setItem: (k: string, v: string) => void backing.set(k, v),
+      removeItem: (k: string) => void backing.delete(k),
+    });
   });
 
   it("计数累计:重复提交 count 递增", () => {
@@ -82,6 +128,12 @@ describe("findPromptCompletion", () => {
     expect(findPromptCompletion("r")).toBeNull();
     expect(findPromptCompletion("nope")).toBeNull();
     expect(findPromptCompletion("run tests")).toBeNull();
+  });
+
+  it("8000 字符条目前缀命中:返回全文(042 全文存储,匹配零截断)", () => {
+    const long = "deploy " + "z".repeat(7993);
+    recordPrompt(long);
+    expect(findPromptCompletion("deploy zz")).toBe(long);
   });
 });
 

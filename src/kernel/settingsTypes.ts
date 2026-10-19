@@ -53,7 +53,7 @@ export function resolveCliSessionQuota(
 }
 
 /* 会话覆盖层记录类型(置顶/归档/删除/保留/卫生时窗)拆至 settingsSessionEntries.ts。 */
-import type { SessionArchiveEntry, SessionDeletedEntry, SessionHygieneHours, SessionKeepEntry, SessionPinEntry } from "./settingsSessionEntries";
+import type { SessionArchiveEntry, SessionDeletedEntry, SessionHygieneHours, SessionKeepEntry, SessionMuteEntry, SessionPinEntry, SessionRestoreSettings } from "./settingsSessionEntries";
 export * from "./settingsSessionEntries";
 
 /** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
@@ -136,12 +136,18 @@ export interface AppSettings {
   turnEndSoundId: AskSoundId;
   /** 后台提醒:窗口失焦时激活会话完成一轮也视为未查看(标蓝 + 结束音)。 */
   backgroundNotify: boolean;
-  /** 系统通知(桌面 OS 级,notify 插件;失焦才发):Ask 等待 / 轮次结束 / 会话退出(默认关)。 */
+  /** 系统通知(桌面 OS 级,notify 插件;失焦才发):Ask 等待 / 轮次结束 / 会话退出(默认关)/ 额度预警。 */
   notifyOsAsk: boolean;
   notifyOsTurnEnd: boolean;
   notifyOsSessionExit: boolean;
+  /** 额度预警 OS 通知开关(默认开;流水不受此闸,免打扰窗另算)。 */
+  notifyOsQuota: boolean;
   /** 额度预警阈值(窗口已用 %,0 = 关;激活会话供应商轮询,一次/窗口周期)。 */
   notifyQuotaWarnPercent: number;
+  /** 余额低水位告警(绝对金额,0 = 关;仅 deepseek/relay 有余额数值)。 */
+  notifyQuotaBalanceBelow: number;
+  /** claude 窗口重置前提醒分钟数(5-240,默认 30;本地 5h 窗口尾读推算)。 */
+  notifyQuotaResetMinutes: number;
   /** 免打扰窗开关(开 = 窗口内静音 OS 通知与应用内提示音;通知中心流水照记)。 */
   notifyDndEnabled: boolean;
   /** 免打扰起止(HH:mm;支持跨夜如 22:00-08:00;起 = 止 视为全天静默)。 */
@@ -194,6 +200,10 @@ export interface AppSettings {
    * 又被扫回」。resume 打开路径的自动 unarchive 不写(领域 API 见 kernel/sessionKeep.ts)。
    */
   sessionKeep: Record<string, SessionKeepEntry>;
+  /** 会话通知静音层:key = 三段覆盖层身份,value = 档位记录;只拦 OS 通知与提示音,
+   *  通知中心流水照记;语义与三档矩阵见 kernel/sessionMutes.ts。 */
+  sessionMutes: Record<string, SessionMuteEntry>;
+  sessionRestore: SessionRestoreSettings; // 重启现场恢复:三段身份 MRU(首=最新),帽随 sessionTabsMax;见 kernel/sessionRestore.ts
   /** 会话卫生清扫开关:超期(默认 24h 未活动)自动归档 + 空会话删除;默认开。 */
   sessionHygieneEnabled: boolean;
   /** 清扫超期时窗(小时);白名单 SESSION_HYGIENE_HOURS,默认 24。 */

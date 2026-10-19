@@ -34,8 +34,12 @@ vi.mock("@kernel/host", () => ({
     createSession: () => Promise.resolve({ id: "pty-x" }),
   },
 }));
+/* 预设 worktree 启动链(runWorktreeCreate/worktreeSession)连带 import 面;渲染面不触达。 */
+vi.mock("@kernel/ipc", () => ({ ipc: {} }));
 vi.mock("@kernel/settings", () => ({
   useSettingsState: () => ({ settings: { workspaceGroups: [] } }),
+  updateSettings: () => undefined,
+  getSettingsState: () => ({ settings: {} }),
 }));
 const { originState, engineState } = vi.hoisted(() => ({
   originState: { origin: null as object | null },
@@ -56,6 +60,7 @@ vi.mock("@plugins/workbench/defaultEngine", () => ({
 }));
 vi.mock("@plugins/assets/promptStore", () => ({
   promptContent: (name: string) => `${name} 正文`,
+  promptContentByRef: (ref: { name: string }) => `${ref.name} 正文`,
 }));
 /* store 桩:useSyncExternalStore server 渲染需 getServerSnapshot,渲染面用固定数据。 */
 vi.mock("./sessionPresets", async (importOriginal) => {
@@ -66,6 +71,13 @@ vi.mock("./sessionPresets", async (importOriginal) => {
       loaded: true,
       presets: [
         { id: "p1", name: "审阅配方", engineId: "claude", prompt: { text: "全文" } },
+        {
+          id: "p2",
+          name: "修 CI",
+          engineId: "claude",
+          worktree: true,
+          prompt: { ref: { scope: "global", name: "检查单" } },
+        },
       ],
     }),
   };
@@ -111,5 +123,14 @@ describe("会话预设入口契约", () => {
     expect(html).toContain("disabled");
     expect(html).toContain("未检测到可用引擎,无法启动预设");
     engineState.empty = false;
+  });
+
+  it("④ 行信息密度(候选4 定稿):范围/引用 pill + 描述行如实呈现,不猜测", () => {
+    const html = renderMenu();
+    expect(html).toContain("新 worktree");
+    expect(html).toContain("引用「检查单」");
+    expect(html).toContain("消费时现读,库更新即跟随");
+    /* 内联文本预设:描述 = 原文预览 */
+    expect(html).toContain("全文");
   });
 });

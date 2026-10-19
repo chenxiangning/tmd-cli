@@ -19,6 +19,7 @@ import { KernelTopics } from "@kernel/events";
 import { host } from "@kernel/host";
 import { getActiveTab } from "@kernel/tabs";
 import { askDialog } from "@kernel/askDialog";
+import { draftMirrorClear } from "@kernel/draftMirror";
 import { t } from "@kernel/i18n";
 import { SshOverlay } from "./SshOverlay";
 import { SshPanel } from "./panel/SshPanel";
@@ -67,19 +68,26 @@ export const sshPlugin: Plugin = {
     ctx.contribute("workspace.newSessionMenu", { order: 20, component: MenuEntry });
     /* 远端文件编辑 tab:kind="ssh-file" 路由(kernel/tabs 注册表)。
        beforeClose 闸:脏远端文件关闭先确认 —— 远端编辑没有本地草稿缓存,
-       静默关闭即真丢稿;非 keepAlive,闸体走 askDialog 命令式确认(同 files)。 */
+       静默关闭即真丢稿;非 keepAlive,闸体走 askDialog 命令式确认(同 files)。
+       确认丢弃 = 连镜像一起清(kernel/draftMirror,否则重开复活已弃内容)。 */
     ctx.registerTabContent({
       kind: "ssh-file",
       component: RemoteFileTab,
-      beforeClose: (tab) =>
-        tab.dirty
-          ? askDialog({
-              title: t("未保存的修改"),
-              message: t("未保存的修改将丢失"),
-              confirmLabel: t("丢弃"),
-              danger: true,
-            })
-          : Promise.resolve(true),
+      beforeClose: (tab) => {
+        if (!tab.dirty) return Promise.resolve(true);
+        return askDialog({
+          title: t("未保存的修改"),
+          message: t("未保存的修改将丢失"),
+          confirmLabel: t("丢弃"),
+          danger: true,
+        }).then((ok) => {
+          if (ok) {
+            const p = tab.payload as { path?: string } | null;
+            if (p?.path) draftMirrorClear(`ssh-file:${p.path}`);
+          }
+          return ok;
+        });
+      },
     });
     /* ⌘S 保存命令:when 限定激活 tab 为远端文件 tab(kind="ssh-file"),否则键穿透;
        与 files.save 同键,靠 when 互斥。触发经模块级 ref 桥转发到挂载中的编辑器。 */

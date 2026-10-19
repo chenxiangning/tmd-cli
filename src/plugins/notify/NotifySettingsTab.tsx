@@ -11,6 +11,7 @@ import { useSettingsState, updateSettings } from "@kernel/settings";
 import { parseHhMm } from "@kernel/dnd";
 import { t } from "@kernel/i18n";
 import { SoundSettingsCard, ToggleRow } from "./SoundSettingsCard";
+import { SessionMutesCard } from "./SessionMutesCard";
 
 /** 阈值提交纯函数:0-100 钳制;空/非法回落旧值(当前生效值),不是默认 10。 */
 function thresholdFromInput(raw: string, current: number): number {
@@ -18,8 +19,8 @@ function thresholdFromInput(raw: string, current: number): number {
   return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : current;
 }
 
-/** 卡头:分组标题 + 一句说明(占一个 pref-row 的左列,右侧无控件)。 */
-function CardHead(props: { title: string; desc: string }) {
+/** 卡头:分组标题 + 一句说明(占一个 pref-row 的左列,右侧无控件)。SessionMutesCard 复用。 */
+export function CardHead(props: { title: string; desc: string }) {
   return (
     <div className="pref-row">
       <div>
@@ -44,6 +45,34 @@ export function NotifySettingsTab() {
       updateSettings({ notifyQuotaWarnPercent: next });
     }
   };
+  const [balanceDraft, setBalanceDraft] = useState(String(settings.notifyQuotaBalanceBelow));
+  useEffect(() => {
+    setBalanceDraft(String(settings.notifyQuotaBalanceBelow));
+  }, [settings.notifyQuotaBalanceBelow]);
+  /** 余额下限提交:>=0 钳制(小数允许,货币粒度各套餐不同),空/非法回落旧值。 */
+  const commitBalance = (raw: string) => {
+    const n = Number.parseFloat(raw);
+    const next = Number.isFinite(n) ? Math.max(0, n) : settings.notifyQuotaBalanceBelow;
+    setBalanceDraft(String(next));
+    if (next !== settings.notifyQuotaBalanceBelow) {
+      updateSettings({ notifyQuotaBalanceBelow: next });
+    }
+  };
+  const [resetDraft, setResetDraft] = useState(String(settings.notifyQuotaResetMinutes));
+  useEffect(() => {
+    setResetDraft(String(settings.notifyQuotaResetMinutes));
+  }, [settings.notifyQuotaResetMinutes]);
+  /** 重置提醒分钟提交:5-240 钳制,空/非法回落旧值。 */
+  const commitReset = (raw: string) => {
+    const n = Number.parseInt(raw, 10);
+    const next = Number.isFinite(n)
+      ? Math.min(240, Math.max(5, n))
+      : settings.notifyQuotaResetMinutes;
+    setResetDraft(String(next));
+    if (next !== settings.notifyQuotaResetMinutes) {
+      updateSettings({ notifyQuotaResetMinutes: next });
+    }
+  };
 
   /** 免打扰时刻提交:非法(含清空)回落旧值;合法且变化才写。 */
   const commitHhMm = (key: "notifyDndStart" | "notifyDndEnd", raw: string) => {
@@ -66,6 +95,11 @@ export function NotifySettingsTab() {
       key: "notifyOsSessionExit" as const,
       title: t("会话退出"),
       desc: t("CLI 进程退出时发系统通知;高频且常是自己关的,默认关。"),
+    },
+    {
+      key: "notifyOsQuota" as const,
+      title: t("额度预警"),
+      desc: t("窗口将撞墙/余额过低/即将重置时发系统通知;通知中心流水不受开关影响,照常记录。"),
     },
   ];
 
@@ -160,7 +194,54 @@ export function NotifySettingsTab() {
             className="w-20 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
           />
         </div>
+        <div className="pref-row">
+          <div>
+            <div className="pref-title">{t("余额告警下限")}</div>
+            <div className="pref-desc">
+              {t("账户余额低于该数值即发通知(货币跟随供应商回包,deepseek/中转站有效);余额型供应商无额度分母,用绝对金额而非百分比;0 = 关。")}
+            </div>
+          </div>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={balanceDraft}
+            onChange={(e) => setBalanceDraft(e.target.value)}
+            onBlur={(e) => commitBalance(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitBalance((e.target as HTMLInputElement).value);
+            }}
+            aria-label={t("余额告警下限金额")}
+            title={t("非负数值;清空或非法输入将保持当前值。")}
+            className="w-20 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
+          />
+        </div>
+        <div className="pref-row">
+          <div>
+            <div className="pref-title">{t("重置前提醒")}</div>
+            <div className="pref-desc">
+              {t("claude 5 小时窗口按本地用量行推算,距重置不足该分钟数即提醒一次(5-240;仅官方 OAuth 登录的 claude 有效,其余供应商走真实额度 API)。")}
+            </div>
+          </div>
+          <input
+            type="number"
+            min={5}
+            max={240}
+            step={5}
+            value={resetDraft}
+            onChange={(e) => setResetDraft(e.target.value)}
+            onBlur={(e) => commitReset(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitReset((e.target as HTMLInputElement).value);
+            }}
+            aria-label={t("窗口重置前提醒分钟数")}
+            title={t("5-240 的整数;清空或非法输入将保持当前值。")}
+            className="w-20 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
+          />
+        </div>
       </div>
+
+      <SessionMutesCard />
     </>
   );
 }

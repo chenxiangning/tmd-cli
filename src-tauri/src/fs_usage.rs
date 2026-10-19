@@ -62,30 +62,32 @@ fn dir_usage(path: &std::path::Path, skip: &[String]) -> (u64, u64) {
 }
 
 /// 批量体检:每类目独立 spawn_blocking + 超时,互不拖累;结果按入参顺序回。
+/// 超时各自包好再 join_all:逐个 await 时第 k 个挂死类目独占 20s 串行窗
+/// (12 类目全挂 = 240s,面板卡「体检中」),「单类目 20s」语义失真。
+/// JoinError(spawn_blocking panic)按超时同款入表,不拖垮整批。
 #[tauri::command]
 pub(crate) async fn fs_dir_usage(specs: Vec<DirUsageSpec>) -> Result<Vec<DirUsageReport>, String> {
-    let mut handles = Vec::with_capacity(specs.len());
+    let mut timed = Vec::with_capacity(specs.len());
     for spec in specs {
-        handles.push((
-            spec.label.clone(),
-            tauri::async_runtime::spawn_blocking(move || {
-                let (bytes, files) =
-                    dir_usage(std::path::Path::new(&spec.path), &spec.skip_dir_names);
-                DirUsageReport {
-                    label: spec.label,
-                    bytes,
-                    files,
-                    timed_out: false,
-                }
-            }),
-        ));
+        let label = spec.label.clone();
+        let task = tauri::async_runtime::spawn_blocking(move || {
+            let (bytes, files) = dir_usage(std::path::Path::new(&spec.path), &spec.skip_dir_names);
+            DirUsageReport {
+                label: spec.label,
+                bytes,
+                files,
+                timed_out: false,
+            }
+        });
+        timed.push((label, tokio::time::timeout(SPEC_TIMEOUT, task)));
     }
-    let mut out = Vec::with_capacity(handles.len());
-    for (label, handle) in handles {
-        match tokio::time::timeout(SPEC_TIMEOUT, handle).await {
+    let labels: Vec<String> = timed.iter().map(|(l, _)| l.clone()).collect();
+    let settled = futures_util::future::join_all(timed.into_iter().map(|(_, t)| t)).await;
+    let mut out = Vec::with_capacity(settled.len());
+    for (label, r) in labels.into_iter().zip(settled.into_iter()) {
+        match r {
             Ok(Ok(report)) => out.push(report),
-            Ok(Err(e)) => return Err(format!("体检任务失败: {e}")),
-            Err(_) => out.push(DirUsageReport {
+            Ok(Err(_)) | Err(_) => out.push(DirUsageReport {
                 label,
                 bytes: 0,
                 files: 0,

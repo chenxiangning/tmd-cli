@@ -8,11 +8,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { bootSessionTabs, closeAllSessionTabs, closeOtherSessionTabs, closeSessionTab, getSessionBaseline, getSessionTabTitle, getSessionTabs, getSessionTile, noteSessionTabTitle, resetSessionTabsForTest, toggleSessionTile } from "./sessionTabs";
 import { updateSettings } from "./settings";
+import { host } from "./host";
+import { getSessionRestoreKeys } from "./sessionRestore";
 import { SESSION_TABS_LIMIT_DEFAULT } from "./settingsAppearance";
 import { EventBus, KernelTopics } from "./events";
 import type { SessionMeta } from "./ipc";
 
-const meta = (id: string): SessionMeta => ({ id, profileId: "omp", cwd: "/repo" });
+const meta = (id: string, extra?: Partial<SessionMeta>): SessionMeta => ({ id, profileId: "omp", cwd: "/repo", ...extra });
 
 function boot() {
   const events = new EventBus();
@@ -229,5 +231,29 @@ describe("平铺显示开关", () => {
     expect(getSessionTile()).toBe(true);
     resetSessionTabsForTest();
     expect(getSessionTile()).toBe(false);
+  });
+});
+
+describe("重启现场恢复记录(trackOpen → sessionRestore)", () => {
+  it("打开次序落三段 key MRU;身份不全(无归属工作区/未落盘)不记", () => {
+    const hostSpys = [
+      vi.spyOn(host, "getSessions").mockReturnValue([
+        meta("a", { workspaceId: "ws1" }),
+        meta("b", { workspaceId: "ws1" }),
+        meta("d", { workspaceId: "ws2" }),
+      ] as SessionMeta[]),
+      vi.spyOn(host, "getCliSessionId").mockImplementation((id) => (id === "a" ? "c1" : id === "d" ? "c2" : undefined)),
+    ];
+    try {
+      updateSettings({ sessionRestore: { enabled: true, keys: [] } });
+      const { events } = boot();
+      open(events, "a");
+      open(events, "b"); /* 无 cliSessionId(未落盘)→ 不记 */
+      open(events, "c"); /* 不在会话表 → 不记 */
+      open(events, "d");
+      expect(getSessionRestoreKeys()).toEqual(["ws2:omp:c2", "ws1:omp:c1"]); // MRU:首 = 最新
+    } finally {
+      hostSpys.forEach((s) => s.mockRestore());
+    }
   });
 });

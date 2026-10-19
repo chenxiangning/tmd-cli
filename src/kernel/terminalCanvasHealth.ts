@@ -102,6 +102,8 @@ export function buildReseedScreen(term: Terminal): {
   cols: number;
   rows: number;
   text: string;
+  cursorX: number;
+  cursorY: number;
 } {
   const buf = term.buffer.active;
   const bottom = Math.min(buf.length, buf.baseY + term.rows);
@@ -109,7 +111,14 @@ export function buildReseedScreen(term: Terminal): {
   for (let row = buf.baseY; row < bottom; row++) {
     lines.push(buf.getLine(row)?.translateToString(true) ?? "");
   }
-  return { cols: term.cols, rows: term.rows, text: lines.join("\r\n") };
+  return {
+    cols: term.cols,
+    rows: term.rows,
+    text: lines.join("\r\n"),
+    // 光标随投影一起存(xterm cursorY 视口相对 0..rows-1);读数异常回落 0/0(左上角,无损)
+    cursorX: buf.cursorX ?? 0,
+    cursorY: buf.cursorY ?? 0,
+  };
 }
 
 /**
@@ -128,10 +137,11 @@ export function settleTerminalFreeze(sessionId: string, term: Terminal): void {
     cols: reseed.cols,
     rows: reseed.rows,
     screenText: reseed.text,
+    cursorX: reseed.cursorX,
+    cursorY: reseed.cursorY,
     unloadChars: bufferText.length,
     bytePos: host.getOutputBufferBytes(sessionId),
     headSample: bufferText.slice(0, HEAD_SAMPLE_CHARS),
     fingerprint: sessionFreezeFingerprint(host.getSessions().find((s) => s.id === sessionId)),
-    at: Date.now(),
   });
 }

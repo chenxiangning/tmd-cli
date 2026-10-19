@@ -192,6 +192,9 @@ export interface CkptBatchFile {
   stale: boolean;
   /** 本轮 AI 写入事件计数(events 归因轨迹;git 归因 = 0) */
   editCount: number;
+  /** 账本口径 ± 行数(封口瞬间固化,回退不回缩);open 轮未封口为 0 */
+  additions: number;
+  deletions: number;
   /** 工作区外首轮无前像(批前像不可知):禁回退,仅可查看 / 应用 */
   noBaseline: boolean;
 }
@@ -246,6 +249,23 @@ export interface CkptPatch {
   deletions: number;
   patch: string;
   binary: boolean;
+}
+
+/** 恢复 dry-run 预览行(plan_restore + live↔target 行摘要)。 */
+export interface CkptPreviewRow {
+  path: string;
+  /** A 恢复新增 / M 修改 / D 恢复将删除 */
+  kind: "A" | "D" | "M";
+  additions: number;
+  deletions: number;
+  /** 精准擦除成功行 = 执行将改写本地现状(「覆盖本地」药丸) */
+  overwrites: boolean;
+}
+
+/** 恢复预览:行摘要清单 + skip 清单(plan 空走 E_EMPTY_PLAN,前端免弹分支信号)。 */
+export interface CkptRestorePreview {
+  rows: CkptPreviewRow[];
+  skipped: CkptSkipEntry[];
 }
 
 interface CkptSkipEntry {
@@ -476,6 +496,10 @@ export const ipc = {
    *  结果按 path 排序,root 是仓时首个即 root;超 32 截断(truncated)。 */
   gitReposScan: (root: string, maxDepth: number) =>
     invoke<GitRepoScanResult>("git_repos_scan", { root, maxDepth }),
+  /** 日期窗多仓提交清单(footprint Git 硬证据区;单仓失败整仓省略) */
+  gitCommitsRange: (root: string, sinceIso: string, untilIso: string) =>
+    invoke<{ repo: string; hash: string; subject: string; time: string }[]>(
+      "git_repos_log_range", { root, since: sinceIso, until: untilIso }),
   /** 忽略项前缀(git status --ignored 口径;整体忽略目录折叠带尾斜杠,如 "node_modules/")。
    *  侧栏工作区文件浏览器降显用;非仓报错由调用方兜底空集。 */
   gitIgnoredPrefixes: (cwd: string) => invoke<string[]>("git_ignored_prefixes", { cwd }),
@@ -535,6 +559,9 @@ export const ipc = {
   /** 回退整批或子集;返回恢复点 id 供反悔。 */
   checkpointRestore: (cwd: string, batchId: string, paths?: string[]) =>
     invoke<CkptRestoreOutcome>("checkpoint_restore", { cwd, batchId, paths: paths ?? null }),
+  /** 恢复 dry-run 预览(只读):计划 + live↔target 行摘要;plan 空 = E_EMPTY_PLAN 免弹信号。 */
+  checkpointRestorePreview: (cwd: string, batchId: string, paths?: string[]) =>
+    invoke<CkptRestorePreview>("checkpoint_restore_preview", { cwd, batchId, paths: paths ?? null }),
   /** 应用:把账本固化的批后像精确写回磁盘(回退的镜像);守卫可反悔。 */
   checkpointApply: (cwd: string, batchId: string, paths?: string[]) =>
     invoke<CkptRestoreOutcome>("checkpoint_apply", { cwd, batchId, paths: paths ?? null }),
@@ -978,6 +1005,32 @@ export function windowClose(): Promise<void> {
     return Promise.resolve();
   }
   return getCurrentWindow().close();
+}
+
+/**
+ * 关窗意图订阅:window onCloseRequested(0.4.0 项 12 关窗闸)。
+ * decide 在事件回调内同步决断(脏检是同步面):调 prevent() 才拦窗(同步
+ * 先行,后续裁决走聚合弹层,关闭由 windowClose 补发);不调则窗口按原生
+ * 流程销毁 —— 不做「全拦再补发」形态,防脏空场景 windowClose 重入死循环。
+ * web 态 no-op。返回退订函数(boot 常驻路径不退订)。
+ */
+export function onWindowCloseRequest(decide: (prevent: () => void) => void): () => void {
+  if (isWeb) return () => undefined;
+  let unlisten: (() => void) | undefined;
+  void getCurrentWindow()
+    .onCloseRequested((event) => {
+      let prevented = false;
+      decide(() => {
+        if (prevented) return;
+        prevented = true;
+        event.preventDefault();
+      });
+    })
+    .then((u) => {
+      unlisten = u;
+    })
+    .catch(() => undefined);
+  return () => unlisten?.();
 }
 
 /** 应用版本号(关于/设置页脚展示)。web 态走桥 hello 帧上报的版本(serverVersion)。 */

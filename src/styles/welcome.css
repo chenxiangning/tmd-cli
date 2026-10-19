@@ -2,10 +2,11 @@
  * Welcome 页 —— 终端窗体首页(原型 docs/design/home-redesign-s-full-actions.html)。
  *
  * 结构:窗体标题条 / prompt 行(工作区 select + 右侧 engines/updates 统计)/
- * 引擎全动作行 / 页脚(RESUME + QUOTA)。等宽字体域。
+ * 引擎全动作行 / 页脚(QUOTA 套餐水位)。等宽字体域。
  * 颜色零硬编码,全部消费 --tmd-* token;唯一例外:7d 块条橘色沿用
  * welcome-creds 周窗口先例 = --tmd-decor。
- * 页脚样式在 welcome-footer.css(300 行铁则分片)。
+ * 页尾 QUOTA 面板样式在 welcome-quota.css(300 行铁则分片;
+ * welcome-footer.css 已随 RESUME/TOKENS 区摘除删除)。
  * ────────────────────────────────────────────────────────── */
 
 .welcome-page {

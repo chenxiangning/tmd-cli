@@ -3,9 +3,10 @@
  *
  * 组成:批头(状态点 + prompt 摘要 + ±stats + 状态徽标 + 归因标记)→
  * 文件行(状态 chip + 路径 + ± + 深链审阅单)→ 批尾动作(通过/回退/应用/反悔)
- * → 内联确认卡(回退与应用共用,mode 区分文案与动作)。
- * 文件行与确认卡拆至 BatchRowParts.tsx;批头拆至 BatchRowHead.tsx(状态元表
- * batchStateMeta.ts),批尾动作留本文件(BatchActionBar/statusHint 降分支)。
+ * → 内联确认卡(回退/应用/反悔共用,mode 区分文案与动作 + 恢复预览表)。
+ * 文件行拆至 BatchRowParts.tsx;确认卡拆至 confirmCard.tsx(042 项6);
+ * 批头拆至 BatchRowHead.tsx(状态元表 batchStateMeta.ts),批尾动作留本文件
+ * (BatchActionBar/statusHint 降分支)。
  */
 
 import { useEffect } from "react";
@@ -30,21 +31,20 @@ function statusHint(st: BatchStateKey): string {
   return t("回退前自动打恢复点");
 }
 
-/** 批尾动作:通过/回退整批/应用/反悔 + 状态说明文案(降分支拆件)。 */
+/** 批尾动作:通过/回退整批/应用/反悔 + 状态说明文案(降分支拆件)。
+ *  反悔同走确认卡(undo 复用恢复时的预览),本组件只开卡不发动作。 */
 function BatchActionBar({
   b,
   st,
   busy,
   setConfirm,
   onApprove,
-  onUndo,
 }: {
   b: CkptBatch;
   st: BatchStateKey;
   busy: boolean;
   setConfirm: (v: ConfirmTarget | null) => void;
   onApprove: (batchId: string) => Promise<void>;
-  onUndo: (batchId: string) => Promise<void>;
 }) {
   const revertable = b.files.filter((f) => f.live === "same" && !f.noBaseline);
   return (
@@ -86,7 +86,8 @@ function BatchActionBar({
           type="button"
           disabled={busy}
           className="flex h-[21px] flex-none items-center gap-1 rounded border border-(--tmd-border) px-2 text-meta text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) disabled:opacity-40"
-          onClick={() => void onUndo(b.id)}
+          title={t("按恢复点守卫把这批写回回退前的状态(复用恢复时的预览)")}
+          onClick={() => setConfirm({ batchId: b.id, mode: "undo" })}
         >
           <ArrowUUpLeft size="0.625rem" aria-hidden /> {t("反悔 · 恢复回来")}
         </button>
@@ -162,10 +163,22 @@ export function BatchRow({
       </div>
 
       {/* 批尾动作 */}
-      <BatchActionBar b={b} st={batchState(b)} busy={busy} setConfirm={setConfirm} onApprove={onApprove} onUndo={onUndo} />
+      <BatchActionBar b={b} st={batchState(b)} busy={busy} setConfirm={setConfirm} onApprove={onApprove} />
 
-      {/* 动作确认(内联卡;回退/应用共用,镜像文案) */}
-      {confirm && <ConfirmCard batchId={b.id} confirm={confirm} busy={busy} setConfirm={setConfirm} onRevert={onRevert} onApply={onApply} />}
+      {/* 动作确认(内联卡;回退/应用/反悔共用,镜像文案 + 恢复预览表) */}
+      {confirm && (
+        <ConfirmCard
+          batch={b}
+          confirm={confirm}
+          busy={busy}
+          cwd={cwd}
+          sessionId={sessionId}
+          setConfirm={setConfirm}
+          onRevert={onRevert}
+          onApply={onApply}
+          onUndo={onUndo}
+        />
+      )}
     </div>
   );
 }

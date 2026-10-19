@@ -6,13 +6,14 @@
  */
 
 import { useState, useSyncExternalStore } from "react";
-import { ClockClockwise, ClockCounterClockwise } from "@phosphor-icons/react";
+import { ClockClockwise, ClockCounterClockwise, GitDiff } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import { host } from "@kernel/host";
 import { messageAnchors } from "@kernel/messageAnchors";
 import { BatchRow, type ConfirmTarget } from "./BatchRow";
+import { ChangesPanel } from "./ChangesPanel";
 import { TimelinePanel } from "./TimelinePanel";
 import { refreshBatches, useCkptBatches } from "./store";
 import { useCheckpointActions } from "./useCheckpointActions";
@@ -47,8 +48,8 @@ function PanelSummaryBar({
   pendingCount,
   pendingHighRisk,
 }: {
-  view: "batch" | "timeline";
-  onView: (v: "batch" | "timeline") => void;
+  view: "batch" | "changes" | "timeline";
+  onView: (v: "batch" | "changes" | "timeline") => void;
   shown: { name: string; root: string } | null;
   pendingCount: number;
   /** 待审批次的高危文件合计(0 = 不出 pill;批行另有单批计数)。 */
@@ -60,6 +61,10 @@ function PanelSummaryBar({
         <button type="button" onClick={() => onView("batch")} className={segCls(view === "batch")}>
           <ClockClockwise size="0.6875rem" aria-hidden />
           {t("审批线")}
+        </button>
+        <button type="button" onClick={() => onView("changes")} className={segCls(view === "changes")}>
+          <GitDiff size="0.6875rem" aria-hidden />
+          {t("变更")}
         </button>
         <button type="button" onClick={() => onView("timeline")} className={segCls(view === "timeline")}>
           <ClockCounterClockwise size="0.6875rem" aria-hidden />
@@ -84,9 +89,9 @@ function PanelSummaryBar({
             </span>
           )}
         </span>
-      ) : (
+      ) : view === "timeline" ? (
         <TimelineCount />
-      )}
+      ) : null}
     </div>
   );
 }
@@ -198,8 +203,8 @@ export function CheckpointsPanel() {
 
   const state = useCkptBatches(cwd, sessionId);
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
-  /* 页签:审批线 | 时间线(时间线是独立组件,与审批线零共享逻辑) */
-  const [view, setView] = useState<"batch" | "timeline">("batch");
+  /* 页签:审批线 | 变更 | 时间线(时间线/变更是独立组件,与审批线零共享逻辑) */
+  const [view, setView] = useState<"batch" | "changes" | "timeline">("batch");
   const actions = useCheckpointActions(cwd, sessionId, tmdSessionId);
   const { busy, notice, setNotice } = actions;
 
@@ -228,7 +233,7 @@ export function CheckpointsPanel() {
       )}
 
       {/* 视图保活(先例 EditorCenter keepAlive / git GitPanelMain 同批同律):
-          batch/timeline 全挂载、hidden 切换 —— 时间线展开态/滚动位跨页签保持,
+          batch/changes/timeline 全挂载、hidden 切换 —— 时间线展开态/滚动位跨页签保持,
           不再切页即卸载重放;树位固定,React 不重挂。 */}
       <div
         className={view === "batch" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
@@ -250,6 +255,17 @@ export function CheckpointsPanel() {
         aria-hidden={view !== "timeline"}
       >
         <TimelinePanel batches={state.batches} />
+      </div>
+      <div
+        className={view === "changes" ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+        aria-hidden={view !== "changes"}
+      >
+        <ChangesPanel
+          batches={state.batches}
+          cwd={cwd}
+          sessionId={sessionId}
+          tmdSessionId={tmdSessionId}
+        />
       </div>
     </div>
   );

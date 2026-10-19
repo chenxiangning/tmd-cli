@@ -6,8 +6,7 @@
  * 渲染层:xterm 内建 DOM 渲染器(WebGL 方案因 WebKit texSubImage2D 缺陷弃用)。
  * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
  *
- * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检分别在
- * terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth。
+ * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检分别在 terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth。
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -40,6 +39,7 @@ import { takeTerminalFreeze } from "@kernel/terminalFreeze";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { TerminalSearchOverlay } from "@kernel/terminalSearch";
 import { findRequestRef } from "@kernel/terminalFindBridge";
+import "@kernel/terminalFontZoom"; /* 终端字号缩放键位(⌘+/⌘−/⌘0):模块级注册,随幕布装配生效 */
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
 import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
 import { TerminalRefreshButton } from "@kernel/terminalRefreshButton";
@@ -232,8 +232,8 @@ termRef.current = term;
       offFontSettings();
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
-      /* 屏幕镜像补种 + 挤除快照存档(settleTerminalFreeze):幕布终态收尾;
-         必须先于注销 handle —— 补种期间 feed 仍被互斥,时序无交错。 */
+      /* 先冲刷 250ms 合帧攒帧再存快照(尾巴已计水位不在投影,跳过则 fast 永久缺字);终态收尾须先于注销 handle。 */
+      flushDeferredRef.current?.();
       settleTerminalFreeze(sessionId, term);
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();
@@ -282,7 +282,7 @@ termRef.current = term;
         </button>
       )}
       {searchOpen && (
-        <TerminalSearchOverlay searchRef={searchRef} onClose={closeSearch} />
+        <TerminalSearchOverlay searchRef={searchRef} termRef={termRef} onClose={closeSearch} />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
       {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 刷新钮收尾最右。

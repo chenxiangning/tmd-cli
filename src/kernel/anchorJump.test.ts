@@ -84,9 +84,11 @@ describe("anchorNeedle", () => {
 });
 
 describe("findAnchorRow", () => {
-  it("自底向上返回最后一处命中行", () => {
+  it("自顶向下按 occurrence 取第 k 处命中;缺省取首条", () => {
     const h = fakeHandle({ lines: ["needle here", "filler", "see needle here"] });
-    expect(findAnchorRow(h, "needle")).toBe(2);
+    expect(findAnchorRow(h, "needle")).toBe(0);
+    expect(findAnchorRow(h, "needle", 2)).toBe(2);
+    expect(findAnchorRow(h, "needle", 3)).toBeNull(); /* 不足 k:调用方翻页 */
   });
 
   it("长 needle 不命中时逐级退化到短 needle(8 字符档命中)", () => {

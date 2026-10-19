@@ -2,12 +2,11 @@
  * Git 面板「工作树」常驻区(2026-09-26 worktree 关联管理方案 B):
  * 主仓 / 当前 / 其他 三态卡 = 路径 + 分支 + 脏净增删 + 动作(打开/终端/移除);
  * 现有 WorktreeManageDialog 降级为「+ 新建」入口(panelStore 桥预填)。
- * 数据 = git_worktree_list(active cwd),挂载与 cwd 变化拉取,移除后本地重拉;
- * 脏净统计走 git_status 懒加载(每树一次,随卡)。
+ * 数据 = git_worktree_list(active cwd),挂载与 cwd 变化拉取,移除后本地重拉;脏净统计走 git_status 懒加载(每树一次,随卡)。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowsClockwise, Plus, TerminalWindow, Trash } from "@phosphor-icons/react";
+import { ArrowsClockwise, Plus, TerminalWindow, Trash, TreeStructure } from "@phosphor-icons/react";
 import { Spinner } from "@kernel/Spinner";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -86,7 +85,14 @@ function TreeActions({
     );
   }
   return (
-    <span className="flex shrink-0 items-center gap-1">
+    <span
+      /* 动作钮冒泡会连带触发整卡切换,此处截断(键盘 Enter/Space 同理)。 */
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      className={`flex shrink-0 items-center gap-1 transition-opacity ${
+        confirming ? "" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+      }`}
+    >
       <button
         type="button"
         title={t("打开为工作区")}
@@ -116,6 +122,19 @@ function TreeActions({
       </button>
     </span>
   );
+}
+
+/** 整卡交互属性(react-doctor 复杂度分档):当前树无切换语义;其余卡可点(click)可键盘(Enter/Space),role/tabIndex 补齐可达性。 */
+function cardInteractProps(isCurrent: boolean, open: () => void) {
+  if (isCurrent) return {};
+  return {
+    role: "button",
+    tabIndex: 0,
+    onClick: open,
+    onKeyDown: (e: { key: string; preventDefault: () => void }) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+    },
+  };
 }
 
 function TreeCard({
@@ -160,29 +179,32 @@ function TreeCard({
   const kindLabel = isMain ? t("主仓") : isCurrent ? t("当前") : entry.prunable ? t("悬空") : "";
   return (
     <div
-      className={`rounded-md border px-2.5 py-2 ${
+      {...cardInteractProps(isCurrent, () => void openWorktreeWorkspace(entry.path))}
+      title={isCurrent ? t("当前") : t("打开为工作区")}
+      className={`group relative overflow-hidden rounded-md border px-2.5 py-2 transition-colors ${
         isCurrent
-          ? "border-(--tmd-accent)/60 bg-(--tmd-bg-hover)"
-          : "border-(--tmd-border)/60 hover:border-(--tmd-border)"
+          ? "border-(--tmd-accent)/50 bg-(--tmd-accent)/10"
+          : "cursor-pointer border-(--tmd-border)/60 hover:border-(--tmd-accent)/40 hover:bg-(--tmd-bg-hover)"
       }`}
     >
+      {isCurrent && <span aria-hidden className="absolute inset-y-0 left-0 w-0.5 bg-(--tmd-accent)" />}
       <div className="flex min-w-0 items-center gap-1.5">
         {kindLabel && (
           <span
             className={`shrink-0 rounded border px-1 text-meta ${
-              isCurrent ? "border-(--tmd-accent) text-(--tmd-accent)" : "border-(--tmd-border) text-(--tmd-fg-faint)"
+              isCurrent ? "border-transparent bg-(--tmd-accent) text-white" : "border-(--tmd-border) text-(--tmd-fg-faint)"
             }`}
           >
             {kindLabel}
           </span>
         )}
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-(--tmd-fg-faint)" title={entry.path}>
-          {entry.path}
+        <span className="min-w-0 flex-1 truncate font-mono text-xs text-(--tmd-fg)">
+          {entry.detached ? t("(detached)") : entry.branch}
         </span>
       </div>
       <div className="mt-1 flex min-w-0 items-center gap-2">
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-(--tmd-fg)">
-          {entry.detached ? t("(detached)") : entry.branch}
+        <span className="min-w-0 flex-1 truncate font-mono text-meta text-(--tmd-fg-faint)" title={entry.path}>
+          {entry.path}
         </span>
         {!isMain && !entry.prunable && <DirtBadge cwd={entry.path} />}
         <TreeActions
@@ -235,6 +257,7 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
   return (
     <div className="border-b border-(--tmd-border)/60 px-2 pb-2">
       <div className="flex items-center gap-1.5 py-1.5">
+        <TreeStructure size="0.75rem" aria-hidden data-decor-from="git-worktree" className="shrink-0 text-(--tmd-fg-faint)" />
         <span className="text-xs text-(--tmd-fg-faint)">
           {t("工作树 ({n})", { n: entries.length })}
         </span>

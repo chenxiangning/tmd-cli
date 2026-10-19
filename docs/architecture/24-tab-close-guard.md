@@ -49,7 +49,16 @@
 - 确认闸 `ArticleDiscardGate` **由 `ArticleTab` 自己渲染**:挂载期经 `installArticleDiscardGate(tabId, gate)` 按 tab id 注册,卸载摘除 —— tab 在挂 = 闸在,不依赖任何外部挂点(overlay / 工作日志页签)的挂载时机。keepAlive 保证切走的 tab 仍常驻挂载,且闸在 `closeTab` 之前结算:问话时组件必然在挂,不存在「宿主不在场」的窗口。
 - 开路径(`openArticleTab` 重开带草稿空日)用同一张闸,按目标 tab id 问;闸对重入与卸载都做结算兜底,不留悬挂 Promise。
 - files 侧(2026-10-13 补):`file:` tab 贡献声明 `beforeClose: fileBeforeClose` —— 判据同脏圆点(useFileDocument 镜像);闸体 `askDialog` 命令式(文件 tab 非 keepAlive,切走即卸载,闸随组件渲染必缺席);**「丢弃」必须 `draftDelete`** —— 草稿在内存缓存,只关 tab 不删草稿则重开原地复活,弹窗说「将丢失」就得真丢。
-- ssh 侧(2026-10-13 补):`ssh-file` tab 同型接入;远端编辑没有本地草稿缓存,静默关闭即真丢稿,闸体同 `askDialog`,确认丢弃无需清草稿。
+- ssh 侧(2026-10-13 补):`ssh-file` tab 同型接入;远端编辑没有本地草稿缓存,静默关闭即真丢稿,闸体同 `askDialog`,确认丢弃无需清草稿(0.4.0 起确认丢弃还须清 localStorage 镜像,见下)。
+
+## 退出模式与草稿镜像(2026-10-19,0.4.0 项 12)
+
+关 tab 有闸(上节),关窗是另一条静默丢稿路径,双腿补齐(关窗闸落地;⌘Q 腿裁决取消,见下):
+
+- **退出模式**:`requestCloseAllTabs({ quit: true })` —— 关窗聚合裁决后的**强制放行通道**:绕各 kind 闸(闸只服务单 tab 手势,退出已整体裁决),先 `cancelAllAsks` 按不放行结清在途命令式问话(askDialog 不随 tab 卸载自愈,留着会挂住退出),再等全部在途闸 Promise 结算落地才返回(**结算等待**,设计点④:悬挂 promise 不得带出退出)。旧调用 `requestCloseAllTabs()` 语义零变化。
+- **关窗闸(单腿)**:`kernel/quitGuard.tsx` 在 app-shell boot 挂载,订阅 onCloseRequested(ipc.ts 原语,**同步决断**:调 prevent 才拦,不调走原生销毁 —— 不做「全拦再补发」,防脏空场景 windowClose 重入死循环):有脏先 `draftMirrorFlushAll` 同帧补写镜像,再弹聚合确认(一次问清,不串行逐个问);确认 → 退出模式强关 → `windowClose()`;取消 → 什么都不做。「本次不再问」是**内存标志**(本次运行有效,不持久;重启恢复询问,跨强退安全网不撤)。
+- **⌘Q 应用退出腿:裁决取消(2026-10-19 批二 review,P0+P1)**。证据两条:① tauri-runtime-wry 2.12.1 中 `ExitRequested{code:None}` 仅来自最后窗口 Destroyed,在此 `prevent_exit` 会得到杀不掉的僵尸进程;② macOS 侧(tao 0.37.1)没有 applicationShouldTerminate 挂点,⌘Q 根本不会触发 ExitRequested —— Rust 侧无可靠闸点。⌘Q 若要做需走菜单装配(Menu accel → 前端命令)另立条目,不属本批。
+- **草稿镜像**:`kernel/draftMirror.ts` 把三类随进程蒸发的内存草稿(file 内存 Map / journal 便签组件态 / ssh-file 无缓存)防抖 300ms 镜像进 localStorage(键 `tmd.draftMirror.<slot>`,slot:`file:<path>` / `journal-note:<ymd>` / `ssh-file:<path>`;TTL 7 天台账 mobile useDraft 先例;单条 256KB 截断;try/catch 静默)。**镜像与闸的分工**:闸管「问」,镜像管「真关了也能找回来」—— 闸确认丢弃 = 连镜像一起清(与 draftDelete 同点);退出强关**不清镜像**(崩溃网不撤,重开走恢复条 `DraftMirrorBar`:恢复回填置脏 / 丢弃清镜像)。覆盖边界:journal 镜像**仅便签文本** —— 贴图在粘贴时已落 assets/,「未保存的图片引用」不跨崩溃恢复;ssh 槽按路径(未掺 sessionId),跨主机同路径理论串槽由 TTL 自愈。
 
 ## 验证
 
@@ -61,3 +70,5 @@
 - journal 侧既有测试全绿(`src/plugins/workbench/journal/` 21 文件 167 例)。
 - 门禁:`pnpm check:gate` 全链绿;`react-doctor` 100。
 - 真机目检(留大仙):文章 tab 敲入草稿(页签出现脏圆点)→ ⌘W / × / 右键关其他 / 关全部,四路均先弹「未保存的修改」;选「取消」tab 保留且脏圆点仍在;「工作日志」页签关掉后再关那个带草稿的文章 tab,同样弹确认(闸随 tab 本体,不依赖工作日志页签在场)。文件 tab 同表:编辑文档出脏圆点(不必保持激活,切走再关也拦)→ 四路先弹「未保存的修改」,「丢弃」后重开同文件草稿不复活,「取消」草稿与脏圆点俱在;远端文件编辑后关闭同弹。
+- 关窗闸回归(0.4.0 项 12;两条必测):① 红 X 两态——有脏弹聚合确认、确认后窗口关闭且**进程退出**(防关窗闸退化成僵尸窗);无脏直接关、进程照常退出;② ⌘W 单关各 kind 闸行为零变化(不接新参数、语义不漂移)。
+- 崩溃恢复目检:编辑文件出草稿 → 强杀进程 → 重开同文件顶部出恢复黄条,「恢复」回填置脏 / 「丢弃」清镜像不再弹;⌘Q 当前**不拦**(腿取消,见上),窗口关闭即丢内存草稿,镜像兜底可恢复。

@@ -18,6 +18,7 @@
 - pending 队列核心自 anim refStore 上移 kernel(≥2 消费:anim AI 会话/workspace 预设):`setPendingPrompt`(LRU 8,插入序逐出)/`consumePendingPrompt`(原子读+清,发送变换唯一消费口)/`usePendingPrompt`;anim refs 半区留在插件。
 - 预设存储:`~/.tmd-cli/session-presets.json` 单文件+内存单源+emit(agents.json 范式),白名单 sanitize 坏形整条弃置;`loadSessionPresets` 全错吞为空库(contract 测试无 Tauri 环境激活不炸)。
 - 起会话链:`spawnRawSession`(kernel 统一装配,identityTrack 必开)→ 成功才 `setPendingPrompt`;失败零残留,报错走内核 `sessionStartFailed`。提示词引用存 `{scope,wsId,name}` 三元组(assets 提示词无 id),消费时 `promptContent` 现读;悬空引用灰态禁点不猜测。入口恒显先例:本地工作区(!origin)菜单段,引擎候选空禁点+提示。
+- 范围字段(2026-10-19 补设计定稿):`worktree?: boolean` = 每次在新 worktree 起会话(分支 = 预设名 slug 加 wt/ 前缀,`finalBranchName` 冲突自动递增),undefined = 当前工作区 root。启动编排 `launchPresetWorktreeSession`(presetLaunch,gitInfo/create/startFailed 三依赖注入可 node 测)→ `runWorktreeCreate` 里程碑回滚链复用(spawnArgs/spawnEnv/promptText 覆盖面缺省 = 对话框路径零变化),pending 注入在 record 关联后;非 git 仓/建树失败经 `deps.startFailed` 广播 `sessionStartFailed`(StartFailureToast 呈现)。菜单行信息密度对齐设计:名称 + 范围/引用 pill + 描述行(引用 = 现读说明;内联 = 原文预览;无 = 明示)。表单范围选择带分支 slug 预览;悬空引用在编辑面板改绑或转自定义文本。
 - 集成教训:`toggleGroup` 机械压缩曾误写工作区折叠 map(点组头错折工作区)——压缩必须变量级 diff 自查,不能只看行数。
 
 ## 检索定位桥(kernel anchorJump.ts 扩展)
@@ -27,8 +28,8 @@
 
 ## checkpoint↔转录互跳(checkpoints)
 
-- 正向:时间线每条用户消息挂「本轮 N 文件」chip——匹配 = 账本 `BatchInfo.prompt` 与消息文本全等,多轮同文按出现序配对(锚点与批次皆单调序列,错位保单调不回跳);匹配不到不渲染(不猜测);`attribution:"git"` 带「推断」标注。展开复用审批线文件行配色(独立 `fileChipCls.ts`,组件文件禁非组件导出)。
-- 反向:审阅单消息卡「看对话」(批头是 button 内嵌按钮非法 HTML,放 Sheet 消息卡);`resolveLedgerProfileId` 补账本缺 profileId——活会话直取,已关并行扫各引擎 `Promise.all` 唯一认领(多引擎同 id 歧义/零命中=null 不猜);无 prompt 的轮次(guard/edit)不出动作。
+- 正向:时间线每条用户消息挂「本轮 N 文件」chip——匹配双闸 = 轮号对齐(账本 `index` 与 kernel 锚点同源「会话第 N 条真实用户轮」序号,纯阅读轮占号不出批,防空批轮挤位)+ 账本 `BatchInfo.prompt` 与消息文本全等(2026-10-19 二轮评审定稿,替代初版纯出现序配对);匹配不到不渲染(不猜测);`attribution:"git"` 带「推断」标注。展开复用审批线文件行配色(独立 `fileChipCls.ts`,组件文件禁非组件导出)。
+- 反向:审阅单消息卡「看对话」(批头是 button 内嵌按钮非法 HTML,放 Sheet 消息卡);`resolveLedgerProfileId` 补账本缺 profileId——活会话直取,已关并行扫各引擎 `Promise.all` 唯一认领(多引擎同 id 歧义/零命中=null 不猜);无 prompt 的轮次(guard/edit)不出动作。同文多轮按本批出现序传 `occurrence`(批 index 在同文批次升序中的排名),kernel `findAnchorRow` 自顶向下数第 k 个命中,不再恒落最新。
 
 ## 存储体检(Rust fs_usage.rs + settings 新区 storage-audit 插件)
 

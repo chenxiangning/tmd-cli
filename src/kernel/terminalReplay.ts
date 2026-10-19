@@ -182,6 +182,7 @@ export function attachTerminalStream(
     );
     if (freeze.mode === "fast") {
       term.write(freeze.snap.screenText);
+      term.write(`\x1b[${freeze.snap.cursorY + 1};${freeze.snap.cursorX + 1}H\x1b[0m`); /* CSI H 归位快照光标(SGR 无法还原,显式复位);防活跃 TUI 相对寻址错位,详见 terminalFreeze.ts 快照字段注 */
       void writeInChunks(term, freeze.incremental, () => undefined).then(() => {
         inputGate.release();
         if (cancelled) return;

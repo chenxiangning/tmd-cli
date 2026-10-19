@@ -34,22 +34,34 @@ function Thumb({
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [box, setBox] = useState<HTMLButtonElement | null>(null);
   useEffect(() => {
+    if (!box) return;
     let cancelled = false;
-    ipc.readLocalImageDataUrl(path).then(
-      (url) => {
-        if (cancelled) return;
-        if (url) setSrc(url);
-        else setFailed(true);
+    /* 时间线 keep-alive 常挂,行数×图数挂载即全量读会无界:进视口才读盘 */
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting) || cancelled) return;
+        io.disconnect();
+        ipc.readLocalImageDataUrl(path).then(
+          (url) => {
+            if (cancelled) return;
+            if (url) setSrc(url);
+            else setFailed(true);
+          },
+          () => {
+            if (!cancelled) setFailed(true);
+          },
+        );
       },
-      () => {
-        if (!cancelled) setFailed(true);
-      },
+      { rootMargin: "200px" },
     );
+    io.observe(box);
     return () => {
       cancelled = true;
+      io.disconnect();
     };
-  }, [path]);
+  }, [box, path]);
 
   if (failed) {
     return (
@@ -65,6 +77,7 @@ function Thumb({
   return (
     <button
       type="button"
+      ref={setBox}
       disabled={!src}
       className="flex h-[72px] w-24 flex-none items-center justify-center overflow-hidden rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) hover:border-(--tmd-border-strong)"
       title={t("{name} —— 点击放大查看", { name: fileName(path) })}

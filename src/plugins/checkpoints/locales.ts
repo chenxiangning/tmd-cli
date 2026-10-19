@@ -30,6 +30,27 @@ const MESSAGES_EN = {
     "Locate this message in the conversation (a closed session is resumed first)",
   "会话已打开,未定位到该条消息": "Session opened, but the message could not be located",
   "未能定位到该条对话消息": "Could not locate this message in the conversation",
+  /* 变更总览(0.4.0 项11):右栏第三页签,跨批次按文件折叠 */
+  "变更": "Changes",
+  "改动中": "In progress",
+  "已删除": "Deleted",
+  "{n} 可回退": "{n} revertible",
+  "账本累计": "ledger total",
+  "路径过滤,如 sweep": "Filter by path, e.g. sweep",
+  "最近批": "Latest batch",
+  "{n} 批": "{n} batches",
+  "还有 {n} 个文件 · 点击展开": "{n} more files · click to expand",
+  "无匹配文件 —— 换个状态档或清空路径过滤":
+    "No matching files — try another state or clear the path filter",
+  "本会话还没有文件变更 —— AI 改动文件后,这里按文件折叠显示":
+    "No file changes in this session yet — once AI edits files they are folded here per file",
+  "打开批次审阅单并定位该文件": "Open the batch review sheet and locate this file",
+  "高危文件(凭据/Shell 配置/CI/服务),建议细读 diff":
+    "Sensitive file (credentials / shell config / CI / services) — read the diff carefully",
+  "按最近批时间降序": "Sort by latest batch (newest first)",
+  "按账本 ± 行数降序": "Sort by ledger ± lines (largest first)",
+  "± 为账本累计口径,回退不回缩;逐文件 diff 见批次审阅单":
+    "± counts are ledger totals (reverts don't shrink them); per-file diffs live in the batch review sheet",
 } as const;
 
 /** ja 词典 · checkpoints 域。 */
@@ -57,6 +78,27 @@ const MESSAGES_JA = {
     "このメッセージの会話内の位置へ移動します(終了したセッションは先に復元されます)",
   "会话已打开,未定位到该条消息": "セッションは開きましたが、該当メッセージを見つけられませんでした",
   "未能定位到该条对话消息": "このメッセージの会話内の位置を特定できませんでした",
+  /* 变更总览(0.4.0 项11):右栏第三页签,跨批次按文件折叠 */
+  "变更": "変更",
+  "改动中": "変更中",
+  "已删除": "削除済み",
+  "{n} 可回退": "ロールバック可能 {n} 件",
+  "账本累计": "台帳累計",
+  "路径过滤,如 sweep": "パスで絞り込み(例: sweep)",
+  "最近批": "最新バッチ",
+  "{n} 批": "{n} バッチ",
+  "还有 {n} 个文件 · 点击展开": "他 {n} 件 · クリックで展開",
+  "无匹配文件 —— 换个状态档或清空路径过滤":
+    "一致するファイルがありません —— 状態を変えるかパス絞り込みを解除してください",
+  "本会话还没有文件变更 —— AI 改动文件后,这里按文件折叠显示":
+    "このセッションにはまだファイル変更がありません —— AI がファイルを変更するとファイル単位で折りたたんで表示します",
+  "打开批次审阅单并定位该文件": "バッチ審査シートを開いてこのファイルへ移動します",
+  "高危文件(凭据/Shell 配置/CI/服务),建议细读 diff":
+    "敏感なファイル(認証情報 / シェル設定 / CI / サービス)です。diff を確認してください",
+  "按最近批时间降序": "最新バッチ順で並べ替え",
+  "按账本 ± 行数降序": "台帳 ± 行数順で並べ替え",
+  "± 为账本累计口径,回退不回缩;逐文件 diff 见批次审阅单":
+    "± は台帳累計(ロールバックしても減りません)。ファイル単位の diff はバッチ審査シートで確認できます",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

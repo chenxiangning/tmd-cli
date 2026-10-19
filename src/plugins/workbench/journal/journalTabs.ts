@@ -8,6 +8,7 @@ import { dayKey } from "./journalFiles";
 import { dayTitleOf } from "./dateTitle";
 
 export const ARTICLE_TAB_KIND = "daily-article";
+
 export interface ArticleTabPayload {
   y: number;
   m: number;

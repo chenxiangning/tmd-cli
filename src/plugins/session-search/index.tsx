@@ -17,7 +17,7 @@ export const sessionSearchPlugin: Plugin = {
   meta: {
     name: "会话检索",
     abbr: "SS",
-    desc: "按你输入过的内容检索本工作区的历史会话,一键续聊",
+    desc: t("按你输入过的内容检索历史会话,支持全部工作区,一键续聊"),
     icon: MagnifyingGlass,
     iconColor: "#7C6CF5",
     category: "feature",

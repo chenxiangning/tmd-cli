@@ -22,25 +22,109 @@ import { createSessionHere, openLink } from "../sessionOpen";
 import { useProjectSessions } from "../useProjectSessions";
 import {
   focusBand, focusBuckets, focusLine, pulsePartition,
-  type PulseRow,
+  type FocusBuckets, type FocusLine, type PulseRow,
 } from "../focusModel";
 import type { FollowUpItem } from "../followUpBuckets";
 import { FocusBandSection, GhostIndex, PulseActivity } from "./FocusParts";
 import type { WbScreenProps } from "./cards";
 
-export function FocusScreen({ allProjects, today, onOpen, onNewProject, onToast, onTab, onNewTask }: WbScreenProps) {
+/** 要处理行上下文(三桶与更晚折叠共用)。 */
+type RowCtx = {
+  workspaces: readonly Workspace[];
+  projectsById: Record<string, Project>;
+  onOpen: (id: string) => void;
+  onToast: (message: string) => void;
+  onAskDelete: (item: FollowUpItem) => void;
+  onTab?: (tab: "board") => void;
+  onNewTask?: () => void;
+};
+
+/** 「要处理」段:逾期/今周桶分组 + 更晚与未排期折叠(复杂度自 FocusScreen 拆出)。 */
+function FocusTodoSection({ line, buckets, rowCtx }: {
+  line: FocusLine;
+  buckets: FocusBuckets;
+  rowCtx: RowCtx;
+}) {
+  const [laterOpen, setLaterOpen] = useState(false);
+  return (
+    <section className="wb-focus-sec">
+      <h3 className="wb-focus-sec-head">{t("要处理")}</h3>
+      {line.calm ? (
+        <div className="wb-focus-calm">
+          <p className="wb-focus-calm-t">{t("没有逾期、今天或本周到期的任务")}</p>
+          <p className="wb-muted">{t("今天属于主线工作。想去排一排,或补一条任务?")}</p>
+          <div className="wb-empty-actions">
+            <button type="button" className="wb-btn" onClick={() => rowCtx.onTab?.("board")}>{t("去任务看板")}</button>
+            <button type="button" className="wb-btn" onClick={() => rowCtx.onNewTask?.()}>{t("新建任务")}</button>
+          </div>
+        </div>
+      ) : (
+        <div className="wb-focus-groups">
+          {buckets.main.filter((bucket) => bucket.items.length > 0).map((bucket) => (
+            <div key={bucket.key} className="wb-focus-group">
+              <h4 className="wb-focus-bucket-head" style={{ color: toneVar(bucket.tone) }}>
+                <b>{t(bucket.label)}</b><span>{bucket.total}</span>
+              </h4>
+              {bucket.items.map((item) => <FocusTaskRow key={item.key} item={item} {...rowCtx} />)}
+            </div>
+          ))}
+        </div>
+      )}
+      {buckets.later.length > 0 ? (
+        <div className="wb-focus-later">
+          <button type="button" className="wb-focus-strip" aria-expanded={laterOpen} onClick={() => setLaterOpen((v) => !v)}>
+            <CaretRight size={9} className={laterOpen ? "is-open" : undefined} />
+            {t("更晚与未排期")}<span>{buckets.later.length}</span>
+          </button>
+          {laterOpen ? buckets.later.map((item) => <FocusTaskRow key={item.key} item={item} {...rowCtx} />) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+/** 「已归档」折叠段(软归档恢复面;复杂度自 FocusScreen 拆出)。 */
+function ArchivedSection({ archivedProjects, onRestoreProject }: {
+  archivedProjects: readonly Project[];
+  onRestoreProject?: (id: string) => void;
+}) {
+  const [archivedOpen, setArchivedOpen] = useState(false);
+  return (
+    <section className="wb-focus-sec">
+      <button type="button" className="wb-focus-strip" aria-expanded={archivedOpen} onClick={() => setArchivedOpen((v) => !v)}>
+        <CaretRight size={9} className={archivedOpen ? "is-open" : undefined} />
+        {t("已归档({count})", { count: archivedProjects.length })}
+      </button>
+      {archivedOpen ? (
+        <ul className="wb-mini-list">
+          {archivedProjects.map((project) => (
+            <li key={project.id}>
+              <span className="wb-link" style={{ cursor: "default" }}>{project.name}</span>
+              <span className="wb-mini-meta">{project.archivedAt?.slice(0, 10)}</span>
+              {onRestoreProject ? (
+                <button type="button" className="wb-link" onClick={() => onRestoreProject(project.id)}>{t("恢复")}</button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+export function FocusScreen({ allProjects, today, onOpen, onNewProject, onToast, onTab, onNewTask, archivedProjects, onRestoreProject }: WbScreenProps) {
   const { list: workspaces } = useWorkspaces();
   const buckets = useMemo(() => focusBuckets(allProjects, today), [allProjects, today]);
   const band = useMemo(() => focusBand(allProjects, today), [allProjects, today]);
   const pulse = useMemo(() => pulsePartition(allProjects, today), [allProjects, today]);
   const line = useMemo(() => focusLine(buckets, pulse), [buckets, pulse]);
   const projectsById = useMemo(() => Object.fromEntries(allProjects.map((p) => [p.id, p])), [allProjects]);
-  const [laterOpen, setLaterOpen] = useState(false);
   const [askDelete, setAskDelete] = useState<FollowUpItem | null>(null);
-  if (allProjects.length === 0) {
+  /* 全量空但归档在场时不走空态:主视图各段天然空,底部「已归档」段仍是恢复面。 */
+  if (allProjects.length === 0 && (!archivedProjects || archivedProjects.length === 0)) {
     return <WbEmpty text={t("还没有项目。")}><button type="button" className="wb-btn" onClick={onNewProject}>{t("新建项目")}</button></WbEmpty>;
   }
-  const rowCtx = { workspaces, projectsById, onOpen, onToast, onAskDelete: setAskDelete };
+  const rowCtx = { workspaces, projectsById, onOpen, onToast, onTab, onNewTask, onAskDelete: setAskDelete };
   const clauses = [
     line.overdue > 0 ? t("{count} 条逾期", { count: line.overdue }) : "",
     line.dueToday > 0 ? t("{count} 条今天到期", { count: line.dueToday }) : "",
@@ -53,39 +137,7 @@ export function FocusScreen({ allProjects, today, onOpen, onNewProject, onToast,
           : t("今天 {clauses},{active} 个项目活跃。", { clauses, active: line.active })}
       </p>
 
-      <section className="wb-focus-sec">
-        <h3 className="wb-focus-sec-head">{t("要处理")}</h3>
-        {line.calm ? (
-          <div className="wb-focus-calm">
-            <p className="wb-focus-calm-t">{t("没有逾期、今天或本周到期的任务")}</p>
-            <p className="wb-muted">{t("今天属于主线工作。想去排一排,或补一条任务?")}</p>
-            <div className="wb-empty-actions">
-              <button type="button" className="wb-btn" onClick={() => onTab?.("board")}>{t("去任务看板")}</button>
-              <button type="button" className="wb-btn" onClick={() => onNewTask?.()}>{t("新建任务")}</button>
-            </div>
-          </div>
-        ) : (
-          <div className="wb-focus-groups">
-            {buckets.main.filter((bucket) => bucket.items.length > 0).map((bucket) => (
-              <div key={bucket.key} className="wb-focus-group">
-                <h4 className="wb-focus-bucket-head" style={{ color: toneVar(bucket.tone) }}>
-                  <b>{t(bucket.label)}</b><span>{bucket.total}</span>
-                </h4>
-                {bucket.items.map((item) => <FocusTaskRow key={item.key} item={item} {...rowCtx} />)}
-              </div>
-            ))}
-          </div>
-        )}
-        {buckets.later.length > 0 ? (
-          <div className="wb-focus-later">
-            <button type="button" className="wb-focus-strip" aria-expanded={laterOpen} onClick={() => setLaterOpen((v) => !v)}>
-              <CaretRight size={9} className={laterOpen ? "is-open" : undefined} />
-              {t("更晚与未排期")}<span>{buckets.later.length}</span>
-            </button>
-            {laterOpen ? buckets.later.map((item) => <FocusTaskRow key={item.key} item={item} {...rowCtx} />) : null}
-          </div>
-        ) : null}
-      </section>
+      <FocusTodoSection line={line} buckets={buckets} rowCtx={rowCtx} />
 
       <FocusBandSection band={band} onOpen={onOpen} />
 
@@ -100,6 +152,10 @@ export function FocusScreen({ allProjects, today, onOpen, onNewProject, onToast,
         )}
         {pulse.ghosts.length > 0 ? <GhostIndex ghosts={pulse.ghosts} onOpen={onOpen} /> : null}
       </section>
+
+      {archivedProjects && archivedProjects.length > 0 ? (
+        <ArchivedSection archivedProjects={archivedProjects} onRestoreProject={onRestoreProject} />
+      ) : null}
 
       {askDelete ? (
         <WbConfirm

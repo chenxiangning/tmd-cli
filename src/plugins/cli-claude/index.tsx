@@ -154,6 +154,11 @@ export const cliClaudePlugin: Plugin = {
        插件缓存,项目级优先),静态内置表兜底 —— 不再 activate 时 hydrate。 */
     const profile: CliProfile = {
       id: "claude",
+      /* 原生记忆文件(academy「上下文与记忆」章公开知识:/memory 编辑 CLAUDE.md)。 */
+      memoryFiles: [
+        { scope: "project", label: "CLAUDE.md", relPath: "CLAUDE.md" },
+        { scope: "user", label: "CLAUDE.md", relPath: ".claude/CLAUDE.md" },
+      ],
       fetchQuota: fetchClaudeQuota,
       docsUrl: "https://code.claude.com/docs/en/cli-reference",
       // npm 包仅用于 registry 最新版查询;安装走下方官方脚本通道。

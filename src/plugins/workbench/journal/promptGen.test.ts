@@ -100,6 +100,35 @@ describe("buildGenPrompt", () => {
   });
 });
 
+describe("buildGenPrompt 功能卡契约(spec L3 管线 A)", () => {
+  const feats = "/dj/footprint/features/2026-09-29.json";
+  it("契约段在位:路径/schema 原文/铁律,写范围改双文件", () => {
+    const p = buildGenPrompt(2026, 9, 29, [row("2026-09-29T09:30:00", "omp", "mermaid 渲染", "s1")], false, "/dj/a.md", undefined, handoff, undefined, feats);
+    expect(p).toContain(feats);
+    expect(p).toContain(
+      '{"version":1,"cards":[{"title":"功能名(≤12字)","summary":"一句话(≤40字)","sessions":["必须取自当日摘录中出现的会话 id"],"quote":{"sid":"会话id","text":"用户原话(≤60字)","time":"HH:MM"}}]}',
+    );
+    expect(p).toContain("禁止编造");
+    expect(p).toContain("单日 1-8 张,宁缺勿滥");
+    expect(p).toContain("只写文中给定的两个文件");
+    expect(p).not.toContain("只写这一个文件");
+    expect(p).not.toContain("旧卡 title 一经生成即冻结"); /* 全新生成无旧卡,冻结条款不出现 */
+  });
+
+  it("增量并入:旧卡冻结/只归并或新建/不改措辞条款在位", () => {
+    const p = buildGenPrompt(2026, 9, 29, [row("2026-09-29T13:00:00", "omp", "mermaid 渲染", "s1")], true, "/dj/a.md", undefined, handoff, undefined, feats);
+    expect(p).toContain("旧卡 title 一经生成即冻结");
+    expect(p).toContain("不改旧卡 title/summary 等任何措辞");
+    expect(p).toContain("或为全新主线新建卡");
+  });
+
+  it("未传 featuresPath:契约段整体省略,与旧版零差异", () => {
+    const p = buildGenPrompt(2026, 9, 29, [row("2026-09-29T09:30:00")], false, "/dj/a.md");
+    expect(p).not.toContain("功能卡");
+    expect(p).toContain("只写这一个文件");
+  });
+});
+
 describe("buildGenPrompt 项目分组(工作台派生,P3)", () => {
   const rows = [
     row("2026-09-29T09:30:00", "omp", "甲会话", "s1"),

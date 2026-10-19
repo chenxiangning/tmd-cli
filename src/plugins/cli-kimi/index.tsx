@@ -74,6 +74,8 @@ export const cliKimiPlugin: Plugin = {
   activate(ctx) {
     const profile: CliProfile = {
       id: "kimi",
+      /* 原生记忆文件(academy「/init 分析代码库并生成 AGENTS.md」)。 */
+      memoryFiles: [{ scope: "project", label: "AGENTS.md", relPath: "AGENTS.md" }],
       docsUrl: "https://moonshotai.github.io/kimi-code/",
       npmPackage: "@moonshot-ai/kimi-code",
       /* 官方原生通道(install.ps1/install.sh 写 ~/.kimi-code/bin)。kimi 双分发:

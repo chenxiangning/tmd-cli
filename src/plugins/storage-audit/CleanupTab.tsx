@@ -124,7 +124,7 @@ export function CleanupTab() {
                   onClick={() => setArmedCwd(row.workspace.root)}
                 >
                   <Trash size="0.75rem" aria-hidden />
-                  {t("清理到最近 {keep} 个/{days} 天", { keep: KEEP, days: TTL_DAYS })}
+                  {t("清理")}
                 </button>
               )}
             </div>

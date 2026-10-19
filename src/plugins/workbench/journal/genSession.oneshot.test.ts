@@ -42,6 +42,7 @@ vi.mock("./journalFiles", () => ({
     article: (y: number, m: number, d: number) => `/fake/${y}-${m}-${d}.md`,
     digest: (y: number, m: number, d: number) => `/fake/digest-${y}-${m}-${d}.md`,
     prompt: (y: number, m: number, d: number) => `/fake/prompt-${y}-${m}-${d}.md`,
+    featureCards: (y: number, m: number, d: number) => `/fake/footprint/features/${y}-${m}-${d}.json`,
   })),
   dayKey: (y: number, m: number, d: number) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
   readText: vi.fn(async () => ""),

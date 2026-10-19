@@ -23,6 +23,7 @@ import { usePlatformKind } from "@kernel/platform";
 import { PluginMarketPage } from "./PluginMarketPage";
 import { StartFailureToast } from "./StartFailureToast";
 import { ExitSessionToast } from "./ExitSessionToast";
+import { SessionRestorePill } from "./SessionRestorePill";
 import { SettingsPersistToast } from "./SettingsPersistToast";
 import { useEditorMaximized, installSessionViewReveal } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
@@ -144,6 +145,7 @@ export function AppShell() {
       <SettingsPersistToast />
       <StartFailureToast />
       <ExitSessionToast />
+      <SessionRestorePill />
     </div>
   );
 }

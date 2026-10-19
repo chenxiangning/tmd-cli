@@ -48,7 +48,7 @@ pub fn remove_path(path: &str) -> Result<(), String> {
     };
     let ok = allowed_remove_roots()
         .iter()
-        .any(|root| canonical.starts_with(root));
+        .any(|root| canonical.starts_with(root) && canonical != *root);
     if !ok {
         return Err(format!("拒绝删除白名单外的路径: {path}"));
     }
@@ -117,6 +117,15 @@ mod tests {
         assert!(!root.join("y.txt").exists());
         let _ = fs::remove_dir_all(&root);
     }
+
+    #[test]
+    fn remove_path_拒绝白名单根本身() {
+        // renderer 误传白名单根本身(temp 区 = temp_dir()/tmd-cli)不得整目录连根拔
+        let root = std::env::temp_dir().join("tmd-cli");
+        let err = remove_path(root.to_str().unwrap()).unwrap_err();
+        assert!(err.contains("白名单"), "应拒绝白名单根: {err}");
+    }
+
     #[test]
     fn 白名单覆盖各家_cli_会话盘() {
         // 每家 CLI 的会话删除都依赖本原语放行对应 home 目录;

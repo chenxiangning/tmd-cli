@@ -4,6 +4,12 @@ export const MESSAGES = {
   // tabs(index.tsx 贡献)
   "自建服务器": "Self-hosted server",
   "设备": "Devices",
+  // 重启现场恢复(BasicAppearanceTab / SessionRestorePill)
+  "重启后恢复上次打开的会话": "Restore last open sessions after restart",
+  "启动后自动重新打开上次打开的会话(数量随会话标题 tab 条容量)。":
+    "Automatically reopen the last open sessions on startup, up to the session tab capacity.",
+  "正在恢复上次会话 {done}/{total}": "Restoring last sessions {done}/{total}",
+  "跳过本次恢复": "Skip this restore",
   // WebCfPane(Cloudflare tab;① 大白话改口)
   "没有自己的服务器就走这条:中继跑在你自己的 Cloudflare 账号上(免费额度就够),只搬字节、不存内容。左卡贴上 Cloudflare API Token 点「立即部署」,地址和密钥自动填进右卡;Token 只用这一次,不保存。":
     "No server of your own? Take this route: the relay runs as a Worker on your Cloudflare account (the free tier is enough) — it only shuttles bytes and stores nothing. Paste a Cloudflare API token on the left card and hit Deploy; the URL and key land on the right card automatically. The token is used once and never stored.",

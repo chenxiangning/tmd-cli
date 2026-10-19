@@ -158,6 +158,11 @@ export const cliCodexPlugin: Plugin = {
     ctx.registerCliConfig({ ...codexConfigEntry, icon: (size) => <CodexGlyph size={size} />, providerPanel: () => <ProviderChannelsCard engineId="codex" applyChannel={applyCodexChannel} /> });
     ctx.registerCliProfile({
       id: "codex",
+      /* 原生记忆文件(codex /init 生成 AGENTS.md,sessionHead 包装识别同源知识)。 */
+      memoryFiles: [
+        { scope: "project", label: "AGENTS.md", relPath: "AGENTS.md" },
+        { scope: "user", label: "AGENTS.md", relPath: ".codex/AGENTS.md" },
+      ],
       fetchQuota: fetchCodexQuota,
       docsUrl: "https://github.com/openai/codex",
       npmPackage: "@openai/codex",

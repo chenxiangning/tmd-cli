@@ -57,11 +57,12 @@ function seedFreeze(id: string, unload: string, fingerprint: string, screenText:
     cols: 80,
     rows: 24,
     screenText,
+    cursorX: 2,
+    cursorY: 3,
     unloadChars: unload.length,
     bytePos: new TextEncoder().encode(unload).length,
     headSample: unload,
     fingerprint,
-    at: 1,
   });
 }
 
@@ -82,7 +83,8 @@ describe("attachTerminalStream 挤除冻结快照路径", () => {
 
     await vi.waitFor(() => expect(term.writes.join("")).toContain("LIVE"));
     expect(term.writes[0]).toBe("[SCREEN]"); // 投影先行(同步上屏)
-    expect(term.writes.join("")).toBe("[SCREEN]" + APPEND + "LIVE");
+    expect(term.writes[1]).toBe("\x1b[4;3H\x1b[0m"); // 光标归位到快照位(y3,x2 → 1 起)+ SGR 复位
+    expect(term.writes.join("")).toBe("[SCREEN]" + "\x1b[4;3H\x1b[0m" + APPEND + "LIVE");
     expect(term.writes.join("")).not.toContain(UNLOAD); // 全量回放已跳过
     expect(progress).toEqual([null]); // 零遮罩:直接就绪撤罩
     expect(onReady).toHaveBeenCalledTimes(1);

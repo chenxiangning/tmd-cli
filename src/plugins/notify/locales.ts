@@ -62,6 +62,36 @@ const MESSAGES_EN = {
     "Silence lifts at this time (exclusive); equal times mean all day.",
   "免打扰开始时间": "Do-not-disturb start time",
   "免打扰结束时间": "Do-not-disturb end time",
+  "额度预警": "Quota alert",
+  "「{name}」的额度需要关注": "\"{name}\" needs your attention on quota",
+  "「{name}」额度窗口约 {mins} 分钟后重置":
+    "\"{name}\"'s quota window resets in about {mins} min",
+  "{title}:余额 {amount} 已低于下限 {below}":
+    "{title}: balance {amount} is below the {below} limit",
+  "窗口将撞墙/余额过低/即将重置时发系统通知;通知中心流水不受开关影响,照常记录。":
+    "Send a system notification when a window nears its cap, the balance runs low, or a reset is due; the notification log records either way.",
+  "余额告警下限": "Balance alert floor",
+  "账户余额低于该数值即发通知(货币跟随供应商回包,deepseek/中转站有效);余额型供应商无额度分母,用绝对金额而非百分比;0 = 关。":
+    "Notify when the account balance drops below this amount (currency follows the provider response; deepseek/relay only). Balance-type providers have no quota denominator, so an absolute amount is used instead of a percent; 0 = off.",
+  "余额告警下限金额": "Balance alert floor amount",
+  "非负数值;清空或非法输入将保持当前值。":
+    "A non-negative number; empty or invalid input keeps the current value.",
+  "重置前提醒": "Reset reminder",
+  "claude 5 小时窗口按本地用量行推算,距重置不足该分钟数即提醒一次(5-240;仅官方 OAuth 登录的 claude 有效,其余供应商走真实额度 API)。":
+    "claude's 5-hour window is estimated locally from usage lines; notify once when the reset is fewer than these minutes away (5-240; only official OAuth claude, other providers use the real quota API).",
+  "窗口重置前提醒分钟数": "Minutes before window reset to remind",
+  "5-240 的整数;清空或非法输入将保持当前值。":
+    "An integer between 5 and 240; empty or invalid input keeps the current value.",
+  "静音通知": "Mute notifications",
+  "完全静音": "Mute all",
+  "静音至回合结束": "Mute until turn ends",
+  "取消静音": "Unmute",
+  "取消静音({mode})": "Unmute ({mode})",
+  "静音中的会话({n})": "Muted sessions ({n})",
+  "静音只拦系统通知与提示音,通知中心流水照常记录。":
+    "Muting blocks OS notifications and sounds only; the notification log keeps recording.",
+  "ask 亦静": "ask muted too",
+  "该会话的通知已静音": "Notifications are muted for this session",
 } as const;
 
 /** ja 词典 · notify 域。 */
@@ -122,6 +152,36 @@ const MESSAGES_JA = {
     "この時刻で解除(時刻自体は含まず)。開始 = 終了は終日消音。",
   "免打扰开始时间": "おやすみモード開始時刻",
   "免打扰结束时间": "おやすみモード終了時刻",
+  "额度预警": "クォータ警告",
+  "「{name}」的额度需要关注": "「{name}」のクォータに注意が必要です",
+  "「{name}」额度窗口约 {mins} 分钟后重置":
+    "「{name}」のクォータウィンドウは約 {mins} 分後にリセットされます",
+  "{title}:余额 {amount} 已低于下限 {below}":
+    "{title}: 残高 {amount} が下限 {below} を下回りました",
+  "窗口将撞墙/余额过低/即将重置时发系统通知;通知中心流水不受开关影响,照常记录。":
+    "ウィンドウ上限接近・残低下・リセット接近時にシステム通知を送信。通知ログはスイッチに関係なく通常どおり記録されます。",
+  "余额告警下限": "残高警告の下限",
+  "账户余额低于该数值即发通知(货币跟随供应商回包,deepseek/中转站有效);余额型供应商无额度分母,用绝对金额而非百分比;0 = 关。":
+    "残高がこの値を下回ったら通知(通貨はプロバイダーの応答に従い、deepseek/中継のみ有効)。残高型プロバイダーには上限分母がないためパーセントではなく絶対額を使用;0 = オフ。",
+  "余额告警下限金额": "残高警告下限の金額",
+  "非负数值;清空或非法输入将保持当前值。":
+    "0 以上の数値。空欄や無効な入力では現在の値を維持します。",
+  "重置前提醒": "リセット前のリマインダー",
+  "claude 5 小时窗口按本地用量行推算,距重置不足该分钟数即提醒一次(5-240;仅官方 OAuth 登录的 claude 有效,其余供应商走真实额度 API)。":
+    "claude の 5 時間ウィンドウはローカルの使用量行から推定し、リセットまでの残りがこの分数(5-240)を下回ったら 1 度だけ通知(公式 OAuth の claude のみ有効。他プロバイダーは実クォータ API を利用)。",
+  "窗口重置前提醒分钟数": "ウィンドウリセット前の通知分数",
+  "5-240 的整数;清空或非法输入将保持当前值。":
+    "5-240 の整数。空欄や無効な入力では現在の値を維持します。",
+  "静音通知": "通知ミュート",
+  "完全静音": "完全ミュート",
+  "静音至回合结束": "ターン終了までミュート",
+  "取消静音": "ミュート解除",
+  "取消静音({mode})": "ミュート解除({mode})",
+  "静音中的会话({n})": "ミュート中のセッション({n})",
+  "静音只拦系统通知与提示音,通知中心流水照常记录。":
+    "ミュートは OS 通知と効果音だけを止め、通知ログは通常どおり記録されます。",
+  "ask 亦静": "ask も消音",
+  "该会话的通知已静音": "このセッションの通知はミュート中です",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

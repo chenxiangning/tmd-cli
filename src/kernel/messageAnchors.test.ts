@@ -68,9 +68,11 @@ describe("anchorNeedle", () => {
 });
 
 describe("findAnchorRow", () => {
-  it("自底向上命中最后一次出现(重复提问跳最新)", () => {
+  it("自顶向下命中;occurrence 取第 k 次出现(重复提问定位本条)", () => {
     const { handle } = fakeHandle(["同一句话", "中间回复", "同一句话"]);
-    expect(findAnchorRow(handle, "同一句话")).toBe(2);
+    expect(findAnchorRow(handle, "同一句话")).toBe(0);
+    expect(findAnchorRow(handle, "同一句话", 2)).toBe(2);
+    expect(findAnchorRow(handle, "同一句话", 3)).toBeNull();
   });
 
   it("长 needle 被气泡截断时退化短 needle 命中", () => {

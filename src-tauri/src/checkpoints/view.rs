@@ -80,6 +80,9 @@ pub fn derive_batches(
                         reverted,
                         live: live_state,
                         edit_count: tf.edit_count,
+                        // 账本 ± 透传(封口瞬间固化,回退不回缩;变更总览聚合源)
+                        additions: tf.additions,
+                        deletions: tf.deletions,
                         // 工作区外首轮无前像:禁回退标记(UI 隐藏回退入口,restore 后端再守)
                         no_baseline: tf.existed_before
                             && tf.before_oid.is_empty()
@@ -120,6 +123,9 @@ pub fn derive_batches(
                         status: untrack_char(&st),
                         live: "same".into(),
                         edit_count: edit_count_of(&p),
+                        // open 轮未封口,账本尚无 ±(封口瞬间固化);总览聚合不受影响
+                        additions: 0,
+                        deletions: 0,
                         // open 轮同封口编码:工作区外无前像(edit 行前像空)= 禁回退
                         no_baseline: super::is_external_path(&p)
                             && entries.iter().any(|e| {

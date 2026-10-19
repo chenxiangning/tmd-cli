@@ -145,3 +145,14 @@ describe("可见性与描述组合", () => {
     expect(store.promptContent("缺", "/x")).toBe("");
   });
 });
+
+describe("promptContentByRef", () => {
+  it("三元组全等才命中:global 引用不吃工作区同名覆盖,workspace 引用跨区为空", async () => {
+    await store.savePrompt("global", undefined, { name: "dup", content: "全局版" });
+    await store.savePrompt("workspace", "ws1", { name: "dup", content: "工作区版" });
+    expect(store.promptContentByRef({ scope: "global", name: "dup" })).toBe("全局版");
+    expect(store.promptContentByRef({ scope: "workspace", wsId: "ws1", name: "dup" })).toBe("工作区版");
+    expect(store.promptContentByRef({ scope: "workspace", wsId: "ws2", name: "dup" })).toBe("");
+    expect(store.promptContentByRef({ scope: "global", name: "缺" })).toBe("");
+  });
+});

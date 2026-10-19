@@ -24,6 +24,9 @@ export interface TerminalFreezeSnapshot {
   rows: number;
   /** 卸载时终态屏幕投影(buildReseedScreen 同源载荷)。 */
   screenText: string;
+  /** 投影时光标列/行(视口相对,0 起)。fast 路径写完投影后用 CSI H 还原,活跃 TUI 相对寻址不错位。 */
+  cursorX: number;
+  cursorY: number;
   /** 卸载时内存缓冲字符数(增量切片锚:重开缓冲以此为界切增量,UTF-16 码元)。 */
   unloadChars: number;
   /** 卸载时内存缓冲 UTF-8 字节数(快速否决;与翻页锚点 logSize-bytePos 同语义)。 */
@@ -32,8 +35,6 @@ export interface TerminalFreezeSnapshot {
   headSample: string;
   /** 会话进程身份指纹(pid+createdAt):防同 id 重 spawn 后错认旧屏幕。 */
   fingerprint: string;
-  /** 卸载时刻 ms epoch。 */
-  at: number;
 }
 
 /** 模块级存档(MRU 在 Map 尾部);key = sessionId,同会话重卸载覆盖刷新。 */
@@ -80,5 +81,13 @@ export function resolveFreezeReplay(
   if (!snap || snap.fingerprint !== fingerprint) return { mode: "full" };
   if (curBytes < snap.bytePos || curBuffer.length < snap.unloadChars) return { mode: "full" };
   if (curBuffer.slice(0, snap.headSample.length) !== snap.headSample) return { mode: "full" };
-  return { mode: "fast", incremental: curBuffer.slice(snap.unloadChars), snap };
+  /* 切点落在代理对中间回退一位:孤立低代理开头在 scrollback 渲染替换字形 */
+  const from =
+    snap.unloadChars > 0 &&
+    snap.unloadChars < curBuffer.length &&
+    curBuffer.charCodeAt(snap.unloadChars - 1) >= 0xd800 &&
+    curBuffer.charCodeAt(snap.unloadChars - 1) <= 0xdbff
+      ? snap.unloadChars - 1
+      : snap.unloadChars;
+  return { mode: "fast", incremental: curBuffer.slice(from), snap };
 }

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 追加批 · 11/14 — 会话变更总览(跨批次文件折叠)</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12px; padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+  tr:last-child td { border-bottom: none; }
+  td.y { color: var(--ok-deep); font-weight: 600; }
+  td.n { color: var(--err-deep); }
+  .cols { display: grid; grid-template-columns: 7fr 5fr; gap: 14px; align-items: start; margin-top: 14px; }
+  .loop { padding: 12px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--border); background: #fafaf9; }
+  .loop span { font-size: 11px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 3px 8px; color: var(--fg2); }
+  .loop b { font-size: 11px; color: var(--accent-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+  /* ---- 本页追加:11 会话变更总览 ---- */
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; background: #f0f0ee; border-radius: 4px; padding: 0 4px; }
+  .seg { display: inline-flex; gap: 2px; background: #f0f0ee; border-radius: 8px; padding: 2px; }
+  .seg button { border: 0; background: transparent; font-size: 12px; font-family: inherit; color: var(--fg2); padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+  .seg button.on { background: var(--card); color: var(--accent-deep); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .sumbar { display: flex; gap: 6px 16px; flex-wrap: wrap; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--fg2); }
+  .sumbar b { color: var(--fg); font-weight: 600; }
+  .sumbar .hl { color: var(--accent-deep); font-weight: 600; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px 20px; border-bottom: 1px solid var(--border); }
+  .fchip { font-size: 11px; font-family: inherit; border: 1px solid var(--border); border-radius: 999px; background: var(--card); color: var(--fg2); padding: 2px 10px; cursor: pointer; }
+  .fchip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep); font-weight: 500; }
+  .fin { font-size: 12px; font-family: inherit; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; width: 170px; color: var(--fg); background: var(--card); }
+  .fin:focus { outline: none; border-color: var(--accent); }
+  .sp { flex: 1; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+  .p-run { color: var(--accent-deep); background: var(--accent-soft); }
+  .p-commit { color: var(--ok-deep); background: var(--ok-soft); }
+  .p-stale { color: #6d28d9; background: #f3e8ff; }
+  .p-rev { color: var(--fg2); background: #f1f1ef; }
+  .p-del { color: var(--err-deep); background: var(--err-soft); }
+  .nb { display: inline-block; font-size: 11px; color: var(--fg2); border: 1px dashed var(--border); border-radius: 4px; padding: 0 6px; white-space: nowrap; }
+  tr.frow { cursor: pointer; }
+  tr.frow:hover td { background: #fafaf9; }
+  tr.more td { color: var(--accent-deep); cursor: pointer; font-size: 12px; }
+  tr.more:hover td { background: var(--accent-soft); }
+  .fnote { padding: 8px 20px; font-size: 11px; color: var(--fg2); background: #fafaf9; border-top: 1px solid var(--border); }
+  .kv { padding: 12px 16px 14px; font-size: 12px; color: var(--fg2); }
+  .kv h3 { font-size: 12px; color: var(--fg); font-weight: 600; margin: 12px 0 4px; }
+  .kv h3:first-child { margin-top: 0; }
+  .kv p { margin-bottom: 4px; }
+  .kv ul { list-style: none; }
+  .kv li { padding-left: 14px; position: relative; margin-bottom: 6px; }
+  .kv li::before { content: ""; position: absolute; left: 0; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--border); }
+</style>
+</head>
+<body>
+<div class="page">
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+  <div class="page-header">
+    <span class="badge">0.4.0 追加批 · 11/14(连续性)</span>
+    <h1>会话变更总览(跨批次文件折叠)</h1>
+    <p class="page-desc">审批线逐批看太碎;CheckpointsPanel 加第三视图「变更」:跨批次按文件折叠,一屏看本会话累计动了什么,点击回最近批次 diff。</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">检查点 · 右栏 <span class="panel-sub">PanelSummaryBar 三段 · 两旧视图 hidden 保活切换(CheckpointsPanel.tsx:230-253)· 示意数据</span></div>
+      <span class="seg" data-seg><button type="button">审批线</button><button type="button" class="on">变更</button><button type="button">时间线</button></span>
+    </div>
+    <div class="sumbar">7 文件 · <b>3 可回退</b> · <span class="hl">1 高危</span> · <b>+192/−88</b>(账本累计)</div>
+    <div class="bar">
+      <button class="fchip on" data-f="all" type="button">全部</button>
+      <button class="fchip" data-f="run" type="button">可回退</button>
+      <button class="fchip" data-f="stale" type="button">内容已变</button>
+      <button class="fchip" data-f="commit" type="button">已提交</button>
+      <button class="fchip" data-f="del" type="button">已删除</button>
+      <input id="fin" class="fin" type="text" placeholder="路径过滤,如 sweep">
+      <span class="sp"></span>
+      <span class="seg sortseg"><button type="button" class="on" data-k="batch" title="按最近批号倒序">最近批</button><button type="button" data-k="pm" title="按 ± 变更行数倒序">±</button></span>
+    </div>
+    <table>
+      <thead><tr><th>文件</th><th>状态</th><th>±</th><th>批数</th><th>最近批次</th></tr></thead>
+      <tbody id="ftb">
+        <tr class="frow" data-st="stale" data-p="preview.rs" data-b="17" data-c="9"><td class="mono">preview.rs</td><td><span class="pill p-stale">内容已变</span></td><td class="mono">+7/−2</td><td>2 批</td><td><span class="mono">#17</span> 注释对齐语义</td></tr>
+        <tr class="frow xrow" data-st="run" data-nb="1" data-p=".ssh/config" data-b="15" data-c="7"><td class="mono">.ssh/config</td><td><span class="pill p-run">改动中</span> <span class="nb" title="工作区外首轮无前像 —— 禁回退(摘回退钮),BatchFileSection.tsx:50-55 同款语义">无前像</span></td><td class="mono">+5/−2</td><td>1 批</td><td><span class="mono">#15</span> 密钥路径迁移</td></tr>
+        <tr class="frow" data-st="run" data-p="sessionSweep.ts" data-b="12" data-c="50"><td class="mono">sessionSweep.ts</td><td><span class="pill p-run">改动中</span></td><td class="mono">+42/−8</td><td>3 批</td><td><span class="mono">#12</span> 提示词截断</td></tr>
+        <tr class="frow xrow" data-st="run" data-p="theme.css" data-b="10" data-c="27"><td class="mono">theme.css</td><td><span class="pill p-run">改动中</span></td><td class="mono">+16/−11</td><td>1 批</td><td><span class="mono">#10</span> 主题抽离</td></tr>
+        <tr class="frow" data-st="commit" data-p="restore.rs" data-b="9" data-c="182"><td class="mono">restore.rs</td><td><span class="pill p-commit">已提交</span></td><td class="mono">+118/−64</td><td>2 批</td><td><span class="mono">#9</span> 恢复失配分类</td></tr>
+        <tr class="frow" data-st="del" data-p="removed.ts" data-b="6" data-c="64"><td class="mono">removed.ts</td><td><span class="pill p-del">已删除</span></td><td class="mono">−64</td><td>1 批</td><td><span class="mono">#6</span> 清理死代码</td></tr>
+        <tr class="frow" data-st="rev" data-p="notes-old.md" data-b="3" data-c="10"><td class="mono">notes-old.md</td><td><span class="pill p-rev">已回退</span></td><td class="mono">+9/−1</td><td>1 批</td><td><span class="mono">#3</span> 笔记拆分</td></tr>
+        <tr class="more" id="moreRow"><td colspan="5">还有 2 个文件(.ssh/config · theme.css)· 点击展开</td></tr>
+      </tbody>
+    </table>
+    <div class="fnote">± 为账本累计(回退不回缩),与批审阅单的懒加载 diff 求和口径不同(BatchRowHead.tsx:74-84 未加载/open 批为 null 占位)—— 面板 footbar 注明两处数字可不同,免误读。</div>
+    <div class="loop"><span>checkpoint_list(useCkptBatches 现成,store.ts:290-293)</span><b>→</b><span>batches.flatMap 线性建组 · ≤100 批无需索引(CKPT_KEEP=100 store.ts:197;线性扫先例 evidenceScope.ts:82-110)</span><b>→</b><span>按 path 折叠:状态/±/批次数取「最近批」字段</span><b>→</b><span>行点击 openBatchTab({batchId, focusPath: path}) 深链(batchTab.ts:22-45;先例 marks/evidenceScope.ts:115-118)</span></div>
+  </div>
+
+  <div class="cols">
+    <div class="panel">
+      <div class="panel-bar"><div class="panel-title">状态合成 · 闭环核心 <span class="panel-sub">优先级自上而下写死 · 取最近批字段 · 锚 view.rs:187-235 classify_turn_file</span></div></div>
+      <table>
+        <thead><tr><th style="width:30px">序</th><th>判定(最近批字段)</th><th style="width:92px">药丸</th><th>处置</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">1</td><td>reverted_paths 命中且其后无再改(短路 classify,view.rs:68-75)</td><td><span class="pill p-rev">已回退</span></td><td>可「应用回此批」恢复</td></tr>
+          <tr><td class="mono">2</td><td>最近批 status = D(types.rs:39-40,批后像为空)</td><td><span class="pill p-del">已删除</span></td><td>盘上无此文件;回退可还原</td></tr>
+          <tr><td class="mono">3</td><td>live = changed(stale = true,view.rs:77)</td><td><span class="pill p-stale">内容已变</span></td><td>不可回退,仅对照</td></tr>
+          <tr><td class="mono">4</td><td>live = committed(含「批后已删,现在也没有」)</td><td><span class="pill p-commit">已提交</span></td><td>已入库/已处理,无动作</td></tr>
+          <tr><td class="mono">5</td><td>live = same 且非 reverted(open 轮恒 same,view.rs:110-116)</td><td><span class="pill p-run">改动中</span></td><td>canRevert = 批 pending && same && !no_baseline(BatchFileSection.tsx:238)</td></tr>
+          <tr><td class="mono">+</td><td>no_baseline:existed_before && before_oid 空 && 工作区外(view.rs:84-86)</td><td><span class="nb">无前像</span></td><td>附加 chip,摘回退钮(BatchFileSection.tsx:50-55)</td></tr>
+        </tbody>
+      </table>
+      <div class="fnote">同文件多批:状态取最近批字段,批次数 = 出现批数;高危 pill 复用 classifyRisk 路径模式(risk.ts:29-32,本页 1 高危 = .ssh/config)。优先级序即实现序:1/2 由「取最近批 + 其后无再改」天然与 3-5 互斥,边缘双判按序取先。</div>
+    </div>
+    <div class="panel">
+      <div class="panel-bar"><div class="panel-title">± 口径与挂点</div></div>
+      <div class="kv">
+        <h3>± 口径 —— 账本累计,回退不回缩</h3>
+        <p>± = TurnFile.additions / deletions 账本累计(types.rs:45-46;diff 封口瞬间固化 :48-49)。已回退/已删除行保留历史 ± 不回缩 —— 聚合视图回答「本会话动过多少」,不是「当前工作区差多少」。</p>
+        <h3>挂点 —— 一个文件改动面 + 一个新组件</h3>
+        <ul>
+          <li><code>CheckpointsPanel.tsx</code> 单文件改动面:视图 union 加 "changes"(:202);PanelSummaryBar 段按钮加第三段(:59-68,segCls :258-263);hidden 保活容器加第三格(:230-253)。</li>
+          <li>新 <code>ChangesPanel.tsx</code>:吃 state.batches 单 prop(TimelinePanel 同款,CheckpointsPanel.tsx:252),内部 useMemo 折叠,零新 IPC。</li>
+          <li>刷新:复用 useCkptAutoRefresh —— 面板活跃 6s 轮询 + panelActive 闸(useCkptScope.ts:15,47-79);动作后 invalidateDiff → version bump 重拉(store.ts:248/260/269,diffCache.ts:19-22),折叠结果随刷新重算。</li>
+          <li>会话切换:useCkptBatches 按 cwd+sessionId 分桶(store.ts:285-293),换 key 即换清单,无跨会话合并。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>现状缺口:</strong>跨批次聚合视图不存在 —— 面板构成仅批清单 BatchListView / 批审阅单 BatchSheet / 时间线 TimelinePanel,全部单批粒度(源码核对 2026-10-19);本页为纯前端新增视图,零 Rust(view.rs 的 BatchFile 已回传全部所需字段)。</li>
+      <li><strong>与恢复 dry-run 互补:</strong>页 6 的 plan_restore 预览是「回滚前」视角(这次会覆盖什么),本视图是「回溯累计」视角(本会话已经动过什么);入口不同、口径不同,不合并。</li>
+      <li><strong>回退联动:</strong>单文件/整批回退后药丸随最近批字段自动翻转 —— revertBatch/applyBatch/undoRevert 均触发 invalidateDiff(store.ts:248/260/269)→ version bump → useCkptBatches 重订阅重算,无需额外事件通道。</li>
+      <li><strong>上限兜底:</strong>文件行 cap 50,超出折叠为「还有 N 个文件」行点击展开(本页示意 7 文件先展 2);过滤/排序作用于全量后再裁剪。</li>
+      <li><strong>二期联动:</strong>文件树 AI 改动点(TurnFile.edit_count &gt; 0,types.rs:57,events 归因计数)加角标,点击跳本视图对应行;与 10 页记忆面板零耦合,纯入口互链。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b> BatchFile 全字段(types.rs:156-172)+ useCkptBatches(store.ts:290-293)+ PanelSummaryBar 分段(CheckpointsPanel.tsx:59-68)+ openBatchTab focusPath 深链(batchTab.ts:22-45)。<b>成本</b> S-M,纯前端零 Rust。<b>风险</b> 状态合成优先级要写死(左表序)免口径漂移;± 双口径(账本累计 vs 懒加载 diff 求和)须 footbar 注明。<b>验证</b> 六状态药丸各一 + 过滤/排序 + 行点击深链聚焦真机走通。</p>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+  var $ = function(s){ return document.querySelector(s); };
+  var $$ = function(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); };
+  var toast = $('#toast'), tt, expanded = false, fstate = 'all', fq = '', sortBy = 'batch';
+  function say(m){ toast.textContent = m; toast.classList.add('show'); clearTimeout(tt); tt = setTimeout(function(){ toast.classList.remove('show'); }, 1800); }
+  function apply(){
+    var filtering = fstate !== 'all' || fq !== '';
+    $$('tr.frow').forEach(function(r){
+      var ok = (fstate === 'all' || (r.dataset.st === fstate && (fstate !== 'run' || !r.dataset.nb))) && (!fq || r.dataset.p.toLowerCase().indexOf(fq) >= 0);
+      r.style.display = ok && (expanded || filtering || !r.classList.contains('xrow')) ? '' : 'none';
+    });
+    $('#moreRow').style.display = !filtering && !expanded ? '' : 'none';
+  }
+  function resort(){
+    var more = $('#moreRow');
+    $$('tr.frow').sort(function(a,b){ return sortBy === 'pm' ? b.dataset.c - a.dataset.c : b.dataset.b - a.dataset.b; })
+      .forEach(function(r){ more.parentNode.insertBefore(r, more); });
+  }
+  $$('.seg[data-seg] button').forEach(function(b){
+    b.addEventListener('click', function(){ if (!b.classList.contains('on')) say('示意:「' + b.textContent + '」为既有视图(hidden 保活切换),本页仅展开新增的「变更」'); });
+  });
+  $$('.fchip').forEach(function(c){
+    c.addEventListener('click', function(){ $$('.fchip').forEach(function(x){ x.classList.remove('on'); }); c.classList.add('on'); fstate = c.dataset.f; apply(); });
+  });
+  $$('.sortseg button').forEach(function(b){
+    b.addEventListener('click', function(){ if (b.classList.contains('on')) return; $$('.sortseg button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); sortBy = b.dataset.k; resort(); });
+  });
+  $('#fin').addEventListener('input', function(e){ fq = e.target.value.trim().toLowerCase(); apply(); });
+  $('#moreRow').addEventListener('click', function(){ expanded = true; apply(); });
+  $$('tr.frow').forEach(function(r){
+    r.addEventListener('click', function(){ say('打开 #' + r.dataset.b + ' · 聚焦 ' + r.dataset.p); });
+  });
+  apply();
+</script>
+</body>
+</html>

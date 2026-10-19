@@ -81,10 +81,11 @@ export async function readText(path: string): Promise<string | null> {
   }
 }
 
-/** 导出文件名基础名清洗:Windows 保留设备名带扩展名同样禁写(CON.md 等),
- *  命中加尾 _;其余平台无害。docgen 导出与 session-viewer 转录导出共用。 */
+/** 导出文件名基础名清洗:Windows 保留设备名(含「保留名+扩展名」形态,首点前
+ *  主干判,CON.md.md 仍落设备)禁写,命中主干前缀 _;其余平台无害。
+ *  docgen 导出与 session-viewer 转录导出共用。 */
 export function safeFileBase(base: string): string {
-  return /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i.test(base) ? `${base}_` : base;
+  return /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\.|$)/i.test(base) ? `_${base}` : base;
 }
 
 /** 落盘(fsWriteFile 后端已 tmp+rename 原子替换;文件路径走父目录原语)。 */
@@ -93,8 +94,10 @@ export async function writeText(path: string, content: string): Promise<void> {
   await ipc.fsWriteFile(path, content);
 }
 
-/** 删条目实体目录(终止首版未产出时清孤儿;含 prompt-latest.md)。 */
+/** 删条目实体目录(终止首版未产出时清孤儿;含 prompt-latest.md)。
+ *  entryId 白名单:索引数据被污染时防 `../` 借删除原语越出 docsDir。 */
 export async function removeEntryDir(entryId: string): Promise<void> {
+  if (!/^[\w-]+$/.test(entryId)) throw new Error(`docgen: 非法条目 id「${entryId.slice(0, 32)}」`);
   const p = await docgenPaths();
   await ipc.fsRemovePath(`${p.docsDir}/${entryId}`);
 }

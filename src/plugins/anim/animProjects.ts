@@ -17,6 +17,17 @@ export function isAnimProjectFile(name: string): boolean {
   return !name.startsWith(".") && name.endsWith(".json");
 }
 
+/** 「打开」动作按平台分派(042 随手带,0.3.9 口径修订):
+ *  mac = tmd-anim 应用 open-with(`open -a`,需应用探测);windows = 文件管理器
+ *  目录定位(explorer /select 原语,fsRevealInFileManager,不依赖桌面应用);
+ *  其余平台 null = 隐藏「打开」钮(0.3.9 非 mac 隐藏语义保留)。 */
+export type AnimOpenAction = "app" | "reveal" | null;
+export function animOpenAction(platform: string): AnimOpenAction {
+  if (platform === "macos") return "app";
+  if (platform === "windows") return "reveal";
+  return null;
+}
+
 /** 最小合法项目解析:只验 version/name/scenes 三个契约字段,其余忽略;
  *  scenes 数量顺手带出供列表行展示。 */
 export function parseAnimProject(raw: string): { name: string; scenes: number } | null {

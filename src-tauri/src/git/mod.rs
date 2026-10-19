@@ -35,6 +35,7 @@ mod remote_ops;
 mod remote_quick;
 mod remote_report;
 pub(crate) mod remote_request;
+pub(crate) mod repos_log_range;
 mod repos_scan;
 mod stash_ops;
 mod status;

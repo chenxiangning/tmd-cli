@@ -12,6 +12,8 @@ import { t } from "@kernel/i18n";
 import { retryImport } from "@kernel/lazyImport";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { setActiveTab, updateTab, type EditorTab } from "@kernel/tabs";
+import { draftMirrorClear, draftMirrorGet, draftMirrorSet, type DraftMirrorEntry } from "@kernel/draftMirror";
+import { DraftMirrorBar } from "@kernel/draftMirrorBar";
 import { saveRequestRef } from "./saveRequestRef";
 import { useDarkTheme } from "@kernel/theme";
 
@@ -41,6 +43,16 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
   const [conflict, setConflict] = useState<string | null>(null);
   const overwriteRef = useRef(false);
   const dark = useDarkTheme();
+  /* 草稿镜像(0.4.0 项 12):ssh-file 原本无任何草稿缓存,镜像腿补齐第三 kind。
+   * 槽按路径挂(kernel 约定 ssh-file:<path>);读完成时与磁盘内容有差才出恢复条。 */
+  const slot = payload ? `ssh-file:${payload.path}` : "";
+  const [mirrorBar, setMirrorBar] = useState<DraftMirrorEntry | null>(null);
+  const restoreMirrorBar = () => {
+    if (!mirrorBar) return;
+    setDoc((prev) => (prev ? { ...prev, content: mirrorBar.text } : prev));
+    setDirty(true);
+    setMirrorBar(null);
+  };
 
   /* 文件切换:整树重建(key 驱动),脏标记与横幅一并复位。 */
   useEffect(() => {
@@ -48,6 +60,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
     setDirty(false);
     setBanner(null);
     setConflict(null);
+    setMirrorBar(null);
     if (!payload) return;
     let cancelled = false;
     void (async () => {
@@ -61,6 +74,9 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
           sizeBytes: result.sizeBytes,
           loaded: true,
         });
+        /* 跨崩溃/强退恢复条:镜像与刚读到的远端内容有差才值得提示。 */
+        const m = draftMirrorGet(`ssh-file:${payload.path}`);
+        setMirrorBar(m && m.text !== result.content ? m : null);
       } catch (e) {
         if (!cancelled) {
           setDoc({
@@ -118,13 +134,14 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
           prev ? { ...prev, entry: outcome.entry, truncated: false, sizeBytes: outcome.entry.sizeBytes } : prev,
         );
         setDirty(false);
+        if (slot) draftMirrorClear(slot); /* 保存成功 = 草稿已落远端,镜像退役 */
       } catch (e) {
         setBanner(t("保存失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
       } finally {
         setSaving(false);
       }
     },
-    [payload, doc, saving, dirty],
+    [payload, doc, saving, dirty, slot],
   );
 
   /* 保存请求桥:⌘S 命令(ssh.saveRemoteFile)注册口经此触发最新 save;卸载即摘除,
@@ -155,6 +172,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
 
   return (
     <div className="ssh-editor">
+      <DraftMirrorBar mirror={mirrorBar} onRestore={restoreMirrorBar} onDiscard={() => draftMirrorClear(slot)} />
       <div className="ssh-editor-bar">
         <span className="ssh-editor-path" title={payload.path}>
           {payload.path}
@@ -195,6 +213,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
               if (value === doc.content) return;
               setDoc((prev) => (prev ? { ...prev, content: value } : prev));
               setDirty(value !== doc.content);
+              if (slot) draftMirrorSet(slot, value);
             }}
             onSave={() => void save()}
           />
