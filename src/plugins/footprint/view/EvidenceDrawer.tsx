@@ -51,7 +51,16 @@ export function EvidenceDrawer({ card, detail, query, selPath, onSelectFile, onR
             <Hi text={card.title} q={query} />
           </div>
           <div className="mt-0.5 text-[11px] text-[var(--tmd-fg-muted)]">
-            {detail.day} · {card.unverified ? t("会话引用未验证") : t("AI 归纳 · 会话引用已校验")}
+            {detail.day} ·{" "}
+            {card.unverified
+              ? t("会话引用未验证")
+              : card.sessions.length === 0
+                ? t("无会话引用")
+                : detail.cardsOrigin === "manual"
+                  ? t("手动归纳")
+                  : detail.cardsOrigin === "user-edited"
+                    ? t("已修正 · 会话引用已校验")
+                    : t("AI 归纳 · 会话引用已校验")}
           </div>
         </div>
       </div>

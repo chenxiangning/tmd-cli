@@ -19,7 +19,6 @@ export type FpMonthFile = FootprintMonthFile;
 
 /** 会话引用校验已标注的功能卡(unverified = 引用了当日枚举外的会话)。 */
 export type FpCardView = FeatureCard & { unverified: boolean };
-
 /** rollup files 记录的值类型(无 path;path 在键上)。 */
 export type DayFileEntry = FootprintDay["files"][string];
 
@@ -55,6 +54,8 @@ export interface FpDayDetail {
   day: string;
   rollup: FpDay | null;
   cards: FpCardView[];
+  /** 功能卡来源(徽标区分 AI 归纳/已修正/纯手动;无卡时无意义)。 */
+  cardsOrigin: "ai" | "user-edited" | "manual" | null;
   rows: DaySessionRow[];
   article: string | null;
   digest: string | null;
@@ -107,12 +108,12 @@ export async function loadDayDetail(day: string): Promise<FpDayDetail> {
   for (const f of qd.files) rollup.files[f.path] = f;
   const rows = rowsRes.rows.filter((r) => dayKeyOf(new Date(r.startedAt)) === day);
   const known = knownSessionIds(rollup, rows);
-  const featureFile = await readFeatureCards(day);
-  const cards: FpCardView[] = (featureFile?.cards ?? []).map((c) => ({
+  const featureRead = await readFeatureCards(day);
+  const cards: FpCardView[] = (featureRead?.file.cards ?? []).map((c) => ({
     ...c,
     unverified: c.sessions.some((sid) => !known.has(sid)),
   }));
-  return { day, rollup, cards, rows, article, digest, commits, scanFailed: rowsRes.failed > 0 };
+  return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article, digest, commits, scanFailed: rowsRes.failed > 0 };
 }
 
 /* ── 月历热力 / 区间(转发 query) ── */
@@ -134,12 +135,12 @@ export async function loadRangeDetails(days: string[]): Promise<FpDayDetail[]> {
       for (const f of qd.files) rollup.files[f.path] = f;
       const rows = rowsByDay.get(day) ?? [];
       const known = knownSessionIds(rollup, rows);
-      const featureFile = await readFeatureCards(day);
-      const cards: FpCardView[] = (featureFile?.cards ?? []).map((c) => ({
+      const featureRead = await readFeatureCards(day);
+      const cards: FpCardView[] = (featureRead?.file.cards ?? []).map((c) => ({
         ...c,
         unverified: c.sessions.some((sid) => !known.has(sid)),
       }));
-      return { day, rollup, cards, rows, article: null, digest: null, commits: [], scanFailed: rowsRes.failed > 0 };
+      return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article: null, digest: null, commits: [], scanFailed: rowsRes.failed > 0 };
     }),
   );
 }

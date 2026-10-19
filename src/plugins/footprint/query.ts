@@ -150,19 +150,29 @@ async function readTextOrNull(path: string): Promise<string | null> {
   }
 }
 
+/** 当日功能卡档读取结果:origin 供徽标区分 AI 归纳/用户修正/纯手动。 */
+export interface FeatureCardsRead {
+  file: FeatureCardFile;
+  origin: "ai" | "user-edited" | "manual";
+}
+
 /** 当日功能卡档;缺失/损坏 = null(该日无功能卡)。
- *  用户修正覆盖层(.user.json)优先整体替换,AI 原档保留可回溯。 */
-export async function readFeatureCards(day: string): Promise<FeatureCardFile | null> {
+ *  用户修正覆盖层(.user.json)优先整体替换,AI 原档保留可回溯;
+ *  来源按两档存在性判定:user 存在且 AI 档也在 = 已修正,仅 user = 纯手动。 */
+export async function readFeatureCards(day: string): Promise<FeatureCardsRead | null> {
   const aiPath = await featuresPath(day);
   const userPath = aiPath.replace(/\.json$/, ".user.json");
-  for (const path of [userPath, aiPath]) {
+  const read = async (path: string): Promise<FeatureCardFile | null> => {
     try {
       const parsed = JSON.parse(await ipc.fsReadFile(path)) as FeatureCardFile;
-      if (parsed && parsed.version === 1 && Array.isArray(parsed.cards)) return parsed;
+      return parsed && parsed.version === 1 && Array.isArray(parsed.cards) ? parsed : null;
     } catch {
-      /* 缺失/损坏试下一层 */
+      return null;
     }
-  }
+  };
+  const [ai, user] = [await read(aiPath), await read(userPath)];
+  if (user) return { file: user, origin: ai ? "user-edited" : "manual" };
+  if (ai) return { file: ai, origin: "ai" };
   return null;
 }
 
@@ -196,9 +206,9 @@ export async function searchFootprint(
       }
     }
     /* 功能卡:标题/一句话 → card;用户原话 → quote */
-    const cards = await readFeatureCards(full);
-    if (cards) {
-      cards.cards.forEach((card, i) => {
+    const featureRead = await readFeatureCards(full);
+    if (featureRead) {
+      featureRead.file.cards.forEach((card, i) => {
         if (`${card.title} ${card.summary}`.toLowerCase().includes(needle)) {
           hits.push({ day: full, kind: "card", snippet: card.summary, featureId: i });
         } else if (card.quote && card.quote.text.toLowerCase().includes(needle)) {

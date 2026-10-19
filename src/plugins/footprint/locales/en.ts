@@ -105,4 +105,10 @@ export const MESSAGES_EN = {
   "移入新卡的会话": "Sessions to move into the new card",
   "关联会话(可选)": "Related sessions (optional)",
   "为该日建一张功能卡;会话引用可选,留空即为纯文字卡": "Create a feature card for this day; session refs are optional — leave empty for a text-only card",
+  "手动": "Manual",
+  "已修正": "Edited",
+  "已修正 · 会话引用已校验": "Edited · session refs verified",
+  "手动归纳": "Manually digested",
+  "无会话引用": "No session refs",
+  "今日 · 会话进行中": "Today · session live",
 };

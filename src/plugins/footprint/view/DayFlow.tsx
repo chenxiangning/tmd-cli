@@ -5,7 +5,8 @@
 import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail } from "../dataSource";
 import { dayTotals, ungroupedFiles } from "../dataSource";
-import { CardList, DayTail, FallbackList, RangeBanner } from "./DayParts";
+import { CardList } from "./DayParts";
+import { DayTail, FallbackList, RangeBanner } from "./RangeParts";
 
 export interface DayFlowProps {
   detail: FpDayDetail;
@@ -40,7 +41,7 @@ export function DayFlow({ detail, range, rangeDetails, query, today, focusIdx, f
         {detail.day === today && (
           <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] px-2 py-px text-[10.5px] font-semibold text-[var(--tmd-accent,var(--tmd-accent))]">
             <i className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--tmd-accent,var(--tmd-accent))]" />
-            {t("今日")}
+            {t("今日 · 会话进行中")}
           </span>
         )}
       </div>
