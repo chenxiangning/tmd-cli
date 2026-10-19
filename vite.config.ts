@@ -64,7 +64,11 @@ export default defineConfig({
     target: "es2022",
     rollupOptions: {
       input: {
-        /* 基准页独立入口:不进主包 chunk,产物 dist/bench.html 单独可达 */
+        /* rollupOptions.input 一旦显式给出即整体替换默认入口(v0.4.0 曾因只配
+           bench 让 dist 丢掉 index.html,打包产物白屏 asset not found),
+           主入口必须显式占一行 */
+        index: "index.html",
+        /* 基准页独立入口:不进主包 chunk,产物 dist/bench/index.html 单独可达 */
         bench: "bench/index.html",
       },
     },
