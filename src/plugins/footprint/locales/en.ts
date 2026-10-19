@@ -99,4 +99,10 @@ export const MESSAGES_EN = {
   "一句话说明(≤40 字)": "One-line summary (≤40 chars)",
   "重命名 / 标记为无关 / 合并 / 拆分 直接写修正层(.user.json)· 手动补归纳建新卡": "Rename / hide / merge / split write the fix layer (.user.json) directly · manual digest creates a new card",
   "账本无改动记录:footprint 部署前的会话不产生封口账;此列提交可在下方 Git 硬证据区核对": "No ledger changes: sessions before footprint was deployed produce no seal entries; check commits in the Git hard-evidence section below",
+  "该日无会话可勾选 · 可建不带会话引用的卡": "No sessions to pick this day · you can still create a card without session refs",
+  "并入后原卡会话归目标卡,原卡移除(AI 原档保留)": "Merging moves the source card's sessions into the target and removes the card (AI original kept)",
+  "勾选的会话移入新卡;源卡会话拆空则整卡移除": "Picked sessions move into the new card; the source card is removed if emptied",
+  "移入新卡的会话": "Sessions to move into the new card",
+  "关联会话(可选)": "Related sessions (optional)",
+  "为该日建一张功能卡;会话引用可选,留空即为纯文字卡": "Create a feature card for this day; session refs are optional — leave empty for a text-only card",
 };

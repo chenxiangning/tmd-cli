@@ -8,21 +8,42 @@ import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail } from "../dataSource";
 import type { FixDialog } from "./useFpFix";
 
-const btnPrimary =
-  "rounded-lg bg-[var(--tmd-accent)] px-2.5 py-1 text-[12px] text-[var(--tmd-accent-fg)] disabled:opacity-40";
-const btnGhost =
-  "rounded-lg px-2 py-1 text-[12px] text-[var(--tmd-fg-muted)] hover:text-[var(--tmd-fg)]";
 const inputCls =
-  "w-full rounded-lg border border-[var(--tmd-border)] bg-[var(--tmd-bg-input)] px-2.5 py-1 text-[12.5px] text-[var(--tmd-fg)] outline-none focus:border-[var(--tmd-accent)]";
+  "w-full rounded-lg border border-[var(--tmd-border)] bg-[var(--tmd-bg-input)] px-2.5 py-1.5 text-[12.5px] text-[var(--tmd-fg)] outline-none focus:border-[var(--tmd-accent)]";
 
-function Shell({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+/** 统一浮层壳:标题 + 可选说明 + 内容 + 底部(取消/确定同行右置)。 */
+function Shell({
+  title, hint, submitDisabled, onSubmit, onClose, children,
+}: {
+  title: string;
+  hint?: string;
+  submitDisabled: boolean;
+  onSubmit: () => void;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="absolute bottom-16 left-1/2 z-40 w-[340px] -translate-x-1/2 rounded-xl border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] p-3 shadow-lg">
-      <div className="mb-2 text-[12px] font-bold text-[var(--tmd-fg)]">{title}</div>
-      {children}
-      <div className="mt-2 flex justify-end gap-1.5">
-        <button type="button" className={btnGhost} onClick={onClose}>
+    <div className="absolute bottom-14 left-1/2 z-40 w-[380px] -translate-x-1/2 overflow-hidden rounded-xl border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] shadow-[var(--tmd-shadow-popover,0_8px_24px_rgba(0,0,0,0.35))]">
+      <div className="border-b border-[var(--tmd-border)] px-4 pt-3 pb-2.5">
+        <div className="text-[13px] font-bold text-[var(--tmd-fg)]">{title}</div>
+        {hint && <div className="mt-0.5 text-[11px] text-[var(--tmd-fg-muted)]">{hint}</div>}
+      </div>
+      <div className="flex flex-col gap-2.5 px-4 py-3">{children}</div>
+      <div className="flex items-center justify-end gap-2 border-t border-[var(--tmd-border)] bg-[var(--tmd-bg-panel)] px-4 py-2.5">
+        <button
+          type="button"
+          className="rounded-lg border border-[var(--tmd-border)] px-3 py-1.5 text-[12px] text-[var(--tmd-fg-muted)] hover:text-[var(--tmd-fg)]"
+          onClick={onClose}
+        >
           {t("取消")}
+        </button>
+        <button
+          type="button"
+          className="rounded-lg bg-[var(--tmd-accent)] px-3.5 py-1.5 text-[12px] font-semibold text-[var(--tmd-accent-fg)] disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={submitDisabled}
+          onClick={onSubmit}
+        >
+          {t("确定")}
         </button>
       </div>
     </div>
@@ -38,17 +59,30 @@ function SessionChecks({
   onToggle: (sid: string) => void;
 }) {
   if (entries.length === 0)
-    return <div className="py-2 text-[11.5px] text-[var(--tmd-fg-muted)]">{t("该日无会话可勾选")}</div>;
+    return (
+      <div className="rounded-lg bg-[var(--tmd-bg-hover)] px-2.5 py-2 text-[11.5px] text-[var(--tmd-fg-muted)]">
+        {t("该日无会话可勾选 · 可建不带会话引用的卡")}
+      </div>
+    );
   return (
-    <div className="flex max-h-[168px] flex-col gap-1 overflow-y-auto">
+    <div className="flex max-h-[150px] flex-col gap-0.5 overflow-y-auto rounded-lg border border-[var(--tmd-border)] p-1">
       {entries.map(([sid, e]) => (
-        <label key={sid} className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 text-[12px] text-[var(--tmd-fg)] hover:bg-[var(--tmd-bg-hover)]">
+        <label key={sid} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-[12px] text-[var(--tmd-fg)] hover:bg-[var(--tmd-bg-hover)]">
           <input type="checkbox" checked={picked.has(sid)} onChange={() => onToggle(sid)} />
           <span className="truncate font-mono text-[11px]">{sid.slice(0, 8)}</span>
           <span className="ml-auto text-[10.5px] text-[var(--tmd-fg-muted)]">{e.engine}</span>
         </label>
       ))}
     </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-[11px] font-semibold text-[var(--tmd-fg-muted)]">{label}</div>
+      {children}
+    </label>
   );
 }
 
@@ -80,24 +114,39 @@ export function FixModals(p: FixModalsProps) {
       else next.add(sid);
       return next;
     });
+  const closeReset = () => {
+    setSplitTitle("");
+    setPicked(new Set());
+    setMTitle("");
+    setMSummary("");
+    p.onClose();
+  };
 
   if (d.kind === "merge") {
     const others = cards.filter((c) => c.title !== d.title);
     return (
-      <Shell title={t("合并「{title}」到:", { title: d.title })} onClose={p.onClose}>
+      <Shell
+        title={t("合并「{title}」到:", { title: d.title })}
+        hint={t("并入后原卡会话归目标卡,原卡移除(AI 原档保留)")}
+        submitDisabled
+        onSubmit={() => {}}
+        onClose={closeReset}
+      >
         {others.length === 0 ? (
-          <div className="py-2 text-[11.5px] text-[var(--tmd-fg-muted)]">{t("当日没有其他卡可并入")}</div>
+          <div className="rounded-lg bg-[var(--tmd-bg-hover)] px-2.5 py-2 text-[11.5px] text-[var(--tmd-fg-muted)]">
+            {t("当日没有其他卡可并入")}
+          </div>
         ) : (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-0.5">
             {others.map((c) => (
               <button
                 key={c.title}
                 type="button"
-                className="rounded-lg px-2 py-1.5 text-left text-[12.5px] text-[var(--tmd-fg)] hover:bg-[var(--tmd-bg-hover)]"
+                className="flex items-center rounded-lg border border-[var(--tmd-border)] px-2.5 py-2 text-left text-[12.5px] text-[var(--tmd-fg)] hover:border-[var(--tmd-accent)] hover:bg-[var(--tmd-bg-hover)]"
                 onClick={() => p.onMerge(c.title)}
               >
-                {c.title}
-                <span className="ml-1.5 text-[10.5px] text-[var(--tmd-fg-muted)]">
+                <span className="truncate">{c.title}</span>
+                <span className="ml-auto text-[10.5px] text-[var(--tmd-fg-muted)]">
                   {t("{n} 场会话", { n: c.sessions.length })}
                 </span>
               </button>
@@ -112,66 +161,69 @@ export function FixModals(p: FixModalsProps) {
     const src = cards.find((c) => c.title === d.title);
     const entries = sessionEntries.filter(([sid]) => src?.sessions.includes(sid));
     return (
-      <Shell title={t("拆分「{title}」", { title: d.title })} onClose={p.onClose}>
-        <input
-          autoFocus
-          value={splitTitle}
-          placeholder={t("新卡名称")}
-          aria-label={t("新卡名称")}
-          className={inputCls + " mb-2"}
-          onChange={(e) => setSplitTitle(e.target.value)}
-        />
-        <SessionChecks entries={entries} picked={picked} onToggle={toggle} />
-        <div className="mt-2 flex justify-end">
-          <button
-            type="button"
-            className={btnPrimary}
-            disabled={!splitTitle.trim() || picked.size === 0}
-            onClick={() => p.onSplit(splitTitle.trim(), [...picked])}
-          >
-            {t("确定")}
-          </button>
-        </div>
+      <Shell
+        title={t("拆分「{title}」", { title: d.title })}
+        hint={t("勾选的会话移入新卡;源卡会话拆空则整卡移除")}
+        submitDisabled={!splitTitle.trim() || picked.size === 0}
+        onSubmit={() => {
+          const t2 = splitTitle.trim();
+          const sids = [...picked];
+          closeReset();
+          p.onSplit(t2, sids);
+        }}
+        onClose={closeReset}
+      >
+        <Field label={t("新卡名称")}>
+          <input
+            autoFocus
+            value={splitTitle}
+            className={inputCls}
+            onChange={(e) => setSplitTitle(e.target.value)}
+          />
+        </Field>
+        <Field label={t("移入新卡的会话")}>
+          <SessionChecks entries={entries} picked={picked} onToggle={toggle} />
+        </Field>
       </Shell>
     );
   }
 
-  /* manual:空态手动补归纳 */
+  /* manual:空态手动补归纳(允许不带会话引用的卡) */
   return (
-    <Shell title={t("手动补归纳")} onClose={p.onClose}>
-      <input
-        autoFocus
-        value={mTitle}
-        placeholder={t("功能名称(≤12 字)")}
-        aria-label={t("功能名称(≤12 字)")}
-        className={inputCls + " mb-1.5"}
-        onChange={(e) => setMTitle(e.target.value)}
-      />
-      <input
-        value={mSummary}
-        placeholder={t("一句话说明(≤40 字)")}
-        aria-label={t("一句话说明(≤40 字)")}
-        className={inputCls + " mb-2"}
-        onChange={(e) => setMSummary(e.target.value)}
-      />
-      <SessionChecks entries={sessionEntries} picked={picked} onToggle={toggle} />
-      <div className="mt-2 flex justify-end">
-        <button
-          type="button"
-          className={btnPrimary}
-          disabled={!mTitle.trim() || picked.size === 0}
-          onClick={() =>
-            p.onManual({
-              title: mTitle.trim(),
-              summary: mSummary.trim(),
-              sessions: [...picked],
-              unverified: false,
-            })
-          }
-        >
-          {t("确定")}
-        </button>
-      </div>
+    <Shell
+      title={t("手动补归纳")}
+      hint={t("为该日建一张功能卡;会话引用可选,留空即为纯文字卡")}
+      submitDisabled={!mTitle.trim()}
+      onSubmit={() => {
+        const card: FpCardView = {
+          title: mTitle.trim(),
+          summary: mSummary.trim(),
+          sessions: [...picked],
+          unverified: false,
+        };
+        closeReset();
+        p.onManual(card);
+      }}
+      onClose={closeReset}
+    >
+      <Field label={t("功能名称(≤12 字)")}>
+        <input
+          autoFocus
+          value={mTitle}
+          className={inputCls}
+          onChange={(e) => setMTitle(e.target.value)}
+        />
+      </Field>
+      <Field label={t("一句话说明(≤40 字)")}>
+        <input
+          value={mSummary}
+          className={inputCls}
+          onChange={(e) => setMSummary(e.target.value)}
+        />
+      </Field>
+      <Field label={t("关联会话(可选)")}>
+        <SessionChecks entries={sessionEntries} picked={picked} onToggle={toggle} />
+      </Field>
     </Shell>
   );
 }
