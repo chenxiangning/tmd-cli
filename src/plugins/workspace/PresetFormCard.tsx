@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { t } from "@kernel/i18n";
+import { dirNameFromBranch } from "@plugins/git/worktree/dirName";
 import type { PromptEntry } from "@plugins/assets/store";
 import { type PresetDraft, draftOf, type PresetPromptRef, type SessionPreset } from "./sessionPresets";
 
@@ -67,7 +68,9 @@ export function PresetFormCard({
         p.name + (p.scope === "workspace" ? `(${wsNameById[p.wsId ?? ""] ?? t("工作区")})` : `(${t("全局")})`),
     }));
   const curRefKey = draft.ref ? refKey(draft.ref) : "";
-  if (draft.ref && !refOptions.some((o) => o.value === curRefKey)) {
+  /* 悬空引用 = 库已无此三元组(改名/删除/跨工作区不可见):如实标注,改绑或转内联。 */
+  const refDangling = !!draft.ref && !refOptions.some((o) => o.value === curRefKey);
+  if (draft.ref && refDangling) {
     refOptions.push({ value: curRefKey, label: `${draft.ref.name}(${t("已失效")})` });
   }
 
@@ -126,6 +129,34 @@ export function PresetFormCard({
         />
       </div>
       <div className="flex items-center gap-2">
+        <span className="w-14 shrink-0 text-right text-(--tmd-fg-faint)">{t("范围")}</span>
+        <div className="flex min-w-0 flex-1 gap-1" role="radiogroup" aria-label={t("范围")}>
+          <label className="flex items-center gap-1 text-xs">
+            <input
+              type="radio"
+              name="preset-scope"
+              checked={!draft.worktree}
+              onChange={() => set({ worktree: false })}
+            />
+            {t("当前工作区")}
+          </label>
+          <label className="flex items-center gap-1 text-xs">
+            <input
+              type="radio"
+              name="preset-scope"
+              checked={draft.worktree}
+              onChange={() => set({ worktree: true })}
+            />
+            {t("新 worktree")}
+          </label>
+        </div>
+      </div>
+      {draft.worktree && (
+        <div className="pl-16 text-(--tmd-fg-faint)">
+          {t("分支:{branch}(冲突自动递增)", { branch: dirNameFromBranch(draft.name.trim()) || "…" })}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
         <span className="w-14 shrink-0 text-right text-(--tmd-fg-faint)">{t("提示词")}</span>
         <div className="flex min-w-0 flex-1 gap-1" role="radiogroup" aria-label={t("提示词")}>
           {modes.map(([mode, label]) => (
@@ -142,21 +173,26 @@ export function PresetFormCard({
         </div>
       </div>
       {draft.promptMode === "ref" && (
-        <div className="flex items-center gap-2">
-          <span className="w-14 shrink-0 text-right text-(--tmd-fg-faint)">{t("提示词")}</span>
-          <select
-            value={draft.ref ? refKey(draft.ref) : ""}
-            onChange={(e) => set({ ref: refFromKey(e.target.value) })}
-            className={`${inputCls} min-w-0 flex-1`}
-            aria-label={t("选择提示词…")}
-          >
-            <option value="">{t("选择提示词…")}</option>
-            {refOptions.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="w-14 shrink-0 text-right text-(--tmd-fg-faint)">{t("提示词")}</span>
+            <select
+              value={draft.ref ? refKey(draft.ref) : ""}
+              onChange={(e) => set({ ref: refFromKey(e.target.value) })}
+              className={`${inputCls} min-w-0 flex-1`}
+              aria-label={t("选择提示词…")}
+            >
+              <option value="">{t("选择提示词…")}</option>
+              {refOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {refDangling && (
+            <div className="pl-16 text-(--tmd-warn)">{t("引用已失效:可改绑其他条目,或切换为自定义文本")}</div>
+          )}
         </div>
       )}
       {draft.promptMode === "text" && (

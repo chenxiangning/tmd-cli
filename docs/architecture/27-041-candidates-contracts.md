@@ -18,6 +18,7 @@
 - pending 队列核心自 anim refStore 上移 kernel(≥2 消费:anim AI 会话/workspace 预设):`setPendingPrompt`(LRU 8,插入序逐出)/`consumePendingPrompt`(原子读+清,发送变换唯一消费口)/`usePendingPrompt`;anim refs 半区留在插件。
 - 预设存储:`~/.tmd-cli/session-presets.json` 单文件+内存单源+emit(agents.json 范式),白名单 sanitize 坏形整条弃置;`loadSessionPresets` 全错吞为空库(contract 测试无 Tauri 环境激活不炸)。
 - 起会话链:`spawnRawSession`(kernel 统一装配,identityTrack 必开)→ 成功才 `setPendingPrompt`;失败零残留,报错走内核 `sessionStartFailed`。提示词引用存 `{scope,wsId,name}` 三元组(assets 提示词无 id),消费时 `promptContent` 现读;悬空引用灰态禁点不猜测。入口恒显先例:本地工作区(!origin)菜单段,引擎候选空禁点+提示。
+- 范围字段(2026-10-19 补设计定稿):`worktree?: boolean` = 每次在新 worktree 起会话(分支 = 预设名 slug 加 wt/ 前缀,`finalBranchName` 冲突自动递增),undefined = 当前工作区 root。启动编排 `launchPresetWorktreeSession`(presetLaunch,gitInfo/create/startFailed 三依赖注入可 node 测)→ `runWorktreeCreate` 里程碑回滚链复用(spawnArgs/spawnEnv/promptText 覆盖面缺省 = 对话框路径零变化),pending 注入在 record 关联后;非 git 仓/建树失败经 `deps.startFailed` 广播 `sessionStartFailed`(StartFailureToast 呈现)。菜单行信息密度对齐设计:名称 + 范围/引用 pill + 描述行(引用 = 现读说明;内联 = 原文预览;无 = 明示)。表单范围选择带分支 slug 预览;悬空引用在编辑面板改绑或转自定义文本。
 - 集成教训:`toggleGroup` 机械压缩曾误写工作区折叠 map(点组头错折工作区)——压缩必须变量级 diff 自查,不能只看行数。
 
 ## 检索定位桥(kernel anchorJump.ts 扩展)

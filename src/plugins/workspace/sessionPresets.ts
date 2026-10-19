@@ -26,6 +26,8 @@ export interface SessionPreset {
   name: string;
   engineId: string;
   model?: string;
+  /** 范围:true = 每次在新 worktree 起会话(分支 = 预设名 slug,冲突自动递增);undefined = 当前工作区。 */
+  worktree?: boolean;
   prompt?: PresetPrompt;
 }
 
@@ -110,6 +112,7 @@ function sanitizePresets(raw: unknown): SessionPreset[] {
       name,
       engineId,
       model: typeof model === "string" && model.trim() ? model : undefined,
+      worktree: item.worktree === true || undefined,
       prompt: prompt ?? undefined,
     });
   }
@@ -153,6 +156,7 @@ export async function savePreset(input: {
   name: string;
   engineId: string;
   model?: string;
+  worktree?: boolean;
   prompt?: PresetPrompt;
 }): Promise<SessionPreset | null> {
   const name = input.name.trim();
@@ -163,6 +167,7 @@ export async function savePreset(input: {
     name,
     engineId: input.engineId,
     model: input.model?.trim() || undefined,
+    worktree: input.worktree || undefined,
     prompt: input.prompt,
   };
   const prev = state.presets;
@@ -211,6 +216,8 @@ export interface PresetDraft {
   name: string;
   engineId: string;
   model: string;
+  /** 范围:true = 新 worktree(分支 = 预设名 slug);false = 当前工作区。 */
+  worktree: boolean;
   promptMode: "none" | "ref" | "text";
   ref: PresetPromptRef | null;
   text: string;
@@ -222,6 +229,7 @@ export function draftOf(preset: SessionPreset | null, fallbackEngineId: string):
     name: preset?.name ?? "",
     engineId: preset?.engineId ?? fallbackEngineId,
     model: preset?.model ?? "",
+    worktree: preset?.worktree ?? false,
     promptMode: !preset?.prompt ? "none" : "ref" in preset.prompt ? "ref" : "text",
     ref: preset?.prompt && "ref" in preset.prompt ? preset.prompt.ref : null,
     text: preset?.prompt && "text" in preset.prompt ? preset.prompt.text : "",

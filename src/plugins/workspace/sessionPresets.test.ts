@@ -25,6 +25,7 @@ vi.mock("@kernel/ipc", () => ({
 
 import {
   deletePreset,
+  draftOf,
   loadSessionPresets,
   presetPromptText,
   readSessionPresets,
@@ -117,5 +118,20 @@ describe("sessionPresets 存储", () => {
         (name) => `正文:${name}`,
       ),
     ).toBe("正文:review");
+  });
+
+  it("worktree 范围:true 落盘、false 归一 undefined;回读 sanitize 保留;draftOf 回填", async () => {
+    await reset();
+    const wt = await savePreset({ name: "修 CI", engineId: "omp", worktree: true });
+    const plain = await savePreset({ name: "周报", engineId: "omp", worktree: false });
+    expect(wt?.worktree).toBe(true);
+    expect(plain?.worktree).toBeUndefined();
+    /* 磁盘回读:true 保留、false 已归一 undefined(存储恒净形) */
+    io.read = io.writes.at(-1)!.content;
+    io.writes.length = 0;
+    await loadSessionPresets();
+    expect(readSessionPresets().presets.map((p) => p.worktree)).toEqual([true, undefined]);
+    expect(draftOf(wt!, "omp").worktree).toBe(true);
+    expect(draftOf(null, "omp").worktree).toBe(false);
   });
 });
