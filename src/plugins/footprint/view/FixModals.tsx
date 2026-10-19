@@ -3,7 +3,7 @@
  * 全部以「当前生效卡」为基底整量写 .user.json(与重命名同一写盘路径),
  * AI 原档保留可回溯。自 FootprintView 拆出守 300 行铁则。
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail } from "../dataSource";
 import type { FixDialog } from "./useFpFix";
@@ -22,13 +22,18 @@ function Shell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  // 聚焦进刚召唤的弹层(对话框正确 a11y);JSX autoFocus 属性被 react-doctor 禁用。
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    bodyRef.current?.querySelector("input")?.focus();
+  }, []);
   return (
     <div className="absolute bottom-14 left-1/2 z-40 w-[380px] -translate-x-1/2 overflow-hidden rounded-xl border border-[var(--tmd-border)] bg-[var(--tmd-bg-elevated)] shadow-[var(--tmd-shadow-popover,0_8px_24px_rgba(0,0,0,0.35))]">
       <div className="border-b border-[var(--tmd-border)] px-4 pt-3 pb-2.5">
         <div className="text-[13px] font-bold text-[var(--tmd-fg)]">{title}</div>
         {hint && <div className="mt-0.5 text-[11px] text-[var(--tmd-fg-muted)]">{hint}</div>}
       </div>
-      <div className="flex flex-col gap-2.5 px-4 py-3">{children}</div>
+      <div ref={bodyRef} className="flex flex-col gap-2.5 px-4 py-3">{children}</div>
       <div className="flex items-center justify-end gap-2 border-t border-[var(--tmd-border)] bg-[var(--tmd-bg-panel)] px-4 py-2.5">
         <button
           type="button"
@@ -159,7 +164,8 @@ export function FixModals(p: FixModalsProps) {
 
   if (d.kind === "split") {
     const src = cards.find((c) => c.title === d.title);
-    const entries = sessionEntries.filter(([sid]) => src?.sessions.includes(sid));
+    const srcSids = new Set(src?.sessions ?? []);
+    const entries = sessionEntries.filter(([sid]) => srcSids.has(sid));
     return (
       <Shell
         title={t("拆分「{title}」", { title: d.title })}
@@ -175,7 +181,6 @@ export function FixModals(p: FixModalsProps) {
       >
         <Field label={t("新卡名称")}>
           <input
-            autoFocus
             value={splitTitle}
             className={inputCls}
             onChange={(e) => setSplitTitle(e.target.value)}
@@ -208,7 +213,6 @@ export function FixModals(p: FixModalsProps) {
     >
       <Field label={t("功能名称(≤12 字)")}>
         <input
-          autoFocus
           value={mTitle}
           className={inputCls}
           onChange={(e) => setMTitle(e.target.value)}

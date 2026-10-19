@@ -43,12 +43,13 @@ export function splitCard(
 ): FpCardView[] {
   const source = cards.find((c) => c.title === sourceTitle);
   if (!source || moveSids.length === 0) return cards;
-  const rest = source.sessions.filter((sid) => !moveSids.includes(sid));
+  const move = new Set(moveSids);
+  const rest = source.sessions.filter((sid) => !move.has(sid));
   const fresh: FpCardView = {
     title: newTitle,
     summary: "",
     sessions: moveSids,
-    quote: source.quote && moveSids.includes(source.quote.sid) ? source.quote : undefined,
+    quote: source.quote && move.has(source.quote.sid) ? source.quote : undefined,
     unverified: source.unverified,
   };
   const out = cards
