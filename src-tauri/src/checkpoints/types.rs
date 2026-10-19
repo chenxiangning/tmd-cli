@@ -40,10 +40,15 @@ pub struct TurnFile {
     pub before_oid: String,
     /// 批后像 blob(sidecar);"" = 批后无内容(删除)或内容不可知(skip)
     pub after_oid: String,
+    #[serde(default)]
     pub existed_before: bool,
+    #[serde(default)]
     pub existed_after: bool,
+    #[serde(default)]
     pub additions: u32,
+    #[serde(default)]
     pub deletions: u32,
+    #[serde(default)]
     pub binary: bool,
     /// unified diff 文本(封口瞬间固化);binary 为空串
     #[serde(default)]
