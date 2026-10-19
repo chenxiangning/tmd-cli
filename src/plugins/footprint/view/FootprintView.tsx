@@ -11,8 +11,8 @@ import { useFootprintRev, gotoToday } from "../fpTab";
 import { DayFlow } from "./DayFlow";
 import { DiffPanel } from "./DiffPanel";
 import { EvidenceDrawer } from "./EvidenceDrawer";
+import { FixModals } from "./FixModals";
 import { FpOverlays } from "./FpOverlays";
-import { FIX_ACTIONS } from "./fixActions";
 import { FpTopbar } from "./FpTopbar";
 import { MonthCal, type HeatMode } from "./MonthCal";
 import { useFpFiles } from "./useFpFiles";
@@ -51,7 +51,8 @@ export function FootprintView() {
 
   const { fileSel, setFileSel, pickFile, resumeSession, openFile, revealFile } = useFpFiles(detail, card, showToast);
 
-  const { renaming, renameVal, setRenameVal, setRenaming, submitRename, hideCard } = useFpFix({
+  const { renaming, renameVal, setRenameVal, setRenaming, submitRename,
+    dialog, setDialog, submitMerge, submitSplit, submitManual, openFixAction } = useFpFix({
     sel,
     detail,
     showToast,
@@ -216,7 +217,7 @@ export function FootprintView() {
             fixCardTitle={fixCard}
             onOpenCard={openCard}
             onFix={(c) => setFixCard(fixCard === c.title ? null : c.title)}
-            onManualDigest={() => showToast(t("手动补归纳:卡编辑器待二期"))}
+            onManualDigest={() => setDialog({ kind: "manual" })}
           />
           {/* 主流宽 diff 面板(点抽屉文件行展开) */}
           <div id="fp-main-diff" className="px-4">
@@ -275,16 +276,7 @@ export function FootprintView() {
         onCloseFix={() => setFixCard(null)}
         onFixAction={(a) => {
           setFixCard(null);
-          if (a === FIX_ACTIONS[0] && fixCard) {
-            setRenaming(fixCard);
-            setRenameVal(fixCard);
-            return;
-          }
-          if (a === FIX_ACTIONS[3] && fixCard) {
-            hideCard(fixCard);
-            return;
-          }
-          showToast(t("合并/拆分需跨卡选择交互,待二期定义"));
+          openFixAction(a, fixCard);
         }}
         renameOpen={renaming !== null}
         renameValue={renameVal}
@@ -292,6 +284,14 @@ export function FootprintView() {
         onRenameSubmit={submitRename}
         onRenameCancel={() => setRenaming(null)}
         onToggleHelp={() => setHelpOpen((v) => !v)}
+      />
+      <FixModals
+        dialog={dialog}
+        detail={detail}
+        onMerge={submitMerge}
+        onSplit={submitSplit}
+        onManual={submitManual}
+        onClose={() => setDialog(null)}
       />
     </div>
   );

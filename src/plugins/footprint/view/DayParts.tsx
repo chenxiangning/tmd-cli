@@ -153,7 +153,7 @@ export function CardList({ detail, query, focusIdx, fixCardTitle, onOpenCard, on
           />
           {fixCardTitle === c.title && (
             <div className="ml-1 mt-1 rounded-lg border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] px-3 py-2 text-[11px] text-[var(--tmd-fg-muted)]">
-              {t("重命名 / 标记为无关 直接写修正层(.user.json)· 合并/拆分待二期")}
+              {t("重命名 / 标记为无关 / 合并 / 拆分 直接写修正层(.user.json)· 手动补归纳建新卡")}
             </div>
           )}
         </div>
