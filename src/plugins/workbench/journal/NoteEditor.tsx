@@ -7,8 +7,10 @@ import { useEffect, useRef, useState } from "react";
 import { PencilSimpleLine } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
+import { draftMirrorClear, draftMirrorGet, draftMirrorSet } from "@kernel/draftMirror";
+import { DraftMirrorBar } from "@kernel/draftMirrorBar";
 import { saveNote } from "./journalStore";
-import type { DayNote, DayNoteImage } from "./journalFiles";
+import { noteMirrorSlot, type DayNote, DayNoteImage } from "./journalFiles";
 import { savePastedImage } from "./noteAssets";
 import { NoteImage, NoteReadonly } from "./articleBody";
 
@@ -62,8 +64,20 @@ export function NoteEditor({
     imgs.some((img, i) => img.file !== baseImages?.[i]?.file);
   const dirty = isDirtyWith(text, images);
   /* 脏态上浮在变更点直报(react-doctor 禁 prop 回调进 effect):六个变更入口各自调。 */
-  const reportDirty = (editingNow: boolean, t: string, imgs: DayNoteImage[]) =>
+  const reportDirty = (editingNow: boolean, t: string, imgs: DayNoteImage[]) => {
     onDirtyChange?.(editingNow && isDirtyWith(t, imgs));
+    /* 镜像随行(0.4.0 项 12):脏 = 跟写(防抖落盘),不脏(已保存/弃稿)= 清,与草稿同生命周期。 */
+    if (editingNow && isDirtyWith(t, imgs)) draftMirrorSet(noteMirrorSlot(y, m, d), t);
+    else draftMirrorClear(noteMirrorSlot(y, m, d));
+  };
+  /* 草稿镜像恢复条(派生态):与当前文本有差才显,跟写/回填等值即自隐,丢弃清镜像即消失。 */
+  const mirrorEntry = editing ? draftMirrorGet(noteMirrorSlot(y, m, d)) : null;
+  const mirrorBar = mirrorEntry && mirrorEntry.text !== text ? mirrorEntry : null;
+  const restoreMirrorBar = () => {
+    if (!mirrorBar) return;
+    setText(mirrorBar.text);
+    reportDirty(true, mirrorBar.text, images);
+  };
 
   if (!editing) {
     return (
@@ -158,6 +172,7 @@ export function NoteEditor({
 
   return (
     <div className="dj-notecard">
+      <DraftMirrorBar mirror={mirrorBar} onRestore={restoreMirrorBar} onDiscard={() => draftMirrorClear(noteMirrorSlot(y, m, d))} />
       <div className="dj-nc-head">
         <PencilSimpleLine size="0.75rem" /> {t("我的便签")}
       </div>

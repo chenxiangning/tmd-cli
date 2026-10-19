@@ -26,6 +26,7 @@ import {
   getTabs,
   type EditorTab,
 } from "./tabs";
+import { cancelAllAsks } from "./askDialog";
 
 /** 在途确认(键 = tab id):同 tab 重复手势复用同一个 Promise。 */
 const inFlight = new Map<string, Promise<boolean>>();
@@ -76,11 +77,23 @@ export async function requestCloseOtherTabs(keepId: string): Promise<void> {
   }
 }
 
-/** 关全部 tab(用户手势):逐个过闸,拒绝者留下。 */
-export async function requestCloseAllTabs(): Promise<void> {
-  for (const tab of [...getTabs()]) {
-    if (!(await ask(tab))) continue;
-    if (!stillCurrent(tab)) continue;
-    closeTab(tab.id);
+/** 关全部 tab(用户手势):逐个过闸,拒绝者留下。
+ *  退出模式({ quit: true },0.4.0 项 12):关窗聚合裁决后的强制放行
+ *  通道 —— 绕各 kind 闸(闸只服务单 tab 手势,退出已整体裁决),先按不放行
+ *  结清在途的命令式问话(askDialog 不随 tab 卸载自愈,留着会挂住结算),
+ *  关完等全部在途闸结算落地才返回,quitGuard 据此把握补发 windowClose
+ *  的时机(设计点④:悬挂 promise 不得带出退出)。 */
+export async function requestCloseAllTabs(opts?: { quit?: boolean }): Promise<void> {
+  if (!opts?.quit) {
+    for (const tab of [...getTabs()]) {
+      if (!(await ask(tab))) continue;
+      if (!stillCurrent(tab)) continue;
+      closeTab(tab.id);
+    }
+    return;
   }
+  const pending = [...inFlight.values()];
+  cancelAllAsks();
+  for (const tab of [...getTabs()]) closeTab(tab.id);
+  await Promise.allSettled(pending);
 }

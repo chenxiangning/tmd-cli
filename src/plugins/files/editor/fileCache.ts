@@ -11,6 +11,7 @@
 
 import { ipc } from "@kernel/ipc";
 import { findRemoteFileSourceForUri } from "@kernel/fileSources";
+import { draftMirrorClear, draftMirrorSet } from "@kernel/draftMirror";
 
 interface FilePayload {
   path: string;
@@ -122,16 +123,23 @@ export function cacheRefreshContent(path: string, content: string): void {
 
 /* ── 草稿 ── */
 
+/** 草稿的 localStorage 镜像槽(kernel/draftMirror;跨崩溃/强退恢复网)。 */
+function mirrorSlot(path: string): string {
+  return `file:${path}`;
+}
+
 export function draftGet(path: string): string | undefined {
   return drafts.get(path);
 }
 
 export function draftSet(path: string, content: string): void {
   drafts.set(path, content);
+  draftMirrorSet(mirrorSlot(path), content);
 }
 
 export function draftDelete(path: string): void {
   drafts.delete(path);
+  draftMirrorClear(mirrorSlot(path));
 }
 
 /** 路径等于 prefix 或在其下(子孙);`/` 与 `\` 都认 —— Windows 路径来自 Rust。 */
@@ -146,7 +154,9 @@ export function pathEqualsOrUnder(path: string, prefix: string): boolean {
 /** 路径或其子孙(目录整体)的草稿作废 —— 目录被重命名/删除时调用。 */
 export function draftDeletePrefix(prefix: string): void {
   for (const key of drafts.keys()) {
-    if (pathEqualsOrUnder(key, prefix)) drafts.delete(key);
+    if (!pathEqualsOrUnder(key, prefix)) continue;
+    drafts.delete(key);
+    draftMirrorClear(mirrorSlot(key));
   }
 }
 
@@ -163,9 +173,15 @@ export function draftRenamePrefix(oldPrefix: string, newPrefix: string): void {
   }
   if (moved.length === 0) return;
   for (const key of [...drafts.keys()]) {
-    if (pathEqualsOrUnder(key, oldPrefix)) drafts.delete(key);
+    if (pathEqualsOrUnder(key, oldPrefix)) {
+      drafts.delete(key);
+      draftMirrorClear(mirrorSlot(key));
+    }
   }
-  for (const [mapped, value] of moved) drafts.set(mapped, value);
+  for (const [mapped, value] of moved) {
+    drafts.set(mapped, value);
+    draftMirrorSet(mirrorSlot(mapped), value);
+  }
 }
 
 /** 缓存条目整段作废(路径或其子孙)—— 目录被删除/重命名时调用。 */

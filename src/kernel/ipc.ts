@@ -192,6 +192,9 @@ export interface CkptBatchFile {
   stale: boolean;
   /** 本轮 AI 写入事件计数(events 归因轨迹;git 归因 = 0) */
   editCount: number;
+  /** 账本口径 ± 行数(封口瞬间固化,回退不回缩);open 轮未封口为 0 */
+  additions: number;
+  deletions: number;
   /** 工作区外首轮无前像(批前像不可知):禁回退,仅可查看 / 应用 */
   noBaseline: boolean;
 }
@@ -998,6 +1001,32 @@ export function windowClose(): Promise<void> {
     return Promise.resolve();
   }
   return getCurrentWindow().close();
+}
+
+/**
+ * 关窗意图订阅:window onCloseRequested(0.4.0 项 12 关窗闸)。
+ * decide 在事件回调内同步决断(脏检是同步面):调 prevent() 才拦窗(同步
+ * 先行,后续裁决走聚合弹层,关闭由 windowClose 补发);不调则窗口按原生
+ * 流程销毁 —— 不做「全拦再补发」形态,防脏空场景 windowClose 重入死循环。
+ * web 态 no-op。返回退订函数(boot 常驻路径不退订)。
+ */
+export function onWindowCloseRequest(decide: (prevent: () => void) => void): () => void {
+  if (isWeb) return () => undefined;
+  let unlisten: (() => void) | undefined;
+  void getCurrentWindow()
+    .onCloseRequested((event) => {
+      let prevented = false;
+      decide(() => {
+        if (prevented) return;
+        prevented = true;
+        event.preventDefault();
+      });
+    })
+    .then((u) => {
+      unlisten = u;
+    })
+    .catch(() => undefined);
+  return () => unlisten?.();
 }
 
 /** 应用版本号(关于/设置页脚展示)。web 态走桥 hello 帧上报的版本(serverVersion)。 */

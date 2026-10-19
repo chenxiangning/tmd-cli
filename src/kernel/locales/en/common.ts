@@ -240,5 +240,15 @@ export const MESSAGES = {
   "已熔断": "Quarantined",
   "组件资源加载失败;请重载页面恢复": "Component resources failed to load — reload the page to recover",
 
+  // ── 草稿安全网(0.4.0 项 12:draftMirrorBar 恢复条 + quitGuard 聚合退出弹层) ──
+  // 相对时间三键({n} 分钟前/小时前/天前)已落 misc 域,此处不重收。
+  "检测到上次未保存草稿({time})": "Unsaved draft from last session ({time})",
+  "草稿超过 256KB,恢复仅保留前缀": "Draft exceeded 256KB — only the leading part is kept",
+  "恢复": "Restore",
+  "丢弃": "Discard",
+  "有 {n} 个未保存草稿": "{n} unsaved drafts",
+  "放弃并退出": "Discard and quit",
+  "本次不再问": "Don't ask again this session",
+
   // ── 手机远程 UI(src/mobile 树) ──
 } as Record<string, string>;

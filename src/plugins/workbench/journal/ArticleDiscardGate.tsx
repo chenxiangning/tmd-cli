@@ -9,8 +9,11 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
+import { getTab } from "@kernel/tabs";
+import { draftMirrorClear } from "@kernel/draftMirror";
 import { WbConfirm } from "../ui";
 import { installArticleDiscardGate } from "./journalTabs";
+import { noteMirrorSlot } from "./journalFiles";
 
 export function ArticleDiscardGate({ tabId }: { tabId: string }) {
   const [ask, setAsk] = useState(false);
@@ -34,6 +37,12 @@ export function ArticleDiscardGate({ tabId }: { tabId: string }) {
   }, [tabId]);
   const settle = (ok: boolean) => {
     setAsk(false);
+    /* 确认弃稿 = 连镜像一起丢(否则重开当日恢复条复活已弃内容);取消保留。
+     * 退出编排的强制放行不经此闸,镜像照常留存(崩溃网不撤)。 */
+    if (ok) {
+      const p = getTab(tabId)?.payload as { y: number; m: number; d: number } | undefined;
+      if (p) draftMirrorClear(noteMirrorSlot(p.y, p.m, p.d));
+    }
     settleRef.current?.(ok);
     settleRef.current = null;
   };

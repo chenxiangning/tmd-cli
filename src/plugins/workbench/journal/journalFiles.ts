@@ -89,6 +89,9 @@ export const EMPTY_META: MetaFile = { config: DEFAULT_CONFIG, days: {}, tasks: [
 
 export const pad2 = (n: number): string => String(n).padStart(2, "0");
 export const dayKey = (y: number, m: number, d: number): string => `${y}-${pad2(m)}-${pad2(d)}`;
+/** 便签草稿镜像槽(kernel/draftMirror;崩溃/强退恢复条用,NoteEditor 与
+ *  ArticleDiscardGate 两处弃稿/恢复点共用同一拼装)。 */
+export const noteMirrorSlot = (y: number, m: number, d: number): string => `journal-note:${dayKey(y, m, d)}`;
 
 interface DailyPaths {
   root: string;
