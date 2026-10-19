@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tmd-cli 终端渲染基准 · canvas vs WebGL</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: system-ui, -apple-system, "PingFang SC", sans-serif; background: #f6f6f4; color: #1c1917; line-height: 1.6; padding: 32px 24px; }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 2px; }
+  .sub { color: #57534e; font-size: 13px; margin-bottom: 16px; }
+  #banner { display: none; background: #fef9c3; border: 1px solid #e7d98c; border-radius: 8px; padding: 8px 14px; font-size: 13px; margin-bottom: 12px; }
+  .card { background: #fff; border: 1px solid #e4e4e0; border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 16px; }
+  .panel-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .panel-head h2 { font-size: 15px; }
+  .pill { font-size: 11px; padding: 2px 10px; border-radius: 99px; background: #ffedd5; color: #9a3412; }
+  .pill.ok { background: #dcfce7; color: #166534; }
+  .pill.run { background: #dbeafe; color: #1d4ed8; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #eeeeea; vertical-align: top; }
+  th { color: #57534e; font-weight: 600; font-size: 12px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .fps { font-weight: 600; }
+  .fps small { font-size: 10px; color: #a8a29e; margin-left: 2px; }
+  .cmd { font-size: 11px; color: #78716c; }
+  .delta { display: inline-block; min-width: 44px; font-weight: 600; }
+  .delta.ok { color: #166534; }
+  .delta.warn { color: #92400e; }
+  .verdict { font-size: 11px; padding: 1px 8px; border-radius: 99px; }
+  .v-ok { background: #f0fdf4; color: #166534; }
+  .v-warn { background: #fefce8; color: #854d0e; }
+  .foot { font-size: 12px; color: #78716c; margin-top: 8px; }
+  .conclusion { display: flex; gap: 10px; align-items: flex-start; border-top: 1px solid #eeeeea; padding-top: 12px; margin-top: 4px; font-size: 13px; }
+  .conclusion code { background: #f5f5f4; padding: 0 4px; border-radius: 4px; font-size: 12px; }
+  button { background: #ea580c; color: #fff; border: 0; border-radius: 8px; padding: 8px 18px; font-size: 13px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .terms { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .terms .cell { border: 1px solid #e4e4e0; border-radius: 8px; overflow: hidden; }
+  .terms .cell b { display: block; font-size: 11px; color: #57534e; padding: 4px 8px; background: #fafaf9; }
+  #term-a, #term-b { height: 260px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>终端渲染基准</h1>
+  <p class="sub">同参双终端(canvas 默认 vs WebGL addon)回放三场景,每场景 3 轮取中位数;判定线 = 中位数 fps 提升 &lt;5% 无感。报告按 UA+xterm 版本缓存于 localStorage。</p>
+  <div id="banner"></div>
+
+  <div class="card">
+    <div class="panel-head"><h2>终端渲染基准报告</h2><span class="pill" id="status-pill" role="status" aria-live="polite">待运行</span></div>
+    <table>
+      <thead><tr>
+        <th style="width:30%">场景</th>
+        <th class="num">canvas fps</th>
+        <th class="num">WebGL fps</th>
+        <th class="num">差异</th>
+        <th>判定</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>cat 10 万行日志</b><div class="cmd">一次性洪峰回放</div></td><td class="num" id="a0">—</td><td class="num" id="b0">—</td><td class="num" id="d0">—</td><td id="v0">—</td></tr>
+        <tr><td><b>htop 全屏重绘</b><div class="cmd">每帧全屏刷新,持续 10s</div></td><td class="num" id="a1">—</td><td class="num" id="b1">—</td><td class="num" id="d1">—</td><td id="v1">—</td></tr>
+        <tr><td><b>vim 连续滚屏</b><div class="cmd">每帧滚 40 行 × 5000 行</div></td><td class="num" id="a2">—</td><td class="num" id="b2">—</td><td class="num" id="d2">—</td><td id="v2">—</td></tr>
+      </tbody>
+    </table>
+    <p class="foot" id="stamp"></p>
+    <div class="conclusion">
+      <div class="body" id="decision">依赖决策:运行基准后给出。不通过 → 不装,维持 fit/search/web-links 现状;通过 → 按需 dynamic import,不进首包。</div>
+      <button id="rerun">运行</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="terms">
+      <div class="cell"><b>canvas(默认渲染器)</b><div id="term-a"></div></div>
+      <div class="cell"><b>WebGL addon</b><div id="term-b"></div></div>
+    </div>
+  </div>
+</main>
+<script type="module" src="/src/bench/webglBench.ts"></script>
+</body>
+</html>

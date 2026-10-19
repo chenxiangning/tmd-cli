@@ -62,5 +62,11 @@ export default defineConfig({
   },
   build: {
     target: "es2022",
+    rollupOptions: {
+      input: {
+        /* 基准页独立入口:不进主包 chunk,产物 dist/bench.html 单独可达 */
+        bench: "bench/index.html",
+      },
+    },
   },
 });
