@@ -22,7 +22,6 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 const $ = (id: string) => document.getElementById(id)!;
-const fps = (ticks: number, ms: number) => ticks / (ms / 1000);
 
 function makeTerm(parent: HTMLElement): Terminal {
   const term = new Terminal({
@@ -56,52 +55,44 @@ const VIM_LINE = `  // const x = computeShortcutRegistry(ctx);`.padEnd(122, " ")
 
 /* ---- 采样:write 回调到位才发下一帧,帧率即渲染管线吞吐(队列积压不虚高)。 ---- */
 
-/* 洪峰:分帧喂养(每帧 2000 行直到 10 万行),帧率 = 渲染管线持续吞吐。
-   单次巨 write 不行:xterm 解析在 rAF 节拍外就跑完,量到的是解析不是渲染(实证 0 tick)。 */
-async function sampleFlood(term: Terminal): Promise<number> {
-  let frames = 0;
-  let lines = 0;
-  const t0 = performance.now();
-  let seed = 0;
-  while (lines < FLOOD_LINES) {
-    const parts: string[] = [];
-    for (let n = 0; n < 2000; n++, lines++) {
-      parts.push(`[2026-10-19 12:${String(Math.floor(lines / 600) % 60).padStart(2, "0")}:${String(lines % 60).padStart(2, "0")}] ` +
-        `INFO app-2026-10-17 request_id=${lines} path=/api/session/${(seed * 7919 + lines) % 99991} status=200 bytes=${(lines * 31) % 4096}\r\n`);
-    }
-    seed++;
-    await nextFrame(term, parts.join(""));
-    frames++;
-  }
-  return fps(frames, performance.now() - t0);
-}
-
-async function sampleHtop(term: Terminal): Promise<number> {
-  let ticks = 0;
-  let seed = 0;
-  const t0 = performance.now();
-  while (performance.now() - t0 < HOLD_MS) {
-    await nextFrame(term, makeHtopFrame(seed++));
-    ticks++;
-  }
-  return fps(ticks, performance.now() - t0);
-}
-
-async function sampleVim(term: Terminal): Promise<number> {
-  let frames = 0;
-  const t0 = performance.now();
-  while (frames * 40 < VIM_LINES) {
-    await nextFrame(term, VIM_LINE.repeat(40));
-    frames++;
-  }
-  return fps(frames, performance.now() - t0);
-}
-
 function nextFrame(term: Terminal, data: string): Promise<void> {
   const { promise, resolve } = Promise.withResolvers<void>();
   requestAnimationFrame(() => term.write(data, resolve));
   return promise;
 }
+
+/* 串行泵:发一帧→等渲染管线消化→发下一帧,帧率 = 帧数/墙钟。
+   串行是测量语义本身(并行喂养只会量到写队列积压),递归形态而非 loop-await。 */
+function pumpFrames(term: Terminal, make: (i: number) => string, done: (i: number, elapsedMs: number) => boolean): Promise<number> {
+  const { promise, resolve } = Promise.withResolvers<number>();
+  const t0 = performance.now();
+  const step = async (i: number): Promise<void> => {
+    if (done(i, performance.now() - t0)) {
+      resolve(i / ((performance.now() - t0) / 1000));
+      return;
+    }
+    await nextFrame(term, make(i));
+    await step(i + 1);
+  };
+  void step(0);
+  return promise;
+}
+
+/* 洪峰:分帧喂养(每帧 2000 行直到 10 万行),帧率 = 渲染管线持续吞吐。
+   单次巨 write 不行:xterm 解析在 rAF 节拍外就跑完,量到的是解析不是渲染(实证 0 tick)。 */
+function makeFloodChunk(start: number): string {
+  const parts: string[] = [];
+  for (let n = 0; n < 2000; n++) {
+    const line = start * 2000 + n;
+    parts.push(`[2026-10-19 12:${String(Math.floor(line / 600) % 60).padStart(2, "0")}:${String(line % 60).padStart(2, "0")}] ` +
+      `INFO app-2026-10-17 request_id=${line} path=/api/session/${(start * 7919 + line) % 99991} status=200 bytes=${(line * 31) % 4096}\r\n`);
+  }
+  return parts.join("");
+}
+
+const sampleFlood = (term: Terminal) => pumpFrames(term, makeFloodChunk, (i) => i * 2000 >= FLOOD_LINES);
+const sampleHtop = (term: Terminal) => pumpFrames(term, makeHtopFrame, (_i, elapsed) => elapsed >= HOLD_MS);
+const sampleVim = (term: Terminal) => pumpFrames(term, () => VIM_LINE.repeat(40), (i) => i * 40 >= VIM_LINES);
 
 /* ---- 三场景 × 两渲染器 × RUNS 轮;轮间 300ms 排空上轮写队列。 ---- */
 
