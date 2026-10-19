@@ -38,8 +38,9 @@ export function sessionExportFileName(
 ): string {
   const p = (n: number) => String(n).padStart(2, "0");
   const day = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}`;
-  /* slug:文件系统非法字符 → _;封顶 80 字符(标题可能是整段首问,防超长文件名)。 */
-  const slug = (title || cliSessionId).replace(/[\\/:*?"<>|]/g, "_").slice(0, 80);
+  /* slug:文件系统非法字符 + 控制字符(标题可能含换行/制表)→ _;封顶 80 字符
+   * (标题可能是整段首问,防超长文件名;win 保存对话框拒收控制字符)。 */
+  const slug = (title || cliSessionId).replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").slice(0, 80);
   return `${safeFileBase(slug)}-${day}.md`;
 }
 

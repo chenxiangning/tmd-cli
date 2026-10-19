@@ -98,9 +98,11 @@ export async function runWorktreeCreate(input: {
       { activate: true, identityTrack: true },
     );
     spawnedId = spawned.id;
-    recordWtSession(spawned.id, { branch: input.finalBranch, wtPath: input.wtPath, root: input.repoCwd });
+    /* 注入先于记账:setPendingPrompt 是同步内存写不会失败,recordWtSession
+       (localStorage)配额满可抛 —— 反序会把已启动会话的初始提示词丢成孤儿。 */
     const prompt = input.promptText?.trim();
     if (prompt) setPendingPrompt(spawned.id, prompt);
+    recordWtSession(spawned.id, { branch: input.finalBranch, wtPath: input.wtPath, root: input.repoCwd });
     return { ok: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

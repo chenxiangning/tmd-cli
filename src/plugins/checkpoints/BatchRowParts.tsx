@@ -17,6 +17,12 @@ import { openBatchTab } from "./batchTab";
 import { fileChipCls } from "./fileChipCls";
 import type { ConfirmTarget } from "./confirmCard";
 
+/** 工作区外(绝对路径)判定 —— BatchFileSection.isOutsideWorkspace 同口径
+ *  (POSIX 绝对 + UNC + 盘符);组件文件禁非组件导出,故本文件各留一份。 */
+function isOutsideWorkspace(p: string): boolean {
+  return p.startsWith("/") || p.startsWith("//") || /^[A-Za-z]:\//.test(p);
+}
+
 export { ConfirmCard } from "./confirmCard";
 export type { ConfirmTarget } from "./confirmCard";
 
@@ -38,8 +44,8 @@ export function FileRow({
   setConfirm: (v: ConfirmTarget | null) => void;
 }) {
   const canRevert = b.state === "pending" && f.live === "same" && !f.noBaseline;
-  /* hover 入口图标用:工作区外文件(无前像标记的外部路径)本身是绝对路径,原样打开 */
-  const abs = f.path.startsWith("/") ? f.path : `${cwd.replace(/[\\/]+$/, "")}/${f.path}`;
+  /* hover 入口图标用:工作区外文件(绝对路径,BatchFileSection 同款判定)原样打开 */
+  const abs = isOutsideWorkspace(f.path) ? f.path : `${cwd.replace(/[\\/]+$/, "")}/${f.path}`;
   const segs = f.path.split("/");
   const name = segs.pop() ?? f.path;
   const dir = segs.length ? segs.join("/") + "/" : "";

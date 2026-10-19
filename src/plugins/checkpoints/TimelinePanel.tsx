@@ -69,7 +69,7 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
     ),
     () => messageAnchors.getAnchors(sessionId),
   );
-  /* 正向映射:prompt 全等 + 同文按出现序配对(turnMatch);匹配不到不渲染 chip。 */
+  /* 正向映射:轮号对齐 + prompt 全等双闸(turnMatch);匹配不到不渲染 chip。 */
   const turnBatches = useMemo(
     () => matchTurnBatches(anchors, batches ?? []),
     [anchors, batches],
@@ -105,9 +105,10 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
   const items = anchors.map((anchor, i) => ({ anchor, seq: i + 1 })).reverse();
   const lastId = anchors[anchors.length - 1]?.id;
 
-  async function onJump(anchor: UserMessageAnchor) {
+  async function onJump(anchor: UserMessageAnchor, occurrence: number) {
     if (!sessionId) return;
-    const ok = await jumpToAnchor(sessionId, anchor);
+    /* occurrence = anchors 正序位置 +1(seq):同文多轮定位本条,不落最新 */
+    const ok = await jumpToAnchor(sessionId, anchor, occurrence);
     if (ok) return;
     setMissId(anchor.id);
     window.setTimeout(() => setMissId((cur) => (cur === anchor.id ? null : cur)), MISS_FLASH_MS);
@@ -135,7 +136,7 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
           open={openIds.has(anchor.id)}
           turnBatch={turnBatches.get(anchor.id)}
           onToggle={() => toggleOpen(anchor.id)}
-          onJump={() => void onJump(anchor)}
+          onJump={() => void onJump(anchor, seq)}
         />
       ))}
     </div>

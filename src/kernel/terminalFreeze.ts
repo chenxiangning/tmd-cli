@@ -81,5 +81,13 @@ export function resolveFreezeReplay(
   if (!snap || snap.fingerprint !== fingerprint) return { mode: "full" };
   if (curBytes < snap.bytePos || curBuffer.length < snap.unloadChars) return { mode: "full" };
   if (curBuffer.slice(0, snap.headSample.length) !== snap.headSample) return { mode: "full" };
-  return { mode: "fast", incremental: curBuffer.slice(snap.unloadChars), snap };
+  /* 切点落在代理对中间回退一位:孤立低代理开头在 scrollback 渲染替换字形 */
+  const from =
+    snap.unloadChars > 0 &&
+    snap.unloadChars < curBuffer.length &&
+    curBuffer.charCodeAt(snap.unloadChars - 1) >= 0xd800 &&
+    curBuffer.charCodeAt(snap.unloadChars - 1) <= 0xdbff
+      ? snap.unloadChars - 1
+      : snap.unloadChars;
+  return { mode: "fast", incremental: curBuffer.slice(from), snap };
 }

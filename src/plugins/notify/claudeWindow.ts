@@ -10,10 +10,7 @@ import { t } from "@kernel/i18n";
 import type { CliProfile } from "@kernel/cliProfile";
 import type { SessionMeta } from "@kernel/ipc";
 import { extractUsageFromHead } from "@plugins/cli-shared/sessionUsage";
-import {
-  QUOTA_WINDOW_MS,
-  windowResetFor,
-} from "@plugins/cli-shared/quota/quotaWindow";
+import { windowResetFor } from "@plugins/cli-shared/quota/quotaWindow";
 import { pickResetWarning } from "./quotaWatch";
 
 /** 尾读字节预算(welcome/tokens.ts TAIL_BYTES 同款口径)。 */
@@ -35,7 +32,10 @@ export async function claudeResetWarning(
     if (!disk) return null;
     const tail = await ipc.fsReadTail(disk.path, TAIL_BYTES);
     if (!tail) return null;
-    const lines = extractUsageFromHead(tail, now - QUOTA_WINDOW_MS);
+    /* 不做时间预过滤(传 0):窗口判活是 windowResetFor 的职责,这里按 5h
+       截会丢真锚(闲置会话最新用量 >5h 旧时),推出更晚 resetAt 假阳性 ——
+       welcome 侧同函数喂 7 天窗,口径必须一致。尾读 128KB 已限界。 */
+    const lines = extractUsageFromHead(tail, 0);
     const w = windowResetFor("claude", lines, now);
     if (!w) return null;
     const key = `${profile.id}:reset:${w.resetAtMs}`;

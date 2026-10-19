@@ -63,17 +63,23 @@ export function startIndexerTicks(
   /* 快照发射合流:距上次发射 ≥120ms 才发(扫描期每步全语料重扫代价高),
    * settle 时无条件补发终态快照,最终计数不丢。状态挂循环闭包,跨拍持续。 */
   let lastEmitAt = -Infinity;
+  /* stopped 闸:stop 后在途拍(await 真读步)不得再写态 —— 否则旧扫描
+     快照写进新消费面、settle 把新扫描的进度徽标与悬空收口守卫提前掐掉。 */
+  let stopped = false;
   const emit = () => {
+    if (stopped) return;
     const t = now();
     if (t - lastEmitAt < INDEX_EMIT_INTERVAL_MS) return;
     lastEmitAt = t;
     onIndex({ ...indexer.index });
   };
   const flush = () => {
+    if (stopped) return;
     lastEmitAt = now();
     onIndex({ ...indexer.index });
   };
   const settle = () => {
+    if (stopped) return;
     flush();
     onSettled();
   };
@@ -83,7 +89,6 @@ export function startIndexerTicks(
    * 超 60ms 时不再多拍并发在途。 */
   let stop = () => {};
   stop = (() => {
-    let stopped = false;
     let timer: number | undefined;
     const run = async () => {
       let delay = STEP_INTERVAL_MS;

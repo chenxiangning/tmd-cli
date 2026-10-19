@@ -12,11 +12,11 @@ import { KernelTopics, type SessionStartFailedEvent } from "@kernel/events";
 import { setPendingPrompt } from "@kernel/sessionPending";
 import type { Workspace } from "@kernel/workspace";
 import { Play, SlidersHorizontal } from "@phosphor-icons/react";
-import { promptContent } from "@plugins/assets/promptStore";
+import { promptContentByRef } from "@plugins/assets/promptStore";
 import { defaultEngineCandidates } from "@plugins/workbench/defaultEngine";
 import { launchPresetSession, launchPresetWorktreeSession } from "./presetLaunch";
 import { runWorktreeCreate } from "./worktreeCreate";
-import { presetPromptText, useSessionPresets, type SessionPreset } from "./sessionPresets";
+import { presetPromptText, useSessionPresets, type PresetPromptRef, type SessionPreset } from "./sessionPresets";
 
 /* 行内 pill / 描述:菜单行信息密度对齐候选4 定稿(名称行 + pill,次行说明)。 */
 const pillCls =
@@ -27,7 +27,7 @@ const descCls = "truncate text-xs font-normal text-(--tmd-fg-subtle)";
 function presetBlockReason(
   preset: SessionPreset,
   engineCount: number,
-  contentOf: (name: string) => string,
+  contentOf: (ref: PresetPromptRef) => string,
 ): string | null {
   if (engineCount === 0) return t("未检测到可用引擎,无法启动预设");
   if (!host.getCliProfile(preset.engineId)) return t("预设的引擎不可用");
@@ -50,7 +50,7 @@ export function SessionMenuPresets({
 }) {
   const { presets } = useSessionPresets();
   const engineCount = defaultEngineCandidates().length;
-  const contentOf = (name: string) => promptContent(name, workspace.root);
+  const contentOf = (ref: PresetPromptRef) => promptContentByRef(ref);
 
   const launch = (preset: SessionPreset) => {
     if (presetBlockReason(preset, engineCount, contentOf)) return;

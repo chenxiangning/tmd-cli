@@ -79,7 +79,6 @@ const MESSAGES_EN = {
   /* 页尾 QUOTA 套餐水位面板(卡片网格) */
   "套餐水位": "plan usage",
   "暂无可查询的套餐额度": "No queryable plan quota",
-  "重置{rel}": "resets {rel}",
   "数据源:供应商额度查询 + 会话记录本地推算":
     "Source: provider quota API + local session-log inference",
   "刷新重算": "Recalculate",
@@ -91,8 +90,6 @@ const MESSAGES_EN = {
   "倒计时本地每分钟重算,无网络轮询":
     "Countdown recalcs locally every minute — no network polling",
   "已用": "used",
-  "{h}小时 {m}分": "{h}h {m}m",
-  "{m}分": "{m}m",
   "{h}小时 {m}分后": "in {h}h {m}m",
   "{m}分后": "in {m}m",
   "窗口起点 {time} · 由本窗口首条用量行推算":
@@ -187,7 +184,6 @@ const MESSAGES_JA = {
   /* ページ末尾 QUOTA プラン使用量パネル(カードグリッド) */
   "套餐水位": "プラン使用量",
   "暂无可查询的套餐额度": "照会可能なプラン使用量なし",
-  "重置{rel}": "リセット {rel}",
   "数据源:供应商额度查询 + 会话记录本地推算":
     "ソース:プロバイダー使用量 API + セッション記録のローカル推算",
   "刷新重算": "再計算",
@@ -199,8 +195,6 @@ const MESSAGES_JA = {
   "倒计时本地每分钟重算,无网络轮询":
     "カウントダウンはローカルで毎分再計算(ネットワークポーリングなし)",
   "已用": "使用",
-  "{h}小时 {m}分": "{h}時間{m}分",
-  "{m}分": "{m}分",
   "{h}小时 {m}分后": "{h}時間{m}分後",
   "{m}分后": "{m}分後",
   "窗口起点 {time} · 由本窗口首条用量行推算":

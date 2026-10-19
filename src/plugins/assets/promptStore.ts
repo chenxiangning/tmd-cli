@@ -113,3 +113,16 @@ export function promptContent(name: string, cwd: string): string {
   const key = name.toLowerCase();
   return visiblePrompts(cwd).find((p) => p.name.toLowerCase() === key)?.content ?? "";
 }
+
+/** 预设引用三元组现读:scope+wsId+name 全等才命中,不走 visiblePrompts 的
+ *  工作区同名覆盖 —— global 引用只认全局条目,workspace 引用只认本区条目
+ *  (跨区启动 = 不可见 = 空串,消费方灰态禁点,不猜测)。 */
+export function promptContentByRef(ref: { scope: PromptScope; wsId?: string; name: string }): string {
+  const key = ref.name.toLowerCase();
+  return state.prompts.find(
+    (p) =>
+      p.scope === ref.scope &&
+      (p.wsId ?? undefined) === (ref.wsId ?? undefined) &&
+      p.name.toLowerCase() === key,
+  )?.content ?? "";
+}

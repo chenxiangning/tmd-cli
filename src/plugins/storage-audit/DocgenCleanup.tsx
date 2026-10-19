@@ -8,8 +8,9 @@ import { useEffect, useState } from "react";
 import { Archive, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { readDocGenIndex } from "@plugins/workbench/docgen/paths";
+import { removeArchivedEntry } from "@plugins/workbench/docgen/store";
 import type { DocGenEntry } from "@plugins/workbench/docgen/types";
-import { archivedEntries, removeArchivedDoc } from "./docgenArchive";
+import { archivedEntries } from "./docgenArchive";
 
 export function DocgenCleanup() {
   const [entries, setEntries] = useState<DocGenEntry[] | null>(null);
@@ -36,7 +37,7 @@ export function DocgenCleanup() {
     setBusyId(entry.id);
     setError(null);
     try {
-      await removeArchivedDoc(entry.id);
+      await removeArchivedEntry(entry.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

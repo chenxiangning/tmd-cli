@@ -228,7 +228,8 @@ export function QuotaPanel({
 
   const cards = useMemo(() => {
     const quotas = aggregateQuotas(credsMap);
-    const claudeHasQuota = quotas.some((q) => /claude/i.test(q.title));
+    /* note-only 聚合(官方订阅无窗口回包)不算已有真额度,否则压制推算卡 */
+    const claudeHasQuota = quotas.some((q) => q.windows.length > 0 && /claude/i.test(q.title));
     return buildQuotaCards({ quotas, claudeWin, claudeHasQuota });
   }, [credsMap, claudeWin]);
 

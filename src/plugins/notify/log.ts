@@ -28,12 +28,31 @@ export interface NotifyEntry {
 export interface NotifyDoc {
   version: 1;
   entries: NotifyEntry[];
-  /** 额度预警去重键(带引擎前缀),头部持久化 —— 重启不失忆;随 notifyLogDays 同批裁剪。 */
+  /** 额度预警去重键(带引擎前缀),头部持久化 —— 重启不失忆;窗口键按
+   *  resetsAt 存活(长窗不剪),余额键随 notifyLogDays 同批裁剪。 */
   quotaSeen: Array<{ k: string; at: number }>;
 }
 
 /** 条数上限兜底(过期过滤之外的第二道体积闸)。 */
 export const ENTRIES_MAX = 500;
+
+/** quotaSeen 条数帽(键体积极小;防 365 天流水 × 持续低余额多供应商无界增长)。 */
+export const QUOTA_SEEN_MAX = 500;
+
+/** quotaSeen 剪枝:窗口键(reset:<ms>)按 resetsAt 存活 —— 30 天型长窗在
+ *  notifyLogDays=7 下不剪,同周期不重复告警;余额小时桶仍随 cutoff;
+ *  超帽从最旧剪。 */
+function pruneQuotaSeen(
+  seen: NotifyDoc["quotaSeen"],
+  now: number,
+  cutoff: number,
+): NotifyDoc["quotaSeen"] {
+  const kept = seen.filter((s) => {
+    const m = /:reset:(\d+)$/.exec(s.k);
+    return m ? Number(m[1]) > now : s.at >= cutoff;
+  });
+  return kept.length <= QUOTA_SEEN_MAX ? kept : kept.slice(kept.length - QUOTA_SEEN_MAX);
+}
 
 /** 生成短随机 id(wiki 同款;碰撞面 = 同毫秒同随机段,可忽略)。 */
 function newId(): string {
@@ -79,7 +98,7 @@ export function parseNotifyLog(text: string): NotifyDoc {
 }
 
 /** 追加 + 双闸剪枝:过滤 ts < now - maxDays 的过期条目,超上限从最旧剪;
- *  quotaSeen 用同一 cutoff 同批清理(一个生命周期,不另设裁剪)。 */
+ *  quotaSeen 窗口键按 resetsAt 存活、余额键随 cutoff 同批清理。 */
 export function appendEntry(
   doc: NotifyDoc,
   entry: Omit<NotifyEntry, "id">,
@@ -91,7 +110,7 @@ export function appendEntry(
   return {
     version: 1,
     entries: entries.slice(Math.max(0, entries.length - ENTRIES_MAX)),
-    quotaSeen: doc.quotaSeen.filter((s) => s.at >= cutoff),
+    quotaSeen: pruneQuotaSeen(doc.quotaSeen, now, cutoff),
   };
 }
 

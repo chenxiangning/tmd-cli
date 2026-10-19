@@ -119,7 +119,7 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
           className="wb-ask"
           onSubmit={(e) => {
             e.preventDefault();
-            setAnswer(answerQuestion(question, projects, today));
+            setAnswer(answerQuestion(question, visible, today));
           }}
         >
           <input
@@ -173,7 +173,7 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
       {docGen ? (
         <DocGenDialog
           lockedProject={docGen.locked}
-          projects={projects}
+          projects={visible /* 生成面撤退归档项目(Reader 按 projectId 查原表不受此口) */}
           today={today}
           onClose={() => setDocGen(null)}
           onToast={toast}

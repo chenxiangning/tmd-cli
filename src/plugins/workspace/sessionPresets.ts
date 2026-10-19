@@ -33,14 +33,18 @@ export interface SessionPreset {
 
 interface PresetsState {
   loaded: boolean;
+  /** 读失败 ≠ 空库(权限/占用等非缺失错误):内存可读但拒绝落盘,防近空
+   *  state 整本覆写真库(同 notify/wiki 的 isMissingReadErr 先例)。 */
+  readBroken: boolean;
   presets: SessionPreset[];
 }
 
-const state: PresetsState = { loaded: false, presets: [] };
+const state: PresetsState = { loaded: false, readBroken: false, presets: [] };
 const listeners = new Set<() => void>();
-let snapshot: PresetsState = state;
+let snapshot: Omit<PresetsState, "readBroken"> = { loaded: state.loaded, presets: [...state.presets] };
 
 function emit(): void {
+  /* readBroken 是内部拒写位,不进订阅快照(视图面只关心 loaded/presets)。 */
   snapshot = { loaded: state.loaded, presets: [...state.presets] };
   for (const fn of listeners) fn();
 }
@@ -51,13 +55,13 @@ export function subscribeSessionPresets(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-export function useSessionPresets(): PresetsState {
+export function useSessionPresets(): Omit<PresetsState, "readBroken"> {
   /* 第三参 getServerSnapshot 同源:纯内存快照,server 渲染(测试 renderToStaticMarkup)不缺参。 */
   return useSyncExternalStore(subscribeSessionPresets, () => snapshot, () => snapshot);
 }
 
 /** 非渲染消费面的直读(测试缝;与 useSessionPresets 同一快照源)。 */
-export function readSessionPresets(): PresetsState {
+export function readSessionPresets(): Omit<PresetsState, "readBroken"> {
   return snapshot;
 }
 
@@ -119,13 +123,20 @@ function sanitizePresets(raw: unknown): SessionPreset[] {
   return out;
 }
 
-/** 启动装载一次(插件 activate);读失败/坏 JSON = 空库(agents.json 先例)。 */
+/** 启动装载一次(插件 activate);缺文件/坏 JSON = 空库(agents.json 先例)。
+ *  非缺失读错误 = 库不可读而非空:按空视图渲染但置 readBroken,拒写盘。 */
 export async function loadSessionPresets(): Promise<void> {
+  state.readBroken = false; /* 重载(测试复位/再装载)重新评估可写性 */
   let raw = "";
   try {
     raw = await ipc.fsReadFile(`${await presetsDir()}/session-presets.json`);
-  } catch {
+  } catch (e) {
     raw = ""; /* configHomeDir/fsReadFile 缺环境(测试/无 Tauri)或缺文件 = 空库,不上抛 */
+    /* 同 notify/wiki 先例:非缺失读错误(EACCES/EBUSY…)≠ 空库 */
+    if (!/os error [23]\b|no such file/i.test(String(e))) {
+      state.readBroken = true;
+      console.warn("[session-presets] 读预设库失败,本轮拒绝落盘防清库", e);
+    }
   }
   let presets: SessionPreset[] = [];
   if (raw) {
@@ -144,6 +155,7 @@ export async function loadSessionPresets(): Promise<void> {
 }
 
 async function persist(): Promise<void> {
+  if (state.readBroken) throw new Error("session-presets: 库读取失败,拒绝写盘(read-broken)");
   await ipc.fsWriteFile(
     `${await presetsDir()}/session-presets.json`,
     JSON.stringify({ version: 1, presets: state.presets }, null, 2),
@@ -200,13 +212,16 @@ export async function deletePreset(id: string): Promise<boolean> {
 
 /* ── 消费面(纯函数,DI 可 node 测试) ── */
 
-/** 预设的消费文本:无提示词 = "";库引用 = contentOf 现读(promptContent 的
- *  visiblePrompts 同名覆盖语义在消费面;改名/删除/跨工作区不可见 = 空串,
+/** 预设的消费文本:无提示词 = "";库引用 = contentOf 现读(ref 三元组原样
+ *  交解析器,scope+wsId+name 全等才命中;改名/删除/跨工作区不可见 = 空串,
  *  消费方据此灰态禁点,不猜测);内联 = 原文。contentOf 注入保纯度。 */
-export function presetPromptText(preset: SessionPreset, contentOf: (name: string) => string): string {
+export function presetPromptText(
+  preset: SessionPreset,
+  contentOf: (ref: PresetPromptRef) => string,
+): string {
   if (!preset.prompt) return "";
   if ("text" in preset.prompt) return preset.prompt.text;
-  return contentOf(preset.prompt.ref.name);
+  return contentOf(preset.prompt.ref);
 }
 
 /* ── 编辑态草稿(表单受控面;非组件纯类型+回填,随存储域同住) ── */

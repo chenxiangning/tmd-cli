@@ -43,7 +43,9 @@ import "./locales"; /* 域词典随插件自带:import 即注册 */
  *  onClick = 通知点击深链(聚焦主窗后激活对应会话;桌面最小档语义见 ipc.ts 注)。
  *  流水 = 全量历史:聚焦静默/免打扰也记,OS 通道才受闸;去重沿用事件边沿与
  *  waitingNotified/warned 集合语义(边沿一次 = 流水一条)。 */
-function dispatch(kind: NotifyKind, sessionId: string): void {
+/** 返回是否真发了 OS 通知(闸放行);调用方据此维护去重集合 —— 被闸拦下的
+ *  ask 不能记入 waitingNotified,否则失焦补扫会把它当「已提醒」跳过。 */
+function dispatch(kind: NotifyKind, sessionId: string): boolean {
   const { settings } = getSettingsState();
   const { title, body } = notifyText(kind, sessionId, host);
   recordNotifyEntry(
@@ -56,11 +58,12 @@ function dispatch(kind: NotifyKind, sessionId: string): void {
     },
     settings.notifyLogDays,
   );
-  if (!shouldNotify(kind, settings, host.isWindowFocused(), settings)) return;
+  if (!shouldNotify(kind, settings, host.isWindowFocused(), settings)) return false;
   void sendOsNotification(title, body, () => {
     host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势,摘最大化 */
     host.setActiveSession(sessionId);
   });
+  return true;
 }
 
 export const notifyPlugin: Plugin = {
@@ -92,8 +95,8 @@ export const notifyPlugin: Plugin = {
     const waitingNotified = new Set<string>();
     const offs = [
       ctx.events.on<string>(KernelTopics.askDetected, (id) => {
-        waitingNotified.add(id);
-        dispatch("ask", id);
+        /* 只在 OS 通知真发出时记入去重集合;聚焦期被闸拦下的 ask 留给失焦补扫 */
+        if (dispatch("ask", id)) waitingNotified.add(id);
       }),
       ctx.events.on<{ sessionId: string; unviewed: boolean }>(
         KernelTopics.turnSettled,

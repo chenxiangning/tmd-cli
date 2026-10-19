@@ -1,5 +1,6 @@
 //! 恢复 dry-run 预览 —— plan_restore 只读链:计划 + 每写入项 live↔target
-//! 行摘要(复用 diff.rs blob_patch 原语,live 每路径只读一次磁盘)。
+//! 行摘要(复用 diff.rs blob_patch 原语;live 每路径读两次:untouched 判定 +
+//! 行摘要各一次,量级可忽略)。
 //! 只出摘要清单,不渲染全 patch;不落守卫、不动工作区与账本(信息增强,
 //! 永不是恢复的门槛)。注意 blob_patch 读取 target 侧时可能向 sidecar ODB
 //! 物化 loose object(内容寻址去重,可被 prune 回收),非严格纯读。

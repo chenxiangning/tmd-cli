@@ -2,19 +2,12 @@
  * Welcome 页 · 页尾 QUOTA 套餐水位面板(卡片网格)
  * (自 welcome.css 按 300 行铁则分片;设计
  *  docs/design/040-candidates/3-quota-reset.html;颜色零硬编码,
- *  --tmd-* token;可推算蓝为局部 token,双主题各一档)。
+ *  --tmd-* token)。
  * ────────────────────────────────────────────────────────── */
 
 .welcome-quota {
-  /* 可推算 pill 蓝(浅底深字/深底浅字)。 */
-  --wq-info-bg: #dbeafe;
-  --wq-info-fg: #1d4ed8;
   border-top: 1px solid var(--tmd-border);
   margin-top: 10px;
-}
-:root[data-theme="dark"] .welcome-quota {
-  --wq-info-bg: rgba(59, 130, 246, 0.28);
-  --wq-info-fg: #93c5fd;
 }
 
 /* 面板条 */
@@ -83,7 +76,6 @@
   padding: 14px 16px;
   min-width: 0;
 }
-.wq-card.wq-grey { color: var(--tmd-fg-muted); }
 
 .wq-card-top {
   display: flex;
@@ -93,7 +85,6 @@
   margin-bottom: 12px;
 }
 .wq-name { font-weight: 600; color: var(--tmd-fg); }
-.wq-grey .wq-name { color: var(--tmd-fg-muted); }
 
 .wq-pill {
   font-size: var(--tmd-font-xs);
@@ -108,7 +99,6 @@
 }
 .wq-ok { background: var(--tmd-ok); color: #fff; }
 .wq-limited { background: var(--tmd-err); color: #fff; }
-.wq-infer { background: var(--wq-info-bg); color: var(--wq-info-fg); }
 
 /* 卡体:窗口块(5 小时 + 7 天并列);单窗卡环 76,多窗卡环 60 */
 .wq-wins { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
@@ -153,7 +143,6 @@
   color: var(--tmd-fg);
   font-variant-numeric: tabular-nums;
 }
-.wq-cd-val.muted { color: var(--tmd-fg-subtle); }
 .wq-hot-text { color: var(--tmd-err); }
 .wq-ok-text { color: var(--tmd-ok); }
 .wq-cd-sub {
@@ -161,13 +150,6 @@
   color: var(--tmd-fg-subtle);
   margin-top: 2px;
   overflow-wrap: anywhere;
-}
-
-/* 次要窗口(5 小时之外的 7 天等) */
-.wq-extra { margin-top: 10px; }
-.wq-extra-row {
-  font-size: var(--tmd-font-xs);
-  color: var(--tmd-fg-muted);
 }
 
 @media (max-width: 720px) {

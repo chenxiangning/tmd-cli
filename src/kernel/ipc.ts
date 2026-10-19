@@ -259,7 +259,7 @@ export interface CkptPreviewRow {
   overwrites: boolean;
 }
 
-/** 恢复预览:行摘要清单 + skip 清单(plan 空走 E_EMPTY,前端免弹分支信号)。 */
+/** 恢复预览:行摘要清单 + skip 清单(plan 空走 E_EMPTY_PLAN,前端免弹分支信号)。 */
 export interface CkptRestorePreview {
   rows: CkptPreviewRow[];
   skipped: CkptSkipEntry[];
@@ -552,7 +552,7 @@ export const ipc = {
   /** 回退整批或子集;返回恢复点 id 供反悔。 */
   checkpointRestore: (cwd: string, batchId: string, paths?: string[]) =>
     invoke<CkptRestoreOutcome>("checkpoint_restore", { cwd, batchId, paths: paths ?? null }),
-  /** 恢复 dry-run 预览(只读):计划 + live↔target 行摘要;plan 空 = E_EMPTY 免弹信号。 */
+  /** 恢复 dry-run 预览(只读):计划 + live↔target 行摘要;plan 空 = E_EMPTY_PLAN 免弹信号。 */
   checkpointRestorePreview: (cwd: string, batchId: string, paths?: string[]) =>
     invoke<CkptRestorePreview>("checkpoint_restore_preview", { cwd, batchId, paths: paths ?? null }),
   /** 应用:把账本固化的批后像精确写回磁盘(回退的镜像);守卫可反悔。 */

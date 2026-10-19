@@ -74,13 +74,15 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
       profileId: payload.profileId,
     });
     const name = sessionExportFileName(payload.title, payload.cliSessionId);
-    void pickSavePath(t("导出会话转录"), name).then((path) => {
-      if (!path) return; /* 用户取消/web 桩态:静默 */
-      void writeText(path, out.markdown).then(
-        () => showToast(exportedToast(out)),
-        (e) => showToast(e instanceof Error ? e.message : String(e)),
-      );
-    });
+    void pickSavePath(t("导出会话转录"), name)
+      .then((path) => {
+        if (!path) return; /* 用户取消/web 桩态:静默 */
+        void writeText(path, out.markdown).then(
+          () => showToast(exportedToast(out)),
+          (e) => showToast(e instanceof Error ? e.message : String(e)),
+        );
+      })
+      .catch((e: unknown) => showToast(e instanceof Error ? e.message : String(e))); /* 对话框 IPC 失败不静默 */
   }, [state, payload.title, payload.cliSessionId, payload.profileId]);
 
   const profile = useMemo(

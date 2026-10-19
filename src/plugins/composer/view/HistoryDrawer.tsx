@@ -59,7 +59,8 @@ export function HistoryDrawer({ open, style, onPick, onClose }: HistoryDrawerPro
     setQuery("");
     setSelected(0);
     const timer = setTimeout(() => searchRef.current?.focus(), 120);
-    const unsub = subscribePromptHistory(() => setItems(getPromptHistory()));
+    /* 新数组落 state:recordPrompt 原地 push/splice 返回同一引用会被 React bail out */
+    const unsub = subscribePromptHistory(() => setItems([...getPromptHistory()]));
     return () => {
       clearTimeout(timer);
       unsub();

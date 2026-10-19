@@ -41,17 +41,26 @@ function joinCwd(cwd: string, rel: string): string {
   return /^[A-Za-z]:/.test(joined) ? joined : `/${joined}`;
 }
 
+/** win 平台路径大小写不敏感(盘符/目录大小写与注册 root 不一致时保命中);
+ *  返回值仍用原大小写形式,真实盘面按原样读。 */
+const CASE_FOLD = /^win/i.test(globalThis.navigator?.platform ?? "")
+  ? (s: string) => s.toLowerCase()
+  : (s: string) => s;
+
 /** root 前缀守卫:返回 root 内归一绝对路径,区外返回 null(静默)。 */
 function inRoot(abs: string, root: string): string | null {
-  const r = root.replace(/\\/g, "/").replace(/\/+$/, "");
-  const a = abs.replace(/\\/g, "/");
-  return a === r || a.startsWith(`${r}/`) ? a : null;
+  const an = abs.replace(/\\/g, "/");
+  const r = CASE_FOLD(root.replace(/\\/g, "/").replace(/\/+$/, ""));
+  const a = CASE_FOLD(an);
+  return a === r || a.startsWith(`${r}/`) ? an : null;
 }
 
 /** 路径 → root 内绝对路径(~/ 经 configHomeDir 展开;相对按激活会话 spawn cwd 拼)。 */
 export async function resolvePath(path: string, root: string): Promise<string | null> {
   if (path.startsWith("~/")) return inRoot(joinCwd(await ipc.configHomeDir(), path.slice(2)), root);
-  if (ABS_RE.test(path)) return inRoot(path, root);
+  /* 绝对路径同样过 joinCwd 归一:`/repo/../../etc/x` 裸前缀比较会以 /repo/
+     通过 inRoot,读到区外文件违背「仅认工作区 root 内」契约 */
+  if (ABS_RE.test(path)) return inRoot(joinCwd("", path), root);
   const id = host.getActiveSessionId();
   const cwd = (id && host.getSessions().find((s) => s.id === id)?.cwd) || root;
   return inRoot(joinCwd(cwd, path), root);
@@ -65,6 +74,28 @@ export async function openPathHit(path: string, line: number, root: string): Pro
     () => openFileAtLine(abs, line),
     () => {},
   );
+}
+
+/** 尾部剥标点与配对闭合符:`(见 /repo/a.ts)` 括号包裹是 AI 输出高频形态,
+ *  连闭符进链必致 fsReadTail 静默死链;配对符仅在闭多于开时剥(路径本身
+ *  合法尾括号保留)。 */
+function stripTrailingPunct(s: string): string {
+  let end = s.length;
+  for (;;) {
+    const ch = s[end - 1];
+    if (end === 0 || !/[.,;)\]}]/.test(ch)) return s.slice(0, end);
+    const pair = ch === ")" ? "(" : ch === "]" ? "[" : ch === "}" ? "{" : null;
+    if (pair) {
+      let open = 0;
+      let close = 0;
+      for (const c of s.slice(0, end)) {
+        if (c === pair) open++;
+        else if (c === ch) close++;
+      }
+      if (close <= open) return s.slice(0, end);
+    }
+    end--;
+  }
 }
 
 export const filePathLinkProvider: TerminalLinkProvider = {
@@ -83,7 +114,7 @@ export const filePathLinkProvider: TerminalLinkProvider = {
     for (const seg of segs) {
       PATH_RE.lastIndex = 0;
       for (let m = PATH_RE.exec(seg.text); m; m = PATH_RE.exec(seg.text)) {
-        const path = m[0].replace(/[.,;]+$/, "");
+        const path = stripTrailingPunct(m[0]);
         if (!path || path.includes("://")) continue;
         /* 空格路径须含分隔符(sendTransform.ts 同款防误吃) */
         if (path.includes(" ") && !/[\\/]/.test(path)) continue;

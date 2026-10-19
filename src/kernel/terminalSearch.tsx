@@ -110,6 +110,8 @@ export function TerminalSearchOverlay({
           else if (!e.target.value) setCount({ total: 0, current: 0 });
         }}
         onKeyDown={(e) => {
+          /* IME 组合态:Enter 是确认键、Esc 取消组合,都不该当搜索快捷键 */
+          if (e.nativeEvent.isComposing) return;
           if (e.key === "Enter") {
             find(e.shiftKey ? "prev" : "next");
           } else if (e.key === "Escape") {

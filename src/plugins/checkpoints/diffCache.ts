@@ -114,9 +114,9 @@ export function loadDiff(cwd: string, sessionId: string, batchId: string): CkptP
 }
 
 // ---- 恢复 dry-run 预览(042 项6)------------------------------------------
-// 与批 diff 同一套缓存纪律:LRU + 在途防重。预览在 ConfirmCard 挂载时拉一次,
-// 弹层内冻结不刷新;undo_revert 复用 revert 时缓存的这份,不新发 dry-run
-// (feasibility §6 undo 对称裁决),故动作后不清缓存。
+// 与批 diff 同一套缓存纪律:LRU + 在途防重。revert 挂载每次现发 dry-run
+// (fresh,防跨弹层陈旧);undo_revert 复用 revert 时缓存的这份,不新发
+// dry-run(feasibility §6 undo 对称裁决),故动作后不清缓存。
 
 const previewCache = new Map<string, Map<string, CkptRestorePreview>>();
 /** 拉取在途(防重,同 diffInflight 语义):整键 = stateKey + 预览键。 */
@@ -157,17 +157,22 @@ export function getCachedPreviewForBatch(
 /**
  * 拉取恢复预览:命中缓存直接返回;在途复用同一 Promise;失败 reject 原始
  * 错误串(卡片侧判 E_EMPTY 免弹分支 / 其余回落文案确认,不阻塞确认流)。
+ * opts.fresh = 跳过缓存命中现发 dry-run(revert 模式挂载用):预览只读且
+ * 廉价,弹层间动作会让缓存陈旧(回退/应用/外部改动后旧预览骗人)。
  */
 export function loadPreview(
   cwd: string,
   sessionId: string,
   batchId: string,
   paths?: string[],
+  opts?: { fresh?: boolean },
 ): Promise<CkptRestorePreview> {
   const key = stateKey(cwd, sessionId);
   const pkey = previewKey(batchId, paths);
-  const hit = previewCache.get(key)?.get(pkey);
-  if (hit) return Promise.resolve(hit);
+  if (!opts?.fresh) {
+    const hit = previewCache.get(key)?.get(pkey);
+    if (hit) return Promise.resolve(hit);
+  }
   const full = `${key}·${pkey}`;
   const inflight = previewInflight.get(full);
   if (inflight) return inflight;

@@ -106,9 +106,9 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
             void sessionRef.current?.getStats().then((s) => { if (s) setStats(s); }).catch(() => undefined);
             if (promptDebtRef.current > 0) {
               promptDebtRef.current--;
-              /* 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦),点击深链回本 tab。 */
+              /* 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦 + 免打扰窗),点击深链回本 tab。 */
               const { settings } = getSettingsState();
-              if (shouldNotify("turnEnd", settings, host.isWindowFocused())) {
+              if (shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) {
                 const name = `${host.getCliProfile(payload.profileId)?.name ?? payload.profileId} · ${t("结构化")}`;
                 const { title, body } = notifyText("turnEnd", "", { getSessions: () => [] }, name);
                 void sendOsNotification(title, body, () => openStructuredSessionTab(payload.profileId, payload.cwd));

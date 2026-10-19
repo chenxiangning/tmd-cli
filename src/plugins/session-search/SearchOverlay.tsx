@@ -196,10 +196,16 @@ export function SessionSearchOverlay() {
           }}
           workspaceCount={getWorkspaces().length}
           timeFilter={timeFilter}
-          onTimeFilter={setTimeFilter}
+          onTimeFilter={(v) => {
+            setTimeFilter(v);
+            setActive(0); /* 结果集换挡,选中回顶(同 onScope) */
+          }}
           engines={engines}
           engineFilter={engineFilter}
-          onEngineFilter={setEngineFilter}
+          onEngineFilter={(v) => {
+            setEngineFilter(v);
+            setActive(0);
+          }}
         />
         <div ref={listRef} className="min-h-0 flex-1 overflow-auto">
           <ResultBody

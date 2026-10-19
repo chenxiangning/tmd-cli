@@ -187,6 +187,32 @@ export async function terminateEntry(id: string): Promise<void> {
   }
 }
 
+/** 存储管家清理口:已归档条目整条移除(索引先落,目录删失败补偿回写)。
+ *  必须走本函数而非裸读写 docgen.json —— 内存 currentIndex 是单权威,
+ *  任何 save()/writeTasksNow() 都会整体重写索引,裸删会被静默复活。 */
+export async function removeArchivedEntry(id: string): Promise<void> {
+  const removed = currentIndex.entries.filter((e) => e.id === id);
+  if (removed.length === 0) return;
+  currentIndex = { ...currentIndex, entries: currentIndex.entries.filter((e) => e.id !== id) };
+  try {
+    await save(); /* 队列内写的是同一份内存,排队中的旧写不会复活本删除 */
+  } catch (e) {
+    currentIndex = { ...currentIndex, entries: [...currentIndex.entries, ...removed] };
+    commit();
+    throw e;
+  }
+  try {
+    await removeEntryDir(id);
+  } catch (e) {
+    /* 宁可条目复活可重删,不可索引与盘面脱节成孤儿 */
+    currentIndex = { ...currentIndex, entries: [...currentIndex.entries, ...removed] };
+    commit();
+    await save().catch(() => undefined); /* 补偿写失败交由下一次 save 收敛 */
+    throw e;
+  }
+  commit();
+}
+
 /** 文档状态流转(草稿 → 已汇报 → 已归档 → 草稿循环)。 */
 export async function toggleDocState(id: string): Promise<DocGenStatus | undefined> {
   const entry = entryById(id);

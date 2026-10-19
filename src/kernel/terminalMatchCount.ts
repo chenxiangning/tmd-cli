@@ -52,6 +52,8 @@ export function countTerminalMatches(
         continue;
       }
       total++;
+      /* anchor.col 是 xterm 单元格列:同行前缀含 CJK/宽字符时偏大于字符串
+       * 下标,n 只偏显示不偏定位(已钳顶)。宽字折算待有列→下标换算器再收。 */
       if (anchor && (row < anchor.row || (row === anchor.row && m.index < anchor.col))) before++;
       if (m.index === re.lastIndex) re.lastIndex += 1;
     }

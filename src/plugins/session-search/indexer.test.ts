@@ -1,6 +1,6 @@
 /**
  * indexer 契约测试(042 跨工作区批)—— 增量扫描/mtime 缓存(cwd 命名空间
- * 留存 + 全局 LRU 3000)/失效区灰数据/进度计数(host/ipc 以 vi.mock 桩注入)。
+ * 留存 + 全局 LRU(上限常量))/失效区灰数据/进度计数(host/ipc 以 vi.mock 桩注入)。
  * 检索纯函数面在 sessionSearch.test.ts。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";

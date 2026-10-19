@@ -11,26 +11,29 @@
 ### 新增
 
 - 工作区会话保留律收尾:keep 保留层容量 200 → 2000(与归档层同级,手动取消归档密度对齐);启动补扫——activate 后 45s 一次性对本会话未展开的本地工作区顺序跑既有保留律扫描(远程/SSH/WSL 跳过,前台在途扫描让路,零轮询不新增触发面)
-- 应用内通知中心:notify 三类事件与额度预警旁挂全局流水 `~/.tmd-cli/notify-log.json`(聚焦静默/免打扰也记,OS 通知才受闸;追加时顺带过滤 `notifyLogDays` 默认 7 天+500 条上限);右栏「通知中心」面板(今日/更早分组,行点击回跳会话,配额行置灰,清空两步武装确认)
+- 应用内通知中心:notify 三类事件与额度预警旁挂全局流水 `~/.tmd-cli/notify-log.json`(事件类聚焦静默/免打扰也记,quota 轮询腿失焦才跑,OS 通知才受闸;追加时顺带过滤 `notifyLogDays` 默认 7 天+500 条上限);右栏「通知中心」面板(今日/更早分组,行点击回跳会话,配额行置灰,清空两步武装确认)
 - 免打扰窗:`kernel/dnd.ts` 纯判定(HH:mm 跨夜窗,起含终不含,start===end 全天静默);三闸齐静——notify `shouldNotify`、ask 音(事件路径)、回合结束音(3s 延迟确认播放刻);设置页 NotifySettingsTab 免打扰卡(ToggleRow+原生 time 输入)
-- 会话预设(workspace):工作区右键菜单「会话预设」段(本地工作区恒显,引擎候选空禁点),一键起会话=预设引擎/模型/提示词;两步管线——`spawnRawSession`(identityTrack 全装配)成功后经 kernel `sessionPending` 队列注入初始提示词(anim pending 队列核心上移为跨插件契约,≥2 消费);提示词引用存 (scope,wsId,name) 三元组消费时现读,改名/删除悬空灰态不猜测;管理弹层(增删改查+两步确认删除+撞名校验),存储 `~/.tmd-cli/session-presets.json`(agents.json 同款单文件+内存单源)
+- 会话预设(workspace):工作区右键菜单「会话预设」段(本地工作区恒显,引擎候选空禁点),一键起会话=预设引擎/模型/提示词,可勾「新 worktree」范围(分支 = 预设名 slug 加 wt/ 前缀,冲突自动递增,起在 wt 目录内);两步管线——`spawnRawSession`(identityTrack 全装配)成功后经 kernel `sessionPending` 队列注入初始提示词(anim pending 队列核心上移为跨插件契约,≥2 消费);提示词引用存 (scope,wsId,name) 三元组消费时现读(scope+wsId+name 全等才命中,跨区启动 = 灰态不猜测),改名/删除悬空灰态不猜测;管理弹层(增删改查+两步确认删除+撞名校验),存储 `~/.tmd-cli/session-presets.json`(agents.json 同款单文件+内存单源)
 - 会话检索增强:时间过滤 chip(全部/24小时/7天/30天,`searchSessions` 闭区间谓词,与引擎 chip 叠加);命中行级定位——消息命中经 kernel `openThenJumpToText` 时序桥(活会话直接跳;已关会话 resume 后订阅幕布注册表等挂载再跳,needle 24/14/8 字符梯队+≤12 页回溯),opened/miss 轻提示不阻断
-- 存储管家(settings 新区 `storage-audit` 插件):Rust 只读体检命令 `fs_dir_usage`(多类目并行 spawn_blocking+单类目 20s 超时不阻塞,不跟符号链接,skip 目录取调用方参数——checkpoints objects.git 计入);九类目体检表(checkpoints/docgen/七家 CLI 会话目录,只读零触碰);清理白名单——checkpoints 按工作区 `checkpoint_prune(10,30)` 两步武装确认、docgen 已归档版本确认卡删除(索引先落、目录后删)
+- 存储管家(settings 新区 `storage-audit` 插件):Rust 只读体检命令 `fs_dir_usage`(多类目并行 spawn_blocking+单类目 20s 超时并行收束不阻塞,不跟符号链接,skip 目录取调用方参数——checkpoints objects.git 计入);十二类目体检表(checkpoints/docgen/十家 CLI 会话目录,只读零触碰),审计表按体积降序+比例条+合计行;清理白名单——checkpoints 按工作区 `checkpoint_prune(10,30)` 两步武装确认、docgen 已归档版本确认卡删除(单写者队列内索引先落、目录后删)
 - 会话转录导出(session-viewer):查看 tab 工具行「导出 Markdown」——`blocksToMarkdown` 纯函数(user→`## 用户`、assistant→`## 助手`、tool 折叠一行、thinking/图片跳过计数,truncated 头部标注)+ docgen 导出三件套(pickSavePath→writeText 原子写→toast,Windows 保留设备名 sanitize 沉淀为 docgen `safeFileBase` 共享导出)
-- checkpoint↔转录时间线互跳(checkpoints):时间线每条用户消息挂「本轮 N 文件」chip(prompt 与账本 BatchInfo.prompt 全等、多轮同文按出现序配对,匹配不到不渲染,git 归因带「推断」标注),行下内联展开 turn_files 变更集(A/M/D 药丸,配色同源 `fileChipCls.ts`);审阅单消息卡「看对话」——活会话 `jumpToText` 直跳、已关会话 resume 后跳(账本无 prompt 的轮次不出动作)
+- checkpoint↔转录时间线互跳(checkpoints):时间线每条用户消息挂「本轮 N 文件」chip(账本轮号与锚点序号对齐 + prompt 全等双闸,纯阅读轮占号不挤位,匹配不到不渲染,git 归因带「推断」标注),行下内联展开 turn_files 变更集(A/M/D 药丸,配色同源 `fileChipCls.ts`);审阅单消息卡「看对话」——同文多轮按本批出现序定位(反向不再恒落最新),活会话 `jumpToText` 直跳、已关会话 resume 后跳(账本无 prompt 的轮次不出动作)
 - 后台会话冻结快照(kernel `terminalFreeze.ts`):tab 条容量挤除卸载时把本就要算的 reseed 投影连同缓冲水位存档(LRU 8),重开时身份指纹/字节水位/字符水位/头样本四闸全过 → 投影同步上屏+增量分块补写,免 0.5s 遮罩免全量回放;任一闸不过回落既有全量路径,磁盘重开与会话关闭路径不变
 - 终端文件路径可点击(files):terminalLinks 注册表追加路径 provider,「src/foo.ts:42」死文本点击直达文件面板对应行;绝对/相对/`~/`/盘符/UNC/`:line` 识别(col 忽略只跳行),URL 段预挖防尾巴误命中,空格路径续段须分隔符防误吃;区外/不存在静默(循 marks 先例);cwd 取 spawn 时值不追踪 cd(天花板文件头钉明,OSC 7 被否)
-- 输入历史全文修复 + 浏览抽屉(composer):历史存全文(单条 8000 字符硬上限,总量 512KB 字节封顶、超限最旧淘汰且写入不 throw),300 字符截断语义降级为 ghost 匹配/展示窗口;Cmd+L 历史抽屉(⌘K 同款视觉,Composer 局部 state)子串过滤+命中高亮+↑↓/Enter 回填整替草稿可编辑不直发、Esc 关闭不回填;存量截断条目不动不打标,去重置底自愈
-- 跨工作区全局检索(session-search):搜索浮层作用域 chip「本工作区/全部工作区(N)」,跨区命中先 setActiveWorkspace 再行级定位(先切后跳),失效区命中(root 复核失败)灰 pill 不可跳;indexer 缓存改路径唯一 key+cwd 命名空间留存+全局 LRU 3000,prime 只剪本区死键,12ms 时间盒排空缓存命中步(真读步 60ms)不卡浮层输入;纯函数面拆 `searchCore.ts`
+- 输入历史全文修复 + 浏览抽屉(composer):历史存全文(单条 8000 字符硬上限,总量 512K 字符封顶、超限最旧淘汰且写入不 throw),300 字符截断语义降级为 ghost 匹配/展示窗口;Cmd+L 历史抽屉(⌘K 同款视觉,Composer 局部 state)子串过滤+命中高亮+↑↓/Enter 回填整替草稿可编辑不直发、Esc 关闭不回填;存量截断条目不动不打标,去重置底自愈
+- 跨工作区全局检索(session-search):搜索浮层作用域 chip「本工作区/全部工作区(N)」,跨区命中先 setActiveWorkspace 再行级定位(先切后跳),失效区命中(root 复核失败)灰 pill 不可跳;indexer 缓存改路径唯一 key+cwd 命名空间留存+全局 LRU 5000(高于自估语料,保证缓存排空路径可达),prime 只剪可达区死键,12ms 时间盒排空缓存命中步(真读步 60ms)不卡浮层输入,扫描中止后在途拍不写态;纯函数面拆 `searchCore.ts`
 - checkpoint 恢复 dry-run 预览(checkpoints,Rust):抽 `plan_restore` 纯函数(plan/execute 共用一份计划),新只读命令 `checkpoint_restore_preview`(plan+blob_patch 摘要,binary 0/0 行);ConfirmCard 升级预览表(快照头+A/M/D 药丸+「覆盖本地」仅 surgical 擦除行+默认 6 行截断展开),plan 空免弹直接执行(中性提示「本批已无可回退的改动」),undo_revert 复用恢复时预览不新发 dry-run,弹层内冻结,IPC 失败回落纯文案确认不阻塞;零新设置键
 - 额度低水位告警增量三腿(notify+cli-shared):①余额腿——vendors 结构化 `balanceValue` 仅 deepseek/relay 透传,绝对阈值 `notifyQuotaBalanceBelow`(默认 0=关,货币跟随回包);②claude 窗口腿——`windowResetFor` 迁 cli-shared/quota(welcome+notify 联合消费),尾读推算,`notifyQuotaResetMinutes`(默认 30,5-240)近重置报「N 分后重置」;③去重腿——notify-log.json 头部 `quotaSeen` 持久化(窗口键自带 resetsAt 按周期翻新,余额键首次越线小时桶),修「重启失忆」,写坏按无记录宁多勿漏
 - workbench 空壳项目批量归档(债批):概览未跟踪行尾「清理空壳」入口(ghosts ≥2 才渲染)勾选确认弹层,软归档(archived+archivedAt 可恢复,不删数据)退出全部统计与列表,聚焦页底「已归档」折叠段恢复
 - 随手带四项:终端搜索浮层 Aa/大小写 + .*/正则 toggle 与 n/m 命中计数;检索多命中「N 处命中」展开子命中、逐项行级跳转;终端 ⌘+/⌘-/⌘0 字号缩放写回 `terminalFontSize`(terminal 作用域,界面缩放兜底);anim Windows「打开」=`explorer /select` 目录 reveal(0.3.9 非 mac 隐藏口径修订)
+- 首页页尾改版(welcome):RESUME 列与 TOKENS 用量区摘除(TokenDashboard/tokens.ts/welcome-footer.css 全删),换 QUOTA 套餐水位面板——真额度环卡 + claude 窗口推算卡(可推算)+ 7 天窗并列窗口块,汇总条取跨卡跨窗口最近重置;查不到的卡不渲染,空态一行提示
+- WebGL 终端渲染基准页(bench,独立入口):canvas vs @xterm/addon-webgl 同参对照三场景,分帧喂养测渲染吞吐,中位数 3 轮取中+UA/环境键缓存基线,判定线 5%;独立 rollup 入口不进主 chunk(devDep 零进主包,产物 dist/bench.html 单独可达)
 
 ### 修复
 
 - 集成期:workspace 组折叠 `toggleGroup` 压缩时误写工作区折叠 map(点组头错折工作区),回归组 id 语义
 - quota 告警分支绕过 `shouldNotify`:免打扰窗此前不拦 quota OS 通知(真缺口);现 NotifyKind 增 "quota" 走 dispatch 同款三闸——免打扰/聚焦静默拦 OS 通知,应用内流水照记
+- 二轮发版评审收口:通知 blur 补扫死路径(ask 被闸拦后仍记去重集,失焦永不补发)、预设库非缺失读错误拒写盘防清库、docgen 归档删除收进单写者队列(裸写索引被内存单权威整体重写静默复活)、claude 推算卡被 note-only 聚合误判压制、恢复预览 revert 挂载现发 dry-run 防跨弹层陈旧、互跳同文多轮按出现序定位(正向 chip 轮号对齐防空批挤位,反向「看对话」不再恒落最新)、冻结快照卸载先冲刷攒帧防重开跳字、体检超时并行收束(挂死类目不再 240s 串行)、索引扫描中止后在途拍不写态、路径点击括号包裹死链与绝对路径 `..` 越区归一、搜索浮层 IME 组合态 Enter/Esc 误触发、workbench 归档撤退残留(问一句/DocGen 生成面改喂可见集)、结构化 turnEnd 通知补免打扰闸
 
 ### 内务
 

@@ -1,11 +1,13 @@
 /**
- * 时间线 ↔ 审批线正向映射 —— prompt 文本全等配对(候选8,feasibility §8)。
+ * 时间线 ↔ 审批线正向映射 —— 轮号对齐 + 文本全等双闸配对。
  *
- * 键 = prompt 原文:账本随锚点固化的 prompt 与转录侧用户消息同源同文
- * (CLI 规范化/截断即 miss,chip 不渲染,不猜测)。多轮同文按各自出现序
- * 配对:锚点与批次都是会话内单调序列,第 k 条同文消息 ↔ 第 k 个同文批次
- * (index 升序)即「seq 最近匹配」。CliUserMessage 无时间戳,时间谓词
- * 不可用 —— 文本配对绕开,适配器零改动(时间线面板头注同款边界)。
+ * batch.index 与 kernel 锚点同源:两者都是「会话第 N 条真实用户轮」的
+ * 1-based 序号(账本 anchor 逐 promptSent 落号,纯阅读轮占号不出批;
+ * kernel anchors 按转录用户消息正序排列)。文本全等闸挡 CLI 规范化/
+ * 截断即 miss(chip 不渲染,不猜测);轮号闸挡空批轮挤位 —— 纯按出现序
+ * 配对时,同文两轮、首轮纯阅读会把第二条的批挂上第一条消息。
+ * CliUserMessage 无时间戳,时间谓词不可用 —— 序号配对绕开,适配器零改动
+ * (时间线面板头注同款边界)。
  */
 import type { CkptBatch } from "@kernel/ipc";
 
@@ -31,13 +33,9 @@ export function matchTurnBatches(
     else byPrompt.set(b.prompt, [b]);
   }
   const matched = new Map<string, CkptBatch>();
-  const cursor = new Map<string, number>();
-  for (const t of turns) {
-    const list = byPrompt.get(t.text);
-    if (!list) continue;
-    const k = cursor.get(t.text) ?? 0;
-    cursor.set(t.text, k + 1);
-    if (k < list.length) matched.set(t.id, list[k]);
+  for (let i = 0; i < turns.length; i++) {
+    const hit = byPrompt.get(turns[i].text)?.find((b) => b.index === i + 1);
+    if (hit) matched.set(turns[i].id, hit);
   }
   return matched;
 }

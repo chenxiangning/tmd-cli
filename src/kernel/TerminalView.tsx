@@ -232,8 +232,8 @@ termRef.current = term;
       offFontSettings();
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
-      /* 屏幕镜像补种 + 挤除快照存档(settleTerminalFreeze):幕布终态收尾;
-         必须先于注销 handle —— 补种期间 feed 仍被互斥,时序无交错。 */
+      /* 先冲刷 250ms 合帧攒帧再存快照(尾巴已计水位不在投影,跳过则 fast 永久缺字);终态收尾须先于注销 handle。 */
+      flushDeferredRef.current?.();
       settleTerminalFreeze(sessionId, term);
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();

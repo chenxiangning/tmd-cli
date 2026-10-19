@@ -94,8 +94,10 @@ export async function writeText(path: string, content: string): Promise<void> {
   await ipc.fsWriteFile(path, content);
 }
 
-/** 删条目实体目录(终止首版未产出时清孤儿;含 prompt-latest.md)。 */
+/** 删条目实体目录(终止首版未产出时清孤儿;含 prompt-latest.md)。
+ *  entryId 白名单:索引数据被污染时防 `../` 借删除原语越出 docsDir。 */
 export async function removeEntryDir(entryId: string): Promise<void> {
+  if (!/^[\w-]+$/.test(entryId)) throw new Error(`docgen: 非法条目 id「${entryId.slice(0, 32)}」`);
   const p = await docgenPaths();
   await ipc.fsRemovePath(`${p.docsDir}/${entryId}`);
 }

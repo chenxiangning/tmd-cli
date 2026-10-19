@@ -60,6 +60,7 @@ vi.mock("@plugins/workbench/defaultEngine", () => ({
 }));
 vi.mock("@plugins/assets/promptStore", () => ({
   promptContent: (name: string) => `${name} 正文`,
+  promptContentByRef: (ref: { name: string }) => `${ref.name} 正文`,
 }));
 /* store 桩:useSyncExternalStore server 渲染需 getServerSnapshot,渲染面用固定数据。 */
 vi.mock("./sessionPresets", async (importOriginal) => {

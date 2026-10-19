@@ -48,7 +48,9 @@ function useFrozenPreview(
       setPreview(getCachedPreviewForBatch(cwd, sessionId, confirm.batchId) ?? null);
       return;
     }
-    loadPreview(cwd, sessionId, confirm.batchId, confirm.paths)
+    /* revert 每次挂载现发 dry-run:跨弹层的缓存可能因回退/应用/外部改动陈旧
+       (「覆盖本地」药丸缺失 = 预览骗人);undo 才吃缓存(上方分支)。 */
+    loadPreview(cwd, sessionId, confirm.batchId, confirm.paths, { fresh: true })
       .then(setPreview)
       .catch((e: unknown) => {
         const raw = String(e);

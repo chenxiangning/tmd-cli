@@ -77,8 +77,10 @@ interface CacheValue {
 }
 
 /** 全局条目 LRU 上限(042 裁决①:命名空间留存之外的失控护栏;
- *  纯 LRU 会把本区热缓存挤光回到互踢,纯命名空间无上限)。 */
-export const INDEX_CACHE_CAP = 3000;
+ *  纯 LRU 会把本区热缓存挤光回到互踢,纯命名空间无上限)。
+ *  ponytail: 自估全量语料 ~3500(7 区 × 500),cap 须高于它否则 all-scope
+ *  循环扫描永不收敛进缓存排空路径;语料再涨一档时改命名空间公平淘汰。 */
+export const INDEX_CACHE_CAP = 5000;
 
 /** mtime 缓存:路径 → 内容。模块级,应用运行期内复用(切浮层/切作用域不丢)。 */
 const cache = new Map<string, CacheValue>();
@@ -171,7 +173,11 @@ export class SessionIndexer {
       this.index.scannedWorkspaces += 1;
     }
     this.jobs = all;
-    const cur = new Set(this.cwds.map((w) => w.root));
+    /* 死键剪枝只认可达区:瞬时不可达区(网络盘抖动)不列举也不剪,
+       否则一次抖动丢整区暖缓存(下轮全量重读);真移走的区由 next prime 收。 */
+    const cur = new Set(
+      this.cwds.filter((_, i) => reachables[i]).map((w) => w.root),
+    );
     const live = new Set(all.map((j) => j.session.path));
     for (const [key, v] of cache) {
       if (cur.has(v.cwd) && !live.has(key)) cache.delete(key);
