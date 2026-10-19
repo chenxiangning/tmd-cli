@@ -44,6 +44,18 @@ export function AuditTab() {
     }
   }
 
+  /* 展示序:已知体积降序(大占用在前),未使用/超时沉底。 */
+  const scoreOf = (key: string) => {
+    const r = reports[key];
+    return r && !r.timedOut ? r.bytes : -1;
+  };
+  const sorted = [...cats].sort((a, b) => scoreOf(b.key) - scoreOf(a.key));
+  const maxBytes = Math.max(0, ...sorted.map((c) => scoreOf(c.key)));
+  const known = sorted.map((c) => reports[c.key]).filter((r) => r && !r.timedOut);
+  const totalBytes = known.reduce((s, r) => s + r!.bytes, 0);
+  const totalFiles = known.reduce((s, r) => s + r!.files, 0);
+  const anyTimedOut = sorted.some((c) => reports[c.key]?.timedOut);
+
   return (
     <div className="text-xs">
       <div className="mb-2 flex items-center gap-2">
@@ -76,30 +88,41 @@ export function AuditTab() {
             <span className="text-right">{t("体积")}</span>
             <span className="text-right">{t("文件数")}</span>
           </div>
-          {cats.map((c) => {
+          {sorted.map((c) => {
             const r = reports[c.key];
             const cleanable = c.key in CAT_CLEANABLE_NOTE;
+            const barPct = r && !r.timedOut && maxBytes > 0 ? Math.sqrt(r.bytes / maxBytes) * 100 : 0;
             return (
               <div
                 key={c.key}
-                className="grid grid-cols-[minmax(8rem,1fr)_7rem_5rem] items-baseline gap-2 border-b border-(--tmd-border) px-2.5 py-1.5 last:border-b-0"
+                className="grid grid-cols-[minmax(8rem,1fr)_7rem_5rem] items-baseline gap-2 border-b border-(--tmd-border) px-2.5 py-1.5 last:border-b-0 hover:bg-(--tmd-bg-hover)/40"
               >
                 <span className="min-w-0">
                   <span className="font-mono">{c.key}</span>
-                  <span className="ml-1.5 text-(--tmd-fg-muted)">
+                  <span className={`ml-1.5 ${cleanable ? "text-(--tmd-diff-inserted)" : "text-(--tmd-fg-muted)"}`}>
                     {cleanable
                       ? t(CAT_CLEANABLE_NOTE[c.key])
                       : t("CLI 会话目录,只读零触碰")}
                   </span>
                 </span>
-                <span className="text-right tabular-nums">
-                  {!r
-                    ? "—"
-                    : r.timedOut
-                      ? t("超时")
-                      : r.bytes === 0 && r.files === 0
-                        ? t("未使用")
-                        : formatBytes(r.bytes)}
+                <span className="flex flex-col items-end gap-0.5">
+                  {r && !r.timedOut && r.bytes > 0 && (
+                    <span className="h-1 w-full overflow-hidden rounded-full bg-(--tmd-bg-hover)">
+                      <span
+                        className="block h-full rounded-full bg-(--tmd-fg-muted)"
+                        style={{ width: `${barPct}%` }}
+                      />
+                    </span>
+                  )}
+                  <span className="tabular-nums">
+                    {!r
+                      ? "—"
+                      : r.timedOut
+                        ? t("超时")
+                        : r.bytes === 0 && r.files === 0
+                          ? t("未使用")
+                          : formatBytes(r.bytes)}
+                  </span>
                 </span>
                 <span className="text-right tabular-nums">
                   {!r || r.timedOut ? "—" : r.files}
@@ -107,6 +130,18 @@ export function AuditTab() {
               </div>
             );
           })}
+          <div className="grid grid-cols-[minmax(8rem,1fr)_7rem_5rem] items-baseline gap-2 bg-(--tmd-bg-hover)/50 px-2.5 py-1.5 font-semibold">
+            <span>{t("合计")}</span>
+            <span className="flex flex-col items-end gap-0.5">
+              <span className="tabular-nums">{formatBytes(totalBytes)}</span>
+              {anyTimedOut && (
+                <span className="text-[0.625rem] font-normal text-(--tmd-fg-muted)">
+                  {t("部分类目超时,体积合计不含")}
+                </span>
+              )}
+            </span>
+            <span className="text-right tabular-nums">{totalFiles}</span>
+          </div>
         </div>
       )}
     </div>
