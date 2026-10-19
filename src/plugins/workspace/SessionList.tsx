@@ -35,6 +35,8 @@ import { SessionContextMenu } from "./SessionContextMenu";
 import { DiskSessionRow } from "./SessionRows";
 import { LiveSessionRow } from "./LiveSessionRow";
 import { useSessionGroupMenu } from "./sessionGroupMenu";
+import { snapshotMenuHandler } from "./transcriptExportRun";
+import { useSnapshotExport } from "./transcriptExport";
 import { ManageList } from "./SessionManage";
 import { useCliSessionGroup } from "./useCliSessionGroup";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
@@ -82,6 +84,8 @@ export function CliSessionGroup({
     menu, setMenu, renaming, commitRename, deleteLive, deleteDisk,
     startRename, togglePin, menuCliSessionId, menuPinKey,
   } = useSessionGroupMenu({ profile, workspace, sessions, setRescanTick, realTitle });
+  /* 右键「导出转录快照」:菜单存活期外的常驻 toast 挂点一并由 hook 供给。 */
+  const { run: runSnapshotExport, toast: snapshotToast } = useSnapshotExport();
 
   /** 磁盘行渲染契约:置顶块与分页历史共用同一份行装配(含菜单/重命名/扎点接线),仅 pinned 常亮差异。 */
   const renderDiskRows = (rows: CliDiskSession[], pinned: boolean) =>
@@ -207,10 +211,12 @@ export function CliSessionGroup({
       )}
 
       {/* 行右键菜单 */}
+      {snapshotToast}
       {menu && (
         <SessionContextMenu
           position={{ x: menu.x, y: menu.y }}
           canRename={menuCliSessionId !== undefined}
+          muteKey={menuPinKey}
           pinScope={
             menuPinKey === undefined ? undefined : (pins[menuPinKey]?.scope ?? null)
           }
@@ -226,6 +232,27 @@ export function CliSessionGroup({
             if (!menuPinKey || !menuCliSessionId) return;
             toggleSessionPin(menuPinKey, scope, realTitle(menuCliSessionId));
           }}
+          onExportSnapshot={
+            menuCliSessionId === undefined
+              ? undefined
+              : menu.kind === "disk"
+                ? () =>
+                    runSnapshotExport({
+                      cliSessionId: menu.session.id,
+                      title: displayTitle(menu.session.id, menu.session.id),
+                      profileId: profile.id,
+                      path: menu.session.path,
+                      modifiedAt: menu.session.modifiedAt,
+                    })
+                : snapshotMenuHandler(
+                    runSnapshotExport,
+                    menu.session,
+                    menuCliSessionId,
+                    displayTitle(menuCliSessionId, menu.session.id),
+                    profile.id,
+                    menu.session.cwd ?? workspace.root,
+                  )
+          }
           onDelete={() => {
             if (menu.kind === "live") {
               void deleteLive(menu.session);

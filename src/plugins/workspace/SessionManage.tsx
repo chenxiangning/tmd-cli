@@ -27,6 +27,7 @@ import type { Workspace } from "@kernel/workspace";
 import { PAGE_INITIAL } from "./utils";
 import { selectRange } from "./selectRange";
 import { DangerAction } from "./DangerAction";
+import { BatchExportAction } from "./transcriptExport";
 
 /** 管理行:活会话(PTY 态)或磁盘会话(文件态);key 在本组行集内唯一。 */
 type ManageRow =
@@ -256,6 +257,26 @@ export function ManageList({
           >
             {t("删除")}
           </DangerAction>
+          {/* 批量导出:磁盘行直给 path,活会话需已落盘(cliSessionId)给 cwd 兜底定位 */}
+          <BatchExportAction
+            buildItems={() =>
+              selectedRows.flatMap((r) => {
+                const cliId = r.kind === "disk" ? r.session.id : r.cliSessionId;
+                if (cliId === undefined) return [];
+                const title = displayTitle(cliId, r.session.id);
+                return [
+                  {
+                    key: r.key,
+                    label: title,
+                    target:
+                      r.kind === "disk"
+                        ? { cliSessionId: cliId, title, profileId: profile.id, path: r.session.path, modifiedAt: r.session.modifiedAt }
+                        : { cliSessionId: cliId, title, profileId: profile.id, cwd: r.session.cwd ?? workspace.root },
+                  },
+                ];
+              })
+            }
+          />
         </div>
       )}
       {remaining > 0 && (

@@ -158,4 +158,17 @@ export const MESSAGES = {
   "引用「{name}」": "Refs \"{name}\"",
   "消费时现读,库更新即跟随": "Read at launch; follows library updates",
   "无初始提示词": "No initial prompt",
+  /* 转录导出(候选14:批量导出 + 活会话快照) */
+  "导出": "Export",
+  "正在导出 {done}/{total}": "Exporting {done}/{total}",
+  "已选 {n},单批上限 50,请分批导出": "Selected {n}; batch cap is 50 — export in smaller batches",
+  "{n} 个已写入 {dir}": "{n} written to {dir}",
+  "已取消 · {n} 个已写入 {dir}": "Cancelled · {n} written to {dir}",
+  "已写 {n} 个 · 中止于 {label}": "Wrote {n}; aborted at {label}",
+  "无适配器": "no adapter",
+  "不可读": "unreadable",
+  "写入失败": "write failed",
+  "导出转录快照": "Export transcript snapshot",
+  "已导出转录快照 · 时点 {time}": "Snapshot exported as of {time}",
+  "导出转录快照失败:{reason}": "Snapshot export failed: {reason}",
 } as Record<string, string>;

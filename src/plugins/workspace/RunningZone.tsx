@@ -25,6 +25,7 @@ import { t } from "@kernel/i18n";
 import { isSessionArchived, sessionArchiveKey } from "@kernel/sessionArchive";
 import { isSessionDeleted, sessionDeletedKey } from "@kernel/sessionDeleted";
 import { pinSession, sessionPinKey, toggleSessionPin, unpinSession } from "@kernel/sessionPins";
+import { muteKeyOf } from "@kernel/sessionMutes";
 import { getSessionBaseline, noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey, setSessionTitle } from "@kernel/sessionTitles";
 import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/workspace";
@@ -32,6 +33,8 @@ import { copyText } from "@kernel/clipboard";
 import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { snapshotMenuHandler } from "./transcriptExportRun";
+import { useSnapshotExport } from "./transcriptExport";
 import { SessionSpeedPill } from "./SessionSpeedPill";
 import { SessionStatusLabel } from "./SessionRows";
 import { WorktreeBadge } from "./WorktreeBadge";
@@ -53,6 +56,7 @@ export function RunningZoneSection() {
   const collapsed = runningSection.use();
   const [menu, setMenu] = useState<{ row: RunningRow; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<RenameTarget | null>(null);
+  const { run: runSnapshotExport, toast: snapshotToast } = useSnapshotExport();
 
   const profiles = host.getCliProfiles();
   const rows: RunningRow[] = host
@@ -74,10 +78,7 @@ export function RunningZoneSection() {
         if (isSessionDeleted(sessionDeletedKey(workspace.id, profile.id, cliSessionId)))
           return [];
       }
-      return isRunningZoneCandidate(
-        host.isTurnActive(session.id),
-        host.isUnread(session.id),
-      )
+      return isRunningZoneCandidate(host.isTurnActive(session.id), host.isUnread(session.id))
         ? [{ session, cliSessionId, workspace, profile }]
         : [];
     })
@@ -262,6 +263,7 @@ export function RunningZoneSection() {
           );
         })}
 
+      {snapshotToast}
       {menu && (
         <SessionContextMenu
           position={{ x: menu.x, y: menu.y }}
@@ -277,6 +279,8 @@ export function RunningZoneSection() {
                   )
                 ]?.scope ?? null)
           }
+          muteKey={muteKeyOf(menu.row.workspace.id, menu.row.profile.id, menu.row.cliSessionId)}
+          onExportSnapshot={snapshotMenuHandler(runSnapshotExport, menu.row.session, menu.row.cliSessionId, titleOf(menu.row), menu.row.profile.id, menu.row.session.cwd ?? menu.row.workspace.root)}
           onCopyId={() => void copyText(menu.row.cliSessionId ?? menu.row.session.id).catch(() => undefined)}
           onRename={() => renameOf(menu.row)}
           onPinScope={(scope) => {

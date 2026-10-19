@@ -75,6 +75,22 @@
         "rules": [
           "react-doctor/async-await-in-loop"
         ]
+      },
+      {
+        "files": [
+          "src/plugins/workspace/transcriptExportRun.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
+      },
+      {
+        "files": [
+          "src/kernel/sessionRestore.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
       }
     ]
   }

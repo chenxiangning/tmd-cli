@@ -13,9 +13,9 @@ import { updateSettings, useSettingsState } from "@kernel/settings";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { SessionViewTabPayload } from "@kernel/sessionViewTabs";
 import type { CliSessionTranscript } from "@kernel/cli";
-import { writeText } from "@plugins/workbench/docgen/paths";
 import { TranscriptView } from "./transcriptView";
-import { blocksToMarkdown, sessionExportFileName, type MarkdownExport } from "./blocksToMarkdown";
+import { sessionExportFileName, type MarkdownExport } from "./blocksToMarkdown";
+import { exportReasonLabel, snapshotMdTo, type ExportSessionTarget } from "./exportMd";
 import { ArrowsClockwiseIcon, Chats, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
@@ -65,25 +65,35 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
     toastTimer.current = window.setTimeout(() => setToast(null), 2400);
   };
 
-  /* 导出:pickSavePath → docgen writeText(原子写)→ toast;取消/桩态静默。 */
+  /* 导出:pickSavePath → exportMd 内核 snapshotMdTo(重读磁盘快照 → 原子写)→
+   * toast;取消/桩态静默。活会话导「当刻已落盘部分」,与查看态可能差新轮次,
+   * 语义即「快照」(候选14)。 */
   const exportMd = useCallback(() => {
     if (state.phase !== "ok" || state.transcript.blocks.length === 0) return;
-    const out = blocksToMarkdown(state.transcript, {
-      title: payload.title,
+    const target: ExportSessionTarget = {
       cliSessionId: payload.cliSessionId,
+      title: payload.title,
       profileId: payload.profileId,
-    });
+      path: payload.path,
+      modifiedAt: payload.modifiedAt ?? undefined,
+      cwd: payload.cwd,
+    };
     const name = sessionExportFileName(payload.title, payload.cliSessionId);
     void pickSavePath(t("导出会话转录"), name)
       .then((path) => {
         if (!path) return; /* 用户取消/web 桩态:静默 */
-        void writeText(path, out.markdown).then(
-          () => showToast(exportedToast(out)),
+        void snapshotMdTo(path, target).then(
+          (r) =>
+            showToast(
+              r.ok
+                ? exportedToast(r.out)
+                : t("导出转录快照失败:{reason}", { reason: exportReasonLabel(r.reason) }),
+            ),
           (e) => showToast(e instanceof Error ? e.message : String(e)),
         );
       })
       .catch((e: unknown) => showToast(e instanceof Error ? e.message : String(e))); /* 对话框 IPC 失败不静默 */
-  }, [state, payload.title, payload.cliSessionId, payload.profileId]);
+  }, [state, payload.title, payload.cliSessionId, payload.profileId, payload.path, payload.modifiedAt, payload.cwd]);
 
   const profile = useMemo(
     () => host.getCliProfiles().find((p) => p.id === payload.profileId),
