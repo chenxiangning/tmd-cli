@@ -23,10 +23,22 @@ import {
   EyeIcon,
   CrosshairSimple,
   ArrowSquareOut,
+  Bell,
+  BellSlash,
+  Timer,
 } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useEscClose } from "@kernel/DialogShell";
+import { useSettingsState } from "@kernel/settings";
 import { clampToViewport } from "@kernel/menuClamp";
+import {
+  SESSION_MUTE_MODES,
+  muteSession,
+  sessionMuteModeLabel,
+  unmuteSession,
+  type SessionMuteEntry,
+  type SessionMuteMode,
+} from "@kernel/sessionMutes";
 import { PinIcon } from "@kernel/PinIcon";
 
 /** 菜单约 180 宽:以点击点为左上,在视口内夹取(kernel clampToViewport);高度按项数(3 项基座 120,可选项各 30)。 */
@@ -36,6 +48,19 @@ function clampPosition(
   height: number,
 ): { x: number; y: number } {
   return clampToViewport(x, y, 180, height, 0);
+}
+
+/** 静音档位图标(与 SessionContextMenu 同款语义):铃/斜铃/计时。 */
+const MUTE_MODE_ICONS: Record<SessionMuteMode, ReactNode> = {
+  mute: <Bell size="0.875rem" />,
+  full: <BellSlash size="0.875rem" />,
+  snooze: <Timer size="0.875rem" />,
+};
+
+/** 静音组行数(高度估算用):未落盘 0 行;未静音 3 档;已静音 4 行(取消行 + 3 档)。 */
+function muteMenuRowCount(hasGroup: boolean, muted: boolean): number {
+  if (!hasGroup) return 0;
+  return muted ? 4 : 3;
 }
 
 /** 菜单行:wsmenu-item 形制(icon + label),点击即执行并关菜单。 */
@@ -65,6 +90,64 @@ function MenuRow({
   );
 }
 
+/** 静音组:已静音首行「取消静音(当前档位括注)」;三档位行,当前档打勾并禁用。 */
+function MuteMenuRows({
+  muteKey,
+  muteEntry,
+  pick,
+}: {
+  muteKey: string;
+  muteEntry: SessionMuteEntry | null | undefined;
+  pick: (run: () => void) => () => void;
+}) {
+  return (
+    <>
+      {muteEntry ? (
+        <MenuRow
+          icon={<BellSlash size="0.875rem" />}
+          label={t("取消静音({mode})", { mode: sessionMuteModeLabel(muteEntry.mode) })}
+          onPick={pick(() => {
+            unmuteSession(muteKey);
+          })}
+        />
+      ) : null}
+      {SESSION_MUTE_MODES.map((mode) => (
+        <MenuRow
+          key={mode}
+          icon={MUTE_MODE_ICONS[mode]}
+          label={muteEntry?.mode === mode ? `✓ ${sessionMuteModeLabel(mode)}` : sessionMuteModeLabel(mode)}
+          disabled={muteEntry?.mode === mode}
+          onPick={pick(() => {
+            muteSession(muteKey, mode);
+          })}
+        />
+      ))}
+    </>
+  );
+}
+
+/** 可选首行「重命名」(会话 tab 用):未落盘(canRename=false)禁用并注明缘由。 */
+function RenameMenuRow({
+  onRename,
+  canRename,
+  pick,
+}: {
+  onRename?: () => void;
+  canRename?: boolean;
+  pick: (run: () => void) => () => void;
+}) {
+  if (!onRename) return null;
+  return (
+    <MenuRow
+      icon={<Pencil size="0.875rem" />}
+      label={t("重命名")}
+      disabled={canRename === false}
+      hint={canRename === false ? t("会话尚未落盘,暂不可命名") : undefined}
+      onPick={pick(onRename)}
+    />
+  );
+}
+
 export function TabContextMenu({
   position,
   onRename,
@@ -74,6 +157,7 @@ export function TabContextMenu({
   onTogglePin,
   canPin,
   pinned,
+  muteKey,
   onLocate,
   onCloseTab,
   onCloseOthers,
@@ -94,6 +178,8 @@ export function TabContextMenu({
   onTogglePin?: () => void;
   canPin?: boolean;
   pinned?: boolean;
+  /** 静音覆盖层 key;undefined = 不可静音(未落盘,整组隐藏,同 SessionContextMenu)。 */
+  muteKey?: string;
   /** 提供则显示「在左侧栏定位会话」。 */
   onLocate?: () => void;
   onCloseTab: () => void;
@@ -104,8 +190,13 @@ export function TabContextMenu({
   onToggleTile?: () => void;
   tileActive?: boolean;
 }) {
+  /* 静音档随 settings 订阅实时;undefined = 未落盘(整组隐藏)。 */
+  const { settings } = useSettingsState();
+  const muteEntry = muteKey === undefined ? undefined : (settings.sessionMutes[muteKey] ?? null);
   /* 高度按实显项数估算(3 项基座 120,可选项各 30)——只用于夹取,真值由内容撑开。 */
-  const optionalRows = [onRename, onView, onRelay, onTogglePin, onLocate, onToggleTile].filter(Boolean).length;
+  const optionalRows =
+    [onRename, onView, onRelay, onTogglePin, onLocate, onToggleTile].filter(Boolean).length +
+    muteMenuRowCount(muteKey !== undefined, Boolean(muteEntry));
   const pos = clampPosition(position.x, position.y, 120 + optionalRows * 30);
 
   useEscClose(onClose);
@@ -126,15 +217,7 @@ export function TabContextMenu({
         }}
       />
       <div className="wsmenu session-menu tmd-scroll-hide" style={{ left: pos.x, top: pos.y }} data-icon-decor="menu">
-        {onRename ? (
-          <MenuRow
-            icon={<Pencil size="0.875rem" />}
-            label={t("重命名")}
-            disabled={canRename === false}
-            hint={canRename === false ? t("会话尚未落盘,暂不可命名") : undefined}
-            onPick={pick(onRename)}
-          />
-        ) : null}
+        <RenameMenuRow onRename={onRename} canRename={canRename} pick={pick} />
         {onView ? (
           <MenuRow
             icon={<EyeIcon size="0.875rem" />}
@@ -157,6 +240,9 @@ export function TabContextMenu({
             hint={canPin === false ? t("会话尚未落盘,暂不可置顶") : undefined}
             onPick={pick(onTogglePin)}
           />
+        ) : null}
+        {muteKey !== undefined ? (
+          <MuteMenuRows muteKey={muteKey} muteEntry={muteEntry} pick={pick} />
         ) : null}
         {onLocate ? (
           <MenuRow

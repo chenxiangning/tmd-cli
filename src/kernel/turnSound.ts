@@ -13,6 +13,7 @@ import { KernelTopics, type EventBus, type TurnSettledEvent } from "./events";
 import { getSettingsState } from "./settings";
 import { playAskSound } from "./askSound";
 import { isDndActive } from "./dnd";
+import { getSessionMute, mutedKinds, tmdSessionMuteKey } from "./sessionMutes";
 import { host } from "./host";
 
 /** 延迟确认窗口:结算后静默至此仍未被查看、无新输出,才认定"这轮真结束了"。 */
@@ -53,11 +54,16 @@ export function observeTurnSettled(
     pendingConfirms.delete(payload.sessionId);
     return;
   }
+  /* 会话静音在结算刻捕获(纯判定):snooze 档随本回合结算自清(notify 订阅侧),
+     播放刻(3s 后)再查已永远查不到;mute/full 为手动档,结算刻与播放刻等值。 */
+  const muteKey = tmdSessionMuteKey(payload.sessionId, host);
+  const turnMuted = muteKey !== undefined && mutedKinds(getSessionMute(muteKey), "turnEnd");
   const timer = setTimeout(() => {
     pendingConfirms.delete(payload.sessionId);
     /* 复查:仍为完成未读,且末次输出时刻与结算时一致(无新输出)才播 */
     if (!deps.isUnread(payload.sessionId)) return;
     if (deps.getLastActivityAt(payload.sessionId) !== payload.settledAt) return;
+    if (turnMuted) return; /* 静音会话不播轮次提示音(与 OS 通知同矩阵) */
     /* 免打扰在播放刻再判(结算与播放隔 3s,窗界可能已越过)。 */
     if (isDndActive(getSettingsState().settings)) return;
     deps.play(turnEndSoundId);

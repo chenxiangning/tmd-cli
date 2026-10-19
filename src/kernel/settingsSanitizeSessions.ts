@@ -3,14 +3,19 @@
  * 先例:sshSettings.ts 域文件。装配仍在 settingsSanitize.ts 的 sanitize()。
  */
 
-import type {
-  SessionArchiveEntry,
-  SessionDeletedEntry,
-  SessionKeepEntry,
-  SessionPinEntry,
-  SessionPinScope,
+import {
+  SESSION_MUTE_MODES,
+  type SessionArchiveEntry,
+  type SessionDeletedEntry,
+  type SessionKeepEntry,
+  type SessionMuteEntry,
+  type SessionMuteMode,
+  type SessionPinEntry,
+  type SessionPinScope,
+  type SessionRestoreSettings,
 } from "./settingsTypes";
 import { SESSION_KEEP_MAX } from "./sessionKeep";
+import { SESSION_MUTES_MAX } from "./sessionMutes";
 
 /** 手动命名覆盖层上限:500 条(超出按 key 序丢弃,确定性兜底);标题 1–200 字符。 */
 const SESSION_TITLES_MAX_ENTRIES = 500;
@@ -119,6 +124,54 @@ export function sanitizeSessionKeep(raw: unknown): Record<string, SessionKeepEnt
     keep[key] = { keptAt: Math.floor(keptAt) };
   }
   return keep;
+}
+
+/**
+ * 静音层清洗:只收合法档位 + 有限非负 mutedAt 的项,askRing 仅保留 true,
+ * 按 key 序限量纳入(与归档/保留同款确定性兜底)。
+ * 上限与 sessionMutes.SESSION_MUTES_MAX(2000)双源同源,直接引用(改须同改)。
+ */
+export function sanitizeSessionMutes(raw: unknown): Record<string, SessionMuteEntry> {
+  const mutes: Record<string, SessionMuteEntry> = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return mutes;
+  const entries = raw as Record<string, unknown>;
+  for (const key of Object.keys(entries).sort()) {
+    if (Object.keys(mutes).length >= SESSION_MUTES_MAX) break;
+    const value = entries[key];
+    if (!key || !value || typeof value !== "object") continue;
+    const entry = value as Record<string, unknown>;
+    if (!SESSION_MUTE_MODES.includes(entry.mode as SessionMuteMode)) continue;
+    const mutedAt = typeof entry.mutedAt === "number" ? entry.mutedAt : Number.NaN;
+    if (!Number.isFinite(mutedAt) || mutedAt < 0) continue;
+    mutes[key] = {
+      mutedAt: Math.floor(mutedAt),
+      mode: entry.mode as SessionMuteMode,
+      ...(entry.askRing === true ? { askRing: true } : {}),
+    };
+  }
+  return mutes;
+}
+
+/**
+ * 重启现场恢复清洗:enabled 非布尔回落 true;keys 只收非空串、去重保序,
+ * 超帽从尾部丢(首 = 最新 MRU,尾先弃)。帽由装配侧传入当前 sessionTabsMax
+ * (清洗期 state 尚未提交,现读会拿到旧帽)。
+ */
+export function sanitizeSessionRestore(raw: unknown, cap: number): SessionRestoreSettings {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { enabled: true, keys: [] };
+  const entry = raw as Record<string, unknown>;
+  const enabled = typeof entry.enabled === "boolean" ? entry.enabled : true;
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  if (Array.isArray(entry.keys)) {
+    for (const key of entry.keys) {
+      if (keys.length >= cap) break;
+      if (typeof key !== "string" || !key || seen.has(key)) continue;
+      seen.add(key);
+      keys.push(key);
+    }
+  }
+  return { enabled, keys };
 }
 
 /** 引擎版本收藏层上限:100 条(与置顶同款确定性兜底口径)。 */

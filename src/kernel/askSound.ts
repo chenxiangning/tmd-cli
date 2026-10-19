@@ -16,6 +16,8 @@
 import { KernelTopics, type EventBus } from "./events";
 import { getSettingsState, ASK_SOUND_IDS, type AskSoundId } from "./settings";
 import { isDndActive } from "./dnd";
+import { getSessionMute, mutedKinds, tmdSessionMuteKey } from "./sessionMutes";
+import { host } from "./host";
 
 /** 内置音效懒加载:首次播放才拉取 wav,promise 缓存,失败逐出使下次重试。 */
 const SOUND_URL_LOADERS: Record<AskSoundId, () => Promise<string>> = {
@@ -72,9 +74,12 @@ let askUnlisten: (() => void) | null = null;
 /** 启动接线:订阅 askDetected(host 主链路检测,见 askWatch.ts),开关开着即播放。 */
 export function bootAskSound(bus: EventBus): void {
   if (askUnlisten) return;
-  askUnlisten = bus.on<string>(KernelTopics.askDetected, () => {
+  askUnlisten = bus.on<string>(KernelTopics.askDetected, (id) => {
     const settings = getSettingsState().settings;
     const { askSoundEnabled, askSoundId } = settings;
+    /* 会话级静音闸(与 OS 通知同矩阵):仅完全静音档拦 ask;未落盘会话不静音。 */
+    const muteKey = tmdSessionMuteKey(id, host);
+    if (muteKey !== undefined && mutedKinds(getSessionMute(muteKey), "ask")) return;
     /* 免打扰窗静默(真实事件路径;playAskSound 直连不闸 —— 设置页「测试」按钮不受窗拘)。 */
     if (askSoundEnabled && !isDndActive(settings)) playAskSound(askSoundId);
   });

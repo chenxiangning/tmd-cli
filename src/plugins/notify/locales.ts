@@ -82,6 +82,16 @@ const MESSAGES_EN = {
   "窗口重置前提醒分钟数": "Minutes before window reset to remind",
   "5-240 的整数;清空或非法输入将保持当前值。":
     "An integer between 5 and 240; empty or invalid input keeps the current value.",
+  "静音通知": "Mute notifications",
+  "完全静音": "Mute all",
+  "静音至回合结束": "Mute until turn ends",
+  "取消静音": "Unmute",
+  "取消静音({mode})": "Unmute ({mode})",
+  "静音中的会话({n})": "Muted sessions ({n})",
+  "静音只拦系统通知与提示音,通知中心流水照常记录。":
+    "Muting blocks OS notifications and sounds only; the notification log keeps recording.",
+  "ask 亦静": "ask muted too",
+  "该会话的通知已静音": "Notifications are muted for this session",
 } as const;
 
 /** ja 词典 · notify 域。 */
@@ -162,6 +172,16 @@ const MESSAGES_JA = {
   "窗口重置前提醒分钟数": "ウィンドウリセット前の通知分数",
   "5-240 的整数;清空或非法输入将保持当前值。":
     "5-240 の整数。空欄や無効な入力では現在の値を維持します。",
+  "静音通知": "通知ミュート",
+  "完全静音": "完全ミュート",
+  "静音至回合结束": "ターン終了までミュート",
+  "取消静音": "ミュート解除",
+  "取消静音({mode})": "ミュート解除({mode})",
+  "静音中的会话({n})": "ミュート中のセッション({n})",
+  "静音只拦系统通知与提示音,通知中心流水照常记录。":
+    "ミュートは OS 通知と効果音だけを止め、通知ログは通常どおり記録されます。",
+  "ask 亦静": "ask も消音",
+  "该会话的通知已静音": "このセッションの通知はミュート中です",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

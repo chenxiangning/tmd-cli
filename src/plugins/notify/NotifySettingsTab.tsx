@@ -11,6 +11,7 @@ import { useSettingsState, updateSettings } from "@kernel/settings";
 import { parseHhMm } from "@kernel/dnd";
 import { t } from "@kernel/i18n";
 import { SoundSettingsCard, ToggleRow } from "./SoundSettingsCard";
+import { SessionMutesCard } from "./SessionMutesCard";
 
 /** 阈值提交纯函数:0-100 钳制;空/非法回落旧值(当前生效值),不是默认 10。 */
 function thresholdFromInput(raw: string, current: number): number {
@@ -18,8 +19,8 @@ function thresholdFromInput(raw: string, current: number): number {
   return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : current;
 }
 
-/** 卡头:分组标题 + 一句说明(占一个 pref-row 的左列,右侧无控件)。 */
-function CardHead(props: { title: string; desc: string }) {
+/** 卡头:分组标题 + 一句说明(占一个 pref-row 的左列,右侧无控件)。SessionMutesCard 复用。 */
+export function CardHead(props: { title: string; desc: string }) {
   return (
     <div className="pref-row">
       <div>
@@ -239,6 +240,8 @@ export function NotifySettingsTab() {
           />
         </div>
       </div>
+
+      <SessionMutesCard />
     </>
   );
 }

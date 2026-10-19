@@ -40,7 +40,9 @@ import {
   sanitizeSessionArchive,
   sanitizeSessionDeleted,
   sanitizeSessionKeep,
+  sanitizeSessionMutes,
   sanitizeSessionPins,
+  sanitizeSessionRestore,
   sanitizeSessionTitles,
 } from "./settingsSanitizeSessions";
 import { sanitizeOpenWithTargets } from "./settingsSanitizeOpenWith";
@@ -286,6 +288,8 @@ export function sanitize(raw: unknown): AppSettings {
     sessionArchive: sanitizeSessionArchive(obj.sessionArchive),
     sessionDeleted: sanitizeSessionDeleted(obj.sessionDeleted),
     sessionKeep: sanitizeSessionKeep(obj.sessionKeep),
+    sessionMutes: sanitizeSessionMutes(obj.sessionMutes),
+    sessionRestore: sanitizeSessionRestore(obj.sessionRestore, sanitizeSessionTabsMax(obj.sessionTabsMax)),
     sessionHygieneEnabled:
       typeof obj.sessionHygieneEnabled === "boolean"
         ? obj.sessionHygieneEnabled

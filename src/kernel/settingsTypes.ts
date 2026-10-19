@@ -53,7 +53,7 @@ export function resolveCliSessionQuota(
 }
 
 /* 会话覆盖层记录类型(置顶/归档/删除/保留/卫生时窗)拆至 settingsSessionEntries.ts。 */
-import type { SessionArchiveEntry, SessionDeletedEntry, SessionHygieneHours, SessionKeepEntry, SessionPinEntry } from "./settingsSessionEntries";
+import type { SessionArchiveEntry, SessionDeletedEntry, SessionHygieneHours, SessionKeepEntry, SessionMuteEntry, SessionPinEntry, SessionRestoreSettings } from "./settingsSessionEntries";
 export * from "./settingsSessionEntries";
 
 /** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
@@ -200,6 +200,10 @@ export interface AppSettings {
    * 又被扫回」。resume 打开路径的自动 unarchive 不写(领域 API 见 kernel/sessionKeep.ts)。
    */
   sessionKeep: Record<string, SessionKeepEntry>;
+  /** 会话通知静音层:key = 三段覆盖层身份,value = 档位记录;只拦 OS 通知与提示音,
+   *  通知中心流水照记;语义与三档矩阵见 kernel/sessionMutes.ts。 */
+  sessionMutes: Record<string, SessionMuteEntry>;
+  sessionRestore: SessionRestoreSettings; // 重启现场恢复:三段身份 MRU(首=最新),帽随 sessionTabsMax;见 kernel/sessionRestore.ts
   /** 会话卫生清扫开关:超期(默认 24h 未活动)自动归档 + 空会话删除;默认开。 */
   sessionHygieneEnabled: boolean;
   /** 清扫超期时窗(小时);白名单 SESSION_HYGIENE_HOURS,默认 24。 */

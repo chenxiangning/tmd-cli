@@ -18,6 +18,7 @@ const MERGE_TS_FIELDS = {
   sessionDeleted: "deletedAt",
   sessionKeep: "keptAt",
   sessionPins: "pinnedAt",
+  sessionMutes: "mutedAt",
   engineVersionFavs: "favedAt",
 } as const;
 

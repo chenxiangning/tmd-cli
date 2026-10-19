@@ -65,6 +65,8 @@ describe("初始状态与默认值", () => {
       sessionArchive: {},
       sessionDeleted: {},
       sessionKeep: {},
+      sessionMutes: {},
+      sessionRestore: { enabled: true, keys: [] },
       sessionHygieneEnabled: true,
       sessionHygieneHours: 24,
       engineVersionFavs: {},

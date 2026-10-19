@@ -28,6 +28,8 @@ import { NotifySettingsTab } from "./NotifySettingsTab";
 import { NotifyCenterPanel } from "./NotifyCenterPanel";
 import { bootNotifyLog, markQuotaSeen, quotaSeenKeys, recordNotifyEntry } from "./log";
 import { notifyText, shouldNotify, type NotifyKind } from "./logic";
+import { isExitMuted, isSessionMuted } from "./mute";
+import { clearSnooze, tmdSessionMuteKey } from "@kernel/sessionMutes";
 import {
   QUOTA_POLL_FIRST_MS,
   QUOTA_POLL_INTERVAL_MS,
@@ -58,6 +60,8 @@ function dispatch(kind: NotifyKind, sessionId: string): boolean {
     },
     settings.notifyLogDays,
   );
+  /* 会话级静音闸:流水已记,只拦 OS/声音;未落盘会话 = 不静音,行为与现状一致。 */
+  if (isSessionMuted(sessionId, kind)) return false;
   if (!shouldNotify(kind, settings, host.isWindowFocused(), settings)) return false;
   void sendOsNotification(title, body, () => {
     host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势,摘最大化 */
@@ -103,6 +107,10 @@ export const notifyPlugin: Plugin = {
         (e) => {
           waitingNotified.delete(e.sessionId);
           if (e.unviewed) dispatch("turnEnd", e.sessionId);
+          /* snooze 到期自清:全会话都清(不止 unviewed);先闸后清,结算这轮仍被拦。
+             只清 snooze 档,mute/full 手动档不受事件影响。 */
+          const muteKey = tmdSessionMuteKey(e.sessionId, host);
+          if (muteKey !== undefined) clearSnooze(muteKey);
         },
       ),
       ctx.events.on<SessionExitedDetailEvent>(KernelTopics.sessionExitedDetail, (e) => {
@@ -114,6 +122,8 @@ export const notifyPlugin: Plugin = {
           { kind: "exit", sessionId: e.sessionId, profileId: e.profileId, title, snippet: body },
           settings.notifyLogDays,
         );
+        /* 会话级静音闸:身份取自移除前快照;snooze 放行 exit(语义见 mute.ts)。 */
+        if (isExitMuted(e)) return;
         if (!shouldNotify("exit", settings, host.isWindowFocused(), settings)) return;
         void sendOsNotification(title, body);
       }),
@@ -127,6 +137,8 @@ export const notifyPlugin: Plugin = {
       if (!shouldNotify("ask", settings, host.isWindowFocused(), settings)) return;
       for (const s of host.getSessions()) {
         if (!host.isWaitingConfirm?.(s.id) || waitingNotified.has(s.id)) continue;
+        /* 完全静音的 ask 不补扫不补记(边沿流水已在 dispatch 记过一条)。 */
+        if (isSessionMuted(s.id, "ask")) continue;
         waitingNotified.add(s.id);
         const { title, body } = notifyText("ask", s.id, host);
         recordNotifyEntry(
@@ -154,6 +166,9 @@ export const notifyPlugin: Plugin = {
         { kind: "quota", sessionId: session.id, profileId, title, snippet: body },
         settings.notifyLogDays,
       );
+      /* 会话级静音闸:流水已记;绝不写 quotaSeen(那是跨周期去重键,误写 = 永久静默),
+         markQuotaSeen 由 poll 判定侧维护,与本闸无关。 */
+      if (isSessionMuted(session.id, "quota")) return;
       if (!shouldNotify("quota", settings, host.isWindowFocused(), settings)) return;
       void sendOsNotification(title, body, () => {
         host.events.emit(KernelTopics.sessionViewRequested, null); /* 点通知 = 用户手势 */
