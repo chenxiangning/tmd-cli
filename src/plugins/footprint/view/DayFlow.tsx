@@ -35,20 +35,20 @@ export function DayFlow({ detail, range, rangeDetails, query, today, focusIdx, f
       <div className="mb-1 flex flex-wrap items-baseline gap-2">
         <h1 className="text-[17px] font-bold">{detail.day}</h1>
         {detail.day === today && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tmd-accent-weak,#dbe7ff)] px-2 py-px text-[10.5px] font-semibold text-[var(--tmd-accent,#2563eb)]">
-            <i className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--tmd-accent,#2563eb)]" />
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] px-2 py-px text-[10.5px] font-semibold text-[var(--tmd-accent,var(--tmd-accent))]">
+            <i className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--tmd-accent,var(--tmd-accent))]" />
             {t("今日")}
           </span>
         )}
       </div>
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--tmd-fg-3,#64748b)]">
-        <span className="rounded-full bg-[var(--tmd-surface-2,#f1f5f9)] px-2 py-0.5">
-          <b className="text-[var(--tmd-fg,#0f172a)]">{detail.cards.length}</b> {t("项功能")}
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-[11.5px] text-[var(--tmd-fg-muted)]">
+        <span className="rounded-full bg-[var(--tmd-bg-hover)] px-2 py-0.5">
+          <b className="text-[var(--tmd-fg,var(--tmd-fg))]">{detail.cards.length}</b> {t("项功能")}
         </span>
-        <span className="rounded-full bg-[var(--tmd-surface-2,#f1f5f9)] px-2 py-0.5">
-          <b className="text-[var(--tmd-fg,#0f172a)]">{tt.sessions}</b> {t("场会话")}
+        <span className="rounded-full bg-[var(--tmd-bg-hover)] px-2 py-0.5">
+          <b className="text-[var(--tmd-fg,var(--tmd-fg))]">{tt.sessions}</b> {t("场会话")}
         </span>
-        <span className="rounded-full bg-[var(--tmd-surface-2,#f1f5f9)] px-2 py-0.5 font-mono">
+        <span className="rounded-full bg-[var(--tmd-bg-hover)] px-2 py-0.5 font-mono">
           <b className="text-emerald-600">+{tt.plus}</b> / <b className="text-red-500">−{tt.minus}</b>
         </span>
         <span>{t("证据随点随取:点功能卡看会话 / 文件 / diff")}</span>
@@ -56,7 +56,7 @@ export function DayFlow({ detail, range, rangeDetails, query, today, focusIdx, f
 
       {hasFeatures && (
         <>
-          <div className="mb-2 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-3,#64748b)]">
+          <div className="mb-2 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
             {t("功能与任务(AI 归纳 · 悬停可修正)")}
           </div>
           <CardList detail={detail} query={query} focusIdx={focusIdx} fixCardTitle={fixCardTitle} onOpenCard={onOpenCard} onFix={onFix} />

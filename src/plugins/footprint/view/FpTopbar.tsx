@@ -19,23 +19,23 @@ export interface FpTopbarProps {
 
 export function FpTopbar({ ym, heat, query, onShiftMonth, onToday, onQuery, onOpenSearch, onHeat, onToggleHelp }: FpTopbarProps) {
   return (
-    <div className="flex flex-none items-center gap-2 border-b border-[var(--tmd-border,#e2e8f0)] px-3 py-2">
-      <button type="button" className="rounded-md px-2 py-1 text-[12px] hover:bg-[var(--tmd-surface-2,#f1f5f9)]" onClick={() => onShiftMonth(-1)} title={t("上月(⇧←)")}>
+    <div className="flex flex-none items-center gap-2 border-b border-[var(--tmd-border,var(--tmd-border))] px-3 py-2">
+      <button type="button" className="rounded-md px-2 py-1 text-[12px] hover:bg-[var(--tmd-bg-hover)]" onClick={() => onShiftMonth(-1)} title={t("上月(⇧←)")}>
         ‹
       </button>
       <span className="text-[13px] font-bold">{t("{y} 年 {m} 月", { y: ym.y, m: ym.m })}</span>
-      <button type="button" className="rounded-md px-2 py-1 text-[12px] hover:bg-[var(--tmd-surface-2,#f1f5f9)]" onClick={() => onShiftMonth(1)} title={t("下月(⇧→)")}>
+      <button type="button" className="rounded-md px-2 py-1 text-[12px] hover:bg-[var(--tmd-bg-hover)]" onClick={() => onShiftMonth(1)} title={t("下月(⇧→)")}>
         ›
       </button>
       <button
         type="button"
-        className="rounded-md bg-[var(--tmd-surface-2,#f1f5f9)] px-2 py-1 text-[11.5px] hover:bg-[var(--tmd-surface-3,#e2e8f0)]"
+        className="rounded-md bg-[var(--tmd-bg-hover)] px-2 py-1 text-[11.5px] hover:bg-[var(--tmd-bg-elevated)]"
         onClick={onToday}
       >
         {t("回到今日")}
       </button>
       <div className="ml-auto flex items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-lg bg-[var(--tmd-surface-2,#f1f5f9)] px-2 py-1 text-[11.5px] text-[var(--tmd-fg-3,#64748b)]">
+        <div className="flex items-center gap-1.5 rounded-lg bg-[var(--tmd-bg-hover)] px-2 py-1 text-[11.5px] text-[var(--tmd-fg-muted)]">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="7" />
             <path d="M21 21l-4.3-4.3" />
@@ -47,21 +47,21 @@ export function FpTopbar({ ym, heat, query, onShiftMonth, onToday, onQuery, onOp
             placeholder={t("反查:账号密码 / 配置文件 / 路径…")}
             className="w-44 bg-transparent outline-none"
           />
-          <kbd className="rounded border border-[var(--tmd-border,#e2e8f0)] px-1 text-[10px]">⌘K</kbd>
+          <kbd className="rounded border border-[var(--tmd-border,var(--tmd-border))] px-1 text-[10px]">⌘K</kbd>
         </div>
-        <div className="flex overflow-hidden rounded-lg border border-[var(--tmd-border,#e2e8f0)] text-[11px]">
+        <div className="flex overflow-hidden rounded-lg border border-[var(--tmd-border,var(--tmd-border))] text-[11px]">
           {([["lines", "按改动量"], ["sessions", "按会话数"]] as const).map(([k, label]) => (
             <button
               key={k}
               type="button"
-              className={`px-2 py-1 ${heat === k ? "bg-[var(--tmd-accent,#2563eb)] text-white" : "hover:bg-[var(--tmd-surface-2,#f1f5f9)]"}`}
+              className={`px-2 py-1 ${heat === k ? "bg-[var(--tmd-accent,var(--tmd-accent))] text-white" : "hover:bg-[var(--tmd-bg-hover)]"}`}
               onClick={() => onHeat(k)}
             >
               {t(label)}
             </button>
           ))}
         </div>
-        <button type="button" className="rounded-md px-2 py-1 text-[13px] text-[var(--tmd-fg-3,#64748b)] hover:bg-[var(--tmd-surface-2,#f1f5f9)]" title={t("快捷键(?)")} onClick={onToggleHelp}>
+        <button type="button" className="rounded-md px-2 py-1 text-[13px] text-[var(--tmd-fg-muted)] hover:bg-[var(--tmd-bg-hover)]" title={t("快捷键(?)")} onClick={onToggleHelp}>
           ?
         </button>
       </div>

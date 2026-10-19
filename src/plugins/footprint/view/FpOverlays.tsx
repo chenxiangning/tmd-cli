@@ -54,23 +54,23 @@ export function FpOverlays(p: FpOverlaysProps) {
         inputRef={p.searchInputRef}
       />
       {p.helpOpen && (
-        <div className="absolute top-12 right-3 z-40 w-[300px] rounded-xl border border-[var(--tmd-border,#e2e8f0)] bg-[var(--tmd-surface,#fff)] p-1.5 shadow-lg">
-          <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-bold text-[var(--tmd-fg-3,#64748b)]">{t("快捷键")}</div>
+        <div className="absolute top-12 right-3 z-40 w-[300px] rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-1.5 shadow-lg">
+          <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-bold text-[var(--tmd-fg-muted)]">{t("快捷键")}</div>
           {HELP_ROWS.map(([key, keys]) => (
-            <div key={key} className="flex items-center justify-between px-2.5 py-1 text-[12px] text-[var(--tmd-fg-2,#334155)]">
+            <div key={key} className="flex items-center justify-between px-2.5 py-1 text-[12px] text-[var(--tmd-fg)]">
               <span>{t(key)}</span>
-              <kbd className="font-mono text-[11px] text-[var(--tmd-fg-3,#64748b)]">{keys}</kbd>
+              <kbd className="font-mono text-[11px] text-[var(--tmd-fg-muted)]">{keys}</kbd>
             </div>
           ))}
         </div>
       )}
       {p.fixCard && !p.renameOpen && (
-        <div className="absolute bottom-16 left-1/2 z-40 -translate-x-1/2 rounded-xl border border-[var(--tmd-border,#e2e8f0)] bg-[var(--tmd-surface,#fff)] p-1 shadow-lg">
+        <div className="absolute bottom-16 left-1/2 z-40 -translate-x-1/2 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-1 shadow-lg">
           {FIX_ACTIONS.map((a) => (
             <button
               key={a}
               type="button"
-              className={`block w-full rounded-lg px-2.5 py-1.5 text-left text-[12.5px] hover:bg-[var(--tmd-surface-2,#f1f5f9)] ${a === "标记为无关" ? "text-red-500" : ""}`}
+              className={`block w-full rounded-lg px-2.5 py-1.5 text-left text-[12.5px] hover:bg-[var(--tmd-bg-hover)] ${a === "标记为无关" ? "text-red-500" : ""}`}
               onClick={() => p.onFixAction(a)}
             >
               {t(a)}
@@ -79,7 +79,7 @@ export function FpOverlays(p: FpOverlaysProps) {
         </div>
       )}
       {p.renameOpen && (
-        <div className="absolute bottom-16 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-xl border border-[var(--tmd-border,#e2e8f0)] bg-[var(--tmd-surface,#fff)] p-1.5 shadow-lg">
+        <div className="absolute bottom-16 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-1.5 shadow-lg">
           <input
             autoFocus
             aria-label={t("新的功能卡名称")}
@@ -89,18 +89,18 @@ export function FpOverlays(p: FpOverlaysProps) {
               if (e.key === "Enter") p.onRenameSubmit();
               if (e.key === "Escape") p.onRenameCancel();
             }}
-            className="w-[220px] rounded-lg border border-[var(--tmd-border,#e2e8f0)] bg-transparent px-2.5 py-1 text-[12.5px] outline-none focus:border-[var(--tmd-accent,#3b82f6)]"
+            className="w-[220px] rounded-lg border border-[var(--tmd-border,var(--tmd-border))] bg-transparent px-2.5 py-1 text-[12.5px] outline-none focus:border-[var(--tmd-accent,var(--tmd-accent))]"
           />
           <button
             type="button"
-            className="rounded-lg bg-[var(--tmd-accent,#3b82f6)] px-2.5 py-1 text-[12px] text-white"
+            className="rounded-lg bg-[var(--tmd-accent,var(--tmd-accent))] px-2.5 py-1 text-[12px] text-white"
             onClick={p.onRenameSubmit}
           >
             {t("确定")}
           </button>
           <button
             type="button"
-            className="rounded-lg px-2 py-1 text-[12px] text-[var(--tmd-fg-2,#334155)]"
+            className="rounded-lg px-2 py-1 text-[12px] text-[var(--tmd-fg)]"
             onClick={p.onRenameCancel}
           >
             {t("取消")}

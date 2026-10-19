@@ -198,9 +198,9 @@ export function FootprintView() {
 
       {/* 三栏 */}
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[248px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--tmd-border,#e2e8f0)] py-3">
+        <aside className="flex w-[248px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--tmd-border,var(--tmd-border))] py-3">
           <MonthCal y={ym.y} m={ym.m} cells={month} today={today} sel={sel} range={range} heat={heat} onSelectDay={selectDay} onAnchorDay={anchorDay} />
-          <div className="px-4 text-[10.5px] leading-relaxed text-[var(--tmd-fg-3,#94a3b8)]">
+          <div className="px-4 text-[10.5px] leading-relaxed text-[var(--tmd-fg-muted)]">
             {t("区间模式:shift 点起点再点终点 · 右键同效 · 点单日退出")}
           </div>
         </aside>
@@ -238,7 +238,7 @@ export function FootprintView() {
           </div>
         </main>
 
-        <aside className="flex w-[340px] flex-none flex-col border-l border-[var(--tmd-border,#e2e8f0)]">
+        <aside className="flex w-[340px] flex-none flex-col border-l border-[var(--tmd-border,var(--tmd-border))]">
           {card && detail ? (
             <EvidenceDrawer
               card={card}
@@ -251,7 +251,7 @@ export function FootprintView() {
               onRevealFile={revealFile}
             />
           ) : (
-            <div className="flex flex-1 items-center justify-center px-6 text-center text-[12px] text-[var(--tmd-fg-3,#94a3b8)]">
+            <div className="flex flex-1 items-center justify-center px-6 text-center text-[12px] text-[var(--tmd-fg-muted)]">
               {t("点功能卡打开证据抽屉:会话 resume / 文件清单 / diff")}
             </div>
           )}

@@ -18,9 +18,9 @@ function FeatureCard({ card, inRange, day, query, focused, onOpenCard, onFix }: 
 }) {
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border bg-[var(--tmd-surface,#fff)] transition-shadow hover:shadow-md ${focused ? "border-[var(--tmd-accent,#2563eb)] ring-1 ring-[var(--tmd-accent,#2563eb)]" : "border-[var(--tmd-border,#e2e8f0)]"}`}
+      className={`group relative overflow-hidden rounded-xl border bg-[var(--tmd-bg-panel)] transition-shadow hover:shadow-md ${focused ? "border-[var(--tmd-accent,var(--tmd-accent))] ring-1 ring-[var(--tmd-accent,var(--tmd-accent))]" : "border-[var(--tmd-border,var(--tmd-border))]"}`}
     >
-      <span className="absolute inset-y-0 left-0 w-1 bg-[var(--tmd-accent,#2563eb)] opacity-60" />
+      <span className="absolute inset-y-0 left-0 w-1 bg-[var(--tmd-accent,var(--tmd-accent))] opacity-60" />
       <div className="flex items-start gap-2 py-3 pr-2 pl-4">
         <button
           type="button"
@@ -31,18 +31,18 @@ function FeatureCard({ card, inRange, day, query, focused, onOpenCard, onFix }: 
             <span className="text-[13.5px] font-bold">
               <Hi text={card.title} q={query} />
             </span>
-            <span className={`rounded px-1.5 text-[9.5px] font-semibold ${card.unverified ? "border border-dashed border-[var(--tmd-border-strong,#cbd5e1)] text-[var(--tmd-fg-3,#64748b)]" : "bg-[var(--tmd-accent-weak,#dbe7ff)] text-[var(--tmd-accent,#2563eb)]"}`}>
+            <span className={`rounded px-1.5 text-[9.5px] font-semibold ${card.unverified ? "border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] text-[var(--tmd-fg-muted)]" : "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]"}`}>
               {card.unverified ? t("会话引用未验证") : t("AI 归纳")}
             </span>
-            {inRange && <span className="text-[10.5px] text-[var(--tmd-fg-3,#94a3b8)]">{day.slice(5)}</span>}
+            {inRange && <span className="text-[10.5px] text-[var(--tmd-fg-muted)]">{day.slice(5)}</span>}
           </div>
-          <div className="mt-1 text-[12.5px] text-[var(--tmd-fg-2,#334155)]">
+          <div className="mt-1 text-[12.5px] text-[var(--tmd-fg)]">
             <Hi text={card.summary} q={query} />
           </div>
           {card.quote && (
-            <div className="mt-1.5 border-l-2 border-[var(--tmd-accent-weak,#c7dbff)] pl-2 text-[12px] text-[var(--tmd-fg-2,#475569)] italic">
+            <div className="mt-1.5 border-l-2 border-[var(--tmd-accent-weak,var(--tmd-accent-soft))] pl-2 text-[12px] text-[var(--tmd-fg)] italic">
               「<Hi text={card.quote.text} q={query} />」
-              <span className="ml-1 text-[10.5px] not-italic text-[var(--tmd-fg-3,#94a3b8)]">
+              <span className="ml-1 text-[10.5px] not-italic text-[var(--tmd-fg-muted)]">
                 —— {card.quote.time} · {t("用户原话锚点")}
               </span>
             </div>
@@ -50,7 +50,7 @@ function FeatureCard({ card, inRange, day, query, focused, onOpenCard, onFix }: 
         </button>
         <button
           type="button"
-          className="flex-none rounded-md bg-[var(--tmd-surface-2,#f1f5f9)] px-2 py-1 text-[11px] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--tmd-surface-3,#e2e8f0)] focus:opacity-100"
+          className="flex-none rounded-md bg-[var(--tmd-bg-hover)] px-2 py-1 text-[11px] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--tmd-bg-elevated)] focus:opacity-100"
           onClick={(e) => {
             e.stopPropagation();
             onFix(card);
@@ -66,7 +66,7 @@ function FeatureCard({ card, inRange, day, query, focused, onOpenCard, onFix }: 
 export function RawRow({ left, tag, tagColor, text, mono }: { left: string; tag: string; tagColor: string; text: string; mono?: boolean }) {
   return (
     <div className="flex items-center gap-2 px-1 py-1 text-[12px]">
-      <span className="flex-none font-mono text-[10.5px] text-[var(--tmd-fg-3,#94a3b8)]">{left}</span>
+      <span className="flex-none font-mono text-[10.5px] text-[var(--tmd-fg-muted)]">{left}</span>
       <span className="flex-none rounded px-1.5 py-px text-[10px] font-semibold text-white" style={{ background: tagColor }}>
         {tag}
       </span>
@@ -97,10 +97,10 @@ export function RangeBanner({ details }: { details: FpDayDetail[] }) {
     }
   }
   const total = Math.max(1, plus + minus);
-  const colors = ["#4f8dff", "#7a5af8", "#2b9e68", "#d97757"];
+  const colors = ["var(--tmd-accent)", "var(--tmd-accent)", "var(--tmd-ok)", "#d97757"];
   return (
-    <div className="mb-3 rounded-xl border border-[var(--tmd-border,#e2e8f0)] bg-[var(--tmd-surface,#fff)] p-3">
-      <div className="mb-1 text-[11px] font-bold text-[var(--tmd-fg-3,#64748b)]">
+    <div className="mb-3 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-3">
+      <div className="mb-1 text-[11px] font-bold text-[var(--tmd-fg-muted)]">
         {t("区间汇总")} <span className="font-normal">{t("· 点月历任意单日退出区间")}</span>
       </div>
       <div className="mb-2 flex flex-wrap gap-3 text-[12px]">
@@ -110,7 +110,7 @@ export function RangeBanner({ details }: { details: FpDayDetail[] }) {
           </span>
         ))}
       </div>
-      <div className="flex h-2 overflow-hidden rounded-full bg-[var(--tmd-surface-2,#f1f5f9)]">
+      <div className="flex h-2 overflow-hidden rounded-full bg-[var(--tmd-bg-hover)]">
         {[...proj.entries()].map(([name, v], i) => (
           <i
             key={name}
@@ -119,7 +119,7 @@ export function RangeBanner({ details }: { details: FpDayDetail[] }) {
           />
         ))}
       </div>
-      <div className="mt-1.5 flex gap-2 text-[11px] text-[var(--tmd-fg-3,#64748b)]">
+      <div className="mt-1.5 flex gap-2 text-[11px] text-[var(--tmd-fg-muted)]">
         <span>{t("{n} 天", { n: details.length })}</span>
         <span>{t("{n} 场", { n: sess })}</span>
         <span className="text-emerald-600">+{plus}</span>
@@ -152,7 +152,7 @@ export function CardList({ detail, query, focusIdx, fixCardTitle, onOpenCard, on
             onFix={onFix}
           />
           {fixCardTitle === c.title && (
-            <div className="ml-1 mt-1 rounded-lg border border-dashed border-[var(--tmd-border-strong,#cbd5e1)] px-3 py-2 text-[11px] text-[var(--tmd-fg-3,#64748b)]">
+            <div className="ml-1 mt-1 rounded-lg border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] px-3 py-2 text-[11px] text-[var(--tmd-fg-muted)]">
               {t("重命名 / 标记为无关 直接写修正层(.user.json)· 合并/拆分待二期")}
             </div>
           )}
@@ -170,21 +170,21 @@ export function FallbackList({ detail, ungrouped, projOrder, onManualDigest }: {
   onManualDigest: () => void;
 }) {
   return (
-    <div className="mb-4 rounded-xl border border-[var(--tmd-border,#e2e8f0)] bg-[var(--tmd-surface,#fff)] p-3">
+    <div className="mb-4 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-3">
       <div className="mb-1 text-[12.5px] font-bold">
         {t("该日无功能归纳")}
-        <span className="ml-2 rounded bg-[var(--tmd-surface-2,#f1f5f9)] px-1.5 py-px text-[10px] font-normal text-[var(--tmd-fg-3,#64748b)]">
+        <span className="ml-2 rounded bg-[var(--tmd-bg-hover)] px-1.5 py-px text-[10px] font-normal text-[var(--tmd-fg-muted)]">
           {t("features 文件缺失或生成失败")}
         </span>
         <button
           type="button"
-          className="ml-2 rounded-md bg-[var(--tmd-surface-2,#f1f5f9)] px-2 py-0.5 text-[11px] hover:bg-[var(--tmd-surface-3,#e2e8f0)]"
+          className="ml-2 rounded-md bg-[var(--tmd-bg-hover)] px-2 py-0.5 text-[11px] hover:bg-[var(--tmd-bg-elevated)]"
           onClick={onManualDigest}
         >
           {t("手动补归纳")}
         </button>
       </div>
-      <div className="text-[11px] text-[var(--tmd-fg-3,#64748b)]">
+      <div className="text-[11px] text-[var(--tmd-fg-muted)]">
         {t("按项目分组诚实罗列,不装作聚了类 · 修正层可手动补归纳")}
       </div>
       <div className="mt-2 flex flex-col gap-2">
@@ -193,13 +193,13 @@ export function FallbackList({ detail, ungrouped, projOrder, onManualDigest }: {
             key={`${r.profileId}:${r.id ?? r.title}`}
             left={new Date(r.startedAt).toTimeString().slice(0, 5)}
             tag={r.profileId}
-            tagColor="#64748b"
+            tagColor="var(--tmd-fg-muted)"
             text={r.title}
           />
         ))}
         {projOrder.map((p) => (
           <div key={p}>
-            <div className="mt-1 text-[11px] font-bold text-[var(--tmd-fg-2,#334155)]">{p}</div>
+            <div className="mt-1 text-[11px] font-bold text-[var(--tmd-fg)]">{p}</div>
             {ungrouped
               .filter((f) => f.project === p)
               .map((f) => (
@@ -207,7 +207,7 @@ export function FallbackList({ detail, ungrouped, projOrder, onManualDigest }: {
                   key={f.path}
                   left=""
                   tag={t("文件")}
-                  tagColor="#94a3b8"
+                  tagColor="var(--tmd-fg-subtle)"
                   text={`${f.path}  +${f.stat.add} −${f.stat.del}`}
                   mono
                 />
@@ -229,19 +229,19 @@ export function DayTail({ detail, hasFeatures, ungrouped }: {
     <>
       {detail.commits.length > 0 && (
         <>
-          <div className="mb-2 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-3,#64748b)]">
+          <div className="mb-2 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
             {t("Git 硬证据(提交即权威,不受账本清理影响)")}
           </div>
-          <div className="mb-4 rounded-xl border border-[var(--tmd-border,#e2e8f0)] bg-[var(--tmd-surface,#fff)] px-3 py-2">
+          <div className="mb-4 rounded-xl border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-panel)] px-3 py-2">
             {detail.commits.map((c) => (
-              <RawRow key={c.hash} left={c.time.slice(11, 16)} tag="git" tagColor="#475569" text={`${c.hash} ${c.subject}`} mono />
+              <RawRow key={c.hash} left={c.time.slice(11, 16)} tag="git" tagColor="var(--tmd-fg-muted)" text={`${c.hash} ${c.subject}`} mono />
             ))}
           </div>
         </>
       )}
 
       {!hasFeatures && detail.rows.length === 0 && ungrouped.length === 0 && detail.commits.length === 0 && (
-        <div className="py-10 text-center text-[12.5px] text-[var(--tmd-fg-3,#94a3b8)]">{t("该日无记录")}</div>
+        <div className="py-10 text-center text-[12.5px] text-[var(--tmd-fg-muted)]">{t("该日无记录")}</div>
       )}
 
       {detail.scanFailed && (

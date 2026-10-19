@@ -44,7 +44,7 @@ export function FicoButton({ title, onClick, children }: { title: string; onClic
     <button
       type="button"
       title={title}
-      className="rounded p-0.5 leading-none text-[var(--tmd-fg-3,#94a3b8)] opacity-40 transition-colors hover:bg-[var(--tmd-surface-3,#e2e8f0)] hover:text-[var(--tmd-accent,#2563eb)] hover:opacity-100"
+      className="rounded p-0.5 leading-none text-[var(--tmd-fg-muted)] opacity-40 transition-colors hover:bg-[var(--tmd-bg-elevated)] hover:text-[var(--tmd-accent,var(--tmd-accent))] hover:opacity-100"
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -63,7 +63,7 @@ export function Hi({ text, q }: { text: string; q: string }) {
   return (
     <>
       {text.slice(0, i)}
-      <mark className="bg-transparent font-bold text-[var(--tmd-accent,#2563eb)]">{text.slice(i, i + q.length)}</mark>
+      <mark className="bg-transparent font-bold text-[var(--tmd-accent,var(--tmd-accent))]">{text.slice(i, i + q.length)}</mark>
       {text.slice(i + q.length)}
     </>
   );

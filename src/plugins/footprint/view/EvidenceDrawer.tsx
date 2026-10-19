@@ -45,25 +45,25 @@ export function EvidenceDrawer({ card, detail, query, selPath, onSelectFile, onR
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-none items-start justify-between gap-2 border-b border-[var(--tmd-border,#e2e8f0)] px-4 py-3">
+      <div className="flex flex-none items-start justify-between gap-2 border-b border-[var(--tmd-border,var(--tmd-border))] px-4 py-3">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-bold">
             <Hi text={card.title} q={query} />
           </div>
-          <div className="mt-0.5 text-[11px] text-[var(--tmd-fg-3,#64748b)]">
+          <div className="mt-0.5 text-[11px] text-[var(--tmd-fg-muted)]">
             {detail.day} · {card.unverified ? t("会话引用未验证") : t("AI 归纳 · 会话引用已校验")}
           </div>
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <h4 className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-3,#64748b)]">
+        <h4 className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
           {t("会话")}
-          <span className="rounded-full bg-[var(--tmd-surface-2,#f1f5f9)] px-1.5 text-[10.5px]">{sessRows.length}</span>
+          <span className="rounded-full bg-[var(--tmd-bg-hover)] px-1.5 text-[10.5px]">{sessRows.length}</span>
         </h4>
         {sessRows.map(({ sid, roll, row }) => (
           <div
             key={sid}
-            className="group flex items-center gap-2 border-l-2 border-transparent px-4 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--tmd-surface-2,#f1f5f9)]"
+            className="group flex items-center gap-2 border-l-2 border-transparent px-4 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--tmd-bg-hover)]"
           >
             <button
               type="button"
@@ -74,29 +74,29 @@ export function EvidenceDrawer({ card, detail, query, selPath, onSelectFile, onR
               <span className="min-w-0 flex-1 truncate">
                 <Hi text={row?.title ?? `${t("会话")} ${sid.slice(0, 8)}`} q={query} />
               </span>
-              <span className="flex-none font-mono text-[10.5px] text-[var(--tmd-fg-3,#94a3b8)]">
+              <span className="flex-none font-mono text-[10.5px] text-[var(--tmd-fg-muted)]">
                 {(roll?.first ?? "").slice(11, 16) || (row ? new Date(row.startedAt).toTimeString().slice(0, 5) : "")}
               </span>
             </button>
             <button
               type="button"
-              className="flex-none rounded-md border border-[var(--tmd-accent-weak,#dbe7ff)] bg-[var(--tmd-accent-weak,#dbe7ff)] px-2 py-px text-[10.5px] text-[var(--tmd-accent,#2563eb)] hover:brightness-95"
+              className="flex-none rounded-md border border-[var(--tmd-accent-weak,var(--tmd-accent-soft))] bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] px-2 py-px text-[10.5px] text-[var(--tmd-accent,var(--tmd-accent))] hover:brightness-95"
               onClick={() => onResumeSession(sid)}
             >
               resume
             </button>
           </div>
         ))}
-        <h4 className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-3,#64748b)]">
+        <h4 className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
           {t("改动文件")}
-          <span className="rounded-full bg-[var(--tmd-surface-2,#f1f5f9)] px-1.5 text-[10.5px]">{files.length}</span>
+          <span className="rounded-full bg-[var(--tmd-bg-hover)] px-1.5 text-[10.5px]">{files.length}</span>
           <span className="font-normal normal-case">{t("· 点文件在左侧出 diff · 数字永久,diff 随账本 30 天")}</span>
         </h4>
         {files.map(({ path, stat }) => {
           return (
             <div
               key={path}
-              className={`flex items-center gap-2 border-l-2 px-4 py-1.5 text-[12px] transition-colors hover:bg-[var(--tmd-surface-2,#f1f5f9)] ${selPath === path ? "border-l-[var(--tmd-accent,#2563eb)] bg-[var(--tmd-accent-weak,#dbe7ff)]" : "border-transparent"}`}
+              className={`flex items-center gap-2 border-l-2 px-4 py-1.5 text-[12px] transition-colors hover:bg-[var(--tmd-bg-hover)] ${selPath === path ? "border-l-[var(--tmd-accent,var(--tmd-accent))] bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))]" : "border-transparent"}`}
             >
               <button
                 type="button"
@@ -119,7 +119,7 @@ export function EvidenceDrawer({ card, detail, query, selPath, onSelectFile, onR
                 </FicoButton>
               </span>
               {fileBatch(detail.rollup, stat) === null ? (
-                <span className="flex-none text-[10px] text-[var(--tmd-fg-3,#94a3b8)]">{t("账本已清理")}</span>
+                <span className="flex-none text-[10px] text-[var(--tmd-fg-muted)]">{t("账本已清理")}</span>
               ) : (
                 <PmBars add={stat.add} del={stat.del} />
               )}
@@ -127,7 +127,7 @@ export function EvidenceDrawer({ card, detail, query, selPath, onSelectFile, onR
           );
         })}
         {files.length === 0 && (
-          <div className="px-4 py-3 text-[11.5px] text-[var(--tmd-fg-3,#94a3b8)]">{t("该卡无文件级证据(账本窗口外或无写入)")}</div>
+          <div className="px-4 py-3 text-[11.5px] text-[var(--tmd-fg-muted)]">{t("该卡无文件级证据(账本窗口外或无写入)")}</div>
         )}
       </div>
     </div>
