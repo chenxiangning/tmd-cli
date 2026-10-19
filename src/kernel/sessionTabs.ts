@@ -12,7 +12,9 @@
  *   兜「打开早于自动命名落盘」—— tab 标签跟随自动命名,手动命名优先级更高;
  * - 首条用户消息保底(promptSent 事件):磁盘 AI 命名晚于文件出生 35s+(omp 懒落盘
  *   实证),保底标题线上即时可得;磁盘原生标题后到自然覆盖(行链 disk > 保底)。
- * - 不持久化:PTY 会话不跨应用重启存活,持久化只能恢复死 id。
+ * - ids 不持久(PTY 会话不跨应用重启存活,持久 tmd id 只能恢复死壳);打开事实
+ *   以三段身份 MRU 持久于 settings.sessionRestore,供重启后错峰恢复回位
+ *   (trackOpen 记录,见 kernel/sessionRestore.ts)。
  * - 平铺显示(tile):打开的 tab 全部并排同屏(参照 codeg tile display);
  *   全局开关 localStorage 持久(会话不持久,开关比它活得久),容量挤除/会话消失
  *   时平铺集合随 ids 收敛。
@@ -23,6 +25,7 @@ import { host } from "./host";
 import { KernelTopics, type EventBus, type PromptSentEvent } from "./events";
 import type { SessionMeta } from "./ipc";
 import { getSettingsState, subscribeSettings } from "./settings";
+import { recordSessionKey, sessionRestoreKey } from "./sessionRestore";
 
 /** 容量来源 settings.sessionTabsMax(1-10,默认 4);缩容即时修剪,保留最近打开。 */
 subscribeSettings(() => {
@@ -80,6 +83,16 @@ function trackOpen(id: string): void {
       ? [...state.ids.slice(state.ids.length - getSettingsState().settings.sessionTabsMax + 1), id]
       : [...state.ids, id];
   commit(next);
+  recordRestoreKey(id);
+}
+
+/** 三段身份落 settings.sessionRestore(重启回位 MRU,见 sessionRestore.ts);
+ *  身份不全(无归属工作区 / 未落盘无 cliSessionId)不记 —— 与覆盖层 key 同判据。 */
+function recordRestoreKey(id: string): void {
+  const meta = host.getSessions().find((s) => s.id === id);
+  const cliSessionId = meta?.workspaceId ? host.getCliSessionId(id) : undefined;
+  if (!meta?.workspaceId || cliSessionId === undefined) return;
+  recordSessionKey(sessionRestoreKey(meta.workspaceId, meta.profileId, cliSessionId));
 }
 
 /** 会话集合变化 → 剪除已消失的 tab 与标题快照(会话被删 / 进程退出)。 */

@@ -19,7 +19,9 @@ import { AppShell } from "./AppShell";
 import { bootAskSound } from "@kernel/askSound";
 import { bootTurnSound } from "@kernel/turnSound";
 import { bootDropGuard } from "@kernel/dropGuard";
+import { bootQuitGuard } from "@kernel/quitGuardBoot";
 import { bootSessionTabs } from "@kernel/sessionTabs";
+import { scheduleSessionRestore } from "@kernel/sessionRestore";
 import { registerDefaultContributions } from "./contributions";
 import { bootAskRestore } from "@kernel/askWatchRestore";
 import { onExternalSpawn, onRemoteWrite } from "@kernel/ipc";
@@ -39,6 +41,7 @@ export function DesktopApp() {
     bootAskSound(host.events); /* Ask 提示音:消费 askDetected(host 主链路检测,见 askWatch.ts) */
     bootTurnSound(host.events); /* 轮次结束提示音:消费 turnSettled,延迟确认后播放 */
     bootDropGuard(); /* 文件拖放护栏:防 webview drop 导航开文件(lib.rs 关原生拦截的副作用) */
+    bootQuitGuard(); /* 关窗/退出闸:onCloseRequested + Rust ⌘Q 腿统一编排(kernel/quitGuard) */
     initUpdatePresence(); /* 更新感应后台化:6h 节流检查,底栏版本号旁亮提示(boot 级,不随左栏关闭停摆) */
     bootSessionTabs(host.events); /* 会话标题 tab 条:订阅打开/存活广播,见 kernel/sessionTabs.ts */
     /* 桥(手机)发起会话补装配:桥 spawn 绕过前端生命周期,桌面行会退化成短码
@@ -55,6 +58,7 @@ export function DesktopApp() {
     syncFocus();
     installPluginShims(); /* 本地插件 shim 实例表:任何外部 bundle import 之前必须就位 */
     const localPromise = bootLocalPlugins(new Set(allPlugins.map((p) => p.id)));
+    let offRestore: (() => void) | null = null;
     host
       .activateAll(allPlugins)
       .then(() => {
@@ -62,6 +66,9 @@ export function DesktopApp() {
         setReady(true);
         void host.readoptSessions(); /* webview 重载后活 PTY 重新接管 */
         bootAskRestore();
+        /* 重启现场恢复:ready 后 45s 错峰串行回位(kernel/sessionRestore;编排内部
+           再等 readopt + workspacesReady;至多一次,重挂防重入)。 */
+        offRestore = scheduleSessionRestore();
         return localPromise.catch((e) => {
           console.error("[local-plugins] 扫描异常(已隔离):", e);
           return [];
@@ -78,6 +85,7 @@ export function DesktopApp() {
     return () => {
       window.removeEventListener("focus", syncFocus);
       window.removeEventListener("blur", syncFocus);
+      offRestore?.();
       void unlistenExternal.then((off) => off()).catch(() => undefined);
       void unlistenRemoteWrite.then((off) => off()).catch(() => undefined);
     };
