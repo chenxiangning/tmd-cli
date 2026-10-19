@@ -76,36 +76,39 @@ const MESSAGES_EN = {
   "重置{time} · {relative}": "Resets {time} · {relative}",
   "{m}月{d}日": "{m}/{d}",
 
-  /* 页脚 RESUME / QUOTA */
-  "续作": "resume",
+  /* 页尾 QUOTA 套餐水位面板(卡片网格) */
   "套餐水位": "plan usage",
-  "暂无历史会话": "No sessions yet",
   "暂无可查询的套餐额度": "No queryable plan quota",
   "重置{rel}": "resets {rel}",
-
-  /* 页脚下方 tokens 用量 dashboard */
-  "用量": "usage",
-  "今日": "today",
-  "7 日": "7d",
-  "消耗会话": "sessions",
-  "pi 系费用": "pi-family cost",
-  "输出": "output",
-  "输入+缓存": "input+cache",
-  "近 7 日无消费": "No usage in the last 7 days",
-  "用量数据加载失败": "Failed to load usage",
-  "重试": "Retry",
-  "数据源 = 本地会话记录,仅统计近 7 日":
-    "Source: local session logs, last 7 days only",
-  /* tokens dashboard · 窗口重置小节 */
-  "窗口重置": "Window reset",
-  "{h}小时{m}分后重置": "Resets in {h}h {m}m",
-  "口径未知,不猜测兜底": "Policy unknown — no guessing fallback",
-  "下一个可用窗口:{id},{cd}": "Next available window: {id}, {cd}",
-  "无最近会话数据": "No recent session data",
+  "数据源:供应商额度查询 + 会话记录本地推算":
+    "Source: provider quota API + local session-log inference",
+  "刷新重算": "Recalculate",
+  "推算中…": "Recalculating…",
+  "最近推算 {time}": "Last calculated {time}",
+  "下一个可用窗口:{name}（推算）,{cd}": "Next window: {name} (inferred), {cd}",
+  "下一个可用窗口:{name},{cd}": "Next window: {name}, {cd}",
+  "全部可推算窗口均已重置": "All inferred windows have reset",
+  "倒计时本地每分钟重算,无网络轮询":
+    "Countdown recalcs locally every minute — no network polling",
+  "已用": "used",
+  "{h}小时 {m}分": "{h}h {m}m",
+  "{m}分": "{m}m",
+  "{h}小时 {m}分后": "in {h}h {m}m",
+  "{m}分后": "in {m}m",
+  "窗口起点 {time} · 由本窗口首条用量行推算":
+    "Window started {time} · inferred from the first usage line in this window",
+  "重置于 {time}": "resets {time}",
+  "充裕": "Healthy",
+  "已限额": "Limited",
+  "可推算": "Inferable",
+  "已重置": "Reset",
+  "新窗口已开始计数,用量从 0 起算": "New window counting — usage starts from 0",
+  "{name} 当前窗口已用 {pct}%": "{name} current window {pct}% used",
+  "不猜测": "no guess",
   /* 插件 meta(渲染点在市场清单/命令抽屉,主会话包裹) */
   "欢迎页": "Welcome page",
-  "无会话首页:引擎全动作行、凭据额度、续作":
-    "No-session home: engine action rows, credentials & quota, resume",
+  "无会话首页:引擎全动作行、凭据额度、套餐水位":
+    "No-session home: engine action rows, credentials & quota, plan usage",
 } as Record<string, string>;
 
 /** ja 词典 · welcome 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */
@@ -181,37 +184,40 @@ const MESSAGES_JA = {
   "重置{time} · {relative}": "リセット {time} · {relative}",
   "{m}月{d}日": "{m}月{d}日",
 
-  /* 页脚 RESUME / QUOTA */
-  "续作": "続きから",
+  /* ページ末尾 QUOTA プラン使用量パネル(カードグリッド) */
   "套餐水位": "プラン使用量",
-  "暂无历史会话": "セッション履歴なし",
   "暂无可查询的套餐额度": "照会可能なプラン使用量なし",
   "重置{rel}": "リセット {rel}",
-
-  /* ページフッター下の tokens 使用量ダッシュボード */
-  "用量": "使用量",
-  "今日": "今日",
-  "7 日": "7日",
-  "消耗会话": "セッション",
-  "pi 系费用": "pi 系コスト",
-  "输出": "出力",
-  "输入+缓存": "入力+キャッシュ",
-  "近 7 日无消费": "過去 7 日間の利用なし",
-  "用量数据加载失败": "使用量の読み込みに失敗しました",
-  "重试": "再試行",
-  "数据源 = 本地会话记录,仅统计近 7 日":
-    "ソース:ローカルセッション記録(過去 7 日のみ)",
-  /* tokens ダッシュボード · ウィンドウリセット節 */
-  "窗口重置": "ウィンドウリセット",
-  "{h}小时{m}分后重置": "{h}時間{m}分後にリセット",
-  "口径未知,不猜测兜底": "方式不明のため推測しない",
-  "下一个可用窗口:{id},{cd}": "次の利用可能ウィンドウ:{id},{cd}",
-  "无最近会话数据": "最近のセッションデータなし",
+  "数据源:供应商额度查询 + 会话记录本地推算":
+    "ソース:プロバイダー使用量 API + セッション記録のローカル推算",
+  "刷新重算": "再計算",
+  "推算中…": "再計算中…",
+  "最近推算 {time}": "最終計算 {time}",
+  "下一个可用窗口:{name}（推算）,{cd}": "次のウィンドウ:{name}（推算）、{cd}",
+  "下一个可用窗口:{name},{cd}": "次のウィンドウ:{name}、{cd}",
+  "全部可推算窗口均已重置": "推算対象ウィンドウはすべてリセット済み",
+  "倒计时本地每分钟重算,无网络轮询":
+    "カウントダウンはローカルで毎分再計算(ネットワークポーリングなし)",
+  "已用": "使用",
+  "{h}小时 {m}分": "{h}時間{m}分",
+  "{m}分": "{m}分",
+  "{h}小时 {m}分后": "{h}時間{m}分後",
+  "{m}分后": "{m}分後",
+  "窗口起点 {time} · 由本窗口首条用量行推算":
+    "ウィンドウ開始 {time} · 本ウィンドウ先頭の使用量行から推算",
+  "重置于 {time}": "{time} にリセット",
+  "充裕": "余裕あり",
+  "已限额": "制限中",
+  "可推算": "推算可",
+  "已重置": "リセット済み",
+  "新窗口已开始计数,用量从 0 起算": "新規ウィンドウ計測中 — 使用量は 0 から",
+  "{name} 当前窗口已用 {pct}%": "{name} 現在のウィンドウ 使用 {pct}%",
+  "不猜测": "推測しない",
 
   /* 插件 meta(渲染点在市场清单/命令抽屉,主会话包裹) */
   "欢迎页": "ウェルカムページ",
-  "无会话首页:引擎全动作行、凭据额度、续作":
-    "無セッション時のホーム:エンジン操作行、認証情報と使用量、続きから",
+  "无会话首页:引擎全动作行、凭据额度、套餐水位":
+    "無セッション時のホーム:エンジン操作行、認証情報と使用量、プラン使用量",
 } as Record<string, string>;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });
