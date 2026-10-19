@@ -268,15 +268,11 @@ export function RunningZoneSection() {
         <SessionContextMenu
           position={{ x: menu.x, y: menu.y }}
           canRename={menu.row.cliSessionId !== undefined}
-                    pinScope={
+          pinScope={
             menu.row.cliSessionId === undefined
               ? undefined
               : (settings.sessionPins[
-                  sessionPinKey(
-                    menu.row.workspace.id,
-                    menu.row.profile.id,
-                    menu.row.cliSessionId,
-                  )
+                  sessionPinKey(menu.row.workspace.id, menu.row.profile.id, menu.row.cliSessionId)
                 ]?.scope ?? null)
           }
           muteKey={muteKeyOf(menu.row.workspace.id, menu.row.profile.id, menu.row.cliSessionId)}
