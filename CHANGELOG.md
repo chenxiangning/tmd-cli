@@ -4,7 +4,7 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
-## [0.4.0] - 2026-10-19
+## [0.4.0] - 2026-10-20
 
 本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。**追加 042 混合批**(视觉示例与推演定稿 `docs/design/042-candidates/`,大仙拍板 1/3/4/6/7 五项,打磨对齐定稿后实施):终端路径点击 / 输入历史全文+抽屉 / 额度告警增量三腿 / 跨工作区全局检索 / checkpoint 恢复预览 + workbench 空壳归档债批 + 随手带四项。**再追加连续性批六项**(示例页 042 组页 9-14,大仙拍板分五批实施,每批 review 防跑偏;裁决与深扫修正 `docs/brainstorm/2026-10-19-042-followup.md` + `openspec/changes/2026-10-19-042-followup-batch/`):重启现场恢复 / 跨引擎记忆文件面板 / 会话变更总览 / 草稿安全网 / 通知会话级静音 / 转录批量导出。
 
@@ -34,12 +34,14 @@
 - 转录批量导出与活会话快照(session-viewer+workspace):抽 `exportMdTo` 落盘内核;SessionManage 多选批量条「导出」——pickDirectory 选目录一次落 N 个 md(帽 50 超限拒开跑提示分批,串行进度可取消,失败列表归因 no-adapter/unreadable,write-failed 中止已写留存,文件名 slug+日期防撞 -2 递增);会话右键「导出转录快照」=当前磁盘快照(041 明示后补项,活会话仅磁盘绑定会话显示,toast 注明快照时点);零 Rust
 - 首页页尾改版(welcome):RESUME 列与 TOKENS 用量区摘除(TokenDashboard/tokens.ts/welcome-footer.css 全删),换 QUOTA 套餐水位面板——真额度环卡 + claude 窗口推算卡(可推算)+ 7 天窗并列窗口块,汇总条取跨卡跨窗口最近重置;查不到的卡不渲染,空态一行提示
 - WebGL 终端渲染基准页(bench,独立入口):canvas vs @xterm/addon-webgl 同参对照三场景,分帧喂养测渲染吞吐,中位数 3 轮取中+UA/环境键缓存基线,判定线 5%;独立 rollup 入口不进主 chunk(devDep 零进主包,产物 dist/bench.html 单独可达)
+- 每日工作足迹插件(footprint,侧栏入口「每日足迹」):月历热力(按改动量/按会话数双口径,shift/右键选区间)+ 日视图功能卡流(AI 归纳卡:标题/一句话/用户原话锚点/meta 行)+ 证据抽屉(会话 resume/文件清单/主流宽 diff 面板)+ ⌘K 四来源反查(功能卡/日报/用户原话/文件路径)。数据链:L1 rollup 挂 checkpoints 封口事件(`ckptTurnSealed`)按月落盘单文件单飞串行写,L3 功能卡由 journal 生成会话顺手直写(枚举校验防编造 + Chain-of-Key 防漂移 + <80% 通过率升级管线 B 闸);修正层二期——合并/拆分/手动补归纳/改名写 `.user.json` 覆盖层(读侧双档探测来源徽标:手动/已修正/AI 归纳),补归纳允许不带会话引用;区间视图按日分组卡流 + 汇总条;视图按 v2 原型校准(月历热力色条/证据抽屉按需渲染/修正菜单跟随定位/键盘 j/k 导航跨区间扁平卡表);架构契约 `docs/architecture/30-footprint.md`
 
 ### 修复
 
 - 集成期:workspace 组折叠 `toggleGroup` 压缩时误写工作区折叠 map(点组头错折工作区),回归组 id 语义
 - quota 告警分支绕过 `shouldNotify`:免打扰窗此前不拦 quota OS 通知(真缺口);现 NotifyKind 增 "quota" 走 dispatch 同款三闸——免打扰/聚焦静默拦 OS 通知,应用内流水照记
 - 二轮发版评审收口:通知 blur 补扫死路径(ask 被闸拦后仍记去重集,失焦永不补发)、预设库非缺失读错误拒写盘防清库、docgen 归档删除收进单写者队列(裸写索引被内存单权威整体重写静默复活)、claude 推算卡被 note-only 聚合误判压制、恢复预览 revert 挂载现发 dry-run 防跨弹层陈旧、互跳同文多轮按出现序定位(正向 chip 轮号对齐防空批挤位,反向「看对话」不再恒落最新)、冻结快照卸载先冲刷攒帧防重开跳字、体检超时并行收束(挂死类目不再 240s 串行)、索引扫描中止后在途拍不写态、路径点击括号包裹死链与绝对路径 `..` 越区归一、搜索浮层 IME 组合态 Enter/Esc 误触发、workbench 归档撤退残留(问一句/DocGen 生成面改喂可见集)、结构化 turnEnd 通知补免打扰闸
+- footprint 发版前评审 16 项:月历区间中格漏 `border-transparent`(Tailwind 4 preflight 下被 currentColor 描边切块带)、diff 行引用不存在的 `--tmd-green-weak/--tmd-red-weak` 回落实色致删除行不可读(改 color-mix 语义色)、区间模式 j/k 用单日卡表与高亮错位(改跨日扁平卡表)、搜索同 kind 命中按日交错致组头反复插(摊平后 kind 稳定归并)、深色 violet/amber 硬编码对比不足(落 `--tmd-syntax-tag`/`--tmd-warn` 双主题 token)、日明细 journal 路径硬编码死前缀致 article/digest 恒 null(与写侧 `dailyPaths()` 同源)、区间起点 UTC 解析负时区多算一天、Escape 弹层链连关抽屉、修正菜单贴底越界、抽屉文件行漏 group 悬停失效、卡 key 用 title 撞名串卡等
 
 ### 内务
 
