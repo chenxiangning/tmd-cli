@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 追加批 · 12/14 — 草稿安全网</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12px; padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+  tr:last-child td { border-bottom: none; }
+  td.y { color: var(--ok-deep); font-weight: 600; }
+  td.n { color: var(--err-deep); }
+  .cols { display: grid; grid-template-columns: 7fr 5fr; gap: 14px; align-items: start; margin-top: 14px; }
+  .loop { padding: 12px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--border); background: #fafaf9; }
+  .loop span { font-size: 11px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 3px 8px; color: var(--fg2); }
+  .loop b { font-size: 11px; color: var(--accent-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+  /* ── 页面私有(本页追加) ── */
+  .mocks { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 16px 20px; }
+  .mock { border: 1px solid var(--border); border-radius: 8px; padding: 14px; background: #fafaf9; }
+  .mock > h3 { font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+  .mock > h3 .panel-sub { font-weight: 400; }
+  .win { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .win-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .draft-list { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 12px; }
+  .draft-list > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; font-size: 12px; border-bottom: 1px solid #f0f0ee; background: var(--card); }
+  .draft-list > div:last-child { border-bottom: none; }
+  .draft-list code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--fg); }
+  .kind { font-size: 10px; border-radius: 4px; padding: 1px 6px; font-family: ui-monospace, monospace; flex-shrink: 0; }
+  .kind.file { background: var(--accent-soft); color: var(--accent-deep); }
+  .kind.journal { background: var(--ok-soft); color: var(--ok-deep); }
+  .win-btns { display: flex; gap: 8px; align-items: center; }
+  .btn-danger { font-size: 12px; color: #fff; border: 1px solid var(--err-deep); border-radius: 6px; background: var(--err); padding: 6px 12px; cursor: pointer; transition: background .15s; }
+  .btn-danger:hover { background: var(--err-deep); }
+  .chk { font-size: 12px; color: var(--fg2); display: flex; gap: 5px; align-items: center; margin-left: auto; cursor: pointer; }
+  .win-note { font-size: 11px; color: var(--fg2); margin-top: 12px; font-family: ui-monospace, monospace; }
+  .win-note b { color: var(--accent-deep); font-weight: 500; }
+  .tabstrip { display: flex; gap: 4px; }
+  .tabchip { font-size: 11px; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; padding: 4px 12px; background: #fafaf9; color: var(--fg2); font-family: ui-monospace, monospace; }
+  .tabchip.active { background: var(--card); color: var(--fg); font-weight: 600; }
+  .recover-bar { background: var(--warn-soft); border: 1px solid var(--border); border-bottom: none; color: var(--warn-deep); font-size: 12px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .recover-bar .btn { padding: 3px 10px; }
+  .editor-box { border: 1px solid var(--border); border-radius: 0 0 6px 6px; background: var(--card); padding: 10px 12px; font-family: ui-monospace, monospace; font-size: 11px; color: var(--fg2); min-height: 58px; }
+  .editor-box.dim { opacity: .45; }
+  .pt { margin-bottom: 12px; }
+  .pt:last-child { margin-bottom: 0; }
+  .pt b { font-size: 12px; font-weight: 600; display: block; margin-bottom: 2px; }
+  .pt p { font-size: 12px; color: var(--fg2); }
+  .pt code, td code, .notes li code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--accent-deep); }
+  tr.gap td { background: var(--warn-soft); color: var(--warn-deep); }
+  tr.gap td:first-child { font-weight: 600; }
+  @media (max-width: 860px) { .cols, .mocks { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <header class="page-header">
+    <span class="badge">0.4.0 追加批 · 12/14(连续性)</span>
+    <h1>草稿安全网(关窗闸+草稿镜像)</h1>
+    <p class="page-desc">关 tab 有闸(0.3.7),但关窗仍静默丢稿、崩溃无处可寻;双腿补完:onCloseRequested 接关闭协调器+草稿镜像落 localStorage。连续性断点 = 跨崩溃。</p>
+  </header>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">双 mockup <span class="panel-sub">左 = 关窗路径的聚合退出弹层;右 = 崩溃重开路径的草稿恢复条(均示意)</span></div>
+      <button class="btn" id="replay">重置示意</button>
+    </div>
+    <div class="mocks">
+
+      <div class="mock">
+        <h3>mockup A · 聚合退出弹层 <span class="panel-sub">关窗 / ⌘Q 且存在脏草稿</span></h3>
+        <div class="win">
+          <div class="win-title">有 2 个未保存草稿</div>
+          <div class="draft-list">
+            <div><code>src/config.toml</code><span class="kind file">file</span></div>
+            <div><code>工作日志 · 10-19 便签</code><span class="kind journal">journal</span></div>
+          </div>
+          <div class="win-btns">
+            <button class="btn-danger" id="quit">放弃并退出</button>
+            <button class="btn" id="stay">取消</button>
+            <label class="chk"><input type="checkbox" id="neverask">本次不再问</label>
+          </div>
+          <div class="win-note">onCloseRequested → <b>preventDefault</b>(同步先行)→ 聚合确认 → 逐 tab 强制放行 → <b>windowClose()</b></div>
+        </div>
+      </div>
+
+      <div class="mock">
+        <h3>mockup B · 草稿恢复条 <span class="panel-sub">崩溃后重开,重开文件 tab 顶部</span></h3>
+        <div class="tabstrip">
+          <span class="tabchip active">src/config.toml</span>
+          <span class="tabchip">Cargo.toml</span>
+        </div>
+        <div class="recover-bar" id="rbar">
+          <span>检测到上次未保存草稿(3 分钟前)</span>
+          <button class="btn" id="restore">恢复</button>
+          <button class="btn" id="discard">丢弃</button>
+        </div>
+        <div class="editor-box dim" id="ebox">[disk] log_level = "info"</div>
+      </div>
+
+    </div>
+    <div class="loop">
+      <span>编辑中 draftSet(getTabs().filter(dirty))</span><b>→</b>
+      <span>防抖 300ms 镜像写 localStorage</span><b>→</b>
+      <span>关窗 onCloseRequested</span><b>→</b>
+      <span>preventDefault</span><b>→</b>
+      <span>聚合弹层</span><b>→</b>
+      <span>确认 = 逐 tab 强制放行(requestCloseAllTabs 退出模式)→ windowClose();取消 = 留窗</span><b>·</b>
+      <span>崩溃后重开 → 读镜像 → 恢复条</span><b>→</b>
+      <span>7 天 TTL 台账自清</span>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="panel">
+      <div class="panel-bar">
+        <div class="panel-title">路径闭环表 <span class="panel-sub">草稿丢失的四条路径 + 一条缝隙,闸与镜像各管哪段</span></div>
+      </div>
+      <table>
+        <thead><tr><th style="width:150px;">路径</th><th>现状(源码锚点)</th><th style="width:240px;">本案去向</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>关 tab(× / ⌘W / 关全部)</td>
+            <td>三 kind 闸已挂:<code>files/index.tsx:83</code> · <code>ssh/index.tsx:74</code> · <code>journal/attach.ts:38</code>,经 requestCloseTab 逐个过闸</td>
+            <td class="y">已有闸,不变</td>
+          </tr>
+          <tr>
+            <td>切 tab / 关脏 tab</td>
+            <td>keepAlive 不丢;drafts 内存 Map(fileCache.ts:27)关脏 tab 保留,重开自恢复</td>
+            <td class="y">keepAlive 不丢,不变</td>
+          </tr>
+          <tr>
+            <td>关窗 / ⌘Q</td>
+            <td class="n">静默全丢:窗口一关,没人问过</td>
+            <td>聚合确认:onCloseRequested 接协调器,preventDefault → 弹层 → 强制放行 → windowClose()</td>
+          </tr>
+          <tr>
+            <td>崩溃 / 断电</td>
+            <td class="n">无处可寻:内存草稿随进程蒸发</td>
+            <td>镜像恢复:重开读 localStorage,tab 顶黄条「恢复 / 丢弃」</td>
+          </tr>
+          <tr class="gap">
+            <td>缝隙:闸取消 → 退出仍蒸发</td>
+            <td colspan="2">file 草稿是内存 Map(fileCache.ts:27):闸取消保 tab 保不住窗口,窗口真关仍全丢 —— 镜像腿正是补这条。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-bar">
+        <div class="panel-title">实现要点卡 <span class="panel-sub">全部来自仓内实证锚点</span></div>
+      </div>
+      <div style="padding:14px 20px;">
+        <div class="pt">
+          <b>① onCloseRequested 可用,接线面已备</b>
+          <p>window.d.ts:121 CloseRequestedEvent.preventDefault(手册:handler 结算后窗口照常销毁,故同步先行);import 铁律只在 kernel/ipc.ts:933;订阅先例 onResized(ipc.ts:970-983);web 态 isWeb 短路。dirty 写点全仓恰三处:useFileDocument.ts:132 / RemoteFileTab.tsx:89 / ArticleTab.tsx:205,210,集合 = getTabs().filter(t =&gt; t.dirty)。</p>
+        </div>
+        <div class="pt">
+          <b>② ⌘Q 腿:应用级退出需小块 Rust(可同批或二期)</b>
+          <p>app_setup.rs:104 现只处理 WindowEvent::Focused(true);要加 ExitRequested prevent+事件桥(run 循环现只接 RunEvent::Exit 做 kill_all 收尾,lib.rs:416,补臂不冲突)。</p>
+        </div>
+        <div class="pt">
+          <b>③ 镜像键与生命周期</b>
+          <p><code>tmd.fileDraft.&lt;path&gt;</code> / <code>tmd.journalNoteDraft.&lt;ymd&gt;</code>;TTL 7 天台账先例(mobile useDraft.ts 的 DRAFT_TTL_MS+_ledger);单条 256KB 截断(超限截尾,恢复条注明);try/catch 静默兜配额满。composer(<code>tmd.composerDraft.&lt;cwd&gt;</code>,300ms 防抖先例 useComposerDraft.ts)与 ss 草稿已持久化,不动。</p>
+        </div>
+        <div class="pt">
+          <b>④ 退出编排须等 Promise 全结算再放行</b>
+          <p>镜像 flush(防抖未落地的同帧补写)与在途闸 Promise 全部 await 完才补发 windowClose();ArticleDiscardGate.tsx:41-43 已兜底「卸载未结算 = 不放行结算」,编排器留悬挂 promise 就退出不成,必须显式结清。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>关窗闸复用关闭协调器</strong>:requestCloseAllTabs 增加退出确认模式(tabClose.ts 契约,docs/architecture/24-tab-close-guard.md 扩展纪律),不另造第二套协调器。</li>
+      <li><strong>聚合弹层 vs 串行逐个问</strong>:退出场景聚合一次问清,不串行弹 N 个确认;点「放弃并退出」走强制放行通道绕各 kind 闸(闸只服务单 tab 手势,退出已整体裁决)。</li>
+      <li><strong>localStorage 从不入 settings</strong>:取舍先例 = settings 存跨会话配置,localStorage 存草稿/UI 态;镜像键带 <code>tmd.</code> 前缀与既有键族同域,不进设置面板。</li>
+      <li><strong>ssh-file 一并纳入</strong>:ssh-file 现无草稿缓存(RemoteFileTab 只有内存 doc,ssh/index.tsx:69 注释自证「远端编辑没有本地草稿缓存」),镜像腿补齐第三 kind,恢复条同款。</li>
+      <li><strong>脏 tab kind 全仓恰三种</strong>:file / ssh-file / journal 文章(updateTab dirty 写点三处文件实证),镜像范围即三 kind,不会溢出到会话/composer 等已持久化草稿。</li>
+    </ul>
+  </div>
+
+  <p class="foot">
+    <b>已有底子</b>:tabClose 协调器+dirty 镜像链+composer localStorage 先例+windowClose 原语。
+    <b>成本</b>:S-M(⌘Q 腿+小块 Rust)。
+    <b>风险</b>:「秒关」习惯冲突(不再问 checkbox 缓解);聚合确认与各 kind 闸的双通道要写死(退出走强制放行,单 tab 手势仍过闸)。
+    <b>验证</b>:关窗弹层 / 崩溃恢复 / 256KB 截断 / TTL 过期 / ⌘W 单关不变五路径各一+真机 ⌘Q 目检(若做 Rust 腿)。
+  </p>
+
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var toast = document.getElementById("toast"), tId;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(tId);
+    tId = setTimeout(function () { toast.classList.remove("show"); }, 2400);
+  }
+
+  document.getElementById("quit").addEventListener("click", function () {
+    showToast(document.getElementById("neverask").checked
+      ? "示意:勾选「本次不再问」→ 仍先写镜像再强制放行,windowClose()"
+      : "示意:逐 tab 强制放行(requestCloseAllTabs 退出模式)→ windowClose()");
+  });
+  document.getElementById("stay").addEventListener("click", function () {
+    showToast("示意:取消,preventDefault 已拦下,窗口与全部草稿保留");
+  });
+
+  var rbar = document.getElementById("rbar"), ebox = document.getElementById("ebox");
+  document.getElementById("restore").addEventListener("click", function () {
+    ebox.classList.remove("dim");
+    ebox.textContent = '[draft] log_level = "debug"  ← 镜像回填,内存 drafts 同步就位';
+    rbar.style.display = "none";
+    showToast("示意:恢复 = 草稿回填编辑器,镜像暂留(保存/弃稿时清)");
+  });
+  document.getElementById("discard").addEventListener("click", function () {
+    rbar.style.display = "none";
+    showToast("示意:丢弃 = 删镜像键+台账条目,编辑器保持磁盘内容");
+  });
+  document.getElementById("replay").addEventListener("click", function () {
+    rbar.style.display = "";
+    ebox.classList.add("dim");
+    ebox.textContent = '[disk] log_level = "info"';
+    showToast("示意已重置");
+  });
+})();
+</script>
+</body>
+</html>

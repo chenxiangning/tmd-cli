@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 追加批 · 13/14 — 通知会话级静音/暂停</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12px; padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+  tr:last-child td { border-bottom: none; }
+  td.y { color: var(--ok-deep); font-weight: 600; }
+  td.n { color: var(--err-deep); }
+  .cols { display: grid; grid-template-columns: 7fr 5fr; gap: 14px; align-items: start; margin-top: 14px; }
+  .loop { padding: 12px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--border); background: #fafaf9; }
+  .loop span { font-size: 11px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 3px 8px; color: var(--fg2); }
+  .loop b { font-size: 11px; color: var(--accent-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+  /* ---- page 13: notify session mute ---- */
+  .mkwrap { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 20px; }
+  .mk-label { font-size: 12.5px; font-weight: 600; margin-bottom: 9px; }
+  .mk-label span { font-weight: 400; color: var(--fg2); }
+  .mkrow2 { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .mkmenu { width: 268px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.08); padding: 4px; }
+  .mkmenu .cap { font-size: 11px; color: var(--fg2); padding: 4px 8px 3px; }
+  .mi { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 6px 8px; border-radius: 6px; }
+  .mi:hover { background: var(--accent-soft); }
+  .mi .hint { margin-left: auto; font-size: 10.5px; color: var(--fg2); }
+  .mi.new { color: var(--accent-deep); background: var(--accent-soft); }
+  .mi.cur { background: var(--accent-soft); font-weight: 600; }
+  .tag-new { font-size: 10px; color: var(--accent-deep); border: 1px solid var(--accent); border-radius: 99px; padding: 0 6px; margin-left: auto; flex: none; }
+  .msep { height: 1px; background: var(--border); margin: 3px 6px; }
+  .bo { width: 13px; height: 13px; color: var(--warn-deep); flex: none; }
+  .bl { width: 13px; height: 13px; color: var(--fg2); flex: none; }
+  .ntabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .ntab { font-size: 11.5px; border: 1px solid var(--border); border-radius: 6px; background: #fafaf9; padding: 3px 9px; color: var(--fg2); display: inline-flex; align-items: center; gap: 5px; }
+  .nrow { display: flex; align-items: center; gap: 9px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 11px; margin-bottom: 7px; font-size: 12px; color: var(--fg2); }
+  .nrow .k { font-size: 10.5px; border-radius: 4px; padding: 1px 6px; background: #fafaf9; border: 1px solid var(--border); color: var(--fg2); flex: none; }
+  .nrow .t { color: var(--fg); }
+  .nrow .tm { margin-left: auto; font-size: 11px; flex: none; }
+  .nbadge { font-size: 10.5px; border-radius: 99px; padding: 1px 8px; flex: none; background: var(--warn-soft); color: var(--warn-deep); }
+  .nbadge.ask { background: var(--err-soft); color: var(--err-deep); }
+  .ovcard { border: 1px solid var(--border); border-radius: 8px; max-width: 440px; }
+  .ovcard .hd { display: flex; align-items: baseline; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  .ovcard .hd b { font-size: 12.5px; }
+  .ovcard .hd .cnt { font-size: 11px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 99px; padding: 0 8px; font-weight: 600; }
+  .ovcard .hd span { font-size: 11px; color: var(--fg2); margin-left: auto; }
+  .ovrow { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 12px; border-bottom: 1px solid #f0f0ee; }
+  .ovrow:last-of-type { border-bottom: none; }
+  .ovbtn { margin-left: auto; font-size: 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--fg2); padding: 2px 9px; }
+  .ovbtn:hover { border-color: var(--accent); color: var(--accent-deep); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; background: #fafaf9; border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; color: var(--accent-deep); }
+  .subh { font-size: 12.5px; font-weight: 600; margin: 13px 0 6px; }
+  .subh:first-child { margin-top: 0; }
+  .pline { font-size: 12px; color: var(--fg2); margin-bottom: 6px; }
+  .pline b { color: var(--fg); font-weight: 500; }
+  .fine { font-size: 11.5px; color: var(--fg2); margin-top: 7px; }
+  .gate th, .gate td { text-align: center; padding: 6px 8px; }
+  .gate th:first-child, .gate td:first-child { text-align: left; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="i-boff" viewBox="0 0 16 16"><path d="M8 2.2a3.8 3.8 0 0 0-3.8 3.8v3L3 11h10L11.8 9V6A3.8 3.8 0 0 0 8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6.4 13.2a1.7 1.7 0 0 0 3.2 0" fill="none" stroke="currentColor" stroke-width="1.4"/><line x1="2.6" y1="2.6" x2="13.4" y2="13.4" stroke="currentColor" stroke-width="1.4"/></symbol><symbol id="i-bell" viewBox="0 0 16 16"><path d="M8 2.2a3.8 3.8 0 0 0-3.8 3.8v3L3 11h10L11.8 9V6A3.8 3.8 0 0 0 8 2.2Z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M6.4 13.2a1.7 1.7 0 0 0 3.2 0" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol></svg>
+<div class="page">
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+  <header class="page-header">
+    <div class="badge">0.4.0 追加批 · 13/14(连续性)</div>
+    <h1>通知会话级静音/暂停</h1>
+    <p class="page-desc">十个会话并行吵的只有两三个;静音粒度下到单会话,三档语义各答其用,流水照记只闸 OS/声音。</p>
+  </header>
+
+  <section class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">交互 mockup · 三段<span class="panel-sub">静态示意 · 橙底 = 新增项,斜铃 = 已静音态</span></div>
+    </div>
+    <div class="mkwrap">
+      <div class="mk">
+        <div class="mk-label">① 会话 tab 右键菜单 —— <span>现有项下加三项;<code>TabContextMenu.tsx</code> wsmenu 范式</span></div>
+        <div class="mkrow2">
+          <div class="mkmenu">
+            <div class="cap">默认态</div>
+            <div class="mi"><svg class="bl"><use href="#i-bell"/></svg>重命名</div>
+            <div class="mi"><svg class="bl"><use href="#i-bell"/></svg>查看会话转录(只读)</div>
+            <div class="mi"><svg class="bl"><use href="#i-bell"/></svg>置顶到全局</div>
+            <div class="msep"></div>
+            <div class="mi new"><svg class="bo"><use href="#i-bell"/></svg>静音通知(ask 仍响)<span class="tag-new">新增</span></div>
+            <div class="mi new"><svg class="bo"><use href="#i-boff"/></svg>完全静音<span class="tag-new">新增</span></div>
+            <div class="mi new"><svg class="bl"><use href="#i-bell"/></svg>静音至回合结束<span class="tag-new">新增</span></div>
+            <div class="msep"></div>
+            <div class="mi"><svg class="bl"><use href="#i-bell"/></svg>在左侧栏定位会话</div>
+            <div class="mi"><svg class="bl"><use href="#i-bell"/></svg>关闭</div>
+          </div>
+          <div class="mkmenu">
+            <div class="cap">已静音态(完全静音中)—— 首项变「取消静音」</div>
+            <div class="mi"><svg class="bl"><use href="#i-bell"/></svg>取消静音<span class="hint">恢复放行</span></div>
+            <div class="mi cur"><svg class="bo"><use href="#i-boff"/></svg>完全静音<span class="hint">当前档</span></div>
+            <div class="mi"><svg class="bl"><use href="#i-bell"/></svg>静音至回合结束<span class="hint">切换档位</span></div>
+          </div>
+        </div>
+        <p class="fine">未落盘会话(无 cliSessionId)三项整组隐藏 —— 同 <code>TabContextMenu.tsx</code> 置顶项「会话尚未落盘,暂不可置顶」的前例,不做半生效。</p>
+      </div>
+      <div class="mk">
+        <div class="mk-label">② 通知中心行 · 已静音态 —— <span>流水条目照常入库,仅加斜铃与档位标;OS/声音不发</span></div>
+        <div class="ntabs"><span class="ntab">beta-重构<svg class="bo"><use href="#i-boff"/></svg></span><span class="ntab">api-proxy 调参<svg class="bo"><use href="#i-boff"/></svg></span><span class="ntab">nightly-crawl<svg class="bo"><use href="#i-boff"/></svg></span></div>
+        <div class="nrow"><span class="k">轮次结束</span><svg class="bo"><use href="#i-boff"/></svg><span class="t">「beta-重构」完成了一轮对话</span><span class="nbadge">静音通知</span><span class="tm">14:02</span></div>
+        <div class="nrow"><span class="k">等待确认</span><svg class="bo"><use href="#i-boff"/></svg><span class="t">「api-proxy 调参」在等你确认操作</span><span class="nbadge">完全静音</span><span class="nbadge ask">ask 亦静</span><span class="tm">13:47</span></div>
+        <div class="nrow"><span class="k">额度预警</span><svg class="bo"><use href="#i-boff"/></svg><span class="t">「nightly-crawl」的额度需要关注</span><span class="nbadge">静音至回合结束</span><span class="tm">13:20</span></div>
+      </div>
+      <div class="mk">
+        <div class="mk-label">③ 设置页概览卡 —— <span>NotifySettingsTab 卡片形制(CardHead 同款)</span></div>
+        <div class="ovcard">
+          <div class="hd"><b>静音中的会话</b><span class="cnt">2</span><span>空态整卡不渲染</span></div>
+          <div class="ovrow">「beta-重构」<span class="nbadge">完全静音</span><button class="ovbtn">取消</button></div>
+          <div class="ovrow">「api-proxy 调参」<span class="nbadge">静音通知</span><button class="ovbtn">取消</button></div>
+        </div>
+        <p class="fine">「静音至回合结束」随 turnSettled 自清,通常不长驻此列;行钮即 unmark。</p>
+      </div>
+    </div>
+    <div class="loop">
+      <span>tab/侧栏行右键选档</span><b>→</b><span>写 sessionMutes 覆盖层(三段 key)</span><b>→</b><span>shouldNotify 闸序插会话档查:聚焦→dnd→类别→会话档</span><b>→</b><span>OS/声音受闸,流水照记</span><b>→</b><span>snooze 于 turnSettled 自清(notify 已订阅该事件,清本会话 entry)</span>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section class="panel">
+      <div class="panel-bar"><div class="panel-title">三档语义表<span class="panel-sub">闭环核心 · y = 拦 OS/声音,n = 放行</span></div></div>
+      <table>
+        <tr><th>档位(mode)</th><th>turnEnd · quota</th><th>exit</th><th>ask(响铃)</th><th>自清</th><th>兜底可见性</th></tr>
+        <tr><td><b>静音通知</b> soft</td><td class="y">静</td><td class="y">静</td><td class="n">穿透</td><td>手动取消</td><td>中心行斜铃</td></tr>
+        <tr><td><b>完全静音</b> full</td><td class="y">静</td><td class="y">静</td><td class="y">静</td><td>手动取消</td><td>斜铃 + tab 徽标 + 概览卡</td></tr>
+        <tr><td><b>静音至回合结束</b> snooze</td><td class="y">静</td><td class="n">穿透 *</td><td class="n">穿透</td><td>turnSettled 自清</td><td>tab 徽标(临时)</td></tr>
+      </table>
+      <p class="fine" style="padding:0 12px 10px">* snooze 放 exit 穿透:会话死亡即回合的异常终局,若也静则 entry 永等不到 turnSettled 自清。ask 穿透是 soft/snooze 的安全默认 —— 免「盲等确认」事故;会话退出后 entry 随 settings 层保留,会话没了即无效果。</p>
+      <div class="panel-bar" style="border-top:1px solid var(--border)"><div class="panel-title">四层闸矩阵<span class="panel-sub">四类别逐格 · 闸序 = 聚焦→dnd→类别→会话档</span></div></div>
+      <table class="gate">
+        <tr><th>类别 \ 闸层</th><th>聚焦</th><th>免打扰窗</th><th>类别开关</th><th>档:静音通知</th><th>档:完全静音</th><th>档:snooze</th></tr>
+        <tr><td>ask 等待确认</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="n">n</td><td class="y">y</td><td class="n">n</td></tr>
+        <tr><td>轮次结束 turnEnd</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="y">y</td></tr>
+        <tr><td>额度预警 quota</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="y">y</td></tr>
+        <tr><td>会话退出 exit</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="y">y</td><td class="n">n</td></tr>
+      </table>
+      <p class="fine" style="padding:0 12px 12px">任一层命中即拦 OS/声音;流水不受任何闸,照记。dnd×quota 已由本批页 7 的免打扰缺口修复对齐(<code>logic.ts:30</code> 现序已含)。</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-bar"><div class="panel-title">存储与插点卡<span class="panel-sub">全部来自现存源码事实</span></div></div>
+      <div style="padding:14px 16px 16px">
+        <div class="subh">复刻清单六处(settings 层)</div>
+        <table>
+          <tr><td>Entry 类型</td><td><code>settingsSessionEntries.ts</code></td><td>SessionMuteEntry{ mutedAt, mode: "soft"|"full"|"snooze", askRing? }</td></tr>
+          <tr><td>settings 字段</td><td><code>settingsTypes.ts:184</code> 旁</td><td>sessionMutes: Record&lt;key, entry&gt;</td></tr>
+          <tr><td>领域 API</td><td><code>kernel/sessionMutes.ts</code> 仿 sessionPins</td><td>mark(key,mode)/unmark/has;key 复用 sessionOverlayKey(<code>overlayEvict.ts:13</code>);逐出仿 makeOverlay</td></tr>
+          <tr><td>双实例合并</td><td><code>settingsPersistMerge.ts:16</code></td><td>MERGE_TS_FIELDS 加 sessionMutes:"mutedAt"(ts 新者胜)</td></tr>
+          <tr><td>清洗</td><td><code>settingsSanitizeSessions.ts:41</code> 旁</td><td>sanitizeSessionMutes:mode 白名单 + 有限 mutedAt,按 key 序限量</td></tr>
+          <tr><td>容量双源</td><td><code>sessionKeep.ts:29</code> 纪律</td><td>SESSION_MUTES_MAX = 2000,sanitize 直接引用(单源可改)</td></tr>
+        </table>
+        <div class="subh">key 身份与闸插点</div>
+        <p class="pline"><b>key = 三段身份</b> wsId:profileId:cliSessionId(<code>sessionPins.ts:25</code> 同构);cliSessionId 跨 resume 存活 —— <code>anchorJump.ts:123</code> resume 换壳 tmd id 变、磁盘 id 不变,<code>host.test.ts:247-252</code> 双开去重命中同身份。</p>
+        <p class="pline"><b>闸插点</b> = shouldNotify(<code>logic.ts:30</code>,现序 聚焦→dnd→类别)签名加 sessionId 参;三路径 id 均已在手:dispatch(<code>index.tsx:48</code>)/ exit(<code>:108</code>)/ fireQuota(<code>:149</code>)。</p>
+        <p class="pline"><b>quota 腿</b> = 拦在 recordNotifyEntry 之后、sendOsNotification(<code>index.tsx:158</code>)之前;流水照记,绝不写 quotaSeen —— 那是 notify-log 头部的跨重启去重键,误写 = 本窗口期永久静默。</p>
+        <div class="subh">入口(全部 JSX 内联,无菜单注册表)</div>
+        <p class="pline">SessionContextMenu.tsx(侧栏行;三消费方 <code>RunningZone.tsx:266</code> / <code>SessionList.tsx:211</code> / <code>PinnedSessions.tsx:278</code>)+ TabContextMenu.tsx + 通知中心行钮 + 设置概览卡。</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>流水全量记录语义不变</strong>:recordNotifyEntry 先于一切闸(现码即然),notify-log 是历史真相源;静音只闸 OS/声音,中心照收、检索照查。</li>
+      <li><strong>未落盘不进覆盖层</strong>:无 cliSessionId 的活会话(<code>SessionTabBar.tsx:63-67</code> pinKey 判空同款)不写 key;一次性 spawn 会话不支持静音,菜单项隐藏,明示。</li>
+      <li><strong>claude fork 可漂 key</strong>:fork 出的新磁盘会话 id 不同即新身份,不追踪继承 [INFERENCE 边界,实施时以真实 fork 行为复核,footbar 注]。</li>
+      <li><strong>失焦补扫自然一致</strong>:onBlur 补扫复用 shouldNotify 同闸(<code>index.tsx:127</code>),静音会话补扫同样被拦;waitingNotified 去重集不动。</li>
+      <li><strong>不做全局总闸</strong>:「一键全静」与免打扰窗语义重复,不立项。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:sessionPins 覆盖层全套(key/工厂/逐出/sanitize/合并)+ shouldNotify 闸链 + turnSettled 订阅 + 两套右键菜单范式 · <b>成本</b>:S-M · <b>风险</b>:档位多易「忘了开回来」—— 三重可见性兜底(tab 徽标/中心行斜铃/设置概览卡)· <b>验证</b>:三档×四类别矩阵逐格 + snooze turnSettled 自清 + quota 静音不写 quotaSeen + 真机 ask 穿透各一。</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 追加批 · 9/14 — 重启现场恢复(会话 tab 组回位)</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12px; padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+  tr:last-child td { border-bottom: none; }
+  td.y { color: var(--ok-deep); font-weight: 600; }
+  td.n { color: var(--err-deep); }
+  .cols { display: grid; grid-template-columns: 7fr 5fr; gap: 14px; align-items: start; margin-top: 14px; }
+  .loop { padding: 12px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--border); background: #fafaf9; }
+  .loop span { font-size: 11px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 3px 8px; color: var(--fg2); }
+  .loop b { font-size: 11px; color: var(--accent-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+
+  /* ── 页面类:9-session-restore(重启现场恢复)── */
+  .pillbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 20px 0; border: 1px solid var(--accent); border-radius: 8px; padding: 8px 14px; background: var(--accent-soft); }
+  .pillbar .msg { font-size: 12.5px; font-weight: 500; color: var(--accent-deep); }
+  .pillbar .btn { margin-left: auto; background: var(--card); }
+  .rrows { margin: 10px 20px 2px; }
+  .rrow { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid #f0f0ee; font-size: 12.5px; }
+  .rrow:last-child { border-bottom: none; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dot.omp { background: var(--accent); } .dot.codex { background: #16a34a; } .dot.claude { background: #7c3aed; } .dot.grok { background: #0891b2; }
+  .rname { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rid { font-size: 11px; color: var(--fg2); font-family: ui-monospace, Menlo, monospace; }
+  .rst { margin-left: auto; font-size: 11px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .rst.ok { background: var(--ok-soft); color: var(--ok-deep); font-weight: 600; }
+  .rst.skip { background: #f5f5f4; color: var(--fg2); border: 1px solid var(--border); }
+  .tgl { display: flex; align-items: center; gap: 12px; margin: 12px 20px 16px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  .tgl .t-title { font-size: 12.5px; font-weight: 500; }
+  .tgl .t-desc { font-size: 11px; color: var(--fg2); }
+  .sw { margin-left: auto; width: 34px; height: 19px; border-radius: 999px; background: var(--accent); position: relative; flex: none; }
+  .sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; }
+  .card-body { padding: 12px 16px 14px; }
+  .schema { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; line-height: 1.55; background: #fafaf9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; white-space: pre; overflow-x: auto; }
+  .schema .dim { color: var(--fg2); }
+  .kv { list-style: none; }
+  .kv li { font-size: 12px; color: var(--fg2); padding: 5px 0 5px 14px; position: relative; border-bottom: 1px dashed #f0f0ee; }
+  .kv li:last-child { border-bottom: none; }
+  .kv li::before { content: ""; position: absolute; left: 0; top: 12px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .kv b { color: var(--fg); font-weight: 500; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; background: #f5f5f4; border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; }
+  td.mono { font-family: ui-monospace, Menlo, monospace; font-size: 11px; white-space: nowrap; }
+  td.mono .ev { color: var(--err-deep); font-weight: 600; }
+  td.mono .kp { color: var(--ok-deep); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <div class="page-header">
+    <span class="badge">0.4.0 追加批 · 9/14(连续性)</span>
+    <h1>重启现场恢复(会话 tab 组回位)</h1>
+    <p class="page-desc">关掉再开,上次打开的会话全部消失要逐个找回;本项把「打开的会话」MRU 持久化为三段身份,启动后错峰串行 resume 回位。</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">恢复时序 mockup <span class="panel-sub">启动 pill → 逐条回位行 → 设置 ToggleRow(终帧快照:pill 收起前一刻)</span></div>
+      <span class="panel-sub">kernel/sessionRestore(新)· 不新造通道</span>
+    </div>
+
+    <div class="pillbar">
+      <span class="msg">正在恢复上次会话 2/4 · codex 重构</span>
+      <button class="btn" type="button">跳过本次恢复</button>
+    </div>
+
+    <div class="rrows">
+      <div class="rrow"><span class="dot omp"></span><span class="rname">tile 平铺收尾</span><span class="rid">ws-main:omp:c41a8f</span><span class="rst ok">已回位</span></div>
+      <div class="rrow"><span class="dot codex"></span><span class="rname">重构 API 网关</span><span class="rid">ws-main:codex:9f2e01</span><span class="rst ok">已回位</span></div>
+      <div class="rrow"><span class="dot claude"></span><span class="rname">归档实验场</span><span class="rid">ws-exp:claude:77b03d</span><span class="rst skip">跳过 · 工作区已删</span></div>
+      <div class="rrow"><span class="dot grok"></span><span class="rname">PTY 冻结排查</span><span class="rid">ws-main:grok:3d18c2</span><span class="rst skip">跳过 · 引擎缺失</span></div>
+    </div>
+
+    <div class="tgl">
+      <div>
+        <div class="t-title">重启后恢复上次打开的会话</div>
+        <div class="t-desc">settings.sessionRestore.enabled,默认开;keys 帽随 sessionTabsMax(1-10,默认 4),非法值回落默认</div>
+      </div>
+      <span class="sw" role="switch" aria-checked="true" aria-label="重启后恢复上次打开的会话"></span>
+    </div>
+
+    <div class="loop">
+      <b>启动接线</b>
+      <span>ready = readoptSessions 完成 + workspacesReady(sessionAdopt.ts:133 / workspace.ts:89)</span><b>→</b>
+      <span>+45s 错峰(先例 hygieneBootSweep.ts:25 BOOT_SWEEP_DELAY_MS=45_000)</span><b>→</b>
+      <span>enabled?</span><b>→</b>
+      <span>逐 key 串行:解析三段</span><b>→</b>
+      <span>workspace 在?</span><b>→</b>
+      <span>profile 在?</span><b>→</b>
+      <span>openDiskSession(await)</span><b>→</b>
+      <span>pill N/M</span><b>→</b>
+      <span>完成收起</span>
+    </div>
+    <div class="loop">
+      <b>插件挂载</b>
+      <span>定时器在插件 activate 挂、deactivate 清(先例 workspace/index.tsx:296 scheduleBootSweep / offSweep)</span><b>→</b>
+      <span>失败不打断:单 key 失败记入行态,继续下一个(见失败矩阵)</span>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="panel">
+      <div class="panel-bar">
+        <div class="panel-title">失败矩阵 <span class="panel-sub">五行情景 × 行为 × key 处置(evict = 移出 keys,保留 = 下次再试)</span></div>
+      </div>
+      <table>
+        <thead><tr><th>情景</th><th>判定点(每 key,串行逐个)</th><th>行为</th><th>key 处置</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>会话被保留律清掉(tombstone / 空会话删盘)</td>
+            <td>resume 前存在性检查:磁盘扫描与删除层均无此 cliSessionId</td>
+            <td>跳过 · 会话已清理</td>
+            <td class="mono"><span class="ev">evict</span>(磁盘已无,恢复永落空)</td>
+          </tr>
+          <tr>
+            <td>工作区已删</td>
+            <td>三段里的 wsId 不在 getWorkspaces()</td>
+            <td>跳过 · 工作区已删</td>
+            <td class="mono"><span class="ev">evict</span></td>
+          </tr>
+          <tr>
+            <td>profile 引擎缺失(卸载 / 未装)</td>
+            <td>host.getCliProfile(profileId) → undefined</td>
+            <td>跳过 · 引擎缺失</td>
+            <td class="mono"><span class="kp">保留</span>(重装引擎后可恢复)</td>
+          </tr>
+          <tr>
+            <td>spawn 失败(瞬态:PTY / 探测 / 权限)</td>
+            <td>openDiskSession reject</td>
+            <td>跳过,错误文案进 pill,不中断后续 key</td>
+            <td class="mono"><span class="kp">保留</span>(下次启动再试)</td>
+          </tr>
+          <tr>
+            <td>在途重复(同一 cliSessionId 已在打开)</td>
+            <td>openingDiskSessions 闸命中(sessionSpawn.ts:170-175)</td>
+            <td>不二次 resume,复用在途 Promise 完成后聚焦即可</td>
+            <td class="mono">无变更</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-bar">
+        <div class="panel-title">存储与接线 <span class="panel-sub">settings 三源 · 写读时机</span></div>
+      </div>
+      <div class="card-body">
+        <div class="schema"><span class="dim">// settings 新字段(三源同改)</span>
+sessionRestore: {
+  enabled: boolean,   <span class="dim">// 默认 true</span>
+  keys: string[]      <span class="dim">// "wsId:profileId:cliSessionId" 的 MRU 序</span>
+}                     <span class="dim">// 帽 = sessionTabsMax(1-10,默认 4)</span></div>
+        <ul class="kv">
+          <li><b>三源(先例行)</b>:settingsTypes.ts:113 类型 + settingsDefaults.ts:29-31 默认 + settingsSanitize.ts:216-217 专用函数 —— 形状校验 + 按帽限量 + 非法整体回落默认。</li>
+          <li><b>key 惯例</b>:overlayEvict.ts:13 sessionOverlayKey 三段拼装;先例 sessionPins.ts:25 / sessionArchive.ts:20。</li>
+          <li><b>写入时机</b>:sessionTabs trackOpen(activeSessionChanged 收敛,sessionTabs.ts:76/116)后同步防抖写盘 —— 打开次序即 keys 次序,读路径零新增。</li>
+          <li><b>读</b>:仅启动恢复一次;运行期 settings 不再消费 keys。</li>
+          <li><b>tile 开关不动</b>:仍在 localStorage <code>tmd.sessionTabs.tile</code>(sessionTabs.ts:40),不迁入 settings。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>持久三段身份,不持久 tmd id。</strong>sessionTabs.ts:15 头注明示「PTY 会话不跨应用重启存活,持久化只能恢复死 id」,现存 ids 即 tmd PTY id(:34);本项正面推翻该前提。key = sessionOverlayKey 三段 <code>wsId:profileId:cliSessionId</code>,拼法先例 SessionTabBar.tsx:65-68;resume 换壳后 PTY id 变、三段不变 —— 活会话按 cli 身份反查先例 anchorJump.ts:123-129 findLiveSessionId。</li>
+      <li><strong>恢复走磁盘回放,不走冻结快照。</strong>重启后内存 outputBuffers / screenMirror 全丢,terminalFreeze.ts:9-10 明示重开磁盘会话「存档天然不命中」;open() 自带 prefetchDiskTail 磁盘先行回放(sessionSpawn.ts:155;diskReplay.ts:25,512 KiB 尾窗),回位即见历史尾帧。</li>
+      <li><strong>恢复链 = host.openDiskSession(profileId, root, wsId, cliSessionId)</strong>,与侧栏点击同一通道(SessionList.tsx:104-107);在途去重、聚焦、标题回喂(noteSessionTabTitle)全部白得,不新造第二通道。</li>
+      <li><strong>串行原因:每次 resume 是一次 spawn 重操作</strong>(开 PTY + 磁盘尾取回放),多路并发会叠加首屏压力;串行 + pill N/M 进度可感知,跳过钮随时终止剩余 key。</li>
+      <li><strong>与保留律竞态:启动补扫同在 45s 错峰</strong>(BOOT_SWEEP_DELAY_MS),两条 45s 链先后不确定 —— 恢复器在每个 key resume 前先做存在性检查(失败矩阵第 1 行),不恢复刚被清扫的会话。</li>
+      <li><strong>tile 平铺零新逻辑:</strong>平铺按打开集合渲染(MainPanel,容量即保活上限),恢复出 N 个 tab 且 tile 开时自然并排;容量挤除与会话消失的收敛照旧生效。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:openDiskSession 通道 + hygiene 45s 错峰先例 + 三段 key 惯例(置顶/归档/删除/保留四层同构)+ settings 三源。<b>成本</b>:M。<b>风险</b>:串行恢复拖慢首屏(45s 错峰 + 可跳过缓解);claude fork 会话可能漂移 key 导致恢复落空([INFERENCE] 边界,失败矩阵「spawn 失败·保留 key」兜底)。<b>验证</b>:失败矩阵五路径各一测试 + 真机重启目检(开 4 会话重启,核对回位/跳过行态与 pill 收起)。</p>
+</div>
+</body>
+</html>

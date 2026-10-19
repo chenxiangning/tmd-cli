@@ -4,9 +4,9 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
-## [0.4.0] - 2026-10-18
+## [0.4.0] - 2026-10-19
 
-本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。**追加 042 混合批**(视觉示例与推演定稿 `docs/design/042-candidates/`,大仙拍板 1/3/4/6/7 五项,打磨对齐定稿后实施):终端路径点击 / 输入历史全文+抽屉 / 额度告警增量三腿 / 跨工作区全局检索 / checkpoint 恢复预览 + workbench 空壳归档债批 + 随手带四项。
+本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。**追加 042 混合批**(视觉示例与推演定稿 `docs/design/042-candidates/`,大仙拍板 1/3/4/6/7 五项,打磨对齐定稿后实施):终端路径点击 / 输入历史全文+抽屉 / 额度告警增量三腿 / 跨工作区全局检索 / checkpoint 恢复预览 + workbench 空壳归档债批 + 随手带四项。**再追加连续性批六项**(示例页 042 组页 9-14,大仙拍板分五批实施,每批 review 防跑偏;裁决与深扫修正 `docs/brainstorm/2026-10-19-042-followup.md` + `openspec/changes/2026-10-19-042-followup-batch/`):重启现场恢复 / 跨引擎记忆文件面板 / 会话变更总览 / 草稿安全网 / 通知会话级静音 / 转录批量导出。
 
 ### 新增
 
@@ -26,6 +26,12 @@
 - 额度低水位告警增量三腿(notify+cli-shared):①余额腿——vendors 结构化 `balanceValue` 仅 deepseek/relay 透传,绝对阈值 `notifyQuotaBalanceBelow`(默认 0=关,货币跟随回包);②claude 窗口腿——`windowResetFor` 迁 cli-shared/quota(welcome+notify 联合消费),尾读推算,`notifyQuotaResetMinutes`(默认 30,5-240)近重置报「N 分后重置」;③去重腿——notify-log.json 头部 `quotaSeen` 持久化(窗口键自带 resetsAt 按周期翻新,余额键首次越线小时桶),修「重启失忆」,写坏按无记录宁多勿漏
 - workbench 空壳项目批量归档(债批):概览未跟踪行尾「清理空壳」入口(ghosts ≥2 才渲染)勾选确认弹层,软归档(archived+archivedAt 可恢复,不删数据)退出全部统计与列表,聚焦页底「已归档」折叠段恢复
 - 随手带四项:终端搜索浮层 Aa/大小写 + .*/正则 toggle 与 n/m 命中计数;检索多命中「N 处命中」展开子命中、逐项行级跳转;终端 ⌘+/⌘-/⌘0 字号缩放写回 `terminalFontSize`(terminal 作用域,界面缩放兜底);anim Windows「打开」=`explorer /select` 目录 reveal(0.3.9 非 mac 隐藏口径修订)
+- 重启现场恢复(kernel `sessionRestore.ts`):打开的会话以三段身份持久化于 settings(`sessionRestore.keys`,帽随 `sessionTabsMax`),重启 ready 后 45s 错峰(hygiene 先例)逐条串行 `openDiskSession` 回位(远程工作区走 `openRemoteDiskSession` 同族通道并跳过本机扫盘预判);失败矩阵五路径——保留律清掉/工作区删=evict,引擎缺/spawn 败=保留 key 下次再试,在途=聚焦去重;恢复 pill「正在恢复上次会话 N/M」可跳过,设置页默认开可关;持久的是三段身份不是 PTY id(头注「不持久化」前提正面推翻),恢复走磁盘回放不走冻结快照
+- 跨引擎原生记忆文件面板(memory-coordinator):profile 声明式 `memoryFiles`(scope project/user+relPath;claude 双路径/codex 双路径/kimi·qoder·qoder-cn·opencode·pi 项目 AGENTS.md,全部来自 academy 既有公开知识,内核零路径知识);右栏「记忆文件」面板三组(项目级/用户级/未声明灰组)三态(在=点击 openFileInTab 进编辑器/未生成=hint 终端跑 /init/未声明=「—」不猜测),重新探测批量 head;零代写零 AI,编辑复用 files 未保存闸
+- 会话变更总览(checkpoints):右栏第三视图「变更」——跨批次按文件折叠(线性建组,≤100 批零索引),状态合成优先级写死(最近批字段:reverted→已回退/D→已删除/changed→内容已变/committed→已提交/same→改动中可回退,no_baseline 附加 chip),摘要条「N 文件 · X 可回退 · Y 高危 · ±账本累计」;± 走 BatchFile 账本透传字段(回退不回缩,与审阅单 diff 缓存口径双注明),过滤 chips+路径子串+双排序+cap 50 展开,行点击 openBatchTab focusPath 深链回最近批次 diff;BatchFile 序列化追加 additions/deletions 透传(零新命令零聚合)
+- 草稿安全网(kernel `draftMirror.ts`+`quitGuard.tsx`):关窗闸——onCloseRequested 接退出模式,有脏 tab 先弹聚合确认(列 dirty+「放弃并退出」/「取消」/「本次不再问」本次运行内存标志),确认后绕闸强关等 Promise 全结算再放行窗口;⌘Q 应用退出腿裁决取消(tauri 2.12.1 的 ExitRequested{code:None} 实为最后窗 Destroyed,拦它=无窗僵尸进程;macOS 无 ExitRequested 路径,需菜单装配另立);草稿镜像——files 内存草稿/journal 便签/ssh 远程编辑三处旁路 localStorage 镜像(防抖 300ms+256KB 截断+7 天 TTL 台账+配额满静默),重开顶部黄条「检测到上次未保存草稿(N 分钟前)」恢复/丢弃;composer/ss 已持久草稿不重复接
+- 通知会话级静音/暂停(notify+kernel `sessionMutes.ts`):三档——静音通知(turnEnd/exit/quota 静,ask 穿透=安全默认)/完全静音(含 ask,askRing 可放行)/静音至回合结束(snooze,turnSettled 自清,exit 穿透防永挂);三段身份 key(cliSessionId 跨 resume 存活),存储仿 sessionPins 全套(双实例 mutedAt 合并+sanitize 帽 2000);闸插点=四路径 record 之后 send 之前,quota 腿绝不写 quotaSeen(跨周期去重不受伤),ask 音/回合音同步同闸;入口=两套会话右键菜单+通知中心行钮+设置页「静音中的会话」概览卡;流水照记全量语义不变
+- 转录批量导出与活会话快照(session-viewer+workspace):抽 `exportMdTo` 落盘内核;SessionManage 多选批量条「导出」——pickDirectory 选目录一次落 N 个 md(帽 50 超限拒开跑提示分批,串行进度可取消,失败列表归因 no-adapter/unreadable,write-failed 中止已写留存,文件名 slug+日期防撞 -2 递增);会话右键「导出转录快照」=当前磁盘快照(041 明示后补项,活会话仅磁盘绑定会话显示,toast 注明快照时点);零 Rust
 - 首页页尾改版(welcome):RESUME 列与 TOKENS 用量区摘除(TokenDashboard/tokens.ts/welcome-footer.css 全删),换 QUOTA 套餐水位面板——真额度环卡 + claude 窗口推算卡(可推算)+ 7 天窗并列窗口块,汇总条取跨卡跨窗口最近重置;查不到的卡不渲染,空态一行提示
 - WebGL 终端渲染基准页(bench,独立入口):canvas vs @xterm/addon-webgl 同参对照三场景,分帧喂养测渲染吞吐,中位数 3 轮取中+UA/环境键缓存基线,判定线 5%;独立 rollup 入口不进主 chunk(devDep 零进主包,产物 dist/bench.html 单独可达)
 

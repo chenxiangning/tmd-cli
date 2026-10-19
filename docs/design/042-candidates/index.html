@@ -26,6 +26,7 @@
   .base { font-size: 12px; color: #15803d; margin-top: 4px; }
   .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; background: #ffedd5; color: #9a3412; margin-top: 8px; }
   .tag.star { background: #ffedd5; color: #9a3412; font-weight: 600; }
+  .tag.done { background: #dcfce7; color: #166534; }
 </style>
 </head>
 <body>
@@ -42,11 +43,22 @@
     <b>落选与不投记录</b>:OSC 52 剪贴板透传(要碰幕布写入旁路)· 助手消息入全局索引(041 裁决缓行,替身 = 页 5)· 成本估算单价表(调价维护负担,与「口径未知不猜测」冲突)· merge 冲突就地解决(等真实冲突频率数据)· 会话备注/标签层、预设应用芯片(先让预设长真实用法)· journal 脏稿 beforeClose 闸(kernel tabs 语义级改动,挂账不丢,值得单独立项)。全文池见 brainstorm 文档。
   </div>
   <div class="grid">
-    <a class="card" href="1-path-links.html"><div class="num">01</div><div class="name">终端文件路径可点击</div><div class="desc">「src/foo.ts:42」死文本 → 点击定位文件面板;链接注册表现成,只差一个 provider</div><div class="base">锚点:terminalLinks.ts 注册表 + marks 唯一消费者 + WebLinksAddon 只认 URL</div><span class="tag star">已拍板 · 成本低</span></a>
-    <a class="card" href="3-global-search.html"><div class="num">03</div><div class="name">跨工作区全局检索</div><div class="desc">「忘了哪个项目做过 X」不用先切工作区;作用域 chip + 缓存剪枝改命名空间</div><div class="base">锚点:indexer.ts 硬绑 cwd + SearchOverlay chip 面 + prime 剪枝改造点</div><span class="tag star">已拍板 · 成本中</span></a>
-    <a class="card" href="4-prompt-history.html"><div class="num">04</div><div class="name">输入历史修复 + 浏览抽屉</div><div class="desc">300 字符截断让 ghost 补全给残句,Tab 接受写坏草稿;存全文 + 子串过滤抽屉回填</div><div class="base">锚点:promptHistory.ts:18,72 截断点 + usePromptHistory 两形态 + ⌘K 抽屉视觉复用</div><span class="tag star">已拍板 · 成本低-中</span></a>
-    <a class="card" href="6-restore-preview.html"><div class="num">06</div><div class="name">checkpoint 恢复 dry-run 预览</div><div class="desc">回滚前先看会覆盖哪些未提交改动:快照 vs 工作区 diff 摘要,无变化免弹</div><div class="base">锚点:restore.rs 直执行点 + diff.rs 现成能力 + useCheckpointActions 确认弹层</div><span class="tag star">已拍板 · 成本中</span></a>
-    <a class="card" href="7-quota-alert.html"><div class="num">07</div><div class="name">额度低水位告警</div><div class="desc">告警主体 0.2.8 已落地,本项增量补三腿:余额绝对阈值(deepseek/relay)/claude 窗口提前量/去重持久化,顺手修免打扰闸缺口</div><div class="base">锚点:notify 轮询链(8c08a44f)+ vendors balanceValue 两家可得 + quotaWindow 迁 cli-shared</div><span class="tag star">已拍板 · 成本低</span></a>
+    <a class="card" href="1-path-links.html"><div class="num">01</div><div class="name">终端文件路径可点击</div><div class="desc">「src/foo.ts:42」死文本 → 点击定位文件面板;链接注册表现成,只差一个 provider</div><div class="base">锚点:terminalLinks.ts 注册表 + marks 唯一消费者 + WebLinksAddon 只认 URL</div><span class="tag star">已拍板 · 成本低</span><span class="tag done">已落地 · 042 批</span></a>
+    <a class="card" href="3-global-search.html"><div class="num">03</div><div class="name">跨工作区全局检索</div><div class="desc">「忘了哪个项目做过 X」不用先切工作区;作用域 chip + 缓存剪枝改命名空间</div><div class="base">锚点:indexer.ts 硬绑 cwd + SearchOverlay chip 面 + prime 剪枝改造点</div><span class="tag star">已拍板 · 成本中</span><span class="tag done">已落地 · 042 批</span></a>
+    <a class="card" href="4-prompt-history.html"><div class="num">04</div><div class="name">输入历史修复 + 浏览抽屉</div><div class="desc">300 字符截断让 ghost 补全给残句,Tab 接受写坏草稿;存全文 + 子串过滤抽屉回填</div><div class="base">锚点:promptHistory.ts:18,72 截断点 + usePromptHistory 两形态 + ⌘K 抽屉视觉复用</div><span class="tag star">已拍板 · 成本低-中</span><span class="tag done">已落地 · 042 批</span></a>
+    <a class="card" href="6-restore-preview.html"><div class="num">06</div><div class="name">checkpoint 恢复 dry-run 预览</div><div class="desc">回滚前先看会覆盖哪些未提交改动:快照 vs 工作区 diff 摘要,无变化免弹</div><div class="base">锚点:restore.rs 直执行点 + diff.rs 现成能力 + useCheckpointActions 确认弹层</div><span class="tag star">已拍板 · 成本中</span><span class="tag done">已落地 · 042 批</span></a>
+    <a class="card" href="7-quota-alert.html"><div class="num">07</div><div class="name">额度低水位告警</div><div class="desc">告警主体 0.2.8 已落地,本项增量补三腿:余额绝对阈值(deepseek/relay)/claude 窗口提前量/去重持久化,顺手修免打扰闸缺口</div><div class="base">锚点:notify 轮询链(8c08a44f)+ vendors balanceValue 两家可得 + quotaWindow 迁 cli-shared</div><span class="tag star">已拍板 · 成本低</span><span class="tag done">已落地 · 042 批</span></a>
+  </div>
+  <div class="moved" style="margin-top:24px;">
+    <b>追加批(2026-10-19 · 连续性六项 · 大仙拍板并入本组)</b>:每项补一条断点——跨重启/跨引擎/跨批次/跨崩溃/跨打扰/跨带走。七路深扫实证后重做(编辑器查找替换经复核已存在撤项,替补批量导出);2026-10-19 拍板分五批实施,已实施项打绿标。规划全文:<a href="../../brainstorm/2026-10-19-042-followup.md" style="color:#2563eb">docs/brainstorm/2026-10-19-042-followup.md</a>。
+  </div>
+  <div class="grid">
+    <a class="card" href="9-session-restore.html"><div class="num">09</div><div class="name">重启现场恢复(会话 tab 组回位)</div><div class="desc">深度设计:三段身份 MRU 持久化,启动后 45s 错峰串行 resume;失败矩阵五行(保留律清掉/工作区删/引擎缺/spawn 败/在途)</div><div class="base">锚点:sessionTabs.ts:15「不持久化」头注正面推翻+sessionSpawn.open prefetchDiskTail+hygiene 45s 先例</div><span class="tag">深度设计 · 成本 M</span><span class="tag done">已落地 · 追加批</span></a>
+    <a class="card" href="10-memory-files.html"><div class="num">10</div><div class="name">跨引擎原生记忆文件面板</div><div class="desc">UI 设计:声明式路径表(profile 增声明,仓库零路径知识)+行三态规范(在/未生成/未声明);一键 openFileInTab 进编辑器</div><div class="base">锚点:skillSources 表模式+AnimProjectRow 行先例+fileTabs 任意绝对路径</div><span class="tag">UI 设计 · 成本 S-M</span><span class="tag done">已落地 · 追加批</span></a>
+    <a class="card" href="11-session-changes.html"><div class="num">11</div><div class="name">会话变更总览(跨批次文件折叠)</div><div class="desc">深度优化:CheckpointsPanel 第三视图;六态合成优先级表+账本 ± 口径(回退不回缩)+openBatchTab focusPath 深链</div><div class="base">锚点:view.rs:176-235 classify_turn_file+BatchFile 全字段+evidenceScope 线性扫先例</div><span class="tag">深度优化 · 成本 S-M · 纯前端</span><span class="tag done">已落地 · 追加批</span></a>
+    <a class="card" href="12-draft-safety.html"><div class="num">12</div><div class="name">草稿安全网(关窗闸+草稿镜像)</div><div class="desc">深度优化:聚合退出弹层接 requestCloseAllTabs 退出模式+草稿镜像 localStorage(7 天 TTL/256KB);⌘Q 腿标注需小块 Rust</div><div class="base">锚点:onCloseRequested+onResized 订阅先例+dirty 三写点全仓实证+mobile 7 天台账先例</div><span class="tag">深度优化 · 成本 S-M</span><span class="tag done">已落地 · 追加批(⌘Q Rust 腿裁决取消)</span></a>
+    <a class="card" href="13-notify-session-mute.html"><div class="num">13</div><div class="name">通知会话级静音/暂停</div><div class="desc">深度优化:三档语义(静音 ask 仍响/完全静音/snooze 回合自清)+六处存储复刻清单+quota 绝不写 quotaSeen</div><div class="base">锚点:sessionPins 覆盖层全套+shouldNotify 闸链+turnSettled 自清+两套右键菜单</div><span class="tag">深度优化 · 成本 S-M</span><span class="tag done">已落地 · 追加批</span></a>
+    <a class="card" href="14-transcript-export.html"><div class="num">14</div><div class="name">转录导出展开(批量+活会话快照)</div><div class="desc">替补 #6:多选批量条导出(pickDirectory 选目录一次落 N 个 md)+活会话快照导出(041 明示后补);零 Rust</div><div class="base">锚点:blocksToMarkdown 纯函数+pickDirectory 四消费先例+SessionManage 批量条</div><span class="tag">替补 · 成本 S-M · 零 Rust</span><span class="tag done">已落地 · 追加批</span></a>
   </div>
 </main>
 </body>

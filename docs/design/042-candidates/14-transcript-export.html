@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.4.0 追加批 · 14/14 — 转录导出展开</title>
+<style>
+  :root {
+    --bg: #f6f6f4; --card: #ffffff; --border: #e4e4e0;
+    --fg: #1c1917; --fg2: #57534e;
+    --accent: #ea580c; --accent-deep: #c2410c; --accent-soft: #ffedd5;
+    --ok: #15803d; --ok-deep: #166534; --ok-soft: #dcfce7;
+    --warn-deep: #92400e; --warn-soft: #fef3c7;
+    --err: #dc2626; --err-deep: #b91c1c; --err-soft: #fee2e2;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "PingFang SC", sans-serif; font-size: 14px; line-height: 1.6; display: flex; justify-content: center; padding: 40px 24px 64px; }
+  .page { width: 100%; max-width: 1080px; }
+  .back { font-size: 13px; color: var(--fg2); display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back:hover { color: var(--accent-deep); }
+  .page-header { margin-bottom: 24px; }
+  .badge { display: inline-block; font-size: 12px; color: var(--accent-deep); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; font-weight: 500; margin-bottom: 8px; }
+  h1 { font-size: 24px; font-weight: 600; line-height: 1.3; }
+  .page-desc { color: var(--fg2); margin-top: 4px; }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; }
+  .panel-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); gap: 10px; flex-wrap: wrap; }
+  .panel-title { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-sub { font-size: 12px; color: var(--fg2); font-weight: 400; }
+  .btn { font-size: 12px; color: var(--fg2); border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 6px 12px; cursor: pointer; transition: color .15s, border-color .15s; }
+  .btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent-deep); }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 11px; color: var(--fg2); font-weight: 500; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fafaf9; }
+  td { font-size: 12px; padding: 8px 12px; border-bottom: 1px solid #f0f0ee; }
+  tr:last-child td { border-bottom: none; }
+  td.y { color: var(--ok-deep); font-weight: 600; }
+  td.n { color: var(--err-deep); }
+  .cols { display: grid; grid-template-columns: 7fr 5fr; gap: 14px; align-items: start; margin-top: 14px; }
+  .loop { padding: 12px 20px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--border); background: #fafaf9; }
+  .loop span { font-size: 11px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 3px 8px; color: var(--fg2); }
+  .loop b { font-size: 11px; color: var(--accent-deep); }
+  .notes { background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); padding: 20px 24px; margin-top: 16px; }
+  .notes h2 { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding-left: 20px; position: relative; color: var(--fg2); margin-bottom: 6px; }
+  .notes li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .notes li strong { color: var(--fg); font-weight: 500; }
+  .foot { margin-top: 16px; font-size: 13px; color: var(--fg2); }
+  .foot b { color: var(--fg); font-weight: 500; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(8px); background: #1c1917; color: #fff; font-size: 13px; padding: 10px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.18); opacity: 0; pointer-events: none; max-width: 90%; z-index: 10; transition: opacity .2s, transform .2s; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+  /* 页面私有(追加,token 未动) */
+  .mock { padding: 16px 20px; }
+  .mock + .mock { border-top: 1px solid var(--border); }
+  .mock-label { font-size: 12px; color: var(--fg2); margin-bottom: 10px; }
+  .mock-label b { color: var(--fg); font-weight: 500; }
+  .batchbar, .dirrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: #fafaf9; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  .dirrow { margin-top: 10px; }
+  .selcount { font-size: 12px; font-weight: 600; color: var(--accent-deep); }
+  .bbtn { font-size: 12px; border: 1px solid var(--border); background: var(--card); border-radius: 6px; padding: 4px 10px; color: var(--fg2); cursor: pointer; }
+  .bbtn.accent { color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 500; }
+  .bbtn.accent:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+  .hint { font-size: 11px; color: var(--fg2); }
+  code { font-size: 11px; background: var(--accent-soft); color: var(--accent-deep); border-radius: 4px; padding: 2px 6px; font-family: ui-monospace, Menlo, monospace; }
+  .toastdemo { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+  .ttoast { background: #1c1917; color: #fff; font-size: 12px; padding: 8px 14px; border-radius: 8px; display: flex; gap: 12px; align-items: center; max-width: 720px; }
+  .ttoast a { color: #fdba74; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+  .ctxmenu { width: 230px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.10); padding: 4px; }
+  .mitem { font-size: 12px; padding: 6px 10px; border-radius: 6px; color: var(--fg); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .mitem.new { background: var(--accent-soft); color: var(--accent-deep); font-weight: 500; }
+  .tagnew { font-size: 10px; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 5px; font-weight: 400; }
+  .msep { height: 1px; background: var(--border); margin: 4px 6px; }
+  .livehint { margin-top: 10px; font-size: 12px; color: var(--warn-deep); background: var(--warn-soft); border-radius: 6px; padding: 8px 12px; }
+  .fblock { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; font-size: 12px; color: var(--fg2); }
+  .fblock b { color: var(--fg); font-weight: 500; }
+  .fblock .cap { display: block; font-size: 11px; color: var(--fg2); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <a class="back" href="index.html">← 返回 0.4.0 候选导航</a>
+
+  <div class="page-header">
+    <span class="badge">0.4.0 追加批 · 14/14(连续性)</span>
+    <h1>转录导出展开(批量导出 + 活会话快照)</h1>
+    <p class="page-desc">0.4.0 落了单会话导出,入口只有 viewer 工具行一处;本项补两个面:<b>多选批量导出</b>(选目录一次落 N 个 md)与<b>活会话快照导出</b>。零 Rust:目录选择/存盘都是 tauri-plugin-dialog 前端原语,写盘走既有 fsWriteFile 原子替换。</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-bar">
+      <div class="panel-title">三面入口 <span class="panel-sub">批量条 / 进度 toast / 活会话右键 · 可点要素看底部 toast 演示</span></div>
+      <button class="btn" id="btn-replay">重放导出流程</button>
+    </div>
+
+    <div class="mock">
+      <div class="mock-label"><b>① SessionManage 批量条加「导出」钮</b>(归档/删除旁;现成多选批量条先例 SessionManage.tsx:3-6,拖选/点选交互零改动)</div>
+      <div class="batchbar">
+        <span class="selcount">已选 23</span>
+        <span class="bbtn">归档</span>
+        <span class="bbtn">删除</span>
+        <span class="bbtn accent" id="btn-export">导出</span>
+        <span class="hint">← 新增;点后先 pickDirectory 选目标目录,再开跑</span>
+      </div>
+      <div class="dirrow">
+        <span class="hint">目标目录</span>
+        <code>~/export/2026-10 会话归档/</code>
+        <span class="bbtn" id="btn-dir">重新选择…</span>
+        <span class="hint">pickDirectory(ipc.ts:1100-1102 现成):系统目录对话框;取消返回 null = 静默返回,不开跑。assets/skill-hub/sftp/WorkspaceAddDialog 四消费先例</span>
+      </div>
+    </div>
+
+    <div class="mock">
+      <div class="mock-label"><b>② 导出进度 toast 两态示意</b>(局部 toast 模式,viewerTab 同款;进度态可取消)</div>
+      <div class="toastdemo">
+        <div class="ttoast">正在导出 7/23 · 失败 1(无适配器,已跳过)<a id="lnk-cancel">取消</a></div>
+        <div class="ttoast">23 个 md 已写入 ~/export/<a id="lnk-open">打开目录</a></div>
+      </div>
+      <div class="hint" style="margin-top:8px;">上:中途态,逐个落盘实时刷新;下:完成态汇总(全成功批的样子),失败批则列明「22 成功 · 1 失败:标题 — 无适配器」。</div>
+    </div>
+
+    <div class="mock">
+      <div class="mock-label"><b>③ 会话 tab 右键「导出转录快照」</b>(活会话/磁盘会话都可用;041 明示 liveOverlay 活会话导出后补未做,architecture/27:41-42)</div>
+      <div class="ctxmenu">
+        <div class="mitem">关闭标签</div>
+        <div class="mitem">关闭其他</div>
+        <div class="msep"></div>
+        <div class="mitem new">导出转录快照<span class="tagnew">新增</span></div>
+      </div>
+      <div class="livehint">活会话语义 = 当前磁盘快照:jsonl 正在写,readSessionTranscript 读到的即当刻已落盘部分;完成 toast 注明「快照时点 16:51:07」,此后新增轮次不进这份 md。</div>
+    </div>
+
+    <div class="loop">
+      <span>侧栏多选会话</span><b>→</b>
+      <span>点「导出」</span><b>→</b>
+      <span>pickDirectory 选目录(null 静默)</span><b>→</b>
+      <span>逐个 readSessionTranscript</span><b>→</b>
+      <span>blocksToMarkdown 纯函数(blocksToMarkdown.ts:54-58)</span><b>→</b>
+      <span>writeText 原子写 + fsCreateDir 兜底</span><b>→</b>
+      <span>进度 N/M</span><b>→</b>
+      <span>完成汇总(失败列表)</span>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="panel">
+      <div class="panel-bar"><div class="panel-title">入口汇总 <span class="panel-sub">三入口共用同一 exportMdTo(dir) 内核</span></div></div>
+      <table>
+        <tr><th>入口</th><th>现状</th><th>交互语义</th><th>锚点</th></tr>
+        <tr><td>viewer 工具行「导出」</td><td class="y">已有(0.4.0),现状唯一入口</td><td>单会话;pickSavePath 另存对话框,保持不变</td><td>viewerTab.tsx:69</td></tr>
+        <tr><td>侧栏多选批量条「导出」</td><td class="n">新增</td><td>选目录一次落 N 个 md;进度 + 失败汇总</td><td>SessionManage.tsx:3-6 批量条先例</td></tr>
+        <tr><td>活会话 tab 右键「导出转录快照」</td><td class="n">新增(041 明示后补未做)</td><td>当前磁盘快照;toast 注明快照时点</td><td>architecture/27:41-42</td></tr>
+      </table>
+      <div class="loop" style="border-top:none;border-bottom:1px solid var(--border);">
+        <span>ssh/远程会话源沿 041 口径:本地读失败按 null 降级(piFamily.ts:97-98「v1 不做远程转录」),批量列同标「— 无适配器/不可读」,不猜</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-bar"><div class="panel-title">闭环与失败矩阵 <span class="panel-sub">零 Rust · 帽 50/批</span></div></div>
+      <div class="mock" style="padding:14px 16px;">
+        <div class="fblock">
+          <span class="cap">文件名(防撞)</span>
+          <b>sessionExportFileName</b>:<code>&lt;标题slug&gt;-&lt;YYYYMMDD&gt;.md</code>,非法字符替换 _、封顶 80、标题缺省回会话 id、Windows 保留名 safeFileBase 加 _ 前缀(blocksToMarkdown.ts:34-45);批量同目录重名追加 <b>-2</b> 后缀,不预编号。
+        </div>
+        <div class="fblock">
+          <span class="cap">批量帽</span>单批 ≤ <b>50</b>,超限提示「已选 N,单批上限 50,请分批导出」并拒开跑。
+        </div>
+        <table>
+          <tr><th>失败态</th><th>处理</th></tr>
+          <tr><td>适配器缺失</td><td class="n">该会话 skip,入失败列「标题 — 无适配器」;不猜纪律,缺什么列什么</td></tr>
+          <tr><td>磁盘满 / 权限拒绝</td><td class="n">整批中止,已写 N 个留存不回滚;汇总列明中断点</td></tr>
+          <tr><td>用户取消</td><td>pickDirectory null = 静默;进度 toast「取消」= 停在当前,已完成保留并汇总</td></tr>
+        </table>
+        <div class="fblock" style="margin:10px 0 0;">
+          <b>零 Rust 依据</b>:saveDialog/openDialog 都是 tauri-plugin-dialog 前端原语(ipc.ts:944-945);落盘走 fsWriteFile(后端 tmp+rename 原子替换,docgen/paths.ts:92-95 照抄)。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h2>交互与实现说明</h2>
+    <ul>
+      <li><strong>抽 exportMdTo(dir) 单会话内核</strong>:viewerTab.tsx:67-84 现逻辑(blocksToMarkdown → 命名 → writeText → toast)抽成纯落盘函数,批量入口循环喂同一目录;三入口共用,单会话入口行为零变化。</li>
+      <li><strong>文件名 sanitize 零新造</strong>:sessionExportFileName 已复用 docgen safeFileBase(paths.ts:87-89),批量直接沿用;重名才追加 -2,不预先编号(md 头部元信息自证来源)。</li>
+      <li><strong>不 zip</strong>:目录直落 md,与大仙下游消费习惯一致(编辑器/grep 直接吃);zip 打包二期再说。</li>
+      <li><strong>串行为有意选择</strong>:逐个读+写不并行,与 tabClose 批量逐个过闸同款豁免(tabClose.ts:16-19)——模态进度语义清晰,N 大靠进度 + 可取消缓解,不做并发池。</li>
+    </ul>
+  </div>
+
+  <p class="foot"><b>已有底子</b>:blocksToMarkdown 纯函数(blocksToMarkdown.ts:54-58)+ readSessionTranscript 九家(omp/pi 同族、qoder 双变体共享工厂)+ pickDirectory(ipc.ts:1100-1102,四消费先例)+ writeText 原子写(docgen/paths.ts:92-95)+ SessionManage 多选批量条先例。<b>成本</b>:S-M,零 Rust。<b>风险</b>:N 大时串行读+写慢(进度 toast + 可取消缓解);完成态与失败态文案两套,别混用一版。<b>验证</b>:批量 23 会话真机一炉 / 失败列表(掺一个无适配器引擎)/ 同目录重名 -2 防撞 / 活会话快照时点标注,各一。</p>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  const toast = document.getElementById("toast");
+  let timer = null;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(timer);
+    timer = setTimeout(() => toast.classList.remove("show"), 3600);
+  }
+  document.getElementById("btn-export").addEventListener("click", () =>
+    showToast("演示:先弹 pickDirectory 系统目录对话框,确认后进入进度 toast,逐个 readSessionTranscript → blocksToMarkdown → writeText 原子写"));
+  document.getElementById("btn-dir").addEventListener("click", () =>
+    showToast("演示:pickDirectory 取消返回 null,静默返回批量条,不开跑"));
+  document.getElementById("lnk-cancel").addEventListener("click", () =>
+    showToast("演示:取消 = 停在当前,已写 N 个 md 留存,toast 汇总列明中断点"));
+  document.getElementById("lnk-open").addEventListener("click", () =>
+    showToast("演示:shellOpen 打开目标目录(plugin-shell 前端原语,同零 Rust)"));
+  document.getElementById("btn-replay").addEventListener("click", () =>
+    showToast("演示全流程:选目录 → 7/23(失败 1 跳过)→ 23 个 md 已写入 → 打开目录;活会话另注快照时点"));
+</script>
+</body>
+</html>
