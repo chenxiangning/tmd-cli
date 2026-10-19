@@ -178,6 +178,7 @@
 .panel-rail-tab.is-active[data-panel-id="git"] { color: var(--icon-decor-panel-git, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-panel-id="checkpoints"] { color: var(--icon-decor-panel-checkpoints, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-panel-id="memory"] { color: var(--icon-decor-panel-memory, var(--rail-accent-fallback)); }
+.panel-rail-tab.is-active[data-panel-id="memory-files"] { color: var(--icon-decor-panel-memory-files, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-panel-id="marks"] { color: var(--icon-decor-panel-marks, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-panel-id="approval-inbox"] { color: var(--icon-decor-panel-approval-inbox, var(--rail-accent-fallback)); }
 .panel-rail-tab.is-active[data-panel-id="skill-hub"] { color: var(--icon-decor-panel-skill-hub, var(--rail-accent-fallback)); }

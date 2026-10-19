@@ -64,6 +64,7 @@
 .panel-overflow-item.is-active[data-panel-id="git"] .panel-overflow-item-icon { color: var(--icon-decor-panel-git, var(--rail-accent-fallback)); }
 .panel-overflow-item.is-active[data-panel-id="checkpoints"] .panel-overflow-item-icon { color: var(--icon-decor-panel-checkpoints, var(--rail-accent-fallback)); }
 .panel-overflow-item.is-active[data-panel-id="memory"] .panel-overflow-item-icon { color: var(--icon-decor-panel-memory, var(--rail-accent-fallback)); }
+.panel-overflow-item.is-active[data-panel-id="memory-files"] .panel-overflow-item-icon { color: var(--icon-decor-panel-memory-files, var(--rail-accent-fallback)); }
 .panel-overflow-item.is-active[data-panel-id="marks"] .panel-overflow-item-icon { color: var(--icon-decor-panel-marks, var(--rail-accent-fallback)); }
 .panel-overflow-item.is-active[data-panel-id="approval-inbox"] .panel-overflow-item-icon { color: var(--icon-decor-panel-approval-inbox, var(--rail-accent-fallback)); }
 .panel-overflow-item.is-active[data-panel-id="skill-hub"] .panel-overflow-item-icon { color: var(--icon-decor-panel-skill-hub, var(--rail-accent-fallback)); }

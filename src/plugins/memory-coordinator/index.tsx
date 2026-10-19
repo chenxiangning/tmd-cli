@@ -15,6 +15,7 @@ import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即
 import { lazySuspense } from "@kernel/lazyTab";
 import type { Plugin } from "@kernel/plugin";
 import { MemoryPanel } from "./panel/MemoryPanel";
+import { MemoryFilesPanel } from "./panel/MemoryFilesPanel";
 import { MemoryCapsule } from "./capsule/MemoryCapsule";
 import { attachAutoDistill } from "./phase2/autoDistill";
 import { attachWikiStore } from "./wiki/wikiHook";
@@ -42,6 +43,15 @@ export const memoryCoordinatorPlugin: Plugin = {
       icon: Brain,
       component: MemoryPanel,
       order: 31, /* 能力生态组首席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
+      railGroup: "ecosystem",
+      railBottom: true,
+    });
+    ctx.registerFilePanel({
+      id: "memory-files",
+      label: "Memory Files",
+      icon: Notebook,
+      component: MemoryFilesPanel,
+      order: 32, /* memory 旁:跨引擎原生记忆文件,与记忆池面板并列生态组 */
       railGroup: "ecosystem",
       railBottom: true,
     });

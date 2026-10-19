@@ -53,6 +53,13 @@ export interface CliProfile {
   /** MCP 管理面声明(全局配置文件,mcp-hub 消费):候选路径(相对 home,前存在者优先 = 读写目标)与
    * 格式;原语在 cli-shared/mcpWrite,声明只携带居所知识(listMcpServers 先例)。JSON 全缺 = 首存即建,TOML 全缺 = 引擎隐藏。 */
   mcpGlobalConfig?: { candidates: string[]; format: "json" | "toml" };
+  /**
+   * 原生记忆文件声明(跨引擎记忆文件面板消费):scope=project 拼工作区 cwd /
+   * user 拼用户 home,relPath 为对应基底的相对路径。声明式 —— 各 cli-* 插件
+   * 按引擎公开知识(academy 文案)声明,缺失不猜测,内核零路径知识
+   * (skillSources 目录表同源纪律);未声明 = 面板归「未声明」灰组,不探测不渲染路径。
+   */
+  memoryFiles?: { scope: "project" | "user"; label: string; relPath: string }[];
   /** 恢复 CLI 自身会话的参数模板;缺省 = 不支持恢复。 */
   resumeArgs?: (cliSessionId: string) => string[];
   /**

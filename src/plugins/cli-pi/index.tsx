@@ -64,6 +64,8 @@ export const cliPiPlugin: Plugin = {
     ctx.registerAcademyCourse(PI_ACADEMY_COURSE);
     ctx.registerCliProfile({
       id: "pi",
+      /* 原生记忆文件(academy 文案:AGENTS.md 为 pi 的项目上下文文件)。 */
+      memoryFiles: [{ scope: "project", label: "AGENTS.md", relPath: "AGENTS.md" }],
       fetchQuota: fetchPiQuota,
       docsUrl: "https://github.com/earendil-works/pi-coding-agent",
       npmPackage: "@earendil-works/pi-coding-agent",
