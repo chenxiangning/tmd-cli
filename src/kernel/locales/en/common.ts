@@ -137,6 +137,7 @@ export const MESSAGES = {
   // ── tab 右键菜单 ──
   "重命名": "Rename",
   "会话尚未落盘,暂不可命名": "Session not yet persisted; cannot rename",
+  "标签页": "Tabs",
   "关闭其他 tab": "Close other tabs",
   "关闭全部 tab": "Close all tabs",
   "平铺显示": "Tile Display",

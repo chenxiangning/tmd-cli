@@ -223,6 +223,9 @@ pub fn run() {
                 .sessions
                 .set_notifier(app.handle().clone());
             app_setup::setup(app)?;
+            /* ⌘Q 退出守卫菜单(macOS 装配自定义 Quit accel,事件交前端关窗闸裁决;
+             * 非 macOS no-op。0.4.1 批三,裁决依据见 app_setup.rs 头注)。 */
+            app_setup::install_quit_guard_menu(app)?;
             web::web_access::autostart(app.handle());
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

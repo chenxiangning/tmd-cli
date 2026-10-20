@@ -94,7 +94,8 @@ export function MonthCal({ y, m, cells, today, sel, range, heat, onSelectDay, on
           }
           const day: string = c.day;
           const v = heatValueOf(cellByDd.get(day.slice(8)), heat);
-          const tier = v === 0 ? -1 : Math.min(3, Math.floor((v / max) * 4));
+          /* 五档色阶:峰值日给满档(纯 floor 会让 HEAT_SCALE[4] 永不命中) */
+          const tier = v === 0 ? -1 : v === max ? 4 : Math.min(3, Math.floor((v / max) * 4));
           const inRange = range !== null && day >= range[0] && day <= range[1];
           const edge = range !== null && (day === range[0] || day === range[1]);
           const selected = day === sel && range === null;

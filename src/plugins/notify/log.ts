@@ -20,6 +20,10 @@ export interface NotifyEntry {
   kind: NotifyLogKind;
   sessionId: string;
   profileId?: string;
+  /** 记录时刻的磁盘身份快照(仅本地 CLI 会话):tab 已关/应用重启后据此 resume 重开。 */
+  cliSessionId?: string;
+  cwd?: string;
+  workspaceId?: string;
   title: string;
   snippet?: string;
 }

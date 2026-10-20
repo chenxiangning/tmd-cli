@@ -11,6 +11,18 @@ export interface SessionLookup {
   getSessions(): Array<{ id: string; profileId: string; title?: string }>;
 }
 
+/** 回跳决策最小面(生产传 host,测试传桩)。 */
+export interface SessionReopenHost {
+  getSessions(): Array<{ id: string }>;
+  setActiveSession(id: string): void;
+  openDiskSession(
+    profileId: string,
+    cwd: string,
+    workspaceId: string | undefined,
+    cliSessionId: string,
+  ): Promise<unknown>;
+}
+
 /** 通知类别:Ask 等待确认 / 轮次结束 / 会话退出 / 额度预警。 */
 export type NotifyKind = "ask" | "turnEnd" | "exit" | "quota";
 
@@ -45,6 +57,30 @@ export function shouldNotify(
 function sessionName(sessionId: string, lookup: SessionLookup): string {
   const meta = lookup.getSessions().find((s) => s.id === sessionId);
   return meta?.title || meta?.profileId || sessionId;
+}
+
+/** 通知中心行回跳决策:活会话直接聚焦;tab 已关/应用重启过的按记录时刻的
+ *  磁盘身份快照 resume 重开(与侧栏磁盘行同语义);无快照(旧流水)到此为止。
+ *  spawn 失败静默 —— sessionStartFailed 广播已由 StartFailureToast 呈现。 */
+export function reopenNotifySession(
+  target: {
+    sessionId: string;
+    profileId?: string;
+    cwd?: string;
+    workspaceId?: string;
+    cliSessionId?: string;
+  },
+  h: SessionReopenHost,
+): void {
+  if (h.getSessions().some((s) => s.id === target.sessionId)) {
+    h.setActiveSession(target.sessionId);
+    return;
+  }
+  if (target.profileId && target.cwd && target.cliSessionId) {
+    void h
+      .openDiskSession(target.profileId, target.cwd, target.workspaceId, target.cliSessionId)
+      .catch(() => undefined);
+  }
 }
 
 /** 各通知类别的标题与正文;displayName 显式覆盖(退出场景会话已不在表)。 */

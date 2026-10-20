@@ -5,10 +5,8 @@
  * 不受右栏「Git 变更」开关约束:浏览语义的一部分。
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CaretDoubleDown, ArrowClockwise, DotsThree, Funnel } from "@phosphor-icons/react";
 import { ipc, type DirEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
-import { Spinner } from "@kernel/Spinner";
 import { useMinSpin } from "@kernel/useMinSpin";
 import { useWorkspaces, workspaceDisplayName } from "@kernel/workspace";
 import { findRemoteFileSource } from "@kernel/fileSources";
@@ -27,6 +25,7 @@ import {
   filterWalkHits,
 } from "./workspaceBrowserModel";
 import { WsfbChromeTop } from "./WsfbChromeTop";
+import { WsfbHead } from "./WsfbHead";
 import { AllFilesBody, ChangedBody, SearchBody } from "./WsfbBodies";
 import { WsfbMoreMenu } from "./WsfbRow";
 
@@ -184,70 +183,34 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
         changedOnly={changedOnly}
         onExitChanged={() => setChangedOnly(false)}
       />
-      <div className="wsfb-head">
-        <span className="wsfb-head-name" title={root}>
-          {headName}
-        </span>
-        <span className="wsfb-head-actions">
-          <button
-            type="button"
-            className="wsfb-head-btn"
-            title={t("更多操作")}
-            aria-label={t("更多操作")}
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              setMenuPos({
-                x: Math.min(Math.max(8, r.left), window.innerWidth - 232),
-                y: Math.min(Math.max(8, r.bottom + 4), window.innerHeight - 110),
-              });
-            }}
-          >
-            <DotsThree size="1rem" weight="bold" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className={`wsfb-head-btn${changedOnly ? " is-on" : ""}`}
-            title={changedOnly ? t("显示全部文件") : t("仅显示有变更的文件")}
-            aria-pressed={changedOnly}
-            onClick={() => {
-              setChangedOnly((v) => !v);
-              setQuery("");
-            }}
-          >
-            <Funnel size="0.875rem" aria-hidden />
-          </button>
-          {changedOnly && (
-            <button
-              type="button"
-              className="wsfb-head-btn"
-              title={t("展开全部目录")}
-              aria-label={t("展开全部目录")}
-              onClick={() => {
-                /* 变更剪枝树里所有带子目录的桶全部置开(仅会话内态)。 */
-                const all: Record<string, true> = {};
-                for (const [dir, kids] of changedTree) if (kids.some((c) => c.isDir)) all[dir] = true;
-                setChangedOpen(all);
-              }}
-            >
-              <CaretDoubleDown size="0.875rem" aria-hidden />
-            </button>
-          )}
-          <button
-            type="button"
-            className="wsfb-head-btn"
-            title={t("刷新")}
-            aria-label={t("刷新")}
-            onClick={() => spinRefresh(() => {
-              setTick((v) => v + 1);
-              return reloadAll();
-            })}
-          >
-            {refreshing
-              ? <Spinner size="0.875rem" />
-              : <ArrowClockwise size="0.875rem" aria-hidden />}
-          </button>
-        </span>
-      </div>
+      <WsfbHead
+        headName={headName}
+        root={root}
+        changedOnly={changedOnly}
+        refreshing={refreshing}
+        onToggleChanged={() => {
+          setChangedOnly((v) => !v);
+          setQuery("");
+        }}
+        onExpandAll={() => {
+          /* 变更剪枝树里所有带子目录的桶全部置开(仅会话内态)。 */
+          const all: Record<string, true> = {};
+          for (const [dir, kids] of changedTree) if (kids.some((c) => c.isDir)) all[dir] = true;
+          setChangedOpen(all);
+        }}
+        onRefresh={() =>
+          spinRefresh(() => {
+            setTick((v) => v + 1);
+            return reloadAll();
+          })
+        }
+        onMore={(r) =>
+          setMenuPos({
+            x: Math.min(Math.max(8, r.left), window.innerWidth - 232),
+            y: Math.min(Math.max(8, r.bottom + 4), window.innerHeight - 110),
+          })
+        }
+      />
       <div
         className="wsfb-list"
         onContextMenu={(e) => {

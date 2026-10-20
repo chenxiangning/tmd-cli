@@ -1,30 +1,27 @@
 /** 会话看板主视图:工具栏 + 热力月历 + 聚焦日面板(原型 docs/design/session-calendar-heat-agenda.html;
- *  月历网格拆至 CalendarGrid.tsx;点格开日视图、← → 逐日、Esc 收起;引擎/状态 chips 过滤)。 */
+ *  月历网格拆至 CalendarGrid.tsx、工具栏拆至 BoardToolbar.tsx;点格开日视图、← → 逐日、
+ *  Esc 收起;引擎/状态 chips 过滤)。 */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CaretLeft, CaretRight, ArrowClockwise, SquaresFour, X } from "@phosphor-icons/react";
-import { closeBoardOverlay } from "./boardOverlayStore";
+import { SquaresFour } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { Spinner } from "@kernel/Spinner";
 import { useMinSpin } from "@kernel/useMinSpin";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { Empty } from "@kernel/Empty";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
-import { workspaceDisplayName, useWorkspaces } from "@kernel/workspace";
+import { useWorkspaces } from "@kernel/workspace";
 import { boardOverlayOpen } from "./boardOverlayStore";
 import { archiveSession, sessionArchiveKey, unarchiveSession } from "@kernel/sessionArchive";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import {
-  BOARD_LANES,
   dayKeyOf,
-  engineColor,
   laneOf,
-  monthTitle,
   useBoardSessions,
   type BoardSession,
   type BoardState,
 } from "./boardData";
-import { CalendarGrid, HeatLegend } from "./CalendarGrid";
+import { CalendarGrid } from "./CalendarGrid";
+import { BoardToolbar } from "./BoardToolbar";
 import { DayPanel } from "./DayPanel";
 import { ScanErrorBar } from "./ScanErrorBar";
 import "./session-board.css";
@@ -148,125 +145,35 @@ export function BoardTab() {
 
   return (
     <div className="sb-root">
-      <div className="sb-toolbar">
-        {/* 左上 × 收板(覆盖层盖住左 rail 后的顺手位,与市场页同位);右端 × 保留。 */}
-        <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
-          <X size="0.875rem" aria-hidden />
-        </button>
-        <span className="sb-chips" role="group" aria-label={t("工作区")}>
-          <button
-            type="button"
-            className={`sb-chip${allMode ? " on" : ""}`}
-            aria-pressed={allMode}
-            onClick={() => setSelWsId("all")}
-          >
-            {t("全部工作区")}
-          </button>
-          {list.map((w) => {
-            const on = selWsId === w.id;
-            return (
-              <button
-                key={w.id}
-                type="button"
-                className={`sb-chip${on ? " on" : ""}`}
-                aria-pressed={on}
-                title={w.root}
-                onClick={() => setSelWsId(w.id)}
-              >
-                {workspaceDisplayName(w)}
-              </button>
-            );
-          })}
-        </span>
-        <span className="sb-nav">
-          <button
-            type="button"
-            className="sb-btn"
-            aria-label={t("上个月")}
-            onClick={() => {
-              setSelDay(null); /* 翻月收日视图:选中日不在视图周会塌全部周(评审 P2) */
-              setView(view.m === 0 ? { y: view.y - 1, m: 11 } : { y: view.y, m: view.m - 1 });
-            }}
-          >
-            <CaretLeft size="0.875rem" aria-hidden />
-          </button>
-          <span className="sb-month">{monthTitle(view.y, view.m)}</span>
-          <button
-            type="button"
-            className="sb-btn"
-            aria-label={t("下个月")}
-            onClick={() => {
-              setSelDay(null);
-              setView(view.m === 11 ? { y: view.y + 1, m: 0 } : { y: view.y, m: view.m + 1 });
-            }}
-          >
-            <CaretRight size="0.875rem" aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="sb-btn sb-today"
-            onClick={() => {
-              const n = new Date();
-              setView({ y: n.getFullYear(), m: n.getMonth() });
-              setSelDay(dayKeyOf(n.getTime()));
-            }}
-          >
-            {t("今天")}
-          </button>
-        </span>
-        <span className="sb-chips" role="group" aria-label={t("引擎过滤")}>
-          {engines.map((e) => {
-            const on = !engOff.has(e.id);
-            return (
-              <button
-                key={e.id}
-                type="button"
-                className={`sb-chip${on ? " on" : ""}`}
-                style={{ "--ec": engineColor(e.id) } as React.CSSProperties}
-                aria-pressed={on}
-                title={`${e.name} · ${e.n}`}
-                onClick={() => setEngOff(toggleIn(engOff, e.id))}
-              >
-                <span className="sb-chip-dot" aria-hidden />
-                {e.name}
-              </button>
-            );
-          })}
-        </span>
-        <span className="sb-chips" role="group" aria-label={t("状态过滤")}>
-          {BOARD_LANES.map(({ key, label }) => {
-            const on = !stOff.has(key);
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`sb-chip${on ? " on" : ""}`}
-                aria-pressed={on}
-                onClick={() => setStOff(toggleIn(stOff, key))}
-              >
-                {t(label)}
-              </button>
-            );
-          })}
-        </span>
-        <HeatLegend />
-        <span className="sb-toolbar-end">
-          <span className="sb-count" title={t("未查看 = 结束未归档且 14 天内有活动")}>
-            {t("{n} 个会话", { n: filtered.length })} · {t("{n} 个未查看", { n: newCount })}</span>
-          <button
-            type="button"
-            className="sb-btn"
-            aria-label={t("重新扫描")}
-            title={t("重新扫描")}
-            onClick={() => spin(() => setRefreshTick((v) => v + 1))}
-          >
-            {spinning ? <Spinner size="0.875rem" /> : <ArrowClockwise size="0.875rem" aria-hidden />}
-          </button>
-          <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
-            <X size="0.875rem" aria-hidden />
-          </button>
-        </span>
-      </div>
+      <BoardToolbar
+        list={list}
+        allMode={allMode}
+        selWsId={selWsId}
+        onSelectWs={setSelWsId}
+        view={view}
+        onPrevMonth={() => {
+          setSelDay(null); /* 翻月收日视图:选中日不在视图周会塌全部周(评审 P2) */
+          setView(view.m === 0 ? { y: view.y - 1, m: 11 } : { y: view.y, m: view.m - 1 });
+        }}
+        onNextMonth={() => {
+          setSelDay(null);
+          setView(view.m === 11 ? { y: view.y + 1, m: 0 } : { y: view.y, m: view.m + 1 });
+        }}
+        onToday={() => {
+          const n = new Date();
+          setView({ y: n.getFullYear(), m: n.getMonth() });
+          setSelDay(dayKeyOf(n.getTime()));
+        }}
+        engines={engines}
+        engOff={engOff}
+        onToggleEngine={(id) => setEngOff((s) => toggleIn(s, id))}
+        stOff={stOff}
+        onToggleState={(key) => setStOff((s) => toggleIn(s, key))}
+        filteredCount={filtered.length}
+        newCount={newCount}
+        spinning={spinning}
+        onRescan={() => spin(() => setRefreshTick((v) => v + 1))}
+      />
 
       {failedEngines.length > 0 ? (
         <ScanErrorBar failedEngines={failedEngines} onRetry={() => setRefreshTick((v) => v + 1)} />

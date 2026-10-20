@@ -22,6 +22,7 @@ export const MESSAGES_EN = {
   "当前工作区还没有记忆": "No memories in this workspace yet",
   "无匹配": "No matches",
   /* ── 记忆文件面板(跨引擎原生记忆文件)── */
+  "记忆文件": "Memory files",
   "{n} 在 · {m} 缺 · {k} 未声明": "{n} present · {m} missing · {k} undeclared",
   "重新探测": "Re-probe",
   "按 profile 声明批量探测": "Batch-probe paths declared by profiles",
@@ -30,10 +31,12 @@ export const MESSAGES_EN = {
   "未声明": "Undeclared",
   "尚无引擎声明记忆文件": "No engine declares memory files yet",
   "项目根": "Project root",
-  "终端跑 /init 可生成": "Run /init in a terminal to create",
+  "生成模板": "Create template",
+  "生成模板失败": "Template creation failed",
+  "写入空模板;完整内容可在终端跑 /init 生成": "Writes an empty template; run /init in a terminal for full content",
   "未生成": "Not created",
   "— 未声明路径": "— no declared path",
-  "编辑=打开文件编辑器,复用未保存闸与查找;本面板只发现与跳转,不代写,零 AI": "Edit = opens the file editor with its unsaved gate and find; this panel only discovers and navigates — no writing, zero AI",
+  "编辑=打开文件编辑器,复用未保存闸与查找;生成=写空模板文件;检索零 AI": "Edit = opens the file editor with its unsaved gate and find; Create = writes an empty template file; zero AI",
   /* ── 诊断 ── */
   "✓ 共享数据库可读": "✓ Shared database readable",
   "✗ 共享数据库不可读(被占用,疑似迁移窗口)": "✗ Shared database unreadable (locked; possibly mid-migration)",

@@ -2,9 +2,9 @@
  * notify 纯逻辑契约测试:发送闸(分类开关 × 窗口聚焦)与文案、额度阈值判定。
  * 模块级纯函数,直接 import 无需环境桩。
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SessionMeta } from "@kernel/ipc";
-import { notifyText, shouldNotify } from "./logic";
+import { notifyText, reopenNotifySession, shouldNotify } from "./logic";
 import {
   pickBalanceWarning,
   pickQuotaWarnings,
@@ -79,6 +79,53 @@ describe("notifyText(文案)", () => {
   it("三类标题互不相同", () => {
     const titles = ["ask", "turnEnd", "exit"].map((k) => notifyText(k as "ask", "s1", LOOKUP).title);
     expect(new Set(titles).size).toBe(3);
+  });
+});
+
+describe("reopenNotifySession(通知中心行回跳决策)", () => {
+  /** 可断言桩:记录 setActiveSession / openDiskSession 调用。 */
+  function mkHost(liveIds: string[]) {
+    const calls: { active?: string; disk?: unknown[] } = {};
+    return {
+      calls,
+      h: {
+        getSessions: () => liveIds.map((id) => ({ id })),
+        setActiveSession: vi.fn((id: string) => {
+          calls.active = id;
+        }),
+        openDiskSession: vi.fn((...args: unknown[]) => {
+          calls.disk = args;
+          return Promise.resolve({ id: "pty-1" });
+        }),
+      },
+    };
+  }
+
+  it("活会话:仅聚焦,不走磁盘 resume", () => {
+    const { h, calls } = mkHost(["pty-1"]);
+    reopenNotifySession(
+      { sessionId: "pty-1", profileId: "omp", cwd: "/w", cliSessionId: "cli-1" },
+      h,
+    );
+    expect(calls.active).toBe("pty-1");
+    expect(h.openDiskSession).not.toHaveBeenCalled();
+  });
+
+  it("tab 已关/重启过:按记录时刻快照 resume 重开", () => {
+    const { h, calls } = mkHost([]);
+    reopenNotifySession(
+      { sessionId: "pty-old", profileId: "omp", cwd: "/w", workspaceId: "ws1", cliSessionId: "cli-9" },
+      h,
+    );
+    expect(calls.active).toBeUndefined();
+    expect(h.openDiskSession).toHaveBeenCalledWith("omp", "/w", "ws1", "cli-9");
+  });
+
+  it("旧流水无磁盘身份快照:仅维持已发手势,不聚焦也不 resume", () => {
+    const { h, calls } = mkHost([]);
+    reopenNotifySession({ sessionId: "pty-gone" }, h);
+    expect(calls.active).toBeUndefined();
+    expect(h.openDiskSession).not.toHaveBeenCalled();
   });
 });
 

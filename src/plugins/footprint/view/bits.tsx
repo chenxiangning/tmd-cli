@@ -3,8 +3,27 @@
  * 原型 docs/design/daily-work-footprint/v2-prototype.html 的视觉语义,
  * Tailwind 4 + 内联 svg,不引新依赖。
  */
+import type { RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { engineColor } from "./engineColor";
+
+/** 容器首测出非零宽度前返回 false(测量型布局组件的挂载闸:Group 在 0 宽
+ * 容器里首测会把 defaultSize 折算成退化 fr 布局并随宽度等比放大)。 */
+export function useMeasuredWidth(): [RefObject<HTMLDivElement | null>, boolean] {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [measured, setMeasured] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      if (entries.some((en) => en.contentRect.width > 0)) setMeasured(true);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, measured];
+}
 
 /** 引擎小色标(白字 + 品牌色底)。 */
 export function EngTag({ engine }: { engine: string }) {

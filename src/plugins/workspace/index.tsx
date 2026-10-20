@@ -19,7 +19,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import type { Plugin } from "@kernel/plugin";
-import { Mounts } from "@kernel/Mounts";
 import { useWorkspaces, type Workspace } from "@kernel/workspace";
 import { findWorkspaceOrigin, useWorkspaceOrigins } from "@kernel/workspaceOrigins";
 import { spinRemainder } from "@kernel/spin";
@@ -31,10 +30,11 @@ import { WorktreeSessionDialog } from "./WorktreeSessionDialog";
 import { SessionPresetsDialog } from "./SessionPresetsDialog";
 import { loadSessionPresets } from "./sessionPresets";
 import { anchorPopoverPosition, clampMenuPosition, refreshingMapOf } from "./utils";
-import { Folders, FolderOpen, FolderSimplePlus, CaretDoubleDown, CaretDoubleUp } from "@phosphor-icons/react";
+import { Folders, FolderOpen } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
 import { useWorkspaceBrowserSwap } from "./WorkspaceBrowserSwap";
 import { WorkspaceList } from "./WorkspaceList";
+import { WorkspaceCaption } from "./WorkspaceCaption";
 import { groupWorkspaces } from "./groups";
 import { visibleWorkspaces } from "./utils";
 import { WorkspaceGroupsTab } from "./GroupSettingsTab";
@@ -146,62 +146,21 @@ function WorkspaceSection() {
       {/* 运行区:运行中/结束未查看的活会话自动聚集,已查看自动回组(单一区域原则,见 RunningZone.tsx) */}
       <RunningZoneSection />
 
-      <div className="ws-caption">
-        <span className="ws-caption-label">
-          <Folders size="1rem" aria-hidden className="ws-caption-icon" />
-          {t("工作区")}
-        </span>
-        <span className="ws-caption-actions">
-          {/* 视图切换:本地(缺省)/〈来源 chips〉/归档 单按钮组(来源段由
-              workspaceOrigins 注册表供给,来源插件启用才有)。 */}
-          <div className="ws-view-toggle" role="radiogroup" aria-label={t("工作区视图")}>
-            {(
-              [
-                ["local", "本地"],
-                ...origins.map((o) => [o.id, o.label] as const),
-                ["archived", "归档"],
-              ] as const
-            ).map(([value, label]) => {
-              const active = archivedView
-                ? value === "archived"
-                : value === (originFilter || "local");
-              const pick = () =>
-                updateSettings(
-                  value === "archived"
-                    ? { workspaceArchiveView: true, workspaceOriginFilter: "" }
-                    : { workspaceArchiveView: false, workspaceOriginFilter: value },
-                );
-              return (
-                <button key={value} type="button" role="radio" aria-checked={active}
-                  className={active ? "is-on" : ""} onClick={pick}>
-                  {t(label)}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            className="ws-caption-btn"
-            title={allCollapsed ? t("展开全部工作区会话") : t("折叠全部工作区会话")}
-            aria-label={allCollapsed ? t("展开全部工作区会话") : t("折叠全部工作区会话")}
-            onClick={() => setAllCollapsed(!allCollapsed)}
-          >
-            {allCollapsed ? (
-              <CaretDoubleUp size="0.8125rem" aria-hidden />
-            ) : (
-              <CaretDoubleDown size="0.8125rem" aria-hidden />
-            )}
-          </button>
-          {/* 插件贡献的动作位(如 session-budget 的预算入口),渲染器 = kernel Mounts */}
-          <Mounts point="leftSidebar.workspaceCaption" />
-          <button
-            className="ws-caption-btn"
-            title={t("添加工作区")}
-            onClick={(e) => setAddPos(anchorPopoverPosition(e.currentTarget.getBoundingClientRect()))}
-          >
-            <FolderSimplePlus size="0.8125rem" aria-hidden />
-          </button>
-        </span>
-      </div>
+      <WorkspaceCaption
+        origins={origins}
+        archivedView={archivedView}
+        originFilter={originFilter}
+        allCollapsed={allCollapsed}
+        onToggleAllCollapsed={() => setAllCollapsed(!allCollapsed)}
+        onAdd={(rect) => setAddPos(anchorPopoverPosition(rect))}
+        onPickView={(value) =>
+          updateSettings(
+            value === "archived"
+              ? { workspaceArchiveView: true, workspaceOriginFilter: "" }
+              : { workspaceArchiveView: false, workspaceOriginFilter: value },
+          )
+        }
+      />
 
       {/* 分组渲染(参考 codemoss):未分组无头置顶 + 命名组头折叠;实现见 WorkspaceList。 */}
       <WorkspaceList

@@ -5,44 +5,52 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
-import type { FpCardView, FpHit } from "../dataSource";
-import { dayKeyOf, loadDayDetail, searchDays } from "../dataSource";
-import { useFootprintRev, gotoToday } from "../fpTab";
-import { DayFlow } from "./DayFlow";
-import { FpMainDiff } from "./DiffPanel";
-import { FpDrawer } from "./EvidenceDrawer";
+import type { EditorTab } from "@kernel/tabs";
+import type { FpCardView } from "../dataSource";
+import { dayKeyOf } from "../dataSource";
+import { reconcileOnce } from "../backfill";
+import { useFpSearch } from "./useFpSearch";
+import { useFpAiDigest } from "./useFpAiDigest";
+import { useFootprintRev, gotoToday, fpInitView } from "../fpTab";
+import type { FootprintTabPayload } from "../fpTab";
+import { FpColumns } from "./FpColumns";
 import { FixModals } from "./FixModals";
 import { FpOverlays } from "./FpOverlays";
 import { FpTopbar } from "./FpTopbar";
-import { MonthCal, type HeatMode } from "./MonthCal";
+import { type HeatMode } from "./MonthCal";
 import { useFpFiles } from "./useFpFiles";
+import { useFpDeepLinkJump } from "./useFpDeepLink";
+import { useFpSelection } from "./useFpSelection";
 import { useFpFix } from "./useFpFix";
 import { useFpKeys } from "./useFpKeys";
 import { useFpData } from "./useFpData";
 
-export function FootprintView() {
+export function FootprintView({ tab }: { tab: EditorTab }) {
   const rev = useFootprintRev(); /* ckptTurnSealed → 当日轻刷新 */
+  /* 补账:首次打开对本月对账一次(补「应用未运行期间封口」的漏批);补到即 bump 重拉。
+   * 不放启动定时:对账要全量会话扫描,叠启动峰会与启动错峰目标冲突。 */
+  useEffect(() => {
+    void reconcileOnce();
+  }, []);
   const now = new Date();
   const today = dayKeyOf(now);
-  const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() + 1 });
+  /* 深链初始:payload.day 直达(journal 轴视图「足迹 ↗」;openTab refresh 已开重开)。 */
+  const fpPayload = (tab.payload ?? {}) as FootprintTabPayload;
+  const jumpDay = fpPayload.day;
+  const initView = fpInitView(jumpDay, today);
+  const [ym, setYm] = useState(initView.ym);
   const ymStr = `${ym.y}-${String(ym.m).padStart(2, "0")}`;
-  const [sel, setSel] = useState(today);
+  const [sel, setSel] = useState(initView.sel);
   const [range, setRange] = useState<[string, string] | null>(null);
-  const [anchor, setAnchor] = useState<string | null>(null); /* 区间起点(ranging 态左栏提示消费) */
   const [heat, setHeat] = useState<HeatMode>("lines");
-  const { month, detail, rangeDetails, setDetail } = useFpData({ ymStr, sel, range, rev });
+  const { month, detail, rangeDetails, dayLoading, setDetail } = useFpData({ ymStr, sel, range, rev });
   const [card, setCard] = useState<FpCardView | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<FpHit[] | null>(null);
-  const [cursor, setCursor] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [fixCard, setFixCard] = useState<string | null>(null);
   const [fixPos, setFixPos] = useState<{ left: number; top: number } | null>(null);
   const [sessSel, setSessSel] = useState<string | null>(null);
   const [focusIdx, setFocusIdx] = useState(-1);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const toastTimer = useRef<number | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -53,12 +61,39 @@ export function FootprintView() {
 
   const { fileSel, setFileSel, pickFile, resumeSession, openFile, revealFile } = useFpFiles(detail, card, showToast);
 
+  /* AI 补归纳:入队工作台日报生成会话(忙守卫与入队链收进 hook)。 */
+  const aiDigest = useFpAiDigest({ sel, showToast });
+
   const { renaming, renameVal, setRenameVal, setRenaming, submitRename,
     dialog, setDialog, submitMerge, submitSplit, submitManual, openFixAction } = useFpFix({
     sel,
     detail,
     showToast,
   });
+
+  /* 选日/区间动作收进 hook(守 300 行铁则与组件复杂度;range 留组件供下游消费) */
+  const { anchor, selectDay, anchorDay, resetSelection } = useFpSelection({
+    range,
+    setRange,
+    showToast,
+    setSel,
+    setCard,
+    setFileSel,
+    setFocusIdx,
+  });
+
+  /* 深链跟跳:已挂期间 payload.day 变更(openTab refresh 刷 payload)→ 退出
+   * 区间态跳日并清选中(钩子内 render 期比较,先例 useArticleEditSignal)。 */
+  const applyJump = useCallback((day: string, ym: { y: number; m: number }) => {
+    setRange(null);
+    resetSelection();
+    setYm(ym);
+    setSel(day);
+    setCard(null);
+    setFileSel(null);
+    setFocusIdx(-1);
+  }, [setRange, resetSelection, setFileSel]);
+  useFpDeepLinkJump(jumpDay, applyJump);
 
   const shiftMonth = useCallback((delta: number) => {
     setYm((prev) => {
@@ -67,41 +102,6 @@ export function FootprintView() {
     });
   }, []);
 
-  const selectDay = useCallback(
-    (day: string, shift: boolean) => {
-      /* 区间中点单日 = 退出区间进当日(原型语义);起点已选时再点任意日 = 完成区间 */
-      if (range) {
-        setRange(null);
-        setAnchor(null);
-      } else if (anchor) {
-        setRange(anchor <= day ? [anchor, day] : [day, anchor]);
-        setAnchor(null);
-        setCard(null);
-        setFileSel(null);
-        setFocusIdx(-1);
-        return;
-      } else if (shift) {
-        setAnchor(day);
-        showToast(t("已选区间起点 {day}", { day }));
-        return;
-      }
-      setAnchor(null);
-      setSel(day);
-      setCard(null);
-      setFileSel(null);
-      setFocusIdx(-1);
-    },
-    [range, anchor, showToast, setFileSel],
-  );
-
-  const anchorDay = useCallback(
-    (day: string) => {
-      setAnchor(day);
-      showToast(t("已选区间起点 {day}", { day }));
-    },
-    [showToast],
-  );
-
   const openCard = useCallback((c: FpCardView) => {
     setCard(c);
     setFileSel(null);
@@ -109,52 +109,18 @@ export function FootprintView() {
     setFocusIdx(-1);
   }, [setFileSel]);
 
-  /* ⌘K / 搜索 */
-  const openSearch = useCallback(() => {
-    setSearchOpen(true);
-    setQuery("");
-    setHits(null);
-    setCursor(0);
-    window.setTimeout(() => searchInputRef.current?.focus(), 30);
-  }, []);
-
-  useEffect(() => {
-    if (!searchOpen || query.trim() === "") {
-      if (searchOpen && query.trim() === "") setHits([]);
-      return;
-    }
-    let alive = true;
-    void searchDays(query).then((hs) => {
-      if (alive) {
-        setHits(hs);
-        setCursor(0);
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, [searchOpen, query, ymStr]);
-
-  const pickHit = useCallback(
-    (h: FpHit) => {
-      setSearchOpen(false);
-      const d = new Date(`${h.day}T12:00:00`);
-      if (d.getFullYear() !== ym.y || d.getMonth() + 1 !== ym.m) setYm({ y: d.getFullYear(), m: d.getMonth() + 1 });
-      setRange(null);
-      setSel(h.day);
-      if (h.kind === "card" || h.kind === "quote") {
-        void loadDayDetail(h.day).then((dd) => {
-          setDetail(dd);
-          const hitCard = h.featureId !== undefined ? dd.cards[h.featureId] : undefined;
-          if (hitCard) openCard(hitCard);
-        });
-      } else {
-        setCard(null);
-      }
-      setFileSel(null);
-    },
-    [ym, setDetail, setFileSel, openCard],
-  );
+  /* ⌘K / 搜索(状态与跳日逻辑收进 hook,守 300 行铁则) */
+  const { searchOpen, setSearchOpen, query, setQuery, hits, cursor, setCursor, searchInputRef, openSearch, pickHit } = useFpSearch({
+    ym,
+    setYm,
+    setSel,
+    setRange,
+    setCard,
+    setDetail,
+    setFileSel,
+    openCard,
+    clearAnchor: resetSelection,
+  });
 
   /* 键盘:j/k/t/1/2/?/esc/方向键(容器聚焦期生效,不抢 composer) */
   const onKeyDown = useFpKeys({
@@ -180,6 +146,7 @@ export function FootprintView() {
     shiftMonth,
     selectDay,
     openCard,
+    clearAnchor: resetSelection,
   });
 
   return (
@@ -192,7 +159,7 @@ export function FootprintView() {
         onShiftMonth={shiftMonth}
         onToday={() => {
           setRange(null);
-          setAnchor(null);
+          resetSelection();
           gotoToday(setYm, setSel);
         }}
         onQuery={setQuery}
@@ -201,58 +168,44 @@ export function FootprintView() {
         onToggleHelp={() => setHelpOpen((v) => !v)}
       />
 
-      {/* 三栏 */}
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[248px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--tmd-border,var(--tmd-border))] py-3">
-          <MonthCal y={ym.y} m={ym.m} cells={month} today={today} sel={sel} range={range} heat={heat} onSelectDay={selectDay} onAnchorDay={anchorDay} />
-          <div className={`px-4 text-[10.5px] leading-relaxed ${anchor ? "text-[var(--tmd-accent,var(--tmd-accent))]" : "text-[var(--tmd-fg-muted)]"}`}>
-            {anchor ? t("区间模式:再点一天完成选择 · 点单日退出") : t("区间模式:shift 点起点再点终点 · 右键同效 · 点单日退出")}
-          </div>
-        </aside>
-
-        <main className="flex min-w-0 flex-1 flex-col">
-          <DayFlow
-            detail={detail ?? { day: sel, rollup: null, cards: [], cardsOrigin: null, rows: [], article: null, digest: null, commits: [], scanFailed: false }}
-            range={range}
-            rangeDetails={rangeDetails}
-            query={searchOpen ? query : ""}
-            today={today}
-            focusIdx={focusIdx}
-            onOpenCard={openCard}
-            onFix={(c, rect) => {
-              setFixCard(fixCard === c.title ? null : c.title);
-              setFixPos({ left: rect.left, top: rect.bottom });
-            }}
-            onManualDigest={() => setDialog({ kind: "manual" })}
-          />
-          <FpMainDiff
-            fileSel={card && detail ? fileSel : null}
-            onClose={() => setFileSel(null)}
-            onOpenFile={openFile}
-            onRevealFile={revealFile}
-            onGitFallback={() => showToast(t("git 跳转:git_repos_log_range 收口后接提交视图"))}
-          />
-        </main>
-
-        {card && detail && (
-          <FpDrawer
-            card={card}
-            detail={detail}
-            query={searchOpen ? "" : query}
-            selPath={fileSel?.path ?? null}
-            selSess={sessSel}
-            onClose={() => {
-              setCard(null);
-              setFileSel(null);
-            }}
-            onSelectSess={setSessSel}
-            onSelectFile={pickFile}
-            onResumeSession={resumeSession}
-            onOpenFile={openFile}
-            onRevealFile={revealFile}
-          />
-        )}
-      </div>
+      {/* 三栏:宽度可拖 + 默认宽 248/余量/340(布局与挂载闸详见 FpColumns 头注) */}
+      <FpColumns
+        ym={ym}
+        month={month}
+        today={today}
+        sel={sel}
+        range={range}
+        rangeDetails={rangeDetails}
+        dayLoading={dayLoading}
+        detail={detail}
+        heat={heat}
+        anchor={anchor}
+        card={card}
+        fileSel={fileSel}
+        sessSel={sessSel}
+        searchOpen={searchOpen}
+        query={query}
+        focusIdx={focusIdx}
+        selectDay={selectDay}
+        anchorDay={anchorDay}
+        openCard={openCard}
+        onFix={(c, rect) => {
+          setFixCard(fixCard === c.title ? null : c.title);
+          setFixPos({ left: rect.left, top: rect.bottom });
+        }}
+        onManualDigest={() => setDialog({ kind: "manual" })}
+        aiDigest={aiDigest}
+        closeDrawer={() => {
+          setCard(null);
+          setFileSel(null);
+        }}
+        setSessSel={setSessSel}
+        pickFile={pickFile}
+        resumeSession={resumeSession}
+        openFile={openFile}
+        revealFile={revealFile}
+        showToast={showToast}
+      />
 
       {/* 弹层们 */}
       <FpOverlays

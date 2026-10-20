@@ -30,6 +30,7 @@ export const footprintPlugin: Plugin = {
       kind: FP_TAB_KIND,
       component: lazySuspense(() => import("./view/FootprintView").then((m) => ({ default: m.FootprintView }))),
       icon: Footprints,
+      keepAlive: true, /* 切 tab 不卸载:选中日/区间/卡片选择等视图态跨切换保留(先例 workbench) */
     });
     /* 左 rail 入口(排序 46:动画 45 之后)。 */
     ctx.registerSidebarAction({
@@ -47,9 +48,16 @@ export const footprintPlugin: Plugin = {
     const offSealed = ctx.events.on<CkptTurnSealedEvent>(KernelTopics.ckptTurnSealed, () => {
       bumpFootprintRev();
     });
+    /* 功能卡随日报生成会话直写,不经封口账:文件写事件命中 features 即刷新。 */
+    const offEdit = ctx.events.on<{ sessionId: string; paths: string[] }>(KernelTopics.fileEditDetected, (e) => {
+      if (e.paths.some((p) => p.includes("/footprint/features/"))) bumpFootprintRev();
+    });
+    /* 补账不在启动后定时跑(要全量会话扫描,会叠启动峰);改由视图首次挂载触发,
+     * 见 backfill.reconcileOnce —— 用户看数据那一刻补,补到即 bump 重拉。 */
     return () => {
       offRollup();
       offSealed();
+      offEdit();
     };
   },
 };

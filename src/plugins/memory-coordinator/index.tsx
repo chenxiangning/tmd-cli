@@ -48,7 +48,7 @@ export const memoryCoordinatorPlugin: Plugin = {
     });
     ctx.registerFilePanel({
       id: "memory-files",
-      label: "Memory Files",
+      label: "记忆文件",
       icon: Notebook,
       component: MemoryFilesPanel,
       order: 32, /* memory 旁:跨引擎原生记忆文件,与记忆池面板并列生态组 */

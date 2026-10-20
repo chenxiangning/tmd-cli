@@ -124,8 +124,8 @@ export function DiffPanel({ path, patch, loading, engine, degraded, add, del, on
 export function FpMainDiff({ fileSel, onClose, onOpenFile, onRevealFile, onGitFallback }: {
   fileSel: FileSel | null;
   onClose: () => void;
-  onOpenFile: (path: string) => void;
-  onRevealFile: (path: string) => void;
+  onOpenFile: (path: string, refs: string[]) => void;
+  onRevealFile: (path: string, refs: string[]) => void;
   onGitFallback: () => void;
 }) {
   if (!fileSel) return null;
@@ -139,8 +139,8 @@ export function FpMainDiff({ fileSel, onClose, onOpenFile, onRevealFile, onGitFa
         engine={fileSel.engine}
         add={fileSel.add}
         del={fileSel.del}
-        onOpen={() => onOpenFile(fileSel.path)}
-        onReveal={() => onRevealFile(fileSel.path)}
+        onOpen={() => onOpenFile(fileSel.path, fileSel.refs)}
+        onReveal={() => onRevealFile(fileSel.path, fileSel.refs)}
         onClose={onClose}
         onGitFallback={onGitFallback}
       />

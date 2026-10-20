@@ -4,6 +4,7 @@
  */
 import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail } from "../dataSource";
+import type { CardProvenance } from "../userLayer";
 import { Hi, IcoChat, IcoFiles } from "./bits";
 import { engineColor } from "./engineColor";
 
@@ -24,6 +25,23 @@ function cardStats(detail: FpDayDetail | null, card: FpCardView): { engs: string
   return { engs, files, plus, minus };
 }
 
+/** 卡级来源徽标(差量层逐卡标注;未验证压过一切;从 FeatureCard 拆出守复杂度)。 */
+function CardBadge({ card, provenance, manual }: { card: FpCardView; provenance: CardProvenance; manual: boolean }) {
+  const cls = card.unverified
+    ? "border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] text-[var(--tmd-fg-muted)]"
+    : manual
+      ? "bg-[color-mix(in_srgb,var(--tmd-warn)_12%,transparent)] text-[var(--tmd-warn)]"
+      : "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]";
+  const label = card.unverified
+    ? t("会话引用未验证")
+    : provenance === "added"
+      ? t("手动")
+      : provenance === "override"
+        ? t("已修正")
+        : t("AI 归纳");
+  return <span className={`flex-none whitespace-nowrap rounded px-1.5 text-[9.5px] font-semibold ${cls}`}>{label}</span>;
+}
+
 export function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpenCard, onFix }: {
   card: FpCardView;
   origin: "ai" | "user-edited" | "manual" | null;
@@ -36,7 +54,10 @@ export function FeatureCard({ card, inRange, day, query, focused, origin, detail
   onFix: (c: FpCardView, rect: DOMRect) => void;
 }) {
   const stats = cardStats(detail, card);
-  const manual = origin === "manual" || origin === "user-edited";
+  /* 卡级来源优先(差量层逐卡标注);旧调用方未传时回退日级 origin。 */
+  const ORIGIN_PROV: Partial<Record<NonNullable<typeof origin>, CardProvenance>> = { manual: "added", "user-edited": "override" };
+  const provenance = card.provenance ?? (origin ? ORIGIN_PROV[origin] : undefined) ?? "ai";
+  const manual = provenance !== "ai";
   return (
     <div
       className={`group relative overflow-hidden rounded-xl border bg-[var(--tmd-bg-panel)] transition-all hover:-translate-y-px hover:border-[var(--tmd-border-strong,var(--tmd-border))] hover:shadow-md ${focused ? "border-[var(--tmd-accent,var(--tmd-accent))] ring-1 ring-[var(--tmd-accent,var(--tmd-accent))]" : "border-[var(--tmd-border,var(--tmd-border))]"}`}
@@ -48,30 +69,22 @@ export function FeatureCard({ card, inRange, day, query, focused, origin, detail
           className="min-w-0 flex-1 cursor-pointer text-left"
           onClick={() => onOpenCard(card)}
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[13.5px] font-bold">
+          <div className="flex items-center gap-2">
+            <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold">
               <Hi text={card.title} q={query} />
             </span>
-            <span className={`rounded px-1.5 text-[9.5px] font-semibold ${card.unverified ? "border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] text-[var(--tmd-fg-muted)]" : manual ? "bg-[color-mix(in_srgb,var(--tmd-warn)_12%,transparent)] text-[var(--tmd-warn)]" : "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]"}`}>
-              {card.unverified
-                ? t("会话引用未验证")
-                : origin === "manual"
-                  ? t("手动")
-                  : origin === "user-edited"
-                    ? t("已修正")
-                    : t("AI 归纳")}
-            </span>
+            <CardBadge card={card} provenance={provenance} manual={manual} />
             {inRange && (
-              <span className="rounded-full bg-[color-mix(in_srgb,var(--tmd-syntax-tag)_12%,transparent)] px-2 py-px text-[10.5px] font-semibold text-[var(--tmd-syntax-tag)]">
+              <span className="flex-none rounded-full bg-[color-mix(in_srgb,var(--tmd-syntax-tag)_12%,transparent)] px-2 py-px text-[10.5px] font-semibold whitespace-nowrap text-[var(--tmd-syntax-tag)]">
                 {t("{m} 月 {d} 日", { m: Number(day.slice(5, 7)), d: Number(day.slice(8, 10)) })}
               </span>
             )}
           </div>
-          <div className="mt-1 text-[12.5px] text-[var(--tmd-fg)]">
+          <div className="mt-1 truncate text-[12.5px] text-[var(--tmd-fg)]">
             <Hi text={card.summary} q={query} />
           </div>
           {card.quote && (
-            <div className="mt-1.5 rounded-r-lg border-l-[3px] border-[var(--tmd-border-strong,var(--tmd-border))] bg-[var(--tmd-bg-hover)] py-1.5 pl-2.5 text-[12px] text-[var(--tmd-fg)] italic">
+            <div className="mt-1.5 truncate rounded-r-lg border-l-[3px] border-[var(--tmd-border-strong,var(--tmd-border))] bg-[var(--tmd-bg-hover)] py-1.5 pl-2.5 text-[12px] text-[var(--tmd-fg)] italic">
               「<Hi text={card.quote.text} q={query} />」
               <span className="mt-0.5 block font-mono text-[10.5px] not-italic text-[var(--tmd-fg-muted)]">
                 —— {card.quote.time} · {t("用户原话锚点")}
@@ -79,8 +92,8 @@ export function FeatureCard({ card, inRange, day, query, focused, origin, detail
             </div>
           )}
           {/* 卡面 meta(原型 fcard-meta):引擎点堆叠 + 会话/文件数 + ±;rollup 空账时诚实 0 */}
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[var(--tmd-fg-muted)]">
-            <span className="flex items-center -space-x-1">
+          <div className="mt-2 flex items-center gap-2 text-[11px] whitespace-nowrap text-[var(--tmd-fg-muted)]">
+            <span className="flex flex-none items-center -space-x-1">
               {stats.engs.slice(0, 4).map((e) => (
                 <i
                   key={e}
@@ -119,7 +132,7 @@ export function FeatureCard({ card, inRange, day, query, focused, origin, detail
   );
 }
 
-export function RawRow({ left, tag, tagColor, text, mono }: { left: string; tag: string; tagColor: string; text: string; mono?: boolean }) {
+export function RawRow({ left, tag, tagColor, text, mono, actions }: { left: string; tag: string; tagColor: string; text: string; mono?: boolean; actions?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 px-1 py-1 text-[12px]">
       <span className="flex-none font-mono text-[10.5px] text-[var(--tmd-fg-muted)]">{left}</span>
@@ -127,6 +140,7 @@ export function RawRow({ left, tag, tagColor, text, mono }: { left: string; tag:
         {tag}
       </span>
       <span className={`min-w-0 flex-1 truncate ${mono ? "font-mono text-[11.5px]" : ""}`}>{text}</span>
+      {actions}
     </div>
   );
 }

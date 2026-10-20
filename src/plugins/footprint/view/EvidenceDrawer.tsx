@@ -4,7 +4,7 @@
  */
 import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail } from "../dataSource";
-import { cardFiles, fileBatch } from "../dataSource";
+import { cardFiles } from "../dataSource";
 import { EngTag, FicoButton, Hi, IcoFolder, IcoOpen } from "./bits";
 
 export interface EvidenceDrawerProps {
@@ -19,14 +19,14 @@ export interface EvidenceDrawerProps {
   onSelectSess: (sid: string) => void;
   onSelectFile: (path: string) => void;
   onResumeSession: (sid: string) => void;
-  onOpenFile: (path: string) => void;
-  onRevealFile: (path: string) => void;
+  onOpenFile: (path: string, refs: string[]) => void;
+  onRevealFile: (path: string, refs: string[]) => void;
 }
 
 /** 证据抽屉栏(右栏外壳:条件渲染 + 关闭/选中接线,守 FootprintView 300 行)。 */
 export function FpDrawer({ card, detail, query, selPath, selSess, onClose, onSelectSess, onSelectFile, onResumeSession, onOpenFile, onRevealFile }: EvidenceDrawerProps) {
   return (
-    <aside className="flex w-[340px] flex-none flex-col border-l border-[var(--tmd-border,var(--tmd-border))]">
+    <aside className="flex h-full w-full flex-none flex-col">
       <EvidenceDrawer
         card={card}
         detail={detail}
@@ -80,7 +80,7 @@ export function EvidenceDrawer({ card, detail, query, selPath, selSess, onClose,
           <div className="truncate text-[13px] font-bold">
             <Hi text={card.title} q={query} />
           </div>
-          <div className="mt-0.5 text-[11px] text-[var(--tmd-fg-muted)]">
+          <div className="mt-0.5 truncate text-[11px] text-[var(--tmd-fg-muted)]">
             {detail.day} ·{" "}
             {card.unverified
               ? t("会话引用未验证")
@@ -105,7 +105,7 @@ export function EvidenceDrawer({ card, detail, query, selPath, selSess, onClose,
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <h4 className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
+        <h4 className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap text-[var(--tmd-fg-muted)]">
           {t("会话")}
           <span className="rounded-full bg-[var(--tmd-bg-hover)] px-1.5 text-[10.5px]">{sessRows.length}</span>
         </h4>
@@ -124,7 +124,7 @@ export function EvidenceDrawer({ card, detail, query, selPath, selSess, onClose,
                 <Hi text={row?.title ?? `${t("会话")} ${sid.slice(0, 8)}`} q={query} />
               </span>
               <span className="flex-none font-mono text-[10.5px] text-[var(--tmd-fg-muted)]">
-                {(roll?.first ?? "").slice(11, 16) || (row ? new Date(row.startedAt).toTimeString().slice(0, 5) : "")}
+                {(roll?.first ? new Date(roll.first).toTimeString().slice(0, 5) : (row ? new Date(row.startedAt).toTimeString().slice(0, 5) : ""))}
               </span>
             </button>
             <button
@@ -136,10 +136,10 @@ export function EvidenceDrawer({ card, detail, query, selPath, selSess, onClose,
             </button>
           </div>
         ))}
-        <h4 className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold tracking-wide text-[var(--tmd-fg-muted)]">
+        <h4 className="flex items-center gap-1.5 px-4 pt-3 pb-1 text-[11px] font-bold tracking-wide whitespace-nowrap text-[var(--tmd-fg-muted)]">
           {t("改动文件")}
           <span className="rounded-full bg-[var(--tmd-bg-hover)] px-1.5 text-[10.5px]">{files.length}</span>
-          <span className="font-normal normal-case">{t("· 点文件在左侧出 diff · 数字永久,diff 随账本 30 天")}</span>
+          <span className="min-w-0 flex-1 truncate font-normal normal-case">{t("· 点文件在左侧出 diff · 数字永久,diff 随账本 30 天")}</span>
         </h4>
         {files.map(({ path, stat }) => {
           return (
@@ -160,17 +160,17 @@ export function EvidenceDrawer({ card, detail, query, selPath, selSess, onClose,
                 )}
               </button>
               <span className="flex flex-none gap-0.5 opacity-40 transition-opacity group-hover:opacity-100">
-                <FicoButton title={t("打开文件")} onClick={() => onOpenFile(path)}>
+                <FicoButton title={t("打开文件")} onClick={() => onOpenFile(path, stat.refs)}>
                   <IcoOpen />
                 </FicoButton>
-                <FicoButton title={t("打开所在文件夹")} onClick={() => onRevealFile(path)}>
+                <FicoButton title={t("打开所在文件夹")} onClick={() => onRevealFile(path, stat.refs)}>
                   <IcoFolder />
                 </FicoButton>
               </span>
-              {fileBatch(detail.rollup, stat) === null ? (
-                <span className="flex-none text-[10px] text-[var(--tmd-fg-muted)]">{t("账本已清理")}</span>
-              ) : (
+              {stat.refs.some((sid) => detail.rollup?.batches[sid]) ? (
                 <PmBars add={stat.add} del={stat.del} />
+              ) : (
+                <span className="flex-none text-[10px] text-[var(--tmd-fg-muted)]">{t("账本已清理")}</span>
               )}
             </div>
           );

@@ -1,11 +1,9 @@
 /**
  * 活会话转录浮层 —— 结构化视图全景的画布覆盖 UI(editorCenter.canvasOverlay
- * 挂点;入口切换钮 = livePill.tsx,经 terminal.canvasRow 挂点并入幕布右上工具行)。
- * 命名契约:入口「结构化视图」/ 出口「PTY实况」,两面一致。
- * 幕布保活零卸载(覆盖不替换,PTY 链路零改动);数据 = 1s 探测短路轮询
- * (fsReadTailChanged 尺寸未变零读取)+ 变更拍 readChangedTranscript(JSONL
- * 家族增量段解析,2026-10-06:8MB+ 大转录不再全量重读;未声明家族回落全量;
- * message 级刷新,JSONL 事件级追加,无 token 粒度——omp 全事件类型实证)。
+ * 挂点;入口切换钮 = livePill.tsx)。命名契约:入口「结构化视图」/出口「PTY实况」。
+ * 幕布保活零卸载;数据 = 1s 探测短路轮询 + 变更拍 readChangedTranscript 增量段
+ * 解析(8MB+ 大转录不全量重读;message 级刷新,无 token 粒度——omp 实证)。
+ * 头部/计时条/回底/状态块等 chrome 件见 liveChrome.tsx,计时 hook 见 liveElapsed.ts。
  * 设计:docs/superpowers/specs/2026-09-30-live-transcript-view-design.md
  */
 import { lazy, useEffect, useReducer, useRef, useState } from "react";
@@ -14,11 +12,10 @@ import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import type { CliDiskSession, CliTranscriptBlock } from "@kernel/cli";
-import { Empty } from "@kernel/Empty";
-import { Spinner } from "@kernel/Spinner";
-import { Chats } from "@phosphor-icons/react";
 import { retryImport } from "@kernel/lazyImport";
 import { TranscriptView } from "./transcriptView";
+import { LiveBackToBottom, LiveHeader, LiveLoadEarlier, LiveStatusBlocks, LiveWorkingBar } from "./liveChrome";
+import { useLiveElapsed } from "./liveElapsed";
 import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe, stableBlocks, readChangedTranscript, type LiveTailState } from "./liveMode";
 /* md 渲染管线体积大,按需拆包(与 viewerTab 同款纪律)。 */
 const MarkdownBody = lazy(retryImport(() =>
@@ -27,10 +24,9 @@ const MarkdownBody = lazy(retryImport(() =>
 
 /** 轮询节拍:message 级落盘事件,1s 探测足够跟手且空转成本一次 stat。 */
 const POLL_MS = 1000;
-/** 路径解析限频:listSessions 是目录全扫(grok 千级会话),3s 一试到命中;连续 miss ≥10 次(约 30s)退到 10s 节拍,防未绑定/懒落盘期常驻全扫。 */
+/** 路径解析限频:listSessions 是目录全扫;3s 一试,连续 miss ≥10 退 10s 节拍。 */
 const RESOLVE_EVERY = 3;
-/** 尾窗批次:live 视角从尾部往回看(与查看 tab 同额)。 */
-const RENDER_BATCH = 200;
+/** 尾窗批次(live 视角从尾部往回看)。 */ const RENDER_BATCH = 200;
 /** 贴底跟随判定边距。 */ const FOLLOW_EDGE = 60;
 
 /* 轮询状态机组件:分支密度是本质复杂度,拆散闭包需传 6 个 ref 弊大于利。 */
@@ -59,7 +55,6 @@ export function LiveTranscriptOverlay() {
   /** 轮次进行中(host.isTurnActive 会话生命周期,呼吸灯/会话 tab「运行中」同源):
    *  working 带 + 卷尾流式观感。 */
   const [turnActive, setTurnActive] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
   const sinceRef = useRef<number | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const diskRef = useRef<CliDiskSession | null>(null);
@@ -171,17 +166,8 @@ export function LiveTranscriptOverlay() {
     };
   }, [on, activeId, profile, meta?.cwd, retryTick]);
 
-  /* working 计时(monocode LiveFoldTitle):活跃期每秒跳。 */
-  useEffect(() => {
-    if (!turnActive) {
-      setElapsed(0);
-      return;
-    }
-    const timer = setInterval(() => {
-      setElapsed(sinceRef.current ? Math.max(1, Math.round((Date.now() - sinceRef.current) / 1000)) : 1);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [turnActive]);
+  /* working 计时(monocode LiveFoldTitle):活跃期每秒跳(计时 hook 同目录)。 */
+  const elapsed = useLiveElapsed(turnActive, sinceRef);
 
   /* 贴底自动跟随 + 回溯滚动锚点恢复(实况行更新同跟随)。 */
   useEffect(() => {
@@ -209,31 +195,16 @@ export function LiveTranscriptOverlay() {
 
   return (
     <div className="sv-root lv-view" data-icon-decor="session-view">
-      <header className="sv-header">
-        {profile.renderIcon ? <span className="sv-engine-icon">{profile.renderIcon("0.875rem")}</span> : null}
-        {/* 主标题 = 会话展示名;引擎会话 id 降为次要 mono 小字(此前 8 位哈希当标题) */}
-        <span className="sv-title">{meta?.title || t("未命名会话")}</span>
-        <span className="sv-sid">{host.getCliSessionId(activeId)?.slice(0, 8) ?? activeId.slice(0, 8)}</span>
-        <span className="sv-engine-name">{profile.name}</span>
-        {truncated ? <span className="sv-truncated">{t("会话过大,已截断")}</span> : null}
-        <button
-          type="button"
-          className={`sv-minimal${minimal ? " is-on" : ""}`}
-          aria-pressed={minimal}
-          title={t("极简展示:每轮工作过程折叠为一行,只保留最终答复")}
-          onClick={() => updateSettings({ sessionViewerMinimal: !minimal })}
-        >
-          {t("极简")}
-        </button>
-        <button
-          type="button"
-          className="lv-close"
-          title={t("返回 PTY 实况")}
-          onClick={() => setLiveTranscript(activeId, false)}
-        >
-          {t("PTY实况")}
-        </button>
-      </header>
+      <LiveHeader
+        engineIcon={profile.renderIcon ? <span className="sv-engine-icon">{profile.renderIcon("0.875rem")}</span> : null}
+        title={meta?.title || t("未命名会话")}
+        sid={host.getCliSessionId(activeId)?.slice(0, 8) ?? activeId.slice(0, 8)}
+        engineName={profile.name}
+        truncated={truncated}
+        minimal={minimal}
+        onToggleMinimal={() => updateSettings({ sessionViewerMinimal: !minimal })}
+        onClose={() => setLiveTranscript(activeId, false)}
+      />
       <div
         className="sv-scroll"
         ref={scrollRef}
@@ -246,53 +217,34 @@ export function LiveTranscriptOverlay() {
           }
         }}
       >
-        {errMsg !== null && (
-          <div className="lv-error" role="alert"><span>{errMsg}</span><button type="button" className="lv-error-retry" onClick={retryLocate}>{t("重试")}</button></div>
-        )}
-        {errMsg === null && blocks === null && <div className="sv-empty"><span className="inline-flex items-center gap-2"><Spinner />{t("定位会话文件中…")}</span></div>}
-        {errMsg === null && blocks?.length === 0 && <div className="sv-empty"><Empty icon={<Chats size="0.875rem" />}>{t("会话没有可解析的对话内容")}</Empty></div>}
+        <LiveStatusBlocks
+          errMsg={errMsg}
+          locating={blocks === null}
+          empty={blocks !== null && blocks.length === 0}
+          onRetry={retryLocate}
+        />
         {blocks !== null && blocks.length > 0 && (
           <div className="sv-blocks">
-            {visible < (blocks?.length ?? 0) ? (
-              <button
-                type="button"
-                className="sv-more"
-                onClick={() => {
-                  const el = scrollRef.current;
-                  if (el) pendingRestoreRef.current = { height: el.scrollHeight, top: el.scrollTop };
-                  setVisible((v) => v + RENDER_BATCH);
-                }}
-              >
-                {t("载入更早")}
-              </button>
-            ) : null}
+            <LiveLoadEarlier
+              hidden={visible >= (blocks?.length ?? 0)}
+              onLoad={() => {
+                const el = scrollRef.current;
+                if (el) pendingRestoreRef.current = { height: el.scrollHeight, top: el.scrollTop };
+                setVisible((v) => v + RENDER_BATCH);
+              }}
+            />
             <TranscriptView blocks={shown} Markdown={MarkdownBody} minimal={minimal} streaming={turnActive} />
           </div>
         )}
       </div>
-      {turnActive ? (
-        <div className="lv-working">
-          <span className="lv-spin" aria-hidden>
-            {Array.from({ length: 9 }, (_, i) => <i key={i} />)}
-          </span>
-          <span className="lv-working-who">{profile.name}</span>
-          <span className="lv-working-for">{t("working for")}{elapsed}s</span>
-        </div>
-      ) : null}
-      {/* 上翻停跟后的回底出口(流式仍在涨,不拽用户视线,只给一键回底) */}
+      {turnActive ? <LiveWorkingBar name={profile.name} elapsed={elapsed} /> : null}
       {!atBottom ? (
-        <button
-          type="button"
-          className="lv-backto"
-          onClick={() => {
-            const el = scrollRef.current;
-            if (el) el.scrollTop = el.scrollHeight;
-            stickRef.current = true;
-            setAtBottom(true);
-          }}
-        >
-          {t("回到底部")}
-        </button>
+        <LiveBackToBottom onBack={() => {
+          const el = scrollRef.current;
+          if (el) el.scrollTop = el.scrollHeight;
+          stickRef.current = true;
+          setAtBottom(true);
+        }} />
       ) : null}
     </div>
   );

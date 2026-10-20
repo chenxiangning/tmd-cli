@@ -12,8 +12,7 @@ import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
 import { loadMonth, dayMetaOf, deriveDayStatus, getJournalState, useJournalState } from "./journalStore";
 import { isRowSummarized, useDaySessions, todayKey, type DaySessionRow } from "./daySessions";
-import { buildSessionLinks, openDaySessionRow } from "./sessionRef";
-import { openSessionViewTab, isSessionViewAvailable } from "@kernel/sessionViewTabs";
+import { buildSessionLinks, daySessionViewOpener, openDaySessionRow } from "./sessionRef";
 import { useArticleEditSignal } from "./journalTabs";
 import { ArticleDiscardGate } from "./ArticleDiscardGate";
 import { KernelTopics } from "@kernel/events";
@@ -112,19 +111,7 @@ function GenAction({ y, m, d, st, hasArticle, rows, summarizedAt }: { y: number;
 function DaySessions({ rows, summarizedAt, workspaces }: { rows: DaySessionRow[]; summarizedAt?: number; workspaces: readonly { id: string; root: string }[] }) {
   useHost(); /* 订阅面:活行身份绑定(getCliSessionId)与退出随时刷新 */
   if (rows.length === 0) return null;
-  /* 转录链接装配:引擎支持转录 + 查看器在册才有;活行经已绑定磁盘身份定位。 */
-  const viewOf = (r: DaySessionRow): (() => void) | undefined => {
-    const profile = host.getCliProfile(r.profileId);
-    const cliSessionId = r.disk?.id ?? (r.id !== undefined ? host.getCliSessionId(r.id) : undefined);
-    if (!profile?.readSessionTranscript || !isSessionViewAvailable() || !cliSessionId) return undefined;
-    const ws = workspaces.find((w) => w.id === r.wsId);
-    const cwd = r.live && r.id ? host.getSessions().find((s) => s.id === r.id)?.cwd : ws?.root;
-    return () =>
-      openSessionViewTab({
-        profileId: r.profileId, cliSessionId, title: r.title,
-        path: r.disk?.path, cwd,
-      });
-  };
+  /* 转录链接装配已收敛 sessionRef(与 footprint 降级清单共用)。 */
   return (
     <div className="dj-day-sessions">
       <h4>
@@ -138,7 +125,7 @@ function DaySessions({ rows, summarizedAt, workspaces }: { rows: DaySessionRow[]
       </h4>
       {rows.map((r) => {
         const done = isRowSummarized(r, summarizedAt);
-        const view = viewOf(r);
+        const view = daySessionViewOpener(r, workspaces);
         return (
           <div key={`${r.profileId}-${r.startedAt}`} className="dj-ds-row">
             <EngMark id={r.profileId} />

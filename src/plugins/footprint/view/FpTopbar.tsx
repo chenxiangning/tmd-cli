@@ -43,7 +43,7 @@ export function FpTopbar({ ym, heat, query, onShiftMonth, onToday, onQuery, onOp
         {t("回到今日")}
       </button>
       <div className="ml-auto flex items-center gap-2">
-        <div className="flex items-center gap-1.5 rounded-lg bg-[var(--tmd-bg-hover)] px-2 py-1 text-[11.5px] text-[var(--tmd-fg-muted)]">
+        <div className="flex flex-none items-center gap-1.5 rounded-lg bg-[var(--tmd-bg-hover)] px-2 py-1 text-[11.5px] text-[var(--tmd-fg-muted)]">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="7" />
             <path d="M21 21l-4.3-4.3" />
@@ -57,12 +57,12 @@ export function FpTopbar({ ym, heat, query, onShiftMonth, onToday, onQuery, onOp
           />
           <kbd className="rounded border border-[var(--tmd-border,var(--tmd-border))] px-1 text-[10px]">⌘K</kbd>
         </div>
-        <div className="flex rounded-lg border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-hover)] p-0.5 text-[11px]">
+        <div className="flex flex-none whitespace-nowrap rounded-lg border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-hover)] p-0.5 text-[11px]">
           {([["lines", "按改动量"], ["sessions", "按会话数"]] as const).map(([k, label]) => (
             <button
               key={k}
               type="button"
-              className={`rounded-md px-2.5 py-1 ${heat === k ? "bg-[var(--tmd-bg-panel)] font-semibold shadow-sm" : "text-[var(--tmd-fg-muted)] hover:text-[var(--tmd-fg)]"}`}
+              className={`whitespace-nowrap rounded-md px-2.5 py-1 ${heat === k ? "bg-[var(--tmd-bg-panel)] font-semibold shadow-sm" : "text-[var(--tmd-fg-muted)] hover:text-[var(--tmd-fg)]"}`}
               onClick={() => onHeat(k)}
             >
               {t(label)}

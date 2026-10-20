@@ -9,6 +9,7 @@
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { requestSessionReveal } from "@kernel/sessionReveal";
+import { isSessionViewAvailable, openSessionViewTab } from "@kernel/sessionViewTabs";
 import { hmOf } from "./timeUtil";
 import type { DaySessionRow } from "./daySessions";
 import type { SessionLinkHost } from "./articleBody";
@@ -69,6 +70,24 @@ export function openDaySessionRow(
     host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
     void host.openDiskSession(r.profileId, ws.root, ws.id, r.disk.id);
   }
+}
+
+/** 转录查看深链(与打开会话同源寻址):引擎支持转录 + 查看器在册才产出回调,
+ *  否则 undefined(调用方隐藏入口)。文章 tab 当日清单与 footprint 降级清单共用。 */
+export function daySessionViewOpener(
+  r: DaySessionRow,
+  workspaces: readonly { id: string; root: string }[],
+): (() => void) | undefined {
+  const profile = host.getCliProfile(r.profileId);
+  const cliSessionId = r.disk?.id ?? (r.id !== undefined ? host.getCliSessionId(r.id) : undefined);
+  if (!profile?.readSessionTranscript || !isSessionViewAvailable() || !cliSessionId) return undefined;
+  const ws = workspaces.find((w) => w.id === r.wsId);
+  const cwd = r.live && r.id ? host.getSessions().find((s) => s.id === r.id)?.cwd : ws?.root;
+  return () =>
+    openSessionViewTab({
+      profileId: r.profileId, cliSessionId, title: r.title,
+      path: r.disk?.path, cwd,
+    });
 }
 
 /** 当日行集 → 链接面(四段归一键寻址:live 续聊聚焦 / disk 磁盘续开)。

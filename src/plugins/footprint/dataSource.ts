@@ -3,23 +3,22 @@
  * (journal 会话行、功能卡校验展示、git 提交证据、文件证据归属、
  * 打开文件/所在文件夹通道)。纯读,不维护写路径。
  */
-import { ipc, type CkptPatch } from "@kernel/ipc";
+import { ipc } from "@kernel/ipc";
 import { collectSessionRowsChecked, type DaySessionRow } from "@plugins/workbench/journal/daySessions";
 import { dailyPaths } from "@plugins/workbench/journal/journalFiles";
 import { getWorkspaces } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
-import { resolveDefaultOpenWithFor } from "@kernel/openWith";
-import { getSettingsState } from "@kernel/settings";
 import { dayDetail as queryDayDetail, monthHeat, range as queryRange, readFeatureCards, searchFootprint as querySearch } from "./query";
 import type { DayDetail, HeatCell, RangeSummary, SearchHit, SearchKind } from "./query";
+import type { CardProvenance } from "./userLayer";
 import type { FeatureCard, FootprintDay, FootprintMonthFile } from "./types";
 
 export type { DaySessionRow, DayDetail, HeatCell, RangeSummary, SearchHit, SearchKind };
 export type FpDay = FootprintDay;
 export type FpMonthFile = FootprintMonthFile;
 
-/** 会话引用校验已标注的功能卡(unverified = 引用了当日枚举外的会话)。 */
-export type FpCardView = FeatureCard & { unverified: boolean };
+/** 会话引用校验已标注 + 卡级来源(AI 原卡/用户改后/手动新增)的功能卡。 */
+export type FpCardView = FeatureCard & { unverified: boolean; provenance: CardProvenance };
 /** rollup files 记录的值类型(无 path;path 在键上)。 */
 export type DayFileEntry = FootprintDay["files"][string];
 
@@ -29,6 +28,15 @@ export interface FpCommit {
   hash: string;
   subject: string;
   time: string;
+}
+
+/** 日期窗查询两端(Rust parse_iso 契约:naive 串按 UTC 取值,必须传
+ *  toISOString() 产物;发本地 naive 串 = 窗口平移时区差,2026-10-20 修)。 */
+export function commitWindow(day: string): { since: string; until: string } {
+  return {
+    since: new Date(`${day}T00:00:00`).toISOString(),
+    until: new Date(`${day}T23:59:59`).toISOString(),
+  };
 }
 
 /** 日键 YYYY-MM-DD(本地时区)。 */
@@ -57,9 +65,10 @@ export interface FpDayDetail {
   cards: FpCardView[];
   /** 功能卡来源(徽标区分 AI 归纳/已修正/纯手动;无卡时无意义)。 */
   cardsOrigin: "ai" | "user-edited" | "manual" | null;
+  /** AI 原档卡(修正层差量写盘的基底;无 AI 档 = null)。 */
+  aiCards: FeatureCard[] | null;
   rows: DaySessionRow[];
   article: string | null;
-  digest: string | null;
   commits: FpCommit[];
   /** 部分引擎清单扫描失败(示警用)。 */
   scanFailed: boolean;
@@ -73,12 +82,11 @@ function knownSessionIds(rollup: FpDay | null, rows: DaySessionRow[]): Set<strin
   return ids;
 }
 
-/* journal 产物路径与写侧 dailyPaths 同源(旧硬编码 workbench/journal/daily 前缀是死路径,
- * article/digest 在真机恒 null;2026-10-20 评审顺手修) */
-async function journalPath(kind: "article" | "digest", day: string): Promise<string> {
+/* 日报路径与写侧 dailyPaths 同源(旧硬编码 workbench/journal/daily 前缀是死路径,
+ * article 在真机恒 null;2026-10-20 评审顺手修;digest 不进当日视图,搜索侧另读) */
+async function journalArticlePath(day: string): Promise<string> {
   const [y, m, d] = day.split("-").map(Number);
-  const paths = await dailyPaths();
-  return kind === "article" ? paths.article(y, m, d) : paths.digest(y, m, d);
+  return (await dailyPaths()).article(y, m, d);
 }
 
 async function readTextOrNull(path: string): Promise<string | null> {
@@ -90,8 +98,7 @@ async function readTextOrNull(path: string): Promise<string | null> {
 }
 
 async function loadCommits(day: string): Promise<FpCommit[]> {
-  const since = `${day}T00:00:00`;
-  const until = `${day}T23:59:59`;
+  const { since, until } = commitWindow(day);
   const results = await Promise.all(
     getWorkspaces()
       .filter((w) => !findWorkspaceOrigin(w)?.remoteExec)
@@ -100,13 +107,12 @@ async function loadCommits(day: string): Promise<FpCommit[]> {
   return results.flat().sort((a, b) => (a.time < b.time ? -1 : 1));
 }
 
-/** 当日视图(点日时机:query 日明细 + 卡校验 + article/digest + lazily git)。 */
+/** 当日视图(点日时机:query 日明细 + 卡校验 + 日报 + lazily git)。 */
 export async function loadDayDetail(day: string): Promise<FpDayDetail> {
-  const [qd, rowsRes, article, digest, commits] = await Promise.all([
+  const [qd, rowsRes, article, commits] = await Promise.all([
     queryDayDetail(day.slice(0, 7), day.slice(8)),
     loadSessionRows(),
-    readTextOrNull(await journalPath("article", day)),
-    readTextOrNull(await journalPath("digest", day)),
+    readTextOrNull(await journalArticlePath(day)),
     loadCommits(day),
   ]);
   const rollup: FpDay = { sessions: qd.sessions, files: {}, batches: qd.batches };
@@ -114,11 +120,18 @@ export async function loadDayDetail(day: string): Promise<FpDayDetail> {
   const rows = rowsRes.rows.filter((r) => dayKeyOf(new Date(r.startedAt)) === day);
   const known = knownSessionIds(rollup, rows);
   const featureRead = await readFeatureCards(day);
-  const cards: FpCardView[] = (featureRead?.file.cards ?? []).map((c) => ({
-    ...c,
-    unverified: c.sessions.some((sid) => !known.has(sid)),
+  const cards: FpCardView[] = (featureRead?.merged ?? []).map(({ card, provenance }) => ({
+    ...card,
+    unverified: card.sessions.some((sid) => !known.has(sid)),
+    provenance,
   }));
-  return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article, digest, commits, scanFailed: rowsRes.failed > 0 };
+  return {
+    day, rollup, cards,
+    cardsOrigin: featureRead?.origin ?? null,
+    aiCards: featureRead?.ai ?? null,
+    rows, article, commits,
+    scanFailed: rowsRes.failed > 0,
+  };
 }
 
 /* ── 月历热力 / 区间(转发 query) ── */
@@ -141,11 +154,17 @@ export async function loadRangeDetails(days: string[]): Promise<FpDayDetail[]> {
       const rows = rowsByDay.get(day) ?? [];
       const known = knownSessionIds(rollup, rows);
       const featureRead = await readFeatureCards(day);
-      const cards: FpCardView[] = (featureRead?.file.cards ?? []).map((c) => ({
-        ...c,
-        unverified: c.sessions.some((sid) => !known.has(sid)),
+      const cards: FpCardView[] = (featureRead?.merged ?? []).map(({ card, provenance }) => ({
+        ...card,
+        unverified: card.sessions.some((sid) => !known.has(sid)),
+        provenance,
       }));
-      return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article: null, digest: null, commits: [], scanFailed: rowsRes.failed > 0 };
+      return {
+        day, rollup, cards,
+        cardsOrigin: featureRead?.origin ?? null,
+        aiCards: featureRead?.ai ?? null,
+        rows, article: null, commits: [], scanFailed: rowsRes.failed > 0,
+      };
     }),
   );
 }
@@ -196,29 +215,6 @@ export function ungroupedFiles(rollup: FpDay): { project: string; path: string; 
   return out.sort((a, b) => a.project.localeCompare(b.project) || a.path.localeCompare(b.path));
 }
 
-/* ── 抽屉 diff(30 天内复用 checkpointBatchDiff;钥匙 = rollup.batches) ── */
-
-/** 文件行是否可出 diff(有会话 batchId = 账本未清理)。 */
-export function fileBatch(rollup: FpDay | null, stat: { refs: string[] }): { cwd: string; batchId: string } | null {
-  if (!rollup) return null;
-  for (const sid of stat.refs) {
-    const batchId = rollup.batches[sid];
-    const sess = rollup.sessions[sid];
-    if (batchId && sess) return { cwd: sess.cwd, batchId };
-  }
-  return null;
-}
-
-/** 拉某批 diff 并定位到目标文件 patch;命令失败 = null(调用方降级)。 */
-export async function loadPatch(cwd: string, batchId: string, path: string): Promise<CkptPatch | null> {
-  try {
-    const patches = await ipc.checkpointBatchDiff(cwd, batchId);
-    return patches.find((p) => p.path === path) ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /* ── ⌘K 反查(转发 query 四来源搜索,摊平为命中列表) ── */
 
 export type FpHit = SearchHit;
@@ -238,27 +234,14 @@ export async function searchDays(query: string): Promise<FpHit[]> {
     .slice(0, 40);
 }
 
-/* ── 打开文件/所在文件夹(真实通道:既有 open-with / reveal IPC) ── */
+/* ── 所在文件夹定位(真实通道:reveal IPC;客户端内打开统一走 kernel fileTabs) ── */
 
-/** 系统默认程序打开文件(设置里解析默认打开方式);失败 toast 由调用方兜底。 */
-export async function openFileExternally(path: string): Promise<boolean> {
-  try {
-    const s = getSettingsState().settings;
-    const target = resolveDefaultOpenWithFor(s.openWithTargets, s.openWithDefaultId, path);
-    if (!target) return false;
-    await ipc.fsOpenWith(path, target);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** 文件管理器中显示所在目录。 */
-export async function revealInFileManager(path: string): Promise<boolean> {
+/** 文件管理器中显示所在目录;null = 成功,否则错误文案。 */
+export async function revealInFileManager(path: string): Promise<string | null> {
   try {
     await ipc.fsRevealInFileManager(path);
-    return true;
-  } catch {
-    return false;
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
   }
 }

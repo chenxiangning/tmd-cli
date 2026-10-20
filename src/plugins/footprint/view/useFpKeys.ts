@@ -32,6 +32,8 @@ export interface FpKeysParams {
   shiftMonth: (delta: number) => void;
   selectDay: (day: string, shift: boolean) => void;
   openCard: (c: FpCardView) => void;
+  /** 清区间起点(anchor 残留会让下一次单击/方向键莫名完成区间)。 */
+  clearAnchor: () => void;
 }
 
 export function useFpKeys(p: FpKeysParams): (e: KeyboardEvent) => void {
@@ -52,9 +54,10 @@ export function useFpKeys(p: FpKeysParams): (e: KeyboardEvent) => void {
         }
         return;
       }
-      if (p.searchOpen || (e.target as HTMLElement).tagName === "INPUT") return;
+      if (p.searchOpen || (e.target as HTMLElement).tagName === "INPUT" || (e.target as HTMLElement).tagName === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault();
+        p.clearAnchor();
         if (e.shiftKey) {
           p.shiftMonth(e.key === "ArrowLeft" ? -1 : 1);
           return;
@@ -71,6 +74,7 @@ export function useFpKeys(p: FpKeysParams): (e: KeyboardEvent) => void {
         p.openCard(p.cards[p.focusIdx]);
       } else if (e.key === "t") {
         p.setRange(null);
+        p.clearAnchor();
         const d = new Date();
         p.setYm({ y: d.getFullYear(), m: d.getMonth() + 1 });
         p.setSel(dayKeyOf(d));

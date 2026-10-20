@@ -13,15 +13,40 @@ import { dayKeyOf } from "./dataSource";
 export const FP_TAB_KIND = "footprint.daily";
 export const FP_TAB_ID = "footprint-daily";
 
-/** 打开/激活足迹 tab(侧栏入口共用;openTab 幂等语义)。 */
-export function openFootprintTab(): void {
-  openTab({
-    id: FP_TAB_ID,
-    kind: FP_TAB_KIND,
-    title: t("每日足迹"),
-    path: "footprint",
-    payload: {},
-  });
+/** 深链 payload:day = "YYYY-MM-DD"(dayKeyOf 同格式零填充);缺省开今日。 */
+export interface FootprintTabPayload {
+  day?: string;
+}
+
+/** 打开/激活足迹 tab(侧栏入口与 journal 轴视图深链共用;openTab 幂等)。
+ *  refresh 显式 opt-in:已开 tab 刷 payload 并激活 —— 深链换日重开即跟跳,
+ *  视图侧 FootprintView 消费 payload(render 期比较,先例 useArticleEditSignal)。 */
+export function openFootprintTab(opts?: FootprintTabPayload): void {
+  openTab(
+    {
+      id: FP_TAB_ID,
+      kind: FP_TAB_KIND,
+      title: t("每日足迹"),
+      path: "footprint",
+      payload: (opts ?? {}) satisfies FootprintTabPayload,
+    },
+    { refresh: true },
+  );
+}
+
+/** payload.day → {y,m};缺省/非法(NaN、月日出界)→ null(调用方回落今日)。 */
+export function fpYmOfDay(day: string | undefined): { y: number; m: number } | null {
+  if (!day) return null;
+  const [y, m, d] = day.split("-").map(Number);
+  return m >= 1 && m <= 12 && d >= 1 && d <= 31 ? { y, m } : null;
+}
+
+/** 深链初始视图态:payload.day 合法 → 停该日;非法/缺省 → 今日(today 恒为
+ *  dayKeyOf 产物,兜底分支防御性存在)。 */
+export function fpInitView(day: string | undefined, today: string): { ym: { y: number; m: number }; sel: string } {
+  const ym = fpYmOfDay(day);
+  if (day && ym) return { ym, sel: day };
+  return { ym: fpYmOfDay(today) ?? { y: 1970, m: 1 }, sel: today };
 }
 
 /* ── live 刷新信号(模块级 ref 桥,先例 kernel/shortcuts 的模块级桥) ── */

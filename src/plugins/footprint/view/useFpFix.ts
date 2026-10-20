@@ -1,12 +1,15 @@
 /**
- * 修正层 hook(spec 管线 D):以当前生效卡为基底改后整量写 .user.json,
- * AI 原档保留可回溯;bumpFootprintRev 触发当日重读。
- * 二期:合并/拆分/手动补归纳(浮层见 FixModals)。自 FootprintView 拆出守 300 行铁则。
+ * 修正层 hook(spec 管线 D,v2 差量语义 2026-10-20):以 AI 原档为基底,
+ * 把「生效卡集」重算为差量层(overrides/hidden/added)写 .user.json——
+ * 手动/修正卡不再吞掉后到的 AI 归纳卡;AI 原档保留可回溯。
+ * 自 FootprintView 拆出守 300 行铁则。
  */
 import { useCallback, useState } from "react";
 import { t } from "@kernel/i18n";
 import type { FpCardView } from "../dataSource";
+import type { FeatureCard } from "../types";
 import { saveUserCards } from "../rollup";
+import { diffLayer } from "../userLayer";
 import { bumpFootprintRev } from "../fpTab";
 
 export type FixDialog =
@@ -16,7 +19,7 @@ export type FixDialog =
 
 interface UseFpFixDeps {
   sel: string;
-  detail: { cards: FpCardView[] } | null;
+  detail: { cards: FpCardView[]; aiCards: FeatureCard[] | null } | null;
   showToast: (msg: string) => void;
 }
 
@@ -51,6 +54,7 @@ export function splitCard(
     sessions: moveSids,
     quote: source.quote && move.has(source.quote.sid) ? source.quote : undefined,
     unverified: source.unverified,
+    provenance: "added",
   };
   const out = cards
     .filter((c) => c.title !== sourceTitle || rest.length > 0)
@@ -64,15 +68,20 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
   const [renameVal, setRenameVal] = useState("");
   const [dialog, setDialog] = useState<FixDialog | null>(null);
 
+  /** 生效卡集 → 差量层写盘(基底 = AI 原档;无 AI 档时全部进 added)。 */
   const writeUserCards = useCallback(
-    async (cards: FpCardView[]) => {
-      await saveUserCards(sel, {
-        version: 1,
-        cards: cards.map((c) => ({ title: c.title, summary: c.summary, sessions: c.sessions, quote: c.quote })),
-      });
+    async (cards: FpCardView[]): Promise<boolean> => {
+      try {
+        const plain = cards.map((c) => ({ title: c.title, summary: c.summary, sessions: c.sessions, quote: c.quote }));
+        await saveUserCards(sel, diffLayer(detail?.aiCards ?? null, plain));
+      } catch {
+        showToast(t("修正层写入失败:检查磁盘与 ~/.tmd-cli 权限"));
+        return false;
+      }
       bumpFootprintRev();
+      return true;
     },
-    [sel],
+    [sel, detail?.aiCards, showToast],
   );
 
   const saved = useCallback(() => showToast(t("已写入修正层(.user.json)")), [showToast]);
@@ -82,15 +91,15 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
     const next = renameVal.trim();
     const cards = detail.cards.map((c) => (c.title === renaming && next ? { ...c, title: next } : c));
     setRenaming(null);
-    void writeUserCards(cards).then(saved);
+    void writeUserCards(cards).then((ok) => ok && saved());
   }, [renaming, renameVal, detail, writeUserCards, saved]);
 
   const hideCard = useCallback(
     (title: string) => {
       if (!detail) return;
       const cards = detail.cards.filter((c) => c.title !== title);
-      void writeUserCards(cards).then(() =>
-        showToast(t("已隐藏该卡(AI 原卡保留,删 .user.json 可恢复)")),
+      void writeUserCards(cards).then((ok) =>
+        ok && showToast(t("已隐藏该卡(AI 原卡保留,删 .user.json 可恢复)")),
       );
     },
     [detail, writeUserCards, showToast],
@@ -102,7 +111,7 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
       if (!detail || dialog?.kind !== "merge") return;
       if (!detail.cards.some((c) => c.title === dialog.title)) return setDialog(null);
       setDialog(null);
-      void writeUserCards(mergeCards(detail.cards, dialog.title, targetTitle)).then(saved);
+      void writeUserCards(mergeCards(detail.cards, dialog.title, targetTitle)).then((ok) => ok && saved());
     },
     [detail, dialog, writeUserCards, saved],
   );
@@ -112,18 +121,23 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
     (newTitle: string, moveSids: string[]) => {
       if (!detail || dialog?.kind !== "split") return;
       setDialog(null);
-      void writeUserCards(splitCard(detail.cards, dialog.title, newTitle, moveSids)).then(saved);
+      void writeUserCards(splitCard(detail.cards, dialog.title, newTitle, moveSids)).then((ok) => ok && saved());
     },
     [detail, dialog, writeUserCards, saved],
   );
 
-  /* 手动补归纳:空态建卡(user 层整量替换;无 AI 卡日无覆盖风险)。 */
+  /* 手动补归纳:追加到生效集(差分写盘后 = added 层),不触碰既有 AI/修正卡;
+   * 同名守卫:标题与现存卡撞车会静默覆盖 AI 同题卡,必须先拒。 */
   const submitManual = useCallback(
     (card: FpCardView) => {
       setDialog(null);
-      void writeUserCards([card]).then(saved);
+      if (detail?.cards.some((c) => c.title === card.title)) {
+        showToast(t("已存在同名功能卡,请换个名称"));
+        return;
+      }
+      void writeUserCards([...(detail?.cards ?? []), card]).then((ok) => ok && saved());
     },
-    [writeUserCards, saved],
+    [detail, writeUserCards, saved, showToast],
   );
 
   /* 修正菜单分发(重命名/合并/拆分/无关);FIX_ACTIONS 序对应。 */
