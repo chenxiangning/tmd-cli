@@ -12,14 +12,15 @@ import { resolveDefaultOpenWithFor } from "@kernel/openWith";
 import { getSettingsState } from "@kernel/settings";
 import { dayDetail as queryDayDetail, monthHeat, range as queryRange, readFeatureCards, searchFootprint as querySearch } from "./query";
 import type { DayDetail, HeatCell, RangeSummary, SearchHit, SearchKind } from "./query";
+import type { CardProvenance } from "./userLayer";
 import type { FeatureCard, FootprintDay, FootprintMonthFile } from "./types";
 
 export type { DaySessionRow, DayDetail, HeatCell, RangeSummary, SearchHit, SearchKind };
 export type FpDay = FootprintDay;
 export type FpMonthFile = FootprintMonthFile;
 
-/** 会话引用校验已标注的功能卡(unverified = 引用了当日枚举外的会话)。 */
-export type FpCardView = FeatureCard & { unverified: boolean };
+/** 会话引用校验已标注 + 卡级来源(AI 原卡/用户改后/手动新增)的功能卡。 */
+export type FpCardView = FeatureCard & { unverified: boolean; provenance: CardProvenance };
 /** rollup files 记录的值类型(无 path;path 在键上)。 */
 export type DayFileEntry = FootprintDay["files"][string];
 
@@ -66,6 +67,8 @@ export interface FpDayDetail {
   cards: FpCardView[];
   /** 功能卡来源(徽标区分 AI 归纳/已修正/纯手动;无卡时无意义)。 */
   cardsOrigin: "ai" | "user-edited" | "manual" | null;
+  /** AI 原档卡(修正层差量写盘的基底;无 AI 档 = null)。 */
+  aiCards: FeatureCard[] | null;
   rows: DaySessionRow[];
   article: string | null;
   commits: FpCommit[];
@@ -119,11 +122,18 @@ export async function loadDayDetail(day: string): Promise<FpDayDetail> {
   const rows = rowsRes.rows.filter((r) => dayKeyOf(new Date(r.startedAt)) === day);
   const known = knownSessionIds(rollup, rows);
   const featureRead = await readFeatureCards(day);
-  const cards: FpCardView[] = (featureRead?.file.cards ?? []).map((c) => ({
-    ...c,
-    unverified: c.sessions.some((sid) => !known.has(sid)),
+  const cards: FpCardView[] = (featureRead?.merged ?? []).map(({ card, provenance }) => ({
+    ...card,
+    unverified: card.sessions.some((sid) => !known.has(sid)),
+    provenance,
   }));
-  return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article, commits, scanFailed: rowsRes.failed > 0 };
+  return {
+    day, rollup, cards,
+    cardsOrigin: featureRead?.origin ?? null,
+    aiCards: featureRead?.ai ?? null,
+    rows, article, commits,
+    scanFailed: rowsRes.failed > 0,
+  };
 }
 
 /* ── 月历热力 / 区间(转发 query) ── */
@@ -146,11 +156,17 @@ export async function loadRangeDetails(days: string[]): Promise<FpDayDetail[]> {
       const rows = rowsByDay.get(day) ?? [];
       const known = knownSessionIds(rollup, rows);
       const featureRead = await readFeatureCards(day);
-      const cards: FpCardView[] = (featureRead?.file.cards ?? []).map((c) => ({
-        ...c,
-        unverified: c.sessions.some((sid) => !known.has(sid)),
+      const cards: FpCardView[] = (featureRead?.merged ?? []).map(({ card, provenance }) => ({
+        ...card,
+        unverified: card.sessions.some((sid) => !known.has(sid)),
+        provenance,
       }));
-      return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article: null, commits: [], scanFailed: rowsRes.failed > 0 };
+      return {
+        day, rollup, cards,
+        cardsOrigin: featureRead?.origin ?? null,
+        aiCards: featureRead?.ai ?? null,
+        rows, article: null, commits: [], scanFailed: rowsRes.failed > 0,
+      };
     }),
   );
 }

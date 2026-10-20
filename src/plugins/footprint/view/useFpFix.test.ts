@@ -16,6 +16,7 @@ const card = (title: string, sessions: string[], extra: Partial<FpCardView> = {}
   summary: `s-${title}`,
   sessions,
   unverified: false,
+  provenance: "ai",
   ...extra,
 });
 

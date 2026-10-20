@@ -7,7 +7,7 @@ import { KernelTopics, type CkptTurnSealedEvent } from "@kernel/events";
 import type { PluginEventBus } from "@kernel/plugin";
 import { ensureParentDir } from "@kernel/fsDirs";
 import type { CkptBatch } from "@kernel/ipc";
-import type { FeatureCardFile } from "./types";
+import type { UserCardsFile } from "./userLayer";
 import {
   emptyDay, emptyMonth, isCfgPath, settleKey,
   type FootprintDay, type FootprintMonthFile,
@@ -147,14 +147,14 @@ export function resetMonthCache(): void {
   monthCache.clear();
 }
 
-/* ── 用户修正覆盖层(spec 管线 D):features/YYYY-MM-DD.user.json ──
- * 整文件替换 AI 卡,原 AI 档保留可回溯(删 .user.json 即恢复)。
- * 基底 = 当前生效卡,单卡自含动作(重命名/隐藏)直接落盘;
- * 合并/拆分需跨卡选择交互,未定义不实现。 */
+/* ── 用户修正覆盖层(spec 管线 D,v2 差量语义 2026-10-20):
+ * .user.json = { version:2, overrides(按 AI 原标题覆盖), hidden(tombstone), added }。
+ * 早期手动卡不再整量吞掉后到的 AI 归纳卡;重命名/隐藏/合并/拆分/手动
+ * 全部由 useFpFix 以 AI 原档为基底重算差分写入(纯函数见 userLayer.ts)。 */
 
-/** 保存当日用户修正卡(整量覆写 .user.json)。 */
-export async function saveUserCards(day: string, file: FeatureCardFile): Promise<void> {
+/** 保存当日修正差量层(整量覆写 .user.json,v2 差量档:对 AI 原档不整吞)。 */
+export async function saveUserCards(day: string, layer: UserCardsFile): Promise<void> {
   const path = (await featuresPath(day)).replace(/\.json$/, ".user.json");
   await ensureParentDir(path);
-  await ipc.fsWriteFile(path, JSON.stringify(file, null, 1));
+  await ipc.fsWriteFile(path, JSON.stringify(layer, null, 1));
 }

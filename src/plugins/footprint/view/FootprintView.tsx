@@ -176,7 +176,7 @@ export function FootprintView({ tab }: { tab: EditorTab }) {
         <main className="flex min-w-0 flex-1 flex-col">
           <DayFlow
             loading={!range && dayLoading}
-            detail={detail ?? { day: sel, rollup: null, cards: [], cardsOrigin: null, rows: [], article: null, commits: [], scanFailed: false }}
+            detail={detail ?? { day: sel, rollup: null, cards: [], cardsOrigin: null, aiCards: null, rows: [], article: null, commits: [], scanFailed: false }}
             range={range}
             rangeDetails={rangeDetails}
             query={searchOpen ? query : ""}

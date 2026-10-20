@@ -12,6 +12,7 @@ const detail: FpDayDetail = {
   rollup: null,
   cards: [],
   cardsOrigin: null,
+  aiCards: null,
   rows: [],
   article: null,
   commits: [],

@@ -14,7 +14,7 @@ vi.mock("@kernel/fsDirs", () => ({ ensureParentDir: vi.fn(async () => undefined)
 
 import { ipc } from "@kernel/ipc";
 import { resetMonthCache } from "./rollup";
-import { dayDetail, monthHeat, range, searchFootprint, validateFeatureCards, monthSpan } from "./query";
+import { dayDetail, monthHeat, range, searchFootprint, validateFeatureCards, monthSpan, readFeatureCards } from "./query";
 
 const mockIpc = vi.mocked(ipc, true);
 
@@ -144,6 +144,62 @@ describe("searchFootprint(四来源分组)", () => {
     disk.delete("/cfg/footprint/features/2026-03-14.json");
     const hits = await searchFootprint("登录", now);
     expect(hits[D14].map((h) => h.kind)).toEqual(["path"]);
+  });
+});
+
+describe("readFeatureCards(AI + 修正层 v2 差量合并)", () => {
+  const AI = "/cfg/footprint/features/2026-03-14.json";
+  const USER = "/cfg/footprint/features/2026-03-14.user.json";
+  const aiCards = [
+    { title: "账号密码登录", summary: "实现了登录表单", sessions: ["s1"] },
+    { title: "配置中心", summary: "接入配置页", sessions: ["s2"] },
+  ];
+
+  it("仅 AI 档:全卡 provenance=ai,origin=ai", async () => {
+    disk.set(AI, JSON.stringify({ version: 1, cards: aiCards }));
+    const r = await readFeatureCards(D14);
+    expect(r?.origin).toBe("ai");
+    expect(r?.file.cards.map((c) => c.title)).toEqual(["账号密码登录", "配置中心"]);
+    expect(r?.merged.map((m) => m.provenance)).toEqual(["ai", "ai"]);
+  });
+
+  it("回归:早期 v1 手动卡不再吞掉后到的 AI 卡(标题不匹配→added,AI 全集可见)", async () => {
+    disk.set(AI, JSON.stringify({ version: 1, cards: aiCards }));
+    disk.set(USER, JSON.stringify({ version: 1, cards: [{ title: "项目分析2", summary: "项目分析", sessions: [] }] }));
+    const r = await readFeatureCards(D14);
+    expect(r?.origin).toBe("user-edited");
+    expect(r?.file.cards.map((c) => c.title)).toEqual(["账号密码登录", "配置中心", "项目分析2"]);
+    expect(r?.merged.map((m) => m.provenance)).toEqual(["ai", "ai", "added"]);
+  });
+
+  it("v2 层:hidden tombstone 剔除 AI 卡,override 原位替换,added 追加", async () => {
+    disk.set(AI, JSON.stringify({ version: 1, cards: aiCards }));
+    disk.set(USER, JSON.stringify({
+      version: 2,
+      overrides: { 配置中心: { title: "配置中心", summary: "用户改写", sessions: ["s2", "s3"] } },
+      hidden: ["账号密码登录"],
+      added: [{ title: "手动卡", summary: "", sessions: [] }],
+    }));
+    const r = await readFeatureCards(D14);
+    expect(r?.file.cards.map((c) => c.title)).toEqual(["配置中心", "手动卡"]);
+    expect(r?.file.cards[0].summary).toBe("用户改写");
+    expect(r?.merged.map((m) => m.provenance)).toEqual(["override", "added"]);
+  });
+
+  it("仅 v1 user 档(无 AI):manual,全部 added(纯手动日语义不变)", async () => {
+    disk.set(USER, JSON.stringify({ version: 1, cards: [{ title: "手动卡", summary: "", sessions: [] }] }));
+    const r = await readFeatureCards(D14);
+    expect(r?.origin).toBe("manual");
+    expect(r?.file.cards.map((c) => c.title)).toEqual(["手动卡"]);
+  });
+
+  it("两档俱缺 = null;user 档损坏 = 空层不吞 AI 卡", async () => {
+    expect(await readFeatureCards(D14)).toBeNull();
+    disk.set(AI, JSON.stringify({ version: 1, cards: aiCards }));
+    disk.set(USER, "{broken");
+    const r = await readFeatureCards(D14);
+    expect(r?.origin).toBe("ai");
+    expect(r?.file.cards).toHaveLength(2);
   });
 });
 

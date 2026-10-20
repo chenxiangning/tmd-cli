@@ -206,7 +206,7 @@ export function FixModals(p: FixModalsProps) {
   return (
     <Shell
       title={t("手动补归纳")}
-      hint={t("为该日建一张功能卡;会话引用可选,留空即为纯文字卡")}
+      hint={t("新增一张功能卡,不影响既有 AI 归纳;会话引用可选,留空即为纯文字卡")}
       submitDisabled={!mTitle.trim()}
       onSubmit={() => {
         const card: FpCardView = {
@@ -214,6 +214,7 @@ export function FixModals(p: FixModalsProps) {
           summary: mSummary.trim(),
           sessions: [...picked],
           unverified: false,
+          provenance: "added",
         };
         closeReset();
         p.onManual(card);

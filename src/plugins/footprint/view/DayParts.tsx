@@ -36,7 +36,9 @@ export function FeatureCard({ card, inRange, day, query, focused, origin, detail
   onFix: (c: FpCardView, rect: DOMRect) => void;
 }) {
   const stats = cardStats(detail, card);
-  const manual = origin === "manual" || origin === "user-edited";
+  /* 卡级来源优先(差量层逐卡标注);旧调用方未传时回退日级 origin。 */
+  const provenance = card.provenance ?? (origin === "manual" ? "added" : origin === "user-edited" ? "override" : "ai");
+  const manual = provenance !== "ai";
   return (
     <div
       className={`group relative overflow-hidden rounded-xl border bg-[var(--tmd-bg-panel)] transition-all hover:-translate-y-px hover:border-[var(--tmd-border-strong,var(--tmd-border))] hover:shadow-md ${focused ? "border-[var(--tmd-accent,var(--tmd-accent))] ring-1 ring-[var(--tmd-accent,var(--tmd-accent))]" : "border-[var(--tmd-border,var(--tmd-border))]"}`}
@@ -55,9 +57,9 @@ export function FeatureCard({ card, inRange, day, query, focused, origin, detail
             <span className={`flex-none whitespace-nowrap rounded px-1.5 text-[9.5px] font-semibold ${card.unverified ? "border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] text-[var(--tmd-fg-muted)]" : manual ? "bg-[color-mix(in_srgb,var(--tmd-warn)_12%,transparent)] text-[var(--tmd-warn)]" : "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]"}`}>
               {card.unverified
                 ? t("会话引用未验证")
-                : origin === "manual"
+                : provenance === "added"
                   ? t("手动")
-                  : origin === "user-edited"
+                  : provenance === "override"
                     ? t("已修正")
                     : t("AI 归纳")}
             </span>

@@ -5,6 +5,7 @@
 import { ipc } from "@kernel/ipc";
 import { dailyPaths } from "@plugins/workbench/journal/journalFiles";
 import { getMonth, featuresPath } from "./rollup";
+import { emptyUserLayer, isEmptyLayer, mergeLayer, migrateV1, type MergedCard, type UserCardsFile } from "./userLayer";
 import {
   emptyDay, pad2,
   type FeatureCard, type FeatureCardFile, type FootprintDay, type FpFileStat, type FpSessionEntry,
@@ -150,30 +151,53 @@ async function readTextOrNull(path: string): Promise<string | null> {
   }
 }
 
-/** 当日功能卡档读取结果:origin 供徽标区分 AI 归纳/用户修正/纯手动。 */
+/** 当日功能卡档读取结果:origin 供徽标区分 AI 归纳/用户修正/纯手动;
+ *  merged 逐卡带来源(AI 原卡/用户改后/手动新增),ai/layer 供修正层差量写盘。 */
 export interface FeatureCardsRead {
   file: FeatureCardFile;
   origin: "ai" | "user-edited" | "manual";
+  ai: FeatureCard[] | null;
+  layer: UserCardsFile;
+  merged: MergedCard[];
 }
 
-/** 当日功能卡档;缺失/损坏 = null(该日无功能卡)。
- *  用户修正覆盖层(.user.json)优先整体替换,AI 原档保留可回溯;
- *  来源按两档存在性判定:user 存在且 AI 档也在 = 已修正,仅 user = 纯手动。 */
+/** 用户档宽容判型:v2 差量层直用;v1 整量快照按标题对账迁移;其余=空层(不吞 AI 卡)。 */
+function toUserLayer(raw: unknown, ai: FeatureCard[] | null): UserCardsFile {
+  const r = raw as (Partial<UserCardsFile> & Partial<FeatureCardFile>) | null;
+  if (r && r.version === 2 && r.overrides && Array.isArray(r.hidden) && Array.isArray(r.added)) {
+    return r as unknown as UserCardsFile;
+  }
+  if (r && r.version === 1 && Array.isArray(r.cards)) {
+    return migrateV1(r.cards as FeatureCard[], ai);
+  }
+  return emptyUserLayer();
+}
+
+/** 当日功能卡档;AI 与修正层双层合并(v2 差量语义,旧 v1 档读时自动迁移):
+ *  修正层 = 按 AI 原标题的 overrides + 显式 hidden tombstone + 手动 added;
+ *  任一层缺失/损坏宽容降级(修正层损坏 = 空层,AI 卡不受牵连)。 */
 export async function readFeatureCards(day: string): Promise<FeatureCardsRead | null> {
   const aiPath = await featuresPath(day);
   const userPath = aiPath.replace(/\.json$/, ".user.json");
-  const read = async (path: string): Promise<FeatureCardFile | null> => {
+  const readJson = async (path: string): Promise<unknown | null> => {
     try {
-      const parsed = JSON.parse(await ipc.fsReadFile(path)) as FeatureCardFile;
-      return parsed && parsed.version === 1 && Array.isArray(parsed.cards) ? parsed : null;
+      return JSON.parse(await ipc.fsReadFile(path)) as unknown;
     } catch {
       return null;
     }
   };
-  const [ai, user] = [await read(aiPath), await read(userPath)];
-  if (user) return { file: user, origin: ai ? "user-edited" : "manual" };
-  if (ai) return { file: ai, origin: "ai" };
-  return null;
+  const aiRaw = await readJson(aiPath);
+  const aiFile =
+    aiRaw && (aiRaw as FeatureCardFile).version === 1 && Array.isArray((aiRaw as FeatureCardFile).cards)
+      ? (aiRaw as FeatureCardFile)
+      : null;
+  const ai = aiFile?.cards ?? null;
+  const userRaw = await readJson(userPath);
+  const layer = toUserLayer(userRaw, ai);
+  const merged = mergeLayer(ai, layer);
+  if (!aiFile && userRaw == null) return null;
+  const origin = aiFile ? (isEmptyLayer(layer) ? "ai" : "user-edited") : "manual";
+  return { file: { version: 1, cards: merged.map((m) => m.card) }, origin, ai, layer, merged };
 }
 
 /** 四来源搜索,按日分组。now 决定当月(测试可注入)。 */
