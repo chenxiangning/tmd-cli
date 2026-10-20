@@ -16,10 +16,12 @@ export interface FpSearchDeps {
   setDetail: (d: FpDayDetail) => void;
   setFileSel: (p: FileSel | null) => void;
   openCard: (c: FpCardView) => void;
+  /** 清区间起点(跳日后残留 anchor 会让下一次单击莫名完成区间)。 */
+  clearAnchor: () => void;
 }
 
 /** 返回搜索 UI 态(openSearch/pickHit 给顶栏与浮层),聚焦输入框 ref 一并交出。 */
-export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, setFileSel, openCard }: FpSearchDeps) {
+export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, setFileSel, openCard, clearAnchor }: FpSearchDeps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<FpHit[] | null>(null);
@@ -57,6 +59,7 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
       const d = new Date(`${h.day}T12:00:00`);
       if (d.getFullYear() !== ym.y || d.getMonth() + 1 !== ym.m) setYm({ y: d.getFullYear(), m: d.getMonth() + 1 });
       setRange(null);
+      clearAnchor();
       setSel(h.day);
       if (h.kind === "card" || h.kind === "quote") {
         void loadDayDetail(h.day).then((dd) => {
@@ -69,7 +72,7 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
       }
       setFileSel(null);
     },
-    [ym, setDetail, setFileSel, openCard, setYm, setRange, setSel, setCard],
+    [ym, setDetail, setFileSel, openCard, setYm, setRange, setSel, setCard, clearAnchor],
   );
 
   return { searchOpen, setSearchOpen, query, setQuery, hits, setHits, cursor, setCursor, searchInputRef, openSearch, pickHit };

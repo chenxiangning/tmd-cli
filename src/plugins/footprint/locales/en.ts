@@ -105,6 +105,7 @@ export const MESSAGES_EN = {
   "拆分此卡…": "Split this card…",
   "标记为无关": "Mark as unrelated",
   "已写入修正层(.user.json)": "Saved to the fix layer (.user.json)",
+  "修正层写入失败:检查磁盘与 ~/.tmd-cli 权限": "Failed to write the fix layer: check disk space and ~/.tmd-cli permissions",
   "已隐藏该卡(AI 原卡保留,删 .user.json 可恢复)": "Card hidden (AI original kept; delete .user.json to restore)",
   "确定": "OK",
   "新的功能卡名称": "New feature card name",

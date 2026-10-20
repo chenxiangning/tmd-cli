@@ -124,7 +124,7 @@ export function EvidenceDrawer({ card, detail, query, selPath, selSess, onClose,
                 <Hi text={row?.title ?? `${t("会话")} ${sid.slice(0, 8)}`} q={query} />
               </span>
               <span className="flex-none font-mono text-[10.5px] text-[var(--tmd-fg-muted)]">
-                {(roll?.first ?? "").slice(11, 16) || (row ? new Date(row.startedAt).toTimeString().slice(0, 5) : "")}
+                {(roll?.first ? new Date(roll.first).toTimeString().slice(0, 5) : (row ? new Date(row.startedAt).toTimeString().slice(0, 5) : ""))}
               </span>
             </button>
             <button

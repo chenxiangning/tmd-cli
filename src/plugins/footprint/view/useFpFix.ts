@@ -65,14 +65,20 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
   const [dialog, setDialog] = useState<FixDialog | null>(null);
 
   const writeUserCards = useCallback(
-    async (cards: FpCardView[]) => {
-      await saveUserCards(sel, {
-        version: 1,
-        cards: cards.map((c) => ({ title: c.title, summary: c.summary, sessions: c.sessions, quote: c.quote })),
-      });
+    async (cards: FpCardView[]): Promise<boolean> => {
+      try {
+        await saveUserCards(sel, {
+          version: 1,
+          cards: cards.map((c) => ({ title: c.title, summary: c.summary, sessions: c.sessions, quote: c.quote })),
+        });
+      } catch {
+        showToast(t("修正层写入失败:检查磁盘与 ~/.tmd-cli 权限"));
+        return false;
+      }
       bumpFootprintRev();
+      return true;
     },
-    [sel],
+    [sel, showToast],
   );
 
   const saved = useCallback(() => showToast(t("已写入修正层(.user.json)")), [showToast]);
@@ -82,15 +88,15 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
     const next = renameVal.trim();
     const cards = detail.cards.map((c) => (c.title === renaming && next ? { ...c, title: next } : c));
     setRenaming(null);
-    void writeUserCards(cards).then(saved);
+    void writeUserCards(cards).then((ok) => ok && saved());
   }, [renaming, renameVal, detail, writeUserCards, saved]);
 
   const hideCard = useCallback(
     (title: string) => {
       if (!detail) return;
       const cards = detail.cards.filter((c) => c.title !== title);
-      void writeUserCards(cards).then(() =>
-        showToast(t("已隐藏该卡(AI 原卡保留,删 .user.json 可恢复)")),
+      void writeUserCards(cards).then((ok) =>
+        ok && showToast(t("已隐藏该卡(AI 原卡保留,删 .user.json 可恢复)")),
       );
     },
     [detail, writeUserCards, showToast],
@@ -102,7 +108,7 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
       if (!detail || dialog?.kind !== "merge") return;
       if (!detail.cards.some((c) => c.title === dialog.title)) return setDialog(null);
       setDialog(null);
-      void writeUserCards(mergeCards(detail.cards, dialog.title, targetTitle)).then(saved);
+      void writeUserCards(mergeCards(detail.cards, dialog.title, targetTitle)).then((ok) => ok && saved());
     },
     [detail, dialog, writeUserCards, saved],
   );
@@ -112,7 +118,7 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
     (newTitle: string, moveSids: string[]) => {
       if (!detail || dialog?.kind !== "split") return;
       setDialog(null);
-      void writeUserCards(splitCard(detail.cards, dialog.title, newTitle, moveSids)).then(saved);
+      void writeUserCards(splitCard(detail.cards, dialog.title, newTitle, moveSids)).then((ok) => ok && saved());
     },
     [detail, dialog, writeUserCards, saved],
   );
@@ -121,7 +127,7 @@ export function useFpFix({ sel, detail, showToast }: UseFpFixDeps) {
   const submitManual = useCallback(
     (card: FpCardView) => {
       setDialog(null);
-      void writeUserCards([card]).then(saved);
+      void writeUserCards([card]).then((ok) => ok && saved());
     },
     [writeUserCards, saved],
   );

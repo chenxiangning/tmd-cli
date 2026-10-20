@@ -5,7 +5,7 @@
  * 自 FootprintView 拆出守 300 行铁则与 react-doctor 复杂度(selectDay 的
  * 区间三岔判定是组件体最大控制流块)。
  */
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import type { FpCardView } from "../dataSource";
 import type { FileSel } from "./useFpFiles";
@@ -21,16 +21,24 @@ export interface FpSelectionDeps {
 }
 
 export function useFpSelection({ range, setRange, showToast, setSel, setCard, setFileSel, setFocusIdx }: FpSelectionDeps) {
-  const [anchor, setAnchor] = useState<string | null>(null); /* 区间起点(ranging 态左栏提示消费) */
+  const [anchor, setAnchorState] = useState<string | null>(null); /* 区间起点(ranging 态左栏提示消费) */
+  /* 判定走 ref:同一事件里先 clearAnchor 再 selectDay 时,闭包 state 仍旧值
+   * 会误完成区间(2026-10-20 找 bug 修;26bfee91 纯 state 化的回归)。 */
+  const anchorRef = useRef<string | null>(null);
+  const setAnchor = useCallback((v: string | null) => {
+    anchorRef.current = v;
+    setAnchorState(v);
+  }, []);
 
   const selectDay = useCallback(
     (day: string, shift: boolean) => {
       /* 区间中点单日 = 退出区间进当日(原型语义);起点已选时再点任意日 = 完成区间 */
+      const a = anchorRef.current;
       if (range) {
         setRange(null);
         setAnchor(null);
-      } else if (anchor) {
-        setRange(anchor <= day ? [anchor, day] : [day, anchor]);
+      } else if (a) {
+        setRange(a <= day ? [a, day] : [day, a]);
         setAnchor(null);
         setCard(null);
         setFileSel(null);
@@ -47,7 +55,7 @@ export function useFpSelection({ range, setRange, showToast, setSel, setCard, se
       setFileSel(null);
       setFocusIdx(-1);
     },
-    [range, anchor, setRange, showToast, setSel, setCard, setFileSel, setFocusIdx],
+    [range, setAnchor, setRange, showToast, setSel, setCard, setFileSel, setFocusIdx],
   );
 
   const anchorDay = useCallback(
@@ -55,12 +63,12 @@ export function useFpSelection({ range, setRange, showToast, setSel, setCard, se
       setAnchor(day);
       showToast(t("已选区间起点 {day}", { day }));
     },
-    [showToast],
+    [setAnchor, showToast],
   );
 
   const resetSelection = useCallback(() => {
     setAnchor(null);
-  }, []);
+  }, [setAnchor]);
 
   return { anchor, selectDay, anchorDay, resetSelection };
 }

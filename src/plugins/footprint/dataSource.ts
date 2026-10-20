@@ -31,6 +31,15 @@ export interface FpCommit {
   time: string;
 }
 
+/** 日期窗查询两端(Rust parse_iso 契约:naive 串按 UTC 取值,必须传
+ *  toISOString() 产物;发本地 naive 串 = 窗口平移时区差,2026-10-20 修)。 */
+export function commitWindow(day: string): { since: string; until: string } {
+  return {
+    since: new Date(`${day}T00:00:00`).toISOString(),
+    until: new Date(`${day}T23:59:59`).toISOString(),
+  };
+}
+
 /** 日键 YYYY-MM-DD(本地时区)。 */
 export function dayKeyOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -88,8 +97,7 @@ async function readTextOrNull(path: string): Promise<string | null> {
 }
 
 async function loadCommits(day: string): Promise<FpCommit[]> {
-  const since = `${day}T00:00:00`;
-  const until = `${day}T23:59:59`;
+  const { since, until } = commitWindow(day);
   const results = await Promise.all(
     getWorkspaces()
       .filter((w) => !findWorkspaceOrigin(w)?.remoteExec)

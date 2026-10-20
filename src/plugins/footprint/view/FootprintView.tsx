@@ -115,6 +115,7 @@ export function FootprintView({ tab }: { tab: EditorTab }) {
     setDetail,
     setFileSel,
     openCard,
+    clearAnchor: resetSelection,
   });
 
   /* 键盘:j/k/t/1/2/?/esc/方向键(容器聚焦期生效,不抢 composer) */
@@ -141,6 +142,7 @@ export function FootprintView({ tab }: { tab: EditorTab }) {
     shiftMonth,
     selectDay,
     openCard,
+    clearAnchor: resetSelection,
   });
 
   return (

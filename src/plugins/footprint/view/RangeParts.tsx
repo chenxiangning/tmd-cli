@@ -165,7 +165,7 @@ export function DayTail({ detail, hasFeatures, ungrouped }: {
           </div>
           <div className="mb-4">
             {detail.commits.map((c) => (
-              <RawRow key={c.hash} left={c.time.slice(11, 16)} tag="git" tagColor="var(--tmd-fg-muted)" text={`${c.hash} ${c.subject}`} mono />
+              <RawRow key={c.hash} left={new Date(c.time).toTimeString().slice(0, 5)} tag="git" tagColor="var(--tmd-fg-muted)" text={`${c.hash} ${c.subject}`} mono />
             ))}
           </div>
         </>
