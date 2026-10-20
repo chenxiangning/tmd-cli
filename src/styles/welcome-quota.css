@@ -100,8 +100,16 @@
 .wq-ok { background: var(--tmd-ok); color: #fff; }
 .wq-limited { background: var(--tmd-err); color: #fff; }
 
-/* 卡体:窗口块(5 小时 + 7 天并列);单窗卡环 76,多窗卡环 60 */
-.wq-wins { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+/* 卡体:窗口块固定并列不换行 —— 文案长度变化(倒计时/重置日)不得把后排窗口
+   挤成串行堆叠;多窗卡定宽两列网格(>2 窗按行排),单窗卡保持单块。
+   单窗卡环 76,多窗卡环 60 */
+.wq-wins { display: flex; align-items: center; gap: 24px; }
+.wq-multi .wq-wins {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 24px;
+}
 .wq-win { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .wq-ring {
   position: relative;
