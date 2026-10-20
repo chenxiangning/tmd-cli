@@ -26,7 +26,7 @@ export interface EvidenceDrawerProps {
 /** 证据抽屉栏(右栏外壳:条件渲染 + 关闭/选中接线,守 FootprintView 300 行)。 */
 export function FpDrawer({ card, detail, query, selPath, selSess, onClose, onSelectSess, onSelectFile, onResumeSession, onOpenFile, onRevealFile }: EvidenceDrawerProps) {
   return (
-    <aside className="flex w-[340px] flex-none flex-col border-l border-[var(--tmd-border,var(--tmd-border))]">
+    <aside className="flex h-full w-full flex-none flex-col">
       <EvidenceDrawer
         card={card}
         detail={detail}

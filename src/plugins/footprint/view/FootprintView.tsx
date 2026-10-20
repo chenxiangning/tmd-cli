@@ -13,13 +13,11 @@ import { useFpSearch } from "./useFpSearch";
 import { useFpAiDigest } from "./useFpAiDigest";
 import { useFootprintRev, gotoToday, fpInitView } from "../fpTab";
 import type { FootprintTabPayload } from "../fpTab";
-import { DayFlow } from "./DayFlow";
-import { FpMainDiff } from "./DiffPanel";
-import { FpDrawer } from "./EvidenceDrawer";
+import { FpColumns } from "./FpColumns";
 import { FixModals } from "./FixModals";
 import { FpOverlays } from "./FpOverlays";
 import { FpTopbar } from "./FpTopbar";
-import { MonthCal, type HeatMode } from "./MonthCal";
+import { type HeatMode } from "./MonthCal";
 import { useFpFiles } from "./useFpFiles";
 import { useFpDeepLinkJump } from "./useFpDeepLink";
 import { useFpSelection } from "./useFpSelection";
@@ -170,60 +168,44 @@ export function FootprintView({ tab }: { tab: EditorTab }) {
         onToggleHelp={() => setHelpOpen((v) => !v)}
       />
 
-      {/* 三栏 */}
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[248px] flex-none flex-col gap-2 overflow-y-auto border-r border-[var(--tmd-border,var(--tmd-border))] py-3">
-          <MonthCal y={ym.y} m={ym.m} cells={month} today={today} sel={sel} range={range} heat={heat} onSelectDay={selectDay} onAnchorDay={anchorDay} />
-          <div className={`px-4 text-[10.5px] leading-relaxed ${anchor ? "text-[var(--tmd-accent,var(--tmd-accent))]" : "text-[var(--tmd-fg-muted)]"}`}>
-            {anchor ? t("区间模式:再点一天完成选择 · 点单日退出") : t("区间模式:shift 点起点再点终点 · 右键同效 · 点单日退出")}
-          </div>
-        </aside>
-
-        <main className="flex min-w-0 flex-1 flex-col">
-          <DayFlow
-            loading={!range && dayLoading}
-            detail={detail ?? { day: sel, rollup: null, cards: [], cardsOrigin: null, aiCards: null, rows: [], article: null, commits: [], scanFailed: false }}
-            range={range}
-            rangeDetails={rangeDetails}
-            query={searchOpen ? query : ""}
-            today={today}
-            focusIdx={focusIdx}
-            onOpenCard={openCard}
-            onFix={(c, rect) => {
-              setFixCard(fixCard === c.title ? null : c.title);
-              setFixPos({ left: rect.left, top: rect.bottom });
-            }}
-            onManualDigest={() => setDialog({ kind: "manual" })}
-            onAiDigest={aiDigest}
-          />
-          <FpMainDiff
-            fileSel={card && detail ? fileSel : null}
-            onClose={() => setFileSel(null)}
-            onOpenFile={openFile}
-            onRevealFile={revealFile}
-            onGitFallback={() => showToast(t("git 跳转:git_repos_log_range 收口后接提交视图"))}
-          />
-        </main>
-
-        {card && detail && (
-          <FpDrawer
-            card={card}
-            detail={detail}
-            query={searchOpen ? "" : query}
-            selPath={fileSel?.path ?? null}
-            selSess={sessSel}
-            onClose={() => {
-              setCard(null);
-              setFileSel(null);
-            }}
-            onSelectSess={setSessSel}
-            onSelectFile={pickFile}
-            onResumeSession={resumeSession}
-            onOpenFile={openFile}
-            onRevealFile={revealFile}
-          />
-        )}
-      </div>
+      {/* 三栏:宽度可拖 + 默认宽 248/余量/340(布局与挂载闸详见 FpColumns 头注) */}
+      <FpColumns
+        ym={ym}
+        month={month}
+        today={today}
+        sel={sel}
+        range={range}
+        rangeDetails={rangeDetails}
+        dayLoading={dayLoading}
+        detail={detail}
+        heat={heat}
+        anchor={anchor}
+        card={card}
+        fileSel={fileSel}
+        sessSel={sessSel}
+        searchOpen={searchOpen}
+        query={query}
+        focusIdx={focusIdx}
+        selectDay={selectDay}
+        anchorDay={anchorDay}
+        openCard={openCard}
+        onFix={(c, rect) => {
+          setFixCard(fixCard === c.title ? null : c.title);
+          setFixPos({ left: rect.left, top: rect.bottom });
+        }}
+        onManualDigest={() => setDialog({ kind: "manual" })}
+        aiDigest={aiDigest}
+        closeDrawer={() => {
+          setCard(null);
+          setFileSel(null);
+        }}
+        setSessSel={setSessSel}
+        pickFile={pickFile}
+        resumeSession={resumeSession}
+        openFile={openFile}
+        revealFile={revealFile}
+        showToast={showToast}
+      />
 
       {/* 弹层们 */}
       <FpOverlays
