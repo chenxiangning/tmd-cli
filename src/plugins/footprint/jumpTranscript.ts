@@ -37,9 +37,11 @@ export async function jumpHitTranscript(hit: FpHit): Promise<JumpTextOutcome> {
     },
     quote.text,
   );
-  /* 幕布不可达(超回放窗/needle 未命中)→ 转录查看器兜底:磁盘全量文本定位 */
+  /* 幕布不可达(超回放窗/needle 未命中)→ 转录查看器兜底:磁盘全量文本定位。
+     兜底已开查看器,改判 opened(调用方静默);miss 仅链路解析失败(什么都没开)。 */
   if (outcome !== "jumped") {
     openSessionViewAtText({ profileId: entry.engine, cwd: entry.cwd, cliSessionId: quote.sid }, quote.text);
+    return "opened";
   }
   return outcome;
 }

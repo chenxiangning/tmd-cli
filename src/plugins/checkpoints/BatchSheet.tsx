@@ -132,7 +132,7 @@ function SheetBody({
     if (outcome === "jumped") return;
     setJumpNotice(
       outcome === "opened"
-        ? t("会话已打开,未定位到该条消息")
+        ? t("已在转录查看器中打开")
         : t("未能定位到该条对话消息"),
     );
     if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);

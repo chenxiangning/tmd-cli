@@ -141,7 +141,9 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
   }, [load, nonce]);
 
   /* 深链定位(批一追加):payload.locate → user 块下标纯派生,不进 effect
-     回写状态;越出已渲染批次由切片帽扩大覆盖,块 DOM 出现后滚一次(ref 防重放)。 */
+     回写状态;越出已渲染批次由切片帽扩大覆盖,块 DOM 出现后滚一次(ref 防重放)。
+     ponytail: 定位击穿 RENDER_BATCH 分批,数千块大卷深链会整帧冻结;
+     真机卡再改渐进扩批(每拍 +RENDER_BATCH 滚动逼近目标)。 */
   const locateIdx = useMemo(() => {
     if (!payload.locate || state.phase !== "ok") return null;
     return findBlockIndex(state.transcript.blocks, payload.locate.text, payload.locate.occurrence ?? 1);

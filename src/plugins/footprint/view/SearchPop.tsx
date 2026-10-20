@@ -40,7 +40,7 @@ export interface SearchPopProps {
   onPick: (hit: FpHit) => void;
   /** 「看对话」:原话逐字文本经 kernel 时序桥跳转录(checkpoints 同款语义)。 */
   onJumpHit: (hit: FpHit) => void;
-  /** 跳转轻反馈:opened/miss 短暂回显;null 隐藏。 */
+  /** 跳转轻反馈:仅链路解析失败(miss)短暂回显;opened 已落查看器静默。 */
   jumpNotice: string | null;
   onClose: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;

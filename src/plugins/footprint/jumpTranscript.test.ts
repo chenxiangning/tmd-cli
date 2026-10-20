@@ -84,12 +84,12 @@ describe("jumpHitTranscript", () => {
     expect(text).toBe(QUOTE);
   });
 
-  it("桥 opened/miss 原样透传并落查看器兜底", async () => {
+  it("桥 opened/miss → 查看器兜底并改判 opened(提示不报失败)", async () => {
     mockJump.mockResolvedValue("opened");
     await expect(jumpHitTranscript(hit({ day: "2026-03-14", kind: "card", snippet: "x", featureId: 1 }))).resolves.toBe("opened");
     expect(mockView).toHaveBeenCalledWith({ profileId: "claude", cwd: "/ws", cliSessionId: "s1" }, QUOTE);
     mockJump.mockResolvedValue("miss");
-    await expect(jumpHitTranscript(hit({ day: "2026-03-14", kind: "card", snippet: "x", featureId: 1 }))).resolves.toBe("miss");
+    await expect(jumpHitTranscript(hit({ day: "2026-03-14", kind: "card", snippet: "x", featureId: 1 }))).resolves.toBe("opened");
     expect(mockView).toHaveBeenCalledTimes(2);
   });
 

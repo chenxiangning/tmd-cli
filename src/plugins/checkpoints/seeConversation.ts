@@ -65,13 +65,15 @@ export async function viewBatchConversation(opts: {
     { occurrence: opts.occurrence },
   );
   /* 幕布不可达(超回放窗/needle 未命中)→ 转录查看器兜底:磁盘全量文本定位
-     (0.4.2 批一追加;profileId 已唯一认领才兜,歧义不猜)。 */
+     (0.4.2 批一追加;profileId 已唯一认领才兜,歧义不猜)。兜底已开查看器,
+     返回值改判 opened —— 调用方文案不得再报「未定位到」。 */
   if (outcome !== "jumped") {
     openSessionViewAtText(
       { profileId, cwd: opts.cwd, cliSessionId: opts.ledgerSessionId },
       opts.prompt,
       opts.occurrence ?? 1,
     );
+    return "opened";
   }
   return outcome;
 }
