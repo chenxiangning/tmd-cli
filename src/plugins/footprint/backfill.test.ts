@@ -161,4 +161,17 @@ describe("reconcileMonth(按月补账)", () => {
     const written = JSON.parse([...files.values()][0]) as FootprintMonthFile;
     expect(Object.keys(written.days["20"].sessions)).toEqual(["good"]);
   });
+
+  it("并发补账走单飞队列,不互相覆写(两会话同时补,落盘含两者)", async () => {
+    mockIpc.checkpointList.mockImplementation(async (_cwd: string, sid: string) => [batch({ id: `b-${sid}`, sessionId: sid })]);
+    mockRows.mockResolvedValueOnce({ rows: [row({ id: "s1" })], failed: 0 });
+    const [a, b] = await Promise.all([reconcileMonth("2026-10"), (async () => {
+      mockRows.mockResolvedValueOnce({ rows: [row({ id: "s2" })], failed: 0 });
+      return reconcileMonth("2026-10");
+    })()]);
+
+    expect(a + b).toBe(2);
+    const written = JSON.parse([...files.values()].pop() as string) as FootprintMonthFile;
+    expect(Object.keys(written.days["20"].sessions).sort()).toEqual(["s1", "s2"]);
+  });
 });

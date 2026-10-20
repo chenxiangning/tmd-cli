@@ -158,8 +158,15 @@ export interface BackfillItem {
 }
 
 /** 幂等并入补账项:同会话同轮次已在账即跳过(重封不重算),有并入才落盘。
- *  返回并入批次数(0 = 账已齐)。 */
+ *  返回并入批次数(0 = 账已齐)。
+ *  走与封口落盘同一条单飞队列:两条路径都是「读月档→改→写」,并行会互相覆写丢批。 */
 export async function backfillBatches(ym: string, items: BackfillItem[]): Promise<number> {
+  const run = queue.then(() => mergeBackfill(ym, items));
+  queue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+async function mergeBackfill(ym: string, items: BackfillItem[]): Promise<number> {
   if (!items.length) return 0;
   const month = await getMonth(ym);
   let merged = 0;
