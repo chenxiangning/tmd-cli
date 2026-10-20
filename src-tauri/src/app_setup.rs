@@ -111,3 +111,73 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
     crate::render_health::init_watchdog(built.clone());
     Ok(())
 }
+
+/// ⌘Q 退出守卫菜单(0.4.1 批三,仅 macOS 装配;另两平台 no-op 见下)。
+///
+/// 为什么走菜单而不是 ExitRequested(0.4.0 批二 review 双证据裁决):
+/// tauri-runtime-wry 的 ExitRequested{code:None} 仅来自最后窗口 Destroyed,
+/// 拦它 = 无窗僵尸进程;macOS(tao)无 applicationShouldTerminate,⌘Q 根本
+/// 不发 ExitRequested。唯一可靠挂点 = 应用菜单 accel:自定义菜单项接管
+/// CmdOrControl+Q(无默认退出行为),点击只发事件给前端,由关窗闸同款
+/// 聚合确认裁决——确认后关窗(单窗 destroyed → 进程退),取消则什么都不发生。
+///
+/// 装配面:app 子菜单(自定义 Quit + 预定义 about/services/hide 组)+ 编辑子菜单
+/// (undo/redo/cut/copy/paste/select_all,⌘C/⌘V 等编辑角色快捷键的载体)+
+/// 窗口子菜单(minimize/maximize/fullscreen/close)。tauri 2 SubmenuBuilder
+/// 无 edit/view/window 一键预建(edit_menu()/view_menu() 为 1.x API,2.12
+/// 实测不存在),角色项用细粒度方法拼装(方法清单 builders/menu.rs)。
+#[cfg(target_os = "macos")]
+pub(crate) fn install_quit_guard_menu(app: &mut tauri::App) -> tauri::Result<()> {
+    use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
+
+    let quit = MenuItemBuilder::with_id("tmd.quit", "退出 tmd-cli")
+        .accelerator("CmdOrControl+Q")
+        .build(app)?;
+    let app_menu = SubmenuBuilder::new(app, "tmd-cli")
+        .item(&PredefinedMenuItem::about(app, Some("关于 tmd-cli"), None)?)
+        .separator()
+        .item(&PredefinedMenuItem::services(app, None)?)
+        .separator()
+        .item(&PredefinedMenuItem::hide(app, None)?)
+        .item(&PredefinedMenuItem::hide_others(app, None)?)
+        .item(&PredefinedMenuItem::show_all(app, None)?)
+        .separator()
+        .item(&quit)
+        .build()?;
+    let edit_menu = SubmenuBuilder::new(app, "编辑")
+        .undo()
+        .redo()
+        .separator()
+        .cut()
+        .copy()
+        .paste()
+        .separator()
+        .select_all()
+        .build()?;
+    let window_menu = SubmenuBuilder::new(app, "窗口")
+        .minimize()
+        .maximize()
+        .fullscreen()
+        .close_window()
+        .build()?;
+    let menu = MenuBuilder::new(app)
+        .item(&app_menu)
+        .item(&edit_menu)
+        .item(&window_menu)
+        .build()?;
+    app.set_menu(menu)?;
+    app.on_menu_event(|app, event| {
+        if event.id().as_ref() == "tmd.quit" {
+            /* 事件单源扇出(桌面 emit + Web 桥广播);前端 quitGuardBoot 消费。 */
+            crate::event_sink::emit(app, "tmd://menu-quit", &());
+        }
+    });
+    Ok(())
+}
+
+/// 非 macOS 平台:no-op(⌘Q 语义不存在,窗口关闭仍走 onCloseRequested 关窗闸;
+/// 不装配菜单,Windows/Linux 的窗口菜单维持系统默认)。
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn install_quit_guard_menu(_app: &mut tauri::App) -> tauri::Result<()> {
+    Ok(())
+}

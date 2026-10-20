@@ -1033,6 +1033,24 @@ export function onWindowCloseRequest(decide: (prevent: () => void) => void): () 
   return () => unlisten?.();
 }
 
+/**
+ * ⌘Q 菜单退出意图(0.4.1 批三,macOS 菜单装配):Rust 自定义菜单项 tmd.quit
+ * (accel CmdOrControl+Q,无默认退出行为)点击经事件单源扇出 tmd://menu-quit。
+ * 前端复用关窗闸确认流裁决——确认后关窗(单窗 destroyed → 进程退),取消无动作。
+ * 比 ExitRequested 可靠(0.4.0 批二 review 双证据:ExitRequested 仅来自最后窗
+ * Destroyed,拦它 = 无窗僵尸;macOS 无 applicationShouldTerminate)。web 态 no-op。
+ */
+export function onMenuQuitRequested(run: () => void): () => void {
+  if (isWeb) return () => undefined;
+  let unlisten: (() => void) | undefined;
+  void listen("tmd://menu-quit", () => run())
+    .then((u) => {
+      unlisten = u;
+    })
+    .catch(() => undefined);
+  return () => unlisten?.();
+}
+
 /** 应用版本号(关于/设置页脚展示)。web 态走桥 hello 帧上报的版本(serverVersion)。 */
 export async function appVersion(): Promise<string> {
   if (isWeb) return (await serverVersion()) ?? "";

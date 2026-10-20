@@ -5,10 +5,11 @@
  * 退出模式强制放行(绕各 kind 闸),镜像 flush 先行兜底跨强退恢复;取消则
  * 什么都不做,窗口原样保留。web 态在 ipc 原语处短路。
  *
- * ⌘Q 应用退出腿经裁决取消(2026-10-19 批二 review):tauri-runtime-wry
+ * ⌘Q 应用退出腿(0.4.1 批三落地,0.4.0 批二 review 裁决路线):tauri-runtime-wry
  * ExitRequested{code:None} 仅来自最后窗口 Destroyed(prevent=僵尸进程),
  * macOS(tao 0.37)无 applicationShouldTerminate,⌘Q 根本不发 ExitRequested
- * —— Rust 侧无可靠挂点;若要做需走菜单装配(Menu accel→前端命令),另立条目。
+ * —— Rust 侧无可靠挂点;故走菜单装配(macOS 自定义 Quit 菜单项 accel,点击只
+ * 发 tmd://menu-quit 事件,无默认退出行为,天然规避僵尸进程)。
  *
  * 「本次不再问」是内存标志(本次运行有效,不持久):勾选后本运行的后续
  * 关窗直接放行,镜像照常 flush(崩溃网不撤)。
@@ -17,7 +18,7 @@ import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { getTabs } from "./tabs";
 import { draftMirrorFlushAll } from "./draftMirror";
-import { onWindowCloseRequest, windowClose } from "./ipc";
+import { onMenuQuitRequested, onWindowCloseRequest, windowClose } from "./ipc";
 import { requestCloseAllTabs } from "./tabClose";
 import { planQuit } from "./quitGuardPlan";
 import { QuitDialog, type QuitEntry } from "./quitGuard";
@@ -60,11 +61,17 @@ let skipAskThisRun = false;
 /** 在途弹层共享:连点关窗不叠弹。 */
 let dialogOpen = false;
 
-function quitRequested(prevent: () => void): void {
+/** prevent:拦窗语义(关窗事件 preventDefault;菜单腿无事件可拦,传 noop)。
+ *  proceed:不拦时的出口——关窗腿走原生流程自走(不调);菜单腿无原生流程,
+ *  须显式关窗(单窗 destroyed → 进程退)。 */
+function quitRequested(prevent: () => void, proceed: () => void): void {
   draftMirrorFlushAll(); /* 同帧补写:弹层/放行前镜像先落,窗口真关也不丢 */
   const dirty = getTabs().filter((tab) => tab.dirty);
   const finish = () => void windowClose();
-  if (planQuit(dirty.length, skipAskThisRun) === "noop") return; /* 不拦:原生关闭流程自走 */
+  if (planQuit(dirty.length, skipAskThisRun) === "noop") {
+    proceed(); /* 关窗腿 = 不拦(原生关闭流程自走);菜单腿 = 主动关窗 */
+    return;
+  }
   prevent();
   if (dialogOpen) return;
   dialogOpen = true;
@@ -84,9 +91,12 @@ function quitRequested(prevent: () => void): void {
 
 let booted = false;
 
-/** app-shell 启动时挂一次:订阅关窗意图。 */
+/** app-shell 启动时挂一次:订阅关窗意图 + ⌘Q 菜单退出意图(0.4.1 批三)。 */
 export function bootQuitGuard(): void {
   if (booted) return;
   booted = true;
-  onWindowCloseRequest(quitRequested);
+  onWindowCloseRequest((prevent) => quitRequested(prevent, () => undefined));
+  /* 菜单腿:不拦 = 不退出(无事件发生);无脏 = 主动关窗 → 单窗 destroyed → 进程退;
+   * 确认后仍走 requestCloseAllTabs({quit:true}) 统一结算链。 */
+  onMenuQuitRequested(() => quitRequested(() => undefined, () => void windowClose()));
 }
