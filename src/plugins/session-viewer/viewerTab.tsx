@@ -14,6 +14,7 @@ import { formatRelativeTime } from "@kernel/relativeTime";
 import type { SessionViewTabPayload } from "@kernel/sessionViewTabs";
 import type { CliSessionTranscript } from "@kernel/cli";
 import { TranscriptView } from "./transcriptView";
+import { findBlockIndex } from "./locate";
 import { sessionExportFileName, type MarkdownExport } from "./blocksToMarkdown";
 import { exportReasonLabel, snapshotMdTo, type ExportSessionTarget } from "./exportMd";
 import { ArrowsClockwiseIcon, Chats, DownloadSimpleIcon } from "@phosphor-icons/react";
@@ -139,6 +140,22 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
     load();
   }, [load, nonce]);
 
+  /* 深链定位(批一追加):payload.locate → user 块下标纯派生,不进 effect
+     回写状态;越出已渲染批次由切片帽扩大覆盖,块 DOM 出现后滚一次(ref 防重放)。 */
+  const locateIdx = useMemo(() => {
+    if (!payload.locate || state.phase !== "ok") return null;
+    return findBlockIndex(state.transcript.blocks, payload.locate.text, payload.locate.occurrence ?? 1);
+  }, [payload.locate, state]);
+  const locateId = locateIdx !== null && state.phase === "ok" ? state.transcript.blocks[locateIdx].id : null;
+  const locatedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (locateId === null || locatedRef.current === locateId) return;
+    const el = scrollRef.current?.querySelector(`[data-vb="${CSS.escape(locateId)}"]`);
+    if (!el) return; /* 分批未及:cap 扩大重渲染后本 effect 随 visible/state 重跑 */
+    locatedRef.current = locateId;
+    el.scrollIntoView({ block: "center" });
+  }, [locateId, visible, state]);
+
   /* 滚动触底递增批次(无虚拟滚动:块级截断 + 分批已控 DOM 规模)。 */
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -150,10 +167,11 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
 
 
   /* 分批切片记忆化:blocks 引用稳定 → TranscriptView 内 items 与块级 memo
-     在无关重渲染(滚动探测/加载态翻转)时命中,不全量重建。 */
+     在无关重渲染(滚动探测/加载态翻转)时命中,不全量重建。
+     定位目标越出已渲染批次时扩大帽(不回写 visible 状态)。 */
   const shown = useMemo(
-    () => (state.phase === "ok" ? state.transcript.blocks.slice(0, visible) : []),
-    [state, visible],
+    () => (state.phase === "ok" ? state.transcript.blocks.slice(0, Math.max(visible, (locateIdx ?? -1) + 1)) : []),
+    [state, visible, locateIdx],
   );
   return (
     <div className="sv-root" data-icon-decor="session-view">
@@ -193,6 +211,7 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
                 blocks={shown}
                 Markdown={MarkdownBody}
                 minimal={minimal}
+                locateId={locateId}
               />
               {visible < state.transcript.blocks.length ? (
                 <button

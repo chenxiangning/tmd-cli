@@ -90,12 +90,9 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
 
   const jumpHit = useCallback((h: FpHit) => {
     void jumpHitTranscript(h).then((outcome) => {
-      if (outcome === "jumped") return;
-      setJumpNotice(
-        outcome === "opened"
-          ? t("会话已打开,未定位到该条消息")
-          : t("未能定位到该条对话消息"),
-      );
+      /* jumped=幕布已定位;opened=幕布未中已落转录查看器(屏幕可见)——都静默 */
+      if (outcome !== "miss") return;
+      setJumpNotice(t("未能定位到该条对话消息"));
       if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
       jumpTimer.current = window.setTimeout(() => setJumpNotice(null), 2600);
     });

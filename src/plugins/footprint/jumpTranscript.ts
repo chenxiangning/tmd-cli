@@ -5,6 +5,7 @@
  * 卡标题/一句话是归纳文本不逐字、digest 摘录行无会话引用 —— 都不跳(宁缺勿错)。
  */
 import { openThenJumpToText, type JumpTextOutcome } from "@kernel/anchorJump";
+import { openSessionViewAtText } from "@kernel/sessionViewTabs";
 import { getWorkspaces } from "@kernel/workspace";
 import type { FpHit } from "./dataSource";
 import { readFeatureCards } from "./query";
@@ -26,7 +27,7 @@ export async function jumpHitTranscript(hit: FpHit): Promise<JumpTextOutcome> {
   const entry = (await getMonth(hit.day.slice(0, 7))).days[hit.day.slice(8)]?.sessions[quote.sid];
   /* engine===profileId 依赖各 CLI profile name==id 约定(批一评审);空串(旧账)直接 miss 防静默劣化 */
   if (!entry || entry.engine === "") return "miss";
-  return openThenJumpToText(
+  const outcome = await openThenJumpToText(
     {
       profileId: entry.engine,
       cwd: entry.cwd,
@@ -36,4 +37,9 @@ export async function jumpHitTranscript(hit: FpHit): Promise<JumpTextOutcome> {
     },
     quote.text,
   );
+  /* 幕布不可达(超回放窗/needle 未命中)→ 转录查看器兜底:磁盘全量文本定位 */
+  if (outcome !== "jumped") {
+    openSessionViewAtText({ profileId: entry.engine, cwd: entry.cwd, cliSessionId: quote.sid }, quote.text);
+  }
+  return outcome;
 }

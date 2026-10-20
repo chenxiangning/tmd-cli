@@ -88,12 +88,15 @@ export function TranscriptView({
   Markdown,
   minimal,
   streaming,
+  locateId,
 }: {
   blocks: CliTranscriptBlock[];
   Markdown: MarkdownRenderer;
   minimal?: boolean;
   /** 轮次进行中:最后一个 reasoning/assistant 块给流式观感(脉冲/光标)。 */
   streaming?: boolean;
+  /** 行级定位高亮的块 id(深链兜底;viewerTab 解析后传入)。 */
+  locateId?: string | null;
 }) {
   const items = useMemo(() => buildTranscriptPhases(blocks, { minimal }), [blocks, minimal]);
   const itemKey = makeKeySeq();
@@ -116,12 +119,13 @@ export function TranscriptView({
             forceOpen={livePhaseOpen && i === items.length - 1}
           />
         ) : (
-          <TranscriptBlockView
+          <div
             key={itemKey(item.block.id)}
-            block={item.block}
-            Markdown={Markdown}
-            tail={item.block.id === tailId}
-          />
+            data-vb={item.block.id}
+            className={`sv-vb${item.block.id === locateId ? " sv-loc-flash" : ""}`}
+          >
+            <TranscriptBlockView block={item.block} Markdown={Markdown} tail={item.block.id === tailId} />
+          </div>
         ),
       )}
     </>

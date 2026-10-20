@@ -14,18 +14,23 @@ vi.mock("@kernel/fsDirs", () => ({ ensureParentDir: vi.fn(async () => undefined)
 vi.mock("@kernel/anchorJump", () => ({
   openThenJumpToText: vi.fn(async () => "jumped" as const),
 }));
+vi.mock("@kernel/sessionViewTabs", () => ({
+  openSessionViewAtText: vi.fn(),
+}));
 vi.mock("@kernel/workspace", () => ({
   getWorkspaces: () => [{ id: "ws1", name: "ws", root: "/ws", createdAt: 0 }],
 }));
 
 import { ipc } from "@kernel/ipc";
 import { openThenJumpToText, type DiskJumpTarget } from "@kernel/anchorJump";
+import { openSessionViewAtText } from "@kernel/sessionViewTabs";
 import { resetMonthCache } from "./rollup";
 import { fpHitJumpable, jumpHitTranscript } from "./jumpTranscript";
 import type { FpHit } from "./dataSource";
 
 const mockIpc = vi.mocked(ipc, true);
 const mockJump = vi.mocked(openThenJumpToText);
+const mockView = vi.mocked(openSessionViewAtText);
 const disk = new Map<string, string>();
 
 const hit = (o: Partial<FpHit> & Pick<FpHit, "day" | "kind" | "snippet">): FpHit => o as FpHit;
@@ -79,17 +84,25 @@ describe("jumpHitTranscript", () => {
     expect(text).toBe(QUOTE);
   });
 
-  it("桥 opened/miss 原样透传", async () => {
+  it("桥 opened/miss 原样透传并落查看器兜底", async () => {
     mockJump.mockResolvedValue("opened");
     await expect(jumpHitTranscript(hit({ day: "2026-03-14", kind: "card", snippet: "x", featureId: 1 }))).resolves.toBe("opened");
+    expect(mockView).toHaveBeenCalledWith({ profileId: "claude", cwd: "/ws", cliSessionId: "s1" }, QUOTE);
     mockJump.mockResolvedValue("miss");
     await expect(jumpHitTranscript(hit({ day: "2026-03-14", kind: "card", snippet: "x", featureId: 1 }))).resolves.toBe("miss");
+    expect(mockView).toHaveBeenCalledTimes(2);
+  });
+
+  it("jumped 不兜底(幕布已定位)", async () => {
+    await jumpHitTranscript(hit({ day: "2026-03-14", kind: "quote", snippet: QUOTE, featureId: 1 }));
+    expect(mockView).not.toHaveBeenCalled();
   });
 
   it("卡无原话 / digest 摘录行无引用 → miss 不碰桥", async () => {
     await expect(jumpHitTranscript(hit({ day: "2026-03-14", kind: "card", snippet: "x", featureId: 0 }))).resolves.toBe("miss");
     await expect(jumpHitTranscript(hit({ day: "2026-03-14", kind: "quote", snippet: "x" }))).resolves.toBe("miss");
     expect(mockJump).not.toHaveBeenCalled();
+    expect(mockView).not.toHaveBeenCalled();
   });
 
   it("featureId 越界 / rollup 无该会话归因 → miss 不碰桥", async () => {
@@ -101,5 +114,6 @@ describe("jumpHitTranscript", () => {
     resetMonthCache();
     await expect(jumpHitTranscript(hit({ day: "2026-03-14", kind: "quote", snippet: "x", featureId: 1 }))).resolves.toBe("miss");
     expect(mockJump).not.toHaveBeenCalled();
+    expect(mockView).not.toHaveBeenCalled();
   });
 });

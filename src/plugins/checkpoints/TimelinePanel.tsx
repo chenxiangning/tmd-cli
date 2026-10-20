@@ -37,6 +37,7 @@ import {
   messageAnchors,
   type UserMessageAnchor,
 } from "@kernel/messageAnchors";
+import { openSessionViewAtText } from "@kernel/sessionViewTabs";
 import { PromptImages } from "./PromptImages";
 import { AttachmentFiles, RowRail } from "./TimelineRowParts";
 import { extractTimelineParts } from "./timelineText";
@@ -110,6 +111,14 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
     /* occurrence = anchors 正序位置 +1(seq):同文多轮定位本条,不落最新 */
     const ok = await jumpToAnchor(sessionId, anchor, occurrence);
     if (ok) return;
+    /* 幕布不可达(超回放窗/无 handle)→ 转录查看器兜底(kernel 深链,零插件
+       互依);无 CLI 磁盘身份的纯终端会话仍落 miss 闪红。 */
+    const live = host.getSessions().find((x) => x.id === sessionId);
+    const cliSessionId = host.getCliSessionId(sessionId);
+    if (live?.profileId && cliSessionId) {
+      openSessionViewAtText({ profileId: live.profileId, cwd: live.cwd, cliSessionId }, anchor.text, occurrence);
+      return;
+    }
     setMissId(anchor.id);
     window.setTimeout(() => setMissId((cur) => (cur === anchor.id ? null : cur)), MISS_FLASH_MS);
   }

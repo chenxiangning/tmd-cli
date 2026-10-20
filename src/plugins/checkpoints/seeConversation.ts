@@ -7,6 +7,7 @@
  * (openDiskSession 工作区解析口径,不带工作区 id 的会话不进侧栏树)。
  */
 import { openThenJumpToText, type JumpTextOutcome } from "@kernel/anchorJump";
+import { openSessionViewAtText } from "@kernel/sessionViewTabs";
 import { host } from "@kernel/host";
 import { getWorkspaces } from "@kernel/workspace";
 
@@ -53,7 +54,7 @@ export async function viewBatchConversation(opts: {
 }): Promise<JumpTextOutcome> {
   const profileId = await resolveLedgerProfileId(opts.cwd, opts.ledgerSessionId);
   if (!profileId) return "miss";
-  return openThenJumpToText(
+  const outcome = await openThenJumpToText(
     {
       profileId,
       cwd: opts.cwd,
@@ -63,4 +64,14 @@ export async function viewBatchConversation(opts: {
     opts.prompt,
     { occurrence: opts.occurrence },
   );
+  /* 幕布不可达(超回放窗/needle 未命中)→ 转录查看器兜底:磁盘全量文本定位
+     (0.4.2 批一追加;profileId 已唯一认领才兜,歧义不猜)。 */
+  if (outcome !== "jumped") {
+    openSessionViewAtText(
+      { profileId, cwd: opts.cwd, cliSessionId: opts.ledgerSessionId },
+      opts.prompt,
+      opts.occurrence ?? 1,
+    );
+  }
+  return outcome;
 }
