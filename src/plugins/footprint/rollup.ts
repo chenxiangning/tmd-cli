@@ -147,6 +147,38 @@ export function resetMonthCache(): void {
   monthCache.clear();
 }
 
+/* ── 补账(2026-10-20):本模块纯事件驱动 —— 只在应用运行且已订阅时收封口批,
+ * 应用未运行期间封好的批次永远进不了月账(实证:卡引用的会话账本有批、月账全月无它)。
+ * 补账入口把「账上已有、月账没有」的封口批幂等并入,以会话轮次号判重。 */
+
+/** 待补项:已封口批次 + 其 cwd(账本目录键 = md5(cwd),cwd 错则读不到账本)。 */
+export interface BackfillItem {
+  batch: CkptBatch;
+  cwd: string;
+}
+
+/** 幂等并入补账项:同会话同轮次已在账即跳过(重封不重算),有并入才落盘。
+ *  返回并入批次数(0 = 账已齐)。 */
+export async function backfillBatches(ym: string, items: BackfillItem[]): Promise<number> {
+  if (!items.length) return 0;
+  const month = await getMonth(ym);
+  let merged = 0;
+  for (const { batch, cwd } of items) {
+    const { ym: batchYm, dd } = settleKey(batch.tsEnd ?? batch.ts);
+    if (batchYm !== ym) continue;
+    const day = month.days[dd] ?? emptyDay();
+    if (day.sessions[batch.sessionId]?.turns.includes(batch.index)) continue;
+    mergeBatchIntoDay(day, batch, cwd);
+    month.days[dd] = day;
+    merged += 1;
+  }
+  if (!merged) return 0;
+  cachePut(ym, { data: month, dirty: true });
+  await writeMonth(ym, month);
+  cachePut(ym, { data: month, dirty: false });
+  return merged;
+}
+
 /* ── 用户修正覆盖层(spec 管线 D,v2 差量语义 2026-10-20):
  * .user.json = { version:2, overrides(按 AI 原标题覆盖), hidden(tombstone), added }。
  * 早期手动卡不再整量吞掉后到的 AI 归纳卡;重命名/隐藏/合并/拆分/手动
