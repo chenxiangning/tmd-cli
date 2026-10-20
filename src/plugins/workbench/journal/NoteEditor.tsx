@@ -1,7 +1,7 @@
 /**
  * 便签编辑器(文章 tab 内「我的便签」区)—— 编辑态完全本地草稿(文本+图片),
- * ⌘/Ctrl+回车保存、Esc 取消、⌘V 直接粘贴截图(落 assets/,保存时随存);
- * 清空文本且无图 = 删除便签。空日点月格自动进入编辑态(payload.autoEdit)。
+ * ⌘/Ctrl+回车保存、Esc 取消、⌘V 直接粘贴截图;清空文本且无图 = 删除便签。
+ * 只读态面板在同目录 NoteReadonlyPanel.tsx。
  */
 import { useEffect, useRef, useState } from "react";
 import { PencilSimpleLine } from "@phosphor-icons/react";
@@ -12,7 +12,8 @@ import { DraftMirrorBar } from "@kernel/draftMirrorBar";
 import { saveNote } from "./journalStore";
 import { noteMirrorSlot, type DayNote, DayNoteImage } from "./journalFiles";
 import { savePastedImage } from "./noteAssets";
-import { NoteImage, NoteReadonly } from "./articleBody";
+import { NoteImage } from "./articleBody";
+import { NoteReadonlyPanel } from "./NoteReadonlyPanel";
 
 function enterEdit(note: DayNote | undefined): [string, DayNoteImage[]] {
   return [note?.text ?? "", [...(note?.images ?? [])]];
@@ -47,8 +48,7 @@ export function NoteEditor({
   const [saveErr, setSaveErr] = useState(false);
   /* 保存期间禁用按钮(C6):慢盘/大图落 assets 连按会重入写链。 */
   const [saving, setSaving] = useState(false);
-  /* Esc 弃稿确认弹层态:脏稿 Esc 不直接丢,先弹 ConfirmDialog;
-     弹层自身 Esc/点背板 = 取消弃稿(内容保留),确认 = 执行 cancel()。 */
+  /* Esc 弃稿确认弹层态:脏稿 Esc 不直接丢,先弹 ConfirmDialog(弹层 Esc/背板=取消弃稿,确认=执行 cancel)。 */
   const [askDiscard, setAskDiscard] = useState(false);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
@@ -95,8 +95,7 @@ export function NoteEditor({
           }}
           onToggleDone={() => {
             if (!note) return;
-            /* 只翻勾选态:文本/图片/updatedAt 原样保留(内容编辑另有入口)。
-               先清旧错:成功路径不得残留上轮错误(评审 L17)。 */
+            /* 只翻勾选态(内容编辑另有入口);先清旧错:成功路径不残留上轮错误(评审 L17)。 */
             setSaveErr(false);
             void saveNote(
               y,
@@ -112,10 +111,8 @@ export function NoteEditor({
             reportDirty(true, text, images);
           }}
         />
-        {/* 勾选写盘失败只读态也要可见:静默失败会让用户以为已摘除,次日聚合照挂。 */}
-        {saveErr && (
-          <div className="dj-nc-pasteerr">{t("保存失败,请重试")}</div>
-        )}
+        {/* 勾选写盘失败只读态也可见:静默失败会让用户以为已摘除,次日聚合照挂。 */}
+        {saveErr && <div className="dj-nc-pasteerr">{t("保存失败,请重试")}</div>}
       </>
     );
   }
@@ -191,8 +188,7 @@ export function NoteEditor({
             if (e.nativeEvent.isComposing)
               return; /* IME 组词期放行(仓内纪律):Esc 消候选不撤销编辑器 */
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void save();
-            /* Esc 弃稿:无未保存内容直接收;脏稿先弹确认(误按最高频的丢稿源);
-               按钮取消是显式操作不拦。 */
+            /* Esc 弃稿:无未保存内容直接收;脏稿先弹确认(误按最高频的丢稿源)。 */
             if (e.key === "Escape" && !askDiscard) {
               if (!dirty) cancel();
               else setAskDiscard(true);
@@ -248,51 +244,6 @@ export function NoteEditor({
           onConfirm={cancel}
           onClose={() => setAskDiscard(false)}
         />
-      )}
-    </div>
-  );
-}
-
-/** 只读态面板(从 NoteEditor 拆出控主函数复杂度):便签卡 + 编辑/完成勾选。 */
-function NoteReadonlyPanel({
-  note,
-  onImageOpen,
-  onEdit,
-  onToggleDone,
-  onWriteNew,
-}: {
-  note: DayNote | undefined;
-  onImageOpen?: (img: DayNoteImage) => void;
-  onEdit: () => void;
-  onToggleDone: () => void;
-  onWriteNew: () => void;
-}) {
-  return (
-    <div className={`dj-note-wrap${note?.checked ? " dj-note-done" : ""}`}>
-      {note ? (
-        <NoteReadonly note={note} onImageOpen={onImageOpen} />
-      ) : (
-        <button type="button" className="dj-nc-new" onClick={onWriteNew}>
-          <PencilSimpleLine size="0.75rem" /> {t("给这一天写点什么(便签)")}
-        </button>
-      )}
-      {note && (
-        <button type="button" className="dj-nc-editbtn" onClick={onEdit}>
-          {t("编辑")}
-        </button>
-      )}
-      {note && (
-        <button
-          type="button"
-          className="dj-nc-donebtn"
-          aria-pressed={note.checked ?? false}
-          title={
-            note.checked ? t("恢复为未完成") : t("标记完成(从昨日未完摘除)")
-          }
-          onClick={onToggleDone}
-        >
-          {note.checked ? t("已完成") : t("标记完成")}
-        </button>
       )}
     </div>
   );
