@@ -24,7 +24,8 @@ export async function jumpHitTranscript(hit: FpHit): Promise<JumpTextOutcome> {
   const quote = cards?.file.cards[cardIdx]?.quote;
   if (!quote) return "miss";
   const entry = (await getMonth(hit.day.slice(0, 7))).days[hit.day.slice(8)]?.sessions[quote.sid];
-  if (!entry) return "miss";
+  /* engine===profileId 依赖各 CLI profile name==id 约定(批一评审);空串(旧账)直接 miss 防静默劣化 */
+  if (!entry || entry.engine === "") return "miss";
   return openThenJumpToText(
     {
       profileId: entry.engine,

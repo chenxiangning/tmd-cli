@@ -132,7 +132,7 @@ export function SearchPop({ open, query, hits, cursor, onQuery, onCursor, onPick
                     <button
                       type="button"
                       title={t("定位这轮消息在对话中的位置(已结束的会话会先恢复再定位)")}
-                      className="mr-1.5 flex-none rounded border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-input)] px-1.5 py-px text-[10.5px] leading-4 text-[var(--tmd-accent,var(--tmd-accent))] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      className="mr-1.5 flex-none rounded border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-input)] px-1.5 py-px text-[10.5px] leading-4 text-[var(--tmd-accent,var(--tmd-accent))] opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
                       onClick={() => onJumpHit(h)}
                     >
                       {t("看对话")}

@@ -30,11 +30,22 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
   const [cursor, setCursor] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  /* 「看对话」轻反馈(BatchSheet 同款三态,jumped 静默因幕布已可见) */
+  const [jumpNotice, setJumpNotice] = useState<string | null>(null);
+  const jumpTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
+    },
+    [],
+  );
+
   const openSearch = useCallback(() => {
     setSearchOpen(true);
     setQuery("");
     setHits(null);
     setCursor(0);
+    setJumpNotice(null); /* 重开浮层不残留上一条 opened/miss 文案 */
     window.setTimeout(() => searchInputRef.current?.focus(), 30);
   }, []);
 
@@ -77,15 +88,6 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
     [ym, setDetail, setFileSel, openCard, setYm, setRange, setSel, setCard, clearAnchor],
   );
 
-  /* 「看对话」轻反馈(BatchSheet 同款三态,jumped 静默因幕布已可见) */
-  const [jumpNotice, setJumpNotice] = useState<string | null>(null);
-  const jumpTimer = useRef<number | null>(null);
-  useEffect(
-    () => () => {
-      if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
-    },
-    [],
-  );
   const jumpHit = useCallback((h: FpHit) => {
     void jumpHitTranscript(h).then((outcome) => {
       if (outcome === "jumped") return;
@@ -99,5 +101,5 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
     });
   }, []);
 
-  return { searchOpen, setSearchOpen, query, setQuery, hits, setHits, cursor, setCursor, searchInputRef, openSearch, pickHit, jumpHit, jumpNotice };
+  return { searchOpen, setSearchOpen, query, setQuery, hits, cursor, setCursor, searchInputRef, openSearch, pickHit, jumpHit, jumpNotice };
 }
