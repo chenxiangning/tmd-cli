@@ -3,7 +3,8 @@
  * (journal 会话行、功能卡校验展示、git 提交证据、文件证据归属、
  * 打开文件/所在文件夹通道)。纯读,不维护写路径。
  */
-import { ipc, type CkptPatch } from "@kernel/ipc";
+import { ipc } from "@kernel/ipc";
+import { t } from "@kernel/i18n";
 import { collectSessionRowsChecked, type DaySessionRow } from "@plugins/workbench/journal/daySessions";
 import { dailyPaths } from "@plugins/workbench/journal/journalFiles";
 import { getWorkspaces } from "@kernel/workspace";
@@ -217,29 +218,6 @@ export function ungroupedFiles(rollup: FpDay): { project: string; path: string; 
   return out.sort((a, b) => a.project.localeCompare(b.project) || a.path.localeCompare(b.path));
 }
 
-/* ── 抽屉 diff(30 天内复用 checkpointBatchDiff;钥匙 = rollup.batches) ── */
-
-/** 文件行是否可出 diff(有会话 batchId = 账本未清理)。 */
-export function fileBatch(rollup: FpDay | null, stat: { refs: string[] }): { cwd: string; batchId: string } | null {
-  if (!rollup) return null;
-  for (const sid of stat.refs) {
-    const batchId = rollup.batches[sid];
-    const sess = rollup.sessions[sid];
-    if (batchId && sess) return { cwd: sess.cwd, batchId };
-  }
-  return null;
-}
-
-/** 拉某批 diff 并定位到目标文件 patch;命令失败 = null(调用方降级)。 */
-export async function loadPatch(cwd: string, batchId: string, path: string): Promise<CkptPatch | null> {
-  try {
-    const patches = await ipc.checkpointBatchDiff(cwd, batchId);
-    return patches.find((p) => p.path === path) ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /* ── ⌘K 反查(转发 query 四来源搜索,摊平为命中列表) ── */
 
 export type FpHit = SearchHit;
@@ -261,25 +239,25 @@ export async function searchDays(query: string): Promise<FpHit[]> {
 
 /* ── 打开文件/所在文件夹(真实通道:既有 open-with / reveal IPC) ── */
 
-/** 系统默认程序打开文件(设置里解析默认打开方式);失败 toast 由调用方兜底。 */
-export async function openFileExternally(path: string): Promise<boolean> {
+/** 系统默认程序打开文件;null = 成功,否则本地化错误文案(调用方直接 toast)。 */
+export async function openFileExternally(path: string): Promise<string | null> {
   try {
     const s = getSettingsState().settings;
     const target = resolveDefaultOpenWithFor(s.openWithTargets, s.openWithDefaultId, path);
-    if (!target) return false;
+    if (!target) return t("打开失败:系统未注册默认程序");
     await ipc.fsOpenWith(path, target);
-    return true;
-  } catch {
-    return false;
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
   }
 }
 
-/** 文件管理器中显示所在目录。 */
-export async function revealInFileManager(path: string): Promise<boolean> {
+/** 文件管理器中显示所在目录;null = 成功,否则错误文案。 */
+export async function revealInFileManager(path: string): Promise<string | null> {
   try {
     await ipc.fsRevealInFileManager(path);
-    return true;
-  } catch {
-    return false;
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : String(e);
   }
 }

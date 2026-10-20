@@ -52,8 +52,9 @@ export function sameCard(a: FeatureCard, b: FeatureCard): boolean {
 /** v2 层并入 AI 原档:AI 顺序为准,override 原位替换,hidden 剔除,added 追加。 */
 export function mergeLayer(ai: FeatureCard[] | null, layer: UserCardsFile): MergedCard[] {
   const out: MergedCard[] = [];
+  const hidden = new Set(layer.hidden);
   for (const c of ai ?? []) {
-    if (layer.hidden.includes(c.title)) continue;
+    if (hidden.has(c.title)) continue;
     const ov = layer.overrides[c.title];
     out.push(ov ? { card: ov, provenance: "override" } : { card: c, provenance: "ai" });
   }

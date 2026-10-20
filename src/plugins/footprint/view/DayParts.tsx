@@ -4,6 +4,7 @@
  */
 import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail } from "../dataSource";
+import type { CardProvenance } from "../userLayer";
 import { Hi, IcoChat, IcoFiles } from "./bits";
 import { engineColor } from "./engineColor";
 
@@ -24,6 +25,23 @@ function cardStats(detail: FpDayDetail | null, card: FpCardView): { engs: string
   return { engs, files, plus, minus };
 }
 
+/** 卡级来源徽标(差量层逐卡标注;未验证压过一切;从 FeatureCard 拆出守复杂度)。 */
+function CardBadge({ card, provenance, manual }: { card: FpCardView; provenance: CardProvenance; manual: boolean }) {
+  const cls = card.unverified
+    ? "border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] text-[var(--tmd-fg-muted)]"
+    : manual
+      ? "bg-[color-mix(in_srgb,var(--tmd-warn)_12%,transparent)] text-[var(--tmd-warn)]"
+      : "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]";
+  const label = card.unverified
+    ? t("会话引用未验证")
+    : provenance === "added"
+      ? t("手动")
+      : provenance === "override"
+        ? t("已修正")
+        : t("AI 归纳");
+  return <span className={`flex-none whitespace-nowrap rounded px-1.5 text-[9.5px] font-semibold ${cls}`}>{label}</span>;
+}
+
 export function FeatureCard({ card, inRange, day, query, focused, origin, detail, onOpenCard, onFix }: {
   card: FpCardView;
   origin: "ai" | "user-edited" | "manual" | null;
@@ -37,7 +55,8 @@ export function FeatureCard({ card, inRange, day, query, focused, origin, detail
 }) {
   const stats = cardStats(detail, card);
   /* 卡级来源优先(差量层逐卡标注);旧调用方未传时回退日级 origin。 */
-  const provenance = card.provenance ?? (origin === "manual" ? "added" : origin === "user-edited" ? "override" : "ai");
+  const ORIGIN_PROV: Partial<Record<NonNullable<typeof origin>, CardProvenance>> = { manual: "added", "user-edited": "override" };
+  const provenance = card.provenance ?? (origin ? ORIGIN_PROV[origin] : undefined) ?? "ai";
   const manual = provenance !== "ai";
   return (
     <div
@@ -54,15 +73,7 @@ export function FeatureCard({ card, inRange, day, query, focused, origin, detail
             <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold">
               <Hi text={card.title} q={query} />
             </span>
-            <span className={`flex-none whitespace-nowrap rounded px-1.5 text-[9.5px] font-semibold ${card.unverified ? "border border-dashed border-[var(--tmd-border-strong,var(--tmd-border-strong))] text-[var(--tmd-fg-muted)]" : manual ? "bg-[color-mix(in_srgb,var(--tmd-warn)_12%,transparent)] text-[var(--tmd-warn)]" : "bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] text-[var(--tmd-accent,var(--tmd-accent))]"}`}>
-              {card.unverified
-                ? t("会话引用未验证")
-                : provenance === "added"
-                  ? t("手动")
-                  : provenance === "override"
-                    ? t("已修正")
-                    : t("AI 归纳")}
-            </span>
+            <CardBadge card={card} provenance={provenance} manual={manual} />
             {inRange && (
               <span className="flex-none rounded-full bg-[color-mix(in_srgb,var(--tmd-syntax-tag)_12%,transparent)] px-2 py-px text-[10.5px] font-semibold whitespace-nowrap text-[var(--tmd-syntax-tag)]">
                 {t("{m} 月 {d} 日", { m: Number(day.slice(5, 7)), d: Number(day.slice(8, 10)) })}

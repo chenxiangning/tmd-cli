@@ -18,7 +18,7 @@ import { ipc, type CkptBatch } from "@kernel/ipc";
 import { getWorkspaces } from "@kernel/workspace";
 import { loadSessionRows, type DaySessionRow } from "./dataSource";
 import { bumpFootprintRev } from "./fpTab";
-import { backfillBatches, getMonth, type BackfillItem } from "./rollup";
+import { backfillBatches, getMonth } from "./rollup";
 import { pad2, settleKey, type FootprintMonthFile } from "./types";
 
 /** 待对账会话:会话 id + 工作区根(作 cwd)+ 本月活动日(逐日判缺口)。 */
@@ -68,7 +68,8 @@ export function candidatesFor(
     if (!cur) {
       bySid.set(sid, { sid, cwd, days });
     } else {
-      for (const dd of days) if (!cur.days.includes(dd)) cur.days.push(dd);
+      const have = new Set(cur.days);
+      for (const dd of days) if (!have.has(dd)) { have.add(dd); cur.days.push(dd); }
       cur.days.sort();
     }
   }
@@ -92,15 +93,18 @@ export async function reconcileMonth(ym: string): Promise<number> {
   const todo = candidatesFor(rows, (id) => (id ? roots.get(id) ?? null : null), ym)
     .filter((c) => needsCheck(month, c));
   if (!todo.length) return 0;
-  const items: BackfillItem[] = [];
-  for (const c of todo) {
-    try {
-      const list = await ipc.checkpointList(c.cwd, c.sid);
-      for (const b of pickBatches(list, c.sid, ym)) items.push({ batch: b, cwd: c.cwd });
-    } catch {
-      /* 单会话读账失败 = 跳过该会话(无账本 / cwd 不符),不毁全局 */
-    }
-  }
+  /* 读账只读并行(Rust 侧账本锁自串行);单会话失败跳过,不毁全局 */
+  const items = (
+    await Promise.all(
+      todo.map(async (c) => {
+        try {
+          return pickBatches(await ipc.checkpointList(c.cwd, c.sid), c.sid, ym).map((b) => ({ batch: b, cwd: c.cwd }));
+        } catch {
+          return [];
+        }
+      }),
+    )
+  ).flat();
   return backfillBatches(ym, items);
 }
 

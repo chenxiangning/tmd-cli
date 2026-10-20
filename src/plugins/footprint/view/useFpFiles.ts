@@ -8,12 +8,15 @@ import { getWorkspaces } from "@kernel/workspace";
 import type { DaySessionRow } from "@plugins/workbench/journal/daySessions";
 import { openDaySessionRow } from "@plugins/workbench/journal/sessionRef";
 import type { CkptPatch } from "@kernel/ipc";
-import { fileBatch, loadPatch, openFileExternally, revealInFileManager } from "../dataSource";
+import { openFileExternally, revealInFileManager } from "../dataSource";
+import { absFilePath, fileBatch, loadPatchForFile } from "../diffLookup";
 import type { FpCardView, FpDayDetail } from "../dataSource";
 
 /** 当前选中文件的全视图态(diff 面板与抽屉选中行共用)。 */
 export interface FileSel {
   path: string;
+  /** 触碰会话 ids(打开/reveal 拼 cwd、diff 兜底枚举账本用)。 */
+  refs: string[];
   patch: CkptPatch | null;
   loading: boolean;
   degraded: boolean;
@@ -27,8 +30,8 @@ export interface FpFileActions {
   setFileSel: React.Dispatch<React.SetStateAction<FileSel | null>>;
   pickFile: (path: string) => void;
   resumeSession: (sid: string) => void;
-  openFile: (path: string) => void;
-  revealFile: (path: string) => void;
+  openFile: (path: string, refs: string[]) => void;
+  revealFile: (path: string, refs: string[]) => void;
 }
 
 export function useFpFiles(
@@ -44,12 +47,13 @@ export function useFpFiles(
       const rollup = detail.rollup;
       const stat = rollup?.files[path];
       if (!rollup || !stat) return;
-      const batch = fileBatch(rollup, stat);
+      const fb = fileBatch(rollup, stat.refs);
       const engine = stat.refs.map((sid) => rollup.sessions[sid]?.engine).find(Boolean) ?? "?";
-      setFileSel({ path, patch: null, loading: batch !== null, degraded: batch === null, engine, add: stat.add, del: stat.del });
-      if (batch) {
-        void loadPatch(batch.cwd, batch.batchId, path).then((patch) => {
-          setFileSel((prev) => (prev && prev.path === path ? { ...prev, patch, loading: false } : prev));
+      setFileSel({ path, refs: stat.refs, patch: null, loading: fb !== null, degraded: fb === null, engine, add: stat.add, del: stat.del });
+      if (fb) {
+        void loadPatchForFile(fb.cwd, fb.batchId, fb.sids, path).then((patch) => {
+          /* 账本里也找不到含此路径的批(TTL 清理/归因缺口)→ 诚实降级 */
+          setFileSel((prev) => (prev && prev.path === path ? { ...prev, patch, loading: false, degraded: patch === null } : prev));
         });
       }
       /* 宽面板在主流底部展开后滚入视野 */
@@ -74,21 +78,21 @@ export function useFpFiles(
   );
 
   const openFile = useCallback(
-    (path: string) => {
-      void openFileExternally(path).then((ok) => {
-        if (!ok) showToast(t("打开失败:系统未注册默认程序"));
+    (path: string, refs: string[]) => {
+      void openFileExternally(absFilePath(detail?.rollup ?? null, refs, path)).then((err) => {
+        if (err) showToast(err);
       });
     },
-    [showToast],
+    [detail, showToast],
   );
 
   const revealFile = useCallback(
-    (path: string) => {
-      void revealInFileManager(path).then((ok) => {
-        if (!ok) showToast(t("打开所在文件夹失败"));
+    (path: string, refs: string[]) => {
+      void revealInFileManager(absFilePath(detail?.rollup ?? null, refs, path)).then((err) => {
+        if (err) showToast(err);
       });
     },
-    [showToast],
+    [detail, showToast],
   );
 
   return { fileSel, setFileSel, pickFile, resumeSession, openFile, revealFile };

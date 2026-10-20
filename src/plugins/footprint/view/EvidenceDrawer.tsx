@@ -4,7 +4,7 @@
  */
 import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail } from "../dataSource";
-import { cardFiles, fileBatch } from "../dataSource";
+import { cardFiles } from "../dataSource";
 import { EngTag, FicoButton, Hi, IcoFolder, IcoOpen } from "./bits";
 
 export interface EvidenceDrawerProps {
@@ -19,8 +19,8 @@ export interface EvidenceDrawerProps {
   onSelectSess: (sid: string) => void;
   onSelectFile: (path: string) => void;
   onResumeSession: (sid: string) => void;
-  onOpenFile: (path: string) => void;
-  onRevealFile: (path: string) => void;
+  onOpenFile: (path: string, refs: string[]) => void;
+  onRevealFile: (path: string, refs: string[]) => void;
 }
 
 /** 证据抽屉栏(右栏外壳:条件渲染 + 关闭/选中接线,守 FootprintView 300 行)。 */
@@ -160,17 +160,17 @@ export function EvidenceDrawer({ card, detail, query, selPath, selSess, onClose,
                 )}
               </button>
               <span className="flex flex-none gap-0.5 opacity-40 transition-opacity group-hover:opacity-100">
-                <FicoButton title={t("打开文件")} onClick={() => onOpenFile(path)}>
+                <FicoButton title={t("打开文件")} onClick={() => onOpenFile(path, stat.refs)}>
                   <IcoOpen />
                 </FicoButton>
-                <FicoButton title={t("打开所在文件夹")} onClick={() => onRevealFile(path)}>
+                <FicoButton title={t("打开所在文件夹")} onClick={() => onRevealFile(path, stat.refs)}>
                   <IcoFolder />
                 </FicoButton>
               </span>
-              {fileBatch(detail.rollup, stat) === null ? (
-                <span className="flex-none text-[10px] text-[var(--tmd-fg-muted)]">{t("账本已清理")}</span>
-              ) : (
+              {stat.refs.some((sid) => detail.rollup?.batches[sid]) ? (
                 <PmBars add={stat.add} del={stat.del} />
+              ) : (
+                <span className="flex-none text-[10px] text-[var(--tmd-fg-muted)]">{t("账本已清理")}</span>
               )}
             </div>
           );
