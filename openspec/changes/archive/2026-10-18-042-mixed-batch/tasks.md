@@ -56,7 +56,7 @@
 ## 债收尾批
 
 - [x] workbench 空壳批量归档工具(照 `docs/superpowers/specs/2026-10-17-workbench-shell-archive-design.md`)
-- [ ] 真机验收债陪跑(M2 余 6 项/0.3.5×14/0.3.7×6/anim 真窗口/M9 失败 pill,随大仙节奏逐项登记)
+- [ ] 真机验收债陪跑(M2 余 6 项/0.3.5×14/0.3.7×6/anim 真窗口/M9 失败 pill,随大仙节奏逐项登记)——2026-10-20:本批随 0.4.1 批次二集中焚烧,目标 28 项全有结论(0.4.1 规划 `docs/brainstorm/2026-10-20-041-next-steps.md` §三);本 change 其余 39 项已全量落地,随本轮归档
 
 ## 集成收口
 

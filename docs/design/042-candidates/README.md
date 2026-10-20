@@ -35,6 +35,6 @@ S 级随手带(不占示例名额,随批带):搜索浮层 Aa/.\* + 计数、检�
 | 13 | 13-notify-session-mute.html | 通知会话级静音/暂停 | 跨打扰 | S-M | 已落地 |
 | 14 | 14-transcript-export.html | 转录导出展开(批量+活会话快照) | 跨带走 | S-M | 已落地 |
 
-首轮曾误立 docs/design/043-candidates/ 独立组,大仙拍板不建新组,已删除并并入本组;二轮七路深扫修正记录与落选增补见 `docs/brainstorm/2026-10-19-042-followup.md`。实施记录:`openspec/changes/2026-10-19-042-followup-batch/`(五批实施,每批 review 跑偏/闭环/兼容三清单;批一修帽语义/中止留存/双份逻辑,批二 review 拦下 Rust 僵尸进程 P0,批三修状态合成优先级反转,批五修远程误 evict;react-doctor 100/100)。真机目检清单见 tasks.md 集成收口段。
+首轮曾误立 docs/design/043-candidates/ 独立组,大仙拍板不建新组,已删除并并入本组;二轮七路深扫修正记录与落选增补见 `docs/brainstorm/2026-10-19-042-followup.md`。实施记录:`openspec/changes/archive/2026-10-19-042-followup-batch/`(五批实施,每批 review 跑偏/闭环/兼容三清单;批一修帽语义/中止留存/双份逻辑,批二 review 拦下 Rust 僵尸进程 P0,批三修状态合成优先级反转,批五修远程误 evict;react-doctor 100/100)。真机目检清单见 tasks.md 集成收口段。
 
 日期:2026-10-18(追加批 2026-10-19)
