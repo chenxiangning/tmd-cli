@@ -26,11 +26,19 @@
 - 串行:单飞 promise 链(`queue = queue.then(handleSealed).catch(warn)`),单轮失败不毁链;`handleSealed` 经 `ipc.checkpointList` 取最新已封口且会话匹配批 → `settleKey`(跨零点归事实时刻)→ `mergeBatchIntoDay`(files 按 path 累加 ±、refs 并集、sessions 记 engine/cwd/turns、batches[sid]=批 id)→ 写盘。
 - 月缓存:LRU 3 个月,写侧标脏 → 写盘 → 标干净;读侧 `getMonth` 共享同一缓存,损坏宽容跳过;无独立 TTL。
 
+### L1 补账对账(2026-10-20 修,`backfill.ts`)
+
+- 缺口成因:rollup 纯事件驱动,封口事件只在应用运行且已订阅时到达,**应用未运行期间封好的批次永久进不了月账**(真机实证:功能卡引用的会话在 ledger 有批、月账全月无它 → 卡面「0 文件」被误读为自动接入失效)。
+- 触发点 = **首次打开足迹视图**(`reconcileOnce` 进程内单次闸,挂 `FootprintView` mount):对账要全量会话扫描(`loadSessionRows`),放启动定时会与「启动错峰」目标冲突;补到即 `bumpFootprintRev` 重拉。
+- 口径:① 候选 = 会话清单里本月有活动的会话,按**逐日活动日**判缺口(活动日任一天在月账缺该会话即查;不用「已在别的日出现」全局跳过,否则跨零点会话次日漏账永远补不上);② cwd 取工作区注册表 root(账本目录键 = md5(cwd),不符则查不到即跳过);③ 只补已封口批,`pickBatches` 按会话 + 本月封口过滤;④ 幂等 = 会话轮次号已在 `day.sessions[sid].turns` 即跳过(重封不重算);⑤ 单会话读账失败只跳过该会话。
+- 并发:`backfillBatches` 并入**同一条单飞队列**(`queue.then(mergeBackfill)`),与封口落盘串行,避免「读月档 → 改 → 写」并行互相覆写丢批。
+- 诚实边界:ledger 里没有记录的会话(未产生封口账本的引擎/时段)补不出来,卡面文件证据恒 0 属真实缺失,不做估算兜底。
+
 ### L3 功能卡
 
 - 管线 A(直写):journal 生成会话与日报同任务直写第二个 JSON(`featuresPath` 由 `journalFiles.featureCards` 给出,缺省 = 契约段整体省略)。契约铁律在 prompt 段:sessions/quote.sid 只能引用摘录头真实会话 id、增量日旧卡 title 冻结、单日 1-8 张、quote ≤60 字。
 - 管线 B(读侧校验):`validateFeatureCards` 逐卡对照当日会话枚举(`knownSessionIds` = rollup sessions ∪ journal 行 id),未命中标 `unverified`(UI 徽标「会话引用未验证」);档缺失/损坏/version≠1 视为无卡,不猜测兜底。
-- 修正层(管线 D):`.user.json` 整文件覆盖 AI 原档(删 `.user.json` 即恢复);合并/拆分/手动补归纳/改名全部纯函数 + 整量写(`useFpFix.ts` 的 mergeCards/splitCard/submit*),补归纳允许不带会话引用;读侧双档探测来源徽标——user+AI 都在 =「已修正」,仅 user =「手动」,否则「AI 归纳」。
+- 修正层(管线 D,2026-10-20 升 v2 差量):`.user.json` = `{ version: 2, overrides(按 AI 原标题覆盖), hidden(tombstone), added }` —— 早期整量快照会把后到的 AI 卡整体吞掉(真机症状:手动补归纳后 6 张 AI 卡全不可见),故改差量。读写分工:读侧 `query.readFeatureCards` 用 `mergeLayer`(AI 原档 ⊕ 差量)得生效卡;写侧 `useFpFix` 以 **AI 原档为基底**调 `diffLayer(aiCards, nextEffective)` 全量重算差分(改名 = 旧题 hidden + 新题 added,还原回原题则 tombstone 自动消失,无 stale);合并/拆分/手动补归纳/改名全走这条;手动补归纳 = 追加 `added` + 同名守卫。v1 快照按标题对账迁移(`migrateV1`,只丢不猜:题命中 AI = override,题不匹配 = added,AI 题缺席**不**推断为 hidden)。卡徽标按逐卡 provenance(AI 归纳/已修正/手动),不再只靠日级 origin。
 
 ### L4 Rust 面
 
@@ -41,7 +49,9 @@
 
 ```
 types.ts     类型 + isCfgPath/settleKey 纯判定
-rollup.ts    写侧 + 月缓存 getMonth(L1 唯一磁盘知识)
+rollup.ts    写侧(封口落盘 + 补账并入,同一单飞队列)+ 月缓存 getMonth(L1 唯一磁盘知识)
+backfill.ts  补账对账(视图首开单次闸 → 候选/逐日缺口 → checkpointList → backfillBatches)
+userLayer.ts 修正层 v2 差量纯函数(mergeLayer/diffLayer/migrateV1/同名校验)
 query.ts     日明细/月热力/区间汇总/monthSpan/四来源搜索/卡校验(现场经 getMonth)
 dataSource.ts UI 聚合纯读(loadDayDetail 一次拉齐;searchDays 摊平前按 kind 稳定归并)
 view/        FootprintView → FpTopbar / MonthCal / DayFlow(+RangeFlow)/ EvidenceDrawer+FpMainDiff
