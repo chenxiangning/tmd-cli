@@ -7,6 +7,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { EditorTab } from "./tabs";
 
+/* 图标库打桩:本件零渲染(registerTabContent component 恒 () => null),
+ * 但 askDialog → DialogShell → Spinner 静态链会冷加载 @phosphor-icons/react
+ * 全量 barrel(实测 43s),resetModules 后落在 beforeEach 里直接顶爆 hook 预算。
+ * 打桩后链路只剩纯逻辑,单件耗时从 42s 降到亚秒。 */
+vi.mock("@phosphor-icons/react", () => ({ CircleNotch: () => null }));
+
 type TabsModule = typeof import("./tabs");
 type TabCloseModule = typeof import("./tabClose");
 
