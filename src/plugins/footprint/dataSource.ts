@@ -59,7 +59,6 @@ export interface FpDayDetail {
   cardsOrigin: "ai" | "user-edited" | "manual" | null;
   rows: DaySessionRow[];
   article: string | null;
-  digest: string | null;
   commits: FpCommit[];
   /** 部分引擎清单扫描失败(示警用)。 */
   scanFailed: boolean;
@@ -73,12 +72,11 @@ function knownSessionIds(rollup: FpDay | null, rows: DaySessionRow[]): Set<strin
   return ids;
 }
 
-/* journal 产物路径与写侧 dailyPaths 同源(旧硬编码 workbench/journal/daily 前缀是死路径,
- * article/digest 在真机恒 null;2026-10-20 评审顺手修) */
-async function journalPath(kind: "article" | "digest", day: string): Promise<string> {
+/* 日报路径与写侧 dailyPaths 同源(旧硬编码 workbench/journal/daily 前缀是死路径,
+ * article 在真机恒 null;2026-10-20 评审顺手修;digest 不进当日视图,搜索侧另读) */
+async function journalArticlePath(day: string): Promise<string> {
   const [y, m, d] = day.split("-").map(Number);
-  const paths = await dailyPaths();
-  return kind === "article" ? paths.article(y, m, d) : paths.digest(y, m, d);
+  return (await dailyPaths()).article(y, m, d);
 }
 
 async function readTextOrNull(path: string): Promise<string | null> {
@@ -100,13 +98,12 @@ async function loadCommits(day: string): Promise<FpCommit[]> {
   return results.flat().sort((a, b) => (a.time < b.time ? -1 : 1));
 }
 
-/** 当日视图(点日时机:query 日明细 + 卡校验 + article/digest + lazily git)。 */
+/** 当日视图(点日时机:query 日明细 + 卡校验 + 日报 + lazily git)。 */
 export async function loadDayDetail(day: string): Promise<FpDayDetail> {
-  const [qd, rowsRes, article, digest, commits] = await Promise.all([
+  const [qd, rowsRes, article, commits] = await Promise.all([
     queryDayDetail(day.slice(0, 7), day.slice(8)),
     loadSessionRows(),
-    readTextOrNull(await journalPath("article", day)),
-    readTextOrNull(await journalPath("digest", day)),
+    readTextOrNull(await journalArticlePath(day)),
     loadCommits(day),
   ]);
   const rollup: FpDay = { sessions: qd.sessions, files: {}, batches: qd.batches };
@@ -118,7 +115,7 @@ export async function loadDayDetail(day: string): Promise<FpDayDetail> {
     ...c,
     unverified: c.sessions.some((sid) => !known.has(sid)),
   }));
-  return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article, digest, commits, scanFailed: rowsRes.failed > 0 };
+  return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article, commits, scanFailed: rowsRes.failed > 0 };
 }
 
 /* ── 月历热力 / 区间(转发 query) ── */
@@ -145,7 +142,7 @@ export async function loadRangeDetails(days: string[]): Promise<FpDayDetail[]> {
         ...c,
         unverified: c.sessions.some((sid) => !known.has(sid)),
       }));
-      return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article: null, digest: null, commits: [], scanFailed: rowsRes.failed > 0 };
+      return { day, rollup, cards, cardsOrigin: featureRead?.origin ?? null, rows, article: null, commits: [], scanFailed: rowsRes.failed > 0 };
     }),
   );
 }

@@ -47,9 +47,14 @@ export const footprintPlugin: Plugin = {
     const offSealed = ctx.events.on<CkptTurnSealedEvent>(KernelTopics.ckptTurnSealed, () => {
       bumpFootprintRev();
     });
+    /* 功能卡随日报生成会话直写,不经封口账:文件写事件命中 features 即刷新。 */
+    const offEdit = ctx.events.on<{ sessionId: string; paths: string[] }>(KernelTopics.fileEditDetected, (e) => {
+      if (e.paths.some((p) => p.includes("/footprint/features/"))) bumpFootprintRev();
+    });
     return () => {
       offRollup();
       offSealed();
+      offEdit();
     };
   },
 };

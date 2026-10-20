@@ -10,6 +10,7 @@ import { t } from "@kernel/i18n";
 import { dayMetaOf, deriveDayStatus, heatOf, heatThresholds, loadMonth, useJournalState, type MonthSnapshot } from "./journalStore";
 import type { DaySessionRow } from "./daySessions";
 import { openArticleTab } from "./journalTabs";
+import { openFootprintTab } from "@plugins/footprint/fpTab";
 import { pad2 } from "./journalFiles";
 import { ArticleBody, NoteReadonly } from "./articleBody";
 import { notePeekOf, statusChip } from "./statusText";
@@ -107,6 +108,12 @@ function DayCard({ ym, day, today, folded, onToggle }: { ym: { y: number; m: num
             onClick={() => openArticleTab(ym.y, ym.m, day.d, day.article?.title)}
           >
             {t("全文 ↗")}
+          </button>
+          <button
+            className="dj-fullbtn"
+            onClick={() => openFootprintTab({ day: day.key })}
+          >
+            {t("足迹 ↗")}
           </button>
         </div>
         {!folded && (

@@ -54,8 +54,15 @@ view/        FootprintView → FpTopbar / MonthCal / DayFlow(+RangeFlow)/ Eviden
 ## 跨插件 import 准入清单(架构边界)
 
 - `@kernel/*`:ipc(checkpointList/checkpointBatchDiff/gitCommitsRange/fsWriteFile)、events(ckptTurnSealed)、plugin(注册面)、tabs/lazyTab、i18n、fsDirs/workspace/workspaceOrigins/settings/openWith —— 全部公共面。
-- `@plugins/workbench/journal`:daySessions/journalFiles/sessionRef —— 唯一跨插件依赖,理由 = journal 是 L2/L3 同源数据属主(featureCards 路径、dailyPaths 同源,resume 复用)。footprint 的 journalPath 禁止硬编码前缀,一律经 `dailyPaths()`(2026-10-20 评审修:死前缀致 article/digest 恒 null)。
+- `@plugins/workbench/journal`:daySessions/journalFiles/sessionRef/journalTabs —— footprint 唯一出向跨插件依赖,理由 = journal 是 L2/L3 同源数据属主(featureCards 路径、dailyPaths 同源,resume 复用;journalTabs = 2026-10-20 双向深链「打开日报 ↗」复用 openArticleTab 深链契约)。footprint 的 journal 产物路径禁止硬编码前缀,一律经 `dailyPaths()`(2026-10-20 评审修:死前缀致 article 恒 null)。
+- 反向边 journal → `@plugins/footprint/fpTab`(2026-10-20 双向深链,spec `2026-10-20-footprint-journal-deeplink-design.md`):journal 轴视图 DayCard「足迹 ↗」调 `openFootprintTab({ day })`。fpTab 仅依赖 kernel(i18n/tabs)+ dataSource 纯函数 `dayKeyOf`;journal 侧叶子模块(daySessions/journalFiles/sessionRef)不回指上层,无模块环。口径 = 数据依赖单向(footprint 读 journal),导航双向。
 - Rust 侧零 checkpoints 私有知识:封口批次只经 `ipc.checkpointList` 通用 IPC。
+
+## tab 深链 payload(2026-10-20 双向深链)
+
+- `FootprintTabPayload { day?: "YYYY-MM-DD" }`(dayKeyOf 同格式零填充);`openFootprintTab(opts?)` 内部 `openTab(..., { refresh: true })` —— 已开 tab 原地刷 payload 并激活,新开按 payload 初始化。
+- `FootprintView` 收 `{ tab }`:mount 期 payload.day 进 useState 初始值(非法日回落今日);已挂期 render 期 payload 比较(`useArticleEditSignal` 先例)→ 退出区间态 + 跳日 + 清卡片/文件选中/焦点。
+- 日视图日报行:`detail.article` 存在即渲染(首行标题 + 「打开日报 ↗」),消费 `loadDayDetail.article`;digest 不进当日视图(原话锚点来自 features JSON,⌘K 搜索另读文件),已自 `FpDayDetail` 删除(2026-10-20,死载荷清理)。
 
 ## 主题 / i18n / 键盘
 

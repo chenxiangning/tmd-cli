@@ -3,9 +3,16 @@
  * 自 DayParts 拆出守 300 行铁则;视觉语义对齐 v2 原型。
  */
 import { t } from "@kernel/i18n";
+import { useHost } from "@kernel/host";
+import { getWorkspaces } from "@kernel/workspace";
+import { daySessionViewOpener, openDaySessionRow } from "@plugins/workbench/journal/sessionRef";
 import { dayTotals, type DayFileEntry, type FpDayDetail } from "../dataSource";
 import { EngTag } from "./bits";
 import { RawRow } from "./DayParts";
+
+/** 会话行内动作钮(与清单头「手动补归纳」钮同款低调 pill)。 */
+const ROW_BTN =
+  "flex-none rounded-md px-1.5 py-0.5 text-[10.5px] text-[var(--tmd-fg-muted)] hover:bg-[var(--tmd-bg-hover)] hover:text-[var(--tmd-fg)]";
 
 export function RangeBanner({ details }: { details: FpDayDetail[] }) {
   let plus = 0;
@@ -40,7 +47,7 @@ export function RangeBanner({ details }: { details: FpDayDetail[] }) {
       </div>
       <div className="mb-2 flex flex-wrap gap-3 text-[12px]">
         {[...proj.entries()].map(([name, v]) => (
-          <span key={name}>
+          <span key={name} className="whitespace-nowrap">
             <b>{name}</b> <span className="text-emerald-600">+{v.plus}</span> <span className="text-red-500">−{v.minus}</span>
           </span>
         ))}
@@ -59,40 +66,68 @@ export function RangeBanner({ details }: { details: FpDayDetail[] }) {
 }
 
 /** 功能卡流。点卡内容 = 打开证据抽屉;悬停出修正入口。 */
-export function FallbackList({ detail, ungrouped, projOrder, onManualDigest }: {
+export function FallbackList({ detail, ungrouped, projOrder, onManualDigest, onAiDigest }: {
   detail: FpDayDetail;
   ungrouped: { project: string; path: string; stat: DayFileEntry }[];
   projOrder: string[];
   onManualDigest: () => void;
+  /** AI 补归纳:入队工作台日报生成会话,功能卡随文直写。 */
+  onAiDigest: () => void;
 }) {
+  useHost(); /* 活行磁盘身份绑定随时刷新(转录入口的 cliSessionId 寻址) */
+  const workspaces = getWorkspaces();
   return (
     <div className="mb-4 rounded-xl border border-dashed border-[var(--tmd-border-strong,var(--tmd-border))] bg-[var(--tmd-bg-panel)] p-3">
       <div className="mb-1 text-[12.5px] font-bold">
         {t("该日无功能归纳")}
-        <span className="ml-2 rounded bg-[var(--tmd-bg-hover)] px-1.5 py-px text-[10px] font-normal text-[var(--tmd-fg-muted)]">
-          {t("features 文件缺失或生成失败")}
-        </span>
+        <button
+          type="button"
+          className="ml-2 rounded-md bg-[var(--tmd-accent-weak,var(--tmd-accent-soft))] px-2 py-0.5 text-[11px] text-[var(--tmd-accent,var(--tmd-accent))] hover:brightness-95"
+          title={t("入队工作台日报生成会话:只归纳当日会话,功能卡随文落盘(引擎/模型用日报生成设置)")}
+          onClick={onAiDigest}
+        >
+          {t("AI 补归纳")}
+        </button>
         <button
           type="button"
           className="ml-2 rounded-md bg-[var(--tmd-bg-hover)] px-2 py-0.5 text-[11px] hover:bg-[var(--tmd-bg-elevated)]"
+          title={t("本地手工卡,不跑 AI")}
           onClick={onManualDigest}
         >
           {t("手动补归纳")}
         </button>
       </div>
       <div className="text-[11px] text-[var(--tmd-fg-muted)]">
-        {t("按项目分组诚实罗列,不装作聚了类 · 修正层可手动补归纳")}
+        {t("功能卡由工作台日报生成会话随文直写(AI 只归纳当日会话);会话退出约 45s 自动跑,此处可就地补跑")}
+      </div>
+      <div className="text-[11px] text-[var(--tmd-fg-muted)]">
+        {t("按项目分组诚实罗列,不装作聚了类")}
       </div>
       <div className="mt-2 flex flex-col gap-2">
-        {detail.rows.map((r) => (
-          <RawRow
-            key={`${r.profileId}:${r.id ?? r.title}`}
-            left={new Date(r.startedAt).toTimeString().slice(0, 5)}
-            tag={r.profileId}
-            tagColor="var(--tmd-fg-muted)"
-            text={r.title}
-          />
-        ))}
+        {detail.rows.map((r) => {
+          const view = daySessionViewOpener(r, workspaces);
+          return (
+            <RawRow
+              key={`${r.profileId}:${r.id ?? r.title}`}
+              left={new Date(r.startedAt).toTimeString().slice(0, 5)}
+              tag={r.profileId}
+              tagColor="var(--tmd-fg-muted)"
+              text={r.title}
+              actions={
+                <>
+                  <button type="button" className={ROW_BTN} onClick={() => openDaySessionRow(r, workspaces)}>
+                    {t("打开会话")}
+                  </button>
+                  {view && (
+                    <button type="button" className={ROW_BTN} onClick={view}>
+                      {t("查看转录")}
+                    </button>
+                  )}
+                </>
+              }
+            />
+          );
+        })}
         {projOrder.map((p) => (
           <div key={p}>
             <div className="mt-1 text-[11px] font-bold text-[var(--tmd-fg)]">{p}</div>

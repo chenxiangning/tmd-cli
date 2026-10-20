@@ -39,6 +39,7 @@ export const MESSAGES_EN = {
   "{n} 篇文章": "{n} articles",
   "无记录": "No records",
   "全文 ↗": "Full ↗",
+  "足迹 ↗": "Footprint ↗",
   "次落盘": "writes",
   "格 = 日": "cell = day",
   "蓝 = 今天": "blue = today",

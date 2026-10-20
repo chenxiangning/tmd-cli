@@ -19,6 +19,8 @@ export interface FpData {
   month: HeatCell[];
   detail: FpDayDetail | null;
   rangeDetails: FpDayDetail[];
+  /** 当日明细在途(点日/封口重拉期间,UI 显示 loading 而非旧日数据)。 */
+  dayLoading: boolean;
   /** 搜索跳转等场景直接替换当日明细。 */
   setDetail: (d: FpDayDetail | null) => void;
 }
@@ -27,6 +29,7 @@ export function useFpData({ ymStr, sel, range, rev }: FpDataParams): FpData {
   const [month, setMonth] = useState<HeatCell[]>([]);
   const [detail, setDetail] = useState<FpDayDetail | null>(null);
   const [rangeDetails, setRangeDetails] = useState<FpDayDetail[]>([]);
+  const [dayLoading, setDayLoading] = useState(false);
 
   /* 切月 / live 封口:重读当月热力(rollup 月缓存由数据层自管理) */
   useEffect(() => {
@@ -36,8 +39,12 @@ export function useFpData({ ymStr, sel, range, rev }: FpDataParams): FpData {
   /* 点日 / 封口当日:当日明细重拉 */
   useEffect(() => {
     let alive = true;
+    setDayLoading(true);
     void loadDayDetail(sel).then((d) => {
-      if (alive) setDetail(d);
+      if (alive) {
+        setDetail(d);
+        setDayLoading(false);
+      }
     });
     return () => {
       alive = false;
@@ -65,5 +72,5 @@ export function useFpData({ ymStr, sel, range, rev }: FpDataParams): FpData {
     };
   }, [range]);
 
-  return { month, detail, rangeDetails, setDetail };
+  return { month, detail, rangeDetails, dayLoading, setDetail };
 }
