@@ -7,123 +7,30 @@
  * 不强制激活;dirty tab 的确认由关闭协调器统一把关(2026-10-13 起三项均经
  * requestClose* 过 kind 的 beforeClose 闸,见 kernel/tabClose.ts 与
  * docs/architecture/24-tab-close-guard.md)。
- * 可选首项「重命名」(传 onRename 启用,会话 tab 用):canRename=false 时禁用。
- * 会话 tab 的低频行内钮(查看转录/置顶/定位,2026-10-06 收敛)也在此挂:
- * onView/onLocate/onRelay 提供才显(接力行仅 CLI 会话 tab);onTogglePin 恒显
- * (canPin=false 禁用,未落盘不可扎)。
+ * 分组(2026-10-20):会话 tab 菜单收成「重命名 / 置顶 / 通知▸ / 会话操作▸ / 标签页▸ /
+ * 关闭」六行,低频项入二级子菜单;文件 tab 仅关闭族,保持平铺。
+ * 分层:分组呈现(GroupedRows/CloseRows/menuLayout)在 TabMenuGroups,静音组在
+ * TabMuteMenu,行原语(MenuRow/SubmenuRow)在 wsmenuSubmenu;本文件只剩
+ * 壳:视口定位、开关、顶层高频行。
  */
-import { type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import {
-  Pencil,
-  XSquare,
-  Cross,
-  XCircle,
-  SquaresFour,
-  EyeIcon,
-  CrosshairSimple,
-  ArrowSquareOut,
-  Bell,
-  BellSlash,
-  Timer,
-} from "@phosphor-icons/react";
+import { Pencil, Cross } from "@phosphor-icons/react";
+import { MenuRow } from "./wsmenuSubmenu";
+import { CloseRows, GroupedRows } from "./TabMenuGroups";
+import { menuLayout } from "./tabMenuLayout";
 import { t } from "@kernel/i18n";
 import { useEscClose } from "@kernel/DialogShell";
 import { useSettingsState } from "@kernel/settings";
 import { clampToViewport } from "@kernel/menuClamp";
-import {
-  SESSION_MUTE_MODES,
-  muteSession,
-  sessionMuteModeLabel,
-  unmuteSession,
-  type SessionMuteEntry,
-  type SessionMuteMode,
-} from "@kernel/sessionMutes";
 import { PinIcon } from "@kernel/PinIcon";
 
-/** 菜单约 180 宽:以点击点为左上,在视口内夹取(kernel clampToViewport);高度按项数(3 项基座 120,可选项各 30)。 */
+/** 菜单约 180 宽:以点击点为左上,在视口内夹取(kernel clampToViewport);高度按项数(行 30,分隔线约 14)。 */
 function clampPosition(
   x: number,
   y: number,
   height: number,
 ): { x: number; y: number } {
   return clampToViewport(x, y, 180, height, 0);
-}
-
-/** 静音档位图标(与 SessionContextMenu 同款语义):铃/斜铃/计时。 */
-const MUTE_MODE_ICONS: Record<SessionMuteMode, ReactNode> = {
-  mute: <Bell size="0.875rem" />,
-  full: <BellSlash size="0.875rem" />,
-  snooze: <Timer size="0.875rem" />,
-};
-
-/** 静音组行数(高度估算用):未落盘 0 行;未静音 3 档;已静音 4 行(取消行 + 3 档)。 */
-function muteMenuRowCount(hasGroup: boolean, muted: boolean): number {
-  if (!hasGroup) return 0;
-  return muted ? 4 : 3;
-}
-
-/** 菜单行:wsmenu-item 形制(icon + label),点击即执行并关菜单。 */
-function MenuRow({
-  icon,
-  label,
-  disabled,
-  hint,
-  onPick,
-}: {
-  icon: ReactNode;
-  label: string;
-  disabled?: boolean;
-  hint?: string;
-  onPick: () => void;
-}) {
-  return (
-    <button
-      className="wsmenu-item"
-      disabled={disabled}
-      title={hint}
-      onClick={onPick}
-    >
-      <span className="wsmenu-item-icon">{icon}</span>
-      <span className="wsmenu-item-label">{label}</span>
-    </button>
-  );
-}
-
-/** 静音组:已静音首行「取消静音(当前档位括注)」;三档位行,当前档打勾并禁用。 */
-function MuteMenuRows({
-  muteKey,
-  muteEntry,
-  pick,
-}: {
-  muteKey: string;
-  muteEntry: SessionMuteEntry | null | undefined;
-  pick: (run: () => void) => () => void;
-}) {
-  return (
-    <>
-      {muteEntry ? (
-        <MenuRow
-          icon={<BellSlash size="0.875rem" />}
-          label={t("取消静音({mode})", { mode: sessionMuteModeLabel(muteEntry.mode) })}
-          onPick={pick(() => {
-            unmuteSession(muteKey);
-          })}
-        />
-      ) : null}
-      {SESSION_MUTE_MODES.map((mode) => (
-        <MenuRow
-          key={mode}
-          icon={MUTE_MODE_ICONS[mode]}
-          label={muteEntry?.mode === mode ? `✓ ${sessionMuteModeLabel(mode)}` : sessionMuteModeLabel(mode)}
-          disabled={muteEntry?.mode === mode}
-          onPick={pick(() => {
-            muteSession(muteKey, mode);
-          })}
-        />
-      ))}
-    </>
-  );
 }
 
 /** 可选首行「重命名」(会话 tab 用):未落盘(canRename=false)禁用并注明缘由。 */
@@ -144,6 +51,30 @@ function RenameMenuRow({
       disabled={canRename === false}
       hint={canRename === false ? t("会话尚未落盘,暂不可命名") : undefined}
       onPick={pick(onRename)}
+    />
+  );
+}
+
+/** 可选「置顶到全局/取消置顶」行:onTogglePin 恒传(会话 tab),canPin=false 禁用(未落盘不可扎)。 */
+function PinMenuRow({
+  onTogglePin,
+  canPin,
+  pinned,
+  pick,
+}: {
+  onTogglePin?: () => void;
+  canPin?: boolean;
+  pinned?: boolean;
+  pick: (run: () => void) => () => void;
+}) {
+  if (!onTogglePin) return null;
+  return (
+    <MenuRow
+      icon={<PinIcon size="0.875rem" />}
+      label={t(pinned ? "取消置顶" : "置顶到全局")}
+      disabled={canPin === false}
+      hint={canPin === false ? t("会话尚未落盘,暂不可置顶") : undefined}
+      onPick={pick(onTogglePin)}
     />
   );
 }
@@ -193,11 +124,8 @@ export function TabContextMenu({
   /* 静音档随 settings 订阅实时;undefined = 未落盘(整组隐藏)。 */
   const { settings } = useSettingsState();
   const muteEntry = muteKey === undefined ? undefined : (settings.sessionMutes[muteKey] ?? null);
-  /* 高度按实显项数估算(3 项基座 120,可选项各 30)——只用于夹取,真值由内容撑开。 */
-  const optionalRows =
-    [onRename, onView, onRelay, onTogglePin, onLocate, onToggleTile].filter(Boolean).length +
-    muteMenuRowCount(muteKey !== undefined, Boolean(muteEntry));
-  const pos = clampPosition(position.x, position.y, 120 + optionalRows * 30);
+  const { grouped, height } = menuLayout({ onRename, onTogglePin, onView, onRelay, onLocate, muteKey, onToggleTile });
+  const pos = clampPosition(position.x, position.y, height);
 
   useEscClose(onClose);
   const pick = (run: () => void) => () => {
@@ -218,44 +146,19 @@ export function TabContextMenu({
       />
       <div className="wsmenu session-menu tmd-scroll-hide" style={{ left: pos.x, top: pos.y }} data-icon-decor="menu">
         <RenameMenuRow onRename={onRename} canRename={canRename} pick={pick} />
-        {onView ? (
-          <MenuRow
-            icon={<EyeIcon size="0.875rem" />}
-            label={t("查看会话转录(只读)")}
-            onPick={pick(onView)}
-          />
-        ) : null}
-        {onRelay ? (
-          <MenuRow
-            icon={<ArrowSquareOut size="0.875rem" />}
-            label={t("转到其他引擎接力…")}
-            onPick={pick(onRelay)}
-          />
-        ) : null}
-        {onTogglePin ? (
-          <MenuRow
-            icon={<PinIcon size="0.875rem" />}
-            label={t(pinned ? "取消置顶" : "置顶到全局")}
-            disabled={canPin === false}
-            hint={canPin === false ? t("会话尚未落盘,暂不可置顶") : undefined}
-            onPick={pick(onTogglePin)}
-          />
-        ) : null}
-        {muteKey !== undefined ? (
-          <MuteMenuRows muteKey={muteKey} muteEntry={muteEntry} pick={pick} />
-        ) : null}
-        {onLocate ? (
-          <MenuRow
-            icon={<CrosshairSimple size="0.875rem" />}
-            label={t("在左侧栏定位会话")}
-            onPick={pick(onLocate)}
-          />
-        ) : null}
-        {onToggleTile ? (
-          <MenuRow
-            icon={<SquaresFour size="0.875rem" />}
-            label={tileActive ? t("取消平铺") : t("平铺显示")}
-            onPick={pick(onToggleTile)}
+        <PinMenuRow onTogglePin={onTogglePin} canPin={canPin} pinned={pinned} pick={pick} />
+        {grouped ? (
+          <GroupedRows
+            muteKey={muteKey}
+            muteEntry={muteEntry}
+            onView={onView}
+            onRelay={onRelay}
+            onLocate={onLocate}
+            onToggleTile={onToggleTile}
+            tileActive={tileActive}
+            onCloseOthers={onCloseOthers}
+            onCloseAll={onCloseAll}
+            pick={pick}
           />
         ) : null}
         <MenuRow
@@ -263,16 +166,7 @@ export function TabContextMenu({
           label={t("关闭")}
           onPick={pick(onCloseTab)}
         />
-        <MenuRow
-          icon={<XSquare size="0.875rem" />}
-          label={t("关闭其他 tab")}
-          onPick={pick(onCloseOthers)}
-        />
-        <MenuRow
-          icon={<XCircle size="0.875rem" />}
-          label={t("关闭全部 tab")}
-          onPick={pick(onCloseAll)}
-        />
+        {!grouped ? <CloseRows onCloseOthers={onCloseOthers} onCloseAll={onCloseAll} pick={pick} /> : null}
       </div>
     </>,
     document.body,
