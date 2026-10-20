@@ -7,8 +7,9 @@ import { t } from "@kernel/i18n";
 import { getWorkspaces } from "@kernel/workspace";
 import type { DaySessionRow } from "@plugins/workbench/journal/daySessions";
 import { openDaySessionRow } from "@plugins/workbench/journal/sessionRef";
+import { openFileInTab } from "@kernel/fileTabs";
 import type { CkptPatch } from "@kernel/ipc";
-import { openFileExternally, revealInFileManager } from "../dataSource";
+import { revealInFileManager } from "../dataSource";
 import { absFilePath, fileBatch, loadPatchForFile } from "../diffLookup";
 import type { FpCardView, FpDayDetail } from "../dataSource";
 
@@ -79,11 +80,10 @@ export function useFpFiles(
 
   const openFile = useCallback(
     (path: string, refs: string[]) => {
-      void openFileExternally(absFilePath(detail?.rollup ?? null, refs, path)).then((err) => {
-        if (err) showToast(err);
-      });
+      /* 客户端内文件 tab 打开(kernel 统一深链);外部程序走文件中心「打开方式」。 */
+      openFileInTab(absFilePath(detail?.rollup ?? null, refs, path));
     },
-    [detail, showToast],
+    [detail],
   );
 
   const revealFile = useCallback(

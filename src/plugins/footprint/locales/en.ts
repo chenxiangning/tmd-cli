@@ -88,7 +88,6 @@ export const MESSAGES_EN = {
   "打开所在文件夹": "Reveal in folder",
   "该卡无文件级证据(账本窗口外或无写入)": "No file-level evidence for this card (outside ledger window or no writes)",
   "该会话不在当日扫描清单(账本索引仍保留)": "Session not in the day scan (rollup index kept)",
-  "打开失败:系统未注册默认程序": "Open failed: no default app registered",
   "账本封口 diff": "sealed diff",
   "diff 已随账本清理(30 天 TTL)": "Diff pruned with the ledger (30-day TTL)",
   "数字仍在:该文件当日 +{add} / −{del} · 会话与 turn 索引保留": "Numbers kept: this file +{add} / −{del} that day · session & turn indexes persist",

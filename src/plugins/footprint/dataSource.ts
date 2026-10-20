@@ -4,13 +4,10 @@
  * 打开文件/所在文件夹通道)。纯读,不维护写路径。
  */
 import { ipc } from "@kernel/ipc";
-import { t } from "@kernel/i18n";
 import { collectSessionRowsChecked, type DaySessionRow } from "@plugins/workbench/journal/daySessions";
 import { dailyPaths } from "@plugins/workbench/journal/journalFiles";
 import { getWorkspaces } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
-import { resolveDefaultOpenWithFor } from "@kernel/openWith";
-import { getSettingsState } from "@kernel/settings";
 import { dayDetail as queryDayDetail, monthHeat, range as queryRange, readFeatureCards, searchFootprint as querySearch } from "./query";
 import type { DayDetail, HeatCell, RangeSummary, SearchHit, SearchKind } from "./query";
 import type { CardProvenance } from "./userLayer";
@@ -237,20 +234,7 @@ export async function searchDays(query: string): Promise<FpHit[]> {
     .slice(0, 40);
 }
 
-/* ── 打开文件/所在文件夹(真实通道:既有 open-with / reveal IPC) ── */
-
-/** 系统默认程序打开文件;null = 成功,否则本地化错误文案(调用方直接 toast)。 */
-export async function openFileExternally(path: string): Promise<string | null> {
-  try {
-    const s = getSettingsState().settings;
-    const target = resolveDefaultOpenWithFor(s.openWithTargets, s.openWithDefaultId, path);
-    if (!target) return t("打开失败:系统未注册默认程序");
-    await ipc.fsOpenWith(path, target);
-    return null;
-  } catch (e) {
-    return e instanceof Error ? e.message : String(e);
-  }
-}
+/* ── 所在文件夹定位(真实通道:reveal IPC;客户端内打开统一走 kernel fileTabs) ── */
 
 /** 文件管理器中显示所在目录;null = 成功,否则错误文案。 */
 export async function revealInFileManager(path: string): Promise<string | null> {
