@@ -1,5 +1,5 @@
 /**
- * quotaCards 纯函数测试:卡片构建(双窗口并列/展示序)/查不到的卡不渲染/
+ * quotaCards 纯函数测试:卡片构建(双窗口并列/展示序)/余额型卡沉底、仅 note 不渲染/
  * claude 推算卡去重/汇总条目标跨窗口取最早/倒计时拆分/凭据去重聚合。
  * inferClaudeWindow 为 IO 编排(ipc 尾读),走桩目检,不在此测。
  */
@@ -41,17 +41,25 @@ describe("buildQuotaCards", () => {
     expect(c.windows[1]).toMatchObject({ pct: 70, hot: false, resetsAt: NOW + 3 * 86400_000 });
   });
 
-  it("查不到的卡不渲染:仅 note / 仅余额 / 空窗口聚合全部丢弃", () => {
+  it("余额型卡:仅余额(deepseek)沉底成卡,仅 note / 空窗口聚合丢弃", () => {
     const cards = buildQuotaCards({
       quotas: [
+        { title: "DeepSeek 账户余额", windows: [], balanceText: "¥-1.29", planLabel: "欠费" },
         { title: "Claude 官方订阅", windows: [], note: "已登录;官方订阅额度请在 CLI 内 /usage 查看" },
-        { title: "DeepSeek 账户余额", windows: [], balanceText: "¥-1.29" },
         { title: "空", windows: [] },
       ],
       claudeWin: null,
       claudeHasQuota: false,
     });
-    expect(cards).toEqual([]);
+    expect(cards).toEqual([
+      {
+        key: "quota:DeepSeek 账户余额",
+        name: "DeepSeek 账户余额",
+        plan: "欠费",
+        windows: [],
+        balanceText: "¥-1.29",
+      },
+    ]);
   });
 
   it("claude 推算卡:有推算且无真额度时追加,单推算窗口(无环形读数)", () => {

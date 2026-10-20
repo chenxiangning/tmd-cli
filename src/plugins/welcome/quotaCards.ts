@@ -43,7 +43,7 @@ export interface CardWindow {
   inferred?: boolean;
 }
 
-/** 面板卡。一卡 N 窗口(5 小时 + 7 天并列);无任何可用窗口的卡不构建。 */
+/** 面板卡。一卡 N 窗口(5 小时 + 7 天并列);余额型供应商无窗口,卡体展示余额。 */
 export interface QuotaCard {
   key: string;
   name: string;
@@ -51,6 +51,8 @@ export interface QuotaCard {
   plan?: string;
   /** 窗口块,展示序:5 小时在前、7 天次之,其余按重置时刻。 */
   windows: CardWindow[];
+  /** 余额型卡体文本(如 "¥-1.29");仅 windows 为空的余额卡有值。 */
+  balanceText?: string;
 }
 
 /* ── 聚合(纯函数)──────────────────────────────────── */
@@ -98,8 +100,17 @@ function windowRank(label: string): number {
 }
 
 function dataCard(agg: QuotaAgg): QuotaCard | null {
-  /* 查不到的卡不渲染:无任何额度窗口的聚合(查询失败/仅余额/仅 note)丢弃。 */
-  if (agg.windows.length === 0) return null;
+  /* 余额型(deepseek/中转站:无窗口有余额)也成卡,沉底展示余额数值。 */
+  if (agg.windows.length === 0) {
+    if (!agg.balanceText) return null;
+    return {
+      key: `quota:${agg.title}`,
+      name: agg.title,
+      plan: agg.planLabel,
+      windows: [],
+      balanceText: agg.balanceText,
+    };
+  }
   const windows: CardWindow[] = agg.windows
     .map((w) => ({
       key: w.label,
@@ -120,7 +131,7 @@ function cardResetAt(c: QuotaCard): number {
 }
 
 /**
- * 面板卡列表 = 真额度卡 + claude 推算卡,按卡内最早重置时刻升序
+ * 面板卡列表 = 真额度卡 + 余额卡(沉底)+ claude 推算卡,按卡内最早重置时刻升序
  * (汇总条同序取首个未过期窗口)。查不到的卡一律不出现。
  */
 export function buildQuotaCards(args: {

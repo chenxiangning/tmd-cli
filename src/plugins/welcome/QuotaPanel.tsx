@@ -156,9 +156,9 @@ function WindowBlock({
 
 function CardView({ card, now }: { card: QuotaCard; now: number }) {
   const primary = card.windows[0];
-  const primaryExpired = primary.resetsAt != null && primary.resetsAt <= now;
+  const primaryExpired = primary != null && primary.resetsAt != null && primary.resetsAt <= now;
   const statusPill =
-    primary.pct == null ? null : primaryExpired ? (
+    primary == null || primary.pct == null ? null : primaryExpired ? (
       <span className="wq-pill wq-ok">{t("充裕")}</span>
     ) : primary.hot ? (
       <span className="wq-pill wq-limited">{t("已限额")}</span>
@@ -169,14 +169,18 @@ function CardView({ card, now }: { card: QuotaCard; now: number }) {
     <div className={`wq-card${card.windows.length > 1 ? " wq-multi" : ""}`}>
       <div className="wq-card-top">
         <span className="wq-name">{t(card.name)}</span>
-        {card.plan && <span className="wq-pill wq-plan">{card.plan}</span>}
+        {card.plan && <span className="wq-pill wq-plan">{t(card.plan)}</span>}
         {statusPill}
       </div>
-      <div className="wq-wins">
-        {card.windows.map((w) => (
-          <WindowBlock key={w.key} win={w} multi={card.windows.length > 1} now={now} />
-        ))}
-      </div>
+      {card.windows.length > 0 ? (
+        <div className="wq-wins">
+          {card.windows.map((w) => (
+            <WindowBlock key={w.key} win={w} multi={card.windows.length > 1} now={now} />
+          ))}
+        </div>
+      ) : (
+        card.balanceText != null && <div className="wq-balance">{card.balanceText}</div>
+      )}
     </div>
   );
 }
