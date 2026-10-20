@@ -4,6 +4,33 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.1] - 2026-10-20
+
+本版主体 = **0.4.1 批一/三/四落地**(规划 `docs/brainstorm/2026-10-20-041-next-steps.md`,实施记录 `docs/review/2026-10-20-041-implementation.md`):一致性打磨(299 行拆解 8 处)/ 轮询面审计(零迁移)/ ⌘Q 应用退出腿;追加每日足迹修正层 v2 差量与补账对账、tab 右键菜单分组化。架构契约沉淀 `docs/architecture/31-tab-menu-groups.md`。
+
+### 新增
+
+- tab 右键菜单分组化(app-shell):会话 tab 菜单 12 行平铺收成 6 行——顶层 重命名/置顶到全局/关闭,低频收「通知▸(取消静音+三档静音,当前档 ✓ 禁用)/ 会话操作▸(查看转录/引擎接力/左侧栏定位)/ 标签页▸(平铺/关闭其他/关闭全部)」三个 hover 二级子菜单;文件 tab 菜单仅关闭族保持平铺;行原语(MenuRow/SubmenuRow)/分组呈现/静音组/布局估算五文件分层,子菜单 fixed 定位逃逸 .wsmenu 剪裁、右侧放不下翻左
+- ⌘Q 应用退出腿(kernel):macOS 自定义 Quit 菜单项(app 菜单装配,accel CmdOrControl+Q)经事件单源发 tmd://menu-quit,前端复用关窗闸聚合确认流(有脏 tab 先确认再退);规避 Tauri ExitRequested 拦截的僵尸进程先例;非 macOS no-op
+- footprint 补账对账:应用未运行期间已封口的批次,激活后 8s 错峰按月幂等补入月账(候选 = 本月有活动会话,按轮次号判重,单会话读账失败跳过)——修「离线封口批永进不了月账、功能卡文件证据恒 0」
+- footprint 修正层 v2 差量语义:`.user.json` 由整量快照改 overrides/hidden/added 差量(读侧 v1 按标题对账迁移,只丢不猜),手动补归纳不再吞掉晚到的 AI 归纳卡,卡徽标逐卡标来源(AI 归纳/已修正/手动)
+- footprint 工作日志 × 每日足迹双向深链(fpTab payload.day 深链/轴视图「足迹 ↗」/日报行「打开日报」)与三栏宽度可拖拽(默认钉 248/余量/340)
+
+### 修复
+
+- notify 额度预警抽 quotaPoll 独立模块:补齐免打扰窗/会话静音/跨重启去重三闸,修 quota 预警绕过免打扰窗直发 OS 通知
+- footprint 找 bug 批收口:git 日窗时区契约(commitWindow 抽纯函数+测试)与抽屉/git 行 UTC 显示两处、封口重拉静默不闪 spinner、anchor 判定回归 ref 双轨消同事件误成区间、修正层写失败显提示、输入守卫补 TEXTAREA、热力峰值满档;补账并入封口落盘单飞队列,消读改写并行互相覆写丢批;补账触发改视图首开单次闸 + 缺口判定改逐日活动日,消跨零点次日漏账
+- footprint 抽屉:打开文件改客户端内文件 tab(外部程序路径收敛到文件中心);文件 diff 兜底枚举账本早前轮批,打开/定位改拼会话 cwd 绝对路径;tab keepAlive 保视图态跨切换保留,当日加载失败落空态不再永卡 spinner
+- memory-coordinator 记忆文件面板:标题改中文、修列表重复键,未声明行支持一键写空模板
+- journal daily-journal.css 上移 attach 装配点:文章 tab 深链直开(足迹「打开日报」)不再缺域样式
+
+### 内务
+
+- 299 行文件 25 → 14:8 处展示组件/纯函数拆解(mcp-hub ServerEditModal/session-board BoardToolbar/workspace Caption/session-viewer liveChrome/journal NoteReadonlyPanel/workbench locales/kernel terminalStream/files WsfbHead),零语义改动
+- 轮询面审计:59 处 setInterval 四分档(28 已有活性门控/17 长周期后台节拍/6 必须跨失焦/仅 2 处裸短周期),本轮零迁移不硬上 pollClock,D 档 2 处留 0.4.2 事件化
+- i18n 死键核对:批四告警最密五域 96 候选键全码扫描,真死候选 0(全部动态引用误报),判定脚本沉淀 `scripts/audit-deadkeys.mjs`
+- openspec 041/042 三批已落地契约归档 `openspec/changes/archive/`,docs/README 引用同步;vitest 冷导入单件止损(tabClose 图标库打桩 42s→3.2s),@phosphor-icons barrel 冷加载全仓专项留 0.4.2
+
 ## [0.4.0] - 2026-10-20
 
 本版主体 = **0.4.0 向内治理批八项全量落地**(视觉示例与代码级可行性 `docs/design/041-candidates/`,八路并行实施+集成收口;架构契约沉淀 `docs/architecture/27-041-candidates-contracts.md`):保留律收尾 / 幕布冻结快照 / 应用内通知中心 / 会话预设 / 检索增强 / 存储管家 / 转录导出 / checkpoint↔转录互跳。**追加 042 混合批**(视觉示例与推演定稿 `docs/design/042-candidates/`,大仙拍板 1/3/4/6/7 五项,打磨对齐定稿后实施):终端路径点击 / 输入历史全文+抽屉 / 额度告警增量三腿 / 跨工作区全局检索 / checkpoint 恢复预览 + workbench 空壳归档债批 + 随手带四项。**再追加连续性批六项**(示例页 042 组页 9-14,大仙拍板分五批实施,每批 review 防跑偏;裁决与深扫修正 `docs/brainstorm/2026-10-19-042-followup.md` + `openspec/changes/2026-10-19-042-followup-batch/`):重启现场恢复 / 跨引擎记忆文件面板 / 会话变更总览 / 草稿安全网 / 通知会话级静音 / 转录批量导出。
