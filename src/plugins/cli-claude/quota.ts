@@ -76,14 +76,14 @@ async function hasOfficialOAuth(home: string): Promise<boolean> {
   }
 }
 
-export async function fetchClaudeQuota(): Promise<QuotaSnapshot> {
+export async function fetchClaudeQuota(opts?: { force?: boolean }): Promise<QuotaSnapshot> {
   const home = await ipc.configHomeDir();
   const cred = await readClaudeCredentials(home);
 
   // 1. 自定义 base_url + key → 供应商检测 → HTTP(kimi/zhipu/minimax/deepseek/中转站)
   if (cred.baseUrl && cred.apiKey) {
     const vendor = detectVendorByBaseUrl(cred.baseUrl);
-    const quota = await fetchVendorQuota(vendor, { key: cred.apiKey }, cred.baseUrl);
+    const quota = await fetchVendorQuota(vendor, { key: cred.apiKey }, cred.baseUrl, { force: opts?.force });
     return toQuotaSnapshot("claude", vendor, quota, "Claude 账号额度");
   }
 

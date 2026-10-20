@@ -159,7 +159,7 @@ export const cliClaudePlugin: Plugin = {
         { scope: "project", label: "CLAUDE.md", relPath: "CLAUDE.md" },
         { scope: "user", label: "CLAUDE.md", relPath: ".claude/CLAUDE.md" },
       ],
-      fetchQuota: fetchClaudeQuota,
+      fetchQuota: (ctx) => fetchClaudeQuota(ctx),
       docsUrl: "https://code.claude.com/docs/en/cli-reference",
       // npm 包仅用于 registry 最新版查询;安装走下方官方脚本通道。
       npmPackage: "@anthropic-ai/claude-code",

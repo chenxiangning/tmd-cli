@@ -91,7 +91,7 @@ export const cliGrokPlugin: Plugin = {
        profile 立刻可用,候选按需查询(与 cli-claude 同法)。 */
     const profile: CliProfile = {
       id: "grok",
-      fetchQuota: fetchGrokQuota,
+      fetchQuota: (ctx) => fetchGrokQuota(ctx),
       // 官方 install.sh 走 x.ai(Cloudflare 墙),npm 通道更稳。
       docsUrl: "https://github.com/xai-org/grok-build",
       npmPackage: "@xai-official/grok",

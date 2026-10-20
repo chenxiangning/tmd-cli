@@ -69,14 +69,21 @@ function useActiveQuota(): {
   const [loading, setLoading] = useState(false);
   const [fetchedAt, setFetchedAt] = useState<number | null>(null);
   const [tick, setTick] = useState(0);
+  /* 手动 ⟳ 置位,下一次 effect 抓取消费:绕过共享快照缓存读(批二评审 P1)。 */
+  const forceRef = useRef(false);
   /* 请求序守卫:被取代的抓取(快速 ⟳ 连点/换模型)不得在 finally 里提前复位
      loading/fetchedAt(2026-09-28 评审 F5)。 */
   const fetchSeqRef = useRef(0);
 
-  const refresh = useCallback(() => setTick((t) => t + 1), []);
+  const refresh = useCallback(() => {
+    forceRef.current = true;
+    setTick((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     const seq = ++fetchSeqRef.current;
+    const force = forceRef.current;
+    forceRef.current = false;
     if (!profileId) {
       setEntry(null);
       setFetchedAt(null);
@@ -101,7 +108,7 @@ function useActiveQuota(): {
     );
     setLoading(true);
     provider
-      .fetch({ model, cwd: session?.cwd, cliSessionId })
+      .fetch({ model, cwd: session?.cwd, cliSessionId, force })
       .then((snapshot) =>
         setEntry((prev) => (prev?.model === model ? { model, snapshot } : prev)),
       )

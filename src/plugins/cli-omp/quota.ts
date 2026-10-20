@@ -58,7 +58,7 @@ export async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapsh
   if (!raw) {
     throw new Error(t("omp 未登录供应商 {vendor} (~/.omp/agent/agent.db)", { vendor: ompVendor }));
   }
-  const quota = await fetchVendorQuota(vendor, cred);
+  const quota = await fetchVendorQuota(vendor, cred, undefined, { force: ctx.force });
   return toQuotaSnapshot(ompVendor, vendor, quota);
 }
 

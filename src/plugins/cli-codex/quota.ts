@@ -90,7 +90,7 @@ function httpSnapshot(quota: VendorQuota, planPrefix?: string): QuotaSnapshot {
   });
 }
 
-export async function fetchCodexQuota(): Promise<QuotaSnapshot> {
+export async function fetchCodexQuota(opts?: { force?: boolean }): Promise<QuotaSnapshot> {
   const home = await ipc.configHomeDir();
   const auth = await readCodexAuth(home);
 
@@ -113,7 +113,7 @@ export async function fetchCodexQuota(): Promise<QuotaSnapshot> {
     if (baseUrl) {
       const vendor = detectVendorByBaseUrl(baseUrl);
       if (vendor !== "unsupported") {
-        const quota = await fetchVendorQuota(vendor, { key }, baseUrl);
+        const quota = await fetchVendorQuota(vendor, { key }, baseUrl, { force: opts?.force });
         return httpSnapshot(quota, "自定义 key");
       }
       throw new Error(t("codex 自定义供应商(阿里云百炼)无公开额度 API,请在控制台查看"));

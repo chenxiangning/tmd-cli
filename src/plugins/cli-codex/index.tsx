@@ -163,7 +163,7 @@ export const cliCodexPlugin: Plugin = {
         { scope: "project", label: "AGENTS.md", relPath: "AGENTS.md" },
         { scope: "user", label: "AGENTS.md", relPath: ".codex/AGENTS.md" },
       ],
-      fetchQuota: fetchCodexQuota,
+      fetchQuota: (ctx) => fetchCodexQuota(ctx),
       docsUrl: "https://github.com/openai/codex",
       npmPackage: "@openai/codex",
       name: "codex",

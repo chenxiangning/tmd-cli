@@ -21,7 +21,7 @@ import {
 } from "../cli-shared/quota/vendors";
 import { resolveGrokDefaultProfile } from "../cli-shared/grokConfig";
 
-export async function fetchGrokQuota(): Promise<QuotaSnapshot> {
+export async function fetchGrokQuota(opts?: { force?: boolean }): Promise<QuotaSnapshot> {
   const home = await ipc.configHomeDir();
   /* 文件缺失/读取失败回落空文本,与「文件在但无 key」同走显式不支持文案,
      不把裸 ENOENT 抛给额度面板。 */
@@ -30,7 +30,7 @@ export async function fetchGrokQuota(): Promise<QuotaSnapshot> {
 
   if (profile.baseUrl && profile.apiKey) {
     const vendor = detectVendorByBaseUrl(profile.baseUrl);
-    const quota = await fetchVendorQuota(vendor, { key: profile.apiKey }, profile.baseUrl);
+    const quota = await fetchVendorQuota(vendor, { key: profile.apiKey }, profile.baseUrl, { force: opts?.force });
     return toQuotaSnapshot("grok", vendor, quota, "Grok 账号额度");
   }
 

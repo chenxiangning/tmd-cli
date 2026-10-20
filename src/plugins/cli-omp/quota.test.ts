@@ -94,7 +94,7 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
     await expect(fetchOmpQuota(ctxOf("kimi-code/k3"))).resolves.toBe(snapshotSentinel);
 
     expect(readOmpAuthCredential).toHaveBeenCalledWith("kimi-code");
-    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", { key: "sk-kimi-1" });
+    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", { key: "sk-kimi-1" }, undefined, { force: undefined });
     expect(toQuotaSnapshot).toHaveBeenCalledWith("kimi-code", "kimi", { windows: [], planLabel: "Plan-A" });
   });
 
@@ -131,7 +131,7 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
     vi.mocked(toQuotaSnapshot).mockReturnValue(snapshotSentinel);
 
     await expect(fetchOmpQuota(ctxOf("kimi-code/k3"))).resolves.toBe(snapshotSentinel);
-    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", {});
+    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", {}, undefined, { force: undefined });
   });
 
   it("凭据字段空白串视为缺失、非字符串字段丢弃、合法值裁剪", async () => {
@@ -140,7 +140,7 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
 
     await fetchOmpQuota(ctxOf("kimi-code/k3"));
 
-    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", { access: "acc-1" });
+    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", { access: "acc-1" }, undefined, { force: undefined });
   });
 });
 

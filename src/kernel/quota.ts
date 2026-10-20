@@ -70,6 +70,8 @@ export interface QuotaFetchContext {
   cwd?: string;
   /** 当前会话的 CLI 磁盘身份(未绑定 = undefined)。 */
   cliSessionId?: string;
+  /** 手动强刷(用户点 ⟳ 等):provider 透传到底层抓取,绕过共享快照缓存读(仍回写)。 */
+  force?: boolean;
 }
 
 const providers = new Map<string, QuotaProvider>();

@@ -63,6 +63,6 @@ export async function fetchPiQuota(ctx: QuotaFetchContext): Promise<QuotaSnapsho
     return fetchCodexQuotaWithSnapshot(cred, route.providerId);
   }
   const cred = await resolveCredentialRefs(route.providerId, route.credential);
-  const quota = await fetchVendorQuota(route.vendor, cred, route.baseUrl);
+  const quota = await fetchVendorQuota(route.vendor, cred, route.baseUrl, { force: ctx.force });
   return toQuotaSnapshot(route.providerId, route.vendor, quota);
 }

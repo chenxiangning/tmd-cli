@@ -68,6 +68,7 @@ export function toQuotaSnapshot(
  * 重试语义不受影响)。凭据以 JSON 串作键(进程内存,防 32 位散列跨凭据误 hit)。
  */
 const SNAP_TTL_MS = 60_000;
+/* 非硬顶:极端量新键可短暂超容,插入期过期清扫自愈(现实凭据规模远不及)。 */
 const SNAP_CACHE_CAP = 96;
 const snapCache = new Map<string, { at: number; quota: VendorQuota }>();
 const snapInflight = new Map<string, Promise<VendorQuota>>();
@@ -88,13 +89,17 @@ export async function fetchVendorQuota(
   vendor: VendorId,
   cred: VendorCredential,
   baseUrl?: string,
+  opts?: { force?: boolean },
 ): Promise<VendorQuota> {
   const key = `${vendor}|${baseUrl ?? ""}|${JSON.stringify(cred)}`;
   const now = Date.now();
-  const hit = snapCache.get(key);
-  if (hit && now - hit.at < SNAP_TTL_MS) return hit.quota;
-  const running = snapInflight.get(key);
-  if (running) return running;
+  /* force = 手动强刷(QuotaChip ⟳ 经 provider 透传):跳过缓存读与在飞合并,照常回写。 */
+  if (!opts?.force) {
+    const hit = snapCache.get(key);
+    if (hit && now - hit.at < SNAP_TTL_MS) return hit.quota;
+    const running = snapInflight.get(key);
+    if (running) return running;
+  }
   const p = fetchVendorQuotaFresh(vendor, cred, baseUrl)
     .then((quota) => {
       if (snapCache.size >= SNAP_CACHE_CAP) {
