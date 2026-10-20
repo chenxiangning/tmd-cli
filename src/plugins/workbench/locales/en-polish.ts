@@ -1,0 +1,40 @@
+/** en 词典 · workbench 打磨批/风险详情/概要 dashboard 段 —— 2026-10-20 从
+ *  locales/en.ts 拆出(先例 en-docgen/en-archive;守 300 行铁则,键零增删)。 */
+export const POLISH_EN = {
+  // ── 打磨批(2026-10-12):确认/错误/会话态 ──
+  "重试": "Retry",
+  "任务不存在或已删除。": "Task missing or deleted.",
+  "开始日期不能晚于截止日期": "Start date cannot be after due date",
+  "丢弃修改": "Discard changes",
+  "未保存的修改将丢失。": "Unsaved changes will be lost.",
+  "丢弃": "Discard",
+  "删除任务": "Delete task",
+  "将删除任务「{title}」及其附件,不可恢复。": "Deletes task “{title}” with its attachments. Irreversible.",
+  "删除附件": "Delete attachment",
+  "将删除附件「{name}」,不可恢复。": "Deletes attachment “{name}”. Irreversible.",
+  "删除文档": "Delete doc",
+  "将删除文档「{title}」,不可恢复。": "Deletes doc “{title}”. Irreversible.",
+  "将解除与会话「{title}」的关联;会话本身不受影响,之后仍可重新关联。": "Unlinks session “{title}”; the session itself is untouched and can be re-linked later.",
+  "创建时间": "Created",
+  "更新时间": "Updated",
+  "删除记录": "Delete entry",
+  "将删除该进展记录,不可恢复。": "Deletes this log entry. Irreversible.",
+  "正在扫描本地会话…": "Scanning local sessions…",
+  "会话已创建但关联失败": "Session created, but linking failed",
+  "未找到原会话,请从侧栏手动打开": "Original session not found; open it from the sidebar",
+  "引擎会话扫描失败,列表可能不全。": "Engine session scan failed; the list may be incomplete.",
+  // ── 风险详情渲染层文案(risk.detail 渲染重建,ProjectDetail) ──
+  "已交付": "Delivered",
+  "处于阻塞状态,需要推动": "Blocked; needs a push",
+  "未设置截止日期": "No due date set",
+  "已超过截止日期 {days} 天": "{days} days past due",
+  "只剩 {days} 天": "{days} days left",
+  "还剩 {days} 天,节奏正常": "{days} days left; on track",
+  "时间已过 {percent}% 但进度只有 {progress}%": "{percent}% of the window has passed but progress is only {progress}%",
+  // ── 概要 dashboard(InfoDashboard)──
+  "全部 →": "All →",
+  "任务状态分布": "Task status breakdown",
+  "暂无到期任务": "Nothing due soon",
+  "还没有资料文档": "No docs yet",
+  "还没有进展记录": "No log entries yet",
+} as Record<string, string>;
