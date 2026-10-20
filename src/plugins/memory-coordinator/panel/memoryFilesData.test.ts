@@ -4,11 +4,13 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-const ipcMock = vi.hoisted(() => ({ fsReadHeads: vi.fn() }));
+const ipcMock = vi.hoisted(() => ({ fsReadHeads: vi.fn(), fsCreateDir: vi.fn(), fsWriteFile: vi.fn() }));
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 
 import {
   expandMemorySlots,
+  generateMemoryTemplate,
+  memoryTemplate,
   probeMemoryFiles,
   slotState,
   summarizeMemoryFiles,
@@ -61,6 +63,29 @@ describe("三态归并", () => {
 
   it("摘要计数:N 在 · M 缺 · K 未声明", () => {
     expect(summarizeMemoryFiles(project, user, probe, 1)).toEqual({ ok: 1, missing: 2, undeclared: 1 });
+  });
+});
+
+describe("空模板生成", () => {
+  it("模板 = 一行标题空壳;生成 = 先逐级确保父目录再覆写写盘", async () => {
+    ipcMock.fsCreateDir.mockResolvedValue(undefined);
+    ipcMock.fsWriteFile.mockResolvedValue(undefined);
+    const slot = { engine: "kimi", scope: "project", label: "AGENTS.md", relPath: "AGENTS.md", absPath: "/ws/demo/AGENTS.md" } as const;
+    expect(memoryTemplate(slot)).toBe("# AGENTS.md\n");
+    await generateMemoryTemplate(slot);
+    expect(ipcMock.fsWriteFile).toHaveBeenCalledWith("/ws/demo/AGENTS.md", "# AGENTS.md\n");
+    /* 用户级深路径:父目录逐级确保在写盘之前 */
+    const deep = { engine: "claude", scope: "user", label: "CLAUDE.md", relPath: ".claude/CLAUDE.md", absPath: "/home/u/.claude/CLAUDE.md" } as const;
+    await generateMemoryTemplate(deep);
+    expect(ipcMock.fsCreateDir.mock.calls.map((c) => c[0])).toContain("/home/u/.claude");
+    expect(ipcMock.fsWriteFile).toHaveBeenLastCalledWith("/home/u/.claude/CLAUDE.md", "# CLAUDE.md\n");
+  });
+
+  it("写盘失败原样抛出(行内失败标记由面板侧归并)", async () => {
+    ipcMock.fsCreateDir.mockResolvedValue(undefined);
+    ipcMock.fsWriteFile.mockRejectedValueOnce(new Error("EACCES"));
+    const slot = { engine: "kimi", scope: "project", label: "AGENTS.md", relPath: "AGENTS.md", absPath: "/ws/ro/AGENTS.md" } as const;
+    await expect(generateMemoryTemplate(slot)).rejects.toThrow("EACCES");
   });
 });
 

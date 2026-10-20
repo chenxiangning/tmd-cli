@@ -1,5 +1,5 @@
 /**
- * 记忆文件面板 · 数据面 —— 声明展开、三态归并、批量探测(自面板拆出守 300 行铁则)。
+ * 记忆文件面板 · 数据面 —— 声明展开、三态归并、批量探测、空模板生成(自面板拆出守 300 行铁则)。
  *
  * 数据 = 全部已注册 profile × CliProfile.memoryFiles 声明(声明式,内核零路径知识);
  * 探测用 fsReadHeads(1 字节,单文件失败 Rust 侧回空串 = 未生成,批量 IPC 失败全降级,
@@ -7,6 +7,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { ensureParentDir } from "@kernel/fsDirs";
 import type { CliProfile } from "@kernel/cli";
 
 /** 声明槽(profile.memoryFiles 条目展开成绝对路径后的面)。 */
@@ -71,6 +72,20 @@ export function undeclaredEngines(profiles: MemoryProfileSource): string[] {
 /** 单槽三态归并:探测命中 = 在,否则未生成(探测失败已降级为 false)。 */
 export function slotState(slot: MemorySlot, probe: MemoryProbeMap): "ok" | "missing" {
   return probe[slot.absPath] ? "ok" : "missing";
+}
+
+/** 空文件模板:仅一行标题空壳,内容留给用户或 CLI /init 填充。 */
+export function memoryTemplate(slot: MemorySlot): string {
+  return `# ${slot.label}\n`;
+}
+
+/**
+ * 生成空模板:先逐级确保父目录(已存在报错被 ensureDir 吞),再覆写写盘。
+ * 覆写语义安全:生成钮只出现在探测未命中的行,已存在文件永远不走此路径。
+ */
+export async function generateMemoryTemplate(slot: MemorySlot): Promise<void> {
+  await ensureParentDir(slot.absPath);
+  await ipc.fsWriteFile(slot.absPath, memoryTemplate(slot));
 }
 
 /**
