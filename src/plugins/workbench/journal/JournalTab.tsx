@@ -25,7 +25,7 @@ import { fillPendingDays } from "./journalSchedule";
 import { YearView } from "./YearView";
 import { monthTitleOf } from "./dateTitle";
 import { ensureHolidays, useHolidays, type HolidayStatus } from "./holidays";
-import "./daily-journal.css";
+/* 域样式已上移 attach.ts 装配点(文章 tab 深链直开时本组件未挂载) */
 
 export type JournalView = "y" | "m" | "f";
 

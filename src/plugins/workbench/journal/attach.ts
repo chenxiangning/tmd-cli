@@ -14,6 +14,7 @@ import { bindTaskPersistence } from "./taskQueue";
 import { bootJournalSchedule } from "./journalSchedule";
 import { bindHolidayEnabled, ensureHolidays } from "./holidays";
 import "./locales"; /* 域词典随子域自带:i18n.registerMessages(import 即注册) */
+import "./daily-journal.css"; /* 域样式随装配:文章 tab 深链直开(footprint「打开日报 ↗」)时 JournalTab 未挂载也要有样式 */
 
 /** workbench.activate 调用;返回退订(停定时器/事件/生成体)。 */
 export function attachJournal(ctx: PluginContext): () => void {
