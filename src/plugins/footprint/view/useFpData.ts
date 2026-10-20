@@ -40,12 +40,14 @@ export function useFpData({ ymStr, sel, range, rev }: FpDataParams): FpData {
   useEffect(() => {
     let alive = true;
     setDayLoading(true);
-    void loadDayDetail(sel).then((d) => {
-      if (alive) {
-        setDetail(d);
-        setDayLoading(false);
-      }
-    });
+    void loadDayDetail(sel)
+      .then((d) => {
+        if (alive) setDetail(d);
+      })
+      .catch(() => undefined) /* 扫描失败落空态而非永卡 spinner */
+      .finally(() => {
+        if (alive) setDayLoading(false);
+      });
     return () => {
       alive = false;
     };

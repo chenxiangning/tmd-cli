@@ -30,6 +30,7 @@ export const footprintPlugin: Plugin = {
       kind: FP_TAB_KIND,
       component: lazySuspense(() => import("./view/FootprintView").then((m) => ({ default: m.FootprintView }))),
       icon: Footprints,
+      keepAlive: true, /* 切 tab 不卸载:选中日/区间/卡片选择等视图态跨切换保留(先例 workbench) */
     });
     /* 左 rail 入口(排序 46:动画 45 之后)。 */
     ctx.registerSidebarAction({
