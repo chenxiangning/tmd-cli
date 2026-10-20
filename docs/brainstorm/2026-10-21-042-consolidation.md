@@ -17,7 +17,7 @@
 
 ### 批二:quota 快照统一
 
-kernel/quota 注册表加 TTL 快照缓存;welcome QuotaPanel(现为 `credentials.ts` 直连 vendors,绕过注册表)迁入;notify 轮询 / composer QuotaChip / welcome 三家同吃一份快照,消同一供应商窗口双抓。
+**方案修订(实施时定稿)**:原案「welcome 迁 kernel/quota 注册表」否决——细读后发现 welcome 是**凭据级**盘点(一引擎多账号并列卡),kernel 注册表是**会话上下文级**单账号快照,硬迁会丢多账号面。真重叠底座是 cli-shared `fetchVendorQuota`(三家——welcome 凭据盘 / notify 轮询 / composer QuotaChip 经各 CLI provider——最终都走它)。**落地 = 缓存下沉 vendors 共享层**:(vendor, 凭据, baseUrl) 60s TTL + 在飞合并,只缓存成功(各家退避重试语义不变),三家透明共享零调用方改动。claude 窗口推算(notify claudeWindow 按会话 vs welcome inferClaudeWindow 全工作区)作用域不同,有意不合并。
 
 ### 批三:内务收敛(五项)
 
