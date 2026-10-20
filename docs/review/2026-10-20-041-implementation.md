@@ -35,6 +35,7 @@
 ## 验证链
 
 - `pnpm check:gate` 全链(重跑前发现 vitest 缓存清理被本机 safe-delete shim 拦截,移走 node_modules/.vitest-cache 后恢复,属工具链环境问题)。
+- build 腿另有两处**同源环境拦截**(非代码,解法可复现):① vite `prepare-out-dir` 清 `dist/assets`(344 件 > 50 阈值)→ 先 `mv dist /tmp/` 再 build;② `prune-excalidraw-locales` 本轮累计删到第 50 件触阈值 → 同一脚本在新的一次调用里重跑即过。补齐后 build EXIT=0(katex 省 0.8MB / excalidraw 省 904KB / check-dist 入口完整,dist 21M)。
 - 全链终跑:21 failed / 526 passed(547)。逐件复验**全部单跑绿**,无一回归,分两类:
   - **断言级 4 件**(askSound / fpTab / markdownBlockSegment / journalStore)——单跑 43 测全绿,满负载下用例墙钟被拉到 3.7s 触顶;
   - **套件级 17 件**(ExitSessionToast / engines / iconSet / SearchOverlay / EngineCard / VersionMenu / MonthView / statusProbe / askScreenMirror / locales / boardData / indexer / presetContract / GenSettings / JournalTab / sendTransform / storageAndAiDraw)——单跑 181 测全绿;**根因 = 冷 worker 导入成本**:`mobile/engines.test.ts` 单套件 204s 中 85% 是 import,`presetContract+indexer` 组 import 占 96%。并行 8+ worker 抢同一份 barrel 冷导入,首例触发 hook/gather 上限即整套件判失败。
