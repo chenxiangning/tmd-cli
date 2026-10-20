@@ -24,7 +24,7 @@
 | 0e92ab46 | kernel terminalReplay → terminalStream.ts + re-export | 58 |
 | a35147dc | files WorkspaceFileBrowser → WsfbHead.tsx | 262 |
 
-全部零语义改动;每拆一笔跑 file-size + tsc + 域测试。299 行文件 25 → 16(剩 9 个多为 mobile 树与内核测试件,移 0.4.2 继续)。
+全部零语义改动;每拆一笔跑 file-size + tsc + 域测试。299 行文件 25 → **14**(20:40 实测;剩 mobile 三屏 / kernel host系 / settings / cli 侧两件与四个测试件,移 0.4.2 继续)。
 3. **死键核对**(ccd2a36b):最密五域 96 候选键全码扫描,**真死候选 0**(全部动态引用误报);判定脚本沉淀 `scripts/audit-deadkeys.mjs`;不删键,维持 0.3.9 告警态裁决。
 
 ### 批三 · 性能与稳定(按审计结论收窄)
