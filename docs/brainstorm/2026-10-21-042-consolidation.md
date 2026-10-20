@@ -13,7 +13,7 @@
 ### 批一:互跳(产品可见)
 
 1. footprint ⌘K 检索命中加「在转录中查看」——现在只能跳「日」,复用 kernel `anchorJump` 桥(`openThenJumpToText`,session-search/checkpoints 已是消费方)跳转录行。
-2. checkpoints 时间线节点加「看对话」——审阅单(BatchSheet)已有同款,时间线节点补齐,复用 `seeConversation` 同文多轮按出现序定位。
+2. ~~checkpoints 时间线节点加「看对话」~~ **口径修正(大仙校准 2026-10-21)**:时间线节点本就有「定位幕布」钮(jumpToAnchor,同文多轮 occurrence),梳理页误判缺口;真正残余 = 转录查看器无行级定位桥。大仙拍板当即补:**批一追加已落地**——kernel `sessionViewTabs` 深链加 `locate` 载荷(refresh 重触发),viewer 侧 `locate.ts` 纯函数匹配 user 块(24/14/8 梯队 + occurrence),时间线/审阅单/footprint 三处幕布 miss 落查看器兜底并改判 opened。
 
 ### 批二:quota 快照统一
 
