@@ -13,7 +13,6 @@ import { KernelTopics, type CkptTurnSealedEvent } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { bumpFootprintRev, FP_TAB_KIND, openFootprintTab } from "./fpTab";
 import { activateRollup } from "./rollup";
-import { monthKeyOf, reconcileMonth } from "./backfill";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 export const footprintPlugin: Plugin = {
@@ -53,17 +52,9 @@ export const footprintPlugin: Plugin = {
     const offEdit = ctx.events.on<{ sessionId: string; paths: string[] }>(KernelTopics.fileEditDetected, (e) => {
       if (e.paths.some((p) => p.includes("/footprint/features/"))) bumpFootprintRev();
     });
-    /* 补账:封口事件只在应用运行且已订阅时到达,应用未运行期间封好的批次会漏账
-     * (卡面因此「0 文件」)。激活后错峰对本月对账一次,补到即 bump 让视图重拉。 */
-    const timer = setTimeout(() => {
-      void reconcileMonth(monthKeyOf(Date.now()))
-        .then((n) => {
-          if (n > 0) bumpFootprintRev();
-        })
-        .catch(() => undefined);
-    }, 8_000);
+    /* 补账不在启动后定时跑(要全量会话扫描,会叠启动峰);改由视图首次挂载触发,
+     * 见 backfill.reconcileOnce —— 用户看数据那一刻补,补到即 bump 重拉。 */
     return () => {
-      clearTimeout(timer);
       offRollup();
       offSealed();
       offEdit();

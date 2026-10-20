@@ -3,11 +3,12 @@
  * 左月历热力导航 / 中功能卡流+宽 diff 面板 / 右证据抽屉;
  * ⌘K 反查、shift 区间、j/k/t/1/2/? 键盘、live 封口轻刷新。
  */
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { t } from "@kernel/i18n";
 import type { EditorTab } from "@kernel/tabs";
 import type { FpCardView } from "../dataSource";
 import { dayKeyOf } from "../dataSource";
+import { reconcileOnce } from "../backfill";
 import { useFpSearch } from "./useFpSearch";
 import { useFpAiDigest } from "./useFpAiDigest";
 import { useFootprintRev, gotoToday, fpInitView } from "../fpTab";
@@ -28,6 +29,11 @@ import { useFpData } from "./useFpData";
 
 export function FootprintView({ tab }: { tab: EditorTab }) {
   const rev = useFootprintRev(); /* ckptTurnSealed → 当日轻刷新 */
+  /* 补账:首次打开对本月对账一次(补「应用未运行期间封口」的漏批);补到即 bump 重拉。
+   * 不放启动定时:对账要全量会话扫描,叠启动峰会与启动错峰目标冲突。 */
+  useEffect(() => {
+    void reconcileOnce();
+  }, []);
   const now = new Date();
   const today = dayKeyOf(now);
   /* 深链初始:payload.day 直达(journal 轴视图「足迹 ↗」;openTab refresh 已开重开)。 */

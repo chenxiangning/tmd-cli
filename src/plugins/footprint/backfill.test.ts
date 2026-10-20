@@ -29,7 +29,9 @@ vi.mock("./dataSource", () => ({ loadSessionRows: vi.fn(async () => ({ rows: [],
 
 import { ipc } from "@kernel/ipc";
 import { loadSessionRows } from "./dataSource";
-import { accounted, candidatesFor, monthKeyOf, pickBatches, reconcileMonth } from "./backfill";
+import {
+  activeDaysOf, candidatesFor, monthKeyOf, needsCheck, pickBatches, reconcileMonth, reconcileOnce, resetReconcileOnce,
+} from "./backfill";
 import { resetMonthCache } from "./rollup";
 import { emptyMonth, type FootprintMonthFile } from "./types";
 import type { DaySessionRow } from "./dataSource";
@@ -76,31 +78,46 @@ describe("monthKeyOf", () => {
 describe("candidatesFor(候选会话)", () => {
   it("本月活动命中;跨月弃;cwd 解析不出弃;同 id 只留一次", () => {
     const rows = [
-      row({ id: "a", startedAt: localMs(2026, 10, 1) }),
-      row({ id: "a", startedAt: localMs(2026, 10, 2) }), // 重复行
+      row({ id: "a", startedAt: localMs(2026, 10, 1), modifiedAt: localMs(2026, 10, 1) }),
+      row({ id: "a", startedAt: localMs(2026, 10, 2), modifiedAt: localMs(2026, 10, 2) }), // 重复行 → 活动日并集
       row({ id: "b", startedAt: localMs(2026, 9, 30), modifiedAt: localMs(2026, 10, 1) }), // 跨月续聊
       row({ id: "c", startedAt: localMs(2026, 9, 1), modifiedAt: localMs(2026, 9, 2) }), // 纯上月
       row({ id: "d", startedAt: localMs(2026, 10, 3), wsId: "gone" }), // 工作区已删
       row({ id: undefined, startedAt: localMs(2026, 10, 3) }), // 无会话 id
     ];
     expect(candidatesFor(rows, rootOf, "2026-10")).toEqual([
-      { sid: "a", cwd: "/ws" },
-      { sid: "b", cwd: "/ws" },
+      { sid: "a", cwd: "/ws", days: ["01", "02"] },
+      { sid: "b", cwd: "/ws", days: ["01"] }, // 9/30 裁掉,只留本月
     ]);
   });
 });
 
-describe("accounted(已记账判定)", () => {
+describe("activeDaysOf(本月活动日)", () => {
+  it("跨零点区间取两端日;跨月裁进本月", () => {
+    expect(activeDaysOf(localMs(2026, 10, 19, 23), localMs(2026, 10, 20, 1), "2026-10")).toEqual(["19", "20"]);
+    expect(activeDaysOf(localMs(2026, 9, 30), localMs(2026, 10, 1), "2026-10")).toEqual(["01"]);
+  });
+
+  it("两端倒挂也按区间取(磁盘行 createdAt 可能晚于 modifiedAt)", () => {
+    expect(activeDaysOf(localMs(2026, 10, 20, 9), localMs(2026, 10, 18, 9), "2026-10")).toEqual(["18", "19", "20"]);
+  });
+});
+
+describe("needsCheck(逐日缺口判定)", () => {
   const withSession = (sid: string, dd: string): FootprintMonthFile => {
     const m = emptyMonth();
     m.days[dd] = { sessions: { [sid]: { engine: "omp", cwd: "/ws", turns: [1], first: "", last: "" } }, files: {}, batches: {} };
     return m;
   };
 
-  it("任一天有该会话即算已记账", () => {
-    expect(accounted(withSession("s1", "20"), "s1")).toBe(true);
-    expect(accounted(withSession("s1", "20"), "s2")).toBe(false);
-    expect(accounted(emptyMonth(), "s1")).toBe(false);
+  it("活动日全在账 → 不查;任一日缺 → 查", () => {
+    expect(needsCheck(withSession("s1", "20"), { sid: "s1", cwd: "/ws", days: ["20"] })).toBe(false);
+    expect(needsCheck(emptyMonth(), { sid: "s1", cwd: "/ws", days: ["20"] })).toBe(true);
+  });
+
+  it("跨零点会话只在 19 日入账 → 20 日仍判缺口(不被「已在别的日出现」跳过)", () => {
+    const m = withSession("s1", "19");
+    expect(needsCheck(m, { sid: "s1", cwd: "/ws", days: ["19", "20"] })).toBe(true);
   });
 });
 
@@ -173,5 +190,29 @@ describe("reconcileMonth(按月补账)", () => {
     expect(a + b).toBe(2);
     const written = JSON.parse([...files.values()].pop() as string) as FootprintMonthFile;
     expect(Object.keys(written.days["20"].sessions).sort()).toEqual(["s1", "s2"]);
+  });
+});
+
+describe("reconcileOnce(视图侧单次闸)", () => {
+  it("首次调补齐并 bump;重复调不再扫(进程内只对账一次)", async () => {
+    resetReconcileOnce();
+    mockRows.mockResolvedValue({ rows: [row({ id: "s1" })], failed: 0 });
+    mockIpc.checkpointList.mockResolvedValue([batch({ id: "b1" })]);
+
+    expect(await reconcileOnce()).toBe(1);
+    mockIpc.checkpointList.mockClear();
+    mockRows.mockClear();
+    expect(await reconcileOnce()).toBe(0);
+    expect(mockRows).not.toHaveBeenCalled();
+    expect(mockIpc.checkpointList).not.toHaveBeenCalled();
+  });
+
+  it("对账抛错不外抛(视图挂载不被补账拖挂),闸已置位不重试", async () => {
+    resetReconcileOnce();
+    mockRows.mockRejectedValue(new Error("scan boom"));
+    await expect(reconcileOnce()).resolves.toBe(0);
+    mockRows.mockClear();
+    await reconcileOnce();
+    expect(mockRows).not.toHaveBeenCalled();
   });
 });
