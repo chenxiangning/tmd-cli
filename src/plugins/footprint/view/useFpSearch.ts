@@ -3,8 +3,10 @@
  * 自 FootprintView 拆出守 300 行铁则。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail, FpHit } from "../dataSource";
 import { loadDayDetail, searchDays } from "../dataSource";
+import { jumpHitTranscript } from "../jumpTranscript";
 import type { FileSel } from "./useFpFiles";
 
 export interface FpSearchDeps {
@@ -75,5 +77,27 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
     [ym, setDetail, setFileSel, openCard, setYm, setRange, setSel, setCard, clearAnchor],
   );
 
-  return { searchOpen, setSearchOpen, query, setQuery, hits, setHits, cursor, setCursor, searchInputRef, openSearch, pickHit };
+  /* 「看对话」轻反馈(BatchSheet 同款三态,jumped 静默因幕布已可见) */
+  const [jumpNotice, setJumpNotice] = useState<string | null>(null);
+  const jumpTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
+    },
+    [],
+  );
+  const jumpHit = useCallback((h: FpHit) => {
+    void jumpHitTranscript(h).then((outcome) => {
+      if (outcome === "jumped") return;
+      setJumpNotice(
+        outcome === "opened"
+          ? t("会话已打开,未定位到该条消息")
+          : t("未能定位到该条对话消息"),
+      );
+      if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
+      jumpTimer.current = window.setTimeout(() => setJumpNotice(null), 2600);
+    });
+  }, []);
+
+  return { searchOpen, setSearchOpen, query, setQuery, hits, setHits, cursor, setCursor, searchInputRef, openSearch, pickHit, jumpHit, jumpNotice };
 }

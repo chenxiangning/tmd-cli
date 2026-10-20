@@ -32,6 +32,8 @@ export interface FpOverlaysProps {
   onQuery: (q: string) => void;
   onCursor: (i: number) => void;
   onPickHit: (h: FpHit) => void;
+  onJumpHit: (h: FpHit) => void;
+  jumpNotice: string | null;
   onCloseSearch: () => void;
   onCloseFix: () => void;
   onFixAction: (action: string) => void;
@@ -52,6 +54,8 @@ export function FpOverlays(p: FpOverlaysProps) {
         onQuery={p.onQuery}
         onCursor={p.onCursor}
         onPick={p.onPickHit}
+        onJumpHit={p.onJumpHit}
+        jumpNotice={p.jumpNotice}
         onClose={p.onCloseSearch}
         inputRef={p.searchInputRef}
       />

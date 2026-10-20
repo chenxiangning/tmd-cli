@@ -5,6 +5,7 @@
 import { useEffect, useRef } from "react";
 import { t } from "@kernel/i18n";
 import type { FpHit, SearchKind } from "../dataSource";
+import { fpHitJumpable } from "../jumpTranscript";
 import { Hi } from "./bits";
 
 const KIND_CLS: Record<SearchKind, string> = {
@@ -37,11 +38,15 @@ export interface SearchPopProps {
   onQuery: (q: string) => void;
   onCursor: (i: number) => void;
   onPick: (hit: FpHit) => void;
+  /** 「看对话」:原话逐字文本经 kernel 时序桥跳转录(checkpoints 同款语义)。 */
+  onJumpHit: (hit: FpHit) => void;
+  /** 跳转轻反馈:opened/miss 短暂回显;null 隐藏。 */
+  jumpNotice: string | null;
   onClose: () => void;
   inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
-export function SearchPop({ open, query, hits, cursor, onQuery, onCursor, onPick, onClose, inputRef }: SearchPopProps) {
+export function SearchPop({ open, query, hits, cursor, onQuery, onCursor, onPick, onJumpHit, jumpNotice, onClose, inputRef }: SearchPopProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
   /* 光标随 hits 变化跟随滚动可视 */
@@ -103,21 +108,37 @@ export function SearchPop({ open, query, hits, cursor, onQuery, onCursor, onPick
                     {t(KIND_GROUP[h.kind])}
                   </div>
                 )}
-                <button
-                  type="button"
+                {/* 行容器持 data-i/hover/选中底;主按钮跳日,可跳原话另给「看对话」
+                    平级钮(按钮不嵌套;键盘 Tab/focus-within 与 hover 同样现身) */}
+                <div
                   data-i={i}
-                  className={`block w-full cursor-pointer rounded-lg border-0 p-0 text-left ${i === cursor ? "bg-[var(--tmd-bg-hover)]" : ""}`}
+                  className={`group flex items-center rounded-lg ${i === cursor ? "bg-[var(--tmd-bg-hover)]" : ""}`}
                   onMouseEnter={() => onCursor(i)}
-                  onClick={() => onPick(h)}
                 >
-                  <span className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px]">
-                    <span className={`flex-none rounded px-1.5 py-px text-[9.5px] font-bold ${KIND_CLS[h.kind]}`}>{t(KIND_LABEL[h.kind])}</span>
-                    <span className="min-w-0 flex-1 truncate">
-                      <Hi text={h.snippet} q={query} />
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 cursor-pointer rounded-lg border-0 p-0 text-left"
+                    onClick={() => onPick(h)}
+                  >
+                    <span className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px]">
+                      <span className={`flex-none rounded px-1.5 py-px text-[9.5px] font-bold ${KIND_CLS[h.kind]}`}>{t(KIND_LABEL[h.kind])}</span>
+                      <span className="min-w-0 flex-1 truncate">
+                        <Hi text={h.snippet} q={query} />
+                      </span>
+                      <span className="flex-none text-[10.5px] text-[var(--tmd-fg-muted)] tabular-nums">{h.day.slice(5)}</span>
                     </span>
-                    <span className="flex-none text-[10.5px] text-[var(--tmd-fg-muted)] tabular-nums">{h.day.slice(5)}</span>
-                  </span>
-                </button>
+                  </button>
+                  {fpHitJumpable(h) && (
+                    <button
+                      type="button"
+                      title={t("定位这轮消息在对话中的位置(已结束的会话会先恢复再定位)")}
+                      className="mr-1.5 flex-none rounded border border-[var(--tmd-border,var(--tmd-border))] bg-[var(--tmd-bg-input)] px-1.5 py-px text-[10.5px] leading-4 text-[var(--tmd-accent,var(--tmd-accent))] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                      onClick={() => onJumpHit(h)}
+                    >
+                      {t("看对话")}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })
@@ -127,6 +148,7 @@ export function SearchPop({ open, query, hits, cursor, onQuery, onCursor, onPick
         <span>↑↓ {t("选择")}</span>
         <span>↵ {t("跳转到当日")}</span>
         <span>esc {t("关闭")}</span>
+        {jumpNotice && <span className="ml-auto text-[var(--tmd-warn,var(--tmd-warn))]">{jumpNotice}</span>}
       </div>
     </div>
   );
