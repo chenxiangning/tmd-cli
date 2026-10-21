@@ -4,9 +4,9 @@
  * 文件规模铁则拆分:守望主链路在 hostWatches.ts,ssh/shell/spawn 接线在 hostSessionServices.ts;
  * 本文件留注册表、查询门面与 PTY 生命周期公开语义。
  */
-
 import { useSyncExternalStore } from "react";
 import { EventBus, KernelTopics } from "./events";
+import { armSigwinchGuard } from "./terminalSigwinchGuard";
 import { getSessionTabs } from "./sessionTabs";
 import { getSettingsState } from "./settings";
 import { HostRegistry } from "./hostRegistry";
@@ -145,8 +145,7 @@ class Host implements PluginContext {
   // ---- 会话服务(kernel 固有职责:PTY 生命周期) ---------------------------
 
   /** 创建/重连 SSH 一等会话(实现见 kernel/sshSessions.ts);幕布与 PTY 同构。
-   *  command = PTY 内初始命令(远程 WSL 会话);engineProfileId = WSL CLI 的引擎
-   *  档案 id(SessionMeta.engine,composer/Ask 据此取 CLI profile,kind 仍为 ssh);
+   *  command = PTY 内初始命令(远程 WSL 会话);engineProfileId = WSL CLI 的引擎档案 id(SessionMeta.engine,composer/Ask 据此取 CLI profile,kind 仍为 ssh);
    *  cliSessionId = 远程磁盘历史行恢复的已知身份(去重聚焦/显式绑定,同本地 openDiskSession)。 */
   async createSshSession(host: SshHostConfig, workspaceId?: string, command?: string, engineProfileId?: string, cliSessionId?: string): Promise<SessionMeta>;
   async createSshSession(reconnectOf: string, workspaceId?: string): Promise<SessionMeta>;
@@ -203,8 +202,9 @@ class Host implements PluginContext {
   }
   noteRemoteWrite = (sessionId: string): void => { if (this.sessions.some((s) => s.id === sessionId) && this.watches.onUserWrite(sessionId, false)) this.notify(); }; /* 桥写补锚定(session:remote-write);未装配会话不建档(评审:幽灵守望条目) */
   reseedScreenMirror = (sessionId: string, cols: number, rows: number, text: string): void => void this.watches.screenMirror.reseed(sessionId, cols, rows, text); /* 幕布卸载补种镜像(feed 互斥收尾;CLI 闸在镜像 ctor 谓词) */
-  /** 幕布尺寸同步唯一入口:记抑制窗+镜像同栅格+转发;force=自愈旗(同尺寸无 SIGWINCH,±1 行过山车逼整帧重绘)。 */
+  /** 幕布尺寸同步唯一入口:记抑制窗+镜像同栅格+转发+arm 舞步过滤窗;force=自愈旗(同尺寸无 SIGWINCH,±1 行过山车逼整帧重绘)。 */
   resizeSession(sessionId: string, cols: number, rows: number, force = false): void {
+    armSigwinchGuard(sessionId);
     this.watches.onResized(sessionId, cols, rows);
     for (const r of force ? [rows > 1 ? rows - 1 : rows + 1, rows] : [rows]) void ipc.sessionResize(sessionId, cols, r);
   }

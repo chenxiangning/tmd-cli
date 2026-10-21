@@ -38,7 +38,7 @@ import {
 } from "@kernel/terminalCanvasHealth";
 import { takeTerminalFreeze } from "@kernel/terminalFreeze";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
-import { createScrollKeeper, reflowKeep } from "@kernel/terminalScrollKeeper";
+import { createScrollKeeper } from "@kernel/terminalScrollKeeper";
 import { TerminalSearchOverlay, useSearchBoxOwnership } from "@kernel/terminalSearch";
 import "@kernel/terminalFontZoom"; /* 终端字号缩放键位(⌘+/⌘−/⌘0):模块级注册,随幕布装配生效 */
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
@@ -134,8 +134,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
         needsForceSyncRef.current = true;
         return;
       }
-      /* 列宽重排后保阅读位(实现见 terminalScrollKeeper.reflowKeep)。 */
-      reflowKeep(term, () => fit.fit());
+      /* 列宽重排后保阅读位(含 SIGWINCH 抹除重印感知,见 terminalScrollKeeper.reflow)。 */
+      scrollKeeper.reflow(term, () => fit.fit());
       host.resizeSession(sessionId, term.cols, term.rows, needsForceSyncRef.current);
       needsForceSyncRef.current = false;
     };

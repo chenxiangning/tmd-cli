@@ -10,6 +10,12 @@
  */
 import type { Terminal } from "@xterm/xterm";
 import { host, ptyLiveTopic } from "@kernel/host";
+import {
+  createSigwinchGuard,
+  registerSigwinchGuard,
+  releaseSigwinchGuard,
+  sigwinchGuardOf,
+} from "@kernel/terminalSigwinchGuard";
 import type { ReplayInputGate } from "@kernel/terminalInputGate";
 import { consumeDiskTail } from "./diskReplay";
 import { resolveFreezeReplay, sessionFreezeFingerprint, takeTerminalFreeze } from "./terminalFreeze";
@@ -32,7 +38,7 @@ const HIDDEN_FLUSH_MS = 250;
  *  onLive 可选:实时字节到达即戳(不分直写/攒队分支;幕布数据链停滞探针的
  *  活性真源,见 canvasStall.ts)。 */
 export function attachTerminalStream(
-  term: Pick<Terminal, "write">,
+  term: Pick<Terminal, "write"> & { rows?: number },
   sessionId: string,
   inputGate: ReplayInputGate,
   onProgress: (p: LoadProgress) => void,
@@ -70,16 +76,22 @@ export function attachTerminalStream(
     term.write(queued.join(""));
   };
   hiddenDefer?.bindFlush(flushDeferred);
+  /* SIGWINCH 舞步降级守卫:仅滤 live 路径(回放/翻页是历史字节,原样)。
+     跨 keep-alive 重挂载:已注册实例优先(舞步状态不丢),否则按本幕布 rows 新建。 */
+  const guard = sigwinchGuardOf(sessionId) ?? createSigwinchGuard(() => term.rows ?? 0);
+  registerSigwinchGuard(sessionId, guard);
+  const liveFilter = (text: string): string => guard.feed(text);
   const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
     onLive?.();
+    const out = liveFilter(text);
     if (liveQueue) {
-      liveQueue.push(text);
+      liveQueue.push(out);
       diskChunkSink?.(text);
     } else if (hiddenDefer?.shouldDefer()) {
-      pendingHidden = (pendingHidden ?? []).concat(text);
+      pendingHidden = (pendingHidden ?? []).concat(out);
       if (!hiddenTimer) hiddenTimer = setInterval(flushDeferred, HIDDEN_FLUSH_MS);
     } else {
-      term.write(text);
+      term.write(out);
     }
     received += text.length;
     if (!cancelled && !ready && (!liveQueue || diskStreamPhase)) {
@@ -223,6 +235,7 @@ export function attachTerminalStream(
     cancelled = true;
     liveQueue = null;
     diskChunkSink = null;
+    releaseSigwinchGuard(sessionId);
     hiddenDefer?.bindFlush(null);
     clearInterval(hiddenTimer);
     /* 隐藏期残留的攒帧随卸载丢弃:字节真源在 outputBuffers,重挂走回放 */
