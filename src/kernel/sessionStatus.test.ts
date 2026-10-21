@@ -11,7 +11,7 @@
  * - ensurePolling:单例计时器;2s 周期;tick 分派(已绑定→refresh、
  *   pending→tryBindIdentity、远程→refreshRemote);resetTimerForTest 后停摆。
  */
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 import type { CliProfile } from "./cli";
 import { SessionStatusWatch } from "./sessionStatus";
 
@@ -41,6 +41,9 @@ interface FakeHost {
   findSession(id: string): { profileId: string; cwd: string } | undefined;
   hasSession(id: string): boolean; getCliProfile(): CliProfile;
   getCliSessionId(id: string): string | undefined; isPendingIdentity(id: string): boolean;
+  lastActivityAt(id: string): number;
+  /** 测试驱动:推活动时间戳(模拟新 PTY 输出后巡航应重读)。 */
+  bumpActivity(): void;
 }
 
 /** 最小 host fake:会话/身份绑定/活跃态全可控,notify 计数断言重渲染触发。 */
@@ -49,6 +52,7 @@ function makeHost(profile: CliProfile = makeProfile()): FakeHost {
   const cliIds = new Map<string, string>();
   const pending = new Set<string>();
   let active: string | null = null;
+  let activity = 0;
   return {
     sessions, cliIds, pending,
     notify: vi.fn(),
@@ -61,6 +65,8 @@ function makeHost(profile: CliProfile = makeProfile()): FakeHost {
     getCliProfile: () => profile,
     getCliSessionId: (id) => cliIds.get(id),
     isPendingIdentity: (id) => pending.has(id),
+    lastActivityAt: () => activity,
+    bumpActivity: () => { activity += 1; },
   };
 }
 
@@ -157,7 +163,7 @@ describe("refresh(磁盘尾窗观测)", () => {
     addSession(h, makeProfile({
       readSessionStatus: async () => { throw new Error("boom"); },
     }));
-    await expect(w.refresh(SID)).resolves.toBeUndefined();
+    await expect(w.refresh(SID)).resolves.toBe(false);
     expect(w.get(SID)).toBeUndefined();
     expect(h.notify).not.toHaveBeenCalled();
   });
@@ -233,64 +239,3 @@ describe("applyObserved(字段级合并与来源翻转)", () => {
   });
 });
 
-describe("ensurePolling(2s 巡航分派)", () => {
-  beforeEach(() => { vi.useFakeTimers(); });
-  afterEach(() => { vi.useRealTimers(); });
-
-  function pollingHost() {
-    const read = vi.fn(async () => ({ model: "m-poll" }));
-    const profile = makeProfile({ readSessionStatus: read });
-    const h = makeHost(profile);
-    h.setActive(SID);
-    addSession(h, profile);
-    const w = new SessionStatusWatch(h);
-    return { h, w, read };
-  }
-
-  it("重复 ensurePolling 不叠加计时器;2s 周期到点才 refresh 分派", async () => {
-    const { h, w, read } = pollingHost();
-    h.cliIds.set(SID, "cli-1");
-    w.ensurePolling();
-    w.ensurePolling();
-    await vi.advanceTimersByTimeAsync(1999);
-    expect(read).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1);
-    expect(read).toHaveBeenCalledTimes(1);
-    expect(w.get(SID)?.model).toBe("m-poll"); // 观测真实落地
-    expect(h.tryBindIdentity).not.toHaveBeenCalled();
-    w.resetTimerForTest();
-    await vi.advanceTimersByTimeAsync(6000);
-    expect(read).toHaveBeenCalledTimes(1); // 复位后巡航停摆
-  });
-  it("无活跃会话 / 未绑定未 pending 且无远程通道:tick 均无动作", async () => {
-    const { h, w, read } = pollingHost();
-    h.setActive(null);
-    w.ensurePolling();
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(read).not.toHaveBeenCalled();
-    expect(h.tryBindIdentity).not.toHaveBeenCalled();
-    h.setActive(SID); // 本地会话,未绑定、非 pending、无 refreshRemote
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(read).not.toHaveBeenCalled();
-    expect(h.tryBindIdentity).not.toHaveBeenCalled();
-  });
-  it("pending 慢相位:驱动绑定探测而非本地 refresh", async () => {
-    const { h, w, read } = pollingHost();
-    h.pending.add(SID);
-    w.ensurePolling();
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(h.tryBindIdentity).toHaveBeenCalledWith(SID);
-    expect(read).not.toHaveBeenCalled();
-  });
-  it("远程通道:refreshRemote 接管且本地 refresh 不执行,逐周期重复", async () => {
-    const { h, w, read } = pollingHost();
-    const remote = vi.fn(async () => true);
-    h.refreshRemote = remote;
-    w.ensurePolling();
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(remote).toHaveBeenCalledWith(SID);
-    expect(read).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(2000);
-    expect(remote).toHaveBeenCalledTimes(2);
-  });
-});

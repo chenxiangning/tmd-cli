@@ -17,8 +17,8 @@ import { DiskIdentityWatch } from "./identityWatch";
 import { IdentityLedger } from "./identityLedger";
 import { OutputBufferStore } from "./outputBuffers";
 import { notePtyBytes } from "./floodGauge";
-import { SessionStatusWatch } from "./sessionStatus";
 import { refreshRemoteStatus } from "./remoteStatusRefresh";
+import { SessionStatusWatch } from "./sessionStatus";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import { ipc, type SessionMeta } from "./ipc";
 /** 幕布实时输出 topic(TerminalView 订阅,与 appendOutput 共用)。 */
@@ -58,14 +58,13 @@ export class HostWatches {
   });
   /** 活会话对应的 CLI 当前模型/思考强度与来源分级(实现见 kernel/sessionStatus.ts)。 */
   private readonly statusWatch = new SessionStatusWatch({
-    getActiveSessionId: () => this.ctx.getActiveSessionId(),
-    findSession: (sessionId) => this.ctx.findSession(sessionId),
+    getActiveSessionId: () => this.ctx.getActiveSessionId(), findSession: (sessionId) => this.ctx.findSession(sessionId),
     hasSession: (sessionId) => this.ctx.hasSession(sessionId),
-    getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
-    getCliSessionId: (sessionId) => this.ledger.get(sessionId),
+    getCliProfile: (profileId) => this.ctx.getCliProfile(profileId), getCliSessionId: (sessionId) => this.ledger.get(sessionId),
     isPendingIdentity: (sessionId) => this.identityWatch.has(sessionId),
     tryBindIdentity: (sessionId) => this.identityWatch.tryBind(sessionId),
     refreshRemote: (sessionId) => this.remoteStatus(sessionId),
+    lastActivityAt: (sessionId) => this.activity.lastActivityAt(sessionId),
     notify: () => this.ctx.notify(),
   });
   /** 每会话 PTY 输出环形缓冲:xterm 重挂载回放("切回不黑屏");存储细节见 kernel/outputBuffers.ts。 */
