@@ -1,12 +1,12 @@
 /**
- * ports · 行数据派生 hook —— 家族归组/搜索过滤/可见行数/会话归因/进程计数,
- * 输入 = 扫描结果 + 过滤词,输出直缝 RowCtx 与工具栏。纯派生无 IO。
+ * ports · 行数据派生 hook —— 家族归组/搜索过滤/列头排序/可见行数/会话归因/进程计数,
+ * 输入 = 扫描结果 + 过滤词 + 排序规格,输出直缝 RowCtx 与工具栏。纯派生无 IO。
  */
 
 import { useMemo } from "react";
 import { host } from "@kernel/host";
-import { findOwnerSession, groupByFamily, rowKey } from "./portsTree";
-import type { OwnerSession, PortEntry, PortGroup, ScanOutcome } from "./types";
+import { findOwnerSession, groupByFamily, rowKey, sortGroups } from "./portsTree";
+import type { OwnerSession, PortEntry, PortGroup, ScanOutcome, SortSpec } from "./types";
 
 export interface PortRows {
   groups: PortGroup[];
@@ -16,8 +16,16 @@ export interface PortRows {
   procCount: number;
 }
 
-export function usePortRows(outcome: ScanOutcome | null, filter: string): PortRows {
-  const groups = useMemo(() => (outcome ? groupByFamily(outcome.rows) : []), [outcome]);
+export function usePortRows(
+  outcome: ScanOutcome | null,
+  filter: string,
+  sort: SortSpec | null,
+  wsNames: Map<string, string>,
+): PortRows {
+  const groups = useMemo(() => {
+    const g = outcome ? groupByFamily(outcome.rows) : [];
+    return sort ? sortGroups(g, sort, wsNames) : g;
+  }, [outcome, sort, wsNames]);
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();

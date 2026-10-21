@@ -3,7 +3,8 @@
  * ppid 链会话归因。输入输出均为 types.ts 数据,无 IO。
  */
 
-import type { Exposure, OwnerSession, PortEntry, PortGroup } from "./types";
+import type { Exposure, OwnerSession, PortEntry, PortGroup, SortSpec } from "./types";
+import { portPurpose } from "./purpose";
 
 /** 通配与具体网卡地址都=局域网可达;仅回环地址算本机。 */
 export function exposureOf(host: string): Exposure {
@@ -87,4 +88,51 @@ export function findOwnerSession(
 /** 行去重新鲜度 key(pid 缺失用 addr 兜底,addr 非数字与 pid 键不撞)。 */
 export function rowKey(e: PortEntry): string {
   return `${e.pid ?? e.addr}:${e.port}`;
+}
+
+/* ── 列头排序 ── 家族组为一级结构:组按顶层行键排,组内子行同键排(子行不跨组比较)。
+ * 空值(purpose 未命中/无仓库)恒沉底,与行的「—」显示语义一致。 */
+
+function strCmp(a: string, b: string, dir: SortSpec["dir"]): number {
+  return a.localeCompare(b) * (dir === "asc" ? 1 : -1);
+}
+
+function sortValue(e: PortEntry, key: SortSpec["key"], wsNames: Map<string, string>): string | number {
+  switch (key) {
+    case "port":
+      return e.port;
+    case "addr":
+      return e.addr;
+    case "exposure":
+      return e.exposure === "exposed" ? 1 : 0;
+    case "purpose":
+      return portPurpose(e.port) ?? "";
+    case "process":
+      return e.process || e.args;
+    case "repo": {
+      const root = e.gitRoot?.replace(/\/+$/, "");
+      return (root && (wsNames.get(root) ?? e.gitRoot)) || "";
+    }
+  }
+}
+
+/** 键比较:数字列按数值,字符串列 localeCompare;任一侧空串恒沉底(不随方向翻)。 */
+export function bySortKey(key: SortSpec["key"], dir: SortSpec["dir"], wsNames: Map<string, string>) {
+  return (a: PortEntry, b: PortEntry): number => {
+    const va = sortValue(a, key, wsNames);
+    const vb = sortValue(b, key, wsNames);
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * (dir === "asc" ? 1 : -1);
+    const sa = String(va);
+    const sb = String(vb);
+    if (sa === "" || sb === "") return sa === sb ? 0 : sa === "" ? 1 : -1;
+    return strCmp(sa, sb, dir);
+  };
+}
+
+/** 组排序:浅拷贝组与子行(不改动 groupByFamily 的原产序),返回新数组。 */
+export function sortGroups(groups: PortGroup[], spec: SortSpec, wsNames: Map<string, string>): PortGroup[] {
+  const cmp = bySortKey(spec.key, spec.dir, wsNames);
+  return groups
+    .map((g) => ({ top: g.top, children: [...g.children].sort(cmp) }))
+    .sort((x, y) => cmp(x.top, y.top));
 }

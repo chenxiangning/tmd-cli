@@ -2,12 +2,17 @@
  * ports · 工具栏与告警条 —— PortsView 的展示性小块(react-doctor 复杂度分装)。
  */
 
-import { ArrowClockwise, MagnifyingGlass, Pause, Play, Plugs, X } from "@phosphor-icons/react";
+import { ArrowClockwise, CaretDoubleDown, CaretDoubleUp, MagnifyingGlass, Pause, Play, Plugs, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import { OS_LABEL } from "./platform";
-import type { OsKind, ScanOutcome } from "./types";
+import { PortGroupBlock, PortListHeader, type RowCtx } from "./PortsRows";
+import { rowKey } from "./portsTree";
+import type { OsKind, PortGroup, ScanOutcome, SortKey, SortSpec } from "./types";
+
+const ICON_BTN =
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-(--tmd-radius-sm) border border-(--tmd-border-strong) text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg) disabled:opacity-40 disabled:hover:bg-transparent";
 
 export function PortsToolbar({
   loading,
@@ -18,9 +23,12 @@ export function PortsToolbar({
   procs,
   os,
   source,
+  canFoldAll,
   onRefresh,
   onToggleAuto,
   onFilter,
+  onCollapseAll,
+  onExpandAll,
 }: {
   loading: boolean;
   auto: boolean;
@@ -31,9 +39,13 @@ export function PortsToolbar({
   procs: number;
   os: OsKind;
   source: string;
+  /** 有子行的可见组数 > 0 才允许批量折叠。 */
+  canFoldAll: boolean;
   onRefresh: () => void;
   onToggleAuto: () => void;
   onFilter: (q: string) => void;
+  onCollapseAll: () => void;
+  onExpandAll: () => void;
 }) {
   return (
     <div className="flex items-center gap-2 px-3 pt-3">
@@ -59,6 +71,26 @@ export function PortsToolbar({
       >
         {auto ? <Pause size="0.875rem" aria-hidden /> : <Play size="0.875rem" aria-hidden />}
         {t("自动刷新")}
+      </button>
+      <button
+        type="button"
+        className={ICON_BTN}
+        disabled={!canFoldAll}
+        title={t("全部折叠")}
+        aria-label={t("全部折叠")}
+        onClick={onCollapseAll}
+      >
+        <CaretDoubleUp size="0.875rem" aria-hidden />
+      </button>
+      <button
+        type="button"
+        className={ICON_BTN}
+        disabled={!canFoldAll}
+        title={t("全部展开")}
+        aria-label={t("全部展开")}
+        onClick={onExpandAll}
+      >
+        <CaretDoubleDown size="0.875rem" aria-hidden />
       </button>
       <div className="flex h-7 min-w-0 flex-1 items-center gap-1.5 rounded-(--tmd-radius-sm) border border-(--tmd-border-strong) px-2">
         <MagnifyingGlass size="0.875rem" className="shrink-0 text-(--tmd-fg-faint)" aria-hidden />
@@ -155,6 +187,45 @@ export function PortsEmpty({
       >
         {loading ? t("正在扫描…") : filter ? t("无匹配的监听端口") : t("没有监听中的 TCP 端口")}
       </Empty>
+    </div>
+  );
+}
+
+/** 列表主体:空态三分支 / 排序列头 + 家族卡片列表,scroll 容器。 */
+export function PortsBody({
+  filtered,
+  sort,
+  onSort,
+  ctx,
+  loading,
+  filter,
+  onRefresh,
+  onClearFilter,
+}: {
+  filtered: PortGroup[];
+  sort: SortSpec | null;
+  onSort: (key: SortKey) => void;
+  ctx: RowCtx;
+  loading: boolean;
+  filter: string;
+  onRefresh: () => void;
+  onClearFilter: () => void;
+}) {
+  if (filtered.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-3 py-2">
+        <PortsEmpty loading={loading} filter={filter} onRefresh={onRefresh} onClearFilter={onClearFilter} />
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-0 flex-1 flex-col px-3 py-2">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto">
+        <PortListHeader sort={sort} onSort={onSort} />
+        {filtered.map((g) => (
+          <PortGroupBlock key={rowKey(g.top)} group={g} ctx={ctx} />
+        ))}
+      </div>
     </div>
   );
 }

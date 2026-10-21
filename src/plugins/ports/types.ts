@@ -51,3 +51,11 @@ export interface ScanOutcome {
   /** 非致命步骤的失败说明(kill/过滤不受影响,顶部汇总提示)。 */
   warnings: string[];
 }
+
+/** 列头排序:家族组为一级结构,排序 = 组按顶层行键排、组内子行同键排。 */
+export type SortKey = "port" | "addr" | "exposure" | "purpose" | "process" | "repo";
+export type SortDir = "asc" | "desc";
+export interface SortSpec {
+  key: SortKey;
+  dir: SortDir;
+}

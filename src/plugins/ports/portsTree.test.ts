@@ -4,7 +4,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { killCommand } from "./portsKill";
-import { dedupeListeners, exposureOf, findOwnerSession, groupByFamily, rowKey } from "./portsTree";
+import { dedupeListeners, exposureOf, findOwnerSession, groupByFamily, rowKey, sortGroups } from "./portsTree";
 import type { PortEntry } from "./types";
 
 vi.mock("@kernel/ipc", () => ({ ipc: {} }));
@@ -43,12 +43,6 @@ describe("groupByFamily(监听进程家族折叠)", () => {
     ]);
   });
 
-  it("ppid 自环不挂死", () => {
-    const tops = groupByFamily([entry(7000, 30, 30)]);
-    expect(tops).toHaveLength(1);
-    expect(tops[0].top.pid).toBe(30);
-  });
-
   it("同 pid 多端口全部收组,一行不丢(建组者做顶层,其余做子行)", () => {
     const rows = [entry(7000, 692, 1), entry(5000, 692, 1), entry(14013, 81753, 1), entry(14016, 81753, 1), entry(14019, 81753, 1)];
     const tops = groupByFamily(rows);
@@ -56,6 +50,47 @@ describe("groupByFamily(监听进程家族折叠)", () => {
     expect(tops.reduce((n, g) => n + 1 + g.children.length, 0)).toBe(rows.length);
     const wechat = tops.find((g) => g.top.pid === 81753)!;
     expect(wechat.children.map((c) => c.port)).toEqual([14016, 14019]);
+  });
+
+  it("ppid 自环不挂死", () => {
+    const tops = groupByFamily([entry(7000, 30, 30)]);
+    expect(tops).toHaveLength(1);
+    expect(tops[0].top.pid).toBe(30);
+  });
+});
+
+describe("sortGroups(列头排序:组按顶层行键排,组内子行同键排)", () => {
+  const wsNames = new Map([["/repo/a", "ws-a"]]);
+  const rows: PortEntry[] = [
+    { ...entry(3000, 10, 1), process: "node", gitRoot: "/repo/b" },
+    { ...entry(9229, 11, 10), process: "node" },
+    { ...entry(80, 12, 1, "*"), process: "nginx", gitRoot: "/repo/a" },
+    { ...entry(8080, 13, 1), process: "python" },
+    { ...entry(9999, 14, 1), process: "weird" },
+  ];
+  const groups = groupByFamily(rows);
+
+  it("端口列:数值升降序,子行组内同键排", () => {
+    const desc = sortGroups(groups, { key: "port", dir: "desc" }, wsNames);
+    expect(desc.map((g) => g.top.port)).toEqual([9999, 8080, 3000, 80]);
+    expect(desc.find((g) => g.top.port === 3000)!.children.map((c) => c.port)).toEqual([9229]);
+  });
+
+  it("暴露面列:仅本机升序在前", () => {
+    const asc = sortGroups(groups, { key: "exposure", dir: "asc" }, wsNames);
+    expect(asc.map((g) => g.top.exposure)).toEqual(["loopback", "loopback", "loopback", "exposed"]);
+  });
+
+  it("空仓库/无用途恒沉底,不随方向翻", () => {
+    const byRepo = sortGroups(groups, { key: "repo", dir: "desc" }, wsNames);
+    expect(byRepo.map((g) => g.top.port)).toEqual([80, 3000, 8080, 9999]);
+    const byPurpose = sortGroups(groups, { key: "purpose", dir: "asc" }, wsNames);
+    expect(byPurpose.map((g) => g.top.port)).toEqual([80, 8080, 3000, 9999]);
+  });
+
+  it("仓库列:工作区名命中时按显示名排", () => {
+    const asc = sortGroups(groups, { key: "repo", dir: "asc" }, wsNames);
+    expect(asc.map((g) => g.top.port)).toEqual([3000, 80, 8080, 9999]);
   });
 });
 
