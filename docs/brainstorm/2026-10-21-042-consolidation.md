@@ -21,11 +21,11 @@
 
 ### 批三:内务收敛(五项)
 
-1. diff 渲染收敛:git `PatchLines` 抽共享 unified patch→着色行渲染,checkpoints `BatchFileSection`(裸 split 逐行)与 footprint `DiffPanel`(classifyLine)换用;session-viewer `sv-tool-diff` 数据不同源(字符串对),保留。
-2. 状态色表三合一:checkpoints `fileChipCls` / git `statusColor` / files `gitDecorateModel` 并一张语义表。
-3. 会话预设管线合一:`presetLaunch.ts` 与 `worktreeCreate.ts` 平行实现的 spawn+初始提示词+identityTrack 合成一条管线,worktree 复用。
-4. 搜索浮层壳合一:search 与 session-search 各自的浮层壳+子串高亮原语共享,入口保留。
-5. 沉淀钩子读侧合一:`kernel.sessions.exited` 的 wiki 与 autoDistill 订阅共享一次尾段读取(写家各自保留);`ckptTurnSealed` 的 footprint/journal 双消费同理。
+1. diff 渲染收敛:kernel `patchClassify.ts`(无状态 unified patch 行分类,镜像 git patchModel 判定表)为唯一分类源;checkpoints `BatchFileSection` 与 footprint `DiffPanel` 换用(修掉 `--- `头/`\ No newline` 错分类),git `patchModel` 是有状态真源(行号配对/词级/折叠)保留不并;session-viewer `sv-tool-diff` 数据不同源保留。
+2. 状态色表:kernel `gitStatusColor.ts` 字母→语义唯一源;git `STATUS_COLOR` 与 checkpoints `fileChipCls` 各自派生 token 映射(输出零变化)。files 树 `gitDecorateModel` **有意不并**——其字母→色是用户口径逐字母校准(T→树蓝、R→蓝、?→绿),与面板语义不同表。
+3. 预设管线:**口径修正**——`launchPresetWorktreeSession` 本就经 deps.create 复用 `runWorktreeCreate` 里程碑回滚链,两文件已是合成管线,侦察高估缺口;真实残留仅 modelArg 拼接 ×2,收敛为 `withModelArg` 唯一实现。
+4. 搜索浮层:kernel `splitHits.ts`(多命中切段原语)上收,search SearchPanel 与 session-search SnippetText 共享(session-search 从单命中升级全命中)。三面浮层壳(宽度/底色/圆角/阴影)**有意不并**——参数化壳 = props 动物园且视觉漂移风险实。
+5. 沉淀读侧:memory-coordinator `exitedReads.ts`——wikiHook 与 autoDistill 的 `readSessionUserMessages(full)` 同会话同刻共享一次磁盘读(TTL 30s 在飞记忆,只去重读不碰幂等/门控/写路径)。**ckptTurnSealed 半项误报**:全仓实证消费方只有 footprint(自家 rollup+刷新信号),journal 不订阅,无双读可消。
 
 ### 批四:留账
 
