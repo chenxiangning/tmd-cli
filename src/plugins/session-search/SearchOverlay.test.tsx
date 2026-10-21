@@ -42,7 +42,7 @@ describe("ResultBody 选中呈现", () => {
     expect(html).not.toContain("data-sel");
   });
 
-  it("命中词 <mark> 高亮:snippet 按命中词切三段拼节点", () => {
+  it("命中词 <mark> 高亮:命中段标 mark,非命中段保留(splitHits 全命中)", () => {
     const html = renderToStaticMarkup(
       createElement(ResultBody, {
         ...base,
@@ -52,7 +52,8 @@ describe("ResultBody 选中呈现", () => {
       }),
     );
     expect(html).toContain("<mark");
-    expect(html).toContain("片段</mark> k");
+    expect(html).toContain(">片段</mark>");
+    expect(html).toContain("k</span>");
   });
 });
 

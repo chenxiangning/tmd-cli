@@ -9,6 +9,7 @@ import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
+import { splitHits } from "@kernel/splitHits";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { SessionIndex } from "./indexer";
 import { TIME_FILTER_MS, type SessionSearchHit, type SessionSubHit, type TimeFilterKey } from "./searchCore";
@@ -118,17 +119,20 @@ export function IndexingChip({ index }: { index: SessionIndex | null }) {
   );
 }
 
-/** 命中片段:纯文本 snippet 按首个命中词切三段拼 React 节点(中间段 <mark>)。 */
+/** 命中片段:纯文本 snippet 全部命中词切段标 <mark>(kernel splitHits 原语,
+ *  批三收敛;旧实现只标首命中)。 */
 function SnippetText({ text, token }: { text: string; token: string }) {
-  const at = token ? text.toLowerCase().indexOf(token.toLowerCase()) : -1;
-  if (at < 0) return <>{text}</>;
   return (
     <>
-      {text.slice(0, at)}
-      <mark className="rounded-[2px] bg-(--tmd-accent)/25 px-px text-inherit">
-        {text.slice(at, at + token.length)}
-      </mark>
-      {text.slice(at + token.length)}
+      {splitHits(text, token, false).map((part, i) =>
+        part.hit ? (
+          <mark key={i} className="rounded-[2px] bg-(--tmd-accent)/25 px-px text-inherit">
+            {part.text}
+          </mark>
+        ) : (
+          <span key={i}>{part.text}</span>
+        ),
+      )}
     </>
   );
 }
