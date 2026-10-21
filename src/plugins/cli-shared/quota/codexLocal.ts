@@ -158,6 +158,7 @@ export function codexPlanLabelWithSnapshot(quota: CodexLocalQuota): string | und
 export async function fetchCodexQuotaWithSnapshot(
   cred: VendorCredential,
   providerLabel: string,
+  opts?: { force?: boolean },
 ): Promise<QuotaSnapshot> {
   if (cred.access && cred.accountId) {
     try {
@@ -170,6 +171,7 @@ export async function fetchCodexQuotaWithSnapshot(
       // 本地无快照(如从未在本机对话过)→ 降级 wham HTTP
     }
   }
-  const quota = await fetchVendorQuota("openai-codex", cred);
+  // force 贯通降级路径:强刷直抓,不吃共享快照缓存(与各家直连路径同语义)
+  const quota = await fetchVendorQuota("openai-codex", cred, undefined, { force: opts?.force });
   return toQuotaSnapshot(providerLabel, "openai-codex", quota);
 }

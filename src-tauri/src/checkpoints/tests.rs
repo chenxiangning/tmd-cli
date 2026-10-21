@@ -8,8 +8,8 @@
 //!   - CLI 身份回填:tmd id 名下的历史条目并入绑定后的 CLI id 链
 
 use super::{
-    anchor_turn, append_ledger, batch_patches, derive_batches, prune, restore_batch, seal_turn,
-    set_base_for_test, undo_revert,
+    anchor_turn, append_ledger, batch_patches, derive_batches, load_ledger, prune, restore_batch,
+    seal_turn, set_base_for_test, undo_revert,
 };
 use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};

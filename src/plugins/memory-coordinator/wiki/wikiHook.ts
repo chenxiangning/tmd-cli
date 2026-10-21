@@ -15,6 +15,7 @@
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import type { CliUserMessage } from "@kernel/cli";
+import { exitedReadKey, readUserMessagesOnce } from "../exitedReads";
 import { addEntry, excerptFromMsgs, isMissingReadErr, parseWikiDoc, serializeWikiDoc, type WikiDoc } from "./wiki";
 
 /** wiki 单文件在会话 cwd 内的固定落点。 */
@@ -57,7 +58,11 @@ interface ExitedCtx {
 }
 
 async function appendAutoEntry(ctx: ExitedCtx): Promise<boolean> {
-  const msgs = await ctx.readMsgs(ctx.cwd, ctx.cliSessionId, true);
+  /* 与 phase2/autoDistill 同吃一次磁盘读(exitedReads,批三收敛)。 */
+  const msgs = await readUserMessagesOnce(
+    exitedReadKey(ctx.harness, ctx.cwd, ctx.cliSessionId),
+    () => ctx.readMsgs(ctx.cwd, ctx.cliSessionId, true),
+  );
   const excerpt = excerptFromMsgs(msgs ?? []);
   if (!excerpt) return false;
   const path = wikiFilePath(ctx.cwd);

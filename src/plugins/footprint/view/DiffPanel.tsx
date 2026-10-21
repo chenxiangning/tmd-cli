@@ -5,23 +5,15 @@
 import { useMemo } from "react";
 import { t } from "@kernel/i18n";
 import type { CkptPatch } from "@kernel/ipc";
+import { classifyPatchLine, type PatchLineKind } from "@kernel/patchClassify";
 import { EngTag, FicoButton, IcoFolder, IcoOpen } from "./bits";
 import type { FileSel } from "./useFpFiles";
 
-/** 一行 diff 的渲染分类。 */
-type LineKind = "add" | "del" | "hunk" | "ctx";
-
-function classifyLine(line: string): LineKind {
-  if (line.startsWith("+")) return "add";
-  if (line.startsWith("-")) return "del";
-  if (line.startsWith("@@")) return "hunk";
-  return "ctx";
-}
-
-const LINE_CLS: Record<LineKind, string> = {
+const LINE_CLS: Record<PatchLineKind, string> = {
   add: "bg-[color-mix(in_srgb,var(--tmd-diff-inserted)_14%,transparent)]",
   del: "bg-[color-mix(in_srgb,var(--tmd-diff-removed)_12%,transparent)]",
   hunk: "bg-[var(--tmd-bg-hover)] text-[var(--tmd-fg-muted)]",
+  meta: "italic text-[var(--tmd-fg-faint)]",
   ctx: "",
 };
 
@@ -98,7 +90,7 @@ export function DiffPanel({ path, patch, loading, engine, degraded, add, del, on
           {(() => {
             const seen = new Map<string, number>();
             return lines.map((line) => {
-              const kind = classifyLine(line);
+              const kind = classifyPatchLine(line);
               const base = `${kind}:${line.slice(0, 24)}`;
               const n = seen.get(base) ?? 0;
               seen.set(base, n + 1);

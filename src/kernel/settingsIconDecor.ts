@@ -100,6 +100,8 @@ export const ICON_DECOR_FAMILY_IDS = [
   "net-proxy",
   "anim",
   "structured-session",
+  "terminal-refresh",
+  "terminal-jump-bottom",
 ] as const;
 
 export const ICON_DECOR_IDS = [...ICON_DECOR_POINT_IDS, ...ICON_DECOR_FAMILY_IDS] as const;
@@ -196,6 +198,8 @@ export const DEFAULT_ICON_DECOR: Record<IconDecorId, IconDecorItem> = {
   "net-proxy": {},
   anim: {},
   "structured-session": {},
+  "terminal-refresh": {},
+  "terminal-jump-bottom": {},
 };
 
 const ICON_DECOR_COLOR_RE = /^#[0-9a-f]{6}$/i;

@@ -10,7 +10,9 @@ import { Fragment, useMemo, useState } from "react";
 import { CaretRight, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
+import { classifyPatchLine } from "@kernel/patchClassify";
 import { classifyRisk } from "./risk";
+import { fileChipCls } from "./fileChipCls";
 
 /** 工作区外(绝对路径)判定:POSIX 绝对、盘符(C:/)与 UNC(账本契约已把
  *  反斜杠归一为正斜杠,但 `C:/…` 不以 `/` 开头,单看 startsWith("/") 会漏)。 */
@@ -72,13 +74,17 @@ function FileSectionDiff({ lines }: { lines: string[] }) {
   return (
     <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-xs leading-relaxed">
       {lines.map((line, i) => {
-        const cls = line.startsWith("@@")
-          ? "text-(--tmd-accent)/75"
-          : line.startsWith("+")
+        const kind = classifyPatchLine(line);
+        const cls =
+          kind === "add"
             ? "bg-(--tmd-diff-inserted)/10 text-(--tmd-diff-inserted)"
-            : line.startsWith("-")
+            : kind === "del"
               ? "bg-(--tmd-diff-removed)/10 text-(--tmd-diff-removed)"
-              : "text-(--tmd-fg-subtle)";
+              : kind === "hunk"
+                ? "text-(--tmd-accent)/75"
+                : kind === "meta"
+                  ? "italic text-(--tmd-fg-faint)"
+                  : "text-(--tmd-fg-subtle)";
         return (
           <span key={i} className={`${cls} block whitespace-pre`}>
             {line || " "}
@@ -122,12 +128,7 @@ function FileSection({
   const segs = path.split("/");
   const name = segs.pop() ?? path;
   const dir = segs.length ? segs.join("/") + "/" : "";
-  const chipCls =
-    status === "A"
-      ? "bg-(--tmd-diff-inserted)/15 text-(--tmd-diff-inserted)"
-      : status === "D"
-        ? "bg-(--tmd-diff-removed)/15 text-(--tmd-diff-removed)"
-        : "bg-(--tmd-git-modified)/15 text-(--tmd-git-modified)";
+  const chipCls = fileChipCls(status);
   const lines = useMemo(() => patch?.patch.split("\n") ?? [], [patch]);
   return (
     <div

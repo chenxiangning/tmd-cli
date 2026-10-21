@@ -76,6 +76,8 @@
   padding: 14px 16px;
   min-width: 0;
 }
+/* 空单元格会露出网格分隔底色成空白块:奇数张时末卡占满整行 */
+.wq-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 .wq-card-top {
   display: flex;
@@ -158,6 +160,15 @@
   color: var(--tmd-fg-subtle);
   margin-top: 2px;
   overflow-wrap: anywhere;
+}
+
+/* 余额型卡体(deepseek/中转站):无窗口环,余额数值直接展示 */
+.wq-balance {
+  font-size: var(--tmd-font-xl);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--tmd-fg);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 720px) {

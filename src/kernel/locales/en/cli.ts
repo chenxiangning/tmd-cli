@@ -118,6 +118,7 @@ export const MESSAGES = {
   "智谱 套餐额度": "Zhipu plan quota",
   "z.ai 套餐额度": "z.ai plan quota",
   "DeepSeek 账户余额": "DeepSeek account balance",
+  "欠费": "Past due",
   "Codex 账号额度": "Codex account quota",
   "Claude 账号额度": "Claude account quota",
   "Grok 账号额度": "Grok account quota",

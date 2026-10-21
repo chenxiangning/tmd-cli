@@ -198,6 +198,8 @@ export const ICON_DECOR_ITEMS: ReadonlyArray<{
   { id: "net-proxy", label: "代理浮窗", icon: LadderIcon, group: "conns" },
   { id: "anim", label: "Anim", icon: FilmSlate, group: "conns" },
   { id: "structured-session", label: "结构化会话", icon: ChatCircleDots, group: "conns" },
+  { id: "terminal-jump-bottom", label: "幕布回底钮", icon: CaretDown, group: "conns" },
+  { id: "terminal-refresh", label: "幕布刷新钮", icon: ArrowClockwise, group: "conns" },
 ];
 type _ItemsCoverAllKeys = Exclude<IconDecorId, (typeof ICON_DECOR_ITEMS)[number]["id"]> extends never
   ? true

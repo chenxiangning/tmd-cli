@@ -100,7 +100,7 @@ export function CredentialRows({ creds }: { creds: EngineCredential[] }) {
           <div className="welcome-cred-head">
             <span className="welcome-cred-title">{t(cred.title)}</span>
             {cred.windows.length > 0 && cred.planLabel && (
-              <span className="welcome-cred-plan">{cred.planLabel}</span>
+              <span className="welcome-cred-plan">{t(cred.planLabel)}</span>
             )}
           </div>
           {cred.windows.length > 0 ? (
@@ -113,14 +113,14 @@ export function CredentialRows({ creds }: { creds: EngineCredential[] }) {
             <div className="welcome-cred-body">
               <span className="welcome-cred-balance">{cred.balanceText}</span>
               {cred.planLabel && (
-                <span className="welcome-cred-plan">{cred.planLabel}</span>
+                <span className="welcome-cred-plan">{t(cred.planLabel)}</span>
               )}
             </div>
           ) : (
             <div className="welcome-cred-body">
               <span className="welcome-cred-note">{cred.note ?? t("已登录")}</span>
               {cred.planLabel && (
-                <span className="welcome-cred-plan">{cred.planLabel}</span>
+                <span className="welcome-cred-plan">{t(cred.planLabel)}</span>
               )}
             </div>
           )}

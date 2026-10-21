@@ -4,7 +4,7 @@
  * 先创建者保留 cli 身份,后到者回退 tmd id —— 新会话不得看到老会话的账。
  */
 import { describe, expect, it } from "vitest";
-import { resolveLedgerKey } from "./identity";
+import { resolveLedgerKey, withEchoFallback } from "./identity";
 
 const peers = (list: Array<{ id: string; createdAt?: number }>) => list;
 const cliOf =
@@ -57,5 +57,17 @@ describe("resolveLedgerKey 账本主键仲裁", () => {
     expect(resolveLedgerKey({ id: "t1", createdAt: 100 }, "cli-1", all, map)).toBe("cli-1");
     expect(resolveLedgerKey({ id: "t2", createdAt: 200 }, "cli-1", all, map)).toBe("t2");
     expect(resolveLedgerKey({ id: "t3", createdAt: 300 }, "cli-1", all, map)).toBe("t3");
+  });
+});
+
+describe("withEchoFallback 探测窗主键回落", () => {
+  const id = { cwd: "/ws", key: "cli-1", tmdId: "tmd-9" };
+
+  it("探测窗内:主键回落 tmd id(resolveLedgerKey 无绑定分支语义)", () => {
+    expect(withEchoFallback(id, true)).toEqual({ cwd: "/ws", key: "tmd-9", tmdId: "tmd-9" });
+  });
+
+  it("窗外:原样返回(绑定值可信)", () => {
+    expect(withEchoFallback(id, false)).toEqual(id);
   });
 });

@@ -5,7 +5,7 @@
  * 通知回调;ptyLiveTopic 移居此,host.ts re-export 保持 import 契约不变。
  */
 
-import { KernelTopics, type EventBus } from "./events";
+import { KernelTopics, type EventBus, type PromptSentEvent } from "./events";
 import { getSettingsState } from "./settings";
 import { ActivityWatch } from "./activityWatch";
 import { ActivityReporter } from "./activityReport";
@@ -17,8 +17,8 @@ import { DiskIdentityWatch } from "./identityWatch";
 import { IdentityLedger } from "./identityLedger";
 import { OutputBufferStore } from "./outputBuffers";
 import { notePtyBytes } from "./floodGauge";
-import { SessionStatusWatch } from "./sessionStatus";
 import { refreshRemoteStatus } from "./remoteStatusRefresh";
+import { SessionStatusWatch } from "./sessionStatus";
 import type { CliProfile, CliSessionStatus } from "./cli";
 import { ipc, type SessionMeta } from "./ipc";
 /** 幕布实时输出 topic(TerminalView 订阅,与 appendOutput 共用)。 */
@@ -49,23 +49,21 @@ export class HostWatches {
     getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
     sessionAlive: (sessionId) => this.ctx.hasSession(sessionId),
     isBound: (sessionId) => this.ledger.has(sessionId),
+    boundId: (sessionId) => this.ledger.get(sessionId),
+    sessionMeta: (sessionId) => { const s = this.ctx.findSession(sessionId); return s ? { profileId: s.profileId, cwd: s.cwd } : null; },
     claimedIds: () => this.ledger.claimedIds(),
-    onBound: (sessionId, cliSessionId) => {
-      this.bindIdentity(sessionId, cliSessionId);
-      void this.statusWatch.refresh(sessionId);
-      this.ctx.notify();
-    },
+    onBound: (sessionId, cliSessionId) => { this.bindIdentity(sessionId, cliSessionId); void this.statusWatch.refresh(sessionId); this.ctx.notify(); },
+    onEchoProbe: (sessionId, active) => this.ctx.events.emit(KernelTopics.cliIdentityProbe, { sessionId, active }),
   });
   /** 活会话对应的 CLI 当前模型/思考强度与来源分级(实现见 kernel/sessionStatus.ts)。 */
   private readonly statusWatch = new SessionStatusWatch({
-    getActiveSessionId: () => this.ctx.getActiveSessionId(),
-    findSession: (sessionId) => this.ctx.findSession(sessionId),
+    getActiveSessionId: () => this.ctx.getActiveSessionId(), findSession: (sessionId) => this.ctx.findSession(sessionId),
     hasSession: (sessionId) => this.ctx.hasSession(sessionId),
-    getCliProfile: (profileId) => this.ctx.getCliProfile(profileId),
-    getCliSessionId: (sessionId) => this.ledger.get(sessionId),
+    getCliProfile: (profileId) => this.ctx.getCliProfile(profileId), getCliSessionId: (sessionId) => this.ledger.get(sessionId),
     isPendingIdentity: (sessionId) => this.identityWatch.has(sessionId),
     tryBindIdentity: (sessionId) => this.identityWatch.tryBind(sessionId),
     refreshRemote: (sessionId) => this.remoteStatus(sessionId),
+    lastOutputFrameAt: (sessionId) => this.activity.lastFrameAt(sessionId),
     notify: () => this.ctx.notify(),
   });
   /** 每会话 PTY 输出环形缓冲:xterm 重挂载回放("切回不黑屏");存储细节见 kernel/outputBuffers.ts。 */
@@ -104,12 +102,14 @@ export class HostWatches {
       return kind !== "ssh" && kind !== "shell";
     },
     onChange: () => { this.activityReport.queue(); this.ctx.notify(); },
-    onTurnSettled: (id, unviewed, settledAt) =>
-      this.ctx.events.emit(KernelTopics.turnSettled, { sessionId: id, unviewed, settledAt }),
+    onTurnSettled: (id, unviewed, settledAt) => this.ctx.events.emit(KernelTopics.turnSettled, { sessionId: id, unviewed, settledAt }),
   });
 
   constructor(private readonly ctx: HostWatchesCtx) {
     this.activityReport.queue(); /* 开机/重载即清活动板:webview 重载后前端态归零,板不得留旧账 */
+    /* prompt 回声重验(绑后换对话缺口,契约见 DiskIdentityWatch.revalidate)。
+       注册序契约:内核先于插件 handler,同一次 promptSent 内探测窗先开,checkpoints 主键回落才读得到边沿。 */
+    this.ctx.events.on<PromptSentEvent>(KernelTopics.promptSent, (e) => this.identityWatch.revalidate(e.sessionId, e.text));
   }
 
   /** 手机运行区投影发布端(去抖/去重/失败重试见 activityReport.ts)。 */

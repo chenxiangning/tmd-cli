@@ -68,7 +68,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionDeleted: {},
   sessionKeep: {},
   sessionMutes: {},
-  sessionRestore: { enabled: true, keys: [] },
+  sessionRestore: { enabled: false, keys: [] },
   sessionHygieneEnabled: true,
   sessionHygieneHours: SESSION_HYGIENE_HOURS_DEFAULT,
   engineVersionFavs: {},

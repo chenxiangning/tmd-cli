@@ -20,6 +20,7 @@ import {
   buildQuotaCards,
   inferClaudeWindow,
   nextQuotaWindow,
+  quotaHeatColor,
   splitCountdown,
   type CardWindow,
   type QuotaCard,
@@ -78,7 +79,7 @@ function windowCdParts(
   return { main: cd, hot: win.hot, ok: false, sub };
 }
 
-/* 环形进度;r=32,周长 C≈201.06;颜色按状态(充裕绿/已限额红)。 */
+/* 环形进度;r=32,周长 C≈201.06;颜色按已用热度渐变(绿→琥珀→红,见 quotaHeatColor)。 */
 function Ring({ pct, color, size }: { pct: number; color: string; size: number }) {
   const C = 2 * Math.PI * 32;
   const dash = ((C * Math.min(100, Math.max(0, pct))) / 100).toFixed(2);
@@ -114,11 +115,7 @@ function WindowRing({
         };
   return (
     <div className="wq-ring" {...aria}>
-      <Ring
-        pct={shown ?? 0}
-        color={win.hot && !expired ? "var(--tmd-err)" : "var(--tmd-ok)"}
-        size={size}
-      />
+      <Ring pct={shown ?? 0} color={quotaHeatColor(shown ?? 0)} size={size} />
       <div className={`wq-ring-pct${shown == null ? " muted" : ""}`}>
         {shown == null ? "—" : `${shown}%`}
         <small>{shown == null ? t("不猜测") : t("已用")}</small>
@@ -156,9 +153,9 @@ function WindowBlock({
 
 function CardView({ card, now }: { card: QuotaCard; now: number }) {
   const primary = card.windows[0];
-  const primaryExpired = primary.resetsAt != null && primary.resetsAt <= now;
+  const primaryExpired = primary != null && primary.resetsAt != null && primary.resetsAt <= now;
   const statusPill =
-    primary.pct == null ? null : primaryExpired ? (
+    primary == null || primary.pct == null ? null : primaryExpired ? (
       <span className="wq-pill wq-ok">{t("充裕")}</span>
     ) : primary.hot ? (
       <span className="wq-pill wq-limited">{t("已限额")}</span>
@@ -169,14 +166,18 @@ function CardView({ card, now }: { card: QuotaCard; now: number }) {
     <div className={`wq-card${card.windows.length > 1 ? " wq-multi" : ""}`}>
       <div className="wq-card-top">
         <span className="wq-name">{t(card.name)}</span>
-        {card.plan && <span className="wq-pill wq-plan">{card.plan}</span>}
+        {card.plan && <span className="wq-pill wq-plan">{t(card.plan)}</span>}
         {statusPill}
       </div>
-      <div className="wq-wins">
-        {card.windows.map((w) => (
-          <WindowBlock key={w.key} win={w} multi={card.windows.length > 1} now={now} />
-        ))}
-      </div>
+      {card.windows.length > 0 ? (
+        <div className="wq-wins">
+          {card.windows.map((w) => (
+            <WindowBlock key={w.key} win={w} multi={card.windows.length > 1} now={now} />
+          ))}
+        </div>
+      ) : (
+        card.balanceText != null && <div className="wq-balance">{card.balanceText}</div>
+      )}
     </div>
   );
 }

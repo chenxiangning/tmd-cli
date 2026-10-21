@@ -1,8 +1,9 @@
 /**
  * 终端文件路径可点击 —— 幕布裸路径点击 → 打开文件 tab 并跳行(marks 回链同款通道,
  * 复用其 ABS_PATH_RE 判定思路)。cwd 天花板:相对路径按「点击时激活会话」spawn cwd 拼,
- * PTY 内 cd 不追踪(OSC 7 shell 集成因多平台差异被否,feasibility §1)。绝对路径仅认
- * 工作区 root 内;root 外/不存在静默(与 marks 一致);col 忽略只跳行。
+ * PTY 内 cd 不追踪(OSC 7 shell 集成因多平台差异被否,feasibility §1)。路径不再限制
+ * 工作区 root 内 —— 本机任意路径(~ 展开 / 绝对 / cwd 相对)存在即开 tab;
+ * 不存在静默;col 忽略只跳行。
  */
 import { ipc } from "@kernel/ipc";
 import { host } from "@kernel/host";
@@ -12,9 +13,10 @@ import { getActiveWorkspace } from "@kernel/workspace";
 
 /**
  * 候选路径正则:绝对(POSIX / ~/ 盘符 / UNC)与相对(至少含一处分隔符,防裸词误命中);
- * 尾部可带 :line 或 :line:col;空格续段自身须再含分隔符,防把散文吃进路径。
- * ponytail: 引号包裹的空格路径与「a.ts and dir/b.ts」合链等边角不做精确边界,
- * 升级路径 = 引号感知扫描(成本超 S 项预算)。
+ * 尾部可带 :line 或 :line:col;空格续段自身须再含分隔符,防把散文吃进路径;
+ * 多文件同行(「a/x.ts b/y.ts」、diff 头「a/x.ts +++ b/x.ts」)按头段完整尾
+ * (扩展名/:line)切割成各自独立链,不再合并成一条死链。
+ * ponytail: 引号包裹的空格路径不做精确边界,升级路径 = 引号感知扫描(成本超预算)。
  */
 const PATH_RE =
   /(?<![\w:.~-])(?:\/|~[/\\]|\.{1,2}[/\\]|[A-Za-z]:[/\\]|\\\\|[\w~-]+[/\\])[^\s"'<>|*?:]*(?: [^/\\]*[/\\][^\s"'<>|*?:]*)*(?::\d{1,6}(?::\d{1,6})?)?/g;
@@ -37,43 +39,31 @@ function joinCwd(cwd: string, rel: string): string {
     else if (seg !== "." && seg !== "") out.push(seg);
   }
   const joined = out.join("/");
-  // Windows 盘符段(C:)不加前导 /,否则 /C:/repo 形态 inRoot 恒 false
+  // Windows 盘符段(C:)不加前导 /
   return /^[A-Za-z]:/.test(joined) ? joined : `/${joined}`;
 }
 
-/** win 平台路径大小写不敏感(盘符/目录大小写与注册 root 不一致时保命中);
- *  返回值仍用原大小写形式,真实盘面按原样读。 */
-const CASE_FOLD = /^win/i.test(globalThis.navigator?.platform ?? "")
-  ? (s: string) => s.toLowerCase()
-  : (s: string) => s;
-
-/** root 前缀守卫:返回 root 内归一绝对路径,区外返回 null(静默)。 */
-function inRoot(abs: string, root: string): string | null {
-  const an = abs.replace(/\\/g, "/");
-  const r = CASE_FOLD(root.replace(/\\/g, "/").replace(/\/+$/, ""));
-  const a = CASE_FOLD(an);
-  return a === r || a.startsWith(`${r}/`) ? an : null;
-}
-
-/** 路径 → root 内绝对路径(~/ 经 configHomeDir 展开;相对按激活会话 spawn cwd 拼)。 */
-export async function resolvePath(path: string, root: string): Promise<string | null> {
-  if (path.startsWith("~/")) return inRoot(joinCwd(await ipc.configHomeDir(), path.slice(2)), root);
-  /* 绝对路径同样过 joinCwd 归一:`/repo/../../etc/x` 裸前缀比较会以 /repo/
-     通过 inRoot,读到区外文件违背「仅认工作区 root 内」契约 */
-  if (ABS_RE.test(path)) return inRoot(joinCwd("", path), root);
+/** 路径 → 本机绝对路径(~/ 经 configHomeDir 展开;相对按激活会话 spawn cwd 拼;
+ *  .. 消除)。不校验存在性,不限制工作区。 */
+export async function resolvePath(path: string, root: string): Promise<string> {
+  if (path.startsWith("~/")) return joinCwd(await ipc.configHomeDir(), path.slice(2));
+  if (ABS_RE.test(path)) return joinCwd("", path);
   const id = host.getActiveSessionId();
   const cwd = (id && host.getSessions().find((s) => s.id === id)?.cwd) || root;
-  return inRoot(joinCwd(cwd, path), root);
+  return joinCwd(cwd, path);
 }
 
-/** open 的异步真身:区外/不存在静默;存在则开 tab 并跳行。导出供测试直调。 */
+/** open 的异步真身:存在则开 tab 并跳行;不存在/展开失败静默。导出供测试直调。 */
 export async function openPathHit(path: string, line: number, root: string): Promise<void> {
-  const abs = await resolvePath(path, root);
-  if (!abs) return;
-  await ipc.fsReadTail(abs, 1).then(
-    () => openFileAtLine(abs, line),
-    () => {},
-  );
+  try {
+    const abs = await resolvePath(path, root);
+    await ipc.fsReadTail(abs, 1).then(
+      () => openFileAtLine(abs, line),
+      () => {},
+    );
+  } catch {
+    /* configHomeDir 等展开失败:与不存在同律静默 */
+  }
 }
 
 /** 尾部剥标点与配对闭合符:`(见 /repo/a.ts)` 括号包裹是 AI 输出高频形态,
@@ -98,6 +88,9 @@ function stripTrailingPunct(s: string): string {
   }
 }
 
+/** 头段完整尾判定:带扩展名或 :line(/:col)尾 —— 多文件分割的判据。 */
+const COMPLETE_TAIL = /\.[A-Za-z0-9]{1,8}$|:\d{1,6}(?::\d{1,6})?$/;
+
 export const filePathLinkProvider: TerminalLinkProvider = {
   id: "files.pathlink",
   find(lineText) {
@@ -114,7 +107,20 @@ export const filePathLinkProvider: TerminalLinkProvider = {
     for (const seg of segs) {
       PATH_RE.lastIndex = 0;
       for (let m = PATH_RE.exec(seg.text); m; m = PATH_RE.exec(seg.text)) {
-        const path = stripTrailingPunct(m[0]);
+        let raw = m[0];
+        /* 多文件合链切割:空格续段把「a/x.ts b/y.ts」吞成一条命中(点击整段
+           解析成死链)。头段自身已是完整路径(带分隔符 + 扩展名/:line 尾)时
+           只收头段,扫描指针退回头段末,后续文件独立成链;真空格路径
+           (/My Dir/f.ts)头段无扩展名尾,不受影响。 */
+        const sp = raw.indexOf(" ");
+        if (sp > 0) {
+          const head = raw.slice(0, sp);
+          if (/[\\/]/.test(head) && COMPLETE_TAIL.test(head)) {
+            raw = head;
+            PATH_RE.lastIndex = m.index + head.length;
+          }
+        }
+        const path = stripTrailingPunct(raw);
         if (!path || path.includes("://")) continue;
         /* 空格路径须含分隔符(sendTransform.ts 同款防误吃) */
         if (path.includes(" ") && !/[\\/]/.test(path)) continue;

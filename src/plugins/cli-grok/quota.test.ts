@@ -68,6 +68,7 @@ describe("fetchGrokQuota", () => {
       "relay",
       { key: "sk-relay-1" },
       "https://fufei.mossx.ai",
+      { force: undefined },
     );
     expect(mocks.toQuotaSnapshot).toHaveBeenCalledWith(
       "grok",

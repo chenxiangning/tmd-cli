@@ -96,13 +96,13 @@ describe("parseSessionRestoreKey", () => {
 });
 
 describe("settings sanitize 链(updateSettings 全链)", () => {
-  it("合法补丁生效;非对象整体回落默认(开 + 空 keys)", () => {
+  it("合法补丁生效;非对象整体回落默认(关 + 空 keys)", () => {
     updateSettings({ sessionRestore: { enabled: false, keys: ["a:b:c"] } });
     expect(getSettingsState().settings.sessionRestore).toEqual({ enabled: false, keys: ["a:b:c"] });
     updateSettings({ sessionRestore: "bad" as never });
-    expect(getSettingsState().settings.sessionRestore).toEqual({ enabled: true, keys: [] });
+    expect(getSettingsState().settings.sessionRestore).toEqual({ enabled: false, keys: [] });
     updateSettings({ sessionRestore: { enabled: "yes" as never, keys: "no" as never } });
-    expect(getSettingsState().settings.sessionRestore).toEqual({ enabled: true, keys: [] });
+    expect(getSettingsState().settings.sessionRestore).toEqual({ enabled: false, keys: [] });
   });
   it("keys 去重保序,非串丢弃,超帽从尾部丢(首 = 最新)", () => {
     updateSettings({ sessionTabsMax: 3 });

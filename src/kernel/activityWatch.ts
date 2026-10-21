@@ -64,6 +64,9 @@ interface SessionWatch {
   unread: boolean;
   /** 最后 content 帧时戳(活动钟,呼吸灯)。 */
   lastContentAt: number;
+  /** 最后任意 PTY 输出帧时戳(含家具/busy/idle;sessionStatus 巡航去重闸源,0.4.2):
+   *  content 钟漏 TUI 家具重绘(切模型/思考档只刷屏不产内容帧),闸用它会把工具栏冻到下一内容帧。 */
+  lastFrameAt: number;
   /** ticker 骨架最近帧时戳(帧钟:活家具断供 = 完工换装;新提问清零);busyMarks 标记帧最近时戳(自证钟:CLI 声明的在途界面标记;新提问清零)。 */
   lastTickerAt: number;
   lastBusyAt: number;
@@ -109,7 +112,7 @@ export class ActivityWatch {
     let s = this.sessions.get(sessionId);
     if (!s) {
       s = { anchored: false, active: false, awaiting: false, answered: false, unread: false,
-        lastContentAt: 0, lastTickerAt: 0, lastBusyAt: 0, busyHoldMs: BUSY_HOLD_MS, lastWriteAt: 0, lastNotifyAt: 0,
+        lastContentAt: 0, lastFrameAt: 0, lastTickerAt: 0, lastBusyAt: 0, busyHoldMs: BUSY_HOLD_MS, lastWriteAt: 0, lastNotifyAt: 0,
         lastOutputViewed: false, lastResizeAt: 0, idleArmAt: 0, skeletons: [] };
       this.sessions.set(sessionId, s);
     }
@@ -154,6 +157,7 @@ export class ActivityWatch {
     const s = this.sessions.get(sessionId);
     if (!s || !s.anchored) return false; // 首写闸:锚定前零语义(I1)
     const now = Date.now();
+    s.lastFrameAt = now; /* 逐帧钟(去重闸源):任何输出帧都证明会话文件可能长了新行。 */
     /* 重绘抑制窗:自发 resize 后窗内 = SIGWINCH 整屏重绘,连分类副作用都免(骨架 FIFO 不被重绘尾行占据,I4 幂等)。 */
     if (now - s.lastResizeAt < REDRAW_SUPPRESS_MS) return false;
     if (busy && (s.active || s.awaiting)) {
@@ -236,6 +240,11 @@ export class ActivityWatch {
   /** 会话最近输出时间戳(无输出为 0;未锚定会话不推进,灯恒灰)。 */
   lastActivityAt(sessionId: string): number {
     return this.sessions.get(sessionId)?.lastContentAt ?? 0;
+  }
+
+  /** 会话最近任意输出帧时戳(sessionStatus 巡航去重闸专用,语义见 lastFrameAt 字段注)。 */
+  lastFrameAt(sessionId: string): number {
+    return this.sessions.get(sessionId)?.lastFrameAt ?? 0;
   }
 
   /** 会话移除:状态对象整体清除;无可守望即停表。 */

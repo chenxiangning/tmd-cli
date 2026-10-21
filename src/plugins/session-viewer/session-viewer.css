@@ -24,6 +24,13 @@
 .sv-scroll { flex: 1; overflow-y: auto; }
 .sv-empty { display: grid; place-items: center; height: 100%; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-ui); }
 .sv-blocks { display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 24px; max-width: 860px; margin: 0 auto; }
+/* 深链定位:裸块锚点层(flex 子元素,布局与原直挂等价)+ 命中闪烁 */
+.sv-vb { min-width: 0; border-radius: 8px; }
+.sv-vb.sv-loc-flash { animation: sv-loc-pulse 1.6s ease-out; }
+@keyframes sv-loc-pulse {
+  0%, 40% { background: var(--tmd-accent-weak, var(--tmd-accent-soft)); box-shadow: 0 0 0 1px var(--tmd-accent, var(--tmd-accent)); }
+  100% { background: transparent; box-shadow: none; }
+}
 
 /* ── user / assistant 正文(monocode 全尺寸转录文本) ── */
 .sv-user, .sv-assistant { display: flex; flex-direction: column; gap: 4px; }

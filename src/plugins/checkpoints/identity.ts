@@ -41,6 +41,19 @@ export function resolveLedgerKey(
   return iWin ? cli : me.id;
 }
 
+/**
+ * 探测窗主键回落(纯函数):内核 prompt 回声重验进行中时绑定值不可信,
+ * 账本链暂用 tmd id(resolveLedgerKey 的无绑定分支语义);重绑落地后
+ * ledger.backfill_identity 把暂记链整链并入新 CLI 身份,无损自愈。
+ * (2026-10-21 01a15cea 串账实证:绑后 CLI 换磁盘会话,旧绑定吞掉新对话。)
+ */
+export function withEchoFallback(
+  id: { cwd: string; key: string; tmdId: string },
+  probing: boolean,
+): { cwd: string; key: string; tmdId: string } {
+  return probing ? { ...id, key: id.tmdId } : id;
+}
+
 /** 记账/查询统一入口:解析活跃会话的 (cwd, 账本主键, tmd id)。会话不存在 → null。 */
 export function checkpointIdentity(
   tmdId: string,

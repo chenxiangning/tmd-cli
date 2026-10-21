@@ -29,6 +29,9 @@ interface SessionStatusHost {
   /** 远程来源会话的观测调度(hostWatches 提供:远程身份绑定 + 引擎远程适配)。
    *  返回 true = 该会话走了远程通道(本地 refresh 不再执行)。缺省无。 */
   refreshRemote?: (sessionId: string) => Promise<boolean>;
+  /** 最后任意输出帧时戳源(去重闸):与上次观测同值 = 磁盘尾窗无新内容,跳过本轮读。
+   *  用逐帧钟而非 content 钟:TUI 家具重绘(切模型/思考档)不产 content 帧但会写会话文件。 */
+  lastOutputFrameAt(sessionId: string): number;
   notify(): void;
 }
 
@@ -36,6 +39,8 @@ export class SessionStatusWatch {
   private statuses = new Map<string, CliSessionStatus>();
   /** 状态值来源:"seeded" = CLI 默认配置种子,"observed" = 会话文件真实观测。 */
   private sources = new Map<string, "seeded" | "observed">();
+  /** 上次巡航观测对应的活动时间戳(去重:无新活动不重复读磁盘,见 ensurePolling)。 */
+  private refreshedAt = new Map<string, number>();
   private timer: TimerHandle | null = null;
 
   constructor(private readonly h: SessionStatusHost) {}
@@ -51,10 +56,15 @@ export class SessionStatusWatch {
   remove(sessionId: string): void {
     this.statuses.delete(sessionId);
     this.sources.delete(sessionId);
+    this.refreshedAt.delete(sessionId);
   }
 
   /** 测试专用:假时钟换届时重置巡航计时器(真实运行单例连续,无需调用)。 */
   resetTimerForTest(): void {
+    this.stopTimer();
+  }
+
+  private stopTimer(): void {
     if (this.timer !== null) {
       clearInterval(this.timer);
       this.timer = null;
@@ -65,9 +75,22 @@ export class SessionStatusWatch {
     if (this.timer) return;
     this.timer = setInterval(() => {
       const sessionId = this.h.getActiveSessionId();
-      if (!sessionId) return;
+      if (!sessionId) {
+        /* 无活跃会话即停表(D 档事件化,0.4.2):空转 tick 无意义;激活路径
+         * (host.setActiveSession / spawn / adopt)都会重进 ensurePolling。 */
+        this.stopTimer();
+        return;
+      }
       if (this.h.getCliSessionId(sessionId)) {
-        void this.refresh(sessionId);
+        /* 去重闸(D 档事件化,0.4.2):活动时间戳未变 = 尾窗无新内容,本轮不读。
+         * 手动刷新(statusRefresh)绕过本闸,仍即时重读。 */
+        const act = this.h.lastOutputFrameAt(sessionId);
+        if (act === this.refreshedAt.get(sessionId)) return;
+        /* 读成功才记位(起点 act:await 期间若有新活动,新 act ≠ 记位值,下轮照读);
+         * 失败不记,下轮重试。 */
+        void this.refresh(sessionId).then((ok) => {
+          if (ok) this.refreshedAt.set(sessionId, act);
+        });
       } else if (this.h.isPendingIdentity(sessionId)) {
         /* 慢相位:文件迟到(首条消息才落盘)/快照失败,激活会话 2s 巡航直到绑上 */
         void this.h.tryBindIdentity(sessionId);
@@ -103,17 +126,20 @@ export class SessionStatusWatch {
     this.h.notify();
   }
 
-  async refresh(sessionId: string): Promise<void> {
+  /** 磁盘尾窗观测。true = 观测已落地(巡航去重闸据此记位);失败/前置不满足
+   *  返回 false —— 巡航下轮重试(保留旧 2s 重试语义),手动刷新不受影响。 */
+  async refresh(sessionId: string): Promise<boolean> {
     const session = this.h.findSession(sessionId);
     const cliSessionId = this.h.getCliSessionId(sessionId);
-    if (!session || !cliSessionId) return;
+    if (!session || !cliSessionId) return false;
     const profile = this.h.getCliProfile(session.profileId);
-    if (!profile?.readSessionStatus) return;
+    if (!profile?.readSessionStatus) return false;
     const observed = await profile
       .readSessionStatus(session.cwd, cliSessionId)
       .catch(() => null);
-    if (!observed) return;
+    if (!observed) return false;
     this.applyObserved(sessionId, observed);
+    return true;
   }
 
   /** 观测值落地(本地读与远程通道共用):死会话防写 + 字段级合并 + 来源翻转。 */

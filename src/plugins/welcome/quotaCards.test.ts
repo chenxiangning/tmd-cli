@@ -1,5 +1,5 @@
 /**
- * quotaCards 纯函数测试:卡片构建(双窗口并列/展示序)/查不到的卡不渲染/
+ * quotaCards 纯函数测试:卡片构建(双窗口并列/展示序)/余额型卡沉底、仅 note 不渲染/
  * claude 推算卡去重/汇总条目标跨窗口取最早/倒计时拆分/凭据去重聚合。
  * inferClaudeWindow 为 IO 编排(ipc 尾读),走桩目检,不在此测。
  */
@@ -10,6 +10,7 @@ import {
   buildQuotaCards,
   nextQuotaWindow,
   QUOTA_HOT_PCT,
+  quotaHeatColor,
   splitCountdown,
 } from "./quotaCards";
 import type { EngineCredential } from "./credentials";
@@ -41,17 +42,25 @@ describe("buildQuotaCards", () => {
     expect(c.windows[1]).toMatchObject({ pct: 70, hot: false, resetsAt: NOW + 3 * 86400_000 });
   });
 
-  it("查不到的卡不渲染:仅 note / 仅余额 / 空窗口聚合全部丢弃", () => {
+  it("余额型卡:仅余额(deepseek)沉底成卡,仅 note / 空窗口聚合丢弃", () => {
     const cards = buildQuotaCards({
       quotas: [
+        { title: "DeepSeek 账户余额", windows: [], balanceText: "¥-1.29", planLabel: "欠费" },
         { title: "Claude 官方订阅", windows: [], note: "已登录;官方订阅额度请在 CLI 内 /usage 查看" },
-        { title: "DeepSeek 账户余额", windows: [], balanceText: "¥-1.29" },
         { title: "空", windows: [] },
       ],
       claudeWin: null,
       claudeHasQuota: false,
     });
-    expect(cards).toEqual([]);
+    expect(cards).toEqual([
+      {
+        key: "quota:DeepSeek 账户余额",
+        name: "DeepSeek 账户余额",
+        plan: "欠费",
+        windows: [],
+        balanceText: "¥-1.29",
+      },
+    ]);
   });
 
   it("claude 推算卡:有推算且无真额度时追加,单推算窗口(无环形读数)", () => {
@@ -151,5 +160,21 @@ describe("aggregateQuotas", () => {
     const aggs = aggregateQuotas({ omp: list });
     expect(aggs).toHaveLength(1);
     expect(aggs[0]).toMatchObject({ title: "T", windows: [W("5小时", 50)] });
+  });
+});
+
+describe("quotaHeatColor", () => {
+  it("热度渐变:50=纯绿,90=纯琥珀,100=纯红;中段连续混色(color-mix 主题语义色)", () => {
+    expect(quotaHeatColor(0)).toBe("color-mix(in oklch, var(--tmd-warn) 0.0%, var(--tmd-ok))");
+    expect(quotaHeatColor(50)).toBe("color-mix(in oklch, var(--tmd-warn) 0.0%, var(--tmd-ok))");
+    expect(quotaHeatColor(70)).toBe("color-mix(in oklch, var(--tmd-warn) 50.0%, var(--tmd-ok))");
+    expect(quotaHeatColor(87)).toBe("color-mix(in oklch, var(--tmd-warn) 92.5%, var(--tmd-ok))");
+    expect(quotaHeatColor(90)).toBe("color-mix(in oklch, var(--tmd-err) 0.0%, var(--tmd-warn))");
+    expect(quotaHeatColor(95)).toBe("color-mix(in oklch, var(--tmd-err) 50.0%, var(--tmd-warn))");
+    expect(quotaHeatColor(100)).toBe("color-mix(in oklch, var(--tmd-err) 100.0%, var(--tmd-warn))");
+  });
+  it("越界钳制:负值与 >100 收敛到端点色", () => {
+    expect(quotaHeatColor(-5)).toBe(quotaHeatColor(0));
+    expect(quotaHeatColor(120)).toBe(quotaHeatColor(100));
   });
 });

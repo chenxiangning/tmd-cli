@@ -3,8 +3,10 @@
  * 自 FootprintView 拆出守 300 行铁则。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { t } from "@kernel/i18n";
 import type { FpCardView, FpDayDetail, FpHit } from "../dataSource";
 import { loadDayDetail, searchDays } from "../dataSource";
+import { jumpHitTranscript } from "../jumpTranscript";
 import type { FileSel } from "./useFpFiles";
 
 export interface FpSearchDeps {
@@ -28,11 +30,22 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
   const [cursor, setCursor] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  /* 「看对话」轻反馈(BatchSheet 同款三态,jumped 静默因幕布已可见) */
+  const [jumpNotice, setJumpNotice] = useState<string | null>(null);
+  const jumpTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
+    },
+    [],
+  );
+
   const openSearch = useCallback(() => {
     setSearchOpen(true);
     setQuery("");
     setHits(null);
     setCursor(0);
+    setJumpNotice(null); /* 重开浮层不残留上一条 opened/miss 文案 */
     window.setTimeout(() => searchInputRef.current?.focus(), 30);
   }, []);
 
@@ -75,5 +88,15 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
     [ym, setDetail, setFileSel, openCard, setYm, setRange, setSel, setCard, clearAnchor],
   );
 
-  return { searchOpen, setSearchOpen, query, setQuery, hits, setHits, cursor, setCursor, searchInputRef, openSearch, pickHit };
+  const jumpHit = useCallback((h: FpHit) => {
+    void jumpHitTranscript(h).then((outcome) => {
+      /* jumped=幕布已定位;opened=幕布未中已落转录查看器(屏幕可见)——都静默 */
+      if (outcome !== "miss") return;
+      setJumpNotice(t("未能定位到该条对话消息"));
+      if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
+      jumpTimer.current = window.setTimeout(() => setJumpNotice(null), 2600);
+    });
+  }, []);
+
+  return { searchOpen, setSearchOpen, query, setQuery, hits, cursor, setCursor, searchInputRef, openSearch, pickHit, jumpHit, jumpNotice };
 }

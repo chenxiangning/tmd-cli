@@ -94,7 +94,7 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
     await expect(fetchOmpQuota(ctxOf("kimi-code/k3"))).resolves.toBe(snapshotSentinel);
 
     expect(readOmpAuthCredential).toHaveBeenCalledWith("kimi-code");
-    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", { key: "sk-kimi-1" });
+    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", { key: "sk-kimi-1" }, undefined, { force: undefined });
     expect(toQuotaSnapshot).toHaveBeenCalledWith("kimi-code", "kimi", { windows: [], planLabel: "Plan-A" });
   });
 
@@ -112,17 +112,23 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
 
     await expect(fetchOmpQuota(ctxOf("openai-codex/gpt-5"))).resolves.toBe(snapshotSentinel);
 
-    expect(fetchCodexQuotaWithSnapshot).toHaveBeenCalledWith({}, "openai-codex");
+    expect(fetchCodexQuotaWithSnapshot).toHaveBeenCalledWith({}, "openai-codex", { force: undefined });
     expect(fetchVendorQuota).not.toHaveBeenCalled();
   });
 
-  it("codex oauth 凭据解析后透传给快照通道", async () => {
+  it("codex oauth 凭据解析后透传快照通道,force 缺省/强刷两态贯通", async () => {
     vi.mocked(readOmpAuthCredential).mockResolvedValue('{"access":" at-1 ","accountId":"acc-9"}');
     vi.mocked(fetchCodexQuotaWithSnapshot).mockResolvedValue(snapshotSentinel);
 
     await fetchOmpQuota(ctxOf("openai-codex/gpt-5"));
+    await fetchOmpQuota({ ...ctxOf("openai-codex/gpt-5"), force: true });
 
-    expect(fetchCodexQuotaWithSnapshot).toHaveBeenCalledWith({ access: "at-1", accountId: "acc-9" }, "openai-codex");
+    expect(fetchCodexQuotaWithSnapshot).toHaveBeenNthCalledWith(
+      1, { access: "at-1", accountId: "acc-9" }, "openai-codex", { force: undefined },
+    );
+    expect(fetchCodexQuotaWithSnapshot).toHaveBeenNthCalledWith(
+      2, { access: "at-1", accountId: "acc-9" }, "openai-codex", { force: true },
+    );
   });
 
   it("凭据 data JSON 为标量(含字面 null)→ 按空凭据继续查询,不当未登录", async () => {
@@ -131,7 +137,7 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
     vi.mocked(toQuotaSnapshot).mockReturnValue(snapshotSentinel);
 
     await expect(fetchOmpQuota(ctxOf("kimi-code/k3"))).resolves.toBe(snapshotSentinel);
-    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", {});
+    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", {}, undefined, { force: undefined });
   });
 
   it("凭据字段空白串视为缺失、非字符串字段丢弃、合法值裁剪", async () => {
@@ -140,7 +146,7 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
 
     await fetchOmpQuota(ctxOf("kimi-code/k3"));
 
-    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", { access: "acc-1" });
+    expect(fetchVendorQuota).toHaveBeenCalledWith("kimi", { access: "acc-1" }, undefined, { force: undefined });
   });
 });
 

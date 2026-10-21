@@ -62,7 +62,7 @@ export function FileTreeRow({
     <div className={`file-tree-row-wrap${selected ? " is-selected" : ""}`}>
       <button
         type="button"
-        className={`file-tree-row${selected ? " is-selected" : ""}`}
+        className={`file-tree-row${selected ? " is-selected" : ""}${repoTag ? " has-repotag" : ""}`}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={onClick}
         onContextMenu={onContextMenu}

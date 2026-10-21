@@ -11,6 +11,7 @@
 
 import { host } from "@kernel/host";
 import { getSettingsState } from "@kernel/settings";
+import { exitedReadKey, readUserMessagesOnce } from "../exitedReads";
 import { resolveDistillEngine } from "../modelCatalog";
 import { distillSessionTail } from "./write";
 
@@ -48,7 +49,11 @@ function onSessionExited(sessionId: string): void {
 
   void (async () => {
     try {
-      const msgs = await readMsgs(meta.cwd, cliSessionId, true);
+      /* 与 wiki/wikiHook 同吃一次磁盘读(exitedReads,批三收敛)。 */
+      const msgs = await readUserMessagesOnce(
+        exitedReadKey(meta.profileId, meta.cwd, cliSessionId),
+        () => readMsgs(meta.cwd, cliSessionId, true),
+      );
       const tail = (msgs ?? [])
         .slice(-10)
         .map((m) => m.text)

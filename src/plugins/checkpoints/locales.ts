@@ -28,7 +28,7 @@ const MESSAGES_EN = {
   "看对话": "View conversation",
   "定位这轮消息在对话中的位置(已结束的会话会先恢复再定位)":
     "Locate this message in the conversation (a closed session is resumed first)",
-  "会话已打开,未定位到该条消息": "Session opened, but the message could not be located",
+  "已在转录查看器中打开": "Opened in the transcript viewer",
   "未能定位到该条对话消息": "Could not locate this message in the conversation",
   /* 变更总览(0.4.0 项11):右栏第三页签,跨批次按文件折叠 */
   "变更": "Changes",
@@ -76,7 +76,7 @@ const MESSAGES_JA = {
   "看对话": "会話を見る",
   "定位这轮消息在对话中的位置(已结束的会话会先恢复再定位)":
     "このメッセージの会話内の位置へ移動します(終了したセッションは先に復元されます)",
-  "会话已打开,未定位到该条消息": "セッションは開きましたが、該当メッセージを見つけられませんでした",
+  "已在转录查看器中打开": "トランスクリプトビューアで開きました",
   "未能定位到该条对话消息": "このメッセージの会話内の位置を特定できませんでした",
   /* 变更总览(0.4.0 项11):右栏第三页签,跨批次按文件折叠 */
   "变更": "変更",

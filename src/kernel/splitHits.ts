@@ -1,6 +1,7 @@
 /**
- * 行命中切段(纯函数,SearchPanel 高亮与测试共用;自组件文件拆出:
- * react-doctor only-export-components——组件文件只导出组件)。
+ * 行命中切段(kernel 通用原语,0.4.2 批三自 search 插件上收):
+ * SearchPanel 结果高亮与 session-search SnippetText 共享;自组件文件拆出:
+ * react-doctor only-export-components——组件文件只导出组件。
  */
 
 /** 行文本按 query 全部出现切段(大小写跟随开关);纯前端匹配。

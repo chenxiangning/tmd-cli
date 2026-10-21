@@ -6,7 +6,8 @@
  * 渲染层:xterm 内建 DOM 渲染器(WebGL 方案因 WebKit texSubImage2D 缺陷弃用)。
  * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
  *
- * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检分别在 terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth。
+ * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检/滚动位保持分别在
+ * terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth / terminalScrollKeeper。
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -31,23 +32,24 @@ import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
 import {
+  observeCanvasSize,
   settleTerminalFreeze,
   startAskScreenProbe,
   startCanvasStallProbe,
 } from "@kernel/terminalCanvasHealth";
 import { takeTerminalFreeze } from "@kernel/terminalFreeze";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
-import { TerminalSearchOverlay } from "@kernel/terminalSearch";
-import { findRequestRef } from "@kernel/terminalFindBridge";
+import { createScrollKeeper } from "@kernel/terminalScrollKeeper";
+import { TerminalSearchOverlay, useSearchBoxOwnership } from "@kernel/terminalSearch";
 import "@kernel/terminalFontZoom"; /* 终端字号缩放键位(⌘+/⌘−/⌘0):模块级注册,随幕布装配生效 */
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
 import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
-import { TerminalRefreshButton } from "@kernel/terminalRefreshButton";
+import { TerminalJumpToBottomButton, TerminalRefreshButton } from "@kernel/terminalRefreshButton";
 import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
 import { readTerminalTheme } from "@kernel/terminalXtermTheme";
 
-/* 导出级 memo:props 全原始类型,浅比较稳定。keep-alive 语义(MainPanel):
+/* 导出级 memo:props 全原始类型,浅比较稳定(keep-alive 语义见 MainPanel)。
    tab 条内会话常驻挂载,非激活 display:none;active 切换不重挂,仅 ref 所有权迁移。 */
 function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,14 +75,21 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   const activeRef = useRef(active);
   const flushDeferredRef = useRef<(() => void) | null>(null);
   const lastLiveAtRef = useRef(0); /* 停滞探针活性真相(terminalCanvasHealth 消费) */
+  /* 滚动位保持(terminalScrollKeeper.ts):隐藏/重显与重排的滚动语义;实例随会话 keep-alive 常驻。 */
+  const [scrollKeeper] = useState(createScrollKeeper);
   useEffect(() => {
     activeRef.current = active;
-    if (active) flushDeferredRef.current?.();
+    if (active) {
+      flushDeferredRef.current?.();
+      scrollKeeper.restore(termRef.current);
+    } else {
+      scrollKeeper.markHidden(containerRef.current);
+    }
     /* 在视打点随活性同拍:泵侧聚合降档判据(无人观看 → 250ms 慢拍,见
        pty_spawn.rs OUT_BACKGROUND_WINDOW;2026-10-04 十一轮)。 */
     void ipc.sessionSetViewed(sessionId, active).catch(() => undefined);
     return () => void ipc.sessionSetViewed(sessionId, false).catch(() => undefined);
-  }, [sessionId, active]);
+  }, [sessionId, active, scrollKeeper]);
   /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
   const loadEarlier = useCallback(async () => {
     const term = termRef.current;
@@ -92,7 +101,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) return undefined;
     /* 重建重挂(canvasGen>0)弃挤除快照:重建前幕布可能滞留停滞期旧帧,投影不可信走全量。 */
     if (canvasGen > 0) takeTerminalFreeze(sessionId);
 
@@ -102,8 +111,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       cursorBlink: true,
       fontSize: fontSettings.terminalFontSize,
       fontFamily: resolveTerminalFontFamily(fontSettings.terminalFontFamily),
-      /* 默认 1000 行太浅;翻页加载历史后单场可达数万行,放大到 5 万 */
-      scrollback: 50_000,
+      /* 上限即重排成本上限:尺寸变化时 xterm 同步 rewrap 全缓冲,行数越多主线程
+         阻塞越久,超 render_health 探针 4s 静默窗会被误判悬死而 reload(重挂回放
+         阅读位归零,2026-10-22 实锤)。2.4 万把最重 rewrap 压回死限内,更早走翻页。 */
+      scrollback: 24_000,
       theme: readTerminalTheme(),
     });
     /* 配色重刷:主题引擎与打穿等 :root 终端 token 写手都经主题桥通知,重读计算样式。
@@ -126,7 +137,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
         needsForceSyncRef.current = true;
         return;
       }
-      fit.fit();
+      /* 列宽重排后保阅读位(含 SIGWINCH 抹除重印感知,见 terminalScrollKeeper.reflow)。 */
+      scrollKeeper.reflow(term, () => fit.fit());
       host.resizeSession(sessionId, term.cols, term.rows, needsForceSyncRef.current);
       needsForceSyncRef.current = false;
     };
@@ -183,7 +195,10 @@ termRef.current = term;
     void pager.init();
     /* 滚动到顶才显示"加载更早的输出"入口 */
     setAtTop(term.buffer.active.viewportY === 0);
-    const offScroll = term.onScroll((y) => setAtTop(y === 0));
+    const offScroll = term.onScroll((y) => {
+      setAtTop(y === 0);
+      scrollKeeper.record(term, activeRef.current, container.clientWidth > 0);
+    });
     /* Ask 屏幕采样探针(语义与贴底闸见 terminalCanvasHealth.startAskScreenProbe)。 */
     const stopAskProbe = startAskScreenProbe(term, sessionId, () => streamReadyRef.current);
     /* 幕布数据链停滞探针(PTY 在流而幕布不吃字节 → 自动重建;判据见 canvasStall.ts)。 */
@@ -218,12 +233,9 @@ termRef.current = term;
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
-
-    /* 重挂载必发一次(needsForceSync 初值 true:重挂载即强制一次真 SIGWINCH 整帧
-       重绘,根治关闭再开/切回后的错栅格滞留);重绘由活动守望抑制窗吸收。 */
+    /* 重挂载必发一次(needsForceSync 初值 true 强制真 SIGWINCH 整帧重绘,根治错栅格滞留);重绘由活动守望抑制窗吸收。 */
     syncSize();
-    const observer = new ResizeObserver(syncSize);
-    observer.observe(container);
+    const offObserve = observeCanvasSize(container, syncSize);
 
     return () => {
       stopAskProbe();
@@ -239,7 +251,7 @@ termRef.current = term;
       offStream();
       offInput.dispose();
       offScroll.dispose();
-      observer.disconnect();
+      offObserve();
       term.dispose();
       termRef.current = null;
       searchRef.current = null;
@@ -248,22 +260,10 @@ termRef.current = term;
       setHasMore(false);
       setLoadingHistory(false);
     };
-  }, [sessionId, inputGate, canvasGen]);
+  }, [sessionId, inputGate, canvasGen, scrollKeeper]);
 
-  /* ⌘F 搜索框所有权:keep-alive 后多幕布并存,模块级 findRequestRef 单槽,
-     必须跟随激活实例 —— 激活即持有,失活/卸载仅在仍归自己时让出。 */
-  useEffect(() => {
-    if (!active) return;
-    const mine = () => setSearchOpen(true);
-    findRequestRef.current = mine;
-    return () => {
-      if (findRequestRef.current === mine) findRequestRef.current = null;
-    };
-  }, [active]);
-  const closeSearch = () => {
-    setSearchOpen(false);
-    termRef.current?.focus();
-  };
+  /* ⌘F 搜索框所有权 + 关闭回调(实现见 terminalSearch.useSearchBoxOwnership)。 */
+  const { close: closeSearch } = useSearchBoxOwnership(active, setSearchOpen, termRef);
 
   /* loadEarlier 实例内恒稳定(useCallback 无依赖),ref 转交放 effect 避免渲染期写。 */
   useEffect(() => {
@@ -285,11 +285,11 @@ termRef.current = term;
         <TerminalSearchOverlay searchRef={searchRef} termRef={termRef} onClose={closeSearch} />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
-      {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 刷新钮收尾最右。
-          行不设 z —— 画布浮层(editorCenter.canvasOverlay,z-10 不透明)开启时
-          整行隐没其下,结构化视图页不出刷新钮;幕布态浮于 xterm 之上(DOM 序)。 */}
+      {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 回底钮 + 刷新钮收尾最右。
+          行不设 z —— 画布浮层开启时整行隐没其下;幕布态浮于 xterm 之上(DOM 序)。 */}
       <div className="absolute right-3 top-2 flex items-center gap-1.5">
         <Mounts point="terminal.canvasRow" />
+        <TerminalJumpToBottomButton termRef={termRef} />
         <TerminalRefreshButton onClick={() => setCanvasGen((g) => g + 1)} />
       </div>
     </div>

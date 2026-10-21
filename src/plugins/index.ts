@@ -51,6 +51,7 @@ import { workbenchPlugin } from "./workbench";
 import { animPlugin } from "./anim";
 import { storageAuditPlugin } from "./storage-audit";
 import { footprintPlugin } from "./footprint";
+import { portsPlugin } from "./ports";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -100,4 +101,5 @@ export const allPlugins: Plugin[] = [
   animPlugin,
   storageAuditPlugin,
   footprintPlugin,
+  portsPlugin,
 ];

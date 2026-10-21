@@ -10,7 +10,7 @@ import { ipc, type FsSearchHit } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { normalizePath } from "@kernel/pathUtils";
 import { openFileAtLine } from "@kernel/fileTabs";
-import { splitHits } from "./splitHits";
+import { splitHits } from "@kernel/splitHits";
 import { closeSearchOverlay, useActiveWorkspaceRoot } from "./overlayStore";
 
 /** 全局命中上限(护栏在 fs_search.rs;命中即提示截断)。 */

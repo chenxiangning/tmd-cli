@@ -3,7 +3,7 @@
  * find 正则矩阵 —— 绝对(POSIX/~ /盘符/UNC)/相对/:line/:line:col/空格路径;
  * 反例 —— URL(://)排除、无分隔符裸词、版本号样散文;
  * resolvePath/openPathHit —— root 拼接(POSIX/Windows)、~/ 经 configHomeDir 展开、
- * .. 消除、区外静默、不存在静默(fsReadTail 拒绝)、col 忽略只跳行。
+ * .. 消除、不存在静默(fsReadTail 拒绝)、col 忽略只跳行。
  * 手法:kernel 依赖(workspace/fileTabs/ipc/host)以 vi.mock 顶替。
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -87,6 +87,29 @@ describe("PATH_RE 矩阵", () => {
     expect(line.slice(hits[0].start, hits[0].end)).toBe("src/app.ts:12:3");
     expect(line.slice(hits[1].start, hits[1].end)).toBe("src/b.ts:7");
   });
+
+  it("多文件同行各自成链:空格续段合链按头段完整尾切割", () => {
+    const line = "M src/kernel/a.ts src/plugins/b.ts done";
+    const hits = filePathLinkProvider.find(line);
+    expect(hits.map((h) => line.slice(h.start, h.end))).toEqual(["src/kernel/a.ts", "src/plugins/b.ts"]);
+  });
+
+  it("diff 头两侧路径独立成链(+++ 不进链)", () => {
+    const line = "--- a/src/app.ts +++ b/src/app.ts";
+    const hits = filePathLinkProvider.find(line);
+    expect(hits.map((h) => line.slice(h.start, h.end))).toEqual(["a/src/app.ts", "b/src/app.ts"]);
+  });
+
+  it("三连文件逐个分割不漏", () => {
+    const line = "Edit src/a.ts src/b.ts src/c.ts end";
+    const hits = filePathLinkProvider.find(line);
+    expect(hits.map((h) => line.slice(h.start, h.end))).toEqual(["src/a.ts", "src/b.ts", "src/c.ts"]);
+  });
+
+  it("真空格目录路径不受切割:头段无扩展名尾保持整链", () => {
+    expect(hitText("打开 /My Dir/file.ts 啊")).toBe("/My Dir/file.ts");
+    expect(hitText("看 /repo/Notes 2024/a.md:2 后续")).toBe("/repo/Notes 2024/a.md:2");
+  });
 });
 
 describe("parsePathHit", () => {
@@ -97,10 +120,10 @@ describe("parsePathHit", () => {
   });
 });
 
-describe("resolvePath(root 拼接与区外静默)", () => {
-  it("绝对路径 root 内归一命中,区外返回 null", async () => {
+describe("resolvePath(路径归一与展开)", () => {
+  it("绝对路径归一命中,区外同样返回绝对路径(不限工作区)", async () => {
     await expect(resolvePath("/repo/src/a.ts", ROOT)).resolves.toBe("/repo/src/a.ts");
-    await expect(resolvePath("/etc/passwd", ROOT)).resolves.toBeNull();
+    await expect(resolvePath("/etc/passwd", ROOT)).resolves.toBe("/etc/passwd");
     await expect(resolvePath("C:\\repo\\a.md", "C:\\repo")).resolves.toBe("C:/repo/a.md");
   });
 
@@ -113,12 +136,12 @@ describe("resolvePath(root 拼接与区外静默)", () => {
   it("Windows cwd + 相对路径:盘符段不加前导 /,拼出 C:/ 形态", async () => {
     mocks.getSessions.mockReturnValue([{ id: "pty-1", profileId: "omp", cwd: "C:\\repo" }]);
     await expect(resolvePath("src/app.ts", "C:\\repo")).resolves.toBe("C:/repo/src/app.ts");
-    await expect(resolvePath("..\\sib\\x.ts", "C:\\repo")).resolves.toBeNull(); // 区外静默
+    await expect(resolvePath("..\\sib\\x.ts", "C:\\repo")).resolves.toBe("C:/sib/x.ts");
   });
 
-  it("~/ 经 configHomeDir 展开,root 内归一", async () => {
+  it("~/ 经 configHomeDir 展开", async () => {
     await expect(resolvePath("~/repo/notes.md", "/home/x")).resolves.toBe("/home/x/repo/notes.md");
-    await expect(resolvePath("~/other/notes.md", ROOT)).resolves.toBeNull();
+    await expect(resolvePath("~/other/notes.md", ROOT)).resolves.toBe("/home/x/other/notes.md");
   });
 });
 
@@ -135,14 +158,17 @@ describe("provider.open", () => {
     await vi.waitFor(() => expect(mocks.openFileAtLine).toHaveBeenCalledWith("/repo/docs/a.md", 7));
   });
 
-  it("区外/不存在静默:不开 tab", async () => {
+  it("不存在静默不开 tab;区外存在照样开", async () => {
     mocks.fsReadTail.mockRejectedValue(new Error("missing"));
-    const outside = "看 /etc/passwd:1";
-    filePathLinkProvider.open(filePathLinkProvider.find(outside)[0], outside);
     const missing = "看 src/nope.ts:1";
     filePathLinkProvider.open(filePathLinkProvider.find(missing)[0], missing);
     await vi.waitFor(() => expect(mocks.fsReadTail).toHaveBeenCalledTimes(1));
     expect(mocks.openFileAtLine).not.toHaveBeenCalled();
+
+    mocks.fsReadTail.mockResolvedValue("");
+    const outside = "看 /etc/passwd:1";
+    filePathLinkProvider.open(filePathLinkProvider.find(outside)[0], outside);
+    await vi.waitFor(() => expect(mocks.openFileAtLine).toHaveBeenCalledWith("/etc/passwd", 1));
   });
 
   it("无激活工作区静默", () => {

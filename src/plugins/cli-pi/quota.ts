@@ -60,9 +60,9 @@ export async function fetchPiQuota(ctx: QuotaFetchContext): Promise<QuotaSnapsho
   // 快照不可用降级 wham HTTP;非 OAuth 凭据直接走 HTTP。
   if (route.vendor === "openai-codex") {
     const cred = await resolveCredentialRefs(route.providerId, route.credential);
-    return fetchCodexQuotaWithSnapshot(cred, route.providerId);
+    return fetchCodexQuotaWithSnapshot(cred, route.providerId, { force: ctx.force });
   }
   const cred = await resolveCredentialRefs(route.providerId, route.credential);
-  const quota = await fetchVendorQuota(route.vendor, cred, route.baseUrl);
+  const quota = await fetchVendorQuota(route.vendor, cred, route.baseUrl, { force: ctx.force });
   return toQuotaSnapshot(route.providerId, route.vendor, quota);
 }

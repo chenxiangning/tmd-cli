@@ -41,12 +41,16 @@ export type LaunchPresetResult =
   | { ok: true; sessionId: string }
   | { ok: false; reason: "no-engine" | "start-failed" };
 
+/** 引擎声明模型旗标且预设给了模型 → 追加旗标参数;两者缺一 = 原参数原样。 */
+export function withModelArg(args: string[], modelArg: string | undefined, model: string | undefined): string[] {
+  return model && modelArg ? [...args, modelArg, model] : args;
+}
+
 export async function launchPresetSession(input: LaunchPresetInput): Promise<LaunchPresetResult> {
   /* 防空 command spawn(WorktreeSessionDialog 候选空禁创建先例);组件侧已禁点,
    * 此处兜底为结构化失败,不静默。 */
   if (!input.command) return { ok: false, reason: "no-engine" };
-  const args =
-    input.model && input.modelArg ? [...input.args, input.modelArg, input.model] : input.args;
+  const args = withModelArg(input.args, input.modelArg, input.model);
   let sessionId: string;
   try {
     const meta = await input.deps.spawn({
@@ -125,8 +129,7 @@ export async function launchPresetWorktreeSession(
     input.deps.startFailed(dirErr ?? t("无法确定 worktree 目录"));
     return { ok: false };
   }
-  const spawnArgs =
-    input.model && input.modelArg ? [...input.args, input.modelArg, input.model] : input.args;
+  const spawnArgs = withModelArg(input.args, input.modelArg, input.model);
   const outcome = await input.deps.create({
     repoCwd: input.workspaceRoot,
     wtPath,

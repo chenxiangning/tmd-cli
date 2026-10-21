@@ -110,7 +110,7 @@ export function FootprintView({ tab }: { tab: EditorTab }) {
   }, [setFileSel]);
 
   /* ⌘K / 搜索(状态与跳日逻辑收进 hook,守 300 行铁则) */
-  const { searchOpen, setSearchOpen, query, setQuery, hits, cursor, setCursor, searchInputRef, openSearch, pickHit } = useFpSearch({
+  const { searchOpen, setSearchOpen, query, setQuery, hits, cursor, setCursor, searchInputRef, openSearch, pickHit, jumpHit, jumpNotice } = useFpSearch({
     ym,
     setYm,
     setSel,
@@ -221,6 +221,8 @@ export function FootprintView({ tab }: { tab: EditorTab }) {
         onQuery={setQuery}
         onCursor={setCursor}
         onPickHit={pickHit}
+        onJumpHit={jumpHit}
+        jumpNotice={jumpNotice}
         onCloseSearch={() => setSearchOpen(false)}
         onCloseFix={() => {
           setFixCard(null);

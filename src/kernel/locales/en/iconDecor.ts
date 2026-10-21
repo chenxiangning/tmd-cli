@@ -37,4 +37,6 @@ export const MESSAGES = {
   "代理浮窗": "Proxy popover",
   "Anim": "Anim",
   "结构化会话": "Structured session",
+  "幕布回底钮": "Terminal jump-to-bottom",
+  "幕布刷新钮": "Terminal refresh",
 } as Record<string, string>;

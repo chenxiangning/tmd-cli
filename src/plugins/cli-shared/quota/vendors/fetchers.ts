@@ -172,6 +172,8 @@ export async function fetchDeepseek(key: string): Promise<VendorQuota> {
     windows: [],
     balanceText: `${symbol}${info?.total_balance ?? "0"}`,
     ...(balanceNum !== undefined ? { balanceValue: balanceNum } : {}),
-    planLabel: body.is_available ? "available" : "unavailable",
+    /* is_available = 余额是否足以调用 API(欠费 false),非「余额查不到」;
+       余额本身恒展示,欠费才出 pill。 */
+    ...(body.is_available === false ? { planLabel: "欠费" } : {}),
   };
 }

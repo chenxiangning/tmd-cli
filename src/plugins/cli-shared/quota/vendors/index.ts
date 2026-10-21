@@ -62,12 +62,63 @@ export function toQuotaSnapshot(
 /* ── 统一入口 ─────────────────────────────────────────── */
 
 /**
- * 按供应商查额度。cred 需带对应字段:
+ * 供应商快照共享缓存(welcome 凭据盘 / notify 轮询 / composer QuotaChip 同吃
+ * 一份,0.4.2 批二):同一 (vendor, 凭据, baseUrl) 60s 内只打一次供应商 HTTP,
+ * 三家消费面各自触发不再重复抓同一窗口。只缓存成功;失败不缓存(各家退避
+ * 重试语义不受影响)。凭据以 JSON 串作键(进程内存,防 32 位散列跨凭据误 hit)。
+ */
+const SNAP_TTL_MS = 60_000;
+/* 非硬顶:极端量新键可短暂超容,插入期过期清扫自愈(现实凭据规模远不及)。 */
+const SNAP_CACHE_CAP = 96;
+const snapCache = new Map<string, { at: number; quota: VendorQuota }>();
+const snapInflight = new Map<string, Promise<VendorQuota>>();
+
+/** 仅供测试:清空快照缓存与在飞表(先例 rollup.resetMonthCache)。 */
+export function resetQuotaSnapCache(): void {
+  snapCache.clear();
+  snapInflight.clear();
+}
+
+/**
+ * 按供应商查额度(带共享快照缓存)。cred 需带对应字段:
  * - key 型: kimi / minimax / zhipu / deepseek / relay 用 cred.key(或 access)
  * baseUrl 仅 relay 需要(未知中转站)。
  * openai-codex 不在此列:统一走 codexLocal.ts 本地 rollout 快照,零 HTTP。
  */
 export async function fetchVendorQuota(
+  vendor: VendorId,
+  cred: VendorCredential,
+  baseUrl?: string,
+  opts?: { force?: boolean },
+): Promise<VendorQuota> {
+  const key = `${vendor}|${baseUrl ?? ""}|${JSON.stringify(cred)}`;
+  const now = Date.now();
+  /* force = 手动强刷(QuotaChip ⟳ 经 provider 透传):跳过缓存读与在飞合并,照常回写。 */
+  if (!opts?.force) {
+    const hit = snapCache.get(key);
+    if (hit && now - hit.at < SNAP_TTL_MS) return hit.quota;
+    const running = snapInflight.get(key);
+    if (running) return running;
+  }
+  const p = fetchVendorQuotaFresh(vendor, cred, baseUrl)
+    .then((quota) => {
+      if (snapCache.size >= SNAP_CACHE_CAP) {
+        for (const [k, v] of snapCache) if (Date.now() - v.at >= SNAP_TTL_MS) snapCache.delete(k);
+      }
+      snapCache.set(key, { at: Date.now(), quota });
+      snapInflight.delete(key);
+      return quota;
+    })
+    .catch((e) => {
+      snapInflight.delete(key);
+      throw e;
+    });
+  snapInflight.set(key, p);
+  return p;
+}
+
+/** 真抓取(缓存未命中路径;keep 原签名语义)。 */
+async function fetchVendorQuotaFresh(
   vendor: VendorId,
   cred: VendorCredential,
   baseUrl?: string,
