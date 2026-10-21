@@ -26,6 +26,8 @@ export interface ScrollableTerm {
   };
   scrollToLine(row: number): void;
   scrollToBottom(): void;
+  /** 真实 xterm 的挂载根(enforcement 用户输入让位监听挂这里;假体缺省跳过)。 */
+  readonly element?: HTMLElement;
 }
 
 /** 滚动位快照:ydisp + 是否贴底(ydisp >= baseY ⟺ 吸底)。 */
@@ -52,7 +54,9 @@ export interface ScrollKeeper {
   markHidden(container: { clientWidth: number } | null): void;
   /** 重显恢复(未真隐藏则 no-op);恢复后重记快照,防隐藏期污染值残留。 */
   restore(term: ScrollableTerm | null): void;
-  /** 尺寸变化重排保位:raf 内容锚(第一段)+ SIGWINCH 抹除重印感知重锚(第二段)。 */
+  /** 用户主动输入时撤销 enforcement 钉扎(TerminalView 的 wheel/pointerdown/touchstart 转发)。 */
+  cancelEnforcement(): void;
+  /** 尺寸变化重排保位:raf 内容锚(第一段)+ WebKit 重置 enforcement 窗 + SIGWINCH 抹除重印感知重锚(第二段)。 */
   reflow(term: ScrollableTerm, fit: () => void): void;
 }
 
@@ -173,7 +177,74 @@ export function createScrollKeeper(): ScrollKeeper {
     watchTimer = setTimeout(tick, REPRINT_POLL_MS);
   };
 
+  /* 重排后 enforcement 窗:WebKit 布局变化时反复重置滚动容器 scrollTop,xterm 从
+   * DOM scrollTop 反推 ydisp 归零(真机实测:面板开合后 vp=0 而缓冲完好;Chromium
+   * 保 scrollTop 故桩不复现)。动画期每帧都可能再重置,raf 单发锚点打不赢 ——
+   * 窗内(~800ms)持续按内容锚钉回,用户输入(wheel/pointerdown/touchstart)立即让位。 */
+  let enforce: {
+    term: ScrollableTerm;
+    anchor: string;
+    center: number;
+    until: number;
+    gen: number;
+    offInput: () => void;
+  } | null = null;
+
+  const stopEnforce = (): void => {
+    enforce?.offInput();
+    enforce = null;
+  };
+
+  const armEnforce = (term: ScrollableTerm, anchor: string, center: number, gen: number): void => {
+    stopEnforce();
+    const el = term.element;
+    const onInput = (): void => stopEnforce();
+    /* 用户主动输入 = 立即让位(重置窗内滚轮不被对抗)。 */
+    el?.addEventListener("wheel", onInput, { passive: true });
+    el?.addEventListener("pointerdown", onInput);
+    el?.addEventListener("touchstart", onInput, { passive: true });
+    enforce = {
+      term,
+      anchor,
+      center,
+      until: Date.now() + 800,
+      gen,
+      offInput: () => {
+        el?.removeEventListener("wheel", onInput);
+        el?.removeEventListener("pointerdown", onInput);
+        el?.removeEventListener("touchstart", onInput);
+      },
+    };
+    raf(enforceTick);
+  };
+
+  const enforceTick = (): void => {
+    if (!enforce) return;
+    const e = enforce;
+    if (e.gen !== watchGen || Date.now() > e.until) {
+      stopEnforce();
+      return;
+    }
+    const b = e.term.buffer.active;
+    if (b.viewportY >= b.baseY) {
+      stopEnforce(); /* 到底:用户意图或跟随接管,停钉 */
+      return;
+    }
+    const found = findAnchor(b, e.anchor, e.center);
+    if (found < 0) {
+      stopEnforce(); /* 锚内容不在邻域(舞步注入/重印):让位给重印守望 */
+      return;
+    }
+    e.center = found;
+    if (b.viewportY !== found) e.term.scrollToLine(found);
+    raf(enforceTick);
+  };
+
   return {
+    /** 用户主动输入让位(wheel/pointerdown/touchstart;挂载在 term.element)。 */
+    cancelEnforcement(): void {
+      stopEnforce();
+    },
     record(term: ScrollableTerm, active: boolean, visible: boolean): void {
       if (active && visible) saved = snap(term);
     },
@@ -205,18 +276,23 @@ export function createScrollKeeper(): ScrollKeeper {
         armReprintWatch(term, anchor, pre.len, myGen);
       }
       /* 第一段:xterm 的 reflow ydisp 校正晚于 fit 返回落地(实测 fit 后同步读
-         仍为旧值,+10ms 内已漂移)——落锚推迟到下一帧,按最终缓冲状态估计。
-         估计新下标 = 旧下标 × 缓冲总量比(收窄重排行数膨胀,均匀比例近似)。 */
+         仍为旧值,+10ms 内已漂移)——落锚推迟到下一帧;估计新下标 = 旧下标 ×
+         缓冲总量比(收窄重排行数膨胀,均匀比例近似)。enforcement 窗同帧启动。 */
       raf(() => {
         if (myGen !== watchGen) return;
         const nb = term.buffer.active;
         let target = y;
+        let center = y;
         if (anchor) {
           const est = Math.round((y * (nb.baseY + (term.rows ?? 0))) / Math.max(1, oldTotal));
           const found = findAnchor(nb, anchor, est);
-          if (found >= 0) target = found;
+          if (found >= 0) {
+            target = found;
+            center = found;
+          }
         }
         if (target !== nb.viewportY) term.scrollToLine(target);
+        if (anchor) armEnforce(term, anchor, center, myGen);
       });
     },
   };

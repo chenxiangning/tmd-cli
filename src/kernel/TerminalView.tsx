@@ -100,7 +100,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) return undefined;
     /* 重建重挂(canvasGen>0)弃挤除快照:重建前幕布可能滞留停滞期旧帧,投影不可信走全量。 */
     if (canvasGen > 0) takeTerminalFreeze(sessionId);
 
