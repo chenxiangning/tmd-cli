@@ -97,7 +97,7 @@ export async function fetchCodexQuota(opts?: { force?: boolean }): Promise<Quota
   // 1. 官方 OAuth 登录 → CLI 本地快照;失败降级 wham HTTP
   const oauth = chatGptOAuth(auth);
   if (oauth) {
-    return fetchCodexQuotaWithSnapshot(oauth, "codex");
+    return fetchCodexQuotaWithSnapshot(oauth, "codex", opts);
   }
 
   // 2. 自定义 key 模式 → config.toml base_url 检测供应商 → HTTP

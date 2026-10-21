@@ -5,7 +5,7 @@
  * 契约收敛 kernel,插件间零直接依赖。
  */
 
-import { getTabContent, openTab } from "@kernel/tabs";
+import { getTabContent, getTabs, openTab } from "@kernel/tabs";
 import type { CliProfile } from "./cliProfile";
 
 /** tab kind(session-viewer 插件注册内容组件的匹配键)。 */
@@ -40,15 +40,30 @@ export function isSessionViewAvailable(): boolean {
 
 /** 打开会话只读转录 tab;同会话已开 = 激活既有 tab。带 locate 时 refresh ——
  *  openTab refresh 语义:激活并把 title/payload 刷成最新(深链重开场景
- *  payload 携带新的定位目标,组件按新对象引用重触发定位)。 */
+ *  payload 携带新的定位目标,组件按新对象引用重触发定位)。
+ *  refresh 是整体覆盖,而寻址型深链(定位兜底)只带身份字段,不回填会把
+ *  已开 tab 的富字段刷穷(title 退化 8 位 id、磁盘 path 丢失改走 listSessions
+ *  全扫、modifiedAt 丢失),故缺省字段从既有 payload 补齐。 */
 export function openSessionViewTab(payload: SessionViewTabPayload): void {
+  const id = `session-view:${payload.profileId}:${payload.cliSessionId}`;
+  const prev = getTabs().find((t) => t.id === id)?.payload as SessionViewTabPayload | undefined;
+  const merged: SessionViewTabPayload = prev
+    ? {
+        ...prev,
+        ...payload,
+        title: payload.title ?? prev.title,
+        path: payload.path ?? prev.path,
+        modifiedAt: payload.modifiedAt ?? prev.modifiedAt,
+        cwd: payload.cwd ?? prev.cwd,
+      }
+    : payload;
   openTab(
     {
-      id: `session-view:${payload.profileId}:${payload.cliSessionId}`,
+      id,
       kind: SESSION_VIEW_TAB_KIND,
-      title: payload.title || payload.cliSessionId.slice(0, 8),
+      title: merged.title || payload.cliSessionId.slice(0, 8),
       path: payload.cliSessionId,
-      payload,
+      payload: merged,
     },
     payload.locate ? { refresh: true } : undefined,
   );

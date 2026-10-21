@@ -112,7 +112,7 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
 
     await expect(fetchOmpQuota(ctxOf("openai-codex/gpt-5"))).resolves.toBe(snapshotSentinel);
 
-    expect(fetchCodexQuotaWithSnapshot).toHaveBeenCalledWith({}, "openai-codex");
+    expect(fetchCodexQuotaWithSnapshot).toHaveBeenCalledWith({}, "openai-codex", { force: undefined });
     expect(fetchVendorQuota).not.toHaveBeenCalled();
   });
 
@@ -122,7 +122,11 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
 
     await fetchOmpQuota(ctxOf("openai-codex/gpt-5"));
 
-    expect(fetchCodexQuotaWithSnapshot).toHaveBeenCalledWith({ access: "at-1", accountId: "acc-9" }, "openai-codex");
+    expect(fetchCodexQuotaWithSnapshot).toHaveBeenCalledWith(
+      { access: "at-1", accountId: "acc-9" },
+      "openai-codex",
+      { force: undefined },
+    );
   });
 
   it("凭据 data JSON 为标量(含字面 null)→ 按空凭据继续查询,不当未登录", async () => {

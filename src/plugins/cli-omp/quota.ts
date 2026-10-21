@@ -52,7 +52,7 @@ export async function fetchOmpQuota(ctx: QuotaFetchContext): Promise<QuotaSnapsh
 
   // codex 供应商:OAuth → 本地快照优先,降级 wham;非 OAuth/未登录 → wham 显式报错
   if (vendor === "openai-codex") {
-    return fetchCodexQuotaWithSnapshot(cred, ompVendor);
+    return fetchCodexQuotaWithSnapshot(cred, ompVendor, { force: ctx.force });
   }
 
   if (!raw) {

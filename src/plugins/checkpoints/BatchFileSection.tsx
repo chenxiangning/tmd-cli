@@ -12,6 +12,7 @@ import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
 import { classifyPatchLine } from "@kernel/patchClassify";
 import { classifyRisk } from "./risk";
+import { fileChipCls } from "./fileChipCls";
 
 /** 工作区外(绝对路径)判定:POSIX 绝对、盘符(C:/)与 UNC(账本契约已把
  *  反斜杠归一为正斜杠,但 `C:/…` 不以 `/` 开头,单看 startsWith("/") 会漏)。 */
@@ -127,12 +128,7 @@ function FileSection({
   const segs = path.split("/");
   const name = segs.pop() ?? path;
   const dir = segs.length ? segs.join("/") + "/" : "";
-  const chipCls =
-    status === "A"
-      ? "bg-(--tmd-diff-inserted)/15 text-(--tmd-diff-inserted)"
-      : status === "D"
-        ? "bg-(--tmd-diff-removed)/15 text-(--tmd-diff-removed)"
-        : "bg-(--tmd-git-modified)/15 text-(--tmd-git-modified)";
+  const chipCls = fileChipCls(status);
   const lines = useMemo(() => patch?.patch.split("\n") ?? [], [patch]);
   return (
     <div

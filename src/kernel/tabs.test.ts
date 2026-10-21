@@ -37,6 +37,16 @@ describe("openTab", () => {
     // 去重语义:保留首次注册的条目,不覆盖
     expect(tabs.getTabs()[0].title).toBe("a");
   });
+
+  it("refresh 语义:激活并覆盖 title/payload,path 保持首次注册", () => {
+    tabs.openTab(tab("a"));
+    tabs.openTab(tab("a", { title: "a2", payload: { locate: { text: "x" } } }), { refresh: true });
+    expect(tabs.getTabs()).toHaveLength(1);
+    expect(tabs.getActiveTabId()).toBe("a");
+    expect(tabs.getTabs()[0].title).toBe("a2");
+    expect(tabs.getTabs()[0].payload).toEqual({ locate: { text: "x" } });
+    expect(tabs.getTabs()[0].path).toBe("/p/a");
+  });
 });
 
 describe("closeTab", () => {

@@ -15,7 +15,8 @@ const SEMANTIC_CHIP_CLS: Record<GitStatusSemantic, string> = {
   untracked: "bg-(--tmd-bg-hover) text-(--tmd-fg-muted)",
 };
 
-/** 文件状态 → tailwind 语义色 class。 */
+/** 文件状态 → tailwind 语义色 class。checkpoints 域 "C" = 冲突(capture.rs
+ *  dirty_paths 冲突路径标 C),非 git 拷贝语义,特判归 modified 警示色。 */
 export function fileChipCls(st: string): string {
-  return SEMANTIC_CHIP_CLS[gitStatusSemantic(st)];
+  return SEMANTIC_CHIP_CLS[st === "C" ? "modified" : gitStatusSemantic(st)];
 }
