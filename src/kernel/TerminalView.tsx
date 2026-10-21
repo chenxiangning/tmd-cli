@@ -44,12 +44,12 @@ import { TerminalSearchOverlay, useSearchBoxOwnership } from "@kernel/terminalSe
 import "@kernel/terminalFontZoom"; /* 终端字号缩放键位(⌘+/⌘−/⌘0):模块级注册,随幕布装配生效 */
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
 import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
-import { TerminalRefreshButton } from "@kernel/terminalRefreshButton";
+import { TerminalJumpToBottomButton, TerminalRefreshButton } from "@kernel/terminalRefreshButton";
 import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
 import { readTerminalTheme } from "@kernel/terminalXtermTheme";
 
-/* 导出级 memo:props 全原始类型,浅比较稳定。keep-alive 语义(MainPanel):
+/* 导出级 memo:props 全原始类型,浅比较稳定(keep-alive 语义见 MainPanel)。
    tab 条内会话常驻挂载,非激活 display:none;active 切换不重挂,仅 ref 所有权迁移。 */
 function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -285,11 +285,11 @@ termRef.current = term;
         <TerminalSearchOverlay searchRef={searchRef} termRef={termRef} onClose={closeSearch} />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
-      {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 刷新钮收尾最右。
-          行不设 z —— 画布浮层(editorCenter.canvasOverlay,z-10 不透明)开启时
-          整行隐没其下,结构化视图页不出刷新钮;幕布态浮于 xterm 之上(DOM 序)。 */}
+      {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 回底钮 + 刷新钮收尾最右。
+          行不设 z —— 画布浮层开启时整行隐没其下;幕布态浮于 xterm 之上(DOM 序)。 */}
       <div className="absolute right-3 top-2 flex items-center gap-1.5">
         <Mounts point="terminal.canvasRow" />
+        <TerminalJumpToBottomButton termRef={termRef} />
         <TerminalRefreshButton onClick={() => setCanvasGen((g) => g + 1)} />
       </div>
     </div>

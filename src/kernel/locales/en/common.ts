@@ -177,6 +177,7 @@ export const MESSAGES = {
   "终端复制/停止菜单": "Terminal copy/stop menu",
   "停止终端": "Stop terminal",
   "刷新幕布(重建本会话终端画面,PTY 不中断)": "Refresh terminal (rebuild this session's terminal view; PTY keeps running)",
+  "定位到底部": "Jump to bottom",
   "插件「{id}」界面渲染崩溃,该贡献位已停用": "Plugin \"{id}\" UI crashed; this contribution is disabled",
   "重试该贡献位": "Retry this contribution",
   "重启应用或重载页面可重置;反复出现请反馈本条原因文案。": "Restart the app or reload the page to reset; please report the reason text if it keeps happening.",

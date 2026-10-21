@@ -8,7 +8,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { TerminalRefreshButton } from "./terminalRefreshButton";
+import { TerminalJumpToBottomButton, TerminalRefreshButton } from "./terminalRefreshButton";
 
 describe("TerminalRefreshButton 渲染契约", () => {
   it("按钮渲染为与转录浮标同款样式的文本钮「刷新」,onClick 直通无拦截", () => {
@@ -24,5 +24,19 @@ describe("TerminalRefreshButton 渲染契约", () => {
     /* 重建幂等可重复触发,无 disabled 静默面 */
     expect(markup).not.toContain("disabled");
     expect(onClick).not.toHaveBeenCalled();
+  });
+});
+
+describe("TerminalJumpToBottomButton 渲染契约", () => {
+  it("纯图标钮无文字,aria-label/title 可发现(缺失即隐形按钮回归)", () => {
+    const markup = renderToStaticMarkup(
+      createElement(TerminalJumpToBottomButton, {
+        termRef: { current: null },
+      }),
+    );
+    expect(markup).toContain("<button");
+    expect(markup).toContain("定位到底部");
+    expect(markup).toContain("aria-label");
+    expect(markup).not.toContain("disabled");
   });
 });
