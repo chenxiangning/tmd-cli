@@ -6,8 +6,10 @@
  * 动机:barrel 预打包 chunk 全量 ~1500 图标,dev 冷加载浏览器要整段求值
  * (0.4.1 tabClose 打桩 42s→3.2s 的根因尾巴);改写后 dev 只装载用到的
  * 图标模块。prod 构建产物不变(barrel 本就 sideEffects:false 可摇树)。
- * 全仓 312 条语句均为单行命名导入(无 namespace/动态/再导出,2026-10-21
- * 实证);类型成员只有 Icon/IconProps 两个(csr 深路径无类型面,留 barrel)。
+ * 全仓 312 条语句均为命名导入(无 namespace/动态/再导出,2026-10-21 实证;
+ * 多行语句亦存在,RE 跨行匹配覆盖),类型成员只有 Icon/IconProps 两个
+ * (csr 深路径无类型面,留 barrel)。已知天花板:改写扩行 + map:null 使
+ * 这些文件 dev sourcemap/断点行号整体下移 N-1 行(仅 dev 体验,功能无损)。
  * @type {import("vite").Plugin}
  */
 export function phosphorDeepImports() {

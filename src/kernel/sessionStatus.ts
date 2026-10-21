@@ -29,8 +29,9 @@ interface SessionStatusHost {
   /** 远程来源会话的观测调度(hostWatches 提供:远程身份绑定 + 引擎远程适配)。
    *  返回 true = 该会话走了远程通道(本地 refresh 不再执行)。缺省无。 */
   refreshRemote?: (sessionId: string) => Promise<boolean>;
-  /** 活动时间戳源(去重闸):与上次观测同值 = 磁盘尾窗无新内容,跳过本轮读。 */
-  lastActivityAt(sessionId: string): number;
+  /** 最后任意输出帧时戳源(去重闸):与上次观测同值 = 磁盘尾窗无新内容,跳过本轮读。
+   *  用逐帧钟而非 content 钟:TUI 家具重绘(切模型/思考档)不产 content 帧但会写会话文件。 */
+  lastOutputFrameAt(sessionId: string): number;
   notify(): void;
 }
 
@@ -83,7 +84,7 @@ export class SessionStatusWatch {
       if (this.h.getCliSessionId(sessionId)) {
         /* 去重闸(D 档事件化,0.4.2):活动时间戳未变 = 尾窗无新内容,本轮不读。
          * 手动刷新(statusRefresh)绕过本闸,仍即时重读。 */
-        const act = this.h.lastActivityAt(sessionId);
+        const act = this.h.lastOutputFrameAt(sessionId);
         if (act === this.refreshedAt.get(sessionId)) return;
         /* 读成功才记位(起点 act:await 期间若有新活动,新 act ≠ 记位值,下轮照读);
          * 失败不记,下轮重试。 */

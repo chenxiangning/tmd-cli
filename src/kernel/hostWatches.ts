@@ -64,7 +64,7 @@ export class HostWatches {
     isPendingIdentity: (sessionId) => this.identityWatch.has(sessionId),
     tryBindIdentity: (sessionId) => this.identityWatch.tryBind(sessionId),
     refreshRemote: (sessionId) => this.remoteStatus(sessionId),
-    lastActivityAt: (sessionId) => this.activity.lastActivityAt(sessionId),
+    lastOutputFrameAt: (sessionId) => this.activity.lastFrameAt(sessionId),
     notify: () => this.ctx.notify(),
   });
   /** 每会话 PTY 输出环形缓冲:xterm 重挂载回放("切回不黑屏");存储细节见 kernel/outputBuffers.ts。 */

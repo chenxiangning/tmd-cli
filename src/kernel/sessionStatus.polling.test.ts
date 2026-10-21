@@ -50,7 +50,7 @@ function makeHost(profile: CliProfile = makeProfile()): FakeHost {
     getCliProfile: () => profile,
     getCliSessionId: (id) => cliIds.get(id),
     isPendingIdentity: (id) => pending.has(id),
-    lastActivityAt: () => activity,
+    lastOutputFrameAt: () => activity,
     bumpActivity: () => { activity += 1; },
   };
 }
