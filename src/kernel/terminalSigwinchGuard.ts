@@ -27,6 +27,9 @@ const CLEAR_SCROLLBACK = "\x1b[3J";
 const TAIL_STRIP_BUDGET = 32;
 /** 转义序列最长形态(1049h 8B);块尾疑似半截序列的扣留上限。 */
 const MAX_TOKEN = 8;
+/** 舞步相停滞上限:实测舞步亚秒完成;CLI 死在舞步中途(1049h 后无 1049l)时,
+ *  守卫滞留 dance 相会终身剥真 alt/清屏(中毒)。10s 无进展即回 idle 自愈。 */
+const DANCE_STALL_MS = 10_000;
 
 const TOKENS = [DANCE_HEAD, DANCE_EXIT, CLEAR_HOME, CLEAR_SCREEN, CLEAR_SCROLLBACK] as const;
 
@@ -56,6 +59,7 @@ export function createSigwinchGuard(rows: () => number): SigwinchGuard {
   /* idle → dance(见 1049h)→ tail(见 1049l,剥尾清屏)→ idle */
   let phase: "idle" | "dance" | "tail" = "idle";
   let tailBudget = 0;
+  let phaseSince = 0;
 
   const isArmed = (): boolean => Date.now() < armedUntil;
 
@@ -86,6 +90,7 @@ export function createSigwinchGuard(rows: () => number): SigwinchGuard {
       /* dance 主相:剥换屏/清屏 token;其余(帧内容、光标移动)放行 */
       if (body.startsWith(DANCE_EXIT, i)) {
         phase = "tail";
+        phaseSince = Date.now();
         tailBudget = TAIL_STRIP_BUDGET;
         i += DANCE_EXIT.length;
         continue;
@@ -109,6 +114,8 @@ export function createSigwinchGuard(rows: () => number): SigwinchGuard {
       armedUntil = ts;
     },
     feed(chunk: string): string {
+      /* 舞步相停滞自愈:CLI 死在舞步中途时不终身剥除(防中毒,见 DANCE_STALL_MS) */
+      if (phase !== "idle" && Date.now() - phaseSince > DANCE_STALL_MS) phase = "idle";
       let joined = carry + chunk;
       carry = "";
       let out = "";
@@ -128,6 +135,7 @@ export function createSigwinchGuard(rows: () => number): SigwinchGuard {
           out += joined.slice(0, at) + "\r\n".repeat(Math.max(0, rows() - 1));
           joined = joined.slice(at + DANCE_HEAD.length);
           phase = "dance";
+          phaseSince = Date.now();
           continue;
         }
         /* dance/tail:先扣留块尾半截 token 再进相处理 */
@@ -140,6 +148,49 @@ export function createSigwinchGuard(rows: () => number): SigwinchGuard {
       }
     },
   };
+}
+
+/**
+ * 回放面舞步包络剥除(纯函数)。outputBuffer/磁盘 journal 存的是过滤前原始字节,
+ * 全量回放(刷新钮/停滞重建/无冻结快照重挂/磁盘尾)会把历史舞步原样重放进
+ * xterm —— 3J 清掉刚回放出的滚动缓冲,live 守卫保住的位在回放面上静默清零。
+ * 本函数与 live 守卫同律:识别「1049h…帧…1049l + 尾清屏(32B 内含 3J)」整体
+ * 包络,整体剥除并在包络起点注入 rows-1 换行(帧落空白区,与 live 产物对齐);
+ * vim/fzf 真 alt 的 1049l 后无 3J,原样保留。非包络形态(残缺头/尾)不动。
+ */
+export function stripDanceEnvelopes(text: string, rows: number): string {
+  const envelopes: Array<{ start: number; end: number }> = [];
+  let from = 0;
+  for (;;) {
+    const head = text.indexOf(DANCE_HEAD, from);
+    if (head < 0) break;
+    const exit = text.indexOf(DANCE_EXIT, head + DANCE_HEAD.length);
+    if (exit < 0) break; /* 未闭合舞步(CLI 死在 alt):原样保留,xterm 语义同当时 */
+    let i = exit + DANCE_EXIT.length;
+    const tailLimit = Math.min(i + TAIL_STRIP_BUDGET, text.length);
+    let tailEnd = -1;
+    let sawScrollbackWipe = false;
+    while (i < tailLimit) {
+      if (text.startsWith(CLEAR_HOME, i)) i += CLEAR_HOME.length;
+      else if (text.startsWith(CLEAR_SCREEN, i)) i += CLEAR_SCREEN.length;
+      else if (text.startsWith(CLEAR_SCROLLBACK, i)) {
+        i += CLEAR_SCROLLBACK.length;
+        sawScrollbackWipe = true; /* 3J 是舞步签名:vim 退 alt 不清滚动缓冲 */
+      } else break;
+      tailEnd = i;
+    }
+    if (tailEnd > 0 && sawScrollbackWipe) envelopes.push({ start: head, end: tailEnd });
+    from = tailEnd > 0 ? tailEnd : exit + DANCE_EXIT.length;
+  }
+  if (envelopes.length === 0) return text;
+  const pad = "\r\n".repeat(Math.max(0, rows - 1));
+  let out = "";
+  let cursor = 0;
+  for (const env of envelopes) {
+    out += text.slice(cursor, env.start) + pad;
+    cursor = env.end;
+  }
+  return out + text.slice(cursor);
 }
 
 /* —— 每会话登记(terminalStream 挂载时注册真实实例;host.resizeSession arm)—— */
@@ -161,7 +212,7 @@ export function releaseSigwinchGuard(sessionId: string): void {
 }
 
 /** 生产路径取守卫(已注册即返回;窗口内外的取舍由守卫内部判定 —— 舞步中途
- *  过期也必须续完,否则 l/2J/3J 半截漏过照样清缓冲)。 */
+ *  窗口过期仍续完,否则 l/2J/3J 半截漏过照样清缓冲;停滞 10s 上限防死 CLI 中毒)。 */
 export function sigwinchGuardOf(sessionId: string): SigwinchGuard | undefined {
   return guards.get(sessionId);
 }

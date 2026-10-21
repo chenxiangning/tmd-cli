@@ -15,6 +15,7 @@ import {
   registerSigwinchGuard,
   releaseSigwinchGuard,
   sigwinchGuardOf,
+  stripDanceEnvelopes,
 } from "@kernel/terminalSigwinchGuard";
 import type { ReplayInputGate } from "@kernel/terminalInputGate";
 import { consumeDiskTail } from "./diskReplay";
@@ -133,7 +134,8 @@ export function attachTerminalStream(
     if (freeze.mode === "fast") {
       term.write(freeze.snap.screenText);
       term.write(`\x1b[${freeze.snap.cursorY + 1};${freeze.snap.cursorX + 1}H\x1b[0m`); /* CSI H 归位快照光标(SGR 无法还原,显式复位);防活跃 TUI 相对寻址错位,详见 terminalFreeze.ts 快照字段注 */
-      void writeInChunks(term, freeze.incremental, () => undefined).then(() => {
+      /* 回放字节过舞步包络剥除:buffer 存原始字节,历史舞步的 3J 会清掉刚投影出的屏(见 stripDanceEnvelopes) */
+      void writeInChunks(term, stripDanceEnvelopes(freeze.incremental, term.rows ?? 0), () => undefined).then(() => {
         inputGate.release();
         if (cancelled) return;
         const pending = liveQueue ?? [];
@@ -144,7 +146,8 @@ export function attachTerminalStream(
     } else {
       inputGate.arm();
       onProgress({ kind: "replay", pct: 0 });
-      void writeInChunks(term, memoryReplay, (done, total) => {
+      /* 回放字节过舞步包络剥除:buffer 存原始字节,历史舞步的 3J 会清掉刚回放出的滚动缓冲(见 stripDanceEnvelopes) */
+      void writeInChunks(term, stripDanceEnvelopes(memoryReplay, term.rows ?? 0), (done, total) => {
         if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
       }).then(() => {
         /* 卸载竞态不冻结输入闸(随组件重挂载重生,闸门泄漏才致命);其余全部忽略。 */
@@ -195,7 +198,7 @@ export function attachTerminalStream(
         return;
       }
       inputGate.arm();
-      void writeInChunks(term, tail, (done, total) => {
+      void writeInChunks(term, stripDanceEnvelopes(tail, term.rows ?? 0), (done, total) => {
         if (!cancelled && !ready) onProgress({ kind: "replay", pct: Math.round((done / total) * 100) });
       }).then(() => {
         /* 回放尽即放闸——含 cancel 路径(闸随组件常驻,泄漏 = 该 tab 键盘永久失灵);

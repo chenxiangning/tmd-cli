@@ -35,6 +35,11 @@ export function groupByFamily(rows: PortEntry[]): PortGroup[] {
   const groups = new Map<number, PortGroup>();
   const tops: PortGroup[] = [];
   for (const r of rows) {
+    /* pid null 无身份不可归组,恒顶层:Map 以 null 作键会让 ≥2 条无主行并成假家族 */
+    if (r.pid === null) {
+      tops.push({ top: r, children: [] });
+      continue;
+    }
     /* 链上溯:byPid 里能接上的监听祖先一路走到底,终点 = 家族顶层行。 */
     let top = r;
     const seen = new Set<number>([r.pid ?? -1]);

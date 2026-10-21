@@ -1,0 +1,71 @@
+/**
+ * 守卫回放面与停滞契约:① stripDanceEnvelopes —— outputBuffer/磁盘 journal 存
+ * 原始字节,全量回放(刷新钮/停滞重建/无冻结快照重挂/磁盘尾)重放历史舞步时
+ * 3J 会清掉刚回放出的滚动缓冲,须按「1049h…1049l + 尾清屏含 3J」整体包络剥除
+ * 并注入 rows-1 换行;vim/fzf 真 alt(1049l 后无 3J)与残缺形态原样保留。
+ * ② 舞步相 10s 停滞自愈 —— CLI 死在舞步中途不得终身剥除(防中毒)。
+ */
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createSigwinchGuard, stripDanceEnvelopes } from "./terminalSigwinchGuard";
+
+const FRAME = "\x1b[?25l\x1b[HOMP-BANNER\r\nTIP\r\nPROMPT> ";
+const HEAD = "\x1b[?1049h";
+const EXIT = "\x1b[?1049l";
+const TAIL = "\x1b[H\x1b[2J\x1b[3J";
+const DANCE = `${HEAD}${FRAME}${EXIT}${TAIL}${FRAME}`;
+
+describe("stripDanceEnvelopes(回放面舞步包络剥除)", () => {
+  it("完整舞步包络:整体剥除,起点注入 rows-1 换行,前后文保留", () => {
+    const text = `before${DANCE}after`;
+    expect(stripDanceEnvelopes(text, 30)).toBe("before" + "\r\n".repeat(29) + FRAME + "after");
+  });
+
+  it("无包络文本原样返回", () => {
+    const text = `plain ${FRAME} content`;
+    expect(stripDanceEnvelopes(text, 30)).toBe(text);
+  });
+
+  it("vim 真 alt(1049l 后无 3J)原样保留", () => {
+    const vim = `${HEAD}vim screen${EXIT}restored inline`;
+    expect(stripDanceEnvelopes(`see${vim}end`, 30)).toBe(`see${vim}end`);
+  });
+
+  it("尾清屏缺 3J(H+2J)不构成舞步签名,原样保留", () => {
+    const partial = `${HEAD}${FRAME}${EXIT}\x1b[H\x1b[2J${FRAME}`;
+    expect(stripDanceEnvelopes(partial, 30)).toBe(partial);
+  });
+
+  it("残缺形态(有尾无头)原样保留", () => {
+    const orphan = `${EXIT}${TAIL}content`;
+    expect(stripDanceEnvelopes(orphan, 30)).toBe(orphan);
+  });
+
+  it("多包络逐个剥除;真 alt 与舞步混排时只剥舞步", () => {
+    const vim = `${HEAD}vim${EXIT}inline`; /* 无 3J,保留 */
+    const text = `${DANCE}mid${vim}then${DANCE}end`;
+    const pad = "\r\n".repeat(9);
+    expect(stripDanceEnvelopes(text, 10)).toBe(`${pad}${FRAME}mid${vim}then${pad}${FRAME}end`);
+  });
+
+  it("未闭合舞步(1049h 后无 1049l)原样保留", () => {
+    const text = `ok${HEAD}dangling frame`;
+    expect(stripDanceEnvelopes(text, 30)).toBe(text);
+  });
+});
+
+describe("舞步相停滞自愈(防中毒)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("CLI 死在舞步中途 10s 后,后续真 alt/清屏字节不再被剥", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const g = createSigwinchGuard(() => 30);
+    g.armUntil(Date.now() + 60_000);
+    expect(g.feed(HEAD)).toBe("\r\n".repeat(29)); /* 进 dance 相,注入换行 */
+    vi.setSystemTime(11_000); /* CLI 死舞步中,10s 停滞上限已过 */
+    const rest = `junk${EXIT}${TAIL}recovered`;
+    expect(g.feed(rest)).toBe(rest); /* 相已自愈回 idle,原样透传 */
+  });
+});

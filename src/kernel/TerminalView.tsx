@@ -250,7 +250,7 @@ termRef.current = term;
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();
       offInput.dispose();
-      offScroll.dispose();
+      offScroll.dispose(); scrollKeeper.dispose(); /* keeper 停守望 timer/rAF,已卸载 term 不再被轮询 */
       offObserve();
       term.dispose();
       termRef.current = null;

@@ -40,6 +40,9 @@ const ECHO_PROBE_DELAYS_MS = [2_000, 10_000, 30_000, 60_000] as const;
 const ECHO_CLOCK_SLACK_MS = 5_000;
 /** 回声文本比对长度(promptSent 负载与 CliUserMessage.text 同截 400 比对)。 */
 const ECHO_MATCH_CHARS = 400;
+/** 回声比对归一:折叠空白 —— promptSent 负载带 \r\n/多空格而 CLI jsonl 存 \n,
+ *  裸全等会让多行 prompt 恒 miss(重验静默失效)。 */
+const normalizeEcho = (text: string): string => text.replace(/\s+/g, " ").trim();
 
 interface PendingIdentity {
   profileId: string;
@@ -213,20 +216,22 @@ export class DiskIdentityWatch {
       await sleep(delay);
       const probe = this.echoProbes.get(sessionId);
       if (!probe || probe.token !== token || !this.ctx.sessionAlive(sessionId)) return;
-      if (await this.probeEchoOnce(sessionId, probe)) break;
+      if (await this.probeEchoOnce(sessionId, probe, token)) break;
     }
-    this.endEchoProbe(sessionId);
+    /* 只收束仍属于自己的窗:探测 await 期间 prompt 已重发(token 变)时,
+       新窗归新循环所有,旧循环在此收束会整窗砍掉新探测并误发回落边沿 */
+    if (this.echoProbes.get(sessionId)?.token === token) this.endEchoProbe(sessionId);
   }
 
   /** 单拍探测:回声命中(唯一)即重绑返回 true;未命中/多候选返回 false 续拍。
    *  面丢失/已解绑/已换绑(他方重绑)= 收兵返回 true。测试可直调(跳过节拍)。 */
-  async probeEchoOnce(sessionId: string, probe: EchoProbe): Promise<boolean> {
+  async probeEchoOnce(sessionId: string, probe: EchoProbe, token = probe.token): Promise<boolean> {
     const meta = this.ctx.sessionMeta(sessionId);
     const profile = meta ? this.ctx.getCliProfile(meta.profileId) : undefined;
     const boundId = this.ctx.boundId(sessionId);
     if (!meta || !profile?.listSessions || !profile.readSessionUserMessages) return true;
     if (!boundId || !this.ctx.isBound(sessionId)) return true;
-    const needle = probe.prompt.trim().slice(0, ECHO_MATCH_CHARS);
+    const needle = normalizeEcho(probe.prompt).slice(0, ECHO_MATCH_CHARS);
     if (!needle) return true;
     const list = await profile.listSessions(meta.cwd).catch(() => []);
     if (!this.ctx.sessionAlive(sessionId)) return true;
@@ -240,11 +245,15 @@ export class DiskIdentityWatch {
         .readSessionUserMessages(meta.cwd, entry.id, false)
         .catch(() => null);
       const last = msgs && msgs.length > 0 ? msgs[msgs.length - 1] : null;
-      if (!last || last.text.trim().slice(0, ECHO_MATCH_CHARS) !== needle) continue;
+      if (!last || normalizeEcho(last.text).slice(0, ECHO_MATCH_CHARS) !== needle) continue;
       if (hit) return false; /* 多候选同文:归属不可判,本轮放弃(下拍同样放弃,宁漏勿串) */
       hit = entry.id;
     }
     if (!hit || hit === boundId) return false;
+    /* await 期间 prompt 重发(token 变)= 证据已陈旧,绑定权归新循环(宁废勿串);
+       无在册窗(直调/窗已收束)不拦 —— 拦的是「换人」,不是「没人」 */
+    const cur = this.echoProbes.get(sessionId);
+    if (cur && cur.token !== token) return true;
     this.bind(sessionId, hit);
     return true;
   }

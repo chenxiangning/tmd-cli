@@ -57,6 +57,12 @@ describe("groupByFamily(监听进程家族折叠)", () => {
     expect(tops).toHaveLength(1);
     expect(tops[0].top.pid).toBe(30);
   });
+
+  it("多条 pid null 行恒各自顶层,不并成假家族(无特权扫描常态)", () => {
+    const tops = groupByFamily([entry(53, null, null), entry(631, null, null), entry(22, null, null)]);
+    expect(tops).toHaveLength(3);
+    expect(tops.every((g) => g.children.length === 0)).toBe(true);
+  });
 });
 
 describe("sortGroups(列头排序:组按顶层行键排,组内子行同键排)", () => {
