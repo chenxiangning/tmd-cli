@@ -10,6 +10,7 @@ import { Fragment, useMemo, useState } from "react";
 import { CaretRight, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import type { CkptBatch, CkptBatchFile, CkptPatch } from "@kernel/ipc";
+import { classifyPatchLine } from "@kernel/patchClassify";
 import { classifyRisk } from "./risk";
 
 /** 工作区外(绝对路径)判定:POSIX 绝对、盘符(C:/)与 UNC(账本契约已把
@@ -72,13 +73,17 @@ function FileSectionDiff({ lines }: { lines: string[] }) {
   return (
     <pre className="overflow-x-auto bg-(--tmd-bg-base) p-2.5 font-mono text-xs leading-relaxed">
       {lines.map((line, i) => {
-        const cls = line.startsWith("@@")
-          ? "text-(--tmd-accent)/75"
-          : line.startsWith("+")
+        const kind = classifyPatchLine(line);
+        const cls =
+          kind === "add"
             ? "bg-(--tmd-diff-inserted)/10 text-(--tmd-diff-inserted)"
-            : line.startsWith("-")
+            : kind === "del"
               ? "bg-(--tmd-diff-removed)/10 text-(--tmd-diff-removed)"
-              : "text-(--tmd-fg-subtle)";
+              : kind === "hunk"
+                ? "text-(--tmd-accent)/75"
+                : kind === "meta"
+                  ? "italic text-(--tmd-fg-faint)"
+                  : "text-(--tmd-fg-subtle)";
         return (
           <span key={i} className={`${cls} block whitespace-pre`}>
             {line || " "}
