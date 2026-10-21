@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import { TerminalJumpToBottomButton, TerminalRefreshButton } from "./terminalRefreshButton";
 
 describe("TerminalRefreshButton 渲染契约", () => {
-  it("按钮渲染为与转录浮标同款样式的文本钮「刷新」,onClick 直通无拦截", () => {
+  it("纯图标钮(重建语义在 title/aria 可发现),onClick 直通无拦截", () => {
     const onClick = vi.fn();
     const markup = renderToStaticMarkup(
       createElement(TerminalRefreshButton, { onClick }),
@@ -19,8 +19,9 @@ describe("TerminalRefreshButton 渲染契约", () => {
     expect(markup).toContain("<button");
     expect(markup).toContain("刷新幕布");
     expect(markup).toContain("PTY 不中断");
-    /* 可见标签 = 文本「刷新」(与 .lv-pill 文本形制配套,非图标钮) */
-    expect(markup).toContain(">刷新</button>");
+    /* 图标装饰纳管(家族键)与图标钮形制(无文字) */
+    expect(markup).toContain('data-icon-decor="terminal-refresh"');
+    expect(markup).not.toContain(">刷新</button>");
     /* 重建幂等可重复触发,无 disabled 静默面 */
     expect(markup).not.toContain("disabled");
     expect(onClick).not.toHaveBeenCalled();
@@ -37,6 +38,7 @@ describe("TerminalJumpToBottomButton 渲染契约", () => {
     expect(markup).toContain("<button");
     expect(markup).toContain("定位到底部");
     expect(markup).toContain("aria-label");
+    expect(markup).toContain('data-icon-decor="terminal-jump-bottom"');
     expect(markup).not.toContain("disabled");
   });
 });

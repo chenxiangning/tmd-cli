@@ -56,6 +56,10 @@
 :where([data-icon-decor="structured-session"]) svg { color: var(--icon-decor-structured-session, currentColor); }
 :where([data-icon-decor="cli-config"]) svg { color: var(--icon-decor-cli-config, currentColor); }
 
+/* ── pty 幕布工具钮(回底/刷新,TerminalView 右上工具行;逐钮一色) ── */
+:where([data-icon-decor="terminal-jump-bottom"]) svg { color: var(--icon-decor-terminal-jump-bottom, currentColor); }
+:where([data-icon-decor="terminal-refresh"]) svg { color: var(--icon-decor-terminal-refresh, currentColor); }
+
 /* ── dialog 置尾:个别自绘 modal(ssh HostModal/ImportModal、wsl WorkspaceDialog、
    WebWanRiskDialog)内嵌在 settings 面板子树,同特异性按序取胜须压过一切父域;
    portal 到 body 的对话框不受次序影响 ── */
@@ -98,6 +102,8 @@ html[data-icon-blink~="cli-config"] :where([data-icon-decor="cli-config"]) svg,
 html[data-icon-blink~="net-proxy"] :where([data-icon-decor="net-proxy"]) svg,
 html[data-icon-blink~="anim"] :where([data-icon-decor="anim"]) svg,
 html[data-icon-blink~="structured-session"] :where([data-icon-decor="structured-session"]) svg,
+html[data-icon-blink~="terminal-jump-bottom"] :where([data-icon-decor="terminal-jump-bottom"]) svg,
+html[data-icon-blink~="terminal-refresh"] :where([data-icon-decor="terminal-refresh"]) svg,
 html[data-icon-blink~="anim"] .left-rail-tab[data-action-id="anim"] svg,
 html[data-icon-blink~="structured-session"] .left-rail-tab[data-action-id="structured-session"] svg {
   animation: icon-decor-breathe 5s ease-in-out infinite;
