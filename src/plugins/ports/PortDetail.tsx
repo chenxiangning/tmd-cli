@@ -3,7 +3,7 @@
  * 命令行/路径)+ 动作尾栏(浏览器打开/复制/kill 经二次确认)。展示件零状态。
  */
 
-import { ArrowSquareOut, Check, Copy, Prohibit, TerminalWindow } from "@phosphor-icons/react";
+import { ArrowSquareOut, Check, Copy, Info, Prohibit, TerminalWindow } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogShell } from "@kernel/DialogShell";
 import { killCommand } from "./portsKill";
@@ -119,7 +119,7 @@ export function PortDetailDialog({
   return (
     <DialogShell
       title={t("端口详情")}
-      icon={<span aria-hidden>◉</span>}
+      icon={<Info size="0.875rem" aria-hidden />}
       width={520}
       onClose={onClose}
       footer={

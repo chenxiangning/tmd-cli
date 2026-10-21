@@ -4,7 +4,22 @@
  */
 
 import type { ReactNode } from "react";
-import { ArrowSquareOut, CaretDown, CaretRight, CaretUp, Check, Copy, Prohibit, TerminalWindow } from "@phosphor-icons/react";
+import {
+  ArrowSquareOut,
+  BookOpen,
+  CaretDown,
+  CaretRight,
+  CaretUp,
+  Check,
+  Copy,
+  FolderSimple,
+  Globe,
+  LockSimple,
+  Prohibit,
+  Sparkle,
+  Terminal,
+  TerminalWindow,
+} from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { killCommand } from "./portsKill";
 import { rowKey } from "./portsTree";
@@ -73,16 +88,18 @@ function OwnerChip({ owner, ctx }: { owner: OwnerSession; ctx: RowCtx }) {
   return (
     <button
       type="button"
-      className="max-w-36 shrink-0 truncate text-[0.6875rem] text-(--tmd-accent) hover:underline"
+      className="flex max-w-36 shrink-0 items-center gap-0.5 truncate text-[0.6875rem] text-(--tmd-accent) hover:underline"
       title={t("由本应用会话启动,点击跳转会话")}
       onClick={() => ctx.onJumpSession(owner.id)}
     >
-      ↳ {owner.title || owner.profileId}
+      <Terminal size="0.625rem" className="shrink-0" />
+      {owner.title || owner.profileId}
     </button>
   );
 }
 
-/** 中段五列:地址 / 暴露面 / 用途 / 进程 / 仓库。 */
+/** 中段五列:地址 / 暴露面 / 用途 / 进程 / 仓库。图标点缀语义:Globe=局域网可达、
+ *  LockSimple=仅回环、BookOpen=释义命中、FolderSimple=仓库认领。 */
 function PortCells({ entry, ws }: { entry: PortEntry; ws: string | null }) {
   const purpose = portPurpose(entry.port);
   const exposed = entry.exposure === "exposed";
@@ -93,11 +110,17 @@ function PortCells({ entry, ws }: { entry: PortEntry; ws: string | null }) {
         {entry.addr}
       </span>
       <span
-        className={"w-12 shrink-0 text-[0.6875rem] " + (exposed ? "text-(--tmd-git-modified)" : "text-(--tmd-fg-faint)")}
+        className={
+          "flex w-14 shrink-0 items-center gap-1 text-[0.6875rem] " +
+          (exposed ? "text-(--tmd-git-modified)" : "text-(--tmd-fg-faint)")
+        }
+        title={exposed ? t("局域网") : t("仅本机")}
       >
+        {exposed ? <Globe size="0.625rem" /> : <LockSimple size="0.625rem" />}
         {exposed ? t("局域网") : t("仅本机")}
       </span>
-      <span className="w-28 shrink-0 truncate text-xs" title={purpose ?? entry.process}>
+      <span className="flex w-28 shrink-0 items-center gap-1 truncate text-xs" title={purpose ?? entry.process}>
+        {purpose ? <BookOpen size="0.625rem" className="shrink-0 text-(--tmd-fg-faint)" /> : null}
         {purpose ?? "—"}
       </span>
       <span
@@ -108,7 +131,8 @@ function PortCells({ entry, ws }: { entry: PortEntry; ws: string | null }) {
         {entry.pid != null ? ` · ${entry.pid}` : ""}
         {entry.args ? <span className="ml-1 opacity-70">{entry.args}</span> : null}
       </span>
-      <span className="w-40 shrink-0 truncate text-[0.6875rem] text-(--tmd-fg-muted)" title={repoTitle}>
+      <span className="flex w-40 shrink-0 items-center gap-1 truncate text-[0.6875rem] text-(--tmd-fg-muted)" title={repoTitle}>
+        {entry.gitRoot ? <FolderSimple size="0.625rem" className="shrink-0" /> : null}
         {ws ?? entry.gitRoot ?? ""}
       </span>
     </>
@@ -163,7 +187,7 @@ export function PortListHeader({
       <span className="w-5 shrink-0" aria-hidden />
       <SortTh label={t("端口")} sortKey="port" width="w-12 shrink-0" right sort={sort} onSort={onSort} />
       <SortTh label={t("监听地址")} sortKey="addr" width="w-16 shrink-0" sort={sort} onSort={onSort} />
-      <SortTh label={t("暴露面")} sortKey="exposure" width="w-12 shrink-0" sort={sort} onSort={onSort} />
+      <SortTh label={t("暴露面")} sortKey="exposure" width="w-14 shrink-0" sort={sort} onSort={onSort} />
       <SortTh label={t("用途")} sortKey="purpose" width="w-28 shrink-0" sort={sort} onSort={onSort} />
       <SortTh label={t("进程")} sortKey="process" width="min-w-0 flex-1" sort={sort} onSort={onSort} />
       <SortTh label={t("仓库")} sortKey="repo" width="w-40 shrink-0" sort={sort} onSort={onSort} />
@@ -177,7 +201,7 @@ export function PortRowLine({ entry, ctx, lead }: { entry: PortEntry; ctx: RowCt
   const ws = ctx.wsNameOf(entry.gitRoot);
   const owner = ctx.ownerOf(entry);
   return (
-    <div className="flex min-w-0 items-center gap-2 px-2 py-1.5 hover:bg-(--tmd-bg-hover)">
+    <div className="flex min-w-0 items-center gap-2 border-b border-(--tmd-border) px-2 py-1.5 hover:bg-(--tmd-bg-hover)">
       <span className="flex w-5 shrink-0 items-center justify-center text-(--tmd-fg-faint)">{lead}</span>
       {/* 主内容区 = 原生 button:整段(端口+五列)点击弹详情;动作簇/折叠钮在外层,不嵌套。 */}
       <button
@@ -191,7 +215,8 @@ export function PortRowLine({ entry, ctx, lead }: { entry: PortEntry; ctx: RowCt
       </button>
       {owner && <OwnerChip owner={owner} ctx={ctx} />}
       {ctx.newKeys.has(key) && (
-        <span className="shrink-0 rounded-(--tmd-radius-sm) bg-(--tmd-accent-soft) px-1 text-[0.625rem] text-(--tmd-accent)">
+        <span className="flex shrink-0 items-center gap-0.5 rounded-(--tmd-radius-sm) bg-(--tmd-accent-soft) px-1 text-[0.625rem] text-(--tmd-accent)">
+          <Sparkle size="0.625rem" />
           {t("新出现")}
         </span>
       )}
@@ -201,8 +226,9 @@ export function PortRowLine({ entry, ctx, lead }: { entry: PortEntry; ctx: RowCt
 }
 
 /**
- * 监听进程家族组 = 一张卡片:组头行(顶层监听进程)+ 虚线描边子容器(子监听行)。
- * 层级靠容器归属表达——子行不再画 └ 引导符;无子行 = 单平铺卡片。
+ * 监听进程家族组:平铺两行式——组头行与子行之间无卡片包裹,层级唯一表达 =
+ * 展开时的虚线描边子容器(缩进挂组头下);无子行 = 平铺单行。整体列表靠
+ * 行间分隔线走扁平基调,不做 elevated 卡片(深色主题下凹凸感过重)。
  */
 export function PortGroupBlock({ group, ctx }: { group: PortGroup; ctx: RowCtx }) {
   const key = rowKey(group.top);
@@ -220,10 +246,10 @@ export function PortGroupBlock({ group, ctx }: { group: PortGroup; ctx: RowCtx }
     </button>
   ) : null;
   return (
-    <div className="overflow-hidden rounded-(--tmd-radius-sm) border border-(--tmd-border) bg-(--tmd-bg-elevated)">
+    <div>
       <PortRowLine entry={group.top} ctx={ctx} lead={lead} />
       {hasChildren && !collapsed && (
-        <div className="mx-2 mb-2 rounded-(--tmd-radius-sm) border border-dashed border-(--tmd-border-strong) [&>:last-child]:border-b-0">
+        <div className="mx-2 ml-5 rounded-(--tmd-radius-sm) border border-dashed border-(--tmd-border-strong) [&>:last-child]:border-b-0">
           {group.children.map((c) => (
             <PortRowLine key={rowKey(c)} entry={c} ctx={ctx} />
           ))}
