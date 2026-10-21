@@ -153,14 +153,14 @@ export function sanitizeSessionMutes(raw: unknown): Record<string, SessionMuteEn
 }
 
 /**
- * 重启现场恢复清洗:enabled 非布尔回落 true;keys 只收非空串、去重保序,
+ * 重启现场恢复清洗:enabled 非布尔回落默认关;keys 只收非空串、去重保序,
  * 超帽从尾部丢(首 = 最新 MRU,尾先弃)。帽由装配侧传入当前 sessionTabsMax
  * (清洗期 state 尚未提交,现读会拿到旧帽)。
  */
 export function sanitizeSessionRestore(raw: unknown, cap: number): SessionRestoreSettings {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { enabled: true, keys: [] };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { enabled: false, keys: [] };
   const entry = raw as Record<string, unknown>;
-  const enabled = typeof entry.enabled === "boolean" ? entry.enabled : true;
+  const enabled = typeof entry.enabled === "boolean" ? entry.enabled : false;
   const keys: string[] = [];
   const seen = new Set<string>();
   if (Array.isArray(entry.keys)) {
