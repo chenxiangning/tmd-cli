@@ -10,6 +10,7 @@ import {
   buildQuotaCards,
   nextQuotaWindow,
   QUOTA_HOT_PCT,
+  quotaHeatColor,
   splitCountdown,
 } from "./quotaCards";
 import type { EngineCredential } from "./credentials";
@@ -159,5 +160,21 @@ describe("aggregateQuotas", () => {
     const aggs = aggregateQuotas({ omp: list });
     expect(aggs).toHaveLength(1);
     expect(aggs[0]).toMatchObject({ title: "T", windows: [W("5小时", 50)] });
+  });
+});
+
+describe("quotaHeatColor", () => {
+  it("热度渐变:50=纯绿,90=纯琥珀,100=纯红;中段连续混色(color-mix 主题语义色)", () => {
+    expect(quotaHeatColor(0)).toBe("color-mix(in oklch, var(--tmd-warn) 0.0%, var(--tmd-ok))");
+    expect(quotaHeatColor(50)).toBe("color-mix(in oklch, var(--tmd-warn) 0.0%, var(--tmd-ok))");
+    expect(quotaHeatColor(70)).toBe("color-mix(in oklch, var(--tmd-warn) 50.0%, var(--tmd-ok))");
+    expect(quotaHeatColor(87)).toBe("color-mix(in oklch, var(--tmd-warn) 92.5%, var(--tmd-ok))");
+    expect(quotaHeatColor(90)).toBe("color-mix(in oklch, var(--tmd-err) 0.0%, var(--tmd-warn))");
+    expect(quotaHeatColor(95)).toBe("color-mix(in oklch, var(--tmd-err) 50.0%, var(--tmd-warn))");
+    expect(quotaHeatColor(100)).toBe("color-mix(in oklch, var(--tmd-err) 100.0%, var(--tmd-warn))");
+  });
+  it("越界钳制:负值与 >100 收敛到端点色", () => {
+    expect(quotaHeatColor(-5)).toBe(quotaHeatColor(0));
+    expect(quotaHeatColor(120)).toBe(quotaHeatColor(100));
   });
 });

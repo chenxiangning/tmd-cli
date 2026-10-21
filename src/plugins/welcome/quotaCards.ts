@@ -24,6 +24,21 @@ import { windowResetFor } from "../cli-shared/quota/quotaWindow";
 
 /** 配额告警线(与行内块条/凭据区同语义)。 */
 export const QUOTA_HOT_PCT = 90;
+/** 热度渐变起点:低于此线纯充裕绿,50–90 绿→琥珀,90–100 琥珀→红。 */
+const QUOTA_WARM_PCT = 50;
+
+/** 已用 % → 环形热度渐变色:0–50 纯绿,50–90 绿→琥珀渐变,≥90 琥珀→红渐变。
+ *  用 color-mix 混主题语义色,深浅主题自适应;边界连续(50=纯绿,90=纯琥珀,100=纯红)。 */
+export function quotaHeatColor(pct: number): string {
+  const p = Math.min(100, Math.max(0, pct));
+  if (p < QUOTA_HOT_PCT) {
+    const t = Math.max(0, ((p - QUOTA_WARM_PCT) / (QUOTA_HOT_PCT - QUOTA_WARM_PCT)) * 100);
+    return `color-mix(in oklch, var(--tmd-warn) ${t.toFixed(1)}%, var(--tmd-ok))`;
+  }
+  const t = ((p - QUOTA_HOT_PCT) / (100 - QUOTA_HOT_PCT)) * 100;
+  return `color-mix(in oklch, var(--tmd-err) ${t.toFixed(1)}%, var(--tmd-warn))`;
+}
+
 /** claude 窗口推算的尾窗字节数(usage 行追加在文件尾,与 tokens 时代同值)。 */
 const TAIL_BYTES = 128 * 1024;
 /** 只扫近 7 日活跃会话:窗口已滚走的旧会话对推算无意义。 */

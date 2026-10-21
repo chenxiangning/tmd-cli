@@ -20,6 +20,7 @@ import {
   buildQuotaCards,
   inferClaudeWindow,
   nextQuotaWindow,
+  quotaHeatColor,
   splitCountdown,
   type CardWindow,
   type QuotaCard,
@@ -78,7 +79,7 @@ function windowCdParts(
   return { main: cd, hot: win.hot, ok: false, sub };
 }
 
-/* 环形进度;r=32,周长 C≈201.06;颜色按状态(充裕绿/已限额红)。 */
+/* 环形进度;r=32,周长 C≈201.06;颜色按已用热度渐变(绿→琥珀→红,见 quotaHeatColor)。 */
 function Ring({ pct, color, size }: { pct: number; color: string; size: number }) {
   const C = 2 * Math.PI * 32;
   const dash = ((C * Math.min(100, Math.max(0, pct))) / 100).toFixed(2);
@@ -114,11 +115,7 @@ function WindowRing({
         };
   return (
     <div className="wq-ring" {...aria}>
-      <Ring
-        pct={shown ?? 0}
-        color={win.hot && !expired ? "var(--tmd-err)" : "var(--tmd-ok)"}
-        size={size}
-      />
+      <Ring pct={shown ?? 0} color={quotaHeatColor(shown ?? 0)} size={size} />
       <div className={`wq-ring-pct${shown == null ? " muted" : ""}`}>
         {shown == null ? "—" : `${shown}%`}
         <small>{shown == null ? t("不猜测") : t("已用")}</small>
