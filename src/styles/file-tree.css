@@ -178,6 +178,16 @@
   font-weight: 400;
 }
 
+/* 仓根行带分支徽标:默认徽标贴右;hover/selected actions 显现时才平移让位,
+   空态不常驻留白(padding 过渡消跳感)。46px = 按钮区 42px + 4px 间隙。 */
+.file-tree-row.has-repotag {
+  transition: padding-right var(--tmd-dur-1) var(--tmd-ease-move);
+}
+
+.file-tree-row-wrap:is(:hover, :focus-within, .is-selected) .file-tree-row.has-repotag {
+  padding-right: 46px;
+}
+
 /* 行右侧 actions ─ hover/selected 时显现的 + 按钮 */
 .file-tree-actions {
   position: absolute;
