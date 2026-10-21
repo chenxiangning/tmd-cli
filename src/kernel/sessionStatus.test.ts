@@ -41,7 +41,7 @@ interface FakeHost {
   findSession(id: string): { profileId: string; cwd: string } | undefined;
   hasSession(id: string): boolean; getCliProfile(): CliProfile;
   getCliSessionId(id: string): string | undefined; isPendingIdentity(id: string): boolean;
-  lastActivityAt(id: string): number;
+  lastOutputFrameAt(id: string): number;
   /** 测试驱动:推活动时间戳(模拟新 PTY 输出后巡航应重读)。 */
   bumpActivity(): void;
 }
@@ -65,7 +65,7 @@ function makeHost(profile: CliProfile = makeProfile()): FakeHost {
     getCliProfile: () => profile,
     getCliSessionId: (id) => cliIds.get(id),
     isPendingIdentity: (id) => pending.has(id),
-    lastActivityAt: () => activity,
+    lastOutputFrameAt: () => activity,
     bumpActivity: () => { activity += 1; },
   };
 }
