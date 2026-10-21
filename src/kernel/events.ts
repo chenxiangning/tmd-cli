@@ -80,7 +80,23 @@ export const KernelTopics = {
    * 身份,残留轮缺口诚实留给 git 证据兜底)。
    */
   ckptTurnSealed: "kernel.checkpoints.turn.sealed",
+  /**
+   * CLI 磁盘身份回声重验窗开合(绑后换对话缺口,2026-10-21 01a15cea 串账实证)。
+   * payload: { sessionId, active } —— active=true 探测窗开启(promptSent 后短窗
+   * 验证绑定是否仍指向真对话),false 收束(重绑/未命中/超时/会话移除)。
+   * 消费方:checkpoints 写路径在窗内把账本主键回落 tmd id(链暂记 tmd 名下,
+   * 重绑后 ledger.backfill_identity 整链并入新身份,无损自愈)。
+   * 注册序契约:身份重验 handler 在内核构造期注册,先于插件 handler —— 同一次
+   * promptSent emit 内探测窗先开,锚点回落才读得到。
+   */
+  cliIdentityProbe: "kernel.identity.echoProbe",
 } as const;
+
+/** cliIdentityProbe 负载:探测窗开合边沿。 */
+export interface CliIdentityProbeEvent {
+  sessionId: string;
+  active: boolean;
+}
 
 /** ckptTurnSealed 负载:CLI 会话 id + tmd 会话 id + 工作区(查询键,非内容)。 */
 export interface CkptTurnSealedEvent {

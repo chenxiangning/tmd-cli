@@ -98,6 +98,12 @@ pub fn seal_turn(cwd: &str, session_id: &str, tmd_session_id: &str) -> Result<bo
 
 /// 身份回填:CLI 身份绑定后,把仍记在 tmd id 名下的历史条目改归 CLI id
 /// (一次整文件重写;条目顺序与内容不变)。只在主副键不同(确已绑定)时执行。
+/// 两分支(2026-10-21 01a15cea 串账实证后分化):
+/// - session_id == tmd id(暂记 tmd 名下的条目:绑定迟到/回声重验窗回落)
+///   → 并入当前 CLI 身份,既有「无损自愈」语义不变;
+/// - session_id 为其他 CLI 身份(绑后 CLI 在同终端换磁盘会话,重绑前旧对话
+///   链)→ 摘除 tmd 副键、链保持自身身份原地保留 —— 新链查询经副键不再误
+///   命中旧对话,resume 旧对话仍按主键找回自己的账。
 pub(crate) fn backfill_identity(
     cwd: &str,
     entries: &mut [LedgerEntry],
@@ -109,8 +115,16 @@ pub(crate) fn backfill_identity(
     }
     let mut dirty = false;
     for e in entries.iter_mut() {
-        if e.tmd_session_id == tmd_session_id && e.session_id != session_id {
-            e.session_id = session_id.to_string();
+        if e.tmd_session_id != tmd_session_id {
+            continue;
+        }
+        if e.session_id == tmd_session_id {
+            if e.session_id != session_id {
+                e.session_id = session_id.to_string();
+                dirty = true;
+            }
+        } else if e.session_id != session_id {
+            e.tmd_session_id = String::new();
             dirty = true;
         }
     }

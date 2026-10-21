@@ -33,6 +33,14 @@ const CRUISE_BUDGET_MS = 10 * 60_000;
 /** 并行 spawn 仲裁窗口:年轻会话等待更老未绑定会话先认领的最长时长。 */
 const BIND_DEFER_MS = 10_000;
 
+/** 回声重验探测节拍(ms):omp 增量冲刷实测即时(用户消息毫秒级落盘),
+ *  拖到 60s 兜底懒落盘家族;全部落空 = 证据不足,维持原绑。 */
+const ECHO_PROBE_DELAYS_MS = [2_000, 10_000, 30_000, 60_000] as const;
+/** 回声候选的 mtime 时钟余量:文件系统 mtime 粒度与调度延迟。 */
+const ECHO_CLOCK_SLACK_MS = 5_000;
+/** 回声文本比对长度(promptSent 负载与 CliUserMessage.text 同截 400 比对)。 */
+const ECHO_MATCH_CHARS = 400;
+
 interface PendingIdentity {
   profileId: string;
   cwd: string;
@@ -47,10 +55,23 @@ interface DiskIdentityContext {
   sessionAlive: (sessionId: string) => boolean;
   /** 已绑定(CLI 磁盘身份)→ 无需再探。 */
   isBound: (sessionId: string) => boolean;
+  /** 当前绑定值(回声重验的排除基准;未绑定 = undefined)。 */
+  boundId: (sessionId: string) => string | undefined;
+  /** 会话的 (profileId, cwd);已移除 = null。 */
+  sessionMeta: (sessionId: string) => { profileId: string; cwd: string } | null;
   /** 已被其他会话绑走的磁盘身份集(mtime 兜底仲裁的排他集)。 */
   claimedIds: () => Set<string>;
   /** 绑定成功:host 写绑定表 + 刷状态 + 通知。 */
   onBound: (sessionId: string, cliSessionId: string) => void;
+  /** 回声重验窗开合边沿(消费方:checkpoints 主键回落,见 KernelTopics.cliIdentityProbe)。 */
+  onEchoProbe: (sessionId: string, active: boolean) => void;
+}
+
+/** 回声重验窗状态:token 防旧探测循环与新窗互踩(重发 prompt 即换证据重验)。 */
+interface EchoProbe {
+  token: number;
+  prompt: string;
+  sentAt: number;
 }
 
 /** 定时等待(递归探测的节拍;无循环等待)。 */
@@ -64,6 +85,15 @@ const DETECT_FAST_MS = 500;
 export class DiskIdentityWatch {
   private readonly pending = new Map<string, PendingIdentity>();
 
+  /** 回声重验窗(绑后换对话缺口,2026-10-21 串账实证):绑定「绑上即终」,
+   *  CLI 在同一终端内换磁盘会话(omp /new、进程重启、resume 换代)后旧绑定
+   *  永久陈旧 —— 锚点串账、写入事件拉旧文件、时间线读旧对话。此处按
+   *  「提示词回声」补验:promptSent 后短窗内出现未认领、id ≠ 绑定值、mtime
+   *  不早于发送、末条用户消息 = 本条 prompt 的新兄弟文件 → 判定为本会话的
+   *  新对话,走唯一写口 bind 重绑(旧链原地保留,backfill 摘链归位);
+   *  证据不足维持原绑(fail-open),多候选同文 = 归属不可判,放弃重绑(宁漏勿串)。 */
+  private readonly echoProbes = new Map<string, EchoProbe>();
+
   constructor(private readonly ctx: DiskIdentityContext) {}
 
   /** spawn 时登记待绑定会话并启动探测循环。 */
@@ -72,9 +102,10 @@ export class DiskIdentityWatch {
     void this.detect(sessionId);
   }
 
-  /** 会话移除:清账(探测循环见 pending 清空自然终止)。 */
+  /** 会话移除:清账(探测循环见 pending 清空自然终止;回声窗同步收束)。 */
   remove(sessionId: string): void {
     this.pending.delete(sessionId);
+    this.endEchoProbe(sessionId);
   }
 
   /** 仍在待绑定(状态巡航的慢相位共用一次扫描)。 */
@@ -157,6 +188,70 @@ export class DiskIdentityWatch {
     if (this.ctx.claimedIds().has(cliSessionId)) return;
     this.pending.delete(sessionId);
     this.ctx.onBound(sessionId, cliSessionId);
+  }
+
+  /** promptSent 接线(hostWatches 构造器订阅;注册序先于插件 handler,见
+   *  KernelTopics.cliIdentityProbe)。未绑定会话不进窗:初始探测 track() 在管。 */
+  revalidate(sessionId: string, prompt: string): void {
+    if (!this.ctx.isBound(sessionId)) return;
+    const meta = this.ctx.sessionMeta(sessionId);
+    const profile = meta ? this.ctx.getCliProfile(meta.profileId) : undefined;
+    if (!meta || !profile?.listSessions || !profile.readSessionUserMessages) return;
+    const prev = this.echoProbes.get(sessionId);
+    this.echoProbes.set(sessionId, {
+      token: (prev?.token ?? 0) + 1,
+      prompt,
+      sentAt: Date.now(),
+    });
+    if (!prev) this.ctx.onEchoProbe(sessionId, true);
+    void this.echoLoop(sessionId, (prev?.token ?? 0) + 1);
+  }
+
+  /** 单窗探测循环:节拍推进 + token 交接(重发 prompt 换证据,旧循环自行退场)。 */
+  private async echoLoop(sessionId: string, token: number): Promise<void> {
+    for (const delay of ECHO_PROBE_DELAYS_MS) {
+      await sleep(delay);
+      const probe = this.echoProbes.get(sessionId);
+      if (!probe || probe.token !== token || !this.ctx.sessionAlive(sessionId)) return;
+      if (await this.probeEchoOnce(sessionId, probe)) break;
+    }
+    this.endEchoProbe(sessionId);
+  }
+
+  /** 单拍探测:回声命中(唯一)即重绑返回 true;未命中/多候选返回 false 续拍。
+   *  面丢失/已解绑/已换绑(他方重绑)= 收兵返回 true。测试可直调(跳过节拍)。 */
+  async probeEchoOnce(sessionId: string, probe: EchoProbe): Promise<boolean> {
+    const meta = this.ctx.sessionMeta(sessionId);
+    const profile = meta ? this.ctx.getCliProfile(meta.profileId) : undefined;
+    const boundId = this.ctx.boundId(sessionId);
+    if (!meta || !profile?.listSessions || !profile.readSessionUserMessages) return true;
+    if (!boundId || !this.ctx.isBound(sessionId)) return true;
+    const needle = probe.prompt.trim().slice(0, ECHO_MATCH_CHARS);
+    if (!needle) return true;
+    const list = await profile.listSessions(meta.cwd).catch(() => []);
+    if (!this.ctx.sessionAlive(sessionId)) return true;
+    if (this.ctx.boundId(sessionId) !== boundId) return true; // await 期间已被换绑
+    const claimed = this.ctx.claimedIds();
+    let hit: string | null = null;
+    for (const entry of list) {
+      if (entry.id === boundId || claimed.has(entry.id)) continue;
+      if (entry.modifiedAt < probe.sentAt - ECHO_CLOCK_SLACK_MS) continue;
+      const msgs = await profile
+        .readSessionUserMessages(meta.cwd, entry.id, false)
+        .catch(() => null);
+      const last = msgs && msgs.length > 0 ? msgs[msgs.length - 1] : null;
+      if (!last || last.text.trim().slice(0, ECHO_MATCH_CHARS) !== needle) continue;
+      if (hit) return false; /* 多候选同文:归属不可判,本轮放弃(下拍同样放弃,宁漏勿串) */
+      hit = entry.id;
+    }
+    if (!hit || hit === boundId) return false;
+    this.bind(sessionId, hit);
+    return true;
+  }
+
+  /** 收束回声窗(幂等:仅在窗内才发边沿)。 */
+  private endEchoProbe(sessionId: string): void {
+    if (this.echoProbes.delete(sessionId)) this.ctx.onEchoProbe(sessionId, false);
   }
 
   private async detect(sessionId: string): Promise<void> {

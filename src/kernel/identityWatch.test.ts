@@ -5,12 +5,11 @@
  *   绑新 id、内容不变(基线内既有文件)不绑;
  * - 前置闸:无 pending / 已绑定 / profile 无 listSessions / listSessions 抛错 /
  *   await 期间会话死亡 → 一律不绑;
- * - 并行 spawn 仲裁:新文件归属兄弟 spawn → 让位;无基线时老会话在
- *   BIND_DEFER_MS 窗口内优先、窗口外放行;
- * - 排他:claimed 集内的磁盘身份不绑;绑定瞬间二次校验(await 期间被抢)
- *   失败且留在 pending;绑定成功 = pending 清账 + onBound 回调;
- * - 生命周期:track/remove/has 与探测循环随清账自然终止。
- * profile/ctx 全部手写最小 fake,不碰 IPC。
+ * - 并行 spawn 仲裁:新文件归属兄弟 spawn → 让位;无基线时老会话在 BIND_DEFER_MS
+ *   窗口内优先、窗口外放行;
+ * - 排他:claimed 集内的磁盘身份不绑;绑定瞬间二次校验(await 期间被抢)失败且留在
+ *   pending;绑定成功 = pending 清账 + onBound 回调;
+ * - 生命周期:track/remove/has 与探测循环随清账自然终止。profile/ctx 全部手写最小 fake,不碰 IPC。
  */
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { DiskIdentityWatch } from "./identityWatch";
@@ -30,15 +29,17 @@ interface TestCtx {
   getCliProfile: (id: string) => CliProfile | undefined;
   sessionAlive: (id: string) => boolean;
   isBound: (id: string) => boolean;
+  boundId: (id: string) => string | undefined;
+  sessionMeta: (id: string) => { profileId: string; cwd: string } | null;
   claimedIds: () => Set<string>;
-  onBound: (sessionId: string, cliSessionId: string) => void;
+  onBound: (sessionId: string, cliSessionId: string) => void; onEchoProbe: (sessionId: string, active: boolean) => void;
 }
 
 interface FakeDeps {
   alive: Set<string>;
   bound: Set<string>;
   claimed: Set<string>;
-  onBound: (sessionId: string, cliSessionId: string) => void;
+  onBound: (sessionId: string, cliSessionId: string) => void; onEchoProbe: (sessionId: string, active: boolean) => void;
   profile?: CliProfile;
 }
 
@@ -47,8 +48,10 @@ function makeCtx(deps: FakeDeps): TestCtx {
     getCliProfile: (id: string) => (id === "omp" ? deps.profile : undefined),
     sessionAlive: (id: string) => deps.alive.has(id),
     isBound: (id: string) => deps.bound.has(id),
+    boundId: (id: string) => (deps.bound.has(id) ? "bound-old" : undefined),
+    sessionMeta: (id: string) => (deps.alive.has(id) ? { profileId: "omp", cwd: CWD } : null),
     claimedIds: () => deps.claimed,
-    onBound: deps.onBound,
+    onBound: deps.onBound, onEchoProbe: deps.onEchoProbe,
   };
 }
 
@@ -57,7 +60,7 @@ function makeDeps(overrides: Partial<FakeDeps> = {}): FakeDeps & { ctx: TestCtx 
     alive: new Set(["s1"]),
     bound: new Set(),
     claimed: new Set(),
-    onBound: vi.fn(),
+    onBound: vi.fn(), onEchoProbe: vi.fn(),
     ...overrides,
   };
   return { ...deps, ctx: makeCtx(deps) };
@@ -293,3 +296,4 @@ describe("内容自证主路径(readSessionFileIdentity)", () => {
     expect(d.onBound).toHaveBeenCalledWith("s1", "f1");
   });
 });
+
