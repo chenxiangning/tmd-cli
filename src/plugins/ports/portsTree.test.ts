@@ -48,6 +48,15 @@ describe("groupByFamily(监听进程家族折叠)", () => {
     expect(tops).toHaveLength(1);
     expect(tops[0].top.pid).toBe(30);
   });
+
+  it("同 pid 多端口全部收组,一行不丢(建组者做顶层,其余做子行)", () => {
+    const rows = [entry(7000, 692, 1), entry(5000, 692, 1), entry(14013, 81753, 1), entry(14016, 81753, 1), entry(14019, 81753, 1)];
+    const tops = groupByFamily(rows);
+    expect(tops).toHaveLength(2);
+    expect(tops.reduce((n, g) => n + 1 + g.children.length, 0)).toBe(rows.length);
+    const wechat = tops.find((g) => g.top.pid === 81753)!;
+    expect(wechat.children.map((c) => c.port)).toEqual([14016, 14019]);
+  });
 });
 
 describe("findOwnerSession(ppid 链归因)", () => {

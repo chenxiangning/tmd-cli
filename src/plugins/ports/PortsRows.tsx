@@ -113,6 +113,22 @@ function PortCells({ entry, ws }: { entry: PortEntry; ws: string | null }) {
   );
 }
 
+/** 列表列头:列宽与 PortRowLine/PortCells 逐一对应,scroll 容器内吸顶。 */
+export function PortListHeader() {
+  return (
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-(--tmd-border) bg-(--tmd-bg-base) px-2 py-1 text-[0.625rem] text-(--tmd-fg-faint)">
+      <span className="w-5 shrink-0" aria-hidden />
+      <span className="w-12 shrink-0 text-right">{t("端口")}</span>
+      <span className="w-16 shrink-0">{t("监听地址")}</span>
+      <span className="w-12 shrink-0">{t("暴露面")}</span>
+      <span className="w-28 shrink-0">{t("用途")}</span>
+      <span className="min-w-0 flex-1 truncate">{t("进程")}</span>
+      <span className="w-40 shrink-0">{t("仓库")}</span>
+      <span className="w-[6.625rem] shrink-0" aria-hidden />
+    </div>
+  );
+}
+
 export function PortRowLine({
   entry,
   ctx,

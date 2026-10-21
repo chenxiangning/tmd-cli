@@ -49,7 +49,9 @@ export function groupByFamily(rows: PortEntry[]): PortGroup[] {
       groups.set(top.pid!, g);
       tops.push(g);
     }
-    if (r !== top) g.children.push(r);
+    /* 归组判据 = 是否为组内存顶层行:同 pid 多端口时,非建组那行 ascend 终点是自身,
+     *  与 top(同 pid 另一行)引用不同——按 g.top 判才能收进组,按 top 判会静默丢行。 */
+    if (r !== g.top) g.children.push(r);
   }
   const byPort = (a: PortEntry, b: PortEntry) => a.port - b.port || (a.pid ?? 0) - (b.pid ?? 0);
   for (const g of tops) g.children.sort(byPort);
