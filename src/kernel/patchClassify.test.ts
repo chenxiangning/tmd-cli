@@ -19,6 +19,7 @@ describe("classifyPatchLine", () => {
     expect(classifyPatchLine("deleted file mode 100644")).toBe("meta");
     expect(classifyPatchLine("rename from a/x.ts")).toBe("meta");
     expect(classifyPatchLine("Binary files a/x and b/x differ")).toBe("meta");
+    expect(classifyPatchLine("GIT binary patch")).toBe("meta");
     expect(classifyPatchLine("\\ No newline at end of file")).toBe("meta");
   });
 
