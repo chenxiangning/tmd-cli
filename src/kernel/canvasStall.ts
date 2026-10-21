@@ -28,6 +28,12 @@ export const STALL_CANVAS_SILENCE_MS = 6_000;
 export const STALL_RAF_DEAD_MS = 4_000;
 /** 自愈重建冷却:防止重建未愈时的连环放大。 */
 export const STALL_KICK_COOLDOWN_MS = 30_000;
+/** 连续静默拍数:单拍静默可能是主线程长阻塞的假象(大缓冲重排冻结派生数秒,
+ *  解冻后排队的实时字节事件尚未派发,lastLiveAt 表现为陈旧而 rAF 间隙读数已
+ *  新鲜——2026-10-22 大仙真机实锤:开文件后 5 万行幕布被误重建置顶)。要求
+ *  连续两拍都静默才实锤:阻塞排空后第二拍 lastLiveAt 必被排队事件刷新,假象
+ *  自愈;真停滞(订阅丢失)每拍都静默,只晚一拍(~2s)发现。 */
+export const STALL_SILENT_TICKS = 2;
 
 /** 探针输入(由 TerminalView 2s 巡检采集)。 */
 export interface CanvasStallInputs {
@@ -44,6 +50,8 @@ export interface CanvasStallInputs {
   rafGapMs: number;
   /** 上次自愈重建时刻(0 = 未重建过)。 */
   lastKickAt: number;
+  /** 连续静默拍数(含本拍;静默 = now - lastLiveAt ≥ 静默窗,跨拍计数归调用方闭包)。 */
+  silentRun: number;
 }
 
 /** 是否应触发幕布重建(canvasGen 自增)。 */
@@ -52,5 +60,6 @@ export function shouldRebuildCanvas(s: CanvasStallInputs): boolean {
   if (s.rafGapMs >= STALL_RAF_DEAD_MS) return false;
   if (s.lastKickAt !== 0 && s.now - s.lastKickAt < STALL_KICK_COOLDOWN_MS) return false;
   if (!s.outputGrew) return false;
+  if (s.silentRun < STALL_SILENT_TICKS) return false;
   return s.now - s.lastLiveAt >= STALL_CANVAS_SILENCE_MS;
 }

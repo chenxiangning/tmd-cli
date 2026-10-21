@@ -12,7 +12,7 @@
 import type { Terminal } from "@xterm/xterm";
 import { host } from "@kernel/host";
 import { nativeRafGapMs } from "@kernel/rafFallback";
-import { shouldRebuildCanvas } from "@kernel/canvasStall";
+import { shouldRebuildCanvas, STALL_CANVAS_SILENCE_MS } from "@kernel/canvasStall";
 import {
   HEAD_SAMPLE_CHARS,
   saveTerminalFreeze,
@@ -71,24 +71,30 @@ export interface CanvasStallProbeDeps {
 export function startCanvasStallProbe(d: CanvasStallProbeDeps): () => void {
   let lastKickAt = 0;
   let lastBytes = -1;
+  let silentRun = 0;
   const timer = setInterval(() => {
+    const now = Date.now();
     const bytes = host.getOutputBufferBytes(d.sessionId);
     const outputGrew = lastBytes >= 0 && bytes !== lastBytes;
     lastBytes = bytes;
+    const lastLiveAt = d.getLastLiveAt();
+    const silent = now - lastLiveAt >= STALL_CANVAS_SILENCE_MS;
+    silentRun = silent ? silentRun + 1 : 0;
     if (
       !shouldRebuildCanvas({
-        now: Date.now(),
+        now,
         active: d.isActive(),
         streamReady: d.isStreamReady(),
         outputGrew,
-        lastLiveAt: d.getLastLiveAt(),
+        lastLiveAt,
         rafGapMs: nativeRafGapMs(),
         lastKickAt,
+        silentRun,
       })
     ) {
       return;
     }
-    lastKickAt = Date.now();
+    lastKickAt = now;
     d.onRebuild();
   }, STALL_PROBE_MS);
   return () => clearInterval(timer);
@@ -144,4 +150,23 @@ export function settleTerminalFreeze(sessionId: string, term: Terminal): void {
     headSample: bufferText.slice(0, HEAD_SAMPLE_CHARS),
     fingerprint: sessionFreezeFingerprint(host.getSessions().find((s) => s.id === sessionId)),
   });
+}
+
+/**
+ * 幕布尺寸观察 · 布局风暴合流 —— 面板开合/拖拽一拍内 ResizeObserver 连发,每发
+ * 都触发整缓冲同步 rewrap(行数多时长达秒级),连续重排会把主线程按进 render_health
+ * 探针 4s 静默窗,被误判悬死而 reload(重挂回放 = 阅读位丢失,2026-10-22 实锤)。
+ * 尾沿合一:实际尺寸只在风暴停后应用一次;同步触发路径(挂载/设置)不走这里。
+ */
+export function observeCanvasSize(container: HTMLElement, onResize: () => void): () => void {
+  let timer = 0;
+  const observer = new ResizeObserver(() => {
+    clearTimeout(timer);
+    timer = window.setTimeout(onResize, 120);
+  });
+  observer.observe(container);
+  return () => {
+    clearTimeout(timer);
+    observer.disconnect();
+  };
 }

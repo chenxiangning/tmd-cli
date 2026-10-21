@@ -4,13 +4,17 @@
  * - 全局渲染冻结(rAF 停跳)退出(守望阶梯领地,重建无意义);
  * - 重建冷却 30s 内不连环放大;
  * - PTY 静默(缓冲字节无变化)不判 —— 没有「应到未到」的对照;
- * - PTY 在流而幕布超静默窗 = 停滞实锤,触发重建。
+ * - PTY 在流而幕布超静默窗 = 停滞实锤,但须连续两拍静默(单拍静默可能是
+ *   主线程长阻塞假象:大缓冲重排冻结事件派生,解冻后排队字节未落地,
+ *   lastLiveAt 表现陈旧而 rAF 间隙读数已新鲜 —— 2026-10-22 大仙真机实锤,
+ *   开文件后大幕布被误重建置顶)。
  */
 import { describe, expect, it } from "vitest";
 import {
   shouldRebuildCanvas,
   STALL_CANVAS_SILENCE_MS,
   STALL_RAF_DEAD_MS,
+  STALL_SILENT_TICKS,
 } from "./canvasStall";
 
 const T0 = 1_000_000;
@@ -25,12 +29,13 @@ function base(over: Partial<Parameters<typeof shouldRebuildCanvas>[0]> = {}) {
     lastLiveAt: 0,
     rafGapMs: 16,
     lastKickAt: 0,
+    silentRun: STALL_SILENT_TICKS,
     ...over,
   };
 }
 
 describe("幕布数据链停滞探针(shouldRebuildCanvas)", () => {
-  it("停滞实锤:PTY 缓冲字节在推进,幕布 6s 未收字节 → 重建", () => {
+  it("停滞实锤:PTY 缓冲字节在推进,幕布连续两拍静默超窗 → 重建", () => {
     expect(
       shouldRebuildCanvas(base({ outputGrew: true, lastLiveAt: T0 - STALL_CANVAS_SILENCE_MS })),
     ).toBe(true);
@@ -38,6 +43,13 @@ describe("幕布数据链停滞探针(shouldRebuildCanvas)", () => {
     expect(
       shouldRebuildCanvas(base({ outputGrew: true, lastLiveAt: T0 - STALL_CANVAS_SILENCE_MS + 1 })),
     ).toBe(false);
+  });
+
+  it("单拍静默不实锤:首拍静默(silentRun=1)放行等下一拍,长阻塞假象自愈", () => {
+    const stale = { outputGrew: true, lastLiveAt: T0 - STALL_CANVAS_SILENCE_MS };
+    expect(shouldRebuildCanvas(base({ ...stale, silentRun: 1 }))).toBe(false);
+    /* 连续两拍都在静默窗内才实锤 */
+    expect(shouldRebuildCanvas(base({ ...stale, silentRun: 2 }))).toBe(true);
   });
 
   it("非激活或流未就绪不检(回放/遮罩期的攒队是编排,不是停滞)", () => {

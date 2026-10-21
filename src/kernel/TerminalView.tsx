@@ -32,6 +32,7 @@ import { createReplayInputGate } from "@kernel/terminalInputGate";
 import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
 import {
+  observeCanvasSize,
   settleTerminalFreeze,
   startAskScreenProbe,
   startCanvasStallProbe,
@@ -110,8 +111,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       cursorBlink: true,
       fontSize: fontSettings.terminalFontSize,
       fontFamily: resolveTerminalFontFamily(fontSettings.terminalFontFamily),
-      /* 默认 1000 行太浅;翻页加载历史后单场可达数万行,放大到 5 万 */
-      scrollback: 50_000,
+      /* 上限即重排成本上限:尺寸变化时 xterm 同步 rewrap 全缓冲,行数越多主线程
+         阻塞越久,超 render_health 探针 4s 静默窗会被误判悬死而 reload(重挂回放
+         阅读位归零,2026-10-22 实锤)。2.4 万把最重 rewrap 压回死限内,更早走翻页。 */
+      scrollback: 24_000,
       theme: readTerminalTheme(),
     });
     /* 配色重刷:主题引擎与打穿等 :root 终端 token 写手都经主题桥通知,重读计算样式。
@@ -230,12 +233,9 @@ termRef.current = term;
     };
     registerTerminalHandle(sessionId, terminalHandle);
 
-
-    /* 重挂载必发一次(needsForceSync 初值 true:重挂载即强制一次真 SIGWINCH 整帧
-       重绘,根治关闭再开/切回后的错栅格滞留);重绘由活动守望抑制窗吸收。 */
+    /* 重挂载必发一次(needsForceSync 初值 true 强制真 SIGWINCH 整帧重绘,根治错栅格滞留);重绘由活动守望抑制窗吸收。 */
     syncSize();
-    const observer = new ResizeObserver(syncSize);
-    observer.observe(container);
+    const offObserve = observeCanvasSize(container, syncSize);
 
     return () => {
       stopAskProbe();
@@ -251,7 +251,7 @@ termRef.current = term;
       offStream();
       offInput.dispose();
       offScroll.dispose();
-      observer.disconnect();
+      offObserve();
       term.dispose();
       termRef.current = null;
       searchRef.current = null;
