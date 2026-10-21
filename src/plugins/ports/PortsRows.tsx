@@ -196,12 +196,33 @@ export function PortListHeader({
   );
 }
 
-export function PortRowLine({ entry, ctx, lead }: { entry: PortEntry; ctx: RowCtx; lead?: ReactNode }) {
+export function PortRowLine({
+  entry,
+  ctx,
+  lead,
+  divided = true,
+  roomy = false,
+}: {
+  entry: PortEntry;
+  ctx: RowCtx;
+  lead?: ReactNode;
+  /** 行底分隔线(虚线框内由框缘收尾,末行不画)。 */
+  divided?: boolean;
+  /** 展开族子行:行距放宽,避免密集。 */
+  roomy?: boolean;
+}) {
   const key = rowKey(entry);
   const ws = ctx.wsNameOf(entry.gitRoot);
   const owner = ctx.ownerOf(entry);
   return (
-    <div className="flex min-w-0 items-center gap-2 border-b border-(--tmd-border) px-2 py-1.5 hover:bg-(--tmd-bg-hover)">
+    <div
+      className={
+        "flex min-w-0 items-center gap-2 px-2 " +
+        (roomy ? "py-2 " : "py-1.5 ") +
+        (divided ? "border-b border-(--tmd-border) " : "") +
+        "hover:bg-(--tmd-bg-hover)"
+      }
+    >
       <span className="flex w-5 shrink-0 items-center justify-center text-(--tmd-fg-faint)">{lead}</span>
       {/* 主内容区 = 原生 button:整段(端口+五列)点击弹详情;动作簇/折叠钮在外层,不嵌套。 */}
       <button
@@ -226,14 +247,14 @@ export function PortRowLine({ entry, ctx, lead }: { entry: PortEntry; ctx: RowCt
 }
 
 /**
- * 监听进程家族组:平铺两行式——组头行与子行之间无卡片包裹,层级唯一表达 =
- * 展开时的虚线描边子容器(缩进挂组头下);无子行 = 平铺单行。整体列表靠
- * 行间分隔线走扁平基调,不做 elevated 卡片(深色主题下凹凸感过重)。
+ * 监听进程家族组 = 整族一张虚线框(组头 + 子行共同包围,不做子列表二次包裹);
+ * 折叠态 = 单行虚线框,无子行的进程保持平铺分隔线行。展开态子行行距放宽。
  */
 export function PortGroupBlock({ group, ctx }: { group: PortGroup; ctx: RowCtx }) {
   const key = rowKey(group.top);
   const hasChildren = group.children.length > 0;
   const collapsed = ctx.collapsed.has(key);
+  const open = hasChildren && !collapsed;
   const lead = hasChildren ? (
     <button
       type="button"
@@ -246,15 +267,20 @@ export function PortGroupBlock({ group, ctx }: { group: PortGroup; ctx: RowCtx }
     </button>
   ) : null;
   return (
-    <div>
-      <PortRowLine entry={group.top} ctx={ctx} lead={lead} />
-      {hasChildren && !collapsed && (
-        <div className="mx-2 ml-5 rounded-(--tmd-radius-sm) border border-dashed border-(--tmd-border-strong) [&>:last-child]:border-b-0">
-          {group.children.map((c) => (
-            <PortRowLine key={rowKey(c)} entry={c} ctx={ctx} />
-          ))}
-        </div>
-      )}
+    <div className="rounded-(--tmd-radius-sm) border border-dashed border-(--tmd-border-strong)">
+      <div className={open ? "border-b border-(--tmd-border)" : undefined}>
+        <PortRowLine entry={group.top} ctx={ctx} lead={lead} divided={false} />
+      </div>
+      {open &&
+        group.children.map((c, i) => (
+          <PortRowLine
+            key={rowKey(c)}
+            entry={c}
+            ctx={ctx}
+            divided={i < group.children.length - 1}
+            roomy
+          />
+        ))}
     </div>
   );
 }
