@@ -116,16 +116,18 @@ describe("fetchOmpQuota 路由与凭据适配", () => {
     expect(fetchVendorQuota).not.toHaveBeenCalled();
   });
 
-  it("codex oauth 凭据解析后透传给快照通道", async () => {
+  it("codex oauth 凭据解析后透传快照通道,force 缺省/强刷两态贯通", async () => {
     vi.mocked(readOmpAuthCredential).mockResolvedValue('{"access":" at-1 ","accountId":"acc-9"}');
     vi.mocked(fetchCodexQuotaWithSnapshot).mockResolvedValue(snapshotSentinel);
 
     await fetchOmpQuota(ctxOf("openai-codex/gpt-5"));
+    await fetchOmpQuota({ ...ctxOf("openai-codex/gpt-5"), force: true });
 
-    expect(fetchCodexQuotaWithSnapshot).toHaveBeenCalledWith(
-      { access: "at-1", accountId: "acc-9" },
-      "openai-codex",
-      { force: undefined },
+    expect(fetchCodexQuotaWithSnapshot).toHaveBeenNthCalledWith(
+      1, { access: "at-1", accountId: "acc-9" }, "openai-codex", { force: undefined },
+    );
+    expect(fetchCodexQuotaWithSnapshot).toHaveBeenNthCalledWith(
+      2, { access: "at-1", accountId: "acc-9" }, "openai-codex", { force: true },
     );
   });
 
