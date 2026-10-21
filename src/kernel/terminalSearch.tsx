@@ -11,6 +11,7 @@ import type { Terminal } from "@xterm/xterm";
 import { CaretDown, CaretUp, Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { countTerminalMatches } from "@kernel/terminalMatchCount";
+import { findRequestRef } from "@kernel/terminalFindBridge";
 
 /* Aa/.* 选项钮的选中/未选中视觉(与检索 chip 同语系)。 */
 function toggleCls(on: boolean): string {
@@ -175,4 +176,27 @@ export function TerminalSearchOverlay({
       </button>
     </div>
   );
+}
+
+/** ⌘F 搜索框所有权:keep-alive 后多幕布并存,模块级 findRequestRef 单槽,必须跟随
+ *  激活实例 —— 激活即持有,失活/卸载仅在仍归自己时让出。返回关闭回调(关框还焦点)。 */
+export function useSearchBoxOwnership(
+  active: boolean,
+  setOpen: (open: boolean) => void,
+  termRef: RefObject<Terminal | null>,
+): { close: () => void } {
+  useEffect(() => {
+    if (!active) return;
+    const mine = () => setOpen(true);
+    findRequestRef.current = mine;
+    return () => {
+      if (findRequestRef.current === mine) findRequestRef.current = null;
+    };
+  }, [active, setOpen]);
+  return {
+    close: () => {
+      setOpen(false);
+      termRef.current?.focus();
+    },
+  };
 }

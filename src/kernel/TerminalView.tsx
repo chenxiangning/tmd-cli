@@ -6,7 +6,8 @@
  * 渲染层:xterm 内建 DOM 渲染器(WebGL 方案因 WebKit texSubImage2D 缺陷弃用)。
  * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
  *
- * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检分别在 terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth。
+ * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检/滚动位保持分别在
+ * terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth / terminalScrollKeeper。
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -37,8 +38,8 @@ import {
 } from "@kernel/terminalCanvasHealth";
 import { takeTerminalFreeze } from "@kernel/terminalFreeze";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
-import { TerminalSearchOverlay } from "@kernel/terminalSearch";
-import { findRequestRef } from "@kernel/terminalFindBridge";
+import { createScrollKeeper, reflowKeep } from "@kernel/terminalScrollKeeper";
+import { TerminalSearchOverlay, useSearchBoxOwnership } from "@kernel/terminalSearch";
 import "@kernel/terminalFontZoom"; /* 终端字号缩放键位(⌘+/⌘−/⌘0):模块级注册,随幕布装配生效 */
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
 import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
@@ -73,14 +74,21 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   const activeRef = useRef(active);
   const flushDeferredRef = useRef<(() => void) | null>(null);
   const lastLiveAtRef = useRef(0); /* 停滞探针活性真相(terminalCanvasHealth 消费) */
+  /* 滚动位保持(terminalScrollKeeper.ts):隐藏/重显与重排的滚动语义;实例随会话 keep-alive 常驻。 */
+  const [scrollKeeper] = useState(createScrollKeeper);
   useEffect(() => {
     activeRef.current = active;
-    if (active) flushDeferredRef.current?.();
+    if (active) {
+      flushDeferredRef.current?.();
+      scrollKeeper.restore(termRef.current);
+    } else {
+      scrollKeeper.markHidden(containerRef.current);
+    }
     /* 在视打点随活性同拍:泵侧聚合降档判据(无人观看 → 250ms 慢拍,见
        pty_spawn.rs OUT_BACKGROUND_WINDOW;2026-10-04 十一轮)。 */
     void ipc.sessionSetViewed(sessionId, active).catch(() => undefined);
     return () => void ipc.sessionSetViewed(sessionId, false).catch(() => undefined);
-  }, [sessionId, active]);
+  }, [sessionId, active, scrollKeeper]);
   /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
   const loadEarlier = useCallback(async () => {
     const term = termRef.current;
@@ -126,7 +134,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
         needsForceSyncRef.current = true;
         return;
       }
-      fit.fit();
+      /* 列宽重排后保阅读位(实现见 terminalScrollKeeper.reflowKeep)。 */
+      reflowKeep(term, () => fit.fit());
       host.resizeSession(sessionId, term.cols, term.rows, needsForceSyncRef.current);
       needsForceSyncRef.current = false;
     };
@@ -183,7 +192,10 @@ termRef.current = term;
     void pager.init();
     /* 滚动到顶才显示"加载更早的输出"入口 */
     setAtTop(term.buffer.active.viewportY === 0);
-    const offScroll = term.onScroll((y) => setAtTop(y === 0));
+    const offScroll = term.onScroll((y) => {
+      setAtTop(y === 0);
+      scrollKeeper.record(term, activeRef.current, container.clientWidth > 0);
+    });
     /* Ask 屏幕采样探针(语义与贴底闸见 terminalCanvasHealth.startAskScreenProbe)。 */
     const stopAskProbe = startAskScreenProbe(term, sessionId, () => streamReadyRef.current);
     /* 幕布数据链停滞探针(PTY 在流而幕布不吃字节 → 自动重建;判据见 canvasStall.ts)。 */
@@ -248,22 +260,10 @@ termRef.current = term;
       setHasMore(false);
       setLoadingHistory(false);
     };
-  }, [sessionId, inputGate, canvasGen]);
+  }, [sessionId, inputGate, canvasGen, scrollKeeper]);
 
-  /* ⌘F 搜索框所有权:keep-alive 后多幕布并存,模块级 findRequestRef 单槽,
-     必须跟随激活实例 —— 激活即持有,失活/卸载仅在仍归自己时让出。 */
-  useEffect(() => {
-    if (!active) return;
-    const mine = () => setSearchOpen(true);
-    findRequestRef.current = mine;
-    return () => {
-      if (findRequestRef.current === mine) findRequestRef.current = null;
-    };
-  }, [active]);
-  const closeSearch = () => {
-    setSearchOpen(false);
-    termRef.current?.focus();
-  };
+  /* ⌘F 搜索框所有权 + 关闭回调(实现见 terminalSearch.useSearchBoxOwnership)。 */
+  const { close: closeSearch } = useSearchBoxOwnership(active, setSearchOpen, termRef);
 
   /* loadEarlier 实例内恒稳定(useCallback 无依赖),ref 转交放 effect 避免渲染期写。 */
   useEffect(() => {
