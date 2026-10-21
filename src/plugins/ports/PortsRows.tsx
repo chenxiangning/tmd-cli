@@ -247,8 +247,8 @@ export function PortRowLine({
 }
 
 /**
- * 监听进程家族组 = 整族一张虚线框(组头 + 子行共同包围,不做子列表二次包裹);
- * 折叠态 = 单行虚线框,无子行的进程保持平铺分隔线行。展开态子行行距放宽。
+ * 监听进程家族组:展开态 = 整族一张虚线框(组头 + 子行共同包围);
+ * 折叠态/无子行 = 平铺分隔线行,不画框。展开态子行行距放宽。
  */
 export function PortGroupBlock({ group, ctx }: { group: PortGroup; ctx: RowCtx }) {
   const key = rowKey(group.top);
@@ -267,9 +267,9 @@ export function PortGroupBlock({ group, ctx }: { group: PortGroup; ctx: RowCtx }
     </button>
   ) : null;
   return (
-    <div className="rounded-(--tmd-radius-sm) border border-dashed border-(--tmd-border-strong)">
+    <div className={open ? "rounded-(--tmd-radius-sm) border border-dashed border-(--tmd-border-strong)" : undefined}>
       <div className={open ? "border-b border-(--tmd-border)" : undefined}>
-        <PortRowLine entry={group.top} ctx={ctx} lead={lead} divided={false} />
+        <PortRowLine entry={group.top} ctx={ctx} lead={lead} divided={!open} />
       </div>
       {open &&
         group.children.map((c, i) => (
