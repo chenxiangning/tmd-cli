@@ -4,6 +4,35 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.2] - 2026-10-22
+
+本版主体 = **0.4.2 收敛四批 + 端口管理插件 + 幕布跳顶根治**(收敛规划 `docs/brainstorm/2026-10-21-042-consolidation.md`,ports spec `docs/superpowers/specs/2026-10-21-ports-manager-design.md`):footprint ⌘K → 转录互跳定位桥 / quota 共享快照缓存 / 检索·diff·预设唯一实现化收敛 / D 档事件化 + phosphor barrel 冷加载;追加全新 ports 插件与幕布滚动位案收口(ResizeObserver 风暴合流 + 重排压回守望静默窗)。
+
+### 新增
+
+- 端口管理插件(ports):右栏 rail 入口中央 tab,本机 TCP 监听端口一览,procCommunicate 按平台跑 lsof/ss/netstat/PowerShell 零 Rust;进程家族折叠归组、端口释义库、暴露面标注(局域网/仅本机)、cwd 反查 git 顶层与 workspace 认领、ppid 链会话归因跳转、浏览器打开/复制地址/复制 kill 命令、SIGTERM→SIGKILL 二段终止(Windows taskkill /T 杀树)、手动刷新 + 5s 可选自动轮询与新端口 NEW 标、即时过滤;列表平铺分隔线 + 语义图标点缀,展开态家族虚线框整族包围,行点击详情弹窗、列头排序、批量折叠展开;插件计数 47 → 48(10 engine / 35 feature / 3 core / 1 local)
+- 幕布回底钮(kernel):右上工具行纯图标 pill(CaretDown),深翻历史一键贴底(term.scrollToBottom + 焦点回终端,PTY 零字节),与「加载更早的输出」pill 成对出口;回底/刷新两钮以家族键 terminal-jump-bottom / terminal-refresh 纳入设置「图标装饰」(独立取色 + 呼吸闪烁,缺省继承色像素零变化),刷新钮去文字同形制
+- session-viewer 转录定位桥(kernel 时序桥):幕布 miss 落查看器行级定位;footprint ⌘K 命中行加「看对话」钮(原话逐字文本跳转录),checkpoints 时间线节点/审阅单消息卡接线;定位桥兜底后改判 opened,文案中性化
+- quota 供应商抓取下沉共享 TTL 快照缓存(cli-shared):welcome/notify/chip 三面消费同一快照,消并发双抓
+- welcome 配额环形进度按已用热度连续渐变换色
+
+### 修复
+
+- 幕布跳顶根治(kernel):开合文件/右栏面板 → 大缓冲同步重排(ResizeObserver 一拍 2-3 连发)→ 主线程长阻塞超 render_health 4s 探针死限 → 误判「页面悬死」reload webview → 会话重挂回放 vp=0 全链定罪;ResizeObserver 布局风暴尾沿合流(一拍并 1 次重排)、scrollback 50K → 24K 压回死限、停滞判据要求连续两拍静默(消长阻塞期单拍假静默误重建幕布);伴生四轮滚动位保持(reflowKeep 内容锚 / enforcement 窗 / SIGWINCH 舞步泵侧降级保滚动缓冲 / 终端路径链接多文件分割修死链)
+- CLI 绑后换对话按 prompt 回声重验身份,审批线探测窗回落 tmd 键防串账
+- quota 手动强刷 force 通道贯通五引擎到底层抓取,chip 强刷不再被缓存吞;降级路径 force 同批贯通
+- GIT binary patch 前缀去尾空格匹配裸行产出;patch 分类补 binary patch 头归元信息
+- 会话巡航去重闸换逐帧钟源,修 TUI 家具重绘期工具栏冻结
+- 批评审 P2 四项:查看器深链回填富字段/git C 冲突语义特判/refresh 语义钉测试
+- files 文件树分支徽标默认贴右,hover/选中平移让位行内按钮;settings 重启现场恢复默认改为关闭
+
+### 内务
+
+- phosphor barrel 深路径改写 vite 插件:dev 冷加载 14MB 降至按需
+- 会话状态巡航无活跃停表 + 活动去重闸,轮询审计 D 档收编(零迁移)
+- 检索收敛:行命中切段 splitHits 上收 kernel 唯一源,session-search 高亮改全命中;diff 行分类与 git 状态语义上收 kernel,footprint/checkpoints/git 换用;预设模型旗标拼接唯一实现,退出沉淀尾段共享单次磁盘读
+- ports PortCells 格子子件拆分降控制流复杂度;quota 测试压回 300 行铁则
+
 ## [0.4.1] - 2026-10-20
 
 本版主体 = **0.4.1 批一/三/四落地**(规划 `docs/brainstorm/2026-10-20-041-next-steps.md`,实施记录 `docs/review/2026-10-20-041-implementation.md`):一致性打磨(299 行拆解 8 处)/ 轮询面审计(零迁移)/ ⌘Q 应用退出腿;追加每日足迹修正层 v2 差量与补账对账、tab 右键菜单分组化。架构契约沉淀 `docs/architecture/31-tab-menu-groups.md`。
