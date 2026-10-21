@@ -98,43 +98,56 @@ function OwnerChip({ owner, ctx }: { owner: OwnerSession; ctx: RowCtx }) {
   );
 }
 
-/** 中段五列:地址 / 暴露面 / 用途 / 进程 / 仓库。图标点缀语义:Globe=局域网可达、
- *  LockSimple=仅回环、BookOpen=释义命中、FolderSimple=仓库认领。 */
+/** 暴露面格:Globe=局域网可达、LockSimple=仅回环。 */
+function ExposureCell({ exposed }: { exposed: boolean }) {
+  return (
+    <span
+      className={"flex w-14 shrink-0 items-center gap-1 text-[0.6875rem] " + (exposed ? "text-(--tmd-git-modified)" : "text-(--tmd-fg-faint)")}
+      title={exposed ? t("局域网") : t("仅本机")}
+    >
+      {exposed ? <Globe size="0.625rem" /> : <LockSimple size="0.625rem" />}
+      {exposed ? t("局域网") : t("仅本机")}
+    </span>
+  );
+}
+
+/** 进程格:进程名 · pid,尾巴带启动参数。 */
+function ProcessCell({ entry }: { entry: PortEntry }) {
+  return (
+    <span className="min-w-0 flex-1 truncate text-[0.6875rem] text-(--tmd-fg-muted)" title={entry.args || entry.process || undefined}>
+      {entry.process || "—"}
+      {entry.pid != null ? ` · ${entry.pid}` : ""}
+      {entry.args ? <span className="ml-1 opacity-70">{entry.args}</span> : null}
+    </span>
+  );
+}
+
+/** 仓库格:FolderSimple=仓库认领,回退 cwd。 */
+function RepoCell({ entry, ws }: { entry: PortEntry; ws: string | null }) {
+  const repoTitle = entry.gitRoot ?? entry.cwd ?? undefined;
+  return (
+    <span className="flex w-40 shrink-0 items-center gap-1 truncate text-[0.6875rem] text-(--tmd-fg-muted)" title={repoTitle}>
+      {entry.gitRoot ? <FolderSimple size="0.625rem" className="shrink-0" /> : null}
+      {ws ?? entry.gitRoot ?? ""}
+    </span>
+  );
+}
+
+/** 中段五列:地址 / 暴露面 / 用途 / 进程 / 仓库(后三格语义见各格子件)。 */
 function PortCells({ entry, ws }: { entry: PortEntry; ws: string | null }) {
   const purpose = portPurpose(entry.port);
-  const exposed = entry.exposure === "exposed";
-  const repoTitle = entry.gitRoot ?? entry.cwd ?? undefined;
   return (
     <>
       <span className="w-16 shrink-0 truncate font-mono text-[0.6875rem] text-(--tmd-fg-muted)" title={entry.addr}>
         {entry.addr}
       </span>
-      <span
-        className={
-          "flex w-14 shrink-0 items-center gap-1 text-[0.6875rem] " +
-          (exposed ? "text-(--tmd-git-modified)" : "text-(--tmd-fg-faint)")
-        }
-        title={exposed ? t("局域网") : t("仅本机")}
-      >
-        {exposed ? <Globe size="0.625rem" /> : <LockSimple size="0.625rem" />}
-        {exposed ? t("局域网") : t("仅本机")}
-      </span>
+      <ExposureCell exposed={entry.exposure === "exposed"} />
       <span className="flex w-28 shrink-0 items-center gap-1 truncate text-xs" title={purpose ?? entry.process}>
         {purpose ? <BookOpen size="0.625rem" className="shrink-0 text-(--tmd-fg-faint)" /> : null}
         {purpose ?? "—"}
       </span>
-      <span
-        className="min-w-0 flex-1 truncate text-[0.6875rem] text-(--tmd-fg-muted)"
-        title={entry.args || entry.process || undefined}
-      >
-        {entry.process || "—"}
-        {entry.pid != null ? ` · ${entry.pid}` : ""}
-        {entry.args ? <span className="ml-1 opacity-70">{entry.args}</span> : null}
-      </span>
-      <span className="flex w-40 shrink-0 items-center gap-1 truncate text-[0.6875rem] text-(--tmd-fg-muted)" title={repoTitle}>
-        {entry.gitRoot ? <FolderSimple size="0.625rem" className="shrink-0" /> : null}
-        {ws ?? entry.gitRoot ?? ""}
-      </span>
+      <ProcessCell entry={entry} />
+      <RepoCell entry={entry} ws={ws} />
     </>
   );
 }
