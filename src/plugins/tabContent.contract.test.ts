@@ -39,6 +39,7 @@ const OPENABLE_KINDS = [
   "wb.console",
   "anim.projects",
   "footprint.daily",
+  "ports.manager",
 ] as const;
 
 function activateCollecting(): Map<string, TabContentContribution> {
