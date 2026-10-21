@@ -26,7 +26,7 @@ const META_PREFIXES = [
   "old mode ",
   "new mode ",
   "Binary files ",
-  "GIT binary patch ",
+  "GIT binary patch",
 ] as const;
 
 /** 一行 unified patch → 渲染分类。 */
