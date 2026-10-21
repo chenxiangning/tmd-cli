@@ -358,5 +358,5 @@
 | 2026-10-20 | [0.4.1 批一/三/四实施记录(11 笔提交:openspec 归档/FEATURES 补录/299 行拆 8 个 25→14/死键核对 0 真死/轮询审计零迁移/⌘Q 菜单退出腿;未做项=main 合流 57 笔留拍板/真机债 28 项/首包切割/soak)](review/2026-10-20-041-implementation.md) | 已收口(批二真机与合流待大仙拍板) |
 | 2026-10-20 | [下午变更评审·查漏补缺(23 笔对码;4 修=契约 30 管线 D 失准/补账跨零点次日漏账/补账触发叠启动峰/FEATURES 漏登记;4 留观=quotaPoll 无直测·openspec change 未建·macOS 菜单文案未国际化·300 行余量;另判定 3 类疑点不成立)](review/2026-10-20-afternoon-change-review.md) | 已收口(留观项待拍板) |
 | 2026-10-20 | [tab 右键菜单分组化契约:会话 tab 12 行收 6 行(重命名/置顶/通知▸/会话操作▸/标签页▸/关闭)/文件 tab 仅关闭族保持平铺/SubmenuRow 二级子菜单范式(fixed 逃逸剪裁+翻左+飞层为 host 子节点)/五文件分层与 react-doctor 双约束出处/行原语复用规则](architecture/31-tab-menu-groups.md) | 已落地(0.4.1) |
-| 2026-10-21 | [0.4.2 收敛批规划(特性重叠合并与互跳:五簇盘点裁决 6 项合并/3 项互跳/7 项不动;批一互跳=footprint ⌘K 跳转录+时间线节点看对话,批二 quota 快照统一,批三 内务五项收敛,批四 D 档事件化+phosphor barrel;每批 review 校准)](brainstorm/2026-10-21-042-consolidation.md) | 已批准(大仙拍板全做,分四批实施) |
+| 2026-10-21 | [0.4.2 收敛批规划(特性重叠合并与互跳:五簇盘点裁决 6 项合并/3 项互跳/7 项不动;批一互跳=footprint ⌘K 跳转录+时间线节点看对话,批二 quota 快照统一,批三 内务五项收敛,批四 D 档事件化+phosphor barrel;每批 review 校准)](brainstorm/2026-10-21-042-consolidation.md) | 已收口(四批全落,含追加定位桥与 quota 共享缓存) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -29,8 +29,8 @@
 
 ### 批四:留账
 
-1. 0.4.1 轮询面审计 D 档 2 处短周期裸 setInterval 事件化。
-2. @phosphor-icons barrel 冷加载全仓专项(0.4.1 tabClose 打桩 42s→3.2s 的根因尾巴)。
+1. 0.4.1 轮询面审计 D 档 2 处短周期裸 setInterval 事件化。**已落**:sessionStatus 无活跃停表 + 活动时间戳去重闸(读成功才记位,失败保重试);SessionRows 复核已有消费者计数熄表,零码量记档(详见 poll-audit D 档处置结果)。
+2. @phosphor-icons barrel 冷加载全仓专项(0.4.1 tabClose 打桩 42s→3.2s 的根因尾巴)。**已落**:`scripts/vite-phosphor-deep.mjs` vite 插件(pre-transform)把全仓 312 条 barrel 命名导入改写为逐图标 `dist/csr/*` 深路径(904 个值导入全转换零缺失;`XxxIcon` 后缀别名映射裸名 import as;IconContext 走 `dist/lib/context`;纯类型导入留 barrel 由 esbuild 擦除)。实测 dev 冷加载 phosphor 网络字节 ~14MB barrel → 18.7KB 按需 23 模块,barrel 零拉取;79 个 svg 图标渲染目检过;mobile 构建同插件实证。prod 产物不变(barrel 本就 sideEffects:false 摇树)。
 
 ## 方案取舍
 
