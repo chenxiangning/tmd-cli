@@ -2,9 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
+import { phosphorDeepImports } from "./scripts/vite-phosphor-deep.mjs";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), phosphorDeepImports()],
   clearScreen: false,
   /* 重库 lazy import 的依赖钉进启动期预打包:vite 扫描器看不见纯动态 import,
      未入清单时 dev 首次触达才现场优化并强制整页 reload;长 dev 会话跨
