@@ -182,20 +182,17 @@ export function stripDanceEnvelopes(text: string, rows: number): string {
     const exit = text.indexOf(DANCE_EXIT, head + DANCE_HEAD.length);
     if (exit < 0) break; /* 未闭合舞步(CLI 死在 alt):原样保留,xterm 语义同当时 */
     let i = exit + DANCE_EXIT.length;
-    const tailLimit = Math.min(i + TAIL_STRIP_BUDGET, text.length);
-    let tailEnd = -1;
-    let sawScrollbackWipe = false;
-    while (i < tailLimit) {
-      if (text.startsWith(CLEAR_HOME, i)) i += CLEAR_HOME.length;
-      else if (text.startsWith(CLEAR_SCREEN, i)) i += CLEAR_SCREEN.length;
-      else if (text.startsWith(CLEAR_SCROLLBACK, i)) {
-        i += CLEAR_SCROLLBACK.length;
-        sawScrollbackWipe = true; /* 3J 是舞步签名:vim 退 alt 不清滚动缓冲 */
-      } else break;
-      tailEnd = i;
+    /* 尾清屏窗与 live tail(feedDanceBody)同律:1049l 与 H+2J+3J 之间有前奏
+     * (2026-10-22 real_winch.bin:\x1b[0m\x1b]8;;\x07 SGR 复位 + OSC8 闭合,
+     *  帧内无超链接时缺省)——预算内滑窗搜 3J 舞步签名,命中整段剥除(前奏一并弃);
+     * 未见 = vim/fzf 真 alt 或未知形态,原样保留。 */
+    const wipe = text.indexOf(CLEAR_SCROLLBACK, i);
+    if (wipe >= 0 && wipe + CLEAR_SCROLLBACK.length <= i + TAIL_STRIP_BUDGET) {
+      envelopes.push({ start: head, end: wipe + CLEAR_SCROLLBACK.length });
+      from = wipe + CLEAR_SCROLLBACK.length;
+    } else {
+      from = exit + DANCE_EXIT.length;
     }
-    if (tailEnd > 0 && sawScrollbackWipe) envelopes.push({ start: head, end: tailEnd });
-    from = tailEnd > 0 ? tailEnd : exit + DANCE_EXIT.length;
   }
   if (envelopes.length === 0) return text;
   const pad = "\r\n".repeat(Math.max(0, rows - 1));

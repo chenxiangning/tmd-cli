@@ -30,6 +30,23 @@ describe("stripDanceEnvelopes(回放面舞步包络剥除)", () => {
     expect(stripDanceEnvelopes(`see${vim}end`, 30)).toBe(`see${vim}end`);
   });
 
+  it("尾清屏带前奏(SGR 复位 + OSC8 闭合,real_winch 实测形态)照样剥除", () => {
+    /* 2026-10-22 real_winch.bin:帧含超链接时 1049l 与 H+2J+3J 之间有
+     * \x1b[0m\x1b]8;;\x07 前奏,帧内无超链接时缺省 —— 与 live tail 同律。 */
+    const text = `${HEAD}F${EXIT}\x1b[0m\x1b]8;;\x07${TAIL}AFTER`;
+    expect(stripDanceEnvelopes(text, 1)).toBe("AFTER");
+  });
+
+  it("前奏后仍无 3J(vim 退 alt 带 SGR 复位)原样保留", () => {
+    const vim = `${HEAD}vim${EXIT}\x1b[0mrestored`;
+    expect(stripDanceEnvelopes(vim, 30)).toBe(vim);
+  });
+
+  it("3J 超出 32B 预算不构成舞步签名,原样保留", () => {
+    const late = `${HEAD}F${EXIT}${"x".repeat(32)}${TAIL}after`;
+    expect(stripDanceEnvelopes(late, 30)).toBe(late);
+  });
+
   it("尾清屏缺 3J(H+2J)不构成舞步签名,原样保留", () => {
     const partial = `${HEAD}${FRAME}${EXIT}\x1b[H\x1b[2J${FRAME}`;
     expect(stripDanceEnvelopes(partial, 30)).toBe(partial);
