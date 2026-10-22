@@ -60,11 +60,20 @@ describe("buildAnimSessionPrompt", () => {
     expect(prompt).not.toContain("/.tmd-anim/protocol/schema.md");
   });
 
-  it("小黑风格指路 + http-example 大文件按需提及(对齐 tmd-anim 0.1.6)", () => {
+  it("小黑风格指路 + 三类活例按需提及(对齐 tmd-anim 0.1.9 投递面)", () => {
     const prompt = buildAnimSessionPrompt();
     expect(prompt).toContain("小黑");
     expect(prompt).toContain("http-example.json");
+    expect(prompt).toContain("showcase-example.json");
+    expect(prompt).toContain("infographic-example.json");
     expect(prompt).toContain("按需选读");
+    expect(prompt).toContain("叙事配方");
+  });
+
+  it("台词断句指导:口语短句 + say 内嵌停顿命令", () => {
+    const prompt = buildAnimSessionPrompt();
+    expect(prompt).toContain("[[slnc 400]]");
+    expect(prompt).toContain("口语短句");
   });
 
   it("配音语义:超长自动延长不截断(0.1.6 起),validate 带文件参数", () => {
@@ -86,9 +95,10 @@ describe("buildAnimSessionPrompt", () => {
 describe("animSessionRefs", () => {
   const refs = animSessionRefs("/Users/u", "/Users/u/.tmd-anim/projects/p.json");
 
-  it("协议 schema 与小黑风格包两件 + 目标项目,label 为 i18n 源键", () => {
+  it("协议 schema / 叙事配方 / 小黑风格包 + 目标项目,label 为 i18n 源键", () => {
     expect(refs.map((ref) => `${ref.label}:${ref.path}`)).toEqual([
       "协议 schema:/Users/u/.tmd-anim/protocol/schema.md",
+      "叙事配方:/Users/u/.tmd-anim/protocol/recipes.md",
       "小黑风格配方:/Users/u/.tmd-anim/protocol/xiaohei-style.md",
       "小黑风格示例:/Users/u/.tmd-anim/protocol/xiaohei-example.json",
       "目标项目:/Users/u/.tmd-anim/projects/p.json",
