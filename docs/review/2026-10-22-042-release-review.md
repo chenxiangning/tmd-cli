@@ -32,7 +32,7 @@
 - scrollKeeper 无 dispose 面(幕布卸载后守望 timer/rAF 轮询已 dispose 的 term ≤10s):补 `dispose()` 接 TerminalView 清理序;`cancelEnforcement` 注释订正(生产让位走 armEnforce 自挂监听)。伴生 300 行处置:锚函数(anchorText/findAnchor/findAnchorFull/ScrollLine)拆 `terminalScrollAnchor.ts`,keeper 311 行回落 264。
 - settingsSessionEntries 注释「默认开」与 d94e046a 翻转后语义错位:改「默认关」。
 
-## P3 留观(12,record-only)
+## P3 留观(12,record-only;2026-10-22 0.4.3 收编 5 项:ports 超时提示/浏览器打开语义/kill 后补刷 + kernel findAnchorFull 末次现行 + files 逗号死链与徽标溢出,提交 e1509ab1..5a2cbbca)
 
 ports:扫描超时截断输出静默接受(timedOut 未消费)/「浏览器打开」恒 localhost 对非回环 addr 语义错位/kill 后 refresh 可被在途扫描卫兵跳过(auto 开 5s 自愈,auto 关滞留)/二段杀宽限窗 pid 复用误杀(固有风险)。kernel:enforcement 让位缺键盘路径(shift+PageUp 窗内被钉回,测试盲区)/findAnchorFull 取全缓冲首现行,重复锚文偏高/guard tail 只认字面 H/2J/3J,变体归位穿透(未观测 CLI)。插件:exitedReads 读失败缓存 30s(测试钉死的有意取舍)/footprint 原话跳转不传 occurrence(数据面未沉淀)/useCkptScope 探测窗读侧不走 withEchoFallback(瞬态自愈)/terminalPathLinks 逗号分隔多文件头段仍合并死链/分支徽标长名溢出(形制先在,e282ecb7 仅前移触发点)。
 
