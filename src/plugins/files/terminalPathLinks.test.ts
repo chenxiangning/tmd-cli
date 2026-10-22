@@ -110,6 +110,29 @@ describe("PATH_RE 矩阵", () => {
     expect(hitText("打开 /My Dir/file.ts 啊")).toBe("/My Dir/file.ts");
     expect(hitText("看 /repo/Notes 2024/a.md:2 后续")).toBe("/repo/Notes 2024/a.md:2");
   });
+
+  it("逗号分隔多文件各自成链:带空格 / 无空格 / 行尾逗号", () => {
+    const spaced = "改 src/a.ts, src/b.ts 两个文件";
+    expect(filePathLinkProvider.find(spaced).map((h) => spaced.slice(h.start, h.end))).toEqual([
+      "src/a.ts",
+      "src/b.ts",
+    ]);
+    const tight = "改 src/a.ts,src/b.ts 两个文件";
+    expect(filePathLinkProvider.find(tight).map((h) => tight.slice(h.start, h.end))).toEqual([
+      "src/a.ts",
+      "src/b.ts",
+    ]);
+    const trailing = "改 src/a.ts, src/b.ts,";
+    expect(filePathLinkProvider.find(trailing).map((h) => trailing.slice(h.start, h.end))).toEqual([
+      "src/a.ts",
+      "src/b.ts",
+    ]);
+  });
+
+  it("逗号反例:无分隔符裸词不出命中,路径中部逗号不误切保持整链", () => {
+    expect(filePathLinkProvider.find("a.ts, b.ts")).toEqual([]);
+    expect(hitText("见 (docs/a,b.ts) 说明")).toBe("docs/a,b.ts");
+  });
 });
 
 describe("parsePathHit", () => {

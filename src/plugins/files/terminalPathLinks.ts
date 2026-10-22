@@ -14,7 +14,7 @@ import { getActiveWorkspace } from "@kernel/workspace";
 /**
  * 候选路径正则:绝对(POSIX / ~/ 盘符 / UNC)与相对(至少含一处分隔符,防裸词误命中);
  * 尾部可带 :line 或 :line:col;空格续段自身须再含分隔符,防把散文吃进路径;
- * 多文件同行(「a/x.ts b/y.ts」、diff 头「a/x.ts +++ b/x.ts」)按头段完整尾
+ * 多文件同行(「a/x.ts b/y.ts」「a/x.ts, b/y.ts」、diff 头「a/x.ts +++ b/x.ts」)按头段完整尾
  * (扩展名/:line)切割成各自独立链,不再合并成一条死链。
  * ponytail: 引号包裹的空格路径不做精确边界,升级路径 = 引号感知扫描(成本超预算)。
  */
@@ -108,16 +108,18 @@ export const filePathLinkProvider: TerminalLinkProvider = {
       PATH_RE.lastIndex = 0;
       for (let m = PATH_RE.exec(seg.text); m; m = PATH_RE.exec(seg.text)) {
         let raw = m[0];
-        /* 多文件合链切割:空格续段把「a/x.ts b/y.ts」吞成一条命中(点击整段
-           解析成死链)。头段自身已是完整路径(带分隔符 + 扩展名/:line 尾)时
-           只收头段,扫描指针退回头段末,后续文件独立成链;真空格路径
-           (/My Dir/f.ts)头段无扩展名尾,不受影响。 */
+        /* 多文件合链切割:空格续段/逗号边界把「a/x.ts b/y.ts」「a/x.ts, b/y.ts」吞成
+           一条命中(点击整段解析成死链)。头段自身已是完整路径(带分隔符 + 扩展名/:line
+           尾)时只收头段,扫描指针退回头段末,后续文件独立成链;路径中部逗号(头段无
+           完整尾)不误切,真空格路径(/My Dir/f.ts)头段无扩展名尾,不受影响。 */
         const sp = raw.indexOf(" ");
-        if (sp > 0) {
-          const head = raw.slice(0, sp);
+        const cm = raw.indexOf(",");
+        const b = sp < 0 ? cm : cm < 0 ? sp : Math.min(sp, cm);
+        if (b > 0) {
+          const head = raw.slice(0, b);
           if (/[\\/]/.test(head) && COMPLETE_TAIL.test(head)) {
             raw = head;
-            PATH_RE.lastIndex = m.index + head.length;
+            PATH_RE.lastIndex = m.index + b;
           }
         }
         const path = stripTrailingPunct(raw);
