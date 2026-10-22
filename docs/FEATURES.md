@@ -498,9 +498,10 @@
 - 左下角工作区显隐多选(2026-10-04,缩放组原位):触发钮(ListChecks + 当前工作区名)上弹多选清单(portal + 限高滚动),控制左栏显示的工作区集合;语义 = 隐藏清单 `settings.workspaceHiddenIds`(空 = 全部显示,新建工作区自动可见,残留已删 id 无害),左栏过滤纯函数与菜单锁步(workspace/utils visibleWorkspaces);勾选恢复显示时活动工作区顺带切一次 → 右侧文件树跟切到「最后勾选的工作区」,只切一下不做强绑定;最后一个可见工作区不可隐藏(行禁用 + 提示);菜单不随勾选关闭,点外/Esc 关
 - 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
 - 幕布右上工具行(terminal.canvasRow 挂点,0.2.7):内核渲染行容器,幕布刷新钮收尾最右——单会话幕布重建(xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH 整帧重绘),PTY/CLI 不中断、其他会话零扰动;插件经挂点贡献同排工具钮(session-viewer「结构化幕布」切换钮);行不设 z,不透明画布浮层开启时整行隐没
+- 幕布回底钮(0.4.2):右上工具行纯图标 pill(CaretDown),深翻历史一键贴底(term.scrollToBottom + 焦点回终端,PTY 零字节),与「加载更早的输出」pill 成对出口;回底/刷新两钮以家族键 terminal-jump-bottom / terminal-refresh 纳入设置「图标装饰」(独立取色 + 呼吸闪烁,缺省继承色像素零变化),刷新钮去文字同形制
 - 渲染健康守望(WKWebView 吊销粘死自愈,契约见 architecture/17):JS rAF 探针 1s 看门狗(hidden 真伪一律上报,可见性裁断权单一归 Rust)+ 壳侧 set_focus→reload 阶梯击打;PTY 泵洪水计量(5s 滑动窗 >256KB)洪水期 reload 降级 focus + 3 分钟宽限耗尽强击;泵侧后台慢拍(无人在视 session_set_viewed / 前端渲染暂停的会话,输出聚合窗钳 250ms,后台 TUI 状态动画事件率 20+/s→4/s);隐藏幕布实时字节 250ms 合帧写入;幕布数据链停滞探针(PTY 3s 内仍在产出而幕布订阅 6s 未收字节 = 数据链断供,canvasGen 自增自动重建,30s 冷却,与渲染死亡阶梯互斥分工)
 - 幕布字体按平台:macOS Menlo 系 / Windows Cascadia Mono·Consolas / Linux DejaVu Sans Mono·Liberation Mono,13px,光标闪烁
-- 幕布滚动回放上界 5 万行,更早历史经滚顶「加载更早的输出」按钮翻页(RIS 重置整段重写幕布)
+- 幕布滚动回放上界 2.4 万行(0.4.2 由 5 万压回,压 render_health 4s 探针死限),更早历史经滚顶「加载更早的输出」按钮翻页(RIS 重置整段重写幕布)
 - panic 落盘:任意线程 panic 的时间戳/线程/源码位置追加 `~/.tmd-cli/panic.log`,超 1MB 先清空再写
 - 启动 PATH 富化:后台 fork login shell(-lc 快路径/-ilc 完整路径,超时 kill)提取,与进程 env、常见安装目录(~/.local/bin 等)去重保序合并;降级单飞重试自愈;裸命令名经 which 解析绝对路径(Windows 批处理包 cmd /c);PTY 子进程与 CLI 探针共用
 - 全局快捷键:内核注册表 + 分发器;设置页「快捷键」tab 双栏改键(搜索清单 + 大键帽点击录制,冲突检测/单项重置/全部重置,设置改动即写即生效);未绑定动作弱化展示

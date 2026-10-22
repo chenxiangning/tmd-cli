@@ -11,6 +11,8 @@
  * 按「改尺寸前视口顶行文本」在新缓冲里重锚(reflow 第二段);无重印的纯 xterm
  * 重排(ssh 裸流/非 TUI)由 raf 内容锚即席覆盖(第一段)。
  */
+import { anchorText, findAnchor, findAnchorFull, type ScrollLine } from "./terminalScrollAnchor";
+
 /** 最小依赖面(真 Terminal 结构子集;单测假体同形)。getLine 供重排内容锚定,
  *  rows/cols 供尺寸变化判定,buffer.length 供抹除/重印探测;缺省退化为旧行为。 */
 export interface ScrollableTerm {
@@ -36,11 +38,6 @@ interface Snapshot {
   atBottom: boolean;
 }
 
-/** 最小行访问面(锚定重排用;真 Terminal 结构子集)。 */
-interface ScrollLine {
-  translateToString(trimRight?: boolean): string;
-}
-
 const snap = (term: ScrollableTerm): Snapshot => {
   const b = term.buffer.active;
   const y = b.viewportY;
@@ -54,63 +51,20 @@ export interface ScrollKeeper {
   markHidden(container: { clientWidth: number } | null): void;
   /** 重显恢复(未真隐藏则 no-op);恢复后重记快照,防隐藏期污染值残留。 */
   restore(term: ScrollableTerm | null): void;
-  /** 用户主动输入时撤销 enforcement 钉扎(TerminalView 的 wheel/pointerdown/touchstart 转发)。 */
+  /** 收兵 enforcement(测试与 dispose 收尾用;生产让位由 armEnforce 自挂 term.element 的
+   *  wheel/pointerdown/touchstart 监听完成,TerminalView 不经此转发)。 */
   cancelEnforcement(): void;
+  /** 幕布卸载收尾:停重印守望 timer 与 enforcement,已卸载 term 不再被轮询。 */
+  dispose(): void;
   /** 尺寸变化重排保位:raf 内容锚(第一段)+ WebKit 重置 enforcement 窗 + SIGWINCH 抹除重印感知重锚(第二段)。 */
   reflow(term: ScrollableTerm, fit: () => void): void;
 }
-
-/* —— 重排内容锚定 —— */
-const ANCHOR_WALK = 8; /* 锚行:视口顶起向下找首个非空行的容忍(仍在视口内) */
-const ANCHOR_CHARS = 24; /* 锚文本长度(对齐 anchorJump needle 上限) */
-const ANCHOR_SCAN = 150; /* 第一段估计点就近扫描半径;超出退回索引保持 */
 
 /* —— SIGWINCH 重印感知 —— */
 const REPRINT_POLL_MS = 120;
 const REPRINT_STALL_POLLS = 3; /* 连续 3 拍缓冲行数不变 → 重印落定 */
 const REPRINT_DETECT_MAX = 12; /* 抹除未出现:探测约 1.4s 后解除(第一段已覆盖) */
 const REPRINT_MAX_POLLS = 84; /* 硬超时约 10s(泵聚合下重印至多数秒) */
-
-const norm = (s: string): string => s.replace(/\s+/g, " ").trim();
-
-function anchorText(term: ScrollableTerm, from: number): string | null {
-  for (let i = 0; i < ANCHOR_WALK; i++) {
-    const s = norm(term.buffer.active.getLine?.(from + i)?.translateToString(true) ?? "");
-    if (s) return s.slice(0, ANCHOR_CHARS);
-  }
-  return null;
-}
-
-/** 就近扫描:自 from 向外找含锚文本的行(锚行可能是折行续段,用子串匹配)。 */
-function findAnchor(
-  b: ScrollableTerm["buffer"]["active"],
-  anchor: string,
-  from: number,
-): number {
-  /* 行文本读取收敛单点:探测循环每次取不同行,非重复查表 */
-  const lineAt = (row: number): string =>
-    norm(b.getLine?.(row)?.translateToString(true) ?? "");
-  for (let d = 0; d <= ANCHOR_SCAN; d++) {
-    // react-doctor-disable-next-line react-doctor/js-set-map-lookups -- 行缓冲就近探测,每行至多取一次,无重复查表可消
-    if (lineAt(from + d).includes(anchor)) return from + d;
-    // react-doctor-disable-next-line react-doctor/js-set-map-lookups -- 同上反向臂
-    if (d > 0 && lineAt(from - d).includes(anchor)) return from - d;
-  }
-  return -1;
-}
-
-/** 全缓冲扫描(重印重锚用):重印从 transcript 顶重建,锚可落在任意处。 */
-function findAnchorFull(
-  b: ScrollableTerm["buffer"]["active"],
-  anchor: string,
-): number {
-  const len = b.length ?? 0;
-  for (let row = 0; row < len; row++) {
-    // react-doctor-disable-next-line react-doctor/js-set-map-lookups -- 全缓冲单遍扫描,每行至多取一次
-    if (norm(b.getLine?.(row)?.translateToString(true) ?? "").includes(anchor)) return row;
-  }
-  return -1;
-}
 
 const raf: (cb: () => void) => void =
   typeof requestAnimationFrame === "function"
@@ -199,10 +153,18 @@ export function createScrollKeeper(): ScrollKeeper {
     stopEnforce();
     const el = term.element;
     const onInput = (): void => stopEnforce();
+    /* 键盘滚动意图键(PageUp/PageDown/Home/End,含 shift 组合)经 xterm
+       textarea 冒泡到挂载根 —— 不让位则窗内 shift+PageUp 被钉回锚行。 */
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "PageUp" || e.key === "PageDown" || e.key === "Home" || e.key === "End") {
+        stopEnforce();
+      }
+    };
     /* 用户主动输入 = 立即让位(重置窗内滚轮不被对抗)。 */
     el?.addEventListener("wheel", onInput, { passive: true });
     el?.addEventListener("pointerdown", onInput);
     el?.addEventListener("touchstart", onInput, { passive: true });
+    el?.addEventListener("keydown", onKey);
     enforce = {
       term,
       anchor,
@@ -213,6 +175,7 @@ export function createScrollKeeper(): ScrollKeeper {
         el?.removeEventListener("wheel", onInput);
         el?.removeEventListener("pointerdown", onInput);
         el?.removeEventListener("touchstart", onInput);
+        el?.removeEventListener("keydown", onKey);
       },
     };
     raf(enforceTick);
@@ -241,9 +204,17 @@ export function createScrollKeeper(): ScrollKeeper {
   };
 
   return {
-    /** 用户主动输入让位(wheel/pointerdown/touchstart;挂载在 term.element)。 */
+    /** 收兵 enforcement(测试与 dispose;生产让位走 armEnforce 自挂监听)。 */
     cancelEnforcement(): void {
       stopEnforce();
+    },
+    dispose(): void {
+      watchGen += 1; /* 作废在飞 raf 重入(gen 守卫自检) */
+      stopEnforce();
+      if (watchTimer !== null) {
+        clearTimeout(watchTimer);
+        watchTimer = null;
+      }
     },
     record(term: ScrollableTerm, active: boolean, visible: boolean): void {
       if (active && visible) saved = snap(term);

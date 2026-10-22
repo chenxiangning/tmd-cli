@@ -21,6 +21,9 @@
 /* 分支标注着色:--tag-h 由 FileTreeRow 按分支名稳定计算;color-mix 混 fg 明暗自适应。 */
 .file-tree-repotag {
   flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--tmd-font-2xs);
   line-height: 1.4;
   color: color-mix(in srgb, hsl(var(--tag-h, 0) 60% 62%) 70%, var(--tmd-fg));

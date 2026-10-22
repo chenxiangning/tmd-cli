@@ -149,14 +149,16 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
     return findBlockIndex(state.transcript.blocks, payload.locate.text, payload.locate.occurrence ?? 1);
   }, [payload.locate, state]);
   const locateId = locateIdx !== null && state.phase === "ok" ? state.transcript.blocks[locateIdx].id : null;
-  const locatedRef = useRef<string | null>(null);
+  const locatedRef = useRef<object | null>(null);
   useEffect(() => {
-    if (locateId === null || locatedRef.current === locateId) return;
+    /* 闸键 = payload.locate 引用:同文同 occurrence 的二次深链是新对象 → 真重放滚动;
+       分批重渲(cap 扩大/state 翻转)引用不变 → 不重复滚。块 id 作键会让二次深链哑火 */
+    if (!payload.locate || locateId === null || locatedRef.current === payload.locate) return;
     const el = scrollRef.current?.querySelector(`[data-vb="${CSS.escape(locateId)}"]`);
     if (!el) return; /* 分批未及:cap 扩大重渲染后本 effect 随 visible/state 重跑 */
-    locatedRef.current = locateId;
+    locatedRef.current = payload.locate;
     el.scrollIntoView({ block: "center" });
-  }, [locateId, visible, state]);
+  }, [locateId, payload.locate, visible, state]);
 
   /* 滚动触底递增批次(无虚拟滚动:块级截断 + 分批已控 DOM 规模)。 */
   const onScroll = useCallback(() => {

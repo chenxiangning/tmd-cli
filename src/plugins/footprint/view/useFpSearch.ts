@@ -89,13 +89,18 @@ export function useFpSearch({ ym, setYm, setSel, setRange, setCard, setDetail, s
   );
 
   const jumpHit = useCallback((h: FpHit) => {
-    void jumpHitTranscript(h).then((outcome) => {
-      /* jumped=幕布已定位;opened=幕布未中已落转录查看器(屏幕可见)——都静默 */
-      if (outcome !== "miss") return;
+    const fail = (): void => {
       setJumpNotice(t("未能定位到该条对话消息"));
       if (jumpTimer.current !== null) window.clearTimeout(jumpTimer.current);
       jumpTimer.current = window.setTimeout(() => setJumpNotice(null), 2600);
-    });
+    };
+    void jumpHitTranscript(h)
+      .then((outcome) => {
+        /* jumped=幕布已定位;opened=幕布未中已落转录查看器(屏幕可见)——都静默 */
+        if (outcome !== "miss") return;
+        fail();
+      })
+      .catch(fail); /* 链上 configDir/读盘 reject(configDir 被拒会永久缓存)不得成未处理 rejection */
   }, []);
 
   return { searchOpen, setSearchOpen, query, setQuery, hits, cursor, setCursor, searchInputRef, openSearch, pickHit, jumpHit, jumpNotice };

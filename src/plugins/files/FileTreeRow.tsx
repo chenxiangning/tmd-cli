@@ -102,6 +102,7 @@ export function FileTreeRow({
         {repoTag && (
           <span
             className="file-tree-repotag"
+            title={repoTag}
             style={{ "--tag-h": branchHue(repoTag) } as React.CSSProperties}
           >
             {repoTag}

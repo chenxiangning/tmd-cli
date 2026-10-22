@@ -86,10 +86,13 @@ function Ring({ pct, color, size }: { pct: number; color: string; size: number }
   return (
     <svg width={size} height={size} viewBox="0 0 76 76" aria-hidden="true">
       <circle cx="38" cy="38" r="32" fill="none" stroke="var(--tmd-bg-hover)" strokeWidth="6" />
-      <circle
-        cx="38" cy="38" r="32" fill="none" stroke={color} strokeWidth="6"
-        strokeLinecap="round" strokeDasharray={`${dash} ${C.toFixed(2)}`}
-      />
+      {/* pct=0 时零长 dash + round cap 会渲染成一枚色点(SVG 规范),干脆不画 */}
+      {Number(dash) > 0 && (
+        <circle
+          cx="38" cy="38" r="32" fill="none" stroke={color} strokeWidth="6"
+          strokeLinecap="round" strokeDasharray={`${dash} ${C.toFixed(2)}`}
+        />
+      )}
     </svg>
   );
 }

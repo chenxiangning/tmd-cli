@@ -50,6 +50,8 @@ export interface ScanOutcome {
   ppidAll: Map<number, number>;
   /** 非致命步骤的失败说明(kill/过滤不受影响,顶部汇总提示)。 */
   warnings: string[];
+  /** 任一扫描命令超时被截断(部分输出已解析,结果可能不完整)。 */
+  timedOut: boolean;
 }
 
 /** 列头排序:家族组为一级结构,排序 = 组按顶层行键排、组内子行同键排。 */

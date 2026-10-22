@@ -168,4 +168,44 @@ describe("DiskIdentityWatch.prompt 回声重验", () => {
     w.remove("s1");
     expect(d.onEchoProbe).toHaveBeenCalledWith("s1", false);
   });
+
+  it("token 交接:旧循环不得收新窗,陈旧证据不得绑(探测 await 期间重发 prompt)", async () => {
+    vi.useFakeTimers();
+    const { promise: list1, resolve: release1 } = Promise.withResolvers<CliDiskSession[]>();
+    const { promise: list2, resolve: release2 } = Promise.withResolvers<CliDiskSession[]>();
+    const lists = [list1, list2];
+    const profile = {
+      id: "omp", name: "omp", command: "omp",
+      listSessions: vi.fn().mockImplementation(() => lists.shift()!),
+      readSessionUserMessages: vi.fn().mockImplementation((_c: string, id: string) =>
+        Promise.resolve([{ id: `${id}-m1`, text: id === "stale-hit" ? "第一句话" : "第二句话" }])),
+    } as unknown as CliProfile;
+    const d = makeDeps({ bound: true, claimed: ["bound-old"], profile });
+    const w = new DiskIdentityWatch(d.ctx);
+    registry.push(w);
+    w.revalidate("s1", "第一句话"); /* token=1,旧循环睡第一拍 */
+    await vi.advanceTimersByTimeAsync(30_000); /* 旧循环醒,卡在 listSessions */
+    w.revalidate("s1", "第二句话"); /* token=2,新窗开(不重发开窗边沿) */
+    release1([disk("stale-hit", Date.now())]); /* 旧证据此刻唯一命中 */
+    await vi.advanceTimersByTimeAsync(0);
+    expect(d.onBound).not.toHaveBeenCalled(); /* 陈旧证据不绑,绑定权归新循环 */
+    expect(d.onEchoProbe.mock.calls).toEqual([["s1", true]]); /* 新窗未被旧循环收束 */
+    await vi.advanceTimersByTimeAsync(30_000); /* 新循环醒,卡 listSessions */
+    release2([disk("new-hit", Date.now())]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(d.onBound).toHaveBeenCalledWith("s1", "new-hit"); /* 新证据正常重绑 */
+    expect(d.onEchoProbe.mock.calls).toEqual([["s1", true], ["s1", false]]); /* 新窗正常收束 */
+  });
+
+  it("回声比对折叠空白:prompt 带 \\r\\n 与 jsonl 存 \\n 同命中", async () => {
+    const d = makeDeps({
+      bound: true,
+      claimed: ["bound-old"],
+      profile: echoProfile([fresh("nl-id")], { "nl-id": "第一行\n第二行" }),
+    });
+    const w = new DiskIdentityWatch(d.ctx);
+    registry.push(w);
+    await expect(w.probeEchoOnce("s1", probe("第一行\r\n第二行"))).resolves.toBe(true);
+    expect(d.onBound).toHaveBeenCalledWith("s1", "nl-id");
+  });
 });

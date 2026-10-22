@@ -41,6 +41,20 @@ export function resolveLedgerKey(
   return iWin ? cli : me.id;
 }
 
+/* 探测窗事实单源:index.tsx 订阅 cliIdentityProbe 写入(noteEchoProbe),
+ * 写路径(锚点落账)与读路径(useCkptScope 面板查询)经 echoProbing 同律
+ * 消费 —— 探测窗内绑定值不可信,读侧不再查到旧绑定名下的账。 */
+const echoProbes = new Set<string>();
+
+export function noteEchoProbe(sessionId: string, active: boolean): void {
+  if (active) echoProbes.add(sessionId);
+  else echoProbes.delete(sessionId);
+}
+
+export function echoProbing(sessionId: string | null | undefined): boolean {
+  return sessionId != null && echoProbes.has(sessionId);
+}
+
 /**
  * 探测窗主键回落(纯函数):内核 prompt 回声重验进行中时绑定值不可信,
  * 账本链暂用 tmd id(resolveLedgerKey 的无绑定分支语义);重绑落地后

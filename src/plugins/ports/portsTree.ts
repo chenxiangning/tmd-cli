@@ -3,7 +3,7 @@
  * ppid 链会话归因。输入输出均为 types.ts 数据,无 IO。
  */
 
-import type { Exposure, OwnerSession, PortEntry, PortGroup, SortSpec } from "./types";
+import type { Exposure, OsKind, OwnerSession, PortEntry, PortGroup, SortSpec } from "./types";
 import { portPurpose } from "./purpose";
 
 /** 通配与具体网卡地址都=局域网可达;仅回环地址算本机。 */
@@ -11,6 +11,15 @@ export function exposureOf(host: string): Exposure {
   const h = host.replace(/^\[/, "").replace(/\]$/, "");
   if (h === "127.0.0.1" || h === "::1") return "loopback";
   return "exposed";
+}
+
+/** 浏览器打开的目标主机:通配/缺失地址回落 localhost;具体 IPv4 原样用;
+ *  具体 IPv6(含 :)补方括号才是合法 URL 权威(splitHostPort 已剥原括号,
+ *  生产 addr 无括号),zone-id 的 % 转义 %25。 */
+export function browserHost(addr: string): string {
+  const bare = addr.replace(/^\[/, "").replace(/\]$/, "");
+  if (!addr || bare === "*" || bare === "0.0.0.0" || bare === "::") return "localhost";
+  return bare.includes(":") ? `[${bare.replace(/%/g, "%25")}]` : bare;
 }
 
 /** 同一 (pid,port) 的多协议族行(lsof IPv4+IPv6 双行)去重,保留暴露面更宽的地址。 */
@@ -35,6 +44,11 @@ export function groupByFamily(rows: PortEntry[]): PortGroup[] {
   const groups = new Map<number, PortGroup>();
   const tops: PortGroup[] = [];
   for (const r of rows) {
+    /* pid null 无身份不可归组,恒顶层:Map 以 null 作键会让 ≥2 条无主行并成假家族 */
+    if (r.pid === null) {
+      tops.push({ top: r, children: [] });
+      continue;
+    }
     /* 链上溯:byPid 里能接上的监听祖先一路走到底,终点 = 家族顶层行。 */
     let top = r;
     const seen = new Set<number>([r.pid ?? -1]);
@@ -88,6 +102,17 @@ export function findOwnerSession(
 /** 行去重新鲜度 key(pid 缺失用 addr 兜底,addr 非数字与 pid 键不撞)。 */
 export function rowKey(e: PortEntry): string {
   return `${e.pid ?? e.addr}:${e.port}`;
+}
+
+/** 告警带是否需要渲染:任一告警源非空才挂 ViewAlerts(含 windows 平台常显提示)。 */
+export function hasAlerts(
+  error: string | null,
+  notice: string | null,
+  timedOut: boolean,
+  outcome: { warnings: string[] } | null,
+  os: OsKind,
+): boolean {
+  return Boolean(error || notice || timedOut || (outcome && outcome.warnings.length > 0) || os === "windows");
 }
 
 /* ── 列头排序 ── 家族组为一级结构:组按顶层行键排,组内子行同键排(子行不跨组比较)。

@@ -13,11 +13,43 @@ import type { ScanOutcome } from "./types";
 const AUTO_KEY = "tmd.ports.auto";
 const AUTO_MS = 5000;
 
+/**
+ * 刷新互斥闸:同一时刻只跑一个扫描;busy 期间到达的请求不丢,
+ * 折叠为 busy 归零后的一次补跑(kill 后的重扫不被在途扫描的 busy 闸吞掉)。
+ * 折叠语义 = 后到覆盖:只补跑最后一个请求的 job。
+ */
+export function createRefreshGate() {
+  let running = false;
+  let pending: (() => Promise<void>) | null = null;
+  return {
+    get busy() {
+      return running;
+    },
+    async run(job: () => Promise<void>): Promise<void> {
+      if (running) {
+        pending = job;
+        return;
+      }
+      running = true;
+      try {
+        await job();
+      } finally {
+        running = false;
+        const next = pending;
+        pending = null;
+        if (next) await next();
+      }
+    },
+  };
+}
+
 export interface PortsScanState {
   outcome: ScanOutcome | null;
   loading: boolean;
   error: string | null;
   notice: string | null;
+  /** 上一轮扫描有命令超时截断(结果可能不完整);开扫即清,成功后按结果置位。 */
+  timedOut: boolean;
   setNotice: (msg: string | null) => void;
   auto: boolean;
   toggleAuto: () => void;
@@ -31,32 +63,34 @@ export function usePortsScan(): PortsScanState {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
   const [auto, setAuto] = useState(() => localStorage.getItem(AUTO_KEY) === "1");
   const [newKeys, setNewKeys] = useState<ReadonlySet<string>>(new Set());
   const [wsNames, setWsNames] = useState<Map<string, string>>(new Map());
+  const [gate] = useState(createRefreshGate);
   const prevKeysRef = useRef<ReadonlySet<string>>(new Set());
-  const runningRef = useRef(false);
 
   const refresh = useCallback(async () => {
-    if (runningRef.current) return;
-    runningRef.current = true;
-    setLoading(true);
-    try {
-      const next = await scanPorts();
-      const keys = new Set(next.rows.map(rowKey));
-      if (prevKeysRef.current.size > 0) {
-        setNewKeys(new Set([...keys].filter((k) => !prevKeysRef.current.has(k))));
+    await gate.run(async () => {
+      setLoading(true);
+      setTimedOut(false);
+      try {
+        const next = await scanPorts();
+        const keys = new Set(next.rows.map(rowKey));
+        if (prevKeysRef.current.size > 0) {
+          setNewKeys(new Set([...keys].filter((k) => !prevKeysRef.current.has(k))));
+        }
+        prevKeysRef.current = keys;
+        setOutcome(next);
+        setError(null);
+        setTimedOut(next.timedOut);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoading(false);
       }
-      prevKeysRef.current = keys;
-      setOutcome(next);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      runningRef.current = false;
-      setLoading(false);
-    }
-  }, []);
+    });
+  }, [gate]);
 
   /* 首扫 + 工作区名表装载;失败静默(认领仅少显示名,不阻塞列表)。 */
   useEffect(() => {
@@ -71,10 +105,10 @@ export function usePortsScan(): PortsScanState {
   useEffect(() => {
     if (!auto) return;
     const id = setInterval(() => {
-      if (document.visibilityState === "visible" && !runningRef.current) void refresh();
+      if (document.visibilityState === "visible" && !gate.busy) void refresh();
     }, AUTO_MS);
     return () => clearInterval(id);
-  }, [auto, refresh]);
+  }, [auto, refresh, gate]);
 
   const toggleAuto = () => {
     const next = !auto;
@@ -82,5 +116,5 @@ export function usePortsScan(): PortsScanState {
     setAuto(next);
   };
 
-  return { outcome, loading, error, notice, setNotice, auto, toggleAuto, newKeys, wsNames, refresh };
+  return { outcome, loading, error, notice, timedOut, setNotice, auto, toggleAuto, newKeys, wsNames, refresh };
 }

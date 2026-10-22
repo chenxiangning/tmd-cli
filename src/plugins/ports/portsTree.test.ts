@@ -4,7 +4,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { killCommand } from "./portsKill";
-import { dedupeListeners, exposureOf, findOwnerSession, groupByFamily, rowKey, sortGroups } from "./portsTree";
+import { browserHost, dedupeListeners, exposureOf, findOwnerSession, groupByFamily, rowKey, sortGroups } from "./portsTree";
 import type { PortEntry } from "./types";
 
 vi.mock("@kernel/ipc", () => ({ ipc: {} }));
@@ -21,6 +21,21 @@ describe("exposureOf", () => {
     for (const host of ["127.0.0.1", "::1"]) {
       expect(exposureOf(host)).toBe("loopback");
     }
+  });
+});
+
+describe("browserHost(浏览器打开主机)", () => {
+  it("通配/缺失回落 localhost,IPv4 原样,IPv6 补括号与 zone 转义", () => {
+    for (const addr of ["", "*", "0.0.0.0", "::", "[::]"]) {
+      expect(browserHost(addr)).toBe("localhost");
+    }
+    expect(browserHost("192.168.1.5")).toBe("192.168.1.5");
+    expect(browserHost("127.0.0.1")).toBe("127.0.0.1");
+    /* 生产 addr 无括号(splitHostPort 已剥):裸 IPv6 补方括号才是合法 URL 权威。 */
+    expect(browserHost("::1")).toBe("[::1]");
+    expect(browserHost("fe80::1")).toBe("[fe80::1]");
+    expect(browserHost("fe80::1%en0")).toBe("[fe80::1%25en0]");
+    expect(browserHost("[fe80::1]")).toBe("[fe80::1]");
   });
 });
 
@@ -56,6 +71,12 @@ describe("groupByFamily(监听进程家族折叠)", () => {
     const tops = groupByFamily([entry(7000, 30, 30)]);
     expect(tops).toHaveLength(1);
     expect(tops[0].top.pid).toBe(30);
+  });
+
+  it("多条 pid null 行恒各自顶层,不并成假家族(无特权扫描常态)", () => {
+    const tops = groupByFamily([entry(53, null, null), entry(631, null, null), entry(22, null, null)]);
+    expect(tops).toHaveLength(3);
+    expect(tops.every((g) => g.children.length === 0)).toBe(true);
   });
 });
 

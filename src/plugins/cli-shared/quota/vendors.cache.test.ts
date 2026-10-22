@@ -22,6 +22,7 @@ vi.mock("./vendors/fetchers", () => ({
 }));
 
 import { fetchVendorQuota, resetQuotaSnapCache } from "./vendors";
+import type { VendorQuota } from "./vendors/types";
 import { fetchDeepseek } from "./vendors/fetchers";
 
 const mockDeepseek = vi.mocked(fetchDeepseek);
@@ -79,5 +80,19 @@ describe("fetchVendorQuota 共享快照缓存", () => {
     /* force 回写后,TTL 内普通调用仍吃缓存 */
     await fetchVendorQuota("deepseek", { key: "k1" });
     expect(calls).toEqual(["deepseek:k1", "deepseek:k1"]);
+  });
+
+  it("force 撞在飞:迟到前驱不得用旧数据污染缓存", async () => {
+    const { promise: pendingA, resolve: releaseA } = Promise.withResolvers<VendorQuota>();
+    mockDeepseek.mockImplementationOnce(() => pendingA);
+    const stale = fetchVendorQuota("deepseek", { key: "ka" });
+    const forced = await fetchVendorQuota("deepseek", { key: "ka" }, undefined, { force: true });
+    releaseA({ windows: [{ label: "5小时", displayPercent: 99 }], balanceText: "stale" }); /* 旧数据迟到 */
+    await stale;
+    calls.length = 0;
+    const next = await fetchVendorQuota("deepseek", { key: "ka" });
+    expect(calls).toEqual([]); /* 吃 force 回写的缓存,不重抓 */
+    expect(next.windows).toEqual([]); /* 缓存是 force 新值,未被迟到旧值覆盖 */
+    expect(forced.windows).toEqual([]);
   });
 });

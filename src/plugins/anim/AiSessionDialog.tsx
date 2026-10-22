@@ -8,7 +8,7 @@ import { FileCode, FileText, FilmSlate } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
 
-/** 引用文件卡片输入(协议材料等;目标项目由 name/path/stub 主卡承担,不进 refs)。 */
+/** 引用文件卡片输入(animSessionRefs 单源:协议材料 + 目标项目)。 */
 export interface AiSessionRef {
   label: string;
   path: string;

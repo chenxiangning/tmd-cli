@@ -56,9 +56,10 @@ export function stubProjectFileName(now: number, rand: string): string {
 }
 
 /** 初始 prompt 正文(发给 CLI 的可编辑指令,中文工作台惯例不走 t(),先例 workbench/taskPrompt)。
- *  语义对齐 tmd-anim 0.1.6 buildAiPrompt:配音超长自动延长不截断、validate 带文件参数、
- *  TTS 按平台分支(Windows 走 PowerShell System.Speech)。具体路径不入正文:引用文件在
- *  确认窗里以卡片预览,启动后挂 composer 卡片,发送时经 animRefsSendTransform 拼回 wire。 */
+ *  语义对齐 tmd-anim 0.1.9 buildAiPrompt:叙事配方库指路、三类活例按需选读、配音超长自动
+ *  延长不截断、validate 带文件参数、TTS 按平台分支(Windows 走 PowerShell System.Speech)。
+ *  具体路径不入正文:引用文件在确认窗里以卡片预览,启动后挂 composer 卡片,发送时经
+ *  animRefsSendTransform 拼回 wire。 */
 export function buildAnimSessionPrompt(windows = false): string {
   const tts = windows
     ? [
@@ -70,30 +71,36 @@ export function buildAnimSessionPrompt(windows = false): string {
       ];
   return [
     "你是 tmd-anim 动画修改助手。",
-    "先阅读随附引用文件中的协议材料(schema 与小黑风格包),严格遵守其中约定。",
+    "先阅读随附引用文件中的协议材料(schema、叙事配方与小黑风格包),严格遵守其中约定;构图与编排拿不准时,先套叙事配方库里的模板再填内容。",
     "按用户后续要求修改随附的目标项目文件;只改目标项目文件,保持 schema 合法。",
     "需要「小黑 / 手绘 / 怪诞 / 正文配图」风格时,先读小黑风格配方与活例再动手。",
-    "协议目录下的 http-example.json 是覆盖全部元素类型的完整活例(大文件,按需选读,不必全文读)。",
+    "协议目录下还有三个活例,都是大文件,按需选读、不必全文读:http-example.json(协议全家福)、showcase-example.json(新元素全家福,含时间轴三段)、infographic-example.json(学术信息图)。",
     "用户需要配音/背景音乐时,给对应场景加 audio 字段(协议 schema 已定义:",
     "src 为音频文件 dataURL,volume 0-2;音频有效时长超过场景时长时,场景自动延长到配音结束,不会中途截断)。",
     "音频一律本机生成,不要访问网络下载(本环境不保证外网可达):",
     ...tts,
+    "台词写口语短句:一句一个信息点,句末用句号,标点即停顿;macOS 直调 say 时想加长句间停顿可用内嵌命令,如 \"第一句。[[slnc 400]]第二句\"(逗号处 [[slnc 180]])。",
     "提示音/简单旋律用 python3 脚本直接合成 WAV;最后把文件 base64 拼成 dataURL 写入 audio.src。",
     "每轮修改完成后:建议用户在 tmd-anim 应用里查看效果;",
     "如需自查,可在 tmd-anim 仓库目录内运行 `pnpm anim validate <目标项目文件路径>`",
-    "(该命令只在 tmd-anim 仓库内可用,其他目录运行无意义)。",
+    "(该命令只在 tmd-anim 仓库内可用,其他目录运行无意义;退出码 2 = 结构错误必须修,警告逐条看)。",
   ].join("\n");
 }
 
-/** 确认时挂到会话 composer 的引用卡片(协议材料 + 目标项目,label = i18n 源键)。
- *  清单对齐 tmd-anim protocolSync 投递面(0.1.5+ 已不投递 bpe-example.json);
- *  http-example.json 体积大(数百 KB),不挂卡只进 prompt 正文按需提及。 */
-export function animSessionRefs(home: string, projectPath: string): { label: string; path: string }[] {
+/** 确认窗预览卡与 composer 引用 chip 的唯一清单(协议材料 + 目标项目,
+ *  label = i18n 源键,kind = 预览卡图标)。清单对齐 tmd-anim protocolSync
+ *  投递面(0.1.9:新增 recipes.md;0.1.5+ 已不投递 bpe-example.json);
+ *  三个活例 JSON 体积大,不挂卡只进 prompt 正文按需提及。 */
+export function animSessionRefs(
+  home: string,
+  projectPath: string,
+): { label: string; path: string; kind: "doc" | "code" }[] {
   const protocol = `${home}/.tmd-anim/protocol`;
   return [
-    { label: "协议 schema", path: `${protocol}/schema.md` },
-    { label: "小黑风格配方", path: `${protocol}/xiaohei-style.md` },
-    { label: "小黑风格示例", path: `${protocol}/xiaohei-example.json` },
-    { label: "目标项目", path: projectPath },
+    { label: "协议 schema", path: `${protocol}/schema.md`, kind: "doc" },
+    { label: "叙事配方", path: `${protocol}/recipes.md`, kind: "doc" },
+    { label: "小黑风格配方", path: `${protocol}/xiaohei-style.md`, kind: "doc" },
+    { label: "小黑风格示例", path: `${protocol}/xiaohei-example.json`, kind: "code" },
+    { label: "目标项目", path: projectPath, kind: "code" },
   ];
 }

@@ -4,13 +4,40 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.3] - 2026-10-22
+
+### 新增
+
+- anim 会话材料对齐 tmd-anim 0.1.9:AI 会话引用清单补叙事配方,初始提示词改写(三类活例按需选读、台词口语短句与 say 内嵌停顿指导);项目列表读取换 32MB base64 原语
+
+### 修复
+
+- 幕布全量回放(刷新钮/停滞重建/无冻结快照重挂/磁盘尾)过 SIGWINCH 舞步包络剥除:outputBuffer/磁盘 journal 存原始字节,历史舞步的 3J 原样重放会清掉刚回放出的滚动缓冲,live 守卫保住的位在回放面静默清零;vim/fzf 真 alt 无 3J 签名原样保留。伴生守卫舞步相 10s 停滞自愈(CLI 死在舞步中不再终身剥除)与滚动 keeper 幕布卸载 dispose 面。舞步泵侧降级丢弃 alt 段拷贝并容忍尾清屏前奏,根治 resize 堆叠双帧与 3J 破防清缓冲(泵侧半区补账)
+- 回放面尾清屏窗与 live tail 同律容忍尾清屏前奏(1049l 与 H+2J+3J 之间的 SGR 复位 + OSC8 闭合,帧含超链接时缺省):omp 真实帧形态下全量回放漏识别包络的分叉闭合
+- ports 浏览器打开/复制地址对具体 IPv6 补方括号与 zone-id 转义(裸 IPv6 直拼 URL 非法打不开),复制地址改按行 addr 同源不再恒 localhost
+- anim AI 会话 prepare 读通道换 32MB 原语对齐列表读取:大项目(内嵌配音 dataURL 超 512KB 预览闸)点「AI 会话」不再静默建「未命名动画」垃圾桩,读失败显性报「无效项目」;确认窗引用预览与实发清单 animSessionRefs 单源(3 卡对 5 条的漂移消除)
+- ports 多条 pid null 监听行(无特权扫描常态)不再经 null Map 键并成假家族,恒各自顶层
+- quota 共享快照缓存加在飞属主守卫:force 强刷顶替在飞请求后,迟到前驱不再用旧数据盖新时间戳污染缓存、不再误删后继登记造成重复抓取
+- CLI 绑定回声重验补 token 交接守卫:探测 await 期间重发 prompt,旧循环不再收掉新探测窗、不再按陈旧 prompt 证据绑错文件;回声比对折叠空白,多行 prompt(\r\n 与 \n)不再恒 miss
+- 转录查看器同一条消息二次「看对话」深链真重放滚动(防重放闸键改深链对象引用);footprint ⌘K 跳转录链补 catch,读盘拒绝不再成未处理 rejection,统一落「未能定位」提示
+- welcome 配额环形 0% 不再渲染 round cap 零长 dash 色点
+- anim AI 会话 spawn 挂活动工作区归属,对齐工作区创建会话的关联逻辑
+- 0.4.2 发版评审 P3 留观收编五件:ports 扫描超时提示/浏览器打开按行地址/kill 后必刷新,幕布重锚重复锚文取末次现行,终端路径链接逗号多文件分割与分支徽标长名截断
+- checkpoints 面板读侧身份回落接探测窗单源(identity.ts 收拢 noteEchoProbe/echoProbing,读写同律):CLI 换对话重验窗内不再查到旧绑定名下的审批线
+- 幕布 enforcement 窗补键盘滚动让位(PageUp/PageDown/Home/End 冒泡监听):窗内 shift+PageUp 不再被钉回锚行,普通键入不误让位
+
+### 内务
+
+- 0.4.3 二轮打磨三路并行评审记档(docs/review/2026-10-22-043-second-polish-review.md),P1×1/P2×3 当轮全修,P3 修 2 记 6;mobile 壳(Info.plist/project.yml)版本线随 mobile M2 发版另行 bump,不随桌面 0.4.3(规划「六处」口径据此修订)
+- 0.4.2 发版评审五路并行查漏补缺记档(docs/review/2026-10-22-042-release-review.md),P1×2/P2×7 当轮全修;[0.4.2] 小节勘误(feature 计数 35→34、补 welcome 余额卡条目),FEATURES 补录幕布回底钮并订正滚动上限 2.4 万行,settings 重启恢复注释同步默认值;scrollKeeper 锚函数拆 terminalScrollAnchor 守 300 行铁则
+
 ## [0.4.2] - 2026-10-22
 
 本版主体 = **0.4.2 收敛四批 + 端口管理插件 + 幕布跳顶根治**(收敛规划 `docs/brainstorm/2026-10-21-042-consolidation.md`,ports spec `docs/superpowers/specs/2026-10-21-ports-manager-design.md`):footprint ⌘K → 转录互跳定位桥 / quota 共享快照缓存 / 检索·diff·预设唯一实现化收敛 / D 档事件化 + phosphor barrel 冷加载;追加全新 ports 插件与幕布滚动位案收口(ResizeObserver 风暴合流 + 重排压回守望静默窗)。
 
 ### 新增
 
-- 端口管理插件(ports):右栏 rail 入口中央 tab,本机 TCP 监听端口一览,procCommunicate 按平台跑 lsof/ss/netstat/PowerShell 零 Rust;进程家族折叠归组、端口释义库、暴露面标注(局域网/仅本机)、cwd 反查 git 顶层与 workspace 认领、ppid 链会话归因跳转、浏览器打开/复制地址/复制 kill 命令、SIGTERM→SIGKILL 二段终止(Windows taskkill /T 杀树)、手动刷新 + 5s 可选自动轮询与新端口 NEW 标、即时过滤;列表平铺分隔线 + 语义图标点缀,展开态家族虚线框整族包围,行点击详情弹窗、列头排序、批量折叠展开;插件计数 47 → 48(10 engine / 35 feature / 3 core / 1 local)
+- 端口管理插件(ports):右栏 rail 入口中央 tab,本机 TCP 监听端口一览,procCommunicate 按平台跑 lsof/ss/netstat/PowerShell 零 Rust;进程家族折叠归组、端口释义库、暴露面标注(局域网/仅本机)、cwd 反查 git 顶层与 workspace 认领、ppid 链会话归因跳转、浏览器打开/复制地址/复制 kill 命令、SIGTERM→SIGKILL 二段终止(Windows taskkill /T 杀树)、手动刷新 + 5s 可选自动轮询与新端口 NEW 标、即时过滤;列表平铺分隔线 + 语义图标点缀,展开态家族虚线框整族包围,行点击详情弹窗、列头排序、批量折叠展开;插件计数 47 → 48(10 engine / 34 feature / 3 core / 1 local)
 - 幕布回底钮(kernel):右上工具行纯图标 pill(CaretDown),深翻历史一键贴底(term.scrollToBottom + 焦点回终端,PTY 零字节),与「加载更早的输出」pill 成对出口;回底/刷新两钮以家族键 terminal-jump-bottom / terminal-refresh 纳入设置「图标装饰」(独立取色 + 呼吸闪烁,缺省继承色像素零变化),刷新钮去文字同形制
 - session-viewer 转录定位桥(kernel 时序桥):幕布 miss 落查看器行级定位;footprint ⌘K 命中行加「看对话」钮(原话逐字文本跳转录),checkpoints 时间线节点/审阅单消息卡接线;定位桥兜底后改判 opened,文案中性化
 - quota 供应商抓取下沉共享 TTL 快照缓存(cli-shared):welcome/notify/chip 三面消费同一快照,消并发双抓
@@ -25,6 +52,7 @@
 - 会话巡航去重闸换逐帧钟源,修 TUI 家具重绘期工具栏冻结
 - 批评审 P2 四项:查看器深链回填富字段/git C 冲突语义特判/refresh 语义钉测试
 - files 文件树分支徽标默认贴右,hover/选中平移让位行内按钮;settings 重启现场恢复默认改为关闭
+- welcome 套餐水位余额型供应商沉底成卡、奇数卡占满整行,deepseek 欠费 pill 纠偏
 
 ### 内务
 

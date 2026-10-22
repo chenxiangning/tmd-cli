@@ -56,14 +56,13 @@ describe("prepareAiSessionTarget", () => {
     expect(readFile).not.toHaveBeenCalled();
   });
 
-  it("行上文件已被删:回落建桩,名回落「未命名动画」,路径按桩命名约定", async () => {
+  it("行上文件读失败(被删/超限/IO):invalid-project 显性报错,不静默改道建桩", async () => {
+    /* 大项目(内嵌配音 dataURL 超 512KB 预览闸)曾在此静默生成垃圾桩 ——
+       读失败一律显性报错,桩只留给「未选项目」入口(projectPath=null)。 */
     const readFile = vi.fn<(p: string) => Promise<string>>().mockRejectedValue(new Error("gone"));
-    const r = await prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/gone.json`, rowName: "旧名", readFile, now: () => 42, rand: () => "zz9" });
-    expect(r.ok).toBe(true);
-    if (!r.ok) return;
-    expect(r.target.stub).toBe(true);
-    expect(r.target.name).toBe("未命名动画");
-    expect(r.target.path).toBe(`${DIR}/p_anim_${(42).toString(36)}_zz9.json`);
+    await expect(
+      prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/gone.json`, rowName: "旧名", readFile, now: () => 42, rand: () => "zz9" }),
+    ).resolves.toEqual({ ok: false, reason: "invalid-project" });
   });
 
   it("文件存在但坏:invalid-project,不静默改道建桩(防覆写用户手改内容)", async () => {
@@ -73,7 +72,18 @@ describe("prepareAiSessionTarget", () => {
     ).resolves.toEqual({ ok: false, reason: "invalid-project" });
   });
 
-  it("正常路径:行名透传 + 协议三引用 + 指令正文,零落盘", async () => {
+  it("未选项目(projectPath=null):唯一建桩入口,名「未命名动画」,路径按桩命名约定", async () => {
+    const readFile = vi.fn<(p: string) => Promise<string>>();
+    const r = await prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: null, rowName: null, readFile, now: () => 42, rand: () => "zz9" });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.target.stub).toBe(true);
+    expect(r.target.name).toBe("未命名动画");
+    expect(r.target.path).toBe(`${DIR}/p_anim_${(42).toString(36)}_zz9.json`);
+    expect(readFile).not.toHaveBeenCalled();
+  });
+
+  it("正常路径:行名透传 + 协议五引用单源 + 指令正文,零落盘", async () => {
     const readFile = vi.fn<(p: string) => Promise<string>>().mockResolvedValue(validProject);
     const r = await prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/a.json`, rowName: "演示项目", readFile, now: () => 1, rand: () => "ab12" });
     expect(r.ok).toBe(true);
@@ -81,8 +91,10 @@ describe("prepareAiSessionTarget", () => {
     expect(r.target).toMatchObject({ name: "演示项目", path: `${DIR}/a.json`, stub: false });
     expect(r.target.refs).toEqual([
       { label: "协议 schema", path: `${HOME}/.tmd-anim/protocol/schema.md`, kind: "doc" },
+      { label: "叙事配方", path: `${HOME}/.tmd-anim/protocol/recipes.md`, kind: "doc" },
       { label: "小黑风格配方", path: `${HOME}/.tmd-anim/protocol/xiaohei-style.md`, kind: "doc" },
       { label: "小黑风格示例", path: `${HOME}/.tmd-anim/protocol/xiaohei-example.json`, kind: "code" },
+      { label: "目标项目", path: `${DIR}/a.json`, kind: "code" },
     ]);
     expect(r.target.prompt).toContain("tmd-anim 动画修改助手");
   });

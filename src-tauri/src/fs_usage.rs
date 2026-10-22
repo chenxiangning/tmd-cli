@@ -84,7 +84,7 @@ pub(crate) async fn fs_dir_usage(specs: Vec<DirUsageSpec>) -> Result<Vec<DirUsag
     let labels: Vec<String> = timed.iter().map(|(l, _)| l.clone()).collect();
     let settled = futures_util::future::join_all(timed.into_iter().map(|(_, t)| t)).await;
     let mut out = Vec::with_capacity(settled.len());
-    for (label, r) in labels.into_iter().zip(settled.into_iter()) {
+    for (label, r) in labels.into_iter().zip(settled) {
         match r {
             Ok(Ok(report)) => out.push(report),
             Ok(Err(_)) | Err(_) => out.push(DirUsageReport {

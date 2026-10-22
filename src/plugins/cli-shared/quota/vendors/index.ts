@@ -102,15 +102,19 @@ export async function fetchVendorQuota(
   }
   const p = fetchVendorQuotaFresh(vendor, cred, baseUrl)
     .then((quota) => {
-      if (snapCache.size >= SNAP_CACHE_CAP) {
-        for (const [k, v] of snapCache) if (Date.now() - v.at >= SNAP_TTL_MS) snapCache.delete(k);
+      /* 属主守卫:被 force 顶替的迟到前驱只回自身调用方,不得用旧数据盖新时间戳、
+         不得误删后继登记(否则强刷后共享缓存被污染整个 TTL 窗) */
+      if (snapInflight.get(key) === p) {
+        if (snapCache.size >= SNAP_CACHE_CAP) {
+          for (const [k, v] of snapCache) if (Date.now() - v.at >= SNAP_TTL_MS) snapCache.delete(k);
+        }
+        snapCache.set(key, { at: Date.now(), quota });
+        snapInflight.delete(key);
       }
-      snapCache.set(key, { at: Date.now(), quota });
-      snapInflight.delete(key);
       return quota;
     })
     .catch((e) => {
-      snapInflight.delete(key);
+      if (snapInflight.get(key) === p) snapInflight.delete(key);
       throw e;
     });
   snapInflight.set(key, p);

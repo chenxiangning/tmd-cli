@@ -42,7 +42,7 @@ export interface SessionMuteEntry {
   askRing?: boolean;
 }
 
-/** 重启现场恢复设置:enabled 总闸(默认开);keys = 三段身份 MRU 序
+/** 重启现场恢复设置:enabled 总闸(默认关,0.4.2 d94e046a 起不再默认开);keys = 三段身份 MRU 序
  *  (首 = 最新,`wsId:profileId:cliSessionId`),帽随 sessionTabsMax 动态读。
  *  语义与启动恢复编排见 kernel/sessionRestore.ts。 */
 export interface SessionRestoreSettings {
