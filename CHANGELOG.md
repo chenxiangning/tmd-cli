@@ -20,6 +20,8 @@
 - welcome 配额环形 0% 不再渲染 round cap 零长 dash 色点
 - anim AI 会话 spawn 挂活动工作区归属,对齐工作区创建会话的关联逻辑
 - 0.4.2 发版评审 P3 留观收编五件:ports 扫描超时提示/浏览器打开按行地址/kill 后必刷新,幕布重锚重复锚文取末次现行,终端路径链接逗号多文件分割与分支徽标长名截断
+- checkpoints 面板读侧身份回落接探测窗单源(identity.ts 收拢 noteEchoProbe/echoProbing,读写同律):CLI 换对话重验窗内不再查到旧绑定名下的审批线
+- 幕布 enforcement 窗补键盘滚动让位(PageUp/PageDown/Home/End 冒泡监听):窗内 shift+PageUp 不再被钉回锚行,普通键入不误让位
 
 ### 内务
 
