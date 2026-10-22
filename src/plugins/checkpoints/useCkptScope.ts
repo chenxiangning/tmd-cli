@@ -9,7 +9,7 @@ import { usePanelActive } from "@kernel/panelActivity";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
-import { checkpointIdentity } from "./identity";
+import { checkpointIdentity, echoProbing, withEchoFallback } from "./identity";
 import { pruneRetention, sealDeadTurns } from "./retention";
 import { refreshBatches } from "./store";
 
@@ -32,9 +32,11 @@ export function useCkptScope() {
   useEffect(() => {
     const off1 = host.events.on(KernelTopics.activeSessionChanged, bumpRender);
     const off2 = host.events.on(KernelTopics.sessionsChanged, bumpRender);
+    const off3 = host.events.on(KernelTopics.cliIdentityProbe, bumpRender);
     return () => {
       off1();
       off2();
+      off3();
     };
   }, []);
 
@@ -42,9 +44,12 @@ export function useCkptScope() {
   const resolveScope = () => {
     const activeSessionId = host.getActiveSessionId();
     const identity = activeSessionId ? checkpointIdentity(activeSessionId) : null;
+    /* 读侧与写侧(identity.ts)同律:探测窗内绑定值不可信,查询键回落 tmd id,
+       重绑后 backfill_identity 整链自愈 —— 窗内面板不再读到旧绑定名下的账。 */
+    const key = identity ? withEchoFallback(identity, echoProbing(activeSessionId)).key : null;
     return {
       cwd: identity?.cwd ?? active?.root ?? null,
-      sessionId: identity?.key ?? null,
+      sessionId: key,
       tmdSessionId: activeSessionId ?? undefined,
     };
   };

@@ -23,7 +23,7 @@ import {
 } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { captureAnchor, markRefsFromRanges, recordEdit, sealTurn } from "./store";
-import { checkpointIdentity, withEchoFallback } from "./identity";
+import { checkpointIdentity, echoProbing, noteEchoProbe, withEchoFallback } from "./identity";
 import { BATCH_TAB_KIND } from "./batchTab";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { BatchSheetTabContent } from "./BatchSheet";
@@ -56,15 +56,13 @@ export const checkpointsPlugin: Plugin = {
     /* prompt 回声重验窗(KernelTopics.cliIdentityProbe,内核先开窗后到本
        handler,注册序契约见 hostWatches 构造器):窗内绑定值不可信,写路径
        主键回落 tmd id,重绑后由后端 backfill_identity 整链自愈并入新身份。 */
-    const echoProbes = new Set<string>();
     ctx.events.on<CliIdentityProbeEvent>(KernelTopics.cliIdentityProbe, ({ sessionId, active }) => {
-      if (active) echoProbes.add(sessionId);
-      else echoProbes.delete(sessionId);
+      noteEchoProbe(sessionId, active);
     });
     const identity = (tmdSessionId: string) => {
       const id = checkpointIdentity(tmdSessionId);
       if (!id) return null;
-      const resolved = withEchoFallback(id, echoProbes.has(tmdSessionId));
+      const resolved = withEchoFallback(id, echoProbing(tmdSessionId));
       return { cwd: resolved.cwd, cliId: resolved.key, tmdId: resolved.tmdId };
     };
 
