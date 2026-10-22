@@ -11,7 +11,7 @@
 | 件 | 职责 |
 |---|---|
 | `terminalScrollKeeper.ts` | 快照-恢复(隐藏期 vp 打回 0 的 WebKit 重置)+ 重排内容锚(raf 延帧落锚 + 比例估计)+ enforcement 窗(~800ms 每帧钉扎,用户 wheel/pointerdown/touchstart 即让位)+ 重印守望(缓冲坍缩 ≥50% 判抹除,连续 3 拍同长判落定,按 24 字符归一锚文全缓冲重锚);卸载 `dispose()` 收 timer/rAF/监听 |
-| `terminalSigwinchGuard.ts` | SIGWINCH 舞步降级(唯一字节透传例外):`host.resizeSession` 前后 arm ~2.5s,窗内剥 `1049h/1049l/2J/3J`、舞步起点注入 rows-1 换行(内联重画落空白区),窗外 fzf/vim 真 alt 原样放行;半截 token 跨块扣留(splitCarry,MAX_TOKEN=8);舞步相 10s 停滞自愈防死 CLI 中毒 |
+| `terminalSigwinchGuard.ts` | SIGWINCH 舞步降级(唯一字节透传例外):`host.resizeSession` 前后 arm ~2.5s,窗内剥 `1049h/1049l/2J/3J`、**1049h…1049l alt 段内容整体丢弃**(alt 屏私有画布,真终端退屏即弃;放行会与内联重画并排成两份同帧)、舞步起点注入 rows-1 换行(内联重画落空白区),仅内联拷贝放行;tail 相预算(32B)内搜寻 3J 签名,1049l 与清屏间的实测前奏(`\x1b[0m`+OSC8 闭合,帧内无超链接时缺省)一并吞剥,预算尽未见 3J(vim/fzf 真 alt)pending 原样奉还零损失;窗外 alt 原样放行;半截 token 跨块扣留(splitCarry,MAX_TOKEN=8);舞步相 10s 停滞自愈(tail pending 奉还)防死 CLI 中毒 |
 | `terminalSigwinchGuard.stripDanceEnvelopes` | 回放面同律:outputBuffer/磁盘 journal 存原始字节,全量回放三源(memoryReplay/增量/磁盘尾)过「1049h…1049l + 尾清屏含 3J」整体包络剥除;3J 是舞步签名,vim 退 alt 不清滚动缓冲故保留 |
 
 ## 转录定位桥(kernel sessionViewTabs + session-viewer)
