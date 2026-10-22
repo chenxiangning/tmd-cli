@@ -13,10 +13,13 @@ export function exposureOf(host: string): Exposure {
   return "exposed";
 }
 
-/** 浏览器打开的目标主机:通配/缺失地址回落 localhost;具体地址(网卡 IP/IPv6 括号形)原样用。 */
+/** 浏览器打开的目标主机:通配/缺失地址回落 localhost;具体 IPv4 原样用;
+ *  具体 IPv6(含 :)补方括号才是合法 URL 权威(splitHostPort 已剥原括号,
+ *  生产 addr 无括号),zone-id 的 % 转义 %25。 */
 export function browserHost(addr: string): string {
   const bare = addr.replace(/^\[/, "").replace(/\]$/, "");
-  return !addr || bare === "*" || bare === "0.0.0.0" || bare === "::" ? "localhost" : addr;
+  if (!addr || bare === "*" || bare === "0.0.0.0" || bare === "::") return "localhost";
+  return bare.includes(":") ? `[${bare.replace(/%/g, "%25")}]` : bare;
 }
 
 /** 同一 (pid,port) 的多协议族行(lsof IPv4+IPv6 双行)去重,保留暴露面更宽的地址。 */

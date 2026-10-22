@@ -25,13 +25,17 @@ describe("exposureOf", () => {
 });
 
 describe("browserHost(浏览器打开主机)", () => {
-  it("通配/缺失回落 localhost,具体地址原样用于拼 URL", () => {
+  it("通配/缺失回落 localhost,IPv4 原样,IPv6 补括号与 zone 转义", () => {
     for (const addr of ["", "*", "0.0.0.0", "::", "[::]"]) {
       expect(browserHost(addr)).toBe("localhost");
     }
     expect(browserHost("192.168.1.5")).toBe("192.168.1.5");
-    expect(browserHost("[fe80::1]")).toBe("[fe80::1]");
     expect(browserHost("127.0.0.1")).toBe("127.0.0.1");
+    /* 生产 addr 无括号(splitHostPort 已剥):裸 IPv6 补方括号才是合法 URL 权威。 */
+    expect(browserHost("::1")).toBe("[::1]");
+    expect(browserHost("fe80::1")).toBe("[fe80::1]");
+    expect(browserHost("fe80::1%en0")).toBe("[fe80::1%25en0]");
+    expect(browserHost("[fe80::1]")).toBe("[fe80::1]");
   });
 });
 

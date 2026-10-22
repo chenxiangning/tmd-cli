@@ -7,7 +7,7 @@ import { useState } from "react";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
 import { killCommand, killListener } from "./portsKill";
-import { rowKey } from "./portsTree";
+import { browserHost, rowKey } from "./portsTree";
 import type { OsKind, PortEntry } from "./types";
 
 export interface PortActions {
@@ -31,7 +31,8 @@ export function usePortActions(
 
   const copyKind = (kind: "url" | "kill", entry: PortEntry) => {
     const flashKey = `${rowKey(entry)}:${kind}`;
-    const text = kind === "url" ? `http://localhost:${entry.port}` : killCommand(entry.pid ?? 0, os);
+    /* 与 onOpenUrl 同源 browserHost:复制出的 URL 对非回环/IPv6 绑定行真实可达。 */
+    const text = kind === "url" ? `http://${browserHost(entry.addr)}:${entry.port}` : killCommand(entry.pid ?? 0, os);
     void copyText(text)
       .then(() => {
         setFlash(flashKey);
