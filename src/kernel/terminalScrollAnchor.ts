@@ -46,10 +46,12 @@ export function findAnchor(b: AnchorBuffer, anchor: string, from: number): numbe
   return -1;
 }
 
-/** 全缓冲扫描(重印重锚用):重印从 transcript 顶重建,锚可落在任意处。 */
+/** 全缓冲扫描(重印重锚用):重印从 transcript 顶重建,锚可落在任意处。
+ *  自底向上取末次现行:TUI 反复重印同一锚文(提示符/表头帧)时末次才是最新位,
+ *  取首现行会锚到偏高的旧帧(0.4.2 发版评审 P3 留观收编)。 */
 export function findAnchorFull(b: AnchorBuffer, anchor: string): number {
   const len = b.length ?? 0;
-  for (let row = 0; row < len; row++) {
+  for (let row = len - 1; row >= 0; row--) {
     // react-doctor-disable-next-line react-doctor/js-set-map-lookups -- 全缓冲单遍扫描,每行至多取一次
     if (norm(b.getLine?.(row)?.translateToString(true) ?? "").includes(anchor)) return row;
   }
