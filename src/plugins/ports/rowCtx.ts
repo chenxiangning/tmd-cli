@@ -6,7 +6,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { host } from "@kernel/host";
 import { openExternalUrl } from "@kernel/ipc";
-import { rowKey } from "./portsTree";
+import { browserHost, rowKey } from "./portsTree";
 import type { RowCtx } from "./PortsRows";
 import type { OsKind, OwnerSession, PortEntry } from "./types";
 
@@ -46,7 +46,7 @@ export function buildRowCtx(
         else n.add(key);
         return n;
       }),
-    onOpenUrl: (port) => void openExternalUrl(`http://localhost:${port}`),
+    onOpenUrl: (entry) => void openExternalUrl(`http://${browserHost(entry.addr)}:${entry.port}`),
     onCopy: a.copyKind,
     onKillAsk: a.askKill,
     onJumpSession: (id) => host.setActiveSession(id),

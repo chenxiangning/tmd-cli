@@ -8,7 +8,7 @@ import { useState } from "react";
 import { t } from "@kernel/i18n";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { detectOs } from "./platform";
-import { rowKey } from "./portsTree";
+import { rowKey, hasAlerts } from "./portsTree";
 import { PortsToolbar, PortsBody, ViewAlerts } from "./PortsChrome";
 import { PortDetailDialog } from "./PortDetail";
 import { buildRowCtx } from "./rowCtx";
@@ -19,7 +19,7 @@ import type { OsKind, PortEntry, SortKey, SortSpec } from "./types";
 import "./locales";
 
 export function PortsView() {
-  const { outcome, loading, error, notice, setNotice, auto, toggleAuto, newKeys, wsNames, refresh } =
+  const { outcome, loading, error, notice, timedOut, setNotice, auto, toggleAuto, newKeys, wsNames, refresh } =
     usePortsScan();
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -67,9 +67,9 @@ export function PortsView() {
         onExpandAll={expandAll}
         canFoldAll={foldableKeys.length > 0}
       />
-      {(error || notice || (outcome && outcome.warnings.length > 0) || os === "windows") && (
+      {hasAlerts(error, notice, timedOut, outcome, os) && (
         <div className="px-3 pt-2">
-          <ViewAlerts error={error} notice={notice} outcome={outcome} os={os} />
+          <ViewAlerts error={error} notice={notice} timedOut={timedOut} outcome={outcome} os={os} />
         </div>
       )}
       <PortsBody

@@ -126,11 +126,14 @@ export function PortsToolbar({
 export function ViewAlerts({
   error,
   notice,
+  timedOut,
   outcome,
   os,
 }: {
   error: string | null;
   notice: string | null;
+  /** 扫描命令超时截断(结果可能不完整)。 */
+  timedOut: boolean;
   outcome: ScanOutcome | null;
   os: OsKind;
 }) {
@@ -146,6 +149,9 @@ export function ViewAlerts({
         <p role="alert" className="text-(--tmd-diff-removed)">
           {notice}
         </p>
+      )}
+      {timedOut && (
+        <p className="text-[0.6875rem] text-(--tmd-git-modified)">{t("扫描超时,结果可能不完整")}</p>
       )}
       {warnings.length > 0 && (
         <p className="text-[0.6875rem] text-(--tmd-git-modified)" title={warnings.join("\n")}>

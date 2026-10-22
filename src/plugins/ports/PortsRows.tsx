@@ -37,7 +37,7 @@ export interface RowCtx {
   ownerOf: (entry: PortEntry) => OwnerSession | null;
   wsNameOf: (gitRoot: string | null) => string | null;
   onToggle: (key: string) => void;
-  onOpenUrl: (port: number) => void;
+  onOpenUrl: (entry: PortEntry) => void; /* 通配/缺失地址回落 localhost,具体地址用行 addr */
   onCopy: (kind: "url" | "kill", entry: PortEntry) => void;
   onKillAsk: (entry: PortEntry) => void;
   onJumpSession: (sessionId: string) => void;
@@ -56,7 +56,7 @@ function RowActions({ entry, ctx }: { entry: PortEntry; ctx: RowCtx }) {
   const flashKill = ctx.flash === `${key}:kill`;
   return (
     <span className="flex shrink-0 items-center gap-0.5 pl-1">
-      <button type="button" className={ICON_BTN} title={t("浏览器打开")} onClick={() => ctx.onOpenUrl(entry.port)}>
+      <button type="button" className={ICON_BTN} title={t("浏览器打开")} onClick={() => ctx.onOpenUrl(entry)}>
         <ArrowSquareOut size="0.875rem" />
       </button>
       <button type="button" className={ICON_BTN} title={flashUrl ? t("已复制") : t("复制地址")} onClick={() => ctx.onCopy("url", entry)}>

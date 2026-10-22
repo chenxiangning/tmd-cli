@@ -41,14 +41,14 @@ function DetailActions({
   os: OsKind;
   flashUrl: boolean;
   flashKill: boolean;
-  onOpenUrl: (port: number) => void;
+  onOpenUrl: (entry: PortEntry) => void;
   onCopy: (kind: "url" | "kill", entry: PortEntry) => void;
   onKillAsk: (entry: PortEntry) => void;
 }) {
   const killCmd = killCommand(entry.pid ?? 0, os);
   return (
     <div className="mt-4 flex items-center justify-end gap-2">
-      <button type="button" className={FOOT_BTN} onClick={() => onOpenUrl(entry.port)}>
+      <button type="button" className={FOOT_BTN} onClick={() => onOpenUrl(entry)}>
         <ArrowSquareOut size="0.875rem" aria-hidden />
         {t("浏览器打开")}
       </button>
@@ -107,7 +107,7 @@ export function PortDetailDialog({
   isNew: boolean;
   /** 复制成功闪态:`${pid:port}:url|kill`。 */
   flash: string | null;
-  onOpenUrl: (port: number) => void;
+  onOpenUrl: (entry: PortEntry) => void;
   onCopy: (kind: "url" | "kill", entry: PortEntry) => void;
   onKillAsk: (entry: PortEntry) => void;
   onClose: () => void;

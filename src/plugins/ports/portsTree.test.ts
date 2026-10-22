@@ -4,7 +4,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { killCommand } from "./portsKill";
-import { dedupeListeners, exposureOf, findOwnerSession, groupByFamily, rowKey, sortGroups } from "./portsTree";
+import { browserHost, dedupeListeners, exposureOf, findOwnerSession, groupByFamily, rowKey, sortGroups } from "./portsTree";
 import type { PortEntry } from "./types";
 
 vi.mock("@kernel/ipc", () => ({ ipc: {} }));
@@ -21,6 +21,17 @@ describe("exposureOf", () => {
     for (const host of ["127.0.0.1", "::1"]) {
       expect(exposureOf(host)).toBe("loopback");
     }
+  });
+});
+
+describe("browserHost(浏览器打开主机)", () => {
+  it("通配/缺失回落 localhost,具体地址原样用于拼 URL", () => {
+    for (const addr of ["", "*", "0.0.0.0", "::", "[::]"]) {
+      expect(browserHost(addr)).toBe("localhost");
+    }
+    expect(browserHost("192.168.1.5")).toBe("192.168.1.5");
+    expect(browserHost("[fe80::1]")).toBe("[fe80::1]");
+    expect(browserHost("127.0.0.1")).toBe("127.0.0.1");
   });
 });
 
