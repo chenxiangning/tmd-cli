@@ -27,6 +27,7 @@ fn cli身份回填_tmd名下历史并入绑定链() {
     // 首条 prompt:CLI 身份未绑,整链记在 tmd id 名下
     let a1 = ws.anchor("tmd-1", "tmd-1", "第一轮");
     ws.write("a.txt", "v2\n");
+    ws.touch("a.txt", a1.ts + 20);
     assert!(ws.seal("tmd-1", "tmd-1"));
 
     // 绑定后:同一会话以 (cli-1, tmd-1) 继续
@@ -57,11 +58,13 @@ fn cli身份回填_换绑后旧身份链摘除副键原地保留() {
     // 旧对话:composer 轮次整链记在 (cli-a, tmd-x) 名下并封口
     let old_anchor = ws.anchor("cli-a", "tmd-x", "旧对话第一轮");
     ws.write("a.txt", "v2\n");
+    ws.touch("a.txt", old_anchor.ts + 20);
     assert!(ws.seal("cli-a", "tmd-x"));
 
     // CLI 同终端换磁盘会话(omp /new),回声重验重绑 cli-b:新对话首锚触发回填
     let new_anchor = ws.anchor("cli-b", "tmd-x", "新对话第一轮");
     ws.write("a.txt", "v3\n");
+    ws.touch("a.txt", new_anchor.ts + 20);
     assert!(ws.seal("cli-b", "tmd-x"));
 
     // 旧链保持自身身份、tmd 副键已摘:新链查询不再误命中旧对话
