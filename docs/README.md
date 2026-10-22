@@ -362,4 +362,5 @@
 | 2026-10-21 | [端口管理插件(ports)设计:右栏入口中央 tab,procCommunicate 按平台跑 lsof/ss/netstat/PowerShell 零 Rust;父子监听进程折叠归组 + 端口释义库 + 暴露面标注 + cwd 反查 git 顶层与 workspace 认领 + 会话归因跳转 + 浏览器打开 + SIGTERM→SIGKILL 二段 kill](superpowers/specs/2026-10-21-ports-manager-design.md) | 已落地(0.4.2,插件计数 47→48) |
 | 2026-10-22 | [0.4.2 发版评审·查漏补缺(五路并行覆盖 40 笔;P1×2=ports null-pid 假家族/幕布回放旁路舞步守卫,P2×7,当轮全修;P3 修 4 留观 12;不成立 2;附真机待办与 react-doctor 环境阻断)](review/2026-10-22-042-release-review.md) | 已收口(留观项在案) |
 | 2026-10-21 | [契约 32 · 0.4.2 收敛批与幕布滚动位家族:scrollKeeper 四层防御/SIGWINCH 舞步降级与停滞自愈/回放包络剥除(3J 签名判别真 alt)/转录定位桥 locate 梯队/quota 快照缓存在飞属主守卫/kernel 唯一源收敛四件/ports 零 Rust 归组](architecture/32-042-scroll-locate-quota-contracts.md) | 已落地(0.4.2 + 2026-10-22 评审补订) |
+| 2026-10-22 | [0.4.3 继续规划(质量收口版:三块在飞=幕布根治/评审查漏/anim 修补;批一收口发版+幕布真机复验,批二 mobile M2 剩 6 条真机腿集中验收日,批三 signing secrets 与 Windows 证书决策+空壳治理;无挂账特性候选,特性留 0.4.4)](brainstorm/2026-10-22-043-next-steps.md) | 已批准(收口优化打磨主线;批一收口执行,幕布复验后 tag) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

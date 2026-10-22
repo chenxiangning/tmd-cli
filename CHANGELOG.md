@@ -4,7 +4,11 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
-## [0.4.3] - 未发布
+## [0.4.3] - 2026-10-22
+
+### 新增
+
+- anim 会话材料对齐 tmd-anim 0.1.9:AI 会话引用清单补叙事配方,初始提示词改写(三类活例按需选读、台词口语短句与 say 内嵌停顿指导);项目列表读取换 32MB base64 原语
 
 ### 修复
 
@@ -14,6 +18,7 @@
 - CLI 绑定回声重验补 token 交接守卫:探测 await 期间重发 prompt,旧循环不再收掉新探测窗、不再按陈旧 prompt 证据绑错文件;回声比对折叠空白,多行 prompt(\r\n 与 \n)不再恒 miss
 - 转录查看器同一条消息二次「看对话」深链真重放滚动(防重放闸键改深链对象引用);footprint ⌘K 跳转录链补 catch,读盘拒绝不再成未处理 rejection,统一落「未能定位」提示
 - welcome 配额环形 0% 不再渲染 round cap 零长 dash 色点
+- anim AI 会话 spawn 挂活动工作区归属,对齐工作区创建会话的关联逻辑
 
 ### 内务
 
