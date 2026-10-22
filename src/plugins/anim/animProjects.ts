@@ -87,16 +87,20 @@ export function buildAnimSessionPrompt(windows = false): string {
   ].join("\n");
 }
 
-/** 确认时挂到会话 composer 的引用卡片(协议材料 + 目标项目,label = i18n 源键)。
- *  清单对齐 tmd-anim protocolSync 投递面(0.1.9:新增 recipes.md;0.1.5+ 已不投递
- *  bpe-example.json);三个活例 JSON 体积大,不挂卡只进 prompt 正文按需提及。 */
-export function animSessionRefs(home: string, projectPath: string): { label: string; path: string }[] {
+/** 确认窗预览卡与 composer 引用 chip 的唯一清单(协议材料 + 目标项目,
+ *  label = i18n 源键,kind = 预览卡图标)。清单对齐 tmd-anim protocolSync
+ *  投递面(0.1.9:新增 recipes.md;0.1.5+ 已不投递 bpe-example.json);
+ *  三个活例 JSON 体积大,不挂卡只进 prompt 正文按需提及。 */
+export function animSessionRefs(
+  home: string,
+  projectPath: string,
+): { label: string; path: string; kind: "doc" | "code" }[] {
   const protocol = `${home}/.tmd-anim/protocol`;
   return [
-    { label: "协议 schema", path: `${protocol}/schema.md` },
-    { label: "叙事配方", path: `${protocol}/recipes.md` },
-    { label: "小黑风格配方", path: `${protocol}/xiaohei-style.md` },
-    { label: "小黑风格示例", path: `${protocol}/xiaohei-example.json` },
-    { label: "目标项目", path: projectPath },
+    { label: "协议 schema", path: `${protocol}/schema.md`, kind: "doc" },
+    { label: "叙事配方", path: `${protocol}/recipes.md`, kind: "doc" },
+    { label: "小黑风格配方", path: `${protocol}/xiaohei-style.md`, kind: "doc" },
+    { label: "小黑风格示例", path: `${protocol}/xiaohei-example.json`, kind: "code" },
+    { label: "目标项目", path: projectPath, kind: "code" },
   ];
 }

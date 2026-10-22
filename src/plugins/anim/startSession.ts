@@ -11,6 +11,7 @@
 import type { AiSessionTarget } from "./AiSessionDialog";
 import {
   animProjectsDir,
+  animSessionRefs,
   buildAnimSessionPrompt,
   parseAnimProject,
   stubProjectFileName,
@@ -56,20 +57,18 @@ export async function prepareAiSessionTarget(input: PrepareAiSessionInput): Prom
   let stub = false;
   let parsedName: string | null = null;
   if (path !== null) {
+    /* 读失败(被删/超限/IO)与坏内容同归 invalid-project 显性报错 —— 不静默改道
+       建桩:大项目(内嵌配音 dataURL 超 512KB 预览闸)曾在此静默生成垃圾桩。 */
     const raw = await readFile(path).catch(() => null);
-    if (raw === null) path = null; /* 列表后文件被删:回落建桩 */
-    else {
-      const parsed = parseAnimProject(raw);
-      if (!parsed) return { ok: false, reason: "invalid-project" };
-      parsedName = parsed.name; /* 行名瞬态缺失(rows 失明)时的回落 */
-    }
+    const parsed = raw !== null ? parseAnimProject(raw) : null;
+    if (!parsed) return { ok: false, reason: "invalid-project" };
+    parsedName = parsed.name; /* 行名瞬态缺失(rows 失明)时的回落 */
   }
   if (path === null) {
     stub = true;
     path = `${animProjectsDir(home)}/${stubProjectFileName(now(), rand())}`;
   }
   const name = stub ? "未命名动画" : rowName ?? parsedName ?? "未命名动画";
-  const protocol = `${home}/.tmd-anim/protocol`;
   return {
     ok: true,
     target: {
@@ -77,11 +76,8 @@ export async function prepareAiSessionTarget(input: PrepareAiSessionInput): Prom
       path,
       stub,
       prompt: buildAnimSessionPrompt(windows ?? false),
-      refs: [
-        { label: "协议 schema", path: `${protocol}/schema.md`, kind: "doc" },
-        { label: "小黑风格配方", path: `${protocol}/xiaohei-style.md`, kind: "doc" },
-        { label: "小黑风格示例", path: `${protocol}/xiaohei-example.json`, kind: "code" },
-      ],
+      /* 预览与实发同一清单(animSessionRefs 单源,含目标项目卡),不再各自维护。 */
+      refs: animSessionRefs(home, path),
     },
   };
 }

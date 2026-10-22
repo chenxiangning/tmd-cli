@@ -110,7 +110,10 @@ export function AnimProjectsTab() {
       projectPath,
       rowName: projectPath !== null ? rows?.find((r) => r.path === projectPath)?.name ?? null : null,
       windows: getPlatformKind() === "windows",
-      readFile: (p) => ipc.fsReadFile(p),
+      /* 内嵌配音 dataURL 普遍超 fsReadFile 的 512KB 预览闸,走 fsReadBytesBase64
+       * 32MB 数据域通道(与列表读取同原语),超限不再静默回落建桩。 */
+      readFile: (p) =>
+        ipc.fsReadBytesBase64(p).then((b64) => new TextDecoder().decode(decodeBase64ToBytes(b64))),
       now: Date.now,
       /* 文件名尾随机段:Math.random 足够,非安全场景。 */
       rand: () => Math.random().toString(36).slice(2, 6),
