@@ -19,6 +19,8 @@ import { t } from "@kernel/i18n";
 import { getPlatformKind } from "@kernel/platform";
 import { ensureDir } from "@kernel/fsDirs";
 import { resolveDefaultEngine } from "@plugins/workbench/defaultEngine";
+import { decodeBase64ToBytes } from "@plugins/files/render/previewBytes";
+import { getActiveWorkspace } from "@kernel/workspace";
 import { AiSessionDialog, type AiSessionTarget } from "./AiSessionDialog";
 import { AnimInstallGuide } from "./AnimInstallGuide";
 import { AnimProjectRow } from "./AnimProjectRow";
@@ -76,7 +78,10 @@ export function AnimProjectsTab() {
           const stamps = await ipc.fsCollectFiles(dir, ".json");
           const next: AnimRow[] = await Promise.all(
             stamps.filter((f) => isAnimProjectFile(f.name)).map(async (f) => {
-              const parsed = await ipc.fsReadFile(f.path).then(parseAnimProject, () => null);
+              /* 项目内嵌配音 dataURL 普遍超 fsReadFile 的 512KB 预览闸(误报「无效项目」),
+               * 走 fsReadBytesBase64 的 32MB 数据域通道再解码。 */
+              const parsed = await ipc.fsReadBytesBase64(f.path)
+                .then((b64) => parseAnimProject(new TextDecoder().decode(decodeBase64ToBytes(b64))), () => null);
               return { path: f.path, file: f.name, name: parsed?.name ?? null, scenes: parsed?.scenes ?? null };
             }),
           );
@@ -153,7 +158,9 @@ export function AnimProjectsTab() {
                 env: eng.env,
                 title: spec.title,
               },
-              undefined,
+              /* 归属活动工作区(工作区创建的会话同款,WelcomePage/RelayDialog 先例);
+                 无活动工作区回 undefined = 孤儿会话,维持旧语义。 */
+              getActiveWorkspace()?.id,
               { identityTrack: true },
             ),
         },
