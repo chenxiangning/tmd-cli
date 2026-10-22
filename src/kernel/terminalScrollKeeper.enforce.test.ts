@@ -19,7 +19,10 @@ afterEach(() => {
 });
 
 /** 可变缓冲假体(与主套件 fakeLiveTerm 同形;enforce 用例只需要行数组可换)。 */
-function fakeLiveTerm(lines: string[], opts: { cols: number; rows: number; viewportY: number }) {
+function fakeLiveTerm(
+  lines: string[],
+  opts: { cols: number; rows: number; viewportY: number; element?: HTMLElement },
+) {
   let buf = lines;
   const state = {
     viewportY: opts.viewportY,
@@ -38,6 +41,7 @@ function fakeLiveTerm(lines: string[], opts: { cols: number; rows: number; viewp
       return state.rows;
     },
     buffer: { active: state },
+    element: opts.element,
     scrollToLine: (row: number) => void (state.viewportY = row),
     scrollToBottom: () => void (state.viewportY = state.baseY),
   };
@@ -94,6 +98,38 @@ describe("reflow enforcement 窗(WebKit 布局重置对抗)", () => {
     });
     await advance(32);
     k.cancelEnforcement();
+    live.state.viewportY = 0;
+    await advance(96);
+    expect(live.state.viewportY).toBe(0);
+  });
+
+  it("键盘滚动意图键让位:窗内 shift+PageUp 不再被钉回,普通键入不让位", async () => {
+    useFrameClock();
+    const listeners = new Map<string, (e: { key: string }) => void>();
+    /* 假挂载根:仅实现让位监听所需的 add/removeEventListener 注册面(非 DOM)。 */
+    const el = {
+      addEventListener: (t: string, fn: (e: { key: string }) => void) => void listeners.set(t, fn),
+      removeEventListener: (t: string) => void listeners.delete(t),
+    };
+    const lines = Array.from({ length: 40 }, (_, i) => `row${i} ` + "c".repeat(50));
+    const live = fakeLiveTerm(lines, {
+      cols: 120,
+      rows: 15,
+      viewportY: 10,
+      element: el as unknown as HTMLElement,
+    });
+    const k = createScrollKeeper();
+    vi.setSystemTime(0);
+    k.reflow(live.term, () => {
+      live.repopulate(lines.flatMap((l) => [l.slice(0, 30), l.slice(30)]), 12);
+    });
+    await advance(32);
+    expect(live.state.viewportY).toBe(20); /* 窗内钉扎生效 */
+    listeners.get("keydown")?.({ key: "a" }); /* 普通键入:不让位 */
+    live.state.viewportY = 0;
+    await advance(16);
+    expect(live.state.viewportY).toBe(20); /* 仍按锚钉回 */
+    listeners.get("keydown")?.({ key: "PageUp" }); /* shift+PageUp 意图键:让位 */
     live.state.viewportY = 0;
     await advance(96);
     expect(live.state.viewportY).toBe(0);

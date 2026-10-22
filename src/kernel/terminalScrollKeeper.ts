@@ -153,10 +153,18 @@ export function createScrollKeeper(): ScrollKeeper {
     stopEnforce();
     const el = term.element;
     const onInput = (): void => stopEnforce();
+    /* 键盘滚动意图键(PageUp/PageDown/Home/End,含 shift 组合)经 xterm
+       textarea 冒泡到挂载根 —— 不让位则窗内 shift+PageUp 被钉回锚行。 */
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "PageUp" || e.key === "PageDown" || e.key === "Home" || e.key === "End") {
+        stopEnforce();
+      }
+    };
     /* 用户主动输入 = 立即让位(重置窗内滚轮不被对抗)。 */
     el?.addEventListener("wheel", onInput, { passive: true });
     el?.addEventListener("pointerdown", onInput);
     el?.addEventListener("touchstart", onInput, { passive: true });
+    el?.addEventListener("keydown", onKey);
     enforce = {
       term,
       anchor,
@@ -167,6 +175,7 @@ export function createScrollKeeper(): ScrollKeeper {
         el?.removeEventListener("wheel", onInput);
         el?.removeEventListener("pointerdown", onInput);
         el?.removeEventListener("touchstart", onInput);
+        el?.removeEventListener("keydown", onKey);
       },
     };
     raf(enforceTick);
