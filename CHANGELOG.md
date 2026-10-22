@@ -12,7 +12,10 @@
 
 ### 修复
 
-- 幕布全量回放(刷新钮/停滞重建/无冻结快照重挂/磁盘尾)过 SIGWINCH 舞步包络剥除:outputBuffer/磁盘 journal 存原始字节,历史舞步的 3J 原样重放会清掉刚回放出的滚动缓冲,live 守卫保住的位在回放面静默清零;vim/fzf 真 alt 无 3J 签名原样保留。伴生守卫舞步相 10s 停滞自愈(CLI 死在舞步中不再终身剥除)与滚动 keeper 幕布卸载 dispose 面
+- 幕布全量回放(刷新钮/停滞重建/无冻结快照重挂/磁盘尾)过 SIGWINCH 舞步包络剥除:outputBuffer/磁盘 journal 存原始字节,历史舞步的 3J 原样重放会清掉刚回放出的滚动缓冲,live 守卫保住的位在回放面静默清零;vim/fzf 真 alt 无 3J 签名原样保留。伴生守卫舞步相 10s 停滞自愈(CLI 死在舞步中不再终身剥除)与滚动 keeper 幕布卸载 dispose 面。舞步泵侧降级丢弃 alt 段拷贝并容忍尾清屏前奏,根治 resize 堆叠双帧与 3J 破防清缓冲(泵侧半区补账)
+- 回放面尾清屏窗与 live tail 同律容忍尾清屏前奏(1049l 与 H+2J+3J 之间的 SGR 复位 + OSC8 闭合,帧含超链接时缺省):omp 真实帧形态下全量回放漏识别包络的分叉闭合
+- ports 浏览器打开/复制地址对具体 IPv6 补方括号与 zone-id 转义(裸 IPv6 直拼 URL 非法打不开),复制地址改按行 addr 同源不再恒 localhost
+- anim AI 会话 prepare 读通道换 32MB 原语对齐列表读取:大项目(内嵌配音 dataURL 超 512KB 预览闸)点「AI 会话」不再静默建「未命名动画」垃圾桩,读失败显性报「无效项目」;确认窗引用预览与实发清单 animSessionRefs 单源(3 卡对 5 条的漂移消除)
 - ports 多条 pid null 监听行(无特权扫描常态)不再经 null Map 键并成假家族,恒各自顶层
 - quota 共享快照缓存加在飞属主守卫:force 强刷顶替在飞请求后,迟到前驱不再用旧数据盖新时间戳污染缓存、不再误删后继登记造成重复抓取
 - CLI 绑定回声重验补 token 交接守卫:探测 await 期间重发 prompt,旧循环不再收掉新探测窗、不再按陈旧 prompt 证据绑错文件;回声比对折叠空白,多行 prompt(\r\n 与 \n)不再恒 miss
@@ -25,6 +28,7 @@
 
 ### 内务
 
+- 0.4.3 二轮打磨三路并行评审记档(docs/review/2026-10-22-043-second-polish-review.md),P1×1/P2×3 当轮全修,P3 修 2 记 6;mobile 壳(Info.plist/project.yml)版本线随 mobile M2 发版另行 bump,不随桌面 0.4.3(规划「六处」口径据此修订)
 - 0.4.2 发版评审五路并行查漏补缺记档(docs/review/2026-10-22-042-release-review.md),P1×2/P2×7 当轮全修;[0.4.2] 小节勘误(feature 计数 35→34、补 welcome 余额卡条目),FEATURES 补录幕布回底钮并订正滚动上限 2.4 万行,settings 重启恢复注释同步默认值;scrollKeeper 锚函数拆 terminalScrollAnchor 守 300 行铁则
 
 ## [0.4.2] - 2026-10-22
