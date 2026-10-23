@@ -202,6 +202,9 @@ export function CheckpointsPanel() {
   useCkptAutoRefresh(cwd, sessionId, tmdSessionId);
 
   const state = useCkptBatches(cwd, sessionId, staleSessionId);
+  /* 行来自哪份清单就按哪份键开单/取 diff:回落窗内 state.batches 属回落键,
+   * 深链与 diff 缓存若仍用现值(tmd)必然错位成「批次不存在」。 */
+  const listSessionId = staleSessionId ?? sessionId;
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
   /* 页签:审批线 | 变更 | 时间线(时间线/变更是独立组件,与审批线零共享逻辑) */
   const [view, setView] = useState<"batch" | "changes" | "timeline">("batch");
@@ -242,7 +245,7 @@ export function CheckpointsPanel() {
         <BatchListView
           state={state}
           cwd={cwd}
-          sessionId={sessionId}
+          sessionId={listSessionId}
           tmdSessionId={tmdSessionId}
           busy={busy}
           confirm={confirm}
@@ -263,7 +266,7 @@ export function CheckpointsPanel() {
         <ChangesPanel
           batches={state.batches}
           cwd={cwd}
-          sessionId={sessionId}
+          sessionId={listSessionId}
           tmdSessionId={tmdSessionId}
         />
       </div>

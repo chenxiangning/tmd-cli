@@ -200,6 +200,8 @@ function ByteChannelView({ path, kind }: { path: string; kind: FileRenderKind })
 }
 
 /** 文本管线视图(csv 表格/markdown/结构化/代码,走 fileCache)。 */
+const EDITOR_OPEN_MAX_CHARS = 8 * 1024 * 1024;
+
 function TextFileView({
   path,
   kind,
@@ -212,6 +214,16 @@ function TextFileView({
   const payload = loadFile(path);
   if (payload.error) return <div className="flex h-full items-center justify-center text-xs text-red-400">⚠ {payload.error}</div>;
   if (!payload.loaded) return <LOADING />;
+  /* 内置编辑器护栏:100MB 读闸为「读得到」而放,编辑器渲染是乘法级内存
+   * (JS UTF-16 ×2 + CodeMirror rope + 保存 CRLF 还原本),超限直接停用,
+   * 防 webview 瞬态 GB 级内存;文件仍在,外部编辑不受影响。 */
+  if ((payload.content?.length ?? 0) > EDITOR_OPEN_MAX_CHARS) {
+    return (
+      <div className="flex h-full items-center justify-center px-6 text-center text-xs text-(--tmd-fg-faint)">
+        {t("文件过大,已停用内置编辑器(请用外部编辑器打开)")}
+      </div>
+    );
+  }
   if (kind === "tabular") {
     return (
       <Suspense fallback={<LOADING />}>

@@ -96,6 +96,12 @@ describe("readIdentity", () => {
 });
 
 describe("killListener unix 二段杀 + 身份重验", () => {
+  it("pid ≤ 0 直接放弃(不发任何信号,防 kill 0 进程组广播)", async () => {
+    const before = invokeCalls.length;
+    await expect(killListener(0, "mac")).resolves.toBe("term");
+    await expect(killListener(-1, "linux")).resolves.toBe("term");
+    expect(invokeCalls.length).toBe(before);
+  });
   it("SIGTERM 即退 = term(不补杀,快照只查一次)", async () => {
     invokeImpl = async (cmd) => (cmd === "processAlive" ? false : okProc("start-7"));
     await expect(killListener(7, "mac")).resolves.toBe("term");

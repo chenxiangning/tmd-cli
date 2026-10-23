@@ -52,8 +52,8 @@ export function noteEchoProbe(sessionId: string, active: boolean): void {
 }
 
 /** 停用清理面:插件 deactivate 时订阅已撤,正处探测窗的 close 边沿事件随之
- *  丢失,登记 Set 会留脏(残留让重启后的读侧一直回落 tmd id,到下次开合
- *  才自愈)—— 激活期 cleanup 就地清空,close 边沿丢失也能清干净。 */
+ *  丢失,登记 Set 会留脏(残留让同进程停用→再启用后的读侧一直回落 tmd id,
+ *  到下次开合才自愈;进程重启天然清零)—— 激活期 cleanup 就地清空。 */
 export function resetEchoProbes(): void {
   echoProbes.clear();
 }

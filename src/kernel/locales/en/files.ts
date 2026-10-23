@@ -151,4 +151,6 @@ export const MESSAGES = {
   "远程文件暂不支持写入(M1)": "Writing remote files is not supported yet (M1)",
   "远程文件暂不支持在文件树新建(M1):请经终端会话操作":
     "Creating files in the remote tree is not supported yet (M1): use a terminal session instead",
+  "文件过大,已停用内置编辑器(请用外部编辑器打开)":
+    "File is too large; the built-in editor is disabled (open it with an external editor)",
 } as Record<string, string>;

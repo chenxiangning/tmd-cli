@@ -147,6 +147,9 @@ describe("classifyProjectReadError", () => {
 
   it("其余(权限/非文件/未知对象)= io,不猜", () => {
     expect(classifyProjectReadError("读取文件失败: Permission denied (os error 13)")).toBe("io");
+    expect(classifyProjectReadError("读取文件失败: Too many open files (os error 24)")).toBe("io");
+    expect(classifyProjectReadError("读取文件失败: Is a directory (os error 21)")).toBe("io");
+    expect(classifyProjectReadError("读取文件信息失败: 系统找不到指定的路径。 (os error 3)")).toBe("deleted");
     expect(classifyProjectReadError("目标路径不是文件")).toBe("io");
     expect(classifyProjectReadError({ nonsense: true })).toBe("io");
   });

@@ -111,12 +111,13 @@ export function animSessionRefs(
  * 「目标路径不是文件」、「文件超过 32MB 读取上限」(自家闸,形态确定)、
  * 读字节失败。按形态三归:deleted / oversize / io(显性透出原文)。 */
 
-/** 归类读失败:超限 = 「项目过大」;ENOENT(os error 2,三平台 io Display 同码)
- *  = 「项目已删除」;其余(含非文件/权限/join 失败)= io,错误原文透给调用方。 */
+/** 归类读失败:超限 = 「项目过大」;ENOENT(os error 2)= 「项目已删除」;
+ *  Windows 路径缺失(os error 3,父目录被删)同归 deleted,对齐 wiki.ts 先例;
+ *  边界用 \b 防 errno 2x(20/21/24/28…)前缀误判;其余 = io,原文透出。 */
 export function classifyProjectReadError(err: unknown): "deleted" | "oversize" | "io" {
   const msg = projectReadErrorMessage(err);
   if (msg.includes("读取上限")) return "oversize";
-  if (msg.includes("os error 2")) return "deleted";
+  if (/(?:os error [23])\b/.test(msg)) return "deleted";
   return "io";
 }
 
@@ -135,6 +136,7 @@ export function projectReadErrorMessage(err: unknown): string {
  * - 读失败不缓存:IO 可能瞬态,超限/删除每拍重试一次 stat 级闸代价可忽略;
  * - 失效路径:拍内消失的路径删键(被删/改名自愈);prepare(点「AI 会话」)
  *   绕过缓存强制读 —— 会话决策点必须新鲜,缓存只服务轮询展示面。 */
+/* N>8 时稳态每拍重读 N−8 项(旋转逐出),非全量失效;16 项目回到与基线持平。 */
 const PROJECT_CACHE_MAX = 8;
 type ParsedProject = { name: string; scenes: number };
 const projectCache = new Map<string, { mtime: number; parsed: ParsedProject | null }>();

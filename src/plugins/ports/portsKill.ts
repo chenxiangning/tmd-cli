@@ -58,6 +58,9 @@ export async function killListener(pid: number, os: OsKind): Promise<KillOutcome
     await runKill("taskkill", ["/F", "/T", "/PID", String(pid)], 8000);
     return "killed";
   }
+  /* pid ≤ 0 防御:kill -TERM 0 是向整个进程组广播;解析器目前不产出 0,
+   * 越界兜底对齐 Rust processAlive 的判死语义,直接放弃不发送任何信号。 */
+  if (pid <= 0) return "term";
   const before = await readIdentity(pid, os);
   await runKill("kill", ["-TERM", String(pid)]);
   const { promise, resolve } = Promise.withResolvers<void>();

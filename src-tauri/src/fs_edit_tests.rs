@@ -10,6 +10,14 @@ fn temp_root(tag: &str) -> std::path::PathBuf {
 }
 
 #[test]
+fn write_file_超写闸拒绝且不落盘() {
+    /* 闸检查在磁盘 IO 前:超限串直接 Err,不产生任何写盘。 */
+    let big = "x".repeat(MAX_WRITE_BYTES + 1);
+    let err = write_file("/tmp/tmd-cli-fs-edit-gate-probe.txt", &big).unwrap_err();
+    assert!(err.contains("200MB"), "实际报错: {err}");
+}
+
+#[test]
 fn write_file_覆写与新建空文件() {
     let root = temp_root("write");
     let file = root.join("a.txt");
