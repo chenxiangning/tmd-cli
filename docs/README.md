@@ -364,4 +364,5 @@
 | 2026-10-22 | [0.4.3 二轮打磨评审(三路并行覆盖 13 笔;P1×1=回放面尾扫前奏分叉致 3J 清缓冲,P2×3=ports IPv6 URL/anim prepare 512KB 半迁移静默建桩/版本源口径,当轮全修;P3 修 2 记 6;伴随 ports 超时提示桩目检实证)](review/2026-10-22-043-second-polish-review.md) | 已收口(记档项在案) |
 | 2026-10-21 | [契约 32 · 0.4.2 收敛批与幕布滚动位家族:scrollKeeper 四层防御/SIGWINCH 舞步降级与停滞自愈/回放包络剥除(3J 签名判别真 alt)/转录定位桥 locate 梯队/quota 快照缓存在飞属主守卫/kernel 唯一源收敛四件/ports 零 Rust 归组](architecture/32-042-scroll-locate-quota-contracts.md) | 已落地(0.4.2 + 2026-10-22 评审补订) |
 | 2026-10-22 | [0.4.3 继续规划(质量收口版:三块在飞=幕布根治/评审查漏/anim 修补;批一收口发版+幕布真机复验,批二 mobile M2 剩 6 条真机腿集中验收日,批三 signing secrets 与 Windows 证书决策+空壳治理;无挂账特性候选,特性留 0.4.4)](brainstorm/2026-10-22-043-next-steps.md) | 已批准(收口优化打磨主线;批一收口执行,幕布复验后 tag) |
+| 2026-10-23 | [0.4.4 规划(打磨四项版:anim 项目读取缓存与错误归因 / checkpoints 探测窗边沿毛刺 / ports 二段杀 pid 复用防护 / workbench 三视图收编方案A;特性两项经大仙裁定删除,辅线 mobile M2 验收日与 signing 拍板登记待办)](brainstorm/2026-10-23-044-next-steps.md) | 已批准(四路并行实施中) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
