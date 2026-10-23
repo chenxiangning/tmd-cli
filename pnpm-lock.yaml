@@ -138,8 +138,8 @@ importers:
         specifier: ^12.2.0
         version: 12.2.0
       morphicons:
-        specifier: ^1.7.1
-        version: 1.7.1(react@19.3.0)
+        specifier: ^2.0.0
+        version: 2.0.0(react@19.3.0)
       pdfjs-dist:
         specifier: ^6.4.299
         version: 6.4.299
@@ -345,6 +345,9 @@ packages:
 
   '@codemirror/view@6.43.14':
     resolution: {integrity: sha512-hC45YnmJNR1rz42OF57BLoQNFMV12/13drnvibDsR2quNDmldcb4WvYVV81hFQg56i9lcqQMEDqilhX2QDcGQQ==}
+
+  '@codemirror/view@6.43.15':
+    resolution: {integrity: sha512-HHsfpqFeHyXLs983pSRe38Xajs0vFWZQ2BuX0m7Ki8w3jZ5iD8cuR3lBz2/5/X53Dhf32SBHKh6rtSTB6tKeGw==}
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -2539,8 +2542,8 @@ packages:
   micromark@4.0.2:
     resolution: {integrity: sha512-zpe98Q6kvavpCr1NPVSCMebCKfD7CA2NqZ+rykeNhONIJBpc1tFKt9hucLGwha3jNTNI8lHpctWJWoimVF4PfA==}
 
-  morphicons@1.7.1:
-    resolution: {integrity: sha512-q5ylxy5/d7vBg0OAzanlooXf05PekovMYDuuQVpr6vAQZxl99lrJbaIi+jJ32PXQf9WEEaDO2pbNBsx1ZhEnFQ==}
+  morphicons@2.0.0:
+    resolution: {integrity: sha512-/pyqQjUhq8FUKz2SjJ6sXe4KjAa0QEmEbtzG13158/pl+G6bCJGvo1zIEDGNQ+Hagl69hIu4Mn9kJgTvvTf8Ew==}
     peerDependencies:
       react: '>=18'
       react-native: '>=0.71'
@@ -3345,10 +3348,17 @@ snapshots:
     dependencies:
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
       '@lezer/highlight': 1.2.5
 
   '@codemirror/view@6.43.14':
+    dependencies:
+      '@codemirror/state': 6.7.6
+      crelt: 1.0.7
+      style-mod: 4.1.4
+      w3c-keyname: 2.2.8
+
+  '@codemirror/view@6.43.15':
     dependencies:
       '@codemirror/state': 6.7.6
       crelt: 1.0.7
@@ -4541,7 +4551,7 @@ snapshots:
       '@codemirror/lint': 6.9.7
       '@codemirror/search': 6.7.2
       '@codemirror/state': 6.7.6
-      '@codemirror/view': 6.43.14
+      '@codemirror/view': 6.43.15
 
   codepage@1.15.0: {}
 
@@ -5682,7 +5692,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  morphicons@1.7.1(react@19.3.0):
+  morphicons@2.0.0(react@19.3.0):
     optionalDependencies:
       react: 19.3.0
 
