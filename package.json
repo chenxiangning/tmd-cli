@@ -79,7 +79,7 @@
     "mammoth": "^1.13.0",
     "markdown-it": "^15.0.2",
     "mermaid": "^12.2.0",
-    "morphicons": "^1.7.1",
+    "morphicons": "^2.0.0",
     "pdfjs-dist": "^6.4.299",
     "prismjs": "^1.30.0",
     "qrcode.react": "^4.2.0",
