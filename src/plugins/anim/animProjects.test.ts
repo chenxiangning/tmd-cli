@@ -8,8 +8,14 @@ import {
   animProjectsDir,
   animSessionRefs,
   buildAnimSessionPrompt,
+  cachedAnimProject,
+  classifyProjectReadError,
+  invalidateAnimProjectCache,
   isAnimProjectFile,
   parseAnimProject,
+  projectReadErrorMessage,
+  putAnimProjectCache,
+  readAnimProjectRows,
   stubProjectFileName,
   stubProjectJson,
 } from "./animProjects";
@@ -124,5 +130,127 @@ describe("animOpenAction", () => {
     expect(animOpenAction("windows")).toBe("reveal");
     expect(animOpenAction("linux")).toBeNull();
     expect(animOpenAction("unknown")).toBeNull();
+  });
+});
+
+/* ── 读失败归因(fs_read_bytes_base64 报错形态,不猜)────────────────── */
+
+describe("classifyProjectReadError", () => {
+  it("超限形态(Rust 读取闸原文)= oversize", () => {
+    expect(classifyProjectReadError("文件超过 32MB 读取上限")).toBe("oversize");
+  });
+
+  it("ENOENT(io Display 恒带 os error 2)= deleted;tauri 字符串与 Error 形态同归", () => {
+    expect(classifyProjectReadError("读取文件信息失败: No such file or directory (os error 2)")).toBe("deleted");
+    expect(classifyProjectReadError(new Error("读取文件信息失败: No such file or directory (os error 2)"))).toBe("deleted");
+  });
+
+  it("其余(权限/非文件/未知对象)= io,不猜", () => {
+    expect(classifyProjectReadError("读取文件失败: Permission denied (os error 13)")).toBe("io");
+    expect(classifyProjectReadError("目标路径不是文件")).toBe("io");
+    expect(classifyProjectReadError({ nonsense: true })).toBe("io");
+  });
+
+  it("projectReadErrorMessage:字符串拒因原样,Error 取 message,其余 String 化", () => {
+    expect(projectReadErrorMessage("boom")).toBe("boom");
+    expect(projectReadErrorMessage(new Error("e1"))).toBe("e1");
+    expect(projectReadErrorMessage(7)).toBe("7");
+  });
+});
+
+/* ── 轮询读缓存(path+mtime 键,LRU 8)──────────────────────────────── */
+
+describe("项目读缓存原语", () => {
+  it("put/get 往返:同 mtime 命中(null = 坏内容也缓存),mtime 变即 miss", () => {
+    putAnimProjectCache("/p/x.json", 1, { name: "X", scenes: 2 });
+    expect(cachedAnimProject("/p/x.json", 1)).toEqual({ name: "X", scenes: 2 });
+    putAnimProjectCache("/p/x.json", 2, null);
+    expect(cachedAnimProject("/p/x.json", 1)).toBeUndefined();
+    expect(cachedAnimProject("/p/x.json", 2)).toBeNull();
+  });
+
+  it("invalidateAnimProjectCache 删键:强制下一拍重读(显式失效路径)", () => {
+    putAnimProjectCache("/p/e.json", 5, { name: "E", scenes: 0 });
+    expect(cachedAnimProject("/p/e.json", 5)).toEqual({ name: "E", scenes: 0 });
+    invalidateAnimProjectCache("/p/e.json");
+    expect(cachedAnimProject("/p/e.json", 5)).toBeUndefined();
+  });
+});
+
+describe("readAnimProjectRows 轮询读缓存", () => {
+  const ok = (name: string) => JSON.stringify({ version: 1, name, scenes: [{}] });
+  /** 带调用序日志的 readText 桩(读盘证据 = calls)。 */
+  function reader(impl: (p: string) => Promise<string>) {
+    const calls: string[] = [];
+    return { calls, readText: (p: string) => { calls.push(p); return impl(p); } };
+  }
+  const stamp = (path: string, modifiedAt = 1, name?: string) => ({
+    name: name ?? path.split("/").pop() ?? path,
+    path,
+    modifiedAt,
+  });
+
+  it("mtime 未变:第二拍命中缓存零读盘;mtime 变即失效重读", async () => {
+    const r = reader(() => Promise.resolve(ok("A")));
+    const s = stamp("/p/a.json", 100);
+    expect(await readAnimProjectRows([s], r.readText)).toEqual([
+      { path: "/p/a.json", file: "a.json", name: "A", scenes: 1, tooLarge: false },
+    ]);
+    expect(await readAnimProjectRows([s], r.readText)).toEqual([
+      { path: "/p/a.json", file: "a.json", name: "A", scenes: 1, tooLarge: false },
+    ]);
+    expect(r.calls).toEqual(["/p/a.json"]); /* 第二拍命中,未再读盘 */
+    await readAnimProjectRows([stamp("/p/a.json", 200)], r.readText);
+    expect(r.calls).toEqual(["/p/a.json", "/p/a.json"]); /* mtime 变 → 重读 */
+  });
+
+  it("坏内容缓存为 null:同 mtime 不再重读解析(仍显「无效项目」)", async () => {
+    const r = reader(() => Promise.resolve("{ broken"));
+    const s = stamp("/p/bad.json");
+    expect(await readAnimProjectRows([s], r.readText)).toEqual([
+      { path: "/p/bad.json", file: "bad.json", name: null, scenes: null, tooLarge: false },
+    ]);
+    await readAnimProjectRows([s], r.readText);
+    expect(r.calls).toEqual(["/p/bad.json"]);
+  });
+
+  it("读失败不缓存:超限行归 too-large(每拍重试),改投 IO 错误后回落「无效项目」", async () => {
+    let mode: "oversize" | "io" = "oversize";
+    const r = reader(() =>
+      Promise.reject(mode === "oversize" ? "文件超过 32MB 读取上限" : "读取文件失败: EIO (os error 5)"),
+    );
+    const s = stamp("/p/big.json");
+    expect(await readAnimProjectRows([s], r.readText)).toEqual([
+      { path: "/p/big.json", file: "big.json", name: null, scenes: null, tooLarge: true },
+    ]);
+    await readAnimProjectRows([s], r.readText);
+    expect(r.calls).toEqual(["/p/big.json", "/p/big.json"]); /* 失败未缓存,下一拍重试 */
+    mode = "io";
+    expect(await readAnimProjectRows([s], r.readText)).toEqual([
+      { path: "/p/big.json", file: "big.json", name: null, scenes: null, tooLarge: false },
+    ]);
+  });
+
+  it("LRU 8 级:满员后新项目逐出最旧,被逐项下一拍重读", async () => {
+    const r = reader((p) => Promise.resolve(ok(p)));
+    const stamps = (n: number) => Array.from({ length: n }, (_, i) => stamp(`/lru/k${i}.json`));
+    await readAnimProjectRows(stamps(8), r.readText); /* 预热:顺带清走其它用例的陈旧键 */
+    await readAnimProjectRows(stamps(8), r.readText);
+    expect(r.calls).toHaveLength(8); /* 第二拍全命中,零读盘 */
+    /* 第三拍:k0..k7 先全部命中,k9 随后入缓存把最旧的 k0 逐出 ——
+     * 逐出发生在本拍命中之后,k0 的重读落在下一拍(时序注记)。 */
+    await readAnimProjectRows([...stamps(8), stamp("/lru/k9.json")], r.readText);
+    await readAnimProjectRows(stamps(8), r.readText);
+    expect(r.calls.filter((p) => p === "/lru/k0.json")).toHaveLength(2); /* 被逐项重读一次 */
+    expect(r.calls.filter((p) => p === "/lru/k1.json")).toHaveLength(1); /* 未被逐,仍零读盘 */
+  });
+
+  it("拍内消失的路径删缓存键:文件再现时重读(失效路径自愈)", async () => {
+    const r = reader(() => Promise.resolve(ok("D")));
+    const s = stamp("/p/d.json");
+    await readAnimProjectRows([s], r.readText);
+    await readAnimProjectRows([], r.readText); /* 消失 → 删键 */
+    await readAnimProjectRows([s], r.readText); /* 再现 → 重读 */
+    expect(r.calls).toEqual(["/p/d.json", "/p/d.json"]);
   });
 });

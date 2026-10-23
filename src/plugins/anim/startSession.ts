@@ -13,7 +13,9 @@ import {
   animProjectsDir,
   animSessionRefs,
   buildAnimSessionPrompt,
+  classifyProjectReadError,
   parseAnimProject,
+  projectReadErrorMessage,
   stubProjectFileName,
   stubProjectJson,
 } from "./animProjects";
@@ -26,7 +28,13 @@ export interface AnimEngine {
   env: Record<string, string>;
 }
 
-export type PrepareFailReason = "no-engine" | "no-home" | "invalid-project";
+export type PrepareFailReason =
+  | "no-engine"
+  | "no-home"
+  | "project-deleted"
+  | "project-too-large"
+  | "invalid-project"
+  | "read-failed";
 export type StartFailReason = "no-engine" | "no-home" | "start-failed";
 
 export interface PrepareAiSessionInput {
@@ -47,7 +55,8 @@ export interface PrepareAiSessionInput {
 
 export type PrepareAiSessionResult =
   | { ok: true; target: AiSessionTarget }
-  | { ok: false; reason: PrepareFailReason };
+  /* detail:read-failed 时携带的 IO 错误原文(其余 reason 无 detail)。 */
+  | { ok: false; reason: PrepareFailReason; detail?: string };
 
 export async function prepareAiSessionTarget(input: PrepareAiSessionInput): Promise<PrepareAiSessionResult> {
   const { home, engine, projectPath, rowName, windows, readFile, now, rand } = input;
@@ -57,10 +66,21 @@ export async function prepareAiSessionTarget(input: PrepareAiSessionInput): Prom
   let stub = false;
   let parsedName: string | null = null;
   if (path !== null) {
-    /* 读失败(被删/超限/IO)与坏内容同归 invalid-project 显性报错 —— 不静默改道
-       建桩:大项目(内嵌配音 dataURL 超 512KB 预览闸)曾在此静默生成垃圾桩。 */
-    const raw = await readFile(path).catch(() => null);
-    const parsed = raw !== null ? parseAnimProject(raw) : null;
+    /* 读失败按错误形态归因,不猜(0.4.3 评审 P3:>32MB 合法项目曾同归
+       invalid-project 被误标):被删 = project-deleted,超 32MB 读取闸 =
+       project-too-large,IO = read-failed 透出错误原文;坏内容才归
+       invalid-project。一律显性报错,绝不静默改道建桩(桩只留给
+       「未选项目」入口 projectPath=null)。readFile 恒为强制读(绕过轮询
+       读缓存)—— 会话决策点必须新鲜。 */
+    let parsed: { name: string; scenes: number } | null;
+    try {
+      parsed = parseAnimProject(await readFile(path));
+    } catch (err) {
+      const kind = classifyProjectReadError(err);
+      if (kind === "deleted") return { ok: false, reason: "project-deleted" };
+      if (kind === "oversize") return { ok: false, reason: "project-too-large" };
+      return { ok: false, reason: "read-failed", detail: projectReadErrorMessage(err) };
+    }
     if (!parsed) return { ok: false, reason: "invalid-project" };
     parsedName = parsed.name; /* 行名瞬态缺失(rows 失明)时的回落 */
   }
