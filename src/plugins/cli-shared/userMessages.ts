@@ -28,8 +28,9 @@ import { stringField } from "./sessionTranscript";
  */
 const TAIL_BYTES = 512 * 1024;
 /**
- * 全量窗口:首轮激活用。绝不走 fsReadFile —— 那是预览 API,512KB 上限,
- * 会话 jsonl 常态 4-6MB 必被拒(2026-09-02 事故:读失败被当空结果,历史锚点全丢)。
+ * 全量窗口:首轮激活用。绝不走 fsReadFile —— 那是预览 API(带预览大小闸),
+ * 整文件进预览缓存与转录语义不符,会话转录一律走 read_tail 尾读通道
+ * (2026-09-02 事故:读失败被当空结果,历史锚点全丢)。
  * read_tail 无上限、seek 尾部读,32MB 预算覆盖真实会话;超出则最老锚点缺失(导航降级)。
  */
 const FULL_BYTES = 32 * 1024 * 1024;

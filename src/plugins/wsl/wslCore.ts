@@ -136,7 +136,7 @@ export function isWslWorkspace(ws: Workspace): boolean {
 /** 远程 WSL 文件 URI 前缀(wslr://<hostId>/<distro>/<linuxPath>)。 */
 export const WSLR_SCHEME = "wslr://";
 
-/** 远程文本读取上限(与本地 fs 文本读取闸同量级)。 */
+/** 远程文本读取上限(M1 预算,与本地预览 100MB 闸脱钩;Rust 侧另有 4MB clamp)。 */
 export const REMOTE_WSL_FILE_MAX_BYTES = 512 * 1024;
 
 export interface RemoteWslFileRef {

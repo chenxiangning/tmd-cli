@@ -7,8 +7,8 @@
 use std::fs;
 use std::path::Path;
 
-/// 写入上限:与前端编辑场景对齐(预览读上限 512KB,保存放宽到 16MB 防误传巨量数据)。
-const MAX_WRITE_BYTES: usize = 16 * 1024 * 1024;
+/// 写入上限:与前端编辑场景对齐(预览读上限 100MB,保存同闸,防误传巨量数据)。
+const MAX_WRITE_BYTES: usize = 100 * 1024 * 1024;
 
 /// 路径校验:必须是绝对路径,且任意段不得为 `.git`(树不展示、也不允许改写)。
 pub(crate) fn validate_target(path: &str) -> Result<(), String> {

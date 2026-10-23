@@ -8,7 +8,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-/// 读入上限:与 fs_edit 写上限对齐,防恶意/异常 bundle 爆内存。
+/// 读入上限:免信任扫描路径的独立预算(2026-10-23 起与 fs_edit 写上限 100MB 脱钩),
+/// 防恶意/异常 bundle 爆内存。
 const MAX_READ_BYTES: u64 = 16 * 1024 * 1024;
 /// 版本库保留份数,超出淘汰最旧(按文件 mtime)。
 const VERSIONS_KEEP: usize = 5;
