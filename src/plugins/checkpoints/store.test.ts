@@ -214,6 +214,34 @@ describe("diffCache(批 diff 懒加载缓存)", () => {
   });
 });
 
+describe("getCkptBatches 探测窗读回落(stale-while-probing)", () => {
+  it("开窗沿主键翻转未首拉:回落上一主键缓存,非空帧;引用稳定供订阅比对", async () => {
+    ipcMock.checkpointList.mockResolvedValue([batch("b1", 1)]);
+    await store.refreshBatches(CWD, CLI, TMD); // 翻转前:清单记在绑定键名下
+
+    /* 探测窗开窗,查询键翻到 tmd id、其首拉未落地 → 读侧见上一份清单而非 EMPTY */
+    const stale = store.getCkptBatches(CWD, TMD, CLI);
+    expect(stale.batches.map((b) => b.id)).toEqual(["b1"]);
+    expect(stale).toBe(store.getCkptBatches(CWD, CLI)); // 同一缓存对象(useSyncExternalStore 快照稳定)
+  });
+
+  it("回落键首拉入仓即切新数据:回落只在主键缺条目期间生效", async () => {
+    ipcMock.checkpointList.mockResolvedValue([batch("b1", 1)]);
+    await store.refreshBatches(CWD, CLI, TMD);
+    ipcMock.checkpointList.mockResolvedValue([batch("b9", 9)]);
+    await store.refreshBatches(CWD, TMD, TMD); // 回落键自己的清单落地
+
+    const st = store.getCkptBatches(CWD, TMD, CLI);
+    expect(st.batches.map((b) => b.id)).toEqual(["b9"]);
+  });
+
+  it("无回落键/双方皆无条目:EMPTY 契约不变(既有调用面不受扰)", () => {
+    expect(store.getCkptBatches(CWD, TMD).batches).toEqual([]);
+    expect(store.getCkptBatches(CWD, TMD, CLI).batches).toEqual([]);
+    expect(store.getCkptBatches(null, CLI, CLI).batches).toEqual([]);
+  });
+});
+
 describe("markRefsFromRanges 路径口径(W2 缝隙:Mark 绝对路径 → 账本相对路径)", () => {
   beforeEach(() => {
     vi.resetModules();

@@ -23,7 +23,7 @@ import {
 } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { captureAnchor, markRefsFromRanges, recordEdit, sealTurn } from "./store";
-import { checkpointIdentity, echoProbing, noteEchoProbe, withEchoFallback } from "./identity";
+import { checkpointIdentity, echoProbing, noteEchoProbe, resetEchoProbes, withEchoFallback } from "./identity";
 import { BATCH_TAB_KIND } from "./batchTab";
 import { CheckpointsPanel } from "./CheckpointsPanel";
 import { BatchSheetTabContent } from "./BatchSheet";
@@ -182,6 +182,11 @@ export const checkpointsPlugin: Plugin = {
         if (diskEditSource(s.id)) void pullSessionEdits(s.id);
       }
     }, 4000);
-    return () => clearInterval(diskEditTimer);
+    return () => {
+      clearInterval(diskEditTimer);
+      /* 停用正处探测窗:close 边沿事件随订阅撤销一起丢失,登记 Set 就地清空
+         (identity.resetEchoProbes;残留会让读侧一直回落 tmd id,直到下次开合)。 */
+      resetEchoProbes();
+    };
   },
 };

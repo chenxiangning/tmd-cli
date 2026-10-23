@@ -198,10 +198,10 @@ function PanelErrorBanner({
 }
 
 export function CheckpointsPanel() {
-  const { cwd, sessionId, tmdSessionId, shown } = useCkptScope();
+  const { cwd, sessionId, tmdSessionId, shown, staleSessionId } = useCkptScope();
   useCkptAutoRefresh(cwd, sessionId, tmdSessionId);
 
-  const state = useCkptBatches(cwd, sessionId);
+  const state = useCkptBatches(cwd, sessionId, staleSessionId);
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
   /* 页签:审批线 | 变更 | 时间线(时间线/变更是独立组件,与审批线零共享逻辑) */
   const [view, setView] = useState<"batch" | "changes" | "timeline">("batch");

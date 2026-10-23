@@ -252,12 +252,26 @@ export function useCkptVersion(): number {
   );
 }
 
-/** 非 hook 读取(测试/非 React 上下文);React 组件走 useCkptBatches 订阅版。 */
-export function getCkptBatches(cwd: string | null, sessionId: string | null): CwdCkptState {
-  return cwd && sessionId ? (byKey.get(stateKey(cwd, sessionId)) ?? EMPTY) : EMPTY;
+/** 非 hook 读取(测试/非 React 上下文);React 组件走 useCkptBatches 订阅版。
+ *  staleSessionId:探测窗开窗沿主键翻转(绑定键 → tmd id)后,回落键首拉未
+ *  落地期间读上一主键的缓存(stale-while-probing)—— 批清单不闪空帧;主键
+ *  条目一入仓即切新数据,只读回落不写仓,无竞态。 */
+export function getCkptBatches(
+  cwd: string | null,
+  sessionId: string | null,
+  staleSessionId?: string | null,
+): CwdCkptState {
+  if (!cwd || !sessionId) return EMPTY;
+  const cur = byKey.get(stateKey(cwd, sessionId));
+  if (cur) return cur;
+  return (staleSessionId ? byKey.get(stateKey(cwd, staleSessionId)) : undefined) ?? EMPTY;
 }
 
-export function useCkptBatches(cwd: string | null, sessionId: string | null): CwdCkptState {
+export function useCkptBatches(
+  cwd: string | null,
+  sessionId: string | null,
+  staleSessionId?: string | null,
+): CwdCkptState {
   useCkptVersion();
-  return getCkptBatches(cwd, sessionId);
+  return getCkptBatches(cwd, sessionId, staleSessionId);
 }

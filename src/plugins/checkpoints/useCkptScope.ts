@@ -46,19 +46,23 @@ export function useCkptScope() {
     const identity = activeSessionId ? checkpointIdentity(activeSessionId) : null;
     /* 读侧与写侧(identity.ts)同律:探测窗内绑定值不可信,查询键回落 tmd id,
        重绑后 backfill_identity 整链自愈 —— 窗内面板不再读到旧绑定名下的账。 */
-    const key = identity ? withEchoFallback(identity, echoProbing(activeSessionId)).key : null;
+    const probing = echoProbing(activeSessionId);
+    const key = identity ? withEchoFallback(identity, probing).key : null;
     return {
       cwd: identity?.cwd ?? active?.root ?? null,
       sessionId: key,
       tmdSessionId: activeSessionId ?? undefined,
+      /* 开窗沿的上一主键(绑定键):stale-while-probing 读回落用,清单在回落键
+         首拉落地前不闪空帧;键相等 = 本沿无翻转,回落无意义。 */
+      staleSessionId: probing && identity && identity.key !== key ? identity.key : null,
     };
   };
-  const { cwd, sessionId, tmdSessionId } = resolveScope();
+  const { cwd, sessionId, tmdSessionId, staleSessionId } = resolveScope();
 
   /* 徽标与查询同口径:会话 cwd 落在哪个工作区根下就显示哪个,防错配误导。 */
   const shown = cwd ? (list.find((w) => cwd === w.root || cwd.startsWith(`${w.root}/`)) ?? active) : active;
 
-  return { cwd, sessionId, tmdSessionId, shown };
+  return { cwd, sessionId, tmdSessionId, staleSessionId, shown };
 }
 
 /** 面板级刷新:留存修剪 + 强退恢复 + 批清单轮询(no-high-complexity 降分支)。 */
