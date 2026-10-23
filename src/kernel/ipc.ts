@@ -998,7 +998,8 @@ export function setWebviewZoom(factor: number): Promise<void> {
   return isWeb ? Promise.reject(new Error("no webview")) : getCurrentWebview().setZoom(factor);
 }
 
-/** 关闭窗口。web 态 = 关闭当前标签页(脚本打开的页面有效,否则浏览器静默忽略)。 */
+/** 关闭窗口(走关窗闸:有关窗订阅时壳侧先拦、交前端裁决)。web 态 = 关闭当前
+ *  标签页(脚本打开的页面有效,否则浏览器静默忽略)。 */
 export function windowClose(): Promise<void> {
   if (isWeb) {
     window.close();
@@ -1007,11 +1008,24 @@ export function windowClose(): Promise<void> {
   return getCurrentWindow().close();
 }
 
+/** 直接销毁窗口(绕关窗闸,**不**再触发 tauri://close-requested)。用于「用户已
+ *  在弹层里明确确认退出」之后:确认过了就不该再被同一个闸拦第二次,也防脏 tab
+ *  收尾失败时确认 → 弹窗 → 确认的死循环。需 capability core:window:allow-destroy
+ *  (core:window:default 不含,缺了会静默 reject = 窗口关不掉)。web 态 no-op。 */
+export function windowDestroy(): Promise<void> {
+  if (isWeb) return Promise.resolve();
+  return getCurrentWindow().destroy();
+}
+
 /**
  * 关窗意图订阅:window onCloseRequested(0.4.0 项 12 关窗闸)。
  * decide 在事件回调内同步决断(脏检是同步面):调 prevent() 才拦窗(同步
  * 先行,后续裁决走聚合弹层,关闭由 windowClose 补发);不调则窗口按原生
  * 流程销毁 —— 不做「全拦再补发」形态,防脏空场景 windowClose 重入死循环。
+ * 注意:本订阅一挂上,壳侧对每次关窗请求都会 prevent_close 并转投前端
+ * (`@tauri-apps/api` 的 onCloseRequested 在「未 preventDefault」时用
+ * `window.destroy()` 真正关窗)—— 故 capability 必须给 allow-destroy,
+ * 否则红 X / ⌘Q 全部静默哑火(2026-10-23 真因)。
  * web 态 no-op。返回退订函数(boot 常驻路径不退订)。
  */
 export function onWindowCloseRequest(decide: (prevent: () => void) => void): () => void {
@@ -1026,24 +1040,6 @@ export function onWindowCloseRequest(decide: (prevent: () => void) => void): () 
         event.preventDefault();
       });
     })
-    .then((u) => {
-      unlisten = u;
-    })
-    .catch(() => undefined);
-  return () => unlisten?.();
-}
-
-/**
- * ⌘Q 菜单退出意图(0.4.1 批三,macOS 菜单装配):Rust 自定义菜单项 tmd.quit
- * (accel CmdOrControl+Q,无默认退出行为)点击经事件单源扇出 tmd://menu-quit。
- * 前端复用关窗闸确认流裁决——确认后关窗(单窗 destroyed → 进程退),取消无动作。
- * 比 ExitRequested 可靠(0.4.0 批二 review 双证据:ExitRequested 仅来自最后窗
- * Destroyed,拦它 = 无窗僵尸;macOS 无 applicationShouldTerminate)。web 态 no-op。
- */
-export function onMenuQuitRequested(run: () => void): () => void {
-  if (isWeb) return () => undefined;
-  let unlisten: (() => void) | undefined;
-  void listen("tmd://menu-quit", () => run())
     .then((u) => {
       unlisten = u;
     })
