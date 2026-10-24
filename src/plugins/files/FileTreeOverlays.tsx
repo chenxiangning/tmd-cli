@@ -24,6 +24,7 @@ export function FileTreeOverlays({
   openPrompt,
   copyPath,
   revealInFileManager,
+  importToCanvas,
   trash,
   closeMenu,
   closePrompt,
@@ -37,6 +38,7 @@ export function FileTreeOverlays({
   openPrompt: (p: PromptState) => void;
   copyPath: (entry: DirEntry) => void;
   revealInFileManager: (entry: DirEntry) => void;
+  importToCanvas: (entry: DirEntry) => void;
   trash: (entry: DirEntry) => Promise<void>;
   closeMenu: () => void;
   closePrompt: () => void;
@@ -60,6 +62,7 @@ export function FileTreeOverlays({
             rename: (entry) => openPrompt({ kind: "rename", entry }),
             copyPath,
             reveal: revealInFileManager,
+            importToCanvas,
             trash: (entry) => void trash(entry),
           }}
           onClose={closeMenu}

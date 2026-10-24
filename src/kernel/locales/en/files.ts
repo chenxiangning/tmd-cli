@@ -6,6 +6,7 @@ export const MESSAGES = {
   "重命名": "Rename",
   "复制路径": "Copy path",
   "在访达中显示": "Reveal in Finder",
+  "导入到意图画布": "Import to Intent Canvas",
   "移到废纸篓": "Move to trash",
   "确认移到废纸篓?": "Confirm move to trash?",
   "输入名称": "Enter a name",
