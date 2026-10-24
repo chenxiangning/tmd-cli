@@ -35,7 +35,7 @@ composer 发送门控、结束提示音、checkpoints 封口、本地插件对�
 |SessionRows / SessionStatusLabel|lastActivityAt + isUnread|侧栏行状态签|
 |RunningZone / useCliSessionGroup / revealSession|isTurnActive + isUnread|运行区候选与排序|
 |SessionTabBar|isUnread / isWaitingConfirm|tab 圆点(蓝=未读,绿=Ask)|
-|composer promptGate / ComposerToolbar|isTurnActive|发送不拦:轮中 "/" 前缀与 ask 作答不起 promptSent 锚点;工具栏模型位轮中不可点,声明 `modelCommandMidTurn` 的 CLI(omp,TUI 支持流中弹模型选择)例外恒可点(2026-10-24;此前 b7fe1c71 曾把豁免收丢致轮中点击无响应)|
+|composer promptGate / ComposerToolbar|isTurnActive + isWaitingConfirm|发送不拦:轮中 "/" 前缀与 ask 作答不起 promptSent 锚点;工具栏模型位轮中不可点,声明 `modelCommandMidTurn` 的 CLI(omp,TUI 支持流中弹模型选择)例外恒可点(2026-10-24;此前 b7fe1c71 曾把豁免收丢致轮中点击无响应);ask 等待期模型位/思考位一律禁发(写入会被当作答案文本,评审档 2026-10-24)|
 |turnSound|turnSettled 事件|结束音(延迟确认,响不可自愈)|
 |checkpoints index.tsx|turnSettled / promptSent|轮次账本封口|
 |localPlugins|turnSettled|对话即变自动重扫|

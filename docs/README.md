@@ -366,4 +366,5 @@
 | 2026-10-22 | [0.4.3 继续规划(质量收口版:三块在飞=幕布根治/评审查漏/anim 修补;批一收口发版+幕布真机复验,批二 mobile M2 剩 6 条真机腿集中验收日,批三 signing secrets 与 Windows 证书决策+空壳治理;无挂账特性候选,特性留 0.4.4)](brainstorm/2026-10-22-043-next-steps.md) | 已批准(收口优化打磨主线;批一收口执行,幕布复验后 tag) |
 | 2026-10-23 | [0.4.4 规划(打磨四项版:anim 项目读取缓存与错误归因 / checkpoints 探测窗边沿毛刺 / ports 二段杀 pid 复用防护 / workbench 三视图收编方案A;特性两项经大仙裁定删除,辅线 mobile M2 验收日与 signing 拍板登记待办)](brainstorm/2026-10-23-044-next-steps.md) | 已批准(四路并行实施中) |
 | 2026-10-23 | [0.4.4 批评审(三路并行覆盖 5 笔 31 文件,含并行会话 files 大小闸首评;P2×4 当轮全修=anim errno 边界/checkpoints 回落窗深链错位/files 写闸 CRLF 缝与编辑器护栏,P3 修 3 记 8,不成立 16)](review/2026-10-23-044-review.md) | 已收口(P2 当轮全修) |
+| 2026-10-24 | [模型位轮中可点回归修复收口评审(独立视角;P2×1=ask 等待期误答面,sendSlash 单点守卫+UI 恒禁当轮修;P3×2=抽屉/mobile 跨入口不一致既有记档)](review/2026-10-24-model-pill-midturn-review.md) | 已收口(P2 当轮修) |
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -163,10 +163,12 @@ export function ComposerToolbar() {
   const remoteEngine = isRemoteEngineSession(session);
   const observed = statusSource === "observed";
   const turnActive = sessionId ? host.isTurnActive(sessionId) : false;
+  const waitingConfirm = sessionId ? host.isWaitingConfirm(sessionId) : false;
   const { clickable: modelClickable, title: modelTitle } = modelClickState(
     noSession,
     turnActive,
     profile?.modelCommandMidTurn === true,
+    waitingConfirm,
   );
 
   /** 模型位点击 = 发送 /model(与抽屉 send 同路径:prepareSendPayload → writeSession)。 */
@@ -179,6 +181,9 @@ export function ComposerToolbar() {
   }
   function sendSlash(cmd: string): void {
     if (!sessionId || !profile) return;
+    /* ask 等待期一刀切:任何写入都会被 CLI 当作答案文本提交(askWatch 任何
+       写入=作答,命令形态永不达意,还把等待标签误摘),模型位/思考位一并拦。 */
+    if (host.isWaitingConfirm(sessionId)) return;
     const wire = prepareSendPayload(profile, cmd);
     host.writeSession(sessionId, wire);
     /* 不广播 promptSent:/model 与思考命令是 CLI 控制命令,永不开对话轮;起锚只会

@@ -21,6 +21,11 @@ describe("模型位可点性", () => {
     expect(modelClickState(false, true, true).clickable).toBe(true);
   });
 
+  it("ask 等待期:恒禁(豁免与否无关,写入会被当作答案文本)", () => {
+    expect(modelClickState(false, true, true, true).clickable).toBe(false);
+    expect(modelClickState(false, true, false, true).title).toBe("等待确认中,先在面板作答");
+  });
+
   it("空闲:恒可点(豁免声明与否无关)", () => {
     expect(modelClickState(false, false, false).clickable).toBe(true);
     expect(modelClickState(false, false, true).clickable).toBe(true);

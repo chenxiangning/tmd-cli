@@ -2,6 +2,7 @@
 export const MESSAGES = {
   /* view/ComposerToolbar.tsx */
   "点击发送 /model 打开 CLI 模型选择": "Click to send /model and open CLI model picker",
+  "等待确认中,先在面板作答": "Waiting for confirmation — answer in the panel first",
   "对话进行中,本轮结束后可点击切换模型": "Turn in progress — click to switch model after it ends",
   "未识别模型": "Unknown model",
   "模型": "Model",
