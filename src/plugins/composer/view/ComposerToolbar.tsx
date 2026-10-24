@@ -7,7 +7,7 @@ import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
 import { isRemoteEngineSession, useActiveProfile, useActiveSession } from "../state/useActiveProfile";
 import { prepareSendPayload } from "@kernel/profileSend";
-import { modelClickState } from "./modelClickState";
+import { modelClickState, thinkingSlotState } from "./modelClickState";
 
 /** 模型位:模型名 + seeded 徽标,点击发 /model(复杂度拆件)。
  *  远程引擎会话:本机配置种子不可信(那是本机 CLI 的模型,不是远端会话的),
@@ -54,19 +54,22 @@ function ModelSlot({
   );
 }
 
-/** 思考位:有 thinkingCommand 渲染按钮(轮中禁用),否则纯展示(复杂度拆件)。
- *  远程引擎会话:seeded 种子不显示(同模型位),未观测到实况前显示「远程」。 */
+/** 思考位:有 thinkingCommand 渲染按钮(轮中/ask 等待期禁用,与模型位同律),
+ *  否则纯展示(复杂度拆件)。远程引擎会话:seeded 种子不显示(同模型位),
+ *  未观测到实况前显示「远程」。 */
 function ThinkingSlot({
   level,
   hasCommand,
   remote,
   turnActive,
+  waitingConfirm,
   onSend,
 }: {
   level: string | undefined;
   hasCommand: boolean;
   remote: boolean;
   turnActive: boolean;
+  waitingConfirm: boolean;
   onSend: () => void;
 }) {
   const display = level ?? (remote ? t("远程") : undefined);
@@ -78,14 +81,15 @@ function ThinkingSlot({
       </span>
     );
   }
+  const { disabled, title } = thinkingSlotState(turnActive, waitingConfirm);
   return (
     <button
       type="button"
       className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
-        !turnActive ? "cursor-pointer hover:bg-(--tmd-bg-hover)" : "cursor-not-allowed opacity-40"
+        disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-(--tmd-bg-hover)"
       }`}
-      disabled={turnActive}
-      title={turnActive ? t("对话进行中,本轮结束后可点击") : t("点击打开思考强度选择")}
+      disabled={disabled}
+      title={title}
       onClick={onSend}
     >
       <span aria-hidden>{t("思考")}</span>
@@ -210,6 +214,7 @@ export function ComposerToolbar() {
         hasCommand={!!profile?.thinkingCommand}
         remote={remoteEngine && !observed}
         turnActive={turnActive}
+        waitingConfirm={waitingConfirm}
         onSend={sendThinkingCommand}
       />
       {sessionId ? (

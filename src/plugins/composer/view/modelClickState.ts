@@ -17,3 +17,16 @@ export function modelClickState(
     return { clickable: false, title: t("对话进行中,本轮结束后可点击切换模型") };
   return { clickable: true, title: t("点击发送 /model 打开 CLI 模型选择") };
 }
+
+/** 思考位可点性与标题(纯计算):ask 等待期恒禁(与模型位同因,任何写入会被
+ *  CLI 当作答案文本提交);对话进行中禁(命令串进输出流);空闲可点。
+ *  回归钉:ask 等待期只拦了写入与模型位,思考位在 ask 静默超阈(turnActive
+ *  翻 false)后假活可点、点击静默无反应(2026-10-24 评审 P2)。 */
+export function thinkingSlotState(
+  turnActive: boolean,
+  waitingConfirm = false,
+): { disabled: boolean; title: string } {
+  if (waitingConfirm) return { disabled: true, title: t("等待确认中,先在面板作答") };
+  if (turnActive) return { disabled: true, title: t("对话进行中,本轮结束后可点击") };
+  return { disabled: false, title: t("点击打开思考强度选择") };
+}
