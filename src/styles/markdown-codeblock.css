@@ -76,11 +76,13 @@
   color: var(--fvp-reader-text);
 }
 
-/* 复制按钮(codemoss messages.part2.css 同款,作用域换到 markdown 容器) */
+/* 复制按钮(codemoss messages.part2.css 同款,作用域换到 markdown 容器)
+   固定 24×24 + flex:none:纯 icon 无折行面,长语言标签也不得挤压本按钮。 */
 .fvp-file-markdown .markdown-codeblock-copy {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   width: 24px;
   height: 24px;
   padding: 0;
@@ -89,7 +91,7 @@
   background: transparent;
   color: var(--fvp-reader-muted);
   cursor: pointer;
-  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out), opacity var(--tmd-dur-1) var(--tmd-ease-out);
 }
 
 .fvp-file-markdown .markdown-codeblock-copy:hover,
@@ -256,6 +258,12 @@
   min-width: 100%;
   border-collapse: collapse;
 }
+
+/* 表格源码复制钮:悬停/聚焦显形,钉滚动容器外层右上角(横向滚动不带走);铁则压力声明紧凑 */
+.fvp-file-markdown-table-block { position: relative; }
+.fvp-file-markdown .markdown-table-copy { position: absolute; top: 8px; right: 8px; z-index: 1; opacity: 0; background: var(--message-codeblock-bg); }
+.fvp-file-markdown .fvp-file-markdown-table-block:hover .markdown-table-copy,
+.fvp-file-markdown .markdown-table-copy:focus-visible { opacity: 1; }
 
 .fvp-file-markdown th,
 .fvp-file-markdown td {

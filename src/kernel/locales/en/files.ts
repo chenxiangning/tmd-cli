@@ -88,6 +88,7 @@ export const MESSAGES = {
   "已复制": "Copied",
   "复制": "Copy",
   "表格": "Table",
+  "复制表格": "Copy table",
   /* 二进制不支态 */
   "音频文件": "Audio file",
   "视频文件": "Video file",

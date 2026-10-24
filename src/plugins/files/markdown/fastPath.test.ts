@@ -17,15 +17,19 @@ describe("fastPath renderFastMarkdown", () => {
     expect(html).toContain("<h1>标题</h1>");
     expect(html).toContain("<strong>加粗</strong>");
     expect(html).toContain("<s>删除</s>");
+    expect(html).toContain('<div class="fvp-file-markdown-table-block">');
+    expect(html).toContain("data-md-table-copy");
     expect(html).toContain('<div class="fvp-file-markdown-table-wrap"><table>');
-    expect(html).toContain("</table></div>");
+    expect(html).toContain("</table></div></div>");
   });
 
-  it("代码块:语言徽标 + 复制按钮 + prism 高亮 code", () => {
+  it("代码块:语言徽标 + 复制按钮(icon 纯图标)+ prism 高亮 code", () => {
     const html = renderFastMarkdown("```ts\nconst x = 1;\n```");
     expect(html).toContain('class="fvp-file-markdown-codeblock"');
     expect(html).toContain('<span class="markdown-codeblock-language-text">ts</span>');
     expect(html).toContain("data-md-copy");
+    expect(html).toContain('class="markdown-codeblock-copy-icon"');
+    expect(html).not.toContain(">复制</button>"); /* 文案只留 title/aria,不进按钮内容防折行 */
     expect(html).toContain('class="language-ts"');
     expect(html).toContain("token");
   });

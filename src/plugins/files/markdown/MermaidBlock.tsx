@@ -20,6 +20,7 @@ import { t } from "@kernel/i18n";
 import { hashStableString } from "@kernel/textHash";
 import { highlightLine } from "@kernel/syntaxHighlight";
 import { FullscreenViewer } from "./FullscreenViewer";
+import { CodeBlockCopyButton } from "./markdownBlocks";
 import { resolveMermaidViewerSrc } from "./viewerSrcModel";
 import { preloadViewerjs } from "./viewerRuntime";
 import {
@@ -137,6 +138,7 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
         canFullscreen={activeTab === "render" && !!visibleSvg}
         onTab={handleActiveTabChange}
         onFullscreen={() => setIsFullscreenOpen(true)}
+        source={value}
       />
       <div
         ref={bodyRef}
@@ -177,17 +179,20 @@ export const FileMarkdownMermaidBlock = memo(function FileMarkdownMermaidBlock({
   );
 });
 
-/** Mermaid 块头:标签 + 源码/渲染 tab + 全屏钮(自主体拆出降分支)。 */
+/** Mermaid 块头:标签 + 源码/渲染 tab + 源码复制 + 全屏钮(自主体拆出降分支)。 */
 function MermaidTabBar({
   activeTab,
   canFullscreen,
   onTab,
   onFullscreen,
+  source,
 }: {
   activeTab: MermaidBlockTab;
   canFullscreen: boolean;
   onTab: (tab: MermaidBlockTab) => void;
   onFullscreen: () => void;
+  /** 复制按钮取值:无论当前在源码还是渲染 tab,复制的都是 mermaid 源码。 */
+  source: string;
 }) {
   return (
     <div className="fvp-file-markdown-codeblock-label">
@@ -211,6 +216,7 @@ function MermaidTabBar({
         >
           {t("渲染")}
         </button>
+        <CodeBlockCopyButton getValue={() => source} ariaLabel={t("复制代码")} />
         <button
           type="button"
           className="fvp-file-markdown-mermaid-fullscreen"

@@ -85,8 +85,18 @@ function CodeBlockLanguageBadge({
   );
 }
 
-/** 复制按钮: Copy 图标,成功变 Check 1.2s。 */
-function CodeBlockCopyButton({ value }: { value: string }) {
+/** 复制按钮: Copy 图标,成功变 Check 1.2s。代码块/Mermaid/表格三处共用。 */
+export function CodeBlockCopyButton({
+  getValue,
+  ariaLabel,
+  extraClass = "",
+}: {
+  /** 点击时取复制内容:代码块/Mermaid 传固定值,表格从 DOM 现取(复制时才构源)。 */
+  getValue: () => string;
+  ariaLabel: string;
+  /** 追加类名(表格位传 markdown-table-copy 拿吸顶/悬停显形形态,快路径同款)。 */
+  extraClass?: string;
+}) {
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<number | null>(null);
 
@@ -101,7 +111,7 @@ function CodeBlockCopyButton({ value }: { value: string }) {
   const handleCopy = async (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     try {
-      await copyText(value);
+      await copyText(getValue());
     } catch {
       return;
     }
@@ -115,9 +125,9 @@ function CodeBlockCopyButton({ value }: { value: string }) {
   return (
     <button
       type="button"
-      className={`ghost markdown-codeblock-copy${copied ? " is-copied" : ""}`}
+      className={`ghost markdown-codeblock-copy${extraClass ? ` ${extraClass}` : ""}${copied ? " is-copied" : ""}`}
       onClick={handleCopy}
-      aria-label={t("复制代码")}
+      aria-label={ariaLabel}
       title={copied ? t("已复制") : t("复制")}
     >
       {copied ? (
@@ -151,7 +161,7 @@ export function FileMarkdownCodeBlock({
           languageTag={languageTag}
           label={languageTag ?? "Code"}
         />
-        <CodeBlockCopyButton value={value} />
+        <CodeBlockCopyButton getValue={() => value} ariaLabel={t("复制代码")} />
       </div>
       <pre>
         <code

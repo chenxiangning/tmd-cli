@@ -10,8 +10,10 @@
 import type { Components } from "react-markdown";
 import { openExternalUrl } from "@kernel/ipc";
 import { openFileInTab } from "@kernel/fileTabs";
+import { copyText } from "@kernel/clipboard";
 import { normalizeMarkdownAnchorKey } from "./markdownPreviewHelpers";
-import { t } from "@kernel/i18n";
+import { CHECK_ICON_SVG, COPY_ICON_SVG } from "./fastPath";
+import { tableToMarkdown } from "./tableSource";
 
 export type FastBlockMeta = { sourceFilePath: string | null };
 export type FastComponents = Components & { __fastMeta?: FastBlockMeta };
@@ -22,14 +24,25 @@ export const fastPathCallbacks: { onImageFullscreen: ((image: { src: string; alt
 
 const copyRestoreTimers = new WeakMap<HTMLButtonElement, number>();
 
+/** 复制取值:代码块取 pre code 文本;表格块从渲染 DOM 现构 GFM 源(tableSource)。 */
+function resolveCopyValue(button: HTMLButtonElement): string {
+  if (button.getAttribute("data-md-table-copy") !== null) {
+    const table = button.closest(".fvp-file-markdown-table-block")?.querySelector("table");
+    return table ? tableToMarkdown(table) : "";
+  }
+  return button.closest(".fvp-file-markdown-codeblock")?.querySelector("pre code")?.textContent ?? "";
+}
+
 function handleFastCopyClick(button: HTMLButtonElement): void {
-  const code = button.closest(".fvp-file-markdown-codeblock")?.querySelector("pre code");
-  const value = code?.textContent ?? "";
-  void navigator.clipboard
-    .writeText(value)
+  const value = resolveCopyValue(button);
+  /* copyText 而非裸 async clipboard:macOS WKWebView 对 async 写有 focus/activation
+     苛刻校验常拒(7b13952b 同因),execCommand 同步腿恰在点击手势内;与富路径
+     CodeBlockCopyButton 同原语。双路皆败才抛,此处静默吞(同富路径 catch 早退)。 */
+  void copyText(value)
     .then(() => {
       button.classList.add("is-copied");
-      button.textContent = t("已复制");
+      /* 反馈同富路径:Copy 图标换 Check,1.2s 后还原(纯 icon,防 24×24 盒内文字折行)。 */
+      button.innerHTML = CHECK_ICON_SVG;
       const previous = copyRestoreTimers.get(button);
       if (previous) {
         window.clearTimeout(previous);
@@ -38,11 +51,10 @@ function handleFastCopyClick(button: HTMLButtonElement): void {
         button,
         window.setTimeout(() => {
           button.classList.remove("is-copied");
-          button.textContent = t("复制");
+          button.innerHTML = COPY_ICON_SVG;
         }, 1200),
       );
     })
-    /* 剪贴板被拒(权限/无焦点)静默:与富路径 CodeBlockCopyButton 的 catch 早退同语义。 */
     .catch(() => undefined);
 }
 
@@ -66,7 +78,10 @@ function revealFastAnchor(container: HTMLElement | null, anchor: string): void {
 
 export function handleFastBlockClick(event: globalThis.MouseEvent): void {
   const target = event.target as HTMLElement;
-  const copyButton = target.closest<HTMLButtonElement>("button[data-md-copy]");
+  /* 复制路由:代码块 > 表格块(两种按钮都不在链接分支之前放行)。 */
+  const copyButton =
+    target.closest<HTMLButtonElement>("button[data-md-copy]") ??
+    target.closest<HTMLButtonElement>("button[data-md-table-copy]");
   if (copyButton) {
     event.stopPropagation();
     handleFastCopyClick(copyButton);
