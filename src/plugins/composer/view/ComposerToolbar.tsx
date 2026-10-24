@@ -7,6 +7,7 @@ import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
 import { isRemoteEngineSession, useActiveProfile, useActiveSession } from "../state/useActiveProfile";
 import { prepareSendPayload } from "@kernel/profileSend";
+import { modelClickState } from "./modelClickState";
 
 /** 模型位:模型名 + seeded 徽标,点击发 /model(复杂度拆件)。
  *  远程引擎会话:本机配置种子不可信(那是本机 CLI 的模型,不是远端会话的),
@@ -93,18 +94,6 @@ function ThinkingSlot({
   );
 }
 
-/** 模型位可点性与标题(纯计算,拆出降复杂度):omp 随时可发 /model(其 TUI
- *  支持流中弹出模型选择);其余 CLI 对话进行中不可发(会串进输出流),等轮次
- *  结算(呼吸灯蓝态结束)才生效。 */
-function modelClickState(
-  noSession: boolean,
-  turnActive: boolean,
-): { clickable: boolean; title: string } {
-  if (noSession) return { clickable: false, title: t("未识别模型") };
-  if (turnActive) return { clickable: false, title: t("对话进行中,本轮结束后可点击切换模型") };
-  return { clickable: true, title: t("点击发送 /model 打开 CLI 模型选择") };
-}
-
 /** 工具条右侧动作组:五段式高度 + 命令抽屉直达(自主组件拆出降复杂度)。 */
 function ToolbarActions({
   noSession,
@@ -174,7 +163,11 @@ export function ComposerToolbar() {
   const remoteEngine = isRemoteEngineSession(session);
   const observed = statusSource === "observed";
   const turnActive = sessionId ? host.isTurnActive(sessionId) : false;
-  const { clickable: modelClickable, title: modelTitle } = modelClickState(noSession, turnActive);
+  const { clickable: modelClickable, title: modelTitle } = modelClickState(
+    noSession,
+    turnActive,
+    profile?.modelCommandMidTurn === true,
+  );
 
   /** 模型位点击 = 发送 /model(与抽屉 send 同路径:prepareSendPayload → writeSession)。 */
   function sendModelCommand(): void {

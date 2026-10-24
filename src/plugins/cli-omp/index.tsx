@@ -114,6 +114,9 @@ export const cliOmpPlugin: Plugin = {
       renderIcon: (size) => <OmpGlyph size={size} />,
       command: "omp",
       args: [],
+      /* TUI 支持流中就地消费 /model 弹模型选择(promptGate 轮次闸同源先例):
+       * 模型位对话进行中保持可点,不等轮次结算(2026-10-24 用户实证回归)。 */
+      modelCommandMidTurn: true,
       triggers: [
         { char: "/", kind: "command" },
         { char: "@", kind: "file" },
