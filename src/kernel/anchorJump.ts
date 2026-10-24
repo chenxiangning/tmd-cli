@@ -93,7 +93,9 @@ async function jumpScanPages(
   await handle.loadEarlier();
   /* 翻页无进展(加载中重入/日志读空)即放弃,防空转 */
   if (handle.bufferLength() === before) return false;
-  return jumpScanPages(handle, needle, page + 1);
+  /* occurrence 必须随翻页透传:更早历史从顶部加入,第 k 条同文的相对序不变,
+     丢参退回 1 会在深锚点(时间线 #N 大)定位错条或多翻到上限后误判不可达。 */
+  return jumpScanPages(handle, needle, page + 1, occurrence);
 }
 
 /* ── 文本跳转契约(checkpoint↔转录互跳;候选5检索增强同款消费)────────── */

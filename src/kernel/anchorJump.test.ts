@@ -145,6 +145,21 @@ describe("jumpToAnchor", () => {
     expect(scrollsOf(h)).toEqual([]);
   });
 
+  it("翻页后 occurrence 不丢:同文第 2 条在翻入页里才凑齐,落第 2 条而非首条", async () => {
+    /* 当前页只 1 处命中,occurrence=2 需翻页;翻入后 buffer 为
+       [same text, pad×10, same text]:第 2 条在 row 11,留头 3 → 落 8。
+       丢参退回 1 会落 row 0 → 0(回归钉:时间线 #N 深锚点定位错条)。 */
+    const h = fakeHandle({
+      lines: ["same text"],
+      rows: 10,
+      loadEarlier: (lines) => void lines.unshift("same text", ...Array.from({ length: 10 }, (_, i) => `pad ${i}`)),
+    });
+    current = h;
+    registerTerminalHandle(sessionId, h);
+    await expect(jumpToAnchor(sessionId, anchor("1", "same text"), 2)).resolves.toBe(true);
+    expect(scrollsOf(h).at(-1)).toBe(8);
+  });
+
   it("平滑滚动落点为逐帧插值的最终目标行(500 行 buffer,目标 472)", async () => {
     const lines = Array.from({ length: 500 }, (_, i) => (i === 480 ? "deep unique target" : `pad ${i}`));
     const h = fakeHandle({ lines, rows: 30 });
