@@ -21,7 +21,7 @@ vi.mock("@excalidraw/excalidraw", () => ({
     elements.map((element, index) => ({ id: `mock-element-${index}`, ...element })),
 }));
 
-import { importExcalidrawFile, parseExcalidrawFile, titleFromExcalidrawName } from "../excalidrawFileImport";
+import { claimImportRequestId, importExcalidrawFile, parseExcalidrawFile, titleFromExcalidrawName } from "../excalidrawFileImport";
 import { createIntentCanvasDocument } from "../storage/documentOps";
 
 const VALID = JSON.stringify({
@@ -56,8 +56,13 @@ describe("parseExcalidrawFile", () => {
 });
 
 describe("importExcalidrawFile", () => {
-  it("读取失败(超 512KB 读闸/文件消失):文案带原因上抛", async () => {
+  it("读取失败(文件消失):文案带原因上抛", async () => {
     await expect(importExcalidrawFile("/ws/gone.excalidraw", "gone.excalidraw")).rejects.toThrow("无法读取");
+  });
+
+  it("超 512KB 前端闸早拒(存储写闸 496KB,读入必失败)", async () => {
+    fileByPath.set("/ws/big.excalidraw", "x".repeat(513 * 1024));
+    await expect(importExcalidrawFile("/ws/big.excalidraw", "big.excalidraw")).rejects.toThrow("超出画布存储上限");
   });
 
   it("端到端:盘上文件 → 场景+标题", async () => {
@@ -65,6 +70,21 @@ describe("importExcalidrawFile", () => {
     const { scene, title } = await importExcalidrawFile("/ws/tiv.excalidraw", "tiv.excalidraw");
     expect(title).toBe("tiv");
     expect(scene.elements.length).toBeGreaterThan(0);
+  });
+});
+
+describe("claimImportRequestId 跨重挂去重", () => {
+  it("同 requestId 二次消费拒绝(重挂重放不二次导入),新 id 放行", () => {
+    const id = Date.now();
+    expect(claimImportRequestId(id)).toBe(true);
+    expect(claimImportRequestId(id)).toBe(false);
+    expect(claimImportRequestId(id + 1)).toBe(true);
+  });
+
+  it("容量上限:超限整体清空,旧 id 可重导(代价仅一次右键)", () => {
+    const base = 1_000_000_000_000;
+    for (let i = 0; i <= 501; i++) claimImportRequestId(base + i);
+    expect(claimImportRequestId(base)).toBe(true); // 已被清空重置
   });
 });
 

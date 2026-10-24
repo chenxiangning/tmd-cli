@@ -151,6 +151,7 @@ export const MESSAGES_EN = {
   "「{name}」不是有效的 Excalidraw 文件(JSON 解析失败)": "\"{name}\" is not a valid Excalidraw file (JSON parse failed)",
   "「{name}」不是有效的 Excalidraw 文件": "\"{name}\" is not a valid Excalidraw file",
   "「{name}」里没有可导入的画布元素": "No importable canvas elements found in \"{name}\"",
+  "「{name}」超过 512KB,超出画布存储上限": "\"{name}\" exceeds 512KB — beyond the canvas storage limit",
   "无法读取「{name}」:{message}": "Cannot read \"{name}\": {message}",
   "总闸。默认每会话不注入:在对话框左下画布图标点开本会话作图标识后,发送才附带画图指令,AI 把绘图文件写进收件箱,画布自动上稿。": "Master switch. By default nothing is injected per session: turn on the session draw badge via the canvas icon at the bottom-left of the composer, then sends carry drawing instructions, the AI writes drawing files to the inbox, and the canvas picks them up automatically.",
 } as Record<string, string>;

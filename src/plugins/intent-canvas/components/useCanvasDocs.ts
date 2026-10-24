@@ -9,7 +9,7 @@ import type { Workspace } from "@kernel/workspace";
 import type { IntentCanvasDocument, IntentCanvasIndexEntry, IntentCanvasOpenRequest } from "../types";
 import { loadIntentCanvasDocument, saveIntentCanvasDocument } from "../storage/documents";
 import { appendIntentCanvasDocumentFromRequest, createIntentCanvasDocument } from "../storage/documentOps";
-import { importExcalidrawFile } from "../excalidrawFileImport";
+import { importExcalidrawFile, claimImportRequestId } from "../excalidrawFileImport";
 import { normalizeError } from "./EditorShared";
 
 type UseCanvasDocsInput = {
@@ -131,6 +131,9 @@ export function useCanvasDocs({
   /** 文件树深链:.excalidraw 文件 → 新画布(标题=文件名,source.filePath 进来源回链)。 */
   const importCanvas = useCallback(
     async (request: IntentCanvasOpenRequest) => {
+      /* 跨重挂去重:非保活 tab 切走重挂会重放同一 payload,二次导入 = 静默复制
+         画布(评审 P1)。canvasId 打开路径的重放是良性重开,不经此闸。 */
+      if (!claimImportRequestId(request.requestId)) return;
       if (!activeWorkspace || !workspaceRef || !request.import) {
         return;
       }
