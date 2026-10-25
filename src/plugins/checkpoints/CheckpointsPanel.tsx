@@ -199,7 +199,7 @@ function PanelErrorBanner({
 
 export function CheckpointsPanel() {
   const { cwd, sessionId, tmdSessionId, shown, staleSessionId } = useCkptScope();
-  useCkptAutoRefresh(cwd, sessionId, tmdSessionId);
+  useCkptAutoRefresh(cwd, sessionId, tmdSessionId, staleSessionId);
 
   const state = useCkptBatches(cwd, sessionId, staleSessionId);
   /* 行来自哪份清单就按哪份键开单/取 diff:回落窗内 state.batches 属回落键,
