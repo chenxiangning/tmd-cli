@@ -82,6 +82,10 @@ pub fn read_local_image_data_url(path: &str) -> Result<String, String> {
     Ok(format!("data:{mime};base64,{}", BASE64.encode(bytes)))
 }
 
+/// 二进制头部嗅探窗口:前 8KB 含 NUL 即判二进制(git 同款口径)—— 100MB 二进制
+/// 不再整读进内存/IPC 才说「不支持」(2026-10-23 评审 P3 记档,0.4.5 收编)。
+const BINARY_SNIFF_BYTES: usize = 8 * 1024;
+
 /// 读取文本文件内容供前端预览。超限/二进制直接拒绝。
 pub fn read_file(path: &str) -> Result<String, String> {
     let meta = fs::metadata(path).map_err(|e| format!("读取文件信息失败: {e}"))?;
@@ -90,6 +94,24 @@ pub fn read_file(path: &str) -> Result<String, String> {
             "文件超过 {}MB，暂不支持预览",
             MAX_PREVIEW_BYTES / 1024 / 1024
         ));
+    }
+    /* 头部嗅探:先读前 8KB,NUL 即拒(大文件快路径);窗口后置校验保留 ——
+       NUL 落在 8KB 之外的罕见形态语义不变,仍由整读后的兜底检查拒绝。 */
+    {
+        use std::io::Read;
+        let mut file = fs::File::open(path).map_err(|e| format!("读取文件失败: {e}"))?;
+        let mut head = [0u8; BINARY_SNIFF_BYTES];
+        let mut filled = 0usize;
+        while filled < head.len() {
+            match file.read(&mut head[filled..]) {
+                Ok(0) => break,
+                Ok(n) => filled += n,
+                Err(e) => return Err(format!("读取文件失败: {e}")),
+            }
+        }
+        if head[..filled].contains(&0) {
+            return Err("二进制文件暂不支持预览".to_string());
+        }
     }
     let bytes = fs::read(path).map_err(|e| format!("读取文件失败: {e}"))?;
     if bytes.contains(&0) {
@@ -166,6 +188,34 @@ mod tests {
         assert!(read_file(bin.to_str().unwrap())
             .unwrap_err()
             .contains("二进制"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn read_file_头部嗅探快拒() {
+        let root = temp_root("text-sniff");
+        // 稀疏大文件(全 NUL):头部嗅探在前 8KB 即拒,不整读 10MB
+        let big = root.join("sparse.bin");
+        let f = fs::File::create(&big).unwrap();
+        f.set_len(10 * 1024 * 1024).unwrap();
+        drop(f);
+        assert!(read_file(big.to_str().unwrap())
+            .unwrap_err()
+            .contains("二进制"));
+
+        // NUL 在 8KB 之外的罕见形态:窗口后置校验仍拒绝(语义不变)
+        let far = root.join("far-nul.bin");
+        let mut tail = vec![b'a'; BINARY_SNIFF_BYTES + 64];
+        tail.push(0);
+        fs::write(&far, &tail).unwrap();
+        assert!(read_file(far.to_str().unwrap())
+            .unwrap_err()
+            .contains("二进制"));
+
+        // 纯文本(> 嗅探窗,无 NUL):照常读取
+        let txt = root.join("plain.txt");
+        fs::write(&txt, vec![b'x'; BINARY_SNIFF_BYTES + 16]).unwrap();
+        assert_eq!(read_file(txt.to_str().unwrap()).unwrap().len(), BINARY_SNIFF_BYTES + 16);
         let _ = fs::remove_dir_all(&root);
     }
 
