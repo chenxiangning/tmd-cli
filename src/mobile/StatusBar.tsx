@@ -21,6 +21,59 @@ import {
 const STATUS_POLL_MS = 30_000;
 const QUOTA_POLL_MS = 120_000;
 
+/** 模型 chip(0.4.5 拆出降分支密度):点击写 /model 拉起 CLI picker;ask 等待期
+ *  禁发(写入会被 CLI 当作答案文本提交,与桌面模型位/⌘K 抽屉同律)。 */
+function ModelChip(props: { label: string; askWait: boolean; onSend: () => void }) {
+  return (
+    <button
+      type="button"
+      className="m-status-chip"
+      aria-label={t("切模型")}
+      disabled={props.askWait}
+      title={props.askWait ? t("等待确认中,先在面板作答") : undefined}
+      onClick={() => {
+        if (props.askWait) return;
+        props.onSend();
+      }}
+    >
+      {props.label}
+    </button>
+  );
+}
+
+/** 思考 chip:纯展示;引擎声明 thinkingCommand(如 dsh /effort)时可点发送,
+ *  ask 等待期与轮中禁发(桌面思考位同律,0.4.5 mobile 对齐)。 */
+function ThinkingChip(props: {
+  level: string;
+  askWait: boolean;
+  turnActive: boolean;
+  sendable: boolean;
+  onSend: () => void;
+}) {
+  const blocked = props.askWait || props.turnActive;
+  return (
+    <button
+      type="button"
+      className="m-status-chip"
+      aria-label={t("思考 {level}", { level: props.level })}
+      disabled={blocked}
+      title={
+        props.askWait
+          ? t("等待确认中,先在面板作答")
+          : props.turnActive
+            ? t("对话进行中,本轮结束后可点击")
+            : t("点击打开思考强度选择")
+      }
+      onClick={() => {
+        if (blocked || !props.sendable) return;
+        props.onSend();
+      }}
+    >
+      {t("思考 {level}", { level: props.level })}
+    </button>
+  );
+}
+
 export function StatusBar(props: {
   sessionId: string;
   profileId: string;
@@ -83,22 +136,25 @@ export function StatusBar(props: {
   return (
     <div className="m-status">
       {modelLabel && (
-        <button
-          type="button"
-          className="m-status-chip"
-          aria-label={t("切模型")}
-          disabled={props.askWait === true}
-          title={props.askWait === true ? t("等待确认中,先在面板作答") : undefined}
-          onClick={() => {
-            if (props.askWait === true) return;
-            void writeSession(props.sessionId, engineWire(profileId, "/model")).catch(() => undefined);
-          }}
-        >
-          {modelLabel}
-        </button>
+        <ModelChip
+          label={modelLabel}
+          askWait={props.askWait === true}
+          onSend={() =>
+            void writeSession(props.sessionId, engineWire(profileId, "/model")).catch(() => undefined)
+          }
+        />
       )}
       {status?.thinkingLevel && (
-        <span className="m-status-chip">{t("思考 {level}", { level: status.thinkingLevel })}</span>
+        <ThinkingChip
+          level={status.thinkingLevel}
+          askWait={props.askWait === true}
+          turnActive={props.turnActive === true}
+          sendable={!!engineOf(profileId)?.thinkingCommand}
+          onSend={() => {
+            const cmd = engineOf(profileId)?.thinkingCommand;
+            if (cmd) void writeSession(props.sessionId, engineWire(profileId, cmd)).catch(() => undefined);
+          }}
+        />
       )}
       {quotaText !== undefined && (
         <button
