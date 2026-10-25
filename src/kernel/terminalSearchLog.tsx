@@ -11,51 +11,53 @@ import { MagnifyingGlass } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 
 export function TerminalLogSearchButton({
-  searching,
-  onClick,
+    searching,
+    onClick,
 }: {
-  searching: boolean;
-  onClick: () => void;
+    searching: boolean;
+    onClick: () => void;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex shrink-0 items-center gap-0.5 rounded px-1 text-xs text-(--tmd-fg-faint) hover:text-(--tmd-accent)"
-    >
-      <MagnifyingGlass size="0.75rem" aria-hidden />
-      {searching ? t("搜索日志中…") : t("搜完整日志")}
-    </button>
-  );
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="flex shrink-0 items-center gap-0.5 rounded px-1 text-xs text-(--tmd-fg-faint) hover:text-(--tmd-accent)"
+        >
+            <MagnifyingGlass size="0.75rem" aria-hidden />
+            {searching ? t("搜索日志中…") : t("搜完整日志")}
+        </button>
+    );
 }
 
 export function TerminalLogHits({
-  result,
-  jumping,
-  onPick,
+    result,
+    jumping,
+    onPick,
 }: {
-  result: LogSearchResult;
-  jumping: boolean;
-  onPick: (offset: number) => void;
+    result: LogSearchResult;
+    jumping: boolean;
+    onPick: (offset: number) => void;
 }) {
-  return (
-    <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-72 overflow-y-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) py-1 shadow-(--tmd-shadow-popover)">
-      <div className="px-2 pb-1 text-[10px] leading-4 text-(--tmd-fg-faint)">
-        {t("日志命中 {n} 处", { n: String(result.totalHits) })}
-        {result.truncated ? t("(仅列前 {n} 行)", { n: String(result.hits.length) }) : ""}
-        {jumping ? t("定位中…") : ""}
-      </div>
-      {result.hits.map((hit) => (
-        <button
-          type="button"
-          key={hit.byteOffset}
-          onClick={() => onPick(hit.byteOffset)}
-          title={t("定位")}
-          className="block w-full truncate px-2 py-0.5 text-left font-mono text-[11px] leading-4 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
-        >
-          {hit.line || "␀"}
-        </button>
-      ))}
-    </div>
-  );
+    return (
+        <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-72 overflow-y-auto rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) py-1 shadow-(--tmd-shadow-popover)">
+            <div className="px-2 pb-1 text-[10px] leading-4 text-(--tmd-fg-faint)">
+                {t("日志命中 {n} 处", { n: String(result.totalHits) })}
+                {result.truncated
+                    ? t("(仅列前 {n} 行)", { n: String(result.hits.length) })
+                    : ""}
+                {jumping ? t("定位中…") : ""}
+            </div>
+            {result.hits.map((hit) => (
+                <button
+                    type="button"
+                    key={hit.byteOffset}
+                    onClick={() => onPick(hit.byteOffset)}
+                    title={t("定位")}
+                    className="block w-full truncate px-2 py-0.5 text-left font-mono text-[11px] leading-4 text-(--tmd-fg-muted) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+                >
+                    {hit.line || "␀"}
+                </button>
+            ))}
+        </div>
+    );
 }

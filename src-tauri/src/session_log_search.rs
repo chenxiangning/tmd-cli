@@ -42,12 +42,26 @@ pub(crate) fn search_log(
 ) -> Result<LogSearchResult, String> {
     let needle = needle.trim();
     if needle.is_empty() {
-        return Ok(LogSearchResult { hits: vec![], total_hits: 0, truncated: false });
+        return Ok(LogSearchResult {
+            hits: vec![],
+            total_hits: 0,
+            truncated: false,
+        });
     }
     let mut file = File::open(path).map_err(|e| format!("打开会话日志失败: {e}"))?;
     let mut raw = Vec::new();
-    file.read_to_end(&mut raw).map_err(|e| format!("读取会话日志失败: {e}"))?;
-    let pat: Vec<u8> = needle.bytes().map(|b| if case_sensitive { b } else { b.to_ascii_lowercase() }).collect();
+    file.read_to_end(&mut raw)
+        .map_err(|e| format!("读取会话日志失败: {e}"))?;
+    let pat: Vec<u8> = needle
+        .bytes()
+        .map(|b| {
+            if case_sensitive {
+                b
+            } else {
+                b.to_ascii_lowercase()
+            }
+        })
+        .collect();
     let hay_is_folded = !case_sensitive;
 
     let mut total: u64 = 0;
@@ -56,14 +70,21 @@ pub(crate) fn search_log(
     let mut i = 0usize;
     while i + pat.len() <= raw.len() {
         let eq = if hay_is_folded {
-            raw[i..i + pat.len()].iter().map(|b| b.to_ascii_lowercase()).eq(pat.iter().copied())
+            raw[i..i + pat.len()]
+                .iter()
+                .map(|b| b.to_ascii_lowercase())
+                .eq(pat.iter().copied())
         } else {
             raw[i..i + pat.len()] == pat[..]
         };
         if eq {
             total += 1;
             /* 行去重:同一行的多处命中只出一条定位条目(跳转目标 = 行起点)。 */
-            let line_start = raw[..i].iter().rposition(|&b| b == b'\n').map(|p| p + 1).unwrap_or(0);
+            let line_start = raw[..i]
+                .iter()
+                .rposition(|&b| b == b'\n')
+                .map(|p| p + 1)
+                .unwrap_or(0);
             if last_line_start != Some(line_start) && hits.len() < MAX_SEARCH_HIT_ROWS {
                 last_line_start = Some(line_start);
                 hits.push(LogSearchHit {
@@ -77,12 +98,20 @@ pub(crate) fn search_log(
         }
     }
     let truncated = hits.len() >= MAX_SEARCH_HIT_ROWS && total as usize > MAX_SEARCH_HIT_ROWS;
-    Ok(LogSearchResult { hits, total_hits: total, truncated })
+    Ok(LogSearchResult {
+        hits,
+        total_hits: total,
+        truncated,
+    })
 }
 
 /// 行预览:line_start 起到行尾(\n 或缓冲尾),剥转义序列与 \r,lossy 解码截宽。
 fn preview_line(raw: &[u8], line_start: usize) -> String {
-    let line_end = raw[line_start..].iter().position(|&b| b == b'\n').map(|p| line_start + p).unwrap_or(raw.len());
+    let line_end = raw[line_start..]
+        .iter()
+        .position(|&b| b == b'\n')
+        .map(|p| line_start + p)
+        .unwrap_or(raw.len());
     let mut out: Vec<u8> = Vec::with_capacity(line_end - line_start);
     let mut i = line_start;
     while i < line_end {
@@ -100,7 +129,11 @@ fn preview_line(raw: &[u8], line_start: usize) -> String {
         }
     }
     let text = String::from_utf8_lossy(&out).into_owned();
-    text.chars().take(SEARCH_HIT_LINE_CHARS).collect::<String>().trim().to_string()
+    text.chars()
+        .take(SEARCH_HIT_LINE_CHARS)
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 #[cfg(test)]

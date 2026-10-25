@@ -208,7 +208,7 @@ pub(crate) fn read_history_page(
 
 /// 日志全文搜索命中与扫描 —— 拆至 session_log_search.rs(300 行铁则),
 /// 路径保持 crate::session_log::* 引用不变(同 fs.rs re-export 先例)。
-pub(crate) use crate::session_log_search::{search_log, LogSearchHit, LogSearchResult};
+pub(crate) use crate::session_log_search::{search_log, LogSearchResult};
 
 #[cfg(test)]
 mod tests {

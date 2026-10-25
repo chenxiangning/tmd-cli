@@ -57,7 +57,11 @@ describe("翻沿种子与 LRU 触碰(0.4.5 回落沿对称化)", () => {
 
     /* 挂起中的首拉:loading 帧 batches 来自种子键 */
     let release: (v: CkptBatch[]) => void = () => undefined;
-    ipcMock.checkpointList.mockReturnValueOnce(new Promise<CkptBatch[]>((r) => { release = r; }));
+    ipcMock.checkpointList.mockReturnValueOnce(
+      new Promise<CkptBatch[]>((r) => {
+        release = r;
+      }),
+    );
     const inflight = store.refreshBatches(CWD, "cli-2", TMD, CLI);
     const mid = store.getCkptBatches(CWD, "cli-2");
     expect(mid.loading).toBe(true);
@@ -84,7 +88,8 @@ describe("翻沿种子与 LRU 触碰(0.4.5 回落沿对称化)", () => {
 
   it("touchCkptKey:回落键读期间触碰免 LRU 逐出(未触碰的旧键被挤出)", async () => {
     ipcMock.checkpointList.mockResolvedValue([]);
-    for (let i = 0; i < 32; i++) await store.refreshBatches(CWD, `k${i}`, undefined);
+    for (let i = 0; i < 32; i++)
+      await store.refreshBatches(CWD, `k${i}`, undefined);
     expect(store.hasCkptEntry(CWD, "k0")).toBe(true);
 
     store.touchCkptKey(CWD, "k0"); // 回落键触碰 → 挪尾,k1 变最老

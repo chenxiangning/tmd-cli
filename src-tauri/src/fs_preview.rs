@@ -96,7 +96,7 @@ pub fn read_file(path: &str) -> Result<String, String> {
         ));
     }
     /* 头部嗅探:先读前 8KB,NUL 即拒(大文件快路径);窗口后置校验保留 ——
-       NUL 落在 8KB 之外的罕见形态语义不变,仍由整读后的兜底检查拒绝。 */
+    NUL 落在 8KB 之外的罕见形态语义不变,仍由整读后的兜底检查拒绝。 */
     {
         use std::io::Read;
         let mut file = fs::File::open(path).map_err(|e| format!("读取文件失败: {e}"))?;
@@ -215,7 +215,10 @@ mod tests {
         // 纯文本(> 嗅探窗,无 NUL):照常读取
         let txt = root.join("plain.txt");
         fs::write(&txt, vec![b'x'; BINARY_SNIFF_BYTES + 16]).unwrap();
-        assert_eq!(read_file(txt.to_str().unwrap()).unwrap().len(), BINARY_SNIFF_BYTES + 16);
+        assert_eq!(
+            read_file(txt.to_str().unwrap()).unwrap().len(),
+            BINARY_SNIFF_BYTES + 16
+        );
         let _ = fs::remove_dir_all(&root);
     }
 
