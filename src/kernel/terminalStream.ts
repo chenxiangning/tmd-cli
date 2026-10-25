@@ -77,23 +77,31 @@ export function attachTerminalStream(
     term.write(queued.join(""));
   };
   hiddenDefer?.bindFlush(flushDeferred);
-  /* SIGWINCH 舞步降级守卫:仅滤 live 路径(回放/翻页是历史字节,原样)。
-     跨 keep-alive 重挂载:已注册实例优先(舞步状态不丢),否则按本幕布 rows 新建。 */
-  const guard = sigwinchGuardOf(sessionId) ?? createSigwinchGuard(() => term.rows ?? 0);
-  registerSigwinchGuard(sessionId, guard);
-  const liveFilter = (text: string): string => guard.feed(text);
-  const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
-    onLive?.();
-    const out = liveFilter(text);
+  /* live 写路由:回放未完攒队保序 > 隐藏幕布合帧 > 直写。 */
+  const routeLive = (out: string): void => {
     if (liveQueue) {
       liveQueue.push(out);
-      diskChunkSink?.(text);
     } else if (hiddenDefer?.shouldDefer()) {
       pendingHidden = (pendingHidden ?? []).concat(out);
       if (!hiddenTimer) hiddenTimer = setInterval(flushDeferred, HIDDEN_FLUSH_MS);
     } else {
       term.write(out);
     }
+  };
+  /* SIGWINCH 舞步降级守卫:仅滤 live 路径(回放/翻页是历史字节,原样)。
+     跨 keep-alive 重挂载:已注册实例优先(舞步状态不丢),否则按本幕布 rows 新建。 */
+  const guard = sigwinchGuardOf(sessionId) ?? createSigwinchGuard(() => term.rows ?? 0);
+  /* 舞步扣留超时奉还出口(真 alt UI 如 /model picker,见守卫头注):与实时字节
+     同路保序(routeLive 三分支),keep-alive 重挂刷新绑定,cancelled 防卸载后
+     fire 写已卸载幕布。 */
+  guard.emit = (text: string): void => {
+    if (!cancelled && text) routeLive(text);
+  };
+  registerSigwinchGuard(sessionId, guard);
+  const offLive = host.events.on<string>(ptyLiveTopic(sessionId), (text) => {
+    onLive?.();
+    routeLive(guard.feed(text));
+    if (liveQueue) diskChunkSink?.(text);
     received += text.length;
     if (!cancelled && !ready && (!liveQueue || diskStreamPhase)) {
       onProgress({ kind: "stream", chars: received });
