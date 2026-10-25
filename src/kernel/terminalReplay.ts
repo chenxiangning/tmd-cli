@@ -54,5 +54,39 @@ export function writeInChunks(
   );
 }
 
+/** 等 xterm 已排队字节解析完;空写不注入内容,只借回调确定 buffer 可读。 */
+export function settleTerminalWrite(term: Pick<Terminal, "write">): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  term.write("", resolve);
+  return promise;
+}
+
+/** 定位前等待回放/历史/写队列;卸载门贯穿所有等待段,最终也复核存活。 */
+export async function settleTerminalJump(
+  term: Pick<Terminal, "write">,
+  ready: {
+    pager: Promise<void>;
+    stream: Promise<void>;
+    history: () => Promise<void>;
+    flush: () => void;
+    disposed: () => boolean;
+    disposal: Promise<void>;
+  },
+): Promise<void> {
+  const gate = <T>(p: Promise<T>): Promise<T | void> => Promise.race([p, ready.disposal]);
+  const assertAlive = (): void => {
+    if (ready.disposed()) throw new Error("terminal disposed");
+  };
+  ready.flush();
+  await gate(ready.pager);
+  await gate(ready.stream);
+  assertAlive();
+  await gate(ready.history());
+  ready.flush();
+  assertAlive();
+  await gate(settleTerminalWrite(term));
+  assertAlive();
+}
+
 /** 流装配 re-export:消费方 import 路径不变(2026-10-20 拆分)。 */
 export { attachTerminalStream } from "./terminalStream";

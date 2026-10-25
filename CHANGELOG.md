@@ -4,6 +4,12 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.4] - Unreleased
+
+### 修复
+
+- 时间线与 composer 锚点栏「定位幕布」改取 needle 在幕布的末次现行拷贝,撤掉把磁盘消息顺序当 PTY 重印次数的 occurrence 映射;附件独占首行时继续找正文,不再共用路径前缀错锚。定位前等 xterm 写入与 history 初始化落定,翻页按真实推进判定(兼容 24K 行上限),快速连点只让最后一次落位;显式跳转取消旧位置守望,CLI 换身份时清空旧时间线缓存
+
 ## [0.4.3] - 2026-10-22
 
 ### 新增

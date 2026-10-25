@@ -106,13 +106,9 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
   const items = anchors.map((anchor, i) => ({ anchor, seq: i + 1 })).reverse();
   const lastId = anchors[anchors.length - 1]?.id;
 
-  async function onJump(anchor: UserMessageAnchor, occurrence: number) {
+  async function onJump(anchor: UserMessageAnchor) {
     if (!sessionId) return;
-    /* occurrence = anchors 正序位置 +1(seq):同文多轮定位本条,不落最新。
-       只定位 PTY 幕布,不落转录查看器:时间线是幕布的伴生导航,点「定位幕布」
-       就该停在幕布里;失败(超回放窗/无 handle)闪红即可,转录另有入口
-       (2026-10-25 撤 e12e3ea9 给本面板接的兜底,审阅单/footprint 不受影响)。 */
-    const ok = await jumpToAnchor(sessionId, anchor, occurrence);
+    const ok = await jumpToAnchor(sessionId, anchor);
     if (ok) return;
     setMissId(anchor.id);
     window.setTimeout(() => setMissId((cur) => (cur === anchor.id ? null : cur)), MISS_FLASH_MS);
@@ -140,7 +136,7 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
           open={openIds.has(anchor.id)}
           turnBatch={turnBatches.get(anchor.id)}
           onToggle={() => toggleOpen(anchor.id)}
-          onJump={() => void onJump(anchor, seq)}
+          onJump={() => void onJump(anchor)}
         />
       ))}
     </div>

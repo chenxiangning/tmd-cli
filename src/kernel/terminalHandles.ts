@@ -17,6 +17,8 @@ export interface TerminalHandle {
   viewportTop(): number;
   /** 视口行数。 */
   rows(): number;
+  /** 等已排队写入与 history 初始化落定;定位前调用,测试假体可省略。 */
+  settled?(): Promise<void>;
   scrollToLine(row: number): void;
   /** xterm 聚焦(composer 空输入 ↑↓ 焦点移交用;无 handle 时调用方静默)。 */
   focus(): void;
@@ -24,8 +26,8 @@ export interface TerminalHandle {
   onScroll(cb: () => void): () => void;
   /** 会话日志还有更早未加载的输出。 */
   hasMoreHistory(): boolean;
-  /** 往前翻一页历史(RIS 重写幕布);完成后 buffer 内容增加。 */
-  loadEarlier(): Promise<void>;
+  /** 往前翻一页历史(RIS 重写幕布);返回是否推进,行数不变也可能换入内容。 */
+  loadEarlier(): Promise<boolean | void>;
 }
 
 const terminals = new Map<string, TerminalHandle>();

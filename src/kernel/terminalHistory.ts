@@ -23,6 +23,8 @@ export class TerminalHistoryPager {
   /** 重入闸必须是同步属性:state 闸要等 React 重渲染才翻转,
       而锚点跳转的翻页循环在微任务里续延 —— state 闸会让第 2 页起确定性停摆。 */
   private loading = false;
+  /** 在飞页 Promise:并发定位共享同一页,完成后各自重扫,不假 miss。 */
+  private inFlight: Promise<boolean> | null = null;
   private hasMore = false;
 
   constructor(
@@ -34,7 +36,12 @@ export class TerminalHistoryPager {
 
   /** 会话日志还有更早未加载的输出(锚点跳转翻页判据)。 */
   hasMoreHistory(): boolean {
-    return this.earliestByte > 0;
+    return this.hasMore;
+  }
+
+  /** 等在飞页重写与 scrollToTop 完成;定位不得抢在旧页落位前执行。 */
+  async settled(): Promise<void> {
+    await this.inFlight?.catch(() => undefined);
   }
 
   private emit(): void {
@@ -52,9 +59,14 @@ export class TerminalHistoryPager {
     this.emit();
   }
 
-  /** 往前翻一页:从会话日志读更早的原始输出,RIS 重置后连同现有内容整段重写。 */
-  async loadEarlier(term: Terminal): Promise<void> {
-    if (this.loading) return;
+  /** 往前翻一页;返回是否真推进。并发调用共享在飞页。 */
+  loadEarlier(term: Terminal): Promise<boolean> {
+    if (this.inFlight) return this.inFlight;
+    this.inFlight = this.performLoadEarlier(term);
+    return this.inFlight;
+  }
+
+  private async performLoadEarlier(term: Terminal): Promise<boolean> {
     this.loading = true;
     this.emit();
     try {
@@ -66,33 +78,28 @@ export class TerminalHistoryPager {
       if (!page.text) {
         this.hasMore = false;
         this.emit();
-        return;
+        return false;
       }
       this.prefix.unshift(page.text); // 更早的页排前面
       this.earliestByte = page.startOffset;
       this.hasMore = page.hasMore;
       this.emit();
-      /* \x1bc(RIS)整屏重置后与历史一并入队:与实时写共用 xterm 同一写队列,无竞态;
-         期间到达的实时字节已含在 getOutputBuffer 快照里,之后的排在本次写之后。
-         顺序逐页 write,不做 join 大字符串 —— 跨页 join 是 O(N²) 字符工作量,
-         xterm 自带写队列,分次写入语义与一次性大 write 等价。 */
-      /* 整段重写 = 历史查询(DSR/DA/OSC 颜色)被重新应答 —— 上闸,
-         末段 write 回调释放;异常路径由 finally 兜底,不成对会永久锁死输入 */
+      /* RIS 与历史/实时快照共用 xterm 写队列;末段回调时 buffer 已可搜索。 */
       this.inputGate.arm();
       term.write("\x1bc");
       for (const prefix of this.prefix) term.write(prefix);
-      /* 末段 write 回调内 resolve:调用方(锚点跳转翻页循环)await 拿到的是
-         buffer 已含新历史的时刻 */
-      await new Promise<void>((resolve) =>
-        term.write(host.getOutputBuffer(this.sessionId), () => {
-          this.inputGate.release();
-          term.scrollToTop();
-          resolve();
-        }),
-      );
+      const { promise, resolve } = Promise.withResolvers<void>();
+      term.write(host.getOutputBuffer(this.sessionId), () => {
+        this.inputGate.release();
+        term.scrollToTop();
+        resolve();
+      });
+      await promise;
+      return true;
     } finally {
       this.inputGate.release(); // 异常兜底:正常路径已释放,计数钳位到 0
       this.loading = false;
+      this.inFlight = null;
       this.emit();
     }
   }

@@ -58,6 +58,7 @@ describe("MessageAnchorStore 轮询", () => {
 
   function registerReader(reader: () => Promise<CliUserMessage[] | null>): void {
     readerImpl = reader;
+    messageAnchors.remove("s1");
     hostInternals.sessions = [
       { id: "s1", profileId: "hang-cli", cwd: "/w", kind: "cli" },
     ];
@@ -93,6 +94,64 @@ describe("MessageAnchorStore 轮询", () => {
     expect(first).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(POLL_MS); // 同批无新 id:不换数组
     expect(messageAnchors.getAnchors("s1")).toBe(first);
+    unsub();
+  });
+
+  it("同 tmd 会话换 CLI 身份时清空旧 anchors 并重新全量读", async () => {
+    const fullReads: boolean[] = [];
+    registerReader((...args: unknown[]) => {
+      fullReads.push(args[2] === true);
+      const id = host.getCliSessionId("s1") ?? "unknown";
+      return Promise.resolve([{ id, text: id }]);
+    });
+    const unsub = messageAnchors.subscribe(() => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(messageAnchors.getAnchors("s1").map((m) => m.text)).toEqual(["cli-f1"]);
+    host.bindIdentityForTest("s1", "cli-f2");
+    await vi.advanceTimersByTimeAsync(POLL_MS);
+    expect(messageAnchors.getAnchors("s1").map((m) => m.text)).toEqual(["cli-f2"]);
+    expect(fullReads).toEqual([true, true]);
+    unsub();
+  });
+
+
+  it("身份切换中的迟到旧读丢弃,空新会话也立即清旧快照", async () => {
+    const late = Promise.withResolvers<CliUserMessage[] | null>();
+    let calls = 0;
+    registerReader(() => {
+      calls += 1;
+      if (calls === 1) return Promise.resolve([{ id: "old", text: "old" }]);
+      if (calls === 2) return late.promise;
+      return Promise.resolve([]);
+    });
+    let snapshot: readonly CliUserMessage[] = [];
+    let notifications = 0;
+    const unsub = messageAnchors.subscribe(() => {
+      notifications += 1;
+      snapshot = messageAnchors.getAnchors("s1");
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(snapshot.map((m) => m.text)).toEqual(["old"]);
+    await vi.advanceTimersByTimeAsync(POLL_MS);
+    host.bindIdentityForTest("s1", "cli-f2");
+    late.resolve([{ id: "late-old", text: "late-old" }]);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(POLL_MS);
+    expect(calls).toBe(3);
+    expect(snapshot).toEqual([]);
+    expect(notifications).toBe(3); /* 初始空快照 + 首批 old + 换身份空快照;迟到旧读零通知 */
+    unsub();
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  it("慢读超时前不并发发起第二拍", async () => {
+    let calls = 0;
+    registerReader(() => { calls += 1; return new Promise<never>(() => {}); });
+    const unsub = messageAnchors.subscribe(() => {});
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(3 * POLL_MS);
+    expect(calls).toBe(1);
+    await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS); /* 清本例 inFlight,避免泄漏到下一例 */
     unsub();
   });
 });

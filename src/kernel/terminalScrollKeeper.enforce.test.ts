@@ -97,10 +97,26 @@ describe("reflow enforcement 窗(WebKit 布局重置对抗)", () => {
       live.repopulate(lines.flatMap((l) => [l.slice(0, 30), l.slice(30)]), 12);
     });
     await advance(32);
-    k.cancelEnforcement();
+    k.cancel();
     live.state.viewportY = 0;
     await advance(96);
     expect(live.state.viewportY).toBe(0);
+  });
+
+  it("显式定位取消重印守望:新缓冲稳定后也不拉回旧锚", async () => {
+    useFrameClock();
+    const lines = Array.from({ length: 40 }, (_, i) => `row${i} ` + "c".repeat(50));
+    const live = fakeLiveTerm(lines, { cols: 120, rows: 15, viewportY: 10 });
+    const k = createScrollKeeper();
+    vi.setSystemTime(0);
+    k.reflow(live.term, () => live.repopulate(lines, 12));
+    await advance(32);
+    live.repopulate(Array.from({ length: 20 }, (_, i) => `wipe${i}`), 0);
+    await advance(120); /* 守望已见缓冲腰斩 */
+    k.cancel();
+    live.repopulate(lines, 5); /* 显式跳转后的新阅读位 */
+    await advance(600);
+    expect(live.state.viewportY).toBe(5);
   });
 
   it("键盘滚动意图键让位:窗内 shift+PageUp 不再被钉回,普通键入不让位", async () => {

@@ -65,7 +65,7 @@ afterEach(() => {
 });
 
 describe("textNeedle", () => {
-  it("与 anchorNeedle 同管线:取首个非空行、剥 @token、折叠空白", () => {
+  it("与 anchorNeedle 同管线:取首段非附件正文、折叠空白", () => {
     expect(textNeedle("\n  @src/foo.ts 请帮我修复\n第二行")).toBe("请帮我修复");
   });
 
