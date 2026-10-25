@@ -159,9 +159,12 @@ export function useCliSessionGroup({
 
   const disk = scanned.filter((s) => !liveCliIds.has(s.id) && !isArchived(s.id));
   /* 工作区置顶块:按置顶时间升序;磁盘已消失的置顶(外部删文件)自然缺席;
-   * 已归档的置顶在默认视图隐藏(disk 过滤已含 archived)。 */
+   * 已归档的置顶在默认视图隐藏(disk 过滤已含 archived)。
+   * 满额规模实测(0.4.5):磁盘行 Map 化 —— 原逐 pin disk.find 在 500+ 会话 ×
+   * 多置顶下 O(pins×disk),每渲染重复扫;Map 一次构建 O(disk+pins)。 */
+  const diskByCliId = new Map(disk.map((d): [string, typeof d] => [d.id, d]));
   const pinnedDisk = workspacePins.flatMap((p) => {
-    const entry = disk.find((d) => d.id === p.cliSessionId);
+    const entry = diskByCliId.get(p.cliSessionId);
     return entry ? [entry] : [];
   });
   /* 时间轴语义:显式按修改时间倒序,不依赖各 CLI listSessions 的返回顺序。 */
