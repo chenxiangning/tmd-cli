@@ -13,7 +13,7 @@ use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use crate::session_log::{read_history_page, HistoryPage, LogMeta};
+use crate::session_log::{read_history_page, search_log, HistoryPage, LogMeta, LogSearchResult};
 use parking_lot::Mutex;
 use portable_pty::{MasterPty, PtySize};
 use serde::{Deserialize, Serialize};
@@ -193,6 +193,22 @@ impl PtyRegistry {
             .cloned()
             .ok_or_else(|| format!("会话 {id} 无输出日志"))?;
         read_history_page(&meta.path, meta.base, meta.written, before, max_bytes)
+    }
+
+    /// 日志全文搜索(磁盘侧,字面量子串;活缓冲归前端 xterm 搜索)。
+    pub fn session_log_search(
+        &self,
+        id: &str,
+        needle: &str,
+        case_sensitive: bool,
+    ) -> Result<LogSearchResult, String> {
+        let meta = self
+            .logs
+            .lock()
+            .get(id)
+            .cloned()
+            .ok_or_else(|| format!("会话 {id} 无输出日志"))?;
+        search_log(&meta.path, meta.base, needle, case_sensitive)
     }
 }
 

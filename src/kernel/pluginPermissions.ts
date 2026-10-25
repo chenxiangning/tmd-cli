@@ -27,6 +27,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sessionKill: "ipc.terminal",
   sessionLogSize: "ipc.terminal",
   sessionHistoryPage: "ipc.terminal",
+  sessionLogSearch: "ipc.terminal",
   sessionSetWorkspace: "ipc.terminal",
   sessionBindCli: "ipc.terminal",
   sessionReportActivity: "ipc.terminal",

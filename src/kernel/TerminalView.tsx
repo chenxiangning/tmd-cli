@@ -21,7 +21,6 @@ import { t } from "@kernel/i18n";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
 import { host } from "@kernel/host";
-import { Mounts } from "@kernel/Mounts";
 import {
   registerTerminalHandle,
   unregisterTerminalHandle,
@@ -41,10 +40,11 @@ import { takeTerminalFreeze } from "@kernel/terminalFreeze";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { createScrollKeeper } from "@kernel/terminalScrollKeeper";
 import { TerminalSearchOverlay, useSearchBoxOwnership } from "@kernel/terminalSearch";
+import { makeLogSearchBridge } from "@kernel/terminalFindBridge";
+import { TerminalToolRow } from "@kernel/terminalRefreshButton";
 import "@kernel/terminalFontZoom"; /* 终端字号缩放键位(⌘+/⌘−/⌘0):模块级注册,随幕布装配生效 */
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
 import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
-import { TerminalJumpToBottomButton, TerminalRefreshButton } from "@kernel/terminalRefreshButton";
 import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
 import { readTerminalTheme } from "@kernel/terminalXtermTheme";
@@ -282,16 +282,15 @@ termRef.current = term;
         </button>
       )}
       {searchOpen && (
-        <TerminalSearchOverlay searchRef={searchRef} termRef={termRef} onClose={closeSearch} />
+        <TerminalSearchOverlay
+          searchRef={searchRef}
+          termRef={termRef}
+          onClose={closeSearch}
+          logSearch={makeLogSearchBridge(sessionId, pagerRef, termRef)}
+        />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
-      {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 回底钮 + 刷新钮收尾最右。
-          行不设 z —— 画布浮层开启时整行隐没其下;幕布态浮于 xterm 之上(DOM 序)。 */}
-      <div className="absolute right-3 top-2 flex items-center gap-1.5">
-        <Mounts point="terminal.canvasRow" />
-        <TerminalJumpToBottomButton termRef={termRef} />
-        <TerminalRefreshButton onClick={() => setCanvasGen((g) => g + 1)} />
-      </div>
+      <TerminalToolRow termRef={termRef} onRefresh={() => setCanvasGen((g) => g + 1)} />
     </div>
   );
 }

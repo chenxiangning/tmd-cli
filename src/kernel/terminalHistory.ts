@@ -66,6 +66,48 @@ export class TerminalHistoryPager {
     return this.inFlight;
   }
 
+  /** 窗口化跳转(⌘F 磁盘命中定位,0.4.5):读 offset 起的一窗历史重写幕布 ——
+   *  不逐页回放(深跳 64MB 逐页重写 = O(n²) 字节写入,不可行);窗口尾与
+   *  当前缓冲之间插入一行 dim 间隙标记如实声明跳过段;锚点改指窗口起点,
+   *  「加载更早」从窗口起点继续向前翻,活缓冲照常追尾。占用在飞槽(与
+   *  翻页互斥,迟到者共享同一跳转)。 */
+  jumpToByte(term: Terminal, offset: number, gapLabel: string): Promise<boolean> {
+    if (this.inFlight) return this.inFlight;
+    this.inFlight = this.performJump(term, offset, gapLabel);
+    return this.inFlight;
+  }
+
+  private async performJump(term: Terminal, offset: number, gapLabel: string): Promise<boolean> {
+    this.loading = true;
+    this.emit();
+    try {
+      const before = Math.min(offset + HISTORY_PAGE_BYTES, await ipc.sessionLogSize(this.sessionId));
+      const page = await ipc.sessionHistoryPage(this.sessionId, before, HISTORY_PAGE_BYTES);
+      if (!page.text) return false;
+      this.prefix = [page.text];
+      this.earliestByte = page.startOffset;
+      this.hasMore = page.hasMore;
+      this.emit();
+      this.inputGate.arm();
+      term.write("\x1bc");
+      term.write(page.text);
+      term.write(`\x1b[2m${gapLabel}\x1b[0m\r\n`);
+      const { promise, resolve } = Promise.withResolvers<void>();
+      term.write(host.getOutputBuffer(this.sessionId), () => {
+        this.inputGate.release();
+        term.scrollToTop();
+        resolve();
+      });
+      await promise;
+      return true;
+    } finally {
+      this.inputGate.release();
+      this.loading = false;
+      this.inFlight = null;
+      this.emit();
+    }
+  }
+
   private async performLoadEarlier(term: Terminal): Promise<boolean> {
     this.loading = true;
     this.emit();

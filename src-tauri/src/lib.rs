@@ -34,6 +34,7 @@ mod session;
 mod session_commands;
 mod session_disk_log;
 mod session_log;
+mod session_log_search;
 mod settings;
 mod skill_pkg;
 mod sqlite;
@@ -264,6 +265,7 @@ pub fn run() {
             session_commands::session_link_log,
             session_commands::session_disk_tail,
             session_commands::session_history_page,
+            session_commands::session_log_search,
             commands_fs::fs_list_dir,
             commands_fs::fs_read_file,
             commands_fs::fs_write_temp,

@@ -12,6 +12,9 @@ import { CaretDown, CaretUp, Cross } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { countTerminalMatches } from "@kernel/terminalMatchCount";
 import { findRequestRef } from "@kernel/terminalFindBridge";
+import type { LogSearchResult } from "@kernel/ipc";
+import { TerminalLogHits, TerminalLogSearchButton } from "./terminalSearchLog";
+import type { LogSearchBridge } from "./terminalFindBridge";
 
 /* Aa/.* 选项钮的选中/未选中视觉(与检索 chip 同语系)。 */
 function toggleCls(on: boolean): string {
@@ -26,15 +29,22 @@ export function TerminalSearchOverlay({
   searchRef,
   termRef,
   onClose,
+  logSearch,
 }: {
   searchRef: RefObject<SearchAddon | null>;
   termRef: RefObject<Terminal | null>;
   onClose: () => void;
+  /** 磁盘日志搜索桥(TerminalView 注入;缺省 = 无日志面,浮层退回纯缓冲搜索)。 */
+  logSearch?: LogSearchBridge;
 }) {
   const [query, setQuery] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [useRegex, setUseRegex] = useState(false);
   const [count, setCount] = useState({ total: 0, current: 0 });
+  /* 磁盘日志搜索:缓冲零命中且日志有更早字节时出面;正则模式不搜磁盘(字面量口径)。 */
+  const [logResult, setLogResult] = useState<LogSearchResult | null>(null);
+  const [logBusy, setLogBusy] = useState(false);
+  const [logJumping, setLogJumping] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     inputRef.current?.focus();
@@ -95,8 +105,35 @@ export function TerminalSearchOverlay({
   useEffect(() => {
     if (query) find("next");
     else setCount({ total: 0, current: 0 });
+    setLogResult(null); /* 口径/查询变化:磁盘结果作废重搜 */
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 选项翻转的重跑入口,query 逐键路径在 onChange
   }, [caseSensitive, useRegex]);
+
+  /* 磁盘日志搜索:字面量子串;失败/无日志静默退场(不冒错,缓冲搜索已可用)。 */
+  const runLogSearch = async () => {
+    if (!logSearch || !query || logBusy) return;
+    setLogBusy(true);
+    try {
+      setLogResult(await logSearch.search(query, caseSensitive));
+    } catch {
+      setLogResult(null);
+    } finally {
+      setLogBusy(false);
+    }
+  };
+  /* 命中定位:窗口化跳转落位后从顶部找首个命中(跳转内已 scrollToTop)。 */
+  const jumpToHit = async (offset: number) => {
+    if (!logSearch || logJumping) return;
+    setLogJumping(true);
+    try {
+      if (await logSearch.jump(offset)) find("next");
+    } finally {
+      setLogJumping(false);
+    }
+  };
+  const showLogButton =
+    !!logSearch && !!query && !useRegex && count.total === 0 && logSearch.hasEarlier() && !logResult;
+  const showLogHits = !!logResult && (logResult.totalHits > 0 || logBusy === false);
 
   return (
     <div className="absolute right-3 top-2 z-10 flex items-center gap-1 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-2 py-1 shadow-(--tmd-shadow-popover)">
@@ -105,6 +142,8 @@ export function TerminalSearchOverlay({
         value={query}
         onChange={(e: ChangeEvent<HTMLInputElement>) => {
           setQuery(e.target.value);
+          /* 查询变化:磁盘结果作废(改词/清空都要重搜,入口重浮)。 */
+          setLogResult(null);
           /* IME 组合态跳过逐字搜索(拼音中途剧烈跳选),组合结束再找;
            * DOM 值先于 onChange 落定,find 读 inputRef 即新值。 */
           if (e.target.value && !(e.nativeEvent as InputEvent).isComposing) find("next");
@@ -147,6 +186,7 @@ export function TerminalSearchOverlay({
           {count.total > 0 ? t("{n}/{m}", { n: count.current, m: count.total }) : t("0/0")}
         </span>
       )}
+      {showLogButton && <TerminalLogSearchButton searching={logBusy} onClick={() => void runLogSearch()} />}
       <button
         type="button"
         title={t("上一个 (Shift+Enter)")}
@@ -174,6 +214,9 @@ export function TerminalSearchOverlay({
       >
         <Cross size="0.875rem" aria-hidden />
       </button>
+      {logResult && showLogHits && (
+        <TerminalLogHits result={logResult} jumping={logJumping} onPick={(off) => void jumpToHit(off)} />
+      )}
     </div>
   );
 }

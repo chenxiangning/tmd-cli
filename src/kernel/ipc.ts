@@ -110,6 +110,18 @@ export interface HistoryPage {
   hasMore: boolean;
 }
 
+/** 日志全文搜索命中(byteOffset = 行起点,绝对坐标系与翻页锚点同源)。 */
+export interface LogSearchHit {
+  byteOffset: number;
+  line: string;
+}
+
+export interface LogSearchResult {
+  hits: LogSearchHit[];
+  totalHits: number;
+  truncated: boolean;
+}
+
 export interface SessionMeta {
   id: string;
   profileId: string;
@@ -401,6 +413,9 @@ export const ipc = {
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
   /** 会话输出日志的绝对末尾偏移(累计字节数);无日志返回 0。 */
   sessionLogSize: (id: string) => invoke<number>("session_log_size", { id }),
+  /** 日志全文搜索(⌘F 缓冲零命中时的磁盘兜底;行去重定位条目,byteOffset = 行起点)。 */
+  sessionLogSearch: (id: string, needle: string, caseSensitive: boolean) =>
+    invoke<LogSearchResult>("session_log_search", { id, needle, caseSensitive }),
   /** 幕布往前翻页:before 绝对偏移之前最多 maxBytes 字节的原始输出。 */
   sessionHistoryPage: (id: string, before: number, maxBytes: number) =>
     invoke<HistoryPage>("session_history_page", { id, before, maxBytes }),
