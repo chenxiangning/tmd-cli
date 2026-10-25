@@ -50,11 +50,13 @@ export function useFileBlame(opts: {
             view,
             lines.map((l) => ({
               lineNo: l.lineNo,
+              sha: l.sha,
               shortSha: l.shortSha,
               summary: l.summary,
               authorName: l.authorName,
               authorWhen: l.authorWhen,
               boundary: l.boundary,
+              cwd: wsRoot,
               label: `${l.shortSha} ${l.authorName} ${formatAbsolute(l.authorWhen * 1000)}`,
             })),
           );

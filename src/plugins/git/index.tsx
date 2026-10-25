@@ -8,6 +8,8 @@ import { COMMIT_TAB_KIND } from "./commitTab";
 import { DIFF_TAB_KIND } from "./diffTab";
 import { FILE_HISTORY_TAB_KIND, openFileHistoryTab } from "./fileHistoryTab";
 import { fileHistoryOpenRef } from "@kernel/fileHistoryBridge";
+import { commitOpenRef } from "@kernel/commitOpenBridge";
+import { openCommitDiffTab } from "./commitTab";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 /** Git 插件入口:单视图三段面板(差异/分支/历史)+ 提交 diff 中央 tab。
@@ -51,8 +53,12 @@ export const gitPlugin: Plugin = {
     }
     // 文件历史开框桥交接:files 经它跨件开 tab(files 不 import git 模块)。
     fileHistoryOpenRef.current = openFileHistoryTab;
+    // 提交 diff 开框桥交接:编辑器 blame gutter(editorBlame)点击行归属提交 →
+    // 中央提交 diff tab(kernel 经 commitOpenBridge 触发,不 import git 模块)。
+    commitOpenRef.current = openCommitDiffTab;
     return () => {
       fileHistoryOpenRef.current = null;
+      commitOpenRef.current = null;
     };
   },
 };

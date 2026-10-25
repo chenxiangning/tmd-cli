@@ -16,6 +16,8 @@ pub struct BlameLine {
     /// 1 基行号
     pub line_no: u32,
     pub text: String,
+    /// 全 sha(前端 blame gutter 点击深链提交 diff tab,0.4.5)
+    pub sha: String,
     pub short_sha: String,
     /// commit message 首行
     pub summary: String,
@@ -50,6 +52,7 @@ pub fn blame(repo: &Repository, path: &str) -> Result<Vec<BlameLine>, GitError> 
         out.push(BlameLine {
             line_no,
             text: text.to_string(),
+            sha: oid.to_string(),
             short_sha: oid.to_string().chars().take(7).collect(),
             summary: commit.summary().unwrap_or_default().to_string(),
             author_name: hunk

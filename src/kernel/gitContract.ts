@@ -119,6 +119,8 @@ export interface GitFileLogEntry {
 export interface GitBlameLine {
   lineNo: number;
   text: string;
+  /** 全 sha(blame gutter 点击深链提交 diff tab 用,0.4.5)。 */
+  sha: string;
   shortSha: string;
   summary: string;
   authorName: string;
