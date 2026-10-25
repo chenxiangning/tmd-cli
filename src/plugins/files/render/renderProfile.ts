@@ -8,7 +8,7 @@
  *   文本类一律可编辑,不需要 profile 再判);
  * - code/text 合并为 code(只影响 codemoss 高亮语言选择,tmd 统一进 CodeMirror);
  * - 预算系统只保留 structured 内部的解析上限(FileStructuredPreview 自带),
- *   code/markdown 不引入低成本降级 —— md 管线已单独优化,文本读取侧 Rust 已有 512KB 闸。
+ *   code/markdown 不引入低成本降级 —— md 管线已单独优化,文本读取侧 Rust 已有 100MB 闸。
  */
 
 type StructuredPreviewKind = "shell" | "dockerfile";

@@ -233,6 +233,7 @@ function WsfbBrowser({ workspaceId, root }: WorkspaceFileBrowserProps) {
         openPrompt={ops.openPrompt}
         copyPath={ops.copyPath}
         revealInFileManager={ops.revealInFileManager}
+        importToCanvas={ops.importToCanvas}
         trash={ops.trash}
         closeMenu={ops.closeMenu}
         closePrompt={ops.closePrompt}

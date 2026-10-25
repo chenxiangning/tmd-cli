@@ -1,22 +1,24 @@
 /**
  * 快路径事件委托契约测试 —— fastPathDelegation.ts。
- * 覆盖:data-* 路由优先级(复制 > 图片 > 链接)与未命中零拦截;复制反馈(写剪贴板、
- * is-copied 类 + 文案、1200ms 恢复、重复点击重置定时、拒绝静默);图片全屏回调 src/alt
- * 透传(alt 回退);链接三分流(external 补协议头 / file 开 tab / anchor 归一化滚动);
- * 拦截语义差异(preventDefault/stopPropagation)。DOM 用最小 fake 节点,node 环境零 DOM。
+ * 覆盖:data-* 路由优先级(代码块复制 > 表格复制 > 图片 > 链接)与未命中零拦截;复制反馈(写
+ * 剪贴板、图标切换、1200ms 恢复、重复点击重置、拒绝静默);图片全屏回调与链接三分流、拦截语义
+ * 差异(preventDefault/stopPropagation)。DOM 用最小 fake 节点,node 环境零 DOM。
  */
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
-const { openExternalUrl, openFileInTab, writeText } = vi.hoisted(() => ({
+const { openExternalUrl, openFileInTab, copyText } = vi.hoisted(() => ({
   openExternalUrl: vi.fn(),
   openFileInTab: vi.fn(),
-  writeText: vi.fn(),
+  copyText: vi.fn(),
 }));
 vi.mock("@kernel/ipc", () => ({ openExternalUrl }));
 vi.mock("@kernel/fileTabs", () => ({ openFileInTab }));
 vi.mock("@kernel/i18n", () => ({ t: (s: string) => s }));
+vi.mock("@kernel/clipboard", () => ({ copyText }));
 
+import { CHECK_ICON_SVG, COPY_ICON_SVG } from "./fastPath";
 import { fastPathCallbacks, handleFastBlockClick } from "./fastPathDelegation";
+import type { MdTableNode, MdTableRow } from "./tableSource";
 
 /* ---------- 最小 fake DOM:只实现委托路径用到的 closest/querySelector/父链 ---------- */
 
@@ -25,12 +27,12 @@ type FakeNode = {
   attrs: Record<string, string>;
   classes: Set<string>;
   textContent: string;
+  innerHTML: string; /* 复制按钮图标切换走 innerHTML 赋值,fake 节点只存串 */
   parent: FakeNode | null;
   children: FakeNode[];
   dataset: Record<string, string>;
   classList: { add: (c: string) => void; remove: (c: string) => void; contains: (c: string) => boolean };
-  scrollIntoView: Mock;
-  getAttribute: (name: string) => string | null;
+  scrollIntoView: Mock; getAttribute: (name: string) => string | null;
   closest: (selector: string) => FakeNode | null;
   querySelector: (selector: string) => FakeNode | null;
   querySelectorAll: (selector: string) => FakeNode[];
@@ -48,8 +50,7 @@ function matchesToken(n: FakeNode, token: string): boolean {
 /** 子孙组合器链匹配(仅 "pre code" 形态):尾 token 匹配自身,余下按序匹配祖先链。 */
 function matchesChain(n: FakeNode, tokens: string[]): boolean {
   if (!matchesToken(n, tokens[tokens.length - 1])) return false;
-  let idx = tokens.length - 2;
-  let cur = n.parent;
+  let idx = tokens.length - 2; let cur = n.parent;
   while (cur && idx >= 0) { if (matchesToken(cur, tokens[idx])) idx -= 1; cur = cur.parent; }
   return idx < 0;
 }
@@ -57,14 +58,13 @@ function matchesChain(n: FakeNode, tokens: string[]): boolean {
 function descendants(root: FakeNode): FakeNode[] {
   const out: FakeNode[] = [];
   const walk = (n: FakeNode) => n.children.forEach((c) => { out.push(c); walk(c); });
-  walk(root);
-  return out;
+  walk(root); return out;
 }
 
 function node(tag: string, attrs: Record<string, string> = {}, text = ""): FakeNode {
   const classes = new Set((attrs.class ?? "").split(/\s+/).filter(Boolean));
   const n: FakeNode = {
-    tag, attrs, classes, textContent: text,
+    tag, attrs, classes, textContent: text, innerHTML: "",
     parent: null, children: [],
     dataset: Object.fromEntries(Object.entries(attrs).filter(([k]) => k.startsWith("data-"))
       .map(([k, v]) => [k.slice(5).replace(/-([a-z])/g, (_, c: string) => c.toUpperCase()), v])),
@@ -89,38 +89,37 @@ function node(tag: string, attrs: Record<string, string> = {}, text = ""): FakeN
 
 /** 挂子节点:固定 parent 在前,返回 parent 便于连续挂载。 */
 function link(parent: FakeNode, child: FakeNode): FakeNode {
-  child.parent = parent;
-  parent.children.push(child);
-  return parent;
+  child.parent = parent; parent.children.push(child); return parent;
 }
 
 /** 委托事件:target 为实际点击节点,currentTarget 为监听宿主(.fvp-md-fast)。 */
 function clickEvent(target: FakeNode, currentTarget: FakeNode) {
-  return {
-    target, currentTarget,
-    stopPropagation: vi.fn(), preventDefault: vi.fn(),
-  } as unknown as MouseEvent;
+  return { target, currentTarget, stopPropagation: vi.fn(), preventDefault: vi.fn() } as unknown as MouseEvent;
 }
 
-/* 复制按钮标准树:host > codeblock > pre > code + button[data-md-copy] */
+/* 复制按钮标准树:host > codeblock > pre > code + button[data-md-copy](初始 Copy 图标) */
 function copyTree(codeText = "const x = 1;") {
   const block = node("div", { class: "fvp-file-markdown-codeblock" });
   const pre = node("pre"); link(block, pre);
   const code = node("code", {}, codeText); link(pre, code);
-  const button = node("button", { "data-md-copy": "" }, "复制"); link(block, button);
-  const host = link(node("div", { class: "fvp-md-fast" }), block);
-  return { host, button };
+  const button = node("button", { "data-md-copy": "" });
+  button.innerHTML = COPY_ICON_SVG; link(block, button);
+  return { host: link(node("div", { class: "fvp-md-fast" }), block), button };
 }
 
-/** 等已 resolve 的 writeText 微任务链跑完(类切换发生在 .then 里)。 */
+/** 等已 resolve 的 copyText 微任务链跑完(类切换发生在 .then 里)。 */
 function flushMicrotasks() { return Promise.resolve().then(() => Promise.resolve()); }
+
+/* 表格取值用的最小 cell:tableToMarkdown 只消费 childNodes 的文本面 */
+const mdCell = (value: string): MdTableNode => ({
+  nodeType: 1, nodeName: "TD", textContent: value, childNodes: [{ nodeType: 3, nodeName: "#text", textContent: value, childNodes: [] }],
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.stubGlobal("window", globalThis);
-  vi.stubGlobal("navigator", { clipboard: { writeText } });
-  writeText.mockResolvedValue(undefined);
+  copyText.mockResolvedValue(undefined);
   fastPathCallbacks.onImageFullscreen = null;
 });
 
@@ -135,33 +134,29 @@ describe("handleFastBlockClick 数据路由", () => {
     const { host, button } = copyTree();
     const event = clickEvent(button, host);
     handleFastBlockClick(event);
-    expect(writeText).toHaveBeenCalledWith("const x = 1;");
-    expect(event.stopPropagation).toHaveBeenCalledTimes(1);
-    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(copyText).toHaveBeenCalledWith("const x = 1;");
+    expect(event.stopPropagation).toHaveBeenCalledTimes(1); expect(event.preventDefault).not.toHaveBeenCalled();
     await flushMicrotasks();
-    expect(button.classList.contains("is-copied")).toBe(true);
-    expect(button.textContent).toBe("已复制");
+    expect(button.classList.contains("is-copied")).toBe(true); expect(button.innerHTML).toBe(CHECK_ICON_SVG);
   });
 
   it("代码块缺失 code 节点时写入空串(不抛)", () => {
     const block = node("div", { class: "fvp-file-markdown-codeblock" });
-    const button = node("button", { "data-md-copy": "" });
-    link(block, button);
+    const button = node("button", { "data-md-copy": "" }); link(block, button);
     const host = link(node("div", { class: "fvp-md-fast" }), block);
     handleFastBlockClick(clickEvent(button, host));
-    expect(writeText).toHaveBeenCalledWith("");
+    expect(copyText).toHaveBeenCalledWith("");
   });
 
   it("剪贴板被拒:静默吞错,不进成功反馈", async () => {
-    writeText.mockRejectedValue(new Error("denied"));
+    copyText.mockRejectedValue(new Error("denied"));
     const { host, button } = copyTree();
     handleFastBlockClick(clickEvent(button, host));
     await flushMicrotasks();
-    expect(button.classList.contains("is-copied")).toBe(false);
-    expect(button.textContent).toBe("复制");
+    expect(button.classList.contains("is-copied")).toBe(false); expect(button.innerHTML).toBe(COPY_ICON_SVG); /* 拒绝路径不动初始图标 */
   });
 
-  it("1200ms 后恢复复制态文案与类;恢复期二次点击重置定时器", async () => {
+  it("1200ms 后恢复复制态图标与类;恢复期二次点击重置定时器", async () => {
     const { host, button } = copyTree();
     handleFastBlockClick(clickEvent(button, host));
     await flushMicrotasks();
@@ -169,11 +164,9 @@ describe("handleFastBlockClick 数据路由", () => {
     handleFastBlockClick(clickEvent(button, host)); // 首个定时器须被清掉
     await flushMicrotasks();
     vi.advanceTimersByTime(600); // 距首次点击已满 1200ms
-    expect(button.classList.contains("is-copied")).toBe(true);
-    expect(button.textContent).toBe("已复制");
+    expect(button.classList.contains("is-copied")).toBe(true); expect(button.innerHTML).toBe(CHECK_ICON_SVG);
     vi.advanceTimersByTime(600); // 距二次点击满 1200ms
-    expect(button.classList.contains("is-copied")).toBe(false);
-    expect(button.textContent).toBe("复制");
+    expect(button.classList.contains("is-copied")).toBe(false); expect(button.innerHTML).toBe(COPY_ICON_SVG);
   });
 
   it("图片命中:onImageFullscreen 收 dataset.src 与 alt;不拦冒泡", () => {
@@ -184,8 +177,7 @@ describe("handleFastBlockClick 数据路由", () => {
     const event = clickEvent(img, host);
     handleFastBlockClick(event);
     expect(onFullscreen).toHaveBeenCalledWith({ src: "/ws/a.png", alt: "截图" });
-    expect(event.stopPropagation).not.toHaveBeenCalled();
-    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(event.stopPropagation).not.toHaveBeenCalled(); expect(event.preventDefault).not.toHaveBeenCalled();
   });
 
   it("图片无 alt 属性回退 \"image\";回调缺席不抛", () => {
@@ -206,31 +198,41 @@ describe("handleFastBlockClick 数据路由", () => {
     const host = link(node("div", { class: "fvp-md-fast" }), span);
     const event = clickEvent(span, host);
     handleFastBlockClick(event);
-    expect(event.stopPropagation).not.toHaveBeenCalled();
-    expect(event.preventDefault).not.toHaveBeenCalled();
-    expect(writeText).not.toHaveBeenCalled();
-    expect(openExternalUrl).not.toHaveBeenCalled();
-    expect(openFileInTab).not.toHaveBeenCalled();
-    expect(onFullscreen).not.toHaveBeenCalled();
+    expect(event.stopPropagation).not.toHaveBeenCalled(); expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(copyText).not.toHaveBeenCalled(); expect(openExternalUrl).not.toHaveBeenCalled();
+    expect(openFileInTab).not.toHaveBeenCalled(); expect(onFullscreen).not.toHaveBeenCalled();
   });
 
   it("路由优先级:target 同处复制按钮与链接内,走复制分支不开外链", () => {
     const anchor = node("a", { "data-md-link": "external", href: "https://x.com" });
     const block = node("div", { class: "fvp-file-markdown-codeblock" });
-    const pre = node("pre");
-    link(block, pre);
-    link(pre, node("code", {}, "hi"));
-    const button = node("button", { "data-md-copy": "" });
-    link(block, button);
+    const pre = node("pre"); link(block, pre); link(pre, node("code", {}, "hi"));
+    const button = node("button", { "data-md-copy": "" }); link(block, button);
     link(anchor, block);
     const host = link(node("div", { class: "fvp-md-fast" }), anchor);
-    const span = node("span");
-    link(button, span);
+    const span = node("span"); link(button, span);
     const event = clickEvent(span, host);
     handleFastBlockClick(event);
-    expect(writeText).toHaveBeenCalledWith("hi");
+    expect(copyText).toHaveBeenCalledWith("hi");
     expect(openExternalUrl).not.toHaveBeenCalled();
     expect(event.stopPropagation).toHaveBeenCalledTimes(1);
+  });
+
+  it("表格复制路由:data-md-table-copy 从表 DOM 现构 GFM 源,反馈同为图标切换", async () => {
+    const block = node("div", { class: "fvp-file-markdown-table-block" });
+    const table = node("table");
+    (table as unknown as { rows: MdTableRow[] }).rows = [
+      { cells: [mdCell("列A"), mdCell("列B")] },
+      { cells: [mdCell("a"), mdCell("b")] },
+    ];
+    link(block, table);
+    const button = node("button", { "data-md-table-copy": "" });
+    button.innerHTML = COPY_ICON_SVG; link(block, button);
+    const host = link(node("div", { class: "fvp-md-fast" }), block);
+    handleFastBlockClick(clickEvent(button, host));
+    expect(copyText).toHaveBeenCalledWith("| 列A | 列B |\n| --- | --- |\n| a | b |\n");
+    await flushMicrotasks();
+    expect(button.classList.contains("is-copied")).toBe(true); expect(button.innerHTML).toBe(CHECK_ICON_SVG);
   });
 });
 

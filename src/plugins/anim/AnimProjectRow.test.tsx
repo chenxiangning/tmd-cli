@@ -1,7 +1,8 @@
 /**
  * AnimProjectRow 渲染契约测试(node 环境 renderToStaticMarkup):
  * - canOpen=false(平台无打开语义:非 mac 非 win)不渲染「打开」钮,「AI 会话」钮保留;
- * - canOpen=true(mac app / windows reveal 两态)两钮齐出;无效项目(name=null)显示警示「无效项目」。
+ * - canOpen=true(mac app / windows reveal 两态)两钮齐出;异常态警示分型:
+ *   坏内容「无效项目」与超 32MB 闸「项目过大」(tooLarge)分开。
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
@@ -17,6 +18,7 @@ function renderRow(overrides?: Partial<RowProps>): string {
       file: "a.json",
       name: "演示",
       scenes: 3,
+      tooLarge: false,
       starting: false,
       canOpen: true,
       onOpen: () => {},
@@ -44,5 +46,11 @@ describe("AnimProjectRow 平台闸", () => {
     const html = renderRow({ name: null, scenes: null });
     expect(html).toContain("无效项目");
     expect(html).not.toContain("幕");
+  });
+
+  it("name=null + tooLarge:超 32MB 闸显「项目过大」,不误标「无效项目」", () => {
+    const html = renderRow({ name: null, scenes: null, tooLarge: true });
+    expect(html).toContain("项目过大");
+    expect(html).not.toContain("无效项目");
   });
 });

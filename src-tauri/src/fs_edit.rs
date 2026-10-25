@@ -7,8 +7,10 @@
 use std::fs;
 use std::path::Path;
 
-/// 写入上限:与前端编辑场景对齐(预览读上限 512KB,保存放宽到 16MB 防误传巨量数据)。
-const MAX_WRITE_BYTES: usize = 16 * 1024 * 1024;
+/// 写入上限 = 预览读上限(fs_preview MAX_PREVIEW_BYTES 100MB)× 2:读闸量的是
+/// 磁盘字节,写闸量的是编辑器 CRLF 还原本(每行 +1 字节,最坏翻倍);两闸等值
+/// 会让大 CRLF 文件「读得开、存不进」,留一倍膨胀头寸。
+const MAX_WRITE_BYTES: usize = 200 * 1024 * 1024;
 
 /// 路径校验:必须是绝对路径,且任意段不得为 `.git`(树不展示、也不允许改写)。
 pub(crate) fn validate_target(path: &str) -> Result<(), String> {

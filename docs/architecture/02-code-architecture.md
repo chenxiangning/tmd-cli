@@ -529,7 +529,7 @@ flowchart TD
 | `quota_fetch` / `quota_env_value` | `quota.rs` | 通用 HTTP 代理(15s 超时) / 只读环境变量 |
 | `platform_kind` / `app_restart` / `app_pid` / `process_alive` | `lib.rs` | UA 探测失败时的 OS 兜底 / 重启应用(插件启停重启生效)/ 本应用进程 pid / 进程存活探测(kill -0,EPERM 保守判活)——后两者为 lsp jdt 数据目录按 app 实例×工作区双键隔离与陈旧实例回收的通用原语(5b0a841b,根治双 jdt workspace 锁互等 60s 死等) |
 | `fs_list_dir` | `fs.rs` | 单层列举，隐藏过滤，目录排前 |
-| `fs_read_file` | `fs.rs` | ≤512KB、非二进制、UTF-8 才给预览 |
+| `fs_read_file` | `fs_preview.rs` | ≤100MB(2026-10-23 自 512KB 放宽,fs_edit 写闸同步对齐)、非二进制、UTF-8 才给预览 |
 | `fs_write_temp` | `fs.rs` | 截图/拖拽文件落系统临时目录 `temp_dir()/tmd-cli` |
 | `fs_collect_files` | `fs.rs` | 递归收集指定后缀文件并按 mtime 倒序 |
 | `fs_read_head` / `fs_read_tail` | `fs.rs` | 读取 JSONL 头/尾，避免全文加载 |

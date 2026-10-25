@@ -28,7 +28,8 @@ import {
   animProjectsDir,
   animSessionRefs,
   isAnimProjectFile,
-  parseAnimProject,
+  readAnimProjectRows,
+  type AnimProjectRowState,
 } from "./animProjects";
 import { useAnimOpen } from "./useAnimOpen";
 import { prepareAiSessionTarget, startAnimAiSession, type AnimEngine } from "./startSession";
@@ -37,16 +38,8 @@ import { setPendingRefs } from "./refStore";
 
 const POLL_MS = 2000;
 
-interface AnimRow {
-  path: string;
-  file: string;
-  /** 解析出的项目名;null = 无效项目(展示态,不参与 AI 会话)。 */
-  name: string | null;
-  /** 解析出的场景数;null = 无效项目。 */
-  scenes: number | null;
-}
 export function AnimProjectsTab() {
-  const [rows, setRows] = useState<AnimRow[] | null>(null); /* null = 目录不存在/未读到 */
+  const [rows, setRows] = useState<AnimProjectRowState[] | null>(null); /* null = 目录不存在/未读到 */
   const [toast, setToast] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [dialog, setDialog] = useState<AiSessionTarget | null>(null);
@@ -76,14 +69,11 @@ export function AnimProjectsTab() {
           homeRef.current = home;
           const dir = animProjectsDir(home);
           const stamps = await ipc.fsCollectFiles(dir, ".json");
-          const next: AnimRow[] = await Promise.all(
-            stamps.filter((f) => isAnimProjectFile(f.name)).map(async (f) => {
-              /* 项目内嵌配音 dataURL 普遍超 fsReadFile 的 512KB 预览闸(误报「无效项目」),
-               * 走 fsReadBytesBase64 的 32MB 数据域通道再解码。 */
-              const parsed = await ipc.fsReadBytesBase64(f.path)
-                .then((b64) => parseAnimProject(new TextDecoder().decode(decodeBase64ToBytes(b64))), () => null);
-              return { path: f.path, file: f.name, name: parsed?.name ?? null, scenes: parsed?.scenes ?? null };
-            }),
+          /* 列表读走 path+mtime 缓存(readAnimProjectRows):轮询拍 mtime 未变
+           * 直接回缓存,不再每拍全量重读(0.4.3 评审 P3);读失败按形态归因。 */
+          const next = await readAnimProjectRows(
+            stamps.filter((f) => isAnimProjectFile(f.name)),
+            (p) => ipc.fsReadBytesBase64(p).then((b64) => new TextDecoder().decode(decodeBase64ToBytes(b64))),
           );
           if (alive) setRows(next);
         } catch {
@@ -119,14 +109,19 @@ export function AnimProjectsTab() {
       rand: () => Math.random().toString(36).slice(2, 6),
     });
     if (!result.ok) {
+      const { reason, detail } = result;
       showToast(
-        t(
-          result.reason === "no-engine"
-            ? "未设置默认引擎,请先在工作台概览选择"
-            : result.reason === "no-home"
-              ? "主目录未就绪,请稍后再试"
-              : "项目文件无效,请先在 tmd-anim 中修复",
-        ),
+        reason === "no-engine"
+          ? t("未设置默认引擎,请先在工作台概览选择")
+          : reason === "no-home"
+            ? t("主目录未就绪,请稍后再试")
+            : reason === "project-deleted"
+              ? t("项目已删除")
+              : reason === "project-too-large"
+                ? t("项目过大")
+                : reason === "read-failed"
+                  ? `${t("项目读取失败")}${detail ? `: ${detail}` : ""}`
+                  : t("项目文件无效,请先在 tmd-anim 中修复"),
       );
       return;
     }
@@ -246,6 +241,7 @@ export function AnimProjectsTab() {
               file={row.file}
               name={row.name}
               scenes={row.scenes}
+              tooLarge={row.tooLarge}
               starting={starting}
               canOpen={openAction !== null}
               onOpen={() => void openInApp(row.path)}

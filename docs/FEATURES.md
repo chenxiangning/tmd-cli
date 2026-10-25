@@ -316,7 +316,7 @@
 - tab 关闭闸(2026-10-13,契约 architecture/24):用户手势关闭(× / ⌘W / 右键三项)先过 kind 级 beforeClose 闸再落同步删除面——本地文件脏 tab 经 askDialog 确认丢弃才删草稿,取消保留 tab,程序性收 tab(文件已删)不过闸;缺省放行、抛错不放行、在途去重、陈旧确认作废、批量逐个过闸
 - 文件 tab 最大化切换:tab 上图标一键隐藏左栏与幕布、编辑区与右文件面板(不参与)并占通栏,再点还原;状态 localStorage 持久化
 - 打开文件按渲染档案路由(9 形态,renderProfile 唯一分发依据):image(png/jpg/gif/svg/webp/avif/bmp/heic/tiff/ico 等)/ markdown / structured(shell·dockerfile)/ code·text(CodeMirror)/ pdf / tabular(csv 文本 + xls·xlsx 二进制)/ document(docx 走 mammoth 转 HTML:2MB 闸 + DOMPurify 消毒 + 标题大纲侧栏;legacy doc 占位说明)/ binary-unsupported 占位
-- 文本读取仍受 512KB 闸;图片/docx/pdf 经 `read_binary_file_base64` 字节通道;打开失败占位:二进制/超大/非 UTF-8/读取失败共用居中「⚠ 原因」占位,另有「加载中…」与「选中一个文件查看」两态,无重试按钮
+- 文本读取受 100MB 闸(2026-10-23 自 512KB 放宽,保存写闸同步对齐;图片/docx/pdf 经 `read_binary_file_base64` 字节通道);打开失败占位:二进制/超大/非 UTF-8/读取失败共用居中「⚠ 原因」占位,另有「加载中…」与「选中一个文件查看」两态,无重试按钮
 - 高亮与缓存预算:文件内容 LRU 缓存 32MB;文件图标/颜色经 fileVisual provider 注册点
 - 预览高亮:文本文件直接进 CodeMirror 编辑态;Markdown 代码块 Prism 高亮
 - Markdown 预览:GFM + 数学(KaTeX)+ Mermaid 图(源码/渲染双 tab)+ 本地图片(asset 协议)+ 图片查看器 + 大纲浮窗(汉堡展开、可钉住,未钉住跳转/移出自动收起) + 图片/Mermaid 全屏

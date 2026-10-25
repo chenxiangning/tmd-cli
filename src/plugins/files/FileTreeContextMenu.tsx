@@ -10,7 +10,7 @@
 
 import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Copy, FilePlus, FolderOpen, FolderSimplePlus, Pencil, Trash } from "@phosphor-icons/react";
+import { Compass, Copy, FilePlus, FolderOpen, FolderSimplePlus, Pencil, Trash } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import type { DirEntry } from "@kernel/ipc";
@@ -23,6 +23,8 @@ interface TreeMenuActions {
   copyPath: (entry: DirEntry) => void;
   reveal: (entry: DirEntry) => void;
   trash: (entry: DirEntry) => void;
+  /** .excalidraw 文件导入为意图画布(intent-canvas 深链)。 */
+  importToCanvas: (entry: DirEntry) => void;
 }
 
 /** 菜单行构造(无捕获纯函数,提模块级避免每渲染重建闭包)。 */
@@ -89,6 +91,13 @@ export function FileTreeContextMenu({
         {entry ? (
           <>
             <div className="wsmenu-divider" />
+            {/* 意图画布格式文件:导入为画布(仅 .excalidraw 显示) */}
+            {!entry.isDir && entry.path.toLowerCase().endsWith(".excalidraw")
+              ? item(t("导入到意图画布"), <Compass size="0.8125rem" data-icon-keep />, () => {
+                  onClose();
+                  actions.importToCanvas(entry);
+                })
+              : null}
             {item(t("重命名"), <Pencil size="0.8125rem" />, () => {
               onClose();
               actions.rename(entry);

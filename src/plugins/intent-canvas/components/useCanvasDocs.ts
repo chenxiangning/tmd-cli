@@ -9,6 +9,7 @@ import type { Workspace } from "@kernel/workspace";
 import type { IntentCanvasDocument, IntentCanvasIndexEntry, IntentCanvasOpenRequest } from "../types";
 import { loadIntentCanvasDocument, saveIntentCanvasDocument } from "../storage/documents";
 import { appendIntentCanvasDocumentFromRequest, createIntentCanvasDocument } from "../storage/documentOps";
+import { importExcalidrawFile, claimImportRequestId } from "../excalidrawFileImport";
 import { normalizeError } from "./EditorShared";
 
 type UseCanvasDocsInput = {
@@ -127,7 +128,38 @@ export function useCanvasDocs({
     [activeDocument, activeWorkspace, createCanvas, onFatalError, saveDocument],
   );
 
-  // openRequest 消费:new = 新建 / append = 追加进目标画布 / 指定 canvasId = 打开。
+  /** 文件树深链:.excalidraw 文件 → 新画布(标题=文件名,source.filePath 进来源回链)。 */
+  const importCanvas = useCallback(
+    async (request: IntentCanvasOpenRequest) => {
+      /* 跨重挂去重:非保活 tab 切走重挂会重放同一 payload,二次导入 = 静默复制
+         画布(评审 P1)。canvasId 打开路径的重放是良性重开,不经此闸。 */
+      if (!claimImportRequestId(request.requestId)) return;
+      if (!activeWorkspace || !workspaceRef || !request.import) {
+        return;
+      }
+      try {
+        const { scene, title } = await importExcalidrawFile(request.import.path, request.import.name);
+        const document = createIntentCanvasDocument({
+          workspace: workspaceRef,
+          request: {
+            requestId: request.requestId,
+            mode: "architect",
+            title,
+            source: { filePath: request.import.path },
+            seedScene: scene,
+          },
+        });
+        const savedDocument = await saveDocument(document);
+        setActiveDocument(savedDocument);
+        onFatalError("");
+      } catch (error) {
+        onFatalError(normalizeError(error));
+      }
+    },
+    [activeWorkspace, onFatalError, saveDocument, workspaceRef],
+  );
+
+  // openRequest 消费:new = 新建 / append = 追加进目标画布 / 指定 canvasId = 打开 / import = 文件导入。
   useEffect(() => {
     if (!openRequest || !activeWorkspace || !workspaceRef) {
       return;
@@ -138,7 +170,9 @@ export function useCanvasDocs({
     handledOpenRequestIdsRef.current.add(openRequest.requestId);
     onOpenRequestConsumed?.(openRequest.requestId);
     const executeRequest = async () => {
-      if (openRequest.target === "append") {
+      if (openRequest.import) {
+        await importCanvas(openRequest);
+      } else if (openRequest.target === "append") {
         await appendCanvas(openRequest);
       } else if (openRequest.canvasId) {
         await openCanvas(openRequest.canvasId);

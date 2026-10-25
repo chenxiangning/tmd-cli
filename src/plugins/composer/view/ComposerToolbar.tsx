@@ -7,6 +7,7 @@ import { QuotaChip } from "./QuotaChip";
 import { toggleDrawer, useDrawerOpen } from "../state/drawerOpen";
 import { isRemoteEngineSession, useActiveProfile, useActiveSession } from "../state/useActiveProfile";
 import { prepareSendPayload } from "@kernel/profileSend";
+import { modelClickState, thinkingSlotState } from "./modelClickState";
 
 /** 模型位:模型名 + seeded 徽标,点击发 /model(复杂度拆件)。
  *  远程引擎会话:本机配置种子不可信(那是本机 CLI 的模型,不是远端会话的),
@@ -53,19 +54,22 @@ function ModelSlot({
   );
 }
 
-/** 思考位:有 thinkingCommand 渲染按钮(轮中禁用),否则纯展示(复杂度拆件)。
- *  远程引擎会话:seeded 种子不显示(同模型位),未观测到实况前显示「远程」。 */
+/** 思考位:有 thinkingCommand 渲染按钮(轮中/ask 等待期禁用,与模型位同律),
+ *  否则纯展示(复杂度拆件)。远程引擎会话:seeded 种子不显示(同模型位),
+ *  未观测到实况前显示「远程」。 */
 function ThinkingSlot({
   level,
   hasCommand,
   remote,
   turnActive,
+  waitingConfirm,
   onSend,
 }: {
   level: string | undefined;
   hasCommand: boolean;
   remote: boolean;
   turnActive: boolean;
+  waitingConfirm: boolean;
   onSend: () => void;
 }) {
   const display = level ?? (remote ? t("远程") : undefined);
@@ -77,32 +81,21 @@ function ThinkingSlot({
       </span>
     );
   }
+  const { disabled, title } = thinkingSlotState(turnActive, waitingConfirm);
   return (
     <button
       type="button"
       className={`flex items-center gap-1 rounded-md px-1 -mx-1 transition-colors ${
-        !turnActive ? "cursor-pointer hover:bg-(--tmd-bg-hover)" : "cursor-not-allowed opacity-40"
+        disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer hover:bg-(--tmd-bg-hover)"
       }`}
-      disabled={turnActive}
-      title={turnActive ? t("对话进行中,本轮结束后可点击") : t("点击打开思考强度选择")}
+      disabled={disabled}
+      title={title}
       onClick={onSend}
     >
       <span aria-hidden>{t("思考")}</span>
       <span className="font-mono text-(--tmd-fg)">{display ?? "—"}</span>
     </button>
   );
-}
-
-/** 模型位可点性与标题(纯计算,拆出降复杂度):omp 随时可发 /model(其 TUI
- *  支持流中弹出模型选择);其余 CLI 对话进行中不可发(会串进输出流),等轮次
- *  结算(呼吸灯蓝态结束)才生效。 */
-function modelClickState(
-  noSession: boolean,
-  turnActive: boolean,
-): { clickable: boolean; title: string } {
-  if (noSession) return { clickable: false, title: t("未识别模型") };
-  if (turnActive) return { clickable: false, title: t("对话进行中,本轮结束后可点击切换模型") };
-  return { clickable: true, title: t("点击发送 /model 打开 CLI 模型选择") };
 }
 
 /** 工具条右侧动作组:五段式高度 + 命令抽屉直达(自主组件拆出降复杂度)。 */
@@ -174,7 +167,13 @@ export function ComposerToolbar() {
   const remoteEngine = isRemoteEngineSession(session);
   const observed = statusSource === "observed";
   const turnActive = sessionId ? host.isTurnActive(sessionId) : false;
-  const { clickable: modelClickable, title: modelTitle } = modelClickState(noSession, turnActive);
+  const waitingConfirm = sessionId ? host.isWaitingConfirm(sessionId) : false;
+  const { clickable: modelClickable, title: modelTitle } = modelClickState(
+    noSession,
+    turnActive,
+    profile?.modelCommandMidTurn === true,
+    waitingConfirm,
+  );
 
   /** 模型位点击 = 发送 /model(与抽屉 send 同路径:prepareSendPayload → writeSession)。 */
   function sendModelCommand(): void {
@@ -186,6 +185,9 @@ export function ComposerToolbar() {
   }
   function sendSlash(cmd: string): void {
     if (!sessionId || !profile) return;
+    /* ask 等待期一刀切:任何写入都会被 CLI 当作答案文本提交(askWatch 任何
+       写入=作答,命令形态永不达意,还把等待标签误摘),模型位/思考位一并拦。 */
+    if (host.isWaitingConfirm(sessionId)) return;
     const wire = prepareSendPayload(profile, cmd);
     host.writeSession(sessionId, wire);
     /* 不广播 promptSent:/model 与思考命令是 CLI 控制命令,永不开对话轮;起锚只会
@@ -212,6 +214,7 @@ export function ComposerToolbar() {
         hasCommand={!!profile?.thinkingCommand}
         remote={remoteEngine && !observed}
         turnActive={turnActive}
+        waitingConfirm={waitingConfirm}
         onSend={sendThinkingCommand}
       />
       {sessionId ? (

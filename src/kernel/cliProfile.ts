@@ -135,6 +135,12 @@ export interface CliProfile {
    */
   thinkingCommand?: string;
   /**
+   * 对话进行中(TUI 流式输出期)仍可点模型位投递 /model。仅 TUI 支持流中就地
+   * 消费斜杠命令的 CLI 声明(omp 实证先例,promptGate 同源记录);缺省 = 模型位
+   * 对话进行中禁用(输入会串进输出流)。
+   */
+  modelCommandMidTurn?: boolean;
+  /**
    * 会话文件身份自证:读 CliDiskSession.path 指向的文件(目录类插件自行拼内部路径),
    * 从文件内容提取 {id, cwd, createdAt}。内容级绑定(identityBinding)的数据源 ——
    * mtime 水位仲裁在懒落盘 CLI(omp 首条消息才 flush)+ 同 cwd 并行 spawn 下会

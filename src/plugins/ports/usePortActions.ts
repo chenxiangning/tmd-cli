@@ -49,7 +49,8 @@ export function usePortActions(
     setNotice(null);
     setKilling((s) => new Set(s).add(key));
     try {
-      await killListener(entry.pid, os);
+      const outcome = await killListener(entry.pid, os);
+      if (outcome === "reused") setNotice(t("pid 已复用,已跳过强杀"));
       await refresh();
     } catch (e) {
       setNotice(t("终止失败:{error}", { error: e instanceof Error ? e.message : String(e) }));

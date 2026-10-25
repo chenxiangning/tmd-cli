@@ -5,8 +5,9 @@
  *   2s 轮询回补 + 按 id 增量合并(内核不理解私有行型);仅活跃会话、仅在有
  *   订阅者时轮询 —— 本面板随 CheckpointsPanel 保活常驻(hidden 不卸载),
  *   右栏在位即订阅轮询(保活的代价:审批线态也保持 2s tick)。
- * - 「定位幕布」= jumpToAnchor 扎点定位(buffer 匹配 + 28% 留头);失败短暂
- *   闪烁(同 AnchorRail 语义)。整行不可点:消息文本要留选中/复制。
+ * - 「定位幕布」= jumpToAnchor 扎点定位(buffer 匹配 + 28% 留头),只落 PTY
+ *   幕布不落转录查看器;失败短暂闪烁(同 AnchorRail 语义)。整行不可点:消息
+ *   文本要留选中/复制。
  * - meta 行 hover 出「复制」:复制该节点发送原文(anchor.text,含 composer
  *   附件 token 的原始口径,用户定向);成功短暂回显「已复制」,走 kernel
  *   copyText 唯一原语(mac 同步 execCommand 路径)。
@@ -37,7 +38,6 @@ import {
   messageAnchors,
   type UserMessageAnchor,
 } from "@kernel/messageAnchors";
-import { openSessionViewAtText } from "@kernel/sessionViewTabs";
 import { PromptImages } from "./PromptImages";
 import { AttachmentFiles, RowRail } from "./TimelineRowParts";
 import { extractTimelineParts } from "./timelineText";
@@ -106,19 +106,10 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
   const items = anchors.map((anchor, i) => ({ anchor, seq: i + 1 })).reverse();
   const lastId = anchors[anchors.length - 1]?.id;
 
-  async function onJump(anchor: UserMessageAnchor, occurrence: number) {
+  async function onJump(anchor: UserMessageAnchor) {
     if (!sessionId) return;
-    /* occurrence = anchors 正序位置 +1(seq):同文多轮定位本条,不落最新 */
-    const ok = await jumpToAnchor(sessionId, anchor, occurrence);
+    const ok = await jumpToAnchor(sessionId, anchor);
     if (ok) return;
-    /* 幕布不可达(超回放窗/无 handle)→ 转录查看器兜底(kernel 深链,零插件
-       互依);无 CLI 磁盘身份的纯终端会话仍落 miss 闪红。 */
-    const live = host.getSessions().find((x) => x.id === sessionId);
-    const cliSessionId = host.getCliSessionId(sessionId);
-    if (live?.profileId && cliSessionId) {
-      openSessionViewAtText({ profileId: live.profileId, cwd: live.cwd, cliSessionId }, anchor.text, occurrence);
-      return;
-    }
     setMissId(anchor.id);
     window.setTimeout(() => setMissId((cur) => (cur === anchor.id ? null : cur)), MISS_FLASH_MS);
   }
@@ -145,7 +136,7 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
           open={openIds.has(anchor.id)}
           turnBatch={turnBatches.get(anchor.id)}
           onToggle={() => toggleOpen(anchor.id)}
-          onJump={() => void onJump(anchor, seq)}
+          onJump={() => void onJump(anchor)}
         />
       ))}
     </div>

@@ -29,7 +29,7 @@ import {
 } from "@kernel/messageAnchors";
 import { subscribeTerminalTheme } from "@kernel/terminalThemeBridge";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
-import { attachTerminalStream, type LoadProgress } from "@kernel/terminalReplay";
+import { attachTerminalStream, settleTerminalJump, type LoadProgress } from "@kernel/terminalReplay";
 import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
 import {
   observeCanvasSize,
@@ -178,10 +178,10 @@ termRef.current = term;
     });
     pagerRef.current = pager;
     /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次);输出装配见 terminalReplay.ts。 */
-    streamReadyRef.current = false;
+    streamReadyRef.current = false; let disposed = false; const streamReady = Promise.withResolvers<void>(); const disposal = Promise.withResolvers<void>();
     lastLiveAtRef.current = 0;
     const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress, () => {
-      streamReadyRef.current = true;
+      streamReadyRef.current = true; streamReady.resolve();
     }, {
       shouldDefer: () => !activeRef.current,
       bindFlush: (flush) => {
@@ -192,7 +192,7 @@ termRef.current = term;
     });
 
     /* 翻页锚点初始化(缓冲起点绝对偏移反推,实现见 terminalHistory.ts)。 */
-    void pager.init();
+    const pagerReady = pager.init().catch(() => undefined);
     /* 滚动到顶才显示"加载更早的输出"入口 */
     setAtTop(term.buffer.active.viewportY === 0);
     const offScroll = term.onScroll((y) => {
@@ -221,8 +221,8 @@ termRef.current = term;
       lineText: (row) => term.buffer.active.getLine(row)?.translateToString(true) ?? "",
       bufferLength: () => term.buffer.active.length,
       viewportTop: () => term.buffer.active.viewportY,
-      rows: () => term.rows,
-      scrollToLine: (row) => term.scrollToLine(row),
+      rows: () => term.rows, settled: () => settleTerminalJump(term, { pager: pagerReady, stream: streamReady.promise, history: () => pager.settled(), flush: () => flushDeferredRef.current?.(), disposed: () => disposed, disposal: disposal.promise }),
+      scrollToLine: (row) => { scrollKeeper.cancel(); term.scrollToLine(row); },
       focus: () => termRef.current?.focus(),
       onScroll: (cb) => {
         const d = term.onScroll(cb);
@@ -238,7 +238,7 @@ termRef.current = term;
     const offObserve = observeCanvasSize(container, syncSize);
 
     return () => {
-      stopAskProbe();
+      disposed = true; disposal.resolve(); streamReady.resolve(); stopAskProbe();
       stopStallProbe();
       offTokens();
       offFontSettings();

@@ -17,6 +17,7 @@ export function AnimProjectRow({
   file,
   name,
   scenes,
+  tooLarge,
   starting,
   /** false(平台无打开语义:非 mac 非 win)= 不渲染「打开」钮,不留死 affordance。 */
   canOpen,
@@ -25,10 +26,12 @@ export function AnimProjectRow({
 }: {
   path: string;
   file: string;
-  /** 解析出的项目名;null = 无效项目(警示态)。 */
+  /** 解析出的项目名;null = 异常态(警示):tooLarge 定格「项目过大」或「无效项目」。 */
   name: string | null;
-  /** 解析出的场景数;null = 无效项目(不显示)。 */
+  /** 解析出的场景数;null = 异常态(不显示)。 */
   scenes: number | null;
+  /** 超 32MB 读取闸(readAnimProjectRows 归因),与坏内容「无效项目」分开。 */
+  tooLarge: boolean;
   starting: boolean;
   canOpen: boolean;
   onOpen: () => void;
@@ -44,7 +47,9 @@ export function AnimProjectRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="min-w-0 truncate text-sm text-(--tmd-fg)">
-            {name ?? <span className="text-(--tmd-warn)">{t("无效项目")}</span>}
+            {name ?? (
+              <span className="text-(--tmd-warn)">{t(tooLarge ? "项目过大" : "无效项目")}</span>
+            )}
           </span>
           {scenes !== null && (
             <span className="flex-none rounded-full border border-(--tmd-border) px-1.5 text-meta text-(--tmd-fg-muted)">

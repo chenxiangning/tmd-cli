@@ -45,6 +45,9 @@ const MESSAGES_EN = {
   "未设置默认引擎,请先在工作台概览选择": "No default engine set — pick one in the workbench overview first",
   "主目录未就绪,请稍后再试": "Home directory not ready — try again shortly",
   "启动 AI 会话失败": "Failed to start AI session",
+  "项目过大": "Project too large",
+  "项目已删除": "Project deleted",
+  "项目读取失败": "Failed to read project",
 } as const;
 
 /** ja 词典 · anim 域。 */
@@ -88,6 +91,9 @@ const MESSAGES_JA = {
   "未设置默认引擎,请先在工作台概览选择": "デフォルトエンジンが未設定です。先にワークベンチ概要で選択してください",
   "主目录未就绪,请稍后再试": "ホームディレクトリの準備ができていません。しばらくしてからもう一度お試しください",
   "启动 AI 会话失败": "AIセッションの起動に失敗しました",
+  "项目过大": "プロジェクトが大きすぎます",
+  "项目已删除": "プロジェクトは削除されました",
+  "项目读取失败": "プロジェクトの読み取りに失敗しました",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

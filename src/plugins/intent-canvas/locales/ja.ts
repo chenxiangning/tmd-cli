@@ -147,5 +147,11 @@ export const MESSAGES_JA = {
   "审计口径:下面的 JSON 是本次实际发送给模型的完整 transmission payload;它不是原始 Excalidraw scene 全量导出。": "監査基準: 以下の JSON は今回モデルへ実際に送信した完全な transmission payload であり、raw Excalidraw scene の全量エクスポートではありません。",
   "JSON 使用 compact/minified 格式压缩展示体积,不省略字段;如果 truncated=yes 或任一 omitted > 0,表示内容层做了显式语义压缩,不是静默截断。": "JSON は compact/minified 形式で表示サイズを圧縮しており、フィールドの省略はありません。truncated=yes または omitted > 0 の場合は、内容層で明示的な意味圧縮を行ったことを示し、無音の切り詰めではありません。",
   "未填写": "未記入",
+  "导入的画布": "取り込んだキャンバス",
+  "「{name}」不是有效的 Excalidraw 文件(JSON 解析失败)": "「{name}」は有効な Excalidraw ファイルではありません(JSON 解析失敗)",
+  "「{name}」不是有效的 Excalidraw 文件": "「{name}」は有効な Excalidraw ファイルではありません",
+  "「{name}」里没有可导入的画布元素": "「{name}」に取り込めるキャンバス要素がありません",
+  "「{name}」超过 512KB,超出画布存储上限": "「{name}」は512KBを超えており、キャンバス保存上限を超えています",
+  "无法读取「{name}」:{message}": "「{name}」を読み込めません:{message}",
   "总闸。默认每会话不注入:在对话框左下画布图标点开本会话作图标识后,发送才附带画图指令,AI 把绘图文件写进收件箱,画布自动上稿。": "マスタースイッチ。既定ではセッションごとに注入しません:composer 左下のキャンバスアイコンでこのセッションの作図バッジをオンにすると、送信に作図指示が付き、AI が描画ファイルをインボックスへ書き出し、キャンバスが自動で取り込みます。",
 } as Record<string, string>;

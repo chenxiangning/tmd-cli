@@ -6,6 +6,7 @@ export const MESSAGES = {
   "重命名": "Rename",
   "复制路径": "Copy path",
   "在访达中显示": "Reveal in Finder",
+  "导入到意图画布": "Import to Intent Canvas",
   "移到废纸篓": "Move to trash",
   "确认移到废纸篓?": "Confirm move to trash?",
   "输入名称": "Enter a name",
@@ -87,6 +88,7 @@ export const MESSAGES = {
   "已复制": "Copied",
   "复制": "Copy",
   "表格": "Table",
+  "复制表格": "Copy table",
   /* 二进制不支态 */
   "音频文件": "Audio file",
   "视频文件": "Video file",
@@ -151,4 +153,6 @@ export const MESSAGES = {
   "远程文件暂不支持写入(M1)": "Writing remote files is not supported yet (M1)",
   "远程文件暂不支持在文件树新建(M1):请经终端会话操作":
     "Creating files in the remote tree is not supported yet (M1): use a terminal session instead",
+  "文件过大,已停用内置编辑器(请用外部编辑器打开)":
+    "File is too large; the built-in editor is disabled (open it with an external editor)",
 } as Record<string, string>;

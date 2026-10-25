@@ -34,6 +34,7 @@ const MESSAGES_EN = {
   "终止进程": "Kill process",
   "终止中…": "Killing…",
   "终止失败:{error}": "Kill failed: {error}",
+  "pid 已复用,已跳过强杀": "pid was reused — force kill skipped",
   "结束监听 {addr}:{port} 的进程 pid {pid}?对应服务将停止。":
     "Kill pid {pid} listening on {addr}:{port}? The service will stop.",
   "局域网": "LAN",
@@ -88,6 +89,7 @@ const MESSAGES_JA = {
   "终止进程": "プロセスを終了",
   "终止中…": "終了中…",
   "终止失败:{error}": "終了に失敗:{error}",
+  "pid 已复用,已跳过强杀": "pid が再利用されたため強制終了をスキップしました",
   "结束监听 {addr}:{port} 的进程 pid {pid}?对应服务将停止。":
     "{addr}:{port} で待ち受け中の pid {pid} を終了しますか?対応するサービスは停止します。",
   "局域网": "LAN",

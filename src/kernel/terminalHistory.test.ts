@@ -2,7 +2,7 @@
  * 幕布历史翻页器行为契约测试(TerminalHistoryPager)。
  * 覆盖:init 锚点反推(日志末尾 - 缓冲字节数)与 hasMore 判定、
  * loadEarlier 翻页(更早页前插、锚点推进到 page.startOffset、hasMore 透传)、
- * 重入闸(loading 期二次调用 no-op)、空页判定 hasMore=false、
+ * 重入共享在飞页(二次调用等同页完成)、空页返回 false、
  * 整段重写顺序(RIS → 各历史页 → 输出缓冲快照)、输入闸 arm/release 配对、
  * onState 回喂、异常路径仍释放 loading。
  * ipc/host 以 vi.mock fake;Terminal 用最小 write 记录器。
@@ -107,7 +107,7 @@ describe("loadEarlier 翻页", () => {
     expect(term.scrollToTop).toHaveBeenCalled();
   });
 
-  it("loading 期二次调用被重入闸拦下,只读一页只重写一次", async () => {
+  it("loading 期二次调用共享在飞页,只读一页只重写一次", async () => {
     ipcMock.sessionLogSize.mockResolvedValue(9_000);
     hostMock.getOutputBufferBytes.mockReturnValue(0);
     const { pager } = newPager();
@@ -117,6 +117,7 @@ describe("loadEarlier 翻页", () => {
     const { term, writes } = fakeTerminal();
     const first = pager.loadEarlier(term);
     const second = pager.loadEarlier(term);
+    expect(await Promise.race([second.then(() => "done"), Promise.resolve("pending")])).toBe("pending");
     releasePage({ text: "p", startOffset: 0, hasMore: false });
     await Promise.all([first, second]);
     expect(ipcMock.sessionHistoryPage).toHaveBeenCalledTimes(1);
@@ -130,7 +131,7 @@ describe("loadEarlier 翻页", () => {
     await pager.init();
     ipcMock.sessionHistoryPage.mockResolvedValue({ text: "", startOffset: 0, hasMore: false });
     const { term, writes } = fakeTerminal();
-    await pager.loadEarlier(term);
+    expect(await pager.loadEarlier(term)).toBe(false);
     /* UI 门闸是 onState 回喂的 hasMore;锚点字节仍在(日志确实还有未读),不重写幕布 */
     expect(onState).toHaveBeenLastCalledWith(false, false);
     expect(writes).toEqual([]);

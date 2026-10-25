@@ -34,7 +34,7 @@ vi.mock("@kernel/host", () => ({
 
 vi.mock("./diskReplay", () => ({ consumeDiskTail: () => null }));
 
-import { attachTerminalStream } from "./terminalReplay";
+import { attachTerminalStream, settleTerminalJump } from "./terminalReplay";
 
 function fakeTerm() {
   const writes: string[] = [];
@@ -106,5 +106,40 @@ describe("attachTerminalStream 隐藏幕布合帧写入", () => {
     expect(bound).toBe("unbound"); // 卸载即解绑,激活冲刷不得打向死幕布
     vi.advanceTimersByTime(1_000);
     expect(term.writes).toEqual([]); // 计时器已清,攒帧随卸载丢弃
+  });
+});
+
+describe("settleTerminalJump 卸载取消", () => {
+  it("历史页等待期卸载:拒绝跳转且不再写幕布", async () => {
+    const history = Promise.withResolvers<void>();
+    const disposal = Promise.withResolvers<void>();
+    let disposed = false;
+    let flushes = 0;
+    const term = fakeTerm();
+    const pending = settleTerminalJump(term, {
+      pager: Promise.resolve(), stream: Promise.resolve(), history: () => history.promise,
+      flush: () => { flushes += 1; }, disposed: () => disposed, disposal: disposal.promise,
+    });
+    disposed = true;
+    disposal.resolve();
+    await expect(pending).rejects.toThrow("terminal disposed");
+    expect(term.writes).toEqual([]);
+    expect(flushes).toBe(1);
+  });
+
+  it("xterm 写队列等待期卸载:迟到回调也不得改判成功", async () => {
+    const disposal = Promise.withResolvers<void>();
+    let disposed = false;
+    let writeCallback: (() => void) | undefined;
+    const term = { write: (_data: string, cb?: () => void) => { writeCallback = cb; } };
+    const pending = settleTerminalJump(term, {
+      pager: Promise.resolve(), stream: Promise.resolve(), history: () => Promise.resolve(),
+      flush: () => undefined, disposed: () => disposed, disposal: disposal.promise,
+    });
+    while (!writeCallback) await Promise.resolve();
+    disposed = true;
+    disposal.resolve();
+    writeCallback();
+    await expect(pending).rejects.toThrow("terminal disposed");
   });
 });

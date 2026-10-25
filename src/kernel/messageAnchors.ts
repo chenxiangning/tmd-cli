@@ -50,6 +50,7 @@ interface AnchorCacheEntry {
   anchors: UserMessageAnchor[];
   seen: Set<string>;
   fullLoaded: boolean;
+  cliSessionId: string;
 }
 
 const POLL_MS = 2000;
@@ -108,7 +109,12 @@ class MessageAnchorStore {
     if (!session || !profile?.readSessionUserMessages) return;
 
     let entry = this.cache.get(sessionId);
-    const full = !entry?.fullLoaded;
+    if (entry?.cliSessionId !== cliSessionId) {
+      entry = { anchors: [], seen: new Set(), fullLoaded: false, cliSessionId };
+      this.cache.set(sessionId, entry);
+      this.listeners.forEach((cb) => cb()); /* 换身份先清旧快照,新会话为空也不得留旧时间线 */
+    }
+    const full = !entry.fullLoaded;
     this.inFlight = true;
     let batch: CliUserMessage[] | null;
     /* 悬挂守护:适配器/IPC 永不结算时共享的 inFlight 会卡死 store 的全部
@@ -127,8 +133,9 @@ class MessageAnchorStore {
       this.inFlight = false;
     }
     if (!batch) return;
+    /* await 期间换身份:旧拍结果不得写回新 entry。 */
+    if (this.cache.get(sessionId) !== entry || host.getCliSessionId(sessionId) !== cliSessionId) return;
 
-    entry ??= { anchors: [], seen: new Set(), fullLoaded: false };
     if (full) entry.fullLoaded = true;
     const fresh = batch.filter((m) => !entry.seen.has(m.id));
     if (fresh.length === 0) {

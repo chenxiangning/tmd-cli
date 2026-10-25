@@ -6,7 +6,7 @@
  * - 命中区跟手:dash 按钮铺满整行(26×10),视觉短线是 ::before 伪元素;
  *   hover 时邻近 dash 按距离渐变加宽(is-proximity-0..3,codemoss 同款)。
  * - hover dash → portal 预览卡(序号 + 首行 60 字 + 余文 160 字),fixed 定位浮出 composer。
- * - 点击 → jumpToAnchor:xterm buffer 定位 + ease-out 平滑滚动,28% 留头;失败短暂闪烁。
+ * - 点击 → jumpToAnchor:xterm buffer 原生滚动 + 28% 留头;失败短暂闪烁。
  * - active 追踪:rAF 逐帧(不防抖,滚动即跟),参考线向上找最近锚点行。
  */
 
@@ -124,11 +124,11 @@ export function AnchorRail() {
 
   if (!sessionId || anchors.length === 0) return null;
 
-  const handleJump = (anchor: UserMessageAnchor, occurrence: number) => {
+  const handleJump = (anchor: UserMessageAnchor) => {
     setPreview(null);
     setHoverIndex(null);
     setActiveId(anchor.id);
-    void jumpToAnchor(sessionId, anchor, occurrence).then((ok) => {
+    void jumpToAnchor(sessionId, anchor).then((ok) => {
       if (ok) return;
       setMissId(anchor.id);
       window.setTimeout(() => setMissId((cur) => (cur === anchor.id ? null : cur)), MISS_FLASH_MS);
@@ -168,7 +168,7 @@ export function AnchorRail() {
                 setPreview(null);
                 setHoverIndex(null);
               }}
-              onClick={() => handleJump(anchor, index + 1)}
+              onClick={() => handleJump(anchor)}
               data-testid="composer-anchor-dash"
             />
           </div>

@@ -1,6 +1,6 @@
 /**
  * 锚点定位与跳转逻辑 —— 自 messageAnchors.ts 拆出(文件规模铁则收紧至 300 行)。
- * 承担:needle 提取、buffer 行匹配、点击跳转(翻页重试)、平滑滚动、active 锚点追踪、
+ * 承担:needle 提取、buffer 行匹配、点击跳转(翻页重试)、active 锚点追踪、
  * 文本跳转契约(jumpToText / openThenJumpToText,checkpoint↔转录互跳与检索增强共用)。
  * 纯逻辑,fake TerminalHandle 可测;handle 注册表在 terminalHandles.ts。
  */
@@ -25,13 +25,17 @@ const JUMP_PAGE_LIMIT = 12;
 
 const needleCache = new WeakMap<UserMessageAnchor, string>();
 
-/** 任意文本 → 幕布匹配 needle:剥 @token、折叠空白、取首行首 24 字符。 */
+/** 任意文本 → 幕布匹配 needle:取首段非附件正文的 24 字符;纯附件回退首行。 */
 export function textNeedle(text: string): string {
-  const firstLine = text.split("\n").find((l) => l.trim()) ?? "";
-  const stripped = firstLine.replace(ATTACH_TOKEN_RE, " ").replace(/\s+/g, " ").trim();
-  /* 纯附件消息剥空后回退原文首行,仍有机会命中气泡里的残留文本 */
-  const source = stripped || firstLine.replace(/\s+/g, " ").trim();
-  return source.slice(0, NEEDLE_LENGTHS[0]);
+  let fallback = "";
+  for (const line of text.split("\n")) {
+    const normalized = line.replace(/\s+/g, " ").trim();
+    if (!normalized) continue;
+    fallback ||= normalized;
+    const stripped = line.replace(ATTACH_TOKEN_RE, " ").replace(/\s+/g, " ").trim();
+    if (stripped) return stripped.slice(0, NEEDLE_LENGTHS[0]);
+  }
+  return fallback.slice(0, NEEDLE_LENGTHS[0]);
 }
 
 /** 消息文本 → 幕布匹配 needle(同一归一管线;锚点对象按引用缓存)。 */
@@ -43,57 +47,65 @@ export function anchorNeedle(anchor: UserMessageAnchor): string {
   return needle;
 }
 
+
 function normalizeLine(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-/** 自顶向下找第 occurrence 个 needle 命中行(同文多轮定位第 k 条,1-based);
- *  命中数不足 occurrence 返回 null —— 调用方翻页补更早历史后重数(更早历史
- *  只会从顶部增加命中,已见命中相对序不变)。长 needle 命中不足逐级退化。 */
-export function findAnchorRow(handle: TerminalHandle, needle: string, occurrence = 1): number | null {
+/** 缺省取末次现行命中(整帧重印只留最新拷贝);文本互跳显式 occurrence 时
+ *  保留旧契约,自顶向下数第 k 份。长 needle 命中不足逐级退化。 */
+export function findAnchorRow(handle: TerminalHandle, needle: string, occurrence?: number): number | null {
   if (!needle) return null;
   for (const len of NEEDLE_LENGTHS) {
     const n = needle.slice(0, len);
     if (!n) continue;
-    let seen = 0;
-    for (let row = 0; row < handle.bufferLength(); row++) {
-      if (normalizeLine(handle.lineText(row)).includes(n) && ++seen === occurrence) return row;
+    if (occurrence === undefined) {
+      for (let row = handle.bufferLength() - 1; row >= 0; row--) {
+        if (normalizeLine(handle.lineText(row)).includes(n)) return row;
+      }
+    } else {
+      let seen = 0;
+      for (let row = 0; row < handle.bufferLength(); row++) {
+        if (normalizeLine(handle.lineText(row)).includes(n) && ++seen === occurrence) return row;
+      }
     }
   }
   return null;
 }
 
-/** 点击跳转:buffer 定位 → 28% 留头;消息太老不在 buffer 时逐页加载更早历史再试。
- *  occurrence = 同文消息序号(锚点在 anchors 正序中的位置 +1),缺省 1。 */
-export async function jumpToAnchor(
-  sessionId: string,
-  anchor: UserMessageAnchor,
-  occurrence = 1,
-): Promise<boolean> {
+/** 时间线/锚点栏点击:等幕布写落定,定位 needle 的末次现行拷贝。 */
+export async function jumpToAnchor(sessionId: string, anchor: UserMessageAnchor): Promise<boolean> {
   const handle = getTerminalHandle(sessionId);
   if (!handle) return false;
-  const needle = anchorNeedle(anchor);
-  return jumpScanPages(handle, needle, 0, occurrence);
+  return jumpScanPages(handle, anchorNeedle(anchor), 0);
 }
 
-/** 逐页向后扫描(递归替代轮询循环;深度 = JUMP_PAGE_LIMIT 上界)。 */
+/** 每个幕布独立代数:快速连点时只有最后一次点击可以落位。 */
+const jumpGeneration = new WeakMap<TerminalHandle, number>();
+
 async function jumpScanPages(
   handle: TerminalHandle,
   needle: string,
   page: number,
-  occurrence = 1,
+  occurrence?: number,
+  generation?: number,
 ): Promise<boolean> {
+  if (page === 0) {
+    generation = (jumpGeneration.get(handle) ?? 0) + 1;
+    jumpGeneration.set(handle, generation);
+    try { await handle.settled?.(); } catch { return false; }
+  }
+  if (generation !== jumpGeneration.get(handle)) return false;
   const row = findAnchorRow(handle, needle, occurrence);
   if (row !== null) {
-    await smoothScrollToLine(handle, Math.max(0, row - Math.round(handle.rows() * JUMP_HEADROOM)));
+    handle.scrollToLine(Math.max(0, row - Math.round(handle.rows() * JUMP_HEADROOM)));
     return true;
   }
   if (page >= JUMP_PAGE_LIMIT || !handle.hasMoreHistory()) return false;
-  const before = handle.bufferLength();
-  await handle.loadEarlier();
-  /* 翻页无进展(加载中重入/日志读空)即放弃,防空转 */
-  if (handle.bufferLength() === before) return false;
-  return jumpScanPages(handle, needle, page + 1);
+  const advanced = await handle.loadEarlier().catch(() => false);
+  /* 真翻页器返回是否推进;行数不变也可能是 24K 上限下换入新内容。 */
+  if (advanced === false || generation !== jumpGeneration.get(handle)) return false;
+  return jumpScanPages(handle, needle, page + 1, occurrence, generation);
 }
 
 /* ── 文本跳转契约(checkpoint↔转录互跳;候选5检索增强同款消费)────────── */
@@ -182,48 +194,6 @@ export async function openThenJumpToText(
   }
 }
 
-/* ── 平滑滚动 ────────────────────────────────────────────── */
-
-/** 跳转动画时长;短距离缩短,避免小幅跳转也拖满全程。 */
-const SMOOTH_SCROLL_MAX_MS = 260;
-/* node 测试环境无 rAF,退 16ms 定时器;行为等价。 */
-const raf: (cb: (now: number) => void) => void =
-  globalThis.requestAnimationFrame ??
-  ((cb) => void setTimeout(() => cb(performance.now()), 16));
-
-/**
- * ease-out 动画滚动到目标行:xterm scrollToLine 本身瞬移,
- * 逐帧插值 viewportTop → target,视觉上跟手不跳变。
- * 用户中途滚轮/新跳转进来时让位(最新一帧赢)。
- */
-let smoothScrollToken = 0;
-
-/**
- * 返回的 promise 在动画落位后 resolve:测试可确定性断言落点,
- * UI 调用方 fire-and-forget 不阻塞。
- */
-function smoothScrollToLine(handle: TerminalHandle, target: number): Promise<void> {
-  const token = ++smoothScrollToken;
-  const start = handle.viewportTop();
-  const distance = target - start;
-  if (Math.abs(distance) <= 2) {
-    handle.scrollToLine(target);
-    return Promise.resolve();
-  }
-  const duration = Math.min(SMOOTH_SCROLL_MAX_MS, 80 + Math.abs(distance) * 1.2);
-  const t0 = performance.now();
-  const { promise, resolve } = Promise.withResolvers<void>();
-  const step = (now: number) => {
-    if (token !== smoothScrollToken) return resolve();
-    const p = Math.min(1, (now - t0) / duration);
-    const eased = 1 - (1 - p) ** 3;
-    handle.scrollToLine(Math.round(start + distance * eased));
-    if (p < 1) raf(step);
-    else resolve();
-  };
-  raf(step);
-  return promise;
-}
 
 /**
  * 滚动 active 追踪:视口参考线向上找最近一条锚点所在行。

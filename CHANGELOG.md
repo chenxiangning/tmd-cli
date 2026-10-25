@@ -4,6 +4,24 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.4] - 2026-10-25
+
+### 新增
+
+- excalidraw 文件右键「导入意图画布」深链直达编辑器;导入深链跨重挂去重,前端 512KB 闸早拒
+- Markdown 预览表格与 Mermaid 块补源码复制,代码块复制钮 icon 化修折行错位
+
+### 修复
+
+- 幕布 SIGWINCH 舞步守卫改「扣留待确认」:窗内见 1049h 先扣留不产出,见 1049l 确认舞步才丢弃;800ms 确认窗尽未闭合(真交互式 alt UI,实证 omp /model 的 1049h+13KB picker 帧驻留无 1049l)扣留段经 emit 出口原样奉还并停扣。根治 resize 后 2.5s 舞步窗内点 composer 模型位/思考位,picker 帧被当舞步 alt 段吞掉、守卫滞留丢光后续输出幕布卡死、重试数次才恢复;伴生修 tail 相回 idle 时块尾扣留字节被覆盖丢弃的边角
+- 时间线与 composer 锚点栏「定位幕布」改取 needle 在幕布的末次现行拷贝,撤掉把磁盘消息顺序当 PTY 重印次数的 occurrence 映射;附件独占首行时继续找正文,不再共用路径前缀错锚。定位前等 xterm 写入与 history 初始化落定,翻页按真实推进判定(兼容 24K 行上限),快速连点只让最后一次落位;显式跳转取消旧位置守望,CLI 换身份时清空旧时间线缓存
+- composer 模型位/思考位:ask 等待期一律禁发(写入会被 CLI 当作答案文本提交,思考位补齐同款禁用面);omp 轮中豁免沉 profile 字段恢复可点(WSL 重构曾收丢)
+- ⌘Q 与红 X 关窗静默哑火——补 allow-destroy 能力面,菜单退出收口为只发关窗
+- 文件预览大小闸自 512KB 放宽到 100MB,保存写闸同步对齐;写闸 CRLF 头寸与外部编辑器并发护栏
+- 意图画布项目轮询读缓存(path+mtime LRU)与读失败三型归因(errno 边界),超 32MB 显「项目过大」不再误标无效
+- 端口清理二段杀补杀前重验进程启动时刻,pid 复用跳过强杀并标注;pid 越界防御
+- checkpoints 探测窗沿批清单 stale-while-probing 不闪空帧,停用清探测登记残留;回落窗深链键修正
+
 ## [0.4.3] - 2026-10-22
 
 ### 新增

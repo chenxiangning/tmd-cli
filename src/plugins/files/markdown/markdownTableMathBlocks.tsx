@@ -13,9 +13,12 @@ import {
   type UIEvent,
 } from "react";
 import { hashStableString } from "@kernel/textHash";
+import { t } from "@kernel/i18n";
 import { renderLatexFormula } from "./markdownMath";
+import { tableToMarkdown } from "./tableSource";
 import DOMPurify from "dompurify";
 import {
+  CodeBlockCopyButton,
   FileMarkdownCodeBlock,
   LazyMarkdownHeavyBlock,
 } from "./markdownBlocks";
@@ -75,14 +78,26 @@ export function FileMarkdownTableBlock({
   );
 
   return (
-    <div
-      ref={wrapperRef}
-      className="fvp-file-markdown-table-wrap"
-      onScroll={handleScroll}
-    >
-      <LazyMarkdownHeavyBlock defer={defer} label={label} revealKey={revealKey}>
-        <table>{children}</table>
-      </LazyMarkdownHeavyBlock>
+    <div className="fvp-file-markdown-table-block">
+      {/* 源码复制:点击时从渲染 DOM 现取(此时懒揭示必已完成),双渲染路径同构;
+          extraClass 拿吸顶/悬停显形形态(快路径 table 规则同款类面)。 */}
+      <CodeBlockCopyButton
+        getValue={() => {
+          const table = wrapperRef.current?.querySelector("table");
+          return table ? tableToMarkdown(table) : "";
+        }}
+        ariaLabel={t("复制表格")}
+        extraClass="markdown-table-copy"
+      />
+      <div
+        ref={wrapperRef}
+        className="fvp-file-markdown-table-wrap"
+        onScroll={handleScroll}
+      >
+        <LazyMarkdownHeavyBlock defer={defer} label={label} revealKey={revealKey}>
+          <table>{children}</table>
+        </LazyMarkdownHeavyBlock>
+      </div>
     </div>
   );
 }

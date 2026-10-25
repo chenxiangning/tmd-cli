@@ -4,7 +4,7 @@
  * 先创建者保留 cli 身份,后到者回退 tmd id —— 新会话不得看到老会话的账。
  */
 import { describe, expect, it } from "vitest";
-import { resolveLedgerKey, withEchoFallback } from "./identity";
+import { echoProbing, noteEchoProbe, resetEchoProbes, resolveLedgerKey, withEchoFallback } from "./identity";
 
 const peers = (list: Array<{ id: string; createdAt?: number }>) => list;
 const cliOf =
@@ -69,5 +69,31 @@ describe("withEchoFallback 探测窗主键回落", () => {
 
   it("窗外:原样返回(绑定值可信)", () => {
     expect(withEchoFallback(id, false)).toEqual(id);
+  });
+});
+
+describe("探测窗登记(noteEchoProbe/echoProbing)", () => {
+  it("开窗登记、关窗摘除;null/undefined 查询恒 false", () => {
+    resetEchoProbes(); /* 模块级单例:先清台,不受其他用例残留影响 */
+    expect(echoProbing("s1")).toBe(false);
+
+    noteEchoProbe("s1", true);
+    expect(echoProbing("s1")).toBe(true);
+    noteEchoProbe("s1", false);
+    expect(echoProbing("s1")).toBe(false);
+
+    expect(echoProbing(null)).toBe(false);
+    expect(echoProbing(undefined)).toBe(false);
+  });
+
+  it("停用清台:close 边沿丢失(只开未关)的残留也一并清干净", () => {
+    resetEchoProbes();
+    noteEchoProbe("s2", true);
+    noteEchoProbe("s3", true);
+    expect(echoProbing("s2")).toBe(true);
+
+    resetEchoProbes(); /* 插件 deactivate 路径(index.tsx activate cleanup 接线) */
+    expect(echoProbing("s2")).toBe(false);
+    expect(echoProbing("s3")).toBe(false);
   });
 });

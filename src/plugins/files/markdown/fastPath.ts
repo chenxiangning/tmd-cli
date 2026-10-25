@@ -81,6 +81,14 @@ md.renderer.rules.tasklist_checkbox = (tokens, idx) => {
   return `<input type="checkbox" disabled${checked} class="tmd-task-checkbox"> `;
 };
 
+/* 复制/已复制按钮内联 SVG(phosphor regular 同 path,viewBox 256):富路径走
+   @phosphor-icons/react 组件,快路径是字符串 HTML 只能内联,视觉与其对齐;
+   按钮本体 24×24 固定,纯 icon 防文字折行错位。 */
+export const COPY_ICON_SVG =
+  '<svg class="markdown-codeblock-copy-icon" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z"/></svg>';
+export const CHECK_ICON_SVG =
+  '<svg class="markdown-codeblock-copy-icon" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>';
+
 /* ── 代码块:复用 prism highlightLine(带缓存)拼接与富路径同构的 DOM ── */
 md.renderer.rules.fence = (tokens, idx) => {
   const token = tokens[idx];
@@ -95,17 +103,21 @@ md.renderer.rules.fence = (tokens, idx) => {
     `<span class="markdown-codeblock-language-text">${escapeHtml(label)}</span>` +
     `</span>` +
     `<button type="button" class="ghost markdown-codeblock-copy" data-md-copy ` +
-    `title="${escapeHtml(t("复制"))}">${escapeHtml(t("复制"))}</button>` +
+    `aria-label="${escapeHtml(t("复制代码"))}" title="${escapeHtml(t("复制"))}">${COPY_ICON_SVG}</button>` +
     `</div>` +
     `<pre><code${codeClass}>${highlighted}</code></pre>` +
     `</div>\n`
   );
 };
 
-/* ── 表格:静态滚动包裹(富路径 FileMarkdownTableBlock 的滚动缓存是 React 态,
-   快路径用同一 class 的纯 CSS 形态) ── */
-md.renderer.rules.table_open = () => '<div class="fvp-file-markdown-table-wrap"><table>\n';
-md.renderer.rules.table_close = () => "</table></div>\n";
+/* ── 表格:静态滚动包裹 + 源码复制钮(富路径 FileMarkdownTableBlock 的滚动
+   缓存是 React 态,快路径用同一 class 的纯 CSS 形态;复制取值走委托现取 DOM) ── */
+md.renderer.rules.table_open = () =>
+  `<div class="fvp-file-markdown-table-block">` +
+  `<button type="button" class="ghost markdown-codeblock-copy markdown-table-copy" data-md-table-copy ` +
+  `aria-label="${escapeHtml(t("复制表格"))}" title="${escapeHtml(t("复制"))}">${COPY_ICON_SVG}</button>` +
+  `<div class="fvp-file-markdown-table-wrap"><table>\n`;
+md.renderer.rules.table_close = () => "</table></div></div>\n";
 
 /* ── 链接:分类打 data-* 属性,点击由容器委托分发(与富路径 handleAnchorClick
    同规则:外链系统浏览器 / 锚点滚预览 / 本地文件进 tab / 其余静默) ── */

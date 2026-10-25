@@ -51,9 +51,8 @@ export interface ScrollKeeper {
   markHidden(container: { clientWidth: number } | null): void;
   /** 重显恢复(未真隐藏则 no-op);恢复后重记快照,防隐藏期污染值残留。 */
   restore(term: ScrollableTerm | null): void;
-  /** 收兵 enforcement(测试与 dispose 收尾用;生产让位由 armEnforce 自挂 term.element 的
-   *  wheel/pointerdown/touchstart 监听完成,TerminalView 不经此转发)。 */
-  cancelEnforcement(): void;
+  /** 显式定位接管滚动:取消 enforcement 与重印守望,不再拉回旧位置。 */
+  cancel(): void;
   /** 幕布卸载收尾:停重印守望 timer 与 enforcement,已卸载 term 不再被轮询。 */
   dispose(): void;
   /** 尺寸变化重排保位:raf 内容锚(第一段)+ WebKit 重置 enforcement 窗 + SIGWINCH 抹除重印感知重锚(第二段)。 */
@@ -204,8 +203,10 @@ export function createScrollKeeper(): ScrollKeeper {
   };
 
   return {
-    /** 收兵 enforcement(测试与 dispose;生产让位走 armEnforce 自挂监听)。 */
-    cancelEnforcement(): void {
+    /** 显式定位接管滚动:作废全部保位回调。 */
+    cancel(): void {
+      watchGen += 1;
+      disarm();
       stopEnforce();
     },
     dispose(): void {

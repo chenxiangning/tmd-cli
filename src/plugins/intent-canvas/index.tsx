@@ -34,12 +34,23 @@ import "./intent-canvas.css";
 
 function IntentCanvasTab({ tab }: { tab: EditorTab }) {
   /* payload 反链:composer 附件芯片等入口携带 canvasId 直达画布详情,
-     requestId 每次点击新生成以驱动 useCanvasDocs 的去重消费链。 */
-  const payload = tab.payload as { canvasId?: string; requestId?: number } | null;
+     requestId 每次点击新生成以驱动 useCanvasDocs 的去重消费链。
+     importFile = 文件树右键「导入到意图画布」深链(useCanvasDocs 消费)。 */
+  const payload = tab.payload as {
+    canvasId?: string;
+    requestId?: number;
+    importFile?: { path?: string; name?: string };
+  } | null;
   const openRequest: IntentCanvasOpenRequest | null =
-    payload && typeof payload.canvasId === "string"
-      ? { requestId: payload.requestId ?? 0, mode: "architect", canvasId: payload.canvasId }
-      : null;
+    payload && typeof payload.importFile?.path === "string"
+      ? {
+          requestId: payload.requestId ?? 0,
+          mode: "architect",
+          import: { path: payload.importFile.path, name: payload.importFile.name ?? "" },
+        }
+      : payload && typeof payload.canvasId === "string"
+        ? { requestId: payload.requestId ?? 0, mode: "architect", canvasId: payload.canvasId }
+        : null;
   return <IntentCanvasManager openRequest={openRequest} />;
 }
 

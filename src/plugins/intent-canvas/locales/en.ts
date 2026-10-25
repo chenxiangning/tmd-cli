@@ -147,5 +147,11 @@ export const MESSAGES_EN = {
   "审计口径:下面的 JSON 是本次实际发送给模型的完整 transmission payload;它不是原始 Excalidraw scene 全量导出。": "Audit basis: the JSON below is the complete transmission payload actually sent to the model this time; it is not a full export of the raw Excalidraw scene.",
   "JSON 使用 compact/minified 格式压缩展示体积,不省略字段;如果 truncated=yes 或任一 omitted > 0,表示内容层做了显式语义压缩,不是静默截断。": "The JSON is compact/minified to reduce display size without omitting fields; if truncated=yes or any omitted > 0, the content layer applied explicit semantic compression, not silent truncation.",
   "未填写": "not filled",
+  "导入的画布": "Imported canvas",
+  "「{name}」不是有效的 Excalidraw 文件(JSON 解析失败)": "\"{name}\" is not a valid Excalidraw file (JSON parse failed)",
+  "「{name}」不是有效的 Excalidraw 文件": "\"{name}\" is not a valid Excalidraw file",
+  "「{name}」里没有可导入的画布元素": "No importable canvas elements found in \"{name}\"",
+  "「{name}」超过 512KB,超出画布存储上限": "\"{name}\" exceeds 512KB — beyond the canvas storage limit",
+  "无法读取「{name}」:{message}": "Cannot read \"{name}\": {message}",
   "总闸。默认每会话不注入:在对话框左下画布图标点开本会话作图标识后,发送才附带画图指令,AI 把绘图文件写进收件箱,画布自动上稿。": "Master switch. By default nothing is injected per session: turn on the session draw badge via the canvas icon at the bottom-left of the composer, then sends carry drawing instructions, the AI writes drawing files to the inbox, and the canvas picks them up automatically.",
 } as Record<string, string>;

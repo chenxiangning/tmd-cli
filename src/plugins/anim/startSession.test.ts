@@ -56,13 +56,34 @@ describe("prepareAiSessionTarget", () => {
     expect(readFile).not.toHaveBeenCalled();
   });
 
-  it("行上文件读失败(被删/超限/IO):invalid-project 显性报错,不静默改道建桩", async () => {
-    /* 大项目(内嵌配音 dataURL 超 512KB 预览闸)曾在此静默生成垃圾桩 ——
-       读失败一律显性报错,桩只留给「未选项目」入口(projectPath=null)。 */
-    const readFile = vi.fn<(p: string) => Promise<string>>().mockRejectedValue(new Error("gone"));
+  it("读失败按形态归因:文件不存在 = project-deleted,绝不静默改道建桩", async () => {
+    /* 0.4.3 一轮:读失败曾全部折叠进 invalid-project;更早还曾静默建「未命名动画」
+       垃圾桩 —— 此处钉死 ok:false,桩只留给「未选项目」入口(projectPath=null)。 */
+    const readFile = vi.fn<(p: string) => Promise<string>>().mockRejectedValue("读取文件信息失败: No such file or directory (os error 2)");
     await expect(
       prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/gone.json`, rowName: "旧名", readFile, now: () => 42, rand: () => "zz9" }),
-    ).resolves.toEqual({ ok: false, reason: "invalid-project" });
+    ).resolves.toEqual({ ok: false, reason: "project-deleted" });
+  });
+
+  it("读失败按形态归因:超 32MB 读取闸 = project-too-large(合法大项目不再误标无效)", async () => {
+    const readFile = vi.fn<(p: string) => Promise<string>>().mockRejectedValue("文件超过 32MB 读取上限");
+    await expect(
+      prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/big.json`, rowName: "大项目", readFile, now: () => 1, rand: () => "ab12" }),
+    ).resolves.toEqual({ ok: false, reason: "project-too-large" });
+  });
+
+  it("读失败按形态归因:IO 错误 = read-failed,错误原文透出 detail", async () => {
+    const readFile = vi.fn<(p: string) => Promise<string>>().mockRejectedValue("读取文件失败: Permission denied (os error 13)");
+    await expect(
+      prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/locked.json`, rowName: "锁", readFile, now: () => 1, rand: () => "ab12" }),
+    ).resolves.toEqual({ ok: false, reason: "read-failed", detail: "读取文件失败: Permission denied (os error 13)" });
+  });
+
+  it("读失败 Error 形态(非 tauri 字符串拒因)同样按 os error 码归因", async () => {
+    const readFile = vi.fn<(p: string) => Promise<string>>().mockRejectedValue(new Error("读取文件信息失败: No such file or directory (os error 2)"));
+    await expect(
+      prepareAiSessionTarget({ home: HOME, engine: ENGINE, projectPath: `${DIR}/gone.json`, rowName: "旧名", readFile, now: () => 1, rand: () => "ab12" }),
+    ).resolves.toEqual({ ok: false, reason: "project-deleted" });
   });
 
   it("文件存在但坏:invalid-project,不静默改道建桩(防覆写用户手改内容)", async () => {

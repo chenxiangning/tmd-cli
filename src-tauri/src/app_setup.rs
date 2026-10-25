@@ -112,14 +112,20 @@ pub(crate) fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-/// ⌘Q 退出守卫菜单(0.4.1 批三,仅 macOS 装配;另两平台 no-op 见下)。
+/// ⌘Q 退出守卫菜单(0.4.1 批三装配,0.4.4 收口为「只发关窗」;仅 macOS,另两平台 no-op)。
 ///
 /// 为什么走菜单而不是 ExitRequested(0.4.0 批二 review 双证据裁决):
 /// tauri-runtime-wry 的 ExitRequested{code:None} 仅来自最后窗口 Destroyed,
 /// 拦它 = 无窗僵尸进程;macOS(tao)无 applicationShouldTerminate,⌘Q 根本
 /// 不发 ExitRequested。唯一可靠挂点 = 应用菜单 accel:自定义菜单项接管
-/// CmdOrControl+Q(无默认退出行为),点击只发事件给前端,由关窗闸同款
-/// 聚合确认裁决——确认后关窗(单窗 destroyed → 进程退),取消则什么都不发生。
+/// CmdOrControl+Q(无默认退出行为),点击后**只做一件事 —— 关窗**。
+///
+/// 为什么是关窗而不是发事件给前端(2026-10-23 修):
+/// 关窗走 `WindowMessage::Close → CloseRequested`,与红 X / 原生关窗同一条链;
+/// 前端只在这条链上挂**一个**关窗闸(kernel/quitGuardBoot):有脏 tab 先弹聚合
+/// 确认,不拦则窗口原生销毁 → 单窗 destroyed → 进程退。事件腿的旧形态
+/// (emit tmd://menu-quit → 前端再 windowClose)多绕两跳、且 webview 侧一旦
+/// 没接住就静默无动作;关窗腿则由壳侧兜底,前端缺席也照样关。
 ///
 /// 装配面:app 子菜单(自定义 Quit + 预定义 about/services/hide 组)+ 编辑子菜单
 /// (undo/redo/cut/copy/paste/select_all,⌘C/⌘V 等编辑角色快捷键的载体)+
@@ -168,8 +174,12 @@ pub(crate) fn install_quit_guard_menu(app: &mut tauri::App) -> tauri::Result<()>
     app.set_menu(menu)?;
     app.on_menu_event(|app, event| {
         if event.id().as_ref() == "tmd.quit" {
-            /* 事件单源扇出(桌面 emit + Web 桥广播);前端 quitGuardBoot 消费。 */
-            crate::event_sink::emit(app, "tmd://menu-quit", &());
+            /* 只发关窗:CloseRequested 交给前端关窗闸裁决(有脏 tab 弹聚合确认,
+             * 取消则窗口原样保留),前端未拦 / 未挂闸时由壳侧原生销毁兜底。
+             * 不走事件腿 —— 前端缺席(重载、崩溃自愈中)时 ⌘Q 不能变哑键。 */
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.close();
+            }
         }
     });
     Ok(())

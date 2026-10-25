@@ -13,7 +13,7 @@ import { ipc, type DirEntry } from "@kernel/ipc";
 import { clampToViewport } from "@kernel/menuClamp";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
-import { closeTab, getTabs } from "@kernel/tabs";
+import { closeTab, getTabs, openTab } from "@kernel/tabs";
 import {
   cacheDeletePrefix,
   draftDeletePrefix,
@@ -195,6 +195,23 @@ export function useTreeOperations(opts: {
     [showNotice],
   );
 
+  /** .excalidraw 文件 → 意图画布:跨插件经 kernel tab 深链(payload.importFile),
+   *  零 import intent-canvas(消费于 useCanvasDocs;openIntentCanvasBacklink 同款
+   *  refresh 语义 + chunk 预热)。 */
+  const importToCanvas = useCallback((entry: DirEntry) => {
+    openTab(
+      {
+        id: "intent-canvas",
+        title: t("意图画布"),
+        path: "intent-canvas",
+        kind: "intent-canvas",
+        payload: { importFile: { path: entry.path, name: entry.name }, requestId: Date.now() },
+      },
+      { refresh: true },
+    );
+    void import("@excalidraw/excalidraw");
+  }, []);
+
   /** 提交命名弹窗(按 kind 分发);失败保持弹窗开启并展示 promptError。 */
   const submitPrompt = useCallback(
     (name: string) => {
@@ -220,6 +237,7 @@ export function useTreeOperations(opts: {
       submitPrompt,
       copyPath,
       revealInFileManager,
+      importToCanvas,
       trash,
       notice,
     }),
@@ -234,6 +252,7 @@ export function useTreeOperations(opts: {
       submitPrompt,
       copyPath,
       revealInFileManager,
+      importToCanvas,
       trash,
       notice,
     ],

@@ -3,7 +3,8 @@
  * 原始字节,全量回放(刷新钮/停滞重建/无冻结快照重挂/磁盘尾)重放历史舞步时
  * 3J 会清掉刚回放出的滚动缓冲,须按「1049h…1049l + 尾清屏含 3J」整体包络剥除
  * 并注入 rows-1 换行;vim/fzf 真 alt(1049l 后无 3J)与残缺形态原样保留。
- * ② 舞步相 10s 停滞自愈 —— CLI 死在舞步中途不得终身剥除(防中毒)。
+ * ② 舞步相确认窗超时自愈 —— CLI 死在舞步中途/真 alt 驻留,扣留段原样奉还
+ *   (防中毒:不再终身剥真 alt/清屏)。
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSigwinchGuard, stripDanceEnvelopes } from "./terminalSigwinchGuard";
@@ -75,14 +76,14 @@ describe("舞步相停滞自愈(防中毒)", () => {
     vi.useRealTimers();
   });
 
-  it("CLI 死在舞步中途 10s 后,后续真 alt/清屏字节不再被剥", () => {
+  it("CLI 死在舞步中途:确认窗尽后扣留段原样奉还,后续真 alt/清屏字节不再被剥", () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     const g = createSigwinchGuard(() => 30);
     g.armUntil(Date.now() + 60_000);
-    expect(g.feed(HEAD)).toBe("\r\n".repeat(29)); /* 进 dance 相,注入换行 */
-    vi.setSystemTime(11_000); /* CLI 死舞步中,10s 停滞上限已过 */
+    expect(g.feed(HEAD)).toBe(""); /* 进 dance 相,扣留不产出(无 emit 被动超时) */
+    vi.setSystemTime(11_000); /* 确认窗(800ms)早已过 */
     const rest = `junk${EXIT}${TAIL}recovered`;
-    expect(g.feed(rest)).toBe(rest); /* 相已自愈回 idle,原样透传 */
+    expect(g.feed(rest)).toBe(HEAD + rest); /* 自愈回 idle:扣留段奉还 + 余量透传 */
   });
 });

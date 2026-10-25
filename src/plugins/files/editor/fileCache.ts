@@ -104,7 +104,8 @@ export function loadFile(path: string): FilePayload {
   return fresh;
 }
 
-/** 远程文本读取上限(与本地 fs 文本读取闸同量级;来源侧可再收紧)。 */
+/** 远程文本读取上限(wslr M1 通道独立预算,与本地预览 100MB 闸脱钩;
+ *  Rust 侧 wsl_read_file_text 另有 4MB clamp,前端给大值也会被收紧)。 */
 const REMOTE_TEXT_MAX_BYTES = 512 * 1024;
 
 /** 外部可能已改盘(刷新按钮/外部编辑):作废条目重读磁盘。草稿独立存储,不受影响。 */

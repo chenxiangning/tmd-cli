@@ -4,7 +4,7 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use std::fs;
 
-const MAX_PREVIEW_BYTES: u64 = 512 * 1024;
+const MAX_PREVIEW_BYTES: u64 = 100 * 1024 * 1024;
 /// 内联图片上限(codemoss 同值 20MB):超出拒绝转 dataURL,前端回退 asset:// 直载。
 const MAX_INLINE_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
 
@@ -87,8 +87,8 @@ pub fn read_file(path: &str) -> Result<String, String> {
     let meta = fs::metadata(path).map_err(|e| format!("读取文件信息失败: {e}"))?;
     if meta.len() > MAX_PREVIEW_BYTES {
         return Err(format!(
-            "文件超过 {}KB，暂不支持预览",
-            MAX_PREVIEW_BYTES / 1024
+            "文件超过 {}MB，暂不支持预览",
+            MAX_PREVIEW_BYTES / 1024 / 1024
         ));
     }
     let bytes = fs::read(path).map_err(|e| format!("读取文件失败: {e}"))?;
@@ -143,6 +143,30 @@ mod tests {
         assert_eq!(limit("d.docx"), Some(2 * 1024 * 1024));
         assert_eq!(limit("e.doc"), None); // legacy doc 不读盘
         assert_eq!(limit("f.txt"), None);
+    }
+
+    #[test]
+    fn read_file_大小闸与文本拒绝() {
+        let root = temp_root("text-preview");
+        let ok = root.join("ok.txt");
+        fs::write(&ok, "hello").unwrap();
+        assert_eq!(read_file(ok.to_str().unwrap()).unwrap(), "hello");
+
+        // 超限:稀疏文件 set_len 免写盘,闸在读取前就拒绝
+        let big = root.join("big.txt");
+        let f = fs::File::create(&big).unwrap();
+        f.set_len(MAX_PREVIEW_BYTES + 1).unwrap();
+        drop(f);
+        let err = read_file(big.to_str().unwrap()).unwrap_err();
+        assert!(err.contains("100MB"), "实际报错: {err}");
+
+        // NUL 字节 = 二进制拒绝
+        let bin = root.join("bin.txt");
+        fs::write(&bin, [0x61, 0x00, 0x62]).unwrap();
+        assert!(read_file(bin.to_str().unwrap())
+            .unwrap_err()
+            .contains("二进制"));
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

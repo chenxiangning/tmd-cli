@@ -57,6 +57,10 @@ export type IntentCanvasOpenRequest = {
   mode: IntentCanvasMode;
   target?: IntentCanvasOpenTarget | null;
   canvasId?: string | null;
+  /** 文件树深链导入:读取该 .excalidraw 文件作为新画布场景(消费于 useCanvasDocs)。 */
+  import?: { path: string; name: string } | null;
+  /** 创建时种子场景(已 sanitize,替代空场景;AI 传输/文件导入共用)。 */
+  seedScene?: IntentCanvasScene | null;
   title?: string | null;
   summary?: string | null;
   seedSemanticGraphs?: CanvasSemanticGraph[];

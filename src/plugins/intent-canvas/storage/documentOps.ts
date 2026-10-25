@@ -86,7 +86,8 @@ export function createIntentCanvasDocument(input: {
     ]),
     threadIds: [],
   };
-  const scene = createInitialIntentCanvasScene(source, seedSemanticGraphs);
+  /* 种子场景(AI 传输/文件导入)已由调用方 sanitize,替代空场景;aiContext 随同一 scene 构建。 */
+  const scene = input.request?.seedScene ?? createInitialIntentCanvasScene(source, seedSemanticGraphs);
   return {
     version: 1,
     id,
