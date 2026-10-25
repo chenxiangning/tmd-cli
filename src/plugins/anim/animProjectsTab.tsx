@@ -16,6 +16,7 @@ import { FilmSlate } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { getSettingsState } from "@kernel/settings";
 import { getPlatformKind } from "@kernel/platform";
 import { ensureDir } from "@kernel/fsDirs";
 import { resolveDefaultEngine } from "@plugins/workbench/defaultEngine";
@@ -37,6 +38,16 @@ import { setPendingPrompt } from "@kernel/sessionPending";
 import { setPendingRefs } from "./refStore";
 
 const POLL_MS = 2000;
+
+/** read-failed toast(0.4.5 错误呈现收编):zh 保留 Rust 原文;en/ja 只显分类句 ——
+ *  原文恒带中文标签,混排失真(2026-10-23 评审 P3);完整原文进 console 供排障。 */
+function readFailedToast(detail?: string): string {
+  const base = t("项目读取失败");
+  if (!detail) return base;
+  if (getSettingsState().settings.language === "zh") return `${base}: ${detail}`;
+  console.warn("[anim] read project failed:", detail);
+  return base;
+}
 
 export function AnimProjectsTab() {
   const [rows, setRows] = useState<AnimProjectRowState[] | null>(null); /* null = 目录不存在/未读到 */
@@ -120,7 +131,7 @@ export function AnimProjectsTab() {
               : reason === "project-too-large"
                 ? t("项目过大")
                 : reason === "read-failed"
-                  ? `${t("项目读取失败")}${detail ? `: ${detail}` : ""}`
+                  ? readFailedToast(detail)
                   : t("项目文件无效,请先在 tmd-anim 中修复"),
       );
       return;
