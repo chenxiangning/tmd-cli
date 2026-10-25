@@ -254,7 +254,7 @@ export function SessionScreen(props: { sessionId: string; spawnedAt?: number }) 
       {ask && !exited && <AskCard q={askQ} onAnswer={answer} busy={answering} />}
       {meta && (
         <StatusBar sessionId={props.sessionId} profileId={meta.profileId} cwd={meta.cwd}
-          cliSessionId={meta.cliSessionId} turnActive={meta.activity?.turnActive} />
+          cliSessionId={meta.cliSessionId} turnActive={meta.activity?.turnActive} askWait={ask && !exited} />
       )}
       <Composer
         sessionId={props.sessionId}

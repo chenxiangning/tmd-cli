@@ -28,6 +28,8 @@ export function StatusBar(props: {
   cliSessionId?: string;
   /** 桌面守望投影的回合态;下降沿(回合收尾)补拉一次状态(模型可能刚切)。 */
   turnActive?: boolean;
+  /** ask 等待确认中:模型 chip 禁发(写入会被 CLI 当作答案文本提交,与桌面模型位/思考位/⌘K 抽屉同律)。 */
+  askWait?: boolean;
 }) {
   const { profileId, cwd, cliSessionId } = props;
   const [status, setStatus] = useState<CliSessionStatus | null>(null);
@@ -85,7 +87,12 @@ export function StatusBar(props: {
           type="button"
           className="m-status-chip"
           aria-label={t("切模型")}
-          onClick={() => void writeSession(props.sessionId, engineWire(profileId, "/model")).catch(() => undefined)}
+          disabled={props.askWait === true}
+          title={props.askWait === true ? t("等待确认中,先在面板作答") : undefined}
+          onClick={() => {
+            if (props.askWait === true) return;
+            void writeSession(props.sessionId, engineWire(profileId, "/model")).catch(() => undefined);
+          }}
         >
           {modelLabel}
         </button>

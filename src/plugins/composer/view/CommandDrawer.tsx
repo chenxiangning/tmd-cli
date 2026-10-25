@@ -34,13 +34,15 @@ interface CommandDrawerProps {
   items: DrawerItem[];
   /** 发送(二次确认开关开时先弹确认框);返回实际写入文本供 toast 展示(translate 后的 wire);null=写入失败。 */
   onSend: (item: DrawerItem) => Promise<string | null>;
+  /** send 入口闸:返回非空文案 = 本次发送被拦(toast 展示,如 ask 等待期);缺省不拦。 */
+  sendGate?: () => string | null;
   onInsert: (item: DrawerItem) => void;
   onOpen: (item: DrawerItem) => void;
   /** fixed 锚定几何( right/bottom/maxHeight ),Composer 量测传入。 */
   style?: React.CSSProperties;
 }
 
-export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: CommandDrawerProps) {
+export function CommandDrawer({ open, items, onSend, sendGate, onInsert, onOpen, style }: CommandDrawerProps) {
 
   const [tab, setTab] = useState<"all" | DrawerSection>("all");
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -144,6 +146,12 @@ export function CommandDrawer({ open, items, onSend, onInsert, onOpen, style }: 
   function activate(item: DrawerItem) {
     const key = `${item.section}:${item.name}`;
     if (item.action === "send") {
+      /* ask 等待期 send 入口闸:直接写入会被 CLI 当作答案文本提交,拦下并明示(与模型位/思考位同律,2026-10-24 评审 P3 收编)。 */
+      const blocked = sendGate ? sendGate() : null;
+      if (blocked) {
+        showToast(blocked);
+        return;
+      }
       void onSend(item).then((wire) => {
         /* null=写入失败(死会话);空串=无会话静默守卫:无反馈、不关闭 */
         if (wire === null) {

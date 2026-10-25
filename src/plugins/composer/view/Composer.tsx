@@ -88,7 +88,7 @@ export function Composer() {
   /* 发送二次确认挂起点(spec 2026-09-27-composer-send-confirm):两条发送路径共用一个弹框 */
   const { req: sendConfirm, requestConfirm: requestSendConfirm, close: closeSendConfirm } =
     useSendConfirmRequest();
-  const { drawerOpen, drawerItems, sendFromDrawer, insertFromDrawer, openFromDrawer } =
+  const { drawerOpen, drawerItems, sendFromDrawer, drawerSendGate, insertFromDrawer, openFromDrawer } =
     useComposerDrawer({
       profile,
       cwd,
@@ -254,6 +254,7 @@ export function Composer() {
             open={drawerOpen}
             items={drawerItems}
             onSend={sendFromDrawer}
+            sendGate={drawerSendGate}
             onInsert={insertFromDrawer}
             onOpen={openFromDrawer}
           />,
