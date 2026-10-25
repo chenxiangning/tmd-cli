@@ -4,6 +4,27 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.5] - 未发版
+
+### 新增
+
+- 终端搜索扩展到磁盘日志全文:⌘F 缓冲零命中且日志还有更早字节时出「搜完整日志」入口,Rust 字面量扫描 64MB 旋转日志(行去重定位条目 + 去转义行预览,ASCII 大小写折叠);命中列表点击窗口化跳转落位(512KB 窗重写 + dim 间隙标记,不逐页回放),正则模式如实不搜磁盘
+- Git stash 管理面:面板横幅位 stash 条(无 stash 零占位),展开列表带短 sha/消息/时间,应用(保留条目)/弹出(冲突保留不丢)/丢弃(确认框把关)
+- 编辑器 blame gutter 一键深链:BlameLine 补全 sha,行归属点击直开提交 diff 中央 tab(git 插件在场时 hover 提亮示可点)
+- mobile 思考 chip 可发:声明思考命令的引擎(dsh /effort)点击发送切换思考强度,ask 等待期与轮中禁发(桌面思考位同律)
+
+### 修复
+
+- 轮次闸三面统一:⌘K 抽屉 send 项补 ask 等待期闸(写入会被 CLI 当作答案文本提交,拦下 toast 明示 + 发送路径硬守卫双保险);mobile 模型 chip 同闸禁发;输入框直敲维持「从不禁发送」裁定(ask 期 composer 即作答通道)
+- checkpoints 回落沿对称化:主键翻转沿(探测窗开窗/关窗/重绑)新键首拉未落地时回落上一主键并携带种子清单,重绑不再闪一拍空帧;回落键 recency 由刷新效应侧触碰防 LRU 逐出;staleSessionId 推导抽纯函数补测试面
+- read_file 二进制头部嗅探:前 8KB 含 NUL 即拒,百 MB 二进制不再整读进内存/IPC 才说不支持(8KB 后 NUL 罕见形态保留后置校验,语义不变)
+- anim read-failed toast locale 感知:en/ja 只显分类句不再中外混排(完整原文进 console 供排障);错误呈现层第一步 kernel/errText(gitError 切换委托,行为等价)
+- 会话列表置顶投影 Map 化:500+ 会话 × 多置顶下逐 pin 线性找改 Map 查找
+
+### 内务
+
+- 0.4.5 批次收口评审记档(docs/review/2026-10-25-045-batch-review.md):十项全量交付 + 工具教训三条(门禁管道吞退出码/LSP 陈旧快照误报/能力核查全仓 grep)
+
 ## [0.4.4] - 2026-10-25
 
 ### 新增
@@ -953,9 +974,7 @@
 - 清理设计冗余
 - 覆盖层满额逐出 / FilePatch 提取 / with_repo 缓存段 / 行标题兜底链 / 终端呼吸灯等六处重复收敛
 
-
 ## [0.1.1] - 2026-09-06
-
 
 ### 新增
 

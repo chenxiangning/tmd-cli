@@ -31,6 +31,7 @@
 > 2026-10-21 补校:端口管理插件(ports,右栏 rail 入口中央 tab):本机 TCP 监听端口一览,procCommunicate 按平台跑 lsof/ss→netstat/PowerShell 零 Rust;进程家族折叠归组、端口释义库、暴露面标注(局域网/仅本机)、cwd 反查 git 顶层与 workspace 认领、ppid 链会话归因跳转、浏览器打开/复制地址/复制 kill 命令、SIGTERM→SIGKILL 二段终止(Windows taskkill /T 杀树)、手动刷新 + 5s 可选自动轮询与新端口 NEW 标、即时过滤;插件计数 47→48(10 engine / 34 feature / 3 core / 1 local)。spec:docs/superpowers/specs/2026-10-21-ports-manager-design.md。
 
 ## 工作区会话
+
 - 会话行 tok/s pill:活会话响应均速指示,轮结束自动隐藏;口径(2026-10-03 修复)分子按行型分派(全量行差分 / 增量行自增)+ 尾窗用户行轮种子 + 180s 剔停 + 单对 300 tok/s 可信上限 + 近 5 对滑窗平滑 + codex 双快照——回放实证可显率 49%→100%、跳变 p90 19.4x→1.5x(spec 2026-10-03-toks-pill-stability-design)
 - 会话 tab 收敛(0.2.8):行内 hover 只留 ×,view/pin/locate 收进右键菜单(带可用性门控);双 tab 溢出统一横向滚动 + 右缘渐隐;双击强删暗道移除,改两击武装 3s 回退
 - 视图保活统一(0.2.8):git 三视图 / checkpoints 双视图 / 右栏面板切换一律「全挂载 + display:none + aria-hidden」,回切不丢滚动位置;未访问面板渐进挂载,后台轮询按面板活性门控
@@ -93,6 +94,7 @@
 - 写入隔离:每会话独立写锁 + 后台线程执行,单会话阻塞写不冻结 UI、不波及其他会话
 - PTY 输出解码:跨聚合批暂存不完整 UTF-8 尾部与下批拼接再解码,仅真坏字节替换 U+FFFD;泵收尾时暂存尾字节同样以 U+FFFD 补发,输出尾部不完整字符不丢
 - 会话输出落盘:64MB 旋转日志(截头保留尾部 32MB,偏移锚点不受截头影响)+ 幕布往前翻页读取(每页 512KB,页起点对齐转义序列/UTF-8 边界);日志布局 `~/.tmd-cli/session/<引擎>/<项目slug>/<会话id>.log`
+- 终端搜索扩展到磁盘日志全文(0.4.5):⌘F 缓冲零命中且日志还有更早字节时出「搜完整日志」入口,Rust 字面量扫描 64MB 旋转日志(行去重定位条目 + 去转义行预览,ASCII 大小写折叠,SSH/本地双源);命中列表点击窗口化跳转落位(512KB 窗重写 + dim 间隙标记,不逐页回放);正则模式如实不搜磁盘;IPC 授权 ipc.terminal
 - 会话日志降级:日志创建/写入失败不阻塞终端输出,仅「加载更早的输出」翻页能力关闭
 - 历史重写输入闸:回放/翻页整段重写窗口内丢弃终端查询应答,陈旧回传不注入 PTY、不误开首写闸
 - 会话退出清理:输出日志随退出删除,退出不区分正常/异常,内核统一移除会话并广播消亡(Rust 侧自清理兜底 webview reload 错过 exit)
@@ -135,6 +137,7 @@
 - 后台会话冻结快照(kernel terminalFreeze.ts,0.4.0):tab 条容量挤除卸载时把 reseed 投影连同缓冲水位存档(LRU 8),重开四闸全过即投影同步上屏+增量补写,免 0.5s 遮罩;闸不过回落全量
 
 ## Ask 等待确认与提示音
+
 - 系统通知(notify 插件):窗口失焦时桌面级提醒——Ask 等待 / 轮次结束(仅未查看)/ 会话退出(默认关)/ 额度撞墙预警(激活会话供应商 10 分钟轮询,窗口已用 % 过阈一次/窗口周期,0=关);通道 = tauri-plugin-notification 经 kernel/ipc 薄包装,web 态不发射
 - 系统通知点击动作:点击聚焦窗口(桌面最小档,不支持通知 action 的环境重聚焦时补发深链);额度监控范围扩「运行中 ∪ 平铺幕布」供应商
 - 额度预警闸与去重(0.4.1):抽 `notify/quotaPoll.ts` 独立模块(首查 30s、此后 10 分钟);三腿 = 窗口已用 % / 余额低水位(仅 deepseek/relay 透传数值)/ claude 本地窗口重置;OS 通道走与事件类同款三闸(分类开关 × 窗口失焦 × 会话级静音),修「quota 绕过免打扰窗直发」;流水照记不写去重键 —— 去重键 `quotaSeen` 持久化在 notify-log.json 头部,重启不失忆(静音会话同样消耗该周期键,不反复提醒)
@@ -159,6 +162,7 @@
 - 提示音设置兼容:非法值回落默认,旧配置无损加载
 
 ## 对话框(Composer)
+
 - 跨引擎接力(session-relay 插件):命令 `session-relay.to-engine` 把当前会话最近 10 条用户输入 + 引擎/标题/模型拼成接力提示词,可预览编辑后向目标引擎的新会话(同 cwd/工作区)作为首条消息发出;首发走 composer 发送契约,重试复用会话不堆空壳
 - 接力摘要截断(session-relay):单条 500 字 / 总长 8KB 截断并在预览明示
 - 增强提示词(prompt-enhancer 插件):composer 左下 ✦ 入口,取输入框草稿交一次性 CLI 改写(proc_communicate 通用原语,8 家 argv 组装收口插件侧),并排对照后一键整替草稿
@@ -172,7 +176,7 @@
 - 触发下拉键盘导航:↑↓ 选择 / Enter / Tab / Esc,选中替换触发符 + token;失焦自动收起,面板点击不抢输入焦点;触发面板与命令抽屉统一为对话框上方悬浮展示
 - 发送编排:translate 钩子处理语法差异(如 `$skill` → `/skill:skill`),与手动输入同一发送路径,不拦截不解析;仅翻译小写字母开头 token,$HOME/$100 等原样透传
 - 多行文本直发,CR 提交;pi 系 CLI 正文包 bracketed paste 序列防吞回车
-- 图片拖入/粘贴:粘贴仅收图片、拖入收任意文件,落盘临时文件 → 注册附件 → 输入框注入 `@path `;文件树拖入项目内文件/文件夹直接引用原路径,不落临时副本
+- 图片拖入/粘贴:粘贴仅收图片、拖入收任意文件,落盘临时文件 → 注册附件 → 输入框注入 `@path`;文件树拖入项目内文件/文件夹直接引用原路径,不落临时副本
 - 附件条:展示/删除/重排(上限 12 个);图片附件自动生成缩略图,点击放大预览;删附件同步删 `@path` 文本,删文本同步移除附件
 - 附件条头部「全部清除」:一键清空全部附件并同步移除输入框对应 `@path` 文本
 - 拖拽悬停视觉:accent 内环 + 虚线遮罩;全局护栏:文件拖出 composer 不触发 webview 导航
@@ -181,10 +185,10 @@
 - 额度查询:7 类供应商 HTTP 协议适配(kimi/minimax 中英/智谱中英/deepseek/openai-codex)+ 未知中转站探测;codex 官方 OAuth 读本地 rollout 快照零 HTTP;claude 官方订阅无公开 API,提示到 CLI 内 /usage 查看;自定义 key 按 base_url 检测供应商
 - 额度供应商识别含阿里云百炼 Coding Plan:dashscope base_url 明确标记无公开额度 API,提示到控制台查看,不误入未知中转站探测
 - Quota chip 模型路由:切换模型即作废旧供应商数据按新模型重抓,乱序/过期抓取按模型标签丢弃;同模型刷新失败保留上次成功数据仅标警示
-- 凭据引用:`$ENV_VAR` 只读解析(仅 *_KEY/*_TOKEN/*_SECRET 与 QUOTA_*/PI_* 白名单放行),`!command` 拒绝执行
+- 凭据引用:`$ENV_VAR` 只读解析(仅 *_KEY/**TOKEN/**SECRET 与 QUOTA**/PI** 白名单放行),`!command` 拒绝执行
 - 命令抽屉:⌘/Ctrl+K 开合,右上角开关按钮,Esc 关闭(rail × 同),点外不自动关,无活跃会话置灰;↑↓ 移动 + Enter 激活
 - 命令抽屉分区:命令 / 技能 / MCP / 插件,分区按声明派生,只渲染有数据的分区 + 「全部」聚合;左缘竖排图标 rail 切换(顶部关闭、底部计数),高度自适应内容
-- 命令抽屉动作:send 直接发送(经 translate,toast 回显实际发送文本并延迟收起)/ insert 光标处插入(缺省),插件分区项点击切换对应面板
+- 命令抽屉动作:send 直接发送(经 translate,toast 回显实际发送文本并延迟收起)/ insert 光标处插入(缺省),插件分区项点击切换对应面板;ask 等待期 send 项一律拦截并 toast 明示(写入会被 CLI 当作答案文本提交,2026-10-24 评审 P3 收编;发送路径另有硬守卫双保险)
 - 命令抽屉运行时发现:listSuggestions(CLI RPC 副车/磁盘扫描)声明优先,失败或返回空回退静态表,按 value 去重合并,60s TTL 缓存
 - 命令抽屉图标:候选可声明语义图标;声明了但未收录回退通用图标,完全未声明才回退 kind glyph
 - 命令抽屉复位与焦点:每次打开重置回「全部」分区、选中归零、焦点驻留抽屉;关闭即归还焦点到 composer 输入框;插件分区无对应右栏面板的条目回退打开设置面板
@@ -199,6 +203,7 @@
 - 输入区右缘唤醒图标(Robot/Quotes):点击经 composerWakeRef 注入触发符自动弹候选,未选中关闭时回收注入字符;占位文案提示 `!!` / `##`
 
 ## 审批线
+
 - 危险度分层(checkpoints risk):批内文件按路径正则(凭据/Shell 配置/CI/服务定义,保守 14 条)标「高危」红徽标 + tooltip,提示细读 diff;classifyRisk 纯函数宁漏勿扰
 - 高危红标右栏生效:右栏时间线文件行红徽标 + 批头/摘要行高危计数(原先仅中央批审阅单,整批「允许」按钮所在面补齐)
 - 审批收件箱(approval-inbox 插件):右栏「审批」页签聚合等待确认的会话(纯消费 kernel/askWatch 状态位,零新增检测),一键直达该会话并自由文本应答;boot 退订随 activate 返回
@@ -246,6 +251,7 @@
 - 时间线节点动作(2026-10-04):节点 hover 增复制钮,一键复制该节点发送原文;时间线两钮补键盘聚焦现身,meta 行注释漂移修复
 
 ## Git 面板
+
 - Worktree 关联管理(契约见 `docs/architecture/16`):Rust 原语 `git_worktree_{list,add,remove,prune}` shell-out(commands_worktree + worktree_parse 纯函数,porcelain 解析 + 路径回贴输入前缀防 symlink 误判;写命令 run_mut 成功后 evict 缓存句柄);新建分支统一 `wt/` 前缀(裸名才加,自带命名空间原样),目录名自动推导可改,分支已存在预检给可行动指引,创建即 addWorkspace 进侧栏;移除 = 对称清理流(worktreeOps.removeWorktreeWithCleanup 两处 UI 共用:摘同 root 工作区 + 分支尾巴安全删 `-d`,未合并保留并说明,被其他树检出跳过)
 - Git 面板「工作树」常驻区(WorktreeZone,多树仓才出现):三态卡(主仓/当前/悬空)= 路径 + 分支 + 每树脏净徽章(+/- 计数)+ 动作(打开为工作区 / 在此树开终端 / 移除两段确认);弹窗(工具条 TreeStructure 钮)降级为「+ 新建」入口,增删清后 bumpGitRefresh 全区同步重拉
 - 分支列表按检出归属三分区:主仓检出 / 检出于某树(按树子组标注当前)/ 未检出(行尾「建树」预填弹窗检出已有分支);检出中分支不给删除钮(git 必拒);非仓/单树仓回退平铺零 UI 变更;同仓 worktree 列表面板期在途合并只 spawn 一次
@@ -278,6 +284,7 @@
 - 新建分支:分支视图顶部内联输入行(非弹层),Enter 或 + 提交、基于当前 HEAD;空仓库拒绝(先完成首个提交),重名拒绝
 - 分支列表:本地/远程分组带计数,远程分支只读展示,origin/HEAD 符号引用不入列,按末次提交时间倒序,行悬停显上游或末次提交摘要;行点击即切换,当前分支行不可点(checkout 目标=当前幂等成功)
 - 分支右键菜单:变基到当前 / 合并到当前 / 与当前对比 / 重命名 / 检出远端 / 自指定分支新建;脏工作区切换走「暂存并切换」(stash -u → 切换 → pop)
+- stash 管理面(0.4.5):面板横幅位 stash 条(无 stash 零占位),展开列表带短 sha/消息/时间,应用(保留条目)/弹出(冲突保留不丢,与智能切换 restore 同律)/丢弃(确认框把关);git_stash_list/apply/drop 三令
 - 历史 log 浏览:每页 50 条,滚动距底 48px 自动翻页,时间+拓扑双排序保证分页稳定
 - 历史条目:泳道格 + 短 sha + 摘要 + 相对到天时间(今天/昨天/N 天前/N 个月前/N 年前),悬停显作者名/邮箱与完整时间;点击提交懒加载展开文件清单(find_similar rename 检测),点击文件开中央 commit diff tab(一提交一 tab,id = `git-commit-diff:<sha>`,focusPath 深链);空消息显「(空消息)」,翻到底显「已到最早提交」
 - 远端:fetch(--all --prune)/ pull(尊重 pull.rebase 配置,显 behind 计数)/ push(ahead>0 显现)统一走对话框(成功带聚合统计,push 自动建立跟踪);300s 总超时到点中止,禁终端凭据提示;ssh 未自配 core.sshCommand 时才注入 BatchMode + ConnectTimeout=10(自配不覆盖);凭据失败引导幕布终端;pull 分叉未配策略被 git 拒绝时自动 --rebase 兜底重试,撞冲突 abort 恢复原状并显式报错(引导幕布终端自处理)
@@ -306,6 +313,7 @@
 - 树操作落点:新建文件成功即开 tab 并选中;新建文件夹/重命名后选中目标;重命名输入原名直接短路无操作
 - 中央 tab 文件编辑器:CodeMirror 6 可写编辑 + 保存,语言包按扩展名动态加载
 - 编辑器状态条:底部已保存 / ● 未保存的更改(⌘S 保存)/ 保存中… / 错误四态,脏标记同步文件 tab 圆点
+- 编辑器 Git Blame 内嵌模式(⌥⇧B,本地编辑态):CodeMirror 行首 gutter 逐行归属(短 sha + 作者 + 相对时间),boundary 分组描边;0.4.5 补点击深链 —— 行归属点击直开该提交的中央 diff tab(kernel commitOpenBridge 桥,git 插件在场时 hover 提亮示可点),全部行 title 带摘要与「点击查看提交」提示
 - 编辑器与预览按需拆包:进入编辑态才拉 CodeMirror chunk,打开 md 才拉 markdown/katex/mermaid chunk
 - 编辑器基础配置:行号、折叠槽、括号匹配与自动闭合、高亮活动行、Tab 缩进(tabSize 2);配色走 --tmd-syntax-* token 随应用明暗
 - 语言包覆盖:ts/js/json/html/vue/svelte/css/scss/md/py/rs/xml/yaml 等扩展名;未识别纯文本,加载失败降级纯文本并按扩展名缓存不重试
@@ -464,7 +472,7 @@
 
 ## 网络代理
 
-- 「网络代理」浮层:滑动块开关 + 代理地址(http/https/socks5/socks5h,默认 http://127.0.0.1:7890,启用态空地址回落默认),校验/归一后落 settings
+- 「网络代理」浮层:滑动块开关 + 代理地址(http/https/socks5/socks5h,默认 <http://127.0.0.1:7890,启用态空地址回落默认),校验/归一后落> settings
 - 提交与校验:开关切换即时生效,地址 blur/Enter 提交;校验失败 inline 报错不落盘,Rust 侧 reqwest 同构兜底校验;落盘/加载时 trim 去控制字符
 - 生效:Rust proxy.rs 进程 env 注入(HTTP(S)_PROXY/ALL_PROXY 大小写共 6 变量),覆盖客户端联网与之后 spawn 的 CLI 子进程;已在跑的旧会话需手动重启才走代理
 - 关闭:恢复启动时继承的 env 快照(还原用户 shell 原有代理);NO_PROXY 与继承值合并追加 localhost,127.0.0.1,::1
@@ -513,7 +521,9 @@
 - 草稿安全网(0.4.0):关窗闸(onCloseRequested 有脏 tab 先弹聚合确认:列 dirty+放弃并退出/取消/本次不再问;确认后绕闸强关等 Promise 结算再放行)+ 草稿镜像(files 内存草稿/journal 便签/ssh 远程编辑三处旁路 localStorage 镜像,防抖 300ms+256KB 截断+7 天 TTL;重开顶部黄条恢复/丢弃;composer/ss 已持久草稿不重复接);⌘Q 应用退出腿裁决:macOS 无 ExitRequested 路径需菜单装配另立(0.4.0 未落,挂账 0.4.1 批三)
 
 ## 手机 App
+
 - 手机会话输入区三态胶囊(0.2.9,豆包式 composer):常态胶囊条 / 挂图卡 + 提示 chips /「+」四格面板(相册·切模型·检查点·快捷键);面板收紧瞬时菜单(动作执行即收、软键盘弹起自动收、展开期键条让位);拖拽调高把手保真(钉高/双击回紧凑/落手记忆原样恢复);chip 填稿改换行追加不覆盖已打文字(spec 2026-10-03-mobile-composer-redesign-design)
+- 手机会话状态条双 chip 对齐桌面(0.4.5):模型 chip ask 等待期禁发(写入会被 CLI 当作答案文本提交,与桌面模型位/⌘K 抽屉同律);思考 chip 引擎声明思考命令(dsh /effort)时可点发送、ask 等待期与轮中双闸(桌面思考位同律;StatusBar 拆 ModelChip/ThinkingChip 子组件)
 - 手机选图/拍照双入口(0.2.9):胶囊条 Images 相册 + Camera 拍照(新 iOS takePhoto 桥,相机权限前置闸免黑屏,拍摄解码挪后台);上传空白期补原图即时 pending 卡 + 转圈遮罩;上传中禁发送防图未挂完先发
 - 手机快捷键条两行大键网格重排(0.2.9,≥44px 触达);发起会话抽屉与 sheet 基座打磨(grabber/滑入动画/关闭钮进基座,工作区整行选中与引擎双列卡片,样式拆 mobile-sheet.css)
 - 直连 WS 心跳保活(0.2.9):桌面直连 15s Ping(节拍同 relay)+ iOS WsTunnel 15s sendPing/10s pong 超时自愈,根治 NAT 静默回收空闲 TCP 致「图片首发送失败,重试即成功」(spec 2026-10-03-mobile-ws-heartbeat-keepalive-design)

@@ -6,7 +6,7 @@
 ## 目录结构
 
 | 目录 | 用途 | 写入时机 |
-|---|---|---|
+| --- | --- | --- |
 | `brainstorm/` | 需求澄清对话记录（按日期归档） | 每次规划对话后追加 |
 | `research/` | 调研与学习材料（mossx/codemoss 盘点 · CLI 能力矩阵 · omp CLI 课程） | 调研完成时 |
 | `design/` | 交互设计原型 html（浏览器可打开） | 设计探索时 |
@@ -19,7 +19,7 @@
 ## 文档索引
 
 | 日期 | 文档 | 状态 |
-|---|---|---|
+| --- | --- | --- |
 | 2026-09-01 | [项目启动：为什么另起炉灶](brainstorm/2026-09-01-kickoff.md) | 进行中 |
 | 2026-09-01 | [mossx 对话框能力盘点](research/mossx-composer-capabilities.md) | 已完成 |
 | 2026-09-01 | [mossx Git 能力盘点](research/mossx-git-capabilities.md) | 已完成 |
@@ -150,7 +150,7 @@
 | 2026-09-15 | [git 插件「创建 PR」工作流设计:预检/推送/建 PR/可选审批评论](superpowers/specs/2026-09-15-git-create-pr-design.md) | 已落地(四步工作流 + 阶段实时卡;同日修订:范围闸门移除,PR 内容零本地限制;AI 生成留 v2) |
 | 2026-09-15 | [omp 版本回退:首页引擎卡版本菜单 + 收藏](superpowers/specs/2026-09-15-omp-version-rollback-design.md) | 已评审通过(实现随本 spec 提交) |
 | 2026-09-15 | [双栏 diff GitHub 风视觉打磨](superpowers/specs/2026-09-15-split-diff-github-style-design.md) | 已落地(行号各半内侧缘 + 缺侧空带 + 词级实色块;删中央槽/⤶钩/⬚占位/块框) |
-| 2026-09-15 | [双栏 diff 中缝连接带视觉迭代](superpowers/specs/2026-09-15-split-diff-center-seam-design.md) | 已落地(列序翻转为左内容|旧号|新号|右内容,改动行色带贯通中缝;号格单发丝) |
+| 2026-09-15 | [双栏 diff 中缝连接带视觉迭代](superpowers/specs/2026-09-15-split-diff-center-seam-design.md) | 已落地(列序翻转为左内容 | 旧号 | 新号 | 右内容,改动行色带贯通中缝;号格单发丝) |
 | 2026-09-15 | [手机 App 外网访问 tmd-cli 方案调研(服务面/通道/壳三层解耦,有 ECS 与无 ECS 两组通道 + iOS 壳三路线)](research/mobile-remote-access.md) | 调研底稿(方案对比,未拍板) |
 | 2026-09-15 | [codemoss Web/远程访问实现源码级分析(LAN 桥/出站中继/传输抽象/治理面 + tmd-cli 移植映射)](research/codemoss-web-remote.md) | 已完成(配套提案 openspec/changes/archive/2026-09-15-web-remote-access/) |
 | 2026-09-16 | [git 双栏 diff 方向探索 ×6(保留基准 V2 双向纹 + N1 明度 / N2 聚光灯 / N3 权重 / N4 折叠焦点 / N5 斑马打断;同一份 diff 差异化对比)](design/git-split-diff-v2-hatch-directional.html) | 设计原型(V2 已保留,N1-N5 见 git-split-diff-n1~n5-*.html,待选) |
@@ -243,7 +243,7 @@
 | 2026-10-02 | [20 — cli-dsh 契约:幕布钉底光标纪律 / 会话身份与删除闸 / host 探针](architecture/20-cli-dsh-adapter-contracts.md) | 生效中(改 cli-dsh 适配器渲染、侧栏会话列表、host 面板前必读) |
 | 2026-10-10 | [21 — git diff 中央 tab 契约:一仓一侧一 tab + 左列变更清单 + 单双栏渲染同源(词级标注/折叠胶囊共用模型)](architecture/21-git-diff-tabs.md) | 生效中(改 git diff tab / PatchLines 渲染前必读) |
 | 2026-09-30 | [daily-journal 手动发起总结/增量更新入口:文章 tab 顶栏状态自适应按钮 + 月格全状态扩展(增量并入/生成此日/重试生成三态共用判定)](superpowers/specs/2026-09-30-daily-journal-manual-increment-design.md) | 已实现(门禁全绿;真机目检留大仙) |
-| 2026-09-30 | [活会话结构化视图设计(幕布|转录双视图:canvasOverlay 画布浮层挂点 + 1s 探测短路轮询 + 变更即全量重读 message 级刷新;幕布保活零卸载,PTY 零改动)](superpowers/specs/2026-09-30-live-transcript-view-design.md) | 已实现(门禁全绿;1421 桩目检过;真机验收留大仙,未提交) |
+| 2026-09-30 | [活会话结构化视图设计(幕布 | 转录双视图:canvasOverlay 画布浮层挂点 + 1s 探测短路轮询 + 变更即全量重读 message 级刷新;幕布保活零卸载,PTY 零改动)](superpowers/specs/2026-09-30-live-transcript-view-design.md) | 已实现(门禁全绿;1421 桩目检过;真机验收留大仙,未提交) |
 | 2026-09-30 | [结构化会话设计(RPC 驱动,omp/pi 先行:Rust proc_stream 通用流式子进程原语 + cli-shared piRpc 客户端/reducer + structured-session 插件中央 tab;token 级流式;PTY 零改动;观察者/双开/改 PTY 三路实验否决记录)](superpowers/specs/2026-09-30-structured-session-rpc-design.md) | 已实现(门禁全绿;真机验收留大仙,Rust 改动须重启 tauri:dev,未提交) |
 | 2026-10-01 | [0.2.5→0.2.7 界面打磨调研与实施(交互 × UI 美观度:structured-session/手机/WSL/壳层/日志五面 65 项发现全量实施;keepAlive tab 保活契约;门禁全绿含 react-doctor 100;未提交)](research/ui-polish-0.2.5-to-0.2.7.md) | 已实施(六项门禁全绿;真机目检留大仙;未提交) |
 | 2026-10-01 | [近半个月发布内容梳理与打磨审计(v0.1.9..v0.2.7 双端:9 版功能地图 / demo 级分级判定 / P0×3+P1×30+P2×45 / 引擎覆盖度矩阵 / 五横切模式;5 路代码级审计,未提交)](research/client-polish-half-month-audit.md) | 已完成(发现已全部实施,见同日 spec 实施注记) |
@@ -368,6 +368,7 @@
 | 2026-10-23 | [0.4.4 批评审(三路并行覆盖 5 笔 31 文件,含并行会话 files 大小闸首评;P2×4 当轮全修=anim errno 边界/checkpoints 回落窗深链错位/files 写闸 CRLF 缝与编辑器护栏,P3 修 3 记 8,不成立 16)](review/2026-10-23-044-review.md) | 已收口(P2 当轮全修) |
 | 2026-10-24 | [模型位轮中可点回归修复收口评审(独立视角;P2×1=ask 等待期误答面,sendSlash 单点守卫+UI 恒禁当轮修;P3×2=抽屉/mobile 跨入口不一致既有记档)](review/2026-10-24-model-pill-midturn-review.md) | 已收口(P2 当轮修) |
 | 2026-10-24 | [意图画布 excalidraw 导入收口评审(独立视角;P1×1=非保活 tab 重挂重放导入静默复制画布,claimImportRequestId 跨重挂去重当轮修;P2×1=512KB 读闸声明失实,前端闸早拒当轮修;P3×2 记档)](review/2026-10-24-canvas-import-review.md) | 已收口(P1/P2 当轮修) |
-| 2026-10-25 | [0.4.5 长期任务批次规划(功能增强+换角度体检:轮次闸三面统一/checkpoints 回落沿/read_file sniff/终端磁盘日志搜索/git blame/stash 管理面/错误呈现统一/mobile 对齐/挂机浸泡审计/满额态压测,四批十项)](brainstorm/2026-10-25-045-batch-plan.md) | 实施中 |
+| 2026-10-25 | [0.4.5 长期任务批次规划(功能增强+换角度体检:轮次闸三面统一/checkpoints 回落沿/read_file sniff/终端磁盘日志搜索/git blame/stash 管理面/错误呈现统一/mobile 对齐/挂机浸泡审计/满额态压测,四批十项)](brainstorm/2026-10-25-045-batch-plan.md) | 已收口(十项全交付) |
+| 2026-10-25 | [0.4.5 批次收口评审(十项全量:批次 A bug 欠账×3/B 深度增强×3(含原清单 blame 误判改面补全)/C 呈现统一与 mobile 对齐×2/D 换角度体检×2;附工具教训三条:门禁管道吞退出码/LSP 陈旧快照/能力核查全仓 grep)](review/2026-10-25-045-batch-review.md) | 已收口 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
