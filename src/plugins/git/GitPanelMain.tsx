@@ -22,6 +22,7 @@ import {
 import { GitToolbar } from "./GitToolbar";
 import { gitErrorDisplay } from "./gitError";
 import { SmartSwitchUndoBanner } from "./views/GitPanelBars";
+import { GitStashBar } from "./views/StashBar";
 import { RepoBar } from "./views/RepoBar";
 import { RemoteDialogGroup } from "./views/RemoteDialogGroup";
 import { DiffView } from "./views/DiffView";
@@ -153,6 +154,7 @@ function PanelBanners({
           afterMutation={afterMutation}
         />
       )}
+      <GitStashBar cwd={cwd} onNotice={onNotice} afterMutation={afterMutation} />
     </>
   );
 }

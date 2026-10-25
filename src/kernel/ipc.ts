@@ -70,6 +70,7 @@ import type {
   GitDiffStatus,
   GitFilePatch,
   GitBlameLine,
+  GitStashEntry,
   GitFileLogEntry,
   GitLogEntry,
   GitPrDefaults,
@@ -614,6 +615,12 @@ export const ipc = {
   /** 逐行归属(工作区文件 vs 历史;boundary = 与上一行不同提交)。 */
   gitBlame: (cwd: string, path: string) =>
     invoke<GitBlameLine[]>("git_blame", { cwd, path }),
+  /** stash 管理面(0.4.5):列表/应用(keep=保留条目,false=弹出)/丢弃(不可逆,前端确认)。 */
+  gitStashList: (cwd: string) => invoke<GitStashEntry[]>("git_stash_list", { cwd }),
+  gitStashApply: (cwd: string, index: number, keep: boolean) =>
+    invoke<void>("git_stash_apply", { cwd, index, keep }),
+  gitStashDrop: (cwd: string, index: number) =>
+    invoke<void>("git_stash_drop", { cwd, index }),
   /** 单提交文件清单(历史 Graph 展开;sha 口径 = 提交 vs 首父)。 */
   gitCommitFiles: (cwd: string, sha: string) =>
     invoke<GitCommitFile[]>("git_commit_files", { cwd, sha }),
