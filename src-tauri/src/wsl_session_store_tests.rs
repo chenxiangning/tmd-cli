@@ -4,7 +4,7 @@
 
 use super::{
     authenticate_ssh_handle, connect_trusting, exec_collect, resolve_ssh_auth_material,
-    SshAuthOutcome, SshHostWire,
+    SshAuthOutcome, SshHostWire, EXEC_TIMEOUT,
 };
 
 /// 真机 live 会话存储诊断(ignored,env 同上):验收「点历史行列表变多」用 ——
@@ -59,7 +59,7 @@ done
             cwd = cwd
         );
         let payload = crate::wsl_remote_ops::wsl_bash_payload(&distro, &script);
-        let (text, code) = exec_collect(&mut handle, &payload).await.expect("存储诊断");
+        let (text, code) = exec_collect(&mut handle, &payload, EXEC_TIMEOUT).await.expect("存储诊断");
         println!("== 会话存储诊断(code={code:?}) ==\n{text}");
     });
 }

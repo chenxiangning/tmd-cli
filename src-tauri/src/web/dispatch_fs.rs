@@ -76,9 +76,11 @@ pub(super) async fn try_dispatch(
             })
             .await
         }
+        // 桥通道无乐观锁字段(expect_mtime/expect_len 均不透传,调用方自慎):
+        // 手机/桥侧保存绕过并发守卫直写,与桌面 invoke 通道的语义差异在此声明。
         "fs_write_file" => {
             go(raw, |a: WriteFile| {
-                crate::fs_edit_cmds::fs_write_file(a.path, a.content, None)
+                crate::fs_edit_cmds::fs_write_file(a.path, a.content, None, None)
             })
             .await
         }

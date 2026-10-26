@@ -33,8 +33,6 @@ export interface RemoteFileSource {
   writeText?(uri: string, content: string): Promise<void>;
   /** 新建条目(文件树新建;文件已存在须报错,绝不覆写)。 */
   createEntry?(ws: Workspace, path: string, isDir: boolean): Promise<void>;
-  /** 删除条目(文件树删除;目录语义由实现定,建议仅空目录)。 */
-  removeEntry?(ws: Workspace, path: string): Promise<void>;
 }
 
 let sources: RemoteFileSource[] = [];

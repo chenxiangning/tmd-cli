@@ -3,13 +3,21 @@
  * 导出规则:组件文件只导出组件与 hook)。
  */
 import { t } from "@kernel/i18n";
+import { findRemoteFileSourceForUri } from "@kernel/fileSources";
+
+/** 远程 URI 是否真只读:远程 + 源未声明 writeText(0.4.6 复审 P1:源可写时
+ * 撒谎「只读」会骗走 ⌘S;非远程一律 false)。 */
+export function isRemoteReadOnly(path: string): boolean {
+  const src = findRemoteFileSourceForUri(path);
+  return !!src && !src.writeText;
+}
 
 /** 工具条状态文案:远程只读 > 错误 > 保存中 > 脏 > 已保存。 */
 export function statusText(
   doc: { error: string | null; saving: boolean; dirty: boolean; conflict: boolean },
-  remote: boolean,
+  remoteRo: boolean,
 ): string {
-  if (remote) return t("远程文件 · 只读(M1)");
+  if (remoteRo) return t("远程文件 · 只读(M1)");
   if (doc.conflict) return t("磁盘文件已被外部修改 · 请裁决");
   if (doc.error) return doc.error;
   if (doc.saving) return t("保存中…");

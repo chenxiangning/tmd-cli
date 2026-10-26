@@ -23,6 +23,8 @@ use crate::wsl::{mark_running_impl, parse_wsl_list_impl, WslInfo};
 
 /// 单条诊断命令超时:发行版停止时 wsl.exe 会触发 VM 冷启动,可达十几秒(同本机 run_bounded 纪律)。
 const EXEC_TIMEOUT: Duration = Duration::from_secs(15);
+/// 写类命令超时:冷启动 + 分块落盘叠加,15s 读预算不够,放宽到 60s(读路径不动)。
+pub(crate) const WRITE_TIMEOUT: Duration = Duration::from_secs(60);
 /// 整体探测上限(连接 + 认证 + 三条命令)。
 const PROBE_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -47,7 +49,7 @@ async fn probe(host: &SshHostWire) -> Result<WslInfo, String> {
         }
     }
 
-    let (list, code) = exec_collect(&mut handle, "wsl.exe -l -v").await?;
+    let (list, code) = exec_collect(&mut handle, "wsl.exe -l -v", EXEC_TIMEOUT).await?;
     if code != Some(0) {
         // 宿主未装 WSL(或 wsl.exe 不在 PATH):stdout 空、stderr 报错 —— 按不可用呈报,不猜。
         return Ok(crate::wsl::unavailable());
@@ -57,10 +59,12 @@ async fn probe(host: &SshHostWire) -> Result<WslInfo, String> {
         return Ok(crate::wsl::unavailable());
     }
     // 运行态名单:老版 wsl.exe 不认 --running 时静默按全停(与本机 collect 同宽容度)。
-    if let Ok((run, Some(0))) = exec_collect(&mut handle, "wsl.exe -l -v --running").await {
+    if let Ok((run, Some(0))) =
+        exec_collect(&mut handle, "wsl.exe -l -v --running", EXEC_TIMEOUT).await
+    {
         mark_running_impl(&mut distros, &run);
     }
-    let wsl_version = exec_collect(&mut handle, "wsl.exe --version")
+    let wsl_version = exec_collect(&mut handle, "wsl.exe --version", EXEC_TIMEOUT)
         .await
         .ok()
         .and_then(|(t, _)| {
@@ -103,9 +107,28 @@ async fn connect_trusting(host: &SshHostWire) -> Result<russh::client::Handle<Ss
 }
 
 /// 本机/远程执行分流:host=None 走本机 wsl.exe(仅 Windows),host=Some 走 ssh exec。
+/// 读路径入口:固定 15s 预算(既有调用方签名不变)。
 pub(crate) async fn exec_somewhere(
     command: &str,
     host: Option<SshHostWire>,
+) -> Result<(String, Option<i32>), String> {
+    exec_somewhere_with_timeout(command, host, EXEC_TIMEOUT).await
+}
+
+/// 写类入口:走 WRITE_TIMEOUT(60s)——wsl_write_file_text 等写命令撞发行版
+/// 冷启动时 15s 必超;读路径不动。
+pub(crate) async fn exec_somewhere_write(
+    command: &str,
+    host: Option<SshHostWire>,
+) -> Result<(String, Option<i32>), String> {
+    exec_somewhere_with_timeout(command, host, WRITE_TIMEOUT).await
+}
+
+/// 分流实现:超时由调用方指定。
+async fn exec_somewhere_with_timeout(
+    command: &str,
+    host: Option<SshHostWire>,
+    timeout: Duration,
 ) -> Result<(String, Option<i32>), String> {
     match host {
         None => {
@@ -115,7 +138,7 @@ pub(crate) async fn exec_somewhere(
                 let (bytes, code) = tokio::task::spawn_blocking(move || {
                     let args = split_windows_args(&owned);
                     let refs: Vec<&str> = args.iter().map(String::as_str).collect();
-                    crate::wsl::run_bounded(&refs, EXEC_TIMEOUT.as_millis() as u64)
+                    crate::wsl::run_bounded(&refs, timeout.as_millis() as u64)
                 })
                 .await
                 .map_err(|e| format!("wsl join 失败: {e}"))?
@@ -145,7 +168,7 @@ pub(crate) async fn exec_somewhere(
                     return Err("该主机需要键盘交互认证,远程操作不支持".to_string())
                 }
             }
-            exec_collect(&mut handle, command).await
+            exec_collect(&mut handle, command, timeout).await
         }
     }
 }
@@ -180,6 +203,7 @@ fn split_windows_args(command: &str) -> Vec<String> {
 async fn exec_collect(
     handle: &mut russh::client::Handle<SshClient>,
     command: &str,
+    per_cmd_timeout: Duration,
 ) -> Result<(String, Option<i32>), String> {
     let mut channel = handle
         .channel_open_session()
@@ -193,7 +217,7 @@ async fn exec_collect(
     let mut out: Vec<u8> = Vec::new();
     let mut code: Option<i32> = None;
     loop {
-        let msg = timeout(EXEC_TIMEOUT, channel.wait())
+        let msg = timeout(per_cmd_timeout, channel.wait())
             .await
             .map_err(|_| "远程命令超时".to_string())?;
         match msg {

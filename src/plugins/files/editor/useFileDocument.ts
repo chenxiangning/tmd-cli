@@ -75,29 +75,35 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
   const savedRef = useRef(saved);
   const savingRef = useRef(false);
   const conflictRef = useRef(false);
-  /* mtime 基线:打开时取一次;保存成功滚动为写后值;干净态外变跟进时刷新。
-   * 多 CLI 宿主里 AI 天天改文件,这是「⌘S 静默覆盖并发写」的唯一防线。 */
+  /* mtime 基线:打开时取一次,保存成功滚动为写后值,干净态外变跟进时刷新;
+   * 这是「⌘S 静默覆盖并发写」的第一道防线,第二道 = expectLen(基线内容长度)。 */
   const mtimeRef = useRef<number | null>(null);
+  const baselineLenRef = useRef<number | null>(diskContent.length);
   /* ref 镜像在 effect 内同步(渲染期写 ref 违反 React 渲染纯性,react-doctor 强报)。 */
   useEffect(() => {
     contentRef.current = content;
     savedRef.current = saved;
   }, [content, saved]);
 
-  /* 打开取基线(延迟半拍无碍:首保存前完成的取数都赶在用户输入之后)。 */
+  /* 打开取基线(延迟半拍无碍:首保存前完成的取数都赶在用户输入之后);取数失败保持 null,保存前再补(补不上置 0 = 首存即冲突,删盘不再静默复活)。 */
   useEffect(() => {
     mtimeRef.current = null;
+    baselineLenRef.current = diskContent.length;
     conflictRef.current = false;
     setConflict(false);
     let alive = true;
     if (!isRemoteFileUri(path)) {
-      void ipc.fsMtime(path).then((m) => {
-        if (alive) mtimeRef.current = m;
-      });
+      void ipc.fsMtime(path).then(
+        (m) => {
+          if (alive) mtimeRef.current = m;
+        },
+        () => undefined,
+      );
     }
     return () => {
       alive = false;
     };
+  // react-doctor-disable-next-line react-doctor/exhaustive-deps -- 仅 path 切换重置基线;diskContent 变更由下方跟进 effect 维护 baselineLen/mtime,入 deps 会在每次盘内容外变时误清冲突态
   }, [path]);
 
   /* 磁盘内容外变(刷新按钮 reloadFile 重读):无未保存草稿时静默跟进新内容;
@@ -111,6 +117,7 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     setSaved(text);
     setContent(text);
     setDiskTick((v) => v + 1);
+    baselineLenRef.current = diskContent.length;
     void ipc.fsMtime(path).then((m) => {
       mtimeRef.current = m;
     });
@@ -147,6 +154,9 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
             savingRef.current = false;
             setSaving(false);
             setSaved(text);
+            /* 与本地分支对齐刷内容缓存(0.4.6 复审 P1):fileCache LRU 命中
+             * 返回旧文会把旧缓存当基线,再存静默覆盖磁盘新文。 */
+            cacheRefreshContent(path, toDiskContent(text, hasCRLFRef.current));
             draftDelete(path);
           })
           .catch((e: unknown) => {
@@ -162,44 +172,65 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
       setSaving(true);
       setError(null);
       const disk = toDiskContent(text, hasCRLFRef.current);
-      /* force = 冲突裁决后的覆盖写;平时带基线做乐观锁。 */
-      const expect = force ? undefined : mtimeRef.current;
-      ipc.fsWriteFile(path, disk, expect).then(
-        (after) => {
-          savingRef.current = false;
-          setSaving(false);
-          setSaved(text);
-          mtimeRef.current = after;
-          conflictRef.current = false;
-          setConflict(false);
-          /* 内容缓存原地刷新:预览/重开编辑器立即读到新值,不再走磁盘 IO */
-          cacheRefreshContent(path, disk);
-          draftDelete(path);
-        },
-        (e) => {
-          savingRef.current = false;
-          setSaving(false);
-          const msg = String(e);
-          if (msg.includes("E_FS_MTIME")) {
-            conflictRef.current = true;
-            setConflict(true);
-            setError(null);
-          } else {
-            setError(msg);
-          }
-        },
-      );
+      void (async () => {
+        /* force = 冲突裁决后的覆盖写;平时带基线做乐观锁(mtime+长度双因子)。
+         * 基线缺值先补取;补不上置 0 = 首存即冲突,拒绝裸写。 */
+        let expect = force ? null : mtimeRef.current;
+        let expectLen = force ? null : baselineLenRef.current;
+        if (!force && expect == null) {
+          expect = await ipc.fsMtime(path).catch(() => 0);
+          mtimeRef.current = expect;
+          if (expectLen == null) expectLen = 0;
+        }
+        ipc.fsWriteFile(path, disk, expect, expectLen ?? undefined).then(
+          (after) => {
+            savingRef.current = false;
+            setSaving(false);
+            setSaved(text);
+            mtimeRef.current = after;
+            baselineLenRef.current = disk.length;
+            conflictRef.current = false;
+            setConflict(false);
+            /* 内容缓存原地刷新:预览/重开编辑器立即读到新值,不再走磁盘 IO */
+            cacheRefreshContent(path, disk);
+            draftDelete(path);
+          },
+          (e) => {
+            savingRef.current = false;
+            setSaving(false);
+            const msg = String(e);
+            if (msg.includes("E_FS_MTIME")) {
+              conflictRef.current = true;
+              setConflict(true);
+              setError(null);
+            } else {
+              setError(errTextDisplay(e));
+            }
+          },
+        );
+      })();
     },
     [path],
   );
 
-  /* 冲突裁决 B:重读磁盘版本,本地草稿丢弃(需用户点按钮,不做静默切换)。 */
+  /* 冲突裁决 B:重读磁盘版本,本地草稿丢弃(需用户点按钮,不做静默切换)。
+   * 两往返非原子(读 → mtime)窗内外部写会把旧内容配上新基线(0.4.6 复审
+   * P2):读前/读后 mtime 复核,变化重读一次(上限 2 次),纯 TS 闭窗。 */
   const reloadFromDisk = useCallback(() => {
     if (isRemoteFileUri(path)) return;
-    void ipc.fsReadFile(path).then((raw) => {
+    void (async () => {
+      let raw = "";
+      let after: number | null = null;
+      for (let i = 0; i < 2; i++) {
+        const before = await ipc.fsMtime(path).catch(() => null);
+        raw = await ipc.fsReadFile(path);
+        after = await ipc.fsMtime(path).catch(() => null);
+        if (before === null || after === null || before === after) break;
+      }
       const { text, hasCRLF } = toEditorContent(raw);
       hasCRLFRef.current = hasCRLF;
-      mtimeRef.current = null;
+      mtimeRef.current = after;
+      baselineLenRef.current = raw.length;
       conflictRef.current = false;
       setConflict(false);
       setError(null);
@@ -208,10 +239,12 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
       setDiskTick((v) => v + 1);
       draftDelete(path);
       cacheRefreshContent(path, raw);
-      void ipc.fsMtime(path).then((m) => {
-        mtimeRef.current = m;
-      });
-    });
+      if (after === null) {
+        void ipc.fsMtime(path).then((m) => {
+          mtimeRef.current = m;
+        });
+      }
+    })();
   }, [path]);
 
   /* 保存请求桥:⌘S 命令(files.save)注册口经此触发最新 save;卸载即摘除,

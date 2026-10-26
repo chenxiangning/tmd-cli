@@ -15,14 +15,20 @@ pub(crate) async fn fs_write_file(
     path: String,
     content: String,
     expect_mtime: Option<u64>,
+    expect_len: Option<u64>,
 ) -> Result<u64, String> {
-    crate::commands_fs::spawn_fs(move || write_file(&path, &content, expect_mtime)).await
+    crate::commands_fs::spawn_fs(move || write_file(&path, &content, expect_mtime, expect_len))
+        .await
 }
 
 /// 磁盘 mtime(毫秒):编辑器打开时取基线,保存前比对(乐观锁的另一端)。
 #[tauri::command]
 pub(crate) async fn fs_mtime(path: String) -> Result<Option<u64>, String> {
-    crate::commands_fs::spawn_fs(move || Ok(mtime_ms(Path::new(&path)))).await
+    crate::commands_fs::spawn_fs(move || {
+        super::fs_edit::validate_target(&path)?;
+        Ok(mtime_ms(Path::new(&path)))
+    })
+    .await
 }
 
 #[tauri::command]

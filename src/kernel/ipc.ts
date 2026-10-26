@@ -480,9 +480,11 @@ export const ipc = {
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
   /* ── 文件编辑/管理写操作(右键菜单 + 编辑器保存;对齐 src-tauri/src/fs_edit.rs)── */
   /** 覆写文本文件(原子替换)。expectMtime = 乐观锁(毫秒):与磁盘 mtime
-   * 不符(AI/终端并发写、删除)即拒写回 E_FS_MTIME;成功返回写后 mtime。 */
-  fsWriteFile: (path: string, content: string, expectMtime?: number | null) =>
-    invoke<number>("fs_write_file", { path, content, expectMtime }),
+   * 不符(AI/终端并发写、删除)即拒写回 E_FS_MTIME;expectLen = 基线内容
+   * 长度(双因子:mtime 粒度内的同刻外部写由长度比对兜住,与 expectMtime
+   * 同传);成功返回写后 mtime。 */
+  fsWriteFile: (path: string, content: string, expectMtime?: number | null, expectLen?: number | null) =>
+    invoke<number>("fs_write_file", { path, content, expectMtime, expectLen }),
   /** 磁盘 mtime(毫秒);文件不存在回 null。编辑器打开时取基线。 */
   fsMtime: (path: string) => invoke<number | null>("fs_mtime", { path }),
   /** 新建空文件;同名(文件/目录)已存在报错,绝不覆写 —— 新建走这里,不走 fsWriteFile。 */
@@ -856,9 +858,6 @@ export const ipc = {
   /** WSL 远程新建条目:文件已存在报错(绝不覆写);目录 mkdir -p。 */
   wslCreateEntry: (distro: string, path: string, isDir: boolean, host?: SshHostConfig) =>
     invoke<void>("wsl_create_entry", { distro, path, isDir, host: host ?? null }),
-  /** WSL 远程删除:文件 rm -f;目录仅空目录 rmdir(远程无废纸篓,窄语义)。 */
-  wslRemoveEntry: (distro: string, path: string, host?: SshHostConfig) =>
-    invoke<void>("wsl_remove_entry", { distro, path, host: host ?? null }),
   /** 渲染健康诊断事件史(设置-行为只读;kick/reload/recovered 环形留痕)。 */
   renderHealthEvents: () =>
     invoke<{ atMs: number; kind: string; detail: string }[]>("render_health_events"),

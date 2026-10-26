@@ -55,10 +55,16 @@ pub fn mtime_ms(p: &Path) -> Option<u64> {
 }
 
 /// 覆写文本文件(编辑器保存通道;新建入口禁止走这里,见 create_file)。
-/// expect_mtime = 乐观锁:与磁盘当前 mtime 不符(外部修改/删除)即拒写,
-/// 堵「编辑器开着旧版一 ⌘S 静默覆盖 AI/终端并发写」;None = 无守卫直写。
-/// 成功返回写后 mtime,供调用方滚动基线。
-pub fn write_file(path: &str, content: &str, expect_mtime: Option<u64>) -> Result<u64, String> {
+/// expect_mtime/expect_len = 乐观锁双因子:与磁盘当前值不符(外部修改/删除/改写
+/// 使长度漂移)即拒写,堵「编辑器开着旧版一 ⌘S 静默覆盖 AI/终端并发写」;
+/// 单独 check→write 窗口内 mtime 不变但内容变长(尾部追加)的竞态由长度因子收口;
+/// None = 无守卫直写。成功返回写后 mtime,供调用方滚动基线。
+pub fn write_file(
+    path: &str,
+    content: &str,
+    expect_mtime: Option<u64>,
+    expect_len: Option<u64>,
+) -> Result<u64, String> {
     validate_target(path)?;
     if content.len() > MAX_WRITE_BYTES {
         return Err(format!(
@@ -74,7 +80,15 @@ pub fn write_file(path: &str, content: &str, expect_mtime: Option<u64>) -> Resul
         match mtime_ms(p) {
             Some(actual) if actual == expect => {}
             _ => {
-                return Err("E_FS_MTIME 磁盘文件已被外部修改或删除,保存已阻止".to_string());
+                return Err("E_FS_MTIME 磁盘文件长度或修改时间与基线不一致,保存已阻止".to_string());
+            }
+        }
+    }
+    if let Some(expect) = expect_len {
+        match fs::metadata(p).map(|m| m.len()) {
+            Ok(actual) if actual == expect => {}
+            _ => {
+                return Err("E_FS_MTIME 磁盘文件长度或修改时间与基线不一致,保存已阻止".to_string());
             }
         }
     }

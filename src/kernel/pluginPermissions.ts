@@ -162,7 +162,6 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   sessionLogCleanup: "ipc.fs.write",
   wslWriteFileText: "ipc.fs.write",
   wslCreateEntry: "ipc.fs.write",
-  wslRemoveEntry: "ipc.fs.write",
   renderHealthEvents: "ipc.terminal",
   sessionOrphanReap: "ipc.terminal",
 

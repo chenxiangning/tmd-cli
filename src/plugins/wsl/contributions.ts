@@ -161,11 +161,6 @@ export function buildWslFileSource(): RemoteFileSource {
       if (!cfg) throw new Error(t("远程主机配置已删除,无法创建条目"));
       await ipc.wslCreateEntry(ws.wsl!.distro, path, isDir, cfg);
     },
-    removeEntry: async (ws, path) => {
-      const cfg = sshHostOf(ws);
-      if (!cfg) throw new Error(t("远程主机配置已删除,无法删除条目"));
-      await ipc.wslRemoveEntry(ws.wsl!.distro, path, cfg);
-    },
   };
 }
 

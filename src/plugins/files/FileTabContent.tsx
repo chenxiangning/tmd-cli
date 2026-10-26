@@ -11,7 +11,7 @@
 import { Suspense, lazy, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { retryImport } from "@kernel/lazyImport";
 import { ModeToggleButton } from "./editor/editorChrome";
-import { statusText, toolbarCls } from "./editor/editorChromeLogic";
+import { isRemoteReadOnly, statusText, toolbarCls } from "./editor/editorChromeLogic";
 import { useDarkTheme } from "@kernel/theme";
 import type { EditorTab } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
@@ -69,7 +69,7 @@ function FileTabBody({
   );
   const dark = useDarkTheme();  /* 文档钩子常驻(含 md 预览态):⌘S 预览下也能保存,状态文字两模式连续显示。 */
   const doc = useFileDocument(path, content);
-  const status = statusText(doc, remote);
+  const status = statusText(doc, isRemoteReadOnly(path));
 
   const showEditor = !structuredKind ? (!isMd || mdEditor) : structuredEditor;
   /* 详情页右键菜单(JetBrains 同型最小集):viewRef 持编辑器实例,剪切/粘贴直驱事务。 */

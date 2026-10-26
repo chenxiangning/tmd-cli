@@ -13,7 +13,7 @@ fn temp_root(tag: &str) -> std::path::PathBuf {
 fn write_file_超写闸拒绝且不落盘() {
     /* 闸检查在磁盘 IO 前:超限串直接 Err,不产生任何写盘。 */
     let big = "x".repeat(MAX_WRITE_BYTES + 1);
-    let err = write_file("/tmp/tmd-cli-fs-edit-gate-probe.txt", &big, None).unwrap_err();
+    let err = write_file("/tmp/tmd-cli-fs-edit-gate-probe.txt", &big, None, None).unwrap_err();
     assert!(err.contains("200MB"), "实际报错: {err}");
 }
 
@@ -23,11 +23,11 @@ fn write_file_覆写与新建空文件() {
     let file = root.join("a.txt");
 
     // 新建(父目录存在,内容为空)
-    write_file(file.to_str().unwrap(), "", None).unwrap();
+    write_file(file.to_str().unwrap(), "", None, None).unwrap();
     assert_eq!(fs::read(&file).unwrap(), b"");
 
     // 覆写
-    write_file(file.to_str().unwrap(), "hello\n", None).unwrap();
+    write_file(file.to_str().unwrap(), "hello\n", None, None).unwrap();
     assert_eq!(fs::read(&file).unwrap(), b"hello\n");
     let _ = fs::remove_dir_all(&root);
 }
@@ -44,7 +44,7 @@ fn write_file_原子替换_保权限_无_tmp_残留() {
         fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
     }
 
-    write_file(file.to_str().unwrap(), "new-content", None).unwrap();
+    write_file(file.to_str().unwrap(), "new-content", None, None).unwrap();
     assert_eq!(fs::read(&file).unwrap(), b"new-content");
     #[cfg(unix)]
     {
@@ -68,9 +68,9 @@ fn write_file_拒绝相对路径_git_段_与目录目标() {
     let git_dir = root.join(".git");
     fs::create_dir_all(&git_dir).unwrap();
 
-    assert!(write_file("relative/path.txt", "x", None).is_err());
-    assert!(write_file(git_dir.join("x").to_str().unwrap(), "x", None).is_err());
-    assert!(write_file(root.to_str().unwrap(), "x", None).is_err());
+    assert!(write_file("relative/path.txt", "x", None, None).is_err());
+    assert!(write_file(git_dir.join("x").to_str().unwrap(), "x", None, None).is_err());
+    assert!(write_file(root.to_str().unwrap(), "x", None, None).is_err());
     assert!(
         fs::read(git_dir.join("x")).is_err(),
         ".git 内文件不得被创建"
@@ -219,7 +219,7 @@ fn write_file_mtime_乐观锁拒外部变更() {
     let base = mtime_ms(&file).unwrap();
 
     // 基线相符 → 写成功并返回新 mtime
-    let after = write_file(file.to_str().unwrap(), "v2", Some(base)).unwrap();
+    let after = write_file(file.to_str().unwrap(), "v2", Some(base), None).unwrap();
     assert_eq!(fs::read(&file).unwrap(), b"v2");
     assert!(after >= base);
 
@@ -231,17 +231,45 @@ fn write_file_mtime_乐观锁拒外部变更() {
         .unwrap()
         .set_modified(bumped)
         .unwrap();
-    let err = write_file(file.to_str().unwrap(), "v3", Some(base)).unwrap_err();
+    let err = write_file(file.to_str().unwrap(), "v3", Some(base), None).unwrap_err();
     assert!(err.contains("E_FS_MTIME"), "实际报错: {err}");
     assert_eq!(fs::read(&file).unwrap(), b"v2");
 
     // 文件被删 → 拒写(外部删除同样是变更)
     fs::remove_file(&file).unwrap();
-    let err = write_file(file.to_str().unwrap(), "v4", Some(after)).unwrap_err();
+    let err = write_file(file.to_str().unwrap(), "v4", Some(after), None).unwrap_err();
     assert!(err.contains("E_FS_MTIME"));
 
     // None = 无守卫直写(旧语义)
-    write_file(file.to_str().unwrap(), "v5", None).unwrap();
+    write_file(file.to_str().unwrap(), "v5", None, None).unwrap();
     assert_eq!(fs::read(&file).unwrap(), b"v5");
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn write_file_expect_len_长度基线拒尾部追加竞态() {
+    let root = temp_root("elen");
+    let file = root.join("a.txt");
+    fs::write(&file, "v1").unwrap();
+    let base = mtime_ms(&file).unwrap();
+
+    // mtime 相符 + 长度相符 → 写成功
+    write_file(file.to_str().unwrap(), "v2", Some(base), Some(2)).unwrap();
+
+    // 竞态窗构造:外部改写后取新 mtime(相符)但长度基线给旧值 → 长度因子拒写。
+    fs::write(&file, "v2-longer").unwrap();
+    let drifted = mtime_ms(&file).unwrap();
+    let err = write_file(file.to_str().unwrap(), "v3", Some(drifted), Some(2)).unwrap_err();
+    assert!(err.contains("E_FS_MTIME"), "实际报错: {err}");
+    assert_eq!(fs::read(&file).unwrap(), b"v2-longer");
+
+    // 双因子齐备 → 通过
+    write_file(file.to_str().unwrap(), "v4", Some(drifted), Some(9)).unwrap();
+    assert_eq!(fs::read(&file).unwrap(), b"v4");
+
+    // expect_len 有值而文件被删 → 拒
+    fs::remove_file(&file).unwrap();
+    let err = write_file(file.to_str().unwrap(), "v5", None, Some(2)).unwrap_err();
+    assert!(err.contains("E_FS_MTIME"));
     let _ = fs::remove_dir_all(&root);
 }
