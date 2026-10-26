@@ -10,13 +10,14 @@
 import { FilmSlate } from "@phosphor-icons/react";
 import { lazySuspense } from "@kernel/lazyTab";
 import type { Plugin, PluginContext } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
 import {
   registerComposerEmptySendProvider,
   registerComposerSendTransform,
   registerComposerSendUndo,
 } from "@kernel/composerExt";
 import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
-import { ANIM_TAB_ID, ANIM_TAB_KIND, openAnimTab } from "./animStores";
+import { ANIM_TAB_ID, ANIM_TAB_KIND, openAnimTab, requestAiDialog } from "./animStores";
 import { getPendingRefs } from "./refStore";
 import { animRefsSendTransform, undoAnimRefsSend } from "./sessionRefs";
 import { AnimRefChips } from "./chip";
@@ -45,6 +46,17 @@ export const animPlugin: Plugin = {
       active: () => getTabs().some((tab) => tab.id === ANIM_TAB_ID),
       subscribeActive: subscribeEditorTabs,
       onSelect: () => openAnimTab(),
+    });
+    /* ⌘N 新建会话:命令面板可达 + 全局键位(shortcuts.ts 注册表,插件侧贡献,
+     * 无需改 kernel)。tab 非 keepAlive:先开 tab 再挂请求旗,由 tab 消费弹窗。 */
+    ctx.registerCommand({
+      id: "anim.new-session",
+      title: t("新建 AI 会话"),
+      keybinding: "Cmd+N",
+      run: () => {
+        openAnimTab();
+        requestAiDialog();
+      },
     });
     /* 卡片挂 composer 顶部 + 发送变换消费(引用清单块后置,失败回滚;空输入
      *  仅发卡片也放行 —— workbench 任务卡片同款管线)。初始提示词半区已上移

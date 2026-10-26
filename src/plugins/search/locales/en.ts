@@ -6,6 +6,8 @@ export const MESSAGES_EN = {
   "文件名快开": "Quick open file",
   "输入关键词,回车搜索": "Type keywords and press Enter to search",
   "区分大小写": "Match case",
+  "文件过滤,如 *.ts": "File filter, e.g. *.ts",
+  "按文件名过滤": "Filter by file name",
   "无激活工作区": "No active workspace",
   "正在搜索…": "Searching…",
   "无匹配结果": "No matches",

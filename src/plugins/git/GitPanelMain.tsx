@@ -97,6 +97,7 @@ function PanelBanners({
   canUndo,
   undoOrigin,
   cwd,
+  dirty,
   afterMutation,
 }: {
   /** 远端操作执行中的操作名(获取/拉取/推送);null = 空闲。 */
@@ -110,6 +111,8 @@ function PanelBanners({
   canUndo: boolean;
   undoOrigin: { cwd: string; branch: string } | null;
   cwd: string;
+  /** 工作区脏(status files 非空):空 stash 表也出条(「+ stash」可达)。 */
+  dirty: boolean;
   afterMutation: () => void;
 }) {
   return (
@@ -154,7 +157,7 @@ function PanelBanners({
           afterMutation={afterMutation}
         />
       )}
-      <GitStashBar cwd={cwd} onNotice={onNotice} afterMutation={afterMutation} />
+      <GitStashBar cwd={cwd} dirty={dirty} onNotice={onNotice} afterMutation={afterMutation} />
     </>
   );
 }
@@ -243,6 +246,7 @@ export function GitPanelMain({
         undoOrigin={undoOrigin}
         cwd={cwd}
         afterMutation={afterMutation}
+        dirty={files.length > 0}
       />
 
       {/* 视图保活(EditorCenter keepAlive 同款):三视图全挂载,非激活 display:none

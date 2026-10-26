@@ -26,9 +26,11 @@ import { registerDefaultContributions } from "./contributions";
 import { bootAskRestore } from "@kernel/askWatchRestore";
 import { onExternalSpawn, onRemoteWrite } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { ipc } from "@kernel/ipc";
 
 export function DesktopApp() {
   const [ready, setReady] = React.useState(false);
+  const [orphanReaped, setOrphanReaped] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -43,6 +45,10 @@ export function DesktopApp() {
     bootDropGuard(); /* 文件拖放护栏:防 webview drop 导航开文件(lib.rs 关原生拦截的副作用) */
     bootQuitGuard(); /* 关窗/退出闸:onCloseRequested + Rust ⌘Q 腿统一编排(kernel/quitGuard) */
     initUpdatePresence(); /* 更新感应后台化:6h 节流检查,底栏版本号旁亮提示(boot 级,不随左栏关闭停摆) */
+    /* 崩溃孤儿收割回执(项 10):上次异常退出残留的 PTY 已被启动期收割,>0 出提示 */
+    void ipc.sessionOrphanReap().then((reaped) => {
+      if (reaped > 0) setOrphanReaped(reaped);
+    }, () => undefined);
     bootSessionTabs(host.events); /* 会话标题 tab 条:订阅打开/存活广播,见 kernel/sessionTabs.ts */
     /* 桥(手机)发起会话补装配:桥 spawn 绕过前端生命周期,桌面行会退化成短码
        标题 + 无运行态;事件驱动走 adoptExternalSession(语义见 hostSessionServices)。 */
@@ -93,6 +99,18 @@ export function DesktopApp() {
 
   /* 语言切换 = 整树重挂载(低频;host/PTY 态在 React 外,幕布回放按重挂载设计)。 */
   const language = useSettingsState().settings.language;
+  if (orphanReaped > 0) {
+    return (
+      <div className="flex items-center gap-2 border-b border-(--tmd-warn,#e0a032)/40 bg-(--tmd-warn,#e0a032)/10 px-3 py-2 text-xs">
+        <span className="flex-1">
+          {t("检测到上次异常退出,已清理 {n} 个残留会话进程", { n: orphanReaped })}
+        </span>
+        <button type="button" className="shrink-0 text-(--tmd-fg-muted) hover:text-(--tmd-fg)" onClick={() => setOrphanReaped(0)}>
+          ×
+        </button>
+      </div>
+    );
+  }
   if (error) {
     return <div className="p-4 text-red-400">{t("插件激活失败:{error}", { error })}</div>;
   }

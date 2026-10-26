@@ -63,8 +63,10 @@ pub fn drop(repo: &mut Repository, index: u32) -> Result<(), GitError> {
 }
 
 const STASH_MSG: &str = "tmd: 分支切换前自动暂存";
+/// 手动创建(StashBar「+ stash」)的默认消息:与智能切换的自动消息区分。
+const STASH_MSG_MANUAL: &str = "tmd: 手动暂存";
 
-fn push(repo: &mut Repository) -> Result<bool, GitError> {
+fn push(repo: &mut Repository, msg: &str) -> Result<bool, GitError> {
     let st = status::compute(repo)?;
     if st.files.is_empty() {
         return Ok(false);
@@ -76,8 +78,22 @@ fn push(repo: &mut Repository) -> Result<bool, GitError> {
     }
     // stash_save 必须显式签名:复用提交面板的兜底链(config → env → 内置),不因缺 user 配置炸掉
     let sig = super::commit::resolve_signature(repo)?;
-    repo.stash_save(&sig, STASH_MSG, Some(git2::StashFlags::INCLUDE_UNTRACKED))?;
+    repo.stash_save(&sig, msg, Some(git2::StashFlags::INCLUDE_UNTRACKED))?;
     Ok(true)
+}
+
+/// 手动创建 stash(StashBar「+ stash」):message 空白 = 默认文案;返回
+/// false = 工作区干净(无可暂存)。护栏与智能切换同源(冲突拒绝、-u、签名兜底)。
+pub fn create(repo: &mut Repository, message: &str) -> Result<bool, GitError> {
+    let msg = message.trim();
+    push(
+        repo,
+        if msg.is_empty() {
+            STASH_MSG_MANUAL
+        } else {
+            msg
+        },
+    )
 }
 
 fn checkout_by(repo: &Repository, name: &str, remote: bool) -> Result<(), GitError> {
@@ -132,7 +148,7 @@ pub fn undo(repo: &mut Repository, original: &str) -> Result<(), GitError> {
 
 /// 智能切换:干净直切;脏 → stash → 切换 → apply 恢复(冲突保留 stash)。
 pub fn smart_checkout(repo: &mut Repository, name: &str, remote: bool) -> Result<(), GitError> {
-    if !push(repo)? {
+    if !push(repo, STASH_MSG)? {
         return checkout_by(repo, name, remote);
     }
     if let Err(e) = checkout_by(repo, name, remote) {
@@ -216,6 +232,33 @@ mod tests {
 
         // 丢弃:越界 index 报错不 panic
         assert!(drop(&mut repo, 0).is_err());
+        let _ = std::fs::remove_dir_all(tr.path());
+    }
+
+    #[test]
+    fn stash_手动创建_消息语义与干净拒绝() {
+        let tr = TempRepo::new();
+        tr.write("a.txt", "v1\n");
+        let mut repo = git2::Repository::open(tr.path()).unwrap();
+        commit_all(&repo);
+
+        // 干净工作区:Ok(false) 不建条
+        assert!(!create(&mut repo, "msg").unwrap());
+        assert!(list(&mut repo).unwrap().is_empty());
+
+        // 自定义消息(含首尾空白,应修剪)入列
+        tr.write("a.txt", "v2\n");
+        assert!(create(&mut repo, "  手动测试  ").unwrap());
+        let entries = list(&mut repo).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].message.contains("手动测试"));
+
+        // 空消息 = 默认文案;untracked 也入 stash(-u 与智能切换同款)
+        tr.write("new.txt", "u\n");
+        assert!(create(&mut repo, "").unwrap());
+        let entries = list(&mut repo).unwrap();
+        assert_eq!(entries.len(), 2);
+        assert!(entries[0].message.contains("手动暂存"));
         let _ = std::fs::remove_dir_all(tr.path());
     }
 }

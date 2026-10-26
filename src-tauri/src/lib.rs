@@ -38,6 +38,7 @@ mod session_disk_log;
 mod session_log;
 mod session_log_search;
 mod session_log_sweep;
+mod session_runtime;
 mod settings;
 mod skill_pkg;
 mod sqlite;
@@ -240,6 +241,9 @@ pub fn run() {
             });
             /* 会话日志磁盘治理:启动后台清超保留天数的死日志(0=关),
              * 崩溃/强退残留的唯一回收路径;活会话由账本保护。 */
+            /* 崩溃孤儿收割(项 10):台账 pid 仍活 = 上次异常退出,后台收割;
+             * 前端经 session_orphan_reap 拿计数出横幅。 */
+            session_runtime::run_startup_reap_bg();
             {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -306,6 +310,7 @@ pub fn run() {
             lsp::lsp_stop,
             fs_edit_cmds::fs_write_file,
             render_health_events::render_health_events,
+            session_runtime::session_orphan_reap,
             fs_edit_cmds::fs_mtime,
             fs_edit_cmds::fs_create_file,
             fs_edit_cmds::fs_create_dir,
@@ -391,6 +396,7 @@ pub fn run() {
             git::commands_stash::git_stash_list,
             git::commands_stash::git_stash_apply,
             git::commands_stash::git_stash_drop,
+            git::commands_stash::git_stash_create,
             quota::quota_fetch,
             quota::quota_vendor::quota_vendor_fetch,
             quota::quota_env_value,

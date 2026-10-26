@@ -60,7 +60,13 @@ pub(super) async fn try_dispatch(
         "fs_remove_path" => go(raw, |a: OnePath| crate::commands_fs::fs_remove_path(a.path)).await,
         "fs_search" => {
             go(raw, |a: Search| {
-                crate::commands_fs::fs_search(a.root, a.query, a.case_sensitive, a.max_results)
+                crate::commands_fs::fs_search(
+                    a.root,
+                    a.query,
+                    a.case_sensitive,
+                    a.include_glob,
+                    a.max_results,
+                )
             })
             .await
         }
@@ -177,6 +183,7 @@ struct Search {
     root: String,
     query: String,
     case_sensitive: bool,
+    include_glob: Option<String>,
     max_results: usize,
 }
 
@@ -222,6 +229,10 @@ mod serde_contract_tests {
         serde_json::from_str::<TailChanged>(r#"{"path":"/a","maxBytes":10,"lastSize":null}"#)
             .unwrap();
         serde_json::from_str::<Rename>(r#"{"path":"/a","newName":"b"}"#).unwrap();
+        serde_json::from_str::<Search>(
+            r#"{"root":"/a","query":"q","caseSensitive":true,"maxResults":10,"includeGlob":"*.ts"}"#,
+        )
+        .unwrap();
         /* 单词字段 struct(无 rename 差异,一并钉住形状漂移) */
         serde_json::from_str::<OnePath>(r#"{"path":"/a"}"#).unwrap();
         serde_json::from_str::<WriteTemp>(r#"{"name":"n","data":[]}"#).unwrap();

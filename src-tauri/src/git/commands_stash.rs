@@ -11,6 +11,13 @@ pub async fn git_smart_checkout(cwd: String, name: String, remote: bool) -> Resu
     run_mut(cwd, move |r| stash_ops::smart_checkout(r, &name, remote)).await
 }
 
+/// 手动创建 stash(StashBar「+ stash」):message 空/空白 = 默认文案;
+/// 返回 false = 工作区干净(无可暂存)。-u/冲突护栏与智能切换同源。
+#[tauri::command]
+pub async fn git_stash_create(cwd: String, message: String) -> Result<bool, String> {
+    run_mut(cwd, move |r| stash_ops::create(r, &message)).await
+}
+
 /// 还原一次「暂存并切换」:丢弃切换后分支的冲突状态(reset --hard,内容在
 /// stash 中不丢失),切回 original 分支并恢复改动。无 stash 时拒绝。
 #[tauri::command]

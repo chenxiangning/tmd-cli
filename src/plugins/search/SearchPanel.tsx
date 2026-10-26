@@ -5,7 +5,7 @@
  * Esc/遮罩关闭由 index.tsx 浮层壳统一处理。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
+import { CaretRight, Funnel, MagnifyingGlass } from "@phosphor-icons/react";
 import { ipc, type FsSearchHit } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { normalizePath } from "@kernel/pathUtils";
@@ -31,6 +31,7 @@ export function SearchPanel() {
   const root = useActiveWorkspaceRoot();
   const [query, setQuery] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
+  const [glob, setGlob] = useState("");
   const [results, setResults] = useState<FsSearchHit[] | null>(null);
   const [truncated, setTruncated] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -48,11 +49,11 @@ export function SearchPanel() {
 
   const groups = useMemo(() => [...groupByFile(results ?? []).entries()], [results]);
 
-  /* 输入或大小写开关变化即清旧结果:旧命中行配新高亮/过期计数是误导(P3 评审项)。 */
+  /* 输入/大小写/glob 过滤变化即清旧结果:旧命中行配新高亮/过期计数是误导(P3 评审项)。 */
   useEffect(() => {
     setResults(null);
     seqRef.current++;
-  }, [query, caseSensitive]);
+  }, [query, caseSensitive, glob]);
 
   async function runSearch(): Promise<void> {
     if (!root || !query.trim()) return;
@@ -60,7 +61,7 @@ export function SearchPanel() {
     setBusy(true);
     setError(null);
     try {
-      const found = await ipc.fsSearch(root, query, caseSensitive, MAX_RESULTS);
+      const found = await ipc.fsSearch(root, query, caseSensitive, MAX_RESULTS, glob.trim() || null);
       if (seqRef.current !== seq) return;
       setResults(found.hits);
       setTruncated(found.truncated);
@@ -116,6 +117,23 @@ export function SearchPanel() {
         >
           Aa
         </button>
+      </div>
+
+      {/* 过滤行:单 glob(basename 匹配,如 *.ts / foo* / 全名);正则未做(Rust 无 regex 依赖,如实收缩)。 */}
+      <div className="flex items-center gap-2 border-b border-(--tmd-border) px-3 py-1.5">
+        <Funnel size="0.75rem" aria-hidden className="shrink-0 text-(--tmd-fg-faint)" />
+        <input
+          value={glob}
+          spellCheck={false}
+          disabled={!root}
+          placeholder={t("文件过滤,如 *.ts")}
+          aria-label={t("按文件名过滤")}
+          onChange={(e) => setGlob(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) void runSearch();
+          }}
+          className="min-w-0 flex-1 bg-transparent font-mono text-xs text-(--tmd-fg) outline-none placeholder:text-(--tmd-fg-faint)"
+        />
       </div>
 
       <div className="min-h-[120px] flex-1 overflow-y-auto py-1">

@@ -102,7 +102,7 @@ pub(crate) fn spawn(
         })
         .map_err(|e| format!("openpty 失败: {e}"))?;
 
-    /* 注入完整 PATH:命令解析与 CLI 孙进程(git/node 等)都依赖它 */
+    /* 注入完整 PATH:命令解析与孙进程(git/node)都依赖它 */
     let path = enriched_path();
     let resolved = resolve_command(&spec.command, &path);
     let mut cmd = CommandBuilder::new(&resolved.program);
@@ -175,11 +175,9 @@ pub(crate) fn spawn(
     let out_app = app.clone();
     let logs = Arc::clone(&registry.logs);
     let out_sessions = Arc::clone(&registry.sessions);
-    /* 有界 channel:队列满则 reader 阻塞 → 内核 PTY 缓冲回压子进程,
-    防持续高速输出(cat 大文件/构建刷屏)下无界队列内存膨胀。 */
+    /* 有界 channel:队列满则 reader 阻塞 → 内核 PTY 回压子进程,防高速输出下无界内存膨胀。 */
     let (out_tx, out_rx) = mpsc::sync_channel::<Vec<u8>>(64);
-    /* 先插注册表再起泵线程:子进程秒退时 emitter 的退出清理(remove)必须能
-    找到它,否则死亡 handle 永久滞留 sessions 表(master fd 泄漏)。 */
+    /* 先插注册表再起泵:秒退子进程的退出清理必须找得到,否则 handle 滞留(master fd 泄漏)。 */
     registry.sessions.lock().insert(
         id.clone(),
         PtyHandle {
@@ -208,12 +206,10 @@ pub(crate) fn spawn(
     });
     std::thread::spawn(move || {
         let event = format!("pty://out/{out_id}");
-        /* 跨 chunk 的不完整 UTF-8 尾部(如 3 字节中文被聚合批边界劈开),
-        暂存后与下一批拼接再解码,避免 from_utf8_lossy 逐包转换产生 */
+        /* 跨 chunk 的不完整 UTF-8 尾部暂存拼批再解码,避免逐包 lossy 转换 */
         let mut tail: Vec<u8> = Vec::new();
         let mut log_file = log_file;
-        /* 自适应窗:8ms 基线;批内排到窗口耗尽/批满 = 生产者仍在前进,下一批
-        窗长翻倍(封顶 50ms);孤立小块(击键回显/单 tick 更新)回基线。 */
+        /* 自适应窗:8ms 基线;批排满/耗尽 = 生产者前进,窗长翻倍(封顶 50ms);孤立小块回基线。 */
         let mut window = OUT_AGGREGATE_WINDOW;
         /* 阻塞等首 chunk;channel 关闭且排空 → 会话结束 */
         while let Ok(first) = out_rx.recv() {
@@ -264,6 +260,7 @@ pub(crate) fn spawn(
         if let Some(path) = log_path.as_ref() {
             let _ = std::fs::remove_file(path);
         }
+        crate::session_runtime::note_ended(&out_id);
         logs.lock().remove(&out_id);
         /* 活会话注册表同步移除:webview reload 错过 exit 事件后,
          * session_list 不再把死会话当活会话返回。单一 remove 点:kill 收尸与
@@ -291,6 +288,10 @@ pub(crate) fn spawn(
         );
     });
 
+    /* 运行台账(项 10):崩溃孤儿收割的数据面;泵退出处对称摘除。 */
+    if let Some(p) = pid {
+        crate::session_runtime::note_started(&id, p, profile_id, &spec.cwd);
+    }
     Ok(SpawnedSession { id, pid })
 }
 

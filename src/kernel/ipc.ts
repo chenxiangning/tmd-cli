@@ -438,9 +438,22 @@ export const ipc = {
     invoke<{ files: string[]; truncated: boolean }>("fs_walk_index", { root, cap }),
   /** 全文搜索(rg 式即时扫描,walk 语义与 fsWalkFiles 同源,见 fs_search.rs):
    *  大小写不敏感=两侧 to_lowercase 归一;>3MB/二进制文件跳过;maxResults 全局上限。
+   *  includeGlob:可选单 glob(basename 匹配,如 "*.ts";空/空白 = 不过滤)。
    *  3s 预算耗尽或满额时交付部分结果(truncated 置位,UI 提示)。 */
-  fsSearch: (root: string, query: string, caseSensitive: boolean, maxResults: number) =>
-    invoke<FsSearchResult>("fs_search", { root, query, caseSensitive, maxResults }),
+  fsSearch: (
+    root: string,
+    query: string,
+    caseSensitive: boolean,
+    maxResults: number,
+    includeGlob?: string | null,
+  ) =>
+    invoke<FsSearchResult>("fs_search", {
+      root,
+      query,
+      caseSensitive,
+      maxResults,
+      includeGlob: includeGlob?.trim() ? includeGlob.trim() : null,
+    }),
   /** 通用短进程通道:spawn + stdin(写入后持开防 RPC 丢响应)+ stdout 收割;
    *  exitOnStdout 命中或超时即杀。omp/pi RPC 副车、grok inspect 共用(见 proc_run.rs)。 */
   procCommunicate: (spec: ProcRunSpec) => invoke<ProcRunResult>("proc_communicate", { spec }),
@@ -624,6 +637,10 @@ export const ipc = {
     invoke<void>("git_stash_apply", { cwd, index, keep }),
   gitStashDrop: (cwd: string, index: number) =>
     invoke<void>("git_stash_drop", { cwd, index }),
+  /** 手动创建 stash(StashBar「+ stash」):message 空/空白 = 默认文案;
+   *  false = 工作区干净(无可暂存);-u/冲突护栏与智能切换同源(stash_ops.rs)。 */
+  gitStashCreate: (cwd: string, message: string) =>
+    invoke<boolean>("git_stash_create", { cwd, message }),
   /** 单提交文件清单(历史 Graph 展开;sha 口径 = 提交 vs 首父)。 */
   gitCommitFiles: (cwd: string, sha: string) =>
     invoke<GitCommitFile[]>("git_commit_files", { cwd, sha }),
@@ -845,6 +862,8 @@ export const ipc = {
   /** 渲染健康诊断事件史(设置-行为只读;kick/reload/recovered 环形留痕)。 */
   renderHealthEvents: () =>
     invoke<{ atMs: number; kind: string; detail: string }[]>("render_health_events"),
+  /** 崩溃孤儿收割结果(启动早期 Rust 已后台执行;>0 = 上次异常退出有残留被清)。 */
+  sessionOrphanReap: () => invoke<number>("session_orphan_reap"),
   /** 未决 SSH 提示对账(接线竞态/webview reload 兜底,先例 refreshForwards)。 */
   sshPromptsPending: () => invoke<SshPendingPromptWire[]>("ssh_prompts_pending"),
   /** 字符串 MD5(小写 hex;通用原语,消费方的用途注记归各插件)。 */

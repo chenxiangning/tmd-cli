@@ -32,6 +32,7 @@ import {
   readAnimProjectRows,
   type AnimProjectRowState,
 } from "./animProjects";
+import { consumeAiDialogRequest, subscribeAiDialogRequest } from "./animStores";
 import { useAnimOpen } from "./useAnimOpen";
 import { prepareAiSessionTarget, startAnimAiSession, type AnimEngine } from "./startSession";
 import { setPendingPrompt } from "@kernel/sessionPending";
@@ -139,6 +140,16 @@ export function AnimProjectsTab() {
     /* 弹窗直渲 label(此处 t());pending 面另行走 animSessionRefs 源键(chip 端 t())。 */
     setDialog({ ...result.target, refs: result.target.refs.map((r) => ({ ...r, label: t(r.label) })) });
   };
+
+  /* ⌘N「新建 AI 会话」请求消费(animStores 桥):home 就绪才弹(未就绪留旗,
+   * 首拍数据落地的重渲在此补弹);订阅拍覆盖 tab 已挂载时的即时弹。 */
+  useEffect(() => {
+    const consume = () => {
+      if (homeRef.current && consumeAiDialogRequest()) void openAiDialog(null);
+    };
+    consume();
+    return subscribeAiDialogRequest(consume);
+  });
 
   /* 确认窗「启动会话」:startAnimAiSession 桩先落盘再 spawn,spawn 失败清理
    *  本次落的桩(失败零残留);失败不关窗(toast),保住已编辑 prompt。 */

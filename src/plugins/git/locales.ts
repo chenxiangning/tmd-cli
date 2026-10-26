@@ -36,6 +36,12 @@ const MESSAGES_EN = {
   "已套用 stash #{n}(条目保留)": "Applied stash #{n} (entry kept)",
   "已弹出 stash #{n}": "Popped stash #{n}",
   "已丢弃 stash #{n}": "Dropped stash #{n}",
+  "+ stash": "+ Stash",
+  "把当前改动存入 stash(消息可选)": "Stash current changes (message optional)",
+  "stash 消息(可选),留空 = 默认": "Stash message (optional) — empty = default",
+  "存入 stash": "Stash",
+  "已创建 stash": "Stash created",
+  "工作区干净,没有可暂存的改动": "Working tree clean — nothing to stash",
 } as const;
 
 /** ja 词典 · git 域。 */
@@ -73,6 +79,12 @@ const MESSAGES_JA = {
   "已套用 stash #{n}(条目保留)": "stash #{n} を適用しました(エントリ保持)",
   "已弹出 stash #{n}": "stash #{n} をポップしました",
   "已丢弃 stash #{n}": "stash #{n} を破棄しました",
+  "+ stash": "+ Stash",
+  "把当前改动存入 stash(消息可选)": "現在の変更を stash に入れる(メッセージ任意)",
+  "stash 消息(可选),留空 = 默认": "stash メッセージ(任意)— 空欄でデフォルト",
+  "存入 stash": "Stash に入れる",
+  "已创建 stash": "stash を作成しました",
+  "工作区干净,没有可暂存的改动": "ワークツリーがクリーンで、stash する変更がありません",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });
