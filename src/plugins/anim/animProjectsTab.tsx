@@ -143,6 +143,7 @@ export function AnimProjectsTab() {
 
   /* ⌘N「新建 AI 会话」请求消费(animStores 桥):home 就绪才弹(未就绪留旗,
    * 首拍数据落地的重渲在此补弹);订阅拍覆盖 tab 已挂载时的即时弹。 */
+  // react-doctor-disable-next-line react-doctor/no-set-state-after-await-in-effect -- 弹窗数据必须异步取回(项目桩)后才能 setState;卸载竞态由 dialog 组件挂载态自兜底
   useEffect(() => {
     const consume = () => {
       if (homeRef.current && consumeAiDialogRequest()) void openAiDialog(null);

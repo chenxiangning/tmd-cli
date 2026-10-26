@@ -154,6 +154,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
       onClose();
     } catch (e) {
       setError(errTextDisplay(e));
+    } finally {
       setBusy(false);
     }
   };

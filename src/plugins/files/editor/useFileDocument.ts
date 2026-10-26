@@ -216,10 +216,10 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
 
   /* 保存请求桥:⌘S 命令(files.save)注册口经此触发最新 save;卸载即摘除,
      非文件 tab 下 when 不满足,键穿透。 */
-  const saveRef = useRef(save(false));
+  const saveRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     saveRef.current = save(false);
-    saveRequestRef.current = () => saveRef.current();
+    saveRequestRef.current = () => saveRef.current?.();
     return () => {
       saveRequestRef.current = null;
     };

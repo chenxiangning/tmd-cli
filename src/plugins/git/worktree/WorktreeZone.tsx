@@ -172,10 +172,9 @@ function TreeCard({
       onChanged();
     } catch (e) {
       setNote(errTextDisplay(e));
+    } finally {
       setBusy(false);
-      return;
     }
-    setBusy(false);
   };
   const kindLabel = isMain ? t("主仓") : isCurrent ? t("当前") : entry.prunable ? t("悬空") : "";
   return (

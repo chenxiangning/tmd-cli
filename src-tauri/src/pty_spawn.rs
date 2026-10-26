@@ -262,11 +262,9 @@ pub(crate) fn spawn(
         }
         crate::session_runtime::note_ended(&out_id);
         logs.lock().remove(&out_id);
-        /* 活会话注册表同步移除:webview reload 错过 exit 事件后,
-         * session_list 不再把死会话当活会话返回。单一 remove 点:kill 收尸与
-         * 真实退出码采集同处完成(此前两连 remove 把码吞成恒 null,P0 回归)。
-         * session_kill → pty.rs 已先 remove 同一 map,此处拿 None = 用户 kill,
-         * code null → 前端「未知不扰」;自然退出/崩溃则拿到真实码。 */
+        /* 活会话注册表同步移除(单一 remove 点:kill 收尸与退出码采集同处,此前
+        两连 remove 吞码 P0 回归);kill 路径 pty.rs 已先 remove,拿 None = 用户
+        kill,code null → 前端「未知不扰」;自然退出/崩溃拿真实码。 */
         let mut code: Option<i32> = None;
         if let Some(mut handle) = out_sessions.lock().remove(&out_id) {
             let _ = handle.child.kill();

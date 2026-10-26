@@ -105,7 +105,7 @@ export function DesktopApp() {
         <span className="flex-1">
           {t("检测到上次异常退出,已清理 {n} 个残留会话进程", { n: orphanReaped })}
         </span>
-        <button type="button" className="shrink-0 text-(--tmd-fg-muted) hover:text-(--tmd-fg)" onClick={() => setOrphanReaped(0)}>
+        <button type="button" aria-label={t("关闭")} className="shrink-0 text-(--tmd-fg-muted) hover:text-(--tmd-fg)" onClick={() => setOrphanReaped(0)}>
           ×
         </button>
       </div>
