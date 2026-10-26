@@ -8,9 +8,14 @@
  */
 
 import { sliceStreamTail } from "./streamSlice";
+import { getSettingsState } from "./settings";
 
 /** 共享 TextEncoder:逐 chunk 累计 UTF-8 字节数(TextEncoder 无线程语义,复用安全)。 */
 const outputByteEncoder = new TextEncoder();
+
+/** 全店总预算与裁剪尾长(多会话内存治理,2026-10-26):单会话上限之外的横向兜底。 */
+const TOTAL_BUDGET_CHARS = 8_000_000;
+const TRIMMED_TAIL_CHARS = 64_000;
 
 /** 输出缓冲的分块结构:chunks 按到达顺序排列,totalChars/totalBytes 为增量维护的合计。 */
 interface OutputBuffer {
@@ -43,8 +48,33 @@ export class OutputBufferStore {
       buf.totalChars = trimmed.length;
       buf.totalBytes = outputByteEncoder.encode(trimmed).length;
     }
+    /* MRU 重排:delete+set 把本会话推到 Map 尾,预算裁剪从 Map 头(最久未写)动刀。 */
+    this.buffers.delete(sessionId);
     this.buffers.set(sessionId, buf);
+    this.enforceBudget();
     return chunkBytes;
+  }
+
+  /** 全店预算执行:超 8M chars 把最久未写的会话缓冲截到 64K 尾,保住最近
+   *  sessionTabsMax 个(工作 tab 集近似)。截头使冻结快照 headSample 校验
+   *  自动失配弃用(宁慢不错),截后重开走磁盘全量路径,慢但正确。 */
+  private enforceBudget(): void {
+    let total = 0;
+    for (const b of this.buffers.values()) total += b.totalChars;
+    if (total <= TOTAL_BUDGET_CHARS) return;
+    const ids = [...this.buffers.keys()];
+    const protect = new Set(ids.slice(-getSettingsState().settings.sessionTabsMax));
+    for (const id of ids) {
+      if (total <= TOTAL_BUDGET_CHARS) break;
+      if (protect.has(id)) continue;
+      const buf = this.buffers.get(id);
+      if (!buf || buf.totalChars <= TRIMMED_TAIL_CHARS) continue;
+      const keep = sliceStreamTail(buf.chunks.join(""), TRIMMED_TAIL_CHARS);
+      total -= buf.totalChars - keep.length;
+      buf.chunks = [keep];
+      buf.totalChars = keep.length;
+      buf.totalBytes = outputByteEncoder.encode(keep).length;
+    }
   }
 
   /** 会话至今的全部（尾部）输出，供 xterm 重挂载回放。join 后顺手压实为单 chunk。 */

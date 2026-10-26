@@ -115,3 +115,29 @@ describe("remove 与会话隔离", () => {
     expect(store.get("b")).toBe("B");
   });
 });
+
+describe("全店预算(多会话内存治理)", () => {
+  it("超 8M 总量时截最久未写会话到 64K 尾,保护最近 tabsMax(默认 4)个", () => {
+    const store = new OutputBufferStore();
+    /* 单会话上限放大绕开自身截断,让全店预算成为唯一约束;
+     * 6 会话各 1.5M = 9M > 8M:前 2 个(最久未写)被截,后 4 个受保护。 */
+    const big = 10_000_000;
+    for (let i = 1; i <= 6; i++) store.append(`s${i}`, String(i).repeat(1_500_000), big);
+    expect(store.get("s1").length).toBeLessThanOrEqual(64_000);
+    /* 9M−8M 缺口 1M:截 s1(释放约 1.44M)即达标,s2 起保留 */
+    expect(store.get("s2").length).toBe(1_500_000);
+    expect(store.get("s3").length).toBe(1_500_000);
+    expect(store.get("s6").length).toBe(1_500_000);
+    /* 被截者尾部仍可继续追加 */
+    store.append("s1", "tail", 100_000);
+    expect(store.get("s1").endsWith("tail")).toBe(true);
+  });
+
+  it("总量未超预算时零裁剪", () => {
+    const store = new OutputBufferStore();
+    store.append("a", "x".repeat(1_000), 100_000);
+    store.append("b", "y".repeat(1_000), 100_000);
+    expect(store.get("a").length).toBe(1_000);
+    expect(store.get("b").length).toBe(1_000);
+  });
+});
