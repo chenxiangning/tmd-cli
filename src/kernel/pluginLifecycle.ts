@@ -75,30 +75,38 @@ export class PluginLifecycle {
     pushCleanup: (id: string, done: () => void) => void,
   ): Promise<void> {
     if (pending.size === 0) return;
-    let progressed = false;
-    const failed = await [...pending].reduce(
-      (chain, [id, plugin]) => {
-        const ready = (plugin.dependsOn ?? []).every((d) => this.plugins.has(d));
-        if (!ready) return chain;
+    /* 一波 = 当前依赖全就绪者;无进展 = 依赖环。 */
+    const wave = [...pending].filter(([id, plugin]) => {
+      if ((plugin.dependsOn ?? []).every((d) => this.plugins.has(d))) {
         pending.delete(id);
-        return chain.then(async () => {
-          try {
-            const done = await plugin.activate(makeAttributedCtx(ctx, plugin, this.undo));
-            if (typeof done === "function") pushCleanup(id, done);
-          } catch (e) {
-            undoContributions(id); // boot 链路同样零残留(原样上抛由调用方定夺)
-            throw e;
-          }
-          this.plugins.set(id, plugin);
-          progressed = true;
-        });
-      },
-      Promise.resolve() as Promise<void>,
-    );
-    void failed;
-    if (!progressed) {
+        return true;
+      }
+      return false;
+    });
+    if (wave.length === 0) {
       throw new Error(`插件依赖环或缺失: ${[...pending.keys()].join(", ")}`);
     }
+    /* 波内并行(2026-10-26):此前 reduce+chain 严格串行,十余插件 × 各自
+     * 异步探测全串一遍才放首屏;现网无 dependsOn(doActivateAll 注),波内
+     * 无顺序依赖。performance 打点随波留痕,启动慢可直接归因到插件。 */
+    const waveStart = performance.now();
+    await Promise.all(
+      wave.map(async ([id, plugin]) => {
+        const start = performance.now();
+        try {
+          const done = await plugin.activate(makeAttributedCtx(ctx, plugin, this.undo));
+          if (typeof done === "function") pushCleanup(id, done);
+        } catch (e) {
+          undoContributions(id); // boot 链路同样零残留(原样上抛由调用方定夺)
+          throw e;
+        }
+        this.plugins.set(id, plugin);
+        performance.mark(`plugin-activate:${id}`, { startTime: start });
+      }),
+    );
+    performance.measure(`plugin-wave:${wave.map(([id]) => id).join("+")}`, {
+      start: waveStart,
+    });
     await this.activateWaves(ctx, pending, pushCleanup);
   }
 

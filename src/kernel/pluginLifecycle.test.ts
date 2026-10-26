@@ -168,7 +168,7 @@ describe("activateAll 分波拓扑激活", () => {
 });
 
 describe("activateAll 异常隔离", () => {
-  it("activate 抛错原样上抛:失败插件零残留、贡献撤销、成功者不回滚、链在失败点中断", async () => {
+  it("activate 抛错原样上抛:失败插件零残留、贡献撤销、同波无关者照常完成、其依赖波不再跑", async () => {
     const cleanup = () => {};
     const a = mkPlugin("a", { activate: () => { order.push("a"); return cleanup; } });
     const boom = mkPlugin("boom", {
@@ -177,12 +177,13 @@ describe("activateAll 异常隔离", () => {
         throw new Error("激活炸了");
       },
     });
-    const c = mkPlugin("c");
-    await expect(lifecycle.activateAll([a, boom, c], ctx)).rejects.toThrow("激活炸了");
-    expect(order).toEqual(["a", "boom"]);
+    /* d 依赖 boom:boom 失败后依赖波不得再跑(并行波语义,2026-10-26)。 */
+    const d = mkPlugin("d", { dependsOn: ["boom"], activate: () => { order.push("d"); } });
+    await expect(lifecycle.activateAll([a, boom, d], ctx)).rejects.toThrow("激活炸了");
+    expect(order.slice().sort()).toEqual(["a", "boom"]); /* 同波 a/boom 并发,d 不跑 */
     expect(lifecycle.isPluginActive("a")).toBe(true);
     expect(lifecycle.isPluginActive("boom")).toBe(false);
-    expect(lifecycle.isPluginActive("c")).toBe(false);
+    expect(lifecycle.isPluginActive("d")).toBe(false);
     expect(h.state.undone).toEqual(["boom"]);
     expect(h.state.cleanups).toEqual([["a", cleanup]]);
     expect(h.state.attributed).toEqual(["a", "boom"]);
