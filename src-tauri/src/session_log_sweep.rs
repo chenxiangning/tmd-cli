@@ -29,22 +29,17 @@ fn sweepable(name: &str) -> bool {
 
 /// 目录空则删,回传是否回收(供上层引擎目录连坐判断)。
 fn remove_dir_if_empty(dir: &Path, report: &mut SweepReport) {
-    if std::fs::read_dir(dir).is_ok_and(|mut d| d.next().is_none()) {
-        if std::fs::remove_dir(dir).is_ok() {
-            report.removed_dirs += 1;
-        }
+    if std::fs::read_dir(dir).is_ok_and(|mut d| d.next().is_none())
+        && std::fs::remove_dir(dir).is_ok()
+    {
+        report.removed_dirs += 1;
     }
 }
 
 /// 扫 session 树(`session/<引擎>/<项目>/<文件>` 三层):超 TTL 且非活
 /// 会话的日志类文件删除,清空后的项目/引擎目录回收。days=0 全清(仅保
 /// 活会话)。now 注入可测;未知子目录与不可删文件都保留目录不连坐。
-fn sweep_tree(
-    root: &Path,
-    days: u64,
-    live: &HashSet<PathBuf>,
-    now: SystemTime,
-) -> SweepReport {
+fn sweep_tree(root: &Path, days: u64, live: &HashSet<PathBuf>, now: SystemTime) -> SweepReport {
     let ttl = Duration::from_secs(days.saturating_mul(86_400));
     let mut report = SweepReport::default();
     let Ok(engines) = std::fs::read_dir(root) else {
@@ -144,11 +139,9 @@ pub(crate) async fn session_log_cleanup(
 ) -> Result<SweepReport, String> {
     let live = live_log_paths(&state);
     let root = crate::session::config_dir().join("session");
-    tauri::async_runtime::spawn_blocking(move || {
-        sweep_tree(&root, days, &live, SystemTime::now())
-    })
-    .await
-    .map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || sweep_tree(&root, days, &live, SystemTime::now()))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

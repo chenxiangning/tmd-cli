@@ -223,7 +223,14 @@ fn write_file_mtime_乐观锁拒外部变更() {
     assert_eq!(fs::read(&file).unwrap(), b"v2");
     assert!(after >= base);
 
-    // 基线过期(外部已写)→ 拒写且内容不动
+    // 基线过期(外部已写)→ 拒写且内容不动;显式推 mtime 防同毫秒写误等
+    let bumped = std::time::SystemTime::now() + std::time::Duration::from_millis(10);
+    fs::File::options()
+        .append(true)
+        .open(&file)
+        .unwrap()
+        .set_modified(bumped)
+        .unwrap();
     let err = write_file(file.to_str().unwrap(), "v3", Some(base)).unwrap_err();
     assert!(err.contains("E_FS_MTIME"), "实际报错: {err}");
     assert_eq!(fs::read(&file).unwrap(), b"v2");

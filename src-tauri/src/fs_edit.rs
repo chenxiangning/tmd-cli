@@ -78,7 +78,8 @@ pub fn write_file(path: &str, content: &str, expect_mtime: Option<u64>) -> Resul
             }
         }
     }
-    crate::session::write_atomic(p, content.as_bytes()).map_err(|e| format!("写入文件失败: {e}"))?;
+    crate::session::write_atomic(p, content.as_bytes())
+        .map_err(|e| format!("写入文件失败: {e}"))?;
     mtime_ms(p).ok_or_else(|| "写入成功但读取时间戳失败".to_string())
 }
 

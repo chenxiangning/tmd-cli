@@ -75,19 +75,34 @@ pub(crate) fn search_log(
         &folded
     };
 
+    /* 单遍扫描(2026-10-26 重写):①行游标前向推进,命中点行起点 O(1) 均摊
+     * —— 原向文件头回扫在 TUI 日志(几乎无换行)上是 O(hits×64MB),200 命中
+     * 达百亿次比较;②首字节跳扫(memchr 语义):非候选点单字节前进,候选点才
+     * 整段 memcmp —— 原逐位置全宽比对在重复前缀 needle 上退化为 O(n×m)。 */
     let mut total: u64 = 0;
     let mut hits: Vec<LogSearchHit> = Vec::new();
     let mut last_line_start: Option<usize> = None;
     let mut i = 0usize;
-    while i + pat.len() <= hay.len() {
+    let mut line_from = 0usize; /* 行游标已覆盖区间头(与 line_start 同步推进) */
+    let mut line_start = 0usize;
+    let first = pat[0];
+    let limit = hay.len() - pat.len(); /* i 的上界(含) */
+    while i <= limit {
+        if hay[i] != first {
+            let skip = hay[i..=limit]
+                .iter()
+                .position(|&b| b == first)
+                .unwrap_or(limit + 1 - i);
+            i += skip;
+            continue;
+        }
         if hay[i..i + pat.len()] == pat[..] {
             total += 1;
-            /* 行去重:同一行的多处命中只出一条定位条目(跳转目标 = 行起点)。 */
-            let line_start = hay[..i]
-                .iter()
-                .rposition(|&b| b == b'\n')
-                .map(|p| p + 1)
-                .unwrap_or(0);
+            /* 行游标推进到命中点:[上一锚, 本命中) 内最后一个 \n 之后即行起点。 */
+            if let Some(p) = hay[line_from..i].iter().rposition(|&b| b == b'\n') {
+                line_start = line_from + p + 1;
+            }
+            line_from = i;
             if last_line_start != Some(line_start) && hits.len() < MAX_SEARCH_HIT_ROWS {
                 last_line_start = Some(line_start);
                 hits.push(LogSearchHit {
@@ -186,5 +201,31 @@ mod tests {
         assert_eq!(r2.hits[0].line.chars().count(), 240);
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(&p2);
+    }
+
+    #[test]
+    fn search_log_重复前缀_needle_与行游标多行() {
+        /* 重复前缀 needle:首字节跳扫 + 整段比对不得漏/重(原逐位置比对退化型) */
+        let path = temp_log("search-aaab", b"aaaaaab");
+        let r = search_log(&path, 0, "aaab", true).unwrap();
+        assert_eq!(r.total_hits, 1);
+        assert_eq!(r.hits.len(), 1);
+        let _ = std::fs::remove_file(&path);
+
+        /* 行游标前向推进:多行命中各归各行起点(原回扫行为等价性) */
+        let path2 = temp_log("search-lines", b"x\nabc\nz abc\nabc\n");
+        let r2 = search_log(&path2, 100, "abc", true).unwrap();
+        assert_eq!(r2.total_hits, 3);
+        assert_eq!(r2.hits.len(), 3);
+        assert_eq!(r2.hits[0].byte_offset, 100 + 2);
+        assert_eq!(r2.hits[1].byte_offset, 100 + 6);
+        assert_eq!(r2.hits[2].byte_offset, 100 + 12);
+        /* 同行两处命中去重(游标不回退语义) */
+        let path3 = temp_log("search-same-line", b"abc abc\nabc\n");
+        let r3 = search_log(&path3, 0, "abc", true).unwrap();
+        assert_eq!(r3.total_hits, 3);
+        assert_eq!(r3.hits.len(), 2);
+        let _ = std::fs::remove_file(&path2);
+        let _ = std::fs::remove_file(&path3);
     }
 }
