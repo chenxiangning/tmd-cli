@@ -6,6 +6,7 @@
  * 本地 stdio 双通道);official/glama 直接用归一结果。
  */
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { DialogShell, DialogActions } from "@kernel/DialogShell";
 import { SecretInput } from "@kernel/SecretInput";
@@ -53,7 +54,7 @@ function useSmitheryResolve(card: RegistryCard, applyDetail: (detail: RegistryCa
         applyRef.current(detail);
       })
       .catch((e) => {
-        if (alive) setError(e instanceof Error ? e.message : String(e));
+        if (alive) setError(errTextDisplay(e));
       })
       .finally(() => alive && setResolving(false));
     return () => {
@@ -144,7 +145,7 @@ export function InstallDraftModal({
       setSaved(true);
       window.setTimeout(onClose, 1500);
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : String(e));
+      setSaveError(errTextDisplay(e));
     } finally {
       setBusy(false);
     }

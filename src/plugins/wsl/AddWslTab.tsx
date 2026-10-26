@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ipc, type WslDistro } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { addWorkspace } from "@kernel/workspace";
@@ -44,7 +45,7 @@ export function AddWslTab({ onAdded }: WorkspaceOriginAddTabProps) {
         }
       })
       .catch((e) => {
-        if (!cancelled) setLoadErr(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setLoadErr(errTextDisplay(e));
       });
     return () => {
       cancelled = true;

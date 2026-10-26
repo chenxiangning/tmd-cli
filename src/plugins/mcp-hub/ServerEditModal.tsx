@@ -7,6 +7,7 @@
  * (claude 磁盘实证),TOML 家不写(codex 磁盘实证)。
  */
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { DialogShell, DialogActions, useEscClose } from "@kernel/DialogShell";
 import type { McpServerEntry } from "@plugins/cli-shared/mcpWrite";
@@ -61,7 +62,7 @@ export function ServerEditModal({
       }
       setSaved(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusy(false);
     }

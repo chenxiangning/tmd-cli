@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { ArrowLeft, File, FileImage, FileText, FloppyDisk, Plus, X } from "@phosphor-icons/react";
 import { DOC_KIND_LABELS } from "./kindLabels";
@@ -61,12 +62,12 @@ export function DrawerDocsTab({ project, initialOpenDocId, onToast }: {
       setDraft(text);
       setDirty(false);
       setMode(initialDocMode(text));
-    }, (e) => onToast(e instanceof Error ? e.message : String(e)));
+    }, (e) => onToast(errTextDisplay(e)));
   };
   const createAndOpen = () => {
     void createDoc(project.id, { title: t("未命名文档") }).then(
       (doc) => { onToast(t("文档已创建")); openMarkdown(doc); },
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => onToast(errTextDisplay(e)),
     );
   };
   const upload = async (file: File) => {
@@ -84,7 +85,7 @@ export function DrawerDocsTab({ project, initialOpenDocId, onToast }: {
     }
     void attachDocFile(project.id, openDoc.id, { name: file.name, bytesBase64, size }).then(
       () => onToast(t("附件已上传")),
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => onToast(errTextDisplay(e)),
     );
   };
   const previewImage = (item: { fileName: string; title?: string; name?: string }) => {
@@ -107,7 +108,7 @@ export function DrawerDocsTab({ project, initialOpenDocId, onToast }: {
     /* 成功才清 dirty:失败保留脏标记,保存钮可重试。 */
     void saveDoc(project.id, openDoc.id, { title: titleDraft, markdown: draft }).then(
       () => { onToast(t("文档已保存")); setDirty(false); },
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => onToast(errTextDisplay(e)),
     );
   };
   if (openDoc) {

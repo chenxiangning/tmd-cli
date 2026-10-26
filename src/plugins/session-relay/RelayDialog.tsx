@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { createPortal } from "react-dom";
 import { PaperPlaneRight } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
@@ -152,7 +153,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
       await attachPendingRelay({ source, targetId, text: summary.trim(), truncated: summaryTruncated, createdRef });
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
       setBusy(false);
     }
   };

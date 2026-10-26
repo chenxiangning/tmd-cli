@@ -6,6 +6,7 @@
  * 替代尾窗 turns,返回按钮回实时尾窗,零拼接零去重。
  */
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { clipText, type TranscriptTurn } from "@kernel/transcript";
 import { loadHistoryRange, type TimelineEntry } from "./timelineData";
@@ -32,7 +33,7 @@ export function TimelineHistory(props: {
     void loadHistoryRange(props.path, props.entry)
       .then((r) => alive.current && setState({ kind: "done", turns: r.turns, anchorText: r.anchorText }))
       .catch((e: unknown) =>
-        alive.current && setState({ kind: "error", message: e instanceof Error ? e.message : String(e) }),
+        alive.current && setState({ kind: "error", message: errTextDisplay(e) }),
       );
   }, [props.path, props.entry]);
   /* 锚定:turns 渲染后在实况容器里找同口径 .tr-user 滚到视口顶(倒序取最新

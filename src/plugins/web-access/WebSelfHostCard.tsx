@@ -10,6 +10,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { CheckCircle, CloudArrowUpIcon as CloudArrowUp, Minus, TerminalWindow, XCircle } from "@phosphor-icons/react";
 import { onRelayDeployProgress, relayDeploySelfhost, type RelayDeployProgress, type SelfhostDeployReq, type SelfhostDeployResult } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -87,7 +88,7 @@ export function WebSelfHostCard() {
       setResult(r);
       if (r.ok) setDone(t("部署完成:") + r.url + t("(URL/密钥已回填右卡)"));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       unlisten();
       setBusy(false);

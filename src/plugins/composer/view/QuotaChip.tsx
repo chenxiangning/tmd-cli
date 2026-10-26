@@ -16,6 +16,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { createPortal } from "react-dom";
 import { ArrowClockwise } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
@@ -119,7 +120,7 @@ function useActiveQuota(): {
                 model,
                 snapshot: {
                   ...prev.snapshot,
-                  error: e instanceof Error ? e.message : String(e),
+                  error: errTextDisplay(e),
                 },
               }
             : prev,

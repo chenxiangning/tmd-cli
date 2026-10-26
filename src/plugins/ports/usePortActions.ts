@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
 import { killCommand, killListener } from "./portsKill";
@@ -38,7 +39,7 @@ export function usePortActions(
         setFlash(flashKey);
         setTimeout(() => setFlash((f) => (f === flashKey ? null : f)), 1200);
       })
-      .catch((e) => setNotice(e instanceof Error ? e.message : String(e)));
+      .catch((e) => setNotice(errTextDisplay(e)));
   };
 
   const confirmKill = async () => {
@@ -53,7 +54,7 @@ export function usePortActions(
       if (outcome === "reused") setNotice(t("pid 已复用,已跳过强杀"));
       await refresh();
     } catch (e) {
-      setNotice(t("终止失败:{error}", { error: e instanceof Error ? e.message : String(e) }));
+      setNotice(t("终止失败:{error}", { error: errTextDisplay(e) }));
     } finally {
       setKilling((s) => {
         const n = new Set(s);

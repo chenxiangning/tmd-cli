@@ -6,6 +6,7 @@
  */
 
 import { Suspense, lazy, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { retryImport } from "@kernel/lazyImport";
 /* codemirror core 懒出桌面首屏静态图(FileTabContent/RemoteFileTab 同款先例)。 */
 const FileCodeEditor = lazy(retryImport(() =>
@@ -78,7 +79,7 @@ export function ConfigFile({
         /* 基线同时定格(values 空间 JSON):GUI 脏判定用,宿主持有避免子件 effect。 */
         setBaseline(JSON.stringify(engine.load(content)));
       } catch (e) {
-        setLoadError(e instanceof Error ? e.message : String(e));
+        setLoadError(errTextDisplay(e));
       }
     });
     return () => {
@@ -112,7 +113,7 @@ export function ConfigFile({
       onDirtyChange(false);
       setWriteError(null);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = errTextDisplay(e);
       setWriteError(msg);
       throw e;
     } finally {

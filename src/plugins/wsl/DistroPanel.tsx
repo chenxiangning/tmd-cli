@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import type { SshHostConfig, WslDistro, WslEngineProbe } from "@kernel/ipc";
 import type { CliProfile } from "@kernel/cliProfile";
 import { ipc } from "@kernel/ipc";
@@ -50,7 +51,7 @@ export function DistroPanel({
         rememberWslProbes(distro.name, detected);
       })
       .catch((e) => {
-        if (!cancelled) setProbeErr(e instanceof Error ? e.message : String(e));
+        if (!cancelled) setProbeErr(errTextDisplay(e));
       });
     return () => {
       cancelled = true;

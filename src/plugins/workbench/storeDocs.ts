@@ -5,6 +5,7 @@
  */
 
 import type { Attachment, ProjectDoc, TaskSessionLink } from "./types";
+import { errTextDisplay } from "@kernel/errText";
 import { enqueue, markWriteError, mutate, randId, setProjects, state } from "./storeCore";
 import { readDocText, removeDocFile, safeAttachFileName, writeDocBytes, writeDocFile, writeIndexFile } from "./workbenchFiles";
 
@@ -33,8 +34,8 @@ export function createDoc(projectId: string, init: { title: string; markdown?: s
     try {
       setProjects(await writeIndexFile(next));
     } catch (e) {
-      markWriteError(e instanceof Error ? e.message : String(e));
-      setProjects(snapshot, e instanceof Error ? e.message : String(e));
+      markWriteError(errTextDisplay(e));
+      setProjects(snapshot, errTextDisplay(e));
       throw e;
     }
     return doc;
@@ -75,8 +76,8 @@ export function saveDoc(projectId: string, docId: string, patch: { title?: strin
     try {
       setProjects(await writeIndexFile(next));
     } catch (e) {
-      markWriteError(e instanceof Error ? e.message : String(e));
-      setProjects(snapshot, e instanceof Error ? e.message : String(e));
+      markWriteError(errTextDisplay(e));
+      setProjects(snapshot, errTextDisplay(e));
       throw e;
     }
   });
@@ -122,8 +123,8 @@ export function attachDocFile(projectId: string, docId: string, file: { name: st
     try {
       setProjects(await writeIndexFile(next));
     } catch (e) {
-      markWriteError(e instanceof Error ? e.message : String(e));
-      setProjects(snapshot, e instanceof Error ? e.message : String(e));
+      markWriteError(errTextDisplay(e));
+      setProjects(snapshot, errTextDisplay(e));
       await removeDocFile(projectId, attachment.fileName);
       throw e;
     }
@@ -179,8 +180,8 @@ export function attachTaskFile(projectId: string, taskId: string, file: { name: 
     try {
       setProjects(await writeIndexFile(next));
     } catch (e) {
-      markWriteError(e instanceof Error ? e.message : String(e));
-      setProjects(snapshot, e instanceof Error ? e.message : String(e));
+      markWriteError(errTextDisplay(e));
+      setProjects(snapshot, errTextDisplay(e));
       await removeDocFile(projectId, attachment.fileName);
       throw e;
     }

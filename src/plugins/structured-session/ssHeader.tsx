@@ -6,6 +6,7 @@
  * 引擎切换 = 换 profileId 另开 tab(同 cwd,两引擎 tab 并存,先例 tabs.ts)。
  */
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { host, useHost } from "@kernel/host";
@@ -172,7 +173,7 @@ function ModelMenu(props: {
     void req
       .then(() => session.getState())
       .then((s) => { if (s) onStateRefresh(s); props.onClose(); })
-      .catch((e: unknown) => setMenuErr(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => setMenuErr(errTextDisplay(e)));
   };
 
   const label = model ? model.id + (thinkingLevel ? `:${thinkingLevel}` : "") : t("模型");

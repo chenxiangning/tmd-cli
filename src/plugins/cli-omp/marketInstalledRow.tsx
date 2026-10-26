@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
@@ -24,7 +25,7 @@ async function runUninstall(
     push(ok ? t("—— 已卸载 ——") : t("—— 失败:命令非零退出,详见上方日志 ——"));
   } catch (e) {
     /* 同 ExtCard.run:reject 必须落失败行并退出 running。 */
-    push(t("—— 失败:{error} ——", { error: e instanceof Error ? e.message : String(e) }));
+    push(t("—— 失败:{error} ——", { error: errTextDisplay(e) }));
   } finally {
     onSettled();
   }
@@ -190,7 +191,7 @@ export function InstalledRow({
       /* spawn 失败(omp 被卸载/PATH 变更)reject 必须接住,与 runUninstall 同纪律。 */
       setLogs((prev) => [
         ...prev,
-        t("—— 失败:{error} ——", { error: e instanceof Error ? e.message : String(e) }),
+        t("—— 失败:{error} ——", { error: errTextDisplay(e) }),
       ]);
     } finally {
       setRunning(null);

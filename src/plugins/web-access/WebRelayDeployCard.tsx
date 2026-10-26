@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { CloudArrowUpIcon as CloudArrowUp, DownloadSimpleIcon as DownloadSimple } from "@phosphor-icons/react";
 import { relayDeploy, relayDeployPack, pickSavePath } from "@kernel/ipc";
 import { updateSettings } from "@kernel/settings";
@@ -31,7 +32,7 @@ export function WebRelayDeployCard() {
       updateSettings({ webRelayUrl: r.url, webRelayKey: r.key });
       setToken("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusy(false);
     }
@@ -47,7 +48,7 @@ export function WebRelayDeployCard() {
       const saved = await relayDeployPack(path, key.trim() || undefined);
       setDone(t("已导出部署包:") + saved);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusy(false);
     }

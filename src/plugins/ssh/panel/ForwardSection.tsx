@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowsLeftRight, Minus, Plus } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -110,7 +111,7 @@ function ForwardForm({ sessionId, onDone }: { sessionId: string; onDone: () => v
       await refreshForwards(sessionId);
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusy(false);
     }

@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { ArrowLeft, CalendarBlank, FloppyDisk, Notebook, User } from "@phosphor-icons/react";
 import { todayISO } from "./analysis";
@@ -57,7 +58,7 @@ export function TaskFormView({
       : addTask(projectId, values);
     void job.then(
       () => { onToast(task ? t("任务已更新") : t("任务已添加")); onDone?.(); onClose(); },
-      (e) => { setError(e instanceof Error ? e.message : String(e)); setBusy(false); },
+      (e) => { setError(errTextDisplay(e)); setBusy(false); },
     );
   };
 

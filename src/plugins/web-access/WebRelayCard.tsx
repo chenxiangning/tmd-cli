@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowsClockwiseIcon as ArrowsClockwise, LinkSimpleIcon as LinkSimple } from "@phosphor-icons/react";
 import { onWebRelay, webRelayStart, webRelayStatus, webRelayStop, type RelayInfo } from "@kernel/ipc";
 import { isWeb } from "@kernel/transport";
@@ -131,7 +132,7 @@ export function WebRelayCard() {
     try {
       setInfo(await webRelayStatus());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     }
   }, []);
 
@@ -169,7 +170,7 @@ export function WebRelayCard() {
       // (2026-09-24 实证竞态,表现为外网连上后手机 /pair 全挂 + 「Web 访问未开启」)。
       setInfo(await webRelayStart(url, relayKey));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusy(false);
     }
@@ -183,7 +184,7 @@ export function WebRelayCard() {
       await webRelayStop();
       setInfo(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusy(false);
     }

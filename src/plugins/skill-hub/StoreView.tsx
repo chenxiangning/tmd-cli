@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { MagnifyingGlass, ArrowClockwise, Storefront } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
@@ -213,7 +214,7 @@ export function StoreView() {
         if (alive) {
           setItems([]);
           setCursor("");
-          setError(e instanceof Error ? e.message : String(e));
+          setError(errTextDisplay(e));
         }
       } finally {
         if (alive) setLoading(false);
@@ -235,7 +236,7 @@ export function StoreView() {
       setItems((prev) => [...prev, ...result.items]);
       setCursor(result.nextCursor);
     } catch (e) {
-      setLoadMoreError(e instanceof Error ? e.message : String(e));
+      setLoadMoreError(errTextDisplay(e));
     } finally {
       setLoadingMore(false);
     }

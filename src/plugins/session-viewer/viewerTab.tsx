@@ -5,6 +5,7 @@
  * (files 插件同款纪律)。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, lazy } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import type { EditorTab } from "@kernel/tabs";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
@@ -90,10 +91,10 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
                 ? exportedToast(r.out)
                 : t("导出转录快照失败:{reason}", { reason: exportReasonLabel(r.reason) }),
             ),
-          (e) => showToast(e instanceof Error ? e.message : String(e)),
+          (e) => showToast(errTextDisplay(e)),
         );
       })
-      .catch((e: unknown) => showToast(e instanceof Error ? e.message : String(e))); /* 对话框 IPC 失败不静默 */
+      .catch((e: unknown) => showToast(errTextDisplay(e))); /* 对话框 IPC 失败不静默 */
   }, [state, payload.title, payload.cliSessionId, payload.profileId, payload.path, payload.modifiedAt, payload.cwd]);
 
   const profile = useMemo(

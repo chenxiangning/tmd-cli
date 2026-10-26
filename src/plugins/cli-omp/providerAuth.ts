@@ -10,6 +10,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { OMP_APIKEY_PROVIDERS, type OmpApiKeyProvider } from "./providerAuthCatalog";
 
 /** 单个 API Key 供应商的展示快照。 */
@@ -140,7 +141,7 @@ export async function listOmpAuth(): Promise<OmpAuthList> {
       [],
     )) as Array<[string, string, string]>;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errTextDisplay(e);
     if (/no such table/i.test(msg))
       throw new Error("agent.db 还没有 auth_credentials 表(先运行一次 omp 完成初始化)");
     throw e;

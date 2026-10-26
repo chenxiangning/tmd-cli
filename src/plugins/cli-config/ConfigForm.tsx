@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import type {
   CliConfigEntry,
   CliConfigField,
@@ -70,7 +71,7 @@ export function ConfigForm({
     } catch (e) {
       /* 失败走持久错误条:2.6s 中性 toast 会把写盘失败一并抹掉(假「已保存」)。 */
       setToast(null);
-      setSaveError(t("保存失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+      setSaveError(t("保存失败:{msg}", { msg: errTextDisplay(e) }));
     }
   };
 

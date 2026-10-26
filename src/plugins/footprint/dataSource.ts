@@ -4,6 +4,7 @@
  * 打开文件/所在文件夹通道)。纯读,不维护写路径。
  */
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { collectSessionRowsChecked, type DaySessionRow } from "@plugins/workbench/journal/daySessions";
 import { dailyPaths } from "@plugins/workbench/journal/journalFiles";
 import { getWorkspaces } from "@kernel/workspace";
@@ -242,6 +243,6 @@ export async function revealInFileManager(path: string): Promise<string | null> 
     await ipc.fsRevealInFileManager(path);
     return null;
   } catch (e) {
-    return e instanceof Error ? e.message : String(e);
+    return errTextDisplay(e);
   }
 }

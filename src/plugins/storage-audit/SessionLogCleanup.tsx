@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
@@ -35,7 +36,7 @@ export function SessionLogCleanup() {
     try {
       setResult(await ipc.sessionLogCleanup(mode === "all" ? 0 : settings.sessionLogRetentionDays));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusy(null);
     }

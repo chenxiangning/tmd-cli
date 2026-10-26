@@ -7,6 +7,7 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ipc, type SftpEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { retryImport } from "@kernel/lazyImport";
@@ -91,7 +92,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
             truncated: false,
             sizeBytes: 0,
             loaded: true,
-            error: e instanceof Error ? e.message : String(e),
+            error: errTextDisplay(e),
           });
         }
       }
@@ -136,7 +137,7 @@ export function RemoteFileTab({ tab }: { tab: EditorTab }) {
         setDirty(false);
         if (slot) draftMirrorClear(slot); /* 保存成功 = 草稿已落远端,镜像退役 */
       } catch (e) {
-        setBanner(t("保存失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+        setBanner(t("保存失败:{msg}", { msg: errTextDisplay(e) }));
       } finally {
         setSaving(false);
       }

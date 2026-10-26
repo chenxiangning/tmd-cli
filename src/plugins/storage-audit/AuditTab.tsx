@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { CircleNotch, MagnifyingGlass } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
@@ -39,7 +40,7 @@ export function AuditTab() {
       setCats(categories);
       setReports(reportByKey(rs));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setPhase("done");
     }

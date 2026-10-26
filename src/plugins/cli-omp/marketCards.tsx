@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowSquareOut, ShieldWarning } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
@@ -163,7 +164,7 @@ export function ExtCard({
     } catch (e) {
       /* cliInstallRun reject(spawn 失败/300s 超时等):不接住则 setRunning
       永不执行,卡片永久转圈(2026-09-06 win 新装机实证)。 */
-      push(t("—— 失败:{error} ——", { error: e instanceof Error ? e.message : String(e) }));
+      push(t("—— 失败:{error} ——", { error: errTextDisplay(e) }));
     } finally {
       setRunning(false);
       onChanged();

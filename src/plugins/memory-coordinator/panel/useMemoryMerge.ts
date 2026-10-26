@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { getSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { resolveDistillEngine } from "../modelCatalog";
@@ -61,7 +62,7 @@ export function useMemoryMerge({
     }).catch((e: unknown) => {
       /* reject 路径兜底:merging 卡 true 会永久禁掉合并钮(正常失败走 {ok:false})。 */
       setMerging(false);
-      setMergeNote(t("失败: {detail}", { detail: e instanceof Error ? e.message : String(e) }));
+      setMergeNote(t("失败: {detail}", { detail: errTextDisplay(e) }));
     });
   };
 

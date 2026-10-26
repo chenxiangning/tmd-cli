@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
@@ -37,7 +38,7 @@ export function CleanupTab() {
       const rs = await listCkptWorkspaces();
       setRows(rs);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : String(e));
+      setLoadError(errTextDisplay(e));
     }
   }
 
@@ -60,7 +61,7 @@ export function CleanupTab() {
       const removed = await ipc.checkpointPrune(row.workspace.root, KEEP, TTL_DAYS);
       setPruned((prev) => ({ ...prev, [row.workspace.root]: removed }));
     } catch (e) {
-      setOpError(e instanceof Error ? e.message : String(e));
+      setOpError(errTextDisplay(e));
     } finally {
       setBusyCwd(null);
       void refresh();

@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { createPortal } from "react-dom";
 import { CaretDown } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
@@ -52,7 +53,7 @@ export function OpenWithMenu({ path }: { path: string }) {
   /** 打开动作:失败上 toast(不再只 console.error);成功无反馈(应用自己可见)。 */
   const openWithTarget = (target: OpenWithTarget) => {
     ipc.fsOpenWith(path, target).catch((e) => {
-      showNotice(t("打开失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+      showNotice(t("打开失败:{msg}", { msg: errTextDisplay(e) }));
       console.error("[open-with] 打开失败:", e);
     });
   };

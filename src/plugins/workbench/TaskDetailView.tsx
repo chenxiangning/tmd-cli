@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { ArrowLeft, ArrowsClockwise, CalendarBlank, CalendarPlus, CheckCircle, Flag, Folder, FolderOpen, Plus, User } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
@@ -71,7 +72,7 @@ export function TaskDetailView({
     /* 成功才清 dirty:失败保留脏标记,保存钮可重试(吞错后仍清 = 按钮禁死)。 */
     void updateTask(project.id, task.id, { description }).then(
       () => { onToast(t("描述已保存")); setDirty(false); },
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => onToast(errTextDisplay(e)),
     );
   const upload = async (file: File) => {
     if (file.size > 24 * 1024 * 1024) {
@@ -88,7 +89,7 @@ export function TaskDetailView({
     /* 返回 promise:上传钮的 in-flight 态覆盖落盘全程(ui.WbAttachmentUpload)。 */
     return attachTaskFile(project.id, task.id, { name: file.name, bytesBase64, size }).then(
       () => onToast(t("附件已上传")),
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => onToast(errTextDisplay(e)),
     );
   };
   const previewAttachment = (att: Attachment) => {

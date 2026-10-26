@@ -5,6 +5,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { KernelTopics } from "@kernel/events";
@@ -105,7 +106,7 @@ export async function runWorktreeCreate(input: {
     recordWtSession(spawned.id, { branch: input.finalBranch, wtPath: input.wtPath, root: input.repoCwd });
     return { ok: true };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = errTextDisplay(e);
     if (spawnedId !== null) return { ok: false, kind: "spawned-no-record", msg };
     if (!added) return { ok: false, kind: "add-failed", msg };
     const rolledBack = await rollbackWorktree(input.repoCwd, input.wtPath, wsId);

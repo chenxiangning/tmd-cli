@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowClockwise, X } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
@@ -230,14 +231,14 @@ function useWbActions(ctx: {
   const clearNow = () => {
     void clearAllProjects().then(
       () => ctx.toast(t("已清空")),
-      (e) => ctx.toast(e instanceof Error ? e.message : String(e)),
+      (e) => ctx.toast(errTextDisplay(e)),
     );
     ctx.setConfirmClear(null);
   };
   const clearSamplesNow = () => {
     void clearSampleProjects().then(
       (count) => ctx.toast(t("已清空:{count} 个示例项目", { count: String(count) })),
-      (e) => ctx.toast(e instanceof Error ? e.message : String(e)),
+      (e) => ctx.toast(errTextDisplay(e)),
     );
     ctx.setConfirmClear(null);
   };

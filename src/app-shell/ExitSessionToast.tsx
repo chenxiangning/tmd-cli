@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowClockwise, ArrowSquareOut, Cross, Warning } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
@@ -42,7 +43,7 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
       .openDiskSession(n.profileId, n.cwd, n.workspaceId, n.cliSessionId!)
       .then(() => onClose(n.id))
       .catch((e: unknown) => {
-        setResumeError(e instanceof Error ? e.message : String(e));
+        setResumeError(errTextDisplay(e));
         setResuming(false);
       });
   };

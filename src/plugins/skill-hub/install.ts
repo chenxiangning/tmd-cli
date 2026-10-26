@@ -9,6 +9,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { upsertSkillRecord } from "@plugins/cli-shared/skillRegistry";
 import { INSTALL_ENGINES, SHARED_SKILLS_REL } from "./skillScan";
 import { resolveClawHubOwner } from "./clawhub";
@@ -149,7 +150,7 @@ export async function runInstall(
     outcome.stage = "done";
     onStage("done");
   } catch (e) {
-    outcome.error = e instanceof Error ? e.message : String(e);
+    outcome.error = errTextDisplay(e);
     outcome.stage = "error";
     onStage("error");
   }

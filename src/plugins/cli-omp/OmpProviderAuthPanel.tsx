@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { IdentificationCard } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
@@ -30,7 +31,7 @@ export function OmpProviderAuthPanel() {
     () =>
       listOmpAuth()
         .then(setList)
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e))),
+        .catch((e: unknown) => setError(errTextDisplay(e))),
     [],
   );
   useEffect(() => {
@@ -50,7 +51,7 @@ export function OmpProviderAuthPanel() {
         setNotice(t("已保存 {id} 的 API Key", { id }));
         setKeyTarget(null);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       } finally {
         setSaving(false);
       }
@@ -66,7 +67,7 @@ export function OmpProviderAuthPanel() {
         await refresh();
         setNotice(t("已删除 {id} 的 API Key", { id }));
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       } finally {
         setConfirmDelete(null);
       }
@@ -140,7 +141,7 @@ export function OmpProviderAuthPanel() {
                       setNotice(t("已在内置终端打开 {name} 的登录流程,完成后回到此处查看状态", { name: p.name })),
                     )
                     .catch((e: unknown) =>
-                      setError(e instanceof Error ? e.message : String(e)),
+                      setError(errTextDisplay(e)),
                     );
                 }}
                 data-testid={`provider-auth-login-${p.id}`}

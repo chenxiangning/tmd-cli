@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { DialogShell, DialogActions } from "@kernel/DialogShell";
 import { SecretInput } from "@kernel/SecretInput";
@@ -49,7 +50,7 @@ export function OmpCustomProviderDialog({
       onSaved();
       onClose();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setSaving(false);
     }

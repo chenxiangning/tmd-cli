@@ -8,6 +8,7 @@
  */
 
 import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./events";
+import { errTextDisplay } from "@kernel/errText";
 import { ipc, type SessionMeta, type SpawnedSession } from "./ipc";
 import { adoptPtySession, ADOPT_RACE_REASON } from "./sessionAdopt";
 import { getPlatformKind } from "./platform";
@@ -82,7 +83,7 @@ export class ShellSessionService {
         const event: SessionStartFailedEvent = {
           sessionId: null,
           profileId: "shell",
-          reason: e instanceof Error ? e.message : String(e),
+          reason: errTextDisplay(e),
         };
         this.events.emit(KernelTopics.sessionStartFailed, event);
         throw e;

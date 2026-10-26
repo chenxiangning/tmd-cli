@@ -13,10 +13,7 @@ struct TempRoot(PathBuf);
 
 impl TempRoot {
     fn new(name: &str) -> Self {
-        let p = std::env::temp_dir().join(format!(
-            "tmd-sweep-test-{}-{name}",
-            std::process::id()
-        ));
+        let p = std::env::temp_dir().join(format!("tmd-sweep-test-{}-{name}", std::process::id()));
         let _ = fs::remove_dir_all(&p);
         fs::create_dir_all(&p).unwrap();
         Self(p)

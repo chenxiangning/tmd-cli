@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { CaretRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
@@ -78,7 +79,7 @@ export function FileTreeRemoteSource({
       setEntries(await source.listDir(workspace, root));
     } catch (e) {
       setEntries([]);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     }
   }, [source, workspace, root]);
 
@@ -116,7 +117,7 @@ export function FileTreeRemoteSource({
       void source
         .listDir(workspace, entry.path)
         .then((children) => setExpanded((prev) => ({ ...prev, [entry.path]: children })))
-        .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+        .catch((e) => setError(errTextDisplay(e)));
     },
     [expanded, source, workspace],
   );

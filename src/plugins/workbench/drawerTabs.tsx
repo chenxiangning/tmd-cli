@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { Plus, X } from "@phosphor-icons/react";
 import { openTasks, todayISO } from "./analysis";
@@ -139,7 +140,7 @@ export function DrawerUpdatesTab({ project, onToast }: { project: Project; onToa
     setPending(true);
     void addUpdate(project.id, kind, text.trim()).then(
       () => { onToast(t("进展已记录")); setText(""); setPending(false); },
-      (e) => { onToast(e instanceof Error ? e.message : String(e)); setPending(false); },
+      (e) => { onToast(errTextDisplay(e)); setPending(false); },
     );
   };
   return (

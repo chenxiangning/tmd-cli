@@ -8,6 +8,7 @@
  * 调度(定时/启动补跑/跟随实时增量)在 journalSchedule.ts。
  */
 import { host } from "@kernel/host";
+import { errTextDisplay } from "@kernel/errText";
 import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { prepareSendPayload } from "@kernel/profileSend";
@@ -39,7 +40,7 @@ export function bootGenSession(events: PluginEventBus): () => void {
    * err 不落珠,定时族每 15min 重入队且当日无错可显。 */
   setTaskRunner((task) => runGeneration(task).catch((e: unknown) => {
     if (!isTaskActive(task.id)) return; /* 显式早退已 failGen,取消竞态不重复落账 */
-    failGen(task.id, task.dayKey, task.type, `${t("生成会话异常")}:${e instanceof Error ? e.message : String(e)}`);
+    failGen(task.id, task.dayKey, task.type, `${t("生成会话异常")}:${errTextDisplay(e)}`);
   }), abortRun);
   const offSettled = events.on<{ sessionId: string }>(KernelTopics.turnSettled, (e) => {
     const p = pending.get(e.sessionId);
