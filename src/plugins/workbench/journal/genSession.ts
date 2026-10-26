@@ -142,6 +142,10 @@ async function runGeneration(task: GenTask): Promise<void> {
      引擎声明 oneshotArgs 走无头单发:prompt 落盘文件经 @file 传入(argv 装不下
      数百 KB 的摘录+清单),进程答完即退;--no-session 不落会话文件,当日索引
      零污染(自指过滤退化为历史数据的保险丝)。 */
+  /* 无头覆盖(2026-10-26 本机实证盘点):omp/pi/claude/opencode(run+stdin)/
+   * qoder 双版(-p+stdin)已声明;kimi/grok 的 -p/--single 必填串参数(数百 KB
+   * prompt 爆 argv,无 stdin 通道)、dsh 为 profile 启动器(无 print 模式),
+   * 三家回落 TUI 是实证后的正确形态,勿凭印象补声明。 */
   const headless = !!profile.oneshotArgs;
   let promptPath: string | undefined;
   if (headless) {
