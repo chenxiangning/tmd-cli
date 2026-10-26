@@ -184,10 +184,13 @@ describe("fileVisual(默认视觉 provider)", () => {
 });
 
 describe("editorChromeLogic(编辑器壳纯逻辑)", () => {
-  const doc = (over: Partial<{ error: string | null; saving: boolean; dirty: boolean }> = {}) => ({
+  const doc = (
+    over: Partial<{ error: string | null; saving: boolean; dirty: boolean; conflict: boolean }> = {},
+  ) => ({
     error: null,
     saving: false,
     dirty: false,
+    conflict: false,
     ...over,
   });
 
@@ -202,6 +205,12 @@ describe("editorChromeLogic(编辑器壳纯逻辑)", () => {
     expect(statusText(doc({ saving: true, dirty: true }), false)).toBe("保存中…");
     expect(statusText(doc({ dirty: true }), false)).toBe("● 未保存的更改 · ⌘S 保存");
     expect(statusText(doc(), false)).toBe("已保存");
+  });
+
+  it("statusText:外部变更冲突压过本地错误与脏标记", () => {
+    expect(statusText(doc({ conflict: true, error: "boom", dirty: true }), false)).toBe(
+      "磁盘文件已被外部修改 · 请裁决",
+    );
   });
 
   it("toolbarCls:错误与脏并存时双类同挂,视觉权重由 CSS 顺序承担", () => {

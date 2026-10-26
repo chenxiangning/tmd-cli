@@ -13,7 +13,7 @@ fn temp_root(tag: &str) -> std::path::PathBuf {
 fn write_file_超写闸拒绝且不落盘() {
     /* 闸检查在磁盘 IO 前:超限串直接 Err,不产生任何写盘。 */
     let big = "x".repeat(MAX_WRITE_BYTES + 1);
-    let err = write_file("/tmp/tmd-cli-fs-edit-gate-probe.txt", &big).unwrap_err();
+    let err = write_file("/tmp/tmd-cli-fs-edit-gate-probe.txt", &big, None).unwrap_err();
     assert!(err.contains("200MB"), "实际报错: {err}");
 }
 
@@ -23,11 +23,11 @@ fn write_file_覆写与新建空文件() {
     let file = root.join("a.txt");
 
     // 新建(父目录存在,内容为空)
-    write_file(file.to_str().unwrap(), "").unwrap();
+    write_file(file.to_str().unwrap(), "", None).unwrap();
     assert_eq!(fs::read(&file).unwrap(), b"");
 
     // 覆写
-    write_file(file.to_str().unwrap(), "hello\n").unwrap();
+    write_file(file.to_str().unwrap(), "hello\n", None).unwrap();
     assert_eq!(fs::read(&file).unwrap(), b"hello\n");
     let _ = fs::remove_dir_all(&root);
 }
@@ -44,7 +44,7 @@ fn write_file_原子替换_保权限_无_tmp_残留() {
         fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
     }
 
-    write_file(file.to_str().unwrap(), "new-content").unwrap();
+    write_file(file.to_str().unwrap(), "new-content", None).unwrap();
     assert_eq!(fs::read(&file).unwrap(), b"new-content");
     #[cfg(unix)]
     {
@@ -68,9 +68,9 @@ fn write_file_拒绝相对路径_git_段_与目录目标() {
     let git_dir = root.join(".git");
     fs::create_dir_all(&git_dir).unwrap();
 
-    assert!(write_file("relative/path.txt", "x").is_err());
-    assert!(write_file(git_dir.join("x").to_str().unwrap(), "x").is_err());
-    assert!(write_file(root.to_str().unwrap(), "x").is_err());
+    assert!(write_file("relative/path.txt", "x", None).is_err());
+    assert!(write_file(git_dir.join("x").to_str().unwrap(), "x", None).is_err());
+    assert!(write_file(root.to_str().unwrap(), "x", None).is_err());
     assert!(
         fs::read(git_dir.join("x")).is_err(),
         ".git 内文件不得被创建"
@@ -208,5 +208,33 @@ fn copy_file_拒绝目录源_相对路径与_git_段() {
         root.join("no-dir/x").to_str().unwrap()
     )
     .is_err());
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn write_file_mtime_乐观锁拒外部变更() {
+    let root = temp_root("mtime");
+    let file = root.join("a.txt");
+    fs::write(&file, "v1").unwrap();
+    let base = mtime_ms(&file).unwrap();
+
+    // 基线相符 → 写成功并返回新 mtime
+    let after = write_file(file.to_str().unwrap(), "v2", Some(base)).unwrap();
+    assert_eq!(fs::read(&file).unwrap(), b"v2");
+    assert!(after >= base);
+
+    // 基线过期(外部已写)→ 拒写且内容不动
+    let err = write_file(file.to_str().unwrap(), "v3", Some(base)).unwrap_err();
+    assert!(err.contains("E_FS_MTIME"), "实际报错: {err}");
+    assert_eq!(fs::read(&file).unwrap(), b"v2");
+
+    // 文件被删 → 拒写(外部删除同样是变更)
+    fs::remove_file(&file).unwrap();
+    let err = write_file(file.to_str().unwrap(), "v4", Some(after)).unwrap_err();
+    assert!(err.contains("E_FS_MTIME"));
+
+    // None = 无守卫直写(旧语义)
+    write_file(file.to_str().unwrap(), "v5", None).unwrap();
+    assert_eq!(fs::read(&file).unwrap(), b"v5");
     let _ = fs::remove_dir_all(&root);
 }

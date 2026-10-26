@@ -41,8 +41,24 @@ fn validate_basename(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// mtime(毫秒):外部变更冲突检测基线;文件不存在/不可读回 None。
+pub fn mtime_ms(p: &Path) -> Option<u64> {
+    p.metadata()
+        .ok()?
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_millis()
+        .try_into()
+        .ok()
+}
+
 /// 覆写文本文件(编辑器保存通道;新建入口禁止走这里,见 create_file)。
-pub fn write_file(path: &str, content: &str) -> Result<(), String> {
+/// expect_mtime = 乐观锁:与磁盘当前 mtime 不符(外部修改/删除)即拒写,
+/// 堵「编辑器开着旧版一 ⌘S 静默覆盖 AI/终端并发写」;None = 无守卫直写。
+/// 成功返回写后 mtime,供调用方滚动基线。
+pub fn write_file(path: &str, content: &str, expect_mtime: Option<u64>) -> Result<u64, String> {
     validate_target(path)?;
     if content.len() > MAX_WRITE_BYTES {
         return Err(format!(
@@ -54,7 +70,16 @@ pub fn write_file(path: &str, content: &str) -> Result<(), String> {
     if p.is_dir() {
         return Err("目标路径是目录,不能写入文件".to_string());
     }
-    crate::session::write_atomic(p, content.as_bytes()).map_err(|e| format!("写入文件失败: {e}"))
+    if let Some(expect) = expect_mtime {
+        match mtime_ms(p) {
+            Some(actual) if actual == expect => {}
+            _ => {
+                return Err("E_FS_MTIME 磁盘文件已被外部修改或删除,保存已阻止".to_string());
+            }
+        }
+    }
+    crate::session::write_atomic(p, content.as_bytes()).map_err(|e| format!("写入文件失败: {e}"))?;
+    mtime_ms(p).ok_or_else(|| "写入成功但读取时间戳失败".to_string())
 }
 
 /// 新建空文件。已存在(无论文件还是目录)都报错 —— 与 create_dir 同语义:
@@ -239,8 +264,18 @@ pub fn reveal_in_file_manager(path: &str) -> Result<(), String> {
 文件管理器都是阻塞 IO,同步执行跑在主线程会掉帧。── */
 
 #[tauri::command]
-pub(crate) async fn fs_write_file(path: String, content: String) -> Result<(), String> {
-    crate::commands_fs::spawn_fs(move || write_file(&path, &content)).await
+pub(crate) async fn fs_write_file(
+    path: String,
+    content: String,
+    expect_mtime: Option<u64>,
+) -> Result<u64, String> {
+    crate::commands_fs::spawn_fs(move || write_file(&path, &content, expect_mtime)).await
+}
+
+/// 磁盘 mtime(毫秒):编辑器打开时取基线,保存前比对(乐观锁的另一端)。
+#[tauri::command]
+pub(crate) async fn fs_mtime(path: String) -> Result<Option<u64>, String> {
+    crate::commands_fs::spawn_fs(move || Ok(mtime_ms(Path::new(&path)))).await
 }
 
 #[tauri::command]

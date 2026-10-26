@@ -299,6 +299,7 @@ pub fn run() {
             lsp::lsp_send,
             lsp::lsp_stop,
             fs_edit::fs_write_file,
+            fs_edit::fs_mtime,
             fs_edit::fs_create_file,
             fs_edit::fs_create_dir,
             fs_edit::fs_rename_entry,

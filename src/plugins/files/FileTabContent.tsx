@@ -125,6 +125,28 @@ function FileTabBody({
           onViewReady={(view) => { viewRef.current = view; if (view) setViewTick((v) => v + 1); }}
         />
       </div>
+      {/* 外部变更冲突横幅:乐观锁拦截后用户裁决(覆盖/重载);不再静默 clobber AI 并发写。 */}
+      {doc.conflict && !remote && (
+        <div className="flex items-center gap-2 border-b border-(--tmd-warn,#e0a032)/40 bg-(--tmd-warn,#e0a032)/10 px-3 py-1.5 text-xs">
+          <span className="min-w-0 flex-1">
+            {t("磁盘文件已被外部修改(可能是 AI 会话或终端),保存已阻止。")}
+          </span>
+          <button
+            type="button"
+            className="h-6 shrink-0 rounded border border-(--tmd-border) px-2 hover:bg-(--tmd-bg-hover)"
+            onClick={doc.forceSave}
+          >
+            {t("覆盖保存")}
+          </button>
+          <button
+            type="button"
+            className="h-6 shrink-0 rounded border border-(--tmd-border) px-2 hover:bg-(--tmd-bg-hover)"
+            onClick={doc.reloadFromDisk}
+          >
+            {t("重读磁盘(丢弃本地修改)")}
+          </button>
+        </div>
+      )}
       {/* 矮工具条:状态文字在左;右侧 = 编辑/预览切换钮(md 与结构化才有)+ 打开方式入口(远程文件不出) */}
       <div
         className={toolbarCls(doc.error, doc.dirty)}

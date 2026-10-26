@@ -6,10 +6,11 @@ import { t } from "@kernel/i18n";
 
 /** 工具条状态文案:远程只读 > 错误 > 保存中 > 脏 > 已保存。 */
 export function statusText(
-  doc: { error: string | null; saving: boolean; dirty: boolean },
+  doc: { error: string | null; saving: boolean; dirty: boolean; conflict: boolean },
   remote: boolean,
 ): string {
   if (remote) return t("远程文件 · 只读(M1)");
+  if (doc.conflict) return t("磁盘文件已被外部修改 · 请裁决");
   if (doc.error) return doc.error;
   if (doc.saving) return t("保存中…");
   if (doc.dirty) return t("● 未保存的更改 · ⌘S 保存");

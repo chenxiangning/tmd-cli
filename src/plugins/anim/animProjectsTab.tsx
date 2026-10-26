@@ -153,7 +153,7 @@ export function AnimProjectsTab() {
         target,
         deps: {
           ensureDir: (dir) => ensureDir(dir),
-          writeFile: (p, c) => ipc.fsWriteFile(p, c),
+          writeFile: (p, c) => ipc.fsWriteFile(p, c).then(() => undefined),
           removePath: (p) => ipc.fsRemovePath(p),
           spawn: (eng, spec) =>
             /* identityTrack:真 CLI 引擎拉起必开,否则磁盘身份永不绑定,

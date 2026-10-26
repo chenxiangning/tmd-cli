@@ -92,7 +92,7 @@ async function deploy(): Promise<string> {
     Promise.resolve(),
   );
   await Object.entries(FILES).reduce<Promise<void>>(
-    (p, [name, src]) => p.then(() => ipc.fsWriteFile(`${dir}/${name}`, src)),
+    (p, [name, src]) => p.then(() => ipc.fsWriteFile(`${dir}/${name}`, src)).then(() => undefined),
     Promise.resolve(),
   );
   await ipc.fsWriteFile(stampPath, STAMP);

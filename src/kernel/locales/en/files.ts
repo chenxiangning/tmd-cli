@@ -155,4 +155,9 @@ export const MESSAGES = {
     "Creating files in the remote tree is not supported yet (M1): use a terminal session instead",
   "文件过大,已停用内置编辑器(请用外部编辑器打开)":
     "File is too large; the built-in editor is disabled (open it with an external editor)",
+  "磁盘文件已被外部修改 · 请裁决": "File changed on disk · resolve to continue",
+  "磁盘文件已被外部修改(可能是 AI 会话或终端),保存已阻止。":
+    "The file changed on disk (likely an AI session or the terminal); saving is blocked.",
+  "覆盖保存": "Overwrite",
+  "重读磁盘(丢弃本地修改)": "Reload from disk (discard local edits)",
 } as Record<string, string>;

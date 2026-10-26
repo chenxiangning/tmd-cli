@@ -72,7 +72,7 @@ pub(super) async fn try_dispatch(
         }
         "fs_write_file" => {
             go(raw, |a: WriteFile| {
-                crate::fs_edit::fs_write_file(a.path, a.content)
+                crate::fs_edit::fs_write_file(a.path, a.content, None)
             })
             .await
         }
