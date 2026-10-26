@@ -13,7 +13,6 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { ipc, openExternalUrl } from "@kernel/ipc";
-import { t } from "@kernel/i18n";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
 import { host } from "@kernel/host";
@@ -38,6 +37,7 @@ import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { createScrollKeeper } from "@kernel/terminalScrollKeeper";
 import { TerminalSearchOverlay, useSearchBoxOwnership } from "@kernel/terminalSearch";
 import { makeLogSearchBridge } from "@kernel/terminalFindBridge";
+import { TerminalHistoryNav } from "@kernel/terminalHistoryNav";
 import { TerminalToolRow } from "@kernel/terminalRefreshButton";
 import "@kernel/terminalFontZoom"; /* 终端字号缩放键位(⌘+/⌘−/⌘0):模块级注册,随幕布装配生效 */
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
@@ -55,20 +55,19 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   const [searchOpen, setSearchOpen] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [atTop, setAtTop] = useState(false);
+  const [inHistoryWindow, setInHistoryWindow] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   /* 加载进度态:null = 就绪撤罩(terminalReplay.ts);streamReadyRef = 幕布流就绪相位(onReady 置位),askProbe 停采判据(评审 F5/P1-2)。 */
   const [loadProgress, setLoadProgress] = useState<LoadProgress>(null);
   const streamReadyRef = useRef(false);
   const pagerRef = useRef<TerminalHistoryPager | null>(null);
-  /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答(见 terminalInputGate.ts);
-     实例随会话 keep-alive 常驻;惰性初值 = useState 初始化器只在首帧执行一次。 */
+  /* 历史重写输入闸:重写期丢弃 xterm 对历史查询的自动应答;实例随会话常驻。 */
   const [inputGate] = useState(createReplayInputGate);
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
-  /** 幕布重建代数:刷新钮/停滞探针自增 → 主 effect 重跑 = xterm 销毁重建 +
-      缓冲回放 + 强制 SIGWINCH 整帧重绘,PTY/CLI 不中断(会话内自救出口)。 */
+  /** 幕布重建代数:刷新钮/停滞探针自增 → 主 effect 重跑 = 销毁重建 + 回放 +
+      强制 SIGWINCH 整帧重绘,PTY/CLI 不中断(会话内自救出口)。 */
   const [canvasGen, setCanvasGen] = useState(0);
-  /** 隐藏幕布合帧写入(Fix B,terminalReplay.ts):activeRef 是活性真相;
-      激活即冲刷攒帧,切换无感。 */
+  /** 隐藏幕布合帧(Fix B):activeRef 是活性真相,激活即冲刷攒帧。 */
   const activeRef = useRef(active);
   const flushDeferredRef = useRef<(() => void) | null>(null);
   /* 重建保位锚(卸载采、回放完恢复,见 terminalScrollAnchor)。 */
@@ -84,12 +83,11 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     } else {
       scrollKeeper.markHidden(containerRef.current);
     }
-    /* 在视打点随活性同拍:泵侧聚合降档判据(无人观看 → 250ms 慢拍,见
-       pty_spawn.rs OUT_BACKGROUND_WINDOW;2026-10-04 十一轮)。 */
+    /* 在视打点随活性同拍:泵侧聚合降档判据(pty_spawn.rs OUT_BACKGROUND_WINDOW)。 */
     void ipc.sessionSetViewed(sessionId, active).catch(() => undefined);
     return () => void ipc.sessionSetViewed(sessionId, false).catch(() => undefined);
   }, [sessionId, active, scrollKeeper]);
-  /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
+  /* 往前翻一页:实例内恒稳定,导航条与锚点注册表共用。 */
   const loadEarlier = useCallback(async () => {
     const term = termRef.current;
     const pager = pagerRef.current;
@@ -115,18 +113,15 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       scrollback: 24_000,
       theme: readTerminalTheme(),
     });
-    /* 配色重刷:主题引擎与打穿等 :root 终端 token 写手都经主题桥通知,重读计算样式。
-       纯视觉重着色,字节流不受影响。 */
+    /* 配色重刷:主题 token 写手经主题桥通知,重读计算样式;纯视觉,字节流不受影响。 */
     const offTokens = subscribeTerminalTheme(() => {
       term.options.theme = readTerminalTheme();
     });
     const fit = new FitAddon();
     const search = new SearchAddon();
-    /* 错栅格自愈旗:零宽跳过(隐藏期)或尚未成功 fit 过的实例置位,下次成功 sync
-       必须强制 PTY 真实重排 —— 同尺寸 fit 被 xterm 跳过、同尺寸 resize 被 Rust
-       幂等去重(无 SIGWINCH),隐藏期任何瞬态错栅格(2 列钳制重排、重挂载回放
-       错栅、ConPTY resize 抖动)都将永不重绘:omp 靠 spinner 连续整帧重绘自愈,
-       静态 TUI(claude/codex/kimi 跑完一轮即静止)则永久错位。 */
+    /* 错栅格自愈旗:零宽跳过或未成功 fit 的实例置位,下次成功 sync 强制 PTY 真实
+       重排 —— 同尺寸 fit/resize 均被幂等跳过(无 SIGWINCH),隐藏期瞬态错栅格将
+       永不重绘:omp 靠 spinner 自愈,静态 TUI(claude/codex/kimi)则永久错位。 */
     const needsForceSyncRef = { current: true };
     /** 尺寸同步唯一出口:零宽(隐藏)跳过并挂自愈旗;成功即 fit + 同步 PTY。
         settings 回调与 ResizeObserver 共用,隐藏幕布绝不外发尺寸。 */
@@ -173,6 +168,8 @@ termRef.current = term;
     const pager = new TerminalHistoryPager(sessionId, inputGate, (h, l) => {
       setHasMore(h);
       setLoadingHistory(l);
+      /* emit 必发于 jumpWindow 翻转之后,此处读到的是新值。 */
+      setInHistoryWindow(pagerRef.current?.isInJumpWindow() ?? false);
     });
     pagerRef.current = pager;
     /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次);输出装配见 terminalReplay.ts。 */
@@ -262,12 +259,12 @@ termRef.current = term;
       setSearchOpen(false);
       setHasMore(false);
       setLoadingHistory(false);
+      setInHistoryWindow(false);
     };
   }, [sessionId, inputGate, canvasGen, scrollKeeper]);
 
-  /* ⌘F 搜索框所有权 + 关闭回调(实现见 terminalSearch.useSearchBoxOwnership)。 */
+  /* ⌘F 搜索框所有权(terminalSearch);loadEarlier 经 ref 转交避免渲染期写。 */
   const { close: closeSearch } = useSearchBoxOwnership(active, setSearchOpen, termRef);
-  /* loadEarlier 实例内恒稳定(useCallback 无依赖),ref 转交放 effect 避免渲染期写。 */
   useEffect(() => {
     loadEarlierRef.current = loadEarlier;
   }, [loadEarlier]);
@@ -275,14 +272,17 @@ termRef.current = term;
     <div className="relative h-full w-full">
       <div ref={containerRef} className="terminal-view-host h-full w-full" />
       <TerminalLoadOverlay progress={loadProgress} />
-      {atTop && hasMore && (
-        <button
-          onClick={() => void loadEarlier()} disabled={loadingHistory}
-          className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-3 py-1 text-xs text-(--tmd-accent) shadow-(--tmd-shadow-popover) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-        >
-          {loadingHistory ? t("加载中…") : t("↑ 加载更早的输出")}
-        </button>
-      )}
+      <TerminalHistoryNav
+        atTop={atTop}
+        hasMore={hasMore}
+        jumpWindow={inHistoryWindow}
+        loading={loadingHistory}
+        onLoadEarlier={() => void loadEarlier()}
+        onBackLatest={() => {
+          const term = termRef.current;
+          if (term) void pagerRef.current?.resetToLatest(term);
+        }}
+      />
       {searchOpen && (
         <TerminalSearchOverlay
           searchRef={searchRef}
