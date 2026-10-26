@@ -13,8 +13,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ipc } from "@kernel/ipc";
 import { updateTab } from "@kernel/tabs";
+import { findRemoteFileSourceForUri, isRemoteFileUri } from "@kernel/fileSources";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
-import { isRemoteFileUri } from "@kernel/fileSources";
 import { draftMirrorClear, draftMirrorGet, type DraftMirrorEntry } from "@kernel/draftMirror";
 import {
   cacheRefreshContent,
@@ -128,8 +129,31 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     (force: boolean) => () => {
       if (savingRef.current) return;
       if (isRemoteFileUri(path)) {
-        /* 远程 M1 无写回通道;编辑器已 readOnly,此处兜底 ⌘S 直呼 */
-        setError(t("远程文件暂不支持写入(M1)"));
+        /* 远程写回(项 5):源声明 writeText 才可用(未声明源保持 M1 提示);
+         * 远程无 mtime 基线,乐观锁不适用,直写。 */
+        const source = findRemoteFileSourceForUri(path);
+        if (!source?.writeText) {
+          setError(t("远程文件暂不支持写入(M1)"));
+          return;
+        }
+        const text = contentRef.current;
+        if (text === savedRef.current) return;
+        savingRef.current = true;
+        setSaving(true);
+        setError(null);
+        source
+          .writeText(path, toDiskContent(text, hasCRLFRef.current))
+          .then(() => {
+            savingRef.current = false;
+            setSaving(false);
+            setSaved(text);
+            draftDelete(path);
+          })
+          .catch((e: unknown) => {
+            savingRef.current = false;
+            setSaving(false);
+            setError(errTextDisplay(e));
+          });
         return;
       }
       const text = contentRef.current;

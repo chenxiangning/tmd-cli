@@ -44,6 +44,7 @@ mod web;
 mod wsl;
 mod wsl_remote;
 mod wsl_remote_ops;
+mod wsl_remote_write;
 use pty::PtyRegistry;
 use tauri::{AppHandle, Manager};
 
@@ -260,6 +261,9 @@ pub fn run() {
             wsl_remote_ops::wsl_probe_engines,
             wsl_remote_ops::wsl_read_file_text,
             wsl_remote_ops::wsl_exec,
+            wsl_remote_write::wsl_write_file_text,
+            wsl_remote_write::wsl_create_entry,
+            wsl_remote_write::wsl_remove_entry,
             ssh::commands::ssh_prompts_pending,
             session_commands::session_list,
             session_commands::session_set_workspace,

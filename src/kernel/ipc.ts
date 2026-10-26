@@ -833,6 +833,15 @@ export const ipc = {
       maxBytes,
       host: host ?? null,
     }),
+  /** WSL 远程文本写回(项 5 写回闭环):覆盖写,b64 载荷防 PowerShell 拆引号。 */
+  wslWriteFileText: (distro: string, path: string, contentB64: string, host?: SshHostConfig) =>
+    invoke<void>("wsl_write_file_text", { distro, path, contentB64, host: host ?? null }),
+  /** WSL 远程新建条目:文件已存在报错(绝不覆写);目录 mkdir -p。 */
+  wslCreateEntry: (distro: string, path: string, isDir: boolean, host?: SshHostConfig) =>
+    invoke<void>("wsl_create_entry", { distro, path, isDir, host: host ?? null }),
+  /** WSL 远程删除:文件 rm -f;目录仅空目录 rmdir(远程无废纸篓,窄语义)。 */
+  wslRemoveEntry: (distro: string, path: string, host?: SshHostConfig) =>
+    invoke<void>("wsl_remove_entry", { distro, path, host: host ?? null }),
   /** 未决 SSH 提示对账(接线竞态/webview reload 兜底,先例 refreshForwards)。 */
   sshPromptsPending: () => invoke<SshPendingPromptWire[]>("ssh_prompts_pending"),
   /** 字符串 MD5(小写 hex;通用原语,消费方的用途注记归各插件)。 */

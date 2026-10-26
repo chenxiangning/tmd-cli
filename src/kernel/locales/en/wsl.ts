@@ -18,4 +18,8 @@ export const MESSAGES = {
   "Paste an absolute path and press Enter to jump; typing filters by prefix",
   "以 / 或 ~ 开头回车即跳该层;普通输入按目录名前缀过滤":
   "Start with / or ~ and press Enter to jump there; plain input filters directory names by prefix",
+  // 远程文件源写回三件套(项 5)
+  "远程主机配置已删除,无法写入文件": "Remote host config deleted; can't write the file",
+  "远程主机配置已删除,无法创建条目": "Remote host config deleted; can't create the entry",
+  "远程主机配置已删除,无法删除条目": "Remote host config deleted; can't remove the entry",
 } as Record<string, string>;
