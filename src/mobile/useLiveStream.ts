@@ -152,27 +152,49 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
        * 剥掉、快照读取后到达的后缀保留,双喂与「丢一拍」窄竞态一并消除;不
        * 重建分支照常排空(屏未重喂,缓冲是唯一拷贝)。 */
       let replaying = false;
+      /* 弱网退避:尾页拉取失败(网络断续)不放弃 —— 2s/5s 两拍重试;两拍仍
+       * 失败则维持 streaming=false(buffered 继续攒,水位窗口未确认前排空
+       * 会乱序),等下一 gap/重连边沿再试。pageOf 抛错不得卡死 replaying 闸
+       * (2026-10-26:无 try/finally 时一次 reject = replay 永久哑火,断连窗
+       * 内容从此补不回)。 */
+      let replayTries = 0;
       const replay = () => {
         if (!alive || replaying || !ready) return;
         replaying = true;
         streaming = false;
         void (async () => {
-          const p = await pageOf(Number.MAX_SAFE_INTEGER);
-          const s = p ? await sizeOf() : null;
-          if (alive && p && s && p.start_offset + p.text.length > watermark) {
-            sizeKey.current = `${s[0]}x${s[1]}`;
-            screen = new LiveScreen(s[0], s[1]);
-            screen.feed(p.text);
-            watermark = p.start_offset + p.text.length;
-            setLive(screen.view());
+          try {
+            const p = await pageOf(Number.MAX_SAFE_INTEGER).catch(() => null);
+            const s = p ? await sizeOf().catch(() => null) : null;
+            if (alive && p && s && p.start_offset + p.text.length > watermark) {
+              replayTries = 0;
+              sizeKey.current = `${s[0]}x${s[1]}`;
+              screen = new LiveScreen(s[0], s[1]);
+              screen.feed(p.text);
+              watermark = p.start_offset + p.text.length;
+              setLive(screen.view());
+            } else if (p) {
+              replayTries = 0;
+            }
+            if (!alive) return;
+            if (!p) {
+              if (replayTries < 2) {
+                replayTries += 1;
+                window.setTimeout(replay, replayTries === 1 ? 2000 : 5000);
+              } else {
+                replayTries = 0; /* 放弃本边沿:buffered 继续攒,等下一 gap/重连再试 */
+              }
+              return;
+            }
+            replayTries = 0;
+            streaming = true;
+            const pending = buffered.join("");
+            buffered.length = 0;
+            const k = overlapLen(p.text, pending);
+            if (pending.length > k) feedChunk(pending.slice(k));
+          } finally {
+            replaying = false;
           }
-          if (!alive) return;
-          streaming = true;
-          const pending = buffered.join("");
-          buffered.length = 0;
-          const k = p ? overlapLen(p.text, pending) : 0;
-          if (pending.length > k) feedChunk(pending.slice(k));
-          replaying = false;
         })();
       };
       gapOff = onEventGap(replay);
