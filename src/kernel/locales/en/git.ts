@@ -28,7 +28,6 @@ export const MESSAGES = {
     "{op} failed: credentials require interaction. Run git {cmd} in the terminal.",
   "{op}失败。 {err} 可重试该操作。": "{op} failed. {err} You can retry this operation.",
   "当前目录不是 Git 仓库": "Current directory is not a Git repository",
-  "远程工作区暂不支持 Git 面板": "The Git panel is not available for remote workspaces yet",
   "远程工作区 · Git": "Remote workspace · Git",
   "该目录不是 git 仓库。": "This directory is not a Git repository.",
   "工作区干净,没有未提交的更改。": "Working tree clean; no uncommitted changes.",

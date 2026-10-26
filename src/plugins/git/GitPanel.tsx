@@ -5,6 +5,7 @@
  */
 
 import { t } from "@kernel/i18n";
+import { errTextDisplay } from "@kernel/errText";
 import { GitBranch } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
 import { useGitPanelContext } from "./hooks/useGitPanelContext";
@@ -172,7 +173,7 @@ function GitPanelRemoteStatus({
         </button>
       </div>
       {error === "not-a-repo" && <p className="text-(--tmd-fg-muted)">{t("该目录不是 git 仓库。")}</p>}
-      {error && error !== "not-a-repo" && <p className="text-(--tmd-diff-deleted)">{error}</p>}
+      {error && error !== "not-a-repo" && <p className="text-(--tmd-diff-deleted)">{errTextDisplay(error)}</p>}
       {status && status.entries.length === 0 && (
         <p className="text-(--tmd-fg-muted)">{t("工作区干净,没有未提交的更改。")}</p>
       )}

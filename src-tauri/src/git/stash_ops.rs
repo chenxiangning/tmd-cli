@@ -73,7 +73,7 @@ fn push(repo: &mut Repository, msg: &str) -> Result<bool, GitError> {
     }
     if st.files.iter().any(|f| f.status == "C") {
         return Err(GitError::empty(
-            "工作区存在未解决的合并冲突,请先解决冲突后再切换",
+            "工作区存在未解决的合并冲突,请先解决冲突后再操作",
         ));
     }
     // stash_save 必须显式签名:复用提交面板的兜底链(config → env → 内置),不因缺 user 配置炸掉

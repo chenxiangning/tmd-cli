@@ -34,8 +34,8 @@ export function GitStashBar({
   const [dropConfirm, setDropConfirm] = useState<GitConfirmState | null>(null);
   const [creating, setCreating] = useState(false);
   const [createMsg, setCreateMsg] = useState("");
-  /* 动作目标条目:仅 handler 内消费(不参与渲染),用 ref 不引重渲。 */
-  const pendingIndexRef = useRef<number | null>(null);
+  /* 动作目标条目(index+shortSha 成对):写前复检用,不参与渲染。 */
+  const pendingRef = useRef<{ index: number; shortSha: string } | null>(null);
 
   const reload = () => {
     ipc.gitStashList(cwd).then(setEntries, () => setEntries(null));
@@ -46,23 +46,34 @@ export function GitStashBar({
      早退在全部钩子之后,守 Rules of Hooks。 */
   if (!entries || (entries.length === 0 && !dirty)) return null;
 
+  /* 动作执行(apply/pop/drop 共用):写前复检(0.4.5 双层闸教训)——确认
+   * 弹窗的等待窗内终端可能又 drop/pop 低号 stash 使索引前移,直接执行会删错
+   * 条目且不可恢复;复检 entries[index] 的 index+shortSha 与捕获值一致才放行,
+   * 不符报「列表已变化」并刷新列表,不执行。 */
   const act = (label: string, run: () => Promise<void>) => {
-    const index = pendingIndexRef.current;
-    if (index === null) return;
-    setBusy(index);
-    run().then(
-      () => {
+    const target = pendingRef.current;
+    if (!target) return;
+    setBusy(target.index);
+    void (async () => {
+      try {
+        const fresh = await ipc.gitStashList(cwd);
+        const hit = fresh[target.index];
+        if (!hit || hit.index !== target.index || hit.shortSha !== target.shortSha) {
+          onNotice(t("stash 列表已变化,请重试"));
+          reload();
+          return;
+        }
+        await run();
         onNotice(label);
         reload();
         afterMutation();
-        setBusy(null);
-      },
-      (e: unknown) => {
+      } catch (e) {
         onNotice(gitErrorDisplay(e));
         reload();
+      } finally {
         setBusy(null);
-      },
-    );
+      }
+    })();
   };
 
   /* 「+ stash」提交:消息可选(空 = Rust 侧默认文案);created=false = 工作区干净。 */
@@ -173,7 +184,7 @@ export function GitStashBar({
                 type="button"
                 disabled={busy !== null}
                 onClick={() => {
-                  pendingIndexRef.current = e.index;
+                  pendingRef.current = e;
                   act(
                     t("已套用 stash #{n}(条目保留)", { n: String(e.index) }),
                     () => ipc.gitStashApply(cwd, e.index, true),
@@ -187,7 +198,7 @@ export function GitStashBar({
                 type="button"
                 disabled={busy !== null}
                 onClick={() => {
-                  pendingIndexRef.current = e.index;
+                  pendingRef.current = e;
                   act(t("已弹出 stash #{n}", { n: String(e.index) }), () =>
                     ipc.gitStashApply(cwd, e.index, false),
                   );
@@ -200,15 +211,15 @@ export function GitStashBar({
                 type="button"
                 disabled={busy !== null}
                 onClick={() => {
-                  const index = e.index;
+                  const target = e;
                   setDropConfirm({
-                    title: t("丢弃 stash #{n}?", { n: String(index) }),
+                    title: t("丢弃 stash #{n}?", { n: String(target.index) }),
                     detail: t("丢弃后不可恢复;如需保留改动请改用「套用」。"),
                     confirmLabel: t("丢弃"),
                     onConfirm: () => {
-                      pendingIndexRef.current = index;
-                      act(t("已丢弃 stash #{n}", { n: String(index) }), () =>
-                        ipc.gitStashDrop(cwd, index),
+                      pendingRef.current = target;
+                      act(t("已丢弃 stash #{n}", { n: String(target.index) }), () =>
+                        ipc.gitStashDrop(cwd, target.index),
                       );
                     },
                   });

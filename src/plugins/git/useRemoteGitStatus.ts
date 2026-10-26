@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ipc, type SshHostConfig } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { getSettingsState } from "@kernel/settings";
 import type { Workspace } from "@kernel/workspace";
 
@@ -27,15 +28,35 @@ export function parseRemoteStatus(out: string): RemoteGitStatus | null {
   if (!head) return null;
   /* 形态:## main...origin/main [ahead 1, behind 2] / ## No commits yet on main / ## HEAD (no branch) */
   const m = head.match(/^## (?:Initial commit on )?(\S+?)(?:\.\.\.(\S+?))?(?: \[(.*?)\])?$/);
-  const branch = (m?.[1] ?? head.slice(3).split(/[\s.]/)[0]) || "?";
+  /* 回退前先认「空仓无提交」与「HEAD 分离」两形态(0.4.6 复审 P1:旧回退
+   * split(/[\s.]/) 会把 "No commits yet" 解析出分支 "No")。 */
+  const noCommit = head.match(/^## No commits yet on (\S+)/);
+  const detached = head === "## HEAD (no branch)";
+  const fallback = detached ? "HEAD (no branch)" : (m?.[1] ?? head.slice(3).split(/[\s.]/)[0]);
+  const branch = noCommit?.[1] ?? fallback ?? "?";
   const upstream = m?.[2] ?? null;
   const ab = m?.[3] ?? "";
   const ahead = Number(ab.match(/ahead (\d+)/)?.[1] ?? 0);
   const behind = Number(ab.match(/behind (\d+)/)?.[1] ?? 0);
+  /* 条目行形态过滤 `XY path`(XY ∈ 空格/M/A/D/R/C/U/?/!):`2>&1 || true` 混入
+   * 的 warning/stderr 噪音行不合形态即丢弃;quotepath 关闭后仍可能带引号的
+   * rename 行剥外层引号。 */
   const entries = lines
-    .filter((l) => !l.startsWith("## ") && !l.startsWith("# "))
-    .map((l) => ({ xy: l.slice(0, 2), path: l.slice(3) }));
+    .filter((l) => /^[ MADRCU?!]{2} /.test(l))
+    .map((l) => {
+      const path = l.slice(3);
+      return {
+        xy: l.slice(0, 2),
+        path: path.startsWith('"') && path.endsWith('"') ? path.slice(1, -1) : path,
+      };
+    });
   return { branch, upstream, ahead, behind, entries };
+}
+
+/** wslExec 输出是否为远端执行错误(而非「不是 git 仓库」):解析不出 ## 头
+ * 且含 fatal:/command not found(远端未装 git、ssh 不通)时报原始错误。 */
+export function isRemoteGitExecError(out: string): boolean {
+  return !/^## /m.test(out) && /fatal:|command not found/.test(out);
 }
 
 function hostOf(ws: Workspace): SshHostConfig | null {
@@ -62,15 +83,24 @@ export function useRemoteGitStatus(ws: Workspace | null | undefined, root: strin
     try {
       const out = await ipc.wslExec(
         distro,
-        `git -C "${linuxRoot}" status --porcelain=v1 -b 2>&1 || true`,
+        `git -c core.quotepath=false -C "${linuxRoot}" status --porcelain=v1 -b 2>&1 || true`,
         host,
       );
       const parsed = parseRemoteStatus(out);
-      setStatus(parsed);
-      setError(parsed ? null : "not-a-repo");
+      if (parsed) {
+        setStatus(parsed);
+        setError(null);
+      } else if (isRemoteGitExecError(out)) {
+        /* 远端执行失败(未装 git/ssh 不通)不得误诊为「不是 git 仓库」。 */
+        setStatus(null);
+        setError(out.trim().slice(0, 200));
+      } else {
+        setStatus(null);
+        setError("not-a-repo");
+      }
     } catch (e) {
       setStatus(null);
-      setError(String(e));
+      setError(errTextDisplay(e));
     } finally {
       setLoading(false);
     }
