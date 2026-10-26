@@ -99,23 +99,26 @@ export function DesktopApp() {
 
   /* 语言切换 = 整树重挂载(低频;host/PTY 态在 React 外,幕布回放按重挂载设计)。 */
   const language = useSettingsState().settings.language;
-  if (orphanReaped > 0) {
-    return (
-      <div className="flex items-center gap-2 border-b border-(--tmd-warn,#e0a032)/40 bg-(--tmd-warn,#e0a032)/10 px-3 py-2 text-xs">
-        <span className="flex-1">
-          {t("检测到上次异常退出,已清理 {n} 个残留会话进程", { n: orphanReaped })}
-        </span>
-        <button type="button" aria-label={t("关闭")} className="shrink-0 text-(--tmd-fg-muted) hover:text-(--tmd-fg)" onClick={() => setOrphanReaped(0)}>
-          ×
-        </button>
-      </div>
-    );
-  }
   if (error) {
     return <div className="p-4 text-red-400">{t("插件激活失败:{error}", { error })}</div>;
   }
   if (!ready) return null;
-  return <AppShell key={language} />;
+  /* 孤儿收割横幅与主壳同帧共存(0.4.6 复审 P0-2):不再整体替换应用。 */
+  return (
+    <>
+      {orphanReaped > 0 && (
+        <div className="flex items-center gap-2 border-b border-(--tmd-warn,#e0a032)/40 bg-(--tmd-warn,#e0a032)/10 px-3 py-2 text-xs">
+          <span className="flex-1">
+            {t("检测到上次异常退出,已清理 {n} 个残留会话进程", { n: orphanReaped })}
+          </span>
+          <button type="button" aria-label={t("关闭")} className="shrink-0 text-(--tmd-fg-muted) hover:text-(--tmd-fg)" onClick={() => setOrphanReaped(0)}>
+            ×
+          </button>
+        </div>
+      )}
+      <AppShell key={language} />
+    </>
+  );
 }
 
 /* overlay 挂点渲染(AppShell 内 <Mounts point="overlay" /> 消费;toasts 保持原位) */
