@@ -54,3 +54,8 @@ export interface SessionRestoreSettings {
 export type SessionHygieneHours = 12 | 24 | 48 | 168;
 export const SESSION_HYGIENE_HOURS: readonly SessionHygieneHours[] = [12, 24, 48, 168];
 export const SESSION_HYGIENE_HOURS_DEFAULT: SessionHygieneHours = 24;
+
+/** 会话输出日志保留天数白名单(Rust session_log_sweep 消费):7/30/90 天;0 = 关闭启动清理。 */
+export type SessionLogRetentionDays = 7 | 30 | 90 | 0;
+export const SESSION_LOG_RETENTION_DAYS: readonly SessionLogRetentionDays[] = [7, 30, 90, 0];
+export const SESSION_LOG_RETENTION_DAYS_DEFAULT: SessionLogRetentionDays = 7;

@@ -5,7 +5,7 @@
  * omp/pi = ~/.omp|~/.pi/agent/sessions,claude/qoder = ~/.claude|~/.qoder/projects,
  * codex = ~/.codex/sessions,kimi 新旧两代 = ~/.kimi-code|~/.kimi/sessions,
  * grok = ~/.grok/sessions,qoder-cn = ~/.qoder-cn/projects,dsh = ~/.dsh/sessions。
- * checkpoints/docgen 在 ~/.tmd-cli 内(configDir 注入,桩环境可测)。
+ * checkpoints/docgen/自家 session 日志在 ~/.tmd-cli 内(configDir 注入,桩环境可测)。
  */
 
 export interface AuditCategory {
@@ -21,6 +21,7 @@ export interface AuditCategory {
 export function auditCategories(home: string, configDir: string): AuditCategory[] {
   return [
     { key: "checkpoints", path: `${configDir}/checkpoints`, skipDirNames: [] },
+    { key: "session-logs", path: `${configDir}/session`, skipDirNames: [] },
     { key: "docgen", path: `${configDir}/workbench/docgen`, skipDirNames: [] },
     { key: "omp", path: `${home}/.omp/agent/sessions`, skipDirNames: [] },
     { key: "pi", path: `${home}/.pi/agent/sessions`, skipDirNames: [] },

@@ -18,6 +18,7 @@ type Report = { bytes: number; files: number; timedOut: boolean };
 const CAT_CLEANABLE_NOTE: Record<string, string> = {
   checkpoints: "恢复点数据,可按工作区清理(见下方清理)",
   docgen: "工作台生成文档,可清已归档版本(见下方清理)",
+  "session-logs": "会话输出日志,可按保留策略清理(见下方清理)",
 };
 
 export function AuditTab() {

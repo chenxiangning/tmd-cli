@@ -53,7 +53,7 @@ export function resolveCliSessionQuota(
 }
 
 /* 会话覆盖层记录类型(置顶/归档/删除/保留/卫生时窗)拆至 settingsSessionEntries.ts。 */
-import type { SessionArchiveEntry, SessionDeletedEntry, SessionHygieneHours, SessionKeepEntry, SessionMuteEntry, SessionPinEntry, SessionRestoreSettings } from "./settingsSessionEntries";
+import type { SessionArchiveEntry, SessionDeletedEntry, SessionHygieneHours, SessionKeepEntry, SessionLogRetentionDays, SessionMuteEntry, SessionPinEntry, SessionRestoreSettings } from "./settingsSessionEntries";
 export * from "./settingsSessionEntries";
 
 /** Git 面板视图段(git 插件编辑域):差异 / 分支 / 历史。 */
@@ -208,6 +208,8 @@ export interface AppSettings {
   sessionHygieneEnabled: boolean;
   /** 清扫超期时窗(小时);白名单 SESSION_HYGIENE_HOURS,默认 24。 */
   sessionHygieneHours: SessionHygieneHours;
+  /** 会话输出日志保留天数(磁盘治理):超期死日志启动时清理;白名单 SESSION_LOG_RETENTION_DAYS,默认 7;0 = 关。 */
+  sessionLogRetentionDays: SessionLogRetentionDays;
   /** 引擎版本收藏层(welcome 插件编辑域):key = `${engineId}@${version}`,value = 收藏时间戳。 */
   engineVersionFavs: Record<string, { favedAt: number }>;
   /**

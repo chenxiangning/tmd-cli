@@ -53,6 +53,18 @@ const MESSAGES_EN = {
   "将删除 docs/{id}/ 下全部版本文件与该索引条目,不可恢复。":
     "All version files under docs/{id}/ and its index entry will be deleted. Irreversible.",
   "确认删除": "Confirm delete",
+  "会话输出日志": "Session output logs",
+  "应用异常退出会残留会话输出日志;按设置的保留策略清理,或全清历史日志。使用中的会话不受影响,不可恢复。":
+    "Abnormal exits leave session logs behind; clean by the retention policy or clear all history. Active sessions are never touched. Irreversible.",
+  "已回收 {size}({n} 个文件)": "Reclaimed {size} ({n} files)",
+  "按保留策略清理": "Clean by policy",
+  "清空全部": "Clear all",
+  "清掉超过保留天数的历史日志(保留策略见设置-行为)":
+    "Remove logs older than the retention window (see Settings - Behavior)",
+  "清掉全部历史日志,仅保留使用中会话":
+    "Remove all historical logs; keep only active sessions",
+  "会话输出日志,可按保留策略清理(见下方清理)":
+    "Session output logs — cleanable by retention policy (see cleanup below)",
 } as const;
 
 /** ja 词典 · storage-audit 域。 */
@@ -104,6 +116,18 @@ const MESSAGES_JA = {
   "将删除 docs/{id}/ 下全部版本文件与该索引条目,不可恢复。":
     "docs/{id}/ の全バージョンファイルと索引エントリを削除します。取り消せません。",
   "确认删除": "削除を確認",
+  "会话输出日志": "セッション出力ログ",
+  "应用异常退出会残留会话输出日志;按设置的保留策略清理,或全清历史日志。使用中的会话不受影响,不可恢复。":
+    "異常終了するとセッションログが残ることがあります。保持ポリシーに従って清理、または履歴を全消去できます。使用中のセッションには影響しません。取り消せません。",
+  "已回收 {size}({n} 个文件)": "{size}({n} ファイル) を回収",
+  "按保留策略清理": "ポリシーで清理",
+  "清空全部": "すべて消去",
+  "清掉超过保留天数的历史日志(保留策略见设置-行为)":
+    "保持期間を過ぎた履歴ログを削除(設定 - 挙動を参照)",
+  "清掉全部历史日志,仅保留使用中会话":
+    "履歴ログをすべて削除し、使用中のセッションのみ保持",
+  "会话输出日志,可按保留策略清理(见下方清理)":
+    "セッション出力ログ — 保持ポリシーで清理可能(下のクリーンアップを参照)",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

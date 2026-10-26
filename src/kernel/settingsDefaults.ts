@@ -4,7 +4,7 @@
  */
 
 import type { AppSettings } from "./settingsTypes";
-import { SESSION_HYGIENE_HOURS_DEFAULT, SESSION_LIST_TOTAL_DEFAULT } from "./settingsTypes";
+import { SESSION_HYGIENE_HOURS_DEFAULT, SESSION_LIST_TOTAL_DEFAULT, SESSION_LOG_RETENTION_DAYS_DEFAULT } from "./settingsTypes";
 import {
   SESSION_TABS_LIMIT_DEFAULT,
   TERMINAL_FONT_SIZE_DEFAULT,
@@ -71,6 +71,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionRestore: { enabled: false, keys: [] },
   sessionHygieneEnabled: true,
   sessionHygieneHours: SESSION_HYGIENE_HOURS_DEFAULT,
+  sessionLogRetentionDays: SESSION_LOG_RETENTION_DAYS_DEFAULT,
   engineVersionFavs: {},
   workspaceArchiveView: false,
   workspaceOriginFilter: "local",

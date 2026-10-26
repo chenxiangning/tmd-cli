@@ -711,6 +711,13 @@ export const ipc = {
    *  以 timedOut 标记返回(与「未使用」区分);跳过目录名由调用方传。 */
   fsDirUsage: (specs: { label: string; path: string; skipDirNames: string[] }[]) =>
     invoke<{ label: string; bytes: number; files: number; timedOut: boolean }[]>("fs_dir_usage", { specs }),
+  /** 会话输出日志清理(存储管家手动入口):days>0 按保留天数清,days=0
+   * 全清;活会话日志(仍在账本中)Rust 侧永不删。 */
+  sessionLogCleanup: (days: number) =>
+    invoke<{ removedFiles: number; removedBytes: number; removedDirs: number }>(
+      "session_log_cleanup",
+      { days },
+    ),
   /** 读取文件尾部 maxBytes 字节,供 session 状态增量解析。 */
   fsReadTail: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_tail", { path, maxBytes }),

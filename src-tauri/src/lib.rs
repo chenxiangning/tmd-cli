@@ -35,6 +35,7 @@ mod session_commands;
 mod session_disk_log;
 mod session_log;
 mod session_log_search;
+mod session_log_sweep;
 mod settings;
 mod skill_pkg;
 mod sqlite;
@@ -234,6 +235,14 @@ pub fn run() {
                     let _ = web::relay::web_relay_start(app_handle, url, key).await;
                 }
             });
+            /* 会话日志磁盘治理:启动后台清超保留天数的死日志(0=关),
+             * 崩溃/强退残留的唯一回收路径;活会话由账本保护。 */
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    session_log_sweep::run_startup(&handle.state::<AppState>())
+                });
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -266,6 +275,7 @@ pub fn run() {
             session_commands::session_disk_tail,
             session_commands::session_history_page,
             session_commands::session_log_search,
+            session_log_sweep::session_log_cleanup,
             commands_fs::fs_list_dir,
             commands_fs::fs_read_file,
             commands_fs::fs_write_temp,

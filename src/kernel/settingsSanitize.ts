@@ -23,6 +23,7 @@ import { sanitizeIconDecor } from "./settingsIconDecor";
 import {
   ASK_SOUND_IDS,
   SESSION_HYGIENE_HOURS,
+  SESSION_LOG_RETENTION_DAYS,
   SESSION_LIST_TOTAL_DEFAULT,
   SESSION_LIST_TOTAL_MAX,
   SESSION_LIST_TOTAL_MIN,
@@ -31,6 +32,7 @@ import {
   type MemoryCapsuleMode,
   type SendShortcut,
   type SessionHygieneHours,
+  type SessionLogRetentionDays,
   type SessionListBudget,
   type ThemePreference,
 } from "./settingsTypes";
@@ -297,6 +299,11 @@ export function sanitize(raw: unknown): AppSettings {
     sessionHygieneHours: SESSION_HYGIENE_HOURS.includes(obj.sessionHygieneHours as SessionHygieneHours)
       ? (obj.sessionHygieneHours as SessionHygieneHours)
       : DEFAULT_SETTINGS.sessionHygieneHours,
+    sessionLogRetentionDays: SESSION_LOG_RETENTION_DAYS.includes(
+      obj.sessionLogRetentionDays as SessionLogRetentionDays,
+    )
+      ? (obj.sessionLogRetentionDays as SessionLogRetentionDays)
+      : DEFAULT_SETTINGS.sessionLogRetentionDays,
     engineVersionFavs: sanitizeEngineVersionFavs(obj.engineVersionFavs),
     shortcutOverrides: sanitizeShortcutOverrides(obj.shortcutOverrides),
     workspaceArchiveView:

@@ -26,9 +26,9 @@ describe("formatBytes", () => {
 describe("auditCategories", () => {
   const cats = auditCategories("/home/u", "/home/u/.tmd-cli");
 
-  it("十二类目全在,键唯一", () => {
+  it("十三类目全在,键唯一", () => {
     expect(cats.map((c) => c.key)).toEqual([
-      "checkpoints", "docgen", "omp", "pi", "claude", "qoder", "codex", "kimi", "kimi-legacy",
+      "checkpoints", "session-logs", "docgen", "omp", "pi", "claude", "qoder", "codex", "kimi", "kimi-legacy",
       "qoder-cn", "grok", "dsh",
     ]);
     expect(new Set(cats.map((c) => c.key)).size).toBe(cats.length);
