@@ -58,11 +58,13 @@ function ThinkingChip(props: {
       aria-label={t("思考 {level}", { level: props.level })}
       disabled={blocked}
       title={
-        props.askWait
-          ? t("等待确认中,先在面板作答")
-          : props.turnActive
-            ? t("对话进行中,本轮结束后可点击")
-            : t("点击打开思考强度选择")
+        !props.sendable
+          ? undefined
+          : props.askWait
+            ? t("等待确认中,先在面板作答")
+            : props.turnActive
+              ? t("对话进行中,本轮结束后可点击")
+              : t("点击打开思考强度选择")
       }
       onClick={() => {
         if (blocked || !props.sendable) return;

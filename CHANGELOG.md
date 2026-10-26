@@ -19,6 +19,7 @@
 - checkpoints 回落沿对称化:主键翻转沿(探测窗开窗/关窗/重绑)新键首拉未落地时回落上一主键并携带种子清单,重绑不再闪一拍空帧;回落键 recency 由刷新效应侧触碰防 LRU 逐出;staleSessionId 推导抽纯函数补测试面
 - read_file 二进制头部嗅探:前 8KB 含 NUL 即拒,百 MB 二进制不再整读进内存/IPC 才说不支持(8KB 后 NUL 罕见形态保留后置校验,语义不变)
 - anim read-failed toast locale 感知:en/ja 只显分类句不再中外混排(完整原文进 console 供排障);错误呈现层第一步 kernel/errText(gitError 切换委托,行为等价)
+- 二轮评审(攻击者视角)三修:⌘F 跳转窗尾三重钳制不再越入活缓冲区双喂重复渲染;抽屉确认窗内 ask 迟到写前复检不再误作答案;mobile 思考 chip 非可发引擎不再虚标可点 title
 - 会话列表置顶投影 Map 化:500+ 会话 × 多置顶下逐 pin 线性找改 Map 查找
 
 ### 内务

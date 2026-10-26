@@ -134,6 +134,10 @@ export function useComposerDrawer({
     wire: string,
     text: string,
   ): Promise<string | null> {
+    /* ask 复检(2026-10-26 复审):确认弹窗开启期间 CLI 可能进入 ask 等待,
+     * 此刻写入会被当答案文本提交 —— 与点击时刻的闸同律,写前再拦一次;
+     * 静默返回("" 不 toast),用户重试时 UI 闸会给出明示。 */
+    if (host.isWaitingConfirm(sid)) return "";
     setSendExecuting(true);
     try {
       const gate = readPromptGate(sid); // 轮次闸写前现读:ask 作答/轮中斜杠命令不开轮不广播

@@ -81,7 +81,14 @@ export class TerminalHistoryPager {
     this.loading = true;
     this.emit();
     try {
-      const before = Math.min(offset + HISTORY_PAGE_BYTES, await ipc.sessionLogSize(this.sessionId));
+      /* 窗尾三重钳制:页字节预算 × 日志尾 × 当前缓冲起点 —— 越过 earliestByte
+       * 会在缓冲快照里再写一遍同一区段(双喂重复渲染,2026-10-26 复审);
+       * 命中落在缓冲区内(>= earliestByte)返回空页不跳,由缓冲搜索负责。 */
+      const before = Math.min(
+        offset + HISTORY_PAGE_BYTES,
+        this.earliestByte,
+        await ipc.sessionLogSize(this.sessionId),
+      );
       const page = await ipc.sessionHistoryPage(this.sessionId, before, HISTORY_PAGE_BYTES);
       if (!page.text) return false;
       this.prefix = [page.text];
