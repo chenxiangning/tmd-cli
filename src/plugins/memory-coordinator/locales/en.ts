@@ -186,6 +186,10 @@ export const MESSAGES_EN = {
   "✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context);原文已备份 {path}":
     "✓ opencode config updated (plugin registered + native compaction handed to Magic Context); original saved to {path}",
   "opencode 配置更新失败(已回滚原文): {err}": "opencode config update failed (original restored): {err}",
+  "✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)":
+    "✓ opencode config updated (plugin registered + native compaction handed to Magic Context)",
+  "opencode 配置更新失败(自动回滚未完成,原文备份在 {path}): {err}":
+    "opencode config update failed (automatic restore incomplete; original backed up at {path}): {err}",
   "opencode 配置更新失败(新文件未写入): {err}": "opencode config update failed (new file not written): {err}",
   "✗ 迁移被锁:仍有 omp/pi 进程持有共享库": "✗ Migration locked: omp/pi processes still hold the shared library",
   "bootstrap 无输出": "bootstrap produced no output",

@@ -185,6 +185,10 @@ export const MESSAGES_JA = {
   "✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context);原文已备份 {path}":
     "✓ opencode 設定を更新(プラグイン登録 + ネイティブ compaction を Magic Context に委譲);元ファイルは {path} にバックアップ",
   "opencode 配置更新失败(已回滚原文): {err}": "opencode 設定の更新に失敗(元に戻しました): {err}",
+  "✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)":
+    "✓ opencode 設定を更新(プラグイン登録 + ネイティブ compaction を Magic Context に委譲)",
+  "opencode 配置更新失败(自动回滚未完成,原文备份在 {path}): {err}":
+    "opencode 設定の更新に失敗(自動復元は未完了、元ファイルは {path} にバックアップ): {err}",
   "opencode 配置更新失败(新文件未写入): {err}": "opencode 設定の更新に失敗(新規ファイル未書き込み): {err}",
   "✗ 迁移被锁:仍有 omp/pi 进程持有共享库": "✗ 移行がロック中:omp/pi プロセスがまだ共有ライブラリを保持しています",
   "bootstrap 无输出": "bootstrap の出力なし",
