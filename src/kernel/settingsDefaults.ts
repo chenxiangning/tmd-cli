@@ -22,6 +22,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   language: "zh",
   terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
   terminalFontFamily: "",
+  terminalWebglRenderer: false,
   uiFontSize: UI_FONT_SIZE_DEFAULT,
   uiZoom: UI_ZOOM_DEFAULT,
   iconDecor: DEFAULT_ICON_DECOR,

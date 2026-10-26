@@ -2,6 +2,7 @@
 import { MESSAGES as common } from "./common";
 import { MESSAGES as settings } from "./settings";
 import { MESSAGES as settings2 } from "./settings2";
+import { MESSAGES as settings3 } from "./settings3";
 import { MESSAGES as workspace } from "./workspace";
 import { MESSAGES as git } from "./git";
 import { MESSAGES as files } from "./files";
@@ -23,6 +24,7 @@ export const JA_MESSAGES: Record<string, string> = {
   ...common,
   ...settings,
   ...settings2,
+  ...settings3,
   ...workspace,
   ...git,
   ...files,

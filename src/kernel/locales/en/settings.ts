@@ -291,14 +291,4 @@ export const MESSAGES = {
   "用完即断开中继": "Disconnect the relay when done",
   "桌面重启后密钥自动重铸,旧链接即失效":
     "The key is re-minted on desktop restart; old links stop working",
-  "我已了解并自行承担风险": "I understand the risks and accept them",
-  "有浏览器客户端正通过 Web 访问控制本机":
-    "A browser client is controlling this machine via web access",
-  "会话输出日志保留": "Session log retention",
-  "应用异常退出会残留会话输出日志;超过保留天数的旧日志在启动时自动清理,使用中的会话不受影响。":
-    "Abnormal exits can leave session logs behind; logs older than the retention window are cleaned at startup. Active sessions are never touched.",
-  "30 天": "30 days",
-  "90 天": "90 days",
-  "不清理": "Never",
-
 } as Record<string, string>;

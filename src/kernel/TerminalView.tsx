@@ -45,6 +45,7 @@ import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
 import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
 import { readTerminalTheme } from "@kernel/terminalXtermTheme";
+import { attachWebglRendererAuto } from "@kernel/terminalWebglRenderer";
 
 /* 导出级 memo:props 全原始类型,浅比较稳定(keep-alive 语义见 MainPanel)。
    tab 条内会话常驻挂载,非激活 display:none;active 切换不重挂,仅 ref 所有权迁移。 */
@@ -158,12 +159,10 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     container.addEventListener("focusin", onFocusIn);
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
-    /* 渲染器 = xterm 内建 DOM:WebGL glyph atlas 长跑后被 WebKit texSubImage2D
-       大纹理子上传 bug 损坏成马赛克且 onContextLoss 不触发,已弃用;addon-canvas
-       停更 xterm 5 时代装不上 ^6。DOM 渲染器是核心兜底。ponytail: 全屏 TUI
-       重绘性能不达标时复评(webgl 上游修复 或 addon-canvas 适配 v6)。 */
-termRef.current = term;
-    searchRef.current = search;
+    /* 渲染器 = xterm 内建 DOM(核心兜底);WebGL opt-in 默认关(WebKit glyph atlas 长跑马赛克),
+       装载 + 像素探针自检降级见 terminalWebglRenderer.ts。ponytail: 上游修复后复评转默认。 */
+    const detachWebgl = attachWebglRendererAuto(term);
+termRef.current = term; searchRef.current = search;
 
     const pager = new TerminalHistoryPager(sessionId, inputGate, (h, l) => {
       setHasMore(h);
@@ -239,7 +238,7 @@ termRef.current = term;
       disposed = true; disposal.resolve(); streamReady.resolve(); stopAskProbe();
       stopStallProbe();
       offTokens();
-      offFontSettings();
+      offFontSettings(); detachWebgl(); /* webgl addon 先于 term.dispose 卸载,dispose 即回落 DOM 渲染器 */
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
       /* 先冲刷 250ms 合帧攒帧再存快照(尾巴已计水位不在投影,跳过则 fast 永久缺字);终态收尾须先于注销 handle。 */

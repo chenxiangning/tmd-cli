@@ -5,6 +5,7 @@ mod commands_fs;
 mod event_sink;
 mod fs;
 mod fs_edit;
+mod fs_edit_cmds;
 mod fs_preview;
 mod fs_remove;
 mod fs_search;
@@ -302,15 +303,15 @@ pub fn run() {
             lsp::lsp_spawn,
             lsp::lsp_send,
             lsp::lsp_stop,
-            fs_edit::fs_write_file,
-            fs_edit::fs_mtime,
-            fs_edit::fs_create_file,
-            fs_edit::fs_create_dir,
-            fs_edit::fs_rename_entry,
-            fs_edit::fs_trash_entry,
-            fs_edit::fs_reveal_in_file_manager,
-            fs_edit::fs_copy_file,
-            fs_edit::fs_copy_tree,
+            fs_edit_cmds::fs_write_file,
+            fs_edit_cmds::fs_mtime,
+            fs_edit_cmds::fs_create_file,
+            fs_edit_cmds::fs_create_dir,
+            fs_edit_cmds::fs_rename_entry,
+            fs_edit_cmds::fs_trash_entry,
+            fs_edit_cmds::fs_reveal_in_file_manager,
+            fs_edit_cmds::fs_copy_file,
+            fs_edit_cmds::fs_copy_tree,
             fs_usage::fs_dir_usage,
             open_with::fs_open_with,
             open_with::fs_probe_open_app,

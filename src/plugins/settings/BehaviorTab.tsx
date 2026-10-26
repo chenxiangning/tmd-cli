@@ -1,5 +1,6 @@
 /**
- * 基础设置 / 行为 tab —— 发送快捷键 + 输入历史(补全开关 + 管理区)+ 会话输出缓冲上限。
+ * 基础设置 / 行为 tab —— 发送快捷键 + 输入历史(补全开关 + 管理区)+ 会话输出缓冲上限
+ * + 终端 WebGL 渲染 opt-in 开关(默认关)。
  * (Ask/结束提示音与后台提醒已迁至「系统通知」插件的设置页,见 plugins/notify/SoundSettingsCard。)
  *
  * segmented 两选项:
@@ -20,6 +21,7 @@ import {
 import { PromptHistoryManager } from "./PromptHistoryManager";
 import { HygieneCard } from "./HygieneCard";
 import { t } from "@kernel/i18n";
+import { clearWebglDegradedMemory } from "@kernel/terminalWebglRenderer";
 import {
   BUFFER_LIMIT_MAX,
   BUFFER_LIMIT_MIN,
@@ -146,6 +148,39 @@ export function BehaviorTab() {
           }}
           className="w-32 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
         />
+      </div>
+      {/* 终端 WebGL 渲染 opt-in(默认关;装配 + 自检降级见 kernel/terminalWebglRenderer.ts):
+          转「开」时清降级记忆允许重试。 */}
+      <div className="pref-row">
+        <div>
+          <div className="pref-title">{t("终端 WebGL 渲染")}</div>
+          <div className="pref-desc">
+            {t("实验:GPU 加速终端渲染,异常时自动回退内置渲染器;HTop/vim 等全屏重绘更流畅。默认关闭。")}
+          </div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t("终端 WebGL 渲染")}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={settings.terminalWebglRenderer}
+            className={`segment${settings.terminalWebglRenderer ? " is-active" : ""}`}
+            onClick={() => {
+              clearWebglDegradedMemory();
+              updateSettings({ terminalWebglRenderer: true });
+            }}
+          >
+            {t("开")}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!settings.terminalWebglRenderer}
+            className={`segment${!settings.terminalWebglRenderer ? " is-active" : ""}`}
+            onClick={() => updateSettings({ terminalWebglRenderer: false })}
+          >
+            {t("关")}
+          </button>
+        </div>
       </div>
     </div>
       <PromptHistoryManager />

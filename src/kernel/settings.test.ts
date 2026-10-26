@@ -16,7 +16,6 @@ type SettingsModule = typeof import("./settings");
 
 let settings: SettingsModule;
 
-
 beforeEach(async () => {
   vi.clearAllMocks();
   ipcMock.configReadSettings.mockResolvedValue(null);
@@ -43,6 +42,7 @@ describe("初始状态与默认值", () => {
       localPluginsDisabled: false,
       terminalFontSize: 13,
       terminalFontFamily: "",
+      terminalWebglRenderer: false,
       uiFontSize: 16,
       uiZoom: 1,
       sessionTabsEnabled: true,
@@ -288,7 +288,6 @@ describe("外观域字段清洗(language/终端字体字号/界面缩放)", () =
     settings.updateSettings({ terminalFontFamily: 42 as never });
     expect(settings.getSettingsState().settings.terminalFontFamily).toBe("");
   });
-
   it("uiZoom:取 5% 档 + 越界钳位 + 非法回落 1", () => {
     settings.updateSettings({ uiZoom: 1.37 });
     expect(settings.getSettingsState().settings.uiZoom).toBe(1.35);

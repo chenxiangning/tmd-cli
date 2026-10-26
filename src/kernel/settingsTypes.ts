@@ -96,6 +96,9 @@ export interface AppSettings {
   terminalFontSize: number;
   /** 终端字体 CSS family 串;空 = 平台默认等宽栈(kernel/TerminalView 内表)。 */
   terminalFontFamily: string;
+  /** 终端 WebGL 渲染器 opt-in(默认关):开时装载 @xterm/addon-webgl,像素探针自检
+   *  异常自动回落 DOM 渲染器并记忆降级(kernel/terminalWebglRenderer.ts)。 */
+  terminalWebglRenderer: boolean;
   /** 界面字号(px,12-20,默认 16)= html 根字号;rem 文字/图标随缩放,见 kernel/uiFontSize.ts。 */
   uiFontSize: number;
   /** 界面缩放(0.8-1.5 步进 0.05);Tauri webview setZoom,浏览器 dev 兜底 CSS zoom。 */
@@ -256,10 +259,7 @@ export interface AppSettings {
   memoryDistillEngine: string;
   /** 沉淀补充规则(自由文本,追加到提炼指令;如「特别记住数据库决定;忽略测试细节」)。 */
   memoryDistillRules: string;
-  /**
-   * Git 面板记忆态(git 插件的编辑域):视图段 + 差异文件列表布局。
-   * 顶栏切换即写,重启恢复上次选择;布局默认平铺。
-   */
+  /** Git 面板记忆态(git 插件编辑域):视图段 + 差异布局;顶栏切换即写,重启恢复。 */
   git: { view: GitPanelView; layout: GitFileListLayout; diffMode: GitDiffMode; diffWrap: boolean };
   /**
    * SSH 主机簿(ssh 插件的编辑域):终端/SFTP/端口转发共用的主机清单。
@@ -288,10 +288,8 @@ export interface AppSettings {
   webRelayCertHost: string;
   /** 自建中继部署历史(一键部署成功后 Rust 落盘;含密码,不含私钥内容,供整表回填)。 */
   relayDeployHistory: RelayDeployHistoryEntry[];
-  /**
-   * 打开方式清单(open-with 编辑域,settings/files 两插件消费):数组顺序即菜单/面板显示顺序。
-   * 默认种子仅「访达」;图标与可用性运行时解析,不持久化(见 kernel/openWith.ts)。
-   */
+  /** 打开方式清单(open-with 编辑域):数组顺序即菜单显示顺序;默认种子仅「访达」,
+   * 图标与可用性运行时解析不持久化(见 kernel/openWith.ts)。 */
   openWithTargets: OpenWithTarget[];
   /** 打开方式默认项 id(菜单圆圈/设置星标指向);指向被删条目时消费侧回落首项。 */
   openWithDefaultId: string;

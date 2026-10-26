@@ -72,26 +72,41 @@ pub(super) async fn try_dispatch(
         }
         "fs_write_file" => {
             go(raw, |a: WriteFile| {
-                crate::fs_edit::fs_write_file(a.path, a.content, None)
+                crate::fs_edit_cmds::fs_write_file(a.path, a.content, None)
             })
             .await
         }
-        "fs_create_file" => go(raw, |a: OnePath| crate::fs_edit::fs_create_file(a.path)).await,
-        "fs_create_dir" => go(raw, |a: OnePath| crate::fs_edit::fs_create_dir(a.path)).await,
+        "fs_create_file" => {
+            go(raw, |a: OnePath| {
+                crate::fs_edit_cmds::fs_create_file(a.path)
+            })
+            .await
+        }
+        "fs_create_dir" => go(raw, |a: OnePath| crate::fs_edit_cmds::fs_create_dir(a.path)).await,
         "fs_rename_entry" => {
             go(raw, |a: Rename| {
-                crate::fs_edit::fs_rename_entry(a.path, a.new_name)
+                crate::fs_edit_cmds::fs_rename_entry(a.path, a.new_name)
             })
             .await
         }
-        "fs_trash_entry" => go(raw, |a: OnePath| crate::fs_edit::fs_trash_entry(a.path)).await,
+        "fs_trash_entry" => {
+            go(raw, |a: OnePath| {
+                crate::fs_edit_cmds::fs_trash_entry(a.path)
+            })
+            .await
+        }
         "fs_reveal_in_file_manager" => {
             go(raw, |a: OnePath| {
-                crate::fs_edit::fs_reveal_in_file_manager(a.path)
+                crate::fs_edit_cmds::fs_reveal_in_file_manager(a.path)
             })
             .await
         }
-        "fs_copy_file" => go(raw, |a: Copy| crate::fs_edit::fs_copy_file(a.src, a.dst)).await,
+        "fs_copy_file" => {
+            go(raw, |a: Copy| {
+                crate::fs_edit_cmds::fs_copy_file(a.src, a.dst)
+            })
+            .await
+        }
         "read_binary_file_base64" => {
             go(raw, |a: OnePath| {
                 crate::commands_fs::read_binary_file_base64(a.path)

@@ -211,6 +211,10 @@ export function sanitize(raw: unknown): AppSettings {
       : "zh",
     terminalFontSize: sanitizeTerminalFontSize(obj.terminalFontSize),
     terminalFontFamily: sanitizeTerminalFontFamily(obj.terminalFontFamily),
+    terminalWebglRenderer:
+      typeof obj.terminalWebglRenderer === "boolean"
+        ? obj.terminalWebglRenderer
+        : DEFAULT_SETTINGS.terminalWebglRenderer,
     uiFontSize: sanitizeUiFontSize(obj.uiFontSize),
     uiZoom: sanitizeUiZoom(obj.uiZoom),
     iconDecor: sanitizeIconDecor(obj.iconDecor),
