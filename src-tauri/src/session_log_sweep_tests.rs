@@ -29,6 +29,17 @@ impl TempRoot {
         f.set_modified(t).unwrap();
         p
     }
+
+    /// 造一个秒级 mtime 的文件(手动全清宽限测试用)。
+    fn file_secs(&self, rel: &str, secs_ago: u64) -> PathBuf {
+        let p = self.0.join(rel);
+        fs::create_dir_all(p.parent().unwrap()).unwrap();
+        fs::write(&p, b"x").unwrap();
+        let t = SystemTime::now() - Duration::from_secs(secs_ago);
+        let f = fs::File::options().append(true).open(&p).unwrap();
+        f.set_modified(t).unwrap();
+        p
+    }
 }
 
 impl Drop for TempRoot {
@@ -53,8 +64,9 @@ fn ttl_deletes_old_keeps_fresh() {
 fn zero_days_clears_all_but_live() {
     let root = TempRoot::new("zero");
     let live_one = root.file("omp/proj-a/live.log", 30);
-    root.file("omp/proj-a/dead.log", 0);
-    root.file("omp/proj-b/ptr.logptr", 0);
+    /* 死文件用秒级 mtime 绕开手动全清的 60s 活性宽限 */
+    root.file_secs("omp/proj-a/dead.log", 3600);
+    root.file_secs("omp/proj-b/ptr.logptr", 3600);
     let live = HashSet::from([live_one]);
     let r = sweep_tree(&root.0, 0, &live, SystemTime::now());
     assert_eq!(r.removed_files, 2);
@@ -63,6 +75,19 @@ fn zero_days_clears_all_but_live() {
     assert!(root.0.join("omp/proj-a").is_dir());
     assert!(!root.0.join("omp/proj-b").exists());
     assert_eq!(r.removed_dirs, 1);
+}
+
+#[test]
+fn zero_days_keeps_very_fresh_files() {
+    /* 手动全清竞态:mtime <60s 的日志即便不在活账本也保留 */
+    let root = TempRoot::new("fresh");
+    root.file_secs("omp/proj/just-now.log", 1);
+    root.file_secs("omp/proj/older.log", 120);
+    let live = HashSet::new();
+    let r = sweep_tree(&root.0, 0, &live, SystemTime::now());
+    assert_eq!(r.removed_files, 1);
+    assert!(root.0.join("omp/proj/just-now.log").exists());
+    assert!(!root.0.join("omp/proj/older.log").exists());
 }
 
 #[test]

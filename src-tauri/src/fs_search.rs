@@ -171,7 +171,7 @@ pub fn search(
             }
             let text = String::from_utf8_lossy(raw); // 合法 UTF-8 零拷贝
             let matched = if case_sensitive {
-                text.contains(query)
+                text.contains(needle.as_str())
             } else {
                 text.to_lowercase().contains(&needle)
             };
@@ -184,6 +184,11 @@ pub fn search(
             }
             pos = next;
         }
+    }
+    /* walk 自然走完但已满额:命中恰在最后文件时内层 break 未触发,结果实际
+     * 不完整(后面无文件可证伪),同样置 truncated(UI 不谎报完整)。 */
+    if hits.len() >= max_results {
+        truncated = true;
     }
     Ok(FsSearchResult { hits, truncated })
 }

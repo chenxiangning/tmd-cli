@@ -113,6 +113,22 @@ fn caps_limit_results() {
 }
 
 #[test]
+fn full_at_last_file_marks_truncated() {
+    /* 命中恰在最后一个文件且满额:walk 自然结束不触发内层 break,
+     * 结果实际不完整,truncated 必须置位(原此处谎报完整)。 */
+    let root = tmp_root("trunc-last");
+    write(&root, "only.txt", b"needle\nneedle\n");
+    let r = search(root.to_str().unwrap(), "needle", true, None, 1).unwrap();
+    assert_eq!(r.hits.len(), 1);
+    assert!(r.truncated);
+    /* 未满额不置位 */
+    let r2 = search(root.to_str().unwrap(), "needle", true, None, 10).unwrap();
+    assert_eq!(r2.hits.len(), 2);
+    assert!(!r2.truncated);
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+#[test]
 fn empty_query_and_bad_root() {
     let root = tmp_root("empty");
     assert!(search(root.to_str().unwrap(), "", true, None, 100)

@@ -124,6 +124,10 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
     从用户手里抢焦点(2026-10-01 反馈:切去浏览器每 10 余秒被弹回)。
     真粘死在用户回焦时由 Focused 探针线检出接力,聚焦态击打不受影响。 */
     if !window.is_focused().unwrap_or(false) {
+        crate::render_health_events::note(
+            "kick-skipped-unfocused",
+            "未聚焦窗口跳过击打(设计内暂停,回焦由探针线接力)".to_string(),
+        );
         return;
     }
     let now = now_millis();

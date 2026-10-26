@@ -75,6 +75,16 @@ pub(crate) fn search_log(
         &folded
     };
 
+    /* 下溢守卫:needle 长于日志内容(新会话空日志+长查询)时 hay.len()-pat.len()
+     * 会下溢 panic,前置早退空结果。 */
+    if hay.len() < pat.len() {
+        return Ok(LogSearchResult {
+            hits: vec![],
+            total_hits: 0,
+            truncated: false,
+        });
+    }
+
     /* 单遍扫描(2026-10-26 重写):①行游标前向推进,命中点行起点 O(1) 均摊
      * —— 原向文件头回扫在 TUI 日志(几乎无换行)上是 O(hits×64MB),200 命中
      * 达百亿次比较;②首字节跳扫(memchr 语义):非候选点单字节前进,候选点才
@@ -227,5 +237,21 @@ mod tests {
         assert_eq!(r3.hits.len(), 2);
         let _ = std::fs::remove_file(&path2);
         let _ = std::fs::remove_file(&path3);
+    }
+
+    #[test]
+    fn search_log_needle长于内容不panic() {
+        /* 空日志 + 长查询(⌘F 磁盘兜底即达):下溢守卫早退空结果 */
+        let path = temp_log("search-underflow", b"");
+        let r = search_log(&path, 0, "very long needle", false).unwrap();
+        assert_eq!(r.hits.len(), 0);
+        assert_eq!(r.total_hits, 0);
+        assert!(!r.truncated);
+        /* needle 恰长于短内容同样早退 */
+        let p2 = temp_log("search-underflow2", b"ab");
+        let r2 = search_log(&p2, 0, "abc", true).unwrap();
+        assert_eq!(r2.total_hits, 0);
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&p2);
     }
 }

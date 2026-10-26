@@ -26,6 +26,9 @@ pub struct SweepReport {
 fn sweepable(name: &str) -> bool {
     name.ends_with(".log") || name.ends_with(".logptr") || name.ends_with(".tmp")
 }
+/// 手动全清(days=0)的活性宽限:mtime 新于该值的文件保留(spawn 竞态期
+/// 活会话可能尚未进账本)。
+const MANUAL_FRESH_GRACE: Duration = Duration::from_secs(60);
 
 /// 目录空则删,回传是否回收(供上层引擎目录连坐判断)。
 fn remove_dir_if_empty(dir: &Path, report: &mut SweepReport) {
@@ -61,17 +64,21 @@ fn sweep_tree(root: &Path, days: u64, live: &HashSet<PathBuf>, now: SystemTime) 
                 for f in files.flatten() {
                     let p = f.path();
                     let name = f.file_name().to_string_lossy().into_owned();
-                    /* 未知形态(子目录/不可清名/元数据失败)一律保目录不连坐。 */
+                    let age = f
+                        .metadata()
+                        .and_then(|m| m.modified())
+                        .ok()
+                        .and_then(|mtime| now.duration_since(mtime).ok());
+                    /* 未知形态(子目录/不可清名/元数据失败)一律保目录不连坐。
+                     * days=0(手动全清)无 TTL 闸,但 mtime 极新(<60s)的文件
+                     * 可能正被活会话写入而账本尚未登记(spawn 竞态),同样保留。 */
                     let keep = !p.is_file()
                         || !sweepable(&name)
                         || live.contains(&p)
                         || f.metadata().is_err()
-                        || days > 0
-                            && f.metadata()
-                                .and_then(|m| m.modified())
-                                .ok()
-                                .and_then(|mtime| now.duration_since(mtime).ok())
-                                .is_some_and(|age| age < ttl);
+                        || age.is_none()
+                        || (days > 0 && age.is_some_and(|a| a < ttl))
+                        || (days == 0 && age.is_some_and(|a| a < MANUAL_FRESH_GRACE));
                     if keep {
                         emptied = false;
                         continue;
@@ -110,6 +117,7 @@ fn retention_days(settings: &serde_json::Value) -> u64 {
     settings
         .get("sessionLogRetentionDays")
         .and_then(serde_json::Value::as_u64)
+        /* 默认与 TS 真源 settingsSessionEntries.ts 对齐,改档位两处同步 */
         .unwrap_or(7)
 }
 
