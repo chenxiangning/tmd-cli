@@ -183,7 +183,8 @@ export const MESSAGES_EN = {
   "✓ omp 插件注册成功(原生 compaction / memory 由其接管)": "✓ omp plugin registered (native compaction / memory taken over by it)",
   "pi 安装失败(exit {code}): {err}": "pi install failed (exit {code}): {err}",
   "✓ pi 插件注册成功": "✓ pi plugin registered",
-  "✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)": "✓ opencode config updated (plugin registered + native compaction handed to Magic Context)",
+  "✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context);原文已备份 {path}":
+    "✓ opencode config updated (plugin registered + native compaction handed to Magic Context); original saved to {path}",
   "opencode 配置更新失败(已回滚原文): {err}": "opencode config update failed (original restored): {err}",
   "opencode 配置更新失败(新文件未写入): {err}": "opencode config update failed (new file not written): {err}",
   "✗ 迁移被锁:仍有 omp/pi 进程持有共享库": "✗ Migration locked: omp/pi processes still hold the shared library",

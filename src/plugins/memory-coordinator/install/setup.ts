@@ -90,8 +90,17 @@ export class InstallOrchestrator {
       }
       cfg.plugin = plugins;
       cfg.compaction = { ...(typeof cfg.compaction === "object" && cfg.compaction ? cfg.compaction : {}), auto: false, prune: false };
+      /* 注释保护(2026-10-26):opencode.json 常带用户注释/排版,规范化重写会
+       洗掉 —— 原文先落 .tmd-bak(同目录),主文件照写;失败回滚仍用内存原文。 */
+      if (backup !== null) {
+        await writeText(`${configPath}.tmd-bak`, backup).catch(() => {});
+      }
       await writeText(configPath, JSON.stringify(cfg, null, 2) + "\n");
-      onLine(t("✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)"));
+      onLine(
+        t("✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context);原文已备份 {path}", {
+          path: `${configPath}.tmd-bak`,
+        }),
+      );
       return { ok: true, message: "" };
     } catch (e) {
       if (backup !== null) await writeText(configPath, backup).catch(() => {});
