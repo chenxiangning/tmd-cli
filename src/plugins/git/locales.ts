@@ -31,9 +31,9 @@ const MESSAGES_EN = {
   "套用": "Apply",
   "弹出": "Pop",
   "丢弃 stash #{n}?": "Drop stash #{n}?",
-  "丢弃后不可恢复;如需保留改动请改用「应用」。":
+  "丢弃后不可恢复;如需保留改动请改用「套用」。":
     "This cannot be undone. Use \"Apply\" to keep the stash entry.",
-  "已应用 stash #{n}(条目保留)": "Applied stash #{n} (entry kept)",
+  "已套用 stash #{n}(条目保留)": "Applied stash #{n} (entry kept)",
   "已弹出 stash #{n}": "Popped stash #{n}",
   "已丢弃 stash #{n}": "Dropped stash #{n}",
 } as const;
@@ -68,9 +68,9 @@ const MESSAGES_JA = {
   "套用": "適用",
   "弹出": "ポップ",
   "丢弃 stash #{n}?": "stash #{n} を破棄しますか?",
-  "丢弃后不可恢复;如需保留改动请改用「应用」。":
+  "丢弃后不可恢复;如需保留改动请改用「套用」。":
     "破棄すると元に戻せません。変更を残す場合は「適用」を使ってください。",
-  "已应用 stash #{n}(条目保留)": "stash #{n} を適用しました(エントリ保持)",
+  "已套用 stash #{n}(条目保留)": "stash #{n} を適用しました(エントリ保持)",
   "已弹出 stash #{n}": "stash #{n} をポップしました",
   "已丢弃 stash #{n}": "stash #{n} を破棄しました",
 } as const;

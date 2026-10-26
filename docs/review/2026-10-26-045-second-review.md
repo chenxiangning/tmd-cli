@@ -24,6 +24,16 @@
 
 - 智能笔记 #23(main CI i18n ja 缺键红)经本会话多轮 check:gate 全绿证伪,已 dismiss(过时)。
 
+## 终轮优化(2026-10-26 晚,效率/文案一致性/陈旧态视角)
+
+- **修:文案指涉失真**(P2):i18n 撞键修复把「应用」钮改名「套用」后,丢弃确认弹窗 detail 仍指「应用」、toast 仍说「已应用」——改名必须全链同步;zh 键与 en/ja 词条同步更新。
+- **修:磁盘搜索大小写不敏感路径 O(n×m) 逐字节折叠**(性能):原逐位置 `.map(to_ascii_lowercase)` 比较改为整仓预折叠一次 + 切片等(memcmp 级),大小写敏感路径零拷贝直借 raw;手动触发下 64MB 额外瞬态内存换扫描速度。
+- **记档:stash 列表外部变更陈旧态**(P3):用户在终端手敲 git stash/pop 时 StashBar 不自愈(挂载拍 + 自身动作后重拉);面板手动刷新链不覆盖 stash 域,与多数面板外部变更语义一致,记录不动。
+
+## 验证(终轮)
+
+- cargo:session_log_search 3 测绿、clippy -D warnings 0、fmt --check OK;前端:git+locales 21 文件 143 测绿、tsc 0 错。
+
 ## 验证
 
 - `npx tsc --noEmit` 0 错;vitest composer+mobile+terminalSearchLog 46 文件 350 测全绿。

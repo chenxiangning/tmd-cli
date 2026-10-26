@@ -370,6 +370,6 @@
 | 2026-10-24 | [意图画布 excalidraw 导入收口评审(独立视角;P1×1=非保活 tab 重挂重放导入静默复制画布,claimImportRequestId 跨重挂去重当轮修;P2×1=512KB 读闸声明失实,前端闸早拒当轮修;P3×2 记档)](review/2026-10-24-canvas-import-review.md) | 已收口(P1/P2 当轮修) |
 | 2026-10-25 | [0.4.5 长期任务批次规划(功能增强+换角度体检:轮次闸三面统一/checkpoints 回落沿/read_file sniff/终端磁盘日志搜索/git blame/stash 管理面/错误呈现统一/mobile 对齐/挂机浸泡审计/满额态压测,四批十项)](brainstorm/2026-10-25-045-batch-plan.md) | 已收口(十项全交付) |
 | 2026-10-25 | [0.4.5 批次收口评审(十项全量:批次 A bug 欠账×3/B 深度增强×3(含原清单 blame 误判改面补全)/C 呈现统一与 mobile 对齐×2/D 换角度体检×2;附工具教训三条:门禁管道吞退出码/LSP 陈旧快照/能力核查全仓 grep)](review/2026-10-25-045-batch-review.md) | 已收口 |
-| 2026-10-26 | [0.4.5 二轮评审(攻击者视角:并发窗口/边界跨域/affordance 三类面;P2×3 当轮全修=跳转窗尾越入活缓冲双喂/抽屉确认窗内 ask 迟到仍误写/mobile 思考chip title 撒谎;P3 记 2 不成立 3;智能笔记 #23 证伪 dismiss)](review/2026-10-26-045-second-review.md) | 已收口(P2 当轮全修) |
+| 2026-10-26 | [0.4.5 二轮+终轮评审(攻击者视角 P2×3=跳转窗尾双喂/确认窗内 ask 迟到/title 撒谎;终轮效率与文案视角补修=stash 文案指涉失真/搜索预折叠快扫;P3 记 3 不成立 3;智能笔记 #23 证伪 dismiss)](review/2026-10-26-045-second-review.md) | 已收口 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

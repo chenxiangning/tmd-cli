@@ -106,7 +106,7 @@ export function GitStashBar({
                 onClick={() => {
                   pendingIndexRef.current = e.index;
                   act(
-                    t("已应用 stash #{n}(条目保留)", { n: String(e.index) }),
+                    t("已套用 stash #{n}(条目保留)", { n: String(e.index) }),
                     () => ipc.gitStashApply(cwd, e.index, true),
                   );
                 }}
@@ -134,7 +134,7 @@ export function GitStashBar({
                   const index = e.index;
                   setDropConfirm({
                     title: t("丢弃 stash #{n}?", { n: String(index) }),
-                    detail: t("丢弃后不可恢复;如需保留改动请改用「应用」。"),
+                    detail: t("丢弃后不可恢复;如需保留改动请改用「套用」。"),
                     confirmLabel: t("丢弃"),
                     onConfirm: () => {
                       pendingIndexRef.current = index;

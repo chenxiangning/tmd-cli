@@ -62,25 +62,28 @@ pub(crate) fn search_log(
             }
         })
         .collect();
-    let hay_is_folded = !case_sensitive;
+
+    /* 大小写不敏感路径:整仓预折叠一次(单遍 SIMD 友好),窗口比较走切片等
+     * (memcmp 级)—— 原逐位置 map 是 O(n×m) 逐字节折叠,64MB 日志级慢
+     * (2026-10-26 终轮复审);64MB 额外瞬态内存换扫描速度,手动触发可接受。
+     * 大小写敏感路径零拷贝直借 raw。 */
+    let folded: Vec<u8>;
+    let hay: &[u8] = if case_sensitive {
+        &raw
+    } else {
+        folded = raw.iter().map(|b| b.to_ascii_lowercase()).collect();
+        &folded
+    };
 
     let mut total: u64 = 0;
     let mut hits: Vec<LogSearchHit> = Vec::new();
     let mut last_line_start: Option<usize> = None;
     let mut i = 0usize;
-    while i + pat.len() <= raw.len() {
-        let eq = if hay_is_folded {
-            raw[i..i + pat.len()]
-                .iter()
-                .map(|b| b.to_ascii_lowercase())
-                .eq(pat.iter().copied())
-        } else {
-            raw[i..i + pat.len()] == pat[..]
-        };
-        if eq {
+    while i + pat.len() <= hay.len() {
+        if hay[i..i + pat.len()] == pat[..] {
             total += 1;
             /* 行去重:同一行的多处命中只出一条定位条目(跳转目标 = 行起点)。 */
-            let line_start = raw[..i]
+            let line_start = hay[..i]
                 .iter()
                 .rposition(|&b| b == b'\n')
                 .map(|p| p + 1)
@@ -92,7 +95,7 @@ pub(crate) fn search_log(
                     line: preview_line(&raw, line_start),
                 });
             }
-            i += pat.len().max(1);
+            i += pat.len();
         } else {
             i += 1;
         }
