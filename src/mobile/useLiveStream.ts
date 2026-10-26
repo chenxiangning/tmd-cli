@@ -3,20 +3,11 @@
  * - 先订阅后快照(二轮 P1-2):反序会留流中段缺口;缓冲后按序排空。订阅生效
    →快照读取窗口内到达的 chunk 会与快照字节重叠,排空前按「快照尾 ∩ 缓冲头」
    剥离(overlapLen),差分重绘型 CLI(opencode)对双喂不幂等,重复即上屏。
- * - 尺寸与首页并行拉(外网 RTT 减半);首页 128KB:回看深度一步到位(分页帧
- *   远低于中继 4MiB 上限)。
- * - loadEarlier:复用 session_history_page 分页(start_offset/has_more 桌面现成),
- *   剥 ANSI 线性文本前置渲染——LiveScreen 是 append-only VT 模型,不可前插字节。
- * - 尺寸:手机 useTerminalFit 随容器发 session_resize(与桌面共享同一 PTY),
- *   每 3s 校 session_size,变了即 LiveScreen 原地 resize(不重放快照:重放会把
- *   在途活 chunk 与快照字节双喂;真机双页脚实证的是几何,不是重放)。
- * - 内容零丢失(P0):事件跳帧(Lagged)与断连重连(onRemoteConnection 翻转)
- *   都按水位比对触发一次 rebuild 回放 —— 断连窗口的输出不再成永久缺口。水位 =
- *   尾页 start_offset+text.length,实况 chunk 到达即累加;回放期间新 chunk 进
- *   缓冲换屏后排空(与首载同一套序),免换屏竞态丢字节。
- * - setLive 100ms 合帧节流(在途只喂屏,flush 取全量 view;spec 2026-10-03-
- *   mobile-keybar-relayout):全量 view() 重建压到 ~10Hz,文本视口观感仍瞬时,
- *   WKWebView 全文重排次数较 60Hz 降约 6 倍;尾沿保证最后一帧必达。
+ * - 尺寸与首页并行拉(外网 RTT 减半);首页 128KB 回看深度一步到位;每 3s
+ *   校 session_size 变了即原地 resize(不重放快照,防双喂)。
+ * - loadEarlier:复用 session_history_page 分页,剥 ANSI 前置渲染(append-only
+ *   VT 模型不可前插字节);Lagged/断连重连按水位触发 replay 回放。
+ * - setLive 100ms 合帧节流(spec 2026-10-03):WKWebView 重排降约 6 倍,尾沿必达。
  * - useSessionExit:pty://exit 订阅 + 列表消失兜底(会话屏终局横幅的数据面)。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -34,7 +25,19 @@ export function overlapLen(tail: string, pending: string): number {
   return 0;
 }
 
+/** streaming 关闭期缓冲丢头保尾压到上限内(纯函数,测试锚定;0.4.6 复审 P2:
+ * 无上限攒 chunk 可致 WKWebView 回收;丢头无害——反正由 replay 重建覆盖)。 */
+export function capBuffered(chunks: string[], maxLen: number): string[] {
+  let len = chunks.reduce((s, c) => s + c.length, 0);
+  const out = [...chunks];
+  while (len > maxLen && out.length > 1) len -= out.shift()!.length;
+  return out;
+}
+
 const PAGE_BYTES = 128 * 1024;
+
+/** streaming 关闭期缓冲总量上限(字符近似;超限丢头保尾,replay 重建覆盖)。 */
+const BUFFERED_MAX_CHARS = 2 * 1024 * 1024;
 
 /** setLive 尾沿节流间隔:文本视口 10Hz 观感瞬时(人眼对纯文本更新 ~70ms 起感)。 */
 const LIVE_FLUSH_MS = 100;
@@ -63,35 +66,37 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
     let gapOff: (() => void) | null = null;
     let connOff: (() => void) | null = null;
     let timer = 0;
-    /* 尾沿节流排程句柄:声明在 effect 作用域,卸载 cleanup 可即撤(async 体
-     * 内声明的闭包变量 cleanup 够不着)。 */
+    /* 尾沿节流 + 弱网退避排程句柄:effect 作用域声明,cleanup 可即撤(复审 P2)。 */
     let flushTimer = 0;
+    let retryTimer = 0;
     setLive("");
     setEarlier("");
     setHasMore(false);
     earliestRef.current = 0;
     void (async () => {
-      const sizeOf = () =>
-        invoke<[number, number] | null>("session_size", { id: sessionId }).catch(() => null);
+      type HistPage = { text: string; start_offset: number; has_more: boolean };
+      const sizeOf = () => invoke<[number, number] | null>("session_size", { id: sessionId }).catch(() => null);
       const pageOf = (before: number) =>
-        invoke<{ text: string; start_offset: number; has_more: boolean }>("session_history_page", {
-          id: sessionId,
-          before,
-          maxBytes: PAGE_BYTES,
-        }).catch(() => null);
-      /* 双喂防线:重叠剥离见模块级 overlapLen(首载排空与 replay 重建共用)。 */
+        invoke<HistPage>("session_history_page", { id: sessionId, before, maxBytes: PAGE_BYTES }).catch(() => null);
       const buffered: string[] = [];
+      let bufferedLen = 0;
+      const pushBuffered = (chunk: string) => {
+        buffered.push(chunk);
+        if (bufferedLen + chunk.length <= BUFFERED_MAX_CHARS) {
+          bufferedLen += chunk.length;
+          return;
+        }
+        const kept = capBuffered(buffered, BUFFERED_MAX_CHARS);
+        buffered.length = 0;
+        buffered.push(...kept);
+        bufferedLen = kept.reduce((s, c) => s + c.length, 0);
+      };
       let streaming = false;
       let screen = new LiveScreen(undefined, undefined);
-      /* 内容水位(字符近似):尾页 total / 实况 chunk 累加;断连重连后比对,
-       * 涨了 = 断连窗口有漏 → 回放。多字节字符下有轻漂移,容忍:漏报回落旧
-       * 行为(下轮 3s 几何校准兜不住则维持缺口),多报只是一次多余回放。 */
+      /* 内容水位(字符近似,漂移容忍):重连后比对,涨了 = 有漏 → 回放。 */
       let watermark = 0;
-      /* 首载完成闸:未完不回放(首载本身就是全量拉尾,抢跑会双喂)。 */
+      /* 首载完成闸:未完不回放(抢跑会双喂);合帧节流:flush 取全量 view(),尾沿必达。 */
       let ready = false;
-      /* 合帧节流(spec 2026-10-03):flushTimer 在途 = 已有排程,新 chunk 只喂屏
-       * 不再排;flush 时取全量 view()。尾沿必达——最后一帧总在距上次上屏
-       * ≥100ms 处落屏,不存在丢尾。 */
       let lastSetAt = 0;
       const flushView = () => {
         flushTimer = 0;
@@ -108,12 +113,19 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       const un = await onPtyOut(sessionId, (chunk) => {
         if (!alive) return;
         if (streaming) feedChunk(chunk);
-        else buffered.push(chunk);
+        else pushBuffered(chunk);
       });
       if (!alive) { un(); return; } /* 竞态:await 在途卸载 → 到站即退订,防桥内滞留 */
       off = un;
-      /* 尺寸+首页并行(外网省一个串行 RTT);首页定回看起点。 */
-      const [size, page] = await Promise.all([sizeOf(), pageOf(Number.MAX_SAFE_INTEGER)]);
+      /* 尺寸+首页并行;首载尾页失败弱网退避重拉(2s/5s 最多 2 次,复审 P2)。 */
+      const [size, page0] = await Promise.all([sizeOf(), pageOf(Number.MAX_SAFE_INTEGER)]);
+      let page = page0;
+      /* 首载退避重拉 2s/5s 各一次(展开不走循环,react-doctor);等待窗卸载即出。 */
+      const backoff = (ms: number) => { const { promise, resolve } = Promise.withResolvers<void>(); retryTimer = window.setTimeout(resolve, ms); return promise; };
+      if (!page && alive) { await backoff(2000); }
+      if (!page && alive) page = await pageOf(Number.MAX_SAFE_INTEGER);
+      if (!page && alive) { await backoff(5000); }
+      if (!page && alive) page = await pageOf(Number.MAX_SAFE_INTEGER);
       if (!alive) return;
       if (size) screen = new LiveScreen(size[0], size[1]);
       if (page) {
@@ -127,6 +139,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       {
         const pending = buffered.join("");
         buffered.length = 0;
+        bufferedLen = 0;
         const k = page ? overlapLen(page.text, pending) : 0;
         if (pending.length > k) feedChunk(pending.slice(k));
       }
@@ -146,17 +159,11 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
           setLive(screen.view());
         })();
       };
-      /* 断连重连 / 事件 Lagged 回放:拉尾页比对水位,涨了 = 有漏 → 按当前几何
-       * 重建重放日志尾;没涨 = 什么都不漏,免重建。回放期间 streaming 关闭,新
-       * chunk 进缓冲;重建后缓冲经同一 overlapLen 剥离排空——快照已含的前缀
-       * 剥掉、快照读取后到达的后缀保留,双喂与「丢一拍」窄竞态一并消除;不
-       * 重建分支照常排空(屏未重喂,缓冲是唯一拷贝)。 */
+      /* 断连重连 / Lagged 回放:拉尾页比对水位,涨了 = 重建重放日志尾。
+       * 回放期间新 chunk 进缓冲,重建后经 overlapLen 剥离排空(防双喂)。 */
       let replaying = false;
-      /* 弱网退避:尾页拉取失败(网络断续)不放弃 —— 2s/5s 两拍重试;两拍仍
-       * 失败则维持 streaming=false(buffered 继续攒,水位窗口未确认前排空
-       * 会乱序),等下一 gap/重连边沿再试。pageOf 抛错不得卡死 replaying 闸
-       * (2026-10-26:无 try/finally 时一次 reject = replay 永久哑火,断连窗
-       * 内容从此补不回)。 */
+      /* 弱网退避:拉取失败 2s/5s 两拍重试;两拍失败维持 streaming=false,等下一
+       * gap/重连边沿。replayTries 清零收敛在成功尾路一处(复审 shrink)。 */
       let replayTries = 0;
       const replay = () => {
         if (!alive || replaying || !ready) return;
@@ -167,20 +174,17 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
             const p = await pageOf(Number.MAX_SAFE_INTEGER).catch(() => null);
             const s = p ? await sizeOf().catch(() => null) : null;
             if (alive && p && s && p.start_offset + p.text.length > watermark) {
-              replayTries = 0;
               sizeKey.current = `${s[0]}x${s[1]}`;
               screen = new LiveScreen(s[0], s[1]);
               screen.feed(p.text);
               watermark = p.start_offset + p.text.length;
               setLive(screen.view());
-            } else if (p) {
-              replayTries = 0;
             }
             if (!alive) return;
             if (!p) {
               if (replayTries < 2) {
                 replayTries += 1;
-                window.setTimeout(replay, replayTries === 1 ? 2000 : 5000);
+                retryTimer = window.setTimeout(replay, replayTries === 1 ? 2000 : 5000);
               } else {
                 replayTries = 0; /* 放弃本边沿:buffered 继续攒,等下一 gap/重连再试 */
               }
@@ -190,6 +194,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
             streaming = true;
             const pending = buffered.join("");
             buffered.length = 0;
+            bufferedLen = 0;
             const k = overlapLen(p.text, pending);
             if (pending.length > k) feedChunk(pending.slice(k));
           } finally {
@@ -207,6 +212,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       alive = false;
       clearInterval(timer);
       clearTimeout(flushTimer); /* 卸载即撤尾沿排程(alive 闸下虽是 no-op,不留空转定时器) */
+      clearTimeout(retryTimer); /* 弱网退避排程同撤 */
       off?.();
       gapOff?.();
       connOff?.();
