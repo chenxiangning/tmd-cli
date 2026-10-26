@@ -15,8 +15,9 @@ const REPLAY_CHUNK_CHARS = 256 * 1024;
 export interface HiddenDeferControl {
   /** true = 本幕布当前非激活(隐藏),实时字节攒帧缓写。 */
   shouldDefer(): boolean;
-  /** 登记激活冲刷入口;卸载期传 null 解绑(TerminalView 持弱引用)。 */
-  bindFlush(flush: (() => void) | null): void;
+  /** 登记激活冲刷入口(返回本次冲入字符数,供卸载快照水位扣减);
+      卸载期传 null 解绑(TerminalView 持弱引用)。 */
+  bindFlush(flush: (() => number) | null): void;
 }
 
 /**

@@ -36,6 +36,7 @@ function fakeTerminal(): { term: Terminal; writes: string[] } {
       if (cb) queueMicrotask(cb);
     },
     scrollToTop: vi.fn(),
+    scrollToBottom: vi.fn(),
   } as unknown as Terminal;
   return { term, writes };
 }
@@ -147,5 +148,68 @@ describe("loadEarlier 翻页", () => {
     await expect(pager.loadEarlier(term)).rejects.toThrow("boom");
     expect(onState).toHaveBeenLastCalledWith(true, false);
     expect(counts.released).toBeGreaterThanOrEqual(counts.armed);
+  });
+});
+
+describe("RIS 前冲刷(攒批×pager 双喂,2026-10-26 复审)", () => {
+  it("jumpToByte/loadEarlier/resetToLatest 三路径 \x1bc 前先调 flush", async () => {
+    ipcMock.sessionLogSize.mockResolvedValue(10_000);
+    hostMock.getOutputBufferBytes.mockReturnValue(0);
+    const counts = { armed: 0, released: 0 };
+    const gate = { arm: () => void counts.armed++, release: () => void counts.released++ };
+    ipcMock.sessionHistoryPage.mockResolvedValue({ text: "p", startOffset: 0, hasMore: false });
+
+    /* flush 与幕布写共用 writes 数组:断言 flush 先于 RIS(顺序即证据)。 */
+    const jump = fakeTerminal();
+    const pager = new TerminalHistoryPager(
+      "s1",
+      gate as never,
+      vi.fn(),
+      () => jump.writes.push("[FLUSH]"),
+    );
+    await pager.init();
+    await pager.jumpToByte(jump.term, 5_000, "GAP");
+    expect(jump.writes[0]).toBe("[FLUSH]");
+    expect(jump.writes[1]).toBe("\x1bc");
+
+    const earlier = fakeTerminal();
+    const pager2 = new TerminalHistoryPager(
+      "s1",
+      gate as never,
+      vi.fn(),
+      () => earlier.writes.push("[FLUSH]"),
+    );
+    await pager2.init();
+    await pager2.loadEarlier(earlier.term);
+    expect(earlier.writes[0]).toBe("[FLUSH]");
+    expect(earlier.writes[1]).toBe("\x1bc");
+
+    const reset = fakeTerminal();
+    const pager3 = new TerminalHistoryPager(
+      "s1",
+      gate as never,
+      vi.fn(),
+      () => reset.writes.push("[FLUSH]"),
+    );
+    await pager3.init();
+    await pager3.resetToLatest(reset.term);
+    expect(reset.writes[0]).toBe("[FLUSH]");
+    expect(reset.writes[1]).toBe("\x1bc");
+  });
+});
+
+describe("jumpToByte 现算缓冲起点钳制", () => {
+  it("存量锚陈旧偏高时按现算起点收窗,不信 init 时点锚(双喂防线)", async () => {
+    ipcMock.sessionLogSize.mockResolvedValue(1_000_000);
+    hostMock.getOutputBufferBytes.mockReturnValue(100_000); /* init: earliestByte=900_000 */
+    const { pager } = newPager();
+    await pager.init();
+
+    /* 预算裁剪后缓冲只剩 200K → 现算起点 800_000;存量锚 900_000 已陈旧偏高,
+       不收窗则窗口尾越入裁后缓冲 → 快照与页字节双喂同区段。 */
+    hostMock.getOutputBufferBytes.mockReturnValue(200_000);
+    ipcMock.sessionHistoryPage.mockResolvedValue({ text: "p", startOffset: 0, hasMore: false });
+    await pager.jumpToByte(fakeTerminal().term, 850_000, "GAP");
+    expect(ipcMock.sessionHistoryPage).toHaveBeenCalledWith("s1", 800_000, 512 * 1024);
   });
 });

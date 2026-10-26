@@ -70,7 +70,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   const [canvasGen, setCanvasGen] = useState(0);
   /** 隐藏幕布合帧(Fix B):activeRef 是活性真相,激活即冲刷攒帧。 */
   const activeRef = useRef(active);
-  const flushDeferredRef = useRef<(() => void) | null>(null);
+  const flushDeferredRef = useRef<(() => number) | null>(null);
   /* 重建保位锚(卸载采、回放完恢复,见 terminalScrollAnchor)。 */
   const rebuildAnchorRef = useRef<string | null>(null);
   const lastLiveAtRef = useRef(0); /* 停滞探针活性真相(terminalCanvasHealth 消费) */
@@ -120,9 +120,7 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     });
     const fit = new FitAddon();
     const search = new SearchAddon();
-    /* 错栅格自愈旗:零宽跳过或未成功 fit 的实例置位,下次成功 sync 强制 PTY 真实
-       重排 —— 同尺寸 fit/resize 均被幂等跳过(无 SIGWINCH),隐藏期瞬态错栅格将
-       永不重绘:omp 靠 spinner 自愈,静态 TUI(claude/codex/kimi)则永久错位。 */
+    /* 错栅格自愈旗:零宽/fit 失败实例置位,下次成功 sync 强制真实重排(同尺寸幂等跳过无 SIGWINCH,静态 TUI 将永久错位)。 */
     const needsForceSyncRef = { current: true };
     /** 尺寸同步唯一出口:零宽(隐藏)跳过并挂自愈旗;成功即 fit + 同步 PTY。
         settings 回调与 ResizeObserver 共用,隐藏幕布绝不外发尺寸。 */
@@ -159,17 +157,16 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     container.addEventListener("focusin", onFocusIn);
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
-    /* 渲染器 = xterm 内建 DOM(核心兜底);WebGL opt-in 默认关(WebKit glyph atlas 长跑马赛克),
-       装载 + 像素探针自检降级见 terminalWebglRenderer.ts。ponytail: 上游修复后复评转默认。 */
+    /* 渲染器 = xterm 内建 DOM 兜底;WebGL opt-in 默认关,装载/降级单真源见 terminalWebglRenderer.ts。 */
     const detachWebgl = attachWebglRendererAuto(term);
-termRef.current = term; searchRef.current = search;
+    termRef.current = term; searchRef.current = search;
 
     const pager = new TerminalHistoryPager(sessionId, inputGate, (h, l) => {
       setHasMore(h);
       setLoadingHistory(l);
       /* emit 必发于 jumpWindow 翻转之后,此处读到的是新值。 */
       setInHistoryWindow(pagerRef.current?.isInJumpWindow() ?? false);
-    });
+    }, () => flushDeferredRef.current?.()); /* RIS 重写前冲 pendingLive(terminalHistory 构造器注)。 */
     pagerRef.current = pager;
     /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次);输出装配见 terminalReplay.ts。 */
     streamReadyRef.current = false; let disposed = false; const streamReady = Promise.withResolvers<void>(); const disposal = Promise.withResolvers<void>();
@@ -177,7 +174,9 @@ termRef.current = term; searchRef.current = search;
     const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress, () => {
       streamReadyRef.current = true;
       streamReady.resolve();
-      /* 重建保位:回放尽后按锚恢复阅读位,搜不到回落贴底。 */
+      /* 重建保位:回放尽后按锚恢复阅读位;恢复前先冲攒批/攒帧(与 settleTerminalJump
+         对齐),否则保位锚按旧屏采样,恢复位偏。 */
+      flushDeferredRef.current?.();
       restoreViewportAnchor(term, () => settleTerminalWrite(term), rebuildAnchorRef.current);
       rebuildAnchorRef.current = null;
     }, {
@@ -241,11 +240,12 @@ termRef.current = term; searchRef.current = search;
       offFontSettings(); detachWebgl(); /* webgl addon 先于 term.dispose 卸载,dispose 即回落 DOM 渲染器 */
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
-      /* 先冲刷 250ms 合帧攒帧再存快照(尾巴已计水位不在投影,跳过则 fast 永久缺字);终态收尾须先于注销 handle。 */
-      flushDeferredRef.current?.();
+      /* 先冲攒帧再存快照:flushed = 冲入但 xterm 下一宏任务才解析的尾巴,水位让渡给
+         重开增量补(settleTerminalFreeze 扣减);终态收尾须先于注销 handle。 */
+      const flushed = flushDeferredRef.current?.() ?? 0;
       /* 重建保位:卸载前采视口顶行锚(贴底不采)。 */
       rebuildAnchorRef.current = captureViewportAnchor(term, canvasGen > 0);
-      settleTerminalFreeze(sessionId, term);
+      settleTerminalFreeze(sessionId, term, flushed);
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();
       offInput.dispose();

@@ -21,7 +21,6 @@ import {
 import { PromptHistoryManager } from "./PromptHistoryManager";
 import { HygieneCard } from "./HygieneCard";
 import { t } from "@kernel/i18n";
-import { clearWebglDegradedMemory } from "@kernel/terminalWebglRenderer";
 import { ipc } from "@kernel/ipc";
 import {
   BUFFER_LIMIT_MAX,
@@ -29,13 +28,17 @@ import {
   sanitizeBufferLimitInput,
 } from "./behaviorCommit";
 
-
 /** 渲染健康诊断小节(项 15):只读事件史(击打/重载/痊愈环形留痕)。
- *  空态 = 本运行期零击打(健康);有记录时按时间倒序最多显示 8 条。 */
+ * 空态 = 本运行期零击打(健康);读取失败独立显示失败态,不回落空数组伪装健康;
+ * 有记录时按时间倒序最多显示 8 条。 */
 function RenderHealthCard() {
   const [events, setEvents] = useState<{ atMs: number; kind: string; detail: string }[] | null>(null);
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    void ipc.renderHealthEvents().then(setEvents, () => setEvents([]));
+    void ipc.renderHealthEvents().then(
+      (rows) => setEvents(rows),
+      () => setFailed(true),
+    );
   }, []);
   const shown = (events ?? []).slice(-8).reverse();
   return (
@@ -44,11 +47,13 @@ function RenderHealthCard() {
         <div>
           <div className="pref-title">{t("渲染健康诊断")}</div>
           <div className="pref-desc">
-            {events === null
-              ? t("读取中…")
-              : shown.length === 0
-                ? t("本运行期无渲染异常记录。")
-                : t("最近事件(新→旧):")}
+            {failed
+              ? t("诊断史读取失败。")
+              : events === null
+                ? t("读取中…")
+                : shown.length === 0
+                  ? t("本运行期无渲染异常记录。")
+                  : t("最近事件(新→旧):")}
           </div>
           {shown.map((e) => (
             <div key={e.atMs + e.kind} className="pref-desc font-mono">
@@ -181,8 +186,8 @@ export function BehaviorTab() {
           className="w-32 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
         />
       </div>
-      {/* 终端 WebGL 渲染 opt-in(默认关;装配 + 自检降级见 kernel/terminalWebglRenderer.ts):
-          转「开」时清降级记忆允许重试。 */}
+      {/* 终端 WebGL 渲染 opt-in(默认关;装配/降级见 kernel/terminalWebglRenderer.ts):
+          降级由 kernel 直写 settings,开关如实回落;重开即真重试。 */}
       <div className="pref-row">
         <div>
           <div className="pref-title">{t("终端 WebGL 渲染")}</div>
@@ -196,10 +201,7 @@ export function BehaviorTab() {
             role="radio"
             aria-checked={settings.terminalWebglRenderer}
             className={`segment${settings.terminalWebglRenderer ? " is-active" : ""}`}
-            onClick={() => {
-              clearWebglDegradedMemory();
-              updateSettings({ terminalWebglRenderer: true });
-            }}
+            onClick={() => updateSettings({ terminalWebglRenderer: true })}
           >
             {t("开")}
           </button>

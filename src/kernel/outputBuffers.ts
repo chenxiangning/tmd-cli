@@ -8,7 +8,7 @@
  */
 
 import { sliceStreamTail } from "./streamSlice";
-import { getSettingsState } from "./settings";
+import { getTerminalHandle } from "./terminalHandles";
 
 /** 共享 TextEncoder:逐 chunk 累计 UTF-8 字节数(TextEncoder 无线程语义,复用安全)。 */
 const outputByteEncoder = new TextEncoder();
@@ -55,18 +55,19 @@ export class OutputBufferStore {
     return chunkBytes;
   }
 
-  /** 全店预算执行:超 8M chars 把最久未写的会话缓冲截到 64K 尾,保住最近
-   *  sessionTabsMax 个(工作 tab 集近似)。截头使冻结快照 headSample 校验
-   *  自动失配弃用(宁慢不错),截后重开走磁盘全量路径,慢但正确。 */
+  /** 全店预算执行:超 8M chars 把无挂载幕布的会话按写入 MRU(最旧先)截到
+   *  64K 尾;挂载真相 = terminalHandles 注册表里有 handle(观看/保活幕布在即
+   *  不裁,观看≠聚焦≠写入三域对齐,2026-10-26 复审)。挂载数×上限硬顶穿预算
+   *  时只裁无 handle 者 —— 预算是软上限,裁在观看中的幕布代价更大。
+   *  截头使冻结快照 headSample 校验自动失配弃用(宁慢不错);截后重开仍有
+   *  64K 内存尾可回放,磁盘全量仅在缓冲整体缺失时兜底。 */
   private enforceBudget(): void {
     let total = 0;
     for (const b of this.buffers.values()) total += b.totalChars;
     if (total <= TOTAL_BUDGET_CHARS) return;
-    const ids = [...this.buffers.keys()];
-    const protect = new Set(ids.slice(-getSettingsState().settings.sessionTabsMax));
-    for (const id of ids) {
+    for (const id of this.buffers.keys()) {
       if (total <= TOTAL_BUDGET_CHARS) break;
-      if (protect.has(id)) continue;
+      if (getTerminalHandle(id)) continue; /* 挂载中的会话受保护 */
       const buf = this.buffers.get(id);
       if (!buf || buf.totalChars <= TRIMMED_TAIL_CHARS) continue;
       const keep = sliceStreamTail(buf.chunks.join(""), TRIMMED_TAIL_CHARS);

@@ -1,70 +1,78 @@
 /**
  * 终端 WebGL 渲染器 opt-in 装配契约测试(kernel/terminalWebglRenderer)。
- * 覆盖:设置关 → null;降级记忆(localStorage)→ 不再自动装;
- * clearWebglDegradedMemory 清记忆;node 无 WebGL:装载失败安全降级
- * (记忆 + 不抛,cleanup 幂等)。
- * node 环境:localStorage 用内存 stub;设置经真实 settings store 驱动
- * (updateSettings 同步生效),每用例显式回置目标键。
+ * 契约(2026-10-26 单真源化后):enabled=false → null;隐藏幕布(element 宽 0)
+ * → 跳过返回 null 且不降级(不写 settings);装载失败/onContextLoss →
+ * updateSettings 直写 terminalWebglRenderer=false,开关如实回落;cleanup 幂等。
+ * node 环境:@xterm/addon-webgl 以桩模块替代(真 addon 需浏览器 WebGL 面);
+ * 设置经真实 settings store 驱动(updateSettings 同步生效)。
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Terminal } from "@xterm/xterm";
-import {
-  WEBGL_DEGRADED_KEY,
-  attachWebglRenderer,
-  clearWebglDegradedMemory,
-} from "./terminalWebglRenderer";
-import { updateSettings } from "./settings";
+import { attachWebglRenderer } from "./terminalWebglRenderer";
+import { getSettingsState, updateSettings } from "./settings";
 
-let backing: Map<string, string>;
+/* 桩 addon 模块:记录 dispose/onContextLoss 注册,可注入装载即抛。 */
+const h = vi.hoisted(() => ({
+  listeners: [] as Array<() => void>,
+  disposed: 0,
+  constructError: null as string | null,
+}));
+vi.mock("@xterm/addon-webgl", () => ({
+  WebglAddon: class {
+    constructor() {
+      if (h.constructError) throw new Error(h.constructError);
+    }
+    onContextLoss(cb: () => void) {
+      h.listeners.push(cb);
+    }
+    dispose() {
+      h.disposed++;
+    }
+  },
+}));
 
-/** 最小幕布替身:loadAddon 可按需抛(模拟无 WebGL 上下文);探针路径不触达。 */
-const makeTerm = (loadAddonError?: string): Terminal =>
+/** 最小幕布替身:element 可控(0 宽模拟隐藏幕布)。 */
+const makeTerm = (width = 640): Terminal =>
   ({
-    rows: 4,
-    element: null,
-    loadAddon: () => {
-      if (loadAddonError) throw new Error(loadAddonError);
-    },
+    element: { offsetWidth: width, clientWidth: width },
   }) as unknown as Terminal;
 
 beforeEach(() => {
-  backing = new Map();
-  vi.stubGlobal("localStorage", {
-    getItem: (k: string) => backing.get(k) ?? null,
-    setItem: (k: string, v: string) => {
-      backing.set(k, v);
-    },
-    removeItem: (k: string) => {
-      backing.delete(k);
-    },
-  });
+  h.listeners.length = 0;
+  h.disposed = 0;
+  h.constructError = null;
   updateSettings({ terminalWebglRenderer: false });
 });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
-
 describe("terminalWebglRenderer", () => {
-  it("设置关 → attach 返回 null(不装载)", () => {
-    expect(attachWebglRenderer(makeTerm())).toBeNull();
+  it("enabled=false → attach 返回 null(不装载)", () => {
+    expect(attachWebglRenderer(makeTerm(), false)).toBeNull();
+    expect(getSettingsState().settings.terminalWebglRenderer).toBe(false);
   });
 
-  it("降级记忆后 attach 返回 null;清记忆后恢复装载", () => {
-    updateSettings({ terminalWebglRenderer: true });
-    backing.set(WEBGL_DEGRADED_KEY, "1");
-    expect(attachWebglRenderer(makeTerm())).toBeNull(); /* 记忆后不再自动装 */
-    clearWebglDegradedMemory();
-    expect(backing.has(WEBGL_DEGRADED_KEY)).toBe(false);
-    expect(typeof attachWebglRenderer(makeTerm())).toBe("function"); /* 用户重开:重试 */
+  it("隐藏幕布(element 宽 0)→ 跳过返回 null,不降级(不写 settings)", () => {
+    expect(attachWebglRenderer(makeTerm(0), true)).toBeNull();
+    expect(getSettingsState().settings.terminalWebglRenderer).toBe(false); /* 未被翻转 */
   });
 
-  it("node 无 WebGL:装载失败安全降级(记忆 + 不抛),cleanup 幂等", async () => {
-    updateSettings({ terminalWebglRenderer: true });
-    const cleanup = attachWebglRenderer(makeTerm("no webgl context"));
+  it("装载失败 → dispose + 直写 settings 关(开关如实回落),cleanup 幂等", async () => {
+    h.constructError = "no webgl context";
+    const cleanup = attachWebglRenderer(makeTerm(), true);
     if (typeof cleanup !== "function") throw new Error("装载失败也应返回 cleanup(异步降级)");
-    await vi.waitFor(() => expect(backing.get(WEBGL_DEGRADED_KEY)).toBe("1")); /* 等 import 链降级落地 */
-    expect(attachWebglRenderer(makeTerm())).toBeNull(); /* 此后不再自动装 */
+    await vi.waitFor(() =>
+      expect(getSettingsState().settings.terminalWebglRenderer).toBe(false),
+    );
     expect(() => cleanup()).not.toThrow(); /* 幂等 */
+  });
+
+  it("onContextLoss → dispose + 直写 settings 关", async () => {
+    const cleanup = attachWebglRenderer(makeTerm(), true);
+    if (typeof cleanup !== "function") throw new Error("装载成功应返回 cleanup");
+    await vi.waitFor(() => expect(h.listeners.length).toBe(1));
+    h.listeners[0]();
+    expect(h.disposed).toBe(1);
+    expect(getSettingsState().settings.terminalWebglRenderer).toBe(false);
+    cleanup();
+    expect(h.disposed).toBe(1); /* unload 幂等:dispose 只一次 */
   });
 });

@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CaretRight, Funnel, MagnifyingGlass } from "@phosphor-icons/react";
 import { ipc, type FsSearchHit } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { normalizePath } from "@kernel/pathUtils";
 import { openFileAtLine } from "@kernel/fileTabs";
@@ -68,7 +69,7 @@ export function SearchPanel() {
       setExpanded(new Set());
     } catch (e) {
       if (seqRef.current !== seq) return;
-      setError(String(e));
+      setError(errTextDisplay(e));
       setResults(null);
     } finally {
       /* 无条件复位:busy 只承担 spinner 展示;被新回车顶替的旧请求提前灭灯

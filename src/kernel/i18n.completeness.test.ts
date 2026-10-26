@@ -13,7 +13,8 @@ void import.meta.glob(
   { eager: true },
 );
 
-const KEY_RE = /\bt\(\s*("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')/g;
+/* 反引号 literal 形态:无插值($ 全排除)且闭合的模板串才算;含 ${ } 视为动态键豁免。 */
+const KEY_RE = /\bt\(\s*("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:\\.|[^`\\$])*`)/g;
 
 const rawFiles = import.meta.glob(
   ["/src/**/*.ts", "/src/**/*.tsx", "!**/*.test.*", "!**/locales*/**", "!**/locales.ts"],
@@ -32,7 +33,7 @@ describe("i18n 完整性:literal t() 键 en/ja 全覆盖", () => {
       KEY_RE.lastIndex = 0;
       while ((m = KEY_RE.exec(src))) {
         const raw = m[1];
-        const key = raw[0] === "'" ? raw.slice(1, -1) : JSON.parse(raw);
+        const key = raw[0] === '"' ? JSON.parse(raw) : raw.slice(1, -1);
         if (!(key in dict.en)) missing.push(`en  ${path}: ${key}`);
         if (!(key in dict.ja)) missing.push(`ja  ${path}: ${key}`);
       }

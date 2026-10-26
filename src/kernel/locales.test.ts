@@ -63,9 +63,15 @@ vi.mock("@kernel/i18n", async (importOriginal) => {
     },
   };
 });
-const pluginLocaleModules = import.meta.glob("../plugins/*/locales.ts", { eager: true });
+const pluginLocaleModules = {
+  ...import.meta.glob("../plugins/*/locales.ts", { eager: true }),
+  ...import.meta.glob("../plugins/*/locales/index.ts", { eager: true }),
+};
 const pluginFaces = Object.keys(pluginLocaleModules).map((path) =>
-  path.replace("../plugins/", "").replace("/locales.ts", ""),
+  path
+    .replace("../plugins/", "")
+    .replace("/locales/index.ts", "")
+    .replace("/locales.ts", ""),
 );
 
 /** 从文本里提取 {name} 占位符集合。 */

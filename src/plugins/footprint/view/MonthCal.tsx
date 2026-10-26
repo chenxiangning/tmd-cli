@@ -118,7 +118,7 @@ export function MonthCal({ y, m, cells, today, sel, range, heat, onSelectDay, on
               type="button"
               key={day}
               className={cls}
-              title={`${day} · ${v > 0 ? (heat === "lines" ? `±${v}` : t("{n} 场", { n: v })) : t("无记录")}`}
+              title={`${day} · ${v > 0 ? (heat === "lines" ? `±${v}` : t("{n} 场", { n: v })) : t("足迹无记录")}`}
               onClick={(e) => onSelectDay(day, e.shiftKey)}
               onContextMenu={(e) => {
                 e.preventDefault();

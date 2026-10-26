@@ -145,7 +145,7 @@ export function SearchPop({ open, query, hits, cursor, onQuery, onCursor, onPick
         )}
       </div>
       <div className="flex gap-3.5 border-t border-[var(--tmd-border,var(--tmd-border))] px-3.5 py-2 text-[10.5px] text-[var(--tmd-fg-muted)]">
-        <span>↑↓ {t("选择")}</span>
+        <span>↑↓ {t("选择一项")}</span>
         <span>↵ {t("跳转到当日")}</span>
         <span>esc {t("关闭")}</span>
         {jumpNotice && <span className="ml-auto text-[var(--tmd-warn,var(--tmd-warn))]">{jumpNotice}</span>}

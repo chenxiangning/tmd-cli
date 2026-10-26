@@ -68,7 +68,10 @@ export class PluginLifecycle {
   }
 
   /** 分波拓扑激活(递归 + promise 链,循环体内无 await):
-   *  一波 = 激活当前所有依赖就绪者(失败原样上抛,零残留);无进展 = 依赖环。 */
+   *  一波 = 激活当前所有依赖就绪者;波内并行(allSettled 收尾),任一失败则
+   *  本波全部已落账者(成功+迟到失败)统一回滚后上抛首个错误(零僵尸注册);
+   *  无进展 = 依赖环。 */
+
   private async activateWaves(
     ctx: PluginContext,
     pending: Map<string, Plugin>,
@@ -88,25 +91,29 @@ export class PluginLifecycle {
     }
     /* 波内并行(2026-10-26):此前 reduce+chain 严格串行,十余插件 × 各自
      * 异步探测全串一遍才放首屏;现网无 dependsOn(doActivateAll 注),波内
-     * 无顺序依赖。performance 打点随波留痕,启动慢可直接归因到插件。 */
-    const waveStart = performance.now();
-    await Promise.all(
+     * 无顺序依赖。逐插件 performance.mark 留痕,启动慢可直接归因。 */
+    const results = await Promise.allSettled(
       wave.map(async ([id, plugin]) => {
         const start = performance.now();
         try {
           const done = await plugin.activate(makeAttributedCtx(ctx, plugin, this.undo));
           if (typeof done === "function") pushCleanup(id, done);
-        } catch (e) {
-          undoContributions(id); // boot 链路同样零残留(原样上抛由调用方定夺)
-          throw e;
+          this.plugins.set(id, plugin);
+        } finally {
+          performance.mark(`plugin-activate:${id}`, { startTime: start });
         }
-        this.plugins.set(id, plugin);
-        performance.mark(`plugin-activate:${id}`, { startTime: start });
       }),
     );
-    performance.measure(`plugin-wave:${wave.map(([id]) => id).join("+")}`, {
-      start: waveStart,
-    });
+    const first = results.find((r) => r.status === "rejected");
+    if (first) {
+      /* 同波一者失败:其余成员可能已并发落账(含稍后才失败的),统一回滚
+       * 本波全部成员的激活表条目与贡献账,再原样上抛首个错误。 */
+      for (const [id] of wave) {
+        this.plugins.delete(id);
+        undoContributions(id);
+      }
+      throw (first as PromiseRejectedResult).reason;
+    }
     await this.activateWaves(ctx, pending, pushCleanup);
   }
 

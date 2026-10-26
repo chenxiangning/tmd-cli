@@ -13,13 +13,13 @@ export function errTextMessage(e: unknown): string {
  return String(e);
 }
 
-/** 剥掉 E_* 码前缀的展示文本(无码原样返回)。 */
+/** 剥掉 E_* 码前缀的展示文本(无码原样返回)。码字符类含数字(E_GIT2 先例)。 */
 export function errTextDisplay(e: unknown): string {
- return errTextMessage(e).replace(/^E_[A-Z_]+:\s*/, "");
+ return errTextMessage(e).replace(/^E_[A-Z][A-Z0-9_]*:\s*/, "");
 }
 
 /** 取 E_* 码(无码 = null;码不含 E_ 前缀本身)。 */
 export function errTextCode(e: unknown): string | null {
- const m = errTextMessage(e).match(/^E_([A-Z_]+):/);
+ const m = errTextMessage(e).match(/^E_([A-Z][A-Z0-9_]*):/);
  return m ? m[1] : null;
 }

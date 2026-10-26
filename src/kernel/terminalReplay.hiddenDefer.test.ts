@@ -109,6 +109,24 @@ describe("attachTerminalStream 隐藏幕布合帧写入", () => {
     vi.advanceTimersByTime(1_000);
     expect(term.writes).toEqual([]); // 计时器已清,攒帧随卸载丢弃
   });
+
+  it("冲刷入口返回本次冲入字符数,空冲刷返回 0(卸载快照水位扣减)", () => {
+    const term = fakeTerm();
+    const bound: { flush: (() => number) | null } = { flush: null };
+    const off = attachTerminalStream(term, "s10", gate, (_p: LoadProgress) => undefined, undefined, {
+      shouldDefer: () => true,
+      bindFlush: (fn) => {
+        bound.flush = fn as (() => number) | null;
+      },
+    });
+    emit("s10", "abc");
+    emit("s10", "def");
+    expect(term.writes).toEqual([]); /* 攒帧未到 250ms 不落笔 */
+    expect(bound.flush?.()).toBe(6);
+    expect(term.writes).toEqual(["abcdef"]);
+    expect(bound.flush?.()).toBe(0); /* 已清空,再冲无残留 */
+    off();
+  });
 });
 
 describe("settleTerminalJump 卸载取消", () => {

@@ -34,8 +34,10 @@ export class TerminalHistoryPager {
     private readonly inputGate: ReplayInputGate,
     /** hasMore/loading 变化回喂(TerminalView 的 setHasMore/setLoadingHistory)。 */
     private readonly onState: (hasMore: boolean, loading: boolean) => void,
+    /** RIS 重写前冲 pendingLive(与 inputGate 同型注入):不冲则快照(含攒批
+     *  字节)与下一帧 rAF 双喂同批字节(2026-10-26 复审 P1)。 */
+    private readonly flush?: () => void,
   ) {}
-
   /** 会话日志还有更早未加载的输出(锚点跳转翻页判据)。 */
   hasMoreHistory(): boolean {
     return this.hasMore;
@@ -90,13 +92,20 @@ export class TerminalHistoryPager {
     this.loading = true;
     this.emit();
     try {
-      /* 窗尾三重钳制:页字节预算 × 日志尾 × 当前缓冲起点 —— 越过 earliestByte
-       * 会在缓冲快照里再写一遍同一区段(双喂重复渲染,2026-10-26 复审);
-       * 命中落在缓冲区内(>= earliestByte)返回空页不跳,由缓冲搜索负责。 */
+      /* 窗尾钳制:页字节预算 × 日志尾 × 存量锚 × 现算缓冲起点 —— 存量锚是
+       *  init/翻页时点值,预算裁剪后可陈旧偏高,越过真实缓冲起点会在快照里
+       *  再写一遍同一区段(双喂,2026-10-26 复审);命中落在缓冲区内返回空页
+       *  不跳,由缓冲搜索负责。 */
+      const logSize = await ipc.sessionLogSize(this.sessionId);
+      const bufferStart = Math.max(
+        0,
+        logSize - host.getOutputBufferBytes(this.sessionId),
+      );
       const before = Math.min(
         offset + HISTORY_PAGE_BYTES,
         this.earliestByte,
-        await ipc.sessionLogSize(this.sessionId),
+        bufferStart,
+        logSize,
       );
       const page = await ipc.sessionHistoryPage(this.sessionId, before, HISTORY_PAGE_BYTES);
       if (!page.text) return false;
@@ -105,7 +114,8 @@ export class TerminalHistoryPager {
       this.hasMore = page.hasMore;
       this.jumpWindow = true;
       this.emit();
-      this.inputGate.arm();
+      /* RIS 前必须先冲 pendingLive,否则快照与下一帧 rAF 双喂(见构造器注)。 */
+      this.flush?.();
       term.write("\x1bc");
       term.write(page.text);
       term.write(`\x1b[2m${gapLabel}\x1b[0m\r\n`);
@@ -144,7 +154,8 @@ export class TerminalHistoryPager {
       this.hasMore = page.hasMore;
       this.emit();
       /* RIS 与历史/实时快照共用 xterm 写队列;末段回调时 buffer 已可搜索。 */
-      this.inputGate.arm();
+      /* RIS 前必须先冲 pendingLive,否则快照与下一帧 rAF 双喂(见构造器注)。 */
+      this.flush?.();
       term.write("\x1bc");
       for (const prefix of this.prefix) term.write(prefix);
       const { promise, resolve } = Promise.withResolvers<void>();
@@ -185,7 +196,8 @@ export class TerminalHistoryPager {
       this.earliestByte = Math.max(0, end - currentBytes);
       this.hasMore = this.earliestByte > 0;
       this.jumpWindow = false;
-      this.inputGate.arm();
+      /* RIS 前必须先冲 pendingLive,否则快照与下一帧 rAF 双喂(见构造器注)。 */
+      this.flush?.();
       term.write("\x1bc");
       const { promise, resolve } = Promise.withResolvers<void>();
       term.write(host.getOutputBuffer(this.sessionId), () => {

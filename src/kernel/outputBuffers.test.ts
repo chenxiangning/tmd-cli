@@ -7,8 +7,9 @@
  * remove —— 清除缓冲,之后 get/getBytes 归零,append 重新起账;
  * 会话间隔离 —— 同 id 一本账,不同 id 互不可见。
  */
-import { describe, expect, it } from "vitest";
-import { OutputBufferStore } from "./outputBuffers";
+ import { describe, expect, it } from "vitest";
+ import { OutputBufferStore } from "./outputBuffers";
+import { registerTerminalHandle, unregisterTerminalHandle, type TerminalHandle } from "./terminalHandles";
 
 const enc = new TextEncoder();
 
@@ -139,5 +140,24 @@ describe("全店预算(多会话内存治理)", () => {
     store.append("b", "y".repeat(1_000), 100_000);
     expect(store.get("a").length).toBe(1_000);
     expect(store.get("b").length).toBe(1_000);
+  });
+
+  it("挂载真相保护:注册表有 handle 的会话即使最旧也不裁,裁无 handle 者", () => {
+    const store = new OutputBufferStore();
+    const big = 10_000_000;
+    /* 最旧的 mt-1 挂载中(观看≠写入,MRU 保护错域);先注册再灌量,
+       否则第 6 次追加过预算时 mt-1 已被裁。 */
+    const handle = {} as TerminalHandle;
+    registerTerminalHandle("mt-1", handle);
+    try {
+      /* 6 会话各 1.5M = 9M > 8M */
+      for (let i = 1; i <= 6; i++) store.append(`mt-${i}`, String(i).repeat(1_500_000), big);
+      store.append("mt-7", "x", big); /* 再触发预算执行 */
+      expect(store.get("mt-1").length).toBe(1_500_000); /* 挂载中不裁 */
+      expect(store.get("mt-2").length).toBeLessThanOrEqual(64_000); /* 无 handle 最旧先裁 */
+      expect(store.get("mt-3").length).toBe(1_500_000); /* 缺口已补,后续不裁 */
+    } finally {
+      unregisterTerminalHandle("mt-1", handle);
+    }
   });
 });
