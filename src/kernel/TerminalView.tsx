@@ -1,13 +1,9 @@
 /**
  * 幕布终端 —— xterm.js 透传 PTY 字节流(幕布零渲染原则的唯一实现点)。
- *
- * 生命周期:挂载 → 回放内核输出缓冲(切回不黑屏)→ 订阅实时总线。
- * 输入路径:xterm onData 直写 PTY;富 composer 实装后汇入同一条 write 通道。
- * 渲染层:xterm 内建 DOM 渲染器(WebGL 方案因 WebKit texSubImage2D 缺陷弃用)。
- * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
- *
- * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检/滚动位保持分别在
- * terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth / terminalScrollKeeper。
+ * 生命周期:挂载 → 回放内核输出缓冲(切回不黑屏)→ 订阅实时总线;输入 onData 直写 PTY。
+ * 渲染层:xterm 内建 DOM 渲染器(WebGL 因 WebKit 缺陷弃用);点缀层 ⌘F 搜索与可点击链接为纯插件。
+ * 300 行铁则拆分:翻页/搜索/遮罩/刷新钮/健康巡检/滚动位保持在 terminalHistory / terminalSearch /
+ * terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth / terminalScrollKeeper。
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -28,7 +24,8 @@ import {
 } from "@kernel/messageAnchors";
 import { subscribeTerminalTheme } from "@kernel/terminalThemeBridge";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
-import { attachTerminalStream, settleTerminalJump, type LoadProgress } from "@kernel/terminalReplay";
+import { attachTerminalStream, settleTerminalJump, settleTerminalWrite, type LoadProgress } from "@kernel/terminalReplay";
+import { captureViewportAnchor, restoreViewportAnchor } from "@kernel/terminalScrollAnchor";
 import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
 import {
   observeCanvasSize,
@@ -74,6 +71,8 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       激活即冲刷攒帧,切换无感。 */
   const activeRef = useRef(active);
   const flushDeferredRef = useRef<(() => void) | null>(null);
+  /* 重建保位锚(卸载采、回放完恢复,见 terminalScrollAnchor)。 */
+  const rebuildAnchorRef = useRef<string | null>(null);
   const lastLiveAtRef = useRef(0); /* 停滞探针活性真相(terminalCanvasHealth 消费) */
   /* 滚动位保持(terminalScrollKeeper.ts):隐藏/重显与重排的滚动语义;实例随会话 keep-alive 常驻。 */
   const [scrollKeeper] = useState(createScrollKeeper);
@@ -98,7 +97,6 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     await pager.loadEarlier(term);
   }, []);
   const loadEarlierRef = useRef<(() => Promise<void>) | null>(null);
-
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
@@ -181,7 +179,11 @@ termRef.current = term;
     streamReadyRef.current = false; let disposed = false; const streamReady = Promise.withResolvers<void>(); const disposal = Promise.withResolvers<void>();
     lastLiveAtRef.current = 0;
     const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress, () => {
-      streamReadyRef.current = true; streamReady.resolve();
+      streamReadyRef.current = true;
+      streamReady.resolve();
+      /* 重建保位:回放尽后按锚恢复阅读位,搜不到回落贴底。 */
+      restoreViewportAnchor(term, () => settleTerminalWrite(term), rebuildAnchorRef.current);
+      rebuildAnchorRef.current = null;
     }, {
       shouldDefer: () => !activeRef.current,
       bindFlush: (flush) => {
@@ -232,7 +234,6 @@ termRef.current = term;
       loadEarlier: () => loadEarlierRef.current?.() ?? Promise.resolve(),
     };
     registerTerminalHandle(sessionId, terminalHandle);
-
     /* 重挂载必发一次(needsForceSync 初值 true 强制真 SIGWINCH 整帧重绘,根治错栅格滞留);重绘由活动守望抑制窗吸收。 */
     syncSize();
     const offObserve = observeCanvasSize(container, syncSize);
@@ -246,6 +247,8 @@ termRef.current = term;
       container.removeEventListener("focusout", onFocusOut);
       /* 先冲刷 250ms 合帧攒帧再存快照(尾巴已计水位不在投影,跳过则 fast 永久缺字);终态收尾须先于注销 handle。 */
       flushDeferredRef.current?.();
+      /* 重建保位:卸载前采视口顶行锚(贴底不采)。 */
+      rebuildAnchorRef.current = captureViewportAnchor(term, canvasGen > 0);
       settleTerminalFreeze(sessionId, term);
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();
@@ -264,7 +267,6 @@ termRef.current = term;
 
   /* ⌘F 搜索框所有权 + 关闭回调(实现见 terminalSearch.useSearchBoxOwnership)。 */
   const { close: closeSearch } = useSearchBoxOwnership(active, setSearchOpen, termRef);
-
   /* loadEarlier 实例内恒稳定(useCallback 无依赖),ref 转交放 effect 避免渲染期写。 */
   useEffect(() => {
     loadEarlierRef.current = loadEarlier;

@@ -79,7 +79,11 @@ export function attachTerminalStream(
   /* 前台洪水合帧(#339 假死形态 A 前端半边):激活幕布逐 chunk 直写会令
    TUI 全屏重绘逐 write 触发行重建;改 rAF 节拍攒批一帧一写。输入回显
    最多延迟一帧(16ms 不可感);rAF 冻结(吊销态)时靠字节上限兜底直冲,
-   不无限积压。 */
+   不无限积压。node 测试环境无 rAF,降级 setTimeout 16ms(scrollKeeper 同款)。 */
+  const scheduleLiveFrame: (cb: () => void) => number =
+    typeof requestAnimationFrame === "function"
+      ? (cb) => requestAnimationFrame(cb)
+      : (cb) => setTimeout(cb, 16) as unknown as number;
   const LIVE_FLUSH_MAX_BYTES = 256 * 1024;
   let pendingLive: string[] = [];
   let pendingLiveBytes = 0;
@@ -114,7 +118,7 @@ export function attachTerminalStream(
         if (liveFrame !== undefined) cancelAnimationFrame(liveFrame);
         flushLive();
       } else if (liveFrame === undefined) {
-        liveFrame = requestAnimationFrame(flushLive);
+        liveFrame = scheduleLiveFrame(flushLive);
       }
     }
   };

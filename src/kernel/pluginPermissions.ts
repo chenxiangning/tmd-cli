@@ -70,6 +70,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   /* 文件系统写/管理。 */
   fsWriteTemp: "ipc.fs.write",
   fsWriteFile: "ipc.fs.write",
+  fsMtime: "ipc.fs.read",
   fsWriteBytesBase64: "ipc.fs.write",
   fsCreateFile: "ipc.fs.write",
   fsCreateDir: "ipc.fs.write",
@@ -157,6 +158,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   checkpointUndoRevert: "ipc.checkpoints",
   checkpointRestorePreview: "ipc.checkpoints",
   checkpointPrune: "ipc.checkpoints",
+  sessionLogCleanup: "ipc.fs.write",
 
   /* 网络(quota_fetch = 任意 URL 的通用 HTTP 代理)。 */
   quotaFetch: "ipc.net",

@@ -69,6 +69,7 @@ describe("初始状态与默认值", () => {
       sessionRestore: { enabled: false, keys: [] },
       sessionHygieneEnabled: true,
       sessionHygieneHours: 24,
+      sessionLogRetentionDays: 7,
       engineVersionFavs: {},
       shortcutOverrides: {},
       workspaceArchiveView: false,

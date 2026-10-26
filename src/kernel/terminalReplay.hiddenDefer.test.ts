@@ -81,9 +81,11 @@ describe("attachTerminalStream 隐藏幕布合帧写入", () => {
     vi.advanceTimersByTime(250);
     expect(term.writes).toEqual(["tick-1tick-2"]); // 250ms 合一帧
 
-    // 激活:冲刷残留攒帧,此后直写
+    // 激活:冲刷残留攒帧;此后走前台 rAF 合帧(16ms 一帧,2026-10-26 起)
     hidden = false;
     emit("s9", "tick-3");
+    expect(term.writes).toEqual(["tick-1tick-2"]); // rAF 帧未到,暂在攒批
+    vi.advanceTimersByTime(16);
     expect(term.writes).toEqual(["tick-1tick-2", "tick-3"]);
     expect(flushes).toHaveLength(1);
     flushes[0]();

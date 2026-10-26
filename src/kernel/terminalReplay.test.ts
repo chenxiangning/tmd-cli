@@ -57,18 +57,17 @@ function fakeTerm() {
 }
 
 describe("writeInChunks", () => {
-  it("按 128K 分块保序写入,进度逐块推进", async () => {
+  it("按 256K 分块保序写入,进度逐块推进", async () => {
     const term = fakeTerm();
-    const text = "a".repeat(128 * 1024) + "b".repeat(128 * 1024) + "c";
+    const text = "a".repeat(200 * 1024) + "b".repeat(200 * 1024) + "c";
     const progress: Array<[number, number]> = [];
     await writeInChunks(term, text, (done, total) => progress.push([done, total]));
-    expect(term.writes.map((w) => w.length)).toEqual([128 * 1024, 128 * 1024, 1]);
+    expect(term.writes.map((w) => w.length)).toEqual([256 * 1024, 144 * 1024 + 1]);
     expect(term.writes.join("")).toBe(text);
     expect(progress).toEqual([
-      [0, 3],
-      [1, 3],
-      [2, 3],
-      [3, 3],
+      [0, 2],
+      [1, 2],
+      [2, 2],
     ]);
   });
 
@@ -245,7 +244,8 @@ describe("attachTerminalStream 磁盘先行回放", () => {
     const events: LoadProgress[] = [];
     const off = attachTerminalStream(term, "s1", gate, (p) => events.push(p));
     emit("s1", "A");
-    expect(term.writes).toContain("A"); // 直流,不攒队
+    await vi.advanceTimersByTimeAsync(16);
+    expect(term.writes).toContain("A"); // 前台 rAF 合帧一帧内落屏,不攒队
     await vi.advanceTimersByTimeAsync(500);
     expect(events).toContain(null); // 静默 0.5s 撤罩(新会话现状语义)
     off();
