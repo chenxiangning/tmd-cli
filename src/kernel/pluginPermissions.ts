@@ -162,6 +162,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   wslWriteFileText: "ipc.fs.write",
   wslCreateEntry: "ipc.fs.write",
   wslRemoveEntry: "ipc.fs.write",
+  renderHealthEvents: "ipc.terminal",
 
   /* 网络(quota_fetch = 任意 URL 的通用 HTTP 代理)。 */
   quotaFetch: "ipc.net",

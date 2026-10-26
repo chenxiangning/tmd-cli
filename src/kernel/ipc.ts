@@ -842,6 +842,9 @@ export const ipc = {
   /** WSL 远程删除:文件 rm -f;目录仅空目录 rmdir(远程无废纸篓,窄语义)。 */
   wslRemoveEntry: (distro: string, path: string, host?: SshHostConfig) =>
     invoke<void>("wsl_remove_entry", { distro, path, host: host ?? null }),
+  /** 渲染健康诊断事件史(设置-行为只读;kick/reload/recovered 环形留痕)。 */
+  renderHealthEvents: () =>
+    invoke<{ atMs: number; kind: string; detail: string }[]>("render_health_events"),
   /** 未决 SSH 提示对账(接线竞态/webview reload 兜底,先例 refreshForwards)。 */
   sshPromptsPending: () => invoke<SshPendingPromptWire[]>("ssh_prompts_pending"),
   /** 字符串 MD5(小写 hex;通用原语,消费方的用途注记归各插件)。 */

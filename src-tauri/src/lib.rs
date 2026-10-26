@@ -30,6 +30,7 @@ mod pty;
 mod pty_spawn;
 mod quota;
 mod render_health;
+mod render_health_events;
 mod resolve;
 mod session;
 mod session_commands;
@@ -304,6 +305,7 @@ pub fn run() {
             lsp::lsp_send,
             lsp::lsp_stop,
             fs_edit_cmds::fs_write_file,
+            render_health_events::render_health_events,
             fs_edit_cmds::fs_mtime,
             fs_edit_cmds::fs_create_file,
             fs_edit_cmds::fs_create_dir,

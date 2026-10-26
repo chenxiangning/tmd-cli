@@ -158,6 +158,17 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
                     ""
                 },
             ));
+            crate::render_health_events::note(
+                "kick-reload",
+                format!(
+                    "strikes={strikes}{}",
+                    if now < flood_until {
+                        ",宽限耗尽强击"
+                    } else {
+                        ""
+                    }
+                ),
+            );
             let _ = window.eval("location.reload()");
         }
         KickAction::Focus => {
@@ -169,6 +180,17 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
                     ""
                 },
             ));
+            crate::render_health_events::note(
+                "kick-focus",
+                format!(
+                    "strikes={strikes}{}",
+                    if now < ks.flood_until_ms.load(Ordering::Relaxed) {
+                        ",洪水期降级"
+                    } else {
+                        ""
+                    }
+                ),
+            );
             let _ = window.set_focus();
         }
     }
@@ -194,6 +216,10 @@ pub(crate) fn render_health(
     }
     if ok {
         /* 痊愈:strikes 与洪水降级期一并清零,下一轮冻结重新计宽限。 */
+        let had = ks.strikes.load(Ordering::Relaxed);
+        if had > 0 {
+            crate::render_health_events::note("recovered", format!("strikes={had}"));
+        }
         ks.strikes.store(0, Ordering::Relaxed);
         ks.flood_since_ms.store(0, Ordering::Relaxed);
         return;
