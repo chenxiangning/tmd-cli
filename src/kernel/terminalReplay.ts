@@ -7,8 +7,9 @@
 
 import type { Terminal } from "@xterm/xterm";
 
-/** 单块字符数:足够小使进度平滑,又不至于回调过频。 */
-const REPLAY_CHUNK_CHARS = 128 * 1024;
+/** 单块字符数:足够小使进度平滑,又不至于回调过频。2026-10-26 起 128K→256K:
+ *  重挂/翻页重放的中间渲染次数减半(中间态全被最终态覆盖,纯浪费)。 */
+const REPLAY_CHUNK_CHARS = 256 * 1024;
 
 /** 隐藏期写入控制(由 TerminalView 供活性真相,避免闭包吃陈旧 active)。 */
 export interface HiddenDeferControl {

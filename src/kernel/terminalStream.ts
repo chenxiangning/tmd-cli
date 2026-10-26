@@ -76,8 +76,31 @@ export function attachTerminalStream(
     pendingHidden = null;
     term.write(queued.join(""));
   };
-  hiddenDefer?.bindFlush(flushDeferred);
-  /* live 写路由:回放未完攒队保序 > 隐藏幕布合帧 > 直写。 */
+  /* 前台洪水合帧(#339 假死形态 A 前端半边):激活幕布逐 chunk 直写会令
+   TUI 全屏重绘逐 write 触发行重建;改 rAF 节拍攒批一帧一写。输入回显
+   最多延迟一帧(16ms 不可感);rAF 冻结(吊销态)时靠字节上限兜底直冲,
+   不无限积压。 */
+  const LIVE_FLUSH_MAX_BYTES = 256 * 1024;
+  let pendingLive: string[] = [];
+  let pendingLiveBytes = 0;
+  let liveFrame: number | undefined;
+  const flushLive = (): void => {
+    liveFrame = undefined;
+    if (!pendingLive.length) return;
+    const joined = pendingLive.join("");
+    pendingLive = [];
+    pendingLiveBytes = 0;
+    term.write(joined);
+  };
+  /* 跳转/定位前全量冲刷(隐藏攒帧 + 前台攒批一并):settleTerminalJump 的
+   flush 入口绑的正是这里 —— 字节不冲完,搜索/锚定读到的是旧屏。 */
+  const flushAll = (): void => {
+    flushDeferred();
+    if (liveFrame !== undefined) cancelAnimationFrame(liveFrame);
+    flushLive();
+  };
+  hiddenDefer?.bindFlush(flushAll);
+  /* live 写路由:回放未完攒队保序 > 隐藏幕布合帧 > 前台 rAF 合帧。 */
   const routeLive = (out: string): void => {
     if (liveQueue) {
       liveQueue.push(out);
@@ -85,7 +108,14 @@ export function attachTerminalStream(
       pendingHidden = (pendingHidden ?? []).concat(out);
       if (!hiddenTimer) hiddenTimer = setInterval(flushDeferred, HIDDEN_FLUSH_MS);
     } else {
-      term.write(out);
+      pendingLive = pendingLive.concat(out);
+      pendingLiveBytes += out.length;
+      if (pendingLiveBytes >= LIVE_FLUSH_MAX_BYTES) {
+        if (liveFrame !== undefined) cancelAnimationFrame(liveFrame);
+        flushLive();
+      } else if (liveFrame === undefined) {
+        liveFrame = requestAnimationFrame(flushLive);
+      }
     }
   };
   /* SIGWINCH 舞步降级守卫:仅滤 live 路径(回放/翻页是历史字节,原样)。
@@ -251,6 +281,10 @@ export function attachTerminalStream(
     clearInterval(hiddenTimer);
     /* 隐藏期残留的攒帧随卸载丢弃:字节真源在 outputBuffers,重挂走回放 */
     pendingHidden = null;
+    /* 前台攒批残留随卸载丢弃(与隐藏攒帧同语义:字节真源在 outputBuffers,重挂走回放) */
+    if (liveFrame !== undefined) cancelAnimationFrame(liveFrame);
+    pendingLive = [];
+    pendingLiveBytes = 0;
     clearTimeout(quietTimer);
     clearTimeout(diskFlushTimer);
     clearTimeout(failsafe);
