@@ -7,7 +7,7 @@
 import { openFileAtLine, openFileInTab } from "@kernel/fileTabs";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
-import { ADVICE_LABEL, VERDICT_DOT, VERDICT_LABEL, type LintAdvice, type LintRow, type LintVerdict, type StaticFinding } from "./lintTypes";
+import { ADVICE_LABEL, VERDICT_DOT, VERDICT_LABEL, type LintAdvice, type LintRow, type LintVerdict, type RuleEvidence, type StaticFinding } from "./lintTypes";
 import type { DiffLine } from "./diffUtil";
 
 export const ACTION_CLS =
@@ -33,26 +33,46 @@ function EvidenceFace({ row }: { row: LintRow }) {
           {ev.command ? ` · ${t("规则命令")}: ${ev.command}` : ""}
         </div>
       )}
-      {ev?.correctionQuotes.map((q) => (
-        <div key={q} className="border-l-2 border-(--tmd-error) pl-2 text-(--tmd-fg)">
-          {t("纠正原话")}:「{q}」
-        </div>
-      ))}
-      {ev?.complyQuote && (
-        <div className="border-l-2 border-(--tmd-ok) pl-2 font-mono text-(--tmd-fg)">{ev.complyQuote}</div>
-      )}
+      {ev && <QuoteEvidence ev={ev} />}
       {ev?.unjudgeable && <div>{t("信号词全部超高频,词面证据不可用,判定仅基于以上硬证据")}</div>}
       {mark && (
         <div className={mark.recognizable ? "text-(--tmd-ok)" : "text-(--tmd-warn)"}>
           {t("AI 识别")}:{mark.recognizable ? t("能识别并遵守") : t("不能识别/执行")} —— {mark.reason}
         </div>
       )}
-      {row.judgment ? (
-        <div className="text-(--tmd-fg)">
-          {t("AI 判定")}:{row.judgment.reason || t(VERDICT_LABEL[row.judgment.verdict])}
+      <JudgmentFace row={row} />
+    </div>
+  );
+}
+
+/** 引文证据折叠块(默认收起;纠正/照做各截 3 行)。 */
+function QuoteEvidence({ ev }: { ev: RuleEvidence }) {
+  if (ev.correctionQuotes.length === 0 && !ev.complyQuote) return null;
+  return (
+    <details className="text-(--tmd-fg)">
+      <summary className="cursor-pointer select-none text-(--tmd-fg-muted)">
+        {t("引文证据")}{ev.correctionQuotes.length > 0 ? ` · ${t("纠正 {n} 条", { n: String(ev.correctionQuotes.length) })}` : ""}{ev.complyQuote ? ` · ${t("照做 1 条")}` : ""}{t("(点开查看)")}
+      </summary>
+      {ev.correctionQuotes.map((q) => (
+        <div key={q} className="mt-1 line-clamp-3 border-l-2 border-(--tmd-error) pl-2 text-(--tmd-fg)">{q}</div>
+      ))}
+      {ev.complyQuote && <div className="mt-1 line-clamp-3 border-l-2 border-(--tmd-ok) pl-2 font-mono text-(--tmd-fg)">{ev.complyQuote}</div>}
+    </details>
+  );
+}
+
+/** 判定行(+AI 建议);判定缺失给失败占位。 */
+function JudgmentFace({ row }: { row: LintRow }) {
+  if (!row.judgment) {
+    return <div className="text-(--tmd-warn)">{t("本条 AI 判定失败,未回落猜测;可重新体检")}</div>;
+  }
+  return (
+    <div className="text-(--tmd-fg)">
+      {t("AI 判定")}:{row.judgment.reason || t(VERDICT_LABEL[row.judgment.verdict])}
+      {row.judgment.fix && (
+        <div className="mt-0.5 border-l-2 border-(--tmd-accent) pl-2 text-(--tmd-accent)">
+          {t("AI 建议")}:{row.judgment.fix}
         </div>
-      ) : (
-        <div className="text-(--tmd-warn)">{t("本条 AI 判定失败,未回落猜测;可重新体检")}</div>
       )}
     </div>
   );

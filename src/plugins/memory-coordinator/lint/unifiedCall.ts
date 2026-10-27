@@ -23,12 +23,12 @@ export function buildUnifiedInstruction(items: UnifiedInput[], hasCorpus: boolea
     "你是 AI 编程助手。下面是项目的全部规则(序号|规则原文|脚本测量:近30天统计)。对每条规则给出你最终的真实认知:",
     "1. ok:你能否识别并真正遵守(true/false)",
     `2. v:最终判定,取 ${VERDICT_CODES}`,
-    "3. why:一句话中文说明(≤20字)",
-    "4. fix:仅 ok=false 时给改写后的完整规则行;给不出就省略",
+    "3. why:一句话中文说明(≤20字),必须给出证据锚点(如「触达5纠正2仍违」/「零触达」),不许只贴标签",
+    "4. fix:凡 v 不是 working,给出把该行改写成可测量/可执行规则的建议文本(完整一行);working 可省略",
     hasCorpus ? "脚本测量供参考,以你的真实认知为准。" : "(注意:本次语料为空,测量计数全 0,按规则文本本身判断。)",
     "",
     "输出契约:结果包在 <JUDGE> 与 </JUDGE> 之间,JSON 数组,每条一行:",
-    '{"i": 序号数字, "ok": true/false, "v": "working|violated|touched|dormant|unverifiable", "why": "≤20字", "fix": "可选"}',
+    '{"i": 序号数字, "ok": true/false, "v": "working|violated|touched|dormant|unverifiable", "why": "≤20字", "fix": "非 working 给"}',
     "不要漏行,不要输出标记之外的任何内容。",
     "",
     "=== 规则清单 ===",
@@ -64,7 +64,7 @@ export function parseUnifiedReply(raw: string, maxIndex = Number.MAX_SAFE_INTEGE
     if (!VERDICT_SET.has(verdict)) return;
     out.push({ i, ok: o.ok, v: verdict as LintVerdict, why: sanitizeWhy(o.why) });
     const last = out[out.length - 1]!;
-    if (!o.ok && typeof o.fix === "string" && o.fix.trim()) last.fix = o.fix.trim().slice(0, 400);
+    if (typeof o.fix === "string" && o.fix.trim()) last.fix = o.fix.trim().slice(0, 400);
   };
   const tryParse = (s: string): boolean => {
     try {

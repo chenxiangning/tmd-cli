@@ -222,7 +222,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
           const key = slot.rule.file + slot.rule.text;
           if (!judgments.has(key)) {
             /* advice 单调用协议不再由模型给:不可执行规则给 stub(改写文本走 aiMark.rewrite),其余 keep。 */
-            const j: RuleJudgment = { verdict: it.v, reason: it.why, advice: it.ok ? "keep" : "stub" };
+            const j: RuleJudgment = { verdict: it.v, reason: it.why, advice: it.ok ? "keep" : "stub", fix: it.fix };
             judgments.set(key, j);
             patch.push({ scope: slot.scope, file: slot.rule.file, rule: slot.rule, judgment: j });
           }

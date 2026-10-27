@@ -52,9 +52,9 @@ export async function applyRuleAdvice(cwd: string, row: LintRow, advice: LintAdv
   }
 }
 
-/** AI 改写应用(单条):不可识别规则行替换为模型给的改写文本(守卫+日志)。 */
+/** AI 改写应用(单条):规则行替换为模型给的改写文本(aiMark.rewrite 或 judgment.fix,守卫+日志)。 */
 export async function applyRuleRewrite(row: LintRow): Promise<ActionResult> {
-  const rewrite = row.aiMark?.rewrite;
+  const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix;
   if (!rewrite) return { ok: false, note: "该条没有改写建议" };
   try {
     const text = await readText(row.rule.file);
@@ -70,7 +70,7 @@ export async function applyRuleRewrite(row: LintRow): Promise<ActionResult> {
 /** 一键应用 AI 结果:把当前结果里所有带改写建议的规则行批量替换
  *  (逐行守卫,任一行守卫失败跳过并计数;按文件聚合落盘+日志)。 */
 export async function applyAllAiRewrites(rows: LintRow[]): Promise<ActionResult & { applied: number; skipped: number }> {
-  const pending = rows.filter((r) => r.aiMark && !r.aiMark.recognizable && r.aiMark.rewrite && !r.settled);
+  const pending = rows.filter((r) => !r.settled && (r.aiMark ? !r.aiMark.recognizable && r.aiMark.rewrite : r.judgment?.fix));
   if (pending.length === 0) return { ok: true, note: "", applied: 0, skipped: 0 };
   const byFile = new Map<string, LintRow[]>();
   for (const r of pending) {
@@ -87,7 +87,12 @@ export async function applyAllAiRewrites(rows: LintRow[]): Promise<ActionResult 
     }
     let next = before;
     for (const row of list) {
-      const step = replaceRuleFromFile(next, row.rule, row.aiMark!.rewrite!);
+      const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix;
+      if (!rewrite) {
+        skipped += 1;
+        continue;
+      }
+      const step = replaceRuleFromFile(next, row.rule, rewrite);
       if (step === null) {
         skipped += 1;
         continue;

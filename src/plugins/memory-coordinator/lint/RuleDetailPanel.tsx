@@ -24,15 +24,16 @@ function EvidenceGrid({ row }: { row: LintRow }) {
   );
 }
 
-/** 改写 diff 预览(仅 AI 不可识别且给了 rewrite)。 */
+/** 改写 diff 预览(aiMark.rewrite 或 judgment.fix 任一存在)。 */
 function RewriteDiff({ row }: { row: LintRow }) {
-  if (!row.aiMark?.rewrite) return null;
+  const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix;
+  if (!rewrite) return null;
   return (
     <div className="mt-2.5">
       <div className="text-[10px] font-medium tracking-wide text-(--tmd-fg-faint)">{t("规则变更预览")}</div>
       <div className="mt-1.5 overflow-hidden rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) font-mono text-[9.5px] leading-relaxed">
         <div className="border-b border-(--tmd-border) bg-(--tmd-error)/10 px-2 py-1 text-(--tmd-error)">- {row.rule.text}</div>
-        <div className="bg-(--tmd-ok)/10 px-2 py-1 text-(--tmd-ok)">+ {row.aiMark.rewrite}</div>
+        <div className="bg-(--tmd-ok)/10 px-2 py-1 text-(--tmd-ok)">+ {rewrite}</div>
       </div>
     </div>
   );
@@ -40,7 +41,7 @@ function RewriteDiff({ row }: { row: LintRow }) {
 
 export function RuleDetailPanel({ row, busy, onKeep, onRewrite }: { row: LintRow; busy: boolean; onKeep: (row: LintRow) => void; onRewrite: (row: LintRow) => void }) {
   const keepable = row.judgment && (row.judgment.verdict === "violated" || row.judgment.verdict === "dormant");
-  const rewritable = !!row.aiMark && !row.aiMark.recognizable && !!row.aiMark.rewrite && !row.settled;
+  const rewritable = !row.settled && !!(row.aiMark?.rewrite ?? row.judgment?.fix);
   return (
     <aside className="w-[300px] flex-none border-l border-(--tmd-border) bg-(--tmd-bg-subtle) px-3 py-2.5">
       <div className="flex items-center gap-1.5">

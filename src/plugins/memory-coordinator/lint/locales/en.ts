@@ -47,7 +47,11 @@ export const MESSAGES_EN = {
   "触达 {n} 条消息/{s} 个会话,最近 {d};纠正 {c} 次;工具级照做 {p} 次":
     "Touched {n} msgs/{s} sessions, last {d}; corrections {c}; tool-level compliance {p}",
   "规则命令": "rule command",
-  "纠正原话": "Correction quote",
+  "引文证据": "Quote evidence",
+  "纠正 {n} 条": "{n} correction(s)",
+  "照做 1 条": "1 compliance",
+  "(点开查看)": " (click to expand)",
+  "AI 建议": "AI suggestion",
   "信号词全部超高频,词面证据不可用,判定仅基于以上硬证据":
     "All signal words are too common; word-level evidence unusable — the verdict rests on the hard evidence above",
   "AI 判定": "AI verdict",

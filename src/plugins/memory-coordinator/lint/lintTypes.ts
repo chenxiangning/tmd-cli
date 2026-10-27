@@ -104,6 +104,8 @@ export interface RuleJudgment {
   /** 一句话判定理由(模型给,展示用)。 */
   reason: string;
   advice: LintAdvice;
+  /** 改写建议(凡非 working 可给;可整行替换,展示与应用共用)。 */
+  fix?: string;
 }
 
 /** 静态发现(确定性,不烧模型;missing =「你反复在说」,移植 findings_missing)。 */
