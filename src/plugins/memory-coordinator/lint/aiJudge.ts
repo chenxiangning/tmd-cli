@@ -176,7 +176,7 @@ export async function runJudgeRaw(opts: JudgeRunOpts): Promise<string> {
   const startedAt = Date.now();
   const heart = setInterval(() => {
     if (!settled) opts.onWait?.(Math.round((Date.now() - startedAt) / 1000), live.length);
-  }, 15000);
+  }, 5000);
   const { promise, resolve } = Promise.withResolvers<string>();
   void onPtyOutput(spawned.id, (chunk) => {
     live += chunk;
@@ -216,76 +216,4 @@ async function archiveSpawnedDiskSession(engineId: string, cwd: string, workspac
   if (fresh) await archiveSession(sessionArchiveKey(workspaceId, engineId, fresh));
 }
 
-/* ── 第二步:完整配置识别 pass(全文带行号发模型,逐条问「能否识别并遵守」)── */
-
-export interface AiMarkRaw {
-  line: number;
-  recognizable: boolean;
-  reason: string;
-  rewrite?: string;
-}
-
-/** 组装识别指令:全文逐行加 L{n} 前缀,要求逐条给 ok/why/fix(仅不可识别给改写)。 */
-export function buildRecognizeInstruction(label: string, text: string): string {
-  const numbered = text
-    .split("\n")
-    .map((l, i) => `L${i + 1}: ${l}`)
-    .join("\n");
-  return [
-    `你是 AI 编程助手。下面是一份${label}的完整内容(每行前缀 L行号)。请通读全文后逐条检查其中的规则条目(bullet 列表项/表格行/含「」的约束行),判断你能否识别并真正遵守这条规则。`,
-    "",
-    "判定口径:",
-    '- ok=true:你能识别这条规则的意图,并且在后续编程工作中能执行它(指令清晰、无歧义、可操作)',
-    '- ok=false:你无法识别或无法执行(原因如:指令含糊/互相冲突/指向不存在的上下文/过于抽象无法落地/纯愿景无操作含义)',
-    "",
-    "输出契约:把结果完整包在 <RECOG> 与 </RECOG> 标记之间,内容是一个 JSON 数组,每条对应一个规则行:",
-    '{"l": 行号数字, "ok": true/false, "why": "一句话中文说明", "fix": "仅 ok=false 时给:改写后的整行规则文本(可直接替换原行,含必要的 bullet 前缀;能给出清晰可执行的写法才给,给不出就省略此字段)"}',
-    "只报告规则行,标题/空行/普通段落不用报;标记之外不要输出任何内容。",
-    "",
-    "=== 文件全文 ===",
-    numbered,
-  ].join("\n");
-}
-
-function sanitizeMarkReason(r: unknown): string {
-  return typeof r === "string" ? r.replace(/\s+/g, " ").trim().slice(0, 200) : "";
-}
-
-/** 模型回复 → 逐行识别标记(哨兵内 JSON 优先;坏项跳过不连坐)。 */
-export function parseRecognizeReply(raw: string): AiMarkRaw[] {
-  const text = stripAnsi(raw);
-  const m = text.match(/<RECOG>([\s\S]*?)<\/RECOG>/);
-  const body = m ? m[1]!.trim() : "";
-  const out: AiMarkRaw[] = [];
-  const tryItem = (v: unknown) => {
-    if (typeof v !== "object" || v === null) return;
-    const o = v as Record<string, unknown>;
-    const line = typeof o.l === "number" ? o.l : Number.parseInt(String(o.l ?? ""), 10);
-    if (!Number.isInteger(line) || line < 1) return;
-    if (typeof o.ok !== "boolean") return;
-    const item: AiMarkRaw = { line, recognizable: o.ok, reason: sanitizeMarkReason(o.why) };
-    if (!o.ok && typeof o.fix === "string" && o.fix.trim()) item.rewrite = o.fix.trim().slice(0, 400);
-    out.push(item);
-  };
-  const tryParse = (s: string): boolean => {
-    try {
-      const arr = JSON.parse(s);
-      if (Array.isArray(arr)) {
-        arr.forEach(tryItem);
-        return true;
-      }
-    } catch { /* 整段失败走逐对象捞 */ }
-    return false;
-  };
-  if (body) {
-    const fenced = body.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (!tryParse(fenced ? fenced[1]! : body)) {
-      for (const obj of body.match(/\{[^{}]*\}/g) ?? []) {
-        try {
-          tryItem(JSON.parse(obj));
-        } catch { /* 单对象坏不连坐 */ }
-      }
-    }
-  }
-  return out;
-}
+/* ── 第二步:识别 pass 的 prompt/解析在 recognizePrompt.ts(批切:±6 行节选 + 全文件目录)── */

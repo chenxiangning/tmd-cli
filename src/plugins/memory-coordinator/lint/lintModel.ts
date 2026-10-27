@@ -17,7 +17,8 @@ import { expandLintTargets, probeTargets } from "./targets";
 import { extractRules } from "./rulesExtract";
 import { collectCorpus, type CorpusProfileSource } from "./corpus";
 import { discriminativeTokens, measureAll, normalizeCmd } from "./evidence";
-import { buildJudgeInstruction, buildRecognizeInstruction, parseJudgeReply, parseRecognizeReply, runJudgeRaw } from "./aiJudge";
+import { buildJudgeInstruction, parseJudgeReply, runJudgeRaw } from "./aiJudge";
+import { parseRecognizeReply, buildRecognizeInstruction } from "./recognizePrompt";
 import { buildStaticFindings } from "./staticFindings";
 import { loadStore } from "./lintStore";
 import {
@@ -136,9 +137,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
     cwd: opts.cwd,
     cutoffMs,
     budgetMs: CORPUS_BUDGET_MS,
-    onSession: (done, total, profileId) => {
-      if (alive()) opts.onProgress({ step: "corpus", detail: `${profileId} ${done}/${total}` });
-    },
+    onSession: (done, total, profileId) => { if (alive()) opts.onProgress({ step: "corpus", detail: `${profileId} ${done}/${total}` }); },
   });
   if (!alive()) throw new Error("lint-cancelled");
   const projSet = new Set<number>();
@@ -184,31 +183,36 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
     if (engineError || !alive()) break;
     const needAi = needAiOf(f);
     if (needAi.length === 0) continue;
-    opts.onProgress({
-      step: "recognize", detail: f.target.absPath.split("/").pop() ?? "",
-      done: 0, total: Math.max(1, needAi.length),
-    });
-    try {
-      const label = f.target.scope === "project" ? "项目级规则文件" : "用户级全局规则文件";
-      const raw = await runJudgeRaw({
-        engineId: opts.engineId,
-        instruction: buildRecognizeInstruction(label, f.text),
-        model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
-        timeoutSeconds: opts.timeoutSeconds,
-        onChunk: (liveText) => {
-          if (alive()) opts.onProgress({ step: "recognize", detail: "", live: liveText.slice(-4000) });
-        },
-        onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "recognize", detail: f.target.absPath.split("/").pop() ?? "", live: "", waitSec, liveBytes }); },
+    const label = f.target.scope === "project" ? "项目级规则文件" : "用户级全局规则文件";
+    const fname = f.target.absPath.split("/").pop() ?? "";
+    const batches = batchRules(needAi);
+    for (let bi = 0; bi < batches.length; bi++) {
+      if (engineError || !alive()) break;
+      const batch = batches[bi]!;
+      opts.onProgress({
+        step: "recognize", detail: `${fname} 批 ${bi + 1}/${batches.length}`, done: bi * BATCH_SIZE, total: needAi.length,
       });
-      const marks = new Map<number, AiMark>();
-      for (const m of parseRecognizeReply(raw)) {
-        if (m.line >= 1 && m.line <= f.text.split("\n").length) {
+      try {
+        const raw = await runJudgeRaw({
+          engineId: opts.engineId,
+          instruction: buildRecognizeInstruction(label, f.text, batch.map((r) => r.line)),
+          model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
+          timeoutSeconds: opts.timeoutSeconds,
+          onChunk: (liveText) => {
+            if (alive()) opts.onProgress({ step: "recognize", detail: "", live: liveText.slice(-4000) });
+          },
+          onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "recognize", detail: `${fname} 批 ${bi + 1}/${batches.length}`, live: "", waitSec, liveBytes }); },
+        });
+        const focus = new Set(batch.map((r) => r.line));
+        const marks = new Map<number, AiMark>();
+        for (const m of parseRecognizeReply(raw)) {
+          if (!focus.has(m.line)) continue;
           marks.set(m.line, { recognizable: m.recognizable, reason: m.reason, rewrite: m.rewrite });
         }
+        if (alive()) opts.onAiMarks(scopeOf(f.target), f.target.absPath, marks);
+      } catch (e) {
+        engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
       }
-      if (alive()) opts.onAiMarks(scopeOf(f.target), f.target.absPath, marks);
-    } catch (e) {
-      engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
     }
   }
   for (const f of rulesByFile) {
@@ -221,8 +225,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
       const needAi = pairs.filter((p) => !enforced.has(p.rule.file + p.rule.text));
       if (needAi.length === 0) continue;
       opts.onProgress({
-        step: "judge", detail: "", live: "",
-        done: judgments.size, total: Math.max(1, flatRules.length - enforced.size),
+        step: "judge", detail: "", live: "", done: judgments.size, total: Math.max(1, flatRules.length - enforced.size),
       });
       try {
         const raw = await runJudgeRaw({
@@ -230,9 +233,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
           instruction: buildJudgeInstruction(needAi, corpus.msgs.length > 0),
           model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
           timeoutSeconds: opts.timeoutSeconds,
-          onChunk: (liveText) => {
-            if (alive()) opts.onProgress({ step: "judge", detail: "", live: liveText.slice(-4000) });
-          },
+          onChunk: (liveText) => { if (alive()) opts.onProgress({ step: "judge", detail: "", live: liveText.slice(-4000) }); },
           onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "judge", detail: "", live: "", waitSec, liveBytes }); },
         });
         const parsed = parseJudgeReply(raw, needAi.length);
