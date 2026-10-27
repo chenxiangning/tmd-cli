@@ -13,7 +13,7 @@ import { buildJudgeInstruction, JUDGE_ENGINES, parseJudgeReply } from "./aiJudge
 import { buildUnifiedInstruction, parseUnifiedReply } from "./unifiedCall";
 import { batchRules, summarizeRows, BATCH_SIZE } from "./lintModel";
 import { scriptVerdict } from "./evidence";
-import { CLAUDE_STUB, removeRuleFromFile, resetBackupsForTest, stubEdit } from "./applyLint";
+import { CLAUDE_STUB, removeRuleFromFile, replaceRuleFromFile, resetBackupsForTest, stubEdit } from "./applyLint";
 import type { RuleEvidence, RuleItem, LintRow } from "./lintTypes";
 
 function ruleOf(idx: number, text = `- 规则${idx}必须跑 \`pnpm check:gate\``, line = idx + 1): RuleItem {
@@ -136,6 +136,18 @@ describe("applyLint 删行守卫", () => {
     expect(CLAUDE_STUB).toContain("AGENTS.md");
     const edit = stubEdit({ id: "drift|x", kind: "drift", file: "/ws/CLAUDE.md", text: "", advice: "stub" });
     expect(edit).toEqual({ path: "/ws/CLAUDE.md", newText: CLAUDE_STUB });
+  });
+
+  it("行号漂移自愈:行号失配但文本在 → 锚定命中仍可改/删;多命中取最近;文本消失才 null", () => {
+    const rule = ruleOf(1, "- 甲规则:必须跑 pnpm build", 3);
+    const drifted = ["# 头", "- 甲规则:必须跑 pnpm build", "", "- 乙规则"].join("\n"); /* 原文上移一行,行号 3 已失效 */
+    expect(replaceRuleFromFile(drifted, rule, "- 甲规则:已改写")).toBe("# 头\n- 甲规则:已改写\n\n- 乙规则");
+    expect(removeRuleFromFile(drifted, rule, false)).toBe("# 头\n\n- 乙规则");
+    const twin = ["# 头", "- 甲规则:必须跑 pnpm build", "", "- 甲规则:必须跑 pnpm build"].join("\n"); /* 行 2/4 双命中 */
+    expect(replaceRuleFromFile(twin, rule, "- 已改写")).toBe("# 头\n- 已改写\n\n- 甲规则:必须跑 pnpm build");
+    const gone = "# 头\n- 乙规则";
+    expect(replaceRuleFromFile(gone, rule, "- x")).toBeNull();
+    expect(removeRuleFromFile(gone, rule, false)).toBeNull();
   });
 
   it("引擎 argv 表:每家命令与 print 形态与 prompt-enhancer 实证表一致", () => {

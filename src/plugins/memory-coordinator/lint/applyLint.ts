@@ -33,13 +33,42 @@ export interface FileEdit {
   newText: string;
 }
 
-/** 纯变换:从文件文本中按行号删规则(守卫=块 trim 与规则原文一致)。 */
+/**
+ * 文本锚定定位(行号漂移根治):行号处命中规则原文就用行号;失配则按 trim 原文
+ * 全文搜索——唯一命中直接用,多命中取距原行号最近者(歧义最小),零命中判失败。
+ * 这样此前应用造成的行号漂移不阻断后续应用;只有规则文本真被手改/删除才拒。
+ */
+function anchorLine(lines: string[], rule: RuleItem): number {
+  const want = rule.text.trim();
+  if (want === "") return -1; /* 空文本规则无法锚定,拒绝猜测 */
+  if ((lines[rule.line - 1]?.trim() ?? "") === want) return rule.line - 1;
+  const hits: number[] = [];
+  for (let i = 0; i < lines.length; i++) if ((lines[i]?.trim() ?? "") === want) hits.push(i);
+  if (hits.length === 0) return -1;
+  if (hits.length === 1) return hits[0]!;
+  return hits.reduce((best, i) => (Math.abs(i - (rule.line - 1)) < Math.abs(best - (rule.line - 1)) ? i : best), hits[0]!);
+}
+
+/** 多行块锚定:行号块守卫失败则滑动窗口按块文本(逐行 trim join)全文唯一匹配。 */
+function anchorBlock(lines: string[], rule: RuleItem): number {
+  const span = rule.lineEnd - rule.line + 1;
+  const want = rule.text.trim();
+  if (want === "") return -1; /* 空文本规则无法锚定 */
+  const blockAt = (i: number) => lines.slice(i, i + span).map((l) => l.trim()).join("\n");
+  if (rule.line - 1 + span <= lines.length && blockAt(rule.line - 1) === want) return rule.line - 1;
+  const hits: number[] = [];
+  for (let i = 0; i + span <= lines.length; i++) if (blockAt(i) === want) hits.push(i);
+  if (hits.length === 0) return -1;
+  if (hits.length === 1) return hits[0]!;
+  return hits.reduce((best, i) => (Math.abs(i - (rule.line - 1)) < Math.abs(best - (rule.line - 1)) ? i : best), hits[0]!);
+}
+
+/** 纯变换:从文件文本中删规则(守卫=块文本锚定,行号漂移可自愈)。 */
 export function removeRuleFromFile(text: string, rule: RuleItem, archive: boolean): string | null {
   const lines = text.split("\n");
-  const i = rule.line - 1;
-  const end = rule.lineEnd; /* 含 */
-  const block = lines.slice(i, end).map((l) => l.trim()).join("\n");
-  if (block !== rule.text.trim()) return null; /* 守卫:文件已变,拒绝落笔 */
+  const i = anchorBlock(lines, rule);
+  if (i < 0) return null; /* 规则文本已不存在,拒绝猜测 */
+  const end = i + (rule.lineEnd - rule.line) + 1; /* 含 */
   const isTable = rule.lineEnd > rule.line;
   let replacement: string[] = [];
   if (archive && !isTable) replacement = [ARCHIVE_PLACEHOLDER];
@@ -49,22 +78,27 @@ export function removeRuleFromFile(text: string, rule: RuleItem, archive: boolea
   return lines.join("\n");
 }
 
-/** 纯变换:AI 改写应用(守卫=行 trim 与规则原文一致;表格块不支持改写)。 */
+/** 纯变换:AI 改写应用(文本锚定定位目标行;表格块不支持改写)。 */
 export function replaceRuleFromFile(text: string, rule: RuleItem, rewrite: string): string | null {
   if (rule.lineEnd > rule.line) return null;
   const lines = text.split("\n");
-  const i = rule.line - 1;
-  if ((lines[i]?.trim() ?? "") !== rule.text.trim()) return null;
+  const i = anchorLine(lines, rule);
+  if (i < 0) return null;
   lines[i] = rewrite;
   return lines.join("\n");
 }
 
-/** 纯变换:fixpath 替换行内首个旧路径(守卫=该行含旧路径)。 */
+/** 纯变换:fixpath 替换行内首个旧路径(守卫=锚定行含旧路径:行号优先,失配则全文唯一含旧路径行)。 */
 export function fixPathInFile(text: string, line: number, oldP: string, newP: string): string | null {
   const lines = text.split("\n");
-  const target = lines[line - 1];
-  if (target === undefined || !target.includes(oldP)) return null;
-  lines[line - 1] = target.replace(oldP, newP);
+  let i = line - 1;
+  if ((lines[i] ?? "").includes(oldP) === false) {
+    const hits: number[] = [];
+    for (let k = 0; k < lines.length; k++) if ((lines[k] ?? "").includes(oldP)) hits.push(k);
+    if (hits.length === 0) return null;
+    i = hits.length === 1 ? hits[0]! : hits.reduce((best, k) => (Math.abs(k - (line - 1)) < Math.abs(best - (line - 1)) ? k : best), hits[0]!);
+  }
+  lines[i] = lines[i]!.replace(oldP, newP);
   return lines.join("\n");
 }
 

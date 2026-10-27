@@ -81,11 +81,14 @@ describe("applyLint 扩展", () => {
     expect(block).toContain('echo "规则拦截');
   });
 
-  it("fixPathInFile:守卫该行含旧路径,替换首个命中", () => {
+  it("fixPathInFile:行号命中直接替换;行号失配但文本在则锚定自愈,文本消失才 null", () => {
     const text = "# 头\ndocs/review/flow.md 见旧路径\n尾";
     expect(fixPathInFile(text, 2, "docs/review/flow.md", "docs/review/new.md")).toBe(
       "# 头\ndocs/review/new.md 见旧路径\n尾",
     );
-    expect(fixPathInFile(text, 3, "docs/review/flow.md", "x")).toBeNull();
+    expect(fixPathInFile(text, 1, "docs/review/flow.md", "docs/review/new.md")).toBe(
+      "# 头\ndocs/review/new.md 见旧路径\n尾",
+    ); /* 行 1 不含旧路径 → 锚定到行 2 */
+    expect(fixPathInFile(text, 3, "docs/review/不存在的路径", "x")).toBeNull();
   });
 });
