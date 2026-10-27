@@ -1,12 +1,14 @@
 /**
- * 体检运行态 · 判定会话实时 PTY 幕布(右栏)。
- * 数据源 = runJudgeRaw 的 pty://out 尾窗(progress.live,清洗文本尾部 4KB);
- * 幕布只做原样上屏 + 自动滚底,不渲染气泡/Markdown(PTY 幕布硬约束)。
+ * 体检运行态 · 判定会话实时幕布(右栏)。
+ * 上层 = 脚本侧事件流(controller logLine:spawn/提取/证据/批返回,必实时);
+ * 底层 = 引擎 PTY 原始输出尾窗(progress.live,omp 等缓冲型引擎到批末才吐字,
+ * 只作辅助窗)。幕布只上屏不加工,不渲染气泡/Markdown(PTY 幕布硬约束)。
  */
 
 import { useEffect, useRef } from "react";
 import { t } from "@kernel/i18n";
 import type { LintProgress } from "./lintModel";
+import type { LintLogEntry } from "./lintController";
 
 /** 进度步进文案(幕布头部相位,纯函数,组件内使用)。 */
 function curtainPhase(p: LintProgress): string {
@@ -18,11 +20,16 @@ function curtainPhase(p: LintProgress): string {
   return t("体检完成");
 }
 
-export function PtyCurtain({ progress, title }: { progress: LintProgress; title: string }) {
-  const bodyRef = useRef<HTMLPreElement>(null);
+export function PtyCurtain({ progress, title, log }: { progress: LintProgress; title: string; log: LintLogEntry[] }) {
+  const logRef = useRef<HTMLDivElement>(null);
+  const tailRef = useRef<HTMLPreElement>(null);
   const live = progress.live ?? "";
   useEffect(() => {
-    const el = bodyRef.current;
+    const el = logRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [log.length]);
+  useEffect(() => {
+    const el = tailRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [live]);
   return (
@@ -32,12 +39,18 @@ export function PtyCurtain({ progress, title }: { progress: LintProgress; title:
         <span className="min-w-0 truncate font-mono">{title}</span>
         <span className="ml-auto flex-none">{curtainPhase(progress)}</span>
       </div>
+      <div ref={logRef} aria-live="polite" className="min-h-0 flex-1 overflow-y-auto px-2.5 py-2 font-mono text-[10px] leading-[1.8] text-[#cfd8d3]">
+        {log.map((e) => (
+          <div key={e.id} className={e.text.startsWith("[error]") ? "text-[#e08a85]" : e.text.startsWith("[done]") ? "text-[#8fc7a3]" : undefined}>{e.text}</div>
+        ))}
+        {log.length === 0 && <div className="text-[#7d8a84]">{t("等待判定会话输出…")}</div>}
+      </div>
+      <div className="flex-none border-t border-[#2c332f] px-2.5 pt-1 text-[9px] text-[#7d8a84]">{t("会话输出")}</div>
       <pre
-        ref={bodyRef}
-        aria-live="polite"
-        className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-all px-2.5 py-2 font-mono text-[10px] leading-[1.75] text-[#cfd8d3]"
+        ref={tailRef}
+        className="h-14 flex-none overflow-y-auto whitespace-pre-wrap break-all px-2.5 pb-1.5 font-mono text-[9px] leading-snug text-[#8d9b94]"
       >
-        {live || t("等待判定会话输出…")}
+        {live || "…"}
       </pre>
     </div>
   );

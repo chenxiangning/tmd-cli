@@ -29,3 +29,4 @@
 - 每次应用记 `ApplyRecord`(before/after 全文,lintStore.applyJournal cap 40),每次扫描记 `ScanRecord`(cap 12);撤销=把 before 写回并再入日志。
 - 语料一次采集双口径分束:`sessionCwds` 记每会话 cwd,项目规则只计 cwd 全等会话,全局规则计全部——不再为两口径采两遍。
 - 运行态(2026-10-27 三稿):右栏 LintView 切实时 PTY 幕布(LintCurtain,数据 = progress.live 尾窗 4KB,只上屏不加工);中央报告 tab 切 LintProcessing(进度条 + 按文件规则行四态:已提取·待测/识别中/判定中/已判定 + 当前批次脚本测量摘要);新跑 startLint 即 `result: null` 清旧结果,行从零逐个生长(旧结果混入新跑的重复行已修)。
+- 运行态闭环补强(2026-10-27 四稿):① 幕布 = 脚本事件流(controller `logLine` 打点 start/script/evidence/recognize/judge/static/done/error,带时间戳 cap 240,与引擎 PTY 缓冲无关必实时)+ 底部 56px 引擎原始输出尾窗——omp 等缓冲型引擎批末才吐字也不空屏;② 右栏发起体检自动 `openLintReport()`,中央即切运行态,不依赖用户手点;③ 报告页规则行 `<details>` 展开即联动右侧 `RuleDetailPanel`(识别/判定说明 + 脚本测量摘要 + 改写 diff + 应用 AI 建议/保持并拍板/打开)。

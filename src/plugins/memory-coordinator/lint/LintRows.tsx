@@ -10,7 +10,7 @@ import { Spinner } from "@kernel/Spinner";
 import { ADVICE_LABEL, VERDICT_DOT, VERDICT_LABEL, type LintAdvice, type LintRow, type LintVerdict, type StaticFinding } from "./lintTypes";
 import type { DiffLine } from "./diffUtil";
 
-const ACTION_CLS =
+export const ACTION_CLS =
   "flex-none rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50 disabled:hover:border-(--tmd-border) disabled:hover:text-(--tmd-fg-muted)";
 
 function dayOf(ts: number): string {
@@ -146,9 +146,9 @@ function RuleActions({
   );
 }
 
-/** 单条规则行:判定头 + 证据面 + 动作行(点开下钻)。 */
+/** 单条规则行:判定头 + 证据面 + 动作行(点开下钻;onSelect 供右侧详情面板联动)。 */
 export function RuleRow({
-  row, busy, onApply, onKeep, onHook, onReopen, onRewrite,
+  row, busy, onApply, onKeep, onHook, onReopen, onRewrite, onSelect,
 }: {
   row: LintRow;
   busy: boolean;
@@ -157,9 +157,10 @@ export function RuleRow({
   onHook: (row: LintRow) => void;
   onReopen: (row: LintRow) => void;
   onRewrite: (row: LintRow) => void;
+  onSelect?: (row: LintRow) => void;
 }) {
   return (
-    <details className="group px-1.5">
+    <details className="group px-1.5" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) onSelect?.(row); }}>
       <summary className="flex h-7 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
         <RuleHead row={row} busy={busy} />
       </summary>

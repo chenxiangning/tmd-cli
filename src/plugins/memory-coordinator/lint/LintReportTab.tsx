@@ -4,6 +4,7 @@
  * 分区:项目规则 / 全局规则(各自目标文件 + 规则行 + 各自动作)、静态发现、
  * 扫描记录(每次体检)、应用记录(每次保存前后内容,可撤销可回看)。
  * 运行态与右栏视图同源(lintController 单例):体检在任一处启动,两边同时生长。
+ * 选中规则右侧详情面板在 RuleDetailPanel.tsx(点规则行展开即联动)。
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -19,6 +20,7 @@ import { useLintApply, useLintController as useCtl, useLintResultWrite } from ".
 import { VERDICT_LABEL, type LintRow, type LintScope } from "./lintTypes";
 import { FindingRow, RuleRow } from "./LintRows";
 import { LintProcessing } from "./LintProcessing";
+import { RuleDetailPanel } from "./RuleDetailPanel";
 import { ApplyJournal, ScanHistory } from "./LintReportHistory";
 
 type ScopeFilter = "all" | LintScope;
@@ -27,7 +29,7 @@ const SECTION_CLS = "border-y border-(--tmd-border) bg-(--tmd-bg-subtle) px-3 py
 
 /** 单个 scope 分区:文件分组规则行(行即时上屏由控制器驱动)。 */
 function ScopeSection({
-  title, rows, busy, onApply, onKeep, onHook, onReopen, onRewrite,
+  title, rows, busy, onApply, onKeep, onHook, onReopen, onRewrite, onSelect,
 }: {
   title: string;
   rows: LintRow[];
@@ -37,6 +39,7 @@ function ScopeSection({
   onHook: (row: LintRow) => void;
   onReopen: (row: LintRow) => void;
   onRewrite: (row: LintRow) => void;
+  onSelect: (row: LintRow) => void;
 }) {
   if (rows.length === 0) return null;
   const byFile = new Map<string, LintRow[]>();
@@ -54,7 +57,7 @@ function ScopeSection({
           {list.map((r) => (
             <RuleRow
               key={`${r.rule.file}:${r.rule.line}`} row={r} busy={busy}
-              onApply={onApply} onKeep={onKeep} onHook={onHook} onReopen={onReopen} onRewrite={onRewrite}
+              onApply={onApply} onKeep={onKeep} onHook={onHook} onReopen={onReopen} onRewrite={onRewrite} onSelect={onSelect}
             />
           ))}
         </div>
@@ -63,7 +66,6 @@ function ScopeSection({
   );
 }
 
-/** 报告体:统计汇总行 + 双 scope 分区 + 静态发现(全局过滤时隐藏发现)。 */
 function ReportBody({
   result, scopeFilter, busy, onApply, onKeep, onHook, onReopen, onRewrite, onStub, onWrite, onFixpath,
 }: {
@@ -83,8 +85,12 @@ function ReportBody({
   const projectRows = result.rows.filter((r) => r.scope === "project");
   const globalRows = result.rows.filter((r) => r.scope === "global");
   const rowProps = { busy, onApply, onKeep, onHook, onReopen, onRewrite };
+  const [selected, setSelected] = useState<LintRow | null>(null);
+  const select = useCallback((row: LintRow) => setSelected(row), []);
+  const selectedRow = selected ? (result.rows.find((r) => r.rule.file === selected.rule.file && r.rule.line === selected.rule.line) ?? null) : null;
   return (
-    <>
+    <div className="flex min-h-0 flex-1 items-start">
+      <div className="min-w-0 flex-1 pb-4">
       <div className="grid grid-cols-4 gap-1.5 px-3 py-1.5">
         <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{new Set(result.rows.map((r) => r.rule.file)).size}</b><span className="text-meta text-(--tmd-fg-faint)">{t("已扫描文件")}</span></div>
         <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{result.rows.length}</b><span className="text-meta text-(--tmd-fg-faint)">{t("提取规则")}</span></div>
@@ -107,10 +113,10 @@ function ReportBody({
         )}
       </div>
       {(scopeFilter === "all" || scopeFilter === "project") && (
-        <ScopeSection title={t("项目规则")} rows={projectRows} {...rowProps} />
+        <ScopeSection title={t("项目规则")} rows={projectRows} {...rowProps} onSelect={select} />
       )}
       {(scopeFilter === "all" || scopeFilter === "global") && (
-        <ScopeSection title={t("全局规则")} rows={globalRows} {...rowProps} />
+        <ScopeSection title={t("全局规则")} rows={globalRows} {...rowProps} onSelect={select} />
       )}
       {result.findings.length > 0 && scopeFilter !== "global" && (
         <div>
@@ -120,7 +126,9 @@ function ReportBody({
           ))}
         </div>
       )}
-    </>
+      </div>
+      {selectedRow && <RuleDetailPanel row={selectedRow} busy={busy} onKeep={onKeep} onRewrite={onRewrite} />}
+    </div>
   );
 }
 

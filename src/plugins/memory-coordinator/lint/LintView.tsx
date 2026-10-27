@@ -14,7 +14,7 @@ import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { PtyCurtain } from "./LintCurtain";
 import { summarizeRows, type LintRunResult } from "./lintModel";
 import { loadStore, setLastUsed } from "./lintStore";
-import { seedLintResult, startLint } from "./lintController";
+import { seedLintResult, startLint, openLintReport } from "./lintController";
 import { useLintApply, useLintController, useLintResultWrite } from "./lintPanelState";
 import { VERDICT_LABEL, type LintAdvice, type LintRow, type LintSummary, type StaticFinding } from "./lintTypes";
 import { FindingRow, RuleRow } from "./LintRows";
@@ -180,6 +180,7 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
       setActionError("");
       setNotice("");
       startLint({ cwd, workspaceId, engineId, model: model.trim() || null, scopes: ["project", "global"], onError: setActionError });
+      openLintReport();
     });
   }, [cwd, engineId, model, workspaceId]);
 
@@ -206,7 +207,7 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
       />
       {!cwd && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-fg-muted)">{t("打开一个工作区后可体检其规则文件")}</div>}
       {ctl.running && ctl.progress && (
-        <PtyCurtain progress={ctl.progress} title={`${engineId}${model ? ` · ${model}` : ""}`} />
+        <PtyCurtain progress={ctl.progress} title={`${engineId}${model ? ` · ${model}` : ""}`} log={ctl.log} />
       )}
       {showError && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-error)">{showError}</div>}
       {notice && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-ok)">{notice}</div>}

@@ -18,15 +18,33 @@ export interface LintControllerState {
   progress: LintProgress | null;
   result: LintRunResult | null;
   error: string;
+  /** 幕布事件流:脚本侧确定性事件(与引擎 PTY 输出无关,保证实时可见)。 */
+  log: LintLogEntry[];
 }
 
-let state: LintControllerState = { running: false, progress: null, result: null, error: "" };
+export interface LintLogEntry {
+  id: number;
+  text: string;
+}
+
+let state: LintControllerState = { running: false, progress: null, result: null, error: "", log: [] };
 const listeners = new Set<() => void>();
+let logSeq = 0;
 
 function commit(next: Partial<LintControllerState>): void {
   state = { ...state, ...next };
   for (const l of listeners) l();
 }
+
+/** 幕布事件:时间戳 + 消息,cap 240 条(旧的去)。 */
+function logLine(msg: string): void {
+  const ts = new Date().toTimeString().slice(0, 8);
+  state = { ...state, log: [...state.log, { id: ++logSeq, text: `[${ts}] ${msg}` }].slice(-240) };
+  for (const l of listeners) l();
+}
+
+/** 供 lintModel 把批级事件写进幕布(onJudgments/onAiMarks 等回调透传)。 */
+export const emitLintEvent = logLine;
 
 export function subscribeLint(listener: () => void): () => void {
   listeners.add(listener);
@@ -66,14 +84,30 @@ export interface LintStartOpts {
 /** 起一次体检(右栏/报告页共用);新跑作废旧跑。 */
 export function startLint(opts: LintStartOpts): void {
   if (state.running) return;
+  state = { ...state, log: [] };
   commit({ running: true, progress: { step: "targets", detail: "" }, error: "", result: null });
+  logLine(`[start] ${opts.engineId}${opts.model ? ` · ${opts.model}` : ""} · 超时 1200s`);
   void (async () => {
     try {
       const result = await runLintStream({
         cwd: opts.cwd, workspaceId: opts.workspaceId, engineId: opts.engineId,
         model: opts.model, timeoutSeconds: 1200, scopes: opts.scopes,
-        onProgress: (p) => commit({ progress: p }),
+        onProgress: (p) => {
+          const prev = state.progress?.step;
+          commit({ progress: p });
+          if (p.step !== prev) {
+            const label = p.step === "corpus" ? `读对话语料${p.detail ? ` · ${p.detail}` : ""}`
+              : p.step === "evidence" ? `抽证据${p.detail ? ` · ${p.detail} 条消息` : ""}`
+              : p.step === "recognize" ? "AI 识别 pass(全文比对)"
+              : p.step === "judge" ? `AI 判定 ${p.done ?? 0}/${p.total ?? 0}`
+              : p.step === "done" ? "流水线完成" : "读规则文件";
+            logLine(`[${p.step}] ${label}`);
+          } else if (p.step === "judge" && p.done !== state.progress?.done) {
+            logLine(`[judge] ${p.done ?? 0}/${p.total ?? 0}`);
+          }
+        },
         onFileRows: (scope, _file, rows) => {
+          logLine(`[script] ${rows[0]?.rule.file.split("/").pop() ?? _file} 提取 ${rows.length} 条规则(${scope === "global" ? "全局" : "项目"})`);
           if (!state.result) {
             commit({
               result: {
@@ -95,19 +129,26 @@ export function startLint(opts: LintStartOpts): void {
           patchRows(file, (row) => rows.find((x) => x.rule === row.rule) ?? { ...row, evidence: row.evidence, scope });
         },
         onAiMarks: (scope, file, marks) => {
+          const ok = [...marks.values()].filter((m) => m.recognizable).length;
+          logLine(`[recognize] ${file.split("/").pop()} 可识别 ${ok} / 不可 ${marks.size - ok}`);
           patchRows(file, (row) => {
             const mark = marks.get(row.rule.line);
             return mark ? { ...row, aiMark: mark, scope } : row;
           });
         },
         onJudgments: (batch) => {
+          logLine(`[judge] 批返回 ${batch.length} 条判定`);
           for (const b of batch) {
             patchRows(b.file, (row) => (row.rule === b.rule ? { ...row, judgment: b.judgment, scope: b.scope } : row));
           }
         },
-        onFindings: (findings: StaticFinding[]) => mutateLintResult((r) => ({ ...r, findings })),
+        onFindings: (findings: StaticFinding[]) => {
+          logLine(`[static] 确定性发现 ${findings.length} 条`);
+          mutateLintResult((r) => ({ ...r, findings }));
+        },
       });
       const s = summarizeRows(result.rows);
+      logLine(`[done] 规则 ${result.rows.length} · 判定 ${result.rows.length - s.failed} · 失败 ${s.failed}${result.engineError ? ` · ${result.engineError}` : ""}`);
       await addScanRecord({
         at: result.at, cwd: result.cwd, engineId: opts.engineId, model: opts.model ?? "",
         files: new Set(result.rows.map((r) => r.rule.file)).size, rules: result.rows.length,
@@ -124,6 +165,7 @@ export function startLint(opts: LintStartOpts): void {
     } catch (e) {
       if (String(e).includes("lint-cancelled")) return;
       const msg = String(e).slice(0, 160);
+      logLine(`[error] ${msg}`);
       commit({ running: false, progress: null, error: msg });
       opts.onError?.(msg);
     }

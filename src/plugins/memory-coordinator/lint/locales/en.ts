@@ -141,4 +141,8 @@ export const MESSAGES_EN = {
   "AI 只看规则原文与这些计数,给出最终判定;对话原文不出本机。": "The AI sees only the rule text and these counts; conversation text never leaves this machine.",
   "脚本扫描中,规则提取后这里显示当前批次的规则与脚本计数。": "During the script scan this pane shows the current batch's rules and counts once extracted.",
   "等待判定会话输出…": "Waiting for judge session output…",
+  "会话输出": "Session output",
+  "应用 AI 建议": "Apply AI suggestion",
+  "规则变更预览": "Rule change preview",
+  "选中规则": "Selected rule",
 } as Record<string, string>;
