@@ -28,3 +28,4 @@
 - 增量上屏:流水线以事件回调打补丁(lintController 单例快照),右栏视图与中央报告 tab 同源生长;新 tab kind 注册必须同步 `tabContent.contract.test.ts` 的 OPENABLE_KINDS 镜像(死注册会被契约测试拦下)。
 - 每次应用记 `ApplyRecord`(before/after 全文,lintStore.applyJournal cap 40),每次扫描记 `ScanRecord`(cap 12);撤销=把 before 写回并再入日志。
 - 语料一次采集双口径分束:`sessionCwds` 记每会话 cwd,项目规则只计 cwd 全等会话,全局规则计全部——不再为两口径采两遍。
+- 工作台 UI(方案 A 落地):右栏记忆文件面板 = 文件/体检/记录三级视图;文件按真实路径去重(共享 AGENTS.md 一行,引擎列合并),项目/全局分段各自口径;模型选择 = `modelCatalog.listModels` 实况下拉,无目录引擎回落「跟随默认」,不设手填(2026-10-13 裁定)。中央报告 tab 带统计卡、一键应用 AI 改写与可展开扫描/应用记录详情(语料与 aiBad 统计随 ScanRecord 落盘,旧记录缺省降级)。

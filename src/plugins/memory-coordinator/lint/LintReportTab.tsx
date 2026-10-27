@@ -84,6 +84,12 @@ function ReportBody({
   const rowProps = { busy, onApply, onKeep, onHook, onReopen, onRewrite };
   return (
     <>
+      <div className="grid grid-cols-4 gap-1.5 px-3 py-1.5">
+        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{new Set(result.rows.map((r) => r.rule.file)).size}</b><span className="text-meta text-(--tmd-fg-faint)">{t("已扫描文件")}</span></div>
+        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{result.rows.length}</b><span className="text-meta text-(--tmd-fg-faint)">{t("提取规则")}</span></div>
+        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{result.rows.length - summary.failed}</b><span className="text-meta text-(--tmd-fg-faint)">{t("完成判定")}</span></div>
+        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{result.findings.length}</b><span className="text-meta text-(--tmd-fg-faint)">{t("静态发现")}</span></div>
+      </div>
       <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-meta text-(--tmd-fg-muted)">
         {t("规则 {n} 条 · 语料 {m} 消息/{c} 会话", {
           n: String(result.rows.length), m: String(result.corpus.msgs), c: String(result.corpus.sessionCount),
@@ -117,6 +123,44 @@ function ReportBody({
   );
 }
 
+/** 报告头:标题 + 范围过滤 + 一键应用 + 体检发起。 */
+function ReportToolbar({
+  cwd, running, scopeFilter, setScopeFilter, canApplyAll, busy, onStart, onApplyAll,
+}: {
+  cwd: string | null; running: boolean; scopeFilter: ScopeFilter; setScopeFilter: (s: ScopeFilter) => void;
+  canApplyAll: boolean; busy: boolean; onStart: () => void; onApplyAll: () => void;
+}) {
+  return (
+    <div className="flex flex-none items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
+      <span className="text-xs font-medium text-(--tmd-fg)">{t("规则体检报告")}</span>
+      <span className="text-meta text-(--tmd-fg-muted)">{cwd ?? ""}</span>
+      {running && <Spinner />}
+      <div className="ml-auto flex items-center gap-1.5">
+        {(["all", "project", "global"] as ScopeFilter[]).map((s) => (
+          <button key={s} type="button" onClick={() => setScopeFilter(s)} className={`rounded-full border px-2 py-0.5 text-meta ${scopeFilter === s ? "border-(--tmd-accent) text-(--tmd-accent)" : "border-(--tmd-border) text-(--tmd-fg-muted) hover:text-(--tmd-fg)"}`}>
+            {t(s === "all" ? "全部" : s === "project" ? "项目规则" : "全局规则")}
+          </button>
+        ))}
+        <button
+          type="button"
+          disabled={busy || !canApplyAll}
+          onClick={onApplyAll}
+          className="rounded-full border border-(--tmd-accent) px-2 py-0.5 text-meta text-(--tmd-accent) transition-colors hover:bg-(--tmd-accent)/10 disabled:opacity-50"
+        >
+          {t("一键应用 AI 结果")}
+        </button>
+        <button
+          type="button" onClick={onStart} disabled={running || !cwd}
+          className="inline-flex items-center gap-1 rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
+        >
+          {running ? <Spinner /> : <Pulse aria-hidden />}
+          {t("体检")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function LintReportTab() {
   const { list, activeId } = useWorkspaces();
   const cwd = list.find((w) => w.id === activeId)?.root ?? null;
@@ -124,6 +168,7 @@ export function LintReportTab() {
   const ctl = useCtl();
   const { markRowSettled, reopenRow, removeFinding } = useLintResultWrite();
   const [actionError, setActionError] = useState("");
+  const [notice, setNotice] = useState("");
   const onError = useCallback((msg: string) => setActionError(msg), []);
   const apply = useLintApply(cwd, onError, removeFinding);
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
@@ -154,25 +199,13 @@ export function LintReportTab() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-none items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
-        <span className="text-xs font-medium text-(--tmd-fg)">{t("规则体检报告")}</span>
-        <span className="text-meta text-(--tmd-fg-muted)">{cwd ?? ""}</span>
-        {ctl.running && <Spinner />}
-        <div className="ml-auto flex items-center gap-1.5">
-          {(["all", "project", "global"] as ScopeFilter[]).map((s) => (
-            <button key={s} type="button" onClick={() => setScopeFilter(s)} className={`rounded-full border px-2 py-0.5 text-meta ${scopeFilter === s ? "border-(--tmd-accent) text-(--tmd-accent)" : "border-(--tmd-border) text-(--tmd-fg-muted) hover:text-(--tmd-fg)"}`}>
-              {t(s === "all" ? "全部" : s === "project" ? "项目规则" : "全局规则")}
-            </button>
-          ))}
-          <button
-            type="button" onClick={start} disabled={ctl.running || !cwd}
-            className="inline-flex items-center gap-1 rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
-          >
-            {ctl.running ? <Spinner /> : <Pulse aria-hidden />}
-            {t("体检")}
-          </button>
-        </div>
-      </div>
+      <ReportToolbar
+        cwd={cwd} running={ctl.running} scopeFilter={scopeFilter} setScopeFilter={setScopeFilter}
+        canApplyAll={!!result?.rows.some((r) => r.aiMark && !r.aiMark.recognizable && r.aiMark.rewrite && !r.settled)}
+        busy={apply.busy} onStart={start}
+        onApplyAll={() => result && apply.onApplyAllAi(result.rows, (a, s) => setNotice(t("已应用 {a} 条改写,跳过 {s} 条(行号对不上)", { a: String(a), s: String(s) })))}
+      />
+      {notice && <div className="flex-none px-3 py-1.5 text-meta text-(--tmd-ok)">{notice}</div>}
       {(ctl.error || actionError) && (
         <div className="flex-none px-3 py-1.5 text-meta text-(--tmd-error)">{ctl.error || actionError}</div>
       )}

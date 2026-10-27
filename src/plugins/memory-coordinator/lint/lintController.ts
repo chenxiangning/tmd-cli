@@ -112,6 +112,8 @@ export function startLint(opts: LintStartOpts): void {
         at: result.at, cwd: result.cwd, engineId: opts.engineId, model: opts.model ?? "",
         files: new Set(result.rows.map((r) => r.rule.file)).size, rules: result.rows.length,
         judged: result.rows.length - s.failed, failed: s.failed, findings: result.findings.length,
+        corpusMsgs: result.corpus.msgs, corpusSessions: result.corpus.sessionCount,
+        aiBad: result.rows.filter((r) => r.aiMark && !r.aiMark.recognizable).length,
         engineError: result.engineError,
       });
       commit({ result, running: false, progress: null });

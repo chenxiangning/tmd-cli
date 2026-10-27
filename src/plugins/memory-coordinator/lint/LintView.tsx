@@ -8,15 +8,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, FileText, Pulse } from "@phosphor-icons/react";
+import { LintHeaderBar } from "./LintHeaderBar";
 import { t } from "@kernel/i18n";
-import { Spinner } from "@kernel/Spinner";
-import { StyledSelect } from "@kernel/StyledSelect";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
-import { JUDGE_ENGINES } from "./aiJudge";
 import { summarizeRows, type LintProgress, type LintRunResult } from "./lintModel";
 import { loadStore, setLastUsed } from "./lintStore";
-import { seedLintResult, startLint, openLintReport } from "./lintController";
+import { seedLintResult, startLint } from "./lintController";
 import { useLintApply, useLintController, useLintResultWrite } from "./lintPanelState";
 import { VERDICT_LABEL, type LintRow } from "./lintTypes";
 import { FindingRow, RuleRow } from "./LintRows";
@@ -36,46 +33,7 @@ function stepLineOf(p: LintProgress): string {
   return t("体检完成");
 }
 
-/** 头部:返回 + 引擎/模型 + 体检 + 完整报告。 */
-function HeaderBar({
-  engineId, model, running, cwd, setEngineId, setModel, onStart, onBack,
-}: {
-  engineId: string; model: string; running: boolean; cwd: string | null;
-  setEngineId: (v: string) => void; setModel: (v: string) => void; onStart: () => void; onBack: () => void;
-}) {
-  return (
-    <div className="flex flex-none items-center gap-1.5 px-1.5 py-1.5">
-      <button type="button" onClick={onBack} title={t("返回列表")} className="flex-none rounded p-0.5 text-(--tmd-fg-muted) transition-colors hover:text-(--tmd-accent)">
-        <ArrowLeft aria-hidden />
-      </button>
-      <StyledSelect
-        value={engineId} onChange={setEngineId} ariaLabel={t("判定引擎")} className="min-w-0 flex-none"
-        options={JUDGE_ENGINES.map((e) => ({ value: e.id, label: e.id }))}
-      />
-      <input
-        value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("模型占位")}
-        className="min-w-0 flex-1 rounded border border-(--tmd-border) bg-transparent px-1.5 py-0.5 font-mono text-meta text-(--tmd-fg) placeholder:text-(--tmd-fg-faint)"
-      />
-      <button
-        type="button" onClick={onStart} disabled={running || !cwd}
-        className="flex-none rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
-        title={t("第一步脚本扫描逐条上屏;第二步完整配置发 AI 逐条识别")}
-      >
-        <span className="inline-flex items-center gap-1">
-          {running ? <Spinner /> : <Pulse aria-hidden />}
-          {t("体检")}
-        </span>
-      </button>
-      <button
-        type="button" onClick={() => openLintReport()} disabled={!cwd}
-        title={t("在中央区打开完整报告:分区规则/扫描记录/应用记录")}
-        className="flex-none rounded border border-(--tmd-border) p-1 text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
-      >
-        <FileText aria-hidden />
-      </button>
-    </div>
-  );
-}
+/* 头部条在 LintHeaderBar(模型下拉与工作台引擎选择同口径)。 */
 
 /** 汇总条:全部/各判定态/AI 不可识别/失败/拍板(点段过滤)。 */
 function VerdictChips({
@@ -219,7 +177,7 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <HeaderBar
+      <LintHeaderBar
         engineId={engineId} model={model} running={ctl.running} cwd={cwd}
         setEngineId={setEngineId} setModel={setModel} onStart={start} onBack={onBack}
       />

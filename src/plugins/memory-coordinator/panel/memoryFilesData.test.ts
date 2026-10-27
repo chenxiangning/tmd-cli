@@ -8,6 +8,8 @@ const ipcMock = vi.hoisted(() => ({ fsReadHeads: vi.fn(), fsCreateDir: vi.fn(), 
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 
 import {
+  dedupeMemorySlots,
+  entryState,
   expandMemorySlots,
   generateMemoryTemplate,
   memoryTemplate,
@@ -63,6 +65,23 @@ describe("三态归并", () => {
 
   it("摘要计数:N 在 · M 缺 · K 未声明", () => {
     expect(summarizeMemoryFiles(project, user, probe, 1)).toEqual({ ok: 1, missing: 2, undeclared: 1 });
+  });
+});
+
+describe("按真实文件去重", () => {
+  it("同路径多引擎合并为一行,引擎列保声明序;跨路径不合并", () => {
+    const profiles: MemoryProfileSource = [
+      { id: "codex", memoryFiles: [{ scope: "project", label: "AGENTS.md", relPath: "AGENTS.md" }] },
+      { id: "kimi", memoryFiles: [{ scope: "project", label: "AGENTS.md", relPath: "AGENTS.md" }] },
+      { id: "claude", memoryFiles: [{ scope: "project", label: "CLAUDE.md", relPath: "CLAUDE.md" }] },
+    ];
+    const { project } = expandMemorySlots(profiles, "/ws", "/home/u");
+    const entries = dedupeMemorySlots(project);
+    expect(entries.map((e) => [e.label, e.absPath, e.engines])).toEqual([
+      ["AGENTS.md", "/ws/AGENTS.md", ["codex", "kimi"]],
+      ["CLAUDE.md", "/ws/CLAUDE.md", ["claude"]],
+    ]);
+    expect(entries[0] && entryState(entries[0], { "/ws/AGENTS.md": true })).toBe("ok");
   });
 });
 

@@ -121,3 +121,28 @@ export function summarizeMemoryFiles(
   }
   return { ok, missing, undeclared: undeclaredCount };
 }
+/** 按真实文件去重后的展示条目(absPath 唯一;多引擎共享同一文件合并为一行)。 */
+export interface MemoryFileEntry {
+  absPath: string;
+  scope: "project" | "user";
+  label: string;
+  relPath: string;
+  /** 声明该文件的全部引擎 id(声明序)。 */
+  engines: string[];
+}
+
+/** 槽 → 去重条目(保序:先声明先上;同路径合并引擎列)。 */
+export function dedupeMemorySlots(slots: readonly MemorySlot[]): MemoryFileEntry[] {
+  const byPath = new Map<string, MemoryFileEntry>();
+  for (const s of slots) {
+    const hit = byPath.get(s.absPath);
+    if (hit) hit.engines.push(s.engine);
+    else byPath.set(s.absPath, { absPath: s.absPath, scope: s.scope, label: s.label, relPath: s.relPath, engines: [s.engine] });
+  }
+  return [...byPath.values()];
+}
+
+/** 去重条目三态(探测命中 = 在,否则未生成)。 */
+export function entryState(entry: MemoryFileEntry, probe: MemoryProbeMap): "ok" | "missing" {
+  return probe[entry.absPath] ? "ok" : "missing";
+}

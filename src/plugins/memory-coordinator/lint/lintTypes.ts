@@ -211,6 +211,10 @@ export interface ScanRecord {
   rules: number;
   judged: number;
   failed: number;
+  /** 语料与改写统计(旧记录缺省 = 未知,详情区降级显示)。 */
+  corpusMsgs?: number;
+  corpusSessions?: number;
+  aiBad?: number;
   findings: number;
   engineError: string;
 }
