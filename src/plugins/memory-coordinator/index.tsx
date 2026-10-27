@@ -68,6 +68,11 @@ export const memoryCoordinatorPlugin: Plugin = {
       component: lazySuspense(() => import("./wiki/WikiPanel").then((m) => ({ default: m.WikiPanel }))),
       icon: (p) => <DecorIcon id="panel-memory" Fallback={Notebook} {...p} />,
     });
+    ctx.registerTabContent({
+      kind: "lint-report",
+      component: lazySuspense(() => import("./lint/LintReportTab").then((m) => ({ default: m.LintReportTab }))),
+      icon: (p) => <DecorIcon id="panel-memory" Fallback={Notebook} {...p} />,
+    });
     ctx.contribute("composer.statusBar", {
       order: 20,
       component: MemoryCapsule,

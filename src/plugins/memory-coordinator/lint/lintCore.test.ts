@@ -72,7 +72,7 @@ describe("measureEvidence", () => {
         { sessionIdx: 0, detail: "pnpm run check:gate && vitest", ts: 2 },
         { sessionIdx: 1, detail: "ls -la", ts: 2 },
       ],
-      sessionCount: 2, readFiles: 2, perProfile: [],
+      sessionCwds: [null, null], sessionCount: 2, readFiles: 2, perProfile: [],
     };
     const ev = measureEvidence(ruleOf("交付前必须跑 pnpm check:gate", ["check:gate"], "command"), ["check:gate"], false, corpus);
     expect(ev.hits).toBe(2);
@@ -86,7 +86,7 @@ describe("measureEvidence", () => {
     const corpus: SessionCorpus = {
       msgs: [msg("不对,提交信息要用中文祈使句,跟你说了几次了", "user", 0), msg("用中文祈使句比较好", "assistant", 0)],
       calls: [],
-      sessionCount: 1, readFiles: 1, perProfile: [],
+      sessionCwds: [null], sessionCount: 1, readFiles: 1, perProfile: [],
     };
     const ev = measureEvidence(ruleOf("提交信息用中文祈使句", ["中文祈使句"], "style"), ["中文祈使句"], false, corpus);
     expect(ev.corrections).toBe(1);

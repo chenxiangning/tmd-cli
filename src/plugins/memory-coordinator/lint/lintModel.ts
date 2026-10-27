@@ -1,11 +1,13 @@
 /**
- * 体检编排 —— 六步管线:定目标 → 读规则 → 采语料 → 测证据 → AI 批判定 →
- * 汇总(移植 tmd-lint engine.rs 骨架,判定步换成大模型语义判断)。
+ * 体检编排(流水线版)—— 两步闭环:
+ *  第一步 脚本扫描:定目标 → 读规则(逐文件即时上屏,证据待测)→ 采语料
+ *        (90s 预算+逐会话进度,一次采集双口径分束:项目=cwd 全等会话,全局=全部)
+ *        → 测证据(逐文件注入)→ 静态发现;
+ *  第二步 AI 检测:识别 pass(规则文件全文带行号完整发模型,逐条问「能否识别
+ *        并遵守」,不可识别给改写建议)+ 生效判定 pass(8 条一批,逐批回填)。
  *
- * 确定性先行的两类不烧模型:机器把关(pre-commit 已含规则命令=硬事实,直接
- * 判 working)、已拍板(本地指纹折叠)。AI 批判定 fail-fast:超时/引擎缺失/
- * 整批无效回复即中止剩余批次并上抛 engineError(此前静默吞掉,八批挨个超时
- * 假死,是「点了体检没反应」的根源之一)。可取消:新体检令牌作废旧跑。
+ * 一切经 events 增量上报(controller 据此打补丁,右栏/中央报告实时生长);
+ * 引擎级失败 fail-fast 中止剩余 AI 并上抛原因。可取消:新体检令牌作废旧跑。
  */
 
 import { ipc } from "@kernel/ipc";
@@ -13,14 +15,14 @@ import { host } from "@kernel/host";
 import { userHome } from "./home";
 import { expandLintTargets, probeTargets } from "./targets";
 import { extractRules } from "./rulesExtract";
-import { collectCorpus } from "./corpus";
+import { collectCorpus, type CorpusProfileSource } from "./corpus";
 import { discriminativeTokens, measureAll, normalizeCmd } from "./evidence";
-import { buildJudgeInstruction, parseJudgeReply, runJudgeRaw } from "./aiJudge";
+import { buildJudgeInstruction, buildRecognizeInstruction, parseJudgeReply, parseRecognizeReply, runJudgeRaw } from "./aiJudge";
 import { buildStaticFindings } from "./staticFindings";
-import { loadStore, saveLastResult } from "./lintStore";
+import { loadStore } from "./lintStore";
 import {
-  settledSig, type LintRow, type LintTarget, type RuleItem, type RuleJudgment,
-  type SessionCorpus, type StaticFinding, VERDICT_ORDER,
+  settledSig, type AiMark, type LintRow, type LintScope, type LintTarget, type RuleItem,
+  type RuleJudgment, type SessionCorpus, type StaticFinding, VERDICT_ORDER,
 } from "./lintTypes";
 
 export const WINDOW_DAYS = 30;
@@ -28,9 +30,8 @@ export const BATCH_SIZE = 8;
 const CORPUS_BUDGET_MS = 90_000;
 
 export interface LintProgress {
-  step: "targets" | "corpus" | "evidence" | "judge" | "done";
+  step: "targets" | "corpus" | "evidence" | "recognize" | "judge" | "done";
   detail: string;
-  /** AI 流式尾窗(仅 judge 步)。 */
   live?: string;
   done?: number;
   total?: number;
@@ -42,12 +43,9 @@ export interface LintRunResult {
   targets: LintTarget[];
   rows: LintRow[];
   findings: StaticFinding[];
-  corpus: Pick<SessionCorpus, "sessionCount" | "readFiles"> & { msgs: number; calls: number };
-  /** AI 批次失败数(判定为 null 的规则来源)。 */
+  corpus: { sessionCount: number; readFiles: number; msgs: number; calls: number };
   failedBatches: number;
-  /** 引擎级失败(超时/缺失/无效回复)——中止批判定的原因,展示用;空串=无。 */
   engineError: string;
-  /** 有 .bak-tmdlint 备份的规则文件(恢复入口数据源)。 */
   backups: string[];
 }
 
@@ -57,7 +55,17 @@ export interface LintRunOpts {
   engineId: string;
   model: string | null;
   timeoutSeconds: number;
+  scopes: LintScope[];
   onProgress: (p: LintProgress) => void;
+  /** 行即时上屏(证据待测)。 */
+  onFileRows: (scope: LintScope, file: string, rows: LintRow[]) => void;
+  /** 证据注入(整文件替换)。 */
+  onFileEvidence: (scope: LintScope, file: string, rows: LintRow[]) => void;
+  /** AI 识别标记回填(按行号)。 */
+  onAiMarks: (scope: LintScope, file: string, marks: Map<number, AiMark>) => void;
+  /** 生效判定逐批回填(按 文件+行号 锚定)。 */
+  onJudgments: (batch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[]) => void;
+  onFindings: (findings: StaticFinding[]) => void;
 }
 
 let runSeq = 0;
@@ -83,37 +91,47 @@ export function batchRules(rules: RuleItem[]): RuleItem[][] {
   return out;
 }
 
-export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
+function sameDir(a: string | null, b: string): boolean {
+  return a !== null && a.replace(/\/+$/, "") === b.replace(/\/+$/, "");
+}
+
+export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
   const token = ++runSeq;
   const alive = () => token === runSeq;
   const cutoffMs = Date.now() - WINDOW_DAYS * 24 * 3600 * 1000;
+  const scopeOf = (t: LintTarget): LintScope => (t.scope === "user" ? "global" : "project");
 
-  /* 1. 定目标(声明式去重 + 探活) */
+  /* 第一步·定目标+读规则:逐文件即时上屏(证据待测),已拍板先折叠 */
   opts.onProgress({ step: "targets", detail: "" });
   const home = await userHome();
-  const all = expandLintTargets(host.getCliProfiles(), opts.cwd, home);
+  const scopeSet = new Set<LintScope>(opts.scopes);
+  const all = expandLintTargets(host.getCliProfiles(), opts.cwd, home).filter((t) => scopeSet.has(scopeOf(t)));
   const probe = await probeTargets(all.map((t) => t.absPath));
   const targets = all.map((t) => ({ ...t, exists: probe[t.absPath] ?? false })).filter((t) => t.exists);
-  if (!alive()) throw new Error("lint-cancelled");
+  const handled = new Set((await loadStore()).handled);
+  const rulesByFile: { target: LintTarget; rules: RuleItem[]; text: string }[] = [];
+  for (const target of targets) {
+    if (!alive()) throw new Error("lint-cancelled");
+    try {
+      const text = await ipc.fsReadFile(target.absPath);
+      const rules = extractRules(text, target.absPath).map((r, i) => ({ ...r, idx: i + 1 }));
+      rulesByFile.push({ target, rules, text });
+      opts.onFileRows(
+        scopeOf(target),
+        target.absPath,
+        rules.map((rule) => ({
+          rule, evidence: null, judgment: null, scope: scopeOf(target),
+          settled: handled.has(settledSig("violated", rule)) || handled.has(settledSig("dormant", rule)),
+        })),
+      );
+    } catch {
+      /* 读失败 = 本轮跳过该文件(下轮重体检) */
+    }
+  }
 
-  /* 2. 读规则(各文件独立并行读;失败文件本轮跳过,下轮重体检) */
-  const settledList = await Promise.all(
-    targets.map(async (target) => {
-      try {
-        const text = await ipc.fsReadFile(target.absPath);
-        const rules = extractRules(text, target.absPath).map((r, i) => ({ ...r, idx: i + 1 }));
-        return { target, rules, text };
-      } catch {
-        return null;
-      }
-    }),
-  );
-  const rulesByFile = settledList.filter((f): f is { target: LintTarget; rules: RuleItem[]; text: string } => f !== null);
-  if (!alive()) throw new Error("lint-cancelled");
-
-  /* 3. 采语料(90s 预算 + 逐会话进度;千会话仓全量读会假死,到点即止用部分语料) */
+  /* 第一步·采语料:一次采集,项目口径按 sessionCwds 分束(全局=全部) */
   const corpus = await collectCorpus({
-    profiles: host.getCliProfiles(),
+    profiles: host.getCliProfiles() as unknown as CorpusProfileSource[],
     cwd: opts.cwd,
     cutoffMs,
     budgetMs: CORPUS_BUDGET_MS,
@@ -122,12 +140,18 @@ export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
     },
   });
   if (!alive()) throw new Error("lint-cancelled");
+  const projSet = new Set<number>();
+  corpus.sessionCwds.forEach((c, idx) => {
+    if (sameDir(c, opts.cwd)) projSet.add(idx);
+  });
 
-  /* 4. 测证据 + 机器把关先判(pre-commit 硬事实) */
+  /* 第一步·测证据:逐文件注入(项目规则用项目会话束,全局规则用全部) */
   opts.onProgress({ step: "evidence", detail: String(corpus.msgs.length) });
   const flatRules = rulesByFile.flatMap((f) => f.rules);
   const { byRule, unjudgeable } = discriminativeTokens(flatRules, corpus.msgs);
-  const evidences = measureAll(flatRules, byRule, unjudgeable, corpus);
+  const evidences = measureAll(flatRules, byRule, unjudgeable, corpus, (rule) =>
+    rulesByFile.find((f) => f.target.absPath === rule.file)?.target.scope === "project" ? projSet : null,
+  );
   let preCommit = "";
   try {
     preCommit = await ipc.fsReadFile(`${opts.cwd}/.git/hooks/pre-commit`);
@@ -141,20 +165,59 @@ export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
       if (preCommit.includes(cmd) || preCommit.includes(normalizeCmd(cmd))) enforced.add(r.file + r.text);
     }
   });
+  for (const f of rulesByFile) {
+    const rows = f.rules.map((rule) => ({
+      rule, evidence: evidences[flatRules.indexOf(rule)] ?? null, judgment: null as RuleJudgment | null,
+      scope: scopeOf(f.target), settled: false,
+    }));
+    if (alive()) opts.onFileEvidence(scopeOf(f.target), f.target.absPath, rows);
+  }
   if (!alive()) throw new Error("lint-cancelled");
 
-  /* 5. AI 批判定(fail-fast:引擎级失败中止剩余批次,不再八批挨个超时) */
-  const judgments = new Map<string, RuleJudgment>();
+  /* 第二步·AI:识别 pass(全文带行号)→ 生效判定 pass;引擎级失败 fail-fast */
   let engineError = "";
-  let cursor = 0;
+  const judgments = new Map<string, RuleJudgment>();
+  const needAiOf = (f: (typeof rulesByFile)[number]) =>
+    f.rules.filter((r) => !enforced.has(r.file + r.text));
   for (const f of rulesByFile) {
-    if (engineError) break;
-    for (const batch of batchRules(f.rules)) {
-      const pairs = batch.map((rule, i) => ({ rule, evidence: evidences[cursor + i]! }));
-      cursor += batch.length;
+    if (engineError || !alive()) break;
+    const needAi = needAiOf(f);
+    if (needAi.length === 0) continue;
+    opts.onProgress({
+      step: "recognize", detail: f.target.absPath.split("/").pop() ?? "",
+      done: 0, total: Math.max(1, needAi.length),
+    });
+    try {
+      const label = f.target.scope === "project" ? "项目级规则文件" : "用户级全局规则文件";
+      const raw = await runJudgeRaw({
+        engineId: opts.engineId,
+        instruction: buildRecognizeInstruction(label, f.text),
+        model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
+        timeoutSeconds: opts.timeoutSeconds,
+        onChunk: (liveText) => {
+          if (alive()) opts.onProgress({ step: "recognize", detail: "", live: liveText.slice(-4000) });
+        },
+      });
+      const marks = new Map<number, AiMark>();
+      for (const m of parseRecognizeReply(raw)) {
+        if (m.line >= 1 && m.line <= f.text.split("\n").length) {
+          marks.set(m.line, { recognizable: m.recognizable, reason: m.reason, rewrite: m.rewrite });
+        }
+      }
+      if (alive()) opts.onAiMarks(scopeOf(f.target), f.target.absPath, marks);
+    } catch (e) {
+      engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
+    }
+  }
+  for (const f of rulesByFile) {
+    if (engineError || !alive()) break;
+    for (const batch of batchRules(needAiOf(f))) {
+      const pairs = batch.map((rule) => {
+        const gi = flatRules.indexOf(rule);
+        return { rule, evidence: evidences[gi]! };
+      });
       const needAi = pairs.filter((p) => !enforced.has(p.rule.file + p.rule.text));
       if (needAi.length === 0) continue;
-      if (!alive()) throw new Error("lint-cancelled");
       opts.onProgress({
         step: "judge", detail: "", live: "",
         done: judgments.size, total: Math.max(1, flatRules.length - enforced.size),
@@ -163,41 +226,36 @@ export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
         const raw = await runJudgeRaw({
           engineId: opts.engineId,
           instruction: buildJudgeInstruction(needAi, corpus.msgs.length > 0),
-          model: opts.model,
-          cwd: opts.cwd,
-          workspaceId: opts.workspaceId,
+          model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
           timeoutSeconds: opts.timeoutSeconds,
           onChunk: (liveText) => {
             if (alive()) opts.onProgress({ step: "judge", detail: "", live: liveText.slice(-4000) });
           },
         });
         const parsed = parseJudgeReply(raw, needAi.length);
+        const patch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[] = [];
         parsed.forEach((j, i) => {
-          if (j) judgments.set(needAi[i]!.rule.file + needAi[i]!.rule.text, j);
+          if (!j) return;
+          judgments.set(needAi[i]!.rule.file + needAi[i]!.rule.text, j);
+          patch.push({ scope: scopeOf(f.target), file: needAi[i]!.rule.file, rule: needAi[i]!.rule, judgment: j });
         });
+        if (alive() && patch.length > 0) opts.onJudgments(patch);
         if (parsed.every((j) => j === null)) {
           engineError = "引擎回复无有效判定(检查引擎登录/模型名)";
           break;
         }
       } catch (e) {
-        const msg = String(e);
-        engineError = msg.includes("judge-timeout")
-          ? `判定超时(单批 ${opts.timeoutSeconds}s);可换更快的引擎或减小批量`
-          : msg.includes("judge-engine-missing")
-            ? `引擎 ${opts.engineId} 不可用(command not found)`
-            : `判定失败:${msg.slice(0, 120)}`;
+        engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
         break;
       }
     }
   }
 
-  /* 6. 汇总:组装行 + 已拍板折叠 + 静态发现 + 备份探针 */
-  const handled = new Set((await loadStore()).handled);
-  let cursor2 = 0;
-  const rows: LintRow[] = [];
-  for (const f of rulesByFile) {
-    for (const rule of f.rules) {
-      const evidence = evidences[cursor2++]!;
+  /* 汇总:行组装(含 enforced/settled)+ 静态发现 + 备份探针 */
+  const rows: LintRow[] = rulesByFile.flatMap((f) => {
+    const scope = scopeOf(f.target);
+    return f.rules.map((rule) => {
+      const evidence = evidences[flatRules.indexOf(rule)] ?? null;
       let judgment = judgments.get(rule.file + rule.text) ?? null;
       if (enforced.has(rule.file + rule.text)) {
         judgment = { verdict: "working", reason: "pre-commit 钩子已含该规则命令,机器把关", advice: "keep" };
@@ -205,25 +263,33 @@ export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
       const settled =
         (judgment?.verdict === "violated" || judgment?.verdict === "dormant") &&
         handled.has(settledSig(judgment.verdict, rule));
-      rows.push({ rule, evidence, judgment, settled });
-    }
-  }
+      return { rule, evidence, judgment, settled, scope };
+    });
+  });
   const [repoFiles, bakProbe] = await Promise.all([
     ipc.fsWalkFiles(opts.cwd, 5000).catch(() => [] as string[]),
     probeTargets(targets.map((t) => `${t.absPath}.bak-tmdlint`)),
   ]);
   const findings = await buildStaticFindings({ cwd: opts.cwd, rulesByFile, msgs: corpus.msgs, repoFiles });
+  if (alive()) opts.onFindings(findings);
   const backups = targets.filter((t) => bakProbe[`${t.absPath}.bak-tmdlint`]).map((t) => t.absPath);
   if (!alive()) throw new Error("lint-cancelled");
 
-  const result: LintRunResult = {
-    at: Date.now(), cwd: opts.cwd, targets, rows, findings,
+  opts.onProgress({ step: "done", detail: "" });
+  return {
+    at: Date.now(), cwd: opts.cwd, targets, rows,
+    findings,
     corpus: { sessionCount: corpus.sessionCount, readFiles: corpus.readFiles, msgs: corpus.msgs.length, calls: corpus.calls.length },
     failedBatches: rows.filter((r) => !r.judgment).length,
     engineError,
     backups,
   };
-  await saveLastResult(result);
-  opts.onProgress({ step: "done", detail: "" });
-  return result;
 }
+
+function engineNote(msg: string, engineId: string, timeoutSeconds: number): string {
+  if (msg.includes("judge-timeout")) return `判定超时(单批 ${timeoutSeconds}s);可换更快的引擎`;
+  if (msg.includes("judge-engine-missing")) return `引擎 ${engineId} 不可用(command not found)`;
+  return `判定失败:${msg.slice(0, 120)}`;
+}
+
+export type { SessionCorpus };

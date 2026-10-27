@@ -21,3 +21,10 @@
 
 - 先备份(每文件本会话一份 `.bak-tmdlint`)→ 行级原文匹配守卫(当前行 trim ≠ 体检时原文即拒笔)→ 破坏性动作过 ConfirmDialog 且弹层带行级 diff 预览(diffUtil 首尾公共行修剪口径);归档迁 `docs/agents-archive.md` 留占位符;hook 生成走命令守卫 + procCommunicate chmod 通用原语;备份可恢复,已拍板可重开。
 - 大仓语料采集必须带时间预算与逐会话进度(全量顺序读在千会话仓会假死);插件私有持久化一律 `ipc.configDir()`,禁 `configHomeDir()` 自拼。
+
+## 闭环交互契约(二稿增补)
+
+- 双 pass AI:识别 pass=全文带行号一发(哨兵 `<RECOG>`,逐行 ok/why/fix);生效判定 pass=证据包 8 条一批(哨兵 `<LINT>`)。引擎级失败 fail-fast 中止剩余 AI 并亮因。
+- 增量上屏:流水线以事件回调打补丁(lintController 单例快照),右栏视图与中央报告 tab 同源生长;新 tab kind 注册必须同步 `tabContent.contract.test.ts` 的 OPENABLE_KINDS 镜像(死注册会被契约测试拦下)。
+- 每次应用记 `ApplyRecord`(before/after 全文,lintStore.applyJournal cap 40),每次扫描记 `ScanRecord`(cap 12);撤销=把 before 写回并再入日志。
+- 语料一次采集双口径分束:`sessionCwds` 记每会话 cwd,项目规则只计 cwd 全等会话,全局规则计全部——不再为两口径采两遍。

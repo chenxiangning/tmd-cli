@@ -96,6 +96,7 @@ export interface CollectOpts {
 export async function collectCorpus(opts: CollectOpts): Promise<SessionCorpus> {
   const msgs: CorpusMsg[] = [];
   const calls: CorpusCall[] = [];
+  const sessionCwds: (string | null)[] = [];
   const perProfile: SessionCorpus["perProfile"] = [];
   let sessionCount = 0;
   let readFiles = 0;
@@ -121,14 +122,14 @@ export async function collectCorpus(opts: CollectOpts): Promise<SessionCorpus> {
       if (Date.now() > deadline) break;
       if (msgs.length >= MAX_MSGS) break; /* 消息总量到顶,早停防失控 */
       opts.onSession?.(done, sessions.length, p.id);
+      let identityCwd: string | null = null;
       if (opts.cwd) {
-        let identityCwd: string | null = null;
         try {
           identityCwd = (await p.readSessionFileIdentity?.(s.path))?.cwd ?? null;
         } catch {
           identityCwd = null;
         }
-        if (!identityCwd || !sameDir(identityCwd, opts.cwd)) continue;
+        if (!identityCwd || !sameDir(identityCwd, opts.cwd)) continue; /* 与工作区无关的会话不入语料(省预算) */
       }
       let blocks: CliTranscriptBlock[] = [];
       try {
@@ -144,10 +145,11 @@ export async function collectCorpus(opts: CollectOpts): Promise<SessionCorpus> {
       pCalls += part.calls.length;
       if (msgs.length < MAX_MSGS) msgs.push(...part.msgs.slice(0, MAX_MSGS - msgs.length));
       calls.push(...part.calls);
+      sessionCwds[sessionCount] = identityCwd;
       sessionCount += 1;
     }
     perProfile.push({ profileId: p.id, sessions: pSessions, msgs: pMsgs, calls: pCalls });
     opts.onProfileDone?.(p.id, { sessions: pSessions, msgs: pMsgs, calls: pCalls });
   }
-  return { msgs, calls, sessionCount, readFiles, perProfile };
+  return { msgs, calls, sessionCwds, sessionCount, readFiles, perProfile };
 }

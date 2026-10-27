@@ -25,6 +25,7 @@ function MemoryFileRow({
   pending,
   generating,
   genFailed,
+  lintBadge,
   onGenerate,
 }: {
   slot: MemorySlot;
@@ -32,6 +33,7 @@ function MemoryFileRow({
   pending: boolean;
   generating: boolean;
   genFailed: boolean;
+  lintBadge?: string;
   onGenerate: (slot: MemorySlot) => void;
 }) {
   /* 首轮探测未落定:中性占位(灰点/不可点/无断言),完成后原位落定,不闪「未生成」 */
@@ -73,7 +75,12 @@ function MemoryFileRow({
             <span className="text-meta text-(--tmd-fg-muted)">{t("未生成")}</span>
           </>
         )}
-        {exists && <span className="text-meta text-(--tmd-fg-faint)">{relLabel}</span>}
+        {exists && lintBadge && (
+        <span className="flex-none rounded-full border border-(--tmd-warn) px-1.5 text-[10px] leading-4 text-(--tmd-warn)" title={t("上次体检结论")}>
+          {lintBadge}
+        </span>
+      )}
+      {exists && !lintBadge && <span className="text-meta text-(--tmd-fg-faint)">{relLabel}</span>}
       </span>
     </div>
   );
@@ -101,8 +108,7 @@ function GroupHead({ label, note }: { label: string; note?: string }) {
 }
 
 /** 已声明两组(项目级/用户级):无工作区项目组整组隐藏,行随 probe 落定三态。
- *  行键 = engine:scope —— absPath 会撞键(pi/kimi/codex/… 项目级同为 {cwd}/AGENTS.md),
- *  重复键在列表重渲染时正是行错位/重复的根源。 */
+ *  lintBadges = 文件 → 上次体检结论摘要(规则体检面板回写)。 */
 export function DeclaredGroups({
   cwd,
   project,
@@ -111,6 +117,7 @@ export function DeclaredGroups({
   pending,
   genBusy,
   genFailed,
+  lintBadges,
   onGenerate,
 }: {
   cwd: string | null;
@@ -120,6 +127,7 @@ export function DeclaredGroups({
   pending: boolean;
   genBusy: string | null;
   genFailed: MemoryProbeMap;
+  lintBadges?: Map<string, string>;
   onGenerate: (slot: MemorySlot) => void;
 }) {
   return (
@@ -135,6 +143,7 @@ export function DeclaredGroups({
               pending={pending}
               generating={genBusy === slot.absPath}
               genFailed={!!genFailed[slot.absPath]}
+              lintBadge={lintBadges?.get(slot.absPath)}
               onGenerate={onGenerate}
             />
           ))}

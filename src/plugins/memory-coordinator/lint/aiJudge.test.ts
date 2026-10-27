@@ -66,9 +66,9 @@ describe("lintModel 批切与汇总", () => {
 
   it("summarizeRows:settled 优先、判定缺失入 failed、各态计数", () => {
     const rows: LintRow[] = [
-      { rule: ruleOf(1), evidence: evOf(), judgment: { verdict: "violated", reason: "", advice: "archive" }, settled: true },
-      { rule: ruleOf(2), evidence: evOf(), judgment: { verdict: "violated", reason: "", advice: "keep" }, settled: false },
-      { rule: ruleOf(3), evidence: evOf(), judgment: null, settled: false },
+      { rule: ruleOf(1), evidence: evOf(), judgment: { verdict: "violated", reason: "", advice: "archive" }, settled: true, scope: "project" },
+      { rule: ruleOf(2), evidence: evOf(), judgment: { verdict: "violated", reason: "", advice: "keep" }, settled: false, scope: "project" },
+      { rule: ruleOf(3), evidence: evOf(), judgment: null, settled: false, scope: "project" },
     ];
     const s = summarizeRows(rows);
     expect(s.verdicts.violated).toBe(1);

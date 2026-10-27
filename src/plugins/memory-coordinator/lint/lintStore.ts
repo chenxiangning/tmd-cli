@@ -9,7 +9,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import type { LintRow, LintTarget, StaticFinding } from "./lintTypes";
+import type { ApplyRecord, LintRow, LintTarget, ScanRecord, StaticFinding } from "./lintTypes";
 
 export interface LintStoreData {
   lastUsed: { engineId: string; model: string } | null;
@@ -21,9 +21,13 @@ export interface LintStoreData {
     rows: LintRow[];
     findings: StaticFinding[];
   } | null;
+  /** 扫描记录(每次体检一条,最新在前;cap 12)。 */
+  scanHistory: ScanRecord[];
+  /** 应用记录(每次保存前后内容,最新在前;cap 40)。 */
+  applyJournal: ApplyRecord[];
 }
 
-const EMPTY: LintStoreData = { lastUsed: null, handled: [], lastResult: null };
+const EMPTY: LintStoreData = { lastUsed: null, handled: [], lastResult: null, scanHistory: [], applyJournal: [] };
 
 let data: LintStoreData | null = null;
 let writing = Promise.resolve();
@@ -46,6 +50,8 @@ async function loadOnce(): Promise<LintStoreData> {
       lastUsed: parsed.lastUsed ?? null,
       handled: Array.isArray(parsed.handled) ? parsed.handled : [],
       lastResult: parsed.lastResult ?? null,
+      scanHistory: Array.isArray(parsed.scanHistory) ? parsed.scanHistory : [],
+      applyJournal: Array.isArray(parsed.applyJournal) ? parsed.applyJournal : [],
     };
   } catch {
     data = { ...EMPTY };
@@ -89,6 +95,21 @@ export async function removeHandled(sig: string): Promise<void> {
 export async function saveLastResult(result: LintStoreData["lastResult"]): Promise<void> {
   const d = await loadOnce();
   d.lastResult = result;
+  await persist();
+}
+
+/** 扫描记录入史(最新在前,cap 12)。 */
+export async function addScanRecord(rec: ScanRecord): Promise<void> {
+  const d = await loadOnce();
+  d.scanHistory = [rec, ...d.scanHistory].slice(0, 12);
+  await persist();
+}
+
+/** 应用日志入史(最新在前,cap 40;多文件一次应用各记一条)。 */
+export async function addApplyRecords(recs: ApplyRecord[]): Promise<void> {
+  if (recs.length === 0) return;
+  const d = await loadOnce();
+  d.applyJournal = [...recs.reverse(), ...d.applyJournal].slice(0, 40);
   await persist();
 }
 

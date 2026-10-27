@@ -52,12 +52,14 @@ function cut(s: string): string {
   return s.length > QUOTE_CAP ? `${s.slice(0, QUOTE_CAP)}…` : s;
 }
 
-/** 单条规则测证据:触达/纠正/照做三通道 + 首条引文(下钻展示用)。 */
+/** 单条规则测证据:触达/纠正/照做三通道 + 首条引文(下钻展示用)。
+ *  sessionFilter = 允许计入的 sessionIdx(项目口径=cwd 束;null=全部)。 */
 export function measureEvidence(
   rule: RuleItem,
   disc: string[],
   unjudgeable: boolean,
   corpus: SessionCorpus,
+  sessionFilter: Set<number> | null = null,
 ): RuleEvidence {
   const ev: RuleEvidence = {
     hits: 0, activeSessions: 0, lastSeen: 0, touchQuote: "",
@@ -67,7 +69,9 @@ export function measureEvidence(
   };
   const touchedSessions = new Set<number>();
   const seenWords = new Set<string>();
+  const inScope = (idx: number) => sessionFilter === null || sessionFilter.has(idx);
   for (const m of corpus.msgs) {
+    if (!inScope(m.sessionIdx)) continue;
     const hit = disc.some((tk) => m.lower.includes(tk));
     if (!hit) continue;
     ev.hits += 1;
@@ -89,7 +93,7 @@ export function measureEvidence(
   if (ev.command) {
     const needle = normalizeCmd(ev.command);
     for (const c of corpus.calls) {
-      if (normalizeCmd(c.detail).includes(needle)) {
+      if (inScope(c.sessionIdx) && normalizeCmd(c.detail).includes(needle)) {
         ev.complied += 1;
         if (!ev.complyQuote) ev.complyQuote = cut(c.detail);
       }
@@ -97,6 +101,7 @@ export function measureEvidence(
   } else if (rule.pathRefs.length > 0) {
     for (const ref of rule.pathRefs) {
       for (const c of corpus.calls) {
+        if (!inScope(c.sessionIdx)) continue;
         const d = c.detail.toLowerCase();
         if (d.includes("/") && !d.includes(" ") && d.includes(ref)) {
           ev.complied += 1;
@@ -109,12 +114,13 @@ export function measureEvidence(
   return ev;
 }
 
-/** 全规则证据一次算(共享一遍语料遍历由 discriminativeTokens 先行)。 */
+/** 全规则证据一次算;sessionFilterOf 按规则给会话束(项目=cwd 束/全局=null)。 */
 export function measureAll(
   rules: RuleItem[],
   disc: string[][],
   unjudgeable: boolean[],
   corpus: SessionCorpus,
+  sessionFilterOf?: (rule: RuleItem) => Set<number> | null,
 ): RuleEvidence[] {
-  return rules.map((r, i) => measureEvidence(r, disc[i]!, unjudgeable[i]!, corpus));
+  return rules.map((r, i) => measureEvidence(r, disc[i]!, unjudgeable[i]!, corpus, sessionFilterOf?.(r) ?? null));
 }

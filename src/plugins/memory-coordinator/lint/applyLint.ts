@@ -49,6 +49,16 @@ export function removeRuleFromFile(text: string, rule: RuleItem, archive: boolea
   return lines.join("\n");
 }
 
+/** 纯变换:AI 改写应用(守卫=行 trim 与规则原文一致;表格块不支持改写)。 */
+export function replaceRuleFromFile(text: string, rule: RuleItem, rewrite: string): string | null {
+  if (rule.lineEnd > rule.line) return null;
+  const lines = text.split("\n");
+  const i = rule.line - 1;
+  if ((lines[i]?.trim() ?? "") !== rule.text.trim()) return null;
+  lines[i] = rewrite;
+  return lines.join("\n");
+}
+
 /** 纯变换:fixpath 替换行内首个旧路径(守卫=该行含旧路径)。 */
 export function fixPathInFile(text: string, line: number, oldP: string, newP: string): string | null {
   const lines = text.split("\n");

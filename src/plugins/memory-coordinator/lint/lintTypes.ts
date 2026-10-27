@@ -61,6 +61,9 @@ export interface CorpusCall {
 export interface SessionCorpus {
   msgs: CorpusMsg[];
   calls: CorpusCall[];
+  /** sessionIdx → 会话 cwd(身份自证;null = 无 cwd)。项目口径只取与工作区
+   *  cwd 全等的会话,全局口径取全部。 */
+  sessionCwds: (string | null)[];
   sessionCount: number;
   readFiles: number;
   perProfile: { profileId: string; sessions: number; msgs: number; calls: number }[];
@@ -114,12 +117,40 @@ export interface StaticFinding {
   advice: LintAdvice;
 }
 
-/** 结果行 = 规则 + 证据 + 判定。 */
+/** AI 识别标记(第二步:完整配置发模型逐条问「能不能识别/执行」)。 */
+export interface AiMark {
+  /** true = 模型明确说它能识别并遵守;false = 不能/不清晰,附原因与改写建议。 */
+  recognizable: boolean;
+  /** 一句话说明。 */
+  reason: string;
+  /** 仅 recognizable=false 时:改写后的整行文本(可直接替换原行)。 */
+  rewrite?: string;
+}
+
+/** AI 识别标记(第二步:完整配置发模型逐条问「能不能识别/执行」)。 */
+export interface AiMark {
+  /** true = 模型明确说它能识别并遵守;false = 不能/不清晰,附原因与改写建议。 */
+  recognizable: boolean;
+  /** 一句话说明。 */
+  reason: string;
+  /** 仅 recognizable=false 时:改写后的整行文本(可直接替换原行)。 */
+  rewrite?: string;
+}
+
+/** 体检口径:project = 当前工作区规则(项目会话束);global = 用户级全局规则(全部会话)。 */
+export type LintScope = "project" | "global";
+
+/** 结果行 = 规则 + 证据 + 判定 + AI 可识别标记。 */
 export interface LintRow {
   rule: RuleItem;
-  evidence: RuleEvidence;
-  /** null = AI 批次失败(如实标「判定失败」,不回落阈值猜测)。 */
+  /** 所属口径(项目/全局,报告分区与列表徽标用)。 */
+  scope: LintScope;
+  /** 证据在语料测完后注入;此前的行(逐文件先上屏)为 null = 待测。 */
+  evidence: RuleEvidence | null;
+  /** null = AI 批次失败(如实标「判定失败」,不回落阈值猜测)或尚未判到该批。 */
   judgment: RuleJudgment | null;
+  /** AI 完整配置识别标记(通读全文后给的「能否识别并遵守」结论)。 */
+  aiMark?: AiMark;
   /** 已拍板(此前处理过,指纹命中本地记录)。 */
   settled: boolean;
 }
@@ -168,4 +199,27 @@ export const ADVICE_LABEL: Record<LintAdvice, string> = {
 /** 已拍板指纹:"{来源态}|{文件}|{规则原文}"。 */
 export function settledSig(kind: "violated" | "dormant", rule: RuleItem): string {
   return `${kind}|${rule.file}|${rule.text}`;
+}
+
+/** 一次体检的扫描记录(历史列表数据源;rows 不入,只存统计与状态)。 */
+export interface ScanRecord {
+  at: number;
+  cwd: string;
+  engineId: string;
+  model: string;
+  files: number;
+  rules: number;
+  judged: number;
+  failed: number;
+  findings: number;
+  engineError: string;
+}
+
+/** 一次应用的应用记录:保存之前与之后的内容都在,可回看可恢复。 */
+export interface ApplyRecord {
+  at: number;
+  kind: string;
+  path: string;
+  before: string;
+  after: string;
 }

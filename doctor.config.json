@@ -99,6 +99,22 @@
         "rules": [
           "react-doctor/async-await-in-loop"
         ]
+      },
+      {
+        "files": [
+          "src/plugins/memory-coordinator/lint/lintModel.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
+      },
+      {
+        "files": [
+          "src/plugins/memory-coordinator/lint/lintActions.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
       }
     ]
   }

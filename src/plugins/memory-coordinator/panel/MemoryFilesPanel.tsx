@@ -15,6 +15,7 @@ import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { userHome } from "../paths";
 import { LintView } from "../lint/LintView";
+import { useLintController } from "../lint/lintPanelState";
 import {
   expandMemorySlots,
   generateMemoryTemplate,
@@ -43,6 +44,7 @@ export function MemoryFilesPanel() {
   const [genBusy, setGenBusy] = useState<string | null>(null);
   const [genFailed, setGenFailed] = useState<MemoryProbeMap>({});
   const [lintOpen, setLintOpen] = useState(false);
+  const lint = useLintController();
 
   useEffect(() => {
     userHome()
@@ -85,6 +87,26 @@ export function MemoryFilesPanel() {
       setGenBusy(null);
     }
   }, []);
+
+  /* 列表徽标:每文件的体检结论摘要(不听/AI 不可识别),无结论不显 */
+  const lintBadges = useMemo(() => {
+    const str = new Map<string, string>();
+    if (!lint.result) return str;
+    const acc = new Map<string, { v: number; b: number }>();
+    for (const row of lint.result.rows) {
+      const cur = acc.get(row.rule.file) ?? { v: 0, b: 0 };
+      if (row.judgment?.verdict === "violated") cur.v += 1;
+      if (row.aiMark && !row.aiMark.recognizable) cur.b += 1;
+      acc.set(row.rule.file, cur);
+    }
+    for (const [file, c] of acc) {
+      const parts: string[] = [];
+      if (c.v > 0) parts.push(t("不听 {n}", { n: String(c.v) }));
+      if (c.b > 0) parts.push(t("AI 不可识别 {n}", { n: String(c.b) }));
+      if (parts.length > 0) str.set(file, parts.join(" · "));
+    }
+    return str;
+  }, [lint.result]);
 
   const pathsKey = [...project, ...user].map((s) => s.absPath).join("\n");
   useEffect(() => {
@@ -138,6 +160,7 @@ export function MemoryFilesPanel() {
               pending={!probedOnce}
               genBusy={genBusy}
               genFailed={genFailed}
+              lintBadges={lintBadges}
               onGenerate={(slot) => void generate(slot)}
             />
             {undeclared.length > 0 && (
