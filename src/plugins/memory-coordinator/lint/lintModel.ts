@@ -196,7 +196,9 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
         onChunk: (liveText) => {
           if (alive()) opts.onProgress({ step: "judge", detail: "", live: liveText.slice(-4000) });
         },
-        onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "judge", detail: "单次调用", live: "", waitSec, liveBytes }); },
+        onWait: (waitSec, liveBytes) => {
+          if (alive()) opts.onProgress({ step: "judge", detail: "单次调用", live: "", waitSec, liveBytes, done: judgments.size, total: uni.length });
+        },
       });
     try {
       let raw = await askOnce();

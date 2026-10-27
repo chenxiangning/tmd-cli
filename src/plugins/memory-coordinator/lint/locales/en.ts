@@ -41,7 +41,6 @@ export const MESSAGES_EN = {
   "两文件打架": "Conflicting files",
   "引用失效": "Broken reference",
   "规则 {n} 条 · 语料 {m} 消息/{c} 会话": "{n} rules · corpus {m} msgs/{c} sessions",
-  "该过滤下没有条目": "No entries under this filter",
   /* ── 行内 ── */
   "触达 {n} 条消息/{s} 个会话,最近 {d};纠正 {c} 次;工具级照做 {p} 次":
     "Touched {n} msgs/{s} sessions, last {d}; corrections {c}; tool-level compliance {p}",
@@ -130,6 +129,7 @@ export const MESSAGES_EN = {
   "批次收尾中": "Batch wrapping up",
   "判定中": "Judging",
   "待判定": "Pending judge",
+  "AI 判定中 · 已等 {s}s · 单次调用(引擎输出会缓冲,完成即整批上屏)": "AI judging · waited {s}s · single call (buffered engines deliver output at once)",
   "识别中": "Recognizing",
   "已提取 · 待测": "Extracted · pending",
   "{n} 条": "{n} rules",

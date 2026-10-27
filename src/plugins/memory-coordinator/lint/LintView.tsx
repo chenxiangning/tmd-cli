@@ -1,156 +1,31 @@
 /**
  * 记忆文件面板 · 规则体检视图(tmd-lint 收编,内嵌于本面板,自带返回)。
  *
- * 交互闭环(用户定版):点「体检」→ 第一步脚本扫描,规则行逐文件即时上屏
- * (待测 → 证据注入 → AI 识别标记回填 → 生效判定逐批回填);第二步完整配置
- * 发模型逐条识别。重交互(一键应用/扫描记录/应用记录回看)在中央报告 tab,
- * 本视图保持进度+紧凑结果;「完整报告」钮跳转。
+ * 交互闭环(用户定版 2026-10-28):运行与结束后右栏一律保留 PTY 幕布全程;
+ * 审核与应用操作只在中央报告 tab,本视图不做第二份结果面。
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LintHeaderBar } from "./LintHeaderBar";
 import { t } from "@kernel/i18n";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { PtyCurtain } from "./LintCurtain";
-import { summarizeRows, type LintRunResult } from "./lintModel";
+import type { LintRunResult } from "./lintModel";
 import { loadStore, setLastUsed } from "./lintStore";
 import { seedLintResult, startLint, openLintReport } from "./lintController";
 import { useLintApply, useLintController, useLintResultWrite } from "./lintPanelState";
-import { VERDICT_LABEL, type LintAdvice, type LintRow, type LintSummary, type StaticFinding } from "./lintTypes";
-import { FindingRow, RuleRow } from "./LintRows";
-
-const CHIP_CLS = (active: boolean) =>
-  `rounded-full border px-2 py-0.5 text-meta transition-colors ${
-    active ? "border-(--tmd-accent) bg-(--tmd-accent)/10 text-(--tmd-accent)" : "border-(--tmd-border) text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
-  }`;
-
-/** 规则行动作集(RowList/ResultPanel 共用;与 useLintApply 回调面一致)。 */
-interface RowActions {
-  onApply: (row: LintRow, advice: LintAdvice) => void;
-  onKeep: (row: LintRow) => void;
-  onHook: (row: LintRow) => void;
-  onReopen: (row: LintRow) => void;
-  onRewrite: (row: LintRow) => void;
-}
-
 
 /* 头部条在 LintHeaderBar(模型下拉与工作台引擎选择同口径)。 */
 
-/** 汇总条:全部/各判定态/AI 不可识别/失败/拍板(点段过滤)。 */
-function VerdictChips({
-  result, summary, filter, setFilter,
-}: {
-  result: LintRunResult;
-  summary: LintSummary;
-  filter: string;
-  setFilter: (f: string) => void;
-}) {
-  return (
-    <div className="flex flex-none flex-wrap gap-1 px-1.5 py-1">
-      <button type="button" className={CHIP_CLS(filter === "all")} onClick={() => setFilter("all")}>
-        {t("全部")} {result.rows.length}
-      </button>
-      {(Object.entries(summary.verdicts) as [string, number][]).map(([v, n]) =>
-        n > 0 ? (
-          <button key={v} type="button" className={CHIP_CLS(filter === v)} onClick={() => setFilter(v)}>
-            {t(VERDICT_LABEL[v as keyof typeof VERDICT_LABEL])} {n}
-          </button>
-        ) : null,
-      )}
-      <button type="button" className={CHIP_CLS(filter === "ai-bad")} onClick={() => setFilter("ai-bad")}>
-        {t("AI 不可识别")} {result.rows.filter((r) => r.aiMark && !r.aiMark.recognizable).length}
-      </button>
-      {summary.failed > 0 && (
-        <button type="button" className={CHIP_CLS(filter === "failed")} onClick={() => setFilter("failed")}>
-          {t("判定失败")} {summary.failed}
-        </button>
-      )}
-      {summary.settled > 0 && (
-        <button type="button" className={CHIP_CLS(filter === "settled")} onClick={() => setFilter("settled")}>
-          {t("已拍板")} {summary.settled}
-        </button>
-      )}
-    </div>
-  );
-}
-
-
-/** 行列表 + 一键应用 AI 结果入口。 */
-function RowList({
-  rows, busy, onApplyAll, rowProps,
-}: {
-  rows: LintRow[];
-  busy: boolean;
-  onApplyAll: () => void;
-  rowProps: RowActions;
-}) {
-  return (
-    <>
-      {rows.map((r) => (
-        <RuleRow key={`${r.rule.file}:${r.rule.line}`} row={r} busy={busy} {...rowProps} />
-      ))}
-      {rows.length === 0 && <div className="p-3 text-center text-xs text-(--tmd-fg-faint)">{t("该过滤下没有条目")}</div>}
-      {rows.some((r) => r.aiMark && !r.aiMark.recognizable && r.aiMark.rewrite) && (
-        <div className="px-1.5 pt-1.5">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onApplyAll}
-            className="w-full rounded border border-(--tmd-accent) px-2 py-1 text-meta text-(--tmd-accent) transition-colors hover:bg-(--tmd-accent)/10 disabled:opacity-50"
-          >
-            {t("一键应用 AI 结果")}
-          </button>
-        </div>
-      )}
-    </>
-  );
-}
-
-/** 结束态结果区:过滤 chips + 静态发现 + 汇总行 + 规则列表(从 LintView 拆出控复杂度)。 */
-function ResultPanel({
-  result, summary, shown, filter, setFilter, busy, applyBusy, onApplyAll, rowProps, onStub, onWrite, onFixpath,
-}: {
-  result: LintRunResult;
-  summary: LintSummary;
-  shown: LintRow[];
-  filter: string;
-  setFilter: (f: string) => void;
-  busy: boolean;
-  applyBusy: boolean;
-  onApplyAll: () => void;
-  rowProps: RowActions;
-  onStub: (f: StaticFinding) => void;
-  onWrite: (f: StaticFinding) => void;
-  onFixpath: (f: StaticFinding) => void;
-}) {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <VerdictChips result={result} summary={summary} filter={filter} setFilter={setFilter} />
-      <div className="min-h-0 flex-1 overflow-y-auto pb-2">
-        {result.findings.map((f) => (
-          <FindingRow key={f.id} finding={f} busy={applyBusy} onStub={onStub} onWrite={onWrite} onFixpath={onFixpath} />
-        ))}
-        <div className="border-y border-(--tmd-border) bg-(--tmd-bg-subtle) px-1.5 py-1 text-meta font-medium text-(--tmd-fg-muted)">
-          {t("规则 {n} 条 · 语料 {m} 消息/{c} 会话 · 项目+全局", {
-            n: String(result.rows.length), m: String(result.corpus.msgs), c: String(result.corpus.sessionCount),
-          })}
-        </div>
-        <RowList rows={shown} busy={busy} onApplyAll={onApplyAll} rowProps={rowProps} />
-      </div>
-    </div>
-  );
-}
-
 export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; workspaceId: string | null; onBack: () => void }) {
   const ctl = useLintController();
-  const { markRowSettled, reopenRow, removeFinding } = useLintResultWrite();
+  const { removeFinding } = useLintResultWrite();
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
   const onError = useCallback((msg: string) => setActionError(msg), []);
   const apply = useLintApply(cwd, onError, removeFinding);
   const [engineId, setEngineId] = useState("omp");
   const [model, setModel] = useState("");
-  const [filter, setFilter] = useState<string>("all");
 
   /* 挂载:回填上次引擎选择;同 cwd 的上次结果播种进控制器(重开不丢) */
   useEffect(() => {
@@ -184,21 +59,6 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
     });
   }, [cwd, engineId, model, workspaceId]);
 
-  const result = ctl.result;
-  const summary = useMemo(() => (result ? summarizeRows(result.rows) : null), [result]);
-  const shown = useMemo(() => {
-    if (!result || filter === "all") return result?.rows ?? [];
-    if (filter === "ai-bad") return result.rows.filter((r) => r.aiMark && !r.aiMark.recognizable);
-    if (filter === "ai-ok") return result.rows.filter((r) => r.aiMark?.recognizable);
-    return result.rows.filter((r) => (filter === "settled" ? r.settled : filter === "failed" ? !r.judgment && !r.settled : !r.settled && r.judgment?.verdict === filter));
-  }, [result, filter]);
-
-  const rowProps = {
-    busy: ctl.running || apply.busy,
-    onApply: apply.onApply, onKeep: markRowSettled, onHook: apply.onHook,
-    onReopen: reopenRow, onRewrite: apply.onRewrite,
-  };
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <LintHeaderBar
@@ -206,21 +66,20 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
         setEngineId={setEngineId} setModel={setModel} onStart={start} onBack={onBack}
       />
       {!cwd && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-fg-muted)">{t("打开一个工作区后可体检其规则文件")}</div>}
-      {ctl.running && ctl.progress && (
-        <PtyCurtain progress={ctl.progress} title={`${engineId}${model ? ` · ${model}` : ""}`} log={ctl.log} />
+      {(ctl.running || ctl.progress) && (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <PtyCurtain progress={ctl.progress!} title={`${engineId}${model ? ` · ${model}` : ""}`} log={ctl.log} running={ctl.running} />
+          {!ctl.running && (
+            <button type="button" onClick={start} className="mx-1.5 mb-1.5 flex-none rounded-md border border-(--tmd-border) px-2 py-1 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent)">
+              {t("重新体检")}
+            </button>
+          )}
+        </div>
       )}
       {showError && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-error)">{showError}</div>}
       {notice && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-ok)">{notice}</div>}
 
-      {result && summary && !ctl.running && (
-        <ResultPanel
-          result={result} summary={summary} shown={shown} filter={filter} setFilter={setFilter}
-          busy={apply.busy} applyBusy={apply.busy}
-          onApplyAll={() => apply.onApplyAllAi(result.rows, (a, s) => setNotice(t("已应用 {a} 条改写,跳过 {s} 条(行号对不上)", { a: String(a), s: String(s) })))}
-          rowProps={rowProps} onStub={apply.onStub} onWrite={apply.onWrite} onFixpath={apply.onFixpath}
-        />
-      )}
-      {!result && !ctl.running && (
+      {!ctl.progress && !ctl.running && (
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 text-meta leading-relaxed text-(--tmd-fg-muted)">
           {t(
             "体检两步走:先脚本扫描(读各家 CLI 近 30 天对话日志,规则逐条上屏),再把配置完整发给 AI 逐条识别——能执行的打标记给说明,不能执行的给修改建议,可单条改也可一键应用。",

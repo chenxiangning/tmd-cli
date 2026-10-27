@@ -38,6 +38,17 @@ function commit(next: Partial<LintControllerState>): void {
   for (const l of listeners) l();
 }
 
+/** 心跳行去重:同 [wait] 前缀原位替换最后一行,不刷屏。 */
+function logWait(text: string): void {
+  const log = state.log;
+  const last = log[log.length - 1];
+  if (last && last.text.startsWith("[wait]")) {
+    commit({ log: [...log.slice(0, -1), { id: last.id, text }] });
+  } else {
+    commit({ log: [...log, { id: ++logSeq, text }] });
+  }
+}
+
 /** 幕布事件:时间戳 + 消息,cap 240 条(旧的去)。 */
 function logLine(msg: string): void {
   const ts = new Date().toTimeString().slice(0, 8);
@@ -100,7 +111,7 @@ export function startLint(opts: LintStartOpts): void {
           if (p.waitSec !== undefined && p.waitSec !== state.waitSec) {
             state = { ...state, waitSec: p.waitSec };
             const phase = p.step === "recognize" ? `识别中 ${p.detail}` : "判定中";
-            logLine(`[wait] ${phase} · 已等 ${p.waitSec}s · 引擎输出 ${p.liveBytes ?? 0} 字节`);
+            logWait(`[wait] ${phase} · 已等 ${p.waitSec}s · 引擎输出 ${p.liveBytes ?? 0} 字节`);
             return;
           }
           if (p.step !== prev) {
@@ -167,7 +178,7 @@ export function startLint(opts: LintStartOpts): void {
         aiBad: result.rows.filter((r) => r.aiMark && !r.aiMark.recognizable).length,
         engineError: result.engineError,
       });
-      commit({ result, running: false, progress: null });
+      commit({ result, running: false, progress: state.progress });
       if (result.engineError) {
         commit({ error: result.engineError });
         opts.onError?.(result.engineError);
@@ -176,7 +187,7 @@ export function startLint(opts: LintStartOpts): void {
       if (String(e).includes("lint-cancelled")) return;
       const msg = String(e).slice(0, 160);
       logLine(`[error] ${msg}`);
-      commit({ running: false, progress: null, error: msg });
+      commit({ running: false, progress: state.progress, error: msg });
       opts.onError?.(msg);
     }
   })();

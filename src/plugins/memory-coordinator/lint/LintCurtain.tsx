@@ -13,7 +13,6 @@ import type { LintLogEntry } from "./lintController";
 /** 进度步进文案(幕布头部相位,纯函数,组件内使用)。 */
 function curtainPhase(p: LintProgress): string {
   const wait = p.waitSec && p.waitSec > 3 ? ` · 已等 ${p.waitSec}s` : "";
-  if (p.step === "recognize") return `${t("AI 识别中(全文比对)…{f}", { f: p.detail })}${wait}`;
   if (p.step === "judge") return `${t("AI 判定中 {d}/{t}", { d: String(p.done ?? 0), t: String(p.total ?? 0) })}${wait}`;
   if (p.step === "corpus") return p.detail ? t("读对话中…({p})", { p: p.detail }) : t("读对话中…");
   if (p.step === "evidence") return t("抽证据中…({n} 条消息)", { n: p.detail });
@@ -21,7 +20,7 @@ function curtainPhase(p: LintProgress): string {
   return t("体检完成");
 }
 
-export function PtyCurtain({ progress, title, log }: { progress: LintProgress; title: string; log: LintLogEntry[] }) {
+export function PtyCurtain({ progress, title, log, running }: { progress: LintProgress; title: string; log: LintLogEntry[]; running: boolean }) {
   const logRef = useRef<HTMLDivElement>(null);
   const tailRef = useRef<HTMLPreElement>(null);
   const live = progress.live ?? "";
@@ -36,9 +35,9 @@ export function PtyCurtain({ progress, title, log }: { progress: LintProgress; t
   return (
     <div className="mx-1.5 mb-1.5 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-[#2c332f] bg-[#0f1513]">
       <div className="flex flex-none items-center gap-1.5 border-b border-[#2c332f] px-2.5 py-1.5 text-[10px] text-[#8d9b94]">
-        <span className="size-1.5 animate-pulse rounded-full bg-[#e6a76c]" aria-hidden />
+        <span className={`size-1.5 rounded-full ${running ? "animate-pulse bg-[#e6a76c]" : "bg-[#8fc7a3]"}`} aria-hidden />
         <span className="min-w-0 truncate font-mono">{title}</span>
-        <span className="ml-auto flex-none">{curtainPhase(progress)}</span>
+        <span className="ml-auto flex-none">{running ? curtainPhase(progress) : t("体检完成")}</span>
       </div>
       <div ref={logRef} aria-live="polite" className="min-h-0 flex-1 overflow-y-auto px-2.5 py-2 font-mono text-[10px] leading-[1.8] text-[#cfd8d3]">
         {log.map((e) => (
