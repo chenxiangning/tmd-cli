@@ -82,8 +82,13 @@ function ReportBody({
   onFixpath: (f: Parameters<ReturnType<typeof useLintApply>["onFixpath"]>[0]) => void;
 }) {
   const summary = summarizeRows(result.rows);
-  const projectRows = result.rows.filter((r) => r.scope === "project");
-  const globalRows = result.rows.filter((r) => r.scope === "global");
+  const [verdictFilter, setVerdictFilter] = useState<string | null>(null);
+  const byVerdict = (rows: LintRow[]) => (verdictFilter && verdictFilter !== "findings" ? rows.filter((r) => (verdictFilter === "failed" ? !r.judgment && !r.settled : verdictFilter === "settled" ? r.settled : !r.settled && r.judgment?.verdict === verdictFilter)) : rows);
+  const projectRows = byVerdict(result.rows.filter((r) => r.scope === "project"));
+  const globalRows = byVerdict(result.rows.filter((r) => r.scope === "global"));
+  const showFindings = verdictFilter === null || verdictFilter === "findings";
+  const chipCls = (activeV: boolean) => `cursor-pointer rounded-full border px-1.5 transition-colors ${activeV ? "border-(--tmd-accent) bg-(--tmd-accent)/10 text-(--tmd-accent)" : "border-(--tmd-border) hover:text-(--tmd-fg)"}`;
+  const toggleVerdict = (v: string) => setVerdictFilter((cur) => (cur === v ? null : v));
   const rowProps = { busy, onApply, onKeep, onHook, onReopen, onRewrite };
   const [selected, setSelected] = useState<LintRow | null>(null);
   const select = useCallback((row: LintRow) => setSelected(row), []);
@@ -103,13 +108,13 @@ function ReportBody({
         })}
         {(Object.entries(summary.verdicts) as [string, number][]).map(([v, n]) =>
           n > 0 ? (
-            <span key={v} className="rounded-full border border-(--tmd-border) px-1.5">
+            <button key={v} type="button" onClick={() => toggleVerdict(v)} aria-pressed={verdictFilter === v} className={chipCls(verdictFilter === v)}>
               {t(VERDICT_LABEL[v as keyof typeof VERDICT_LABEL])} {n}
-            </span>
+            </button>
           ) : null,
         )}
         {result.findings.length > 0 && (
-          <span className="rounded-full border border-(--tmd-border) px-1.5">{t("静态发现")} {result.findings.length}</span>
+          <button type="button" onClick={() => toggleVerdict("findings")} aria-pressed={verdictFilter === "findings"} className={chipCls(verdictFilter === "findings")}>{t("静态发现")} {result.findings.length}</button>
         )}
       </div>
       {(scopeFilter === "all" || scopeFilter === "project") && (
@@ -118,7 +123,7 @@ function ReportBody({
       {(scopeFilter === "all" || scopeFilter === "global") && (
         <ScopeSection title={t("全局规则")} rows={globalRows} {...rowProps} onSelect={select} />
       )}
-      {result.findings.length > 0 && scopeFilter !== "global" && (
+      {result.findings.length > 0 && scopeFilter !== "global" && showFindings && (
         <div>
           <div className={SECTION_CLS}>{t("静态发现")}</div>
           {result.findings.map((f) => (

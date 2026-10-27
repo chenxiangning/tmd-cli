@@ -3,7 +3,7 @@
  * 改写 diff + 动作(应用 AI 建议/保持并拍板/打开)。与行内下钻互为联动。
  */
 
-import { openFileInTab } from "@kernel/fileTabs";
+import { openFileAtLine } from "@kernel/fileTabs";
 import { t } from "@kernel/i18n";
 import type { LintRow } from "./lintTypes";
 import { VERDICT_LABEL } from "./lintTypes";
@@ -73,7 +73,7 @@ export function RuleDetailPanel({ row, busy, onKeep, onRewrite }: { row: LintRow
         {keepable && !row.settled && (
           <button type="button" disabled={busy} onClick={() => onKeep(row)} className={ACTION_CLS}>{t("保持并拍板")}</button>
         )}
-        <button type="button" onClick={() => openFileInTab(row.rule.file)} className={ACTION_CLS}>{t("打开")}</button>
+        <button type="button" onClick={() => openFileAtLine(row.rule.file, row.rule.line)} className={ACTION_CLS}>{t("打开")}</button>
       </div>
     </aside>
   );

@@ -22,19 +22,14 @@ import {
 } from "./editor/fileCache";
 import { takeFileRevealLine } from "@kernel/fileTabs";
 
-/* 编辑器/中央三分支渲染(CodeMirror、md 预览、结构化预览)在 FileCenterView,
-   三条重管线的按需拆包定义随分支同住;pdf.js / xlsx / mammoth 留此各自拆包。 */
-const FilePdfPreview = lazy(retryImport(() =>
-  import("./render/FilePdfPreview").then((m) => ({ default: m.FilePdfPreview })),
-));
+/* 编辑器/中央三分支渲染(CodeMirror、md 预览、结构化预览)在 FileCenterView;
+   字节通道(pdf.js / xlsx / mammoth)拆至 ByteChannelView.tsx 各自拆包。 */
 const FileTabularPreview = lazy(retryImport(() => import("./render/FileTabularPreview").then((m) => ({ default: m.FileTabularPreview }))));
-const FileDocumentPreview = lazy(retryImport(() => import("./render/FileDocumentPreview").then((m) => ({ default: m.FileDocumentPreview }))));
 
-import { FileImagePreview } from "./render/FileImagePreview";
 import { useFileDocument } from "./editor/useFileDocument";
 import { FileCenterView, LOADING } from "./FileCenterView";
-import { FileBinaryUnsupported } from "./render/FileBinaryUnsupported";
-import { isTabularBinaryPath, resolveFileRenderProfile, resolveStructuredPreviewKind, type FileRenderKind } from "./render/renderProfile";
+import { ByteChannelView } from "./ByteChannelView";
+import { isByteChannelKind, resolveFileRenderProfile, resolveStructuredPreviewKind, type FileRenderKind } from "./render/renderProfile";
 import { isRemoteFileUri } from "@kernel/fileSources";
 import { DraftMirrorBar } from "@kernel/draftMirrorBar";
 import { OpenWithMenu } from "./OpenWithMenu";
@@ -55,10 +50,13 @@ function FileTabBody({
   path,
   content,
   reveal,
+  onExitReveal,
 }: {
   path: string;
   content: string;
   reveal: { line: number; seq: number } | null;
+  /** 用户显式切换预览/编辑模式时清深链 reveal(否则 reveal 存续期锁编辑模式)。 */
+  onExitReveal?: () => void;
 }) {
   const isMd = MARKDOWN_FILE_RE.test(path);
   const remote = isRemoteFileUri(path);
@@ -71,7 +69,9 @@ function FileTabBody({
   const doc = useFileDocument(path, content);
   const status = statusText(doc, isRemoteReadOnly(path));
 
-  const showEditor = !structuredKind ? (!isMd || mdEditor) : structuredEditor;
+  /* 深链定位(openFileAtLine)存在即保持编辑模式(md 预览读不了行号语义);
+     用户显式切换模式时清 reveal,回落 mdEditor 记忆语义。 */
+  const showEditor = !structuredKind ? (!isMd || mdEditor || reveal !== null) : structuredEditor;
   /* 详情页右键菜单(JetBrains 同型最小集):viewRef 持编辑器实例,剪切/粘贴直驱事务。 */
   const viewRef = useRef<EditorView | null>(null);
   /* 编辑器就绪信号:viewRef.current 首拍常为 null,tick 驱动数据钩子首拉。 */
@@ -99,6 +99,7 @@ function FileTabBody({
     onToggleBlame: toggleBlame,
     onToggle: () => {
       const next = !showEditor;
+      onExitReveal?.();
       if (structuredKind) {
         structuredEditMode.set(path, next);
         setStructuredEditor(next);
@@ -179,47 +180,7 @@ function FileTabBody({
   );
 }
 
-/** 字节通道型渲染形态(不走 fileCache 文本管线的分支集合)。 */
-function isByteChannelKind(path: string, kind: FileRenderKind): boolean {
-  return (
-    kind === "image" ||
-    kind === "pdf" ||
-    kind === "document" ||
-    kind === "binary-unsupported" ||
-    (kind === "tabular" && isTabularBinaryPath(path))
-  );
-}
-
-/** 字节通道渲染分派(图片/二进制占位自取数据;PDF/文档/二进制表格走字节管线)。 */
-function ByteChannelView({ path, kind }: { path: string; kind: FileRenderKind }) {
-  /* 字节态菜单仅 路径/访达 两项;display:contents 包装零布局影响。 */
-  const viewRef = useRef<EditorView | null>(null);
-  const { detailMenuProps, detailMenu } = useFileDetailMenu({ variant: "byte", path, viewRef });
-  return (
-    <>
-      <div className="contents" {...detailMenuProps}>
-        {kind === "image" ? <FileImagePreview path={path} /> : null}
-        {kind === "binary-unsupported" ? <FileBinaryUnsupported path={path} /> : null}
-        {kind === "pdf" ? (
-          <Suspense fallback={<LOADING />}>
-            <FilePdfPreview path={path} />
-          </Suspense>
-        ) : null}
-        {kind === "document" ? (
-          <Suspense fallback={<LOADING />}>
-            <FileDocumentPreview path={path} />
-          </Suspense>
-        ) : null}
-        {kind === "tabular" ? (
-          <Suspense fallback={<LOADING />}>
-            <FileTabularPreview path={path} text={null} />
-          </Suspense>
-        ) : null}
-      </div>
-      {detailMenu}
-    </>
-  );
-}
+/** 字节通道渲染分派拆至 ByteChannelView.tsx(300 行铁则)。 */
 
 /** 文本管线视图(csv 表格/markdown/结构化/代码,走 fileCache)。 */
 const EDITOR_OPEN_MAX_CHARS = 8 * 1024 * 1024;
@@ -228,10 +189,12 @@ function TextFileView({
   path,
   kind,
   reveal,
+  onExitReveal,
 }: {
   path: string;
   kind: FileRenderKind;
   reveal: { line: number; seq: number } | null;
+  onExitReveal?: () => void;
 }) {
   const payload = loadFile(path);
   if (payload.error) return <div className="flex h-full items-center justify-center text-xs text-red-400">⚠ {payload.error}</div>;
@@ -254,7 +217,7 @@ function TextFileView({
     );
   }
   return (
-    <FileTabBody key={path} path={path} content={payload.content ?? ""} reveal={reveal} />
+    <FileTabBody key={path} path={path} content={payload.content ?? ""} reveal={reveal} onExitReveal={onExitReveal} />
   );
 }
 
@@ -290,5 +253,5 @@ export function FileTabContent({ tab }: { tab: EditorTab }) {
   if (isByteChannelKind(path, profile.kind)) {
     return <ByteChannelView path={path} kind={profile.kind} />;
   }
-  return <TextFileView path={path} kind={profile.kind} reveal={reveal} />;
+  return <TextFileView path={path} kind={profile.kind} reveal={reveal} onExitReveal={() => setReveal(null)} />;
 }

@@ -4,7 +4,7 @@
  * lintPanelState。行随扫描流水线即时上屏:证据未测=待测态,判定未到=待判态。
  */
 
-import { openFileInTab } from "@kernel/fileTabs";
+import { openFileAtLine, openFileInTab } from "@kernel/fileTabs";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { ADVICE_LABEL, VERDICT_DOT, VERDICT_LABEL, type LintAdvice, type LintRow, type LintVerdict, type StaticFinding } from "./lintTypes";
@@ -138,7 +138,7 @@ function RuleActions({
           {t("上 pre-commit")}
         </button>
       )}
-      <button type="button" disabled={busy} onClick={() => openFileInTab(row.rule.file)} className={ACTION_CLS}>
+      <button type="button" disabled={busy} onClick={() => openFileAtLine(row.rule.file, row.rule.line)} className={ACTION_CLS}>
         {t("打开")}
       </button>
       <SettleCluster row={row} busy={busy} onKeep={onKeep} onReopen={onReopen} />

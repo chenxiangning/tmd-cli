@@ -72,6 +72,7 @@ export const memoryCoordinatorPlugin: Plugin = {
       kind: "lint-report",
       component: lazySuspense(() => import("./lint/LintReportTab").then((m) => ({ default: m.LintReportTab }))),
       icon: (p) => <DecorIcon id="panel-memory" Fallback={Notebook} {...p} />,
+      keepAlive: true, /* 切走再切回,列表滚动位置与筛选态不丢(纯前端态,常驻可承受) */
     });
     ctx.contribute("composer.statusBar", {
       order: 20,

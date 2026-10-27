@@ -221,3 +221,13 @@ button:active:not(:disabled) {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 深链定位行闪烁(openFileAtLine → CM wrap 类,5s 后由 JS 摘除)。 */
+@keyframes tmd-line-flash {
+  0%, 100% { background-color: transparent; }
+  12%, 55% { background-color: color-mix(in srgb, var(--tmd-accent, #df5b17) 30%, transparent); }
+  30%, 75% { background-color: color-mix(in srgb, var(--tmd-accent, #df5b17) 12%, transparent); }
+}
+.cm-editor .cm-line.tmd-line-flash {
+  animation: tmd-line-flash 1.7s ease-in-out 3;
+}

@@ -127,6 +127,17 @@ export function isTabularBinaryPath(path?: string | null) {
   return ext != null && TABULAR_BINARY_EXTENSIONS[ext] === true;
 }
 
+/** 字节通道型渲染形态(不走 fileCache 文本管线的分支集合;FileTabContent 分派用)。 */
+export function isByteChannelKind(path: string, kind: FileRenderKind): boolean {
+  return (
+    kind === "image" ||
+    kind === "pdf" ||
+    kind === "document" ||
+    kind === "binary-unsupported" ||
+    (kind === "tabular" && isTabularBinaryPath(path))
+  );
+}
+
 function isDocumentPath(path?: string | null) {
   const ext = fileExtensionFromPath(path);
   return ext != null && DOCUMENT_EXTENSIONS[ext] === true;
