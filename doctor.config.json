@@ -62,6 +62,14 @@
       },
       {
         "files": [
+          "src/plugins/tmd-lint/corpus.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
+      },
+      {
+        "files": [
           "src/kernel/tabClose.ts"
         ],
         "rules": [

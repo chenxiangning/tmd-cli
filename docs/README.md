@@ -374,5 +374,7 @@
 | 2026-10-26 | [0.4.6 二十项增强批次收口评审(两轮九路扫描 40+ 候选梳理 20 项全量落地:日志磁盘治理/编辑器乐观锁/幕布三连/WSL 写回/孤儿收割/WebGL opt-in/oneshot 扩容/错误统一出口 133 处/i18n 门禁/内存预算/激活并行;附方案取舍六条与并行协作教训)](review/2026-10-26-046-20items-batch.md) | 已收口(真机目检待办见文末) |
 | 2026-10-26 | [0.4.6 批次监督复审+修复双收口(专业设计师换视角五路切片:P0×2=双实例互杀/横幅替换全应用;P1×16=双喂三连新变种/WSL ≥18KB 必败/E_GIT2 剥码失效等;P2×24;过度设计净 -180 行——全部当批修复,两项明示缓办,附修复落地节与真机目检待办)](review/2026-10-26-046-supervisor-review.md) | 已收口(修复落地,真机目检待办) |
 | 2026-10-26 | [下一代独立工具方向分析(tmd-cli / tmd-anim 之后做什么:七条赛道盘点=worktree 管理器/用量看板/MCP 调试器与网关均已拥挤,会话↔提交溯源与指令文件 lint 空档;结论=一个底座(多引擎会话解析+git 关联索引,自 tmd-cli 抽出)+ 两把快刀 tmd-why(AI 时代 git blame,CLI+MCP)/ tmd-lint(证据驱动上下文体检,CLI+Action);MCP 录制回放列备选;附评估矩阵与五个待拍板问题)](brainstorm/2026-10-26-next-tools-direction.md) | 待拍板(形态 / 先发哪把 / 引擎范围 / 命名) |
+| 2026-10-27 | [tmd-lint 插件移植设计(独立工具收编:体检目标复用 profiles memoryFiles 声明,语料采集走 listSessions/readSessionFileIdentity/readSessionTranscript 适配器纪律;七态判定改 AI 大模型实时语义判断——机器把关 pre-commit 与已拍板指纹确定性先行,AI 批次失败不回落猜测;写回三件套=备份+行守卫+确认弹层;missing/hook/history 留二期)](superpowers/specs/2026-10-27-tmd-lint-plugin-design.md) | 已落地(门禁全绿+react-doctor 100,真机目检待办) |
+| 2026-10-27 | [契约 33 · tmd-lint 规则体检:插件合法 AI 调用范式(一次性 print 会话批判定 8 条/哨兵 JSON 逐项验值)/跨引擎会话语料采集适配器先例(身份自证 cwd 全等,顺序有界豁免)/七态判定分工(确定性 vs 语义)/规则文件写回安全三件套](architecture/33-tmd-lint.md) | 已落地(0.4.6) |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
