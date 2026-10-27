@@ -102,7 +102,7 @@ export function LintProcessing({
                 </div>
                 {group.map((row) => (
                   <div key={`${row.rule.file}:${row.rule.line}`} className="my-1 flex items-center gap-2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-1.5 text-[11px]">
-                    <RowState row={row} recognizing={recognizing} judging={progress?.step === "judge"} />
+                    <RowState row={row} recognizing={recognizing} judging={progress?.step === "judge" && row.rule.file.split("/").pop() === progress.detail} />
                     <span className="min-w-0 flex-1 truncate font-mono">{row.rule.text}</span>
                     <span className="flex-none font-mono text-[10px] text-(--tmd-fg-faint)">L{row.rule.line}</span>
                   </div>

@@ -17,7 +17,7 @@ import { expandLintTargets, probeTargets } from "./targets";
 import { extractRules } from "./rulesExtract";
 import { collectCorpus, type CorpusProfileSource } from "./corpus";
 import { discriminativeTokens, measureAll, normalizeCmd } from "./evidence";
-import { buildJudgeInstruction, parseJudgeReply, runJudgeRaw } from "./aiJudge";
+import { buildJudgeInstruction, engineNote, runJudgeBatch, runJudgeRaw } from "./aiJudge";
 import { parseRecognizeReply, buildRecognizeInstruction } from "./recognizePrompt";
 import { buildStaticFindings } from "./staticFindings";
 import { loadStore } from "./lintStore";
@@ -69,6 +69,8 @@ export interface LintRunOpts {
   /** 生效判定逐批回填(按 文件+行号 锚定)。 */
   onJudgments: (batch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[]) => void;
   onFindings: (findings: StaticFinding[]) => void;
+  /** 幕布旁路通知(批解析失败等软事件,不 fail-fast)。 */
+  onNotice?: (text: string) => void;
 }
 
 let runSeq = 0;
@@ -161,9 +163,8 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
   const enforced = new Set<string>();
   flatRules.forEach((r, i) => {
     const cmd = evidences[i]!.command;
-    if (r.kind === "command" && r.tokens.length > 0 && !unjudgeable[i] && preCommit && cmd) {
-      if (preCommit.includes(cmd) || preCommit.includes(normalizeCmd(cmd))) enforced.add(r.file + r.text);
-    }
+    if (r.kind === "command" && r.tokens.length > 0 && !unjudgeable[i] && preCommit && cmd
+      && (preCommit.includes(cmd) || preCommit.includes(normalizeCmd(cmd)))) enforced.add(r.file + r.text);
   });
   for (const f of rulesByFile) {
     const rows = f.rules.map((rule) => ({
@@ -214,38 +215,42 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
         engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
       }
     }
-    /* 判定批(同文件紧随识别,行状态待判定→判定中→已判定) */
+    /* 判定批(同文件紧随识别,行状态待判定→判定中→已判定);解析失败重试一次后跳批,不连坐 */
+    const jname = f.target.absPath.split("/").pop() ?? "";
     for (const batch of batchRules(needAiOf(f))) {
       if (engineError || !alive()) break;
       const pairs = batch.map((rule) => ({ rule, evidence: evidences[flatRules.indexOf(rule)]! }));
       const judgeList = pairs.filter((p) => !enforced.has(p.rule.file + p.rule.text));
       if (judgeList.length === 0) continue;
       opts.onProgress({
-        step: "judge", detail: "", live: "", done: judgments.size, total: Math.max(1, flatRules.length - enforced.size),
+        step: "judge", detail: jname, live: "", done: judgments.size, total: Math.max(1, flatRules.length - enforced.size),
       });
+      const batchOpts = {
+        engineId: opts.engineId, model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
+        timeoutSeconds: opts.timeoutSeconds, alive,
+        onProgress: (p: { step: "judge"; detail: string; live: string; waitSec?: number; liveBytes?: number }) => { if (alive()) opts.onProgress(p); },
+      };
       try {
-        const raw = await runJudgeRaw({
-          engineId: opts.engineId,
-          instruction: buildJudgeInstruction(judgeList, corpus.msgs.length > 0),
-          model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
-          timeoutSeconds: opts.timeoutSeconds,
-          onChunk: (liveText) => { if (alive()) opts.onProgress({ step: "judge", detail: "", live: liveText.slice(-4000) }); },
-          onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "judge", detail: "", live: "", waitSec, liveBytes }); },
-        });
-        const parsed = parseJudgeReply(raw, judgeList.length);
+        let out = await runJudgeBatch(batchOpts, buildJudgeInstruction(judgeList, corpus.msgs.length > 0), judgeList);
+        if (out.parsed && out.parsed.every((j) => j === null)) {
+          opts.onNotice?.(`[judge] ${jname} 批解析失败,重试 1 次`);
+          out = await runJudgeBatch(batchOpts, buildJudgeInstruction(judgeList, corpus.msgs.length > 0), judgeList);
+        }
+        if (!out.parsed) { engineError = out.note; break; }
+        if (out.parsed.every((j) => j === null)) {
+          opts.onNotice?.(`[judge] ${jname} 批 ${batch.length} 条解析失败,跳过(不连坐其余批次)`);
+          continue;
+        }
         const patch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[] = [];
-        parsed.forEach((j, i) => {
+        out.parsed.forEach((j, i) => {
           if (!j) return;
           judgments.set(judgeList[i]!.rule.file + judgeList[i]!.rule.text, j);
           patch.push({ scope: scopeOf(f.target), file: judgeList[i]!.rule.file, rule: judgeList[i]!.rule, judgment: j });
         });
         if (alive() && patch.length > 0) opts.onJudgments(patch);
-        if (parsed.every((j) => j === null)) {
-          engineError = "引擎回复无有效判定(检查引擎登录/模型名)";
-          break;
-        }
       } catch (e) {
         engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
+        break;
       }
     }
   }
@@ -283,12 +288,6 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
     engineError,
     backups,
   };
-}
-
-function engineNote(msg: string, engineId: string, timeoutSeconds: number): string {
-  if (msg.includes("judge-timeout")) return `判定超时(单批 ${timeoutSeconds}s);可换更快的引擎`;
-  if (msg.includes("judge-engine-missing")) return `引擎 ${engineId} 不可用(command not found)`;
-  return `判定失败:${msg.slice(0, 120)}`;
 }
 
 export type { SessionCorpus };

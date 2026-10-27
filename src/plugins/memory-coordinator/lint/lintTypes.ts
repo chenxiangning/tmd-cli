@@ -171,7 +171,7 @@ export const VERDICT_DOT: Record<LintVerdict | "failed" | "settled", string> = {
   touched: "bg-(--tmd-accent)",
   dormant: "bg-(--tmd-warn)",
   unverifiable: "bg-(--tmd-border)",
-  failed: "bg-(--tmd-warn)",
+  failed: "bg-(--tmd-border)",
   settled: "bg-(--tmd-border)",
 };
 
@@ -182,7 +182,7 @@ export const VERDICT_LABEL: Record<LintVerdict | "failed" | "settled", string> =
   touched: "只是提到",
   dormant: "没人用",
   unverifiable: "说不清",
-  failed: "判定失败",
+  failed: "未判定",
   settled: "已拍板",
 };
 

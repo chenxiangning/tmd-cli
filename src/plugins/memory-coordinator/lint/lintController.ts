@@ -155,6 +155,7 @@ export function startLint(opts: LintStartOpts): void {
           logLine(`[static] 确定性发现 ${findings.length} 条`);
           mutateLintResult((r) => ({ ...r, findings }));
         },
+        onNotice: (text) => logLine(text),
       });
       const s = summarizeRows(result.rows);
       logLine(`[done] 规则 ${result.rows.length} · 判定 ${result.rows.length - s.failed} · 失败 ${s.failed}${result.engineError ? ` · ${result.engineError}` : ""}`);
