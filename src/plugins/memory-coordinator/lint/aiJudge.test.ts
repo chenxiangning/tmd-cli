@@ -10,7 +10,7 @@ vi.mock("@kernel/host", () => ({ host: { getCliProfiles: () => [], getCliProfile
 vi.mock("@kernel/sessionArchive", () => ({ archiveSession: vi.fn(), sessionArchiveKey: vi.fn(() => "k") }));
 
 import { buildJudgeInstruction, JUDGE_ENGINES, parseJudgeReply } from "./aiJudge";
-import { buildRecognizeInstruction } from "./recognizePrompt";
+import { buildUnifiedInstruction, parseUnifiedReply } from "./unifiedCall";
 import { batchRules, summarizeRows, BATCH_SIZE } from "./lintModel";
 import { scriptVerdict } from "./evidence";
 import { CLAUDE_STUB, removeRuleFromFile, resetBackupsForTest, stubEdit } from "./applyLint";
@@ -29,15 +29,26 @@ function evOf(partial: Partial<RuleEvidence> = {}): RuleEvidence {
   };
 }
 
-describe("buildRecognizeInstruction(整文件版)", () => {
-  const mk = (n: number) => Array.from({ length: n }, (_, i) => `- rule line ${i + 1}`).join("\n");
-  it("全文带真实行号,限定需判定行并保留输出契约", () => {
-    const inst = buildRecognizeInstruction("项目级规则文件", mk(20), [3, 8]);
-    expect(inst).toContain("本次需判定行:3, 8");
-    expect(inst).toContain("<RECOG>");
-    expect(inst).toContain("L3: - rule line 3");
-    expect(inst).toContain("L20: - rule line 20");
-    expect(inst).toContain("不要漏行");
+describe("buildUnifiedInstruction/parseUnifiedReply(单次调用)", () => {
+  const ruleOf = (n: number): RuleItem => ({ file: "AGENTS.md", line: n, lineEnd: n, text: `- rule ${n}`, kind: "other", section: "", idx: n, tokens: [], pathRefs: [], estTokens: 10 });
+  const evOf = (hits = 0): RuleEvidence => ({
+    hits, activeSessions: 1, lastSeen: 1, touchQuote: "", corrections: 0, correctionWords: [],
+    correctionQuotes: [], complied: 0, complyQuote: "", discTokens: [], unjudgeable: false, command: "",
+  });
+  it("指令带序号+脚本测量+压缩口径", () => {
+    const inst = buildUnifiedInstruction([{ rule: ruleOf(3), evidence: evOf(5) }], true);
+    expect(inst).toContain("0|- rule 3|触达5/会话1/纠正0/照做0");
+    expect(inst).toContain("<JUDGE>");
+    expect(inst).toContain("≤20字");
+  });
+  it("解析逐对象捞,坏项跳过;越界/空语料处理", () => {
+    expect(buildUnifiedInstruction([{ rule: ruleOf(1), evidence: evOf() }], false)).toContain("语料为空");
+    const raw = '<JUDGE>```json\n[{"i":0,"ok":false,"v":"touched","why":"无判据","fix":"- 明确可执行写法"},{"i":1,"ok":true,"v":"working","why":"命令明确"},{"i":9,"ok":true,"v":"dormant","why":"越界"}]\n```</JUDGE>';
+    expect(parseUnifiedReply(raw, 1)).toHaveLength(2);
+    const items = parseUnifiedReply(raw);
+    expect(items[0]).toMatchObject({ i: 0, ok: false, v: "touched" });
+    expect(items[0]?.fix).toBe("- 明确可执行写法");
+    expect(items[1]?.fix).toBeUndefined();
   });
 });
 

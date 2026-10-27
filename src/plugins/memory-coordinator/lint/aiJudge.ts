@@ -217,37 +217,9 @@ async function archiveSpawnedDiskSession(engineId: string, cwd: string, workspac
   if (fresh) await archiveSession(sessionArchiveKey(workspaceId, engineId, fresh));
 }
 
-/* ── 第二步:识别 pass 的 prompt/解析在 recognizePrompt.ts(批切:±6 行节选 + 全文件目录)── */
-
 /** 引擎级错误文案(幕布/横幅共用)。 */
 export function engineNote(msg: string, engineId: string, timeoutSeconds: number): string {
   if (msg.includes("judge-timeout")) return `判定超时(单批 ${timeoutSeconds}s);可换更快的引擎`;
   if (msg.includes("judge-engine-missing")) return `引擎 ${engineId} 不可用(command not found)`;
   return `判定失败:${msg.slice(0, 120)}`;
-}
-
-/** 单判定批运行结果:parsed=null 表示引擎级错误(note=错误文案);解析失败=parsed 全 null。 */
-export interface JudgeBatchOutcome {
-  parsed: (RuleJudgment | null)[] | null;
-  note: string;
-}
-
-/** 跑一个判定批:spawn 引擎 → 原文解析;引擎级异常捕获为 note,不向上抛。 */
-export async function runJudgeBatch(opts: {
-  engineId: string; model: string | null; cwd: string; workspaceId: string | null;
-  timeoutSeconds: number; alive: () => boolean;
-  onProgress: (p: { step: "judge"; detail: string; live: string; waitSec?: number; liveBytes?: number }) => void;
-}, instruction: string, judgeList: { rule: RuleItem; evidence: RuleEvidence }[]): Promise<JudgeBatchOutcome> {
-  const jname = judgeList[0]?.rule.file.split("/").pop() ?? "";
-  try {
-    const raw = await runJudgeRaw({
-      engineId: opts.engineId, instruction,
-      model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId, timeoutSeconds: opts.timeoutSeconds,
-      onChunk: (liveText) => { if (opts.alive()) opts.onProgress({ step: "judge", detail: jname, live: liveText.slice(-4000) }); },
-      onWait: (waitSec, liveBytes) => { if (opts.alive()) opts.onProgress({ step: "judge", detail: jname, live: "", waitSec, liveBytes }); },
-    });
-    return { parsed: parseJudgeReply(raw, judgeList.length), note: "" };
-  } catch (e) {
-    return { parsed: null, note: engineNote(String(e), opts.engineId, opts.timeoutSeconds) };
-  }
 }

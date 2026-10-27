@@ -17,8 +17,8 @@ import { expandLintTargets, probeTargets } from "./targets";
 import { extractRules } from "./rulesExtract";
 import { collectCorpus, type CorpusProfileSource } from "./corpus";
 import { discriminativeTokens, measureAll, normalizeCmd } from "./evidence";
-import { buildJudgeInstruction, engineNote, runJudgeBatch, runJudgeRaw } from "./aiJudge";
-import { parseRecognizeReply, buildRecognizeInstruction } from "./recognizePrompt";
+import { buildUnifiedInstruction, parseUnifiedReply } from "./unifiedCall";
+import { engineNote, runJudgeRaw } from "./aiJudge";
 import { buildStaticFindings } from "./staticFindings";
 import { loadStore } from "./lintStore";
 import {
@@ -27,10 +27,8 @@ import {
 } from "./lintTypes";
 
 export const WINDOW_DAYS = 30;
-/** 批默认大小(8;识别整文件单调用后仅测试/兜底用)。 */
+/** 批默认大小(8;单调用后仅 batchRules 兜底/测试用)。 */
 export const BATCH_SIZE = 8;
-/** 判定大批:120 条/次——调用次数≈每文件 1 次,压总时长。 */
-const JUDGE_BATCH_SIZE = 120;
 const CORPUS_BUDGET_MS = 90_000;
 
 export interface LintProgress {
@@ -178,80 +176,62 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
   }
   if (!alive()) throw new Error("lint-cancelled");
 
-  /* 第二步·AI:逐文件串完 识别批→判定批(行状态连续推进),引擎级失败 fail-fast */
+  /* 第二步·AI:单次调用(用户裁决:一次体检只许 1 次模型调用)——
+   * 发全部规则+脚本测量,一次回全部 识别标记+判定;解析缺行=未判定,缺口在幕布明报。 */
   let engineError = "";
   const judgments = new Map<string, RuleJudgment>();
-  const needAiOf = (f: (typeof rulesByFile)[number]) =>
-    f.rules.filter((r) => !enforced.has(r.file + r.text));
-  for (const f of rulesByFile) {
-    if (engineError || !alive()) break;
-    const fname = `${f.target.scope === "user" ? "全局/" : "项目/"}${f.target.absPath.split("/").pop() ?? ""}`;
-    const label = f.target.scope === "project" ? "项目级规则文件" : "用户级全局规则文件";
-    const needAi = needAiOf(f);
-    /* 识别:整文件单调用(调用次数=文件数);解析缺行的行不阻塞后续判定 */
-    if (needAi.length > 0) {
-      if (engineError || !alive()) break;
-      opts.onProgress({ step: "recognize", detail: fname, done: 0, total: needAi.length });
-      try {
-        const raw = await runJudgeRaw({
-          engineId: opts.engineId,
-          instruction: buildRecognizeInstruction(label, f.text, needAi.map((r) => r.line)),
-          model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
-          timeoutSeconds: opts.timeoutSeconds,
-          onChunk: (liveText) => {
-            if (alive()) opts.onProgress({ step: "recognize", detail: "", live: liveText.slice(-4000) });
-          },
-          onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "recognize", detail: fname, live: "", waitSec, liveBytes }); },
-        });
-        const focus = new Set(needAi.map((r) => r.line));
-        const marks = new Map<number, AiMark>();
-        for (const m of parseRecognizeReply(raw)) {
-          if (!focus.has(m.line)) continue;
-          marks.set(m.line, { recognizable: m.recognizable, reason: m.reason, rewrite: m.rewrite });
-        }
-        if (alive()) opts.onAiMarks(scopeOf(f.target), f.target.absPath, marks);
-        if (alive()) opts.onNotice?.(`[recognize] ${fname} 可识别 ${[...marks.values()].filter((m) => m.recognizable).length} / 不可 ${marks.size - [...marks.values()].filter((m) => m.recognizable).length}${marks.size < needAi.length ? ` · 缺行 ${needAi.length - marks.size}` : ""}`);
-      } catch (e) {
-        engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
-      }
-    }
-    /* 判定:大批 120 条/次(调用次数≈1/文件);解析失败重试一次后跳批,不连坐 */
-    const jname = f.target.absPath.split("/").pop() ?? "";
-    for (const batch of batchRules(needAiOf(f), JUDGE_BATCH_SIZE)) {
-      if (engineError || !alive()) break;
-      const pairs = batch.map((rule) => ({ rule, evidence: evidences[flatRules.indexOf(rule)]! }));
-      const judgeList = pairs.filter((p) => !enforced.has(p.rule.file + p.rule.text));
-      if (judgeList.length === 0) continue;
-      opts.onProgress({
-        step: "judge", detail: jname, live: "", done: judgments.size, total: Math.max(1, flatRules.length - enforced.size),
+  const uni = rulesByFile.flatMap((f) =>
+    f.rules
+      .filter((r) => !enforced.has(r.file + r.text))
+      .map((rule) => ({ rule, evidence: evidences[flatRules.indexOf(rule)]!, scope: scopeOf(f.target) })),
+  );
+  if (uni.length > 0) {
+    opts.onProgress({ step: "judge", detail: "单次调用", live: "", done: 0, total: uni.length });
+    const askOnce = () =>
+      runJudgeRaw({
+        engineId: opts.engineId,
+        instruction: buildUnifiedInstruction(uni.map((p) => ({ rule: p.rule, evidence: p.evidence })), corpus.msgs.length > 0),
+        model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
+        timeoutSeconds: opts.timeoutSeconds,
+        onChunk: (liveText) => {
+          if (alive()) opts.onProgress({ step: "judge", detail: "", live: liveText.slice(-4000) });
+        },
+        onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "judge", detail: "单次调用", live: "", waitSec, liveBytes }); },
       });
-      const batchOpts = {
-        engineId: opts.engineId, model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
-        timeoutSeconds: opts.timeoutSeconds, alive,
-        onProgress: (p: { step: "judge"; detail: string; live: string; waitSec?: number; liveBytes?: number }) => { if (alive()) opts.onProgress(p); },
-      };
-      try {
-        let out = await runJudgeBatch(batchOpts, buildJudgeInstruction(judgeList, corpus.msgs.length > 0), judgeList);
-        if (out.parsed && out.parsed.every((j) => j === null)) {
-          opts.onNotice?.(`[judge] ${jname} 批解析失败,重试 1 次`);
-          out = await runJudgeBatch(batchOpts, buildJudgeInstruction(judgeList, corpus.msgs.length > 0), judgeList);
-        }
-        if (!out.parsed) { engineError = out.note; break; }
-        if (out.parsed.every((j) => j === null)) {
-          opts.onNotice?.(`[judge] ${jname} 批 ${batch.length} 条解析失败,跳过(不连坐其余批次)`);
-          continue;
-        }
-        const patch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[] = [];
-        out.parsed.forEach((j, i) => {
-          if (!j) return;
-          judgments.set(judgeList[i]!.rule.file + judgeList[i]!.rule.text, j);
-          patch.push({ scope: scopeOf(f.target), file: judgeList[i]!.rule.file, rule: judgeList[i]!.rule, judgment: j });
-        });
-        if (alive() && patch.length > 0) opts.onJudgments(patch);
-      } catch (e) {
-        engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
-        break;
+    try {
+      let raw = await askOnce();
+      let items = parseUnifiedReply(raw, uni.length - 1);
+      if (items.length === 0) {
+        opts.onNotice?.("[ai] 单次调用解析为空,重试 1 次");
+        raw = await askOnce();
+        items = parseUnifiedReply(raw, uni.length - 1);
       }
+      if (alive()) {
+        const marksByFile = new Map<string, { scope: LintScope; marks: Map<number, AiMark> }>();
+        const patch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[] = [];
+        const hitIdx = new Set<number>();
+        for (const it of items) {
+          const slot = uni[it.i];
+          if (!slot) continue;
+          hitIdx.add(it.i);
+          const entry = marksByFile.get(slot.rule.file) ?? { scope: slot.scope, marks: new Map<number, AiMark>() };
+          entry.marks.set(slot.rule.line, { recognizable: it.ok, reason: it.why, rewrite: it.fix });
+          marksByFile.set(slot.rule.file, entry);
+          const key = slot.rule.file + slot.rule.text;
+          if (!judgments.has(key)) {
+            /* advice 单调用协议不再由模型给:不可执行规则给 stub(改写文本走 aiMark.rewrite),其余 keep。 */
+            const j: RuleJudgment = { verdict: it.v, reason: it.why, advice: it.ok ? "keep" : "stub" };
+            judgments.set(key, j);
+            patch.push({ scope: slot.scope, file: slot.rule.file, rule: slot.rule, judgment: j });
+          }
+        }
+        for (const [file, { scope, marks }] of marksByFile) opts.onAiMarks(scope, file, marks);
+        if (patch.length > 0) opts.onJudgments(patch);
+        const missing = uni.length - hitIdx.size;
+        opts.onNotice?.(`[ai] 单次调用回填 ${hitIdx.size}/${uni.length}${missing > 0 ? ` · 未解析 ${missing} 条(未判定,不猜测)` : ""}`);
+      }
+    } catch (e) {
+      engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
     }
   }
 
