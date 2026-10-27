@@ -18,6 +18,7 @@ import { seedLintResult, startLint } from "./lintController";
 import { useLintApply, useLintController as useCtl, useLintResultWrite } from "./lintPanelState";
 import { VERDICT_LABEL, type LintRow, type LintScope } from "./lintTypes";
 import { FindingRow, RuleRow } from "./LintRows";
+import { LintProcessing } from "./LintProcessing";
 import { ApplyJournal, ScanHistory } from "./LintReportHistory";
 
 type ScopeFilter = "all" | LintScope;
@@ -172,6 +173,7 @@ export function LintReportTab() {
   const onError = useCallback((msg: string) => setActionError(msg), []);
   const apply = useLintApply(cwd, onError, removeFinding);
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
+  const [runMeta, setRunMeta] = useState({ engineId: "omp", model: "" });
   /* 结果时间戳作历史区刷新信号(扫描/应用后 +1 由 store 重载承担) */
   const revision = ctl.result?.at ?? 0;
 
@@ -190,6 +192,7 @@ export function LintReportTab() {
       const d = await loadStore();
       const engineId = d.lastUsed?.engineId ?? "omp";
       const model = d.lastUsed?.model ?? "";
+      setRunMeta({ engineId, model });
       await setLastUsed(engineId, model);
       startLint({ cwd, workspaceId, engineId, model: model.trim() || null, scopes: ["project", "global"], onError: setActionError });
     })();
@@ -210,14 +213,20 @@ export function LintReportTab() {
         <div className="flex-none px-3 py-1.5 text-meta text-(--tmd-error)">{ctl.error || actionError}</div>
       )}
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
-        {result && <ReportBody result={result} scopeFilter={scopeFilter} busy={apply.busy} onApply={apply.onApply} onKeep={markRowSettled} onHook={apply.onHook} onReopen={reopenRow} onRewrite={apply.onRewrite} onStub={apply.onStub} onWrite={apply.onWrite} onFixpath={apply.onFixpath} />}
-        {!result && (
-          <div className="px-3 py-3 text-meta leading-relaxed text-(--tmd-fg-muted)">
-            {t("还没有报告;点「体检」开始:脚本扫描逐条上屏,再把完整配置发给 AI 逐条识别,能执行的标记说明,不能执行的给改写建议。")}
-          </div>
+        {ctl.running ? (
+          <LintProcessing result={ctl.result} progress={ctl.progress} engineId={runMeta.engineId} model={runMeta.model} />
+        ) : (
+          <>
+            {result && <ReportBody result={result} scopeFilter={scopeFilter} busy={apply.busy} onApply={apply.onApply} onKeep={markRowSettled} onHook={apply.onHook} onReopen={reopenRow} onRewrite={apply.onRewrite} onStub={apply.onStub} onWrite={apply.onWrite} onFixpath={apply.onFixpath} />}
+            {!result && (
+              <div className="px-3 py-3 text-meta leading-relaxed text-(--tmd-fg-muted)">
+                {t("还没有报告;点「体检」开始:脚本扫描逐条上屏,再把完整配置发给 AI 逐条识别,能执行的标记说明,不能执行的给改写建议。")}
+              </div>
+            )}
+            <ScanHistory revision={revision} cwd={cwd} />
+            <ApplyJournal revision={revision} onError={setActionError} />
+          </>
         )}
-        <ScanHistory revision={revision} cwd={cwd} />
-        <ApplyJournal revision={revision} onError={setActionError} />
       </div>
       {apply.confirm && (
         <ConfirmDialog

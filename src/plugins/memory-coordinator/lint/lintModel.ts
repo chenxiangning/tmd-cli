@@ -21,7 +21,7 @@ import { buildJudgeInstruction, buildRecognizeInstruction, parseJudgeReply, pars
 import { buildStaticFindings } from "./staticFindings";
 import { loadStore } from "./lintStore";
 import {
-  settledSig, type AiMark, type LintRow, type LintScope, type LintTarget, type RuleItem,
+  settledSig, type AiMark, type LintRow, type LintScope, type LintSummary, type LintTarget, type RuleItem,
   type RuleJudgment, type SessionCorpus, type StaticFinding, VERDICT_ORDER,
 } from "./lintTypes";
 
@@ -70,8 +70,7 @@ export interface LintRunOpts {
 
 let runSeq = 0;
 
-/** 汇总行数(汇总条展示;failed = 判定缺失)。 */
-export function summarizeRows(rows: LintRow[]): { verdicts: Record<string, number>; failed: number; settled: number } {
+export function summarizeRows(rows: LintRow[]): LintSummary {
   const verdicts: Record<string, number> = {};
   for (const v of VERDICT_ORDER) verdicts[v] = 0;
   let failed = 0;

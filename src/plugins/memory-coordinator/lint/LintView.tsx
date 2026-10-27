@@ -11,11 +11,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { LintHeaderBar } from "./LintHeaderBar";
 import { t } from "@kernel/i18n";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
-import { summarizeRows, type LintProgress, type LintRunResult } from "./lintModel";
+import { PtyCurtain } from "./LintCurtain";
+import { summarizeRows, type LintRunResult } from "./lintModel";
 import { loadStore, setLastUsed } from "./lintStore";
 import { seedLintResult, startLint } from "./lintController";
 import { useLintApply, useLintController, useLintResultWrite } from "./lintPanelState";
-import { VERDICT_LABEL, type LintRow } from "./lintTypes";
+import { VERDICT_LABEL, type LintAdvice, type LintRow, type LintSummary, type StaticFinding } from "./lintTypes";
 import { FindingRow, RuleRow } from "./LintRows";
 
 const CHIP_CLS = (active: boolean) =>
@@ -23,15 +24,15 @@ const CHIP_CLS = (active: boolean) =>
     active ? "border-(--tmd-accent) bg-(--tmd-accent)/10 text-(--tmd-accent)" : "border-(--tmd-border) text-(--tmd-fg-muted) hover:text-(--tmd-fg)"
   }`;
 
-/** 进度步进文案(纯函数,组件外)。 */
-function stepLineOf(p: LintProgress): string {
-  if (p.step === "recognize") return t("AI 识别中(全文比对)…{f}", { f: p.detail });
-  if (p.step === "judge") return t("AI 判定中 {d}/{t}", { d: String(p.done ?? 0), t: String(p.total ?? 0) });
-  if (p.step === "corpus") return p.detail ? t("读对话中…({p})", { p: p.detail }) : t("读对话中…");
-  if (p.step === "evidence") return t("抽证据中…({n} 条消息)", { n: p.detail });
-  if (p.step === "targets") return t("读规则中…");
-  return t("体检完成");
+/** 规则行动作集(RowList/ResultPanel 共用;与 useLintApply 回调面一致)。 */
+interface RowActions {
+  onApply: (row: LintRow, advice: LintAdvice) => void;
+  onKeep: (row: LintRow) => void;
+  onHook: (row: LintRow) => void;
+  onReopen: (row: LintRow) => void;
+  onRewrite: (row: LintRow) => void;
 }
+
 
 /* 头部条在 LintHeaderBar(模型下拉与工作台引擎选择同口径)。 */
 
@@ -40,7 +41,7 @@ function VerdictChips({
   result, summary, filter, setFilter,
 }: {
   result: LintRunResult;
-  summary: ReturnType<typeof summarizeRows>;
+  summary: LintSummary;
   filter: string;
   setFilter: (f: string) => void;
 }) {
@@ -73,19 +74,6 @@ function VerdictChips({
   );
 }
 
-/** 运行中过程块:步进文案 + AI 流式尾窗。 */
-function RunProgress({ progress }: { progress: LintProgress }) {
-  return (
-    <div className="flex-none px-1.5 pb-1.5">
-      <div className="text-meta text-(--tmd-fg-muted)">{stepLineOf(progress)}</div>
-      {progress.live && (
-        <pre className="mt-1 max-h-24 overflow-hidden whitespace-pre-wrap break-all font-mono text-[10px] leading-snug text-(--tmd-fg-faint)">
-          {progress.live}
-        </pre>
-      )}
-    </div>
-  );
-}
 
 /** 行列表 + 一键应用 AI 结果入口。 */
 function RowList({
@@ -94,7 +82,7 @@ function RowList({
   rows: LintRow[];
   busy: boolean;
   onApplyAll: () => void;
-  rowProps: { onApply: (row: LintRow, advice: Parameters<ReturnType<typeof useLintApply>["onApply"]>[1]) => void; onKeep: (row: LintRow) => void; onHook: (row: LintRow) => void; onReopen: (row: LintRow) => void; onRewrite: (row: LintRow) => void };
+  rowProps: RowActions;
 }) {
   return (
     <>
@@ -115,6 +103,41 @@ function RowList({
         </div>
       )}
     </>
+  );
+}
+
+/** 结束态结果区:过滤 chips + 静态发现 + 汇总行 + 规则列表(从 LintView 拆出控复杂度)。 */
+function ResultPanel({
+  result, summary, shown, filter, setFilter, busy, applyBusy, onApplyAll, rowProps, onStub, onWrite, onFixpath,
+}: {
+  result: LintRunResult;
+  summary: LintSummary;
+  shown: LintRow[];
+  filter: string;
+  setFilter: (f: string) => void;
+  busy: boolean;
+  applyBusy: boolean;
+  onApplyAll: () => void;
+  rowProps: RowActions;
+  onStub: (f: StaticFinding) => void;
+  onWrite: (f: StaticFinding) => void;
+  onFixpath: (f: StaticFinding) => void;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <VerdictChips result={result} summary={summary} filter={filter} setFilter={setFilter} />
+      <div className="min-h-0 flex-1 overflow-y-auto pb-2">
+        {result.findings.map((f) => (
+          <FindingRow key={f.id} finding={f} busy={applyBusy} onStub={onStub} onWrite={onWrite} onFixpath={onFixpath} />
+        ))}
+        <div className="border-y border-(--tmd-border) bg-(--tmd-bg-subtle) px-1.5 py-1 text-meta font-medium text-(--tmd-fg-muted)">
+          {t("规则 {n} 条 · 语料 {m} 消息/{c} 会话 · 项目+全局", {
+            n: String(result.rows.length), m: String(result.corpus.msgs), c: String(result.corpus.sessionCount),
+          })}
+        </div>
+        <RowList rows={shown} busy={busy} onApplyAll={onApplyAll} rowProps={rowProps} />
+      </div>
+    </div>
   );
 }
 
@@ -182,34 +205,19 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
         setEngineId={setEngineId} setModel={setModel} onStart={start} onBack={onBack}
       />
       {!cwd && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-fg-muted)">{t("打开一个工作区后可体检其规则文件")}</div>}
-      {ctl.running && ctl.progress && <RunProgress progress={ctl.progress} />}
+      {ctl.running && ctl.progress && (
+        <PtyCurtain progress={ctl.progress} title={`${engineId}${model ? ` · ${model}` : ""}`} />
+      )}
       {showError && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-error)">{showError}</div>}
       {notice && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-ok)">{notice}</div>}
 
-      {result && summary && (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <VerdictChips result={result} summary={summary} filter={filter} setFilter={setFilter} />
-          <div className="min-h-0 flex-1 overflow-y-auto pb-2">
-            {result.findings.map((f) => (
-              <FindingRow key={f.id} finding={f} busy={apply.busy} onStub={apply.onStub} onWrite={apply.onWrite} onFixpath={apply.onFixpath} />
-            ))}
-            <div className="border-y border-(--tmd-border) bg-(--tmd-bg-subtle) px-1.5 py-1 text-meta font-medium text-(--tmd-fg-muted)">
-              {t("规则 {n} 条 · 语料 {m} 消息/{c} 会话 · 项目+全局", {
-                n: String(result.rows.length), m: String(result.corpus.msgs), c: String(result.corpus.sessionCount),
-              })}
-            </div>
-            <RowList
-              rows={shown}
-              busy={ctl.running || apply.busy}
-              onApplyAll={() =>
-                apply.onApplyAllAi(result.rows, (a, s) => {
-                  setNotice(t("已应用 {a} 条改写,跳过 {s} 条(行号对不上)", { a: String(a), s: String(s) }));
-                })
-              }
-              rowProps={rowProps}
-            />
-          </div>
-        </div>
+      {result && summary && !ctl.running && (
+        <ResultPanel
+          result={result} summary={summary} shown={shown} filter={filter} setFilter={setFilter}
+          busy={apply.busy} applyBusy={apply.busy}
+          onApplyAll={() => apply.onApplyAllAi(result.rows, (a, s) => setNotice(t("已应用 {a} 条改写,跳过 {s} 条(行号对不上)", { a: String(a), s: String(s) })))}
+          rowProps={rowProps} onStub={apply.onStub} onWrite={apply.onWrite} onFixpath={apply.onFixpath}
+        />
       )}
       {!result && !ctl.running && (
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 text-meta leading-relaxed text-(--tmd-fg-muted)">

@@ -219,6 +219,13 @@ export interface ScanRecord {
   engineError: string;
 }
 
+/** 汇总行数(summarizeRows 返回;failed = 判定缺失)。 */
+export interface LintSummary {
+  verdicts: Record<string, number>;
+  failed: number;
+  settled: number;
+}
+
 /** 一次应用的应用记录:保存之前与之后的内容都在,可回看可恢复。 */
 export interface ApplyRecord {
   at: number;

@@ -66,7 +66,7 @@ export interface LintStartOpts {
 /** 起一次体检(右栏/报告页共用);新跑作废旧跑。 */
 export function startLint(opts: LintStartOpts): void {
   if (state.running) return;
-  commit({ running: true, progress: { step: "targets", detail: "" }, error: "" });
+  commit({ running: true, progress: { step: "targets", detail: "" }, error: "", result: null });
   void (async () => {
     try {
       const result = await runLintStream({
