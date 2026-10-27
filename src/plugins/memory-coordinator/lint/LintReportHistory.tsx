@@ -10,6 +10,7 @@ import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { loadStore, type LintStoreData } from "./lintStore";
 import { applyUndoRecord } from "./lintActions";
+import { VERDICT_LABEL } from "./lintTypes";
 import { DiffPreview } from "./LintRows";
 import { diffLines } from "./diffUtil";
 import type { ApplyRecord, ScanRecord } from "./lintTypes";
@@ -48,6 +49,30 @@ function ScanDetail({ r }: { r: ScanRecord }) {
         <div className={KV_CLS}><dt className={KV_DT_CLS}>{t("静态发现")}</dt><dd className={KV_DD_CLS}>{String(r.findings)}</dd></div>
       </dl>
       {r.engineError && <p className="text-(--tmd-error)">{r.engineError}</p>}
+      {r.rows && r.rows.length > 0 ? (
+        <details className="mt-1">
+          <summary className="cursor-pointer text-(--tmd-accent)">{t("规则执行结果({n} 条)", { n: String(r.rows.length) })}</summary>
+          <div className="mt-1.5 max-h-72 space-y-1 overflow-y-auto pr-1">
+            {r.rows.map((row) => (
+              <div key={`${row.file}:${row.line}`} className="flex items-start gap-2 rounded border border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-1.5">
+                <span className={`mt-0.5 flex-none rounded px-1.5 py-0.5 text-[10px] ${
+                  row.verdict === "working" ? "bg-(--tmd-ok)/10 text-(--tmd-ok)"
+                    : row.verdict === "violated" ? "bg-(--tmd-error)/10 text-(--tmd-error)"
+                      : row.verdict === "dormant" || row.verdict === "touched" ? "bg-(--tmd-warning)/10 text-(--tmd-warning)"
+                        : "bg-(--tmd-bg-subtle) text-(--tmd-fg-muted)"
+                }`}>{t(VERDICT_LABEL[row.verdict])}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-mono text-[10px] text-(--tmd-fg)">{row.text}</span>
+                  {row.reason && <span className="mt-0.5 block text-[10px] text-(--tmd-fg-muted)">{row.reason}</span>}
+                  <span className="mt-0.5 block truncate font-mono text-[9px] text-(--tmd-fg-faint)">{row.file.split("/").pop()} · L{row.line}{row.aiBad ? ` · ${t("AI 不可识别")}` : ""}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : (
+        <p className="text-(--tmd-fg-faint)">{t("本条记录未存行级明细(旧版本记录);重新体检后即可回看每条规则结果。")}</p>
+      )}
       <p className="text-(--tmd-fg-faint)">
         {t("扫描记录回答「这次用什么口径、扫到了什么、AI 完成到哪一步」;每次运行新增一条,失败也保留,不覆盖旧记录。")}
       </p>

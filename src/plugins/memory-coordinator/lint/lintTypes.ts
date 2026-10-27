@@ -217,6 +217,18 @@ export interface ScanRecord {
   aiBad?: number;
   findings: number;
   engineError: string;
+  /** 行级判定快照(回看每条规则结果;cap 12 条记录 × 数十 KB,可承受;旧记录缺省)。 */
+  rows?: ScanRecordRow[];
+}
+
+/** 扫描记录行快照(判定结果回看的最小面)。 */
+export interface ScanRecordRow {
+  file: string;
+  line: number;
+  text: string;
+  verdict: LintVerdict | "failed" | "settled";
+  reason: string;
+  aiBad?: boolean;
 }
 
 /** 汇总行数(summarizeRows 返回;failed = 判定缺失)。 */

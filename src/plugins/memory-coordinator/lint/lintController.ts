@@ -177,6 +177,12 @@ export function startLint(opts: LintStartOpts): void {
         corpusMsgs: result.corpus.msgs, corpusSessions: result.corpus.sessionCount,
         aiBad: result.rows.filter((r) => r.aiMark && !r.aiMark.recognizable).length,
         engineError: result.engineError,
+        rows: result.rows.map((r) => ({
+          file: r.rule.file, line: r.rule.line, text: r.rule.text,
+          verdict: r.settled ? "settled" : r.judgment ? r.judgment.verdict : "failed",
+          reason: r.judgment?.reason ?? "",
+          aiBad: Boolean(r.aiMark && !r.aiMark.recognizable),
+        })),
       });
       commit({ result, running: false, progress: state.progress });
       if (result.engineError) {

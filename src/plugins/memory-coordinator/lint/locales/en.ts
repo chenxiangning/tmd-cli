@@ -36,6 +36,8 @@ export const MESSAGES_EN = {
   "没人用": "Unused",
   "说不清": "Inconclusive",
   "判定失败": "Judge failed",
+  "规则执行结果({n} 条)": "Rule results ({n})",
+  "本条记录未存行级明细(旧版本记录);重新体检后即可回看每条规则结果。": "This record has no per-rule snapshot (older version); run a new check to browse rule-level results.",
   "已拍板": "Settled",
   "静态发现": "Static findings",
   "两文件打架": "Conflicting files",
