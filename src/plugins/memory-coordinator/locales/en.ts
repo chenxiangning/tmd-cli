@@ -22,7 +22,7 @@ export const MESSAGES_EN = {
   "当前工作区还没有记忆": "No memories in this workspace yet",
   "无匹配": "No matches",
   /* ── 记忆文件面板(跨引擎原生记忆文件)── */
-  "记忆文件": "Memory files",
+  "AI规则文件管理": "AI rule files",
   "重新探测": "Re-probe",
   "按 profile 声明批量探测": "Batch-probe paths declared by profiles",
   "未声明": "Undeclared",

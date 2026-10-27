@@ -139,7 +139,7 @@ export function MemoryFilesPanel() {
     <div className="flex h-full min-h-0 flex-col" data-icon-decor="memory">
       {/* 主导航:文件 / 体检 / 记录 + 开始体检 */}
       <div className="flex flex-none items-center gap-1.5 px-1.5 pt-1.5">
-        <nav className="flex flex-1 gap-0.5 rounded-lg bg-(--tmd-bg-subtle) p-0.5" aria-label={t("记忆文件")}>
+        <nav className="flex flex-1 gap-0.5 rounded-lg bg-(--tmd-bg-subtle) p-0.5" aria-label={t("AI规则文件管理")}>
           <button type="button" aria-pressed={view === "files"} onClick={() => setView("files")} className={NAV_CLS(view === "files")}>
             <Notebook aria-hidden />
             {t("文件")}
