@@ -52,7 +52,6 @@ import { animPlugin } from "./anim";
 import { storageAuditPlugin } from "./storage-audit";
 import { footprintPlugin } from "./footprint";
 import { portsPlugin } from "./ports";
-import { tmdLintPlugin } from "./tmd-lint";
 
 export const allPlugins: Plugin[] = [
   cliOmpPlugin,
@@ -103,5 +102,4 @@ export const allPlugins: Plugin[] = [
   storageAuditPlugin,
   footprintPlugin,
   portsPlugin,
-  tmdLintPlugin,
 ];

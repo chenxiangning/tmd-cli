@@ -1,21 +1,20 @@
 /**
- * 规则体检面板(tmd-lint 移植主入口)—— 右栏 filePanel 生态组。
+ * 记忆文件面板 · 规则体检视图(独立工具 tmd-lint 判定引擎,内嵌于本面板)。
  *
- * 头部:引擎选择 + 体检钮;过程:六步管线进度 + AI 流式尾窗;结果:判定分布
- * 汇总条(点段过滤)+ 逐条规则行(下钻证据/建议动作)+ 静态发现。判定由 AI
- * 大模型实时语义判断(详见 aiJudge.ts);本组件只装配,状态钩子与子组件拆分
- * 见 lintPanelState.tsx(守复杂度与 300 行铁则)。
+ * 由 MemoryFilesPanel 的「体检」钮切入,自带返回。头部:引擎选择 + 体检钮;
+ * 过程:六步管线进度 + AI 流式尾窗;结果:判定分布汇总条(点段过滤)+ 逐条
+ * 规则行(下钻证据/建议动作)+ 静态发现。是否生效由 AI 大模型实时语义判断
+ * (详见 ../lint/aiJudge.ts);状态钩子与子组件拆分见 lintPanelState.tsx。
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Pulse } from "@phosphor-icons/react";
+import { ArrowLeft, Pulse } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { StyledSelect } from "@kernel/StyledSelect";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
-import { useWorkspaces } from "@kernel/workspace";
-import { JUDGE_ENGINES } from "./aiJudge";
 import { summarizeRows, type LintProgress, type LintRunResult } from "./lintModel";
+import { JUDGE_ENGINES } from "./aiJudge";
 import { loadStore, setLastUsed } from "./lintStore";
 import { VERDICT_LABEL, type LintRow, type StaticFinding } from "./lintTypes";
 import { FindingRow, RuleRow } from "./LintRows";
@@ -47,15 +46,23 @@ function filterRows(rows: LintRow[], filter: Filter): LintRow[] {
   return rows.filter((r) => !r.settled && r.judgment?.verdict === filter);
 }
 
-/** 头部:引擎/模型选择 + 体检钮。 */
+/** 头部:返回 + 引擎/模型选择 + 体检钮。 */
 function HeaderBar({
-  engineId, model, running, cwd, setEngineId, setModel, onStart,
+  engineId, model, running, cwd, setEngineId, setModel, onStart, onBack,
 }: {
   engineId: string; model: string; running: boolean; cwd: string | null;
-  setEngineId: (v: string) => void; setModel: (v: string) => void; onStart: () => void;
+  setEngineId: (v: string) => void; setModel: (v: string) => void; onStart: () => void; onBack: () => void;
 }) {
   return (
     <div className="flex flex-none items-center gap-1.5 px-1.5 py-1.5">
+      <button
+        type="button"
+        onClick={onBack}
+        title={t("返回列表")}
+        className="flex-none rounded p-0.5 text-(--tmd-fg-muted) transition-colors hover:text-(--tmd-accent)"
+      >
+        <ArrowLeft aria-hidden />
+      </button>
       <StyledSelect
         value={engineId}
         onChange={setEngineId}
@@ -107,7 +114,7 @@ function ResultBody({
   filter: Filter;
   busy: boolean;
   onFilter: (f: Filter) => void;
-  onApply: (row: LintRow, advice: Parameters<ReturnType<typeof useLintApply>["onApply"]>[1]) => void;
+  onApply: (row: LintRow, advice: "keep" | "remove" | "archive" | "stub" | "fixpath") => void;
   onKeep: (row: LintRow) => void;
   onStub: (finding: StaticFinding) => void;
 }) {
@@ -164,10 +171,7 @@ function ResultBody({
   );
 }
 
-export function LintPanel() {
-  const { list, activeId } = useWorkspaces();
-  const cwd = list.find((w) => w.id === activeId)?.root ?? null;
-  const workspaceId = activeId ?? null;
+export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; workspaceId: string | null; onBack: () => void }) {
   const [engineId, setEngineId] = useState("omp");
   const [model, setModel] = useState("");
   const [error, setError] = useState("");
@@ -179,7 +183,7 @@ export function LintPanel() {
   const apply = useLintApply(cwd, onError, markRowSettled, removeFinding);
   const result = run.result;
 
-  /* 首载/切仓:回填上次引擎选择;cwd 相同则重放缓存结果(面板重开不丢) */
+  /* 首载:回填上次引擎选择;cwd 相同则重放缓存结果(视图重开不丢) */
   useEffect(() => {
     void loadStore().then((d) => {
       if (d.lastUsed) {
@@ -188,7 +192,7 @@ export function LintPanel() {
       }
       if (d.lastResult && d.lastResult.cwd === cwd) run.applyResult(d.lastResult as LintRunResult);
     });
-    /* eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载与切仓时回放 */
+    /* eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时回放 */
   }, [cwd]);
 
   const start = useCallback(() => {
@@ -196,10 +200,10 @@ export function LintPanel() {
   }, [engineId, model, run]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col" data-icon-decor="lint">
+    <div className="flex h-full min-h-0 flex-col">
       <HeaderBar
         engineId={engineId} model={model} running={run.running} cwd={cwd}
-        setEngineId={setEngineId} setModel={setModel} onStart={start}
+        setEngineId={setEngineId} setModel={setModel} onStart={start} onBack={onBack}
       />
       {!cwd && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-fg-muted)">{t("打开一个工作区后可体检其规则文件")}</div>}
       {run.running && run.progress && <ProgressBlock progress={run.progress} />}

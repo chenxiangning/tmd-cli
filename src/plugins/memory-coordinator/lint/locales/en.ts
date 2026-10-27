@@ -1,7 +1,8 @@
 /** tmd-lint 域 en 词典(tmd-lint 插件自带;键 = 中文源串)。 */
 export const MESSAGES_EN = {
   /* ── 面板头 ── */
-  "规则体检": "Rules Lint",
+  "返回列表": "Back to list",
+  "读近 30 天对话日志,AI 判定各文件里的规则是否真的生效": "Read local CLI logs (last 30 days); AI judges whether each rule really applies",
   "判定引擎": "Judge engine",
   "模型占位": "model (optional)",
   "体检": "Lint",

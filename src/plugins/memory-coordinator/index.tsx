@@ -2,9 +2,11 @@
  * memory-coordinator 插件 —— Magic Context 记忆池的 tmd-cli 侧编排。
  *
  * - 数据归宿:Magic Context(外部,MIT)共享 SQLite;本插件只读消费 + 编排,
- *   写入一律经官方管线(d 路 omp 会话代写,Phase 2),本插件零直写。
+ *   记忆写入一律经官方管线(d 路 omp 会话代写,Phase 2),记忆面零直写。
+ *   例外:lint/ 子模块(记忆文件面板内嵌的「规则体检」,tmd-lint 收编)对
+ *   规则文件直写,走 cli-config 同款备份+守卫口径(见 lint/applyLint.ts)。
  * - 贡献面(全部经 ctx 注册面):
- *   · 右栏 Memory 面板(filePanel)
+ *   · 右栏 Memory 面板 + 记忆文件面板(filePanel,后者内嵌规则体检视图)
  *   · composer 记忆胶囊(composer.statusBar,5 家读通路)
  *   · Memory 控制台 tab(EditorCenter 位,kind="memory-console")
  */
@@ -12,6 +14,7 @@
 import { Brain, Notebook } from "@phosphor-icons/react";
 import { DecorIcon } from "@kernel/iconSet";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
+import "./lint/locales"; /* lint 域词典(规则体检内嵌视图) */
 import { lazySuspense } from "@kernel/lazyTab";
 import type { Plugin } from "@kernel/plugin";
 import { MemoryPanel } from "./panel/MemoryPanel";

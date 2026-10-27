@@ -8,12 +8,13 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowClockwise } from "@phosphor-icons/react";
+import { ArrowClockwise, Pulse } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { userHome } from "../paths";
+import { LintView } from "../lint/LintView";
 import {
   expandMemorySlots,
   generateMemoryTemplate,
@@ -41,6 +42,7 @@ export function MemoryFilesPanel() {
   const [undeclaredOpen, setUndeclaredOpen] = useState(false);
   const [genBusy, setGenBusy] = useState<string | null>(null);
   const [genFailed, setGenFailed] = useState<MemoryProbeMap>({});
+  const [lintOpen, setLintOpen] = useState(false);
 
   useEffect(() => {
     userHome()
@@ -94,52 +96,68 @@ export function MemoryFilesPanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-icon-decor="memory">
-      {/* 头部:摘要 + 重新探测 */}
-      <div className="flex flex-none items-center gap-2 px-1.5 py-1.5">
-        <span className="min-w-0 truncate text-xs text-(--tmd-fg-muted)">
-          {probedOnce || probing
-            ? t("{n} 在 · {m} 缺 · {k} 未声明", { n: summary.ok, m: summary.missing, k: summary.undeclared })
-            : t("探测中…")}
-        </span>
-        <button
-          type="button"
-          onClick={() => void runProbe()}
-          disabled={probing || (project.length === 0 && user.length === 0)}
-          className={`${ACTION_CLS} ml-auto inline-flex items-center gap-1`}
-          title={t("按 profile 声明批量探测")}
-        >
-          {probing ? <Spinner /> : <ArrowClockwise aria-hidden />}
-          {t("重新探测")}
-        </button>
-      </div>
+      {lintOpen ? (
+        <LintView cwd={cwd} workspaceId={activeId ?? null} onBack={() => setLintOpen(false)} />
+      ) : (
+        <>
+          {/* 头部:摘要 + 重新探测 + 体检 */}
+          <div className="flex flex-none items-center gap-2 px-1.5 py-1.5">
+            <span className="min-w-0 truncate text-xs text-(--tmd-fg-muted)">
+              {probedOnce || probing
+                ? t("{n} 在 · {m} 缺 · {k} 未声明", { n: summary.ok, m: summary.missing, k: summary.undeclared })
+                : t("探测中…")}
+            </span>
+            <button
+              type="button"
+              onClick={() => setLintOpen(true)}
+              disabled={!cwd}
+              className={`${ACTION_CLS} ml-auto inline-flex items-center gap-1`}
+              title={t("读近 30 天对话日志,AI 判定各文件里的规则是否真的生效")}
+            >
+              <Pulse aria-hidden />
+              {t("体检")}
+            </button>
+            <button
+              type="button"
+              onClick={() => void runProbe()}
+              disabled={probing || (project.length === 0 && user.length === 0)}
+              className={`${ACTION_CLS} inline-flex items-center gap-1`}
+              title={t("按 profile 声明批量探测")}
+            >
+              {probing ? <Spinner /> : <ArrowClockwise aria-hidden />}
+              {t("重新探测")}
+            </button>
+          </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-0.5">
-        <DeclaredGroups
-          cwd={cwd}
-          project={project}
-          user={user}
-          probe={probe}
-          pending={!probedOnce}
-          genBusy={genBusy}
-          genFailed={genFailed}
-          onGenerate={(slot) => void generate(slot)}
-        />
-        {undeclared.length > 0 && (
-          <UndeclaredGroup
-            engines={undeclared}
-            open={undeclaredOpen}
-            onToggle={() => setUndeclaredOpen(!undeclaredOpen)}
-          />
-        )}
-        {home !== "" && project.length === 0 && user.length === 0 && (
-          <div className="p-3 text-center text-xs text-(--tmd-fg-faint)">{t("尚无引擎声明记忆文件")}</div>
-        )}
-      </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-0.5">
+            <DeclaredGroups
+              cwd={cwd}
+              project={project}
+              user={user}
+              probe={probe}
+              pending={!probedOnce}
+              genBusy={genBusy}
+              genFailed={genFailed}
+              onGenerate={(slot) => void generate(slot)}
+            />
+            {undeclared.length > 0 && (
+              <UndeclaredGroup
+                engines={undeclared}
+                open={undeclaredOpen}
+                onToggle={() => setUndeclaredOpen(!undeclaredOpen)}
+              />
+            )}
+            {home !== "" && project.length === 0 && user.length === 0 && (
+              <div className="p-3 text-center text-xs text-(--tmd-fg-faint)">{t("尚无引擎声明记忆文件")}</div>
+            )}
+          </div>
 
-      {/* footbar:职责声明(只发现/跳转/写空模板,零 AI) */}
-      <div className="flex-none border-t border-(--tmd-border) px-1.5 py-1.5 text-meta leading-relaxed text-(--tmd-fg-muted)">
-        {t("编辑=打开文件编辑器,复用未保存闸与查找;生成=写空模板文件;检索零 AI")}
-      </div>
+          {/* footbar:职责声明(列表视图只发现/跳转/写空模板;体检视图的 AI 声明见 LintView) */}
+          <div className="flex-none border-t border-(--tmd-border) px-1.5 py-1.5 text-meta leading-relaxed text-(--tmd-fg-muted)">
+            {t("编辑=打开文件编辑器,复用未保存闸与查找;生成=写空模板文件;检索零 AI")}
+          </div>
+        </>
+      )}
     </div>
   );
 }

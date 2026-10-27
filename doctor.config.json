@@ -62,7 +62,7 @@
       },
       {
         "files": [
-          "src/plugins/tmd-lint/corpus.ts"
+          "src/plugins/memory-coordinator/lint/corpus.ts"
         ],
         "rules": [
           "react-doctor/async-await-in-loop"

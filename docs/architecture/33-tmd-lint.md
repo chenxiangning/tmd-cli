@@ -4,12 +4,12 @@
 
 ## 插件如何合法地做「AI 大模型调用」
 
-- 唯一范式 = 本机 CLI 一次性 print 会话(`ipc.sessionSpawn` + `pty://out` 流式 + 结束哨兵提取 + 自归档磁盘身份),argv 实证表以 `prompt-enhancer/enhanceEngines.ts` 为单一事实源,复刻方(现:`tmd-lint/aiJudge.ts`)注释声明同源、改动两边同步。
+- 唯一范式 = 本机 CLI 一次性 print 会话(`ipc.sessionSpawn` + `pty://out` 流式 + 结束哨兵提取 + 自归档磁盘身份),argv 实证表以 `prompt-enhancer/enhanceEngines.ts` 为单一事实源,复刻方(现:`memory-coordinator/lint/aiJudge.ts`)注释声明同源、改动两边同步。
 - 跨插件批处理成本控制:一次 spawn 判一批(8 条),不逐条 spawn;哨兵包裹 JSON 数组,解析逐项验值域,坏项跳过不连坐,整批失败如实标失败不回落猜测。
 
 ## 会话语料采集的适配器纪律(新先例)
 
-- feature 插件需要「跨引擎全量会话语料」时,不得自扫 `~/.omp` 等私有目录;走 `host.getCliProfiles()` 的声明面:`listSessions`(cwd 检索)→ `readSessionFileIdentity`(cwd 自证,全等过滤,无身份即弃)→ `readSessionTranscript`(块化消息/工具调用)。tmd-lint/corpus.ts 是首个全量消费三家声明的先例;净化口径(系统注入过滤/长度门槛)随采集落地。
+- feature 插件需要「跨引擎全量会话语料」时,不得自扫 `~/.omp` 等私有目录;走 `host.getCliProfiles()` 的声明面:`listSessions`(cwd 检索)→ `readSessionFileIdentity`(cwd 自证,全等过滤,无身份即弃)→ `readSessionTranscript`(块化消息/工具调用)。memory-coordinator/lint/corpus.ts 是首个全量消费三家声明的先例;净化口径(系统注入过滤/长度门槛)随采集落地。
 - 采集刻意顺序遍历(sessionIdx 确定性 + 有界 IPC),`doctor.config.json` 对该文件豁免 async-await-in-loop,同 sessionHead.ts 先例。
 
 ## 七态判定的分工(确定性 vs 语义)
