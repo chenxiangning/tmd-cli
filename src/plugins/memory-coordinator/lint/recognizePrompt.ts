@@ -1,6 +1,6 @@
 /**
  * 识别 pass prompt 与回复解析(从 aiJudge 拆出;300 行铁则)。
- * 指令 = 批内行 ±6 行节选 + 全文件规则目录(全局感知),只判 focus 行。
+ * 整文件单调用:全文带行号发模型,一次返回全部需判定行(调用次数 = 文件数,不是批数)。
  */
 
 import { stripAnsi } from "@kernel/askDetect";
@@ -12,27 +12,11 @@ export interface AiMarkRaw {
   rewrite?: string;
 }
 
-/** 识别批窗口:批内行 ±pad 行切片 + 全文件规则目录首句(全局感知,输出量不变)。 */
-export function recognizeWindow(text: string, focusLines: number[], pad = 6): { window: string; outline: string } {
-  const lines = text.split("\n");
-  const lo = Math.max(1, Math.min(...focusLines) - pad);
-  const hi = Math.min(lines.length, Math.max(...focusLines) + pad);
-  const window = lines
-    .slice(lo - 1, hi)
-    .map((l, i) => `L${lo + i}: ${l}`)
-    .join("\n");
-  const outline = lines
-    .filter((l) => /^\s*[-*|]/.test(l) && l.trim().length > 6)
-    .map((l) => `- ${l.replace(/^\s*[-*|]+\s*/, "").slice(0, 60)}`)
-    .join("\n");
-  return { window, outline };
-}
-
-/** 组装识别指令(批切版):节选 ±6 行 + 全文件目录,只判 focus 行,逐条给 ok/why/fix。 */
+/** 组装识别指令(整文件版):全文带行号一次发出,逐条给 ok/why/fix,单文件单调用。 */
 export function buildRecognizeInstruction(label: string, text: string, focusLines: number[]): string {
-  const { window, outline } = recognizeWindow(text, focusLines);
+  const numbered = text.split("\n").map((l, i) => `L${i + 1}: ${l}`).join("\n");
   return [
-    `你是 AI 编程助手。下面是一份${label}的「全文件规则目录」与「本次需判定行的上下文节选」(每行前缀 L行号)。请只针对「本次需判定」列出的行,逐条判断你能否识别并真正遵守这条规则(结合目录感知全文是否有冲突/重复)。`,
+    `你是 AI 编程助手。下面是一份${label}的完整内容(每行前缀 L行号)。请只针对「本次需判定行」列出的行,逐条判断你能否识别并真正遵守这条规则(结合全文感知是否有冲突/重复)。`,
     "",
     "本次需判定行:" + focusLines.join(", "),
     "",
@@ -42,13 +26,10 @@ export function buildRecognizeInstruction(label: string, text: string, focusLine
     "",
     "输出契约:把结果完整包在 <RECOG> 与 </RECOG> 标记之间,内容是一个 JSON 数组,每条对应一个需判定行:",
     '{"l": 行号数字, "ok": true/false, "why": "一句话中文说明", "fix": "仅 ok=false 时给:改写后的整行规则文本(可直接替换原行,含必要的 bullet 前缀;能给出清晰可执行的写法才给,给不出就省略此字段)"}',
-    "只输出需判定行的结果;标记之外不要输出任何内容。",
+    "只输出需判定行的结果,不要漏行;标记之外不要输出任何内容。",
     "",
-    "=== 全文件规则目录(仅感知,不必输出) ===",
-    outline,
-    "",
-    "=== 上下文节选 ===",
-    window,
+    "=== 完整文件 ===",
+    numbered,
   ].join("\n");
 }
 

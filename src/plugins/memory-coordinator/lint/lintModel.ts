@@ -27,7 +27,10 @@ import {
 } from "./lintTypes";
 
 export const WINDOW_DAYS = 30;
+/** 批默认大小(8;识别整文件单调用后仅测试/兜底用)。 */
 export const BATCH_SIZE = 8;
+/** 判定大批:120 条/次——调用次数≈每文件 1 次,压总时长。 */
+const JUDGE_BATCH_SIZE = 120;
 const CORPUS_BUDGET_MS = 90_000;
 
 export interface LintProgress {
@@ -88,10 +91,10 @@ export function summarizeRows(rows: LintRow[]): LintSummary {
   return { verdicts, failed, settled };
 }
 
-/** 规则切批(同文件内连续 8 条批判定,idx 即批内对位 key)。 */
-export function batchRules(rules: RuleItem[]): RuleItem[][] {
+/** 规则切批(同文件内连续 size 条;默认 BATCH_SIZE)。 */
+export function batchRules(rules: RuleItem[], size = BATCH_SIZE): RuleItem[][] {
   const out: RuleItem[][] = [];
-  for (let i = 0; i < rules.length; i += BATCH_SIZE) out.push(rules.slice(i, i + BATCH_SIZE));
+  for (let i = 0; i < rules.length; i += size) out.push(rules.slice(i, i + size));
   return out;
 }
 
@@ -185,39 +188,36 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
     const fname = `${f.target.scope === "user" ? "全局/" : "项目/"}${f.target.absPath.split("/").pop() ?? ""}`;
     const label = f.target.scope === "project" ? "项目级规则文件" : "用户级全局规则文件";
     const needAi = needAiOf(f);
-    /* 识别批:8 条/批,±6 行节选 + 全文件目录 */
-    const recBatches = batchRules(needAi);
-    for (let bi = 0; bi < recBatches.length; bi++) {
+    /* 识别:整文件单调用(调用次数=文件数);解析缺行的行不阻塞后续判定 */
+    if (needAi.length > 0) {
       if (engineError || !alive()) break;
-      const batch = recBatches[bi]!;
-      opts.onProgress({
-        step: "recognize", detail: `${fname} 批 ${bi + 1}/${recBatches.length}`, done: bi * BATCH_SIZE, total: needAi.length,
-      });
+      opts.onProgress({ step: "recognize", detail: fname, done: 0, total: needAi.length });
       try {
         const raw = await runJudgeRaw({
           engineId: opts.engineId,
-          instruction: buildRecognizeInstruction(label, f.text, batch.map((r) => r.line)),
+          instruction: buildRecognizeInstruction(label, f.text, needAi.map((r) => r.line)),
           model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
           timeoutSeconds: opts.timeoutSeconds,
           onChunk: (liveText) => {
             if (alive()) opts.onProgress({ step: "recognize", detail: "", live: liveText.slice(-4000) });
           },
-          onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "recognize", detail: `${fname} 批 ${bi + 1}/${recBatches.length}`, live: "", waitSec, liveBytes }); },
+          onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "recognize", detail: fname, live: "", waitSec, liveBytes }); },
         });
-        const focus = new Set(batch.map((r) => r.line));
+        const focus = new Set(needAi.map((r) => r.line));
         const marks = new Map<number, AiMark>();
         for (const m of parseRecognizeReply(raw)) {
           if (!focus.has(m.line)) continue;
           marks.set(m.line, { recognizable: m.recognizable, reason: m.reason, rewrite: m.rewrite });
         }
         if (alive()) opts.onAiMarks(scopeOf(f.target), f.target.absPath, marks);
+        if (alive()) opts.onNotice?.(`[recognize] ${fname} 可识别 ${[...marks.values()].filter((m) => m.recognizable).length} / 不可 ${marks.size - [...marks.values()].filter((m) => m.recognizable).length}${marks.size < needAi.length ? ` · 缺行 ${needAi.length - marks.size}` : ""}`);
       } catch (e) {
         engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
       }
     }
-    /* 判定批(同文件紧随识别,行状态待判定→判定中→已判定);解析失败重试一次后跳批,不连坐 */
+    /* 判定:大批 120 条/次(调用次数≈1/文件);解析失败重试一次后跳批,不连坐 */
     const jname = f.target.absPath.split("/").pop() ?? "";
-    for (const batch of batchRules(needAiOf(f))) {
+    for (const batch of batchRules(needAiOf(f), JUDGE_BATCH_SIZE)) {
       if (engineError || !alive()) break;
       const pairs = batch.map((rule) => ({ rule, evidence: evidences[flatRules.indexOf(rule)]! }));
       const judgeList = pairs.filter((p) => !enforced.has(p.rule.file + p.rule.text));

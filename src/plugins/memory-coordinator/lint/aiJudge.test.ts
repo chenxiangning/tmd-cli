@@ -10,7 +10,7 @@ vi.mock("@kernel/host", () => ({ host: { getCliProfiles: () => [], getCliProfile
 vi.mock("@kernel/sessionArchive", () => ({ archiveSession: vi.fn(), sessionArchiveKey: vi.fn(() => "k") }));
 
 import { buildJudgeInstruction, JUDGE_ENGINES, parseJudgeReply } from "./aiJudge";
-import { buildRecognizeInstruction, recognizeWindow } from "./recognizePrompt";
+import { buildRecognizeInstruction } from "./recognizePrompt";
 import { batchRules, summarizeRows, BATCH_SIZE } from "./lintModel";
 import { scriptVerdict } from "./evidence";
 import { CLAUDE_STUB, removeRuleFromFile, resetBackupsForTest, stubEdit } from "./applyLint";
@@ -29,23 +29,15 @@ function evOf(partial: Partial<RuleEvidence> = {}): RuleEvidence {
   };
 }
 
-describe("recognizeWindow/buildRecognizeInstruction", () => {
+describe("buildRecognizeInstruction(整文件版)", () => {
   const mk = (n: number) => Array.from({ length: n }, (_, i) => `- rule line ${i + 1}`).join("\n");
-  it("窗口含批行±6与真实行号,目录含 bullet 首句", () => {
-    const text = mk(30);
-    const { window, outline } = recognizeWindow(text, [15, 16]);
-    expect(window).toContain("L9: ");
-    expect(window).toContain("L22: ");
-    expect(window).not.toContain("L23: ");
-    expect(window).toContain("L15: - rule line 15");
-    expect(outline).toContain("- rule line 1");
-  });
-  it("指令限定需判定行且保留输出契约", () => {
+  it("全文带真实行号,限定需判定行并保留输出契约", () => {
     const inst = buildRecognizeInstruction("项目级规则文件", mk(20), [3, 8]);
     expect(inst).toContain("本次需判定行:3, 8");
     expect(inst).toContain("<RECOG>");
     expect(inst).toContain("L3: - rule line 3");
-    expect(inst).not.toContain("L20: - rule line 20");
+    expect(inst).toContain("L20: - rule line 20");
+    expect(inst).toContain("不要漏行");
   });
 });
 
