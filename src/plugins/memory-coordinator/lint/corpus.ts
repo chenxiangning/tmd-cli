@@ -12,7 +12,7 @@ import type { CliDiskSession, CliProfile, CliTranscriptBlock } from "@kernel/cli
 import type { CorpusCall, CorpusMsg, SessionCorpus } from "./lintTypes";
 
 const MAX_TEXT = 4000;
-const MAX_SESSIONS_PER_PROFILE = 400;
+const MAX_SESSIONS_PER_PROFILE = 120;
 const MAX_MSGS = 30000;
 
 /* 系统注入前缀(tmd-lint 实证表:omp 任务书注入以「Complete assignment…」开头) */
@@ -80,6 +80,10 @@ export interface CollectOpts {
   /** 项目体检 = 工作区 cwd(全等过滤);null = 全局体检不过滤。 */
   cwd: string | null;
   cutoffMs: number;
+  /** 采集时间预算(ms;到点即止,语料可能不完整——独立版全量读在千会话仓会假死)。 */
+  budgetMs?: number;
+  /** 逐会话进度(done/total/profileId),UI 进度条数据源。 */
+  onSession?: (done: number, total: number, profileId: string) => void;
   onProfileDone?: (profileId: string, stat: { sessions: number; msgs: number; calls: number }) => void;
 }
 
@@ -95,6 +99,7 @@ export async function collectCorpus(opts: CollectOpts): Promise<SessionCorpus> {
   const perProfile: SessionCorpus["perProfile"] = [];
   let sessionCount = 0;
   let readFiles = 0;
+  const deadline = opts.budgetMs ? Date.now() + opts.budgetMs : Number.POSITIVE_INFINITY;
   for (const p of opts.profiles) {
     if (!p.listSessions || !p.readSessionTranscript) continue;
     let sessions: CliDiskSession[] = [];
@@ -110,7 +115,12 @@ export async function collectCorpus(opts: CollectOpts): Promise<SessionCorpus> {
     let pMsgs = 0;
     let pCalls = 0;
     let pSessions = 0;
+    let done = 0;
     for (const s of sessions) {
+      done += 1;
+      if (Date.now() > deadline) break;
+      if (msgs.length >= MAX_MSGS) break; /* 消息总量到顶,早停防失控 */
+      opts.onSession?.(done, sessions.length, p.id);
       if (opts.cwd) {
         let identityCwd: string | null = null;
         try {

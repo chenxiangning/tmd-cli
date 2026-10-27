@@ -19,4 +19,5 @@
 
 ## 写回安全三件套(规则文件写盘的仓内口径)
 
-- 先备份(每文件本会话一份 `.bak-tmdlint`)→ 行级原文匹配守卫(当前行 trim ≠ 体检时原文即拒笔)→ 破坏性动作过 ConfirmDialog;归档迁 `docs/agents-archive.md` 留占位符,连续归档块只留一个。
+- 先备份(每文件本会话一份 `.bak-tmdlint`)→ 行级原文匹配守卫(当前行 trim ≠ 体检时原文即拒笔)→ 破坏性动作过 ConfirmDialog 且弹层带行级 diff 预览(diffUtil 首尾公共行修剪口径);归档迁 `docs/agents-archive.md` 留占位符;hook 生成走命令守卫 + procCommunicate chmod 通用原语;备份可恢复,已拍板可重开。
+- 大仓语料采集必须带时间预算与逐会话进度(全量顺序读在千会话仓会假死);插件私有持久化一律 `ipc.configDir()`,禁 `configHomeDir()` 自拼。

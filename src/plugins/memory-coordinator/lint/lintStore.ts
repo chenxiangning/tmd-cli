@@ -1,6 +1,7 @@
 /**
  * 插件私有持久化 —— configDir()/tmd-lint.json(prompt-enhancer/enhanceStore.ts
- * 同款先例:配置目录布局 owner 是 Rust session.rs,插件不自拼路径)。
+ * 同款先例:configDir() 即 ~/.tmd-cli,布局 owner 是 Rust session.rs,插件不自拼;
+ * 曾误用 configHomeDir 自拼 ~/.config/tmd-cli/,已拍板指纹与缓存全部写丢,已纠)。
  *
  * 存三样:引擎/模型 lastUsed、已拍板指纹(此前处理过的规则不再重复报,
  * 移植 tmd-lint handled.json,但存 app 侧不污染仓库)、上次体检结果缓存
@@ -27,19 +28,19 @@ const EMPTY: LintStoreData = { lastUsed: null, handled: [], lastResult: null };
 let data: LintStoreData | null = null;
 let writing = Promise.resolve();
 
-export function storePath(home: string): string {
-  return `${home}/.config/tmd-cli/tmd-lint.json`;
+export function storePath(dir: string): string {
+  return `${dir}/tmd-lint.json`;
 }
 
 async function loadOnce(): Promise<LintStoreData> {
   if (data) return data;
-  const home = await ipc.configHomeDir().catch(() => "");
-  if (!home) {
+  const dir = await ipc.configDir().catch(() => "");
+  if (!dir) {
     data = { ...EMPTY };
     return data;
   }
   try {
-    const raw = await ipc.fsReadFile(storePath(home));
+    const raw = await ipc.fsReadFile(storePath(dir));
     const parsed = JSON.parse(raw) as Partial<LintStoreData>;
     data = {
       lastUsed: parsed.lastUsed ?? null,
@@ -53,9 +54,9 @@ async function loadOnce(): Promise<LintStoreData> {
 }
 
 async function persist(): Promise<void> {
-  const home = await ipc.configHomeDir().catch(() => "");
-  if (!home || !data) return;
-  const step = ipc.fsWriteFile(storePath(home), JSON.stringify(data)).then(() => undefined);
+  const dir = await ipc.configDir().catch(() => "");
+  if (!dir || !data) return;
+  const step = ipc.fsWriteFile(storePath(dir), JSON.stringify(data)).then(() => undefined);
   writing = writing.then(() => step);
   await step;
 }

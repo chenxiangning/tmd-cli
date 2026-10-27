@@ -1,14 +1,24 @@
 /**
- * 体检面板状态钩子(自 LintPanel 拆出守复杂度与 300 行铁则)。
- * useLintRun:六步管线运行态;useLintApply:建议动作/确认弹层/busy 旗标。
- * 行级落定与发现移除的状态回写由调用方注入(钩子只管动作编排)。
+ * 体检面板状态钩子(自 LintView 拆出守复杂度与 300 行铁则)。
+ * useLintRun:六步管线运行态;useLintResultWrite:结果回写;useLintApply:
+ * 建议动作/确认弹层(带 diff 与 hook 块预览)/busy 旗标。确认弹层的内容在
+ * 动作触发时现算(重读现文 → 纯变换 → diffUtil),确认后才真落盘。
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
+import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { runLint, type LintProgress, type LintRunResult } from "./lintModel";
-import { addHandled } from "./lintStore";
-import { applyFindingStub, applyRuleAdvice } from "./lintActions";
+import { addHandled, removeHandled } from "./lintStore";
+import {
+  applyFindingFixpath, applyFindingStub, applyFindingWrite,
+  applyRestore, applyRuleAdvice, applyRuleHook,
+} from "./lintActions";
+import {
+  appendRuleLine, buildHookBlock, CLAUDE_STUB, fixPathInFile, removeRuleFromFile,
+} from "./applyLint";
+import { diffLines } from "./diffUtil";
+import { DiffPreview } from "./LintRows";
 import { settledSig, type LintAdvice, type LintRow, type StaticFinding } from "./lintTypes";
 
 export interface LintRunState {
@@ -39,10 +49,11 @@ export function useLintRun(
       try {
         const r = await runLint({
           cwd, workspaceId, engineId, model: model.trim() || null,
-          timeoutSeconds: 120,
+          timeoutSeconds: 240,
           onProgress: (p) => setProgress(p),
         });
         setResult(r);
+        if (r.engineError) onError(r.engineError);
       } catch (e) {
         if (!String(e).includes("lint-cancelled")) onError(String(e).slice(0, 160));
       } finally {
@@ -54,20 +65,15 @@ export function useLintRun(
   return { running, progress, result, start, applyResult: setResult };
 }
 
-export interface LintApplyState {
-  busy: boolean;
-  confirm: { title: string; message: string; run: () => void } | null;
-  closeConfirm: () => void;
-  onApply: (row: LintRow, advice: LintAdvice) => void;
-  onKeep: (row: LintRow) => void;
-  onStub: (finding: StaticFinding) => void;
-}
-
-/** 结果写回:行落定(记录已拍板指纹)与发现移除的结果态回写。 */
+/** 结果写回:行落定(记录已拍板指纹)/行重开(删指纹)/发现移除。 */
 export function useLintResultWrite(
   result: LintRunResult | null,
   applyResult: (r: LintRunResult) => void,
-): { markRowSettled: (row: LintRow) => void; removeFinding: (finding: StaticFinding) => void } {
+): {
+  markRowSettled: (row: LintRow) => void;
+  reopenRow: (row: LintRow) => void;
+  removeFinding: (finding: StaticFinding) => void;
+} {
   const markRowSettled = useCallback(
     (row: LintRow) => {
       if (!result) return;
@@ -82,6 +88,18 @@ export function useLintResultWrite(
     },
     [result, applyResult],
   );
+  const reopenRow = useCallback(
+    (row: LintRow) => {
+      if (!result || !row.judgment) return;
+      const kind = row.judgment.verdict === "dormant" ? "dormant" : "violated";
+      void removeHandled(settledSig(kind, row.rule));
+      applyResult({
+        ...result,
+        rows: result.rows.map((r) => (r.rule === row.rule ? { ...r, settled: false } : r)),
+      });
+    },
+    [result, applyResult],
+  );
   const removeFinding = useCallback(
     (finding: StaticFinding) => {
       if (!result) return;
@@ -89,74 +107,191 @@ export function useLintResultWrite(
     },
     [result, applyResult],
   );
-  return { markRowSettled, removeFinding };
+  return { markRowSettled, reopenRow, removeFinding };
 }
 
-/** 动作态:按建议写回(删除过确认弹层)、保持拍板、drift 收口。
- *  markRowSettled/removeFinding 由面板注入(同时落已拍板指纹与列表回写)。 */
+export interface LintApplyState {
+  busy: boolean;
+  confirm: { title: string; message: ReactNode; run: () => void } | null;
+  closeConfirm: () => void;
+  onApply: (row: LintRow, advice: LintAdvice) => void;
+  onKeep: (row: LintRow) => void;
+  onHook: (row: LintRow) => void;
+  onStub: (finding: StaticFinding) => void;
+  onWrite: (finding: StaticFinding) => void;
+  onFixpath: (finding: StaticFinding) => void;
+  onRestore: (paths: string[]) => void;
+}
+
+/** 动作态:按建议写回(删除/归档/收口/修路径/写入/hook 过确认弹层)、保持拍板、
+ *  重开拍板、备份恢复。markRowSettled/removeFinding 由视图注入。 */
 export function useLintApply(
   cwd: string | null,
   onError: (msg: string) => void,
   markRowSettled: (row: LintRow) => void,
   removeFinding: (finding: StaticFinding) => void,
+  afterWrite: () => void,
 ): LintApplyState {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<LintApplyState["confirm"]>(null);
   const closeConfirm = useCallback(() => setConfirm(null), []);
-  const doApply = useCallback(
-    (row: LintRow, advice: LintAdvice) => {
-      if (!cwd) return;
+  const exec = useCallback(
+    (task: () => Promise<{ ok: boolean; note: string }>, onOk: () => void) => {
       setBusy(true);
       void (async () => {
         try {
-          const r = await applyRuleAdvice(cwd, row, advice);
-          if (r.ok) markRowSettled(row);
+          const r = await task();
+          if (r.ok) onOk();
           else if (r.note) onError(r.note);
         } finally {
           setBusy(false);
         }
       })();
     },
-    [cwd, markRowSettled, onError],
+    [onError],
+  );
+  const doApply = useCallback(
+    (row: LintRow, advice: LintAdvice) => {
+      if (!cwd) return;
+      exec(() => applyRuleAdvice(cwd, row, advice), () => {
+        markRowSettled(row);
+        afterWrite();
+      });
+    },
+    [cwd, exec, markRowSettled, afterWrite],
   );
   const onApply = useCallback(
     (row: LintRow, advice: LintAdvice) => {
-      if (advice !== "remove") {
+      if (advice !== "remove" && advice !== "archive") {
         doApply(row, advice);
         return;
       }
+      void ipc.fsReadFile(row.rule.file).then(
+        (text) => {
+          const next = removeRuleFromFile(text, row.rule, advice === "archive");
+          if (next === null) {
+            onError("文件已变化,行号对不上;请重新体检");
+            return;
+          }
+          setConfirm({
+            title: advice === "remove" ? t("删除该规则?") : t("归档该规则?"),
+            message: (
+              <>
+                <div>{row.rule.file}</div>
+                <DiffPreview lines={diffLines(text, next)} />
+              </>
+            ),
+            run: () => doApply(row, advice),
+          });
+        },
+        () => onError("规则文件读不到,请重新体检"),
+      );
+    },
+    [doApply, onError],
+  );
+  const onKeep = useCallback((row: LintRow) => markRowSettled(row), [markRowSettled]);
+  const onHook = useCallback(
+    (row: LintRow) => {
+      if (!cwd) return;
       setConfirm({
-        title: t("删除该规则?"),
-        message: `${t("将从规则文件删除该行(先备份 .bak-tmdlint)")}:\n${row.rule.text.split("\n")[0] ?? ""}`,
-        run: () => doApply(row, advice),
+        title: t("生成 pre-commit 钩子?"),
+        message: (
+          <>
+            <div>{cwd}/.git/hooks/pre-commit</div>
+            <DiffPreview lines={buildHookBlock(row.rule).split("\n").filter(Boolean).map((text) => ({ kind: "add" as const, text }))} />
+          </>
+        ),
+        run: () => exec(() => applyRuleHook(cwd, row), afterWrite),
       });
     },
-    [doApply],
-  );
-  const onKeep = useCallback(
-    (row: LintRow) => markRowSettled(row),
-    [markRowSettled],
+    [cwd, exec, afterWrite],
   );
   const onStub = useCallback(
     (finding: StaticFinding) => {
-      setConfirm({
-        title: t("收口为 stub?"),
-        message: `${t("整文件替换为一行声明(先备份 .bak-tmdlint)")}:${finding.file}`,
-        run: () => {
-          setBusy(true);
-          void (async () => {
-            try {
-              const r = await applyFindingStub(finding);
-              if (r.ok) removeFinding(finding);
-              else if (r.note) onError(r.note);
-            } finally {
-              setBusy(false);
-            }
-          })();
+      void ipc.fsReadFile(finding.file).then(
+        (text) => {
+          setConfirm({
+            title: t("收口为 stub?"),
+            message: (
+              <>
+                <div>{finding.file}</div>
+                <DiffPreview lines={diffLines(text, CLAUDE_STUB)} />
+              </>
+            ),
+            run: () => exec(() => applyFindingStub(finding), () => { removeFinding(finding); afterWrite(); }),
+          });
         },
+        () => onError("规则文件读不到,请重新体检"),
+      );
+    },
+    [exec, afterWrite, onError, removeFinding],
+  );
+  const onWrite = useCallback(
+    (finding: StaticFinding) => {
+      void ipc.fsReadFile(finding.file).then(
+        (text) => {
+          const next = appendRuleLine(text, finding.text);
+          setConfirm({
+            title: t("写进 AGENTS.md?"),
+            message: (
+              <>
+                <div>{finding.file}</div>
+                <DiffPreview lines={diffLines(text, next)} />
+              </>
+            ),
+            run: () => exec(() => applyFindingWrite(finding), () => { removeFinding(finding); afterWrite(); }),
+          });
+        },
+        () => onError("规则文件读不到,请重新体检"),
+      );
+    },
+    [exec, afterWrite, onError, removeFinding],
+  );
+  const onFixpath = useCallback(
+    (finding: StaticFinding) => {
+      const [oldP, newP] = (finding.extra ?? "").split("=>");
+      if (!oldP || !newP) {
+        onError("修复建议缺少路径对,请重新体检");
+        return;
+      }
+      void ipc.fsReadFile(finding.file).then(
+        (text) => {
+          const lineNo = Number.parseInt(finding.id.split("|")[2] ?? "", 10);
+          const next = fixPathInFile(text, lineNo, oldP, newP);
+          if (next === null) {
+            onError("文件已变化,行号对不上;请重新体检");
+            return;
+          }
+          setConfirm({
+            title: t("修正引用路径?"),
+            message: (
+              <>
+                <div>{finding.file}</div>
+                <DiffPreview lines={diffLines(text, next)} />
+              </>
+            ),
+            run: () => exec(() => applyFindingFixpath(finding), () => { removeFinding(finding); afterWrite(); }),
+          });
+        },
+        () => onError("规则文件读不到,请重新体检"),
+      );
+    },
+    [exec, afterWrite, onError, removeFinding],
+  );
+  const onRestore = useCallback(
+    (paths: string[]) => {
+      setConfirm({
+        title: t("恢复备份?"),
+        message: (
+          <>
+            <div>{t("把这些文件的 .bak-tmdlint 备份写回原文件(备份保留)")}</div>
+            <div className="mt-1 whitespace-pre-wrap font-mono text-[10px] text-(--tmd-fg-muted)">{paths.join("\n")}</div>
+          </>
+        ),
+        run: () => exec(() => applyRestore(paths), afterWrite),
       });
     },
-    [onError, removeFinding],
+    [exec, afterWrite],
   );
-  return { busy, confirm, closeConfirm, onApply, onKeep, onStub };
+  return { busy, confirm, closeConfirm, onApply, onKeep, onHook, onStub, onWrite, onFixpath, onRestore };
 }

@@ -3,8 +3,9 @@
  * 汇总(移植 tmd-lint engine.rs 骨架,判定步换成大模型语义判断)。
  *
  * 确定性先行的两类不烧模型:机器把关(pre-commit 已含规则命令=硬事实,直接
- * 判 working)、已拍板(本地指纹折叠)。AI 批次失败的规则如实标「判定失败」,
- * 不回落阈值猜测(独立版教训:宁明说不知,不装懂)。可取消:新体检令牌作废旧跑。
+ * 判 working)、已拍板(本地指纹折叠)。AI 批判定 fail-fast:超时/引擎缺失/
+ * 整批无效回复即中止剩余批次并上抛 engineError(此前静默吞掉,八批挨个超时
+ * 假死,是「点了体检没反应」的根源之一)。可取消:新体检令牌作废旧跑。
  */
 
 import { ipc } from "@kernel/ipc";
@@ -15,6 +16,7 @@ import { extractRules } from "./rulesExtract";
 import { collectCorpus } from "./corpus";
 import { discriminativeTokens, measureAll, normalizeCmd } from "./evidence";
 import { buildJudgeInstruction, parseJudgeReply, runJudgeRaw } from "./aiJudge";
+import { buildStaticFindings } from "./staticFindings";
 import { loadStore, saveLastResult } from "./lintStore";
 import {
   settledSig, type LintRow, type LintTarget, type RuleItem, type RuleJudgment,
@@ -23,6 +25,7 @@ import {
 
 export const WINDOW_DAYS = 30;
 export const BATCH_SIZE = 8;
+const CORPUS_BUDGET_MS = 90_000;
 
 export interface LintProgress {
   step: "targets" | "corpus" | "evidence" | "judge" | "done";
@@ -42,6 +45,10 @@ export interface LintRunResult {
   corpus: Pick<SessionCorpus, "sessionCount" | "readFiles"> & { msgs: number; calls: number };
   /** AI 批次失败数(判定为 null 的规则来源)。 */
   failedBatches: number;
+  /** 引擎级失败(超时/缺失/无效回复)——中止批判定的原因,展示用;空串=无。 */
+  engineError: string;
+  /** 有 .bak-tmdlint 备份的规则文件(恢复入口数据源)。 */
+  backups: string[];
 }
 
 export interface LintRunOpts {
@@ -76,14 +83,6 @@ export function batchRules(rules: RuleItem[]): RuleItem[][] {
   return out;
 }
 
-function isStubClaude(text: string): boolean {
-  const nonEmpty = text.split("\n").filter((l) => l.trim() !== "");
-  return nonEmpty.length <= 8 && nonEmpty.some((l) => l.includes("AGENTS.md"));
-}
-
-const PATH_REF_SKIP = /:\/\/|@|<|>|\*/;
-const FORBIDDEN_CONTEXT = /(禁止|不得|不允许|严禁|白名单|只允许)/;
-
 export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
   const token = ++runSeq;
   const alive = () => token === runSeq;
@@ -112,12 +111,15 @@ export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
   const rulesByFile = settledList.filter((f): f is { target: LintTarget; rules: RuleItem[]; text: string } => f !== null);
   if (!alive()) throw new Error("lint-cancelled");
 
-  /* 3. 采语料(项目体检 cwd 全等过滤;用户级文件同样注入本仓会话,共用语料) */
-  opts.onProgress({ step: "corpus", detail: "" });
+  /* 3. 采语料(90s 预算 + 逐会话进度;千会话仓全量读会假死,到点即止用部分语料) */
   const corpus = await collectCorpus({
     profiles: host.getCliProfiles(),
     cwd: opts.cwd,
     cutoffMs,
+    budgetMs: CORPUS_BUDGET_MS,
+    onSession: (done, total, profileId) => {
+      if (alive()) opts.onProgress({ step: "corpus", detail: `${profileId} ${done}/${total}` });
+    },
   });
   if (!alive()) throw new Error("lint-cancelled");
 
@@ -141,10 +143,12 @@ export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
   });
   if (!alive()) throw new Error("lint-cancelled");
 
-  /* 5. AI 批判定(未被判定的规则;enforced 跳过) */
+  /* 5. AI 批判定(fail-fast:引擎级失败中止剩余批次,不再八批挨个超时) */
   const judgments = new Map<string, RuleJudgment>();
+  let engineError = "";
   let cursor = 0;
   for (const f of rulesByFile) {
+    if (engineError) break;
     for (const batch of batchRules(f.rules)) {
       const pairs = batch.map((rule, i) => ({ rule, evidence: evidences[cursor + i]! }));
       cursor += batch.length;
@@ -171,14 +175,23 @@ export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
         parsed.forEach((j, i) => {
           if (j) judgments.set(needAi[i]!.rule.file + needAi[i]!.rule.text, j);
         });
-        if (parsed.every((j) => j === null)) throw new Error("judge-empty");
-      } catch {
-        /* 整批失败:该批规则判定留空(如实标失败,不猜) */
+        if (parsed.every((j) => j === null)) {
+          engineError = "引擎回复无有效判定(检查引擎登录/模型名)";
+          break;
+        }
+      } catch (e) {
+        const msg = String(e);
+        engineError = msg.includes("judge-timeout")
+          ? `判定超时(单批 ${opts.timeoutSeconds}s);可换更快的引擎或减小批量`
+          : msg.includes("judge-engine-missing")
+            ? `引擎 ${opts.engineId} 不可用(command not found)`
+            : `判定失败:${msg.slice(0, 120)}`;
+        break;
       }
     }
   }
 
-  /* 6. 汇总:组装行 + 已拍板折叠 + 静态发现 */
+  /* 6. 汇总:组装行 + 已拍板折叠 + 静态发现 + 备份探针 */
   const handled = new Set((await loadStore()).handled);
   let cursor2 = 0;
   const rows: LintRow[] = [];
@@ -195,53 +208,22 @@ export async function runLint(opts: LintRunOpts): Promise<LintRunResult> {
       rows.push({ rule, evidence, judgment, settled });
     }
   }
-  const findings = await staticFindings(opts.cwd, rulesByFile);
+  const [repoFiles, bakProbe] = await Promise.all([
+    ipc.fsWalkFiles(opts.cwd, 5000).catch(() => [] as string[]),
+    probeTargets(targets.map((t) => `${t.absPath}.bak-tmdlint`)),
+  ]);
+  const findings = await buildStaticFindings({ cwd: opts.cwd, rulesByFile, msgs: corpus.msgs, repoFiles });
+  const backups = targets.filter((t) => bakProbe[`${t.absPath}.bak-tmdlint`]).map((t) => t.absPath);
   if (!alive()) throw new Error("lint-cancelled");
 
   const result: LintRunResult = {
     at: Date.now(), cwd: opts.cwd, targets, rows, findings,
     corpus: { sessionCount: corpus.sessionCount, readFiles: corpus.readFiles, msgs: corpus.msgs.length, calls: corpus.calls.length },
     failedBatches: rows.filter((r) => !r.judgment).length,
+    engineError,
+    backups,
   };
   await saveLastResult(result);
   opts.onProgress({ step: "done", detail: "" });
   return result;
-}
-
-/** 静态发现(确定性):drift = CLAUDE.md 非 stub 与 AGENTS.md 并存;stale = 路径引用失效。 */
-export async function staticFindings(
-  cwd: string,
-  rulesByFile: { target: LintTarget; rules: RuleItem[]; text: string }[],
-): Promise<StaticFinding[]> {
-  const out: StaticFinding[] = [];
-  for (const f of rulesByFile) {
-    const base = f.target.absPath.split("/").pop() ?? "";
-    if (base === "CLAUDE.md" && !isStubClaude(f.text)) {
-      out.push({
-        id: `drift|${f.target.absPath}`, kind: "drift", file: f.target.absPath,
-        text: "", extra: "CLAUDE.md", advice: "stub",
-      });
-    }
-    for (const rule of f.rules) {
-      if (FORBIDDEN_CONTEXT.test(rule.text)) continue; /* 禁令语境的路径是「不该存在」的提及 */
-      for (const ref of rule.pathRefs) {
-        if (ref.length > 160 || PATH_REF_SKIP.test(ref)) continue;
-        if (await pathExists(`${cwd}/${ref}`)) continue;
-        const first = ref.split("/")[0]!;
-        if (ref.startsWith(".") && !(await pathExists(`${cwd}/${first}`))) continue; /* 指向 home 的用户目录 */
-        out.push({
-          id: `stale|${rule.file}|${rule.line}|${ref}`, kind: "stale", file: rule.file,
-          text: `${rule.text}\n⤷ ${ref}`, advice: "keep",
-        });
-        break; /* 一条规则报首个失效引用即可 */
-      }
-    }
-  }
-  return out;
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  const asFile = await ipc.fsReadHead(path, 1).then(() => true, () => false);
-  if (asFile) return true;
-  return ipc.fsCollectFiles(path, "").then(() => true, () => false);
 }

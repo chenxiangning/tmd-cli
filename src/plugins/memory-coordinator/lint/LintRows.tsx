@@ -1,12 +1,13 @@
 /**
- * 规则体检 · 行组件面(自 LintPanel 拆出守 300 行铁则)。
- * 纯展示与行内动作派发:判定点/证据下钻/建议动作钮;写回编排归 LintPanel。
+ * 规则体检 · 行组件面(自 LintView 拆出守 300 行铁则)。
+ * 纯展示与行内动作派发:判定点/证据下钻/建议动作钮;写回编排归 lintPanelState。
  */
 
 import { openFileInTab } from "@kernel/fileTabs";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { ADVICE_LABEL, VERDICT_DOT, VERDICT_LABEL, type LintAdvice, type LintRow, type LintVerdict, type StaticFinding } from "./lintTypes";
+import type { DiffLine } from "./diffUtil";
 
 const ACTION_CLS =
   "flex-none rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50 disabled:hover:border-(--tmd-border) disabled:hover:text-(--tmd-fg-muted)";
@@ -46,17 +47,21 @@ function EvidenceFace({ row }: { row: LintRow }) {
   );
 }
 
-/** 单条规则行:判定点 + 规则文(点开下钻)+ 建议动作。 */
+/** 单条规则行:判定点 + 规则文(点开下钻)+ 建议动作(hook/拍板/重开)。 */
 export function RuleRow({
   row,
   busy,
   onApply,
   onKeep,
+  onHook,
+  onReopen,
 }: {
   row: LintRow;
   busy: boolean;
   onApply: (row: LintRow, advice: LintAdvice) => void;
   onKeep: (row: LintRow) => void;
+  onHook: (row: LintRow) => void;
+  onReopen: (row: LintRow) => void;
 }) {
   const state: LintVerdict | "failed" | "settled" = row.settled
     ? "settled"
@@ -64,6 +69,7 @@ export function RuleRow({
       ? row.judgment.verdict
       : "failed";
   const advice = row.judgment?.advice ?? "keep";
+  const keepable = row.judgment && (row.judgment.verdict === "violated" || row.judgment.verdict === "dormant");
   return (
     <details className="group px-1.5">
       <summary className="flex h-7 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
@@ -75,18 +81,28 @@ export function RuleRow({
         <span className="ml-auto flex-none text-meta text-(--tmd-fg-faint)">L{row.rule.line}</span>
       </summary>
       <EvidenceFace row={row} />
-      <div className="flex items-center gap-1.5 px-3 pb-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1.5">
         {!row.settled && row.judgment && advice !== "keep" && (
           <button type="button" disabled={busy} onClick={() => onApply(row, advice)} className={ACTION_CLS}>
             {busy ? <Spinner /> : t("按建议处理")}:{t(ADVICE_LABEL[advice])}
+          </button>
+        )}
+        {!row.settled && row.evidence.command && (
+          <button type="button" disabled={busy} onClick={() => onHook(row)} className={ACTION_CLS} title={t("把规则命令写进 pre-commit,机器把关")}>
+            {t("上 pre-commit")}
           </button>
         )}
         <button type="button" disabled={busy} onClick={() => openFileInTab(row.rule.file)} className={ACTION_CLS}>
           {t("打开")}
         </button>
         {row.settled ? (
-          <span className="text-meta text-(--tmd-fg-faint)">{t("已拍板:此前处理过,不再重复报")}</span>
-        ) : row.judgment && (row.judgment.verdict === "violated" || row.judgment.verdict === "dormant") ? (
+          <>
+            <span className="text-meta text-(--tmd-fg-faint)">{t("已拍板:此前处理过,不再重复报")}</span>
+            <button type="button" disabled={busy} onClick={() => onReopen(row)} className={ACTION_CLS}>
+              {t("重开")}
+            </button>
+          </>
+        ) : keepable ? (
           <button type="button" disabled={busy} onClick={() => onKeep(row)} className={ACTION_CLS}>
             {t("保持并拍板")}
           </button>
@@ -96,36 +112,73 @@ export function RuleRow({
   );
 }
 
-/** 静态发现行(drift/stale):确定性检查,不烧模型。 */
+/** 静态发现行(drift/stale+fixpath/missing):确定性检查,不烧模型。 */
 export function FindingRow({
   finding,
   busy,
   onStub,
+  onWrite,
+  onFixpath,
 }: {
   finding: StaticFinding;
   busy: boolean;
   onStub: (finding: StaticFinding) => void;
+  onWrite: (finding: StaticFinding) => void;
+  onFixpath: (finding: StaticFinding) => void;
 }) {
+  const label =
+    finding.kind === "drift" ? t("两文件打架") : finding.kind === "missing" ? t("你反复在说") : t("引用失效");
+  const dot =
+    finding.kind === "drift" ? "bg-(--tmd-warn)" : finding.kind === "missing" ? "bg-(--tmd-accent)" : "bg-(--tmd-border)";
   return (
     <div className="flex h-7 items-center gap-2 px-1.5">
-      <span className={`size-[7px] flex-none rounded-full ${finding.kind === "drift" ? "bg-(--tmd-warn)" : "bg-(--tmd-border)"}`} aria-hidden />
-      <span className="w-14 flex-none truncate text-meta text-(--tmd-fg-muted)">
-        {finding.kind === "drift" ? t("两文件打架") : t("引用失效")}
-      </span>
-      <span className="min-w-0 truncate font-mono text-xs text-(--tmd-fg)">
+      <span className={`size-[7px] flex-none rounded-full ${dot}`} aria-hidden />
+      <span className="w-14 flex-none truncate text-meta text-(--tmd-fg-muted)">{label}</span>
+      <span className="min-w-0 truncate font-mono text-xs text-(--tmd-fg)" title={finding.text}>
         {finding.kind === "drift" ? finding.file.split("/").pop() : finding.text.split("\n")[0]}
       </span>
+      {finding.extra && finding.kind !== "drift" && (
+        <span className="flex-none text-meta text-(--tmd-fg-faint)">{finding.extra}</span>
+      )}
       <span className="ml-auto flex flex-none items-center gap-1.5">
-        {finding.kind === "drift" ? (
+        {finding.kind === "drift" && (
           <button type="button" disabled={busy} onClick={() => onStub(finding)} className={ACTION_CLS} title={finding.file}>
             {busy ? <Spinner /> : t("收口 stub")}
           </button>
-        ) : (
-          <button type="button" onClick={() => openFileInTab(finding.file)} className={ACTION_CLS}>
-            {t("打开")}
+        )}
+        {finding.kind === "missing" && (
+          <button type="button" disabled={busy} onClick={() => onWrite(finding)} className={ACTION_CLS} title={finding.file}>
+            {t("写进 AGENTS.md")}
           </button>
         )}
+        {finding.kind === "stale" && finding.advice === "fixpath" && (
+          <button type="button" disabled={busy} onClick={() => onFixpath(finding)} className={ACTION_CLS} title={finding.extra}>
+            {t("修路径")}
+          </button>
+        )}
+        <button type="button" onClick={() => openFileInTab(finding.file)} className={ACTION_CLS}>
+          {t("打开")}
+        </button>
       </span>
     </div>
+  );
+}
+
+/** diff 预览块(确认弹层内;超 24 行截断)。 */
+export function DiffPreview({ lines }: { lines: DiffLine[] }) {
+  const shown = lines.slice(0, 24);
+  return (
+    <pre className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap break-all rounded border border-(--tmd-border) bg-(--tmd-bg-subtle) p-1.5 font-mono text-[10px] leading-snug">
+      {shown.map((l) => (
+        <div
+          key={`${l.kind}:${l.text}`}
+          className={l.kind === "del" ? "text-(--tmd-error)" : l.kind === "add" ? "text-(--tmd-ok)" : "text-(--tmd-fg-faint)"}
+        >
+          {l.kind === "del" ? "- " : l.kind === "add" ? "+ " : "  "}
+          {l.text}
+        </div>
+      ))}
+      {lines.length > shown.length && <div className="text-(--tmd-fg-faint)">…</div>}
+    </pre>
   );
 }

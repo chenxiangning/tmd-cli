@@ -94,7 +94,7 @@ export interface RuleEvidence {
  */
 export type LintVerdict = "working" | "violated" | "touched" | "dormant" | "unverifiable";
 
-export type LintAdvice = "keep" | "remove" | "archive" | "stub" | "fixpath";
+export type LintAdvice = "keep" | "remove" | "archive" | "stub" | "fixpath" | "write" | "hook";
 
 export interface RuleJudgment {
   verdict: LintVerdict;
@@ -103,13 +103,13 @@ export interface RuleJudgment {
   advice: LintAdvice;
 }
 
-/** 静态发现(确定性,不烧模型;移植 tmd-lint stale/drift 两类)。 */
+/** 静态发现(确定性,不烧模型;missing =「你反复在说」,移植 findings_missing)。 */
 export interface StaticFinding {
   id: string;
-  kind: "stale" | "drift";
+  kind: "stale" | "drift" | "missing";
   file: string;
   text: string;
-  /** fixpath 场景 = "{old}=>{new}";drift = 目标文件名。 */
+  /** fixpath = "{old}=>{new}";drift = 目标文件名;missing = "{count} 次/{s} 会话"。 */
   extra?: string;
   advice: LintAdvice;
 }
@@ -161,6 +161,8 @@ export const ADVICE_LABEL: Record<LintAdvice, string> = {
   archive: "归档",
   stub: "收口 stub",
   fixpath: "修路径",
+  write: "写进 AGENTS.md",
+  hook: "上 pre-commit",
 };
 
 /** 已拍板指纹:"{来源态}|{文件}|{规则原文}"。 */

@@ -29,9 +29,9 @@
 - `npx react-doctor@latest -y` 得分 100(复杂度拆 lintPanelState/ResultBody,顺序 IO 有豁免与并行化两种处理,busy 旗标进 finally)。
 - 单测 23 例:规则提取(围栏/表格块/三通道信号词/命令抽取)、IDF 门槛与 unjudgeable、纠正词表不含「不要」、净化注入过滤、哨兵 JSON 解析(围栏/坏对象捞回/越值剔除)、删行守卫、引擎 argv 表对齐 prompt-enhancer 实证。
 
-## 边界(与独立版的差异,有意为之一期不做)
+## 边界(与独立版的差异)
 
-- 五类发现只移植 violated/dead(并入七态)+ drift + stale;missing(你反复在说)与 fixpath 自动同名搜索留二期。
-- hook 生成(pre-commit 预览)与 .tmd-lint/history 可逆恢复链不做;写回安全靠「.bak-tmdlint 先备份 + 行级原文匹配守卫 + ConfirmDialog」三件套。
-- 用户级规则文件(~/.codex/AGENTS.md 等)与项目级共用当前工作区语料判定(用户级文件本就注入本仓每个会话,语义成立),面板会标注证据范围。
-- 判定引擎默认 omp,可切 8 家与自填模型;120s/批判定超时,超时批如实标失败。
+- 二批补齐(用户裁决「遗漏的业务重新开发」):「你反复在说」(missing,≥2 会话 ≥2 次 + 4 字滑窗覆盖判断,一键写进 AGENTS.md)、fixpath(唯一同名命中自动修路径)、pre-commit hook 生成(命令守卫 + chmod 通用原语)、写回 diff 预览确认、.bak-tmdlint 备份恢复、已拍板重开。
+- 仍不做:独立版 .tmd-lint/history 多代快照恢复链(单代 .bak-tmdlint 足够,可反复恢复)、全景页(文件→章节健康条,汇总条 chips 已覆盖主要场景)、独立仓库选择器(体检目标跟随当前工作区)。
+- 用户级规则文件与项目级共用当前工作区语料判定(用户级文件本就注入本仓每个会话,语义成立)。
+- 引擎默认 omp,可切 8 家与自填模型;单批 240s 超时;语料采集 90s 预算(千会话仓不再假死),AI 批判定 fail-fast 并亮明失败原因。

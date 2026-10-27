@@ -2,13 +2,14 @@
  * 记忆文件面板 · 规则体检视图(独立工具 tmd-lint 判定引擎,内嵌于本面板)。
  *
  * 由 MemoryFilesPanel 的「体检」钮切入,自带返回。头部:引擎选择 + 体检钮;
- * 过程:六步管线进度 + AI 流式尾窗;结果:判定分布汇总条(点段过滤)+ 逐条
- * 规则行(下钻证据/建议动作)+ 静态发现。是否生效由 AI 大模型实时语义判断
- * (详见 ../lint/aiJudge.ts);状态钩子与子组件拆分见 lintPanelState.tsx。
+ * 过程:六步管线进度(语料采集带逐会话进度与 90s 预算)+ AI 流式尾窗;结果:
+ * 判定分布汇总条(点段过滤)+ 逐条规则行(下钻证据/建议动作/diff 预览写回/
+ * pre-commit 生成/拍板与重开)+ 静态发现(drift/stale+fixpath/missing)+
+ * 备份恢复。是否生效由 AI 大模型实时语义判断;状态钩子见 lintPanelState.tsx。
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Pulse } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, ArrowLeft, Pulse } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
 import { StyledSelect } from "@kernel/StyledSelect";
@@ -32,7 +33,7 @@ const CHIP_CLS = (active: boolean) =>
 /** 进度步进文案(纯函数,组件外)。 */
 function stepLineOf(progress: LintProgress): string {
   if (progress.step === "judge") return t("AI 判定中 {d}/{t}", { d: String(progress.done ?? 0), t: String(progress.total ?? 0) });
-  if (progress.step === "corpus") return t("读对话中…");
+  if (progress.step === "corpus") return progress.detail ? t("读对话中…({p})", { p: progress.detail }) : t("读对话中…");
   if (progress.step === "evidence") return t("抽证据中…({n} 条消息)", { n: progress.detail });
   if (progress.step === "targets") return t("定目标中…");
   return t("体检完成");
@@ -108,15 +109,19 @@ function ProgressBlock({ progress }: { progress: LintProgress }) {
 
 /** 结果区:判定分布汇总条(点段过滤)+ 静态发现 + 规则行列表。 */
 function ResultBody({
-  result, filter, busy, onFilter, onApply, onKeep, onStub,
+  result, filter, busy, onFilter, onApply, onKeep, onHook, onReopen, onStub, onWrite, onFixpath,
 }: {
   result: LintRunResult;
   filter: Filter;
   busy: boolean;
   onFilter: (f: Filter) => void;
-  onApply: (row: LintRow, advice: "keep" | "remove" | "archive" | "stub" | "fixpath") => void;
+  onApply: (row: LintRow, advice: "keep" | "remove" | "archive" | "stub" | "fixpath" | "write" | "hook") => void;
   onKeep: (row: LintRow) => void;
+  onHook: (row: LintRow) => void;
+  onReopen: (row: LintRow) => void;
   onStub: (finding: StaticFinding) => void;
+  onWrite: (finding: StaticFinding) => void;
+  onFixpath: (finding: StaticFinding) => void;
 }) {
   const summary = summarizeRows(result.rows);
   const shown = filterRows(result.rows, filter);
@@ -151,7 +156,7 @@ function ResultBody({
               {t("静态发现")}
             </div>
             {result.findings.map((f) => (
-              <FindingRow key={f.id} finding={f} busy={busy} onStub={onStub} />
+              <FindingRow key={f.id} finding={f} busy={busy} onStub={onStub} onWrite={onWrite} onFixpath={onFixpath} />
             ))}
           </>
         )}
@@ -161,7 +166,10 @@ function ResultBody({
           })}
         </div>
         {shown.map((r) => (
-          <RuleRow key={`${r.rule.file}:${r.rule.line}`} row={r} busy={busy} onApply={onApply} onKeep={onKeep} />
+          <RuleRow
+            key={`${r.rule.file}:${r.rule.line}`} row={r} busy={busy}
+            onApply={onApply} onKeep={onKeep} onHook={onHook} onReopen={onReopen}
+          />
         ))}
         {shown.length === 0 && (
           <div className="p-3 text-center text-xs text-(--tmd-fg-faint)">{t("该过滤下没有条目")}</div>
@@ -179,8 +187,8 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
   const onError = useCallback((msg: string) => setError(msg), []);
 
   const run = useLintRun(cwd, workspaceId, engineId, model, onError);
-  const { markRowSettled, removeFinding } = useLintResultWrite(run.result, run.applyResult);
-  const apply = useLintApply(cwd, onError, markRowSettled, removeFinding);
+  const { markRowSettled, reopenRow, removeFinding } = useLintResultWrite(run.result, run.applyResult);
+  const apply = useLintApply(cwd, onError, markRowSettled, removeFinding, () => {});
   const result = run.result;
 
   /* 首载:回填上次引擎选择;cwd 相同则重放缓存结果(视图重开不丢) */
@@ -199,6 +207,8 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
     void setLastUsed(engineId, model).then(() => run.start());
   }, [engineId, model, run]);
 
+  const engineIssue = error || (result?.engineError ?? "");
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <HeaderBar
@@ -207,9 +217,15 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
       />
       {!cwd && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-fg-muted)">{t("打开一个工作区后可体检其规则文件")}</div>}
       {run.running && run.progress && <ProgressBlock progress={run.progress} />}
-      {error && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-error)">{error}</div>}
+      {engineIssue && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-error)">{engineIssue}</div>}
 
-      {result && <ResultBody result={result} filter={filter} busy={apply.busy} onFilter={setFilter} onApply={apply.onApply} onKeep={apply.onKeep} onStub={apply.onStub} />}
+      {result && (
+        <ResultBody
+          result={result} filter={filter} busy={apply.busy} onFilter={setFilter}
+          onApply={apply.onApply} onKeep={apply.onKeep} onHook={apply.onHook} onReopen={reopenRow}
+          onStub={apply.onStub} onWrite={apply.onWrite} onFixpath={apply.onFixpath}
+        />
+      )}
       {!result && !run.running && (
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 text-meta leading-relaxed text-(--tmd-fg-muted)">
           {t(
@@ -217,15 +233,28 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
           )}
         </div>
       )}
-      <div className="flex-none border-t border-(--tmd-border) px-1.5 py-1.5 text-meta leading-relaxed text-(--tmd-fg-muted)">
-        {t("写回前自动备份 .bak-tmdlint;对话日志只读,零上传;判定随引擎与模型而异,建议动作仅供决策参考")}
+      <div className="flex flex-none items-center gap-2 border-t border-(--tmd-border) px-1.5 py-1.5 text-meta leading-relaxed text-(--tmd-fg-muted)">
+        <span className="min-w-0 flex-1">
+          {t("写回前自动备份 .bak-tmdlint;对话日志只读,零上传;判定随引擎与模型而异,建议动作仅供决策参考")}
+        </span>
+        {result && result.backups.length > 0 && (
+          <button
+            type="button"
+            onClick={() => apply.onRestore(result.backups)}
+            className="flex-none inline-flex items-center gap-1 rounded border border-(--tmd-border) px-2 py-0.5 transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent)"
+            title={t("把体检前的备份写回规则文件")}
+          >
+            <ArrowCounterClockwise aria-hidden />
+            {t("恢复备份")}({result.backups.length})
+          </button>
+        )}
       </div>
       {apply.confirm && (
         <ConfirmDialog
           title={apply.confirm.title}
           message={apply.confirm.message}
           danger
-          confirmLabel={t("删除")}
+          confirmLabel={t("确认")}
           onConfirm={() => {
             apply.confirm!.run();
             apply.closeConfirm();

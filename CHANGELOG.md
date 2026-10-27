@@ -16,9 +16,10 @@
 - 终端 WebGL 渲染 opt-in(默认关):GPU 加速渲染,上下文丢失/装载失败自动回落 DOM 并如实回落设置开关(单真源,重开即真重试)
 - 全文搜索 glob 过滤(如 *.ts,零依赖匹配器);stash 手动创建(可附消息);⌘N 新建 AI 会话命令直达弹窗
 - 无头生成扩容:opencode(run+stdin)与 qoder 双版(-p+stdin)接通 oneshot,定时生成不再拉起 TUI 洪水源(kimi/grok 必填串参数、dsh 为启动器,实证后维持 TUI 回落)
-- 规则体检内嵌记忆文件面板(独立工具 tmd-lint 收编为 memory-coordinator/lint 子模块,不再另起插件入口):「记忆文件」面板新增体检钮,读本机各家 CLI 近 30 天对话日志对 AGENTS.md 等规则文件逐条体检——证据测量确定性(触达/纠正原话/工具级照做/IDF 区分度门槛),「是否生效」由 AI 大模型按证据包实时语义判断(prompt-enhancer 同款一次性 print 会话,8 条一批,引擎 8 家可选);机器把关(pre-commit)与已拍板指纹确定性先行,AI 失败如实标注不回落猜测;静态发现(CLAUDE.md 非 stub 两文件打架/路径引用失效);写回先备份 .bak-tmdlint+行级原文守卫,归档迁 docs/agents-archive.md;会话语料采集全走 cli-* 声明适配器,零私有格式知识
+- 规则体检内嵌记忆文件面板(独立工具 tmd-lint 收编为 memory-coordinator/lint 子模块,不再另起插件入口):「记忆文件」面板新增体检钮,读本机各家 CLI 近 30 天对话日志对 AGENTS.md 等规则文件逐条体检——证据测量确定性(触达/纠正原话/工具级照做/IDF 区分度门槛),「是否生效」由 AI 大模型按证据包实时语义判断(prompt-enhancer 同款一次性 print 会话,8 条一批,引擎 8 家可选);五类发现齐活=AI 不听/没人用(AI 判定)+ 两文件打架/引用失效/你反复在说(确定性),fixpath 唯一同名命中自动修路径、重复指令句一键写进 AGENTS.md;写回全走 diff 预览确认+先备份 .bak-tmdlint+行级原文守卫,归档迁 docs/agents-archive.md;pre-commit hook 一键生成(chmod 经通用原语);已拍板可重开,备份可恢复;语料采集全走 cli-* 声明适配器,零私有格式知识
 
 ### 修复
+- 体检两处断裂:语料采集加 90s 预算+逐会话进度(此前千会话仓全量读假死,"点了体检没反应");AI 批判定 fail-fast(超时/引擎缺失/整批无效回复即中止并亮明原因,不再八批挨个静默超时);体检私有持久化纠偏回 ipc.configDir()(此前误用 configHomeDir 自拼 ~/.config 路径,已拍板指纹与结果缓存全写丢)
 
 - 手机断线回放:尾页拉取失败不再卡死 replay 闸(一次 reject 即永久哑火),2s/5s 退避重试,弱网窗口内容可补回;双数据面经核查已治理(fs_read_tail_changed 尺寸闸+poke 边沿)不动
 - freeze 档位硬伤:LRU 上限 8 硬编码对 sessionTabsMax 可配 10 的用户,第 9 个起挤除快照即存即弃,重开退化全量回放——档位对齐设置值
