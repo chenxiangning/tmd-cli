@@ -86,7 +86,8 @@ export async function applyAllAiRewrites(rows: LintRow[]): Promise<ActionResult 
       continue;
     }
     let next = before;
-    for (const row of list) {
+    /* 同文件按行号降序应用:从文件尾往前改,前面规则行号不受本条改写影响,守卫不漂移。 */
+    for (const row of [...list].sort((a, b) => b.rule.line - a.rule.line)) {
       const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix;
       if (!rewrite) {
         skipped += 1;

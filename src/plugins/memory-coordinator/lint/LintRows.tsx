@@ -140,15 +140,16 @@ function RuleActions({
   onRewrite: (row: LintRow) => void;
 }) {
   const advice = row.judgment?.advice ?? "keep";
-  const rewritable = !!row.aiMark && !row.aiMark.recognizable && !!row.aiMark.rewrite && !row.settled;
+  const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix ?? null;
+  const rewritable = !!rewrite && !row.settled;
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1.5">
       {rewritable && (
-        <button type="button" disabled={busy} onClick={() => onRewrite(row)} className={ACTION_CLS} title={row.aiMark?.rewrite}>
-          {t("应用改写")}
+        <button type="button" disabled={busy} onClick={() => onRewrite(row)} className={ACTION_CLS} title={rewrite ?? undefined}>
+          {busy ? <Spinner /> : t("应用 AI 建议")}
         </button>
       )}
-      {!row.settled && row.judgment && advice !== "keep" && (
+      {!row.settled && row.judgment && advice !== "keep" && advice !== "stub" && (
         <button type="button" disabled={busy} onClick={() => onApply(row, advice)} className={ACTION_CLS}>
           {busy ? <Spinner /> : t("按建议处理")}:{t(ADVICE_LABEL[advice])}
         </button>

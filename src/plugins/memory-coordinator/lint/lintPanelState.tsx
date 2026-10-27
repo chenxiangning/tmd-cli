@@ -9,6 +9,7 @@
 import { useCallback, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import type { LintApplyState } from "./lintApplyTypes";
 import { getLintState, mutateLintResult, subscribeLint, type LintControllerState } from "./lintController";
 import { addHandled, removeHandled } from "./lintStore";
 import {
@@ -50,19 +51,17 @@ export function useLintResultWrite(): {
   return { markRowSettled, reopenRow, removeFinding };
 }
 
-export interface LintApplyState {
-  busy: boolean;
-  confirm: { title: string; message: ReactNode; run: () => void } | null;
-  closeConfirm: () => void;
-  onApply: (row: LintRow, advice: LintAdvice) => void;
-  onKeep: (row: LintRow) => void;
-  onHook: (row: LintRow) => void;
-  onRewrite: (row: LintRow) => void;
-  onApplyAllAi: (rows: LintRow[], onApplied: (applied: number, skipped: number) => void) => void;
-  onStub: (finding: StaticFinding) => void;
-  onWrite: (finding: StaticFinding) => void;
-  onFixpath: (finding: StaticFinding) => void;
-  onRestore: (paths: string[]) => void;
+/** 行号重排:该文件中被改行之后的规则行随 delta 平移(应用改写/删除后行号失配的根治)。 */
+function shiftRowsAfter(file: string, afterLine: number, delta: number): void {
+  if (delta === 0) return;
+  mutateLintResult((r) => ({
+    ...r,
+    rows: r.rows.map((x) =>
+      x.rule.file === file && x.rule.line > afterLine
+        ? { ...x, rule: { ...x.rule, line: x.rule.line + delta, lineEnd: Math.max(x.rule.lineEnd + delta, x.rule.line + delta) } }
+        : x,
+    ),
+  }));
 }
 
 export function useLintApply(
@@ -118,6 +117,7 @@ export function useLintApply(
       }
       readAndConfirm(row.rule.file, t("规则文件读不到,请重新体检"), (text) => {
         const next = removeRuleFromFile(text, row.rule, advice === "archive");
+        const delta = next === null ? 0 : next.split("\n").length - text.split("\n").length;
         return {
           title: advice === "remove" ? t("删除该规则?") : t("归档该规则?"),
           message: (
@@ -127,7 +127,7 @@ export function useLintApply(
             </>
           ),
           next,
-          run: () => exec(() => applyRuleAdvice(cwd ?? "", row, advice)),
+          run: () => exec(() => applyRuleAdvice(cwd ?? "", row, advice), () => shiftRowsAfter(row.rule.file, row.rule.lineEnd, delta)),
         };
       });
     },
@@ -157,9 +157,14 @@ export function useLintApply(
   );
   const onRewrite = useCallback(
     (row: LintRow) => {
-      const rewrite = row.aiMark?.rewrite ?? "";
+      const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix ?? "";
+      if (!rewrite.trim()) {
+        onError(t("该规则没有 AI 改写建议"));
+        return;
+      }
       readAndConfirm(row.rule.file, t("规则文件读不到,请重新体检"), (text) => {
         const next = replaceRuleFromFile(text, row.rule, rewrite);
+        const delta = next === null ? 0 : next.split("\n").length - text.split("\n").length;
         return {
           title: t("应用 AI 改写?"),
           message: (
@@ -169,15 +174,15 @@ export function useLintApply(
             </>
           ),
           next,
-          run: () => exec(() => applyRuleRewrite(row)),
+          run: () => exec(() => applyRuleRewrite(row), () => shiftRowsAfter(row.rule.file, row.rule.line, delta)),
         };
       });
     },
-    [readAndConfirm, exec],
+    [readAndConfirm, exec, onError],
   );
   const onApplyAllAi = useCallback(
     (rows: LintRow[], onApplied: (applied: number, skipped: number) => void) => {
-      const pending = rows.filter((r) => r.aiMark && !r.aiMark.recognizable && r.aiMark.rewrite && !r.settled);
+      const pending = rows.filter((r) => !r.settled && (r.aiMark?.rewrite || r.judgment?.fix));
       if (pending.length === 0) {
         onError(t("没有待应用的 AI 改写建议"));
         return;
@@ -186,7 +191,7 @@ export function useLintApply(
         title: t("一键应用 AI 改写?"),
         message: (
           <>
-            <div>{t("将替换 {n} 条「AI 不可识别」的规则行(逐行守卫,先备份,记应用日志)", { n: String(pending.length) })}</div>
+            <div>{t("将替换 {n} 条带 AI 建议的规则行(逐行守卫,先备份,记应用日志)", { n: String(pending.length) })}</div>
             <div className="mt-1 whitespace-pre-wrap font-mono text-[10px] text-(--tmd-fg-muted)">
               {[...new Set(pending.map((r) => r.rule.file))].join("\n")}
             </div>

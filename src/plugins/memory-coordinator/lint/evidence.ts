@@ -69,6 +69,7 @@ export function measureEvidence(
   };
   const touchedSessions = new Set<number>();
   const seenWords = new Set<string>();
+  const seenSkeletons = new Set<string>();
   const inScope = (idx: number) => sessionFilter === null || sessionFilter.has(idx);
   for (const m of corpus.msgs) {
     if (!inScope(m.sessionIdx)) continue;
@@ -90,7 +91,8 @@ export function measureEvidence(
         const q = cut(m.text);
         /* 去重与长文过滤:同段文本反复出现(如反复粘贴体检指令)只收一条;贴入的长文不是纠正证据。 */
         const skeleton = q.slice(0, 60);
-        if (q.length <= 300 && !ev.correctionQuotes.includes(q) && !ev.correctionQuotes.some((x) => x.slice(0, 60) === skeleton)) {
+        if (q.length <= 300 && !seenSkeletons.has(skeleton)) {
+          seenSkeletons.add(skeleton);
           ev.correctionQuotes.push(q);
         }
       }
