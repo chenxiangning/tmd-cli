@@ -20,6 +20,8 @@ export interface LintControllerState {
   error: string;
   /** 幕布事件流:脚本侧确定性事件(与引擎 PTY 输出无关,保证实时可见)。 */
   log: LintLogEntry[];
+  /** 上次心跳秒数(去重打点)。 */
+  waitSec: number;
 }
 
 export interface LintLogEntry {
@@ -27,7 +29,7 @@ export interface LintLogEntry {
   text: string;
 }
 
-let state: LintControllerState = { running: false, progress: null, result: null, error: "", log: [] };
+let state: LintControllerState = { running: false, progress: null, result: null, error: "", log: [], waitSec: 0 };
 const listeners = new Set<() => void>();
 let logSeq = 0;
 
@@ -84,7 +86,7 @@ export interface LintStartOpts {
 /** 起一次体检(右栏/报告页共用);新跑作废旧跑。 */
 export function startLint(opts: LintStartOpts): void {
   if (state.running) return;
-  state = { ...state, log: [] };
+  state = { ...state, log: [], waitSec: 0 };
   commit({ running: true, progress: { step: "targets", detail: "" }, error: "", result: null });
   logLine(`[start] ${opts.engineId}${opts.model ? ` · ${opts.model}` : ""} · 超时 1200s`);
   void (async () => {
@@ -95,6 +97,12 @@ export function startLint(opts: LintStartOpts): void {
         onProgress: (p) => {
           const prev = state.progress?.step;
           commit({ progress: p });
+          if (p.waitSec !== undefined && p.waitSec !== state.waitSec) {
+            state = { ...state, waitSec: p.waitSec };
+            const phase = p.step === "recognize" ? `识别中 ${p.detail}` : "判定中";
+            logLine(`[wait] ${phase} · 已等 ${p.waitSec}s · 引擎输出 ${p.liveBytes ?? 0} 字节`);
+            return;
+          }
           if (p.step !== prev) {
             const label = p.step === "corpus" ? `读对话语料${p.detail ? ` · ${p.detail}` : ""}`
               : p.step === "evidence" ? `抽证据${p.detail ? ` · ${p.detail} 条消息` : ""}`

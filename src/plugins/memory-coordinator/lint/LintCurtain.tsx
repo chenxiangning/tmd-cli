@@ -12,8 +12,9 @@ import type { LintLogEntry } from "./lintController";
 
 /** 进度步进文案(幕布头部相位,纯函数,组件内使用)。 */
 function curtainPhase(p: LintProgress): string {
-  if (p.step === "recognize") return t("AI 识别中(全文比对)…{f}", { f: p.detail });
-  if (p.step === "judge") return t("AI 判定中 {d}/{t}", { d: String(p.done ?? 0), t: String(p.total ?? 0) });
+  const wait = p.waitSec && p.waitSec > 3 ? ` · 已等 ${p.waitSec}s` : "";
+  if (p.step === "recognize") return `${t("AI 识别中(全文比对)…{f}", { f: p.detail })}${wait}`;
+  if (p.step === "judge") return `${t("AI 判定中 {d}/{t}", { d: String(p.done ?? 0), t: String(p.total ?? 0) })}${wait}`;
   if (p.step === "corpus") return p.detail ? t("读对话中…({p})", { p: p.detail }) : t("读对话中…");
   if (p.step === "evidence") return t("抽证据中…({n} 条消息)", { n: p.detail });
   if (p.step === "targets") return t("读规则中…");
@@ -50,7 +51,7 @@ export function PtyCurtain({ progress, title, log }: { progress: LintProgress; t
         ref={tailRef}
         className="h-14 flex-none overflow-y-auto whitespace-pre-wrap break-all px-2.5 pb-1.5 font-mono text-[9px] leading-snug text-[#8d9b94]"
       >
-        {live || "…"}
+        {live || ((progress.liveBytes ?? 0) === 0 && (progress.waitSec ?? 0) > 0 ? t("引擎尚未输出任何字节——模型思考中;部分引擎把输出缓冲到结束时一次性给出") : "…")}
       </pre>
     </div>
   );

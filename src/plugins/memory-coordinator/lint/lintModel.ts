@@ -35,6 +35,8 @@ export interface LintProgress {
   live?: string;
   done?: number;
   total?: number;
+  /** 等待心跳(runJudgeRaw onWait 透传):已等待秒数 / 引擎累计输出字节。 */
+  waitSec?: number; liveBytes?: number;
 }
 
 export interface LintRunResult {
@@ -196,6 +198,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
         onChunk: (liveText) => {
           if (alive()) opts.onProgress({ step: "recognize", detail: "", live: liveText.slice(-4000) });
         },
+        onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "recognize", detail: f.target.absPath.split("/").pop() ?? "", live: "", waitSec, liveBytes }); },
       });
       const marks = new Map<number, AiMark>();
       for (const m of parseRecognizeReply(raw)) {
@@ -230,6 +233,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
           onChunk: (liveText) => {
             if (alive()) opts.onProgress({ step: "judge", detail: "", live: liveText.slice(-4000) });
           },
+          onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "judge", detail: "", live: "", waitSec, liveBytes }); },
         });
         const parsed = parseJudgeReply(raw, needAi.length);
         const patch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[] = [];

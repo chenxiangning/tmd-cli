@@ -147,6 +147,8 @@ export interface JudgeRunOpts {
   workspaceId: string | null;
   timeoutSeconds: number;
   onChunk?: (liveText: string) => void;
+  /** 等待心跳:每 15s 报一次已等待秒数与引擎累计输出字节(引擎可能整段缓冲)。 */
+  onWait?: (waitedSec: number, outputBytes: number) => void;
 }
 
 /** 剥 ANSI/控制符 + 压空行(与 prompt-enhancer normalizePtyText 同一件)。 */
@@ -171,6 +173,10 @@ export async function runJudgeRaw(opts: JudgeRunOpts): Promise<string> {
   let live = "";
   let timedOut = false;
   let settled = false;
+  const startedAt = Date.now();
+  const heart = setInterval(() => {
+    if (!settled) opts.onWait?.(Math.round((Date.now() - startedAt) / 1000), live.length);
+  }, 15000);
   const { promise, resolve } = Promise.withResolvers<string>();
   void onPtyOutput(spawned.id, (chunk) => {
     live += chunk;
@@ -183,6 +189,7 @@ export async function runJudgeRaw(opts: JudgeRunOpts): Promise<string> {
   void onPtyExit(spawned.id, () => {
     if (settled) return;
     settled = true;
+    clearInterval(heart);
     clearTimeout(timer);
     resolve(normalizePtyText(live));
   });

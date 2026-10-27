@@ -145,4 +145,5 @@ export const MESSAGES_EN = {
   "应用 AI 建议": "Apply AI suggestion",
   "规则变更预览": "Rule change preview",
   "选中规则": "Selected rule",
+  "引擎尚未输出任何字节——模型思考中;部分引擎把输出缓冲到结束时一次性给出": "Engine has emitted no bytes yet — the model is thinking; some engines buffer all output until completion",
 } as Record<string, string>;
