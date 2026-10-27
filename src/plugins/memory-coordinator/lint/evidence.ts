@@ -86,7 +86,14 @@ export function measureEvidence(
           ev.correctionWords.push(w);
         }
       }
-      if (ev.correctionQuotes.length < 3) ev.correctionQuotes.push(cut(m.text));
+      if (ev.correctionQuotes.length < 3) {
+        const q = cut(m.text);
+        /* 去重与长文过滤:同段文本反复出现(如反复粘贴体检指令)只收一条;贴入的长文不是纠正证据。 */
+        const skeleton = q.slice(0, 60);
+        if (q.length <= 300 && !ev.correctionQuotes.includes(q) && !ev.correctionQuotes.some((x) => x.slice(0, 60) === skeleton)) {
+          ev.correctionQuotes.push(q);
+        }
+      }
     }
   }
   ev.activeSessions = touchedSessions.size;
