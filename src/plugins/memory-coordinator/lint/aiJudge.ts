@@ -13,6 +13,7 @@ import { stripAnsi } from "@kernel/askDetect";
 import { archiveSession, sessionArchiveKey } from "@kernel/sessionArchive";
 import { host } from "@kernel/host";
 import type { LintAdvice, RuleEvidence, RuleItem, RuleJudgment, LintVerdict } from "./lintTypes";
+import { scriptVerdict } from "./evidence";
 
 /** 引擎 argv 表(prompt-enhancer/enhanceEngines.ts 同源实证;改动须两边同步)。 */
 export interface JudgeEngineAdapter {
@@ -45,28 +46,31 @@ const KIND_LABEL: Record<string, string> = {
 const VERDICTS: LintVerdict[] = ["working", "violated", "touched", "dormant", "unverifiable"];
 const ADVICES: LintAdvice[] = ["keep", "remove", "archive", "stub", "fixpath"];
 
-function evidenceBlock(rule: RuleItem, ev: RuleEvidence): string {
+const PRE_LABEL: Record<LintVerdict, string> = {
+  working: "working 真的在做", violated: "violated AI 不听", touched: "touched 只是提到",
+  dormant: "dormant 没人用", unverifiable: "unverifiable 说不清",
+};
+
+/** 脚本测量摘要(仅计数与脚本预判,不带对话原文/引文/信号词——控制 token,原文不出本机)。 */
+function evidenceBlock(rule: RuleItem, ev: RuleEvidence, hasSessions: boolean): string {
   const day = ev.lastSeen ? new Date(ev.lastSeen).toISOString().slice(0, 10) : "无";
   const lines = [
     `[${rule.idx}] (${KIND_LABEL[rule.kind] ?? rule.kind} | 章节:${rule.section})`,
     `规则原文:${rule.text.replace(/\n+/g, " ⏎ ")}`,
-    `信号词:${ev.discTokens.slice(0, 6).join("、") || "无"}${ev.unjudgeable ? "(全部超高频,词面证据不可用)" : ""}`,
-    `触达 ${ev.hits} 条消息 / ${ev.activeSessions} 个会话,最近 ${day};纠正 ${ev.corrections} 次;工具级照做 ${ev.complied} 次`,
+    `脚本测量:触达 ${ev.hits} 条消息 / ${ev.activeSessions} 个会话,最近 ${day};纠正 ${ev.corrections} 次;工具级照做 ${ev.complied} 次${ev.unjudgeable ? ";词面证据不可用" : ""}`,
+    `脚本预判:${PRE_LABEL[scriptVerdict(ev, hasSessions)]}(仅按上表计数得出,供参考)`,
   ];
-  if (ev.command) lines.push(`规则内命令:${ev.command}(照做=会话里确实跑过)`);
-  for (const q of ev.correctionQuotes) lines.push(`用户纠正原话:「${q}」`);
-  if (ev.complyQuote) lines.push(`照做证据:${ev.complyQuote}`);
-  if (!ev.touchQuote && ev.hits === 0) lines.push("窗口内零触达。");
+  if (ev.command) lines.push(`规则内命令:${ev.command}(照做=计数里确实跑过)`);
   return lines.join("\n");
 }
 
-/** 组装批判定指令:判定词汇表 + 诚实铁律 + 输出契约 + 逐条证据包。 */
+/** 组装批判定指令:规则原文 + 脚本测量摘要(计数+脚本预判),AI 给最终判定。 */
 export function buildJudgeInstruction(
   batch: { rule: RuleItem; evidence: RuleEvidence }[],
   hasSessions: boolean,
 ): string {
   return [
-    "你是 AI 助手规则文件的体检官。下面每条规则配有一份证据包,来自本机近 30 天的真实 AI 编程会话日志(用户消息、助手消息、工具调用)。请逐条判断规则在这些会话中的实际生效情况。",
+    "你是 AI 助手规则文件的体检官。下面每条规则只附一份「脚本测量摘要」——脚本先在本机近 30 天会话上算好计数(触达/纠正/工具级照做)并给出确定性预判;对话原文不会发给你。请结合规则文本与这些计数,给出你最终的生效判定。",
     "",
     "判定取值(v,五选一):",
     '- "working" 真的在做:证据显示规则被执行(命令被真实跑过/路径确实按规则落盘;禁令型被反复触达且未观测到违反也算)',
@@ -85,7 +89,7 @@ export function buildJudgeInstruction(
     "标记之外不要输出任何内容(不要解释、不要代码围栏)。",
     "",
     "=== 规则与证据 ===",
-    ...batch.map(({ rule, evidence }) => `${evidenceBlock(rule, evidence)}\n`),
+    ...batch.map(({ rule, evidence }) => `${evidenceBlock(rule, evidence, hasSessions)}\n`),
   ].join("\n");
 }
 

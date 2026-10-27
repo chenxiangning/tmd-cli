@@ -11,6 +11,7 @@ vi.mock("@kernel/sessionArchive", () => ({ archiveSession: vi.fn(), sessionArchi
 
 import { buildJudgeInstruction, JUDGE_ENGINES, parseJudgeReply } from "./aiJudge";
 import { batchRules, summarizeRows, BATCH_SIZE } from "./lintModel";
+import { scriptVerdict } from "./evidence";
 import { CLAUDE_STUB, removeRuleFromFile, resetBackupsForTest, stubEdit } from "./applyLint";
 import type { RuleEvidence, RuleItem, LintRow } from "./lintTypes";
 
@@ -28,15 +29,33 @@ function evOf(partial: Partial<RuleEvidence> = {}): RuleEvidence {
 }
 
 describe("buildJudgeInstruction", () => {
-  it("含判定词汇表/输出契约/逐条证据包;零会话附语料为空警示", () => {
-    const withData = buildJudgeInstruction([{ rule: ruleOf(1), evidence: evOf() }], true);
+  it("只发规则+脚本测量摘要(计数+预判),不带对话原文;零会话附语料为空警示", () => {
+    const ev = evOf({ correctionQuotes: ["跟你说了用中文"], complyQuote: "pnpm check:gate", touchQuote: "提到过" });
+    const withData = buildJudgeInstruction([{ rule: ruleOf(1), evidence: ev }], true);
     expect(withData).toContain("<LINT>");
     expect(withData).toContain('"working"');
     expect(withData).toContain("[1]");
+    expect(withData).toContain("脚本测量:触达 3 条消息");
+    expect(withData).toContain("脚本预判:working");
+    expect(withData).not.toContain("跟你说了用中文"); /* 原文不出本机 */
+    expect(withData).not.toContain("纠正原话");
     expect(withData).toContain("纠正 0 次");
     expect(withData).not.toContain("(注意");
-    const empty = buildJudgeInstruction([{ rule: ruleOf(1), evidence: evOf({ hits: 0 }) }], false);
+    const empty = buildJudgeInstruction([{ rule: ruleOf(1), evidence: evOf({ hits: 0, complied: 0 }) }], false);
     expect(empty).toContain("(注意:本次语料为空");
+    expect(empty).toContain("脚本预判:unverifiable");
+  });
+});
+
+describe("scriptVerdict", () => {
+  it("照做>0=working;纠正>0=violated;空语料/不可判=unverifiable;零触达=dormant;其余=touched", () => {
+    const base = evOf();
+    expect(scriptVerdict(base, true)).toBe("working");
+    expect(scriptVerdict(evOf({ complied: 0, corrections: 1 }), true)).toBe("violated");
+    expect(scriptVerdict(evOf({ complied: 0 }), false)).toBe("unverifiable");
+    expect(scriptVerdict(evOf({ complied: 0, unjudgeable: true }), true)).toBe("unverifiable");
+    expect(scriptVerdict(evOf({ complied: 0, hits: 0 }), true)).toBe("dormant");
+    expect(scriptVerdict(evOf({ complied: 0, corrections: 0 }), true)).toBe("touched");
   });
 });
 

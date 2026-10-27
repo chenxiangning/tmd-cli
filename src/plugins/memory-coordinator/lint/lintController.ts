@@ -71,7 +71,7 @@ export function startLint(opts: LintStartOpts): void {
     try {
       const result = await runLintStream({
         cwd: opts.cwd, workspaceId: opts.workspaceId, engineId: opts.engineId,
-        model: opts.model, timeoutSeconds: 240, scopes: opts.scopes,
+        model: opts.model, timeoutSeconds: 1200, scopes: opts.scopes,
         onProgress: (p) => commit({ progress: p }),
         onFileRows: (scope, _file, rows) => {
           if (!state.result) {

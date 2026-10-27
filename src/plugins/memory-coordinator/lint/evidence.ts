@@ -8,7 +8,7 @@
  * 本模块只测量不定罪;生效与否的语义判断归 AI(aiJudge.ts)。
  */
 
-import type { CorpusMsg, RuleEvidence, RuleItem, SessionCorpus } from "./lintTypes";
+import type { CorpusMsg, LintVerdict, RuleEvidence, RuleItem, SessionCorpus } from "./lintTypes";
 import { extractCommand } from "./rulesExtract";
 
 /** 纠正词表(移植 CORRECTIONS;「不要」除外的原因见文件头)。 */
@@ -123,4 +123,17 @@ export function measureAll(
   sessionFilterOf?: (rule: RuleItem) => Set<number> | null,
 ): RuleEvidence[] {
   return rules.map((r, i) => measureEvidence(r, disc[i]!, unjudgeable[i]!, corpus, sessionFilterOf?.(r) ?? null));
+}
+
+/**
+ * 脚本侧确定性预判(只按计数,不发语料):照做>0=working;纠正>0=violated;
+ * 语料空或词面证据不可用=unverifiable;零触达=dormant;其余=touched。
+ * 仅作 AI 最终判定的参考输入,不定罪(文件头口径)。
+ */
+export function scriptVerdict(ev: RuleEvidence, hasSessions: boolean): LintVerdict {
+  if (ev.complied > 0) return "working";
+  if (ev.corrections > 0) return "violated";
+  if (!hasSessions || ev.unjudgeable) return "unverifiable";
+  if (ev.hits === 0) return "dormant";
+  return "touched";
 }
