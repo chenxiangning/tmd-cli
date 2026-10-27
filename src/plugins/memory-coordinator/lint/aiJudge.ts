@@ -195,7 +195,8 @@ export async function runJudgeRaw(opts: JudgeRunOpts): Promise<string> {
   });
   const raw = await promise;
   if (timedOut) throw new Error("judge-timeout");
-  if (/command not found/i.test(raw)) throw new Error("judge-engine-missing");
+  /* 仅当输出极短时才把 command not found 当引擎缺失;长回复里含该词是引擎/模型内容,不误判。 */
+  if (live.length < 200 && /command not found/i.test(raw)) throw new Error("judge-engine-missing");
   void archiveSpawnedDiskSession(engine.id, opts.cwd, opts.workspaceId).catch(() => {});
   return raw;
 }

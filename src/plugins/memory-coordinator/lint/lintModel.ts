@@ -174,23 +174,23 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
   }
   if (!alive()) throw new Error("lint-cancelled");
 
-  /* 第二步·AI:识别 pass(全文带行号)→ 生效判定 pass;引擎级失败 fail-fast */
+  /* 第二步·AI:逐文件串完 识别批→判定批(行状态连续推进),引擎级失败 fail-fast */
   let engineError = "";
   const judgments = new Map<string, RuleJudgment>();
   const needAiOf = (f: (typeof rulesByFile)[number]) =>
     f.rules.filter((r) => !enforced.has(r.file + r.text));
   for (const f of rulesByFile) {
     if (engineError || !alive()) break;
-    const needAi = needAiOf(f);
-    if (needAi.length === 0) continue;
+    const fname = `${f.target.scope === "user" ? "全局/" : "项目/"}${f.target.absPath.split("/").pop() ?? ""}`;
     const label = f.target.scope === "project" ? "项目级规则文件" : "用户级全局规则文件";
-    const fname = f.target.absPath.split("/").pop() ?? "";
-    const batches = batchRules(needAi);
-    for (let bi = 0; bi < batches.length; bi++) {
+    const needAi = needAiOf(f);
+    /* 识别批:8 条/批,±6 行节选 + 全文件目录 */
+    const recBatches = batchRules(needAi);
+    for (let bi = 0; bi < recBatches.length; bi++) {
       if (engineError || !alive()) break;
-      const batch = batches[bi]!;
+      const batch = recBatches[bi]!;
       opts.onProgress({
-        step: "recognize", detail: `${fname} 批 ${bi + 1}/${batches.length}`, done: bi * BATCH_SIZE, total: needAi.length,
+        step: "recognize", detail: `${fname} 批 ${bi + 1}/${recBatches.length}`, done: bi * BATCH_SIZE, total: needAi.length,
       });
       try {
         const raw = await runJudgeRaw({
@@ -201,7 +201,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
           onChunk: (liveText) => {
             if (alive()) opts.onProgress({ step: "recognize", detail: "", live: liveText.slice(-4000) });
           },
-          onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "recognize", detail: `${fname} 批 ${bi + 1}/${batches.length}`, live: "", waitSec, liveBytes }); },
+          onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "recognize", detail: `${fname} 批 ${bi + 1}/${recBatches.length}`, live: "", waitSec, liveBytes }); },
         });
         const focus = new Set(batch.map((r) => r.line));
         const marks = new Map<number, AiMark>();
@@ -214,34 +214,30 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
         engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
       }
     }
-  }
-  for (const f of rulesByFile) {
-    if (engineError || !alive()) break;
+    /* 判定批(同文件紧随识别,行状态待判定→判定中→已判定) */
     for (const batch of batchRules(needAiOf(f))) {
-      const pairs = batch.map((rule) => {
-        const gi = flatRules.indexOf(rule);
-        return { rule, evidence: evidences[gi]! };
-      });
-      const needAi = pairs.filter((p) => !enforced.has(p.rule.file + p.rule.text));
-      if (needAi.length === 0) continue;
+      if (engineError || !alive()) break;
+      const pairs = batch.map((rule) => ({ rule, evidence: evidences[flatRules.indexOf(rule)]! }));
+      const judgeList = pairs.filter((p) => !enforced.has(p.rule.file + p.rule.text));
+      if (judgeList.length === 0) continue;
       opts.onProgress({
         step: "judge", detail: "", live: "", done: judgments.size, total: Math.max(1, flatRules.length - enforced.size),
       });
       try {
         const raw = await runJudgeRaw({
           engineId: opts.engineId,
-          instruction: buildJudgeInstruction(needAi, corpus.msgs.length > 0),
+          instruction: buildJudgeInstruction(judgeList, corpus.msgs.length > 0),
           model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
           timeoutSeconds: opts.timeoutSeconds,
           onChunk: (liveText) => { if (alive()) opts.onProgress({ step: "judge", detail: "", live: liveText.slice(-4000) }); },
           onWait: (waitSec, liveBytes) => { if (alive()) opts.onProgress({ step: "judge", detail: "", live: "", waitSec, liveBytes }); },
         });
-        const parsed = parseJudgeReply(raw, needAi.length);
+        const parsed = parseJudgeReply(raw, judgeList.length);
         const patch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[] = [];
         parsed.forEach((j, i) => {
           if (!j) return;
-          judgments.set(needAi[i]!.rule.file + needAi[i]!.rule.text, j);
-          patch.push({ scope: scopeOf(f.target), file: needAi[i]!.rule.file, rule: needAi[i]!.rule, judgment: j });
+          judgments.set(judgeList[i]!.rule.file + judgeList[i]!.rule.text, j);
+          patch.push({ scope: scopeOf(f.target), file: judgeList[i]!.rule.file, rule: judgeList[i]!.rule, judgment: j });
         });
         if (alive() && patch.length > 0) opts.onJudgments(patch);
         if (parsed.every((j) => j === null)) {
@@ -250,7 +246,6 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
         }
       } catch (e) {
         engineError = engineNote(String(e), opts.engineId, opts.timeoutSeconds);
-        break;
       }
     }
   }

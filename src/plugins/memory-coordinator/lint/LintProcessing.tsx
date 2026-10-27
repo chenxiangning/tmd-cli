@@ -29,13 +29,16 @@ function percentOf(p: LintProgress | null): number {
   return 100;
 }
 
-/** 行状态徽章:已判定(色) / 判定中(spinner) / 识别中(spinner) / 已提取·待测。 */
-function RowState({ row, recognizing }: { row: LintRow; recognizing: boolean }) {
+/** 行状态徽章:已判定(色) / 判定中(spinner) / 待判定(已识别) / 识别中(spinner) / 已提取·待测。 */
+function RowState({ row, recognizing, judging }: { row: LintRow; recognizing: boolean; judging: boolean }) {
   if (row.judgment) {
     const v = row.judgment.verdict;
     return <span className={`flex-none rounded px-1.5 py-0.5 text-[10px] ${VERDICT_CLS[v]}`}>{t(VERDICT_LABEL[v])}</span>;
   }
   if (row.aiMark) {
+    return <span className="flex-none rounded bg-(--tmd-accent)/5 px-1.5 py-0.5 text-[10px] text-(--tmd-accent)">{t("待判定")}</span>;
+  }
+  if (judging) {
     return (
       <span className="flex flex-none items-center gap-1 rounded bg-(--tmd-accent)/10 px-1.5 py-0.5 text-[10px] text-(--tmd-accent)">
         <Spinner />
@@ -99,7 +102,7 @@ export function LintProcessing({
                 </div>
                 {group.map((row) => (
                   <div key={`${row.rule.file}:${row.rule.line}`} className="my-1 flex items-center gap-2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-elevated) px-2 py-1.5 text-[11px]">
-                    <RowState row={row} recognizing={recognizing} />
+                    <RowState row={row} recognizing={recognizing} judging={progress?.step === "judge"} />
                     <span className="min-w-0 flex-1 truncate font-mono">{row.rule.text}</span>
                     <span className="flex-none font-mono text-[10px] text-(--tmd-fg-faint)">L{row.rule.line}</span>
                   </div>

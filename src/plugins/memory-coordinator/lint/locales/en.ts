@@ -129,6 +129,7 @@ export const MESSAGES_EN = {
   "当前批次：{f}": "Current batch: {f}",
   "批次收尾中": "Batch wrapping up",
   "判定中": "Judging",
+  "待判定": "Pending judge",
   "识别中": "Recognizing",
   "已提取 · 待测": "Extracted · pending",
   "{n} 条": "{n} rules",

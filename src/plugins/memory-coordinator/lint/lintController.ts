@@ -115,7 +115,7 @@ export function startLint(opts: LintStartOpts): void {
           }
         },
         onFileRows: (scope, _file, rows) => {
-          logLine(`[script] ${rows[0]?.rule.file.split("/").pop() ?? _file} 提取 ${rows.length} 条规则(${scope === "global" ? "全局" : "项目"})`);
+          logLine(`[script] ${scope === "global" ? "全局" : "项目"} ${rows[0]?.rule.file.split("/").pop() ?? _file} 提取 ${rows.length} 条规则`);
           if (!state.result) {
             commit({
               result: {
@@ -138,14 +138,15 @@ export function startLint(opts: LintStartOpts): void {
         },
         onAiMarks: (scope, file, marks) => {
           const ok = [...marks.values()].filter((m) => m.recognizable).length;
-          logLine(`[recognize] ${file.split("/").pop()} 可识别 ${ok} / 不可 ${marks.size - ok}`);
+          logLine(`[recognize] ${scope === "global" ? "全局" : "项目"} ${file.split("/").pop()} 可识别 ${ok} / 不可 ${marks.size - ok}`);
           patchRows(file, (row) => {
             const mark = marks.get(row.rule.line);
             return mark ? { ...row, aiMark: mark, scope } : row;
           });
         },
         onJudgments: (batch) => {
-          logLine(`[judge] 批返回 ${batch.length} 条判定`);
+          const b0 = batch[0];
+          logLine(`[judge] ${b0 ? (b0.scope === "global" ? "全局" : "项目") : ""} ${b0?.file.split("/").pop() ?? ""} 批返回 ${batch.length} 条判定`);
           for (const b of batch) {
             patchRows(b.file, (row) => (row.rule === b.rule ? { ...row, judgment: b.judgment, scope: b.scope } : row));
           }
