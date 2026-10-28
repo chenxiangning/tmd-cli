@@ -16,7 +16,7 @@ import { userHome } from "./home";
 import { expandLintTargets, probeTargets } from "./targets";
 import { extractRules } from "./rulesExtract";
 import { collectCorpus, type CorpusProfileSource } from "./corpus";
-import { discriminativeTokens, measureAll, normalizeCmd } from "./evidence";
+import { discriminativeTokens, enforceVerdictContract, measureAll, normalizeCmd } from "./evidence";
 import { buildUnifiedInstruction, parseUnifiedReply } from "./unifiedCall";
 import { engineNote, runJudgeRaw } from "./aiJudge";
 import { buildStaticFindings } from "./staticFindings";
@@ -222,7 +222,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
           const key = slot.rule.file + slot.rule.text;
           if (!judgments.has(key)) {
             /* advice 单调用协议不再由模型给:不可执行规则给 stub(改写文本走 aiMark.rewrite),其余 keep。 */
-            const j: RuleJudgment = { verdict: it.v, reason: it.why, advice: it.ok ? "keep" : "stub", fix: it.fix };
+            const j: RuleJudgment = { verdict: enforceVerdictContract(it.v, slot.evidence), reason: it.why, advice: it.ok ? "keep" : "stub", fix: it.fix };
             judgments.set(key, j);
             patch.push({ scope: slot.scope, file: slot.rule.file, rule: slot.rule, judgment: j });
           }

@@ -8,7 +8,7 @@ const ipcMock = vi.hoisted(() => ({ fsReadHeads: vi.fn() }));
 vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 
 import { expandLintTargets, probeTargets } from "./targets";
-import { CORRECTIONS, discriminativeTokens, measureEvidence, normalizeCmd } from "./evidence";
+import { CORRECTIONS, discriminativeTokens, enforceVerdictContract, measureEvidence, normalizeCmd, scriptVerdict } from "./evidence";
 import { blocksToCorpus, sanitizeUserText } from "./corpus";
 import type { CorpusMsg, RuleItem, SessionCorpus } from "./lintTypes";
 
@@ -46,6 +46,10 @@ function msg(text: string, role: "user" | "assistant" = "assistant", sessionIdx 
   return { sessionIdx, role, text, lower: text.toLowerCase(), ts: 1_700_000_000_000 };
 }
 
+function emptyCorpus(): SessionCorpus {
+  return { msgs: [], calls: [], sessionCwds: [], sessionCount: 0, readFiles: 0, perProfile: [] };
+}
+
 describe("discriminativeTokens", () => {
   it("IDF 门槛:超高频词被剔除,低频词保留;全超频 = unjudgeable", () => {
     const msgs = [
@@ -57,6 +61,23 @@ describe("discriminativeTokens", () => {
     expect(byRule[0]).toEqual(["rustdoc"]); /* df=2 ≤ 门槛 max(5, 20/2000=5) 保留;src df=18 剔除 */
     expect(unjudgeable[0]).toBe(false);
     expect(unjudgeable[1]).toBe(true); /* src 全超频 → 有信号词但全不可用 */
+  });
+
+  it("零信号词规则(纯中文提不出 tokens)也判 unjudgeable,不得落 dormant 预判", () => {
+    const { unjudgeable } = discriminativeTokens([ruleOf("核心宗旨:追求艺术级的系统构建。", [])], [msg("随便聊聊")]);
+    expect(unjudgeable[0]).toBe(true);
+    expect(scriptVerdict(measureEvidence(ruleOf("核心宗旨:追求艺术级的系统构建。", []), [], true, emptyCorpus()), true)).toBe("unverifiable");
+  });
+});
+
+describe("enforceVerdictContract", () => {
+  const ev = (hits: number, unjudgeable: boolean) =>
+    ({ ...measureEvidence(ruleOf("t", []), [], false, emptyCorpus()), hits, unjudgeable });
+  it("dormant 越权回落:有触达=touched,词面不可用=unverifiable;合规 dormant 放行", () => {
+    expect(enforceVerdictContract("dormant", ev(3, false))).toBe("touched");
+    expect(enforceVerdictContract("dormant", ev(0, true))).toBe("unverifiable");
+    expect(enforceVerdictContract("dormant", ev(0, false))).toBe("dormant");
+    expect(enforceVerdictContract("working", ev(0, true))).toBe("working"); /* 非 dormant 不拦 */
   });
 });
 

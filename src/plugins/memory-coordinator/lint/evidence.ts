@@ -42,7 +42,8 @@ export function discriminativeTokens(
       .filter((tk) => (df.get(tk) ?? 0) <= limit)
       .sort((a, b) => (df.get(a) ?? 0) - (df.get(b) ?? 0)), /* 最稀有优先 */
   );
-  const unjudgeable = rules.map((r, i) => r.tokens.length > 0 && byRule[i]!.length === 0);
+  /* 零信号词(纯中文无「」/反引号/ASCII 段)视同不可判:否则 hits 恒 0 会被预判成 dormant(2026-10-28 实证)。 */
+  const unjudgeable = rules.map((r, i) => r.tokens.length === 0 || byRule[i]!.length === 0);
   return { byRule, unjudgeable };
 }
 
@@ -145,4 +146,13 @@ export function scriptVerdict(ev: RuleEvidence, hasSessions: boolean): LintVerdi
   if (!hasSessions || ev.unjudgeable) return "unverifiable";
   if (ev.hits === 0) return "dormant";
   return "touched";
+}
+
+/** 判定契约闸(aiJudge 提示词「诚实铁律」的代码化,2026-10-28 实证模型会越权):
+ *  dormant 只许「零触达且信号词可用」;违反时按证据底线回落——有触达=touched,词面不可用=unverifiable。 */
+export function enforceVerdictContract(v: LintVerdict, ev: RuleEvidence): LintVerdict {
+  if (v !== "dormant") return v;
+  if (ev.hits > 0) return "touched";
+  if (ev.unjudgeable) return "unverifiable";
+  return v;
 }

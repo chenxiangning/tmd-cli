@@ -10,7 +10,7 @@
 import { openTab, getTabs } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
 import { runLintStream, summarizeRows, type LintProgress, type LintRunResult } from "./lintModel";
-import { addScanRecord } from "./lintStore";
+import { addScanRecord, saveLastResult } from "./lintStore";
 import type { LintRow, LintScope, StaticFinding } from "./lintTypes";
 
 export interface LintControllerState {
@@ -172,6 +172,7 @@ export function startLint(opts: LintStartOpts): void {
       });
       const s = summarizeRows(result.rows);
       logLine(`[done] 规则 ${result.rows.length} · 判定 ${result.rows.length - s.failed} · 失败 ${s.failed}${result.engineError ? ` · ${result.engineError}` : ""}`);
+      await saveLastResult(result); /* 断点回放消费方在 LintReportTab/LintView 挂载,生产者缺失会让重启后回放陈旧半截快照 */
       await addScanRecord({
         at: result.at, cwd: result.cwd, engineId: opts.engineId, model: opts.model ?? "",
         files: new Set(result.rows.map((r) => r.rule.file)).size, rules: result.rows.length,
