@@ -18,6 +18,8 @@ export interface LintControllerState {
   progress: LintProgress | null;
   result: LintRunResult | null;
   error: string;
+  /** 本次运行配置:右栏与中央报告展示同一引擎/模型。 */
+  runMeta: { engineId: string; model: string };
   /** 幕布事件流:脚本侧确定性事件(与引擎 PTY 输出无关,保证实时可见)。 */
   log: LintLogEntry[];
   /** 上次心跳秒数(去重打点)。 */
@@ -29,7 +31,7 @@ export interface LintLogEntry {
   text: string;
 }
 
-let state: LintControllerState = { running: false, progress: null, result: null, error: "", log: [], waitSec: 0 };
+let state: LintControllerState = { running: false, progress: null, result: null, error: "", runMeta: { engineId: "omp", model: "" }, log: [], waitSec: 0 };
 const listeners = new Set<() => void>();
 let logSeq = 0;
 
@@ -98,7 +100,7 @@ export interface LintStartOpts {
 export function startLint(opts: LintStartOpts): void {
   if (state.running) return;
   state = { ...state, log: [], waitSec: 0 };
-  commit({ running: true, progress: { step: "targets", detail: "" }, error: "", result: null });
+  commit({ running: true, progress: { step: "targets", detail: "" }, error: "", result: null, runMeta: { engineId: opts.engineId, model: opts.model ?? "" } });
   logLine(`[start] ${opts.engineId}${opts.model ? ` · ${opts.model}` : ""} · 超时 1200s`);
   void (async () => {
     try {

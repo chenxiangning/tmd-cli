@@ -1,13 +1,14 @@
 /**
  * 写回 —— 按建议动作改规则文件(移植 tmd-lint apply.rs/apply_archive.rs 安全件):
- * 行级操作先做「原文匹配守卫」(当前行 trim 后必须与体检时一致,防体检后文件
- * 已被手改而错删);落盘前先写 `{path}.bak-tmdlint` 备份(每文件本会话一份);
+ * 行级操作先做「原文匹配守卫」(当前候选经同一提取器解析后必须与体检快照一致,防体检后文件
+ * 已被手改而错删;普通段落与围栏示例不参与锚定);落盘前先写 `{path}.bak-tmdlint` 备份(每文件本会话一份);
  * archive 删行后在原位留占位符(连续归档块只留一个),并把原文追加进
  * docs/agents-archive.md;另含 fixpath 改写、missing 追加、pre-commit hook
  * 生成(chmod 经 procCommunicate 通用原语)与 .bak-tmdlint 恢复。
  */
 
 import { ipc } from "@kernel/ipc";
+import { extractRules } from "./rulesExtract";
 import type { RuleItem, StaticFinding } from "./lintTypes";
 
 const ARCHIVE_PLACEHOLDER = "(原规则已迁至 docs/agents-archive.md)";
@@ -34,16 +35,18 @@ export interface FileEdit {
 }
 
 /**
- * 文本锚定定位(行号漂移根治):行号处命中规则原文就用行号;失配则按 trim 原文
- * 全文搜索——唯一命中直接用,多命中取距原行号最近者(歧义最小),零命中判失败。
+ * 文本锚定定位(行号漂移根治):行号处命中规则原文就用行号;失配则在同一提取器生成的
+ * 当前规则候选中按原文全文搜索——唯一命中直接用,多命中取距原行号最近者(歧义最小),零命中判失败。
  * 这样此前应用造成的行号漂移不阻断后续应用;只有规则文本真被手改/删除才拒。
  */
 function anchorLine(lines: string[], rule: RuleItem): number {
   const want = rule.text.trim();
   if (want === "") return -1; /* 空文本规则无法锚定,拒绝猜测 */
-  if ((lines[rule.line - 1]?.trim() ?? "") === want) return rule.line - 1;
-  const hits: number[] = [];
-  for (let i = 0; i < lines.length; i++) if ((lines[i]?.trim() ?? "") === want) hits.push(i);
+  /* 快照已是提取后的正文,不能再剥 marker;候选也走同一提取器,围栏/普通段落永不兜底命中。 */
+  const hits = extractRules(lines.join("\n"), rule.file)
+    .filter((candidate) => candidate.lineEnd === candidate.line && candidate.text === want)
+    .map((candidate) => candidate.line - 1);
+  if (hits.includes(rule.line - 1)) return rule.line - 1;
   if (hits.length === 0) return -1;
   if (hits.length === 1) return hits[0]!;
   return hits.reduce((best, i) => (Math.abs(i - (rule.line - 1)) < Math.abs(best - (rule.line - 1)) ? i : best), hits[0]!);
@@ -52,6 +55,7 @@ function anchorLine(lines: string[], rule: RuleItem): number {
 /** 多行块锚定:行号块守卫失败则滑动窗口按块文本(逐行 trim join)全文唯一匹配。 */
 function anchorBlock(lines: string[], rule: RuleItem): number {
   const span = rule.lineEnd - rule.line + 1;
+  if (span === 1) return anchorLine(lines, rule);
   const want = rule.text.trim();
   if (want === "") return -1; /* 空文本规则无法锚定 */
   const blockAt = (i: number) => lines.slice(i, i + span).map((l) => l.trim()).join("\n");

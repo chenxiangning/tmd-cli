@@ -55,7 +55,7 @@ function RowState({ row, recognizing, judging }: { row: LintRow; recognizing: bo
     );
   }
   return (
-    <span className="flex-none animate-pulse rounded bg-(--tmd-bg-subtle) px-1.5 py-0.5 text-[10px] text-(--tmd-fg-muted)">{t("已提取 · 待测")}</span>
+    <span className="flex-none rounded bg-(--tmd-bg-subtle) px-1.5 py-0.5 text-[10px] text-(--tmd-fg-muted)">{t("已提取 · 待测")}</span>
   );
 }
 
@@ -94,21 +94,30 @@ export function LintProcessing({
   const waiting = (progress?.waitSec ?? 0) > 3;
   const pct = percentOf(progress);
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" aria-busy="true">
       <div className="border-b border-(--tmd-border) px-3 py-2.5">
         <div className="flex items-center gap-2">
+          <Spinner />
           <span className="text-xs font-medium text-(--tmd-fg)">{t("规则体检 · 处理中")}</span>
           <span className="rounded-full bg-(--tmd-accent)/10 px-2 py-0.5 text-[10px] text-(--tmd-accent)">
             {progress?.step === "judge" ? t("AI 逐条判定") : t("脚本扫描")}
           </span>
+          <span className="ml-auto font-mono text-[10px] text-(--tmd-fg-faint)">{pct}%</span>
         </div>
-        <div className="mt-1 text-meta text-(--tmd-fg-faint)">
+        <div className="mt-1 text-meta text-(--tmd-fg-muted)">
           {waiting
             ? t("AI 判定中 · 已等 {s}s · 单次调用(引擎输出会缓冲,完成即整批上屏)", { s: String(progress?.waitSec ?? 0) })
             : t("已判定 {d}/{t} · {w}", { d: String(judged), t: String(rows.length), w: current ? t("当前批次：{f}", { f: current.rule.file.split("/").pop() ?? "" }) : t("批次收尾中") })}
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-(--tmd-bg-subtle)">
-          <div className="h-full rounded-full bg-(--tmd-accent) transition-[width] duration-300" style={{ width: `${pct}%` }} />
+        <div
+          className="mt-2 h-1.5 overflow-hidden rounded-full bg-(--tmd-bg-subtle)"
+          role="progressbar"
+          aria-label={t("规则体检进度")}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={pct}
+        >
+          <div className={`h-full rounded-full bg-(--tmd-accent) transition-[width] duration-300 ${waiting ? "animate-pulse" : ""}`} style={{ width: `${pct}%` }} />
         </div>
         <div className="mt-1.5 text-meta text-(--tmd-fg-faint)">
           {engineId} · {model || t("默认模型")} · {t("发给模型 = 规则 + 脚本测量摘要,对话原文不出本机 · 超时上限 1200s")}

@@ -159,16 +159,19 @@ function ReportToolbar({
           type="button"
           disabled={busy || !canApplyAll}
           onClick={onApplyAll}
-          className="rounded-full border border-(--tmd-accent) px-2 py-0.5 text-meta text-(--tmd-accent) transition-colors hover:bg-(--tmd-accent)/10 disabled:opacity-50"
+          aria-busy={busy}
+          className="inline-flex items-center gap-1 rounded-full border border-(--tmd-accent) px-2 py-0.5 text-meta text-(--tmd-accent) transition-colors hover:bg-(--tmd-accent)/10 disabled:opacity-50"
         >
-          {t("一键应用 AI 结果")}
+          {busy && <Spinner />}
+          {busy ? t("应用中") : t("一键应用 AI 结果")}
         </button>
         <button
           type="button" onClick={onStart} disabled={running || !cwd}
+          aria-busy={running}
           className="inline-flex items-center gap-1 rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
         >
           {running ? <Spinner /> : <Pulse aria-hidden />}
-          {t("体检")}
+          {running ? t("体检中") : t("体检")}
         </button>
       </div>
     </div>
@@ -186,7 +189,6 @@ export function LintReportTab() {
   const onError = useCallback((msg: string) => setActionError(msg), []);
   const apply = useLintApply(cwd, onError, removeFinding);
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
-  const [runMeta, setRunMeta] = useState({ engineId: "omp", model: "" });
   /* 结果时间戳作历史区刷新信号(扫描/应用后 +1 由 store 重载承担) */
   const revision = ctl.result?.at ?? 0;
 
@@ -205,7 +207,6 @@ export function LintReportTab() {
       const d = await loadStore();
       const engineId = d.lastUsed?.engineId ?? "omp";
       const model = d.lastUsed?.model ?? "";
-      setRunMeta({ engineId, model });
       await setLastUsed(engineId, model);
       startLint({ cwd, workspaceId, engineId, model: model.trim() || null, scopes: ["project", "global"], onError: setActionError });
     })();
@@ -227,7 +228,7 @@ export function LintReportTab() {
       )}
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
         {ctl.running ? (
-          <LintProcessing result={ctl.result} progress={ctl.progress} engineId={runMeta.engineId} model={runMeta.model} />
+          <LintProcessing result={ctl.result} progress={ctl.progress} engineId={ctl.runMeta.engineId} model={ctl.runMeta.model} />
         ) : (
           <>
             {result && <ReportBody result={result} scopeFilter={scopeFilter} busy={apply.busy} onApply={apply.onApply} onKeep={markRowSettled} onHook={apply.onHook} onReopen={reopenRow} onRewrite={apply.onRewrite} onStub={apply.onStub} onWrite={apply.onWrite} onFixpath={apply.onFixpath} />}

@@ -14,6 +14,7 @@ import { buildUnifiedInstruction, parseUnifiedReply } from "./unifiedCall";
 import { batchRules, summarizeRows, BATCH_SIZE } from "./lintModel";
 import { scriptVerdict } from "./evidence";
 import { CLAUDE_STUB, removeRuleFromFile, replaceRuleFromFile, resetBackupsForTest, stubEdit } from "./applyLint";
+import { extractRules } from "./rulesExtract";
 import type { RuleEvidence, RuleItem, LintRow } from "./lintTypes";
 
 function ruleOf(idx: number, text = `- 规则${idx}必须跑 \`pnpm check:gate\``, line = idx + 1): RuleItem {
@@ -124,8 +125,8 @@ describe("lintModel 批切与汇总", () => {
 describe("applyLint 删行守卫", () => {
   it("块原文与体检时不一致 → 拒绝落笔返 null;一致 → 删行/归档占位", () => {
     resetBackupsForTest();
-    const rule = ruleOf(1, "- 甲规则:必须跑 pnpm build", 3);
     const text = ["# 头", "", "- 甲规则:必须跑 pnpm build", "", "- 乙规则"].join("\n");
+    const rule = extractRules(text, "/ws/AGENTS.md")[0]!;
     expect(removeRuleFromFile(text, rule, false)).toBe("# 头\n\n\n- 乙规则");
     expect(removeRuleFromFile(text, rule, true)).toContain("(原规则已迁至 docs/agents-archive.md)");
     const changed = text.replace("pnpm build", "pnpm test");
@@ -139,7 +140,7 @@ describe("applyLint 删行守卫", () => {
   });
 
   it("行号漂移自愈:行号失配但文本在 → 锚定命中仍可改/删;多命中取最近;文本消失才 null", () => {
-    const rule = ruleOf(1, "- 甲规则:必须跑 pnpm build", 3);
+    const rule = extractRules("# 头\n\n- 甲规则:必须跑 pnpm build", "/ws/AGENTS.md")[0]!;
     const drifted = ["# 头", "- 甲规则:必须跑 pnpm build", "", "- 乙规则"].join("\n"); /* 原文上移一行,行号 3 已失效 */
     expect(replaceRuleFromFile(drifted, rule, "- 甲规则:已改写")).toBe("# 头\n- 甲规则:已改写\n\n- 乙规则");
     expect(removeRuleFromFile(drifted, rule, false)).toBe("# 头\n\n- 乙规则");
@@ -148,6 +149,29 @@ describe("applyLint 删行守卫", () => {
     const gone = "# 头\n- 乙规则";
     expect(replaceRuleFromFile(gone, rule, "- x")).toBeNull();
     expect(removeRuleFromFile(gone, rule, false)).toBeNull();
+  });
+
+  it("真实提取会剥列表标记:有序/无序规则仍能锚定改写与删除", () => {
+    const text = ["# 规则", "1. 有序规则:必须执行", "- 无序规则:必须执行"].join("\n");
+    const [ordered, unordered] = extractRules(text, "/ws/AGENTS.md");
+    expect(ordered!.text).toBe("有序规则:必须执行");
+    expect(unordered!.text).toBe("无序规则:必须执行");
+    expect(replaceRuleFromFile(text, ordered!, "1. 有序规则:已改写")).toBe("# 规则\n1. 有序规则:已改写\n- 无序规则:必须执行");
+    expect(removeRuleFromFile(text, unordered!, false)).toBe("# 规则\n1. 有序规则:必须执行");
+  });
+
+  it("快照不二次剥标记:嵌套有序文本仍命中原规则而非相邻规则", () => {
+    const text = ["- 1. 交付前必须跑测试", "- 交付前必须跑测试"].join("\n");
+    const [nested] = extractRules(text, "/ws/AGENTS.md");
+    expect(nested!.text).toBe("1. 交付前必须跑测试");
+    expect(replaceRuleFromFile(text, nested!, "- 1. 交付前必须跑门禁")).toBe("- 1. 交付前必须跑门禁\n- 交付前必须跑测试");
+  });
+
+  it("原规则真删后不命中普通段落或围栏示例", () => {
+    const [rule] = extractRules("- 不得直接提交", "/ws/AGENTS.md");
+    const current = ["不得直接提交", "```md", "- 不得直接提交", "```"].join("\n");
+    expect(replaceRuleFromFile(current, rule!, "- 已改写")).toBeNull();
+    expect(removeRuleFromFile(current, rule!, false)).toBeNull();
   });
 
   it("引擎 argv 表:每家命令与 print 形态与 prompt-enhancer 实证表一致", () => {

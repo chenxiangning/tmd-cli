@@ -26,6 +26,7 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
   const apply = useLintApply(cwd, onError, removeFinding);
   const [engineId, setEngineId] = useState("omp");
   const [model, setModel] = useState("");
+  const [starting, setStarting] = useState(false);
 
   /* 挂载:回填上次引擎选择;同 cwd 的上次结果播种进控制器(重开不丢) */
   useEffect(() => {
@@ -49,28 +50,34 @@ export function LintView({ cwd, workspaceId, onBack }: { cwd: string | null; wor
   }, [cwd]);
 
   const showError = ctl.error || actionError;
+  const busy = ctl.running || starting;
   const start = useCallback(() => {
-    if (!cwd) return;
+    if (!cwd || busy) return;
+    setStarting(true);
+    setActionError("");
+    setNotice("");
     void setLastUsed(engineId, model).then(() => {
-      setActionError("");
-      setNotice("");
       startLint({ cwd, workspaceId, engineId, model: model.trim() || null, scopes: ["project", "global"], onError: setActionError });
       openLintReport();
+    }).catch((e) => {
+      setActionError(String(e).slice(0, 120));
+    }).finally(() => {
+      setStarting(false);
     });
-  }, [cwd, engineId, model, workspaceId]);
+  }, [busy, cwd, engineId, model, workspaceId]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <LintHeaderBar
-        engineId={engineId} model={model} running={ctl.running} cwd={cwd}
+        engineId={engineId} model={model} running={busy} cwd={cwd}
         setEngineId={setEngineId} setModel={setModel} onStart={start} onBack={onBack}
       />
       {!cwd && <div className="flex-none px-1.5 pb-1.5 text-meta text-(--tmd-fg-muted)">{t("打开一个工作区后可体检其规则文件")}</div>}
       {(ctl.running || ctl.progress) && (
         <div className="flex min-h-0 flex-1 flex-col">
-          <PtyCurtain progress={ctl.progress!} title={`${engineId}${model ? ` · ${model}` : ""}`} log={ctl.log} running={ctl.running} />
+          <PtyCurtain progress={ctl.progress!} title={`${ctl.runMeta.engineId}${ctl.runMeta.model ? ` · ${ctl.runMeta.model}` : ""}`} log={ctl.log} running={ctl.running} error={ctl.error} />
           {!ctl.running && (
-            <button type="button" onClick={start} className="mx-1.5 mb-1.5 flex-none rounded-md border border-(--tmd-border) px-2 py-1 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent)">
+            <button type="button" onClick={start} disabled={starting} aria-busy={starting} className="mx-1.5 mb-1.5 flex-none rounded-md border border-(--tmd-border) px-2 py-1 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50">
               {t("重新体检")}
             </button>
           )}

@@ -16,7 +16,7 @@ import { JUDGE_ENGINES } from "./aiJudge";
 const CATALOG_ENGINES: Record<string, true> = { omp: true, pi: true, opencode: true };
 
 /** 模型下拉:目录实时拉取(10 分钟缓存),引擎切换清空选择回默认。 */
-function ModelSelect({ engineId, model, onChange }: { engineId: string; model: string; onChange: (v: string) => void }) {
+function ModelSelect({ engineId, model, disabled, onChange }: { engineId: string; model: string; disabled: boolean; onChange: (v: string) => void }) {
   const [models, setModels] = useState<ModelEntry[] | null>(null);
   const supported = CATALOG_ENGINES[engineId] === true;
   useEffect(() => {
@@ -43,7 +43,7 @@ function ModelSelect({ engineId, model, onChange }: { engineId: string; model: s
       ariaLabel={t("默认模型")}
       className="min-w-0 flex-1"
       options={options}
-      disabled={!supported && !model}
+      disabled={disabled || (!supported && !model)}
     />
   );
 }
@@ -68,18 +68,20 @@ export function LintHeaderBar({
         ariaLabel={t("判定引擎")}
         className="min-w-0 flex-none"
         options={JUDGE_ENGINES.map((e) => ({ value: e.id, label: e.id }))}
+        disabled={running}
       />
-      <ModelSelect engineId={engineId} model={model} onChange={setModel} />
+      <ModelSelect engineId={engineId} model={model} disabled={running} onChange={setModel} />
       <button
         type="button"
         onClick={onStart}
         disabled={running || !cwd}
+        aria-busy={running}
         className="flex-none rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
         title={t("第一步脚本扫描逐条上屏;第二步完整配置发 AI 逐条识别")}
       >
         <span className="inline-flex items-center gap-1">
           {running ? <Spinner /> : <Pulse aria-hidden />}
-          {t("体检")}
+          {running ? t("体检中") : t("体检")}
         </span>
       </button>
       <button

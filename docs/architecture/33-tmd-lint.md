@@ -19,7 +19,7 @@
 
 ## 写回安全三件套(规则文件写盘的仓内口径)
 
-- 先备份(每文件本会话一份 `.bak-tmdlint`)→ 行级原文匹配守卫(当前行 trim ≠ 体检时原文即拒笔)→ 破坏性动作过 ConfirmDialog 且弹层带行级 diff 预览(diffUtil 首尾公共行修剪口径);归档迁 `docs/agents-archive.md` 留占位符;hook 生成走命令守卫 + procCommunicate chmod 通用原语;备份可恢复,已拍板可重开。
+- 先备份(每文件本会话一份 `.bak-tmdlint`)→ 行级原文匹配守卫(当前候选与体检快照都由 `extractRules` 同一提取口径生成,快照不得二次剥列表标记,普通段落/围栏示例不参与锚定;内容不一致即拒笔)→ 破坏性动作过 ConfirmDialog 且弹层带行级 diff 预览(diffUtil 首尾公共行修剪口径);归档迁 `docs/agents-archive.md` 留占位符;hook 生成走命令守卫 + procCommunicate chmod 通用原语;备份可恢复,已拍板可重开。
 - 大仓语料采集必须带时间预算与逐会话进度(全量顺序读在千会话仓会假死);插件私有持久化一律 `ipc.configDir()`,禁 `configHomeDir()` 自拼。
 
 ## 闭环交互契约(二稿增补)
@@ -30,3 +30,4 @@
 - 语料一次采集双口径分束:`sessionCwds` 记每会话 cwd,项目规则只计 cwd 全等会话,全局规则计全部——不再为两口径采两遍。
 - 运行态(2026-10-27 三稿):右栏 LintView 切实时 PTY 幕布(LintCurtain,数据 = progress.live 尾窗 4KB,只上屏不加工);中央报告 tab 切 LintProcessing(进度条 + 按文件规则行四态:已提取·待测/识别中/判定中/已判定 + 当前批次脚本测量摘要);新跑 startLint 即 `result: null` 清旧结果,行从零逐个生长(旧结果混入新跑的重复行已修)。
 - 运行态闭环补强(2026-10-27 四稿):① 幕布 = 脚本事件流(controller `logLine` 打点 start/script/evidence/recognize/judge/static/done/error,带时间戳 cap 240,与引擎 PTY 缓冲无关必实时)+ 底部 56px 引擎原始输出尾窗——omp 等缓冲型引擎批末才吐字也不空屏;② 右栏发起体检自动 `openLintReport()`,中央即切运行态,不依赖用户手点;③ 报告页规则行 `<details>` 展开即联动右侧 `RuleDetailPanel`(识别/判定说明 + 脚本测量摘要 + 改写 diff + 应用 AI 建议/保持并拍板/打开)。
+- 运行态交互(2026-10-28 五稿):controller 增加 `runMeta`,中央与右栏必须展示同一次运行的引擎/模型;运行中选择器锁定,启动/应用按钮暴露 busy。幕布状态只能按 `running/error` 推导运行/失败/完成;事件日志贴底才自动跟随,上翻暂停并显示「回到最新」,不得用心跳更新抢回阅读位置。中央进度使用真实阶段与判定计数,加载区提供 `aria-busy`/`progressbar`;颜色走 `--tmd-*` 语义变量并遵守减动效。右栏入口统一为「AI配置管理」。
