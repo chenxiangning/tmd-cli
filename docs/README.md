@@ -377,6 +377,6 @@
 | 2026-10-27 | [规则体检内嵌记忆文件面板设计(独立工具 tmd-lint 收编为 memory-coordinator/lint,不另起插件入口:体检目标复用 profiles memoryFiles 声明,语料采集走 listSessions/readSessionFileIdentity/readSessionTranscript 适配器纪律;七态判定改 AI 大模型实时语义判断——机器把关 pre-commit 与已拍板指纹确定性先行,AI 批次失败不回落猜测;写回三件套=备份+行守卫+确认弹层;missing/hook/history 留二期)](superpowers/specs/2026-10-27-tmd-lint-plugin-design.md) | 已落地(门禁全绿+react-doctor 100,真机目检待办;入口按用户裁决并入记忆文件面板) |
 | 2026-10-27 | 记忆文件 + tmd-lint 完整闭环交互原型:[方案 A · 选择即编辑](design/memory-files-redesign.html) / [方案 B · 先详情后打开](design/memory-files-redesign-b.html)(文件/体检/记录同级,脚本扫描→AI 识别→审核应用,单条修改/批量应用/前后 diff) | 设计原型,待评审 |
 | 2026-10-27 | [契约 33 · 规则体检(tmd-lint 收编)契约:插件合法 AI 调用范式(一次性 print 会话批判定 8 条/哨兵 JSON 逐项验值)/跨引擎会话语料采集适配器先例(身份自证 cwd 全等,顺序有界豁免)/七态判定分工(确定性 vs 语义)/规则文件写回安全三件套](architecture/33-tmd-lint.md) | 已落地(0.4.6) |
-| 2026-10-28 | [规则体检运行态交互精修设计](superpowers/specs/2026-10-28-lint-runtime-ui-design.md) | 已落地(gate 全绿+doctor 100+1421 桩目检;真机截图受权限限制) |
+| 2026-10-28 | [规则体检运行态交互精修与视觉层级设计](superpowers/specs/2026-10-28-lint-runtime-ui-design.md) | 已落地(gate 全绿+doctor 100+1421 桩目检;真机截图受权限限制) |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

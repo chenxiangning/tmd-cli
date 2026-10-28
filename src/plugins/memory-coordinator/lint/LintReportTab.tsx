@@ -8,24 +8,26 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Pulse } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
-import { Spinner } from "@kernel/Spinner";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { useWorkspaces } from "@kernel/workspace";
 import { summarizeRows, type LintRunResult } from "./lintModel";
 import { loadStore, setLastUsed } from "./lintStore";
 import { seedLintResult, startLint } from "./lintController";
 import { useLintApply, useLintController as useCtl, useLintResultWrite } from "./lintPanelState";
-import { VERDICT_LABEL, type LintRow, type LintScope } from "./lintTypes";
+import { VERDICT_LABEL, type LintRow } from "./lintTypes";
 import { FindingRow, RuleRow } from "./LintRows";
 import { LintProcessing } from "./LintProcessing";
 import { RuleDetailPanel } from "./RuleDetailPanel";
 import { ApplyJournal, ScanHistory } from "./LintReportHistory";
-
-type ScopeFilter = "all" | LintScope;
+import { ReportStats, ReportToolbar, type ScopeFilter } from "./LintReportChrome";
 
 const SECTION_CLS = "border-y border-(--tmd-border) bg-(--tmd-bg-subtle) px-3 py-1 text-meta font-medium text-(--tmd-fg-muted)";
+
+function reportPhase(running: boolean, step: string | undefined, hasResult: boolean) {
+  if (running) return step === "recognize" || step === "judge" ? "ai" : "scan";
+  return hasResult ? "review" : "scan";
+}
 
 /** 单个 scope 分区:文件分组规则行(行即时上屏由控制器驱动)。 */
 function ScopeSection({
@@ -96,12 +98,7 @@ function ReportBody({
   return (
     <div className="flex min-h-0 flex-1 items-start">
       <div className="min-w-0 flex-1 pb-4">
-      <div className="grid grid-cols-4 gap-1.5 px-3 py-1.5">
-        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{new Set(result.rows.map((r) => r.rule.file)).size}</b><span className="text-meta text-(--tmd-fg-faint)">{t("已扫描文件")}</span></div>
-        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{result.rows.length}</b><span className="text-meta text-(--tmd-fg-faint)">{t("提取规则")}</span></div>
-        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{result.rows.length - summary.failed}</b><span className="text-meta text-(--tmd-fg-faint)">{t("完成判定")}</span></div>
-        <div className="rounded-md border border-(--tmd-border) bg-(--tmd-bg-subtle) px-2 py-1.5"><b className="block text-base">{result.findings.length}</b><span className="text-meta text-(--tmd-fg-faint)">{t("静态发现")}</span></div>
-      </div>
+      <ReportStats result={result} />
       <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-meta text-(--tmd-fg-muted)">
         {t("规则 {n} 条 · 语料 {m} 消息/{c} 会话", {
           n: String(result.rows.length), m: String(result.corpus.msgs), c: String(result.corpus.sessionCount),
@@ -133,47 +130,6 @@ function ReportBody({
       )}
       </div>
       {selectedRow && <RuleDetailPanel row={selectedRow} busy={busy} onKeep={onKeep} onRewrite={onRewrite} />}
-    </div>
-  );
-}
-
-/** 报告头:标题 + 范围过滤 + 一键应用 + 体检发起。 */
-function ReportToolbar({
-  cwd, running, scopeFilter, setScopeFilter, canApplyAll, busy, onStart, onApplyAll,
-}: {
-  cwd: string | null; running: boolean; scopeFilter: ScopeFilter; setScopeFilter: (s: ScopeFilter) => void;
-  canApplyAll: boolean; busy: boolean; onStart: () => void; onApplyAll: () => void;
-}) {
-  return (
-    <div className="flex flex-none items-center gap-2 border-b border-(--tmd-border) px-3 py-2">
-      <span className="text-xs font-medium text-(--tmd-fg)">{t("规则体检报告")}</span>
-      <span className="text-meta text-(--tmd-fg-muted)">{cwd ?? ""}</span>
-      {running && <Spinner />}
-      <div className="ml-auto flex items-center gap-1.5">
-        {(["all", "project", "global"] as ScopeFilter[]).map((s) => (
-          <button key={s} type="button" onClick={() => setScopeFilter(s)} className={`rounded-full border px-2 py-0.5 text-meta ${scopeFilter === s ? "border-(--tmd-accent) text-(--tmd-accent)" : "border-(--tmd-border) text-(--tmd-fg-muted) hover:text-(--tmd-fg)"}`}>
-            {t(s === "all" ? "全部" : s === "project" ? "项目规则" : "全局规则")}
-          </button>
-        ))}
-        <button
-          type="button"
-          disabled={busy || !canApplyAll}
-          onClick={onApplyAll}
-          aria-busy={busy}
-          className="inline-flex items-center gap-1 rounded-full border border-(--tmd-accent) px-2 py-0.5 text-meta text-(--tmd-accent) transition-colors hover:bg-(--tmd-accent)/10 disabled:opacity-50"
-        >
-          {busy && <Spinner />}
-          {busy ? t("应用中") : t("一键应用 AI 结果")}
-        </button>
-        <button
-          type="button" onClick={onStart} disabled={running || !cwd}
-          aria-busy={running}
-          className="inline-flex items-center gap-1 rounded border border-(--tmd-border) px-2 py-0.5 text-meta text-(--tmd-fg-muted) transition-colors hover:border-(--tmd-accent) hover:text-(--tmd-accent) disabled:opacity-50"
-        >
-          {running ? <Spinner /> : <Pulse aria-hidden />}
-          {running ? t("体检中") : t("体检")}
-        </button>
-      </div>
     </div>
   );
 }
@@ -213,12 +169,15 @@ export function LintReportTab() {
   }, [cwd, workspaceId]);
 
   const result = ctl.result;
+  const pendingCount = result?.rows.filter((r) => r.aiMark && !r.aiMark.recognizable && r.aiMark.rewrite && !r.settled).length ?? 0;
+  const phase = reportPhase(ctl.running, ctl.progress?.step, !!result);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ReportToolbar
-        cwd={cwd} running={ctl.running} scopeFilter={scopeFilter} setScopeFilter={setScopeFilter}
-        canApplyAll={!!result?.rows.some((r) => r.aiMark && !r.aiMark.recognizable && r.aiMark.rewrite && !r.settled)}
+        cwd={cwd} running={ctl.running} failed={!!ctl.error} hasResult={!!result} phase={phase}
+        scopeFilter={scopeFilter} setScopeFilter={setScopeFilter}
+        pendingCount={pendingCount}
         busy={apply.busy} onStart={start}
         onApplyAll={() => result && apply.onApplyAllAi(result.rows, (a, s) => setNotice(t("已应用 {a} 条改写,跳过 {s} 条(行号对不上)", { a: String(a), s: String(s) })))}
       />
@@ -228,7 +187,7 @@ export function LintReportTab() {
       )}
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
         {ctl.running ? (
-          <LintProcessing result={ctl.result} progress={ctl.progress} engineId={ctl.runMeta.engineId} model={ctl.runMeta.model} />
+          <LintProcessing result={ctl.result} progress={ctl.progress} engineId={ctl.runMeta.engineId} model={ctl.runMeta.model} scopeFilter={scopeFilter} />
         ) : (
           <>
             {result && <ReportBody result={result} scopeFilter={scopeFilter} busy={apply.busy} onApply={apply.onApply} onKeep={markRowSettled} onHook={apply.onHook} onReopen={reopenRow} onRewrite={apply.onRewrite} onStub={apply.onStub} onWrite={apply.onWrite} onFixpath={apply.onFixpath} />}
