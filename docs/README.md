@@ -375,6 +375,7 @@
 | 2026-10-26 | [0.4.6 批次监督复审+修复双收口(专业设计师换视角五路切片:P0×2=双实例互杀/横幅替换全应用;P1×16=双喂三连新变种/WSL ≥18KB 必败/E_GIT2 剥码失效等;P2×24;过度设计净 -180 行——全部当批修复,两项明示缓办,附修复落地节与真机目检待办)](review/2026-10-26-046-supervisor-review.md) | 已收口(修复落地,真机目检待办) |
 | 2026-10-26 | [下一代独立工具方向分析(tmd-cli / tmd-anim 之后做什么:七条赛道盘点=worktree 管理器/用量看板/MCP 调试器与网关均已拥挤,会话↔提交溯源与指令文件 lint 空档;结论=一个底座(多引擎会话解析+git 关联索引,自 tmd-cli 抽出)+ 两把快刀 tmd-why(AI 时代 git blame,CLI+MCP)/ tmd-lint(证据驱动上下文体检,CLI+Action);MCP 录制回放列备选;附评估矩阵与五个待拍板问题)](brainstorm/2026-10-26-next-tools-direction.md) | 待拍板(形态 / 先发哪把 / 引擎范围 / 命名) |
 | 2026-10-27 | [规则体检内嵌记忆文件面板设计(独立工具 tmd-lint 收编为 memory-coordinator/lint,不另起插件入口:体检目标复用 profiles memoryFiles 声明,语料采集走 listSessions/readSessionFileIdentity/readSessionTranscript 适配器纪律;七态判定改 AI 大模型实时语义判断——机器把关 pre-commit 与已拍板指纹确定性先行,AI 批次失败不回落猜测;写回三件套=备份+行守卫+确认弹层;missing/hook/history 留二期)](superpowers/specs/2026-10-27-tmd-lint-plugin-design.md) | 已落地(门禁全绿+react-doctor 100,真机目检待办;入口按用户裁决并入记忆文件面板) |
+| 2026-10-27 | 记忆文件 + tmd-lint 完整闭环交互原型:[方案 A · 选择即编辑](design/memory-files-redesign.html) / [方案 B · 先详情后打开](design/memory-files-redesign-b.html)(文件/体检/记录同级,脚本扫描→AI 识别→审核应用,单条修改/批量应用/前后 diff) | 设计原型,待评审 |
 | 2026-10-27 | [契约 33 · 规则体检(tmd-lint 收编)契约:插件合法 AI 调用范式(一次性 print 会话批判定 8 条/哨兵 JSON 逐项验值)/跨引擎会话语料采集适配器先例(身份自证 cwd 全等,顺序有界豁免)/七态判定分工(确定性 vs 语义)/规则文件写回安全三件套](architecture/33-tmd-lint.md) | 已落地(0.4.6) |
 | 2026-10-28 | [规则体检运行态交互精修设计](superpowers/specs/2026-10-28-lint-runtime-ui-design.md) | 已落地(gate 全绿+doctor 100+1421 桩目检;真机截图受权限限制) |
 
