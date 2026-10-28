@@ -181,6 +181,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
    * 发全部规则+脚本测量,一次回全部 识别标记+判定;解析缺行=未判定,缺口在幕布明报。 */
   let engineError = "";
   const judgments = new Map<string, RuleJudgment>();
+  const marksByFile = new Map<string, { scope: LintScope; marks: Map<number, AiMark> }>();
   const uni = rulesByFile.flatMap((f) =>
     f.rules
       .filter((r) => !enforced.has(r.file + r.text))
@@ -210,7 +211,6 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
         items = parseUnifiedReply(raw, uni.length - 1);
       }
       if (alive()) {
-        const marksByFile = new Map<string, { scope: LintScope; marks: Map<number, AiMark> }>();
         const patch: { scope: LintScope; file: string; rule: RuleItem; judgment: RuleJudgment }[] = [];
         const hitIdx = new Set<number>();
         for (const it of items) {
@@ -250,7 +250,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
       const settled =
         (judgment?.verdict === "violated" || judgment?.verdict === "dormant") &&
         handled.has(settledSig(judgment.verdict, rule));
-      return { rule, evidence, judgment, settled, scope };
+      return { rule, evidence, judgment, aiMark: marksByFile.get(rule.file)?.marks.get(rule.line), settled, scope };
     });
   });
   const [repoFiles, bakProbe] = await Promise.all([

@@ -68,15 +68,16 @@ export async function applyRuleRewrite(row: LintRow): Promise<ActionResult> {
 }
 
 /** 一键应用 AI 结果:把当前结果里所有带改写建议的规则行批量替换
- *  (逐行守卫,任一行守卫失败跳过并计数;按文件聚合落盘+日志)。 */
-export async function applyAllAiRewrites(rows: LintRow[]): Promise<ActionResult & { applied: number; skipped: number }> {
+ *  (逐行守卫,任一行守卫失败跳过并计数;按文件聚合落盘+日志;返回命中行供 UI 落已应用态)。 */
+export async function applyAllAiRewrites(rows: LintRow[]): Promise<ActionResult & { applied: number; skipped: number; appliedRows: LintRow[] }> {
   const pending = rows.filter((r) => !r.settled && (r.aiMark ? !r.aiMark.recognizable && r.aiMark.rewrite : r.judgment?.fix));
-  if (pending.length === 0) return { ok: true, note: "", applied: 0, skipped: 0 };
+  if (pending.length === 0) return { ok: true, note: "", applied: 0, skipped: 0, appliedRows: [] };
   const byFile = new Map<string, LintRow[]>();
   for (const r of pending) {
     byFile.set(r.rule.file, [...(byFile.get(r.rule.file) ?? []), r]);
   }
   const journal: ApplyRecord[] = [];
+  const appliedRows: LintRow[] = [];
   let applied = 0;
   let skipped = 0;
   for (const [path, list] of byFile) {
@@ -86,6 +87,7 @@ export async function applyAllAiRewrites(rows: LintRow[]): Promise<ActionResult 
       continue;
     }
     let next = before;
+    const fileApplied: LintRow[] = [];
     /* 同文件按行号降序应用:从文件尾往前改,前面规则行号不受本条改写影响,守卫不漂移。 */
     for (const row of [...list].sort((a, b) => b.rule.line - a.rule.line)) {
       const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix;
@@ -99,16 +101,21 @@ export async function applyAllAiRewrites(rows: LintRow[]): Promise<ActionResult 
         continue;
       }
       next = step;
-      applied += 1;
+      fileApplied.push(row);
     }
     if (next !== before) {
       const results = await applyEdits([{ path, newText: next }]);
-      if (results[0]?.ok) journal.push({ at: Date.now(), kind: "AI 改写(一键)", path, before, after: next });
-      else skipped += list.length;
+      if (results[0]?.ok) {
+        journal.push({ at: Date.now(), kind: "AI 改写(一键)", path, before, after: next });
+        applied += fileApplied.length;
+        appliedRows.push(...fileApplied);
+      } else {
+        skipped += list.length;
+      }
     }
   }
   await addApplyRecords(journal);
-  return { ok: applied > 0 || pending.length === skipped, note: "", applied, skipped };
+  return { ok: applied > 0 || pending.length === skipped, note: "", applied, skipped, appliedRows };
 }
 
 /** drift 收口:CLAUDE.md 整文件替换为 stub 声明。 */

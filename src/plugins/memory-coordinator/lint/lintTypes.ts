@@ -155,6 +155,8 @@ export interface LintRow {
   aiMark?: AiMark;
   /** 已拍板(此前处理过,指纹命中本地记录)。 */
   settled: boolean;
+  /** 已应用(改写/删除/归档/上钩子已落盘);终态,按钮收口只留打开/重开,随快照持久化。 */
+  applied?: boolean;
 }
 
 /** 判定态固定排序(汇总条与分组顺序)。 */
@@ -201,6 +203,15 @@ export const ADVICE_LABEL: Record<LintAdvice, string> = {
 /** 已拍板指纹:"{来源态}|{文件}|{规则原文}"。 */
 export function settledSig(kind: "violated" | "dormant", rule: RuleItem): string {
   return `${kind}|${rule.file}|${rule.text}`;
+}
+
+/** 可拍板判定态(violated/dormant 才给「保持并拍板」)。 */
+export const KEEPABLE: Partial<Record<LintVerdict, true>> = { violated: true, dormant: true };
+
+/** 待应用改写文本(行按钮/详情 diff/详情按钮三处锁步):终态行(已拍板/已应用)不给改写;aiMark 优先,judgment.fix 兜底。 */
+export function pendingRewrite(row: LintRow): string | null {
+  if (row.settled || row.applied) return null;
+  return row.aiMark?.rewrite ?? row.judgment?.fix ?? null;
 }
 
 /** 一次体检的扫描记录(历史列表数据源;rows 不入,只存统计与状态)。 */

@@ -51,10 +51,13 @@ function ScopeSection({
       <div className={SECTION_CLS}>
         {title}({rows.length})
       </div>
-      {[...byFile.entries()].map(([file, list]) => (
-        <div key={file}>
-          <div className="flex items-center gap-2 px-3 py-0.5 text-meta text-(--tmd-fg-faint)">
-            <span className="min-w-0 truncate font-mono">{file}</span>
+      {[...byFile.entries()].map(([file, list], i) => (
+        <div key={file} className={i > 0 ? "mt-3" : ""}>
+          <div className="sticky top-0 z-10 flex items-center gap-2 border-y border-(--tmd-border) bg-(--tmd-bg-elevated) px-3 py-1">
+            <span className="min-w-0 truncate font-mono text-meta font-medium text-(--tmd-fg-muted)" title={file}>
+              {file}
+            </span>
+            <span className="ml-auto flex-none text-meta text-(--tmd-fg-faint)">{list.length}</span>
           </div>
           {list.map((r) => (
             <RuleRow

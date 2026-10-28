@@ -65,6 +65,9 @@ export const MESSAGES_EN = {
   "打开": "Open",
   "保持并拍板": "Keep & settle",
   "已拍板:此前处理过,不再重复报": "Settled: handled before, not reported again",
+  "已应用": "Applied",
+  "已应用:文件已更新,撤销走「应用记录」": "Applied: file updated; undo via the apply journal",
+  "改动已落盘,撤销走「应用记录」": "Change written to disk; undo via the apply journal",
   /* ── 动作确认 ── */
   "删除该规则?": "Delete this rule?",
   "将从规则文件删除该行(先备份 .bak-tmdlint)": "The line will be removed from the rules file (backed up as .bak-tmdlint first)",

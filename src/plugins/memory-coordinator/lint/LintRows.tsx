@@ -7,7 +7,7 @@
 import { openFileAtLine, openFileInTab } from "@kernel/fileTabs";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
-import { ADVICE_LABEL, VERDICT_DOT, VERDICT_LABEL, type LintAdvice, type LintRow, type LintVerdict, type RuleEvidence, type StaticFinding } from "./lintTypes";
+import { ADVICE_LABEL, KEEPABLE, VERDICT_DOT, VERDICT_LABEL, pendingRewrite, type LintAdvice, type LintRow, type LintVerdict, type RuleEvidence, type StaticFinding } from "./lintTypes";
 import type { DiffLine } from "./diffUtil";
 
 export const ACTION_CLS =
@@ -97,6 +97,11 @@ function RuleHead({ row, busy }: { row: LintRow; busy: boolean }) {
           {row.aiMark.recognizable ? t("AI 可执行") : t("AI 不可识别")}
         </span>
       )}
+      {row.applied && (
+        <span className="flex-none rounded-full border border-(--tmd-ok) bg-(--tmd-ok)/10 px-1 text-[10px] leading-4 text-(--tmd-ok)" title={t("改动已落盘,撤销走「应用记录」")}>
+          {t("已应用")}
+        </span>
+      )}
       <span className="min-w-0 truncate font-mono text-xs text-(--tmd-fg) group-hover:text-(--tmd-accent)">
         {row.rule.text.split("\n")[0]}
       </span>
@@ -111,14 +116,16 @@ function SettleCluster({ row, busy, onKeep, onReopen }: { row: LintRow; busy: bo
   if (row.settled) {
     return (
       <>
-        <span className="text-meta text-(--tmd-fg-faint)">{t("已拍板:此前处理过,不再重复报")}</span>
+        <span className="text-meta text-(--tmd-fg-faint)">
+          {row.applied ? t("已应用:文件已更新,撤销走「应用记录」") : t("已拍板:此前处理过,不再重复报")}
+        </span>
         <button type="button" disabled={busy} onClick={() => onReopen(row)} className={ACTION_CLS}>
           {t("重开")}
         </button>
       </>
     );
   }
-  const keepable = row.judgment && (row.judgment.verdict === "violated" || row.judgment.verdict === "dormant");
+  const keepable = row.judgment !== null && KEEPABLE[row.judgment.verdict] === true;
   if (!keepable) return null;
   return (
     <button type="button" disabled={busy} onClick={() => onKeep(row)} className={ACTION_CLS}>
@@ -140,21 +147,21 @@ function RuleActions({
   onRewrite: (row: LintRow) => void;
 }) {
   const advice = row.judgment?.advice ?? "keep";
-  const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix ?? null;
-  const rewritable = !!rewrite && !row.settled;
+  const rewrite = pendingRewrite(row);
+  const done = row.settled || row.applied;
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-3 pb-1.5">
-      {rewritable && (
+      {rewrite && (
         <button type="button" disabled={busy} onClick={() => onRewrite(row)} className={ACTION_CLS} title={rewrite ?? undefined}>
           {busy ? <Spinner /> : t("应用 AI 建议")}
         </button>
       )}
-      {!row.settled && row.judgment && advice !== "keep" && advice !== "stub" && (
+      {!done && row.judgment && advice !== "keep" && advice !== "stub" && (
         <button type="button" disabled={busy} onClick={() => onApply(row, advice)} className={ACTION_CLS}>
           {busy ? <Spinner /> : t("按建议处理")}:{t(ADVICE_LABEL[advice])}
         </button>
       )}
-      {!row.settled && row.evidence?.command && (
+      {!done && row.evidence?.command && (
         <button type="button" disabled={busy} onClick={() => onHook(row)} className={ACTION_CLS} title={t("把规则命令写进 pre-commit,机器把关")}>
           {t("上 pre-commit")}
         </button>

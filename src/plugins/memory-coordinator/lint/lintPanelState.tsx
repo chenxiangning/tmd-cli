@@ -10,7 +10,7 @@ import { useCallback, useState, useSyncExternalStore, type ReactNode } from "rea
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import type { LintApplyState } from "./lintApplyTypes";
-import { getLintState, mutateLintResult, subscribeLint, type LintControllerState } from "./lintController";
+import { getLintState, markRowsApplied, mutateLintResult, persistLintResult, subscribeLint, type LintControllerState } from "./lintController";
 import { addHandled, removeHandled } from "./lintStore";
 import {
   applyAllAiRewrites, applyFindingFixpath, applyFindingStub, applyFindingWrite,
@@ -38,12 +38,14 @@ export function useLintResultWrite(): {
       void addHandled([settledSig(kind, row.rule)]);
     }
     mutateLintResult((r) => ({ ...r, rows: r.rows.map((x) => (x.rule === row.rule ? { ...x, settled: true } : x)) }));
+    persistLintResult();
   }, []);
   const reopenRow = useCallback((row: LintRow) => {
     if (!row.judgment) return;
     const kind = row.judgment.verdict === "dormant" ? "dormant" : "violated";
     void removeHandled(settledSig(kind, row.rule));
     mutateLintResult((r) => ({ ...r, rows: r.rows.map((x) => (x.rule === row.rule ? { ...x, settled: false } : x)) }));
+    persistLintResult();
   }, []);
   const removeFinding = useCallback((finding: StaticFinding) => {
     mutateLintResult((r) => ({ ...r, findings: r.findings.filter((f) => f !== finding) }));
@@ -127,7 +129,10 @@ export function useLintApply(
             </>
           ),
           next,
-          run: () => exec(() => applyRuleAdvice(cwd ?? "", row, advice), () => shiftRowsAfter(row.rule.file, row.rule.lineEnd, delta)),
+          run: () => exec(() => applyRuleAdvice(cwd ?? "", row, advice), () => {
+            shiftRowsAfter(row.rule.file, row.rule.lineEnd, delta);
+            markRowsApplied([row]);
+          }),
         };
       });
     },
@@ -150,7 +155,7 @@ export function useLintApply(
             <DiffPreview lines={buildHookBlock(row.rule).split("\n").filter(Boolean).map((text) => ({ kind: "add" as const, text }))} />
           </>
         ),
-        run: () => exec(() => applyRuleHook(cwd ?? "", row)),
+        run: () => exec(() => applyRuleHook(cwd ?? "", row), () => markRowsApplied([row])),
       });
     },
     [cwd, exec],
@@ -174,7 +179,10 @@ export function useLintApply(
             </>
           ),
           next,
-          run: () => exec(() => applyRuleRewrite(row), () => shiftRowsAfter(row.rule.file, row.rule.line, delta)),
+          run: () => exec(() => applyRuleRewrite(row), () => {
+            shiftRowsAfter(row.rule.file, row.rule.line, delta);
+            markRowsApplied([row]);
+          }),
         };
       });
     },
@@ -200,6 +208,7 @@ export function useLintApply(
         run: () =>
           exec(async () => {
             const r = await applyAllAiRewrites(rows);
+            markRowsApplied(r.appliedRows);
             onApplied(r.applied, r.skipped);
             return r;
           }),

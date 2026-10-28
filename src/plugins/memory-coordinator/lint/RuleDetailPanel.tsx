@@ -8,6 +8,7 @@ import { t } from "@kernel/i18n";
 import type { LintRow } from "./lintTypes";
 import { VERDICT_LABEL } from "./lintTypes";
 import { ACTION_CLS } from "./LintRows";
+import { KEEPABLE, pendingRewrite } from "./lintTypes";
 
 /** 脚本测量三格(触达/会话/纠正)。 */
 function EvidenceGrid({ row }: { row: LintRow }) {
@@ -24,9 +25,9 @@ function EvidenceGrid({ row }: { row: LintRow }) {
   );
 }
 
-/** 改写 diff 预览(aiMark.rewrite 或 judgment.fix 任一存在)。 */
+/** 改写 diff 预览(pendingRewrite 任一存在)。 */
 function RewriteDiff({ row }: { row: LintRow }) {
-  const rewrite = row.aiMark?.rewrite ?? row.judgment?.fix;
+  const rewrite = pendingRewrite(row);
   if (!rewrite) return null;
   return (
     <div className="mt-2.5">
@@ -40,8 +41,8 @@ function RewriteDiff({ row }: { row: LintRow }) {
 }
 
 export function RuleDetailPanel({ row, busy, onKeep, onRewrite }: { row: LintRow; busy: boolean; onKeep: (row: LintRow) => void; onRewrite: (row: LintRow) => void }) {
-  const keepable = row.judgment && (row.judgment.verdict === "violated" || row.judgment.verdict === "dormant");
-  const rewritable = !row.settled && !!(row.aiMark?.rewrite ?? row.judgment?.fix);
+  const keepable = row.judgment !== null && KEEPABLE[row.judgment.verdict] === true && !row.settled;
+  const rewritable = !!pendingRewrite(row);
   return (
     <aside className="w-[300px] flex-none border-l border-(--tmd-border) bg-(--tmd-bg-subtle) px-3 py-2.5">
       <div className="flex items-center gap-1.5">

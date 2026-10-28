@@ -82,6 +82,25 @@ export function mutateLintResult(fn: (r: LintRunResult) => LintRunResult): void 
   commit({ result: fn(state.result) });
 }
 
+/** 动作后持久化当前结果(重启回放不丢拍板/应用状态)。 */
+export function persistLintResult(): void {
+  if (state.result) void saveLastResult(state.result);
+}
+
+/** 应用动作落盘后:行标已应用+已拍板(按钮收口/计数入「已处理」)、bump at(历史区刷新信号)、持久化快照。 */
+export function markRowsApplied(rows: LintRow[]): void {
+  if (!state.result || rows.length === 0) return;
+  const keys = new Set(rows.map((r) => r.rule));
+  const result: LintRunResult = {
+    ...state.result,
+    at: Date.now(),
+    rows: state.result.rows.map((x) => (keys.has(x.rule) ? { ...x, applied: true, settled: true } : x)),
+  };
+  state = { ...state, result };
+  for (const l of listeners) l();
+  void saveLastResult(result);
+}
+
 function patchRows(file: string, fn: (row: LintRow) => LintRow): void {
   if (!state.result) return;
   mutateLintResult((r) => ({ ...r, rows: r.rows.map((row) => (row.rule.file === file ? fn(row) : row)) }));
