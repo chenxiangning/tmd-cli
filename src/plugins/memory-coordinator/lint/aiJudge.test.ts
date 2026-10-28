@@ -9,7 +9,7 @@ vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 vi.mock("@kernel/host", () => ({ host: { getCliProfiles: () => [], getCliProfile: () => null } }));
 vi.mock("@kernel/sessionArchive", () => ({ archiveSession: vi.fn(), sessionArchiveKey: vi.fn(() => "k") }));
 
-import { buildJudgeInstruction, JUDGE_ENGINES, parseJudgeReply } from "./aiJudge";
+import { JUDGE_ENGINES } from "./aiJudge";
 import { buildUnifiedInstruction, parseUnifiedReply } from "./unifiedCall";
 import { batchRules, summarizeRows, BATCH_SIZE } from "./lintModel";
 import { scriptVerdict } from "./evidence";
@@ -51,27 +51,13 @@ describe("buildUnifiedInstruction/parseUnifiedReply(单次调用)", () => {
     expect(items[0]?.fix).toBe("- 明确可执行写法");
     expect(items[1]?.fix).toBeUndefined();
   });
-});
-
-/* ── 判定指令组装 ── */
-describe("buildJudgeInstruction", () => {
-  it("只发规则+脚本测量摘要(计数+预判),不带对话原文;零会话附语料为空警示", () => {
-    const ev = evOf({ correctionQuotes: ["跟你说了用中文"], complyQuote: "pnpm check:gate", touchQuote: "提到过" });
-    const withData = buildJudgeInstruction([{ rule: ruleOf(1), evidence: ev }], true);
-    expect(withData).toContain("<LINT>");
-    expect(withData).toContain('"working"');
-    expect(withData).toContain("[1]");
-    expect(withData).toContain("脚本测量:触达 3 条消息");
-    expect(withData).toContain("脚本预判:working");
-    expect(withData).not.toContain("跟你说了用中文"); /* 原文不出本机 */
-    expect(withData).not.toContain("纠正原话");
-    expect(withData).toContain("纠正 0 次");
-    expect(withData).not.toContain("(注意");
-    const empty = buildJudgeInstruction([{ rule: ruleOf(1), evidence: evOf({ hits: 0, complied: 0 }) }], false);
-    expect(empty).toContain("(注意:本次语料为空");
-    expect(empty).toContain("脚本预判:unverifiable");
+  it("unjudgeable 行带「词面不可用」标记;指令含判定铁律", () => {
+    const inst = buildUnifiedInstruction([{ rule: ruleOf(2), evidence: { ...evOf(0), unjudgeable: true } }], true);
+    expect(inst).toContain("触达0/会话1/纠正0/照做0/词面不可用");
+    expect(inst).toContain("判定铁律");
   });
 });
+
 
 describe("scriptVerdict", () => {
   it("照做>0=working;纠正>0=violated;空语料/不可判=unverifiable;零触达=dormant;其余=touched", () => {
@@ -85,22 +71,6 @@ describe("scriptVerdict", () => {
   });
 });
 
-describe("parseJudgeReply", () => {
-  it("哨兵内 JSON 数组正常解析;i/v 对位映射", () => {
-    const raw = 'noise <LINT>[{"i":1,"v":"working","r":"跑过了","a":"keep"},{"i":2,"v":"violated","r":"纠正两次","a":"archive"}]</LINT> tail';
-    const out = parseJudgeReply(raw, 2);
-    expect(out[0]).toEqual({ verdict: "working", reason: "跑过了", advice: "keep" });
-    expect(out[1]).toEqual({ verdict: "violated", reason: "纠正两次", advice: "archive" });
-  });
-
-  it("整段 JSON 坏 → 逐对象捞回;越值 v / 越界 i 剔除;缺项留 null", () => {
-    const raw = '<LINT>```json\n[{"i":1,"v":"dormant","r":"零触达","a":"remove"},坏了,{"i":9,"v":"working","r":"越界","a":"keep"},{"i":2,"v":"瞎说的","r":"x","a":"keep"}]\n```</LINT>';
-    const out = parseJudgeReply(raw, 3);
-    expect(out[0]).toEqual({ verdict: "dormant", reason: "零触达", advice: "remove" });
-    expect(out[1]).toBeNull();
-    expect(out[2]).toBeNull();
-  });
-});
 
 describe("lintModel 批切与汇总", () => {
   it("batchRules 同文件连续切批,批大小 = BATCH_SIZE", () => {

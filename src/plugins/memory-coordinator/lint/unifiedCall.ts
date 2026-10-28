@@ -17,7 +17,7 @@ const VERDICT_CODES = "working=真的在做|violated=AI不听|touched=只是提�
 export function buildUnifiedInstruction(items: UnifiedInput[], hasCorpus: boolean): string {
   const lines = items.map(
     ({ rule, evidence }, i) =>
-      `${i}|${rule.text}|触达${evidence.hits}/会话${evidence.activeSessions}/纠正${evidence.corrections}/照做${evidence.complied}`,
+      `${i}|${rule.text}|触达${evidence.hits}/会话${evidence.activeSessions}/纠正${evidence.corrections}/照做${evidence.complied}${evidence.unjudgeable ? "/词面不可用" : ""}`,
   );
   return [
     "你是 AI 编程助手。下面是项目的全部规则(序号|规则原文|脚本测量:近30天统计)。对每条规则给出你最终的真实认知:",
@@ -25,7 +25,8 @@ export function buildUnifiedInstruction(items: UnifiedInput[], hasCorpus: boolea
     `2. v:最终判定,取 ${VERDICT_CODES}`,
     "3. why:一句话中文说明(≤20字),必须给出证据锚点(如「触达5纠正2仍违」/「零触达」),不许只贴标签",
     "4. fix:凡 v 不是 working,给出把该行改写成可测量/可执行规则的建议文本(完整一行);working 可省略",
-    hasCorpus ? "脚本测量供参考,以你的真实认知为准。" : "(注意:本次语料为空,测量计数全 0,按规则文本本身判断。)",
+    "5. 判定铁律(硬约束,违反会被脚本回落):触达0且照做0且纠正0 不得判 working;纠正0 不得判 violated;触达>0 不得判 dormant;标「词面不可用」只能判 unverifiable。",
+    hasCorpus ? "脚本计数是底线,铁律之上以你的真实认知为准。" : "(注意:本次语料为空,计数全 0:一律判 unverifiable,不得判 dormant。)",
     "",
     "输出契约:结果包在 <JUDGE> 与 </JUDGE> 之间,JSON 数组,每条一行:",
     '{"i": 序号数字, "ok": true/false, "v": "working|violated|touched|dormant|unverifiable", "why": "≤20字", "fix": "非 working 给"}',

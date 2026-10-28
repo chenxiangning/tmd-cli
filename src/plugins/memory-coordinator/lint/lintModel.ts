@@ -147,6 +147,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
   corpus.sessionCwds.forEach((c, idx) => {
     if (sameDir(c, opts.cwd)) projSet.add(idx);
   });
+  const hasCorpus = corpus.msgs.length > 0;
 
   /* 第一步·测证据:逐文件注入(项目规则用项目会话束,全局规则用全部) */
   opts.onProgress({ step: "evidence", detail: String(corpus.msgs.length) });
@@ -190,7 +191,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
     const askOnce = () =>
       runJudgeRaw({
         engineId: opts.engineId,
-        instruction: buildUnifiedInstruction(uni.map((p) => ({ rule: p.rule, evidence: p.evidence })), corpus.msgs.length > 0),
+        instruction: buildUnifiedInstruction(uni.map((p) => ({ rule: p.rule, evidence: p.evidence })), hasCorpus),
         model: opts.model, cwd: opts.cwd, workspaceId: opts.workspaceId,
         timeoutSeconds: opts.timeoutSeconds,
         onChunk: (liveText) => {
@@ -222,7 +223,7 @@ export async function runLintStream(opts: LintRunOpts): Promise<LintRunResult> {
           const key = slot.rule.file + slot.rule.text;
           if (!judgments.has(key)) {
             /* advice 单调用协议不再由模型给:不可执行规则给 stub(改写文本走 aiMark.rewrite),其余 keep。 */
-            const j: RuleJudgment = { verdict: enforceVerdictContract(it.v, slot.evidence), reason: it.why, advice: it.ok ? "keep" : "stub", fix: it.fix };
+            const j: RuleJudgment = { verdict: enforceVerdictContract(it.v, slot.evidence, hasCorpus), reason: it.why, advice: it.ok ? "keep" : "stub", fix: it.fix };
             judgments.set(key, j);
             patch.push({ scope: slot.scope, file: slot.rule.file, rule: slot.rule, judgment: j });
           }

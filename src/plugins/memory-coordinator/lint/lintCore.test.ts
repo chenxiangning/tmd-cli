@@ -10,7 +10,7 @@ vi.mock("@kernel/ipc", () => ({ ipc: ipcMock }));
 import { expandLintTargets, probeTargets } from "./targets";
 import { CORRECTIONS, discriminativeTokens, enforceVerdictContract, measureEvidence, normalizeCmd, scriptVerdict } from "./evidence";
 import { blocksToCorpus, sanitizeUserText } from "./corpus";
-import type { CorpusMsg, RuleItem, SessionCorpus } from "./lintTypes";
+import type { CorpusMsg, RuleEvidence, RuleItem, SessionCorpus } from "./lintTypes";
 
 describe("expandLintTargets", () => {
   it("同文件多引擎去重合并 engines;project 拼 cwd / user 拼 home;无 cwd 项目级不出", () => {
@@ -71,13 +71,20 @@ describe("discriminativeTokens", () => {
 });
 
 describe("enforceVerdictContract", () => {
-  const ev = (hits: number, unjudgeable: boolean) =>
-    ({ ...measureEvidence(ruleOf("t", []), [], false, emptyCorpus()), hits, unjudgeable });
-  it("dormant 越权回落:有触达=touched,词面不可用=unverifiable;合规 dormant 放行", () => {
-    expect(enforceVerdictContract("dormant", ev(3, false))).toBe("touched");
-    expect(enforceVerdictContract("dormant", ev(0, true))).toBe("unverifiable");
-    expect(enforceVerdictContract("dormant", ev(0, false))).toBe("dormant");
-    expect(enforceVerdictContract("working", ev(0, true))).toBe("working"); /* 非 dormant 不拦 */
+  const ev = (p: Partial<RuleEvidence>) =>
+    ({ ...measureEvidence(ruleOf("t", []), [], false, emptyCorpus()), ...p });
+  it("计数前提违反回落到 scriptVerdict 阶梯;合法判定与 unverifiable 放行", () => {
+    expect(enforceVerdictContract("dormant", ev({ hits: 3 }), true)).toBe("touched");
+    expect(enforceVerdictContract("dormant", ev({ unjudgeable: true }), true)).toBe("unverifiable");
+    expect(enforceVerdictContract("dormant", ev({ complied: 1 }), true)).toBe("working");
+    expect(enforceVerdictContract("dormant", ev({ corrections: 1, hits: 1 }), true)).toBe("violated");
+    expect(enforceVerdictContract("dormant", ev({}), true)).toBe("dormant");
+    expect(enforceVerdictContract("dormant", ev({}), false)).toBe("unverifiable"); /* 空语料不得判没人用 */
+    expect(enforceVerdictContract("working", ev({}), true)).toBe("unverifiable"); /* 全零计数不得判 working */
+    expect(enforceVerdictContract("violated", ev({ hits: 2 }), true)).toBe("touched"); /* 纠正0不得判 violated */
+    expect(enforceVerdictContract("touched", ev({}), true)).toBe("unverifiable"); /* 零触达不得判 touched;不反转成 dormant */
+    expect(enforceVerdictContract("working", ev({ complied: 1 }), true)).toBe("working"); /* 合法放行 */
+    expect(enforceVerdictContract("unverifiable", ev({}), true)).toBe("unverifiable"); /* 恒放行 */
   });
 });
 

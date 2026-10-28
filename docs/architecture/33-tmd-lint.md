@@ -15,7 +15,7 @@
 ## 七态判定的分工(确定性 vs 语义)
 
 - 确定性先行,不烧模型:机器把关(pre-commit 含规则命令=硬事实,直接判 working)、已拍板(指纹 `{来源态}|{文件}|{规则原文}` 存 app 侧 `tmd-lint.json`,不污染仓库)。
-- 语义归模型:working/violated/touched/dormant/unverifiable 五态由模型按「脚本测量摘要」判定——只发规则原文 + 计数(触达/纠正/工具级照做)+ 脚本确定性预判(`evidence.scriptVerdict`),对话原文/引文/信号词不出本机;证据测量(IDF 区分度门槛 `max(5, 语料/2000)`、纠正词表刻意不含「不要」、命令归一 `run` 折叠)是纯特征工程,不定罪。信号词缺失(含规则提不出任何信号词的纯中文条款)一律 unverifiable;模型越权判 dormant 时由 `enforceVerdictContract` 代码闸按证据底线回落(有触达=touched,词面不可用=unverifiable,2026-10-28 实证:258 条全局哲学条款 125 条零信号词曾被误判 dormant)。单批判定超时上限 1200s。
+- 语义归模型:working/violated/touched/dormant/unverifiable 五态由模型按脚本测量判定——只发规则原文 + 计数(触达/纠正/工具级照做)+ 「词面不可用」行标,对话原文/引文/信号词不出本机;证据测量(IDF 区分度门槛 `max(5, 语料/2000)`、纠正词表刻意不含「不要」、命令归一 `run` 折叠)是纯特征工程,不定罪。信号词缺失(含规则提不出任何信号词的纯中文条款)一律 unverifiable;模型判定落表前过 `enforceVerdictContract` 契约闸——dormant 需与 `scriptVerdict` 阶梯一致(全零+词面可用+有语料,否则回落阶梯值),violated 需纠正>0,working/touched 计数全零时落 unverifiable(风格/宪法型规则照做不留词痕,零词面痕迹不构成「没人用」的证明)(2026-10-28 实证:258 条全局哲学条款 217 条被误判 dormant——125 条提不出信号词、26 条词面不可用、10 条有触达仍判;批判定批路径随单次调用收编删除)。判定调用超时上限 1200s。
 
 ## 写回安全三件套(规则文件写盘的仓内口径)
 
@@ -24,7 +24,7 @@
 
 ## 闭环交互契约(二稿增补)
 
-- 双 pass AI:识别 pass=全文带行号一发(哨兵 `<RECOG>`,逐行 ok/why/fix);生效判定 pass=证据包 8 条一批(哨兵 `<LINT>`)。引擎级失败 fail-fast 中止剩余 AI 并亮因。
+- 单次调用 AI(用户裁决:一次体检 = 1 次模型调用,取代早期识别/判定双 pass 与 8 条一批批判定):全部规则+脚本测量一行一条(unjudgeable 行带「词面不可用」尾标),一次回全部 识别标记(ok/why/fix)与最终判定 v(哨兵 `<JUDGE>`),指令携带判定铁律;解析为空重试 1 次,缺行如实标未判定不猜测;判定落表前过 `enforceVerdictContract` 契约闸。引擎级失败 fail-fast 并亮因。
 - 增量上屏:流水线以事件回调打补丁(lintController 单例快照),右栏视图与中央报告 tab 同源生长;新 tab kind 注册必须同步 `tabContent.contract.test.ts` 的 OPENABLE_KINDS 镜像(死注册会被契约测试拦下)。
 - 每次应用记 `ApplyRecord`(before/after 全文,lintStore.applyJournal cap 40),每次扫描记 `ScanRecord`(cap 12);撤销=把 before 写回并再入日志。
 - 语料一次采集双口径分束:`sessionCwds` 记每会话 cwd,项目规则只计 cwd 全等会话,全局规则计全部——不再为两口径采两遍。

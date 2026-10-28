@@ -148,11 +148,17 @@ export function scriptVerdict(ev: RuleEvidence, hasSessions: boolean): LintVerdi
   return "touched";
 }
 
-/** 判定契约闸(aiJudge 提示词「诚实铁律」的代码化,2026-10-28 实证模型会越权):
- *  dormant 只许「零触达且信号词可用」;违反时按证据底线回落——有触达=touched,词面不可用=unverifiable。 */
-export function enforceVerdictContract(v: LintVerdict, ev: RuleEvidence): LintVerdict {
-  if (v !== "dormant") return v;
-  if (ev.hits > 0) return "touched";
-  if (ev.unjudgeable) return "unverifiable";
-  return v;
+/** 判定契约闸(提示词「判定铁律」的代码化;2026-10-28 实证模型会无视计数约束越权):
+ *  - dormant(指控「没人用」)必须与 scriptVerdict 阶梯一致:全零且词面可用且有语料,否则回落阶梯值;
+ *  - violated(指控「AI 不听」)需纠正>0,否则回落阶梯值(阶梯为 dormant 时落 unverifiable,不反转指控);
+ *  - working/touched(主张「在用/提到」)计数全零时落 unverifiable——风格/宪法型规则照做不留词痕,
+ *    零词面痕迹不构成「没人用」的证明,只构成「说不清」。
+ *  unverifiable 恒放行;合法判定一律放行,闸只收口越权值。 */
+export function enforceVerdictContract(v: LintVerdict, ev: RuleEvidence, hasSessions: boolean): LintVerdict {
+  if (v === "unverifiable") return v;
+  const floor = scriptVerdict(ev, hasSessions);
+  if (v === "dormant") return floor === "dormant" ? v : floor;
+  if (v === "violated") return ev.corrections > 0 ? v : floor === "dormant" ? "unverifiable" : floor;
+  if (v === "working") return ev.hits > 0 || ev.complied > 0 || ev.corrections > 0 ? v : "unverifiable";
+  return ev.hits > 0 ? v : "unverifiable"; /* touched */
 }
