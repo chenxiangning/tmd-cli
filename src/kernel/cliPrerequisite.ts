@@ -13,6 +13,9 @@ export interface CliPrerequisite {
   binary: string;
   /** 展示名,如 "Bun"。 */
   name: string;
+  /** 运行时最低版本(semver 三元组,如 "1.4.4");依赖探针版本低于它 = 过旧,
+   * welcome 引导区出升级入口(比较逻辑在消费端,与 isOutdated 同口径不误报)。 */
+  minVersion?: string;
   /** 官方文档 URL;缺省 = 引导区不显示链接。 */
   docsUrl?: string;
   /** 官方脚本安装通道(优先):unix/windows 为完整命令串。 */

@@ -109,3 +109,28 @@ export function isOutdated(
   if (!current || !latest) return false;
   return compareSemver(latest, current) > 0;
 }
+
+/** 依赖版本是否低于声明下限(CliPrerequisite.minVersion,如 omp → bun ≥1.4.4)。
+ * 与 isOutdated 同口径:任一无法解析 = false(不误报过旧)。 */
+export function isBelowFloor(
+  currentRaw: string | null | undefined,
+  floorRaw: string | null | undefined,
+): boolean {
+  const current = extractSemver(currentRaw);
+  const floor = extractSemver(floorRaw);
+  if (!current || !floor) return false;
+  return compareSemver(floor, current) > 0;
+}
+
+/** 依赖过旧派生(如 omp → bun <1.4.4):已就位(status ok)但版本低于
+ * 声明下限;版本抠不出不误报(isBelowFloor 同口径)。参数取结构化形状,
+ * 不引 EngineProbeState(组件文件类型不入本工具模块)。 */
+export function depOutdatedOf(
+  requires: { minVersion?: string } | null | undefined,
+  probe: { status: string; result: { version: string | null } | null } | undefined,
+): boolean {
+  const floor = requires?.minVersion;
+  return (
+    !!floor && probe?.status === "ok" && isBelowFloor(probe.result?.version, floor)
+  );
+}

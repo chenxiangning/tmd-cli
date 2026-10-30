@@ -5,7 +5,8 @@
  * - 查询失败(null)/查询中(undefined):不渲染最新版;
  * - 未安装(notFound):即使拿到最新版也不渲染(行只显示「安装」);
  * - 前置依赖(omp → bun):依赖未就位时主引擎安装/更新按钮禁用 + 引导区;
- *   依赖探针 ok 后门控解除;
+ *   依赖探针 ok 后门控解除;声明下限(minVersion)后过旧出「一键修复」
+ *   分支(不门控,达标即消失);
  * - 已安装行常驻「新会话」按钮,未安装行不出;
  * - 版本菜单入口:「版本」按钮 = meta.versionMenu && onInstallVersion && 已安装。
  */
@@ -41,7 +42,11 @@ const REQUIRES: PrerequisiteMeta = {
   plan: { channel: "script", unix: "u", windows: "w" },
 };
 
+/* 带版本下限的依赖字面量(omp → bun ≥1.4.4,过旧一键修复分支)。 */
+const REQUIRES_FLOOR: PrerequisiteMeta = { ...REQUIRES, minVersion: "1.4.4" };
+
 const META_WITH_REQ: EngineMeta = { ...META, requires: REQUIRES };
+const META_WITH_REQ_FLOOR: EngineMeta = { ...META, requires: REQUIRES_FLOOR };
 
 const IDLE_INSTALL: InstallState = { running: false, ok: null, lines: [] };
 
@@ -209,6 +214,36 @@ describe("EngineCard 前置依赖门控(omp → bun)", () => {
     expect(html).not.toContain("welcome-prereq");
     expect(html).not.toContain("先安装");
     expect(html).not.toMatch(/class="welcome-ab" disabled/);
+  });
+
+  it("依赖过旧(声明下限):引导区出「一键修复」与版本说明,主按钮不受门控", () => {
+    const html = renderCard(probeOk("omp/18.14.0"), undefined, {
+      meta: META_WITH_REQ_FLOOR,
+      depProbe: depOk("1.4.0"),
+    });
+    expect(html).toContain("依赖 Bun 1.4.0 过旧,OMP 需 ≥1.4.4");
+    expect(html).toContain(">一键修复</button>");
+    expect(html).toContain('title="修复 Bun 并自动更新 OMP"');
+    /* 过旧 ≠ 未就位:主引擎按钮可点,新会话常驻。 */
+    expect(html).not.toMatch(/class="welcome-ab" disabled/);
+    expect(html).toContain("新会话");
+  });
+
+  it("依赖达标(等于下限):引导区整块消失", () => {
+    const html = renderCard(probeOk("omp/18.14.0"), undefined, {
+      meta: META_WITH_REQ_FLOOR,
+      depProbe: depOk("1.4.4"),
+    });
+    expect(html).not.toContain("welcome-prereq");
+    expect(html).not.toContain("一键修复");
+  });
+
+  it("未声明下限:版本再低也不出修复分支(引导区消失)", () => {
+    const html = renderCard(probeOk("omp/18.14.0"), undefined, {
+      meta: META_WITH_REQ,
+      depProbe: depOk("1.0.0"),
+    });
+    expect(html).not.toContain("welcome-prereq");
   });
 
   it("依赖探针失败:出重探按钮,主按钮仍禁用", () => {

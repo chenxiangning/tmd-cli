@@ -49,6 +49,12 @@ const MESSAGES_EN = {
   "前置依赖 {name} 探针失败": "Prerequisite {name} probe failed",
   "依赖 {name} 运行时 —— 先安装 {name},再安装/更新本引擎":
     "Requires the {name} runtime — install {name} first, then install/update this engine",
+  "依赖 {name} {current} 过旧,{engine} 需 ≥{floor}":
+    "Dependency {name} {current} is too old — {engine} requires ≥{floor}",
+  "修复 {name} 并自动更新 {engine}": "Repair {name} and auto-update {engine}",
+  "一键修复": "Fix now",
+  "正在修复 {name}…": "Fixing {name}…",
+  "{name} 修复": "{name} fix",
   "{name} 官网": "{name} website",
   "{name} 安装": "{name} install",
   "正在安装 {name}…": "Installing {name}…",
@@ -154,6 +160,12 @@ const MESSAGES_JA = {
   "前置依赖 {name} 探针失败": "前提条件 {name} のプローブに失敗",
   "依赖 {name} 运行时 —— 先安装 {name},再安装/更新本引擎":
     "{name} ランタイムが必要 —— 先に {name} をインストールしてから本エンジンを導入/更新",
+  "依赖 {name} {current} 过旧,{engine} 需 ≥{floor}":
+    "依存 {name} {current} は古すぎます — {engine} には ≥{floor} が必要",
+  "修复 {name} 并自动更新 {engine}": "{name} を修復して {engine} を自動更新",
+  "一键修复": "今すぐ修復",
+  "正在修复 {name}…": "{name} 修復中…",
+  "{name} 修复": "{name} 修復",
   "{name} 官网": "{name} 公式サイト",
   "{name} 安装": "{name} インストール",
   "正在安装 {name}…": "{name} をインストール中…",
