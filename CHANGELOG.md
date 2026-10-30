@@ -4,6 +4,12 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.7] - 2026-10-30
+
+### 新增
+
+- omp 前置依赖过旧一键修复:CLI 前置依赖契约(CliPrerequisite)新增通用 minVersion 字段,omp 声明 bun ≥1.4.4(对齐上游 18.14.0 起 engines.bun 门槛);首页引擎卡对「依赖已装但版本过旧」可见——引导区显示当前版本与所需下限,点「一键修复」跑官方脚本升级 bun(Windows 走 install.ps1)带流式日志,成功后自动接续 omp 本体更新并双探针重跑、引导区消失;任一步失败即停可重点重试;依赖全新安装(notFound)不越权替用户装引擎;「新会话」与主引擎按钮不受过旧态门控,启动失败仍有 toast 兜底
+
 ## [0.4.6] - 2026-10-29
 
 ### 修复
