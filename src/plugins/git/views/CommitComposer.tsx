@@ -1,6 +1,6 @@
 /**
  * CommitComposer —— 自 DiffView.tsx 拆出(文件规模铁则)。
- * 提交 composer(prompt 式,常驻底部;单行起步随内容长高,保留多行提交信息;
+ * 提交 composer(prompt 式,常驻底部;三行起步随内容长高,保留多行提交信息;
  * ⌘⏎ 提交;--amend 开关;提交范围 = 已暂存 ∪ 勾选,按路径集合并防双计)。
  */
 
@@ -52,7 +52,7 @@ function composerReducer(state: ComposerState, action: ComposerAction): Composer
   }
 }
 
-/** 自适应高度:单行起步随内容长高,160px 封顶。 */
+/** 自适应高度:三行起步随内容长高,160px 封顶。 */
 function autosize(el: HTMLTextAreaElement) {
   el.style.height = "auto";
   el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
@@ -133,8 +133,8 @@ export function CommitComposer({
             }
           }}
           placeholder={t("提交信息…")}
-          rows={1}
-          className="w-full resize-none border-0 border-b border-(--tmd-border) bg-transparent px-0.5 py-0.5 outline-none focus:border-(--tmd-border-strong) placeholder:text-(--tmd-fg-faint)"
+          rows={3}
+          className="w-full min-w-0 resize-none overflow-x-hidden border-0 border-b border-(--tmd-border) bg-transparent px-0.5 py-0.5 outline-none focus:border-(--tmd-border-strong) placeholder:text-(--tmd-fg-faint)"
         />
       </div>
       {error && (

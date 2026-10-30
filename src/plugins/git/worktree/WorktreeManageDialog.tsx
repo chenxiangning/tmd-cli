@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { createPortal } from "react-dom";
 import { ArrowsClockwise, Plus } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
@@ -75,7 +76,7 @@ export function WorktreeManageDialog({
   };
 
   const fail = (e: unknown): void => {
-    setError(e instanceof Error ? e.message : String(e));
+    setError(errTextDisplay(e));
   };
 
   const add = async (): Promise<void> => {

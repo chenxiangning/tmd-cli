@@ -3,6 +3,7 @@
  * 自 DocGenReader 拆出守 300 行铁则。
  */
 import { t } from "@kernel/i18n";
+import { errTextDisplay } from "@kernel/errText";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { composerInsertRef } from "@kernel/composerExt";
@@ -40,7 +41,7 @@ export function ReaderFoot({ entry, projects, md, onToast }: {
     }
     void createDoc(target.projectId, { title: entry.title, markdown: md }).then(
       () => onToast(target.fallback ? t("已存为项目文档:{name}(全部项目范围默认落第一个进行中项目)", { name: target.projectName }) : t("已存为项目文档:{name}", { name: target.projectName })),
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => onToast(errTextDisplay(e)),
     );
   };
   const exportMd = () => {
@@ -51,7 +52,7 @@ export function ReaderFoot({ entry, projects, md, onToast }: {
       if (!path) return; /* 用户取消/web 桩态:静默 */
       void writeText(path, md).then(
         () => onToast(t("已导出:{path}", { path })),
-        (e) => onToast(e instanceof Error ? e.message : String(e)),
+        (e) => onToast(errTextDisplay(e)),
       );
     });
   };

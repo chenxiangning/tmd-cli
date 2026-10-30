@@ -11,6 +11,7 @@ import { JA_MESSAGES } from "./locales/ja";
 import { MESSAGES as enCommon } from "./locales/en/common";
 import { MESSAGES as enSettings } from "./locales/en/settings";
 import { MESSAGES as enSettings2 } from "./locales/en/settings2";
+import { MESSAGES as enSettings3 } from "./locales/en/settings3";
 import { MESSAGES as enWorkspace } from "./locales/en/workspace";
 import { MESSAGES as enGit } from "./locales/en/git";
 import { MESSAGES as enGit2 } from "./locales/en/git2";
@@ -31,6 +32,7 @@ import { MESSAGES as enCheckpoints } from "./locales/en/checkpoints";
 import { MESSAGES as jaCommon } from "./locales/ja/common";
 import { MESSAGES as jaSettings } from "./locales/ja/settings";
 import { MESSAGES as jaSettings2 } from "./locales/ja/settings2";
+import { MESSAGES as jaSettings3 } from "./locales/ja/settings3";
 import { MESSAGES as jaWorkspace } from "./locales/ja/workspace";
 import { MESSAGES as jaGit } from "./locales/ja/git";
 import { MESSAGES as jaGit2 } from "./locales/ja/git2";
@@ -61,9 +63,15 @@ vi.mock("@kernel/i18n", async (importOriginal) => {
     },
   };
 });
-const pluginLocaleModules = import.meta.glob("../plugins/*/locales.ts", { eager: true });
+const pluginLocaleModules = {
+  ...import.meta.glob("../plugins/*/locales.ts", { eager: true }),
+  ...import.meta.glob("../plugins/*/locales/index.ts", { eager: true }),
+};
 const pluginFaces = Object.keys(pluginLocaleModules).map((path) =>
-  path.replace("../plugins/", "").replace("/locales.ts", ""),
+  path
+    .replace("../plugins/", "")
+    .replace("/locales/index.ts", "")
+    .replace("/locales.ts", ""),
 );
 
 /** 从文本里提取 {name} 占位符集合。 */
@@ -73,7 +81,7 @@ function placeholdersOf(text: string): Set<string> {
 
 /** 域展开合并序(与 locales/{en,ja}/index.ts 的 spread 序一致;同键异值时后者静默覆盖前者)。 */
 const EN_DOMAINS: [string, Record<string, string>][] = [
-  ["common", enCommon], ["settings", enSettings], ["settings2", enSettings2],
+  ["common", enCommon], ["settings", enSettings], ["settings2", enSettings2], ["settings3", enSettings3],
   ["workspace", enWorkspace], ["git", enGit], ["git2", enGit2], ["files", enFiles],
   ["cli", enCli], ["cli2", enCli2], ["composer", enComposer],
   ["ssh", enSsh], ["wsl", enWsl], ["assets", enAssets], ["misc", enMisc],
@@ -81,7 +89,7 @@ const EN_DOMAINS: [string, Record<string, string>][] = [
   ["iconDecor", enIconDecor], ["checkpoints", enCheckpoints],
 ];
 const JA_DOMAINS: [string, Record<string, string>][] = [
-  ["common", jaCommon], ["settings", jaSettings], ["settings2", jaSettings2],
+  ["common", jaCommon], ["settings", jaSettings], ["settings2", jaSettings2], ["settings3", jaSettings3],
   ["workspace", jaWorkspace], ["git", jaGit], ["git2", jaGit2], ["files", jaFiles],
   ["cli", jaCli], ["cli2", jaCli2], ["composer", jaComposer],
   ["ssh", jaSsh], ["wsl", jaWsl], ["assets", jaAssets], ["misc", jaMisc],

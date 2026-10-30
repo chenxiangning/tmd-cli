@@ -16,6 +16,7 @@ import { MESSAGES as assets } from "./assets";
 import { MESSAGES as mobile } from "./mobile";
 import { MESSAGES as market } from "./market";
 import { MESSAGES as time } from "./time";
+import { MESSAGES as settings3 } from "./settings3";
 import { MESSAGES as iconDecor } from "./iconDecor";
 import { MESSAGES as checkpoints } from "./checkpoints";
 
@@ -36,6 +37,7 @@ export const EN_MESSAGES: Record<string, string> = {
   ...misc2,
   ...mobile,
   ...time,
+  ...settings3,
   ...market,
   ...iconDecor,
   ...checkpoints,

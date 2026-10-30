@@ -8,6 +8,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { CaretRight } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
@@ -17,6 +18,7 @@ import type { Workspace } from "@kernel/workspace";
 import type { RemoteFileSource } from "@kernel/fileSources";
 import { openFileInTab } from "@kernel/fileTabs";
 import { setActiveTreeHandles, refreshFiles } from "./treeHandles";
+import { NamePrompt } from "./NamePrompt";
 import { FileTreeToolbar } from "./FileTreeToolbar";
 
 /** 单行渲染:目录 = 展开箭头 + 图标;文件 = 图标 + 名(点击开渲染 tab)。 */
@@ -78,7 +80,7 @@ export function FileTreeRemoteSource({
       setEntries(await source.listDir(workspace, root));
     } catch (e) {
       setEntries([]);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     }
   }, [source, workspace, root]);
 
@@ -86,21 +88,53 @@ export function FileTreeRemoteSource({
     void reloadRoot();
   }, [reloadRoot]);
 
-  /* 新建守卫:远程树 M1 不支持新建,工具条按钮与句柄槽共用同一提示回调。 */
+  /* 新建(项 5 写回闭环):源声明 createEntry 才可用,NamePrompt 同本地交互;
+   * 未声明源保持 M1 提示(不静默)。新建落点 = 树当前根(远程树单根浏览)。 */
+  const [promptKind, setPromptKind] = useState<null | "file" | "folder">(null);
+  const [promptError, setPromptError] = useState<string | null>(null);
+  const canCreate = Boolean(source.createEntry);
   const remoteNewGuard = useCallback(
     () => setNotice(t("远程文件暂不支持在文件树新建(M1):请经终端会话操作")),
     [],
   );
+  const newEntry = useCallback(
+    (kind: "file" | "folder") => {
+      setNotice(null);
+      if (!canCreate) {
+        remoteNewGuard();
+        return;
+      }
+      setPromptError(null);
+      setPromptKind(kind);
+    },
+    [canCreate, remoteNewGuard],
+  );
+  const confirmNew = useCallback(
+    async (name: string) => {
+      if (!source.createEntry || !promptKind) return;
+      const rel = root ? `${root.replace(/\/$/, "")}/${name}` : name;
+      try {
+        await source.createEntry(workspace, rel, promptKind === "folder");
+      } catch (e) {
+        setPromptError(errTextDisplay(e));
+        return;
+      }
+      setPromptKind(null);
+      await reloadRoot();
+      if (promptKind === "file") openFileInTab(source.fileUri(workspace, rel));
+    },
+    [promptKind, reloadRoot, root, source, workspace],
+  );
 
-  /* 动作句柄槽:刷新可用(远程树根层重拉);新建/文件夹在远程树上出 M1 提示(不静默)。 */
+  /* 动作句柄槽:刷新可用(远程树根层重拉);新建按源能力分派。 */
   useEffect(() => {
     setActiveTreeHandles({
       reload: reloadRoot,
-      newFile: remoteNewGuard,
-      newFolder: remoteNewGuard,
+      newFile: () => newEntry("file"),
+      newFolder: () => newEntry("folder"),
     });
     return () => setActiveTreeHandles(null);
-  }, [reloadRoot, remoteNewGuard]);
+  }, [reloadRoot, newEntry]);
 
   const toggle = useCallback(
     (entry: DirEntry) => {
@@ -116,7 +150,7 @@ export function FileTreeRemoteSource({
       void source
         .listDir(workspace, entry.path)
         .then((children) => setExpanded((prev) => ({ ...prev, [entry.path]: children })))
-        .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+        .catch((e) => setError(errTextDisplay(e)));
     },
     [expanded, source, workspace],
   );
@@ -136,7 +170,7 @@ export function FileTreeRemoteSource({
         <span>{source.label(workspace)}</span>
         {/* 工具条与本地树同形制(2026-10-02 自顶栏右区下放):新建出 M1 提示,
             刷新走 refreshFiles(根层重拉 + 打开中 tab 重读,同句柄槽语义)。 */}
-        <FileTreeToolbar onNewFile={remoteNewGuard} onNewFolder={remoteNewGuard} onRefresh={() => refreshFiles()} gitToggle={false} />
+        <FileTreeToolbar onNewFile={() => newEntry("file")} onNewFolder={() => newEntry("folder")} onRefresh={() => refreshFiles()} gitToggle={false} />
       </div>
       <div className="file-tree-list">
         {entries === null ? (
@@ -155,6 +189,16 @@ export function FileTreeRemoteSource({
         <div className={error ? "file-tree-remote-err" : "file-tree-remote-note"}>
           {error ?? notice}
         </div>
+      )}
+      {promptKind && (
+        <NamePrompt
+          title={promptKind === "file" ? t("新建文件") : t("新建文件夹")}
+          parentPath={root}
+          confirmLabel={t("创建")}
+          error={promptError}
+          onCancel={() => setPromptKind(null)}
+          onConfirm={(name) => void confirmNew(name)}
+        />
       )}
     </div>
   );

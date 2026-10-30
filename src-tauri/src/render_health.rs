@@ -124,6 +124,10 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
     从用户手里抢焦点(2026-10-01 反馈:切去浏览器每 10 余秒被弹回)。
     真粘死在用户回焦时由 Focused 探针线检出接力,聚焦态击打不受影响。 */
     if !window.is_focused().unwrap_or(false) {
+        crate::render_health_events::note(
+            "kick-skipped-unfocused",
+            "未聚焦窗口跳过击打(设计内暂停,回焦由探针线接力)".to_string(),
+        );
         return;
     }
     let now = now_millis();
@@ -158,6 +162,17 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
                     ""
                 },
             ));
+            crate::render_health_events::note(
+                "kick-reload",
+                format!(
+                    "strikes={strikes}{}",
+                    if now < flood_until {
+                        ",宽限耗尽强击"
+                    } else {
+                        ""
+                    }
+                ),
+            );
             let _ = window.eval("location.reload()");
         }
         KickAction::Focus => {
@@ -169,6 +184,17 @@ fn kick(window: &WebviewWindow, ks: &KickState) {
                     ""
                 },
             ));
+            crate::render_health_events::note(
+                "kick-focus",
+                format!(
+                    "strikes={strikes}{}",
+                    if now < ks.flood_until_ms.load(Ordering::Relaxed) {
+                        ",洪水期降级"
+                    } else {
+                        ""
+                    }
+                ),
+            );
             let _ = window.set_focus();
         }
     }
@@ -194,6 +220,10 @@ pub(crate) fn render_health(
     }
     if ok {
         /* 痊愈:strikes 与洪水降级期一并清零,下一轮冻结重新计宽限。 */
+        let had = ks.strikes.load(Ordering::Relaxed);
+        if had > 0 {
+            crate::render_health_events::note("recovered", format!("strikes={had}"));
+        }
         ks.strikes.store(0, Ordering::Relaxed);
         ks.flood_since_ms.store(0, Ordering::Relaxed);
         return;

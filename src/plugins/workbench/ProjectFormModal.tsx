@@ -4,6 +4,7 @@
  */
 
 import { useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { useWorkspaces } from "@kernel/workspace";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
@@ -84,7 +85,7 @@ export function ProjectFormModal({
       tags: tagText.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean),
       cwd: values.cwd.trim() || "",
     }).then(onClose).catch((e) => {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
       setBusy(false);
     });
   };

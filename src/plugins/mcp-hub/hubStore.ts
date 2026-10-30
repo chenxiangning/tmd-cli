@@ -9,6 +9,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { host } from "@kernel/host";
 import { createSubscribable } from "@kernel/subscribable";
 import {
@@ -68,7 +69,7 @@ async function readTriState(path: string): Promise<TriRead> {
   try {
     return { kind: "ok", text: await ipc.fsReadFile(path) };
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = errTextDisplay(e);
     const cut = path.lastIndexOf("/");
     try {
       const entries = await ipc.fsCollectFiles(path.slice(0, cut), "");
@@ -130,7 +131,7 @@ export async function refreshHub(): Promise<void> {
       engines.push({
         profileId: profile.id, name: profile.name, format: cfg.format,
         path: target, displayPath: displayPath(target), exists: true, entries: null,
-        error: e instanceof Error ? e.message : String(e),
+        error: errTextDisplay(e),
       });
     }
   }

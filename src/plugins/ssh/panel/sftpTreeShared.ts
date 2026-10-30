@@ -7,6 +7,7 @@
  */
 
 import { ipc, pickDirectory, pickFile, type SftpEntry } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 
 export interface TreeNode {
@@ -53,7 +54,7 @@ export async function downloadNode(
     const local = node.kind === "dir" ? target : `${target}/${node.name}`;
     await ipc.sftpTransfer(sessionId, "download", node.path, local, recursive);
   } catch (e) {
-    return t("下载失败:{msg}", { msg: e instanceof Error ? e.message : String(e) });
+    return t("下载失败:{msg}", { msg: errTextDisplay(e) });
   }
 }
 
@@ -70,6 +71,6 @@ export async function uploadPicked(
     await ipc.sftpTransfer(sessionId, "upload", source, joinRemote(remoteDir, name), false);
     onMutate();
   } catch (e) {
-    return t("上传失败:{msg}", { msg: e instanceof Error ? e.message : String(e) });
+    return t("上传失败:{msg}", { msg: errTextDisplay(e) });
   }
 }

@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { UploadSimple } from "@phosphor-icons/react";
 import { getSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
@@ -34,7 +35,7 @@ export function ImportModal({
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
         setState("error");
       });
     return () => {

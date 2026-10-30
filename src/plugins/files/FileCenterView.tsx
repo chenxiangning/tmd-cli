@@ -7,6 +7,7 @@
 import { Suspense, lazy } from "react";
 import { retryImport } from "@kernel/lazyImport";
 import { t } from "@kernel/i18n";
+import { findRemoteFileSourceForUri } from "@kernel/fileSources";
 import { Spinner } from "@kernel/Spinner";
 import type { EditorView } from "@codemirror/view";
 import type { FileDocState } from "./editor/useFileDocument";
@@ -63,7 +64,7 @@ export function FileCenterView({
         path={path}
         value={doc.content}
         dark={dark}
-        readOnly={remote}
+        readOnly={remote && !findRemoteFileSourceForUri(path)?.writeText}
         onChange={doc.setDoc}
         onSave={doc.save}
         onViewReady={onViewReady}

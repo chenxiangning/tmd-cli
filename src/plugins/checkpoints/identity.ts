@@ -75,6 +75,26 @@ export function withEchoFallback(
   return probing ? { ...id, key: id.tmdId } : id;
 }
 
+/**
+ * stale-while-key-flip 回落键(纯函数,测试面):主键翻转沿的新键首拉未落地时,
+ * 读/种上一主键的缓存,批清单不闪空帧。开窗沿(绑定键→tmd id,旧行为)与
+ * 关窗/重绑沿(tmd id→新绑定键,2026-10-23 评审 P3 记档的闪一拍)对称。
+ * 家族守卫:tmd 会话已换时 prevKey 是他账键,回落=串账,一律 null
+ * (新会话首拉前的空帧是正确语义)。
+ */
+export function staleFallbackKey(args: {
+  tmdId: string | null;
+  prevTmdId: string | null;
+  prevKey: string | null;
+  resolvedKey: string | null;
+  hasCurrent: boolean;
+}): string | null {
+  if (!args.resolvedKey || !args.prevKey) return null;
+  if (args.prevKey === args.resolvedKey) return null;
+  if (!args.tmdId || args.tmdId !== args.prevTmdId) return null; // 换会话/无会话:回落=串账,弃
+  return args.hasCurrent ? null : args.prevKey;
+}
+
 /** 记账/查询统一入口:解析活跃会话的 (cwd, 账本主键, tmd id)。会话不存在 → null。 */
 export function checkpointIdentity(
   tmdId: string,

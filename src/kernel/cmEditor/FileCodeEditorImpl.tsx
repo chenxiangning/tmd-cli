@@ -110,6 +110,11 @@ export default function FileCodeEditorImpl({
   /* 行定位:视图可能晚于 revealLine 就绪(异步 chunk),onCreateEditor 补一次
      消费;两处共用同一实现(CM 模块此场景已在缓存,import 即时)。 */
   const revealLineRef = useRef<number | null>(revealLine ?? null);
+  /* 定位行闪烁定时器(重复定位先清旧,卸载兜底清)。 */
+  const flashTimerRef = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+  }, []);
   useEffect(() => {
     /* 渲染期不写 ref(react-doctor):prop → ref 同步收敛到 effect。 */
     revealLineRef.current = revealLine ?? null;
@@ -125,6 +130,21 @@ export default function FileCodeEditorImpl({
       selection: stateMod.EditorSelection.cursor(pos),
       effects: viewMod.EditorView.scrollIntoView(pos, { y: "center" }),
     });
+    /* 深链定位行背景闪烁 5s:CM 6.43 无 addLineClass 效应,直改行 DOM 类
+       (行刚被滚动到视口,DOM 存活;编辑重渲染丢类可接受,闪烁本就瞬时)。 */
+    const cls = "tmd-line-flash";
+    const node = view.domAtPos(pos);
+    const lineEl = (node.node.nodeType === 1 ? (node.node as HTMLElement) : node.node.parentElement)?.closest(".cm-line");
+    if (lineEl) {
+      lineEl.classList.remove(cls);
+      void (lineEl as HTMLElement).offsetWidth; /* 强制 reflow 重触发动画 */
+      lineEl.classList.add(cls);
+      if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = window.setTimeout(() => {
+        lineEl.classList.remove(cls);
+        flashTimerRef.current = null;
+      }, 5000);
+    }
     view.focus();
   };
   useEffect(() => {

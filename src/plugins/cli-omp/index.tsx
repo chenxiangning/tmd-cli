@@ -100,10 +100,13 @@ export const cliOmpPlugin: Plugin = {
       /* 版本回退/收藏菜单:最新 10 个稳定版 + 用户收藏,钉版走本通道拼 @version。 */
       versionMenu: true,
       /* omp 运行时依赖 bun:welcome 引擎卡先探针 bun,缺失时引导先装 bun,
-       * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cliProfile.ts requires)。 */
+       * 就位前 omp 的安装/更新按钮不可点(契约见 kernel/cliProfile.ts requires)。
+       * minVersion 维护口径:omp 抬 engines.bun 门槛时此处跟一行(18.14.0 起
+       * ≥1.4.4,上游因 CVE-2026-91403/CVE-2026-111497 修复线抬门槛)。 */
       requires: {
         binary: "bun",
         name: "Bun",
+        minVersion: "1.4.4",
         docsUrl: "https://bun.sh",
         scriptInstall: {
           unix: "curl -fsSL https://bun.sh/install | bash",

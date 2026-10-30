@@ -4,6 +4,7 @@
  * 预锁范围。提交 → createEntry + 入队(真实 CLI 无头生成)。
  */
 import { useMemo, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
@@ -104,14 +105,14 @@ export function DocGenDialog({ lockedProject, projects, today, onClose, onToast 
         /* M18:排程落盘失败不翻转状态(回滚内存态防假「运行中」),onToast 如实报错。 */
         void updateSchedule({ on: true, weekday: schedWeekday, time: schedTime, templateId: template.id, engine }).catch((e) => {
           void updateSchedule(schedule).catch(() => undefined);
-          onToast(e instanceof Error ? e.message : String(e));
+          onToast(errTextDisplay(e));
         });
       }
       onToast(queued ? t("已加入生成队列({engine})", { engine }) : t("同维度已有任务在队列/运行中"));
       onClose();
     }, (e) => {
       setBusy(false);
-      onToast(e instanceof Error ? e.message : String(e));
+      onToast(errTextDisplay(e));
     });
   };
 

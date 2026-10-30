@@ -33,6 +33,13 @@ export function registerMessages(dicts: {
   if (dicts.ja) Object.assign(DICTIONARIES.ja, dicts.ja);
 }
 
+/** 词典快照(测试/诊断面):en/ja 当前注册面的只读视图,完整性门禁消费。 */
+export function dictionarySnapshot(): Readonly<
+  Record<Exclude<UiLanguage, "zh">, Record<string, string>>
+> {
+  return { en: { ...DICTIONARIES.en }, ja: { ...DICTIONARIES.ja } };
+}
+
 /** 查词典 + 插值;缺失键回落源中文串(zh 或未迁移文案的兜底语义)。 */
 export function t(
   key: string,

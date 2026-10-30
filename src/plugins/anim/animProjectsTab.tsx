@@ -16,6 +16,7 @@ import { FilmSlate } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { getSettingsState } from "@kernel/settings";
 import { getPlatformKind } from "@kernel/platform";
 import { ensureDir } from "@kernel/fsDirs";
 import { resolveDefaultEngine } from "@plugins/workbench/defaultEngine";
@@ -31,12 +32,23 @@ import {
   readAnimProjectRows,
   type AnimProjectRowState,
 } from "./animProjects";
+import { consumeAiDialogRequest, subscribeAiDialogRequest } from "./animStores";
 import { useAnimOpen } from "./useAnimOpen";
 import { prepareAiSessionTarget, startAnimAiSession, type AnimEngine } from "./startSession";
 import { setPendingPrompt } from "@kernel/sessionPending";
 import { setPendingRefs } from "./refStore";
 
 const POLL_MS = 2000;
+
+/** read-failed toast(0.4.5 错误呈现收编):zh 保留 Rust 原文;en/ja 只显分类句 ——
+ *  原文恒带中文标签,混排失真(2026-10-23 评审 P3);完整原文进 console 供排障。 */
+function readFailedToast(detail?: string): string {
+  const base = t("项目读取失败");
+  if (!detail) return base;
+  if (getSettingsState().settings.language === "zh") return `${base}: ${detail}`;
+  console.warn("[anim] read project failed:", detail);
+  return base;
+}
 
 export function AnimProjectsTab() {
   const [rows, setRows] = useState<AnimProjectRowState[] | null>(null); /* null = 目录不存在/未读到 */
@@ -120,7 +132,7 @@ export function AnimProjectsTab() {
               : reason === "project-too-large"
                 ? t("项目过大")
                 : reason === "read-failed"
-                  ? `${t("项目读取失败")}${detail ? `: ${detail}` : ""}`
+                  ? readFailedToast(detail)
                   : t("项目文件无效,请先在 tmd-anim 中修复"),
       );
       return;
@@ -128,6 +140,17 @@ export function AnimProjectsTab() {
     /* 弹窗直渲 label(此处 t());pending 面另行走 animSessionRefs 源键(chip 端 t())。 */
     setDialog({ ...result.target, refs: result.target.refs.map((r) => ({ ...r, label: t(r.label) })) });
   };
+
+  /* ⌘N「新建 AI 会话」请求消费(animStores 桥):home 就绪才弹(未就绪留旗,
+   * 首拍数据落地的重渲在此补弹);订阅拍覆盖 tab 已挂载时的即时弹。 */
+  // react-doctor-disable-next-line react-doctor/no-set-state-after-await-in-effect -- 弹窗数据必须异步取回(项目桩)后才能 setState;卸载竞态由 dialog 组件挂载态自兜底
+  useEffect(() => {
+    const consume = () => {
+      if (homeRef.current && consumeAiDialogRequest()) void openAiDialog(null);
+    };
+    consume();
+    return subscribeAiDialogRequest(consume);
+  });
 
   /* 确认窗「启动会话」:startAnimAiSession 桩先落盘再 spawn,spawn 失败清理
    *  本次落的桩(失败零残留);失败不关窗(toast),保住已编辑 prompt。 */
@@ -142,7 +165,7 @@ export function AnimProjectsTab() {
         target,
         deps: {
           ensureDir: (dir) => ensureDir(dir),
-          writeFile: (p, c) => ipc.fsWriteFile(p, c),
+          writeFile: (p, c) => ipc.fsWriteFile(p, c).then(() => undefined),
           removePath: (p) => ipc.fsRemovePath(p),
           spawn: (eng, spec) =>
             /* identityTrack:真 CLI 引擎拉起必开,否则磁盘身份永不绑定,

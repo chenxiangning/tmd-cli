@@ -133,7 +133,7 @@ export function buildReseedScreen(term: Terminal): {
  * 幕布可能滞留停滞期旧帧,存档由重挂侧弃存量兜底(见 TerminalView 主 effect),
  * 卸载侧不辨因一律存 —— 快照至多存活一次消费,误存不外溢。
  */
-export function settleTerminalFreeze(sessionId: string, term: Terminal): void {
+export function settleTerminalFreeze(sessionId: string, term: Terminal, flushed = 0): void {
   const reseed = buildReseedScreen(term);
   host.reseedScreenMirror(sessionId, reseed.cols, reseed.rows, reseed.text);
   const bufferText = host.getOutputBuffer(sessionId);
@@ -145,8 +145,10 @@ export function settleTerminalFreeze(sessionId: string, term: Terminal): void {
     screenText: reseed.text,
     cursorX: reseed.cursorX,
     cursorY: reseed.cursorY,
-    unloadChars: bufferText.length,
-    bytePos: host.getOutputBufferBytes(sessionId),
+    /* flushed = 冲进去但下一宏任务才解析的尾巴(xterm WriteBuffer 异步):
+     * 快照投影不含它,水位相应让渡,由重开 fast 路径的增量补写收尾。 */
+    unloadChars: Math.max(0, bufferText.length - flushed),
+    bytePos: Math.max(0, host.getOutputBufferBytes(sessionId) - flushed),
     headSample: bufferText.slice(0, HEAD_SAMPLE_CHARS),
     fingerprint: sessionFreezeFingerprint(host.getSessions().find((s) => s.id === sessionId)),
   });

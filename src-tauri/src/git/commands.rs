@@ -8,8 +8,8 @@ use git2::Repository;
 
 use super::{
     ahead_behind as ahead_behind_impl, branch_ops, commit as commit_impl, commit_view, compare_ops,
-    diff, index_ops, remote_ops, remote_quick, repos_scan, stash_ops, status as status_impl,
-    walk_log, with_repo, with_repo_mut, AheadBehind, BranchCompareSet, BranchDiffFile, BranchList,
+    diff, index_ops, remote_ops, remote_quick, repos_scan, status as status_impl, walk_log,
+    with_repo, with_repo_mut, AheadBehind, BranchCompareSet, BranchDiffFile, BranchList,
     CommitFile, CommitInput, DiffStatus, DiffTotals, FilePatch, GitError, LogEntry, RepoScanResult,
 };
 /// 读命令模板:spawn_blocking 包 with_repo;JoinError 只在 panic/取消时出现。
@@ -152,19 +152,7 @@ pub async fn git_checkout_remote(cwd: String, name: String) -> Result<(), String
     run_mut(cwd, move |r| branch_ops::checkout_remote(r, &name)).await
 }
 
-/// 「暂存并切换」(IDEA Smart Checkout 复刻):脏工作区 stash -u → 切换 → pop;
-/// pop 冲突时切换已生效、stash 保留,错误文案引导。remote = 远程分支检出版。
-#[tauri::command]
-pub async fn git_smart_checkout(cwd: String, name: String, remote: bool) -> Result<(), String> {
-    run_mut(cwd, move |r| stash_ops::smart_checkout(r, &name, remote)).await
-}
-
-/// 还原一次「暂存并切换」:丢弃切换后分支的冲突状态(reset --hard,内容在
-/// stash 中不丢失),切回 original 分支并恢复改动。无 stash 时拒绝。
-#[tauri::command]
-pub async fn git_smart_checkout_undo(cwd: String, original: String) -> Result<(), String> {
-    run_mut(cwd, move |r| stash_ops::undo(r, &original)).await
-}
+/* stash 域命令(smart_checkout/stash 管理面)拆至 commands_stash.rs(300 行铁则)。 */
 #[tauri::command]
 pub async fn git_create_branch(
     cwd: String,

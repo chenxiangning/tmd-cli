@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowClockwiseIcon, DesktopIcon, FolderSimplePlusIcon } from "@phosphor-icons/react";
 import { ipc, type WslDistro, type WslInfo } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -170,7 +171,7 @@ export function WslCard() {
       updateSettings({ wsl: { ...settings.wsl, defaultDistro: name } });
       refresh();
     } catch (e) {
-      setDefaultErr(t("设默认失败:{reason}", { reason: e instanceof Error ? e.message : String(e) }));
+      setDefaultErr(t("设默认失败:{reason}", { reason: errTextDisplay(e) }));
       window.setTimeout(() => setDefaultErr(null), 5000);
     }
   };

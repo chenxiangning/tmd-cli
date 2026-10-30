@@ -222,6 +222,30 @@ pub async fn session_history_page(
     .map_err(|e| format!("session_history_page join 失败: {e}"))?
 }
 
+/// 会话日志全文搜索(⌘F 缓冲零命中时的磁盘兜底;字面量子串,行去重定位条目)。
+#[tauri::command]
+pub async fn session_log_search(
+    app: AppHandle,
+    id: String,
+    needle: String,
+    case_sensitive: bool,
+) -> Result<session_log::LogSearchResult, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        if state.ssh.contains(&id) {
+            let (path, base) = {
+                let logs = state.ssh.logs.lock();
+                let meta = logs.get(&id).ok_or("SSH 会话日志不存在")?;
+                (meta.path.clone(), meta.base)
+            };
+            return session_log::search_log(&path, base, &needle, case_sensitive);
+        }
+        state.pty.session_log_search(&id, &needle, case_sensitive)
+    })
+    .await
+    .map_err(|e| format!("session_log_search join 失败: {e}"))?
+}
+
 /// 身份绑定时刻回写「CLI 会话 → 当前代日志」指针(磁盘先行回放寻址用,无条件覆写)。
 #[tauri::command]
 pub fn session_link_log(

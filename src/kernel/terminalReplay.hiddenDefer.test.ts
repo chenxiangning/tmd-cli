@@ -81,9 +81,11 @@ describe("attachTerminalStream 隐藏幕布合帧写入", () => {
     vi.advanceTimersByTime(250);
     expect(term.writes).toEqual(["tick-1tick-2"]); // 250ms 合一帧
 
-    // 激活:冲刷残留攒帧,此后直写
+    // 激活:冲刷残留攒帧;此后走前台 rAF 合帧(16ms 一帧,2026-10-26 起)
     hidden = false;
     emit("s9", "tick-3");
+    expect(term.writes).toEqual(["tick-1tick-2"]); // rAF 帧未到,暂在攒批
+    vi.advanceTimersByTime(16);
     expect(term.writes).toEqual(["tick-1tick-2", "tick-3"]);
     expect(flushes).toHaveLength(1);
     flushes[0]();
@@ -106,6 +108,24 @@ describe("attachTerminalStream 隐藏幕布合帧写入", () => {
     expect(bound).toBe("unbound"); // 卸载即解绑,激活冲刷不得打向死幕布
     vi.advanceTimersByTime(1_000);
     expect(term.writes).toEqual([]); // 计时器已清,攒帧随卸载丢弃
+  });
+
+  it("冲刷入口返回本次冲入字符数,空冲刷返回 0(卸载快照水位扣减)", () => {
+    const term = fakeTerm();
+    const bound: { flush: (() => number) | null } = { flush: null };
+    const off = attachTerminalStream(term, "s10", gate, (_p: LoadProgress) => undefined, undefined, {
+      shouldDefer: () => true,
+      bindFlush: (fn) => {
+        bound.flush = fn as (() => number) | null;
+      },
+    });
+    emit("s10", "abc");
+    emit("s10", "def");
+    expect(term.writes).toEqual([]); /* 攒帧未到 250ms 不落笔 */
+    expect(bound.flush?.()).toBe(6);
+    expect(term.writes).toEqual(["abcdef"]);
+    expect(bound.flush?.()).toBe(0); /* 已清空,再冲无残留 */
+    off();
   });
 });
 

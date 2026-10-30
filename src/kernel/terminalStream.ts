@@ -55,29 +55,57 @@ export function attachTerminalStream(
   let received = 0;
   /* 就绪锁:true 后实时字节照常写幕布,但不再触碰进度态(见 terminalReplay.ts 头注)。 */
   let ready = false;
-  /* 磁盘分支:CLR 观测回调与 flush 计时(cleanup 需跨作用域清理,故提到这里);
-     diskStreamPhase = 首开无尾时的流式进度阶段(攒队不放行,遮罩显示启动进度)。 */
+  /* 磁盘分支:CLR 观测回调与 flush 计时;diskStreamPhase = 首开无尾时的流式进度阶段。 */
   let diskChunkSink: ((text: string) => void) | null = null;
   let diskFlushTimer: ReturnType<typeof setTimeout> | undefined;
   let clrSeen = false;
   let diskStreamPhase = false;
   let failsafe: ReturnType<typeof setTimeout> | undefined;
-  /* 启动闸:挂载即 arm,从挂载到 streamReady 期间只弃用户形态输入、放行整段
-     终端协议回传 —— 回放/翻页窗同一策略(见 terminalInputGate.ts):活查询的
-     应答远端正在等,启动窗与回放窗都可能接到活查询(局域网下连接先于幕布
-     挂载完成时,CPR 落缓冲走回放分支,2026-09-12 白屏二轮实证)。 */
+  /* 启动闸:挂载即 arm,streamReady 前只弃用户形态输入、放行整段终端协议回传
+     (回放/翻页窗同策略,见 terminalInputGate.ts;活查询应答可能落进启动/回放窗)。 */
   inputGate.arm();
   /* 隐藏幕布合帧:pending 攒字节,250ms 一冲;激活冲刷入口登记给 TerminalView。 */
   let pendingHidden: string[] | null = null;
   let hiddenTimer: ReturnType<typeof setInterval> | undefined;
-  const flushDeferred = (): void => {
+  /* 返回本次冲入字符数:xterm 异步解析的尾巴不计卸载快照水位(让渡给重开增量补)。 */
+  const flushDeferred = (): number => {
     const queued = pendingHidden;
-    if (!queued) return;
+    if (!queued) return 0;
     pendingHidden = null;
-    term.write(queued.join(""));
+    const joined = queued.join("");
+    term.write(joined);
+    return joined.length;
   };
-  hiddenDefer?.bindFlush(flushDeferred);
-  /* live 写路由:回放未完攒队保序 > 隐藏幕布合帧 > 直写。 */
+  /* 前台洪水合帧(#339 假死形态 A):激活幕布逐 chunk 直写令 TUI 逐 write 重建行;
+     改 rAF 攒批一帧一写,rAF 冻结靠字节上限兜底。node 无 rAF 降级 setTimeout 16ms。 */
+  const scheduleLiveFrame: (cb: () => void) => number =
+    typeof requestAnimationFrame === "function"
+      ? (cb) => requestAnimationFrame(cb)
+      : (cb) => setTimeout(cb, 16) as unknown as number;
+  const LIVE_FLUSH_MAX_BYTES = 256 * 1024;
+  let pendingLive: string[] = [];
+  let pendingLiveBytes = 0;
+  let liveFrame: number | undefined;
+  /* 返回本次冲入的字符数(语义同 flushDeferred:供卸载快照水位扣减)。 */
+  const flushLive = (): number => {
+    liveFrame = undefined;
+    if (!pendingLive.length) return 0;
+    const joined = pendingLive.join("");
+    pendingLive = [];
+    pendingLiveBytes = 0;
+    term.write(joined);
+    return joined.length;
+  };
+  /* cancel 与 schedule 同判据配对:node 测试环境无 cAF,裸调会 ReferenceError,降级 clearTimeout。 */
+  const cancelLiveFrame: (h: number) => void =
+    typeof cancelAnimationFrame === "function" ? (h) => cancelAnimationFrame(h) : (h) => clearTimeout(h as unknown as number);
+  /* 跳转/定位前全量冲刷(隐藏攒帧+前台攒批):settleTerminalJump 的 flush 入口绑的正是这里。 */
+  const flushAll = (): number => {
+    if (liveFrame !== undefined) cancelLiveFrame(liveFrame);
+    return flushDeferred() + flushLive();
+  };
+  hiddenDefer?.bindFlush(flushAll);
+  /* live 写路由:回放未完攒队保序 > 隐藏幕布合帧 > 前台 rAF 合帧。 */
   const routeLive = (out: string): void => {
     if (liveQueue) {
       liveQueue.push(out);
@@ -85,7 +113,14 @@ export function attachTerminalStream(
       pendingHidden = (pendingHidden ?? []).concat(out);
       if (!hiddenTimer) hiddenTimer = setInterval(flushDeferred, HIDDEN_FLUSH_MS);
     } else {
-      term.write(out);
+      pendingLive = pendingLive.concat(out);
+      pendingLiveBytes += out.length;
+      if (pendingLiveBytes >= LIVE_FLUSH_MAX_BYTES) {
+        if (liveFrame !== undefined) cancelLiveFrame(liveFrame);
+        flushLive();
+      } else if (liveFrame === undefined) {
+        liveFrame = scheduleLiveFrame(flushLive);
+      }
     }
   };
   /* SIGWINCH 舞步降级守卫:仅滤 live 路径(回放/翻页是历史字节,原样)。
@@ -130,9 +165,8 @@ export function attachTerminalStream(
   const memoryReplay = host.getOutputBuffer(sessionId);
   const diskTail = memoryReplay ? null : consumeDiskTail(host.getCliSessionId(sessionId));
   if (memoryReplay) {
-    /* 挤除冻结快照(候选2):tab 挤除卸载存过终态屏幕投影,重开且缓冲前缀完好
-       → 投影同步上屏 + 卸载水位起增量补写,免遮罩免全量重写。就绪即时收口:
-       幕布首帧即终态,无需静默窗;补写完成前活流照常攒队,尽后按序补写(幂等保序)。 */
+    /* 挤除冻结快照(候选2):卸载存过终态投影,重开且缓冲前缀完好 → 投影上屏+水位起增量补写,
+       免遮罩免全量重写;首帧即终态,补写前活流攒队,尽后按序补写(幂等保序)。 */
     const freeze = resolveFreezeReplay(
       memoryReplay,
       host.getOutputBufferBytes(sessionId),
@@ -251,6 +285,10 @@ export function attachTerminalStream(
     clearInterval(hiddenTimer);
     /* 隐藏期残留的攒帧随卸载丢弃:字节真源在 outputBuffers,重挂走回放 */
     pendingHidden = null;
+    /* 前台攒批残留随卸载丢弃(与隐藏攒帧同语义:字节真源在 outputBuffers,重挂走回放) */
+    if (liveFrame !== undefined) cancelLiveFrame(liveFrame);
+    pendingLive = [];
+    pendingLiveBytes = 0;
     clearTimeout(quietTimer);
     clearTimeout(diskFlushTimer);
     clearTimeout(failsafe);

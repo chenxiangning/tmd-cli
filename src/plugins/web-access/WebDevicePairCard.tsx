@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { QRCodeSVG } from "qrcode.react";
 import { DeviceMobile, Copy, Check, Trash, Warning } from "@phosphor-icons/react";
 import {
@@ -55,7 +56,7 @@ export function WebDevicePairCard() {
       setDevices(res.devices);
       setNow(res.now);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     }
   }, []);
 
@@ -94,7 +95,7 @@ export function WebDevicePairCard() {
     try {
       setOffer(await webPairOffer());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     }
   };
 

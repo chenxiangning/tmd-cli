@@ -41,8 +41,30 @@ fn validate_basename(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// mtime(毫秒):外部变更冲突检测基线;文件不存在/不可读回 None。
+pub fn mtime_ms(p: &Path) -> Option<u64> {
+    p.metadata()
+        .ok()?
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_millis()
+        .try_into()
+        .ok()
+}
+
 /// 覆写文本文件(编辑器保存通道;新建入口禁止走这里,见 create_file)。
-pub fn write_file(path: &str, content: &str) -> Result<(), String> {
+/// expect_mtime/expect_len = 乐观锁双因子:与磁盘当前值不符(外部修改/删除/改写
+/// 使长度漂移)即拒写,堵「编辑器开着旧版一 ⌘S 静默覆盖 AI/终端并发写」;
+/// 单独 check→write 窗口内 mtime 不变但内容变长(尾部追加)的竞态由长度因子收口;
+/// None = 无守卫直写。成功返回写后 mtime,供调用方滚动基线。
+pub fn write_file(
+    path: &str,
+    content: &str,
+    expect_mtime: Option<u64>,
+    expect_len: Option<u64>,
+) -> Result<u64, String> {
     validate_target(path)?;
     if content.len() > MAX_WRITE_BYTES {
         return Err(format!(
@@ -54,7 +76,25 @@ pub fn write_file(path: &str, content: &str) -> Result<(), String> {
     if p.is_dir() {
         return Err("目标路径是目录,不能写入文件".to_string());
     }
-    crate::session::write_atomic(p, content.as_bytes()).map_err(|e| format!("写入文件失败: {e}"))
+    if let Some(expect) = expect_mtime {
+        match mtime_ms(p) {
+            Some(actual) if actual == expect => {}
+            _ => {
+                return Err("E_FS_MTIME 磁盘文件长度或修改时间与基线不一致,保存已阻止".to_string());
+            }
+        }
+    }
+    if let Some(expect) = expect_len {
+        match fs::metadata(p).map(|m| m.len()) {
+            Ok(actual) if actual == expect => {}
+            _ => {
+                return Err("E_FS_MTIME 磁盘文件长度或修改时间与基线不一致,保存已阻止".to_string());
+            }
+        }
+    }
+    crate::session::write_atomic(p, content.as_bytes())
+        .map_err(|e| format!("写入文件失败: {e}"))?;
+    mtime_ms(p).ok_or_else(|| "写入成功但读取时间戳失败".to_string())
 }
 
 /// 新建空文件。已存在(无论文件还是目录)都报错 —— 与 create_dir 同语义:
@@ -232,50 +272,6 @@ pub fn reveal_in_file_manager(path: &str) -> Result<(), String> {
             .map_err(|e| format!("打开文件管理器失败: {e}"))?;
         Ok(())
     }
-}
-
-/* ── Tauri command 包装(签名风格与 fs.rs 一致:snake_case 参数由前端传 camelCase)。
-统一 async + spawn_blocking(commands_fs 同款纪律):写盘/废纸篓/拉起
-文件管理器都是阻塞 IO,同步执行跑在主线程会掉帧。── */
-
-#[tauri::command]
-pub(crate) async fn fs_write_file(path: String, content: String) -> Result<(), String> {
-    crate::commands_fs::spawn_fs(move || write_file(&path, &content)).await
-}
-
-#[tauri::command]
-pub(crate) async fn fs_create_file(path: String) -> Result<(), String> {
-    crate::commands_fs::spawn_fs(move || create_file(&path)).await
-}
-
-#[tauri::command]
-pub(crate) async fn fs_create_dir(path: String) -> Result<(), String> {
-    crate::commands_fs::spawn_fs(move || create_dir(&path)).await
-}
-
-#[tauri::command]
-pub(crate) async fn fs_rename_entry(path: String, new_name: String) -> Result<String, String> {
-    crate::commands_fs::spawn_fs(move || rename_entry(&path, &new_name)).await
-}
-
-#[tauri::command]
-pub(crate) async fn fs_trash_entry(path: String) -> Result<(), String> {
-    crate::commands_fs::spawn_fs(move || trash_entry(&path)).await
-}
-
-#[tauri::command]
-pub(crate) async fn fs_reveal_in_file_manager(path: String) -> Result<(), String> {
-    crate::commands_fs::spawn_fs(move || reveal_in_file_manager(&path)).await
-}
-
-#[tauri::command]
-pub(crate) async fn fs_copy_file(src: String, dst: String) -> Result<(), String> {
-    crate::commands_fs::spawn_fs(move || copy_file(&src, &dst)).await
-}
-
-#[tauri::command]
-pub(crate) async fn fs_copy_tree(src: String, dst: String) -> Result<(), String> {
-    crate::commands_fs::spawn_fs(move || copy_tree(&src, &dst)).await
 }
 
 #[cfg(test)]

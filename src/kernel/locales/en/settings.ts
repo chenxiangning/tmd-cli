@@ -291,8 +291,4 @@ export const MESSAGES = {
   "用完即断开中继": "Disconnect the relay when done",
   "桌面重启后密钥自动重铸,旧链接即失效":
     "The key is re-minted on desktop restart; old links stop working",
-  "我已了解并自行承担风险": "I understand the risks and accept them",
-  "有浏览器客户端正通过 Web 访问控制本机":
-    "A browser client is controlling this machine via web access",
-
 } as Record<string, string>;

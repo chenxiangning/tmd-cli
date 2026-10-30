@@ -2,9 +2,11 @@
  * overlapLen 契约:活流「先订阅后快照」的防双喂纯函数。
  * 订阅生效→快照读取窗口内到达的 chunk 同时存在于快照尾与缓冲头,排空前
  * 剥掉重叠前缀;差分重绘型 CLI(opencode)对双喂不幂等,重复即上屏(实证)。
+ * capBuffered 契约:streaming 关闭期缓冲总量上限,超限丢头保尾(0.4.6 复审 P2,
+ * 丢头无害——反正由 replay 重建覆盖)。
  */
 import { describe, expect, it } from "vitest";
-import { overlapLen } from "./useLiveStream";
+import { capBuffered, overlapLen } from "./useLiveStream";
 
 describe("overlapLen 快照尾×缓冲头剥离", () => {
   it("缓冲全含于快照尾:整段剥掉,余 0", () => {
@@ -29,5 +31,13 @@ describe("overlapLen 快照尾×缓冲头剥离", () => {
   it("空输入:0", () => {
     expect(overlapLen("", "x")).toBe(0);
     expect(overlapLen("x", "")).toBe(0);
+  });
+});
+
+describe("capBuffered 缓冲上限丢头保尾", () => {
+  it("未超限原样;超限丢头保尾,末块永不丢", () => {
+    expect(capBuffered(["a", "b"], 10)).toEqual(["a", "b"]);
+    expect(capBuffered(["aaaa", "bbbb", "cc"], 6)).toEqual(["bbbb", "cc"]);
+    expect(capBuffered(["xxxx", "yy"], 1)).toEqual(["yy"]); /* 只剩末块 */
   });
 });

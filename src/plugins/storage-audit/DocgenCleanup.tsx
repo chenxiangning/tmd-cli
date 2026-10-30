@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { Archive, Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { readDocGenIndex } from "@plugins/workbench/docgen/paths";
@@ -24,7 +25,7 @@ export function DocgenCleanup() {
       const index = await readDocGenIndex();
       setEntries(archivedEntries(index.entries));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     }
   }
 
@@ -39,7 +40,7 @@ export function DocgenCleanup() {
     try {
       await removeArchivedEntry(entry.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusyId(null);
       void refresh();

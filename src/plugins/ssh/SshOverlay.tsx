@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { createPortal } from "react-dom";
 import { Key, LockKey, HardDrive, ShieldWarning, Cross } from "@phosphor-icons/react";
 import { ipc, type SshHostConfig, type SshPromptEvent } from "@kernel/ipc";
@@ -54,7 +55,7 @@ function HostPicker() {
       await host.createSshSession(config, workspaceId);
       closeHostPicker();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
       setBusy(null);
     }
   };

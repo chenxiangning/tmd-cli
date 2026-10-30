@@ -4,14 +4,14 @@
  * 页签状态与渲染分支。
  */
 
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { usePanelActive } from "@kernel/panelActivity";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
-import { checkpointIdentity, echoProbing, withEchoFallback } from "./identity";
+import { checkpointIdentity, echoProbing, staleFallbackKey, withEchoFallback } from "./identity";
 import { pruneRetention, sealDeadTurns } from "./retention";
-import { refreshBatches } from "./store";
+import { hasCkptEntry, refreshBatches, touchCkptKey } from "./store";
 
 const POLL_MS = 6000;
 
@@ -41,6 +41,10 @@ export function useCkptScope() {
   }, []);
 
   /* 闭包类型随 useWorkspaces/checkpointIdentity 就地推导(store 契约未导出,不为其开口)。 */
+  /* 键翻转沿跟踪(effect 侧落账,渲染读上一拍值):主键翻转的新键首拉未落地时
+     回落上一主键(stale-while-key-flip,见 staleFallbackKey)—— 开窗沿与
+     关窗/重绑沿对称,重绑未首拉不再闪一拍空帧。 */
+  const prevKeyRef = useRef<{ tmd: string | null; key: string | null }>({ tmd: null, key: null });
   const resolveScope = () => {
     const activeSessionId = host.getActiveSessionId();
     const identity = activeSessionId ? checkpointIdentity(activeSessionId) : null;
@@ -48,16 +52,27 @@ export function useCkptScope() {
        重绑后 backfill_identity 整链自愈 —— 窗内面板不再读到旧绑定名下的账。 */
     const probing = echoProbing(activeSessionId);
     const key = identity ? withEchoFallback(identity, probing).key : null;
+    const prev = prevKeyRef.current;
+    const staleSessionId = staleFallbackKey({
+      tmdId: activeSessionId ?? null,
+      prevTmdId: prev.tmd,
+      prevKey: prev.key,
+      resolvedKey: key,
+      hasCurrent: hasCkptEntry(identity?.cwd ?? null, key),
+    });
     return {
       cwd: identity?.cwd ?? active?.root ?? null,
       sessionId: key,
       tmdSessionId: activeSessionId ?? undefined,
-      /* 开窗沿的上一主键(绑定键):stale-while-probing 读回落用,清单在回落键
-         首拉落地前不闪空帧;键相等 = 本沿无翻转,回落无意义。 */
-      staleSessionId: probing && identity && identity.key !== key ? identity.key : null,
+      /* 翻沿的上一主键:回落读/翻沿种子双用,同 tmd 会话内才有效(防串账)。 */
+      staleSessionId,
     };
   };
   const { cwd, sessionId, tmdSessionId, staleSessionId } = resolveScope();
+  useEffect(() => {
+    const key = sessionId;
+    if (key) prevKeyRef.current = { tmd: host.getActiveSessionId(), key };
+  }, [sessionId]);
 
   /* 徽标与查询同口径:会话 cwd 落在哪个工作区根下就显示哪个,防错配误导。 */
   const shown = cwd ? (list.find((w) => cwd === w.root || cwd.startsWith(`${w.root}/`)) ?? active) : active;
@@ -66,24 +81,32 @@ export function useCkptScope() {
 }
 
 /** 面板级刷新:留存修剪 + 强退恢复 + 批清单轮询(no-high-complexity 降分支)。 */
-export function useCkptAutoRefresh(cwd: string | null, sessionId: string | null, tmdSessionId: string | undefined) {
+export function useCkptAutoRefresh(
+  cwd: string | null,
+  sessionId: string | null,
+  tmdSessionId: string | undefined,
+  staleSessionId?: string | null,
+) {
   const panelActive = usePanelActive();
   useEffect(() => {
     if (!cwd) return;
     pruneRetention(cwd);
+    /* 回落键在读期间保持 LRU 新鲜(挂载拍 + 每轮询拍触碰)。 */
+    if (staleSessionId) touchCkptKey(cwd, staleSessionId);
     /* 强退恢复先于首拉:上一运行的开放锚点在此代为封口,恢复出的批随
        紧跟的这次 refresh 一并上时间线(每 cwd 每运行一次,失败可重收)。 */
     if (!sessionId) {
       void sealDeadTurns(cwd);
       return;
     }
-    void sealDeadTurns(cwd).then(() => refreshBatches(cwd, sessionId, tmdSessionId));
+    void sealDeadTurns(cwd).then(() => refreshBatches(cwd, sessionId, tmdSessionId, staleSessionId));
     const timer = window.setInterval(
       () => {
-        if (panelActive) void refreshBatches(cwd, sessionId, tmdSessionId);
+        if (staleSessionId) touchCkptKey(cwd, staleSessionId);
+        if (panelActive) void refreshBatches(cwd, sessionId, tmdSessionId, staleSessionId);
       },
       POLL_MS,
     );
     return () => window.clearInterval(timer);
-  }, [cwd, sessionId, tmdSessionId, panelActive]);
+  }, [cwd, sessionId, tmdSessionId, staleSessionId, panelActive]);
 }

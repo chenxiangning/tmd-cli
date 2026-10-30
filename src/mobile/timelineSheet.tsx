@@ -6,6 +6,7 @@
  * 非实时,外网省流量)。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { loadTimelineAll, type TimelineEntry } from "./timelineData";
 import { SheetBase } from "./SheetBase";
@@ -96,7 +97,7 @@ export function TimelineSheet(props: {
         setState((cur) =>
           cur.kind === "done"
             ? { ...cur, scanning: false }
-            : { kind: "error", message: e instanceof Error ? e.message : String(e) },
+            : { kind: "error", message: errTextDisplay(e) },
         );
       });
   }, [props.profileId, props.cwd, props.cliSessionId]);

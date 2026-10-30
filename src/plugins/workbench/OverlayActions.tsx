@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { buildSampleProjects, sampleSummary } from "./sample";
 import { generateSamples } from "./store";
@@ -78,7 +79,7 @@ export function OverlayActions({
     const samples = buildSampleProjects(today);
     void generateSamples(() => samples).then(
       () => onToast(t("已生成:{summary}", { summary: sampleSummary(samples) })),
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => onToast(errTextDisplay(e)),
     );
     setDataMenuOpen(false);
   };

@@ -5,6 +5,7 @@
  * 提示,不白屏。分页:游标追加加载(cursor/nextCursor)。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowsClockwise, MagnifyingGlass, DownloadSimple } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
@@ -58,7 +59,7 @@ export function StoreView({
       setNextCursor(result.nextCursor);
     } catch (e) {
       if (stale()) return;
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
       if (!cursor) setItems([]);
       setNextCursor(undefined);
     } finally {

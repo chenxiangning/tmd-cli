@@ -76,6 +76,11 @@ export function makeQoderPlugin(variant: QoderVariantSpec): Plugin {
            双分发版经本工厂一次覆盖。 */
         listMcpServers: () => listQoderMcpServers(variant.dataDir),
         resumeArgs: (sessionId) => ["--resume", sessionId],
+        /* 无头单发(2026-10-26 本机实证):qodercli -p 非交互打印,prompt 走
+         * stdin(管道注入实测进入执行链);-m 传模型。双分发版同源覆盖。
+         * 接通前 journal 定时生成走 TUI 回落 = 常驻重绘洪水源。 */
+        oneshotStdin: true,
+        oneshotArgs: ({ model }) => ["-p", ...(model ? ["-m", model] : [])],
         listSessions: (cwd) => listQoderSessions(variant.dataDir, cwd),
         /* MCP 管理面:全局读写目标 = <dataDir>/shared_client/mcp.json(与
            listMcpServers 同源;双分发版经本工厂一次覆盖)。 */

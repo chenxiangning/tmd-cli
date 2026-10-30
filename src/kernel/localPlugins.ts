@@ -4,6 +4,7 @@
  * 设计契约见 docs/superpowers/specs/2026-09-10-local-plugins-design.md。
  */
 import { KernelTopics } from "./events";
+import { errTextDisplay } from "@kernel/errText";
 import { host } from "./host";
 import { ipc } from "./ipc";
 import {
@@ -41,7 +42,7 @@ let rescanFlight: Promise<void> | null = null;
 let turnSettledSubscribed = false;
 
 function msg(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  return errTextDisplay(e);
 }
 
 

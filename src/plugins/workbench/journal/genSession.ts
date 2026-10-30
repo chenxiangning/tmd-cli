@@ -8,6 +8,7 @@
  * 调度(定时/启动补跑/跟随实时增量)在 journalSchedule.ts。
  */
 import { host } from "@kernel/host";
+import { errTextDisplay } from "@kernel/errText";
 import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { prepareSendPayload } from "@kernel/profileSend";
@@ -39,7 +40,7 @@ export function bootGenSession(events: PluginEventBus): () => void {
    * err 不落珠,定时族每 15min 重入队且当日无错可显。 */
   setTaskRunner((task) => runGeneration(task).catch((e: unknown) => {
     if (!isTaskActive(task.id)) return; /* 显式早退已 failGen,取消竞态不重复落账 */
-    failGen(task.id, task.dayKey, task.type, `${t("生成会话异常")}:${e instanceof Error ? e.message : String(e)}`);
+    failGen(task.id, task.dayKey, task.type, `${t("生成会话异常")}:${errTextDisplay(e)}`);
   }), abortRun);
   const offSettled = events.on<{ sessionId: string }>(KernelTopics.turnSettled, (e) => {
     const p = pending.get(e.sessionId);
@@ -141,6 +142,10 @@ async function runGeneration(task: GenTask): Promise<void> {
      引擎声明 oneshotArgs 走无头单发:prompt 落盘文件经 @file 传入(argv 装不下
      数百 KB 的摘录+清单),进程答完即退;--no-session 不落会话文件,当日索引
      零污染(自指过滤退化为历史数据的保险丝)。 */
+  /* 无头覆盖(2026-10-26 本机实证盘点):omp/pi/claude/opencode(run+stdin)/
+   * qoder 双版(-p+stdin)已声明;kimi/grok 的 -p/--single 必填串参数(数百 KB
+   * prompt 爆 argv,无 stdin 通道)、dsh 为 profile 启动器(无 print 模式),
+   * 三家回落 TUI 是实证后的正确形态,勿凭印象补声明。 */
   const headless = !!profile.oneshotArgs;
   let promptPath: string | undefined;
   if (headless) {

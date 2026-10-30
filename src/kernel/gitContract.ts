@@ -116,9 +116,19 @@ export interface GitFileLogEntry {
 }
 
 /** 逐行归属(git_blame;boundary = 与上一行不同提交,分组描边用)。 */
+/** stash 管理面条目(0.4.5):index 0 = 最近;when = stash 提交时刻(unix 秒)。 */
+export interface GitStashEntry {
+  index: number;
+  message: string;
+  shortSha: string;
+  when: number;
+}
+
 export interface GitBlameLine {
   lineNo: number;
   text: string;
+  /** 全 sha(blame gutter 点击深链提交 diff tab 用,0.4.5)。 */
+  sha: string;
   shortSha: string;
   summary: string;
   authorName: string;

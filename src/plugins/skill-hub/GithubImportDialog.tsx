@@ -5,6 +5,7 @@
  * 自清半成品并在弹窗内报错。骨架 = kernel DialogShell 同形制。
  */
 import { useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { DownloadSimple } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogActions, DialogShell } from "@kernel/DialogShell";
@@ -35,7 +36,7 @@ export function GithubImportDialog({
     try {
       onLoaded(await importGithubArchive(link));
     } catch (e) {
-      setError(`${t("GitHub 下载失败")}:${e instanceof Error ? e.message : String(e)}`);
+      setError(`${t("GitHub 下载失败")}:${errTextDisplay(e)}`);
     } finally {
       setBusy(false);
     }

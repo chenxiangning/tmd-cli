@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { Gear } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
@@ -28,7 +29,7 @@ export function OmpModelsConfigSection() {
     () =>
       readOmpModelsConfig()
         .then(setCfg)
-        .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e))),
+        .catch((e: unknown) => setError(errTextDisplay(e))),
     [],
   );
   useEffect(() => {
@@ -44,7 +45,7 @@ export function OmpModelsConfigSection() {
         await refresh();
         setEditing(false);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       } finally {
         setSaving(false);
       }

@@ -7,6 +7,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { blankProject, normalizeProject, type Project, type ProjectTask, type ProjectUpdate, type UpdateKind } from "./types";
 import {
@@ -82,7 +83,7 @@ async function loadLocked(): Promise<void> {
     await writeAiRules().catch(() => undefined);
   } catch (e) {
     /* 首载失败 = 空表+错误条;reload 失败保留正在展示的旧数据,只落错误条。 */
-    setProjects(had ? state.projects : [], e instanceof Error ? e.message : String(e));
+    setProjects(had ? state.projects : [], errTextDisplay(e));
   }
 }
 

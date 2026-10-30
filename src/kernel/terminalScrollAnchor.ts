@@ -15,6 +15,12 @@ interface AnchorBuffer {
   getLine?(row: number): ScrollLine | undefined;
 }
 
+/** 重建保位所需的最小视口面(xterm IBuffer 的结构子集)。 */
+interface ViewportBuffer extends AnchorBuffer {
+  readonly viewportY: number;
+  readonly baseY: number;
+}
+
 const ANCHOR_WALK = 8; /* 锚行:视口顶起向下找首个非空行的容忍(仍在视口内) */
 const ANCHOR_CHARS = 24; /* 锚文本长度(对齐 anchorJump needle 上限) */
 const ANCHOR_SCAN = 150; /* 第一段估计点就近扫描半径;超出退回索引保持 */
@@ -30,6 +36,35 @@ export function anchorText(
     if (s) return s.slice(0, ANCHOR_CHARS);
   }
   return null;
+}
+
+/** 重建保位(采集):重挂卸载前采视口顶行锚;贴底或 allow=false(首挂)回 null
+ * —— 贴底由吸底跟随天然保持,首挂无位可保。 */
+export function captureViewportAnchor(
+  term: { buffer: { active: ViewportBuffer } },
+  allow: boolean,
+): string | null {
+  if (!allow) return null;
+  const b = term.buffer.active;
+  return b.viewportY < b.baseY ? anchorText(term, b.viewportY) : null;
+}
+
+/** 重建保位(恢复):写队列排空后按锚全缓冲重锚视口;搜不到(锚行被截头/
+ * 内容已变)回落现行为贴底。settle 由调用方注入(写队列排空等待)。 */
+export function restoreViewportAnchor(
+  term: {
+    buffer: { active: ViewportBuffer };
+    scrollToLine(row: number): void;
+  },
+  settle: () => Promise<void>,
+  anchor: string | null,
+): void {
+  if (!anchor) return;
+  void settle().then(() => {
+    const b = term.buffer.active;
+    const found = findAnchorFull(b, anchor);
+    if (found >= 0 && found < b.baseY) term.scrollToLine(found);
+  });
 }
 
 /** 就近扫描:自 from 向外找含锚文本的行(锚行可能是折行续段,用子串匹配)。 */

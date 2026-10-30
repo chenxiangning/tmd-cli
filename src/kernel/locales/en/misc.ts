@@ -178,6 +178,9 @@ export const MESSAGES = {
   "共 {n} 条": "{n} items",
   // TerminalView(幕布滚动到顶的回溯入口)
   "↑ 加载更早的输出": "↑ Load earlier output",
+  "浏览历史输出 · ↓ 回到最新": "Browsing history · ↓ Back to latest",
+  "检测到上次异常退出,已清理 {n} 个残留会话进程":
+    "Abnormal exit detected; cleaned up {n} leftover session processes",
 
   // ── wsl 插件 ──
   // WslCard(本机段/状态行)

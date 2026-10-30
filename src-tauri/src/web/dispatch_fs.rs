@@ -60,7 +60,13 @@ pub(super) async fn try_dispatch(
         "fs_remove_path" => go(raw, |a: OnePath| crate::commands_fs::fs_remove_path(a.path)).await,
         "fs_search" => {
             go(raw, |a: Search| {
-                crate::commands_fs::fs_search(a.root, a.query, a.case_sensitive, a.max_results)
+                crate::commands_fs::fs_search(
+                    a.root,
+                    a.query,
+                    a.case_sensitive,
+                    a.include_glob,
+                    a.max_results,
+                )
             })
             .await
         }
@@ -70,28 +76,45 @@ pub(super) async fn try_dispatch(
             })
             .await
         }
+        // 桥通道无乐观锁字段(expect_mtime/expect_len 均不透传,调用方自慎):
+        // 手机/桥侧保存绕过并发守卫直写,与桌面 invoke 通道的语义差异在此声明。
         "fs_write_file" => {
             go(raw, |a: WriteFile| {
-                crate::fs_edit::fs_write_file(a.path, a.content)
+                crate::fs_edit_cmds::fs_write_file(a.path, a.content, None, None)
             })
             .await
         }
-        "fs_create_file" => go(raw, |a: OnePath| crate::fs_edit::fs_create_file(a.path)).await,
-        "fs_create_dir" => go(raw, |a: OnePath| crate::fs_edit::fs_create_dir(a.path)).await,
+        "fs_create_file" => {
+            go(raw, |a: OnePath| {
+                crate::fs_edit_cmds::fs_create_file(a.path)
+            })
+            .await
+        }
+        "fs_create_dir" => go(raw, |a: OnePath| crate::fs_edit_cmds::fs_create_dir(a.path)).await,
         "fs_rename_entry" => {
             go(raw, |a: Rename| {
-                crate::fs_edit::fs_rename_entry(a.path, a.new_name)
+                crate::fs_edit_cmds::fs_rename_entry(a.path, a.new_name)
             })
             .await
         }
-        "fs_trash_entry" => go(raw, |a: OnePath| crate::fs_edit::fs_trash_entry(a.path)).await,
+        "fs_trash_entry" => {
+            go(raw, |a: OnePath| {
+                crate::fs_edit_cmds::fs_trash_entry(a.path)
+            })
+            .await
+        }
         "fs_reveal_in_file_manager" => {
             go(raw, |a: OnePath| {
-                crate::fs_edit::fs_reveal_in_file_manager(a.path)
+                crate::fs_edit_cmds::fs_reveal_in_file_manager(a.path)
             })
             .await
         }
-        "fs_copy_file" => go(raw, |a: Copy| crate::fs_edit::fs_copy_file(a.src, a.dst)).await,
+        "fs_copy_file" => {
+            go(raw, |a: Copy| {
+                crate::fs_edit_cmds::fs_copy_file(a.src, a.dst)
+            })
+            .await
+        }
         "read_binary_file_base64" => {
             go(raw, |a: OnePath| {
                 crate::commands_fs::read_binary_file_base64(a.path)
@@ -162,6 +185,7 @@ struct Search {
     root: String,
     query: String,
     case_sensitive: bool,
+    include_glob: Option<String>,
     max_results: usize,
 }
 
@@ -207,6 +231,10 @@ mod serde_contract_tests {
         serde_json::from_str::<TailChanged>(r#"{"path":"/a","maxBytes":10,"lastSize":null}"#)
             .unwrap();
         serde_json::from_str::<Rename>(r#"{"path":"/a","newName":"b"}"#).unwrap();
+        serde_json::from_str::<Search>(
+            r#"{"root":"/a","query":"q","caseSensitive":true,"maxResults":10,"includeGlob":"*.ts"}"#,
+        )
+        .unwrap();
         /* 单词字段 struct(无 rename 差异,一并钉住形状漂移) */
         serde_json::from_str::<OnePath>(r#"{"path":"/a"}"#).unwrap();
         serde_json::from_str::<WriteTemp>(r#"{"name":"n","data":[]}"#).unwrap();

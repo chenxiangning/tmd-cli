@@ -6,6 +6,7 @@
  * toast 沿仓内局部 toast 惯例(viewerTab/PluginMarketPage 同款,无全局体系)。
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { pickDirectory, pickSavePath } from "@kernel/ipc";
 import { formatAbsolute } from "@kernel/relativeTime";
@@ -98,7 +99,7 @@ export function BatchExportAction({ buildItems }: { buildItems: () => BatchExpor
           show(lines.join("\n"));
         });
       })
-      .catch((e: unknown) => show(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => show(errTextDisplay(e)))
       .finally(() => setBusy(false));
   };
 
@@ -133,7 +134,7 @@ export function useSnapshotExport(): { run: (target: ExportSessionTarget) => voi
           );
         });
       })
-      .catch((e: unknown) => show(e instanceof Error ? e.message : String(e)));
+      .catch((e: unknown) => show(errTextDisplay(e)));
   };
   return {
     run,

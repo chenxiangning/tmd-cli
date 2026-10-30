@@ -12,6 +12,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { createPortal } from "react-dom";
 import {
   ArrowsDownUp,
@@ -102,7 +103,7 @@ export function WorkspaceRowMenu({
       .catch((e: unknown) => {
         setBusy(false);
         setArmed(false);
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       });
   };
 

@@ -98,7 +98,7 @@ pub struct WslEngineProbe {
 
 /// 参数路径白名单校验:仅允许 `[A-Za-z0-9_./~-]`(`~` 起始可用;bash 双引号内 `~`
 /// 不展开,故内层命令不引 path,靠白名单保证无注入面)。空格路径不支持(报错提示)。
-fn validate_path_component(path: &str) -> Result<(), String> {
+pub(crate) fn validate_path_component(path: &str) -> Result<(), String> {
     if path.is_empty()
         || !path
             .chars()

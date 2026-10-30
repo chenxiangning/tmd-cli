@@ -5,6 +5,7 @@
  * (err 红实心确认钮);测试结果为组件局部态,不产生任何持久状态。
  */
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { Plus, Play, PencilSimple, TrashSimple, FileText, Plugs } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { Empty } from "@kernel/Empty";
@@ -67,7 +68,7 @@ export function ServersView({ engine }: { engine: McpEngineState }) {
     try {
       await removeServer(engine, pendingRemove);
     } catch (e) {
-      setRemoveError(e instanceof Error ? e.message : String(e));
+      setRemoveError(errTextDisplay(e));
       return;
     } finally {
       setRemoving(false);

@@ -7,8 +7,9 @@
  * remove —— 清除缓冲,之后 get/getBytes 归零,append 重新起账;
  * 会话间隔离 —— 同 id 一本账,不同 id 互不可见。
  */
-import { describe, expect, it } from "vitest";
-import { OutputBufferStore } from "./outputBuffers";
+ import { describe, expect, it } from "vitest";
+ import { OutputBufferStore } from "./outputBuffers";
+import { registerTerminalHandle, unregisterTerminalHandle, type TerminalHandle } from "./terminalHandles";
 
 const enc = new TextEncoder();
 
@@ -113,5 +114,50 @@ describe("remove 与会话隔离", () => {
     store.remove("a");
     expect(store.get("a")).toBe("");
     expect(store.get("b")).toBe("B");
+  });
+});
+
+describe("全店预算(多会话内存治理)", () => {
+  it("超 8M 总量时截最久未写会话到 64K 尾,保护最近 tabsMax(默认 4)个", () => {
+    const store = new OutputBufferStore();
+    /* 单会话上限放大绕开自身截断,让全店预算成为唯一约束;
+     * 6 会话各 1.5M = 9M > 8M:前 2 个(最久未写)被截,后 4 个受保护。 */
+    const big = 10_000_000;
+    for (let i = 1; i <= 6; i++) store.append(`s${i}`, String(i).repeat(1_500_000), big);
+    expect(store.get("s1").length).toBeLessThanOrEqual(64_000);
+    /* 9M−8M 缺口 1M:截 s1(释放约 1.44M)即达标,s2 起保留 */
+    expect(store.get("s2").length).toBe(1_500_000);
+    expect(store.get("s3").length).toBe(1_500_000);
+    expect(store.get("s6").length).toBe(1_500_000);
+    /* 被截者尾部仍可继续追加 */
+    store.append("s1", "tail", 100_000);
+    expect(store.get("s1").endsWith("tail")).toBe(true);
+  });
+
+  it("总量未超预算时零裁剪", () => {
+    const store = new OutputBufferStore();
+    store.append("a", "x".repeat(1_000), 100_000);
+    store.append("b", "y".repeat(1_000), 100_000);
+    expect(store.get("a").length).toBe(1_000);
+    expect(store.get("b").length).toBe(1_000);
+  });
+
+  it("挂载真相保护:注册表有 handle 的会话即使最旧也不裁,裁无 handle 者", () => {
+    const store = new OutputBufferStore();
+    const big = 10_000_000;
+    /* 最旧的 mt-1 挂载中(观看≠写入,MRU 保护错域);先注册再灌量,
+       否则第 6 次追加过预算时 mt-1 已被裁。 */
+    const handle = {} as TerminalHandle;
+    registerTerminalHandle("mt-1", handle);
+    try {
+      /* 6 会话各 1.5M = 9M > 8M */
+      for (let i = 1; i <= 6; i++) store.append(`mt-${i}`, String(i).repeat(1_500_000), big);
+      store.append("mt-7", "x", big); /* 再触发预算执行 */
+      expect(store.get("mt-1").length).toBe(1_500_000); /* 挂载中不裁 */
+      expect(store.get("mt-2").length).toBeLessThanOrEqual(64_000); /* 无 handle 最旧先裁 */
+      expect(store.get("mt-3").length).toBe(1_500_000); /* 缺口已补,后续不裁 */
+    } finally {
+      unregisterTerminalHandle("mt-1", handle);
+    }
   });
 });

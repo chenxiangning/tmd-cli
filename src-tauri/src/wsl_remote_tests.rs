@@ -248,7 +248,7 @@ fn wsl_remote_live_cli_diag() {
         let probe_cmd = format!(
             "wsl.exe -d \"{distro}\" -- bash -lc 'echo RESOLVE=$(command -v {engine}); echo PATH=$PATH'",
         );
-        let (text, code) = exec_collect(&mut handle, &probe_cmd).await.expect("① 登录解析");
+        let (text, code) = exec_collect(&mut handle, &probe_cmd, EXEC_TIMEOUT).await.expect("① 登录解析");
         println!("① 登录 shell 解析(code={code:?})=\n{text}");
 
         /* ② 真 PTY 跑 spawn 串:6s 静默 → 补 CPR → 再读 10s */

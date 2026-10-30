@@ -132,14 +132,25 @@ pub(crate) async fn fs_walk_index(
 }
 
 /// 全文搜索(rg 式即时扫描,walk 语义与 fs_walk_files 同源,见 fs_search.rs)。
+/// include_glob:可选单 glob(basename 匹配;空 = 不过滤)。
 #[tauri::command]
 pub(crate) async fn fs_search(
     root: String,
     query: String,
     case_sensitive: bool,
+    include_glob: Option<String>,
     max_results: usize,
 ) -> Result<fs_search::FsSearchResult, String> {
-    spawn_fs(move || fs_search::search(&root, &query, case_sensitive, max_results)).await
+    spawn_fs(move || {
+        fs_search::search(
+            &root,
+            &query,
+            case_sensitive,
+            include_glob.as_deref(),
+            max_results,
+        )
+    })
+    .await
 }
 
 /// 通用短进程通道(omp/pi RPC 副车查询、grok inspect):同步阻塞,spawn_blocking 包裹。

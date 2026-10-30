@@ -147,5 +147,29 @@ export function buildWslFileSource(): RemoteFileSource {
       }
       return r.content;
     },
+    /* 写回三件套(项 5):uri/host 解析与 readText 同款;b64 载荷走内核通道。 */
+    writeText: async (uri: string, content: string) => {
+      const ref = parseRemoteWslFile(uri);
+      const cfg = ref
+        ? getSettingsState().settings.ssh.hosts.find((h) => h.id === ref.hostId) ?? null
+        : null;
+      if (!ref || !cfg) throw new Error(t("远程主机配置已删除,无法写入文件"));
+      await ipc.wslWriteFileText(ref.distro, ref.linuxPath, textToB64(content), cfg);
+    },
+    createEntry: async (ws, path, isDir) => {
+      const cfg = sshHostOf(ws);
+      if (!cfg) throw new Error(t("远程主机配置已删除,无法创建条目"));
+      await ipc.wslCreateEntry(ws.wsl!.distro, path, isDir, cfg);
+    },
   };
+}
+
+/** UTF-8 安全 base64(分块防大文本 spread 爆栈)。 */
+function textToB64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
 }

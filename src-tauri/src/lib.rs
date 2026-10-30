@@ -5,6 +5,7 @@ mod commands_fs;
 mod event_sink;
 mod fs;
 mod fs_edit;
+mod fs_edit_cmds;
 mod fs_preview;
 mod fs_remove;
 mod fs_search;
@@ -29,11 +30,15 @@ mod pty;
 mod pty_spawn;
 mod quota;
 mod render_health;
+mod render_health_events;
 mod resolve;
 mod session;
 mod session_commands;
 mod session_disk_log;
 mod session_log;
+mod session_log_search;
+mod session_log_sweep;
+mod session_runtime;
 mod settings;
 mod skill_pkg;
 mod sqlite;
@@ -42,6 +47,7 @@ mod web;
 mod wsl;
 mod wsl_remote;
 mod wsl_remote_ops;
+mod wsl_remote_write;
 use pty::PtyRegistry;
 use tauri::{AppHandle, Manager};
 
@@ -233,6 +239,17 @@ pub fn run() {
                     let _ = web::relay::web_relay_start(app_handle, url, key).await;
                 }
             });
+            /* 会话日志磁盘治理:启动后台清超保留天数的死日志(0=关),
+             * 崩溃/强退残留的唯一回收路径;活会话由账本保护。 */
+            /* 崩溃孤儿收割(项 10):台账 pid 仍活 = 上次异常退出,后台收割;
+             * 前端经 session_orphan_reap 拿计数出横幅。 */
+            session_runtime::run_startup_reap_bg();
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    session_log_sweep::run_startup(&handle.state::<AppState>())
+                });
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -250,6 +267,8 @@ pub fn run() {
             wsl_remote_ops::wsl_probe_engines,
             wsl_remote_ops::wsl_read_file_text,
             wsl_remote_ops::wsl_exec,
+            wsl_remote_write::wsl_write_file_text,
+            wsl_remote_write::wsl_create_entry,
             ssh::commands::ssh_prompts_pending,
             session_commands::session_list,
             session_commands::session_set_workspace,
@@ -264,6 +283,8 @@ pub fn run() {
             session_commands::session_link_log,
             session_commands::session_disk_tail,
             session_commands::session_history_page,
+            session_commands::session_log_search,
+            session_log_sweep::session_log_cleanup,
             commands_fs::fs_list_dir,
             commands_fs::fs_read_file,
             commands_fs::fs_write_temp,
@@ -286,14 +307,17 @@ pub fn run() {
             lsp::lsp_spawn,
             lsp::lsp_send,
             lsp::lsp_stop,
-            fs_edit::fs_write_file,
-            fs_edit::fs_create_file,
-            fs_edit::fs_create_dir,
-            fs_edit::fs_rename_entry,
-            fs_edit::fs_trash_entry,
-            fs_edit::fs_reveal_in_file_manager,
-            fs_edit::fs_copy_file,
-            fs_edit::fs_copy_tree,
+            fs_edit_cmds::fs_write_file,
+            render_health_events::render_health_events,
+            session_runtime::session_orphan_reap,
+            fs_edit_cmds::fs_mtime,
+            fs_edit_cmds::fs_create_file,
+            fs_edit_cmds::fs_create_dir,
+            fs_edit_cmds::fs_rename_entry,
+            fs_edit_cmds::fs_trash_entry,
+            fs_edit_cmds::fs_reveal_in_file_manager,
+            fs_edit_cmds::fs_copy_file,
+            fs_edit_cmds::fs_copy_tree,
             fs_usage::fs_dir_usage,
             open_with::fs_open_with,
             open_with::fs_probe_open_app,
@@ -366,8 +390,12 @@ pub fn run() {
             git::commands::git_remote_request,
             git::commands_pr::git_pr_defaults,
             git::commands_pr::git_pr_run,
-            git::commands::git_smart_checkout,
-            git::commands::git_smart_checkout_undo,
+            git::commands_stash::git_smart_checkout,
+            git::commands_stash::git_smart_checkout_undo,
+            git::commands_stash::git_stash_list,
+            git::commands_stash::git_stash_apply,
+            git::commands_stash::git_stash_drop,
+            git::commands_stash::git_stash_create,
             quota::quota_fetch,
             quota::quota_vendor::quota_vendor_fetch,
             quota::quota_env_value,

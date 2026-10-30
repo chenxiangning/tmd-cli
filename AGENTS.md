@@ -22,7 +22,7 @@
 强制要求:
 
 1. 每落盘一份文档,**必须**同步在 `docs/README.md`「文档索引」表登记一行(日期 / 链接 / 状态)。不登记 = 没落盘。
-2. 设计 spec 必含四段:`日期` + `状态` 头、`背景与目标`、`方案取舍`(选定方案与被否决方案各附理由,写成对照)、`验证`。范本:`docs/superpowers/specs/2026-09-03-plugin-market-icons-design.md`。
+2. 落盘 spec 前先读范本 2026-09-03-plugin-market-icons-design.md,按四段模板写并自检四段齐全再交付
 3. 明令禁止:根目录散落文档(白名单仅 `README.md` / `AGENTS.md` / `LICENSE`)、把设计文档写进 `src/` 旁、在 `.pi/` `re-local/` `.claude/` 等本地产物目录放业务文档、自造 `docs/designs/` `NOTES.md` `PLAN.md` 之类平行体系。
 4. 设计定稿并落地后,把结论沉淀进 `docs/architecture/`,不允许 architecture 停留旧貌。
 5. 分类归组,禁止长期平铺(2026-10-17 立):同一主题的成组产出(系列原型/多篇调研/一个任务的多附件)必须建 `docs/<类>/<主题>/` 子目录归组管理(如 `docs/design/040-candidates/`),原型目录配 `index.html` 导航、组内配 `README.md` 说明任务;散篇可平铺,但同一目录下同主题第二篇出现时即应归组。新文档先归类再落盘,禁止往既有平铺层继续堆同类文件。

@@ -4,6 +4,7 @@
  * 状态机:done 看三视图;gen 看生成态(队列文案+终止);fail 看失败卡(重试)。
  */
 import { useEffect, useMemo, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { DiffView, DocGenBlocks } from "./DocGenBlocks";
 import { parseDocGenMarkdown, type DocGenParsed } from "./parse";
@@ -111,7 +112,7 @@ export function DocGenReader({ entry, projects, onToast }: {
           next.delete(item.key);
           return next;
         });
-        onToast(e instanceof Error ? e.message : String(e));
+        onToast(errTextDisplay(e));
       },
     );
   };

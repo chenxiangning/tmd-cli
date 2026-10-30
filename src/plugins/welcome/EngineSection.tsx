@@ -4,11 +4,13 @@
  * 承载(prompt 行选中的工作区在页级持有)。
  */
 
+import { useCallback, useRef } from "react";
 import { host } from "@kernel/host";
 import { useHomePanels } from "@kernel/homePanels";
 import type { EngineMeta } from "./engineMeta";
 import { pinPlanVersion, resolveInstallPlan } from "./engineMeta";
 import type { EngineCredential } from "./credentials";
+import { depOutdatedOf } from "./latestVersion";
 import { EngineCard, useEngineInstall, type EngineProbeState } from "./EngineCard";
 
 export function EngineSection({
@@ -52,11 +54,24 @@ export function EngineSection({
       : meta;
   const [install, startInstall] = useEngineInstall(effectiveMeta, onProbe);
   const HomePanel = useHomePanels().get(engineId);
-  /* 依赖安装完成 → 重探依赖;探针 ok 后 EngineCard 的主引擎按钮自动解锁。 */
+  /* 依赖安装完成 → 重探依赖;探针 ok 后 EngineCard 的主引擎按钮自动解锁。
+   * 一键修复链(依赖过旧,如 bun <1.4.4):依赖 script 升级成功后自动接续
+   * 本引擎更新(omp 装进新运行时),双探针重跑由各自 onDone 承担;链标只在
+   * 过旧态点击时置位 —— 依赖全新安装不越权替用户装引擎。 */
   const requires = meta.requires ?? null;
+  const depOutdated = depOutdatedOf(requires ?? undefined, depProbe);
+  const fixChainRef = useRef(false);
   const [depInstall, startDepInstall] = useEngineInstall(requires, () => {
     if (requires) onDepProbe(requires.binary);
+    if (fixChainRef.current) {
+      fixChainRef.current = false;
+      startInstall();
+    }
   });
+  const startDepFix = useCallback(() => {
+    fixChainRef.current = depOutdated;
+    startDepInstall();
+  }, [depOutdated, startDepInstall]);
   return (
     <EngineCard
       meta={meta}
@@ -80,7 +95,7 @@ export function EngineSection({
       }
       depProbe={depProbe}
       depInstall={depInstall}
-      onDepInstall={startDepInstall}
+      onDepInstall={startDepFix}
       onDepProbe={() => requires && onDepProbe(requires.binary)}
       creds={creds}
       expanded={expanded}

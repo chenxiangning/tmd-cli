@@ -1,13 +1,9 @@
 /**
  * 幕布终端 —— xterm.js 透传 PTY 字节流(幕布零渲染原则的唯一实现点)。
- *
- * 生命周期:挂载 → 回放内核输出缓冲(切回不黑屏)→ 订阅实时总线。
- * 输入路径:xterm onData 直写 PTY;富 composer 实装后汇入同一条 write 通道。
- * 渲染层:xterm 内建 DOM 渲染器(WebGL 方案因 WebKit texSubImage2D 缺陷弃用)。
- * 点缀层:Cmd/Ctrl+F 搜索、可点击链接 —— 纯 xterm 插件,不触碰字节流。
- *
- * 文件规模铁则拆分(300 行):翻页器/搜索/遮罩/刷新钮/健康巡检/滚动位保持分别在
- * terminalHistory / terminalSearch / terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth / terminalScrollKeeper。
+ * 生命周期:挂载 → 回放内核输出缓冲(切回不黑屏)→ 订阅实时总线;输入 onData 直写 PTY。
+ * 渲染层:xterm 内建 DOM 渲染器(WebGL 因 WebKit 缺陷弃用);点缀层 ⌘F 搜索与可点击链接为纯插件。
+ * 300 行铁则拆分:翻页/搜索/遮罩/刷新钮/健康巡检/滚动位保持在 terminalHistory / terminalSearch /
+ * terminalLoadOverlay / terminalRefreshButton / terminalCanvasHealth / terminalScrollKeeper。
  */
 
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -17,11 +13,9 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import { ipc, openExternalUrl } from "@kernel/ipc";
-import { t } from "@kernel/i18n";
 import { getSettingsState, subscribeSettings } from "@kernel/settings";
 import { resolveTerminalFontFamily } from "@kernel/terminalFonts";
 import { host } from "@kernel/host";
-import { Mounts } from "@kernel/Mounts";
 import {
   registerTerminalHandle,
   unregisterTerminalHandle,
@@ -29,7 +23,8 @@ import {
 } from "@kernel/messageAnchors";
 import { subscribeTerminalTheme } from "@kernel/terminalThemeBridge";
 import { createReplayInputGate } from "@kernel/terminalInputGate";
-import { attachTerminalStream, settleTerminalJump, type LoadProgress } from "@kernel/terminalReplay";
+import { attachTerminalStream, settleTerminalJump, settleTerminalWrite, type LoadProgress } from "@kernel/terminalReplay";
+import { captureViewportAnchor, restoreViewportAnchor } from "@kernel/terminalScrollAnchor";
 import { isTerminalReport, shouldSuppressProbeReply } from "@kernel/terminalReports";
 import {
   observeCanvasSize,
@@ -41,13 +36,16 @@ import { takeTerminalFreeze } from "@kernel/terminalFreeze";
 import { TerminalHistoryPager } from "@kernel/terminalHistory";
 import { createScrollKeeper } from "@kernel/terminalScrollKeeper";
 import { TerminalSearchOverlay, useSearchBoxOwnership } from "@kernel/terminalSearch";
+import { makeLogSearchBridge } from "@kernel/terminalFindBridge";
+import { TerminalHistoryNav } from "@kernel/terminalHistoryNav";
+import { TerminalToolRow } from "@kernel/terminalRefreshButton";
 import "@kernel/terminalFontZoom"; /* 终端字号缩放键位(⌘+/⌘−/⌘0):模块级注册,随幕布装配生效 */
 import { TerminalCopyMenu } from "@kernel/terminalCopyMenu";
 import { TerminalLoadOverlay } from "@kernel/terminalLoadOverlay";
-import { TerminalJumpToBottomButton, TerminalRefreshButton } from "@kernel/terminalRefreshButton";
 import { attachTerminalLinks } from "@kernel/terminalLinks";
 import { setTerminalFocused } from "@kernel/shortcuts";
 import { readTerminalTheme } from "@kernel/terminalXtermTheme";
+import { attachWebglRendererAuto } from "@kernel/terminalWebglRenderer";
 
 /* 导出级 memo:props 全原始类型,浅比较稳定(keep-alive 语义见 MainPanel)。
    tab 条内会话常驻挂载,非激活 display:none;active 切换不重挂,仅 ref 所有权迁移。 */
@@ -58,22 +56,23 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
   const [searchOpen, setSearchOpen] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [atTop, setAtTop] = useState(false);
+  const [inHistoryWindow, setInHistoryWindow] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   /* 加载进度态:null = 就绪撤罩(terminalReplay.ts);streamReadyRef = 幕布流就绪相位(onReady 置位),askProbe 停采判据(评审 F5/P1-2)。 */
   const [loadProgress, setLoadProgress] = useState<LoadProgress>(null);
   const streamReadyRef = useRef(false);
   const pagerRef = useRef<TerminalHistoryPager | null>(null);
-  /* 历史重写输入闸:回放/翻页重写期间丢弃 xterm 对历史查询的自动应答(见 terminalInputGate.ts);
-     实例随会话 keep-alive 常驻;惰性初值 = useState 初始化器只在首帧执行一次。 */
+  /* 历史重写输入闸:重写期丢弃 xterm 对历史查询的自动应答;实例随会话常驻。 */
   const [inputGate] = useState(createReplayInputGate);
   /* 翻页器(实现见 terminalHistory.ts):锚点/前缀页/重入闸随实例持有,hasMore/loading 经 onState 回喂。 */
-  /** 幕布重建代数:刷新钮/停滞探针自增 → 主 effect 重跑 = xterm 销毁重建 +
-      缓冲回放 + 强制 SIGWINCH 整帧重绘,PTY/CLI 不中断(会话内自救出口)。 */
+  /** 幕布重建代数:刷新钮/停滞探针自增 → 主 effect 重跑 = 销毁重建 + 回放 +
+      强制 SIGWINCH 整帧重绘,PTY/CLI 不中断(会话内自救出口)。 */
   const [canvasGen, setCanvasGen] = useState(0);
-  /** 隐藏幕布合帧写入(Fix B,terminalReplay.ts):activeRef 是活性真相;
-      激活即冲刷攒帧,切换无感。 */
+  /** 隐藏幕布合帧(Fix B):activeRef 是活性真相,激活即冲刷攒帧。 */
   const activeRef = useRef(active);
-  const flushDeferredRef = useRef<(() => void) | null>(null);
+  const flushDeferredRef = useRef<(() => number) | null>(null);
+  /* 重建保位锚(卸载采、回放完恢复,见 terminalScrollAnchor)。 */
+  const rebuildAnchorRef = useRef<string | null>(null);
   const lastLiveAtRef = useRef(0); /* 停滞探针活性真相(terminalCanvasHealth 消费) */
   /* 滚动位保持(terminalScrollKeeper.ts):隐藏/重显与重排的滚动语义;实例随会话 keep-alive 常驻。 */
   const [scrollKeeper] = useState(createScrollKeeper);
@@ -85,12 +84,11 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     } else {
       scrollKeeper.markHidden(containerRef.current);
     }
-    /* 在视打点随活性同拍:泵侧聚合降档判据(无人观看 → 250ms 慢拍,见
-       pty_spawn.rs OUT_BACKGROUND_WINDOW;2026-10-04 十一轮)。 */
+    /* 在视打点随活性同拍:泵侧聚合降档判据(pty_spawn.rs OUT_BACKGROUND_WINDOW)。 */
     void ipc.sessionSetViewed(sessionId, active).catch(() => undefined);
     return () => void ipc.sessionSetViewed(sessionId, false).catch(() => undefined);
   }, [sessionId, active, scrollKeeper]);
-  /** 往前翻一页:实例内恒稳定,锚点注册表与"加载更早"按钮共用同一闭包。 */
+  /* 往前翻一页:实例内恒稳定,导航条与锚点注册表共用。 */
   const loadEarlier = useCallback(async () => {
     const term = termRef.current;
     const pager = pagerRef.current;
@@ -98,7 +96,6 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     await pager.loadEarlier(term);
   }, []);
   const loadEarlierRef = useRef<(() => Promise<void>) | null>(null);
-
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return undefined;
@@ -117,18 +114,13 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
       scrollback: 24_000,
       theme: readTerminalTheme(),
     });
-    /* 配色重刷:主题引擎与打穿等 :root 终端 token 写手都经主题桥通知,重读计算样式。
-       纯视觉重着色,字节流不受影响。 */
+    /* 配色重刷:主题 token 写手经主题桥通知,重读计算样式;纯视觉,字节流不受影响。 */
     const offTokens = subscribeTerminalTheme(() => {
       term.options.theme = readTerminalTheme();
     });
     const fit = new FitAddon();
     const search = new SearchAddon();
-    /* 错栅格自愈旗:零宽跳过(隐藏期)或尚未成功 fit 过的实例置位,下次成功 sync
-       必须强制 PTY 真实重排 —— 同尺寸 fit 被 xterm 跳过、同尺寸 resize 被 Rust
-       幂等去重(无 SIGWINCH),隐藏期任何瞬态错栅格(2 列钳制重排、重挂载回放
-       错栅、ConPTY resize 抖动)都将永不重绘:omp 靠 spinner 连续整帧重绘自愈,
-       静态 TUI(claude/codex/kimi 跑完一轮即静止)则永久错位。 */
+    /* 错栅格自愈旗:零宽/fit 失败实例置位,下次成功 sync 强制真实重排(同尺寸幂等跳过无 SIGWINCH,静态 TUI 将永久错位)。 */
     const needsForceSyncRef = { current: true };
     /** 尺寸同步唯一出口:零宽(隐藏)跳过并挂自愈旗;成功即 fit + 同步 PTY。
         settings 回调与 ResizeObserver 共用,隐藏幕布绝不外发尺寸。 */
@@ -165,23 +157,28 @@ function TerminalViewImpl({ sessionId, active }: { sessionId: string; active: bo
     container.addEventListener("focusin", onFocusIn);
     container.addEventListener("focusout", onFocusOut);
     term.open(container);
-    /* 渲染器 = xterm 内建 DOM:WebGL glyph atlas 长跑后被 WebKit texSubImage2D
-       大纹理子上传 bug 损坏成马赛克且 onContextLoss 不触发,已弃用;addon-canvas
-       停更 xterm 5 时代装不上 ^6。DOM 渲染器是核心兜底。ponytail: 全屏 TUI
-       重绘性能不达标时复评(webgl 上游修复 或 addon-canvas 适配 v6)。 */
-termRef.current = term;
-    searchRef.current = search;
+    /* 渲染器 = xterm 内建 DOM 兜底;WebGL opt-in 默认关,装载/降级单真源见 terminalWebglRenderer.ts。 */
+    const detachWebgl = attachWebglRendererAuto(term);
+    termRef.current = term; searchRef.current = search;
 
     const pager = new TerminalHistoryPager(sessionId, inputGate, (h, l) => {
       setHasMore(h);
       setLoadingHistory(l);
-    });
+      /* emit 必发于 jumpWindow 翻转之后,此处读到的是新值。 */
+      setInHistoryWindow(pagerRef.current?.isInJumpWindow() ?? false);
+    }, () => flushDeferredRef.current?.()); /* RIS 重写前冲 pendingLive(terminalHistory 构造器注)。 */
     pagerRef.current = pager;
     /* 翻页器随挂载创建(keep-alive 后每会话仅挂载一次);输出装配见 terminalReplay.ts。 */
     streamReadyRef.current = false; let disposed = false; const streamReady = Promise.withResolvers<void>(); const disposal = Promise.withResolvers<void>();
     lastLiveAtRef.current = 0;
     const offStream = attachTerminalStream(term, sessionId, inputGate, setLoadProgress, () => {
-      streamReadyRef.current = true; streamReady.resolve();
+      streamReadyRef.current = true;
+      streamReady.resolve();
+      /* 重建保位:回放尽后按锚恢复阅读位;恢复前先冲攒批/攒帧(与 settleTerminalJump
+         对齐),否则保位锚按旧屏采样,恢复位偏。 */
+      flushDeferredRef.current?.();
+      restoreViewportAnchor(term, () => settleTerminalWrite(term), rebuildAnchorRef.current);
+      rebuildAnchorRef.current = null;
     }, {
       shouldDefer: () => !activeRef.current,
       bindFlush: (flush) => {
@@ -232,7 +229,6 @@ termRef.current = term;
       loadEarlier: () => loadEarlierRef.current?.() ?? Promise.resolve(),
     };
     registerTerminalHandle(sessionId, terminalHandle);
-
     /* 重挂载必发一次(needsForceSync 初值 true 强制真 SIGWINCH 整帧重绘,根治错栅格滞留);重绘由活动守望抑制窗吸收。 */
     syncSize();
     const offObserve = observeCanvasSize(container, syncSize);
@@ -241,12 +237,15 @@ termRef.current = term;
       disposed = true; disposal.resolve(); streamReady.resolve(); stopAskProbe();
       stopStallProbe();
       offTokens();
-      offFontSettings();
+      offFontSettings(); detachWebgl(); /* webgl addon 先于 term.dispose 卸载,dispose 即回落 DOM 渲染器 */
       container.removeEventListener("focusin", onFocusIn);
       container.removeEventListener("focusout", onFocusOut);
-      /* 先冲刷 250ms 合帧攒帧再存快照(尾巴已计水位不在投影,跳过则 fast 永久缺字);终态收尾须先于注销 handle。 */
-      flushDeferredRef.current?.();
-      settleTerminalFreeze(sessionId, term);
+      /* 先冲攒帧再存快照:flushed = 冲入但 xterm 下一宏任务才解析的尾巴,水位让渡给
+         重开增量补(settleTerminalFreeze 扣减);终态收尾须先于注销 handle。 */
+      const flushed = flushDeferredRef.current?.() ?? 0;
+      /* 重建保位:卸载前采视口顶行锚(贴底不采)。 */
+      rebuildAnchorRef.current = captureViewportAnchor(term, canvasGen > 0);
+      settleTerminalFreeze(sessionId, term, flushed);
       unregisterTerminalHandle(sessionId, terminalHandle);
       offStream();
       offInput.dispose();
@@ -259,13 +258,12 @@ termRef.current = term;
       setSearchOpen(false);
       setHasMore(false);
       setLoadingHistory(false);
+      setInHistoryWindow(false);
     };
   }, [sessionId, inputGate, canvasGen, scrollKeeper]);
 
-  /* ⌘F 搜索框所有权 + 关闭回调(实现见 terminalSearch.useSearchBoxOwnership)。 */
+  /* ⌘F 搜索框所有权(terminalSearch);loadEarlier 经 ref 转交避免渲染期写。 */
   const { close: closeSearch } = useSearchBoxOwnership(active, setSearchOpen, termRef);
-
-  /* loadEarlier 实例内恒稳定(useCallback 无依赖),ref 转交放 effect 避免渲染期写。 */
   useEffect(() => {
     loadEarlierRef.current = loadEarlier;
   }, [loadEarlier]);
@@ -273,25 +271,27 @@ termRef.current = term;
     <div className="relative h-full w-full">
       <div ref={containerRef} className="terminal-view-host h-full w-full" />
       <TerminalLoadOverlay progress={loadProgress} />
-      {atTop && hasMore && (
-        <button
-          onClick={() => void loadEarlier()} disabled={loadingHistory}
-          className="absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-md border border-(--tmd-border) bg-(--tmd-bg-popover) px-3 py-1 text-xs text-(--tmd-accent) shadow-(--tmd-shadow-popover) hover:bg-(--tmd-bg-hover) disabled:opacity-50"
-        >
-          {loadingHistory ? t("加载中…") : t("↑ 加载更早的输出")}
-        </button>
-      )}
+      <TerminalHistoryNav
+        atTop={atTop}
+        hasMore={hasMore}
+        jumpWindow={inHistoryWindow}
+        loading={loadingHistory}
+        onLoadEarlier={() => void loadEarlier()}
+        onBackLatest={() => {
+          const term = termRef.current;
+          if (term) void pagerRef.current?.resetToLatest(term);
+        }}
+      />
       {searchOpen && (
-        <TerminalSearchOverlay searchRef={searchRef} termRef={termRef} onClose={closeSearch} />
+        <TerminalSearchOverlay
+          searchRef={searchRef}
+          termRef={termRef}
+          onClose={closeSearch}
+          logSearch={makeLogSearchBridge(sessionId, pagerRef, termRef)}
+        />
       )}
       <TerminalCopyMenu termRef={termRef} sessionId={sessionId} active={active} />
-      {/* 幕布右上工具行:插件工具钮(terminal.canvasRow 挂点)+ 回底钮 + 刷新钮收尾最右。
-          行不设 z —— 画布浮层开启时整行隐没其下;幕布态浮于 xterm 之上(DOM 序)。 */}
-      <div className="absolute right-3 top-2 flex items-center gap-1.5">
-        <Mounts point="terminal.canvasRow" />
-        <TerminalJumpToBottomButton termRef={termRef} />
-        <TerminalRefreshButton onClick={() => setCanvasGen((g) => g + 1)} />
-      </div>
+      <TerminalToolRow termRef={termRef} onRefresh={() => setCanvasGen((g) => g + 1)} />
     </div>
   );
 }

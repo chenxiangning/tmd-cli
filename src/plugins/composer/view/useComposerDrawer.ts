@@ -30,6 +30,13 @@ function drawerWireText(item: DrawerItem): string {
   return item.section === "skill" ? `$${item.name}` : `/${item.name}`;
 }
 
+/** 抽屉 send 闸(纯判定,供测试):ask 等待期一律拦截 —— 直接写入会被 CLI 当作答案
+ * 文本提交(askWatch 任何写入=作答),命令形态永不达意;与模型位/思考位同律
+ * (2026-10-24 评审 P3 收编:抽屉 send 项零拦截的跨入口不一致)。 */
+export function drawerSendBlocked(waitingConfirm: boolean): string | null {
+  return waitingConfirm ? t("等待确认中,先在面板作答") : null;
+}
+
 /** plugin 区条目 open 语义:命中右栏面板开面板,无面板兜底开设置(不捕获响应值,纯函数)。 */
 function openFromDrawer(item: DrawerItem): void {
   if (item.panelId) setFilePanelMode(item.panelId);
@@ -90,10 +97,19 @@ export function useComposerDrawer({
      空串=无会话/无 profile 静默守卫(spec:不弹"已发送"假反馈)或确认被取消。
      二次确认(spec 2026-09-27):开关开时挂起弹框,Promise 在落定后续联 ——
      CommandDrawer 的 onSend(...).then 拿到 wire 后照常 toast/flash,Esc=""静默不关抽屉。 */
+  /** ask 等待期抽屉 send 一律拦截(见 drawerSendBlocked 纯判定):返回拦截文案供抽屉
+   * toast 明示,非等待期返回 null 放行;点击时刻现读 host 态,无需订阅。 */
+  function drawerSendGate(): string | null {
+    const sid = host.getActiveSessionId();
+    return drawerSendBlocked(!!sid && host.isWaitingConfirm(sid));
+  }
+
   async function sendFromDrawer(item: DrawerItem): Promise<string | null> {
     if (isConfirmPending()) return ""; // 模态闸:确认框在屏时抽屉发送静默
     const sid = host.getActiveSessionId();
     if (!sid || !profile) return "";
+    /* 硬守卫(双保险):UI 闸在 CommandDrawer.activate,此处兜未来新调用方绕过 UI 的路径。 */
+    if (drawerSendBlocked(host.isWaitingConfirm(sid)) !== null) return "";
     const text = drawerWireText(item);
     const wire = prepareSendPayload(profile, text);
     if (confirmEnabled) {
@@ -118,6 +134,10 @@ export function useComposerDrawer({
     wire: string,
     text: string,
   ): Promise<string | null> {
+    /* ask 复检(2026-10-26 复审):确认弹窗开启期间 CLI 可能进入 ask 等待,
+     * 此刻写入会被当答案文本提交 —— 与点击时刻的闸同律,写前再拦一次;
+     * 静默返回("" 不 toast),用户重试时 UI 闸会给出明示。 */
+    if (host.isWaitingConfirm(sid)) return "";
     setSendExecuting(true);
     try {
       const gate = readPromptGate(sid); // 轮次闸写前现读:ask 作答/轮中斜杠命令不开轮不广播
@@ -140,5 +160,5 @@ export function useComposerDrawer({
   }
 
 
-  return { drawerOpen, drawerItems, sendFromDrawer, insertFromDrawer, openFromDrawer };
+  return { drawerOpen, drawerItems, sendFromDrawer, drawerSendGate, insertFromDrawer, openFromDrawer };
 }

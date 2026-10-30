@@ -6,6 +6,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 
 export type ConfigRead =
   | { kind: "ok"; text: string }
@@ -30,10 +31,10 @@ export async function readConfig(path: string): Promise<ConfigRead> {
     try {
       const entries = await ipc.fsCollectFiles(dir, "");
       return entries.some((f) => f.name === base)
-        ? { kind: "error", message: e instanceof Error ? e.message : String(e) }
+        ? { kind: "error", message: errTextDisplay(e) }
         : { kind: "missing" };
     } catch {
-      return { kind: "error", message: e instanceof Error ? e.message : String(e) };
+      return { kind: "error", message: errTextDisplay(e) };
     }
   }
 }

@@ -90,20 +90,44 @@ export class InstallOrchestrator {
       }
       cfg.plugin = plugins;
       cfg.compaction = { ...(typeof cfg.compaction === "object" && cfg.compaction ? cfg.compaction : {}), auto: false, prune: false };
+      /* 注释保护(2026-10-26):opencode.json 常带用户注释/排版,规范化重写会
+       洗掉 —— 原文先落 .tmd-bak(同目录),主文件照写;失败回滚仍用内存原文。
+       * 0.4.6 复审 P1/P2:备份写结果落变量,失败不再假宣告「原文已备份」;
+       * 备份已存在不覆写(重复安装读到的是规范化主文件,覆写会丢首装前原文)。 */
+      let backedUp = false;
+      if (backup !== null) {
+        const bakPath = `${configPath}.tmd-bak`;
+        const bakExists = await readText(bakPath).then(
+          () => true,
+          () => false,
+        );
+        backedUp = bakExists || (await writeText(bakPath, backup).then(() => true, () => false));
+      }
       await writeText(configPath, JSON.stringify(cfg, null, 2) + "\n");
-      onLine(t("✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)"));
+      onLine(
+        backedUp
+          ? t("✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context);原文已备份 {path}", {
+              path: `${configPath}.tmd-bak`,
+            })
+          : t("✓ opencode 配置更新(plugin 注册 + 原生 compaction 交由 Magic Context)"),
+      );
       return { ok: true, message: "" };
     } catch (e) {
-      if (backup !== null) await writeText(configPath, backup).catch(() => {});
-      /* backup=null = 新建文件未写成,无「原文」可回滚,文案如实(2026-09-28 评审) */
+      let rolledBack = false;
+      if (backup !== null) rolledBack = await writeText(configPath, backup).then(() => true, () => false);
+      /* backup=null = 新建文件未写成,无「原文」可回滚,文案如实(2026-09-28 评审);
+       * 回滚写失败也不再宣称「已回滚」,如实指向 .tmd-bak(0.4.6 复审 P1)。 */
       return {
         ok: false,
-        message: t(
-          backup !== null
-            ? "opencode 配置更新失败(已回滚原文): {err}"
-            : "opencode 配置更新失败(新文件未写入): {err}",
-          { err: String(e).slice(0, 140) },
-        ),
+        message:
+          backup === null
+            ? t("opencode 配置更新失败(新文件未写入): {err}", { err: String(e).slice(0, 140) })
+            : rolledBack
+              ? t("opencode 配置更新失败(已回滚原文): {err}", { err: String(e).slice(0, 140) })
+              : t("opencode 配置更新失败(自动回滚未完成,原文备份在 {path}): {err}", {
+                  path: `${configPath}.tmd-bak`,
+                  err: String(e).slice(0, 140),
+                }),
       };
     }
   }

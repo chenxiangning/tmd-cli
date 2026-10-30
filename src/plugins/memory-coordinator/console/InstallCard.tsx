@@ -60,7 +60,12 @@ async function runInstallFlow(opts: {
        未证实,写进去 = 注册进死文件且检测自洽假阳性,2026-09-28 评审) */
     line("$ opencode 配置: plugin[] += @cortexkit/opencode-magic-context");
     const ocCfg = (await resolveOpencodeConfigPath()) ?? `${home}/.config/opencode/opencode.json`;
-    const r = await orch.installIntoOpencode(ocCfg, ipc.fsReadFile, ipc.fsWriteFile, line);
+    const r = await orch.installIntoOpencode(
+      ocCfg,
+      ipc.fsReadFile,
+      (p, text) => ipc.fsWriteFile(p, text).then(() => undefined),
+      line,
+    );
     if (!r.ok) line("✗ " + r.message);
     else markOc(await isOpencodeMagicContextInstalled());
   }

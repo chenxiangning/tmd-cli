@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ipc } from "@kernel/ipc";
 import { scanPorts } from "./portsScan";
 import { rowKey } from "./portsTree";
@@ -85,7 +86,7 @@ export function usePortsScan(): PortsScanState {
         setError(null);
         setTimedOut(next.timedOut);
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       } finally {
         setLoading(false);
       }

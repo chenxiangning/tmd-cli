@@ -4,6 +4,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import { detectOs } from "./platform";
 import type { ProcMeta } from "./portsParse";
 import {
@@ -123,7 +124,7 @@ export async function scanPorts(osInput?: "mac" | "linux" | "windows"): Promise<
   try {
     procs = os === "windows" ? await collectWindowsProcs(flags) : await collectUnixProcs(flags);
   } catch (e) {
-    warnings.push(e instanceof Error ? e.message : String(e));
+    warnings.push(errTextDisplay(e));
   }
 
   const ppidAll = new Map<number, number>();
@@ -166,7 +167,7 @@ export async function scanPorts(osInput?: "mac" | "linux" | "windows"): Promise<
       row.gitRoot = (row.cwd && gitMap.get(row.cwd)) || null;
     }
   } catch (e) {
-    warnings.push(e instanceof Error ? e.message : String(e));
+    warnings.push(errTextDisplay(e));
   }
 
   return { rows, os, source: listened.source, ppidAll, warnings, timedOut: flags.timedOut };

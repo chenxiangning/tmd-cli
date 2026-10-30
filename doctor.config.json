@@ -62,6 +62,14 @@
       },
       {
         "files": [
+          "src/plugins/memory-coordinator/lint/corpus.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
+      },
+      {
+        "files": [
           "src/kernel/tabClose.ts"
         ],
         "rules": [
@@ -87,6 +95,22 @@
       {
         "files": [
           "src/kernel/sessionRestore.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
+      },
+      {
+        "files": [
+          "src/plugins/memory-coordinator/lint/lintModel.ts"
+        ],
+        "rules": [
+          "react-doctor/async-await-in-loop"
+        ]
+      },
+      {
+        "files": [
+          "src/plugins/memory-coordinator/lint/lintActions.ts"
         ],
         "rules": [
           "react-doctor/async-await-in-loop"

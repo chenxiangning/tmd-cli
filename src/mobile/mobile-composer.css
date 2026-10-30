@@ -74,3 +74,4 @@
 .m-status{display:flex;gap:6px;padding:2px 12px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .m-status-chip{position:relative;flex:none;display:flex;align-items:center;border:1px solid var(--border);border-radius:999px;background:var(--bg-panel);color:var(--fg-muted);font-size:11px;padding:3px 10px;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 button.m-status-chip:active{background:var(--accent-soft);color:var(--accent)}
+button.m-status-chip:disabled{opacity:.45}

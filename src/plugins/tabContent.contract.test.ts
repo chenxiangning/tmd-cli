@@ -28,6 +28,7 @@ const OPENABLE_KINDS = [
   "wsl",
   "memory-console",
   "agent-wiki",
+  "lint-report",
   "academy.guide",
   "intent-canvas",
   "skill-hub",

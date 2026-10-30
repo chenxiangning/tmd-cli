@@ -4,10 +4,12 @@
  *    (账本 rewrite + 清悬空 states/孤儿对象;按账本 ts 不按 mtime),两步武装
  *    确认(3s 回弹,workspace DangerAction 先例同款)。
  * b) docgen 已归档文档 —— 见 DocgenCleanup(确认卡仿 BatchRowParts ConfirmCard)。
+ * c) 会话输出日志 —— 见 SessionLogCleanup(策略清理/全清,活会话保护)。
  * CLI 会话目录在本面无任何入口(红线:只报告不代删)。
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { Trash } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc } from "@kernel/ipc";
@@ -15,6 +17,7 @@ import { workspaceDisplayName } from "@kernel/workspace";
 import { listCkptWorkspaces, type CkptWorkspaceRow } from "./ckptWorkspaces";
 import { formatBytes } from "./format";
 import { DocgenCleanup } from "./DocgenCleanup";
+import { SessionLogCleanup } from "./SessionLogCleanup";
 
 /** 保留策略:最近 10 个批次 / 30 天(取二者交集语义,见 prune.rs)。 */
 const KEEP = 10;
@@ -35,7 +38,7 @@ export function CleanupTab() {
       const rs = await listCkptWorkspaces();
       setRows(rs);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : String(e));
+      setLoadError(errTextDisplay(e));
     }
   }
 
@@ -58,7 +61,7 @@ export function CleanupTab() {
       const removed = await ipc.checkpointPrune(row.workspace.root, KEEP, TTL_DAYS);
       setPruned((prev) => ({ ...prev, [row.workspace.root]: removed }));
     } catch (e) {
-      setOpError(e instanceof Error ? e.message : String(e));
+      setOpError(errTextDisplay(e));
     } finally {
       setBusyCwd(null);
       void refresh();
@@ -131,6 +134,8 @@ export function CleanupTab() {
           );
         })}
       </section>
+
+      <SessionLogCleanup />
 
       <DocgenCleanup />
     </div>

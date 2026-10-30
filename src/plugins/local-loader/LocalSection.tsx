@@ -3,6 +3,7 @@
  * 数据源 = kernel/localPlugins 记录表(useLocalPluginRecords);本组件只做展示与动作转发。
  */
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowCounterClockwise, Copy, Trash } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -187,7 +188,7 @@ export function LocalPluginsSection() {
   const wrap = (p: Promise<void>) => {
     setBusy(p);
     setActionError(null);
-    p.catch((e) => setActionError(e instanceof Error ? e.message : String(e))).finally(() =>
+    p.catch((e) => setActionError(errTextDisplay(e))).finally(() =>
       setBusy(null),
     );
   };

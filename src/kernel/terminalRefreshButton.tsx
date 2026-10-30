@@ -18,6 +18,7 @@ import type { RefObject } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { t } from "@kernel/i18n";
 import { Spinner } from "@kernel/Spinner";
+import { Mounts } from "./Mounts";
 import { useMinSpin } from "./useMinSpin";
 
 const pill =
@@ -59,5 +60,26 @@ export function TerminalJumpToBottomButton({ termRef }: { termRef: RefObject<Ter
     >
       <CaretDown size="0.75rem" />
     </button>
+  );
+}
+
+/**
+ * 幕布右上工具行(自 TerminalView 拆出,文件规模铁则):插件工具钮
+ * (terminal.canvasRow 挂点)+ 回底钮 + 刷新钮收尾最右。行不设 z ——
+ * 画布浮层开启时整行隐没其下;幕布态浮于 xterm 之上(DOM 序)。
+ */
+export function TerminalToolRow({
+  termRef,
+  onRefresh,
+}: {
+  termRef: RefObject<Terminal | null>;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="absolute right-3 top-2 flex items-center gap-1.5">
+      <Mounts point="terminal.canvasRow" />
+      <TerminalJumpToBottomButton termRef={termRef} />
+      <TerminalRefreshButton onClick={onRefresh} />
+    </div>
   );
 }

@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { usePanelActive } from "@kernel/panelActivity";
 import { Plus, ArrowClockwise, PlugCharging } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
@@ -79,7 +80,7 @@ function SessionCard({
       host.events.emit(KernelTopics.sessionViewRequested, null);
       await host.createSshSession(sessionId, old?.workspaceId);
     } catch (e) {
-      setError(t("重连失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+      setError(t("重连失败:{msg}", { msg: errTextDisplay(e) }));
     } finally {
       setBusy(false);
     }

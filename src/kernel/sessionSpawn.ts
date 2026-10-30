@@ -8,6 +8,7 @@
  */
 
 import { KernelTopics, type EventBus, type SessionStartFailedEvent } from "./events";
+import { errTextDisplay } from "@kernel/errText";
 import { ipc, type SessionMeta, type SpawnSpec, type SpawnedSession } from "./ipc";
 import { adoptSpawned } from "./sessionAdopt";
 import { prefetchDiskTail } from "./diskReplay";
@@ -251,7 +252,7 @@ export class SessionSpawnService {
       const event: SessionStartFailedEvent = {
         sessionId: null,
         profileId,
-        reason: e instanceof Error ? e.message : String(e),
+        reason: errTextDisplay(e),
       };
       this.events.emit(KernelTopics.sessionStartFailed, event);
       throw e;

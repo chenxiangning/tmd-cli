@@ -5,6 +5,7 @@
  */
 
 import type { Project } from "./types";
+import { errTextDisplay } from "@kernel/errText";
 import { randId } from "./types";
 import { writeIndexFile } from "./workbenchFiles";
 
@@ -73,7 +74,7 @@ export async function commitProjects(next: Project[], snapshot: readonly Project
     setProjects(await writeIndexFile(next));
     markWriteError(null);
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
+    const message = errTextDisplay(e);
     markWriteError(message);
     setProjects([...snapshot], message);
     throw e;
@@ -99,7 +100,7 @@ export async function mutate(job: (projects: Project[]) => Project[]): Promise<v
       setProjects(await writeIndexFile(next));
       markWriteError(null);
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
+      const message = errTextDisplay(e);
       markWriteError(message);
       setProjects(snapshot, message); /* 回滚内存态 */
       throw e;

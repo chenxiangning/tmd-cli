@@ -48,6 +48,7 @@ const MESSAGES_EN = {
   "项目过大": "Project too large",
   "项目已删除": "Project deleted",
   "项目读取失败": "Failed to read project",
+  "新建 AI 会话": "New AI session",
 } as const;
 
 /** ja 词典 · anim 域。 */
@@ -94,6 +95,7 @@ const MESSAGES_JA = {
   "项目过大": "プロジェクトが大きすぎます",
   "项目已删除": "プロジェクトは削除されました",
   "项目读取失败": "プロジェクトの読み取りに失敗しました",
+  "新建 AI 会话": "AIセッションを新規作成",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

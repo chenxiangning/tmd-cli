@@ -19,7 +19,8 @@ import type { PluginEventBus } from "@kernel/plugin";
 import type { FileMarkLite, FileMarkMap } from "./markBridge";
 type MarkBridgeNS = typeof import("./markBridge");
 type TreeHandlesNS = typeof import("./treeHandles");
-import { statusText, toolbarCls } from "./editor/editorChromeLogic";
+import { isRemoteReadOnly, statusText, toolbarCls } from "./editor/editorChromeLogic";
+import { registerRemoteFileSource, type RemoteFileSource } from "@kernel/fileSources";
 import { defaultFileVisualProvider } from "./fileVisual";
 
 let markBridge: MarkBridgeNS;
@@ -184,17 +185,33 @@ describe("fileVisual(默认视觉 provider)", () => {
 });
 
 describe("editorChromeLogic(编辑器壳纯逻辑)", () => {
-  const doc = (over: Partial<{ error: string | null; saving: boolean; dirty: boolean }> = {}) => ({
+  const doc = (
+    over: Partial<{ error: string | null; saving: boolean; dirty: boolean; conflict: boolean }> = {},
+  ) => ({
     error: null,
     saving: false,
     dirty: false,
+    conflict: false,
     ...over,
   });
 
-  it("statusText 优先级:远程只读压过一切本地态", () => {
+  it("statusText 优先级:远程真只读压过一切本地态", () => {
     expect(statusText(doc({ error: "boom", saving: true, dirty: true }), true)).toBe(
       "远程文件 · 只读(M1)",
     );
+  });
+
+  it("isRemoteReadOnly:源声明 writeText 即不谎称只读;未声明/非远程才只读", () => {
+    const mk = (writeText: boolean) =>
+      ({ ownsUri: (p: string) => p.startsWith("testro://"), writeText: writeText ? async () => {} : undefined }) as unknown as RemoteFileSource;
+    const offW = registerRemoteFileSource(mk(true));
+    expect(isRemoteReadOnly("testro:///a.md")).toBe(false); // 远程 + 可写源 → 不显示只读
+    expect(isRemoteReadOnly("/local/a.md")).toBe(false); // 非远程恒 false
+    offW();
+    const offRo = registerRemoteFileSource(mk(false));
+    expect(isRemoteReadOnly("testro:///a.md")).toBe(true); // 远程 + 不可写源 → 只读
+    offRo();
+    expect(isRemoteReadOnly("testro:///a.md")).toBe(false); // 源注销后非远程
   });
 
   it("statusText:错误 > 保存中 > 脏 > 已保存", () => {
@@ -202,6 +219,12 @@ describe("editorChromeLogic(编辑器壳纯逻辑)", () => {
     expect(statusText(doc({ saving: true, dirty: true }), false)).toBe("保存中…");
     expect(statusText(doc({ dirty: true }), false)).toBe("● 未保存的更改 · ⌘S 保存");
     expect(statusText(doc(), false)).toBe("已保存");
+  });
+
+  it("statusText:外部变更冲突压过本地错误与脏标记", () => {
+    expect(statusText(doc({ conflict: true, error: "boom", dirty: true }), false)).toBe(
+      "磁盘文件已被外部修改 · 请裁决",
+    );
   });
 
   it("toolbarCls:错误与脏并存时双类同挂,视觉权重由 CSS 顺序承担", () => {

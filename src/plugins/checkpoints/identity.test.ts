@@ -4,7 +4,7 @@
  * 先创建者保留 cli 身份,后到者回退 tmd id —— 新会话不得看到老会话的账。
  */
 import { describe, expect, it } from "vitest";
-import { echoProbing, noteEchoProbe, resetEchoProbes, resolveLedgerKey, withEchoFallback } from "./identity";
+import { echoProbing, noteEchoProbe, resetEchoProbes, resolveLedgerKey, staleFallbackKey, withEchoFallback } from "./identity";
 
 const peers = (list: Array<{ id: string; createdAt?: number }>) => list;
 const cliOf =
@@ -95,5 +95,41 @@ describe("探测窗登记(noteEchoProbe/echoProbing)", () => {
     resetEchoProbes(); /* 插件 deactivate 路径(index.tsx activate cleanup 接线) */
     expect(echoProbing("s2")).toBe(false);
     expect(echoProbing("s3")).toBe(false);
+  });
+});
+
+describe("staleFallbackKey 翻沿回落(开窗/关窗对称)", () => {
+  const args = (over: Partial<Parameters<typeof staleFallbackKey>[0]> = {}) => ({
+    tmdId: "tmd-1",
+    prevTmdId: "tmd-1",
+    prevKey: "cli-1",
+    resolvedKey: "tmd-1",
+    hasCurrent: false,
+    ...over,
+  });
+
+  it("开窗沿(绑定键→tmd id):新键无数据时回落绑定键", () => {
+    expect(staleFallbackKey(args())).toBe("cli-1");
+  });
+
+  it("新键已有数据:不回落(cur 直接命中)", () => {
+    expect(staleFallbackKey(args({ hasCurrent: true }))).toBeNull();
+  });
+
+  it("关窗/重绑沿(tmd id→新绑定键):对称回落上一主键", () => {
+    expect(staleFallbackKey(args({ prevKey: "tmd-1", resolvedKey: "cli-2" }))).toBe("tmd-1");
+  });
+
+  it("键未翻转:不回落", () => {
+    expect(staleFallbackKey(args({ prevKey: "tmd-1", resolvedKey: "tmd-1" }))).toBeNull();
+  });
+
+  it("换会话(tmd 变更):prevKey 是他账键,回落=串账,一律 null", () => {
+    expect(staleFallbackKey(args({ prevTmdId: "tmd-0" }))).toBeNull();
+    expect(staleFallbackKey(args({ tmdId: null, prevTmdId: null, prevKey: "tmd-1", resolvedKey: "cli-2" }))).toBeNull();
+  });
+
+  it("无主键(无会话):不回落", () => {
+    expect(staleFallbackKey(args({ resolvedKey: null }))).toBeNull();
   });
 });

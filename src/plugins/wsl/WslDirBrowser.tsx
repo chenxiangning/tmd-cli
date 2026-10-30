@@ -5,6 +5,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowClockwiseIcon, ArrowUpIcon, FolderSimpleIcon } from "@phosphor-icons/react";
 import type { SshHostConfig, WslDirEntry } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
@@ -102,7 +103,7 @@ export function WslDirBrowser({
         setJump("");
         onLoaded?.(path);
       })
-      .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setErr(errTextDisplay(e)))
       .finally(() => setLoading(false));
   };
 

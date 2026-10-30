@@ -99,12 +99,12 @@ async fn pr_run(app: &AppHandle, raw: &Value) -> Result<Value, String> {
 
 async fn smart_checkout(raw: &Value) -> Result<Value, String> {
     let a = args::<SmartCheckout>(raw)?;
-    ser(crate::git::commands::git_smart_checkout(a.cwd, a.name, a.remote).await)
+    ser(crate::git::commands_stash::git_smart_checkout(a.cwd, a.name, a.remote).await)
 }
 
 async fn smart_undo(raw: &Value) -> Result<Value, String> {
     let a = args::<SmartUndo>(raw)?;
-    ser(crate::git::commands::git_smart_checkout_undo(a.cwd, a.original).await)
+    ser(crate::git::commands_stash::git_smart_checkout_undo(a.cwd, a.original).await)
 }
 
 #[derive(serde::Deserialize)]

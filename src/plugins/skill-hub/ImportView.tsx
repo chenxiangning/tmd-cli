@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { Archive, DownloadSimple, FolderOpen } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { ipc, pickDirectory, pickFile } from "@kernel/ipc";
@@ -78,7 +79,7 @@ export function ImportView() {
       tempZipDirRef.current = temp;
       await loadPicked(temp, file.replace(/\/+$/, "").split("/").pop() ?? file);
     } catch (e) {
-      setDiskError(`${t("zip 解压失败")}:${e instanceof Error ? e.message : String(e)}`);
+      setDiskError(`${t("zip 解压失败")}:${errTextDisplay(e)}`);
     } finally {
       setDiskBusy(false);
     }

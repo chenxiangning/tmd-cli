@@ -5,11 +5,14 @@
  */
 
 import { t } from "@kernel/i18n";
+import { errTextDisplay } from "@kernel/errText";
 import { GitBranch } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
 import { useGitPanelContext } from "./hooks/useGitPanelContext";
 import { useGitPanelData } from "./useGitPanelData";
 import { useGitPanelRemote } from "./useGitPanelRemote";
+import { useRemoteGitStatus } from "./useRemoteGitStatus";
+import type { Workspace } from "@kernel/workspace";
 import { GitPanelMain } from "./GitPanelMain";
 import { AggregateReposView } from "./views/AggregateReposView";
 import { RepoBar } from "./views/RepoBar";
@@ -67,7 +70,7 @@ function GitPanelAggregate({
 }
 
 export function GitPanel() {
-  const { root, isRemote, repos, truncated, refreshRepos, repoCtx, cwd, selectRepo } = useGitPanelContext();
+  const { workspace: panelWorkspace, root, isRemote, repos, truncated, refreshRepos, repoCtx, cwd, selectRepo } = useGitPanelContext();
 
   const data = useGitPanelData(isRemote ? null : cwd, refreshRepos);
   const remote = useGitPanelRemote(isRemote ? null : cwd, data.afterMutation);
@@ -95,11 +98,7 @@ export function GitPanel() {
   }
 
   if (isRemote) {
-    return (
-      <div className="flex h-full items-center justify-center px-4 text-center text-xs text-(--tmd-fg-faint)">
-        {t("远程工作区暂不支持 Git 面板")}
-      </div>
-    );
+    return <GitPanelRemoteStatus workspace={panelWorkspace} root={root} />;
   }
 
   if (!cwd || data.status.notARepo) {
@@ -143,5 +142,48 @@ export function GitPanel() {
       afterMutation={data.afterMutation}
       remote={remote}
     />
+  );
+}
+
+/** 远程工作区只读状态卡(项 12 子集):branch/ahead/behind + 脏文件列表;
+ * log/diff 视图维持降级提示(git2 内核原语够不着远程,后续按需扩 wsl 通道)。 */
+function GitPanelRemoteStatus({
+  workspace,
+  root,
+}: {
+  workspace: Workspace | null | undefined;
+  root: string | null;
+}) {
+  const { status, error, loading, refresh } = useRemoteGitStatus(workspace, root);
+  return (
+    <div className="flex h-full flex-col gap-2 overflow-auto p-3 text-xs" data-icon-decor="git-zone">
+      <div className="flex items-center gap-2">
+        <span className="font-semibold">{status ? status.branch : t("远程工作区 · Git")}</span>
+        {status?.upstream && (
+          <span className="text-(--tmd-fg-muted)">
+            {status.upstream} {status.ahead ? `↑${status.ahead}` : ""} {status.behind ? `↓${status.behind}` : ""}
+          </span>
+        )}
+        <button
+          type="button"
+          className="ml-auto h-6 rounded border border-(--tmd-border) px-2 hover:bg-(--tmd-bg-hover)"
+          onClick={() => void refresh()}
+        >
+          {loading ? t("刷新中…") : t("刷新")}
+        </button>
+      </div>
+      {error === "not-a-repo" && <p className="text-(--tmd-fg-muted)">{t("该目录不是 git 仓库。")}</p>}
+      {error && error !== "not-a-repo" && <p className="text-(--tmd-diff-deleted)">{errTextDisplay(error)}</p>}
+      {status && status.entries.length === 0 && (
+        <p className="text-(--tmd-fg-muted)">{t("工作区干净,没有未提交的更改。")}</p>
+      )}
+      {status?.entries.map((e) => (
+        <div key={e.path + e.xy} className="flex gap-2">
+          <span className="font-mono text-(--tmd-fg-muted)">{e.xy}</span>
+          <span className="min-w-0 break-all">{e.path}</span>
+        </div>
+      ))}
+      <p className="mt-auto text-(--tmd-fg-faint)">{t("远程工作区:仅状态只读(提交/暂存/log/diff 请经终端会话)。")}</p>
+    </div>
   );
 }

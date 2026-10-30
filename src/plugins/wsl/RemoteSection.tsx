@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { CaretDownIcon, PlusIcon, TerminalWindowIcon } from "@phosphor-icons/react";
 import type { WslInfo } from "@kernel/ipc";
 import { ipc } from "@kernel/ipc";
@@ -88,7 +89,7 @@ export function WslRemoteSection() {
     } catch (e) {
       /* 凭据/hostkey/网络错误在此如实呈现 —— 不留空白幕布。 */
       setInfo(null);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setLoading(false);
     }
@@ -113,7 +114,7 @@ export function WslRemoteSection() {
         wslRemoteSpawnCommand(d.name, { cd: pickedDir ?? undefined, engine: pickedEngine ?? undefined }),
         engineProfile,
       )
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) => setError(errTextDisplay(e)))
       .finally(() => setOpening(false));
   };
 

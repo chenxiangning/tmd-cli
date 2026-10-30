@@ -4,6 +4,7 @@
  * 深链 projectFilter(项目详情「本项目生成记录」)经 screenProps.docsFilter 注入。
  */
 import { useMemo, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { X } from "@phosphor-icons/react";
 import { WbScreenProps } from "./screens/cards";
@@ -138,7 +139,7 @@ function ScheduleCard({ schedule, onToast }: {
     setPending(true);
     void updateSchedule({ on: !schedule.on }).finally(() => setPending(false)).then(
       () => onToast(schedule.on ? t("排程已暂停") : t("排程已开启:{next}", { next: `${t(WEEKDAY_LABELS[schedule.weekday] ?? "")} ${schedule.time}` })),
-      (e) => onToast(e instanceof Error ? e.message : String(e)),
+      (e) => onToast(errTextDisplay(e)),
     );
   };
   const nextRun = schedule.on ? `${t(WEEKDAY_LABELS[schedule.weekday] ?? "周五")} ${schedule.time}` : null;

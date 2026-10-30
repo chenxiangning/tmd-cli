@@ -6,15 +6,21 @@
 //! 类型经 typeof import() 全程静态可查,无 any。
 
 import type { Extension } from "@codemirror/state";
+import { commitOpenRef } from "@kernel/commitOpenBridge";
+import { t } from "@kernel/i18n";
 
 /** kernel/gitContract.GitBlameLine 的结构子集(避免内核内环依赖)。 */
 export interface BlameRow {
   lineNo: number;
+  /** 全 sha(点击深链提交 diff tab 用;空串 = 深链不可用,点击静默)。 */
+  sha: string;
   shortSha: string;
   summary: string;
   authorName: string;
   authorWhen: number;
   boundary: boolean;
+  /** 提交所在仓库根(深链 payload 字段)。 */
+  cwd: string;
   /** 预渲染元数据文本(调用方拼好,本模块不认时间格式)。 */
   label: string;
 }
@@ -31,7 +37,7 @@ interface BlameApi {
   setBlameOf: (value: BlameRangeSet | null) => import("@codemirror/state").StateEffect<unknown>;
   blameField: import("@codemirror/state").StateField<BlameRangeSet>;
   makeGutter: () => Extension;
-  newMarker: (label: string, detail: string, boundary: boolean) => import("@codemirror/view").GutterMarker;
+  newMarker: (label: string, detail: string, boundary: boolean, open: (() => void) | null) => import("@codemirror/view").GutterMarker;
   newBuilder: () => import("@codemirror/state").RangeSetBuilder<import("@codemirror/view").GutterMarker>;
 }
 
@@ -46,6 +52,7 @@ function load(): Promise<BlameApi> {
           readonly label: string,
           readonly detail: string,
           readonly boundary: boolean,
+          readonly open: (() => void) | null,
         ) {
           super();
         }
@@ -56,7 +63,15 @@ function load(): Promise<BlameApi> {
           const el = document.createElement("div");
           el.className = this.boundary ? "cm-blame-cell cm-blame-boundary" : "cm-blame-cell";
           el.textContent = this.label;
-          if (this.detail) el.title = this.detail;
+          const hint = t("点击查看提交");
+          el.title = this.detail ? `${this.detail}\n${hint}` : hint;
+          if (this.open) {
+            el.classList.add("cm-blame-link");
+            el.addEventListener("click", (e) => {
+              e.preventDefault();
+              this.open?.();
+            });
+          }
           return el;
         }
       }
@@ -75,7 +90,7 @@ function load(): Promise<BlameApi> {
             class: "cm-blameGutter",
             markers: (view) => view.state.field(blameField, false) ?? s.RangeSet.empty,
           }),
-        newMarker: (label, detail, boundary) => new BlameMarker(label, detail, boundary),
+        newMarker: (label, detail, boundary, open) => new BlameMarker(label, detail, boundary, open),
         newBuilder: () => new s.RangeSetBuilder<import("@codemirror/view").GutterMarker>(),
         empty: s.RangeSet.empty,
       };
@@ -104,7 +119,21 @@ export async function setEditorBlame(
   for (const r of rows) {
     if (r.lineNo < 1 || r.lineNo > view.state.doc.lines) continue;
     const from = view.state.doc.line(r.lineNo).from;
-    builder.add(from, from, a.newMarker(r.label, r.boundary ? r.summary : "", r.boundary));
+    /* 点击深链:行归属提交的 diff tab(git 插件经 commitOpenBridge 接线;
+     * 空 sha/git 插件未启用时 open 为 null,marker 无链接态)。 */
+    const open =
+      r.sha && commitOpenRef.current
+        ? () =>
+            commitOpenRef.current?.({
+              cwd: r.cwd,
+              sha: r.sha,
+              shortSha: r.shortSha,
+              summary: r.summary,
+              authorName: r.authorName,
+              authorWhen: r.authorWhen,
+            })
+        : null;
+    builder.add(from, from, a.newMarker(r.label, r.summary, r.boundary, open));
   }
   view.dispatch({ effects: a.setBlameOf(builder.finish()) });
 }

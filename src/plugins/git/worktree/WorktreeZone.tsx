@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { ArrowsClockwise, Plus, TerminalWindow, Trash, TreeStructure } from "@phosphor-icons/react";
 import { Spinner } from "@kernel/Spinner";
 import { ipc, type WorktreeEntry } from "@kernel/ipc";
@@ -170,11 +171,10 @@ function TreeCard({
       bumpGitRefresh();
       onChanged();
     } catch (e) {
-      setNote(e instanceof Error ? e.message : String(e));
+      setNote(errTextDisplay(e));
+    } finally {
       setBusy(false);
-      return;
     }
-    setBusy(false);
   };
   const kindLabel = isMain ? t("主仓") : isCurrent ? t("当前") : entry.prunable ? t("悬空") : "";
   return (
@@ -243,7 +243,7 @@ export function WorktreeZone({ cwd, onCreate }: { cwd: string; onCreate: () => v
         }
       })
       .catch((e) => {
-        if (reqRef.current === token) setError(e instanceof Error ? e.message : String(e));
+        if (reqRef.current === token) setError(errTextDisplay(e));
       });
   }, [cwd]);
   useEffect(() => {

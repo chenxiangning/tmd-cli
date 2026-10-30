@@ -7,6 +7,7 @@
  * DialogActions 共享原语(全仓弹窗同形制)。
  */
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { DownloadSimple, LinkSimple, ShareNetwork } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { DialogActions, DialogShell, OpToggle } from "@kernel/DialogShell";
@@ -112,7 +113,7 @@ export function ImportDialog({
           /* 已存在且可达(此前手动补链/导入过)视为已满足;不可达才降级提示。 */
           const usable = await ipc.fsListDir(link).then(() => true).catch(() => false);
           if (usable) targets.push(".claude/skills");
-          else setSymlinkNote(e instanceof Error ? e.message : String(e));
+          else setSymlinkNote(errTextDisplay(e));
         }
       }
       await upsertSkillRecord({
@@ -125,7 +126,7 @@ export function ImportDialog({
       setDone(true);
       onImported();
     } catch (e) {
-      const detail = e instanceof Error ? e.message : String(e);
+      const detail = errTextDisplay(e);
       /* 半落位如实告知(与 install.ts 同语义:不回滚;已复制目录保留,记录未写) */
       setError(
         targets.length > 0

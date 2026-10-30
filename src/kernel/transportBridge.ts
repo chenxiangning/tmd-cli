@@ -6,6 +6,7 @@
  * 版本与能力表,行为与 transport.test/transport.remote.test 契约一致。
  */
 import { webToken, type RemoteEndpoint } from "./transport";
+import { errTextDisplay } from "@kernel/errText";
 import { shellLog } from "./shellBridge";
 import { createShellWs, shellWsAvailable, WS_CONNECTING, WS_OPEN, type WebSocketLike } from "./shellWs";
 import { fireHello, fireRevoked, setActiveEndpoint, setConnected, setPaused } from "./transportState";
@@ -226,7 +227,7 @@ export class WebBridge {
       try {
         return await this.invokeOnce<T>(cmd, args);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        const msg = errTextDisplay(e);
         if (attempt >= BACKOFF_MS.length || !msg.includes("并发请求过多")) throw e;
         await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt]));
       }

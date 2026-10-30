@@ -17,4 +17,4 @@
 - [ ] Rust 改动:`cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check` 全绿
 - [ ] UI 行为改动已 `pnpm tauri:dev` 真实窗口目检
 - [ ] 新增 / 修改文档已在 `docs/README.md` 索引表登记
-- [ ] 未违反架构铁则(500 行 / R1 / R3 / R4)
+- [ ] 未违反架构铁则(300 行 / R1 / R3 / R4)

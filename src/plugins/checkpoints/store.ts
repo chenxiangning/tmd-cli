@@ -75,10 +75,14 @@ export function refreshBatches(
   cwd: string,
   sessionId: string,
   tmdSessionId?: string,
+  /** 翻沿种子键(stale-while-key-flip):新键无条目时以种子键的旧清单起拉,
+   *  loading 帧不闪空(失败语义同款:保留上次 batches 只置 error)。 */
+  seedKey?: string | null,
 ): Promise<void> {
   if (!cwd || !sessionId) return Promise.resolve();
   const key = stateKey(cwd, sessionId);
-  setKey(key, { loading: true });
+  const seeded = byKey.get(key)?.batches ?? (seedKey ? byKey.get(stateKey(cwd, seedKey))?.batches : undefined);
+  setKey(key, { loading: true, ...(seeded ? { batches: seeded } : {}) });
   return ipc
     .checkpointList(cwd, sessionId, tmdSessionId)
     .then((batches) => {
@@ -238,6 +242,21 @@ export async function undoRevertBatch(
   const out = await ipc.checkpointUndoRevert(cwd, batchId);
   invalidateDiff(cwd, sessionId, batchId);
   return out;
+}
+
+/** 主键是否已有条目(回落判定用;纯读,不动 LRU 序)。 */
+export function hasCkptEntry(cwd: string | null, sessionId: string | null): boolean {
+  if (!cwd || !sessionId) return false;
+  return byKey.has(stateKey(cwd, sessionId));
+}
+
+/** 回落键 recency 触碰:stale-while 读取期间防 LRU 逐出 —— 读路径保持纯读,
+ *  由刷新效应侧(挂载/轮询拍)代触碰(2026-10-23 评审 P3「回落读不刷 recency」收编)。 */
+export function touchCkptKey(cwd: string | null, sessionId: string | null): void {
+  if (!cwd || !sessionId) return;
+  const key = stateKey(cwd, sessionId);
+  const state = byKey.get(key);
+  if (state) putKey(key, state);
 }
 
 // ---- React 绑定 -----------------------------------------------------------

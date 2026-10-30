@@ -5,6 +5,7 @@
  * notifyOsTurnEnd 同闸同文案)、stderr 降噪(ready 期噪声不进状态行)。
  */
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
@@ -149,7 +150,7 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
         session.kill();
         if (sessionRef.current === session) {
           sessionRef.current = null;
-          setStatusText(e instanceof Error ? e.message : String(e));
+          setStatusText(errTextDisplay(e));
           setPhase("error");
         }
       });
@@ -217,7 +218,7 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
       .then(() => s.getState())
       .then((st) => setQueued(st?.queuedMessageCount ?? 0))
       .catch((e: unknown) => {
-        setStatusText(e instanceof Error ? e.message : String(e));
+        setStatusText(errTextDisplay(e));
         /* 发送失败保输入(桌面契约):仅在用户未另起输入时回填;记账同笔回滚。 */
         promptDebtRef.current = Math.max(0, promptDebtRef.current - 1);
         setDraft((d) => (d === "" ? text : d));

@@ -70,6 +70,7 @@ import type {
   GitDiffStatus,
   GitFilePatch,
   GitBlameLine,
+  GitStashEntry,
   GitFileLogEntry,
   GitLogEntry,
   GitPrDefaults,
@@ -108,6 +109,18 @@ export interface HistoryPage {
   text: string;
   startOffset: number;
   hasMore: boolean;
+}
+
+/** 日志全文搜索命中(byteOffset = 行起点,绝对坐标系与翻页锚点同源)。 */
+export interface LogSearchHit {
+  byteOffset: number;
+  line: string;
+}
+
+export interface LogSearchResult {
+  hits: LogSearchHit[];
+  totalHits: number;
+  truncated: boolean;
 }
 
 export interface SessionMeta {
@@ -401,6 +414,9 @@ export const ipc = {
   sessionKill: (id: string) => invoke<void>("session_kill", { id }),
   /** 会话输出日志的绝对末尾偏移(累计字节数);无日志返回 0。 */
   sessionLogSize: (id: string) => invoke<number>("session_log_size", { id }),
+  /** 日志全文搜索(⌘F 缓冲零命中时的磁盘兜底;行去重定位条目,byteOffset = 行起点)。 */
+  sessionLogSearch: (id: string, needle: string, caseSensitive: boolean) =>
+    invoke<LogSearchResult>("session_log_search", { id, needle, caseSensitive }),
   /** 幕布往前翻页:before 绝对偏移之前最多 maxBytes 字节的原始输出。 */
   sessionHistoryPage: (id: string, before: number, maxBytes: number) =>
     invoke<HistoryPage>("session_history_page", { id, before, maxBytes }),
@@ -422,9 +438,22 @@ export const ipc = {
     invoke<{ files: string[]; truncated: boolean }>("fs_walk_index", { root, cap }),
   /** 全文搜索(rg 式即时扫描,walk 语义与 fsWalkFiles 同源,见 fs_search.rs):
    *  大小写不敏感=两侧 to_lowercase 归一;>3MB/二进制文件跳过;maxResults 全局上限。
+   *  includeGlob:可选单 glob(basename 匹配,如 "*.ts";空/空白 = 不过滤)。
    *  3s 预算耗尽或满额时交付部分结果(truncated 置位,UI 提示)。 */
-  fsSearch: (root: string, query: string, caseSensitive: boolean, maxResults: number) =>
-    invoke<FsSearchResult>("fs_search", { root, query, caseSensitive, maxResults }),
+  fsSearch: (
+    root: string,
+    query: string,
+    caseSensitive: boolean,
+    maxResults: number,
+    includeGlob?: string | null,
+  ) =>
+    invoke<FsSearchResult>("fs_search", {
+      root,
+      query,
+      caseSensitive,
+      maxResults,
+      includeGlob: includeGlob?.trim() ? includeGlob.trim() : null,
+    }),
   /** 通用短进程通道:spawn + stdin(写入后持开防 RPC 丢响应)+ stdout 收割;
    *  exitOnStdout 命中或超时即杀。omp/pi RPC 副车、grok inspect 共用(见 proc_run.rs)。 */
   procCommunicate: (spec: ProcRunSpec) => invoke<ProcRunResult>("proc_communicate", { spec }),
@@ -450,9 +479,14 @@ export const ipc = {
     invoke<string>("fs_write_temp", { name, data: Array.from(data) }),
   fsReadFile: (path: string) => invoke<string>("fs_read_file", { path }),
   /* ── 文件编辑/管理写操作(右键菜单 + 编辑器保存;对齐 src-tauri/src/fs_edit.rs)── */
-  /** 覆写文本文件(编辑器保存通道)。后端拒绝相对路径与 .git 段。 */
-  fsWriteFile: (path: string, content: string) =>
-    invoke<void>("fs_write_file", { path, content }),
+  /** 覆写文本文件(原子替换)。expectMtime = 乐观锁(毫秒):与磁盘 mtime
+   * 不符(AI/终端并发写、删除)即拒写回 E_FS_MTIME;expectLen = 基线内容
+   * 长度(双因子:mtime 粒度内的同刻外部写由长度比对兜住,与 expectMtime
+   * 同传);成功返回写后 mtime。 */
+  fsWriteFile: (path: string, content: string, expectMtime?: number | null, expectLen?: number | null) =>
+    invoke<number>("fs_write_file", { path, content, expectMtime, expectLen }),
+  /** 磁盘 mtime(毫秒);文件不存在回 null。编辑器打开时取基线。 */
+  fsMtime: (path: string) => invoke<number | null>("fs_mtime", { path }),
   /** 新建空文件;同名(文件/目录)已存在报错,绝不覆写 —— 新建走这里,不走 fsWriteFile。 */
   fsCreateFile: (path: string) => invoke<void>("fs_create_file", { path }),
   /** 新建文件夹;同名已存在报错。 */
@@ -599,6 +633,16 @@ export const ipc = {
   /** 逐行归属(工作区文件 vs 历史;boundary = 与上一行不同提交)。 */
   gitBlame: (cwd: string, path: string) =>
     invoke<GitBlameLine[]>("git_blame", { cwd, path }),
+  /** stash 管理面(0.4.5):列表/应用(keep=保留条目,false=弹出)/丢弃(不可逆,前端确认)。 */
+  gitStashList: (cwd: string) => invoke<GitStashEntry[]>("git_stash_list", { cwd }),
+  gitStashApply: (cwd: string, index: number, keep: boolean) =>
+    invoke<void>("git_stash_apply", { cwd, index, keep }),
+  gitStashDrop: (cwd: string, index: number) =>
+    invoke<void>("git_stash_drop", { cwd, index }),
+  /** 手动创建 stash(StashBar「+ stash」):message 空/空白 = 默认文案;
+   *  false = 工作区干净(无可暂存);-u/冲突护栏与智能切换同源(stash_ops.rs)。 */
+  gitStashCreate: (cwd: string, message: string) =>
+    invoke<boolean>("git_stash_create", { cwd, message }),
   /** 单提交文件清单(历史 Graph 展开;sha 口径 = 提交 vs 首父)。 */
   gitCommitFiles: (cwd: string, sha: string) =>
     invoke<GitCommitFile[]>("git_commit_files", { cwd, sha }),
@@ -689,6 +733,13 @@ export const ipc = {
    *  以 timedOut 标记返回(与「未使用」区分);跳过目录名由调用方传。 */
   fsDirUsage: (specs: { label: string; path: string; skipDirNames: string[] }[]) =>
     invoke<{ label: string; bytes: number; files: number; timedOut: boolean }[]>("fs_dir_usage", { specs }),
+  /** 会话输出日志清理(存储管家手动入口):days>0 按保留天数清,days=0
+   * 全清;活会话日志(仍在账本中)Rust 侧永不删。 */
+  sessionLogCleanup: (days: number) =>
+    invoke<{ removedFiles: number; removedBytes: number; removedDirs: number }>(
+      "session_log_cleanup",
+      { days },
+    ),
   /** 读取文件尾部 maxBytes 字节,供 session 状态增量解析。 */
   fsReadTail: (path: string, maxBytes: number) =>
     invoke<string>("fs_read_tail", { path, maxBytes }),
@@ -801,6 +852,17 @@ export const ipc = {
       maxBytes,
       host: host ?? null,
     }),
+  /** WSL 远程文本写回(项 5 写回闭环):覆盖写,b64 载荷防 PowerShell 拆引号。 */
+  wslWriteFileText: (distro: string, path: string, contentB64: string, host?: SshHostConfig) =>
+    invoke<void>("wsl_write_file_text", { distro, path, contentB64, host: host ?? null }),
+  /** WSL 远程新建条目:文件已存在报错(绝不覆写);目录 mkdir -p。 */
+  wslCreateEntry: (distro: string, path: string, isDir: boolean, host?: SshHostConfig) =>
+    invoke<void>("wsl_create_entry", { distro, path, isDir, host: host ?? null }),
+  /** 渲染健康诊断事件史(设置-行为只读;kick/reload/recovered 环形留痕)。 */
+  renderHealthEvents: () =>
+    invoke<{ atMs: number; kind: string; detail: string }[]>("render_health_events"),
+  /** 崩溃孤儿收割结果(启动早期 Rust 已后台执行;>0 = 上次异常退出有残留被清)。 */
+  sessionOrphanReap: () => invoke<number>("session_orphan_reap"),
   /** 未决 SSH 提示对账(接线竞态/webview reload 兜底,先例 refreshForwards)。 */
   sshPromptsPending: () => invoke<SshPendingPromptWire[]>("ssh_prompts_pending"),
   /** 字符串 MD5(小写 hex;通用原语,消费方的用途注记归各插件)。 */

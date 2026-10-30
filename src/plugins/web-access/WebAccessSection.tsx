@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { Globe, Copy, ArrowsClockwise } from "@phosphor-icons/react";
 import { webAccessStatus, type WebAccessInfo } from "@kernel/ipc";
 import { isWeb, listen } from "@kernel/transport";
@@ -26,7 +27,7 @@ export function WebAccessSection() {
       setInfo(await webAccessStatus());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     }
   }, []);
 

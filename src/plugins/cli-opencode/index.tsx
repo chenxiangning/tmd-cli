@@ -67,6 +67,11 @@ export const cliOpencodePlugin: Plugin = {
       suggestions: { command: OPENCODE_COMMAND_SUGGESTIONS },
       listSuggestions: (_kind, cwd) => listOpencodeSuggestions(cwd),
       resumeArgs: (sessionId) => ["--session", sessionId],
+      /* 无头单发(2026-10-26 本机实证):opencode run 无参时读 stdin(管道
+       * 注入实测进入生成);-m 传模型。接通前定时生成走 TUI 回落 = 常驻
+       * 重绘洪水源(假死图谱剩余第一条),此声明让 journal 生成走无头。 */
+      oneshotStdin: true,
+      oneshotArgs: ({ model }) => ["run", ...(model ? ["-m", model] : [])],
       deleteSession: deleteOpencodeSession,
       listSessions: listOpencodeSessions,
       /* 会话卫生判空:message 表 role=user 计数(sqlite 代读,库不可用 = 不删)。 */

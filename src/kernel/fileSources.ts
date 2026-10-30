@@ -29,6 +29,10 @@ export interface RemoteFileSource {
   ownsUri(path: string): boolean;
   /** 文件 URI → 文本(上限由调用方给;超限如实 reject)。 */
   readText(uri: string, maxBytes: number): Promise<string>;
+  /** 写回能力(可选;缺省 = 该源只读):文本覆盖写(编辑器 ⌘S)。 */
+  writeText?(uri: string, content: string): Promise<void>;
+  /** 新建条目(文件树新建;文件已存在须报错,绝不覆写)。 */
+  createEntry?(ws: Workspace, path: string, isDir: boolean): Promise<void>;
 }
 
 let sources: RemoteFileSource[] = [];

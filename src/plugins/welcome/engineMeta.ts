@@ -41,6 +41,8 @@ export interface PrerequisiteMeta {
   binary: string;
   /** 展示名,如 "Bun"。 */
   name: string;
+  /** 运行时最低版本(profile.requires.minVersion 透传);缺省 = 不判过旧。 */
+  minVersion?: string;
   /** 官方文档 URL;缺省 = 引导区不显示链接。 */
   docsUrl?: string;
   /** 安装方式说明,由依赖自己的安装通道派生。 */
@@ -158,6 +160,7 @@ function engineMetaOf(profile: CliProfile): EngineMeta {
       ? {
           binary: req.binary,
           name: req.name,
+          minVersion: req.minVersion,
           docsUrl: req.docsUrl,
           installHint: installHintOf(req),
           plan: installPlanOf(req),

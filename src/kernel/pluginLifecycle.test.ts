@@ -168,8 +168,8 @@ describe("activateAll 分波拓扑激活", () => {
 });
 
 describe("activateAll 异常隔离", () => {
-  it("activate 抛错原样上抛:失败插件零残留、贡献撤销、成功者不回滚、链在失败点中断", async () => {
-    const cleanup = () => {};
+  it("activate 抛错原样上抛:同波全部成员统一回滚(成功者贡献撤销+激活表清空),其依赖波不再跑", async () => {
+    const cleanup = vi.fn();
     const a = mkPlugin("a", { activate: () => { order.push("a"); return cleanup; } });
     const boom = mkPlugin("boom", {
       activate: () => {
@@ -177,15 +177,34 @@ describe("activateAll 异常隔离", () => {
         throw new Error("激活炸了");
       },
     });
-    const c = mkPlugin("c");
-    await expect(lifecycle.activateAll([a, boom, c], ctx)).rejects.toThrow("激活炸了");
-    expect(order).toEqual(["a", "boom"]);
-    expect(lifecycle.isPluginActive("a")).toBe(true);
+    /* d 依赖 boom:boom 失败后依赖波不得再跑(并行波语义,2026-10-26)。 */
+    const d = mkPlugin("d", { dependsOn: ["boom"], activate: () => { order.push("d"); } });
+    await expect(lifecycle.activateAll([a, boom, d], ctx)).rejects.toThrow("激活炸了");
+    expect(order.slice().sort()).toEqual(["a", "boom"]); /* 同波 a/boom 并发,d 不跑 */
+    /* 同波统一回滚:a 已落账(成功)也不留僵尸注册。 */
+    expect(lifecycle.isPluginActive("a")).toBe(false);
     expect(lifecycle.isPluginActive("boom")).toBe(false);
-    expect(lifecycle.isPluginActive("c")).toBe(false);
-    expect(h.state.undone).toEqual(["boom"]);
-    expect(h.state.cleanups).toEqual([["a", cleanup]]);
+    expect(lifecycle.isPluginActive("d")).toBe(false);
+    expect(h.state.undone.slice().sort()).toEqual(["a", "boom"]); /* a 的贡献+cleanup 一并撤销 */
     expect(h.state.attributed).toEqual(["a", "boom"]);
+  });
+
+  it("迟到失败同样触发同波回滚:成功者的贡献撤销、错误原样上抛", async () => {
+    const { promise: boomGate, resolve: releaseBoom } = Promise.withResolvers<void>();
+    const a = mkPlugin("a", { activate: () => { order.push("a"); return () => {}; } });
+    const late = mkPlugin("late", {
+      activate: async () => {
+        order.push("late");
+        await boomGate;
+        throw new Error("迟到炸了");
+      },
+    });
+    const pending = lifecycle.activateAll([a, late], ctx);
+    await vi.waitFor(() => expect(order).toEqual(["a", "late"]));
+    releaseBoom();
+    await expect(pending).rejects.toThrow("迟到炸了");
+    expect(lifecycle.isPluginActive("a")).toBe(false); /* 同波成功者一并回滚,零僵尸 */
+    expect(h.state.undone.slice().sort()).toEqual(["a", "late"]);
   });
 });
 

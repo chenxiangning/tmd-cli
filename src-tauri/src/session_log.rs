@@ -57,8 +57,8 @@ pub(crate) fn session_log_path(profile_id: &str, cwd: &str, id: &str) -> PathBuf
 }
 
 /// 与前端 streamSlice 同构:返回 buf 中从 esc 开始的转义序列的结束下标(不含);
-/// 序列延伸到 buf 末尾(不完整)返回 None。
-fn sequence_end(buf: &[u8], esc: usize) -> Option<usize> {
+/// 序列延伸到 buf 末尾(不完整)返回 None。pub(crate):session_log_search 预览剥转义同用。
+pub(crate) fn sequence_end(buf: &[u8], esc: usize) -> Option<usize> {
     let kind = *buf.get(esc + 1)?;
     if kind == b'[' {
         /* CSI:参数/中间字节之后以 0x40–0x7E 的 final byte 收尾 */
@@ -205,6 +205,10 @@ pub(crate) fn read_history_page(
         has_more: start_offset > base,
     })
 }
+
+/// 日志全文搜索命中与扫描 —— 拆至 session_log_search.rs(300 行铁则),
+/// 路径保持 crate::session_log::* 引用不变(同 fs.rs re-export 先例)。
+pub(crate) use crate::session_log_search::{search_log, LogSearchResult};
 
 #[cfg(test)]
 mod tests {

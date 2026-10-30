@@ -17,6 +17,9 @@ export interface MobileEngine {
    *  ESC[200~…ESC[201~ 再 CR,否则斜杠弹层/恢复窗会把整串当粘贴吞掉回车
    *  (cli-codex 注释实证 /model 场景)。声明源 = 各桌面插件 index.tsx。 */
   bracketedPaste?: boolean;
+  /** 思考强度命令(桌面 thinkingCommand 同源声明,如 dsh /effort,0.4.5):
+   *  声明引擎的思考 chip 可点发送;ask 等待期与轮中禁发(桌面思考位同律)。 */
+  thinkingCommand?: string;
 }
 
 export const ENGINES: MobileEngine[] = [
@@ -29,7 +32,7 @@ export const ENGINES: MobileEngine[] = [
   { id: "qoder", name: "Qoder", cmd: "qodercli", resume: (s) => ["--resume", s] },
   { id: "qoder-cn", name: "Qoder CN", cmd: "qoderclicn", resume: (s) => ["--resume", s] },
   { id: "opencode", name: "OpenCode", cmd: "opencode", resume: (s) => ["--session", s] },
-  { id: "dsh", name: "DSH", cmd: "dsh", resume: (s) => ["--resume", s] },
+  { id: "dsh", name: "DSH", cmd: "dsh", resume: (s) => ["--resume", s], thinkingCommand: "/effort" },
 ];
 
 export const engineOf = (profileId: string): MobileEngine | undefined =>

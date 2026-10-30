@@ -18,6 +18,7 @@ pub mod commands_batch;
 pub mod commands_exclude;
 pub mod commands_file;
 pub mod commands_pr;
+pub mod commands_stash;
 pub mod commands_worktree;
 pub(crate) mod commit;
 mod commit_view;

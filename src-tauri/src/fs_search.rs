@@ -6,6 +6,7 @@
 //! - 首 8KB 含 \0 判二进制跳过;
 //! - 单文件命中 cap 100,全局 cap max_results;
 //! - 大小写不敏感时 str::to_lowercase 两侧归一(全 Unicode,行为可预期);
+//! - include_glob 可选单 glob 过滤(basename 简单匹配,见 glob_match);
 //! - 空 query 直接返回空(前端不触发,这里是契约兜底)。
 
 use std::path::PathBuf;
@@ -43,12 +44,35 @@ fn pruned(name: &std::ffi::OsStr) -> bool {
     name == std::ffi::OsStr::new("node_modules")
 }
 
+/// 单 glob 简单匹配(不引依赖):对 basename 生效(rg -g 无斜杠同族)——
+/// 按 '*' 分段,段按序出现即可(段间可跨字符):首段锚定开头、末段锚定结尾,
+/// 缺侧不锚。覆盖 '*.ts' 后缀 / 'foo*' 前缀 / 'foo' 全名 / '*foo*' / '*.d.*'
+/// 含子串。正则不在本面(Cargo 无 regex 依赖,如实收缩)。
+fn glob_match(glob: &str, name: &str) -> bool {
+    let mut rest = name;
+    for (i, seg) in glob.split('*').enumerate() {
+        if i == 0 {
+            if !rest.starts_with(seg) {
+                return false;
+            }
+            rest = &rest[seg.len()..];
+        } else if let Some(pos) = rest.find(seg) {
+            rest = &rest[pos + seg.len()..];
+        } else {
+            return false;
+        }
+    }
+    glob.ends_with('*') || rest.is_empty()
+}
+
 /// 即时全文搜索:字面匹配(非正则,v1 覆盖绝大多数用法)。
 /// 逐行扫描,行文本去尾部 \r\n;命中按 walk 序返回(同文件行序自然递增)。
+/// include_glob:可选单 glob,basename 匹配(空/空白 = 不过滤)。
 pub fn search(
     root: &str,
     query: &str,
     case_sensitive: bool,
+    include_glob: Option<&str>,
     max_results: usize,
 ) -> Result<FsSearchResult, String> {
     if query.is_empty() || max_results == 0 {
@@ -67,6 +91,7 @@ pub fn search(
     } else {
         query.to_lowercase()
     };
+    let glob = include_glob.map(str::trim).filter(|g| !g.is_empty());
 
     let mut builder = WalkBuilder::new(&root_path);
     builder
@@ -109,6 +134,12 @@ pub fn search(
             continue;
         };
         let path = rel.to_string_lossy().replace('\\', "/");
+        if let Some(g) = glob {
+            let name = path.rsplit('/').next().unwrap_or(&path);
+            if !glob_match(g, name) {
+                continue; // glob 不符:整文件跳过(rg -g 同语义)
+            }
+        }
         let Ok(bytes) = std::fs::read(entry.path()) else {
             continue;
         };
@@ -140,7 +171,7 @@ pub fn search(
             }
             let text = String::from_utf8_lossy(raw); // 合法 UTF-8 零拷贝
             let matched = if case_sensitive {
-                text.contains(query)
+                text.contains(needle.as_str())
             } else {
                 text.to_lowercase().contains(&needle)
             };
@@ -154,118 +185,14 @@ pub fn search(
             pos = next;
         }
     }
+    /* walk 自然走完但已满额:命中恰在最后文件时内层 break 未触发,结果实际
+     * 不完整(后面无文件可证伪),同样置 truncated(UI 不谎报完整)。 */
+    if hits.len() >= max_results {
+        truncated = true;
+    }
     Ok(FsSearchResult { hits, truncated })
 }
 
-/// 测试:临时目录 fixture(与 fs_walk.rs 测试同款纪律)。
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn tmp_root(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "tmd_search_{tag}_{}_{}",
-            std::process::id(),
-            Instant::now().elapsed().as_nanos()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    fn write(root: &std::path::Path, rel: &str, content: &[u8]) {
-        let p = root.join(rel);
-        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-        std::fs::write(p, content).unwrap();
-    }
-
-    #[test]
-    fn hits_line_numbers_and_text_trim() {
-        let root = tmp_root("hits");
-        write(&root, "a.txt", b"hello world\nSECOND line\r\nthird hello\n");
-        let hits = search(root.to_str().unwrap(), "hello", true, 100)
-            .unwrap()
-            .hits;
-        assert_eq!(
-            hits,
-            vec![
-                FsSearchHit {
-                    path: "a.txt".into(),
-                    line: 1,
-                    text: "hello world".into()
-                },
-                FsSearchHit {
-                    path: "a.txt".into(),
-                    line: 3,
-                    text: "third hello".into()
-                },
-            ]
-        );
-        std::fs::remove_dir_all(&root).unwrap();
-    }
-
-    #[test]
-    fn case_sensitivity_flag() {
-        let root = tmp_root("case");
-        write(&root, "a.txt", b"Foo\nfoo\nFOO\nbar\n");
-        // 不敏感:前三行全命中
-        let hits = search(root.to_str().unwrap(), "foo", false, 100)
-            .unwrap()
-            .hits;
-        assert_eq!(hits.len(), 3);
-        // 敏感:仅精确一例
-        let hits = search(root.to_str().unwrap(), "foo", true, 100)
-            .unwrap()
-            .hits;
-        assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].line, 2);
-        std::fs::remove_dir_all(&root).unwrap();
-    }
-
-    #[test]
-    fn binary_and_ignore_semantics_skip() {
-        let root = tmp_root("binary");
-        // 首 8KB 内含 \0:跳过
-        write(&root, "bin.dat", b"match\0 rest");
-        // \0 在探测窗之外:正文照搜
-        let mut late = b"match".to_vec();
-        late.extend(std::iter::repeat_n(b'a', BINARY_SNIFF));
-        late.extend_from_slice(b"\0match");
-        write(&root, "late.txt", &late);
-        // node_modules 整枝剪掉
-        write(&root, "node_modules/pkg/index.js", b"match");
-        let hits = search(root.to_str().unwrap(), "match", true, 100)
-            .unwrap()
-            .hits;
-        assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].path, "late.txt");
-        std::fs::remove_dir_all(&root).unwrap();
-    }
-
-    #[test]
-    fn caps_limit_results() {
-        let root = tmp_root("cap");
-        // 单文件超 100 命中:截到 100
-        let many = "x\n".repeat(150);
-        write(&root, "many.txt", many.as_bytes());
-        let hits = search(root.to_str().unwrap(), "x", true, 1000)
-            .unwrap()
-            .hits;
-        assert_eq!(hits.len(), 100);
-        // 全局 cap:跨文件也截
-        write(&root, "few.txt", b"x\nx\n");
-        let hits = search(root.to_str().unwrap(), "x", true, 3).unwrap().hits;
-        assert_eq!(hits.len(), 3);
-        std::fs::remove_dir_all(&root).unwrap();
-    }
-
-    #[test]
-    fn empty_query_and_bad_root() {
-        let root = tmp_root("empty");
-        assert!(search(root.to_str().unwrap(), "", true, 100)
-            .unwrap()
-            .hits
-            .is_empty());
-        assert!(search("/definitely/not/a/dir/tmd", "q", true, 100).is_err());
-        std::fs::remove_dir_all(&root).unwrap();
-    }
-}
+#[path = "fs_search_tests.rs"]
+mod tests;

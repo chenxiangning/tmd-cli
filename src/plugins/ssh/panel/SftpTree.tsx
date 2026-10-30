@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { DownloadSimple, FolderSimple, ArrowClockwise, UploadSimple } from "@phosphor-icons/react";
 import { ipc, type SftpEntry, type SftpTransferState } from "@kernel/ipc";
 import { openTab } from "@kernel/tabs";
@@ -94,7 +95,7 @@ export function SftpTree({ sessionId, connected }: { sessionId: string; connecte
         node.expanded = true;
       } catch (e) {
         node.children = [];
-        setError(t("读取远端目录失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+        setError(t("读取远端目录失败:{msg}", { msg: errTextDisplay(e) }));
       } finally {
         node.loading = false;
         rerender();

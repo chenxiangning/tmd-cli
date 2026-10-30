@@ -6,6 +6,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
+import { errTextDisplay } from "@kernel/errText";
 import type { McpServerEntry } from "@plugins/cli-shared/mcpWrite";
 import { inferTransport } from "./entryModel";
 
@@ -45,7 +46,7 @@ async function probeStdio(entry: McpServerEntry, startedAt: number): Promise<Pro
     });
     return { ...r, latencyMs: Date.now() - startedAt };
   } catch (e) {
-    return { ok: false, latencyMs: Date.now() - startedAt, error: e instanceof Error ? e.message : String(e) };
+    return { ok: false, latencyMs: Date.now() - startedAt, error: errTextDisplay(e) };
   }
 }
 
@@ -91,7 +92,7 @@ async function probeHttp(url: string, headers: Record<string, string>, startedAt
       serverVersion: typeof info.version === "string" ? info.version : undefined,
     };
   } catch (e) {
-    return { ok: false, latencyMs: Date.now() - startedAt, error: e instanceof Error ? e.message : String(e) };
+    return { ok: false, latencyMs: Date.now() - startedAt, error: errTextDisplay(e) };
   }
 }
 

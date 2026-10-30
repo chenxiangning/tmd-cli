@@ -6,6 +6,7 @@
  * 格式/存储走 @plugins/cli-shared/providerChannels。spec: 2026-09-11-cli-provider-channels-design.md。
  */
 import { useCallback, useEffect, useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { DownloadSimpleIcon, PlusIcon } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { genChannelId, loadChannelDoc, removeChannel, saveChannelDoc, setCurrent, upsertChannel } from "./store";
@@ -39,7 +40,7 @@ export function ProviderChannelsCard({ engineId, applyChannel }: ProviderChannel
       })
       .catch((e: unknown) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       });
     return () => {
       cancelled = true;
@@ -80,7 +81,7 @@ export function ProviderChannelsCard({ engineId, applyChannel }: ProviderChannel
         setDoc(next);
         setEditing(undefined);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       } finally {
         setSubmitting(false);
       }
@@ -100,7 +101,7 @@ export function ProviderChannelsCard({ engineId, applyChannel }: ProviderChannel
         setDoc(next);
         setNotice(t("已切换:{name}", { name: ch.name }));
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       } finally {
         setBusy(false);
       }
@@ -119,7 +120,7 @@ export function ProviderChannelsCard({ engineId, applyChannel }: ProviderChannel
         setDoc(next);
         setConfirmDelete(null);
       } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errTextDisplay(e));
       } finally {
         setBusy(false);
       }
@@ -170,7 +171,7 @@ export function ProviderChannelsCard({ engineId, applyChannel }: ProviderChannel
         }),
       );
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errTextDisplay(e));
     } finally {
       setBusy(false);
     }

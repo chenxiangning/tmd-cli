@@ -243,6 +243,13 @@
   font-weight: 500;
   background: color-mix(in srgb, var(--tmd-syntax-string) 10%, var(--tmd-bg-elevated));
 }
+/* 点击深链态(git 插件在场且行携带全 sha):指针 + hover 提亮,示可点。 */
+.cm-blame-cell.cm-blame-link {
+  cursor: pointer;
+}
+.cm-blame-cell.cm-blame-link:hover {
+  color: var(--tmd-accent);
+}
 
 /* ===== 行号槽 diff 着色(editorDiffGutter,跟随文件树 Git 变更着色开关)=====
    marker 只在变更行出现,无数据时 gutter 零宽不占位;3px 竖条贴行号左缘。 */

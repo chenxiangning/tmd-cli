@@ -5,6 +5,7 @@
  */
 
 import { Trash } from "@phosphor-icons/react";
+import { errTextDisplay } from "@kernel/errText";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { ConfirmDialog, InputDialog } from "@kernel/DialogConfirm";
@@ -39,7 +40,7 @@ export function TreeDialog({
       await action();
       onMutate();
     } catch (e) {
-      onError(t("操作失败:{msg}", { msg: e instanceof Error ? e.message : String(e) }));
+      onError(t("操作失败:{msg}", { msg: errTextDisplay(e) }));
     }
   };
 

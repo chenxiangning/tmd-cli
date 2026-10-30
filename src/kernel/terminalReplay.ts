@@ -7,15 +7,17 @@
 
 import type { Terminal } from "@xterm/xterm";
 
-/** 单块字符数:足够小使进度平滑,又不至于回调过频。 */
-const REPLAY_CHUNK_CHARS = 128 * 1024;
+/** 单块字符数:足够小使进度平滑,又不至于回调过频。2026-10-26 起 128K→256K:
+ *  重挂/翻页重放的中间渲染次数减半(中间态全被最终态覆盖,纯浪费)。 */
+const REPLAY_CHUNK_CHARS = 256 * 1024;
 
 /** 隐藏期写入控制(由 TerminalView 供活性真相,避免闭包吃陈旧 active)。 */
 export interface HiddenDeferControl {
   /** true = 本幕布当前非激活(隐藏),实时字节攒帧缓写。 */
   shouldDefer(): boolean;
-  /** 登记激活冲刷入口;卸载期传 null 解绑(TerminalView 持弱引用)。 */
-  bindFlush(flush: (() => void) | null): void;
+  /** 登记激活冲刷入口(返回本次冲入字符数,供卸载快照水位扣减);
+      卸载期传 null 解绑(TerminalView 持弱引用)。 */
+  bindFlush(flush: (() => number) | null): void;
 }
 
 /**

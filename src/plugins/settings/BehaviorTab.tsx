@@ -1,5 +1,6 @@
 /**
- * 基础设置 / 行为 tab —— 发送快捷键 + 输入历史(补全开关 + 管理区)+ 会话输出缓冲上限。
+ * 基础设置 / 行为 tab —— 发送快捷键 + 输入历史(补全开关 + 管理区)+ 会话输出缓冲上限
+ * + 终端 WebGL 渲染 opt-in 开关(默认关)。
  * (Ask/结束提示音与后台提醒已迁至「系统通知」插件的设置页,见 plugins/notify/SoundSettingsCard。)
  *
  * segmented 两选项:
@@ -20,12 +21,50 @@ import {
 import { PromptHistoryManager } from "./PromptHistoryManager";
 import { HygieneCard } from "./HygieneCard";
 import { t } from "@kernel/i18n";
+import { ipc } from "@kernel/ipc";
 import {
   BUFFER_LIMIT_MAX,
   BUFFER_LIMIT_MIN,
   sanitizeBufferLimitInput,
 } from "./behaviorCommit";
 
+/** 渲染健康诊断小节(项 15):只读事件史(击打/重载/痊愈环形留痕)。
+ * 空态 = 本运行期零击打(健康);读取失败独立显示失败态,不回落空数组伪装健康;
+ * 有记录时按时间倒序最多显示 8 条。 */
+function RenderHealthCard() {
+  const [events, setEvents] = useState<{ atMs: number; kind: string; detail: string }[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    void ipc.renderHealthEvents().then(
+      (rows) => setEvents(rows),
+      () => setFailed(true),
+    );
+  }, []);
+  const shown = (events ?? []).slice(-8).reverse();
+  return (
+    <div className="pref-card" data-testid="settings-render-health-card">
+      <div className="pref-row">
+        <div>
+          <div className="pref-title">{t("渲染健康诊断")}</div>
+          <div className="pref-desc">
+            {failed
+              ? t("诊断史读取失败。")
+              : events === null
+                ? t("读取中…")
+                : shown.length === 0
+                  ? t("本运行期无渲染异常记录。")
+                  : t("最近事件(新→旧):")}
+          </div>
+          {shown.map((e) => (
+            <div key={e.atMs + e.kind} className="pref-desc font-mono">
+              {new Date(e.atMs).toLocaleTimeString()} · {e.kind} · {e.detail}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 const SEND_SHORTCUT_OPTIONS: ReadonlyArray<{
   id: SendShortcut;
   label: string;
@@ -147,9 +186,40 @@ export function BehaviorTab() {
           className="w-32 shrink-0 rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) px-2 py-1 text-right text-sm text-(--tmd-fg) outline-none"
         />
       </div>
+      {/* 终端 WebGL 渲染 opt-in(默认关;装配/降级见 kernel/terminalWebglRenderer.ts):
+          降级由 kernel 直写 settings,开关如实回落;重开即真重试。 */}
+      <div className="pref-row">
+        <div>
+          <div className="pref-title">{t("终端 WebGL 渲染")}</div>
+          <div className="pref-desc">
+            {t("实验:GPU 加速终端渲染,异常时自动回退内置渲染器;HTop/vim 等全屏重绘更流畅。默认关闭。")}
+          </div>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label={t("终端 WebGL 渲染")}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={settings.terminalWebglRenderer}
+            className={`segment${settings.terminalWebglRenderer ? " is-active" : ""}`}
+            onClick={() => updateSettings({ terminalWebglRenderer: true })}
+          >
+            {t("开")}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!settings.terminalWebglRenderer}
+            className={`segment${!settings.terminalWebglRenderer ? " is-active" : ""}`}
+            onClick={() => updateSettings({ terminalWebglRenderer: false })}
+          >
+            {t("关")}
+          </button>
+        </div>
+      </div>
     </div>
       <PromptHistoryManager />
       <HygieneCard />
+      <RenderHealthCard />
     </>
   );
 }

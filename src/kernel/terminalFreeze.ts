@@ -9,9 +9,15 @@
  * 字节真源仍在 outputBuffers(单消费者模块,不进 kernel 准入);会话关闭清缓冲
  * /从侧栏重开磁盘会话 = 存档天然不命中,走既有全量路径。
  */
-
-/** 存档档位:LRU 上限,挤除频繁时只留最近 8 个会话的快照。 */
+import { getSettingsState } from "./settings";
+/** 存档档位基线:LRU 上限;sessionTabsMax 配更高时跟随(见 freezeLimit)。 */
 const FREEZE_LIMIT = 8;
+
+/** 档位 = max(8, sessionTabsMax):配 9/10 tab 时固定 8 会让第 9 个起的
+ * 挤除快照即存即弃,重开退化全量回放(2026-10-26 档位硬伤)。 */
+function freezeLimit(): number {
+  return Math.max(FREEZE_LIMIT, getSettingsState().settings.sessionTabsMax);
+}
 
 /** 缓冲头样本长度:重开时校验缓冲前缀完好(从头截断过 = 弃用快照走全量)。 */
 export const HEAD_SAMPLE_CHARS = 48;
@@ -44,7 +50,7 @@ const store = new Map<string, TerminalFreezeSnapshot>();
 export function saveTerminalFreeze(snap: TerminalFreezeSnapshot): void {
   store.delete(snap.sessionId);
   store.set(snap.sessionId, snap);
-  while (store.size > FREEZE_LIMIT) {
+  while (store.size > freezeLimit()) {
     const oldest = store.keys().next().value;
     if (oldest === undefined) break;
     store.delete(oldest);

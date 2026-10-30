@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { errTextDisplay } from "@kernel/errText";
 import { DownloadSimple } from "@phosphor-icons/react";
 import { pickSavePath, relaySelfhostPack } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
@@ -38,7 +39,7 @@ export function ManualDeployDetails({
         onDone(t("已导出部署包:") + saved);
       }
     } catch (e) {
-      onError(e instanceof Error ? e.message : String(e));
+      onError(errTextDisplay(e));
     } finally {
       setExporting(false);
     }

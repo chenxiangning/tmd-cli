@@ -1,12 +1,13 @@
 /**
- * latestVersion 单元测试 —— 守住两个可观察契约:
+ * latestVersion 单元测试 —— 守住四个可观察契约:
  * 1. extractSemver:从各 CLI 真实 --version 输出格式里抠三元组;
  * 2. isOutdated:数值比较(非字符串比较,"9.x" < "10.x"),不可解析不误报;
- * 3. pickStableVersions:滤 prerelease、semver 降序、截前 limit 个。
+ * 3. isBelowFloor:依赖版本下限比较(omp → bun ≥1.4.4),同口径不误报;
+ * 4. pickStableVersions:滤 prerelease、semver 降序、截前 limit 个。
  */
 
 import { describe, expect, it } from "vitest";
-import { extractSemver, isOutdated, pickStableVersions } from "./latestVersion";
+import { extractSemver, isBelowFloor, isOutdated, pickStableVersions } from "./latestVersion";
 
 describe("extractSemver", () => {
   it.each([
@@ -45,6 +46,25 @@ describe("isOutdated", () => {
     expect(isOutdated("已安装", "18.0.12")).toBe(false);
     expect(isOutdated(null, "18.0.12")).toBe(false);
     expect(isOutdated("18.0.11", null)).toBe(false);
+  });
+});
+
+describe("isBelowFloor(依赖版本下限,如 omp → bun ≥1.4.4)", () => {
+  it("低于下限 → true(含数值比较 1.9.0 < 1.10.0)", () => {
+    expect(isBelowFloor("1.4.0", "1.4.4")).toBe(true);
+    expect(isBelowFloor("1.9.0", "1.10.0")).toBe(true);
+  });
+
+  it("等于/高于下限 → false", () => {
+    expect(isBelowFloor("1.4.4", "1.4.4")).toBe(false);
+    expect(isBelowFloor("1.5.0", "1.4.4")).toBe(false);
+  });
+
+  it("任一无法解析/缺省 → false(不误报过旧)", () => {
+    expect(isBelowFloor("已安装", "1.4.4")).toBe(false);
+    expect(isBelowFloor(null, "1.4.4")).toBe(false);
+    expect(isBelowFloor("1.4.0", undefined)).toBe(false);
+    expect(isBelowFloor("1.4.0", "1.4")).toBe(false);
   });
 });
 
