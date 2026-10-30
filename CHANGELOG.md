@@ -10,6 +10,10 @@
 
 - omp 前置依赖过旧一键修复:CLI 前置依赖契约(CliPrerequisite)新增通用 minVersion 字段,omp 声明 bun ≥1.4.4(对齐上游 18.14.0 起 engines.bun 门槛);首页引擎卡对「依赖已装但版本过旧」可见——引导区显示当前版本与所需下限,点「一键修复」跑官方脚本升级 bun(Windows 走 install.ps1)带流式日志,成功后自动接续 omp 本体更新并双探针重跑、引导区消失;任一步失败即停可重点重试;依赖全新安装(notFound)不越权替用户装引擎;「新会话」与主引擎按钮不受过旧态门控,启动失败仍有 toast 兜底
 
+### 变更
+
+- 依赖批次合入(#80/#81/#79):前端 minor-and-patch 组八项(react/react-dom 19.3.1、@tauri-apps/api 2.12.4、plugin-dialog 2.8.3、lucide 1.58.0、markdown-it 15.0.3、@tauri-apps/cli 2.12.3、vitest 5.0.5 等)+ morphicons 1.7.1→2.0.0(仅消费 MorphIcon 组件引擎,图标数据为仓内自带表,API 无破坏);src-tauri 锁文件四项(webpki-roots 1.0.10、zip 9.0.5、libc 0.2.191、tauri-build 2.7.3);pnpm check:gate 与 cargo 三连全绿
+
 ## [0.4.6] - 2026-10-29
 
 ### 修复
