@@ -378,5 +378,6 @@
 | 2026-10-27 | 记忆文件 + tmd-lint 完整闭环交互原型:[方案 A · 选择即编辑](design/memory-files-redesign.html) / [方案 B · 先详情后打开](design/memory-files-redesign-b.html)(文件/体检/记录同级,脚本扫描→AI 识别→审核应用,单条修改/批量应用/前后 diff) | 设计原型,待评审 |
 | 2026-10-27 | [契约 33 · 规则体检(tmd-lint 收编)契约:插件合法 AI 调用范式(一次性 print 会话批判定 8 条/哨兵 JSON 逐项验值)/跨引擎会话语料采集适配器先例(身份自证 cwd 全等,顺序有界豁免)/七态判定分工(确定性 vs 语义)/规则文件写回安全三件套](architecture/33-tmd-lint.md) | 已落地(0.4.6) |
 | 2026-10-28 | [规则体检运行态交互精修与视觉层级设计](superpowers/specs/2026-10-28-lint-runtime-ui-design.md) | 已落地(gate 全绿+doctor 100+1421 桩目检;真机截图受权限限制) |
+| 2026-10-30 | [omp 前置依赖过旧一键修复设计(CliPrerequisite 加通用 minVersion 字段,omp 声明 bun ≥1.4.4;welcome 依赖探针比版本出「过旧」引导分支,一键修复=官方脚本升 bun → onDone 自动接续 omp 更新 → 双探针重跑;否决解析启动失败错误串与通用体检页)](superpowers/specs/2026-10-30-omp-runtime-fix-design.md) | 已落地 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
