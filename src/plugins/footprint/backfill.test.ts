@@ -2,7 +2,7 @@
  * footprint 补账契约测试:候选筛选(本月/去重/cwd 解析)、已记账跳过、
  * 批筛选(封口/会话/月份)、按月对账的并入数与幂等(重跑 0 补)。
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import type { CkptBatch } from "@kernel/ipc";
 
 const files = new Map<string, string>();
@@ -194,6 +194,13 @@ describe("reconcileMonth(按月补账)", () => {
 });
 
 describe("reconcileOnce(视图侧单次闸)", () => {
+  /* 测试数据硬编码 2026-10,钉住时钟防跨月即红 */
+  let nowSpy: MockInstance;
+  beforeEach(() => {
+    nowSpy = vi.spyOn(Date, "now").mockReturnValue(localMs(2026, 10, 20));
+  });
+  afterEach(() => nowSpy.mockRestore());
+
   it("首次调补齐并 bump;重复调不再扫(进程内只对账一次)", async () => {
     resetReconcileOnce();
     mockRows.mockResolvedValue({ rows: [row({ id: "s1" })], failed: 0 });
