@@ -112,6 +112,13 @@ export const cliOmpPlugin: Plugin = {
           unix: "curl -fsSL https://bun.sh/install | bash",
           windows: "irm bun.sh/install.ps1|iex",
         },
+        /* Bun 版本分区:列表复用 npm 元数据;钉版仍走官方脚本,不由客户端自动升级。 */
+        npmPackage: "bun",
+        versionMenu: true,
+        scriptVersionInstall: {
+          unix: 'curl -fsSL https://bun.sh/install | bash -s "bun-v{version}"',
+          windows: 'iex "& { $(irm bun.sh/install.ps1) } -Version {version}"',
+        },
       },
       name: "omp",
       renderIcon: (size) => <OmpGlyph size={size} />,

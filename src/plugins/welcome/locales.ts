@@ -41,6 +41,7 @@ const MESSAGES_EN = {
   "加载版本列表…": "Loading version list…",
   "获取版本列表失败": "Failed to load version list",
   "未能解析当前版本": "Cannot parse current version",
+  "最低 {version}": "Minimum {version}",
   "安装": "Install",
   "先安装 {name}": "Install {name} first",
 
@@ -152,6 +153,7 @@ const MESSAGES_JA = {
   "加载版本列表…": "バージョン一覧を読み込み中…",
   "获取版本列表失败": "バージョン一覧の取得に失敗",
   "未能解析当前版本": "現在のバージョンを解析できません",
+  "最低 {version}": "最低 {version}",
   "安装": "インストール",
   "先安装 {name}": "先に {name} をインストール",
 

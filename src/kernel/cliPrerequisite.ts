@@ -24,4 +24,8 @@ export interface CliPrerequisite {
   commandInstall?: { program: string; args: string[] };
   /** npm 包名:registry 最新版查询 + npm 通道兜底安装共用。 */
   npmPackage?: string;
+  /** 宿主引擎版本菜单内展示本依赖的版本分区;须同时声明 npmPackage 与钉版通道。 */
+  versionMenu?: boolean;
+  /** script 通道钉版命令,双平台模板均用 {version} 占位;由依赖插件声明官方语法。 */
+  scriptVersionInstall?: { unix: string; windows: string };
 }
