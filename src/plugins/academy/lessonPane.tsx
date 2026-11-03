@@ -14,6 +14,10 @@ import { practiceGate } from "./practiceGate";
 
 const TYPE_MS = 38;
 
+function scheduleDemoTimer(timers: { current: number[] }, fn: () => void, ms: number) {
+  timers.current.push(window.setTimeout(fn, ms));
+}
+
 function esc(s: string): string {
   return s.replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[m] ?? m);
 }
@@ -26,11 +30,12 @@ function lessonPointHtml(p: string): string {
 /** 终端打字演示:逐字敲命令 + 回显按行浮现;demo 缺省 = 静态占位。 */
 function TermDemo({ demo }: { demo: NonNullable<AcademyLesson["demo"]> }) {
   const ref = useRef<HTMLDivElement>(null);
+  const timersRef = useRef<number[]>([]);
   useEffect(() => {
     const root = ref.current;
     if (!root) return;
     root.innerHTML = "";
-    const timers: number[] = [];
+    timersRef.current = [];
     let delay = 240;
     for (const [cmd, out] of demo) {
       const lineIn = document.createElement("div");
@@ -43,20 +48,23 @@ function TermDemo({ demo }: { demo: NonNullable<AcademyLesson["demo"]> }) {
         if (i <= cmd.length) {
           lineIn.innerHTML = `${esc(cmd.slice(0, i))}<span class="academy-cursor" />`;
           i += 1;
-          timers.push(window.setTimeout(type, TYPE_MS));
+          scheduleDemoTimer(timersRef, type, TYPE_MS);
           return;
         }
         lineIn.textContent = cmd;
-        out.split("\n").forEach((row, k) => {
-          timers.push(window.setTimeout(() => {
-            lineOut.innerHTML += `${esc(row)}\n`;
-          }, 80 * (k + 1)));
-        });
+        const rows = out.split("\n");
+        for (let k = 0; k < rows.length; k += 1) {
+          scheduleDemoTimer(timersRef, () => {
+            lineOut.innerHTML += `${esc(rows[k])}\n`;
+          }, 80 * (k + 1));
+        }
       };
-      timers.push(window.setTimeout(type, delay));
+      scheduleDemoTimer(timersRef, type, delay);
       delay += cmd.length * TYPE_MS + out.length * 20 + 380;
     }
-    return () => timers.forEach((id) => window.clearTimeout(id));
+    return () => {
+      for (const id of timersRef.current) window.clearTimeout(id);
+    };
   }, [demo]);
   return (
     <div className="academy-term" aria-hidden>

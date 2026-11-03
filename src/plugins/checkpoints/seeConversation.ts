@@ -10,6 +10,7 @@ import { openThenJumpToText, type JumpTextOutcome } from "@kernel/anchorJump";
 import { openSessionViewAtText } from "@kernel/sessionViewTabs";
 import { host } from "@kernel/host";
 import { getWorkspaces } from "@kernel/workspace";
+import { openStructuredSessionTranscript, structuredSessionTarget } from "@plugins/structured-session/tabs";
 
 /** cwd → 工作区 id(useCkptScope 归属判定同款口径);无归属返回 undefined。 */
 function workspaceIdOf(cwd: string): string | undefined {
@@ -49,9 +50,14 @@ export async function resolveLedgerProfileId(
 export async function viewBatchConversation(opts: {
   cwd: string;
   ledgerSessionId: string;
+  tmdSessionId?: string;
   prompt: string;
   occurrence?: number;
 }): Promise<JumpTextOutcome> {
+  const structured = structuredSessionTarget(opts.tmdSessionId);
+  if (structured) {
+    return openStructuredSessionTranscript(structured, opts.ledgerSessionId, opts.prompt, opts.occurrence);
+  }
   const profileId = await resolveLedgerProfileId(opts.cwd, opts.ledgerSessionId);
   if (!profileId) return "miss";
   const outcome = await openThenJumpToText(

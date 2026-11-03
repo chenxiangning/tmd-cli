@@ -14,17 +14,20 @@ vi.mock("@kernel/host", () => ({
     getCliSessionId: (id: string) => (id === "pty-1" ? "uuid-1" : undefined),
     getCliProfile: (id: string) => ({ id, name: id.toUpperCase() }),
     getSessionStatus: () => undefined,
+    events: { on: vi.fn(), emit: vi.fn() },
   },
 }));
-const setRelaySource = vi.fn();
+const relayMocks = vi.hoisted(() => ({ setRelaySource: vi.fn(), setRetrySource: vi.fn() }));
+const setRelaySource = relayMocks.setRelaySource;
 vi.mock("./relayStore", () => ({
-  setRelaySource: (src: unknown) => setRelaySource(src),
+  setRelaySource: (src: unknown) => relayMocks.setRelaySource(src),
+  setRetrySource: relayMocks.setRetrySource,
   clearRelaySource: () => undefined,
   useRelaySource: () => null,
 }));
 vi.mock("../marks/store", () => ({ stagedMarks: () => [], setMarkState: () => undefined }));
 
-import { relayLiveRef, relayOpenRef } from "@kernel/relayBridge";
+import { relayLiveRef, relayOpenRef, retryOpenRef } from "@kernel/relayBridge";
 import { sessionRelayPlugin } from "./index";
 
 function stubCtx(): never {
@@ -40,16 +43,19 @@ describe("接力桥协议", () => {
   beforeEach(() => {
     relayLiveRef.current = null;
     relayOpenRef.current = null;
+    retryOpenRef.current = null;
     setRelaySource.mockClear();
   });
 
-  it("activate 登记双桥,cleanup 双置 null", async () => {
+  it("activate 登记接力/重试桥,cleanup 全置 null", async () => {
     const cleanup = (await sessionRelayPlugin.activate(stubCtx())) as () => void;
     expect(relayLiveRef.current).toBeTypeOf("function");
     expect(relayOpenRef.current).toBeTypeOf("function");
+    expect(retryOpenRef.current).toBeTypeOf("function");
     cleanup();
     expect(relayLiveRef.current).toBeNull();
     expect(relayOpenRef.current).toBeNull();
+    expect(retryOpenRef.current).toBeNull();
   });
 
   it("活会话桥:CLI 会话组源携带源 cwd/workspaceId(跨工作区 tab 接力不失源)", async () => {

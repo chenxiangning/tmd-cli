@@ -205,35 +205,45 @@ fn parse_probe_lines(text: &str) -> Vec<WslEngineProbe> {
 #[serde(rename_all = "camelCase")]
 pub struct WslRemoteFileText {
     pub size: u64,
+    pub mtime_ms: u64,
     pub content: Option<String>,
     pub truncated: bool,
 }
 
-/// 解析 `size=<n>` 行 + base64 段(容忍 wsl 代理警告等杂散前缀行:取首个 size= 行)。
+/// 解析 `mtime_ms=<n>` + `size=<n>` 行 + base64 段(容忍 wsl 代理警告等杂散前缀行)。
 fn parse_remote_file_text(text: &str) -> Result<WslRemoteFileText, String> {
     let mut lines = text
         .lines()
         .map(|line| line.trim_end_matches('\r'))
         .peekable();
+    let mut mtime_ms = None;
     let size = loop {
         let line = lines.next().ok_or("远程文件读取输出异常(无 size 行)")?;
-        if let Some(n) = line.strip_prefix("size=") {
+        if let Some(n) = line.strip_prefix("mtime_ms=") {
+            mtime_ms = Some(
+                n.parse::<u64>()
+                    .map_err(|_| format!("远程文件 mtime_ms 非法: {n}"))?,
+            );
+        } else if let Some(n) = line.strip_prefix("size=") {
             break n
                 .parse::<u64>()
                 .map_err(|_| format!("远程文件 size 非法: {n}"))?;
         }
     };
+    let mtime_ms = mtime_ms.ok_or("远程文件读取输出异常(无 mtime_ms 行)")?;
     let b64: String = lines.map(str::trim).collect();
     if b64.is_empty() {
         return Ok(WslRemoteFileText {
             size,
-            content: None,
-            truncated: true,
+            mtime_ms,
+            content: if size == 0 { Some(String::new()) } else { None },
+            truncated: size != 0,
         });
     }
     let bytes = b64_decode(&b64)?;
     Ok(WslRemoteFileText {
         size,
+        mtime_ms,
         content: Some(String::from_utf8_lossy(&bytes).to_string()),
         truncated: false,
     })
@@ -253,8 +263,7 @@ pub(crate) async fn wsl_exec(
     Ok(text)
 }
 
-/// 远程文件文本读取(远程 WSL 工作区文件树 → 本地渲染管线;M1 只读,不做写回)。
-/// host=None = 本机 wsl.exe(仅 Windows);host=Some = 经 SSH 连远程宿主执行。
+/// 远程文件文本读取;host=None = 本机 WSL,host=Some = 经 SSH 连远程宿主。
 #[tauri::command]
 pub(crate) async fn wsl_read_file_text(
     distro: String,
@@ -264,19 +273,27 @@ pub(crate) async fn wsl_read_file_text(
 ) -> Result<WslRemoteFileText, String> {
     validate_path_component(&path)?;
     let max_bytes = max_bytes.clamp(1, 4 * 1024 * 1024);
-    // 行协议:size=<n> 行 + base64 段。目录/不可读 → wc 失败 exit 9(如实报错,
-    // 与 ls 同一白名单路径纪律);超限不读内容(前端出提示,不喂半个文件进渲染)。
     let script = format!(
-        "s=$(wc -c < {path}) || exit 9; echo size=$s; [ \"$s\" -le {max_bytes} ] && head -c {max_bytes} {path} | base64; true"
+        "[ -f {path} ] && [ -r {path} ] || exit 9; \
+         for attempt in 1 2; do \
+         mtime=$(date -d \"$(stat -c %y -- {path})\" +%s%3N) || exit 9; \
+         size=$(stat -c %s -- {path}) || exit 9; \
+         payload=$([ \"$size\" -le {max_bytes} ] && head -c {max_bytes} {path} | base64); \
+         after_mtime=$(date -d \"$(stat -c %y -- {path})\" +%s%3N) || exit 9; \
+         after_size=$(stat -c %s -- {path}) || exit 9; \
+         [ \"$mtime:$size\" = \"$after_mtime:$after_size\" ] && break; \
+         done; \
+         [ \"$mtime:$size\" = \"$after_mtime:$after_size\" ] || exit 8; \
+         echo mtime_ms=$mtime; echo size=$size; printf '%s\\n' \"$payload\""
     );
     let command = wsl_bash_payload(&distro, &script);
     let (text, code) = exec_somewhere(&command, host).await?;
-    if code == Some(9) {
-        return Err("不是常规文件或不可读".to_string());
+    match code {
+        Some(8) => Err("远程文件读取期间被外部修改,请重试".to_string()),
+        Some(9) => Err("不是常规文件或不可读".to_string()),
+        _ => parse_remote_file_text(&text),
     }
-    parse_remote_file_text(&text)
 }
-
 #[cfg(test)]
 #[path = "wsl_remote_ops_tests.rs"]
 mod tests;

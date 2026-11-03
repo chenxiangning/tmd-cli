@@ -12,6 +12,7 @@ import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
 import { retryImport } from "@kernel/lazyImport";
 import { SsHeader } from "./ssHeader";
+import { SsActions } from "./ssActions";
 import { LiveTurn } from "./liveTurn";
 import { ConfirmCard } from "./confirmCard";
 import { TranscriptView } from "@plugins/session-viewer/transcriptView";
@@ -177,7 +178,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   const { settings } = useSettingsState();
   const minimal = settings.sessionViewerMinimal;
   const profile = host.getCliProfile(payload.profileId);
-  const ss = useSsSession(payload);
+  const ss = useSsSession(payload, tab.id);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const cmd = useCmdComplete(ss.sessionRef.current, ss.draft, ss.setDraft);
 
@@ -206,6 +207,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         minimal={minimal}
         statusText={ss.statusText}
         session={ss.sessionRef.current}
+        actions={<SsActions ss={ss} payload={payload} tab={tab} />}
         onStateRefresh={(s) => ss.onStateRefresh(s)}
         onAbort={() => void ss.sessionRef.current?.abort()}
       />

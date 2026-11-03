@@ -10,6 +10,7 @@ import { getWorkspaces } from "@kernel/workspace";
 import type { FpHit } from "./dataSource";
 import { readFeatureCards } from "./query";
 import { getMonth } from "./rollup";
+import { openStructuredSessionTranscript, structuredSessionTarget } from "@plugins/structured-session/tabs";
 
 /** 命中是否可跳转录:有卡定位(featureId)才解析得到会话引用。 */
 export function fpHitJumpable(hit: FpHit): boolean {
@@ -25,6 +26,10 @@ export async function jumpHitTranscript(hit: FpHit): Promise<JumpTextOutcome> {
   const quote = cards?.file.cards[cardIdx]?.quote;
   if (!quote) return "miss";
   const entry = (await getMonth(hit.day.slice(0, 7))).days[hit.day.slice(8)]?.sessions[quote.sid];
+  const structured = structuredSessionTarget(entry?.tmdSessionId);
+  if (structured) {
+    return openStructuredSessionTranscript(structured, quote.sid, quote.text);
+  }
   /* engine===profileId 依赖各 CLI profile name==id 约定(批一评审);空串(旧账)直接 miss 防静默劣化 */
   if (!entry || entry.engine === "") return "miss";
   const outcome = await openThenJumpToText(

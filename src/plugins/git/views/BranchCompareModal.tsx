@@ -22,9 +22,10 @@ import { gitErrorDisplay } from "../gitError";
 import { CommitDetailsPanel } from "./CommitDetailsPanel";
 import { WorktreeDiffPanel } from "./WorktreeDiffPanel";
 import { UniqueSection } from "./UniqueSection";
+import { WorktreeCompareDelivery, WorktreePrAction } from "../worktree/WorktreeDeliveryStatus";
 
 export type BranchCompareRequest =
-  | { mode: "compare"; target: string }
+  | { mode: "compare"; target: string; delivery?: { canCreate: boolean; disabledReason: string | null } }
   | { mode: "worktree"; branch: string };
 
 /** 弹窗头部:徽标 + 标题 + 关闭;副标题 + 独有提交统计(降分支拆件)。 */
@@ -33,11 +34,13 @@ function ModalHeader({
   currentName,
   compare,
   onClose,
+  onCreatePr,
 }: {
   request: BranchCompareRequest;
   currentName: string | undefined;
   compare: GitBranchCompareSet | null;
   onClose: () => void;
+  onCreatePr?: () => void;
 }) {
   const badge =
     request.mode === "compare" ? t("分支对比") : t("工作树差异");
@@ -78,7 +81,9 @@ function ModalHeader({
             {t("独有提交 {n} 个", { n: uniqueTotal })}
           </span>
         )}
+        <WorktreePrAction request={request} compare={compare} onCreatePr={onCreatePr} />
       </div>
+      <WorktreeCompareDelivery request={request} compare={compare} />
     </div>
   );
 }
@@ -181,11 +186,14 @@ export function BranchCompareModal({
   currentName,
   request,
   onClose,
+  onCreatePr,
 }: {
   cwd: string;
   currentName: string | undefined;
   request: BranchCompareRequest;
   onClose: () => void;
+  /** compare 数据就绪后显示交付入口（如 worktree 创建 PR）。 */
+  onCreatePr?: () => void;
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -243,7 +251,13 @@ export function BranchCompareModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部:徽标 + 标题 + 关闭;副标题 + 统计 */}
-        <ModalHeader request={request} currentName={currentName} compare={compare} onClose={onClose} />
+        <ModalHeader
+          request={request}
+          currentName={currentName}
+          compare={compare}
+          onClose={onClose}
+          onCreatePr={compare ? onCreatePr : undefined}
+        />
 
         {/* 主体 */}
         <ModalBody

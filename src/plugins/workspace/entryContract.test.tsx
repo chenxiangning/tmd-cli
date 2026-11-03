@@ -87,6 +87,18 @@ describe("入口闭环审计", () => {
     expect(html).not.toContain("在新 worktree 中起会话");
   });
 
+  it("会话右键菜单:重试入口按回调存在性显示", () => {
+    const base = {
+      position: { x: 60, y: 60 }, canRename: true, pinScope: null,
+      onCopyId: () => undefined, onRename: () => undefined,
+      onPinScope: () => undefined, onClose: () => undefined,
+    };
+    expect(renderToStaticMarkup(createElement(SessionContextMenu, { ...base, onRetry: () => undefined })))
+      .toContain("重试上一回合…");
+    expect(renderToStaticMarkup(createElement(SessionContextMenu, base)))
+      .not.toContain("重试上一回合…");
+  });
+
   it("② Memory 面板底部:显「Wiki」开关钮", () => {
     const html = renderToStaticMarkup(
       createElement(MemoryPanelFooter, {

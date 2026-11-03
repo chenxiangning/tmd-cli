@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Bell, BellSlash, Copy, DownloadSimple, Pencil, Timer, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, Bell, BellSlash, Copy, DownloadSimple, Pencil, Timer, Trash } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { useSettingsState } from "@kernel/settings";
 import {
@@ -42,6 +42,7 @@ export function SessionContextMenu({
   /** 静音覆盖层 key;undefined = 不可静音(未落盘,整组隐藏,同 pinScope 前例)。 */
   muteKey,
   onExportSnapshot,
+  onRetry,
   onCopyId,
   onRename,
   onPinScope,
@@ -55,6 +56,8 @@ export function SessionContextMenu({
   muteKey?: string;
   /** 导出转录快照(当前磁盘快照,单文件另存);undefined = 隐藏(无磁盘绑定/ssh/shell)。 */
   onExportSnapshot?: () => void;
+  /** 同引擎上一回合预览重试;undefined = 隐藏(插件停用/无源)。 */
+  onRetry?: () => void;
   onCopyId: () => void;
   onRename: () => void;
   onPinScope: (scope: SessionPinScope) => void;
@@ -129,6 +132,20 @@ export function SessionContextMenu({
           </span>
           <span className="wsmenu-item-label">{t("重命名")}</span>
         </button>
+        {onRetry && (
+          <button
+            className="wsmenu-item"
+            onClick={() => {
+              onRetry();
+              onClose();
+            }}
+          >
+            <span className="wsmenu-item-icon">
+              <ArrowClockwise size="0.8125rem" />
+            </span>
+            <span className="wsmenu-item-label">{t("重试上一回合…")}</span>
+          </button>
+        )}
         {pinItem("global", t("置顶到全局"))}
         {pinItem("workspace", t("置顶到工作区内"))}
         {muteEntry !== undefined ? (

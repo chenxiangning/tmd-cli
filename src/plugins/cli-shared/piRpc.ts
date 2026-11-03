@@ -24,6 +24,8 @@ export interface PiRpcHandlers {
   onBlocks: (blocks: CliTranscriptBlock[], turnStart: number) => void;
   /** 轮次进行中/结算(session_settled 边沿)。 */
   onBusy: (busy: boolean) => void;
+  /** 工具执行原始帧（structured-session 成功写工具存证；展示仍走 reducer）。 */
+  onToolExecution?: (rec: Record<string, unknown>) => void;
   /** 审批请求;respond 由消费方 UI 调用(confirmId 传入)。 */
   onConfirm: (req: PiRpcConfirm) => void;
   /** 子进程退出(code null = 被杀);此后会话终态。 */
@@ -217,6 +219,7 @@ export class PiRpcSession {
       case "tool_execution_start":
       case "tool_execution_update":
       case "tool_execution_end":
+        this.handlers.onToolExecution?.(rec);
         this.handlers.onBlocks(this.reducer.feed(rec), this.reducer.turnStart);
         return;
       case "session_settled":

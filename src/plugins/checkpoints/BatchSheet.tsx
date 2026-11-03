@@ -126,6 +126,7 @@ function SheetBody({
     const outcome = await viewBatchConversation({
       cwd,
       ledgerSessionId: batch.sessionId,
+      tmdSessionId,
       prompt: batch.prompt,
       occurrence,
     });

@@ -109,7 +109,7 @@ export function refreshBatches(
  * 审批线跟随 AI 输出落账),否则 "git"(窗口推断,旧行为)。
  * 失败后台重试一次,不阻塞发送路径。
  */
-export function captureAnchor(
+export async function captureAnchor(
   cwd: string,
   sessionId: string,
   tmdSessionId: string,
@@ -117,27 +117,26 @@ export function captureAnchor(
   meta: CkptAnchorMeta,
   attribution: "events" | "git" = "git",
   marksRefs?: readonly CkptMarkRef[],
-): void {
-  /* 重试代数守卫:窗口内同会话已落过更新锚点时,旧锚点后到反成最新 open 轮、
-     轮序倒挂(评审 P2)—— 陈旧重试直接丢弃,缺口由封口推导兜。 */
+): Promise<void> {
+  /* 代数守卫丢弃陈旧重试;Promise 在本轮重试结束后才结算,供结构化存证排队。 */
   const akey = `${cwd}|${sessionId}`;
   const seq = (anchorSeq.get(akey) ?? 0) + 1;
   anchorSeq.set(akey, seq);
   const run = () =>
     ipc.checkpointAnchor(cwd, sessionId, tmdSessionId, prompt, meta, attribution, marksRefs);
-  run().catch(() => {
-    window.setTimeout(() => {
-      if (anchorSeq.get(akey) !== seq) return;
-      run()
-        .then(() => refreshBatches(cwd, sessionId, tmdSessionId))
-        .catch(() => {
-          /* 两次都失败:本锚点缺失,本轮变更并入下一轮窗口(封口推导的自然兜底) */
-        });
-    }, 1500);
-    return;
-  });
-  // 快路径:capture 完成有延迟,定时刷新也会兜住
   window.setTimeout(() => void refreshBatches(cwd, sessionId, tmdSessionId), 800);
+  try {
+    await run();
+  } catch {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 1500));
+    if (anchorSeq.get(akey) !== seq) return;
+    try {
+      await run();
+      await refreshBatches(cwd, sessionId, tmdSessionId);
+    } catch {
+      /* 两次都失败:保留下一轮封口推导的自然兜底。 */
+    }
+  }
 }
 
 /** per-(cwd,session) 锚点代数:captureAnchor 重试重排守卫。 */
@@ -165,44 +164,38 @@ export function markRefsFromRanges(
   });
 }
 
-/**
- * AI 写入事件流式记账(EditWatch / 会话磁盘事件拉取命中即调,events 模式会话)。
- * 前像三级解析是历史态(anchor 基线/上一轮批后像),不依赖调用时刻 —— 磁盘事件
- * 源(带 ts)哪怕迟到也记对轮次;ts 早于锚点 = 上一轮尾巴,Rust 侧守卫丢弃。
- * 失败重试一次(丢事件 = 丢前像,值得一次补救);再失败静默(封口兜底)。
- */
-export function recordEdit(
+/** 事件流式记账;返回 Promise 仅表示本次及重试已结束,不改变旧调用方失败静默语义。 */
+export async function recordEdit(
   cwd: string,
   sessionId: string,
   tmdSessionId: string,
   path: string,
   ts?: number,
-): void {
+): Promise<void> {
   const run = () => ipc.checkpointRecordEdit(cwd, sessionId, tmdSessionId, path, ts ?? null);
-  run().catch(() => {
-    window.setTimeout(() => run().catch(() => {}), 1000);
-  });
+  try {
+    await run();
+  } catch {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 1000));
+    await run().catch(() => undefined);
+  }
 }
 
-/** 显式封口(一轮对话结算):把最新锚点以来的变更固化成账本 turn 条目。
- *  onSealed:后端确认真实封口(true)后回调 —— checkpoint_seal 幂等,false =
- *  本无可封锚点(纯阅读轮),此时不广播。footprint 据此拉批清单落 rollup。 */
-export function sealTurn(
+/** 显式封口;真实封口后才广播足迹事件,Promise 供同轮事件队列等待。 */
+export async function sealTurn(
   cwd: string,
   sessionId: string,
   tmdSessionId: string,
   onSealed?: (cwd: string, sessionId: string, tmdSessionId: string) => void,
-): void {
+): Promise<void> {
   if (!cwd || !sessionId) return;
-  ipc
-    .checkpointSeal(cwd, sessionId, tmdSessionId)
-    .then((sealed) => {
-      if (sealed) onSealed?.(cwd, sessionId, tmdSessionId);
-      return refreshBatches(cwd, sessionId, tmdSessionId);
-    })
-    .catch(() => {
-      /* 封口失败不打断会话:下一条 prompt 的 anchor 会隐式补封 */
-    });
+  try {
+    const sealed = await ipc.checkpointSeal(cwd, sessionId, tmdSessionId);
+    if (sealed) onSealed?.(cwd, sessionId, tmdSessionId);
+    await refreshBatches(cwd, sessionId, tmdSessionId);
+  } catch {
+    /* 封口失败不打断会话:下一条 prompt 的 anchor 会隐式补封。 */
+  }
 }
 
 type CkptRestoreResult = Awaited<ReturnType<typeof ipc.checkpointRestore>>;

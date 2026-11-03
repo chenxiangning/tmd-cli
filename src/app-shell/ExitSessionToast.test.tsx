@@ -17,7 +17,8 @@ vi.mock("@kernel/host", () => ({
 /* 桥在册闸:relayOpenRef.current 非空 = session-relay 插件启用;
    点击行为(开框组源)在桩目检验,node 渲染面只钉存在性。 */
 const relayBridge = vi.hoisted(() => ({ current: null as ((d: unknown) => void) | null }));
-vi.mock("@kernel/relayBridge", () => ({ relayOpenRef: relayBridge }));
+const retryBridge = vi.hoisted(() => ({ current: null as ((d: unknown) => void) | null }));
+vi.mock("@kernel/relayBridge", () => ({ relayOpenRef: relayBridge, retryOpenRef: retryBridge }));
 
 import { ExitSessionNotices } from "./ExitSessionToast";
 
@@ -84,5 +85,12 @@ describe("退出卡接力入口(跨引擎接力接到失败现场)", () => {
       }),
     );
     expect(html).not.toContain("转到其他引擎接力");
+  });
+
+  it("同引擎重试入口随桥启停", () => {
+    retryBridge.current = () => undefined;
+    expect(renderCli()).toContain("重试上一回合…");
+    retryBridge.current = null;
+    expect(renderCli()).not.toContain("重试上一回合…");
   });
 });

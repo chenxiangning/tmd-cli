@@ -14,21 +14,34 @@ pub(crate) const CHUNK_BYTES: usize = 6 * 1024;
 /// 远程写回总量上限:与读侧文件读取预算对齐(读多少、写多少),超出直接拒绝。
 pub(crate) const MAX_REMOTE_WRITE_BYTES: usize = 512 * 1024;
 
-/// 执行并断言哨兵(脚本约定末行 echo W_OK / W_FAIL:<原因>;非 OK 报错带原因)。
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WslRemoteFileVersion {
+    pub mtime_ms: u64,
+    pub len: u64,
+}
+
+/// 执行并断言哨兵(脚本约定末行 echo W_OK[:mtime:len] / W_FAIL:<原因>;通道退出码语义不透明)。
 async fn exec_expect_ok(
     distro: &str,
     script: &str,
     host: &Option<SshHostWire>,
-) -> Result<(), String> {
+) -> Result<Option<WslRemoteFileVersion>, String> {
     let command = wsl_bash_payload(distro, script);
     let (text, _) = exec_somewhere_write(&command, host.clone()).await?;
-    let ok = text
-        .lines()
-        .rev()
-        .find_map(|l| l.trim().strip_prefix("W_"))
-        .is_some_and(|tail| tail.starts_with("OK"));
-    if ok {
-        return Ok(());
+    let tail = text.lines().rev().find_map(|l| l.trim().strip_prefix("W_"));
+    if tail == Some("OK") {
+        return Ok(None);
+    }
+    if let Some(version) = tail.and_then(|tail| tail.strip_prefix("OK:")) {
+        let mut parts = version.split(':');
+        let mtime_ms = parts.next().and_then(|v| v.parse().ok());
+        let len = parts.next().and_then(|v| v.parse().ok());
+        if parts.next().is_none() {
+            if let (Some(mtime_ms), Some(len)) = (mtime_ms, len) {
+                return Ok(Some(WslRemoteFileVersion { mtime_ms, len }));
+            }
+        }
     }
     // 失败分支哨兵自带 stderr 末行人话(W_FAIL:<原因>);兜底展示末行防只报哨兵码。
     let reason = text
@@ -41,21 +54,43 @@ async fn exec_expect_ok(
 
 /// 内容切块:按 CHUNK_BYTES(解码后)切片并逐块重新编码。
 pub(crate) fn encode_chunks(bytes: &[u8]) -> Vec<String> {
-    bytes.chunks(CHUNK_BYTES).map(b64_encode).collect()
+    if bytes.is_empty() {
+        // 空正文也要产生一个写块,确保临时文件被截断创建而不是移动旧残留。
+        vec![String::new()]
+    } else {
+        bytes.chunks(CHUNK_BYTES).map(b64_encode).collect()
+    }
 }
 
 /// 纯函数:装配分块写脚本。首块建 .wtmp,余块追加,末尾 mv 原子替换(中途失败
-/// 只留 .wtmp,不伤原文件);失败哨兵附 stderr 末行(W_FAIL:<原因>)。
-pub(crate) fn build_write_script(path: &str, chunks: &[String]) -> String {
+/// 只留 .wtmp,不伤原文件);expected=(mtimeMs,len) 时先校验版本,漂移即 E_FS_MTIME。
+pub(crate) fn build_write_script(
+    path: &str,
+    chunks: &[String],
+    expected: Option<(u64, u64)>,
+) -> String {
     let tmp = format!("{path}.wtmp");
+    let guard = expected.map_or_else(String::new, |(mtime_ms, len)| {
+        format!(
+            "mtime=$(date -d \"$(stat -c %y -- {path} 2>/dev/null)\" +%s%3N 2>/dev/null); \
+             len=$(stat -c %s -- {path} 2>/dev/null); actual=$mtime:$len; \
+             if [ \"$actual\" != \"{mtime_ms}:{len}\" ]; then \
+             echo W_FAIL:E_FS_MTIME:磁盘文件长度或修改时间与基线不一致; exit 0; fi; "
+        )
+    });
     let mut parts = vec![format!("mkdir -p \"$(dirname {path})\"")];
     for (i, c) in chunks.iter().enumerate() {
         let redir = if i == 0 { ">" } else { ">>" };
         parts.push(format!("printf '%s' '{c}' | base64 -d {redir} {tmp}"));
     }
-    parts.push(format!("mv {tmp} {path}"));
     let body = parts.join(" && ");
-    format!("out=$({body} 2>&1) && echo W_OK || echo \"W_FAIL:$(printf '%s' \"$out\" | tail -1)\"")
+    // 临时文件写完后再验基线,把外改窗口收窄到最后一次校验与原子替换之间。
+    format!(
+        "out=$({body} 2>&1) || {{ echo \"W_FAIL:$(printf '%s' \"$out\" | tail -1)\"; exit 0; }}; \
+         {guard}out=$(mv {tmp} {path} 2>&1) && \
+         mtime=$(date -d \"$(stat -c %y -- {path})\" +%s%3N) && len=$(stat -c %s -- {path}) && \
+         echo W_OK:$mtime:$len || echo \"W_FAIL:$(printf '%s' \"$out\" | tail -1)\""
+    )
 }
 
 /// 远程文本写回:分块 b64 解码落盘(覆盖写,语义对齐本地 fs_edit::write_file)。
@@ -64,9 +99,15 @@ pub(crate) async fn wsl_write_file_text(
     distro: String,
     path: String,
     content_b64: String,
+    expect_mtime: Option<u64>,
+    expect_len: Option<u64>,
     host: Option<SshHostWire>,
-) -> Result<(), String> {
+) -> Result<WslRemoteFileVersion, String> {
     validate_path_component(&path)?;
+    if expect_mtime.is_some() != expect_len.is_some() {
+        return Err("远程文件版本令牌必须同时包含 mtime 与长度".to_string());
+    }
+    let expected = expect_mtime.zip(expect_len);
     let bytes = b64_decode(&content_b64).map_err(|e| format!("内容不是合法 base64: {e}"))?;
     if bytes.len() > MAX_REMOTE_WRITE_BYTES {
         return Err(format!(
@@ -76,8 +117,10 @@ pub(crate) async fn wsl_write_file_text(
         ));
     }
     let chunks = encode_chunks(&bytes);
-    let script = build_write_script(&path, &chunks);
-    exec_expect_ok(&distro, &script, &host).await
+    let script = build_write_script(&path, &chunks, expected);
+    exec_expect_ok(&distro, &script, &host)
+        .await?
+        .ok_or_else(|| "远程写入成功但未返回文件版本".to_string())
 }
 
 /// 远程新建条目:文件 noclobber 闭 TOCTOU 窗(检查与创建间被并发建=报已存在,
@@ -95,7 +138,7 @@ pub(crate) async fn wsl_create_entry(
     } else {
         build_create_script_file(&path)
     };
-    exec_expect_ok(&distro, &script, &host).await
+    exec_expect_ok(&distro, &script, &host).await.map(|_| ())
 }
 
 /// 纯函数:新建目录脚本(幂等 mkdir -p,失败附 stderr 末行)。
@@ -122,18 +165,37 @@ mod tests {
     #[test]
     fn 写脚本_分块形态与原子收尾() {
         let chunks = vec!["AAAA".to_string(), "BBBB".to_string(), "CCCC".to_string()];
-        let s = build_write_script("/tmp/a", &chunks);
+        let s = build_write_script("/tmp/a", &chunks, None);
         // 首块建临时文件、余块追加、末尾 mv 原子替换
         assert!(s.contains("base64 -d > /tmp/a.wtmp"));
         assert_eq!(s.matches("base64 -d >> /tmp/a.wtmp").count(), 2);
         assert!(s.contains("mv /tmp/a.wtmp /tmp/a"));
-        // 哨兵协议:成功 W_OK;失败附 stderr 末行人话
-        assert!(s.contains("&& echo W_OK"));
+        // 成功带回写后版本;失败附 stderr 末行人话
+        assert!(s.contains("echo W_OK:$mtime:$len"));
         assert!(s.contains("W_FAIL:$(printf '%s' \"$out\" | tail -1)"));
         // 单块无追加
-        let one = build_write_script("/tmp/b", &["AAAA".to_string()]);
+        let one = build_write_script("/tmp/b", &["AAAA".to_string()], None);
         assert!(one.contains("base64 -d > /tmp/b.wtmp"));
         assert!(!one.contains(">>"));
+    }
+
+    #[test]
+    fn 写脚本_版本漂移拒绝且覆盖可绕过() {
+        let guarded = build_write_script(
+            "/tmp/a",
+            &["AAAA".to_string()],
+            Some((1_700_000_000_123, 42)),
+        );
+        assert!(guarded.contains("stat -c %y -- /tmp/a"));
+        assert!(guarded.contains("[ \"$actual\" != \"1700000000123:42\" ]"));
+        assert!(guarded.contains("W_FAIL:E_FS_MTIME"));
+        let chunk_at = guarded.find("base64 -d > /tmp/a.wtmp").unwrap();
+        let guard_at = guarded.find("actual=$mtime:$len").unwrap();
+        let mv_at = guarded.find("mv /tmp/a.wtmp /tmp/a").unwrap();
+        assert!(chunk_at < guard_at && guard_at < mv_at);
+        let forced = build_write_script("/tmp/a", &["AAAA".to_string()], None);
+        assert!(!forced.contains("E_FS_MTIME"));
+        assert!(!forced.contains("actual=$(stat"));
     }
 
     #[test]
@@ -143,9 +205,13 @@ mod tests {
         assert_eq!(chunks.len(), 2);
         let rejoined: Vec<u8> = chunks.iter().flat_map(|c| b64_decode(c).unwrap()).collect();
         assert_eq!(rejoined, data);
-        // 不足一块时单块整装
+        // 不足一块时单块整装;空正文也有一块用于创建空临时文件
         assert_eq!(encode_chunks(b"hi").len(), 1);
         assert!(!b64_encode(b"hi").is_empty());
+        let empty = encode_chunks(b"");
+        assert_eq!(empty, vec![String::new()]);
+        let script = build_write_script("/tmp/empty", &empty, None);
+        assert!(script.contains("printf '%s' '' | base64 -d > /tmp/empty.wtmp"));
     }
 
     #[test]

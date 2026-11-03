@@ -145,16 +145,26 @@ export function buildWslFileSource(): RemoteFileSource {
       if (r.truncated || r.content === null) {
         throw new Error(t("远程文件超过 512KB,暂不支持预览(M1)"));
       }
-      return r.content;
+      return {
+        content: r.content,
+        version: { mtimeMs: r.mtimeMs, len: r.size },
+      };
     },
     /* 写回三件套(项 5):uri/host 解析与 readText 同款;b64 载荷走内核通道。 */
-    writeText: async (uri: string, content: string) => {
+    writeText: async (uri: string, content: string, expected) => {
       const ref = parseRemoteWslFile(uri);
       const cfg = ref
         ? getSettingsState().settings.ssh.hosts.find((h) => h.id === ref.hostId) ?? null
         : null;
       if (!ref || !cfg) throw new Error(t("远程主机配置已删除,无法写入文件"));
-      await ipc.wslWriteFileText(ref.distro, ref.linuxPath, textToB64(content), cfg);
+      return ipc.wslWriteFileText(
+        ref.distro,
+        ref.linuxPath,
+        textToB64(content),
+        cfg,
+        expected?.mtimeMs,
+        expected?.len,
+      );
     },
     createEntry: async (ws, path, isDir) => {
       const cfg = sshHostOf(ws);

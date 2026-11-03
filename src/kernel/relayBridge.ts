@@ -5,6 +5,8 @@
  * 启用,不给按钮 —— app-shell 不 import 插件内部 store。
  */
 
+import type { CliTranscriptBlock } from "./cli";
+
 /** 退出卡能提供的接力源信息(快照,进程已逝;model 不可知不假造)。 */
 interface RelayOpenDetail {
   profileId: string;
@@ -14,6 +16,9 @@ interface RelayOpenDetail {
   title?: string;
   cwd?: string;
   workspaceId?: string;
+  /** structured-session 提供的当前模型与内存转录;PTY 退出快照缺省。 */
+  model?: string | null;
+  blocks?: readonly CliTranscriptBlock[];
 }
 
 /** 活会话开框(tmd 会话 id):session-relay 填充;null 闸同上(插件未启用不显示)。 */
@@ -22,5 +27,21 @@ export const relayLiveRef: { current: ((sessionId: string) => void) | null } = {
 };
 
 export const relayOpenRef: { current: ((detail: RelayOpenDetail) => void) | null } = {
+  current: null,
+};
+
+/** 上一回合重试源;sessionId 在场且仍存活时直接回填,否则按磁盘身份恢复。 */
+export interface RetryOpenDetail {
+  sessionId?: string;
+  profileId: string;
+  engineName: string;
+  cliSessionId?: string;
+  title?: string;
+  cwd: string;
+  workspaceId?: string;
+}
+
+/** 同引擎重试开框桥;与接力共用插件生命周期,null = 不显示入口。 */
+export const retryOpenRef: { current: ((detail: RetryOpenDetail) => void) | null } = {
   current: null,
 };

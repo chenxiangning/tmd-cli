@@ -1,22 +1,16 @@
 /**
- * 文件文档状态钩子 —— 编辑内容 / 脏标记 / 保存,复刻 codemoss useFileDocumentState:
- *
- * - 初始内容 = 磁盘内容(\r\n 归一),若有未保存草稿则草稿优先(关脏 tab 重开恢复)。
- * - dirty = content !== saved,变化时经 updateTab 同步到 tab 栏圆点。
- * - 保存:写回磁盘(CRLF 还原)→ 刷内容缓存 → 清草稿;失败信息落 footer。
- * - 外部变更防护(乐观锁):打开时取磁盘 mtime 基线,保存带 expectMtime;
- *   AI 会话/终端在保存前改了磁盘 → Rust 拒写回 E_FS_MTIME,此处置 conflict,
- *   由用户裁决覆盖(forceSave)或重载(reloadFromDisk),不再静默 clobber。
- * - 保存触发:files.save(⌘S)命令经模块级 saveRequestRef 桥进来,活动 tab 即保存目标。
+ * 文件文档状态:编辑/草稿/CRLF/保存;本地与 WSL 均用 mtime+长度乐观锁,
+ * E_FS_MTIME 由同一冲突横幅裁决覆盖(forceSave)或重读(reloadFromDisk)。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ipc } from "@kernel/ipc";
 import { updateTab } from "@kernel/tabs";
-import { findRemoteFileSourceForUri, isRemoteFileUri } from "@kernel/fileSources";
+import { findRemoteFileSourceForUri, isRemoteFileUri, type RemoteFileVersion } from "@kernel/fileSources";
 import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
 import { draftMirrorClear, draftMirrorGet, type DraftMirrorEntry } from "@kernel/draftMirror";
+import { readDiskSnapshot } from "./diskSnapshot";
 import {
   cacheRefreshContent,
   draftDelete,
@@ -50,7 +44,7 @@ export interface FileDocState {
   dismissMirror: () => void;
 }
 
-export function useFileDocument(path: string, diskContent: string): FileDocState {
+export function useFileDocument(path: string, diskContent: string, diskVersion?: RemoteFileVersion): FileDocState {
   /* 初始化包(stable):归一态磁盘文本 + 是否 CRLF;草稿优先。 */
   const [init] = useState(() => {
     const { text, hasCRLF } = toEditorContent(diskContent);
@@ -78,7 +72,8 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
   /* mtime 基线:打开时取一次,保存成功滚动为写后值,干净态外变跟进时刷新;
    * 这是「⌘S 静默覆盖并发写」的第一道防线,第二道 = expectLen(基线内容长度)。 */
   const mtimeRef = useRef<number | null>(null);
-  const baselineLenRef = useRef<number | null>(diskContent.length);
+  const remoteVersionRef = useRef<RemoteFileVersion | null>(diskVersion ?? null);
+  const baselineLenRef = useRef<number | null>(diskVersion?.len ?? diskContent.length);
   /* ref 镜像在 effect 内同步(渲染期写 ref 违反 React 渲染纯性,react-doctor 强报)。 */
   useEffect(() => {
     contentRef.current = content;
@@ -88,7 +83,8 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
   /* 打开取基线(延迟半拍无碍:首保存前完成的取数都赶在用户输入之后);取数失败保持 null,保存前再补(补不上置 0 = 首存即冲突,删盘不再静默复活)。 */
   useEffect(() => {
     mtimeRef.current = null;
-    baselineLenRef.current = diskContent.length;
+    remoteVersionRef.current = diskVersion ?? null;
+    baselineLenRef.current = diskVersion?.len ?? diskContent.length;
     conflictRef.current = false;
     setConflict(false);
     let alive = true;
@@ -113,15 +109,18 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     if (savedRef.current !== contentRef.current) return;
     const { text, hasCRLF } = toEditorContent(diskContent);
     hasCRLFRef.current = hasCRLF;
+    remoteVersionRef.current = diskVersion ?? null;
+    baselineLenRef.current = diskVersion?.len ?? diskContent.length;
     if (text === savedRef.current) return;
     setSaved(text);
     setContent(text);
     setDiskTick((v) => v + 1);
-    baselineLenRef.current = diskContent.length;
-    void ipc.fsMtime(path).then((m) => {
-      mtimeRef.current = m;
-    });
-  }, [diskContent, path]);
+    if (!isRemoteFileUri(path)) {
+      void ipc.fsMtime(path).then((m) => {
+        mtimeRef.current = m;
+      });
+    }
+  }, [diskContent, diskVersion, path]);
 
   const setDoc = useCallback(
     (value: string) => {
@@ -136,33 +135,41 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     (force: boolean) => () => {
       if (savingRef.current) return;
       if (isRemoteFileUri(path)) {
-        /* 远程写回(项 5):源声明 writeText 才可用(未声明源保持 M1 提示);
-         * 远程无 mtime 基线,乐观锁不适用,直写。 */
         const source = findRemoteFileSourceForUri(path);
         if (!source?.writeText) {
           setError(t("远程文件暂不支持写入(M1)"));
           return;
         }
         const text = contentRef.current;
-        if (text === savedRef.current) return;
+        if (text === savedRef.current && !conflictRef.current) return;
+        const disk = toDiskContent(text, hasCRLFRef.current);
         savingRef.current = true;
         setSaving(true);
         setError(null);
         source
-          .writeText(path, toDiskContent(text, hasCRLFRef.current))
-          .then(() => {
+          .writeText(path, disk, force ? null : remoteVersionRef.current ?? undefined)
+          .then((after) => {
+            const version = after ? after : undefined;
             savingRef.current = false;
             setSaving(false);
             setSaved(text);
-            /* 与本地分支对齐刷内容缓存(0.4.6 复审 P1):fileCache LRU 命中
-             * 返回旧文会把旧缓存当基线,再存静默覆盖磁盘新文。 */
-            cacheRefreshContent(path, toDiskContent(text, hasCRLFRef.current));
+            remoteVersionRef.current = version ?? null;
+            baselineLenRef.current = version?.len ?? disk.length;
+            conflictRef.current = false;
+            setConflict(false);
+            cacheRefreshContent(path, disk, version);
             draftDelete(path);
           })
           .catch((e: unknown) => {
             savingRef.current = false;
             setSaving(false);
-            setError(errTextDisplay(e));
+            if (String(e).includes("E_FS_MTIME")) {
+              conflictRef.current = true;
+              setConflict(true);
+              setError(null);
+            } else {
+              setError(errTextDisplay(e));
+            }
           });
         return;
       }
@@ -213,24 +220,14 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
     [path],
   );
 
-  /* 冲突裁决 B:重读磁盘版本,本地草稿丢弃(需用户点按钮,不做静默切换)。
-   * 两往返非原子(读 → mtime)窗内外部写会把旧内容配上新基线(0.4.6 复审
-   * P2):读前/读后 mtime 复核,变化重读一次(上限 2 次),纯 TS 闭窗。 */
+  /* 冲突裁决 B:重读磁盘版本,本地草稿丢弃(需用户点按钮,不做静默切换)。 */
   const reloadFromDisk = useCallback(() => {
-    if (isRemoteFileUri(path)) return;
-    void (async () => {
-      let raw = "";
-      let after: number | null = null;
-      for (let i = 0; i < 2; i++) {
-        const before = await ipc.fsMtime(path).catch(() => null);
-        raw = await ipc.fsReadFile(path);
-        after = await ipc.fsMtime(path).catch(() => null);
-        if (before === null || after === null || before === after) break;
-      }
+    void readDiskSnapshot(path).then(({ raw, mtimeMs, version }) => {
       const { text, hasCRLF } = toEditorContent(raw);
       hasCRLFRef.current = hasCRLF;
-      mtimeRef.current = after;
-      baselineLenRef.current = raw.length;
+      mtimeRef.current = mtimeMs;
+      remoteVersionRef.current = version ?? null;
+      baselineLenRef.current = version?.len ?? raw.length;
       conflictRef.current = false;
       setConflict(false);
       setError(null);
@@ -238,13 +235,13 @@ export function useFileDocument(path: string, diskContent: string): FileDocState
       setContent(text);
       setDiskTick((v) => v + 1);
       draftDelete(path);
-      cacheRefreshContent(path, raw);
-      if (after === null) {
+      cacheRefreshContent(path, raw, version);
+      if (mtimeMs === null && !isRemoteFileUri(path)) {
         void ipc.fsMtime(path).then((m) => {
           mtimeRef.current = m;
         });
       }
-    })();
+    }).catch((e: unknown) => setError(errTextDisplay(e)));
   }, [path]);
 
   /* 保存请求桥:⌘S 命令(files.save)注册口经此触发最新 save;卸载即摘除,

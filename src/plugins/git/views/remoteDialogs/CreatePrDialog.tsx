@@ -36,11 +36,14 @@ import { PrStages } from "./PrStages";
 export function CreatePrDialog({
   cwd,
   repoName,
+  headBranch,
   onClose,
 }: {
   cwd: string;
   /** 当前仓目录名(多仓语境显示于标题行右缘);单仓 undefined 不显示 */
   repoName?: string;
+  /** 调用方已锁定交付分支时覆盖 defaults（如 worktree 审阅）。 */
+  headBranch?: string;
   onClose: () => void;
 }) {
   const [defaults, setDefaults] = useState<GitPrDefaults | null>(null);
@@ -59,7 +62,8 @@ export function CreatePrDialog({
       (d) => {
         if (!alive) return;
         setDefaults(d);
-        setForm(formFromDefaults(d));
+        const initial = formFromDefaults(d);
+        setForm(headBranch === undefined ? initial : { ...initial, headBranch });
       },
       (e: unknown) => {
         if (alive) setLoadError(String(e));
@@ -71,7 +75,7 @@ export function CreatePrDialog({
     return () => {
       alive = false;
     };
-  }, [cwd]);
+  }, [cwd, headBranch]);
 
   /* 执行期订阅阶段事件;结束后退订(result/stages 已带终态)。 */
   useEffect(() => {

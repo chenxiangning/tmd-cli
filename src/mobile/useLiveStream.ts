@@ -42,6 +42,8 @@ const BUFFERED_MAX_CHARS = 2 * 1024 * 1024;
 /** setLive 尾沿节流间隔:文本视口 10Hz 观感瞬时(人眼对纯文本更新 ~70ms 起感)。 */
 const LIVE_FLUSH_MS = 100;
 
+function streamTimeout(slot: { current: number | null }, fn: () => void, ms: number) { slot.current = window.setTimeout(fn, ms); }
+function streamInterval(slot: { current: number | null }, fn: () => void, ms: number) { slot.current = window.setInterval(fn, ms); }
 export interface LiveStream {
   live: string;
   /** 更早历史(剥 ANSI,按取回顺序拼接;渲染在实况区上方)。 */
@@ -65,10 +67,9 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
     let off: (() => void) | null = null;
     let gapOff: (() => void) | null = null;
     let connOff: (() => void) | null = null;
-    let timer = 0;
-    /* 尾沿节流 + 弱网退避排程句柄:effect 作用域声明,cleanup 可即撤(复审 P2)。 */
-    let flushTimer = 0;
-    let retryTimer = 0;
+    const sizeTimer = { current: null as number | null };
+    const flushTimer = { current: null as number | null };
+    const retryTimer = { current: null as number | null };
     setLive("");
     setEarlier("");
     setHasMore(false);
@@ -99,16 +100,16 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       let ready = false;
       let lastSetAt = 0;
       const flushView = () => {
-        flushTimer = 0;
+        flushTimer.current = null;
         lastSetAt = Date.now();
         if (alive) setLive(screen.view());
       };
       const feedChunk = (chunk: string) => {
         watermark += chunk.length;
         screen.feed(chunk);
-        if (flushTimer) return;
+        if (flushTimer.current) return;
         const wait = LIVE_FLUSH_MS - (Date.now() - lastSetAt);
-        flushTimer = window.setTimeout(flushView, Math.max(0, wait));
+        streamTimeout(flushTimer, flushView, Math.max(0, wait));
       };
       const un = await onPtyOut(sessionId, (chunk) => {
         if (!alive) return;
@@ -121,7 +122,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       const [size, page0] = await Promise.all([sizeOf(), pageOf(Number.MAX_SAFE_INTEGER)]);
       let page = page0;
       /* 首载退避重拉 2s/5s 各一次(展开不走循环,react-doctor);等待窗卸载即出。 */
-      const backoff = (ms: number) => { const { promise, resolve } = Promise.withResolvers<void>(); retryTimer = window.setTimeout(resolve, ms); return promise; };
+      const backoff = (ms: number) => { const { promise, resolve } = Promise.withResolvers<void>(); streamTimeout(retryTimer, resolve, ms); return promise; };
       if (!page && alive) { await backoff(2000); }
       if (!page && alive) page = await pageOf(Number.MAX_SAFE_INTEGER);
       if (!page && alive) { await backoff(5000); }
@@ -184,7 +185,7 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
             if (!p) {
               if (replayTries < 2) {
                 replayTries += 1;
-                retryTimer = window.setTimeout(replay, replayTries === 1 ? 2000 : 5000);
+                streamTimeout(retryTimer, replay, replayTries === 1 ? 2000 : 5000);
               } else {
                 replayTries = 0; /* 放弃本边沿:buffered 继续攒,等下一 gap/重连再试 */
               }
@@ -206,16 +207,16 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       connOff = onRemoteConnection((st) => {
         if (st.connected) replay();
       });
-      timer = window.setInterval(rebuild, 3000);
+      streamInterval(sizeTimer, rebuild, 3000);
     })();
     return () => {
       alive = false;
-      clearInterval(timer);
-      clearTimeout(flushTimer); /* 卸载即撤尾沿排程(alive 闸下虽是 no-op,不留空转定时器) */
-      clearTimeout(retryTimer); /* 弱网退避排程同撤 */
       off?.();
       gapOff?.();
       connOff?.();
+      clearInterval(sizeTimer.current ?? undefined);
+      clearTimeout(flushTimer.current ?? undefined); /* 卸载即撤尾沿排程(alive 闸下虽是 no-op,不留空转定时器) */
+      clearTimeout(retryTimer.current ?? undefined); /* 弱网退避排程同撤 */
     };
   }, [sessionId]);
 

@@ -14,6 +14,7 @@ import { sendOsNotification } from "@kernel/ipc";
 import { openStructuredSessionTab, type StructuredSessionPayload } from "./tabs";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { PiRpcSession, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
+import { StructuredTurnEvidence } from "./evidence";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
 
@@ -27,7 +28,7 @@ export type SsSessionState = {
   retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
 };
 
-export function useSsSession(payload: StructuredSessionPayload): SsSessionState {
+export function useSsSession(payload: StructuredSessionPayload, ledgerId: string): SsSessionState {
   const [phase, setPhase] = useState<Phase>("starting");
   const [statusText, setStatusText] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<CliTranscriptBlock[]>([]);
@@ -46,6 +47,8 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
     try { return localStorage.getItem(`tmd.ss.draft.${payload.profileId}:${payload.cwd}`) ?? ""; } catch { return ""; }
   });
   const sessionRef = useRef<PiRpcSession | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const [evidence] = useState(() => new StructuredTurnEvidence(payload.cwd, ledgerId));
   /* 贴底跟随标记(busy 流式期上翻停跟);scroll 副作用在组件侧读。 */
   const stickRef = useRef(true);
   /* stderr 尾行(ref 态)+ phase 镜像:onError 降噪闸(ready 期 stderr 不进状态行)。 */
@@ -100,7 +103,10 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
         onBusy: (b) => {
           setBusy(b);
           setBusySince(b ? Date.now() : null);
-          if (!b) {
+          if (b) {
+            if (sessionIdRef.current) evidence.agentStart(sessionIdRef.current);
+          } else {
+            evidence.settled();
             void sessionRef.current?.getState()
               .then((st) => setQueued(st?.queuedMessageCount ?? 0))
               .catch(() => undefined);
@@ -117,6 +123,7 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
             }
           }
         },
+        onToolExecution: (rec) => evidence.toolExecution(rec),
         onConfirm: setConfirm,
         onExit: () => {
           if (sessionRef.current === self) {
@@ -141,6 +148,7 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
       .then((state) => {
         if (sessionRef.current !== session) return;
         setSessionId(state?.sessionId ?? null);
+        sessionIdRef.current = state?.sessionId ?? null;
         setModel(state?.model ?? null);
         setThinkingLevel(state?.thinkingLevel ?? null);
         setPhase("ready");
@@ -162,6 +170,7 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
     seedRef.current = canResume ? [...blocks] : null;
     sessionRef.current?.kill();
     sessionRef.current = null;
+    evidence.reset();
     startedRef.current = false;
     if (!canResume) {
       setBlocks([]);
@@ -215,7 +224,17 @@ export function useSsSession(payload: StructuredSessionPayload): SsSessionState 
     promptDebtRef.current++;
     /* busy 期发送 = follow_up 排队(引擎结算后自动起跑);闲时走 prompt。成功后回读排队数。 */
     void (busy ? s.followUp(text) : s.send(text))
-      .then(() => s.getState())
+      .then(() => {
+        const sessionId = sessionIdRef.current;
+        if (sessionId) {
+          evidence.prompt(sessionId, text, {
+            engine: host.getCliProfile(payload.profileId)?.name ?? payload.profileId,
+            model: model?.id ?? "",
+            thinking: thinkingLevel ?? "",
+          }, busy);
+        }
+        return s.getState();
+      })
       .then((st) => setQueued(st?.queuedMessageCount ?? 0))
       .catch((e: unknown) => {
         setStatusText(errTextDisplay(e));

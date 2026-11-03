@@ -50,4 +50,14 @@ export const MESSAGES_EN: Record<string, string> = {
   "上下文占用 {p}%,本轮会话累计 {n} tokens": "Context {p}% used, {n} tokens this session",
   "载入命令目录…": "Loading command catalog…",
   "无匹配命令": "No matching commands",
+  /* 0.4.8:共同存证 / 接力 / 上一回合预览重试 */
+  "批次": "Batch",
+  "批次 #{index}": "Batch #{index}",
+  "接力": "Relay",
+  "重试上一回合…": "Retry previous turn…",
+  "重试上一回合": "Retry previous turn",
+  "目标会话:{title}": "Target session: {title}",
+  "仅回填，不会自动发送": "Only fills the composer; nothing is sent automatically",
+  "回填输入框": "Fill composer",
+  "对应 checkpoint 批次": "Corresponding checkpoint batch",
 }

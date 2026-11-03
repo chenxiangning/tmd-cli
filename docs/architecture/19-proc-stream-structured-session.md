@@ -30,7 +30,7 @@
 
 ## 消费方
 
-- **structured-session 插件**:中央 tab,自带输入面(composer 直发 RPC prompt),PTY 零涉及;unmount 即 kill 子进程;启动失败收割残留进程并进可重试错误态;cwd 取激活工作区。
+- **structured-session 插件**:中央 tab,自带输入面(composer 直发 RPC prompt),PTY 零涉及;unmount 即 kill 子进程;启动失败收割残留进程并进可重试错误态;cwd 取激活工作区。0.4.8 起 prompt/成功写工具/settled 接入 checkpoints + footprint,头部接力与上一回合重试复用同一 blocks,契约见 34 号文档。
 - **session-viewer 转录浮层**:幕布|转录双视图切换,读 PTY 会话的磁盘转录(与 RPC 流互不相干,借道 canvasOverlay 挂点)。
 
 ## 方案取舍

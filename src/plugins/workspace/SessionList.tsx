@@ -27,22 +27,95 @@ import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
-import { sessionPinKey, toggleSessionPin } from "@kernel/sessionPins";
+import { sessionPinKey, toggleSessionPin, type SessionPinEntry, type SessionPinScope } from "@kernel/sessionPins";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey } from "@kernel/sessionTitles";
+import type { SessionMeta } from "@kernel/ipc";
 import type { Workspace } from "@kernel/workspace";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { DiskSessionRow } from "./SessionRows";
-import { LiveSessionRow } from "./LiveSessionRow";
+import { LiveSessionRow, type MenuTarget } from "./LiveSessionRow";
 import { useSessionGroupMenu } from "./sessionGroupMenu";
 import { snapshotMenuHandler } from "./transcriptExportRun";
+import { retryMenuHandler } from "./retryMenu";
 import { useSnapshotExport } from "./transcriptExport";
 import { ManageList } from "./SessionManage";
 import { useCliSessionGroup } from "./useCliSessionGroup";
+import type { ExportSessionTarget } from "@plugins/session-viewer/exportMd";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { copyText } from "@kernel/clipboard";
-
 import { PAGE_INITIAL } from "./utils";
+
+interface SessionMenuContext {
+  pins: Record<string, SessionPinEntry>;
+  titleOverrides: Record<string, string>;
+  displayTitle: (cliSessionId: string | undefined, fallbackId: string) => string;
+  realTitle: (cliSessionId: string | undefined) => string | undefined;
+  menuCliSessionId: string | undefined;
+  menuPinKey: string | undefined;
+  startRename: (cliSessionId: string, current: string) => void;
+  deleteLive: (session: SessionMeta) => Promise<void>;
+  deleteDisk: (session: CliDiskSession) => Promise<void>;
+  setMenu: (menu: MenuTarget | null) => void;
+  runSnapshotExport: (target: ExportSessionTarget) => void;
+}
+
+/** 菜单分支独立于组组件装配,行/菜单共用同一份标题与身份解析。 */
+function sessionMenuProps(menu: MenuTarget, profile: CliProfile, workspace: Workspace, ctx: SessionMenuContext) {
+  const { menuCliSessionId, menuPinKey } = ctx;
+  const title = menu.kind === "disk"
+    ? ctx.displayTitle(menu.session.id, menu.session.id)
+    : ctx.displayTitle(menuCliSessionId ?? "", menu.session.id);
+  return {
+    position: { x: menu.x, y: menu.y },
+    canRename: menuCliSessionId !== undefined,
+    muteKey: menuPinKey,
+    pinScope: menuPinKey === undefined ? undefined : (ctx.pins[menuPinKey]?.scope ?? null),
+    onCopyId: () => void copyText(menuCliSessionId ?? menu.session.id).catch(() => undefined),
+    onRename: () => {
+      if (!menuCliSessionId) return;
+      ctx.startRename(menuCliSessionId, ctx.titleOverrides[sessionTitleKey(profile.id, menuCliSessionId)] ?? "");
+    },
+    onPinScope: (scope: SessionPinScope) => {
+      if (!menuPinKey || !menuCliSessionId) return;
+      toggleSessionPin(menuPinKey, scope, ctx.realTitle(menuCliSessionId));
+    },
+    onExportSnapshot: menuCliSessionId === undefined
+      ? undefined
+      : menu.kind === "disk"
+        ? () => ctx.runSnapshotExport({
+            cliSessionId: menu.session.id,
+            title,
+            profileId: profile.id,
+            path: menu.session.path,
+            modifiedAt: menu.session.modifiedAt,
+          })
+        : snapshotMenuHandler(
+            ctx.runSnapshotExport,
+            menu.session,
+            menuCliSessionId,
+            title,
+            profile.id,
+            menu.session.cwd ?? workspace.root,
+          ),
+    onRetry: menu.kind === "live" && menu.session.kind !== "cli"
+      ? undefined
+      : retryMenuHandler({
+          sessionId: menu.kind === "live" ? menu.session.id : undefined,
+          profileId: profile.id,
+          engineName: profile.name,
+          cliSessionId: menuCliSessionId,
+          title,
+          cwd: menu.kind === "live" ? (menu.session.cwd ?? workspace.root) : workspace.root,
+          workspaceId: workspace.id,
+        }),
+    onDelete: () => {
+      if (menu.kind === "live") void ctx.deleteLive(menu.session);
+      else void ctx.deleteDisk(menu.session);
+    },
+    onClose: () => ctx.setMenu(null),
+  };
+}
 
 /**
  * 单个 CLI 的会话分组 —— 工作区置顶块 + 活会话 + 磁盘历史分页。
@@ -214,53 +287,11 @@ export function CliSessionGroup({
       {snapshotToast}
       {menu && (
         <SessionContextMenu
-          position={{ x: menu.x, y: menu.y }}
-          canRename={menuCliSessionId !== undefined}
-          muteKey={menuPinKey}
-          pinScope={
-            menuPinKey === undefined ? undefined : (pins[menuPinKey]?.scope ?? null)
-          }
-          onCopyId={() => void copyText(menuCliSessionId ?? menu.session.id).catch(() => undefined)}
-          onRename={() => {
-            if (!menuCliSessionId) return;
-            startRename(
-              menuCliSessionId,
-              titleOverrides[sessionTitleKey(profile.id, menuCliSessionId)] ?? "",
-            );
-          }}
-          onPinScope={(scope) => {
-            if (!menuPinKey || !menuCliSessionId) return;
-            toggleSessionPin(menuPinKey, scope, realTitle(menuCliSessionId));
-          }}
-          onExportSnapshot={
-            menuCliSessionId === undefined
-              ? undefined
-              : menu.kind === "disk"
-                ? () =>
-                    runSnapshotExport({
-                      cliSessionId: menu.session.id,
-                      title: displayTitle(menu.session.id, menu.session.id),
-                      profileId: profile.id,
-                      path: menu.session.path,
-                      modifiedAt: menu.session.modifiedAt,
-                    })
-                : snapshotMenuHandler(
-                    runSnapshotExport,
-                    menu.session,
-                    menuCliSessionId,
-                    displayTitle(menuCliSessionId, menu.session.id),
-                    profile.id,
-                    menu.session.cwd ?? workspace.root,
-                  )
-          }
-          onDelete={() => {
-            if (menu.kind === "live") {
-              void deleteLive(menu.session);
-            } else {
-              void deleteDisk(menu.session);
-            }
-          }}
-          onClose={() => setMenu(null)}
+          {...sessionMenuProps(menu, profile, workspace, {
+            pins, titleOverrides, displayTitle, realTitle,
+            menuCliSessionId, menuPinKey, startRename,
+            deleteLive, deleteDisk, setMenu, runSnapshotExport,
+          })}
         />
       )}
     </div>

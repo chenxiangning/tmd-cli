@@ -13,6 +13,11 @@ const POLL_MS = 2000;
 /** 写后补拍延迟:覆盖 CLI 收到输入 → jsonl 落盘的迟滞窗(立拍常读旧尾)。 */
 const POKE_DELAY_MS = 300;
 
+function setPollTimer(slot: { current: number | null }, fn: () => void, ms: number) {
+  clearTimeout(slot.current ?? undefined);
+  slot.current = window.setTimeout(fn, ms);
+}
+
 /** transcript 实时生长(spec 2026-09-25-mobile-session-render):定位 jsonl 后
  * 2s 一拍 pollTranscript(changed 才重解析 setState);后台标签页暂停拍但保活;
  * 非契约引擎持续重试定位(新会话 jsonl 懒落盘)。null = 尚无可解析对话,UI 回落实况。
@@ -30,6 +35,7 @@ export function useLiveTurns(
 ): { turns: TranscriptTurn[] | null; poke: () => void } {
   const [turns, setTurns] = useState<TranscriptTurn[] | null>(null);
   const pokeRef = useRef<(() => void) | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
   useEffect(() => {
     if (!profileId || !cwd) {
       setTurns(null);
@@ -39,7 +45,6 @@ export function useLiveTurns(
     let alive = true;
     let path: string | null = null;
     let size: number | null = null;
-    let timer = 0;
     /* 重入闸:tick 是 async(tick 内两个 await RPC 窗口);poke 若落在窗口内,
      * clearTimeout 清不到在途 tick(其 id 已触发),恢复后与 poke 排的新拍
      * 各自再排 → 轮询链翻倍累积(timer 只存最后一个 id,卸载前停不掉)。
@@ -64,7 +69,9 @@ export function useLiveTurns(
         }
       } finally {
         ticking = false;
-        if (alive) timer = window.setTimeout(tick, poked ? POKE_DELAY_MS : POLL_MS);
+        if (alive) {
+          setPollTimer(pollTimerRef, tick, poked ? POKE_DELAY_MS : POLL_MS);
+        }
         poked = false;
       }
     };
@@ -74,14 +81,16 @@ export function useLiveTurns(
         poked = true; /* 在途 tick 出口即按 POKE_DELAY_MS 接拍 */
         return;
       }
-      clearTimeout(timer);
-      timer = window.setTimeout(tick, POKE_DELAY_MS);
+      setPollTimer(pollTimerRef, tick, POKE_DELAY_MS);
     };
     void tick();
     return () => {
       alive = false;
-      clearTimeout(timer);
       pokeRef.current = null;
+      if (pollTimerRef.current !== null) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
     };
   }, [profileId, cwd, sessionKey, sinceMs, cliSessionId]);
   const poke = useCallback(() => pokeRef.current?.(), []);

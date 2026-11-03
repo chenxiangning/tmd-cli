@@ -74,19 +74,21 @@ async function readMonth(ym: string): Promise<FootprintMonthFile> {
 
 /** 把封口批并入单日聚合:files 按 path 累加 ±,refs 并集含该会话;sessions 记
  *  engine/cwd、turns 追加批次、first/last 取时间两端;batches 记最近批 id。 */
-export function mergeBatchIntoDay(day: FootprintDay, batch: CkptBatch, cwd: string): void {
+export function mergeBatchIntoDay(day: FootprintDay, batch: CkptBatch, cwd: string, tmdSessionId?: string): void {
   const sid = batch.sessionId;
   const settleMs = batch.tsEnd ?? batch.ts;
   const settleIso = new Date(settleMs).toISOString();
   const startIso = new Date(batch.ts).toISOString();
 
   const sess = day.sessions[sid];
+  const structuredId = tmdSessionId?.startsWith("structured:") ? tmdSessionId : undefined;
   if (sess) {
+    if (structuredId) sess.tmdSessionId = structuredId;
     if (!sess.turns.includes(batch.index)) sess.turns.push(batch.index);
     if (startIso < sess.first) sess.first = startIso;
     if (settleIso > sess.last) sess.last = settleIso;
   } else {
-    day.sessions[sid] = { engine: batch.engine, cwd, turns: [batch.index], first: startIso, last: settleIso };
+    day.sessions[sid] = { engine: batch.engine, cwd, ...(structuredId ? { tmdSessionId: structuredId } : {}), turns: [batch.index], first: startIso, last: settleIso };
   }
 
   for (const f of batch.files) {
@@ -112,7 +114,7 @@ async function handleSealed(e: CkptTurnSealedEvent): Promise<void> {
   const { ym, dd } = settleKey(batch.tsEnd ?? batch.ts);
   const month = await getMonth(ym);
   const day = month.days[dd] ?? emptyDay();
-  mergeBatchIntoDay(day, batch, e.cwd);
+  mergeBatchIntoDay(day, batch, e.cwd, e.tmdSessionId);
   month.days[dd] = day;
   cachePut(ym, { data: month, dirty: true });
   await writeMonth(ym, month);

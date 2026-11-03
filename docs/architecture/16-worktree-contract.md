@@ -29,7 +29,7 @@ worktree 不再是「三张皮」(侧栏平铺卡 / 分支列表混业务分支 
 
 ### Git 面板展示面(git 插件)
 
-- **WorktreeZone**(常驻区,GitPanelMain 顶部):多树仓才出现(单树 return null);三态卡 = 主仓/当前/悬空(prunable);动作 = 打开为工作区 / 在此树开终端(复用「打开为工作区」+ `host.createShellSession`)/ 移除(两段确认,走共享清理层);脏净徽章每树懒加载 `git_status`。拉取带 reqRef token 防切仓竞速;移除成功 `bumpGitRefresh()` + 本地重拉。
+- **WorktreeZone**(常驻区,GitPanelMain 顶部):多树仓才出现(单树 return null);三态卡 = 主仓/当前/悬空(prunable);动作 = 审阅交付 / 打开为工作区 / 在此树开终端(复用「打开为工作区」+ `host.createShellSession`)/ 移除(两段确认,走共享清理层);脏净徽章每树懒加载 `git_status`。0.4.8 审阅交付按脏净串联现有 diff、基线比较与预填 head 的 PR,详见 34 号契约。拉取带 reqRef token 防切仓竞速;移除成功 `bumpGitRefresh()` + 本地重拉。
 - **分支三分区**(`worktreeBranchGroups.ts` 纯函数 + `useWorktreeBranchGroups`):主仓检出 / 检出于某树(按树子组,标注当前)/ 未检出(行尾「建树」→ panelStore 桥预填弹窗检出已有分支模式)。`zoned=false`(非仓/命令失败/单树仓)回退平铺 = 零 UI 变更红线。归属数据面订阅 refreshNonce(弹窗/常驻区增删后不重拉会残留已删树空组头)。检出中分支行 `deletable=false`(git 必拒删,不给必然失败的按钮)。
 - **WorktreeManageDialog**:降级为「+ 新建」入口 + 移除/清理面;浮层壳 = portal + `role=presentation` 自捕遮罩 + `z-[1201]` + window Esc(SearchOverlay/RelayDialog 同纪律);增删清后一律 `bumpGitRefresh()`。
 - **在途合并**:`worktreeOps.listWorktrees` 并 cwd 级并发请求(常驻区与分支归属面同刻双挂载只 spawn 一次 git;不做 TTL,新鲜度优先)。

@@ -61,6 +61,8 @@
 - **能力面铁律(本次真因,踩过)**:挂上 `onCloseRequested` 之后,壳侧对**每一次**关窗请求都 `prevent_close()` 并转投前端(`tauri/src/manager/window.rs`),而 `@tauri-apps/api` 的包装在「未 preventDefault」时用 `window.destroy()` 真正关窗 —— 故 capability 必须显式给 `core:window:allow-destroy`(`core:window:default` 不含,`allow-close` 也不覆盖)。0.4.0–0.4.3 三个版本缺这条,红 X 与 ⌘Q 全部静默哑火(destroy 被 ACL 拒绝,无人报错、窗口不动)。新增/复核关窗类能力时先查这条。
 - **草稿镜像**:`kernel/draftMirror.ts` 把三类随进程蒸发的内存草稿(file 内存 Map / journal 便签组件态 / ssh-file 无缓存)防抖 300ms 镜像进 localStorage(键 `tmd.draftMirror.<slot>`,slot:`file:<path>` / `journal-note:<ymd>` / `ssh-file:<path>`;TTL 7 天台账 mobile useDraft 先例;单条 256KB 截断;try/catch 静默)。**镜像与闸的分工**:闸管「问」,镜像管「真关了也能找回来」—— 闸确认丢弃 = 连镜像一起清(与 draftDelete 同点);退出强关**不清镜像**(崩溃网不撤,重开走恢复条 `DraftMirrorBar`:恢复回填置脏 / 丢弃清镜像)。覆盖边界:journal 镜像**仅便签文本** —— 贴图在粘贴时已落 assets/,「未保存的图片引用」不跨崩溃恢复;ssh 槽按路径(未掺 sessionId),跨主机同路径理论串槽由 TTL 自愈。
 
+- **插件市场重启(0.4.8)**:`confirmAppExit` 复用同一镜像 flush、聚合确认与 `requestCloseAllTabs({quit:true})` 协调,确认后才 `app_restart`;取消不关闭 tab。详见 34 号契约。
+
 ## 验证
 
 - 契约测试 `src/kernel/tabClose.test.ts`(12 例):缺省放行 / 放行 / 拒绝 / 抛错保留 / 在途去重 / 陈旧实例不删 / 批量逐个过闸 / 空 id。

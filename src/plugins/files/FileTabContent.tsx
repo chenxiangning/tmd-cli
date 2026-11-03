@@ -30,7 +30,7 @@ import { useFileDocument } from "./editor/useFileDocument";
 import { FileCenterView, LOADING } from "./FileCenterView";
 import { ByteChannelView } from "./ByteChannelView";
 import { isByteChannelKind, resolveFileRenderProfile, resolveStructuredPreviewKind, type FileRenderKind } from "./render/renderProfile";
-import { isRemoteFileUri } from "@kernel/fileSources";
+import { isRemoteFileUri, type RemoteFileVersion } from "@kernel/fileSources";
 import { DraftMirrorBar } from "@kernel/draftMirrorBar";
 import { OpenWithMenu } from "./OpenWithMenu";
 import { useFileBlame } from "./useFileBlame";
@@ -45,15 +45,17 @@ const MARKDOWN_FILE_RE = /\.(md|markdown|mdx)$/i;
 const mdEditMode = new Map<string, boolean>(), structuredEditMode = new Map<string, boolean>();
 
 /** 单文件主体:key={path} —— 文档状态、md/结构化切换偏好随文件切换整体重建。
- *  wslr:// 远程文件:同一渲染规则,编辑器只读(M1 不做远程写回)。 */
+ *  wslr:// 远程文件:同一渲染规则,可写来源走乐观锁保存。 */
 function FileTabBody({
   path,
   content,
+  version,
   reveal,
   onExitReveal,
 }: {
   path: string;
   content: string;
+  version?: RemoteFileVersion;
   reveal: { line: number; seq: number } | null;
   /** 用户显式切换预览/编辑模式时清深链 reveal(否则 reveal 存续期锁编辑模式)。 */
   onExitReveal?: () => void;
@@ -66,7 +68,7 @@ function FileTabBody({
     () => structuredEditMode.get(path) ?? false,
   );
   const dark = useDarkTheme();  /* 文档钩子常驻(含 md 预览态):⌘S 预览下也能保存,状态文字两模式连续显示。 */
-  const doc = useFileDocument(path, content);
+  const doc = useFileDocument(path, content, version);
   const status = statusText(doc, isRemoteReadOnly(path));
 
   /* 深链定位(openFileAtLine)存在即保持编辑模式(md 预览读不了行号语义);
@@ -127,7 +129,7 @@ function FileTabBody({
         />
       </div>
       {/* 外部变更冲突横幅:乐观锁拦截后用户裁决(覆盖/重载);不再静默 clobber AI 并发写。 */}
-      {doc.conflict && !remote && (
+      {doc.conflict && (
         <div className="flex items-center gap-2 border-b border-(--tmd-warn,#e0a032)/40 bg-(--tmd-warn,#e0a032)/10 px-3 py-1.5 text-xs">
           <span className="min-w-0 flex-1">
             {t("磁盘文件已被外部修改(可能是 AI 会话或终端),保存已阻止。")}
@@ -217,7 +219,14 @@ function TextFileView({
     );
   }
   return (
-    <FileTabBody key={path} path={path} content={payload.content ?? ""} reveal={reveal} onExitReveal={onExitReveal} />
+    <FileTabBody
+      key={path}
+      path={path}
+      content={payload.content ?? ""}
+      version={payload.version}
+      reveal={reveal}
+      onExitReveal={onExitReveal}
+    />
   );
 }
 

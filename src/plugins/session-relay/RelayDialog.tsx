@@ -54,14 +54,14 @@ async function attachPendingRelay(args: {
   if (!ws) throw new Error(t("没有可用工作区"));
   host.events.emit(KernelTopics.sessionViewRequested, null);
   const sessionId =
-    args.createdRef.current ?? (await host.createSession(args.targetId, ws.root, ws.id)).id;
+    args.createdRef.current ?? (await host.createSession(args.targetId, args.source.cwd ?? ws.root, ws.id)).id;
   args.createdRef.current = sessionId;
   setPendingRelay(sessionId, { text: args.text, truncated: args.truncated, source: args.source });
 }
 
-/* 摘要组装 hook:编辑态(芯片点击重开)预填已挂摘要即时就绪;常态读源会话
- * 角化转录(readSessionTranscript,9 家族全声明)压缩组装 —— 磁盘行定位同
- * viewerTab 先例:经 profile.listSessions(cwd) 扫描找同 id 会话(一次性,无轮询)。 */
+/* 摘要组装 hook:编辑态(芯片点击重开)预填已挂摘要即时就绪;structured 源直接
+ * 消费内存 blocks;其余常态读源会话角色化转录(readSessionTranscript,9 家族全声明)。
+ * 磁盘行定位同 viewerTab 先例:经 profile.listSessions(cwd) 扫描找同 id 会话(一次性,无轮询)。 */
 function useRelaySummary(source: RelaySource, workspaceRoot: string | undefined) {
   const editPayload = source.editSessionId ? getPendingRelay(source.editSessionId) : null;
   const [summary, setSummary] = useState(editPayload?.text ?? "");
@@ -75,8 +75,9 @@ function useRelaySummary(source: RelaySource, workspaceRoot: string | undefined)
       source.cliSessionId && source.cliSessionId !== "unknown"
         ? host.getCliProfile(source.profileId)
         : undefined;
-    const locate =
-      profile?.readSessionTranscript && profile.listSessions && source.cliSessionId && source.cliSessionId !== "unknown"
+    const locate = source.blocks
+      ? Promise.resolve({ blocks: source.blocks, truncated: false })
+      : profile?.readSessionTranscript && profile.listSessions && source.cliSessionId && source.cliSessionId !== "unknown"
         ? (async () => {
             const sessions = await profile!.listSessions!(source.cwd ?? workspaceRoot ?? "").catch(() => null);
             const hit = sessions?.find((s) => s.id === source.cliSessionId) ?? null;
@@ -159,22 +160,28 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
     }
   };
 
+  /* 用户取消三路统一受忙碌守卫;relay 成功路径仍直接 onClose,不被 busy 卡住。 */
+  const closeGuarded = () => {
+    if (!busy) onClose();
+  };
+
   return createPortal(
     <div
       role="presentation"
-      className="fixed inset-0 z-[1201] flex items-start justify-center bg-black/45 pt-[12vh]"
+      className="fixed inset-0 z-[1201] flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-[12vh]"
       data-icon-decor="dialog"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && closeGuarded()}
       onKeyDown={(e) => {
-        if (e.key === "Escape" && !e.nativeEvent.isComposing) onClose();
+        if (e.key === "Escape" && !e.nativeEvent.isComposing) closeGuarded();
       }}
     >
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        aria-busy={busy}
         aria-label={t("转到其他引擎接力")}
-        className="flex w-[460px] flex-col gap-3 rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-(--tmd-shadow-modal)"
+        className="flex max-h-[76vh] w-[460px] max-w-[calc(100vw-2rem)] flex-col gap-3 overflow-y-auto rounded-xl border border-(--tmd-border) bg-(--tmd-bg-panel) p-4 shadow-(--tmd-shadow-modal)"
       >
         <div className="text-sm font-medium text-(--tmd-fg)">{t("转到其他引擎接力")}</div>
 
@@ -214,6 +221,7 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
           <textarea
             ref={textRef}
             value={summary}
+            disabled={busy}
             onChange={(e) => setSummary(e.target.value)}
             rows={10}
             className="w-full resize-none rounded-md border border-(--tmd-border) bg-(--tmd-bg-input) p-2 text-xs leading-4 text-(--tmd-fg) outline-none focus:border-(--tmd-accent)"
@@ -222,9 +230,9 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
         </div>
 
 
-        {error && <div className="text-xs text-(--tmd-danger, #e5484d)">{error}</div>}
+        {error && <div role="alert" className="text-xs text-(--tmd-danger, #e5484d)">{error}</div>}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {source.editSessionId ? (
             <button
               type="button"
@@ -239,8 +247,9 @@ function RelayDialog({ source, onClose }: { source: RelaySource; onClose: () => 
           ) : null}
           <button
             type="button"
-            onClick={onClose}
-            className="rounded-md border border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-faint) hover:text-(--tmd-fg)"
+            disabled={busy}
+            onClick={closeGuarded}
+            className="rounded-md border border-(--tmd-border) px-3 py-1.5 text-xs text-(--tmd-fg-faint) hover:text-(--tmd-fg) disabled:opacity-50"
           >
             {t("取消")}
           </button>
