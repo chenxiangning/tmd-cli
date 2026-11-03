@@ -34,6 +34,7 @@ import { Pulse, CaretDown, CaretRight } from "@phosphor-icons/react";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { SessionContextMenu } from "./SessionContextMenu";
 import { snapshotMenuHandler } from "./transcriptExportRun";
+import { liveRetryMenuHandler } from "./retryMenu";
 import { useSnapshotExport } from "./transcriptExport";
 import { SessionSpeedPill } from "./SessionSpeedPill";
 import { SessionStatusLabel } from "./SessionRows";
@@ -101,12 +102,12 @@ export function RunningZoneSection() {
         settings.sessionTitles[sessionTitleKey(r.profile.id, r.cliSessionId)] === undefined,
     )
     .map((r) => r.cliSessionId).join("|");
+  const [titleRetry, setTitleRetry] = useState({ signature: "", round: 0 });
+  const retryRound = titleRetry.signature === missingTitleSig ? titleRetry.round : 0;
   useEffect(() => {
-    if (!missingTitleSig) return;
-    let stale = false;
-    let attempts = 0;
-    let timer: number | undefined;
-    const scan = () => {
+    if (!missingTitleSig || retryRound >= TITLE_RESOLVE_MAX_ATTEMPTS) return;
+    let alive = true;
+    const timer = window.setTimeout(() => {
       const pairs = new Map<string, { profile: CliProfile; root: string }>();
       for (const r of rowsRef.current) {
         if (r.cliSessionId === undefined || !r.profile.listSessions) continue;
@@ -115,7 +116,7 @@ export function RunningZoneSection() {
       void Promise.all(
         [...pairs.values()].map(({ profile, root }) => profile.listSessions!(root).catch(() => [])),
       ).then((lists) => {
-        if (stale) return;
+        if (!alive) return;
         const next: Record<string, string> = {};
         for (const list of lists) {
           for (const d of list) if (d.title) next[d.id] = d.title;
@@ -125,17 +126,14 @@ export function RunningZoneSection() {
         for (const r of rowsRef.current)
           if (r.cliSessionId !== undefined && next[r.cliSessionId])
             noteSessionTabTitle(r.session.id, next[r.cliSessionId]);
-        attempts += 1;
-        if (attempts < TITLE_RESOLVE_MAX_ATTEMPTS)
-          timer = window.setTimeout(scan, titleRetryDelay(attempts));
+        setTitleRetry({ signature: missingTitleSig, round: retryRound + 1 });
       });
-    };
-    scan();
+    }, retryRound === 0 ? 0 : titleRetryDelay(retryRound));
     return () => {
-      stale = true;
+      alive = false;
       window.clearTimeout(timer);
     };
-  }, [missingTitleSig]);
+  }, [missingTitleSig, retryRound]);
 
   if (rows.length === 0) return null;
 
@@ -277,6 +275,7 @@ export function RunningZoneSection() {
           }
           muteKey={muteKeyOf(menu.row.workspace.id, menu.row.profile.id, menu.row.cliSessionId)}
           onExportSnapshot={snapshotMenuHandler(runSnapshotExport, menu.row.session, menu.row.cliSessionId, titleOf(menu.row), menu.row.profile.id, menu.row.session.cwd ?? menu.row.workspace.root)}
+          onRetry={liveRetryMenuHandler({ session: menu.row.session, profile: menu.row.profile, workspace: menu.row.workspace, cliSessionId: menu.row.cliSessionId, title: titleOf(menu.row) })}
           onCopyId={() => void copyText(menu.row.cliSessionId ?? menu.row.session.id).catch(() => undefined)}
           onRename={() => renameOf(menu.row)}
           onPinScope={(scope) => {

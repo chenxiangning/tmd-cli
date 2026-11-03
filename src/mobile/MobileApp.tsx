@@ -18,6 +18,11 @@ import { listSessions, listWorkspaces, overlayState, sessionPinToggle } from "./
 import { activeRemoteEndpoint, isRemoteConnected, isRemotePaused, listen, onRemoteConnection } from "@kernel/transport";
 import { baseName } from "@kernel/pathUtils";
 
+function setOverlayTimer(slot: { current: number | null }, fn: () => void, ms: number) {
+  clearTimeout(slot.current ?? undefined);
+  slot.current = window.setTimeout(fn, ms);
+}
+
 export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   const [sessions, setSessions] = React.useState<RemoteSession[]>([]);
   const [workspaces, setWorkspaces] = React.useState<RemoteWorkspace[]>([]);
@@ -95,11 +100,11 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
   /* 本地 pin 写水位(评审 F6):请求发出后本机又写过 pin → 响应快照可能早于该写,
      整表覆写会冲掉乐观位;此时只合 titles/archive,pins 留本地(服务端随后广播会再收敛)。 */
   const lastPinWriteAt = React.useRef(0);
+  const overlayTimerRef = React.useRef<number | null>(null);
   React.useEffect(() => {
     let alive = true;
-    let timer = 0;
     const pull = () => {
-      clearTimeout(timer);
+      clearTimeout(overlayTimerRef.current ?? undefined);
       const reqAt = Date.now();
       void overlayState().then(
         (o) => {
@@ -109,10 +114,11 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
           if (lastPinWriteAt.current <= reqAt) setPins(o.pins);
           /* 周期兜底(2026-10-03):settings:changed 是唯一同步源,断连窗口丢事件
              = 命名/归档/置顶无限期滞后;30s 全量重拉封死(轻 RPC,桌面读盘一次)。 */
-          timer = window.setTimeout(pull, 30_000);
+          setOverlayTimer(overlayTimerRef, pull, 30_000);
         },
         () => {
-          if (alive) timer = window.setTimeout(pull, 3000);
+          if (!alive) return;
+          setOverlayTimer(overlayTimerRef, pull, 3000);
         },
       );
     };
@@ -123,14 +129,16 @@ export function MobileApp(props: { creds: MobileCreds; onRePair: () => void }) {
     });
     /* 防抖:桌面连发 settings:changed(如批量归档)只拉一次全量。 */
     const off = listen("settings:changed", () => {
-      clearTimeout(timer);
-      timer = window.setTimeout(pull, 300);
+      setOverlayTimer(overlayTimerRef, pull, 300);
     });
     return () => {
       alive = false;
-      clearTimeout(timer);
       offConn();
       void off.then((f) => f()).catch(() => undefined);
+      if (overlayTimerRef.current !== null) {
+        clearTimeout(overlayTimerRef.current);
+        overlayTimerRef.current = null;
+      }
     };
   }, []);
 

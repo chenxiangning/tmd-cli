@@ -5,7 +5,7 @@
  * 浏览器会话的权限与本机等权(token 即凭据),风险提示随 M2 外网卡弹窗一并给出。
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import { Globe, Copy, ArrowsClockwise } from "@phosphor-icons/react";
 import { webAccessStatus, type WebAccessInfo } from "@kernel/ipc";
@@ -19,14 +19,43 @@ export function WebAccessSection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<number | null>(null);
+  const copySeqRef = useRef(0);
+  const refreshSeqRef = useRef(0);
+  const aliveRef = useRef(true);
   const { settings } = useSettingsState();
   const enabled = settings.webAccessEnabled === true;
 
+  const clearCopyTimer = () => {
+    if (copyTimerRef.current !== null) window.clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = null;
+  };
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      clearCopyTimer();
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
+    const seq = ++refreshSeqRef.current;
     try {
-      setInfo(await webAccessStatus());
+      const next = await webAccessStatus();
+      if (!aliveRef.current || seq !== refreshSeqRef.current) return;
+      /* 地址可能已换:作废旧复制结果与反馈,不能把新地址误报成已复制。 */
+      copySeqRef.current += 1;
+      clearCopyTimer();
+      setCopied(false);
+      setInfo(next);
       setError(null);
     } catch (e) {
+      if (!aliveRef.current || seq !== refreshSeqRef.current) return;
+      /* 状态不明时撤下旧 token 地址,避免用户复制失效凭据。 */
+      copySeqRef.current += 1;
+      clearCopyTimer();
+      setInfo(null);
+      setCopied(false);
       setError(errTextDisplay(e));
     }
   }, []);
@@ -64,9 +93,23 @@ export function WebAccessSection() {
   };
   const copy = async () => {
     if (!info) return;
-    await copyText(info.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    const seq = ++copySeqRef.current;
+    clearCopyTimer();
+    setCopied(false);
+    try {
+      await copyText(info.url);
+      if (!aliveRef.current || seq !== copySeqRef.current) return;
+      setError(null);
+      setCopied(true);
+      const timer = window.setTimeout(() => {
+        if (copyTimerRef.current !== timer) return;
+        copyTimerRef.current = null;
+        if (aliveRef.current) setCopied(false);
+      }, 1500);
+      copyTimerRef.current = timer;
+    } catch (e) {
+      if (aliveRef.current && seq === copySeqRef.current) setError(errTextDisplay(e));
+    }
   };
 
   return (
@@ -90,7 +133,7 @@ export function WebAccessSection() {
         {t("同一 Wi-Fi 下的手机/平板浏览器打开下方地址即可访问本机会话。地址含一次性 token,每次启动都会重新生成,不要转发给他人。")}
       </div>
       {error && (
-        <div className="rounded border border-[var(--tmd-error)]/40 bg-[var(--tmd-error)]/10 px-2.5 py-1.5 text-xs text-[var(--tmd-error)]">
+        <div role="alert" className="rounded border border-[var(--tmd-error)]/40 bg-[var(--tmd-error)]/10 px-2.5 py-1.5 text-xs text-[var(--tmd-error)]">
           {error}
         </div>
       )}
@@ -104,11 +147,15 @@ export function WebAccessSection() {
               type="button"
               className="rounded border border-[var(--tmd-border)] p-1 hover:bg-[var(--tmd-bg-hover)]"
               onClick={copy}
+              aria-label={t("复制地址")}
               title={copied ? t("已复制") : t("复制地址")}
             >
               <Copy size="0.875rem" aria-hidden />
             </button>
           </div>
+          {copied && (
+            <div role="status" className="text-xs text-[var(--tmd-fg-muted)]">{t("已复制")}</div>
+          )}
           <div className="text-xs text-[var(--tmd-fg-muted)]">
             {t("端口")} {info.port} · LAN {info.lanIp}
           </div>

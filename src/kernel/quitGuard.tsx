@@ -1,5 +1,5 @@
 /**
- * 关窗闸聚合弹层(0.4.0 项 12)—— 有脏 tab 时红 X / 系统关窗先弹这里确认。
+ * 关窗/重启聚合弹层(0.4.0 项 12)—— 有脏 tab 时先弹这里确认。
  * 编排(订阅 onCloseRequested、裁决、强制放行、⌘Q 腿裁决)在 quitGuardBoot.ts,
  * 纯裁决在 quitGuardPlan.ts;本件只留 QuitDialog 组件(Fast Refresh 保态)。
  */

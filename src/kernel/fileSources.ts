@@ -14,6 +14,16 @@ import { createSubscribable } from "./subscribable";
 import type { DirEntry } from "./ipc";
 import type { Workspace } from "./workspace";
 
+export interface RemoteFileVersion {
+  mtimeMs: number;
+  len: number;
+}
+
+export interface RemoteFileText {
+  content: string;
+  version?: RemoteFileVersion;
+}
+
 export interface RemoteFileSource {
   /** 稳定 id(= 文件 URI scheme 前缀,如 "wslr")。 */
   id: string;
@@ -27,10 +37,16 @@ export interface RemoteFileSource {
   fileUri(ws: Workspace, path: string): string;
   /** 该 URI 是否归本源(前缀判定,渲染管线加载分派用)。 */
   ownsUri(path: string): boolean;
-  /** 文件 URI → 文本(上限由调用方给;超限如实 reject)。 */
-  readText(uri: string, maxBytes: number): Promise<string>;
-  /** 写回能力(可选;缺省 = 该源只读):文本覆盖写(编辑器 ⌘S)。 */
-  writeText?(uri: string, content: string): Promise<void>;
+  /** 文件 URI → 文本与可选版本令牌(上限由调用方给;超限如实 reject)。
+   *  字符串返回兼容无乐观锁来源;对象形态用于内容与版本同次读取的来源。 */
+  readText(uri: string, maxBytes: number): Promise<string | RemoteFileText>;
+  /** 写回能力(可选;缺省 = 该源只读):expected 为打开/上次保存版本,null = 显式覆盖。
+   *  支持乐观锁的来源返回写后版本;其他来源可继续返回 void。 */
+  writeText?(
+    uri: string,
+    content: string,
+    expected?: RemoteFileVersion | null,
+  ): Promise<RemoteFileVersion | void>;
   /** 新建条目(文件树新建;文件已存在须报错,绝不覆写)。 */
   createEntry?(ws: Workspace, path: string, isDir: boolean): Promise<void>;
 }

@@ -45,8 +45,9 @@ export function SendConfirmDialog({
   const { onConfirm, onCancel } = req ?? { onConfirm: () => {}, onCancel: () => {} };
   useEffect(() => {
     if (!req) return;
+    let armed = false;
     const onKey = (e: KeyboardEvent) => {
-      if (e.keyCode === 229 || e.repeat) return;
+      if (!armed || e.keyCode === 229 || e.repeat) return;
       if (e.key === "Enter") {
         e.preventDefault();
         settle(req.onConfirm);
@@ -57,8 +58,9 @@ export function SendConfirmDialog({
     /* 延一宏任务挂载:开框的那记 Enter/⌘Enter 在离散事件同步 commit 下仍在本帧
        冒泡向 window(effect 随 commit 同步 flush),同帧接住 = 开框即自确认,
        二次确认形同虚设(2026-09-27 大仙实测 Enter 直发)。setTimeout(0) 保证
-       开框键派发完毕后监听才上线;repeat 闸防长按连发第二记即确认。 */
-    const tid = window.setTimeout(() => window.addEventListener("keydown", onKey), 0);
+       开框键派发完毕后监听才放行;repeat 闸防长按连发第二记即确认。 */
+    const tid = window.setTimeout(() => { armed = true; }, 0);
+    window.addEventListener("keydown", onKey);
     return () => {
       window.clearTimeout(tid);
       window.removeEventListener("keydown", onKey);

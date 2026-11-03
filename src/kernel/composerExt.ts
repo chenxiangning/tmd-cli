@@ -40,8 +40,10 @@ export const composerInsertRef: { current: ((text: string) => void) | null } = {
 /** 草稿全文读取桥:composer 挂载期交接,未挂载 = null(增强提示词等跨件消费)。 */
 export const composerDraftRef: { current: (() => string) | null } = { current: null };
 
-/** 草稿整体替换桥:替换全文并聚焦尾部,未挂载 = null。同 composerInsertRef 先例。 */
-export const composerReplaceRef: { current: ((text: string) => void) | null } = { current: null };
+/** 草稿整体替换桥:替换全文并聚焦尾部;带 sessionId 时仅目标会话可写,false = 尚未就绪。 */
+export const composerReplaceRef: {
+  current: ((text: string, targetSessionId?: string) => boolean) | null;
+} = { current: null };
 
 const triggerSources: ComposerTriggerSource[] = [];
 const sendTransforms: ComposerSendTransform[] = [];

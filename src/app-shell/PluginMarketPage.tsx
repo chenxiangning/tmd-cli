@@ -20,14 +20,18 @@ import { getMarketPanel } from "@kernel/marketPanel";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import { useLocalPluginRecords } from "@kernel/localPlugins";
 import { appRestart } from "@kernel/ipc";
+import { confirmAppExit } from "@kernel/quitGuardBoot";
 import { Mounts } from "@kernel/Mounts";
 import { CATEGORY_ORDER } from "./pluginMarketCategories";
 import { MergedStrip, type Row } from "./PluginMarketStrip";
 import { PluginMarketList } from "./PluginMarketList";
 
-/* Tauri 环境进程替换不返回;浏览器 dev invoke 抛错 → 降级整页刷新(同样重走 activateAll 过滤)。 */
+/* 与关窗共用草稿 flush / 脏 tab 聚合确认;确认且 tab 结算后才重启。
+ * Tauri 环境进程替换不返回;浏览器 dev invoke 抛错 → 降级整页刷新(同样重走 activateAll 过滤)。 */
 function restart() {
-  void appRestart().catch(() => window.location.reload());
+  confirmAppExit(() => {
+    void appRestart().catch(() => window.location.reload());
+  });
 }
 
 export function PluginMarketPage({ onClose }: { onClose: () => void }) {

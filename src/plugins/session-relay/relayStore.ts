@@ -5,8 +5,10 @@
  */
 import { useSyncExternalStore } from "react";
 import type { RelaySource } from "./relay";
+import type { RetrySource } from "./retry";
 
 let source: RelaySource | null = null;
+let retrySource: RetrySource | null = null;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -31,6 +33,26 @@ export function useRelaySource(): RelaySource | null {
       return () => listeners.delete(onChange);
     },
     () => source,
+  );
+}
+
+export function setRetrySource(next: RetrySource): void {
+  retrySource = next;
+  emit();
+}
+
+export function clearRetrySource(): void {
+  retrySource = null;
+  emit();
+}
+
+export function useRetrySource(): RetrySource | null {
+  return useSyncExternalStore(
+    (onChange) => {
+      listeners.add(onChange);
+      return () => listeners.delete(onChange);
+    },
+    () => retrySource,
   );
 }
 

@@ -7,7 +7,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { errTextDisplay } from "@kernel/errText";
 import type {
   CliConfigEntry,
   CliConfigField,
@@ -18,12 +17,10 @@ import type {
 import { StyledSelect } from "@kernel/StyledSelect";
 import { t } from "@kernel/i18n";
 import { ModelPicker } from "./ModelPicker";
-import {
-  ModelMapInput,
-  OrderedListInput,
-  } from "./FieldControls";
+import { ModelMapInput, OrderedListInput } from "./FieldControls";
 import { SecretInput } from "@kernel/SecretInput";
 import { normOptions, strVal, useCatalog, withCurrent } from "./FieldControlsModel";
+import { useConfigSave } from "./useConfigSave";
 
 export function ConfigForm({
   engine,
@@ -41,12 +38,17 @@ export function ConfigForm({
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [values, setValues] = useState<CliConfigValues>(() => engine.load(raw));
-  const [toast, setToast] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  /* 脏态走「事件时信号」而非 effect 上报(react-doctor no-pass-live-state-to-parent):
-     基线挂载即定格(宿主按 engine:source:mode key 重挂,raw 变更即重挂/保存后重同步),
-     set/放弃/保存三个事件点同步维护 dirty state 并上报宿主。 */
+  /* 脏态走事件时信号;保存成功直接对齐规范化值,不能再对比旧 baseline 闭包。 */
   const [dirty, setDirty] = useState(false);
+  const { saving, toast, saveError, clearSaveError, save: persist } = useConfigSave(
+    onSaved,
+    (nextRaw) => {
+      const savedValues = engine.load(nextRaw);
+      setValues(savedValues);
+      setDirty(false);
+      onDirtyChange?.(false);
+    },
+  );
   const markDirty = (next: CliConfigValues) => {
     const d = JSON.stringify(next) !== baseline;
     setDirty(d);
@@ -59,21 +61,7 @@ export function ConfigForm({
     markDirty(next);
   };
 
-  const save = async () => {
-    const nextRaw = engine.save(raw, values);
-    try {
-      await onSaved(nextRaw);
-      /* 重同步基线(load∘save 非恒等的插件不永久假脏;基线在宿主,保存后随 raw 更新)。 */
-      markDirty(engine.load(nextRaw));
-      setSaveError(null);
-      setToast(t("已保存到磁盘(首次写入前已留 .bak-tmd 备份)"));
-      setTimeout(() => setToast(null), 2600);
-    } catch (e) {
-      /* 失败走持久错误条:2.6s 中性 toast 会把写盘失败一并抹掉(假「已保存」)。 */
-      setToast(null);
-      setSaveError(t("保存失败:{msg}", { msg: errTextDisplay(e) }));
-    }
-  };
+  const save = () => void persist(engine.save(raw, values));
 
   const discard = () => {
     const restored = engine.load(raw);
@@ -96,17 +84,19 @@ export function ConfigForm({
 
   return (
     <div className="cli-cfg-form">
-      {rows(basic)}
-      {advanced.length > 0 && (
-        <details className="cli-cfg-advanced">
-          <summary>{t("高级")}</summary>
-          {rows(advanced)}
-        </details>
-      )}
+      <fieldset className="contents" disabled={saving} aria-busy={saving}>
+        {rows(basic)}
+        {advanced.length > 0 && (
+          <details className="cli-cfg-advanced">
+            <summary>{t("高级")}</summary>
+            {rows(advanced)}
+          </details>
+        )}
+      </fieldset>
       {saveError && (
         <div className="cli-cfg-error" role="alert" data-testid="cli-cfg-save-error">
           <p>{saveError}</p>
-          <button type="button" className="cli-cfg-link" onClick={() => setSaveError(null)}>
+          <button type="button" className="cli-cfg-link" onClick={clearSaveError}>
             {t("关闭错误提示")}
           </button>
         </div>
@@ -114,10 +104,10 @@ export function ConfigForm({
       {dirty && (
         <div className="cli-cfg-savebar" data-testid="cli-cfg-savebar">
           <span className="cli-cfg-dirty">{t("● 未保存的更改")}</span>
-          <button type="button" className="cli-cfg-btn" onClick={discard}>
+          <button type="button" className="cli-cfg-btn" disabled={saving} onClick={discard}>
             {t("放弃")}
           </button>
-          <button type="button" className="cli-cfg-btn is-primary" onClick={() => void save()}>
+          <button type="button" className="cli-cfg-btn is-primary" disabled={saving} onClick={save}>
             {t("保存到磁盘")}
           </button>
         </div>

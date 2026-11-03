@@ -24,6 +24,8 @@ export interface RelaySource {
   cwd?: string;
   /** 源会话工作区 id(新会话落位;缺席 = 用当时激活工作区,活会话命令路径同值)。 */
   workspaceId?: string;
+  /** structured-session 等内存转录源；提供后摘要直接消费，不再读磁盘。 */
+  blocks?: readonly CliTranscriptBlock[];
   /** 编辑态标记:点击已挂芯片重开弹层时 = 目标会话 id(弹层改「更新/丢弃」,不再建新会话)。 */
   editSessionId?: string;
 }

@@ -7,6 +7,11 @@ import { registerMessages } from "@kernel/i18n";
 
 /** en 词典 · worktree 域(插件自带,i18n.registerMessages 注册;zh 恒等无词典)。 */
 const MESSAGES_EN = {
+  "审阅 / 交付": "Review / Deliver",
+  "分支内容已包含在 {target} 中,可清理 worktree": "Branch content is already in {target}; worktree can be cleaned up",
+  "有 {n} 个提交待交付": "{n} commit(s) pending delivery",
+  "落后基线 {n} 个提交": "{n} commit(s) behind base",
+  "当前无法创建 PR": "Cannot create a PR right now",
   "读取 worktree 列表…": "Loading worktree list…",
   "在新 worktree 中起会话": "Start session in new worktree",
   "目录:{dir}": "Directory: {dir}",
@@ -43,6 +48,11 @@ const MESSAGES_EN = {
 
 /** ja 词典 · worktree 域。 */
 const MESSAGES_JA = {
+  "审阅 / 交付": "レビュー / 引き渡し",
+  "分支内容已包含在 {target} 中,可清理 worktree": "ブランチの内容は {target} に含まれています。worktree をクリーンアップできます",
+  "有 {n} 个提交待交付": "引き渡し待ちのコミットが {n} 件あります",
+  "落后基线 {n} 个提交": "ベースより {n} コミット遅れています",
+  "当前无法创建 PR": "現在 PR を作成できません",
   "读取 worktree 列表…": "worktree 一覧を読み込み中…",
   "在新 worktree 中起会话": "新しい worktree でセッションを開始",
   "目录:{dir}": "ディレクトリ: {dir}",

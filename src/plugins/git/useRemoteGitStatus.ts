@@ -10,6 +10,7 @@ import { ipc, type SshHostConfig } from "@kernel/ipc";
 import { errTextDisplay } from "@kernel/errText";
 import { getSettingsState } from "@kernel/settings";
 import type { Workspace } from "@kernel/workspace";
+import { shellQuote } from "../wsl/wslCore";
 
 /** porcelain 解析结果(纯数据;解析器为纯函数,单测直调)。 */
 export interface RemoteGitStatus {
@@ -59,6 +60,11 @@ export function isRemoteGitExecError(out: string): boolean {
   return !/^## /m.test(out) && /fatal:|command not found/.test(out);
 }
 
+/** linuxRoot 作为单个 shell 参数传入;实际传输仍由 wslExec 的 b64 通道负责。 */
+export function remoteGitStatusScript(linuxRoot: string): string {
+  return `git -c core.quotepath=false -C ${shellQuote(linuxRoot)} status --porcelain=v1 -b 2>&1 || true`;
+}
+
 function hostOf(ws: Workspace): SshHostConfig | null {
   const id = ws.wsl?.hostId;
   return id ? getSettingsState().settings.ssh.hosts.find((h) => h.id === id) ?? null : null;
@@ -83,7 +89,7 @@ export function useRemoteGitStatus(ws: Workspace | null | undefined, root: strin
     try {
       const out = await ipc.wslExec(
         distro,
-        `git -c core.quotepath=false -C "${linuxRoot}" status --porcelain=v1 -b 2>&1 || true`,
+        remoteGitStatusScript(linuxRoot),
         host,
       );
       const parsed = parseRemoteStatus(out);

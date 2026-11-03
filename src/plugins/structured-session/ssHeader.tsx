@@ -5,7 +5,7 @@
  * set_thinking_level 成功后 get_state 回读权威态,onStateRefresh 回写 tab。
  * 引擎切换 = 换 profileId 另开 tab(同 cwd,两引擎 tab 并存,先例 tabs.ts)。
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import { CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
@@ -160,11 +160,13 @@ function ModelMenu(props: {
       return;
     }
     if (models !== null) return;
+    let alive = true;
     setLoading(true);
     void Promise.all([session.getAvailableModels(), session.getThinkingLevels()])
-      .then(([ms, ls]) => { setModels(ms); setLevels(ls); })
-      .catch(() => { setModels([]); setLevels([]); })
-      .finally(() => setLoading(false));
+      .then(([ms, ls]) => { if (alive) { setModels(ms); setLevels(ls); } })
+      .catch(() => { if (alive) { setModels([]); setLevels([]); } })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
   }, [open, session, models]);
 
   /* set 成功 → get_state 回读权威态再收菜单;失败留在菜单内报错 */
@@ -222,6 +224,7 @@ export function SsHeader(props: {
   minimal: boolean;
   statusText: string | null;
   session: PiRpcSession | null;
+  actions: ReactNode;
   onStateRefresh: (s: PiRpcState) => void;
   onAbort: () => void;
 }) {
@@ -274,6 +277,7 @@ export function SsHeader(props: {
       ) : model ? (
         <span className="ss-model">{model.id}</span>
       ) : null}
+      {props.actions}
       <StatusCluster sessionId={sessionId} stats={stats} minimal={minimal} busy={busy} queued={queued} statusText={statusText} onAbort={props.onAbort} />
     </header>
   );

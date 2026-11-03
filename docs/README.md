@@ -380,5 +380,12 @@
 | 2026-10-28 | [规则体检运行态交互精修与视觉层级设计](superpowers/specs/2026-10-28-lint-runtime-ui-design.md) | 已落地(gate 全绿+doctor 100+1421 桩目检;真机截图受权限限制) |
 | 2026-10-30 | [omp 前置依赖过旧一键修复设计(CliPrerequisite 加通用 minVersion 字段,omp 声明 bun ≥1.4.4;welcome 依赖探针比版本出「过旧」引导分支,一键修复=官方脚本升 bun → onDone 自动接续 omp 更新 → 双探针重跑;否决解析启动失败错误串与通用体检页)](superpowers/specs/2026-10-30-omp-runtime-fix-design.md) | 已落地 |
 | 2026-10-30 | [依赖批次合入与整体查漏评审(#80/#81/#79 合入 Pull #83:冲突处理=morphicons 锁冲突 pnpm install 重生成;morphicons 2.0 major 裁决=仅消费 MorphIcon 引擎、图标数据仓内自带无风险;整体查漏修三漏=CHANGELOG 0.4.7 补依赖小节/AGENTS.md 清单序号/PR 模板 500→300 行;046 评审遗留账清点)](review/2026-10-30-dep-merges-review.md) | 已收口 |
+| 2026-11-01 | [0.4.8 可恢复、可审、可交付工作流设计(重启保护/WSL 乐观锁/结构化共同存证/上一回合重试/worktree 审阅交付)](superpowers/specs/2026-11-01-048-workflow-recovery-design.md) | 已落地 |
+| 2026-11-02 | [34 · 0.4.8 可恢复、可审、可交付工作流契约](architecture/34-workflow-recovery.md) | 已落地 |
+| 2026-11-03 | [0.4.8 第二轮代码评审(性能/兼容性/稳定性/正确性;4 项边界缺陷当轮修复)](review/2026-11-03-048-second-review.md) | 已收口 |
+| 2026-11-03 | [客户端整体细节打磨(A+B)设计(便签/MCP/配置/接力重试/Web 访问/文件菜单)](superpowers/specs/2026-11-03-client-detail-polish-design.md) | 已落地,真机交互待验收 |
+| 2026-11-03 | [客户端整体细节打磨(A+B)实施评审(六组状态/异步/触达面治理;全量门禁绿)](review/2026-11-03-client-detail-polish.md) | 代码与自动化已收口 |
+| 2026-11-03 | [内置终端入口:每次点击新建并继承当前工程目录](superpowers/specs/2026-11-03-terminal-new-session-design.md) | 已收口(用户验收) |
+| 2026-11-03 | [内置终端入口实施评审(性能/兼容性/稳定性/正确性;全量门禁绿)](review/2026-11-03-terminal-new-session-review.md) | 已收口 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

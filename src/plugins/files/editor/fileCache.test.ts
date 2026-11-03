@@ -83,6 +83,33 @@ describe("reloadFile 与变更通知", () => {
     expect(cache.cacheGet("/b")?.content).toBe("fresh");
   });
 
+  it("远程对象读取:内容与版本令牌一起入缓存", async () => {
+    /* 动态 import 例外:须与 resetModules 后的 fileCache 共用同一注册表实例。 */
+    const { registerRemoteFileSource } = await import("@kernel/fileSources");
+    const unregister = registerRemoteFileSource({
+      id: "testr",
+      appliesTo: () => false,
+      label: () => "test",
+      listDir: async () => [],
+      fileUri: () => "testr:///a",
+      ownsUri: (path) => path.startsWith("testr://"),
+      readText: async () => ({
+        content: "remote",
+        version: { mtimeMs: 123, len: 6 },
+      }),
+    });
+
+    cache.loadFile("testr:///a");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(cache.cacheGet("testr:///a")).toMatchObject({
+      content: "remote",
+      version: { mtimeMs: 123, len: 6 },
+    });
+    unregister();
+  });
+
   it("加载在途:reloadFile 不重复发 IPC,等首次落地", () => {
     ipcMock.fsReadFile.mockReturnValue(new Promise(() => {}));
 

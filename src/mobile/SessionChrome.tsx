@@ -61,7 +61,7 @@ export function ShotPreview(props: { url: string | null; onClose: () => void }) 
     };
     /* defer 一拍:开浮层的那个 click 冒泡到 document 前先待命,不吞当次 */
     let armed = false;
-    window.setTimeout(() => {
+    const armTimer = window.setTimeout(() => {
       armed = true;
     }, 0);
     const guarded = () => {
@@ -70,6 +70,7 @@ export function ShotPreview(props: { url: string | null; onClose: () => void }) 
     document.addEventListener("click", guarded);
     window.addEventListener("keydown", onKey);
     return () => {
+      window.clearTimeout(armTimer);
       document.removeEventListener("click", guarded);
       window.removeEventListener("keydown", onKey);
     };

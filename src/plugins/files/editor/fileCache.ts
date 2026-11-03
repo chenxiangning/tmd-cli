@@ -10,7 +10,7 @@
  */
 
 import { ipc } from "@kernel/ipc";
-import { findRemoteFileSourceForUri } from "@kernel/fileSources";
+import { findRemoteFileSourceForUri, type RemoteFileVersion } from "@kernel/fileSources";
 import { draftMirrorClear, draftMirrorSet } from "@kernel/draftMirror";
 
 interface FilePayload {
@@ -18,6 +18,7 @@ interface FilePayload {
   content: string | null;
   error: string | null;
   loaded: boolean;
+  version?: RemoteFileVersion;
 }
 
 const FILE_CACHE_BYTE_BUDGET = 32 * 1024 * 1024;
@@ -93,9 +94,12 @@ export function loadFile(path: string): FilePayload {
     ? source.readText(path, REMOTE_TEXT_MAX_BYTES)
     : ipc.fsReadFile(path);
   load.then(
-    (content) => {
+    (result) => {
+      const { content, version } = typeof result === "string"
+        ? { content: result, version: undefined }
+        : result;
       /* 条目可能已被 LRU 淘汰:直接重插结果(幂等,不复活半状态) */
-      cacheSet(path, { path, content, error: null, loaded: true });
+      cacheSet(path, { path, content, version, error: null, loaded: true });
     },
     (e) => {
       cacheSet(path, { path, content: null, error: String(e), loaded: true });
@@ -118,8 +122,8 @@ export function reloadFile(path: string): FilePayload {
 }
 
 /** 保存成功后原地刷新缓存内容(磁盘真实形态),预览/重开编辑器读到新值。 */
-export function cacheRefreshContent(path: string, content: string): void {
-  cacheSet(path, { path, content, error: null, loaded: true });
+export function cacheRefreshContent(path: string, content: string, version?: RemoteFileVersion): void {
+  cacheSet(path, { path, content, version, error: null, loaded: true });
 }
 
 /* ── 草稿 ── */

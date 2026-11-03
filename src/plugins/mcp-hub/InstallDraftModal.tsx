@@ -111,9 +111,7 @@ export function InstallDraftModal({
   defaultEngine: McpEngineState | null;
   onClose: () => void;
 }) {
-  const [draftKind, setDraftKind] = useState<"install" | "manual">(
-    card.installDraft ? "install" : "manual",
-  );
+  const [draftKind, setDraftKind] = useState<"install" | "manual">(card.installDraft ? "install" : "manual");
   const [name, setName] = useState(() => slugify(card.name));
   const [profileId, setProfileId] = useState(defaultEngine?.profileId ?? engines[0]?.profileId ?? "");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -121,9 +119,7 @@ export function InstallDraftModal({
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const applyDetail = useCallback((detail: RegistryCard) => {
-    setDraftKind(detail.installDraft ? "install" : "manual");
-  }, []);
+  const applyDetail = useCallback((detail: RegistryCard) => setDraftKind(detail.installDraft ? "install" : "manual"), []);
   const { resolved, resolving, error: resolveError } = useSmitheryResolve(card, applyDetail);
   const error = resolveError ?? saveError;
 
@@ -134,6 +130,13 @@ export function InstallDraftModal({
 
   const preview = useMemo(() => buildPreview(draft, values, engine), [draft, values, engine]);
 
+  /* 延迟收框归属当前弹窗实例:卸载即清理,旧定时器不得误关后续新弹窗。 */
+  useEffect(() => {
+    if (!saved) return;
+    const timer = window.setTimeout(onClose, 1500);
+    return () => window.clearTimeout(timer);
+  }, [saved, onClose]);
+
   const save = async () => {
     if (!draft || !engine) return;
     setBusy(true);
@@ -143,7 +146,6 @@ export function InstallDraftModal({
       if (engine.format === "json") entry.type = inferTransport(entry);
       await upsertServer(engine, name.trim(), entry);
       setSaved(true);
-      window.setTimeout(onClose, 1500);
     } catch (e) {
       setSaveError(errTextDisplay(e));
     } finally {

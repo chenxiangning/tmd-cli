@@ -29,6 +29,7 @@ import { useWorkspaces, workspaceDisplayName, type Workspace } from "@kernel/wor
 import { copyText } from "@kernel/clipboard";
 import { CaretDown, CaretRight } from "@phosphor-icons/react";
 import { SessionContextMenu } from "./SessionContextMenu";
+import { liveRetryMenuHandler } from "./retryMenu";
 import { useSnapshotExport } from "./transcriptExport";
 import { WorktreeBadge } from "./WorktreeBadge";
 import {
@@ -116,51 +117,40 @@ export function PinnedSessionsSection() {
     )
     .join("|");
 
+  const [titleRetry, setTitleRetry] = useState({ signature: "", round: 0 });
+  const retryRound = titleRetry.signature === unresolvedKeys ? titleRetry.round : 0;
   useEffect(() => {
-    if (!unresolvedKeys) return;
+    if (!unresolvedKeys || retryRound >= TITLE_RESOLVE_MAX_ATTEMPTS) return;
+    let alive = true;
     const keys = new Set(unresolvedKeys.split("|"));
-    let stale = false;
-    let timer: number | undefined;
-    let attempts = 0;
-    const attempt = async () => {
-      /* 各行解析互不依赖(不同工作区/CLI 的磁盘扫描),并行聚合后统一回填;
-       * stale 后再回填会污染新挂载的 effect 代,故 await 后判一次。 */
-      const targets = rowsRef.current.flatMap((row) => {
-        const listSessions = row.profile.listSessions;
-        return keys.has(row.key) && listSessions ? [{ row, listSessions }] : [];
-      });
-      const resolved = await Promise.all(
-        targets.map(async ({ row, listSessions }) => {
-          const list = await listSessions(row.workspace.root).catch(() => []);
-          const hit = list.find((s) => s.id === row.cliSessionId);
-          /* listSessions 已带真标题的 CLI(opencode 的 SELECT title)直接用;
-           * 无列表标题的(omp/pi jsonl)照旧读文件头解析。 */
-          const title = hit?.title
-            ? hit.title
-            : hit
-              ? (await readHeadMetasBatch([{ path: hit.path, modifiedAt: hit.modifiedAt }]))[0]?.title
-              : undefined;
-          return { key: row.key, title };
-        }),
-      );
-      if (stale) return;
-      for (const { key, title } of resolved) {
-        if (title) refreshPinTitle(key, title);
-      }
-    };
-    const schedule = () => {
-      if (stale || attempts >= TITLE_RESOLVE_MAX_ATTEMPTS) return;
-      attempts += 1;
-      timer = window.setTimeout(() => {
-        void attempt().then(schedule);
-      }, titleRetryDelay(attempts));
-    };
-    void attempt().then(schedule);
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        const targets = rowsRef.current.flatMap((row) => {
+          const listSessions = row.profile.listSessions;
+          return keys.has(row.key) && listSessions ? [{ row, listSessions }] : [];
+        });
+        const resolved = await Promise.all(
+          targets.map(async ({ row, listSessions }) => {
+            const list = await listSessions(row.workspace.root).catch(() => []);
+            const hit = list.find((s) => s.id === row.cliSessionId);
+            const title = hit?.title
+              ? hit.title
+              : hit
+                ? (await readHeadMetasBatch([{ path: hit.path, modifiedAt: hit.modifiedAt }]))[0]?.title
+                : undefined;
+            return { key: row.key, title };
+          }),
+        );
+        if (!alive) return;
+        for (const { key, title } of resolved) if (title) refreshPinTitle(key, title);
+        setTitleRetry({ signature: unresolvedKeys, round: retryRound + 1 });
+      })();
+    }, retryRound === 0 ? 0 : titleRetryDelay(retryRound));
     return () => {
-      stale = true;
+      alive = false;
       window.clearTimeout(timer);
     };
-  }, [unresolvedKeys]);
+  }, [unresolvedKeys, retryRound]);
 
   if (rows.length === 0) return null;
   const toggleCollapsed = () => pinnedSection.set(!collapsed);
@@ -286,6 +276,7 @@ export function PinnedSessionsSection() {
           onCopyId={() => void copyText(menu.row.cliSessionId).catch(() => undefined)}
           onRename={() => renameOf(menu.row)}
           onExportSnapshot={() => runSnapshotExport({ cliSessionId: menu.row.cliSessionId, title: titleOf(menu.row), profileId: menu.row.profile.id, cwd: liveOf(menu.row)?.cwd ?? menu.row.workspace.root })}
+          onRetry={liveRetryMenuHandler({ session: liveOf(menu.row), profile: menu.row.profile, workspace: menu.row.workspace, cliSessionId: menu.row.cliSessionId, title: titleOf(menu.row) })}
           onPinScope={(scope) => toggleSessionPin(menu.row.key, scope, realTitleOf(menu.row))}
           onClose={() => setMenu(null)}
         />

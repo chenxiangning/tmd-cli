@@ -4,7 +4,16 @@
  * No commits yet/fatal 误诊 —— 0.4.6 复审 P1)。
  */
 import { describe, expect, it } from "vitest";
-import { isRemoteGitExecError, parseRemoteStatus } from "./useRemoteGitStatus";
+import { isRemoteGitExecError, parseRemoteStatus, remoteGitStatusScript } from "./useRemoteGitStatus";
+
+describe("remoteGitStatusScript", () => {
+  it("linuxRoot 单引号引用:空白与 shell 元字符不改变命令语义", () => {
+    const script = remoteGitStatusScript("/tmp/a b'$HOME`$(touch /tmp/pwn)");
+    expect(script).toBe(
+      "git -c core.quotepath=false -C '/tmp/a b'\\''$HOME`$(touch /tmp/pwn)' status --porcelain=v1 -b 2>&1 || true",
+    );
+  });
+});
 
 describe("parseRemoteStatus", () => {
   it("常规:branch + upstream + ahead/behind + 文件行", () => {

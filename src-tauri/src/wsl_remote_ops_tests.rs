@@ -53,18 +53,25 @@ fn b64_roundtrip_and_wrapped_decode() {
 
 #[test]
 fn parse_remote_file_text_protocol() {
-    let text = "size=11\r\naGVsbG8gd29ybGQ="; // "hello world"
+    let text = "mtime_ms=1700000000123\r\nsize=11\r\naGVsbG8gd29ybGQ="; // "hello world"
     let parsed = parse_remote_file_text(text).unwrap();
     assert_eq!(parsed.size, 11);
+    assert_eq!(parsed.mtime_ms, 1700000000123);
     assert_eq!(parsed.content.as_deref(), Some("hello world"));
     assert!(!parsed.truncated);
-    // 超限形态:只有 size 行,无 b64 段
-    let big = parse_remote_file_text("size=999999").unwrap();
+    // 超限形态:只有版本行,无 b64 段
+    let big = parse_remote_file_text("mtime_ms=42\nsize=999999").unwrap();
     assert_eq!(big.size, 999999);
+    assert_eq!(big.mtime_ms, 42);
     assert_eq!(big.content, None);
     assert!(big.truncated);
-    // 杂散输出(如 wsl 代理警告)前缀:取首个 size= 行,其后为 b64
-    let noisy = parse_remote_file_text("wsl: warning\r\nsize=4\r\nYWJjZA==").unwrap();
+    // 空文件同样没有 b64 段,但应返回空正文而非误判超限。
+    let empty = parse_remote_file_text("mtime_ms=8\nsize=0\n").unwrap();
+    assert_eq!(empty.content.as_deref(), Some(""));
+    assert!(!empty.truncated);
+    // 杂散输出(如 wsl 代理警告)前缀:取版本行,其后为 b64
+    let noisy = parse_remote_file_text("wsl: warning\r\nmtime_ms=7\r\nsize=4\r\nYWJjZA==").unwrap();
     assert_eq!(noisy.content.as_deref(), Some("abcd"));
     assert!(parse_remote_file_text("").is_err());
+    assert!(parse_remote_file_text("size=4\nYWJjZA==").is_err());
 }

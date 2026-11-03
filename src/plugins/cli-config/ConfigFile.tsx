@@ -5,7 +5,7 @@
  * ok 进编辑;missing 按空文件可首次创建;error(存在但不可读)阻断编辑防覆写。
  */
 
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import { retryImport } from "@kernel/lazyImport";
 /* codemirror core 懒出桌面首屏静态图(FileTabContent/RemoteFileTab 同款先例)。 */
@@ -57,6 +57,15 @@ export function ConfigFile({
   const [readError, setReadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,9 +108,13 @@ export function ConfigFile({
   if (raw === null) return <p className="cli-cfg-empty">{t("读取配置…")}</p>;
 
   const persist = async (next: string) => {
+    /* ref 同步防重入:同一渲染帧内按钮与 Mod-S 也只能发起一条写链。 */
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     try {
       await writeConfigFile(source.path, next);
+      if (!aliveRef.current) return;
       setRaw(next);
       setDraft(next);
       /* 保存成功重同步基线(load∘save 非恒等的插件不永久假脏)。 */
@@ -113,11 +126,11 @@ export function ConfigFile({
       onDirtyChange(false);
       setWriteError(null);
     } catch (e) {
-      const msg = errTextDisplay(e);
-      setWriteError(msg);
+      if (aliveRef.current) setWriteError(errTextDisplay(e));
       throw e;
     } finally {
-      setSaving(false);
+      savingRef.current = false;
+      if (aliveRef.current) setSaving(false);
     }
   };
 
@@ -144,6 +157,7 @@ export function ConfigFile({
             path={source.path}
             value={draft ?? raw}
             dark={dark}
+            readOnly={saving}
             onChange={markDraft}
             onSave={() => void persist(draft ?? raw).catch(() => undefined)}
           />
@@ -156,7 +170,7 @@ export function ConfigFile({
         {dirty && (
           <div className="cli-cfg-savebar" data-testid="cli-cfg-savebar">
             <span className="cli-cfg-dirty">{t("● 未保存的更改")}</span>
-            <button type="button" className="cli-cfg-btn" onClick={() => markDraft(raw)}>
+            <button type="button" className="cli-cfg-btn" disabled={saving} onClick={() => markDraft(raw)}>
               {t("放弃")}
             </button>
             <button

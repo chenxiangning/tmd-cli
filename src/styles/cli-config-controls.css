@@ -135,7 +135,9 @@
   margin-top: 14px;
   margin-left: auto;
   width: fit-content;
+  max-width: 100%;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
@@ -199,9 +201,11 @@
 /* 错误态 */
 .cli-cfg-error {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  overflow-wrap: anywhere;
   padding: 12px 14px;
   border: 1px solid var(--tmd-warn-border, var(--tmd-border-strong));
   background: var(--tmd-warn-bg, var(--tmd-bg-sunken));
@@ -245,5 +249,6 @@
   position: absolute;
   bottom: 12px;
   right: 16px;
+  max-width: calc(100% - 32px);
   margin: 0;
 }

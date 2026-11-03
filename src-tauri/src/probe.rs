@@ -13,6 +13,7 @@
 //! 阻塞安全:`cli_probe` Tauri command 必须 async + spawn_blocking
 //! (见 lib.rs),本模块全部是同步阻塞代码,禁止直接在主线程执行。
 
+use crate::probe_package::linked_package_version;
 use crate::probe_prefix::npm_prefix_of;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
@@ -35,7 +36,8 @@ pub struct CliProbeResult {
     pub found: bool,
     /// 解析出的可执行绝对路径(`found=true` 时非空)。
     pub path: Option<String>,
-    /// `--version` 输出的第一行 trimmed(`found=true` 时非空)。
+    /// `--version` 输出的第一行 trimmed;命令被运行时门槛拦截时,
+    /// 回读 node_modules 安装包清单。均失败则为 None。
     pub version: Option<String>,
     /// 命中副本位于 npm 全局布局内时的所属 prefix;非 npm 副本 = None。
     /// 双副本遮蔽场景(用户 PATH 中其它 prefix 排在 npm 默认之前)下,
@@ -61,7 +63,10 @@ pub fn probe_cli(command: &str) -> CliProbeResult {
     /* Windows 命中 .cmd/.bat shim 时经 cmd /c 包裹(与 pty 同一解析,
      * CreateProcess 无法直跑批处理);unix 原样。 */
     let resolved = resolve_command(&absolute, "");
-    let version = run_version(&resolved.program, &resolved.prefix_args);
+    /* omp 等 CLI 会在 --version 前先校验运行时(如 Bun 最低版本),
+     * 校验失败不代表安装包没有版本:仅对 node_modules 真身回读清单兜底。 */
+    let version = run_version(&resolved.program, &resolved.prefix_args)
+        .or_else(|| linked_package_version(&absolute));
     let npm_prefix = npm_prefix_of(&absolute);
 
     CliProbeResult {
@@ -210,5 +215,31 @@ mod tests {
         let r = probe_cli("bash");
         assert!(r.found, "bash 未命中:PATH 查找链断裂");
         assert!(r.version.is_some());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn probe_reads_package_version_when_version_command_fails() {
+        /* OMP 实证:Bun 低于包声明的最低版本时,--version 在打印版本前退出 1;
+         * 探针仍应从 symlink 真身的 package.json 取回已安装版本。 */
+        let root = std::env::temp_dir().join(format!("tmd-probe-fallback-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let package = root.join("install/global/node_modules/@scope/pkg");
+        std::fs::create_dir_all(package.join("dist")).unwrap();
+        let cli = package.join("dist/cli.js");
+        std::fs::write(&cli, "#!/bin/sh\necho 'runtime too old' >&2\nexit 1\n").unwrap();
+        let mut permissions = std::fs::metadata(&cli).unwrap().permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut permissions, 0o755);
+        std::fs::set_permissions(&cli, permissions).unwrap();
+        std::fs::write(package.join("package.json"), r#"{"version":"18.16.0"}"#).unwrap();
+        let bin = root.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let link = bin.join("omp");
+        std::os::unix::fs::symlink(&cli, &link).unwrap();
+
+        let result = probe_cli(link.to_str().unwrap());
+        assert!(result.found);
+        assert_eq!(result.version.as_deref(), Some("18.16.0"));
+        let _ = std::fs::remove_dir_all(root);
     }
 }

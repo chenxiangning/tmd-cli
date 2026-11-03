@@ -21,6 +21,8 @@ export interface FootprintDay {
 export interface FpSessionEntry {
   engine: string;
   cwd: string;
+  /** structured-session 的稳定账本副键；用于无 PTY 深链。 */
+  tmdSessionId?: string;
   turns: number[];
   /** ISO 时间串(批.ts / 批.tsEnd)。 */
   first: string;

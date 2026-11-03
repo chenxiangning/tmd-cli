@@ -1,10 +1,9 @@
 /**
  * Git 面板「工作树」常驻区(2026-09-26 worktree 关联管理方案 B):
- * 主仓 / 当前 / 其他 三态卡 = 路径 + 分支 + 脏净增删 + 动作(打开/终端/移除);
+ * 主仓 / 当前 / 其他 三态卡 = 路径 + 分支 + 脏净增删 + 动作(审阅交付/打开/终端/移除);
  * 现有 WorktreeManageDialog 降级为「+ 新建」入口(panelStore 桥预填)。
  * 数据 = git_worktree_list(active cwd),挂载与 cwd 变化拉取,移除后本地重拉;脏净统计走 git_status 懒加载(每树一次,随卡)。
  */
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import { ArrowsClockwise, Plus, TerminalWindow, Trash, TreeStructure } from "@phosphor-icons/react";
@@ -13,14 +12,10 @@ import { ipc, type WorktreeEntry } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { bumpGitRefresh, useGitPanelState } from "../panelStore";
 import { listWorktrees, normalizeRoot, removeWorktreeWithCleanup, spawnTerminalAt, openWorktreeWorkspace } from "./worktreeOps";
+import { WorktreeDelivery } from "./WorktreeDelivery";
 
 /** 单树脏净摘要(git_status files 聚合;加载中 = null;dirty < 0 = 读失败显 —)。 */
-interface DirtSummary {
-  dirty: number;
-  plus: number;
-  minus: number;
-}
-
+interface DirtSummary { dirty: number; plus: number; minus: number }
 function DirtBadge({ cwd }: { cwd: string }) {
   const [s, setS] = useState<DirtSummary | null>(null);
   useEffect(() => {
@@ -53,7 +48,7 @@ function DirtBadge({ cwd }: { cwd: string }) {
   );
 }
 
-/** 卡动作簇(自 TreeCard 拆出降复杂度):主仓无动作;当前树不可打开/移除。 */
+/** 卡动作簇:主仓/悬空无动作;当前树仅审阅交付,其余树可打开/终端/移除。 */
 function TreeActions({
   entry,
   isMain,
@@ -62,6 +57,7 @@ function TreeActions({
   busy,
   onStartConfirm,
   onConfirmRemove,
+  onError,
 }: {
   entry: WorktreeEntry;
   isMain: boolean;
@@ -70,9 +66,9 @@ function TreeActions({
   busy: boolean;
   onStartConfirm: () => void;
   onConfirmRemove: () => void;
+  onError: (message: string) => void;
 }) {
-  if (isMain) return <span />;
-  if (entry.prunable || isCurrent) return <span />;
+  if (isMain || entry.prunable) return <span />;
   if (confirming) {
     return (
       <button
@@ -94,33 +90,38 @@ function TreeActions({
         confirming ? "" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"
       }`}
     >
-      <button
-        type="button"
-        title={t("打开为工作区")}
-        aria-label={t("打开为工作区")}
-        onClick={() => openWorktreeWorkspace(entry.path)}
-        className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
-      >
-        <ArrowsClockwise size="0.75rem" data-decor-from="git-worktree" aria-hidden />
-      </button>
-      <button
-        type="button"
-        title={t("在此树开终端")}
-        aria-label={t("在此树开终端")}
-        onClick={() => void spawnTerminalAt(entry.path)}
-        className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
-      >
-        <TerminalWindow size="0.75rem" data-decor-from="git-worktree" aria-hidden />
-      </button>
-      <button
-        type="button"
-        title={t("移除 worktree")}
-        aria-label={t("移除 worktree")}
-        onClick={onStartConfirm}
-        className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
-      >
-        <Trash size="0.75rem" data-decor-from="git-worktree" aria-hidden />
-      </button>
+      <WorktreeDelivery entry={entry} onError={onError} />
+      {!isCurrent && (
+        <>
+          <button
+            type="button"
+            title={t("打开为工作区")}
+            aria-label={t("打开为工作区")}
+            onClick={() => openWorktreeWorkspace(entry.path)}
+            className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+          >
+            <ArrowsClockwise size="0.75rem" data-decor-from="git-worktree" aria-hidden />
+          </button>
+          <button
+            type="button"
+            title={t("在此树开终端")}
+            aria-label={t("在此树开终端")}
+            onClick={() => void spawnTerminalAt(entry.path)}
+            className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+          >
+            <TerminalWindow size="0.75rem" data-decor-from="git-worktree" aria-hidden />
+          </button>
+          <button
+            type="button"
+            title={t("移除 worktree")}
+            aria-label={t("移除 worktree")}
+            onClick={onStartConfirm}
+            className="rounded p-1 text-(--tmd-fg-faint) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)"
+          >
+            <Trash size="0.75rem" data-decor-from="git-worktree" aria-hidden />
+          </button>
+        </>
+      )}
     </span>
   );
 }
@@ -215,6 +216,7 @@ function TreeCard({
           busy={busy}
           onStartConfirm={() => setConfirming(true)}
           onConfirmRemove={() => void remove()}
+          onError={setNote}
         />
       </div>
       {note && <div className="mt-1 truncate text-meta text-(--tmd-fg-faint)">{note}</div>}

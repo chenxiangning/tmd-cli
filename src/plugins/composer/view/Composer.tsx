@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { host } from "@kernel/host";
 import { composerWakeRef, composerInsertRef, composerDraftRef, composerReplaceRef } from "@kernel/composerExt";
 import { t } from "@kernel/i18n";
 import { useComposerStage } from "@kernel/composerStage";
@@ -61,10 +62,12 @@ export function Composer() {
       else setValue((v) => v + text);
     }; /* 增强提示词等跨件消费:读全文 / 整替并聚焦尾部 */
     composerDraftRef.current = () => value;
-    composerReplaceRef.current = (text) => {
+    composerReplaceRef.current = (text, targetSessionId) => {
+      if (targetSessionId && host.getActiveSessionId() !== targetSessionId) return false;
       setValue(text);
       setCursor(text.length);
       ref.current?.focus();
+      return true;
     };
     const impl = composerInsertRef.current;
     return () => {

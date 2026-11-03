@@ -43,9 +43,10 @@ WSL 支持的全部平台知识集中在 `plugins/wsl/`(来源插件),经 kernel
 - `useCliSessionGroup` 活会话归属:`profileId === profile.id || engine === profile.id`;`SshSessionGroup` 反向排除带 engine 的行(纯 SSH 终端专属,防双渲染);RunningZone profile 查找、PinnedSessions.liveOf、sessionOps 删盘 kill 路径、revealSession(pin key = `engine ?? profileId`、运行区分支)同口径。
 - 远程磁盘行恢复的带宽纪律:list 按目录头浅窗(32KB/文件)、mtime 倒序截前 50;omp resume 续写原文件并 touch mtime(历史行「刚刚」是真数据),不 fork 新 id。
 
-## 契约 7:文件通道(M1 只读)
+## 契约 7:文件通道与乐观锁写回
 
-- 浏览:`fileSources` 协议 `listDir` → `wsl_list_dir`(同一条 ssh 通道);寻址 `wslr://<hostId>/<distro>/<linuxPath>`;读取 `wsl_read_file_text`(size 行 + b64 段行协议,容忍 76 列换行;超 512KB 不读、目录/不可读 exit 9 如实报错),渲染与本地零差异,CodeMirror readOnly + ⌘S 早退。
+- 浏览:`fileSources` 协议 `listDir` → `wsl_list_dir`(同一条 ssh 通道);寻址 `wslr://<hostId>/<distro>/<linuxPath>`;读取 `wsl_read_file_text`(size 行 + b64 段行协议,容忍 76 列换行;超 512KB 不读、目录/不可读 exit 9 如实报错),渲染与本地零差异。
+- 写回:`readText` 同次返回正文与 `{mtimeMs,len}`,保存校验期望版本,漂移复用 `E_FS_MTIME` 与「覆盖 / 重读」横幅;保留 6KB 分块、原子替换、512KB 上限与 60s 写超时。远程 Git `linuxRoot` 单参数安全引用。详见 34 号契约。
  
 ## 契约 8:工作区来源与孤儿(2026-09-13)
 
@@ -61,6 +62,6 @@ WSL 支持的全部平台知识集中在 `plugins/wsl/`(来源插件),经 kernel
 | 磁盘历史扫描/恢复 | 本机 fs | remoteSessions 通道 |
 | 文件树/预览 | fs 直读 | wsl_list_dir + wslr:// 只读 |
 | git 面板 / checkpoints | 按 kind 置灰 / 降级 | 同左(降级提示,不静默) |
-| 写回(编辑/新建/删除) | fs 原语 | M1 不做(只读) |
+| 写回(编辑/新建/删除) | 乐观锁文本写回/新建;删除仍未开放 | 同左 |
 
 拔出 wsl 插件(重启生效)= 三注册表为空 = 侧栏 chip/徽章/弹层 tab/WSL 卡全部消失,宿主回内建形态。

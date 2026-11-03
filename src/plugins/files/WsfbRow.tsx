@@ -5,10 +5,12 @@
  * 装饰件拆小组件降分支(react-doctor no-high-complexity)。
  */
 
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { CaretRight, Copy, FolderOpen } from "@phosphor-icons/react";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
+import { useEscClose } from "@kernel/DialogShell";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import { copyText } from "@kernel/clipboard";
 
@@ -103,9 +105,16 @@ export function WsfbMoreMenu({
   position: { x: number; y: number };
   onClose: () => void;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEscClose(onClose);
+  useEffect(() => {
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  }, []);
+
   const item = (label: string, icon: React.ReactNode, onPick: () => void) => (
     <button
       type="button"
+      role="menuitem"
       className="wsmenu-item"
       onClick={() => {
         onPick();
@@ -128,6 +137,7 @@ export function WsfbMoreMenu({
         }}
       />
       <div
+        ref={menuRef}
         className="wsmenu session-menu"
         data-icon-decor="menu"
         style={{ left: position.x, top: position.y }}

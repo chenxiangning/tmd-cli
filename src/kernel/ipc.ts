@@ -362,8 +362,14 @@ export interface WslEngineProbe {
 /** WSL 内文件文本(wsl_read_file_text;content=null = 超过 maxBytes 未读,truncated=true)。 */
 interface WslRemoteFileText {
   size: number;
+  mtimeMs: number;
   content: string | null;
   truncated: boolean;
+}
+
+interface WslRemoteFileVersion {
+  mtimeMs: number;
+  len: number;
 }
 
 /** 未决 SSH 提示对账行(ssh_prompts_pending)。 */
@@ -852,9 +858,23 @@ export const ipc = {
       maxBytes,
       host: host ?? null,
     }),
-  /** WSL 远程文本写回(项 5 写回闭环):覆盖写,b64 载荷防 PowerShell 拆引号。 */
-  wslWriteFileText: (distro: string, path: string, contentB64: string, host?: SshHostConfig) =>
-    invoke<void>("wsl_write_file_text", { distro, path, contentB64, host: host ?? null }),
+  /** WSL 远程文本写回:b64 载荷;expectMtime/expectLen 同时缺省 = 覆盖写。 */
+  wslWriteFileText: (
+    distro: string,
+    path: string,
+    contentB64: string,
+    host?: SshHostConfig,
+    expectMtime?: number | null,
+    expectLen?: number | null,
+  ) =>
+    invoke<WslRemoteFileVersion>("wsl_write_file_text", {
+      distro,
+      path,
+      contentB64,
+      expectMtime,
+      expectLen,
+      host: host ?? null,
+    }),
   /** WSL 远程新建条目:文件已存在报错(绝不覆写);目录 mkdir -p。 */
   wslCreateEntry: (distro: string, path: string, isDir: boolean, host?: SshHostConfig) =>
     invoke<void>("wsl_create_entry", { distro, path, isDir, host: host ?? null }),

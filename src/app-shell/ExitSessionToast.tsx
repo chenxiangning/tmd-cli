@@ -3,7 +3,8 @@
  * 订阅 kernel sessionExitedDetail:非零退出码(崩溃/异常中止)才上卡,
  * 「续聊」= openDiskSession 按源会话元数据原样 resume(busy 态 + 失败直馈,
  * 不再只靠启动失败卡);「接力」经 relayBridge 开跨引擎对话框(摘要读磁盘,
- * 会话已逝读得到;插件停用桥 null 即无钮);0/130 不扰。
+ * 会话已逝读得到;插件停用桥 null 即无钮);「重试上一回合」预览后仅挂 pending;
+ * 0/130 不扰。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,7 +13,7 @@ import { ArrowClockwise, ArrowSquareOut, Cross, Warning } from "@phosphor-icons/
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { KernelTopics, type SessionExitedDetailEvent, type SessionStartFailedEvent } from "@kernel/events";
-import { relayOpenRef } from "@kernel/relayBridge";
+import { relayOpenRef, retryOpenRef } from "@kernel/relayBridge";
 import { Spinner } from "@kernel/Spinner";
 
 /* 本文件文案的 en/ja 词典统一落 kernel/locales/<lang>/common.ts(与退出卡历史键
@@ -21,16 +22,7 @@ import { Spinner } from "@kernel/Spinner";
 const NOTICE_TTL_MS = 12_000;
 const NOTICE_MAX = 3;
 
-/** 单条通知卡:TTL 自销;续聊 = 按快照元数据原样 resume 磁盘会话(带 busy/直馈)。 */
-function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }) {
-  useEffect(() => {
-    const timer = setTimeout(() => onClose(n.id), NOTICE_TTL_MS);
-    return () => clearTimeout(timer);
-  }, [n.id, onClose]);
-  const name = (n.profileId && host.getCliProfile(n.profileId)?.name) ?? n.profileId ?? "CLI";
-  const canResume = n.kind !== "shell" && n.cliSessionId != null;
-  /* 接力源限本地 CLI:ssh 磁盘身份在远端,本地读取器无源(远端接力二期)。 */
-  const canRelay = n.kind === "cli" && n.cliSessionId != null && relayOpenRef.current != null;
+function ResumeAction({ n, onClose }: { n: Notice; onClose: (id: number) => void }) {
   const [resuming, setResuming] = useState(false);
   const [resumeError, setResumeError] = useState("");
   const resume = (): void => {
@@ -47,6 +39,84 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
         setResuming(false);
       });
   };
+  if (n.kind === "shell" || n.cliSessionId == null) return null;
+  return (
+    <>
+      <button
+        type="button"
+        className="sft-resume"
+        disabled={resuming}
+        onClick={resume}
+      >
+        {resuming ? <Spinner size="0.75rem" /> : <ArrowClockwise size="0.75rem" aria-hidden />}
+        {resuming ? t("续聊中…") : t("一键续聊(恢复到该会话)")}
+      </button>
+      {resumeError && (
+        <pre className="sft-reason">{t("续聊失败:{reason}", { reason: resumeError })}</pre>
+      )}
+    </>
+  );
+}
+
+function RetryAction({ n, name, onClose }: { n: Notice; name: string; onClose: (id: number) => void }) {
+  if (n.kind !== "cli" || n.cliSessionId == null || retryOpenRef.current == null) return null;
+  return (
+    <button
+      type="button"
+      className="sft-resume"
+      onClick={() => {
+        retryOpenRef.current?.({
+          profileId: n.profileId,
+          engineName: name,
+          cliSessionId: n.cliSessionId,
+          title: n.title,
+          cwd: n.cwd,
+          workspaceId: n.workspaceId,
+        });
+        onClose(n.id);
+      }}
+    >
+      <ArrowClockwise size="0.75rem" aria-hidden />
+      {t("重试上一回合…")}
+    </button>
+  );
+}
+
+function RelayAction({ n, name, onClose }: { n: Notice; name: string; onClose: (id: number) => void }) {
+  /* 接力源限本地 CLI:ssh 磁盘身份在远端,本地读取器无源(远端接力二期)。 */
+  if (n.kind !== "cli" || n.cliSessionId == null || relayOpenRef.current == null) return null;
+  return (
+    <button
+      type="button"
+      className="sft-resume"
+      onClick={() => {
+        /* 非空断言禁:12s TTL 内插件可能被停用(cleanup 置 null);取局部,没了静默。 */
+        const open = relayOpenRef.current;
+        if (open)
+          open({
+            profileId: n.profileId,
+            engineName: name,
+            cliSessionId: n.cliSessionId,
+            title: n.title,
+            cwd: n.cwd || undefined,
+            workspaceId: n.workspaceId,
+          });
+        onClose(n.id);
+      }}
+    >
+      <ArrowSquareOut size="0.75rem" aria-hidden />
+      {t("转到其他引擎接力…")}
+    </button>
+  );
+}
+
+/** 单条通知卡:TTL 自销;恢复动作各自维护可用性与状态。 */
+function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }) {
+  useEffect(() => {
+    const timer = setTimeout(() => onClose(n.id), NOTICE_TTL_MS);
+    return () => clearTimeout(timer);
+  }, [n.id, onClose]);
+  const name = (n.profileId && host.getCliProfile(n.profileId)?.name) ?? n.profileId ?? "CLI";
   return (
     <div className="sft-card">
       <div className="sft-head">
@@ -63,43 +133,9 @@ function NoticeCard({ n, onClose }: { n: Notice; onClose: (id: number) => void }
           <Cross size="0.75rem" aria-hidden />
         </button>
       </div>
-      {canResume && (
-        <button
-          type="button"
-          className="sft-resume"
-          disabled={resuming}
-          onClick={resume}
-        >
-          {resuming ? <Spinner size="0.75rem" /> : <ArrowClockwise size="0.75rem" aria-hidden />}
-          {resuming ? t("续聊中…") : t("一键续聊(恢复到该会话)")}
-        </button>
-      )}
-      {resumeError && (
-        <pre className="sft-reason">{t("续聊失败:{reason}", { reason: resumeError })}</pre>
-      )}
-      {canRelay && (
-        <button
-          type="button"
-          className="sft-resume"
-          onClick={() => {
-            /* 非空断言禁:12s TTL 内插件可能被停用(cleanup 置 null);取局部,没了静默。 */
-            const open = relayOpenRef.current;
-            if (open)
-              open({
-                profileId: n.profileId,
-                engineName: name,
-                cliSessionId: n.cliSessionId,
-                title: n.title,
-                cwd: n.cwd || undefined,
-                workspaceId: n.workspaceId,
-              });
-            onClose(n.id);
-          }}
-        >
-          <ArrowSquareOut size="0.75rem" aria-hidden />
-          {t("转到其他引擎接力…")}
-        </button>
-      )}
+      <ResumeAction n={n} onClose={onClose} />
+      <RetryAction n={n} name={name} onClose={onClose} />
+      <RelayAction n={n} name={name} onClose={onClose} />
     </div>
   );
 }
