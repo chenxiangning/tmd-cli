@@ -15,7 +15,7 @@
 ### 变更
 
 - 内置终端入口每次独立点击都新建会话,起始目录取点击时当前工作区根目录;普通点击与修饰键点击行为一致,保留创建在途防双击单飞,既有终端 tab 可独立切换
-- 依赖批次合入(#87/#86):前端 minor-and-patch 组六项、src-tauri minor-and-patch 组十二项更新
+- 依赖批次合入(#87/#86):前端 minor-and-patch 组六项、src-tauri minor-and-patch 组十二项更新;发版构建对齐 Tauri notification 2.8.0 与 shell 2.6.0 前后端次版本
 
 ### 修复
 

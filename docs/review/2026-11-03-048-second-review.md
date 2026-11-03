@@ -39,3 +39,9 @@
 - **首页探针与依赖修复:** 已核对 omp 安装版本回读、统一 PATH 与 Bun 过旧一键修复链;一键修复只在用户点击后升级 Bun,不引入后台自动升级。
 - **最终门禁:** `pnpm check:gate` 612 文件 / 4752 例,typecheck、架构边界、i18n、kernel 盘点、文件规模与 build 全通过;Rust 408 例通过、5 个真机凭据测试忽略,clippy 与 fmt 通过;React Doctor 100/100;`git diff --check` 通过。
 - **原生烟测:** `pnpm tauri:dev` 进程启动后保持运行 40 秒并由脚本停止进程组;未将截图、逐项点击或 Windows 真机交互标为已验。
+
+## 6. 首轮云端构建失败修复
+
+- run `41614392641` 的 Android 与 iOS 成功,macOS arm64/x86_64、Windows、Linux 均在 Tauri 前置版本检查失败;Release 保持草稿,未对外发布。
+- 共同根因是 Rust 锁文件已升级 `tauri-plugin-notification` 2.8.0 / `tauri-plugin-shell` 2.6.0,前端锁文件仍为 2.7.0 / 2.5.0。对齐两组 NPM 依赖与 `pnpm-lock.yaml`,不使用 `--ignore-version-mismatches` 绕过检查。
+- `pnpm tauri build --debug --no-bundle` 已通过 Tauri 版本一致性检查、前端生产构建和 Rust 应用构建,确认原失败点消除。
