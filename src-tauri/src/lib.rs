@@ -22,6 +22,7 @@ mod mcp_probe;
 mod open_with;
 mod plugins;
 mod probe;
+mod probe_package;
 mod probe_prefix;
 mod proc_run;
 mod proc_stream;

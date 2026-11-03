@@ -10,6 +10,9 @@ use super::path_build::build_enriched_path;
 #[cfg(unix)]
 use super::wait_child_with_timeout;
 
+mod refresh;
+pub(crate) use refresh::enriched_path_refresh;
+
 /// PATH 计算结果:合并后的 PATH + 提取质量标记。
 struct ComputedPath {
     path: String,
@@ -33,6 +36,9 @@ enum PathState {
 #[derive(Default)]
 struct PathCache {
     state: Option<PathState>,
+    /// 完整 shell PATH 已落定(或探针已建立稳定快照):探针不得再跨快速/
+    /// 完整 PATH 切换,否则同屏 OMP 与 Bun 可能命中不同副本。
+    interactive_ready: bool,
     /// 后台线程(降级重试 / -ilc 升级)单飞标记,防并发 fork 多个 login shell。
     /// 仅 unix 后台重试机制使用;Windows 无降级概念。
     #[cfg_attr(not(unix), allow(dead_code))]
@@ -41,6 +47,7 @@ struct PathCache {
 
 static PATH_CACHE: Mutex<PathCache> = Mutex::new(PathCache {
     state: None,
+    interactive_ready: false,
     bg_in_flight: false,
 });
 
@@ -49,12 +56,6 @@ static PATH_CACHE: Mutex<PathCache> = Mutex::new(PathCache {
 /// (PTY spawn 等)。probe 等用户刷新路径用 enriched_path_refresh()。
 pub(crate) fn enriched_path() -> String {
     cache_get_or_refresh(&mut PATH_CACHE.lock(), false, compute_enriched_path)
-}
-
-/// 降级状态下同步重算(用户点刷新立即可愈),Ready 时零开销。
-/// 持锁重算即单飞;并发调用方最坏阻塞 2s+5s,仅降级自愈瞬间发生。
-pub(crate) fn enriched_path_refresh() -> String {
-    cache_get_or_refresh(&mut PATH_CACHE.lock(), true, compute_enriched_path)
 }
 
 /// 缓存状态机(同步部分;compute 可注入,便于单测):
@@ -79,6 +80,7 @@ fn cache_get_or_refresh(
 fn compute_and_store(cache: &mut PathCache, compute: impl FnOnce() -> ComputedPath) -> String {
     let computed = compute();
     let path = computed.path.clone();
+    cache.interactive_ready = computed.shell_ok && !computed.needs_interactive_upgrade;
     /* 先入库再踢升级:-ilc 升级线程可能先完成,后入库会被快路径旧值覆写 */
     cache.state = Some(if computed.shell_ok {
         PathState::Ready(computed.path)
@@ -214,10 +216,12 @@ fn kick_background_recompute(cache: &mut PathCache) {
                     extract_path_from_shell("-ilc", LOGIN_SHELL_INTERACTIVE_TIMEOUT_SECS)
                 {
                     computed.path = build_enriched_path(Some(&full));
+                    computed.needs_interactive_upgrade = false;
                 }
             }
             let mut cache = PATH_CACHE.lock();
             cache.bg_in_flight = false;
+            cache.interactive_ready = computed.shell_ok && !computed.needs_interactive_upgrade;
             if computed.shell_ok {
                 cache.state = Some(PathState::Ready(computed.path));
             }
@@ -240,6 +244,7 @@ fn kick_interactive_upgrade(cache: &mut PathCache) {
         let mut cache = PATH_CACHE.lock();
         cache.bg_in_flight = false;
         if let Some(login) = upgrade {
+            cache.interactive_ready = true;
             cache.state = Some(PathState::Ready(build_enriched_path(Some(&login))));
         }
     });
