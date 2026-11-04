@@ -2,7 +2,7 @@
  * CLI 学堂 —— 多 CLI 通用的引导学习插件。
  *
  * 注册点:
- * - leftSidebar.section(order -2):左栏顶部学堂入口(进度 + 课程菜单);
+ * - academy.open:无默认键位命令,欢迎页帮助区经命令注册表调用;
  * - overlay(order 45):入门课向导(看板同款「不透明覆盖、下层零回放」);
  * - registerTabContent("academy.guide"):指南中央 tab(payload.cliId 路由课程)。
  *
@@ -12,9 +12,10 @@
  */
 import { GraduationCap, Student } from "@phosphor-icons/react";
 import type { Plugin, PluginContext } from "@kernel/plugin";
-import { AcademyEntry } from "./academyEntry";
+import { getAcademyCourses } from "@kernel/academy";
 import { AcademyWizard } from "./wizard";
 import { GuideTab } from "./guideTab";
+import { openAcademyHome } from "./academyStores";
 import "./academy.css";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
@@ -29,7 +30,12 @@ export const academyPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
-    ctx.contribute("leftSidebar.section", { order: -2, component: AcademyEntry });
+    ctx.registerCommand({
+      id: "academy.open",
+      title: "CLI 学堂",
+      when: () => getAcademyCourses().length > 0,
+      run: openAcademyHome,
+    });
     ctx.contribute("overlay", { order: 45, component: AcademyWizard });
     ctx.registerTabContent({ kind: "academy.guide", component: GuideTab, icon: GraduationCap });
   },

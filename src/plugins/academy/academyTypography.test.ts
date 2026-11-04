@@ -17,6 +17,6 @@ describe("academy 排版铁律(architecture/15)", () => {
   });
 
   it("控件继承 reset 以 :where 压零特异性", () => {
-    expect(css).toContain(":where(.academy-entry, .academy-guide, .academy-wizard) :is(button, input)");
+    expect(css).toContain(":where(.academy-guide, .academy-wizard) :is(button, input)");
   });
 });

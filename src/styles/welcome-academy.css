@@ -1,0 +1,26 @@
+/* 欢迎页 CLI 学堂帮助入口 —— 撤左栏常驻卡后的低打扰帮助动作。
+   颜色零硬编码,全部消费 --tmd-* 设计变量。 */
+
+.welcome-academy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--tmd-border);
+  border-radius: var(--tmd-radius-md);
+  background: var(--tmd-bg-panel);
+  color: var(--tmd-fg);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--tmd-dur-1) var(--tmd-ease-out),
+    border-color var(--tmd-dur-1) var(--tmd-ease-out);
+}
+.welcome-academy:hover { background: var(--tmd-bg-hover); border-color: var(--tmd-border-strong); }
+.welcome-academy:focus-visible { outline: 2px solid var(--tmd-accent); outline-offset: 2px; }
+.welcome-academy-icon { flex: none; color: var(--tmd-accent); }
+.welcome-academy-text { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
+.welcome-academy-text b { font-weight: 600; }
+.welcome-academy-text small { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-xs); }
+.welcome-academy-arrow { flex: none; color: var(--tmd-fg-faint); }

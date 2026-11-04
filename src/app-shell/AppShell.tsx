@@ -110,8 +110,6 @@ export function AppShell() {
         {/* 左缘入口 rail:常驻竖条(左栏收起也在),会话看板/市场/回首页/
             工作区切换在顶簇,设置触发钮钉底簇;市场页打开时与三栏一起被覆盖。 */}
         <LeftRail
-          marketOpen={marketOpen}
-          onToggleMarket={toggleMarket}
           settingsOpen={settingsMenuOpen}
           onToggleSettings={toggleSettingsMenu}
         />

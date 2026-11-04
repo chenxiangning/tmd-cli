@@ -150,7 +150,7 @@ function CheatPane({ course, index, onPrev, onFinish }: {
   return (
     <div className="academy-lesson">
       <h2>{index + 1}. {t("结业:速查表与下一步")}</h2>
-      <p className="academy-lesson-goal">{t("全部章节过完。这张卡是每章最常用命令;完整指南在左栏学堂菜单里随时可查。")}</p>
+      <p className="academy-lesson-goal">{t("全部章节过完。这张卡是每章最常用命令;完整指南在欢迎页 CLI 学堂入口随时可查。")}</p>
       <div className="academy-cheat">
         {course.chapters.map((ch) => (
           <div key={ch.id} className="academy-cheat-card">

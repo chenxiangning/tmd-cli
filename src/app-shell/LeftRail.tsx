@@ -4,8 +4,8 @@
  * 条目两源合并,按 order 统一排序(组语义与右 rail 同纪律):
  * - 插件动作:kernel/sidebarActions 里声明 leftRail 的条目(session-board 顶部簇
  *   开看板覆盖层),壳只渲染注册表、不认识业务;
- * - 壳自有功能:插件市场(marketOpen 态)/ 回到首页(toggleHomeSession,市场
- *   覆盖层开着先收掉)/ 工作区切换(下拉复用 WorkspaceSwitcher 的菜单簇 hook)。
+ * - 壳自有功能:回到首页(toggleHomeSession)/ 工作区切换(下拉复用
+ *   WorkspaceSwitcher 的菜单簇 hook)。
  * 顶栏不再放这三钮(2026-10-04 用户口径:移入左 rail,顶栏左区只留挂点+折栏)。
  * 底簇再钉设置菜单触发钮(同日迁入,原侧栏底栏 logo 入口;菜单本体仍在
  * SidebarSettingsCluster,开合经 AppShell 受控)。
@@ -15,7 +15,7 @@
 
 import type { ComponentType, MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useMemo, useReducer } from "react";
-import { FolderOpen, Plug, Tray } from "@phosphor-icons/react";
+import { FolderOpen, Tray } from "@phosphor-icons/react";
 import { DecorIcon } from "@kernel/iconSet";
 import { t } from "@kernel/i18n";
 import { useSidebarActions, type SidebarAction } from "@kernel/sidebarActions";
@@ -42,13 +42,9 @@ type LeftEntry =
     };
 
 export function LeftRail({
-  marketOpen,
-  onToggleMarket,
   settingsOpen,
   onToggleSettings,
 }: {
-  marketOpen: boolean;
-  onToggleMarket: () => void;
   /** 设置菜单开合(归 AppShell):本 rail 只持触发钮,菜单本体在左下簇。 */
   settingsOpen: boolean;
   onToggleSettings: () => void;
@@ -73,7 +69,8 @@ export function LeftRail({
   const { settings } = useSettingsState();
 
   /* 壳自有条目(排序位与插件动作共享同一地带):工作台 10(插件)/ 首页 20 /
-     市场 30 / 会话看板 40(插件)/ 工作区 50 —— 2026-10-10 用户口径重排。 */
+     会话看板 40(插件)/ 工作区 50 —— 2026-10-10 用户口径重排。
+     插件市场自 2026-11-04 迁入「设置 → 插件与扩展」,左 rail 不再单列。 */
   const shellEntries: LeftEntry[] = [
     {
       kind: "shell",
@@ -83,22 +80,7 @@ export function LeftRail({
       label: t("回到首页"),
       icon: Tray,
       hintCmd: "shell.goHome",
-      /* 市场覆盖层盖着首页,回首页前先收掉(与原顶栏按钮同语义)。 */
-      onSelect: () => {
-        if (marketOpen) onToggleMarket();
-        toggleHomeSession();
-      },
-    },
-    {
-      kind: "shell",
-      id: "market",
-      order: 30,
-      bottom: false,
-      label: t("插件市场"),
-      icon: Plug,
-      active: marketOpen,
-      hintCmd: "shell.openMarket",
-      onSelect: () => onToggleMarket(),
+      onSelect: () => toggleHomeSession(),
     },
     {
       kind: "shell",

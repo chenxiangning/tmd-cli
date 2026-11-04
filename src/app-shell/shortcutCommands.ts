@@ -98,6 +98,8 @@ export const shellMarketClose: { current: (() => void) | null } = { current: nul
     终端等 shell 会话是工具会话(入口在右缘 rail),不进 toggle 记忆——
     否则「回到首页」再点一下会凭空开出终端(2026-09-29 用户报告)。 */
 export function toggleHomeSession(): void {
+  /* 市场是不透明覆盖层:任何直接回首页入口都要先收掉,否则底下切了屏上不变。 */
+  shellMarketClose.current?.();
   const activeId = host.getActiveSessionId();
   if (activeId) {
     const active = host.getSessions().find((s) => s.id === activeId);
@@ -115,10 +117,7 @@ registerCommand({
   id: "shell.goHome",
   title: "回到首页",
   keybinding: "Cmd+Shift+H",
-  run: () => {
-    shellMarketClose.current?.();
-    toggleHomeSession();
-  },
+  run: toggleHomeSession,
 });
 
 /** match 命中的序号:分发器单线程内先 eventMatches 后 run,同一次按键内成立;

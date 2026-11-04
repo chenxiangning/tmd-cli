@@ -32,6 +32,7 @@ import {
 } from "./pageCache";
 import { EngineSection } from "./EngineSection";
 import { QuotaPanel } from "./QuotaPanel";
+import { WelcomeAcademyAction } from "./WelcomeAcademyAction";
 import { WelcomeTbar } from "./WelcomeTbar";
 
 export function WelcomePage() {
@@ -285,6 +286,8 @@ export function WelcomePage() {
               />
             ))}
           </div>
+          {/* 学堂常驻入口已从左栏撤下;欢迎页保留帮助动作,命令缺失时不渲染。 */}
+          <WelcomeAcademyAction />
           <QuotaPanel credsMap={credsMap} refreshTick={refreshTick} onRefresh={refreshAll} />
           {/* 页尾跨引擎面板(插件经 welcome.footer 挂点贡献) */}
           <Mounts point="welcome.footer" />

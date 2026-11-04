@@ -95,58 +95,6 @@ describe("章节-课程互链", () => {
   });
 });
 
-/* ── 入口折叠 store(同 workspace/sectionCollapsed 契约手法:接缝桩顶替
- * useSyncExternalStore;store 是模块级单例,经 resetModules + 动态 import 取全新实例) ── */
-const seam = vi.hoisted(() => ({
-  subscribe: undefined as undefined | ((fn: () => void) => () => void),
-  getSnapshot: undefined as undefined | (() => unknown),
-}));
-vi.mock("react", () => ({
-  useSyncExternalStore: (subscribe: (fn: () => void) => () => void, getSnapshot: () => unknown) => {
-    seam.subscribe = subscribe;
-    seam.getSnapshot = getSnapshot;
-    return getSnapshot();
-  },
-}));
-vi.mock("@kernel/tabs", () => ({ openTab: vi.fn(), closeTab: vi.fn(), getTabs: () => [] }));
-
-import type * as AcademyStores from "./academyStores";
-
-describe("入口折叠 store", () => {
-  const loadStores = async (preset?: "0" | "1"): Promise<typeof AcademyStores> => {
-    if (preset) store.set("tmd.academy.entryCollapsed", preset);
-    vi.resetModules();
-    seam.subscribe = undefined;
-    seam.getSnapshot = undefined;
-    // 动态 import 例外:被测 store 是模块级单例,必须借 resetModules 取全新实例
-    return import("./academyStores");
-  };
-
-  it("未预置首读展开且模块加载零写盘;预置 1 首读即折叠", async () => {
-    let mod = await loadStores();
-    mod.useEntryCollapsed();
-    expect(seam.getSnapshot?.()).toBe(false);
-    expect(store.has("tmd.academy.entryCollapsed")).toBe(false);
-    mod = await loadStores("1");
-    mod.useEntryCollapsed();
-    expect(seam.getSnapshot?.()).toBe(true);
-  });
-
-  it("set 落盘 1/0 并通知订阅者;同值 set 静默", async () => {
-    const mod = await loadStores();
-    mod.useEntryCollapsed();
-    const seen: unknown[] = [];
-    seam.subscribe!(() => void seen.push(seam.getSnapshot?.()));
-    mod.setEntryCollapsed(true);
-    mod.setEntryCollapsed(true);
-    expect(store.get("tmd.academy.entryCollapsed")).toBe("1");
-    expect(seen).toEqual([true]);
-    mod.setEntryCollapsed(false);
-    expect(store.get("tmd.academy.entryCollapsed")).toBe("0");
-    expect(seen).toEqual([true, false]);
-  });
-});
-
 describe("courseVersionDrift(课程过期判定)", () => {
   it("一致(含 v 前缀/空白书写差异)= 不提示", () => {
     expect(courseVersionDrift("18.3.1", "18.3.1")).toBeNull();
@@ -169,5 +117,36 @@ describe("practiceGate(「试一试」前置闸)", () => {
   it("无输入框 / 引擎不符 = 引导文案(不插命令不结课)", () => {
     expect(practiceGate({ cliId: "omp", hasComposer: false, activeEngine: null })).toContain("先打开");
     expect(practiceGate({ cliId: "omp", hasComposer: true, activeEngine: "pi" })).toContain("切换后再试");
+  });
+});
+
+describe("openAcademyHome(欢迎页学堂命令本体)", () => {
+  it("打开第一份已注册课程的指南;无课程时空操作", async () => {
+    const openTab = vi.fn();
+    vi.doMock("@kernel/tabs", () => ({ openTab }));
+    vi.doMock("@kernel/academy", () => ({
+      getAcademyCourses: () => [
+        { cliId: "test", title: "Test CLI", chapters: [], lessons: [] },
+      ],
+    }));
+    vi.resetModules();
+    const mod = await import("./academyStores");
+    mod.openAcademyHome();
+    expect(openTab).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "academy:test",
+        title: "Test CLI · 指南",
+        kind: "academy.guide",
+        payload: { cliId: "test" },
+      }),
+    );
+
+    vi.doMock("@kernel/academy", () => ({ getAcademyCourses: () => [] }));
+    vi.resetModules();
+    const emptyMod = await import("./academyStores");
+    emptyMod.openAcademyHome();
+    expect(openTab).toHaveBeenCalledTimes(1);
+    vi.doUnmock("@kernel/tabs");
+    vi.doUnmock("@kernel/academy");
   });
 });
