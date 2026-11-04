@@ -388,13 +388,13 @@
 | 2026-11-03 | [内置终端入口:每次点击新建并继承当前工程目录](superpowers/specs/2026-11-03-terminal-new-session-design.md) | 已收口(用户验收) |
 | 2026-11-03 | [内置终端入口实施评审(性能/兼容性/稳定性/正确性;全量门禁绿)](review/2026-11-03-terminal-new-session-review.md) | 已收口 |
 | 2026-11-03 | [下一版客户端功能减法与合并重构调研(48 插件全量盘点/代码证据校准/删除移出与合并重构/目标信息架构)](research/client-feature-rationalization-2026-11/README.md) | 已完成(删减合并候选待拍板) |
-| 2026-11-03 | [客户端功能减法与合并重构实施清单(A～I 九批 33 项/逐文件改动/依赖迁移/验收回滚)](research/client-feature-rationalization-2026-11/implementation.md) | 进行中(A～F 已收口,G～I 待实施) |
+| 2026-11-03 | [客户端功能减法与合并重构实施清单(A～I 九批 33 项/逐文件改动/依赖迁移/验收回滚;§11 终验 32 项全收口,右 rail 口径 5 面板+4 动作)](research/client-feature-rationalization-2026-11/implementation.md) | 已收口(2026-11-05 终验) |
 | 2026-11-03 | [OMP 引擎卡集成 Bun 版本管理(版本菜单双分区/当前与最低版本/收藏/官方脚本钉版/保留过旧一键修复链)](superpowers/specs/2026-11-03-omp-bun-version-menu-design.md) | 已落地(全量门禁绿,react-doctor 100) |
 | 2026-11-04 | [减法批次 D 代码评审(Ask 并入处理双域宿主/通知默认不钉/搜索三作用域统一壳含降级路径;无 P0-P2,当轮修 3 处 P3:处理 label i18n 缺口等;全量门禁绿)](review/2026-11-04-batch-d-code-review.md) | 已收口(真机目检待办) |
 | 2026-11-04 | [减法批次 E 代码评审(AI配置统一落地入口/生态组默认取钉/CLI配置与资产纳入导航/预设提示词双向深链/Memory控制台高级降层;无 P0-P2,修 1 处 P3;全量门禁绿)](review/2026-11-04-batch-e-code-review.md) | 已收口(真机目检待办) |
 | 2026-11-04 | [减法批次 F 代码评审(新建来源本地远程分组/右栏远程落地页三态承接SSH与WSL/设置七导航组保深链/恢复精简布局;无 P0-P2 零修复;顺带修 defaultPinned 声明位失效旧缺陷;全量门禁绿)](review/2026-11-04-batch-f-code-review.md) | 已收口(真机目检待办) |
 | 2026-11-05 | [减法批次 H 回滚记录(anim/ports/intent-canvas 默认停用方向被否,整批 revert;教训:「需产品确认」是硬闸门,默认态变更先问)](review/2026-11-05-batch-h-rollback.md) | 已回滚(三插件回归默认启用) |
 | 2026-11-05 | [减法批次 I 保留决策记录(LSP 代码跳转/Office 内嵌预览/docgen/web-access 自建中继/平铺广播/wallpaper 装饰全部保留,冻结扩张;零代码变更)](review/2026-11-05-batch-i-keep-decision.md) | 已决策(保留) |
-| 2026-11-05 | [减法批次(A～I)整批变更终验收口报告(§11 清单 32 项:31 过 1 拍板=右 rail 默认动作 4 vs 目标 2;FEATURES.md 7 处失准修订;包体前后持平证据;门禁+doctor+Rust 三件套全绿)](review/2026-11-05-subtraction-final-verdict.md) | 已收口(1 项待用户拍板) |
+| 2026-11-05 | [减法批次(A～I)整批变更终验收口报告(§11 清单 32 项全收口:右 rail 默认 5 面板+4 动作维持现状;FEATURES.md 7 处失准修订;包体前后持平证据;门禁+doctor+Rust 三件套全绿)](review/2026-11-05-subtraction-final-verdict.md) | 已收口 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
