@@ -22,6 +22,7 @@ import {
   type TurnSettledEvent,
 } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
 import { captureAnchor, markRefsFromRanges, recordEdit, sealTurn } from "./store";
 import { checkpointIdentity, echoProbing, noteEchoProbe, resetEchoProbes, withEchoFallback } from "./identity";
 import { BATCH_TAB_KIND } from "./batchTab";
@@ -45,7 +46,7 @@ export const checkpointsPlugin: Plugin = {
      * 原样保留,本插件仍是批次生命周期唯一宿主。 */
     ctx.registerFilePanel({
       id: "checkpoints",
-      label: "处理",
+      label: t("处理"),
       icon: SealCheck,
       component: ReviewPanel,
       order: 12,

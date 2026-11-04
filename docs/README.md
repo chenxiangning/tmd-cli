@@ -388,7 +388,8 @@
 | 2026-11-03 | [内置终端入口:每次点击新建并继承当前工程目录](superpowers/specs/2026-11-03-terminal-new-session-design.md) | 已收口(用户验收) |
 | 2026-11-03 | [内置终端入口实施评审(性能/兼容性/稳定性/正确性;全量门禁绿)](review/2026-11-03-terminal-new-session-review.md) | 已收口 |
 | 2026-11-03 | [下一版客户端功能减法与合并重构调研(48 插件全量盘点/代码证据校准/删除移出与合并重构/目标信息架构)](research/client-feature-rationalization-2026-11/README.md) | 已完成(删减合并候选待拍板) |
-| 2026-11-03 | [客户端功能减法与合并重构实施清单(A～I 九批 33 项/逐文件改动/依赖迁移/验收回滚)](research/client-feature-rationalization-2026-11/implementation.md) | 待实施 |
+| 2026-11-03 | [客户端功能减法与合并重构实施清单(A～I 九批 33 项/逐文件改动/依赖迁移/验收回滚)](research/client-feature-rationalization-2026-11/implementation.md) | 进行中(A～D 已收口,E～I 待实施) |
 | 2026-11-03 | [OMP 引擎卡集成 Bun 版本管理(版本菜单双分区/当前与最低版本/收藏/官方脚本钉版/保留过旧一键修复链)](superpowers/specs/2026-11-03-omp-bun-version-menu-design.md) | 已落地(全量门禁绿,react-doctor 100) |
+| 2026-11-04 | [减法批次 D 代码评审(Ask 并入处理双域宿主/通知默认不钉/搜索三作用域统一壳含降级路径;无 P0-P2,当轮修 3 处 P3:处理 label i18n 缺口等;全量门禁绿)](review/2026-11-04-batch-d-code-review.md) | 已收口(真机目检待办) |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

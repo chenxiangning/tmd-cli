@@ -90,7 +90,7 @@ export const notifyPlugin: Plugin = {
       label: t("通知中心"),
       icon: Bell,
       component: NotifyCenterPanel,
-      order: 14, /* 紧随审批收件箱(13),语义相邻 */
+      order: 14, /* 紧随处理宿主(12)/审批兜底(13),语义相邻 */
       railGroup: "session",
       pinnedByDefault: false,
     });
