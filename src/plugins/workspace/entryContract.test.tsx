@@ -22,7 +22,10 @@ vi.mock("@kernel/i18n", () => ({
   registerMessages: () => undefined,
 }));
 vi.stubGlobal("document", { body: {} });
+/* F-01 组头显隐桩:原地清空/注入(vi.mock 工厂引用须经 vi.hoisted 初始化)。 */
+const { mountStub } = vi.hoisted(() => ({ mountStub: [] as unknown[] }));
 vi.mock("@kernel/host", () => ({
+  useHost: () => undefined,
   host: {
     events: { on: () => () => undefined, emit: () => undefined },
     getSessions: () => [],
@@ -32,6 +35,8 @@ vi.mock("@kernel/host", () => ({
     getCliProfile: (id: string) =>
       id === "claude" ? { id: "claude", name: "claude", command: "claude", args: [] } : undefined,
     createSession: () => Promise.resolve({ id: "pty-x" }),
+    getMount: (point: string) =>
+      point === "workspace.newSessionMenu" ? (mountStub as unknown as never[]) : [],
   },
 }));
 vi.mock("@kernel/settings", () => ({
@@ -135,5 +140,23 @@ describe("入口闭环审计", () => {
     );
     expect(html).toContain("新建会话");
     expect(html).toContain("在新 worktree 中起会话…");
+  });
+
+  it("⑤ F-01 远程来源组头:有贡献才渲染,空注册表不空挂组头", () => {
+    const base = {
+      workspace: { id: "ws1", name: "tmd-cli", root: "/tmp/ws" },
+      canRemove: true,
+      position: { x: 60, y: 60 },
+      refreshing: {},
+      onRefresh: () => undefined,
+      onRename: () => undefined,
+      onClose: () => undefined,
+    } as never;
+    mountStub.length = 0;
+    expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).not.toContain("远程来源");
+    mountStub.push({ component: () => null });
+    const html = renderToStaticMarkup(createElement(SessionMenuOverlay, base));
+    expect(html).toContain("远程来源");
+    mountStub.length = 0;
   });
 });

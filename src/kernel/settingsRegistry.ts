@@ -29,7 +29,38 @@ export interface SettingsSectionContribution {
   icon?: ReactNode;
   /** 导航排序,小的在前。 */
   order?: number;
+  /** 一级导航组 id(2026-11-04 减法批次 F-03):只影响设置面板左侧导航的分组
+   *  呈现,不改变 section 唯一性/删除语义/深链 id;缺省 = 不分组(平铺,
+   *  旧行为)。取值须命中 SETTINGS_NAV_GROUPS,未知 id 按不分组兜底。 */
+  navGroup?: string;
   tabs: SettingsTabContribution[];
+}
+
+/** 设置一级导航组(F-03 归组元数据):组只是导航壳,不拥有内容、不进注册表。 */
+export interface SettingsNavGroup {
+  /** 稳定 id(section.navGroup 引用值)。 */
+  id: string;
+  /** 组头文案(t() 键,词典见 kernel/locales)。 */
+  label: string;
+  /** 导航组排序,小的在前。 */
+  order: number;
+}
+
+/** 七个导航组的产品默认(通用 → 系统与数据);section 逐组归入,组内仍按 section.order。 */
+export const SETTINGS_NAV_GROUPS: readonly SettingsNavGroup[] = [
+  { id: "general", label: "通用", order: 10 },
+  { id: "session-workspace", label: "会话与工作区", order: 20 },
+  { id: "ai-config", label: "AI 配置", order: 30 },
+  { id: "remote-access", label: "远程与访问", order: 40 },
+  { id: "notify", label: "通知", order: 50 },
+  { id: "workbench", label: "工作台与回顾", order: 60 },
+  { id: "system", label: "系统与数据", order: 70 },
+];
+
+/** 组 id 查表(未知/缺省 → null,调用方按不分组兜底)。 */
+export function settingsNavGroup(id: string | undefined): SettingsNavGroup | null {
+  if (!id) return null;
+  return SETTINGS_NAV_GROUPS.find((g) => g.id === id) ?? null;
 }
 
 const sections = new Map<string, SettingsSectionContribution>();

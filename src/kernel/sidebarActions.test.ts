@@ -114,8 +114,20 @@ describe("defaultPinnedActionIds", () => {
   });
 });
 
-describe("rail 位互斥(2026-10-04)", () => {
-  /* 一个动作只住一处:同时声明 rail 与 leftRail 直接抛错且注册表不变,
+describe("rail 动作钉住默认(F-02)", () => {
+  /* registerRailActionPin 钉住缺省 true;归属插件显式 defaultPinned:false 时不入
+     钉住清单(WSL rail 动作先例)——此前硬编码 true 使声明位被无视,一并钉死。 */
+  it("rail 缺省钉住;defaultPinned:false 不钉(新装回落默认值)", async () => {
+    const mod = await load();
+    const { getPinnedPanelIds } = await import("./filePanel");
+    mod.registerSidebarAction({ ...actionOf("pinned-rail"), rail: true });
+    mod.registerSidebarAction({ ...actionOf("wsl-panel"), rail: true, defaultPinned: false });
+    expect(getPinnedPanelIds()).toContain("pinned-rail");
+    expect(getPinnedPanelIds()).not.toContain("wsl-panel");
+  });
+});
+
+describe("rail 位互斥(2026-10-04)", () => {  /* 一个动作只住一处:同时声明 rail 与 leftRail 直接抛错且注册表不变,
    * 与重复 id 同款 fail fast;单侧声明照常注册。 */
   it("rail+leftRail 双声明抛错,注册表不变", async () => {
     const mod = await load();

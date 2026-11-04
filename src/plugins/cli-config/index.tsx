@@ -29,6 +29,7 @@ export const cliConfigPlugin: Plugin = {
       ),
       icon: <GearSix size="0.875rem" aria-hidden />,
       order: 3,
+      navGroup: "ai-config",
       tabs: [{ id: "engines", title: t("引擎"), component: CliConfigTab }],
     });
   },

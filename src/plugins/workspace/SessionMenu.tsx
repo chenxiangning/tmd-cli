@@ -5,7 +5,7 @@
 
 import { createPortal } from "react-dom";
 import { useEscClose } from "@kernel/DialogShell";
-import { host } from "@kernel/host";
+import { host, useHost } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { Mounts } from "@kernel/Mounts";
@@ -59,6 +59,9 @@ export function SessionMenuOverlay({
   const origin = findWorkspaceOrigin(workspace);
   const cliProfiles = origin?.filterCliProfiles?.(workspace, profiles) ?? profiles;
   const menuNote = origin?.sessionMenuNote?.(workspace) ?? null;
+  /* F-01 远程来源组头显隐:挂载点有贡献才渲染组头(组头不空挂)。 */
+  useHost();
+  const hasRemoteEntries = host.getMount("workspace.newSessionMenu").length > 0;
 
   return createPortal(
     <>
@@ -99,7 +102,15 @@ export function SessionMenuOverlay({
           ))}
         </div>
 
-        {/* 扩展入口:插件贡献的会话类型(如 ssh 插件的「SSH 连接」)。 */}
+        {/* 远程来源统一组(F-01):SSH 连接等插件贡献的会话类型,归「远程来源」组头下;
+            组头随注册表出现/消失(ssh 插件禁用即整组退场);WSL 走来源工作区的
+            origin 适配(标题/引擎行/note),不在此重复放行。 */}
+        {hasRemoteEntries && (
+          <>
+            <div className="wsmenu-divider" />
+            <div className="wsmenu-group-title">{t("远程来源")}</div>
+          </>
+        )}
         <Mounts point="workspace.newSessionMenu" />
 
         {/* 新 worktree 会话:仅本地工作区。建树链 = 本地 git + 本地 PTY spawn,对

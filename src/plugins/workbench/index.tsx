@@ -71,6 +71,7 @@ export const workbenchPlugin: Plugin = {
       description: t("文档、任务与每日日志的显示偏好。"),
       icon: <Kanban size="0.875rem" aria-hidden />,
       order: 47,
+      navGroup: "workbench",
       tabs: [
         {
           id: "general",

@@ -79,6 +79,7 @@ export const assetsPlugin: Plugin = {
       description: t("AI 配置的资产子能力 —— 可复用资产:composer 里 !! 插入提示词正文,## 挂载智能体(发送时尾拼角色块)。"),
       icon: <Robot size="0.875rem" aria-hidden />,
       order: 45,
+      navGroup: "ai-config",
       tabs: [
         {
           id: "agents",

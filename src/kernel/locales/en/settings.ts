@@ -153,7 +153,6 @@ export const MESSAGES = {
   "搜索": "Search",
   "全文搜索面板与文件名快开(⇧⌘F / ⌘P),命中跳文件定位行":
     "Full-text search panel and filename quick open (⇧⌘F / ⌘P); hits jump to the file and line",
-  "会话列表预算": "Session list budget",
   "工作区会话列表的磁盘历史露出预算(caption 弹窗编辑)":
     "Budget of disk history shown in the workspace session list (edited from the caption popover)",
   "内置终端": "Built-in terminal",

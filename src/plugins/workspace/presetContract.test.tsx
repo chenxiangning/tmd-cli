@@ -25,6 +25,7 @@ vi.mock("@kernel/i18n", () => ({
 }));
 vi.stubGlobal("document", { body: {} });
 vi.mock("@kernel/host", () => ({
+  useHost: () => undefined,
   host: {
     events: { on: () => () => undefined, emit: () => undefined },
     getSessions: () => [],
@@ -32,6 +33,7 @@ vi.mock("@kernel/host", () => ({
     getCliProfile: (id: string) =>
       id === "claude" ? { id: "claude", name: "claude", command: "claude", args: [] } : undefined,
     createSession: () => Promise.resolve({ id: "pty-x" }),
+    getMount: () => [],
   },
 }));
 /* 预设 worktree 启动链(runWorktreeCreate/worktreeSession)连带 import 面;渲染面不触达。 */

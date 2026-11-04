@@ -12,15 +12,18 @@ import { t } from "@kernel/i18n";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { AuditTab } from "./AuditTab";
 import { CleanupTab } from "./CleanupTab";
+import { LayoutResetCard } from "./LayoutResetCard";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
-/** 单 tab 内容:体检面在上,清理面在下(单 tab section 不渲染 tab 条,平铺)。 */
+/** 单 tab 内容:体检面在上,清理面在下,布局还原收尾(单 tab section 不渲染 tab 条,平铺)。 */
 function StorageTab() {
   return (
     <div>
       <AuditTab />
       <div className="my-4 border-t border-(--tmd-border)" />
       <CleanupTab />
+      <div className="my-4 border-t border-(--tmd-border)" />
+      <LayoutResetCard />
     </div>
   );
 }
@@ -42,6 +45,7 @@ export const storageAuditPlugin: Plugin = {
       description: t("磁盘占用体检与白名单清理;各家 CLI 会话目录只读零触碰。"),
       icon: <HardDrives size="0.875rem" aria-hidden />,
       order: 49, /* 尾部空位:现有 section 最大 order = intent-canvas 48 */
+      navGroup: "system",
       tabs: [{ id: "storage", title: t("体检与清理"), order: 0, component: StorageTab }],
     });
   },

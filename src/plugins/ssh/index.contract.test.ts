@@ -74,7 +74,7 @@ function harness() {
   const contributes: Array<{ slot: string; order?: number }> = [];
   const tabContents: Array<{ kind: string; beforeClose?: (tab: unknown) => Promise<boolean> }> = [];
   const commands: Array<{ id: string; keybinding?: string }> = [];
-  const panels: string[] = [];
+  const panels: Array<{ id: string; label: string; component: unknown }> = [];
   const sections: string[] = [];
   const ctx = {
     contribute: (slot: string, c: { order?: number }) => {
@@ -85,7 +85,7 @@ function harness() {
     },
     registerCommand: (c: { id: string; keybinding?: string }) =>
       commands.push({ id: c.id, keybinding: c.keybinding }),
-    registerFilePanel: (p: { id: string }) => panels.push(p.id),
+    registerFilePanel: (p: { id: string; label: string; component: unknown }) => panels.push(p),
     registerSettingsSection: (s: { id: string }) => sections.push(s.id),
     events: host.events,
   } as unknown as PluginContext;
@@ -135,8 +135,17 @@ describe("ssh activate 注册面", () => {
     ]);
     expect(h.tabContents.map((t) => t.kind)).toEqual(["ssh-file"]);
     expect(h.commands).toEqual([{ id: "ssh.saveRemoteFile", keybinding: "Cmd+S" }]);
-    expect(h.panels).toEqual(["ssh"]);
     expect(h.sections).toEqual(["ssh"]);
+  });
+
+  it("F-02 右栏面板:label「远程」承接落地页,面板 id 保持 ssh(persisted 钉住不迁移)", async () => {
+    const { RemoteHomePanel } = await import("./panel/RemoteHomePanel");
+    const h = harness();
+    mod.sshPlugin.activate(h.ctx);
+    expect(h.panels).toHaveLength(1);
+    expect(h.panels[0].id).toBe("ssh");
+    expect(h.panels[0].label).toBe("远程");
+    expect(h.panels[0].component).toBe(RemoteHomePanel);
   });
 
   it("SFTP 全局通道 activate 常驻接线,deactivate 摘除", async () => {

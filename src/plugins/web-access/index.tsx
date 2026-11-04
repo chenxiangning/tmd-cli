@@ -41,6 +41,7 @@ export const webAccessPlugin: Plugin = {
       description: "局域网/外网用手机/平板浏览器访问本机会话。",
       icon: <Globe size="0.875rem" aria-hidden />,
       order: 45,
+      navGroup: "remote-access",
       tabs: [
         {
           id: "lan",

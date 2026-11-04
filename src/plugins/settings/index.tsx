@@ -35,6 +35,7 @@ export const settingsPlugin: Plugin = {
       description: "外观、行为和环境的基础配置。",
       icon: <Gear size="0.875rem" aria-hidden />,
       order: 0,
+      navGroup: "general",
       tabs: [
         {
           id: "appearance",

@@ -172,4 +172,7 @@ export const MESSAGES = {
   "导出转录快照": "Export transcript snapshot",
   "已导出转录快照 · 时点 {time}": "Snapshot exported as of {time}",
   "导出转录快照失败:{reason}": "Snapshot export failed: {reason}",
+  /* ── F-01 减法批次:新建会话/添加工作区的来源分组标签 ── */
+  "本地来源": "Local source",
+  "远程来源": "Remote sources",
 } as Record<string, string>;

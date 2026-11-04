@@ -6,7 +6,7 @@ import { registerMessages } from "@kernel/i18n";
 
 /** en 词典 · session-budget 域。 */
 const MESSAGES_EN = {
-  "会话列表显示预算": "Session List Budget",
+  "列表配额": "List Quota",
   "关闭": "Close",
   "显示总数": "Total rows",
   "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多…」仍可按需翻倍加载。":
@@ -23,7 +23,7 @@ const MESSAGES_EN = {
 
 /** ja 词典 · session-budget 域。 */
 const MESSAGES_JA = {
-  "会话列表显示预算": "セッションリスト表示予算",
+  "列表配额": "リスト割り当て",
   "关闭": "閉じる",
   "显示总数": "合計表示数",
   "一个工作区内所有 CLI 分组共享的初始露出条数({min}–{max},默认 {def})。已分配 {allocated} 条,剩余 {remaining} 条由未配置的 CLI 均分。「更多…」仍可按需翻倍加载。":

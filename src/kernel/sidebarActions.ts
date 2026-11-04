@@ -80,8 +80,10 @@ export function registerSidebarAction(action: SidebarAction): void {
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
   );
   /* rail 直挂动作与右栏面板共用同一份钉住清单:登记即按同规则入钉,
-     ⋯ 菜单可勾选,外显 = 钉住 ∪ 激活(见 PanelRail)。 */
-  if (action.rail) registerRailActionPin(action.id, true, action.pinOnce ?? false);
+     ⋯ 菜单可勾选,外显 = 钉住 ∪ 激活(见 PanelRail)。defaultPinned 缺省 true;
+     F-02 起归属插件可显式 defaultPinned:false(WSL rail 动作先例)——此前此处
+     硬编码 true,声明位被无视(缺陷一并修复)。 */
+  if (action.rail) registerRailActionPin(action.id, action.defaultPinned ?? true, action.pinOnce ?? false);
   store.commit({ actions: state.actions });
 }
 

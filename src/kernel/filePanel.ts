@@ -177,12 +177,33 @@ function ensurePanelPinned(id: string): void {
  *  pinOnce = 面板 pinOnce 同语义的一次性补钉(存量清单无此 id 时自动钉一次,
  *  手动取消后不复活;入口迁移类动作用,先例 system-proxy 2026-10-04)。 */
 export function registerRailActionPin(id: string, pinnedByDefault = true, pinOnce = false): void {
+  railPinDefaults.set(id, pinnedByDefault);
   const pinned = persistedPinnedIds ? persistedPinnedIds.has(id) : pinnedByDefault;
   if (pinned && !state.pinnedIds.has(id)) {
     state.pinnedIds = new Set([...state.pinnedIds, id]);
     commit();
   }
   if (pinOnce) ensurePanelPinned(id);
+}
+
+/** rail 动作钉住默认值登记表(F-04 恢复精简布局的重置真源):rail 动作不进
+ *  state.panels,重置时需按登记时的默认值重算,缺省 true。 */
+const railPinDefaults = new Map<string, boolean>();
+
+/** 恢复精简布局(F-04,用户主动确认后调用):只把 rail 钉住清单重置为当前产品
+ *  默认(已注册面板的 pinnedByDefault ∪ rail 动作钉住默认),全量覆写持久化
+ *  key;不动 autopin 留痕、不动其他 localStorage(工作区/主题/搜索折叠等零波及)。 */
+export function resetPinnedToProductDefaults(): void {
+  const next = new Set<string>();
+  for (const p of state.panels) {
+    if (p.pinnedByDefault ?? true) next.add(p.id);
+  }
+  for (const [id, def] of railPinDefaults) {
+    if (def) next.add(id);
+  }
+  state.pinnedIds = next;
+  persistPinnedIds(next);
+  commit();
 }
 
 export function getFilePanels(): readonly FilePanelContribution[] {

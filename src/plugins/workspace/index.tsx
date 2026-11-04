@@ -244,6 +244,7 @@ export const workspacePlugin: Plugin = {
       description: t("组织左侧栏工作区的分组:新建、重命名、排序与删除。"),
       icon: <Folders size="0.875rem" aria-hidden />,
       order: 12,
+      navGroup: "session-workspace",
       tabs: [
         {
           id: "groups",

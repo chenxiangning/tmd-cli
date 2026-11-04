@@ -166,6 +166,7 @@ export const notifyPlugin: Plugin = {
       description: t("离开屏幕也能第一时间知道:桌面通知、应用内提示音与额度预警。"),
       icon: <BellRinging size="0.875rem" aria-hidden />,
       order: 46,
+      navGroup: "notify",
       tabs: [
         {
           id: "general",

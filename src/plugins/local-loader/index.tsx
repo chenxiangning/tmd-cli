@@ -27,6 +27,7 @@ export const localLoaderPlugin: Plugin = {
       description: t("管理内置插件启停与 ~/.tmd-cli/plugins/ 本地插件。"),
       icon: <PlugsConnected size="0.875rem" aria-hidden />,
       order: 44,
+      navGroup: "system",
       tabs: [
         {
           id: "extensions",

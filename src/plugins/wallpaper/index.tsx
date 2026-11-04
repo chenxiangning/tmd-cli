@@ -36,6 +36,7 @@ export const wallpaperPlugin: Plugin = {
       description: t("工作区背景壁纸:本地图库与效果。"),
       icon: <ImagesSquare size="0.875rem" aria-hidden />,
       order: 4,
+      navGroup: "general",
       tabs: [
         {
           id: "library",
