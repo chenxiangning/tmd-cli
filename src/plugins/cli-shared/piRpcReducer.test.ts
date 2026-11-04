@@ -158,4 +158,20 @@ describe("PiRpcReducer(轮级工具行 + 流内 think/text)", () => {
     const users = blocks.filter((b) => b.role === "user").map((b) => b.text);
     expect(users).toEqual(["首轮", "追问"]);
   });
+
+  it("接续种子只留完整轮:在途轮(最后 user 块起)不带走,防引擎重放整轮复制", () => {
+    const r = new PiRpcReducer();
+    r.seed([
+      { id: "a", role: "user", text: "一轮" },
+      { id: "b", role: "assistant", text: "答一" },
+      { id: "c", role: "user", text: "二轮在途" },
+      { id: "d", role: "reasoning", text: "想到一半" },
+    ]);
+    expect(r.turnStart).toBe(2);
+    expect(r.feed(frame("message_update", {})).map((b) => b.id)).toEqual(["a", "b"]);
+    /* 无 user 块的种子(异常输入)回退全量保留 */
+    const r2 = new PiRpcReducer();
+    r2.seed([{ id: "x", role: "assistant", text: "孤块" }]);
+    expect(r2.turnStart).toBe(1);
+  });
 });

@@ -75,25 +75,27 @@ export class PiRpcReducer {
    * 渲染层若按 is-last 判断,轮内第二段起的思考永远不展开(2026-11-05
    * 幕布流缺陷实锤:工具一跑,思考块后再无 last)。消息结算即清。 */
   liveSurface: PiLiveSurface = null;
-  /** follow_up 用户消息本地回显排队(omp 对 follow_up 不发 user 消息帧,
-   * 轮首无用户块轮界不可读;下轮轮界帧注入 settled 尾)。队列制:busy 期
-   * 连发多条互不覆写(单槽制会静默丢前条,2026-11-05 review 实锤)。 */
+  /** follow_up 本地回显排队(omp 不发 user 帧,轮首无用户块轮界不可读;下轮
+   * 轮界帧注入 settled 尾)。队列制:busy 连发多条互不覆写(单槽静默丢前条)。 */
   private pendingUserEcho: string[] = [];
 
-  /** 接续种子(断线重开换壳保转录):settled = 旧 blocks,轮界对齐尾。 */
+  /** 接续种子(断线重开换壳保转录):settled = 旧 blocks 的完整轮部分
+   * (最后一个 user 块之前);在途轮不带走——引擎 --resume 可能重放在途轮
+   * 消息帧,种子带未完成轮会被整轮再写一遍(2026-11-05 图证实锤)。在途轮
+   * 由引擎重放/续跑重建,幕布不重复为先。 */
   seed(blocks: CliTranscriptBlock[]): void {
-    this.settled = [...blocks];
-    this.turnStart = blocks.length;
+    const cut = blocks.findLastIndex((b) => b.role === "user");
+    this.settled = cut >= 0 ? blocks.slice(0, cut) : [...blocks];
+    this.turnStart = this.settled.length;
     this.rebuild();
   }
 
   feed(rec: Record<string, unknown>): CliTranscriptBlock[] {
     const type = rec.type;
-    /* 18.6.0 起轮界帧更名 turn_start(18.4 实测为 session_start;双名兼容)。
-     * turn_end 与 session_settled 同义,结算仍走 session_settled(18.6 实测在发)。 */
+    /* 18.6 起轮界帧更名 turn_start(18.4 为 session_start,双名兼容);turn_end
+     * 同义忽略,结算走 session_settled(18.6 实测在发)。 */
     if (type === "session_start" || type === "turn_start") {
-      /* 先推进轮界再注入回显:echo 块下标 = 新 turnStart,归活轮切片——与
-       * 首轮 user 占位(message_start 于轮界后)同位;次序反过来会落进上轮。 */
+      /* 先推进轮界再注回显(echo 下标 = 新 turnStart 归活轮切片);反过来会落进上轮。 */
       this.turnStart = this.blocks.length;
       this.flushUserEcho();
     } else if (type === "agent_start") {
@@ -109,14 +111,12 @@ export class PiRpcReducer {
     return this.blocks;
   }
 
-  /** follow_up 用户消息本地回显入队(PiRpcSession.followUp 成功 ack 后调用;
-   * 注入在下一轮回界帧flush——ack 即时而上轮尚在途,立刻注入会落进上轮切片)。 */
+  /** 回显入队(followUp ack 后;立刻注入会落进尚在途的上轮切片,故等轮界帧)。 */
   queueUserEcho(text: string): void {
     this.pendingUserEcho.push(text);
   }
 
-  /* 回显注入 settled 尾:此时 turnStart 仍指轮首(= 注入点前界),注入块下标
-   * = settled.length ≥ turnStart → 渲染层归活轮,与引擎首轮回显同位。 */
+  /* 注入 settled 尾:turnStart 仍指轮首,注入块下标 ≥ turnStart → 渲染层归活轮。 */
   private flushUserEcho() {
     if (this.pendingUserEcho.length === 0) return;
     const echoes = this.pendingUserEcho;
@@ -135,9 +135,8 @@ export class PiRpcReducer {
     if (this.live) this.freezeLive();
     this.liveSurface = null;
     if (role === "user") {
-      /* 引擎自带 user 回显帧的端(pi 系可能,omp 无)会对 follow_up 本地回显
-       * 双写:末块为本地回显时权威帧接管其位,同一消息不双行(双端幕布对齐)。
-       * 必须先撤回显再取 live.at——占位下标/定位 id 都以撤后基座为准。 */
+      /* 引擎自带 user 回显帧的端(pi 系可能,omp 无)会对 follow_up 本地回显双写:
+       * 末块为本地回显时权威帧接管其位。先撤再取 live.at(下标/定位 id 以撤后为准)。 */
       const last = this.settled[this.settled.length - 1];
       if (last?.role === "user" && last.id.startsWith(`${LIVE}f`)) {
         this.settled = this.settled.slice(0, -1);

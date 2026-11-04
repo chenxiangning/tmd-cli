@@ -65,12 +65,20 @@
 /* 思考段(codemoss ThinkingSurface):题头(Brain + 文案)+ 左轨灰字全文 */
 .ss-thinksec { display: flex; flex-direction: column; gap: 4px; }
 .ss-thinksec-title { display: flex; align-items: center; gap: 6px; color: var(--tmd-fg-faint); font-size: var(--tmd-font-ui); }
+/* 活轮活跃面题头 pulse(流内思考同形渲染的「思考中…」态) */
+.ss-thinksec-title.is-live { color: var(--tmd-fg-muted); }
+.ss-thinksec-title.is-live span { animation: ss-think-pulse 1.6s ease-in-out infinite; }
 .ss-thinksec-body { margin-left: 2px; padding-left: 12px; border-left: 1px solid var(--tmd-border); white-space: pre-wrap; word-break: break-words; font-size: var(--tmd-font-xs); line-height: 1.65; color: var(--tmd-fg-muted); }
 /* 工具段:树形导轨容器 */
 .ss-toolsec { display: flex; flex-direction: column; margin-left: 2px; }
 /* 轮间距 */
 .ss-turn { margin-bottom: 8px; }
-/* 用户块图片内联(粘贴/拖图 token → 渲染;几何同 sv-user-imgs 律,ss 前缀独立) */
+/* 用户气泡卡(2026-11-05 二轮:替 sv-user 蓝竖线形态;活轮/落定同形。
+ * width:fit-content 收半幅,超长文本 max-width 内自然折行) */
+.ss-userblock { display: flex; flex-direction: column; gap: 6px; width: fit-content; max-width: 88%; padding: 8px 12px 10px; border: 1px solid var(--tmd-border); border-radius: 12px; background: var(--tmd-bg-elevated); }
+.ss-userblock-head { display: flex; align-items: baseline; gap: 8px; }
+.ss-userblock-who { font-size: var(--tmd-font-xs); font-weight: 600; color: var(--tmd-fg-subtle); letter-spacing: 0.04em; }
+/* 用户块图片内联(粘贴/拖图 token / 引擎 images → 渲染;几何同 sv-user-imgs 律,ss 前缀独立) */
 .ss-userblock-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
 .ss-userblock-imgbtn { display: inline-block; background: none; border: none; padding: 0; cursor: zoom-in; line-height: 0; }
 .ss-userblock-img { max-width: 320px; max-height: 240px; border-radius: var(--tmd-radius-sm); border: 1px solid var(--tmd-border); object-fit: contain; }

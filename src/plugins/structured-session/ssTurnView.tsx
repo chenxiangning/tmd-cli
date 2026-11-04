@@ -48,14 +48,15 @@ function groupSections(blocks: CliTranscriptBlock[]): SsSection[] {
 }
 
 /* 思考段:Brain 题头(仅非独段时显,独段题头即折叠组头)+ 左轨灰字全文
- * (codemoss ThinkingSurface;纯文本 pre-wrap,不再 markdown 重解析)。 */
-function ThinkingSection({ block, titled }: { block: CliTranscriptBlock; titled: boolean }) {
+ * (codemoss ThinkingSurface;纯文本 pre-wrap,不再 markdown 重解析)。
+ * live = 流内活跃面:题头 pulse 成「思考中…」(活轮同形渲染用,见 liveTurn)。 */
+export function SsThinkingSection({ block, titled, live = false }: { block: CliTranscriptBlock; titled: boolean; live?: boolean }) {
   return (
     <div className="ss-thinksec">
       {titled ? (
-        <div className="ss-thinksec-title">
+        <div className={`ss-thinksec-title${live ? " is-live" : ""}`}>
           <Brain size="0.875rem" aria-hidden />
-          <span>{t("思考过程")}</span>
+          <span>{live ? t("思考中…") : t("思考过程")}</span>
         </div>
       ) : null}
       <div className="ss-thinksec-body">{block.text}</div>
@@ -64,7 +65,7 @@ function ThinkingSection({ block, titled }: { block: CliTranscriptBlock; titled:
 }
 
 /* 工具段:树形导轨行;首行枝线即刻起笔,后续行等上行干线描完再接笔。 */
-function ToolSection({ blocks }: { blocks: CliTranscriptBlock[] }) {
+export function SsToolSection({ blocks }: { blocks: CliTranscriptBlock[] }) {
   return (
     <ul className="ss-toolsec">
       {blocks.map((b, i) => (
@@ -130,9 +131,9 @@ function SsProcessFold({ blocks, enterOpen = false }: { blocks: CliTranscriptBlo
             <div className="ss-fold-body">
               {sections.map((s) =>
                 s.type === "thinking" ? (
-                  <ThinkingSection key={s.block.id} block={s.block} titled={!singleThinking} />
+                  <SsThinkingSection key={s.block.id} block={s.block} titled={!singleThinking} />
                 ) : (
-                  <ToolSection key={s.blocks[0].id} blocks={s.blocks} />
+                  <SsToolSection key={s.blocks[0].id} blocks={s.blocks} />
                 ),
               )}
             </div>
@@ -166,8 +167,7 @@ export const SsTurnView = memo(function SsTurnView({ blocks, Markdown, settleKey
                 <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
               ),
             )}
-            <SsProcessFold blocks={process} enterOpen={turn[0].id === settleKey} />
-            {answers.map((b) => (
+            <SsProcessFold blocks={process} enterOpen={turn[0].id === settleKey} />            {answers.map((b) => (
               <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
             ))}
           </div>

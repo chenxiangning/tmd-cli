@@ -61,3 +61,7 @@
 3. **渲染界 = 用户轮界,取代「按 turnStart 切片」**:omp 代理循环逐步发 `session_settled`/`turn_start`,`turnStart` 在用户轮中途推进,按它切界会把在途过程错落成已定折叠组且工具行重复(提前折叠 + 大空隙实锤)。终态:活轮起点 = 最后一个 user 块(`ssLiveFrom.liveFromIndex`);`turnStart` 仅作落定基线。结算渲染宽限 = `useTurnLive`(false 沿 600ms trailing,步间闪沿不闪回折叠态)。
 4. **omp/pi 共用一套幕布**:两 profile 仅声明 `structuredRpc.{command,resumeArgs}`(启动命令 + 接续旗标之别),渲染管线(PiRpcSession → PiRpcReducer → sessionTab/SsTurnView/LiveTurn)完全共享,插件内零引擎分支。协议行为差在共享层消化:follow_up 本地回显改队列制(busy 连发不互覆);引擎自带 user 回显帧的端(pi 系可能,omp 无)由权威帧接管回显位,同一消息不双行。
 5. 折叠头形制沿用 codemoss ProcessDisclosure 纯文本头 + grid-rows 300ms 开合;思考段 = 左轨灰字全文,连续工具 = 树形导轨行(入场描画动画)。
+6. **用户块 = 气泡卡片**(2026-11-05 终轮):圆角描边卡(「你」标签 + 文本 + 图片,`width:fit-content` 半幅),替原 sv-user 蓝竖线形态;SS 路径自渲染,活轮/落定同形。
+7. **活轮过程区 = 落定展开区同形**(图2 形态,终轮对齐):思考 = 左轨全文段(活跃面题头 pulse「思考中…」),连续工具 = 树形导轨行;段落 = 块,类型切换即分段(与落定 groupSections 同律)。活轮不再用 sv ThinkingRow 单行摘要形态。
+8. **图片单源律**(修同图双行实锤):引擎 message_end 权威块自带 images(base64,piTranscriptLine 实证)时只渲染引擎图并全量摘除文本 "@path" token;无 images 的块(omp follow_up 本地回显)走 token 加载兜底。双源并渲染 = 同图双行。
+9. **接续种子切在途轮**(防整轮复制实锤):`seed()` 只保留最后一个 user 块之前的完整轮;引擎 --resume 重放在途轮消息帧时不再双写,在途轮由重放/续跑重建。

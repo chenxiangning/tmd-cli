@@ -5,6 +5,7 @@
  * data URL,模块级缓存)。CJK 句读紧跟路径是常态:路径段允许点号与斜杠、
  * 排除空白与句读标点,贪婪 \S+ 会把后面的中文一并吞掉。
  */
+import type { CliTranscriptBlock } from "@kernel/cli";
 import { ipc } from "@kernel/ipc";
 
 const MIME: Record<string, string> = {
@@ -60,4 +61,20 @@ export function loadUserImage(path: string): Promise<string | null> {
     .catch(() => null);
   loadCache.set(path, p);
   return p;
+}
+
+/** 用户块图片源裁决(纯函数):引擎权威 images 在席 → 引擎 data URL 列表
+ * (key = mime:长度指纹 + 重复序号,同图多贴也唯一);否则 → 已加载 token 的
+ * data URL(key = 路径)。单源律:双源并渲染 = 同图双行(2026-11-05 图证)。 */
+export function imageSrcs(block: CliTranscriptBlock, loaded: Record<string, string>): { key: string; src: string }[] {
+  if (block.images?.length) {
+    const seen = new Map<string, number>();
+    return block.images.map((img) => {
+      const base = `${img.mimeType}:${img.data.length}`;
+      const n = seen.get(base) ?? 0;
+      seen.set(base, n + 1);
+      return { key: n ? `${base}#${n}` : base, src: `data:${img.mimeType};base64,${img.data}` };
+    });
+  }
+  return Object.entries(loaded).map(([p, url]) => ({ key: p, src: url }));
 }
