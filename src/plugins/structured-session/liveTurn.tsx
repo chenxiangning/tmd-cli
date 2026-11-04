@@ -17,6 +17,7 @@ import type { PiLiveSurface } from "../cli-shared/piRpc";
 import { TranscriptBlockView } from "@plugins/session-viewer/transcriptView";
 import { ThinkingRow } from "@plugins/session-viewer/transcriptRows";
 import { SsToolRow } from "./ssToolRow";
+import { SsUserBlock } from "./ssUserBlock";
 
 export const LiveTurn = memo(function LiveTurn({ blocks, busy, Markdown, thinkingLabel, liveSurface }: {
   blocks: CliTranscriptBlock[];
@@ -32,8 +33,8 @@ export const LiveTurn = memo(function LiveTurn({ blocks, busy, Markdown, thinkin
   const liveThinkIdx = liveSurface === "thinking" ? live.map((b) => b.role).lastIndexOf("reasoning") : -1;
   return (
     <div className="ss-liveturn">
-      {/* 用户块复用落定同形组件(署名行/时间戳/强调线):结算瞬间不再换装 */}
-      {user ? <TranscriptBlockView block={user} Markdown={Markdown} /> : null}
+      {/* 用户块:图片 token 内联渲染(粘贴/拖图的临时文件路径 → 图);其余同形 */}
+      {user ? <SsUserBlock block={user} Markdown={Markdown} /> : null}
       {busy && live.length === 0 ? (
         <div className="ss-think is-initial"><span className="ss-shimmer">{thinkingLabel}</span></div>
       ) : null}

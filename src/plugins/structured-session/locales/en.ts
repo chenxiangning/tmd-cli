@@ -78,6 +78,8 @@ export const MESSAGES_EN: Record<string, string> = {
   "思考过程": "Thinking process",
   "智能体(##)": "Agents (##)",
   "提示词(!!)": "Prompts (!!)",
+  /* 用户块图片内联(与 session-viewer 同译) */
+  "切换图片大小": "Toggle image size",
   /* 对话框拖拽柄 */
   "拖拽调整高度": "Drag to resize",
 }

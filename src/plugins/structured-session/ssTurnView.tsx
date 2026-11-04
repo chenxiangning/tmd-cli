@@ -13,6 +13,7 @@ import type { CliTranscriptBlock } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { TranscriptBlockView } from "@plugins/session-viewer/transcriptView";
 import { SsToolRow } from "./ssToolRow";
+import { SsUserBlock } from "./ssUserBlock";
 
 /** 按用户块切轮(每轮以 user 块开头;无 user 块的头部残段也成一轮回退兜住)。 */
 function splitTurns(blocks: CliTranscriptBlock[]): CliTranscriptBlock[][] {
@@ -145,9 +146,13 @@ export const SsTurnView = memo(function SsTurnView({ blocks, Markdown }: {
         const answers = turn.filter((b) => b.role === "assistant");
         return (
           <div className="ss-turn" key={turn[0].id}>
-            {heads.map((b) => (
-              <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
-            ))}
+            {heads.map((b) =>
+              b.role === "user" ? (
+                <SsUserBlock key={b.id} block={b} Markdown={Markdown} />
+              ) : (
+                <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
+              ),
+            )}
             <SsProcessFold blocks={process} />
             {answers.map((b) => (
               <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
