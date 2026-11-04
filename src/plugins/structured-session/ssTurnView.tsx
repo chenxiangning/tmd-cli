@@ -83,15 +83,15 @@ const FOLD_MS = 300;
 
 /* 过程折叠组:纯文本头 + grid-rows 高度开合(300ms ease-out;scaleY/opacity
  * 会留合成器残影,不用);收起动画播完才卸载展开区(codemoss bodyMounted 律)。
- * enterOpen = 结算换装:首帧展开态挂载,一拍后自动收成折叠头(只播一次;
- * 用户中途点开不再强折,playedRef 挡重播)。 */
+ * enterOpen = 结算换装:首帧展开态挂载,一拍后自动收成折叠头。自动收只在
+ * 「用户未手动触碰」时排程——StrictMode 双跑效应 setup→cleanup→setup 会
+ * 取消首跑时器,幂等重排即可(playedRef 挡重跑会把二跑挡死,实锤不收)。 */
 function SsProcessFold({ blocks, enterOpen = false }: { blocks: CliTranscriptBlock[]; enterOpen?: boolean }) {
   const [open, setOpen] = useState(enterOpen);
   const [mounted, setMounted] = useState(enterOpen);
-  const playedRef = useRef(false);
+  const touchedRef = useRef(false);
   useEffect(() => {
-    if (!enterOpen || playedRef.current || !open) return;
-    playedRef.current = true;
+    if (!enterOpen || !open || touchedRef.current) return;
     const timer = window.setTimeout(() => setOpen(false), 360);
     return () => window.clearTimeout(timer);
   }, [enterOpen, open]);
@@ -120,7 +120,10 @@ function SsProcessFold({ blocks, enterOpen = false }: { blocks: CliTranscriptBlo
         type="button"
         className="ss-fold-head"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          touchedRef.current = true; /* 手动接管:展开后不再自动收 */
+          setOpen((v) => !v);
+        }}
       >
         <CaretRight size="0.75rem" className="ss-tool-caret" aria-hidden />
         <span>{summary}</span>

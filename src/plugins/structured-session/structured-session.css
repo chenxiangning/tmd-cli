@@ -74,8 +74,8 @@
 /* 轮间距 */
 .ss-turn { margin-bottom: 8px; }
 /* 用户气泡卡(2026-11-05 二轮:替 sv-user 蓝竖线形态;活轮/落定同形。
- * width:fit-content 收半幅,超长文本 max-width 内自然折行) */
-.ss-userblock { display: flex; flex-direction: column; gap: 6px; width: fit-content; max-width: 88%; padding: 8px 12px 10px; border: 1px solid var(--tmd-border); border-radius: 12px; background: var(--tmd-bg-elevated); }
+ * 块级占满整幅(用户裁决:fit-content 半幅缩在宽幕布上难看) */
+.ss-userblock { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px; border: 1px solid var(--tmd-border); border-radius: 12px; background: var(--tmd-bg-elevated); }
 .ss-userblock-head { display: flex; align-items: baseline; gap: 8px; }
 .ss-userblock-who { font-size: var(--tmd-font-xs); font-weight: 600; color: var(--tmd-fg-subtle); letter-spacing: 0.04em; }
 /* 用户块图片内联(粘贴/拖图 token / 引擎 images → 渲染;几何同 sv-user-imgs 律,ss 前缀独立) */
