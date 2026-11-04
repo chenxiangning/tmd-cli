@@ -1,18 +1,14 @@
 /**
- * footprint —— 每日工作足迹插件(中央 tab)。
+ * footprint —— C-02 迁移期兼容壳(本体已迁 workbench/review/footprint)。
  *
- * 月历热力定位到天、当日功能卡流(AI 归纳 + 用户原话锚点)、证据抽屉
- * (会话 resume / 文件清单 / 宽 diff)、⌘K 反查、shift 区间汇总、git 硬证据。
- * 数据契约见 docs/superpowers/specs/2026-10-19-footprint-design.md;
- * 写侧 rollup 装配 2026-11-04 迁 workbench「回顾」域(./review/footprintRuntime,
- * 数据层算法事实源仍在 ./rollup、./backfill、./fpTab),本插件只保留
- * tab/侧栏入口装配与视图;不维护写路径。
+ * 每日足迹现为「回顾 → 每日足迹」二级视图:本插件只保留左 rail 入口
+ * (openFootprintTab 经 ./fpTab 兼容层直达回顾宿主);旧 footprint.daily kind
+ * 由 workbench 注册兼容渲染历史 tab;写侧订阅在 B-02 已迁 review/footprintRuntime。
+ * C-04 随旧插件目录一并退役(数据路径 ~/.tmd-cli/footprint/ 零迁移)。
  */
 import { Footprints } from "@phosphor-icons/react";
-import { lazySuspense } from "@kernel/lazyTab";
 import type { Plugin, PluginContext } from "@kernel/plugin";
-import { FP_TAB_KIND, openFootprintTab } from "./fpTab";
-import "./locales"; /* 域词典随插件自带:import 即注册 */
+import { openFootprintTab } from "./fpTab";
 
 export const footprintPlugin: Plugin = {
   id: "footprint",
@@ -25,13 +21,7 @@ export const footprintPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
-    ctx.registerTabContent({
-      kind: FP_TAB_KIND,
-      component: lazySuspense(() => import("./view/FootprintView").then((m) => ({ default: m.FootprintView }))),
-      icon: Footprints,
-      keepAlive: true, /* 切 tab 不卸载:选中日/区间/卡片选择等视图态跨切换保留(先例 workbench) */
-    });
-    /* 左 rail 入口(排序 46:动画 45 之后)。 */
+    /* 左 rail 入口(排序 46:动画 45 之后);onSelect 直达「回顾 → 每日足迹」。 */
     ctx.registerSidebarAction({
       id: "footprint",
       label: "每日足迹",
@@ -41,7 +31,7 @@ export const footprintPlugin: Plugin = {
       active: () => false,
       onSelect: () => openFootprintTab(),
     });
-    /* 写侧订阅(rollup 落账 + live 信号)已迁 workbench「回顾」域
-     * (review/footprintRuntime,与 footprint UI 解耦);本插件不再持有订阅。 */
+    /* 旧 kind 兼容渲染由 workbench 承担(workbench/index activate);
+     * 写侧订阅在 review/footprintRuntime(B-02);本插件不再持有任何装配。 */
   },
 };

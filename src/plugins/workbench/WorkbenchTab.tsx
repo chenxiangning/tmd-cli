@@ -20,31 +20,23 @@ import { WbConfirm } from "./ui";
 import { ProjectFormModal, type ProjectFormValues } from "./ProjectFormModal";
 import { OverlayActions } from "./OverlayActions";
 import { DocGenDialog } from "./docgen/DocGenDialog";
-import { openProjectTab } from "./wbTabs";
 import { WbScreen } from "./WbScreen";
-import { WB_TAB_ITEMS, type WbTab } from "./wbTabs";
+import { openProjectTab, WB_TAB_ITEMS, type WbTab } from "./wbTabs";
+import { useWbDeepLink } from "./useWbDeepLink";
+import type { WbConsolePayload } from "./wbDeepLink";
+import { normalizeReviewPayload } from "./review/reviewTabs";
 import type { WbScreenProps } from "./screens/cards";
 import type { EditorTab } from "@kernel/tabs";
 import type { Project } from "./types";
 
 export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
-  const payload = editorTab.payload as { tab?: string; projectFilter?: string } | null;
+  const payload = editorTab.payload as WbConsolePayload | null;
+  const { tab, setTab, docsFilter } = useWbDeepLink(payload);
   const projects = useSyncExternalStore(subscribeWorkbench, workbenchSnapshot);
   const loadError = useSyncExternalStore(subscribeWorkbench, workbenchLoadError);
   const { list: workspaces } = useWorkspaces();
-  const [tab, setTab] = useState<WbTab>(payload?.tab === "docs" ? "docs" : "overview");
-  const [docsFilter, setDocsFilter] = useState<string | null>(payload?.projectFilter ?? null);
   const [boardFormOpen, setBoardFormOpen] = useState(false);
   const [docGen, setDocGen] = useState<{ locked: Project | null } | null>(null);
-  const [lastPayload, setLastPayload] = useState(payload);
-  /* 深链:openWorkbenchDocsTab 换 payload 重开本 tab → 页签与过滤跟移(渲染期调整)。 */
-  if (lastPayload !== payload) {
-    setLastPayload(payload);
-    if (payload?.tab === "docs") {
-      setTab("docs");
-      setDocsFilter(payload.projectFilter ?? null);
-    }
-  }
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<{ text: string; projectIds: string[] } | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -84,7 +76,7 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
   const archived = useMemo(() => projects.filter((p) => p.archived), [projects]);
   const filtered = useMemo(() => sortByRisk(visible, today).map((item) => item.project), [visible, today]);
   /* 页签显式切换即复位一次性表单信号(防回看板时表单重弹)。 */
-  const switchTab = useCallback((next: WbTab) => { setTab(next); setBoardFormOpen(false); }, []);
+  const switchTab = useCallback((next: WbTab) => { setTab(next); setBoardFormOpen(false); }, [setTab]);
   const screenProps: WbScreenProps = {
     projects: filtered,
     allProjects: visible,
@@ -106,6 +98,8 @@ export function WorkbenchTab({ tab: editorTab }: { tab: EditorTab }) {
     onTab: switchTab,
     /* 聚焦页清净态「新建任务」:切看板并直接展开表单(一次性布尔,看板挂载即消费)。 */
     onNewTask: () => { setTab("board"); setBoardFormOpen(true); },
+    /* 回顾深链:二级视图与日期 payload 透传(reviewTabs 归一);仅回顾壳消费。 */
+    review: normalizeReviewPayload(payload?.review),
   };
   const openForm = (project: Project | null) => {
     setFormProject(project);

@@ -11,7 +11,8 @@
 import { CalendarDots } from "@phosphor-icons/react";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { BoardOverlay } from "./BoardOverlay";
-import { boardOverlayOpen, subscribeBoardOverlay, toggleBoardOverlay } from "./boardOverlayStore";
+import { boardOverlayOpen, subscribeBoardOverlay } from "./boardOverlayStore";
+import { openWorkbenchReviewTab } from "@plugins/workbench/review/reviewTabs";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 
 export const sessionBoardPlugin: Plugin = {
@@ -26,8 +27,8 @@ export const sessionBoardPlugin: Plugin = {
   },
   activate(ctx: PluginContext) {
     ctx.contribute("overlay", { order: 40, component: BoardOverlay });
-    /* 左 rail 顶部簇入口:开关看板覆盖层;active 渲染期求值,重渲通知经
-     * subscribeActive 桥接覆盖层 store(壳统一订阅,不 import 插件私有 store)。 */
+    /* 左 rail 顶部簇入口:打开工作台「回顾 → 会话活动」嵌入视图(C-03 自覆盖层
+     * 迁入);active 仍随覆盖层 store(覆盖层挂点 C-04 统一撤,届时一并收)。 */
     ctx.registerSidebarAction({
       id: "session-board",
       label: "会话看板",
@@ -38,7 +39,7 @@ export const sessionBoardPlugin: Plugin = {
       leftRail: true,
       active: () => boardOverlayOpen(),
       subscribeActive: subscribeBoardOverlay,
-      onSelect: () => toggleBoardOverlay(),
+      onSelect: () => openWorkbenchReviewTab({ view: "sessions" }),
     });
   },
 };

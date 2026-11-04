@@ -11,7 +11,7 @@
  * 原路径不动,零迁移),不经任何 CLI 会话通道;会话联动只走 kernel
  * listSessions/openDiskSession 公共面。
  */
-import { Kanban } from "@phosphor-icons/react";
+import { Kanban, Footprints } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { WorkbenchSettingsTab } from "./SettingsSection";
 import { lazySuspense } from "@kernel/lazyTab";
@@ -22,6 +22,11 @@ import { startIndexWatch } from "./storeWatch";
 import { attachJournal } from "./journal/attach";
 import { attachDocGen } from "./docgen/attach";
 import { attachFootprintRuntime } from "./review/footprintRuntime";
+import { FP_TAB_KIND } from "./review/footprint/fpTab";
+import "./review/footprint/locales"; /* footprint 域词典随视图迁入,workbench 装载即注册 */
+/* session-board 域词典:会话活动视图(C-03)嵌入 BoardTab,词典注册随视图兜底
+ * (session-board 插件被禁用时嵌入视图仍译得出);C-04 退役插件装配时随数据层一并迁走。 */
+import "@plugins/session-board/locales";
 import { TaskCardChip } from "./TaskCardChip";
 import { getPendingTaskCard, taskCardSendTransform, undoTaskCardSend } from "./taskCard";
 import { registerComposerEmptySendProvider, registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";
@@ -29,6 +34,7 @@ import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即
 import "./workbench.css";
 import "./workbench-focus.css";
 import "./workbench-dialogs.css";
+import "./review/review.css";
 
 export const workbenchPlugin: Plugin = {
   id: "workbench",
@@ -44,6 +50,9 @@ export const workbenchPlugin: Plugin = {
     /* 本页与项目详情都走中央 tab(kernel/tabs kind 路由注册表)。 */
     ctx.registerTabContent({ kind: WB_CONSOLE_TAB_KIND, component: lazySuspense(() => import("./WorkbenchTab").then((m) => ({ default: m.WorkbenchTab }))), icon: Kanban, keepAlive: true });
     ctx.registerTabContent({ kind: WB_PROJECT_TAB_KIND, component: lazySuspense(() => import("./ProjectTab").then((m) => ({ default: m.ProjectTab }))), icon: Kanban, keepAlive: true });
+    /* C-02 旧 kind 兼容:footprint.daily 本体已迁「回顾」二级视图,历史遗留
+     * tab(会话恢复/旧深链)由本组件兼容渲染,不成为未知 tab(迁移期;C-04 评估退役)。 */
+    ctx.registerTabContent({ kind: FP_TAB_KIND, component: lazySuspense(() => import("./review/footprint/LegacyFootprintTab").then((m) => ({ default: m.LegacyFootprintTab }))), icon: Footprints, keepAlive: true });
     /* 左 rail 顶部簇第一位入口:打开/激活工作台本页 tab;active = tab 已开,
      * 重渲通知经 useEditorTabs 的 store 订阅桥接(壳统一订阅,不 import 插件私有 store)。 */
     ctx.registerSidebarAction({

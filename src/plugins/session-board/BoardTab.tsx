@@ -33,7 +33,9 @@ function toggleIn<T>(set: ReadonlySet<T>, v: T): Set<T> {
   return next;
 }
 
-export function BoardTab() {
+/** embedded:嵌入工作台「回顾 → 会话活动」形态(批次 C-03)——不查覆盖层开关、
+ *  工具条不收板钮;其余与覆盖层形态零差异。 */
+export function BoardTab({ embedded = false }: { embedded?: boolean } = {}) {
   const { list } = useWorkspaces();
   /* 工作区选择:默认「全部」;单选可聚焦。远程工作区仅本机磁盘视图不支持。 */
   const [selWsId, setSelWsId] = useState<string>("all");
@@ -113,7 +115,7 @@ export function BoardTab() {
     const onKey = (e: KeyboardEvent) => {
       /* 输入面拥有按键时不劫持 ← → Esc。 */
       if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable]")) return;
-      if (!boardOverlayOpen() || !selDay) return;
+      if (!(embedded || boardOverlayOpen()) || !selDay) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault();
         const dir = e.key === "ArrowLeft" ? -1 : 1;
@@ -127,7 +129,7 @@ export function BoardTab() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selDay]);
+  }, [selDay, embedded]);
 
   if (list.length === 0) {
     /* 无导航路径直达「添加工作区」浮层,无 action。 */
@@ -146,6 +148,7 @@ export function BoardTab() {
   return (
     <div className="sb-root">
       <BoardToolbar
+        embedded={embedded}
         list={list}
         allMode={allMode}
         selWsId={selWsId}

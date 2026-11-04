@@ -12,6 +12,8 @@ import { HeatLegend } from "./CalendarGrid";
 import { closeBoardOverlay } from "./boardOverlayStore";
 
 export interface BoardToolbarProps {
+  /** 嵌入形态(回顾 → 会话活动)不渲染收板钮(C-03);覆盖层形态默认 false。 */
+  embedded?: boolean;
   list: Workspace[];
   allMode: boolean;
   selWsId: string;
@@ -32,6 +34,7 @@ export interface BoardToolbarProps {
 }
 
 export function BoardToolbar({
+  embedded = false,
   list,
   allMode,
   selWsId,
@@ -52,10 +55,12 @@ export function BoardToolbar({
 }: BoardToolbarProps) {
   return (
     <div className="sb-toolbar">
-      {/* 左上 × 收板(覆盖层盖住左 rail 后的顺手位,与市场页同位);右端 × 保留。 */}
-      <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
-        <X size="0.875rem" aria-hidden />
-      </button>
+      {/* 左上 × 收板(覆盖层盖住左 rail 后的顺手位,与市场页同位);右端 × 保留。嵌入形态无板可收,整钮隐藏。 */}
+      {embedded ? null : (
+        <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
+          <X size="0.875rem" aria-hidden />
+        </button>
+      )}
       <span className="sb-chips" role="group" aria-label={t("工作区")}>
         <button
           type="button"
@@ -141,9 +146,11 @@ export function BoardToolbar({
         >
           {spinning ? <Spinner size="0.875rem" /> : <ArrowClockwise size="0.875rem" aria-hidden />}
         </button>
-        <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
-          <X size="0.875rem" aria-hidden />
-        </button>
+        {embedded ? null : (
+          <button type="button" className="sb-btn" aria-label={t("关闭看板")} title={t("关闭看板")} onClick={closeBoardOverlay}>
+            <X size="0.875rem" aria-hidden />
+          </button>
+        )}
       </span>
     </div>
   );

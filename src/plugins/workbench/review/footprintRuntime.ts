@@ -11,8 +11,8 @@
  */
 import { KernelTopics, type CkptTurnSealedEvent } from "@kernel/events";
 import type { PluginContext } from "@kernel/plugin";
-import { activateRollup } from "@plugins/footprint/rollup";
-import { bumpFootprintRev } from "@plugins/footprint/fpTab";
+import { activateRollup } from "./footprint/rollup";
+import { bumpFootprintRev } from "./footprint/fpTab";
 
 /** 装配 footprint 写侧订阅;返回退订(随 workbench deactivate 一并清理)。 */
 export function attachFootprintRuntime(ctx: PluginContext): () => void {

@@ -10,13 +10,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EventBus, KernelTopics, type CkptTurnSealedEvent } from "@kernel/events";
 
 const rollupMock = vi.hoisted(() => ({ activateRollup: vi.fn(() => vi.fn()) }));
-vi.mock("@plugins/footprint/rollup", () => rollupMock);
+vi.mock("./footprint/rollup", () => rollupMock);
 
 const fpTabMock = vi.hoisted(() => ({ bumpFootprintRev: vi.fn() }));
-vi.mock("@plugins/footprint/fpTab", () => fpTabMock);
+vi.mock("./footprint/fpTab", () => fpTabMock);
 
-import { bumpFootprintRev } from "@plugins/footprint/fpTab";
-import { activateRollup } from "@plugins/footprint/rollup";
+import { bumpFootprintRev } from "./footprint/fpTab";
+import { activateRollup } from "./footprint/rollup";
 import { attachFootprintRuntime } from "./footprintRuntime";
 
 const bump = vi.mocked(bumpFootprintRev);

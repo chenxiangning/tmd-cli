@@ -1,0 +1,19 @@
+/**
+ * 回顾主视图(ReviewTab)样式 —— 二级视图壳(批次 C-01)。
+ * 二级页签复用 wb-tabs/wb-tab 主页签肌理;嵌入视图(足迹/会话活动)吃满剩余高度。
+ */
+
+.wb-review {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+/* 会话活动嵌入壳(C-03):sb-root 高度 100% 撑满本壳,本壳吃满回顾剩余高度。 */
+.wb-review-board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
