@@ -125,4 +125,37 @@ describe("PiRpcReducer(轮级工具行 + 流内 think/text)", () => {
     expect(after.slice(0, before.length)).toEqual(before);
     expect(after.length).toBeGreaterThan(before.length);
   });
+
+  it("follow_up 本地回显:下轮轮界注入;busy 连发多条互不覆写", () => {
+    const r = new PiRpcReducer();
+    r.feed(frame("agent_start"));
+    r.feed(msgStart("user"));
+    r.feed(msgEnd("user", [{ type: "text", text: "首轮" }]));
+    r.feed(msgStart("assistant"));
+    r.feed(delta("text_delta", "答"));
+    r.feed(frame("session_settled"));
+    /* busy 期连发两条 follow_up:queue 制两条都留,轮界帧齐注入 */
+    r.queueUserEcho("追问一");
+    r.queueUserEcho("追问二");
+    const blocks = r.feed(frame("turn_start"));
+    const users = blocks.filter((b) => b.role === "user").map((b) => b.text);
+    expect(users).toEqual(["首轮", "追问一", "追问二"]);
+  });
+
+  it("引擎自带 user 回显帧(pi 系)接管本地回显,同一消息不双行", () => {
+    const r = new PiRpcReducer();
+    r.feed(frame("agent_start"));
+    r.feed(msgStart("user"));
+    r.feed(msgEnd("user", [{ type: "text", text: "首轮" }]));
+    r.feed(msgStart("assistant"));
+    r.feed(delta("text_delta", "答"));
+    r.feed(frame("session_settled"));
+    r.queueUserEcho("追问");
+    r.feed(frame("turn_start")); // 本地回显注入 settled 尾
+    /* pi 系自带 user 消息帧:接管回显位,message_end 权威文本落同一块 */
+    r.feed(msgStart("user"));
+    const blocks = r.feed(msgEnd("user", [{ type: "text", text: "追问" }]));
+    const users = blocks.filter((b) => b.role === "user").map((b) => b.text);
+    expect(users).toEqual(["首轮", "追问"]);
+  });
 });

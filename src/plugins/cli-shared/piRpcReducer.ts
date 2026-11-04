@@ -7,8 +7,10 @@
  *   assistant#2 流;工具态挂单消息会在间隙丢失 → 挂在轮上。
  * - message_end 的 toolCall 项与 role=toolResult 消息不产生块(与 tool_execution
  *   帧重复;实证:双行 tool(bash/called)+tool(undefined) 即此因)。
- * - 渲染层切「落定历史|流内活轮」用 turnStart(轮首 session_start/turn_start
- *   与轮末 session_settled 边沿推进)。
+ * - turnStart 仅作「落定基线」;渲染层切「落定历史|流内活轮」用用户轮界
+ *   (最后一个 user 块,ssLiveFrom)——引擎轮界帧在代理多步循环里逐步推进,
+ *   turnStart 切界会把在途过程错落成已定折叠组+工具行重复(2026-11-05 实锤)。
+ *   结算渲染宽限见 structured-session/ssTurnLive(步间 settled 闪沿不闪回)。
  * cli-shared 准入先例:cli-omp/cli-pi 的 structuredRpc 声明 + structured-session
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
@@ -74,8 +76,9 @@ export class PiRpcReducer {
    * 幕布流缺陷实锤:工具一跑,思考块后再无 last)。消息结算即清。 */
   liveSurface: PiLiveSurface = null;
   /** follow_up 用户消息本地回显排队(omp 对 follow_up 不发 user 消息帧,
-   * 轮首无用户块轮界不可读;下轮 turn_start/agent_start 注入 settled 尾)。 */
-  private pendingUserEcho: string | null = null;
+   * 轮首无用户块轮界不可读;下轮轮界帧注入 settled 尾)。队列制:busy 期
+   * 连发多条互不覆写(单槽制会静默丢前条,2026-11-05 review 实锤)。 */
+  private pendingUserEcho: string[] = [];
 
   /** 接续种子(断线重开换壳保转录):settled = 旧 blocks,轮界对齐尾。 */
   seed(blocks: CliTranscriptBlock[]): void {
@@ -109,16 +112,20 @@ export class PiRpcReducer {
   /** follow_up 用户消息本地回显入队(PiRpcSession.followUp 成功 ack 后调用;
    * 注入在下一轮回界帧flush——ack 即时而上轮尚在途,立刻注入会落进上轮切片)。 */
   queueUserEcho(text: string): void {
-    this.pendingUserEcho = text;
+    this.pendingUserEcho.push(text);
   }
 
   /* 回显注入 settled 尾:此时 turnStart 仍指轮首(= 注入点前界),注入块下标
    * = settled.length ≥ turnStart → 渲染层归活轮,与引擎首轮回显同位。 */
   private flushUserEcho() {
-    const text = this.pendingUserEcho;
-    if (text == null) return;
-    this.pendingUserEcho = null;
-    this.settled = [...this.settled, { id: `${LIVE}f${this.settled.length}`, role: "user", text }];
+    if (this.pendingUserEcho.length === 0) return;
+    const echoes = this.pendingUserEcho;
+    this.pendingUserEcho = [];
+    const at = this.settled.length;
+    this.settled = [
+      ...this.settled,
+      ...echoes.map((text, i) => ({ id: `${LIVE}f${at + i}`, role: "user" as const, text })),
+    ];
     this.rebuild();
   }
 
@@ -127,6 +134,15 @@ export class PiRpcReducer {
     if (role !== "assistant" && role !== "user") return; // custom/toolResult 噪声
     if (this.live) this.freezeLive();
     this.liveSurface = null;
+    if (role === "user") {
+      /* 引擎自带 user 回显帧的端(pi 系可能,omp 无)会对 follow_up 本地回显
+       * 双写:末块为本地回显时权威帧接管其位,同一消息不双行(双端幕布对齐)。
+       * 必须先撤回显再取 live.at——占位下标/定位 id 都以撤后基座为准。 */
+      const last = this.settled[this.settled.length - 1];
+      if (last?.role === "user" && last.id.startsWith(`${LIVE}f`)) {
+        this.settled = this.settled.slice(0, -1);
+      }
+    }
     this.live = { role, at: this.settled.length, thinking: "", text: "" };
     if (role === "user") {
       /* 用户回显先行占位,message_end 落定权威文本 */
