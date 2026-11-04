@@ -7,7 +7,6 @@
  * 基于 getCommands 的专属补全,避免双下拉竞争。
  */
 import { useMemo, useRef, useState } from "react";
-import { At, PaperPlaneRight, Sparkle } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
@@ -19,6 +18,10 @@ import { useAttachDragProps, usePopupAnchor } from "@plugins/composer/view/compo
 import { SuggestionPortal, PreviewOverlay } from "@plugins/composer/view/composerOverlays";
 import { DragOverlay } from "@plugins/composer/view/DragOverlay";
 import { ConfirmCard } from "./confirmCard";
+import { SsToolbar } from "./ssToolbar";
+import { SsWakeRail } from "./ssComposerRail";
+import { makeSsKeydown } from "./ssComposerKeys";
+import { useComposerResize } from "./ssComposerResize";
 import { rpcTriggerSpecs } from "./ssTriggers";
 import type { SsSessionState } from "./ssSession";
 import type { PiRpcCommand, PiRpcSession } from "../cli-shared/piRpc";
@@ -33,6 +36,8 @@ type CmdComplete = {
   complete: (c: PiRpcCommand) => void;
   open: boolean;
   cmdList: PiRpcCommand[] | null;
+  /** 抽屉钮唤起(草稿空时注入 "/");非空不打扰输入。 */
+  wakePalette: () => void;
 };
 
 /* / 命令补全(目录懒载缓存 tab 生命期;↑↓ 移动,Tab/Enter 补全,Esc 关闭;
@@ -79,7 +84,12 @@ function useCmdComplete(session: PiRpcSession | null, draft: string, setDraft: (
       void session.getCommands().then(setCmdList).catch(() => setCmdList([]));
     }
   };
-  return { onChange, onKey, matches, sel, setSel, complete, open, cmdList };
+  /* 抽屉钮(RPC 版 ⌘K):草稿为空时注入 "/" 唤起命令目录;非空不打扰输入。 */
+  const wakePalette = () => {
+    if (draft !== "") return;
+    onChange("/");
+  };
+  return { onChange, onKey, matches, sel, setSel, complete, open, cmdList, wakePalette };
 }
 
 /* / 命令补全面(列表渲染拆件,守 react-doctor 复杂度;键盘钩仍归 useCmdComplete)。 */
@@ -107,43 +117,10 @@ function SsCmdList({ cmd }: { cmd: CmdComplete }) {
   );
 }
 
-/* 左下唤醒轨 + 发送(与 PTY composer 同几何:composer-anchors.css 的
- * .composer-input-rail / .composer-rail-btn;贡献 Mount 不带入,那些是
- * PTY 会话专属且经全局单例桥,会和 PTY composer 抢注册)。
- * 引擎声明了哪个触发符就亮哪个(图标即能力探针,隐藏优于置灰)。 */
-function SsWakeRail({ triggerSpecs, wakeTrigger, canSend, onSend }: {
-  triggerSpecs: readonly { char: string }[];
-  wakeTrigger: (char: string) => void;
-  canSend: boolean;
-  onSend: () => void;
-}) {
-  const wake = (char: string) => triggerSpecs.some((s) => s.char === char);
-  return (
-    <div className="composer-input-rail">
-      {wake("@") ? (
-        <button type="button" className="composer-rail-btn" title={t("@ 引用文件")} aria-label={t("@ 引用文件")} onClick={() => wakeTrigger("@")}>
-          <At size="0.875rem" />
-        </button>
-      ) : null}
-      {wake("$") ? (
-        <button type="button" className="composer-rail-btn" title={t("$ 调用技能")} aria-label={t("$ 调用技能")} onClick={() => wakeTrigger("$")}>
-          <Sparkle size="0.875rem" />
-        </button>
-      ) : null}
-      <button
-        type="button"
-        className="composer-rail-btn ss-composer-send"
-        title={t("发送")}
-        aria-label={t("发送")}
-        disabled={!canSend}
-        onClick={onSend}
-      >
-        <PaperPlaneRight size="0.875rem" />
-      </button>
-    </div>
-  );
-}
-
+/* SsComposer = 附件/触发器/补全/审批/拖拽/两段高 的单卡编排,机制均已拆件
+ * (ssToolbar/ssComposerRail/ssComposerKeys/ssComposerResize),本函数只剩
+ * 接线,复杂度是接线固有,无可再拆。 */
+// react-doctor-disable-next-line react-doctor/no-high-complexity-react-function
 export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profileId: string; cwd: string }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -163,43 +140,39 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
     useComposerTriggers({ profile, value, cursor, cwd, textareaRef, setValue, setCursor });
   const { settings } = useSettingsState();
   const cmdOrCtrl = settings.sendShortcut === "cmdOrCtrlEnter";
+  /* 两段高(min = 只留工具条) + 拖拽调高(composerH = textarea 上限,持久化)。 */
+  const [stageMin, setStageMin] = useState(false);
+  const { composerH, onHandlePointerDown } = useComposerResize();
   const { boxRect, popupBottom, popupMaxHeight } = usePopupAnchor(boxRef);
   const attachDragProps = useAttachDragProps(boxRef, readDragPayload, setDragOver);
 
-  /* 输入框随手长高(基线 96px,上限 220px 与 CSS max-height 同值;CSS overflow 兜底滚动)。 */
+  /* 输入框随手长高(基线 96,上限 = composerH 拖拽值;CSS max-height 兜底)。 */
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
-    el.style.height = `${Math.min(Math.max(el.scrollHeight, 96), 220)}px`;
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 96), composerH)}px`;
   };
-  /* 触发器候选键:↑↓ 移动,Enter/Tab 选定,Esc 关闭(唤醒注入未消费则回收)。 */
-  const triggerKeys = (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
-    if (!matches || matches.length === 0) return false;
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      setPickIndex((i) => (i + (e.key === "ArrowDown" ? 1 : -1) + matches.length) % matches.length);
-      return true;
-    }
-    if (e.key === "Enter" || e.key === "Tab") {
-      if (e.nativeEvent.isComposing) return true;
-      e.preventDefault();
-      applyPick(matches[pickIndex]);
-      return true;
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      dismiss();
-      return true;
-    }
-    return false;
-  };
+  /* 键盘编排拆件(ssComposerKeys):confirm > 触发器候选 > / 补全 > 发送。 */
+  const onKeyDown = makeSsKeydown({ ss, cmd, matches, pickIndex, setPickIndex, applyPick, dismiss, cmdOrCtrl });
 
   return (
     <div className="relative" onDrop={(e) => void handleDrop(e)} {...attachDragProps}>
+      {/* 拖拽柄:上下拖调对话框高度(PTY 分隔条同交互,高度持久化) */}
+      <div
+        className="ss-composer-handle"
+        title={t("拖拽调整高度")}
+        onPointerDown={onHandlePointerDown}
+      />
       <div
         ref={boxRef}
-        className={`ss-composer${dragOver ? " is-dragover" : ""}${ss.phase !== "ready" ? " is-disabled" : ""}`}
+        className={`ss-composer${dragOver ? " is-dragover" : ""}${ss.phase !== "ready" ? " is-disabled" : ""}${stageMin ? " is-min" : ""}`}
       >
         {dragOver ? <DragOverlay /> : null}
+        <SsToolbar
+          ss={ss}
+          onExpand={() => setStageMin(false)}
+          onCollapse={() => setStageMin(true)}
+          onPalette={cmd.wakePalette}
+        />
         <AttachmentStrip
           onRemove={removeTokenForAttachment}
           onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)}
@@ -216,9 +189,11 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
           applyPick={applyPick}
         />
         {ss.confirm ? <ConfirmCard key={ss.confirm.frameId} confirm={ss.confirm} onAnswer={ss.answerConfirm} /> : null}
+        {!stageMin ? (
         <textarea
           className="ss-composer-textarea"
           ref={textareaRef}
+          style={{ maxHeight: composerH }}
           value={value}
           placeholder={ss.phase !== "ready" ? t("会话未就绪") : ss.busy ? t("输入下一问(排队,当前轮结束自动发送)") : cmdOrCtrl ? t("输入消息,⌘/Ctrl+Enter 发送 · / 唤起命令") : t("输入消息,Enter 发送 · / 唤起命令")}
           disabled={ss.phase !== "ready"}
@@ -232,30 +207,17 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
           }}
           onInput={(e) => autoResize(e.currentTarget)}
           onPaste={(e) => void handlePaste(e)}
-          onKeyDown={(e) => {
-            if (ss.confirm && !e.nativeEvent.isComposing && e.key === "Escape") {
-              e.preventDefault();
-              ss.answerConfirm(false);
-              return;
-            }
-            /* 触发器候选 > / 命令补全 > 发送(优先级序,首个消费即返回)。 */
-            if (triggerKeys(e)) return;
-            if (cmd.onKey(e)) return;
-            const sendKey = cmdOrCtrl
-              ? e.key === "Enter" && (e.metaKey || e.ctrlKey)
-              : e.key === "Enter" && !e.shiftKey;
-            if (sendKey && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              ss.send();
-            }
-          }}
+          onKeyDown={onKeyDown}
         />
+        ) : null}
+        {!stageMin ? (
         <SsWakeRail
           triggerSpecs={triggerSpecs}
           wakeTrigger={wakeTrigger}
           canSend={ss.phase === "ready" && !!value.trim()}
           onSend={ss.send}
         />
+        ) : null}
         <PreviewOverlay src={previewSrc} onClose={() => setPreviewSrc(null)} />
       </div>
     </div>

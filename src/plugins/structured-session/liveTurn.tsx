@@ -8,19 +8,17 @@
  * - 首帧未到 = 「思考中…」shimmer 占位(InitialThinking 同款)。
  * 只渲染 turnStart 之后的活块;落定历史归 TranscriptView。
  */
-import { memo, type ComponentType, type ReactNode } from "react";
+import { memo, type ComponentType } from "react";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { TranscriptBlockView } from "@plugins/session-viewer/transcriptView";
 import { ThinkingRow } from "@plugins/session-viewer/transcriptRows";
 import { SsToolRow } from "./ssToolRow";
 
-export const LiveTurn = memo(function LiveTurn({ blocks, busy, Markdown, thinkingLabel, wrap }: {
+export const LiveTurn = memo(function LiveTurn({ blocks, busy, Markdown, thinkingLabel }: {
   blocks: CliTranscriptBlock[];
   busy: boolean;
   Markdown: ComponentType<{ children: string }>;
   thinkingLabel: string;
-  /** 长正文包装器(可选折叠);缺省原样,共享件语义不变。 */
-  wrap?: ComponentType<{ children: ReactNode }>;
 }) {
   const user = blocks.find((b) => b.role === "user");
   const live = blocks.filter((b) => b.role !== "user");
@@ -28,7 +26,7 @@ export const LiveTurn = memo(function LiveTurn({ blocks, busy, Markdown, thinkin
   return (
     <div className="ss-liveturn">
       {/* 用户块复用落定同形组件(署名行/时间戳/强调线):结算瞬间不再换装 */}
-      {user ? <TranscriptBlockView block={user} Markdown={Markdown} wrap={wrap} /> : null}
+      {user ? <TranscriptBlockView block={user} Markdown={Markdown} /> : null}
       {busy && live.length === 0 ? (
         <div className="ss-think is-initial"><span className="ss-shimmer">{thinkingLabel}</span></div>
       ) : null}
@@ -47,7 +45,7 @@ export const LiveTurn = memo(function LiveTurn({ blocks, busy, Markdown, thinkin
         }
         if (b.role === "assistant" && b.text) {
           /* 正文同形复用(tail = 末尾光标;署名行/markdown 与落定一致) */
-          return <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} tail={busy && b === last} wrap={wrap} />;
+          return <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} tail={busy && b === last} />;
         }
         return null;
       })}

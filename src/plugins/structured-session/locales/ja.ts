@@ -73,4 +73,9 @@ export const MESSAGES_JA: Record<string, string> = {
   "工具": "ツール",
   /* 長メッセージ折りたたみ(codemoss CollapsibleMessage 交互律;展開/折りたたみは kernel キーを流用) */
   "回到底部": "一番下へ",
+  /* 过程折叠组头摘要(codemoss ProcessDisclosure) */
+  /* 过程折叠组头摘要(codemoss ProcessDisclosure;「工具调用 {n} 次」复用 kernel 词典) */
+  "思考 {n} 次": "思考 {n} 回",
+  /* 对话框拖拽柄 */
+  "拖拽调整高度": "ドラッグで高さ調整",
 }

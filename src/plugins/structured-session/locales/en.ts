@@ -72,4 +72,8 @@ export const MESSAGES_EN: Record<string, string> = {
   "工具": "Tool",
   /* 长消息折叠(codemoss CollapsibleMessage 交互律;展开/收起复用 kernel 键) */
   "回到底部": "Back to bottom",
+  /* 过程折叠组头摘要(codemoss ProcessDisclosure;「工具调用 {n} 次」复用 kernel 词典) */
+  "思考 {n} 次": "Thought {n} times",
+  /* 对话框拖拽柄 */
+  "拖拽调整高度": "Drag to resize",
 }

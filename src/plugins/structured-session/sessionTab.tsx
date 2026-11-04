@@ -1,8 +1,8 @@
 /**
  * 结构化会话 tab 内容 —— RPC 驱动(omp/pi `--mode rpc`),token 级流式转录 +
  * 自带输入面(能力见 ssComposer) + 审批回路。数据链:PiRpcSession(cli-shared)
- * ← kernel proc_stream 通用原语;PTY 零涉及。渲染复用 session-viewer 的
- * TranscriptView(极简联动同设置);关闭 tab = kill 子进程(useEffect 收割)。
+ * ← kernel proc_stream 通用原语;PTY 零涉及。落定历史走 SsTurnView(codemoss
+ * 逐轮形态),活轮走 LiveTurn;关闭 tab = kill 子进程(useEffect 收割)。
  * 生命周期编排见 ssSession.ts。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  */
@@ -15,10 +15,9 @@ import { useSettingsState } from "@kernel/settings";
 import { retryImport } from "@kernel/lazyImport";
 import { SsHeader } from "./ssHeader";
 import { SsActions } from "./ssActions";
+import { SsTurnView } from "./ssTurnView";
 import { LiveTurn } from "./liveTurn";
 import { SsComposer } from "./ssComposer";
-import { SsCollapsible } from "./ssCollapsible";
-import { TranscriptView } from "@plugins/session-viewer/transcriptView";
 import { useSsSession, type Phase } from "./ssSession";
 import type { StructuredSessionPayload } from "./tabs";
 import "./structured-session.css";
@@ -117,8 +116,11 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
 
         {ss.blocks.length > 0 ? (
           <div className="ss-blocks">
-            <TranscriptView blocks={ss.blocks.slice(0, ss.turnStart)} Markdown={MarkdownBody} minimal={minimal} WrapLong={SsCollapsible} />
-            <LiveTurn blocks={ss.blocks.slice(ss.turnStart)} busy={ss.busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} wrap={SsCollapsible} />
+            {/* 落定历史:codemoss 形态逐轮渲染(用户 → 过程折叠组 → 答复) */}
+            {ss.turnStart > 0 ? (
+              <SsTurnView blocks={ss.blocks.slice(0, ss.turnStart)} Markdown={MarkdownBody} />
+            ) : null}
+            <LiveTurn blocks={ss.blocks.slice(ss.turnStart)} busy={ss.busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} />
           </div>
         ) : null}
         {away ? (
