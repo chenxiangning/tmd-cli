@@ -1,6 +1,7 @@
 /**
  * 学堂 UI 状态 —— 入门课向导开关 + 指南 tab 打开封装。
- * 向导 overlay 开关同 boardOverlayStore 先例(模块级 store + useSyncExternalStore);
+ * 向导 overlay 开关(模块级 store + useSyncExternalStore;原 session-board
+ * boardOverlayStore 同款先例,该覆盖层 C-04 已退役);
  * guide tab 打开同 memory-console consoleTab 先例(openTab 唯一定义,防循环依赖)。
  */
 

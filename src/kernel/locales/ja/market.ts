@@ -20,6 +20,4 @@ export const MESSAGES = {
   "会话查看器": "セッションビューアー",
   "会话列表 view icon 打开只读转录;画布浮层切活会话结构化视图,幕布保活":
     "セッション一覧の view アイコンで読み取り専用トランスクリプトを開く。オーバーレイで稼働中セッションを構造化ビューに切り替え、ターミナルは稼働を維持",
-  /* session-board(abbr;name/desc 已在 settings 域) */
-  "看板": "ボード",
 } as Record<string, string>;

@@ -1,6 +1,5 @@
 /**
- * boardData 看板数据装配纯函数契约(useBoardSessions 为 React hook,按约跳过不测;
- * boardOverlayStore 单例开关另有 boardOverlayStore.test.ts):
+ * boardData 看板数据装配纯函数契约(useBoardSessions 为 React hook,按约跳过不测):
  * - laneOf 泳道投影:idle 并入 running、ended-seen 并入 archived,其余恒等;
  * - BOARD_LANES 三道常量与五态投影完备性(每态必落三道之一);
  * - dayKeyOf 本地日 key(0 基月字面格式、同日本地时刻同键、跨本地零点换键);

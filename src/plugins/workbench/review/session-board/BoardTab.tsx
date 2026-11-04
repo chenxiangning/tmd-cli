@@ -10,7 +10,6 @@ import { KernelTopics } from "@kernel/events";
 import { Empty } from "@kernel/Empty";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useWorkspaces } from "@kernel/workspace";
-import { boardOverlayOpen } from "./boardOverlayStore";
 import { archiveSession, sessionArchiveKey, unarchiveSession } from "@kernel/sessionArchive";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import {
@@ -33,9 +32,7 @@ function toggleIn<T>(set: ReadonlySet<T>, v: T): Set<T> {
   return next;
 }
 
-/** embedded:嵌入工作台「回顾 → 会话活动」形态(批次 C-03)——不查覆盖层开关、
- *  工具条不收板钮;其余与覆盖层形态零差异。 */
-export function BoardTab({ embedded = false }: { embedded?: boolean } = {}) {
+export function BoardTab() {
   const { list } = useWorkspaces();
   /* 工作区选择:默认「全部」;单选可聚焦。远程工作区仅本机磁盘视图不支持。 */
   const [selWsId, setSelWsId] = useState<string>("all");
@@ -110,12 +107,12 @@ export function BoardTab({ embedded = false }: { embedded?: boolean } = {}) {
     /* 打开失败回滚归档,防注意力信号静默丢失。 */
     host.openDiskSession(s.profileId, s.wsRoot, s.wsId, s.disk.id).catch(() => s.st === "ended-new" && void unarchiveSession(key));
   };
-  /* ← → 逐日 / Esc 收起(覆盖层开着时接管,Esc 先收日视图再收板)。 */
+  /* ← → 逐日 / Esc 收日视图(输入面拥有按键时不劫持)。 */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       /* 输入面拥有按键时不劫持 ← → Esc。 */
       if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable]")) return;
-      if (!(embedded || boardOverlayOpen()) || !selDay) return;
+      if (!selDay) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault();
         const dir = e.key === "ArrowLeft" ? -1 : 1;
@@ -129,7 +126,7 @@ export function BoardTab({ embedded = false }: { embedded?: boolean } = {}) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selDay, embedded]);
+  }, [selDay]);
 
   if (list.length === 0) {
     /* 无导航路径直达「添加工作区」浮层,无 action。 */
@@ -148,7 +145,6 @@ export function BoardTab({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <div className="sb-root">
       <BoardToolbar
-        embedded={embedded}
         list={list}
         allMode={allMode}
         selWsId={selWsId}

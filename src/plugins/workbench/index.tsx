@@ -24,9 +24,8 @@ import { attachDocGen } from "./docgen/attach";
 import { attachFootprintRuntime } from "./review/footprintRuntime";
 import { FP_TAB_KIND } from "./review/footprint/fpTab";
 import "./review/footprint/locales"; /* footprint 域词典随视图迁入,workbench 装载即注册 */
-/* session-board 域词典:会话活动视图(C-03)嵌入 BoardTab,词典注册随视图兜底
- * (session-board 插件被禁用时嵌入视图仍译得出);C-04 退役插件装配时随数据层一并迁走。 */
-import "@plugins/session-board/locales";
+/* 会话活动域词典:BoardTab 组件已随 C-04 迁入 review/session-board,词典注册随视图。 */
+import "./review/session-board/locales";
 import { TaskCardChip } from "./TaskCardChip";
 import { getPendingTaskCard, taskCardSendTransform, undoTaskCardSend } from "./taskCard";
 import { registerComposerEmptySendProvider, registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";

@@ -76,7 +76,7 @@ export const KernelTopics = {
    * checkpoints 一轮真实封口落账(checkpoint_seal 返回 true 的边沿,幂等封口
    * 不广播)。payload: CkptTurnSealedEvent —— 只带身份三元组;批内容(文件±/
    * batchId/引擎)由消费方经 checkpointList 拉最新批自取,契约不复制账本形状。
-   * 消费方:footprint 插件落按日 rollup。sealDeadTurns 的代封不广播(无单会话
+   * 消费方:workbench 回顾域落按日 rollup(footprint 插件已并入,C-04)。sealDeadTurns 的代封不广播(无单会话
    * 身份,残留轮缺口诚实留给 git 证据兜底)。
    */
   ckptTurnSealed: "kernel.checkpoints.turn.sealed",

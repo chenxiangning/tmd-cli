@@ -25,7 +25,6 @@ export const FEATURE_SUBGROUP_LABEL: Record<FeatureSubgroup, string> = {
 /** feature 插件 id → 细分子组;未登记的新插件落无标签尾块,不猜测。 */
 export const FEATURE_SUBGROUP: Record<string, FeatureSubgroup> = {
   "session-budget": "session",
-  "session-board": "session",
   "session-search": "session",
   "session-relay": "session",
   "approval-inbox": "session",

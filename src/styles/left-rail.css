@@ -45,10 +45,6 @@
 .left-rail-tab.is-active {
   color: var(--rail-accent-fallback);
 }
-/* 图标装饰:左 rail 动作钮点亮色(缺省回落写死橙;见 kernel/iconDecor.ts)。 */
-.left-rail-tab.is-active[data-action-id="session-board"] {
-  color: var(--icon-decor-session-board, var(--rail-accent-fallback));
-}
 .left-rail-tab.is-active[data-action-id="workbench"] {
   color: var(--icon-decor-workbench, var(--rail-accent-fallback));
 }

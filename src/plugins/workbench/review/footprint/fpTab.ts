@@ -1,32 +1,22 @@
 /**
- * footprint · 回顾二级视图契约与打开封装(纯函数自旧插件 index 拆出守
+ * footprint · 回顾二级视图契约(纯函数自旧插件 index 拆出守
  * only-export-components,先例 anim/animStores;C-02 随视图迁入
- * workbench/review/footprint,旧 @plugins/footprint/fpTab 为纯 re-export 兼容层)。
+ * workbench/review/footprint,C-04 起旧插件目录已退役,本模块为唯一事实源)。
  * 另含 live 刷新信号:ckptTurnSealed 订阅侧 bump,视图侧
  * useSyncExternalStore 触发当日轻刷新(不自己维护写路径)。
  *
- * 深链(C-02 起):打开 = 「回顾」主 tab 的足迹二级视图
- * (reviewTabs.openWorkbenchReviewTab,{view:"footprint", day}),旧 footprint.daily
- * kind 仅由工作台注册兼容渲染历史 tab(见 workbench LegacyFootprintTab)。
+ * 打开入口统一走 reviewTabs.openWorkbenchReviewTab({view:"footprint", day});
+ * 旧 footprint.daily kind 仅由工作台注册兼容渲染历史 tab(见 LegacyFootprintTab)。
  */
 import { useSyncExternalStore } from "react";
-import { openWorkbenchReviewTab } from "../reviewTabs";
 import { dayKeyOf } from "./dataSource";
 
-/** 旧中央 tab kind/id(C-02 起仅工作台兼容渲染历史 tab 使用;深链走回顾壳)。 */
+/** 旧中央 tab kind(C-02 起仅工作台兼容渲染历史 tab 使用;深链走回顾壳)。 */
 export const FP_TAB_KIND = "footprint.daily";
-export const FP_TAB_ID = "footprint-daily";
 
 /** 深链 payload:day = "YYYY-MM-DD"(dayKeyOf 同格式零填充);缺省开今日。 */
 export interface FootprintTabPayload {
   day?: string;
-}
-
-/** 打开/激活「回顾 → 每日足迹」二级视图(侧栏入口与 journal 轴视图深链共用;
- *  openTab 幂等 + refresh 显式重开:已开时刷 payload 并激活,深链换日即跟跳)。
- *  旧 footprint.daily 中央 tab 深链由工作台兼容层承接(见 workbench/index)。 */
-export function openFootprintTab(opts?: FootprintTabPayload): void {
-  openWorkbenchReviewTab({ view: "footprint", day: opts?.day });
 }
 
 /** payload.day → {y,m};缺省/非法(NaN、月日出界)→ null(调用方回落今日)。 */
