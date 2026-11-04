@@ -25,11 +25,12 @@ beforeEach(async () => {
   settings = await import("./settings");
 });
 
-/** boot 时盘上文档 = disk。 */
+/** boot 时盘上文档 = disk。批次 H 迁移在首启会直写一次 marker,清掉以免污染 lastCall 断言。 */
 async function bootWith(disk: unknown) {
   ipcMock.configReadSettings.mockResolvedValue(disk);
   settings.ensureSettingsBooted();
   await settings.settingsReady;
+  ipcMock.configMergeSettings.mockClear();
 }
 
 const pin = (at: number) => ({ scope: "global" as const, pinnedAt: at, title: "x" });

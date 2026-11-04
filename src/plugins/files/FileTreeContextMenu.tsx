@@ -14,6 +14,7 @@ import { Compass, Copy, FilePlus, FolderOpen, FolderSimplePlus, Pencil, Trash } 
 import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
 import type { DirEntry } from "@kernel/ipc";
+import { getTabContent } from "@kernel/tabs";
 import { clampMenuPosition, type TreeMenuState } from "./useTreeOperations";
 
 interface TreeMenuActions {
@@ -91,8 +92,9 @@ export function FileTreeContextMenu({
         {entry ? (
           <>
             <div className="wsmenu-divider" />
-            {/* 意图画布格式文件:导入为画布(仅 .excalidraw 显示) */}
-            {!entry.isDir && entry.path.toLowerCase().endsWith(".excalidraw")
+            {/* 意图画布格式文件:导入为画布(仅 .excalidraw 且 intent-canvas 插件在册;
+                插件被拔出时隐藏,避免深链落到空态 tab) */}
+            {!entry.isDir && entry.path.toLowerCase().endsWith(".excalidraw") && getTabContent("intent-canvas")
               ? item(t("导入到意图画布"), <Compass size="0.8125rem" data-icon-keep />, () => {
                   onClose();
                   actions.importToCanvas(entry);

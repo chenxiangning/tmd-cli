@@ -164,6 +164,8 @@ export interface AppSettings {
   sessionListBudget: SessionListBudget;
   /** 插件市场"拔出"的插件 id 列表;重启后 activateAll 跳过(插拔语义 = 重启生效)。 */
   disabledPlugins: string[];
+  /** 批次 H 可选化迁移 marker:true = 非核心能力默认停用已执行一次(防用户插回后被重拔)。 */
+  optionalPluginsDefaultOff: boolean;
   /** 本地插件总开关:true 时 boot 不装载任何 `~/.tmd-cli/plugins/` 插件(一键还原干净内置态)。 */
   localPluginsDisabled: boolean;
   /** 本地插件信任表:id → 已确认过的 bundle 内容 SHA-256 列表;信任绑定内容而非 id(回退到确认过的版本免再确认)。 */
@@ -203,8 +205,7 @@ export interface AppSettings {
    * 又被扫回」。resume 打开路径的自动 unarchive 不写(领域 API 见 kernel/sessionKeep.ts)。
    */
   sessionKeep: Record<string, SessionKeepEntry>;
-  /** 会话通知静音层:key = 三段覆盖层身份,value = 档位记录;只拦 OS 通知与提示音,
-   *  通知中心流水照记;语义与三档矩阵见 kernel/sessionMutes.ts。 */
+  /** 会话通知静音层:key = 三段覆盖层身份,value = 档位记录;只拦 OS 通知与提示音,通知中心流水照记;语义见 kernel/sessionMutes.ts。 */
   sessionMutes: Record<string, SessionMuteEntry>;
   sessionRestore: SessionRestoreSettings; // 重启现场恢复:三段身份 MRU(首=最新),帽随 sessionTabsMax;见 kernel/sessionRestore.ts
   /** 会话卫生清扫开关:超期(默认 24h 未活动)自动归档 + 空会话删除;默认开。 */
@@ -215,11 +216,7 @@ export interface AppSettings {
   sessionLogRetentionDays: SessionLogRetentionDays;
   /** 引擎版本收藏层(welcome 插件编辑域):key = `${engineId}@${version}`,value = 收藏时间戳。 */
   engineVersionFavs: Record<string, { favedAt: number }>;
-  /**
-   * 左侧栏各工作区会话列表折叠态:key = workspaceId,value = 是否折叠。
-   * 缺失的工作区(首次出现)默认折叠;切换折叠/展开与「折叠全部」均写这里,
-   * 重启后恢复上次状态。
-   */
+  /** 左侧栏工作区会话列表折叠态:key = workspaceId,缺失默认折叠;重启恢复。 */
   workspaceCollapsedMap: Record<string, boolean>;
   /** 工作区分组清单(workspace 插件编辑域);数组顺序即显示顺序,空 = 无分组。 */
   workspaceGroups: WorkspaceGroup[];

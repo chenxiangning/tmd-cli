@@ -13,7 +13,7 @@ import { ipc, type DirEntry } from "@kernel/ipc";
 import { clampToViewport } from "@kernel/menuClamp";
 import { t } from "@kernel/i18n";
 import { copyText } from "@kernel/clipboard";
-import { closeTab, getTabs, openTab } from "@kernel/tabs";
+import { closeTab, getTabs, getTabContent, openTab } from "@kernel/tabs";
 import {
   cacheDeletePrefix,
   draftDeletePrefix,
@@ -197,8 +197,11 @@ export function useTreeOperations(opts: {
 
   /** .excalidraw 文件 → 意图画布:跨插件经 kernel tab 深链(payload.importFile),
    *  零 import intent-canvas(消费于 useCanvasDocs;openIntentCanvasBacklink 同款
-   *  refresh 语义 + chunk 预热)。 */
+   *  refresh 语义 + chunk 预热)。intent-canvas 被插件市场拔出时 kind 未注册,
+   *  深链打开只会得到空态兜底 —— 菜单项隐藏(见 FileTreeContextMenu),此处再
+   *  按注册表短路,防旧 tab/快捷键等旁路触发预热依赖。 */
   const importToCanvas = useCallback((entry: DirEntry) => {
+    if (!getTabContent("intent-canvas")) return;
     openTab(
       {
         id: "intent-canvas",
