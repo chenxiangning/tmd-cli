@@ -4,7 +4,7 @@
  * busy 排队(follow_up,引擎结算自动起跑)、轮次结束 OS 通知(PTY 侧
  * notifyOsTurnEnd 同闸同文案)、stderr 降噪(ready 期噪声不进状态行)。
  */
-import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
@@ -23,7 +23,7 @@ export type SsSessionState = {
   phase: Phase; statusText: string | null; warn: string | null; blocks: CliTranscriptBlock[]; turnStart: number;
   busy: boolean; elapsed: number; confirm: PiRpcConfirm | null;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
-  queued: number; stats: PiRpcStats | null; draft: string; setDraft: (v: string) => void;
+  queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
   sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
   retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
   dismissWarn: () => void;
