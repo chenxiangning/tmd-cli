@@ -52,7 +52,7 @@
 .ss-scroll { flex: 1; overflow-y: auto; position: relative; }
 /* 过程折叠组(codemoss ProcessDisclosure 二轮对齐 2026-11-05:纯文本头 +
    grid-rows 高度开合;展开区 = 思考左轨全文 + 工具树导轨行) */
-.ss-fold { margin: 2px 0 6px; }
+.ss-fold { margin: 2px 0 4px; }
 .ss-fold-head { display: flex; align-items: center; gap: 4px; padding: 2px 0; border: none; background: none; color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); cursor: pointer; width: fit-content; max-width: 100%; }
 .ss-fold-head:hover { color: var(--tmd-fg); }
 .ss-fold.is-open .ss-tool-caret { transform: rotate(90deg); }
@@ -69,7 +69,7 @@
 /* 工具段:树形导轨容器 */
 .ss-toolsec { display: flex; flex-direction: column; margin-left: 2px; }
 /* 轮间距 */
-.ss-turn { margin-bottom: 10px; }
+.ss-turn { margin-bottom: 8px; }
 /* 用户块图片内联(粘贴/拖图 token → 渲染;几何同 sv-user-imgs 律,ss 前缀独立) */
 .ss-userblock-imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
 .ss-userblock-imgbtn { display: inline-block; background: none; border: none; padding: 0; cursor: zoom-in; line-height: 0; }

@@ -5,9 +5,11 @@
  * codemoss 结构:思考段 = 左轨灰字全文块;连续工具调用 = 树形导轨行(SVG
  * 弯枝 + 干线的描画入场,行模糊淡入)。不再复用 session-viewer ThinkingRow
  * 的单行截断摘要(噪声)。开合走 grid-rows 高度动画,收起播完才卸载内容。
+ * 结算换装律:settleKey = 刚落定的轮首块 id,该轮折叠组首帧以展开态挂载,
+ * 一拍后自动收成折叠头(过程内容不是瞬消失,是看着它折起来)。
  * 本件只在 structured-session 路径消费,PTY 零接触。
  */
-import { memo, useEffect, useState, type ComponentType } from "react";
+import { memo, useEffect, useRef, useState, type ComponentType } from "react";
 import { Brain, CaretRight } from "@phosphor-icons/react";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { t } from "@kernel/i18n";
@@ -79,10 +81,19 @@ function ToolSection({ blocks }: { blocks: CliTranscriptBlock[] }) {
 const FOLD_MS = 300;
 
 /* 过程折叠组:纯文本头 + grid-rows 高度开合(300ms ease-out;scaleY/opacity
- * 会留合成器残影,不用);收起动画播完才卸载展开区(codemoss bodyMounted 律)。 */
-function SsProcessFold({ blocks }: { blocks: CliTranscriptBlock[] }) {
-  const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+ * 会留合成器残影,不用);收起动画播完才卸载展开区(codemoss bodyMounted 律)。
+ * enterOpen = 结算换装:首帧展开态挂载,一拍后自动收成折叠头(只播一次;
+ * 用户中途点开不再强折,playedRef 挡重播)。 */
+function SsProcessFold({ blocks, enterOpen = false }: { blocks: CliTranscriptBlock[]; enterOpen?: boolean }) {
+  const [open, setOpen] = useState(enterOpen);
+  const [mounted, setMounted] = useState(enterOpen);
+  const playedRef = useRef(false);
+  useEffect(() => {
+    if (!enterOpen || playedRef.current || !open) return;
+    playedRef.current = true;
+    const timer = window.setTimeout(() => setOpen(false), 360);
+    return () => window.clearTimeout(timer);
+  }, [enterOpen, open]);
   useEffect(() => {
     if (open) {
       setMounted(true);
@@ -132,9 +143,11 @@ function SsProcessFold({ blocks }: { blocks: CliTranscriptBlock[] }) {
   );
 }
 
-export const SsTurnView = memo(function SsTurnView({ blocks, Markdown }: {
+export const SsTurnView = memo(function SsTurnView({ blocks, Markdown, settleKey = null }: {
   blocks: CliTranscriptBlock[];
   Markdown: ComponentType<{ children: string }>;
+  /** 刚落定轮的首块 id(= 该轮用户块):其折叠组播「展开→收起」结算过渡一次。 */
+  settleKey?: string | null;
 }) {
   return (
     <>
@@ -153,7 +166,7 @@ export const SsTurnView = memo(function SsTurnView({ blocks, Markdown }: {
                 <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
               ),
             )}
-            <SsProcessFold blocks={process} />
+            <SsProcessFold blocks={process} enterOpen={turn[0].id === settleKey} />
             {answers.map((b) => (
               <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
             ))}

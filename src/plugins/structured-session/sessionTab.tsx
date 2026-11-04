@@ -17,6 +17,8 @@ import { SsHeader } from "./ssHeader";
 import { SsActions } from "./ssActions";
 import { SsTurnView } from "./ssTurnView";
 import { LiveTurn } from "./liveTurn";
+import { liveFromIndex } from "./ssLiveFrom";
+import { useSettleKey } from "./ssSettleKey";
 import { SsComposer } from "./ssComposer";
 import { useSsSession, type Phase } from "./ssSession";
 import type { StructuredSessionPayload } from "./tabs";
@@ -63,6 +65,10 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   /* 回底悬浮钮:尾部位移 >100px(codemoss AWAY_THRESHOLD)时浮出,点击滑回底部
    * 并恢复贴底跟随;贴底/短内容隐藏。 */
   const [away, setAway] = useState(false);
+  /* 结算换装 key(刚落定轮首块 id)与活轮起点(用户轮界律);引擎轮界帧在
+   * 多步循环逐步推进,turnStart 不可作渲染界,见 liveFromIndex 头注。 */
+  const settleKey = useSettleKey(ss.turnLive, ss.blocks);
+  const liveFrom = liveFromIndex(ss.blocks, ss.turnStart, ss.turnLive);
 
   /* 贴底跟随(busy 流式期),上翻停跟。 */
   useEffect(() => {
@@ -116,11 +122,12 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
 
         {ss.blocks.length > 0 ? (
           <div className="ss-blocks">
-            {/* 落定历史:codemoss 形态逐轮渲染(用户 → 过程折叠组 → 答复) */}
-            {ss.turnStart > 0 ? (
-              <SsTurnView blocks={ss.blocks.slice(0, ss.turnStart)} Markdown={MarkdownBody} />
+            {/* 落定历史:codemoss 形态逐轮渲染(用户 → 过程折叠组 → 答复);
+                活轮起点 liveFrom 之前归落定,本轮块全程活轮展开 */}
+            {liveFrom > 0 ? (
+              <SsTurnView blocks={ss.blocks.slice(0, liveFrom)} Markdown={MarkdownBody} settleKey={settleKey} />
             ) : null}
-            <LiveTurn blocks={ss.blocks.slice(ss.turnStart)} busy={ss.busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
+            <LiveTurn blocks={ss.blocks.slice(liveFrom)} live={ss.turnLive} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
           </div>
         ) : null}
         {away ? (

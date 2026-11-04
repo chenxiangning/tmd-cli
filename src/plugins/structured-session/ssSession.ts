@@ -15,6 +15,7 @@ import { openStructuredSessionTab, type StructuredSessionPayload } from "./tabs"
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
 import { StructuredTurnEvidence } from "./evidence";
+import { useTurnLive } from "./ssTurnLive";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
 
@@ -26,6 +27,9 @@ export type SsSessionState = {
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
   /** 流内活跃输出面(活思考/正文据此展开;与块位置无关,见 PiRpcReducer.liveSurface)。 */
   liveSurface: PiLiveSurface;
+  /** 轮进行中渲染态(结算 600ms 宽限,见 useTurnLive):活轮/落定折叠渲染切换用,
+   *  与 busy 分离——引擎代理循环逐步发 session_settled,busy 沿不可直接作渲染界。 */
+  turnLive: boolean;
   sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
   retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
   dismissWarn: () => void;
@@ -55,6 +59,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   const sessionRef = useRef<PiRpcSession | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [evidence] = useState(() => new StructuredTurnEvidence(payload.cwd, ledgerId));
+  /* 轮进行中渲染态(结算宽限闸;见 useTurnLive 头注)。 */
+  const turnLive = useTurnLive();
   /* 贴底跟随标记(busy 流式期上翻停跟);scroll 副作用在组件侧读。 */
   const stickRef = useRef(true);
   /* stderr 尾行(ref 态)+ phase 镜像:onError 降噪闸(ready 期 stderr 不进状态行)。 */
@@ -113,6 +119,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         onBusy: (b) => {
           setBusy(b);
           setBusySince(b ? Date.now() : null);
+          if (b) turnLive.begin();
+          else turnLive.end();
           if (b) {
             if (sessionIdRef.current) evidence.agentStart(sessionIdRef.current);
           } else {
@@ -141,6 +149,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
             setConfirm(null);
             setBusy(false);
             setBusySince(null);
+            turnLive.reset();
             setPhase("exited");
           }
         },
@@ -189,6 +198,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     sessionRef.current?.kill();
     sessionRef.current = null;
     evidence.reset();
+    turnLive.reset();
     startedRef.current = false;
     if (!canResume) {
       setBlocks([]);
@@ -280,7 +290,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   return {
     phase, statusText, warn, blocks, turnStart, busy, elapsed, confirm,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
-    liveSurface,
+    liveSurface, turnLive: turnLive.live,
     sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,
   };
 }
