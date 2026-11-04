@@ -73,10 +73,13 @@ fn run_probe(spec: McpProbeSpec) -> McpProbeResult {
         .clamp(100, 120_000);
     let deadline = Instant::now() + Duration::from_millis(timeout_ms);
 
-    let resolved = resolve_command(&spec.command, &enriched_path());
+    /* PATH 注入契约同 proc_stream:MCP server 的孙进程与探针命中同一份 PATH。 */
+    let path = enriched_path();
+    let resolved = resolve_command(&spec.command, &path);
     let mut cmd = Command::new(&resolved.program);
     cmd.args(&resolved.prefix_args)
         .args(&spec.args)
+        .env("PATH", &path)
         .envs(&spec.env)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

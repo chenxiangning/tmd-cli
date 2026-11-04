@@ -59,12 +59,18 @@ fn event_name(id: &str, kind: &str) -> String {
 }
 
 /// spawn 并起泵;返回流 id。命令解析/PATH 增强/隐藏控制台窗与 proc_run 同律。
+/// PATH 与 pty_spawn 同契约:显式注入当前富化快照,孙进程(`#!/usr/bin/env bun`
+/// 类 shim)按同一份 PATH 解析运行时 —— 只解析不注入会让 RPC 子进程继承
+/// lib.rs 启动时的旧 PATH,与探针(-ilc)命中不同 bun 副本(omp 启动报
+/// Bun runtime must be >= 1.4.4 实证)。spec.env 后施加,仍可覆盖。
 pub fn spawn(app: &AppHandle, spec: &ProcStreamSpec) -> Result<String, String> {
-    let resolved = resolve_command(&spec.command, &enriched_path());
+    let path = enriched_path();
+    let resolved = resolve_command(&spec.command, &path);
     let mut cmd = Command::new(resolved.program);
     cmd.args(resolved.prefix_args)
         .args(&spec.args)
         .current_dir(&spec.cwd)
+        .env("PATH", &path)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
