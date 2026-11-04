@@ -20,17 +20,21 @@ export type Phase = "starting" | "ready" | "exited" | "error";
 
 /** useSsSession 返回面(StructuredSessionTab 与子组件的共享契约)。 */
 export type SsSessionState = {
-  phase: Phase; statusText: string | null; blocks: CliTranscriptBlock[]; turnStart: number;
+  phase: Phase; statusText: string | null; warn: string | null; blocks: CliTranscriptBlock[]; turnStart: number;
   busy: boolean; elapsed: number; confirm: PiRpcConfirm | null;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: (v: string) => void;
   sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
   retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
+  dismissWarn: () => void;
 };
 
 export function useSsSession(payload: StructuredSessionPayload, ledgerId: string): SsSessionState {
   const [phase, setPhase] = useState<Phase>("starting");
   const [statusText, setStatusText] = useState<string | null>(null);
+  /* 启动期 stderr 尾行(如扩展包加载告警)持久化为可关闭 warning 胶囊:
+   * ready 后 statusText 清空,告警不丢——用户看完可点 × 忽略,重试时重置。 */
+  const [warn, setWarn] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<CliTranscriptBlock[]>([]);
   const [turnStart, setTurnStart] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -86,6 +90,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     startedRef.current = true;
     setPhase("starting");
     setStatusText(null);
+    setWarn(null);
+    stderrTailRef.current = null;
     let self: PiRpcSession;
     const session = (self = new PiRpcSession(
       rpc,
@@ -135,9 +141,13 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
           }
         },
         onError: (msg) => {
-          /* stderr 降噪:只记尾行;ready 态不进状态行(展示窗口 = 启动/失败/终态)。 */
+          /* stderr 降噪:只记尾行;ready 态不进状态行(展示窗口 = 启动/失败/终态);
+           * 启动期首条 stderr 另存 warn 胶囊(ready 后 statusText 清空,告警不丢)。 */
           stderrTailRef.current = msg;
-          if (phaseRef.current !== "ready") setStatusText(msg);
+          if (phaseRef.current !== "ready") {
+            setStatusText(msg);
+            setWarn((w) => w ?? msg);
+          }
         },
       },
       resumeRef.current && rpc.resumeArgs ? { resume: resumeRef.current, seedBlocks: seedRef.current ?? undefined } : undefined,
@@ -151,6 +161,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         sessionIdRef.current = state?.sessionId ?? null;
         setModel(state?.model ?? null);
         setThinkingLevel(state?.thinkingLevel ?? null);
+        /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
+        setStatusText(null);
         setPhase("ready");
       })
       .catch((e: unknown) => {
@@ -259,9 +271,11 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     setThinkingLevel(s.thinkingLevel ?? null);
   };
 
+  const dismissWarn = () => setWarn(null);
+
   return {
-    phase, statusText, blocks, turnStart, busy, elapsed, confirm,
+    phase, statusText, warn, blocks, turnStart, busy, elapsed, confirm,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
-    sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh,
+    sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,
   };
 }

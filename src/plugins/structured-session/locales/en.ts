@@ -28,9 +28,6 @@ export const MESSAGES_EN: Record<string, string> = {
   /* 非 confirm 部件自动取消 notice(消费点在 cli-shared/piRpc,feature 插件带词典先例) */
   "CLI 发起 {kind} 交互,已按协议自动取消":
   "CLI requested a {kind} interaction; auto-cancelled per protocol",
-  /* chrome 装饰类部件聚合行(明细括注与时刻由 piRpcReducer 拼接,协议词不译) */
-  "TUI 部件交互已自动取消 ×{count}":
-  "{count} TUI widget interactions auto-cancelled",
   /* header 菜单(ssHeader:引擎切换 / 模型与思考级) */
   "模型与思考级": "Model & thinking level",
   "筛选模型…": "Filter models…",

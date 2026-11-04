@@ -206,10 +206,12 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         ready={ss.phase === "ready"}
         minimal={minimal}
         statusText={ss.statusText}
+        warn={ss.phase === "ready" || ss.phase === "exited" ? ss.warn : null}
         session={ss.sessionRef.current}
         actions={<SsActions ss={ss} payload={payload} tab={tab} />}
         onStateRefresh={(s) => ss.onStateRefresh(s)}
         onAbort={() => void ss.sessionRef.current?.abort()}
+        onDismissWarn={ss.dismissWarn}
       />
       <div
         className="ss-scroll"

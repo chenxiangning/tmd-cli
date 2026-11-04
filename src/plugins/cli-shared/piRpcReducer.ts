@@ -62,9 +62,9 @@ export function clockOf(d: Date): string {
 /** 非 confirm 部件自动取消判定(纯函数,单测钉死):extension_ui_request 且
  * method 非 confirm(select/input/editor 等真交互部件)时,RPC 模式无人可答,
  * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
- * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)不经此函数,走
- * reducer.chromeCancel 聚合;缺 id 的畸形帧不产(无处应答也无从示警;调用侧
- * 已将数值 id 归一为字符串,见 piRpc.normWidgetFrameId)。 */
+ * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)在 piRpc 层静默丢弃,
+ * 不经此函数;缺 id 的畸形帧不产(无处应答也无从示警;调用侧已将数值 id
+ * 归一为字符串,见 piRpc.normWidgetFrameId)。 */
 export function widgetCancelledNotice(
   rec: Record<string, unknown>,
   now: Date = new Date(),
@@ -82,8 +82,9 @@ export function widgetCancelledNotice(
 }
 
 /** TUI 装饰类部件(omp 18.x 启动/轮次帧实证:setStatus 状态行、notify 通知、
- * setWidget 小部件注册):RPC 模式下永远无意义,取消后聚合一处降噪,不逐条
- * 落行(2026-10-02 spec);select/input/editor 等真交互与未知 kind 一律
+ * setWidget 小部件注册):RPC 模式下永远无意义,协议层静默应答 cancelled 后
+ * 直接丢弃(2026-11-05 减法收口,取代 2026-10-02 的聚合 ×N 行方案——实测单轮
+ * ×50+ 仍占转录版面);select/input/editor 等真交互与未知 kind 一律
  * interactive 逐条可见——宁可多显示不可静默。 */
 const CHROME_WIDGET_KINDS: Record<string, true> = { setStatus: true, notify: true, setWidget: true };
 
@@ -101,10 +102,6 @@ export class PiRpcReducer {
   private tools = new Map<string, ToolLive>();
   private toolOrder: string[] = [];
   turnStart = 0;
-  /** chrome 部件聚合尾块(id + kind→计数)。仅当 settled 尾块仍是它时原地
-   * 刷新;任何其他块落尾后引用自然失配,下次 chrome 取消新开一条——时序不回流。 */
-  private aggTail: { id: string; counts: Map<string, number> } | null = null;
-  private aggSeq = 0;
 
   /** 接续种子(断线重开换壳保转录):settled = 旧 blocks,轮界对齐尾。 */
   seed(blocks: CliTranscriptBlock[]): void {
@@ -240,27 +237,9 @@ export class PiRpcReducer {
     return this.blocks;
   }
 
-  /** chrome 部件(TUI 装饰类:setStatus/notify/setWidget,分档见 piRpc.widgetTier)
-   * 自动取消的聚合落点:连续取消并成一条 system 行原地刷新(×N 计数,降噪 spec
-   * 2026-10-02);被其他块隔开即新开一条。kind 是协议词不译,时刻取最近一次。 */
-  chromeCancel(kind: string, clock: string): CliTranscriptBlock[] {
-    const last = this.settled[this.settled.length - 1];
-    const target = last && this.aggTail && last.id === this.aggTail.id ? this.aggTail : this.newAggTail();
-    target.counts.set(kind, (target.counts.get(kind) ?? 0) + 1);
-    const total = [...target.counts.values()].reduce((a, b) => a + b, 0);
-    const detail = [...target.counts.entries()].map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(" · ");
-    const text = `${t("TUI 部件交互已自动取消 ×{count}", { count: total })}(${detail} · ${clock})`;
-    this.settled = this.settled.map((b) => (b.id === target.id ? { ...b, text } : b));
-    this.rebuild();
-    return this.blocks;
-  }
-
-  private newAggTail() {
-    const target = { id: `${LIVE}nagg${++this.aggSeq}`, counts: new Map<string, number>() };
-    this.aggTail = target;
-    this.settled = [...this.settled, { id: target.id, role: "system", text: "" }];
-    return target;
-  }
+  /* chrome 装饰类(setStatus/notify/setWidget)已改为协议层静默应答(piRpc
+   * 2026-11-05 减法收口:RPC 视图无承接面,聚合 ×N 行实测仍是噪音),reducer
+   * 不再为其产转录块;真交互取消文案见 widgetCancelledNotice。 */
 
   /** 活消息冻结(无权威帧时兜底;live.thinking/text 进基座)。 */
   private freezeLive() {

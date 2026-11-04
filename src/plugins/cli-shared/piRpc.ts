@@ -13,7 +13,7 @@
  */
 import { ipc } from "@kernel/ipc";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { PiRpcReducer, clockOf, widgetCancelledNotice, widgetTier } from "./piRpcReducer";
+import { PiRpcReducer, widgetCancelledNotice, widgetTier } from "./piRpcReducer";
 
 import { parseState, type PiRpcCommand, type PiRpcConfirm, type PiRpcFlavor, type PiRpcModel, type PiRpcState, type PiRpcStats } from "./piRpcTypes";
 
@@ -244,9 +244,10 @@ export class PiRpcSession {
           return;
         }
         /* select/input/editor 等部件:取消以免挂轮(monocode 同律),协议应答
-         * 两档照发,只改展示面——chrome 装饰类聚合一处,真交互与未知 kind
-         * 逐条 notice(不再无声替答);id 经 normWidgetFrameId 归一(数值 id
-         * 不再被静默丢弃),缺 id/method 的畸形帧不产。 */
+         * 两档照发,只改展示面——chrome 装饰类(RPC 视图无承接面)静默应答
+         * 不落转录(聚合 ×N 行实测仍是噪音,2026-11-05 减法收口);真交互与
+         * 未知 kind 逐条 notice(不再无声替答);id 经 normWidgetFrameId 归一
+         * (数值 id 不再被静默丢弃),缺 id/method 的畸形帧不产。 */
         const kind = rec.method;
         const fid = normWidgetFrameId(rec.id);
         if (typeof kind !== "string" || !kind || !fid) return;
@@ -254,9 +255,7 @@ export class PiRpcSession {
          * 类型匹配才认领;字符串帧归一后即原值)。 */
         const rid = typeof rec.id === "number" ? rec.id : fid;
         void this.raw({ type: "extension_ui_response", id: rid, cancelled: true }).catch(() => undefined);
-        if (widgetTier(kind) === "chrome") {
-          this.handlers.onBlocks(this.reducer.chromeCancel(kind, clockOf(new Date())), this.reducer.turnStart);
-        } else {
+        if (widgetTier(kind) !== "chrome") {
           const widget = widgetCancelledNotice({ ...rec, id: fid });
           if (widget) this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart);
         }
