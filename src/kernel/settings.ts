@@ -15,7 +15,6 @@ import { ipc } from "./ipc";
 import { DEFAULT_SETTINGS } from "./settingsDefaults";
 import type { AppSettings } from "./settingsTypes";
 import { sanitize } from "./settingsSanitize";
-import { applyOptionalPluginsRetirement } from "./optionalPluginsRetire";
 import { advanceBaseline, mergeDiskIntoPayload, setDiskBaseline } from "./settingsPersistMerge";
 import { setShortcutOverrides } from "./shortcutOverrides";
 import { isWeb, listen } from "./transport";
@@ -119,22 +118,7 @@ async function load(): Promise<void> {
       raw = null;
     }
   }
-  /* 批次 H 可选化:首次加载一次性把非核心能力(anim/ports/intent-canvas)停用完,
-   * marker 随补丁落盘——用户事后从插件市场插回,重启不会被重新拔掉。 */
-  const cleaned = sanitize(raw);
-  const retired = applyOptionalPluginsRetirement(cleaned);
-  state.settings = retired;
-  if (retired !== cleaned) {
-    /* 迁移补丁直写(不走 pendingPatch 链):首启一次性,不挤占用户补丁序;
-     * 窗口内他实例并发改 disabledPlugins 理论上可丢(升级首启且双开极窄)。
-     * 写失败不阻塞启动:marker 未落盘则下次启动重放,追加本身幂等(去重)。
-     * 在 loaded=true 前 await 完:用户/测试的首个补丁 persist 不与迁移写重排。 */
-    try {
-      await ipc.configMergeSettings({ disabledPlugins: retired.disabledPlugins, optionalPluginsDefaultOff: true });
-    } catch {
-      /* 落盘失败照启动,下次启动重放 */
-    }
-  }
+  state.settings = sanitize(raw);
   setDiskBaseline(state.settings);
   state.loaded = true;
   setShortcutOverrides(state.settings.shortcutOverrides);

@@ -57,7 +57,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sessionListBudget: { total: SESSION_LIST_TOTAL_DEFAULT, perCli: {} },
   sessionOutputBufferLimit: 500_000,
   disabledPlugins: [],
-  optionalPluginsDefaultOff: false,
   localPluginsDisabled: false,
   localPluginTrust: {},
   sessionTitles: {},

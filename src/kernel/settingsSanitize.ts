@@ -287,7 +287,6 @@ export function sanitize(raw: unknown): AppSettings {
     sessionOutputBufferLimit: sanitizeBufferLimit(obj.sessionOutputBufferLimit),
     sessionListBudget: sanitizeSessionListBudget(obj.sessionListBudget),
     disabledPlugins: sanitizeDisabledPlugins(obj.disabledPlugins),
-    optionalPluginsDefaultOff: obj.optionalPluginsDefaultOff === true,
     localPluginsDisabled: obj.localPluginsDisabled === true,
     localPluginTrust: sanitizeLocalPluginTrust(obj.localPluginTrust),
     sessionTitles: sanitizeSessionTitles(obj.sessionTitles),

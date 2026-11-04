@@ -33,8 +33,6 @@ beforeEach(async () => {
   settings = (await import("./settings")) as unknown as SettingsModule;
   settings.ensureSettingsBooted();
   await settings.settingsReady;
-  /* 批次 H 可选化迁移:首启直写一次 marker(见 settings.ts load);清掉以免污染 lastCall 断言。 */
-  ipcMock.configMergeSettings.mockClear();
 });
 
 afterEach(() => {

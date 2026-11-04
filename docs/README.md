@@ -393,5 +393,6 @@
 | 2026-11-04 | [减法批次 D 代码评审(Ask 并入处理双域宿主/通知默认不钉/搜索三作用域统一壳含降级路径;无 P0-P2,当轮修 3 处 P3:处理 label i18n 缺口等;全量门禁绿)](review/2026-11-04-batch-d-code-review.md) | 已收口(真机目检待办) |
 | 2026-11-04 | [减法批次 E 代码评审(AI配置统一落地入口/生态组默认取钉/CLI配置与资产纳入导航/预设提示词双向深链/Memory控制台高级降层;无 P0-P2,修 1 处 P3;全量门禁绿)](review/2026-11-04-batch-e-code-review.md) | 已收口(真机目检待办) |
 | 2026-11-04 | [减法批次 F 代码评审(新建来源本地远程分组/右栏远程落地页三态承接SSH与WSL/设置七导航组保深链/恢复精简布局;无 P0-P2 零修复;顺带修 defaultPinned 声明位失效旧缺陷;全量门禁绿)](review/2026-11-04-batch-f-code-review.md) | 已收口(真机目检待办) |
+| 2026-11-05 | [减法批次 H 回滚记录(anim/ports/intent-canvas 默认停用方向被否,整批 revert;教训:「需产品确认」是硬闸门,默认态变更先问)](review/2026-11-05-batch-h-rollback.md) | 已回滚(三插件回归默认启用) |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
