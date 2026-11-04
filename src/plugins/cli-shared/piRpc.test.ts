@@ -132,13 +132,13 @@ describe("widgetTier 部件分档", () => {
   });
 });
 
-describe("chrome 部件聚合降噪", () => {
+describe("chrome 部件静默应答(2026-11-05 减法收口)", () => {
   beforeEach(() => {
     writes.length = 0;
     listeners.clear();
   });
 
-  it("chrome 五连取消并成一条聚合行(×N 明细原地刷新),被 select 隔开后新开一条", async () => {
+  it("chrome 五连取消:协议应答 cancelled 照发,转录零块;真交互 select 仍逐条 notice", async () => {
     let blocks: { id: string; role: string; text: string }[] = [];
     const s = new PiRpcSession({ command: "omp" }, "/ws", {
       onBlocks: (next) => {
@@ -161,25 +161,21 @@ describe("chrome 部件聚合降噪", () => {
     frame({ type: "extension_ui_request", method: "setWidget", id: "w5" });
     await vi.waitUntil(() => writes.filter((w) => w.includes("extension_ui_response")).length === 5);
     expect(writes.filter((w) => w.includes('"cancelled":true')).length).toBe(5);
-    expect(blocks.length).toBe(1);
-    expect(blocks[0].role).toBe("system");
-    expect(blocks[0].text).toContain("×5");
-    expect(blocks[0].text).toContain("setStatus ×2");
-    expect(blocks[0].text).toContain("setWidget ×2");
-    /* select 真交互:逐条 notice 插在聚合行后 */
+    expect(blocks.filter((b) => b.role === "system")).toHaveLength(0);
+    /* select 真交互:逐条 notice 照产 */
     frame({ type: "extension_ui_request", method: "select", id: "q1" });
     await vi.waitUntil(() => writes.filter((w) => w.includes("extension_ui_response")).length === 6);
-    expect(blocks.length).toBe(2);
-    expect(blocks[1].text).toContain("CLI 发起 select 交互");
-    /* 后续 chrome 取消:不回流旧聚合行,新开一条重新计数 */
+    expect(blocks.filter((b) => b.role === "system")).toHaveLength(1);
+    expect(blocks.find((b) => b.role === "system")!.text).toContain("CLI 发起 select 交互");
+    /* 后续 chrome 取消:依然零块,select 行不被回流刷新 */
     frame({ type: "extension_ui_request", method: "setStatus", id: "w6" });
-    expect(blocks.length).toBe(3);
-    expect(blocks[2].text).toContain("×1(setStatus");
-    expect(blocks[0].text).toContain("×5"); // 旧行不被刷新
+    await vi.waitUntil(() => writes.filter((w) => w.includes("extension_ui_response")).length === 7);
+    expect(blocks.filter((b) => b.role === "system")).toHaveLength(1);
+    expect(blocks.find((b) => b.role === "system")!.text).toContain("select");
     s.kill();
   });
 
-  it("流内 chrome 取消聚合行不被 message_end 权威落定截掉(2026-10-03 评审实锤回归)", async () => {
+  it("流内 chrome 取消:message_end 权威落定序不受打扰(原聚合行方案占位的回归面,静默后须零 system 块)", async () => {
     let blocks: { id: string; role: string; text: string }[] = [];
     const s = new PiRpcSession({ command: "omp" }, "/ws", {
       onBlocks: (next) => {
@@ -194,20 +190,16 @@ describe("chrome 部件聚合降噪", () => {
     await vi.waitUntil(() => writes.some((w) => w.includes("get_state")));
     frame({ type: "response", id: "tmd-1", success: true, data: {} });
     await started;
-    /* assistant 流内来一条 setStatus(轮次中也会来,spec 自述):聚合行落消息中段 */
     frame({ type: "message_start", message: { role: "assistant", content: [] } });
     frame({ type: "message_update", assistantMessageEvent: { type: "text_delta", delta: "草稿" } });
     frame({ type: "extension_ui_request", method: "setStatus", id: "m1" });
     frame({ type: "message_end", id: "e1", message: { role: "assistant", content: [{ type: "text", text: "答案" }] } });
-    const agg = blocks.findIndex((b) => b.role === "system");
     const ans = blocks.findIndex((b) => b.role === "assistant");
-    expect(agg).toBeGreaterThanOrEqual(0);
+    expect(blocks.filter((b) => b.role === "system")).toHaveLength(0);
     expect(ans).toBeGreaterThanOrEqual(0);
-    expect(blocks[agg].text).toContain("×1(setStatus");
     /* assistant 落定文本 = 流内 delta 兜底(endMsg 权威解析缺 event.id 恒空,
      * 先于本批的留观项,见 docs/review/2026-10-03-v0.2.9-range-review.md)。 */
     expect(blocks[ans].text).toBe("草稿");
-    expect(agg).toBeGreaterThan(ans); // 聚合行保序在消息块之后,不被截掉
     s.kill();
   });
 

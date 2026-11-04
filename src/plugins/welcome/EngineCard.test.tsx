@@ -40,6 +40,7 @@ const REQUIRES: PrerequisiteMeta = {
   docsUrl: "https://bun.sh",
   installHint: "curl -fsSL https://bun.sh/install | bash",
   plan: { channel: "script", unix: "u", windows: "w" },
+  versionMenu: false,
 };
 
 /* 带版本下限的依赖字面量(omp → bun ≥1.4.4,过旧一键修复分支)。 */
@@ -69,7 +70,9 @@ function renderCard(
   overrides?: {
     meta?: EngineMeta;
     depProbe?: EngineProbeState;
+    depInstall?: InstallState;
     onInstallVersion?: (version: string) => void;
+    onDepInstallVersion?: (version: string) => void;
   },
 ): string {
   return renderToStaticMarkup(
@@ -82,8 +85,9 @@ function renderCard(
       onProbe: () => {},
       onInstall: () => {},
       onInstallVersion: overrides?.onInstallVersion,
+      onDepInstallVersion: overrides?.onDepInstallVersion,
       depProbe: overrides?.depProbe,
-      depInstall: IDLE_INSTALL,
+      depInstall: overrides?.depInstall ?? IDLE_INSTALL,
       onDepInstall: () => {},
       onDepProbe: () => {},
       creds: undefined,
@@ -260,5 +264,16 @@ describe("EngineCard 前置依赖门控(omp → bun)", () => {
     const html = renderCard(notFound, undefined, { depProbe: notFound });
     expect(html).not.toContain("welcome-prereq");
     expect(html).not.toMatch(/class="welcome-ab" disabled/);
+  });
+
+  it("依赖达标且引导区隐藏:手动 Bun 安装仍显示进度与日志", () => {
+    const html = renderCard(probeOk("omp/18.16.0"), undefined, {
+      meta: META_WITH_REQ_FLOOR,
+      depProbe: depOk("1.4.4"),
+      depInstall: { running: true, ok: null, lines: ["bun-v1.4.4"] },
+    });
+    expect(html).not.toContain("welcome-prereq");
+    expect(html).toContain('aria-label="Bun 安装"');
+    expect(html).toContain("bun-v1.4.4");
   });
 });

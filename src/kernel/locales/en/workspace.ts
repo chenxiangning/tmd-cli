@@ -155,6 +155,7 @@ export const MESSAGES = {
   "非 git 仓库,无法创建 worktree": "Not a git repository; cannot create a worktree",
   "无法确定 worktree 目录": "Cannot determine the worktree directory",
   "引用已失效:可改绑其他条目,或切换为自定义文本": "Reference is stale — rebind to another entry or switch to custom text",
+  "管理提示词库…": "Manage prompt library…",
   "引用「{name}」": "Refs \"{name}\"",
   "消费时现读,库更新即跟随": "Read at launch; follows library updates",
   "无初始提示词": "No initial prompt",
@@ -171,4 +172,14 @@ export const MESSAGES = {
   "导出转录快照": "Export transcript snapshot",
   "已导出转录快照 · 时点 {time}": "Snapshot exported as of {time}",
   "导出转录快照失败:{reason}": "Snapshot export failed: {reason}",
+  /* ── F-01 减法批次:新建会话/添加工作区的来源分组标签 ── */
+  "本地来源": "Local source",
+  "远程来源": "Remote sources",
+  /* ── 2026-11-05 新建会话菜单三分区(PTY / 带渲染的会话 / 远程与其他) ── */
+  "PTY 会话": "PTY sessions",
+  "本地终端,按 CLI 原生交互": "Local terminal, native CLI interaction",
+  "带渲染的会话": "Rendered session",
+  "思考与工具调用以卡片渲染,过程实时可见": "Thinking & tool calls rendered as cards, live progress",
+  "远程与其他": "Remote & other",
+  "其余 {n} 个预设见「管理预设…」": "{n} more presets in \"Manage presets…\"",
 } as Record<string, string>;

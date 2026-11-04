@@ -1,5 +1,14 @@
 /** en 词典 · settings 域第三段(2026-10-26 拆:settings.ts 触 300 行铁则)。 */
 export const MESSAGES = {
+  /* ── F 批次(2026-11-04):设置 7 导航组标签 + 列表配额(自 settings.ts 拆入) ── */
+  "列表配额": "List Quota",
+  "通用": "General",
+  "会话与工作区": "Sessions & Workspaces",
+  "AI 配置": "AI Config",
+  "远程与访问": "Remote & Access",
+  "通知": "Notifications",
+  "工作台与回顾": "Workbench & Review",
+  "系统与数据": "System & Data",
   "我已了解并自行承担风险": "I understand the risks and accept them",
   "有浏览器客户端正通过 Web 访问控制本机":
     "A browser client is controlling this machine via web access",

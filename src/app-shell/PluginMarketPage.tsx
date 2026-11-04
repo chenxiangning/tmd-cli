@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Globe, List, Plug, ArrowClockwise, Cross } from "@phosphor-icons/react";
+import { List, Plug, ArrowClockwise, Cross } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getMarketPanel } from "@kernel/marketPanel";
@@ -203,17 +203,6 @@ export function PluginMarketPage({ onClose }: { onClose: () => void }) {
         )}
         {/* ═══ 本地插件分区(归 local-loader 插件贡献,经 market.local 挂点) ═══ */}
         <Mounts point="market.local" />
-
-        {/* ═══ 在线市场(预留) ═══ */}
-        <div className="pm-section-title">{t("在线市场")}</div>
-        <div className="pm-market-soon">
-          <Globe size="1.75rem" aria-hidden />
-          <div className="pm-soon-title">{t("远程插件市场 · 建设中")}</div>
-          <div>{t("未来可在此浏览、安装社区插件包 —— 新插头直接快递到你的插排")}</div>
-          <button type="button" className="pm-soon-btn" disabled>
-            {t("即将上线")}
-          </button>
-        </div>
       </div>
       <div className={`pm-toast${toast ? " show" : ""}`} role="status">
         {toast}

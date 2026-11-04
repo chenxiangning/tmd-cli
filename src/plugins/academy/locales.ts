@@ -6,17 +6,10 @@ import { registerMessages } from "@kernel/i18n";
 
 /** en 词典 · academy 域。 */
 const MESSAGES_EN = {
-  "展开学堂": "Expand academy",
-  "收起学堂": "Collapse academy",
   "已结业": "Completed",
-  "重温入门": "Revisit the course",
-  "继续入门": "Continue the course",
   "第 {n} 课 / {total}": "Lesson {n} / {total}",
   "完整指南": "Full guide",
   "全量命令": "All commands",
-  "结业速查表": "Cheat sheet",
-  "一屏总览": "One-screen overview",
-  "重置学习进度": "Reset progress",
   "{title} 入门 · {n} 课": "{title} starter · {n} lessons",
   "「试一试」会把命令填进对话框,关掉课程直接练":
     "“Try it” fills the command into the composer — close the lesson and practice",
@@ -24,8 +17,8 @@ const MESSAGES_EN = {
   "下一步": "Next",
   "完成学习": "Finish",
   "练习:{p}": "Practice: {p}",
-  "全部章节过完。这张卡是每章最常用命令;完整指南在左栏学堂菜单里随时可查。":
-    "All chapters covered. This card lists the most-used commands per chapter; the full guide lives in the academy menu in the left sidebar.",
+  "全部章节过完。这张卡是每章最常用命令;完整指南在欢迎页 CLI 学堂入口随时可查。":
+    "All chapters covered. This card lists the most-used commands per chapter; the full guide is always available from the CLI Academy action on the welcome page.",
   "结业:速查表与下一步": "Done: cheat sheet & next steps",
   "共 {n} 条命令": "{n} commands",
   "命中 {n} 条": "{n} matches",
@@ -50,22 +43,17 @@ const MESSAGES_EN = {
   "{title} 入门课": "{title} starter course",
   /* 入口与课步(2026-10 i18n 收口) */
   "学堂": "Academy",
+  "CLI 学堂": "CLI Academy",
+  "命令指南与入门课程": "Command guides and starter lessons",
   "已完成": "Done",
 } as const;
 
 /** ja 词典 · academy 域。 */
 const MESSAGES_JA = {
-  "展开学堂": "学堂を展開",
-  "收起学堂": "学堂を折りたたむ",
   "已结业": "修了済み",
-  "重温入门": "入門を復習",
-  "继续入门": "入門を続ける",
   "第 {n} 课 / {total}": "第 {n} 課 / {total}",
   "完整指南": "完全ガイド",
   "全量命令": "全コマンド",
-  "结业速查表": "修了チートシート",
-  "一屏总览": "一画面総覧",
-  "重置学习进度": "学習進捗をリセット",
   "{title} 入门 · {n} 课": "{title} 入門 · {n} 課",
   "「试一试」会把命令填进对话框,关掉课程直接练":
     "「試す」でコマンドを入力欄に挿入——課程を閉じてそのまま練習",
@@ -73,8 +61,8 @@ const MESSAGES_JA = {
   "下一步": "次へ",
   "完成学习": "完了",
   "练习:{p}": "練習:{p}",
-  "全部章节过完。这张卡是每章最常用命令;完整指南在左栏学堂菜单里随时可查。":
-    "全章完了。このカードは各章の最頻出コマンド;完全ガイドは左サイドバーの学堂メニューからいつでも。",
+  "全部章节过完。这张卡是每章最常用命令;完整指南在欢迎页 CLI 学堂入口随时可查。":
+    "全章完了。このカードは各章の最頻出コマンド;完全ガイドはウェルカムページの CLI 学堂からいつでも。",
   "结业:速查表与下一步": "修了:チートシートと次のステップ",
   "共 {n} 条命令": "全 {n} コマンド",
   "命中 {n} 条": "{n} 件ヒット",
@@ -99,6 +87,8 @@ const MESSAGES_JA = {
   "{title} 入门课": "{title} 入門課程",
   /* 入口与课步(2026-10 i18n 收口) */
   "学堂": "学堂",
+  "CLI 学堂": "CLI 学堂",
+  "命令指南与入门课程": "コマンドガイドと入門課程",
   "已完成": "完了",
 } as const;
 

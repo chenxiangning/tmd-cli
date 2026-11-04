@@ -8,8 +8,23 @@
 
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
-import { describe, expect, it } from "vitest";
-import { VersionMenuBody } from "./VersionMenu";
+import { describe, expect, it, vi } from "vitest";
+import { VersionMenuBody, VersionMenuContent } from "./VersionMenu";
+
+/* 组合结构测试不进入 settings 的 useSyncExternalStore(SSR 无 getServerSnapshot);
+ * 单个分区的当前/收藏/最新/禁用契约由上方 VersionMenuBody 测试覆盖。 */
+vi.mock("./VersionMenuSection", async () => {
+  const { createElement: h } = await import("react");
+  return {
+    VersionMenuSection: ({
+      engineId,
+      currentVersion,
+    }: {
+      engineId: string;
+      currentVersion: string | null;
+    }) => h("div", { className: "mock-version-section" }, `${engineId}:${currentVersion ?? "—"}`),
+  };
+});
 
 const FAVS = {
   "omp@18.0.11": { favedAt: 1000 },
@@ -81,5 +96,33 @@ describe("VersionMenuBody 数据态", () => {
   it("安装中:版本行禁用(不可点选安装)", () => {
     const html = renderBody({ installing: true });
     expect(html).toMatch(/class="wsmenu-item" disabled/);
+  });
+});
+
+describe("VersionMenuContent 主引擎与依赖双分区", () => {
+  it("OMP 在前,Bun 在后;各自显示当前版本并标最低要求", () => {
+    const html = renderToStaticMarkup(
+      createElement(VersionMenuContent, {
+        engineId: "omp",
+        engineName: "OMP",
+        npmPackage: "@oh-my-pi/pi-coding-agent",
+        currentVersion: "18.16.0",
+        installing: false,
+        onPick: () => {},
+        dependency: {
+          engineId: "bun",
+          name: "Bun",
+          npmPackage: "bun",
+          currentVersion: "1.4.4",
+          minVersion: "1.4.4",
+          onPick: () => {},
+        },
+      }),
+    );
+    expect(html.indexOf(">OMP<")).toBeGreaterThanOrEqual(0);
+    expect(html.indexOf("Bun · 最低 1.4.4")).toBeGreaterThan(html.indexOf(">OMP<"));
+    expect(html).toContain("omp:18.16.0");
+    expect(html).toContain("bun:1.4.4");
+    expect(html.split("mock-version-section").length - 1).toBe(2);
   });
 });

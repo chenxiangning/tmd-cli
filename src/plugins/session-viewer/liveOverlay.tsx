@@ -1,6 +1,6 @@
 /**
- * 活会话转录浮层 —— 结构化视图全景的画布覆盖 UI(editorCenter.canvasOverlay
- * 挂点;入口切换钮 = livePill.tsx)。命名契约:入口「结构化视图」/出口「PTY实况」。
+ * 活会话转录浮层 —— 转录视图全景的画布覆盖 UI(editorCenter.canvasOverlay
+ * 挂点;入口切换钮 = livePill.tsx)。命名契约(G-01):入口「转录视图」/出口「幕布」。
  * 幕布保活零卸载;数据 = 1s 探测短路轮询 + 变更拍 readChangedTranscript 增量段
  * 解析(8MB+ 大转录不全量重读;message 级刷新,无 token 粒度——omp 实证)。
  * 头部/计时条/回底/状态块等 chrome 件见 liveChrome.tsx,计时 hook 见 liveElapsed.ts。

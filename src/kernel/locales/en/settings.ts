@@ -107,6 +107,7 @@ export const MESSAGES = {
   // SettingsPanel / index.tsx
   "设置": "Settings",
   "返回应用": "Back to app",
+  "返回 AI 配置": "Back to AI Config",
   "设置面板与主题/行为配置": "Settings panel and theme/behavior configuration",
   "基础设置": "Basics",
   "外观、行为和环境的基础配置。": "Basic configuration for appearance, behavior, and environment.",
@@ -152,7 +153,6 @@ export const MESSAGES = {
   "搜索": "Search",
   "全文搜索面板与文件名快开(⇧⌘F / ⌘P),命中跳文件定位行":
     "Full-text search panel and filename quick open (⇧⌘F / ⌘P); hits jump to the file and line",
-  "会话列表预算": "Session list budget",
   "工作区会话列表的磁盘历史露出预算(caption 弹窗编辑)":
     "Budget of disk history shown in the workspace session list (edited from the caption popover)",
   "内置终端": "Built-in terminal",
@@ -177,8 +177,8 @@ export const MESSAGES = {
 
   // cli-config「CLI 独立配置」(index / CliConfigTab / ConfigForm / ModelPicker / FieldControls / ChainPicker)
   "CLI 独立配置": "Standalone CLI config",
-  "图形化编辑各 CLI 的本地配置文件 —— 不用记命令、不用手改磁盘文件;保存即写回原文件,未知内容原样保留。":
-    "Edit each CLI's local config file graphically — no commands to memorize, no hand-editing files on disk; saving writes back to the original file, unknown content is preserved as-is.",
+  "AI 配置的引擎子能力 —— 图形化编辑各 CLI 的本地配置文件:不用记命令、不用手改磁盘文件;保存即写回原文件,未知内容原样保留。":
+    "Engine sub-capability of AI Config —— edit each CLI's local config file graphically; saving writes back to the original file, unknown content preserved as-is.",
   "引擎": "Engines",
   "尚无引擎贡献配置面。": "No engines have contributed config panels yet.",
   "读取配置清单…": "Loading config sources…",

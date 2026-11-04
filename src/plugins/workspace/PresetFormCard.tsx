@@ -38,6 +38,7 @@ export function PresetFormCard({
   busy,
   onSave,
   onCancel,
+  onOpenPromptLibrary,
 }: {
   /** 编辑目标;null = 新建。 */
   preset: SessionPreset | null;
@@ -48,6 +49,8 @@ export function PresetFormCard({
   busy: boolean;
   onSave: (draft: PresetDraft) => void;
   onCancel: () => void;
+  /** E-04:直达提示词库(弹层注入;先关弹层再开设置页,设置页层级低于弹层)。 */
+  onOpenPromptLibrary: () => void;
 }) {
   const [draft, setDraft] = useState(() => draftOf(preset, candidates[0]?.id ?? ""));
   const [error, setError] = useState("");
@@ -199,6 +202,18 @@ export function PresetFormCard({
           {refDangling && (
             <div className="pl-16 text-(--tmd-warn)">{t("引用已失效:可改绑其他条目,或切换为自定义文本")}</div>
           )}
+          {/* E-04 双向深链:预设编辑直达提示词库(设置 assets/prompts)。
+              弹层 z-1201 高于设置页 z-100:由弹层注入 onOpenPromptLibrary(先关弹层再开设置)。 */}
+          <div className="pl-16">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onOpenPromptLibrary}
+              className="text-meta text-(--tmd-fg-muted) underline decoration-dotted underline-offset-2 transition-colors hover:text-(--tmd-accent) disabled:opacity-50"
+            >
+              {t("管理提示词库…")}
+            </button>
+          </div>
         </div>
       )}
       {draft.promptMode === "text" && (

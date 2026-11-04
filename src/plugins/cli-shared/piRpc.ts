@@ -13,15 +13,18 @@
  */
 import { ipc } from "@kernel/ipc";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { PiRpcReducer, clockOf, widgetCancelledNotice, widgetTier } from "./piRpcReducer";
+import { PiRpcReducer, type PiLiveSurface } from "./piRpcReducer";
+import { widgetCancelledNotice, widgetTier } from "./piRpcWidgets";
 
 import { parseState, type PiRpcCommand, type PiRpcConfirm, type PiRpcFlavor, type PiRpcModel, type PiRpcState, type PiRpcStats } from "./piRpcTypes";
 
 export type { PiRpcFlavor, PiRpcModel, PiRpcState, PiRpcConfirm, PiRpcStats, PiRpcCommand } from "./piRpcTypes";
+export type { PiLiveSurface } from "./piRpcReducer";
 
 export interface PiRpcHandlers {
-  /** 转录块快照(变更即新数组引用)+ 当前轮首块下标(渲染层切「落定历史|流内活轮」)。 */
-  onBlocks: (blocks: CliTranscriptBlock[], turnStart: number) => void;
+  /** 转录块快照(变更即新数组引用)+ 当前轮首块下标(渲染层切「落定历史|流内活轮」)
+   * + 流内活跃输出面(活思考/正文据此展开,与块位置无关)。 */
+  onBlocks: (blocks: CliTranscriptBlock[], turnStart: number, liveSurface: PiLiveSurface) => void;
   /** 轮次进行中/结算(session_settled 边沿)。 */
   onBusy: (busy: boolean) => void;
   /** 工具执行原始帧（structured-session 成功写工具存证；展示仍走 reducer）。 */
@@ -101,6 +104,9 @@ export class PiRpcSession {
   /** 轮次进行中排队下一条(follow_up;引擎结算后自动起跑,参数 message 与 prompt 同形,18.6 实证)。 */
   async followUp(text: string): Promise<void> {
     await this.request({ type: "follow_up", message: text }, PROMPT_TIMEOUT_MS);
+    /* omp 对 follow_up 不发 user 消息帧(首轮回显没有它)——ack 后排队本地
+     * 回显,下一轮回界帧注入轮首(立刻注入会落进尚在途的上一轮切片)。 */
+    this.reducer.queueUserEcho(text);
   }
 
   /** 中止在途轮。 */
@@ -220,10 +226,10 @@ export class PiRpcSession {
       case "tool_execution_update":
       case "tool_execution_end":
         this.handlers.onToolExecution?.(rec);
-        this.handlers.onBlocks(this.reducer.feed(rec), this.reducer.turnStart);
+        this.handlers.onBlocks(this.reducer.feed(rec), this.reducer.turnStart, this.reducer.liveSurface);
         return;
       case "session_settled":
-        this.handlers.onBlocks(this.reducer.feed(rec), this.reducer.turnStart);
+        this.handlers.onBlocks(this.reducer.feed(rec), this.reducer.turnStart, this.reducer.liveSurface);
         this.handlers.onBusy(false);
         return;
       case "agent_start":
@@ -244,9 +250,10 @@ export class PiRpcSession {
           return;
         }
         /* select/input/editor 等部件:取消以免挂轮(monocode 同律),协议应答
-         * 两档照发,只改展示面——chrome 装饰类聚合一处,真交互与未知 kind
-         * 逐条 notice(不再无声替答);id 经 normWidgetFrameId 归一(数值 id
-         * 不再被静默丢弃),缺 id/method 的畸形帧不产。 */
+         * 两档照发,只改展示面——chrome 装饰类(RPC 视图无承接面)静默应答
+         * 不落转录(聚合 ×N 行实测仍是噪音,2026-11-05 减法收口);真交互与
+         * 未知 kind 逐条 notice(不再无声替答);id 经 normWidgetFrameId 归一
+         * (数值 id 不再被静默丢弃),缺 id/method 的畸形帧不产。 */
         const kind = rec.method;
         const fid = normWidgetFrameId(rec.id);
         if (typeof kind !== "string" || !kind || !fid) return;
@@ -254,11 +261,9 @@ export class PiRpcSession {
          * 类型匹配才认领;字符串帧归一后即原值)。 */
         const rid = typeof rec.id === "number" ? rec.id : fid;
         void this.raw({ type: "extension_ui_response", id: rid, cancelled: true }).catch(() => undefined);
-        if (widgetTier(kind) === "chrome") {
-          this.handlers.onBlocks(this.reducer.chromeCancel(kind, clockOf(new Date())), this.reducer.turnStart);
-        } else {
+        if (widgetTier(kind) !== "chrome") {
           const widget = widgetCancelledNotice({ ...rec, id: fid });
-          if (widget) this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart);
+          if (widget) this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart, this.reducer.liveSurface);
         }
         return;
       }

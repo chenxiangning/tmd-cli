@@ -4,7 +4,7 @@
  * busy 排队(follow_up,引擎结算自动起跑)、轮次结束 OS 通知(PTY 侧
  * notifyOsTurnEnd 同闸同文案)、stderr 降噪(ready 期噪声不进状态行)。
  */
-import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
@@ -13,24 +13,34 @@ import type { CliTranscriptBlock } from "@kernel/cli";
 import { sendOsNotification } from "@kernel/ipc";
 import { openStructuredSessionTab, type StructuredSessionPayload } from "./tabs";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
-import { PiRpcSession, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
+import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
 import { StructuredTurnEvidence } from "./evidence";
+import { useTurnLive } from "./ssTurnLive";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
 
 /** useSsSession 返回面(StructuredSessionTab 与子组件的共享契约)。 */
 export type SsSessionState = {
-  phase: Phase; statusText: string | null; blocks: CliTranscriptBlock[]; turnStart: number;
+  phase: Phase; statusText: string | null; warn: string | null; blocks: CliTranscriptBlock[]; turnStart: number;
   busy: boolean; elapsed: number; confirm: PiRpcConfirm | null;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
-  queued: number; stats: PiRpcStats | null; draft: string; setDraft: (v: string) => void;
+  queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
+  /** 流内活跃输出面(活思考/正文据此展开;与块位置无关,见 PiRpcReducer.liveSurface)。 */
+  liveSurface: PiLiveSurface;
+  /** 轮进行中渲染态(结算 600ms 宽限,见 useTurnLive):活轮/落定折叠渲染切换用,
+   *  与 busy 分离——引擎代理循环逐步发 session_settled,busy 沿不可直接作渲染界。 */
+  turnLive: boolean;
   sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
   retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
+  dismissWarn: () => void;
 };
 
 export function useSsSession(payload: StructuredSessionPayload, ledgerId: string): SsSessionState {
   const [phase, setPhase] = useState<Phase>("starting");
   const [statusText, setStatusText] = useState<string | null>(null);
+  /* 启动期 stderr 尾行(如扩展包加载告警)持久化为可关闭 warning 胶囊:
+   * ready 后 statusText 清空,告警不丢——用户看完可点 × 忽略,重试时重置。 */
+  const [warn, setWarn] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<CliTranscriptBlock[]>([]);
   const [turnStart, setTurnStart] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -49,6 +59,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   const sessionRef = useRef<PiRpcSession | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [evidence] = useState(() => new StructuredTurnEvidence(payload.cwd, ledgerId));
+  /* 轮进行中渲染态(结算宽限闸;见 useTurnLive 头注)。 */
+  const turnLive = useTurnLive();
   /* 贴底跟随标记(busy 流式期上翻停跟);scroll 副作用在组件侧读。 */
   const stickRef = useRef(true);
   /* stderr 尾行(ref 态)+ phase 镜像:onError 降噪闸(ready 期 stderr 不进状态行)。 */
@@ -57,9 +69,10 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   /* 用户在途轮计数:send/followUp 记账,结算销账 —— 只有用户发起的轮次结束才发 OS 通知。 */
   const promptDebtRef = useRef(0);
   /* token 级 delta 30-80 事件/s:攒 120ms 尾沿合帧再进 React(流式观感无差,
-   * 相位级 useMemo 与活块 markdown 重解析降频一个量级)。 */
-  const pendingBlocksRef = useRef<[CliTranscriptBlock[], number] | null>(null);
+   * 相位级 useMemo 与活块 markdown 重解析降频一个量级)。surface 随末帧捎带。 */
+  const pendingBlocksRef = useRef<[CliTranscriptBlock[], number, PiLiveSurface] | null>(null);
   const flushTimerRef = useRef<number | null>(null);
+  const [liveSurface, setLiveSurface] = useState<PiLiveSurface>(null);
   const flushBlocks = () => {
     if (flushTimerRef.current != null) {
       clearTimeout(flushTimerRef.current);
@@ -70,6 +83,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       pendingBlocksRef.current = null;
       setBlocks(pending[0]);
       setTurnStart(pending[1]);
+      setLiveSurface(pending[2]);
     }
   };
 
@@ -86,13 +100,15 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     startedRef.current = true;
     setPhase("starting");
     setStatusText(null);
+    setWarn(null);
+    stderrTailRef.current = null;
     let self: PiRpcSession;
     const session = (self = new PiRpcSession(
       rpc,
       payload.cwd,
       {
-        onBlocks: (next, ts) => {
-          pendingBlocksRef.current = [next, ts];
+        onBlocks: (next, ts, surface) => {
+          pendingBlocksRef.current = [next, ts, surface];
           if (flushTimerRef.current == null) {
             flushTimerRef.current = window.setTimeout(() => {
               flushTimerRef.current = null;
@@ -103,6 +119,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         onBusy: (b) => {
           setBusy(b);
           setBusySince(b ? Date.now() : null);
+          if (b) turnLive.begin();
+          else turnLive.end();
           if (b) {
             if (sessionIdRef.current) evidence.agentStart(sessionIdRef.current);
           } else {
@@ -116,7 +134,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
               /* 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦 + 免打扰窗),点击深链回本 tab。 */
               const { settings } = getSettingsState();
               if (shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) {
-                const name = `${host.getCliProfile(payload.profileId)?.name ?? payload.profileId} · ${t("结构化")}`;
+                const name = `${host.getCliProfile(payload.profileId)?.name ?? payload.profileId} · ${t("带渲染的会话")}`;
                 const { title, body } = notifyText("turnEnd", "", { getSessions: () => [] }, name);
                 void sendOsNotification(title, body, () => openStructuredSessionTab(payload.profileId, payload.cwd));
               }
@@ -131,13 +149,18 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
             setConfirm(null);
             setBusy(false);
             setBusySince(null);
+            turnLive.reset();
             setPhase("exited");
           }
         },
         onError: (msg) => {
-          /* stderr 降噪:只记尾行;ready 态不进状态行(展示窗口 = 启动/失败/终态)。 */
+          /* stderr 降噪:只记尾行;ready 态不进状态行(展示窗口 = 启动/失败/终态);
+           * 启动期首条 stderr 另存 warn 胶囊(ready 后 statusText 清空,告警不丢)。 */
           stderrTailRef.current = msg;
-          if (phaseRef.current !== "ready") setStatusText(msg);
+          if (phaseRef.current !== "ready") {
+            setStatusText(msg);
+            setWarn((w) => w ?? msg);
+          }
         },
       },
       resumeRef.current && rpc.resumeArgs ? { resume: resumeRef.current, seedBlocks: seedRef.current ?? undefined } : undefined,
@@ -151,14 +174,18 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         sessionIdRef.current = state?.sessionId ?? null;
         setModel(state?.model ?? null);
         setThinkingLevel(state?.thinkingLevel ?? null);
+        /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
+        setStatusText(null);
         setPhase("ready");
       })
       .catch((e: unknown) => {
-        /* 启动失败:先收割残留子进程,再进可重试的 error 态。 */
+        /* 启动失败:先收割残留子进程,再进可重试的 error 态。
+         * 报错可读性:进程秒退时 stderr 尾行(命令缺失等真因)优先于
+         * 握手被 teardown 拒绝的笼统「rpc 进程已退出」。 */
         session.kill();
         if (sessionRef.current === session) {
           sessionRef.current = null;
-          setStatusText(errTextDisplay(e));
+          setStatusText(stderrTailRef.current ?? errTextDisplay(e));
           setPhase("error");
         }
       });
@@ -171,6 +198,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     sessionRef.current?.kill();
     sessionRef.current = null;
     evidence.reset();
+    turnLive.reset();
     startedRef.current = false;
     if (!canResume) {
       setBlocks([]);
@@ -257,9 +285,12 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     setThinkingLevel(s.thinkingLevel ?? null);
   };
 
+  const dismissWarn = () => setWarn(null);
+
   return {
-    phase, statusText, blocks, turnStart, busy, elapsed, confirm,
+    phase, statusText, warn, blocks, turnStart, busy, elapsed, confirm,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
-    sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh,
+    liveSurface, turnLive: turnLive.live,
+    sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,
   };
 }

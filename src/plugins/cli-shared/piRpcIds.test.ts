@@ -73,7 +73,7 @@ describe("部件帧 id 归一(数值型宽容)", () => {
     s.kill();
   });
 
-  it("数值 id × chrome 装饰类:同型应答 + 聚合降噪(归一与分档共享路径的组合角)", async () => {
+  it("数值 id × chrome 装饰类:同型应答 + 静默丢弃(归一与分档共享路径的组合角;2026-11-05 减法收口改静默)", async () => {
     let blocks: { role: string; text: string }[] = [];
     const s = new PiRpcSession({ command: "omp" }, "/ws", {
       onBlocks: (next) => {
@@ -91,8 +91,7 @@ describe("部件帧 id 归一(数值型宽容)", () => {
     frame({ type: "extension_ui_request", method: "setStatus", id: 7 });
     await vi.waitUntil(() => writes.some((w) => w.includes('"id":7')));
     expect(writes.some((w) => w.includes('"id":7') && w.includes('"cancelled":true'))).toBe(true);
-    expect(blocks.filter((b) => b.role === "system")).toHaveLength(1); // 聚合一行,不逐条
-    expect(blocks[blocks.length - 1].text).toContain("×1(setStatus");
+    expect(blocks.filter((b) => b.role === "system")).toHaveLength(0); // 静默:零转录块
     s.kill();
   });
 

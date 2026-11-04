@@ -90,7 +90,8 @@ export function WorkspaceAddDialog({
                 <X size="0.875rem" aria-hidden />
               </button>
             </div>
-            {/* 本地卡:整卡即动作,直达系统目录选择器(零表单步骤)。 */}
+            {/* 本地来源(F-01 统一分组):整卡即动作,直达系统目录选择器(零表单步骤)。 */}
+            <div className="wsadd-group-title">{t("本地来源")}</div>
             <button type="button" className="wsadd-card" onClick={() => void pickLocal()}>
               <span className="wsadd-card-glyph">
                 <FolderOpen size="1.125rem" aria-hidden />
@@ -101,6 +102,7 @@ export function WorkspaceAddDialog({
               </span>
               <CaretRight size="0.75rem" className="wsadd-card-caret" aria-hidden />
             </button>
+            {origins.length > 0 && <div className="wsadd-group-title">{t("远程来源")}</div>}
             {origins.map((o) => {
               const tab = o.addTab!;
               const Icon = tab.icon ?? FolderOpen;

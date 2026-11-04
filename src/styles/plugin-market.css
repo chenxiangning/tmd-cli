@@ -1,6 +1,6 @@
 /* ──────────────────────────────────────────────────────────
  * 插件市场(插排页) —— 页面骨架 + 插排场景(客户端 = 插排本体,插件 = 插头)。
- * 清单卡片/在线市场/Toast 样式见 plugin-market-cards.css(文件规模铁则拆分)。
+ * 清单卡片/Toast 样式见 plugin-market-cards.css(文件规模铁则拆分)。
  *
  * 颜色零硬编码,全部消费 --tmd-* token(设计:docs/superpowers/specs/
  * 2026-09-02-plugin-market-strip-design.md,原型:docs/prototypes/

@@ -80,8 +80,12 @@ export type MountPoint =
   | "leftSidebar.section"
   /** 工作区标题行右侧动作区:贡献 icon 按钮级组件(如 session-budget 的预算入口)。 */
   | "leftSidebar.workspaceCaption"
-  /** 工作区「新建会话」菜单组末尾:贡献新会话入口行(如 ssh 插件的「SSH 连接」)。 */
+  /** 工作区「新建会话」菜单「远程与其他」组:贡献远程来源入口行(如 ssh 插件的「SSH 连接」;
+   *  2026-11-05 三分区重构自原「更多来源」组拆出,RPC 类见下个挂点)。 */
   | "workspace.newSessionMenu"
+  /** 工作区「新建会话」菜单「带渲染的会话」组:贡献 RPC 结构化会话入口(structured-session
+   *  的 omp/pi 行);与 PTY 网格分区呈现,组头/说明由菜单宿主渲染。 */
+  | "workspace.newSessionMenu.rendered"
   | "overlay"
   /** 中央幕布的无会话首页(welcome/引导页);无活跃 session 时整页渲染。 */
   | "editorCenter.welcome"
@@ -93,7 +97,7 @@ export type MountPoint =
    *  先例:session-viewer 的活会话转录视图——幕布|结构化双视图切换)。 */
   | "editorCenter.canvasOverlay"
   /** 幕布右上角工具行:内核渲染行容器与幕布刷新钮,插件经此贡献同排工具钮
-   *  (先例:session-viewer 的结构化视图切换钮)。行不设 z —— 不透明画布
+   *  (先例:session-viewer 的转录视图切换钮)。行不设 z —— 不透明画布
    *  浮层(editorCenter.canvasOverlay 一类)开启时整行隐没其下。 */
   | "terminal.canvasRow"
   /** composer 输入区左下水平图标行(assets 唤醒入口等;b7960d5 起左下横排)。 */

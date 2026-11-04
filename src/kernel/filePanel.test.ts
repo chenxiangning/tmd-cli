@@ -197,3 +197,37 @@ describe("registerRailActionPin pinOnce(一次性补钉)", () => {
     expect(panel.getPinnedPanelIds()).toEqual(["files"]);
   });
 });
+
+describe("resetPinnedToProductDefaults(恢复精简布局,F-04)", () => {
+  it("钉住清单重置为产品默认(面板默认 ∪ rail 默认),persisted 多余 id 被清除", async () => {
+    /* 老用户清单含已卸载残留 extra 与手动取消的 memory;重置只认当前已注册
+     * 声明的默认值:files 默认钉 / git 显式不钉 / wsl-panel rail 显式不钉 /
+     * proxy rail 默认钉。 */
+    const store = stubLocalStorage({ "tmd.filePanel.pinned.v1": JSON.stringify(["extra", "files"]) });
+    vi.resetModules();
+    panel = await import("./filePanel");
+    panel.registerFilePanel(contribution("files"));
+    panel.registerFilePanel(contribution("git", { pinnedByDefault: false }));
+    panel.registerRailActionPin("wsl-panel", false);
+    panel.registerRailActionPin("proxy", true);
+    panel.togglePinned("memory"); /* 手动加钉一个未注册 id(模拟脏数据) */
+    panel.resetPinnedToProductDefaults();
+    expect(panel.getPinnedPanelIds().slice().sort()).toEqual(["files", "proxy"]);
+    expect(JSON.parse(store.get("tmd.filePanel.pinned.v1") ?? "null").sort()).toEqual(["files", "proxy"]);
+  });
+
+  it("只写钉住 key:其他 localStorage(autopin 留痕/主题等)零波及", async () => {
+    const store = stubLocalStorage({
+      "tmd.filePanel.pinned.v1": JSON.stringify(["files", "ghost"]),
+      "tmd.filePanel.autopin.system-proxy": "1",
+      "tmd.theme": "dark",
+    });
+    vi.resetModules();
+    panel = await import("./filePanel");
+    panel.registerFilePanel(contribution("files"));
+    panel.resetPinnedToProductDefaults();
+    expect(store.get("tmd.filePanel.autopin.system-proxy")).toBe("1");
+    expect(store.get("tmd.theme")).toBe("dark");
+    expect(JSON.parse(store.get("tmd.filePanel.pinned.v1") ?? "null")).toEqual(["files"]);
+  });
+});

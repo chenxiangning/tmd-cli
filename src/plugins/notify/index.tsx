@@ -82,14 +82,17 @@ export const notifyPlugin: Plugin = {
   activate(ctx) {
     /* 流水装载(单文件 ~/.tmd-cli/notify-log.json;失败按空流水,面板仍可用)。 */
     bootNotifyLog();
-    /* 通知中心右栏面板:三/四处 dispatch 的旁挂流水的回看面(含聚焦静默记录)。 */
+    /* 通知中心右栏面板:三/四处 dispatch 的旁挂流水的回看面(含聚焦静默记录)。
+     * D-02 减法:新装默认不钉(收进溢出菜单),激活时壳会临时外显;老用户
+     * 已钉状态由 tmd.filePanel.pinned.v1 权威清单保持不动。 */
     ctx.registerFilePanel({
       id: "notify-center",
       label: t("通知中心"),
       icon: Bell,
       component: NotifyCenterPanel,
-      order: 14, /* 紧随审批收件箱(13),语义相邻 */
+      order: 14, /* 紧随处理宿主(12)/审批兜底(13),语义相邻 */
       railGroup: "session",
+      pinnedByDefault: false,
     });
 
     /* 事件侧:三类内核信号,边沿触发,检测零新增。
@@ -163,6 +166,7 @@ export const notifyPlugin: Plugin = {
       description: t("离开屏幕也能第一时间知道:桌面通知、应用内提示音与额度预警。"),
       icon: <BellRinging size="0.875rem" aria-hidden />,
       order: 46,
+      navGroup: "notify",
       tabs: [
         {
           id: "general",

@@ -8,6 +8,10 @@ import { registerMessages } from "@kernel/i18n";
 /** en 词典 · checkpoints 域(高危计数汇总 pill,2026-10 审计 P0-3 收口)。 */
 const MESSAGES_EN = {
   "{n} 高危": "{n} high-risk",
+  /* D-01 处理宿主 label(PanelRail 渲染走 t(panel.label),注册期 t() 让键静态可见) */
+  "处理": "Review",
+  /* D-01 处理宿主双域:等待(Ask 域)/ 变更 —— 与 kernel git 面 en「等待=Pending」同译防撞键 */
+  "等待": "Pending",
   "本批含 {n} 个高危文件(凭据/Shell 配置/CI/服务),建议细读 diff 再放行":
     "This batch touches {n} sensitive file(s) (credentials / shell config / CI / services) — read the diff carefully before approving",
   "待审批次共 {n} 个高危文件(凭据/Shell 配置/CI/服务),建议逐批细读 diff":
@@ -56,6 +60,10 @@ const MESSAGES_EN = {
 /** ja 词典 · checkpoints 域。 */
 const MESSAGES_JA = {
   "{n} 高危": "{n} 件高リスク",
+  /* D-01 処理ホスト label(en と同じく登録時 t() で静的可視化) */
+  "处理": "処理",
+  /* D-01 処理ホスト双ドメイン:承認待ち(Ask)/ 変更 —— 既存 ja「等待=待機中」と同訳で衝突回避 */
+  "等待": "待機中",
   "本批含 {n} 个高危文件(凭据/Shell 配置/CI/服务),建议细读 diff 再放行":
     "このバッチは敏感なファイル(認証情報 / シェル設定 / CI / サービス)を {n} 件含みます。承認前に diff を確認してください",
   "待审批次共 {n} 个高危文件(凭据/Shell 配置/CI/服务),建议逐批细读 diff":

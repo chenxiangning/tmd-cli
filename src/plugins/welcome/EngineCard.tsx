@@ -24,9 +24,9 @@ import {
 import type { CliProfile } from "@kernel/cli";
 import type { EngineMeta } from "./engineMeta";
 import type { EngineCredential } from "./credentials";
-import { depOutdatedOf, isOutdated } from "./latestVersion";
+import { isOutdated } from "./latestVersion";
 import { InstallLog } from "./InstallLog";
-import { PrerequisiteGuide } from "./PrerequisiteGuide";
+import { DependencySection } from "./DependencySection";
 import { CredentialRows } from "./CredentialList";
 import { RowActions, RowCred, RowHead, RowVersion } from "./EngineCardParts";
 import { VersionMenuSlot } from "./VersionMenu";
@@ -64,6 +64,7 @@ export function EngineCard({
   onProbe,
   onInstall,
   onInstallVersion,
+  onDepInstallVersion,
   depProbe,
   depInstall,
   onDepInstall,
@@ -86,6 +87,8 @@ export function EngineCard({
   onInstall: () => void;
   /** 钉版安装(versionMenu 引擎):版本菜单点选回调,参数 = 目标版本。 */
   onInstallVersion?: (version: string) => void;
+  /** 前置依赖钉版安装;只更新依赖,不复用过旧修复链。 */
+  onDepInstallVersion?: (version: string) => void;
   /** 依赖探针状态;缺省 = 按探针中处理(保守禁用安装按钮)。 */
   depProbe?: EngineProbeState;
   /** 依赖自身的安装状态与动作(引导区按钮/日志)。 */
@@ -109,9 +112,6 @@ export function EngineCard({
   /* 依赖门控:声明了依赖且未就位(探针中/未装/探针失败)→ 安装/更新不可点。 */
   const depBlocked = !!meta.requires && (!depProbe || depProbe.status !== "ok");
   const depName = meta.requires?.name ?? "";
-  /* 依赖过旧(如 omp → bun <1.4.4):已就位但版本低于声明下限 → 不门控
-   * (status 是 ok),引导区改走「一键修复」分支(statusline/门控均不动)。 */
-  const depOutdated = depOutdatedOf(meta.requires, depProbe);
 
   /* 行主体点击 = 移游标:listbox/option 语义(容器为 listbox),键盘路径
      由容器级 ↑↓/⏎ 全权承担(WelcomePage onKeyDown);行内 ● 与动作按钮
@@ -149,27 +149,25 @@ export function EngineCard({
             <VersionMenuSlot
               meta={meta}
               probeVersion={probe.result?.version}
+              depProbeVersion={depProbe?.result?.version}
               installing={install.running}
+              depInstalling={depInstall.running}
               onInstallVersion={onInstallVersion}
+              onInstallDepVersion={onDepInstallVersion}
             />
           }
           onNewSession={onNewSession}
         />
       </div>
 
-      {/* 前置依赖引导:未就位时引导先装依赖(独立安装日志);探针 ok 且
-          版本达标后整块消失;过旧(minVersion 下限)走一键修复分支。 */}
-      {meta.requires && depProbe && (depProbe.status !== "ok" || depOutdated) && (
-        <PrerequisiteGuide
-          requires={meta.requires}
-          probe={depProbe}
-          install={depInstall}
-          outdated={depOutdated}
-          engineName={meta.displayName}
-          onInstall={onDepInstall}
-          onProbe={onDepProbe}
-        />
-      )}
+      <DependencySection
+        requires={meta.requires}
+        engineName={meta.displayName}
+        probe={depProbe}
+        install={depInstall}
+        onInstall={onDepInstall}
+        onProbe={onDepProbe}
+      />
 
       {(install.running || install.lines.length > 0) && (
         <InstallLog install={install} label={meta.displayName} />

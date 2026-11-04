@@ -80,11 +80,14 @@ enum Signal {
 }
 
 pub fn run(spec: &ProcRunSpec) -> Result<ProcRunResult, String> {
-    let resolved = resolve_command(&spec.command, &enriched_path());
+    /* PATH 注入契约同 proc_stream/pty_spawn:孙进程与探针命中同一份 PATH。 */
+    let path = enriched_path();
+    let resolved = resolve_command(&spec.command, &path);
     let mut cmd = Command::new(resolved.program);
     cmd.args(resolved.prefix_args)
         .args(&spec.args)
-        .current_dir(&spec.cwd);
+        .current_dir(&spec.cwd)
+        .env("PATH", &path);
     let needs_stdin_pipe = spec.close_stdin || spec.stdin.is_some();
     cmd.stdin(if needs_stdin_pipe {
         Stdio::piped()

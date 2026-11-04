@@ -3,38 +3,8 @@
 
 /* 控件字体继承:button/input 默认走 UA 16px 不随界面,统一继承宿主(字号走 themes.css 阶梯 token)。
    :where 压特异性为 0——后面的类级 color/font-size 声明必须能赢过本条。 */
-:where(.academy-entry, .academy-guide, .academy-wizard) :is(button, input) { font: inherit; color: inherit; }
+:where(.academy-guide, .academy-wizard) :is(button, input) { font: inherit; color: inherit; }
 
-/* ── 左栏入口(单行紧凑条目,同侧栏 caption 密度;hover 才显底。
-   分组头与已置顶/运行区头同几何:图标 1rem、起笔 6px、gap 4px ── */
-.academy-entry { position: relative; margin: 2px 0; font-size: var(--tmd-font-ui); }
-.academy-entry-course { position: relative; }
-.academy-entry-head {
-  width: 100%; display: flex; align-items: center; gap: 4px; padding: 4px 6px;
-  border-radius: var(--tmd-radius-sm); text-align: left;
-  color: var(--tmd-fg); transition: background var(--tmd-dur-1) var(--tmd-ease-out);
-}
-.academy-entry-head:hover { background: var(--tmd-bg-hover); }
-.academy-entry-head .academy-entry-tt { flex: none; font-weight: 500; }
-.academy-entry-count { color: var(--tmd-fg-subtle); font-size: var(--tmd-font-xs);
-  font-variant-numeric: tabular-nums; }
-.academy-entry-caret { margin-left: auto; flex: none; color: var(--tmd-fg-faint); }
-.academy-entry-btn {
-  width: 100%; display: flex; align-items: center; gap: 8px; padding: 4px 8px;
-  border-radius: var(--tmd-radius-sm); text-align: left;
-  color: var(--tmd-fg-muted); transition: background var(--tmd-dur-1) var(--tmd-ease-out);
-}
-.academy-entry-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
-.academy-entry-btn.is-on { background: var(--tmd-accent-soft); color: var(--tmd-fg); }
-.academy-entry-glyph { flex: none; color: var(--tmd-accent); }
-.academy-entry-tt { flex: none; font-weight: 500; }
-/* 进度条轨道 2px / 场景标签 3px:≤3px 像素格微圆角,按规则保留不进 token。 */
-.academy-entry-bar { flex: 1; min-width: 24px; max-width: 56px; height: 3px;
-  border-radius: 2px; background: var(--tmd-border); overflow: hidden; }
-.academy-entry-bar i { display: block; height: 100%; background: var(--tmd-accent);
-  border-radius: 2px; transition: width var(--tmd-dur-3) var(--tmd-ease-move); }
-.academy-entry-pct { flex: none; color: var(--tmd-fg-subtle);
-  font-size: var(--tmd-font-xs); font-variant-numeric: tabular-nums; }
 .academy-guide-toolbar { flex: none; display: flex; gap: 8px; align-items: center;
   flex-wrap: wrap; padding: 8px 12px; background: var(--tmd-bg-panel); }
 .academy-search { flex: 1 1 200px; min-width: 160px; padding: 4px 12px;
@@ -55,21 +25,6 @@
   line-height: 1.5; color: var(--tmd-fg-muted); }
 .academy-card-body .academy-practice-hint { margin-top: 6px;
   padding-top: 6px; border-top: 1px dashed var(--tmd-border); }
-.academy-entry-menu {
-  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 40;
-  background: var(--tmd-bg-popover); border: 1px solid var(--tmd-border-strong);
-  border-radius: var(--tmd-radius-md); box-shadow: var(--tmd-shadow-popover);
-  overflow: hidden;
-}
-.academy-entry-menu button {
-  display: flex; width: 100%; text-align: left; gap: 8px; padding: 8px 12px;
-  align-items: baseline; color: var(--tmd-fg);
-}
-.academy-entry-menu button:hover { background: var(--tmd-bg-hover); }
-.academy-entry-menu button b { font-weight: 600; }
-.academy-entry-menu button small { color: var(--tmd-fg-subtle); margin-left: auto; font-size: var(--tmd-font-ui); }
-.academy-entry-menu button.is-danger b { color: var(--tmd-err); }
-.academy-entry-sep { border-top: 1px solid var(--tmd-border); }
 
 /* ── 指南 tab ─────────────────────────────────────────────── */
 .academy-guide, .academy-guide-empty { height: 100%; display: flex; flex-direction: column;
@@ -239,9 +194,9 @@
 @media (prefers-reduced-motion: reduce) {
   .academy-cursor { animation: none; }
   /* 全树 transition 一并关(仓库惯例,见 composer-anchors.css 同款块);
-     根类 = entry/guide/wizard-page 三处实根(无 .academy-root) */
-  .academy-entry, .academy-guide, .academy-wizard-page,
-  .academy-entry *, .academy-guide *, .academy-wizard-page * {
+     根类 = guide/wizard-page 两处实根(无 .academy-root) */
+  .academy-guide, .academy-wizard-page,
+  .academy-guide *, .academy-wizard-page * {
     transition: none !important;
   }
 }

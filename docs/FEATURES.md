@@ -29,6 +29,7 @@
 > 2026-10-20 0.4.0 补校(向内治理批 + 042 混合批 + 连续性批 + footprint,以代码为准):会话保留律扩容与启动补扫、冻结快照幕布重开、应用内通知中心与免打扰窗、会话预设(worktree 范围)、检索时间过滤与行级定位、存储管家、转录导出/批量导出、checkpoint↔转录互跳、终端路径点击、输入历史全文与 ⌘L 抽屉、跨工作区全局检索、checkpoint 恢复 dry-run 预览、额度告警三腿、workbench 空壳批量归档、重启现场恢复、跨引擎记忆文件面板、会话变更总览、草稿安全网、通知会话级静音、每日足迹插件;插件计数 44→47(10 engine / 33 feature / 3 core / 1 local;footprint/storage-audit 新增,session-relay 等既有未计清一并核正);契约 27/28/29/30 沉淀。
 > 2026-10-20 晚轮补校(0.4.1 收口轮,以代码为准):额度预警抽 `quotaPoll` 独立模块并补齐免打扰三闸与跨重启去重(原 quota 绕过免打扰窗直发 OS 通知)、通知中心行按记录时刻磁盘身份快照 resume 重开、足迹修正层升 v2 差量语义(手动卡不再吞 AI 归纳卡)、足迹补账(应用未运行期间封口的批次按月幂等补入);契约 30 同步改写 L1/L3 两段。
 > 2026-10-21 补校:端口管理插件(ports,右栏 rail 入口中央 tab):本机 TCP 监听端口一览,procCommunicate 按平台跑 lsof/ss→netstat/PowerShell 零 Rust;进程家族折叠归组、端口释义库、暴露面标注(局域网/仅本机)、cwd 反查 git 顶层与 workspace 认领、ppid 链会话归因跳转、浏览器打开/复制地址/复制 kill 命令、SIGTERM→SIGKILL 二段终止(Windows taskkill /T 杀树)、手动刷新 + 5s 可选自动轮询与新端口 NEW 标、即时过滤;插件计数 47→48(10 engine / 34 feature / 3 core / 1 local)。spec:docs/superpowers/specs/2026-10-21-ports-manager-design.md。
+> 2026-11-05 减法批次终验补校(A～I 九批 + H 回滚,以代码为准;调研 `docs/research/client-feature-rationalization-2026-11/`,实施清单与收口清单同目录 implementation.md §11):A 删在线市场占位、插件市场入口迁「设置 → 插件与扩展」(⌘⇧X 不变)、学堂撤左栏常驻入口(改欢迎页帮助区 + 无键位 academy.open 命令);C 会话看板与 footprint 插件并入 workbench(journal 扩成「回顾」主 tab,二级视图 = 工作日志/每日足迹/会话活动;退出即归档订阅迁 workspace,rollup 装配迁 workbench/review,单一责任宿主);D Ask 等待并入 checkpoints「处理」宿主(approval-inbox 仅 checkpoints 禁用时注册兜底面板,boot 照常)、搜索三命令统一浮层壳(search 承载 sessions 域,session-search 原壳仅 search 禁用时注册);E 「AI 配置」统一落地入口(memory-files 面板默认钉,Memory 面板高级运维降默认折叠)、生态组 memory/skill-hub/mcp-hub 默认不钉、marks 移除一次性补钉、CLI 配置与资产纳入导航、预设提示词与引擎卡双向深链;F 新建来源分本地/远程组、右栏「远程」落地页承接 SSH/WSL、设置七导航组(通用/会话与工作区/AI 配置/远程与访问/通知/工作台与回顾/系统与数据,section 深链 id 全保留)、「恢复精简布局」入系统与数据组(显式确认后重置钉住清单);G 结构化会话(RPC)入口迁新建会话菜单「更多来源」组(右 rail 不再直挂)、chrome 装饰部件取消改协议层静默应答(不再落转录聚合行)、启动 stderr 告警升级可关闭琥珀色胶囊;H(anim/ports/intent-canvas 默认停用迁移)被用户否决整批回滚,三插件回归默认启用;I 使用证据评估裁决:LSP 代码跳转/Office 内嵌预览/docgen/web-access 自建中继/平铺广播/wallpaper 与图标装饰全部保留、冻结扩张,零行为变更。结构化会话 chrome 取消降噪旧条目(聚成淡色行)已失效,以静默应答为准;插件计数 48→46(10 engine / 32 feature / 3 core / 1 local,session-board/footprint 并入 workbench)。包体终验:减法前后主 chunk 持平(入口 662,971→663,040 B,全量 gzip 5,956,198→5,962,087 B),本轮减法是入口与信息架构收减,非包体瘦身(重 chunk 域 Office 预览/excalidraw/mermaid 均经 I 裁决保留)。
 
 ## 工作区会话
 
@@ -40,18 +41,20 @@
 - 会话检索增强:多关键词 AND 匹配、命中词高亮、引擎过滤 chip
 - 学堂打磨(academy):「试一试」引擎前置闸、课程 sourceVersion 与装机版本漂移提示、左轨课程列表键盘导航
 - 结构化会话(structured-session,0.2.7):omp/pi `--mode rpc` NDJSON 子进程 token 级流式(thinking/text/toolcall delta 原地累积,message_end 落权威块,与磁盘 JSONL 同构),幕布|结构化双视图切换,审批卡(confirm 回路)直答,PTY 零涉及;Rust proc_stream 四命令通用长驻流式原语(boot 期 kill_all 清孤儿;契约见 architecture/19)
-- 结构化会话打磨(structured-session):非 confirm 部件自动取消在转录出 notice(不再静默替答)、exited 一键重新开启、入口按引擎能力显隐(死入口清零)、prompt 请求超时独立常量
-- 结构化会话启动降噪(structured-session):部件取消语义分档——chrome 装饰类(setStatus/notify/setWidget)聚成一条淡色行(×N 计数原地刷新),select/input/editor 及未知 kind 维持逐条可见;渲染层零改动
+- 结构化会话打磨(structured-session):非 confirm 部件自动取消在转录出 notice(不再静默替答)、exited 一键重新开启、入口按引擎能力显隐(死入口清零)、prompt 请求超时独立常量;2026-11-05 终验修订:chrome 装饰类(setStatus/notify/setWidget)取消改协议层静默应答(不再落任何转录行),select/input/editor 及未知 kind 维持逐条可见
+- 结构化会话启动降噪(structured-session,已被下条修订取代,留档):部件取消语义分档——chrome 装饰类(setStatus/notify/setWidget)聚成一条淡色行(×N 计数原地刷新),select/input/editor 及未知 kind 维持逐条可见;渲染层零改动
+- 结构化会话段落开合(2026-11-05):思考段流式期间自动展开、该段落落定自动折回单行摘要(与工具行 running 展开/终态折叠同律,手动点击可接管);正文永不折叠
 - 结构化会话能力批(2026-10-04,spec `docs/superpowers/specs/2026-10-04-structured-session-polish-design.md`):兼容 turn_start 帧名;模型/思考级切换、引擎切换、follow_up 排队、后台通知与断线接续;上下文用量展示、/ 命令补全、草稿持久化、模型筛选回车选中;模型清单失败重开可重试且不再自触发循环拉取
+- 结构化会话入口(G-01,2026-11-04 迁菜单;2026-11-05 三分区重构):右 rail 不再直挂,入新建会话菜单「带渲染的会话」组(workspace.newSessionMenu.rendered 挂点,与 PTY 网格/「远程与其他」组并列;行文案 = 引擎名,tab 标题「引擎 · 带渲染的会话」),未与 PTY 做隐式模式互切
 - 转录浮标分档(session-viewer liveOverlay):按文件型会话显隐,非文件型引擎不露浮标
-- 会话看板打磨(session-board):扫描失败显式错误条 + 重试(不伪装 0 会话)、图例可读性修正、泳道卡渲染预算
+- 会话看板(原 session-board 插件,C-04 并入 workbench):扫描失败显式错误条 + 重试(不伪装 0 会话)、图例可读性修正、泳道卡渲染预算;本体视图迁 workbench 回顾域,插件目录退役
 - 卫生清扫如实文案:清扫挂磁盘扫描结算点,回执数据不可得,设置卡如实说明不虚设回执
 
 - 添加工作区(目录选择器),工作区即会话容器;持久化 `~/.tmd-cli/workspaces.json`(列表 + 激活项,Rust 侧临时文件 + rename 原子写)
 - 默认工作区兜底:列表缺失时自动补建 `~/.tmd-cli/default` 于首位,删除后重启重建
 - 工作区卡片:双态文件夹图标 + 名称 + Default badge
 - 统一搜索折叠入口(search 插件,leftSidebar.section order -1):左栏顶部单行条目,展开内联列三项 —— 全文搜索 ⇧⌘F / 文件名快开 ⌘P / 会话历史检索 ⌘O;标题与键位随命令注册表实况(经命令分发,插件拔出即无该项),折叠态持久化
-- CLI 学堂入口(academy 插件,leftSidebar.section order -2):侧栏 caption 同款单行条目(小图标 + 课名 + 迷你进度条 + 小字百分比,hover 才显底);点开进指南中央 tab,入门课向导走 overlay;九家 CLI 课程由各 cli-* 插件经 registerAcademyCourse 供给,kernel 零 CLI 语义(契约见 architecture/15)
+- CLI 学堂入口(academy 插件;2026-11-04 减法 A-03 撤左栏常驻条目,原 leftSidebar.section order -2 下线):现经欢迎页帮助区进入 + 无默认键位 academy.open 命令(命令抽屉可达);点开进指南中央 tab,入门课向导走 overlay;九家 CLI 课程由各 cli-* 插件经 registerAcademyCourse 供给,kernel 零 CLI 语义(契约见 architecture/15)
 - 工作区 hover 动作组:切到主区 / 刷新会话(重扫磁盘历史) / 新建会话菜单
 - 工作区右键菜单与「+」等效;行双击同为折叠 toggle
 - 工作区折叠/展开:单卡 toggle + 全部折叠/展开按钮,折叠态持久化;未设置过折叠态的工作区默认折叠
@@ -206,7 +209,7 @@
 
 - 危险度分层(checkpoints risk):批内文件按路径正则(凭据/Shell 配置/CI/服务定义,保守 14 条)标「高危」红徽标 + tooltip,提示细读 diff;classifyRisk 纯函数宁漏勿扰
 - 高危红标右栏生效:右栏时间线文件行红徽标 + 批头/摘要行高危计数(原先仅中央批审阅单,整批「允许」按钮所在面补齐)
-- 审批收件箱(approval-inbox 插件):右栏「审批」页签聚合等待确认的会话(纯消费 kernel/askWatch 状态位,零新增检测),一键直达该会话并自由文本应答;boot 退订随 activate 返回
+- 审批收件箱(approval-inbox 插件):右栏「审批」页签聚合等待确认的会话(纯消费 kernel/askWatch 状态位,零新增检测),一键直达该会话并自由文本应答;boot 退订随 activate 返回;D-01(2026-11-04)Ask 等待并入 checkpoints「处理」宿主——双启用时 approval-inbox 不再注册 rail 面板(boot 照常),仅 checkpoints 禁用时注册兜底「审批」面板
 
 - 批次定义:一轮对话(相邻两条用户消息之间)的所有 AI 文件改动为一个批次
 - 零变更轮不占时间线:纯阅读轮不产生账本条目;events 净零轮(写了又写回原样)落空 turn 行封口关闭该轮,写入轨迹留 edit 行可审计;批次序号 = 真实轮次,缺号可见
@@ -372,7 +375,7 @@
 
 ## 每日足迹(0.4.0 新增域)
 
-- 每日工作足迹插件(footprint,侧栏「每日足迹」):月历热力(按改动量/按会话数双口径,shift/右键选区间)+ 日视图功能卡流(AI 归纳卡:标题/一句话/用户原话锚点/meta 行)+ 证据抽屉(会话 resume/文件清单/主流宽 diff 面板)+ ⌘K 四来源反查(功能卡/日报/用户原话/文件路径)
+- 每日工作足迹(原 footprint 插件,C-04 并入 workbench 回顾域,数据面落盘布局不变):月历热力(按改动量/按会话数双口径,shift/右键选区间)+ 日视图功能卡流(AI 归纳卡:标题/一句话/用户原话锚点/meta 行)+ 证据抽屉(会话 resume/文件清单/主流宽 diff 面板)+ ⌘K 四来源反查(功能卡/日报/用户原话/文件路径);入口 = 工作台「回顾」主 tab 二级视图
 - 数据链(契约 architecture/30):L1 rollup 挂 checkpoints 封口事件(ckptTurnSealed)按月落盘单文件单飞串行写;L3 功能卡由 journal 生成会话顺手直写(枚举校验防编造 + Chain-of-Key 防漂移 + <80% 通过率升级管线 B 闸);修正层合并/拆分/手动补归纳/改名写 .user.json 覆盖层(读侧双档探测来源徽标)
 - 修正层 v2 差量语义(0.4.1):`.user.json` 由整量快照升 `{version:2, overrides/hidden/added}` —— 早期手动卡不再吞掉后到的 AI 归纳卡(真机症状:上午空态手动补归纳后,晚到的 6 张 AI 卡整体不可见);v1 快照按标题对账迁移(只丢不猜:不推断 hidden);改名/隐藏/合并/拆分以 AI 原档为基底全量重算差分,无 stale tombstone;卡徽标逐卡 provenance(AI 归纳/已修正/手动)
 - 补账对账(0.4.1):rollup 纯事件驱动,应用未运行期间封口的批次会漏账(卡面因此「0 文件」);首次打开足迹视图时对本月对账一次 —— 候选 = 本月有活动的会话,按**逐日活动日**判缺口(跨零点次日漏账不被跳过),cwd 由工作区注册表解析(账本目录键 = md5(cwd)),只补已封口批且按轮次号幂等,并入与封口落盘共享单飞队列;单会话读账失败只跳过该会话
@@ -393,13 +396,13 @@
 
 ## 插件市场(插排)
 
-- 插排 / 清单双视图,44 个注册插件可视化插拔(10 engine + 30 feature + 3 core + 1 local;可拔面 = 引擎 10 + 功能 30 + local,核心 3 焊死),写 settings.disabledPlugins,重启生效(运行期不热卸载)
+- 插排 / 清单双视图,46 个注册插件可视化插拔(10 engine + 32 feature + 3 core + 1 local;可拔面 = 引擎 10 + 功能 32 + local,核心 3 焊死),写 settings.disabledPlugins,重启生效(运行期不热卸载)
 - core 类焊死不可拔(composer / settings / welcome);engine / feature / local 可拔
 - 插排页双插排:内置插件一块(分类虚线分隔),本机插件(local 类)独立次级插排(品牌区「本机插件 · 免重启装载」)
-- 插件市场经左缘 rail 插头按钮开合(2026-10-04 自标题栏迁入,⌘⇧X 不变;整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
+- 插件市场入口(2026-11-04 减法 A-02 起):「设置 → 插件与扩展」tab 内打开,左缘 rail 不再单列(⌘⇧X 不变;整页替换、会话现场不丢);页头「重启应用」按钮带待生效计数一键重启
 - 插拔变更即时标 dirty:插头标「待重启」、清单卡片标「重启后生效」徽章
-- 本地插件管理条:复制插件开发提示词 / 重新扫描 / 禁用全部(在线市场占位区上方,经 local-loader 插件分区)
-- 底部预留「在线市场 · 建设中」占位区(远程插件包,尚未开放)
+- 本地插件管理条:复制插件开发提示词 / 重新扫描 / 禁用全部(在线市场占位区原址,经 local-loader 插件分区)
+- 在线市场占位区已删除(减法 A-01,2026-11-04):「建设中」整块与不再使用的 Globe 资产/样式/文案键一并移除,恢复入口无死展示
 
 ## 本地插件
 
@@ -502,7 +505,8 @@
 - 文件预览为条件第四栏:有打开的文件 tab 才出现,夹于幕布与右栏之间,宽度可拖
 - 顶栏「回到首页⇄回会话」toggle:会话中记住当前会话回欢迎页,首页中切回原会话(已退出则保持首页原样);市场覆盖层开启时先收市场再切换
 - 右缘面板 rail(2026-09-27,spec 2026-09-27-right-panel-rail-design;activity bar 形态):面板入口自顶栏右区迁窗口右缘常驻竖排工具条(30px,右栏收起也在),列表 = 钉住 ∪ 激活面板 + 横向分隔线 + ⋯ 溢出菜单(贴按钮左缘向左弹、纵向估高夹取);点击切面板并自动展开右栏(旧顶栏 tab 收起态点击无反馈的缺陷顺带根治);钉住语义与 localStorage `tmd.filePanel.pinned.v1` 零变更(⋯ 菜单行点击激活并顺带钉住,复选框仅切钉);rail 动作并入钉住管理,wsl 入 ⋯ 菜单可勾选
-- 左缘工具 rail(2026-10-04,右缘 rail 的镜像):窗口左缘常驻竖排工具条(30px,左栏收起也在),顶簇 = 会话看板(插件经 sidebarActions.leftRail 注册面直挂)/ 插件市场 / 回到首页(两钮自顶栏迁入,⌘⇧X/⌘⇧H 不变)/ 工作区切换(下拉与顶栏选择器共用 useWorkspaceSwitchMenus 同一菜单面);悬停提示 data-hint-side="right" 抽屉式右滑(Tooltip 镜像放置);插件条目与壳自有条目按 order 统一排序,壳只渲染注册表不认识业务。网络代理同日迁右缘 rail 底簇(rail+railBottom+pinOnce 一次性补钉,浮层自 rail 钮左缘翻弹)。2026-10-05 起设置入口迁左缘 rail 底簇(底格 logo 钮顺窗口左下弧,⌘, 不变),右缘⋯菜单高度随条目自适应
+- 左缘工具 rail(2026-10-04,右缘 rail 的镜像;2026-11-04 减法校注):窗口左缘常驻竖排工具条(30px,左栏收起也在),顶簇 = 工作台(10)/ 回到首页(20,⌘⇧H 不变)/ 动画项目(45,插件)/ 工作区切换(50,下拉与顶栏选择器共用 useWorkspaceSwitchMenus 同一菜单面);会话看板已随 C-04 并入工作台回顾、插件市场已迁「设置 → 插件与扩展」(A-02),左 rail 均不再单列;悬停提示 data-hint-side="right" 抽屉式右滑(Tooltip 镜像放置);插件条目与壳自有条目按 order 统一排序,壳只渲染注册表不认识业务。网络代理 2026-10-04 迁右缘 rail 底簇(rail+railBottom+pinOnce 一次性补钉,浮层自 rail 钮左缘翻弹)。2026-10-05 起设置入口迁左缘 rail 底簇(底格 logo 钮顺窗口左下弧,⌘, 不变),右缘⋯菜单高度随条目自适应
+- 新建会话菜单三分区(2026-11-05):加宽(480px 三列引擎网格,10 引擎 4 行)+ 去内部滚动(内容自适应整单夹进视口,预设区限露 5 条、超出注记进「管理预设…」);分区 = 「PTY 会话」(组头+本地终端说明)/「带渲染的会话」(RPC 结构化会话,组头+卡片渲染说明,行文案 = 引擎名)/「远程与其他」(SSH 等插件贡献 + 本地 worktree 行);夹取尺寸同步 480×660@12 边距
 - 左下角工作区显隐多选(2026-10-04,缩放组原位):触发钮(ListChecks + 当前工作区名)上弹多选清单(portal + 限高滚动),控制左栏显示的工作区集合;语义 = 隐藏清单 `settings.workspaceHiddenIds`(空 = 全部显示,新建工作区自动可见,残留已删 id 无害),左栏过滤纯函数与菜单锁步(workspace/utils visibleWorkspaces);勾选恢复显示时活动工作区顺带切一次 → 右侧文件树跟切到「最后勾选的工作区」,只切一下不做强绑定;最后一个可见工作区不可隐藏(行禁用 + 提示);菜单不随勾选关闭,点外/Esc 关
 - 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
 - 幕布右上工具行(terminal.canvasRow 挂点,0.2.7):内核渲染行容器,幕布刷新钮收尾最右——单会话幕布重建(xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH 整帧重绘),PTY/CLI 不中断、其他会话零扰动;插件经挂点贡献同排工具钮(session-viewer「结构化幕布」切换钮);行不设 z,不透明画布浮层开启时整行隐没

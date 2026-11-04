@@ -110,6 +110,7 @@ export const intentCanvasPlugin: Plugin = {
       description: t("Excalidraw 画布、会话上下文注入与对话中 AI 作画。"),
       icon: <Compass size="0.875rem" aria-hidden />,
       order: 48,
+      navGroup: "system",
       tabs: [
         {
           id: "general",

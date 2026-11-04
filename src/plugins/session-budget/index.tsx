@@ -29,7 +29,7 @@ function CaptionBudgetButton() {
       <button
         className="ws-caption-btn"
         data-icon-decor="session-view"
-        title={t("会话列表显示预算")}
+        title={t("列表配额")}
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           setPos(
@@ -47,7 +47,7 @@ function CaptionBudgetButton() {
 export const sessionBudgetPlugin: Plugin = {
   id: "session-budget",
   meta: {
-    name: "会话列表预算",
+    name: "列表配额",
     abbr: "预算",
     desc: "工作区会话列表的磁盘历史露出预算(caption 弹窗编辑)",
     icon: Gauge,

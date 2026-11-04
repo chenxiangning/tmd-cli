@@ -76,9 +76,10 @@ export const assetsPlugin: Plugin = {
     ctx.registerSettingsSection({
       id: "assets",
       title: t("智能体 / 提示词"),
-      description: t("可复用资产:composer 里 !! 插入提示词正文,## 挂载智能体(发送时尾拼角色块)。"),
+      description: t("AI 配置的资产子能力 —— 可复用资产:composer 里 !! 插入提示词正文,## 挂载智能体(发送时尾拼角色块)。"),
       icon: <Robot size="0.875rem" aria-hidden />,
       order: 45,
+      navGroup: "ai-config",
       tabs: [
         {
           id: "agents",

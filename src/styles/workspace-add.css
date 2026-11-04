@@ -66,6 +66,13 @@
   background: var(--tmd-bg-hover);
 }
 
+/* F-01 来源分组头:本地/远程两组卡的组标签(同设置导航组头的弱化字重思路)。 */
+.wsadd-group-title {
+  padding: 9px 4px 3px;
+  font-size: 0.6875rem;
+  color: var(--tmd-fg-faint);
+}
+
 .wsadd-card {
   width: 100%;
   display: flex;

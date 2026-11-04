@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────
- * 插件市场(插排页) —— 清单卡片 + 在线市场占位 + Toast。
+ * 插件市场(插排页) —— 清单卡片 + Toast。
  * 插排场景样式见 plugin-market.css(文件规模铁则拆分)。
  * ────────────────────────────────────────────────────────── */
 
@@ -136,37 +136,6 @@
   cursor: not-allowed;
   background: none;
   color: var(--tmd-fg-faint);
-}
-
-/* ═══ 在线市场(预留) ═══ */
-
-.pm-market-soon {
-  margin-top: 12px;
-  padding: 28px;
-  border: 1px dashed var(--tmd-border-strong);
-  border-radius: var(--tmd-radius-lg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  color: var(--tmd-fg-subtle);
-  text-align: center;
-}
-
-.pm-market-soon .pm-soon-title {
-  font-weight: 600;
-  color: var(--tmd-fg-muted);
-  font-size: var(--tmd-font-md);
-}
-
-.pm-soon-btn {
-  margin-top: 6px;
-  padding: 4px 14px;
-  border-radius: var(--tmd-radius-sm);
-  border: 1px solid var(--tmd-border);
-  background: none;
-  color: var(--tmd-fg-faint);
-  cursor: not-allowed;
 }
 
 /* 重启按钮:有待生效变更时 accent 高亮 + 计数。 */

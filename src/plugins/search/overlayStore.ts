@@ -6,7 +6,7 @@
 import { useWorkspaces } from "@kernel/workspace";
 import { createSubscribable } from "@kernel/subscribable";
 
-export type SearchOverlayKind = "panel" | "quickOpen";
+export type SearchOverlayKind = "panel" | "quickOpen" | "sessions";
 
 const store = createSubscribable<SearchOverlayKind | null>(null);
 

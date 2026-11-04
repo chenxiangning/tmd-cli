@@ -4,7 +4,12 @@
  * 优先级若回退成 npm,omp 会装进 npm 全局而绕过 bun 前置依赖(门控失效)。
  */
 
-import { installPlanOf, pinPlanVersion, resolveInstallPlan } from "./engineMeta";
+import {
+  installPlanOf,
+  pinPlanVersion,
+  pinPrerequisiteVersion,
+  resolveInstallPlan,
+} from "./engineMeta";
 import { describe, expect, it } from "vitest";
 
 describe("installPlanOf 通道优先级", () => {
@@ -139,6 +144,48 @@ describe("pinPlanVersion 钉版安装计划", () => {
         { channel: "command", program: "bun", args: ["install", "-g"] },
         "@oh-my-pi/pi-coding-agent",
         "18.1.20",
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("pinPrerequisiteVersion 依赖 script 钉版", () => {
+  const requires = {
+    binary: "bun",
+    name: "Bun",
+    installHint: "install",
+    plan: { channel: "script", unix: "u", windows: "w" },
+    versionMenu: true,
+    npmPackage: "bun",
+    scriptVersionInstall: {
+      unix: 'bash -s "bun-v{version}"',
+      windows: "install -Version {version}",
+    },
+  } satisfies Parameters<typeof pinPrerequisiteVersion>[0];
+
+  it("双平台模板均替换版本号,保留 script 通道", () => {
+    expect(pinPrerequisiteVersion(requires, "1.4.4")).toEqual({
+      channel: "script",
+      unix: 'bash -s "bun-v1.4.4"',
+      windows: "install -Version 1.4.4",
+    });
+  });
+
+  it("未开启、非 script 或任一平台缺占位符 → null", () => {
+    expect(pinPrerequisiteVersion({ ...requires, versionMenu: false }, "1.4.4")).toBeNull();
+    expect(
+      pinPrerequisiteVersion(
+        { ...requires, plan: { channel: "npm", package: "bun" } },
+        "1.4.4",
+      ),
+    ).toBeNull();
+    expect(
+      pinPrerequisiteVersion(
+        {
+          ...requires,
+          scriptVersionInstall: { unix: "bash", windows: "install -Version {version}" },
+        },
+        "1.4.4",
       ),
     ).toBeNull();
   });

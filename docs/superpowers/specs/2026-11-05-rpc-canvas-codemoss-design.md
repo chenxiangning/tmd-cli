@@ -1,0 +1,67 @@
+# RPC 幕布渲染层对照 codemoss UI 的重构方案(2026-11-05 已落地:四批次实施,PTY 路径零接触)
+
+## 背景与目标
+
+当前 RPC 会话幕布(structured-session 插件)经过多轮修补后可用,但与参考项目 codemoss(`src/features/chat/components/`)的成熟对话 UI 相比,在信息架构上仍有明显差距:
+
+- 思考段 / 工具调用**一直折叠**(用户原话),输出过程中看不见过程,只能看到 spinner;期望是**输出时展开、完成后按段落折叠**。
+- 工具行只有一个 label + 尾段输出,没有工具类型分类、目标文件 chip、载荷查看器。
+- working 底带(ss-working)信息单薄,只有模型名 + 计时;没有子代理 / 已编辑文件 / todo 等运行态汇总。
+- 滚动跟随只有朴素的贴底逻辑,没有「离开底部」悬浮回底控件。
+- 长消息(粘贴的大段文档)没有折叠保护。
+
+目标:以 codemoss 为参照,对 RPC 幕布做一轮**结构性**重构(不是像素级复刻),把「过程可见、终态收敛」作为核心交互律。
+
+## 方案取舍
+
+- **参照而非移植**:codemoss 是独立技术栈(@tanstack/react-virtual、zustand、motion、自研 plugin-sdk),不可能也不应该整体搬入。本方案逐件对照其组件职责,在 tmd-cli 现有 session-viewer / structured-session 体系内重做,复用现有 TranscriptView 同形组件律(活轮与落定同形,结算零跳变)。
+- **虚拟列表不引入**:codemoss MessageTimeline 用 @tanstack/react-virtual 虚拟化(769 行),支撑超长会话。RPC 会话目前按 turnStart 切片渲染(活轮 + 历史),真实转录量远小于 codemoss 的持久会话;引入虚拟化是负资产。保留「活轮/历史切片」架构。
+- **折叠律是本轮核心**:codemoss 的 ProcessDisclosure(543 行)把工具调用按类型分类、文件 chip、载荷查看器组织成可折叠过程组;CollapsibleMessage(480px 阈值)折叠长消息;use-live-reveal 做流式逐段揭示。这三件的**交互律**移植,视觉风格保持 tmd-cli 现有 CSS 变量体系。
+- **RunStatusStrip 的 pill 行不做**:codemoss RunStatusStrip(890 行)依赖 git store、子代理派生、todo 派生等一整套数据面,tmd-cli 没有对应数据;当前 ss-working 底带 + SsHeader 统计已覆盖核心诉求。仅吸收其「右侧 chrome 开关可隐藏」的单一交互点,低优先级。
+- **改动面收口在 structured-session + session-viewer 两个插件内**,kernel 零改动(架构 R1)。
+
+## 对照映射(定稿)
+
+| codemoss 组件 | 行数 | 职责 | tmd-cli 落点 |
+|---|---|---|---|
+| MessageTimeline | 769 | 时间线构建/分组/虚拟化/锚点 | 不搬虚拟化;吸收其 `timeline-rows.ts` 的行分类思想,重构 LiveTurn 的活块编排 |
+| ProcessDisclosure | 543 | 工具调用折叠过程组(类型 chip + 文件 chip + 载荷) | 重写 structured-session 的 ToolRow → ToolDisclosure:工具类型分类(bash/read/edit/search/web/task)、目标路径 chip、载荷查看器 |
+| ToolPayloadViewer | 427 | 工具载荷(输入/输出)查看器 | 上件内嵌实现,不独立成 427 行大件 |
+| CollapsibleMessage | ~150 | 长消息折叠(480px 阈值 + 底部渐隐 + 中央 chevron) | session-viewer TranscriptBlockView 用户块/正文块加同款折叠 |
+| ScrollControl + use-scroll-follow + use-tail-pin | ~300 | 滚轮唤出回顶/回底悬浮钮 + 贴底跟随 | structured-session 的 ss-scroll 吸收:离开底部 >100px 时浮出回底钮,点击滑到底并恢复跟随 |
+| use-live-reveal / stream-reveal | — | 流式段落逐段揭示 | ThinkingRow 已有 streaming 展开律;补强「段落落定即折回单行摘要」 |
+| RunStatusStrip | 890 | 底带 pill 行(子代理/已编辑/todo) | 不搬;ss-working 仅吸收「可隐藏」开关(低优先级) |
+| ConversationFooter | 596 | 输入区组合 | 不搬;ssComposer 已在本轮与 PTY composer 对齐 |
+
+## 渲染与样式
+
+- **折叠律(本轮主交付)**:思考段与工具调用在**输出过程中展开**(streaming 自动展开已有),**段落/工具落定后折回单行摘要**——与工具行 running 展开/终态折叠同律,统一为一条「过程可见、终态收敛」规则,并在 CSS 上给折叠摘要统一的 `ss-disclosure` 组件类(头部行 + chevron + 摘要文本 + 展开区)。
+- **工具过程组**:工具行头部 = 状态图标(Spinner/✓/✕,沿用) + 工具名 + 类型 chip(web/shell/read/edit/search/task,按 codemoss `toolTypeKey` 的分类思想,纯函数可测) + 目标文件 chip(路径尾名,过滤 glob/URL,同 codemoss `fileChipFor` 规则);展开区 = 命令预览 + 实时输出 + 载荷查看器(输入参数折叠在输出之下)。
+- **长消息折叠**:用户块/正文块超过 480px 提供折叠,收起态 320px + 底部渐隐 + 中央 chevron;测量走 `scrollHeight`(codemoss 同款),晚到图片可重判。
+- **滚动控制**:跟随逻辑抽成 `useTailPin`(贴底标记 + 离开阈值 100px),滚轮向上浮出「回底」悬浮钮,点击滑回底部并恢复跟随;短内容/贴底时隐藏。
+- 全部样式挂现有 structured-session.css / session-viewer CSS 变量,不新增色板。
+
+## 改动面与验证
+
+- **改动面**(按提交拆批):
+  1. `ss-disclosure` 折叠原语 + ToolRow 重写为 ToolDisclosure(类型/文件 chip + 载荷查看器)+ `toolTypeKey` 纯函数;契约测试覆盖分类与 chip 规则。
+  2. ThinkingRow 落定折回律补强 + 长消息 CollapsibleMessage 移植进 session-viewer。
+  3. useTailPin + ScrollControl 进 structured-session。
+  - 每批交付前 `pnpm check:gate` 全绿;`pnpm tauri:dev` 真机目检:长轮次中过程展开/落定折叠、长消息折叠、滚轮回底。
+- **验证清单**:流式轮次中思考/工具可见 → 落定后单行摘要;点击摘要可再展开;工具 chip 分类正确(对真实 omp/pi 轮次);粘贴长文档发送后用户块折叠;上翻后浮出回底钮。
+- **不做**:虚拟列表、RunStatusStrip pill 行、锚点轨(MessageAnchorRail)、TimelineSearchBar( RPC 转录量不需要)。
+- **风险**:LiveTurn 与 TranscriptView 的同形律是既有契约,ToolRow 重写必须保持落定后 TranscriptView 折叠组渲染不跳变(结算零跳变是硬约束)。
+
+## 落地修正(2026-11-05 终态,取代上文与之冲突的条目)
+
+真机多轮验收后对本文档的修正,以本节为准:
+
+1. **md 正文永不折叠**(用户裁决):长消息 CollapsibleMessage(480px 折叠)已撤——「渲染 md 被多加了折叠」是败笔;长文直接全量渲染。
+2. **思考链 live 期全程展开,取代「段落落定即折回单行摘要」**:轮进行中所有思考段保持展开(可手动点折),`pulse` 只打活跃面那块;**轮真结束后由 SsTurnView 折叠组播「展开→收起」过渡**(首帧展开态挂载,360ms 自动收成「思考 N 次 · 工具调用 M 次」头)——「秒过」折回单行是实锤缺陷。
+3. **渲染界 = 用户轮界,取代「按 turnStart 切片」**:omp 代理循环逐步发 `session_settled`/`turn_start`,`turnStart` 在用户轮中途推进,按它切界会把在途过程错落成已定折叠组且工具行重复(提前折叠 + 大空隙实锤)。终态:活轮起点 = 最后一个 user 块(`ssLiveFrom.liveFromIndex`);`turnStart` 仅作落定基线。结算渲染宽限 = `useTurnLive`(false 沿 600ms trailing,步间闪沿不闪回折叠态)。
+4. **omp/pi 共用一套幕布**:两 profile 仅声明 `structuredRpc.{command,resumeArgs}`(启动命令 + 接续旗标之别),渲染管线(PiRpcSession → PiRpcReducer → sessionTab/SsTurnView/LiveTurn)完全共享,插件内零引擎分支。协议行为差在共享层消化:follow_up 本地回显改队列制(busy 连发不互覆);引擎自带 user 回显帧的端(pi 系可能,omp 无)由权威帧接管回显位,同一消息不双行。
+5. 折叠头形制沿用 codemoss ProcessDisclosure 纯文本头 + grid-rows 300ms 开合;思考段 = 左轨灰字全文,连续工具 = 树形导轨行(入场描画动画)。
+6. **用户块 = 气泡卡片**(2026-11-05 终轮):圆角描边卡(「你」标签 + 文本 + 图片,`width:fit-content` 半幅),替原 sv-user 蓝竖线形态;SS 路径自渲染,活轮/落定同形。
+7. **活轮过程区 = 落定展开区同形**(图2 形态,终轮对齐):思考 = 左轨全文段(活跃面题头 pulse「思考中…」),连续工具 = 树形导轨行;段落 = 块,类型切换即分段(与落定 groupSections 同律)。活轮不再用 sv ThinkingRow 单行摘要形态。
+8. **图片单源律**(修同图双行实锤):引擎 message_end 权威块自带 images(base64,piTranscriptLine 实证)时只渲染引擎图并全量摘除文本 "@path" token;无 images 的块(omp follow_up 本地回显)走 token 加载兜底。双源并渲染 = 同图双行。
+9. **接续种子切在途轮**(防整轮复制实锤):`seed()` 只保留最后一个 user 块之前的完整轮;引擎 --resume 重放在途轮消息帧时不再双写,在途轮由重放/续跑重建。

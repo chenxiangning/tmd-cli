@@ -223,13 +223,16 @@ export function SsHeader(props: {
   ready: boolean;
   minimal: boolean;
   statusText: string | null;
+  /** 启动期 stderr 告警胶囊(可关闭);starting/error 相位由横幅/状态行承接,不传。 */
+  warn: string | null;
   session: PiRpcSession | null;
   actions: ReactNode;
   onStateRefresh: (s: PiRpcState) => void;
   onAbort: () => void;
+  onDismissWarn: () => void;
 }) {
   useHost(); /* profile 注册/变化 */
-  const { profileId, cwd, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, session, stats } = props;
+  const { profileId, cwd, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, warn, session, stats } = props;
   const capable = host.getCliProfiles().filter((p) => p.structuredRpc);
   const [menu, setMenu] = useState<MenuKind>(null);
   const rootRef = useRef<HTMLElement>(null);
@@ -278,7 +281,17 @@ export function SsHeader(props: {
         <span className="ss-model">{model.id}</span>
       ) : null}
       {props.actions}
-      <StatusCluster sessionId={sessionId} stats={stats} minimal={minimal} busy={busy} queued={queued} statusText={statusText} onAbort={props.onAbort} />
+      <StatusCluster
+        sessionId={sessionId}
+        stats={stats}
+        minimal={minimal}
+        busy={busy}
+        queued={queued}
+        warn={warn}
+        statusText={statusText}
+        onDismissWarn={props.onDismissWarn}
+        onAbort={props.onAbort}
+      />
     </header>
   );
 }

@@ -8,7 +8,7 @@ import { useCallback, useRef } from "react";
 import { host } from "@kernel/host";
 import { useHomePanels } from "@kernel/homePanels";
 import type { EngineMeta } from "./engineMeta";
-import { pinPlanVersion, resolveInstallPlan } from "./engineMeta";
+import { pinPlanVersion, pinPrerequisiteVersion, resolveInstallPlan } from "./engineMeta";
 import type { EngineCredential } from "./credentials";
 import { depOutdatedOf } from "./latestVersion";
 import { EngineCard, useEngineInstall, type EngineProbeState } from "./EngineCard";
@@ -90,6 +90,16 @@ export function EngineSection({
                  npm 副本分支 —— npm 通道 Rust 侧硬编码 @latest(spec 方案取舍 B)。 */
               const pinned = pinPlanVersion(meta.plan, meta.npmPackage, version);
               if (pinned) startInstall(pinned);
+            }
+          : undefined
+      }
+      onDepInstallVersion={
+        requires?.versionMenu
+          ? (version) => {
+              /* 普通依赖钉版只更新依赖本身,不复用过旧修复的 OMP 接续链。 */
+              fixChainRef.current = false;
+              const pinned = pinPrerequisiteVersion(requires, version);
+              if (pinned) startDepInstall(pinned);
             }
           : undefined
       }

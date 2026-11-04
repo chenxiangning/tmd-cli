@@ -235,6 +235,19 @@ export const MESSAGES_EN = {
   /* ── 插件 meta(定义处不调 t(),消费点渲染时包裹)── */
   "Memory 协调器": "Memory coordinator",
   "Magic Context 记忆池:多引擎共享项目记忆,胶囊注入与池检索": "Magic Context memory pool: shared project memories across engines, capsule injection and pool search",
+  /* ── AI 配置统一落地首页(E-01 AiConfigHome)── */
+  "AI 配置": "AI Config",
+  "AI 能力的统一入口:以下卡片直达各自的真实管理面,不在此处复制配置表单。": "One entry for AI capabilities: each card opens the real management surface — no config forms are duplicated here.",
+  "引擎配置": "Engine config",
+  "各 CLI 的本地配置文件:图形化编辑,保存写回原文件,未知内容原样保留。": "Graphically edit each CLI's local config files; saving writes back to the original file with unknown content preserved.",
+  "跨引擎技能目录管理:扫描/预览/删除 + 技能商店安装落位。": "Cross-engine skill catalog: scan/preview/remove + install from the skill store.",
+  "跨引擎 MCP 配置写回管理:增删改直写各家配置文件,附三源商店与导入桥。": "Cross-engine MCP config write-back: add/remove/edit writes directly to each CLI's config file, plus a three-source store and import bridge.",
+  "共享记忆池:启用/安装迁移、写入与沉淀治理,经 omp 官方管线。": "Shared memory pool: enable/install-migrate, write and distillation governance — all via the omp official pipeline.",
+  "记忆文件": "Memory files",
+  "规则体检": "Rules checkup",
+  "可复用资产库:composer 里 !! 插入提示词,## 挂载智能体。": "Reusable asset library: type !! in the composer to insert a prompt, ## to attach an agent.",
+  "预设随工作区管理:在工作区列表的右键菜单「管理预设…」中维护(引擎/模型/worktree/提示词引用),不在全局资产页复制。": "Presets live with workspaces: manage them via the workspace list's right-click menu \"Manage presets…\" (engine/model/worktree/prompt reference) — not duplicated on a global assets page.",
+  "该插件已停用,在插件市场启用后重启生效": "This plugin is disabled; enable it in the plugin market and restart to take effect",
 } as Record<string, string>;
 
 /** ja 词典 · memory 域(键 = 中文源串,由文案迁移按归属写入;zh 恒等无词典)。 */

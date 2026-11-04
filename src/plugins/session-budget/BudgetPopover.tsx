@@ -100,7 +100,7 @@ export function BudgetPopover({
         data-testid="session-list-budget-card"
       >
         <div className="wsbudget-head">
-          <span className="wsbudget-title">{t("会话列表显示预算")}</span>
+          <span className="wsbudget-title">{t("列表配额")}</span>
           <button
             className="wsbudget-close"
             title={t("关闭")}

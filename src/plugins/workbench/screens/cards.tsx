@@ -30,6 +30,8 @@ export interface WbScreenProps {
   onRestoreProject?: (id: string) => void;
   /** 新建任务表单展开信号:挂载即展开一次(聚焦页清净态「新建任务」与看板挂载天然先后,不持久)。仅任务看板消费。 */
   boardFormOpen?: boolean;
+  /** 回顾深链(reviewTabs 归一:view/day);仅回顾视图消费。 */
+  review?: import("../review/reviewTabs").ReviewTabPayload;
 }
 
 /** 看板段头(标题 + 计数);任务看板与模块看板的项目状态段共用。 */

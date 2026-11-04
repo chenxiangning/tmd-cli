@@ -22,10 +22,11 @@ import {
   type TurnSettledEvent,
 } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
+import { t } from "@kernel/i18n";
 import { captureAnchor, markRefsFromRanges, recordEdit, sealTurn } from "./store";
 import { checkpointIdentity, echoProbing, noteEchoProbe, resetEchoProbes, withEchoFallback } from "./identity";
 import { BATCH_TAB_KIND } from "./batchTab";
-import { CheckpointsPanel } from "./CheckpointsPanel";
+import { ReviewPanel } from "./ReviewPanel";
 import { BatchSheetTabContent } from "./BatchSheet";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
@@ -40,13 +41,16 @@ export const checkpointsPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
+    /* D-01 合并:面板 label 改「处理」,宿主 = ReviewPanel(等待/变更双域,
+     * Ask 域由 approval-inbox 面板嵌入,启用态驱动见 ReviewPanel)。后台装配
+     * 原样保留,本插件仍是批次生命周期唯一宿主。 */
     ctx.registerFilePanel({
       id: "checkpoints",
-      label: "审批线",
+      label: t("处理"),
       icon: SealCheck,
-      component: CheckpointsPanel,
+      component: ReviewPanel,
       order: 12,
-      railGroup: "session", /* 会话组:标记/审批线/审批/画布相邻 */
+      railGroup: "session", /* 会话组:标记/处理/通知/画布相邻 */
     });
     /* 中央批审阅单 tab:kind="ckpt-batch" 路由(kernel/tabs 注册表)。 */
     ctx.registerTabContent({ kind: BATCH_TAB_KIND, component: BatchSheetTabContent, icon: ClipboardText });

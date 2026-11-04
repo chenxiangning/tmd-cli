@@ -3,8 +3,8 @@ export const MESSAGES = {
   /* index.tsx(插件 meta / 设置卡 / 面板标题) */
   "可复用智能体与提示词资产库(composer !! / ## 消费)":
     "Reusable agent & prompt asset library (consumed via !! / ## in composer)",
-  "可复用资产:composer 里 !! 插入提示词正文,## 挂载智能体(发送时尾拼角色块)。":
-    "Reusable assets: !! in the composer inserts prompt body; ## attaches an agent (role block appended on send).",
+  "AI 配置的资产子能力 —— 可复用资产:composer 里 !! 插入提示词正文,## 挂载智能体(发送时尾拼角色块)。":
+    "Asset sub-capability of AI Config —— reusable assets: !! in the composer inserts prompt body; ## attaches an agent (role block appended on send).",
   "智能体 / 提示词": "Agents / Prompts",
   "智能体": "Agents",
   "提示词": "Prompts",

@@ -42,6 +42,8 @@ import { PinnedSessionsSection } from "./PinnedSessions";
 import { RunningZoneSection } from "./RunningZone";
 import { WorkspaceAddDialog } from "./WorkspaceAddDialog";
 import { scheduleBootSweep } from "./hygieneBootSweep";
+import { archiveExitedSession } from "./sessionExitArchive";
+import { KernelTopics } from "@kernel/events";
 
 /** ⌘T 桥:新建会话菜单开合态在 WorkspaceSection 组件内,命令却在 activate 期注册 ——
  *  模块级 ref 接收分发器触发(先例:TerminalView findRequestRef)。 */
@@ -242,6 +244,7 @@ export const workspacePlugin: Plugin = {
       description: t("组织左侧栏工作区的分组:新建、重命名、排序与删除。"),
       icon: <Folders size="0.875rem" aria-hidden />,
       order: 12,
+      navGroup: "session-workspace",
       tabs: [
         {
           id: "groups",
@@ -253,6 +256,9 @@ export const workspacePlugin: Plugin = {
       ],
     });
     const offSweep = scheduleBootSweep(); /* 启动补扫(会话卫生):45s 一次性兜底,零轮询;拔出清定时器 */
-    return () => { offPendingPrompt(); offSweep(); };
+    /* 生命周期收口:干净退出的会话自动归档(2026-11-04 自 session-board 迁入,
+     * 定义见 ./sessionExitArchive.ts 头注;归档归会话生命周期,不看板 UI 是否在场)。 */
+    const offExitArchive = ctx.events.on<string>(KernelTopics.sessionExited, archiveExitedSession);
+    return () => { offPendingPrompt(); offSweep(); offExitArchive(); };
   },
 };

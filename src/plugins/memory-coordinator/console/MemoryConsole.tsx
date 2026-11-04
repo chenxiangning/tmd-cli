@@ -187,17 +187,25 @@ export function MemoryConsole(_props: { tab: EditorTab }) {
       {/* ── 读取设置(本客户端) ── */}
       <ReadSettingsCard />
 
-      {/* ── 写入(d 路) ── */}
-      <WriteCard root={root} visible={Boolean(st.ready && st.identity)} onWritten={() => void reload()} />
+      {/* ── 高级运维(E-05 降层):默认折叠,后台装配(autoDistill/wiki)不动 ── */}
+      <details className="mb-3 rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) p-3">
+        <summary className="cursor-pointer select-none text-xs font-semibold text-(--tmd-fg-muted) transition-colors hover:text-(--tmd-fg)">
+          {t("高级")}
+        </summary>
+        <div className="mt-2 border-t border-(--tmd-border) pt-2">
+          {/* ── 写入(d 路) ── */}
+          <WriteCard root={root} visible={Boolean(st.ready && st.identity)} onWritten={() => void reload()} />
 
-      {/* ── 沉淀设置(自动沉淀开关 + 提炼配置;自动与手动共用) ── */}
-      <DistillSettingsCard />
+          {/* ── 沉淀设置(自动沉淀开关 + 提炼配置;自动与手动共用) ── */}
+          <DistillSettingsCard />
 
-      {/* ── 统计 ── */}
-      {st.counts && st.identity && <StatsCard counts={st.counts} lastDream={st.lastDream} />}
+          {/* ── 统计 ── */}
+          {st.counts && st.identity && <StatsCard counts={st.counts} lastDream={st.lastDream} />}
 
-      {/* ── 最近沉淀 ── */}
-      {st.counts && st.identity && <RecentCard recent={st.recent} />}
+          {/* ── 最近沉淀 ── */}
+          {st.counts && st.identity && <RecentCard recent={st.recent} />}
+        </div>
+      </details>
     </div>
   );
 }

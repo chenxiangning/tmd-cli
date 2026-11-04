@@ -65,6 +65,15 @@ const MESSAGES_EN = {
     "Remove all historical logs; keep only active sessions",
   "会话输出日志,可按保留策略清理(见下方清理)":
     "Session output logs — cleanable by retention policy (see cleanup below)",
+  /* ── F-04 恢复精简布局(只重置 rail 钉住清单) ── */
+  "布局": "Layout",
+  "恢复精简布局": "Restore lean layout",
+  "把右缘 rail 的钉住清单重置为当前产品默认;不影响工作区、主题、搜索折叠等其他设置。":
+    "Resets the right rail pin list to current product defaults; workspaces, theme, search collapse and other settings are unaffected.",
+  "确定要把右缘钉住清单重置为默认吗?只影响钉住外显,不清任何数据。":
+    "Reset the right rail pin list to defaults? Only pin visibility is affected; no data is cleared.",
+  "已恢复默认钉住。可在右缘 rail 的 ⋯ 菜单重新勾选。":
+    "Pins restored to defaults. Re-check any item via the right rail ⋯ menu.",
 } as const;
 
 /** ja 词典 · storage-audit 域。 */
@@ -128,6 +137,15 @@ const MESSAGES_JA = {
     "履歴ログをすべて削除し、使用中のセッションのみ保持",
   "会话输出日志,可按保留策略清理(见下方清理)":
     "セッション出力ログ — 保持ポリシーで清理可能(下のクリーンアップを参照)",
+  /* ── F-04 恢复精简布局(只重置 rail 钉住清单) ── */
+  "布局": "レイアウト",
+  "恢复精简布局": "シンプルレイアウトに戻す",
+  "把右缘 rail 的钉住清单重置为当前产品默认;不影响工作区、主题、搜索折叠等其他设置。":
+    "右レールのピン留め一覧を現在の製品既定値にリセットします。ワークスペース、テーマ、検索折りたたみなどの設定には影響しません。",
+  "确定要把右缘钉住清单重置为默认吗?只影响钉住外显,不清任何数据。":
+    "右レールのピン留め一覧を既定値に戻しますか?ピン留めの表示のみに影響し、データは消去されません。",
+  "已恢复默认钉住。可在右缘 rail 的 ⋯ 菜单重新勾选。":
+    "ピン留めを既定値に戻しました。右レールの ⋯ メニューから再び選択できます。",
 } as const;
 
 registerMessages({ en: MESSAGES_EN, ja: MESSAGES_JA });

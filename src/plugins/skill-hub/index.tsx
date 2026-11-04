@@ -36,6 +36,9 @@ export const skillHubPlugin: Plugin = {
       order: 32, /* 能力生态组次席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
       railGroup: "ecosystem",
       railBottom: true,
+      /* E-02:默认不钉,经 AI 配置统一入口(AI配置管理面板 home)或 ⋯ 菜单可达;
+       * 老用户 persisted 钉住清单不变。 */
+      pinnedByDefault: false,
       centerTab: { open: openSkillHubTab },
     });
     ctx.registerTabContent({

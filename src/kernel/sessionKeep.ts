@@ -9,7 +9,7 @@
  * 否则归档视图里刚恢复的旧会话下一次扫描就被重新归档 —— 取消动作形同无效。
  *
  * 有意不写 keep 的路径:`host.openDiskSession` 的自动 unarchive(resume 打开)——
- * 打开即用,CLI 会刷新 mtime 自然脱离过期区;之后干净退出(session-board/boardExit)
+ * 打开即用,CLI 会刷新 mtime 自然脱离过期区;之后干净退出(workspace/sessionExitArchive)
  * 照常再归档。若写 keep,「打开过一次的旧会话」将永远脱离清扫。
  *
  * 展示过滤在 workspace 插件(useCliSessionGroup 的清扫门控),本模块只管存取。

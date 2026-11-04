@@ -22,7 +22,7 @@ import { askDialog } from "@kernel/askDialog";
 import { draftMirrorClear } from "@kernel/draftMirror";
 import { t } from "@kernel/i18n";
 import { SshOverlay } from "./SshOverlay";
-import { SshPanel } from "./panel/SshPanel";
+import { RemoteHomePanel } from "./panel/RemoteHomePanel";
 import { RemoteFileTab } from "./editor/RemoteFileTab";
 import { saveRequestRef } from "./editor/saveRequestRef";
 import { SshSettingsSection } from "./settings/SshSettingsSection";
@@ -98,15 +98,17 @@ export const sshPlugin: Plugin = {
       when: () => getActiveTab()?.kind === "ssh-file",
       run: () => saveRequestRef.current?.(),
     });
-    /* 右栏面板:入口直挂右缘 rail(2026-09-27 迁自左下角设置簇;用户裁决 2026-09-06
-       的「不进顶栏」由 rail 形态自然满足)。缺省钉住 → rail 常显。 */
+    /* 右栏面板:label「远程」(F-02 承接 SSH/WSL 统一落地页);入口直挂右缘 rail
+       (2026-09-27 迁自左下角设置簇;用户裁决 2026-09-06 的「不进顶栏」由 rail
+       形态自然满足)。缺省钉住 → rail 常显。面板 id 保持 "ssh":persisted 钉住
+       清单与 ⋯ 菜单勾选值不迁移。 */
     ctx.registerFilePanel({
       id: "ssh",
-      label: "SSH",
+      label: "远程",
       icon: HardDrive,
       order: 21, /* 机器组首席(SSH/WSL/终端) */
       railGroup: "machine",
-      component: SshPanel,
+      component: RemoteHomePanel,
     });
     ctx.registerSettingsSection({
       id: "ssh",
@@ -114,6 +116,7 @@ export const sshPlugin: Plugin = {
       description: "SSH 主机簿与 known_hosts 信任管理。",
       icon: <HardDrive size="0.875rem" aria-hidden />,
       order: 40,
+      navGroup: "remote-access",
       tabs: [
         {
           id: "hosts",

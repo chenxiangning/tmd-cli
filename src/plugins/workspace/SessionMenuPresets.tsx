@@ -37,20 +37,29 @@ function presetBlockReason(
   return null;
 }
 
-/** 菜单里的预设段:恒显(本地工作区);空库给引导,管理入口固定在尾行。 */
+/** 菜单预设露出行上限(2026-11-05 菜单去滚动条:预设区收敛,超出进「管理预设…」)。 */
+const PRESET_MENU_MAX = 5;
+
+/** 菜单里的预设段:恒显(本地工作区);空库给引导,管理入口固定在尾行。
+ *  embedded(双栏区右列,2026-11-05)= suppress 顶部整宽分隔线,列内组头即分界。 */
 export function SessionMenuPresets({
   workspace,
   onManage,
   onClose,
+  embedded = false,
 }: {
   workspace: Workspace;
   /** 「管理预设…」:弹层归调用方持有(菜单卸载不连带杀弹层)。 */
   onManage: () => void;
   onClose: () => void;
+  embedded?: boolean;
 }) {
   const { presets } = useSessionPresets();
   const engineCount = defaultEngineCandidates().length;
   const contentOf = (ref: PresetPromptRef) => promptContentByRef(ref);
+  /* 菜单收敛:只露列表序前 5 条(库序即用户管理序,不做重排),超出数量如实注记。 */
+  const shown = presets.slice(0, PRESET_MENU_MAX);
+  const overflow = presets.length - shown.length;
 
   const launch = (preset: SessionPreset) => {
     if (presetBlockReason(preset, engineCount, contentOf)) return;
@@ -107,12 +116,15 @@ export function SessionMenuPresets({
 
   return (
     <>
-      <div className="wsmenu-divider" />
+      {!embedded && <div className="wsmenu-divider" />}
       <div className="wsmenu-group-title">{t("会话预设")}</div>
       {presets.length === 0 && (
         <div className="wsmenu-note">{t("暂无预设,点下方「管理预设…」创建")}</div>
       )}
-      {presets.map((preset) => {
+      {overflow > 0 && (
+        <div className="wsmenu-note">{t("其余 {n} 个预设见「管理预设…」", { n: overflow })}</div>
+      )}
+      {shown.map((preset) => {
         const reason = presetBlockReason(preset, engineCount, contentOf);
         const profile = host.getCliProfile(preset.engineId);
         const ref = preset.prompt && !("text" in preset.prompt) ? preset.prompt.ref : null;

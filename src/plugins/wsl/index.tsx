@@ -40,6 +40,9 @@ export const wslPlugin: Plugin = {
       order: 22, /* 机器组(SSH/WSL/终端) */
       rail: true,
       railGroup: "machine",
+      /* F-02:右 rail WSL 动作默认不钉(远程面板的 WSL 段已承接落地),
+         ⋯ 菜单可勾回;WSL 中央 tab 保留,不受钉住影响。 */
+      defaultPinned: false,
       opensCenterTab: true,
       active: () => getActiveTab()?.kind === "wsl",
       onSelect: () =>

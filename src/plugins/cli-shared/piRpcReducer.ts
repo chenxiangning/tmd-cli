@@ -7,16 +7,24 @@
  *   assistant#2 流;工具态挂单消息会在间隙丢失 → 挂在轮上。
  * - message_end 的 toolCall 项与 role=toolResult 消息不产生块(与 tool_execution
  *   帧重复;实证:双行 tool(bash/called)+tool(undefined) 即此因)。
- * - 渲染层切「落定历史|流内活轮」用 turnStart(轮首 session_start/turn_start
- *   与轮末 session_settled 边沿推进)。
+ * - turnStart 仅作「落定基线」;渲染层切「落定历史|流内活轮」用用户轮界
+ *   (最后一个 user 块,ssLiveFrom)——引擎轮界帧在代理多步循环里逐步推进,
+ *   turnStart 切界会把在途过程错落成已定折叠组+工具行重复(2026-11-05 实锤)。
+ *   结算渲染宽限见 structured-session/ssTurnLive(步间 settled 闪沿不闪回)。
  * cli-shared 准入先例:cli-omp/cli-pi 的 structuredRpc 声明 + structured-session
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
 import type { CliTranscriptBlock, CliToolPreview } from "@kernel/cliSessionTypes";
-import { t } from "@kernel/i18n";
 import { piToolPreview, piTranscriptLine } from "./piTranscript";
 
+/* 部件纯函数已拆至 piRpcWidgets(300 行铁则);此处重导出保持既有 import 面
+ * (piRpc.test.ts 从本件引入)。 */
+export { widgetCancelledNotice, widgetTier } from "./piRpcWidgets";
+
 const LIVE = "live:";
+
+/** 流内活跃输出面(thinking/text;null = 无流内消息——工具执行间隙/轮末)。 */
+export type PiLiveSurface = "thinking" | "text" | null;
 
 /** args 守卫:非对象值(缺省/畸形帧)一律空表。 */
 function argsOf(v: unknown): Record<string, unknown> {
@@ -53,45 +61,6 @@ function contentText(content: unknown): string | undefined {
   return parts.length ? parts.join("") : undefined;
 }
 
-/** 时分秒(词典无关的 locale 中立形态;notice 时刻用)。 */
-export function clockOf(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-/** 非 confirm 部件自动取消判定(纯函数,单测钉死):extension_ui_request 且
- * method 非 confirm(select/input/editor 等真交互部件)时,RPC 模式无人可答,
- * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
- * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)不经此函数,走
- * reducer.chromeCancel 聚合;缺 id 的畸形帧不产(无处应答也无从示警;调用侧
- * 已将数值 id 归一为字符串,见 piRpc.normWidgetFrameId)。 */
-export function widgetCancelledNotice(
-  rec: Record<string, unknown>,
-  now: Date = new Date(),
-): { frameId: string; kind: string; text: string } | null {
-  if (rec.type !== "extension_ui_request") return null;
-  const kind = rec.method;
-  if (typeof kind !== "string" || !kind || kind === "confirm") return null;
-  const frameId = rec.id;
-  if (typeof frameId !== "string" || !frameId) return null;
-  return {
-    frameId,
-    kind,
-    text: `${t("CLI 发起 {kind} 交互,已按协议自动取消", { kind })}(${clockOf(now)})`,
-  };
-}
-
-/** TUI 装饰类部件(omp 18.x 启动/轮次帧实证:setStatus 状态行、notify 通知、
- * setWidget 小部件注册):RPC 模式下永远无意义,取消后聚合一处降噪,不逐条
- * 落行(2026-10-02 spec);select/input/editor 等真交互与未知 kind 一律
- * interactive 逐条可见——宁可多显示不可静默。 */
-const CHROME_WIDGET_KINDS: Record<string, true> = { setStatus: true, notify: true, setWidget: true };
-
-/** 部件分档(纯函数,单测钉死):chrome = TUI 装饰,interactive = 其余一切。 */
-export function widgetTier(kind: string): "chrome" | "interactive" {
-  return CHROME_WIDGET_KINDS[kind] ? "chrome" : "interactive";
-}
-
 export class PiRpcReducer {
   /** 落定基座(唯一真源;不含流内块与工具行)。 */
   private settled: CliTranscriptBlock[] = [];
@@ -101,25 +70,39 @@ export class PiRpcReducer {
   private tools = new Map<string, ToolLive>();
   private toolOrder: string[] = [];
   turnStart = 0;
-  /** chrome 部件聚合尾块(id + kind→计数)。仅当 settled 尾块仍是它时原地
-   * 刷新;任何其他块落尾后引用自然失配,下次 chrome 取消新开一条——时序不回流。 */
-  private aggTail: { id: string; counts: Map<string, number> } | null = null;
-  private aggSeq = 0;
+  /** 流内活跃输出面(thinking/text):渲染层据此给对应块「流式展开」态。
+   * 必须与块位置解耦 —— rebuild 布局中活思考永远排在轮级工具行之前,
+   * 渲染层若按 is-last 判断,轮内第二段起的思考永远不展开(2026-11-05
+   * 幕布流缺陷实锤:工具一跑,思考块后再无 last)。消息结算即清。 */
+  liveSurface: PiLiveSurface = null;
+  /** follow_up 本地回显排队(omp 不发 user 帧,轮首无用户块轮界不可读;下轮
+   * 轮界帧注入 settled 尾)。队列制:busy 连发多条互不覆写(单槽静默丢前条)。 */
+  private pendingUserEcho: string[] = [];
 
-  /** 接续种子(断线重开换壳保转录):settled = 旧 blocks,轮界对齐尾。 */
+  /** 接续种子(断线重开换壳保转录):settled = 旧 blocks 的完整轮部分
+   * (最后一个 user 块之前);在途轮不带走——引擎 --resume 可能重放在途轮
+   * 消息帧,种子带未完成轮会被整轮再写一遍(2026-11-05 图证实锤)。在途轮
+   * 由引擎重放/续跑重建,幕布不重复为先。 */
   seed(blocks: CliTranscriptBlock[]): void {
-    this.settled = [...blocks];
-    this.turnStart = blocks.length;
+    const cut = blocks.findLastIndex((b) => b.role === "user");
+    this.settled = cut >= 0 ? blocks.slice(0, cut) : [...blocks];
+    this.turnStart = this.settled.length;
     this.rebuild();
   }
 
   feed(rec: Record<string, unknown>): CliTranscriptBlock[] {
     const type = rec.type;
-    /* 18.6.0 起轮界帧更名 turn_start(18.4 实测为 session_start;双名兼容)。
-     * turn_end 与 session_settled 同义,结算仍走 session_settled(18.6 实测在发)。 */
-    if (type === "session_start" || type === "turn_start") this.turnStart = this.blocks.length;
-    else if (type === "agent_start") { this.tools.clear(); this.toolOrder = []; }
-    else if (type === "message_start") this.startMsg(rec);
+    /* 18.6 起轮界帧更名 turn_start(18.4 为 session_start,双名兼容);turn_end
+     * 同义忽略,结算走 session_settled(18.6 实测在发)。 */
+    if (type === "session_start" || type === "turn_start") {
+      /* 先推进轮界再注回显(echo 下标 = 新 turnStart 归活轮切片);反过来会落进上轮。 */
+      this.turnStart = this.blocks.length;
+      this.flushUserEcho();
+    } else if (type === "agent_start") {
+      this.flushUserEcho();
+      this.tools.clear();
+      this.toolOrder = [];
+    } else if (type === "message_start") this.startMsg(rec);
     else if (type === "message_update") this.updateMsg(rec);
     else if (type === "message_end") this.endMsg(rec);
     else if (type === "tool_execution_start" || type === "tool_execution_update") this.toolExec(rec, "running");
@@ -128,10 +111,37 @@ export class PiRpcReducer {
     return this.blocks;
   }
 
+  /** 回显入队(followUp ack 后;立刻注入会落进尚在途的上轮切片,故等轮界帧)。 */
+  queueUserEcho(text: string): void {
+    this.pendingUserEcho.push(text);
+  }
+
+  /* 注入 settled 尾:turnStart 仍指轮首,注入块下标 ≥ turnStart → 渲染层归活轮。 */
+  private flushUserEcho() {
+    if (this.pendingUserEcho.length === 0) return;
+    const echoes = this.pendingUserEcho;
+    this.pendingUserEcho = [];
+    const at = this.settled.length;
+    this.settled = [
+      ...this.settled,
+      ...echoes.map((text, i) => ({ id: `${LIVE}f${at + i}`, role: "user" as const, text })),
+    ];
+    this.rebuild();
+  }
+
   private startMsg(rec: Record<string, unknown>) {
     const role = (rec.message as { role?: unknown } | undefined)?.role;
     if (role !== "assistant" && role !== "user") return; // custom/toolResult 噪声
     if (this.live) this.freezeLive();
+    this.liveSurface = null;
+    if (role === "user") {
+      /* 引擎自带 user 回显帧的端(pi 系可能,omp 无)会对 follow_up 本地回显双写:
+       * 末块为本地回显时权威帧接管其位。先撤再取 live.at(下标/定位 id 以撤后为准)。 */
+      const last = this.settled[this.settled.length - 1];
+      if (last?.role === "user" && last.id.startsWith(`${LIVE}f`)) {
+        this.settled = this.settled.slice(0, -1);
+      }
+    }
     this.live = { role, at: this.settled.length, thinking: "", text: "" };
     if (role === "user") {
       /* 用户回显先行占位,message_end 落定权威文本 */
@@ -146,9 +156,13 @@ export class PiRpcReducer {
     const ev = rec.assistantMessageEvent as { type?: unknown; delta?: unknown } | undefined;
     const kind = ev?.type;
     const delta = typeof ev?.delta === "string" ? ev.delta : "";
-    if (kind === "thinking_delta" && delta) live.thinking += delta;
-    else if (kind === "text_delta" && delta) live.text += delta;
-    else return;
+    if (kind === "thinking_delta" && delta) {
+      live.thinking += delta;
+      this.liveSurface = "thinking";
+    } else if (kind === "text_delta" && delta) {
+      live.text += delta;
+      this.liveSurface = "text";
+    } else return;
     this.rebuild();
   }
 
@@ -182,6 +196,7 @@ export class PiRpcReducer {
       if (this.live?.role === "user") {
         const at = this.live.at;
         this.live = null;
+        this.liveSurface = null;
         if (text) this.settled = this.settled.map((b, i) => (i === at ? { ...b, text } : b));
         this.rebuild();
       }
@@ -193,6 +208,7 @@ export class PiRpcReducer {
     const parsed = (piTranscriptLine({ type: "message", message: msg }) ?? []).filter((b) => b.role !== "tool");
     const live = this.live;
     this.live = null;
+    this.liveSurface = null;
     if (live) {
       const fallbackThink: CliTranscriptBlock | null = parsed.some((b) => b.role === "reasoning") || !live.thinking
         ? null
@@ -240,33 +256,16 @@ export class PiRpcReducer {
     return this.blocks;
   }
 
-  /** chrome 部件(TUI 装饰类:setStatus/notify/setWidget,分档见 piRpc.widgetTier)
-   * 自动取消的聚合落点:连续取消并成一条 system 行原地刷新(×N 计数,降噪 spec
-   * 2026-10-02);被其他块隔开即新开一条。kind 是协议词不译,时刻取最近一次。 */
-  chromeCancel(kind: string, clock: string): CliTranscriptBlock[] {
-    const last = this.settled[this.settled.length - 1];
-    const target = last && this.aggTail && last.id === this.aggTail.id ? this.aggTail : this.newAggTail();
-    target.counts.set(kind, (target.counts.get(kind) ?? 0) + 1);
-    const total = [...target.counts.values()].reduce((a, b) => a + b, 0);
-    const detail = [...target.counts.entries()].map(([k, n]) => (n > 1 ? `${k} ×${n}` : k)).join(" · ");
-    const text = `${t("TUI 部件交互已自动取消 ×{count}", { count: total })}(${detail} · ${clock})`;
-    this.settled = this.settled.map((b) => (b.id === target.id ? { ...b, text } : b));
-    this.rebuild();
-    return this.blocks;
-  }
-
-  private newAggTail() {
-    const target = { id: `${LIVE}nagg${++this.aggSeq}`, counts: new Map<string, number>() };
-    this.aggTail = target;
-    this.settled = [...this.settled, { id: target.id, role: "system", text: "" }];
-    return target;
-  }
+  /* chrome 装饰类(setStatus/notify/setWidget)已改为协议层静默应答(piRpc
+   * 2026-11-05 减法收口:RPC 视图无承接面,聚合 ×N 行实测仍是噪音),reducer
+   * 不再为其产转录块;真交互取消文案见 widgetCancelledNotice。 */
 
   /** 活消息冻结(无权威帧时兜底;live.thinking/text 进基座)。 */
   private freezeLive() {
     const live = this.live;
     if (!live) return;
     this.live = null;
+    this.liveSurface = null;
     if (live.role === "assistant") {
       if (live.thinking) this.settled = [...this.settled, { id: `${LIVE}t${live.at}`, role: "reasoning", text: live.thinking }];
       if (live.text) this.settled = [...this.settled, { id: `${LIVE}a${live.at}`, role: "assistant", text: live.text }];

@@ -1,6 +1,6 @@
 /**
- * 轴视图日卡双向深链入口(2026-10-20 spec)静态渲染契约:
- * DayCard 头部「全文 ↗」旁必须常驻「足迹 ↗」(openFootprintTab 深链,带日 key)。
+ * 轴视图日卡双向深链入口(2026-10-20 spec;C-02 起指向「回顾 → 每日足迹」)静态渲染契约:
+ * DayCard 头部「全文 ↗」旁必须常驻「足迹 ↗」(openWorkbenchReviewTab 深链,带日 key)。
  * node 环境无 jsdom,点击链路由 1421 桩目检覆盖;此处守渲染在场性。
  */
 import { createElement } from "react";
@@ -24,7 +24,7 @@ vi.mock("./holidays", () => ({
   useHolidays: () => {},
 }));
 vi.mock("./journalTabs", () => ({ openArticleTab: vi.fn() }));
-vi.mock("@plugins/footprint/fpTab", () => ({ openFootprintTab: vi.fn() }));
+vi.mock("../review/reviewTabs", () => ({ openWorkbenchReviewTab: vi.fn() }));
 
 import { FlowView } from "./FlowView";
 import type { DaySessionRow } from "./daySessions";

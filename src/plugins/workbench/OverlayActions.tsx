@@ -36,7 +36,7 @@ export function OverlayActions({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  /* 点外部收菜单(academyEntry 先例);Escape 收菜单并交还焦点(role=menu 的
+  /* 点外部收菜单(局部菜单通用先例);Escape 收菜单并交还焦点(role=menu 的
    * 键盘最低契约)。方向键/Home/End 见下方 onMenuKey(2026-10-13 补,收口
    * 上轮遗留「OverlayActions 只有 Escape」)。 */
   useEffect(() => {

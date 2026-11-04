@@ -12,17 +12,9 @@ import { Spinner } from "@kernel/Spinner";
 import { normalizePath } from "@kernel/pathUtils";
 import { openFileInTab } from "@kernel/fileTabs";
 import { closeSearchOverlay, useActiveWorkspaceRoot } from "./overlayStore";
-import { fuzzyMatch } from "./fuzzy";
+import { SHOW_LIMIT, WALK_CAP, quickOpenRows, type QuickOpenRow } from "./searchLogic";
 
-/** walk 上限(与 spec 一致);展示截断条数。 */
-const WALK_CAP = 5000;
-const SHOW_LIMIT = 50;
-
-interface Row {
-  path: string;
-  score: number;
-  indices: number[];
-}
+type Row = QuickOpenRow;
 
 /** 命中下标 → 相邻段合并(高亮渲染用,避免逐字符 span)。 */
 function pathParts(path: string, indices: readonly number[]): { text: string; hit: boolean }[] {
@@ -81,19 +73,7 @@ export function QuickOpen() {
     setReloadSeq((v) => v + 1);
   }
 
-  const rows = useMemo<Row[]>(() => {
-    if (!files) return [];
-    if (!query.trim()) {
-      return files.slice(0, SHOW_LIMIT).map((p) => ({ path: p, score: 0, indices: [] }));
-    }
-    const scored: Row[] = [];
-    for (const p of files) {
-      const m = fuzzyMatch(query, p);
-      if (m) scored.push({ path: p, score: m.score, indices: m.indices });
-    }
-    scored.sort((a, b) => b.score - a.score || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
-    return scored.slice(0, SHOW_LIMIT);
-  }, [files, query]);
+  const rows = useMemo<Row[]>(() => (files ? quickOpenRows(files, query) : []), [files, query]);
 
   /* rows 变短时夹取选中;选中行滚入视口 */
   const active = Math.min(sel, Math.max(rows.length - 1, 0));

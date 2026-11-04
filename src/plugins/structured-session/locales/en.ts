@@ -1,8 +1,9 @@
 /** structured-session 英文词典。 */
 export const MESSAGES_EN: Record<string, string> = {
-  "结构化": "Structured",
+  "带渲染的会话": "Rendered session",
   "结构化会话": "Structured session",
-  "该引擎不支持结构化会话": "This engine has no structured-session support",
+  "该引擎不支持 RPC 会话": "This engine does not support RPC sessions",
+  /* G-01 新建菜单入口(2026-11-05 起入「带渲染的会话」组,行文案 = 引擎名) */
   "启动 RPC 会话中…": "Starting RPC session…",
   "启动失败": "Start failed",
   "重试": "Retry",
@@ -26,9 +27,6 @@ export const MESSAGES_EN: Record<string, string> = {
   /* 非 confirm 部件自动取消 notice(消费点在 cli-shared/piRpc,feature 插件带词典先例) */
   "CLI 发起 {kind} 交互,已按协议自动取消":
   "CLI requested a {kind} interaction; auto-cancelled per protocol",
-  /* chrome 装饰类部件聚合行(明细括注与时刻由 piRpcReducer 拼接,协议词不译) */
-  "TUI 部件交互已自动取消 ×{count}":
-  "{count} TUI widget interactions auto-cancelled",
   /* header 菜单(ssHeader:引擎切换 / 模型与思考级) */
   "模型与思考级": "Model & thinking level",
   "筛选模型…": "Filter models…",
@@ -60,4 +58,30 @@ export const MESSAGES_EN: Record<string, string> = {
   "仅回填，不会自动发送": "Only fills the composer; nothing is sent automatically",
   "回填输入框": "Fill composer",
   "对应 checkpoint 批次": "Corresponding checkpoint batch",
+  /* RPC 输入面外观对齐 PTY composer(2026-11-05):唤醒轨与发送 */
+  "@ 引用文件": "@ Reference file",
+  "$ 调用技能": "$ Invoke skill",
+  /* 工具行类型 chip(codemoss ProcessDisclosure 分类;「命令」键与 kernel 撞,
+     消歧为「命令工具」) */
+  "搜索": "Search",
+  "命令工具": "Command",
+  "读取": "Read",
+  "编辑": "Edit",
+  "查找": "Find",
+  "子任务": "Subtask",
+  "工具": "Tool",
+  /* 长消息折叠(codemoss CollapsibleMessage 交互律;展开/收起复用 kernel 键) */
+  "回到底部": "Back to bottom",
+  /* 过程折叠组头摘要(codemoss ProcessDisclosure;「工具调用 {n} 次」复用 kernel 词典) */
+  "思考 {n} 次": "Thought {n} times",
+  /* 过程展开区(codemoss ThinkingSurface 题头 / 唤醒轨智能体与提示词) */
+  "思考过程": "Thinking process",
+  "智能体(##)": "Agents (##)",
+  "提示词(!!)": "Prompts (!!)",
+  /* 用户块图片内联(与 session-viewer 同译) */
+  "切换图片大小": "Toggle image size",
+  /* 对话框拖拽柄 */
+  "拖拽调整高度": "Drag to resize",
+  /* 幕布宽度抓手(2026-11-05) */
+  "调整幕布宽度": "Adjust canvas width",
 }

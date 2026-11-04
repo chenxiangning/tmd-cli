@@ -36,9 +36,13 @@ const PHASE_ICON: Record<PhaseKind, ReactNode> = {
   think: <BrainIcon size="0.875rem" />,
 };
 
-/** 思考行(monocode ActivityThinkingRow):+/− 随开合切换 + 单行摘要,点击展开淡色 md。 */
-export function ThinkingRow({ block, Markdown, pulse }: { block: CliTranscriptBlock; Markdown: MarkdownRenderer; pulse?: boolean }) {
-  const [open, setOpen] = useState(false);
+/** 思考行(monocode ActivityThinkingRow):+/− 随开合切换 + 单行摘要,点击展开淡色 md。
+ * streaming(仅活轮传入)= 流式期自动展开、段落落定自动折回(与 liveTurn 工具行
+ * 同律:running 展开/终态折叠/手动接管);落定转录不传 = 恒默认折叠。 */
+export function ThinkingRow({ block, Markdown, pulse, streaming }: { block: CliTranscriptBlock; Markdown: MarkdownRenderer; pulse?: boolean; streaming?: boolean }) {
+  /* null = 跟随自动律:streaming 展开 / 落定折叠;点击后手动接管。 */
+  const [manual, setManual] = useState<boolean | null>(null);
+  const open = manual ?? (streaming ?? false);
   const summary = proseSummary(block.text) || t("思考");
   return (
     <div className="sv-think">
@@ -46,7 +50,7 @@ export function ThinkingRow({ block, Markdown, pulse }: { block: CliTranscriptBl
         type="button"
         className={`sv-think-head${pulse ? " is-stream" : ""}`}
         aria-expanded={open}
-        onClick={() => setOpen(!open)}
+        onClick={() => setManual(!(manual ?? (streaming ?? false)))}
       >
         {open ? (
           <MinusIcon size="0.875rem" className="sv-think-dash" />

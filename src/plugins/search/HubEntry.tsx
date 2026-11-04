@@ -4,7 +4,7 @@
  * 命令经 kernel 注册表分发(getCommands 按 id 取 run),不 import 各插件;
  * 标题与键位标签取自注册表实况(改键后自动跟随,i18n 复用命令标题零新键)。
  * 目标命令未注册(对应插件停用)= 行禁用态 + 说明,点击不再静默。
- * 折叠态持久化与学堂入口同语义(tmd.academy.entryCollapsed 先例,缺省展开)。
+ * 折叠态持久化为独立 localStorage 键(缺省展开;旧学堂入口卡已撤,不再共享先例)。
  */
 
 import { useState } from "react";

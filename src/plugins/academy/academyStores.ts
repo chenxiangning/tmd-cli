@@ -1,12 +1,12 @@
 /**
- * 学堂 UI 状态 —— 入门课向导开关 + 指南 tab 打开封装 + 左栏入口折叠。
- * 向导 overlay 开关同 boardOverlayStore 先例(模块级 store + useSyncExternalStore);
- * guide tab 打开同 memory-console consoleTab 先例(openTab 唯一定义,防循环依赖);
- * 入口折叠同 workspace/sectionCollapsed 先例(localStorage 持久化 + 惰性首读)。
+ * 学堂 UI 状态 —— 入门课向导开关 + 指南 tab 打开封装。
+ * 向导 overlay 开关(模块级 store + useSyncExternalStore;原 session-board
+ * boardOverlayStore 同款先例,该覆盖层 C-04 已退役);
+ * guide tab 打开同 memory-console consoleTab 先例(openTab 唯一定义,防循环依赖)。
  */
 
-import { useSyncExternalStore } from "react";
 import { openTab } from "@kernel/tabs";
+import { getAcademyCourses } from "@kernel/academy";
 
 /* ── 入门课向导 overlay ─────────────────────────────────────────── */
 
@@ -60,36 +60,9 @@ export function openGuideTab(cliId: string, title: string): void {
   });
 }
 
-/* ── 左栏入口折叠(多课程折叠成一栏;持久化语义与 workspace/sectionCollapsed 一致) ── */
-
-const ENTRY_COLLAPSED_KEY = "tmd.academy.entryCollapsed";
-let entryCollapsed: boolean | null = null;
-const entrySubs = new Set<() => void>();
-
-function readEntryCollapsed(): boolean {
-  if (entryCollapsed === null) {
-    entryCollapsed = localStorage.getItem(ENTRY_COLLAPSED_KEY) === "1";
-  }
-  return entryCollapsed;
-}
-
-/** React 订阅(useSyncExternalStore);惰性首读,模块加载不碰 localStorage。 */
-export function useEntryCollapsed(): boolean {
-  return useSyncExternalStore(
-    (fn) => {
-      entrySubs.add(fn);
-      return () => {
-        entrySubs.delete(fn);
-      };
-    },
-    readEntryCollapsed,
-  );
-}
-
-/** 写入并持久化(值不变时静默,不触发重渲染)。 */
-export function setEntryCollapsed(v: boolean): void {
-  if (readEntryCollapsed() === v) return;
-  entryCollapsed = v;
-  localStorage.setItem(ENTRY_COLLAPSED_KEY, v ? "1" : "0");
-  for (const fn of entrySubs) fn();
+/** 欢迎页「CLI 学堂」命令本体:打开第一份已注册课程的完整指南。 */
+export function openAcademyHome(): void {
+  const course = getAcademyCourses()[0];
+  if (!course) return;
+  openGuideTab(course.cliId, `${course.title} · 指南`);
 }

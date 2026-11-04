@@ -118,11 +118,6 @@ export const MESSAGES = {
   "已拔出(重启后生效)": "Unplugged (takes effect after restart)",
   "焊死的核心插件不可拔": "Welded core plugins cannot be unplugged",
   "点击插头即可插拔": "Click a plug to plug or unplug",
-  "在线市场": "Online market",
-  "远程插件市场 · 建设中": "Remote plugin market · in development",
-  "未来可在此浏览、安装社区插件包 —— 新插头直接快递到你的插排":
-    "Browse and install community plugin packs here in the future — new plugs delivered straight to your strip",
-  "即将上线": "Coming soon",
   "已拔出 {id} —— 重启后从插排断电": "Unplugged {id} — powered off from the strip after restart",
   "已插入 {id} —— 重启后生效": "Plugged in {id} — takes effect after restart",
 

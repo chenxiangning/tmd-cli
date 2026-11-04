@@ -32,7 +32,6 @@ import { cliConfigPlugin } from "./cli-config";
 import { localLoaderPlugin } from "./local-loader";
 import { wslPlugin } from "./wsl";
 import { wallpaperPlugin } from "./wallpaper";
-import { sessionBoardPlugin } from "./session-board";
 import { intentCanvasPlugin } from "./intent-canvas";
 import { webAccessPlugin } from "./web-access";
 import { searchPlugin } from "./search";
@@ -50,7 +49,6 @@ import { structuredSessionPlugin } from "./structured-session";
 import { workbenchPlugin } from "./workbench";
 import { animPlugin } from "./anim";
 import { storageAuditPlugin } from "./storage-audit";
-import { footprintPlugin } from "./footprint";
 import { portsPlugin } from "./ports";
 
 export const allPlugins: Plugin[] = [
@@ -81,7 +79,6 @@ export const allPlugins: Plugin[] = [
   localLoaderPlugin,
   wslPlugin,
   wallpaperPlugin,
-  sessionBoardPlugin,
   intentCanvasPlugin,
   marksPlugin,
   webAccessPlugin,
@@ -100,6 +97,5 @@ export const allPlugins: Plugin[] = [
   workbenchPlugin,
   animPlugin,
   storageAuditPlugin,
-  footprintPlugin,
   portsPlugin,
 ];

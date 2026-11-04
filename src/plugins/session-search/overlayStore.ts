@@ -33,6 +33,11 @@ export function useSessionSearchOpen(): boolean {
   );
 }
 
+/** 非 Hook 快照读(命令层/契约测试用;React 外不开订阅)。 */
+export function sessionSearchOpen(): boolean {
+  return open;
+}
+
 /* 定位结果轻提示 ── 命中打开瞬间浮层已关,提示必须活得比浮层久;
    与浮层开关同款模块级单例,呈现件由 SessionSearchOverlay 常驻 portal 承载。 */
 

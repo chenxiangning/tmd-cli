@@ -49,6 +49,12 @@ export interface PrerequisiteMeta {
   installHint: string;
   /** 依赖的安装计划;null = 未声明通道(只引导,不出安装按钮)。 */
   plan: CliInstallPlan | null;
+  /** 宿主引擎版本菜单内展示依赖分区(声明完整时才为真)。 */
+  versionMenu: boolean;
+  /** registry 版本列表来源。 */
+  npmPackage?: string;
+  /** script 钉版命令模板,{version} 由 welcome 通用替换。 */
+  scriptVersionInstall?: { unix: string; windows: string };
 }
 
 /** 安装通道声明形状(CliProfile 与 CliPrerequisite 的共有子集)。 */
@@ -123,6 +129,27 @@ export function pinPlanVersion(
   return replaced ? { channel: "command", program: plan.program, args } : null;
 }
 
+/** 前置依赖 script 钉版:双平台官方命令由插件声明,本层只替换 {version}。 */
+export function pinPrerequisiteVersion(
+  requires: PrerequisiteMeta,
+  version: string,
+): CliInstallPlan | null {
+  const templates = requires.scriptVersionInstall;
+  if (
+    !requires.versionMenu ||
+    requires.plan?.channel !== "script" ||
+    !templates?.unix.includes("{version}") ||
+    !templates.windows.includes("{version}")
+  ) {
+    return null;
+  }
+  return {
+    channel: "script",
+    unix: templates.unix.replaceAll("{version}", version),
+    windows: templates.windows.replaceAll("{version}", version),
+  };
+}
+
 /** 安装方式提示(按钮旁说明):按通道派生,与 installPlanOf 同序。 */
 function installHintOf(channels: InstallChannels): string {
   if (channels.scriptInstall) return channels.scriptInstall.unix;
@@ -164,6 +191,14 @@ function engineMetaOf(profile: CliProfile): EngineMeta {
           docsUrl: req.docsUrl,
           installHint: installHintOf(req),
           plan: installPlanOf(req),
+          versionMenu:
+            req.versionMenu === true &&
+            installPlanOf(req)?.channel === "script" &&
+            !!req.npmPackage &&
+            !!req.scriptVersionInstall?.unix.includes("{version}") &&
+            !!req.scriptVersionInstall.windows.includes("{version}"),
+          npmPackage: req.npmPackage,
+          scriptVersionInstall: req.scriptVersionInstall,
         }
       : undefined,
   };

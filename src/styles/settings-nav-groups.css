@@ -1,0 +1,51 @@
+/* 设置面板 —— 一级导航组(F-03 减法批次),自 settings-panel.css 按 300 行铁则拆出;
+ * 颜色零硬编码,全部消费 --tmd-* 设计变量(同 settings-panel.css 纪律)。 */
+
+/* 组容器:组头 + 组内 section 列表,壳不识别组语义,只按相邻关系排版。 */
+.settings-nav-group-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 组头:弱化字重的小号标签,整头可点折叠;chevron 展开时旋转 90°。 */
+.settings-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px 2px;
+  border: none;
+  background: transparent;
+  color: var(--tmd-fg-faint);
+  font: inherit;
+  font-size: 0.6875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-nav-group:hover {
+  color: var(--tmd-fg-muted);
+}
+
+.settings-nav-group > svg {
+  transition: transform 0.12s ease;
+}
+
+.settings-nav-group[aria-expanded="true"] > svg {
+  transform: rotate(90deg);
+}
+
+/* 组内 section 列表(与导航容器同款列排);组内缩进区别于一级返回钮。 */
+.settings-nav-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-group-items .settings-nav-item {
+  padding-left: 24px;
+}
+
+/* 不分组兜底段:无组头,section 与旧平铺导航同款不缩进(回滚语义)。 */
+.settings-nav-flat .settings-nav-item {
+  padding-left: 10px;
+}

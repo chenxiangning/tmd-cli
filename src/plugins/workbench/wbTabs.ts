@@ -56,5 +56,5 @@ export const WB_TAB_ITEMS: readonly { key: WbTab; label: string }[] = [
   { key: "focus", label: "聚焦" },
   { key: "board", label: "任务看板" },
   { key: "docs", label: "文档" },
-  { key: "journal", label: "工作日志" },
+  { key: "journal", label: "回顾" },
 ];

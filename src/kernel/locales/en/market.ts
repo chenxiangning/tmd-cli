@@ -18,8 +18,6 @@ export const MESSAGES = {
     "Search this workspace's past sessions by what you typed; resume any of them in one click",
   /* session-viewer */
   "会话查看器": "Session viewer",
-  "会话列表 view icon 打开只读转录;画布浮层切活会话结构化视图,幕布保活":
-    "Opens a read-only transcript from the session list's view icon; an overlay switches the live session to a structured view while the terminal keeps running",
-  /* session-board(abbr;name/desc 已在 settings 域) */
-  "看板": "Board",
+  "会话列表 view icon 打开只读转录;画布浮层切活会话转录视图,幕布保活":
+    "Opens a read-only transcript from the session list's view icon; an overlay switches the live session to a transcript view while the terminal keeps running",
 } as Record<string, string>;

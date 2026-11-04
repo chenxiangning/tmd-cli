@@ -17,6 +17,7 @@ import { useWorkspaces } from "@kernel/workspace";
 import { importCodemossPrompts, importPromptDir, type ImportReport } from "../importCodemoss";
 import { deletePrompt, movePrompt, savePrompt } from "../promptStore";
 import { useAssets, type PromptEntry, type PromptScope } from "../store";
+import { AiConfigBackLink } from "@plugins/memory-coordinator/panel/AiConfigBackLink";
 
 type ScopeFilter = "all" | PromptScope;
 
@@ -59,6 +60,10 @@ export function PromptTab() {
 
   return (
     <div className="assets-tab" data-icon-decor="assets">
+      {/* E-03:返回 AI 配置统一落地(右栏 AI配置管理面板)。 */}
+      <div className="px-1 pt-1">
+        <AiConfigBackLink />
+      </div>
       <div className="assets-toolbar">
         <StyledSelect
           ariaLabel={t("作用域筛选")}

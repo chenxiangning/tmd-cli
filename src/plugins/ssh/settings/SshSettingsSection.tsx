@@ -123,6 +123,11 @@ export function SshSettingsSection() {
           onClose={() => setConfirmDelete(null)}
         />
       ) : null}
+      {/* F-04:网络代理不迁设置页,保留右缘 rail 底部簇动作;此处只给说明
+          (network-proxy 插件禁用后本说明措辞仍成立:「插件启用时」)。 */}
+      <p className="mt-3 text-xs leading-relaxed text-(--tmd-fg-faint)">
+        {t("网络代理:右缘 rail 底部簇的梯子图标统一管理(插件启用时),对 SSH 连接与 CLI 子进程同时生效。")}
+      </p>
     </div>
   );
 }

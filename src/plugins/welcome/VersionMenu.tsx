@@ -1,153 +1,103 @@
 /**
- * 引擎版本菜单 —— 「版本」按钮弹层(wsmenu 范式:portal + backdrop + Escape +
- * 视口夹取):当前版本行(固定,可收藏)+ 收藏段(不占 top10 名额)+ 最新 10 个
- * 稳定版。点版本行 = 钉版安装(走引擎卡既有流式安装链路);星标切换收藏
- * (settings.engineVersionFavs,跨重启保留)。
- * 数据:版本列表开菜单懒拉(fetchVersionList,5min TTL,失败可重试);
- * 收藏读 settings 实时订阅(useSettingsState)。
+ * 引擎版本菜单 —— 主引擎与可选前置依赖双分区。
+ * 弹层壳负责 portal / 背板 / Escape / 视口夹取;每个分区独立拉取版本与订阅收藏。
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowClockwise, Star } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { t } from "@kernel/i18n";
-import { useSettingsState } from "@kernel/settings";
 import { clampToViewport } from "@kernel/menuClamp";
-import { extractSemver, fetchVersionList } from "./latestVersion";
-import { listVersionFavs, toggleVersionFav, versionFavKey } from "./versionFavs";
+import type { EngineMeta } from "./engineMeta";
+import { extractSemver } from "./latestVersion";
+import { VersionMenuSection } from "./VersionMenuSection";
+
+export { VersionMenuBody } from "./VersionMenuBody";
 
 /** 菜单定位:以点击点为左上,按估算尺寸(260×400)视口内夹取(kernel clampToViewport)。 */
 function clampMenuPosition(x: number, y: number): { x: number; y: number } {
   return clampToViewport(x, y, 260, 400);
 }
 
-/** 菜单内容(纯展示;拉取/订阅/定位在壳组件,本件拆出供渲染契约测试)。 */
-export function VersionMenuBody({
-  engineId,
-  currentVersion,
-  versions,
-  favVersions,
-  favs,
-  installing,
-  onPick,
-  onRetry,
-}: {
+interface DependencyMenu {
   engineId: string;
-  /** 当前安装版本(已 extractSemver);null = 抠不出。 */
+  name: string;
+  npmPackage: string;
   currentVersion: string | null;
-  /** 最新 10 个稳定版:undefined = 拉取中,null = 失败。 */
-  versions: string[] | null | undefined;
-  /** 本引擎收藏版本(semver 降序)。 */
-  favVersions: string[];
-  /** 全量收藏 map(判星态用)。 */
-  favs: Record<string, { favedAt: number }>;
+  minVersion?: string;
+  onPick: (version: string) => void;
+}
+
+interface MenuContentProps {
+  engineId: string;
+  engineName: string;
+  npmPackage: string;
+  currentVersion: string | null;
   installing: boolean;
   onPick: (version: string) => void;
-  onRetry: () => void;
-}) {
-  const renderRow = (version: string, isCurrent: boolean, section: string) => {
-    const faved = versionFavKey(engineId, version) in favs;
-    return (
-      <div className="wsmenu-item-row" key={`${section}-${version}`}>
-        <button
-          type="button"
-          className="wsmenu-item"
-          disabled={installing}
-          title={t("安装 {name}", { name: version })}
-          onClick={() => onPick(version)}
-        >
-          <span className="wsmenu-item-label">
-            {version}
-            {isCurrent && <span className="welcome-vermenu-cur">{t("当前")}</span>}
-          </span>
-        </button>
-        <button
-          type="button"
-          className={`welcome-vermenu-star${faved ? " is-faved" : ""}`}
-          aria-label={faved ? t("取消收藏该版本") : t("收藏该版本")}
-          title={faved ? t("取消收藏该版本") : t("收藏该版本")}
-          onClick={() => toggleVersionFav(engineId, version)}
-        >
-          <Star size="0.875rem" weight={faved ? "fill" : "regular"} aria-hidden />
-        </button>
-      </div>
-    );
-  };
+  dependency?: DependencyMenu;
+}
+
+/** 双分区内容(独立导出供渲染契约测试;数据分区内部各自管理加载态)。 */
+export function VersionMenuContent({
+  engineId,
+  engineName,
+  npmPackage,
+  currentVersion,
+  installing,
+  onPick,
+  dependency,
+}: MenuContentProps) {
   return (
     <>
-      <div className="wsmenu-group-title">{t("当前版本")}</div>
-      {currentVersion ? (
-        renderRow(currentVersion, true, "cur")
-      ) : (
-        <div className="wsmenu-note">{t("未能解析当前版本")}</div>
-      )}
-      {favVersions.length > 0 && (
+      {dependency && <div className="wsmenu-group-title">{t(engineName)}</div>}
+      <VersionMenuSection
+        engineId={engineId}
+        npmPackage={npmPackage}
+        currentVersion={currentVersion}
+        installing={installing}
+        onPick={onPick}
+      />
+      {dependency && (
         <>
           <div className="wsmenu-divider" />
-          <div className="wsmenu-group-title">{t("收藏")}</div>
-          {favVersions.map((v) => renderRow(v, v === currentVersion, "fav"))}
+          <div className="wsmenu-group-title">
+            {t(dependency.name)}
+            {dependency.minVersion &&
+              ` · ${t("最低 {version}", { version: dependency.minVersion })}`}
+          </div>
+          <VersionMenuSection
+            engineId={dependency.engineId}
+            npmPackage={dependency.npmPackage}
+            currentVersion={dependency.currentVersion}
+            installing={installing}
+            onPick={dependency.onPick}
+          />
         </>
-      )}
-      <div className="wsmenu-divider" />
-      <div className="wsmenu-group-title">{t("最新版本")}</div>
-      {versions === undefined ? (
-        <div className="wsmenu-note">{t("加载版本列表…")}</div>
-      ) : versions === null ? (
-        <div className="wsmenu-note">
-          {t("获取版本列表失败")}
-          <button type="button" className="welcome-vermenu-retry" onClick={onRetry}>
-            <ArrowClockwise size="0.75rem" aria-hidden />
-            {t("重试")}
-          </button>
-        </div>
-      ) : (
-        versions.map((v) => renderRow(v, v === currentVersion, "top"))
       )}
     </>
   );
 }
 
-/** 弹层壳:portal + 背板点外关闭 + Escape + 版本列表拉取。 */
+/** 弹层壳:portal + 背板点外关闭 + Escape;点选后先关菜单再启动安装。 */
 export function VersionMenu({
-  engineId,
-  npmPackage,
-  currentVersion,
   anchor,
-  installing,
-  onPick,
   onClose,
-}: {
-  engineId: string;
-  npmPackage: string;
-  currentVersion: string | null;
-  /** 弹出锚点(点击坐标)。 */
+  ...content
+}: MenuContentProps & {
   anchor: { x: number; y: number };
-  installing: boolean;
-  onPick: (version: string) => void;
   onClose: () => void;
 }) {
-  const [versions, setVersions] = useState<string[] | null | undefined>(undefined);
-  /* 重试计数:失败行点重试 bump,触发重拉。 */
-  const [tick, setTick] = useState(0);
-  const favs = useSettingsState().settings.engineVersionFavs;
-
-  useEffect(() => {
-    let alive = true;
-    setVersions(undefined);
-    void fetchVersionList(npmPackage).then((v) => {
-      if (alive) setVersions(v);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [npmPackage, tick]);
-
   useEscClose(onClose);
-
   const pos = clampMenuPosition(anchor.x, anchor.y);
+  const pick = (fn: (version: string) => void) => (version: string) => {
+    onClose();
+    fn(version);
+  };
+  const dependency = content.dependency
+    ? { ...content.dependency, onPick: pick(content.dependency.onPick) }
+    : undefined;
   return createPortal(
     <>
-      {/* 透明背板:纯点外关闭(左键/右键皆关),role=presentation 豁免静态元素交互规则 */}
       <div
         className="wsmenu-backdrop"
         role="presentation"
@@ -157,20 +107,11 @@ export function VersionMenu({
           onClose();
         }}
       />
-      {/* 弹出菜单 portal 到 body,不在 welcome 页根内,按菜单家族纳管 */}
       <div className="wsmenu welcome-vermenu" data-icon-decor="menu" style={{ left: pos.x, top: pos.y }}>
-        <VersionMenuBody
-          engineId={engineId}
-          currentVersion={currentVersion}
-          versions={versions}
-          favVersions={listVersionFavs(favs, engineId)}
-          favs={favs}
-          installing={installing}
-          onPick={(v) => {
-            onClose();
-            onPick(v);
-          }}
-          onRetry={() => setTick((n) => n + 1)}
+        <VersionMenuContent
+          {...content}
+          onPick={pick(content.onPick)}
+          dependency={dependency}
         />
       </div>
     </>,
@@ -182,17 +123,20 @@ export function VersionMenu({
 /** 行内「版本」按钮 + 菜单开合壳:锚点态自持,EngineCard 只判开关与取数。 */
 export function VersionMenuAction({
   engineId,
+  engineName,
   npmPackage,
   currentVersion,
   installing,
   onPick,
+  dependency,
 }: {
   engineId: string;
+  engineName: string;
   npmPackage: string;
-  /** 当前安装版本(已 extractSemver);null = 抠不出。 */
   currentVersion: string | null;
   installing: boolean;
   onPick: (version: string) => void;
+  dependency?: DependencyMenu;
 }) {
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   return (
@@ -209,11 +153,13 @@ export function VersionMenuAction({
       {anchor && (
         <VersionMenu
           engineId={engineId}
+          engineName={engineName}
           npmPackage={npmPackage}
           currentVersion={currentVersion}
           anchor={anchor}
           installing={installing}
           onPick={onPick}
+          dependency={dependency}
           onClose={() => setAnchor(null)}
         />
       )}
@@ -221,28 +167,46 @@ export function VersionMenuAction({
   );
 }
 
-/** EngineCard→RowActions 的版本菜单插座:开关判定 + 取数集中在本件,
- *  EngineCard/RowActions 不增分支(no-high-complexity 降分支纪律)。 */
+/** EngineCard→RowActions 的版本菜单插座:主引擎与依赖取数集中在本件。 */
 export function VersionMenuSlot({
   meta,
   probeVersion,
+  depProbeVersion,
   installing,
+  depInstalling = false,
   onInstallVersion,
+  onInstallDepVersion,
 }: {
-  meta: { id: string; versionMenu: boolean; npmPackage?: string };
-  /** 探针原始版本串(本件内 extractSemver)。 */
+  meta: Pick<EngineMeta, "id" | "displayName" | "versionMenu" | "npmPackage" | "requires">;
   probeVersion: string | null | undefined;
+  depProbeVersion?: string | null;
   installing: boolean;
+  depInstalling?: boolean;
   onInstallVersion?: (version: string) => void;
+  onInstallDepVersion?: (version: string) => void;
 }) {
   if (!meta.versionMenu || !meta.npmPackage || !onInstallVersion) return null;
+  const req = meta.requires;
+  const dependency: DependencyMenu | undefined =
+    req?.versionMenu && req.npmPackage && onInstallDepVersion
+      ? {
+          engineId: req.binary,
+          name: req.name,
+          npmPackage: req.npmPackage,
+          currentVersion: extractSemver(depProbeVersion),
+          minVersion: req.minVersion,
+          onPick: onInstallDepVersion,
+        }
+      : undefined;
   return (
     <VersionMenuAction
       engineId={meta.id}
+      engineName={meta.displayName}
       npmPackage={meta.npmPackage}
       currentVersion={extractSemver(probeVersion)}
-      installing={installing}
+      installing={installing || depInstalling}
       onPick={onInstallVersion}
+      dependency={dependency}
     />
   );
 }
