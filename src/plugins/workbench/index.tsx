@@ -21,6 +21,7 @@ import { openWorkbenchTab, WB_CONSOLE_TAB_KIND, WB_CONSOLE_TAB_ID, WB_PROJECT_TA
 import { startIndexWatch } from "./storeWatch";
 import { attachJournal } from "./journal/attach";
 import { attachDocGen } from "./docgen/attach";
+import { attachFootprintRuntime } from "./review/footprintRuntime";
 import { TaskCardChip } from "./TaskCardChip";
 import { getPendingTaskCard, taskCardSendTransform, undoTaskCardSend } from "./taskCard";
 import { registerComposerEmptySendProvider, registerComposerSendTransform, registerComposerSendUndo } from "@kernel/composerExt";
@@ -86,12 +87,15 @@ export const workbenchPlugin: Plugin = {
     /* 每日日志子域 + 生成文档流水线(退订随插件 deactivate)。 */
     const offJournal = attachJournal(ctx);
     const offDocGen = attachDocGen(ctx);
+    /* footprint 写侧订阅(封口落账 + 视图 live 信号;2026-11-04 自 footprint 插件迁入)。 */
+    const offFootprint = attachFootprintRuntime(ctx);
     /* AI 直改 index.json 的自动感知轮询(常驻;幂等,见 storeWatch.ts)。 */
     startIndexWatch();
     return () => {
       for (const off of offTaskCard) off();
       offJournal();
       offDocGen();
+      offFootprint();
     };
   },
 };

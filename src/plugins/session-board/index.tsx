@@ -9,10 +9,8 @@
  * 数据/状态层零新增:全部复用 workspace 同款内核通道(见 boardData.ts 头注)。
  */
 import { CalendarDots } from "@phosphor-icons/react";
-import { KernelTopics } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { BoardOverlay } from "./BoardOverlay";
-import { archiveExitedSession } from "./boardExit";
 import { boardOverlayOpen, subscribeBoardOverlay, toggleBoardOverlay } from "./boardOverlayStore";
 import "./locales"; /* 域词典随插件自带:i18n.registerMessages(import 即注册) */
 
@@ -42,7 +40,5 @@ export const sessionBoardPlugin: Plugin = {
       subscribeActive: subscribeBoardOverlay,
       onSelect: () => toggleBoardOverlay(),
     });
-    /* 生命周期收口:干净退出的会话自动归档(定义见 boardExit.ts 头注)。 */
-    ctx.events.on<string>(KernelTopics.sessionExited, archiveExitedSession);
   },
 };

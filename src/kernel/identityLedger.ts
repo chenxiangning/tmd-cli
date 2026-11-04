@@ -97,7 +97,7 @@ export class IdentityLedger {
       noteLogBinding(meta.profileId, meta.cwd, cliSessionId, sessionId);
       /* 绑定即续命(生命周期 2026-09-17 修订):归档会话经任何绑定路径恢复对话
          (显式 resume / 远程恢复 / CLI 内 /resume 探测)即解除归档,生命周期链重启
-         (待运行 ⇄ 运行中);干净退出由 boardExit 再归档收口。key 构造与
+         (待运行 ⇄ 运行中);干净退出由 workspace/sessionExitArchive 再归档收口。key 构造与
          archiveExitedSession 同构;无归属工作区不猜归属(同款守卫)。 */
       if (meta.workspaceId)
         unarchiveSession(

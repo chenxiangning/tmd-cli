@@ -4,15 +4,14 @@
  * 月历热力定位到天、当日功能卡流(AI 归纳 + 用户原话锚点)、证据抽屉
  * (会话 resume / 文件清单 / 宽 diff)、⌘K 反查、shift 区间汇总、git 硬证据。
  * 数据契约见 docs/superpowers/specs/2026-10-19-footprint-design.md;
- * 写侧 rollup(ckptTurnSealed → 按月 rollup)与读侧 query 均由数据层承担,
- * 本插件只做注册面装配 + 视图 live 轻刷新信号,不维护写路径。
+ * 写侧 rollup 装配 2026-11-04 迁 workbench「回顾」域(./review/footprintRuntime,
+ * 数据层算法事实源仍在 ./rollup、./backfill、./fpTab),本插件只保留
+ * tab/侧栏入口装配与视图;不维护写路径。
  */
 import { Footprints } from "@phosphor-icons/react";
 import { lazySuspense } from "@kernel/lazyTab";
-import { KernelTopics, type CkptTurnSealedEvent } from "@kernel/events";
 import type { Plugin, PluginContext } from "@kernel/plugin";
-import { bumpFootprintRev, FP_TAB_KIND, openFootprintTab } from "./fpTab";
-import { activateRollup } from "./rollup";
+import { FP_TAB_KIND, openFootprintTab } from "./fpTab";
 import "./locales"; /* 域词典随插件自带:import 即注册 */
 
 export const footprintPlugin: Plugin = {
@@ -42,22 +41,7 @@ export const footprintPlugin: Plugin = {
       active: () => false,
       onSelect: () => openFootprintTab(),
     });
-    /* 写侧装配:封口事件 → 单飞队列落按月 rollup(数据层,返回退订)。 */
-    const offRollup = activateRollup(ctx.events);
-    /* 视图 live 信号:封口到达即 bump,当日视图/月历轻刷新(纯读重拉)。 */
-    const offSealed = ctx.events.on<CkptTurnSealedEvent>(KernelTopics.ckptTurnSealed, () => {
-      bumpFootprintRev();
-    });
-    /* 功能卡随日报生成会话直写,不经封口账:文件写事件命中 features 即刷新。 */
-    const offEdit = ctx.events.on<{ sessionId: string; paths: string[] }>(KernelTopics.fileEditDetected, (e) => {
-      if (e.paths.some((p) => p.includes("/footprint/features/"))) bumpFootprintRev();
-    });
-    /* 补账不在启动后定时跑(要全量会话扫描,会叠启动峰);改由视图首次挂载触发,
-     * 见 backfill.reconcileOnce —— 用户看数据那一刻补,补到即 bump 重拉。 */
-    return () => {
-      offRollup();
-      offSealed();
-      offEdit();
-    };
+    /* 写侧订阅(rollup 落账 + live 信号)已迁 workbench「回顾」域
+     * (review/footprintRuntime,与 footprint UI 解耦);本插件不再持有订阅。 */
   },
 };
