@@ -8,7 +8,7 @@
  * - agent-reasoning 正文 48% 透明(monocode 同款阅读层级)。
  */
 
-import { memo, useMemo, useState, type ComponentType } from "react";
+import { memo, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import type { CliTranscriptBlock, CliTranscriptImage } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 
@@ -47,12 +47,18 @@ export const TranscriptBlockView = memo(function TranscriptBlockView({
   block,
   Markdown,
   tail,
+  wrap,
 }: {
   block: CliTranscriptBlock;
   Markdown: MarkdownRenderer;
   /** 轮次进行中的卷尾块:思考脉冲/正文光标(monocode 流式观感;数据仍是 message 级)。 */
   tail?: boolean;
+  /** 长正文包装器(可选;如折叠组件)。仅注入方启用,缺省原样渲染 —— 共享件,
+   *  既有消费方(PTY 会话查看器)不传,渲染逐字节不变。 */
+  wrap?: ComponentType<{ children: ReactNode }>;
 }) {
+  /* 大写别名:小写标签会被 JSX 当内建元素。 */
+  const Wrap = wrap;
   if (block.role === "system") {
     return <div className="sv-system">{block.text}</div>;
   }
@@ -63,7 +69,15 @@ export const TranscriptBlockView = memo(function TranscriptBlockView({
           <span className="sv-role-label">{t("你")}</span>
           <Timestamp ms={block.startedAt} />
         </div>
-        {block.text ? <Markdown>{capped(block.text)}</Markdown> : null}
+        {block.text ? (
+          Wrap ? (
+            <Wrap>
+              <Markdown>{capped(block.text)}</Markdown>
+            </Wrap>
+          ) : (
+            <Markdown>{capped(block.text)}</Markdown>
+          )
+        ) : null}
         {block.images?.length ? <UserImages images={block.images} /> : null}
       </div>
     );
@@ -77,7 +91,13 @@ export const TranscriptBlockView = memo(function TranscriptBlockView({
         <span className="sv-role-label">{t("AI")}</span>
         <Timestamp ms={block.startedAt} />
       </div>
-      <Markdown>{capped(block.text)}</Markdown>
+      {Wrap ? (
+        <Wrap>
+          <Markdown>{capped(block.text)}</Markdown>
+        </Wrap>
+      ) : (
+        <Markdown>{capped(block.text)}</Markdown>
+      )}
     </div>
   );
 });
@@ -89,6 +109,7 @@ export function TranscriptView({
   minimal,
   streaming,
   locateId,
+  WrapLong,
 }: {
   blocks: CliTranscriptBlock[];
   Markdown: MarkdownRenderer;
@@ -97,6 +118,8 @@ export function TranscriptView({
   streaming?: boolean;
   /** 行级定位高亮的块 id(深链兜底;viewerTab 解析后传入)。 */
   locateId?: string | null;
+  /** 长正文包装器(可选;如折叠组件)。缺省原样渲染,PTY 路径零影响。 */
+  WrapLong?: ComponentType<{ children: ReactNode }>;
 }) {
   const items = useMemo(() => buildTranscriptPhases(blocks, { minimal }), [blocks, minimal]);
   const itemKey = makeKeySeq();
@@ -124,7 +147,7 @@ export function TranscriptView({
             data-vb={item.block.id}
             className={`sv-vb${item.block.id === locateId ? " sv-loc-flash" : ""}`}
           >
-            <TranscriptBlockView block={item.block} Markdown={Markdown} tail={item.block.id === tailId} />
+            <TranscriptBlockView block={item.block} Markdown={Markdown} tail={item.block.id === tailId} wrap={WrapLong} />
           </div>
         ),
       )}

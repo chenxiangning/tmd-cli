@@ -6,7 +6,8 @@
  * 生命周期编排见 ssSession.ts。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  */
-import { lazy, useEffect, useRef } from "react";
+import { lazy, useEffect, useRef, useState } from "react";
+import { ArrowDown } from "@phosphor-icons/react";
 import type { EditorTab } from "@kernel/tabs";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
@@ -16,6 +17,7 @@ import { SsHeader } from "./ssHeader";
 import { SsActions } from "./ssActions";
 import { LiveTurn } from "./liveTurn";
 import { SsComposer } from "./ssComposer";
+import { SsCollapsible } from "./ssCollapsible";
 import { TranscriptView } from "@plugins/session-viewer/transcriptView";
 import { useSsSession, type Phase } from "./ssSession";
 import type { StructuredSessionPayload } from "./tabs";
@@ -59,6 +61,9 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   const profile = host.getCliProfile(payload.profileId);
   const ss = useSsSession(payload, tab.id);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  /* 回底悬浮钮:尾部位移 >100px(codemoss AWAY_THRESHOLD)时浮出,点击滑回底部
+   * 并恢复贴底跟随;贴底/短内容隐藏。 */
+  const [away, setAway] = useState(false);
 
   /* 贴底跟随(busy 流式期),上翻停跟。 */
   useEffect(() => {
@@ -96,7 +101,10 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         ref={scrollRef}
         onScroll={() => {
           const el = scrollRef.current;
-          if (el) ss.stickRef.current = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
+          if (!el) return;
+          const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 60;
+          ss.stickRef.current = nearBottom;
+          setAway(!nearBottom && el.scrollHeight - el.clientHeight > 100);
         }}
       >
         <PhaseBanners
@@ -109,9 +117,26 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
 
         {ss.blocks.length > 0 ? (
           <div className="ss-blocks">
-            <TranscriptView blocks={ss.blocks.slice(0, ss.turnStart)} Markdown={MarkdownBody} minimal={minimal} />
-            <LiveTurn blocks={ss.blocks.slice(ss.turnStart)} busy={ss.busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} />
+            <TranscriptView blocks={ss.blocks.slice(0, ss.turnStart)} Markdown={MarkdownBody} minimal={minimal} WrapLong={SsCollapsible} />
+            <LiveTurn blocks={ss.blocks.slice(ss.turnStart)} busy={ss.busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} wrap={SsCollapsible} />
           </div>
+        ) : null}
+        {away ? (
+          <button
+            type="button"
+            className="ss-scrollbtn"
+            title={t("回到底部")}
+            aria-label={t("回到底部")}
+            onClick={() => {
+              const el = scrollRef.current;
+              if (!el) return;
+              ss.stickRef.current = true;
+              el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+              setAway(false);
+            }}
+          >
+            <ArrowDown size="0.875rem" />
+          </button>
         ) : null}
       </div>
       {/* working 带移出滚动区(flex:none 底带):长轮次卷走看不见、与 860px 列错位两症同治 */}

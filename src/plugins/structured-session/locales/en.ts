@@ -58,4 +58,18 @@ export const MESSAGES_EN: Record<string, string> = {
   "仅回填，不会自动发送": "Only fills the composer; nothing is sent automatically",
   "回填输入框": "Fill composer",
   "对应 checkpoint 批次": "Corresponding checkpoint batch",
+  /* RPC 输入面外观对齐 PTY composer(2026-11-05):唤醒轨与发送 */
+  "@ 引用文件": "@ Reference file",
+  "$ 调用技能": "$ Invoke skill",
+  /* 工具行类型 chip(codemoss ProcessDisclosure 分类;「命令」键与 kernel 撞,
+     消歧为「命令工具」) */
+  "搜索": "Search",
+  "命令工具": "Command",
+  "读取": "Read",
+  "编辑": "Edit",
+  "查找": "Find",
+  "子任务": "Subtask",
+  "工具": "Tool",
+  /* 长消息折叠(codemoss CollapsibleMessage 交互律;展开/收起复用 kernel 键) */
+  "回到底部": "Back to bottom",
 }

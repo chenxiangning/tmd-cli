@@ -396,6 +396,6 @@
 | 2026-11-05 | [减法批次 H 回滚记录(anim/ports/intent-canvas 默认停用方向被否,整批 revert;教训:「需产品确认」是硬闸门,默认态变更先问)](review/2026-11-05-batch-h-rollback.md) | 已回滚(三插件回归默认启用) |
 | 2026-11-05 | [减法批次 I 保留决策记录(LSP 代码跳转/Office 内嵌预览/docgen/web-access 自建中继/平铺广播/wallpaper 装饰全部保留,冻结扩张;零代码变更)](review/2026-11-05-batch-i-keep-decision.md) | 已决策(保留) |
 | 2026-11-05 | [减法批次(A～I)整批变更终验收口报告(§11 清单 32 项全收口:右 rail 默认 5 面板+4 动作维持现状;FEATURES.md 7 处失准修订;包体前后持平证据;门禁+doctor+Rust 三件套全绿)](review/2026-11-05-subtraction-final-verdict.md) | 已收口 |
-| 2026-11-05 | [RPC 幕布渲染层对照 codemoss UI 重构方案(折叠律「输出展开/落定收敛」为核心;ProcessDisclosure/CollapsibleMessage/ScrollControl 对照映射;不搬虚拟化与 RunStatusStrip;待批)](superpowers/specs/2026-11-05-rpc-canvas-codemoss-design.md) | 待批 |
+| 2026-11-05 | [RPC 幕布渲染层对照 codemoss UI 重构方案(折叠律「输出展开/落定收敛」为核心;ProcessDisclosure/CollapsibleMessage/ScrollControl 对照映射;不搬虚拟化与 RunStatusStrip;四批次已落地,PTY 零接触)](superpowers/specs/2026-11-05-rpc-canvas-codemoss-design.md) | 已落地 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

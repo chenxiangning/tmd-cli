@@ -7,8 +7,10 @@
  * 基于 getCommands 的专属补全,避免双下拉竞争。
  */
 import { useMemo, useRef, useState } from "react";
+import { At, PaperPlaneRight, Sparkle } from "@phosphor-icons/react";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
+import { useSettingsState } from "@kernel/settings";
 import { readDragPayload } from "@kernel/internalDrag";
 import { useComposerAttachments } from "@plugins/composer/view/useComposerAttachments";
 import { useComposerTriggers } from "@plugins/composer/view/useComposerTriggers";
@@ -80,6 +82,68 @@ function useCmdComplete(session: PiRpcSession | null, draft: string, setDraft: (
   return { onChange, onKey, matches, sel, setSel, complete, open, cmdList };
 }
 
+/* / 命令补全面(列表渲染拆件,守 react-doctor 复杂度;键盘钩仍归 useCmdComplete)。 */
+function SsCmdList({ cmd }: { cmd: CmdComplete }) {
+  return (
+    <div className="ss-cmds" role="listbox">
+      {cmd.cmdList === null ? <div className="ss-cmd-hint">{t("载入命令目录…")}</div> : null}
+      {cmd.cmdList !== null && cmd.matches.length === 0 ? <div className="ss-cmd-hint">{t("无匹配命令")}</div> : null}
+      {cmd.matches.map((c, i) => (
+        <button
+          type="button"
+          key={c.name}
+          role="option"
+          aria-selected={i === cmd.sel}
+          className={"ss-cmd" + (i === cmd.sel ? " is-sel" : "")}
+          onMouseDown={(e) => { e.preventDefault(); cmd.complete(c); }}
+          onMouseEnter={() => cmd.setSel(i)}
+        >
+          <span className="ss-cmd-name">/{c.name}</span>
+          {c.hint ? <span className="ss-cmd-hint-arg">{c.hint}</span> : null}
+          {c.description ? <span className="ss-cmd-desc">{c.description}</span> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* 左下唤醒轨 + 发送(与 PTY composer 同几何:composer-anchors.css 的
+ * .composer-input-rail / .composer-rail-btn;贡献 Mount 不带入,那些是
+ * PTY 会话专属且经全局单例桥,会和 PTY composer 抢注册)。
+ * 引擎声明了哪个触发符就亮哪个(图标即能力探针,隐藏优于置灰)。 */
+function SsWakeRail({ triggerSpecs, wakeTrigger, canSend, onSend }: {
+  triggerSpecs: readonly { char: string }[];
+  wakeTrigger: (char: string) => void;
+  canSend: boolean;
+  onSend: () => void;
+}) {
+  const wake = (char: string) => triggerSpecs.some((s) => s.char === char);
+  return (
+    <div className="composer-input-rail">
+      {wake("@") ? (
+        <button type="button" className="composer-rail-btn" title={t("@ 引用文件")} aria-label={t("@ 引用文件")} onClick={() => wakeTrigger("@")}>
+          <At size="0.875rem" />
+        </button>
+      ) : null}
+      {wake("$") ? (
+        <button type="button" className="composer-rail-btn" title={t("$ 调用技能")} aria-label={t("$ 调用技能")} onClick={() => wakeTrigger("$")}>
+          <Sparkle size="0.875rem" />
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="composer-rail-btn ss-composer-send"
+        title={t("发送")}
+        aria-label={t("发送")}
+        disabled={!canSend}
+        onClick={onSend}
+      >
+        <PaperPlaneRight size="0.875rem" />
+      </button>
+    </div>
+  );
+}
+
 export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profileId: string; cwd: string }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -95,15 +159,17 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
   const { removeTokenForAttachment, handlePaste, handleDrop } = useComposerAttachments(
     textareaRef, value, setValue, setCursor, setDragOver,
   );
-  const { matches, activeRange, pickIndex, setPickIndex, applyPick, dismiss } =
+  const { matches, activeRange, pickIndex, setPickIndex, applyPick, dismiss, triggerSpecs, wakeTrigger } =
     useComposerTriggers({ profile, value, cursor, cwd, textareaRef, setValue, setCursor });
+  const { settings } = useSettingsState();
+  const cmdOrCtrl = settings.sendShortcut === "cmdOrCtrlEnter";
   const { boxRect, popupBottom, popupMaxHeight } = usePopupAnchor(boxRef);
   const attachDragProps = useAttachDragProps(boxRef, readDragPayload, setDragOver);
 
-  /* 输入框随手长高(两行式,桌面上限同款 180px;CSS overflow 兜底滚动)。 */
+  /* 输入框随手长高(基线 96px,上限 220px 与 CSS max-height 同值;CSS overflow 兜底滚动)。 */
   const autoResize = (el: HTMLTextAreaElement) => {
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 96), 220)}px`;
   };
   /* 触发器候选键:↑↓ 移动,Enter/Tab 选定,Esc 关闭(唤醒注入未消费则回收)。 */
   const triggerKeys = (e: React.KeyboardEvent<HTMLTextAreaElement>): boolean => {
@@ -129,49 +195,32 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
 
   return (
     <div className="relative" onDrop={(e) => void handleDrop(e)} {...attachDragProps}>
-      {dragOver ? <DragOverlay /> : null}
-      <AttachmentStrip
-        onRemove={removeTokenForAttachment}
-        onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)}
-      />
-      {ss.phase === "ready" && cmd.open ? (
-        <div className="ss-cmds" role="listbox">
-          {cmd.cmdList === null ? <div className="ss-cmd-hint">{t("载入命令目录…")}</div> : null}
-          {cmd.cmdList !== null && cmd.matches.length === 0 ? <div className="ss-cmd-hint">{t("无匹配命令")}</div> : null}
-          {cmd.matches.map((c, i) => (
-            <button
-              type="button"
-              key={c.name}
-              role="option"
-              aria-selected={i === cmd.sel}
-              className={"ss-cmd" + (i === cmd.sel ? " is-sel" : "")}
-              onMouseDown={(e) => { e.preventDefault(); cmd.complete(c); }}
-              onMouseEnter={() => cmd.setSel(i)}
-            >
-              <span className="ss-cmd-name">/{c.name}</span>
-              {c.hint ? <span className="ss-cmd-hint-arg">{c.hint}</span> : null}
-              {c.description ? <span className="ss-cmd-desc">{c.description}</span> : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <SuggestionPortal
-        matches={matches}
-        activeRange={activeRange}
-        boxRect={boxRect}
-        popupBottom={popupBottom}
-        popupMaxHeight={popupMaxHeight}
-        pickIndex={pickIndex}
-        setPickIndex={setPickIndex}
-        applyPick={applyPick}
-      />
-      {ss.confirm ? <ConfirmCard key={ss.confirm.frameId} confirm={ss.confirm} onAnswer={ss.answerConfirm} /> : null}
-      <div className="ss-input" ref={boxRef}>
+      <div
+        ref={boxRef}
+        className={`ss-composer${dragOver ? " is-dragover" : ""}${ss.phase !== "ready" ? " is-disabled" : ""}`}
+      >
+        {dragOver ? <DragOverlay /> : null}
+        <AttachmentStrip
+          onRemove={removeTokenForAttachment}
+          onPreviewImage={(a) => setPreviewSrc(a.previewDataUrl || a.thumbDataUrl)}
+        />
+        {ss.phase === "ready" && cmd.open ? <SsCmdList cmd={cmd} /> : null}
+        <SuggestionPortal
+          matches={matches}
+          activeRange={activeRange}
+          boxRect={boxRect}
+          popupBottom={popupBottom}
+          popupMaxHeight={popupMaxHeight}
+          pickIndex={pickIndex}
+          setPickIndex={setPickIndex}
+          applyPick={applyPick}
+        />
+        {ss.confirm ? <ConfirmCard key={ss.confirm.frameId} confirm={ss.confirm} onAnswer={ss.answerConfirm} /> : null}
         <textarea
-          className="ss-textarea"
+          className="ss-composer-textarea"
           ref={textareaRef}
           value={value}
-          placeholder={ss.phase !== "ready" ? t("会话未就绪") : ss.busy ? t("输入下一问(排队,当前轮结束自动发送)") : t("发消息(Enter 发送,Shift+Enter 换行)")}
+          placeholder={ss.phase !== "ready" ? t("会话未就绪") : ss.busy ? t("输入下一问(排队,当前轮结束自动发送)") : cmdOrCtrl ? t("输入消息,⌘/Ctrl+Enter 发送 · / 唤起命令") : t("输入消息,Enter 发送 · / 唤起命令")}
           disabled={ss.phase !== "ready"}
           onChange={(e) => {
             cmd.onChange(e.target.value);
@@ -192,17 +241,23 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
             /* 触发器候选 > / 命令补全 > 发送(优先级序,首个消费即返回)。 */
             if (triggerKeys(e)) return;
             if (cmd.onKey(e)) return;
-            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            const sendKey = cmdOrCtrl
+              ? e.key === "Enter" && (e.metaKey || e.ctrlKey)
+              : e.key === "Enter" && !e.shiftKey;
+            if (sendKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
               ss.send();
             }
           }}
         />
-        <button type="button" className="ss-send" disabled={ss.phase !== "ready" || !value.trim()} onClick={ss.send}>
-          {t("发送")}
-        </button>
+        <SsWakeRail
+          triggerSpecs={triggerSpecs}
+          wakeTrigger={wakeTrigger}
+          canSend={ss.phase === "ready" && !!value.trim()}
+          onSend={ss.send}
+        />
+        <PreviewOverlay src={previewSrc} onClose={() => setPreviewSrc(null)} />
       </div>
-      <PreviewOverlay src={previewSrc} onClose={() => setPreviewSrc(null)} />
     </div>
   );
 }
