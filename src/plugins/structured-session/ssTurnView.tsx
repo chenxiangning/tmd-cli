@@ -109,7 +109,7 @@ function SsProcessFold({ blocks }: { blocks: CliTranscriptBlock[] }) {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <CaretRight className="ss-tool-caret" aria-hidden />
+        <CaretRight size="0.75rem" className="ss-tool-caret" aria-hidden />
         <span>{summary}</span>
       </button>
       <div className="ss-fold-clip">

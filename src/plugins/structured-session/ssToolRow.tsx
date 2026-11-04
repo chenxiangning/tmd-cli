@@ -85,7 +85,7 @@ export function SsToolRow({ block, rail }: { block: CliTranscriptBlock; rail?: {
         <span className="ss-toolrow-label">{meta.label}</span>
         <span className={`ss-tool-chip ss-tool-chip-${meta.typeKey}`}>{t(TYPE_LABEL[meta.typeKey])}</span>
         {meta.chip ? <span className="ss-tool-file">{meta.chip}</span> : null}
-        <CaretRight className="ss-tool-caret" aria-hidden />
+        <CaretRight size="0.75rem" className="ss-tool-caret" aria-hidden />
       </button>
       <ToolBody meta={meta} open={open} />
     </>

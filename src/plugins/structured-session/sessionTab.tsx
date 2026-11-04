@@ -120,7 +120,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
             {ss.turnStart > 0 ? (
               <SsTurnView blocks={ss.blocks.slice(0, ss.turnStart)} Markdown={MarkdownBody} />
             ) : null}
-            <LiveTurn blocks={ss.blocks.slice(ss.turnStart)} busy={ss.busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} />
+            <LiveTurn blocks={ss.blocks.slice(ss.turnStart)} busy={ss.busy} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
           </div>
         ) : null}
         {away ? (

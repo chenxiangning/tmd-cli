@@ -13,7 +13,7 @@ import type { CliTranscriptBlock } from "@kernel/cli";
 import { sendOsNotification } from "@kernel/ipc";
 import { openStructuredSessionTab, type StructuredSessionPayload } from "./tabs";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
-import { PiRpcSession, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
+import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
 import { StructuredTurnEvidence } from "./evidence";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
@@ -24,6 +24,8 @@ export type SsSessionState = {
   busy: boolean; elapsed: number; confirm: PiRpcConfirm | null;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
+  /** 流内活跃输出面(活思考/正文据此展开;与块位置无关,见 PiRpcReducer.liveSurface)。 */
+  liveSurface: PiLiveSurface;
   sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
   retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
   dismissWarn: () => void;
@@ -61,9 +63,10 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   /* 用户在途轮计数:send/followUp 记账,结算销账 —— 只有用户发起的轮次结束才发 OS 通知。 */
   const promptDebtRef = useRef(0);
   /* token 级 delta 30-80 事件/s:攒 120ms 尾沿合帧再进 React(流式观感无差,
-   * 相位级 useMemo 与活块 markdown 重解析降频一个量级)。 */
-  const pendingBlocksRef = useRef<[CliTranscriptBlock[], number] | null>(null);
+   * 相位级 useMemo 与活块 markdown 重解析降频一个量级)。surface 随末帧捎带。 */
+  const pendingBlocksRef = useRef<[CliTranscriptBlock[], number, PiLiveSurface] | null>(null);
   const flushTimerRef = useRef<number | null>(null);
+  const [liveSurface, setLiveSurface] = useState<PiLiveSurface>(null);
   const flushBlocks = () => {
     if (flushTimerRef.current != null) {
       clearTimeout(flushTimerRef.current);
@@ -74,6 +77,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       pendingBlocksRef.current = null;
       setBlocks(pending[0]);
       setTurnStart(pending[1]);
+      setLiveSurface(pending[2]);
     }
   };
 
@@ -97,8 +101,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       rpc,
       payload.cwd,
       {
-        onBlocks: (next, ts) => {
-          pendingBlocksRef.current = [next, ts];
+        onBlocks: (next, ts, surface) => {
+          pendingBlocksRef.current = [next, ts, surface];
           if (flushTimerRef.current == null) {
             flushTimerRef.current = window.setTimeout(() => {
               flushTimerRef.current = null;
@@ -276,6 +280,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   return {
     phase, statusText, warn, blocks, turnStart, busy, elapsed, confirm,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
+    liveSurface,
     sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,
   };
 }

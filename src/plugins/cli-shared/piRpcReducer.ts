@@ -13,10 +13,16 @@
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
 import type { CliTranscriptBlock, CliToolPreview } from "@kernel/cliSessionTypes";
-import { t } from "@kernel/i18n";
 import { piToolPreview, piTranscriptLine } from "./piTranscript";
 
+/* 部件纯函数已拆至 piRpcWidgets(300 行铁则);此处重导出保持既有 import 面
+ * (piRpc.test.ts 从本件引入)。 */
+export { widgetCancelledNotice, widgetTier } from "./piRpcWidgets";
+
 const LIVE = "live:";
+
+/** 流内活跃输出面(thinking/text;null = 无流内消息——工具执行间隙/轮末)。 */
+export type PiLiveSurface = "thinking" | "text" | null;
 
 /** args 守卫:非对象值(缺省/畸形帧)一律空表。 */
 function argsOf(v: unknown): Record<string, unknown> {
@@ -53,46 +59,6 @@ function contentText(content: unknown): string | undefined {
   return parts.length ? parts.join("") : undefined;
 }
 
-/** 时分秒(词典无关的 locale 中立形态;notice 时刻用)。 */
-export function clockOf(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-/** 非 confirm 部件自动取消判定(纯函数,单测钉死):extension_ui_request 且
- * method 非 confirm(select/input/editor 等真交互部件)时,RPC 模式无人可答,
- * 按协议回 cancelled 并产转录 notice 文案 —— 不再无声替答;confirm 走审批
- * 回路不在此列;chrome 装饰类(widgetTier 判 chrome)在 piRpc 层静默丢弃,
- * 不经此函数;缺 id 的畸形帧不产(无处应答也无从示警;调用侧已将数值 id
- * 归一为字符串,见 piRpc.normWidgetFrameId)。 */
-export function widgetCancelledNotice(
-  rec: Record<string, unknown>,
-  now: Date = new Date(),
-): { frameId: string; kind: string; text: string } | null {
-  if (rec.type !== "extension_ui_request") return null;
-  const kind = rec.method;
-  if (typeof kind !== "string" || !kind || kind === "confirm") return null;
-  const frameId = rec.id;
-  if (typeof frameId !== "string" || !frameId) return null;
-  return {
-    frameId,
-    kind,
-    text: `${t("CLI 发起 {kind} 交互,已按协议自动取消", { kind })}(${clockOf(now)})`,
-  };
-}
-
-/** TUI 装饰类部件(omp 18.x 启动/轮次帧实证:setStatus 状态行、notify 通知、
- * setWidget 小部件注册):RPC 模式下永远无意义,协议层静默应答 cancelled 后
- * 直接丢弃(2026-11-05 减法收口,取代 2026-10-02 的聚合 ×N 行方案——实测单轮
- * ×50+ 仍占转录版面);select/input/editor 等真交互与未知 kind 一律
- * interactive 逐条可见——宁可多显示不可静默。 */
-const CHROME_WIDGET_KINDS: Record<string, true> = { setStatus: true, notify: true, setWidget: true };
-
-/** 部件分档(纯函数,单测钉死):chrome = TUI 装饰,interactive = 其余一切。 */
-export function widgetTier(kind: string): "chrome" | "interactive" {
-  return CHROME_WIDGET_KINDS[kind] ? "chrome" : "interactive";
-}
-
 export class PiRpcReducer {
   /** 落定基座(唯一真源;不含流内块与工具行)。 */
   private settled: CliTranscriptBlock[] = [];
@@ -102,6 +68,14 @@ export class PiRpcReducer {
   private tools = new Map<string, ToolLive>();
   private toolOrder: string[] = [];
   turnStart = 0;
+  /** 流内活跃输出面(thinking/text):渲染层据此给对应块「流式展开」态。
+   * 必须与块位置解耦 —— rebuild 布局中活思考永远排在轮级工具行之前,
+   * 渲染层若按 is-last 判断,轮内第二段起的思考永远不展开(2026-11-05
+   * 幕布流缺陷实锤:工具一跑,思考块后再无 last)。消息结算即清。 */
+  liveSurface: PiLiveSurface = null;
+  /** follow_up 用户消息本地回显排队(omp 对 follow_up 不发 user 消息帧,
+   * 轮首无用户块轮界不可读;下轮 turn_start/agent_start 注入 settled 尾)。 */
+  private pendingUserEcho: string | null = null;
 
   /** 接续种子(断线重开换壳保转录):settled = 旧 blocks,轮界对齐尾。 */
   seed(blocks: CliTranscriptBlock[]): void {
@@ -114,9 +88,16 @@ export class PiRpcReducer {
     const type = rec.type;
     /* 18.6.0 起轮界帧更名 turn_start(18.4 实测为 session_start;双名兼容)。
      * turn_end 与 session_settled 同义,结算仍走 session_settled(18.6 实测在发)。 */
-    if (type === "session_start" || type === "turn_start") this.turnStart = this.blocks.length;
-    else if (type === "agent_start") { this.tools.clear(); this.toolOrder = []; }
-    else if (type === "message_start") this.startMsg(rec);
+    if (type === "session_start" || type === "turn_start") {
+      /* 先推进轮界再注入回显:echo 块下标 = 新 turnStart,归活轮切片——与
+       * 首轮 user 占位(message_start 于轮界后)同位;次序反过来会落进上轮。 */
+      this.turnStart = this.blocks.length;
+      this.flushUserEcho();
+    } else if (type === "agent_start") {
+      this.flushUserEcho();
+      this.tools.clear();
+      this.toolOrder = [];
+    } else if (type === "message_start") this.startMsg(rec);
     else if (type === "message_update") this.updateMsg(rec);
     else if (type === "message_end") this.endMsg(rec);
     else if (type === "tool_execution_start" || type === "tool_execution_update") this.toolExec(rec, "running");
@@ -125,10 +106,27 @@ export class PiRpcReducer {
     return this.blocks;
   }
 
+  /** follow_up 用户消息本地回显入队(PiRpcSession.followUp 成功 ack 后调用;
+   * 注入在下一轮回界帧flush——ack 即时而上轮尚在途,立刻注入会落进上轮切片)。 */
+  queueUserEcho(text: string): void {
+    this.pendingUserEcho = text;
+  }
+
+  /* 回显注入 settled 尾:此时 turnStart 仍指轮首(= 注入点前界),注入块下标
+   * = settled.length ≥ turnStart → 渲染层归活轮,与引擎首轮回显同位。 */
+  private flushUserEcho() {
+    const text = this.pendingUserEcho;
+    if (text == null) return;
+    this.pendingUserEcho = null;
+    this.settled = [...this.settled, { id: `${LIVE}f${this.settled.length}`, role: "user", text }];
+    this.rebuild();
+  }
+
   private startMsg(rec: Record<string, unknown>) {
     const role = (rec.message as { role?: unknown } | undefined)?.role;
     if (role !== "assistant" && role !== "user") return; // custom/toolResult 噪声
     if (this.live) this.freezeLive();
+    this.liveSurface = null;
     this.live = { role, at: this.settled.length, thinking: "", text: "" };
     if (role === "user") {
       /* 用户回显先行占位,message_end 落定权威文本 */
@@ -143,9 +141,13 @@ export class PiRpcReducer {
     const ev = rec.assistantMessageEvent as { type?: unknown; delta?: unknown } | undefined;
     const kind = ev?.type;
     const delta = typeof ev?.delta === "string" ? ev.delta : "";
-    if (kind === "thinking_delta" && delta) live.thinking += delta;
-    else if (kind === "text_delta" && delta) live.text += delta;
-    else return;
+    if (kind === "thinking_delta" && delta) {
+      live.thinking += delta;
+      this.liveSurface = "thinking";
+    } else if (kind === "text_delta" && delta) {
+      live.text += delta;
+      this.liveSurface = "text";
+    } else return;
     this.rebuild();
   }
 
@@ -179,6 +181,7 @@ export class PiRpcReducer {
       if (this.live?.role === "user") {
         const at = this.live.at;
         this.live = null;
+        this.liveSurface = null;
         if (text) this.settled = this.settled.map((b, i) => (i === at ? { ...b, text } : b));
         this.rebuild();
       }
@@ -190,6 +193,7 @@ export class PiRpcReducer {
     const parsed = (piTranscriptLine({ type: "message", message: msg }) ?? []).filter((b) => b.role !== "tool");
     const live = this.live;
     this.live = null;
+    this.liveSurface = null;
     if (live) {
       const fallbackThink: CliTranscriptBlock | null = parsed.some((b) => b.role === "reasoning") || !live.thinking
         ? null
@@ -246,6 +250,7 @@ export class PiRpcReducer {
     const live = this.live;
     if (!live) return;
     this.live = null;
+    this.liveSurface = null;
     if (live.role === "assistant") {
       if (live.thinking) this.settled = [...this.settled, { id: `${LIVE}t${live.at}`, role: "reasoning", text: live.thinking }];
       if (live.text) this.settled = [...this.settled, { id: `${LIVE}a${live.at}`, role: "assistant", text: live.text }];
