@@ -175,5 +175,11 @@ export const MESSAGES = {
   /* ── F-01 减法批次:新建会话/添加工作区的来源分组标签 ── */
   "本地来源": "Local source",
   "远程来源": "Remote sources",
-  "更多来源": "More sources",
+  /* ── 2026-11-05 新建会话菜单三分区(PTY / 带渲染的会话 / 远程与其他) ── */
+  "PTY 会话": "PTY sessions",
+  "本地终端,按 CLI 原生交互": "Local terminal, native CLI interaction",
+  "带渲染的会话": "Rendered session",
+  "思考与工具调用以卡片渲染,过程实时可见": "Thinking & tool calls rendered as cards, live progress",
+  "远程与其他": "Remote & other",
+  "其余 {n} 个预设见「管理预设…」": "{n} more presets in \"Manage presets…\"",
 } as Record<string, string>;

@@ -28,10 +28,12 @@
 
   position: fixed;
   z-index: 1201;
-  min-width: 256px;
-  max-width: min(332px, calc(100vw - 24px));
-  max-height: min(68vh, 460px);
-  overflow-y: auto;
+  /* 2026-11-05 三分区重构:加宽(三列引擎网格) + 去内部滚动(内容自适应,
+     预设限 5 收敛,整单夹进视口,不再出现滚动条);overflow 放行 fixed 子菜单。 */
+  min-width: 340px;
+  max-width: min(480px, calc(100vw - 24px));
+  max-height: calc(100vh - 16px);
+  overflow: visible;
   padding: 8px;
   border-radius: var(--tmd-radius-lg);
   border: 1px solid var(--border-quiet);
@@ -59,10 +61,11 @@
   gap: 6px;
 }
 
-/* 引擎区两列网格(2026-10-08 菜单压高):10 引擎 10 行 → 5 行,菜单不再溢出滚动。 */
+/* 引擎区三列网格(2026-11-05 三分区重构,宽度同步 480px:10 引擎 4 行,
+   配合预设限 5,整单高度自适应不出内部滚动条)。 */
 .wsmenu-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
 }
 
@@ -117,7 +120,8 @@
   align-items: center;
   gap: 8px;
   text-align: left;
-  padding: 8px 8px;
+  /* 2026-11-05 行高压紧(8px→6px),整单高度让位三分区结构 */
+  padding: 6px 8px;
   font-size: var(--tmd-font-md);
   font-weight: 500;
   line-height: 1.3;

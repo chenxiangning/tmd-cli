@@ -71,8 +71,9 @@ export const LiveTurn = memo(function LiveTurn({ blocks, busy, Markdown, thinkin
           return <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />;
         }
         if (b.role === "reasoning") {
-          /* 思考行同形复用(pulse = 流式脉冲;展开体 markdown 与落定一致) */
-          return <ThinkingRow key={b.id} block={b} Markdown={Markdown} pulse={busy && b === last} />;
+          /* 思考行同形复用(pulse = 流式脉冲;streaming = 该段输出中自动展开,
+           * 段落落定自动折回单行摘要——与工具行 running 展开/终态折叠同律) */
+          return <ThinkingRow key={b.id} block={b} Markdown={Markdown} pulse={busy && b === last} streaming={busy && b === last} />;
         }
         if (b.role === "tool") {
           return <ToolRow key={b.id} block={b} />;

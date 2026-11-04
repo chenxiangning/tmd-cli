@@ -22,8 +22,11 @@ vi.mock("@kernel/i18n", () => ({
   registerMessages: () => undefined,
 }));
 vi.stubGlobal("document", { body: {} });
-/* F-01 组头显隐桩:原地清空/注入(vi.mock 工厂引用须经 vi.hoisted 初始化)。 */
-const { mountStub } = vi.hoisted(() => ({ mountStub: [] as unknown[] }));
+/* F-01 远程来源组头显隐桩:原地清空/注入(vi.mock 工厂引用须经 vi.hoisted 初始化)。 */
+const { mountStub, renderedStub } = vi.hoisted(() => ({
+  mountStub: [] as unknown[],
+  renderedStub: [] as unknown[],
+}));
 vi.mock("@kernel/host", () => ({
   useHost: () => undefined,
   host: {
@@ -36,7 +39,11 @@ vi.mock("@kernel/host", () => ({
       id === "claude" ? { id: "claude", name: "claude", command: "claude", args: [] } : undefined,
     createSession: () => Promise.resolve({ id: "pty-x" }),
     getMount: (point: string) =>
-      point === "workspace.newSessionMenu" ? (mountStub as unknown as never[]) : [],
+      point === "workspace.newSessionMenu"
+        ? (mountStub as unknown as never[])
+        : point === "workspace.newSessionMenu.rendered"
+          ? (renderedStub as unknown as never[])
+          : [],
   },
 }));
 vi.mock("@kernel/settings", () => ({
@@ -142,7 +149,7 @@ describe("入口闭环审计", () => {
     expect(html).toContain("在新 worktree 中起会话…");
   });
 
-  it("⑤ F-01/G-01 更多来源组头:有贡献才渲染,空注册表不空挂组头", () => {
+  it("⑤ 2026-11-05 三分区:PTY 组头恒显;「带渲染的会话」组头随 rendered 挂点显隐不空挂;「远程与其他」本地恒显(worktree 行)", () => {
     const base = {
       workspace: { id: "ws1", name: "tmd-cli", root: "/tmp/ws" },
       canRemove: true,
@@ -153,10 +160,16 @@ describe("入口闭环审计", () => {
       onClose: () => undefined,
     } as never;
     mountStub.length = 0;
-    expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).not.toContain("更多来源");
+    renderedStub.length = 0;
+    const empty = renderToStaticMarkup(createElement(SessionMenuOverlay, base));
+    expect(empty).toContain("PTY 会话");
+    expect(empty).toContain("远程与其他");
+    expect(empty).not.toContain("带渲染的会话");
+    renderedStub.push({ component: () => null });
+    expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).toContain("带渲染的会话");
     mountStub.push({ component: () => null });
-    const html = renderToStaticMarkup(createElement(SessionMenuOverlay, base));
-    expect(html).toContain("更多来源");
+    expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).toContain("远程与其他");
     mountStub.length = 0;
+    renderedStub.length = 0;
   });
 });

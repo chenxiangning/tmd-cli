@@ -33,7 +33,7 @@ export function openStructuredSessionTab(profileId: string, cwd?: string): void 
   openTab({
     id: `structured:${profileId}:${root}`,
     kind: STRUCTURED_SESSION_TAB_KIND,
-    title: `${host.getCliProfile(profileId)?.name ?? profileId} · ${t("RPC 会话")}`,
+    title: `${host.getCliProfile(profileId)?.name ?? profileId} · ${t("带渲染的会话")}`,
     path: root,
     payload: { profileId, cwd: root } satisfies StructuredSessionPayload,
   });

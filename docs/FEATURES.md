@@ -42,9 +42,10 @@
 - 学堂打磨(academy):「试一试」引擎前置闸、课程 sourceVersion 与装机版本漂移提示、左轨课程列表键盘导航
 - 结构化会话(structured-session,0.2.7):omp/pi `--mode rpc` NDJSON 子进程 token 级流式(thinking/text/toolcall delta 原地累积,message_end 落权威块,与磁盘 JSONL 同构),幕布|结构化双视图切换,审批卡(confirm 回路)直答,PTY 零涉及;Rust proc_stream 四命令通用长驻流式原语(boot 期 kill_all 清孤儿;契约见 architecture/19)
 - 结构化会话打磨(structured-session):非 confirm 部件自动取消在转录出 notice(不再静默替答)、exited 一键重新开启、入口按引擎能力显隐(死入口清零)、prompt 请求超时独立常量;2026-11-05 终验修订:chrome 装饰类(setStatus/notify/setWidget)取消改协议层静默应答(不再落任何转录行),select/input/editor 及未知 kind 维持逐条可见
-- 结构化会话启动降噪(structured-session,已被上条修订取代,留档):部件取消语义分档——chrome 装饰类(setStatus/notify/setWidget)聚成一条淡色行(×N 计数原地刷新),select/input/editor 及未知 kind 维持逐条可见;渲染层零改动
+- 结构化会话启动降噪(structured-session,已被下条修订取代,留档):部件取消语义分档——chrome 装饰类(setStatus/notify/setWidget)聚成一条淡色行(×N 计数原地刷新),select/input/editor 及未知 kind 维持逐条可见;渲染层零改动
+- 结构化会话段落开合(2026-11-05):思考段流式期间自动展开、该段落落定自动折回单行摘要(与工具行 running 展开/终态折叠同律,手动点击可接管);正文永不折叠
 - 结构化会话能力批(2026-10-04,spec `docs/superpowers/specs/2026-10-04-structured-session-polish-design.md`):兼容 turn_start 帧名;模型/思考级切换、引擎切换、follow_up 排队、后台通知与断线接续;上下文用量展示、/ 命令补全、草稿持久化、模型筛选回车选中;模型清单失败重开可重试且不再自触发循环拉取
-- 结构化会话入口(G-01,2026-11-04):右 rail 不再直挂,迁新建会话菜单「更多来源」组(排 SSH 连接之后),未与 PTY 做隐式模式互切
+- 结构化会话入口(G-01,2026-11-04 迁菜单;2026-11-05 三分区重构):右 rail 不再直挂,入新建会话菜单「带渲染的会话」组(workspace.newSessionMenu.rendered 挂点,与 PTY 网格/「远程与其他」组并列;行文案 = 引擎名,tab 标题「引擎 · 带渲染的会话」),未与 PTY 做隐式模式互切
 - 转录浮标分档(session-viewer liveOverlay):按文件型会话显隐,非文件型引擎不露浮标
 - 会话看板(原 session-board 插件,C-04 并入 workbench):扫描失败显式错误条 + 重试(不伪装 0 会话)、图例可读性修正、泳道卡渲染预算;本体视图迁 workbench 回顾域,插件目录退役
 - 卫生清扫如实文案:清扫挂磁盘扫描结算点,回执数据不可得,设置卡如实说明不虚设回执
@@ -505,6 +506,7 @@
 - 顶栏「回到首页⇄回会话」toggle:会话中记住当前会话回欢迎页,首页中切回原会话(已退出则保持首页原样);市场覆盖层开启时先收市场再切换
 - 右缘面板 rail(2026-09-27,spec 2026-09-27-right-panel-rail-design;activity bar 形态):面板入口自顶栏右区迁窗口右缘常驻竖排工具条(30px,右栏收起也在),列表 = 钉住 ∪ 激活面板 + 横向分隔线 + ⋯ 溢出菜单(贴按钮左缘向左弹、纵向估高夹取);点击切面板并自动展开右栏(旧顶栏 tab 收起态点击无反馈的缺陷顺带根治);钉住语义与 localStorage `tmd.filePanel.pinned.v1` 零变更(⋯ 菜单行点击激活并顺带钉住,复选框仅切钉);rail 动作并入钉住管理,wsl 入 ⋯ 菜单可勾选
 - 左缘工具 rail(2026-10-04,右缘 rail 的镜像;2026-11-04 减法校注):窗口左缘常驻竖排工具条(30px,左栏收起也在),顶簇 = 工作台(10)/ 回到首页(20,⌘⇧H 不变)/ 动画项目(45,插件)/ 工作区切换(50,下拉与顶栏选择器共用 useWorkspaceSwitchMenus 同一菜单面);会话看板已随 C-04 并入工作台回顾、插件市场已迁「设置 → 插件与扩展」(A-02),左 rail 均不再单列;悬停提示 data-hint-side="right" 抽屉式右滑(Tooltip 镜像放置);插件条目与壳自有条目按 order 统一排序,壳只渲染注册表不认识业务。网络代理 2026-10-04 迁右缘 rail 底簇(rail+railBottom+pinOnce 一次性补钉,浮层自 rail 钮左缘翻弹)。2026-10-05 起设置入口迁左缘 rail 底簇(底格 logo 钮顺窗口左下弧,⌘, 不变),右缘⋯菜单高度随条目自适应
+- 新建会话菜单三分区(2026-11-05):加宽(480px 三列引擎网格,10 引擎 4 行)+ 去内部滚动(内容自适应整单夹进视口,预设区限露 5 条、超出注记进「管理预设…」);分区 = 「PTY 会话」(组头+本地终端说明)/「带渲染的会话」(RPC 结构化会话,组头+卡片渲染说明,行文案 = 引擎名)/「远程与其他」(SSH 等插件贡献 + 本地 worktree 行);夹取尺寸同步 480×660@12 边距
 - 左下角工作区显隐多选(2026-10-04,缩放组原位):触发钮(ListChecks + 当前工作区名)上弹多选清单(portal + 限高滚动),控制左栏显示的工作区集合;语义 = 隐藏清单 `settings.workspaceHiddenIds`(空 = 全部显示,新建工作区自动可见,残留已删 id 无害),左栏过滤纯函数与菜单锁步(workspace/utils visibleWorkspaces);勾选恢复显示时活动工作区顺带切一次 → 右侧文件树跟切到「最后勾选的工作区」,只切一下不做强绑定;最后一个可见工作区不可隐藏(行禁用 + 提示);菜单不随勾选关闭,点外/Esc 关
 - 幕布:⌘/Ctrl+F 呼出搜索框(即时命中,Enter 下一个/Shift+Enter 上一个,Esc 或 × 关闭并归还焦点);链接点击走系统浏览器;渲染层为 xterm 内建 DOM(2026-09-10 起弃用 WebGL:WKWebView atlas 长时间运行后静默损坏)
 - 幕布右上工具行(terminal.canvasRow 挂点,0.2.7):内核渲染行容器,幕布刷新钮收尾最右——单会话幕布重建(xterm 销毁重挂 + 输出缓冲回放 + 强制 SIGWINCH 整帧重绘),PTY/CLI 不中断、其他会话零扰动;插件经挂点贡献同排工具钮(session-viewer「结构化幕布」切换钮);行不设 z,不透明画布浮层开启时整行隐没

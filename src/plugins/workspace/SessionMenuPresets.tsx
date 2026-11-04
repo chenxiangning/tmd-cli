@@ -37,6 +37,9 @@ function presetBlockReason(
   return null;
 }
 
+/** 菜单预设露出行上限(2026-11-05 菜单去滚动条:预设区收敛,超出进「管理预设…」)。 */
+const PRESET_MENU_MAX = 5;
+
 /** 菜单里的预设段:恒显(本地工作区);空库给引导,管理入口固定在尾行。 */
 export function SessionMenuPresets({
   workspace,
@@ -51,6 +54,9 @@ export function SessionMenuPresets({
   const { presets } = useSessionPresets();
   const engineCount = defaultEngineCandidates().length;
   const contentOf = (ref: PresetPromptRef) => promptContentByRef(ref);
+  /* 菜单收敛:只露列表序前 5 条(库序即用户管理序,不做重排),超出数量如实注记。 */
+  const shown = presets.slice(0, PRESET_MENU_MAX);
+  const overflow = presets.length - shown.length;
 
   const launch = (preset: SessionPreset) => {
     if (presetBlockReason(preset, engineCount, contentOf)) return;
@@ -112,7 +118,10 @@ export function SessionMenuPresets({
       {presets.length === 0 && (
         <div className="wsmenu-note">{t("暂无预设,点下方「管理预设…」创建")}</div>
       )}
-      {presets.map((preset) => {
+      {overflow > 0 && (
+        <div className="wsmenu-note">{t("其余 {n} 个预设见「管理预设…」", { n: overflow })}</div>
+      )}
+      {shown.map((preset) => {
         const reason = presetBlockReason(preset, engineCount, contentOf);
         const profile = host.getCliProfile(preset.engineId);
         const ref = preset.prompt && !("text" in preset.prompt) ? preset.prompt.ref : null;

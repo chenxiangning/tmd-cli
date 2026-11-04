@@ -1,7 +1,7 @@
 /**
- * G-01/G-02 NewSessionEntry 契约 —— 新建菜单 RPC 入口:
+ * G-01/G-02 NewSessionEntry 契约 —— 新建菜单「带渲染的会话」入口:
  * 只列声明 structuredRpc 的引擎;无能力引擎渲染 null(菜单无死入口);
- * 行文案带引擎名与「RPC 会话」标识;点击打开独立 structured tab。
+ * 行文案 = 引擎名(组头/组说明承担「带渲染」语义);点击打开独立 structured tab。
  */
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -47,16 +47,17 @@ describe("G-01 NewSessionEntry 能力门", () => {
     expect(renderToStaticMarkup(createElement(NewSessionEntry))).toBe("");
   });
 
-  it("只列声明 structuredRpc 的引擎,行文案 = 「{name} RPC 会话」", () => {
+  it("只列声明 structuredRpc 的引擎,行文案 = 引擎名(「带渲染」语义由菜单组头承担)", () => {
     h.profiles = [
       { id: "omp", name: "OMP", structuredRpc: true },
       { id: "pi", name: "Pi", structuredRpc: true },
       { id: "claude", name: "claude" },
     ];
     const html = renderToStaticMarkup(createElement(NewSessionEntry));
-    expect(html).toContain("OMP RPC 会话");
-    expect(html).toContain("Pi RPC 会话");
-    expect(html).not.toContain("claude RPC 会话");
+    expect(html).toContain("OMP");
+    expect(html).toContain("Pi");
+    expect(html).not.toContain("claude");
+    expect(html).not.toContain("RPC 会话");
   });
 
   it("点击行打开独立 structured tab(id 带 structured: 前缀,不共享 PTY 身份)", () => {
