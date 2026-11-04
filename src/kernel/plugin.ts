@@ -81,10 +81,11 @@ export type MountPoint =
   /** 工作区标题行右侧动作区:贡献 icon 按钮级组件(如 session-budget 的预算入口)。 */
   | "leftSidebar.workspaceCaption"
   /** 工作区「新建会话」菜单「远程与其他」组:贡献远程来源入口行(如 ssh 插件的「SSH 连接」;
-   *  2026-11-05 三分区重构自原「更多来源」组拆出,RPC 类见下个挂点)。 */
+   *  2026-11-05 三分区重构自原「更多来源」组拆出,RPC 类见下个挂点)。菜单宿主递
+   *  onClose(点击行打开后续 UI 后须回调关闭弹层)。 */
   | "workspace.newSessionMenu"
   /** 工作区「新建会话」菜单「带渲染的会话」组:贡献 RPC 结构化会话入口(structured-session
-   *  的 omp/pi 行);与 PTY 网格分区呈现,组头/说明由菜单宿主渲染。 */
+   *  的 omp/pi 行);与 PTY 网格分区呈现,组头/说明由菜单宿主渲染;菜单宿主递 onClose。 */
   | "workspace.newSessionMenu.rendered"
   | "overlay"
   /** 中央幕布的无会话首页(welcome/引导页);无活跃 session 时整页渲染。 */

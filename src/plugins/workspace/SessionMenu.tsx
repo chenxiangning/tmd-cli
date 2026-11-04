@@ -121,7 +121,7 @@ export function SessionMenuOverlay({
               <>
                 <div className="wsmenu-group-title">{t("带渲染的会话")}</div>
                 <div className="wsmenu-note">{t("思考与工具调用以卡片渲染,过程实时可见")}</div>
-                <Mounts point="workspace.newSessionMenu.rendered" />
+                <Mounts point="workspace.newSessionMenu.rendered" props={{ onClose }} />
               </>
             )}
 
@@ -132,7 +132,7 @@ export function SessionMenuOverlay({
               <>
                 {hasRenderedEntries ? <div className="wsmenu-divider" /> : null}
                 <div className="wsmenu-group-title">{t("远程与其他")}</div>
-                <Mounts point="workspace.newSessionMenu" />
+                <Mounts point="workspace.newSessionMenu" props={{ onClose }} />
                 {/* 新 worktree 会话:仅本地工作区。建树链 = 本地 git + 本地 PTY spawn,对
                     来源工作区(WSL/SSH)语义错误;来源的新会话引擎行已由 origin 接管,
                     这里不放绕过通道。非 git 仓在弹层内如实报错(本地空工作区可达,发现性优先)。 */}
