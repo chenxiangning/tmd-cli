@@ -50,12 +50,24 @@
 .ss-abort { margin-left: 8px; height: 22px; padding: 0 10px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); cursor: pointer; }
 .ss-abort:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
 .ss-scroll { flex: 1; overflow-y: auto; position: relative; }
-/* 过程折叠组(codemoss ProcessDisclosure 形态:头一行 chip 摘要,展开步骤区) */
+/* 过程折叠组(codemoss ProcessDisclosure 二轮对齐 2026-11-05:纯文本头 +
+   grid-rows 高度开合;展开区 = 思考左轨全文 + 工具树导轨行) */
 .ss-fold { margin: 2px 0 6px; }
-.ss-fold-head { display: flex; align-items: center; gap: 4px; padding: 2px 8px 2px 4px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); cursor: pointer; width: fit-content; max-width: 100%; }
-.ss-fold-head:hover { color: var(--tmd-fg); background: var(--tmd-bg-hover); }
+.ss-fold-head { display: flex; align-items: center; gap: 4px; padding: 2px 0; border: none; background: none; color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); cursor: pointer; width: fit-content; max-width: 100%; }
+.ss-fold-head:hover { color: var(--tmd-fg); }
 .ss-fold.is-open .ss-tool-caret { transform: rotate(90deg); }
-.ss-fold-body { margin: 4px 0 6px 6px; padding: 2px 0 2px 10px; border-left: 1px solid var(--tmd-border); }
+/* 开合:grid-rows 高度动画(300ms ease-out;scaleY/opacity 会留合成器残影,
+   codemoss 明示不用);收起播完由组件卸载内容 */
+.ss-fold-clip { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 300ms ease-out; }
+.ss-fold.is-open .ss-fold-clip { grid-template-rows: 1fr; }
+.ss-fold-clip > div { min-height: 0; overflow: hidden; }
+.ss-fold-body { display: flex; flex-direction: column; gap: 10px; padding: 8px 0 6px 2px; }
+/* 思考段(codemoss ThinkingSurface):题头(Brain + 文案)+ 左轨灰字全文 */
+.ss-thinksec { display: flex; flex-direction: column; gap: 4px; }
+.ss-thinksec-title { display: flex; align-items: center; gap: 6px; color: var(--tmd-fg-faint); font-size: var(--tmd-font-ui); }
+.ss-thinksec-body { margin-left: 2px; padding-left: 12px; border-left: 1px solid var(--tmd-border); white-space: pre-wrap; word-break: break-words; font-size: var(--tmd-font-xs); line-height: 1.65; color: var(--tmd-fg-muted); }
+/* 工具段:树形导轨容器 */
+.ss-toolsec { display: flex; flex-direction: column; margin-left: 2px; }
 /* 轮间距 */
 .ss-turn { margin-bottom: 10px; }
 /* 回底悬浮钮(codemoss ScrollControl 律:离开底部 >100px 浮出,贴底/短内容隐藏) */
@@ -85,9 +97,10 @@
 .ss-confirm-deny:focus-visible, .ss-confirm-approve:focus-visible { outline: 1px solid var(--tmd-accent); outline-offset: 2px; }
 
 /* 输入面 —— 外观与 PTY composer 同律(2026-11-05 重构:去盒式药丸,改面板式
- * 全宽 textarea + 左下唤醒轨):透明底无边框盒,基线高 96px 随手长至 220px。 */
-.ss-composer { position: relative; flex: none; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--tmd-border); background: var(--tmd-bg-panel); }
-.ss-composer.is-dragover { border-top-color: var(--tmd-accent); box-shadow: inset 0 0 0 2px var(--tmd-accent-soft); }
+ * 全宽 textarea + 左下唤醒轨):透明底无边框盒,基线高 96px 随手长至 220px。
+ * 上缘由拖拽柄的细线承担(手柄隐藏 = min 段,与 PTY min 无分隔条同律)。 */
+.ss-composer { position: relative; flex: none; display: flex; flex-direction: column; overflow: hidden; background: var(--tmd-bg-panel); }
+.ss-composer.is-dragover { box-shadow: inset 0 0 0 2px var(--tmd-accent-soft); }
 .ss-composer-textarea { resize: none; min-height: 96px; max-height: 220px; padding: 10px 8px 4px; border: none; background: transparent; color: var(--tmd-fg); font-size: var(--tmd-font-md); line-height: 1.58; font-family: inherit; outline: none; overflow-y: auto; scrollbar-width: none; flex: none; }
 .ss-composer-textarea::-webkit-scrollbar { width: 0; }
 .ss-composer-textarea::placeholder { color: var(--tmd-fg-faint); }
@@ -100,9 +113,12 @@
 .ss-toolbar-slot { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .ss-toolbar-mono { font-family: var(--tmd-font-mono); color: var(--tmd-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
 .ss-toolbar-sep { height: 12px; width: 1px; background: color-mix(in srgb, var(--tmd-fg-faint) 30%, transparent); flex: none; }
-/* 拖拽柄:工具条上方 4px 热区(与 PTY 分隔条同交互,横向贯穿) */
-.ss-composer-handle { flex: none; height: 5px; margin-bottom: -1px; cursor: row-resize; border-top: 1px solid transparent; transition: border-color 100ms ease; touch-action: none; }
-.ss-composer-handle:hover, .ss-composer-handle:active { border-top-color: var(--tmd-accent); }
+/* 拖拽柄:PTY panel-handle 同款视觉 —— 4px 轨道,1px 细线贯通,中央 28×4
+ * 胶囊抓手,hover 增亮;细线是 composer 上缘唯一来源(min 段隐藏柄 = 无线) */
+.ss-composer-handle { position: relative; flex: none; height: 4px; cursor: row-resize; touch-action: none; z-index: 5; }
+.ss-composer-handle::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; margin-top: -0.5px; background: var(--tmd-border); }
+.ss-composer-handle::after { content: ""; position: absolute; left: 50%; top: 50%; width: 28px; height: 4px; margin-left: -14px; margin-top: -2px; border-radius: 999px; background: var(--tmd-border-strong); transition: background var(--tmd-dur-1) var(--tmd-ease-out); }
+.ss-composer-handle:hover::after, .ss-composer-handle:active::after { background: var(--tmd-fg-subtle); }
 /* min 段:只留工具条(与 PTY composer min 段同律) */
 .ss-composer.is-min .ss-composer-textarea, .ss-composer.is-min .composer-input-rail { display: none; }
 /* working 带:滚动区外 flex:none 底带(长轮次不再卷走;边线与 lv-working 同律) */
@@ -142,8 +158,27 @@
 .ss-toolrow-out { margin: 2px 0 4px 18px; padding: 8px 10px; border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); font-size: var(--tmd-font-ui); color: var(--tmd-fg-muted); white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow-y: auto; }
 @keyframes ss-think-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 .ss-toolrow.is-running .ss-toolrow-out.is-live { max-height: 220px; overflow-y: auto; background: var(--tmd-bg-sunken); }
+/* 树形导轨行(codemoss RowConnector/LogRow 同款,纯 CSS/SVG 实现,无 motion 库):
+ * 行模糊淡入(0.42s 软曲线);弯枝 pathLength dash 描画(首行即刻,后续 0.12s
+ * 接笔);干线 scaleY 生长;末行不绘干线,导轨收在弯角 */
+.ss-rowrail { position: relative; display: block; padding-left: 16px; animation: ssRowIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ss-rowrail-guide { position: absolute; inset: 0 auto 0 0; width: 12px; color: var(--tmd-border); pointer-events: none; }
+.ss-rowrail-guide svg { position: absolute; top: 0; left: 0; }
+.ss-rowrail-guide path { fill: none; stroke: currentColor; stroke-width: 1; stroke-dasharray: 1; stroke-dashoffset: 1; animation: ssGuideDraw 0.14s linear var(--ss-branch-delay, 0s) forwards; }
+.ss-rowrail-trunk { position: absolute; top: 8px; bottom: 0; left: 0; width: 1px; background: currentColor; transform: scaleY(0); transform-origin: top; animation: ssGuideGrow 0.12s linear forwards; }
+@keyframes ssRowIn { from { opacity: 0; transform: translateY(4px); filter: blur(6px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes ssGuideDraw { to { stroke-dashoffset: 0; } }
+@keyframes ssGuideGrow { to { transform: scaleY(1); } }
+/* 导轨行内展开体与标签左缘对齐(覆写平铺态 18px 缩进) */
+.ss-rowrail .ss-toolrow-cmd, .ss-rowrail .ss-toolrow-out { margin-left: 16px; }
+@media (prefers-reduced-motion: reduce) {
+  .ss-rowrail, .ss-rowrail-guide path, .ss-rowrail-trunk { animation: none; }
+  .ss-rowrail-guide path { stroke-dashoffset: 0; }
+  .ss-rowrail-trunk { transform: scaleY(1); }
+  .ss-fold-clip { transition: none; }
+}
 /* 工具行 chip 与 chevron(对照 codemoss ProcessDisclosure;类型 chip 按类名着色) */
-.ss-tool-chip { flex: none; padding: 0 6px; border-radius: var(--tmd-radius-sm); font-size: var(--tmd-font-xs); line-height: 16px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); }
+.ss-tool-chip { flex: none; padding: 0 6px; border: 1px solid color-mix(in srgb, var(--tmd-border) 75%, transparent); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); font-size: var(--tmd-font-xs); line-height: 16px; color: var(--tmd-fg-muted); }
 .ss-tool-chip-web { color: var(--tmd-accent); }
 .ss-tool-chip-shell { color: var(--tmd-fg); }
 .ss-tool-chip-edit { color: color-mix(in srgb, var(--tmd-accent) 70%, var(--tmd-fg)); }

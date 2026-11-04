@@ -76,6 +76,10 @@ export const MESSAGES_JA: Record<string, string> = {
   /* 过程折叠组头摘要(codemoss ProcessDisclosure) */
   /* 过程折叠组头摘要(codemoss ProcessDisclosure;「工具调用 {n} 次」复用 kernel 词典) */
   "思考 {n} 次": "思考 {n} 回",
+  /* 过程展开区(codemoss ThinkingSurface 题头 / 唤醒轨智能体とプロンプト) */
+  "思考过程": "思考プロセス",
+  "智能体(##)": "エージェント(##)",
+  "提示词(!!)": "プロンプト(!!)",
   /* 对话框拖拽柄 */
   "拖拽调整高度": "ドラッグで高さ調整",
 }

@@ -2,7 +2,8 @@
  * RPC 会话输入面 —— 自 sessionTab 拆出(300 行铁则)。在 PTY composer 能力
  * 基线上组合:复用 composer 插件的 @ 文件 / $ skill 触发器、粘贴/拖图写临时
  * 文件注入 "@path " token(附件条联动)等机制;发送仍走 ss.send()。能力边界:
- * 不带 ⌘L 输入历史 / composer.inputRail 贡献(PTY 会话专属,全局单例冲突),
+ * 不带 ⌘L 输入历史 / composer.inputRail 的 Mounts 贡献(全局单例桥会被 PTY
+ * composer 抢;智能体 ##/提示词 !! 已走本面触发器原生补齐,见 ssComposerRail);
  * 不带命令抽屉(发送路径 PTY 耦合);"/" 触发符不在此激活 —— RPC tab 已有
  * 基于 getCommands 的专属补全,避免双下拉竞争。
  */
@@ -140,9 +141,13 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
     useComposerTriggers({ profile, value, cursor, cwd, textareaRef, setValue, setCursor });
   const { settings } = useSettingsState();
   const cmdOrCtrl = settings.sendShortcut === "cmdOrCtrlEnter";
-  /* 两段高(min = 只留工具条) + 拖拽调高(composerH = textarea 上限,持久化)。 */
+  /* 两段高(min = 只留工具条) + 拖拽调高(composerH = textarea 上限,持久化;
+   * 拖动中直接写行内高,短草稿也即时变高)。 */
   const [stageMin, setStageMin] = useState(false);
-  const { composerH, onHandlePointerDown } = useComposerResize();
+  const { composerH, onHandlePointerDown } = useComposerResize((h) => {
+    const el = textareaRef.current;
+    if (el) el.style.height = `${h}px`;
+  });
   const { boxRect, popupBottom, popupMaxHeight } = usePopupAnchor(boxRef);
   const attachDragProps = useAttachDragProps(boxRef, readDragPayload, setDragOver);
 
@@ -156,12 +161,15 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
 
   return (
     <div className="relative" onDrop={(e) => void handleDrop(e)} {...attachDragProps}>
-      {/* 拖拽柄:上下拖调对话框高度(PTY 分隔条同交互,高度持久化) */}
-      <div
-        className="ss-composer-handle"
-        title={t("拖拽调整高度")}
-        onPointerDown={onHandlePointerDown}
-      />
+      {/* 拖拽柄:上下拖调对话框高度(PTY panel-handle 同款视觉;min 段隐藏,
+          与 PTY min 无分隔条同律) */}
+      {!stageMin ? (
+        <div
+          className="ss-composer-handle"
+          title={t("拖拽调整高度")}
+          onPointerDown={onHandlePointerDown}
+        />
+      ) : null}
       <div
         ref={boxRef}
         className={`ss-composer${dragOver ? " is-dragover" : ""}${ss.phase !== "ready" ? " is-disabled" : ""}${stageMin ? " is-min" : ""}`}

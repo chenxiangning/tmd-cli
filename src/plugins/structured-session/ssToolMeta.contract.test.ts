@@ -40,6 +40,12 @@ describe("fileChipFor", () => {
     expect(fileChipFor("")).toBeNull();
   });
 
+  it("目录占位 `.`/`..` 不给 chip(codemoss 同规则)", () => {
+    expect(fileChipFor(".")).toBeNull();
+    expect(fileChipFor("..")).toBeNull();
+    expect(fileChipFor("/repo/.")).toBeNull();
+  });
+
   it("Windows 带行号盘符存活", () => {
     expect(fileChipFor("C:/proj/b.rs:12")).toBe("b.rs");
   });

@@ -74,6 +74,10 @@ export const MESSAGES_EN: Record<string, string> = {
   "回到底部": "Back to bottom",
   /* 过程折叠组头摘要(codemoss ProcessDisclosure;「工具调用 {n} 次」复用 kernel 词典) */
   "思考 {n} 次": "Thought {n} times",
+  /* 过程展开区(codemoss ThinkingSurface 题头 / 唤醒轨智能体与提示词) */
+  "思考过程": "Thinking process",
+  "智能体(##)": "Agents (##)",
+  "提示词(!!)": "Prompts (!!)",
   /* 对话框拖拽柄 */
   "拖拽调整高度": "Drag to resize",
 }

@@ -30,7 +30,7 @@ export function toolTypeKey(text: string): SsToolTypeKey {
  * 目标路径 → 文件 chip 尾名;glob 模式、URL、空路径不给 chip —— 模式不是可打开的
  * 文件,URL 末段(如 artifact://0 的 "0")渲染成文件夹 chip 无意义(codemoss 同规则)。
  * 读选择器(`file.ts:301-591:raw`、`img.svg:img`)的尾部 `:段` 是读取修饰,剥掉;
- * Windows 盘符 `C:` 存活(其后不是纯数字段)。
+ * Windows 盘符 `C:` 存活(其后不是纯数字段)。`.`/`..` 目录占位不给 chip。
  */
 export function fileChipFor(path: string | null | undefined): string | null {
   if (!path || /[*?{}[\]]/.test(path) || path.includes("://")) return null;
@@ -40,7 +40,8 @@ export function fileChipFor(path: string | null | undefined): string | null {
   const trimmed = cleaned.replace(/[/\\]+$/, "");
   const idx = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
   const base = idx < 0 ? trimmed : trimmed.slice(idx + 1);
-  return base ? base : null;
+  if (!base || base === "." || base === "..") return null;
+  return base;
 }
 
 /** 工具行渲染元数据一次算齐(组件瘦身,complexity 出件)。 */
