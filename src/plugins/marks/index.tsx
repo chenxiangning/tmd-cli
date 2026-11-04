@@ -95,7 +95,7 @@ export const marksPlugin: Plugin = {
       label: t("标记"),
       icon: BookmarkSimple,
       component: MarksPanel,
-      order: 11, /* 会话组首席(session:标记/审批线/审批/画布) */
+      order: 11, /* 会话组首席(session:标记/处理/通知/画布,D-01 后实况) */
       railGroup: "session",
       /* E-02:默认不钉并移除一次性补钉(marks 已非新装主链);编辑器/Composer/
        * 终端回链等上下文入口不受钉住影响,⋯ 菜单可恢复。老用户 persisted 清单不变。 */
