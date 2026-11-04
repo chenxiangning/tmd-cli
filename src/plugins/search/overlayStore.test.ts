@@ -29,6 +29,9 @@ describe("searchOverlayKind 开合状态机", () => {
     expect(mod.searchOverlayKind()).toBe("panel");
     mod.openSearchOverlay("quickOpen");
     expect(mod.searchOverlayKind()).toBe("quickOpen");
+    /* D-03:sessions(会话历史)同属一个壳,顶替语义同律。 */
+    mod.openSearchOverlay("sessions");
+    expect(mod.searchOverlayKind()).toBe("sessions");
   });
 
   it("close 置 null;已关时再关幂等,保持 null", () => {

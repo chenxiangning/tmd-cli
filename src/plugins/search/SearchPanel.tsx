@@ -13,20 +13,7 @@ import { normalizePath } from "@kernel/pathUtils";
 import { openFileAtLine } from "@kernel/fileTabs";
 import { splitHits } from "@kernel/splitHits";
 import { closeSearchOverlay, useActiveWorkspaceRoot } from "./overlayStore";
-
-/** 全局命中上限(护栏在 fs_search.rs;命中即提示截断)。 */
-const MAX_RESULTS = 2000;
-
-/** 命中按文件分组(保持首见顺序,行序即 walk 序自然递增)。 */
-function groupByFile(hits: readonly FsSearchHit[]): Map<string, FsSearchHit[]> {
-  const groups = new Map<string, FsSearchHit[]>();
-  for (const hit of hits) {
-    const arr = groups.get(hit.path);
-    if (arr) arr.push(hit);
-    else groups.set(hit.path, [hit]);
-  }
-  return groups;
-}
+import { MAX_RESULTS, groupByFile } from "./searchLogic";
 
 export function SearchPanel() {
   const root = useActiveWorkspaceRoot();

@@ -7,11 +7,14 @@
  *    (含 cliIdentityProbe)与 4s 磁盘事件拉取;
  * 3. 只合 UI,不合 Ask 状态机、checkpoint 账本或历史 key —— 数据契约仍由各
  *    插件自身测试守,本矩阵只钉「订阅责任不串、不双份」的运行边界;
- * 4. both / only approval / only checkpoints 三种在场组合各有可用面板,
- *    不出现零入口或双份 boot;
+ * 4. both / only approval / only checkpoints 三种在场组合(D-01 起):
+ *    both = 单一「处理」宿主(checkpoints 注册,内含等待/变更),approval-inbox
+ *    不注册 rail 项但 boot 照常;only approval = approval-inbox 注册「审批」
+ *    兜底面板;only checkpoints = 处理宿主(仅变更域),不出现零入口或双份 boot;
  *
  * 只读注册面(registerFilePanel 记录 + 事件总线 topic 计数 + host.subscribe
  * 计数),不触发写路径;各组合 activate 后即时 deactivate,零泄漏。
+ * settings.disabledPlugins 以可变形组桩掉(checkpoints 启用态的唯一判源)。
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventBus, KernelTopics } from "@kernel/events";
@@ -19,6 +22,16 @@ import { host } from "@kernel/host";
 import type { Plugin } from "@kernel/plugin";
 import { approvalInboxPlugin } from "@plugins/approval-inbox/index";
 import { checkpointsPlugin } from "./index";
+
+const { disabled } = vi.hoisted(() => ({ disabled: [] as string[] }));
+vi.mock("@kernel/settings", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@kernel/settings")>();
+  return {
+    ...actual,
+    getSettingsState: () => ({ settings: { disabledPlugins: disabled } }),
+    useSettingsState: () => ({ settings: { disabledPlugins: disabled } }),
+  };
+});
 
 /** 记录订阅 topic 的事件总线包装(结构同 PluginEventBus)。 */
 function recordingBus() {
@@ -49,8 +62,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-/** 按组合 activate 启用的插件,记录注册面后由 afterEach 统一 deactivate。 */
+/** 按组合 activate 启用的插件,记录注册面后由 afterEach 统一 deactivate。
+ *  disabledPlugins 与启用组合对齐:checkpoints 不在场即视为禁用(D-01 面板
+ *  归属的唯一判源),approval-inbox 据此决定是否注册兜底面板。 */
 function runCombo(opts: { approval: boolean; checkpoints: boolean }): Harness {
+  disabled.length = 0;
+  if (!opts.checkpoints) disabled.push("checkpoints");
   const rec = recordingBus();
   const panels: string[] = [];
   const tabs: string[] = [];
@@ -88,11 +105,11 @@ const CKPT_TOPICS = [
 ] as const;
 
 describe("「处理」合并双插件运行矩阵", () => {
-  it("both:两面板各一份,订阅各归各,无零入口无双份 boot", () => {
+  it("both:单一处理宿主,approval-inbox 不注册 rail 项但 boot 照常", () => {
     const h = runCombo({ approval: true, checkpoints: true });
-    expect(h.panels).toEqual(["checkpoints", "approval-inbox"]);
+    expect(h.panels).toEqual(["checkpoints"]); /* D-01:等待域并入处理宿主 */
     expect(h.tabs).toContain("ckpt-batch");
-    /* 原则 1:ask/host 订阅恰一份(来自 approval-inbox)。 */
+    /* 原则 1:ask/host 订阅恰一份(来自 approval-inbox,boot 不因合 UI 而停)。 */
     expect(count(h, KernelTopics.askDetected)).toBe(1);
     expect(h.hostSubscribeCalls).toBe(1);
     /* 原则 2:写事件订阅恰一份(来自 checkpoints)。 */
