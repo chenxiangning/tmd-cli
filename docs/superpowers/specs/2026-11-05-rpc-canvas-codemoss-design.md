@@ -51,3 +51,13 @@
 - **验证清单**:流式轮次中思考/工具可见 → 落定后单行摘要;点击摘要可再展开;工具 chip 分类正确(对真实 omp/pi 轮次);粘贴长文档发送后用户块折叠;上翻后浮出回底钮。
 - **不做**:虚拟列表、RunStatusStrip pill 行、锚点轨(MessageAnchorRail)、TimelineSearchBar( RPC 转录量不需要)。
 - **风险**:LiveTurn 与 TranscriptView 的同形律是既有契约,ToolRow 重写必须保持落定后 TranscriptView 折叠组渲染不跳变(结算零跳变是硬约束)。
+
+## 落地修正(2026-11-05 终态,取代上文与之冲突的条目)
+
+真机多轮验收后对本文档的修正,以本节为准:
+
+1. **md 正文永不折叠**(用户裁决):长消息 CollapsibleMessage(480px 折叠)已撤——「渲染 md 被多加了折叠」是败笔;长文直接全量渲染。
+2. **思考链 live 期全程展开,取代「段落落定即折回单行摘要」**:轮进行中所有思考段保持展开(可手动点折),`pulse` 只打活跃面那块;**轮真结束后由 SsTurnView 折叠组播「展开→收起」过渡**(首帧展开态挂载,360ms 自动收成「思考 N 次 · 工具调用 M 次」头)——「秒过」折回单行是实锤缺陷。
+3. **渲染界 = 用户轮界,取代「按 turnStart 切片」**:omp 代理循环逐步发 `session_settled`/`turn_start`,`turnStart` 在用户轮中途推进,按它切界会把在途过程错落成已定折叠组且工具行重复(提前折叠 + 大空隙实锤)。终态:活轮起点 = 最后一个 user 块(`ssLiveFrom.liveFromIndex`);`turnStart` 仅作落定基线。结算渲染宽限 = `useTurnLive`(false 沿 600ms trailing,步间闪沿不闪回折叠态)。
+4. **omp/pi 共用一套幕布**:两 profile 仅声明 `structuredRpc.{command,resumeArgs}`(启动命令 + 接续旗标之别),渲染管线(PiRpcSession → PiRpcReducer → sessionTab/SsTurnView/LiveTurn)完全共享,插件内零引擎分支。协议行为差在共享层消化:follow_up 本地回显改队列制(busy 连发不互覆);引擎自带 user 回显帧的端(pi 系可能,omp 无)由权威帧接管回显位,同一消息不双行。
+5. 折叠头形制沿用 codemoss ProcessDisclosure 纯文本头 + grid-rows 300ms 开合;思考段 = 左轨灰字全文,连续工具 = 树形导轨行(入场描画动画)。
