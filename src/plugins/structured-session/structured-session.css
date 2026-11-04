@@ -92,7 +92,16 @@
 .ss-ended { margin: 8px 14px; padding: 6px 10px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); }
 .ss-retry { margin-left: 8px; padding: 2px 12px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: transparent; color: var(--tmd-fg); font-size: var(--tmd-font-ui); cursor: pointer; }
 .ss-retry:hover { background: var(--tmd-bg-hover); }
-.ss-blocks { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 24px; max-width: 860px; margin: 0 auto; }
+/* 幕布列:默认 85% 宽(2026-11-05 用户裁决,旧 860px 定宽宽屏左右太空),
+ * 宽度由行内 style 注入(ssCanvasResize),抓手见 .ss-canvas-handle。 */
+.ss-blocks { display: flex; flex-direction: column; gap: 12px; width: 85%; margin: 0 auto; padding: 14px 16px 24px; }
+/* 宽度抓手:8px 命中区 + 4px 竖胶囊(composer 手柄同款视觉),sticky 贴滚动
+ * 视口垂直居中(列高 = 全文高,absolute 定位会沉底);height:0 不占流,横向
+ * margin 由行内注入(随列宽收窄,贴列缘内 4px);左右同映射(居中锚对称拖)。 */
+.ss-canvas-handle { position: sticky; top: calc(50% - 14px); width: 8px; height: 0; flex: none; cursor: col-resize; touch-action: none; z-index: 6; opacity: 0.5; transition: opacity var(--tmd-dur-1) var(--tmd-ease-out); }
+.ss-canvas-handle::before { content: ""; display: block; width: 4px; height: 28px; margin-left: 2px; border-radius: 999px; background: var(--tmd-border-strong); transition: background var(--tmd-dur-1) var(--tmd-ease-out); }
+.ss-canvas-handle:hover, .ss-canvas-handle:active { opacity: 1; }
+.ss-canvas-handle:hover::before, .ss-canvas-handle:active::before { background: var(--tmd-fg-subtle); }
 
 /* 审批条(extension_ui confirm 回路;不自动批准)。内联非模态卡语义与键盘
    回路见 confirmCard.tsx;is-danger = 插件侧启发式染红,协议零改动。 */

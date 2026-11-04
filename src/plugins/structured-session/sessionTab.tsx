@@ -19,6 +19,7 @@ import { SsTurnView } from "./ssTurnView";
 import { LiveTurn } from "./liveTurn";
 import { liveFromIndex } from "./ssLiveFrom";
 import { useSettleKey } from "./ssSettleKey";
+import { useCanvasWidth } from "./ssCanvasResize";
 import { SsComposer } from "./ssComposer";
 import { useSsSession, type Phase } from "./ssSession";
 import type { StructuredSessionPayload } from "./tabs";
@@ -69,6 +70,8 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
    * 多步循环逐步推进,turnStart 不可作渲染界,见 liveFromIndex 头注。 */
   const settleKey = useSettleKey(ss.turnLive, ss.blocks);
   const liveFrom = liveFromIndex(ss.blocks, ss.turnStart, ss.turnLive);
+  /* 幕布宽度:默认 85%,左右抓手对称拖调(居中锚),松手落 localStorage。 */
+  const canvas = useCanvasWidth();
 
   /* 贴底跟随(busy 流式期),上翻停跟。 */
   useEffect(() => {
@@ -121,14 +124,35 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         />
 
         {ss.blocks.length > 0 ? (
-          <div className="ss-blocks">
-            {/* 落定历史:codemoss 形态逐轮渲染(用户 → 过程折叠组 → 答复);
-                活轮起点 liveFrom 之前归落定,本轮块全程活轮展开 */}
-            {liveFrom > 0 ? (
-              <SsTurnView blocks={ss.blocks.slice(0, liveFrom)} Markdown={MarkdownBody} settleKey={settleKey} />
-            ) : null}
-            <LiveTurn blocks={ss.blocks.slice(liveFrom)} live={ss.turnLive} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
-          </div>
+          <>
+            {/* 宽度抓手:sticky 贴滚动视口垂直居中,横向 margin 随列宽收窄(列缘内 4px) */}
+            <div
+              className="ss-canvas-handle"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t("调整幕布宽度")}
+              title={t("调整幕布宽度")}
+              style={{ marginLeft: `calc(${(100 - canvas.widthPct) / 2}% - 4px)` }}
+              onPointerDown={canvas.onHandleDown}
+            />
+            <div
+              className="ss-canvas-handle"
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={t("调整幕布宽度")}
+              title={t("调整幕布宽度")}
+              style={{ marginLeft: `calc(${(100 + canvas.widthPct) / 2}% - 4px)` }}
+              onPointerDown={canvas.onHandleDown}
+            />
+            <div className="ss-blocks" style={{ width: `${canvas.widthPct}%` }}>
+              {/* 落定历史:codemoss 形态逐轮渲染(用户 → 过程折叠组 → 答复);
+                  活轮起点 liveFrom 之前归落定,本轮块全程活轮展开 */}
+              {liveFrom > 0 ? (
+                <SsTurnView blocks={ss.blocks.slice(0, liveFrom)} Markdown={MarkdownBody} settleKey={settleKey} />
+              ) : null}
+              <LiveTurn blocks={ss.blocks.slice(liveFrom)} live={ss.turnLive} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
+            </div>
+          </>
         ) : null}
         {away ? (
           <button

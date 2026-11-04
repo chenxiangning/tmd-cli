@@ -82,4 +82,6 @@ export const MESSAGES_EN: Record<string, string> = {
   "切换图片大小": "Toggle image size",
   /* 对话框拖拽柄 */
   "拖拽调整高度": "Drag to resize",
+  /* 幕布宽度抓手(2026-11-05) */
+  "调整幕布宽度": "Adjust canvas width",
 }
