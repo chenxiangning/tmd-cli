@@ -43,7 +43,7 @@ export type ProbeDecision = "relocate" | "terminal" | "read" | "idle";
 
 /** 浮标能力门(纯函数,单测钉死):kimi/grok 的磁盘会话是目录、opencode/dsh
  * 是合成串,fsReadTailChanged 永远探错 —— decideProbe 熔断名单的前置化,
- * 这些引擎直接不出「结构化视图」钮,不再点开才报不支持;qoder 系为真文件不拦。 */
+ * 这些引擎直接不出「转录视图」钮,不再点开才报不支持;qoder 系为真文件不拦。 */
 export function pillCapable(
   profileId: string | undefined,
   hasReader: boolean,

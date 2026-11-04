@@ -142,7 +142,7 @@ describe("入口闭环审计", () => {
     expect(html).toContain("在新 worktree 中起会话…");
   });
 
-  it("⑤ F-01 远程来源组头:有贡献才渲染,空注册表不空挂组头", () => {
+  it("⑤ F-01/G-01 更多来源组头:有贡献才渲染,空注册表不空挂组头", () => {
     const base = {
       workspace: { id: "ws1", name: "tmd-cli", root: "/tmp/ws" },
       canRemove: true,
@@ -153,10 +153,10 @@ describe("入口闭环审计", () => {
       onClose: () => undefined,
     } as never;
     mountStub.length = 0;
-    expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).not.toContain("远程来源");
+    expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).not.toContain("更多来源");
     mountStub.push({ component: () => null });
     const html = renderToStaticMarkup(createElement(SessionMenuOverlay, base));
-    expect(html).toContain("远程来源");
+    expect(html).toContain("更多来源");
     mountStub.length = 0;
   });
 });

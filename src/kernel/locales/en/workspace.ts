@@ -175,4 +175,5 @@ export const MESSAGES = {
   /* ── F-01 减法批次:新建会话/添加工作区的来源分组标签 ── */
   "本地来源": "Local source",
   "远程来源": "Remote sources",
+  "更多来源": "More sources",
 } as Record<string, string>;

@@ -51,10 +51,10 @@ export function LiveHeader({
       <button
         type="button"
         className="lv-close"
-        title={t("返回 PTY 实况")}
+        title={t("返回幕布")}
         onClick={onClose}
       >
-        {t("PTY实况")}
+        {t("幕布")}
       </button>
     </header>
   );

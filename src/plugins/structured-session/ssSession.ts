@@ -116,7 +116,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
               /* 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦 + 免打扰窗),点击深链回本 tab。 */
               const { settings } = getSettingsState();
               if (shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) {
-                const name = `${host.getCliProfile(payload.profileId)?.name ?? payload.profileId} · ${t("结构化")}`;
+                const name = `${host.getCliProfile(payload.profileId)?.name ?? payload.profileId} · ${t("RPC 会话")}`;
                 const { title, body } = notifyText("turnEnd", "", { getSessions: () => [] }, name);
                 void sendOsNotification(title, body, () => openStructuredSessionTab(payload.profileId, payload.cwd));
               }

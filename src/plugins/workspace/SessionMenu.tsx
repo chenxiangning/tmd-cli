@@ -102,13 +102,13 @@ export function SessionMenuOverlay({
           ))}
         </div>
 
-        {/* 远程来源统一组(F-01):SSH 连接等插件贡献的会话类型,归「远程来源」组头下;
-            组头随注册表出现/消失(ssh 插件禁用即整组退场);WSL 走来源工作区的
-            origin 适配(标题/引擎行/note),不在此重复放行。 */}
+        {/* 更多来源统一组(F-01 建组,G-01 扩名):SSH 连接 / RPC 会话等插件贡献的
+            会话类型归此组头下;组头随注册表出现/消失(插件禁用即整组退场);
+            WSL 走来源工作区的 origin 适配(标题/引擎行/note),不在此重复放行。 */}
         {hasRemoteEntries && (
           <>
             <div className="wsmenu-divider" />
-            <div className="wsmenu-group-title">{t("远程来源")}</div>
+            <div className="wsmenu-group-title">{t("更多来源")}</div>
           </>
         )}
         <Mounts point="workspace.newSessionMenu" />

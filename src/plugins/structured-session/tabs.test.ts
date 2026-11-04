@@ -19,9 +19,24 @@ vi.mock("@kernel/sessionViewTabs", () => ({
 }));
 vi.mock("@kernel/i18n", () => ({ t: (text: string) => text }));
 
-import { openStructuredSessionTranscript } from "./tabs";
+import { openStructuredSessionTranscript, openStructuredSessionTab } from "./tabs";
 
 const TARGET = { profileId: "omp", cwd: "/repo" };
+
+describe("G-02 openStructuredSessionTab 身份", () => {
+  it("tab id 以 structured: 前缀命名、标题带「RPC 会话」(与 PTY 会话身份隔离)", () => {
+    /* getActiveWorkspace 桩返回 undefined → 回落 getWorkspaces()[0].root;
+       tabs.test 的 workspace 桩两路皆空,此处直接给 cwd。 */
+    openStructuredSessionTab("omp", "/repo");
+    expect(h.openTab).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "structured:omp:/repo",
+        kind: "structured-session",
+        title: "OMP · RPC 会话",
+      }),
+    );
+  });
+});
 
 beforeEach(() => {
   h.tabs = [];

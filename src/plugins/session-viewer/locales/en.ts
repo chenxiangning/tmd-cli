@@ -19,11 +19,11 @@ export const MESSAGES_EN: Record<string, string> = {
   "你": "You",
   "查看会话转录(只读)": "View session transcript (read-only)",
   "AI": "AI",
-  "结构化视图": "Structured view",
-  "PTY实况": "PTY live",
-  "切换到结构化视图(幕布保活,只读转录)":
-  "Switch to structured view (terminal stays alive, read-only transcript)",
-  "返回 PTY 实况": "Back to live PTY",
+  "转录视图": "Transcript view",
+  "幕布": "Terminal",
+  "切换到转录视图(幕布保活,只读)":
+  "Switch to transcript view (terminal stays alive, read-only)",
+  "返回幕布": "Back to terminal",
   "定位会话文件中…": "Locating session file…",
   "该引擎不支持实时转录": "Live transcript not supported for this engine",
   "载入更早": "Load earlier",

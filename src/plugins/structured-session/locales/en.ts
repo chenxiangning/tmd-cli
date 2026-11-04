@@ -1,8 +1,10 @@
 /** structured-session 英文词典。 */
 export const MESSAGES_EN: Record<string, string> = {
-  "结构化": "Structured",
+  "RPC 会话": "RPC session",
   "结构化会话": "Structured session",
-  "该引擎不支持结构化会话": "This engine has no structured-session support",
+  "该引擎不支持 RPC 会话": "This engine does not support RPC sessions",
+  /* G-01 新建菜单入口(按引擎列行) */
+  "{name} RPC 会话": "{name} RPC session",
   "启动 RPC 会话中…": "Starting RPC session…",
   "启动失败": "Start failed",
   "重试": "Retry",

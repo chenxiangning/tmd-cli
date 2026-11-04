@@ -24,7 +24,7 @@ export const sessionViewerPlugin: Plugin = {
   meta: {
     name: "会话查看器",
     abbr: "查看",
-    desc: "会话列表 view icon 打开只读转录;画布浮层切活会话结构化视图,幕布保活",
+    desc: "会话列表 view icon 打开只读转录;画布浮层切活会话转录视图,幕布保活",
     icon: EyeIcon,
     iconColor: "#9A8FBF",
     category: "feature",
