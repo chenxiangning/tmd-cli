@@ -28,10 +28,10 @@
 
   position: fixed;
   z-index: 1201;
-  /* 2026-11-05 三分区重构:加宽(三列引擎网格) + 去内部滚动(内容自适应,
-     预设限 5 收敛,整单夹进视口,不再出现滚动条);overflow 放行 fixed 子菜单。 */
-  min-width: 340px;
-  max-width: min(480px, calc(100vw - 24px));
+  /* 2026-11-05 结构重构:再加宽(双栏区并排预设),高度按内容自适应、
+     不再内部滚动(5 列引擎网格 + 双栏区收敛,整单夹进视口);overflow 放行 fixed 子菜单。 */
+  min-width: 400px;
+  max-width: min(620px, calc(100vw - 24px));
   max-height: calc(100vh - 16px);
   overflow: visible;
   padding: 8px;
@@ -61,12 +61,30 @@
   gap: 6px;
 }
 
-/* 引擎区三列网格(2026-11-05 三分区重构,宽度同步 480px:10 引擎 4 行,
-   配合预设限 5,整单高度自适应不出内部滚动条)。 */
+/* 引擎区五列网格(2026-11-05 结构重构,宽 620px 双栏布局:10 引擎 2 行,
+   与双栏区(来源组|预设)配合把整单高度压回视口)。 */
 .wsmenu-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 2px;
+}
+
+/* 双栏区:左列 = 带渲染的会话 + 远程与其他;右列 = 会话预设(仅本地工作区)。
+   单子自动回单列(来源工作区无预设列);右列左边线分隔,列内不再画整宽分隔线。 */
+.wsmenu-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  column-gap: 10px;
+  margin-top: 4px;
+}
+
+.wsmenu-col > .wsmenu-divider {
+  margin: 6px 4px 2px;
+}
+
+.wsmenu-cols .wsmenu-col + .wsmenu-col {
+  border-left: 1px solid var(--border-subtle);
+  padding-left: 10px;
 }
 
 .wsmenu-cell {

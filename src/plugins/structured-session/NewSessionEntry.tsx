@@ -25,7 +25,8 @@ export function NewSessionEntry() {
           onClick={() => openStructuredSessionTab(p.id)}
         >
           <span className="wsmenu-item-icon">
-            <Chats size="0.875rem" />
+            {/* 引擎自有 logo(renderIcon),与 PTY 网格同标识;无自定义图标回落 Chats */}
+            {p.renderIcon?.(14) ?? <Chats size="0.875rem" />}
           </span>
           <span className="wsmenu-item-label">{p.name}</span>
         </button>

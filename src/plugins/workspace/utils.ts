@@ -10,9 +10,9 @@ export const PAGE_INITIAL = 10;
  *  双向下限 0,极窄/极矮窗口不出负坐标(2026-09-13 全局审查)。
  *  供 SessionMenu/SessionContextMenu 与 index.tsx 的 ⌘T 入口共用。 */
 export function clampMenuPosition(x: number, y: number): { x: number; y: number } {
-  /* 2026-11-05 菜单三分区重构:宽 480(三列引擎网格),高度按内容自适应、
-     不再内部滚动(预设限 5 收敛),夹取按 660 估算高 + 12 边距防越底。 */
-  return clampToViewport(x, y, 480, 660, 12);
+  /* 2026-11-05 菜单结构重构:宽 620(双栏区:来源组|预设并排),5 列引擎网格,
+     高度按内容自适应、不再内部滚动,夹取按 620 估算高 + 12 边距防越底。 */
+  return clampToViewport(x, y, 620, 620, 12);
 }
 
 /** 添加工作区浮层定位:入口按钮右侧 6px 滑出,按浮层估算尺寸(360x340)夹进视口;
