@@ -154,11 +154,13 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         setPhase("ready");
       })
       .catch((e: unknown) => {
-        /* 启动失败:先收割残留子进程,再进可重试的 error 态。 */
+        /* 启动失败:先收割残留子进程,再进可重试的 error 态。
+         * 报错可读性:进程秒退时 stderr 尾行(命令缺失等真因)优先于
+         * 握手被 teardown 拒绝的笼统「rpc 进程已退出」。 */
         session.kill();
         if (sessionRef.current === session) {
           sessionRef.current = null;
-          setStatusText(errTextDisplay(e));
+          setStatusText(stderrTailRef.current ?? errTextDisplay(e));
           setPhase("error");
         }
       });
