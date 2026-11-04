@@ -155,6 +155,7 @@ export const MESSAGES = {
   "非 git 仓库,无法创建 worktree": "Not a git repository; cannot create a worktree",
   "无法确定 worktree 目录": "Cannot determine the worktree directory",
   "引用已失效:可改绑其他条目,或切换为自定义文本": "Reference is stale — rebind to another entry or switch to custom text",
+  "管理提示词库…": "Manage prompt library…",
   "引用「{name}」": "Refs \"{name}\"",
   "消费时现读,库更新即跟随": "Read at launch; follows library updates",
   "无初始提示词": "No initial prompt",

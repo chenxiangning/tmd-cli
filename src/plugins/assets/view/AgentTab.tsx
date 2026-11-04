@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { useEscClose } from "@kernel/DialogShell";
 import { importCodemossAgents } from "../importCodemoss";
 import { deleteAgent, saveAgent, useAssets, type Agent } from "../store";
+import { AiConfigBackLink } from "@plugins/memory-coordinator/panel/AiConfigBackLink";
 
 export function AgentTab() {
   const { agents } = useAssets();
@@ -30,6 +31,10 @@ export function AgentTab() {
 
   return (
     <div className="assets-tab" data-icon-decor="assets">
+      {/* E-03:返回 AI 配置统一落地(右栏 AI配置管理面板)。 */}
+      <div className="px-1 pt-1">
+        <AiConfigBackLink />
+      </div>
       <div className="assets-toolbar">
         <button type="button" className="assets-btn is-primary" onClick={() => setEditing("new")}>
           <Plus size="0.75rem" /> {t("新建智能体")}

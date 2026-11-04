@@ -1,35 +1,23 @@
 /**
- * 跨引擎原生记忆文件面板 —— 方案 A 工作台重构:文件 / 体检 / 记录三级视图。
+ * 跨引擎原生记忆文件面板 —— 方案 A 工作台重构:配置 / 文件 / 体检 / 记录四级视图。
  *
- * 文件视图:作用域分段(项目/全局)+ 按真实文件去重的卡片(共享 AGENTS.md 一行,
- * 引擎列合并);体检视图 = 内嵌 LintView(自带返回);记录视图 = 扫描/应用记录
- * 紧凑列表,点击进中央报告 tab。数据面 memoryFilesData,卡片 MemoryFilesRows。
+ * home = AI 配置统一落地导航(AiConfigHome);files = 记忆文件(MemoryFilesView);
+ * lint = 内嵌 LintView(自带返回);history = 扫描/应用记录紧凑列表,点击进中央报告 tab。
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowClockwise, ClockCounterClockwise, FileText, Notebook, Pulse } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { ClockCounterClockwise, FileText, House, Notebook, Pulse } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { useWorkspaces } from "@kernel/workspace";
 import { t } from "@kernel/i18n";
-import { Spinner } from "@kernel/Spinner";
-import { openFileInTab } from "@kernel/fileTabs";
-import { userHome } from "../paths";
 import { LintView } from "../lint/LintView";
 import { openLintReport } from "../lint/lintController";
 import { loadStore } from "../lint/lintStore";
-import {
-  dedupeMemorySlots,
-  entryState,
-  expandMemorySlots,
-  generateMemoryTemplate,
-  probeMemoryFiles,
-  undeclaredEngines,
-  type MemoryFileEntry,
-  type MemoryProbeMap,
-} from "./memoryFilesData";
-import { MemoryFileCard, ScopeContext, ScopeSegmented, UndeclaredGroup } from "./MemoryFilesRows";
+import { AiConfigHome } from "./AiConfigHome";
+import { MemoryFilesView } from "./MemoryFilesView";
 
-type PanelView = "files" | "lint" | "history";
+/* E-01:home = AI 配置统一落地导航(AiConfigHome);files/lint/history = 原生记忆文件/规则体检。 */
+type PanelView = "home" | "files" | "lint" | "history";
 
 const NAV_CLS = (active: boolean) =>
   `flex flex-1 items-center justify-center gap-1 rounded-md px-1 py-1.5 text-meta transition-colors ${
@@ -73,73 +61,17 @@ export function MemoryFilesPanel() {
   const profiles = host.getCliProfiles();
   const { list, activeId } = useWorkspaces();
   const cwd = list.find((w) => w.id === activeId)?.root ?? null;
-  const [view, setView] = useState<PanelView>("files");
-  const [scope, setScope] = useState<"project" | "user">("project");
-  const [home, setHome] = useState("");
-  const [probe, setProbe] = useState<MemoryProbeMap>({});
-  const [probing, setProbing] = useState(false);
-  const [probedOnce, setProbedOnce] = useState(false);
-  const [undeclaredOpen, setUndeclaredOpen] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [genBusy, setGenBusy] = useState<string | null>(null);
-  const [genFailed, setGenFailed] = useState<MemoryProbeMap>({});
-
-  useEffect(() => {
-    userHome().then(setHome).catch(() => setHome(""));
-  }, []);
-
-  const { project, user } = useMemo(
-    () => (home === "" ? { project: [], user: [] } : expandMemorySlots(profiles, cwd, home)),
-    [profiles, cwd, home],
-  );
-  const undeclared = useMemo(() => undeclaredEngines(profiles), [profiles]);
-  const entries = useMemo(() => dedupeMemorySlots(scope === "project" ? project : user), [scope, project, user]);
-  const summary = useMemo(() => {
-    const ok = entries.filter((e) => entryState(e, probe) === "ok").length;
-    return { ok, total: entries.length };
-  }, [entries, probe]);
-
-  const runProbe = useCallback(async () => {
-    const paths = [...project, ...user].map((s) => s.absPath);
-    setProbing(true);
-    setGenFailed({});
-    try {
-      setProbe(await probeMemoryFiles(paths));
-      setProbedOnce(true);
-    } finally {
-      setProbing(false);
-    }
-  }, [project, user]);
-
-  /* 槽集(路径串)或 home 变化即重探 */
-  const pathsKey = [...project, ...user].map((s) => s.absPath).join("\n");
-  useEffect(() => {
-    if (home === "") return;
-    void runProbe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 路径串引用随槽集变化即重探,豁免 runProbe 恒新引用
-  }, [pathsKey, home]);
-
-  /* 生成空模板:写盘成功原位翻转状态;失败仅行内标记 */
-  const generate = useCallback(async (entry: MemoryFileEntry) => {
-    setGenBusy(entry.absPath);
-    try {
-      await generateMemoryTemplate({
-        engine: entry.engines[0] ?? "", scope: entry.scope, label: entry.label, relPath: entry.relPath, absPath: entry.absPath,
-      });
-      setGenFailed((prev) => ({ ...prev, [entry.absPath]: false }));
-      setProbe((prev) => ({ ...prev, [entry.absPath]: true }));
-    } catch {
-      setGenFailed((prev) => ({ ...prev, [entry.absPath]: true }));
-    } finally {
-      setGenBusy(null);
-    }
-  }, []);
+  const [view, setView] = useState<PanelView>("home");
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-icon-decor="memory">
-      {/* 主导航:文件 / 体检 / 记录 + 开始体检 */}
+      {/* 主导航:配置(AI 配置统一落地)/ 文件 / 体检 / 记录 */}
       <div className="flex flex-none items-center gap-1.5 px-1.5 pt-1.5">
         <nav className="flex flex-1 gap-0.5 rounded-lg bg-(--tmd-bg-subtle) p-0.5" aria-label={t("AI配置管理")}>
+          <button type="button" aria-pressed={view === "home"} onClick={() => setView("home")} className={NAV_CLS(view === "home")}>
+            <House aria-hidden />
+            {t("AI 配置")}
+          </button>
           <button type="button" aria-pressed={view === "files"} onClick={() => setView("files")} className={NAV_CLS(view === "files")}>
             <Notebook aria-hidden />
             {t("文件")}
@@ -155,61 +87,16 @@ export function MemoryFilesPanel() {
         </nav>
       </div>
 
-      {view === "lint" ? (
+      {view === "home" ? (
+        <AiConfigHome onShowFiles={() => setView("files")} onShowLint={() => setView("lint")} />
+      ) : view === "files" ? (
+        <MemoryFilesView profiles={profiles} cwd={cwd} />
+      ) : view === "lint" ? (
         <LintView cwd={cwd} workspaceId={activeId ?? null} onBack={() => setView("files")} />
-      ) : view === "history" ? (
+      ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <HistorySide onOpenReport={() => openLintReport()} />
         </div>
-      ) : (
-        <>
-          {/* 作用域分段 + 摘要 + 重新探测 */}
-          <div className="flex-none px-1.5 pt-1.5">
-            <ScopeSegmented scope={scope} onScope={setScope} />
-            <ScopeContext scope={scope} base={cwd} />
-            <div className="flex items-center gap-2 pb-1.5 text-meta text-(--tmd-fg-muted)">
-              <span>{probedOnce || probing ? t("{n}/{m} 已存在", { n: String(summary.ok), m: String(summary.total) }) : t("探测中…")}</span>
-              <button
-                type="button"
-                onClick={() => void runProbe()}
-                disabled={probing || (project.length === 0 && user.length === 0)}
-                className={`${ACTION_CLS} ml-auto inline-flex items-center gap-1`}
-                title={t("按 profile 声明批量探测")}
-              >
-                {probing ? <Spinner /> : <ArrowClockwise aria-hidden />}
-                {t("重新探测")}
-              </button>
-            </div>
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
-            <div className="px-0.5 pb-1.5 text-[10px] text-(--tmd-fg-faint)">{t("按真实文件去重 · 共享文件合并为一行")}</div>
-            {entries.map((entry) => (
-              <MemoryFileCard
-                key={entry.absPath}
-                entry={entry}
-                probe={probe}
-                pending={!probedOnce}
-                selected={selected === entry.absPath}
-                generating={genBusy === entry.absPath}
-                genFailed={!!genFailed[entry.absPath]}
-                onOpen={(e) => {
-                  setSelected(e.absPath);
-                  openFileInTab(e.absPath);
-                }}
-                onCreate={(e) => void generate(e)}
-              />
-            ))}
-            {home !== "" && entries.length === 0 && (
-              <div className="p-3 text-center text-xs text-(--tmd-fg-faint)">{t("尚无引擎声明记忆文件")}</div>
-            )}
-            <UndeclaredGroup engines={undeclared} open={undeclaredOpen} onToggle={() => setUndeclaredOpen(!undeclaredOpen)} />
-          </div>
-
-          <div className="flex-none border-t border-(--tmd-border) px-1.5 py-1.5 text-meta leading-relaxed text-(--tmd-fg-muted)">
-            {t("项目规则只作用于当前工作区;全局规则所有项目共用。点击文件进编辑器,创建模板只写空壳。")}
-          </div>
-        </>
       )}
     </div>
   );

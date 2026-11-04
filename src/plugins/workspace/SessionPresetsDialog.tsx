@@ -11,6 +11,7 @@ import { useEscClose } from "@kernel/DialogShell";
 import { useFocusTrap } from "@kernel/useFocusTrap";
 import { t } from "@kernel/i18n";
 import { host } from "@kernel/host";
+import { openSettingsPanel } from "@kernel/settings";
 import { useWorkspaces } from "@kernel/workspace";
 import { PencilSimple, Trash, X } from "@phosphor-icons/react";
 import { useAssets } from "@plugins/assets/store";
@@ -165,6 +166,11 @@ export function SessionPresetsDialog({ onClose }: { onClose: () => void }) {
             busy={busy}
             onCancel={() => setEditing(null)}
             onSave={(draft) => void save(draft)}
+            /* E-04:直达提示词库 —— 弹层 z-1201 高于设置页 z-100,必须先关弹层。 */
+            onOpenPromptLibrary={() => {
+              onClose();
+              openSettingsPanel({ section: "assets", tab: "prompts" });
+            }}
           />
         )}
         {error && <div className="text-xs text-(--tmd-danger, #e5484d)">{error}</div>}

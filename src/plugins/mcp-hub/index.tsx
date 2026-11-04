@@ -41,6 +41,9 @@ export const mcpHubPlugin: Plugin = {
       order: 33, /* 能力生态组末席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应);旧注「紧随 cli-config」已废(cli-config 实为设置分区非面板) */
       railGroup: "ecosystem",
       railBottom: true,
+      /* E-02:默认不钉,经 AI 配置统一入口(AI配置管理面板 home)或 ⋯ 菜单可达;
+       * 老用户 persisted 钉住清单不变。 */
+      pinnedByDefault: false,
       refresh: () => refreshHub(),
       centerTab: { open: openMcpHubTab },
     });

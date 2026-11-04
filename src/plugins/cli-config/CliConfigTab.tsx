@@ -14,6 +14,7 @@ import { t } from "@kernel/i18n";
 import { ConfirmDialog } from "@kernel/DialogConfirm";
 import { ConfigFile } from "./ConfigFile";
 import { useDarkTheme } from "@kernel/theme";
+import { AiConfigBackLink } from "@plugins/memory-coordinator/panel/AiConfigBackLink";
 
 /** 脏态下切换引擎/配置源/模式前的丢弃确认(破坏性操作,红钮形制)。 */
 function DiscardDraftGuard({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
@@ -52,6 +53,10 @@ export function CliConfigTab() {
 
   return (
     <div className="cli-cfg" data-icon-decor="cli-config" data-testid="cli-config-tab">
+      {/* E-03:返回 AI 配置统一落地(右栏 AI配置管理面板)。 */}
+      <div className="px-1 pt-1">
+        <AiConfigBackLink />
+      </div>
       <div className="cli-cfg-engines" role="tablist" aria-label={t("引擎")}>
         {entries.map((e) => (
           <button

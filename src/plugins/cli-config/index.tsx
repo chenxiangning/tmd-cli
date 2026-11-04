@@ -25,7 +25,7 @@ export const cliConfigPlugin: Plugin = {
       id: "cli-config",
       title: t("CLI 独立配置"),
       description: t(
-        "图形化编辑各 CLI 的本地配置文件 —— 不用记命令、不用手改磁盘文件;保存即写回原文件,未知内容原样保留。",
+        "AI 配置的引擎子能力 —— 图形化编辑各 CLI 的本地配置文件:不用记命令、不用手改磁盘文件;保存即写回原文件,未知内容原样保留。",
       ),
       icon: <GearSix size="0.875rem" aria-hidden />,
       order: 3,

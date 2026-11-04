@@ -48,6 +48,9 @@ export const memoryCoordinatorPlugin: Plugin = {
       order: 31, /* 能力生态组首席(memory/skills/mcp 钉 rail 底簇,与 ⋯ 呼应) */
       railGroup: "ecosystem",
       railBottom: true,
+      /* E-02:生态组只留 memory-files(AI 配置统一入口)默认钉,Memory 面板经其
+       * 内 Magic Context 卡或 ⋯ 菜单可达;老用户 persisted 钉住清单不变。 */
+      pinnedByDefault: false,
     });
     ctx.registerFilePanel({
       id: "memory-files",
