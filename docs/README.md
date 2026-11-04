@@ -394,5 +394,6 @@
 | 2026-11-04 | [减法批次 E 代码评审(AI配置统一落地入口/生态组默认取钉/CLI配置与资产纳入导航/预设提示词双向深链/Memory控制台高级降层;无 P0-P2,修 1 处 P3;全量门禁绿)](review/2026-11-04-batch-e-code-review.md) | 已收口(真机目检待办) |
 | 2026-11-04 | [减法批次 F 代码评审(新建来源本地远程分组/右栏远程落地页三态承接SSH与WSL/设置七导航组保深链/恢复精简布局;无 P0-P2 零修复;顺带修 defaultPinned 声明位失效旧缺陷;全量门禁绿)](review/2026-11-04-batch-f-code-review.md) | 已收口(真机目检待办) |
 | 2026-11-05 | [减法批次 H 回滚记录(anim/ports/intent-canvas 默认停用方向被否,整批 revert;教训:「需产品确认」是硬闸门,默认态变更先问)](review/2026-11-05-batch-h-rollback.md) | 已回滚(三插件回归默认启用) |
+| 2026-11-05 | [减法批次 I 保留决策记录(LSP 代码跳转/Office 内嵌预览/docgen/web-access 自建中继/平铺广播/wallpaper 装饰全部保留,冻结扩张;零代码变更)](review/2026-11-05-batch-i-keep-decision.md) | 已决策(保留) |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
