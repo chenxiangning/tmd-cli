@@ -12,7 +12,7 @@ import { memo, useEffect, useState, type ComponentType } from "react";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { capped } from "@plugins/session-viewer/transcriptPhases";
-import { Timestamp } from "@plugins/session-viewer/transcriptRows";
+import { Timestamp } from "@plugins/session-viewer/transcriptView";
 import { imageTokens, imageSrcs, loadUserImage, stripLoaded } from "./ssUserBlockMeta";
 
 /* 单图:点击缩放(sv-user-img 同律,ss 前缀独立样式)。 */
@@ -56,7 +56,9 @@ export const SsUserBlock = memo(function SsUserBlock({ block, Markdown }: {
     : stripLoaded(text, loaded);
   const srcs = imageSrcs(block, loaded);
   return (
-    <div className="ss-userblock">
+    /* data-vb = 块级深链锚点(查看转录定位 scrollIntoView 按它找人;
+       RPC 会话树不消费,属性闲置无害)。 */
+    <div className="ss-userblock" data-vb={block.id}>
       <div className="ss-userblock-head">
         <span className="ss-userblock-who">{t("你")}</span>
         <Timestamp ms={block.startedAt} />

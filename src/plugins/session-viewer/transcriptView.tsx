@@ -1,47 +1,34 @@
 /**
- * 转录渲染 —— codemoss process-phase 形态:
- * - user 卡(左缘强调)+ assistant 全尺寸 markdown(正文永不折叠);
- * - 工作过程 = 折叠组(PhaseFold):折叠头单行(chevron + 摘要 + 步数),
- *   默认收起;正文只折叠其上方紧邻的工作过程,自身常显;
- *   展开后组内为逐行 step(思考行 = Minus + 单行摘要,点击展开淡色
- *   markdown;工具行 = 动词 + mono 目标,点击展开 preview);
- * - agent-reasoning 正文 48% 透明(monocode 同款阅读层级)。
+ * 转录块渲染 —— RPC(structured-session)渲染体系的共享底座:
+ * TranscriptBlockView 供 SsTurnView/LiveTurn 渲染 system/assistant 块
+ * (用户块走 SsUserBlock 气泡卡,思考/工具过程走 SsThinkingSection/
+ * SsToolRow —— 整卷分组渲染即 structured-session 的 SsTurnView/LiveTurn,
+ * PTY 查看转录与 RPC 会话共用一套,2026-11-05 渲染对齐);Timestamp 为
+ * 块头时间戳原语(ssUserBlock 同款消费)。
  */
 
-import { memo, useMemo, useState, type ComponentType } from "react";
-import type { CliTranscriptBlock, CliTranscriptImage } from "@kernel/cli";
+import { memo, type ComponentType } from "react";
+import type { CliTranscriptBlock } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 
-import { buildTranscriptPhases, makeKeySeq, capped } from "./transcriptPhases";
-import { PhaseFold, ThinkingRow, Timestamp } from "./transcriptRows";
+import { capped } from "./transcriptPhases";
 
-/** md 渲染组件协议(lazy 拆包,viewerTab 注入)。 */
+/** md 渲染组件协议(lazy 拆包,调用方注入)。 */
 export type MarkdownRenderer = ComponentType<{ children: string }>;
 
-/** 用户消息内嵌图片行(base64 data URI;点击缩略/整幅切换)。 */
-function UserImages({ images }: { images: CliTranscriptImage[] }) {
-  const [zoom, setZoom] = useState(false);
-  /* key = 内容指纹 + 重复序号(同图多贴也唯一;不用数组下标)。 */
-  const seen = new Map<string, number>();
+/** 块时间戳(role 行;缺省不渲染)。 */
+export function Timestamp({ ms }: { ms?: number }) {
+  if (!ms) return null;
   return (
-    <div className={`sv-user-imgs${zoom ? " zoom" : ""}`}>
-      {images.map((img) => {
-        const base = `${img.mimeType}:${img.data.length}`;
-        const n = seen.get(base) ?? 0;
-        seen.set(base, n + 1);
-        return (
-          <button key={n ? `${base}#${n}` : base} type="button" className="sv-user-img-btn" aria-label={t("切换图片大小")} onClick={() => setZoom(!zoom)}>
-            <img className="sv-user-img" src={`data:${img.mimeType};base64,${img.data}`} alt="" />
-          </button>
-        );
-      })}
-    </div>
+    <span className="sv-ts">
+      {new Date(ms).toLocaleString(undefined, { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+    </span>
   );
 }
 
-/** 单块渲染入口(viewerTab 消费):按分组模型分发。 */
-/* memo:分批触底追加时 block 引用不变即跳过(react-markdown v10 零内部
- * 缓存,重挂载即全量重跑 remark/rehype;Markdown prop 为 viewerTab 模块级
+/** 单块渲染入口(SsTurnView/LiveTurn 消费):system 淡色行;assistant 全尺寸 md。 */
+/* memo:流式增量追加时 block 引用不变即跳过(react-markdown v10 零内部
+ * 缓存,重挂载即全量重跑 remark/rehype;Markdown prop 为调用方模块级
  * lazy 常量,引用恒稳)。 */
 export const TranscriptBlockView = memo(function TranscriptBlockView({
   block,
@@ -50,26 +37,11 @@ export const TranscriptBlockView = memo(function TranscriptBlockView({
 }: {
   block: CliTranscriptBlock;
   Markdown: MarkdownRenderer;
-  /** 轮次进行中的卷尾块:思考脉冲/正文光标(monocode 流式观感;数据仍是 message 级)。 */
+  /** 轮进行中的卷尾块:正文光标(monocode 流式观感;数据仍是 message 级)。 */
   tail?: boolean;
 }) {
   if (block.role === "system") {
     return <div className="sv-system">{block.text}</div>;
-  }
-  if (block.role === "user") {
-    return (
-      <div className="sv-user">
-        <div className="sv-role-row">
-          <span className="sv-role-label">{t("你")}</span>
-          <Timestamp ms={block.startedAt} />
-        </div>
-        {block.text ? <Markdown>{capped(block.text)}</Markdown> : null}
-        {block.images?.length ? <UserImages images={block.images} /> : null}
-      </div>
-    );
-  }
-  if (block.role === "reasoning") {
-    return <ThinkingRow block={block} Markdown={Markdown} pulse={tail} />;
   }
   return (
     <div className={`sv-assistant${tail ? " sv-tail" : ""}`}>
@@ -81,53 +53,3 @@ export const TranscriptBlockView = memo(function TranscriptBlockView({
     </div>
   );
 });
-
-/** 整卷渲染(user/assistant 全尺寸正文与工作折叠组混排;minimal = 极简展示)。 */
-export function TranscriptView({
-  blocks,
-  Markdown,
-  minimal,
-  streaming,
-  locateId,
-}: {
-  blocks: CliTranscriptBlock[];
-  Markdown: MarkdownRenderer;
-  minimal?: boolean;
-  /** 轮次进行中:最后一个 reasoning/assistant 块给流式观感(脉冲/光标)。 */
-  streaming?: boolean;
-  /** 行级定位高亮的块 id(深链兜底;viewerTab 解析后传入)。 */
-  locateId?: string | null;
-}) {
-  const items = useMemo(() => buildTranscriptPhases(blocks, { minimal }), [blocks, minimal]);
-  const itemKey = makeKeySeq();
-  /* 卷尾流式:轮次进行中,最后一个工作组自动展开(活过程可见,monocode 同律);
-   * 最后一个是裸 reasoning/assistant 块时给脉冲/光标观感。结算后收回折叠。 */
-  const last = items[items.length - 1];
-  const livePhaseOpen = streaming && last?.kind === "phase";
-  const tailId =
-    streaming && last && last.kind !== "phase" && (last.block.role === "reasoning" || last.block.role === "assistant")
-      ? last.block.id
-      : null;
-  return (
-    <>
-      {items.map((item, i) =>
-        item.kind === "phase" ? (
-          <PhaseFold
-            key={itemKey(item.phase.id)}
-            phase={item.phase}
-            Markdown={Markdown}
-            forceOpen={livePhaseOpen && i === items.length - 1}
-          />
-        ) : (
-          <div
-            key={itemKey(item.block.id)}
-            data-vb={item.block.id}
-            className={`sv-vb${item.block.id === locateId ? " sv-loc-flash" : ""}`}
-          >
-            <TranscriptBlockView block={item.block} Markdown={Markdown} tail={item.block.id === tailId} />
-          </div>
-        ),
-      )}
-    </>
-  );
-}

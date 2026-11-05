@@ -5,6 +5,9 @@
  * 解析(8MB+ 大转录不全量重读;message 级刷新,无 token 粒度——omp 实证)。
  * 头部/计时条/回底/状态块等 chrome 件见 liveChrome.tsx,计时 hook 见 liveElapsed.ts。
  * 设计:docs/superpowers/specs/2026-09-30-live-transcript-view-design.md
+ * 渲染复用 RPC(structured-session)体系(2026-11-05 对齐):落定部分 SsTurnView,
+ * 在途轮 LiveTurn(活轮起点 = 最后一个用户块,同 RPC 活轮界律);旧 phase
+ * 分组渲染(TranscriptView)已删。
  */
 import { lazy, useEffect, useReducer, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
@@ -13,7 +16,10 @@ import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import type { CliDiskSession, CliTranscriptBlock } from "@kernel/cli";
 import { retryImport } from "@kernel/lazyImport";
-import { TranscriptView } from "./transcriptView";
+import { SsTurnView } from "@plugins/structured-session/ssTurnView";
+import { LiveTurn } from "@plugins/structured-session/liveTurn";
+import { liveFromIndex } from "@plugins/structured-session/ssLiveFrom";
+import "@plugins/structured-session/structured-session.css";
 import { LiveBackToBottom, LiveHeader, LiveLoadEarlier, LiveStatusBlocks, LiveWorkingBar } from "./liveChrome";
 import { useLiveElapsed } from "./liveElapsed";
 import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe, stableBlocks, readChangedTranscript, type LiveTailState } from "./liveMode";
@@ -185,6 +191,13 @@ export function LiveTranscriptOverlay() {
   if (!activeId || !capable || !on) return null;
 
   const shown = tailWindow(blocks ?? [], visible);
+  /* 活轮界 = 最后一个用户块下标(轮进行中;同 RPC liveFromIndex 律)。落定全卷
+   * 走 SsTurnView 折叠组;在途轮走 LiveTurn 展开区(过程区与落定展开区同形)。
+   * liveSurface 按卷尾块角色近似 RPC 流内面:思考尾 → thinking(题头 pulse),
+   * 正文尾 → text(尾光标),工具尾 → null。 */
+  const liveFrom = liveFromIndex(shown, 0, turnActive);
+  const tailBlock = turnActive ? shown[shown.length - 1] : undefined;
+  const liveSurface = tailBlock?.role === "reasoning" ? "thinking" : tailBlock?.role === "assistant" ? "text" : null;
   /* 状态三分流:错误(含 unsupported)走持久条 role=alert + 重试,不抹已到转录;空态走 Empty;定位中走 Spinner。 */
   const errMsg = unsupported ? t("该引擎不支持实时转录") : error ? t("读取会话转录失败") : null;
   const retryLocate = () => { /* 清错误/熔断与定位缓存,重拍轮询 effect */
@@ -233,7 +246,20 @@ export function LiveTranscriptOverlay() {
                 setVisible((v) => v + RENDER_BATCH);
               }}
             />
-            <TranscriptView blocks={shown} Markdown={MarkdownBody} minimal={minimal} streaming={turnActive} />
+            {turnActive ? (
+              <>
+                {liveFrom > 0 ? <SsTurnView blocks={shown.slice(0, liveFrom)} Markdown={MarkdownBody} /> : null}
+                <LiveTurn
+                  blocks={shown.slice(liveFrom)}
+                  live
+                  Markdown={MarkdownBody}
+                  thinkingLabel={t("思考中…")}
+                  liveSurface={liveSurface}
+                />
+              </>
+            ) : (
+              <SsTurnView blocks={shown} Markdown={MarkdownBody} />
+            )}
           </div>
         )}
       </div>
