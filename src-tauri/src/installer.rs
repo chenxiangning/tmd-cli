@@ -2,7 +2,7 @@
 //!
 //! 内核不持有任何 CLI 安装配方:通道与参数(npm 包名 / 官方脚本命令 / 通用
 //! 命令)由前端按 CliProfile 或面板语义传入,本模块只执行三种通用通道:
-//! - npm:全局安装最新版(`npm install -g <package>`,Windows 经 cmd /c
+//! - npm:全局安装(@latest 或钉版 @version,Windows 经 cmd /c
 //!   跑 npm.cmd shim);
 //! - script:官方安装脚本(unix `bash -c '…'`;Windows PowerShell -Command);
 //! - command:通用命令直执行(program + args 原样;Windows 经 cmd /c 兼容
@@ -30,10 +30,13 @@ const INSTALL_TIMEOUT_SECS: u64 = 300;
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "channel")]
 pub enum InstallPlan {
-    /// npm 全局安装(@latest 钉最新版)。
+    /// npm 全局安装(@latest 或钉版)。
     Npm {
-        /// 包名(不带 @latest 后缀)。
+        /// 包名(不带版本后缀)。
         package: String,
+        /// 钉版版本(None = @latest);依赖钉版在探针命中 npm 副本时
+        /// 就地换到指定版本(2026-11-06 bun 双副本遮蔽修复)。
+        version: Option<String>,
     },
     /// 官方脚本安装(unix/windows 各一条完整命令串)。
     Script { unix: String, windows: String },
@@ -54,8 +57,11 @@ pub struct CliInstallEvent {
 /// command:unix 直 spawn,windows 经 cmd /c 兼容 .cmd shim。
 fn install_command(plan: &InstallPlan, npm_prefix: Option<&str>) -> (String, Vec<String>) {
     match plan {
-        InstallPlan::Npm { package } => {
-            let pkg = format!("{package}@latest");
+        InstallPlan::Npm { package, version } => {
+            let pkg = match version.as_deref() {
+                Some(v) => format!("{package}@{v}"),
+                None => format!("{package}@latest"),
+            };
             /* npm 12(2026-07)起 install scripts 默认禁用(allowScripts 机制),
              * 被挡的 postinstall 只发 warn 不报错 —— opencode-ai 这类靠
              * postinstall 拷平台二进制的包会留下 stub 启动器,运行即报

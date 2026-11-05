@@ -97,19 +97,39 @@ describe("resolveInstallPlan 探针感知", () => {
     expect(resolveInstallPlan(qoderMeta, null)).toEqual(qoderMeta.plan);
   });
 
-  it("声明 script 的引擎不被 npm 覆盖(官方脚本才管得了原生副本)", () => {
-    const kimiMeta = {
+  it("声明 script 也被 npm 副本接管:就地更新探针看到的那份(2026-11-06 win 实证 bun)", () => {
+    const bunDep = {
       plan: installPlanOf({
-        npmPackage: "@moonshot-ai/kimi-code",
-        scriptInstall: { unix: "u", windows: "w" },
+        npmPackage: "bun",
+        scriptInstall: {
+          unix: "curl -fsSL https://bun.sh/install | bash",
+          windows: "irm bun.sh/install.ps1|iex",
+        },
       }),
-      npmPackage: "@moonshot-ai/kimi-code",
+      npmPackage: "bun",
     };
+    /* 探针命中 %APPDATA%\npm 的 bun@1.4.0:官方脚本只写 ~/.bun/bin,
+     * 一键修复后过旧横幅不消失 → npm --prefix 就地更新命中的这份。 */
     expect(
-      resolveInstallPlan(kimiMeta, {
-        npmPrefix: "C:\\npm",
-      } as never),
-    ).toEqual(kimiMeta.plan);
+      resolveInstallPlan(bunDep, {
+        command: "bun",
+        found: true,
+        path: "C:\\Users\\x\\AppData\\Roaming\\npm\\bun.cmd",
+        version: "1.4.0",
+        npmPrefix: "C:\\Users\\x\\AppData\\Roaming\\npm",
+      }),
+    ).toEqual({ channel: "npm", package: "bun" });
+    /* 命中原生副本(~/.bun/bin)→ 官方脚本照旧;未装 → 声明 script。 */
+    expect(
+      resolveInstallPlan(bunDep, {
+        command: "bun",
+        found: true,
+        path: "C:\\Users\\x\\.bun\\bin\\bun.exe",
+        version: "1.4.4",
+        npmPrefix: null,
+      }),
+    ).toEqual(bunDep.plan);
+    expect(resolveInstallPlan(bunDep, null)).toEqual(bunDep.plan);
   });
 });
 
@@ -149,7 +169,7 @@ describe("pinPlanVersion 钉版安装计划", () => {
   });
 });
 
-describe("pinPrerequisiteVersion 依赖 script 钉版", () => {
+describe("pinPrerequisiteVersion 依赖钉版", () => {
   const requires = {
     binary: "bun",
     name: "Bun",
@@ -169,6 +189,36 @@ describe("pinPrerequisiteVersion 依赖 script 钉版", () => {
       unix: 'bash -s "bun-v1.4.4"',
       windows: "install -Version 1.4.4",
     });
+  });
+
+  it("命中 npm 副本 → npm 就地钉版(探针/菜单看到的副本才是更新目标)", () => {
+    expect(
+      pinPrerequisiteVersion(requires, "1.4.5", {
+        command: "bun",
+        found: true,
+        path: "C:\\Users\\x\\AppData\\Roaming\\npm\\bun.cmd",
+        version: "1.4.0",
+        npmPrefix: "C:\\Users\\x\\AppData\\Roaming\\npm",
+      }),
+    ).toEqual({ channel: "npm", package: "bun", version: "1.4.5" });
+  });
+
+  it("命中原生副本 / 未传探针 → 官方 script 模板钉版", () => {
+    const scriptPlan = {
+      channel: "script",
+      unix: 'bash -s "bun-v1.4.4"',
+      windows: "install -Version 1.4.4",
+    };
+    expect(
+      pinPrerequisiteVersion(requires, "1.4.4", {
+        command: "bun",
+        found: true,
+        path: "C:\\Users\\x\\.bun\\bin\\bun.exe",
+        version: "1.4.4",
+        npmPrefix: null,
+      }),
+    ).toEqual(scriptPlan);
+    expect(pinPrerequisiteVersion(requires, "1.4.4", null)).toEqual(scriptPlan);
   });
 
   it("未开启、非 script 或任一平台缺占位符 → null", () => {

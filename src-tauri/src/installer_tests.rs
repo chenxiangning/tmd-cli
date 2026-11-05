@@ -5,6 +5,7 @@ use super::*;
 fn npm_command_pins_latest() {
     let plan = InstallPlan::Npm {
         package: "@qoder-ai/qodercli".into(),
+        version: None,
     };
     let (program, args) = install_command(&plan, None);
     /* Windows 经 cmd /c 跑 npm.cmd shim,unix 直跑 npm */
@@ -38,6 +39,43 @@ fn npm_command_pins_latest() {
     }
 }
 
+/// 依赖钉版走 npm 就地换版本(2026-11-06 bun 双副本遮蔽修复),
+/// 与 --prefix 前缀对齐(Windows 侧路径分隔符归一)叠加。
+#[test]
+fn npm_command_pins_version_with_prefix() {
+    let plan = InstallPlan::Npm {
+        package: "bun".into(),
+        version: Some("1.4.5".into()),
+    };
+    let (_program, args) = install_command(&plan, Some("C:/Users/x/AppData/Roaming/npm"));
+    #[cfg(windows)]
+    assert_eq!(
+        args,
+        vec![
+            "/c",
+            "npm",
+            "install",
+            "-g",
+            "--prefix",
+            "C:\\Users\\x\\AppData\\Roaming\\npm",
+            "bun@1.4.5",
+            "--allow-scripts=bun"
+        ]
+    );
+    #[cfg(not(windows))]
+    assert_eq!(
+        args,
+        vec![
+            "install",
+            "-g",
+            "--prefix",
+            "C:/Users/x/AppData/Roaming/npm",
+            "bun@1.4.5",
+            "--allow-scripts=bun"
+        ]
+    );
+}
+
 #[test]
 fn script_command_uses_platform_entry() {
     let plan = InstallPlan::Script {
@@ -60,7 +98,17 @@ fn script_command_uses_platform_entry() {
 fn plan_deserializes_frontend_shape() {
     let plan: InstallPlan =
         serde_json::from_str(r#"{"channel":"npm","package":"@openai/codex"}"#).unwrap();
-    assert!(matches!(plan, InstallPlan::Npm { .. }));
+    match plan {
+        InstallPlan::Npm { version, .. } => assert_eq!(version, None),
+        _ => panic!("npm 形状"),
+    }
+    /* 钉版字段可省(Option 隐式缺省)也可显式传 */
+    let plan: InstallPlan =
+        serde_json::from_str(r#"{"channel":"npm","package":"bun","version":"1.4.5"}"#).unwrap();
+    match plan {
+        InstallPlan::Npm { version, .. } => assert_eq!(version.as_deref(), Some("1.4.5")),
+        _ => panic!("npm 钉版形状"),
+    }
     let plan: InstallPlan =
         serde_json::from_str(r#"{"channel":"script","unix":"u","windows":"w"}"#).unwrap();
     assert!(matches!(plan, InstallPlan::Script { .. }));

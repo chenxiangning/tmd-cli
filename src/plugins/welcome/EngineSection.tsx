@@ -55,13 +55,20 @@ export function EngineSection({
   const [install, startInstall] = useEngineInstall(effectiveMeta, onProbe);
   const HomePanel = useHomePanels().get(engineId);
   /* 依赖安装完成 → 重探依赖;探针 ok 后 EngineCard 的主引擎按钮自动解锁。
-   * 一键修复链(依赖过旧,如 bun <1.4.4):依赖 script 升级成功后自动接续
+   * 一键修复链(依赖过旧,如 bun <1.4.4):依赖升级成功后自动接续
    * 本引擎更新(omp 装进新运行时),双探针重跑由各自 onDone 承担;链标只在
    * 过旧态点击时置位 —— 依赖全新安装不越权替用户装引擎。 */
   const requires = meta.requires ?? null;
   const depOutdated = depOutdatedOf(requires ?? undefined, depProbe);
+  /* 依赖计划同样探针感知(双副本遮蔽):命中副本 npm 拥有(如 Windows
+   * %APPDATA%\npm 的旧 bun 遮蔽 ~/.bun/bin)→ npm --prefix 就地更新探针
+   * 看到的那份,否则声明通道(官方脚本管原生副本);未装保持声明计划。 */
+  const effectiveRequires =
+    requires && depProbe?.status === "ok" && depProbe.result
+      ? { ...requires, plan: resolveInstallPlan(requires, depProbe.result) }
+      : requires;
   const fixChainRef = useRef(false);
-  const [depInstall, startDepInstall] = useEngineInstall(requires, () => {
+  const [depInstall, startDepInstall] = useEngineInstall(effectiveRequires, () => {
     if (requires) onDepProbe(requires.binary);
     if (fixChainRef.current) {
       fixChainRef.current = false;
@@ -96,9 +103,10 @@ export function EngineSection({
       onDepInstallVersion={
         requires?.versionMenu
           ? (version) => {
-              /* 普通依赖钉版只更新依赖本身,不复用过旧修复的 OMP 接续链。 */
+              /* 普通依赖钉版只更新依赖本身,不复用过旧修复的 OMP 接续链;
+               * 探针命中 npm 副本时钉版也走 npm 就地(pinPrerequisiteVersion)。 */
               fixChainRef.current = false;
-              const pinned = pinPrerequisiteVersion(requires, version);
+              const pinned = pinPrerequisiteVersion(requires, version, depProbe?.result);
               if (pinned) startDepInstall(pinned);
             }
           : undefined

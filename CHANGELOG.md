@@ -4,6 +4,12 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.5.1] - 2026-11-06
+
+### 修复
+
+- welcome 依赖修复双副本遮蔽:探针命中 npm 拥有的旧副本(Windows 实证 %APPDATA%\npm 的 bun@1.4.0 遮蔽 ~/.bun/bin 新副本,一键修复升级成功仍报过旧)时,一键修复/依赖更新改走 npm --prefix 就地更新探针命中的那份;依赖钉版同口径改 npm 钉版(InstallPlan::Npm 新增 version 字段),声明 script 的引擎命中 npm 副本时同样就地 npm 更新
+
 ## [0.5.0] - 2026-11-06
 
 ### 新增
@@ -27,6 +33,7 @@
 - 额度路由补 provider 前缀;模型菜单弹层按内容伸展并改左对齐,宽弹层不再越界被裁;cwd 全显不省略
 - resume 目标 not found 降级新建重启,omp 零消息 RPC 会话不再落盘
 - 启动 stderr 告警迁幕布内整行展示,header 胶囊撑破布局根治
+- 会话徽标浅色主题对比修正:tab kind 徽标与会话行 RPC/PTY 徽标双主题可读
 
 ## [0.4.9] - 2026-11-05
 

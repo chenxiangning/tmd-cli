@@ -80,12 +80,13 @@ export function installPlanOf(channels: InstallChannels): CliInstallPlan | null 
 
 /** 探针感知的安装计划解析:更新谁由探针命中的副本决定(2026-09-11 双副本
  * 遮蔽修复,npm 布局识别在内核 probe_cli,npmPrefix 随探针返回)。
- * - 命中副本为 npm 拥有(npmPrefix 非空)且声明通道非 script → npm 计划,
- *   安装器加 --prefix 就地更新探针看到的那份(omp 声明 bun 通道但 PATH 前位
- *   是 npm 副本时,bun 更新永远更不到探针命中的副本);
- * - 其余(未装/非 npm 副本/声明 script)→ 声明计划(script > command > npm):
- *   声明 script 的引擎走官方原生分发(claude/kimi),只有官方脚本管得了
- *   原生副本,npm 覆盖会写一份探针看不到的新副本;
+ * - 命中副本为 npm 拥有(npmPrefix 非空)且声明了 npmPackage → npm 计划,
+ *   安装器加 --prefix 就地更新探针看到的那份。声明通道为 script 不豁免:
+ *   官方脚本写原生目录,探针命中的 npm 副本原样不动 —— 2026-11-06 win 实证
+ *   bun(探针命中 %APPDATA%\npm 的 1.4.0,一键修复把 ~/.bun/bin 升到 1.4.4,
+ *   过旧横幅不消失;依赖与主引擎同规则);
+ * - 其余(未装/非 npm 副本)→ 声明计划(script > command > npm):script
+ *   管官方原生分发(claude/kimi),npm 覆盖会写一份探针看不到的新副本;
  * - 探针命中非 npm 副本且声明通道是 npm:更新永远写探针看不到的新副本
  *   (2026-09-25 qoder 实证,原生版本化目录自管)→ 声明了 commandUpdate
  *   (CLI 自带 update 子命令)则走命令通道就地自更新,否则声明计划原样。 */
@@ -93,7 +94,7 @@ export function resolveInstallPlan(
   meta: Pick<EngineMeta, "plan" | "npmPackage" | "commandUpdate">,
   probe: CliProbeResult | null | undefined,
 ): CliInstallPlan | null {
-  if (meta.plan?.channel !== "script" && meta.npmPackage && probe?.npmPrefix) {
+  if (meta.npmPackage && probe?.npmPrefix) {
     return { channel: "npm", package: meta.npmPackage };
   }
   if (
@@ -111,8 +112,8 @@ export function resolveInstallPlan(
  * 钉版安装计划:command 通道 args 中 === npmPackage 的项替换为 `pkg@version`
  * (如 `bun install -g @oh-my-pi/pi-coding-agent` → `…@18.1.20`)。
  * 无法钉版(非 command 通道 / 未声明包名 / args 不含包名)→ null(不出版本菜单)。
- * npm 通道钉版要动 Rust(InstallPlan::Npm 硬编码 @latest),本特性不做(spec 方案取舍 B)。
- */
+ * npm 通道钉版仅依赖侧使用(pinPrerequisiteVersion 命中 npm 副本分支);
+ * 主引擎钉版仍限 command 通道(versionMenu 前提即声明 command 可钉)。 */
 export function pinPlanVersion(
   plan: CliInstallPlan | null,
   npmPackage: string | undefined,
@@ -129,14 +130,21 @@ export function pinPlanVersion(
   return replaced ? { channel: "command", program: plan.program, args } : null;
 }
 
-/** 前置依赖 script 钉版:双平台官方命令由插件声明,本层只替换 {version}。 */
+/** 前置依赖钉版:双平台官方命令由插件声明,本层只替换 {version};
+ * 探针命中副本为 npm 拥有时改走 npm 就地钉版(与 resolveInstallPlan 同口径)。 */
 export function pinPrerequisiteVersion(
   requires: PrerequisiteMeta,
   version: string,
+  probe?: CliProbeResult | null,
 ): CliInstallPlan | null {
+  if (!requires.versionMenu) return null;
+  /* 命中 npm 副本(如 Windows %APPDATA%\npm 的旧 bun 遮蔽 ~/.bun/bin):
+   * script 钉版只写原生目录,探针/菜单看到的版本永不动 → npm 钉同一版本就地换。 */
+  if (requires.npmPackage && probe?.npmPrefix) {
+    return { channel: "npm", package: requires.npmPackage, version };
+  }
   const templates = requires.scriptVersionInstall;
   if (
-    !requires.versionMenu ||
     requires.plan?.channel !== "script" ||
     !templates?.unix.includes("{version}") ||
     !templates.windows.includes("{version}")
