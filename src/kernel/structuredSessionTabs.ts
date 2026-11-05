@@ -26,6 +26,8 @@ export interface StructuredSessionPayload {
   profileId: string;
   cwd: string;
   adoptStreamId?: string;
+  /** 重开上次会话(--resume 续聊):tmd.ss.last 记忆的引擎会话 id。 */
+  resumeSessionId?: string;
 }
 
 /** checkpoint/footprint 账本副键 → structured tab 目标;普通 PTY 身份返回 null。 */
@@ -43,7 +45,7 @@ export function structuredSessionTarget(ledgerId: string | undefined): Structure
 export function openStructuredSessionTab(
   profileId: string,
   cwd?: string,
-  opts?: { adoptStreamId?: string },
+  opts?: { adoptStreamId?: string; resumeSessionId?: string },
 ): void {
   const root = cwd ?? getActiveWorkspace()?.root ?? getWorkspaces()[0]?.root;
   if (!root) return;
@@ -56,6 +58,7 @@ export function openStructuredSessionTab(
       profileId,
       cwd: root,
       ...(opts?.adoptStreamId ? { adoptStreamId: opts.adoptStreamId } : {}),
+      ...(opts?.resumeSessionId ? { resumeSessionId: opts.resumeSessionId } : {}),
     } satisfies StructuredSessionPayload,
   });
 }
@@ -153,4 +156,26 @@ export function getStructuredSessionRows(): readonly StructuredSessionRow[] {
 /** 行集快照(React 订阅;workspace 左栏分区消费)。 */
 export function useStructuredSessionRows(): readonly StructuredSessionRow[] {
   return rowsStore.useStore();
+}
+
+/* ── 上次会话记忆(批次 4)──「重开上次会话」/磁盘行「继续对话」的数据面:
+ * key = 引擎+cwd(与 draft 持久化同律),value = 引擎会话 id。单键滚动覆盖,
+ * 无过期;引擎侧文件缺失时 resume 失败进可重试 error 态(自愈)。 */
+
+const lastKey = (profileId: string, cwd: string) => `tmd.ss.last.${profileId}:${cwd}`;
+
+export function readLastSsSession(profileId: string, cwd: string): string | null {
+  try {
+    return localStorage.getItem(lastKey(profileId, cwd));
+  } catch {
+    return null;
+  }
+}
+
+export function noteLastSsSession(profileId: string, cwd: string, sessionId: string): void {
+  try {
+    localStorage.setItem(lastKey(profileId, cwd), sessionId);
+  } catch {
+    /* 隐私模式/配额:记忆缺失只损失「重开上次」入口,不影响会话本体 */
+  }
 }

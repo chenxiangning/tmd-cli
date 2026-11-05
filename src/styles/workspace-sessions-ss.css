@@ -66,3 +66,8 @@
   align-items: center;
   justify-content: center;
 }
+
+/* 「重开上次会话」菜单项(批次 4):虚线描边与新建项区分「续 vs 新」。 */
+.ss-menu-resume {
+  border-style: dashed;
+}

@@ -2,12 +2,9 @@
  * 会话列表 —— 活会话行 + CLI 分组 + 磁盘历史分页。
  * 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions。
  *
- * 状态表达(kernel host 活动守望结算,见 kernel/host.ts / activityWatch.ts;
- * 呼吸灯锚定用户首写 —— 首写前的一切输出(spawn 横幅/resume 回放/TUI 重绘)
- * 不亮灯、不结算未读,见 activityWatch 首写闸):
- * - 左侧节点:绿呼吸(对话中) / 蓝呼吸(完成未读) / 灰静止(ActivityDot)
- * - meta 区状态 label(SessionStatusLabel):运行时 / 空闲-未查看 /
- *   空闲;从未对话不出签,磁盘行无此概念
+ * 状态表达(kernel activityWatch 结算;呼吸灯锚定用户首写,首写前不亮灯
+ * 不结算未读):节点 = 绿对话/蓝完成未读/灰静止;meta label = 运行时/
+ * 空闲-未查看/空闲,从未对话不出签。
  * 行右键菜单:复制 Session ID / 重命名(应用侧覆盖层,见 kernel/sessionTitles.ts)
  * / 置顶到全局 / 置顶到工作区内(双作用域,见 kernel/sessionPins.ts)
  * / 删除会话(两步确认,双端统一物理删除磁盘 jsonl)。
@@ -17,8 +14,7 @@
  * - scope=global → 离开本组,汇入左侧栏顶部「已置顶」区(PinnedSessions.tsx);
  * - 未置顶 → 常规分页。scope=global 的活会话同样离组(仅全局区可见)。
  *
- * 活会话行与磁盘删除助手拆至 LiveSessionRow.tsx,分组数据装配拆至
- * useCliSessionGroup.ts(文件规模铁则)。
+ * 行组件拆至 LiveSessionRow/SessionRows,数据装配拆至 useCliSessionGroup。
  * 扁平化(2026-09-08 spec):分组段头与折叠退役,会话行直接平铺于工作区下,
  * 行首供应商图标区分引擎;分组仅作数据装配边界(分页/置顶投影/归档过滤)。
  */
@@ -28,6 +24,7 @@ import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
 import { sessionPinKey, toggleSessionPin, type SessionPinEntry, type SessionPinScope } from "@kernel/sessionPins";
+import { openStructuredSessionTab, readLastSsSession } from "@kernel/structuredSessionTabs";
 import { noteSessionTabTitle } from "@kernel/sessionTabs";
 import { sessionTitleKey } from "@kernel/sessionTitles";
 import type { SessionMeta } from "@kernel/ipc";
@@ -98,6 +95,9 @@ function sessionMenuProps(menu: MenuTarget, profile: CliProfile, workspace: Work
             profile.id,
             menu.session.cwd ?? workspace.root,
           ),
+    onResumeRendered: menu.kind === "disk" && profile.structuredRpc?.resumeArgs && readLastSsSession(profile.id, workspace.root) === menu.session.id
+      ? () => openStructuredSessionTab(profile.id, workspace.root, { resumeSessionId: menu.session.id })
+      : undefined,
     onRetry: menu.kind === "live" && menu.session.kind !== "cli"
       ? undefined
       : retryMenuHandler({

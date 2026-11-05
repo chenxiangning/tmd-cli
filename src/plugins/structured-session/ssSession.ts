@@ -10,7 +10,7 @@ import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { sendOsNotification } from "@kernel/ipc";
-import { openStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { noteLastSsSession, openStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import { adoptDiskSeed } from "./adoptBoot";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
@@ -90,8 +90,6 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   /* 生命周期:mount 起 RPC 子进程,unmount(关 tab)kill 收割。StrictMode 双跑
    * 由 startedRef 挡;失败先 kill 清残留子进程再进 error 态,重试按钮重跑启动。 */
   const startedRef = useRef(false);
-  /* 断线接续态:retry 已知 sessionId 且引擎有 resumeArgs → --resume 换壳重开,
-   * 旧转录作种子保形;否则全复位新会话。 */
   const resumeRef = useRef<string | null>(null);
   const seedRef = useRef<CliTranscriptBlock[] | null>(null);
   const startSession = () => {
@@ -165,7 +163,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       },
       payload.adoptStreamId
         ? { adoptStreamId: payload.adoptStreamId }
-        : { resume: resumeRef.current && rpc.resumeArgs ? resumeRef.current : undefined, seedBlocks: seedRef.current ?? undefined, spawnLabel: `structured:${payload.profileId}:${payload.cwd}` },
+        : { resume: payload.resumeSessionId ?? (resumeRef.current && rpc.resumeArgs ? resumeRef.current : undefined), seedBlocks: seedRef.current ?? undefined, spawnLabel: `structured:${payload.profileId}:${payload.cwd}` },
     ));
     sessionRef.current = session;
     void session
@@ -179,8 +177,10 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
         setStatusText(null);
         setPhase("ready");
-        /* adopt 链后置种子:磁盘转录补 reload 前历史(读不到静默空幕布,续跑不受影响)。 */
-        if (payload.adoptStreamId && state?.sessionId) void adoptDiskSeed(session, payload, state.sessionId);
+        /* adopt/resume(重开上次)后置种子:磁盘转录补历史(引擎不重发历史帧;
+         * 读不到静默空幕布,轮次续跑不受影响)。 */
+        if ((payload.adoptStreamId || payload.resumeSessionId) && state?.sessionId) void adoptDiskSeed(session, payload, state.sessionId);
+        if (state?.sessionId) noteLastSsSession(payload.profileId, payload.cwd, state.sessionId);
       })
       .catch((e: unknown) => {
         /* 启动失败:先收割残留再进可重试 error 态;秒退时 stderr 尾行(真因)

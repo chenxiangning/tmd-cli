@@ -186,4 +186,6 @@ export const MESSAGES = {
   "关闭会话": "Close session",
   "展开带渲染的会话区": "Expand rendered-session zone",
   "收起带渲染的会话区": "Collapse rendered-session zone",
+  "继续对话(带渲染的会话)": "Continue in rendered session",
+
 } as Record<string, string>;
