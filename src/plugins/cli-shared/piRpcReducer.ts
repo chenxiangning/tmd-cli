@@ -59,6 +59,10 @@ export class PiRpcReducer {
   private settled: CliTranscriptBlock[] = [];
   private blocks: CliTranscriptBlock[] = [];
   private live: MsgLive | null = null;
+  /** 当前全量块(adopt 后置种子驱动 onBlocks 用;feed 同源同值)。 */
+  currentBlocks(): CliTranscriptBlock[] {
+    return this.blocks;
+  }
   turnStart = 0;
   /** 流内活跃输出面(thinking/text):渲染层据此给对应块「流式展开」态。
    * 必须与块位置解耦 —— rebuild 布局中流内块永远在基座(含工具行)之后,

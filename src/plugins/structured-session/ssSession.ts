@@ -1,8 +1,7 @@
 /**
  * 结构化会话生命周期 hook(从 sessionTab 拆出守 300 行铁则)——
  * PiRpcSession 全编排:spawn/握手/重试、转录 120ms 合帧、审批回路、
- * busy 排队(follow_up,引擎结算自动起跑)、轮次结束 OS 通知(PTY 侧
- * notifyOsTurnEnd 同闸同文案)、stderr 降噪(ready 期噪声不进状态行)。
+ * busy 排队(follow_up 引擎结算自动起跑)、轮末 OS 通知、stderr 降噪。
  */
 import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { errTextDisplay } from "@kernel/errText";
@@ -12,6 +11,7 @@ import { getSettingsState } from "@kernel/settings";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { sendOsNotification } from "@kernel/ipc";
 import { openStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { adoptDiskSeed } from "./adoptBoot";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
 import { StructuredTurnEvidence } from "./evidence";
@@ -90,8 +90,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   /* 生命周期:mount 起 RPC 子进程,unmount(关 tab)kill 收割。StrictMode 双跑
    * 由 startedRef 挡;失败先 kill 清残留子进程再进 error 态,重试按钮重跑启动。 */
   const startedRef = useRef(false);
-  /* 断线接续态:retry 时已知 sessionId 且引擎声明 resumeArgs → --resume 换壳
-   * 重开(引擎侧上下文保留),旧转录作 reducer 种子保形;否则全复位新会话。 */
+  /* 断线接续态:retry 已知 sessionId 且引擎有 resumeArgs → --resume 换壳重开,
+   * 旧转录作种子保形;否则全复位新会话。 */
   const resumeRef = useRef<string | null>(null);
   const seedRef = useRef<CliTranscriptBlock[] | null>(null);
   const startSession = () => {
@@ -163,7 +163,9 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
           }
         },
       },
-      resumeRef.current && rpc.resumeArgs ? { resume: resumeRef.current, seedBlocks: seedRef.current ?? undefined } : undefined,
+      payload.adoptStreamId
+        ? { adoptStreamId: payload.adoptStreamId }
+        : { resume: resumeRef.current && rpc.resumeArgs ? resumeRef.current : undefined, seedBlocks: seedRef.current ?? undefined, spawnLabel: `structured:${payload.profileId}:${payload.cwd}` },
     ));
     sessionRef.current = session;
     void session
@@ -177,11 +179,12 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
         setStatusText(null);
         setPhase("ready");
+        /* adopt 链后置种子:磁盘转录补 reload 前历史(读不到静默空幕布,续跑不受影响)。 */
+        if (payload.adoptStreamId && state?.sessionId) void adoptDiskSeed(session, payload, state.sessionId);
       })
       .catch((e: unknown) => {
-        /* 启动失败:先收割残留子进程,再进可重试的 error 态。
-         * 报错可读性:进程秒退时 stderr 尾行(命令缺失等真因)优先于
-         * 握手被 teardown 拒绝的笼统「rpc 进程已退出」。 */
+        /* 启动失败:先收割残留再进可重试 error 态;秒退时 stderr 尾行(真因)
+         * 优先于笼统「rpc 进程已退出」。 */
         session.kill();
         if (sessionRef.current === session) {
           sessionRef.current = null;

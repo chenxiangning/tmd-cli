@@ -4,6 +4,10 @@
  * 抓包实证(2026-10-04,见 piRpc.ts 头注)。CLI 私有格式知识不越出 cli-shared。
  */
 
+import type { CliTranscriptBlock } from "@kernel/cli";
+import type { PiLiveSurface } from "./piRpcReducer";
+
+
 /** 家族分叉:启动命令 + 断线接续旗标(monocode piFlavor 同参照)。 */
 export interface PiRpcFlavor {
   command: string;
@@ -43,6 +47,23 @@ export interface PiRpcConfirm {
   frameId: string | number;
   title: string;
   message: string;
+}
+
+/** 事件回调面(PiRpcSession 构造入参;转录快照 + 生命周期边沿)。 */
+export interface PiRpcHandlers {
+  /** 转录块快照(变更即新数组引用)+ 当前轮首块下标(渲染层切「落定历史|流内活轮」)
+   * + 流内活跃输出面(活思考/正文据此展开,与块位置无关)。 */
+  onBlocks: (blocks: CliTranscriptBlock[], turnStart: number, liveSurface: PiLiveSurface) => void;
+  /** 轮次进行中/结算(session_settled 边沿)。 */
+  onBusy: (busy: boolean) => void;
+  /** 工具执行原始帧(structured-session 成功写工具存证;展示仍走 reducer)。 */
+  onToolExecution?: (rec: Record<string, unknown>) => void;
+  /** 审批请求;respond 由消费方 UI 调用(confirmId 传入)。 */
+  onConfirm: (req: PiRpcConfirm) => void;
+  /** 子进程退出(code null = 被杀);此后会话终态。 */
+  onExit: (code: number | null) => void;
+  /** 协议/连接异常(展示态,不断链)。 */
+  onError: (message: string) => void;
 }
 
 export function parseState(d: Record<string, unknown>): PiRpcState {

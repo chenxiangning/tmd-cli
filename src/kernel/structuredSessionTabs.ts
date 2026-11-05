@@ -20,10 +20,12 @@ import { subscribeEditorTabs } from "./tabs";
 
 export const STRUCTURED_SESSION_TAB_KIND = "structured-session";
 
-/** tab 负载:引擎 profile id + 落地 cwd(开 tab 时快照,随会话走)。 */
+/** tab 负载:引擎 profile id + 落地 cwd(开 tab 时快照,随会话走)。
+ *  adoptStreamId 仅 boot 收养路径携带(枚举到的既有流 id)。 */
 export interface StructuredSessionPayload {
   profileId: string;
   cwd: string;
+  adoptStreamId?: string;
 }
 
 /** checkpoint/footprint 账本副键 → structured tab 目标;普通 PTY 身份返回 null。 */
@@ -35,8 +37,14 @@ export function structuredSessionTarget(ledgerId: string | undefined): Structure
   return { profileId: rest.slice(0, sep), cwd: rest.slice(sep + 1) };
 }
 
-/** 开一个结构化会话 tab(同引擎同 cwd 已开 = 激活既有);cwd 缺省当前工作区根。 */
-export function openStructuredSessionTab(profileId: string, cwd?: string): void {
+/** 开一个结构化会话 tab(同引擎同 cwd 已开 = 激活既有);cwd 缺省当前工作区根。
+ *  adopt:boot 收养既有 proc 流 —— tab 内容挂载时订阅该流而非新 spawn
+ *  (webview reload 重接链,会话体系对齐批次 3)。 */
+export function openStructuredSessionTab(
+  profileId: string,
+  cwd?: string,
+  opts?: { adoptStreamId?: string },
+): void {
   const root = cwd ?? getActiveWorkspace()?.root ?? getWorkspaces()[0]?.root;
   if (!root) return;
   openTab({
@@ -44,7 +52,11 @@ export function openStructuredSessionTab(profileId: string, cwd?: string): void 
     kind: STRUCTURED_SESSION_TAB_KIND,
     title: `${host.getCliProfile(profileId)?.name ?? profileId} · ${t("带渲染的会话")}`,
     path: root,
-    payload: { profileId, cwd: root } satisfies StructuredSessionPayload,
+    payload: {
+      profileId,
+      cwd: root,
+      ...(opts?.adoptStreamId ? { adoptStreamId: opts.adoptStreamId } : {}),
+    } satisfies StructuredSessionPayload,
   });
 }
 
