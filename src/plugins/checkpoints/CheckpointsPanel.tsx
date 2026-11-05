@@ -12,6 +12,8 @@ import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import { host } from "@kernel/host";
 import { messageAnchors } from "@kernel/messageAnchors";
+import { getActiveRpcEvidenceView } from "@kernel/structuredSessionEvidence";
+import { useStructuredSessionRows } from "@kernel/structuredSessionTabs";
 import { BatchRow, type ConfirmTarget } from "./BatchRow";
 import { ChangesPanel } from "./ChangesPanel";
 import { TimelinePanel } from "./TimelinePanel";
@@ -29,14 +31,20 @@ interface CwdCkptState {
   notARepo: boolean;
 }
 
-/** 摘要行右侧计数;仅时间线态挂载(摘要行条件渲染,与面板保活独立)。 */
+/** 摘要行右侧计数;仅时间线态挂载(摘要行条件渲染,与面板保活独立)。
+ *  RPC 视角(无活跃 PTY、活跃 tab = 带渲染的会话)计行投影 userTexts,
+ *  与 RpcTimeline 数据源同口径。 */
 function TimelineCount() {
   const sessionId = host.getActiveSessionId();
   const anchors = useSyncExternalStore(messageAnchors.subscribe, () =>
     messageAnchors.getAnchors(sessionId),
   );
+  /* RPC 视角计数须响应式:userTexts 随行投影增长(getActiveRpcEvidenceView 纯读无订阅)。 */
+  const rows = useStructuredSessionRows();
+  const rpc = sessionId ? null : getActiveRpcEvidenceView();
+  const count = rpc ? rows.find((r) => r.tabId === rpc.tabId)?.userTexts.length ?? 0 : anchors.length;
   return (
-    <span className="flex-none text-(--tmd-fg-faint)">{t("{count} 条", { count: anchors.length })}</span>
+    <span className="flex-none text-(--tmd-fg-faint)">{t("{count} 条", { count })}</span>
   );
 }
 
@@ -206,8 +214,9 @@ export function CheckpointsPanel() {
    * 深链与 diff 缓存若仍用现值(tmd)必然错位成「批次不存在」。 */
   const listSessionId = staleSessionId ?? sessionId;
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
-  /* 页签:审批线 | 变更 | 时间线(时间线/变更是独立组件,与审批线零共享逻辑) */
-  const [view, setView] = useState<"batch" | "changes" | "timeline">("batch");
+  /* 页签:审批线 | 变更 | 时间线(时间线/变更是独立组件,与审批线零共享逻辑)。
+   * 默认时间线(2026-11-05 定稿:面板点开默认看会话时间流;审批线是事件驱动入口)。 */
+  const [view, setView] = useState<"batch" | "changes" | "timeline">("timeline");
   const actions = useCheckpointActions(cwd, sessionId, tmdSessionId);
   const { busy, notice, setNotice } = actions;
 

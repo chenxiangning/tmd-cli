@@ -10,7 +10,7 @@ import { getCkptBatches, refreshBatches } from "@plugins/checkpoints/store";
 import { relayOpenRef } from "@kernel/relayBridge";
 import { host } from "@kernel/host";
 import type { SsSessionState } from "./ssSession";
-import type { StructuredSessionPayload } from "./tabs";
+import type { StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import { lastRetryablePrompt } from "./retryPrompt";
 
 function RetryDialog(props: {

@@ -97,6 +97,28 @@
   color: var(--tmd-fg);
 }
 
+/* 会话 kind 徽标(入口隔离 R-ISO2 的视觉判据):RPC = 带渲染结构化会话
+   (蓝紫 chip,编辑 tab 条),与左栏「带渲染的会话」分区同语义同色系
+   (workspace-sessions-ss.css)。PTY = 幕布会话(灰绿 chip,会话 tab 条);
+   双侧 chip 同构,中央条两型入口一眼可辨。 */
+.tab-kind-badge {
+  flex: 0 0 auto;
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  color: #7c9bff;
+  border: 1px solid #2b3a6e;
+  background: rgba(22, 32, 74, 0.25);
+}
+
+.tab-kind-badge.is-pty {
+  color: #7dd3a8;
+  border-color: #22503a;
+  background: rgba(20, 48, 31, 0.25);
+}
+
 .tab-main-label {
   overflow: hidden;
   text-overflow: ellipsis;

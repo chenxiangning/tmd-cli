@@ -3,7 +3,6 @@ export const MESSAGES_EN: Record<string, string> = {
   "带渲染的会话": "Rendered session",
   "结构化会话": "Structured session",
   "该引擎不支持 RPC 会话": "This engine does not support RPC sessions",
-  /* G-01 新建菜单入口(2026-11-05 起入「带渲染的会话」组,行文案 = 引擎名) */
   "启动 RPC 会话中…": "Starting RPC session…",
   "启动失败": "Start failed",
   "重试": "Retry",
@@ -34,9 +33,6 @@ export const MESSAGES_EN: Record<string, string> = {
   "模型清单不可用": "Model list unavailable",
   "无匹配模型": "No matching model",
   "思考级": "Thinking level",
-  "切换引擎(另开 tab,当前会话保留)": "Switch engine (opens a new tab; this session stays)",
-  "切换引擎": "Switch engine",
-  "当前": "Current",
   "模型": "Model",
   /* 批次2:busy 排队发送 */
   "输入下一问(排队,当前轮结束自动发送)": "Type the next question (queued; sends when this turn ends)",
@@ -84,4 +80,14 @@ export const MESSAGES_EN: Record<string, string> = {
   "拖拽调整高度": "Drag to resize",
   /* 幕布宽度抓手(2026-11-05) */
   "调整幕布宽度": "Adjust canvas width",
+  /* 空态引导(2026-11-06:ssWelcome 大白页引导) */
+  "与 {engine} 开始对话": "Start a conversation with {engine}",
+  "带渲染的会话:思考与工具过程实时可见": "Rendered session: thoughts & tool calls visible live",
+  "思考与工具过程卡片化、实时可见": "Thoughts & tool calls as cards, visible live",
+  "审批请求内联确认,不用切窗口": "Approve requests inline — no window switching",
+  "token 级流式答复": "Token-level streaming replies",
+  "试试这些开场:": "Try one of these openers:",
+  "介绍一下当前项目的目录结构和核心模块": "Walk me through this project's structure and core modules",
+  "帮我审查最近的代码变更,找出潜在问题": "Review the recent code changes and spot potential issues",
+  "给这个项目写一份 README 摘要": "Draft a README summary for this project",
 }

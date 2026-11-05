@@ -40,7 +40,11 @@ function mountKey(contribution: object): string {
   return key;
 }
 
-export function Mounts({ point }: { point: MountPoint }) {
+/**
+ * props 透传:宿主可给挂点组件传上下文(如菜单宿主递 onClose,插件行点击后
+ * 关闭宿主弹层);缺省不传,既有挂点零感知。
+ */
+export function Mounts({ point, props }: { point: MountPoint; props?: Record<string, unknown> }) {
   useHost();
   return (
     <>
@@ -48,7 +52,7 @@ export function Mounts({ point }: { point: MountPoint }) {
         const Comp = c.component;
         return (
           <MountErrorBoundary key={mountKey(c)}>
-            <Comp />
+            <Comp {...props} />
           </MountErrorBoundary>
         );
       })}

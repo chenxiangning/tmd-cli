@@ -305,6 +305,7 @@ pub fn run() {
             proc_stream::proc_stream_write,
             proc_stream::proc_stream_kill,
             proc_stream::proc_stream_kill_all,
+            proc_stream::proc_stream_list,
             lsp::lsp_spawn,
             lsp::lsp_send,
             lsp::lsp_stop,
@@ -448,6 +449,9 @@ pub fn run() {
             webview 重载不触发此事件,会话跨重载存活的语义不变。 */
             if let tauri::RunEvent::Exit = event {
                 app.state::<AppState>().pty.kill_all();
+                /* proc_stream 孤儿兜底:webview 失联(detach 语义)后无人收养的
+                 * 流,app 退出时统一收割(会话体系对齐批次 3)。 */
+                proc_stream::kill_all();
             }
         });
 }

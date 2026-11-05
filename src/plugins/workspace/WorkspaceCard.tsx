@@ -13,12 +13,30 @@ import { t } from "@kernel/i18n";
 import { setActiveWorkspace, setWorkspaceAlias, workspaceDisplayName, type Workspace } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { RenameInput } from "@kernel/RenameInput";
-import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, GitFork, RocketLaunch, ListChecks, Rows } from "@phosphor-icons/react";
+import { CaretDoubleDown, CaretDoubleUp, ArrowClockwise, FolderSimple, FolderOpen, GitFork, RocketLaunch, ListChecks, Rows, Terminal } from "@phosphor-icons/react";
 import { DecorIcon } from "@kernel/iconSet";
 import { openWorkspaceFiles, useWorkspaceFileBrowserView } from "@kernel/workspaceFileBrowser";
 import { CliSessionGroup } from "./SessionList";
+import { StructuredSessionSection } from "./StructuredSessionSection";
+import { SectionLabel } from "./SectionLabel";
+import { usePtyVisibility } from "./ptySectionVisibility";
 import { SshSessionGroup } from "./SshSessionGroup";
 import { ShellSessionGroup } from "./ShellSessionGroup";
+import type { CliProfile } from "@kernel/cli";
+
+/** PTY 小节头:任一引擎组有可见行才出(空工作区不占位);可见性经
+ * ptySectionVisibility store 聚合(组写卡读,判定与组 return null 同源)。 */
+function PtySectionLabel({ profiles }: { profiles: CliProfile[] }) {
+  const visible = usePtyVisibility();
+  if (!profiles.some((p) => visible.get(p.id))) return null;
+  return (
+    <SectionLabel
+      icon={<Terminal size="0.75rem" aria-hidden />}
+      text="PTY"
+      title={t("终端会话")}
+    />
+  );
+}
 
 /** 双态文件夹图标 —— 用 Phosphor 自带 FolderSimple(关闭)/FolderOpen(展开),
  *  bold weight 下圆胖 + 顶部翻开页细节。 */
@@ -221,6 +239,9 @@ export function WorkspaceCard({
         inert={collapsed}
       >
         <div className="workspace-children-inner">
+          {/* PTY 小节头:任一引擎组有可见行才出(空工作区不占位);可见性经
+              ptySectionVisibility store 聚合(组写卡读,不走 prop 回调 effect)。 */}
+          <PtySectionLabel profiles={profiles} />
           {profiles.map((p) => (
             <CliSessionGroup
               key={p.id}
@@ -229,8 +250,12 @@ export function WorkspaceCard({
               refreshTick={refreshTicks[scanKey(p.id)] ?? 0}
               manage={manage}
               onScanned={() => onScanDone(workspace.id, p.id)}
+              /* onVisibleChange 已退役:可见性走 ptySectionVisibility store。 */
             />
           ))}
+          {/* 带渲染的会话(RPC)小节:工作区内区分呈现(图 2 结构:终端会话
+              之后、远程组之前);行按 cwd 归属本工作区,见 StructuredSessionSection。 */}
+          <StructuredSessionSection workspace={workspace} />
           <SshSessionGroup workspace={workspace} />
           <ShellSessionGroup workspace={workspace} />
         </div>

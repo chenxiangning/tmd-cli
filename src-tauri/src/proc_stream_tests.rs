@@ -54,3 +54,16 @@ fn line_reader_truncates_runaway_line() {
     read_limited_line(&mut next, &mut out).unwrap();
     assert_eq!(out, "next");
 }
+
+#[test]
+fn spec_label_optional_camel_case() {
+    /* label 缺省 None(旧调用方不传不裂);camelCase 同 serde 契约。 */
+    let base: super::ProcStreamSpec =
+        serde_json::from_str(r#"{"command":"omp","args":["--mode","rpc"],"cwd":"/repo"}"#).unwrap();
+    assert!(base.label.is_none());
+    let labeled: super::ProcStreamSpec = serde_json::from_str(
+        r#"{"command":"omp","args":[],"cwd":"/repo","label":"structured:omp:/repo"}"#,
+    )
+    .unwrap();
+    assert_eq!(labeled.label.as_deref(), Some("structured:omp:/repo"));
+}

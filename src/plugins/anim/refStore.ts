@@ -1,8 +1,8 @@
 /**
  * anim · 会话引用 pending 桶(session-relay relayStore 同构)── 模块级单例,
  * keyed by 目标会话 id:composer 芯片展示,发送变换消费(sessionRefs.ts)。
- * 初始提示词队列已上移为跨插件契约 kernel/sessionPending(候选4,workspace
- * 会话预设同款消费),本文件只剩引用半区。
+ * 初始提示词队列已上移为跨插件契约 kernel/sessionPending(候选4),本文件
+ * 只剩引用半区。
  */
 import { useSyncExternalStore } from "react";
 

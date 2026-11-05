@@ -7,12 +7,15 @@ import { HardDrive } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { openHostPicker } from "./state";
 
-export function MenuEntry() {
+export function MenuEntry({ onClose }: { onClose?: () => void }) {
   return (
     <button
       type="button"
       className="wsmenu-item"
-      onClick={() => openHostPicker()}
+      onClick={() => {
+        openHostPicker();
+        onClose?.();
+      }}
     >
       <span className="wsmenu-item-icon">
         <HardDrive size="0.875rem" />

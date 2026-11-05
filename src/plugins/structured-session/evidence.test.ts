@@ -76,6 +76,18 @@ describe("StructuredTurnEvidence(RPC 共同存证)", () => {
     expect(d.seal).not.toHaveBeenCalled();
   });
 
+  it("reset(keepSessionId) 保身份:--resume 重放在途轮的 write 仍落账(批次 6 修盲区)", async () => {
+    const d = deps();
+    const evidence = new StructuredTurnEvidence(CWD, LEDGER, d);
+    evidence.prompt("cli-1", "在途轮", META);
+    evidence.toolExecution({ type: "tool_execution_start", toolCallId: "w1", toolName: "write", args: { path: "a.ts" } });
+    /* retry:同引擎会话 --resume → 换壳但身份不变;重放的 end 应记 cli-1。 */
+    evidence.reset("cli-1");
+    evidence.toolExecution({ type: "tool_execution_end", toolCallId: "w1", result: {} });
+    await evidence.settled();
+    expect(d.record).toHaveBeenCalledWith(CWD, "cli-1", LEDGER, "a.ts");
+  });
+
   it("settled 清除未结束工具,迟到 end 不补记到下一轮", async () => {
     const d = deps();
     const evidence = new StructuredTurnEvidence(CWD, LEDGER, d);

@@ -6,9 +6,10 @@
  * 生命周期编排见 ssSession.ts。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  */
-import { lazy, useEffect, useRef, useState } from "react";
-import { ArrowDown } from "@phosphor-icons/react";
-import type { EditorTab } from "@kernel/tabs";
+import { lazy, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, Warning, X } from "@phosphor-icons/react";
+import { getActiveTabId, updateTab, type EditorTab } from "@kernel/tabs";
+import { getStructuredSessionRows, noteStructuredSessionRow, readSsTitleOverride } from "@kernel/structuredSessionTabs";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
@@ -21,8 +22,9 @@ import { liveFromIndex } from "./ssLiveFrom";
 import { useSettleKey } from "./ssSettleKey";
 import { useCanvasWidth } from "./ssCanvasResize";
 import { SsComposer } from "./ssComposer";
+import { SsWelcome } from "./ssWelcome";
 import { useSsSession, type Phase } from "./ssSession";
-import type { StructuredSessionPayload } from "./tabs";
+import type { StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import "./structured-session.css";
 
 const MarkdownBody = lazy(retryImport(() =>
@@ -55,6 +57,31 @@ function PhaseBanners(props: { phase: Phase; statusText: string | null; sessionI
   return null;
 }
 
+/* 幕布内告警条(2026-11-05 自 header 迁入):启动 stderr/帧丢弃/看门狗各占一槽,
+ * 整行琥珀条随幕布列宽,文本换行不再横向撑破布局;逐槽可关。 */
+function SsWarnList(props: { warns: string[]; widthPct: number; onDismiss: (index: number) => void }) {
+  if (props.warns.length === 0) return null;
+  return (
+    <div className="ss-warnlist" role="alert" style={{ width: `${props.widthPct}%` }}>
+      {props.warns.map((w, i) => (
+        <span className="ss-warn" key={w} title={w}>
+          <Warning size="0.75rem" weight="fill" aria-hidden />
+          <span className="ss-warn-text">{w}</span>
+          <button
+            type="button"
+            className="ss-warn-x"
+            title={t("忽略")}
+            aria-label={t("忽略")}
+            onClick={() => props.onDismiss(i)}
+          >
+            <X size="0.6875rem" aria-hidden />
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   useHost(); /* profile 注册/工作区变化 */
   const payload = tab.payload as StructuredSessionPayload;
@@ -79,6 +106,48 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     if (el && ss.stickRef.current) el.scrollTop = el.scrollHeight;
   }, [ss.blocks, ss.stickRef]);
 
+  /* 左栏行投影广播(RPC 会话体系对齐批次 1):运行态变化即 note,kernel 行集
+   * 随 tab 生命周期自动增删,本组件无需清理。 */
+  useEffect(() => {
+    noteStructuredSessionRow(tab.id, {
+      phase: ss.phase,
+      busy: ss.busy,
+      busySince: ss.busySince,
+      waitingConfirm: ss.confirm != null,
+      sessionId: ss.sessionId,
+    });
+  }, [tab.id, ss.phase, ss.busy, ss.busySince, ss.confirm, ss.sessionId]);
+
+  /* 未读记账(批次 2):busy true→false 沿 = 一轮结算;tab 非激活时累加未读
+   * (激活即读由 kernel 订阅 setActiveTab 出口清零,此处只管涨)。 */
+  const prevBusyRef = useRef(false);
+  useEffect(() => {
+    const settledEdge = prevBusyRef.current && !ss.busy;
+    prevBusyRef.current = ss.busy;
+    if (!settledEdge) return;
+    const active = getActiveTabId() === tab.id;
+    const unread = (getStructuredSessionRows().find((r) => r.tabId === tab.id)?.unread ?? 0) + 1;
+    noteStructuredSessionRow(tab.id, { unread: active ? 0 : unread });
+  }, [ss.busy, tab.id]);
+
+  /* 标题自动化:首个用户块摘要(PTY 磁盘标题同语义的会话主题锚定),中央 tab
+   * 条与左栏行同步;纯图片块(空文本)不触发;覆盖层(批次 5 重命名)优先。 */
+  const firstUserText = ss.blocks.find((b) => b.role === "user")?.text.trim();
+  useEffect(() => {
+    if (firstUserText && !readSsTitleOverride(payload.profileId, payload.cwd)) {
+      updateTab(tab.id, { title: firstUserText.slice(0, 32) });
+    }
+  }, [firstUserText, tab.id, payload.profileId, payload.cwd]);
+
+
+  /* 用户消息流广播(处理插件对接:时间线面板直读,不经 PTY 锚点轮询)。
+   * key 变化才提交,流式 120ms flush 不放大行集提交。 */
+  const userTexts = useMemo(() => ss.blocks.filter((b) => b.role === "user").map((b) => b.text), [ss.blocks]);
+  const userTextsKey = JSON.stringify(userTexts); /* 精确键:join("") 会把 ["a","bc"]/["ab","c"] 折成同键,行投影滞留 */
+  useEffect(() => {
+    noteStructuredSessionRow(tab.id, { userTexts });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userTextsKey, tab.id]);
 
   if (!profile?.structuredRpc) {
     return <div className="ss-root" data-icon-decor="structured-session"><div className="ss-empty">{t("该引擎不支持 RPC 会话")}</div></div>;
@@ -87,22 +156,18 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     <div className="ss-root" data-icon-decor="structured-session">
       <SsHeader
         profileId={payload.profileId}
-        cwd={payload.cwd}
         model={ss.model}
         thinkingLevel={ss.thinkingLevel}
         sessionId={ss.sessionId}
-        stats={ss.stats}
         busy={ss.busy}
         queued={ss.queued}
         ready={ss.phase === "ready"}
         minimal={minimal}
         statusText={ss.statusText}
-        warn={ss.phase === "ready" || ss.phase === "exited" ? ss.warn : null}
         session={ss.sessionRef.current}
         actions={<SsActions ss={ss} payload={payload} tab={tab} />}
         onStateRefresh={(s) => ss.onStateRefresh(s)}
         onAbort={() => void ss.sessionRef.current?.abort()}
-        onDismissWarn={ss.dismissWarn}
       />
       <div
         className="ss-scroll"
@@ -122,8 +187,14 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
           resumable={!!profile.structuredRpc.resumeArgs && !!ss.sessionId}
           onRetry={ss.retry}
         />
+        {/* 告警在幕布内展示(ready/退出态,与原 header 门控一致) */}
+        <SsWarnList warns={ss.phase === "ready" || ss.phase === "exited" ? ss.warns : []} widthPct={canvas.widthPct} onDismiss={ss.dismissWarn} />
 
-        {ss.blocks.length > 0 ? (
+        {ss.blocks.length === 0 && ss.phase === "ready" ? (
+          /* 空态引导(2026-11-06):初始化完成且无对话 —— 问候 + 能力提示 +
+             开场示例 chips,替换大白页;有点击示例即出让给对话流。 */
+          <SsWelcome profile={profile} onExample={(text) => ss.send(text)} />
+        ) : ss.blocks.length > 0 ? (
           <>
             {/* 宽度抓手:sticky 贴滚动视口垂直居中,横向 margin 随列宽收窄(列缘内 4px) */}
             <div

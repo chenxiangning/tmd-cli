@@ -397,5 +397,8 @@
 | 2026-11-05 | [减法批次 I 保留决策记录(LSP 代码跳转/Office 内嵌预览/docgen/web-access 自建中继/平铺广播/wallpaper 装饰全部保留,冻结扩张;零代码变更)](review/2026-11-05-batch-i-keep-decision.md) | 已决策(保留) |
 | 2026-11-05 | [减法批次(A～I)整批变更终验收口报告(§11 清单 32 项全收口:右 rail 默认 5 面板+4 动作维持现状;FEATURES.md 7 处失准修订;包体前后持平证据;门禁+doctor+Rust 三件套全绿)](review/2026-11-05-subtraction-final-verdict.md) | 已收口 |
 | 2026-11-05 | [RPC 幕布渲染层对照 codemoss UI 重构方案(折叠律「输出展开/落定收敛」为核心;ProcessDisclosure/CollapsibleMessage/ScrollControl 对照映射;不搬虚拟化与 RunStatusStrip;四批次已落地,PTY 零接触)](superpowers/specs/2026-11-05-rpc-canvas-codemoss-design.md) | 已落地 |
+| 2026-11-05 | [RPC 会话体系对齐规划(差距矩阵 G1-G9/红线 R-PTY0/决策 D1-D6/六批次拆解;六批已落地 a96469ab→be5a0cb3)](brainstorm/2026-11-05-rpc-session-parity-plan.md) | 已落地 |
+| 2026-11-05 | [35 · RPC 会话体系对齐契约(kernel 行投影律/detach 泵与 label/boot 枚举收养/存证闭环/覆盖层自有键;R-PTY0 隔离红线)](architecture/35-rpc-session-parity.md) | 现行 |
+| 2026-11-05 | [RPC 会话体系对齐 UI 示例稿(D1-D6 推荐项全落形:左栏独立分区四态灯/右键最小集菜单/新建菜单重开上次入口/reload 重接 toast;含红线自检与 proc_stream 泵行为前提修正)](design/rpc-session-parity.html) | 设计原型(评审用) |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

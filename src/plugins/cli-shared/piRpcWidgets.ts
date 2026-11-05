@@ -42,3 +42,29 @@ const CHROME_WIDGET_KINDS: Record<string, true> = { setStatus: true, notify: tru
 export function widgetTier(kind: string): "chrome" | "interactive" {
   return CHROME_WIDGET_KINDS[kind] ? "chrome" : "interactive";
 }
+
+/** 部件帧处理编排(piRpc onLine 的非 confirm 分支,自 piRpc 拆出守铁则):
+ * 归一 id → 协议应答 cancelled(数值 id 同型回传,引擎严格类型匹配才认领)→
+ * chrome 装饰类静默,真交互/未知 kind 逐条 notice。缺 id/method 畸形帧不产。 */
+export function handleWidgetFrame(
+  rec: Record<string, unknown>,
+  raw: (cmd: Record<string, unknown>) => Promise<void>,
+  notify: (text: string) => void,
+): void {
+  const kind = rec.method;
+  const fid = normWidgetFrameId(rec.id);
+  if (typeof kind !== "string" || !kind || !fid) return;
+  const rid = typeof rec.id === "number" ? rec.id : fid;
+  void raw({ type: "extension_ui_response", id: rid, cancelled: true }).catch(() => undefined);
+  if (widgetTier(kind) !== "chrome") {
+    const widget = widgetCancelledNotice({ ...rec, id: fid });
+    if (widget) notify(widget.text);
+  }
+}
+
+/** 部件帧 id 归一:字符串原样、有限数字转字符串(字符串守卫会静默丢弃数值 id
+ * 帧,2026-10-03 范围评审实锤;畸形返空 = 不产)。 */
+function normWidgetFrameId(v: unknown): string {
+  if (typeof v === "string" && v) return v;
+  return typeof v === "number" && Number.isFinite(v) ? String(v) : "";
+}

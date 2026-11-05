@@ -133,6 +133,7 @@ export function DiskSessionRow({
   title,
   pinned,
   archived,
+  rendered,
   renaming,
   onOpen,
   onContextMenu,
@@ -147,6 +148,8 @@ export function DiskSessionRow({
   title: string;
   /** 工作区内置顶:行内扎点常亮,行加重量提示。 */
   pinned: boolean;
+  /** RPC 身份徽标:已知 RPC 会话的磁盘行出 RPC chip(标签与活行/中央 tab 条统一)。 */
+  rendered?: boolean;
   /** 归档视图标记:时间轴节点位显示「归」字。 */
   archived?: boolean;
   renaming: RenameTarget | null;
@@ -188,6 +191,15 @@ export function DiskSessionRow({
         <span className="thread-engine-badge" title={profile.name} aria-hidden>
           {profile.renderIcon?.("0.75rem")}
         </span>
+        {rendered ? (
+          /* 标签统一(R-ISO1):与中央 tab 条 RPC chip / 活 RPC 行同字同色系;
+             悬浮提示保留「带渲染的会话」全称。 */
+          <span className="thread-rpc-badge" title={t("带渲染的会话")} aria-hidden>RPC</span>
+        ) : (
+          /* 通道 kind 标签(图 2 结构定稿):PTY 行与 RPC 行同槽位同尺寸,
+             标题列垂直对齐。 */
+          <span className="thread-pty-badge" title={t("终端会话")} aria-hidden>PTY</span>
+        )}
         <span className="thread-name">{title}</span>
         <span className="thread-meta">
           <span className="thread-time">{formatRelativeTime(session.modifiedAt)}</span>

@@ -19,6 +19,8 @@ import type { Workspace } from "@kernel/workspace";
 import type { SessionMeta } from "@kernel/ipc";
 import { compareLiveSessions, isRunningZoneCandidate, orShortId } from "./utils";
 import { useCliDiskScan } from "./useCliDiskScan";
+import { isSsSessionTracked, useStructuredSessionRows } from "@kernel/structuredSessionTabs";
+import { useClosedSsSessions } from "@kernel/structuredSessionEnded";
 export function useCliSessionGroup({
   profile,
   workspace,
@@ -33,6 +35,10 @@ export function useCliSessionGroup({
   onScanned: () => void;
 }) {
   useHost();
+  /* RPC 在册判据的响应式订阅:行绑定/结束账本变化即重算磁盘行让位
+   * (isSsSessionTracked 纯读函数,不含订阅 —— 订阅挂本 hook)。 */
+  useStructuredSessionRows();
+  useClosedSsSessions();
   const { settings } = useSettingsState();
   /**
    * 初始露出条数 = 显示预算解析配额(断裂修复:曾硬编码 PAGE_INITIAL,
@@ -157,7 +163,10 @@ export function useCliSessionGroup({
     })
     .sort((a, b) => compareLiveSessions(a, b, (id) => host.isUnread(id)));
 
-  const disk = scanned.filter((s) => !liveCliIds.has(s.id) && !isArchived(s.id));
+  /* 在册 RPC 会话(活行绑定/结束账本)的磁盘行让位:该会话由「带渲染的会话」
+   * 分区呈现,不与 PTY 磁盘历史混排(R-ISO1 列表层分割);分区移除记录后
+   * 自动回落本列表(徽标 + resume 点按仍可辨可用,见 openDisk)。 */
+  const disk = scanned.filter((s) => !liveCliIds.has(s.id) && !isArchived(s.id) && !isSsSessionTracked(s.id));
   /* 工作区置顶块:按置顶时间升序;磁盘已消失的置顶(外部删文件)自然缺席;
    * 已归档的置顶在默认视图隐藏(disk 过滤已含 archived)。
    * 满额规模实测(0.4.5):磁盘行 Map 化 —— 原逐 pin disk.find 在 500+ 会话 ×

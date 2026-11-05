@@ -14,6 +14,7 @@ import { baseName } from "@kernel/pathUtils";
 import { resolveFileVisual } from "@kernel/fileVisual";
 import { getTabIcon } from "@kernel/tabs";
 import { t } from "@kernel/i18n";
+import { STRUCTURED_SESSION_TAB_KIND } from "@kernel/structuredSessionTabs";
 import {
   setActiveTab,
   useEditorTabs,
@@ -84,6 +85,11 @@ function FileTab({
         ) : (
           <FileTabIcon fileName={fileName} />
         )}
+        {/* RPC kind 徽标(R-ISO2 一眼分辨:幕布 tab 由 SessionTabBar 引擎标识别,
+            带渲染 tab 在此打 RPC chip,与左栏「带渲染的会话」分区同语义)。 */}
+        {tabKind === STRUCTURED_SESSION_TAB_KIND ? (
+          <span className="tab-kind-badge is-rpc" title={t("带渲染的会话")}>RPC</span>
+        ) : null}
         <span className="tab-main-label">{KindIcon ? tabTitle : fileName}</span>
         {/* 未保存圆点(useFileDocument 经 updateTab 上报) */}
         {dirty ? <span className="tab-dirty-dot" aria-hidden /> : null}

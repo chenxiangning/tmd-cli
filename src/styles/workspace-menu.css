@@ -69,23 +69,7 @@
   gap: 2px;
 }
 
-/* 双栏区:左列 = 带渲染的会话 + 远程与其他;右列 = 会话预设(仅本地工作区)。
-   单子自动回单列(来源工作区无预设列);右列左边线分隔,列内不再画整宽分隔线。 */
-.wsmenu-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  column-gap: 10px;
-  margin-top: 4px;
-}
-
-.wsmenu-col > .wsmenu-divider {
-  margin: 6px 4px 2px;
-}
-
-.wsmenu-cols .wsmenu-col + .wsmenu-col {
-  border-left: 1px solid var(--border-subtle);
-  padding-left: 10px;
-}
+/* 双栏区网格(wsmenu-cols/col)已随会话预设列移除(2026-11-05),来源组回到整宽。 */
 
 .wsmenu-cell {
   position: relative;
@@ -283,3 +267,6 @@
   font-size: var(--tmd-font-ui);
   line-height: 1.5;
 }
+
+/* 新建会话菜单分块结构(wsmenu-section* 与弹窗头 wsmenu-head*):
+   自本档拆出至 workspace-menu-sections.css(文件规模铁则)。 */

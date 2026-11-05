@@ -1,7 +1,7 @@
 /**
- * Quota chip ─ 内嵌 composer 工具栏的额度指示。
+ * Quota chip ─ 内嵌 composer 工具栏的额度指示(详情弹窗拆至 QuotaPopover.tsx)。
  *
- * 渲染(当前激活 CLI session):
+ * 渲染(当前激活 CLI session;或 source 覆写 —— 结构化会话工具条同 chip):
  * - 窗口型供应商: 额度 5h [▓▓░] 42%  7d [▓░░] 18%  (支持几个窗口展示几个)
  * - 余额型供应商(deepseek/中转站): 额度 ¥12.50
  * - 加载中: 额度 …;失败: 额度 !(同模型保留上次成功数据,仅加警示)
@@ -10,28 +10,15 @@
  *
  * 交互: 点击 chip = 弹出额度详情小弹窗(各窗口用量 + 下次刷新时间 + 余额);
  *      弹窗内 ⟳ 按钮 = 手动刷新;Esc / 点遮罩 / 再点 chip = 关闭。
- * 弹窗: portal 挂 document.body + fixed 定位(复刻 panel-overflow 模式),
- *      跳出 composer 层叠上下文,杜绝被幕布压住。
  * 数据: kernel/quota.ts 注册点;HTTP 调用走 cli-shared/quota/vendors.ts。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errTextDisplay } from "@kernel/errText";
-import { createPortal } from "react-dom";
-import { ArrowClockwise } from "@phosphor-icons/react";
-import { useEscClose } from "@kernel/DialogShell";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getQuotaProvider, SHORT_WINDOW_LABEL, type QuotaSnapshot } from "@kernel/quota";
-import { formatRelativeTime, formatResetAt } from "@kernel/relativeTime";
-import { useMinSpin } from "@kernel/useMinSpin";
-
-/** ms epoch → "14:30:05"(弹窗底部"更新于")。 */
-function formatClock(ms: number): string {
-  const d = new Date(ms);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
+import { QuotaDetailPopover } from "./QuotaPopover";
 
 /** 空快照(占位):模型切换后旧供应商数据立即作废,新抓取落地前 chip 显示 "额度 …"。 */
 function emptyQuotaSnapshot(profileId: string): QuotaSnapshot {
@@ -43,9 +30,19 @@ function emptyQuotaSnapshot(profileId: string): QuotaSnapshot {
   };
 }
 
-/** 当前激活 session 的 CLI quota。供应商额度是账号级(HTTP 按模型查询),
- *  远程引擎会话同样回填(凭据取本机登录态,同一供应商账号即代表)。 */
-function useActiveQuota(): {
+/** 额度数据源覆写(结构化会话工具条复用):不传 = 活跃 PTY 会话推导(原语义);
+ *  传入 profileId = 按给定身份抓取(RPC tab 无活跃 PTY 会话)。 */
+export interface QuotaChipSource {
+  profileId: string;
+  model?: string | null;
+  cwd?: string;
+  cliSessionId?: string;
+}
+
+/** 当前激活 session 的 CLI quota(source 覆写见 QuotaChipSource)。供应商额度
+ *  是账号级(HTTP 按模型查询),远程引擎会话同样回填(凭据取本机登录态,
+ *  同一供应商账号即代表)。 */
+function useActiveQuota(source?: Partial<QuotaChipSource>): {
   snapshot: QuotaSnapshot | null;
   loading: boolean;
   /** 最近一次抓取完成时刻(ms epoch);null = 尚未抓取。 */
@@ -55,9 +52,10 @@ function useActiveQuota(): {
   useHost();
   const sessionId = host.getActiveSessionId();
   const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
-  const profileId = session?.engine ?? session?.profileId;
-  const model = sessionId ? (host.getSessionStatus(sessionId)?.model ?? null) : null;
-  const cliSessionId = sessionId ? host.getCliSessionId(sessionId) : undefined;
+  const profileId = source?.profileId ?? session?.engine ?? session?.profileId;
+  const model = source ? (source.model ?? null) : sessionId ? (host.getSessionStatus(sessionId)?.model ?? null) : null;
+  const cwd = source ? source.cwd : session?.cwd;
+  const cliSessionId = source ? source.cliSessionId : sessionId ? host.getCliSessionId(sessionId) : undefined;
 
   /* 快照与路由模型同存同灭(任意 CLI 统一语义):
      - 模型切换 → 旧快照归属旧供应商,立即作废换占位并重新抓取,绝不跨模型混搭显示;
@@ -109,7 +107,7 @@ function useActiveQuota(): {
     );
     setLoading(true);
     provider
-      .fetch({ model, cwd: session?.cwd, cliSessionId, force })
+      .fetch({ model, cwd, cliSessionId, force })
       .then((snapshot) =>
         setEntry((prev) => (prev?.model === model ? { model, snapshot } : prev)),
       )
@@ -131,103 +129,13 @@ function useActiveQuota(): {
         setFetchedAt(Date.now());
         setLoading(false);
       });
-  }, [profileId, model, session?.workspaceId, session?.cwd, cliSessionId, tick]);
+  }, [profileId, model, cwd, cliSessionId, session?.workspaceId, tick]);
 
   return { snapshot: entry?.snapshot ?? null, loading, fetchedAt, refresh };
 }
 
-/**
- * 额度详情弹窗 ── 点击 QuotaChip 弹出。
- * 每个窗口一行:标签 + 进度条 + 已用百分比,下一行给下次刷新时间(绝对 + 相对)。
- * 底部:最近抓取时刻 + 手动刷新按钮。
- */
-function QuotaDetailPopover({
-  snapshot,
-  loading,
-  fetchedAt,
-  position,
-  onRefresh,
-  onClose,
-}: {
-  snapshot: QuotaSnapshot;
-  loading: boolean;
-  fetchedAt: number | null;
-  position: { x: number; bottom: number };
-  onRefresh: () => void;
-  onClose: () => void;
-}) {
-  useEscClose(onClose);
-  const { spinning, spin } = useMinSpin();
-
-  return createPortal(
-    <>
-      <div className="panel-overflow-backdrop" role="presentation" onClick={onClose} />
-      <dialog
-        open
-        /* 自制弹层换原生 dialog(非模态 open,不调 showModal);m-0 中和 UA 居中边距。
-           padding/背景/边框由 .quota-popover 自管,类选择器压过 UA 元素默认样式。 */
-        className="quota-popover m-0"
-        data-icon-decor="dialog"
-        style={{ left: position.x, bottom: position.bottom }}
-        aria-label={t(snapshot.title)}
-      >
-        <div className="quota-popover-header">
-          <span>{t(snapshot.title)}</span>
-          {snapshot.planLabel ? (
-            <span className="quota-popover-plan">{t(snapshot.planLabel)}</span>
-          ) : null}
-        </div>
-
-        {snapshot.windows.map((w) => (
-          <div key={w.label} className="quota-popover-window">
-            <div className="quota-popover-window-head">
-              <span className="quota-popover-window-label">{t(w.label)}</span>
-              <span className="quota-popover-bar">
-                <span
-                  className="quota-popover-fill"
-                  style={{ width: `${w.displayPercent}%` }}
-                />
-              </span>
-              <span className="quota-popover-pct">
-                {t(snapshot.usedLabel)} {w.displayPercent}%
-              </span>
-            </div>
-            {w.resetsAt ? (
-              <div className="quota-popover-reset">
-                {t("下次刷新: {abs} · {rel}", { abs: formatResetAt(w.resetsAt), rel: formatRelativeTime(w.resetsAt) })}
-              </div>
-            ) : null}
-          </div>
-        ))}
-
-        {snapshot.balanceText ? (
-          <div className="quota-popover-balance">{t("余额: {amount}", { amount: snapshot.balanceText })}</div>
-        ) : null}
-
-        {snapshot.error ? (
-          <div className="quota-popover-error">{snapshot.error}</div>
-        ) : null}
-
-        <div className="quota-popover-footer">
-          <span>{fetchedAt ? t("更新于 {time}", { time: formatClock(fetchedAt) }) : t("尚未加载")}</span>
-          <button
-            type="button"
-            className="quota-popover-refresh"
-            onClick={() => spin(onRefresh)}
-            title={t("重新抓取额度")}
-           >
-             <ArrowClockwise size="0.75rem" aria-hidden className={loading || spinning ? "is-spinning" : undefined} />
-            {t("刷新")}
-          </button>
-        </div>
-      </dialog>
-    </>,
-    document.body,
-  );
-}
-
-export function QuotaChip() {
-  const { snapshot, loading, fetchedAt, refresh } = useActiveQuota();
+export function QuotaChip(source?: Partial<QuotaChipSource>) {
+  const { snapshot, loading, fetchedAt, refresh } = useActiveQuota(source);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ x: number; bottom: number } | null>(null);
   const chipRef = useRef<HTMLButtonElement>(null);

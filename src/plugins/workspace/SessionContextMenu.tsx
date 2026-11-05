@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowClockwise, Bell, BellSlash, Copy, DownloadSimple, Pencil, Timer, Trash } from "@phosphor-icons/react";
+import { ArrowClockwise, ArrowCounterClockwise, Bell, BellSlash, Copy, DownloadSimple, Pencil, Timer, Trash } from "@phosphor-icons/react";
 import { useEscClose } from "@kernel/DialogShell";
 import { useSettingsState } from "@kernel/settings";
 import {
@@ -42,6 +42,7 @@ export function SessionContextMenu({
   /** 静音覆盖层 key;undefined = 不可静音(未落盘,整组隐藏,同 pinScope 前例)。 */
   muteKey,
   onExportSnapshot,
+  onResumeRendered,
   onRetry,
   onCopyId,
   onRename,
@@ -58,6 +59,8 @@ export function SessionContextMenu({
   onExportSnapshot?: () => void;
   /** 同引擎上一回合预览重试;undefined = 隐藏(插件停用/无源)。 */
   onRetry?: () => void;
+  /** 继续对话(带渲染的会话):该磁盘行 = 本工作区上次 RPC 会话时出;undefined = 隐藏。 */
+  onResumeRendered?: () => void;
   onCopyId: () => void;
   onRename: () => void;
   onPinScope: (scope: SessionPinScope) => void;
@@ -118,6 +121,20 @@ export function SessionContextMenu({
           </span>
           <span className="wsmenu-item-label">{t("复制 Session ID")}</span>
         </button>
+        {onResumeRendered && (
+          <button
+            className="wsmenu-item"
+            onClick={() => {
+              onResumeRendered();
+              onClose();
+            }}
+          >
+            <span className="wsmenu-item-icon">
+              <ArrowCounterClockwise size="0.8125rem" />
+            </span>
+            <span className="wsmenu-item-label">{t("继续对话(带渲染的会话)")}</span>
+          </button>
+        )}
         <button
           className="wsmenu-item"
           disabled={!canRename}

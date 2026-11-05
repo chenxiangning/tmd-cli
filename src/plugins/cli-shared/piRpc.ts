@@ -2,53 +2,31 @@
  * pi 族(omp/pi)RPC 客户端 —— `--mode rpc` NDJSON 长驻子进程驱动
  * (kernel proc_stream 通用原语之上;协议知识全插件侧,内核零感知)。
  *
- * spawn:`<command> --mode rpc` NDJSON 长驻子进程,总是新会话。帧:ready/response(按 id
- * 多路复用)、message_start/update/end、tool_execution 三族、session_settled;
- * extension_ui_request
- * method="confirm" = 审批回路(绝不自动批准,答案归 UI)。字段名实证:prompt 用
- * **message**(18.4.4 传 text 报 e.trimStart)。
+ * spawn:`<command> --mode rpc`,总是新会话;adoptStreamId = 收养既有流(reload
+ * 重接)。帧:ready/response(按 id 多路复用)、message 族与 tool_execution 族、
+ * session_settled;extension_ui_request method="confirm" = 审批回路(绝不自动
+ * 批准,答案归 UI)。字段名实证:prompt 用 **message**(18.4.4 传 text 报错)。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  * cli-shared 准入先例:cli-omp/cli-pi 的 structuredRpc 声明 + structured-session
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
 import { ipc } from "@kernel/ipc";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { PiRpcReducer, type PiLiveSurface } from "./piRpcReducer";
-import { widgetCancelledNotice, widgetTier } from "./piRpcWidgets";
+import { PiRpcReducer } from "./piRpcReducer";
+import { handleWidgetFrame } from "./piRpcWidgets";
+import {
+  parseState,
+  type PiRpcCommand, type PiRpcFlavor,
+  type PiRpcHandlers, type PiRpcModel, type PiRpcState, type PiRpcStats,
+} from "./piRpcTypes";
 
-import { parseState, type PiRpcCommand, type PiRpcConfirm, type PiRpcFlavor, type PiRpcModel, type PiRpcState, type PiRpcStats } from "./piRpcTypes";
-
-export type { PiRpcFlavor, PiRpcModel, PiRpcState, PiRpcConfirm, PiRpcStats, PiRpcCommand } from "./piRpcTypes";
+export type { PiRpcFlavor, PiRpcModel, PiRpcState, PiRpcConfirm, PiRpcStats, PiRpcCommand, PiRpcHandlers } from "./piRpcTypes";
 export type { PiLiveSurface } from "./piRpcReducer";
-
-export interface PiRpcHandlers {
-  /** 转录块快照(变更即新数组引用)+ 当前轮首块下标(渲染层切「落定历史|流内活轮」)
-   * + 流内活跃输出面(活思考/正文据此展开,与块位置无关)。 */
-  onBlocks: (blocks: CliTranscriptBlock[], turnStart: number, liveSurface: PiLiveSurface) => void;
-  /** 轮次进行中/结算(session_settled 边沿)。 */
-  onBusy: (busy: boolean) => void;
-  /** 工具执行原始帧（structured-session 成功写工具存证；展示仍走 reducer）。 */
-  onToolExecution?: (rec: Record<string, unknown>) => void;
-  /** 审批请求;respond 由消费方 UI 调用(confirmId 传入)。 */
-  onConfirm: (req: PiRpcConfirm) => void;
-  /** 子进程退出(code null = 被杀);此后会话终态。 */
-  onExit: (code: number | null) => void;
-  /** 协议/连接异常(展示态,不断链)。 */
-  onError: (message: string) => void;
-}
-
 const REQUEST_TIMEOUT_MS = 30_000;
 /** prompt 超时:18.6 抓包实证应答为即时 ack(非轮末),与通用闸同值即可。 */
 const PROMPT_TIMEOUT_MS = 30_000;
-
-
-/** 部件帧 id 归一:字符串原样、有限数字转字符串(JSON-RPC id 按协议可为数字,
- * confirm 路同律;2026-10-03 范围评审实锤:字符串守卫会把数值 id 帧静默丢弃,
- * 无应答可挂轮),其余返空 = 真畸形,不产。 */
-function normWidgetFrameId(v: unknown): string {
-  if (typeof v === "string" && v) return v;
-  return typeof v === "number" && Number.isFinite(v) ? String(v) : "";
-}
+/** 握手超时(get_state):冷启动扩展包加载 5-6s 实证,30s 一刀切逼近上限 → 分层 60s(批次 6)。 */
+const START_TIMEOUT_MS = 60_000;
 
 export class PiRpcSession {
   private id: string | null = null;
@@ -63,22 +41,48 @@ export class PiRpcSession {
     private readonly flavor: PiRpcFlavor,
     private readonly cwd: string,
     private readonly handlers: PiRpcHandlers,
-    private readonly opts?: { resume?: string; seedBlocks?: CliTranscriptBlock[] },
+    private readonly opts?: {
+      resume?: string;
+      seedBlocks?: CliTranscriptBlock[];
+      /** 构造期种子剪尾旗(retry):末轮在途 false 剪掉防重放重复,已结算 true 全量(见 reducer.seed)。 */
+      seedKeepTail?: boolean;
+      /** 消费方标签(spawn 透传 proc_stream,boot 枚举按它收养);
+       *  adoptStreamId = 收养既有流(reload 重接),跳过 spawn 直接订阅握手。 */
+      spawnLabel?: string;
+      adoptStreamId?: string;
+    },
   ) {
-    if (opts?.seedBlocks) this.reducer.seed(opts.seedBlocks);
+    if (opts?.seedBlocks) this.reducer.seed(opts.seedBlocks, opts.seedKeepTail ?? true);
   }
 
-  /** spawn 子进程并完成 ready/get_state 握手;返回会话身份(parseState 同源)。 */
+  /** 轮在途判据(reducer 委托):retry/关闭捕获的种子剪尾决策用。 */
+  hasOpenTurn(): boolean { return this.reducer.hasOpenTurn(); }
+
+  /** adopt 后置种子:磁盘转录补 reload 前历史(引擎不重发历史帧,窗口期帧被
+   *  seed 覆盖,boot 收养 <1s);keepTail 语义见 reducer.seed。 */
+  adoptSeed(blocks: CliTranscriptBlock[], keepTail = false): void {
+    this.reducer.seed(blocks, keepTail);
+    this.handlers.onBlocks(this.reducer.currentBlocks(), this.reducer.turnStart, this.reducer.liveSurface);
+  }
+
+  /** spawn(或收养)子进程并完成 ready/get_state 握手;返回会话身份(parseState 同源)。 */
   async start(): Promise<PiRpcState | null> {
-    const id = await ipc.procStreamSpawn({
-      command: this.flavor.command,
-      args: ["--mode", "rpc", ...(this.opts?.resume && this.flavor.resumeArgs ? this.flavor.resumeArgs(this.opts.resume) : [])],
-      cwd: this.cwd,
-    });
-    /* spawn await 期间被 kill()(tab 立即关闭等):收割子进程,不订阅不握手。 */
-    if (this.disposed) {
-      void ipc.procStreamKill(id).catch(() => undefined);
-      return null;
+    let id: string;
+    if (this.opts?.adoptStreamId) {
+      id = this.opts.adoptStreamId;
+    } else {
+      const spawned = await ipc.procStreamSpawn({
+        command: this.flavor.command,
+        args: ["--mode", "rpc", ...(this.opts?.resume && this.flavor.resumeArgs ? this.flavor.resumeArgs(this.opts.resume) : [])],
+        cwd: this.cwd,
+        label: this.opts?.spawnLabel,
+      });
+      /* spawn await 期间被 kill()(tab 立即关闭等):收割子进程,不订阅不握手。 */
+      if (this.disposed) {
+        void ipc.procStreamKill(spawned).catch(() => undefined);
+        return null;
+      }
+      id = spawned;
     }
     this.id = id;
     this.stopListeners.push(
@@ -87,12 +91,13 @@ export class PiRpcSession {
       await ipc.onProcStream(id, "exit", (code) => this.onExit(code as number | null)),
     );
     /* 握手:get_state 即就绪探测(ready 帧只是噪声起点,state 到 = 协议活)。 */
-    return this.getState();
+    return this.getState(START_TIMEOUT_MS);
   }
 
-  /** get_state 轻量刷新(set_model/set_thinking_level 后回读权威态)。 */
-  async getState(): Promise<PiRpcState | null> {
-    const d = (await this.request({ type: "get_state" })) as Record<string, unknown> | null;
+  /** get_state 轻量刷新(set_model/set_thinking_level 后回读权威态);握手路径
+   *  经 timeoutMs 分层(START_TIMEOUT_MS,冷启动余量)。 */
+  async getState(timeoutMs = REQUEST_TIMEOUT_MS): Promise<PiRpcState | null> {
+    const d = (await this.request({ type: "get_state" }, timeoutMs)) as Record<string, unknown> | null;
     return d ? parseState(d) : null;
   }
 
@@ -196,6 +201,8 @@ export class PiRpcSession {
     this.pending.clear();
   }
 
+  private droppedNotified = false;
+
   private onLine(payload: unknown) {
     const line = String(payload);
     if (!line.startsWith("{")) return;
@@ -203,7 +210,13 @@ export class PiRpcSession {
     try {
       rec = JSON.parse(line) as Record<string, unknown>;
     } catch {
-      return; // 半行/非 JSON(理论上 proc_stream 按行切,防御)
+      /* 帧丢弃观测(批次 6):半行/超限截断行(截断标记致 parse 失败)此前
+       * 无声丢;首次丢弃即回告消费方(一次性,聚合无增益)。 */
+      if (!this.droppedNotified) {
+        this.droppedNotified = true;
+        this.handlers.onDroppedFrame?.();
+      }
+      return;
     }
     switch (rec.type) {
       case "response": {
@@ -249,22 +262,9 @@ export class PiRpcSession {
           });
           return;
         }
-        /* select/input/editor 等部件:取消以免挂轮(monocode 同律),协议应答
-         * 两档照发,只改展示面——chrome 装饰类(RPC 视图无承接面)静默应答
-         * 不落转录(聚合 ×N 行实测仍是噪音,2026-11-05 减法收口);真交互与
-         * 未知 kind 逐条 notice(不再无声替答);id 经 normWidgetFrameId 归一
-         * (数值 id 不再被静默丢弃),缺 id/method 的畸形帧不产。 */
-        const kind = rec.method;
-        const fid = normWidgetFrameId(rec.id);
-        if (typeof kind !== "string" || !kind || !fid) return;
-        /* 数值 id 同型回传(JSON-RPC 应答 id 应与请求同型,数值 id 引擎若严格
-         * 类型匹配才认领;字符串帧归一后即原值)。 */
-        const rid = typeof rec.id === "number" ? rec.id : fid;
-        void this.raw({ type: "extension_ui_response", id: rid, cancelled: true }).catch(() => undefined);
-        if (widgetTier(kind) !== "chrome") {
-          const widget = widgetCancelledNotice({ ...rec, id: fid });
-          if (widget) this.handlers.onBlocks(this.reducer.notice(widget.text), this.reducer.turnStart, this.reducer.liveSurface);
-        }
+        handleWidgetFrame(rec, (cmd) => this.raw(cmd), (text) =>
+          this.handlers.onBlocks(this.reducer.notice(text), this.reducer.turnStart, this.reducer.liveSurface),
+        );
         return;
       }
       default:

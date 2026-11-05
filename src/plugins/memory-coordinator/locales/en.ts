@@ -246,7 +246,6 @@ export const MESSAGES_EN = {
   "记忆文件": "Memory files",
   "规则体检": "Rules checkup",
   "可复用资产库:composer 里 !! 插入提示词,## 挂载智能体。": "Reusable asset library: type !! in the composer to insert a prompt, ## to attach an agent.",
-  "预设随工作区管理:在工作区列表的右键菜单「管理预设…」中维护(引擎/模型/worktree/提示词引用),不在全局资产页复制。": "Presets live with workspaces: manage them via the workspace list's right-click menu \"Manage presets…\" (engine/model/worktree/prompt reference) — not duplicated on a global assets page.",
   "该插件已停用,在插件市场启用后重启生效": "This plugin is disabled; enable it in the plugin market and restart to take effect",
 } as Record<string, string>;
 
