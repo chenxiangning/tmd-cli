@@ -5,22 +5,11 @@
 import { t } from "@kernel/i18n";
 import { updateSettings } from "@kernel/settings";
 import { Warning, X } from "@phosphor-icons/react";
-import type { PiRpcStats } from "../cli-shared/piRpc";
 
-/* 用量胶囊:settled 后显示 上下文% · 累计 tokens(1k 进位;title 给全量)。 */
-function StatsPill({ stats }: { stats: PiRpcStats }) {
-  const tok = stats.totalTokens;
-  return (
-    <span className="ss-stats" title={t("上下文占用 {p}%,本轮会话累计 {n} tokens", { p: stats.contextPercent?.toFixed(1) ?? "—", n: tok ?? "—" })}>
-      {(stats.contextPercent ?? 0).toFixed(1)}% · {tok != null ? (tok >= 1000 ? `${(tok / 1000).toFixed(1)}k` : String(tok)) : "—"}
-    </span>
-  );
-}
-
-/* 右侧状态簇:sid/用量/极简开关/忙闲点/排队/启动告警/状态行/中止 —— 纯展示 + 设置开关。 */
+/* 右侧状态簇:sid/极简开关/忙闲点/排队/启动告警/状态行/中止 —— 纯展示 + 设置开关。
+ * 用量胶囊(上下文%/tokens)与项目地址已迁底部工具条(2026-11-05 用户裁决)。 */
 export function StatusCluster(props: {
   sessionId: string | null;
-  stats: PiRpcStats | null;
   minimal: boolean;
   busy: boolean;
   queued: number;
@@ -30,11 +19,10 @@ export function StatusCluster(props: {
   onDismissWarn: (index: number) => void;
   onAbort: () => void;
 }) {
-  const { sessionId, stats, minimal, busy, queued, warns, statusText } = props;
+  const { sessionId, minimal, busy, queued, warns, statusText } = props;
   return (
     <>
       {sessionId ? <span className="ss-sid">{sessionId.slice(0, 8)}</span> : null}
-      {stats ? <StatsPill stats={stats} /> : null}
       <button
         type="button"
         className={"ss-minimal" + (minimal ? " is-on" : "")}

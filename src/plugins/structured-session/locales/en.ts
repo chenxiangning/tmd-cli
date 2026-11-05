@@ -33,9 +33,6 @@ export const MESSAGES_EN: Record<string, string> = {
   "模型清单不可用": "Model list unavailable",
   "无匹配模型": "No matching model",
   "思考级": "Thinking level",
-  "切换引擎(另开 tab,当前会话保留)": "Switch engine (opens a new tab; this session stays)",
-  "切换引擎": "Switch engine",
-  "当前": "Current",
   "模型": "Model",
   /* 批次2:busy 排队发送 */
   "输入下一问(排队,当前轮结束自动发送)": "Type the next question (queued; sends when this turn ends)",

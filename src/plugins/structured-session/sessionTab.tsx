@@ -130,11 +130,9 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     <div className="ss-root" data-icon-decor="structured-session">
       <SsHeader
         profileId={payload.profileId}
-        cwd={payload.cwd}
         model={ss.model}
         thinkingLevel={ss.thinkingLevel}
         sessionId={ss.sessionId}
-        stats={ss.stats}
         busy={ss.busy}
         queued={ss.queued}
         ready={ss.phase === "ready"}

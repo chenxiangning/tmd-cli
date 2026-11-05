@@ -177,6 +177,8 @@ export function SsComposer({ ss, profileId, cwd }: { ss: SsSessionState; profile
         {dragOver ? <DragOverlay /> : null}
         <SsToolbar
           ss={ss}
+          profileId={profileId}
+          cwd={cwd}
           onExpand={() => setStageMin(false)}
           onCollapse={() => setStageMin(true)}
           onPalette={cmd.wakePalette}
