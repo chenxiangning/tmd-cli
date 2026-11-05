@@ -20,7 +20,9 @@
 }
 
 /* PTY 通道 kind 标签:与 .thread-rpc-badge 同槽位同尺寸(标题列对齐),
-   中性灰配色与 RPC 蓝区隔(通道缩写,非身份强调)。 */
+   中性灰配色与 RPC 蓝区隔(通道缩写,非身份强调)。
+   对比度走 tmd 令牌(--text-faint 在浅色主题 #bababb 太淡读不清,2026-11-06
+   浅色反馈统一优化:文字 muted + 强边框 + 微升底)。 */
 .thread-pty-badge {
   flex: none;
   font-size: 9px;
@@ -28,9 +30,9 @@
   padding: 2px 5px;
   border-radius: 99px;
   letter-spacing: 0.04em;
-  color: var(--text-faint);
-  border: 1px solid var(--border-subtle);
-  background: transparent;
+  color: var(--tmd-fg-muted);
+  border: 1px solid var(--tmd-border-strong);
+  background: color-mix(in srgb, var(--tmd-fg) 4%, transparent);
 }
 .ss-row-close {
   position: absolute;
@@ -107,7 +109,9 @@
 
 /* 磁盘行 RPC 身份徽标(R-ISO1 工作区入口区分):已知 RPC 会话的磁盘行
    与 PTY 历史行一眼可辨;与左栏「带渲染的会话」分区/编辑 tab 条 RPC chip
-   同色系同语义。 */
+   同色系同语义。
+   原写死暗色值(#7c9bff 亮蓝字 + 深蓝底)在浅色主题对比崩盘(2026-11-06
+   浅色反馈):亮色保持原蓝,浅色换深一档蓝 + 浅蓝底,双主题均可读。 */
 .thread-rpc-badge {
   flex: none;
   font-size: 9px;
@@ -118,4 +122,10 @@
   color: #7c9bff;
   border: 1px solid #2b3a6e;
   background: rgba(22, 32, 74, 0.25);
+}
+
+:root[data-theme="light"] .thread-rpc-badge {
+  color: #3d5bd6;
+  border-color: #c3cff7;
+  background: #eef2fe;
 }
