@@ -68,7 +68,12 @@
 /* 活轮活跃面题头 pulse(流内思考同形渲染的「思考中…」态) */
 .ss-thinksec-title.is-live { color: var(--tmd-fg-muted); }
 .ss-thinksec-title.is-live span { animation: ss-think-pulse 1.6s ease-in-out infinite; }
-.ss-thinksec-body { margin-left: 2px; padding-left: 12px; border-left: 1px solid var(--tmd-border); white-space: pre-wrap; word-break: break-words; font-size: var(--tmd-font-xs); line-height: 1.65; color: var(--tmd-fg-muted); }
+.ss-thinksec-body { margin-left: 2px; padding-left: 12px; border-left: 1px solid var(--tmd-border); word-break: break-word; font-size: var(--tmd-font-xs); line-height: 1.65; color: var(--tmd-fg-muted); }
+/* 思考 md 正文:同管线缩排 + 48% 透明阅读层级(sv-think-body 同款),标题压回 ui 号防撑破灰轨 */
+.ss-thinksec-body .sv-md { font-size: var(--tmd-font-xs); line-height: 1.65; color: color-mix(in srgb, var(--tmd-fg) 48%, transparent); }
+.ss-thinksec-body .sv-md :is(p, ul, ol) { margin: 2px 0; }
+.ss-thinksec-body .sv-md :is(p, li) :is(strong, em) { color: color-mix(in srgb, var(--tmd-fg) 62%, transparent); }
+.ss-thinksec-body .sv-md :is(h1, h2, h3, h4, h5, h6) { font-size: var(--tmd-font-ui); font-weight: 600; margin: 8px 0 2px; border-bottom: none; padding-bottom: 0; color: color-mix(in srgb, var(--tmd-fg) 62%, transparent); }
 /* 工具段:树形导轨容器 */
 .ss-toolsec { display: flex; flex-direction: column; margin-left: 2px; }
 /* 轮间距 */
