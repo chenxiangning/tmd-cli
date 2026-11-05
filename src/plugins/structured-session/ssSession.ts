@@ -37,12 +37,11 @@ export type SsSessionState = {
   busy: boolean; busySince: number | null; elapsed: number; confirm: PiRpcConfirm | null;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
-  /** 流内活跃输出面(活思考/正文据此展开;与块位置无关,见 PiRpcReducer.liveSurface)。 */
-  liveSurface: PiLiveSurface;
+  liveSurface: PiLiveSurface; /* 流内活跃输出面(活思考/正文据此展开;见 PiRpcReducer.liveSurface) */
   /** 轮进行中渲染态(结算 600ms 宽限,见 useTurnLive;与 busy 分离,引擎逐步发 session_settled)。 */
   turnLive: boolean;
   sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
-  retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
+  retry: () => void; send: (override?: string) => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
   dismissWarn: (index: number) => void;
 };
 
@@ -247,15 +246,16 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     phaseRef.current = phase;
   }, [phase]);
 
-  const send = () => {
-    const text = draft.trim();
+  /** 发送:缺省读草稿;空态引导 chip 等外部入口直传文本(override)。 */
+  const send = (override?: string) => {
+    const text = (override ?? draft).trim();
     if (!text || phase !== "ready") return;
     const s = sessionRef.current;
     if (!s) return;
     setDraft("");
     stickRef.current = true;
     promptDebtRef.current++;
-    /* busy 期发送 = follow_up 排队(引擎结算后自动起跑);闲时走 prompt。成功后回读排队数。 */
+    /* busy 期发送 = follow_up 排队;闲时走 prompt。成功后回读排队数。 */
     void (busy ? s.followUp(text) : s.send(text))
       .then(() => {
         const sessionId = sessionIdRef.current;

@@ -267,3 +267,6 @@
   font-size: var(--tmd-font-ui);
   line-height: 1.5;
 }
+
+/* 新建会话菜单分块结构(wsmenu-section* 与弹窗头 wsmenu-head*):
+   自本档拆出至 workspace-menu-sections.css(文件规模铁则)。 */

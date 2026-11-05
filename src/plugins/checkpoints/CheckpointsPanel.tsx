@@ -214,8 +214,9 @@ export function CheckpointsPanel() {
    * 深链与 diff 缓存若仍用现值(tmd)必然错位成「批次不存在」。 */
   const listSessionId = staleSessionId ?? sessionId;
   const [confirm, setConfirm] = useState<ConfirmTarget | null>(null);
-  /* 页签:审批线 | 变更 | 时间线(时间线/变更是独立组件,与审批线零共享逻辑) */
-  const [view, setView] = useState<"batch" | "changes" | "timeline">("batch");
+  /* 页签:审批线 | 变更 | 时间线(时间线/变更是独立组件,与审批线零共享逻辑)。
+   * 默认时间线(2026-11-05 定稿:面板点开默认看会话时间流;审批线是事件驱动入口)。 */
+  const [view, setView] = useState<"batch" | "changes" | "timeline">("timeline");
   const actions = useCheckpointActions(cwd, sessionId, tmdSessionId);
   const { busy, notice, setNotice } = actions;
 

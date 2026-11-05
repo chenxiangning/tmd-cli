@@ -8,6 +8,7 @@
 
 import { Chats } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
+import { KernelTopics } from "@kernel/events";
 import { openStructuredSessionTab } from "@kernel/structuredSessionTabs";
 
 export function NewSessionEntry({ onClose }: { onClose?: () => void }) {
@@ -23,6 +24,9 @@ export function NewSessionEntry({ onClose }: { onClose?: () => void }) {
           className="wsmenu-item"
           onClick={() => {
             openStructuredSessionTab(p.id);
+            /* 打开即沉浸:详情页直接最大化(用户手势事件,幂等 set-true;
+               插件不反向 import 壳,R4 安全)。 */
+            host.events.emit(KernelTopics.editorMaximizeRequested, null);
             onClose?.();
           }}
         >

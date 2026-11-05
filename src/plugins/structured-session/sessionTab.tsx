@@ -22,6 +22,7 @@ import { liveFromIndex } from "./ssLiveFrom";
 import { useSettleKey } from "./ssSettleKey";
 import { useCanvasWidth } from "./ssCanvasResize";
 import { SsComposer } from "./ssComposer";
+import { SsWelcome } from "./ssWelcome";
 import { useSsSession, type Phase } from "./ssSession";
 import type { StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import "./structured-session.css";
@@ -189,7 +190,11 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         {/* 告警在幕布内展示(ready/退出态,与原 header 门控一致) */}
         <SsWarnList warns={ss.phase === "ready" || ss.phase === "exited" ? ss.warns : []} widthPct={canvas.widthPct} onDismiss={ss.dismissWarn} />
 
-        {ss.blocks.length > 0 ? (
+        {ss.blocks.length === 0 && ss.phase === "ready" ? (
+          /* 空态引导(2026-11-06):初始化完成且无对话 —— 问候 + 能力提示 +
+             开场示例 chips,替换大白页;有点击示例即出让给对话流。 */
+          <SsWelcome profile={profile} onExample={(text) => ss.send(text)} />
+        ) : ss.blocks.length > 0 ? (
           <>
             {/* 宽度抓手:sticky 贴滚动视口垂直居中,横向 margin 随列宽收窄(列缘内 4px) */}
             <div

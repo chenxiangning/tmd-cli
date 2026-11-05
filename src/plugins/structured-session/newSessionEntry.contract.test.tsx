@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   profiles: [] as Array<{ id: string; name: string; structuredRpc?: boolean }>,
   openTab: vi.fn(),
+  emitEvent: vi.fn(),
 }));
 
 vi.mock("@kernel/host", () => ({
@@ -18,6 +19,8 @@ vi.mock("@kernel/host", () => ({
   host: {
     getCliProfiles: () => h.profiles,
     getCliProfile: (id: string) => h.profiles.find((p) => p.id === id),
+    /* 点击行发 editorMaximizeRequested(打开即沉浸)的消费面。 */
+    events: { emit: h.emitEvent },
   },
 }));
 vi.mock("@kernel/tabs", () => ({
@@ -88,5 +91,7 @@ describe("G-01 NewSessionEntry 能力门", () => {
     expect(h.openTab).toHaveBeenCalledTimes(1);
     expect(h.openTab.mock.calls[0]?.[0]).toMatchObject({ kind: "structured-session", payload: { profileId: "omp" } });
     expect(onClose).toHaveBeenCalledTimes(1); /* 回归钉:点击后菜单宿主必须关闭(2026-11-05 弹窗不关缺陷) */
+    /* 打开即沉浸(2026-11-06):点击同发 editorMaximizeRequested,详情页直接最大化。 */
+    expect(h.emitEvent).toHaveBeenCalledWith("kernel.shell.editorMaximizeRequested", null);
   });
 });

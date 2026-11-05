@@ -80,4 +80,14 @@ export const MESSAGES_EN: Record<string, string> = {
   "拖拽调整高度": "Drag to resize",
   /* 幕布宽度抓手(2026-11-05) */
   "调整幕布宽度": "Adjust canvas width",
+  /* 空态引导(2026-11-06:ssWelcome 大白页引导) */
+  "与 {engine} 开始对话": "Start a conversation with {engine}",
+  "带渲染的会话:思考与工具过程实时可见": "Rendered session: thoughts & tool calls visible live",
+  "思考与工具过程卡片化、实时可见": "Thoughts & tool calls as cards, visible live",
+  "审批请求内联确认,不用切窗口": "Approve requests inline — no window switching",
+  "token 级流式答复": "Token-level streaming replies",
+  "试试这些开场:": "Try one of these openers:",
+  "介绍一下当前项目的目录结构和核心模块": "Walk me through this project's structure and core modules",
+  "帮我审查最近的代码变更,找出潜在问题": "Review the recent code changes and spot potential issues",
+  "给这个项目写一份 README 摘要": "Draft a README summary for this project",
 }

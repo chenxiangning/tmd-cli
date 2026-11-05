@@ -229,3 +229,19 @@
 .ss-cmd-hint-arg { font-family: var(--tmd-font-mono); font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); flex: none; }
 .ss-cmd-desc { font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .ss-cmd-hint { padding: 4px 8px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); }
+
+/* 空态引导(2026-11-06:ssWelcome) —— 初始化完成且无对话时替换大白页。
+   三段信息层级:引擎问候(图标+标题)→ 能力提示(三点小字)→ 开场示例
+   chips(点击即发送,引导对话);宽度与幕布列同律(85% 居中列)。 */
+.ss-welcome { display: flex; flex-direction: column; align-items: center; gap: 18px; width: min(85%, 640px); margin: 0 auto; padding: 12vh 16px 24px; text-align: center; }
+.ss-welcome-hero { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ss-welcome-icon { display: inline-flex; color: var(--tmd-fg-muted); }
+.ss-welcome-title { margin: 0; font-size: 1.125rem; font-weight: 600; color: var(--tmd-fg); }
+.ss-welcome-sub { margin: 0; font-size: var(--tmd-font-ui); color: var(--tmd-fg-subtle); }
+.ss-welcome-feats { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin: 0; padding: 0; list-style: none; }
+.ss-welcome-feats li { display: inline-flex; align-items: center; gap: 5px; font-size: var(--tmd-font-ui); color: var(--tmd-fg-muted); }
+.ss-welcome-feats li > svg { color: var(--tmd-fg-faint); }
+.ss-welcome-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.ss-welcome-chips-label { width: 100%; font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); }
+.ss-welcome-chip { padding: 6px 12px; border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); cursor: pointer; transition: background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out), border-color var(--tmd-dur-1) var(--tmd-ease-out); }
+.ss-welcome-chip:hover { border-color: color-mix(in srgb, var(--tmd-accent) 55%, transparent); background: var(--tmd-bg-hover); color: var(--tmd-fg); }

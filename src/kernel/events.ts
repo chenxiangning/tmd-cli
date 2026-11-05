@@ -38,6 +38,14 @@ export const KernelTopics = {
    * (2026-10-11 激活守卫翻车回撤的教训)。
    */
   sessionViewRequested: "kernel.sessions.viewRequested",
+  /**
+   * 用户显式「把编辑区详情页最大化」的手势信号(新建带渲染的会话等
+   * 「打开即沉浸式工作」入口)。payload: null。
+   * 消费方:app-shell 置编辑区最大化(editorMaximized 幂等 set-true)。
+   * 红线:同 sessionViewRequested —— 仅用户手势发,程序自动化严禁
+   * (误发会把用户手动还原的布局持续顶回最大化)。
+   */
+  editorMaximizeRequested: "kernel.shell.editorMaximizeRequested",
   /** 某会话 CLI 进程退出。payload: sessionId */
   sessionExited: "kernel.sessions.exited",
   /**

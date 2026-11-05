@@ -25,6 +25,7 @@
 @import "./workspace-sessions-manage.css";
 @import "./workspace-sessions-ss.css";
 @import "./workspace-menu.css";
+@import "./workspace-menu-sections.css";
 @import "./workspace-add.css";
 @import "./session-budget.css";
 @import "./ssh.css";
