@@ -89,7 +89,7 @@ const FOLD_MS = 300;
  * enterOpen = 结算换装:首帧展开态挂载,一拍后自动收成折叠头。自动收只在
  * 「用户未手动触碰」时排程——StrictMode 双跑效应 setup→cleanup→setup 会
  * 取消首跑时器,幂等重排即可(playedRef 挡重跑会把二跑挡死,实锤不收)。 */
-function SsProcessFold({ blocks, Markdown, enterOpen = false }: { blocks: CliTranscriptBlock[]; Markdown: ComponentType<{ children: string }>; enterOpen?: boolean }) {
+export function SsProcessFold({ blocks, Markdown, enterOpen = false }: { blocks: CliTranscriptBlock[]; Markdown: ComponentType<{ children: string }>; enterOpen?: boolean }) {
   const [open, setOpen] = useState(enterOpen);
   const [mounted, setMounted] = useState(enterOpen);
   const touchedRef = useRef(false);
