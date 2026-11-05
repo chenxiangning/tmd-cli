@@ -1,9 +1,10 @@
 # RPC 会话体系对齐规划(差距梳理 + 批次拆解)
 
-> 状态:已审批实施中(2026-11-05,大仙授权)。D1-D6 经 UI 示例稿
-> `docs/design/rpc-session-parity.html` 逐一落形定稿(全部按推荐项);示例稿评审
-> 补充的前提修正与红线注意已合入本文(§3/§5 批次 3 前置 P0)。本文档是实施基线,
-> 正式设计随批次落 `docs/superpowers/specs/`,契约沉淀落 `openspec/changes/`。
+> 状态:**六批次已全部落地(2026-11-05)**,commits a96469ab → be5a0cb3;
+> 契约沉淀见 docs/architecture/35-rpc-session-parity.md(D1-D6 经 UI 示例稿
+> `docs/design/rpc-session-parity.html` 定稿,全按推荐项;批次 3 前置 P0
+> = proc_stream 泵 detach 改造,已随批次 3 落地)。真机 tauri:dev 目检待
+> 用户窗口空出(1421 被并行会话占用);桩目检已覆盖全部 UI 面与 adopt/帧链。
 > 前置事实基线:RPC 通道对话与渲染已稳定(2026-11-05 codemoss 对照重构已落地,
 > 见 specs/2026-11-05-rpc-canvas-codemoss-design.md);本规划只做**会话体系层**。
 
