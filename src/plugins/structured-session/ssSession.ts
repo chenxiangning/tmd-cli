@@ -22,8 +22,7 @@ import { useTurnLive } from "./ssTurnLive";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
 
-/** 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦 + 免打扰窗);
- *  RPC 行静音覆盖层(isSsMuted)先行过滤;点击深链按原 tab id 精确回本 tab。 */
+/** 轮次结束 OS 通知:PTY 侧同闸同文案;RPC 行静音覆盖层(isSsMuted)先行;点击深链回本 tab。 */
 function notifyTurnEnd(profileId: string, cwd: string, tabId: string): void {
   const { settings } = getSettingsState();
   if (isSsMuted(profileId, cwd) || !shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) return;
@@ -40,8 +39,7 @@ export type SsSessionState = {
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
   /** 流内活跃输出面(活思考/正文据此展开;与块位置无关,见 PiRpcReducer.liveSurface)。 */
   liveSurface: PiLiveSurface;
-  /** 轮进行中渲染态(结算 600ms 宽限,见 useTurnLive;与 busy 分离:
-   *  引擎代理循环逐步发 session_settled,busy 沿不可直接作渲染界)。 */
+  /** 轮进行中渲染态(结算 600ms 宽限,见 useTurnLive;与 busy 分离,引擎逐步发 session_settled)。 */
   turnLive: boolean;
   sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
   retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
@@ -70,8 +68,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   const turnLive = useTurnLive();
   const stickRef = useRef(true);
   const phaseRef = useRef<Phase>("starting"); const stderrTailRef = useRef<string | null>(null);
-  /* 用户在途轮计数:send/followUp 记账结算销账,只有用户轮结束才发 OS 通知。 */
-  const promptDebtRef = useRef(0);
+  const promptDebtRef = useRef(0); // 用户在途轮计数:send/followUp 记账结算销账,只有用户轮结束才发 OS 通知
   /* token delta 30-80 事件/s:攒 120ms 尾沿合帧再进 React(重解析降一个量级)。 */
   const pendingBlocksRef = useRef<[CliTranscriptBlock[], number, PiLiveSurface] | null>(null);
   const flushTimerRef = useRef<number | null>(null);
@@ -89,12 +86,11 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       setLiveSurface(pending[2]);
     }
   };
-
-  /* 生命周期:mount 起子进程,unmount kill 收割(StrictMode 双跑 startedRef 挡;
-   * 收养流延迟收割见 adoptBoot)。 */
+  /* 生命周期:mount 起子进程,unmount kill 收割(StrictMode 双跑 startedRef 挡;收养流延迟收割见 adoptBoot)。 */
   const startedRef = useRef(false);
   const { stamp } = useTurnWatchdog(busy, t("引擎超过 5 分钟无输出,可能已僵死;可中止或重试"), addWarn);
   const resumeRef = useRef<string | null>(null); const seedRef = useRef<CliTranscriptBlock[] | null>(null); const seedKeepRef = useRef(true);
+  const dropResumeRef = useRef(false); // resume 目标已判 not found(降级新建,只降一次防循环)
   const startSession = () => {
     const rpc = host.getCliProfile(payload.profileId)?.structuredRpc;
     if (startedRef.current || !rpc) return;
@@ -104,7 +100,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     clearWarns();
     stderrTailRef.current = null;
     let self: PiRpcSession;
-    /* 收养流:第二遍挂载接管同流,取消上一遍 cleanup 调度的待决 kill(评审 P2)。 */
+    /* 收养流:第二遍挂载接管同流,取消上一遍 cleanup 的待决 kill(评审 P2)。 */
     if (payload.adoptStreamId) cancelAdoptKill(payload.adoptStreamId);
     const session = (self = new PiRpcSession(
       rpc,
@@ -144,7 +140,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         onDroppedFrame: () => addWarn(t("RPC 流有帧被截断丢弃,转录可能缺块")),
         onExit: () => {
           if (sessionRef.current === self) {
-            /* 存证封口(批次 6):进程退出 = 轮次永不再结算,悬锚就此 seal。 */
+            /* 存证封口:进程退出 = 轮次永不再结算,悬锚 seal。 */
             void evidence.settled();
             flushBlocks();
             setConfirm(null);
@@ -165,7 +161,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       },
       payload.adoptStreamId
         ? { adoptStreamId: payload.adoptStreamId }
-        : { resume: payload.resumeSessionId ?? (resumeRef.current && rpc.resumeArgs ? resumeRef.current : undefined), seedBlocks: seedRef.current ?? undefined, seedKeepTail: seedKeepRef.current, spawnLabel: ledgerId },
+        : { resume: dropResumeRef.current ? undefined : payload.resumeSessionId ?? (resumeRef.current && rpc.resumeArgs ? resumeRef.current : undefined), seedBlocks: seedRef.current ?? undefined, seedKeepTail: seedKeepRef.current, spawnLabel: ledgerId },
     ));
     sessionRef.current = session;
     void session
@@ -179,8 +175,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
         setStatusText(null);
         setPhase("ready");
-        /* adopt/resume 后置种子:磁盘转录补历史(读不到静默空幕布;候选 id 握手 sid 优先,
-           引擎换壳 sid 变化时回落请求的 resumeSessionId,不因 sid 对不上而空幕布)。 */
+        /* adopt/resume 后置种子:磁盘转录补历史(读不到静默空幕布;候选 id 握手 sid
+         * 优先,引擎换壳 sid 变化时回落请求的 resumeSessionId)。 */
         if (payload.adoptStreamId || payload.resumeSessionId) void adoptDiskSeed(session, payload, state?.sessionId, payload.resumeSessionId);
         if (state?.sessionId) {
           noteLastSsSession(payload.profileId, payload.cwd, state.sessionId);
@@ -190,11 +186,17 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       .catch((e: unknown) => {
         /* 启动失败:先收割残留再进 error 态;秒退时 stderr 尾行(真因)优先。 */
         session.kill();
-        if (sessionRef.current === session) {
-          sessionRef.current = null;
-          setStatusText(stderrTailRef.current ?? errTextDisplay(e));
-          setPhase("error");
+        if (sessionRef.current !== session) return;
+        /* omp 零消息 RPC 会话不落盘(get_state 已回 sid 但 jsonl 未建,实证):resume 目标 Session not found → 降级新建重启一次,不卡 error 态。 */
+        if (!dropResumeRef.current && !!payload.resumeSessionId && /not found/i.test(stderrTailRef.current ?? "")) {
+          dropResumeRef.current = true;
+          startedRef.current = false;
+          startSession();
+          return;
         }
+        sessionRef.current = null;
+        setStatusText(stderrTailRef.current ?? errTextDisplay(e));
+        setPhase("error");
       });
   };
   const retry = () => {
@@ -220,8 +222,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     return () => {
       startedRef.current = false;
       clearTimeout(flushTimerRef.current ?? undefined);
-      /* 收养流:延迟一拍 kill,给 StrictMode 第二遍挂载接管窗口(评审 P2);
-       *  闭包捕获 session 本体 —— ref 已置 null,惰性读会杀不到。 */
+      /* 收养流:延迟一拍 kill 给 StrictMode 第二遍挂载接管窗口(评审 P2);闭包捕获 session 本体 —— ref 已置 null,惰性读会杀不到。 */
       if (payload.adoptStreamId && sessionRef.current) {
         const adopted = sessionRef.current;
         scheduleAdoptKill(payload.adoptStreamId, () => adopted.kill());
@@ -232,7 +233,6 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payload.profileId, payload.cwd]);
-
   /* working 头计时(monocode「working for Ns」同语义):busy 起跳,结算归零。 */
   useEffect(() => {
     if (busySince === null) return;
