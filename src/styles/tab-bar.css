@@ -119,6 +119,20 @@
   background: rgba(20, 48, 31, 0.25);
 }
 
+/* 浅色主题对比修正(2026-11-06 浅色反馈统一优化):原写死暗色值在浅底
+   对比崩盘,RPC 换深一档蓝 + 浅蓝底,PTY 换深一档绿 + 浅绿底。 */
+:root[data-theme="light"] .tab-kind-badge {
+  color: #3d5bd6;
+  border-color: #c3cff7;
+  background: #eef2fe;
+}
+
+:root[data-theme="light"] .tab-kind-badge.is-pty {
+  color: #1f7a4d;
+  border-color: #bfe6d2;
+  background: #eaf7f0;
+}
+
 .tab-main-label {
   overflow: hidden;
   text-overflow: ellipsis;
