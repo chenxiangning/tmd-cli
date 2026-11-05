@@ -179,3 +179,45 @@ export function noteLastSsSession(profileId: string, cwd: string, sessionId: str
     /* 隐私模式/配额:记忆缺失只损失「重开上次」入口,不影响会话本体 */
   }
 }
+
+/* ── 行覆盖层(批次 5):重命名/静音,自有 localStorage 键(RPC 行不接
+ * sessionTitles/sessionMutes —— 那两服务按 PTY sessionId 键,零共享)。 */
+
+const overlayKey = (profileId: string, cwd: string, kind: "title" | "mute") =>
+  `tmd.ss.${kind}.${profileId}:${cwd}`;
+
+export function readSsTitleOverride(profileId: string, cwd: string): string | null {
+  try {
+    return localStorage.getItem(overlayKey(profileId, cwd, "title"));
+  } catch {
+    return null;
+  }
+}
+
+export function noteSsTitleOverride(profileId: string, cwd: string, title: string | null): void {
+  try {
+    if (title) localStorage.setItem(overlayKey(profileId, cwd, "title"), title);
+    else localStorage.removeItem(overlayKey(profileId, cwd, "title"));
+  } catch {
+    /* 覆盖层缺失回落自动标题 */
+  }
+}
+
+export function isSsMuted(profileId: string, cwd: string): boolean {
+  try {
+    return localStorage.getItem(overlayKey(profileId, cwd, "mute")) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function toggleSsMute(profileId: string, cwd: string): boolean {
+  const next = !isSsMuted(profileId, cwd);
+  try {
+    if (next) localStorage.setItem(overlayKey(profileId, cwd, "mute"), "1");
+    else localStorage.removeItem(overlayKey(profileId, cwd, "mute"));
+  } catch {
+    /* 静音态丢失只影响通知面 */
+  }
+  return next;
+}

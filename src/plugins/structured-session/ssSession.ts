@@ -10,7 +10,7 @@ import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { sendOsNotification } from "@kernel/ipc";
-import { noteLastSsSession, openStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { isSsMuted, noteLastSsSession, openStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import { adoptDiskSeed } from "./adoptBoot";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
@@ -131,7 +131,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
               promptDebtRef.current--;
               /* 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦 + 免打扰窗),点击深链回本 tab。 */
               const { settings } = getSettingsState();
-              if (shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) {
+              if (!isSsMuted(payload.profileId, payload.cwd) && shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) {
                 const name = `${host.getCliProfile(payload.profileId)?.name ?? payload.profileId} · ${t("带渲染的会话")}`;
                 const { title, body } = notifyText("turnEnd", "", { getSessions: () => [] }, name);
                 void sendOsNotification(title, body, () => openStructuredSessionTab(payload.profileId, payload.cwd));

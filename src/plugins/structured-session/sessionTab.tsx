@@ -9,7 +9,7 @@
 import { lazy, useEffect, useRef, useState } from "react";
 import { ArrowDown } from "@phosphor-icons/react";
 import { getActiveTabId, updateTab, type EditorTab } from "@kernel/tabs";
-import { getStructuredSessionRows, noteStructuredSessionRow } from "@kernel/structuredSessionTabs";
+import { getStructuredSessionRows, noteStructuredSessionRow, readSsTitleOverride } from "@kernel/structuredSessionTabs";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
@@ -105,11 +105,13 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   }, [ss.busy, tab.id]);
 
   /* 标题自动化:首个用户块摘要(PTY 磁盘标题同语义的会话主题锚定),中央 tab
-   * 条与左栏行同步;纯图片块(空文本)不触发。 */
+   * 条与左栏行同步;纯图片块(空文本)不触发;覆盖层(批次 5 重命名)优先。 */
   const firstUserText = ss.blocks.find((b) => b.role === "user")?.text.trim();
   useEffect(() => {
-    if (firstUserText) updateTab(tab.id, { title: firstUserText.slice(0, 32) });
-  }, [firstUserText, tab.id]);
+    if (firstUserText && !readSsTitleOverride(payload.profileId, payload.cwd)) {
+      updateTab(tab.id, { title: firstUserText.slice(0, 32) });
+    }
+  }, [firstUserText, tab.id, payload.profileId, payload.cwd]);
 
 
   if (!profile?.structuredRpc) {
