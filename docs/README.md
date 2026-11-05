@@ -400,5 +400,6 @@
 | 2026-11-05 | [RPC 会话体系对齐规划(差距矩阵 G1-G9/红线 R-PTY0/决策 D1-D6/六批次拆解;六批已落地 a96469ab→be5a0cb3)](brainstorm/2026-11-05-rpc-session-parity-plan.md) | 已落地 |
 | 2026-11-05 | [35 · RPC 会话体系对齐契约(kernel 行投影律/detach 泵与 label/boot 枚举收养/存证闭环/覆盖层自有键;R-PTY0 隔离红线)](architecture/35-rpc-session-parity.md) | 现行 |
 | 2026-11-05 | [RPC 会话体系对齐 UI 示例稿(D1-D6 推荐项全落形:左栏独立分区四态灯/右键最小集菜单/新建菜单重开上次入口/reload 重接 toast;含红线自检与 proc_stream 泵行为前提修正)](design/rpc-session-parity.html) | 设计原型(评审用) |
+| 2026-11-06 | [活轮过程内容批次折叠:滚动窗口只留最新 3 个思考/工具条目(窗内必含思考;折叠头复用落定态整体折叠头;落定整体折叠不变)](superpowers/specs/2026-11-06-live-turn-batch-fold-design.md) | 已实施 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
