@@ -188,7 +188,7 @@ export interface RangeSpan {
 
 /** 参数化安装计划(对齐 src-tauri/src/installer.rs InstallPlan;camelCase tagged)。 */
 export type CliInstallPlan =
-  | { channel: "npm"; package: string }
+  | { channel: "npm"; package: string; version?: string }
   | { channel: "script"; unix: string; windows: string }
   /** 通用命令通道:program/args 由调用方传入,内核零配方(cli-omp 扩展装卸等)。 */
   | { channel: "command"; program: string; args: string[] };
