@@ -13,7 +13,6 @@ import { removeWorkspace, type Workspace } from "@kernel/workspace";
 import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { useSettingsState } from "@kernel/settings";
 import { assignToGroup } from "./groups";
-import { SessionMenuPresets } from "./SessionMenuPresets";
 import { ArrowClockwise, Check, GitBranch, PencilSimple, Trash } from "@phosphor-icons/react";
 
 
@@ -33,7 +32,6 @@ export function SessionMenuOverlay({
   onRefresh,
   onRename,
   onWorktree,
-  onManagePresets,
   onClose,
 }: {
   workspace: Workspace;
@@ -44,8 +42,6 @@ export function SessionMenuOverlay({
   onRename: () => void;
   /** 「在新 worktree 中起会话…」:弹层归调用方持有(菜单卸载不连带杀弹层)。 */
   onWorktree: () => void;
-  /** 「管理预设…」:同 worktree 先例,弹层归调用方持有。 */
-  onManagePresets: () => void;
   onClose: () => void;
 }) {
   const profiles = host.getCliProfiles();
@@ -111,55 +107,43 @@ export function SessionMenuOverlay({
           ))}
         </div>
 
-        {/* 双栏区(2026-11-05 结构重构:带渲染/远程 与 会话预设 并排,整单高度
-            收敛防视口剪裁):左列来源组,右列预设(仅本地工作区);单子自动回单列。 */}
-        <div className="wsmenu-cols">
-          <div className="wsmenu-col">
-            {/* 带渲染的会话组(RPC 结构化会话,structured-session 贡献):组头 + 说明
-                承担「带渲染」语义,行内只列引擎名;组随注册表出现/消失(插件禁用即退场)。 */}
-            {hasRenderedEntries && (
-              <>
-                <div className="wsmenu-group-title">{t("带渲染的会话")}</div>
-                <div className="wsmenu-note">{t("思考与工具调用以卡片渲染,过程实时可见")}</div>
-                <Mounts point="workspace.newSessionMenu.rendered" props={{ onClose }} />
-              </>
-            )}
+        {/* 带渲染的会话组(RPC 结构化会话,structured-session 贡献):组头 + 说明
+            承担「带渲染」语义,行内只列引擎名;组随注册表出现/消失(插件禁用即退场)。 */}
+        {hasRenderedEntries && (
+          <>
+            <div className="wsmenu-group-title">{t("带渲染的会话")}</div>
+            <div className="wsmenu-note">{t("思考与工具调用以卡片渲染,过程实时可见")}</div>
+            <Mounts point="workspace.newSessionMenu.rendered" props={{ onClose }} />
+          </>
+        )}
 
-            {/* 远程与其他组(2026-11-05 自原「更多来源」改名承接):SSH 连接等插件贡献
-                的远程入口 + 本地「在新 worktree 中起会话」;WSL 走来源工作区的 origin
-                适配(标题/引擎行/note),不在此重复放行。 */}
-            {showRemoteGroup && (
-              <>
-                {hasRenderedEntries ? <div className="wsmenu-divider" /> : null}
-                <div className="wsmenu-group-title">{t("远程与其他")}</div>
-                <Mounts point="workspace.newSessionMenu" props={{ onClose }} />
-                {/* 新 worktree 会话:仅本地工作区。建树链 = 本地 git + 本地 PTY spawn,对
-                    来源工作区(WSL/SSH)语义错误;来源的新会话引擎行已由 origin 接管,
-                    这里不放绕过通道。非 git 仓在弹层内如实报错(本地空工作区可达,发现性优先)。 */}
-                {!origin && (
-                  <button
-                    className="wsmenu-item"
-                    onClick={() => {
-                      onClose();
-                      onWorktree();
-                    }}
-                  >
-                    <span className="wsmenu-item-icon">
-                      <GitBranch size="0.8125rem" />
-                    </span>
-                    <span className="wsmenu-item-label">{t("在新 worktree 中起会话…")}</span>
-                  </button>
-                )}
-              </>
+        {/* 远程与其他组(2026-11-05 自原「更多来源」改名承接):SSH 连接等插件贡献
+            的远程入口 + 本地「在新 worktree 中起会话」;WSL 走来源工作区的 origin
+            适配(标题/引擎行/note),不在此重复放行。 */}
+        {showRemoteGroup && (
+          <>
+            {hasRenderedEntries ? <div className="wsmenu-divider" /> : null}
+            <div className="wsmenu-group-title">{t("远程与其他")}</div>
+            <Mounts point="workspace.newSessionMenu" props={{ onClose }} />
+            {/* 新 worktree 会话:仅本地工作区。建树链 = 本地 git + 本地 PTY spawn,对
+                来源工作区(WSL/SSH)语义错误;来源的新会话引擎行已由 origin 接管,
+                这里不放绕过通道。非 git 仓在弹层内如实报错(本地空工作区可达,发现性优先)。 */}
+            {!origin && (
+              <button
+                className="wsmenu-item"
+                onClick={() => {
+                  onClose();
+                  onWorktree();
+                }}
+              >
+                <span className="wsmenu-item-icon">
+                  <GitBranch size="0.8125rem" />
+                </span>
+                <span className="wsmenu-item-label">{t("在新 worktree 中起会话…")}</span>
+              </button>
             )}
-          </div>
-          {/* 会话预设段:同 worktree 项先例,仅本地工作区恒显(建链 = 本地 spawn)。 */}
-          {!origin && (
-            <div className="wsmenu-col">
-              <SessionMenuPresets embedded workspace={workspace} onManage={onManagePresets} onClose={onClose} />
-            </div>
-          )}
-        </div>
+          </>
+        )}
 
         {/* 移动到组(codemoss assign-workspace-group 同款):仅存在组时出现,当前组打勾。 */}
         {groups.length > 0 && (

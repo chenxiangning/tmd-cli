@@ -7,7 +7,7 @@
  */
 
 import { useMemo } from "react";
-import { Brain, CaretRight, ClipboardText, GearSix, Notebook, PlugsConnected, Pulse, PuzzlePiece, Robot } from "@phosphor-icons/react";
+import { Brain, CaretRight, GearSix, Notebook, PlugsConnected, Pulse, PuzzlePiece, Robot } from "@phosphor-icons/react";
 import { useSettingsState } from "@kernel/settings";
 import { t } from "@kernel/i18n";
 import { buildAiConfigNav, type AiConfigEntry } from "./aiConfigNav";
@@ -71,15 +71,6 @@ export function AiConfigHome({ onShowFiles, onShowLint }: { onShowFiles: () => v
           <Pulse size="0.875rem" aria-hidden className="mr-1 text-(--tmd-fg-muted)" />
           {t("规则体检")}
         </button>
-      </div>
-
-      {/* E-04:预设随工作区走,只给说明导航,不在全局复制 CRUD。 */}
-      <div className="rounded-lg border border-(--tmd-border) bg-(--tmd-bg-elevated) px-2.5 py-2">
-        <div className="flex items-center gap-1 text-xs font-medium text-(--tmd-fg)">
-          <ClipboardText size="0.875rem" aria-hidden className="text-(--tmd-fg-muted)" />
-          {nav.presetNote.title}
-        </div>
-        <div className={DESC_CLS}>{nav.presetNote.desc}</div>
       </div>
     </div>
   );

@@ -27,8 +27,6 @@ import { registerSessionRevealHandler } from "@kernel/sessionReveal";
 import { registerPendingPromptConsumption } from "@kernel/sessionPending";
 import { SessionMenuOverlay } from "./SessionMenu";
 import { WorktreeSessionDialog } from "./WorktreeSessionDialog";
-import { SessionPresetsDialog } from "./SessionPresetsDialog";
-import { loadSessionPresets } from "./sessionPresets";
 import { anchorPopoverPosition, clampMenuPosition, refreshingMapOf } from "./utils";
 import { Folders, FolderOpen } from "@phosphor-icons/react";
 import { createSessionRevealHandler } from "./revealSession";
@@ -84,8 +82,6 @@ function WorkspaceSection() {
   const [menu, setMenu] = useState<{ workspace: Workspace; x: number; y: number } | null>(null);
   /* worktree 会话弹层(工作区右键菜单入口):独立于 menu state——菜单关闭不连带卸弹层。 */
   const [wtWs, setWtWs] = useState<Workspace | null>(null);
-  /* 会话预设管理弹层(菜单「管理预设…」入口):同款独立持层。 */
-  const [presetsOpen, setPresetsOpen] = useState(false);
   /** 行内别名重命名中的工作区 id(单例:同时至多一行在改)。 */
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [refreshTicks, setRefreshTicks] = useState<Record<string, number>>({});
@@ -204,14 +200,11 @@ function WorkspaceSection() {
           onRefresh={(profileId) => bumpTick(menu.workspace.id, profileId)}
           onRename={() => { setRenamingId(menu.workspace.id); setMenu(null); }}
           onWorktree={() => setWtWs(menu.workspace)}
-          onManagePresets={() => setPresetsOpen(true)}
           onClose={() => setMenu(null)}
         />
       )}
 
       {wtWs && <WorktreeSessionDialog repoCwd={wtWs.root} title={wtWs.name} onClose={() => setWtWs(null)} />}
-
-      {presetsOpen && <SessionPresetsDialog onClose={() => setPresetsOpen(false)} />}
     </div>
   );
 }
@@ -227,8 +220,6 @@ export const workspacePlugin: Plugin = {
     category: "feature",
   },
   activate(ctx) {
-    /* 会话预设装载一次(坏文件回落空库,agents.json 范式;语义见 ./sessionPresets)。 */
-    void loadSessionPresets();
     /* pending 初始提示词消费面(kernel 自持,不依赖可拔插件在场;语义见 @kernel/sessionPending)。 */
     const offPendingPrompt = registerPendingPromptConsumption();
     ctx.contribute("leftSidebar.section", {

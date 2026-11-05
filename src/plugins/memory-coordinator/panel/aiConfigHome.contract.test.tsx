@@ -1,7 +1,6 @@
 /**
  * E-01 AI 配置统一落地首页契约 —— aiConfigNav 纯逻辑 + AiConfigHome 渲染:
- * - 五类直达入口(引擎/Skills/MCP/Magic Context/智能体·提示词)+ 记忆与规则双按钮
- *   + 会话预设说明卡;
+ * - 五类直达入口(引擎/Skills/MCP/Magic Context/智能体·提示词)+ 记忆与规则双按钮;
  * - 直达调用面:设置 section/tab 深链、hubTab 幂等 open、控制台 tab;
  * - 目标插件停用 → 对应卡 disabled 并给原因,未停用卡仍可用,无死按钮。
  * node 环境:无 jsdom,渲染走 react-dom/server。
@@ -81,9 +80,9 @@ describe("E-01 buildAiConfigNav · 直达调用面", () => {
 });
 
 describe("E-01 AiConfigHome · 渲染", () => {
-  it("五卡 + 记忆与规则双按钮 + 会话预设说明卡齐全,无禁用文案", () => {
+  it("五卡 + 记忆与规则双按钮齐全,无禁用文案", () => {
     const html = renderToStaticMarkup(createElement(AiConfigHome, { onShowFiles: host.onShowFiles, onShowLint: host.onShowLint }));
-    for (const label of ["引擎配置", "Skills", "MCP", "Magic Context", "记忆文件", "规则体检", "智能体 / 提示词", "会话预设"]) {
+    for (const label of ["引擎配置", "Skills", "MCP", "Magic Context", "记忆文件", "规则体检", "智能体 / 提示词"]) {
       expect(html).toContain(label);
     }
     expect(html).not.toContain('disabled=""');

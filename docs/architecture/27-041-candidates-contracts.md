@@ -15,6 +15,8 @@
 
 ## 会话预设(workspace)与 pending 队列上移(kernel sessionPending.ts)
 
+> **2026-11-06 移除校注**:会话预设功能已整体摘除(大仙裁决)——菜单段/管理弹层/存储 `~/.tmd-cli/session-presets.json`/启动编排 presetLaunch 全删,`runWorktreeCreate` 的 spawnArgs/spawnEnv/promptText 预设覆盖面一并撤除。kernel `sessionPending` 契约保留(消费面收口归 anim 独享生产)。下文预设各条仅存档,不再描述现状。
+
 - pending 队列核心自 anim refStore 上移 kernel(≥2 消费:anim AI 会话/workspace 预设):`setPendingPrompt`(LRU 8,插入序逐出)/`consumePendingPrompt`(原子读+清,发送变换唯一消费口)/`usePendingPrompt`;anim refs 半区留在插件。
 - 预设存储:`~/.tmd-cli/session-presets.json` 单文件+内存单源+emit(agents.json 范式),白名单 sanitize 坏形整条弃置;`loadSessionPresets` 全错吞为空库(contract 测试无 Tauri 环境激活不炸)。
 - 起会话链:`spawnRawSession`(kernel 统一装配,identityTrack 必开)→ 成功才 `setPendingPrompt`;失败零残留,报错走内核 `sessionStartFailed`。提示词引用存 `{scope,wsId,name}` 三元组(assets 提示词无 id),消费时 `promptContent` 现读;悬空引用灰态禁点不猜测。入口恒显先例:本地工作区(!origin)菜单段,引擎候选空禁点+提示。

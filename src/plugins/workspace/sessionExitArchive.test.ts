@@ -25,11 +25,6 @@ vi.mock("@kernel/ipc", () => ({
     sessionWrite: vi.fn(async () => undefined),
     sessionResize: vi.fn(async () => undefined),
     sessionSize: vi.fn(async () => null),
-    /* activate 链的 loadSessionPresets 软依赖:缺文件 = 空库,不告警。 */
-    configHomeDir: vi.fn(async () => "/tmp/tmd-test-config"),
-    fsReadFile: vi.fn(async () => {
-      throw new Error("os error 2");
-    }),
   },
   onPtyOutput: vi.fn(async () => () => undefined),
   onPtyExit: vi.fn(async () => () => undefined),

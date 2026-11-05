@@ -4,6 +4,12 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.4.10] - 2026-11-06
+
+### 移除
+
+- 会话预设功能整体下架(大仙裁决「没啥用」):工作区右键菜单「会话预设」段与「管理预设…」弹层、`~/.tmd-cli/session-presets.json` 存储、按预设一键起会话(含新 worktree 范围)全部删除;新建会话菜单双栏区收单列。kernel `sessionPending` 初始提示词队列契约保留,消费面归 anim 独享生产
+
 ## [0.4.9] - 2026-11-05
 
 ### 新增

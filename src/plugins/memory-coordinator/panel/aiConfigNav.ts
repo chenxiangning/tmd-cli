@@ -3,7 +3,7 @@
  * 每张卡片的标题/描述/直达动作/禁用判定集中在此,AiConfigHome 只负责渲染。
  * 直达语义:引擎/智能体·提示词 = 设置 section 深链(cli-config、assets id 原样);
  * Skills/MCP = 各家 hubTab 幂等 open;Magic Context = 控制台中央 tab;
- * 记忆与规则 = 本面板视图切换(回调注入);会话预设只做说明(E-04 不复制 CRUD)。
+ * 记忆与规则 = 本面板视图切换(回调注入)。
  */
 
 import { t } from "@kernel/i18n";
@@ -29,7 +29,6 @@ export interface AiConfigNav {
   /** 记忆与规则 = 本面板原生视图(文件/体检),不入 entries(渲染形制不同)。 */
   onShowFiles: () => void;
   onShowLint: () => void;
-  presetNote: { title: string; desc: string };
 }
 
 /** 组装首页导航;disabledPlugins = 设置里的停用插件清单(重启生效口径)。 */
@@ -74,10 +73,5 @@ export function buildAiConfigNav(
     ],
     onShowFiles: host.onShowFiles,
     onShowLint: host.onShowLint,
-    presetNote: {
-      title: t("会话预设"),
-      /* E-04:预设随工作区走,只给说明导航,不在全局复制 CRUD。 */
-      desc: t("预设随工作区管理:在工作区列表的右键菜单「管理预设…」中维护(引擎/模型/worktree/提示词引用),不在全局资产页复制。"),
-    },
   };
 }
