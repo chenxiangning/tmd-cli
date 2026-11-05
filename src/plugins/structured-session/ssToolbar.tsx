@@ -54,8 +54,14 @@ export function SsToolbar({ ss, profileId, cwd, onExpand, onCollapse, onPalette 
           </span>
         </>
       ) : null}
-      {/* 额度(图3 迁入):窗口型 = 5h/7d 迷你条,余额型 = 金额;详情弹窗同 PTY */}
-      <QuotaChip profileId={profileId} model={ss.model?.id ?? null} cwd={cwd} cliSessionId={ss.sessionId ?? undefined} />
+      {/* 额度(图3 迁入):窗口型 = 5h/7d 迷你条,余额型 = 金额;详情弹窗同 PTY。
+          model 须 "provider/id" 前缀形(vendorFromModel 路由口径),裸 id 报未识别。 */}
+      <QuotaChip
+        profileId={profileId}
+        model={ss.model ? `${ss.model.provider}/${ss.model.id}` : null}
+        cwd={cwd}
+        cliSessionId={ss.sessionId ?? undefined}
+      />
       <span className="flex-1" />
       <button type="button" title={t("展开对话框")} aria-label={t("展开对话框")} onClick={onExpand} className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}>
         <CaretUp size="0.875rem" />

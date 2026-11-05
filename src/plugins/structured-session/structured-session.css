@@ -8,9 +8,9 @@
 .ss-pill-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
 .ss-pill-btn.ss-model { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); }
 .ss-engine-static { display: inline-flex; align-items: center; gap: 4px; }
-.ss-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; display: flex; flex-direction: column; gap: 2px; min-width: 200px; max-height: 340px; padding: 6px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); overflow: hidden auto; }
+.ss-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; display: flex; flex-direction: column; gap: 2px; width: max-content; min-width: 200px; max-width: min(420px, calc(100vw - 32px)); max-height: 340px; padding: 6px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); overflow: hidden auto; }
 .ss-anchor-right .ss-menu { left: auto; right: 0; }
-.ss-menu-wide { width: 300px; }
+.ss-menu-wide { min-width: 300px; }
 .ss-menu-filter { margin-bottom: 4px; padding: 4px 8px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-base); color: var(--tmd-fg); font-size: var(--tmd-font-ui); }
 .ss-menu-filter:focus { outline: none; border-color: color-mix(in srgb, var(--tmd-accent) 55%, transparent); }
 .ss-menu-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
@@ -30,9 +30,9 @@
 .ss-queued { font-size: var(--tmd-font-xs); color: var(--tmd-accent); border: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent); background: var(--tmd-accent-soft); border-radius: 999px; padding: 1px 8px; }
 .ss-engine-icon { display: inline-flex; color: var(--tmd-fg-muted); }
 .ss-engine-name { font-size: var(--tmd-font-md); font-weight: 600; }
-/* 工具条项目地址(自 header 迁入):省略号 + muted 灰,title 全量 */
-.ss-toolbar .ss-toolbar-cwd { flex: 0 1 auto; }
-.ss-toolbar-cwd .ss-toolbar-mono { max-width: 260px; font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); }
+/* 工具条项目地址(自 header 迁入):全显不省略(2026-11-05 用户裁决),title 全量 */
+.ss-toolbar .ss-toolbar-cwd { flex: none; }
+.ss-toolbar-cwd .ss-toolbar-mono { max-width: none; overflow: visible; text-overflow: clip; font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); }
 .ss-model { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 999px; padding: 1px 8px; }
 .ss-sid { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); font-family: var(--tmd-font-mono); }
 .ss-dot { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--tmd-fg-faint); flex: none; }
