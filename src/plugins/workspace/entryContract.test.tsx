@@ -50,7 +50,11 @@ vi.mock("@kernel/settings", () => ({
   useSettingsState: () => ({ settings: { workspaceGroups: [] } }),
 }));
 vi.mock("@kernel/workspaceOrigins", () => ({ findWorkspaceOrigin: () => null }));
-vi.mock("@kernel/Mounts", () => ({ Mounts: () => null }));
+vi.mock("@kernel/Mounts", () => ({
+  /* 桩渲染收到的 props 键名(非 null 组件时),供「宿主递 onClose」通道断言。 */
+  Mounts: ({ props }: { props?: Record<string, unknown> }) =>
+    props ? `props:${Object.keys(props).join(",")}` : null,
+}));
 vi.mock("./groups", () => ({ assignToGroup: () => undefined }));
 vi.mock("@kernel/menuClamp", () => ({
   clampToViewport: (x: number, y: number) => ({ x, y }),
@@ -169,6 +173,26 @@ describe("入口闭环审计", () => {
     expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).toContain("带渲染的会话");
     mountStub.push({ component: () => null });
     expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).toContain("远程与其他");
+    mountStub.length = 0;
+    renderedStub.length = 0;
+  });
+
+  it("⑥ 菜单宿主向两挂点行递 onClose(点击行关闭弹层的通道;2026-11-05 弹窗不关缺陷回归钉)", () => {
+    const base = {
+      workspace: { id: "ws1", name: "tmd-cli", root: "/tmp/ws" },
+      canRemove: true,
+      position: { x: 60, y: 60 },
+      refreshing: {},
+      onRefresh: () => undefined,
+      onRename: () => undefined,
+      onClose: () => undefined,
+    } as never;
+    mountStub.length = 0;
+    renderedStub.length = 0;
+    renderedStub.push({ component: () => null });
+    expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).toContain("props:onClose");
+    mountStub.push({ component: () => null });
+    expect(renderToStaticMarkup(createElement(SessionMenuOverlay, base))).toContain("props:onClose");
     mountStub.length = 0;
     renderedStub.length = 0;
   });

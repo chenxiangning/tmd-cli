@@ -1,0 +1,131 @@
+/* ===== 带渲染的会话区(RPC 行,StructuredSessionSection) =====
+   形态(2026-11-05 定稿):工作区卡片内小节,与终端/远程组并列;小节头 =
+   静态标签(折叠由工作区卡片统一管辖,不做自有折叠)。行样式沿用
+   thread-row 共享系(与 PTY 行同槽位),关闭钮与计时沿用 thread-row-host
+   宿主律:钮是行的 DOM 兄弟(嵌套交互治理),hover/焦点显形,absolute 骑行
+   右缘让位区;计时 = 行内 tabular 数字(busy 行)。 */
+
+/* 工作区内小节头(SectionLabel:PTY / RPC 分区标识,静态不可点)。
+   图标列对齐工作区文件夹图标中心(容器内 20px 列,= --workspace-tree-indent,
+   0.75rem 图标宽 12px → 左缘 14px);背景遮蔽树线(小节头即树断口)。 */
+.ws-section-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 2px 14px;
+  font-size: var(--sidebar-caption-font-size);
+  color: var(--text-muted);
+  user-select: none;
+  background: var(--tmd-bg);
+}
+
+/* PTY 通道 kind 标签:与 .thread-rpc-badge 同槽位同尺寸(标题列对齐),
+   中性灰配色与 RPC 蓝区隔(通道缩写,非身份强调)。
+   对比度走 tmd 令牌(--text-faint 在浅色主题 #bababb 太淡读不清,2026-11-06
+   浅色反馈统一优化:文字 muted + 强边框 + 微升底)。 */
+.thread-pty-badge {
+  flex: none;
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  color: var(--tmd-fg-muted);
+  border: 1px solid var(--tmd-border-strong);
+  background: color-mix(in srgb, var(--tmd-fg) 4%, transparent);
+}
+.ss-row-close {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out), background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
+}
+
+.thread-row-host:hover > .ss-row-close,
+.thread-row-host:focus-within > .ss-row-close {
+  opacity: 1;
+}
+
+.ss-row-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.ss-row-timer {
+  flex: none;
+  margin-right: 22px;
+  font-size: 0.6875rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 等待审批黄灯(D4-b:审批不进全局箱,发现性由行灯补偿):快呼吸 + 暖色 halo。 */
+.tl-node.is-ask {
+  background: var(--tmd-warn);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tmd-warn) 25%, transparent);
+}
+
+@keyframes ss-lamp-breathe {
+  50% { opacity: 0.45; }
+}
+
+/* 未读计数徽标(轮结算未查看;与计时互斥位:计时优先,未读靠右缘)。 */
+.ss-row-unread {
+  flex: none;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  margin-right: 20px;
+  border-radius: 999px;
+  background: var(--tmd-accent);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 结束存续行尾签(关闭账本行): faint 小字标识「已结束」,与活行灯语区分。 */
+.ss-row-ended-tag {
+  flex: none;
+  margin-right: 22px;
+  font-size: 0.625rem;
+  color: var(--text-faint);
+}
+
+/* 磁盘行 RPC 身份徽标(R-ISO1 工作区入口区分):已知 RPC 会话的磁盘行
+   与 PTY 历史行一眼可辨;与左栏「带渲染的会话」分区/编辑 tab 条 RPC chip
+   同色系同语义。
+   原写死暗色值(#7c9bff 亮蓝字 + 深蓝底)在浅色主题对比崩盘(2026-11-06
+   浅色反馈):亮色保持原蓝,浅色换深一档蓝 + 浅蓝底,双主题均可读。 */
+.thread-rpc-badge {
+  flex: none;
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  color: #7c9bff;
+  border: 1px solid #2b3a6e;
+  background: rgba(22, 32, 74, 0.25);
+}
+
+:root[data-theme="light"] .thread-rpc-badge {
+  color: #3d5bd6;
+  border-color: #c3cff7;
+  background: #eef2fe;
+}

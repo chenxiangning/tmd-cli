@@ -89,6 +89,9 @@ export function LiveSessionRow({
         <span className="thread-engine-badge" title={profile.name} aria-hidden>
           {profile.renderIcon?.("0.75rem")}
         </span>
+        {/* 通道 kind 标签(图 2 结构定稿):PTY 行与 RPC 行(SsRow 的 RPC chip)
+            同槽位同尺寸,标题列垂直对齐;标识 = 通道缩写,全称走悬浮提示。 */}
+        <span className="thread-pty-badge" title={t("终端会话")} aria-hidden>PTY</span>
         {/* 身份统一:绑定磁盘身份后与磁盘条目同形显示(标题/命名/短码) */}
         <span className="thread-name">{title}</span>
         <span className="thread-meta">

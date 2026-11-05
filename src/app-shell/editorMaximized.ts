@@ -36,10 +36,22 @@ export function restoreEditorMaximized(): void {
   if (maximized) setMaximized(false);
 }
 
+/** 编辑区最大化置位(幂等 set-true;新建带渲染会话等「打开即沉浸」
+ *  入口的消费面,与 toggle 互补——不经「读态→反打」竞态)。 */
+export function maximizeEditor(): void {
+  if (!maximized) setMaximized(true);
+}
+
 /** 遮盖还原装配:订阅用户显式「去看会话」手势(kernel.sessions.viewRequested),
  *  摘最大化——幂等,非最大化 no-op。返回退订(AppShell 挂载期装一次)。 */
 export function installSessionViewReveal(): () => void {
   return host.events.on(KernelTopics.sessionViewRequested, () => restoreEditorMaximized());
+}
+
+/** 「打开即沉浸」装配:订阅用户显式最大化手势(kernel.shell.editorMaximizeRequested,
+ *  现消费方 = 新建带渲染的会话入口),置编辑区最大化——幂等 set-true。 */
+export function installEditorMaximizeReveal(): () => void {
+  return host.events.on(KernelTopics.editorMaximizeRequested, () => maximizeEditor());
 }
 
 export function useEditorMaximized(): boolean {

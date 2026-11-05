@@ -1,15 +1,19 @@
 /**
- * RPC 对话框工具条 —— 与 PTY ComposerToolbar 同排布(模型/思考/上下文 +
- * 右侧动作组),从 ssComposer 拆出(300 行铁则)。RPC 态来自 ss 权威态
- * (无 seeded 歧义),模型/思考位纯展示(变更走 header 菜单);右侧 = 展开/
- * 收起(两段高) + 命令抽屉钮(唤起 / 命令目录,RPC 版 ⌘K)。
+ * RPC 对话框工具条 —— 与 PTY ComposerToolbar 同排布(路径/模型/思考/上下文/
+ * 额度 + 右侧动作组),从 ssComposer 拆出(300 行铁则)。RPC 态来自 ss 权威态
+ * (无 seeded 歧义),模型/思考位纯展示(变更走 header 菜单);额度 chip 复用
+ * composer QuotaChip(source 覆写:RPC tab 无活跃 PTY 会话,按本 tab 身份抓);
+ * 右侧 = 展开/收起(两段高) + 命令抽屉钮(唤起 / 命令目录,RPC 版 ⌘K)。
  */
 import { CaretDown, CaretUp, Sidebar } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
+import { QuotaChip } from "@plugins/composer/view/QuotaChip";
 import type { SsSessionState } from "./ssSession";
 
-export function SsToolbar({ ss, onExpand, onCollapse, onPalette }: {
+export function SsToolbar({ ss, profileId, cwd, onExpand, onCollapse, onPalette }: {
   ss: SsSessionState;
+  profileId: string;
+  cwd: string;
   onExpand: () => void;
   onCollapse: () => void;
   onPalette: () => void;
@@ -19,6 +23,11 @@ export function SsToolbar({ ss, onExpand, onCollapse, onPalette }: {
   const iconBtn = "grid h-6 w-6 place-items-center rounded-md transition-colors disabled:opacity-40";
   return (
     <div className="ss-toolbar">
+      {/* 项目地址(自 header 迁入 2026-11-05):超长省略,title 全量 */}
+      <span className="ss-toolbar-slot ss-toolbar-cwd" title={cwd}>
+        <span className="ss-toolbar-mono">{cwd}</span>
+      </span>
+      <span aria-hidden className="ss-toolbar-sep" />
       <span className="ss-toolbar-slot" title={t("模型与思考级")}>
         <span aria-hidden>{t("模型")}</span>
         <span className="ss-toolbar-mono">{ss.model?.id ?? "—"}</span>
@@ -38,10 +47,21 @@ export function SsToolbar({ ss, onExpand, onCollapse, onPalette }: {
               n: tok ?? "—",
             })}
           >
-            <span className="ss-toolbar-mono">{pct != null ? `${pct.toFixed(1)}%` : "—"}</span>
+            <span className="ss-toolbar-mono">
+              {pct != null ? `${pct.toFixed(1)}%` : "—"}
+              {tok != null ? ` · ${tok >= 1000 ? `${(tok / 1000).toFixed(1)}k` : tok}` : ""}
+            </span>
           </span>
         </>
       ) : null}
+      {/* 额度(图3 迁入):窗口型 = 5h/7d 迷你条,余额型 = 金额;详情弹窗同 PTY。
+          model 须 "provider/id" 前缀形(vendorFromModel 路由口径),裸 id 报未识别。 */}
+      <QuotaChip
+        profileId={profileId}
+        model={ss.model ? `${ss.model.provider}/${ss.model.id}` : null}
+        cwd={cwd}
+        cliSessionId={ss.sessionId ?? undefined}
+      />
       <span className="flex-1" />
       <button type="button" title={t("展开对话框")} aria-label={t("展开对话框")} onClick={onExpand} className={`${iconBtn} text-(--tmd-fg-subtle) hover:bg-(--tmd-bg-hover) hover:text-(--tmd-fg)`}>
         <CaretUp size="0.875rem" />

@@ -9,6 +9,8 @@ import { usePanelActive } from "@kernel/panelActivity";
 import { host } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
 import { useWorkspaces } from "@kernel/workspace";
+import { subscribeEditorTabs } from "@kernel/tabs";
+import { getActiveRpcEvidenceView } from "@kernel/structuredSessionEvidence";
 import { checkpointIdentity, echoProbing, staleFallbackKey, withEchoFallback } from "./identity";
 import { pruneRetention, sealDeadTurns } from "./retention";
 import { hasCkptEntry, refreshBatches, touchCkptKey } from "./store";
@@ -27,16 +29,22 @@ export function useCkptScope() {
      tmd-cli 账本)。无会话时回落活跃工作区根(sealDeadTurns 强退恢复需 cwd)。
      身份统一经 identity.ts 仲裁:cli 身份被多个活会话争持(绑定竞态)时先创建者
      保留、后到者回退 tmd id;首条 prompt 时身份常未绑上(锚点暂记 tmd id 名下),
-     查询把 tmd id 作为副键一并命中,后端自动回填。 */
+     查询把 tmd id 作为副键一并命中,后端自动回填。
+     RPC 视角(带渲染的会话 tab 激活且无活跃 PTY 会话):账本副键 = tab id
+     (StructuredTurnEvidence 的 ledgerId,后端按 tmd_session_id 命中),cwd 取
+     tab 负载;引擎 sid 优先主键(resume 换壳后副键兜住)。编辑 tab 切换经
+     subscribeEditorTabs 触发重解析(同 activeSessionChanged 语义)。 */
   const [, bumpRender] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const off1 = host.events.on(KernelTopics.activeSessionChanged, bumpRender);
     const off2 = host.events.on(KernelTopics.sessionsChanged, bumpRender);
     const off3 = host.events.on(KernelTopics.cliIdentityProbe, bumpRender);
+    const off4 = subscribeEditorTabs(bumpRender);
     return () => {
       off1();
       off2();
       off3();
+      off4();
     };
   }, []);
 
@@ -47,6 +55,18 @@ export function useCkptScope() {
   const prevKeyRef = useRef<{ tmd: string | null; key: string | null }>({ tmd: null, key: null });
   const resolveScope = () => {
     const activeSessionId = host.getActiveSessionId();
+    /* RPC 视角:活跃 PTY 会话缺席、活跃编辑 tab = 带渲染的会话(见头注)。 */
+    if (!activeSessionId) {
+      const rpc = getActiveRpcEvidenceView();
+      if (rpc) {
+        return {
+          cwd: rpc.cwd,
+          sessionId: rpc.engineSessionId ?? rpc.tabId,
+          tmdSessionId: rpc.tabId,
+          staleSessionId: null,
+        };
+      }
+    }
     const identity = activeSessionId ? checkpointIdentity(activeSessionId) : null;
     /* 读侧与写侧(identity.ts)同律:探测窗内绑定值不可信,查询键回落 tmd id,
        重绑后 backfill_identity 整链自愈 —— 窗内面板不再读到旧绑定名下的账。 */

@@ -39,7 +39,7 @@ export const IPC_METHOD_GRANTS: Record<string, PluginPermission | null> = {
   procStreamSpawn: "ipc.exec",
   procStreamWrite: "ipc.exec",
   procStreamKill: "ipc.exec",
-  procStreamKillAll: "ipc.exec",
+  procStreamList: "ipc.exec",
   onProcStream: "ipc.exec",
   cliProbe: "ipc.exec",
   cliInstallRun: "ipc.exec",

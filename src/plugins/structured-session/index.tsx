@@ -8,8 +8,9 @@
  */
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { Chats } from "@phosphor-icons/react";
-import { STRUCTURED_SESSION_TAB_KIND } from "./tabs";
+import { STRUCTURED_SESSION_TAB_KIND } from "@kernel/structuredSessionTabs";
 import { StructuredSessionTab } from "./sessionTab";
+import { adoptOrphanStreams } from "./adoptBoot";
 import { NewSessionEntry } from "./NewSessionEntry";
 import "./locales";
 export const structuredSessionPlugin: Plugin = {
@@ -23,6 +24,9 @@ export const structuredSessionPlugin: Plugin = {
     category: "feature",
   },
   activate(ctx: PluginContext) {
+    /* boot 收养:枚举 detach 存活流按 label 重建 tab/行(无人认领流兜底收割)。
+     * activate 期一次;tab 表此时恒空,无重复收养面。 */
+    adoptOrphanStreams();
     ctx.registerTabContent({
       kind: STRUCTURED_SESSION_TAB_KIND,
       component: StructuredSessionTab,

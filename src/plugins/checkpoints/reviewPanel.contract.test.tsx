@@ -94,11 +94,11 @@ describe("D-01 处理宿主 · 启停组合", () => {
 });
 
 describe("D-01 处理宿主 · 双域渲染", () => {
-  it("approval-inbox 启用:渲染「等待 / 变更」两域,默认等待", () => {
+  it("approval-inbox 启用:渲染「等待 / 变更」两域,默认变更(2026-11-05 定稿)", () => {
     const html = renderToStaticMarkup(createElement(ReviewPanel));
     expect(html).toContain("等待");
     expect(html).toContain("变更");
-    expect(html.match(/class="hidden"/g)?.length ?? 0).toBe(1); /* 变更域隐藏,等待域在场 */
+    expect(html.match(/class="hidden"/g)?.length ?? 0).toBe(1); /* 等待域隐藏,变更域在场 */
   });
 
   it("approval-inbox 禁用:只渲染「变更」域,无「等待」死钮", () => {

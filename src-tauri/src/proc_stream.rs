@@ -22,7 +22,7 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
 
 use crate::event_sink;
@@ -38,6 +38,10 @@ pub struct ProcStreamSpec {
     pub cwd: String,
     #[serde(default)]
     pub env: HashMap<String, String>,
+    /// 消费方语义标签(如 structured-session 的 `structured:{profile}:{cwd}`);
+    /// boot 期枚举活流按标签收养,无标签流由前端兜底收割。
+    #[serde(default)]
+    pub label: Option<String>,
 }
 
 /// 单行上限:NDJSON 帧(RPC maxFrameBytes 量级)之外留余;超长行截断防无界缓冲。
@@ -48,6 +52,8 @@ const REAP_GRACE: Duration = Duration::from_secs(2);
 struct Entry {
     child: Mutex<Child>,
     stdin: Mutex<Option<std::process::ChildStdin>>,
+    /// 消费方语义标签(spawn 传入;枚举命令透出,boot 收养用)。
+    label: Option<String>,
 }
 
 static REGISTRY: LazyLock<Mutex<HashMap<String, Arc<Entry>>>> =
@@ -92,6 +98,7 @@ pub fn spawn(app: &AppHandle, spec: &ProcStreamSpec) -> Result<String, String> {
     let entry = Arc::new(Entry {
         child: Mutex::new(child),
         stdin: Mutex::new(stdin),
+        label: spec.label.clone(),
     });
     REGISTRY.lock().insert(id.clone(), entry.clone());
     let app_out = app.clone();
@@ -116,8 +123,12 @@ pub fn spawn(app: &AppHandle, spec: &ProcStreamSpec) -> Result<String, String> {
                         Ok(_) => {}      // 一行(含超限截断行)
                         Err(_) => break, // 管道错(下游亡)视同 EOF
                     }
-                    if !line.is_empty() && !event_sink::emit(&app, &event, &line) {
-                        break; // 前端已销毁
+                    /* detach 语义(批次 3):emit 失败 = 消费端失联(webview reload),
+                     * 不再视同 EOF 收割 —— 继续读丢行防管道积压,子进程活到
+                     * boot 期按 label 收养(失联窗内行由磁盘转录种子补);
+                     * 孤儿兜底 = app 退出钩子 kill_all(lib.rs RunEvent::Exit)。 */
+                    if !line.is_empty() {
+                        let _ = event_sink::emit(&app, &event, &line);
                     }
                 }
             }
@@ -160,12 +171,32 @@ pub fn kill(id: &str) {
     }
 }
 
-/// 清全部(webview 重启后前端失忆,boot 期兜底清孤儿)。
+/// 清全部(app 退出钩子兜底;webview reload 后的孤儿由前端按 label 枚举收养,
+/// 不再走 boot 全杀 —— 会话体系对齐批次 3)。
 pub fn kill_all() {
     let entries: Vec<Arc<Entry>> = REGISTRY.lock().values().cloned().collect();
     for entry in entries {
         kill_tree(&mut entry.child.lock());
     }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcStreamInfo {
+    pub id: String,
+    pub label: Option<String>,
+}
+
+/// 枚举活流(boot 期收养入口:前端按 label 反解消费方语义)。
+pub fn list() -> Vec<ProcStreamInfo> {
+    REGISTRY
+        .lock()
+        .iter()
+        .map(|(id, e)| ProcStreamInfo {
+            id: id.clone(),
+            label: e.label.clone(),
+        })
+        .collect()
 }
 
 #[tauri::command]
@@ -195,6 +226,13 @@ pub(crate) async fn proc_stream_kill(id: String) {
 #[tauri::command]
 pub(crate) async fn proc_stream_kill_all() {
     let _ = tauri::async_runtime::spawn_blocking(kill_all).await;
+}
+
+#[tauri::command]
+pub(crate) async fn proc_stream_list() -> Vec<ProcStreamInfo> {
+    tauri::async_runtime::spawn_blocking(list)
+        .await
+        .unwrap_or_default()
 }
 
 /// 按行读,超 MAX_LINE_BYTES 截断本行(丢弃到换行)防无界缓冲。

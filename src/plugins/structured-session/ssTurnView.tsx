@@ -15,6 +15,7 @@ import type { CliTranscriptBlock } from "@kernel/cli";
 import { t } from "@kernel/i18n";
 import { TranscriptBlockView } from "@plugins/session-viewer/transcriptView";
 import { SsToolRow } from "./ssToolRow";
+import { capped } from "@plugins/session-viewer/transcriptPhases";
 import { SsUserBlock } from "./ssUserBlock";
 
 /** 按用户块切轮(每轮以 user 块开头;无 user 块的头部残段也成一轮回退兜住)。 */
@@ -47,10 +48,10 @@ function groupSections(blocks: CliTranscriptBlock[]): SsSection[] {
   return sections;
 }
 
-/* 思考段:Brain 题头(仅非独段时显,独段题头即折叠组头)+ 左轨灰字全文
- * (codemoss ThinkingSurface;纯文本 pre-wrap,不再 markdown 重解析)。
+/* 思考段:Brain 题头(仅非独段时显,独段题头即折叠组头)+ 左轨灰字 md 全文
+ * (session-viewer ThinkingRow 同管线;capped 防超长思考流每 delta 全量重解析)。
  * live = 流内活跃面:题头 pulse 成「思考中…」(活轮同形渲染用,见 liveTurn)。 */
-export function SsThinkingSection({ block, titled, live = false }: { block: CliTranscriptBlock; titled: boolean; live?: boolean }) {
+export function SsThinkingSection({ block, titled, live = false, Markdown }: { block: CliTranscriptBlock; titled: boolean; live?: boolean; Markdown: ComponentType<{ children: string }> }) {
   return (
     <div className="ss-thinksec">
       {titled ? (
@@ -59,7 +60,9 @@ export function SsThinkingSection({ block, titled, live = false }: { block: CliT
           <span>{live ? t("思考中…") : t("思考过程")}</span>
         </div>
       ) : null}
-      <div className="ss-thinksec-body">{block.text}</div>
+      <div className="ss-thinksec-body">
+        <Markdown>{capped(block.text)}</Markdown>
+      </div>
     </div>
   );
 }
@@ -86,7 +89,7 @@ const FOLD_MS = 300;
  * enterOpen = 结算换装:首帧展开态挂载,一拍后自动收成折叠头。自动收只在
  * 「用户未手动触碰」时排程——StrictMode 双跑效应 setup→cleanup→setup 会
  * 取消首跑时器,幂等重排即可(playedRef 挡重跑会把二跑挡死,实锤不收)。 */
-function SsProcessFold({ blocks, enterOpen = false }: { blocks: CliTranscriptBlock[]; enterOpen?: boolean }) {
+function SsProcessFold({ blocks, Markdown, enterOpen = false }: { blocks: CliTranscriptBlock[]; Markdown: ComponentType<{ children: string }>; enterOpen?: boolean }) {
   const [open, setOpen] = useState(enterOpen);
   const [mounted, setMounted] = useState(enterOpen);
   const touchedRef = useRef(false);
@@ -134,7 +137,7 @@ function SsProcessFold({ blocks, enterOpen = false }: { blocks: CliTranscriptBlo
             <div className="ss-fold-body">
               {sections.map((s) =>
                 s.type === "thinking" ? (
-                  <SsThinkingSection key={s.block.id} block={s.block} titled={!singleThinking} />
+                  <SsThinkingSection key={s.block.id} block={s.block} titled={!singleThinking} Markdown={Markdown} />
                 ) : (
                   <SsToolSection key={s.blocks[0].id} blocks={s.blocks} />
                 ),
@@ -170,7 +173,8 @@ export const SsTurnView = memo(function SsTurnView({ blocks, Markdown, settleKey
                 <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
               ),
             )}
-            <SsProcessFold blocks={process} enterOpen={turn[0].id === settleKey} />            {answers.map((b) => (
+            <SsProcessFold blocks={process} Markdown={Markdown} enterOpen={turn[0].id === settleKey} />
+            {answers.map((b) => (
               <TranscriptBlockView key={b.id} block={b} Markdown={Markdown} />
             ))}
           </div>

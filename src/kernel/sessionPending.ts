@@ -1,5 +1,5 @@
 /**
- * 跨插件契约 · 会话 pending 初始提示词队列(workspace 会话预设写入,
+ * 跨插件契约 · 会话 pending 初始提示词队列(anim 起会话写入,
  * 2026-10-18 自 anim 提取消费半区)──模块级单例,keyed by 目标会话 id:
  * composer 芯片展示,发送变换经 consumePendingPrompt 原子读+清(消费面在
  * 本模块收口,kernel 自持,不依赖任何可拔 feature 插件在场;发送失败由

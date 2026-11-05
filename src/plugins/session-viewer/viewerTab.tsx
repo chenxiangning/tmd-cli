@@ -3,6 +3,8 @@
  * 活会话手动刷新重读(不做文件 watch:查看频率低,YAGNI);长会话分批渲染
  * (首屏 200 块,滚动触底递增);md 预览管线(react-markdown)按需拆包
  * (files 插件同款纪律)。
+ * 渲染复用 RPC(structured-session)体系的 SsTurnView —— 与 RPC 会话同形
+ * (用户气泡 + 过程折叠组 + 答复),旧 phase 分组渲染已删(2026-11-05 对齐)。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, lazy } from "react";
 import { errTextDisplay } from "@kernel/errText";
@@ -14,7 +16,8 @@ import { updateSettings, useSettingsState } from "@kernel/settings";
 import { formatRelativeTime } from "@kernel/relativeTime";
 import type { SessionViewTabPayload } from "@kernel/sessionViewTabs";
 import type { CliSessionTranscript } from "@kernel/cli";
-import { TranscriptView } from "./transcriptView";
+import { SsTurnView } from "@plugins/structured-session/ssTurnView";
+import "@plugins/structured-session/structured-session.css";
 import { findBlockIndex } from "./locate";
 import { sessionExportFileName, type MarkdownExport } from "./blocksToMarkdown";
 import { exportReasonLabel, snapshotMdTo, type ExportSessionTarget } from "./exportMd";
@@ -159,6 +162,9 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
     if (!el) return; /* 分批未及:cap 扩大重渲染后本 effect 随 visible/state 重跑 */
     locatedRef.current = payload.locate;
     el.scrollIntoView({ block: "center" });
+    /* 定位闪烁(旧 sv-vb 包裹层的声明式 class 已随旧渲染删;动画一次性
+       ease-out 结束态即透明,class 常驻无害)。 */
+    el.classList.add("sv-loc-flash");
   }, [locateId, payload.locate, visible, state]);
 
   /* 滚动触底递增批次(无虚拟滚动:块级截断 + 分批已控 DOM 规模)。 */
@@ -171,8 +177,8 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
   }, [state]);
 
 
-  /* 分批切片记忆化:blocks 引用稳定 → TranscriptView 内 items 与块级 memo
-     在无关重渲染(滚动探测/加载态翻转)时命中,不全量重建。
+  /* 分批切片记忆化:blocks 引用稳定 → SsTurnView 轮级 memo 在无关重渲染
+     (滚动探测/加载态翻转)时命中,不全量重建。
      定位目标越出已渲染批次时扩大帽(不回写 visible 状态)。 */
   const shown = useMemo(
     () => (state.phase === "ok" ? state.transcript.blocks.slice(0, Math.max(visible, (locateIdx ?? -1) + 1)) : []),
@@ -212,12 +218,7 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
             </div>
           ) : (
             <div className="sv-blocks">
-              <TranscriptView
-                blocks={shown}
-                Markdown={MarkdownBody}
-                minimal={minimal}
-                locateId={locateId}
-              />
+              <SsTurnView blocks={shown} Markdown={MarkdownBody} />
               {visible < state.transcript.blocks.length ? (
                 <button
                   type="button"

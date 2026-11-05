@@ -1,7 +1,9 @@
 /** ReviewPanel —— 右栏「处理」宿主(D-01):等待(Ask)/ 变更(checkpoints)双域。
- *  Ask 域仅 approval-inbox 插件启用时渲染(settings.disabledPlugins 驱动,禁用
- *  不留死钮);双域 keepAlive 隐藏切换(先例 CheckpointsPanel 内部三视图),
- *  切域不丢应答草稿/时间线展开态。通知中心不并入(D-02 独立保留)。 */
+ *  默认域 = 变更(2026-11-05 定稿:点开处理面板先看变更/时间线,等待是事件
+ *  驱动入口——有审批时经通知/行灯进入,无需默认占位);Ask 域仅 approval-inbox
+ *  插件启用时渲染(settings.disabledPlugins 驱动,禁用不留死钮);双域 keepAlive
+ *  隐藏切换(先例 CheckpointsPanel 内部三视图),切域不丢应答草稿/时间线展开态。
+ *  通知中心不并入(D-02 独立保留)。 */
 import { useState } from "react";
 import { BellRinging, GitDiff } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
@@ -18,8 +20,8 @@ function segCls(on: boolean): string {
 export function ReviewPanel() {
   const { settings } = useSettingsState();
   const askOn = !settings.disabledPlugins.includes("approval-inbox");
-  const [domain, setDomain] = useState<"ask" | "ckpt">(askOn ? "ask" : "ckpt");
-  /* 运行期禁用 approval-inbox(改 settings 热生效)时,停在 ask 域回落到变更。 */
+  const [domain, setDomain] = useState<"ask" | "ckpt">("ckpt");
+  /* 运行期禁用 approval-inbox(改 settings 热生效)时,回落到变更(同为默认域)。 */
   const shown = domain === "ask" && !askOn ? "ckpt" : domain;
 
   return (

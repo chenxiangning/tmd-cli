@@ -105,6 +105,34 @@ describe("PiRpcReducer(轮级工具行 + 流内 think/text)", () => {
     expect(roleSeq(blocks)).toBe("user,reasoning,tool:done,assistant");
   });
 
+  it("多步循环时间线:工具行跟在其触发的思考段后,流内新思考排在工具行之后(不堆底)", () => {
+    const r = new PiRpcReducer();
+    r.feed(frame("agent_start"));
+    r.feed(msgStart("user"));
+    r.feed(msgEnd("user", [{ type: "text", text: "两步" }]));
+    /* 步1:思考A 流 → 落定 → 工具1 done */
+    r.feed(msgStart("assistant"));
+    r.feed(delta("thinking_delta", "步一"));
+    r.feed(msgEnd("assistant", [
+      { type: "thinking", thinking: "步一" },
+      { type: "toolCall", toolCallId: "c1", toolName: "bash" },
+    ]));
+    r.feed(toolExec("tool_execution_start", "c1"));
+    r.feed(toolExec("tool_execution_end", "c1"));
+    /* 步2:思考B 流内 —— 必须排在工具1 之后(因果时间线),旧实现会被顶到工具区之上 */
+    r.feed(msgStart("assistant"));
+    expect(roleSeq(r.feed(delta("thinking_delta", "步二")))).toBe("user,reasoning,tool:done,reasoning");
+    /* 步2 工具2 → 结算:思考A|工具1|思考B|工具2 交错序保持原位 */
+    r.feed(msgEnd("assistant", [
+      { type: "thinking", thinking: "步二" },
+      { type: "toolCall", toolCallId: "c2", toolName: "bash" },
+    ]));
+    r.feed(toolExec("tool_execution_start", "c2"));
+    const settled = r.feed(frame("session_settled"));
+    expect(roleSeq(settled)).toBe("user,reasoning,tool:done,reasoning,tool:running");
+    expect(r.turnStart).toBe(settled.length);
+  });
+
   it("error 工具带病终态;多轮顺序累积不被扰动", () => {
     const r = new PiRpcReducer();
     r.feed(frame("agent_start"));
@@ -173,5 +201,30 @@ describe("PiRpcReducer(轮级工具行 + 流内 think/text)", () => {
     const r2 = new PiRpcReducer();
     r2.seed([{ id: "x", role: "assistant", text: "孤块" }]);
     expect(r2.turnStart).toBe(1);
+  });
+
+  it("keepTail(resume 磁盘历史)= 全量保留含末轮:引擎 18.x resume 零重放帧,剪尾即丢历史(2026-11-05 关闭重开实锤)", () => {
+    const r = new PiRpcReducer();
+    r.seed(
+      [
+        { id: "a", role: "user", text: "一轮" },
+        { id: "b", role: "assistant", text: "答一" },
+      ],
+      true,
+    );
+    expect(r.turnStart).toBe(2);
+    expect(r.currentBlocks().map((b) => b.id)).toEqual(["a", "b"]);
+  });
+
+  it("轮开闭旗:turn_start 起、session_settled 止;种子重置(retry 剪尾判据)", () => {
+    const r = new PiRpcReducer();
+    expect(r.hasOpenTurn()).toBe(false);
+    r.feed(frame("turn_start"));
+    expect(r.hasOpenTurn()).toBe(true);
+    r.feed(frame("session_settled"));
+    expect(r.hasOpenTurn()).toBe(false);
+    r.feed(frame("turn_start"));
+    r.seed([{ id: "a", role: "user", text: "x" }], true);
+    expect(r.hasOpenTurn()).toBe(false);
   });
 });

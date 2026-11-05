@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { STRUCTURED_SESSION_TAB_KIND, structuredSessionTarget } from "./tabs";
+import { STRUCTURED_SESSION_TAB_KIND, structuredSessionTarget } from "@kernel/structuredSessionTabs";
 
 describe("G-02 structuredSessionTarget 身份解析", () => {
   it("structured:profile:cwd → 目标负载(cwd 可含冒号的盘符也不碎:按首个分隔符切)", () => {

@@ -25,7 +25,7 @@ import { StartFailureToast } from "./StartFailureToast";
 import { ExitSessionToast } from "./ExitSessionToast";
 import { SessionRestorePill } from "./SessionRestorePill";
 import { SettingsPersistToast } from "./SettingsPersistToast";
-import { useEditorMaximized, installSessionViewReveal } from "./editorMaximized";
+import { useEditorMaximized, installSessionViewReveal, installEditorMaximizeReveal } from "./editorMaximized";
 import { shellBarToggles, shellLeftEnsureOpen, shellMarketClose, shellMarketToggle } from "./shortcutCommands";
 import { installShortcutDispatcher } from "@kernel/shortcuts";
 import { usePersistedToggle, useScrollbarProbe } from "./shellHooks";
@@ -77,6 +77,9 @@ export function AppShell() {
   /* 遮盖还原:用户显式「去看会话」手势(sessionViewRequested,各入口显式发,
      自动化严禁)即摘最大化——幂等,非最大化 no-op。 */
   useEffect(() => installSessionViewReveal(), []);
+  /* 「打开即沉浸」:用户显式最大化手势(editorMaximizeRequested,新建带渲染会话入口)
+     置编辑区最大化——幂等,非最大化 no-op。 */
+  useEffect(() => installEditorMaximizeReveal(), []);
 
   /* 栏折叠是组件局部状态:经 ref 桥喂给模块级命令(同 TerminalView 的 findRequestRef)。 */
   useEffect(() => {

@@ -8,8 +8,8 @@
  * - 用户块 = 气泡卡(SsUserBlock,活轮/落定同形);正文 = sv-assistant 同形。
  * - 过程区结构 = 落定展开区同形:思考 = 左轨全文段(活跃面题头 pulse 成
  *   「思考中…」),连续工具 = 树形导轨行;段落 = 块,类型切换即分段
- *   (与落定 groupSections 同律)。liveSurface 与块位置解耦(rebuild 布局中
- *   活思考永远排在轮级工具行之前)。
+ *   (与落定 groupSections 同律)。liveSurface 与块位置解耦(渲染层不按
+ *   is-last 判断活跃,轮内第二段思考照常展开)。
  * - 首帧未到 = 「思考中…」shimmer 占位(InitialThinking 同款)。
  */
 import { memo, type ComponentType, type ReactNode } from "react";
@@ -44,7 +44,7 @@ export const LiveTurn = memo(function LiveTurn({ blocks, live, Markdown, thinkin
     if (b.role === "reasoning") {
       flushTools();
       const onAir = live && i === liveThinkIdx;
-      sections.push(<SsThinkingSection key={b.id} block={b} titled live={onAir} />);
+      sections.push(<SsThinkingSection key={b.id} block={b} titled live={onAir} Markdown={Markdown} />);
     } else if (b.role === "tool") {
       toolRun.push(b);
     } else if (b.role === "system") {

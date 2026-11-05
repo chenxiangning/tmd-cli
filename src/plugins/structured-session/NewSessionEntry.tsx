@@ -3,15 +3,15 @@
  * (workspace.newSessionMenu.rendered 挂载;2026-11-05 自原「更多来源」组拆出)。
  * 只列声明 structuredRpc 的引擎(omp/pi),无能力引擎渲染 null(菜单无死入口);
  * 行文案 = 引擎名(组头 + 组说明已承担「带渲染」语义,行内不再重复);
- * 点击打开独立 RPC 交互 tab —— 不共享 PTY 的 cliSessionId,也不伪装成
  * 幕布会话的模式切换。
  */
 
 import { Chats } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
-import { openStructuredSessionTab } from "./tabs";
+import { KernelTopics } from "@kernel/events";
+import { openStructuredSessionTab } from "@kernel/structuredSessionTabs";
 
-export function NewSessionEntry() {
+export function NewSessionEntry({ onClose }: { onClose?: () => void }) {
   useHost(); /* profile 注册面变化(插件启停)重渲 */
   const capable = host.getCliProfiles().filter((p) => p.structuredRpc);
   if (capable.length === 0) return null;
@@ -22,7 +22,13 @@ export function NewSessionEntry() {
           key={p.id}
           type="button"
           className="wsmenu-item"
-          onClick={() => openStructuredSessionTab(p.id)}
+          onClick={() => {
+            openStructuredSessionTab(p.id);
+            /* 打开即沉浸:详情页直接最大化(用户手势事件,幂等 set-true;
+               插件不反向 import 壳,R4 安全)。 */
+            host.events.emit(KernelTopics.editorMaximizeRequested, null);
+            onClose?.();
+          }}
         >
           <span className="wsmenu-item-icon">
             {/* 引擎自有 logo(renderIcon),与 PTY 网格同标识;无自定义图标回落 Chats */}

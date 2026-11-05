@@ -1,64 +1,20 @@
 /**
- * 结构化会话 header —— 引擎切换 / 模型与思考级菜单 + 状态位(极简/中止)。
+ * 结构化会话 header —— 引擎静态标识 / 模型与思考级菜单 + 状态位(极简/中止)。
  * 从 sessionTab 拆出守 300 行铁则;弹层 = 单入口局部菜单(academy 同款外点
  * 收起,无全局浮层管理)。模型动作全走 PiRpcSession 会话级请求:set_model /
  * set_thinking_level 成功后 get_state 回读权威态,onStateRefresh 回写 tab。
- * 引擎切换 = 换 profileId 另开 tab(同 cwd,两引擎 tab 并存,先例 tabs.ts)。
+ * 引擎切换下拉已撤除(2026-11-05 用户裁决):换引擎 = 新建菜单另开 tab,
+ * 路径/上下文占用迁底部工具条(ssToolbar)。
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import { CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { host, useHost } from "@kernel/host";
-import type { PiRpcModel, PiRpcSession, PiRpcState, PiRpcStats } from "../cli-shared/piRpc";
-import { openStructuredSessionTab } from "./tabs";
+import type { PiRpcModel, PiRpcSession, PiRpcState } from "../cli-shared/piRpc";
 import { StatusCluster } from "./ssStatus";
 
-type MenuKind = "engine" | "model" | null;
-
-/** 引擎菜单(声明 structuredRpc 的 profile 列表;当前项禁用)。 */
-function EngineMenu(props: {
-  capable: { id: string; name: string; renderIcon?: (size: string) => React.ReactNode }[];
-  profileId: string;
-  cwd: string;
-  open: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-}) {
-  const { capable, profileId, cwd, open } = props;
-  const cur = capable.find((p) => p.id === profileId);
-  return (
-    <span className="ss-anchor">
-      <button
-        type="button"
-        className="ss-pill-btn ss-engine-btn"
-        aria-expanded={open}
-        title={t("切换引擎(另开 tab,当前会话保留)")}
-        onClick={props.onToggle}
-      >
-        {cur?.renderIcon ? <span className="ss-engine-icon">{cur.renderIcon("0.875rem")}</span> : null}
-        <span className="ss-engine-name">{cur?.name ?? profileId}</span>
-        <CaretDown size="0.7rem" aria-hidden />
-      </button>
-      {open ? (
-        <div className="ss-menu" role="menu" aria-label={t("切换引擎")}>
-          {capable.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={"ss-menu-item" + (p.id === profileId ? " is-cur" : "")}
-              disabled={p.id === profileId}
-              onClick={() => { props.onClose(); openStructuredSessionTab(p.id, cwd); }}
-            >
-              <span className="ss-menu-item-name">{p.name}</span>
-              {p.id === profileId ? <span className="ss-menu-item-sub">{t("当前")}</span> : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </span>
-  );
-}
+type MenuKind = "model" | null;
 
 /** 模型菜单弹层主体(筛选 + 清单 + 思考级 chips + 错误行)。 */
 function ModelMenuBody(props: {
@@ -180,7 +136,7 @@ function ModelMenu(props: {
 
   const label = model ? model.id + (thinkingLevel ? `:${thinkingLevel}` : "") : t("模型");
   return (
-    <span className="ss-anchor ss-anchor-right">
+    <span className="ss-anchor">
       <button
         type="button"
         className="ss-pill-btn ss-model"
@@ -213,27 +169,21 @@ function ModelMenu(props: {
 
 export function SsHeader(props: {
   profileId: string;
-  cwd: string;
   model: PiRpcModel | null;
   thinkingLevel: string | null;
-  stats: PiRpcStats | null;
   sessionId: string | null;
   busy: boolean;
   queued: number;
   ready: boolean;
   minimal: boolean;
   statusText: string | null;
-  /** 启动期 stderr 告警胶囊(可关闭);starting/error 相位由横幅/状态行承接,不传。 */
-  warn: string | null;
   session: PiRpcSession | null;
   actions: ReactNode;
   onStateRefresh: (s: PiRpcState) => void;
   onAbort: () => void;
-  onDismissWarn: () => void;
 }) {
   useHost(); /* profile 注册/变化 */
-  const { profileId, cwd, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, warn, session, stats } = props;
-  const capable = host.getCliProfiles().filter((p) => p.structuredRpc);
+  const { profileId, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, session } = props;
   const [menu, setMenu] = useState<MenuKind>(null);
   const rootRef = useRef<HTMLElement>(null);
 
@@ -249,24 +199,13 @@ export function SsHeader(props: {
 
   return (
     <header className="ss-header" ref={rootRef}>
-      {capable.length > 1 ? (
-        <EngineMenu
-          capable={capable}
-          profileId={profileId}
-          cwd={cwd}
-          open={menu === "engine"}
-          onToggle={() => setMenu(menu === "engine" ? null : "engine")}
-          onClose={() => setMenu(null)}
-        />
-      ) : (
-        <span className="ss-engine-static">
-          {host.getCliProfile(profileId)?.renderIcon
-            ? <span className="ss-engine-icon">{host.getCliProfile(profileId)!.renderIcon!("0.875rem")}</span>
-            : null}
-          <span className="ss-engine-name">{host.getCliProfile(profileId)?.name ?? profileId}</span>
-        </span>
-      )}
-      <span className="ss-cwd">{cwd}</span>
+      {/* 引擎静态标识(下拉切换撤除 2026-11-05;换引擎走新建菜单另开 tab) */}
+      <span className="ss-engine-static">
+        {host.getCliProfile(profileId)?.renderIcon
+          ? <span className="ss-engine-icon">{host.getCliProfile(profileId)!.renderIcon!("0.875rem")}</span>
+          : null}
+        <span className="ss-engine-name">{host.getCliProfile(profileId)?.name ?? profileId}</span>
+      </span>
       {model && ready && session ? (
         <ModelMenu
           session={session}
@@ -283,13 +222,10 @@ export function SsHeader(props: {
       {props.actions}
       <StatusCluster
         sessionId={sessionId}
-        stats={stats}
         minimal={minimal}
         busy={busy}
         queued={queued}
-        warn={warn}
         statusText={statusText}
-        onDismissWarn={props.onDismissWarn}
         onAbort={props.onAbort}
       />
     </header>

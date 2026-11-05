@@ -1,0 +1,77 @@
+/* 新建会话菜单 · 分块结构(2026-11-06 视觉重构) —— 自 workspace-menu.css 拆出
+   (文件规模铁则;wsmenu 共享基底类仍在原档,本档只含 is-sectioned 分块体系)。
+   每个信息域 = 独立小节块(微升底 + 发丝边框,与弹窗底色明确分块);
+   is-sectioned 仅本菜单使用,右键菜单等其他 .wsmenu 消费方不受影响。 */
+
+.wsmenu.is-sectioned {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+/* 弹窗头:标题 + 右侧工作区名(faint,操作上下文确认) */
+.wsmenu-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 0;
+}
+
+.wsmenu-head-icon {
+  color: var(--tmd-accent);
+  flex: none;
+}
+
+.wsmenu-head-title {
+  font-size: var(--tmd-font-md);
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.wsmenu-head-ws {
+  margin-left: auto;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tmd-font-ui);
+  color: var(--text-faint);
+}
+
+/* 小节块:分块容器(升底约 3.5% fg 叠加,发丝边框,圆角内边距) */
+.wsmenu-section {
+  background: color-mix(in srgb, var(--tmd-fg) 3.5%, transparent);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--tmd-radius-md);
+  padding: 4px;
+}
+
+/* 节内行圆角收小一档(块已有圆角,行贴边更整) */
+.wsmenu.is-sectioned .wsmenu-item {
+  border-radius: var(--tmd-radius-sm);
+}
+
+/* 节头:图标 + 标题(分块视觉锚点;图标 faint,标题 muted 600) */
+.wsmenu-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 2px;
+  color: var(--text-faint);
+}
+
+.wsmenu-section-title {
+  font-size: var(--tmd-font-ui);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+/* 节内副文本(原 group-title 下的 note:说明/提示,收敛进块内) */
+.wsmenu-section-desc {
+  padding: 0 6px 4px;
+  font-size: var(--tmd-font-ui);
+  line-height: 1.5;
+  color: var(--tmd-fg-subtle);
+}
