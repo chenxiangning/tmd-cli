@@ -3,13 +3,14 @@
 .ss-root { display: flex; flex-direction: column; height: 100%; background: var(--tmd-bg-base); color: var(--tmd-fg); }
 .ss-header { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px solid var(--tmd-border); flex: none; }
 /* header 弹层与胶囊钮(ssHeader;局部菜单 = academy 同款外点收起,无全局浮层) */
+/* 弹层锚点:inline-flex 相对定位;弹层一律左对齐(right:0 会让宽弹层向左伸出锚点、
+ * 越出面板左界被裁,2026-11-05 实证),宽度由 max-content 决定,max-width 兜底。 */
 .ss-anchor { position: relative; display: inline-flex; align-items: center; }
 .ss-pill-btn { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border: 1px solid var(--tmd-border); border-radius: 999px; background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-md); cursor: pointer; }
 .ss-pill-btn:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
 .ss-pill-btn.ss-model { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); }
 .ss-engine-static { display: inline-flex; align-items: center; gap: 4px; }
 .ss-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; display: flex; flex-direction: column; gap: 2px; width: max-content; min-width: 200px; max-width: min(420px, calc(100vw - 32px)); max-height: 340px; padding: 6px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); overflow: hidden auto; }
-.ss-anchor-right .ss-menu { left: auto; right: 0; }
 .ss-menu-wide { min-width: 300px; }
 .ss-menu-filter { margin-bottom: 4px; padding: 4px 8px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-base); color: var(--tmd-fg); font-size: var(--tmd-font-ui); }
 .ss-menu-filter:focus { outline: none; border-color: color-mix(in srgb, var(--tmd-accent) 55%, transparent); }

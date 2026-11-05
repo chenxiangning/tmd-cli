@@ -136,7 +136,7 @@ function ModelMenu(props: {
 
   const label = model ? model.id + (thinkingLevel ? `:${thinkingLevel}` : "") : t("模型");
   return (
-    <span className="ss-anchor ss-anchor-right">
+    <span className="ss-anchor">
       <button
         type="button"
         className="ss-pill-btn ss-model"
