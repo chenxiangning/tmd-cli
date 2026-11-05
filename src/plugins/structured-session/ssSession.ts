@@ -1,7 +1,7 @@
 /**
- * 结构化会话生命周期 hook(从 sessionTab 拆出守 300 行铁则)——
- * PiRpcSession 全编排:spawn/握手/重试、转录 120ms 合帧、审批回路、
- * busy 排队(follow_up 引擎结算自动起跑)、轮末 OS 通知、stderr 降噪。
+ * 结构化会话生命周期 hook(守 300 行铁则)—— PiRpcSession 全编排:
+ * spawn/握手/重试(含 boot 收养)、转录 120ms 合帧、审批回路、follow_up 排队、
+ * 轮末 OS 通知、看门狗(ssWatchdog)、stderr 降噪。
  */
 import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { errTextDisplay } from "@kernel/errText";
@@ -13,6 +13,7 @@ import { sendOsNotification } from "@kernel/ipc";
 import { isSsMuted, noteLastSsSession, openStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import { adoptDiskSeed } from "./adoptBoot";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
+import { useTurnWatchdog } from "./ssWatchdog";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
 import { StructuredTurnEvidence } from "./evidence";
 import { useTurnLive } from "./ssTurnLive";
@@ -38,8 +39,7 @@ export type SsSessionState = {
 export function useSsSession(payload: StructuredSessionPayload, ledgerId: string): SsSessionState {
   const [phase, setPhase] = useState<Phase>("starting");
   const [statusText, setStatusText] = useState<string | null>(null);
-  /* 启动期 stderr 尾行(如扩展包加载告警)持久化为可关闭 warning 胶囊:
-   * ready 后 statusText 清空,告警不丢——用户看完可点 × 忽略,重试时重置。 */
+  /* 启动期 stderr 尾行持久化为可关闭 warn 胶囊(ready 后 statusText 清空不丢)。 */
   const [warn, setWarn] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<CliTranscriptBlock[]>([]);
   const [turnStart, setTurnStart] = useState(0);
@@ -64,12 +64,10 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   /* 贴底跟随标记(busy 流式期上翻停跟);scroll 副作用在组件侧读。 */
   const stickRef = useRef(true);
   /* stderr 尾行(ref 态)+ phase 镜像:onError 降噪闸(ready 期 stderr 不进状态行)。 */
-  const phaseRef = useRef<Phase>("starting");
-  const stderrTailRef = useRef<string | null>(null);
-  /* 用户在途轮计数:send/followUp 记账,结算销账 —— 只有用户发起的轮次结束才发 OS 通知。 */
+  const phaseRef = useRef<Phase>("starting"); const stderrTailRef = useRef<string | null>(null);
+  /* 用户在途轮计数:send/followUp 记账结算销账,只有用户轮结束才发 OS 通知。 */
   const promptDebtRef = useRef(0);
-  /* token 级 delta 30-80 事件/s:攒 120ms 尾沿合帧再进 React(流式观感无差,
-   * 相位级 useMemo 与活块 markdown 重解析降频一个量级)。surface 随末帧捎带。 */
+  /* token delta 30-80 事件/s:攒 120ms 尾沿合帧再进 React(重解析降一个量级)。 */
   const pendingBlocksRef = useRef<[CliTranscriptBlock[], number, PiLiveSurface] | null>(null);
   const flushTimerRef = useRef<number | null>(null);
   const [liveSurface, setLiveSurface] = useState<PiLiveSurface>(null);
@@ -90,8 +88,9 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   /* 生命周期:mount 起 RPC 子进程,unmount(关 tab)kill 收割。StrictMode 双跑
    * 由 startedRef 挡;失败先 kill 清残留子进程再进 error 态,重试按钮重跑启动。 */
   const startedRef = useRef(false);
-  const resumeRef = useRef<string | null>(null);
-  const seedRef = useRef<CliTranscriptBlock[] | null>(null);
+  /* 轮次看门狗(批次 6,ssWatchdog):busy 超 5min 无帧 → 一次性僵死 warn。 */
+  const { stamp } = useTurnWatchdog(busy, () => t("引擎超过 5 分钟无输出,可能已僵死;可中止或重试"), setWarn);
+  const resumeRef = useRef<string | null>(null); const seedRef = useRef<CliTranscriptBlock[] | null>(null);
   const startSession = () => {
     const rpc = host.getCliProfile(payload.profileId)?.structuredRpc;
     if (startedRef.current || !rpc) return;
@@ -106,6 +105,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       payload.cwd,
       {
         onBlocks: (next, ts, surface) => {
+          stamp();
           pendingBlocksRef.current = [next, ts, surface];
           if (flushTimerRef.current == null) {
             flushTimerRef.current = window.setTimeout(() => {
@@ -141,8 +141,11 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         },
         onToolExecution: (rec) => evidence.toolExecution(rec),
         onConfirm: setConfirm,
+        onDroppedFrame: () => setWarn((w) => w ?? t("RPC 流有帧被截断丢弃,转录可能缺块")),
         onExit: () => {
           if (sessionRef.current === self) {
+            /* 存证封口(批次 6):进程退出 = 轮次永不再结算,悬锚就此 seal。 */
+            void evidence.settled();
             flushBlocks();
             setConfirm(null);
             setBusy(false);
@@ -152,8 +155,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
           }
         },
         onError: (msg) => {
-          /* stderr 降噪:只记尾行;ready 态不进状态行(展示窗口 = 启动/失败/终态);
-           * 启动期首条 stderr 另存 warn 胶囊(ready 后 statusText 清空,告警不丢)。 */
+          /* stderr 降噪:只记尾行;ready 态不进状态行,启动期首条另存 warn 胶囊。 */
           stderrTailRef.current = msg;
           if (phaseRef.current !== "ready") {
             setStatusText(msg);
@@ -177,14 +179,12 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
         setStatusText(null);
         setPhase("ready");
-        /* adopt/resume(重开上次)后置种子:磁盘转录补历史(引擎不重发历史帧;
-         * 读不到静默空幕布,轮次续跑不受影响)。 */
+        /* adopt/resume 后置种子:磁盘转录补历史(读不到静默空幕布,续跑不受影响)。 */
         if ((payload.adoptStreamId || payload.resumeSessionId) && state?.sessionId) void adoptDiskSeed(session, payload, state.sessionId);
         if (state?.sessionId) noteLastSsSession(payload.profileId, payload.cwd, state.sessionId);
       })
       .catch((e: unknown) => {
-        /* 启动失败:先收割残留再进可重试 error 态;秒退时 stderr 尾行(真因)
-         * 优先于笼统「rpc 进程已退出」。 */
+        /* 启动失败:先收割残留再进 error 态;秒退时 stderr 尾行(真因)优先。 */
         session.kill();
         if (sessionRef.current === session) {
           sessionRef.current = null;
@@ -200,7 +200,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     seedRef.current = canResume ? [...blocks] : null;
     sessionRef.current?.kill();
     sessionRef.current = null;
-    evidence.reset();
+    evidence.reset(canResume ? sessionId : undefined);
     turnLive.reset();
     startedRef.current = false;
     if (!canResume) {

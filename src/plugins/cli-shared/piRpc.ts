@@ -25,6 +25,8 @@ export type { PiLiveSurface } from "./piRpcReducer";
 const REQUEST_TIMEOUT_MS = 30_000;
 /** prompt 超时:18.6 抓包实证应答为即时 ack(非轮末),与通用闸同值即可。 */
 const PROMPT_TIMEOUT_MS = 30_000;
+/** 握手超时(get_state):冷启动扩展包加载 5-6s 实证,30s 一刀切逼近上限 → 分层 60s(批次 6)。 */
+const START_TIMEOUT_MS = 60_000;
 
 export class PiRpcSession {
   private id: string | null = null;
@@ -84,12 +86,13 @@ export class PiRpcSession {
       await ipc.onProcStream(id, "exit", (code) => this.onExit(code as number | null)),
     );
     /* 握手:get_state 即就绪探测(ready 帧只是噪声起点,state 到 = 协议活)。 */
-    return this.getState();
+    return this.getState(START_TIMEOUT_MS);
   }
 
-  /** get_state 轻量刷新(set_model/set_thinking_level 后回读权威态)。 */
-  async getState(): Promise<PiRpcState | null> {
-    const d = (await this.request({ type: "get_state" })) as Record<string, unknown> | null;
+  /** get_state 轻量刷新(set_model/set_thinking_level 后回读权威态);握手路径
+   *  经 timeoutMs 分层(START_TIMEOUT_MS,冷启动余量)。 */
+  async getState(timeoutMs = REQUEST_TIMEOUT_MS): Promise<PiRpcState | null> {
+    const d = (await this.request({ type: "get_state" }, timeoutMs)) as Record<string, unknown> | null;
     return d ? parseState(d) : null;
   }
 
@@ -193,6 +196,8 @@ export class PiRpcSession {
     this.pending.clear();
   }
 
+  private droppedNotified = false;
+
   private onLine(payload: unknown) {
     const line = String(payload);
     if (!line.startsWith("{")) return;
@@ -200,7 +205,13 @@ export class PiRpcSession {
     try {
       rec = JSON.parse(line) as Record<string, unknown>;
     } catch {
-      return; // 半行/非 JSON(理论上 proc_stream 按行切,防御)
+      /* 帧丢弃观测(批次 6):半行/超限截断行(截断标记致 parse 失败)此前
+       * 无声丢;首次丢弃即回告消费方(一次性,聚合无增益)。 */
+      if (!this.droppedNotified) {
+        this.droppedNotified = true;
+        this.handlers.onDroppedFrame?.();
+      }
+      return;
     }
     switch (rec.type) {
       case "response": {

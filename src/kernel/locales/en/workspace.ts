@@ -190,5 +190,7 @@ export const MESSAGES = {
   "跳转到会话": "Jump to session",
   "静音通知": "Mute notifications",
   "取消静音通知": "Unmute notifications",
+  "RPC 流有帧被截断丢弃,转录可能缺块": "RPC stream dropped a truncated frame; transcript may miss blocks",
+  "引擎超过 5 分钟无输出,可能已僵死;可中止或重试": "No engine output for 5 min — possibly stalled; abort or retry",
 
 } as Record<string, string>;

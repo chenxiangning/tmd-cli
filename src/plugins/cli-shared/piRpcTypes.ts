@@ -24,6 +24,8 @@ export interface PiRpcState {
   model?: PiRpcModel;
   thinkingLevel?: string;
   queuedMessageCount?: number;
+  /** 引擎版本(get_state 若带;协议层留位,UI 消费待字段名实证后接)。 */
+  version?: string;
 }
 
 /** get_session_stats 提炼的会话用量(tokens.total + contextUsage.percent)。 */
@@ -59,6 +61,8 @@ export interface PiRpcHandlers {
   /** 工具执行原始帧(structured-session 成功写工具存证;展示仍走 reducer)。 */
   onToolExecution?: (rec: Record<string, unknown>) => void;
   /** 审批请求;respond 由消费方 UI 调用(confirmId 传入)。 */
+  /** 协议帧被丢弃(半行/超限截断;首次即告,一次性)。 */
+  onDroppedFrame?: () => void;
   onConfirm: (req: PiRpcConfirm) => void;
   /** 子进程退出(code null = 被杀);此后会话终态。 */
   onExit: (code: number | null) => void;
@@ -75,5 +79,6 @@ export function parseState(d: Record<string, unknown>): PiRpcState {
       : undefined,
     thinkingLevel: typeof d.thinkingLevel === "string" ? d.thinkingLevel : undefined,
     queuedMessageCount: typeof d.queuedMessageCount === "number" ? d.queuedMessageCount : undefined,
+    version: typeof d.version === "string" ? d.version : undefined,
   };
 }

@@ -87,11 +87,14 @@ export class StructuredTurnEvidence {
     this.enqueue(() => this.deps.record(this.cwd, sessionId, this.ledgerId, tool.path));
   }
 
-  /** 换进程前丢弃未发送队列与在途工具;已落账 Promise 链继续结算。 */
-  reset(): void {
-    this.activeSessionId = null;
+  /** 换进程前丢弃未发送队列与在途工具;已落账 Promise 链继续结算。
+   *  keepSessionId:--resume 续跑同一引擎会话时保身份与在途工具集 ——
+   *  重放在途轮的 tool_execution_end(可能无配对 start)仍落账
+   *  (批次 6 存证封口,修重放盲区)。 */
+  reset(keepSessionId?: string): void {
+    this.activeSessionId = keepSessionId ?? null;
     this.queued.length = 0;
-    this.tools.clear();
+    if (!keepSessionId) this.tools.clear();
   }
 
   settled(): Promise<void> {
