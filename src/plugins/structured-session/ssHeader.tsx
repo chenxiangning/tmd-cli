@@ -177,16 +177,13 @@ export function SsHeader(props: {
   ready: boolean;
   minimal: boolean;
   statusText: string | null;
-  /** 告警胶囊组(帧丢弃/看门狗/启动 stderr;可逐槽关闭)。 */
-  warns: string[];
   session: PiRpcSession | null;
   actions: ReactNode;
   onStateRefresh: (s: PiRpcState) => void;
   onAbort: () => void;
-  onDismissWarn: (index: number) => void;
 }) {
   useHost(); /* profile 注册/变化 */
-  const { profileId, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, warns, session } = props;
+  const { profileId, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, session } = props;
   const [menu, setMenu] = useState<MenuKind>(null);
   const rootRef = useRef<HTMLElement>(null);
 
@@ -228,9 +225,7 @@ export function SsHeader(props: {
         minimal={minimal}
         busy={busy}
         queued={queued}
-        warns={warns}
         statusText={statusText}
-        onDismissWarn={props.onDismissWarn}
         onAbort={props.onAbort}
       />
     </header>

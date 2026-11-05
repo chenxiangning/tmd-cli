@@ -7,7 +7,7 @@
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  */
 import { lazy, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown } from "@phosphor-icons/react";
+import { ArrowDown, Warning, X } from "@phosphor-icons/react";
 import { getActiveTabId, updateTab, type EditorTab } from "@kernel/tabs";
 import { getStructuredSessionRows, noteStructuredSessionRow, readSsTitleOverride } from "@kernel/structuredSessionTabs";
 import { host, useHost } from "@kernel/host";
@@ -54,6 +54,31 @@ function PhaseBanners(props: { phase: Phase; statusText: string | null; sessionI
     );
   }
   return null;
+}
+
+/* 幕布内告警条(2026-11-05 自 header 迁入):启动 stderr/帧丢弃/看门狗各占一槽,
+ * 整行琥珀条随幕布列宽,文本换行不再横向撑破布局;逐槽可关。 */
+function SsWarnList(props: { warns: string[]; widthPct: number; onDismiss: (index: number) => void }) {
+  if (props.warns.length === 0) return null;
+  return (
+    <div className="ss-warnlist" role="alert" style={{ width: `${props.widthPct}%` }}>
+      {props.warns.map((w, i) => (
+        <span className="ss-warn" key={w} title={w}>
+          <Warning size="0.75rem" weight="fill" aria-hidden />
+          <span className="ss-warn-text">{w}</span>
+          <button
+            type="button"
+            className="ss-warn-x"
+            title={t("忽略")}
+            aria-label={t("忽略")}
+            onClick={() => props.onDismiss(i)}
+          >
+            <X size="0.6875rem" aria-hidden />
+          </button>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
@@ -138,12 +163,10 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         ready={ss.phase === "ready"}
         minimal={minimal}
         statusText={ss.statusText}
-        warns={ss.phase === "ready" || ss.phase === "exited" ? ss.warns : []}
         session={ss.sessionRef.current}
         actions={<SsActions ss={ss} payload={payload} tab={tab} />}
         onStateRefresh={(s) => ss.onStateRefresh(s)}
         onAbort={() => void ss.sessionRef.current?.abort()}
-        onDismissWarn={ss.dismissWarn}
       />
       <div
         className="ss-scroll"
@@ -163,6 +186,8 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
           resumable={!!profile.structuredRpc.resumeArgs && !!ss.sessionId}
           onRetry={ss.retry}
         />
+        {/* 告警在幕布内展示(ready/退出态,与原 header 门控一致) */}
+        <SsWarnList warns={ss.phase === "ready" || ss.phase === "exited" ? ss.warns : []} widthPct={canvas.widthPct} onDismiss={ss.dismissWarn} />
 
         {ss.blocks.length > 0 ? (
           <>

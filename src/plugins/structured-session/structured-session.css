@@ -44,10 +44,13 @@
 .ss-minimal:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
 .ss-minimal.is-on { color: var(--tmd-accent); border-color: color-mix(in srgb, var(--tmd-accent) 45%, transparent); background: var(--tmd-accent-soft); }
 .ss-status { margin-left: 8px; font-size: var(--tmd-font-xs); color: var(--tmd-warn); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 30%; }
-/* 启动期 stderr 告警胶囊:琥珀描边 + 可关闭;文本截断,title 给全量。 */
-.ss-warn { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; max-width: 32%; padding: 1px 4px 1px 8px; border: 1px solid color-mix(in srgb, var(--tmd-warn) 45%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--tmd-warn) 10%, transparent); color: var(--tmd-warn); font-size: var(--tmd-font-xs); }
-.ss-warn-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ss-warn-x { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: none; border: none; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; opacity: 0.7; }
+/* 幕布内告警条(2026-11-05 自 header 胶囊迁入):琥珀描边整行 + 可关闭;宽度随
+   幕布列(内联 style),文本换行不再横向撑破布局。 */
+.ss-warnlist { display: flex; flex-direction: column; gap: 6px; margin: 0 auto; padding: 10px 16px 0; }
+.ss-warn { display: flex; align-items: flex-start; gap: 6px; padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--tmd-warn) 45%, transparent); border-radius: var(--tmd-radius-sm); background: color-mix(in srgb, var(--tmd-warn) 10%, transparent); color: var(--tmd-warn); font-size: var(--tmd-font-xs); line-height: 1.5; }
+.ss-warn > svg { flex: none; margin-top: 2px; }
+.ss-warn-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ss-warn-x { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: none; margin-top: 1px; border: none; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; opacity: 0.7; }
 .ss-warn-x:hover { opacity: 1; background: color-mix(in srgb, var(--tmd-warn) 20%, transparent); }
 .ss-abort { margin-left: 8px; height: 22px; padding: 0 10px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-sm); background: var(--tmd-bg-elevated); color: var(--tmd-fg-muted); font-size: var(--tmd-font-ui); cursor: pointer; }
 .ss-abort:hover { background: var(--tmd-bg-hover); color: var(--tmd-fg); }
