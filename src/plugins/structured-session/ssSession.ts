@@ -11,7 +11,7 @@ import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { sendOsNotification } from "@kernel/ipc";
-import { openStructuredSessionTab, type StructuredSessionPayload } from "./tabs";
+import { openStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
 import { StructuredTurnEvidence } from "./evidence";
@@ -22,7 +22,7 @@ export type Phase = "starting" | "ready" | "exited" | "error";
 /** useSsSession 返回面(StructuredSessionTab 与子组件的共享契约)。 */
 export type SsSessionState = {
   phase: Phase; statusText: string | null; warn: string | null; blocks: CliTranscriptBlock[]; turnStart: number;
-  busy: boolean; elapsed: number; confirm: PiRpcConfirm | null;
+  busy: boolean; busySince: number | null; elapsed: number; confirm: PiRpcConfirm | null;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
   /** 流内活跃输出面(活思考/正文据此展开;与块位置无关,见 PiRpcReducer.liveSurface)。 */
@@ -288,7 +288,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   const dismissWarn = () => setWarn(null);
 
   return {
-    phase, statusText, warn, blocks, turnStart, busy, elapsed, confirm,
+    phase, statusText, warn, blocks, turnStart, busy, busySince, elapsed, confirm,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
     liveSurface, turnLive: turnLive.live,
     sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,

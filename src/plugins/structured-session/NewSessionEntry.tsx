@@ -9,7 +9,7 @@
 
 import { Chats } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
-import { openStructuredSessionTab } from "./tabs";
+import { openStructuredSessionTab } from "@kernel/structuredSessionTabs";
 
 export function NewSessionEntry({ onClose }: { onClose?: () => void }) {
   useHost(); /* profile 注册面变化(插件启停)重渲 */

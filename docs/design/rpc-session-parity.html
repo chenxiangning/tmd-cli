@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPC 会话体系对齐 · 客户端 UI 示例稿(决策 D1-D6 全部按推荐项落形)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #0b0d12; color: #e6e8ee; padding: 40px 32px 64px;
+  }
+  .page-head { max-width: 1600px; margin: 0 auto 28px; }
+  .page-head h1 { font-size: 24px; font-weight: 700; letter-spacing: .02em; }
+  .page-head p { margin-top: 8px; font-size: 13px; color: #8b90a0; line-height: 1.7; }
+  .page-head code { background: #171a22; border: 1px solid #262b38; border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+
+  .stage {
+    max-width: 1600px; margin: 0 auto;
+    display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start;
+  }
+
+  /* ============ 左栏 ============ */
+  .sidebar {
+    background: linear-gradient(180deg, #14161d 0%, #101218 100%);
+    border: 1px solid #232836; border-radius: 14px; overflow: hidden;
+    font-size: 12.5px; user-select: none;
+  }
+  .ws-head { padding: 12px 14px 8px; font-size: 13px; font-weight: 650; color: #f2f3f7; display: flex; justify-content: space-between; align-items: center; }
+  .ws-head .hint { font-size: 11px; color: #6b7280; font-weight: 400; }
+  .group-label { padding: 12px 14px 4px; font-size: 11px; font-weight: 700; letter-spacing: .1em; color: #6b7280; display: flex; align-items: center; gap: 6px; }
+  .group-label .dot-sep { flex: 1; height: 1px; background: #232836; }
+
+  .sess-row {
+    display: flex; align-items: center; gap: 8px; padding: 7px 14px 7px 22px;
+    cursor: pointer; position: relative; color: #c3c8d4;
+  }
+  .sess-row:hover { background: #1a1e28; }
+  .sess-row.active { background: #1d2331; box-shadow: inset 2px 0 0 #4f7cff; color: #f2f3f7; }
+  .sess-row .glyph { width: 15px; text-align: center; color: #7c86a0; flex: none; font-size: 12px; }
+  .sess-row .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sess-row .timer { font-size: 10.5px; color: #6b7280; font-variant-numeric: tabular-nums; flex: none; }
+  .sess-row .unread {
+    flex: none; min-width: 16px; height: 16px; border-radius: 8px; padding: 0 5px;
+    background: #3b82f6; color: #fff; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sess-row .row-close {
+    flex: none; width: 16px; height: 16px; border-radius: 4px; border: none; cursor: pointer;
+    background: transparent; color: #6b7280; font-size: 12px; line-height: 1; display: none;
+  }
+  .sess-row:hover .row-close { display: block; }
+  .sess-row .row-close:hover { background: #2a3040; color: #e6e8ee; }
+
+  /* 呼吸灯四态 */
+  .lamp { flex: none; width: 7px; height: 7px; border-radius: 50%; background: #3a4152; }
+  .lamp.run   { background: #22c55e; box-shadow: 0 0 6px #22c55e88; animation: breathe 2s ease-in-out infinite; }
+  .lamp.unread{ background: #3b82f6; box-shadow: 0 0 6px #3b82f688; animation: breathe 2s ease-in-out infinite; }
+  .lamp.ask   { background: #eab308; box-shadow: 0 0 7px #eab308aa; animation: breathe 1s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .45; } }
+
+  /* RPC 独立分区(D1-a 落形):与 PTY 分组之间有分隔,行首为渲染图标而非终端图标 */
+  .rpc-section { border-top: 1px solid #232836; margin-top: 6px; padding-bottom: 6px; }
+  .rpc-section .group-label { color: #7c9bff; }
+  .rpc-section .sess-row { padding-left: 22px; }
+  .rpc-section .sess-row.active { box-shadow: inset 2px 0 0 #7c9bff; }
+  .rpc-row-sub { font-size: 10.5px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ============ 中央区 ============ */
+  .main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .tabstrip {
+    display: flex; gap: 4px; background: #12151d; border: 1px solid #232836;
+    border-radius: 12px; padding: 6px; overflow-x: auto;
+  }
+  .tab {
+    padding: 6px 14px; border-radius: 8px; font-size: 12px; color: #9aa0b0;
+    cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 6px;
+    border: 1px solid transparent;
+  }
+  .tab:hover { background: #1a1e28; }
+  .tab.active { background: #1d2331; color: #f2f3f7; border-color: #2b3242; }
+  .tab.pty.active { box-shadow: inset 0 -2px 0 #4f7cff; }
+  .tab.rpc.active { box-shadow: inset 0 -2px 0 #7c9bff; }
+  .tab .kind-badge { font-size: 9.5px; padding: 1px 6px; border-radius: 99px; border: 1px solid; }
+  .kind-pty { color: #7dd3a8; border-color: #22503a; background: #14301f22; }
+  .kind-rpc { color: #7c9bff; border-color: #2b3a6e; background: #16204a22; }
+
+  .canvas {
+    background: #10131a; border: 1px solid #232836; border-radius: 14px;
+    min-height: 380px; position: relative; overflow: hidden;
+  }
+  .canvas-empty {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px; color: #4b5263; font-size: 13px;
+  }
+  /* 幕布(PTY 画布)与 RPC 中央 tab 是两个世界:点击左栏不同分区的行,激活互斥(R-ISO2) */
+  .canvas-pane { position: absolute; inset: 0; display: none; padding: 18px; }
+  .canvas-pane.show { display: block; }
+  .pane-title { font-size: 12px; color: #6b7280; margin-bottom: 12px; letter-spacing: .08em; }
+  .pty-bubble { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: #9fd6b1; background: #0c0f14; border: 1px solid #1e2430; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; white-space: pre-wrap; }
+  .rpc-block { background: #141824; border: 1px solid #242b3d; border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px; line-height: 1.7; }
+  .rpc-block.user { border-radius: 14px 14px 14px 4px; background: #1a2036; width: fit-content; max-width: 72%; }
+  .rpc-block.tool { font-family: "SF Mono", Menlo, monospace; font-size: 11.5px; color: #8b90a0; }
+  .rpc-fold { font-size: 11.5px; color: #6b7280; background: #171c28; border: 1px solid #232a3a; border-radius: 8px; padding: 6px 12px; margin-bottom: 10px; cursor: pointer; }
+  .working-bar { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #9aa0b0; padding: 8px 14px; border-top: 1px solid #232836; background: #12151d; position: absolute; left: 0; right: 0; bottom: 0; }
+  .working-bar .spin { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #22c55e55; border-top-color: #22c55e; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 恢复 toast(批次 3 重接) */
+  .toast {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    background: #171c28; border: 1px solid #2b3a55;
+    border-radius: 10px; padding: 8px 16px; font-size: 12px; color: #c3c8d4;
+    display: flex; align-items: center; gap: 8px; box-shadow: 0 8px 24px #0008;
+    z-index: 5;
+  }
+  .toast.ok { border-color: #22503a; }
+
+  /* 右键菜单(批次 5 最小集 + 重命名/静音) */
+  .ctx {
+    position: fixed; z-index: 50; min-width: 168px; background: #171b26;
+    border: 1px solid #2a3040; border-radius: 10px; padding: 5px;
+    box-shadow: 0 10px 30px #000a; display: none; font-size: 12.5px;
+  }
+  .ctx.show { display: block; }
+  .ctx button {
+    display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 10px;
+    background: none; border: none; color: #c3c8d4; border-radius: 6px; cursor: pointer; text-align: left; font-size: 12.5px;
+  }
+  .ctx button:hover { background: #232a3a; }
+  .ctx .danger { color: #f0887a; }
+  .ctx hr { border: none; border-top: 1px solid #232836; margin: 4px 2px; }
+  .mute-check { margin-left: auto; font-size: 11px; color: #6b7280; }
+
+  /* 新建菜单(入口三分区维持 R-ISO1) */
+  .menu-card { background: #12151d; border: 1px solid #232836; border-radius: 14px; padding: 14px; }
+  .menu-card h3 { font-size: 12px; font-weight: 700; letter-spacing: .08em; color: #6b7280; margin: 10px 0 8px; }
+  .menu-card h3:first-child { margin-top: 0; }
+  .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .menu-item {
+    border: 1px solid #232a3a; background: #151a26; border-radius: 10px; padding: 10px 12px;
+    font-size: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 3px;
+  }
+  .menu-item:hover { border-color: #3b466e; background: #1a2136; }
+  .menu-item .mi-title { color: #e6e8ee; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+  .menu-item .mi-sub { color: #6b7280; font-size: 10.5px; }
+  .menu-item.resume { border-style: dashed; border-color: #3b466e; }
+  .menu-item.disabled { opacity: .38; pointer-events: none; }
+  .mi-badge { font-size: 9px; padding: 1px 6px; border-radius: 99px; background: #16204a; color: #7c9bff; border: 1px solid #2b3a6e; }
+
+  /* 状态机演示控制台 */
+  .console { max-width: 1600px; margin: 22px auto 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #12151d; border: 1px solid #232836; border-radius: 12px; padding: 12px 16px; font-size: 12px; color: #9aa0b0; }
+  .console b { color: #e6e8ee; font-weight: 650; }
+  .btn {
+    background: #1d2331; color: #c3c8d4; border: 1px solid #2a3040; border-radius: 8px;
+    padding: 6px 14px; font-size: 12px; cursor: pointer;
+  }
+  .btn:hover { background: #232a3a; }
+  .btn.primary { background: #243a7a; border-color: #3b55b5; color: #fff; }
+  .legend { display: flex; gap: 14px; margin-left: auto; flex-wrap: wrap; }
+  .legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #8b90a0; }
+
+  /* 决策表 */
+  .cards { max-width: 1600px; margin: 30px auto 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: #12151d; border: 1px solid #232836; border-radius: 12px; padding: 14px 16px; font-size: 12.5px; line-height: 1.75; }
+  .card h4 { font-size: 13px; color: #f2f3f7; margin-bottom: 6px; display: flex; gap: 8px; align-items: center; }
+  .card .adopt { font-size: 10px; padding: 1px 8px; border-radius: 99px; background: #14301f; color: #7dd3a8; border: 1px solid #22503a; white-space: nowrap; }
+  .card .alt { color: #6b7280; text-decoration: line-through; }
+  .card .where { margin-top: 6px; font-size: 11.5px; color: #7c9bff; }
+  .card.warn { border-color: #4a3a22; }
+  .card.warn h4 .adopt { background: #3a2e14; color: #eab308; border-color: #4a3a22; }
+
+  table.rules { max-width: 1600px; margin: 26px auto 0; width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .rules th, .rules td { border: 1px solid #232836; padding: 9px 14px; text-align: left; line-height: 1.6; }
+  .rules th { background: #141824; color: #9aa0b0; font-weight: 650; letter-spacing: .05em; }
+  .rules td { background: #10131a; color: #c3c8d4; }
+  .rules .ok { color: #7dd3a8; }
+  .rules .fix { color: #eab308; }
+  .section-title { max-width: 1600px; margin: 34px auto 12px; font-size: 15px; font-weight: 700; color: #f2f3f7; display: flex; align-items: center; gap: 10px; }
+  .section-title small { font-size: 11px; color: #6b7280; font-weight: 400; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>RPC 会话体系对齐 · 客户端 UI 示例稿</h1>
+  <p>对应规划:<code>docs/brainstorm/2026-11-05-rpc-session-parity-plan.md</code>(差距 G1-G9 / 红线 R-PTY0 / 决策 D1-D6 / 六批次)。
+  本稿把 D1-D6 的<b style="color:#7dd3a8">推荐项</b>逐一落成可见形态;标注 <span style="color:#eab308">⚠</span> 的卡片是评审发现的前提修正(实现前必须先于批次 3 处理)。
+  交互可点:左栏行点击 / 右键菜单 / 下方控制台切换运行态。</p>
+</div>
+
+<div class="stage">
+  <!-- ================= 左栏 ================= -->
+  <aside class="sidebar">
+    <div class="ws-head">tmd-cli <span class="hint">workspace</span></div>
+
+    <!-- PTY 活会话(既有,零改动) -->
+    <div class="group-label">终端会话<span class="dot-sep"></span></div>
+    <div class="sess-row pty-row" data-pane="pty1">
+      <span class="lamp run"></span><span class="glyph">›</span>
+      <span class="title">claude · tmd-cli</span><span class="timer">4m12s</span>
+      <button class="row-close">×</button>
+    </div>
+    <div class="sess-row pty-row" data-pane="pty2">
+      <span class="lamp unread"></span><span class="glyph">›</span>
+      <span class="title">pi · dotfiles</span><span class="unread">3</span>
+      <button class="row-close">×</button>
+    </div>
+    <div class="sess-row pty-row" data-pane="pty3">
+      <span class="lamp"></span><span class="glyph">›</span>
+      <span class="title">omp · blog</span>
+      <button class="row-close">×</button>
+    </div>
+
+    <!-- RPC 独立分区:D1-a 落形。与 PTY 分组物理分隔,行首渲染图标,守望语义独立 -->
+    <div class="rpc-section" id="rpcSection">
+      <div class="group-label">带渲染的会话<span class="dot-sep"></span></div>
+      <div class="sess-row rpc-row" id="rpcRow1" data-pane="rpc1">
+        <span class="lamp run" id="lamp1"></span><span class="glyph">✦</span>
+        <span class="title" id="rpcTitle1">重构 rpc 轮询逻辑</span><span class="timer" id="timer1">1m44s</span>
+        <span class="unread" id="unread1" style="display:none">2</span>
+        <button class="row-close">×</button>
+      </div>
+      <div class="sess-row rpc-row" id="rpcRow2" data-pane="rpc2">
+        <span class="lamp" id="lamp2"></span><span class="glyph">✦</span>
+        <span class="title">调研竞品对比表</span>
+        <button class="row-close">×</button>
+      </div>
+      <div class="rpc-row-sub" style="padding:2px 14px 4px 22px" id="rpcSub">数据 = kernel 投影 topic,不读 PTY 注册表</div>
+    </div>
+
+    <div class="group-label" style="color:#6b7280">远程与其他<span class="dot-sep"></span></div>
+    <div class="sess-row" style="padding-left:22px;color:#4b5263">
+      <span class="glyph">⌁</span><span class="title">SSH · dev-box(离线)</span>
+    </div>
+  </aside>
+
+  <!-- ================= 中央区 ================= -->
+  <section class="main">
+    <div class="tabstrip" id="tabstrip">
+      <div class="tab pty active" data-pane="pty1"><span class="kind-badge kind-pty">PTY</span>claude · tmd-cli</div>
+      <div class="tab pty" data-pane="pty2"><span class="kind-badge kind-pty">PTY</span>pi · dotfiles</div>
+      <div class="tab rpc" data-pane="rpc1" id="tabRpc1"><span class="kind-badge kind-rpc">RPC</span><span id="tabRpcTitle1">重构 rpc 轮询逻辑</span></div>
+      <div class="tab rpc" data-pane="rpc2" id="tabRpc2" style="display:none"><span class="kind-badge kind-rpc">RPC</span>调研竞品对比表</div>
+    </div>
+
+    <div class="canvas" id="canvas">
+      <div class="toast" id="reattachToast" style="display:none">
+        <span class="spin" style="animation:spin 1s linear infinite"></span>
+        <span id="reattachText">正在重接 2 个带渲染的会话…</span>
+      </div>
+
+      <div class="canvas-pane show" id="pane-pty1">
+        <div class="pane-title">PTY 幕布 · 字节透传(xterm.js,零二次渲染)</div>
+        <div class="pty-bubble">$ pnpm check:gate</div>
+        <div class="pty-bubble">✓ typecheck · test · arch-boundary · file-size · i18n · build</div>
+        <div class="pty-bubble">$ git log --oneline -3</div>
+        <div class="pty-bubble">a1b2c3d feat(kernel): 会话投影契约落 kernel</div>
+      </div>
+      <div class="canvas-pane" id="pane-pty2">
+        <div class="pane-title">PTY 幕布 · pi · dotfiles</div>
+        <div class="pty-bubble">$ ls -la ~/.config</div>
+      </div>
+
+      <div class="canvas-pane" id="pane-rpc1">
+        <div class="pane-title">带渲染的会话 · omp — 思考与工具过程可见,终态收敛</div>
+        <div class="rpc-block user">帮我把轮询改成事件驱动,注意别影响 pty 路径</div>
+        <div class="rpc-fold">思考 2 次 · 工具调用 3 次(点击展开)</div>
+        <div class="rpc-block tool">✓ bash — pnpm test:unit <span style="color:#4b5263">· 全部通过</span></div>
+        <div class="rpc-block tool">✓ edit — src/kernel/structuredSessionTabs.ts</div>
+        <div class="rpc-block">好,已改为 topic 订阅推送,PTY 路径零接触…</div>
+        <div class="working-bar" id="workingBar">
+          <span class="spin"></span><span id="workingText">omp · working</span>
+          <span style="margin-left:auto;color:#6b7280" id="watchdogHint" title="busy > 5min 无帧才提示,thinking token 流也算帧">看门狗:运行中</span>
+        </div>
+      </div>
+      <div class="canvas-pane" id="pane-rpc2">
+        <div class="pane-title">带渲染的会话 · pi(静止 · 已重命名演示可右键)</div>
+        <div class="rpc-block user">整理一份竞品对比表</div>
+        <div class="rpc-block">已写入 docs/research/compare.md…</div>
+      </div>
+
+      <div class="canvas-empty" id="canvasEmpty" style="display:none">选择左侧会话开始</div>
+    </div>
+
+    <!-- 新建菜单:R-ISO1 三分区维持,RPC 组含「重开上次会话」(批次 4) -->
+    <div class="menu-card">
+      <h3>终端网格(PTY)</h3>
+      <div class="menu-grid">
+        <div class="menu-item"><span class="mi-title">› claude</span><span class="mi-sub">新 PTY 会话 · 继承当前目录</span></div>
+        <div class="menu-item"><span class="mi-title">› pi</span><span class="mi-sub">新 PTY 会话 · 继承当前目录</span></div>
+        <div class="menu-item"><span class="mi-title">› codex</span><span class="mi-sub">新 PTY 会话 · 继承当前目录</span></div>
+      </div>
+      <h3>带渲染的会话(RPC)</h3>
+      <div class="menu-grid">
+        <div class="menu-item" id="resumeEntry"><span class="mi-title">⟲ 重开上次会话 <span class="mi-badge">条件出现</span></span><span class="mi-sub" id="resumeSub">omp · tmd-cli · resume --session 8f3a…</span></div>
+        <div class="menu-item"><span class="mi-title">✦ omp</span><span class="mi-sub">结构化渲染 · 事件驱动幕布</span></div>
+        <div class="menu-item"><span class="mi-title">✦ pi</span><span class="mi-sub">结构化渲染 · 事件驱动幕布</span></div>
+      </div>
+      <h3>远程与其他</h3>
+      <div class="menu-grid">
+        <div class="menu-item"><span class="mi-title">⌁ SSH 主机</span><span class="mi-sub">远程 PTY</span></div>
+        <div class="menu-item"><span class="mi-title">▣ WSL</span><span class="mi-sub">Windows 子系统</span></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- 演示控制台 -->
+<div class="console">
+  <b>状态机演示</b>
+  <button class="btn primary" id="btnCycle">切换 rpc 行 1 状态:运行 → 完成未读 → 等待审批 → 静止</button>
+  <button class="btn" id="btnReload">模拟 webview reload(重接 toast)</button>
+  <button class="btn" id="btnNewRpc">模拟新建 RPC 会话(同 cwd 单例 → 激活既有 tab,D6)</button>
+  <div class="legend">
+    <span><span class="lamp run"></span>绿 · 运行中</span>
+    <span><span class="lamp unread"></span>蓝 · 完成未读</span>
+    <span><span class="lamp ask"></span>黄 · 等待审批</span>
+    <span><span class="lamp"></span>灰 · 静止</span>
+  </div>
+</div>
+
+<!-- 右键菜单(批次 5:最小集 + 重命名/静音;不接 sessionMutes,自有存储键) -->
+<div class="ctx" id="ctxMenu">
+  <button data-act="jump">↪ 跳转到会话</button>
+  <hr>
+  <button data-act="rename">✎ 重命名</button>
+  <button data-act="mute">🔇 静音通知<span class="mute-check" id="muteCheck">off</span></button>
+  <hr>
+  <button data-act="close" class="danger">× 关闭(kill 进程)</button>
+</div>
+
+<div class="section-title">决策落点(D1-D6 全部按推荐项落形,不另设问)<small>对应规划 §4</small></div>
+<div class="cards">
+  <div class="card">
+    <h4>D1 左栏形态 <span class="adopt">采用 a · 独立分区</span></h4>
+    <div><span class="alt">b · 混入引擎分组活会话区</span></div>
+    「带渲染的会话」独立小节与新建菜单三分区同构;行首 ✦ 图标与 PTY › 图标区分,守望语义(因果信号 = prompt ack/settled,而非字节流)互不污染。
+    <div class="where">→ 左栏中部蓝色组标小节;点击只激活中央 structured tab,不碰幕布 tab。</div>
+  </div>
+  <div class="card">
+    <h4>D2 数据通道 <span class="adopt">采用 a · kernel 投影</span></h4>
+    <div><span class="alt">b · Rust 会话表统一(2026-09-30 已否决)</span></div>
+    新 kernel 模块 <code>structuredSessionTabs</code>(仿 sessionViewTabs 先例,文件头声明双消费方:workspace 渲染 + structured-session 广播);Rust PTY 注册表零改动,行下注明数据来源。
+    <div class="where">→ 左栏行下灰字「数据 = kernel 投影 topic」;PTY 行数据来源不变。</div>
+  </div>
+  <div class="card">
+    <h4>D3 操作面 <span class="adopt">采用 最小集起步</span></h4>
+    <div>跳转 + 关闭(最小集)→ 批次 5 补重命名 + 静音;置顶/归档/删除观望。</div>
+    右键菜单四项即全量;静音用自有 localStorage 键,不接 sessionMutes(该服务按 PTY sessionId 键)。
+    <div class="where">→ 右键任一 RPC 行可见;PTY 行右键菜单不出现 RPC 项,反之亦然。</div>
+  </div>
+  <div class="card">
+    <h4>D4 审批进全局箱 <span class="adopt">采用 b · 不进</span></h4>
+    <div><span class="alt">a · approval-inbox 增 RPC 卡</span></div>
+    confirm 回路在 tab 内闭环(依赖回路上下文);全局箱按 PTY sessionId 键,虚拟 id 会污染。发现性由行黄灯补偿。
+    <div class="where">→ 状态机切到「等待审批」时行灯变黄 1s 呼吸;审批卡仍在中央 tab 内。</div>
+  </div>
+  <div class="card warn">
+    <h4>D5 reload 行为 <span class="adopt">采用 a · boot 重接</span></h4>
+    <div><span class="alt">b · 维持 kill_all</span></div>
+    枚举带 label 活流 → get_state + 磁盘种子重建 tab 与行;失败兜底 = kill 单流(与现状等价)。<b style="color:#eab308">前提修正:现有 Rust 泵在 emit 失败(webview 失联)时 break 并 2s 后杀树——必须先加 adopt 标记改造,否则重接对象根本活不到 boot 枚举。</b>
+    <div class="where">→ 点「模拟 webview reload」看重接 toast;恢复进度与 PTY SessionRestorePill 排队不混跑。</div>
+  </div>
+  <div class="card">
+    <h4>D6 单实例锁 <span class="adopt">采用 维持</span></h4>
+    <div><span class="alt">放开(同 cwd 并行)</span> — 引擎侧会话文件互踩未验证,不添变量。</div>
+    tab id = structured:profileId:cwd 即锁;新建同键会话 → 激活既有 tab 而非新起。
+    <div class="where">→ 点「模拟新建 RPC 会话」:toast 提示「已激活既有会话」,不产生第二行。</div>
+  </div>
+</div>
+
+<div class="section-title">红线自检(R-PTY0 / R-ISO1 / R-ISO2 / R-KILL 在示例中的体现 + 评审补充)</div>
+<table class="rules">
+  <tr><th style="width:130px">红线</th><th>本稿体现</th><th style="width:360px">评审补充(实现注意)</th></tr>
+  <tr>
+    <td>R-PTY0</td>
+    <td class="ok">PTY 分组/呼吸灯/右键/MRU 全部沿用既有形态,零新增;Rust PTY 链零改动</td>
+    <td class="fix">RPC 分区组件必须独立渲染,不进 workspace 的 sessions 派生链,防分组折叠/归档/hygiene 扫描误吞行</td>
+  </tr>
+  <tr>
+    <td>R-ISO1</td>
+    <td class="ok">新建菜单三分区原样;左栏 RPC 独立分区;两类行菜单互不出现对方操作</td>
+    <td class="fix">kernel 投影文件头须声明双消费方先例,过 kernel 分区盘点门禁</td>
+  </tr>
+  <tr>
+    <td>R-ISO2</td>
+    <td class="ok">点击 PTY 行 → 幕布 tab;点击 RPC 行 → 中央 structured tab;激活高亮互斥演示可点</td>
+    <td class="fix">tab 条上 PTY/RPC 徽标(kind-badge)常驻,焦点链混淆可一眼分辨</td>
+  </tr>
+  <tr>
+    <td>R-KILL</td>
+    <td class="ok">RPC 行关闭 = kill 该 proc 流;proc_stream 与 pty_spawn 注册表本就分离</td>
+    <td class="fix">kill_all 退役后,boot 枚举是孤儿流唯一收口;枚举失败兜底策略要写进批次 3 验收</td>
+  </tr>
+</table>
+
+<script>
+(function () {
+  const rows = document.querySelectorAll('.sess-row');
+  const tabs = document.querySelectorAll('.tab');
+  const ctx = document.getElementById('ctxMenu');
+  const lamp1 = document.getElementById('lamp1');
+  const timer1 = document.getElementById('timer1');
+  const unread1 = document.getElementById('unread1');
+  const workingBar = document.getElementById('workingBar');
+  const watchdogHint = document.getElementById('watchdogHint');
+  let state = 0; // 0 运行 1 未读 2 审批 3 静止
+  let muted = false;
+
+  function activatePane(name) {
+    document.querySelectorAll('.canvas-pane').forEach(p => p.classList.remove('show'));
+    const pane = document.getElementById('pane-' + name);
+    if (pane) pane.classList.add('show');
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.pane === name));
+    rows.forEach(r => r.classList.toggle('active', r.dataset.pane === name));
+    // 未读清零(R-ISO2:激活即读)
+    if (name === 'rpc1' && state === 1) { state = 3; applyState(); }
+  }
+
+  rows.forEach(r => {
+    if (!r.dataset.pane) return;
+    r.addEventListener('click', e => {
+      if (e.target.classList.contains('row-close')) return;
+      activatePane(r.dataset.pane);
+      ctx.classList.remove('show');
+    });
+    r.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      ctx.style.left = e.clientX + 'px';
+      ctx.style.top = e.clientY + 'px';
+      ctx.dataset.target = r.dataset.pane || '';
+      ctx.classList.add('show');
+      document.getElementById('muteCheck').textContent = muted ? 'on' : 'off';
+    });
+  });
+  document.addEventListener('click', e => {
+    if (!ctx.contains(e.target)) ctx.classList.remove('show');
+  });
+  ctx.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const act = b.dataset.act;
+    if (act === 'jump') activatePane(ctx.dataset.target);
+    if (act === 'mute') { muted = !muted; document.getElementById('muteCheck').textContent = muted ? 'on' : 'off'; }
+    if (act === 'close') {
+      const row = document.querySelector('.sess-row[data-pane="' + ctx.dataset.target + '"]');
+      if (row && row.classList.contains('rpc-row')) {
+        row.style.display = 'none';
+        document.getElementById('tabRpc2').style.display = 'none';
+        if (document.getElementById('tabRpc1').dataset.pane === ctx.dataset.target) {
+          document.getElementById('tabRpc1').style.display = 'none';
+        }
+      }
+    }
+    ctx.classList.remove('show');
+  }));
+
+  function applyState() {
+    lamp1.className = 'lamp ' + ['run', 'unread', 'ask', ''][state];
+    unread1.style.display = state === 1 ? 'flex' : 'none';
+    timer1.textContent = state === 0 ? '1m44s' : '';
+    workingBar.style.display = state === 0 ? 'flex' : 'none';
+    if (state === 0) watchdogHint.textContent = '看门狗:运行中';
+    if (state === 1) watchdogHint.textContent = '看门狗:已结算';
+    if (state === 2) watchdogHint.textContent = '看门狗:等待审批';
+    if (state === 3) watchdogHint.textContent = '';
+    document.getElementById('workingText').textContent =
+      state === 2 ? 'omp · 等待审批(行黄灯同步)' : 'omp · working';
+  }
+  document.getElementById('btnCycle').addEventListener('click', () => {
+    state = (state + 1) % 4; applyState();
+  });
+
+  document.getElementById('btnReload').addEventListener('click', () => {
+    const toast = document.getElementById('reattachToast');
+    const text = document.getElementById('reattachText');
+    toast.style.display = 'flex'; toast.classList.remove('ok');
+    text.textContent = '正在重接 2 个带渲染的会话…(PTY 重启恢复排队其后)';
+    setTimeout(() => {
+      toast.classList.add('ok');
+      text.textContent = '已重接 2 个会话 · 在途轮由磁盘种子续跑(1 个僵死流已收割)';
+      setTimeout(() => { toast.style.display = 'none'; }, 2600);
+    }, 1600);
+  });
+
+  document.getElementById('btnNewRpc').addEventListener('click', () => {
+    const toast = document.getElementById('reattachToast');
+    const text = document.getElementById('reattachText');
+    toast.style.display = 'flex'; toast.classList.add('ok');
+    text.textContent = '同引擎同目录会话已存在 → 激活既有 tab(D6 单实例锁)';
+    activatePane('rpc1');
+    setTimeout(() => { toast.style.display = 'none'; }, 2400);
+  });
+})();
+</script>
+</body>
+</html>

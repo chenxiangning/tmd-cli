@@ -40,6 +40,7 @@ import { visibleWorkspaces } from "./utils";
 import { WorkspaceGroupsTab } from "./GroupSettingsTab";
 import { PinnedSessionsSection } from "./PinnedSessions";
 import { RunningZoneSection } from "./RunningZone";
+import { StructuredSessionSection } from "./StructuredSessionSection";
 import { WorkspaceAddDialog } from "./WorkspaceAddDialog";
 import { scheduleBootSweep } from "./hygieneBootSweep";
 import { archiveExitedSession } from "./sessionExitArchive";
@@ -147,6 +148,9 @@ function WorkspaceSection() {
 
       {/* 运行区:运行中/结束未查看的活会话自动聚集,已查看自动回组(单一区域原则,见 RunningZone.tsx) */}
       <RunningZoneSection />
+
+      {/* 带渲染的会话区:RPC 结构化会话行投影(与 PTY 派生链完全隔离,见 StructuredSessionSection.tsx) */}
+      <StructuredSessionSection />
 
       <WorkspaceCaption
         origins={origins}

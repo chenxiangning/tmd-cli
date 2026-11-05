@@ -20,7 +20,12 @@ vi.mock("@kernel/host", () => ({
     getCliProfile: (id: string) => h.profiles.find((p) => p.id === id),
   },
 }));
-vi.mock("@kernel/tabs", () => ({ getTabs: () => [], openTab: h.openTab }));
+vi.mock("@kernel/tabs", () => ({
+  getTabs: () => [],
+  openTab: h.openTab,
+  getTab: () => null,
+  subscribeEditorTabs: () => () => {},
+}));
 vi.mock("@kernel/workspace", () => ({
   getActiveWorkspace: () => ({ root: "/repo" }),
   getWorkspaces: () => [{ root: "/repo" }],

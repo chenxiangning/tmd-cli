@@ -8,7 +8,8 @@
  */
 import { lazy, useEffect, useRef, useState } from "react";
 import { ArrowDown } from "@phosphor-icons/react";
-import type { EditorTab } from "@kernel/tabs";
+import { updateTab, type EditorTab } from "@kernel/tabs";
+import { noteStructuredSessionRow } from "@kernel/structuredSessionTabs";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
@@ -22,7 +23,7 @@ import { useSettleKey } from "./ssSettleKey";
 import { useCanvasWidth } from "./ssCanvasResize";
 import { SsComposer } from "./ssComposer";
 import { useSsSession, type Phase } from "./ssSession";
-import type { StructuredSessionPayload } from "./tabs";
+import type { StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import "./structured-session.css";
 
 const MarkdownBody = lazy(retryImport(() =>
@@ -78,6 +79,25 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     const el = scrollRef.current;
     if (el && ss.stickRef.current) el.scrollTop = el.scrollHeight;
   }, [ss.blocks, ss.stickRef]);
+
+  /* 左栏行投影广播(RPC 会话体系对齐批次 1):运行态变化即 note,kernel 行集
+   * 随 tab 生命周期自动增删,本组件无需清理。 */
+  useEffect(() => {
+    noteStructuredSessionRow(tab.id, {
+      phase: ss.phase,
+      busy: ss.busy,
+      busySince: ss.busySince,
+      waitingConfirm: ss.confirm != null,
+      sessionId: ss.sessionId,
+    });
+  }, [tab.id, ss.phase, ss.busy, ss.busySince, ss.confirm, ss.sessionId]);
+
+  /* 标题自动化:首个用户块摘要(PTY 磁盘标题同语义的会话主题锚定),中央 tab
+   * 条与左栏行同步;纯图片块(空文本)不触发。 */
+  const firstUserText = ss.blocks.find((b) => b.role === "user")?.text.trim();
+  useEffect(() => {
+    if (firstUserText) updateTab(tab.id, { title: firstUserText.slice(0, 32) });
+  }, [firstUserText, tab.id]);
 
 
   if (!profile?.structuredRpc) {

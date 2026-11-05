@@ -10,7 +10,7 @@ import { openThenJumpToText, type JumpTextOutcome } from "@kernel/anchorJump";
 import { openSessionViewAtText } from "@kernel/sessionViewTabs";
 import { host } from "@kernel/host";
 import { getWorkspaces } from "@kernel/workspace";
-import { openStructuredSessionTranscript, structuredSessionTarget } from "@plugins/structured-session/tabs";
+import { openStructuredSessionTranscript, structuredSessionTarget } from "@kernel/structuredSessionTabs";
 
 /** cwd → 工作区 id(useCkptScope 归属判定同款口径);无归属返回 undefined。 */
 function workspaceIdOf(cwd: string): string | undefined {

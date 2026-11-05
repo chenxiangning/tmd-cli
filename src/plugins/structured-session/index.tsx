@@ -8,7 +8,7 @@
  */
 import type { Plugin, PluginContext } from "@kernel/plugin";
 import { Chats } from "@phosphor-icons/react";
-import { STRUCTURED_SESSION_TAB_KIND } from "./tabs";
+import { STRUCTURED_SESSION_TAB_KIND } from "@kernel/structuredSessionTabs";
 import { StructuredSessionTab } from "./sessionTab";
 import { NewSessionEntry } from "./NewSessionEntry";
 import "./locales";

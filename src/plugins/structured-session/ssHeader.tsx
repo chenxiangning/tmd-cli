@@ -11,7 +11,7 @@ import { CaretDown } from "@phosphor-icons/react";
 import { t } from "@kernel/i18n";
 import { host, useHost } from "@kernel/host";
 import type { PiRpcModel, PiRpcSession, PiRpcState, PiRpcStats } from "../cli-shared/piRpc";
-import { openStructuredSessionTab } from "./tabs";
+import { openStructuredSessionTab } from "@kernel/structuredSessionTabs";
 import { StatusCluster } from "./ssStatus";
 
 type MenuKind = "engine" | "model" | null;

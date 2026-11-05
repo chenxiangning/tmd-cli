@@ -182,4 +182,8 @@ export const MESSAGES = {
   "思考与工具调用以卡片渲染,过程实时可见": "Thinking & tool calls rendered as cards, live progress",
   "远程与其他": "Remote & other",
   "其余 {n} 个预设见「管理预设…」": "{n} more presets in \"Manage presets…\"",
+  /* ── 带渲染的会话区(RPC 行分区,会话体系对齐批次 1) ── */
+  "关闭会话": "Close session",
+  "展开带渲染的会话区": "Expand rendered-session zone",
+  "收起带渲染的会话区": "Collapse rendered-session zone",
 } as Record<string, string>;

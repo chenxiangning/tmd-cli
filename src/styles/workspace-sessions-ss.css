@@ -1,0 +1,41 @@
+/* ===== 带渲染的会话区(RPC 行,StructuredSessionSection) =====
+   关闭钮与计时沿用 thread-row-host 宿主律:钮是行的 DOM 兄弟(嵌套交互治理),
+   hover/焦点显形,absolute 骑行右缘让位区;计时 = 行内 tabular 数字(busy 行)。
+   后续批次(未读灯/右键菜单)样式也归本文件。 */
+.ss-row-close {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--tmd-dur-1) var(--tmd-ease-out), background-color var(--tmd-dur-1) var(--tmd-ease-out), color var(--tmd-dur-1) var(--tmd-ease-out);
+}
+
+.thread-row-host:hover > .ss-row-close,
+.thread-row-host:focus-within > .ss-row-close {
+  opacity: 1;
+}
+
+.ss-row-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.ss-row-timer {
+  flex: none;
+  margin-right: 22px;
+  font-size: 0.6875rem;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}

@@ -10,7 +10,7 @@ import { getWorkspaces } from "@kernel/workspace";
 import type { FpHit } from "./dataSource";
 import { readFeatureCards } from "./query";
 import { getMonth } from "./rollup";
-import { openStructuredSessionTranscript, structuredSessionTarget } from "@plugins/structured-session/tabs";
+import { openStructuredSessionTranscript, structuredSessionTarget } from "@kernel/structuredSessionTabs";
 
 /** 命中是否可跳转录:有卡定位(featureId)才解析得到会话引用。 */
 export function fpHitJumpable(hit: FpHit): boolean {
