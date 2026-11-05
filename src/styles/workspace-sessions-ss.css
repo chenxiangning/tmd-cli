@@ -39,3 +39,30 @@
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
+
+/* 等待审批黄灯(D4-b:审批不进全局箱,发现性由行灯补偿):快呼吸 + 暖色 halo。 */
+.tl-node.is-ask {
+  background: var(--tmd-warn);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tmd-warn) 25%, transparent);
+}
+
+@keyframes ss-lamp-breathe {
+  50% { opacity: 0.45; }
+}
+
+/* 未读计数徽标(轮结算未查看;与计时互斥位:计时优先,未读靠右缘)。 */
+.ss-row-unread {
+  flex: none;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  margin-right: 20px;
+  border-radius: 999px;
+  background: var(--tmd-accent);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

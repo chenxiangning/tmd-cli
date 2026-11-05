@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /* 桩面:kernel 依赖最小化(tabs 注册表本地数组;host/workspace/viewer/i18n 全桩)。 */
 const h = vi.hoisted(() => ({
   tabs: [] as Array<{ id: string; kind?: string; title?: string; payload?: unknown }>,
+  activeId: null as string | null,
   tabListeners: [] as Array<() => void>,
   viewerAvailable: true,
   openTab: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock("./tabs", async (importOriginal) => {
     ...orig,
     getTabs: () => h.tabs,
     getTab: (id: string) => h.tabs.find((t) => t.id === id) ?? null,
+    getActiveTabId: () => h.activeId ?? null,
     openTab: h.openTab,
     subscribeEditorTabs: (fn: () => void) => {
       h.tabListeners.push(fn);
@@ -51,10 +53,36 @@ function openInto(id: string, kind = "structured-session") {
 
 beforeEach(() => {
   h.tabs = [];
+  h.activeId = null;
   h.viewerAvailable = true;
   vi.clearAllMocks();
   /* 行态快照重置:关全部 tab(剔行 + 清孤儿态)还原干净基线。 */
   h.tabListeners.forEach((fn) => fn());
+});
+
+describe("未读记账(批次 2:结算沿累加,激活即读)", () => {
+  const ID = "structured:omp:/repo";
+
+  it("结算沿累加未读;激活该 tab 即清零,别的 tab 激活不误清", () => {
+    openInto(ID);
+    noteStructuredSessionRow(ID, { unread: 1 });
+    expect(getStructuredSessionRows()[0].unread).toBe(1);
+
+    /* 再一轮结算 → 累加(组件侧语义:note 传 prev+1,kernel 只存)。 */
+    noteStructuredSessionRow(ID, { unread: 2 });
+    expect(getStructuredSessionRows()[0].unread).toBe(2);
+
+    /* 激活 tab → 订阅出口清零(setActiveTab 单一出口)。 */
+    h.activeId = ID;
+    h.tabListeners.forEach((fn) => fn());
+    expect(getStructuredSessionRows()[0].unread).toBe(0);
+
+    /* 非激活 tab 的未读不被别的 tab 激活误清。 */
+    noteStructuredSessionRow(ID, { unread: 1 });
+    h.activeId = "other-tab";
+    h.tabListeners.forEach((fn) => fn());
+    expect(getStructuredSessionRows()[0].unread).toBe(1);
+  });
 });
 
 describe("G-02 openStructuredSessionTab 身份", () => {

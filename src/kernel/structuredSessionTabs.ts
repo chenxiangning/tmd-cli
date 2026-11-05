@@ -9,16 +9,15 @@
  * 会话注册表、不进 workspace sessions 派生链(防折叠/归档/hygiene 误吞行)。
  */
 
-import { getTab, getTabs, openTab } from "./tabs";
-import { subscribeEditorTabs } from "./tabs";
 import { host } from "./host";
 import { getActiveWorkspace, getWorkspaces } from "./workspace";
 import { isSessionViewAvailable, openSessionViewAtText } from "./sessionViewTabs";
 import type { JumpTextOutcome } from "./anchorJump";
 import { createSubscribable } from "./subscribable";
 import { t } from "./i18n";
+import { getActiveTabId, getTab, getTabs, openTab } from "./tabs";
+import { subscribeEditorTabs } from "./tabs";
 
-/** tab kind(structured-session 插件注册内容组件的匹配键)。 */
 export const STRUCTURED_SESSION_TAB_KIND = "structured-session";
 
 /** tab 负载:引擎 profile id + 落地 cwd(开 tab 时快照,随会话走)。 */
@@ -79,6 +78,8 @@ export interface StructuredSessionRowStatus {
   busySince: number | null;
   waitingConfirm: boolean;
   sessionId: string | null;
+  /** 轮结算未读计数(因果 = busy true→false 沿;tab 激活即清,见下方订阅)。 */
+  unread: number;
 }
 
 /** 左栏行(身份来自 tab 本体,运行态来自广播;workspace 分区渲染消费)。 */
@@ -89,11 +90,11 @@ export interface StructuredSessionRow extends StructuredSessionRowStatus {
   title: string;
 }
 
-const DEFAULT_STATUS: StructuredSessionRowStatus = {
-  phase: "starting", busy: false, busySince: null, waitingConfirm: false, sessionId: null,
-};
-
 const statusById = new Map<string, StructuredSessionRowStatus>();
+
+const DEFAULT_STATUS: StructuredSessionRowStatus = {
+  phase: "starting", busy: false, busySince: null, waitingConfirm: false, sessionId: null, unread: 0,
+};
 
 function snapshotRows(): readonly StructuredSessionRow[] {
   return getTabs()
@@ -113,11 +114,15 @@ function snapshotRows(): readonly StructuredSessionRow[] {
 
 const rowsStore = createSubscribable<readonly StructuredSessionRow[]>(snapshotRows());
 
-/** tab 集变化(open/close/title 刷新)→ 重算行集(闭 tab 自动剔行)。 */
+/** tab 集变化(open/close/title 刷新/激活切换)→ 重算行集;激活 structured tab
+ *  即读(unread 清零 —— 点行与点中央 tab 条同走 setActiveTab,单一出口)。 */
 subscribeEditorTabs(() => {
   for (const id of statusById.keys()) {
     if (!getTab(id)) statusById.delete(id); /* 顺手清孤儿态,防跨会话泄漏 */
   }
+  const activeId = getActiveTabId();
+  const activeStatus = activeId ? statusById.get(activeId) : undefined;
+  if (activeId != null && activeStatus?.unread) statusById.set(activeId, { ...activeStatus, unread: 0 });
   rowsStore.commit(snapshotRows());
 });
 

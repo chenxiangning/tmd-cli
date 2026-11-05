@@ -37,7 +37,10 @@ function SsRow({ row, active, now }: { row: StructuredSessionRow; active: boolea
         className={`thread-row${active ? " active" : ""}`}
         onClick={() => setActiveTab(row.tabId)}
       >
-        <span className={`tl-node${row.busy ? " is-run" : " is-idle"}`} aria-hidden />
+        <span
+          className={`tl-node${row.waitingConfirm ? " is-ask" : row.busy ? " is-run" : row.unread > 0 ? " is-unread" : " is-idle"}`}
+          aria-hidden
+        />
         <span className="thread-engine-badge" title={profile?.name ?? row.profileId} aria-hidden>
           {profile?.renderIcon?.("0.75rem")}
         </span>
@@ -45,6 +48,7 @@ function SsRow({ row, active, now }: { row: StructuredSessionRow; active: boolea
         {row.busy && row.busySince != null && (
           <span className="ss-row-timer">{elapsedText(row.busySince, now)}</span>
         )}
+        {row.unread > 0 && <span className="ss-row-unread">{row.unread}</span>}
       </button>
       <button
         type="button"

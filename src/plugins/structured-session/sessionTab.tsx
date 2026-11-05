@@ -8,8 +8,8 @@
  */
 import { lazy, useEffect, useRef, useState } from "react";
 import { ArrowDown } from "@phosphor-icons/react";
-import { updateTab, type EditorTab } from "@kernel/tabs";
-import { noteStructuredSessionRow } from "@kernel/structuredSessionTabs";
+import { getActiveTabId, updateTab, type EditorTab } from "@kernel/tabs";
+import { getStructuredSessionRows, noteStructuredSessionRow } from "@kernel/structuredSessionTabs";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
@@ -91,6 +91,18 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
       sessionId: ss.sessionId,
     });
   }, [tab.id, ss.phase, ss.busy, ss.busySince, ss.confirm, ss.sessionId]);
+
+  /* 未读记账(批次 2):busy true→false 沿 = 一轮结算;tab 非激活时累加未读
+   * (激活即读由 kernel 订阅 setActiveTab 出口清零,此处只管涨)。 */
+  const prevBusyRef = useRef(false);
+  useEffect(() => {
+    const settledEdge = prevBusyRef.current && !ss.busy;
+    prevBusyRef.current = ss.busy;
+    if (!settledEdge) return;
+    const active = getActiveTabId() === tab.id;
+    const unread = (getStructuredSessionRows().find((r) => r.tabId === tab.id)?.unread ?? 0) + 1;
+    noteStructuredSessionRow(tab.id, { unread: active ? 0 : unread });
+  }, [ss.busy, tab.id]);
 
   /* 标题自动化:首个用户块摘要(PTY 磁盘标题同语义的会话主题锚定),中央 tab
    * 条与左栏行同步;纯图片块(空文本)不触发。 */
