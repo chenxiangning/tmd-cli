@@ -1,31 +1,20 @@
 /**
  * 会话列表 —— 活会话行 + CLI 分组 + 磁盘历史分页。
  * 数据源:活会话 = 内核 PTY 注册表;历史 = 各 CLI 插件 listSessions。
- *
- * 状态表达(kernel activityWatch 结算;呼吸灯锚定用户首写,首写前不亮灯
- * 不结算未读):节点 = 绿对话/蓝完成未读/灰静止;meta label = 运行时/
- * 空闲-未查看/空闲,从未对话不出签。
- * 行右键菜单:复制 Session ID / 重命名(应用侧覆盖层,见 kernel/sessionTitles.ts)
- * / 置顶到全局 / 置顶到工作区内(双作用域,见 kernel/sessionPins.ts)
- * / 删除会话(两步确认,双端统一物理删除磁盘 jsonl)。
- *
- * 置顶投影(codemoss useThreadRows 三分适配):
- * - scope=workspace → 固定在 CLI 分组顶部(置顶时间升序),不参与分页;
- * - scope=global → 离开本组,汇入左侧栏顶部「已置顶」区(PinnedSessions.tsx);
- * - 未置顶 → 常规分页。scope=global 的活会话同样离组(仅全局区可见)。
- *
- * 行组件拆至 LiveSessionRow/SessionRows,数据装配拆至 useCliSessionGroup。
- * 扁平化(2026-09-08 spec):分组段头与折叠退役,会话行直接平铺于工作区下,
- * 行首供应商图标区分引擎;分组仅作数据装配边界(分页/置顶投影/归档过滤)。
+ * RPC 会话(带渲染)不在引擎分组呈现:呈现面 = 工作区卡片的「带渲染的会话」
+ * 小节(StructuredSessionSection,图 2 结构定稿);在册 RPC 会话的磁盘行让位
+ * (isSsSessionTracked),未在册的历史行带「带渲染」徽标、点按 resume 重开
+ * (R-ISO1);置顶投影/行菜单/管理拆子组件。
  */
 
+import { useEffect } from "react";
 import type { CliDiskSession, CliProfile } from "@kernel/cli";
 import { host } from "@kernel/host";
-import { KernelTopics } from "@kernel/events";
 import { t } from "@kernel/i18n";
+import { notePtyGroupVisible } from "./ptySectionVisibility";
 import { sessionPinKey, toggleSessionPin, type SessionPinEntry, type SessionPinScope } from "@kernel/sessionPins";
-import { openStructuredSessionTab, readLastSsSession } from "@kernel/structuredSessionTabs";
-import { noteSessionTabTitle } from "@kernel/sessionTabs";
+import { openStructuredSessionTab } from "@kernel/structuredSessionTabs";
+import { isClosedSsBusy } from "@kernel/structuredSessionEnded";
 import { sessionTitleKey } from "@kernel/sessionTitles";
 import type { SessionMeta } from "@kernel/ipc";
 import type { Workspace } from "@kernel/workspace";
@@ -38,8 +27,8 @@ import { retryMenuHandler } from "./retryMenu";
 import { useSnapshotExport } from "./transcriptExport";
 import { ManageList } from "./SessionManage";
 import { useCliSessionGroup } from "./useCliSessionGroup";
+import { isRpcDiskSession, openDiskSessionEntry } from "./openDisk";
 import type { ExportSessionTarget } from "@plugins/session-viewer/exportMd";
-import { findWorkspaceOrigin } from "@kernel/workspaceOrigins";
 import { copyText } from "@kernel/clipboard";
 import { PAGE_INITIAL } from "./utils";
 
@@ -95,8 +84,10 @@ function sessionMenuProps(menu: MenuTarget, profile: CliProfile, workspace: Work
             profile.id,
             menu.session.cwd ?? workspace.root,
           ),
-    onResumeRendered: menu.kind === "disk" && profile.structuredRpc?.resumeArgs && readLastSsSession(profile.id, workspace.root) === menu.session.id
-      ? () => openStructuredSessionTab(profile.id, workspace.root, { resumeSessionId: menu.session.id })
+    /* 继续对话(带渲染):磁盘行 = 可重开 RPC 会话时出(判据与点按/徽标
+     * 同源 isRpcDiskSession);PTY 磁盘行永不出现(R-ISO1)。 */
+    onResumeRendered: menu.kind === "disk" && isRpcDiskSession(profile, workspace, menu.session)
+      ? () => openStructuredSessionTab(profile.id, workspace.root, { resumeSessionId: menu.session.id, resumeUnsettled: isClosedSsBusy(menu.session.id) })
       : undefined,
     onRetry: menu.kind === "live" && menu.session.kind !== "cli"
       ? undefined
@@ -157,7 +148,6 @@ export function CliSessionGroup({
     menu, setMenu, renaming, commitRename, deleteLive, deleteDisk,
     startRename, togglePin, menuCliSessionId, menuPinKey,
   } = useSessionGroupMenu({ profile, workspace, sessions, setRescanTick, realTitle });
-  /* 右键「导出转录快照」:菜单存活期外的常驻 toast 挂点一并由 hook 供给。 */
   const { run: runSnapshotExport, toast: snapshotToast } = useSnapshotExport();
 
   /** 磁盘行渲染契约:置顶块与分页历史共用同一份行装配(含菜单/重命名/扎点接线),仅 pinned 常亮差异。 */
@@ -170,21 +160,12 @@ export function CliSessionGroup({
         title={displayTitle(s.id, s.id)}
         pinned={pinned}
         archived={archivedView}
+        /* RPC 身份徽标(R-ISO1 与 PTY 行可辨):判据与点按分流同源
+           (isRpcDiskSession = tmd.ss.rpcids / tmd.ss.last 记忆)。 */
+        rendered={isRpcDiskSession(profile, workspace, s)}
         renaming={renaming?.cliSessionId === s.id ? renaming : null}
-        onOpen={() => {
-          host.events.emit(KernelTopics.sessionViewRequested, null); /* 用户手势,摘最大化 */
-          /* 来源工作区的远程磁盘会话:远程 resume 由来源插件接管(如 WSL 的
-             SSH 包装 + 引擎 --resume),不走本地 openDiskSession。 */
-          if (findWorkspaceOrigin(workspace)?.openRemoteDiskSession?.(workspace, profile, s.id)) {
-            return;
-          }
-          void host
-            .openDiskSession(profile.id, workspace.root, workspace.id, s.id)
-            .then((meta) =>
-              noteSessionTabTitle(meta.id, displayTitle(s.id, s.id)),
-            )
-            .catch(() => undefined);
-        }}
+        /* 打开出口统一:RPC 行 → 带渲染 resume;远程 → 来源插件;其余 → PTY。 */
+        onOpen={() => openDiskSessionEntry(profile, workspace, s, displayTitle)}
         onContextMenu={(e) => {
           e.preventDefault();
           setMenu({ kind: "disk", session: s, x: e.clientX, y: e.clientY });
@@ -198,9 +179,14 @@ export function CliSessionGroup({
     ));
 
   // 整组为空则不占位(默认视图:无活会话且磁盘历史加载完也为空;归档视图:无归档项);
-  // 历史加载中(orderedLive 空且 sessions===null)同样不占位
-  if (isEmpty) return null;
-  if (orderedLive.length === 0 && sessions === null) return null;
+  // 历史加载中(orderedLive 空且 sessions===null)同样不占位。
+  const groupVisible = !isEmpty && !(orderedLive.length === 0 && sessions === null);
+  /* 组可见性上报(PTY 小节头聚合):外部 store 写(ptySectionVisibility),
+   * 不走 prop 回调 effect;卸载残留值由读侧 profiles 集合兜住。 */
+  useEffect(() => {
+    notePtyGroupVisible(profile.id, groupVisible);
+  }, [groupVisible, profile.id]);
+  if (!groupVisible) return null;
 
   return (
     <div className="cli-group">
@@ -267,6 +253,10 @@ export function CliSessionGroup({
               />
             );
           })}
+
+          {/* RPC 行不在引擎分组呈现:呈现面 = 工作区卡片的「带渲染的会话」小节
+              (StructuredSessionSection,按 cwd 归属;图 2 结构定稿,2026-11-05);
+              关闭会话经结束账本在小节存续,磁盘历史行让位。 */}
 
           {/* 磁盘历史(分页;已排除工作区置顶块与全局置顶) */}
           {renderDiskRows(visible, false)}

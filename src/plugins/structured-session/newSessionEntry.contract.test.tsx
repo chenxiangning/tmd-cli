@@ -77,7 +77,7 @@ describe("G-01 NewSessionEntry 能力门", () => {
     expect(html).toContain("OMP");
     expect(html).toContain("Pi");
     expect(html).not.toContain("claude");
-    expect(html).not.toContain("RPC 会话");
+    expect(html).not.toContain("重开上次会话"); /* 2026-11-05 撤除:续聊入口不再进新建菜单 */
   });
 
   it("点击行打开独立 structured tab(id 带 structured: 前缀)并回调 onClose 关闭宿主菜单", () => {

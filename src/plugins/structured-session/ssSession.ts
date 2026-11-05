@@ -1,7 +1,7 @@
 /**
- * 结构化会话生命周期 hook(守 300 行铁则)—— PiRpcSession 全编排:
- * spawn/握手/重试(含 boot 收养)、转录 120ms 合帧、审批回路、follow_up 排队、
- * 轮末 OS 通知、看门狗(ssWatchdog)、stderr 降噪。
+ * 结构化会话生命周期 hook —— PiRpcSession 全编排:spawn/收养/握手/重试、
+ * 转录 120ms 合帧、审批回路、follow_up 排队、轮末 OS 通知、看门狗、
+ * warn 多槽(ssWarn)、stderr 降噪。
  */
 import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { errTextDisplay } from "@kernel/errText";
@@ -10,37 +10,48 @@ import { t } from "@kernel/i18n";
 import { getSettingsState } from "@kernel/settings";
 import type { CliTranscriptBlock } from "@kernel/cli";
 import { sendOsNotification } from "@kernel/ipc";
-import { isSsMuted, noteLastSsSession, openStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
-import { adoptDiskSeed } from "./adoptBoot";
+import { isSsMuted, noteLastSsSession, noteSsRpcSession, focusStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { adoptDiskSeed, cancelAdoptKill, scheduleAdoptKill } from "./adoptBoot";
 import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { useTurnWatchdog } from "./ssWatchdog";
+import { useWarnCapsules } from "./ssWarn";
+import { useSsDraft } from "./ssDraft";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
 import { StructuredTurnEvidence } from "./evidence";
 import { useTurnLive } from "./ssTurnLive";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
 
+/** 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦 + 免打扰窗);
+ *  RPC 行静音覆盖层(isSsMuted)先行过滤;点击深链按原 tab id 精确回本 tab。 */
+function notifyTurnEnd(profileId: string, cwd: string, tabId: string): void {
+  const { settings } = getSettingsState();
+  if (isSsMuted(profileId, cwd) || !shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) return;
+  const name = `${host.getCliProfile(profileId)?.name ?? profileId} · ${t("带渲染的会话")}`;
+  const { title, body } = notifyText("turnEnd", "", { getSessions: () => [] }, name);
+  void sendOsNotification(title, body, () => focusStructuredSessionTab(tabId, profileId, cwd));
+}
+
 /** useSsSession 返回面(StructuredSessionTab 与子组件的共享契约)。 */
 export type SsSessionState = {
-  phase: Phase; statusText: string | null; warn: string | null; blocks: CliTranscriptBlock[]; turnStart: number;
+  phase: Phase; statusText: string | null; warns: string[]; blocks: CliTranscriptBlock[]; turnStart: number;
   busy: boolean; busySince: number | null; elapsed: number; confirm: PiRpcConfirm | null;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
   /** 流内活跃输出面(活思考/正文据此展开;与块位置无关,见 PiRpcReducer.liveSurface)。 */
   liveSurface: PiLiveSurface;
-  /** 轮进行中渲染态(结算 600ms 宽限,见 useTurnLive):活轮/落定折叠渲染切换用,
-   *  与 busy 分离——引擎代理循环逐步发 session_settled,busy 沿不可直接作渲染界。 */
+  /** 轮进行中渲染态(结算 600ms 宽限,见 useTurnLive;与 busy 分离:
+   *  引擎代理循环逐步发 session_settled,busy 沿不可直接作渲染界)。 */
   turnLive: boolean;
   sessionRef: MutableRefObject<PiRpcSession | null>; stickRef: MutableRefObject<boolean>;
   retry: () => void; send: () => void; answerConfirm: (ok: boolean) => void; onStateRefresh: (s: PiRpcState) => void;
-  dismissWarn: () => void;
+  dismissWarn: (index: number) => void;
 };
 
 export function useSsSession(payload: StructuredSessionPayload, ledgerId: string): SsSessionState {
   const [phase, setPhase] = useState<Phase>("starting");
   const [statusText, setStatusText] = useState<string | null>(null);
-  /* 启动期 stderr 尾行持久化为可关闭 warn 胶囊(ready 后 statusText 清空不丢)。 */
-  const [warn, setWarn] = useState<string | null>(null);
+  const { warns, addWarn, dismissWarn, clearWarns } = useWarnCapsules();
   const [blocks, setBlocks] = useState<CliTranscriptBlock[]>([]);
   const [turnStart, setTurnStart] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -52,18 +63,12 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [queued, setQueued] = useState(0);
   const [stats, setStats] = useState<PiRpcStats | null>(null);
-  const [draft, setDraft] = useState(() => {
-    /* 草稿持久化:tab 关闭/app 重启不丢(send 成功即清)。key 含 cwd,同引擎不同目录互不串。 */
-    try { return localStorage.getItem(`tmd.ss.draft.${payload.profileId}:${payload.cwd}`) ?? ""; } catch { return ""; }
-  });
+  const [draft, setDraft] = useSsDraft(payload.profileId, payload.cwd);
   const sessionRef = useRef<PiRpcSession | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [evidence] = useState(() => new StructuredTurnEvidence(payload.cwd, ledgerId));
-  /* 轮进行中渲染态(结算宽限闸;见 useTurnLive 头注)。 */
   const turnLive = useTurnLive();
-  /* 贴底跟随标记(busy 流式期上翻停跟);scroll 副作用在组件侧读。 */
   const stickRef = useRef(true);
-  /* stderr 尾行(ref 态)+ phase 镜像:onError 降噪闸(ready 期 stderr 不进状态行)。 */
   const phaseRef = useRef<Phase>("starting"); const stderrTailRef = useRef<string | null>(null);
   /* 用户在途轮计数:send/followUp 记账结算销账,只有用户轮结束才发 OS 通知。 */
   const promptDebtRef = useRef(0);
@@ -85,21 +90,22 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     }
   };
 
-  /* 生命周期:mount 起 RPC 子进程,unmount(关 tab)kill 收割。StrictMode 双跑
-   * 由 startedRef 挡;失败先 kill 清残留子进程再进 error 态,重试按钮重跑启动。 */
+  /* 生命周期:mount 起子进程,unmount kill 收割(StrictMode 双跑 startedRef 挡;
+   * 收养流延迟收割见 adoptBoot)。 */
   const startedRef = useRef(false);
-  /* 轮次看门狗(批次 6,ssWatchdog):busy 超 5min 无帧 → 一次性僵死 warn。 */
-  const { stamp } = useTurnWatchdog(busy, () => t("引擎超过 5 分钟无输出,可能已僵死;可中止或重试"), setWarn);
-  const resumeRef = useRef<string | null>(null); const seedRef = useRef<CliTranscriptBlock[] | null>(null);
+  const { stamp } = useTurnWatchdog(busy, t("引擎超过 5 分钟无输出,可能已僵死;可中止或重试"), addWarn);
+  const resumeRef = useRef<string | null>(null); const seedRef = useRef<CliTranscriptBlock[] | null>(null); const seedKeepRef = useRef(true);
   const startSession = () => {
     const rpc = host.getCliProfile(payload.profileId)?.structuredRpc;
     if (startedRef.current || !rpc) return;
     startedRef.current = true;
     setPhase("starting");
     setStatusText(null);
-    setWarn(null);
+    clearWarns();
     stderrTailRef.current = null;
     let self: PiRpcSession;
+    /* 收养流:第二遍挂载接管同流,取消上一遍 cleanup 调度的待决 kill(评审 P2)。 */
+    if (payload.adoptStreamId) cancelAdoptKill(payload.adoptStreamId);
     const session = (self = new PiRpcSession(
       rpc,
       payload.cwd,
@@ -129,19 +135,13 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
             void sessionRef.current?.getStats().then((s) => { if (s) setStats(s); }).catch(() => undefined);
             if (promptDebtRef.current > 0) {
               promptDebtRef.current--;
-              /* 轮次结束 OS 通知:PTY 侧同闸同文案(notifyOsTurnEnd + 失焦 + 免打扰窗),点击深链回本 tab。 */
-              const { settings } = getSettingsState();
-              if (!isSsMuted(payload.profileId, payload.cwd) && shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) {
-                const name = `${host.getCliProfile(payload.profileId)?.name ?? payload.profileId} · ${t("带渲染的会话")}`;
-                const { title, body } = notifyText("turnEnd", "", { getSessions: () => [] }, name);
-                void sendOsNotification(title, body, () => openStructuredSessionTab(payload.profileId, payload.cwd));
-              }
+              notifyTurnEnd(payload.profileId, payload.cwd, ledgerId);
             }
           }
         },
         onToolExecution: (rec) => evidence.toolExecution(rec),
         onConfirm: setConfirm,
-        onDroppedFrame: () => setWarn((w) => w ?? t("RPC 流有帧被截断丢弃,转录可能缺块")),
+        onDroppedFrame: () => addWarn(t("RPC 流有帧被截断丢弃,转录可能缺块")),
         onExit: () => {
           if (sessionRef.current === self) {
             /* 存证封口(批次 6):进程退出 = 轮次永不再结算,悬锚就此 seal。 */
@@ -159,13 +159,13 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
           stderrTailRef.current = msg;
           if (phaseRef.current !== "ready") {
             setStatusText(msg);
-            setWarn((w) => w ?? msg);
+            addWarn(msg);
           }
         },
       },
       payload.adoptStreamId
         ? { adoptStreamId: payload.adoptStreamId }
-        : { resume: payload.resumeSessionId ?? (resumeRef.current && rpc.resumeArgs ? resumeRef.current : undefined), seedBlocks: seedRef.current ?? undefined, spawnLabel: `structured:${payload.profileId}:${payload.cwd}` },
+        : { resume: payload.resumeSessionId ?? (resumeRef.current && rpc.resumeArgs ? resumeRef.current : undefined), seedBlocks: seedRef.current ?? undefined, seedKeepTail: seedKeepRef.current, spawnLabel: ledgerId },
     ));
     sessionRef.current = session;
     void session
@@ -179,9 +179,13 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
         setStatusText(null);
         setPhase("ready");
-        /* adopt/resume 后置种子:磁盘转录补历史(读不到静默空幕布,续跑不受影响)。 */
-        if ((payload.adoptStreamId || payload.resumeSessionId) && state?.sessionId) void adoptDiskSeed(session, payload, state.sessionId);
-        if (state?.sessionId) noteLastSsSession(payload.profileId, payload.cwd, state.sessionId);
+        /* adopt/resume 后置种子:磁盘转录补历史(读不到静默空幕布;候选 id 握手 sid 优先,
+           引擎换壳 sid 变化时回落请求的 resumeSessionId,不因 sid 对不上而空幕布)。 */
+        if (payload.adoptStreamId || payload.resumeSessionId) void adoptDiskSeed(session, payload, state?.sessionId, payload.resumeSessionId);
+        if (state?.sessionId) {
+          noteLastSsSession(payload.profileId, payload.cwd, state.sessionId);
+          noteSsRpcSession(state.sessionId);
+        }
       })
       .catch((e: unknown) => {
         /* 启动失败:先收割残留再进 error 态;秒退时 stderr 尾行(真因)优先。 */
@@ -197,7 +201,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     flushBlocks();
     const canResume = !!sessionId && !!host.getCliProfile(payload.profileId)?.structuredRpc?.resumeArgs;
     resumeRef.current = canResume ? sessionId : null;
-    seedRef.current = canResume ? [...blocks] : null;
+    /* retry 种子剪尾旗:末轮在途 → 剪掉(resume 重放整轮);已结算 → 全量保末轮。 */
+    seedRef.current = canResume ? [...blocks] : null; seedKeepRef.current = canResume ? !(sessionRef.current?.hasOpenTurn() ?? false) : true;
     sessionRef.current?.kill();
     sessionRef.current = null;
     evidence.reset(canResume ? sessionId : undefined);
@@ -207,9 +212,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
       setBlocks([]);
       setTurnStart(0);
     }
-    setQueued(0);
-    setConfirm(null);
-    setBusy(false);
+    setQueued(0); setConfirm(null); setBusy(false);
     startSession();
   };
   useEffect(() => {
@@ -217,7 +220,14 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     return () => {
       startedRef.current = false;
       clearTimeout(flushTimerRef.current ?? undefined);
-      sessionRef.current?.kill();
+      /* 收养流:延迟一拍 kill,给 StrictMode 第二遍挂载接管窗口(评审 P2);
+       *  闭包捕获 session 本体 —— ref 已置 null,惰性读会杀不到。 */
+      if (payload.adoptStreamId && sessionRef.current) {
+        const adopted = sessionRef.current;
+        scheduleAdoptKill(payload.adoptStreamId, () => adopted.kill());
+      } else {
+        sessionRef.current?.kill();
+      }
       sessionRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -236,14 +246,6 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
-
-  /* 草稿持久化镜像(初值在 useState 读;send 清空后此处同步移除 key)。 */
-  useEffect(() => {
-    try {
-      if (draft) localStorage.setItem(`tmd.ss.draft.${payload.profileId}:${payload.cwd}`, draft);
-      else localStorage.removeItem(`tmd.ss.draft.${payload.profileId}:${payload.cwd}`);
-    } catch { /* 隐私模式等存储失效:草稿退化为会话内 */ }
-  }, [draft, payload.profileId, payload.cwd]);
 
   const send = () => {
     const text = draft.trim();
@@ -288,10 +290,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     setThinkingLevel(s.thinkingLevel ?? null);
   };
 
-  const dismissWarn = () => setWarn(null);
-
   return {
-    phase, statusText, warn, blocks, turnStart, busy, busySince, elapsed, confirm,
+    phase, statusText, warns, blocks, turnStart, busy, busySince, elapsed, confirm,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
     liveSurface, turnLive: turnLive.live,
     sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,

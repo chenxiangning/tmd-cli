@@ -24,13 +24,13 @@ export function StatusCluster(props: {
   minimal: boolean;
   busy: boolean;
   queued: number;
-  /** 启动期 stderr 告警(扩展包加载等);可 × 忽略,title 给全量。 */
-  warn: string | null;
+  /** 告警胶囊组(帧丢弃/看门狗/启动 stderr;各占一槽,逐槽可关)。 */
+  warns: string[];
   statusText: string | null;
-  onDismissWarn: () => void;
+  onDismissWarn: (index: number) => void;
   onAbort: () => void;
 }) {
-  const { sessionId, stats, minimal, busy, queued, warn, statusText } = props;
+  const { sessionId, stats, minimal, busy, queued, warns, statusText } = props;
   return (
     <>
       {sessionId ? <span className="ss-sid">{sessionId.slice(0, 8)}</span> : null}
@@ -46,21 +46,21 @@ export function StatusCluster(props: {
       </button>
       <span className={`ss-dot${busy ? " is-busy" : ""}`} title={busy ? t("生成中") : t("空闲")} />
       {queued > 0 ? <span className="ss-queued" title={t("当前轮结束后自动发送")}>{t("排队 {n}", { n: queued })}</span> : null}
-      {warn ? (
-        <span className="ss-warn" role="alert" title={warn}>
+      {warns.map((w, i) => (
+        <span className="ss-warn" role="alert" title={w} key={w}>
           <Warning size="0.75rem" weight="fill" aria-hidden />
-          <span className="ss-warn-text">{warn}</span>
+          <span className="ss-warn-text">{w}</span>
           <button
             type="button"
             className="ss-warn-x"
             title={t("忽略")}
             aria-label={t("忽略")}
-            onClick={props.onDismissWarn}
+            onClick={() => props.onDismissWarn(i)}
           >
             <X size="0.6875rem" aria-hidden />
           </button>
         </span>
-      ) : null}
+      ))}
       {statusText ? <span className="ss-status" title={statusText}>{statusText.slice(0, 80)}</span> : null}
       {busy ? <button type="button" className="ss-abort" onClick={props.onAbort}>{t("中止")}</button> : null}
     </>

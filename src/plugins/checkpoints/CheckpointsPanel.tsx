@@ -12,6 +12,8 @@ import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
 import { host } from "@kernel/host";
 import { messageAnchors } from "@kernel/messageAnchors";
+import { getActiveRpcEvidenceView } from "@kernel/structuredSessionEvidence";
+import { useStructuredSessionRows } from "@kernel/structuredSessionTabs";
 import { BatchRow, type ConfirmTarget } from "./BatchRow";
 import { ChangesPanel } from "./ChangesPanel";
 import { TimelinePanel } from "./TimelinePanel";
@@ -29,14 +31,20 @@ interface CwdCkptState {
   notARepo: boolean;
 }
 
-/** 摘要行右侧计数;仅时间线态挂载(摘要行条件渲染,与面板保活独立)。 */
+/** 摘要行右侧计数;仅时间线态挂载(摘要行条件渲染,与面板保活独立)。
+ *  RPC 视角(无活跃 PTY、活跃 tab = 带渲染的会话)计行投影 userTexts,
+ *  与 RpcTimeline 数据源同口径。 */
 function TimelineCount() {
   const sessionId = host.getActiveSessionId();
   const anchors = useSyncExternalStore(messageAnchors.subscribe, () =>
     messageAnchors.getAnchors(sessionId),
   );
+  /* RPC 视角计数须响应式:userTexts 随行投影增长(getActiveRpcEvidenceView 纯读无订阅)。 */
+  const rows = useStructuredSessionRows();
+  const rpc = sessionId ? null : getActiveRpcEvidenceView();
+  const count = rpc ? rows.find((r) => r.tabId === rpc.tabId)?.userTexts.length ?? 0 : anchors.length;
   return (
-    <span className="flex-none text-(--tmd-fg-faint)">{t("{count} 条", { count: anchors.length })}</span>
+    <span className="flex-none text-(--tmd-fg-faint)">{t("{count} 条", { count })}</span>
   );
 }
 

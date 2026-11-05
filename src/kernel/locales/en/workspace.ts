@@ -178,19 +178,20 @@ export const MESSAGES = {
   /* ── 2026-11-05 新建会话菜单三分区(PTY / 带渲染的会话 / 远程与其他) ── */
   "PTY 会话": "PTY sessions",
   "本地终端,按 CLI 原生交互": "Local terminal, native CLI interaction",
+  "终端会话": "Terminal sessions",
   "带渲染的会话": "Rendered session",
   "思考与工具调用以卡片渲染,过程实时可见": "Thinking & tool calls rendered as cards, live progress",
   "远程与其他": "Remote & other",
   "其余 {n} 个预设见「管理预设…」": "{n} more presets in \"Manage presets…\"",
   /* ── 带渲染的会话区(RPC 行分区,会话体系对齐批次 1) ── */
   "关闭会话": "Close session",
-  "展开带渲染的会话区": "Expand rendered-session zone",
-  "收起带渲染的会话区": "Collapse rendered-session zone",
   "继续对话(带渲染的会话)": "Continue in rendered session",
   "跳转到会话": "Jump to session",
   "静音通知": "Mute notifications",
   "取消静音通知": "Unmute notifications",
   "RPC 流有帧被截断丢弃,转录可能缺块": "RPC stream dropped a truncated frame; transcript may miss blocks",
+  "已结束": "Ended",
+  "移除记录": "Remove entry",
   "引擎超过 5 分钟无输出,可能已僵死;可中止或重试": "No engine output for 5 min — possibly stalled; abort or retry",
 
 } as Record<string, string>;

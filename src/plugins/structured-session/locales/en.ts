@@ -3,8 +3,6 @@ export const MESSAGES_EN: Record<string, string> = {
   "带渲染的会话": "Rendered session",
   "结构化会话": "Structured session",
   "该引擎不支持 RPC 会话": "This engine does not support RPC sessions",
-  /* G-01 新建菜单入口(2026-11-05 起入「带渲染的会话」组,行文案 = 引擎名) */
-  "重开上次会话": "Reopen last session",
   "启动 RPC 会话中…": "Starting RPC session…",
   "启动失败": "Start failed",
   "重试": "Retry",

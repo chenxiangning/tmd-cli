@@ -19,6 +19,8 @@
  *   行下内联展开该轮变更集;匹配不到不渲染(不猜测),git 归因带「推断」
  *   标注(候选8 正向闭环)。
  * - 与审批线动作零共享(回退/通过等仍只在批视图);chip 仅读批次清单。
+ * - RPC 视角(带渲染的会话,RpcTimeline):PTY 锚点轮询不适用,直读
+ *   structuredSessionTabs 行投影的 userTexts;不出定位钮/轮文件 chip。
  */
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
@@ -38,7 +40,10 @@ import {
   messageAnchors,
   type UserMessageAnchor,
 } from "@kernel/messageAnchors";
+import { getActiveRpcEvidenceView } from "@kernel/structuredSessionEvidence";
+import { subscribeEditorTabs } from "@kernel/tabs";
 import { PromptImages } from "./PromptImages";
+import { RpcTimeline } from "./RpcTimeline";
 import { AttachmentFiles, RowRail } from "./TimelineRowParts";
 import { extractTimelineParts } from "./timelineText";
 import { matchTurnBatches } from "./turnMatch";
@@ -56,7 +61,12 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
   const [, bumpRender] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
     const off = host.events.on(KernelTopics.activeSessionChanged, bumpRender);
-    return () => off();
+    /* 切编辑 tab(RPC ↔ 文件 ↔ PTY 转录)同样重解析视角,防 RPC 时间线滞留。 */
+    const offTabs = subscribeEditorTabs(bumpRender);
+    return () => {
+      off();
+      offTabs();
+    };
   }, []);
 
   const sessionId = host.getActiveSessionId();
@@ -96,6 +106,11 @@ export function TimelinePanel({ batches }: { batches?: readonly CkptBatch[] }) {
   const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set());
 
   if (!sessionId) {
+    /* RPC 视角:活跃 PTY 缺席、活跃编辑 tab = 带渲染的会话 → 直读行投影
+       userTexts 渲染简化时间线(不经锚点轮询;审批线批次同账本副键命中,
+       见 useCkptScope)。 */
+    const rpc = getActiveRpcEvidenceView();
+    if (rpc) return <RpcTimeline tabId={rpc.tabId} />;
     return <Empty>{t("时间线跟随会话生命周期 —— 当前没有活跃会话")}</Empty>;
   }
   if (anchors.length === 0) {

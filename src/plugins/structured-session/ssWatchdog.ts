@@ -4,17 +4,23 @@
  * 传感器在前端帧沿(消费方每帧 stamp),不在引擎侧自报。
  */
 
-import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef } from "react";
 
-/** busy 期静默超限 → setWarn(warnText,一次性 w ?? 兜底);返回帧戳 stamp。 */
+/** busy 期静默超限 → addWarn(warnText,一次性去重);返回帧戳 stamp。
+ *  warnText 为纯字符串(非内联闭包):busy 流式期每 120ms 重渲染不得
+ *  令 effect 依赖抖动重启 interval(2026-11-05 评审 P3 修复)。 */
 export function useTurnWatchdog(
   busy: boolean,
-  warnText: () => string,
-  setWarn: Dispatch<SetStateAction<string | null>>,
+  warnText: string,
+  addWarn: (text: string) => void,
   staleMs = 300_000,
 ): { stamp: () => void } {
   const lastAtRef = useRef(0);
   const notifiedRef = useRef(false);
+  const addWarnRef = useRef(addWarn);
+  useEffect(() => {
+    addWarnRef.current = addWarn;
+  });
   useEffect(() => {
     if (!busy) {
       lastAtRef.current = 0;
@@ -25,10 +31,10 @@ export function useTurnWatchdog(
     const id = window.setInterval(() => {
       if (Date.now() - lastAtRef.current > staleMs && !notifiedRef.current) {
         notifiedRef.current = true;
-        setWarn((w) => w ?? warnText());
+        addWarnRef.current(warnText);
       }
     }, 5_000);
     return () => window.clearInterval(id);
-  }, [busy, staleMs, setWarn, warnText]);
+  }, [busy, staleMs, warnText]);
   return { stamp: () => (lastAtRef.current = Date.now()) };
 }

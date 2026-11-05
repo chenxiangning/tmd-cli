@@ -223,16 +223,16 @@ export function SsHeader(props: {
   ready: boolean;
   minimal: boolean;
   statusText: string | null;
-  /** 启动期 stderr 告警胶囊(可关闭);starting/error 相位由横幅/状态行承接,不传。 */
-  warn: string | null;
+  /** 告警胶囊组(帧丢弃/看门狗/启动 stderr;可逐槽关闭)。 */
+  warns: string[];
   session: PiRpcSession | null;
   actions: ReactNode;
   onStateRefresh: (s: PiRpcState) => void;
   onAbort: () => void;
-  onDismissWarn: () => void;
+  onDismissWarn: (index: number) => void;
 }) {
   useHost(); /* profile 注册/变化 */
-  const { profileId, cwd, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, warn, session, stats } = props;
+  const { profileId, cwd, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, warns, session, stats } = props;
   const capable = host.getCliProfiles().filter((p) => p.structuredRpc);
   const [menu, setMenu] = useState<MenuKind>(null);
   const rootRef = useRef<HTMLElement>(null);
@@ -287,7 +287,7 @@ export function SsHeader(props: {
         minimal={minimal}
         busy={busy}
         queued={queued}
-        warn={warn}
+        warns={warns}
         statusText={statusText}
         onDismissWarn={props.onDismissWarn}
         onAbort={props.onAbort}

@@ -1,7 +1,37 @@
 /* ===== 带渲染的会话区(RPC 行,StructuredSessionSection) =====
-   关闭钮与计时沿用 thread-row-host 宿主律:钮是行的 DOM 兄弟(嵌套交互治理),
-   hover/焦点显形,absolute 骑行右缘让位区;计时 = 行内 tabular 数字(busy 行)。
-   后续批次(未读灯/右键菜单)样式也归本文件。 */
+   形态(2026-11-05 定稿):工作区卡片内小节,与终端/远程组并列;小节头 =
+   静态标签(折叠由工作区卡片统一管辖,不做自有折叠)。行样式沿用
+   thread-row 共享系(与 PTY 行同槽位),关闭钮与计时沿用 thread-row-host
+   宿主律:钮是行的 DOM 兄弟(嵌套交互治理),hover/焦点显形,absolute 骑行
+   右缘让位区;计时 = 行内 tabular 数字(busy 行)。 */
+
+/* 工作区内小节头(SectionLabel:PTY / RPC 分区标识,静态不可点)。
+   图标列对齐工作区文件夹图标中心(容器内 20px 列,= --workspace-tree-indent,
+   0.75rem 图标宽 12px → 左缘 14px);背景遮蔽树线(小节头即树断口)。 */
+.ws-section-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 2px 14px;
+  font-size: var(--sidebar-caption-font-size);
+  color: var(--text-muted);
+  user-select: none;
+  background: var(--tmd-bg);
+}
+
+/* PTY 通道 kind 标签:与 .thread-rpc-badge 同槽位同尺寸(标题列对齐),
+   中性灰配色与 RPC 蓝区隔(通道缩写,非身份强调)。 */
+.thread-pty-badge {
+  flex: none;
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+}
 .ss-row-close {
   position: absolute;
   right: 4px;
@@ -67,7 +97,25 @@
   justify-content: center;
 }
 
-/* 「重开上次会话」菜单项(批次 4):虚线描边与新建项区分「续 vs 新」。 */
-.ss-menu-resume {
-  border-style: dashed;
+/* 结束存续行尾签(关闭账本行): faint 小字标识「已结束」,与活行灯语区分。 */
+.ss-row-ended-tag {
+  flex: none;
+  margin-right: 22px;
+  font-size: 0.625rem;
+  color: var(--text-faint);
+}
+
+/* 磁盘行 RPC 身份徽标(R-ISO1 工作区入口区分):已知 RPC 会话的磁盘行
+   与 PTY 历史行一眼可辨;与左栏「带渲染的会话」分区/编辑 tab 条 RPC chip
+   同色系同语义。 */
+.thread-rpc-badge {
+  flex: none;
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  color: #7c9bff;
+  border: 1px solid #2b3a6e;
+  background: rgba(22, 32, 74, 0.25);
 }

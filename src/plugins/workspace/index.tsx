@@ -149,7 +149,8 @@ function WorkspaceSection() {
       {/* 运行区:运行中/结束未查看的活会话自动聚集,已查看自动回组(单一区域原则,见 RunningZone.tsx) */}
       <RunningZoneSection />
 
-      {/* 带渲染的会话区:RPC 结构化会话行投影(与 PTY 派生链完全隔离,见 StructuredSessionSection.tsx) */}
+      {/* 带渲染的会话区兜底:RPC 行常态在工作区卡片内呈现(WorkspaceCard);
+          此处无 prop 渲染只兜底 cwd 已不属于任何工作区的孤儿行(工作区移除场景) */}
       <StructuredSessionSection />
 
       <WorkspaceCaption

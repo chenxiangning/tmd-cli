@@ -72,16 +72,29 @@ export class PiRpcReducer {
   /** follow_up 本地回显排队(omp 不发 user 帧,轮首无用户块轮界不可读;下轮
    * 轮界帧注入 settled 尾)。队列制:busy 连发多条互不覆写(单槽静默丢前条)。 */
   private pendingUserEcho: string[] = [];
+  /** 轮开闭旗(turn_start 起、session_settled 止):种子剪尾判据,见 hasOpenTurn。 */
+  private turnOpen = false;
 
-  /** 接续种子(断线重开换壳保转录):settled = 旧 blocks 的完整轮部分
-   * (最后一个 user 块之前);在途轮不带走——引擎 --resume 可能重放在途轮
-   * 消息帧,种子带未完成轮会被整轮再写一遍(2026-11-05 图证实锤)。在途轮
-   * 由引擎重放/续跑重建,幕布不重复为先。 */
-  seed(blocks: CliTranscriptBlock[]): void {
-    const cut = blocks.findLastIndex((b) => b.role === "user");
+  /** 接续种子(断线重开换壳保转录 / 磁盘转录补历史)。剪尾条件分两种:
+   *  keepTail=false(默认,活流收养/重试重开):settled = 最后一个 user 块
+   *  之前的完整轮部分,在途轮不带走——引擎 --resume 可能重放在途轮消息帧,
+   *  种子带未完成轮会被整轮再写一遍(2026-11-05 图证实锤);在途轮由引擎
+   *  重放/续跑重建,幕布不重复为先。
+   *  keepTail=true(关闭会话 resume 重开):磁盘转录是纯已结算历史,引擎
+   *  18.x --resume 全程零重放帧(2026-11-05 真机探针实证),剪掉最后一个
+   *  user 块 = 单轮会话种子直接变空、多轮丢末轮 —— 全量保留。 */
+  seed(blocks: CliTranscriptBlock[], keepTail = false): void {
+    const cut = keepTail ? -1 : blocks.findLastIndex((b) => b.role === "user");
     this.settled = cut >= 0 ? blocks.slice(0, cut) : [...blocks];
     this.turnStart = this.settled.length;
+    this.turnOpen = false; /* 种子皆为落定基座;在途由后续帧重开 */
     this.rebuild();
+  }
+
+  /** 轮在途判据:retry/关闭捕获据此决定种子剪尾 —— 在途轮引擎 resume 会重放,
+   *  种子带它即整轮重复(图证实锤);已结算轮 resume 零重放(真机探针实证)。 */
+  hasOpenTurn(): boolean {
+    return this.turnOpen;
   }
 
   feed(rec: Record<string, unknown>): CliTranscriptBlock[] {
@@ -91,7 +104,11 @@ export class PiRpcReducer {
     if (type === "session_start" || type === "turn_start") {
       /* 先推进轮界再注回显(echo 下标 = 新 turnStart 归活轮切片);反过来会落进上轮。 */
       this.turnStart = this.blocks.length;
+      this.turnOpen = true;
       this.flushUserEcho();
+    } else if (type === "session_settled") {
+      this.turnOpen = false;
+      this.settleTurn();
     } else if (type === "agent_start") {
       this.flushUserEcho();
     } else if (type === "message_start") this.startMsg(rec);
@@ -99,7 +116,6 @@ export class PiRpcReducer {
     else if (type === "message_end") this.endMsg(rec);
     else if (type === "tool_execution_start" || type === "tool_execution_update") this.toolExec(rec, "running");
     else if (type === "tool_execution_end") this.toolExec(rec, rec.isError === true ? "error" : "done");
-    else if (type === "session_settled") this.settleTurn();
     return this.blocks;
   }
 

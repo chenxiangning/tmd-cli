@@ -6,7 +6,7 @@
  * 生命周期编排见 ssSession.ts。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  */
-import { lazy, useEffect, useRef, useState } from "react";
+import { lazy, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown } from "@phosphor-icons/react";
 import { getActiveTabId, updateTab, type EditorTab } from "@kernel/tabs";
 import { getStructuredSessionRows, noteStructuredSessionRow, readSsTitleOverride } from "@kernel/structuredSessionTabs";
@@ -114,6 +114,15 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   }, [firstUserText, tab.id, payload.profileId, payload.cwd]);
 
 
+  /* 用户消息流广播(处理插件对接:时间线面板直读,不经 PTY 锚点轮询)。
+   * key 变化才提交,流式 120ms flush 不放大行集提交。 */
+  const userTexts = useMemo(() => ss.blocks.filter((b) => b.role === "user").map((b) => b.text), [ss.blocks]);
+  const userTextsKey = JSON.stringify(userTexts); /* 精确键:join("") 会把 ["a","bc"]/["ab","c"] 折成同键,行投影滞留 */
+  useEffect(() => {
+    noteStructuredSessionRow(tab.id, { userTexts });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userTextsKey, tab.id]);
+
   if (!profile?.structuredRpc) {
     return <div className="ss-root" data-icon-decor="structured-session"><div className="ss-empty">{t("该引擎不支持 RPC 会话")}</div></div>;
   }
@@ -131,7 +140,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
         ready={ss.phase === "ready"}
         minimal={minimal}
         statusText={ss.statusText}
-        warn={ss.phase === "ready" || ss.phase === "exited" ? ss.warn : null}
+        warns={ss.phase === "ready" || ss.phase === "exited" ? ss.warns : []}
         session={ss.sessionRef.current}
         actions={<SsActions ss={ss} payload={payload} tab={tab} />}
         onStateRefresh={(s) => ss.onStateRefresh(s)}

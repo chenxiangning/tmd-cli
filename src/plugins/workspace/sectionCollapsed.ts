@@ -38,4 +38,3 @@ function createSectionToggle(key: string) {
 
 export const pinnedSection = createSectionToggle("tmd.pinnedSectionCollapsed");
 export const runningSection = createSectionToggle("tmd.runningSectionCollapsed");
-export const ssSection = createSectionToggle("tmd.ssSectionCollapsed");

@@ -202,4 +202,29 @@ describe("PiRpcReducer(轮级工具行 + 流内 think/text)", () => {
     r2.seed([{ id: "x", role: "assistant", text: "孤块" }]);
     expect(r2.turnStart).toBe(1);
   });
+
+  it("keepTail(resume 磁盘历史)= 全量保留含末轮:引擎 18.x resume 零重放帧,剪尾即丢历史(2026-11-05 关闭重开实锤)", () => {
+    const r = new PiRpcReducer();
+    r.seed(
+      [
+        { id: "a", role: "user", text: "一轮" },
+        { id: "b", role: "assistant", text: "答一" },
+      ],
+      true,
+    );
+    expect(r.turnStart).toBe(2);
+    expect(r.currentBlocks().map((b) => b.id)).toEqual(["a", "b"]);
+  });
+
+  it("轮开闭旗:turn_start 起、session_settled 止;种子重置(retry 剪尾判据)", () => {
+    const r = new PiRpcReducer();
+    expect(r.hasOpenTurn()).toBe(false);
+    r.feed(frame("turn_start"));
+    expect(r.hasOpenTurn()).toBe(true);
+    r.feed(frame("session_settled"));
+    expect(r.hasOpenTurn()).toBe(false);
+    r.feed(frame("turn_start"));
+    r.seed([{ id: "a", role: "user", text: "x" }], true);
+    expect(r.hasOpenTurn()).toBe(false);
+  });
 });

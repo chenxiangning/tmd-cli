@@ -44,19 +44,24 @@ export class PiRpcSession {
     private readonly opts?: {
       resume?: string;
       seedBlocks?: CliTranscriptBlock[];
+      /** 构造期种子剪尾旗(retry):末轮在途 false 剪掉防重放重复,已结算 true 全量(见 reducer.seed)。 */
+      seedKeepTail?: boolean;
       /** 消费方标签(spawn 透传 proc_stream,boot 枚举按它收养);
        *  adoptStreamId = 收养既有流(reload 重接),跳过 spawn 直接订阅握手。 */
       spawnLabel?: string;
       adoptStreamId?: string;
     },
   ) {
-    if (opts?.seedBlocks) this.reducer.seed(opts.seedBlocks);
+    if (opts?.seedBlocks) this.reducer.seed(opts.seedBlocks, opts.seedKeepTail ?? true);
   }
 
-  /** adopt 后置种子:磁盘转录补 reload 前历史(引擎不重发历史帧;
-   *  窗口期帧被 seed 覆盖,boot 收养 <1s,接受)。 */
-  adoptSeed(blocks: CliTranscriptBlock[]): void {
-    this.reducer.seed(blocks);
+  /** 轮在途判据(reducer 委托):retry/关闭捕获的种子剪尾决策用。 */
+  hasOpenTurn(): boolean { return this.reducer.hasOpenTurn(); }
+
+  /** adopt 后置种子:磁盘转录补 reload 前历史(引擎不重发历史帧,窗口期帧被
+   *  seed 覆盖,boot 收养 <1s);keepTail 语义见 reducer.seed。 */
+  adoptSeed(blocks: CliTranscriptBlock[], keepTail = false): void {
+    this.reducer.seed(blocks, keepTail);
     this.handlers.onBlocks(this.reducer.currentBlocks(), this.reducer.turnStart, this.reducer.liveSurface);
   }
 

@@ -98,6 +98,9 @@ function SessionTab({
           >
             {host.getCliProfile(meta.profileId)?.renderIcon?.("0.75rem")}
             {tabDot(tabState)}
+            {/* PTY kind 徽标:与编辑 tab 条 RPC chip 同构(R-ISO2 中央条两型
+                会话入口一眼可辨);引擎图标保留,chip 为 kind 判据。 */}
+            <span className="tab-kind-badge is-pty" title={t("PTY 会话")}>PTY</span>
             <span className="session-tab-label">{title}</span>
           </button>
           {/* 已置顶常亮实心指示(行内钮收敛的唯一例外:状态可见性优先);
