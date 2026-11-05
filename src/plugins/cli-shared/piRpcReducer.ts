@@ -2,9 +2,11 @@
  * pi 族 RPC 流式 reducer:NDJSON 事件 → CliTranscriptBlock[]。
  * 设计(docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md):
  * - think/text delta 流内累积;message_end 用 piTranscriptLine 落权威块。
- * - 工具行是「轮级」状态机(tool_execution_* 帧驱动,跨 assistant 消息存活):
- *   实测帧序 = assistant#1(含 toolCall)end → tool_execution_start/update/end →
- *   assistant#2 流;工具态挂单消息会在间隙丢失 → 挂在轮上。
+ * - 工具行由 tool_execution_* 帧驱动,跨 assistant 消息存活(实测帧序 =
+ *   assistant#1(含 toolCall)end → tool_execution_start/update/end →
+ *   assistant#2 流);帧到达即落基座 —— 思考|工具按因果时间线交错占位,
+ *   不整轮缓冲到尾部(2026-11-05 三轮:旧轮级缓冲把整轮工具行统一排在
+ *   流内思考之后,多步循环底部堆满工具行,实时输出被顶出视野)。
  * - message_end 的 toolCall 项与 role=toolResult 消息不产生块(与 tool_execution
  *   帧重复;实证:双行 tool(bash/called)+tool(undefined) 即此因)。
  * - turnStart 仅作「落定基线」;渲染层切「落定历史|流内活轮」用用户轮界
@@ -14,7 +16,7 @@
  * cli-shared 准入先例:cli-omp/cli-pi 的 structuredRpc 声明 + structured-session
  * 插件(feature)联合消费(1 cli-* + feature 形态)。
  */
-import type { CliTranscriptBlock, CliToolPreview } from "@kernel/cliSessionTypes";
+import type { CliTranscriptBlock } from "@kernel/cliSessionTypes";
 import { piToolPreview, piTranscriptLine } from "./piTranscript";
 
 /* 部件纯函数已拆至 piRpcWidgets(300 行铁则);此处重导出保持既有 import 面
@@ -30,15 +32,6 @@ export type PiLiveSurface = "thinking" | "text" | null;
 function argsOf(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
 }
-
-interface ToolLive {
-  name: string;
-  callId: string;
-  status: "running" | "done" | "error";
-  detail?: string;
-  preview?: CliToolPreview;
-}
-
 /** 单条 assistant 消息的流内态(message_start..message_end 生命周期)。 */
 interface MsgLive {
   role: "assistant" | "user";
@@ -62,16 +55,13 @@ function contentText(content: unknown): string | undefined {
 }
 
 export class PiRpcReducer {
-  /** 落定基座(唯一真源;不含流内块与工具行)。 */
+  /** 落定基座(唯一真源;含按帧序落座的工具行,不含流内块)。 */
   private settled: CliTranscriptBlock[] = [];
   private blocks: CliTranscriptBlock[] = [];
   private live: MsgLive | null = null;
-  /** 轮级工具行(插入序);落定时冻结进 blocks。 */
-  private tools = new Map<string, ToolLive>();
-  private toolOrder: string[] = [];
   turnStart = 0;
   /** 流内活跃输出面(thinking/text):渲染层据此给对应块「流式展开」态。
-   * 必须与块位置解耦 —— rebuild 布局中活思考永远排在轮级工具行之前,
+   * 必须与块位置解耦 —— rebuild 布局中流内块永远在基座(含工具行)之后,
    * 渲染层若按 is-last 判断,轮内第二段起的思考永远不展开(2026-11-05
    * 幕布流缺陷实锤:工具一跑,思考块后再无 last)。消息结算即清。 */
   liveSurface: PiLiveSurface = null;
@@ -100,8 +90,6 @@ export class PiRpcReducer {
       this.flushUserEcho();
     } else if (type === "agent_start") {
       this.flushUserEcho();
-      this.tools.clear();
-      this.toolOrder = [];
     } else if (type === "message_start") this.startMsg(rec);
     else if (type === "message_update") this.updateMsg(rec);
     else if (type === "message_end") this.endMsg(rec);
@@ -166,20 +154,26 @@ export class PiRpcReducer {
     this.rebuild();
   }
 
-  /** 轮级工具行状态机:帧永远生效(不依赖当前消息存活)。 */
-  private toolExec(rec: Record<string, unknown>, status: ToolLive["status"]) {
-    const id = str(rec.toolCallId);
-    if (!id) return;
-    let tool = this.tools.get(id);
-    if (!tool) {
-      tool = { callId: id, name: str(rec.toolName) || "tool", status, preview: piToolPreview(str(rec.toolName) || "tool", argsOf(rec.args)) };
-      this.tools.set(id, tool);
-      this.toolOrder.push(id);
-    } else {
-      tool.status = status;
-    }
+  /** 工具行状态机:帧永远生效(不依赖当前消息存活)。首帧落基座(在途流内
+   * 消息先冻结,工具行跟在其后 = 因果序);update/end 就地更新同块。 */
+  private toolExec(rec: Record<string, unknown>, status: "running" | "done" | "error") {
+    const callId = str(rec.toolCallId);
+    if (!callId) return;
+    const name = str(rec.toolName) || "tool";
     const detail = this.detailOf(rec.partialResult) ?? this.detailOf(rec.result);
-    if (detail) tool.detail = detail;
+    const at = this.settled.findIndex((b) => b.role === "tool" && b.tool?.callId === callId);
+    if (at < 0) {
+      this.freezeLive();
+      this.settled = [...this.settled, {
+        id: `${LIVE}k${callId}`,
+        role: "tool",
+        text: "",
+        tool: { callId, title: name, status, detail, preview: piToolPreview(name, argsOf(rec.args)) },
+      }];
+    } else {
+      const prev = this.settled[at].tool!;
+      this.settled = this.settled.map((b, i) => (i === at ? { ...b, tool: { ...prev, status, ...(detail ? { detail } : {}) } } : b));
+    }
     this.rebuild();
   }
 
@@ -203,8 +197,8 @@ export class PiRpcReducer {
       return;
     }
     if (role !== "assistant") return;
-    /* 权威落定:piTranscriptLine 产 think/text 块;toolCall 项由轮级工具行代表,过滤。
-     * 实测 content 的 thinking 项偶被解析器漏读 → 流内思考兜底补位,防丢。 */
+    /* 权威落定:piTranscriptLine 产 think/text 块;toolCall 项由 tool_execution
+     * 工具行代表,过滤。实测 content 的 thinking 项偶被解析器漏读 → 流内思考兜底补位,防丢。 */
     const parsed = (piTranscriptLine({ type: "message", message: msg }) ?? []).filter((b) => b.role !== "tool");
     const live = this.live;
     this.live = null;
@@ -231,19 +225,10 @@ export class PiRpcReducer {
     this.rebuild();
   }
 
-  /** 流内重组 = 落定基座 + 当前消息 think + 轮级工具行 + 当前消息 text(时序自然)。 */
+  /** 流内重组 = 落定基座(工具行已按帧序在座)+ 当前消息 think/text。 */
   private rebuild() {
     const mid: CliTranscriptBlock[] = [];
     if (this.live?.thinking) mid.push({ id: `${LIVE}t${this.live.at}`, role: "reasoning", text: this.live.thinking });
-    for (const id of this.toolOrder) {
-      const t = this.tools.get(id)!;
-      mid.push({
-        id: `${LIVE}k${t.callId}`,
-        role: "tool",
-        text: "",
-        tool: { callId: t.callId, title: t.name, status: t.status, detail: t.detail, preview: t.preview },
-      });
-    }
     if (this.live?.text) mid.push({ id: `${LIVE}a${this.live.at}`, role: "assistant", text: this.live.text });
     this.blocks = [...this.settled, ...mid];
   }
@@ -273,23 +258,9 @@ export class PiRpcReducer {
     this.rebuild();
   }
 
-  /** 轮结算:活消息冻结 + 工具行冻结进基座(时序:工具在活消息之前),轮界推进。 */
+  /** 轮结算:活消息冻结(工具行已在基座原位),轮界推进。 */
   private settleTurn() {
-    const liveAt = this.live?.at;
     this.freezeLive();
-    const toolBlocks = this.toolOrder.map((id) => {
-      const t = this.tools.get(id)!;
-      return {
-        id: `${LIVE}k${t.callId}`,
-        role: "tool" as const,
-        text: "",
-        tool: { callId: t.callId, title: t.name, status: t.status, detail: t.detail, preview: t.preview },
-      };
-    });
-    const at = liveAt ?? this.settled.length;
-    this.settled = [...this.settled.slice(0, at), ...toolBlocks, ...this.settled.slice(at)];
-    this.tools.clear();
-    this.toolOrder = [];
     this.blocks = this.settled;
     this.turnStart = this.settled.length;
   }

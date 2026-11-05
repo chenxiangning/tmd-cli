@@ -105,6 +105,34 @@ describe("PiRpcReducer(轮级工具行 + 流内 think/text)", () => {
     expect(roleSeq(blocks)).toBe("user,reasoning,tool:done,assistant");
   });
 
+  it("多步循环时间线:工具行跟在其触发的思考段后,流内新思考排在工具行之后(不堆底)", () => {
+    const r = new PiRpcReducer();
+    r.feed(frame("agent_start"));
+    r.feed(msgStart("user"));
+    r.feed(msgEnd("user", [{ type: "text", text: "两步" }]));
+    /* 步1:思考A 流 → 落定 → 工具1 done */
+    r.feed(msgStart("assistant"));
+    r.feed(delta("thinking_delta", "步一"));
+    r.feed(msgEnd("assistant", [
+      { type: "thinking", thinking: "步一" },
+      { type: "toolCall", toolCallId: "c1", toolName: "bash" },
+    ]));
+    r.feed(toolExec("tool_execution_start", "c1"));
+    r.feed(toolExec("tool_execution_end", "c1"));
+    /* 步2:思考B 流内 —— 必须排在工具1 之后(因果时间线),旧实现会被顶到工具区之上 */
+    r.feed(msgStart("assistant"));
+    expect(roleSeq(r.feed(delta("thinking_delta", "步二")))).toBe("user,reasoning,tool:done,reasoning");
+    /* 步2 工具2 → 结算:思考A|工具1|思考B|工具2 交错序保持原位 */
+    r.feed(msgEnd("assistant", [
+      { type: "thinking", thinking: "步二" },
+      { type: "toolCall", toolCallId: "c2", toolName: "bash" },
+    ]));
+    r.feed(toolExec("tool_execution_start", "c2"));
+    const settled = r.feed(frame("session_settled"));
+    expect(roleSeq(settled)).toBe("user,reasoning,tool:done,reasoning,tool:running");
+    expect(r.turnStart).toBe(settled.length);
+  });
+
   it("error 工具带病终态;多轮顺序累积不被扰动", () => {
     const r = new PiRpcReducer();
     r.feed(frame("agent_start"));
