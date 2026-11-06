@@ -129,26 +129,39 @@ describe("G-02 openStructuredSessionTab 身份", () => {
     expect(structuredSessionTarget("structured:omp:/a%25b")).toEqual({ profileId: "omp", cwd: "/a%b" });
   });
 
-  it("通知深链按原 tab id 精确激活;已关则回落开新会话", () => {
+  it("通知深链按原 tab id 精确激活;已关则 #sid resume 重开,base id 账本回落,全无才开新", () => {
     openInto("structured:omp:/repo#cli-9");
     focusStructuredSessionTab("structured:omp:/repo#cli-9", "omp", "/repo");
     expect(h.setActiveTab).toHaveBeenCalledWith("structured:omp:/repo#cli-9");
     expect(h.openTab).not.toHaveBeenCalled();
     h.tabs = [];
     focusStructuredSessionTab("structured:omp:/repo#cli-9", "omp", "/repo");
+    expect(h.openTab).toHaveBeenCalledWith(expect.objectContaining({ id: "structured:omp:/repo#cli-9" }));
+    h.openTab.mockClear();
+    /* base id + 结束账本空(node 无 localStorage)→ 全新会话兜底。 */
+    focusStructuredSessionTab("structured:omp:/repo", "omp", "/repo");
     expect(h.openTab).toHaveBeenCalledWith(expect.objectContaining({ id: "structured:omp:/repo" }));
   });
 });
 
 describe("structured 历史深链", () => {
-  it("原 structured tab 仍在时激活现有转录", () => {
-    h.tabs = [{ id: "structured:omp:/repo" }];
+  it("精确 #sid 活 tab 命中 → jumped,不开查看器", () => {
+    openInto("structured:omp:/repo#cli-1");
     expect(openStructuredSessionTranscript(TARGET, "cli-1", "原任务", 2)).toBe("jumped");
     expect(h.openTab).toHaveBeenCalledOnce();
     expect(h.openView).not.toHaveBeenCalled();
   });
 
-  it("原 tab 已关闭时打开原 CLI 磁盘转录,不新起空 RPC", () => {
+  it("base tab(reload 收养无后缀)行投影 sid 即目标 → 同样 jumped", () => {
+    openInto("structured:omp:/repo");
+    noteStructuredSessionRow("structured:omp:/repo", { sessionId: "cli-1" });
+    expect(openStructuredSessionTranscript(TARGET, "cli-1", "原任务", 2)).toBe("jumped");
+    expect(h.openView).not.toHaveBeenCalled();
+  });
+
+  it("base tab 是别的会话 → 不假报 jumped,落原 CLI 磁盘转录定位(B2)", () => {
+    openInto("structured:omp:/repo");
+    noteStructuredSessionRow("structured:omp:/repo", { sessionId: "cli-8" });
     expect(openStructuredSessionTranscript(TARGET, "cli-1", "原任务", 2)).toBe("opened");
     expect(h.openTab).not.toHaveBeenCalled();
     expect(h.openView).toHaveBeenCalledWith(

@@ -125,8 +125,10 @@ fn probe_app_bundle(app_name: &str) -> OpenWithProbe {
 /// command 探测:which / where 解析 PATH。
 fn probe_command(command: &str) -> OpenWithProbe {
     let finder = if cfg!(windows) { "where" } else { "which" };
-    let ok = std::process::Command::new(finder)
-        .arg(command)
+    let mut cmd = std::process::Command::new(finder);
+    cmd.arg(command);
+    crate::resolve::hide_console(&mut cmd);
+    let ok = cmd
         .output()
         .map(|out| out.status.success())
         .unwrap_or(false);

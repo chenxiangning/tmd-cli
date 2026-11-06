@@ -4,20 +4,19 @@
  * 无滚动区/插删行。上一版无固定视口:正文一超行,CUP(31) 就落回文档中段盖正文、
  * 页脚散落多行 = 重复(真机三次实证)。正解 = 忠实终端:固定高度,LF 到底上滚,
  * 按列换行(DECAWM 可关),CUP 夹在视口内 → 重绘天然收敛为一份。
- * 滚出视口的行进 scrollback(上限 SCROLL_CAP 行),view() 取全量历史,
+ * 滚出视口的行进 scrollback 串缓存(见 scrollbackBuffer.ts,D2-6),
  * 手机实况区因此能向上滚动看旧输出。
  * 支持集:可打印、\n \r \t \b、ESC 7/8/M/D/E、CSI H/f/A/B/C/D/E/G/J/K/M/s/u、2J/3J(真擦除,
  * 实证:omp 每次 SIGWINCH 都走 2J 重绘;历史保全职责只归备屏切换)、模式
  * ?7h/l(换行)?1049h/l(备屏清屏);SGR/其余忽略。桌面幕布用真 xterm,不共享。
  */
+import { ScrollbackBuffer } from "./scrollbackBuffer";
 
 /** 视口尺寸取不到时的回落(SSH/未知会话)。 */
 const DEFAULT_COLS = 80;
 const DEFAULT_ROWS = 24;
 /** 单行宽度硬顶(异常 CUP 列的止损)。 */
 const MAX_LINE = 4000;
-/** 滚出视口行的保留上限(内存止损)。 */
-const SCROLL_CAP = 2000;
 
 /* 已闭合序列的锚定判据(与切分器同源);tail 用它识别「还没收完」的转义。 */
 const CSI_FULL = /^\x1b\[[0-9:;<=>?]*[ -/]*[@-~]/;
@@ -34,8 +33,8 @@ function incompleteEsc(t: string): boolean {
 
 export class LiveScreen {
   private lines: string[] = [];
-  /** 滚出视口的行(有界;view() = scrollback + 视口,实况区因此可向上滚动看旧输出)。 */
-  private scrollback: string[] = [];
+  /** 滚出视口的行(有界串缓存;view() = scrollback + 视口,实况区可上滚看旧输出)。 */
+  private readonly scrollback = new ScrollbackBuffer();
   private row = 0;
   private col = 0;
   private savedRow = 0;
@@ -86,11 +85,13 @@ export class LiveScreen {
     if (last < body.length) this.tail(body.slice(last));
   }
 
-  /** 全量内容 = scrollback + 当前视口(去尾部空行);alt-screen 切换会清 scrollback(见 clear)。 */
+  /** 全量内容 = scrollback + 当前视口(去尾部空行);scrollback 已是缓存串,
+   *  join 只落在视口行(有界);alt-screen 切换会清 scrollback(见 clear)。 */
   view(): string {
     let end = this.lines.length;
     while (end > 0 && !this.lines[end - 1]) end--;
-    return [...this.scrollback, ...this.lines.slice(0, end)].join("\n");
+    const view = this.lines.slice(0, end).join("\n");
+    return this.scrollback.rows > 0 ? `${this.scrollback.text}\n${view}` : view;
   }
 
   /** 尾段处理:以 ESC 起头的未完成序列进 pending,其余落屏。 */
@@ -213,8 +214,7 @@ export class LiveScreen {
   private lineFeed(): void {
     if (this.row >= this.rows - 1) {
       const gone = this.lines.shift() ?? "";
-      this.scrollback.push(gone);
-      if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);
+      this.scrollback.push([gone]);
       this.lines.push("");
     } else {
       this.row++;
@@ -242,8 +242,7 @@ export class LiveScreen {
   private clear(): void {
     let end = this.lines.length;
     while (end > 0 && !this.lines[end - 1]) end--;
-    this.scrollback.push(...this.lines.slice(0, end));
-    if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);
+    this.scrollback.push(this.lines.slice(0, end));
     this.lines = new Array(this.rows).fill("");
     this.row = 0;
     this.col = 0;
@@ -259,7 +258,7 @@ export class LiveScreen {
       return;
     }
     if (mode === 3) {
-      this.scrollback = [];
+      this.scrollback.clear();
       return;
     }
     const line = this.lines[this.row] ?? "";
@@ -286,8 +285,7 @@ export class LiveScreen {
     }
     this.cols = nc;
     const nr = Math.max(1, Math.min(rows || DEFAULT_ROWS, 500));
-    while (this.lines.length > nr) this.scrollback.push(this.lines.shift() ?? "");
-    if (this.scrollback.length > SCROLL_CAP) this.scrollback.splice(0, this.scrollback.length - SCROLL_CAP);
+    if (this.lines.length > nr) this.scrollback.push(this.lines.splice(0, this.lines.length - nr));
     while (this.lines.length < nr) this.lines.push("");
     this.rows = nr;
     if (this.row >= nr) this.row = nr - 1;

@@ -7,13 +7,12 @@ import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type
 import { errTextDisplay } from "@kernel/errText";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { getSettingsState } from "@kernel/settings";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { sendOsNotification } from "@kernel/ipc";
-import { isSsMuted, noteLastSsSession, noteSsRpcSession, focusStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { noteLastSsSession, noteSsRpcSession, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { ssScope } from "@kernel/structuredSessionOverlays";
 import { adoptDiskSeed, cancelAdoptKill, scheduleAdoptKill } from "./adoptBoot";
-import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { useTurnWatchdog } from "./ssWatchdog";
+import { useSsTurnClock } from "./ssTurnClock";
 import { useWarnCapsules } from "./ssWarn";
 import { useSsDraft } from "./ssDraft";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
@@ -22,19 +21,15 @@ import { useTurnLive } from "./ssTurnLive";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
 
-/** 轮次结束 OS 通知:PTY 侧同闸同文案;RPC 行静音覆盖层(isSsMuted)先行;点击深链回本 tab。 */
-function notifyTurnEnd(profileId: string, cwd: string, tabId: string): void {
-  const { settings } = getSettingsState();
-  if (isSsMuted(profileId, cwd) || !shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) return;
-  const name = `${host.getCliProfile(profileId)?.name ?? profileId} · ${t("带渲染的会话")}`;
-  const { title, body } = notifyText("turnEnd", "", { getSessions: () => [] }, name);
-  void sendOsNotification(title, body, () => focusStructuredSessionTab(tabId, profileId, cwd));
-}
-
 /** useSsSession 返回面(StructuredSessionTab 与子组件的共享契约)。 */
 export type SsSessionState = {
   phase: Phase; statusText: string | null; warns: string[]; blocks: CliTranscriptBlock[]; turnStart: number;
+  /** 轮进行中(turnLive 宽限沿驱动:多步轮逐步 settled 不闪;busy/busySince/通知/未读同源,批次 F)。 */
   busy: boolean; busySince: number | null; elapsed: number; confirm: PiRpcConfirm | null;
+  /** 看门狗静默起点(B2-1):busy 且 >5min 无帧常驻,新帧即消隐;横幅出口见 sessionTab。 */
+  staleSince: number | null;
+  /** 最后活跃时刻(busy 双沿与挂载时更新;行投影闲时相对时间消费)。 */
+  lastActiveAt: number;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
   liveSurface: PiLiveSurface; /* 流内活跃输出面(活思考/正文据此展开;见 PiRpcReducer.liveSurface) */
@@ -51,23 +46,22 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   const { warns, addWarn, dismissWarn, clearWarns } = useWarnCapsules();
   const [blocks, setBlocks] = useState<CliTranscriptBlock[]>([]);
   const [turnStart, setTurnStart] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [busySince, setBusySince] = useState<number | null>(null);
-  const [elapsed, setElapsed] = useState(0);
   const [confirm, setConfirm] = useState<PiRpcConfirm | null>(null);
   const [model, setModel] = useState<PiRpcModel | null>(null);
   const [thinkingLevel, setThinkingLevel] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [queued, setQueued] = useState(0);
   const [stats, setStats] = useState<PiRpcStats | null>(null);
-  const [draft, setDraft] = useSsDraft(payload.profileId, payload.cwd);
+  /* 存储域(草稿/静音/重命名键):resume 会话带 # 判别后缀,并行互不串写。 */
+  const scope = ssScope(payload);
+  const [draft, setDraft] = useSsDraft(scope);
   const sessionRef = useRef<PiRpcSession | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [evidence] = useState(() => new StructuredTurnEvidence(payload.cwd, ledgerId));
   const turnLive = useTurnLive();
+  const turnClock = useSsTurnClock(turnLive.live, turnLive.startedAt, payload, scope, ledgerId);
   const stickRef = useRef(true);
   const phaseRef = useRef<Phase>("starting"); const stderrTailRef = useRef<string | null>(null);
-  const promptDebtRef = useRef(0); // 用户在途轮计数:send/followUp 记账结算销账,只有用户轮结束才发 OS 通知
   /* token delta 30-80 事件/s:攒 120ms 尾沿合帧再进 React(重解析降一个量级)。 */
   const pendingBlocksRef = useRef<[CliTranscriptBlock[], number, PiLiveSurface] | null>(null);
   const flushTimerRef = useRef<number | null>(null);
@@ -87,7 +81,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   };
   /* 生命周期:mount 起子进程,unmount kill 收割(StrictMode 双跑 startedRef 挡;收养流延迟收割见 adoptBoot)。 */
   const startedRef = useRef(false);
-  const { stamp } = useTurnWatchdog(busy, t("引擎超过 5 分钟无输出,可能已僵死;可中止或重试"), addWarn);
+  /* 审批等待期引擎合法静默(confirm 挂起不布防,应答后自然重起;review P2-1)。 */
+  const { stamp, staleSince } = useTurnWatchdog(turnClock.busy && confirm == null);
   const resumeRef = useRef<string | null>(null); const seedRef = useRef<CliTranscriptBlock[] | null>(null); const seedKeepRef = useRef(true);
   const dropResumeRef = useRef(false); // resume 目标已判 not found(降级新建,只降一次防循环)
   const startSession = () => {
@@ -116,25 +111,21 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
           }
         },
         onBusy: (b) => {
-          setBusy(b);
-          setBusySince(b ? Date.now() : null);
-          if (b) turnLive.begin();
-          else turnLive.end();
+          turnClock.setLastActiveAt(Date.now());
           if (b) {
+            turnLive.begin();
             if (sessionIdRef.current) evidence.agentStart(sessionIdRef.current);
           } else {
-            evidence.settled();
+            turnLive.end();
+            void evidence.settled();
             void sessionRef.current?.getState()
               .then((st) => setQueued(st?.queuedMessageCount ?? 0))
               .catch(() => undefined);
             void sessionRef.current?.getStats().then((s) => { if (s) setStats(s); }).catch(() => undefined);
-            if (promptDebtRef.current > 0) {
-              promptDebtRef.current--;
-              notifyTurnEnd(payload.profileId, payload.cwd, ledgerId);
-            }
           }
         },
         onToolExecution: (rec) => evidence.toolExecution(rec),
+        onQueueUpdate: (rec) => evidence.queueUpdate(rec),
         onConfirm: setConfirm,
         onDroppedFrame: () => addWarn(t("RPC 流有帧被截断丢弃,转录可能缺块")),
         onExit: () => {
@@ -143,8 +134,10 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
             void evidence.settled();
             flushBlocks();
             setConfirm(null);
-            setBusy(false);
-            setBusySince(null);
+            /* 退出结清在途记账(F):悬轮不再等通知销账,防误报与 retry 复用吃新轮;
+             * busy/busySince 由 turnClock 随 reset 跌落沿复位。 */
+            turnClock.clearDebt();
+            setQueued(0);
             turnLive.reset();
             setPhase("exited");
           }
@@ -174,9 +167,14 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
         setStatusText(null);
         setPhase("ready");
-        /* adopt/resume 后置种子:磁盘转录补历史(读不到静默空幕布;候选 id 握手 sid
-         * 优先,引擎换壳 sid 变化时回落请求的 resumeSessionId)。 */
-        if (payload.adoptStreamId || payload.resumeSessionId) void adoptDiskSeed(session, payload, state?.sessionId, payload.resumeSessionId);
+        /* adopt/resume 后置种子:磁盘转录补历史(读不到经 onMiss 如实提示 B2;
+         * 候选 id 握手 sid 优先,引擎换壳 sid 变化时回落请求的 resumeSessionId)。 */
+        if (payload.adoptStreamId || payload.resumeSessionId) void adoptDiskSeed(
+          session, payload,
+          [state?.sessionId, payload.resumeSessionId],
+          /* 降级新建(dropResume)不提示:引擎明言会话不存在,空幕布即正确态。 */
+          () => { if (!dropResumeRef.current) addWarn(t("未读到历史转录,仅显示实时内容")); },
+        );
         if (state?.sessionId) {
           noteLastSsSession(payload.profileId, payload.cwd, state.sessionId);
           noteSsRpcSession(state.sessionId);
@@ -207,13 +205,15 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     sessionRef.current?.kill();
     sessionRef.current = null;
     evidence.reset(canResume ? sessionId : undefined);
+    /* retry 结清悬轮记账(F):resume 重放整轮,原轮不再发轮末通知。 */
+    turnClock.clearDebt();
     turnLive.reset();
     startedRef.current = false;
     if (!canResume) {
       setBlocks([]);
       setTurnStart(0);
     }
-    setQueued(0); setConfirm(null); setBusy(false);
+    setQueued(0); setConfirm(null);
     startSession();
   };
   useEffect(() => {
@@ -232,19 +232,12 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payload.profileId, payload.cwd]);
-  /* working 头计时(monocode「working for Ns」同语义):busy 起跳,结算归零。 */
-  useEffect(() => {
-    if (busySince === null) return;
-    const tick = () => setElapsed(Math.max(0, Math.round((Date.now() - busySince) / 1000)));
-    tick();
-    const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
-  }, [busySince]);
 
   /* phase 镜像(onError 降噪闸读 ref,避免闭包滞留旧态)。 */
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+
 
   /** 发送:缺省读草稿;空态引导 chip 等外部入口直传文本(override)。 */
   const send = (override?: string) => {
@@ -254,9 +247,11 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     if (!s) return;
     setDraft("");
     stickRef.current = true;
-    promptDebtRef.current++;
-    /* busy 期发送 = follow_up 排队;闲时走 prompt。成功后回读排队数。 */
-    void (busy ? s.followUp(text) : s.send(text))
+    turnClock.spend();
+    /* 分支用会话权威开轮态 hasOpenTurn(F):raw busy 多步轮震荡会误判闲时;
+     * 发送 promise 单独 catch,evidence/getState 尾段失败不回滚已成功的发送。 */
+    const inTurn = s.hasOpenTurn();
+    void (inTurn ? s.followUp(text) : s.send(text))
       .then(() => {
         const sessionId = sessionIdRef.current;
         if (sessionId) {
@@ -264,15 +259,16 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
             engine: host.getCliProfile(payload.profileId)?.name ?? payload.profileId,
             model: model?.id ?? "",
             thinking: thinkingLevel ?? "",
-          }, busy);
+          }, inTurn);
         }
-        return s.getState();
+        return s.getState()
+          .then((st) => setQueued(st?.queuedMessageCount ?? 0))
+          .catch(() => undefined);
       })
-      .then((st) => setQueued(st?.queuedMessageCount ?? 0))
       .catch((e: unknown) => {
         setStatusText(errTextDisplay(e));
         /* 发送失败保输入(桌面契约):仅在用户未另起输入时回填;记账同笔回滚。 */
-        promptDebtRef.current = Math.max(0, promptDebtRef.current - 1);
+        turnClock.refund();
         setDraft((d) => (d === "" ? text : d));
       });
   };
@@ -291,9 +287,10 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   };
 
   return {
-    phase, statusText, warns, blocks, turnStart, busy, busySince, elapsed, confirm,
+    phase, statusText, warns, blocks, turnStart, busy: turnClock.busy, busySince: turnClock.busySince,
+    elapsed: turnClock.elapsed, confirm, lastActiveAt: turnClock.lastActiveAt,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
     liveSurface, turnLive: turnLive.live,
-    sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,
+    sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn, staleSince,
   };
 }

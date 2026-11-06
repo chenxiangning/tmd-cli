@@ -65,6 +65,25 @@ describe("StructuredTurnEvidence(RPC 共同存证)", () => {
     expect(d.capture).toHaveBeenNthCalledWith(2, CWD, "cli-new", LEDGER, "续聊任务", META, "events");
   });
 
+  it("多步轮:步间 settled 后 agent_start 空队列重挂归属,后续步 edit 仍落账并封存(批次 F 修失明)", async () => {
+    const d = deps();
+    const evidence = new StructuredTurnEvidence(CWD, LEDGER, d);
+    evidence.prompt("cli-1", "重构任务", META);
+    evidence.agentStart("cli-1");
+    evidence.toolExecution({ type: "tool_execution_start", toolCallId: "w1", toolName: "write", args: { path: "a.ts" } });
+    evidence.toolExecution({ type: "tool_execution_end", toolCallId: "w1", toolName: "write", result: {} });
+    await evidence.settled(); /* 步 1 结算:归属清空(修复前此后全盲) */
+    evidence.agentStart("cli-1"); /* 步 2 起:队列空,修复点 = 重挂归属 */
+    evidence.toolExecution({ type: "tool_execution_start", toolCallId: "w2", toolName: "edit", args: { path: "b.ts" } });
+    evidence.toolExecution({ type: "tool_execution_end", toolCallId: "w2", toolName: "edit", result: {} });
+    await evidence.settled(); /* 步 2 结算:封存 */
+
+    expect(d.capture).toHaveBeenCalledTimes(1); /* 锚只打一次(用户轮唯一) */
+    expect(d.record).toHaveBeenNthCalledWith(1, CWD, "cli-1", LEDGER, "a.ts");
+    expect(d.record).toHaveBeenNthCalledWith(2, CWD, "cli-1", LEDGER, "b.ts");
+    expect(d.seal).toHaveBeenCalledTimes(2); /* 每步各封存一次 */
+  });
+
   it("reset 丢弃旧进程未发队列,不把旧任务锚到 resume 新会话", async () => {
     const d = deps();
     const evidence = new StructuredTurnEvidence(CWD, LEDGER, d);
@@ -116,6 +135,42 @@ describe("StructuredTurnEvidence(RPC 共同存证)", () => {
     gate.resolve();
     await done;
     expect(order).toEqual(["anchor", "edit", "seal"]);
+  });
+
+  it("排队 follow_up 锚由队列 ≥1→0 变迁消费(omp 18.16/pi 1.4.0 单 agent_start 形态,B2-6)", async () => {
+    const d = deps();
+    const evidence = new StructuredTurnEvidence(CWD, LEDGER, d);
+    evidence.prompt("cli-1", "第一轮任务", META);
+    evidence.agentStart("cli-1"); /* 双引擎实证:整 run 单 agent_start */
+    evidence.prompt("cli-1", "追加任务", META, true);
+    await vi.waitFor(() => expect(d.capture).toHaveBeenCalledTimes(1)); /* 轮 1 锚已落,排队未开 */
+    /* 轮 1 自主步(引擎内部 turn_start,无 queue_update 帧):队列不动。 */
+    evidence.toolExecution({ type: "tool_execution_start", toolCallId: "w1", toolName: "write", args: { path: "a.ts" } });
+    evidence.toolExecution({ type: "tool_execution_end", toolCallId: "w1", toolName: "write", result: {} });
+    /* follow_up 起跑轮界(实证帧序:turn_start 后 ~3ms 队列清空帧)。 */
+    evidence.queueUpdate({ type: "queue_update", steering: [], followUp: ["追加任务"] });
+    evidence.queueUpdate({ type: "queue_update", steering: [], followUp: [] });
+    await vi.waitFor(() => expect(d.capture).toHaveBeenCalledTimes(2));
+    expect(d.capture).toHaveBeenNthCalledWith(2, CWD, "cli-1", LEDGER, "追加任务", META, "events");
+    evidence.toolExecution({ type: "tool_execution_start", toolCallId: "w2", toolName: "edit", args: { path: "b.ts" } });
+    evidence.toolExecution({ type: "tool_execution_end", toolCallId: "w2", toolName: "edit", result: {} });
+    await evidence.settled();
+    expect(d.record).toHaveBeenNthCalledWith(2, CWD, "cli-1", LEDGER, "b.ts");
+    expect(d.seal).toHaveBeenCalledTimes(1); /* 单 agent_settled 形态:整 run 只封存一次 */
+  });
+
+  it("queue_update 空队列变迁不伪造锚;agent_start 回落消费保留(旧引擎无 queue_update 帧)", async () => {
+    const d = deps();
+    const evidence = new StructuredTurnEvidence(CWD, LEDGER, d);
+    evidence.queueUpdate({ type: "queue_update", steering: [], followUp: [] });
+    evidence.queueUpdate({ type: "queue_update", steering: ["插话"], followUp: [] });
+    evidence.queueUpdate({ type: "queue_update", steering: [], followUp: [] });
+    expect(d.capture).not.toHaveBeenCalled(); /* 0→1→0 队列空,shift 不伪造 */
+    /* 旧引擎回落:agent_start 直接消费(锚落自主步,旧形态语义不变)。 */
+    evidence.prompt("cli-1", "旧引擎排队", META, true);
+    evidence.agentStart("cli-1");
+    await Promise.resolve(); /* 锚链排空 */
+    expect(d.capture).toHaveBeenCalledWith(CWD, "cli-1", LEDGER, "旧引擎排队", META, "events");
   });
 });
 

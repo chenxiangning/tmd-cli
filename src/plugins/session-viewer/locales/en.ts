@@ -18,7 +18,6 @@ export const MESSAGES_EN: Record<string, string> = {
   "已调用": "called",
   "你": "You",
   "查看会话转录(只读)": "View session transcript (read-only)",
-  "AI": "AI",
   "转录视图": "Transcript view",
   "幕布": "Terminal",
   "切换到转录视图(幕布保活,只读)":

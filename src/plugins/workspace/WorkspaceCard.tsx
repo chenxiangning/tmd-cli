@@ -19,16 +19,17 @@ import { openWorkspaceFiles, useWorkspaceFileBrowserView } from "@kernel/workspa
 import { CliSessionGroup } from "./SessionList";
 import { StructuredSessionSection } from "./StructuredSessionSection";
 import { SectionLabel } from "./SectionLabel";
-import { usePtyVisibility } from "./ptySectionVisibility";
+import { ptyVisibilityKey, usePtyVisibility } from "./ptySectionVisibility";
 import { SshSessionGroup } from "./SshSessionGroup";
 import { ShellSessionGroup } from "./ShellSessionGroup";
 import type { CliProfile } from "@kernel/cli";
 
 /** PTY 小节头:任一引擎组有可见行才出(空工作区不占位);可见性经
- * ptySectionVisibility store 聚合(组写卡读,判定与组 return null 同源)。 */
-function PtySectionLabel({ profiles }: { profiles: CliProfile[] }) {
+ * ptySectionVisibility store 聚合(组写卡读,判定与组 return null 同源;
+ * 键按本工作区+引擎,跨工作区同名引擎互不影响)。 */
+function PtySectionLabel({ workspace, profiles }: { workspace: Workspace; profiles: CliProfile[] }) {
   const visible = usePtyVisibility();
-  if (!profiles.some((p) => visible.get(p.id))) return null;
+  if (!profiles.some((p) => visible.get(ptyVisibilityKey(workspace.id, p.id)))) return null;
   return (
     <SectionLabel
       icon={<Terminal size="0.75rem" aria-hidden />}
@@ -241,7 +242,7 @@ export function WorkspaceCard({
         <div className="workspace-children-inner">
           {/* PTY 小节头:任一引擎组有可见行才出(空工作区不占位);可见性经
               ptySectionVisibility store 聚合(组写卡读,不走 prop 回调 effect)。 */}
-          <PtySectionLabel profiles={profiles} />
+          <PtySectionLabel workspace={workspace} profiles={profiles} />
           {profiles.map((p) => (
             <CliSessionGroup
               key={p.id}

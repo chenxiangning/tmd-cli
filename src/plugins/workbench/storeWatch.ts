@@ -6,6 +6,7 @@
  */
 
 import { reloadWorkbench } from "./store";
+import { notifyExternalTaskTransitions } from "./taskSettleWatch";
 import { state } from "./storeCore";
 import { readIndexRawIfChanged } from "./workbenchFiles";
 
@@ -15,7 +16,11 @@ export function reloadIfExternalChange(): Promise<void> {
   if (!state.loaded) return Promise.resolve();
   return readIndexRawIfChanged()
     .catch(() => null)
-    .then((raw) => (raw === null ? undefined : reloadWorkbench()));
+    .then((raw) => {
+      if (raw === null) return undefined;
+      const before = state.projects;
+      return reloadWorkbench().then(() => notifyExternalTaskTransitions(before, state.projects));
+    });
 }
 
 let watch: number | undefined;

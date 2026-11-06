@@ -17,12 +17,16 @@ export function taskPrompt(project: Project, task: ProjectTask): string {
     `我在推进任务「${task.title}」(项目:${project.name}${project.module ? ` / ${project.module}` : ""})。`,
     task.description ? `任务说明:${task.description}` : "",
     task.dueDate ? `截止:${task.dueDate}` : "",
+    ...(task.criteria ?? []).length > 0
+      ? [`完成判据(共 ${task.criteria!.length} 条,交付前逐条自检):`, ...(task.criteria ?? []).map((c, i) => `${i + 1}. ${c.text}`)]
+      : [],
     attachments.length > 0 ? `\n任务相关附件(${attachments.length} 个,文件名即上方括号内路径末段):` : "",
     ...attachments,
     "",
     "工作台约定:工作台数据在 ~/.tmd-cli/workbench/(规则见同目录 AI-TASKS.md)。",
     `本任务 id:${task.id}(index.json 中 projects[] 里 name 为「${project.name}」的项目下 tasks[] 按 id 定位)。`,
     "当你判断任务开始推进时把该任务 status 改为 \"doing\",交付待验收改为 \"review\",验收完成改为 \"done\" 并写 doneAt,放弃改为 \"cancelled\";只准按 AI-TASKS.md 允许的字段修改,其他数据一律不动。",
+    ...((task.criteria ?? []).length > 0 ? ["宣布「交付待验收」(status 改 review)前,必须先在 updates[] 里逐条报告每条完成判据的通过情况(通过/未通过+原因);未全过不得进 review。"] : []),
     "同时在开始推进、关键进展、交付完成等节点向该任务 updates[] 追加执行记录,只追加不改删。每条必须写实质内容:这一轮做了什么、怎么做/关键决策、结果与产物(提交号、文档路径、验证结论),不要只报状态;一次做了多件事就拆成多条。格式 { id: \"u-<随机>\", at: \"<ISO 时间戳,带时区偏移如 +08:00>\", kind: \"progress|blocker|decision|note\", text: \"<中文,可多行>\" }。",
   ].filter(Boolean).join("\n");
 }

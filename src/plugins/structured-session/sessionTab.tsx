@@ -6,14 +6,14 @@
  * 生命周期编排见 ssSession.ts。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  */
-import { lazy, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, Warning, X } from "@phosphor-icons/react";
 import { getActiveTabId, updateTab, type EditorTab } from "@kernel/tabs";
-import { getStructuredSessionRows, noteStructuredSessionRow, readSsTitleOverride } from "@kernel/structuredSessionTabs";
+import { getStructuredSessionRows, noteStructuredSessionRow, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { readSsTitleOverride, ssScope } from "@kernel/structuredSessionOverlays";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
-import { retryImport } from "@kernel/lazyImport";
 import { SsHeader } from "./ssHeader";
 import { SsActions } from "./ssActions";
 import { SsTurnView } from "./ssTurnView";
@@ -23,14 +23,10 @@ import { useSettleKey } from "./ssSettleKey";
 import { useCanvasWidth } from "./ssCanvasResize";
 import { SsComposer } from "./ssComposer";
 import { SsWelcome } from "./ssWelcome";
+import { SsAnchorRail } from "./ssAnchorRail";
 import { useSsSession, type Phase } from "./ssSession";
-import type { StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import "./structured-session.css";
-
-const MarkdownBody = lazy(retryImport(() =>
-  import("@plugins/session-viewer/markdownBody").then((m) => ({ default: m.MarkdownBody })),
-));
-
+import { SsMarkdown } from "./ssMarkdown";
 /* 滚动区相位横幅:启动中/启动失败/已结束(接续重开 = --resume 换壳,引擎
  * 上下文 + 转录保形;否则全复位新会话)。已结束用紧凑横幅,不占视口高空块。 */
 function PhaseBanners(props: { phase: Phase; statusText: string | null; sessionId: string | null; resumable: boolean; onRetry: () => void }) {
@@ -82,6 +78,31 @@ function SsWarnList(props: { warns: string[]; widthPct: number; onDismiss: (inde
   );
 }
 
+/* 看门狗常驻横幅(B2-1):busy 静默超限 → 重试/中断两出口,计时走字,
+ * 新帧 stamp 自动消隐(视觉对齐 ss-warn 琥珀系,横条置幕布外 flex:none)。 */
+function StallBanner(props: { staleSince: number | null; onRetry: () => void; onKill: () => void }) {
+  const staleSince = props.staleSince;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (staleSince == null) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, [staleSince]);
+  if (staleSince == null) return null;
+  const secs = Math.max(0, Math.round((now - staleSince) / 1000));
+  return (
+    <div className="ss-stall" role="alert">
+      <Warning size="0.875rem" weight="fill" aria-hidden />
+      <span className="ss-stall-text">{t("引擎长时间无输出,可能已挂起")}</span>
+      <span className="ss-stall-clock">{t("静默")} {Math.floor(secs / 60)}m{secs % 60}s</span>
+      <span className="ss-stall-grow" />
+      <button type="button" className="ss-stall-btn" onClick={props.onRetry}>{t("重试")}</button>
+      <button type="button" className="ss-stall-btn" onClick={props.onKill}>{t("中断")}</button>
+    </div>
+  );
+}
+
 export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   useHost(); /* profile 注册/工作区变化 */
   const payload = tab.payload as StructuredSessionPayload;
@@ -107,16 +128,18 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   }, [ss.blocks, ss.stickRef]);
 
   /* 左栏行投影广播(RPC 会话体系对齐批次 1):运行态变化即 note,kernel 行集
-   * 随 tab 生命周期自动增删,本组件无需清理。 */
+   * 随 tab 生命周期自动增删,本组件无需清理。lastActiveAt 只随 busy 沿变化,
+   * 不随 120ms flush 抖动。 */
   useEffect(() => {
     noteStructuredSessionRow(tab.id, {
       phase: ss.phase,
       busy: ss.busy,
       busySince: ss.busySince,
+      lastActiveAt: ss.lastActiveAt,
       waitingConfirm: ss.confirm != null,
       sessionId: ss.sessionId,
     });
-  }, [tab.id, ss.phase, ss.busy, ss.busySince, ss.confirm, ss.sessionId]);
+  }, [tab.id, ss.phase, ss.busy, ss.busySince, ss.lastActiveAt, ss.confirm, ss.sessionId]);
 
   /* 未读记账(批次 2):busy true→false 沿 = 一轮结算;tab 非激活时累加未读
    * (激活即读由 kernel 订阅 setActiveTab 出口清零,此处只管涨)。 */
@@ -131,18 +154,25 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   }, [ss.busy, tab.id]);
 
   /* 标题自动化:首个用户块摘要(PTY 磁盘标题同语义的会话主题锚定),中央 tab
-   * 条与左栏行同步;纯图片块(空文本)不触发;覆盖层(批次 5 重命名)优先。 */
+   * 条与左栏行同步;纯图片块(空文本)不触发;覆盖层(批次 5 重命名)优先
+   * (scope = 本会话存储域,并行会话的改名互不抑制)。 */
   const firstUserText = ss.blocks.find((b) => b.role === "user")?.text.trim();
   useEffect(() => {
-    if (firstUserText && !readSsTitleOverride(payload.profileId, payload.cwd)) {
+    if (firstUserText && !readSsTitleOverride(ssScope(payload))) {
       updateTab(tab.id, { title: firstUserText.slice(0, 32) });
     }
-  }, [firstUserText, tab.id, payload.profileId, payload.cwd]);
+  }, [firstUserText, tab.id, payload]);
 
 
   /* 用户消息流广播(处理插件对接:时间线面板直读,不经 PTY 锚点轮询)。
    * key 变化才提交,流式 120ms flush 不放大行集提交。 */
-  const userTexts = useMemo(() => ss.blocks.filter((b) => b.role === "user").map((b) => b.text), [ss.blocks]);
+  const userBlocksAll = useMemo(() => ss.blocks.filter((b) => b.role === "user").map((b) => ({ id: b.id, text: (b.text ?? "").trim() })), [ss.blocks]);
+  /* 锚点轨稳定引用(批次 F):内容键变化才换数组,流式 120ms flush 不触发
+   * 轨内重测量(ResizeObserver 重建 + 全量 querySelector 抖动)。 */
+  const userBlocksKey = JSON.stringify(userBlocksAll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const userBlocks = useMemo(() => userBlocksAll, [userBlocksKey]);
+  const userTexts = useMemo(() => userBlocksAll.map((b) => b.text), [userBlocksAll]);
   const userTextsKey = JSON.stringify(userTexts); /* 精确键:join("") 会把 ["a","bc"]/["ab","c"] 折成同键,行投影滞留 */
   useEffect(() => {
     noteStructuredSessionRow(tab.id, { userTexts });
@@ -156,6 +186,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     <div className="ss-root" data-icon-decor="structured-session">
       <SsHeader
         profileId={payload.profileId}
+        cwd={payload.cwd}
         model={ss.model}
         thinkingLevel={ss.thinkingLevel}
         sessionId={ss.sessionId}
@@ -180,6 +211,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
           setAway(!nearBottom && el.scrollHeight - el.clientHeight > 100);
         }}
       >
+        <SsAnchorRail scrollRef={scrollRef} users={userBlocks} />
         <PhaseBanners
           phase={ss.phase}
           statusText={ss.statusText}
@@ -219,9 +251,9 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
               {/* 落定历史:codemoss 形态逐轮渲染(用户 → 过程折叠组 → 答复);
                   活轮起点 liveFrom 之前归落定,本轮块全程活轮展开 */}
               {liveFrom > 0 ? (
-                <SsTurnView blocks={ss.blocks.slice(0, liveFrom)} Markdown={MarkdownBody} settleKey={settleKey} />
+                <SsTurnView blocks={ss.blocks.slice(0, liveFrom)} Markdown={SsMarkdown} settleKey={settleKey} />
               ) : null}
-              <LiveTurn blocks={ss.blocks.slice(liveFrom)} live={ss.turnLive} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
+              <LiveTurn blocks={ss.blocks.slice(liveFrom)} live={ss.turnLive} Markdown={SsMarkdown} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
             </div>
           </>
         ) : null}
@@ -251,6 +283,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
           <span className="ss-working-for">{t("working for")}{ss.elapsed}s</span>
         </div>
       ) : null}
+      <StallBanner staleSince={ss.staleSince} onRetry={ss.retry} onKill={() => ss.sessionRef.current?.kill()} />
       <SsComposer ss={ss} profileId={payload.profileId} cwd={payload.cwd} />
     </div>
   );

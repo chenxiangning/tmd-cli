@@ -238,12 +238,13 @@ export class PiRpcSession {
       case "tool_execution_start":
       case "tool_execution_update":
       case "tool_execution_end":
-        this.handlers.onToolExecution?.(rec);
-        this.handlers.onBlocks(this.reducer.feed(rec), this.reducer.turnStart, this.reducer.liveSurface);
-        return;
+      case "queue_update": /* 变迁检测在 reducer,drained 回告排队锚消费(B2-6) */
+      /* 结算帧双名:omp 18.x session_settled / pi 1.4.0 agent_settled(2026-11-06 抓包实证)。 */
       case "session_settled":
+      case "agent_settled":
         this.handlers.onBlocks(this.reducer.feed(rec), this.reducer.turnStart, this.reducer.liveSurface);
-        this.handlers.onBusy(false);
+        if (rec.type === "session_settled" || rec.type === "agent_settled") this.handlers.onBusy(false);
+        else if (rec.type === "queue_update") this.handlers.onQueueUpdate?.(rec);
         return;
       case "agent_start":
         this.handlers.onBusy(true);
@@ -267,8 +268,7 @@ export class PiRpcSession {
         );
         return;
       }
-      default:
-        return; // ready / extension 噪声 / available_commands / prompt_result / turn_end(结算走 session_settled)等
+      default: return; // ready / extension 噪声 / available_commands / prompt_result / turn_end 等
     }
   }
 

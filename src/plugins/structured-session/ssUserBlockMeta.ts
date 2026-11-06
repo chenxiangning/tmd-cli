@@ -49,17 +49,25 @@ export function stripLoaded(text: string, loaded: Record<string, string>): strin
   return out.replace(/ {2,}/g, " ").trim();
 }
 
-/* 读文件 → data URL;模块级缓存(流式重渲染/多轮引用同一临时文件不重复读)。 */
+/* 读文件 → data URL;模块级缓存(流式重渲染/多轮引用同一临时文件不重复读)。
+ * LRU 封顶 32(dataURL 常数百 KB,跨会话只增不减会成真实内存增长点;命中
+ * 前移、淘汰最旧,Map 插入序即冷热序)。 */
 const loadCache = new Map<string, Promise<string | null>>();
+const LOAD_CACHE_CAP = 32;
 
 /** 加载失败返回 null(调用方保留原 token,诚实降级不吞路径)。 */
 export function loadUserImage(path: string): Promise<string | null> {
   const cached = loadCache.get(path);
-  if (cached) return cached;
+  if (cached) {
+    loadCache.delete(path);
+    loadCache.set(path, cached);
+    return cached;
+  }
   const p = ipc.fsReadBytesBase64(path)
     .then((b64: string) => `data:${MIME[path.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream"};base64,${b64}`)
     .catch(() => null);
   loadCache.set(path, p);
+  if (loadCache.size > LOAD_CACHE_CAP) loadCache.delete(loadCache.keys().next().value as string);
   return p;
 }
 

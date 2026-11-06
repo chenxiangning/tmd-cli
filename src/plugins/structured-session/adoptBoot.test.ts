@@ -66,14 +66,16 @@ describe("boot 收养(批次 3:枚举 → structured label 反解开 tab,其余 
     expect(h.killed).toEqual([]);
   });
 
-  it("无 label / 非 structured label = 无人认领,kill 兜底(等价旧 boot kill_all 语义)", async () => {
+  it("孤儿判定收紧(B2):无 label 与 structured 损坏标签 kill,他消费方带名流不误杀", async () => {
     h.opened = [];
+    h.killed = [];
     h.list = [
-      { id: "proc-2", label: null },
+      { id: "proc-1", label: null },
+      { id: "proc-2", label: "structured:broken" },
       { id: "proc-3", label: "some-other-consumer" },
     ];
     adoptOrphanStreams();
-    await vi.waitFor(() => expect(h.killed).toEqual(["proc-2", "proc-3"]));
+    await vi.waitFor(() => expect(h.killed).toEqual(["proc-1", "proc-2"]));
     expect(h.opened).toEqual([]);
   });
 
@@ -118,7 +120,7 @@ describe("adoptDiskSeed keepTail 分流(2026-11-05 关闭重开丢历史修复)"
     const seeded: boolean[] = [];
     /* 具名转换:PiRpcSession 全编排不需要,只截 adoptSeed 一个面。 */
     const session = { adoptSeed: (_blocks: unknown[], keepTail: boolean) => seeded.push(keepTail) } as unknown as PiRpcSession;
-    adoptDiskSeed(session, { profileId: "omp", cwd: "/repo", ...payload }, "cli-9");
+    adoptDiskSeed(session, { profileId: "omp", cwd: "/repo", ...payload }, ["cli-9"]);
     /* 转录链三跳 promise:以「旗标落位」为信号等待,不猜时长。 */
     return vi.waitFor(() => {
       expect(seeded).toHaveLength(1);
@@ -131,6 +133,19 @@ describe("adoptDiskSeed keepTail 分流(2026-11-05 关闭重开丢历史修复)"
       listSessions: () => Promise.resolve([{ id: "cli-9", path: "/p", modifiedAt: 1 }]),
       readSessionTranscript: () => Promise.resolve({ blocks: [{ id: "b", role: "user" as const, text: "问" }] }),
     };
+  });
+
+  it("候选未命中 = 历史不可读 → onMiss 如实提示;命中则不打扰(B2)", async () => {
+    const onMiss = vi.fn();
+    const seeded: boolean[] = [];
+    const session = { adoptSeed: (_b: unknown[], k: boolean) => seeded.push(k) } as unknown as PiRpcSession;
+    h.profile = {
+      listSessions: () => Promise.resolve([{ id: "cli-other", path: "/p", modifiedAt: 1 }]),
+      readSessionTranscript: () => Promise.resolve({ blocks: [{ id: "b", role: "user" as const, text: "问" }] }),
+    };
+    adoptDiskSeed(session, { profileId: "omp", cwd: "/repo" }, ["cli-9"], onMiss);
+    await vi.waitFor(() => expect(onMiss).toHaveBeenCalledTimes(1));
+    expect(seeded).toHaveLength(0);
   });
 
   it("resume(关闭会话重开)= keepTail true:磁盘历史全量保留,末轮不剪(引擎 resume 零重放)", async () => {

@@ -35,8 +35,6 @@
 /* ── assistant 正文(monocode 全尺寸转录文本;用户块走 RPC ss-userblock 气泡,
    思考/工具过程走 RPC ss-thinksec/ss-toolrow —— 2026-11-05 渲染对齐共用) ── */
 .sv-assistant { display: flex; flex-direction: column; gap: 4px; }
-.sv-role-row { display: flex; align-items: baseline; gap: 8px; }
-.sv-role-label { font-size: var(--tmd-font-xs); font-weight: 600; color: var(--tmd-fg-subtle); letter-spacing: 0.04em; }
 .sv-ts { font-size: var(--tmd-font-xs); color: var(--tmd-fg-subtle); }
 
 /* system 行:淡色 */

@@ -90,4 +90,9 @@ export const MESSAGES_EN: Record<string, string> = {
   "介绍一下当前项目的目录结构和核心模块": "Walk me through this project's structure and core modules",
   "帮我审查最近的代码变更,找出潜在问题": "Review the recent code changes and spot potential issues",
   "给这个项目写一份 README 摘要": "Draft a README summary for this project",
+  /* B2-1 看门狗常驻横幅 / B2-2 历史不可读提示(2026-11-06) */
+  "引擎长时间无输出,可能已挂起": "No output for a long time — engine may be stuck",
+  "静默": "silent",
+  "中断": "Interrupt",
+  "未读到历史转录,仅显示实时内容": "History transcript unreadable — showing live content only",
 }

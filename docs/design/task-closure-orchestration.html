@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>任务闭环编排 · 设计形态示例(深度版) — tmd-cli</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#fafafa; --hover:#f3f3f5; --active:rgba(26,26,30,.14);
+    --fg:#26262b; --muted:#707073; --subtle:#8e8e91; --faint:#bababb;
+    --border:#d9d9de; --border-strong:#b5b5ba;
+    --accent:#1a1a1e; --accent-fg:#ffffff; --decor:#ff8c3c;
+    --ok:#059669; --warn:#a16207; --err:#dc2626;
+    --diff-in:#1a7f37; --diff-out:#cf222e; --ref:#0063d3;
+    --ui:12px; --md:13px; --lg:14px; --xl:16px;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;background:#f0f0f2;color:var(--fg);font-size:var(--md);line-height:1.6}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 28px 90px}
+  h1{font-size:22px;letter-spacing:-.01em}
+  .lead{color:var(--muted);margin-top:6px;max-width:80ch}
+  .lead b{color:var(--fg)}
+  section{margin-top:48px}
+  h2{font-size:16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:16px}
+  h2 .no{font-family:var(--mono);font-size:11px;color:var(--decor);font-weight:600}
+  h3{font-size:13px;margin:24px 0 10px;color:var(--fg)}
+  h3 .tag{font-size:9.5px;font-weight:700;color:var(--ref);border:1px solid rgba(0,99,211,.35);border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:2px}
+  p{margin:8px 0;color:var(--fg)}
+  .muted{color:var(--muted)} .small{font-size:12px} .tiny{font-size:11px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  @media(max-width:960px){.cols,.cols3{grid-template-columns:1fr}}
+  .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px}
+  .card h4{font-size:13px;margin-bottom:8px}
+  .card h4 small{color:var(--subtle);font-weight:400}
+  figure{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;overflow-x:auto}
+  figcaption{font-size:12px;color:var(--muted);margin-top:8px}
+  pre{font-family:var(--mono);font-size:11.5px;line-height:1.55;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px;overflow-x:auto}
+  .k{color:#6e56cf}.s{color:#9d5b38}.c{color:#8e8e96}.n{color:#9a6b2f}.t{color:#0f766e}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:12.5px}
+  th{background:var(--panel);text-align:left;font-weight:600;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap}
+  td{padding:8px 12px;border-bottom:1px solid #ececef;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  code{font-family:var(--mono);font-size:11.5px;background:var(--panel);border:1px solid #e4e4e8;border-radius:4px;padding:1px 5px;white-space:nowrap}
+  kbd{font-family:var(--mono);font-size:10.5px;background:var(--panel);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:1px 5px;white-space:nowrap}
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;border-radius:5px;padding:2px 8px;white-space:nowrap}
+  .bd-backlog{background:var(--hover);color:var(--muted)}
+  .bd-running{background:rgba(255,140,60,.14);color:#b35610}
+  .bd-waiting{background:rgba(161,98,7,.12);color:var(--warn)}
+  .bd-settled{background:var(--hover);color:var(--subtle)}
+  .bd-review{background:var(--active);color:var(--fg)}
+  .bd-done{background:rgba(5,150,105,.12);color:var(--ok)}
+  .bd-failed{background:rgba(220,38,38,.10);color:var(--err)}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .journey{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  @media(max-width:960px){.journey{grid-template-columns:repeat(3,1fr)}}
+  .step{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;position:relative}
+  .step .n{font-family:var(--mono);font-size:10px;color:var(--decor);font-weight:700}
+  .step h5{font-size:12.5px;margin:4px 0}
+  .step p{font-size:11.5px;color:var(--muted);line-height:1.5}
+  .gate{position:absolute;top:10px;right:10px;font-size:9.5px;font-weight:700;color:var(--warn);border:1px solid rgba(161,98,7,.4);border-radius:4px;padding:0 4px}
+  .auto{position:absolute;top:10px;right:10px;font-size:9.5px;font-weight:700;color:var(--ok);border:1px solid rgba(5,150,105,.35);border-radius:4px;padding:0 4px}
+  .note{font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px}
+  .note b{color:var(--fg)}
+
+  /* ===== mockup 客户端 ===== */
+  .mock-stage{background:#e6e6ea;border:1px solid var(--border);border-radius:14px;padding:22px;display:flex;justify-content:center}
+  .win{width:980px;max-width:100%;height:640px;background:var(--bg);border:1px solid var(--border-strong);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.14);display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .tbar{height:40px;flex:none;display:flex;align-items:center;background:rgba(250,250,250,.92);border-bottom:1px solid var(--border);padding:0 12px;gap:10px}
+  .lights{display:flex;gap:7px}
+  .lights i{width:11px;height:11px;border-radius:50%}
+  .lights i:nth-child(1){background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+  .tbar .title{font-size:12px;font-weight:600}
+  .tbar .tabs{margin-left:auto;display:flex;gap:2px;background:var(--hover);border-radius:7px;padding:2px}
+  .tbar .tabs button{border:none;background:transparent;font-size:11px;padding:3px 10px;border-radius:5px;color:var(--muted);cursor:pointer;font-family:inherit}
+  .tbar .tabs button.on{background:#fff;color:var(--fg);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .tbar .tabs button.hot.on{color:#b35610;background:rgba(255,140,60,.18)}
+  .wbody{flex:1;display:flex;min-height:0}
+  .side{width:170px;flex:none;background:var(--panel);border-right:1px solid var(--border);padding:10px 8px;display:flex;flex-direction:column;gap:2px;overflow:auto}
+  .side .grp{font-size:9.5px;color:var(--faint);font-weight:700;letter-spacing:.04em;padding:6px 8px 2px}
+  .side .it{display:flex;align-items:center;gap:7px;font-size:12px;padding:5px 8px;border-radius:6px}
+  .side .it.on{background:var(--active);font-weight:600}
+  .side .it .st{margin-left:auto}
+  .side .it .st i{width:6px;height:6px;border-radius:50%;display:block}
+  .side .it .cnt{margin-left:auto;font-size:9.5px;background:rgba(161,98,7,.14);color:var(--warn);border-radius:8px;padding:0 6px;font-weight:700}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+  .main .ph{flex:none;display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)}
+  .main .ph h6{font-size:13px;font-weight:700}
+  .main .ph .sp{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .subtabs{flex:none;display:flex;align-items:center;gap:2px;background:var(--hover);border-radius:7px;padding:2px;margin:8px 14px 0}
+  .subtabs button{border:none;background:transparent;font-size:11px;padding:3px 10px;border-radius:5px;color:var(--muted);cursor:pointer;font-family:inherit;position:relative}
+  .subtabs button.on{background:#fff;color:var(--fg);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .subtabs button .bub{position:absolute;top:-2px;right:0;font-size:8.5px;background:var(--warn);color:#fff;border-radius:7px;padding:0 4px;font-weight:700}
+  .main .pc{flex:1;overflow:auto;padding:14px}
+  .btn{border:none;border-radius:6px;font-size:11.5px;padding:5px 12px;cursor:pointer;font-family:inherit;font-weight:600}
+  .btn.primary{background:var(--accent);color:var(--accent-fg)}
+  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--fg)}
+  .btn.ok{background:var(--ok);color:#fff}
+  .btn.danger{background:transparent;border:1px solid rgba(220,38,38,.4);color:var(--err)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .chip{font-size:10px;font-family:var(--mono);border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--muted);white-space:nowrap}
+  .fchips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .fchip{font-size:10.5px;border:1px solid var(--border);border-radius:12px;padding:2px 9px;color:var(--muted);cursor:pointer;background:#fff;font-family:inherit}
+  .fchip.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+  .qbar{font-size:10.5px;color:var(--muted);background:var(--panel);border:1px solid #ececef;border-radius:6px;padding:4px 10px;margin-bottom:10px;display:flex;gap:14px;flex-wrap:wrap}
+  .qbar b{color:var(--fg)}
+  .taskrow{display:grid;grid-template-columns:20px 1fr 88px 62px 70px 92px;gap:8px;align-items:center;padding:9px 10px;border:1px solid #ececef;border-radius:8px;margin-bottom:6px;background:#fff;cursor:pointer}
+  .taskrow:hover{background:var(--hover)}
+  .taskrow.sel{border-color:var(--border-strong);background:var(--panel)}
+  .taskrow .nm{font-size:12.5px;font-weight:600;min-width:0}
+  .taskrow .nm small{display:block;font-weight:400;color:var(--subtle);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .taskrow .tok{font-family:var(--mono);font-size:10px;color:var(--subtle)}
+  .attcard{border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;background:#fff}
+  .attcard .hd{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .attcard .hd b{font-size:12.5px}
+  .attcard.dead{opacity:.62;background:var(--panel)}
+  .ustrip{display:flex;align-items:center;gap:8px;margin:4px 0 8px}
+  .ubar{height:5px;border-radius:3px;background:var(--hover);overflow:hidden;flex:1}
+  .ubar i{display:block;height:100%;background:var(--decor);border-radius:3px;width:0;transition:width .6s}
+  .kv{display:flex;gap:10px;align-items:center;font-size:10.5px;color:var(--muted);white-space:nowrap;font-family:var(--mono)}
+  .plan{border:1px solid var(--border);border-radius:8px;background:var(--panel);padding:10px 12px;margin-top:8px;font-size:11.5px;display:none}
+  .plan.show{display:block}
+  .plan ol{margin:6px 0 0 18px}
+  .plan .ph-hint{font-size:10px;color:var(--warn);font-weight:700;margin-top:6px}
+  .ustamp{display:none;align-items:center;gap:4px;font-size:10px;color:var(--ok);border:1px solid rgba(5,150,105,.4);border-radius:4px;padding:1px 6px;font-weight:700}
+  .ustamp.show{display:inline-flex}
+  .tl{margin:8px 0 0 6px;border-left:2px solid #e6e6ea;padding-left:14px;display:flex;flex-direction:column;gap:8px}
+  .tl .ev{position:relative;font-size:11.5px;color:var(--muted);cursor:pointer}
+  .tl .ev:hover{color:var(--fg)}
+  .tl .ev::before{content:"";position:absolute;left:-19px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--border-strong)}
+  .tl .ev.hot::before{background:var(--decor)}
+  .tl .ev.ok::before{background:var(--ok)}
+  .tl .ev.warn::before{background:var(--warn)}
+  .tl .ev b{color:var(--fg);font-weight:600}
+  .tl .ev .xhint{font-size:9px;color:var(--faint);margin-left:6px}
+  .ev-x{display:none;margin:4px 0 0;border:1px dashed #e2e2e6;border-radius:6px;background:var(--panel);padding:7px 10px;font-size:10.5px;color:var(--muted);line-height:1.6}
+  .ev-x.show{display:block}
+  .ev-x code{white-space:normal}
+  .crit{display:flex;gap:8px;align-items:flex-start;font-size:11.5px;padding:6px 0;border-bottom:1px dashed #ececef}
+  .crit:last-of-type{border-bottom:none}
+  .crit .ck{flex:none;width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border-strong);margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+  .crit.pass .ck{background:var(--ok);border-color:var(--ok)}
+  .crit.fail .ck{background:var(--err);border-color:var(--err)}
+  .crit .res{margin-left:auto;white-space:nowrap}
+  .crit .hint{color:var(--subtle);font-size:10.5px;display:block}
+  .evid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .ev-file{font-family:var(--mono);font-size:10.5px;border:1px solid #ececef;border-radius:6px;padding:5px 9px;display:flex;justify-content:space-between;gap:8px;color:var(--muted);cursor:pointer;background:#fff}
+  .ev-file:hover{border-color:var(--border-strong)}
+  .ev-file .adds{color:var(--diff-in);font-weight:700}
+  .ev-file .dels{color:var(--diff-out);font-weight:700}
+  .diff{display:none;margin-top:6px;border:1px solid #ececef;border-radius:6px;overflow:hidden;font-family:var(--mono);font-size:10.5px;grid-column:1/-1}
+  .diff.show{display:block}
+  .dl{padding:1px 10px;white-space:pre-wrap}
+  .dh{background:var(--hover);padding:3px 10px;color:var(--subtle)}
+  .dl-add{background:rgba(26,127,55,.08);color:var(--diff-in)}
+  .dl-del{background:rgba(207,34,46,.06);color:var(--diff-out)}
+  .dl-ctx{background:var(--panel);color:var(--muted)}
+  .ckrow{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:11px;color:var(--muted)}
+  .sel{border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;font-family:inherit;color:var(--fg);background:#fff}
+  .ta{width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:11.5px;font-family:inherit;resize:vertical;background:#fff;color:var(--fg)}
+  .overlay{position:absolute;inset:0;background:rgba(38,38,43,.32);display:none;align-items:center;justify-content:center;z-index:5}
+  .overlay.show{display:flex}
+  .dlg{width:460px;background:var(--bg);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.2);padding:16px}
+  .dlg h6{font-size:13px;margin-bottom:8px}
+  .dlg label{display:block;font-size:10.5px;color:var(--muted);font-weight:600;margin:10px 0 4px}
+  .dlg .inp{width:100%;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:12px;font-family:inherit;background:var(--bg);color:var(--fg)}
+  .dlg .eng{display:flex;gap:6px}
+  .dlg .eng button{flex:1;border:1px solid var(--border);background:#fff;border-radius:6px;padding:6px 0;font-size:11px;cursor:pointer;font-family:inherit;color:var(--fg)}
+  .dlg .eng button.on{border-color:var(--accent);background:var(--accent);color:var(--accent-fg);font-weight:600}
+  .toast{position:absolute;right:14px;bottom:14px;max-width:520px;background:var(--accent);color:var(--accent-fg);font-size:11.5px;border-radius:8px;padding:8px 12px;display:none;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:6}
+  .toast.show{display:flex}
+  .toast .dotw{width:7px;height:7px;border-radius:50%;background:var(--decor);flex:none}
+  .hidden{display:none!important}
+  .inb{border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#fff;display:flex;gap:10px;align-items:flex-start}
+  .inb.hl{border-color:var(--decor);animation:pu 1.2s ease-in-out infinite}
+  .inb .ic{font-size:13px;line-height:1.3}
+  .inb .bd{flex:1;min-width:0}
+  .inb .bd b{font-size:12px}
+  .inb .bd p{font-size:11px;color:var(--muted);margin:2px 0 0}
+  .inb .ops{display:flex;gap:6px;align-items:center;flex:none}
+  @keyframes pu{0%,100%{box-shadow:0 0 0 0 rgba(255,140,60,0)}50%{box-shadow:0 0 0 6px rgba(255,140,60,.16)}}
+  .pulse{animation:pu 1.2s ease-in-out infinite}
+  .cmp{width:100%;border-collapse:collapse;font-size:11.5px}
+  .cmp th,.cmp td{border:1px solid #ececef;padding:6px 10px;text-align:left}
+  .cmp th{background:var(--panel);color:var(--muted);font-weight:600;white-space:nowrap}
+  .cmp .win-col{background:rgba(5,150,105,.05)}
+  .tgl{position:relative;width:30px;height:17px;border-radius:9px;background:var(--border);cursor:pointer;flex:none;transition:background .2s;border:none;font-family:inherit}
+  .tgl i{position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:left .2s;display:block}
+  .tgl.on{background:var(--ok)}
+  .tgl.on i{left:15px}
+  .tgl:disabled{opacity:.4;cursor:default}
+  .srow{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #ececef;font-size:12px}
+  .srow:last-child{border-bottom:none}
+  .srow .lab{flex:1}
+  .srow .lab small{display:block;color:var(--subtle);font-size:10.5px}
+  .win-c{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:18px;align-items:start}
+  @media(max-width:1150px){.win-c{grid-template-columns:1fr}}
+  .phone{background:#fff;border:1px solid var(--border-strong);border-radius:24px;padding:14px 11px;box-shadow:0 12px 30px rgba(0,0,0,.12);width:240px;margin:0 auto}
+  .phone .phh{text-align:center;font-size:9.5px;color:var(--faint);font-weight:700;letter-spacing:.08em}
+  .phone .ptime{text-align:center;font-size:22px;font-weight:200;margin:2px 0 8px;color:var(--fg)}
+  .phone .pcard{border:1px solid var(--border);border-radius:12px;padding:9px 10px;margin-top:8px;font-size:11px}
+  .phone .pcard b{font-size:11px}
+  .phone .pcard p{font-size:10px;color:var(--muted);margin:2px 0 0}
+  .phone .pbtns{display:flex;gap:6px;margin-top:8px}
+  .phone .pbtns button{flex:1;border:none;border-radius:7px;padding:5px 0;font-size:10.5px;cursor:pointer;font-family:inherit;font-weight:600}
+  .p-ok{background:var(--ok);color:#fff}
+  .p-no{background:var(--hover);color:var(--err)}
+  .phone .pfoot{text-align:center;font-size:9px;color:var(--faint);margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>任务闭环编排 · 设计形态示例(深度版)</h1>
+<p class="lead">定位一句话:<b>引擎做拆解与执行(agent loop 自主规划),客户端做任务单、闸门与裁决</b>。编排层是薄的一层:任务单 + 派发 + 状态回填 + 验收 gate,全部发生在幕布之外;幕布内保持 PTY 原样透传。本页是 spec 级原型:机制(时序/模板/协议/幂等)、交互(决策矩阵/通知路由/键盘)、UI(六视图 + 手机远程)三层都给到可评审颗粒度。配色与结构基准取自 1421 dev 真实客户端 token。</p>
+
+<!-- ================= §0 全景 ================= -->
+<section>
+  <h2><span class="no">§0</span>闭环全景:一次交代到闭环的完整链路</h2>
+  <figure>
+  <svg viewBox="0 0 1040 250" width="100%" font-family="-apple-system,PingFang SC,sans-serif">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b5b5ba"/></marker>
+    </defs>
+    <g font-size="11" fill="#8e8e91" font-weight="700">
+      <text x="16" y="34">用户</text><text x="16" y="104">编排层(新增,薄)</text><text x="16" y="174">引擎会话(已有)</text><text x="16" y="236">环境</text>
+    </g>
+    <g stroke="#ececef" stroke-width="1"><line x1="70" y1="10" x2="70" y2="245"/><line x1="70" y1="80" x2="1030" y2="80"/><line x1="70" y1="150" x2="1030" y2="150"/><line x1="70" y1="218" x2="1030" y2="218"/></g>
+    <g>
+      <rect x="90" y="16" width="128" height="36" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="154" y="30" text-anchor="middle" font-size="12" font-weight="600">交代任务</text><text x="154" y="44" text-anchor="middle" font-size="10" fill="#707073">目标 + 完成判据</text>
+      <rect x="440" y="16" width="120" height="36" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="500" y="30" text-anchor="middle" font-size="12" font-weight="600">批准计划</text><text x="500" y="44" text-anchor="middle" font-size="10" fill="#a16207">gate 1(可跳过)</text>
+      <rect x="800" y="16" width="128" height="36" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="864" y="30" text-anchor="middle" font-size="12" font-weight="600">验收</text><text x="864" y="44" text-anchor="middle" font-size="10" fill="#a16207">gate 2(唯一必经)</text>
+    </g>
+    <g>
+      <rect x="90" y="90" width="150" height="36" rx="8" fill="#fafafa" stroke="#d9d9de"/><text x="165" y="104" text-anchor="middle" font-size="12" font-weight="600">任务单落卡</text><text x="165" y="118" text-anchor="middle" font-size="10" fill="#707073">workbench 台账</text>
+      <rect x="270" y="90" width="150" height="36" rx="8" fill="#fafafa" stroke="#d9d9de"/><text x="345" y="104" text-anchor="middle" font-size="12" font-weight="600">派发</text><text x="345" y="118" text-anchor="middle" font-size="10" fill="#707073">prompt 模板 + 开 RPC 会话</text>
+      <rect x="440" y="90" width="140" height="36" rx="8" fill="#fafafa" stroke="#d9d9de"/><text x="510" y="104" text-anchor="middle" font-size="12" font-weight="600">计划回读</text><text x="510" y="118" text-anchor="middle" font-size="10" fill="#707073">tmd-plan 围栏协议</text>
+      <rect x="610" y="90" width="170" height="36" rx="8" fill="#fafafa" stroke="#d9d9de"/><text x="695" y="104" text-anchor="middle" font-size="12" font-weight="600">状态回填</text><text x="695" y="118" text-anchor="middle" font-size="10" fill="#707073">settled / askWatch / usage</text>
+      <rect x="800" y="90" width="128" height="36" rx="8" fill="#fafafa" stroke="#d9d9de"/><text x="864" y="104" text-anchor="middle" font-size="12" font-weight="600">写回 done</text><text x="864" y="118" text-anchor="middle" font-size="10" fill="#707073">updates + 成本归档</text>
+    </g>
+    <g>
+      <rect x="270" y="160" width="200" height="36" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="370" y="174" text-anchor="middle" font-size="12" font-weight="600">agent loop 自主执行</text><text x="370" y="188" text-anchor="middle" font-size="10" fill="#707073">模型自己规划拆解、调工具</text>
+      <rect x="500" y="160" width="130" height="36" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="565" y="174" text-anchor="middle" font-size="12" font-weight="600">等待输入</text><text x="565" y="188" text-anchor="middle" font-size="10" fill="#a16207">askWatch 捕获</text>
+      <rect x="660" y="160" width="120" height="36" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="720" y="174" text-anchor="middle" font-size="12" font-weight="600">轮落定</text><text x="720" y="188" text-anchor="middle" font-size="10" fill="#707073">session_settled 600ms 宽限</text>
+    </g>
+    <g>
+      <rect x="90" y="224" width="240" height="20" rx="6" fill="#fafafa" stroke="#d9d9de"/><text x="210" y="238" text-anchor="middle" font-size="10.5" fill="#707073">测试 / lint / CI 跑分 = 完成的真裁决</text>
+    </g>
+    <g stroke="#b5b5ba" stroke-width="1.3" fill="none" marker-end="url(#ar)">
+      <path d="M218 34 L270 34 L270 88"/>
+      <path d="M420 108 L438 108"/>
+      <path d="M510 90 L510 54"/>
+      <path d="M580 108 L608 108"/>
+      <path d="M470 108 L470 148 L500 148"/>
+      <path d="M345 126 L345 158"/>
+      <path d="M565 158 L565 150 L510 150" stroke-dasharray="4 3"/>
+      <path d="M720 158 L720 128"/>
+      <path d="M695 126 L695 148 L760 148 L760 110 L798 110"/>
+      <path d="M864 88 L864 54"/>
+      <path d="M928 108 L980 108 L980 234 L332 234" stroke-dasharray="4 3"/>
+    </g>
+  </svg>
+  <figcaption>编排层只做四件事:落卡、派发、回填、收口。拆解本身发生在引擎会话内部(模型能力),客户端不重做拆解器。</figcaption>
+  </figure>
+</section>
+
+<!-- ================= §1 内部编排逻辑 ================= -->
+<section>
+  <h2><span class="no">§1</span>内部编排逻辑</h2>
+
+  <h3>1.1 两级状态机:任务态 × attempt 执行态</h3>
+  <div class="cols">
+  <figure>
+    <svg viewBox="0 0 460 340" width="100%" font-family="-apple-system,PingFang SC,sans-serif">
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b5b5ba"/></marker></defs>
+      <text x="12" y="20" font-size="12" font-weight="700">任务态(task)</text>
+      <g font-size="11.5" font-weight="600" text-anchor="middle">
+        <rect x="24" y="38" width="86" height="30" rx="15" fill="#f3f3f5" stroke="#d9d9de"/><text x="67" y="57" fill="#707073">backlog</text>
+        <rect x="160" y="38" width="104" height="30" rx="15" fill="#fff" stroke="#b5b5ba"/><text x="212" y="57">dispatched</text>
+        <rect x="310" y="38" width="90" height="30" rx="15" fill="rgba(255,140,60,.14)" stroke="#ff8c3c"/><text x="355" y="57" fill="#b35610">running</text>
+        <rect x="310" y="120" width="90" height="30" rx="15" fill="rgba(161,98,7,.12)" stroke="#a16207"/><text x="355" y="139" fill="#a16207">waiting</text>
+        <rect x="160" y="120" width="104" height="30" rx="15" fill="rgba(26,26,30,.14)" stroke="#1a1a1e"/><text x="212" y="139">review</text>
+        <rect x="160" y="202" width="104" height="30" rx="15" fill="rgba(5,150,105,.12)" stroke="#059669"/><text x="212" y="221" fill="#059669">done</text>
+        <rect x="40" y="120" width="80" height="30" rx="15" fill="rgba(220,38,38,.10)" stroke="#dc2626"/><text x="80" y="139" fill="#dc2626">failed</text>
+        <rect x="40" y="202" width="80" height="30" rx="15" fill="#f3f3f5" stroke="#d9d9de"/><text x="80" y="221" fill="#707073">cancelled</text>
+      </g>
+      <g stroke="#b5b5ba" stroke-width="1.2" fill="none" marker-end="url(#ar2)" font-size="10">
+        <path d="M110 53 L158 53"/>
+        <path d="M264 53 L308 53"/>
+        <path d="M355 68 L355 118"/>
+        <path d="M308 135 L266 135"/>
+        <path d="M212 150 L212 200"/>
+        <path d="M180 150 L110 150" stroke-dasharray="4 3"/>
+        <path d="M90 150 L90 90 L150 68" stroke-dasharray="4 3"/>
+        <path d="M100 216 L158 216" stroke-dasharray="4 3"/>
+        <path d="M212 68 L212 118" stroke-dasharray="1 4"/>
+      </g>
+      <g font-size="10" fill="#8e8e91">
+        <text x="112" y="48">派发</text>
+        <text x="264" y="48">会话开跑</text>
+        <text x="362" y="98">askWatch 命中</text>
+        <text x="252" y="130">settled+验收视图</text>
+        <text x="220" y="180">gate 2 通过</text>
+        <text x="30" y="106">会话退出/额度</text>
+        <text x="118" y="86">重派新 attempt</text>
+        <text x="104" y="232">用户取消</text>
+        <text x="196" y="86" fill="#a16207">review 态续说→回 running</text>
+      </g>
+      <path d="M240 128 L300 128 L300 100 L308 100" stroke="#a16207" stroke-width="1.1" fill="none" stroke-dasharray="2 3" marker-end="url(#ar2)" opacity=".65"/>
+      <text x="12" y="272" font-size="12" font-weight="700">attempt 执行态</text>
+      <g font-size="10.5" font-family="ui-monospace,Menlo,monospace" fill="#707073">
+        <text x="24" y="292">spawning → running → waitingInput → settled → verified / rejected</text>
+      </g>
+      <g font-size="10" fill="#8e8e91">
+        <text x="24" y="312">waiting 沿是编排器的轴心:通知三通道、审批收件箱、手机推送全挂在进入 waiting 的沿上。</text>
+        <text x="24" y="328">幂等键 = (sessionId, turnSeq):settled 双发/重放去重;waiting 超时窗默认 10min → 提级通知。</text>
+      </g>
+    </svg>
+    <figcaption>迁移全部事件驱动,零轮询:轮界走 session_settled(600ms 宽限,复用 useTurnLive 沿),审批走 askWatch 双通道,存证走 evidence write/edit 完成帧。橙色虚线 = review 态被续说打破时回退 running(验收视图同步关闭)。</figcaption>
+  </figure>
+  <figure>
+    <svg viewBox="0 0 460 340" width="100%" font-family="-apple-system,PingFang SC,sans-serif">
+      <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b5b5ba"/></marker></defs>
+      <text x="12" y="20" font-size="12" font-weight="700">回填链路(事件流,零轮询)</text>
+      <g font-size="11.5" font-weight="600" text-anchor="middle">
+        <rect x="20" y="40" width="96" height="34" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="68" y="54">RPC 事件</text><text x="68" y="68" font-size="9.5" fill="#707073" font-weight="400">turn_start / settled / ask</text>
+        <rect x="150" y="40" width="110" height="34" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="205" y="54">生命周期裁决</text><text x="205" y="68" font-size="9.5" fill="#707073" font-weight="400">activityWatch 四态</text>
+        <rect x="294" y="40" width="110" height="34" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="349" y="54">attempt 状态机</text><text x="349" y="68" font-size="9.5" fill="#707073" font-weight="400">纯函数迁移+幂等去重</text>
+        <rect x="294" y="128" width="110" height="34" rx="8" fill="#fafafa" stroke="#d9d9de"/><text x="349" y="142">台账持久化</text><text x="349" y="156" font-size="9.5" fill="#707073" font-weight="400">index.json 原子写</text>
+        <rect x="150" y="128" width="110" height="34" rx="8" fill="#fafafa" stroke="#d9d9de"/><text x="205" y="142">UI 订阅面</text><text x="205" y="156" font-size="9.5" fill="#707073" font-weight="400">徽标 / 时间线 / usage</text>
+        <rect x="20" y="128" width="96" height="34" rx="8" fill="rgba(161,98,7,.12)" stroke="#a16207"/><text x="68" y="142">waiting 沿</text><text x="68" y="156" font-size="9.5" fill="#a16207" font-weight="400">OS 通知 + 手机</text>
+        <rect x="20" y="216" width="150" height="34" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="95" y="230">evidence 存证帧</text><text x="95" y="244" font-size="9.5" fill="#707073" font-weight="400">write/edit 完成帧(已有)</text>
+        <rect x="230" y="216" width="174" height="34" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="317" y="230">验收视图聚合</text><text x="317" y="244" font-size="9.5" fill="#707073" font-weight="400">文件树 + diff + 判据 + usage</text>
+        <rect x="20" y="284" width="150" height="34" rx="8" fill="#fff" stroke="#b5b5ba"/><text x="95" y="298">sessionUsage 行</text><text x="95" y="312" font-size="9.5" fill="#707073" font-weight="400">cli-shared 既有契约</text>
+      </g>
+      <g stroke="#b5b5ba" stroke-width="1.2" fill="none" marker-end="url(#ar3)">
+        <path d="M116 57 L148 57"/><path d="M260 57 L292 57"/>
+        <path d="M349 76 L349 126"/>
+        <path d="M292 145 L262 145"/><path d="M148 145 L118 145"/>
+        <path d="M95 128 L95 76" stroke-dasharray="4 3"/>
+        <path d="M170 216 L260 180" stroke-dasharray="4 3"/>
+        <path d="M170 301 L317 301 L317 252" stroke-dasharray="4 3"/>
+      </g>
+      <text x="20" y="334" font-size="10" fill="#8e8e91">「会话在干活」只认 awaitingTurn/activeTurns 因果信号,UI 状态一律不是信号(08 号契约);</text>
+    </svg>
+    <figcaption>编排层是标准 feature 插件(task-orchestrator):事件源全部现成,新增的只有 attempt 状态机纯函数 + 台账绑定字段 + 订阅面 + usage 聚合。</figcaption>
+  </figure>
+  </div>
+
+  <h3>1.2 一轮的完整时序(六泳道顺序图)</h3>
+  <figure>
+    <svg viewBox="0 0 1040 520" width="100%" font-family="-apple-system,PingFang SC,sans-serif">
+      <defs><marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8e8e91"/></marker></defs>
+      <g font-size="11.5" font-weight="700" text-anchor="middle">
+        <text x="80" y="24">用户</text><text x="250" y="24">面板/UI</text><text x="430" y="24">task-orchestrator</text><text x="610" y="24">RPC 宿主</text><text x="790" y="24">引擎会话</text><text x="960" y="24">台账/通知</text>
+      </g>
+      <g stroke="#d9d9de" stroke-width="1" stroke-dasharray="3 4">
+        <line x1="80" y1="32" x2="80" y2="505"/><line x1="250" y1="32" x2="250" y2="505"/><line x1="430" y1="32" x2="430" y2="505"/><line x1="610" y1="32" x2="610" y2="505"/><line x1="790" y1="32" x2="790" y2="505"/><line x1="960" y1="32" x2="960" y2="505"/>
+      </g>
+      <g stroke="#8e8e91" stroke-width="1.2" fill="none" marker-end="url(#ar4)" font-size="10" fill2="#707073">
+        <path d="M80 60 L248 60"/><path d="M250 88 L428 88"/>
+        <path d="M80 116 L428 116"/>
+        <path d="M430 148 L608 148"/><path d="M610 180 L788 180"/>
+        <path d="M790 212 L612 212"/><path d="M610 244 L432 244"/>
+        <path d="M430 276 L82 276"/>
+        <path d="M790 308 L612 308"/>
+        <path d="M610 336 L432 336"/><path d="M430 364 L958 364"/>
+        <path d="M80 396 L428 396"/><path d="M430 424 L608 424"/>
+        <path d="M610 452 L432 452"/><path d="M430 476 L958 476"/>
+        <path d="M80 500 L428 500"/>
+      </g>
+      <g font-size="10" fill="#707073">
+        <text x="88" y="55">交代任务(自然语言 + 判据,composer 入口)</text>
+        <text x="258" y="83">建卡 backlog(判据结构化)</text>
+        <text x="88" y="111">派发:引擎 / cwd / gate1 开关 / 并行形态</text>
+        <text x="438" y="143">session_spawn(profile + promptTemplate)</text>
+        <text x="618" y="175">turn 注入(目标+判据+规约+接力摘要?)</text>
+        <text x="700" y="207">plan 帧:```tmd-plan 围栏</text>
+        <text x="520" y="239">prompt_result → 提取 planBlock(失败→降级人工读)</text>
+        <text x="200" y="271">gate 1:计划卡片 → 批准 / 改判据 / 直接编辑</text>
+        <text x="660" y="303">工具帧循环(write/edit/run,幕布原样透传)</text>
+        <text x="520" y="331">ask 帧(审批请求)</text>
+        <text x="520" y="359">waiting 沿</text>
+        <text x="700" y="391">通知:OS(失焦)+ 手机推送 + 收件箱</text>
+        <text x="120" y="391">放行(收件箱 / 手机,写回会话)</text>
+        <text x="470" y="419">写回(审批应答作为 turn 输入)</text>
+        <text x="500" y="447">session_settled(600ms 宽限,幂等键 sessionId+turnSeq)</text>
+        <text x="540" y="471">attempt settled + evidence 归档 + usage 聚合 → 通知「待验收」</text>
+        <text x="120" y="495">gate 2 验收:判据核验 → done(驳回→回灌续跑)</text>
+      </g>
+      <g font-size="9" fill="#bababb">
+        <text x="436" y="60">幂等:同一 (sessionId,turnSeq) 双发去重</text>
+      </g>
+    </svg>
+    <figcaption>编排器不碰 PTY 字节流:spawn、turn 注入、写回应答走 RPC 宿主既有通道;工具帧只进幕布,编排层只消费结构化事件(prompt_result / ask / settled)。</figcaption>
+  </figure>
+
+  <h3>1.3 数据模型:workbench 台账扩展(契约草稿 v2)</h3>
+  <div class="cols">
+<pre>~/.tmd-cli/workbench/index.json <span class="c">(现有 projects[].tasks[] 基础上扩展,向后兼容)</span>
+
+{
+  <span class="k">"id"</span>: <span class="s">"t-7f3k2a"</span>,
+  <span class="k">"title"</span>: <span class="s">"修复切会话卡顿:client store 桥冻结"</span>,
+  <span class="k">"status"</span>: <span class="s">"running"</span>,            <span class="c">// backlog|dispatched|running|waiting|review|done|failed|cancelled</span>
+  <span class="k">"cwd"</span>: <span class="s">"/Users/…/tmd-cli"</span>,
+  <span class="k">"queue"</span>: { <span class="k">"priority"</span>: <span class="s">"normal"</span>, <span class="k">"serialized"</span>: <span class="n">false</span> },   <span class="c">// 同 cwd 无 worktree 时 true</span>
+  <span class="k">"criteria"</span>: [                     <span class="c">// 完成判据 = gate 2 检查单</span>
+    { <span class="k">"id"</span>: <span class="s">"c1"</span>, <span class="k">"text"</span>: <span class="s">"check:gate 全链绿"</span>,
+      <span class="k">"auto"</span>: <span class="n">true</span>, <span class="k">"runCmd"</span>: <span class="s">"pnpm check:gate"</span>, <span class="k">"timeoutS"</span>: <span class="n">900</span>,
+      <span class="k">"result"</span>: { <span class="k">"status"</span>: <span class="s">"pass"</span>, <span class="k">"at"</span>: <span class="s">"…T10:58:02Z"</span>, <span class="k">"tail"</span>: <span class="s">"✓ built in 2.87s"</span> } },
+    { <span class="k">"id"</span>: <span class="s">"c2"</span>, <span class="k">"text"</span>: <span class="s">"复测单次写 &lt; 300ms"</span>, <span class="k">"auto"</span>: <span class="n">true</span>, … },
+    { <span class="k">"id"</span>: <span class="s">"c3"</span>, <span class="k">"text"</span>: <span class="s">"交互目检:切会话无 3s 冻结"</span>,
+      <span class="k">"auto"</span>: <span class="n">false</span>, <span class="k">"result"</span>: { <span class="k">"status"</span>: <span class="s">"pending"</span> } }
+  ],
+  <span class="k">"attempts"</span>: [
+    {
+      <span class="k">"n"</span>: <span class="n">1</span>,
+      <span class="k">"sessionId"</span>: <span class="s">"pty-12"</span>,        <span class="c">// 既有会话 id,回填事实源;幂等键一半</span>
+      <span class="k">"engine"</span>: <span class="s">"omp"</span>, <span class="k">"model"</span>: <span class="s">"glm-5.3-flash:max"</span>,
+      <span class="k">"state"</span>: <span class="s">"running"</span>,           <span class="c">// spawning|running|waitingInput|settled|verified|rejected</span>
+      <span class="k">"worktree"</span>: <span class="n">null</span>,            <span class="c">// 二期:wt/t-7f3k2a-a1</span>
+      <span class="k">"planApproved"</span>: <span class="n">true</span>,        <span class="c">// gate 1 记录,null=未回读</span>
+      <span class="k">"usage"</span>: { <span class="k">"tokIn"</span>: <span class="n">28100</span>, <span class="k">"tokOut"</span>: <span class="n">13100</span>, <span class="k">"durS"</span>: <span class="n">612</span> },
+                                    <span class="c">// 聚合自 sessionUsage 行(cli-shared 既有契约,不新增解析)</span>
+      <span class="k">"evidence"</span>: [<span class="s">"src/kernel/ipc.ts"</span>, …],
+      <span class="k">"startedAt"</span>: <span class="s">"2026-11-06T10:02:11Z"</span>
+    }
+  ],
+  <span class="k">"settings"</span>: { <span class="k">"gate1"</span>: <span class="n">true</span>, <span class="k">"notifyFocusSuppress"</span>: <span class="n">true</span>,
+                <span class="k">"dnd"</span>: <span class="s">"22:00-08:00"</span>, <span class="k">"waitingTimeoutS"</span>: <span class="n">600</span> },
+  <span class="k">"updates"</span>: [ … ]                  <span class="c">// 沿用现有台账:轮次落定自动追加摘要(审计可回放)</span>
+}</pre>
+    <div class="card">
+      <h4>架构落点(全部既有纪律内)</h4>
+      <p class="small muted">· 新 feature 插件 <code>task-orchestrator</code>:attempt 状态机纯函数 + 台账读写 + 订阅面,经 activate(ctx) 注册</p>
+      <p class="small muted">· 事件源零新增:RPC 轮界、activityWatch、askWatch、evidence 帧、sessionUsage,全部已存在</p>
+      <p class="small muted">· 派发 = composer 既有通道注入 prompt 模板,不碰 PTY 透传铁律</p>
+      <p class="small muted">· 台账写入:json 直写(既有原子写),不走 fsRenameEntry 撞名路径</p>
+      <p class="small muted">· 内核零知识:编排语义全在插件侧,kernel 不出现 taskId 分支</p>
+      <p class="small muted">· 手机树消费:任务徽标/审批卡走「适配器/纯函数模块」白名单,不 import 插件 UI</p>
+      <h4 style="margin-top:12px">归档与膨胀治理</h4>
+      <p class="small muted">· done 任务 30 天后压缩:updates 截尾至 10 条,evidence 保留元数据(diff 统计),diff 全文进 checkpoint</p>
+      <p class="small muted">· attempts[] 上限 5,竞速落选 attempt 只留统计行</p>
+    </div>
+  </div>
+
+  <h3>1.4 派发 prompt 模板与计划回读协议(编排层的「语言」)</h3>
+  <div class="cols">
+<pre><span class="c">// 派发模板(插件侧常量,变量经转义注入;单引号/围栏都转义,防任务标题注入指令)</span>
+<span class="t">[任务单 {{taskId}}]</span>
+目标: {{title}}
+完成判据(收尾时逐条自检并报告):
+{{#criteria}}  - {{text}}  [{{auto?自动核验:人工核验}}]{{/criteria}}
+工作规约:
+  1. 先给出执行计划,使用 <span class="s">```tmd-plan</span> 围栏,格式如下,等待确认后开工 <span class="c">[gate1 可关]</span>
+  2. 计划确认后自主推进,不要逐步汇报;遇以下情况停下等输入:
+     - 需要删除/重写非本任务引入的代码
+     - 需要网络安装、修改 CI、动发版脚本
+     - 判据可能无法满足
+  3. 全部判据满足后运行 <span class="s">{{runCmd}}</span> 并保证绿,然后结束本轮
+上下文: <span class="c">{{relayDigest — 接力时注入,否则置「无」}}</span>
+
+<span class="c">// 计划回读协议:围栏内是机器可读 JSON,解析失败→降级为普通文本卡片</span>
+<span class="s">```tmd-plan</span>
+{ <span class="k">"steps"</span>: [<span class="s">"拍平 client store patch 过桥"</span>, <span class="s">"补 diagnostics 计时"</span>, <span class="s">"补契约测试"</span>],
+  <span class="k">"risks"</span>: [<span class="s">"桥同步转换路径在 Rust 侧有缓存"</span>],
+  <span class="k">"files"</span>: [<span class="s">"src/kernel/ipc.ts"</span>, <span class="s">"src/plugins/…/clientStore.ts"</span>] }
+<span class="s">```</span></pre>
+    <div>
+      <div class="card">
+        <h4>协议设计要点</h4>
+        <p class="small muted">· 围栏名用 <code>tmd-plan</code> 而非通用 json:幕布渲染器不认识它,不会误渲染;编排层从 prompt_result 文本提取,幕布无感</p>
+        <p class="small muted">· 解析失败零阻塞:计划卡降级显示原文,人照样能批(gate 1 永远可人工兜底)</p>
+        <p class="small muted">· 变量白名单注入:title/criteria 过转义(剥 ``` 与控制符),引擎名/cwd 来自宿主枚举不来自用户输入</p>
+        <p class="small muted">· 判据即契约:模板把「验收标准」前置给引擎,模型自己会往判据上收敛——这是「环境裁决」的 prompt 侧表达</p>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h4>二期:MCP 反向通道(引擎主动拉任务)</h4>
+        <pre style="margin-top:6px">task_next()      <span class="c">→ {id,title,criteria,cwd} | null</span>
+task_report(id, {step, note, evidence[]})
+attempt_attach(id) <span class="c">→ {sessionId, 已绑定?}</span></pre>
+        <p class="small muted">仅本地 loopback;工具面走插件声明的 MCP server;先用派发模板单向驱动,反向通道等用户真有「引擎空闲拉活」诉求再上。</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>1.5 事件 → 迁移 → UI → 台账:回填映射表</h3>
+  <table>
+    <tr><th>事件</th><th>attempt 迁移</th><th>UI 反馈</th><th>台账动作</th></tr>
+    <tr><td><code>派发确认</code></td><td>spawning → running</td><td>徽标 running(橙),会话行绑定 attempt,usage 条启动</td><td>task.status=running,attempts[] 追加</td></tr>
+    <tr><td><code>plan 回读帧</code></td><td>running(不变)</td><td>计划卡片(tmd-plan 解析),<b style="color:var(--warn)">gate 1</b> 批准/改判据</td><td>planApproved 落值,risks/files 入卡</td></tr>
+    <tr><td><code>askWatch 命中</code></td><td>running → waitingInput</td><td>审批收件箱 + OS 通知(失焦才发)+ 手机推送</td><td>task.status=waiting,超时计时起</td></tr>
+    <tr><td><code>waiting 超时</code>(默认 600s)</td><td>waitingInput(不变)</td><td>提级:手机强提醒 + 会话行红点</td><td>updates 记 timeoutAt</td></tr>
+    <tr><td><code>审批应答</code>(收件箱/手机)</td><td>waitingInput → running</td><td>徽标回 running,时间线记来源(收件箱/手机)</td><td>updates 追加应答摘要</td></tr>
+    <tr><td><code>session_settled</code>(600ms 沿)</td><td>running → settled</td><td>徽标「落定待验收」,验收视图解锁,usage 定格</td><td>task.status=review,evidence+usage 归档;幂等去重</td></tr>
+    <tr><td><code>review 态续说</code>(用户回原会话续跑)</td><td>settled → running</td><td>验收视图关闭,徽标回 running</td><td>task.status=running,updates 记 reopen</td></tr>
+    <tr><td><code>判据自动核验</code>(三期,test gating)</td><td>settled(不变)</td><td>criteria.auto 逐条跑,结果 chip 绿/红</td><td>criteria[].result 落值+tail 摘录</td></tr>
+    <tr><td><code>验收通过</code>(gate 2)</td><td>settled → verified</td><td>done 徽标,attempt 关闭,成本入汇总</td><td>task.status=done,updates 收口</td></tr>
+    <tr><td><code>验收驳回</code></td><td>settled → rejected → running</td><td>驳回意见回灌同会话续跑(attempt 保留)</td><td>updates 记驳回意见摘要</td></tr>
+    <tr><td><code>会话退出/额度撞墙</code></td><td>running → failed</td><td>失败分类徽标 + 一键接力</td><td>task.status=failed,失败码入 updates</td></tr>
+    <tr><td><code>用户取消任务</code></td><td>running → rejected(会话不杀,降级普通会话)</td><td>任务卡 cancelled;幕布保留可继续人工用</td><td>task.status=cancelled</td></tr>
+  </table>
+
+  <h3>1.6 失败分类学与自动处置</h3>
+  <table>
+    <tr><th>失败码</th><th>识别信号</th><th>自动处置</th><th>人工介入点</th></tr>
+    <tr><td><code>spawn-fail</code></td><td>session_spawn 错误回执(引擎不存在/端口失联)</td><td>重试 1 次(退避 3s)</td><td>再失败 → 失败卡「换引擎重派」</td></tr>
+    <tr><td><code>session-exit</code></td><td>宿主会话退出事件且任务未 settled</td><td>attempt → failed</td><td>接力按钮:新 attempt 注入转录尾部摘要</td></tr>
+    <tr><td><code>quota-wall</code></td><td>引擎 QUOTA/429 模式(适配器既有识别)+ usage 水位 90%</td><td>预警通知(不打断执行)</td><td>一键接力换引擎;额度页查水位</td></tr>
+    <tr><td><code>criteria-red</code></td><td>auto 判据跑红(三期)</td><td>自动回灌「判据 c1 红,tail 已附」续跑,至多 2 轮</td><td>2 轮仍红 → 升级人工</td></tr>
+    <tr><td><code>waiting-timeout</code></td><td>waitingInput 超 600s</td><td>提级通知;不改状态(等的就是人)</td><td>人应答或取消</td></tr>
+    <tr><td><code>stall</code></td><td>activityWatch 静默(证据钟停 &gt; 阈值)且非 waiting</td><td>只提示「疑似卡住」,不动状态机</td><td>用户去幕布目检/接管</td></tr>
+  </table>
+
+  <h3>1.7 并行策略、锁与接力协议 <span class="tag">二期</span></h3>
+  <div class="cols3">
+    <div class="card">
+      <h4>并行:attempt × worktree</h4>
+      <p class="small muted">· 竞速形态:同任务开 2 个 attempt(如 omp + claude),各占 <code>wt/&lt;taskId&gt;-a&lt;n&gt;</code> worktree,互不污染工作区</p>
+      <p class="small muted">· 无 worktree 约束:同 cwd 强制串行队列(队列位见列表视图顶栏),或派发时强制勾 worktree</p>
+      <p class="small muted">· 竞速裁决:双 attempt 均 verified → 对比视图选优(成本/时长/判据);落选 attempt 记 rejected,worktree 丢弃</p>
+    </div>
+    <div class="card">
+      <h4>接力协议(额度撞墙/崩溃续命)</h4>
+      <p class="small muted">注入四件:</p>
+      <p class="small muted">① 目标 + 判据进度(已过 c1 / 未过 c2,c3)</p>
+      <p class="small muted">② 前 attempt 转录尾部摘要 ≤2k tokens——由该引擎适配器从 session JSONL 尾部 N 轮抽取,不猜私有格式</p>
+      <p class="small muted">③ evidence 文件清单(+增删统计)</p>
+      <p class="small muted">④ checkpoint 基线名(回滚锚点不变)</p>
+    </div>
+    <div class="card">
+      <h4>成本核算(任务维度)</h4>
+      <p class="small muted">· attempt.usage = sessionUsage 行聚合(cli-shared 既有 omp/pi/claude/codex 用量契约),编排层零新增解析</p>
+      <p class="small muted">· 列表/详情/对比三处呈现 tokens 与时长;预算条 = 判据复杂度启发,超条不改行为只提示</p>
+      <p class="small muted">· done 汇总:任务总成本写入 updates 收口行,月度视图三期再议</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= §2 交互层逻辑 ================= -->
+<section>
+  <h2><span class="no">§2</span>交互层逻辑:决策点、通知路由、键盘</h2>
+
+  <h3>2.1 用户旅程六步</h3>
+  <div class="journey">
+    <div class="step"><span class="auto">自动</span><span class="n">01</span><h5>交代</h5><p>composer 里照常说话,或任务面板「新建任务」。判据可写可补,不强制结构化。</p></div>
+    <div class="step"><span class="auto">自动</span><span class="n">02</span><h5>落卡派发</h5><p>选引擎与 cwd,prompt 模板注入「先出计划 + 完成判据」。开的是普通会话,幕布照常可用。</p></div>
+    <div class="step"><span class="gate">GATE 1</span><span class="n">03</span><h5>批准计划</h5><p>tmd-plan 卡片,人批或改判据。可关(信任模式直跑),默认开。</p></div>
+    <div class="step"><span class="auto">自动</span><span class="n">04</span><h5>挂机</h5><p>状态回填自动推进;只有 waiting 沿打扰用户(通知三通道,失焦才发)。</p></div>
+    <div class="step"><span class="auto">自动</span><span class="n">05</span><h5>应答</h5><p>审批收件箱一键放行/拒绝,手机同权。应答写回会话,轮继续。</p></div>
+    <div class="step"><span class="gate">GATE 2</span><span class="n">06</span><h5>验收闭环</h5><p>任务维度聚合:diff 预览 + 判据核验记录 + usage。人点通过,写回 done。</p></div>
+  </div>
+
+  <h3>2.2 决策点矩阵:谁在哪拍板</h3>
+  <table>
+    <tr><th>决策点</th><th>裁决者</th><th>默认</th><th>可关闭?</th><th>理由</th></tr>
+    <tr><td>gate 1 计划批准</td><td>人</td><td>开</td><td>可(settings.gate1)</td><td>防跑偏的第一道闸;信任模式留给小任务</td></tr>
+    <tr><td>危险操作审批(删代码/装依赖/动 CI)</td><td>人(审批收件箱)</td><td>必达</td><td>不可</td><td>模板规约声明 + 引擎侧审批机制双保险</td></tr>
+    <tr><td>gate 2 验收</td><td>人</td><td>必经</td><td>不可(一期)</td><td>「模型声明,环境裁决」——人不缺席;三期 auto 判据先行,人只裁机器裁不了的</td></tr>
+    <tr><td>状态迁移 / 通知 / 存证 / usage</td><td>自动(事件驱动)</td><td>—</td><td>—</td><td>零轮询,零人工</td></tr>
+    <tr><td>竞速选优</td><td>人(对比视图)</td><td>—</td><td>可默认先到先得</td><td>成本/时长差异人裁更稳</td></tr>
+    <tr><td>接力重派</td><td>人一键</td><td>—</td><td>可自动(额度类,二期评估)</td><td>换引擎有成本,先让人确认</td></tr>
+  </table>
+
+  <h3>2.3 通知路由:什么事件、什么条件、走哪条通道</h3>
+  <table>
+    <tr><th>事件</th><th>条件</th><th>应用内</th><th>OS 通知</th><th>手机推送</th></tr>
+    <tr><td>waiting(审批请求)</td><td>始终</td><td>收件箱 + 徽标</td><td>仅失焦</td><td>仅失焦;免打扰窗静默</td></tr>
+    <tr><td>waiting 超时提级</td><td>600s 未应答</td><td>红点</td><td>发(免打扰也发)</td><td>强提醒(穿透免打扰)</td></tr>
+    <tr><td>settled(待验收)</td><td>始终</td><td>徽标 + 验收解锁</td><td>仅失焦</td><td>摘要卡片(含 usage)</td></tr>
+    <tr><td>failed(退出/额度)</td><td>始终</td><td>失败卡</td><td>发</td><td>发</td></tr>
+    <tr><td>quota 预警(90%)</td><td>水位越过阈值</td><td>水位条变橙</td><td>发一次(去重)</td><td>不发</td></tr>
+    <tr><td>gate1 待批计划</td><td>gate1 开</td><td>计划卡片</td><td>仅失焦</td><td>仅失焦</td></tr>
+  </table>
+  <div class="note"><b>聚合规则:</b>同任务 60s 内多事件合并为一条通知(「任务『修卡顿』有 2 条待办」);焦点抑制与失焦判定复用既有窗口焦点信号,不自建传感器。</div>
+
+  <h3>2.4 键盘流(提案,走 shortcuts.ts registerCommand)</h3>
+  <table>
+    <tr><th>键</th><th>命令</th><th>作用域</th><th>说明</th></tr>
+    <tr><td><kbd>j</kbd> / <kbd>k</kbd></td><td>tasks.cursorDown/Up</td><td>任务面板聚焦</td><td>列表光标移动(terminal 聚焦期不劫持,遵守作用域优先契约)</td></tr>
+    <tr><td><kbd>⌘⇧N</kbd></td><td>tasks.new</td><td>global</td><td>新建任务卡(composer 预填)</td></tr>
+    <tr><td><kbd>⌘⇧D</kbd></td><td>tasks.dispatch</td><td>任务面板聚焦</td><td>派发选中任务</td></tr>
+    <tr><td><kbd>⌘⏎</kbd></td><td>tasks.verify</td><td>任务面板聚焦</td><td>对落定任务打开验收视图</td></tr>
+    <tr><td><kbd>⌘.</kbd></td><td>tasks.cancel</td><td>任务面板聚焦</td><td>取消选中任务(二次确认)</td></tr>
+  </table>
+  <p class="tiny muted">约束:不注册 Escape / ⌘V / ⌘C(既有铁律);命令经 PluginContext.registerCommand 贡献,作用域遵循 terminal 优先、global 兜底。</p>
+</section>
+
+<!-- ================= §3 UI 层展示 ================= -->
+<section>
+  <h2><span class="no">§3</span>UI 层展示:六视图 + 手机远程(全部可操作)</h2>
+  <p class="muted small">按 1421 真实客户端 token 复刻。子视图:列表 / 详情 / 验收 / 收件箱 / 竞速对比 / 编排设置。时间线节点可点开审计细节,存证文件可点开 diff 预览;「播放闭环」驱动 11 步全流程,第 6 步起手机 mockup 同亮,可在手机上点「放行」继续。</p>
+
+  <div class="player" style="display:flex;gap:8px;align-items:center;margin:14px 0 6px;flex-wrap:wrap">
+    <button class="btn primary" id="playBtn">播放闭环 ▸</button>
+    <button class="btn ghost" id="resetBtn">重置</button>
+    <span class="chip" id="playState" style="font-size:10.5px;padding:3px 9px">待播放 · 任务在 backlog</span>
+  </div>
+
+  <div class="win-c">
+  <div class="mock-stage" style="border:none;background:transparent;padding:0">
+  <div class="win" id="win">
+    <div class="tbar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <span class="title">tmd-cli</span>
+      <span class="chip">tmd-cli · main</span>
+      <div class="tabs">
+        <button>会话</button><button>文件</button><button class="hot on">任务</button><button>设置</button>
+      </div>
+    </div>
+    <div class="wbody">
+      <div class="side">
+        <div class="grp">工作区</div>
+        <div class="it on"><span class="st" style="margin-right:0"><i style="background:var(--decor);display:block;width:6px;height:6px;border-radius:50%"></i></span>tmd-cli</div>
+        <div class="it"><span class="st"><i style="background:var(--faint);display:block;width:6px;height:6px;border-radius:50%"></i></span>mpi-play</div>
+        <div class="grp">进行中会话</div>
+        <div class="it"><span class="st"><i id="sideDotSess" style="background:var(--decor);display:block;width:6px;height:6px;border-radius:50%"></i></span>omp · 修卡顿</div>
+        <div class="it"><span class="st"><i style="background:var(--border-strong);display:block;width:6px;height:6px;border-radius:50%"></i></span>codex · 空闲</div>
+        <div class="it"><span class="st"><i style="background:var(--border-strong);display:block;width:6px;height:6px;border-radius:50%"></i></span>claude · 空闲</div>
+        <div class="grp">任务</div>
+        <div class="it on"><span class="st"><i id="sideDot" style="background:var(--faint);display:block;width:6px;height:6px;border-radius:50%"></i></span>修切会话卡顿</div>
+        <div class="it"><span class="cnt" id="sideInboxCnt" style="display:none">2</span>待办收件箱</div>
+      </div>
+      <div class="main">
+        <div class="ph">
+          <h6 id="phTitle">任务</h6>
+          <span class="badge bd-backlog" id="phBadge"><span class="dot"></span><span id="phBadgeTx">backlog</span></span>
+          <div class="sp">
+            <button class="btn primary" id="dispatchBtn">派发</button>
+          </div>
+        </div>
+        <div class="subtabs" id="subtabs">
+          <button class="on" data-v="list">列表</button>
+          <button data-v="detail">详情</button>
+          <button data-v="verify">验收</button>
+          <button data-v="inbox">收件箱<span class="bub" id="inboxBub" style="display:none">2</span></button>
+          <button data-v="compare">对比 <span class="chip" style="padding:0 4px;font-size:8.5px">二期</span></button>
+          <button data-v="settings">编排设置</button>
+        </div>
+
+        <!-- 视图:列表 -->
+        <div class="pc" id="v-list">
+          <div class="qbar"><span>引擎并发 <b>2/3</b></span><span>同 cwd 队列 <b>1</b> <span class="tiny">(无 worktree 串行)</span></span><span>本周任务成本 <b>118k tok</b></span></div>
+          <div class="fchips">
+            <button class="fchip on" data-f="all">全部</button>
+            <button class="fchip" data-f="active">进行中</button>
+            <button class="fchip" data-f="review">待验收</button>
+            <button class="fchip" data-f="waiting">待审批</button>
+            <button class="fchip" data-f="done">已闭环</button>
+          </div>
+          <div class="taskrow sel" id="rowMain" data-status="backlog">
+            <span><i class="dot" id="rowDot" style="background:var(--faint);display:block"></i></span>
+            <div class="nm">修复切会话卡顿:client store 桥冻结<small>判据 3 条(2 auto / 1 人工) · gate1 开 · 单 cwd</small></div>
+            <span id="rowEngine" class="muted tiny">未派发</span>
+            <span id="rowAtt" class="muted tiny">0 att</span>
+            <span class="tok" id="rowTok">—</span>
+            <span id="rowBadge"><span class="badge bd-backlog"><span class="dot"></span><span>backlog</span></span></span>
+          </div>
+          <div class="taskrow" data-status="waiting">
+            <span><i class="dot" style="background:var(--warn);display:block"></i></span>
+            <div class="nm">手机活流 overlap 剥离回归测试<small>等待确认 · 审批收件箱 1 条 · 已等 04:12</small></div>
+            <span class="muted tiny">codex</span><span class="muted tiny">1 att</span><span class="tok">9.8k</span>
+            <span><span class="badge bd-waiting"><span class="dot"></span>waiting</span></span>
+          </div>
+          <div class="taskrow" data-status="done">
+            <span><i class="dot" style="background:var(--ok);display:block"></i></span>
+            <div class="nm">极简展示开关落 segmented control<small>昨天闭环 · omp · 总成本 12.1k tok</small></div>
+            <span class="muted tiny">omp</span><span class="muted tiny">2 att</span><span class="tok">12.1k</span>
+            <span><span class="badge bd-done"><span class="dot"></span>done</span></span>
+          </div>
+          <div class="taskrow" data-status="failed">
+            <span><i class="dot" style="background:var(--err);display:block"></i></span>
+            <div class="nm">grok TUI 洪水声明补齐<small>spawn 超时 · 可接力(claude 摘要已备)</small></div>
+            <span class="muted tiny">grok</span><span class="muted tiny">1 att</span><span class="tok">3.2k</span>
+            <span><span class="badge bd-failed"><span class="dot"></span>failed</span></span>
+          </div>
+        </div>
+
+        <!-- 视图:详情 -->
+        <div class="pc hidden" id="v-detail">
+          <div class="attcard dead">
+            <div class="hd"><b>attempt #0</b><span class="chip">codex · 已接力弃用</span><span class="badge bd-failed"><span class="dot"></span>spawn-fail</span></div>
+            <p class="tiny muted">spawn 30s 超时;接力 attempt #1 注入了判据进度与 checkpoint 基线,不重头再来。</p>
+          </div>
+          <div class="attcard" id="att1">
+            <div class="hd"><b>attempt #1</b><span class="chip">omp · glm-5.3-flash:max</span><span class="badge bd-backlog" id="attBadge"><span class="dot"></span><span>spawning</span></span><span class="chip" style="margin-left:auto" id="attBind">未绑定会话</span></div>
+            <div class="ustrip"><span class="kv" id="ustTx">tokens 0 · 0s</span><div class="ubar"><i id="ust"></i></div><span class="kv">预算 80k</span></div>
+            <div class="plan" id="planCard">
+              <b style="font-size:12px">执行计划 <span class="chip" style="margin-left:4px">tmd-plan 已解析</span> <span class="ustamp" id="planStamp">✓ 已批准 · gate 1</span></b>
+              <ol>
+                <li>拍平 client store patch 过 WKWebView 桥(消除同步对象图转换)</li>
+                <li>clientStore 写路径加 diagnostics 计时(&gt;300ms 落帧)</li>
+                <li>补契约测试:flat patch 叶值保持 + 超阈值落帧断言</li>
+              </ol>
+              <p class="tiny muted" style="margin-top:6px">risks: 桥同步转换路径 Rust 侧有缓存 · files: ipc.ts / clientStore.ts / ipc.test.ts</p>
+              <div class="ph-hint" id="planHint">gate 1 · 待批准(可改判据后批准)</div>
+            </div>
+            <div class="tl" id="tl">
+              <div class="ev" data-ev="spawn"><b>派发</b> · prompt 模板注入(目标 + 3 判据 + 规约)<span class="xhint">详情</span></div>
+              <div class="ev-x" data-evx="spawn">模板变量:title / criteria×3 / runCmd=pnpm check:gate;规约声明 3 类必停情形;幂等键 (pty-12, 0) 起簿记。</div>
+              <div class="ev hidden" data-ev="plan"><b>计划回读</b> · tmd-plan 围栏解析成功,3 步 + risks<span class="xhint">详情</span></div>
+              <div class="ev-x hidden" data-evx="plan">解析耗时 4ms;降级预案未触发。人批 gate 1 → planApproved=true 写台账;批准后 checkpoint ck-a11 自动落(可回滚锚点)。</div>
+              <div class="ev hidden" data-ev="run"><b>执行中</b> · agent loop 自主调工具,幕布原样透传<span class="xhint">详情</span></div>
+              <div class="ev-x hidden" data-evx="run">工具帧:read×4 / edit×3 / run(pnpm vitest)×2;幕布侧零编排渲染;evidence 完成帧已记 3 文件。</div>
+              <div class="ev hidden" data-ev="ask"><b>等待输入</b> · askWatch:「是否替换 ipc.ts 写通道(影响 36 调用点)」<span class="xhint">详情</span></div>
+              <div class="ev-x hidden" data-evx="ask">来源:askWatch 状态通道;收件箱 + OS(失焦触发)+ 手机推送三通道齐发;超时窗 600s 起表。</div>
+              <div class="ev hidden" data-ev="resume"><b>已应答</b> · 来源=手机(远程同权),放行<span class="xhint">详情</span></div>
+              <div class="ev-x hidden" data-evx="resume">应答写回会话作为 turn 输入;waiting 时长 03:41;updates 追加一行。</div>
+              <div class="ev hidden" data-ev="settled"><b>轮落定</b> · session_settled 600ms 宽限沿<span class="xhint">详情</span></div>
+              <div class="ev-x hidden" data-evx="settled">幂等键 (pty-12, 3) 首见即收;evidence 归档 3 文件(+52/-19);usage 聚合 41.2k tok / 612s;通知「待验收」已发。</div>
+              <div class="ev hidden" data-ev="verify"><b>验收</b> · gate 2 人裁决 → done 写回台账<span class="xhint">详情</span></div>
+              <div class="ev-x hidden" data-evx="verify">判据 c1/c2 auto 绿、c3 人工通过;updates 收口行附任务总成本 41.2k tok;evidence 元数据保留,diff 全文入 checkpoint。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 视图:验收 -->
+        <div class="pc hidden" id="v-verify">
+          <div class="attcard">
+            <div class="hd"><b>验收</b><span class="chip">gate 2 · 唯一必经人工裁决</span><span class="chip" style="margin-left:auto">attempt #1 · 41.2k tok · 612s</span></div>
+            <div class="crit" data-cr="1"><span class="ck"></span><span>check:gate 全链绿<span class="hint">auto · runCmd=pnpm check:gate · timeout 900s</span></span><span class="res chip" id="crR1">待核验</span></div>
+            <div class="crit" data-cr="2"><span class="ck"></span><span>复测单次写 &lt; 300ms<span class="hint">auto · runCmd=/tmp/analyze_diag.bench</span></span><span class="res chip" id="crR2">待核验</span></div>
+            <div class="crit" data-cr="3"><span class="ck"></span><span>交互目检:切会话无 3s 冻结<span class="hint">人工 · 1421 dev 真窗口目检,截图附任务卡</span></span><span class="res" id="crR3"><button class="btn ghost" id="cr3Btn" style="font-size:10px;padding:2px 8px">标记通过</button></span></div>
+            <div class="evid" id="evid">
+              <div class="ev-file muted tiny" style="grid-column:1/-1;border-style:dashed;cursor:default" id="evidEmpty">存证在轮落定后出现(evidence write/edit 完成帧)· 点文件可开 diff 预览</div>
+              <div class="ev-file hidden" data-diff="d1"><span>src/kernel/ipc.ts</span><span><span class="adds">+21</span> <span class="dels">-8</span></span></div>
+              <div class="diff" id="d1"><div class="dh">@@ -112,9 +112,18 @@ clientStorePatch()</div><div class="dl dl-ctx">  export async function clientStorePatch(patch: StorePatch) {</div><div class="dl dl-del">-  await invoke("client_store_patch", { patch })</div><div class="dl dl-del">-  return</div><div class="dl dl-add">+  // F1: 嵌套对象图过桥前拍平,避免 WKWebView 同步转换冻结</div><div class="dl dl-add">+  const flat = flattenPatch(patch)</div><div class="dl dl-add">+  await invoke("client_store_patch", { patch: flat })</div><div class="dl dl-add">+  if (patch.__diag) diagMark("store-write")</div><div class="dl dl-add">+  return</div></div>
+              <div class="ev-file hidden" data-diff="d2"><span>src/plugins/…/clientStore.ts</span><span><span class="adds">+17</span> <span class="dels">-4</span></span></div>
+              <div class="diff" id="d2"><div class="dh">@@ -40,7 +40,20 @@ applyClientStore()</div><div class="dl dl-ctx">  export function applyClientStore(state, flat) {</div><div class="dl dl-add">+  const t0 = performance.now()</div><div class="dl dl-ctx">  mergeInto(state, flat)</div><div class="dl dl-add">+  const dt = performance.now() - t0</div><div class="dl dl-add">+  if (dt &gt; 300) diagnostics.append("client-store-write", { dt })</div></div>
+              <div class="ev-file hidden" data-diff="d3"><span>src/kernel/ipc.test.ts</span><span><span class="adds">+14</span> <span class="dels">-7</span></span></div>
+              <div class="diff" id="d3"><div class="dh">@@ -0,0 +1,14 @@ 契约测试(新增)</div><div class="dl dl-add">+it("flat patch keeps leaf values", () =&gt; { … })</div><div class="dl dl-add">+it("diag frame lands when write &gt; 300ms", () =&gt; { … })</div></div>
+            </div>
+            <div class="ckrow">checkpoint 回滚锚点:
+              <select class="sel" id="ckSel"><option>ck-9f2 · 派发前(工作区基线)</option><option>ck-a11 · gate 1 批准后</option></select>
+              <button class="btn danger" id="ckRoll" style="font-size:10.5px;padding:3px 10px">回滚到此锚点</button>
+            </div>
+            <div style="margin-top:10px">
+              <textarea class="ta" id="rejTx" rows="2" placeholder="驳回时必填意见(将回灌会话续跑)"> </textarea>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="btn ok" id="okBtn" disabled>通过并闭环</button>
+              <button class="btn ghost" id="rejectBtn" disabled>驳回续跑</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 视图:收件箱 -->
+        <div class="pc hidden" id="v-inbox">
+          <div class="qbar"><span>待办 <b id="inbCnt">3</b></span><span>规则:审批必达 · 验收解锁才显 · 失焦才发通知</span><span style="margin-left:auto"><button class="btn ghost" id="inbAll" style="font-size:10px;padding:2px 8px">全部放行</button></span></div>
+          <div class="inb" id="inbA">
+            <span class="ic">⏸</span>
+            <div class="bd"><b>审批 · 修切会话卡顿(attempt #1)</b><p>「是否替换 ipc.ts 写通道(影响 36 调用点)」 · 已等 03:41 · 超时窗 600s</p></div>
+            <div class="ops"><button class="btn ok" id="inbAOk" style="font-size:10.5px;padding:3px 10px">放行</button><button class="btn ghost" id="inbANo" style="font-size:10.5px;padding:3px 10px">拒绝</button></div>
+          </div>
+          <div class="inb">
+            <span class="ic">✓</span>
+            <div class="bd"><b>待验收 · 手机活流 overlap 剥离回归(task-5d2)</b><p>settled · 存证 2 文件(+24/-9) · 判据 1 auto / 1 人工</p></div>
+            <div class="ops"><button class="btn ghost inbGo" style="font-size:10.5px;padding:3px 10px">去验收</button></div>
+          </div>
+          <div class="inb">
+            <span class="ic">!</span>
+            <div class="bd"><b>失败接力 · grok TUI 洪水声明补齐(task-8x)</b><p>spawn-fail 重试仍败 · claude 接力摘要已备(转录尾部 ≤2k tok)</p></div>
+            <div class="ops"><button class="btn ghost inbGo" style="font-size:10.5px;padding:3px 10px">接力重派</button></div>
+          </div>
+        </div>
+
+        <!-- 视图:竞速对比 -->
+        <div class="pc hidden" id="v-compare">
+          <div class="qbar"><span>形态 <b>attempt × worktree 竞速</b></span><span class="chip">二期</span><span>落选 worktree 丢弃,台账记 rejected</span></div>
+          <table class="cmp">
+            <tr><th></th><th>attempt #1 · omp</th><th class="win-col">attempt #2 · claude</th></tr>
+            <tr><th>worktree</th><td>wt/t-7f3k2a-a1</td><td class="win-col">wt/t-7f3k2a-a2</td></tr>
+            <tr><th>时长</th><td>612s</td><td class="win-col">478s</td></tr>
+            <tr><th>tokens</th><td>41.2k</td><td class="win-col">33.6k</td></tr>
+            <tr><th>判据 c1(auto)</th><td>pass · 78.2s</td><td class="win-col">pass · 64.9s</td></tr>
+            <tr><th>判据 c2(auto)</th><td>pass · 212ms</td><td class="win-col">pass · 198ms</td></tr>
+            <tr><th>判据 c3(人工)</th><td>pending</td><td class="win-col">pending</td></tr>
+            <tr><th>diff 规模</th><td>+52 / -19</td><td class="win-col">+61 / -24</td></tr>
+            <tr><th>状态</th><td><span class="badge bd-settled"><span class="dot"></span>settled</span></td><td class="win-col"><span class="badge bd-settled"><span class="dot"></span>settled</span></td></tr>
+          </table>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn primary cmpPick" data-a="1">采纳 #1(omp)</button>
+            <button class="btn primary cmpPick win-col" data-a="2">采纳 #2(claude · 更快更省)</button>
+            <span class="tiny muted" style="align-self:center">人工选优;落选 attempt 记 rejected,worktree 丢弃。</span>
+          </div>
+        </div>
+
+        <!-- 视图:编排设置 -->
+        <div class="pc hidden" id="v-settings">
+          <div class="card">
+            <div class="srow"><div class="lab">gate 1 计划批准<small>派发默认注入「先出计划等确认」;关=信任直跑</small></div><button class="tgl on" id="setGate1"><i></i></button></div>
+            <div class="srow"><div class="lab">引擎并发上限<small>超出进队列;同 cwd 无 worktree 恒串行</small></div><select class="sel" id="setConc"><option>1</option><option selected>2</option><option>3</option></select></div>
+            <div class="srow"><div class="lab">waiting 超时提级<small>超窗后手机强提醒(穿透免打扰)</small></div><select class="sel" id="setWait"><option>300s</option><option selected>600s</option><option>1200s</option></select></div>
+            <div class="srow"><div class="lab">通知:仅失焦发 OS/手机<small>应用内收件箱必达,不受此限</small></div><button class="tgl on" id="setFocus"><i></i></button></div>
+            <div class="srow"><div class="lab">免打扰窗<small>窗内手机静默(超时提级仍穿透)</small></div><select class="sel" id="setDnd"><option>关</option><option selected>22:00-08:00</option></select></div>
+            <div class="srow"><div class="lab">auto 判据自动核验(test gating)<small>settled 后自动跑 runCmd,红=自动回灌续跑(至多 2 轮)</small></div><button class="tgl" id="setAuto" disabled><i></i></button><span class="chip">三期</span></div>
+            <div class="srow"><div class="lab">台账归档<small>done 30 天后压缩:updates 截尾 10 条,evidence 留元数据,diff 全文入 checkpoint</small></div><button class="tgl on" id="setArch"><i></i></button></div>
+          </div>
+        </div>
+
+        <!-- 派发弹层 -->
+        <div class="overlay" id="dlgOverlay">
+          <div class="dlg">
+            <h6>派发任务</h6>
+            <label>任务</label>
+            <input class="inp" value="修复切会话卡顿:client store 桥冻结" readonly>
+            <label>完成判据(gate 2 检查单 · auto 项三期起自动核验)</label>
+            <input class="inp" value="1. check:gate 绿  2. 复测 &lt; 300ms  3. 目检无冻结(人工)" readonly>
+            <label>引擎 / 会话形态</label>
+            <div class="eng" id="dlgEng">
+              <button class="on">omp · RPC</button><button>claude</button><button>codex</button><button>+ 竞速 worktree(二期)</button>
+            </div>
+            <label style="color:var(--warn)">gate 1 计划批准</label>
+            <div class="eng" id="dlgGate"><button class="on">开(默认)</button><button>关(信任直跑)</button></div>
+            <label>并行形态</label>
+            <div class="eng" id="dlgPar"><button class="on">单 attempt</button><button>双引擎竞速(二期)</button></div>
+            <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+              <button class="btn ghost" id="dlgCancel">取消</button>
+              <button class="btn primary" id="dlgGo">派发并开会话</button>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="toast"><span class="dotw"></span><span id="toastTx"></span></div>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- 手机远程 mockup -->
+  <div class="phone" id="phone">
+    <div class="phh">TMD 远程</div>
+    <div class="ptime">23:47</div>
+    <div class="pcard">
+      <b>修切会话卡顿</b>
+      <p>attempt #1 · <span id="phTaskBadge">backlog</span></p>
+      <p class="tiny" id="phUsage" style="color:var(--subtle)">—</p>
+    </div>
+    <div class="pcard hidden" id="phAsk">
+      <b style="color:var(--warn)">待确认 · 审批</b>
+      <p id="phAskTx">替换 ipc.ts 写通道(36 调用点)?</p>
+      <div class="pbtns"><button class="p-ok" id="phOk">放行</button><button class="p-no" id="phNo">拒绝</button></div>
+    </div>
+    <div class="pcard hidden" id="phDone">
+      <b style="color:var(--ok)">待验收</b>
+      <p>存证 3 文件(+52/-19) · 41.2k tok · 验收在桌面端</p>
+    </div>
+    <div class="pfoot">手机树 · 只读任务卡 + 审批应答 · 免打扰 22:00-08:00</div>
+  </div>
+  </div>
+</section>
+
+<!-- ================= §4 对照 ================= -->
+<section>
+  <h2><span class="no">§4</span>与开源编排器的对照</h2>
+  <table>
+    <tr><th>参照</th><th>同</th><th>tmd 差异</th></tr>
+    <tr><td>vibe-kanban(28.5k star,已 sunsetting)</td><td>task × attempt 双层、一 attempt 一会话</td><td>本地优先 + 生命周期/审批/手机三通道现成 + 多引擎同窗;不依赖其已停维护的栈</td></tr>
+    <tr><td>claude-task-master</td><td>判据驱动</td><td>它做 PRD 拆解器(已放缓);tmd 不做拆解器,拆解交给引擎侧模型能力</td></tr>
+    <tr><td>claude-squad / crystal</td><td>多会话并行、worktree 隔离</td><td>它们是裸会话管理(人盯 diff);tmd 状态回填有结构化事件源(RPC 轮界 + activityWatch),waiting 沿可自动通知</td></tr>
+    <tr><td>agent-orchestrator(闭环度最高)</td><td>计划批准 + 验收 gate</td><td>它让 orchestrator agent 自主 CI/解冲突/review;tmd 列三期谨慎项,一期先人裁 gate,守住薄编排贴底座定位</td></tr>
+    <tr><td>omnara(手机监督)</td><td>手机应审批、会话推送</td><td>tmd 手机树是自家第二 UI 面,任务卡/审批走声明适配器,无第三方账号与云依赖</td></tr>
+  </table>
+</section>
+
+<!-- ================= §5 落地批次 ================= -->
+<section>
+  <h2><span class="no">§5</span>落地批次:每期做什么、拿什么验收</h2>
+  <table>
+    <tr><th>批次</th><th>交付件</th><th>验收标准</th><th>主要风险</th></tr>
+    <tr>
+      <td><b>一期 · 最小闭环</b><br><span class="tiny muted">全部现成件拼装</span></td>
+      <td class="small">task-orchestrator 插件(状态机纯函数 + 台账 v2 + 派发模板 + gate1/gate2)· 回填订阅面 · 审批收件箱扩展 · 验收视图(存证+判据)· 通知路由 · 任务面板六视图中的列表/详情/验收</td>
+      <td class="small">模拟任务在真实 omp 会话全流程跑通:派发→计划→执行→审批→settled→验收→done,台账可回放;幂等:同 settled 双发不重记</td>
+      <td class="small">settled 幂等与 review 续说回退态;台账直写纪律</td>
+    </tr>
+    <tr>
+      <td><b>二期 · 并行与反向通道</b><br><span class="tiny muted">按需启动</span></td>
+      <td class="small">attempt × worktree 竞速 + 对比选优视图 · 接力协议(额度/崩溃续命)· usage 成本聚合(三处呈现)· MCP 反向通道(task_next/report)· 手机任务卡+审批应答 · 竞速对比/编排设置两视图</td>
+      <td class="small">双引擎竞速同任务,worktree 互不污染,选优闭环;手机放行一次真实审批;quota-wall 接力成功率</td>
+      <td class="small">MCP 通道安全(loopback + 插件声明权限);worktree 与并行会话守则的冲突面</td>
+    </tr>
+    <tr>
+      <td><b>三期 · 自动化谨慎区</b><br><span class="tiny muted">先人裁,逐步让渡</span></td>
+      <td class="small">test gating(auto 判据自动核验,红=自动回灌至多 2 轮)· 多任务调度器(优先级/并发/cwd 队列)· 竞速默认先到先得可配</td>
+      <td class="small">auto 判据红→自动续跑→绿全链;调度器压测 10 任务混合队列不饿死</td>
+      <td class="small">过自动化违背「薄编排贴底座」定位;每件都先问「人真的不用管了吗」</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ================= §6 开放问题 ================= -->
+<section>
+  <h2><span class="no">§6</span>开放问题与风险(查漏补缺,诚实清单)</h2>
+  <table>
+    <tr><th>#</th><th>问题</th><th>当前立场</th></tr>
+    <tr><td>1</td><td><b>settled 后续说</b>:用户回原会话接着说,attempt 已 settled/任务已 review</td><td>回退 running + 关验收视图(状态机已含);updates 记 reopen。替代方案「续说算新 attempt」拒绝:会话连续性是事实,不该被台账口径切碎</td></tr>
+    <tr><td>2</td><td><b>幂等</b>:settled/ask 事件双发、webview 重载重放</td><td>幂等键 (sessionId, turnSeq),状态机纯函数侧去重;readopt 回灌走 watches.seedIdentity 既有通道,不重复登记</td></tr>
+    <tr><td>3</td><td><b>prompt 注入面</b>:任务标题/判据是用户自由文本,进模板后可能携带指令</td><td>变量转义(剥围栏与控制符)+ 模板常量只注入白名单字段;残余风险接受(用户本机、自己的引擎、自己的仓库,威胁模型=防误非防恶)</td></tr>
+    <tr><td>4</td><td><b>台账膨胀</b>:attempts/updates/evidence 单调增长</td><td>归档策略(30 天压缩)进一期 settings;index.json 分项目文件已天然分片</td></tr>
+    <tr><td>5</td><td><b>多引擎判据方言</b>:runCmd 对非本仓任务不通用(如文档任务没有 check:gate)</td><td>runCmd 是 per-task 字段,非全局约定;无 runCmd 的 auto 判据在派发时降级为人工</td></tr>
+    <tr><td>6</td><td><b>并发与锁</b>:同 cwd 双 attempt 相互踩工作区</td><td>一期直接禁(串行队列);二期 worktree 解锁;既有并行 AI 协作守则(别人在改的不碰)在编排层同样成立</td></tr>
+    <tr><td>7</td><td><b>取消语义</b>:cancelled 后会话怎么办</td><td>会话不杀,降级普通会话(幕布/时间线保留,人可继续用);attempt 记 rejected。杀会话留给用户手动(幕布既有停止按钮)</td></tr>
+    <tr><td>8</td><td><b>编排层会不会长成第二个「重编排产品」</b></td><td>警戒线:任何一期/二期件必须复用一个既有底座件(RPC/watch/ask/evidence/usage/手机),否则不进本期——竞品寿命数据(task-master 放缓、vibe-kanban sunsetting)说明重编排是死路</td></tr>
+  </table>
+</section>
+
+<p class="tiny muted" style="margin-top:36px">机制调研全文见 <code>docs/research/ai-task-closure-orchestration.md</code>;本页为设计形态原型(评审用),非实现承诺;交互细节以落地时的 spec 为准。</p>
+
+</div>
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var BADGE = {
+    backlog:['bd-backlog','backlog'], spawning:['bd-backlog','spawning'],
+    dispatched:['bd-review','dispatched'],
+    running:['bd-running','running'], waiting:['bd-waiting','waiting'],
+    waitingInput:['bd-waiting','waitingInput'], settled:['bd-settled','settled'],
+    review:['bd-review','落定待验收'], done:['bd-done','done'],
+    verified:['bd-done','verified'], failed:['bd-failed','failed'],
+    rejected:['bd-failed','rejected'], cancelled:['bd-backlog','cancelled']
+  };
+  function setBadge(el,key){ var b=BADGE[key]||BADGE.backlog; el.className='badge '+b[0]; el.innerHTML='<span class="dot"></span><span>'+b[1]+'</span>'; }
+  function ev(k,on){ var e=document.querySelector('[data-ev="'+k+'"]'); if(e) e.classList.toggle('hidden',!on); }
+  function evx(k){ var e=document.querySelector('[data-evx="'+k+'"]'); if(e) e.classList.toggle('hidden'); }
+  function gotoView(v){
+    var ids=['list','detail','verify','inbox','compare','settings'];
+    ids.forEach(function(x){ $('v-'+x).classList.toggle('hidden', x!==v); });
+    var btns=$('subtabs').querySelectorAll('button');
+    btns.forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-v')===v); });
+    $('phTitle').textContent = v==='list' ? '任务' : '修切会话卡顿:client store 桥冻结';
+    $('dispatchBtn').style.display = v==='list' ? '' : 'none';
+  }
+  var toastTimer=null;
+  function toast(tx){ $('toastTx').textContent=tx; $('toast').classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(function(){ $('toast').classList.remove('show'); },3200); }
+  function setUsage(pct, tx){ $('ust').style.width=pct+'%'; $('ustTx').textContent=tx; $('phUsage').textContent=tx.replace('tokens','tok'); }
+
+  var idx=-1;
+  function setState(n){ $('playState').textContent = n<0 ? '待播放 · 任务在 backlog' : '步骤 '+n+'/'+steps.length+' · '+steps[n-1].name; }
+  function advance(){ if(idx>=steps.length-1){ toast('已到终态 · done 写回台账'); return; } idx++; steps[idx].apply(); setState(idx+1); }
+
+  var steps=[
+    {name:'① 交代建卡(composer 入口)',
+     apply(){ toast('composer 交代 → 任务卡 backlog(判据 3 条已结构化)'); }},
+    {name:'② 派发 · 开 RPC 会话',
+     apply(){ $('dlgOverlay').classList.remove('show');
+       setBadge($('phBadge'),'running'); setBadge($('rowBadge'),'running'); setBadge($('attBadge'),'running');
+       $('rowMain').dataset.status='running';
+       $('rowEngine').textContent='omp'; $('rowAtt').textContent='1 att'; $('rowTok').textContent='0.4k';
+       $('attBind').textContent='omp · pty-12'; $('phTaskBadge').textContent='running';
+       $('rowDot').style.background='var(--decor)'; $('sideDot').style.background='var(--decor)';
+       ev('spawn',true); setUsage(4,'tokens 0.4k · 6s'); gotoView('detail'); toast('已派发 · RPC 会话 pty-12 已开 · binding attempt#1↔pty-12'); }},
+    {name:'③ 计划回读(gate 1)',
+     apply(){ ev('plan',true); evx('plan'); document.querySelector('[data-ev="plan"]').classList.add('hot');
+       $('planCard').classList.add('show'); $('planHint').style.display='';
+       toast('gate 1 · 引擎计划已回读(tmd-plan 解析 3 步 + risks)'); }},
+    {name:'④ 批准计划',
+     apply(){ $('planStamp').classList.add('show'); $('planHint').style.display='none';
+       document.querySelector('[data-ev="plan"]').classList.remove('hot'); document.querySelector('[data-ev="plan"]').classList.add('ok');
+       toast('已批准 · checkpoint ck-a11 落(回滚锚点) · 引擎自主开跑'); }},
+    {name:'⑤ 执行 · 工具帧滚动',
+     apply(){ ev('run',true); evx('run'); setUsage(22,'tokens 12.4k · 96s'); $('rowTok').textContent='12.4k'; toast('agent loop 自主推进 · 幕布原样透传,编排层只看结构化事件'); }},
+    {name:'⑥ askWatch 命中 · waiting 沿',
+     apply(){ setBadge($('phBadge'),'waiting'); setBadge($('rowBadge'),'waiting'); setBadge($('attBadge'),'waitingInput');
+       $('rowMain').dataset.status='waiting'; $('phTaskBadge').textContent='waiting';
+       $('rowDot').style.background='var(--warn)'; $('sideDot').style.background='var(--warn)';
+       ev('ask',true); evx('ask'); document.querySelector('[data-ev="ask"]').classList.add('warn');
+       gotoView('inbox'); $('inbA').classList.add('pulse'); $('phAsk').classList.remove('hidden'); $('phone').classList.add('pulse');
+       $('inboxBub').style.display=''; $('sideInboxCnt').style.display=''; $('sideInboxCnt').textContent='2';
+       toast('等待确认 · 收件箱 + OS(失焦)+ 手机推送三通道齐发 · 可直接点手机「放行」'); }},
+    {name:'⑦ 应答(手机同权) · 轮继续',
+     apply(){ setBadge($('phBadge'),'running'); setBadge($('rowBadge'),'running'); setBadge($('attBadge'),'running');
+       $('rowMain').dataset.status='running'; $('phTaskBadge').textContent='running';
+       $('rowDot').style.background='var(--decor)'; $('sideDot').style.background='var(--decor)';
+       $('inbA').classList.remove('pulse'); $('phone').classList.remove('pulse');
+       $('phAsk').classList.add('hidden');
+       ev('resume',true); evx('resume'); document.querySelector('[data-ev="ask"]').classList.remove('warn');
+       document.querySelector('[data-ev="ask"]').classList.add('ok'); document.querySelector('[data-ev="resume"]').classList.add('ok');
+       $('inboxBub').style.display='none'; $('sideInboxCnt').style.display='none';
+       setUsage(45,'tokens 21.8k · 260s'); $('rowTok').textContent='21.8k';
+       toast('已放行(来源=手机) · 写回会话作为 turn 输入 · 轮继续'); }},
+    {name:'⑧ 继续执行 · 接近完成',
+     apply(){ setUsage(82,'tokens 38.6k · 540s'); $('rowTok').textContent='38.6k'; toast('判据自检中 · 引擎在收尾前跑 runCmd'); }},
+    {name:'⑨ session_settled · 落定待验收',
+     apply(){ setBadge($('phBadge'),'review'); setBadge($('rowBadge'),'review'); setBadge($('attBadge'),'settled');
+       $('rowMain').dataset.status='review'; $('phTaskBadge').textContent='落定待验收';
+       $('rowDot').style.background='var(--border-strong)'; $('sideDot').style.background='var(--border-strong)';
+       ev('settled',true); evx('settled'); document.querySelector('[data-ev="settled"]').classList.add('ok');
+       setUsage(100,'tokens 41.2k · 612s'); $('rowTok').textContent='41.2k';
+       $('evidEmpty').classList.add('hidden');
+       ['d1','d2','d3'].forEach(function(id){ var f=document.querySelector('[data-diff="'+id+'"]'); f.classList.remove('hidden'); });
+       $('phDone').classList.remove('hidden');
+       gotoView('verify'); toast('轮落定 · 存证 3 文件(+52/-19) · usage 定格 41.2k tok · 通知「待验收」已发');
+       $('okBtn').disabled=false; $('rejectBtn').disabled=false; }},
+    {name:'⑩ 判据自动核验(auto 项)',
+     apply(){ critPass(1,'✔ 78.2s · ✓ built in 2.87s'); critPass(2,'✔ 212ms · &lt; 300ms');
+       toast('auto 判据 2/2 绿 · 剩 c3 人工目检(gate 2)'); }},
+    {name:'⑪ gate 2 验收 · 闭环',
+     apply(){ critPass(3,null); ev('verify',true); evx('verify');
+       setBadge($('phBadge'),'done'); setBadge($('rowBadge'),'done'); setBadge($('attBadge'),'verified');
+       $('rowMain').dataset.status='done'; $('phTaskBadge').textContent='done';
+       $('rowDot').style.background='var(--ok)'; $('sideDot').style.background='var(--ok)';
+       $('phDone').classList.add('hidden');
+       toast('已闭环 · done 写回台账 · 总成本 41.2k tok 归档 · updates 收口'); }}
+  ];
+  function critPass(i,resTx){
+    var el=document.querySelector('[data-cr="'+i+'"]'); if(!el) return;
+    el.classList.remove('fail'); el.classList.add('pass');
+    el.querySelector('.ck').textContent='✓';
+    if(i===3){ $('crR3').innerHTML='<span class="tiny" style="color:var(--ok);font-weight:700">已通过(人工)</span>'; }
+    else { $('crR'+i).textContent=resTx; $('crR'+i).style.color='var(--ok)'; $('crR'+i).style.fontWeight='700'; $('crR'+i).style.borderColor='rgba(5,150,105,.4)'; }
+  }
+  function critClear(){
+    [1,2,3].forEach(function(i){
+      var el=document.querySelector('[data-cr="'+i+'"]'); if(!el) return;
+      el.classList.remove('pass','fail'); el.querySelector('.ck').textContent='';
+      if(i===3){ $('crR3').innerHTML='<button class="btn ghost" id="cr3Btn" style="font-size:10px;padding:2px 8px">标记通过</button>'; }
+      else { $('crR'+i).textContent='待核验'; $('crR'+i).style.color=''; $('crR'+i).style.fontWeight=''; $('crR'+i).style.borderColor=''; }
+    });
+  }
+  function reset(){
+    idx=-1; setState(-1);
+    ['plan','run','ask','resume','settled','verify','spawn'].forEach(function(k){ ev(k,false); });
+    ['spawn','plan','run','ask','resume','settled','verify'].forEach(function(k){ var e=document.querySelector('[data-evx="'+k+'"]'); if(e) e.classList.add('hidden'); });
+    ['plan','run','ask','resume','settled','verify'].forEach(function(k){ var e=document.querySelector('[data-ev="'+k+'"]'); if(e) e.classList.remove('hot','ok','warn'); });
+    setBadge($('phBadge'),'backlog'); setBadge($('rowBadge'),'backlog'); setBadge($('attBadge'),'spawning');
+    $('rowMain').dataset.status='backlog'; $('phTaskBadge').textContent='backlog';
+    $('attBind').textContent='未绑定会话'; $('rowEngine').textContent='未派发'; $('rowAtt').textContent='0 att'; $('rowTok').textContent='—';
+    $('rowDot').style.background='var(--faint)'; $('sideDot').style.background='var(--faint)';
+    $('planCard').classList.remove('show'); $('planStamp').classList.remove('show'); $('planHint').style.display='';
+    setUsage(0,'tokens 0 · 0s');
+    $('inbA').classList.remove('pulse'); $('phone').classList.remove('pulse');
+    $('phAsk').classList.add('hidden'); $('phDone').classList.add('hidden');
+    $('inboxBub').style.display='none'; $('sideInboxCnt').style.display='none';
+    $('evidEmpty').classList.remove('hidden');
+    ['d1','d2','d3'].forEach(function(id){ var f=document.querySelector('[data-diff="'+id+'"]'); f.classList.add('hidden'); var d=$(id); if(d) d.classList.remove('show'); });
+    critClear(); $('okBtn').disabled=true; $('rejectBtn').disabled=true; $('rejTx').value=' ';
+    gotoView('list'); toast('已重置');
+  }
+
+  $('playBtn').onclick=advance;
+  $('resetBtn').onclick=reset;
+  $('dispatchBtn').onclick=function(){ $('dlgOverlay').classList.add('show'); };
+  $('dlgCancel').onclick=function(){ $('dlgOverlay').classList.remove('show'); };
+  $('dlgGo').onclick=function(){ $('dlgOverlay').classList.remove('show'); if(idx<1){ idx=0; } advance(); };
+  $('okBtn').onclick=function(){ if(idx>=9 && idx<steps.length-1){ advance(); } else if(idx===steps.length-1){ toast('已闭环 · done 写回台账'); } else { toast('轮未落定,验收未解锁'); } };
+  $('rejectBtn').onclick=function(){ if(idx>=8){ var tx=$('rejTx').value.trim(); if(!tx){ toast('驳回必填意见(将回灌会话续跑)'); return; } toast('驳回意见回灌同会话续跑(attempt 保留) · 后续状态回 running'); } else { toast('轮未落定,无可驳回'); } };
+  $('v-verify').addEventListener('click',function(e){ var b=e.target.closest('#cr3Btn'); if(b) critPass(3,null); });
+  $('ckRoll').onclick=function(){ toast('回滚需二次确认(生产:确认弹层) · 回滚到 '+$('ckSel').value.split(' ·')[0]); };
+  $('inbAOk').onclick=function(){ if(idx+1===6){ advance(); } else if(idx>=6){ toast('该审批已应答'); } else { toast('播放到第 6 步时此卡生效 · 也可直接点「播放闭环」'); } };
+  $('inbANo').onclick=function(){ toast('拒绝 · 意见回灌,引擎换路线重试'); };
+  $('inbAll').onclick=function(){ toast('批量放行仅作用于审批类待办 · 验收项不批量(人裁不可代)'); };
+  document.querySelectorAll('.inbGo').forEach(function(b){ b.onclick=function(){ toast('切到对应任务视图(生产:切换任务上下文)'); gotoView('verify'); }; });
+  document.querySelectorAll('.cmpPick').forEach(function(b){ b.onclick=function(){ toast('已采纳 attempt #'+b.getAttribute('data-a')+' · 落选 worktree 丢弃 · done 写回'); }; });
+  $('phOk').onclick=function(){ if(idx+1===6){ advance(); } else if(idx>=6){ toast('已应答过'); } else { toast('播放到第 6 步时此卡生效'); } };
+  $('phNo').onclick=function(){ toast('拒绝 · 意见回灌,引擎换路线重试'); };
+  document.querySelectorAll('#subtabs button').forEach(function(b){ b.onclick=function(){ gotoView(b.getAttribute('data-v')); }; });
+  document.querySelectorAll('.fchip').forEach(function(b){ b.onclick=function(){
+    document.querySelectorAll('.fchip').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on');
+    var f=b.getAttribute('data-f');
+    document.querySelectorAll('#v-list .taskrow').forEach(function(r){
+      var s=r.dataset.status;
+      var show = f==='all' || (f==='active'&&(s==='running'||s==='waiting'||s==='dispatched')) || s===f;
+      r.style.display = show?'':'none';
+    });
+  };});
+  document.querySelectorAll('.ev-file[data-diff]').forEach(function(f){ f.onclick=function(){ var d=$(f.getAttribute('data-diff')); if(d) d.classList.toggle('show'); }; });
+  document.querySelectorAll('#tl .ev').forEach(function(e){ e.onclick=function(){ var x=document.querySelector('[data-evx="'+e.getAttribute('data-ev')+'"]'); if(x) x.classList.toggle('show'); }; });
+  document.querySelectorAll('.tgl:not([disabled])').forEach(function(t){ t.onclick=function(){ t.classList.toggle('on'); }; });
+  ['dlgEng','dlgGate','dlgPar'].forEach(function(gid){
+    var g=$(gid);
+    g.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ if(b.textContent.indexOf('二期')>=0){ toast('二期形态 · 先占位不实施'); return; } g.querySelectorAll('button').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); }; });
+  });
+  document.addEventListener('keydown',function(ev2){
+    if(ev2.target && /INPUT|TEXTAREA|SELECT/.test(ev2.target.tagName)) return;
+    if(ev2.metaKey&&ev2.shiftKey&&(ev2.key==='n'||ev2.key==='N')){ toast('tasks.new · 新建任务卡(提案键位)'); ev2.preventDefault(); }
+    else if(ev2.metaKey&&ev2.shiftKey&&(ev2.key==='d'||ev2.key==='D')){ gotoView('list'); $('dlgOverlay').classList.add('show'); ev2.preventDefault(); }
+    else if(ev2.metaKey&&ev2.key==='Enter'){ var vb=document.querySelector('#subtabs button[data-v="verify"]'); if(vb) vb.click(); ev2.preventDefault(); }
+  });
+})();
+</script>
+</body>
+</html>

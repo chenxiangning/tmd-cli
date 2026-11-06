@@ -9,24 +9,22 @@
  * 在途轮 LiveTurn(活轮起点 = 最后一个用户块,同 RPC 活轮界律);旧 phase
  * 分组渲染(TranscriptView)已删。
  */
-import { lazy, useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { host, useHost } from "@kernel/host";
 import { ipc } from "@kernel/ipc";
 import { t } from "@kernel/i18n";
 import { updateSettings, useSettingsState } from "@kernel/settings";
 import type { CliDiskSession, CliTranscriptBlock } from "@kernel/cli";
-import { retryImport } from "@kernel/lazyImport";
 import { SsTurnView } from "@plugins/structured-session/ssTurnView";
 import { LiveTurn } from "@plugins/structured-session/liveTurn";
 import { liveFromIndex } from "@plugins/structured-session/ssLiveFrom";
+import { SsMarkdown } from "@plugins/structured-session/ssMarkdown";
 import "@plugins/structured-session/structured-session.css";
 import { LiveBackToBottom, LiveHeader, LiveLoadEarlier, LiveStatusBlocks, LiveWorkingBar } from "./liveChrome";
 import { useLiveElapsed } from "./liveElapsed";
 import { setLiveTranscript, isLiveTranscript, subscribeLiveMode, tailWindow, decideProbe, stableBlocks, readChangedTranscript, type LiveTailState } from "./liveMode";
-/* md 渲染管线体积大,按需拆包(与 viewerTab 同款纪律)。 */
-const MarkdownBody = lazy(retryImport(() =>
-  import("./markdownBody").then((m) => ({ default: m.MarkdownBody })),
-));
+/* md 注入件 = SsMarkdown(内部 lazy MarkdownBody 按需拆包 + 剥 omp §数字§
+ * 上下文标签,2026-11-06):转录浮层与 RPC 幕布同一份 omp 磁盘转录,渲染面同律。 */
 
 /** 轮询节拍:message 级落盘事件,1s 探测足够跟手且空转成本一次 stat。 */
 const POLL_MS = 1000;
@@ -248,17 +246,17 @@ export function LiveTranscriptOverlay() {
             />
             {turnActive ? (
               <>
-                {liveFrom > 0 ? <SsTurnView blocks={shown.slice(0, liveFrom)} Markdown={MarkdownBody} /> : null}
+                {liveFrom > 0 ? <SsTurnView blocks={shown.slice(0, liveFrom)} Markdown={SsMarkdown} /> : null}
                 <LiveTurn
                   blocks={shown.slice(liveFrom)}
                   live
-                  Markdown={MarkdownBody}
+                  Markdown={SsMarkdown}
                   thinkingLabel={t("思考中…")}
                   liveSurface={liveSurface}
                 />
               </>
             ) : (
-              <SsTurnView blocks={shown} Markdown={MarkdownBody} />
+              <SsTurnView blocks={shown} Markdown={SsMarkdown} />
             )}
           </div>
         )}

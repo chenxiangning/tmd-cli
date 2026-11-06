@@ -182,10 +182,10 @@ export function CliSessionGroup({
   // 历史加载中(orderedLive 空且 sessions===null)同样不占位。
   const groupVisible = !isEmpty && !(orderedLive.length === 0 && sessions === null);
   /* 组可见性上报(PTY 小节头聚合):外部 store 写(ptySectionVisibility),
-   * 不走 prop 回调 effect;卸载残留值由读侧 profiles 集合兜住。 */
+   * 不走 prop 回调 effect;键按工作区+引擎分区(跨工作区同名引擎不串写)。 */
   useEffect(() => {
-    notePtyGroupVisible(profile.id, groupVisible);
-  }, [groupVisible, profile.id]);
+    notePtyGroupVisible(workspace.id, profile.id, groupVisible);
+  }, [workspace.id, profile.id, groupVisible]);
   if (!groupVisible) return null;
 
   return (

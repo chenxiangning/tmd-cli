@@ -60,6 +60,10 @@ export interface PiRpcHandlers {
   onBusy: (busy: boolean) => void;
   /** 工具执行原始帧(structured-session 成功写工具存证;展示仍走 reducer)。 */
   onToolExecution?: (rec: Record<string, unknown>) => void;
+  /** queue_update 原帧(steering/followUp 数组 = 队列深度;B2-6 实证:队列
+   *  ≥1→0 变迁 = 排队 follow_up 起跑轮界,omp 18.16/pi 1.4.0 双引擎同形,
+   *  自主步零 queue_update)。变迁检测归存证消费方。 */
+  onQueueUpdate?: (rec: Record<string, unknown>) => void;
   /** 审批请求;respond 由消费方 UI 调用(confirmId 传入)。 */
   /** 协议帧被丢弃(半行/超限截断;首次即告,一次性)。 */
   onDroppedFrame?: () => void;

@@ -18,6 +18,7 @@ import { errTextDisplay } from "@kernel/errText";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { getQuotaProvider, SHORT_WINDOW_LABEL, type QuotaSnapshot } from "@kernel/quota";
+import { resolveQuotaIdentity, type QuotaChipSource } from "./quotaIdentity";
 import { QuotaDetailPopover } from "./QuotaPopover";
 
 /** 空快照(占位):模型切换后旧供应商数据立即作废,新抓取落地前 chip 显示 "额度 …"。 */
@@ -30,17 +31,8 @@ function emptyQuotaSnapshot(profileId: string): QuotaSnapshot {
   };
 }
 
-/** 额度数据源覆写(结构化会话工具条复用):不传 = 活跃 PTY 会话推导(原语义);
- *  传入 profileId = 按给定身份抓取(RPC tab 无活跃 PTY 会话)。 */
-export interface QuotaChipSource {
-  profileId: string;
-  model?: string | null;
-  cwd?: string;
-  cliSessionId?: string;
-}
-
-/** 当前激活 session 的 CLI quota(source 覆写见 QuotaChipSource)。供应商额度
- *  是账号级(HTTP 按模型查询),远程引擎会话同样回填(凭据取本机登录态,
+/** 当前激活 session 的 CLI quota(source 覆写见 quotaIdentity 的 QuotaChipSource)。
+ *  供应商额度是账号级(HTTP 按模型查询),远程引擎会话同样回填(凭据取本机登录态,
  *  同一供应商账号即代表)。 */
 function useActiveQuota(source?: Partial<QuotaChipSource>): {
   snapshot: QuotaSnapshot | null;
@@ -52,10 +44,14 @@ function useActiveQuota(source?: Partial<QuotaChipSource>): {
   useHost();
   const sessionId = host.getActiveSessionId();
   const session = sessionId ? host.getSessions().find((s) => s.id === sessionId) : null;
-  const profileId = source?.profileId ?? session?.engine ?? session?.profileId;
-  const model = source ? (source.model ?? null) : sessionId ? (host.getSessionStatus(sessionId)?.model ?? null) : null;
-  const cwd = source ? source.cwd : session?.cwd;
-  const cliSessionId = source ? source.cliSessionId : sessionId ? host.getCliSessionId(sessionId) : undefined;
+  const identity = resolveQuotaIdentity(
+    source,
+    sessionId,
+    session,
+    sessionId ? host.getSessionStatus(sessionId)?.model : undefined,
+    sessionId ? host.getCliSessionId(sessionId) : undefined,
+  );
+  const { profileId, model, cwd, cliSessionId } = identity;
 
   /* 快照与路由模型同存同灭(任意 CLI 统一语义):
      - 模型切换 → 旧快照归属旧供应商,立即作废换占位并重新抓取,绝不跨模型混搭显示;

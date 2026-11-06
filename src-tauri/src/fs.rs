@@ -147,15 +147,13 @@ pub fn symlink_dir(target: &str, link: &str) -> Result<(), String> {
                 let link_bs = link.replace('/', "\\");
                 let target_bs = target.replace('/', "\\");
                 use std::os::windows::process::CommandExt;
-                let out = std::process::Command::new("cmd")
-                    .args(["/d", "/s", "/c"])
-                    .raw_arg(format!("mklink /J \"{link_bs}\" \"{target_bs}\""))
-                    .output()
-                    .map_err(|cmd_err| {
-                        format!(
-                            "创建符号链接失败(需开发者模式/特权): {e};junction 降级失败: {cmd_err}"
-                        )
-                    })?;
+                let mut cmd = std::process::Command::new("cmd");
+                cmd.args(["/d", "/s", "/c"]);
+                cmd.raw_arg(format!("mklink /J \"{link_bs}\" \"{target_bs}\""));
+                crate::resolve::hide_console(&mut cmd);
+                let out = cmd.output().map_err(|cmd_err| {
+                    format!("创建符号链接失败(需开发者模式/特权): {e};junction 降级失败: {cmd_err}")
+                })?;
                 if out.status.success() {
                     Ok(())
                 } else {

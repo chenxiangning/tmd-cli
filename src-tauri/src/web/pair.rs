@@ -44,8 +44,9 @@ fn encode_offer(payload: &serde_json::Value) -> String {
 /// 桌面展示名:主机名,拿不到回落 tmd-cli(进程内缓存)。
 fn host_name() -> String {
     static NAME: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-        std::process::Command::new("hostname")
-            .output()
+        let mut cmd = std::process::Command::new("hostname");
+        crate::resolve::hide_console(&mut cmd);
+        cmd.output()
             .ok()
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .map(|s| s.trim().to_string())

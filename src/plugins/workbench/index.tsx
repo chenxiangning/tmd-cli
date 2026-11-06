@@ -19,6 +19,7 @@ import type { Plugin, PluginContext } from "@kernel/plugin";
 import { getTabs, subscribeEditorTabs } from "@kernel/tabs";
 import { openWorkbenchTab, WB_CONSOLE_TAB_KIND, WB_CONSOLE_TAB_ID, WB_PROJECT_TAB_KIND } from "./wbTabs";
 import { startIndexWatch } from "./storeWatch";
+import { bootTaskExitWatch } from "./taskSettleWatch";
 import { attachJournal } from "./journal/attach";
 import { attachDocGen } from "./docgen/attach";
 import { attachFootprintRuntime } from "./review/footprintRuntime";
@@ -100,11 +101,14 @@ export const workbenchPlugin: Plugin = {
     const offFootprint = attachFootprintRuntime(ctx);
     /* AI 直改 index.json 的自动感知轮询(常驻;幂等,见 storeWatch.ts)。 */
     startIndexWatch();
+    /* 任务结算守望:会话退出×开放任务通知(退订随 deactivate)。 */
+    const offTaskWatch = bootTaskExitWatch(ctx.events);
     return () => {
       for (const off of offTaskCard) off();
       offJournal();
       offDocGen();
       offFootprint();
+      offTaskWatch();
     };
   },
 };

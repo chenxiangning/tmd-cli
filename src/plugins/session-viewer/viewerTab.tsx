@@ -6,7 +6,7 @@
  * 渲染复用 RPC(structured-session)体系的 SsTurnView —— 与 RPC 会话同形
  * (用户气泡 + 过程折叠组 + 答复),旧 phase 分组渲染已删(2026-11-05 对齐)。
  */
-import { useCallback, useEffect, useMemo, useRef, useState, lazy } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import type { EditorTab } from "@kernel/tabs";
 import { host } from "@kernel/host";
@@ -24,13 +24,11 @@ import { exportReasonLabel, snapshotMdTo, type ExportSessionTarget } from "./exp
 import { ArrowsClockwiseIcon, Chats, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Empty } from "@kernel/Empty";
 import { Spinner } from "@kernel/Spinner";
-import { retryImport } from "@kernel/lazyImport";
+import { SsMarkdown } from "@plugins/structured-session/ssMarkdown";
 
 import "./session-viewer.css";
-/* md 渲染管线体积大,按需拆包:首个 assistant 块出现才加载。 */
-const MarkdownBody = lazy(retryImport(() =>
-  import("./markdownBody").then((m) => ({ default: m.MarkdownBody })),
-));
+/* md 注入件 = SsMarkdown(内部 lazy MarkdownBody 按需拆包 + 剥 omp §数字§
+ * 上下文标签,2026-11-06):只读视图与 RPC 幕布同一份 omp 磁盘转录,渲染面同律。 */
 
 /** 首屏/增量批次(块级;工具卡与 md 块自身还有行级截断,见 transcriptView)。 */
 const RENDER_BATCH = 200;
@@ -218,7 +216,7 @@ export function SessionViewerTab({ tab }: { tab: EditorTab }) {
             </div>
           ) : (
             <div className="sv-blocks">
-              <SsTurnView blocks={shown} Markdown={MarkdownBody} />
+              <SsTurnView blocks={shown} Markdown={SsMarkdown} />
               {visible < state.transcript.blocks.length ? (
                 <button
                   type="button"

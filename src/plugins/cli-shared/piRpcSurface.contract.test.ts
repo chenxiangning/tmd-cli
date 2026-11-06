@@ -125,3 +125,29 @@ describe("follow_up 用户消息本地回显", () => {
     s.kill();
   });
 });
+
+describe("queue_update 队列帧透传(B2-6 排队锚判据)", () => {
+  beforeEach(() => {
+    listeners.clear();
+    writes.length = 0;
+  });
+
+  it("onLine 转发 queue_update 原帧到 onQueueUpdate;转录与 busy 不受扰", async () => {
+    const seen: Record<string, unknown>[] = [];
+    const s = new PiRpcSession({ command: "omp" }, "/ws", {
+      onBlocks: () => undefined, onBusy: () => undefined, onConfirm: () => undefined,
+      onExit: () => undefined, onError: () => undefined,
+      onQueueUpdate: (rec) => { seen.push(rec); },
+    });
+    const started = s.start();
+    await handshake();
+    await started;
+    frame({ type: "queue_update", steering: [], followUp: ["排队任务"] });
+    frame({ type: "queue_update", steering: [], followUp: [] });
+    expect(seen).toEqual([
+      { type: "queue_update", steering: [], followUp: ["排队任务"] },
+      { type: "queue_update", steering: [], followUp: [] },
+    ]);
+    s.kill();
+  });
+});

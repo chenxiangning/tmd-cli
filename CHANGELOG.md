@@ -4,14 +4,42 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.5.2] - 2026-11-06
+
+### 新增
+
+- RPC 幕布左缘用户对话锚点栏:刻度居中、悬停弹消息卡,流式期锚点轨稳定引用不重建抖动
+- 工作台任务闭环一期:完成判据入任务实体与派发自检、doing→review 迁移与会话退出双路任务通知、验收驳回意见回灌关联会话续跑
+
+### 变更
+
+- 只读转录块再减负:撤逐块时间戳行,块头信息归零,垂直留白回落正文节奏
+
+### 修复
+
+- 多步轮 busy 震荡族根治:存证重挂不丢失、通知计时未读走宽限沿、发送链拆 catch 回滚、锚点轨流式期稳定引用
+- 结构化会话健壮性六小修:pi 1.4.0 结算帧双名兼容、busy 审批期不布防看门狗、看门狗常驻横幅两出口、收养缺历史如实提示、深链错会话不再假报 jumped、孤儿收割收紧
+- 排队 follow_up 锚改由 queue_update 队列变迁消费:双引擎实证起跑轮界,不再被引擎自主步提前吃进上一轮中段
+- Windows 裸 spawn 补 hide_console:根治启动期孤儿收割阶段闪弹终端窗
+- 手机远端健壮性五项:Focused 探针死限并入心拍、图片走 base64 通道、useLiveStream size 退避补拉、scrollback 串缓存拆 ScrollbackBuffer、proc_stream 剥 CR
+- composer 额度 chip 恒拿 null 模型根治(v0.5.0 起 omp 报「未识别当前模型」):React 裸传空对象骗过 source 真值判空,改按字段回退活跃会话推导
+- PTY 小节头可见性键加工作区维:修空工作区组覆写致有行工作区小节头莫名消失
+
 ## [0.5.1] - 2026-11-06
 
 ### 新增
 
 - 带渲染会话活轮过程滚动批次折叠:过程区窗口恒定最新 3 个批次且必含思考段,更早批次滚动折叠不丢证(ssLiveWindow 纯函数 + 单测钉住)
+- RPC 会话左栏行时间对齐:活行闲时显示「最后活跃」相对时间(PTY 磁盘行 thread-time 同形,busy 期维持 working 计时),结束存续行显示关闭时间;分区计时器分档(有 busy 行 1s / 闲时有行 30s)
+
+### 变更
+
+- RPC 会话项目地址自底部工具条迁回顶部 header(常态全显,空间不足才省略,title 全量)
 
 ### 修复
 
+- 同引擎同 cwd 并行 RPC 会话互不串写:草稿/重命名/静音存储键并入会话判别后缀(`#sessionId`)分域,resume 会话各自成键;base 域维持旧键形态零迁移;改名/静音经「结束 → resume 重开」仍连续(scoped 读回落 base),静音 scoped 取消写 `"0"` 显式遮蔽防复活;用户块图片缓存 LRU 封顶 32 条
+- omp 上下文标签(§数字§)泄漏进模型输出且粘在栅栏开场同行致整段代码裸排:RPC 幕布与 session-viewer 只读转录/活转录浮层渲染前统一剥除(SsMarkdown 注入件一处换装),数据层不动转录保真
 - welcome 依赖修复双副本遮蔽:探针命中 npm 拥有的旧副本(Windows 实证 %APPDATA%\npm 的 bun@1.4.0 遮蔽 ~/.bun/bin 新副本,一键修复升级成功仍报过旧)时,一键修复/依赖更新改走 npm --prefix 就地更新探针命中的那份;依赖钉版同口径改 npm 钉版(InstallPlan::Npm 新增 version 字段),声明 script 的引擎命中 npm 副本时同样就地 npm 更新
 
 ## [0.5.0] - 2026-11-06

@@ -6,9 +6,11 @@
  *      → openStructuredSessionTab(adoptStreamId) 重建 tab/行,内容挂载时
  *      订阅既有流 + get_state 握手(不新 spawn)。
  *   2. 无 structured label 的流 = 无人认领 → kill(等价旧 boot kill_all 语义,
- *      只清孤儿不清会话)。
+ *      只清孤儿不清会话)。孤儿判定收紧(B2):仅无 label(真孤儿)与我方
+ *      structured: 前缀但不可解析(损坏标签)才 kill,他消费方带名流不误杀。
  * 磁盘种子(adoptDiskSeed):引擎不重发历史帧,adopt 后幕布历史经
- * readSessionTranscript(cwd 定位磁盘会话)补齐;读不到静默空幕布。
+ * readSessionTranscript(cwd 定位磁盘会话)补齐;读不到经 onMiss 如实
+ * 提示(B2:静默空幕布 → 一行 warn),续跑不受影响。
  */
 
 import { host } from "@kernel/host";
@@ -56,7 +58,7 @@ export function adoptOrphanStreams(): void {
             adoptStreamId: s.id,
             ...(hash > 0 ? { resumeSessionId: label.slice(hash + 1) } : {}),
           });
-        } else {
+        } else if (!(s.label ?? "").trim() || (s.label ?? "").startsWith("structured:")) {
           void ipc.procStreamKill(s.id).catch(() => undefined);
         }
       }
@@ -66,11 +68,13 @@ export function adoptOrphanStreams(): void {
 
 /** adopt/resume 后置种子:磁盘转录补历史(引擎不重发历史帧)。候选 id 序即
  *  优先序:握手 sid 在前;引擎换壳 sid 变化时回落请求 resumeSessionId ——
- *  用户点的就是那盘历史,不因 sid 对不上而空幕布(读不到静默,续跑不受影响)。 */
+ *  用户点的就是那盘历史,不因 sid 对不上而空幕布。命中但转录空 = 会话本就
+ *  无消息(不提示);未命中/读链失败 = 历史不可读 → onMiss(B2)。 */
 export function adoptDiskSeed(
   session: PiRpcSession,
   payload: StructuredSessionPayload,
-  ...ids: Array<string | undefined>
+  ids: Array<string | undefined>,
+  onMiss?: () => void,
 ): void {
   const profile = host.getCliProfile(payload.profileId);
   const wanted = new Set(ids.filter((id): id is string => !!id));
@@ -78,7 +82,7 @@ export function adoptDiskSeed(
   void profile
     .listSessions(payload.cwd)
     .then((sessions) => sessions.find((s) => wanted.has(s.id)))
-    .then((hit) => (hit ? profile.readSessionTranscript?.(hit) : null))
+    .then((hit) => (hit ? profile.readSessionTranscript?.(hit) : (onMiss?.(), null)))
     .then((transcript) => {
       if (transcript?.blocks.length) {
         /* 剪尾语义见 reducer.seed:resume 已结算历史全量;活流收养与
@@ -86,5 +90,5 @@ export function adoptDiskSeed(
         session.adoptSeed(transcript.blocks, !payload.adoptStreamId && !payload.resumeUnsettled);
       }
     })
-    .catch(() => undefined);
+    .catch(() => onMiss?.());
 }

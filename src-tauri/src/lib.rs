@@ -119,9 +119,10 @@ fn process_alive(pid: u32) -> bool {
     }
     #[cfg(windows)]
     {
-        let out = std::process::Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
-            .output();
+        let mut cmd = std::process::Command::new("tasklist");
+        cmd.args(["/FI", &format!("PID eq {pid}"), "/NH"]);
+        crate::resolve::hide_console(&mut cmd);
+        let out = cmd.output();
         match out {
             Ok(o) => String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()),
             Err(_) => false,
@@ -289,6 +290,7 @@ pub fn run() {
             commands_fs::fs_list_dir,
             commands_fs::fs_read_file,
             commands_fs::fs_write_temp,
+            commands_fs::fs_write_temp_b64,
             commands_fs::fs_collect_files,
             commands_fs::fs_read_head,
             commands_fs::fs_read_heads,
