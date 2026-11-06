@@ -42,11 +42,11 @@ export const TranscriptBlockView = memo(function TranscriptBlockView({
   if (block.role === "system") {
     return <div className="sv-system">{block.text}</div>;
   }
-/* 块头不再挂「AI」角色行(2026-11-06 用户裁决:omp RPC 每 chunk 一块,
- * 逐块 AI 标记既噪又撑段落留白;时间戳保留,缺省不渲染)。 */
+/* assistant 块裸排正文(2026-11-06 用户裁决:AI 角色行与时间戳行整行撤,
+ * 逐块头信息在 omp RPC 每 chunk 一块的形态下既噪又撑垂直留白;块头时间戳
+ * 仅用户气泡卡 ssUserBlock 保留)。 */
   return (
     <div className={`sv-assistant${tail ? " sv-tail" : ""}`}>
-      <Timestamp ms={block.startedAt} />
       <Markdown>{capped(block.text)}</Markdown>
     </div>
   );
