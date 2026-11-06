@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0.5.2 UI 变面示例 — tmd-cli</title>
+<style>
+  :root{
+    --bg:#f6f5f4; --card:#ffffff; --ink:#292524; --ink-2:#57534e; --ink-3:#a8a29e;
+    --line:#e7e5e4; --line-2:#d6d3d1;
+    --acc:#ea580c; --acc-soft:#fff7ed; --acc-line:#fdba74;
+    --warn-bg:#fefce8; --warn-line:#fde68a; --warn-ink:#854d0e;
+    --ok:#15803d; --blue:#1d4ed8;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:14px/1.65 -apple-system,"PingFang SC","Segoe UI",sans-serif;padding:32px 20px 80px}
+  .wrap{max-width:1060px;margin:0 auto}
+  h1{font-size:22px;letter-spacing:.01em}
+  h1 small{font-weight:400;color:var(--ink-2);font-size:13px;margin-left:10px}
+  .sub{color:var(--ink-2);margin:6px 0 20px;font-size:13px}
+  h2{font-size:16px;margin:44px 0 4px;display:flex;align-items:center;gap:8px}
+  h2 .tag{font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;letter-spacing:.03em}
+  .tag.code{background:#eef2ff;color:#3730a3}
+  .tag.impl{background:#dcfce7;color:#166534}
+  .tag.copy{background:#f1f5f9;color:#475569}
+  .tag.zero{background:#f5f5f4;color:#78716c}
+  .note{font-size:12.5px;color:var(--ink-2);margin-bottom:12px}
+  .note b{color:var(--ink)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:880px){.grid2{grid-template-columns:1fr}}
+  .lab{font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:.08em;margin-bottom:8px;text-transform:uppercase}
+  .lab .new{color:var(--acc);font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  th{background:#fafaf9;color:var(--ink-2);font-weight:600;text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);font-size:12px}
+  td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .ui-y{color:var(--acc);font-weight:600;white-space:nowrap}
+  .ui-n{color:var(--ink-3)}
+
+  /* ===== RPC 幕布通用 ===== */
+  .canvas{border:1px solid var(--line-2);border-radius:10px;background:#fff;position:relative;overflow:hidden}
+  .canvas-head{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--ink-2);background:#fcfcfb}
+  .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px #dcfce7}
+  .dot.busy{background:#fbbf24;box-shadow:0 0 0 3px #fef3c7}
+  .canvas-body{padding:16px 18px 16px 44px}
+  .turn{margin-bottom:18px}
+  .u-block{background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:8px;padding:8px 12px;font-weight:500;margin-bottom:8px}
+  .a-block{color:var(--ink);border-left:2px solid var(--line-2);padding:2px 0 2px 12px;margin-bottom:8px}
+  .a-block .think{color:var(--ink-2);font-style:italic;font-size:12.5px;border-left:2px solid var(--line);padding-left:10px;margin-bottom:6px}
+  .a-block code{font-family:var(--mono);font-size:12px;background:#f5f5f4;padding:1px 5px;border-radius:4px}
+  .a-block pre{font-family:var(--mono);font-size:12px;background:#fafaf9;border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:6px 0;overflow-x:auto}
+
+
+  /* ===== 2 告警胶囊 / 相位横幅 ===== */
+  .warn-capsule{display:inline-flex;align-items:center;gap:8px;background:var(--warn-bg);border:1px solid var(--warn-line);color:var(--warn-ink);border-radius:999px;padding:3px 10px 3px 12px;font-size:12.5px;margin:6px 0}
+  .warn-capsule .x{cursor:pointer;color:var(--warn-ink);opacity:.6;font-weight:700}
+  .phase-bar{display:flex;align-items:center;gap:12px;background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:13px;color:var(--warn-ink)}
+  .phase-bar .grow{flex:1}
+  .phase-bar .clock{font-family:var(--mono);font-size:12px;background:#fff;border:1px solid var(--warn-line);border-radius:5px;padding:1px 7px}
+  .btn{font:inherit;font-size:12.5px;border-radius:7px;padding:4px 13px;cursor:pointer;border:1px solid var(--line-2);background:#fff;color:var(--ink)}
+  .btn.primary{border-color:var(--acc);color:var(--acc);background:var(--acc-soft)}
+  .btn.danger{border-color:#fecaca;color:#b91c1c;background:#fef2f2}
+  .btn:hover{filter:brightness(.97)}
+  .empty-line{display:flex;gap:8px;align-items:baseline;background:var(--warn-bg);border:1px dashed var(--warn-line);color:var(--warn-ink);font-size:12.5px;border-radius:6px;padding:6px 10px;margin-bottom:12px}
+  .blank-canvas{color:var(--ink-3);font-size:13px;padding:28px 0;text-align:center}
+
+  /* ===== 4 新建菜单 ===== */
+  .menu{width:250px;background:#fff;border:1px solid var(--line-2);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.08);padding:6px;font-size:13px}
+  .menu .group{padding:6px 10px 2px;font-size:11px;font-weight:700;color:var(--ink-3);letter-spacing:.06em}
+  .menu .desc{padding:0 10px 6px;font-size:11.5px;color:var(--ink-3)}
+  .m-item{display:flex;align-items:center;gap:9px;width:100%;border:none;background:none;font:inherit;color:var(--ink);padding:7px 10px;border-radius:7px;cursor:pointer;text-align:left}
+  .m-item:hover{background:#f5f5f4}
+  .m-ico{width:18px;height:18px;border-radius:4px;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;flex:none}
+  .m-item .badge{margin-left:auto;font-size:10.5px;color:var(--acc);border:1px solid var(--acc-line);background:var(--acc-soft);border-radius:999px;padding:0 7px;font-weight:600}
+
+  /* ===== 5 工具条 chips ===== */
+  .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#fcfcfb;padding:7px 12px;font-size:12.5px}
+  .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line-2);background:#fff;border-radius:999px;padding:2px 10px;color:var(--ink);white-space:nowrap}
+  .chip .k{color:var(--ink-3)}
+  .chip.q{border-color:#bbf7d0;background:#f0fdf4;color:#166534}
+  .chip.dim{color:var(--ink-3);border-style:dashed}
+  .chip.off{display:none}
+  .t-actions{margin-left:auto;display:flex;gap:6px;color:var(--ink-2)}
+  .kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#fff}
+
+  /* ===== 6 附件钮 ===== */
+  .composer{border:1px solid var(--line-2);border-radius:10px;background:#fff;padding:10px 12px}
+  .composer textarea{width:100%;border:none;outline:none;resize:none;font:inherit;font-size:13px;color:var(--ink);min-height:44px}
+  .c-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+  .icon-btn{width:28px;height:28px;border-radius:7px;border:1px solid transparent;display:grid;place-items:center;color:var(--ink-2);cursor:pointer;background:none}
+  .icon-btn:hover{background:#f5f5f4}
+  .icon-btn.dis{opacity:.35;cursor:not-allowed}
+  .attach-tip{font-size:11.5px;color:var(--ink-3);border:1px dashed var(--line-2);border-radius:6px;padding:2px 8px}
+
+  /* ===== 7 设置文案 ===== */
+  .setting-row{display:flex;gap:14px;padding:12px 4px;border-bottom:1px solid var(--line)}
+  .setting-row:last-child{border-bottom:none}
+  .setting-row .s-lab{width:170px;flex:none;font-weight:500;font-size:13px}
+  .setting-row .s-body{font-size:12.5px;color:var(--ink-2)}
+  .setting-row .s-body .log{font-family:var(--mono);font-size:11.5px;background:#fafaf9;border:1px solid var(--line);border-radius:5px;padding:2px 7px;display:inline-block;margin:2px 2px}
+
+  .foot{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+  .arrow{color:var(--ink-3);margin:0 4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>0.5.2 UI 变面示例 <small>tmd-cli · 2026-11-06 · 浅色主题基准</small></h1>
+<p class="sub">规划与拆解见 <code>docs/brainstorm/2026-11-06-052-next-steps/</code>(v2.4:全部批次均在本 0.5.2 迭代内,不切版本)。六处 UI 面(kimi 复用第 3/4 节形态,不另开新面),其余全是逻辑层 / 验证 / 配置。本页按批次逐面给出「现状 → 变化」。</p>
+
+<table>
+  <tr><th style="width:70px">批次</th><th>内容</th><th style="width:110px">UI 面</th></tr>
+  <tr><td>F</td><td>重扫修复:busy 震荡族(通知/计时/未读/存证)+ 发送回滚 + 轨抖动</td><td class="ui-y">有(下文 7)</td></tr>
+  <tr><td>B2</td><td>看门狗出口 + 收养空幕布提示</td><td class="ui-y">有(下文 1 / 2)</td></tr>
+  <tr><td>C1/C2</td><td>claude 引擎扩容(spike + 落地)</td><td class="ui-y">有(下文 3 / 4 / 5)</td></tr>
+  <tr><td>C3(已拍板)</td><td>kimi via ACP 扩容(C2 后接续)</td><td class="ui-y">复用 3 / 4 形态:菜单 +1 行,工具条同款降级</td></tr>
+  <tr><td>D1</td><td>假死矩阵真机验证 + 诊断说明文案</td><td class="ui-y">仅文案(下文 6)</td></tr>
+  <tr><td>D2</td><td>Rust + mobile 健壮性(serde/竞态/图片通道/尺寸补拉等)</td><td class="ui-n">零设计;行为修复(上传提速、折行即纠)</td></tr>
+  <tr><td>E1/E2</td><td>验收日 / signing 配置</td><td class="ui-n">零 UI</td></tr>
+  <tr><td>E3</td><td>首包切割(registerTabContent 懒载)</td><td class="ui-n">零设计;唯一可见副作用 = 懒 tab 首开一瞬既有空态</td></tr>
+</table>
+
+<!-- ============ 1 watchdog ============ -->
+<h2>1. 看门狗:一次性胶囊 → 常驻状态条 + 出口 <span class="tag code">B2-1 · 码</span></h2>
+<p class="note"><b>现状:</b>引擎 busy &gt; 5 分钟无输出,幕布内弹一枚可关胶囊(ssWarn 多槽),关掉即永远沉默,用户无路可走。<b>变化:</b>升级为常驻相位横幅(PhaseBanners 同族视觉)+ 两个出口:<b>重试</b>(retry --resume 换壳续转录)/ <b>中断</b>(kill)。计时实时走字。</p>
+<div class="grid2">
+  <div class="card">
+    <div class="lab">现状(一次性胶囊,关了就没了)</div>
+    <div class="canvas"><div class="canvas-body">
+      <div class="warn-capsule">引擎长时间无输出(可能已挂起)<span class="x">×</span></div>
+      <div class="a-block">…上一轮答复内容…</div>
+    </div></div>
+  </div>
+  <div class="card">
+    <div class="lab">变化(<span class="new">常驻横幅 + 出口</span>)</div>
+    <div class="canvas">
+      <div class="canvas-head"><span class="dot busy"></span>omp · 会话中</div>
+      <div class="canvas-body">
+        <div class="phase-bar">
+          <span>长时间无输出,引擎可能挂起</span>
+          <span class="clock">5m 12s</span>
+          <span class="grow"></span>
+          <button class="btn primary">重试(保留转录)</button>
+          <button class="btn danger">中断</button>
+        </div>
+        <div class="a-block">…上一轮答复内容…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 2 空幕布 ============ -->
+<h2>2. reload 收养后「历史不可读」如实提示 <span class="tag code">B2-2 · 码</span></h2>
+<p class="note"><b>现状:</b>webview 重载收养时磁盘转录读不到 → <b>静默空白幕布</b>,用户以为会话被清空。<b>变化:</b>幕布首行提示一行,说明只缺历史、实时内容照常。</p>
+<div class="grid2">
+  <div class="card">
+    <div class="lab">现状(静默空白,像被清空)</div>
+    <div class="canvas"><div class="canvas-head"><span class="dot busy"></span>omp · 收养中</div>
+      <div class="canvas-body"><div class="blank-canvas">(空白,无任何说明)</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="lab">变化(<span class="new">首行如实提示</span>)</div>
+    <div class="canvas"><div class="canvas-head"><span class="dot busy"></span>omp · 收养中</div>
+      <div class="canvas-body">
+        <div class="empty-line">历史转录不可读(磁盘种子缺失)—— 以下仅显示收养后的实时内容</div>
+        <div class="a-block">(引擎继续输出的内容从这里开始)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3 新建菜单 ============ -->
+<h2>3. 新建菜单:「带渲染的会话」组新增 claude 与 kimi <span class="tag code">C2 · C3 · 声明即亮,菜单零代码</span></h2>
+<p class="note"><b>变化:</b>能力门按 <code>structuredRpc</code> 声明过滤(NewSessionEntry.tsx:16)——cli-claude / cli-kimi 各补声明一行,菜单自动出现第四、五行;无能力引擎永不渲染死入口。行 = 引擎 logo + 引擎名,点击直达沉浸幕布。claude 走 stream-json(C2),kimi 走 <code>kimi acp</code>(ACP 双向 JSON-RPC,C3 已拍板;两引擎均在本迭代先后落地)。</p>
+<div class="card" style="display:flex;gap:24px;flex-wrap:wrap">
+  <div class="menu">
+    <div class="group">带渲染的会话</div>
+    <div class="desc">结构化引擎通道:思考 / 工具行 / 审批卡完整渲染</div>
+    <button class="m-item"><span class="m-ico" style="background:#7c3aed">o</span>omp</button>
+    <button class="m-item"><span class="m-ico" style="background:#0ea5e9">π</span>pi</button>
+    <button class="m-item"><span class="m-ico" style="background:#d97706">C</span>claude<span class="badge">本迭代新增</span></button>
+    <button class="m-item"><span class="m-ico" style="background:#16a34a">K</span>kimi<span class="badge">本迭代新增(已拍板)</span></button>
+  </div>
+  <div style="font-size:12.5px;color:var(--ink-2);max-width:400px">
+    <p><b>幕布内零新渲染面</b>:claude 的思考段 / 工具行 / 审批卡复用现有 CliTranscriptBlock 投影与 confirmCard,只是数据来自新引擎。</p>
+    <p style="margin-top:8px">claude 的 <code>can_use_tool</code> 审批(如「写文件 src/foo.ts」)走与 omp/pi 同一张审批卡,应答经 <code>control_response</code> 回写 stdin。</p>
+    <p style="margin-top:8px">存证:evidence 帧归一层把 <code>Write/Edit + file_path</code> 同形化后,claude 编辑照常落 checkpoints / 足迹。</p>
+  </div>
+</div>
+
+<!-- ============ 4 工具条降级 ============ -->
+<h2>4. claude / kimi 会话工具条:辅助能力空态降级 <span class="tag code">C2 · C3 · 空态面,禁止假数据</span></h2>
+<p class="note"><b>现状(omp/pi):</b>工具条 chips = 模型 / 思考 / 上下文 / 额度 + 命令抽屉,全部有引擎数据源。<b>变化:</b>claude 无 <code>get_available_models / stats / commands</code> 对应物,kimi(ACP)无 quota/stats 通道 —— 降级形态同款(模型位显示握手带回的当前模型;思考 / 上下文显「—」;额度 chip 整体隐藏;命令抽屉空态)。kimi 另有审批模式档(默认逐项问 / <code>-y</code> 只问风险项 / <code>--auto</code> 全自动),档位映射 confirmCard 默认呈现,spike 定形态。</p>
+<div class="grid2">
+  <div class="card">
+    <div class="lab">omp / pi(满配)</div>
+    <div class="canvas" style="border-radius:10px">
+      <div class="toolbar">
+        <span class="chip"><span class="k">模型</span>GLM-4.7</span>
+        <span class="chip"><span class="k">思考</span>中</span>
+        <span class="chip" title="上下文占用 42.1%,本轮会话累计 181k tokens"><span class="k">上下文</span>42.1% · 181k</span>
+        <span class="chip q">额度 Pro · 剩 62%</span>
+        <span class="t-actions"><span class="kbd">⌘K</span> 命令抽屉</span>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="lab">claude / kimi(<span class="new">降级态同款</span>)</div>
+    <div class="canvas" style="border-radius:10px">
+      <div class="toolbar">
+        <span class="chip"><span class="k">模型</span>sonnet-4 / kimi-k2</span>
+        <span class="chip dim"><span class="k">思考</span>—</span>
+        <span class="chip dim" title="引擎无 stats 通道"><span class="k">上下文</span>—</span>
+        <span class="chip off"></span>
+        <span class="t-actions"><span class="kbd">⌘K</span> 无命令目录</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 5 附件钮 ============ -->
+<h2>5. claude 图片输入(子拍板:「不支持」形态时) <span class="tag code">C2-9 · 视拍板 2</span></h2>
+<p class="note"><b>现状:</b>omp/pi 幕布支持粘贴 / 拖图(写临时文件注入 <code>@path</code> token)。<b>若拍板选「声明不支持」:</b>claude 会话附件钮降灰 + 提示,输入区其余不变。<b>若选 content-block 适配:</b>UI 零变化(此节作废)。</p>
+<div class="card" style="max-width:560px">
+  <div class="composer">
+    <textarea placeholder="给 claude 发消息…(此会话暂不支持图片粘贴)"></textarea>
+    <div class="c-row">
+      <button class="icon-btn dis" title="claude 通道暂不支持图片输入">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      </button>
+      <span class="attach-tip">图片输入待 content-block 适配后开放</span>
+      <span style="margin-left:auto;color:var(--ink-3);font-size:11.5px">Enter 发送</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 6 设置文案 ============ -->
+<h2>6. 设置 · 行为:假死自证说明文案 <span class="tag copy">D1 附带 · 纯文案(i18n 三语)</span></h2>
+<p class="note">render_health 诊断面板补两句说明,让「客户端假死」发作时可自证(看 Rust 日志两行),不用盲猜。零布局变化。</p>
+<div class="card" style="max-width:720px">
+  <div class="setting-row">
+    <div class="s-lab">渲染健康自愈</div>
+    <div class="s-body">
+      检测到界面冻结时自动按「聚焦窗口 → 重载渲染」阶梯自愈(洪水期只聚焦防回放风暴)。
+      遇假死可先看日志自证:<span class="log">render_health: 渲染粘死未愈(strikes=…)</span>为自愈在动作,
+      <span class="log">,洪水期 reload 降级</span>为输出洪水保护,两者都不必手动处理。
+    </div>
+  </div>
+</div>
+
+<!-- ============ 7 多步轮稳定性 ============ -->
+<h2>7. 多步轮状态稳定性:通知 / 计时 / 未读 / 存证 <span class="tag code">F · 码(先于 soak)</span></h2>
+<p class="note"><b>现状根因:</b>多步 agent 轮里每步落定都触发一次 busy=false(piRpc.ts:244-249),下游消费原始边沿——计时每步归零、OS 通知每步弹一次(真轮末反而哑)、未读按步虚高、checkpoints 只记第一步(后续存证短路)、发送后 getState 超时会把已发出的文本回填草稿。<b>变化:</b>通知 / 计时 / 发送分支 / 未读沿统一改走 turnLive 宽限态边沿,整轮稳态。</p>
+<div class="grid2">
+  <div class="card">
+    <div class="lab">现状(三步轮,每步落定都触发一次 busy=false)</div>
+    <div class="a-block">
+      step1 产出 <span class="log">working 0:12 → 0:00</span> ⚡OS 通知 · 未读 +1
+      step2 产出 <span class="log">working 0:09 → 0:00</span> ⚡OS 通知 · 未读 +1
+      step3 产出 <span class="log">working 0:07 → 0:00</span> ⚡OS 通知 · 未读 +1
+      轮末:checkpoints 只记 step1(后两步存证短路)· 未读合计 +3
+      发送后 getState 超时 → 已发出文本被回填草稿,重发即重复消息
+    </div>
+    <div class="lab">变化(同一轮,改走 turnLive 宽限态边沿)</div>
+    <div class="a-block">
+      整轮连续计时 <span class="log">working 0:00 → 1:48</span>,不中途归零
+      轮末:OS 通知恰一次 · 未读恰 +1 · checkpoints 三步全记
+      发送成功即清草稿,后续 evidence/getState 超时不回滚
+    </div>
+  </div>
+  <div class="card">
+    <div class="lab">同批可见面(F 其余项 + B2/D2 行为修复)</div>
+    <div class="a-block">
+      锚点轨:流式期不再每 120ms 重建测量,长会话滚动抖动消失
+      接力(relay)按钮:挂载早于注册时不再永久灰置,可点击提示
+      通知点击已关 tab:恢复原会话(resume),不再开全新空会话
+      手机上传图片:帧体积约 1/3(通道换 base64),大图不再卡顿数秒
+      幕布尺寸偶发取失败:立即补拉,错误折行窗口从最长 3s 收敛
+    </div>
+  </div>
+</div>
+<div class="foot">其余批次(B1 soak / D2 Rust 性能 / E1 验收日 / E2 signing / E3 首包切割)无 UI 面。
+  本示例为设计探索稿(docs/design/ 落盘铁律),实现以 implementation.md 各批验收为准;浅色主题基准,色板取自客户端现有 stone + 橙 accent 体系。
+</div>
+
+</div>
+</body>
+</html>

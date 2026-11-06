@@ -402,7 +402,9 @@
 | 2026-11-05 | [RPC 会话体系对齐 UI 示例稿(D1-D6 推荐项全落形:左栏独立分区四态灯/右键最小集菜单/新建菜单重开上次入口/reload 重接 toast;含红线自检与 proc_stream 泵行为前提修正)](design/rpc-session-parity.html) | 设计原型(评审用) |
 | 2026-11-06 | [活轮过程内容批次折叠:滚动窗口只留最新 3 个思考/工具条目(窗内必含思考;折叠头复用落定态整体折叠头;落定整体折叠不变)](superpowers/specs/2026-11-06-live-turn-batch-fold-design.md) | 已实施 |
 | 2026-11-06 | [RPC 幕布左侧用户对话锚点栏(codemoss 刻度轨复刻:data-vb 直测定位,点击跳转,active 随滚动)](superpowers/specs/2026-11-06-rpc-canvas-user-anchor-rail-design.md) | 已实施 |
-| 2026-11-06 | [0.5.2 规划:RPC 体系 soak + 稳定性收口 + claude 引擎扩容(四路调研证据/五批主线/版本切分方案甲乙/不做清单/五项拍板)](brainstorm/2026-11-06-052-next-steps/README.md) | 待大仙拍板 |
-| 2026-11-06 | [0.5.2 实施拆解(十批次改动面/soak 八场景/RPC 真机矩阵/claude spike→落地/真机验收债与留观存量附录/通用门禁)](brainstorm/2026-11-06-052-next-steps/implementation.md) | 待拍板后执行 |
+| 2026-11-06 | [0.5.2 规划(当前迭代全量):重扫修复 F + RPC soak + claude 与 kimi(ACP)双引擎扩容 + Rust/mobile 健壮性(四路调研+三路复审+三路重扫证据/迭代内推进顺序/不做清单/拍板项;修订记录在文末)](brainstorm/2026-11-06-052-next-steps/README.md) | 拍板项 1/6 已闭,余 2/3/4/5 |
+| 2026-11-06 | [0.5.2 实施拆解 v2.4(批次 F/B/C/D/E:busy 震荡族修复先行/soak 十场景/claude 传输层分派+evidence 帧归一/kimi via ACP/Rust+mobile 健壮性/signing workflow_dispatch 验证/发版 checklist/验收债附录)](brainstorm/2026-11-06-052-next-steps/implementation.md) | 待拍板 2/3/4/5 后执行 |
+| 2026-11-06 | [0.5.2 UI 变面示例(六处 UI 面:看门狗常驻横幅前后/收养空幕布提示/新建菜单 claude+kimi 行/工具条降级/附件钮降灰/多步轮状态稳定性前后对比 + 诊断文案;含零 UI 批次注脚)](design/052-ui-changes.html) | 设计原型(评审用) |
+| 2026-11-06 | [AI 任务闭环机制调研(agent loop vs skill 编排正名/六家单 agent 脚手架/七家编排器盘点/「模型声明环境裁决」五共性/tmd-cli 底座映射与三期落地路径)](research/ai-task-closure-orchestration.md) | 已完成 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
