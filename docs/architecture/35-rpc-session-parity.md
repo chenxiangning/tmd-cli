@@ -90,11 +90,33 @@ RPC(结构化)会话与 PTY 会话**两套体系互不影响、入口隔离**:
 - 帧丢弃观测:parse 失败(半行/截断)首次即 onDroppedFrame → warn 胶囊。
 - PiRpcState.version 协议留位(get_state 若带);UI 消费待字段名实证。
 
+### 2.5 存储分域 + 行时间(2026-11-06 并行会话串写修复)
+
+- **存储域(scope)**:kernel/structuredSessionOverlays.ts `ssScope` = `引擎+cwd`
+  + (resume 会话 `#sessionId` 判别后缀,与 openStructuredSessionTab 的 tab id
+  后缀同源)。草稿(`tmd.ss.draft.*`)/重命名(`tmd.ss.title.*`)/静音
+  (`tmd.ss.mute.*`)全按 scope 键 —— 同引擎同 cwd 并行会话(base tab +
+  resume tab)互不串写;base 域 = 旧键形态,已持久数据零迁移。
+- **读回落**:scoped 域 miss 时回落 base 域(会话存活期写在 base 的改名/静音,
+  经「结束账本 → resume 重开」tab 带 # 后缀仍连续);静音 scoped unmute 写
+  `"0"` 显式遮蔽(删键会令 base 值复活),base unmute 维持删键(旧行为);
+  草稿不回落(resume 会话从零起,防带入并行会话残留草稿)。
+- **行时间对齐**:StructuredSessionRowStatus.lastActiveAt(挂载/busy 双沿更新,
+  不随 120ms flush 抖动)→ 活行闲时 `thread-time` 相对时间(PTY 磁盘行同形,
+  busy 期维持 working 计时);结束行显示账本 closedAt。分区计时器分档:
+  有 busy 行 1s,闲时有行 30s。
+- 渲染注:omp `§数字§` 上下文标签剥除(ssCtxTags/stripCtxTags)为呈现层专属,
+  SsMarkdown 注入件(RPC 幕布 + session-viewer 只读视图/活转录浮层)统一消费;
+  数据层/导出不动(转录保真)。
+
 ## 3. 修改规则
 
 - 改行投影/未读语义/结束账本 → 先读 kernel/structuredSessionTabs.ts +
   kernel/structuredSessionEnded.ts 头注与测试(structuredSessionTabs.test.ts /
   structuredSessionEnded.test.ts 是行为基线)。
+- 改存储域/覆盖层语义 → 先读 kernel/structuredSessionOverlays.ts 头注与
+  structuredSessionOverlays.test.ts(分域/回落/"0" 遮蔽是行为基线;草稿键
+  不回落是刻意裁决,勿「顺手补齐」)。
 - 改种子剪尾语义 → 先读 PiRpcReducer.seed 注释与 adoptBoot 分流测试;
   resume 全量 / 收养剪尾的分流不许对调(2026-11-05 关闭重开丢历史事故)。
 - 改 proc_stream 泵/label/枚举 → 保持「emit 失败 ≠ EOF」不变;kill_all 只允许
