@@ -407,5 +407,6 @@
 | 2026-11-06 | [0.5.2 UI 变面示例(六处 UI 面:看门狗常驻横幅前后/收养空幕布提示/新建菜单 claude+kimi 行/工具条降级/附件钮降灰/多步轮状态稳定性前后对比 + 诊断文案;含零 UI 批次注脚)](design/052-ui-changes.html) | 设计原型(评审用) |
 | 2026-11-06 | [AI 任务闭环机制调研(agent loop vs skill 编排正名/六家单 agent 脚手架/七家编排器盘点/「模型声明环境裁决」五共性/tmd-cli 底座映射与三期落地路径)](research/ai-task-closure-orchestration.md) | 已完成 |
 | 2026-11-06 | [claude stream-json 双向流协议探针(C1 判定门三态:流内审批面不存在实证/MCP prompt-tool 候选、长驻会话同进程多轮实证、图片 content block 直通;输出帧目录+输入语义+审批 denied 帧形+C2 映射速查表;样本 16 帧)](research/claude-stream-json-probe.md) | 已完成,C2 拍板依据 |
+| 2026-11-06 | [0.5.2 三笔提交收口 review(B2-6 排队锚变迁消费/C1 底稿/D2 先行五项;混合队列 partial drain record-only、D2 继承代码七项专项核查含 on_focused 可见闸收紧与 screen 恒非 null 排查;门禁收口状态表)](review/2026-11-06-052-b26-c1-d2-review.md) | 已收口 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
