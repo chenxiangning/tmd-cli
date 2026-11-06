@@ -3,8 +3,8 @@
  * 从 sessionTab 拆出守 300 行铁则;弹层 = 单入口局部菜单(academy 同款外点
  * 收起,无全局浮层管理)。模型动作全走 PiRpcSession 会话级请求:set_model /
  * set_thinking_level 成功后 get_state 回读权威态,onStateRefresh 回写 tab。
- * 引擎切换下拉已撤除(2026-11-05 用户裁决):换引擎 = 新建菜单另开 tab,
- * 路径/上下文占用迁底部工具条(ssToolbar)。
+ * 引擎切换下拉已撤除(2026-11-05 用户裁决):换引擎 = 新建菜单另开 tab;
+ * 项目地址 2026-11-06 自底部工具条迁回本栏(上下文占用仍在 ssToolbar)。
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { errTextDisplay } from "@kernel/errText";
@@ -169,6 +169,7 @@ function ModelMenu(props: {
 
 export function SsHeader(props: {
   profileId: string;
+  cwd: string;
   model: PiRpcModel | null;
   thinkingLevel: string | null;
   sessionId: string | null;
@@ -183,7 +184,7 @@ export function SsHeader(props: {
   onAbort: () => void;
 }) {
   useHost(); /* profile 注册/变化 */
-  const { profileId, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, session } = props;
+  const { profileId, cwd, model, thinkingLevel, sessionId, busy, queued, ready, minimal, statusText, session } = props;
   const [menu, setMenu] = useState<MenuKind>(null);
   const rootRef = useRef<HTMLElement>(null);
 
@@ -205,6 +206,10 @@ export function SsHeader(props: {
           ? <span className="ss-engine-icon">{host.getCliProfile(profileId)!.renderIcon!("0.875rem")}</span>
           : null}
         <span className="ss-engine-name">{host.getCliProfile(profileId)?.name ?? profileId}</span>
+      </span>
+      {/* 项目地址(2026-11-06 自底部工具条迁回):常态全显,空间不足才省略,title 全量 */}
+      <span className="ss-header-cwd" title={cwd}>
+        <span className="ss-toolbar-mono">{cwd}</span>
       </span>
       {model && ready && session ? (
         <ModelMenu

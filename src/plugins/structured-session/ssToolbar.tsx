@@ -1,5 +1,5 @@
 /**
- * RPC 对话框工具条 —— 与 PTY ComposerToolbar 同排布(路径/模型/思考/上下文/
+ * RPC 对话框工具条 —— 与 PTY ComposerToolbar 同排布(模型/思考/上下文/
  * 额度 + 右侧动作组),从 ssComposer 拆出(300 行铁则)。RPC 态来自 ss 权威态
  * (无 seeded 歧义),模型/思考位纯展示(变更走 header 菜单);额度 chip 复用
  * composer QuotaChip(source 覆写:RPC tab 无活跃 PTY 会话,按本 tab 身份抓);
@@ -23,11 +23,6 @@ export function SsToolbar({ ss, profileId, cwd, onExpand, onCollapse, onPalette 
   const iconBtn = "grid h-6 w-6 place-items-center rounded-md transition-colors disabled:opacity-40";
   return (
     <div className="ss-toolbar">
-      {/* 项目地址(自 header 迁入 2026-11-05):超长省略,title 全量 */}
-      <span className="ss-toolbar-slot ss-toolbar-cwd" title={cwd}>
-        <span className="ss-toolbar-mono">{cwd}</span>
-      </span>
-      <span aria-hidden className="ss-toolbar-sep" />
       <span className="ss-toolbar-slot" title={t("模型与思考级")}>
         <span aria-hidden>{t("模型")}</span>
         <span className="ss-toolbar-mono">{ss.model?.id ?? "—"}</span>

@@ -6,14 +6,13 @@
  * 生命周期编排见 ssSession.ts。
  * 设计:docs/superpowers/specs/2026-09-30-structured-session-rpc-design.md
  */
-import { lazy, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, Warning, X } from "@phosphor-icons/react";
 import { getActiveTabId, updateTab, type EditorTab } from "@kernel/tabs";
 import { getStructuredSessionRows, noteStructuredSessionRow, readSsTitleOverride } from "@kernel/structuredSessionTabs";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
-import { retryImport } from "@kernel/lazyImport";
 import { SsHeader } from "./ssHeader";
 import { SsActions } from "./ssActions";
 import { SsTurnView } from "./ssTurnView";
@@ -26,10 +25,7 @@ import { SsWelcome } from "./ssWelcome";
 import { useSsSession, type Phase } from "./ssSession";
 import type { StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import "./structured-session.css";
-
-const MarkdownBody = lazy(retryImport(() =>
-  import("@plugins/session-viewer/markdownBody").then((m) => ({ default: m.MarkdownBody })),
-));
+import { SsMarkdown } from "./ssMarkdown";
 
 /* 滚动区相位横幅:启动中/启动失败/已结束(接续重开 = --resume 换壳,引擎
  * 上下文 + 转录保形;否则全复位新会话)。已结束用紧凑横幅,不占视口高空块。 */
@@ -156,6 +152,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
     <div className="ss-root" data-icon-decor="structured-session">
       <SsHeader
         profileId={payload.profileId}
+        cwd={payload.cwd}
         model={ss.model}
         thinkingLevel={ss.thinkingLevel}
         sessionId={ss.sessionId}
@@ -219,9 +216,9 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
               {/* 落定历史:codemoss 形态逐轮渲染(用户 → 过程折叠组 → 答复);
                   活轮起点 liveFrom 之前归落定,本轮块全程活轮展开 */}
               {liveFrom > 0 ? (
-                <SsTurnView blocks={ss.blocks.slice(0, liveFrom)} Markdown={MarkdownBody} settleKey={settleKey} />
+                <SsTurnView blocks={ss.blocks.slice(0, liveFrom)} Markdown={SsMarkdown} settleKey={settleKey} />
               ) : null}
-              <LiveTurn blocks={ss.blocks.slice(liveFrom)} live={ss.turnLive} Markdown={MarkdownBody} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
+              <LiveTurn blocks={ss.blocks.slice(liveFrom)} live={ss.turnLive} Markdown={SsMarkdown} thinkingLabel={t("思考中…")} liveSurface={ss.liveSurface} />
             </div>
           </>
         ) : null}

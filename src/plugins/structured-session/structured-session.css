@@ -31,9 +31,10 @@
 .ss-queued { font-size: var(--tmd-font-xs); color: var(--tmd-accent); border: 1px solid color-mix(in srgb, var(--tmd-accent) 45%, transparent); background: var(--tmd-accent-soft); border-radius: 999px; padding: 1px 8px; }
 .ss-engine-icon { display: inline-flex; color: var(--tmd-fg-muted); }
 .ss-engine-name { font-size: var(--tmd-font-md); font-weight: 600; }
-/* 工具条项目地址(自 header 迁入):全显不省略(2026-11-05 用户裁决),title 全量 */
-.ss-toolbar .ss-toolbar-cwd { flex: none; }
-.ss-toolbar-cwd .ss-toolbar-mono { max-width: none; overflow: visible; text-overflow: clip; font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); }
+/* header 项目地址(2026-11-06 自底部工具条迁回):常态全显(2026-11-05 用户裁决),
+ * 空间不足才省略兜底;title 全量 */
+.ss-header-cwd { min-width: 0; flex: 0 1 auto; }
+.ss-header-cwd .ss-toolbar-mono { max-width: none; font-size: var(--tmd-font-xs); color: var(--tmd-fg-muted); }
 .ss-model { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); border: 1px solid var(--tmd-border); border-radius: 999px; padding: 1px 8px; }
 .ss-sid { font-size: var(--tmd-font-xs); color: var(--tmd-fg-faint); font-family: var(--tmd-font-mono); }
 .ss-dot { margin-left: auto; width: 8px; height: 8px; border-radius: 50%; background: var(--tmd-fg-faint); flex: none; }
