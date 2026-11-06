@@ -34,7 +34,7 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 reqwest = { version = "0.13", features = ["json", "rustls", "socks", "multipart"] }
 # 只读 omp agent.db(auth_credentials 表)取供应商凭据;bundled 免系统 sqlite 依赖。
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 base64 = "0.22"
 # composer @ 文件补全:ripgrep 同源 gitignore/.ignore/.fdignore 递归引擎(见 fs_walk.rs)。
 ignore = "0.4"
