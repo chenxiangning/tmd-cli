@@ -75,9 +75,14 @@
 >
 > **B2-6 实证(2026-11-06,本机 pi 1.4.0 裸驱 `--mode rpc`,/tmp/b2-6-spike/capture.jsonl)**:
 > - **P1 帧名漂移(已修)**:pi 1.4.0 结算帧 = `agent_settled`(整 run 一次,agent_start 亦一次),**不发 session_settled**(omp 18.x 帧名)→ piRpc/reducer 只认旧名会 busy 永不回落、活轮永不落定。已按双名先例补 `agent_settled`(piRpc + reducer + 测试)。
-> - **原判据不成立**:排队 follow_up 起跑轮界与引擎自主步完全同形(turn_end→turn_start,均无 agent_start;实证 50021ms 派发 = turn_start+queue_update+回显)。下一候选 = queue_update 队列长度 ≥1→0 变化,需复抓 payload;修复挂起归 B2 二轮。
+> - 原判据不成立:排队 follow_up 起跑轮界与引擎自主步完全同形(turn_end→turn_start,均无 agent_start;实证 50021ms 派发 = turn_start+queue_update+回显)。下一候选 = queue_update 队列长度 ≥1→0 变化,需复抓 payload;修复挂起归 B2 二轮。
 > - 附带:pi 1.4.0 每 0.5~1s 广播 2 帧 extension_ui_request 心跳(150s 323 帧,非 confirm,default 分支已忽略),留观。
 > - pi 1.4.0 = 单 busy 周期整 run;「逐步 settled 震荡」属 omp 18.x 形态,F 修复对两者均正确。
+>
+> **B2-6 二轮实证与修复(2026-11-06 晚,/tmp/b2-6-spike/capture2.jsonl(pi 1.4.0)/capture3.jsonl(omp 18.16.0)全量 payload 复抓)**:
+> - **判据成立**:queue_update 载荷 = `{steering: string[], followUp: string[]}`,深度 = 数组长度和;引擎自主步(轮内 turn_end→turn_start)全程零 queue_update,排队 follow_up 起跑轮界 = turn_start 后 ~3ms 队列 1→0 变迁帧(顺序与一轮假设相反,不是「queue_update 先于 turn_start」)。omp 18.16.0 与 pi 1.4.0 帧形态完全一致(omp 已跟 pi 同名 agent_settled/agent_start 单发)。
+> - **修复落地**:queue_update 原帧经 piRpc `onQueueUpdate` 透传(piRpcTypes 接口),evidence `queueUpdate()` 检测 ≥1→0 变迁消费排队锚(锚落起跑轮首);agent_start 消费保留为旧引擎回落(reset 清深度防换进程串场)。版本事实修正:omp 18.16.0 已是单 agent_start 单 agent_settled 形态,「逐步 settled 震荡」属更老 omp 18.1.x。
+> - 验收:evidence.test 排队锚变迁消费/空队列不伪造/回落语义三用例 + piRpc.test 透传用例 25/25 绿;check:gate 与 react-doctor 收口见提交。
 
 ## 批次 C1:claude stream-json spike(0.5~1 人日,零码)
 

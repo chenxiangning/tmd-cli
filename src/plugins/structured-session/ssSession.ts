@@ -125,6 +125,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
           }
         },
         onToolExecution: (rec) => evidence.toolExecution(rec),
+        onQueueUpdate: (rec) => evidence.queueUpdate(rec),
         onConfirm: setConfirm,
         onDroppedFrame: () => addWarn(t("RPC 流有帧被截断丢弃,转录可能缺块")),
         onExit: () => {
