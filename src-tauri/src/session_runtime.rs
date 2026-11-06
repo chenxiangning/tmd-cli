@@ -195,8 +195,10 @@ pub(crate) fn startup_reap() -> u32 {
                     }
                     #[cfg(windows)]
                     {
-                        let _ = std::process::Command::new("taskkill")
-                            .args(["/PID", &e.pid.to_string(), "/F"])
+                        let mut cmd = std::process::Command::new("taskkill");
+                        cmd.args(["/PID", &e.pid.to_string(), "/F"]);
+                        crate::resolve::hide_console(&mut cmd);
+                        let _ = cmd
                             .stdout(std::process::Stdio::null())
                             .stderr(std::process::Stdio::null())
                             .status();
