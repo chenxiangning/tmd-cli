@@ -140,10 +140,14 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
 
 
   /* 用户消息流广播(处理插件对接:时间线面板直读,不经 PTY 锚点轮询)。
-   * key 变化才提交,流式 120ms flush 不放大行集提交。userBlocks 同供左缘
-   * 锚点栏(data-vb 直测定位,见 ssAnchorRail)。 */
-  const userBlocks = useMemo(() => ss.blocks.filter((b) => b.role === "user").map((b) => ({ id: b.id, text: (b.text ?? "").trim() })), [ss.blocks]);
-  const userTexts = useMemo(() => userBlocks.map((b) => b.text), [userBlocks]);
+   * key 变化才提交,流式 120ms flush 不放大行集提交。 */
+  const userBlocksAll = useMemo(() => ss.blocks.filter((b) => b.role === "user").map((b) => ({ id: b.id, text: (b.text ?? "").trim() })), [ss.blocks]);
+  /* 锚点轨稳定引用(批次 F):内容键变化才换数组,流式 120ms flush 不触发
+   * 轨内重测量(ResizeObserver 重建 + 全量 querySelector 抖动)。 */
+  const userBlocksKey = JSON.stringify(userBlocksAll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const userBlocks = useMemo(() => userBlocksAll, [userBlocksKey]);
+  const userTexts = useMemo(() => userBlocksAll.map((b) => b.text), [userBlocksAll]);
   const userTextsKey = JSON.stringify(userTexts); /* 精确键:join("") 会把 ["a","bc"]/["ab","c"] 折成同键,行投影滞留 */
   useEffect(() => {
     noteStructuredSessionRow(tab.id, { userTexts });

@@ -65,6 +65,25 @@ describe("StructuredTurnEvidence(RPC 共同存证)", () => {
     expect(d.capture).toHaveBeenNthCalledWith(2, CWD, "cli-new", LEDGER, "续聊任务", META, "events");
   });
 
+  it("多步轮:步间 settled 后 agent_start 空队列重挂归属,后续步 edit 仍落账并封存(批次 F 修失明)", async () => {
+    const d = deps();
+    const evidence = new StructuredTurnEvidence(CWD, LEDGER, d);
+    evidence.prompt("cli-1", "重构任务", META);
+    evidence.agentStart("cli-1");
+    evidence.toolExecution({ type: "tool_execution_start", toolCallId: "w1", toolName: "write", args: { path: "a.ts" } });
+    evidence.toolExecution({ type: "tool_execution_end", toolCallId: "w1", toolName: "write", result: {} });
+    await evidence.settled(); /* 步 1 结算:归属清空(修复前此后全盲) */
+    evidence.agentStart("cli-1"); /* 步 2 起:队列空,修复点 = 重挂归属 */
+    evidence.toolExecution({ type: "tool_execution_start", toolCallId: "w2", toolName: "edit", args: { path: "b.ts" } });
+    evidence.toolExecution({ type: "tool_execution_end", toolCallId: "w2", toolName: "edit", result: {} });
+    await evidence.settled(); /* 步 2 结算:封存 */
+
+    expect(d.capture).toHaveBeenCalledTimes(1); /* 锚只打一次(用户轮唯一) */
+    expect(d.record).toHaveBeenNthCalledWith(1, CWD, "cli-1", LEDGER, "a.ts");
+    expect(d.record).toHaveBeenNthCalledWith(2, CWD, "cli-1", LEDGER, "b.ts");
+    expect(d.seal).toHaveBeenCalledTimes(2); /* 每步各封存一次 */
+  });
+
   it("reset 丢弃旧进程未发队列,不把旧任务锚到 resume 新会话", async () => {
     const d = deps();
     const evidence = new StructuredTurnEvidence(CWD, LEDGER, d);

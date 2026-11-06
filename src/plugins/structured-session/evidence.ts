@@ -37,6 +37,10 @@ function writeToolOf(rec: Record<string, unknown>): { id: string; tool: WriteToo
 
 export class StructuredTurnEvidence {
   private activeSessionId: string | null = null;
+  /* 锚定轮链:prompt open 记会话;settled 封存锚定轮后允许同链重挂 ——
+   * reset 丢队列后的幽灵 agent_start 不伪造封存。 */
+  private anchoredSessionId: string | null = null;
+  private rearmSessionId: string | null = null;
   private readonly queued: PendingPrompt[] = [];
   private readonly tools = new Map<string, WriteTool>();
   private chain: Promise<void> = Promise.resolve();
@@ -62,10 +66,14 @@ export class StructuredTurnEvidence {
     if (this.activeSessionId) return;
     const next = this.queued.shift();
     if (next) this.open(next.sessionId === sessionId ? next : { ...next, sessionId });
+    /* 多步轮:步间 settled 已清归属,同锚定链空队列重挂(锚首轮已打,不补锚),
+     * 后续步的 edit 仍落账、下一 settled 正常封存 —— 修多步轮存证失明。 */
+    else if (sessionId && this.rearmSessionId === sessionId) this.activeSessionId = sessionId;
   }
 
   private open(prompt: PendingPrompt): void {
     this.activeSessionId = prompt.sessionId;
+    this.anchoredSessionId = prompt.sessionId;
     this.enqueue(() => this.deps.capture(
       this.cwd, prompt.sessionId, this.ledgerId, prompt.text, prompt.meta, "events",
     ));
@@ -94,7 +102,14 @@ export class StructuredTurnEvidence {
   reset(keepSessionId?: string): void {
     this.activeSessionId = keepSessionId ?? null;
     this.queued.length = 0;
-    if (!keepSessionId) this.tools.clear();
+    if (!keepSessionId) {
+      this.tools.clear();
+      this.anchoredSessionId = null;
+      this.rearmSessionId = null;
+    } else {
+      /* resume 在途轮重放仍可封存(锚在换壳前已打)。 */
+      this.rearmSessionId = this.anchoredSessionId;
+    }
   }
 
   settled(): Promise<void> {
@@ -103,6 +118,7 @@ export class StructuredTurnEvidence {
     const sessionId = this.activeSessionId;
     if (!sessionId) return this.chain;
     this.activeSessionId = null;
+    this.rearmSessionId = this.anchoredSessionId === sessionId ? sessionId : null;
     this.enqueue(() => this.deps.seal(this.cwd, sessionId, this.ledgerId, (cwd, cliId, tmdSessionId) => {
       host.events.emit<CkptTurnSealedEvent>(KernelTopics.ckptTurnSealed, { cwd, sessionId: cliId, tmdSessionId });
     }));

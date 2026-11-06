@@ -10,6 +10,9 @@ const SETTLE_GRACE_MS = 600;
 
 export function useTurnLive() {
   const [live, setLive] = useState(false);
+  /* 轮起始时刻:轮首 begin 沿事件捕获(步间反复 begin 不重置,整轮连续计时)。 */
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const liveRef = useRef(false);
   const timerRef = useRef<number | null>(null);
   const stopTimer = useCallback(() => {
     if (timerRef.current != null) {
@@ -17,21 +20,29 @@ export function useTurnLive() {
       timerRef.current = null;
     }
   }, []);
-  /** 轮进行中(agent_start 边沿):即时切活轮渲染,取消在途宽限。 */
+  /** 轮进行中(agent_start 边沿):即时切活轮渲染,取消在途宽限;
+   *  起始时刻只在闲→活沿记一次(多步轮整轮连续)。 */
   const begin = useCallback(() => {
     stopTimer();
+    if (!liveRef.current) setStartedAt(Date.now());
+    liveRef.current = true;
     setLive(true);
   }, [stopTimer]);
   /** 结算边沿(session_settled):宽限后才切落定渲染;期间新 begin 即取消。 */
   const end = useCallback(() => {
     stopTimer();
-    timerRef.current = window.setTimeout(() => setLive(false), SETTLE_GRACE_MS);
+    timerRef.current = window.setTimeout(() => {
+      liveRef.current = false;
+      setLive(false);
+    }, SETTLE_GRACE_MS);
   }, [stopTimer]);
-  /** 复位(重试/会话退出):立即落定并清宽限。 */
+  /** 复位(重试/会话退出):立即落定并清宽限与起始时刻。 */
   const reset = useCallback(() => {
     stopTimer();
+    liveRef.current = false;
     setLive(false);
+    setStartedAt(null);
   }, [stopTimer]);
   useEffect(() => stopTimer, [stopTimer]);
-  return { live, begin, end, reset };
+  return { live, startedAt, begin, end, reset };
 }
