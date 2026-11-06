@@ -6,10 +6,10 @@
 import { useEffect, useRef, useState } from "react";
 import { errTextDisplay } from "@kernel/errText";
 import { t } from "@kernel/i18n";
-import { ArrowLeft, CalendarBlank, FloppyDisk, Notebook, User } from "@phosphor-icons/react";
+import { ArrowLeft, CalendarBlank, CheckCircle, FloppyDisk, Notebook, User } from "@phosphor-icons/react";
 import { todayISO } from "./analysis";
 import { addTask, updateTask } from "./store";
-import type { Project, ProjectTask } from "./types";
+import { randId, type Project, type ProjectTask } from "./types";
 
 export interface TaskFormValues {
   projectId: string;
@@ -18,6 +18,7 @@ export interface TaskFormValues {
   startedOn: string;
   dueDate: string;
   description: string;
+  criteria: { id: string; text: string }[];
 }
 
 export function TaskFormView({
@@ -40,6 +41,7 @@ export function TaskFormView({
   const [startedOn, setStartedOn] = useState(task?.startedOn ?? (task ? "" : todayISO()));
   const [dueDate, setDueDate] = useState(task?.dueDate ?? "");
   const [description, setDescription] = useState(task?.description ?? "");
+  const [criteriaText, setCriteriaText] = useState(() => (task?.criteria ?? []).map((c) => c.text).join("\n"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -52,7 +54,10 @@ export function TaskFormView({
       return;
     }
     setBusy(true);
-    const values = { title: title.trim(), owner: owner.trim(), startedOn, dueDate, description };
+    /* 判据一行一条;旧行按序沿用 id(编辑不改判据身份,免 AI 手写台账错行)。 */
+    const criteria = criteriaText.split("\n").map((line) => line.trim()).filter((line) => line !== "")
+      .map((text, i) => ({ id: task?.criteria?.[i]?.id ?? randId("c"), text }));
+    const values = { title: title.trim(), owner: owner.trim(), startedOn, dueDate, description, criteria };
     const job = task
       ? updateTask(projectId, task.id, values)
       : addTask(projectId, values);
@@ -111,6 +116,10 @@ export function TaskFormView({
         <label className="wb-field wb-span2">
           <span><Notebook size={12} />{t("任务描述")}</span>
           <textarea rows={5} value={description} placeholder={t("任务目标、验收标准、相关链接…")} onChange={(e) => setDescription(e.target.value)} />
+        </label>
+        <label className="wb-field wb-span2">
+          <span><CheckCircle size={12} />{t("完成判据(一行一条)")}</span>
+          <textarea rows={3} value={criteriaText} placeholder={t("交付前 AI 逐条自检、验收时对照;例:测试全绿…")} onChange={(e) => setCriteriaText(e.target.value)} />
         </label>
       </div>
       {error ? <p className="wb-form-error">{error}</p> : null}

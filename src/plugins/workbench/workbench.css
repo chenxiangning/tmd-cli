@@ -220,3 +220,7 @@
 .wb-bucket-title { font-size: var(--tmd-font-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wb-bucket-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--tmd-fg-subtle); font-size: var(--tmd-font-2xs); font-variant-numeric: tabular-nums; }
 
+
+/* 任务判据清单(详情页验收对照;ol 缺省缩进收窄) */
+.wb-task-criteria { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+.wb-task-criteria li { font-size: var(--tmd-font-ui); }

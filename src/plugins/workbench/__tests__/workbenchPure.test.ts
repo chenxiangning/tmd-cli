@@ -230,6 +230,7 @@ describe("任务执行记录归一化(normalizeProject → task.updates)", () =>
   });
 });
 
+
 describe("看板拖拽纯逻辑(boardDnd)", () => {
   it("canDrop:同泳道异列才放行;跨泳道/同列/空负载全拒", () => {
     const drag = { projectId: "p-1", taskId: "t-1", status: "todo" as const };

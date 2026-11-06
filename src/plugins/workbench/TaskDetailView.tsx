@@ -12,6 +12,7 @@ import { t } from "@kernel/i18n";
 import { ArrowLeft, ArrowsClockwise, CalendarBlank, CalendarPlus, CheckCircle, Flag, Folder, FolderOpen, Plus, User } from "@phosphor-icons/react";
 import { host, useHost } from "@kernel/host";
 import { KernelTopics } from "@kernel/events";
+import { TaskAcceptanceSec, TaskCriteriaSec } from "./TaskAcceptanceSec";
 import { useWorkspaces } from "@kernel/workspace";
 import { TASK_STATUS_LABELS } from "./kindLabels";
 import { attachTaskFile, detachTaskFile, linkTaskSession, updateTask, bindTaskSessionDiskId } from "./store";
@@ -204,6 +205,10 @@ export function TaskDetailView({
               </div>
             ) : null}
           </section>
+          <TaskCriteriaSec task={task} />
+          {task.status === "review" ? (
+            <TaskAcceptanceSec task={task} onToast={onToast} onStatus={setStatus} />
+          ) : null}
           <WbAttachmentSection
             items={task.attachments}
             onUpload={upload}

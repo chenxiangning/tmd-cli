@@ -62,7 +62,6 @@ export interface TaskSessionLink {
    *  语义同 kind:"disk"。旧关联/绑定前即终结者缺省,打开回落提示)。 */
   cliSessionId?: string;
 }
-
 export interface ProjectUpdate {
   id: string;
   /** ISO 时间戳。 */
@@ -81,6 +80,8 @@ export interface ProjectTask {
   dueDate?: string;
   /** 任务本体描述(markdown 纯文本)。 */
   description?: string;
+  /** 完成判据(可选;AI 派发 prompt 注入 + 验收对照,结构化通过态不做)。 */
+  criteria?: { id: string; text: string }[];
   /** 同列表内排序(小在前)。 */
   order: number;
   createdAt: string;
@@ -187,6 +188,15 @@ export function normalizeProject(raw: unknown): Project {
         return item;
       });
   };
+  const criteriaOf = (value: unknown): { id: string; text: string }[] | undefined => {
+    if (!Array.isArray(value)) return undefined;
+    return value
+      .map((item) => {
+        const c = (item && typeof item === "object" ? item : {}) as Record<string, unknown>;
+        return { id: str(c.id) ?? randId("c"), text: str(c.text) ?? "" };
+      })
+      .filter((c) => c.text !== "");
+  };
   const updates = updatesOf(source.updates);
   const docs = Array.isArray(source.docs)
     ? source.docs
@@ -234,6 +244,7 @@ export function normalizeProject(raw: unknown): Project {
             startedOn: str(task.startedOn),
             dueDate: str(task.dueDate),
             description: str(task.description),
+            criteria: criteriaOf(task.criteria),
             order: Number.isFinite(task.order) ? Number(task.order) : index,
             createdAt,
             updatedAt: str(task.updatedAt) ?? createdAt,

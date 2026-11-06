@@ -175,6 +175,7 @@ export interface TaskInit {
   startedOn?: string;
   dueDate?: string;
   description?: string;
+  criteria?: { id: string; text: string }[];
 }
 
 export function addTask(projectId: string, init: TaskInit): Promise<ProjectTask> {
@@ -187,6 +188,7 @@ export function addTask(projectId: string, init: TaskInit): Promise<ProjectTask>
     startedOn: init.startedOn || undefined,
     dueDate: init.dueDate || undefined,
     description: init.description?.trim() || undefined,
+    criteria: init.criteria && init.criteria.length > 0 ? init.criteria : undefined,
     order: Math.min(0, ...(state.projects.find((p) => p.id === projectId)?.tasks.map((t) => t.order) ?? [0])) - 1,
     createdAt: now,
     updatedAt: now,
@@ -204,7 +206,7 @@ export function addTask(projectId: string, init: TaskInit): Promise<ProjectTask>
   });
 }
 
-export function updateTask(projectId: string, taskId: string, patch: Partial<Pick<ProjectTask, "title" | "owner" | "dueDate" | "startedOn" | "description" | "status" | "order">>): Promise<void> {
+export function updateTask(projectId: string, taskId: string, patch: Partial<Pick<ProjectTask, "title" | "owner" | "dueDate" | "startedOn" | "description" | "criteria" | "status" | "order">>): Promise<void> {
   const now = new Date().toISOString();
   return mutate((projects) => {
     if (!projects.some((p) => p.id === projectId && p.tasks.some((t) => t.id === taskId))) throw new Error(t("任务不存在或已删除。"));
