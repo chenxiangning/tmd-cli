@@ -406,6 +406,7 @@
 | 2026-11-06 | [0.5.2 实施拆解 v2.4(批次 F/B/C/D/E:busy 震荡族修复先行/soak 十场景/claude 传输层分派+evidence 帧归一/kimi via ACP/Rust+mobile 健壮性/signing workflow_dispatch 验证/发版 checklist/验收债附录)](brainstorm/2026-11-06-052-next-steps/implementation.md) | 待拍板 2/3/4/5 后执行 |
 | 2026-11-06 | [0.5.2 UI 变面示例(六处 UI 面:看门狗常驻横幅前后/收养空幕布提示/新建菜单 claude+kimi 行/工具条降级/附件钮降灰/多步轮状态稳定性前后对比 + 诊断文案;含零 UI 批次注脚)](design/052-ui-changes.html) | 设计原型(评审用) |
 | 2026-11-06 | [AI 任务闭环机制调研(agent loop vs skill 编排正名/六家单 agent 脚手架/七家编排器盘点/「模型声明环境裁决」五共性/tmd-cli 底座映射与三期落地路径)](research/ai-task-closure-orchestration.md) | 已完成 |
+| 2026-11-06 | [任务闭环编排设计形态示例(深度版,spec 级可操作:闭环全景泳道/两级状态机+幂等与边界/六泳道时序图/workbench 契约 v2/派发模板+tmd-plan 计划协议/MCP 反向通道/并行 worktree 与接力协议/成本聚合/决策矩阵/通知路由/键盘流/1421 token 六视图 mockup(列表/详情/验收 diff 预览/收件箱/竞速对比/编排设置)+手机远程审批联动+11 步播放闭环)/落地三批次/开放问题八条)](design/task-closure-orchestration.html) | 设计原型(评审用) |
 | 2026-11-06 | [claude stream-json 双向流协议探针(C1 判定门三态:流内审批面不存在实证/MCP prompt-tool 候选、长驻会话同进程多轮实证、图片 content block 直通;输出帧目录+输入语义+审批 denied 帧形+C2 映射速查表;样本 16 帧)](research/claude-stream-json-probe.md) | 已完成,C2 拍板依据 |
 | 2026-11-06 | [0.5.2 三笔提交收口 review(B2-6 排队锚变迁消费/C1 底稿/D2 先行五项;混合队列 partial drain record-only、D2 继承代码七项专项核查含 on_focused 可见闸收紧与 screen 恒非 null 排查;门禁收口状态表)](review/2026-11-06-052-b26-c1-d2-review.md) | 已收口 |
 
