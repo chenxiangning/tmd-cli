@@ -25,7 +25,7 @@ portable-pty = "0.9"
 # git2:libgit2 vendored 静态编译;default-features 全关(https/ssh 不需要 —
 # 远端操作走 shell-out,见 git/remote_ops.rs),vendored-libgit2 自带 zlib。
 git2 = { version = "0.20", default-features = false, features = ["vendored-libgit2"] }
-parking_lot = "0.12"
+parking_lot = "0.13"
 dirs = "7"
 tauri-plugin-dialog = "2"
 # 应用内自动更新:GitHub latest.json 通道(minisign 签名产物)+ 重启安装;
