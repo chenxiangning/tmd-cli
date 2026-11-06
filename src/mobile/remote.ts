@@ -212,9 +212,15 @@ export async function shrinkImage(blob: Blob, maxEdge = 1568): Promise<Uint8Arra
   }
 }
 
-/** 截图/拍照 → 桥 fs_write_temp 落盘会话临时文件,返回绝对路径(composer @ 注入用)。 */
+/** 截图/拍照 → 桥 fs_write_temp_b64 落盘会话临时文件,返回绝对路径(composer
+ * @ 注入用)。base64 通道(D2-4):Vec<u8> 过 JSON = 数字数组,体积 ~3× base64,
+ * 850KB 图帧 2.5-3.4MB;分块 btoa 防大数组一次展开栈溢出。 */
 export function uploadTempImage(name: string, bytes: Uint8Array): Promise<string> {
-  return invokeSafe<string>("fs_write_temp", { name, data: Array.from(bytes) });
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return invokeSafe<string>("fs_write_temp_b64", { name, dataB64: btoa(bin) });
 }
 
 /** 选图/拍照 → 压缩 → fs_write_temp 落盘 → onShot 挂 composer 预览(objectURL

@@ -148,6 +148,8 @@
 - 验收:cargo 三件套;ws.rs 桩对比 serde 前后字节量;手机桩:上传帧体积断言 + size 失败重拉;桌面无订阅行为不变;E1 手机项在本批合入后复跑。
 - 风险:帧契约变更需同步 mobile 解码面——无法零改动兼容则项 1 只做保守款。
 
+> D2 先行五项实施记录(2026-11-06):项 3-7(探针死限并心拍/fs_write_temp_b64 手机图片通道/useLiveStream size 退避补拉/liveText scrollback 串缓存拆 ScrollbackBuffer/proc_stream 剥 CR)由并行会话写就,因收口中断由本会话接手优化收口:render_health 306→拆纯决策核 `render_kick.rs`(KickAction/next_action,#[path] 子模块,常量与 KickState 留宿主)回 300 内;liveText 死常量 SCROLL_CAP 清除(已随 D2-6 迁 scrollbackBuffer)。项 1/2(event_sink 双 serde + 订阅竞态)按计划待 B1/D1 证据后做。
+
 ## 批次 E1:真机验收日(半天~1 天,组织项)
 
 **目标**:跨版本真机验收债集中焚烧(存量见附录 A),陪跑顺序:035 验收单 14 项(mobile)→ 041 账本余项 → 0.4.2/0.4.3 幕布四动作与 ports kill 复验 → 0.4.5/0.4.6/0.4.9 存量 → 0.5.x 由 B1 覆盖不重复。

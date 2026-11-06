@@ -290,6 +290,7 @@ pub fn run() {
             commands_fs::fs_list_dir,
             commands_fs::fs_read_file,
             commands_fs::fs_write_temp,
+            commands_fs::fs_write_temp_b64,
             commands_fs::fs_collect_files,
             commands_fs::fs_read_head,
             commands_fs::fs_read_heads,

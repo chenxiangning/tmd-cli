@@ -86,38 +86,16 @@ pub(crate) struct KickState {
     /// 与洪过(非洪水击打)清零;供 FLOOD_GRACE_MS 宽限判定,防洪水不止时永久 focus。
     flood_since_ms: AtomicU64,
     strikes: AtomicU32,
+    /// Focused 探针死限(>0 = 在等应答;并入 watchdog 心拍判定,D2-3:
+    /// 不再每次 Focused 裸 spawn 4s 线程,Cmd-Tab 抖动不再线性积压)。
+    probe_deadline_ms: AtomicU64,
 }
 
-/// 阶梯决策(纯函数,测试锚):首击 focus;二击起 reload,冷却内退 focus;
-/// 洪水期内降级 focus(reload = 重放缓冲 + 重挂全部幕布,洪水未停即再冻结,
-/// 越自愈越卡 —— 2026-09-30 第三轮卡死取证,见 kernel/floodGauge.ts);
-/// 但降级有 FLOOD_GRACE_MS 宽限,耗尽仍零痊愈 = 永久冻结实锤,无视洪水 reload。
-pub(crate) enum KickAction {
-    Focus,
-    Reload,
-}
+/// 阶梯决策核已拆 render_kick.rs(300 行铁则);常量与击打状态留本模块。
+#[path = "render_kick.rs"]
+mod kick;
 
-pub(crate) fn next_action(
-    strikes_before: u32,
-    now_ms: u64,
-    last_reload_ms: u64,
-    flood_until_ms: u64,
-    flood_since_ms: u64,
-) -> KickAction {
-    let n = strikes_before.saturating_add(1);
-    let in_flood = now_ms < flood_until_ms;
-    /* 宽限耗尽:降级期起点非零且距今超 FLOOD_GRACE_MS → 洪水不再是拦 reload 的理由 */
-    let grace_exhausted =
-        in_flood && flood_since_ms != 0 && now_ms.saturating_sub(flood_since_ms) >= FLOOD_GRACE_MS;
-    if n > 1
-        && (!in_flood || grace_exhausted)
-        && now_ms.saturating_sub(last_reload_ms) >= RELOAD_COOLDOWN_MS
-    {
-        KickAction::Reload
-    } else {
-        KickAction::Focus
-    }
-}
+use kick::{next_action, KickAction};
 
 fn kick(window: &WebviewWindow, ks: &KickState) {
     /* 聚焦闸:未聚焦窗口 rAF 停发是后台设计内暂停,不是粘死;此时击打 =
@@ -238,17 +216,13 @@ pub(crate) fn render_health(
 /// 主窗口 Focused(true) 钩子:戳探针 + 应答死限兜底(页面悬死时探针不回)。
 pub(crate) fn on_focused(window: &WebviewWindow) {
     let _ = window.eval("window.__tmdRenderProbe && window.__tmdRenderProbe()");
-    let t0 = now_millis();
-    let w = window.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(PROBE_DEADLINE_MS));
-        let state = w.state::<AppState>();
-        let ks = &state.render_kick;
-        if ks.last_report_ms.load(Ordering::Relaxed) < t0 {
-            crate::app_setup::safe_eprintln("render_health: Focused 探针无应答,页面疑似悬死,进击");
-            kick(&w, ks);
-        }
-    });
+    /* 探针死限记入 KickState,由 init_watchdog 心拍线程统一判定(D2-3):
+     * 应答(render_health 上报会刷 last_report_ms ≥ 聚焦时刻)撤限,
+     * 死限到点仍无应答 = 页面悬死/探针未装,进击(击打受聚焦闸约束)。 */
+    let state = window.state::<AppState>();
+    let ks = &state.render_kick;
+    ks.probe_deadline_ms
+        .store(now_millis() + PROBE_DEADLINE_MS, Ordering::Relaxed);
 }
 
 /// 壳侧心跳守望(常驻线程):检测传感器移出 webview —— 吊销深冻时页内定时器
@@ -271,6 +245,23 @@ pub(crate) fn init_watchdog(window: WebviewWindow) {
             let ks = &state.render_kick;
             if flood_from_delta(delta) {
                 ks.flood_until_ms.store(now + 10_000, Ordering::Relaxed);
+            }
+            /* Focused 探针死限判定(D2-3,原 on_focused 裸 spawn 线程职责):
+             * 基线 = 死限 − PROBE_DEADLINE_MS(聚焦时刻);上报 ≥ 基线 = 已应答撤限;
+             * 到点无应答 = 悬死进击(不可见/失焦 = 按设计暂停,撤限不击)。 */
+            let dl = ks.probe_deadline_ms.load(Ordering::Relaxed);
+            if dl > 0 {
+                let base = dl - PROBE_DEADLINE_MS;
+                let reported = ks.last_report_ms.load(Ordering::Relaxed);
+                if reported >= base || now >= dl {
+                    ks.probe_deadline_ms.store(0, Ordering::Relaxed);
+                    if reported < base && window.is_visible().unwrap_or(true) {
+                        crate::app_setup::safe_eprintln(
+                            "render_health: Focused 探针无应答,页面疑似悬死,进击",
+                        );
+                        kick(&window, ks);
+                    }
+                }
             }
             /* 真隐藏/最小化 = 按设计暂停,不判死不击打(与上报路径同律)。 */
             if !window.is_visible().unwrap_or(true) {

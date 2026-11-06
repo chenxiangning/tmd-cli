@@ -118,15 +118,14 @@ export function useLiveStream(sessionId: string | undefined): LiveStream {
       });
       if (!alive) { un(); return; } /* 竞态:await 在途卸载 → 到站即退订,防桥内滞留 */
       off = un;
-      /* 尺寸+首页并行;首载尾页失败弱网退避重拉(2s/5s 最多 2 次,复审 P2)。 */
-      const [size, page0] = await Promise.all([sizeOf(), pageOf(Number.MAX_SAFE_INTEGER)]);
-      let page = page0;
-      /* 首载退避重拉 2s/5s 各一次(展开不走循环,react-doctor);等待窗卸载即出。 */
+      /* 尺寸+首页并行;首载尾页失败弱网退避重拉 2s/5s 各一次(展开不走循环,
+       * react-doctor);size 失败同拉(D2-5):否则 80×24 错误折行最长挂到下次轮询。 */
+      let [size, page] = await Promise.all([sizeOf(), pageOf(Number.MAX_SAFE_INTEGER)]);
       const backoff = (ms: number) => { const { promise, resolve } = Promise.withResolvers<void>(); streamTimeout(retryTimer, resolve, ms); return promise; };
-      if (!page && alive) { await backoff(2000); }
-      if (!page && alive) page = await pageOf(Number.MAX_SAFE_INTEGER);
-      if (!page && alive) { await backoff(5000); }
-      if (!page && alive) page = await pageOf(Number.MAX_SAFE_INTEGER);
+      if ((!page || !size) && alive) { await backoff(2000); }
+      if (alive) { if (!page) page = await pageOf(Number.MAX_SAFE_INTEGER); if (size == null) size = await sizeOf(); }
+      if ((!page || !size) && alive) { await backoff(5000); }
+      if (alive) { if (!page) page = await pageOf(Number.MAX_SAFE_INTEGER); if (size == null) size = await sizeOf(); }
       if (!alive) return;
       if (size) screen = new LiveScreen(size[0], size[1]);
       if (page) {

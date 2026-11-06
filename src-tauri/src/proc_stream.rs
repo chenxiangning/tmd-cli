@@ -245,6 +245,9 @@ fn read_limited_line<R: BufRead>(reader: &mut R, out: &mut String) -> std::io::R
     }
     if buf.last() == Some(&b'\n') {
         buf.pop();
+        if buf.last() == Some(&b'\r') {
+            buf.pop(); /* CRLF 行尾:\r 不入帧(否则消费方行尾拖 CR,D2-7) */
+        }
     } else if buf.len() == MAX_LINE_BYTES {
         /* 截断:吞到行尾,标省略号让消费方可感知 */
         buf.extend_from_slice("…[truncated]".as_bytes());

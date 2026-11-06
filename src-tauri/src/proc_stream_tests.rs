@@ -19,6 +19,18 @@ fn line_reader_splits_and_handles_eof() {
 }
 
 #[test]
+fn line_reader_strips_crlf_cr() {
+    /* CRLF 行尾 \r 不入帧(D2-7):消费方(JSONL 解析/终端拼接)行尾拖 CR 实锤过。 */
+    let mut src = Cursor::new(b"line1\r\nline2\r\n".to_vec());
+    let mut out = String::new();
+    read_limited_line(&mut src, &mut out).unwrap();
+    assert_eq!(out, "line1");
+    out.clear();
+    read_limited_line(&mut src, &mut out).unwrap();
+    assert_eq!(out, "line2");
+}
+
+#[test]
 fn line_reader_blank_line_is_not_eof() {
     let mut src = Cursor::new(b"\nnext\n".to_vec());
     let mut out = String::new();
