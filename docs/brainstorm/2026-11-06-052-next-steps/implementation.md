@@ -93,6 +93,8 @@
   - **输入侧**:user 消息注入帧格式;busy 期 steering(能否追加);interrupt/abort 控制帧有无;图片输入(content blocks?base64?)实测;stdin 帧的必需字段。
 - 产出:`docs/research/claude-stream-json-probe.md`(输出事件 schema 表 + 输入协议段 + 审批时序 + resume 实证);样本帧存 `docs/research/claude-stream-json-probe/samples.jsonl`。
 - 判定门:①审批回路真机走通;②**输入/握手形态摸清**(具备估传输层工作量的条件);③图片输入形态明确(供拍板 2 子项)。①走不通 = C2 降级「只读幕布通道」重新拍板;②③不齐 = 补抓,不得带模糊拍板。
+>
+> 实施记录(2026-11-06 晚,claude 2.1.282 本机直连智谱 Anthropic 兼容端点,reclaude 代理 device_revoked 不影响协议面):②③过;**①=流内审批面不存在实证**——默认档与 `--permission-mode manual` 档均不产 can_use_tool control_request,审批需求直接 `system:permission_denied` 帧 + is_error tool_result 自动拒绝(`--permission-prompts host` 的 host 指 Agent SDK 宿主,裸 CLI 不可达)。剩余候选路 A = `--permission-prompt-tool` MCP 路由(补探 ~0.5 人日)/路 B = 降级自动批准形态,均不阻塞传输层。另两个关键实证:claude = 长驻进程多轮会话(result 逐轮收口,同 session_id,P5);图片 content block base64 端到端可达(GLM 视觉应答「Orange」,p4c)。判定门语义修正:①的「走通」在 claude 语境下 = MCP 路由补探或降级拍板,传输层动工不被阻塞。
 
 ## 批次 C2:claude RPC 扩容落地(2.5~4 人日,拍板后)
 

@@ -406,5 +406,6 @@
 | 2026-11-06 | [0.5.2 实施拆解 v2.4(批次 F/B/C/D/E:busy 震荡族修复先行/soak 十场景/claude 传输层分派+evidence 帧归一/kimi via ACP/Rust+mobile 健壮性/signing workflow_dispatch 验证/发版 checklist/验收债附录)](brainstorm/2026-11-06-052-next-steps/implementation.md) | 待拍板 2/3/4/5 后执行 |
 | 2026-11-06 | [0.5.2 UI 变面示例(六处 UI 面:看门狗常驻横幅前后/收养空幕布提示/新建菜单 claude+kimi 行/工具条降级/附件钮降灰/多步轮状态稳定性前后对比 + 诊断文案;含零 UI 批次注脚)](design/052-ui-changes.html) | 设计原型(评审用) |
 | 2026-11-06 | [AI 任务闭环机制调研(agent loop vs skill 编排正名/六家单 agent 脚手架/七家编排器盘点/「模型声明环境裁决」五共性/tmd-cli 底座映射与三期落地路径)](research/ai-task-closure-orchestration.md) | 已完成 |
+| 2026-11-06 | [claude stream-json 双向流协议探针(C1 判定门三态:流内审批面不存在实证/MCP prompt-tool 候选、长驻会话同进程多轮实证、图片 content block 直通;输出帧目录+输入语义+审批 denied 帧形+C2 映射速查表;样本 16 帧)](research/claude-stream-json-probe.md) | 已完成,C2 拍板依据 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。
