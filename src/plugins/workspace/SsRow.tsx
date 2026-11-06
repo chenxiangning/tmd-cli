@@ -16,6 +16,7 @@ import { clampMenuPosition } from "./utils";
 import { closeTab, setActiveTab } from "@kernel/tabs";
 import { openStructuredSessionTab, type StructuredSessionRow } from "@kernel/structuredSessionTabs";
 import { isSsMuted, toggleSsMute } from "@kernel/structuredSessionOverlays";
+import { formatRelativeTime } from "@kernel/relativeTime";
 import { dismissClosedSsSession, type ClosedSsSession } from "@kernel/structuredSessionEnded";
 
 /** 秒数 → 「XmYs/XhYmZs/Ys」行内计时(busy 行)。 */
@@ -100,8 +101,12 @@ export function SsRow({ row, active, now, renaming, onCommitRename, onContextMen
         {/* RPC kind chip:行装配自带身份标识,两种容器(全局分区/工作区组)同出。 */}
         <span className="thread-rpc-badge" title={t("带渲染的会话")} aria-hidden>RPC</span>
         <span className="thread-name">{row.title}</span>
+        {/* busy 期 working 计时;闲时最后活跃相对时间(PTY 磁盘行 thread-time 同形)。 */}
         {row.busy && row.busySince != null && (
           <span className="ss-row-timer">{elapsedText(row.busySince, now)}</span>
+        )}
+        {!row.busy && row.lastActiveAt != null && (
+          <span className="thread-time">{formatRelativeTime(row.lastActiveAt, now)}</span>
         )}
         {row.unread > 0 && <span className="ss-row-unread">{row.unread}</span>}
       </button>
@@ -139,6 +144,7 @@ export function SsEndedRow({ row, active }: {
         </span>
         <span className="thread-rpc-badge" title={t("带渲染的会话")} aria-hidden>RPC</span>
         <span className="thread-name">{row.title}</span>
+        <span className="thread-time">{formatRelativeTime(row.closedAt)}</span>
         <span className="ss-row-ended-tag">{t("已结束")}</span>
       </button>
       <button

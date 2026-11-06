@@ -57,14 +57,16 @@ export function StructuredSessionSection({ workspace }: { workspace?: Workspace 
   ]);
   const closed = allClosed.filter((c) => inWorkspace(c.cwd) && !claimedBy.has(c.sessionId));
   const activeId = useEditorTabs().activeId;
-  /* working 计时:存在 busy 行才起 1s tick(行数少,分区级单 interval)。 */
+  /* 计时 tick(分区级单 interval,行数少):busy 行在 → 1s 驱动 working 计时;
+   * 闲时 → 30s 驱动 thread-time 相对时间跨档(「刚刚→N 分钟前」)。 */
   const [now, setNow] = useState(() => Date.now());
   const anyBusy = rows.some((r) => r.busy);
+  const hasRows = rows.length > 0 || closed.length > 0;
   useEffect(() => {
-    if (!anyBusy) return;
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    if (!hasRows) return;
+    const id = window.setInterval(() => setNow(Date.now()), anyBusy ? 1000 : 30000);
     return () => window.clearInterval(id);
-  }, [anyBusy]);
+  }, [anyBusy, hasRows]);
   /* 右键菜单与改名态(单例:同时至多一行在改名,PTY startRename 同律)。 */
   const [menu, setMenu] = useState<{ row: StructuredSessionRow; x: number; y: number } | null>(null);
   const [renamingTab, setRenamingTab] = useState<{ id: string; initial: string } | null>(null);
