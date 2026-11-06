@@ -9,7 +9,6 @@
 
 import { memo, type ComponentType } from "react";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { t } from "@kernel/i18n";
 
 import { capped } from "./transcriptPhases";
 
@@ -43,12 +42,11 @@ export const TranscriptBlockView = memo(function TranscriptBlockView({
   if (block.role === "system") {
     return <div className="sv-system">{block.text}</div>;
   }
+/* 块头不再挂「AI」角色行(2026-11-06 用户裁决:omp RPC 每 chunk 一块,
+ * 逐块 AI 标记既噪又撑段落留白;时间戳保留,缺省不渲染)。 */
   return (
     <div className={`sv-assistant${tail ? " sv-tail" : ""}`}>
-      <div className="sv-role-row">
-        <span className="sv-role-label">{t("AI")}</span>
-        <Timestamp ms={block.startedAt} />
-      </div>
+      <Timestamp ms={block.startedAt} />
       <Markdown>{capped(block.text)}</Markdown>
     </div>
   );
