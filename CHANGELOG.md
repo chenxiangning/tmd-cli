@@ -4,6 +4,27 @@
 版本号与 Git tag(`vX.Y.Z`)及 [GitHub Releases](https://github.com/chenxiangning/tmd-cli/releases) 一一对应;
 发版时在此追加小节,推送 tag 后 CI 自动构建并挂产物到 Release。
 
+## [0.5.2] - 2026-11-06
+
+### 新增
+
+- RPC 幕布左缘用户对话锚点栏:刻度居中、悬停弹消息卡,流式期锚点轨稳定引用不重建抖动
+- 工作台任务闭环一期:完成判据入任务实体与派发自检、doing→review 迁移与会话退出双路任务通知、验收驳回意见回灌关联会话续跑
+
+### 变更
+
+- 只读转录块再减负:撤逐块时间戳行,块头信息归零,垂直留白回落正文节奏
+
+### 修复
+
+- 多步轮 busy 震荡族根治:存证重挂不丢失、通知计时未读走宽限沿、发送链拆 catch 回滚、锚点轨流式期稳定引用
+- 结构化会话健壮性六小修:pi 1.4.0 结算帧双名兼容、busy 审批期不布防看门狗、看门狗常驻横幅两出口、收养缺历史如实提示、深链错会话不再假报 jumped、孤儿收割收紧
+- 排队 follow_up 锚改由 queue_update 队列变迁消费:双引擎实证起跑轮界,不再被引擎自主步提前吃进上一轮中段
+- Windows 裸 spawn 补 hide_console:根治启动期孤儿收割阶段闪弹终端窗
+- 手机远端健壮性五项:Focused 探针死限并入心拍、图片走 base64 通道、useLiveStream size 退避补拉、scrollback 串缓存拆 ScrollbackBuffer、proc_stream 剥 CR
+- composer 额度 chip 恒拿 null 模型根治(v0.5.0 起 omp 报「未识别当前模型」):React 裸传空对象骗过 source 真值判空,改按字段回退活跃会话推导
+- PTY 小节头可见性键加工作区维:修空工作区组覆写致有行工作区小节头莫名消失
+
 ## [0.5.1] - 2026-11-06
 
 ### 新增
