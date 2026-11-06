@@ -18,6 +18,7 @@ import { t } from "./i18n";
 import { getActiveTabId, getTab, getTabs, openTab, setActiveTab } from "./tabs";
 import { subscribeEditorTabs } from "./tabs";
 import { noteClosedSsSession, hasClosedSsSession } from "./structuredSessionEnded";
+import { ssScope } from "./structuredSessionOverlays";
 
 export const STRUCTURED_SESSION_TAB_KIND = "structured-session";
 /* cwd 段转义:# 是 resume 后缀分隔符,cwd 含 #/% 须编码(id 可逆,解码见 structuredSessionTarget)。 */
@@ -108,6 +109,8 @@ export interface StructuredSessionRowStatus {
   busy: boolean;
   /** busy 起始时刻(ms;行上自算 working 计时,不逐秒广播)。 */
   busySince: number | null;
+  /** 最后活跃时刻(ms;busy 双沿与挂载时更新,行闲时相对时间用,不逐秒广播)。 */
+  lastActiveAt: number | null;
   waitingConfirm: boolean;
   sessionId: string | null;
   /** 轮结算未读计数(因果 = busy true→false 沿;tab 激活即清,见下方订阅)。 */
@@ -121,13 +124,15 @@ export interface StructuredSessionRow extends StructuredSessionRowStatus {
   tabId: string;
   profileId: string;
   cwd: string;
+  /** 存储域(重命名/静音/草稿键;resume 会话带 # 后缀,并行会话互不串写)。 */
+  scope: string;
   title: string;
 }
 
 const statusById = new Map<string, StructuredSessionRowStatus>();
 
 const DEFAULT_STATUS: StructuredSessionRowStatus = {
-  phase: "starting", busy: false, busySince: null, waitingConfirm: false, sessionId: null, unread: 0, userTexts: [],
+  phase: "starting", busy: false, busySince: null, lastActiveAt: null, waitingConfirm: false, sessionId: null, unread: 0, userTexts: [],
 };
 
 function snapshotRows(): readonly StructuredSessionRow[] {
@@ -139,6 +144,7 @@ function snapshotRows(): readonly StructuredSessionRow[] {
         tabId: tab.id,
         profileId: payload.profileId,
         cwd: payload.cwd,
+        scope: ssScope(payload),
         title: tab.title,
         ...DEFAULT_STATUS,
         ...statusById.get(tab.id),
@@ -249,47 +255,8 @@ export function isSsRpcSession(sessionId: string): boolean {
   }
 }
 
-/* ── 行覆盖层(批次 5):重命名/静音,自有 localStorage 键(RPC 行不接
- * sessionTitles/sessionMutes —— 那两服务按 PTY sessionId 键,零共享)。 */
-
-const overlayKey = (profileId: string, cwd: string, kind: "title" | "mute") =>
-  `tmd.ss.${kind}.${profileId}:${cwd}`;
-
-export function readSsTitleOverride(profileId: string, cwd: string): string | null {
-  try {
-    return localStorage.getItem(overlayKey(profileId, cwd, "title"));
-  } catch {
-    return null;
-  }
-}
-
-export function noteSsTitleOverride(profileId: string, cwd: string, title: string | null): void {
-  try {
-    if (title) localStorage.setItem(overlayKey(profileId, cwd, "title"), title);
-    else localStorage.removeItem(overlayKey(profileId, cwd, "title"));
-  } catch {
-    /* 覆盖层缺失回落自动标题 */
-  }
-}
-
-export function isSsMuted(profileId: string, cwd: string): boolean {
-  try {
-    return localStorage.getItem(overlayKey(profileId, cwd, "mute")) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function toggleSsMute(profileId: string, cwd: string): boolean {
-  const next = !isSsMuted(profileId, cwd);
-  try {
-    if (next) localStorage.setItem(overlayKey(profileId, cwd, "mute"), "1");
-    else localStorage.removeItem(overlayKey(profileId, cwd, "mute"));
-  } catch {
-    /* 静音态丢失只影响通知面 */
-  }
-  return next;
-}
+/* ── 行覆盖层(批次 5):重命名/静音存储与存储域(scope)推导已拆
+ *  structuredSessionOverlays.ts(300 行铁则;并行会话分域语义见彼头注)── */
 
 /** 通知深链等「回我本来那个会话」场景:按原 tab id 精确激活;tab 已关则
  *  回落开一个同引擎同 cwd 的新会话(多会话并行后不误激活别的 RPC 会话)。 */

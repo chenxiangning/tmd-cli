@@ -9,7 +9,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, Warning, X } from "@phosphor-icons/react";
 import { getActiveTabId, updateTab, type EditorTab } from "@kernel/tabs";
-import { getStructuredSessionRows, noteStructuredSessionRow, readSsTitleOverride } from "@kernel/structuredSessionTabs";
+import { getStructuredSessionRows, noteStructuredSessionRow, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { readSsTitleOverride, ssScope } from "@kernel/structuredSessionOverlays";
 import { host, useHost } from "@kernel/host";
 import { t } from "@kernel/i18n";
 import { useSettingsState } from "@kernel/settings";
@@ -23,10 +24,8 @@ import { useCanvasWidth } from "./ssCanvasResize";
 import { SsComposer } from "./ssComposer";
 import { SsWelcome } from "./ssWelcome";
 import { useSsSession, type Phase } from "./ssSession";
-import type { StructuredSessionPayload } from "@kernel/structuredSessionTabs";
 import "./structured-session.css";
 import { SsMarkdown } from "./ssMarkdown";
-
 /* 滚动区相位横幅:启动中/启动失败/已结束(接续重开 = --resume 换壳,引擎
  * 上下文 + 转录保形;否则全复位新会话)。已结束用紧凑横幅,不占视口高空块。 */
 function PhaseBanners(props: { phase: Phase; statusText: string | null; sessionId: string | null; resumable: boolean; onRetry: () => void }) {
@@ -103,16 +102,18 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   }, [ss.blocks, ss.stickRef]);
 
   /* 左栏行投影广播(RPC 会话体系对齐批次 1):运行态变化即 note,kernel 行集
-   * 随 tab 生命周期自动增删,本组件无需清理。 */
+   * 随 tab 生命周期自动增删,本组件无需清理。lastActiveAt 只随 busy 沿变化,
+   * 不随 120ms flush 抖动。 */
   useEffect(() => {
     noteStructuredSessionRow(tab.id, {
       phase: ss.phase,
       busy: ss.busy,
       busySince: ss.busySince,
+      lastActiveAt: ss.lastActiveAt,
       waitingConfirm: ss.confirm != null,
       sessionId: ss.sessionId,
     });
-  }, [tab.id, ss.phase, ss.busy, ss.busySince, ss.confirm, ss.sessionId]);
+  }, [tab.id, ss.phase, ss.busy, ss.busySince, ss.lastActiveAt, ss.confirm, ss.sessionId]);
 
   /* 未读记账(批次 2):busy true→false 沿 = 一轮结算;tab 非激活时累加未读
    * (激活即读由 kernel 订阅 setActiveTab 出口清零,此处只管涨)。 */
@@ -127,13 +128,14 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   }, [ss.busy, tab.id]);
 
   /* 标题自动化:首个用户块摘要(PTY 磁盘标题同语义的会话主题锚定),中央 tab
-   * 条与左栏行同步;纯图片块(空文本)不触发;覆盖层(批次 5 重命名)优先。 */
+   * 条与左栏行同步;纯图片块(空文本)不触发;覆盖层(批次 5 重命名)优先
+   * (scope = 本会话存储域,并行会话的改名互不抑制)。 */
   const firstUserText = ss.blocks.find((b) => b.role === "user")?.text.trim();
   useEffect(() => {
-    if (firstUserText && !readSsTitleOverride(payload.profileId, payload.cwd)) {
+    if (firstUserText && !readSsTitleOverride(ssScope(payload))) {
       updateTab(tab.id, { title: firstUserText.slice(0, 32) });
     }
-  }, [firstUserText, tab.id, payload.profileId, payload.cwd]);
+  }, [firstUserText, tab.id, payload]);
 
 
   /* 用户消息流广播(处理插件对接:时间线面板直读,不经 PTY 锚点轮询)。

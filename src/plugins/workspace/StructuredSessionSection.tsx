@@ -26,11 +26,10 @@ import { t } from "@kernel/i18n";
 import { updateTab, useEditorTabs } from "@kernel/tabs";
 import { getWorkspaces, useWorkspaces, type Workspace } from "@kernel/workspace";
 import {
-  noteSsTitleOverride,
-  readSsTitleOverride,
   useStructuredSessionRows,
   type StructuredSessionRow,
 } from "@kernel/structuredSessionTabs";
+import { noteSsTitleOverride, readSsTitleOverride } from "@kernel/structuredSessionOverlays";
 import { useClosedSsSessions } from "@kernel/structuredSessionEnded";
 import { SsEndedRow, SsRow, SsRowMenu } from "./SsRow";
 import { SectionLabel } from "./SectionLabel";
@@ -92,7 +91,7 @@ export function StructuredSessionSection({ workspace }: { workspace?: Workspace 
             if (value === null) return; /* Esc = 取消 */
             const next = value.trim();
             if (next && next !== row.title) {
-              noteSsTitleOverride(row.profileId, row.cwd, next);
+              noteSsTitleOverride(row.scope, next);
               updateTab(row.tabId, { title: next });
             }
           }}
@@ -110,7 +109,7 @@ export function StructuredSessionSection({ workspace }: { workspace?: Workspace 
           onRename={() => {
             setRenamingTab({
               id: menu.row.tabId,
-              initial: readSsTitleOverride(menu.row.profileId, menu.row.cwd) ?? menu.row.title,
+              initial: readSsTitleOverride(menu.row.scope) ?? menu.row.title,
             });
           }}
           onClose={() => setMenu(null)}

@@ -7,13 +7,12 @@ import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type
 import { errTextDisplay } from "@kernel/errText";
 import { host } from "@kernel/host";
 import { t } from "@kernel/i18n";
-import { getSettingsState } from "@kernel/settings";
 import type { CliTranscriptBlock } from "@kernel/cli";
-import { sendOsNotification } from "@kernel/ipc";
-import { isSsMuted, noteLastSsSession, noteSsRpcSession, focusStructuredSessionTab, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { noteLastSsSession, noteSsRpcSession, type StructuredSessionPayload } from "@kernel/structuredSessionTabs";
+import { ssScope } from "@kernel/structuredSessionOverlays";
 import { adoptDiskSeed, cancelAdoptKill, scheduleAdoptKill } from "./adoptBoot";
-import { shouldNotify, notifyText } from "@plugins/notify/logic";
 import { useTurnWatchdog } from "./ssWatchdog";
+import { notifyTurnEnd } from "./ssNotify";
 import { useWarnCapsules } from "./ssWarn";
 import { useSsDraft } from "./ssDraft";
 import { PiRpcSession, type PiLiveSurface, type PiRpcConfirm, type PiRpcModel, type PiRpcState, type PiRpcStats } from "../cli-shared/piRpc";
@@ -22,19 +21,12 @@ import { useTurnLive } from "./ssTurnLive";
 
 export type Phase = "starting" | "ready" | "exited" | "error";
 
-/** 轮次结束 OS 通知:PTY 侧同闸同文案;RPC 行静音覆盖层(isSsMuted)先行;点击深链回本 tab。 */
-function notifyTurnEnd(profileId: string, cwd: string, tabId: string): void {
-  const { settings } = getSettingsState();
-  if (isSsMuted(profileId, cwd) || !shouldNotify("turnEnd", settings, host.isWindowFocused(), settings)) return;
-  const name = `${host.getCliProfile(profileId)?.name ?? profileId} · ${t("带渲染的会话")}`;
-  const { title, body } = notifyText("turnEnd", "", { getSessions: () => [] }, name);
-  void sendOsNotification(title, body, () => focusStructuredSessionTab(tabId, profileId, cwd));
-}
-
 /** useSsSession 返回面(StructuredSessionTab 与子组件的共享契约)。 */
 export type SsSessionState = {
   phase: Phase; statusText: string | null; warns: string[]; blocks: CliTranscriptBlock[]; turnStart: number;
   busy: boolean; busySince: number | null; elapsed: number; confirm: PiRpcConfirm | null;
+  /** 最后活跃时刻(busy 双沿与挂载时更新;行投影闲时相对时间消费)。 */
+  lastActiveAt: number;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
   queued: number; stats: PiRpcStats | null; draft: string; setDraft: Dispatch<SetStateAction<string>>;
   liveSurface: PiLiveSurface; /* 流内活跃输出面(活思考/正文据此展开;见 PiRpcReducer.liveSurface) */
@@ -60,7 +52,11 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [queued, setQueued] = useState(0);
   const [stats, setStats] = useState<PiRpcStats | null>(null);
-  const [draft, setDraft] = useSsDraft(payload.profileId, payload.cwd);
+  /* 存储域(草稿/静音/重命名键):resume 会话带 # 判别后缀,并行互不串写。 */
+  const scope = ssScope(payload);
+  const [draft, setDraft] = useSsDraft(scope);
+  /* 最后活跃时刻(行投影闲时相对时间):挂载即记,busy 双沿刷新。 */
+  const [lastActiveAt, setLastActiveAt] = useState(() => Date.now());
   const sessionRef = useRef<PiRpcSession | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [evidence] = useState(() => new StructuredTurnEvidence(payload.cwd, ledgerId));
@@ -118,6 +114,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         onBusy: (b) => {
           setBusy(b);
           setBusySince(b ? Date.now() : null);
+          setLastActiveAt(Date.now());
           if (b) turnLive.begin();
           else turnLive.end();
           if (b) {
@@ -130,7 +127,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
             void sessionRef.current?.getStats().then((s) => { if (s) setStats(s); }).catch(() => undefined);
             if (promptDebtRef.current > 0) {
               promptDebtRef.current--;
-              notifyTurnEnd(payload.profileId, payload.cwd, ledgerId);
+              notifyTurnEnd(payload.profileId, payload.cwd, scope, ledgerId);
             }
           }
         },
@@ -291,7 +288,7 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   };
 
   return {
-    phase, statusText, warns, blocks, turnStart, busy, busySince, elapsed, confirm,
+    phase, statusText, warns, blocks, turnStart, busy, busySince, elapsed, confirm, lastActiveAt,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
     liveSurface, turnLive: turnLive.live,
     sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,

@@ -14,7 +14,8 @@ import { useEscClose } from "@kernel/DialogShell";
 import { RenameInput, type RenameTarget } from "@kernel/RenameInput";
 import { clampMenuPosition } from "./utils";
 import { closeTab, setActiveTab } from "@kernel/tabs";
-import { isSsMuted, toggleSsMute, openStructuredSessionTab, type StructuredSessionRow } from "@kernel/structuredSessionTabs";
+import { openStructuredSessionTab, type StructuredSessionRow } from "@kernel/structuredSessionTabs";
+import { isSsMuted, toggleSsMute } from "@kernel/structuredSessionOverlays";
 import { dismissClosedSsSession, type ClosedSsSession } from "@kernel/structuredSessionEnded";
 
 /** 秒数 → 「XmYs/XhYmZs/Ys」行内计时(busy 行)。 */
@@ -32,7 +33,7 @@ export function SsRowMenu({ row, position, onRename, onClose }: {
   onClose: () => void;
 }) {
   useEscClose(onClose);
-  const muted = isSsMuted(row.profileId, row.cwd);
+  const muted = isSsMuted(row.scope);
   const pos = clampMenuPosition(position.x, position.y);
   const item = (icon: React.ReactNode, label: string, run: () => void, danger = false) => (
     <button
@@ -54,7 +55,7 @@ export function SsRowMenu({ row, position, onRename, onClose }: {
       <div className="wsmenu session-menu" data-icon-decor="menu" style={{ left: pos.x, top: pos.y }}>
         {item(<ArrowCounterClockwise size="0.8125rem" />, t("跳转到会话"), () => setActiveTab(row.tabId))}
         {item(<Pencil size="0.8125rem" />, t("重命名"), onRename)}
-        {item(muted ? <BellSlash size="0.8125rem" /> : <Bell size="0.8125rem" />, muted ? t("取消静音通知") : t("静音通知"), () => toggleSsMute(row.profileId, row.cwd))}
+        {item(muted ? <BellSlash size="0.8125rem" /> : <Bell size="0.8125rem" />, muted ? t("取消静音通知") : t("静音通知"), () => toggleSsMute(row.scope))}
         {item(<X size="0.8125rem" />, t("关闭会话"), () => closeTab(row.tabId), true)}
       </div>
     </>,
