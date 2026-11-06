@@ -401,5 +401,8 @@
 | 2026-11-05 | [35 · RPC 会话体系对齐契约(kernel 行投影律/detach 泵与 label/boot 枚举收养/存证闭环/覆盖层自有键;R-PTY0 隔离红线)](architecture/35-rpc-session-parity.md) | 现行 |
 | 2026-11-05 | [RPC 会话体系对齐 UI 示例稿(D1-D6 推荐项全落形:左栏独立分区四态灯/右键最小集菜单/新建菜单重开上次入口/reload 重接 toast;含红线自检与 proc_stream 泵行为前提修正)](design/rpc-session-parity.html) | 设计原型(评审用) |
 | 2026-11-06 | [活轮过程内容批次折叠:滚动窗口只留最新 3 个思考/工具条目(窗内必含思考;折叠头复用落定态整体折叠头;落定整体折叠不变)](superpowers/specs/2026-11-06-live-turn-batch-fold-design.md) | 已实施 |
+| 2026-11-06 | [RPC 幕布左侧用户对话锚点栏(codemoss 刻度轨复刻:data-vb 直测定位,点击跳转,active 随滚动)](superpowers/specs/2026-11-06-rpc-canvas-user-anchor-rail-design.md) | 已实施 |
+| 2026-11-06 | [0.5.2 规划:RPC 体系 soak + 稳定性收口 + claude 引擎扩容(四路调研证据/五批主线/版本切分方案甲乙/不做清单/五项拍板)](brainstorm/2026-11-06-052-next-steps/README.md) | 待大仙拍板 |
+| 2026-11-06 | [0.5.2 实施拆解(十批次改动面/soak 八场景/RPC 真机矩阵/claude spike→落地/真机验收债与留观存量附录/通用门禁)](brainstorm/2026-11-06-052-next-steps/implementation.md) | 待拍板后执行 |
 
   变更契约不在本目录:进行中见 `openspec/changes/`,已归档见 `openspec/changes/archive/`,正式能力规格见 `openspec/specs/`。

@@ -23,6 +23,7 @@ import { useSettleKey } from "./ssSettleKey";
 import { useCanvasWidth } from "./ssCanvasResize";
 import { SsComposer } from "./ssComposer";
 import { SsWelcome } from "./ssWelcome";
+import { SsAnchorRail } from "./ssAnchorRail";
 import { useSsSession, type Phase } from "./ssSession";
 import "./structured-session.css";
 import { SsMarkdown } from "./ssMarkdown";
@@ -139,8 +140,10 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
 
 
   /* 用户消息流广播(处理插件对接:时间线面板直读,不经 PTY 锚点轮询)。
-   * key 变化才提交,流式 120ms flush 不放大行集提交。 */
-  const userTexts = useMemo(() => ss.blocks.filter((b) => b.role === "user").map((b) => b.text), [ss.blocks]);
+   * key 变化才提交,流式 120ms flush 不放大行集提交。userBlocks 同供左缘
+   * 锚点栏(data-vb 直测定位,见 ssAnchorRail)。 */
+  const userBlocks = useMemo(() => ss.blocks.filter((b) => b.role === "user").map((b) => ({ id: b.id, text: (b.text ?? "").trim() })), [ss.blocks]);
+  const userTexts = useMemo(() => userBlocks.map((b) => b.text), [userBlocks]);
   const userTextsKey = JSON.stringify(userTexts); /* 精确键:join("") 会把 ["a","bc"]/["ab","c"] 折成同键,行投影滞留 */
   useEffect(() => {
     noteStructuredSessionRow(tab.id, { userTexts });
@@ -179,6 +182,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
           setAway(!nearBottom && el.scrollHeight - el.clientHeight > 100);
         }}
       >
+        <SsAnchorRail scrollRef={scrollRef} users={userBlocks} />
         <PhaseBanners
           phase={ss.phase}
           statusText={ss.statusText}

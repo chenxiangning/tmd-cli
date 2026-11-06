@@ -114,6 +114,22 @@
 .ss-canvas-handle:hover, .ss-canvas-handle:active { opacity: 1; }
 .ss-canvas-handle:hover::before, .ss-canvas-handle:active::before { background: var(--tmd-fg-subtle); }
 
+/* 用户锚点栏(codemoss 刻度轨复刻 2026-11-06,spec 见 docs):滚动容器左缘
+ * 固定细轨;sticky 占位律同宽度抓手(top:0 + height:0 不占流),轨面高 =
+ * clientHeight(JS 量取),刻度按 docTop/scrollHeight 比例分布进垂直居中带
+ * (带高 60%)。按钮本体 = 26×16 透明命中区(2026-11-06 用户调整:悬停触发
+ * 从难到易),视觉条 = ::before 9px(宽 = 6 的 1.5x);hover 波浪式拉伸(::before
+ * 弹性缓动 overshoot 拉至 18px)+ 信息小卡(::after 浮层 = 用户消息前 160 字,
+ * width:max-content 不受窄按钮约束,竖直方向溢出兜底裁剪)。 */
+.ss-anchorail { position: sticky; top: 0; height: 0; overflow: visible; z-index: 5; pointer-events: none; }
+.ss-anchorail-face { position: absolute; top: 0; left: 2px; width: 10px; pointer-events: auto; }
+.ss-anchorail-tick { position: absolute; left: 0; width: 26px; height: 16px; padding: 0; border: none; background: transparent; transform: translateY(-8px); cursor: pointer; }
+.ss-anchorail-tick::before { content: ""; display: block; width: 9px; height: 2px; border-radius: 999px; background: var(--tmd-fg-faint); opacity: 0.7; transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), background var(--tmd-dur-1) var(--tmd-ease-out), opacity var(--tmd-dur-1) var(--tmd-ease-out); }
+.ss-anchorail-tick:hover::before { width: 18px; background: var(--tmd-fg-subtle); opacity: 1; }
+.ss-anchorail-tick.is-active::before { background: var(--tmd-fg); opacity: 1; }
+.ss-anchorail-tick::after { content: attr(data-label); position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); visibility: hidden; opacity: 0; width: max-content; max-width: 240px; max-height: 132px; padding: 6px 10px; border: 1px solid var(--tmd-border); border-radius: var(--tmd-radius-md); background: var(--tmd-bg-elevated); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); color: var(--tmd-fg); font-size: var(--tmd-font-md); line-height: 1.5; text-align: left; white-space: normal; overflow: hidden; pointer-events: none; transition: opacity var(--tmd-dur-1) var(--tmd-ease-out), visibility var(--tmd-dur-1) var(--tmd-ease-out); }
+.ss-anchorail-tick:hover::after { visibility: visible; opacity: 1; }
+
 /* 审批条(extension_ui confirm 回路;不自动批准)。内联非模态卡语义与键盘
    回路见 confirmCard.tsx;is-danger = 插件侧启发式染红,协议零改动。 */
 .ss-confirm { flex: none; display: flex; flex-direction: column; gap: 6px; margin: 0 14px 8px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--tmd-warn) 55%, transparent); border-radius: var(--tmd-radius-md); background: color-mix(in srgb, var(--tmd-warn) 8%, transparent); animation: ssRise var(--tmd-dur-1) var(--tmd-ease-move); }
