@@ -78,6 +78,31 @@ function SsWarnList(props: { warns: string[]; widthPct: number; onDismiss: (inde
   );
 }
 
+/* 看门狗常驻横幅(B2-1):busy 静默超限 → 重试/中断两出口,计时走字,
+ * 新帧 stamp 自动消隐(视觉对齐 ss-warn 琥珀系,横条置幕布外 flex:none)。 */
+function StallBanner(props: { staleSince: number | null; onRetry: () => void; onKill: () => void }) {
+  const staleSince = props.staleSince;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (staleSince == null) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, [staleSince]);
+  if (staleSince == null) return null;
+  const secs = Math.max(0, Math.round((now - staleSince) / 1000));
+  return (
+    <div className="ss-stall" role="alert">
+      <Warning size="0.875rem" weight="fill" aria-hidden />
+      <span className="ss-stall-text">{t("引擎长时间无输出,可能已挂起")}</span>
+      <span className="ss-stall-clock">{t("静默")} {Math.floor(secs / 60)}m{secs % 60}s</span>
+      <span className="ss-stall-grow" />
+      <button type="button" className="ss-stall-btn" onClick={props.onRetry}>{t("重试")}</button>
+      <button type="button" className="ss-stall-btn" onClick={props.onKill}>{t("中断")}</button>
+    </div>
+  );
+}
+
 export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
   useHost(); /* profile 注册/工作区变化 */
   const payload = tab.payload as StructuredSessionPayload;
@@ -258,6 +283,7 @@ export function StructuredSessionTab({ tab }: { tab: EditorTab }) {
           <span className="ss-working-for">{t("working for")}{ss.elapsed}s</span>
         </div>
       ) : null}
+      <StallBanner staleSince={ss.staleSince} onRetry={ss.retry} onKill={() => ss.sessionRef.current?.kill()} />
       <SsComposer ss={ss} profileId={payload.profileId} cwd={payload.cwd} />
     </div>
   );

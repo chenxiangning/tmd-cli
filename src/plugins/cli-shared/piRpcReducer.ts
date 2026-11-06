@@ -100,13 +100,14 @@ export class PiRpcReducer {
   feed(rec: Record<string, unknown>): CliTranscriptBlock[] {
     const type = rec.type;
     /* 18.6 起轮界帧更名 turn_start(18.4 为 session_start,双名兼容);turn_end
-     * 同义忽略,结算走 session_settled(18.6 实测在发)。 */
+     * 同义忽略;结算帧双名 —— omp 18.x session_settled,pi 1.4.0 agent_settled
+     * (2026-11-06 本机 pi 1.4.0 抓包实证)。 */
     if (type === "session_start" || type === "turn_start") {
       /* 先推进轮界再注回显(echo 下标 = 新 turnStart 归活轮切片);反过来会落进上轮。 */
       this.turnStart = this.blocks.length;
       this.turnOpen = true;
       this.flushUserEcho();
-    } else if (type === "session_settled") {
+    } else if (type === "session_settled" || type === "agent_settled") {
       this.turnOpen = false;
       this.settleTurn();
     } else if (type === "agent_start") {

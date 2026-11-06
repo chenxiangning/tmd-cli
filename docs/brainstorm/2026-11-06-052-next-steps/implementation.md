@@ -71,6 +71,14 @@
 
 6. **follow_up 排队锚位判据(批次 F review P2 转入)**:多步轮期间排队的 follow_up,其 checkpoint 锚会被下一引擎步的 agent_start 提前消费(锚落轮 1 中段,恢复语义歪斜)。修法方向 = 把 turn_start 轮界信号接入 evidence(仅「跟随 turn_start 的 agent_start」消费队列,引擎自主步走 rearm 分支);**先采实证**:真实 pi RPC 会话跑多步轮 + 中途排队 follow_up,抓帧序确认多步轮内 turn_start 是否逐步重发,再定判据(piRpc.ts 299 行贴线,改动需同步预算拆分)。
 
+> B2 实施记录(2026-11-06):①watchdog 已升级常驻横幅(ssWatchdog 暴露 staleSince,sessionTab StallBanner 重试/中断两出口 + 静默计时,i18n 三语);②adoptDiskSeed 增 onMiss 如实提示(命中但空转录不误报,dropResume 降级不提示);③深链两处已修(仅「确是那盘会话」算 jumped,错会话落磁盘转录查看器;通知点击已关 tab 带 resume 重开);④relay 按钮**复核不改**(relayOpenRef = kernel 闸语义,插件 activate 先于 React 挂载,风险窗口仅插件禁用,灰钮即意图);⑤孤儿收割已收紧;⑥见下。
+>
+> **B2-6 实证(2026-11-06,本机 pi 1.4.0 裸驱 `--mode rpc`,/tmp/b2-6-spike/capture.jsonl)**:
+> - **P1 帧名漂移(已修)**:pi 1.4.0 结算帧 = `agent_settled`(整 run 一次,agent_start 亦一次),**不发 session_settled**(omp 18.x 帧名)→ piRpc/reducer 只认旧名会 busy 永不回落、活轮永不落定。已按双名先例补 `agent_settled`(piRpc + reducer + 测试)。
+> - **原判据不成立**:排队 follow_up 起跑轮界与引擎自主步完全同形(turn_end→turn_start,均无 agent_start;实证 50021ms 派发 = turn_start+queue_update+回显)。下一候选 = queue_update 队列长度 ≥1→0 变化,需复抓 payload;修复挂起归 B2 二轮。
+> - 附带:pi 1.4.0 每 0.5~1s 广播 2 帧 extension_ui_request 心跳(150s 323 帧,非 confirm,default 分支已忽略),留观。
+> - pi 1.4.0 = 单 busy 周期整 run;「逐步 settled 震荡」属 omp 18.x 形态,F 修复对两者均正确。
+
 ## 批次 C1:claude stream-json spike(0.5~1 人日,零码)
 
 **目标**:本机实证 claude 双向流协议(**输入侧 + 输出侧**),产出调研底稿,作为 C2 拍板依据。输出侧只够拍「能不能接」,输入侧才够估「传输层工作量」(复审 P1-3)。

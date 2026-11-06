@@ -41,6 +41,16 @@ describe("PiRpcReducer(轮级工具行 + 流内 think/text)", () => {
     expect(user?.text).toBe("构建项目");
   });
 
+  it("结算帧双名:pi 1.4.0 的 agent_settled 与 session_settled 等价(轮界推进 + 开闭旗落)", () => {
+    const r = new PiRpcReducer();
+    r.feed(frame("turn_start"));
+    expect(r.hasOpenTurn()).toBe(true);
+    r.feed(msgStart("user"));
+    r.feed(delta("text_delta", "问"));
+    const blocks = r.feed(frame("agent_settled"));
+    expect(r.hasOpenTurn()).toBe(false);
+    expect(r.turnStart).toBe(blocks.length);
+  });
   it("18.6 帧序:turn_start 推进轮界,无 session_start 也不滞留", () => {
     const r = new PiRpcReducer();
     r.feed(frame("agent_start"));

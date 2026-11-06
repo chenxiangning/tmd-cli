@@ -26,6 +26,8 @@ export type SsSessionState = {
   phase: Phase; statusText: string | null; warns: string[]; blocks: CliTranscriptBlock[]; turnStart: number;
   /** 轮进行中(turnLive 宽限沿驱动:多步轮逐步 settled 不闪;busy/busySince/通知/未读同源,批次 F)。 */
   busy: boolean; busySince: number | null; elapsed: number; confirm: PiRpcConfirm | null;
+  /** 看门狗静默起点(B2-1):busy 且 >5min 无帧常驻,新帧即消隐;横幅出口见 sessionTab。 */
+  staleSince: number | null;
   /** 最后活跃时刻(busy 双沿与挂载时更新;行投影闲时相对时间消费)。 */
   lastActiveAt: number;
   model: PiRpcModel | null; thinkingLevel: string | null; sessionId: string | null;
@@ -79,7 +81,8 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
   };
   /* 生命周期:mount 起子进程,unmount kill 收割(StrictMode 双跑 startedRef 挡;收养流延迟收割见 adoptBoot)。 */
   const startedRef = useRef(false);
-  const { stamp } = useTurnWatchdog(turnClock.busy, t("引擎超过 5 分钟无输出,可能已僵死;可中止或重试"), addWarn);
+  /* 审批等待期引擎合法静默(confirm 挂起不布防,应答后自然重起;review P2-1)。 */
+  const { stamp, staleSince } = useTurnWatchdog(turnClock.busy && confirm == null);
   const resumeRef = useRef<string | null>(null); const seedRef = useRef<CliTranscriptBlock[] | null>(null); const seedKeepRef = useRef(true);
   const dropResumeRef = useRef(false); // resume 目标已判 not found(降级新建,只降一次防循环)
   const startSession = () => {
@@ -163,9 +166,14 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
         /* ready 即清启动期状态行(陈旧 stderr 不挂 header);warn 胶囊独立保留。 */
         setStatusText(null);
         setPhase("ready");
-        /* adopt/resume 后置种子:磁盘转录补历史(读不到静默空幕布;候选 id 握手 sid
-         * 优先,引擎换壳 sid 变化时回落请求的 resumeSessionId)。 */
-        if (payload.adoptStreamId || payload.resumeSessionId) void adoptDiskSeed(session, payload, state?.sessionId, payload.resumeSessionId);
+        /* adopt/resume 后置种子:磁盘转录补历史(读不到经 onMiss 如实提示 B2;
+         * 候选 id 握手 sid 优先,引擎换壳 sid 变化时回落请求的 resumeSessionId)。 */
+        if (payload.adoptStreamId || payload.resumeSessionId) void adoptDiskSeed(
+          session, payload,
+          [state?.sessionId, payload.resumeSessionId],
+          /* 降级新建(dropResume)不提示:引擎明言会话不存在,空幕布即正确态。 */
+          () => { if (!dropResumeRef.current) addWarn(t("未读到历史转录,仅显示实时内容")); },
+        );
         if (state?.sessionId) {
           noteLastSsSession(payload.profileId, payload.cwd, state.sessionId);
           noteSsRpcSession(state.sessionId);
@@ -282,6 +290,6 @@ export function useSsSession(payload: StructuredSessionPayload, ledgerId: string
     elapsed: turnClock.elapsed, confirm, lastActiveAt: turnClock.lastActiveAt,
     model, thinkingLevel, sessionId, queued, stats, draft, setDraft,
     liveSurface, turnLive: turnLive.live,
-    sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn,
+    sessionRef, stickRef, retry, send, answerConfirm, onStateRefresh, dismissWarn, staleSince,
   };
 }
